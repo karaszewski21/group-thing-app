@@ -1,0 +1,21 @@
+# Python (src/backend)
+__pycache__/
+*.pyc
+.venv/
+.ruff_cache/
+.mypy_cache/
+.pytest_cache/
+uv.lock.tmp
+
+# Environment / secrets
+.env
+.env.*
+!.env.example
+
+# Node (src/frontend, plugins/*)
+node_modules/
+dist/
+
+# Editor/OS
+.DS_Store
+Thumbs.db

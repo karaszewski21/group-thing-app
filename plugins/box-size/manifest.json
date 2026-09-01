@@ -1,0 +1,20 @@
+{
+  "name": "Box Size",
+  "version": "1.0.0",
+  "url": "http://localhost:3002",
+  "description": "Track box dimensions (L×W×H in cm) for products",
+  "extensionPoints": [
+    {
+      "type": "product.detail.tabs",
+      "label": "Box Size",
+      "path": "/product-box",
+      "priority": 60
+    },
+    {
+      "type": "product.detail.info",
+      "label": "Box Size",
+      "path": "/product-box-badge",
+      "priority": 20
+    }
+  ]
+}

@@ -1,0 +1,34 @@
+{
+  "name": "Warehouse Management",
+  "version": "1.0.0",
+  "url": "http://localhost:3001",
+  "description": "Manages warehouse inventory and stock levels",
+  "extensionPoints": [
+    {
+      "type": "menu.main",
+      "label": "Warehouse",
+      "icon": "warehouse",
+      "path": "/",
+      "priority": 100
+    },
+    {
+      "type": "product.detail.tabs",
+      "label": "Stock Info",
+      "path": "/product-stock",
+      "priority": 50
+    },
+    {
+      "type": "product.list.filters",
+      "label": "In Stock",
+      "filterKey": "stock",
+      "filterType": "boolean",
+      "priority": 10
+    },
+    {
+      "type": "product.detail.info",
+      "label": "Availability",
+      "path": "/product-availability",
+      "priority": 10
+    }
+  ]
+}

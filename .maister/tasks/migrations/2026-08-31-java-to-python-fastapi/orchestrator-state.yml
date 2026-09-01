@@ -1,0 +1,95 @@
+orchestrator:
+  started_phase: phase-5
+  completed_phases: [phase-1, phase-2, phase-3, phase-4]
+  failed_phases: []
+  auto_fix_attempts: {}
+  options:
+    e2e_enabled: null
+    user_docs_enabled: null
+    code_review_enabled: null
+    sequential: null
+  created: "2026-08-31T00:00:00"
+  updated: "2026-08-31T00:00:00"
+  task_path: .maister/tasks/migrations/2026-08-31-java-to-python-fastapi
+  task_ids: {}
+
+task:
+  title: "Migrate backend from Java/Spring Boot to Python (uv + FastAPI)"
+  description: >
+    Full backend rewrite from Java 25 / Spring Boot 4.0.5 (src/backend/) to
+    Python using uv for project/dependency management and FastAPI as the web
+    framework. Covers REST controllers, JPA entities, JOOQ queries, Liquibase
+    migrations, Spring Security JWT + custom OAuth2 authorization server,
+    plugin system (PluginDescriptor/PluginObject/PluginController),
+    category/product domain, pricing archetype, footprint domain. Frontend
+    (src/frontend) and plugin apps (plugins/) are out of scope except for API
+    contract compatibility. Update .maister/docs/project/tech-stack.md and
+    architecture.md as part of the migration.
+  status: in_progress
+  tags: [migration, backend, python, fastapi]
+  priority: high
+
+migration_context:
+  migration_type: "code"  # primary; secondary architecture-adjacent characteristic (schema/build/deployment
+                            # created from scratch, not migrated) noted separately, doesn't fit single enum value
+  current_system:
+    description: "Java 25, Spring Boot 4.0.5, Spring Data JPA + JOOQ (dual), PostgreSQL, Liquibase (claimed, absent), Spring Security (JWT + custom OAuth2 auth server), Maven (claimed, absent - no build file exists)"
+    technologies: [java, spring-boot, spring-data-jpa, jooq, postgresql, spring-security]
+  target_system:
+    description: >
+      Python 3.12+, uv, FastAPI, SQLAlchemy 2.x (async ORM + Core for dynamic/JSONB queries),
+      Alembic, asyncpg, PyJWT, bcrypt, Pydantic v2, uvicorn, tenacity (background-task retry),
+      ruff + mypy (lint/type gates only, no test suite per clarification Q2). Dockerfile +
+      docker-compose (Postgres 18 + FastAPI on port 8080 per vite.config.ts proxy) per clarification Q4.
+    technologies: [python, fastapi, sqlalchemy, asyncpg, alembic, pyjwt, bcrypt, pydantic, uvicorn, tenacity, uv, ruff, mypy]
+  migration_strategy:
+    approach: "phased-internal-execution, big-bang-delivery"
+    phases:
+      - "contract-freeze (golden reference: routes, DTOs, error envelopes, JWT/OAuth2 wire shapes)"
+      - "schema-first (Alembic migrations reconstructed from JPA annotations, incl. undeclared FKs/constraints)"
+      - "auth/OAuth2 server in isolation, verified against golden reference"
+      - "category -> product -> plugin system (ascending complexity)"
+      - "footprint module (pricing archetype + calculation engine + audit pipeline + export)"
+      - "manual contract verification pass (no automated test suite in scope)"
+      - "DevOps stand-up (Dockerfile/compose), incrementally alongside schema-first step"
+  risk_level: "high"
+  breaking_changes:
+    - "None intended for external consumers - full route table, both error-response envelopes, JWT claim shape preserved exactly."
+    - "PER_100G footprint validation currently raises untyped exception -> legacy envelope instead of RFC7807; default: preserve as-is."
+    - "OAuth2 code/refresh-token stores are in-memory single-instance today; default: preserve in-memory, not persisted."
+    - "products.category_id FK and several other constraints exist only implicitly (JPA annotations) and must be explicitly declared in first Alembic migration."
+  rollback_plan_created: true   # analysis/rollback-plan.md - no live rollback path exists (first-ever deployment); git history only
+  dual_run_configured: false    # not feasible: no running/buildable Java baseline exists
+
+resolved_facts:
+  plugin_data_put_semantics: "REPLACE (not merge) - PluginDataService.setData does pluginData.put(pluginId, data), replacing the whole blob at that key"
+  frontend_proxy_port: 8080  # src/frontend/vite.config.ts proxies /api to http://localhost:8080
+
+verification_context:
+  decisions_made:
+    - "PER_100G untyped-exception bug: preserve as-is (legacy error envelope), do not fix/change envelope shape"
+    - "OAuth2 authorization-code/refresh-token stores: preserve in-memory, single-instance behavior; do not persist to Postgres/Redis"
+    - "@Version-as-updatedAt optimistic locking: preserve exactly via SQLAlchemy version_id_col with timestamp generator; do not split into separate audit-timestamp + integer version columns"
+    - "Footprint emission-factor/product-attribute stub ports: keep as in-memory stubs (1:1 port of current seed data); wiring a real adapter is out of scope, a follow-up task"
+  last_status: null
+  issues_found: []
+  fixes_applied: []
+  reverify_count: 0
+
+external_research:
+  performed: false
+  category: null
+  breaking_changes: []
+  migration_guide_url: null
+
+verification_context:
+  last_status: null
+  issues_found: []
+  fixes_applied: []
+  decisions_made: []
+  reverify_count: 0
+
+project_context:
+  project_doc_paths:
+    - .maister/docs/project/tech-stack.md
+    - .maister/docs/project/architecture.md
