@@ -1,6 +1,6 @@
 orchestrator:
   started_phase: phase-5
-  completed_phases: [phase-1, phase-2, phase-3, phase-4]
+  completed_phases: [phase-1, phase-2, phase-3, phase-4, phase-5]
   failed_phases: []
   auto_fix_attempts: {}
   options:
@@ -9,7 +9,7 @@ orchestrator:
     code_review_enabled: null
     sequential: null
   created: "2026-08-31T00:00:00"
-  updated: "2026-08-31T00:00:00"
+  updated: "2026-09-01T00:00:00"
   task_path: .maister/tasks/migrations/2026-08-31-java-to-python-fastapi
   task_ids: {}
 
@@ -25,9 +25,15 @@ task:
     (src/frontend) and plugin apps (plugins/) are out of scope except for API
     contract compatibility. Update .maister/docs/project/tech-stack.md and
     architecture.md as part of the migration.
-  status: in_progress
+  status: paused_after_phase_5
   tags: [migration, backend, python, fastapi]
   priority: high
+  pause_note: >
+    User chose to stop after Phase 5 exit gate (2026-09-01) instead of continuing to
+    Phase 6 verification. All 15 implementation task groups are complete and the
+    backend is functionally ready; Groups 1-14's work is still uncommitted in the
+    working tree. Resume with /maister:migration --from=phase-6 (or phase-7/8) when
+    ready to continue the formal workflow.
 
 migration_context:
   migration_type: "code"  # primary; secondary architecture-adjacent characteristic (schema/build/deployment
@@ -71,7 +77,9 @@ verification_context:
     - "OAuth2 authorization-code/refresh-token stores: preserve in-memory, single-instance behavior; do not persist to Postgres/Redis"
     - "@Version-as-updatedAt optimistic locking: preserve exactly via SQLAlchemy version_id_col with timestamp generator; do not split into separate audit-timestamp + integer version columns"
     - "Footprint emission-factor/product-attribute stub ports: keep as in-memory stubs (1:1 port of current seed data); wiring a real adapter is out of scope, a follow-up task"
-  last_status: null
+    - "/oauth2/authorize generic-401 gap (route gated by Depends(require_any()) before handler's own OAuth2-shaped step-7 validation runs): accepted as-is, no fix - plausibly a preserved property of the original Spring Security filter-chain layering, no consumer depends on the OAuth2-shaped 401 at this point"
+    - "PER_100G HTTP-unreachability (router's own <=0 guard + all seed products having positive material_weight_kg make the bug structurally unreachable via HTTP): accepted, 'preserved but dormant' is correct per the PER_100G preserve-as-is decision above"
+  last_status: "Group 15 (final manual contract verification pass) SUCCESS - all 15 implementation task groups complete, ruff+mypy strict clean, all 4 fixed decisions + both open gaps re-confirmed live against a freshly rebuilt docker-compose stack"
   issues_found: []
   fixes_applied: []
   reverify_count: 0
@@ -81,13 +89,6 @@ external_research:
   category: null
   breaking_changes: []
   migration_guide_url: null
-
-verification_context:
-  last_status: null
-  issues_found: []
-  fixes_applied: []
-  decisions_made: []
-  reverify_count: 0
 
 project_context:
   project_doc_paths:

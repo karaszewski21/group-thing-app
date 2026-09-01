@@ -236,9 +236,7 @@ async def export_footprint_csv(
         raise InvalidParametersException("format", format)
 
     result = await db.execute(
-        select(FootprintAuditEntity).where(
-            FootprintAuditEntity.correlation_id == correlation_id
-        )
+        select(FootprintAuditEntity).where(FootprintAuditEntity.correlation_id == correlation_id)
     )
     entity = result.scalar_one_or_none()
     if entity is None:
@@ -248,7 +246,5 @@ async def export_footprint_csv(
     return Response(
         content=csv_text,
         media_type="text/csv; charset=utf-8",
-        headers={
-            "Content-Disposition": f'attachment; filename="footprint-{correlation_id}.csv"'
-        },
+        headers={"Content-Disposition": f'attachment; filename="footprint-{correlation_id}.csv"'},
     )

@@ -1,0 +1,104 @@
+databaseChangeLog:
+  - changeSet:
+      id: 011-create-footprint-audit-log
+      author: footprint-engine
+      changes:
+        - createSequence:
+            sequenceName: footprint_audit_log_id_seq
+            startValue: 1
+            incrementBy: 1
+        - createTable:
+            tableName: footprint_audit_log
+            columns:
+              - column:
+                  name: id
+                  type: bigint
+                  defaultValueSequenceNext: footprint_audit_log_id_seq
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: correlation_id
+                  type: uuid
+                  constraints:
+                    nullable: false
+                    unique: true
+                    uniqueConstraintName: uk_footprint_audit_correlation_id
+              - column:
+                  name: comparison_group_id
+                  type: uuid
+              - column:
+                  name: product_id
+                  type: varchar(100)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: caller_id
+                  type: varchar(100)
+              - column:
+                  name: requested_at
+                  type: timestamp without time zone
+                  constraints:
+                    nullable: false
+              - column:
+                  name: total_kg_co2
+                  type: numeric(12, 4)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: strictness
+                  type: varchar(16)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: normalisation
+                  type: varchar(16)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: breakdown
+                  type: jsonb
+                  constraints:
+                    nullable: false
+              - column:
+                  name: warnings
+                  type: jsonb
+                  constraints:
+                    nullable: false
+              - column:
+                  name: factor_versions
+                  type: jsonb
+                  constraints:
+                    nullable: false
+              - column:
+                  name: dry_run
+                  type: boolean
+                  defaultValueBoolean: false
+                  constraints:
+                    nullable: false
+              - column:
+                  name: created_at
+                  type: timestamp without time zone
+                  defaultValueComputed: now()
+                  constraints:
+                    nullable: false
+              - column:
+                  name: updated_at
+                  type: timestamp without time zone
+                  defaultValueComputed: now()
+                  constraints:
+                    nullable: false
+        - createIndex:
+            indexName: idx_footprint_audit_product_requested
+            tableName: footprint_audit_log
+            columns:
+              - column:
+                  name: product_id
+              - column:
+                  name: requested_at
+        - createIndex:
+            indexName: idx_footprint_audit_correlation_id
+            tableName: footprint_audit_log
+            columns:
+              - column:
+                  name: correlation_id

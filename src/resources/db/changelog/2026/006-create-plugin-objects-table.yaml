@@ -1,0 +1,83 @@
+databaseChangeLog:
+  - changeSet:
+      id: 006-create-plugin-object-seq
+      author: aj
+      changes:
+        - createSequence:
+            sequenceName: plugin_object_seq
+            startValue: 1
+            incrementBy: 1
+      rollback:
+        - dropSequence:
+            sequenceName: plugin_object_seq
+
+  - changeSet:
+      id: 006-create-plugin-objects-table
+      author: aj
+      changes:
+        - createTable:
+            tableName: plugin_objects
+            columns:
+              - column:
+                  name: id
+                  type: BIGINT
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: plugin_id
+                  type: VARCHAR(255)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: object_type
+                  type: VARCHAR(255)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: object_id
+                  type: VARCHAR(255)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: data
+                  type: JSONB
+                  constraints:
+                    nullable: false
+              - column:
+                  name: created_at
+                  type: TIMESTAMP
+                  constraints:
+                    nullable: false
+              - column:
+                  name: updated_at
+                  type: TIMESTAMP
+                  constraints:
+                    nullable: false
+        - addForeignKeyConstraint:
+            baseTableName: plugin_objects
+            baseColumnNames: plugin_id
+            referencedTableName: plugins
+            referencedColumnNames: id
+            constraintName: fk_plugin_objects_plugin_id
+        - addUniqueConstraint:
+            tableName: plugin_objects
+            columnNames: plugin_id, object_type, object_id
+            constraintName: uk_plugin_objects_plugin_type_id
+        - createIndex:
+            tableName: plugin_objects
+            indexName: idx_plugin_objects_plugin_id
+            columns:
+              - column:
+                  name: plugin_id
+        - createIndex:
+            tableName: plugin_objects
+            indexName: idx_plugin_objects_plugin_type
+            columns:
+              - column:
+                  name: plugin_id
+              - column:
+                  name: object_type
+      rollback:
+        - dropTable:
+            tableName: plugin_objects

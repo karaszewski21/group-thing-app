@@ -1,505 +1,149 @@
-## jOOQ Query Standards (Professional Edition)
+## SQLAlchemy Core Dynamic-Query Standards
+
+*Migrated from jOOQ — see history note at the end of this file.*
 
 ### Overview
 
-**jOOQ (Java Object Oriented Querying)** is used for complex, performance-demanding queries that require more control than JPA/Hibernate provides. We use the **Professional Edition** with advanced enterprise features.
+**SQLAlchemy Core** (`select()`, `text()`, column expressions) is used for the two dynamic filter-DSL query services that need more control over generated SQL than the declarative ORM's relationship/filter API comfortably provides. The ORM (`select(Model).where(...)`) remains the default for everything else — see `standards/backend/queries.md`.
 
-**When to use jOOQ**:
-- Complex aggregations with window functions
-- Performance-critical queries requiring fine-tuned SQL
-- Advanced SQL features (CTEs, recursive queries, advanced joins)
-- Bulk operations requiring precise control
-- Reports and analytics queries
-- Queries that require database-specific optimizations
+**When to use Core directly** (as opposed to `select(Model).where(ORM-mapped-column == value)`):
+- Building a WHERE clause dynamically from user-supplied, semi-structured filter strings (the two cases below)
+- JSONB path traversal (`->`, `->>`, `jsonb_exists`) where the path itself is partly caller-controlled
+- Casting a JSONB text extraction to `Numeric`/`Boolean` for typed comparison
 
-**When to use JPA** (see [queries.md](./queries.md)):
-- Standard CRUD operations
-- Simple entity relationships
-- Queries fitting Spring Data JPA repository patterns
-- When ORM abstraction benefits outweigh performance needs
+**When the plain ORM query API is enough** (see `queries.md`):
+- Standard CRUD, fixed WHERE clauses, simple joins/eager-loads
+
+---
+
+### The Two Filter-DSL Parsers — Deliberately Separate
+
+Two independent filter-string parsers exist:
+
+- **`app/product/query_service.py`** — `_parse_plugin_filter`, a 4-part `{pluginId}:{jsonPath}:{operator}:{value}` grammar (repeatable `pluginFilter` query param), splitting with `raw.split(":", 3)`. Operates on `Product.plugin_data->'{pluginId}'->>'{jsonPath}'`.
+- **`app/plugin/query_service.py`** — `parse_filter`, a 3-part `{jsonPath}:{operator}:{value}` grammar (single, non-repeatable `filter` query param), splitting with `raw.split(":", 2)`. No `pluginId` segment — the plugin is already bound from the route path (`/api/plugins/{plugin_id}/objects`). Operates on `PluginObject.data->>'{jsonPath}'`.
+
+**They are NOT unified into one shared parser, on purpose.** They differ in split-limit (`3` vs `2`), in JSONB path depth (two-level `plugin_data->pluginId->>jsonPath` vs single-level `data->>jsonPath`), and in their exact error-message wording (`"Invalid pluginFilter format..."` vs `"Invalid filter format..."`). A prior draft of this migration's target-state plan suggested factoring them together; the actual specification and per-group task instructions explicitly said to keep them separate, and that was followed — attempting to unify them risks silently changing one grammar's split limit or error message to match the other's. Only the regex/operator-allowlist *constants* are shared, via `app/core/filter_dsl.py` (`ALLOWED_OPERATORS`, `IDENTIFIER_PATTERN`) — never a shared parsing function.
+
+If you need to add a third filter-DSL grammar somewhere else in the codebase, default to writing a third independent parser following this same pattern (regex-validate-then-splice, see below) rather than trying to generalize the existing two.
 
 ---
 
 ### Design Principles
 
-#### 1. Type Safety
+#### 1. Bind-Parameter Discipline for User Input
 
-**DO**: Leverage jOOQ's type-safe DSL
-```java
-// GOOD: Type-safe query with generated code
-Result<Record3<Long, String, Integer>> result = dsl
-    .select(CUSTOMER.ID, CUSTOMER.NAME, count())
-    .from(CUSTOMER)
-    .join(SUBSCRIPTION).on(CUSTOMER.ID.eq(SUBSCRIPTION.CUSTOMER_ID))
-    .where(SUBSCRIPTION.STATUS.eq("ACTIVE"))
-    .groupBy(CUSTOMER.ID, CUSTOMER.NAME)
-    .fetch();
+**DO**: bind actual comparison *values* as query parameters, always
+```python
+numeric_path = cast(_path_as_text(plugin_id, json_path), Numeric)
+return numeric_path > numeric_value  # numeric_value is a bound Decimal, never spliced
 ```
 
-**DON'T**: Build SQL strings manually
-```java
-// BAD: SQL injection risk, no type safety
-String sql = "SELECT c.id, c.name, COUNT(*) " +
-             "FROM customer c JOIN subscription s " +
-             "WHERE s.status = '" + status + "'";
-Result<Record> result = dsl.fetch(sql);
+**DON'T**: splice a comparison value directly into SQL text — this is the one part of these query services that must never be spliced, unlike path segments (see below).
+
+#### 2. Regex-Validate-Then-Splice for JSON-Path Segments
+
+Path segments (`pluginId`, `jsonPath`) are validated against `IDENTIFIER_PATTERN` (`^[a-zA-Z0-9_.-]+$`) **before** being spliced directly into SQL text via `text(f"'{value}'")`. This is safe *only* because the allowlist regex forbids quotes, backslashes, and every other SQL metacharacter — it is not a general-purpose escaping mechanism, and this pattern must never be applied to a value that hasn't first passed the identifier regex.
+
+```python
+def _spliced_literal(value: str) -> TextClause:
+    """`value` MUST already be regex-validated (IDENTIFIER_PATTERN) by the
+    caller before this is called — spliced directly into SQL text as a
+    literal, never bound."""
+    return text(f"'{value}'")
 ```
 
-#### 2. SQL Injection Prevention
+Why splice path segments at all instead of binding them too: Postgres's `->`/`->>` JSONB operators take the key as a literal in most of these expressions' natural form; the `exists` operator is the deliberate exception (see below), where both `pluginId`/`jsonPath` (or just `jsonPath`, for the plugin-object variant) ARE bound as plain function arguments to `func.jsonb_exists(...)`, not spliced. **This asymmetry (splice for `eq`/`gt`/`lt`/`bool`, bind for `exists`) is intentional, not an inconsistency to "fix"** — it follows the literal operator-by-operator translation the specification set out; don't unify it into "always bind" or "always splice" without re-checking that the generated SQL and JSONB traversal semantics still match for every operator.
 
-**DO**: Always use bind variables
-```java
-// GOOD: Parameterized query
-dsl.select(CUSTOMER.NAME)
-   .from(CUSTOMER)
-   .where(CUSTOMER.EMAIL.eq(email))  // Automatic bind variable
-   .fetch();
+#### 3. Split-Limit Grammar, Not a Full Tokenizer
 
-// GOOD: Explicit bind variables
-dsl.select(CUSTOMER.NAME)
-   .from(CUSTOMER)
-   .where("email = ?", email)  // Explicit binding
-   .fetch();
-```
-
-**DON'T**: Concatenate user input
-```java
-// BAD: SQL injection vulnerability
-dsl.select(CUSTOMER.NAME)
-   .from(CUSTOMER)
-   .where("email = '" + email + "'")  // VULNERABLE!
-   .fetch();
-```
-
-#### 3. Code Generation
-
-**DO**: Use generated classes for all schema objects
-```java
-// GOOD: Generated table and column references
-dsl.selectFrom(SUBSCRIPTION)
-   .where(SUBSCRIPTION.CUSTOMER_ID.eq(customerId))
-   .and(SUBSCRIPTION.STATUS.in("ACTIVE", "TRIAL"))
-   .fetch();
-```
-
-**DON'T**: Use string literals for table/column names
-```java
-// BAD: No compile-time checking, breaks on schema changes
-dsl.select()
-   .from("subscription")
-   .where("customer_id = ?", customerId)
-   .fetch();
-```
+Both parsers use Python's `str.split(sep, maxsplit)` with a fixed `maxsplit`, not a general tokenizer/grammar library. Validation order and exact error-message wording matter for backward-compatible clients — don't reorder checks or reword messages without checking whether wire-compatibility is actually required for a caller in scope.
 
 ---
 
 ### Mandatory Rules
 
-#### N+1 Problem Prevention
-
-**DO**: Use JOIN or MULTISET for loading related data
-```java
-// GOOD: Single query with MULTISET
-dsl.select(
-       CUSTOMER.ID,
-       CUSTOMER.NAME,
-       multiset(
-           select(SUBSCRIPTION.ID, SUBSCRIPTION.STATUS)
-           .from(SUBSCRIPTION)
-           .where(SUBSCRIPTION.CUSTOMER_ID.eq(CUSTOMER.ID))
-       ).as("subscriptions")
-   )
-   .from(CUSTOMER)
-   .fetch();
-```
-
-**DON'T**: Loop over parent records and query children
-```java
-// BAD: N+1 queries
-List<Customer> customers = dsl.selectFrom(CUSTOMER).fetch().into(Customer.class);
-for (Customer customer : customers) {
-    List<Subscription> subs = dsl.selectFrom(SUBSCRIPTION)
-        .where(SUBSCRIPTION.CUSTOMER_ID.eq(customer.getId()))
-        .fetch()
-        .into(Subscription.class);
-}
-```
+#### N+1 Prevention
+Use an explicit `joinedload(...)`/`selectinload(...)` `.options(...)` on the `select()` statement for any relationship the caller will actually read — see `standards/backend/models.md`'s Fetch Types section (`AsyncSession` has no implicit lazy-load fallback to accidentally rely on, so N+1 here usually shows up as a crash, not a silent slow query).
 
 #### Query Optimization Rules
 
-**1. Use MULTISET for nested collections (jOOQ 3.15+)**
-```java
-record CustomerWithSubscriptions(Long id, String name, List<Subscription> subscriptions) {}
+**1. Project only needed columns** — `select(Product)` for a full-row fetch is fine (`selectinload`/`joinedload` already scope what's eagerly joined); don't add unrelated columns to a projection meant for one specific listing.
 
-List<CustomerWithSubscriptions> result = dsl
-    .select(
-        CUSTOMER.ID,
-        CUSTOMER.NAME,
-        multiset(
-            selectFrom(SUBSCRIPTION)
-            .where(SUBSCRIPTION.CUSTOMER_ID.eq(CUSTOMER.ID))
-        ).as("subscriptions").convertFrom(r -> r.into(Subscription.class))
-    )
-    .from(CUSTOMER)
-    .fetch(Records.mapping(CustomerWithSubscriptions::new));
-```
+**2. Use `func.jsonb_exists(...)` for JSONB existence checks**, not a `->>` extraction compared against `IS NOT NULL` — it's the direct Postgres-native existence primitive and matches the `exists` operator's literal translation above.
 
-**2. Project only needed columns**
-```java
-// GOOD: Select specific columns
-dsl.select(CUSTOMER.ID, CUSTOMER.NAME, CUSTOMER.EMAIL)
-   .from(CUSTOMER)
-   .fetch();
+**3. Use `EXISTS`-style queries (`session.execute(select(...).exists())` / a `.limit(1)` fetch) instead of `COUNT(*) > 0`** when only presence needs checking, for the same reason as jOOQ's `fetchExists` guidance — stops at the first match.
 
-// BAD: SELECT * loads all columns
-dsl.selectFrom(CUSTOMER).fetch();
-```
+**4. Explicit `ORDER BY` when order matters** — `app/product/query_service.py`'s `_resolve_sort` and `app/plugin/query_service.py`'s fixed `.order_by(PluginObject.created_at.desc())` are the reference examples; an unrecognized/blank sort field silently falls back to a documented default rather than raising, matching the previous jOOQ-era service's behavior.
 
-**3. Use proper result mapping**
-```java
-// Map to Java records
-record CustomerSummary(Long id, String name, String email) {}
-
-List<CustomerSummary> summaries = dsl
-    .select(CUSTOMER.ID, CUSTOMER.NAME, CUSTOMER.EMAIL)
-    .from(CUSTOMER)
-    .fetch(Records.mapping(CustomerSummary::new));
-
-// Map to POJOs
-List<Customer> customers = dsl
-    .selectFrom(CUSTOMER)
-    .fetch()
-    .into(Customer.class);
-```
-
-**4. Use EXISTS() instead of COUNT() for existence checks**
-```java
-// GOOD: Stops at first match
-boolean hasActiveSubscription = dsl.fetchExists(
-    selectOne()
-    .from(SUBSCRIPTION)
-    .where(SUBSCRIPTION.CUSTOMER_ID.eq(customerId))
-    .and(SUBSCRIPTION.STATUS.eq("ACTIVE"))
-);
-
-// BAD: Counts all matching rows
-boolean hasActiveSubscription = dsl.fetchCount(
-    selectFrom(SUBSCRIPTION)
-    .where(SUBSCRIPTION.CUSTOMER_ID.eq(customerId))
-    .and(SUBSCRIPTION.STATUS.eq("ACTIVE"))
-) > 0;
-```
-
-**5. Use LIMIT for top-N queries**
-```java
-List<Customer> recentCustomers = dsl
-    .selectFrom(CUSTOMER)
-    .orderBy(CUSTOMER.CREATED_AT.desc())
-    .limit(10)
-    .fetch()
-    .into(Customer.class);
-```
+**5. `LIMIT` for capped listings** — `app/plugin/query_service.py`'s `list_plugin_objects` enforces `min(limit, 1000)` in the SQL `LIMIT` clause itself, not by fetching more rows and truncating in Python.
 
 ---
 
-### Common Pitfalls (From jOOQ Documentation)
-
-#### Don't Implement DSL Types
-jOOQ types are sealed. Use composition and method extraction instead.
-```java
-// GOOD: Extract query logic to methods
-private SelectWhereStep<Record> baseCustomerQuery() {
-    return dsl.selectFrom(CUSTOMER);
-}
-```
-
-#### Don't Reference Step Types
-Use `var` or the most generic type instead of specific Step interfaces.
-```java
-// GOOD: Flexible, survives jOOQ updates
-var query = dsl
-    .selectFrom(CUSTOMER)
-    .where(CUSTOMER.STATUS.eq("ACTIVE"));
-
-if (nameFilter != null) {
-    query = query.and(CUSTOMER.NAME.like("%" + nameFilter + "%"));
-}
-```
-
-#### Don't Use SELECT DISTINCT Unnecessarily
-Use SEMI JOIN (EXISTS) when checking relationships instead of DISTINCT to fix join duplicates.
-```java
-// GOOD: Use EXISTS for semi-join
-dsl.select(CUSTOMER.ID, CUSTOMER.NAME)
-   .from(CUSTOMER)
-   .whereExists(
-       selectOne()
-       .from(SUBSCRIPTION)
-       .where(SUBSCRIPTION.CUSTOMER_ID.eq(CUSTOMER.ID))
-   )
-   .fetch();
-```
-
-#### Don't Use NOT IN with Nullable Columns
-Use NOT EXISTS instead — NOT IN returns no results if the subquery contains NULL.
-```java
-// GOOD: NOT EXISTS handles NULLs correctly
-dsl.selectFrom(CUSTOMER)
-   .whereNotExists(
-       selectOne()
-       .from(SUBSCRIPTION)
-       .where(SUBSCRIPTION.CUSTOMER_ID.eq(CUSTOMER.ID))
-   )
-   .fetch();
-```
+### Common Pitfalls (Carried Over From the jOOQ Era, Still Applicable)
 
 #### Don't Rely on Implicit Ordering
-Always specify ORDER BY when order matters.
+Always specify `.order_by(...)` when order matters — Postgres makes no ordering guarantee otherwise.
 
-#### Don't Use ORDER BY Column Index
-Reference columns by name, not position — positions break when projections change.
+#### Don't Use `SELECT DISTINCT` to Paper Over Join Duplicates
+Use an explicit `.unique()` on the `Result` (as `list_products` does after its `joinedload`) or restructure the join — `DISTINCT` on a query with a JSONB or large text column is expensive and often hides the real duplication cause.
 
-#### Don't Use UNION Instead of UNION ALL
-Use UNION ALL when duplicates are impossible or acceptable to avoid unnecessary DISTINCT overhead.
+#### Don't Use `NOT IN` With Nullable Columns
+Postgres's `NOT IN` returns no rows at all if the subquery/list contains a `NULL` — use `NOT EXISTS` or an explicit `IS NOT NULL` filter instead.
 
-#### Don't Use NATURAL JOIN or JOIN USING
-Always explicitly specify join conditions for clarity and resilience to schema changes.
+#### Don't Splice Anything That Hasn't Passed `IDENTIFIER_PATTERN`
+Restated because it's the single rule most worth repeating in this file: `_spliced_literal`/`text(f"'{value}'")` is only safe downstream of the identifier regex check. Never call it on a raw comparison *value* — those must be bound (see Design Principle #1).
 
 ---
 
-### Advanced Features
+### Advanced Features (Available, Not Currently Needed)
 
-#### Common Table Expressions (CTEs)
-```java
-var activeCustomers = name("active_customers").as(
-    select(CUSTOMER.ID, CUSTOMER.NAME)
-    .from(CUSTOMER)
-    .where(CUSTOMER.STATUS.eq("ACTIVE"))
-);
+SQLAlchemy Core supports CTEs (`select(...).cte(...)`), window functions (`func.row_number().over(...)`), and bulk operations (`session.execute(insert(Model), [...])` for multi-row inserts) if a future query genuinely needs them. None of the current filter-DSL query services need these — don't reach for them speculatively.
 
-dsl.with(activeCustomers)
-   .select(
-       activeCustomers.field(CUSTOMER.ID),
-       activeCustomers.field(CUSTOMER.NAME),
-       count()
-   )
-   .from(activeCustomers)
-   .join(SUBSCRIPTION).on(
-       activeCustomers.field(CUSTOMER.ID).eq(SUBSCRIPTION.CUSTOMER_ID)
-   )
-   .groupBy(
-       activeCustomers.field(CUSTOMER.ID),
-       activeCustomers.field(CUSTOMER.NAME)
-   )
-   .fetch();
-```
+---
 
-#### Window Functions
-```java
-dsl.select(
-       CUSTOMER.NAME,
-       SUBSCRIPTION.TOTAL_AMOUNT,
-       rowNumber().over(
-           partitionBy(CUSTOMER.ID)
-           .orderBy(SUBSCRIPTION.CREATED_AT.desc())
-       ).as("subscription_rank")
-   )
-   .from(CUSTOMER)
-   .join(SUBSCRIPTION).on(CUSTOMER.ID.eq(SUBSCRIPTION.CUSTOMER_ID))
-   .fetch();
-```
+### Integration with the ORM
 
-#### Bulk Operations
-```java
-// Batch insert
-dsl.batch(
-    customers.stream()
-        .map(c -> dsl.insertInto(CUSTOMER)
-            .columns(CUSTOMER.NAME, CUSTOMER.EMAIL)
-            .values(c.name(), c.email())
-        )
-        .collect(Collectors.toList())
-).execute();
+Use the plain ORM (`select(Model).where(...)`, `session.add(...)`, `session.execute(...)`) for standard CRUD and simple entity relationships — see `standards/backend/queries.md`. Use Core-level `select()`/`text()` only for the dynamic filter-DSL case described above, where the WHERE clause is genuinely built at runtime from caller-supplied path/operator/value tuples.
 
-// Bulk insert with VALUES clause (more efficient)
-dsl.insertInto(CUSTOMER)
-   .columns(CUSTOMER.NAME, CUSTOMER.EMAIL)
-   .valuesOfRows(
-       customers.stream()
-           .map(c -> row(c.name(), c.email()))
-           .collect(Collectors.toList())
-   )
-   .execute();
-```
+```python
+# ORM: standard CRUD path (category service)
+result = await db.execute(select(Category).where(Category.id == category_id))
+category = result.scalar_one_or_none()
 
-#### Transactions
-```java
-dsl.transaction(configuration -> {
-    DSLContext txDsl = DSL.using(configuration);
-
-    Long customerId = txDsl.insertInto(CUSTOMER)
-        .columns(CUSTOMER.NAME, CUSTOMER.EMAIL)
-        .values("John Doe", "john@example.com")
-        .returningResult(CUSTOMER.ID)
-        .fetchOne()
-        .value1();
-
-    txDsl.insertInto(SUBSCRIPTION)
-        .columns(SUBSCRIPTION.CUSTOMER_ID, SUBSCRIPTION.STATUS)
-        .values(customerId, "ACTIVE")
-        .execute();
-});
-```
-
-#### Dynamic SQL
-```java
-public List<Customer> findCustomers(String name, String email, String status) {
-    var conditions = new ArrayList<Condition>();
-
-    if (name != null) {
-        conditions.add(CUSTOMER.NAME.like("%" + name + "%"));
-    }
-    if (email != null) {
-        conditions.add(CUSTOMER.EMAIL.eq(email));
-    }
-    if (status != null) {
-        conditions.add(CUSTOMER.STATUS.eq(status));
-    }
-
-    return dsl.selectFrom(CUSTOMER)
-        .where(conditions)
-        .fetch()
-        .into(Customer.class);
-}
+# Core-level dynamic WHERE: product filter DSL
+stmt = select(Product).options(joinedload(Product.category))
+for raw_filter in plugin_filters or []:
+    stmt = stmt.where(_parse_plugin_filter(raw_filter))
 ```
 
 ---
 
-### Performance Checklist
+### Quick Reference: Core vs ORM
 
-- [ ] Using type-safe generated code (no string literals)?
-- [ ] All user input passed via bind variables?
-- [ ] Using EXISTS() instead of COUNT() > 0?
-- [ ] Using LIMIT for top-N queries?
-- [ ] Projecting only needed columns (no SELECT *)?
-- [ ] Using MULTISET for nested collections (avoiding N+1)?
-- [ ] Using UNION ALL instead of UNION when appropriate?
-- [ ] Explicit ORDER BY when order matters?
-- [ ] Using batch operations for bulk inserts/updates?
-- [ ] No NOT IN with nullable columns?
-
----
-
-### Lightweight Authorization Query Services
-
-When authorization logic needs only a small subset of entity data (e.g., team IDs for permission checks), create a dedicated jOOQ query service instead of loading full JPA entities.
-
-#### Pattern
-```java
-@Service
-@RequiredArgsConstructor
-public class DbPersonQueryService {
-
-    private final DSLContext dsl;
-
-    @Transactional(readOnly = true)
-    public List<TeamId> getPersonTeams(PersonId personId, CompanyId companyId) {
-        return dsl.select(PERSON_TEAM.TEAM_UUID)
-            .from(PERSON)
-            .join(PERSON_TEAM).on(PERSON.ID.eq(PERSON_TEAM.PERSON_ID))
-            .join(COMPANY).on(PERSON.COMPANY_ID.eq(COMPANY.ID))
-            .where(
-                PERSON.UUID.eq(personId.uuid()),
-                PERSON.REMOVED.isFalse(),
-                COMPANY.UUID.eq(companyId.uuid())
-            )
-            .fetch(r -> new TeamId(r.get(PERSON_TEAM.TEAM_UUID)));
-    }
-}
-```
-
-#### When to use this pattern
-- Permission/authorization checks that need team IDs, role IDs, or similar small data
-- Endpoints like `/self` that aggregate data from multiple JPA entities — replace with a single jOOQ query projecting only needed columns
-- Any hot path where JPA entity loading triggers excessive lazy-loaded queries
-
-#### Key rules
-1. **Always include soft-delete filters** (`PERSON.REMOVED.isFalse()`)
-2. **Always include company scoping** (`COMPANY.UUID.eq(companyId.uuid())`)
-3. **Project only needed columns** — don't `selectFrom()` entire tables
-4. **Follow naming convention**: `Db*QueryService` for jOOQ read services
-
-See [queries.md](./queries.md) for the lazy `Supplier` pattern that pairs with these lightweight queries.
-
----
-
-### Integration with JPA
-
-Use **JPA** for entity management, relationships, and simple CRUD. Use **jOOQ** for complex read queries, reports, and performance-critical operations.
-
-```java
-@Service
-public class CustomerService {
-
-    @Autowired
-    private CustomerRepository jpaRepository;  // JPA for CRUD
-
-    @Autowired
-    private DSLContext dsl;  // jOOQ for complex queries
-
-    public Customer save(Customer customer) {
-        return jpaRepository.save(customer);
-    }
-
-    public List<CustomerRevenueSummary> getCustomerRevenueSummary() {
-        return dsl.select(
-                CUSTOMER.ID,
-                CUSTOMER.NAME,
-                sum(INVOICE.TOTAL_AMOUNT).as("total_revenue")
-            )
-            .from(CUSTOMER)
-            .leftJoin(SUBSCRIPTION).on(CUSTOMER.ID.eq(SUBSCRIPTION.CUSTOMER_ID))
-            .leftJoin(INVOICE).on(SUBSCRIPTION.ID.eq(INVOICE.SUBSCRIPTION_ID))
-            .where(INVOICE.STATUS.eq("PAID"))
-            .groupBy(CUSTOMER.ID, CUSTOMER.NAME)
-            .orderBy(sum(INVOICE.TOTAL_AMOUNT).desc())
-            .fetch(Records.mapping(CustomerRevenueSummary::new));
-    }
-}
-```
-
----
-
-### Quick Reference: jOOQ vs JPA
-
-| Use Case | jOOQ | JPA |
+| Use Case | Core (`select()`/`text()`) | ORM (`select(Model)`) |
 |----------|------|-----|
 | Simple CRUD | No | Yes |
-| Entity relationships | No | Yes |
-| Complex aggregations | Yes | No |
-| Window functions | Yes | No |
-| CTEs | Yes | No |
-| Reports/Analytics | Yes | No |
-| Bulk operations | Yes | Maybe |
-| Performance-critical | Yes | Maybe |
-| Authorization queries | Yes | No |
-| Database-specific features | Yes | No |
+| Fixed-shape filters/joins | No | Yes |
+| Dynamic filter DSL from a query string | Yes | No |
+| JSONB path traversal with caller-controlled path | Yes | No |
+| Typed cast of a JSONB extraction (`Numeric`/`Boolean`) | Yes | No |
 
 ### Common Anti-Patterns
 
 | Anti-Pattern | Better Approach |
 |---|---|
-| `SELECT *` | Project only needed columns |
-| `COUNT(*) > 0` | Use `EXISTS()` |
-| `NOT IN` with nullable | Use `NOT EXISTS` |
-| SELECT DISTINCT for join duplicates | Use EXISTS or proper join |
-| Implicit ordering | Explicit ORDER BY |
-| ORDER BY column index | ORDER BY column reference |
-| UNION when UNION ALL works | Use UNION ALL |
-| String concatenation for SQL | Use bind variables |
-| Loop queries (N+1) | Use JOIN or MULTISET |
+| Splicing a raw comparison value into SQL text | Bind it as a parameter |
+| Splicing an unvalidated path segment | Regex-validate against `IDENTIFIER_PATTERN` first |
+| Unifying the product/plugin-object filter parsers | Keep them separate — different grammars, different error messages, by design |
+| `COUNT(*) > 0` for existence | Use `EXISTS`/`.limit(1)` |
+| `NOT IN` with nullable columns | Use `NOT EXISTS` |
+| Fetching unbounded rows then truncating in Python | Enforce the cap in the SQL `LIMIT` clause |
 
 ---
 
-*Last Updated*: 2026-03-28
-*Reference*: Based on jOOQ 3.19 Professional Edition documentation (Section 7.8 - Don't do this)
+### History
+
+This document previously described jOOQ Professional Edition conventions for the Java/Spring Boot backend (type-safe generated-code DSL, `MULTISET`, `Db*QueryService` authorization pattern). The backend was migrated to Python/FastAPI + SQLAlchemy 2.0 (see `.maister/tasks/migrations/2026-08-31-java-to-python-fastapi/`); the content above describes the current SQLAlchemy-Core-based filter-DSL patterns actually implemented in `app/product/query_service.py` and `app/plugin/query_service.py`. The lightweight-authorization-query-service pattern (`Db*QueryService`) has no direct successor in this codebase yet — no equivalent hot-path authorization query currently exists; if one is added, prefer the same "project only needed columns via Core `select()`" approach described above.
+
+*Last Updated*: 2026-09-01

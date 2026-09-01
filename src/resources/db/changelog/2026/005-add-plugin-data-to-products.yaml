@@ -1,0 +1,19 @@
+databaseChangeLog:
+  - changeSet:
+      id: 005-add-plugin-data-to-products
+      author: aj
+      changes:
+        - addColumn:
+            tableName: products
+            columns:
+              - column:
+                  name: plugin_data
+                  type: JSONB
+        - sql:
+            sql: CREATE INDEX idx_products_plugin_data_gin ON products USING gin (plugin_data)
+      rollback:
+        - sql:
+            sql: DROP INDEX IF EXISTS idx_products_plugin_data_gin
+        - dropColumn:
+            tableName: products
+            columnName: plugin_data

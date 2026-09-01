@@ -73,7 +73,7 @@ describe("Plugin SDK Auth", () => {
         }),
       );
 
-      const { createServerSDK } = await import("../../../../../plugins/server-sdk");
+      const { createServerSDK } = await import("../../../../plugins/server-sdk");
       const sdk = createServerSDK("test-plugin", "http://localhost:8080", { headers: { authorization: "Bearer my-jwt-token" } });
 
       await sdk.hostApp.getProducts();
@@ -98,7 +98,7 @@ describe("Plugin SDK Auth", () => {
         ),
       );
 
-      const { createServerSDK } = await import("../../../../../plugins/server-sdk");
+      const { createServerSDK } = await import("../../../../plugins/server-sdk");
       const sdk = createServerSDK("my-plugin", "http://localhost:8080");
 
       // Test getData URL

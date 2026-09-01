@@ -1,0 +1,234 @@
+databaseChangeLog:
+  - changeSet:
+      id: 003-insert-sample-categories
+      author: aj
+      changes:
+        - insert:
+            tableName: categories
+            columns:
+              - column: { name: id, valueSequenceNext: category_seq }
+              - column: { name: name, value: "Televisions" }
+              - column: { name: description, value: "Smart TVs, OLED, QLED, and LED displays for home entertainment" }
+              - column: { name: created_at, valueDate: "now()" }
+              - column: { name: updated_at, valueDate: "now()" }
+        - insert:
+            tableName: categories
+            columns:
+              - column: { name: id, valueSequenceNext: category_seq }
+              - column: { name: name, value: "Audio Systems" }
+              - column: { name: description, value: "Soundbars, speakers, and home theater audio equipment" }
+              - column: { name: created_at, valueDate: "now()" }
+              - column: { name: updated_at, valueDate: "now()" }
+        - insert:
+            tableName: categories
+            columns:
+              - column: { name: id, valueSequenceNext: category_seq }
+              - column: { name: name, value: "Smart Home" }
+              - column: { name: description, value: "Smart assistants, hubs, sensors, and connected home devices" }
+              - column: { name: created_at, valueDate: "now()" }
+              - column: { name: updated_at, valueDate: "now()" }
+        - insert:
+            tableName: categories
+            columns:
+              - column: { name: id, valueSequenceNext: category_seq }
+              - column: { name: name, value: "Networking" }
+              - column: { name: description, value: "Routers, mesh systems, range extenders, and network switches" }
+              - column: { name: created_at, valueDate: "now()" }
+              - column: { name: updated_at, valueDate: "now()" }
+        - insert:
+            tableName: categories
+            columns:
+              - column: { name: id, valueSequenceNext: category_seq }
+              - column: { name: name, value: "Home Appliances" }
+              - column: { name: description, value: "Robot vacuums, air purifiers, and smart kitchen appliances" }
+              - column: { name: created_at, valueDate: "now()" }
+              - column: { name: updated_at, valueDate: "now()" }
+      rollback:
+        - delete:
+            tableName: categories
+
+  - changeSet:
+      id: 003-insert-sample-products
+      author: aj
+      context: "!prod"
+      changes:
+        # Televisions
+        - insert:
+            tableName: products
+            columns:
+              - column: { name: id, valueSequenceNext: product_seq }
+              - column: { name: name, value: "LG C4 65\" OLED evo 4K Smart TV" }
+              - column: { name: description, value: "Self-lit OLED pixels with α9 Gen7 AI Processor, Dolby Vision and Dolby Atmos, webOS 24, 120Hz refresh rate with NVIDIA G-SYNC and AMD FreeSync support" }
+              - column: { name: photo_url, value: "https://placehold.co/600x400/1a1a2e/e94560?text=LG+C4+65+OLED" }
+              - column: { name: price, valueNumeric: 1799.99 }
+              - column: { name: sku, value: "TV-LG-C4-65" }
+              - column: { name: category_id, valueComputed: "(SELECT id FROM categories WHERE name = 'Televisions')" }
+              - column: { name: created_at, valueDate: "now()" }
+              - column: { name: updated_at, valueDate: "now()" }
+        - insert:
+            tableName: products
+            columns:
+              - column: { name: id, valueSequenceNext: product_seq }
+              - column: { name: name, value: "Samsung 55\" S90D OLED 4K Smart TV" }
+              - column: { name: description, value: "OLED HDR+ with NQ4 AI Gen2 Processor, Motion Xcelerator 144Hz, Object Tracking Sound Lite, built-in Samsung Gaming Hub and SmartThings" }
+              - column: { name: photo_url, value: "https://placehold.co/600x400/1a1a2e/e94560?text=Samsung+S90D+55+OLED" }
+              - column: { name: price, valueNumeric: 1299.99 }
+              - column: { name: sku, value: "TV-SAM-S90D-55" }
+              - column: { name: category_id, valueComputed: "(SELECT id FROM categories WHERE name = 'Televisions')" }
+              - column: { name: created_at, valueDate: "now()" }
+              - column: { name: updated_at, valueDate: "now()" }
+        - insert:
+            tableName: products
+            columns:
+              - column: { name: id, valueSequenceNext: product_seq }
+              - column: { name: name, value: "Sony Bravia 7 75\" Mini LED 4K Smart TV" }
+              - column: { name: description, value: "XR Processor with XR Backlight Master Drive, Mini LED with local dimming, Google TV, BRAVIA XR TRILUMINOS PRO display, HDMI 2.1 with 4K/120fps" }
+              - column: { name: photo_url, value: "https://placehold.co/600x400/1a1a2e/e94560?text=Sony+Bravia+7+75" }
+              - column: { name: price, valueNumeric: 2199.99 }
+              - column: { name: sku, value: "TV-SNY-BR7-75" }
+              - column: { name: category_id, valueComputed: "(SELECT id FROM categories WHERE name = 'Televisions')" }
+              - column: { name: created_at, valueDate: "now()" }
+              - column: { name: updated_at, valueDate: "now()" }
+
+        # Audio Systems
+        - insert:
+            tableName: products
+            columns:
+              - column: { name: id, valueSequenceNext: product_seq }
+              - column: { name: name, value: "Sonos Arc Soundbar" }
+              - column: { name: description, value: "Premium smart soundbar with Dolby Atmos, 11 high-performance drivers including upward-firing speakers, Trueplay tuning, Apple AirPlay 2 and voice control" }
+              - column: { name: photo_url, value: "https://placehold.co/600x400/0f3460/e94560?text=Sonos+Arc" }
+              - column: { name: price, valueNumeric: 899.00 }
+              - column: { name: sku, value: "AUD-SNS-ARC" }
+              - column: { name: category_id, valueComputed: "(SELECT id FROM categories WHERE name = 'Audio Systems')" }
+              - column: { name: created_at, valueDate: "now()" }
+              - column: { name: updated_at, valueDate: "now()" }
+        - insert:
+            tableName: products
+            columns:
+              - column: { name: id, valueSequenceNext: product_seq }
+              - column: { name: name, value: "Bose Smart Soundbar 700" }
+              - column: { name: description, value: "Sleek soundbar with built-in voice assistants, ADAPTiQ audio calibration, Bose SimpleSync, Wi-Fi and Bluetooth, HDMI eARC connectivity" }
+              - column: { name: photo_url, value: "https://placehold.co/600x400/0f3460/e94560?text=Bose+Soundbar+700" }
+              - column: { name: price, valueNumeric: 799.00 }
+              - column: { name: sku, value: "AUD-BOSE-SB700" }
+              - column: { name: category_id, valueComputed: "(SELECT id FROM categories WHERE name = 'Audio Systems')" }
+              - column: { name: created_at, valueDate: "now()" }
+              - column: { name: updated_at, valueDate: "now()" }
+        - insert:
+            tableName: products
+            columns:
+              - column: { name: id, valueSequenceNext: product_seq }
+              - column: { name: name, value: "KEF LS50 Wireless II Bookshelf Speakers" }
+              - column: { name: description, value: "Hi-Fi active bookshelf speakers with Uni-Q driver array, built-in DAC and amplification, Wi-Fi, Bluetooth, HDMI, MQA decoding, and Roon Ready" }
+              - column: { name: photo_url, value: "https://placehold.co/600x400/0f3460/e94560?text=KEF+LS50+Wireless+II" }
+              - column: { name: price, valueNumeric: 2499.99 }
+              - column: { name: sku, value: "AUD-KEF-LS50W2" }
+              - column: { name: category_id, valueComputed: "(SELECT id FROM categories WHERE name = 'Audio Systems')" }
+              - column: { name: created_at, valueDate: "now()" }
+              - column: { name: updated_at, valueDate: "now()" }
+
+        # Smart Home
+        - insert:
+            tableName: products
+            columns:
+              - column: { name: id, valueSequenceNext: product_seq }
+              - column: { name: name, value: "Amazon Echo Hub 8\" Smart Home Control Panel" }
+              - column: { name: description, value: "Wall-mountable 8-inch touchscreen for smart home control, built-in Zigbee and Matter hub, Alexa voice assistant, customizable dashboard with widgets" }
+              - column: { name: photo_url, value: "https://placehold.co/600x400/16213e/0dcaf0?text=Echo+Hub+8" }
+              - column: { name: price, valueNumeric: 179.99 }
+              - column: { name: sku, value: "SH-AMZ-ECHOHUB" }
+              - column: { name: category_id, valueComputed: "(SELECT id FROM categories WHERE name = 'Smart Home')" }
+              - column: { name: created_at, valueDate: "now()" }
+              - column: { name: updated_at, valueDate: "now()" }
+        - insert:
+            tableName: products
+            columns:
+              - column: { name: id, valueSequenceNext: product_seq }
+              - column: { name: name, value: "Philips Hue Starter Kit E26" }
+              - column: { name: description, value: "Smart lighting starter kit with 4 color-capable A19 LED bulbs and Hue Bridge, 16 million colors, works with Alexa, Google, and Apple HomeKit" }
+              - column: { name: photo_url, value: "https://placehold.co/600x400/16213e/0dcaf0?text=Philips+Hue+Starter+Kit" }
+              - column: { name: price, valueNumeric: 179.99 }
+              - column: { name: sku, value: "SH-PHI-HUE-SK" }
+              - column: { name: category_id, valueComputed: "(SELECT id FROM categories WHERE name = 'Smart Home')" }
+              - column: { name: created_at, valueDate: "now()" }
+              - column: { name: updated_at, valueDate: "now()" }
+        - insert:
+            tableName: products
+            columns:
+              - column: { name: id, valueSequenceNext: product_seq }
+              - column: { name: name, value: "Google Nest Learning Thermostat 4th Gen" }
+              - column: { name: description, value: "AI-powered smart thermostat with auto-schedule learning, energy savings dashboard, remote sensor support, Matter and Google Home integration" }
+              - column: { name: photo_url, value: "https://placehold.co/600x400/16213e/0dcaf0?text=Nest+Thermostat+4" }
+              - column: { name: price, valueNumeric: 279.99 }
+              - column: { name: sku, value: "SH-GOOG-NEST4" }
+              - column: { name: category_id, valueComputed: "(SELECT id FROM categories WHERE name = 'Smart Home')" }
+              - column: { name: created_at, valueDate: "now()" }
+              - column: { name: updated_at, valueDate: "now()" }
+
+        # Networking
+        - insert:
+            tableName: products
+            columns:
+              - column: { name: id, valueSequenceNext: product_seq }
+              - column: { name: name, value: "ASUS RT-AXE7800 Tri-Band Wi-Fi 6E Router" }
+              - column: { name: description, value: "Tri-band Wi-Fi 6E router with 6GHz band, AiMesh support, AiProtection Pro network security, adaptive QoS, 2.5G WAN port, and OFDMA technology" }
+              - column: { name: photo_url, value: "https://placehold.co/600x400/1b2a4a/53d8fb?text=ASUS+RT-AXE7800" }
+              - column: { name: price, valueNumeric: 299.99 }
+              - column: { name: sku, value: "NET-ASUS-AXE7800" }
+              - column: { name: category_id, valueComputed: "(SELECT id FROM categories WHERE name = 'Networking')" }
+              - column: { name: created_at, valueDate: "now()" }
+              - column: { name: updated_at, valueDate: "now()" }
+        - insert:
+            tableName: products
+            columns:
+              - column: { name: id, valueSequenceNext: product_seq }
+              - column: { name: name, value: "eero Pro 6E Mesh Wi-Fi System (3-Pack)" }
+              - column: { name: description, value: "Tri-band mesh Wi-Fi 6E system covering up to 6000 sq ft, built-in Zigbee smart home hub, 2.5G Ethernet port, automatic updates, TrueMesh routing" }
+              - column: { name: photo_url, value: "https://placehold.co/600x400/1b2a4a/53d8fb?text=eero+Pro+6E+3-Pack" }
+              - column: { name: price, valueNumeric: 499.99 }
+              - column: { name: sku, value: "NET-EERO-PRO6E-3" }
+              - column: { name: category_id, valueComputed: "(SELECT id FROM categories WHERE name = 'Networking')" }
+              - column: { name: created_at, valueDate: "now()" }
+              - column: { name: updated_at, valueDate: "now()" }
+
+        # Home Appliances
+        - insert:
+            tableName: products
+            columns:
+              - column: { name: id, valueSequenceNext: product_seq }
+              - column: { name: name, value: "iRobot Roomba j9+ Self-Emptying Robot Vacuum" }
+              - column: { name: description, value: "Robot vacuum with PrecisionVision navigation, 3-stage cleaning, automatic dirt disposal base, smart mapping, obstacle avoidance, and iRobot OS" }
+              - column: { name: photo_url, value: "https://placehold.co/600x400/2d4059/f07b3f?text=Roomba+j9%2B" }
+              - column: { name: price, valueNumeric: 799.99 }
+              - column: { name: sku, value: "HA-IRB-J9PLUS" }
+              - column: { name: category_id, valueComputed: "(SELECT id FROM categories WHERE name = 'Home Appliances')" }
+              - column: { name: created_at, valueDate: "now()" }
+              - column: { name: updated_at, valueDate: "now()" }
+        - insert:
+            tableName: products
+            columns:
+              - column: { name: id, valueSequenceNext: product_seq }
+              - column: { name: name, value: "Dyson Purifier Hot+Cool HP07" }
+              - column: { name: description, value: "HEPA air purifier, heater, and fan with whole-room purification, real-time air quality reporting, activated carbon filter, and Dyson Link app control" }
+              - column: { name: photo_url, value: "https://placehold.co/600x400/2d4059/f07b3f?text=Dyson+HP07" }
+              - column: { name: price, valueNumeric: 649.99 }
+              - column: { name: sku, value: "HA-DYS-HP07" }
+              - column: { name: category_id, valueComputed: "(SELECT id FROM categories WHERE name = 'Home Appliances')" }
+              - column: { name: created_at, valueDate: "now()" }
+              - column: { name: updated_at, valueDate: "now()" }
+        - insert:
+            tableName: products
+            columns:
+              - column: { name: id, valueSequenceNext: product_seq }
+              - column: { name: name, value: "Breville Barista Touch Impress Espresso Machine" }
+              - column: { name: description, value: "Automatic espresso machine with assisted tamping, intuitive touchscreen, ThermoJet heating, integrated grinder with 30 settings, and auto milk texturing" }
+              - column: { name: photo_url, value: "https://placehold.co/600x400/2d4059/f07b3f?text=Breville+Barista+Touch" }
+              - column: { name: price, valueNumeric: 1099.95 }
+              - column: { name: sku, value: "HA-BRV-BTI" }
+              - column: { name: category_id, valueComputed: "(SELECT id FROM categories WHERE name = 'Home Appliances')" }
+              - column: { name: created_at, valueDate: "now()" }
+              - column: { name: updated_at, valueDate: "now()" }
+      rollback:
+        - delete:
+            tableName: products

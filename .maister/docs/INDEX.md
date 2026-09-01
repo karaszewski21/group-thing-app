@@ -5,7 +5,7 @@
 ## Quick Reference
 
 ### Project Documentation
-Project-level documentation covering architecture and technology choices for **aj** — a plugin-based microkernel platform built on Spring Boot.
+Project-level documentation covering architecture and technology choices for **aj** — a plugin-based microkernel platform with a Python/FastAPI backend.
 
 ### Technical Standards
 Coding standards, conventions, and best practices organized by domain.
@@ -17,10 +17,10 @@ Coding standards, conventions, and best practices organized by domain.
 Located in `.maister/docs/project/`
 
 ### Tech Stack (`project/tech-stack.md`)
-Java 25, Spring Boot 4.0.5 (WebMVC, JPA, JOOQ, Liquibase), PostgreSQL, Maven, TestContainers. Includes dependency versions, rationale for choices, and pending architectural decisions (JPA vs JOOQ, plugin framework selection).
+Python 3.12+, FastAPI, SQLAlchemy 2.0 (async) + asyncpg, Alembic, PostgreSQL, uv, PyJWT, bcrypt, Pydantic v2, tenacity, ruff, mypy. Includes exact pinned dependency versions, rationale for choices, and the resolved JPA-vs-jOOQ decision (SQLAlchemy ORM + Core serves both roles); migrated from Java/Spring Boot/Maven (see `.maister/tasks/migrations/2026-08-31-java-to-python-fastapi/`).
 
 ### Architecture (`project/architecture.md`)
-Microkernel (plugin-based) architecture pattern — currently in pre-alpha scaffolding phase. Documents application core structure, database layer (Liquibase + PostgreSQL), test infrastructure (TestContainers), target data flow, and planned package structure.
+Microkernel (plugin-based) architecture pattern — no longer pre-alpha scaffolding; real business logic across category/product/plugin/footprint verticals plus a full OAuth2 authorization server. Documents the FastAPI `app/` package structure, database layer (Alembic + PostgreSQL), deferred test infrastructure, and data flow.
 
 ---
 
@@ -55,23 +55,23 @@ Located in `.maister/docs/standards/backend/`
 #### API Design (`standards/backend/api.md`)
 RESTful principles, consistent naming, versioning, plural nouns for resources, and limited nesting.
 
-#### JPA Entity Modeling (`standards/backend/models.md`)
-Comprehensive JPA entity modeling standards: BaseEntity with @MappedSuperclass pattern (id, createdAt, @Version updatedAt), SEQUENCE primary key generation (allocationSize=1), EnumType.STRING for all enumerations, LAZY fetch default for all relationship types, Set-based collections, bidirectional relationship helper methods, orphanRemoval for owned collections, business key equals/hashCode (never entity id), @Embeddable value objects with equals/hashCode, specific cascade types (never CascadeType.ALL), cross-module references via type-safe ID wrappers (DDD bounded contexts), Lombok entity annotations (@Getter/@Setter/@NoArgsConstructor, no @Data/@EqualsAndHashCode), soft delete with @Where and deleted flag, collection type performance guide (Set vs List vs Map), and fetch type defaults per relationship.
+#### SQLAlchemy Entity Modeling (`standards/backend/models.md`)
+SQLAlchemy 2.0 entity modeling standards: shared `BaseEntity` mapped-superclass mixin (id via explicit Postgres `Sequence`, `created_at`, `updated_at` doing double duty as `version_id_col` for optimistic locking via a custom `version_id_generator`), string-backed enums (never ordinal), `lazy="raise"` plus explicit `joinedload`/`selectinload` (no implicit lazy-load under `AsyncSession`), business-key `__eq__`/`__hash__` (never surrogate id), cross-module references via plain FK-id columns (DDD bounded contexts), JSONB via `postgresql.JSONB`, and PK-strategy carve-outs (`PluginDescriptor` string PK, `RegisteredClient` UUID PK — neither uses `BaseEntity`). Migrated from JPA/Hibernate.
 
 #### Database Queries (`standards/backend/queries.md`)
-Parameterized queries, N+1 avoidance with eager loading, select only needed columns, strategic indexing, and transactions.
+Parameterized queries via SQLAlchemy binding, N+1 avoidance with explicit eager loading (required, not optional, under `AsyncSession`), select only needed columns, strategic indexing via Alembic, and transactions.
 
-#### jOOQ Query Standards (`standards/backend/jooq.md`)
-jOOQ Professional Edition query standards: type-safe DSL usage, SQL injection prevention via bind variables, code generation, N+1 prevention with MULTISET, query optimization (EXISTS over COUNT, column projection, result mapping), common pitfalls from jOOQ docs (no DSL type implementation, no Step type references, no SELECT *, no DISTINCT for join fixes, no NOT IN with nullables, explicit ordering, UNION ALL preference, explicit joins), advanced features (CTEs, window functions, bulk operations, transactions, dynamic SQL), lightweight authorization query services (Db*QueryService pattern), and JPA integration guidelines (JPA for CRUD, jOOQ for complex reads).
+#### SQLAlchemy Core Query Standards (`standards/backend/jooq.md`)
+SQLAlchemy Core dynamic-query standards for the two hand-rolled filter-DSL query services (`app/product/query_service.py`'s 4-part grammar, `app/plugin/query_service.py`'s 3-part grammar — deliberately kept separate, not unified): bind-parameter discipline for comparison values, regex-validate-then-splice for JSONB path segments (`IDENTIFIER_PATTERN`), the `exists` operator's bind-not-splice asymmetry, N+1 prevention, query optimization (EXISTS over COUNT, explicit ordering, enforced SQL-level LIMIT), and common pitfalls (no unvalidated splicing, no NOT IN with nullables, no incidental DISTINCT). Migrated from jOOQ.
 
 #### Database Migrations (`standards/backend/migrations.md`)
-Reversible migrations, small focused changes, zero-downtime awareness, separate schema and data migrations, and careful indexing.
+Alembic workflow (`revision --autogenerate`, review before applying), reversible migrations, small focused changes (with the documented one-time exception of the full-schema-reconstruction initial migration), explicit-sequence PK convention, naming conventions, zero-downtime awareness, separate schema and data migrations, and careful indexing. Migrated from Liquibase.
 
 #### Security (`standards/backend/security.md`)
-JWT authentication pattern with centralized SecurityFilterChain authorization (no @PreAuthorize), custom AuthenticationEntryPoint/AccessDeniedHandler for JSON 401/403 responses, BCryptPasswordEncoder for password storage, and JWT token claims structure (sub, permissions, iat, exp).
+FastAPI dependency-based authorization (`Depends(require_any(...))`) replacing `@PreAuthorize`/`SecurityFilterChain`, the centralized `AUTHORIZATION_MATRIX`-as-code pattern (25-entry table, first-match-wins evaluation order) in `app/core/auth_deps.py`, custom exception handlers replicating legacy 401/403 envelopes, PyJWT claim shapes (login token: `sub`/`permissions`/`iat`/`exp`; OAuth2-issued token: `iss`/`sub`/`scopes`/`iat`/`exp`/`aud`), bcrypt password hashing, and the preserved hand-rolled OAuth2 authorization server (PKCE, rotating refresh tokens, RFC 8693 token-exchange bridge) with its documented known gaps. Migrated from Spring Security.
 
 #### Plugin Authentication (`standards/backend/plugin-auth.md`)
-Browser SDK auth via hostApp.getToken() and postMessage, server-side auth with createServerSDK forwarding JWT from request headers, and permission checking in plugins by decoding JWT permissions claim.
+Browser SDK auth via hostApp.getToken() and postMessage (unchanged by the backend migration), server-side auth with createServerSDK now forwarding JWT to the FastAPI backend, and permission checking in plugins by decoding the JWT's flat `permissions`/`scopes` claim (client-side contract unchanged; server-side implementation notes updated for FastAPI).
 
 ### Frontend Standards
 

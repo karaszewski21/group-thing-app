@@ -1,0 +1,49 @@
+databaseChangeLog:
+  - changeSet:
+      id: 007-add-entity-binding-columns
+      author: aj
+      changes:
+        - addColumn:
+            tableName: plugin_objects
+            columns:
+              - column:
+                  name: entity_type
+                  type: VARCHAR(50)
+              - column:
+                  name: entity_id
+                  type: BIGINT
+        - createIndex:
+            tableName: plugin_objects
+            indexName: idx_plugin_objects_entity_binding
+            columns:
+              - column:
+                  name: plugin_id
+              - column:
+                  name: object_type
+              - column:
+                  name: entity_type
+              - column:
+                  name: entity_id
+        - createIndex:
+            tableName: plugin_objects
+            indexName: idx_plugin_objects_entity_cross_type
+            columns:
+              - column:
+                  name: plugin_id
+              - column:
+                  name: entity_type
+              - column:
+                  name: entity_id
+      rollback:
+        - dropIndex:
+            tableName: plugin_objects
+            indexName: idx_plugin_objects_entity_cross_type
+        - dropIndex:
+            tableName: plugin_objects
+            indexName: idx_plugin_objects_entity_binding
+        - dropColumn:
+            tableName: plugin_objects
+            columnName: entity_id
+        - dropColumn:
+            tableName: plugin_objects
+            columnName: entity_type

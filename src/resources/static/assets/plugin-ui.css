@@ -1,0 +1,200 @@
+/*
+ * TomorrowCommerce Plugin UI
+ * Shared styles for plugins to match the host app look and feel.
+ * Load in your plugin's <head>:
+ *   <link rel="stylesheet" href="http://localhost:8080/assets/plugin-ui.css" />
+ */
+
+/* ── Base Reset ── */
+.tc-plugin {
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  font-size: 14px;
+  color: #0F172A;
+  line-height: 1.5;
+}
+
+.tc-plugin h1 {
+  font-size: 24px;
+  font-weight: 700;
+  margin: 0 0 16px;
+}
+
+.tc-plugin h2 {
+  font-size: 18px;
+  font-weight: 600;
+  color: #1E293B;
+  margin: 0 0 12px;
+}
+
+.tc-plugin p {
+  color: #64748B;
+  margin: 0 0 8px;
+}
+
+/* ── Buttons ── */
+.tc-primary-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 8px 16px;
+  font-size: 14px;
+  font-weight: 500;
+  font-family: inherit;
+  color: #fff;
+  background-color: #2563EB;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background-color 0.15s;
+  line-height: 1.5;
+}
+
+.tc-primary-button:hover {
+  background-color: #1D4ED8;
+}
+
+.tc-primary-button:active {
+  background-color: #1E40AF;
+}
+
+.tc-primary-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.tc-ghost-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 6px 12px;
+  font-size: 13px;
+  font-weight: 500;
+  font-family: inherit;
+  color: #334155;
+  background: none;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background-color 0.15s;
+  line-height: 1.5;
+}
+
+.tc-ghost-button:hover {
+  background-color: #F1F5F9;
+}
+
+.tc-ghost-button--danger {
+  color: #DC2626;
+}
+
+.tc-ghost-button--danger:hover {
+  background-color: #FEF2F2;
+}
+
+/* ── Inputs ── */
+.tc-input,
+.tc-select {
+  padding: 8px 12px;
+  font-size: 14px;
+  font-family: inherit;
+  color: #334155;
+  background: white;
+  border: 1px solid #E2E8F0;
+  border-radius: 8px;
+  outline: none;
+  transition: border-color 0.15s;
+}
+
+.tc-input:focus,
+.tc-select:focus {
+  border-color: #3B82F6;
+}
+
+.tc-input::placeholder {
+  color: #94A3B8;
+}
+
+/* ── Tables ── */
+.tc-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.tc-table th {
+  text-align: left;
+  font-size: 12px;
+  font-weight: 600;
+  color: #3B82F6;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 10px 12px;
+  border-bottom: 1px solid #E2E8F0;
+}
+
+.tc-table td {
+  padding: 10px 12px;
+  border-bottom: 1px solid #F1F5F9;
+  color: #334155;
+}
+
+.tc-table tr:hover td {
+  background-color: #F8FAFC;
+}
+
+.tc-table th[align="right"],
+.tc-table td[align="right"] {
+  text-align: right;
+}
+
+.tc-table tfoot td {
+  font-weight: 600;
+  border-top: 1px solid #E2E8F0;
+  border-bottom: none;
+}
+
+/* ── Cards ── */
+.tc-card {
+  background: white;
+  border: 1px solid #E2E8F0;
+  border-radius: 12px;
+  padding: 24px;
+}
+
+/* ── Badges ── */
+.tc-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.tc-badge--success {
+  background: #D1FAE5;
+  color: #065F46;
+}
+
+.tc-badge--danger {
+  background: #FEE2E2;
+  color: #991B1B;
+}
+
+/* ── Layout ── */
+.tc-section {
+  margin-bottom: 24px;
+}
+
+.tc-flex {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.tc-error {
+  color: #DC2626;
+  font-size: 13px;
+}

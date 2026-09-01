@@ -1,0 +1,21 @@
+# Used as the build context root for src/frontend/Dockerfile (needs sibling
+# plugins/server-sdk.ts alongside src/frontend/ — see that Dockerfile).
+.git
+.maister
+
+**/node_modules
+**/dist
+**/dist-ssr
+**/.venv
+**/__pycache__
+**/.ruff_cache
+**/.mypy_cache
+**/.pytest_cache
+**/.next
+**/.playwright-mcp
+**/*.tsbuildinfo
+
+src/backend
+src/resources
+plugins/*/node_modules
+plugins/*/dist

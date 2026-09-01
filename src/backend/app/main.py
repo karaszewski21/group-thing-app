@@ -1,3 +1,67 @@
+"""FastAPI application entrypoint.
+
+Instantiates the app, wires CORS, registers every exception handler, and
+includes every router from Groups 4-9/12 plus this group's own
+`system.router` — in that order, since `system.router`'s SPA-fallback
+catch-all (`/{full_path:path}`) must be registered LAST: FastAPI's router
+matches in registration order, so every more-specific route needs to be
+tried first.
+
+Exception handlers: `app.core.errors` (Group 3) and `app.core.auth_deps`
+(Group 4) register the legacy flat-envelope handlers globally — there is no
+FastAPI equivalent of Spring's `@RestControllerAdvice(basePackages=...)`
+scoping, so `app.footprint.errors` (Group 12) achieves the same effect by
+registering its RFC7807 handlers against the 5 concrete footprint exception
+*types* rather than by router/package. Those types share no MRO with
+anything `app.core.errors`/`app.core.auth_deps` register, so registration
+order between the two groups doesn't matter — but both must be registered
+before the app can be considered fully wired.
+"""
+
+from __future__ import annotations
+
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+
+from app.auth.router import router as auth_router
+from app.category.router import router as category_router
+from app.config import settings
+from app.core.auth_deps import register_auth_exception_handlers
+from app.core.errors import register_exception_handlers
+from app.footprint.errors import register_footprint_exception_handlers
+from app.footprint.router import router as footprint_router
+from app.oauth2.metadata_router import router as oauth2_metadata_router
+from app.oauth2.router import router as oauth2_router
+from app.plugin.router import router as plugin_router
+from app.product.router import router as product_router
+from app.system.router import router as system_router
 
 app = FastAPI()
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=settings.cors_allowed_origins_list,
+    allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+    allow_headers=["*"],
+    allow_credentials=True,
+)
+
+# Legacy flat-envelope handlers — global (Groups 3 and 4).
+register_exception_handlers(app)
+register_auth_exception_handlers(app)
+# RFC7807 handlers — scoped to the 5 concrete footprint exception types
+# only (Group 12); never shadows the legacy handlers above, even for
+# ValueError/EntityNotFoundException raised from within the footprint
+# module (the PER_100G bug and the export 404 both deliberately fall
+# through to the legacy handlers, unchanged).
+register_footprint_exception_handlers(app)
+
+# Routers — specific paths before the SPA catch-all (system_router last).
+app.include_router(auth_router)
+app.include_router(oauth2_router)
+app.include_router(oauth2_metadata_router)
+app.include_router(category_router)
+app.include_router(product_router)
+app.include_router(plugin_router)
+app.include_router(footprint_router)
+app.include_router(system_router)

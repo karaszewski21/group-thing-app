@@ -53,8 +53,8 @@ Plugins must use the host's shared UI stylesheet to maintain visual consistency.
 Add both the SDK and the UI stylesheet in your plugin's `<head>`:
 
 ```html
-<script src="http://localhost:8080/assets/plugin-sdk.js"></script>
-<link rel="stylesheet" href="http://localhost:8080/assets/plugin-ui.css" />
+<script src="http://localhost:5173/assets/plugin-sdk.js"></script>
+<link rel="stylesheet" href="http://localhost:5173/assets/plugin-ui.css" />
 ```
 
 ### Available CSS Classes
@@ -192,7 +192,7 @@ Renders a plugin iframe below the product details card. Your component receives 
 Load in your `index.html` `<head>`:
 
 ```html
-<script src="http://localhost:8080/assets/plugin-sdk.js"></script>
+<script src="http://localhost:5173/assets/plugin-sdk.js"></script>
 ```
 
 Import the shared type declarations in your TypeScript code:
@@ -366,12 +366,11 @@ The host passes context to your plugin via the iframe's URL hash fragment. The S
 
 ## Development Workflow
 
-1. Start the host: `cd /path/to/project && ./mvnw spring-boot:run`
-2. Start the host frontend (optional, for hot reload): `cd src/main/frontend && npm run dev`
-3. Start your plugin: `cd plugins/my-plugin && npm run dev`
-4. Register manifest once: `curl -X PUT http://localhost:8080/api/plugins/my-plugin/manifest -H "Content-Type: application/json" -d @manifest.json`
-5. Access your plugin through the host app (sidebar, product tabs, etc.)
-6. Re-register manifest after changes to extension points
+1. Start the host (backend + Postgres + frontend app shell): `docker compose up` from the repo root — backend on :8080, frontend on :5173. Or run the frontend with hot reload instead: `cd src/frontend && npm run dev` (Vite dev server on :5173, proxies `/api` and `/oauth2` to the backend)
+2. Start your plugin: `cd plugins/my-plugin && npm run dev`
+3. Register manifest once: `curl -X PUT http://localhost:8080/api/plugins/my-plugin/manifest -H "Content-Type: application/json" -d @manifest.json`
+4. Access your plugin through the host app (sidebar, product tabs, etc.)
+5. Re-register manifest after changes to extension points
 
 ## Reference Plugins
 

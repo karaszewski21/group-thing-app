@@ -8,7 +8,7 @@ export default defineConfig({
       formats: ["iife"],
       fileName: () => "assets/plugin-sdk.js",
     },
-    outDir: "../resources/static",
+    outDir: "dist",
     emptyOutDir: false,
   },
 });

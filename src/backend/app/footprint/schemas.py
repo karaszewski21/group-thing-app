@@ -10,9 +10,9 @@ wall-clock time the engine actually ran) — see `router.py`.
 
 from __future__ import annotations
 
-from decimal import Decimal
 from datetime import datetime
-from typing import Literal, Union, assert_never
+from decimal import Decimal
+from typing import Literal, assert_never
 from uuid import UUID
 
 from pydantic import BaseModel
@@ -31,7 +31,7 @@ class WarningResponse(BaseModel):
     component_id: str
 
     @staticmethod
-    def from_domain(warning: Warning) -> "WarningResponse":
+    def from_domain(warning: Warning) -> WarningResponse:
         return WarningResponse(
             code=warning.code,
             message=warning.message,
@@ -54,12 +54,12 @@ class CompositeNodeResponse(BaseModel):
     kind: Literal["composite"] = "composite"
     id: str
     kg_co2: Decimal
-    children: list["BreakdownNodeResponse"]
+    children: list[BreakdownNodeResponse]
 
 
 # Discriminated union for the response body — mirrors the domain's
 # `BreakdownNode` union (`kind` is the discriminator on both sides).
-BreakdownNodeResponse = Union[LeafNodeResponse, CompositeNodeResponse]
+BreakdownNodeResponse = LeafNodeResponse | CompositeNodeResponse
 CompositeNodeResponse.model_rebuild()
 
 
