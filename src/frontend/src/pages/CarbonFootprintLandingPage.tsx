@@ -5,6 +5,7 @@ import { getProducts } from "../api/products";
 import type { ProductResponse } from "../api/products";
 import { EmptyState } from "../components/shared/EmptyState";
 import { FootprintIcon } from "../components/shared/Icons";
+import { CATEGORY_LABELS } from "../utils/productCategory";
 
 export function CarbonFootprintLandingPage() {
   const [searchInput, setSearchInput] = useState("");
@@ -110,7 +111,7 @@ export function CarbonFootprintLandingPage() {
                       {product.name}
                     </Text>
                     <Text fontSize="12px" color="gray.500" fontFamily="monospace">
-                      {product.sku} · {product.category.name}
+                      {product.sku} · {CATEGORY_LABELS[product.category]}
                     </Text>
                   </Box>
                 </Flex>

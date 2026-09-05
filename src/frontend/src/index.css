@@ -1,0 +1,30 @@
+@import "tailwindcss";
+
+/*
+ * Shared visual tokens for the new Tailwind-based pages (Login, Register,
+ * Panel, Inventory) — values ported 1:1 from pages/PanelGoscia.tsx and
+ * pages/PanelOrganizatora.tsx's `:root` custom-property palette. The
+ * existing Chakra-based admin dashboard (Products/Plugins/Carbon Footprint)
+ * and KragGrupyPage.tsx's own inline CSS are untouched by this file.
+ */
+@theme {
+  --color-cream: #f4f8f0;
+  --color-paper: #ffffff;
+  --color-ink: #1e2e27;
+  --color-ink-soft: #5c7069;
+  --color-mint: #1b8168;
+  --color-mint-bright: #3fb68f;
+  --color-mint-soft: #d8f0e6;
+  --color-sage: #5d8a63;
+  --color-sage-soft: #dfebdc;
+  --color-teal: #6fb6b8;
+  --color-teal-soft: #d9ecec;
+  --color-lime: #a9c24f;
+  --color-lime-soft: #eaf2ce;
+  --color-line: #e2eadf;
+  --color-danger: #b23b3b;
+  --color-danger-soft: #f6e4e2;
+
+  --font-serif: "Fraunces", Georgia, serif;
+  --font-sans: "Karla", "Segoe UI", system-ui, sans-serif;
+}

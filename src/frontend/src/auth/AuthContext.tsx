@@ -1,11 +1,22 @@
 import { createContext, useCallback, useContext, useMemo, useState } from "react";
 import type { ReactNode } from "react";
 
+export interface RegisterPayload {
+  role: "GUEST" | "ORGANIZER";
+  familyName: string;
+  username: string;
+  password: string;
+  displayName: string;
+  email?: string;
+  circleName?: string;
+}
+
 interface AuthContextValue {
   token: string | null;
   username: string | null;
   permissions: string[];
   login: (username: string, password: string) => Promise<void>;
+  register: (payload: RegisterPayload) => Promise<void>;
   logout: () => void;
 }
 
@@ -48,25 +59,59 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [username, setUsername] = useState<string | null>(initialAuth.username);
   const [permissions, setPermissions] = useState<string[]>(initialAuth.permissions);
 
-  const login = useCallback(async (user: string, password: string) => {
-    const response = await fetch("/api/auth/login", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ username: user, password }),
-    });
-
-    if (!response.ok) {
-      const body = await response.json().catch(() => ({ message: "Login failed" }));
-      throw new Error(body.message ?? "Login failed");
-    }
-
-    const { token: jwt } = await response.json();
+  const applyToken = useCallback((jwt: string) => {
     localStorage.setItem("auth_token", jwt);
     const payload = decodeJwtPayload(jwt);
     setToken(jwt);
     setUsername(payload.sub ?? null);
     setPermissions(payload.permissions ?? []);
   }, []);
+
+  const login = useCallback(
+    async (user: string, password: string) => {
+      const response = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ username: user, password }),
+      });
+
+      if (!response.ok) {
+        const body = await response.json().catch(() => ({ message: "Login failed" }));
+        throw new Error(body.message ?? "Login failed");
+      }
+
+      const { token: jwt } = await response.json();
+      applyToken(jwt);
+    },
+    [applyToken],
+  );
+
+  const register = useCallback(
+    async (payload: RegisterPayload) => {
+      const response = await fetch("/api/auth/register", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          role: payload.role,
+          family_name: payload.familyName,
+          username: payload.username,
+          password: payload.password,
+          display_name: payload.displayName,
+          email: payload.email || undefined,
+          circle_name: payload.circleName || undefined,
+        }),
+      });
+
+      if (!response.ok) {
+        const body = await response.json().catch(() => ({ message: "Registration failed" }));
+        throw new Error(body.message ?? "Registration failed");
+      }
+
+      const { token: jwt } = await response.json();
+      applyToken(jwt);
+    },
+    [applyToken],
+  );
 
   const logout = useCallback(() => {
     localStorage.removeItem("auth_token");
@@ -77,8 +122,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const value = useMemo<AuthContextValue>(
-    () => ({ token, username, permissions, login, logout }),
-    [token, username, permissions, login, logout],
+    () => ({ token, username, permissions, login, register, logout }),
+    [token, username, permissions, login, register, logout],
   );
 
   return <AuthContext value={value}>{children}</AuthContext>;

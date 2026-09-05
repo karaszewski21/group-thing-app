@@ -3,6 +3,7 @@ import {
   LayoutList,
   Leaf,
   Plug,
+  Users,
   Warehouse,
   Image as ImageIcon,
   type LucideIcon,
@@ -10,10 +11,10 @@ import {
 import * as icons from "lucide-react";
 
 export const ProductsIcon = Package;
-export const CategoriesIcon = LayoutList;
 export const PluginsIcon = Plug;
 export const WarehouseIcon = Warehouse;
 export const FootprintIcon = Leaf;
+export const KragIcon = Users;
 
 const ICON_MAP: Record<string, LucideIcon> = {
   package: Package,

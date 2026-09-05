@@ -11,11 +11,11 @@ import {
 import { useCallback, useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { getProduct, createProduct, updateProduct } from "../api/products";
-import { getCategories } from "../api/categories";
-import type { CategoryResponse } from "../api/categories";
+import type { ProductCategory } from "../api/products";
 import { PhotoPlaceholder } from "../components/shared/Icons";
 import { isValidImageUrl } from "../utils/url";
 import { PrimaryButton } from "../components/shared/PrimaryButton";
+import { CATEGORY_LABELS, PRODUCT_CATEGORIES } from "../utils/productCategory";
 
 const labelStyle: React.CSSProperties = {
   fontSize: "14px",
@@ -33,10 +33,9 @@ export function ProductFormPage() {
   const [name, setName] = useState("");
   const [sku, setSku] = useState("");
   const [price, setPrice] = useState("");
-  const [categoryId, setCategoryId] = useState("");
+  const [category, setCategory] = useState<ProductCategory | "">("");
   const [description, setDescription] = useState("");
   const [photoUrl, setPhotoUrl] = useState("");
-  const [categories, setCategories] = useState<CategoryResponse[]>([]);
   const [loading, setLoading] = useState(false);
   const [loadingData, setLoadingData] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -44,14 +43,12 @@ export function ProductFormPage() {
   const loadData = useCallback(async () => {
     setLoadingData(true);
     try {
-      const cats = await getCategories();
-      setCategories(cats);
       if (id) {
         const product = await getProduct(Number(id));
         setName(product.name);
         setSku(product.sku);
         setPrice(String(product.price));
-        setCategoryId(String(product.category.id));
+        setCategory(product.category);
         setDescription(product.description ?? "");
         setPhotoUrl(product.photoUrl ?? "");
       }
@@ -68,13 +65,14 @@ export function ProductFormPage() {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    if (!category) return;
     setLoading(true);
     setError(null);
     const payload = {
       name,
       sku,
       price: parseFloat(price),
-      categoryId: parseInt(categoryId, 10),
+      category,
       description: description || undefined,
       photoUrl: photoUrl || undefined,
     };
@@ -163,8 +161,8 @@ export function ProductFormPage() {
             </label>
             <select
               id="product-category"
-              value={categoryId}
-              onChange={(e) => setCategoryId(e.target.value)}
+              value={category}
+              onChange={(e) => setCategory(e.target.value as ProductCategory)}
               required
               style={{
                 width: "100%",
@@ -176,9 +174,9 @@ export function ProductFormPage() {
               }}
             >
               <option value="">Select a category...</option>
-              {categories.map((cat) => (
-                <option key={cat.id} value={cat.id}>
-                  {cat.name}
+              {PRODUCT_CATEGORIES.map((cat) => (
+                <option key={cat} value={cat}>
+                  {CATEGORY_LABELS[cat]}
                 </option>
               ))}
             </select>

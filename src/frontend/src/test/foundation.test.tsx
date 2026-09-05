@@ -55,7 +55,7 @@ describe("Frontend Foundation", () => {
     expect(screen.getByText("Tomorrow")).toBeInTheDocument();
     expect(screen.getByText("Commerce")).toBeInTheDocument();
     expect(screen.getByText("Products")).toBeInTheDocument();
-    expect(screen.getByText("Categories")).toBeInTheDocument();
+    expect(screen.getByText("Krąg grupy")).toBeInTheDocument();
     expect(screen.getByText("page content")).toBeInTheDocument();
   });
 

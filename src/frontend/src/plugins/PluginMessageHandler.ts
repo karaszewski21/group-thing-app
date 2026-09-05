@@ -103,7 +103,7 @@ async function handleApiMessage(
 ): Promise<unknown> {
   switch (type) {
     case "getProducts": {
-      const params = payload as { category?: number; search?: string; sort?: string };
+      const params = payload as { category?: string; search?: string; sort?: string };
       const searchParams = new URLSearchParams();
       if (params.category) searchParams.set("category", String(params.category));
       if (params.search) searchParams.set("search", params.search);

@@ -54,14 +54,6 @@ vi.mock("../api/products", () => ({
   deleteProduct: vi.fn(),
 }));
 
-vi.mock("../api/categories", () => ({
-  getCategories: vi.fn().mockResolvedValue([]),
-  getCategory: vi.fn(),
-  createCategory: vi.fn(),
-  updateCategory: vi.fn(),
-  deleteCategory: vi.fn(),
-}));
-
 function renderWithProviders(ui: React.ReactElement, initialRoute = "/") {
   return render(
     <ChakraProvider value={system}>
@@ -146,12 +138,12 @@ describe("LoginPage", () => {
     const { LoginPage } = await import("../pages/LoginPage");
     renderWithProviders(<LoginPage />);
 
-    expect(screen.getByLabelText(/username/i)).toBeInTheDocument();
-    expect(screen.getByLabelText(/password/i)).toBeInTheDocument();
+    expect(screen.getByLabelText(/nazwa użytkownika/i)).toBeInTheDocument();
+    expect(screen.getByLabelText(/hasło/i)).toBeInTheDocument();
 
-    fireEvent.change(screen.getByLabelText(/username/i), { target: { value: "admin" } });
-    fireEvent.change(screen.getByLabelText(/password/i), { target: { value: "pass123" } });
-    fireEvent.click(screen.getByRole("button", { name: /sign in/i }));
+    fireEvent.change(screen.getByLabelText(/nazwa użytkownika/i), { target: { value: "admin" } });
+    fireEvent.change(screen.getByLabelText(/hasło/i), { target: { value: "pass123" } });
+    fireEvent.click(screen.getByRole("button", { name: /zaloguj się/i }));
 
     await waitFor(() => {
       expect(mockLogin).toHaveBeenCalledWith("admin", "pass123");

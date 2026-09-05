@@ -18,7 +18,7 @@ export function AuthGuard({ children, requireAuth = true }: AuthGuardProps) {
   }
 
   if (!requireAuth && token) {
-    const returnTo = searchParams.get("returnTo") || "/products";
+    const returnTo = searchParams.get("returnTo") || "/panel";
     return <Navigate to={returnTo} replace />;
   }
 

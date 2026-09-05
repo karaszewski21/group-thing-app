@@ -1,19 +1,50 @@
 """`Product` ORM model (table created by Group 2's `0001_initial_schema`
-migration; see spec.md's Database Schema Spec `products` table). Follows
-`app/category/models.py`'s ORM pattern (Group 7's reference module).
+migration; see spec.md's Database Schema Spec `products` table). Category is
+a closed, string-backed enum (`ProductCategory`) rather than a separate
+`Category` FK — the standalone `app.category` module was removed in favor of
+this inline dictionary, and `app.circulation`'s `InventoryItem.product_id`
+now references this same catalog.
 """
 
 from __future__ import annotations
 
+import enum
 from decimal import Decimal
 from typing import Any
 
-from sqlalchemy import ForeignKey, Numeric, String
+from sqlalchemy import Enum, Numeric, String
 from sqlalchemy.dialects.postgresql import JSONB
-from sqlalchemy.orm import Mapped, mapped_column, relationship
+from sqlalchemy.orm import Mapped, mapped_column
 
-from app.category.models import Category
 from app.core.base_model import BaseEntity
+
+
+def _enum_column(enum_cls: type[enum.StrEnum], length: int) -> Enum:
+    """A `String`-backed column for a `StrEnum` that actually round-trips as
+    the enum type on read, not a bare `str` — `native_enum=False` keeps the
+    DDL a plain `VARCHAR` (matches `standards/backend/models.md`'s "stored
+    as a String column, never ordinal"; no Postgres native enum type is
+    created), while `values_callable` stores/reads each member's `.value`
+    rather than SQLAlchemy's own `Enum` default of `.name`. Duplicated from
+    `app/party/models.py` rather than shared — each vertical in this
+    codebase is self-contained (see `app/category/service.py` vs.
+    `app/product/service.py` not sharing a base CRUD class either)."""
+    return Enum(
+        enum_cls,
+        native_enum=False,
+        length=length,
+        values_callable=lambda cls: [member.value for member in cls],
+    )
+
+
+class ProductCategory(enum.StrEnum):
+    """Closed, extensible dictionary for what kind of thing a product is."""
+
+    TOY = "TOY"
+    BOOK = "BOOK"
+    GAME = "GAME"
+    CLOTHING = "CLOTHING"
+    OTHER = "OTHER"
 
 
 class Product(BaseEntity):
@@ -28,21 +59,10 @@ class Product(BaseEntity):
     # even though it's this entity's business key below — preserve that
     # absence exactly, matching the Java source.
     sku: Mapped[str] = mapped_column(String(50), nullable=False)
-    category_id: Mapped[int] = mapped_column(
-        ForeignKey("categories.id", name="fk_products_category_id_categories"), nullable=False
+    category: Mapped[ProductCategory] = mapped_column(
+        _enum_column(ProductCategory, 20), nullable=False
     )
     plugin_data: Mapped[dict[str, Any] | None] = mapped_column(JSONB, nullable=True)
-
-    # `lazy="raise"`: every read path (get/list/create/update in
-    # service.py/query_service.py) must explicitly
-    # `.options(joinedload(Product.category))` — spec.md requires GET-by-id
-    # to JOIN-fetch category rather than lazy-load, and since
-    # `ProductResponse` always nests a full `CategoryResponse`, every other
-    # read path needs the same. `AsyncSession` can't do an implicit
-    # lazy-load anyway (it would raise `MissingGreenlet` deep in Pydantic
-    # serialization); `lazy="raise"` turns a missed eager-load into an
-    # immediate, legible `InvalidRequestError` at the call site instead.
-    category: Mapped[Category] = relationship(Category, lazy="raise")
 
     def __eq__(self, other: Any) -> bool:
         """Business-key equality on `sku` (never entity `id`) — per

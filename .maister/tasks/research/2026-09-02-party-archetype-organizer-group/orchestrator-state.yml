@@ -1,0 +1,105 @@
+orchestrator:
+  started_phase: phase-5
+  completed_phases: [phase-1, phase-2, phase-3, phase-4]
+  failed_phases: []
+  auto_fix_attempts:
+    phase-1: 0
+  options:
+    e2e_enabled: null
+    user_docs_enabled: null
+    code_review_enabled: null
+    sequential: null
+  created: "2026-09-02T00:00:00Z"
+  updated: "2026-09-02T00:00:00Z"
+  task_path: .maister/tasks/research/2026-09-02-party-archetype-organizer-group
+  task_ids: {}
+
+task:
+  title: "Party Archetype dla Organizator -> Grupa -> Uczestnicy + prosby o rzeczy na zajecia"
+  description: >
+    Zamodelowac relacje Organizator -> Grupa -> Uczestnicy przy uzyciu Party Archetype,
+    oraz zamodelowac mechanizm "organizator prosi o rzecz na zajecia / uczestnik zglasza
+    sie na ochotnika", z integracja z istniejacym modelem wypozyczalni opisanym w
+    docs/system-wypozyczalni-inventory-accounting.md i istniejacym prototypem pages/.
+  status: in_progress
+  tags: [research, party-archetype, ddd, domain-modeling]
+  priority: null
+
+research_context:
+  research_type: mixed
+  research_question: >
+    Aplikacja ma na celu organizowac zajecia i pomoc w wymianie/oddaniu/wypozyczeniu
+    roznego typu rzeczy. Organizator ma miec mozliwosc przy dodawaniu zajec poprosic o
+    rzeczy potrzebne na zajecia (uczestnicy moga sie zglosic na ochotnika). Wykorzystac
+    archetyp Party do modelowania relacji organizator -> grupa, grupa -> uczestnicy.
+  confidence_level: high
+  gathering_strategy:
+    categories: [codebase, inventory-model, archetype-methodology]
+    count: 3
+    source: planner
+  methodology:
+    - "Party Archetype mapping (party-archetype-mapper skill: Fit Test -> Party Types -> Concept Mapping -> Unmapped Concepts -> Role Types -> Relationships -> Validity -> Contact Mechanisms -> Implementation Notes)"
+    - "Codebase analysis of pages/*.tsx + pages/SPEC.md"
+    - "Domain model cross-reference against docs/system-wypozyczalni-inventory-accounting.md"
+  sources:
+    - "pages/KragGrupy.tsx, KragGrupyStart.tsx, PanelOrganizatora.tsx, PanelGoscia.tsx, ProfilMobilny.tsx, StronaGlowna.tsx, GaleriaZdjec.tsx, SPEC.md"
+    - "docs/system-wypozyczalni-inventory-accounting.md"
+    - ".claude/skills/party-archetype-mapper/SKILL.md"
+  phase_summaries:
+    phase-1:
+      summary: >
+        Zbudowano model Party (Person/Group/Group) dla Organizator/Grupa/Rodzina z
+        relacjami leadership/membership (walidacja czasowa rekomendowana, cardinality
+        oznaczone jako otwarte (X)). "Prosba o rzecz" to atrybut Term poza archetypem
+        Party. "Zgloszenie na ochotnika" nie kwalifikuje sie jako Party Relationship ani
+        jako Reservation (Reservation.itemId wymaga juz istniejacego InventoryItem) -
+        wprowadzono nowy posredni koncept Pledge, ktory referencuje Party i konwertuje
+        sie w Reservation dopiero po zarejestrowaniu konkretnego przedmiotu, bez zmiany
+        kontraktu istniejacego modelu wypozyczalni.
+      steps_completed: [step-1-initialize, step-2-plan, step-3-gather, step-4-synthesize]
+    phase-3:
+      summary: >
+        Wygenerowano 3 alternatywy dla kazdego z 4 otwartych obszarow (X):
+        leadership cardinality, membership cardinality, ksztalt pola potrzeby,
+        moment wprowadzenia tozsamosci czlonka rodziny. Rekomendowana spojna
+        kombinacja: 1A+2A+3B+4C.
+    phase-4:
+      decision_areas:
+        - area: "leadership cardinality (Organizator <-> Grupa)"
+          alternatives_count: 3
+          chosen_approach: "1A: scisle 1:N, delegacja (1C) jako odlozone rozszerzenie"
+        - area: "membership cardinality (Rodzina <-> Grupa)"
+          alternatives_count: 3
+          chosen_approach: "2A: N:N od startu"
+        - area: "ksztalt pola opisu potrzeby na Term"
+          alternatives_count: 3
+          chosen_approach: "3B: kategoria/tag z zamknietego slownika"
+        - area: "moment wprowadzenia tozsamosci czlonka rodziny"
+          alternatives_count: 3
+          chosen_approach: "4C: jeden primary contact User per Rodzina od poczatku"
+      deferred_ideas:
+        - "Mechanizm delegacji/zastepstwa (1C) - stretch, do zaprojektowania gdy zastepstwa okaza sie potrzebne"
+        - "Przelacznik kontekstu grupy w UI (konsekwencja 2A) - out-of-scope, UI"
+        - "Wspoldzielony katalog produktow (3C) - out-of-scope, granica z redesignem inventory"
+        - "Pelny model multi-opiekuna z autoryzacja per-osoba (4A) - stretch, naturalna sciezka rozwoju 4C"
+        - "Zachowanie Reservation.status=cancelled wzgledem otwartego Pledge - stretch, do specification-designer"
+        - "Ujednolicenie 4 niespojnych slownikow trybu wymiany - out-of-scope, patrz pages/SPEC.md"
+  scope:
+    included:
+      - "Party Archetype dla Organizator/Grupa/Uczestnik"
+      - "Modelowanie prosby o rzecz na zajeciach + zgloszenie na ochotnika"
+      - "Integracja z Reservation/InventoryBalance/CirculationTransaction z inventory-accounting doc"
+      - "Mapowanie na istniejacy prototyp w pages/ (Family, Group, Term, Item, ItemMode, Gift)"
+    excluded:
+      - "Redesign UI/UX stron prototypowych"
+      - "Wybor stacku technologicznego / bazy danych"
+      - "Przeprojektowanie modelu punktowego CirculationTransaction"
+    constraints:
+      - "Zgodnosc z konwencja party-archetype-mapper (Party/RoleType/Relationship/ContactMechanism)"
+      - "Zgodnosc z docs/system-wypozyczalni-inventory-accounting.md"
+      - ".maister/docs/* standards NIE dotycza tego projektu (opisuja inny projekt 'aj') - traktowane jako niewiazace"
+  project_doc_paths: []
+
+options:
+  brainstorming_enabled: true
+  design_enabled: true

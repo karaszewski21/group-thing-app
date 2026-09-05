@@ -14,11 +14,10 @@ from typing import Any
 
 from sqlalchemy import Boolean, ColumnElement, Numeric, TextClause, cast, func, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import joinedload
 
 from app.core.filter_dsl import ALLOWED_OPERATORS, IDENTIFIER_PATTERN
 
-from .models import Product
+from .models import Product, ProductCategory
 
 # Sort whitelist: unknown/blank `field` silently falls back to the default
 # (`created_at DESC`) — never a 400. `createdAt` (camelCase, matching the
@@ -131,15 +130,15 @@ def _parse_plugin_filter(raw: str) -> ColumnElement[Any]:
 async def list_products(
     db: AsyncSession,
     *,
-    category: int | None,
+    category: ProductCategory | None,
     search: str | None,
     sort: str | None,
     plugin_filters: list[str] | None,
 ) -> list[Product]:
-    stmt = select(Product).options(joinedload(Product.category))
+    stmt = select(Product)
 
     if category is not None:
-        stmt = stmt.where(Product.category_id == category)
+        stmt = stmt.where(Product.category == category)
 
     if search:
         stmt = stmt.where(Product.name.ilike(f"%{search}%"))
@@ -150,4 +149,4 @@ async def list_products(
     stmt = stmt.order_by(_resolve_sort(sort))
 
     result = await db.execute(stmt)
-    return list(result.scalars().unique().all())
+    return list(result.scalars().all())

@@ -1,6 +1,5 @@
-import { Box, Button, Flex, Heading, Input, Text } from "@chakra-ui/react";
 import { useState } from "react";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "../auth/AuthContext";
 
 export function LoginPage() {
@@ -18,86 +17,73 @@ export function LoginPage() {
     setLoading(true);
     try {
       await login(username, password);
-      const returnTo = searchParams.get("returnTo") || "/products";
+      const returnTo = searchParams.get("returnTo") || "/panel";
       navigate(returnTo, { replace: true });
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Login failed");
+      setError(err instanceof Error ? err.message : "Nie udało się zalogować");
     } finally {
       setLoading(false);
     }
   }
 
   return (
-    <Flex minH="100vh" align="center" justify="center" bg="#F8FAFC">
-      <Box
-        bg="white"
-        border="1px solid"
-        borderColor="#E2E8F0"
-        borderRadius="12px"
-        p="40px"
-        w="100%"
-        maxW="400px"
-      >
-        <Heading as="h1" fontSize="24px" fontWeight="700" color="#0F172A" mb="8px" textAlign="center">
-          <Text as="span" color="brand.400">Tomorrow</Text>
-          <Text as="span" color="#0F172A" fontWeight="800">Commerce</Text>
-        </Heading>
-        <Text fontSize="14px" color="#64748B" mb="32px" textAlign="center">
-          Sign in to your account
-        </Text>
+    <div className="flex min-h-screen items-center justify-center bg-cream px-4 font-sans text-ink">
+      <div className="w-full max-w-[400px] rounded-[22px] border border-line bg-paper p-10">
+        <h1 className="mb-2 text-center font-serif text-2xl font-semibold text-ink">
+          Krąg <span className="text-mint">grupy</span>
+        </h1>
+        <p className="mb-8 text-center text-sm text-ink-soft">Zaloguj się do swojego konta</p>
 
         <form onSubmit={handleSubmit}>
-          <Box mb="16px">
-            <label htmlFor="username">
-              <Text fontSize="14px" fontWeight="500" color="#334155" mb="4px">
-                Username
-              </Text>
+          <div className="mb-4">
+            <label htmlFor="username" className="mb-1.5 block text-sm font-medium text-ink">
+              Nazwa użytkownika
             </label>
-            <Input
+            <input
               id="username"
               value={username}
               onChange={(e) => setUsername(e.target.value)}
-              placeholder="Enter username"
-              border="1px solid"
-              borderColor="#E2E8F0"
-              borderRadius="8px"
+              placeholder="Wpisz nazwę użytkownika"
+              className="w-full rounded-lg border border-line bg-paper px-3 py-2 text-sm text-ink outline-none focus:border-mint"
             />
-          </Box>
+          </div>
 
-          <Box mb="24px">
-            <label htmlFor="password">
-              <Text fontSize="14px" fontWeight="500" color="#334155" mb="4px">
-                Password
-              </Text>
+          <div className="mb-6">
+            <label htmlFor="password" className="mb-1.5 block text-sm font-medium text-ink">
+              Hasło
             </label>
-            <Input
+            <input
               id="password"
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              placeholder="Enter password"
-              border="1px solid"
-              borderColor="#E2E8F0"
-              borderRadius="8px"
+              placeholder="Wpisz hasło"
+              className="w-full rounded-lg border border-line bg-paper px-3 py-2 text-sm text-ink outline-none focus:border-mint"
             />
-          </Box>
+          </div>
 
           {error && (
-            <Box mb="16px" p="12px" bg="#FEE2E2" borderRadius="8px" fontSize="13px" color="#991B1B">
+            <div className="mb-4 rounded-lg bg-danger-soft px-3 py-2.5 text-[13px] text-danger">
               {error}
-            </Box>
+            </div>
           )}
 
-          <Button
+          <button
             type="submit"
-            colorPalette="blue"
-            w="100%"
             disabled={loading || !username || !password}
+            className="w-full rounded-full bg-mint px-4 py-2.5 text-sm font-bold text-white transition disabled:opacity-60"
           >
-            {loading ? "Signing in..." : "Sign In"}
-          </Button>
+            {loading ? "Logowanie…" : "Zaloguj się"}
+          </button>
         </form>
-      </Box>
-    </Flex>
+
+        <p className="mt-6 text-center text-[13px] text-ink-soft">
+          Nie masz konta?{" "}
+          <Link to="/register" className="font-semibold text-mint">
+            Zarejestruj się
+          </Link>
+        </p>
+      </div>
+    </div>
   );
 }

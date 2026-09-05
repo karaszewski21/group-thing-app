@@ -1,0 +1,22 @@
+- generic [ref=f1e4]:
+  - banner [ref=f1e145]:
+    - button "Wróć" [ref=f1e301]
+    - heading "Dane profilowe" [level=1] [ref=f1e304]
+  - generic [ref=f1e305]:
+    - heading "Dane profilowe" [level=3] [ref=f1e306]
+    - generic [ref=f1e307]:
+      - generic [ref=f1e308]: OT
+      - paragraph [ref=f1e309]: Zdjęcie profilowe pojawi się tutaj, gdy będzie dostępne — dziś pokazujemy inicjały.
+    - generic [ref=f1e310]:
+      - generic [ref=f1e311]:
+        - generic [ref=f1e312]: Imię i nazwisko
+        - textbox [disabled] [ref=f1e313]: Ola Testowa
+      - generic [ref=f1e314]:
+        - generic [ref=f1e315]: Lokalizacja
+        - textbox "Lokalizacja" [ref=f1e316]:
+          - /placeholder: Miasto, dzielnica
+      - generic [ref=f1e317]:
+        - generic [ref=f1e318]: O mnie
+        - textbox "O mnie" [ref=f1e319]:
+          - /placeholder: Kilka zdań o Tobie
+    - button "Zapisz zmiany" [ref=f1e321]

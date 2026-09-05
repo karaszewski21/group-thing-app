@@ -1,5 +1,6 @@
-import type { CategoryResponse } from "./categories";
 import { api } from "./client";
+
+export type ProductCategory = "TOY" | "BOOK" | "GAME" | "CLOTHING" | "OTHER";
 
 export interface ProductResponse {
   id: number;
@@ -8,7 +9,7 @@ export interface ProductResponse {
   photoUrl: string | null;
   price: number;
   sku: string;
-  category: CategoryResponse;
+  category: ProductCategory;
   pluginData: Record<string, Record<string, unknown>> | null;
   createdAt: string;
   updatedAt: string;
@@ -20,7 +21,7 @@ export interface CreateProductRequest {
   photoUrl?: string;
   price: number;
   sku: string;
-  categoryId: number;
+  category: ProductCategory;
 }
 
 export interface UpdateProductRequest {
@@ -29,11 +30,11 @@ export interface UpdateProductRequest {
   photoUrl?: string;
   price: number;
   sku: string;
-  categoryId: number;
+  category: ProductCategory;
 }
 
 export interface ProductSearchParams {
-  category?: number;
+  category?: ProductCategory;
   search?: string;
   sort?: string;
   pluginFilters?: string[];
@@ -41,7 +42,7 @@ export interface ProductSearchParams {
 
 export function getProducts(params?: ProductSearchParams): Promise<ProductResponse[]> {
   const searchParams = new URLSearchParams();
-  if (params?.category) searchParams.set("category", String(params.category));
+  if (params?.category) searchParams.set("category", params.category);
   if (params?.search) searchParams.set("search", params.search);
   if (params?.sort) searchParams.set("sort", params.sort);
   if (params?.pluginFilters) {

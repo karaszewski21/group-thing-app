@@ -1,8 +1,7 @@
 """Pydantic request/response models for `/api/products` (spec.md's API
 Route Spec, `ProductResponse`/`CreateProductRequest`/`UpdateProductRequest`).
-Follows `app/category/schemas.py`'s pattern (Group 7's reference module);
-`ProductResponse` nests `CategoryResponse` directly (imported, never
-redefined) rather than exposing a bare `category_id`.
+`category` is a closed `ProductCategory` enum value, not a nested
+`CategoryResponse` — the standalone `app.category` module was removed.
 """
 
 from __future__ import annotations
@@ -15,7 +14,7 @@ from typing import Any
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 from pydantic_core import PydanticCustomError
 
-from app.category.schemas import CategoryResponse
+from .models import ProductCategory
 
 _PHOTO_URL_PATTERN = re.compile(r"^https?://.*")
 
@@ -36,8 +35,7 @@ def _validate_photo_url(value: str | None) -> str | None:
 class ProductResponse(BaseModel):
     """Field order is significant (mirrors the Java DTO): `id, name,
     description, photo_url, price, sku, category, plugin_data, created_at,
-    updated_at`. `category` is always a full nested `CategoryResponse` —
-    never a bare `category_id`."""
+    updated_at`."""
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -47,7 +45,7 @@ class ProductResponse(BaseModel):
     photo_url: str | None
     price: Decimal
     sku: str
-    category: CategoryResponse
+    category: ProductCategory
     plugin_data: dict[str, Any] | None
     created_at: datetime
     updated_at: datetime
@@ -59,7 +57,7 @@ class CreateProductRequest(BaseModel):
     photo_url: str | None = Field(default=None, max_length=500)
     price: Decimal = Field(gt=0)
     sku: str = Field(min_length=1, max_length=50)
-    category_id: int
+    category: ProductCategory
 
     @field_validator("photo_url")
     @classmethod
@@ -73,7 +71,7 @@ class UpdateProductRequest(BaseModel):
     photo_url: str | None = Field(default=None, max_length=500)
     price: Decimal = Field(gt=0)
     sku: str = Field(min_length=1, max_length=50)
-    category_id: int
+    category: ProductCategory
 
     @field_validator("photo_url")
     @classmethod

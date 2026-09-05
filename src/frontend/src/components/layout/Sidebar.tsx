@@ -1,7 +1,7 @@
 import { Box, Flex, Text } from "@chakra-ui/react";
 import { Link, useLocation } from "react-router-dom";
 import type { LucideIcon } from "lucide-react";
-import { ProductsIcon, CategoriesIcon, PluginsIcon, FootprintIcon, resolveIcon } from "../shared/Icons";
+import { ProductsIcon, PluginsIcon, FootprintIcon, KragIcon, resolveIcon } from "../shared/Icons";
 import { usePluginContext } from "../../plugins/PluginContext";
 import { useAuth } from "../../auth/AuthContext";
 
@@ -90,7 +90,7 @@ export function Sidebar() {
       <Flex as="nav" direction="column" gap="2px" role="navigation" aria-label="Main navigation">
         <NavItem to="/products" label="Products" icon={ProductsIcon} />
         <NavItem to="/carbon-footprint" label="Carbon Footprint" icon={FootprintIcon} />
-        <NavItem to="/categories" label="Categories" icon={CategoriesIcon} />
+        <NavItem to="/panel" label="Krąg grupy" icon={KragIcon} />
         {hasPluginManagement && (
           <NavItem to="/plugins" label="Plugins" icon={PluginsIcon} />
         )}

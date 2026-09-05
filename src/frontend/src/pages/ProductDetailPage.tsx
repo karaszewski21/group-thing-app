@@ -16,6 +16,7 @@ import { PluginFrame } from "../plugins/PluginFrame";
 import { FootprintIcon, PhotoPlaceholder } from "../components/shared/Icons";
 import { formatPrice } from "../utils/format";
 import { isValidImageUrl } from "../utils/url";
+import { CATEGORY_LABELS } from "../utils/productCategory";
 
 export function ProductDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -169,7 +170,7 @@ export function ProductDetailPage() {
                   <Text fontSize="12px" fontWeight="600" color="#64748B" textTransform="uppercase">
                     Category
                   </Text>
-                  <Text color="#334155">{product.category.name}</Text>
+                  <Text color="#334155">{CATEGORY_LABELS[product.category]}</Text>
                 </Box>
                 {product.description && (
                   <Box>

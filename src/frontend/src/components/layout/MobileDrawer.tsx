@@ -11,7 +11,7 @@ import {
 } from "@chakra-ui/react";
 import { Link, useLocation } from "react-router-dom";
 import type { LucideIcon } from "lucide-react";
-import { ProductsIcon, CategoriesIcon, PluginsIcon, FootprintIcon } from "../shared/Icons";
+import { ProductsIcon, PluginsIcon, FootprintIcon, KragIcon } from "../shared/Icons";
 
 interface MobileDrawerProps {
   open: boolean;
@@ -78,7 +78,7 @@ export function MobileDrawer({ open, onClose }: MobileDrawerProps) {
             <Flex as="nav" direction="column" gap="2px" role="navigation" aria-label="Mobile navigation">
               <MobileNavItem to="/products" label="Products" icon={ProductsIcon} onClick={onClose} />
               <MobileNavItem to="/carbon-footprint" label="Carbon Footprint" icon={FootprintIcon} onClick={onClose} />
-              <MobileNavItem to="/categories" label="Categories" icon={CategoriesIcon} onClick={onClose} />
+              <MobileNavItem to="/panel" label="Krąg grupy" icon={KragIcon} onClick={onClose} />
               <MobileNavItem to="/plugins" label="Plugins" icon={PluginsIcon} onClick={onClose} />
             </Flex>
           </DrawerBody>

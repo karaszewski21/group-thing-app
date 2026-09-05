@@ -200,20 +200,49 @@ _RAW_MATRIX: tuple[_RawEntry, ...] = (
     # excludes `/oauth2/authorize` (POST) without needing to special-case
     # that path, and lets it correctly fall through to row 25.
     (_methods("GET"), r"^(?!/api/).*$", "PUBLIC"),
-    (_methods("GET"), r"^/api/categories(/.*)?$", ("READ", "mcp:read")),  # 11
-    (_methods("GET"), r"^/api/products(/.*)?$", ("READ", "mcp:read")),  # 12
-    (_methods("GET"), r"^/api/footprints/calculations/[^/]+/export$", ("READ", "mcp:read")),  # 13
-    (_methods("GET"), r"^/api/plugins$", ("READ",)),  # 14
-    (_methods("GET"), r"^/api/plugins/[^/]+$", ("READ",)),  # 15
-    (_methods("GET"), r"^/api/plugins/[^/]+/objects(/.*)?$", ("READ",)),  # 16
-    (_methods("GET"), r"^/api/plugins/[^/]+/products/[^/]+/data$", ("READ",)),  # 17
-    (_methods("POST", "PUT", "DELETE"), r"^/api/categories(/.*)?$", ("EDIT", "mcp:edit")),  # 18
-    (_methods("POST", "PUT", "DELETE"), r"^/api/products(/.*)?$", ("EDIT", "mcp:edit")),  # 19
-    (_methods("PUT", "DELETE"), r"^/api/plugins/[^/]+/objects(/.*)?$", ("EDIT",)),  # 20
-    (_methods("PUT", "DELETE"), r"^/api/plugins/[^/]+/products/[^/]+/data$", ("EDIT",)),  # 21
-    (_methods("PUT"), r"^/api/plugins/[^/]+/manifest$", ("PLUGIN_MANAGEMENT",)),  # 22
-    (_methods("PATCH"), r"^/api/plugins/[^/]+/enabled$", ("PLUGIN_MANAGEMENT",)),  # 23
-    (_methods("DELETE"), r"^/api/plugins/[^/]+$", ("PLUGIN_MANAGEMENT",)),  # 24
+    (_methods("GET"), r"^/api/products(/.*)?$", ("READ", "mcp:read")),  # 11
+    (_methods("GET"), r"^/api/footprints/calculations/[^/]+/export$", ("READ", "mcp:read")),  # 12
+    (_methods("GET"), r"^/api/plugins$", ("READ",)),  # 13
+    (_methods("GET"), r"^/api/plugins/[^/]+$", ("READ",)),  # 14
+    (_methods("GET"), r"^/api/plugins/[^/]+/objects(/.*)?$", ("READ",)),  # 15
+    (_methods("GET"), r"^/api/plugins/[^/]+/products/[^/]+/data$", ("READ",)),  # 16
+    (_methods("POST", "PUT", "DELETE"), r"^/api/products(/.*)?$", ("EDIT", "mcp:edit")),  # 17
+    (_methods("PUT", "DELETE"), r"^/api/plugins/[^/]+/objects(/.*)?$", ("EDIT",)),  # 18
+    (_methods("PUT", "DELETE"), r"^/api/plugins/[^/]+/products/[^/]+/data$", ("EDIT",)),  # 19
+    (_methods("PUT"), r"^/api/plugins/[^/]+/manifest$", ("PLUGIN_MANAGEMENT",)),  # 20
+    (_methods("PATCH"), r"^/api/plugins/[^/]+/enabled$", ("PLUGIN_MANAGEMENT",)),  # 21
+    (_methods("DELETE"), r"^/api/plugins/[^/]+$", ("PLUGIN_MANAGEMENT",)),  # 22
+    # 26-47: app.party / app.circulation — added beyond spec.md's original 25
+    # rows for the Organizer/Circle/Family + Wypożyczalnia domain. Ownership
+    # checks the matrix itself can't express (active organizer, own-family
+    # guardian, reservation party, ...) are enforced in each vertical's
+    # service.py — see standards/backend/security.md.
+    (_methods("GET"), r"^/api/groups(/.*)?$", ("READ", "mcp:read")),  # 26
+    (_methods("POST"), r"^/api/groups(/.*)?$", ("EDIT", "mcp:edit")),  # 27
+    (_methods("GET"), r"^/api/families(/.*)?$", ("READ", "mcp:read")),  # 28
+    (_methods("POST"), r"^/api/families(/.*)?$", ("EDIT", "mcp:edit")),  # 29
+    (_methods("POST"), r"^/api/leaderships(/.*)?$", ("EDIT", "mcp:edit")),  # 30
+    (_methods("POST"), r"^/api/memberships(/.*)?$", ("EDIT", "mcp:edit")),  # 31
+    (_methods("GET"), r"^/api/terms(/.*)?$", ("READ", "mcp:read")),  # 32
+    (_methods("POST"), r"^/api/terms(/.*)?$", ("EDIT", "mcp:edit")),  # 33
+    (_methods("GET"), r"^/api/needed-items(/.*)?$", ("READ", "mcp:read")),  # 34
+    (_methods("POST"), r"^/api/needed-items(/.*)?$", ("EDIT", "mcp:edit")),  # 35
+    (_methods("GET"), r"^/api/pledges(/.*)?$", ("READ", "mcp:read")),  # 36
+    (_methods("POST"), r"^/api/pledges(/.*)?$", ("EDIT", "mcp:edit")),  # 37
+    (_methods("GET"), r"^/api/inventories(/.*)?$", ("READ", "mcp:read")),  # 38
+    (_methods("POST"), r"^/api/inventories(/.*)?$", ("EDIT", "mcp:edit")),  # 39
+    (_methods("GET"), r"^/api/inventory-items(/.*)?$", ("READ", "mcp:read")),  # 40
+    (_methods("POST"), r"^/api/inventory-items(/.*)?$", ("EDIT", "mcp:edit")),  # 41
+    (_methods("GET"), r"^/api/reservations(/.*)?$", ("READ", "mcp:read")),  # 42
+    (_methods("POST"), r"^/api/reservations(/.*)?$", ("EDIT", "mcp:edit")),  # 43
+    (_methods("GET"), r"^/api/accounts(/.*)?$", ("READ", "mcp:read")),  # 44
+    (_methods("GET"), r"^/api/circulation-transactions(/.*)?$", ("READ", "mcp:read")),  # 45
+    (_methods("GET"), r"^/api/people(/.*)?$", ("READ", "mcp:read")),  # 46
+    # 47: public self-registration — the party-module counterpart to row 6's
+    # `/api/auth/login`. No existing row matches this literal path, so it's
+    # appended here rather than inserted next to row 6, to avoid renumbering
+    # rows 7-22's original spec.md sequence.
+    (_methods("POST"), r"^/api/auth/register$", "PUBLIC"),  # 47
     (None, r"^.*$", "AUTHENTICATED"),  # 25 - catch-all
 )
 

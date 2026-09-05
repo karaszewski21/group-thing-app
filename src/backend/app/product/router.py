@@ -16,6 +16,7 @@ from app.core.auth_deps import Principal, require_any
 from app.db import get_db
 
 from . import service
+from .models import ProductCategory
 from .schemas import CreateProductRequest, ProductResponse, UpdateProductRequest
 
 router = APIRouter(prefix="/api/products", tags=["products"])
@@ -29,7 +30,7 @@ EditPrincipal = Annotated[Principal, Depends(require_any("EDIT", "mcp:edit"))]
 async def list_products(
     db: DbSession,
     principal: ReadPrincipal,
-    category: int | None = None,
+    category: ProductCategory | None = None,
     search: str | None = None,
     sort: str | None = None,
     plugin_filter: Annotated[list[str] | None, Query(alias="pluginFilter")] = None,

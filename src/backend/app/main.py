@@ -24,17 +24,20 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.auth.router import router as auth_router
-from app.category.router import router as category_router
+from app.circulation.router import router as circulation_router
 from app.config import settings
 from app.core.auth_deps import register_auth_exception_handlers
 from app.core.errors import register_exception_handlers
+from app.families.router import router as families_router
 from app.footprint.errors import register_footprint_exception_handlers
 from app.footprint.router import router as footprint_router
+from app.groups.router import router as groups_router
 from app.oauth2.metadata_router import router as oauth2_metadata_router
 from app.oauth2.router import router as oauth2_router
 from app.plugin.router import router as plugin_router
 from app.product.router import router as product_router
 from app.system.router import router as system_router
+from app.users.router import router as users_router
 
 app = FastAPI()
 
@@ -60,8 +63,11 @@ register_footprint_exception_handlers(app)
 app.include_router(auth_router)
 app.include_router(oauth2_router)
 app.include_router(oauth2_metadata_router)
-app.include_router(category_router)
 app.include_router(product_router)
 app.include_router(plugin_router)
 app.include_router(footprint_router)
+app.include_router(users_router)
+app.include_router(groups_router)
+app.include_router(families_router)
+app.include_router(circulation_router)
 app.include_router(system_router)

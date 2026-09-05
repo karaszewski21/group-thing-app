@@ -12,7 +12,7 @@ export interface Product {
   sku: string;
   description: string | null;
   price: number;
-  categoryId: string | null;
+  category: string | null;
 }
 
 export interface PluginObject {

@@ -26,10 +26,6 @@ function getBreadcrumbs(pathname: string): string[] {
       crumbs.push("Footprint");
       if (segments[3] === "compare") crumbs.push("Compare");
     }
-  } else if (segments[0] === "categories") {
-    crumbs.push("Categories");
-    if (segments[1] === "new") crumbs.push("New Category");
-    else if (segments[2] === "edit") crumbs.push("Edit Category");
   } else if (segments[0] === "carbon-footprint") {
     crumbs.push("Carbon Footprint");
   }

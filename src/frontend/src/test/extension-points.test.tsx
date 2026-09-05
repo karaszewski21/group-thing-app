@@ -5,11 +5,9 @@ import { ChakraProvider } from "@chakra-ui/react";
 import { system } from "../theme";
 import type { PluginResponse } from "../api/plugins";
 import type { ProductResponse } from "../api/products";
-import type { CategoryResponse } from "../api/categories";
 import { MENU_MAIN, PRODUCT_DETAIL_TABS, PRODUCT_LIST_FILTERS } from "../plugins/extensionPoints";
 import * as pluginsApi from "../api/plugins";
 import * as productsApi from "../api/products";
-import * as categoriesApi from "../api/categories";
 
 vi.mock("../auth/AuthContext", async (importOriginal) => {
   const actual = await importOriginal<typeof import("../auth/AuthContext")>();
@@ -40,18 +38,6 @@ vi.mock("../api/products", () => ({
   updateProduct: vi.fn(),
   deleteProduct: vi.fn(),
 }));
-
-vi.mock("../api/categories", () => ({
-  getCategories: vi.fn(),
-  getCategory: vi.fn(),
-  createCategory: vi.fn(),
-  updateCategory: vi.fn(),
-  deleteCategory: vi.fn(),
-}));
-
-const mockCategories: CategoryResponse[] = [
-  { id: 1, name: "Electronics", description: "Gadgets", createdAt: "2026-03-20T10:00:00Z", updatedAt: "2026-03-20T10:00:00Z" },
-];
 
 const mockPlugins: PluginResponse[] = [
   {
@@ -99,7 +85,7 @@ const mockProduct: ProductResponse = {
   photoUrl: "https://example.com/headphones.jpg",
   price: 149.99,
   sku: "WHP-001",
-  category: mockCategories[0]!,
+  category: "TOY",
   pluginData: null,
   createdAt: "2026-03-28T10:00:00Z",
   updatedAt: "2026-03-28T10:00:00Z",
@@ -120,7 +106,6 @@ beforeEach(() => {
   vi.mocked(pluginsApi.getPlugins).mockResolvedValue(mockPlugins);
   vi.mocked(productsApi.getProducts).mockResolvedValue(mockProducts);
   vi.mocked(productsApi.getProduct).mockResolvedValue(mockProduct);
-  vi.mocked(categoriesApi.getCategories).mockResolvedValue(mockCategories);
 });
 
 describe("Sidebar with plugin menu items", () => {
@@ -136,7 +121,7 @@ describe("Sidebar with plugin menu items", () => {
 
     // Hardcoded items should be present immediately
     expect(screen.getByText("Products")).toBeInTheDocument();
-    expect(screen.getByText("Categories")).toBeInTheDocument();
+    expect(screen.getByText("Krąg grupy")).toBeInTheDocument();
     expect(screen.getByText("Plugins")).toBeInTheDocument();
 
     // Plugin-contributed menu items appear after loading

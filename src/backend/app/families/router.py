@@ -1,0 +1,111 @@
+"""`/api/families` routes."""
+
+from __future__ import annotations
+
+from typing import Annotated, cast
+
+from fastapi import APIRouter, Depends, status
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.core.auth_deps import Principal, require_any
+from app.db import get_db
+from app.groups.schemas import MembershipResponse
+from app.groups.service import build_membership_responses
+from app.users.service import get_profile_by_principal
+
+from . import service
+from .schemas import (
+    AddGuardianRequest,
+    CreateFamilyRequest,
+    FamilyOut,
+    FamilyResponse,
+    GuardianResponse,
+)
+
+router = APIRouter(tags=["families"])
+
+DbSession = Annotated[AsyncSession, Depends(get_db)]
+ReadPrincipal = Annotated[Principal, Depends(require_any("READ", "mcp:read"))]
+EditPrincipal = Annotated[Principal, Depends(require_any("EDIT", "mcp:edit"))]
+
+
+@router.post("/api/families", response_model=FamilyResponse, status_code=status.HTTP_201_CREATED)
+async def create_family(
+    body: CreateFamilyRequest, db: DbSession, principal: EditPrincipal
+) -> FamilyResponse:
+    family, _guardian_profile_id = await service.create_family(db, body)
+    memberships = await service.list_guardian_memberships(db, cast(int, family.id))
+    guardians = await service.build_guardian_responses(db, memberships)
+    return FamilyResponse(family=FamilyOut.model_validate(family), guardians=guardians)
+
+
+@router.get("/api/families/mine", response_model=list[FamilyOut])
+async def list_my_families(db: DbSession, principal: ReadPrincipal) -> list[FamilyOut]:
+    """Resolves the calling guardian's own Family/Families — replaces the
+    old `Person.family_group_id` flat field now that family membership is a
+    role + relationship, not a direct FK."""
+    profile = await get_profile_by_principal(db, principal)
+    families = await service.list_families_for_guardian_party(db, profile.party_id)
+    return [FamilyOut.model_validate(family) for family in families]
+
+
+@router.get("/api/families/by-guardian-party/{party_id}", response_model=list[FamilyOut])
+async def list_families_for_guardian_party(
+    party_id: int, db: DbSession, principal: ReadPrincipal
+) -> list[FamilyOut]:
+    """Same lookup as `/api/families/mine`, but for an arbitrary party
+    (e.g. resolving which Family a fellow Circle member belongs to) rather
+    than the calling principal."""
+    families = await service.list_families_for_guardian_party(db, party_id)
+    return [FamilyOut.model_validate(family) for family in families]
+
+
+@router.get("/api/families/{family_id}", response_model=FamilyResponse)
+async def get_family(family_id: int, db: DbSession, principal: ReadPrincipal) -> FamilyResponse:
+    family = await service.get_family(db, family_id)
+    memberships = await service.list_guardian_memberships(db, family_id)
+    guardians = await service.build_guardian_responses(db, memberships)
+    return FamilyResponse(family=FamilyOut.model_validate(family), guardians=guardians)
+
+
+@router.post(
+    "/api/families/{family_id}/guardians",
+    response_model=GuardianResponse,
+    status_code=status.HTTP_201_CREATED,
+)
+async def add_guardian(
+    family_id: int, body: AddGuardianRequest, db: DbSession, principal: EditPrincipal
+) -> GuardianResponse:
+    new_guardian_profile_id = await service.add_guardian(db, family_id, body)
+    memberships = await service.list_guardian_memberships(db, family_id)
+    guardians = await service.build_guardian_responses(db, memberships)
+    return next(g for g in guardians if g.user_profile_id == new_guardian_profile_id)
+
+
+@router.get("/api/families/{family_id}/guardians", response_model=list[GuardianResponse])
+async def list_guardians(
+    family_id: int, db: DbSession, principal: ReadPrincipal
+) -> list[GuardianResponse]:
+    memberships = await service.list_guardian_memberships(db, family_id)
+    return await service.build_guardian_responses(db, memberships)
+
+
+@router.post(
+    "/api/families/{family_id}/guardians/{family_membership_id}/make-primary",
+    response_model=list[GuardianResponse],
+)
+async def make_primary_contact(
+    family_id: int, family_membership_id: int, db: DbSession, principal: EditPrincipal
+) -> list[GuardianResponse]:
+    await service.make_primary_contact(db, family_id, family_membership_id)
+    memberships = await service.list_guardian_memberships(db, family_id)
+    return await service.build_guardian_responses(db, memberships)
+
+
+@router.get("/api/families/{family_id}/memberships", response_model=list[MembershipResponse])
+async def list_memberships_for_family(
+    family_id: int, db: DbSession, principal: ReadPrincipal
+) -> list[MembershipResponse]:
+    memberships = await service.list_group_memberships_for_family(db, family_id)
+    rows = await build_membership_responses(db, memberships)
+    return [MembershipResponse(**row) for row in rows]

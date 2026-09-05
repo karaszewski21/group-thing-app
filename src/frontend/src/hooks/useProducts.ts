@@ -1,5 +1,10 @@
 import { useCallback, useEffect, useState } from "react";
-import type { ProductResponse, CreateProductRequest, UpdateProductRequest } from "../api/products";
+import type {
+  ProductResponse,
+  CreateProductRequest,
+  UpdateProductRequest,
+  ProductCategory,
+} from "../api/products";
 import {
   getProducts,
   createProduct as apiCreateProduct,
@@ -18,7 +23,7 @@ interface UseProductsResult {
 }
 
 interface UseProductsParams {
-  categoryId?: number;
+  category?: ProductCategory;
   search?: string;
   sortField?: string;
   pluginFilters?: string[];
@@ -29,7 +34,7 @@ export function useProducts(params?: UseProductsParams): UseProductsResult {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const categoryId = params?.categoryId;
+  const category = params?.category;
   const search = params?.search;
   const sortField = params?.sortField;
   const pluginFilters = params?.pluginFilters;
@@ -40,7 +45,7 @@ export function useProducts(params?: UseProductsParams): UseProductsResult {
     setError(null);
     try {
       const products = await getProducts({
-        category: categoryId,
+        category: category,
         search: search,
         sort: sortField ? `${sortField},asc` : undefined,
         pluginFilters: pluginFilters,
@@ -51,7 +56,7 @@ export function useProducts(params?: UseProductsParams): UseProductsResult {
     } finally {
       setLoading(false);
     }
-  }, [categoryId, search, sortField, pluginFiltersKey]);
+  }, [category, search, sortField, pluginFiltersKey]);
 
   useEffect(() => {
     void refetch();

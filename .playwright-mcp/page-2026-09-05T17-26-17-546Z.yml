@@ -1,0 +1,35 @@
+- generic [ref=e4]:
+  - heading "Krąg grupy" [level=1] [ref=e5]
+  - paragraph [ref=e6]: Załóż nowe konto
+  - generic [ref=e7]:
+    - generic [ref=e8]:
+      - generic [ref=e9]: Kim jesteś?
+      - generic [ref=e10]:
+        - button "Gość" [ref=e11]
+        - button "Organizator" [ref=e12]
+      - paragraph [ref=e13]: Dołączysz jako rodzina — własną grupę możesz założyć później z panelu.
+    - generic [ref=e14]:
+      - generic [ref=e15]: Nazwa rodziny
+      - textbox "Nazwa rodziny" [ref=e16]:
+        - /placeholder: np. Rodzina Kowalskich
+    - generic [ref=e17]:
+      - generic [ref=e18]: Twoje imię i nazwisko
+      - textbox "Twoje imię i nazwisko" [ref=e19]:
+        - /placeholder: np. Anna Kowalska
+    - generic [ref=e20]:
+      - generic [ref=e21]: Email (opcjonalnie)
+      - textbox "Email (opcjonalnie)" [ref=e22]:
+        - /placeholder: ty@przyklad.pl
+    - generic [ref=e23]:
+      - generic [ref=e24]: Nazwa użytkownika
+      - textbox "Nazwa użytkownika" [ref=e25]:
+        - /placeholder: Wpisz nazwę użytkownika
+    - generic [ref=e26]:
+      - generic [ref=e27]: Hasło
+      - textbox "Hasło" [ref=e28]:
+        - /placeholder: Wpisz hasło
+    - button "Załóż konto" [disabled] [ref=e29]
+  - paragraph [ref=e30]:
+    - text: Masz już konto?
+    - link "Zaloguj się" [ref=e31] [cursor=pointer]:
+      - /url: /login

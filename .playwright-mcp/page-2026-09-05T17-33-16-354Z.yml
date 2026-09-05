@@ -1,0 +1,33 @@
+- generic [ref=f1e4]:
+  - banner [ref=f1e145]:
+    - button "Otwórz dane profilowe" [ref=f1e459]: OT
+    - heading "Ola Testowa" [level=1] [ref=f1e461]
+    - button "Menu" [ref=f1e463]
+  - generic [ref=f1e153]:
+    - generic [ref=f1e658]:
+      - generic [ref=f1e659]:
+        - generic [ref=f1e660]:
+          - heading "Grupy" [level=2] [ref=f1e661]
+          - generic [ref=f1e662]: 1 grupa
+        - button "+ Dodaj grupę" [ref=f1e663]
+      - generic [ref=f1e665]:
+        - heading "Testowa Grupa PW" [level=3] [ref=f1e671]
+        - button "Usuń grupę Testowa Grupa PW" [ref=f1e672]
+    - generic [ref=f1e675]:
+      - generic [ref=f1e676]:
+        - generic [ref=f1e677]:
+          - heading "Terminy" [level=2] [ref=f1e678]
+          - generic [ref=f1e679]: 1 termin
+        - button "+ Dodaj termin" [ref=f1e680]
+      - generic [ref=f1e682]:
+        - generic [ref=f1e683]:
+          - generic [ref=f1e684]: "7"
+          - generic [ref=f1e685]: wrz
+        - generic [ref=f1e686]:
+          - heading "Testowa Grupa PW" [level=3] [ref=f1e687]
+          - generic [ref=f1e688]: Bez opisu
+  - navigation "Nawigacja panelu" [ref=f1e535]:
+    - button "Home" [ref=f1e536]
+    - button "Spotkania" [ref=f1e540]
+    - button "Moje rzeczy" [ref=f1e544]
+    - button "Podarki" [ref=f1e548]

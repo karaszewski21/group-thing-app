@@ -3,9 +3,7 @@ import { describe, expect, it, vi, beforeEach } from "vitest";
 import { MemoryRouter } from "react-router-dom";
 import { ChakraProvider } from "@chakra-ui/react";
 import { system } from "../theme";
-import type { CategoryResponse } from "../api/categories";
 import type { ProductResponse } from "../api/products";
-import * as categoriesApi from "../api/categories";
 import * as productsApi from "../api/products";
 import { PluginProvider } from "../plugins/PluginContext";
 import * as pluginsApi from "../api/plugins";
@@ -25,14 +23,6 @@ vi.mock("../auth/AuthContext", async (importOriginal) => {
 });
 
 // Mock the API modules
-vi.mock("../api/categories", () => ({
-  getCategories: vi.fn(),
-  getCategory: vi.fn(),
-  createCategory: vi.fn(),
-  updateCategory: vi.fn(),
-  deleteCategory: vi.fn(),
-}));
-
 vi.mock("../api/products", () => ({
   getProducts: vi.fn(),
   getProduct: vi.fn(),
@@ -49,11 +39,6 @@ vi.mock("../api/plugins", () => ({
   setPluginEnabled: vi.fn(),
 }));
 
-const mockCategories: CategoryResponse[] = [
-  { id: 1, name: "Electronics", description: "Gadgets and devices", createdAt: "2026-03-20T10:00:00Z", updatedAt: "2026-03-20T10:00:00Z" },
-  { id: 2, name: "Clothing", description: "Apparel and fashion accessories for all occasions", createdAt: "2026-03-19T10:00:00Z", updatedAt: "2026-03-19T10:00:00Z" },
-];
-
 const mockProducts: ProductResponse[] = [
   {
     id: 1,
@@ -62,7 +47,7 @@ const mockProducts: ProductResponse[] = [
     photoUrl: "https://example.com/headphones.jpg",
     price: 149.99,
     sku: "WHP-001",
-    category: mockCategories[0]!,
+    category: "TOY",
     pluginData: null,
     createdAt: "2026-03-28T10:00:00Z",
     updatedAt: "2026-03-28T10:00:00Z",
@@ -74,7 +59,7 @@ const mockProducts: ProductResponse[] = [
     photoUrl: null,
     price: 89.50,
     sku: "CAW-042",
-    category: mockCategories[1]!,
+    category: "CLOTHING",
     pluginData: null,
     createdAt: "2026-03-27T10:00:00Z",
     updatedAt: "2026-03-27T10:00:00Z",
@@ -94,22 +79,8 @@ function renderWithProviders(ui: React.ReactElement, initialRoute = "/") {
 beforeEach(() => {
   vi.resetAllMocks();
   vi.mocked(pluginsApi.getPlugins).mockResolvedValue([]);
-  vi.mocked(categoriesApi.getCategories).mockResolvedValue(mockCategories);
-  vi.mocked(categoriesApi.getCategory).mockResolvedValue(mockCategories[0]!);
   vi.mocked(productsApi.getProducts).mockResolvedValue(mockProducts);
   vi.mocked(productsApi.getProduct).mockResolvedValue(mockProducts[0]!);
-});
-
-describe("CategoryListPage", () => {
-  it("renders table with category data from API", async () => {
-    const { CategoryListPage } = await import("../pages/CategoryListPage");
-    renderWithProviders(<CategoryListPage />);
-
-    expect(await screen.findByText("Electronics")).toBeInTheDocument();
-    expect(screen.getByText("Clothing")).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: /categories/i })).toBeInTheDocument();
-    expect(screen.getByText(/cannot be deleted/i)).toBeInTheDocument();
-  });
 });
 
 describe("ProductListPage", () => {
@@ -122,18 +93,6 @@ describe("ProductListPage", () => {
     expect(screen.getByText("WHP-001")).toBeInTheDocument();
     expect(screen.getByPlaceholderText(/search/i)).toBeInTheDocument();
     expect(screen.getByRole("combobox")).toBeInTheDocument();
-  });
-});
-
-describe("CategoryFormPage", () => {
-  it("renders form fields for name and description", async () => {
-    const { CategoryFormPage } = await import("../pages/CategoryFormPage");
-    renderWithProviders(<CategoryFormPage />, "/categories/new");
-
-    expect(await screen.findByLabelText(/category name/i)).toBeInTheDocument();
-    expect(screen.getByLabelText(/description/i)).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /save/i })).toBeInTheDocument();
-    expect(screen.getByText(/unique/i)).toBeInTheDocument();
   });
 });
 

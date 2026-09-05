@@ -1,11 +1,12 @@
 """Product business logic: CRUD against `Product`, delegating listing to
-`query_service.list_products`. Every read path explicitly
-`.options(joinedload(Product.category))` (see `models.py`'s `lazy="raise"`
-note) so `ProductResponse`'s nested `CategoryResponse` is always populated.
+`query_service.list_products`. `category` is a plain enum column (no
+relationship to eager-load) since the standalone `Category` entity was
+removed.
 
-Unlike `category/service.py`, `delete_product` is a plain delete with no
-FK-violation handling — nothing in the schema references `products` by FK,
-so there is no 409 path here (spec.md's product DELETE note).
+`delete_product` handles the FK violation raised when a product is still
+referenced by an `app.circulation.InventoryItem` — mirroring the pattern
+the now-removed `category/service.py` used for
+`CategoryHasProductsException`.
 """
 
 from __future__ import annotations
@@ -13,25 +14,35 @@ from __future__ import annotations
 from typing import cast
 
 from sqlalchemy import Select, select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import joinedload
 
-from app.category.models import Category
-from app.core.errors import EntityNotFoundException
+from app.core.errors import BusinessConflictException, EntityNotFoundException
 
 from . import query_service
-from .models import Product
+from .models import Product, ProductCategory
 from .schemas import CreateProductRequest, UpdateProductRequest
 
 
+class ProductHasInventoryItemsException(BusinessConflictException):
+    """Raised when deleting a product still referenced by at least one
+    `app.circulation.InventoryItem`."""
+
+    def __init__(self, product_id: int) -> None:
+        super().__init__(
+            f"Product with id {product_id} cannot be deleted because it has "
+            "associated inventory items"
+        )
+
+
 def _product_select() -> Select[tuple[Product]]:
-    return select(Product).options(joinedload(Product.category))
+    return select(Product)
 
 
 async def list_products(
     db: AsyncSession,
     *,
-    category: int | None,
+    category: ProductCategory | None,
     search: str | None,
     sort: str | None,
     plugin_filters: list[str] | None,
@@ -49,21 +60,14 @@ async def get_product(db: AsyncSession, product_id: int) -> Product:
     return product
 
 
-async def _require_category(db: AsyncSession, category_id: int) -> None:
-    category = await db.get(Category, category_id)
-    if category is None:
-        raise EntityNotFoundException("Category", category_id)
-
-
 async def create_product(db: AsyncSession, data: CreateProductRequest) -> Product:
-    await _require_category(db, data.category_id)
     product = Product(
         name=data.name,
         description=data.description,
         photo_url=data.photo_url,
         price=data.price,
         sku=data.sku,
-        category_id=data.category_id,
+        category=data.category,
     )
     db.add(product)
     await db.commit()
@@ -72,13 +76,12 @@ async def create_product(db: AsyncSession, data: CreateProductRequest) -> Produc
 
 async def update_product(db: AsyncSession, product_id: int, data: UpdateProductRequest) -> Product:
     product = await get_product(db, product_id)
-    await _require_category(db, data.category_id)
     product.name = data.name
     product.description = data.description
     product.photo_url = data.photo_url
     product.price = data.price
     product.sku = data.sku
-    product.category_id = data.category_id
+    product.category = data.category
     await db.commit()
     return await get_product(db, product_id)
 
@@ -86,4 +89,9 @@ async def update_product(db: AsyncSession, product_id: int, data: UpdateProductR
 async def delete_product(db: AsyncSession, product_id: int) -> None:
     product = await get_product(db, product_id)
     await db.delete(product)
+    try:
+        await db.flush()
+    except IntegrityError as exc:
+        await db.rollback()
+        raise ProductHasInventoryItemsException(product_id) from exc
     await db.commit()

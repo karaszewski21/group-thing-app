@@ -1,0 +1,47 @@
+- generic [ref=e36]:
+  - banner [ref=e37]:
+    - button "Otwórz dane profilowe" [ref=e38]: OT
+    - heading "Ola Testowa" [level=1] [ref=e40]
+    - button "Menu" [ref=e42]
+  - generic [ref=e45]:
+    - generic [ref=e46]:
+      - heading "Cześć, Ola!" [level=2] [ref=e47]
+      - paragraph [ref=e48]: Oto co dzieje się w Twojej grupie.
+    - generic [ref=e49]:
+      - generic [ref=e50]:
+        - heading "Najbliższe terminy" [level=3] [ref=e51]
+        - button "Zobacz wszystkie" [ref=e52]
+      - generic [ref=e53]: Brak zaplanowanych terminów.
+    - generic [ref=e54]:
+      - generic [ref=e55]:
+        - heading "Rzeczy dla innych" [level=3] [ref=e56]
+        - button "Zobacz wszystkie" [ref=e57]
+      - generic [ref=e58]:
+        - generic [ref=e59]:
+          - generic [ref=e64]: "0"
+          - generic [ref=e65]: Wypożyczę
+        - generic [ref=e66]:
+          - generic [ref=e71]: "0"
+          - generic [ref=e72]: Oddam
+        - generic [ref=e73]:
+          - generic [ref=e78]: "0"
+          - generic [ref=e79]: Zamienię
+    - generic [ref=e80]:
+      - generic [ref=e81]:
+        - heading "Rzeczy od innych" [level=3] [ref=e82]
+        - button "Zobacz wszystkie" [ref=e83]
+      - generic [ref=e84]:
+        - generic [ref=e85]:
+          - generic [ref=e91]: "0"
+          - generic [ref=e92]: Pożyczone
+        - generic [ref=e93]:
+          - generic [ref=e99]: "0"
+          - generic [ref=e100]: Otrzymane
+        - generic [ref=e101]:
+          - generic [ref=e107]: "0"
+          - generic [ref=e108]: Zamienione
+  - navigation "Nawigacja panelu" [ref=e109]:
+    - button "Home" [ref=e110]
+    - button "Spotkania" [ref=e114]
+    - button "Moje rzeczy" [ref=e118]
+    - button "Podarki" [ref=e122]

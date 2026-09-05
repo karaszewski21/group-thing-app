@@ -10,8 +10,8 @@ import {
 } from "@chakra-ui/react";
 import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
+import type { ProductCategory } from "../api/products";
 import { useProducts } from "../hooks/useProducts";
-import { useCategories } from "../hooks/useCategories";
 import { usePluginContext } from "../plugins/PluginContext";
 import { PluginFilterBar } from "../plugins/PluginFilterBar";
 import { ConfirmDialog } from "../components/shared/ConfirmDialog";
@@ -21,27 +21,14 @@ import { PrimaryButton } from "../components/shared/PrimaryButton";
 import { useAuth } from "../auth/AuthContext";
 import { formatDate, formatPrice } from "../utils/format";
 import { isValidImageUrl } from "../utils/url";
-
-const CATEGORY_COLORS: Record<string, string> = {
-  Televisions: "#059669",
-  "Audio Systems": "#2563EB",
-  "Smart Home": "#059669",
-  Electronics: "#2563EB",
-  Clothing: "#7C3AED",
-  "Home & Garden": "#059669",
-  Sports: "#D97706",
-};
-
-function getCategoryColor(name: string): string {
-  return CATEGORY_COLORS[name] ?? "#334155";
-}
+import { CATEGORY_LABELS, CATEGORY_COLORS, PRODUCT_CATEGORIES } from "../utils/productCategory";
 
 export function ProductListPage() {
   const { permissions } = useAuth();
   const canEdit = permissions.includes("EDIT");
   const [searchInput, setSearchInput] = useState("");
   const [search, setSearch] = useState("");
-  const [categoryFilter, setCategoryFilter] = useState<number | undefined>(undefined);
+  const [categoryFilter, setCategoryFilter] = useState<ProductCategory | undefined>(undefined);
   const [sortField, setSortField] = useState<string | undefined>(undefined);
   const [pluginFilters, setPluginFilters] = useState<string[]>([]);
   const debounceRef = useRef<ReturnType<typeof setTimeout>>(null);
@@ -63,11 +50,10 @@ export function ProductListPage() {
 
   const { data: products, loading, error, remove } = useProducts({
     search: search || undefined,
-    categoryId: categoryFilter,
+    category: categoryFilter,
     sortField,
     pluginFilters: pluginFilters.length > 0 ? pluginFilters : undefined,
   });
-  const { data: categories } = useCategories();
 
   const [deleteId, setDeleteId] = useState<number | null>(null);
   const [deleting, setDeleting] = useState(false);
@@ -145,7 +131,7 @@ export function ProductListPage() {
           aria-label="Filter by category"
           value={categoryFilter ?? ""}
           onChange={(e) =>
-            setCategoryFilter(e.target.value ? Number(e.target.value) : undefined)
+            setCategoryFilter(e.target.value ? (e.target.value as ProductCategory) : undefined)
           }
           style={{
             padding: "8px 12px",
@@ -158,9 +144,9 @@ export function ProductListPage() {
           }}
         >
           <option value="">All Categories</option>
-          {categories.map((cat) => (
-            <option key={cat.id} value={cat.id}>
-              {cat.name}
+          {PRODUCT_CATEGORIES.map((cat) => (
+            <option key={cat} value={cat}>
+              {CATEGORY_LABELS[cat]}
             </option>
           ))}
         </select>
@@ -266,7 +252,7 @@ export function ProductListPage() {
             </Table.Header>
             <Table.Body>
               {products.map((product) => {
-                const categoryColor = getCategoryColor(product.category.name);
+                const categoryColor = CATEGORY_COLORS[product.category];
                 return (
                   <Table.Row key={product.id} _hover={{ bg: "#F8FAFC" }}>
                     <Table.Cell>
@@ -315,7 +301,7 @@ export function ProductListPage() {
                         fontWeight="500"
                         color={categoryColor}
                       >
-                        {product.category.name}
+                        {CATEGORY_LABELS[product.category]}
                       </Text>
                     </Table.Cell>
                     <Table.Cell color="#64748B" fontSize="13px">

@@ -1,0 +1,53 @@
+- generic [ref=f1e4]:
+  - banner [ref=f1e145]:
+    - button "Otwórz dane profilowe" [ref=f1e146]: OT
+    - heading "Ola Testowa" [level=1] [ref=f1e148]
+    - button "Menu" [ref=f1e150]
+  - generic [ref=f1e153]:
+    - generic [ref=f1e222]:
+      - heading "Cześć, Ola!" [level=2] [ref=f1e223]
+      - paragraph [ref=f1e224]: Oto co dzieje się w Twojej grupie.
+    - generic [ref=f1e225]:
+      - generic [ref=f1e226]:
+        - heading "Najbliższe terminy" [level=3] [ref=f1e227]
+        - button "Zobacz wszystkie" [ref=f1e228]
+      - generic [ref=f1e229]:
+        - generic [ref=f1e230]:
+          - generic [ref=f1e231]: "7"
+          - generic [ref=f1e232]: wrz
+        - generic [ref=f1e233]:
+          - heading "Testowa Grupa PW" [level=3] [ref=f1e234]
+          - generic [ref=f1e235]: Bez opisu
+    - generic [ref=f1e236]:
+      - generic [ref=f1e237]:
+        - heading "Rzeczy dla innych" [level=3] [ref=f1e238]
+        - button "Zobacz wszystkie" [ref=f1e239]
+      - generic [ref=f1e240]:
+        - generic [ref=f1e241]:
+          - generic [ref=f1e246]: "1"
+          - generic [ref=f1e247]: Wypożyczę
+        - generic [ref=f1e248]:
+          - generic [ref=f1e253]: "0"
+          - generic [ref=f1e254]: Oddam
+        - generic [ref=f1e255]:
+          - generic [ref=f1e260]: "0"
+          - generic [ref=f1e261]: Zamienię
+    - generic [ref=f1e262]:
+      - generic [ref=f1e263]:
+        - heading "Rzeczy od innych" [level=3] [ref=f1e264]
+        - button "Zobacz wszystkie" [ref=f1e265]
+      - generic [ref=f1e266]:
+        - generic [ref=f1e267]:
+          - generic [ref=f1e273]: "0"
+          - generic [ref=f1e274]: Pożyczone
+        - generic [ref=f1e275]:
+          - generic [ref=f1e281]: "0"
+          - generic [ref=f1e282]: Otrzymane
+        - generic [ref=f1e283]:
+          - generic [ref=f1e289]: "0"
+          - generic [ref=f1e290]: Zamienione
+  - navigation "Nawigacja panelu" [ref=f1e185]:
+    - button "Home" [active] [ref=f1e186]
+    - button "Spotkania" [ref=f1e190]
+    - button "Moje rzeczy" [ref=f1e194]
+    - button "Podarki" [ref=f1e198]

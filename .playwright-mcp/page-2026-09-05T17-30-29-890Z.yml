@@ -1,0 +1,23 @@
+- generic [ref=f1e4]:
+  - banner [ref=f1e145]:
+    - button "Otwórz dane profilowe" [ref=f1e146]: OT
+    - heading "Ola Testowa" [level=1] [ref=f1e148]
+    - button "Menu" [ref=f1e150]
+  - generic [ref=f1e203]:
+    - generic [ref=f1e204]:
+      - generic [ref=f1e205]:
+        - heading "Moje rzeczy" [level=2] [ref=f1e206]
+        - generic [ref=f1e207]: 1 rzecz
+      - button "+ Dodaj rzecz" [ref=f1e208]
+    - generic [ref=f1e215]:
+      - heading "XXX" [level=3] [ref=f1e216]
+      - generic [ref=f1e217]: "Stan: GOOD"
+      - generic [ref=f1e218]:
+        - button "Wypożyczę" [ref=f1e219]
+        - button "Oddam" [ref=f1e220]
+        - button "Zamienię" [ref=f1e221]
+  - navigation "Nawigacja panelu" [ref=f1e185]:
+    - button "Home" [ref=f1e186]
+    - button "Spotkania" [ref=f1e190]
+    - button "Moje rzeczy" [active] [ref=f1e194]
+    - button "Podarki" [ref=f1e198]
