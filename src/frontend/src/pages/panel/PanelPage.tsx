@@ -600,11 +600,13 @@ export function PanelPage() {
               })}
             </div>
 
-            <div className="mt-3.5 rounded-[22px] border border-line bg-paper p-5">
-              <div className="mb-3.5 flex items-center justify-between gap-2.5">
-                <h3 className="text-base font-semibold text-ink">Rzeczy dla innych</h3>
+            <div className="mt-3.5 flex flex-col gap-3.5 rounded-[22px] border border-line bg-paper p-5">
+              <h3 className="text-base font-semibold text-ink">Twoje rzeczy</h3>
+
+              <div className="flex items-center justify-between gap-2.5">
+                <span className="text-[11.5px] font-extrabold uppercase tracking-wide text-ink-soft">Dla innych</span>
                 <button onClick={() => setView("rzeczy")} className="text-xs font-extrabold text-mint hover:underline">
-                  Zobacz wszystkie
+                  Zobacz →
                 </button>
               </div>
               <div className="flex gap-2.5">
@@ -621,13 +623,13 @@ export function PanelPage() {
                   );
                 })}
               </div>
-            </div>
 
-            <div className="mt-3.5 rounded-[22px] border border-line bg-paper p-5">
-              <div className="mb-3.5 flex items-center justify-between gap-2.5">
-                <h3 className="text-base font-semibold text-ink">Rzeczy od innych</h3>
+              <div className="h-px bg-line" />
+
+              <div className="flex items-center justify-between gap-2.5">
+                <span className="text-[11.5px] font-extrabold uppercase tracking-wide text-ink-soft">Od innych</span>
                 <button onClick={() => setView("podarki")} className="text-xs font-extrabold text-mint hover:underline">
-                  Zobacz wszystkie
+                  Zobacz →
                 </button>
               </div>
               <div className="flex gap-2.5">
@@ -693,8 +695,8 @@ export function PanelPage() {
                 />
               </div>
             </div>
-            <div className="mt-4 flex items-center justify-end gap-2.5">
-              {profileSaved && <span className="mr-auto text-[13px] font-bold text-mint">✓ Zapisano</span>}
+            <div className="mt-4 flex flex-col gap-2.5">
+              {profileSaved && <span className="text-center text-[13px] font-bold text-mint">✓ Zapisano</span>}
               <button
                 onClick={saveProfile}
                 className="w-full rounded-[13px] bg-mint px-5 py-3 text-[13.5px] font-extrabold text-white shadow-[0_8px_18px_-10px_rgba(27,129,104,0.85)] transition-transform hover:-translate-y-0.5"

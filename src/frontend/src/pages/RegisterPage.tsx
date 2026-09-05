@@ -3,8 +3,8 @@ import { Link, useNavigate } from "react-router-dom";
 import { useAuth, type RegisterPayload } from "../auth/AuthContext";
 
 const inputClass =
-  "w-full rounded-lg border border-line bg-paper px-3 py-2 text-sm text-ink outline-none focus:border-mint";
-const labelClass = "mb-1.5 block text-sm font-medium text-ink";
+  "w-full rounded-xl border-[1.5px] border-line bg-cream px-3.5 py-2.5 text-sm text-ink outline-none focus:border-mint focus:ring-[3px] focus:ring-mint-soft";
+const labelClass = "mb-1.5 block text-xs font-extrabold tracking-wide text-ink-soft";
 
 export function RegisterPage() {
   const [role, setRole] = useState<RegisterPayload["role"]>("GUEST");
@@ -60,10 +60,10 @@ export function RegisterPage() {
               <button
                 type="button"
                 onClick={() => setRole("GUEST")}
-                className={`flex-1 rounded-lg border px-3 py-2 text-sm font-semibold transition ${
+                className={`flex-1 rounded-xl border-[1.5px] px-3 py-2.5 text-sm font-bold transition ${
                   role === "GUEST"
                     ? "border-mint bg-mint-soft text-mint"
-                    : "border-line bg-paper text-ink-soft"
+                    : "border-line bg-cream text-ink-soft"
                 }`}
               >
                 Gość
@@ -71,10 +71,10 @@ export function RegisterPage() {
               <button
                 type="button"
                 onClick={() => setRole("ORGANIZER")}
-                className={`flex-1 rounded-lg border px-3 py-2 text-sm font-semibold transition ${
+                className={`flex-1 rounded-xl border-[1.5px] px-3 py-2.5 text-sm font-bold transition ${
                   role === "ORGANIZER"
                     ? "border-mint bg-mint-soft text-mint"
-                    : "border-line bg-paper text-ink-soft"
+                    : "border-line bg-cream text-ink-soft"
                 }`}
               >
                 Organizator
@@ -170,7 +170,7 @@ export function RegisterPage() {
           </div>
 
           {error && (
-            <div className="mb-4 rounded-lg bg-danger-soft px-3 py-2.5 text-[13px] text-danger">
+            <div className="mb-4 rounded-xl bg-danger-soft px-3 py-2.5 text-[13px] text-danger">
               {error}
             </div>
           )}
@@ -178,7 +178,7 @@ export function RegisterPage() {
           <button
             type="submit"
             disabled={!canSubmit}
-            className="w-full rounded-full bg-mint px-4 py-2.5 text-sm font-bold text-white transition disabled:opacity-60"
+            className="w-full rounded-[13px] bg-mint px-4 py-3 text-[13.5px] font-extrabold text-white shadow-[0_8px_18px_-10px_rgba(27,129,104,0.85)] transition-transform hover:-translate-y-0.5 disabled:opacity-60 disabled:hover:translate-y-0"
           >
             {loading ? "Zakładanie konta…" : "Załóż konto"}
           </button>

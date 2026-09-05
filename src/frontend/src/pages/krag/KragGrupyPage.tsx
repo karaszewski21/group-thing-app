@@ -68,7 +68,8 @@ const CSS = `
 .kg-bring-empty{font-size:13px;color:var(--ink-soft);text-align:center;padding:16px 0;}
 .kg-fulfill{margin-top:10px;padding-top:10px;border-top:1px dashed var(--line);}
 .kg-fulfill-row{display:flex;gap:8px;margin-bottom:8px;}
-.kg-select,.kg-input{flex:1;min-width:0;border:1px solid var(--line);border-radius:10px;padding:8px 10px;font-size:13px;font-family:inherit;background:var(--paper);color:var(--ink);}
+.kg-select,.kg-input{flex:1;min-width:0;border:1.5px solid var(--line);border-radius:12px;padding:8px 10px;font-size:13px;font-family:inherit;background:var(--cream);color:var(--ink);}
+.kg-select:focus,.kg-input:focus{outline:none;border-color:var(--mint);box-shadow:0 0 0 3px var(--mint-soft);}
 .kg-fulfill-actions{display:flex;gap:8px;}
 .kg-btn-primary{border:none;background:var(--mint);color:#fff;border-radius:999px;padding:7px 14px;font-size:12px;font-weight:800;}
 .kg-btn-primary:disabled{opacity:.6;}

@@ -1,4 +1,3 @@
-import { Box, Center, Spinner, Text } from "@chakra-ui/react";
 import { useCallback, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { getMembershipsForFamily, getMyFamilies } from "../../api/families";
@@ -46,17 +45,19 @@ export function KragEntryPage() {
   }, [resolveAndRedirect]);
 
   return (
-    <Center minH="100vh" bg="gray.50">
+    <div className="flex min-h-screen items-center justify-center bg-cream px-6 font-sans text-ink">
       {error ? (
-        <Box textAlign="center" maxW="360px" px="24px">
-          <Text fontSize="16px" fontWeight="600" mb="8px">
-            Krąg grupy
-          </Text>
-          <Text color="gray.600">{error}</Text>
-        </Box>
+        <div className="w-full max-w-[360px] rounded-[22px] border border-line bg-paper p-8 text-center">
+          <h1 className="font-serif text-lg font-semibold text-ink">Krąg grupy</h1>
+          <p className="mt-2 text-sm text-ink-soft">{error}</p>
+        </div>
       ) : (
-        <Spinner size="lg" />
+        <div
+          className="h-10 w-10 animate-spin rounded-full border-[3px] border-mint-soft border-t-mint"
+          role="status"
+          aria-label="Wczytywanie"
+        />
       )}
-    </Center>
+    </div>
   );
 }
