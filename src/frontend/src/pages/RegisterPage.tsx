@@ -46,8 +46,14 @@ export function RegisterPage() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-cream px-4 py-10 font-sans text-ink">
-      <div className="w-full max-w-[440px] rounded-[22px] border border-line bg-paper p-10">
+    <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-cream px-4 py-10 font-sans text-ink">
+      <div className="pointer-events-none absolute -left-24 -top-24 h-72 w-72 rounded-full bg-mint-soft/70 blur-3xl" />
+      <div className="pointer-events-none absolute -bottom-28 -right-16 h-80 w-80 rounded-full bg-lime-soft/60 blur-3xl" />
+
+      <div className="relative w-full max-w-[440px] rounded-[22px] border border-line bg-paper p-10 shadow-[0_30px_60px_-30px_rgba(30,46,39,0.28)]">
+        <div className="mx-auto mb-5 flex h-14 w-14 items-center justify-center rounded-full border-2 border-mint-soft bg-mint-soft font-serif text-xl font-semibold text-mint">
+          KG
+        </div>
         <h1 className="mb-2 text-center font-serif text-2xl font-semibold text-ink">
           Krąg <span className="text-mint">grupy</span>
         </h1>
@@ -60,10 +66,10 @@ export function RegisterPage() {
               <button
                 type="button"
                 onClick={() => setRole("GUEST")}
-                className={`flex-1 rounded-xl border-[1.5px] px-3 py-2.5 text-sm font-bold transition ${
+                className={`flex-1 rounded-xl border-[1.5px] px-3 py-2.5 text-sm font-bold transition-all ${
                   role === "GUEST"
-                    ? "border-mint bg-mint-soft text-mint"
-                    : "border-line bg-cream text-ink-soft"
+                    ? "border-mint bg-mint-soft text-mint shadow-[0_6px_14px_-8px_rgba(27,129,104,0.6)]"
+                    : "border-line bg-cream text-ink-soft hover:border-sage"
                 }`}
               >
                 Gość
@@ -71,10 +77,10 @@ export function RegisterPage() {
               <button
                 type="button"
                 onClick={() => setRole("ORGANIZER")}
-                className={`flex-1 rounded-xl border-[1.5px] px-3 py-2.5 text-sm font-bold transition ${
+                className={`flex-1 rounded-xl border-[1.5px] px-3 py-2.5 text-sm font-bold transition-all ${
                   role === "ORGANIZER"
-                    ? "border-mint bg-mint-soft text-mint"
-                    : "border-line bg-cream text-ink-soft"
+                    ? "border-mint bg-mint-soft text-mint shadow-[0_6px_14px_-8px_rgba(27,129,104,0.6)]"
+                    : "border-line bg-cream text-ink-soft hover:border-sage"
                 }`}
               >
                 Organizator
@@ -184,9 +190,11 @@ export function RegisterPage() {
           </button>
         </form>
 
-        <p className="mt-6 text-center text-[13px] text-ink-soft">
+        <div className="mx-auto mt-7 h-px w-full bg-line" />
+
+        <p className="mt-5 text-center text-[13px] text-ink-soft">
           Masz już konto?{" "}
-          <Link to="/login" className="font-semibold text-mint">
+          <Link to="/login" className="font-semibold text-mint hover:underline">
             Zaloguj się
           </Link>
         </p>

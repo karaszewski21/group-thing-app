@@ -31,8 +31,14 @@ export function LoginPage() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-cream px-4 font-sans text-ink">
-      <div className="w-full max-w-[400px] rounded-[22px] border border-line bg-paper p-10">
+    <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-cream px-4 font-sans text-ink">
+      <div className="pointer-events-none absolute -left-24 -top-24 h-72 w-72 rounded-full bg-mint-soft/70 blur-3xl" />
+      <div className="pointer-events-none absolute -bottom-28 -right-16 h-80 w-80 rounded-full bg-lime-soft/60 blur-3xl" />
+
+      <div className="relative w-full max-w-[400px] rounded-[22px] border border-line bg-paper p-10 shadow-[0_30px_60px_-30px_rgba(30,46,39,0.28)]">
+        <div className="mx-auto mb-5 flex h-14 w-14 items-center justify-center rounded-full border-2 border-mint-soft bg-mint-soft font-serif text-xl font-semibold text-mint">
+          KG
+        </div>
         <h1 className="mb-2 text-center font-serif text-2xl font-semibold text-ink">
           Krąg <span className="text-mint">grupy</span>
         </h1>
@@ -81,9 +87,11 @@ export function LoginPage() {
           </button>
         </form>
 
-        <p className="mt-6 text-center text-[13px] text-ink-soft">
+        <div className="mx-auto mt-7 h-px w-full bg-line" />
+
+        <p className="mt-5 text-center text-[13px] text-ink-soft">
           Nie masz konta?{" "}
-          <Link to="/register" className="font-semibold text-mint">
+          <Link to="/register" className="font-semibold text-mint hover:underline">
             Zarejestruj się
           </Link>
         </p>

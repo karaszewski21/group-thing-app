@@ -1,0 +1,13 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(where uv *)",
+      "Bash(uv --version)",
+      "Bash(python --version)",
+      "Bash(docker compose *)",
+      "Bash(docker port *)",
+      "Bash(uv run *)",
+      "Bash(taskkill //F //T //PID 37872)"
+    ]
+  }
+}

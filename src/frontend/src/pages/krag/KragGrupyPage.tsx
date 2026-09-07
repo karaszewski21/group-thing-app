@@ -3,6 +3,7 @@ import { useNavigate, useParams } from "react-router-dom";
 import { useKragGrupy } from "../../hooks/useKragGrupy";
 import { ProductPicker } from "../../components/shared/ProductPicker";
 import { createEmptyProductPickerValue, type ProductPickerValue } from "../../utils/productPicker";
+import { PhoneFrame } from "../../components/shared/PhoneFrame";
 
 /* ------------------------------------------------------------------ */
 /*  Krąg grupy — zajęcia + prośby o rzeczy (dane z API, nie mock)       */
@@ -11,84 +12,9 @@ import { createEmptyProductPickerValue, type ProductPickerValue } from "../../ut
 /*  Funkcja "wymiana/pożyczka" z prototypu usunięta — nie ma dziś        */
 /*  odpowiednika w modelu domenowym (Reservation wymaga już istniejącego */
 /*  InventoryItem); zostawiona wyłącznie realna funkcja Term/NeededItem/ */
-/*  Pledge ("kto co przynosi").                                         */
+/*  Pledge ("kto co przynosi"). Reskin na wspólny Tailwind/PhoneFrame    */
+/*  system (dawniej własny "kg-*" CSS-in-JS, wizualnie odstający).      */
 /* ------------------------------------------------------------------ */
-
-const CSS = `
-:root{
-  --cream:#F4F8F0;--paper:#FFFFFF;--ink:#1E2E27;--ink-soft:#5C7069;
-  --mint:#1B8168;--mint-soft:#D8F0E6;--sage:#5D8A63;--sage-soft:#DFEBDC;
-  --teal:#6FB6B8;--teal-soft:#D9ECEC;--lime:#A9C24F;--line:#E2EADF;
-}
-*,*::before,*::after{box-sizing:border-box;}
-.kg-stage{background:#EDF1EA;min-height:100vh;display:flex;justify-content:center;
-  font-family:Karla,"Segoe UI",system-ui,sans-serif;color:var(--ink);-webkit-font-smoothing:antialiased;}
-.kg-app{width:100%;max-width:430px;background:var(--cream);display:flex;flex-direction:column;min-height:100vh;}
-.kg-app h1,.kg-app h2,.kg-app h3{font-family:Fraunces,Georgia,serif;font-weight:600;letter-spacing:-.02em;line-height:1.12;margin:0;}
-.kg-app p{margin:0;line-height:1.6;}
-.kg-app button{font-family:inherit;cursor:pointer;}
-.kg-head{background:var(--paper);border-bottom:1px solid var(--line);padding:18px 18px 16px;position:sticky;top:0;z-index:20;}
-.kg-head-row{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;}
-.kg-eyebrow{font-size:11px;letter-spacing:.15em;text-transform:uppercase;font-weight:800;color:var(--sage);}
-.kg-head h1{font-size:23px;margin-top:5px;}
-.kg-head-sub{font-size:13.5px;color:var(--ink-soft);margin-top:4px;}
-.kg-back{border:none;background:none;color:var(--mint);font-weight:700;font-size:13px;padding:0 0 8px;}
-.kg-circle-wrap{padding:26px 18px 6px;}
-.kg-stagebox{position:relative;width:100%;max-width:360px;margin:0 auto;}
-.kg-square{position:relative;width:100%;padding-top:100%;}
-.kg-inner{position:absolute;inset:0;}
-.kg-svg{position:absolute;inset:0;width:100%;height:100%;overflow:visible;}
-.kg-fam{position:absolute;transform:translate(-50%,-50%);background:none;border:none;padding:0;transition:opacity .25s ease;}
-.kg-av{position:relative;width:52px;height:52px;border-radius:50%;display:flex;align-items:center;justify-content:center;
-  color:#fff;font-weight:800;font-size:14.5px;border:3px solid var(--cream);box-shadow:0 8px 18px -10px rgba(30,46,39,.7);
-  transition:transform .22s cubic-bezier(.2,.8,.2,1);}
-.kg-fam:hover .kg-av{transform:scale(1.09);}
-.kg-fam.is-on .kg-av{transform:scale(1.1);box-shadow:0 0 0 4px var(--mint-soft),0 8px 18px -10px rgba(30,46,39,.7);}
-.kg-mark{position:absolute;right:-5px;bottom:-5px;width:20px;height:20px;border-radius:50%;background:var(--teal);
-  display:flex;align-items:center;justify-content:center;border:2.5px solid var(--cream);font-size:11px;}
-.kg-center{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);text-align:center;width:48%;}
-.kg-center-av{width:74px;height:74px;border-radius:50%;background:var(--ink);margin:0 auto;display:flex;align-items:center;justify-content:center;
-  color:#fff;font-family:Fraunces,Georgia,serif;font-size:22px;box-shadow:0 14px 28px -14px rgba(30,46,39,.85);}
-.kg-center strong{display:block;margin-top:10px;font-family:Fraunces,Georgia,serif;font-size:15px;}
-.kg-center span{display:block;font-size:12px;color:var(--ink-soft);}
-.kg-bring{margin:18px 18px 0;background:var(--paper);border:1px solid var(--line);border-radius:22px;padding:17px;}
-.kg-bring h2{font-size:17px;}
-.kg-bring-sub{font-size:12.5px;color:var(--ink-soft);margin-top:3px;}
-.kg-bring-list{margin-top:12px;}
-.kg-bring-item{padding:10px 0;}
-.kg-bring-item + .kg-bring-item{border-top:1px solid var(--line);}
-.kg-bring-row{display:flex;align-items:center;gap:11px;}
-.kg-bring-av{width:36px;height:36px;border-radius:50%;flex:none;color:#fff;font-weight:800;font-size:12px;display:flex;align-items:center;justify-content:center;}
-.kg-bring-av-empty{background:none;border:2px dashed var(--line);color:var(--ink-soft);}
-.kg-bring-body{flex:1;min-width:0;}
-.kg-bring-body strong{display:block;font-size:14px;}
-.kg-bring-body small{display:block;color:var(--ink-soft);font-size:12px;margin-top:1px;}
-.kg-bring-btn{flex:none;border:1.5px solid var(--mint);background:var(--paper);color:var(--mint);border-radius:999px;padding:7px 13px;font-size:12px;font-weight:800;}
-.kg-bring-btn.is-on{background:var(--mint);color:#fff;}
-.kg-bring-empty{font-size:13px;color:var(--ink-soft);text-align:center;padding:16px 0;}
-.kg-fulfill{margin-top:10px;padding-top:10px;border-top:1px dashed var(--line);}
-.kg-fulfill-row{display:flex;gap:8px;margin-bottom:8px;}
-.kg-select,.kg-input{flex:1;min-width:0;border:1.5px solid var(--line);border-radius:12px;padding:8px 10px;font-size:13px;font-family:inherit;background:var(--cream);color:var(--ink);}
-.kg-select:focus,.kg-input:focus{outline:none;border-color:var(--mint);box-shadow:0 0 0 3px var(--mint-soft);}
-.kg-fulfill-actions{display:flex;gap:8px;}
-.kg-btn-primary{border:none;background:var(--mint);color:#fff;border-radius:999px;padding:7px 14px;font-size:12px;font-weight:800;}
-.kg-btn-primary:disabled{opacity:.6;}
-.kg-btn-ghost{border:1.5px solid var(--line);background:none;color:var(--ink-soft);border-radius:999px;padding:7px 14px;font-size:12px;font-weight:700;}
-.kg-status-line{font-size:12px;color:var(--sage);font-weight:700;margin-top:8px;}
-.kg-card{margin:18px 18px 24px;background:var(--paper);border:1px solid var(--line);border-radius:22px;padding:17px;}
-.kg-card-top{display:flex;align-items:center;gap:12px;}
-.kg-card-av{width:44px;height:44px;border-radius:50%;flex:none;color:#fff;font-weight:800;font-size:13.5px;display:flex;align-items:center;justify-content:center;}
-.kg-card-top h3{font-size:17px;}
-.kg-card-top small{font-size:13px;color:var(--ink-soft);}
-.kg-hint{text-align:center;font-size:13px;color:var(--ink-soft);padding:4px 24px 26px;}
-.kg-toast{position:fixed;left:50%;bottom:26px;transform:translateX(-50%);z-index:120;background:var(--ink);color:#EAF2E9;
-  border-radius:999px;padding:11px 20px;font-size:14px;font-weight:600;box-shadow:0 14px 30px -14px rgba(30,46,39,.9);}
-.kg-state{text-align:center;padding:60px 24px;color:var(--ink-soft);}
-@media (min-width:520px){
-  .kg-stage{padding:26px 16px;background:#E7EDE4;}
-  .kg-app{min-height:0;border-radius:34px;overflow:hidden;box-shadow:0 40px 80px -40px rgba(30,46,39,.6),0 0 0 9px #1E2E27;margin:8px 0;}
-}
-`;
 
 const PALETTE = ["#1B8168", "#5D8A63", "#3F8E90", "#7E9A34", "#2A6B58", "#4E7D55", "#35797B", "#6B8A2F"];
 
@@ -105,6 +31,23 @@ function familyColor(name: string): string {
 function familyInitials(name: string): string {
   const words = name.replace(/^Rodzina\s+/i, "").split(/\s+/).filter(Boolean);
   return (words[0]?.[0] ?? "?").toUpperCase() + (words[1]?.[0] ?? words[0]?.[1] ?? "").toUpperCase();
+}
+
+const pillPrimary =
+  "rounded-full bg-mint px-[13px] py-[7px] text-[12px] font-extrabold text-white disabled:opacity-60";
+const pillGhost =
+  "rounded-full border-[1.5px] border-line px-[13px] py-[7px] text-[12px] font-bold text-ink-soft hover:border-sage";
+const pillOutlineMint =
+  "flex-none rounded-full border-[1.5px] border-mint bg-paper px-[13px] py-[7px] text-[12px] font-extrabold text-mint transition-colors";
+const pickerInputClass =
+  "min-w-0 flex-1 rounded-xl border-[1.5px] border-line bg-cream px-3 py-2 text-[13px] text-ink focus:border-mint focus:outline-none focus:ring-[3px] focus:ring-mint-soft";
+
+function BackIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path d="M14.5 5 8 12l6.5 7" stroke="#1E2E27" strokeWidth="2.3" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
 }
 
 export function KragGrupyPage() {
@@ -135,17 +78,6 @@ export function KragGrupyPage() {
   const [busyPledgeId, setBusyPledgeId] = useState<number | null>(null);
   const [fulfillingItemId, setFulfillingItemId] = useState<number | null>(null);
   const [pickerValue, setPickerValue] = useState<ProductPickerValue>(createEmptyProductPickerValue());
-
-  useEffect(() => {
-    const l = document.createElement("link");
-    l.rel = "stylesheet";
-    l.href =
-      "https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Karla:wght@400;500;600;700;800&display=swap";
-    document.head.appendChild(l);
-    return () => {
-      l.parentNode?.removeChild(l);
-    };
-  }, []);
 
   useEffect(() => {
     if (!toast) return;
@@ -234,114 +166,119 @@ export function KragGrupyPage() {
 
   if (loading) {
     return (
-      <div className="kg-stage">
-        <style>{CSS}</style>
-        <div className="kg-app">
-          <div className="kg-state">Wczytywanie...</div>
-        </div>
-      </div>
+      <PhoneFrame>
+        <div className="flex flex-1 items-center justify-center text-ink-soft">Wczytywanie…</div>
+      </PhoneFrame>
     );
   }
 
   if (error || !group) {
     return (
-      <div className="kg-stage">
-        <style>{CSS}</style>
-        <div className="kg-app">
-          <div className="kg-state">{error ?? "Nie znaleziono grupy"}</div>
+      <PhoneFrame>
+        <div className="flex flex-1 items-center justify-center px-6 text-center text-ink-soft">
+          {error ?? "Nie znaleziono grupy"}
         </div>
-      </div>
+      </PhoneFrame>
     );
   }
 
   return (
-    <div className="kg-stage">
-      <style>{CSS}</style>
-      <div className="kg-app">
-        <header className="kg-head">
-          <button className="kg-back" onClick={() => navigate(-1)}>
-            ← Wróć
-          </button>
-          <div className="kg-head-row">
-            <div>
-              <div className="kg-eyebrow">Grupa</div>
-              <h1>{group.name}</h1>
-              <div className="kg-head-sub">
-                {currentTerm ? `Najbliższe zajęcia: ${currentTerm.occurs_on}` : "Brak zaplanowanych zajęć"} ·{" "}
-                {families.length} {families.length === 1 ? "rodzina" : "rodzin"}
-              </div>
-            </div>
-          </div>
-        </header>
+    <PhoneFrame>
+      <header className="sticky top-0 z-20 border-b border-line bg-paper px-[18px] py-4">
+        <button
+          onClick={() => navigate(-1)}
+          className="mb-2 inline-flex h-[34px] items-center gap-1.5 rounded-full bg-cream px-3 text-[13px] font-bold text-ink transition-colors hover:bg-mint-soft"
+        >
+          <BackIcon /> Wróć
+        </button>
+        <div className="text-[11px] font-extrabold uppercase tracking-wide text-sage">Grupa</div>
+        <h1 className="mt-0.5 font-serif text-xl font-semibold text-ink">{group.name}</h1>
+        <p className="mt-1 text-[13.5px] text-ink-soft">
+          {currentTerm ? `Najbliższe zajęcia: ${currentTerm.occurs_on}` : "Brak zaplanowanych zajęć"} ·{" "}
+          {families.length} {families.length === 1 ? "rodzina" : "rodzin"}
+        </p>
+      </header>
 
-        <div className="kg-circle-wrap">
-          <div className="kg-stagebox">
-            <div className="kg-square">
-              <div className="kg-inner">
-                <svg className="kg-svg" viewBox="0 0 100 100" aria-hidden="true">
-                  {families.map((f, i) => {
-                    const a = (i / slots) * 2 * Math.PI - Math.PI / 2;
-                    const on = activeFamily?.familyId === f.familyId;
-                    return (
-                      <line
-                        key={f.familyId}
-                        x1="50"
-                        y1="50"
-                        x2={50 + R * Math.cos(a)}
-                        y2={50 + R * Math.sin(a)}
-                        stroke={on ? "#1B8168" : "#CBDAC7"}
-                        strokeWidth={on ? "1" : "0.45"}
-                      />
-                    );
-                  })}
-                </svg>
-
-                {families.map((f, i) => (
-                  <button
+      <div className="flex-1 overflow-y-auto pb-6">
+        <div className="px-[18px] pb-1.5 pt-[26px]">
+          <div className="relative mx-auto aspect-square w-full max-w-[360px]">
+            <svg className="absolute inset-0 h-full w-full overflow-visible" viewBox="0 0 100 100" aria-hidden="true">
+              {families.map((f, i) => {
+                const a = (i / slots) * 2 * Math.PI - Math.PI / 2;
+                const on = activeFamily?.familyId === f.familyId;
+                return (
+                  <line
                     key={f.familyId}
-                    className={`kg-fam ${activeFamily?.familyId === f.familyId ? "is-on" : ""}`}
-                    style={pos(i)}
-                    onClick={() => setActiveFamilyId(f.familyId)}
-                    aria-pressed={activeFamily?.familyId === f.familyId}
-                    aria-label={f.name}
-                  >
-                    <span className="kg-av" style={{ background: familyColor(f.name) }}>
-                      {familyInitials(f.name)}
-                    </span>
-                  </button>
-                ))}
+                    x1="50"
+                    y1="50"
+                    x2={50 + R * Math.cos(a)}
+                    y2={50 + R * Math.sin(a)}
+                    stroke={on ? "#1B8168" : "#CBDAC7"}
+                    strokeWidth={on ? "1" : "0.45"}
+                  />
+                );
+              })}
+            </svg>
 
+            {families.map((f, i) => {
+              const on = activeFamily?.familyId === f.familyId;
+              return (
                 <button
-                  className="kg-fam"
-                  style={pos(families.length)}
-                  onClick={() => setToast("Zaproszenie do grupy — wkrótce")}
-                  aria-label="Zaproś kolejną rodzinę"
+                  key={f.familyId}
+                  className="absolute -translate-x-1/2 -translate-y-1/2 transition-opacity"
+                  style={pos(i)}
+                  onClick={() => setActiveFamilyId(f.familyId)}
+                  aria-pressed={on}
+                  aria-label={f.name}
                 >
-                  <span className="kg-av" style={{ background: "var(--cream)", color: "var(--mint)", border: "2.5px dashed var(--mint)", boxShadow: "none" }}>
-                    +
+                  <span
+                    className={`relative flex h-[52px] w-[52px] items-center justify-center rounded-full border-[3px] border-cream text-[14.5px] font-extrabold text-white shadow-[0_8px_18px_-10px_rgba(30,46,39,0.7)] transition-transform hover:scale-105 ${
+                      on ? "scale-110 ring-4 ring-mint-soft" : ""
+                    }`}
+                    style={{ background: familyColor(f.name) }}
+                  >
+                    {familyInitials(f.name)}
                   </span>
                 </button>
+              );
+            })}
 
-                <div className="kg-center">
-                  <div className="kg-center-av">{organizer ? organizer.display_name.slice(0, 1) : "?"}</div>
-                  <strong>{organizer ? organizer.display_name : "Brak organizatora"}</strong>
-                  <span>prowadzi zajęcia</span>
-                </div>
+            <button
+              className="absolute -translate-x-1/2 -translate-y-1/2"
+              style={pos(families.length)}
+              onClick={() => setToast("Zaproszenie do grupy — wkrótce")}
+              aria-label="Zaproś kolejną rodzinę"
+            >
+              <span className="flex h-[52px] w-[52px] items-center justify-center rounded-full border-2 border-dashed border-mint bg-cream text-lg font-extrabold text-mint transition-transform hover:scale-105">
+                +
+              </span>
+            </button>
+
+            <div className="absolute left-1/2 top-1/2 w-[48%] -translate-x-1/2 -translate-y-1/2 text-center">
+              <div className="mx-auto flex h-[74px] w-[74px] items-center justify-center rounded-full bg-ink font-serif text-2xl text-white shadow-[0_14px_28px_-14px_rgba(30,46,39,0.85)]">
+                {organizer ? organizer.display_name.slice(0, 1) : "?"}
               </div>
+              <strong className="mt-2.5 block font-serif text-[15px] font-semibold text-ink">
+                {organizer ? organizer.display_name : "Brak organizatora"}
+              </strong>
+              <span className="block text-xs text-ink-soft">prowadzi zajęcia</span>
             </div>
           </div>
         </div>
 
-        <div className="kg-bring">
-          <h2>Kto co przynosi</h2>
-          <p className="kg-bring-sub">
+        <div className="mx-[18px] mt-[18px] rounded-[22px] border border-line bg-paper p-5">
+          <h2 className="text-base font-semibold text-ink">Kto co przynosi</h2>
+          <p className="mt-1 text-[12.5px] text-ink-soft">
             {currentTerm
               ? "Te rzeczy są potrzebne na najbliższe zajęcia — zgłoś się, jeśli możesz coś przynieść."
               : "Organizator nie dodał jeszcze żadnych zajęć z prośbą o rzeczy."}
           </p>
-          <div className="kg-bring-list">
+
+          <div className="mt-3.5">
             {neededItems.length === 0 && currentTerm && (
-              <div className="kg-bring-empty">Brak listy potrzebnych rzeczy na te zajęcia.</div>
+              <div className="rounded-2xl border-[1.5px] border-dashed border-line py-[26px] text-center text-[13.5px] text-ink-soft">
+                Brak listy potrzebnych rzeczy na te zajęcia.
+              </div>
             )}
             {neededItems.map(({ item, pledges }) => {
               const activePledges = pledges.filter((p) => p.status !== "WITHDRAWN");
@@ -353,17 +290,25 @@ export function KragGrupyPage() {
               const showConfirmAction =
                 isOrganizerViewer && shown !== null && shown.status === "CLAIMED" && registered;
               return (
-                <div className="kg-bring-item" key={item.id}>
-                  <div className="kg-bring-row">
+                <div
+                  key={item.id}
+                  className="mt-2.5 rounded-2xl border border-line bg-cream p-[15px] first:mt-0"
+                >
+                  <div className="flex items-start gap-3.5">
                     <span
-                      className={`kg-bring-av ${shown ? "" : "kg-bring-av-empty"}`}
+                      className={`flex h-9 w-9 flex-none items-center justify-center rounded-full text-[12px] font-extrabold text-white ${
+                        shown ? "" : "border-2 border-dashed border-line text-ink-soft"
+                      }`}
                       style={shown ? { background: familyColor(pledgeFamilyName(shown)) } : undefined}
                     >
                       {shown ? familyInitials(pledgeFamilyName(shown)) : "?"}
                     </span>
-                    <div className="kg-bring-body">
-                      <strong>{item.category}{item.description ? ` — ${item.description}` : ""}</strong>
-                      <small>
+                    <div className="min-w-0 flex-1">
+                      <h3 className="text-[14.5px] font-semibold text-ink">
+                        {item.category}
+                        {item.description ? ` — ${item.description}` : ""}
+                      </h3>
+                      <small className="mt-0.5 block text-xs text-ink-soft">
                         {shown
                           ? `Przynosi: ${myPledge ? "Ty" : pledgeFamilyName(shown)}`
                           : "Jeszcze nikt się nie zgłosił"}
@@ -371,7 +316,7 @@ export function KragGrupyPage() {
                     </div>
                     {showWithdrawToggle && (
                       <button
-                        className={`kg-bring-btn ${myPledge ? "is-on" : ""}`}
+                        className={`${pillOutlineMint} ${myPledge ? "bg-mint text-white" : ""}`}
                         disabled={busyItemId === item.id}
                         onClick={() => void handlePledgeToggle(item.id, myPledge?.id ?? null)}
                         aria-label={
@@ -384,31 +329,31 @@ export function KragGrupyPage() {
                       </button>
                     )}
                     {showFulfillAction && fulfillingItemId !== item.id && (
-                      <button className="kg-bring-btn" onClick={() => openFulfillForm(item.id)}>
+                      <button className={pillOutlineMint} onClick={() => openFulfillForm(item.id)}>
                         Zarejestruj przedmiot
                       </button>
                     )}
                   </div>
 
                   {showFulfillAction && fulfillingItemId === item.id && myPledge && (
-                    <div className="kg-fulfill">
+                    <div className="mt-2.5 border-t border-dashed border-line pt-2.5">
                       <ProductPicker
                         products={products}
                         value={pickerValue}
                         onChange={setPickerValue}
-                        selectClassName="kg-select"
-                        inputClassName="kg-input"
-                        rowClassName="kg-fulfill-row"
+                        selectClassName={pickerInputClass}
+                        inputClassName={pickerInputClass}
+                        rowClassName="mb-2 flex gap-2"
                       />
-                      <div className="kg-fulfill-actions">
+                      <div className="flex gap-2">
                         <button
-                          className="kg-btn-primary"
+                          className={pillPrimary}
                           disabled={busyPledgeId === myPledge.id}
                           onClick={() => void handleFulfillSubmit(myPledge.id)}
                         >
                           Zapisz
                         </button>
-                        <button className="kg-btn-ghost" onClick={() => setFulfillingItemId(null)}>
+                        <button className={pillGhost} onClick={() => setFulfillingItemId(null)}>
                           Anuluj
                         </button>
                       </div>
@@ -416,13 +361,17 @@ export function KragGrupyPage() {
                   )}
 
                   {myPledge && registered && myPledge.status === "CLAIMED" && (
-                    <div className="kg-status-line">Przedmiot zarejestrowany — czeka na potwierdzenie odbioru</div>
+                    <div className="mt-2 text-xs font-bold text-sage">
+                      Przedmiot zarejestrowany — czeka na potwierdzenie odbioru
+                    </div>
                   )}
-                  {shown && shown.status === "FULFILLED" && <div className="kg-status-line">Zrealizowane ✓</div>}
+                  {shown && shown.status === "FULFILLED" && (
+                    <div className="mt-2 text-xs font-bold text-sage">Zrealizowane ✓</div>
+                  )}
                   {showConfirmAction && shown && (
-                    <div className="kg-fulfill-actions" style={{ marginTop: "8px" }}>
+                    <div className="mt-2">
                       <button
-                        className="kg-btn-primary"
+                        className={pillPrimary}
                         disabled={busyPledgeId === shown.id}
                         onClick={() => void handleConfirmReceipt(shown.id, shown.resolved_reservation_id as number)}
                       >
@@ -437,14 +386,17 @@ export function KragGrupyPage() {
         </div>
 
         {activeFamily && (
-          <div className="kg-card" key={activeFamily.familyId} aria-live="polite">
-            <div className="kg-card-top">
-              <span className="kg-card-av" style={{ background: familyColor(activeFamily.name) }}>
+          <div key={activeFamily.familyId} className="mx-[18px] mt-3.5 rounded-[22px] border border-line bg-paper p-5" aria-live="polite">
+            <div className="flex items-center gap-3">
+              <span
+                className="flex h-11 w-11 flex-none items-center justify-center rounded-full text-[13.5px] font-extrabold text-white"
+                style={{ background: familyColor(activeFamily.name) }}
+              >
                 {familyInitials(activeFamily.name)}
               </span>
-              <div style={{ minWidth: 0 }}>
-                <h3>{activeFamily.name}</h3>
-                <small>
+              <div className="min-w-0">
+                <h3 className="text-[15.5px] font-semibold text-ink">{activeFamily.name}</h3>
+                <small className="mt-0.5 block text-[12.5px] text-ink-soft">
                   {activeFamily.guardians.length}{" "}
                   {activeFamily.guardians.length === 1 ? "opiekun" : "opiekunów"}:{" "}
                   {activeFamily.guardians.map((g) => g.display_name).join(", ")}
@@ -454,14 +406,14 @@ export function KragGrupyPage() {
           </div>
         )}
 
-        <p className="kg-hint">Dotknij rodziny, żeby zobaczyć jej kartę.</p>
+        <p className="px-6 pt-4 text-center text-[13px] text-ink-soft">Dotknij rodziny, żeby zobaczyć jej kartę.</p>
       </div>
 
       {toast && (
-        <div className="kg-toast" role="status">
+        <div role="status" className="fixed bottom-[26px] left-1/2 z-[120] -translate-x-1/2 rounded-full bg-ink px-5 py-2.5 text-sm font-semibold text-[#EAF2E9] shadow-lg">
           {toast}
         </div>
       )}
-    </div>
+    </PhoneFrame>
   );
 }

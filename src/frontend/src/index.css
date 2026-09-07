@@ -1,3 +1,15 @@
+/*
+ * Fixes the app's borders/fonts silently losing to Chakra UI everywhere:
+ * Chakra injects its own `@layer reset, base, tokens, recipes;` at runtime,
+ * and because it's declared *after* Tailwind's `@layer theme, base,
+ * components, utilities;` in first-appearance order, Chakra's `reset` layer
+ * (border-width:0, font resets on `*`) outranks Tailwind's entire
+ * `utilities` layer regardless of selector specificity. Declaring the full
+ * combined order up front — before either library's own `@layer` statement
+ * is parsed — locks in `utilities` as highest priority for good.
+ */
+@layer reset, base, tokens, recipes, theme, components, utilities;
+
 @import "tailwindcss";
 
 /*

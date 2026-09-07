@@ -555,14 +555,14 @@ export function PanelPage() {
       <div className="flex-1 overflow-y-auto px-[18px] pb-6 pt-[18px]">
         {view === "home" && (
           <>
-            <div className="mb-[18px]">
+            <div className="mb-6">
               <h2 className="font-serif text-xl font-semibold text-ink">
                 Cześć, {profile.display_name.split(" ")[0]}!
               </h2>
               <p className="mt-1 text-[13.5px] text-ink-soft">Oto co dzieje się w Twojej grupie.</p>
             </div>
 
-            <div className="rounded-[22px] border border-line bg-paper p-5">
+            <div className="rounded-[22px] border-[1.5px] border-line bg-paper p-5 shadow-[0_10px_24px_-10px_rgba(30,46,39,0.22)]">
               <div className="mb-3.5 flex items-center justify-between gap-2.5">
                 <h3 className="text-base font-semibold text-ink">Najbliższe terminy</h3>
                 <button onClick={() => setView("spotkania")} className="text-xs font-extrabold text-mint hover:underline">
@@ -600,7 +600,7 @@ export function PanelPage() {
               })}
             </div>
 
-            <div className="mt-3.5 flex flex-col gap-3.5 rounded-[22px] border border-line bg-paper p-5">
+            <div className="mt-5 flex flex-col gap-3.5 rounded-[22px] border-[1.5px] border-line bg-paper p-5 shadow-[0_10px_24px_-10px_rgba(30,46,39,0.22)]">
               <h3 className="text-base font-semibold text-ink">Twoje rzeczy</h3>
 
               <div className="flex items-center justify-between gap-2.5">
@@ -651,7 +651,7 @@ export function PanelPage() {
         )}
 
         {view === "profil" && (
-          <div className="rounded-[22px] border border-line bg-paper p-5">
+          <div className="rounded-[22px] border-[1.5px] border-line bg-paper p-5 shadow-[0_10px_24px_-10px_rgba(30,46,39,0.22)]">
             <h3 className="mb-3.5 text-base font-semibold text-ink">Dane profilowe</h3>
             <div className="mb-5 flex items-center gap-4">
               <div className="flex h-[72px] w-[72px] flex-none items-center justify-center rounded-full border-[3px] border-mint-soft bg-mint-soft font-serif text-xl font-semibold text-mint">
@@ -709,7 +709,7 @@ export function PanelPage() {
 
         {view === "ustawienia" && (
           <>
-            <div className="rounded-[22px] border border-line bg-paper p-5">
+            <div className="rounded-[22px] border-[1.5px] border-line bg-paper p-5 shadow-[0_10px_24px_-10px_rgba(30,46,39,0.22)]">
               <h3 className="mb-1 text-base font-semibold text-ink">Powiadomienia</h3>
               <ToggleRow
                 label="Powiadomienia e-mail"
@@ -724,7 +724,7 @@ export function PanelPage() {
                 onChange={() => setSettings((s) => ({ ...s, smsNotifs: !s.smsNotifs }))}
               />
             </div>
-            <div className="mt-3.5 rounded-[22px] border border-line bg-paper p-5">
+            <div className="mt-3.5 rounded-[22px] border-[1.5px] border-line bg-paper p-5 shadow-[0_10px_24px_-10px_rgba(30,46,39,0.22)]">
               <h3 className="mb-1 text-base font-semibold text-ink">Prywatność</h3>
               <ToggleRow
                 label="Widoczny profil publiczny"
@@ -733,7 +733,7 @@ export function PanelPage() {
                 onChange={() => setSettings((s) => ({ ...s, publicProfile: !s.publicProfile }))}
               />
             </div>
-            <div className="mt-3.5 rounded-[22px] border border-line bg-paper p-5">
+            <div className="mt-3.5 rounded-[22px] border-[1.5px] border-line bg-paper p-5 shadow-[0_10px_24px_-10px_rgba(30,46,39,0.22)]">
               <h3 className="mb-3.5 text-base font-semibold text-ink">Konto</h3>
               <button
                 onClick={logout}
@@ -762,7 +762,7 @@ export function PanelPage() {
                   + Dodaj grupę
                 </button>
               </div>
-              <div className="rounded-[22px] border border-line bg-paper p-5">
+              <div className="rounded-[22px] border-[1.5px] border-line bg-paper p-5 shadow-[0_10px_24px_-10px_rgba(30,46,39,0.22)]">
                 {myGroups.length === 0 && (
                   <div className="rounded-2xl border-[1.5px] border-dashed border-line py-[26px] text-center text-[13.5px] text-ink-soft">
                     Nie masz jeszcze żadnej grupy.
@@ -812,7 +812,7 @@ export function PanelPage() {
                   + Dodaj termin
                 </button>
               </div>
-              <div className="rounded-[22px] border border-line bg-paper p-5">
+              <div className="rounded-[22px] border-[1.5px] border-line bg-paper p-5 shadow-[0_10px_24px_-10px_rgba(30,46,39,0.22)]">
                 {terms.length === 0 && (
                   <div className="rounded-2xl border-[1.5px] border-dashed border-line py-[26px] text-center text-[13.5px] text-ink-soft">
                     Brak zaplanowanych terminów.
@@ -857,7 +857,7 @@ export function PanelPage() {
                   : `${terms.length} ${terms.length === 1 ? "termin, na który jesteś zapisana" : "terminy, na które jesteś zapisana"}`}
               </small>
             </div>
-            <div className="rounded-[22px] border border-line bg-paper p-5">
+            <div className="rounded-[22px] border-[1.5px] border-line bg-paper p-5 shadow-[0_10px_24px_-10px_rgba(30,46,39,0.22)]">
               {terms.length === 0 && (
                 <div className="rounded-2xl border-[1.5px] border-dashed border-line py-[26px] text-center text-[13.5px] text-ink-soft">
                   Nie jesteś jeszcze zapisana na żadne zajęcia.
@@ -909,7 +909,7 @@ export function PanelPage() {
                 + Dodaj rzecz
               </button>
             </div>
-            <div className="rounded-[22px] border border-line bg-paper p-5">
+            <div className="rounded-[22px] border-[1.5px] border-line bg-paper p-5 shadow-[0_10px_24px_-10px_rgba(30,46,39,0.22)]">
               {items.length === 0 && (
                 <div className="rounded-2xl border-[1.5px] border-dashed border-line py-[26px] text-center text-[13.5px] text-ink-soft">
                   Nie masz jeszcze żadnej rzeczy.
@@ -962,7 +962,7 @@ export function PanelPage() {
                 rzeczy od innych rodzin, które wypożyczyłaś lub się wymieniłaś
               </small>
             </div>
-            <div className="rounded-[22px] border border-line bg-paper p-5">
+            <div className="rounded-[22px] border-[1.5px] border-line bg-paper p-5 shadow-[0_10px_24px_-10px_rgba(30,46,39,0.22)]">
               {gifts.length === 0 && (
                 <div className="rounded-2xl border-[1.5px] border-dashed border-line py-[26px] text-center text-[13.5px] text-ink-soft">
                   Nie masz jeszcze żadnego podarku.
