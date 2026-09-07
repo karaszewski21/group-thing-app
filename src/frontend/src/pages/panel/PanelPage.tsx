@@ -17,7 +17,7 @@ import {
   type InventoryItemResponse,
 } from "../../api/inventories";
 import { getLeadershipsForPerson, getMyProfile, type UserProfileResponse } from "../../api/people";
-import { createProduct, getProducts, type ProductResponse } from "../../api/products";
+import { getProducts, resolveProduct, type ProductResponse } from "../../api/products";
 import {
   createNeededItem,
   createTerm,
@@ -28,8 +28,8 @@ import {
   type TermResponse,
 } from "../../api/terms";
 import { PhoneFrame } from "../../components/shared/PhoneFrame";
-import { ProductPicker } from "../../components/shared/ProductPicker";
-import { createEmptyProductPickerValue, type ProductPickerValue } from "../../utils/productPicker";
+import { ItemQuickAddForm } from "../../components/shared/ItemQuickAddForm";
+import { createEmptyItemQuickAddValue, type ItemQuickAddValue } from "../../utils/itemQuickAdd";
 
 /* ------------------------------------------------------------------ */
 /*  Panel — organizator/gość (port z pages/PanelOrganizatora.tsx +      */
@@ -148,6 +148,12 @@ const SettingsIcon = ({ c = "#1E2E27" }: { c?: string }) => (
     />
   </svg>
 );
+const PlusCircleIcon = ({ c = "#1E2E27" }: { c?: string }) => (
+  <svg viewBox="0 0 24 24" fill="none" aria-hidden="true" className="h-[18px] w-[18px]">
+    <circle cx="12" cy="12" r="8.5" stroke={c} strokeWidth="2" />
+    <path d="M12 8.5v7M8.5 12h7" stroke={c} strokeWidth="2" strokeLinecap="round" />
+  </svg>
+);
 const UserIcon = ({ c = "#1E2E27" }: { c?: string }) => (
   <svg viewBox="0 0 24 24" fill="none" aria-hidden="true" className="h-[18px] w-[18px]">
     <circle cx="12" cy="8" r="3.6" stroke={c} strokeWidth="2" />
@@ -236,7 +242,7 @@ export function PanelPage() {
   const [inventoryId, setInventoryId] = useState<number | null>(null);
   const [items, setItems] = useState<InventoryItemResponse[]>([]);
   const [products, setProducts] = useState<ProductResponse[]>([]);
-  const [pickerValue, setPickerValue] = useState<ProductPickerValue>(createEmptyProductPickerValue());
+  const [itemDraft, setItemDraft] = useState<ItemQuickAddValue>(createEmptyItemQuickAddValue());
 
   const showToast = useCallback((msg: string) => setToast(msg), []);
 
@@ -246,6 +252,14 @@ export function PanelPage() {
     try {
       const me = await getMyProfile();
       setProfile(me);
+
+      // The authenticated user's own profile always has a login-backed
+      // `account_user_id` — only lightweight family members (who never
+      // log in) can have a null one, so this fail-fast guard should never
+      // actually trigger for `me` (`standards/global/error-handling.md`).
+      if (me.account_user_id == null) {
+        throw new Error("Zalogowany profil nie ma powiązanego konta użytkownika");
+      }
 
       const [leaderships, inventories, productsData] = await Promise.all([
         getLeadershipsForPerson(me.id),
@@ -396,23 +410,16 @@ export function PanelPage() {
 
   async function handleAddItem() {
     if (inventoryId === null) return;
+    if (!itemDraft.name.trim()) return;
     setBusy(true);
     try {
-      let productId: number;
-      if (pickerValue.selectedProductId === "new") {
-        if (!pickerValue.newProductName.trim()) return;
-        const product = await createProduct({
-          name: pickerValue.newProductName.trim(),
-          category: pickerValue.newProductCategory,
-          price: 0.01,
-          sku: `${pickerValue.newProductName.trim().slice(0, 10).toUpperCase()}-${Date.now()}`,
-        });
-        productId = product.id;
-      } else {
-        productId = pickerValue.selectedProductId;
-      }
-      await registerInventoryItem({ inventory_id: inventoryId, product_id: productId, condition: pickerValue.condition });
-      setPickerValue(createEmptyProductPickerValue());
+      const product = await resolveProduct({ name: itemDraft.name.trim(), category: itemDraft.category });
+      await registerInventoryItem({
+        inventory_id: inventoryId,
+        product_id: product.id,
+        condition: itemDraft.condition,
+      });
+      setItemDraft(createEmptyItemQuickAddValue());
       setModal(null);
       showToast("Dodano rzecz");
       setItems(await getInventoryItems(inventoryId));
@@ -531,6 +538,15 @@ export function PanelPage() {
                     >
                       <SettingsIcon /> Ustawienia
                     </button>
+                    {!isOrganizer && (
+                      <button
+                        role="menuitem"
+                        onClick={() => { setModal("grupa"); setMenuOpen(false); }}
+                        className="flex w-full items-center gap-2.5 rounded-[11px] px-3 py-2.5 text-left text-sm font-bold text-ink hover:bg-cream"
+                      >
+                        <PlusCircleIcon /> Chcę dodać krąg
+                      </button>
+                    )}
                   </div>
                 </>
               )}
@@ -903,7 +919,7 @@ export function PanelPage() {
                 </small>
               </div>
               <button
-                onClick={() => { setPickerValue(createEmptyProductPickerValue(products[0]?.id ?? "new")); setModal("rzecz"); }}
+                onClick={() => { setItemDraft(createEmptyItemQuickAddValue()); setModal("rzecz"); }}
                 className="inline-flex flex-none items-center gap-1.5 rounded-full bg-ink px-[15px] py-2.5 text-[12.5px] font-extrabold text-[#EAF2E9] transition-transform hover:-translate-y-0.5"
               >
                 + Dodaj rzecz
@@ -1138,20 +1154,13 @@ export function PanelPage() {
       {/* ---------- modal: dodaj rzecz ---------- */}
       {modal === "rzecz" && (
         <ModalSheet title="Dodaj rzecz" onClose={() => setModal(null)}>
-          <ProductPicker
-            products={products}
-            value={pickerValue}
-            onChange={setPickerValue}
-            selectClassName="min-w-0 flex-1 rounded-xl border-[1.5px] border-line bg-cream px-3.5 py-2.5 text-ink"
-            inputClassName="min-w-0 flex-1 rounded-xl border-[1.5px] border-line bg-cream px-3.5 py-2.5 text-ink"
-            rowClassName="mb-3 flex gap-2"
-          />
+          <ItemQuickAddForm value={itemDraft} onChange={setItemDraft} disabled={busy} />
           <p className="mt-2 text-xs text-ink-soft">
             Sposób udostępnienia (wypożyczę / oddam / zamienię) ustawisz na liście po dodaniu.
           </p>
           <button
             onClick={() => void handleAddItem()}
-            disabled={busy}
+            disabled={busy || !itemDraft.name.trim()}
             className="mt-4 w-full rounded-[13px] bg-mint px-5 py-3 text-[13.5px] font-extrabold text-white disabled:opacity-60"
           >
             Dodaj rzecz

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from datetime import date, datetime
+from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -34,6 +35,19 @@ class AddGuardianRequest(BaseModel):
     password: str = Field(min_length=1)
     display_name: str = Field(min_length=1, max_length=255)
     email: str | None = Field(default=None, max_length=255)
+
+
+class CreateLightweightMemberRequest(BaseModel):
+    """One entry of a `POST /api/families/mine/members` batch — a family
+    member with no login of their own (see
+    `app.families.service.create_lightweight_family_member`)."""
+
+    name: str = Field(min_length=1, max_length=255)
+    role_type: Literal["GUARDIAN", "CHILD"]
+
+
+class CreateLightweightMembersBatchRequest(BaseModel):
+    members: list[CreateLightweightMemberRequest]
 
 
 class GuardianResponse(BaseModel):

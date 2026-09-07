@@ -15,16 +15,36 @@ Object.defineProperty(window, "location", {
   writable: true,
 });
 
+// Spy on react-router-dom's useNavigate to assert navigation targets
+const mockNavigate = vi.fn();
+vi.mock("react-router-dom", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("react-router-dom")>();
+  return {
+    ...actual,
+    useNavigate: () => mockNavigate,
+  };
+});
+
 // Keep a reference to the real implementations before mocking
 let RealAuthProvider: typeof import("../auth/AuthContext").AuthProvider;
 let realUseAuth: typeof import("../auth/AuthContext").useAuth;
 
 // Mock the auth module for pages that use useAuth
-const mockUseAuth = vi.fn((): { token: string | null; username: string | null; permissions: string[]; login: (username: string, password: string) => Promise<void>; logout: () => void } => ({
+const mockUseAuth = vi.fn((): {
+  token: string | null;
+  username: string | null;
+  displayName: string | null;
+  permissions: string[];
+  login: (email: string, password: string) => Promise<void>;
+  register: (payload: { role: string; email: string; password: string }) => Promise<{ partyId: number; role: string }>;
+  logout: () => void;
+} => ({
   token: "test-token",
   username: "admin",
+  displayName: "Admin User",
   permissions: ["EDIT", "PLUGIN_MANAGEMENT"],
   login: vi.fn(),
+  register: vi.fn(),
   logout: vi.fn(),
 }));
 
@@ -71,8 +91,10 @@ beforeEach(() => {
   mockUseAuth.mockReturnValue({
     token: "test-token",
     username: "admin",
+    displayName: "Admin User",
     permissions: ["EDIT", "PLUGIN_MANAGEMENT"],
     login: vi.fn(),
+    register: vi.fn(),
     logout: vi.fn(),
   });
 });
@@ -117,36 +139,123 @@ describe("API Client Auth", () => {
 });
 
 describe("LoginPage", () => {
-  it("renders username/password form and submits to /api/auth/login", async () => {
+  it("renders email/password form and submits to /api/auth/login", async () => {
     // Configure mock login to actually call fetch (simulating real behavior)
     const mockLogin = vi.fn(async () => {
       // Simulate what real login does
       mockFetch("/api/auth/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ username: "admin", password: "pass123" }),
+        body: JSON.stringify({ email: "admin@example.com", password: "pass123" }),
       });
     });
     mockUseAuth.mockReturnValue({
       token: null as string | null,
       username: null as string | null,
+      displayName: null as string | null,
       permissions: [],
       login: mockLogin,
+      register: vi.fn(),
       logout: vi.fn(),
     });
 
     const { LoginPage } = await import("../pages/LoginPage");
     renderWithProviders(<LoginPage />);
 
-    expect(screen.getByLabelText(/nazwa użytkownika/i)).toBeInTheDocument();
+    expect(screen.getByLabelText(/^email$/i)).toBeInTheDocument();
     expect(screen.getByLabelText(/hasło/i)).toBeInTheDocument();
 
-    fireEvent.change(screen.getByLabelText(/nazwa użytkownika/i), { target: { value: "admin" } });
+    fireEvent.change(screen.getByLabelText(/^email$/i), { target: { value: "admin@example.com" } });
     fireEvent.change(screen.getByLabelText(/hasło/i), { target: { value: "pass123" } });
     fireEvent.click(screen.getByRole("button", { name: /zaloguj się/i }));
 
     await waitFor(() => {
-      expect(mockLogin).toHaveBeenCalledWith("admin", "pass123");
+      expect(mockLogin).toHaveBeenCalledWith("admin@example.com", "pass123");
+    });
+  });
+});
+
+describe("RegisterPage", () => {
+  it("posts register body as exactly {role, email, password}", async () => {
+    const mockRegister = vi.fn(async () => ({ partyId: 1, role: "GUEST" }));
+    mockUseAuth.mockReturnValue({
+      token: null as string | null,
+      username: null as string | null,
+      displayName: null as string | null,
+      permissions: [],
+      login: vi.fn(),
+      register: mockRegister,
+      logout: vi.fn(),
+    });
+
+    const { RegisterPage } = await import("../pages/RegisterPage");
+    renderWithProviders(<RegisterPage />);
+
+    fireEvent.change(screen.getByLabelText(/^email$/i), { target: { value: "new@example.com" } });
+    fireEvent.change(screen.getByLabelText(/hasło/i), { target: { value: "pass123" } });
+    fireEvent.click(screen.getByRole("button", { name: /załóż konto/i }));
+
+    await waitFor(() => {
+      expect(mockRegister).toHaveBeenCalledWith({
+        role: "GUEST",
+        email: "new@example.com",
+        password: "pass123",
+      });
+    });
+
+    const calledPayload = mockRegister.mock.calls[0][0];
+    expect(Object.keys(calledPayload).sort()).toEqual(["email", "password", "role"]);
+  });
+
+  it("renders the duplicate-email error message with a /login link", async () => {
+    const mockRegister = vi.fn(async () => {
+      throw new Error("Ten email jest już zarejestrowany, zaloguj się");
+    });
+    mockUseAuth.mockReturnValue({
+      token: null as string | null,
+      username: null as string | null,
+      displayName: null as string | null,
+      permissions: [],
+      login: vi.fn(),
+      register: mockRegister,
+      logout: vi.fn(),
+    });
+
+    const { RegisterPage } = await import("../pages/RegisterPage");
+    renderWithProviders(<RegisterPage />);
+
+    fireEvent.change(screen.getByLabelText(/^email$/i), { target: { value: "dup@example.com" } });
+    fireEvent.change(screen.getByLabelText(/hasło/i), { target: { value: "pass123" } });
+    fireEvent.click(screen.getByRole("button", { name: /załóż konto/i }));
+
+    await waitFor(() => {
+      expect(screen.getByText(/Ten email jest już zarejestrowany, zaloguj się/i)).toBeInTheDocument();
+    });
+    const loginLinks = screen.getAllByRole("link", { name: /zaloguj się/i });
+    expect(loginLinks.some((link) => link.getAttribute("href") === "/login")).toBe(true);
+  });
+
+  it("navigates to /onboarding on successful registration", async () => {
+    const mockRegister = vi.fn(async () => ({ partyId: 1, role: "GUEST" }));
+    mockUseAuth.mockReturnValue({
+      token: null as string | null,
+      username: null as string | null,
+      displayName: null as string | null,
+      permissions: [],
+      login: vi.fn(),
+      register: mockRegister,
+      logout: vi.fn(),
+    });
+
+    const { RegisterPage } = await import("../pages/RegisterPage");
+    renderWithProviders(<RegisterPage />);
+
+    fireEvent.change(screen.getByLabelText(/^email$/i), { target: { value: "new@example.com" } });
+    fireEvent.change(screen.getByLabelText(/hasło/i), { target: { value: "pass123" } });
+    fireEvent.click(screen.getByRole("button", { name: /załóż konto/i }));
+
+    await waitFor(() => {
+      expect(mockNavigate).toHaveBeenCalledWith("/onboarding", { replace: true });
     });
   });
 });

@@ -49,11 +49,14 @@ class UserProfile(BaseEntity):
         ForeignKey("parties.id", name="fk_user_profiles_party_id_parties"),
         nullable=False,
     )
-    account_user_id: Mapped[int] = mapped_column(
+    account_user_id: Mapped[int | None] = mapped_column(
         BigInteger,
         ForeignKey("users.id", name="fk_user_profiles_account_user_id_users"),
-        nullable=False,
+        nullable=True,
     )
+    """`None` for a lightweight family member (see
+    `app.families.service.create_lightweight_family_member`) — no `auth.User`
+    row backs it, so there is nothing to log in with."""
     display_name: Mapped[str] = mapped_column(String(255), nullable=False)
     email: Mapped[str | None] = mapped_column(String(255), nullable=True)
 

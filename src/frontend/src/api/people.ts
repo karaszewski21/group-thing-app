@@ -4,7 +4,7 @@ import { api } from "./client";
 export interface UserProfileResponse {
   id: number;
   party_id: number;
-  account_user_id: number;
+  account_user_id: number | null;
   display_name: string;
   email: string | null;
   created_at: string;

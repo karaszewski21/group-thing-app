@@ -77,3 +77,13 @@ class UpdateProductRequest(BaseModel):
     @classmethod
     def _check_photo_url(cls, value: str | None) -> str | None:
         return _validate_photo_url(value)
+
+
+class ResolveProductRequest(BaseModel):
+    """`POST /api/products/resolve` — resolves a freeform item name (e.g.
+    typed during onboarding) to an existing `Product`, or creates one on the
+    fly with a placeholder price/sku. Reuses `ProductResponse` as the return
+    shape; no dedicated response schema."""
+
+    name: str = Field(min_length=1, max_length=255)
+    category: ProductCategory

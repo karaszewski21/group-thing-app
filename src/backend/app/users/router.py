@@ -29,11 +29,11 @@ ReadPrincipal = Annotated[Principal, Depends(require_any("READ", "mcp:read"))]
 async def register(body: RegisterRequest, db: DbSession) -> RegisterResponse:
     """Public — no `principal` dependency. `["READ", "EDIT"]` mirrors
     exactly what `service.create_account` always grants."""
-    user = await service.register(db, body)
+    user, party_id = await service.register(db, body)
     token = encode_login_token(
         user.username, ["READ", "EDIT"], settings.jwt_secret, settings.jwt_expiration_ms
     )
-    return RegisterResponse(token=token)
+    return RegisterResponse(token=token, party_id=party_id, role=body.role)
 
 
 @router.get("/api/people/me", response_model=UserProfileResponse)

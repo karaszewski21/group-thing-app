@@ -40,6 +40,11 @@ export interface ProductSearchParams {
   pluginFilters?: string[];
 }
 
+export interface ResolveProductRequest {
+  name: string;
+  category: ProductCategory;
+}
+
 export function getProducts(params?: ProductSearchParams): Promise<ProductResponse[]> {
   const searchParams = new URLSearchParams();
   if (params?.category) searchParams.set("category", params.category);
@@ -68,4 +73,13 @@ export function updateProduct(id: number, request: UpdateProductRequest): Promis
 
 export function deleteProduct(id: number): Promise<void> {
   return api.delete(`/products/${id}`);
+}
+
+/**
+ * Get-or-create a `Product` by freeform name+category (case-insensitive
+ * name match within category). Backs `ItemQuickAddForm`'s submission flow —
+ * callers resolve a `Product` here before calling `registerInventoryItem`.
+ */
+export function resolveProduct(request: ResolveProductRequest): Promise<ProductResponse> {
+  return api.post("/products/resolve", request);
 }

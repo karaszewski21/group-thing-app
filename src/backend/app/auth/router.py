@@ -1,6 +1,8 @@
 """`POST /api/auth/login` — the only route in this module (spec.md's Auth
 section). Public; validates the request body is non-blank via Pydantic,
-then checks credentials against `users.password_hash` (bcrypt)."""
+resolves `UserProfile` by `email` -> `auth.User` via `account_user_id`
+(spec.md Core Requirement 6), then checks credentials against
+`users.password_hash` (bcrypt)."""
 
 from __future__ import annotations
 
@@ -17,6 +19,7 @@ from app.config import settings
 from app.core.errors import ErrorResponse
 from app.core.security import encode_login_token, verify_password
 from app.db import get_db
+from app.users.models import UserProfile
 
 from .models import User, user_permissions
 
@@ -26,7 +29,7 @@ DbSession = Annotated[AsyncSession, Depends(get_db)]
 
 
 class LoginRequest(BaseModel):
-    username: str = Field(min_length=1)
+    email: str = Field(min_length=1)
     password: str = Field(min_length=1)
 
 
@@ -43,9 +46,16 @@ async def _load_permissions(db: AsyncSession, user_id: int) -> list[str]:
 
 @router.post("/login", response_model=None)
 async def login(body: LoginRequest, db: DbSession) -> LoginResponse | JSONResponse:
-    user = (
-        await db.execute(select(User).where(User.username == body.username))
+    profile = (
+        await db.execute(select(UserProfile).where(UserProfile.email == body.email))
     ).scalar_one_or_none()
+
+    # A `UserProfile` with `account_user_id IS NULL` (a lightweight family
+    # member — spec.md Core Requirement 8) has no login credentials and
+    # must fail the same way as an unknown email.
+    user: User | None = None
+    if profile is not None and profile.account_user_id is not None:
+        user = await db.get(User, profile.account_user_id)
 
     if user is None or not verify_password(body.password, user.password_hash):
         # Manually constructed here (not via a registered exception

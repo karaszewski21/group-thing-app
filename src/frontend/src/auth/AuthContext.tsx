@@ -1,22 +1,31 @@
-import { createContext, useCallback, useContext, useMemo, useState } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import type { ReactNode } from "react";
+import { getMyProfile } from "../api/people";
 
 export interface RegisterPayload {
   role: "GUEST" | "ORGANIZER";
-  familyName: string;
-  username: string;
+  email: string;
   password: string;
-  displayName: string;
-  email?: string;
-  circleName?: string;
+}
+
+export interface RegisterResult {
+  partyId: number;
+  role: string;
 }
 
 interface AuthContextValue {
   token: string | null;
   username: string | null;
+  displayName: string | null;
   permissions: string[];
-  login: (username: string, password: string) => Promise<void>;
-  register: (payload: RegisterPayload) => Promise<void>;
+  /** Set by `register()` for the lifetime of the current session — lets
+   * `/onboarding` pick the right `Step[]` config right after a fresh
+   * registration without a follow-up `GET /api/people/me` call. `null`
+   * when the app was loaded from a stored token instead (returning user),
+   * in which case callers fall back to a profile/leaderships lookup. */
+  registeredRole: RegisterResult | null;
+  login: (email: string, password: string) => Promise<void>;
+  register: (payload: RegisterPayload) => Promise<RegisterResult>;
   logout: () => void;
 }
 
@@ -58,21 +67,45 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [token, setToken] = useState<string | null>(initialAuth.token);
   const [username, setUsername] = useState<string | null>(initialAuth.username);
   const [permissions, setPermissions] = useState<string[]>(initialAuth.permissions);
+  const [displayName, setDisplayName] = useState<string | null>(null);
+  const [registeredRole, setRegisteredRole] = useState<RegisterResult | null>(null);
 
-  const applyToken = useCallback((jwt: string) => {
-    localStorage.setItem("auth_token", jwt);
-    const payload = decodeJwtPayload(jwt);
-    setToken(jwt);
-    setUsername(payload.sub ?? null);
-    setPermissions(payload.permissions ?? []);
+  const refreshDisplayName = useCallback(async () => {
+    try {
+      const me = await getMyProfile();
+      setDisplayName(me.display_name);
+    } catch {
+      setDisplayName(null);
+    }
+  }, []);
+
+  const applyToken = useCallback(
+    (jwt: string) => {
+      localStorage.setItem("auth_token", jwt);
+      const payload = decodeJwtPayload(jwt);
+      setToken(jwt);
+      setUsername(payload.sub ?? null);
+      setPermissions(payload.permissions ?? []);
+      void refreshDisplayName();
+    },
+    [refreshDisplayName],
+  );
+
+  // Populate displayName on initial load when a valid token was already
+  // stored (applyToken only runs on fresh login/register).
+  useEffect(() => {
+    if (initialAuth.token) {
+      void refreshDisplayName();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const login = useCallback(
-    async (user: string, password: string) => {
+    async (email: string, password: string) => {
       const response = await fetch("/api/auth/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ username: user, password }),
+        body: JSON.stringify({ email, password }),
       });
 
       if (!response.ok) {
@@ -87,18 +120,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   );
 
   const register = useCallback(
-    async (payload: RegisterPayload) => {
+    async (payload: RegisterPayload): Promise<RegisterResult> => {
       const response = await fetch("/api/auth/register", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           role: payload.role,
-          family_name: payload.familyName,
-          username: payload.username,
+          email: payload.email,
           password: payload.password,
-          display_name: payload.displayName,
-          email: payload.email || undefined,
-          circle_name: payload.circleName || undefined,
         }),
       });
 
@@ -107,8 +136,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         throw new Error(body.message ?? "Registration failed");
       }
 
-      const { token: jwt } = await response.json();
+      const { token: jwt, party_id: partyId, role } = await response.json();
       applyToken(jwt);
+      const result = { partyId, role };
+      setRegisteredRole(result);
+      return result;
     },
     [applyToken],
   );
@@ -118,12 +150,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setToken(null);
     setUsername(null);
     setPermissions([]);
+    setDisplayName(null);
+    setRegisteredRole(null);
     window.location.href = "/login";
   }, []);
 
   const value = useMemo<AuthContextValue>(
-    () => ({ token, username, permissions, login, register, logout }),
-    [token, username, permissions, login, register, logout],
+    () => ({ token, username, displayName, permissions, registeredRole, login, register, logout }),
+    [token, username, displayName, permissions, registeredRole, login, register, logout],
   );
 
   return <AuthContext value={value}>{children}</AuthContext>;

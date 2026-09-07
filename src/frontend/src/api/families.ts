@@ -24,6 +24,13 @@ export interface AddGuardianRequest {
   email?: string;
 }
 
+/** One entry of the `POST /api/families/mine/members` batch — a family
+ * member with no login of their own (lightweight, no `auth.User` row). */
+export interface CreateLightweightMemberRequest {
+  name: string;
+  role_type: "GUARDIAN" | "CHILD";
+}
+
 /** Denormalized join of `FamilyMembership` + `UserProfile` — no second
  * round trip needed to find out who a guardian is or whether they're the
  * family's primary contact. */
@@ -81,4 +88,13 @@ export function makePrimaryContact(
 
 export function getMembershipsForFamily(familyId: number): Promise<MembershipResponse[]> {
   return api.get(`/families/${familyId}/memberships`);
+}
+
+/** Bootstraps the calling guardian's own Family on first call, then adds
+ * every batch member (no per-member API call) — backs the onboarding
+ * wizard's "Członkowie rodziny" step, submitted once on step advance. */
+export function createLightweightMembers(
+  members: CreateLightweightMemberRequest[],
+): Promise<FamilyResponse> {
+  return api.post("/families/mine/members", { members });
 }

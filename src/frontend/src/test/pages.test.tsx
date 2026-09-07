@@ -15,6 +15,7 @@ vi.mock("../auth/AuthContext", async (importOriginal) => {
     useAuth: vi.fn(() => ({
       token: "test-token",
       username: "admin",
+      displayName: "Admin User",
       permissions: ["EDIT", "PLUGIN_MANAGEMENT"],
       login: vi.fn(),
       logout: vi.fn(),

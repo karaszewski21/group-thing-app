@@ -1,11 +1,9 @@
 """`app.users` business logic: account+profile bootstrapping and the
-`UserRole` lifecycle. `register()` orchestrates `app.families`/`app.groups`
-too (via deferred, in-function imports — `app.groups`/`app.families` both
-import this module at module level for their own needs, so importing them
-back at module level here would cycle)."""
+`UserRole` lifecycle."""
 
 from __future__ import annotations
 
+import re
 from datetime import date
 from typing import cast
 
@@ -14,13 +12,28 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.models import Permission, User, user_permissions
 from app.core.auth_deps import Principal
-from app.core.errors import EntityNotFoundException
+from app.core.errors import BusinessConflictException, EntityNotFoundException
 from app.core.security import hash_password
 from app.party.models import Party, PartyType
 from app.party.service import create_party
 
 from .models import UserProfile, UserRole, UserRoleType
 from .schemas import RegisterRequest
+
+_USERNAME_MAX_LENGTH = 50
+# Anything outside this set is stripped from the email local-part before
+# it's used as a `users.username` value (a `String(50)`, no format
+# constraint of its own beyond length/uniqueness).
+_USERNAME_SANITIZE_PATTERN = re.compile(r"[^a-zA-Z0-9._-]")
+
+
+class DuplicateEmailException(BusinessConflictException):
+    """Raised when `RegisterRequest.email` already belongs to an existing
+    `UserProfile` — rendered by the frontend as spec.md's fixed duplicate-
+    email message (Core Requirement 7)."""
+
+    def __init__(self) -> None:
+        super().__init__("Ten email jest już zarejestrowany, zaloguj się")
 
 
 async def create_account(db: AsyncSession, username: str, password: str) -> User:
@@ -113,20 +126,57 @@ async def get_or_create_active_user_role(
     return role
 
 
-async def register(db: AsyncSession, data: RegisterRequest) -> User:
-    from app.families.service import bootstrap_family_for_party
-    from app.groups.service import create_own_circle
+async def _derive_username(db: AsyncSession, email: str) -> str:
+    """Email local-part, lowercased and sanitized to fit `String(50)`,
+    collision-checked against `User.username` with numeric suffixes
+    (`jan.kowalski`, `jan.kowalski2`, `jan.kowalski3`, ...)."""
+    local_part = email.split("@", 1)[0].lower()
+    base = _USERNAME_SANITIZE_PATTERN.sub("", local_part)[:_USERNAME_MAX_LENGTH] or "user"
+
+    candidate = base
+    suffix = 2
+    while True:
+        existing = (
+            await db.execute(select(User).where(User.username == candidate))
+        ).scalar_one_or_none()
+        if existing is None:
+            return candidate
+        suffix_str = str(suffix)
+        candidate = base[: _USERNAME_MAX_LENGTH - len(suffix_str)] + suffix_str
+        suffix += 1
+
+
+def _derive_display_name(email: str) -> str:
+    """Email local-part, title-cased with separators turned into spaces
+    (e.g. `jan.kowalski@example.com` -> `Jan Kowalski`)."""
+    local_part = email.split("@", 1)[0]
+    return re.sub(r"[._-]+", " ", local_part).strip().title() or local_part
+
+
+async def register(db: AsyncSession, data: RegisterRequest) -> tuple[User, int]:
+    """Returns `(user, party_id)` so the router can build the enriched
+    `RegisterResponse`. No longer calls `bootstrap_family_for_party` or
+    `create_own_circle` under any role (spec.md Core Requirements 3-4) —
+    ORGANIZER registration only grants the `UserRole(ORGANIZATOR)`
+    capacity; circle creation moves to the onboarding wizard's
+    `POST /api/groups/mine` step."""
+    existing_profile = (
+        await db.execute(select(UserProfile).where(UserProfile.email == data.email))
+    ).scalar_one_or_none()
+    if existing_profile is not None:
+        raise DuplicateEmailException()
+
+    username = await _derive_username(db, data.email)
+    display_name = _derive_display_name(data.email)
 
     party, profile = await create_account_and_profile(
-        db, data.username, data.password, data.display_name, data.email
+        db, username, data.password, display_name, data.email
     )
-    await bootstrap_family_for_party(db, data.family_name, cast(int, party.id))
     if data.role == "ORGANIZER":
         await get_or_create_active_user_role(db, cast(int, party.id), UserRoleType.ORGANIZATOR)
-        await create_own_circle(db, cast(int, party.id), cast(str, data.circle_name))
 
     await db.commit()
     user = await db.get(User, profile.account_user_id)
     if user is None:
         raise EntityNotFoundException("User", profile.account_user_id)
-    return user
+    return user, cast(int, party.id)

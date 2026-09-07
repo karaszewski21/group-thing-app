@@ -17,6 +17,7 @@ from . import service
 from .schemas import (
     AddGuardianRequest,
     CreateFamilyRequest,
+    CreateLightweightMembersBatchRequest,
     FamilyOut,
     FamilyResponse,
     GuardianResponse,
@@ -47,6 +48,22 @@ async def list_my_families(db: DbSession, principal: ReadPrincipal) -> list[Fami
     profile = await get_profile_by_principal(db, principal)
     families = await service.list_families_for_guardian_party(db, profile.party_id)
     return [FamilyOut.model_validate(family) for family in families]
+
+
+@router.post(
+    "/api/families/mine/members", response_model=FamilyResponse, status_code=status.HTTP_201_CREATED
+)
+async def create_lightweight_members(
+    body: CreateLightweightMembersBatchRequest, db: DbSession, principal: EditPrincipal
+) -> FamilyResponse:
+    """Bootstraps the calling guardian's own Family on first call (see
+    `service.create_lightweight_members_batch`), then adds every batch
+    member (no login of their own) to it."""
+    profile = await get_profile_by_principal(db, principal)
+    family = await service.create_lightweight_members_batch(db, profile.party_id, body.members)
+    memberships = await service.list_guardian_memberships(db, cast(int, family.id))
+    guardians = await service.build_guardian_responses(db, memberships)
+    return FamilyResponse(family=FamilyOut.model_validate(family), guardians=guardians)
 
 
 @router.get("/api/families/by-guardian-party/{party_id}", response_model=list[FamilyOut])

@@ -6,38 +6,27 @@ const inputClass =
   "w-full rounded-xl border-[1.5px] border-line bg-cream px-3.5 py-2.5 text-sm text-ink outline-none focus:border-mint focus:ring-[3px] focus:ring-mint-soft";
 const labelClass = "mb-1.5 block text-xs font-extrabold tracking-wide text-ink-soft";
 
+const DUPLICATE_EMAIL_MESSAGE = "Ten email jest już zarejestrowany, zaloguj się";
+
 export function RegisterPage() {
   const [role, setRole] = useState<RegisterPayload["role"]>("GUEST");
-  const [familyName, setFamilyName] = useState("");
-  const [username, setUsername] = useState("");
-  const [password, setPassword] = useState("");
-  const [displayName, setDisplayName] = useState("");
   const [email, setEmail] = useState("");
-  const [circleName, setCircleName] = useState("");
+  const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const { register } = useAuth();
   const navigate = useNavigate();
 
   const isOrganizer = role === "ORGANIZER";
-  const canSubmit =
-    familyName && username && password && displayName && (!isOrganizer || circleName) && !loading;
+  const canSubmit = Boolean(role && email && password && !loading);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
     setLoading(true);
     try {
-      await register({
-        role,
-        familyName,
-        username,
-        password,
-        displayName,
-        email: email || undefined,
-        circleName: isOrganizer ? circleName : undefined,
-      });
-      navigate("/panel", { replace: true });
+      await register({ role, email, password });
+      navigate("/onboarding", { replace: true });
     } catch (err) {
       setError(err instanceof Error ? err.message : "Nie udało się zarejestrować");
     } finally {
@@ -94,69 +83,16 @@ export function RegisterPage() {
           </div>
 
           <div className="mb-4">
-            <label htmlFor="family-name" className={labelClass}>
-              Nazwa rodziny
-            </label>
-            <input
-              id="family-name"
-              value={familyName}
-              onChange={(e) => setFamilyName(e.target.value)}
-              placeholder="np. Rodzina Kowalskich"
-              className={inputClass}
-            />
-          </div>
-
-          {isOrganizer && (
-            <div className="mb-4">
-              <label htmlFor="circle-name" className={labelClass}>
-                Nazwa grupy
-              </label>
-              <input
-                id="circle-name"
-                value={circleName}
-                onChange={(e) => setCircleName(e.target.value)}
-                placeholder="np. Muzyczne Maluchy"
-                className={inputClass}
-              />
-            </div>
-          )}
-
-          <div className="mb-4">
-            <label htmlFor="display-name" className={labelClass}>
-              Twoje imię i nazwisko
-            </label>
-            <input
-              id="display-name"
-              value={displayName}
-              onChange={(e) => setDisplayName(e.target.value)}
-              placeholder="np. Anna Kowalska"
-              className={inputClass}
-            />
-          </div>
-
-          <div className="mb-4">
             <label htmlFor="email" className={labelClass}>
-              Email (opcjonalnie)
+              Email
             </label>
             <input
               id="email"
               type="email"
+              required
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               placeholder="ty@przyklad.pl"
-              className={inputClass}
-            />
-          </div>
-
-          <div className="mb-4">
-            <label htmlFor="username" className={labelClass}>
-              Nazwa użytkownika
-            </label>
-            <input
-              id="username"
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
-              placeholder="Wpisz nazwę użytkownika"
               className={inputClass}
             />
           </div>
@@ -178,6 +114,14 @@ export function RegisterPage() {
           {error && (
             <div className="mb-4 rounded-xl bg-danger-soft px-3 py-2.5 text-[13px] text-danger">
               {error}
+              {error === DUPLICATE_EMAIL_MESSAGE && (
+                <>
+                  {" "}
+                  <Link to="/login" className="font-semibold underline">
+                    Zaloguj się
+                  </Link>
+                </>
+              )}
             </div>
           )}
 

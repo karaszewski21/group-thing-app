@@ -36,7 +36,7 @@ function getBreadcrumbs(pathname: string): string[] {
 export function Header({ onMenuOpen }: HeaderProps) {
   const location = useLocation();
   const breadcrumbs = getBreadcrumbs(location.pathname);
-  const { username, logout } = useAuth();
+  const { displayName, logout } = useAuth();
 
   return (
     <Flex
@@ -77,9 +77,9 @@ export function Header({ onMenuOpen }: HeaderProps) {
         ))}
       </Flex>
       <Flex ml="auto" align="center" gap="12px">
-        {username && (
+        {displayName && (
           <Text fontSize="13px" color="#64748B">
-            {username}
+            {displayName}
           </Text>
         )}
         <Button variant="ghost" size="sm" onClick={logout} aria-label="Logout">

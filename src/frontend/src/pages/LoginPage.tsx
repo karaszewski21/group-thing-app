@@ -7,7 +7,7 @@ const inputClass =
 const labelClass = "mb-1.5 block text-xs font-extrabold tracking-wide text-ink-soft";
 
 export function LoginPage() {
-  const [username, setUsername] = useState("");
+  const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -20,7 +20,7 @@ export function LoginPage() {
     setError(null);
     setLoading(true);
     try {
-      await login(username, password);
+      await login(email, password);
       const returnTo = searchParams.get("returnTo") || "/panel";
       navigate(returnTo, { replace: true });
     } catch (err) {
@@ -46,14 +46,15 @@ export function LoginPage() {
 
         <form onSubmit={handleSubmit}>
           <div className="mb-4">
-            <label htmlFor="username" className={labelClass}>
-              Nazwa użytkownika
+            <label htmlFor="email" className={labelClass}>
+              Email
             </label>
             <input
-              id="username"
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
-              placeholder="Wpisz nazwę użytkownika"
+              id="email"
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="ty@przyklad.pl"
               className={inputClass}
             />
           </div>
@@ -80,7 +81,7 @@ export function LoginPage() {
 
           <button
             type="submit"
-            disabled={loading || !username || !password}
+            disabled={loading || !email || !password}
             className="w-full rounded-[13px] bg-mint px-4 py-3 text-[13.5px] font-extrabold text-white shadow-[0_8px_18px_-10px_rgba(27,129,104,0.85)] transition-transform hover:-translate-y-0.5 disabled:opacity-60 disabled:hover:translate-y-0"
           >
             {loading ? "Logowanie…" : "Zaloguj się"}

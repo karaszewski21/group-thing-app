@@ -16,6 +16,7 @@ import { OAuth2AuthorizePage } from "./pages/OAuth2AuthorizePage";
 import { KragGrupyPage } from "./pages/krag/KragGrupyPage";
 import { KragEntryPage } from "./pages/krag/KragEntryPage";
 import { PanelPage } from "./pages/panel/PanelPage";
+import { OnboardingPage } from "./pages/OnboardingPage";
 import { AuthGuard } from "./auth/AuthGuard";
 import { PluginProvider } from "./plugins/PluginContext";
 
@@ -36,7 +37,7 @@ export const router = createBrowserRouter([
   },
   {
     path: "/register",
-    element: <AuthGuard requireAuth={false}><RegisterPage /></AuthGuard>,
+    element: <AuthGuard requireAuth={false} authenticatedRedirect="/onboarding"><RegisterPage /></AuthGuard>,
   },
   {
     path: "/oauth2/authorize",
@@ -60,6 +61,13 @@ export const router = createBrowserRouter([
     // Tailwind phone-frame pattern as /krag above.
     path: "/panel",
     element: <AuthGuard><PanelPage /></AuthGuard>,
+  },
+  {
+    // Skippable post-registration wizard, entered right after
+    // RegisterPage's success handler — standalone chrome (own card, not
+    // PhoneFrame), same pattern as /login/register above.
+    path: "/onboarding",
+    element: <AuthGuard><OnboardingPage /></AuthGuard>,
   },
   {
     path: "/",

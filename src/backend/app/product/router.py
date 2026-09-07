@@ -17,7 +17,12 @@ from app.db import get_db
 
 from . import service
 from .models import ProductCategory
-from .schemas import CreateProductRequest, ProductResponse, UpdateProductRequest
+from .schemas import (
+    CreateProductRequest,
+    ProductResponse,
+    ResolveProductRequest,
+    UpdateProductRequest,
+)
 
 router = APIRouter(prefix="/api/products", tags=["products"])
 
@@ -54,6 +59,14 @@ async def create_product(
     body: CreateProductRequest, db: DbSession, principal: EditPrincipal
 ) -> ProductResponse:
     product = await service.create_product(db, body)
+    return ProductResponse.model_validate(product)
+
+
+@router.post("/resolve", response_model=ProductResponse, status_code=status.HTTP_200_OK)
+async def resolve_product(
+    body: ResolveProductRequest, db: DbSession, principal: EditPrincipal
+) -> ProductResponse:
+    product = await service.get_or_create_product_by_name(db, body.name, body.category)
     return ProductResponse.model_validate(product)
 
 
