@@ -9,7 +9,9 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.config import settings
 from app.core.auth_deps import Principal, require_any
+from app.core.security import encode_login_token
 from app.db import get_db
 from app.users.service import get_profile_by_principal
 
@@ -21,13 +23,18 @@ from .schemas import (
     CreateNeededItemRequest,
     CreateOwnCircleRequest,
     CreatePledgeRequest,
+    CreateRsvpRequest,
     CreateTermRequest,
     FulfillPledgeRequest,
     GroupResponse,
     LeadershipResponse,
     MembershipResponse,
+    MergeAnonymousProfileRequest,
+    MergeAnonymousProfileResponse,
     NeededItemResponse,
     PledgeResponse,
+    PublicCircleResponse,
+    RsvpResponse,
     TermResponse,
 )
 
@@ -62,6 +69,46 @@ async def create_my_circle(
 async def list_groups(db: DbSession, principal: ReadPrincipal) -> list[GroupResponse]:
     groups = await service.list_groups(db)
     return [GroupResponse.model_validate(group) for group in groups]
+
+
+@router.get("/api/groups/public/{group_id}", response_model=PublicCircleResponse)
+async def get_public_circle(group_id: int, db: DbSession) -> PublicCircleResponse:
+    """Unauthenticated — the page a shared `/krag/:groupId/publiczny` link
+    resolves to, per `AUTHORIZATION_MATRIX`'s PUBLIC row declared ahead of
+    the blanket `/api/groups` READ row. Must be registered ahead of
+    `get_group` below, since `/public/{id}` would otherwise be swallowed by
+    `{group_id}: int` and fail path-param conversion instead of matching
+    here."""
+    return await service.get_public_circle_view(db, group_id)
+
+
+@router.post(
+    "/api/groups/public/{group_id}/rsvp",
+    response_model=RsvpResponse,
+    status_code=status.HTTP_201_CREATED,
+)
+async def create_rsvp(group_id: int, body: CreateRsvpRequest, db: DbSession) -> RsvpResponse:
+    """Unauthenticated — anyone with the public circle-page link may RSVP
+    without an account. Mirrors `get_public_circle`'s unauthenticated
+    signature exactly (no `Depends(require_any(...))`)."""
+    return await service.create_rsvp(db, group_id, body.term_id, body.guardian_name, body.child_count)
+
+
+@router.post("/api/groups/public/merge", response_model=MergeAnonymousProfileResponse)
+async def merge_anonymous_profile(
+    body: MergeAnonymousProfileRequest, db: DbSession
+) -> MergeAnonymousProfileResponse:
+    """Unauthenticated — merges an anonymous RSVP's `UserProfile` into a
+    newly-created account. Builds the response the same way
+    `register()`'s router does (`app/users/router.py`); ownership/identity
+    conflict checks live in `service.merge_anonymous_profile`, not here."""
+    user, profile = await service.merge_anonymous_profile(
+        db, body.user_profile_id, body.email, body.password
+    )
+    token = encode_login_token(
+        user.username, ["READ", "EDIT"], settings.jwt_secret, settings.jwt_expiration_ms
+    )
+    return MergeAnonymousProfileResponse(token=token, party_id=profile.party_id)
 
 
 @router.get("/api/groups/{group_id}", response_model=GroupResponse)

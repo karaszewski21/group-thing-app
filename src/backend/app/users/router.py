@@ -15,6 +15,7 @@ from app.groups.schemas import LeadershipResponse
 from app.groups.service import build_leadership_responses, list_active_leaderships_for_party
 
 from . import service
+from .models import UserProfile
 from .schemas import RegisterRequest, RegisterResponse, UserProfileResponse
 
 router = APIRouter(tags=["users"])
@@ -36,10 +37,16 @@ async def register(body: RegisterRequest, db: DbSession) -> RegisterResponse:
     return RegisterResponse(token=token, party_id=party_id, role=body.role)
 
 
+async def _to_profile_response(db: DbSession, profile: UserProfile) -> UserProfileResponse:
+    response = UserProfileResponse.model_validate(profile)
+    response.is_organizer = await service.is_active_organizer(db, profile.party_id)
+    return response
+
+
 @router.get("/api/people/me", response_model=UserProfileResponse)
 async def get_my_profile(db: DbSession, principal: ReadPrincipal) -> UserProfileResponse:
     profile = await service.get_profile_by_principal(db, principal)
-    return UserProfileResponse.model_validate(profile)
+    return await _to_profile_response(db, profile)
 
 
 @router.get("/api/people/{user_profile_id}", response_model=UserProfileResponse)
@@ -47,7 +54,7 @@ async def get_profile(
     user_profile_id: int, db: DbSession, principal: ReadPrincipal
 ) -> UserProfileResponse:
     profile = await service.get_profile(db, user_profile_id)
-    return UserProfileResponse.model_validate(profile)
+    return await _to_profile_response(db, profile)
 
 
 @router.get("/api/people/by-party/{party_id}", response_model=UserProfileResponse)
@@ -55,7 +62,7 @@ async def get_profile_by_party(
     party_id: int, db: DbSession, principal: ReadPrincipal
 ) -> UserProfileResponse:
     profile = await service.get_profile_by_party(db, party_id)
-    return UserProfileResponse.model_validate(profile)
+    return await _to_profile_response(db, profile)
 
 
 @router.get("/api/people/{user_profile_id}/leaderships", response_model=list[LeadershipResponse])

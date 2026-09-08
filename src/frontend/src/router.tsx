@@ -17,6 +17,8 @@ import { KragGrupyPage } from "./pages/krag/KragGrupyPage";
 import { KragEntryPage } from "./pages/krag/KragEntryPage";
 import { PanelPage } from "./pages/panel/PanelPage";
 import { OnboardingPage } from "./pages/OnboardingPage";
+import { OrganizationPage } from "./pages/OrganizationPage";
+import { PublicOrganizationPage } from "./pages/PublicOrganizationPage";
 import { AuthGuard } from "./auth/AuthGuard";
 import { PluginProvider } from "./plugins/PluginContext";
 
@@ -42,6 +44,14 @@ export const router = createBrowserRouter([
   {
     path: "/oauth2/authorize",
     element: <AuthGuard><OAuth2AuthorizePage /></AuthGuard>,
+  },
+  {
+    // Public, unauthenticated circle/term view (Core Requirement 5) — no
+    // AuthGuard, renders the same KragGrupyPage import, which branches
+    // internally on `isPublic` (Technical Approach §3). Placed above the
+    // AuthGuard-wrapped /krag/:groupId route below for readability.
+    path: "/krag/:groupId/publiczny",
+    element: <KragGrupyPage />,
   },
   {
     // Standalone mobile-style page (own phone-frame chrome) — deliberately
@@ -70,6 +80,13 @@ export const router = createBrowserRouter([
     element: <AuthGuard><OnboardingPage /></AuthGuard>,
   },
   {
+    // Organization profile (name + custom colors) — same standalone
+    // pattern as /onboarding above, reachable from the Panel hamburger
+    // menu ("Moja organizacja", organizer-only).
+    path: "/organization",
+    element: <AuthGuard><OrganizationPage /></AuthGuard>,
+  },
+  {
     path: "/",
     element: (
       <AuthGuard>
@@ -91,5 +108,15 @@ export const router = createBrowserRouter([
       { path: "plugins/:pluginId/edit", element: <PluginFormPage /> },
       { path: "plugins/:pluginId/*", element: <PluginPageRoute /> },
     ],
+  },
+  {
+    // Public organizer page (`domena.pl/<slug>`) — deliberately declared
+    // LAST as a single-segment catch-all, and deliberately unauthenticated
+    // (no AuthGuard). The backend's reserved-slug whitelist
+    // (app/organizations/slugs.py's RESERVED_SLUGS) guarantees a slug can
+    // never collide with any of the fixed paths above, so this can never
+    // shadow a real route.
+    path: "/:organizationSlug",
+    element: <PublicOrganizationPage />,
   },
 ]);

@@ -14,16 +14,26 @@ from __future__ import annotations
 from datetime import date
 from typing import cast
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.auth.models import User
 from app.circulation import service as circulation_service
 from app.circulation.models import ReservationStatus
 from app.core.auth_deps import Principal
 from app.core.errors import AccessDeniedException, EntityNotFoundException
 from app.party.models import PartyType
 from app.party.service import create_party
-from app.users.service import get_profile_by_party, get_profile_by_principal
+from app.users.models import UserProfile
+from app.users.service import (
+    AlreadyMergedException,
+    DuplicateEmailException,
+    create_account,
+    derive_username_from_email,
+    get_profile,
+    get_profile_by_party,
+    get_profile_by_principal,
+)
 
 from .models import (
     Group,
@@ -35,6 +45,7 @@ from .models import (
     Pledge,
     PledgeStatus,
     Term,
+    TermAttendance,
 )
 from .schemas import (
     CreateCircleRequest,
@@ -42,6 +53,11 @@ from .schemas import (
     CreateNeededItemRequest,
     CreateTermRequest,
     FulfillPledgeRequest,
+    PublicCircleResponse,
+    PublicGuardianResponse,
+    PublicNeededItemResponse,
+    PublicTermResponse,
+    RsvpResponse,
 )
 
 # --- Groups (Circles) ---------------------------------------------------------
@@ -56,13 +72,33 @@ async def create_circle(db: AsyncSession, data: CreateCircleRequest) -> Group:
     return group
 
 
+async def get_own_circle(db: AsyncSession, organizer_party_id: int) -> Group | None:
+    """`None` (not an exception) when the caller doesn't currently lead any
+    Circle — mirrors `app.organizations.service.get_own_organization`'s
+    resolve-or-None shape. Resolves via `list_active_leaderships_for_party`
+    (already exists) rather than a new query — a party's "own circle" is
+    whichever circle they currently, actively lead."""
+    leaderships = await list_active_leaderships_for_party(db, organizer_party_id)
+    if not leaderships:
+        return None
+    return await get_group(db, leaderships[0].to_group_id)
+
+
 async def create_own_circle(db: AsyncSession, organizer_party_id: int, circle_name: str) -> Group:
     """Self-service 'become an Organizer': creates a brand-new Circle and
-    assigns `organizer_party_id` as its leader in one call. Callers must
-    always derive `organizer_party_id` from the authenticated `Principal`
-    (via `app.users.service.get_profile_by_principal`) — never from
+    assigns `organizer_party_id` as its leader in one call. Idempotent by
+    design (mirrors `create_own_organization`) — a caller who already leads
+    a Circle gets that same Circle back rather than a second one, so
+    repeat/retry calls from the "Dodaj pierwszy termin" flow never create
+    duplicate Group/Leadership rows. Callers must always derive
+    `organizer_party_id` from the authenticated `Principal` (via
+    `app.users.service.get_profile_by_principal`) — never from
     caller-supplied input — since `assign_leadership` itself performs no
     ownership check on who it's assigning."""
+    existing = await get_own_circle(db, organizer_party_id)
+    if existing is not None:
+        return existing
+
     circle = await create_circle(db, CreateCircleRequest(name=circle_name))
     role = await get_or_create_active_group_role(db, organizer_party_id, GroupRoleType.ORGANIZATOR)
     leadership = Leadership(
@@ -489,3 +525,163 @@ async def sync_pledge_fulfillment(db: AsyncSession, pledge_id: int) -> Pledge:
         await db.commit()
         await db.refresh(pledge)
     return pledge
+
+
+# --- Public circle-view (unauthenticated) ---------------------------------------
+
+
+async def list_attendances_for_term(db: AsyncSession, term_id: int) -> list[TermAttendance]:
+    """Row-level `TermAttendance` list for a Term, ordered by creation —
+    used to build the public guardian list's `display_name`s via a join in
+    `get_public_circle_view` (no N+1: one query resolves every attendance's
+    party's profile)."""
+    result = await db.execute(
+        select(TermAttendance)
+        .where(TermAttendance.term_id == term_id)
+        .order_by(TermAttendance.created_at)
+    )
+    return list(result.scalars().all())
+
+
+async def get_public_circle_view(db: AsyncSession, group_id: int) -> PublicCircleResponse:
+    """Unauthenticated read assembled server-side in one call: organizer
+    name (via the active `Leadership`, `None` if the Circle currently has
+    no organizer), the next upcoming Term (falling back to the most recent
+    past Term so the page is never empty), its needed items, and the
+    RSVP'd guardians' display names. Never reads or returns anything about
+    children beyond each guardian's own aggregate `child_count` — there is
+    no per-attendee child data anywhere in the schema to leak."""
+    group = await get_group(db, group_id)
+
+    organizer_display_name: str | None = None
+    leadership = await get_current_leadership(db, group_id)
+    if leadership is not None:
+        organizer_party_id = await _group_role_party_id(db, leadership.from_role_id)
+        organizer_profile = await get_profile_by_party(db, organizer_party_id)
+        organizer_display_name = organizer_profile.display_name
+
+    terms = await list_terms(db, group_id)
+    next_term: Term | None = None
+    if terms:
+        upcoming = [term for term in terms if term.occurs_on >= date.today()]
+        next_term = min(upcoming, key=lambda term: term.occurs_on) if upcoming else terms[0]
+
+    next_term_response: PublicTermResponse | None = None
+    guardians: list[PublicGuardianResponse] = []
+    if next_term is not None:
+        needed_items = await list_needed_items(db, cast(int, next_term.id))
+        next_term_response = PublicTermResponse(
+            id=cast(int, next_term.id),
+            occurs_on=next_term.occurs_on,
+            description=next_term.description,
+            needed_items=[
+                PublicNeededItemResponse(
+                    id=cast(int, item.id), category=item.category, description=item.description
+                )
+                for item in needed_items
+            ],
+        )
+
+        attendances = await list_attendances_for_term(db, cast(int, next_term.id))
+        if attendances:
+            party_ids = [attendance.party_id for attendance in attendances]
+            profile_rows = (
+                await db.execute(
+                    select(UserProfile.party_id, UserProfile.display_name).where(
+                        UserProfile.party_id.in_(party_ids)
+                    )
+                )
+            ).all()
+            names_by_party_id = {row.party_id: row.display_name for row in profile_rows}
+            guardians = [
+                PublicGuardianResponse(display_name=names_by_party_id[attendance.party_id])
+                for attendance in attendances
+                if attendance.party_id in names_by_party_id
+            ]
+
+    return PublicCircleResponse(
+        id=cast(int, group.id),
+        name=group.name,
+        organizer_display_name=organizer_display_name,
+        next_term=next_term_response,
+        guardians=guardians,
+    )
+
+
+async def create_rsvp(
+    db: AsyncSession, group_id: int, term_id: int, guardian_name: str, child_count: int
+) -> RsvpResponse:
+    """Anonymous RSVP: no `Principal` — anyone with the public circle-page
+    link may call this. Mirrors `create_lightweight_family_member`'s
+    four-step Party->UserProfile->attendance-row shape exactly, with an
+    added ownership check (`term.circle_group_id == group_id`) defending
+    against a caller pairing an unrelated `group_id`/`term_id` in the
+    request."""
+    term = await get_term(db, term_id)
+    if term.circle_group_id != group_id:
+        raise EntityNotFoundException("Term", term_id)
+
+    party = await create_party(db, PartyType.PERSON)
+    profile = UserProfile(
+        party_id=cast(int, party.id),
+        account_user_id=None,
+        display_name=guardian_name,
+        email=None,
+    )
+    db.add(profile)
+    await db.flush()
+
+    attendance = TermAttendance(
+        term_id=cast(int, term.id), party_id=cast(int, party.id), child_count=child_count
+    )
+    db.add(attendance)
+    await db.commit()
+    await db.refresh(attendance)
+
+    return RsvpResponse(
+        id=cast(int, attendance.id),
+        term_id=cast(int, term.id),
+        user_profile_id=cast(int, profile.id),
+        guardian_name=guardian_name,
+        child_count=child_count,
+    )
+
+
+# --- Account-merge (unauthenticated) --------------------------------------------
+
+
+async def merge_anonymous_profile(
+    db: AsyncSession, user_profile_id: int, email: str, password: str
+) -> tuple[User, UserProfile]:
+    """Merges an anonymous RSVP's `UserProfile` into a newly-created
+    account: **updates the existing row's `account_user_id`/`email` in
+    place** — never creates a second Party/UserProfile. `party_id`, the
+    row's `id`, `display_name`, and every `TermAttendance` row referencing
+    its `party_id` are untouched. Ownership/identity conflict checks
+    (`AlreadyMergedException`, `DuplicateEmailException`) live here, not the
+    router, per `standards/backend/security.md`."""
+    profile = await get_profile(db, user_profile_id)
+    if profile.account_user_id is not None:
+        raise AlreadyMergedException()
+
+    # Postgres advisory lock keyed by the target email, held for the rest of
+    # this transaction: closes the check-then-act race where two concurrent
+    # merge calls for the same email could otherwise both pass the
+    # `existing is None` check below before either commits. Auto-released on
+    # commit/rollback — no separate unlock call needed, no schema change.
+    await db.execute(select(func.pg_advisory_xact_lock(func.hashtext(email))))
+
+    existing = (
+        await db.execute(select(UserProfile).where(UserProfile.email == email))
+    ).scalar_one_or_none()
+    if existing is not None:
+        raise DuplicateEmailException()
+
+    username = await derive_username_from_email(db, email)
+    user = await create_account(db, username, password)
+
+    profile.account_user_id = user.id
+    profile.email = email
+    await db.commit()
+    await db.refresh(profile)
+    return user, profile

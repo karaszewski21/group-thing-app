@@ -17,7 +17,7 @@ from __future__ import annotations
 import enum
 from datetime import date
 
-from sqlalchemy import BigInteger, Date, Enum, ForeignKey, String
+from sqlalchemy import BigInteger, Date, Enum, ForeignKey, Integer, String
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.core.base_model import BaseEntity
@@ -194,3 +194,26 @@ class Pledge(BaseEntity):
     # mirrors `app.plugin.models.PluginObject.entity_id`'s precedent for a
     # cross-bounded-context pointer.
     resolved_reservation_id: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
+
+
+class TermAttendance(BaseEntity):
+    """A single-term RSVP — deliberately not a GroupRole/Membership (a
+    circle-wide, standing capacity); this is scoped to exactly one Term,
+    per scope-clarifications.md Decision #1. `party_id` may point at either
+    a fully-registered UserProfile's party (an already-logged-in guardian
+    RSVPing from the authenticated app — not built by this task, but not
+    precluded either) or, in the anonymous-RSVP case this task builds, a
+    freshly-created Party with an account_user_id=None UserProfile — see
+    app.families.service.create_lightweight_family_member's identical
+    shape."""
+
+    __tablename__ = "term_attendances"
+    __sequence_name__ = "term_attendance_seq"
+
+    term_id: Mapped[int] = mapped_column(
+        BigInteger, ForeignKey("terms.id", name="fk_term_attendances_term_id_terms"), nullable=False
+    )
+    party_id: Mapped[int] = mapped_column(
+        BigInteger, ForeignKey("parties.id", name="fk_term_attendances_party_id_parties"), nullable=False
+    )
+    child_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)

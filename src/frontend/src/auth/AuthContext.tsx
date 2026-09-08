@@ -26,6 +26,12 @@ interface AuthContextValue {
   registeredRole: RegisterResult | null;
   login: (email: string, password: string) => Promise<void>;
   register: (payload: RegisterPayload) => Promise<RegisterResult>;
+  /** Stores `jwt` under `"auth_token"`, decodes its claims, and updates
+   * context state — identical body to the internal `applyToken`, just
+   * exposed publicly for a non-login/register auth event (spec.md §4's
+   * account-merge flow: the visitor is authenticated by a merge response,
+   * not a `/api/auth/login` or `/api/auth/register` call). */
+  applyExternalToken: (jwt: string) => void;
   logout: () => void;
 }
 
@@ -156,8 +162,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const value = useMemo<AuthContextValue>(
-    () => ({ token, username, displayName, permissions, registeredRole, login, register, logout }),
-    [token, username, displayName, permissions, registeredRole, login, register, logout],
+    () => ({
+      token,
+      username,
+      displayName,
+      permissions,
+      registeredRole,
+      login,
+      register,
+      applyExternalToken: applyToken,
+      logout,
+    }),
+    [token, username, displayName, permissions, registeredRole, login, register, applyToken, logout],
   );
 
   return <AuthContext value={value}>{children}</AuthContext>;

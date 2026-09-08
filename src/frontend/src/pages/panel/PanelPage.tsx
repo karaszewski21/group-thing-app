@@ -1,7 +1,14 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { useAuth } from "../../auth/AuthContext";
-import { getMembershipsForFamily, getMyFamilies } from "../../api/families";
+import {
+  createLightweightMembers,
+  getGuardians,
+  getMembershipsForFamily,
+  getMyFamilies,
+  type FamilyOut,
+  type GuardianResponse,
+} from "../../api/families";
 import {
   createMyCircle,
   endLeadership,
@@ -17,6 +24,7 @@ import {
   type InventoryItemResponse,
 } from "../../api/inventories";
 import { getLeadershipsForPerson, getMyProfile, type UserProfileResponse } from "../../api/people";
+import { getMyOrganization } from "../../api/organizations";
 import { getProducts, resolveProduct, type ProductResponse } from "../../api/products";
 import {
   createNeededItem,
@@ -30,6 +38,8 @@ import {
 import { PhoneFrame } from "../../components/shared/PhoneFrame";
 import { ItemQuickAddForm } from "../../components/shared/ItemQuickAddForm";
 import { createEmptyItemQuickAddValue, type ItemQuickAddValue } from "../../utils/itemQuickAdd";
+import { FirstTermStepperGuest } from "../../components/panel/FirstTermStepperGuest";
+import { FirstTermStepperOrganizer } from "../../components/panel/FirstTermStepperOrganizer";
 
 /* ------------------------------------------------------------------ */
 /*  Panel — organizator/gość (port z pages/PanelOrganizatora.tsx +      */
@@ -51,8 +61,8 @@ import { createEmptyItemQuickAddValue, type ItemQuickAddValue } from "../../util
 /*  niu, byłoby gorsze niż jego brak).                                   */
 /* ------------------------------------------------------------------ */
 
-type View = "home" | "spotkania" | "rzeczy" | "podarki" | "profil" | "ustawienia";
-type ModalKind = "grupa" | "termin" | "rzecz" | null;
+type View = "home" | "spotkania" | "rzeczy" | "podarki" | "profil" | "ustawienia" | "rodzina";
+type ModalKind = "grupa" | "termin" | "rzecz" | "pierwszy-termin" | null;
 type ItemMode = "wypożyczę" | "oddam" | "zamienię";
 type GiftSource = "pożyczone" | "otrzymane" | "zamienione";
 
@@ -148,10 +158,17 @@ const SettingsIcon = ({ c = "#1E2E27" }: { c?: string }) => (
     />
   </svg>
 );
-const PlusCircleIcon = ({ c = "#1E2E27" }: { c?: string }) => (
+const CalendarPlusIcon = ({ c = "#1E2E27" }: { c?: string }) => (
   <svg viewBox="0 0 24 24" fill="none" aria-hidden="true" className="h-[18px] w-[18px]">
-    <circle cx="12" cy="12" r="8.5" stroke={c} strokeWidth="2" />
-    <path d="M12 8.5v7M8.5 12h7" stroke={c} strokeWidth="2" strokeLinecap="round" />
+    <rect x="3.5" y="5" width="17" height="15" rx="3" stroke={c} strokeWidth="2" />
+    <path d="M3.5 9.5h17M8 3v4M16 3v4" stroke={c} strokeWidth="2" strokeLinecap="round" />
+    <path d="M12 12.5v5M9.5 15h5" stroke={c} strokeWidth="2" strokeLinecap="round" />
+  </svg>
+);
+const BuildingIcon = ({ c = "#1E2E27" }: { c?: string }) => (
+  <svg viewBox="0 0 24 24" fill="none" aria-hidden="true" className="h-[18px] w-[18px]">
+    <rect x="4" y="3" width="16" height="18" rx="1.5" stroke={c} strokeWidth="2" />
+    <path d="M8 7h1.5M14.5 7H16M8 11h1.5M14.5 11H16M8 15h1.5M14.5 15H16" stroke={c} strokeWidth="2" strokeLinecap="round" />
   </svg>
 );
 const UserIcon = ({ c = "#1E2E27" }: { c?: string }) => (
@@ -183,6 +200,14 @@ const TrashIcon = () => (
     />
   </svg>
 );
+const FamilyIcon = ({ c = "#1E2E27" }: { c?: string }) => (
+  <svg viewBox="0 0 24 24" fill="none" aria-hidden="true" className="h-[22px] w-[22px]">
+    <circle cx="8" cy="8" r="2.6" stroke={c} strokeWidth="2" />
+    <circle cx="17" cy="9" r="2.1" stroke={c} strokeWidth="2" />
+    <path d="M3 20c.7-3.4 2.6-5.2 5-5.2s4.3 1.8 5 5.2" stroke={c} strokeWidth="2" strokeLinecap="round" />
+    <path d="M14.2 15.4c1.9.2 3.2 1.7 3.8 4.6" stroke={c} strokeWidth="2" strokeLinecap="round" />
+  </svg>
+);
 const LogoutIcon = () => (
   <svg viewBox="0 0 24 24" fill="none" aria-hidden="true" className="h-[18px] w-[18px]">
     <path
@@ -209,14 +234,66 @@ export function PanelPage() {
   const [myGroups, setMyGroups] = useState<GroupResponse[]>([]);
   const [guestCircles, setGuestCircles] = useState<GroupResponse[]>([]);
   const [terms, setTerms] = useState<TermWithNeeded[]>([]);
+  const [family, setFamily] = useState<FamilyOut | null>(null);
+  const [guardians, setGuardians] = useState<GuardianResponse[]>([]);
+  // `null` = no Organization created yet (404) — "Moja organizacja"/the
+  // org-polish hint then link to the /organization create form; once an
+  // Organization exists, both link straight to its public page instead.
+  const [organizationSlug, setOrganizationSlug] = useState<string | null>(null);
 
-  const isOrganizer = myGroups.length > 0;
+  // Either signal makes someone an organizer, independently:
+  // - `profile.is_organizer`: the users-BC UserRole(ORGANIZATOR) grant —
+  //   set at ORGANIZER registration. Covers a freshly-registered organizer
+  //   who hasn't created a circle yet (e.g. skipped onboarding).
+  // - `myGroups.length > 0`: actually leading >=1 Circle. Covers the
+  //   "Chcę dodać krąg" GUEST->organizer promotion, which grants a
+  //   groups-BC GroupRole(ORGANIZATOR) via `create_own_circle` but
+  //   deliberately does NOT touch the users-BC UserRole — promotion via
+  //   that path was never meant to imply a global "may found
+  //   Organizations" declaration, just "leads this one Circle now".
+  // A plain `??` here would be wrong: `profile.is_organizer === false` is
+  // itself meaningful (not "unknown"), so it must not suppress the
+  // Circle-ownership check.
+  const isOrganizer = profile?.is_organizer === true || myGroups.length > 0;
 
   const [view, setView] = useState<View>("home");
   const [modal, setModal] = useState<ModalKind>(null);
+  // Which "pierwszy-termin" variant to render, captured at the moment the
+  // hamburger item is clicked rather than read live from `isOrganizer` at
+  // render time — the GUEST stepper's own step 1 flips `isOrganizer` via a
+  // silent `load()` mid-flow (spec.md §2), and re-deriving the branch from
+  // the live value on every render would swap the mounted component out
+  // from under the user (losing the just-created circle / step-2 progress)
+  // the instant that happens. The picking decision itself still lives only
+  // in the host, per spec.md §2 — this just freezes *when* it is read.
+  const [firstTermForOrganizer, setFirstTermForOrganizer] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [toast, setToast] = useState("");
   const [busy, setBusy] = useState(false);
+
+  // --- Panel home dismissible hints (spec.md §3) — first precedent for a
+  // dismissible-banner `localStorage` convention in this codebase: read the
+  // flag once on mount, write it on dismiss-click. Two independent flags —
+  // `hint_first_term_dismissed` is shared by the GUEST and ORGANIZER
+  // variants of the same "add a first term" nudge (they never render at
+  // once, since one is gated on `!isOrganizer` and the other on
+  // `isOrganizer`), `hint_org_polish_dismissed` is ORGANIZER-only.
+  const [hintFirstTermDismissed, setHintFirstTermDismissed] = useState(
+    () => localStorage.getItem("hint_first_term_dismissed") === "1",
+  );
+  const [hintOrgPolishDismissed, setHintOrgPolishDismissed] = useState(
+    () => localStorage.getItem("hint_org_polish_dismissed") === "1",
+  );
+
+  function dismissFirstTermHint() {
+    localStorage.setItem("hint_first_term_dismissed", "1");
+    setHintFirstTermDismissed(true);
+  }
+
+  function dismissOrgPolishHint() {
+    localStorage.setItem("hint_org_polish_dismissed", "1");
+    setHintOrgPolishDismissed(true);
+  }
 
   // --- lokalne, niepersystentne pola (patrz komentarz na górze pliku) ---
   const [localBio, setLocalBio] = useState("");
@@ -226,6 +303,10 @@ export function PanelPage() {
   const [groupExtras, setGroupExtras] = useState<Record<number, { location: string; freeSpots: number }>>({});
   const [itemModes, setItemModes] = useState<Record<number, ItemMode | null>>({});
   const [gifts, setGifts] = useState<LocalGift[]>([]);
+
+  // --- formularz: dodaj członka rodziny ("Rodzina" section, inline form) ---
+  const [memberName, setMemberName] = useState("");
+  const [memberRole, setMemberRole] = useState<"GUARDIAN" | "CHILD">("GUARDIAN");
 
   // --- formularz: dodaj grupę ---
   const [groupForm, setGroupForm] = useState({ name: "", location: "", freeSpots: "" });
@@ -246,8 +327,12 @@ export function PanelPage() {
 
   const showToast = useCallback((msg: string) => setToast(msg), []);
 
-  const load = useCallback(async () => {
-    setLoading(true);
+  const load = useCallback(async (options?: { silent?: boolean }) => {
+    // `silent` skips the full-page "Wczytywanie…" early-return branch — used
+    // when a mid-flow modal (e.g. FirstTermStepperGuest's step 1 -> step 2
+    // transition) needs `myGroups`/`isOrganizer` refreshed in the background
+    // without unmounting the still-open modal underneath it.
+    if (!options?.silent) setLoading(true);
     setError(null);
     try {
       const me = await getMyProfile();
@@ -276,6 +361,23 @@ export function PanelPage() {
       const activeLeaderships = leaderships.filter((l) => l.valid_to === null);
       setMyLeaderships(activeLeaderships);
 
+      // "Rodzina" section (§7): family membership is independent of
+      // organizer status, so this runs for both GUEST and ORGANIZER —
+      // fetched once here and reused below for the guest-circles branch
+      // instead of a second `getMyFamilies()` round trip.
+      const myFamilies = await getMyFamilies();
+      const myFamily = myFamilies[0] ?? null;
+      setFamily(myFamily);
+      setGuardians(myFamily ? await getGuardians(myFamily.id) : []);
+
+      try {
+        const organization = await getMyOrganization();
+        setOrganizationSlug(organization.slug);
+      } catch {
+        // No Organization yet (404) — links fall back to the create form.
+        setOrganizationSlug(null);
+      }
+
       let relevantGroups: GroupResponse[];
       if (activeLeaderships.length > 0) {
         relevantGroups = await Promise.all(activeLeaderships.map((l) => getGroup(l.to_group_id)));
@@ -283,8 +385,6 @@ export function PanelPage() {
         setGuestCircles([]);
       } else {
         setMyGroups([]);
-        const myFamilies = await getMyFamilies();
-        const myFamily = myFamilies[0] ?? null;
         if (myFamily) {
           const memberships = await getMembershipsForFamily(myFamily.id);
           const active = memberships.filter((m) => m.valid_to === null);
@@ -312,7 +412,7 @@ export function PanelPage() {
     } catch (err) {
       setError(err instanceof Error ? err.message : "Nie udało się wczytać panelu");
     } finally {
-      setLoading(false);
+      if (!options?.silent) setLoading(false);
     }
   }, []);
 
@@ -443,6 +543,24 @@ export function PanelPage() {
     [items, itemModes],
   );
 
+  /* ---------- rodzina ---------- */
+
+  async function handleAddFamilyMember() {
+    if (!memberName.trim()) return;
+    setBusy(true);
+    try {
+      await createLightweightMembers([{ name: memberName.trim(), role_type: memberRole }]);
+      setMemberName("");
+      setMemberRole("GUARDIAN");
+      showToast("Dodano członka rodziny");
+      await load();
+    } catch {
+      showToast("Nie udało się dodać członka rodziny");
+    } finally {
+      setBusy(false);
+    }
+  }
+
   /* ---------- podarki (lokalne) ---------- */
 
   const giftCounts = useMemo(
@@ -483,7 +601,8 @@ export function PanelPage() {
     );
   }
 
-  const isTopLevel = view === "home" || view === "spotkania" || view === "rzeczy" || view === "podarki";
+  const isTopLevel =
+    view === "home" || view === "spotkania" || view === "rzeczy" || view === "podarki";
 
   return (
     <PhoneFrame>
@@ -538,13 +657,43 @@ export function PanelPage() {
                     >
                       <SettingsIcon /> Ustawienia
                     </button>
+                    {/* Unconditional — creating an Organization is deliberately
+                        independent of "Chcę dodać krąg"/isOrganizer (a Circle-
+                        leadership signal). Backend authorization agrees: any
+                        authenticated account (GUEST or ORGANIZER) already has
+                        EDIT permission, so nothing blocks a GUEST from owning
+                        an Organization without ever running a Circle. */}
+                    <Link
+                      role="menuitem"
+                      to={organizationSlug ? `/${organizationSlug}` : "/organization"}
+                      onClick={() => setMenuOpen(false)}
+                      className="flex w-full items-center gap-2.5 rounded-[11px] px-3 py-2.5 text-left text-sm font-bold text-ink hover:bg-cream"
+                    >
+                      <BuildingIcon /> Moja organizacja
+                    </Link>
+                    <button
+                      role="menuitem"
+                      onClick={() => { setView("rodzina"); setMenuOpen(false); }}
+                      className="flex w-full items-center gap-2.5 rounded-[11px] px-3 py-2.5 text-left text-sm font-bold text-ink hover:bg-cream"
+                    >
+                      <FamilyIcon /> Mój dom
+                    </button>
                     {!isOrganizer && (
                       <button
                         role="menuitem"
-                        onClick={() => { setModal("grupa"); setMenuOpen(false); }}
+                        onClick={() => { setFirstTermForOrganizer(false); setModal("pierwszy-termin"); setMenuOpen(false); }}
                         className="flex w-full items-center gap-2.5 rounded-[11px] px-3 py-2.5 text-left text-sm font-bold text-ink hover:bg-cream"
                       >
-                        <PlusCircleIcon /> Chcę dodać krąg
+                        <CalendarPlusIcon /> Dodaj pierwszy termin
+                      </button>
+                    )}
+                    {isOrganizer && terms.length === 0 && (
+                      <button
+                        role="menuitem"
+                        onClick={() => { setFirstTermForOrganizer(true); setModal("pierwszy-termin"); setMenuOpen(false); }}
+                        className="flex w-full items-center gap-2.5 rounded-[11px] px-3 py-2.5 text-left text-sm font-bold text-ink hover:bg-cream"
+                      >
+                        <CalendarPlusIcon /> Dodaj pierwszy termin
                       </button>
                     )}
                   </div>
@@ -561,7 +710,7 @@ export function PanelPage() {
               <BackIcon /> Wróć
             </button>
             <h1 className="text-[16.5px] font-semibold text-ink">
-              {view === "profil" ? "Dane profilowe" : "Ustawienia"}
+              {view === "profil" ? "Dane profilowe" : view === "rodzina" ? "Mój dom" : "Ustawienia"}
             </h1>
           </>
         )}
@@ -571,14 +720,47 @@ export function PanelPage() {
       <div className="flex-1 overflow-y-auto px-[18px] pb-6 pt-[18px]">
         {view === "home" && (
           <>
-            <div className="mb-6">
+            <div className="mb-[18px]">
               <h2 className="font-serif text-xl font-semibold text-ink">
                 Cześć, {profile.display_name.split(" ")[0]}!
               </h2>
               <p className="mt-1 text-[13.5px] text-ink-soft">Oto co dzieje się w Twojej grupie.</p>
             </div>
 
-            <div className="rounded-[22px] border-[1.5px] border-line bg-paper p-5 shadow-[0_10px_24px_-10px_rgba(30,46,39,0.22)]">
+            {!isOrganizer && !hintFirstTermDismissed && (
+              <HintCard
+                icon={<CalendarPlusIcon c="#1B8168" />}
+                title="Dodaj swój pierwszy termin"
+                description="Załóż krąg i ustal pierwsze zajęcia — to pierwszy krok."
+                ctaLabel="Zacznijmy →"
+                onCtaClick={() => { setFirstTermForOrganizer(false); setModal("pierwszy-termin"); }}
+                onDismiss={dismissFirstTermHint}
+              />
+            )}
+
+            {isOrganizer && !hintOrgPolishDismissed && (
+              <HintCard
+                icon={<BuildingIcon c="#1B8168" />}
+                title="Dopracuj stronę organizacji"
+                description="Dodaj opis, kolory i logo — zobaczą je odwiedzający Twój krąg."
+                ctaLabel="Przejdź →"
+                ctaTo={organizationSlug ? `/${organizationSlug}` : "/organization"}
+                onDismiss={dismissOrgPolishHint}
+              />
+            )}
+
+            {isOrganizer && terms.length === 0 && !hintFirstTermDismissed && (
+              <HintCard
+                icon={<CalendarPlusIcon c="#1B8168" />}
+                title="Dodaj swój pierwszy termin"
+                description="Ustal pierwsze zajęcia w swoim kręgu."
+                ctaLabel="Dodaj termin →"
+                onCtaClick={() => { setFirstTermForOrganizer(true); setModal("pierwszy-termin"); }}
+                onDismiss={dismissFirstTermHint}
+              />
+            )}
+
+            <div className="rounded-[22px] border border-line bg-paper p-5">
               <div className="mb-3.5 flex items-center justify-between gap-2.5">
                 <h3 className="text-base font-semibold text-ink">Najbliższe terminy</h3>
                 <button onClick={() => setView("spotkania")} className="text-xs font-extrabold text-mint hover:underline">
@@ -593,7 +775,11 @@ export function PanelPage() {
               {terms.slice(0, 3).map(({ term, group, neededItems }) => {
                 const { day, month } = dayMonth(term.occurs_on);
                 return (
-                  <div key={term.id} className="mt-2.5 flex items-start gap-3.5 rounded-2xl border border-line bg-cream p-[15px] first:mt-0">
+                  <Link
+                    key={term.id}
+                    to={`/krag/${group.id}/publiczny`}
+                    className="mt-2.5 flex items-start gap-3.5 rounded-2xl border border-line bg-cream p-[15px] transition-colors first:mt-0 hover:border-mint"
+                  >
                     <div className="flex h-[46px] w-[46px] flex-none flex-col items-center justify-center rounded-[13px] bg-mint-soft leading-none">
                       <b className="font-serif text-base text-ink">{day}</b>
                       <small className="text-[9.5px] uppercase tracking-wide text-ink-soft">{month}</small>
@@ -611,12 +797,12 @@ export function PanelPage() {
                         </div>
                       )}
                     </div>
-                  </div>
+                  </Link>
                 );
               })}
             </div>
 
-            <div className="mt-5 flex flex-col gap-3.5 rounded-[22px] border-[1.5px] border-line bg-paper p-5 shadow-[0_10px_24px_-10px_rgba(30,46,39,0.22)]">
+            <div className="mt-3.5 flex flex-col gap-3.5 rounded-[22px] border border-line bg-paper p-5">
               <h3 className="text-base font-semibold text-ink">Twoje rzeczy</h3>
 
               <div className="flex items-center justify-between gap-2.5">
@@ -667,7 +853,7 @@ export function PanelPage() {
         )}
 
         {view === "profil" && (
-          <div className="rounded-[22px] border-[1.5px] border-line bg-paper p-5 shadow-[0_10px_24px_-10px_rgba(30,46,39,0.22)]">
+          <div className="rounded-[22px] border border-line bg-paper p-5">
             <h3 className="mb-3.5 text-base font-semibold text-ink">Dane profilowe</h3>
             <div className="mb-5 flex items-center gap-4">
               <div className="flex h-[72px] w-[72px] flex-none items-center justify-center rounded-full border-[3px] border-mint-soft bg-mint-soft font-serif text-xl font-semibold text-mint">
@@ -725,7 +911,7 @@ export function PanelPage() {
 
         {view === "ustawienia" && (
           <>
-            <div className="rounded-[22px] border-[1.5px] border-line bg-paper p-5 shadow-[0_10px_24px_-10px_rgba(30,46,39,0.22)]">
+            <div className="rounded-[22px] border border-line bg-paper p-5">
               <h3 className="mb-1 text-base font-semibold text-ink">Powiadomienia</h3>
               <ToggleRow
                 label="Powiadomienia e-mail"
@@ -740,7 +926,7 @@ export function PanelPage() {
                 onChange={() => setSettings((s) => ({ ...s, smsNotifs: !s.smsNotifs }))}
               />
             </div>
-            <div className="mt-3.5 rounded-[22px] border-[1.5px] border-line bg-paper p-5 shadow-[0_10px_24px_-10px_rgba(30,46,39,0.22)]">
+            <div className="mt-3.5 rounded-[22px] border border-line bg-paper p-5">
               <h3 className="mb-1 text-base font-semibold text-ink">Prywatność</h3>
               <ToggleRow
                 label="Widoczny profil publiczny"
@@ -749,7 +935,7 @@ export function PanelPage() {
                 onChange={() => setSettings((s) => ({ ...s, publicProfile: !s.publicProfile }))}
               />
             </div>
-            <div className="mt-3.5 rounded-[22px] border-[1.5px] border-line bg-paper p-5 shadow-[0_10px_24px_-10px_rgba(30,46,39,0.22)]">
+            <div className="mt-3.5 rounded-[22px] border border-line bg-paper p-5">
               <h3 className="mb-3.5 text-base font-semibold text-ink">Konto</h3>
               <button
                 onClick={logout}
@@ -778,7 +964,7 @@ export function PanelPage() {
                   + Dodaj grupę
                 </button>
               </div>
-              <div className="rounded-[22px] border-[1.5px] border-line bg-paper p-5 shadow-[0_10px_24px_-10px_rgba(30,46,39,0.22)]">
+              <div className="rounded-[22px] border border-line bg-paper p-5">
                 {myGroups.length === 0 && (
                   <div className="rounded-2xl border-[1.5px] border-dashed border-line py-[26px] text-center text-[13.5px] text-ink-soft">
                     Nie masz jeszcze żadnej grupy.
@@ -828,7 +1014,7 @@ export function PanelPage() {
                   + Dodaj termin
                 </button>
               </div>
-              <div className="rounded-[22px] border-[1.5px] border-line bg-paper p-5 shadow-[0_10px_24px_-10px_rgba(30,46,39,0.22)]">
+              <div className="rounded-[22px] border border-line bg-paper p-5">
                 {terms.length === 0 && (
                   <div className="rounded-2xl border-[1.5px] border-dashed border-line py-[26px] text-center text-[13.5px] text-ink-soft">
                     Brak zaplanowanych terminów.
@@ -837,7 +1023,11 @@ export function PanelPage() {
                 {terms.map(({ term, group, neededItems }) => {
                   const { day, month } = dayMonth(term.occurs_on);
                   return (
-                    <div key={term.id} className="mt-2.5 flex items-start gap-3.5 rounded-2xl border border-line bg-cream p-[15px] first:mt-0">
+                    <Link
+                      key={term.id}
+                      to={`/krag/${group.id}/publiczny`}
+                      className="mt-2.5 flex items-start gap-3.5 rounded-2xl border border-line bg-cream p-[15px] transition-colors first:mt-0 hover:border-mint"
+                    >
                       <div className="flex h-[46px] w-[46px] flex-none flex-col items-center justify-center rounded-[13px] bg-mint-soft leading-none">
                         <b className="font-serif text-base text-ink">{day}</b>
                         <small className="text-[9.5px] uppercase tracking-wide text-ink-soft">{month}</small>
@@ -855,7 +1045,7 @@ export function PanelPage() {
                           </div>
                         )}
                       </div>
-                    </div>
+                    </Link>
                   );
                 })}
               </div>
@@ -873,7 +1063,7 @@ export function PanelPage() {
                   : `${terms.length} ${terms.length === 1 ? "termin, na który jesteś zapisana" : "terminy, na które jesteś zapisana"}`}
               </small>
             </div>
-            <div className="rounded-[22px] border-[1.5px] border-line bg-paper p-5 shadow-[0_10px_24px_-10px_rgba(30,46,39,0.22)]">
+            <div className="rounded-[22px] border border-line bg-paper p-5">
               {terms.length === 0 && (
                 <div className="rounded-2xl border-[1.5px] border-dashed border-line py-[26px] text-center text-[13.5px] text-ink-soft">
                   Nie jesteś jeszcze zapisana na żadne zajęcia.
@@ -882,15 +1072,17 @@ export function PanelPage() {
               {terms.map(({ term, group, neededItems }) => {
                 const { day, month } = dayMonth(term.occurs_on);
                 return (
-                  <div key={term.id} className="mt-2.5 flex items-start gap-3.5 rounded-2xl border border-line bg-cream p-[15px] first:mt-0">
+                  <Link
+                    key={term.id}
+                    to={`/krag/${group.id}/publiczny`}
+                    className="mt-2.5 flex items-start gap-3.5 rounded-2xl border border-line bg-cream p-[15px] transition-colors first:mt-0 hover:border-mint"
+                  >
                     <div className="flex h-[46px] w-[46px] flex-none flex-col items-center justify-center rounded-[13px] bg-mint-soft leading-none">
                       <b className="font-serif text-base text-ink">{day}</b>
                       <small className="text-[9.5px] uppercase tracking-wide text-ink-soft">{month}</small>
                     </div>
                     <div className="min-w-0 flex-1">
-                      <h3 className="text-[15.5px] font-semibold text-ink">
-                        {group.name} — <Link to={`/krag/${group.id}`} className="text-mint hover:underline">Zobacz krąg →</Link>
-                      </h3>
+                      <h3 className="text-[15.5px] font-semibold text-ink">{group.name}</h3>
                       <small className="mt-0.5 block text-[12.5px] text-ink-soft">{term.description || "Bez opisu"}</small>
                       {neededItems.length > 0 && (
                         <div className="mt-1.5 flex flex-wrap gap-1.5">
@@ -902,7 +1094,7 @@ export function PanelPage() {
                         </div>
                       )}
                     </div>
-                  </div>
+                  </Link>
                 );
               })}
             </div>
@@ -925,7 +1117,7 @@ export function PanelPage() {
                 + Dodaj rzecz
               </button>
             </div>
-            <div className="rounded-[22px] border-[1.5px] border-line bg-paper p-5 shadow-[0_10px_24px_-10px_rgba(30,46,39,0.22)]">
+            <div className="rounded-[22px] border border-line bg-paper p-5">
               {items.length === 0 && (
                 <div className="rounded-2xl border-[1.5px] border-dashed border-line py-[26px] text-center text-[13.5px] text-ink-soft">
                   Nie masz jeszcze żadnej rzeczy.
@@ -978,7 +1170,7 @@ export function PanelPage() {
                 rzeczy od innych rodzin, które wypożyczyłaś lub się wymieniłaś
               </small>
             </div>
-            <div className="rounded-[22px] border-[1.5px] border-line bg-paper p-5 shadow-[0_10px_24px_-10px_rgba(30,46,39,0.22)]">
+            <div className="rounded-[22px] border border-line bg-paper p-5">
               {gifts.length === 0 && (
                 <div className="rounded-2xl border-[1.5px] border-dashed border-line py-[26px] text-center text-[13.5px] text-ink-soft">
                   Nie masz jeszcze żadnego podarku.
@@ -1011,6 +1203,85 @@ export function PanelPage() {
             </div>
           </div>
         )}
+
+        {view === "rodzina" && (
+          <div>
+            <div className="mb-3.5">
+              <h2 className="text-[19px] font-semibold text-ink">Mój dom</h2>
+              <small className="text-[12.5px] text-ink-soft">
+                {guardians.length} {guardians.length === 1 ? "osoba" : "osoby"}
+              </small>
+            </div>
+            <div className="rounded-[22px] border border-line bg-paper p-5">
+              {guardians.length === 0 && (
+                <div className="rounded-2xl border-[1.5px] border-dashed border-line py-[26px] text-center text-[13.5px] text-ink-soft">
+                  Nie masz jeszcze żadnych członków rodziny.
+                </div>
+              )}
+              {guardians.map((g) => (
+                <div
+                  key={g.family_membership_id}
+                  className="mt-2.5 flex items-center gap-3.5 rounded-2xl border border-line bg-cream p-[15px] first:mt-0"
+                >
+                  <div className="min-w-0 flex-1">
+                    <h3 className="text-[15.5px] font-semibold text-ink">
+                      {g.display_name}
+                      {g.party_id === profile.party_id && <span className="ml-1.5 text-ink-soft">(Ty)</span>}
+                      {g.party_id !== profile.party_id && <span className="ml-1.5 text-ink-soft">(opiekun)</span>}
+                    </h3>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <div className="mt-7">
+              <h3 className="mb-3.5 text-base font-semibold text-ink">Dodaj kolejnego członka</h3>
+              <div className="rounded-[22px] border border-line bg-paper p-5">
+                <div className="grid grid-cols-1 gap-3">
+                  <Field label="Imię i nazwisko">
+                    <input
+                      value={memberName}
+                      onChange={(e) => setMemberName(e.target.value)}
+                      placeholder="np. Zosia Kowalska"
+                      className="rounded-xl border-[1.5px] border-line bg-cream px-3.5 py-2.5 text-ink"
+                    />
+                  </Field>
+                  <Field label="Rola">
+                    <div className="flex gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setMemberRole("GUARDIAN")}
+                        aria-pressed={memberRole === "GUARDIAN"}
+                        className={`flex-1 rounded-xl border-[1.5px] px-3 py-2.5 text-sm font-bold transition ${
+                          memberRole === "GUARDIAN" ? "border-mint bg-mint-soft text-mint" : "border-line bg-cream text-ink-soft"
+                        }`}
+                      >
+                        Opiekun
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setMemberRole("CHILD")}
+                        aria-pressed={memberRole === "CHILD"}
+                        className={`flex-1 rounded-xl border-[1.5px] px-3 py-2.5 text-sm font-bold transition ${
+                          memberRole === "CHILD" ? "border-mint bg-mint-soft text-mint" : "border-line bg-cream text-ink-soft"
+                        }`}
+                      >
+                        Dziecko
+                      </button>
+                    </div>
+                  </Field>
+                </div>
+                <button
+                  onClick={() => void handleAddFamilyMember()}
+                  disabled={busy || !memberName.trim()}
+                  className="mt-4 w-full rounded-[13px] bg-mint px-5 py-3 text-[13.5px] font-extrabold text-white disabled:opacity-60"
+                >
+                  Dodaj
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* ---------- dolne menu ---------- */}
@@ -1030,6 +1301,31 @@ export function PanelPage() {
             </button>
           ))}
         </nav>
+      )}
+
+      {/* ---------- modal: dodaj pierwszy termin (GUEST 2-step / ORGANIZER 1-step) ---------- */}
+      {modal === "pierwszy-termin" && (
+        firstTermForOrganizer ? (
+          <FirstTermStepperOrganizer
+            circleGroupId={myGroups[0]?.id ?? null}
+            onClose={() => setModal(null)}
+            onDone={() => {
+              setModal(null);
+              showToast("Dodano pierwszy termin");
+              void load();
+            }}
+          />
+        ) : (
+          <FirstTermStepperGuest
+            onClose={() => setModal(null)}
+            onCircleCreated={() => void load({ silent: true })}
+            onDone={() => {
+              setModal(null);
+              showToast("Dodano pierwszy termin");
+              void load();
+            }}
+          />
+        )
       )}
 
       {/* ---------- modal: dodaj grupę ---------- */}
@@ -1204,7 +1500,53 @@ function ToggleRow({
   );
 }
 
-function Field({ label, children }: { label: string; children: React.ReactNode }) {
+/** Dismissible Panel-home nudge card (spec.md §3, Mockups 4/5). Same card
+ * shell/spacing rhythm as "Najbliższe terminy"/"Twoje rzeczy", with a mint
+ * accent to read as actionable/new. CTA is either a `Link` (org-polish, to
+ * "/organization") or a plain button (both first-term variants, opens the
+ * "pierwszy-termin" modal) — never both, so exactly one of `ctaTo`/
+ * `onCtaClick` is expected per instance. */
+function HintCard({
+  icon, title, description, ctaLabel, ctaTo, onCtaClick, onDismiss,
+}: {
+  icon: React.ReactNode;
+  title: string;
+  description: string;
+  ctaLabel: string;
+  ctaTo?: string;
+  onCtaClick?: () => void;
+  onDismiss: () => void;
+}) {
+  return (
+    <div className="mb-3.5 rounded-[22px] border border-mint bg-mint-soft p-5">
+      <div className="mb-1.5 flex items-start justify-between gap-2.5">
+        <div className="flex items-center gap-2">
+          {icon}
+          <h3 className="text-base font-semibold text-ink">{title}</h3>
+        </div>
+        <button
+          onClick={onDismiss}
+          aria-label={`Zamknij: ${title}`}
+          className="flex h-[34px] w-[34px] flex-none items-center justify-center rounded-full bg-cream text-ink-soft hover:bg-danger-soft hover:text-danger"
+        >
+          <CloseIcon />
+        </button>
+      </div>
+      <p className="text-[13.5px] text-ink-soft">{description}</p>
+      {ctaTo ? (
+        <Link to={ctaTo} className="mt-3 inline-block text-[13px] font-extrabold text-mint hover:underline">
+          {ctaLabel}
+        </Link>
+      ) : (
+        <button onClick={onCtaClick} className="mt-3 text-[13px] font-extrabold text-mint hover:underline">
+          {ctaLabel}
+        </button>
+      )}
+    </div>
+  );
+}
+
+export function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div className="flex flex-col gap-1.5">
       <label className="text-xs font-extrabold tracking-wide text-ink-soft">{label}</label>
@@ -1213,7 +1555,7 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
   );
 }
 
-function ModalSheet({
+export function ModalSheet({
   title, onClose, children,
 }: { title: string; onClose: () => void; children: React.ReactNode }) {
   return (

@@ -9,6 +9,9 @@ export interface UserProfileResponse {
   email: string | null;
   created_at: string;
   updated_at: string;
+  /** Authoritative organizer status (active UserRole(ORGANIZATOR) grant) —
+   * independent of whether the account currently leads any Circle. */
+  is_organizer: boolean;
 }
 
 export function getProfile(userProfileId: number): Promise<UserProfileResponse> {

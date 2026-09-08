@@ -201,7 +201,7 @@ export const guestSteps: Step[] = [
   },
   {
     id: "items",
-    title: "Rzeczy, które masz",
+    title: "Co chcesz oddać, wymienić lub wypożyczyć?",
     isSkippable: true,
     render: (ctx) => <ItemsStepBody ctx={ctx} />,
   },

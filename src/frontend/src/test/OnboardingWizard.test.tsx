@@ -69,9 +69,27 @@ describe("OnboardingWizard", () => {
     ]);
   });
 
-  it("ORGANIZER config renders 2 steps (circle name, term/schedule) in order", () => {
-    expect(organizerSteps.map((s) => s.id)).toEqual(["circle-name", "term"]);
-    expect(organizerSteps.map((s) => s.title)).toEqual(["Nazwa grupy", "Termin zajęć"]);
+  it("ORGANIZER config renders 3 steps (organization name, circle name, term/schedule) in order", () => {
+    expect(organizerSteps.map((s) => s.id)).toEqual(["organization-name", "circle-name", "term"]);
+    expect(organizerSteps.map((s) => s.title)).toEqual([
+      "Nazwa organizacji",
+      "Nazwa grupy",
+      "Termin zajęć",
+    ]);
+  });
+
+  it("ORGANIZER's organization-name step is mandatory: no 'Pomiń'/'X', blocks advancing when empty", async () => {
+    render(<OnboardingWizard steps={organizerSteps} onSkip={vi.fn()} onComplete={vi.fn()} />);
+
+    expect(screen.queryByRole("button", { name: "Pomiń" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Zamknij" })).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Dalej →" }));
+
+    await waitFor(() => {
+      expect(screen.getByText("Nazwa organizacji jest wymagana")).toBeInTheDocument();
+    });
+    expect(screen.getByLabelText("Krok 1 z 3")).toBeInTheDocument();
   });
 
   it("family-members step's 'Usuń' buttons carry distinct per-member aria-labels", () => {

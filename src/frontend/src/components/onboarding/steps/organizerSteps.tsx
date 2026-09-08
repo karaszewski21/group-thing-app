@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import type { Step, StepContext } from "../OnboardingWizard";
 import { createMyCircle, type GroupResponse } from "../../../api/groups";
 import { createNeededItem, createTerm, type NeededItemCategory } from "../../../api/terms";
+import { createMyOrganization } from "../../../api/organizations";
 
 const inputClass =
   "w-full rounded-xl border-[1.5px] border-line bg-cream px-3.5 py-2.5 text-sm text-ink outline-none focus:border-mint focus:ring-[3px] focus:ring-mint-soft";
@@ -29,7 +30,46 @@ interface DraftNeededItem {
 let createdCircle: GroupResponse | null = null;
 
 /* ------------------------------------------------------------------ */
-/*  Step 1/2 — Nazwa grupy: reuses createMyCircle()/handleAddGroup()'s   */
+/*  Step 1/3 — Nazwa organizacji: mandatory (isSkippable: false, see     */
+/*  export below) — every ORGANIZER account gets an Organization brand   */
+/*  identity, per the "full pakiet" requirement. Throws (rather than      */
+/*  silently no-op'ing like the skippable steps below) on an empty name  */
+/*  so `OnboardingWizard.handleAdvance` blocks advancing instead of       */
+/*  quietly skipping creation.                                           */
+/* ------------------------------------------------------------------ */
+
+function OrganizationNameStepBody({ ctx }: { ctx: StepContext }) {
+  const [name, setName] = useState("");
+
+  useEffect(() => {
+    ctx.setSubmit(async () => {
+      if (!name.trim()) throw new Error("Nazwa organizacji jest wymagana");
+      await createMyOrganization({ name: name.trim() });
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [name]);
+
+  return (
+    <div>
+      <label htmlFor="onboarding-organization-name" className={labelClass}>
+        Nazwa organizacji
+      </label>
+      <input
+        id="onboarding-organization-name"
+        className={inputClass}
+        placeholder="np. Muzyczne Skrzaty"
+        value={name}
+        onChange={(e) => setName(e.target.value)}
+      />
+      <p className="mt-1.5 text-xs text-ink-soft">
+        Własną stronę organizacji (z kolorami) skonfigurujesz później w menu.
+      </p>
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/*  Step 2/3 — Nazwa grupy: reuses createMyCircle()/handleAddGroup()'s   */
 /*  logic (single text input + submit).                                 */
 /* ------------------------------------------------------------------ */
 
@@ -61,7 +101,7 @@ function CircleNameStepBody({ ctx }: { ctx: StepContext }) {
 }
 
 /* ------------------------------------------------------------------ */
-/*  Step 2/2 — Termin zajęć: mirrors PanelPage's "+ Dodaj termin" modal  */
+/*  Step 3/3 — Termin zajęć: mirrors PanelPage's "+ Dodaj termin" modal  */
 /*  fields (Grupa/Data/Opis/Potrzebne rzeczy), including its own local   */
 /*  needed-items draft list submitted after the term itself is created. */
 /* ------------------------------------------------------------------ */
@@ -186,6 +226,12 @@ function TermStepBody({ ctx }: { ctx: StepContext }) {
 }
 
 export const organizerSteps: Step[] = [
+  {
+    id: "organization-name",
+    title: "Nazwa organizacji",
+    isSkippable: false,
+    render: (ctx) => <OrganizationNameStepBody ctx={ctx} />,
+  },
   {
     id: "circle-name",
     title: "Nazwa grupy",

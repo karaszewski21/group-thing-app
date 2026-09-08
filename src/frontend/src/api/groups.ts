@@ -1,4 +1,5 @@
 import { api } from "./client";
+import type { NeededItemCategory } from "./terms";
 
 export interface GroupResponse {
   id: number;
@@ -91,4 +92,88 @@ export function createMembership(request: CreateMembershipRequest): Promise<Memb
 export function endMembership(membershipId: number, validTo?: string): Promise<MembershipResponse> {
   const query = validTo ? `?valid_to=${validTo}` : "";
   return api.post(`/memberships/${membershipId}/end${query}`, undefined);
+}
+
+/* ------------------------------------------------------------------ */
+/*  Public circle/term view + RSVP (unauthenticated, `/krag/:id/publiczny`) */
+/* ------------------------------------------------------------------ */
+
+export interface PublicNeededItemResponse {
+  id: number;
+  category: NeededItemCategory;
+  description: string | null;
+}
+
+export interface PublicTermResponse {
+  id: number;
+  occurs_on: string;
+  description: string | null;
+  needed_items: PublicNeededItemResponse[];
+}
+
+export interface PublicGuardianResponse {
+  display_name: string;
+}
+
+/** Never carries a per-child field — see `app.groups.schemas.PublicCircleResponse`. */
+export interface PublicCircleResponse {
+  id: number;
+  name: string;
+  organizer_display_name: string | null;
+  next_term: PublicTermResponse | null;
+  guardians: PublicGuardianResponse[];
+}
+
+export interface CreateRsvpRequest {
+  term_id: number;
+  guardian_name: string;
+  child_count?: number;
+}
+
+export interface RsvpResponse {
+  id: number;
+  term_id: number;
+  user_profile_id: number;
+  guardian_name: string;
+  child_count: number;
+}
+
+export function getPublicCircle(groupId: number): Promise<PublicCircleResponse> {
+  return api.get(`/groups/public/${groupId}`);
+}
+
+/**
+ * localStorage key for an anonymous visitor's RSVP identity — scoped per
+ * circle+term so a visitor who RSVPs on one Circle's public page doesn't
+ * get misread as "already RSVP'd" when they later visit an unrelated
+ * Circle's public page (a flat, unscoped key was a real cross-page
+ * state-leak bug found during verification).
+ */
+export function guestProfileIdKey(groupId: number, termId: number): string {
+  return `guest_profile_id:${groupId}:${termId}`;
+}
+
+export function createRsvp(groupId: number, request: CreateRsvpRequest): Promise<RsvpResponse> {
+  return api.post(`/groups/public/${groupId}/rsvp`, request);
+}
+
+/* ------------------------------------------------------------------ */
+/*  Account-merge (anonymous UserProfile -> real account, spec.md §4)   */
+/* ------------------------------------------------------------------ */
+
+export interface MergeAnonymousProfileRequest {
+  user_profile_id: number;
+  email: string;
+  password: string;
+}
+
+export interface MergeAnonymousProfileResponse {
+  token: string;
+  party_id: number;
+}
+
+export function mergeAnonymousProfile(
+  request: MergeAnonymousProfileRequest,
+): Promise<MergeAnonymousProfileResponse> {
+  return api.post("/groups/public/merge", request);
 }

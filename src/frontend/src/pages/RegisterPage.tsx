@@ -75,9 +75,9 @@ export function RegisterPage() {
                 Organizator
               </button>
             </div>
-            <p className="mt-1.5 text-xs text-ink-soft">
+            <p className="mt-1.5 text-xs text-ink-soft text-center">
               {isOrganizer
-                ? "Od razu założysz własną grupę zajęciową."
+                ? "Zorganizuj się po swojemu – twórz grupy i planuj terminy w kilka chwil."
                 : "Dołączysz jako rodzina — własną grupę możesz założyć później z panelu."}
             </p>
           </div>

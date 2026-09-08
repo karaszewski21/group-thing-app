@@ -36,6 +36,17 @@ class DuplicateEmailException(BusinessConflictException):
         super().__init__("Ten email jest już zarejestrowany, zaloguj się")
 
 
+class AlreadyMergedException(BusinessConflictException):
+    """Raised when `app.groups.service.merge_anonymous_profile` is called
+    for a `UserProfile` that already has a non-null `account_user_id` — a
+    retry after a successful merge, or a stale/tampered `guest_profile_id`.
+    Co-located next to `DuplicateEmailException` since both are
+    `UserProfile`-identity conflicts (409)."""
+
+    def __init__(self) -> None:
+        super().__init__("Ten profil ma już powiązane konto — zaloguj się")
+
+
 async def create_account(db: AsyncSession, username: str, password: str) -> User:
     user = User(username=username, password_hash=hash_password(password))
     db.add(user)
@@ -126,10 +137,33 @@ async def get_or_create_active_user_role(
     return role
 
 
-async def _derive_username(db: AsyncSession, email: str) -> str:
+async def is_active_organizer(db: AsyncSession, party_id: int) -> bool:
+    """Whether `party_id` currently holds an active `UserRole(ORGANIZATOR)`
+    grant — independent of whether they've created/lead any Circle yet.
+    Registration grants this role on its own (see `register()`'s ORGANIZER
+    branch); frontend organizer-view gating must check this directly rather
+    than inferring it from Circle/Leadership ownership, or a freshly
+    registered organizer who hasn't created a circle yet (e.g. skipped
+    onboarding) would incorrectly see the guest view."""
+    existing = (
+        await db.execute(
+            select(UserRole).where(
+                UserRole.party_id == party_id,
+                UserRole.role_type == UserRoleType.ORGANIZATOR,
+                UserRole.valid_to.is_(None),
+            )
+        )
+    ).scalar_one_or_none()
+    return existing is not None
+
+
+async def derive_username_from_email(db: AsyncSession, email: str) -> str:
     """Email local-part, lowercased and sanitized to fit `String(50)`,
     collision-checked against `User.username` with numeric suffixes
-    (`jan.kowalski`, `jan.kowalski2`, `jan.kowalski3`, ...)."""
+    (`jan.kowalski`, `jan.kowalski2`, `jan.kowalski3`, ...). Public (renamed
+    from `_derive_username`) so both `register()` and
+    `app.groups.service.merge_anonymous_profile` share this logic rather
+    than duplicating it."""
     local_part = email.split("@", 1)[0].lower()
     base = _USERNAME_SANITIZE_PATTERN.sub("", local_part)[:_USERNAME_MAX_LENGTH] or "user"
 
@@ -166,7 +200,7 @@ async def register(db: AsyncSession, data: RegisterRequest) -> tuple[User, int]:
     if existing_profile is not None:
         raise DuplicateEmailException()
 
-    username = await _derive_username(db, data.email)
+    username = await derive_username_from_email(db, data.email)
     display_name = _derive_display_name(data.email)
 
     party, profile = await create_account_and_profile(

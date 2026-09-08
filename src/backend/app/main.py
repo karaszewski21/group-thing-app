@@ -34,6 +34,7 @@ from app.footprint.router import router as footprint_router
 from app.groups.router import router as groups_router
 from app.oauth2.metadata_router import router as oauth2_metadata_router
 from app.oauth2.router import router as oauth2_router
+from app.organizations.router import router as organizations_router
 from app.plugin.router import router as plugin_router
 from app.product.router import router as product_router
 from app.system.router import router as system_router
@@ -68,6 +69,7 @@ app.include_router(plugin_router)
 app.include_router(footprint_router)
 app.include_router(users_router)
 app.include_router(groups_router)
+app.include_router(organizations_router)
 app.include_router(families_router)
 app.include_router(circulation_router)
 app.include_router(system_router)

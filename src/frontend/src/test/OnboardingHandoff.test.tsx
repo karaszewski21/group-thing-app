@@ -42,6 +42,17 @@ vi.mock("../api/inventories", () => ({
 vi.mock("../api/groups", () => ({
   createMyCircle: vi.fn(),
 }));
+vi.mock("../api/organizations", () => ({
+  createMyOrganization: vi.fn().mockResolvedValue({
+    id: 1,
+    party_id: 2,
+    name: "Muzyczne Skrzaty",
+    primary_color: null,
+    accent_color: null,
+    created_at: "2026-01-01T00:00:00Z",
+    updated_at: "2026-01-01T00:00:00Z",
+  }),
+}));
 vi.mock("../api/terms", () => ({
   createTerm: vi.fn(),
   createNeededItem: vi.fn(),
@@ -95,7 +106,7 @@ describe("register -> onboarding -> panel handoff (crosses Group 4 / Group 7 bou
     expect(await screen.findByText("PANEL")).toBeInTheDocument();
   });
 
-  it("ORGANIZER: registering lands on the 2-step wizard, and 'X' also reaches /panel", async () => {
+  it("ORGANIZER: registering lands on the 3-step wizard with a mandatory organization-name step, then 'X' reaches /panel", async () => {
     mockFetch.mockResolvedValueOnce({
       ok: true,
       status: 201,
@@ -109,8 +120,18 @@ describe("register -> onboarding -> panel handoff (crosses Group 4 / Group 7 bou
     fireEvent.change(screen.getByLabelText(/hasło/i), { target: { value: "secret123" } });
     fireEvent.click(screen.getByRole("button", { name: /załóż konto/i }));
 
-    expect(await screen.findByLabelText("Krok 1 z 2")).toBeInTheDocument();
+    expect(await screen.findByLabelText("Krok 1 z 3")).toBeInTheDocument();
+    // Step 1 (organization name) is mandatory — no way to skip it.
+    expect(screen.queryByRole("button", { name: "Pomiń" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Zamknij" })).not.toBeInTheDocument();
 
+    fireEvent.change(screen.getByLabelText("Nazwa organizacji"), {
+      target: { value: "Muzyczne Skrzaty" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Dalej →" }));
+
+    // Step 2 (circle name) is skippable again — "X" is back.
+    expect(await screen.findByLabelText("Krok 2 z 3")).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Zamknij" }));
 
     expect(await screen.findByText("PANEL")).toBeInTheDocument();

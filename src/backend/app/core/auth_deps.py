@@ -212,6 +212,13 @@ _RAW_MATRIX: tuple[_RawEntry, ...] = (
     (_methods("PUT"), r"^/api/plugins/[^/]+/manifest$", ("PLUGIN_MANAGEMENT",)),  # 20
     (_methods("PATCH"), r"^/api/plugins/[^/]+/enabled$", ("PLUGIN_MANAGEMENT",)),  # 21
     (_methods("DELETE"), r"^/api/plugins/[^/]+$", ("PLUGIN_MANAGEMENT",)),  # 22
+    # Public circle/term page (`/krag/:groupId/publiczny`) — declared ahead of
+    # row 26's blanket /api/groups READ requirement so an anonymous visitor
+    # can load it, RSVP, and merge into a real account. Mirrors row 48's
+    # placement.
+    (_methods("GET"), r"^/api/groups/public/[^/]+$", "PUBLIC"),
+    (_methods("POST"), r"^/api/groups/public/[^/]+/rsvp$", "PUBLIC"),
+    (_methods("POST"), r"^/api/groups/public/merge$", "PUBLIC"),
     # 26-47: app.party / app.circulation — added beyond spec.md's original 25
     # rows for the Organizer/Circle/Family + Wypożyczalnia domain. Ownership
     # checks the matrix itself can't express (active organizer, own-family
@@ -243,6 +250,11 @@ _RAW_MATRIX: tuple[_RawEntry, ...] = (
     # appended here rather than inserted next to row 6, to avoid renumbering
     # rows 7-22's original spec.md sequence.
     (_methods("POST"), r"^/api/auth/register$", "PUBLIC"),  # 47
+    # Public organizer page (`domena.pl/<slug>`) — declared ahead of row 49's
+    # blanket READ requirement so an unauthenticated visitor can load it.
+    (_methods("GET"), r"^/api/organizations/public/[^/]+$", "PUBLIC"),  # 48
+    (_methods("GET"), r"^/api/organizations(/.*)?$", ("READ", "mcp:read")),  # 49
+    (_methods("POST", "PATCH"), r"^/api/organizations(/.*)?$", ("EDIT", "mcp:edit")),  # 50
     (None, r"^.*$", "AUTHENTICATED"),  # 25 - catch-all
 )
 

@@ -5,9 +5,10 @@ from __future__ import annotations
 
 from datetime import date, datetime
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from app.circulation.models import ItemCondition
+from app.users.schemas import EMAIL_PATTERN
 
 from .models import GroupRoleType, NeededItemCategory, PledgeStatus
 
@@ -132,3 +133,70 @@ class FulfillPledgeRequest(BaseModel):
 
     product_id: int
     condition: ItemCondition
+
+
+# --- Public circle-view (unauthenticated, `GET /api/groups/public/{id}`) -------
+
+
+class PublicNeededItemResponse(BaseModel):
+    id: int
+    category: NeededItemCategory
+    description: str | None
+
+
+class PublicTermResponse(BaseModel):
+    id: int
+    occurs_on: date
+    description: str | None
+    needed_items: list[PublicNeededItemResponse]
+
+
+class PublicGuardianResponse(BaseModel):
+    display_name: str
+
+
+class PublicCircleResponse(BaseModel):
+    """Never carries a per-child field — `guardians` exposes only the
+    aggregate `child_count` each guardian RSVP'd with (see
+    `TermAttendance`), so there is nothing per-attendee to leak."""
+
+    id: int
+    name: str
+    organizer_display_name: str | None
+    next_term: PublicTermResponse | None
+    guardians: list[PublicGuardianResponse]
+
+
+class CreateRsvpRequest(BaseModel):
+    term_id: int
+    guardian_name: str = Field(min_length=1, max_length=255)
+    child_count: int = Field(ge=0, default=0)
+
+
+class RsvpResponse(BaseModel):
+    id: int
+    term_id: int
+    user_profile_id: int
+    guardian_name: str
+    child_count: int
+
+
+# --- Account-merge (unauthenticated, `POST /api/groups/public/merge`) ----------
+
+
+class MergeAnonymousProfileRequest(BaseModel):
+    user_profile_id: int
+    email: str = Field(min_length=3, max_length=255)
+    password: str = Field(min_length=1)
+
+    @field_validator("email")
+    @classmethod
+    def _validate_email_format(cls, value: str) -> str:
+        if not EMAIL_PATTERN.match(value):
+            raise ValueError("Invalid email format")
+        return value
+
+
+class MergeAnonymousProfileResponse(BaseModel):
+    token: str
+    party_id: int

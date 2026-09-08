@@ -42,6 +42,11 @@ export function OnboardingWizard({ steps, onSkip, onComplete }: OnboardingWizard
   const total = steps.length;
   const current = steps[stepIndex];
   const isLast = stepIndex === total - 1;
+  // Defaults to skippable — only a step that explicitly opts out
+  // (`isSkippable: false`) blocks "Pomiń"/"X". Onboarding is otherwise
+  // fully abandonable at any point per the wizard's own design (see
+  // module docstring); this is the sole, deliberate exception.
+  const currentIsSkippable = current.isSkippable !== false;
 
   function setSubmit(submit: (() => Promise<void> | void) | null) {
     submitRef.current = submit;
@@ -70,14 +75,16 @@ export function OnboardingWizard({ steps, onSkip, onComplete }: OnboardingWizard
   return (
     <div className="flex min-h-screen items-center justify-center bg-cream px-4 py-10 font-sans text-ink">
       <div className="relative w-full max-w-[440px] rounded-[22px] border border-line bg-paper p-10">
-        <button
-          type="button"
-          onClick={onSkip}
-          aria-label="Zamknij"
-          className="absolute right-5 top-5 flex h-8 w-8 items-center justify-center rounded-full text-ink-soft hover:bg-cream"
-        >
-          ✕
-        </button>
+        {currentIsSkippable && (
+          <button
+            type="button"
+            onClick={onSkip}
+            aria-label="Zamknij"
+            className="absolute right-5 top-5 flex h-8 w-8 items-center justify-center rounded-full text-ink-soft hover:bg-cream"
+          >
+            ✕
+          </button>
+        )}
 
         <h1 className="mb-2 text-center font-serif text-2xl font-semibold text-ink">
           Krąg <span className="text-mint">grupy</span>
@@ -108,14 +115,18 @@ export function OnboardingWizard({ steps, onSkip, onComplete }: OnboardingWizard
         )}
 
         <div className="flex items-center justify-between gap-3">
-          <button
-            type="button"
-            onClick={onSkip}
-            disabled={busy}
-            className="inline-flex h-[38px] flex-none items-center justify-center rounded-full border border-line bg-white px-[15px] text-[13.5px] font-bold text-ink shadow-[0_3px_10px_-6px_rgba(30,46,39,0.4)] disabled:opacity-60"
-          >
-            Pomiń
-          </button>
+          {currentIsSkippable ? (
+            <button
+              type="button"
+              onClick={onSkip}
+              disabled={busy}
+              className="inline-flex h-[38px] flex-none items-center justify-center rounded-full border border-line bg-white px-[15px] text-[13.5px] font-bold text-ink shadow-[0_3px_10px_-6px_rgba(30,46,39,0.4)] disabled:opacity-60"
+            >
+              Pomiń
+            </button>
+          ) : (
+            <span className="text-[11.5px] font-bold text-ink-soft">Ten krok jest wymagany</span>
+          )}
           <button
             type="button"
             onClick={() => void handleAdvance()}
