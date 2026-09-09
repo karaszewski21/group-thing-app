@@ -36,6 +36,7 @@ from .schemas import (
     InventoryItemResponse,
     InventoryResponse,
     ReservationResponse,
+    UpdateInventoryItemRequest,
 )
 
 router = APIRouter(tags=["circulation"])
@@ -102,6 +103,20 @@ async def list_items(
 async def get_item(item_id: int, db: DbSession, principal: ReadPrincipal) -> InventoryItemResponse:
     item = await service.get_item(db, item_id)
     return InventoryItemResponse.model_validate(item)
+
+
+@router.patch("/api/inventory-items/{item_id}", response_model=InventoryItemResponse)
+async def update_item(
+    item_id: int, body: UpdateInventoryItemRequest, db: DbSession, principal: EditPrincipal
+) -> InventoryItemResponse:
+    item = await service.update_item(db, item_id, principal, body)
+    return InventoryItemResponse.model_validate(item)
+
+
+@router.delete("/api/inventory-items/{item_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_item(item_id: int, db: DbSession, principal: EditPrincipal) -> None:
+    await service.soft_delete_item(db, item_id, principal)
+    return None
 
 
 @router.get("/api/inventory-items/{item_id}/balance", response_model=InventoryBalanceResponse)

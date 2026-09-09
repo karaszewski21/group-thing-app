@@ -37,6 +37,9 @@ from .schemas import (
     PublicCircleResponse,
     RsvpResponse,
     TermResponse,
+    UpdateGroupRequest,
+    UpdateNeededItemRequest,
+    UpdateTermRequest,
 )
 
 router = APIRouter(tags=["groups"])
@@ -143,6 +146,17 @@ async def list_my_attendances(
     principal — no ownership check beyond authentication + READ."""
     profile = await get_profile_by_principal(db, principal)
     return await service.list_my_attendances(db, profile.party_id)
+
+
+@router.patch("/api/groups/{group_id}", response_model=GroupResponse)
+async def update_group(
+    group_id: int, body: UpdateGroupRequest, db: DbSession, principal: EditPrincipal
+) -> GroupResponse:
+    profile = await get_profile_by_principal(db, principal)
+    group = await service.update_group(db, group_id, profile.party_id, body.name)
+    response = GroupResponse.model_validate(group)
+    response.organizer_slug = await service.resolve_organizer_slug(db, group_id)
+    return response
 
 
 @router.get("/api/groups/{group_id}", response_model=GroupResponse)
@@ -257,6 +271,15 @@ async def get_term(term_id: int, db: DbSession, principal: ReadPrincipal) -> Ter
     return TermResponse.model_validate(term)
 
 
+@router.patch("/api/terms/{term_id}", response_model=TermResponse)
+async def update_term(
+    term_id: int, body: UpdateTermRequest, db: DbSession, principal: EditPrincipal
+) -> TermResponse:
+    profile = await get_profile_by_principal(db, principal)
+    term = await service.update_term(db, term_id, profile.party_id, body)
+    return TermResponse.model_validate(term)
+
+
 @router.post(
     "/api/needed-items", response_model=NeededItemResponse, status_code=status.HTTP_201_CREATED
 )
@@ -281,6 +304,29 @@ async def get_needed_item(
 ) -> NeededItemResponse:
     needed_item = await service.get_needed_item(db, needed_item_id)
     return NeededItemResponse.model_validate(needed_item)
+
+
+@router.patch("/api/needed-items/{needed_item_id}", response_model=NeededItemResponse)
+async def update_needed_item(
+    needed_item_id: int,
+    body: UpdateNeededItemRequest,
+    db: DbSession,
+    principal: EditPrincipal,
+) -> NeededItemResponse:
+    profile = await get_profile_by_principal(db, principal)
+    needed_item = await service.update_needed_item(
+        db, needed_item_id, profile.party_id, body
+    )
+    return NeededItemResponse.model_validate(needed_item)
+
+
+@router.delete("/api/needed-items/{needed_item_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_needed_item(
+    needed_item_id: int, db: DbSession, principal: EditPrincipal
+) -> None:
+    profile = await get_profile_by_principal(db, principal)
+    await service.soft_delete_needed_item(db, needed_item_id, profile.party_id)
+    return None
 
 
 # --- Pledge --------------------------------------------------------------------

@@ -4,7 +4,7 @@ shape), `create_term` happy path, and basic `NeededItem` creation."""
 
 from __future__ import annotations
 
-from datetime import date
+from datetime import date, datetime, timedelta
 
 import pytest
 from httpx import AsyncClient
@@ -12,7 +12,15 @@ from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.groups.models import Group, Leadership, Term, TermAttendance
+from app.groups.models import (
+    Group,
+    Leadership,
+    NeededItem,
+    Pledge,
+    PledgeStatus,
+    Term,
+    TermAttendance,
+)
 from app.party.models import Party, PartyType
 
 
@@ -25,8 +33,252 @@ async def _register_organizer(client: AsyncClient, email: str) -> str:
     return response.json()["token"]
 
 
+async def _register_guest(client: AsyncClient, email: str) -> tuple[str, int]:
+    response = await client.post(
+        "/api/auth/register",
+        json={"role": "GUEST", "email": email, "password": "secret123"},
+    )
+    assert response.status_code == 201
+    body = response.json()
+    return body["token"], body["party_id"]
+
+
 def _auth_headers(token: str) -> dict[str, str]:
     return {"Authorization": f"Bearer {token}"}
+
+
+async def _create_circle_with_term(
+    client: AsyncClient, token: str, circle_name: str, description: str | None = None
+) -> tuple[int, int]:
+    circle = await client.post(
+        "/api/groups/mine", json={"name": circle_name}, headers=_auth_headers(token)
+    )
+    assert circle.status_code == 201
+    circle_id = circle.json()["id"]
+    term = await client.post(
+        "/api/terms",
+        json={
+            "circle_group_id": circle_id,
+            "occurs_on": date.today().isoformat(),
+            "description": description,
+        },
+        headers=_auth_headers(token),
+    )
+    assert term.status_code == 201
+    return circle_id, term.json()["id"]
+
+
+async def _create_needed_item(
+    client: AsyncClient, token: str, term_id: int, category: str = "INSTRUMENT"
+) -> int:
+    item = await client.post(
+        "/api/needed-items",
+        json={"term_id": term_id, "category": category, "description": "Bębenek"},
+        headers=_auth_headers(token),
+    )
+    assert item.status_code == 201
+    return item.json()["id"]
+
+
+# --- Term / NeededItem / Group PATCH + DELETE (crud-terms-groups-items) --------
+
+
+async def test_patchTerm_activeOrganizer_updatesInPlace(client: AsyncClient) -> None:
+    token = await _register_organizer(client, "patch.term1@example.com")
+    _circle_id, term_id = await _create_circle_with_term(
+        client, token, "Krąg edycji", description="Oryginalny opis"
+    )
+    new_date = (date.today() + timedelta(days=7)).isoformat()
+
+    response = await client.patch(
+        f"/api/terms/{term_id}",
+        json={"occurs_on": new_date},
+        headers=_auth_headers(token),
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["occurs_on"] == new_date
+    assert body["description"] == "Oryginalny opis"
+
+
+async def test_patchTerm_nonOrganizer_returns403(client: AsyncClient) -> None:
+    token = await _register_organizer(client, "patch.term2@example.com")
+    _circle_id, term_id = await _create_circle_with_term(client, token, "Krąg cudzy")
+    guest_token, _party_id = await _register_guest(client, "patch.term2.guest@example.com")
+
+    response = await client.patch(
+        f"/api/terms/{term_id}",
+        json={"description": "Nie wolno"},
+        headers=_auth_headers(guest_token),
+    )
+
+    assert response.status_code == 403
+
+
+async def test_patchTerm_unknownId_returns404(client: AsyncClient) -> None:
+    token = await _register_organizer(client, "patch.term3@example.com")
+
+    response = await client.patch(
+        "/api/terms/999999999",
+        json={"description": "cokolwiek"},
+        headers=_auth_headers(token),
+    )
+
+    assert response.status_code == 404
+
+
+async def test_patchTerm_invalidBody_returns400(client: AsyncClient) -> None:
+    token = await _register_organizer(client, "patch.term4@example.com")
+    _circle_id, term_id = await _create_circle_with_term(client, token, "Krąg walidacji")
+
+    response = await client.patch(
+        f"/api/terms/{term_id}",
+        json={"description": "x" * 2001},
+        headers=_auth_headers(token),
+    )
+
+    assert response.status_code == 400
+
+
+async def test_patchNeededItem_activeOrganizer_updatesCategory(client: AsyncClient) -> None:
+    token = await _register_organizer(client, "patch.ni1@example.com")
+    _circle_id, term_id = await _create_circle_with_term(client, token, "Krąg rzeczy")
+    needed_item_id = await _create_needed_item(client, token, term_id, category="INSTRUMENT")
+
+    response = await client.patch(
+        f"/api/needed-items/{needed_item_id}",
+        json={"category": "ART_SUPPLIES"},
+        headers=_auth_headers(token),
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["category"] == "ART_SUPPLIES"
+    assert body["description"] == "Bębenek"
+
+    # Non-organizer PATCH on the same item → 403 (lightweight fold-in).
+    guest_token, _party_id = await _register_guest(client, "patch.ni1.guest@example.com")
+    forbidden = await client.patch(
+        f"/api/needed-items/{needed_item_id}",
+        json={"category": "OTHER"},
+        headers=_auth_headers(guest_token),
+    )
+    assert forbidden.status_code == 403
+
+
+async def test_deleteNeededItem_openAndClaimedPledges_transitionsToWithdrawn(
+    client: AsyncClient, db_session: AsyncSession
+) -> None:
+    token = await _register_organizer(client, "del.ni1@example.com")
+    _circle_id, term_id = await _create_circle_with_term(client, token, "Krąg usuwania")
+    needed_item_id = await _create_needed_item(client, token, term_id)
+
+    guest_token, guest_party_id = await _register_guest(client, "del.ni1.guest@example.com")
+    claimed = await client.post(
+        "/api/pledges",
+        json={"needed_item_id": needed_item_id},
+        headers=_auth_headers(guest_token),
+    )
+    assert claimed.status_code == 201
+    claimed_pledge_id = claimed.json()["id"]
+
+    open_pledge = Pledge(
+        needed_item_id=needed_item_id,
+        pledged_by_party_id=guest_party_id,
+        status=PledgeStatus.OPEN,
+    )
+    db_session.add(open_pledge)
+    await db_session.commit()
+    open_pledge_id = open_pledge.id
+
+    response = await client.delete(
+        f"/api/needed-items/{needed_item_id}", headers=_auth_headers(token)
+    )
+    assert response.status_code == 204
+
+    db_session.expire_all()
+    claimed_row = await db_session.get(Pledge, claimed_pledge_id)
+    open_row = await db_session.get(Pledge, open_pledge_id)
+    item_row = await db_session.get(NeededItem, needed_item_id)
+    assert claimed_row is not None and claimed_row.status == PledgeStatus.WITHDRAWN
+    assert open_row is not None and open_row.status == PledgeStatus.WITHDRAWN
+    assert item_row is not None and item_row.deleted_at is not None
+
+    listed = await client.get(
+        f"/api/needed-items?term_id={term_id}", headers=_auth_headers(token)
+    )
+    assert listed.status_code == 200
+    assert all(item["id"] != needed_item_id for item in listed.json())
+
+
+async def test_deleteNeededItem_fulfilledPledgeExists_returns409(
+    client: AsyncClient, db_session: AsyncSession
+) -> None:
+    token = await _register_organizer(client, "del.ni2@example.com")
+    _circle_id, term_id = await _create_circle_with_term(client, token, "Krąg dostarczone")
+    needed_item_id = await _create_needed_item(client, token, term_id)
+
+    _guest_token, guest_party_id = await _register_guest(client, "del.ni2.guest@example.com")
+    fulfilled = Pledge(
+        needed_item_id=needed_item_id,
+        pledged_by_party_id=guest_party_id,
+        status=PledgeStatus.FULFILLED,
+        resolved_reservation_id=123456,
+    )
+    db_session.add(fulfilled)
+    await db_session.commit()
+    fulfilled_id = fulfilled.id
+
+    response = await client.delete(
+        f"/api/needed-items/{needed_item_id}", headers=_auth_headers(token)
+    )
+    assert response.status_code == 409
+
+    db_session.expire_all()
+    item_row = await db_session.get(NeededItem, needed_item_id)
+    pledge_row = await db_session.get(Pledge, fulfilled_id)
+    assert item_row is not None and item_row.deleted_at is None
+    assert pledge_row is not None
+    assert pledge_row.status == PledgeStatus.FULFILLED
+    assert pledge_row.resolved_reservation_id == 123456
+
+    still_there = await client.get(
+        f"/api/needed-items/{needed_item_id}", headers=_auth_headers(token)
+    )
+    assert still_there.status_code == 200
+
+
+async def test_patchGroup_activeOrganizer_renamesInPlace(client: AsyncClient) -> None:
+    token = await _register_organizer(client, "patch.group1@example.com")
+    circle = await client.post(
+        "/api/groups/mine", json={"name": "Stara Nazwa"}, headers=_auth_headers(token)
+    )
+    circle_id = circle.json()["id"]
+
+    response = await client.patch(
+        f"/api/groups/{circle_id}",
+        json={"name": "Nowa Nazwa"},
+        headers=_auth_headers(token),
+    )
+
+    assert response.status_code == 200
+    assert response.json()["name"] == "Nowa Nazwa"
+
+    blank = await client.patch(
+        f"/api/groups/{circle_id}",
+        json={"name": "   "},
+        headers=_auth_headers(token),
+    )
+    assert blank.status_code == 400
+
+    guest_token, _party_id = await _register_guest(client, "patch.group1.guest@example.com")
+    forbidden = await client.patch(
+        f"/api/groups/{circle_id}",
+        json={"name": "Przejęcie"},
+        headers=_auth_headers(guest_token),
+    )
+    assert forbidden.status_code == 403
 
 
 async def test_createMyCircle_secondCall_returnsSameCircle_notADuplicate(
@@ -111,6 +363,44 @@ async def test_createNeededItem_happyPath_returns201WithCategory(
     assert body["term_id"] == term_id
     assert body["category"] == "INSTRUMENT"
     assert body["description"] == "Bębenek"
+
+
+async def test_getNeededItem_softDeleted_returns404(
+    client: AsyncClient, db_session: AsyncSession
+) -> None:
+    token = await _register_organizer(client, "circle.softdel@example.com")
+    circle = await client.post(
+        "/api/groups/mine", json={"name": "Krąg soft-delete"}, headers=_auth_headers(token)
+    )
+    circle_group_id = circle.json()["id"]
+    term = await client.post(
+        "/api/terms",
+        json={"circle_group_id": circle_group_id, "occurs_on": date.today().isoformat()},
+        headers=_auth_headers(token),
+    )
+    term_id = term.json()["id"]
+    item = await client.post(
+        "/api/needed-items",
+        json={"term_id": term_id, "category": "INSTRUMENT", "description": "Bębenek"},
+        headers=_auth_headers(token),
+    )
+    needed_item_id = item.json()["id"]
+
+    assert (
+        await client.get(
+            f"/api/needed-items/{needed_item_id}", headers=_auth_headers(token)
+        )
+    ).status_code == 200
+
+    row = await db_session.get(NeededItem, needed_item_id)
+    assert row is not None
+    row.deleted_at = datetime.utcnow()
+    await db_session.commit()
+
+    response = await client.get(
+        f"/api/needed-items/{needed_item_id}", headers=_auth_headers(token)
+    )
+    assert response.status_code == 404
 
 
 async def _create_group_and_term(db_session: AsyncSession) -> tuple[Party, Term]:

@@ -65,6 +65,10 @@ export function createMyCircle(request: CreateCircleRequest): Promise<GroupRespo
   return api.post("/groups/mine", request);
 }
 
+export function updateCircle(id: number, request: { name: string }): Promise<GroupResponse> {
+  return api.patch(`/groups/${id}`, request);
+}
+
 export function getCurrentLeadership(groupId: number): Promise<LeadershipResponse | null> {
   return api.get(`/groups/${groupId}/leadership`);
 }

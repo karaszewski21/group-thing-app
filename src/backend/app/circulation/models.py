@@ -155,6 +155,7 @@ class InventoryItem(BaseEntity):
         _enum_column(ItemCondition, 20), nullable=False
     )
     added_at: Mapped[datetime] = mapped_column(DateTime(), nullable=False)
+    deleted_at: Mapped[datetime | None] = mapped_column(DateTime(), nullable=True)
 
 
 class InventoryBalance(BaseEntity):

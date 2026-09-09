@@ -13,9 +13,12 @@ naming follows `action_condition_expectedResult`
 from __future__ import annotations
 
 import re
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
 
 from httpx import AsyncClient
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.groups.models import NeededItem
 
 
 async def _register_organizer(client: AsyncClient, email: str) -> str:
@@ -204,6 +207,49 @@ async def test_getPublicCircle_afterLoggedInRsvp_stillExposesOnlyGuardianDisplay
     assert set(body["next_term"].keys()) == {"id", "occurs_on", "description", "needed_items"}
     assert "child_count" not in body
     assert "children" not in body
+
+
+async def test_getPublicCircle_softDeletedNeededItem_notReturned(
+    client: AsyncClient, db_session: AsyncSession
+) -> None:
+    token = await _register_organizer(client, "pt.softdel1@example.com")
+    group_id = await _create_circle(client, token, "Krąg soft-delete")
+    term_id = await _create_term(client, token, group_id, date.today())
+    kept_id = await _create_needed_item(client, token, term_id, "INSTRUMENT", "bębenek")
+    removed_id = await _create_needed_item(client, token, term_id, "ART_SUPPLIES", "kredki")
+
+    removed = await db_session.get(NeededItem, removed_id)
+    assert removed is not None
+    removed.deleted_at = datetime.utcnow()
+    await db_session.commit()
+
+    response = await client.get(f"/api/groups/public/{group_id}?term_id={term_id}")
+
+    assert response.status_code == 200
+    returned_ids = [item["id"] for item in response.json()["next_term"]["needed_items"]]
+    assert returned_ids == [kept_id]
+
+
+async def test_getPublicCircle_termWithNeededItems_unaffectedAfterSiblingDelete(
+    client: AsyncClient, db_session: AsyncSession
+) -> None:
+    token = await _register_organizer(client, "pt.softdel2@example.com")
+    group_id = await _create_circle(client, token, "Krąg sibling")
+    term_id = await _create_term(client, token, group_id, date.today())
+    sibling_id = await _create_needed_item(client, token, term_id, "INSTRUMENT", "grzechotka")
+    removed_id = await _create_needed_item(client, token, term_id, "OTHER", "koc")
+
+    removed = await db_session.get(NeededItem, removed_id)
+    assert removed is not None
+    removed.deleted_at = datetime.utcnow()
+    await db_session.commit()
+
+    response = await client.get(f"/api/groups/public/{group_id}?term_id={term_id}")
+
+    assert response.status_code == 200
+    items = response.json()["next_term"]["needed_items"]
+    assert [item["id"] for item in items] == [sibling_id]
+    assert items[0]["description"] == "grzechotka"
 
 
 async def test_getPublicCircle_organizerSlug_isOrgSlugWhenOrgExists_elseStableHash(

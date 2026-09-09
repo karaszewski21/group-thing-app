@@ -246,15 +246,12 @@ describe("PanelPage — hamburger promotion", () => {
     expect(within(dialog).getByRole("button", { name: "Dalej →" })).toBeInTheDocument();
   });
 
-  it('shows "Dodaj pierwszy termin" (1-step) for an ORGANIZER-with-zero-terms session and opens FirstTermStepperOrganizer', async () => {
+  it('the ORGANIZER-with-zero-terms home hint opens the 1-step FirstTermStepperOrganizer', async () => {
     mockOrganizerDefaults();
     renderPanel();
-    await openMenu();
 
-    const menu = screen.getByRole("menu");
-    expect(within(menu).getByRole("menuitem", { name: /Dodaj pierwszy termin/ })).toBeInTheDocument();
-
-    fireEvent.click(within(menu).getByRole("menuitem", { name: /Dodaj pierwszy termin/ }));
+    // The hamburger item is gone (commented out); the home HintCard is the path.
+    fireEvent.click(await screen.findByRole("button", { name: "Dodaj termin →" }));
 
     const dialog = await screen.findByRole("dialog", { name: "Dodaj pierwszy termin" });
     // ORGANIZER variant: 1-step, term fields only, no circle-name field
@@ -485,6 +482,33 @@ describe("PanelPage — dismissible home hints", () => {
     expect(screen.queryByText("Dodaj swój pierwszy termin")).not.toBeInTheDocument();
   });
 
+  it('GUEST sees a "Możesz zostać organizatorem" card that opens the circle-creation flow and dismisses on its own key', async () => {
+    mockGuestDefaults();
+    renderPanel();
+
+    expect(await screen.findByText("Możesz zostać organizatorem")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Załóż krąg →" }));
+    const dialog = await screen.findByRole("dialog", { name: "Dodaj pierwszy termin" });
+    // guest 2-step flow — step 1 is the circle-name field (the "add a group" shortcut)
+    expect(within(dialog).getByPlaceholderText("np. Nutki dla starszaków")).toBeInTheDocument();
+    fireEvent.click(within(dialog).getByRole("button", { name: "Zamknij" }));
+
+    fireEvent.click(screen.getByRole("button", { name: "Zamknij: Możesz zostać organizatorem" }));
+    expect(screen.queryByText("Możesz zostać organizatorem")).not.toBeInTheDocument();
+    expect(localStorage.getItem("hint_become_organizer_dismissed")).toBe("1");
+    // the other guest card is independent
+    expect(screen.getByText("Dodaj swój pierwszy termin")).toBeInTheDocument();
+  });
+
+  it("a GUEST who dismissed the pre-promotion first-term card still sees the organizer first-term card after getting a circle", async () => {
+    localStorage.setItem("hint_first_term_dismissed", "1");
+    mockOrganizerDefaults(); // organizer-by-circle, zero terms
+    renderPanel();
+
+    expect(await screen.findByText("Ustal pierwsze zajęcia w swoim kręgu.")).toBeInTheDocument();
+  });
+
   it("both ORGANIZER hints render stacked (org-polish first, first-term second) and dismiss independently via their own localStorage keys", async () => {
     mockOrganizerDefaults();
     renderPanel();
@@ -499,11 +523,11 @@ describe("PanelPage — dismissible home hints", () => {
     expect(screen.queryByText("Dopracuj stronę organizacji")).not.toBeInTheDocument();
     expect(screen.getByText("Dodaj swój pierwszy termin")).toBeInTheDocument();
     expect(localStorage.getItem("hint_org_polish_dismissed")).toBe("1");
-    expect(localStorage.getItem("hint_first_term_dismissed")).toBeNull();
+    expect(localStorage.getItem("hint_org_first_term_dismissed")).toBeNull();
 
     fireEvent.click(screen.getByRole("button", { name: "Zamknij: Dodaj swój pierwszy termin" }));
     expect(screen.queryByText("Dodaj swój pierwszy termin")).not.toBeInTheDocument();
-    expect(localStorage.getItem("hint_first_term_dismissed")).toBe("1");
+    expect(localStorage.getItem("hint_org_first_term_dismissed")).toBe("1");
   });
 
   it("ORGANIZER first-term hint auto-hides once terms.length > 0, with no manual dismiss needed", async () => {
@@ -1043,8 +1067,7 @@ describe("PanelPage — per-term public links & copy-link button", () => {
       id: 7, circle_group_id: 5, occurs_on: "2026-02-01", description: null, created_at: "", updated_at: "",
     });
     renderPanel();
-    await openMenu();
-    fireEvent.click(screen.getByRole("menuitem", { name: /Dodaj pierwszy termin/ }));
+    fireEvent.click(await screen.findByRole("button", { name: "Dodaj termin →" }));
 
     const dialog = await screen.findByRole("dialog", { name: "Dodaj pierwszy termin" });
     fireEvent.change(await within(dialog).findByLabelText("Data"), { target: { value: "2026-02-01" } });

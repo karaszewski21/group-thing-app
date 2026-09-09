@@ -24,8 +24,29 @@ class GroupResponse(BaseModel):
     updated_at: datetime
 
 
+def _reject_blank_name(value: str) -> str:
+    trimmed = value.strip()
+    if not trimmed:
+        raise ValueError("name must not be blank")
+    return trimmed
+
+
 class CreateCircleRequest(BaseModel):
     name: str = Field(min_length=1, max_length=255)
+
+
+class UpdateGroupRequest(BaseModel):
+    """In-place circle rename — the active-organizer check lives in
+    `service.update_group`, not the matrix. `name` is the only editable
+    Group field, so this is a required value, not partial-apply."""
+
+    name: str = Field(min_length=1, max_length=255)
+
+    _strip_name = field_validator("name")(_reject_blank_name)
+
+
+# Alias for call sites that speak of "circles" rather than "groups".
+UpdateCircleRequest = UpdateGroupRequest
 
 
 class CreateOwnCircleRequest(BaseModel):
@@ -95,6 +116,11 @@ class CreateTermRequest(BaseModel):
     description: str | None = Field(default=None, max_length=2000)
 
 
+class UpdateTermRequest(BaseModel):
+    occurs_on: date | None = None
+    description: str | None = Field(default=None, max_length=2000)
+
+
 class NeededItemResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
@@ -109,6 +135,11 @@ class NeededItemResponse(BaseModel):
 class CreateNeededItemRequest(BaseModel):
     term_id: int
     category: NeededItemCategory
+    description: str | None = Field(default=None, max_length=500)
+
+
+class UpdateNeededItemRequest(BaseModel):
+    category: NeededItemCategory | None = None
     description: str | None = Field(default=None, max_length=500)
 
 

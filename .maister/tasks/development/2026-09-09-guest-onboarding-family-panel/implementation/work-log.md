@@ -111,3 +111,22 @@ next to "← Wróć": always shown in the private view (`/krag/:groupId`, always
 shown only when `isLoggedIn` in the public per-term view.
 **Files**: `KragGrupyPage.tsx` (Link import + header rows in both views); `PublicKragGrupyPage.test.tsx` (+1 test).
 **Tests**: `PublicKragGrupyPage.test.tsx` → 24 passed; tsc + eslint clean.
+
+## 2026-09-09 - Post-finalization tweak 3 (user request)
+
+1. **First-term flow when the user has no circle** — `PanelPage.tsx` modal picker now uses the
+   2-step `FirstTermStepperGuest` whenever `myGroups.length === 0` (guest OR organizer-without-circle);
+   step 1 "Nazwa kręgu" IS the "add a group" shortcut. Only an organizer WITH a circle gets the
+   1-step `FirstTermStepperOrganizer`.
+2. **Guest home HintCards** —
+   - NEW dismissible "Możesz zostać organizatorem" card for a guest (`!isOrganizer`), own key
+     `hint_become_organizer_dismissed`, CTA opens the circle-creation flow.
+   - The ORGANIZER-with-zero-terms "Dodaj swój pierwszy termin" card now uses its OWN key
+     `hint_org_first_term_dismissed` (was the shared `hint_first_term_dismissed`) — a guest who
+     dismissed the pre-promotion card still sees this one after creating a circle. Its CTA now
+     picks the stepper variant by `myGroups.length > 0`.
+   - The user's own uncommitted edit (commented-out organizer hamburger "Dodaj pierwszy termin"
+     menuitem) was **left as-is per their choice**; the home HintCard is now the path, and the
+     2 tests that asserted that menuitem were updated to drive the flow via the HintCard.
+**Files**: `PanelPage.tsx`; `PanelPage.test.tsx` (2 tests rewritten to HintCard path, +2 new tests, 1 key-name assertion updated).
+**Tests**: `PanelPage.test.tsx` → 39 passed; full FE suite 166 passed / 2 pre-existing baseline failures; tsc + eslint clean.

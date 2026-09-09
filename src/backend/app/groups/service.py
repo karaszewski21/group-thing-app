@@ -12,7 +12,7 @@ may withdraw/fulfill their own Pledge, ...) live here, raising
 from __future__ import annotations
 
 import hashlib
-from datetime import date
+from datetime import date, datetime
 from typing import cast
 
 from sqlalchemy import func, select
@@ -22,7 +22,11 @@ from app.auth.models import User
 from app.circulation import service as circulation_service
 from app.circulation.models import ReservationStatus
 from app.core.auth_deps import Principal
-from app.core.errors import AccessDeniedException, EntityNotFoundException
+from app.core.errors import (
+    AccessDeniedException,
+    BusinessConflictException,
+    EntityNotFoundException,
+)
 from app.organizations import service as organizations_service
 from app.party.models import PartyType
 from app.party.service import create_party
@@ -61,6 +65,8 @@ from .schemas import (
     PublicNeededItemResponse,
     PublicTermResponse,
     RsvpResponse,
+    UpdateNeededItemRequest,
+    UpdateTermRequest,
 )
 
 # --- Groups (Circles) ---------------------------------------------------------
@@ -124,6 +130,19 @@ async def get_group(db: AsyncSession, group_id: int) -> Group:
     group = await db.get(Group, group_id)
     if group is None:
         raise EntityNotFoundException("Group", group_id)
+    return group
+
+
+async def update_group(
+    db: AsyncSession, group_id: int, caller_party_id: int, name: str
+) -> Group:
+    """In-place circle rename. Only the Circle's currently active organizer
+    may rename it — enforced here, not by the coarse matrix."""
+    group = await get_group(db, group_id)
+    await _require_active_organizer(db, group_id, caller_party_id)
+    group.name = name
+    await db.commit()
+    await db.refresh(group)
     return group
 
 
@@ -410,6 +429,24 @@ async def list_terms(db: AsyncSession, circle_group_id: int) -> list[Term]:
     return list(result.scalars().all())
 
 
+async def update_term(
+    db: AsyncSession, term_id: int, caller_party_id: int, data: UpdateTermRequest
+) -> Term:
+    """Partial in-place term edit. Only the parent Circle's currently active
+    organizer may edit — enforced here, not by the coarse matrix."""
+    term = await get_term(db, term_id)
+    await _require_active_organizer(db, term.circle_group_id, caller_party_id)
+
+    if data.occurs_on is not None:
+        term.occurs_on = data.occurs_on
+    if data.description is not None:
+        term.description = data.description
+
+    await db.commit()
+    await db.refresh(term)
+    return term
+
+
 async def create_needed_item(
     db: AsyncSession, principal: Principal, data: CreateNeededItemRequest
 ) -> NeededItem:
@@ -430,14 +467,80 @@ async def get_needed_item(db: AsyncSession, needed_item_id: int) -> NeededItem:
     needed_item = await db.get(NeededItem, needed_item_id)
     if needed_item is None:
         raise EntityNotFoundException("NeededItem", needed_item_id)
+    if needed_item.deleted_at is not None:
+        raise EntityNotFoundException("NeededItem", needed_item_id)
     return needed_item
 
 
 async def list_needed_items(db: AsyncSession, term_id: int) -> list[NeededItem]:
     result = await db.execute(
-        select(NeededItem).where(NeededItem.term_id == term_id).order_by(NeededItem.id)
+        select(NeededItem)
+        .where(NeededItem.term_id == term_id, NeededItem.deleted_at.is_(None))
+        .order_by(NeededItem.id)
     )
     return list(result.scalars().all())
+
+
+async def _require_needed_item_organizer(
+    db: AsyncSession, needed_item_id: int, caller_party_id: int
+) -> NeededItem:
+    needed_item = await get_needed_item(db, needed_item_id)
+    term = await get_term(db, needed_item.term_id)
+    await _require_active_organizer(db, term.circle_group_id, caller_party_id)
+    return needed_item
+
+
+async def update_needed_item(
+    db: AsyncSession,
+    needed_item_id: int,
+    caller_party_id: int,
+    data: UpdateNeededItemRequest,
+) -> NeededItem:
+    """Partial in-place needed-item edit, gated on the parent term's Circle
+    organizer. A soft-deleted item is a 404 (via `get_needed_item`)."""
+    needed_item = await _require_needed_item_organizer(db, needed_item_id, caller_party_id)
+
+    if data.category is not None:
+        needed_item.category = data.category
+    if data.description is not None:
+        needed_item.description = data.description
+
+    await db.commit()
+    await db.refresh(needed_item)
+    return needed_item
+
+
+def _withdraw_pledge_row(pledge: Pledge) -> None:
+    # TODO: notify pledger that the organizer no longer needs this item
+    pledge.status = PledgeStatus.WITHDRAWN
+
+
+async def soft_delete_needed_item(
+    db: AsyncSession, needed_item_id: int, caller_party_id: int
+) -> None:
+    """Soft-delete a needed item in one transaction. Blocked (409) if any
+    pledge is already FULFILLED; otherwise every OPEN/CLAIMED pledge is
+    transitioned to WITHDRAWN and `deleted_at` is stamped."""
+    needed_item = await _require_needed_item_organizer(db, needed_item_id, caller_party_id)
+
+    pledges = list(
+        (
+            await db.execute(select(Pledge).where(Pledge.needed_item_id == needed_item.id))
+        ).scalars()
+    )
+
+    if any(
+        pledge.status == PledgeStatus.FULFILLED or pledge.resolved_reservation_id is not None
+        for pledge in pledges
+    ):
+        raise BusinessConflictException("Nie można usunąć — rzecz została już dostarczona")
+
+    for pledge in pledges:
+        if pledge.status in (PledgeStatus.OPEN, PledgeStatus.CLAIMED):
+            _withdraw_pledge_row(pledge)
+
+    needed_item.deleted_at = datetime.utcnow()
+    await db.commit()
 
 
 # --- Pledge + Pledge->Reservation bridge ----------------------------------------
@@ -466,6 +569,7 @@ async def get_pledge(db: AsyncSession, pledge_id: int) -> Pledge:
 
 
 async def list_pledges(db: AsyncSession, needed_item_id: int) -> list[Pledge]:
+    await get_needed_item(db, needed_item_id)
     result = await db.execute(select(Pledge).where(Pledge.needed_item_id == needed_item_id))
     return list(result.scalars().all())
 

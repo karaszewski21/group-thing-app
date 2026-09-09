@@ -68,6 +68,14 @@ class CreateInventoryItemRequest(BaseModel):
     condition: ItemCondition
 
 
+class UpdateInventoryItemRequest(BaseModel):
+    """PATCH `/api/inventory-items/{id}` body. Only `condition` is editable
+    here — name/category belong to the shared `Product` catalog and are out
+    of scope for this route."""
+
+    condition: ItemCondition | None = None
+
+
 class ReservationResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 

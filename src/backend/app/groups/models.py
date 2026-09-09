@@ -15,9 +15,9 @@ Cross-module references (`parties.id`) are plain FK-id columns, never a
 from __future__ import annotations
 
 import enum
-from datetime import date
+from datetime import date, datetime
 
-from sqlalchemy import BigInteger, Date, Enum, ForeignKey, Integer, String
+from sqlalchemy import BigInteger, Date, DateTime, Enum, ForeignKey, Integer, String
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.core.base_model import BaseEntity
@@ -165,6 +165,7 @@ class NeededItem(BaseEntity):
         _enum_column(NeededItemCategory, 30), nullable=False
     )
     description: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    deleted_at: Mapped[datetime | None] = mapped_column(DateTime(), nullable=True)
 
 
 class Pledge(BaseEntity):

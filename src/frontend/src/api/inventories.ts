@@ -74,3 +74,14 @@ export function registerInventoryItem(
 export function getInventoryItemBalance(itemId: number): Promise<InventoryBalanceResponse> {
   return api.get(`/inventory-items/${itemId}/balance`);
 }
+
+export function updateInventoryItem(
+  id: number,
+  request: { condition: ItemCondition },
+): Promise<InventoryItemResponse> {
+  return api.patch(`/inventory-items/${id}`, request);
+}
+
+export function deleteInventoryItem(id: number): Promise<void> {
+  return api.delete(`/inventory-items/${id}`);
+}

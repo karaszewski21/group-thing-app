@@ -1,0 +1,141 @@
+orchestrator:
+  started_phase: phase-1
+  completed_phases: [phase-1-analysis, phase-1, phase-2-analysis, phase-2, phase-5, phase-7]
+  skipped_phases: [phase-4-ui-mockups, phase-6-spec-audit]
+  skipped_notes:
+    phase-4-ui-mockups: "User chose 'Pomiń makiety' at the Phase 2 routing gate."
+    phase-6-spec-audit: "User chose 'Pomiń audyt' at the Phase 5 exit gate."
+  failed_phases: []
+  auto_fix_attempts: {}
+  options:
+    spec_audit_enabled: true
+    skip_test_suite: true
+    e2e_enabled: true
+    user_docs_enabled: true
+    code_review_enabled: true
+    pragmatic_review_enabled: true
+    reality_check_enabled: true
+    production_check_enabled: true
+    sequential: true
+  created: 2026-09-09
+  updated: 2026-09-09
+  task_path: .maister/tasks/development/2026-09-09-crud-terms-groups-items
+  task_ids: {}
+
+task:
+  title: CRUD (edit + soft-delete) for terms, circles/groups, and inventory items
+  description: |
+    Currently only create + read exist for Term, Group (circle), and InventoryItem
+    ("rzeczy") — existing records cannot be modified. Add:
+    - Term: PATCH (occurs_on, description) + soft DELETE
+    - InventoryItem / "rzeczy": PATCH (edit) + soft DELETE
+    - Group (circle): PATCH only (edit name / relevant fields). NO delete.
+    Soft delete everywhere (valid_to / deleted_at style), consistent with the repo's
+    bitemporal pattern. May need an Alembic migration for the soft-delete column.
+    NeededItem editing as part of the term edit surface — open scope decision.
+    Frontend: edit/delete UI in PanelPage (Spotkania / term views, circle section,
+    "Twoje rzeczy"). Public krąg pages must never expose edit/delete.
+    Authorization: owner/guardian checks in the service layer.
+  status: in_progress
+  tags: [crud, terms, groups, inventory, soft-delete, panel]
+  priority: high
+
+task_context:
+  risk_level: low-medium
+  clarifications_resolved: true
+  tech_clarified: true
+  architecture_decision: >
+    Term = PATCH only (occurs_on, description), NO delete. NeededItem = POST + PATCH + soft-DELETE
+    (deleted_at column); deleting a NeededItem withdraws OPEN/CLAIMED pledges, 409 if a FULFILLED
+    pledge exists; TODO hook for pledger notification (no notif system built). InventoryItem = PATCH
+    (condition only) + soft-DELETE (deleted_at); DELETE 409 when InventoryBalance != AVAILABLE.
+    Group = PATCH (name) only. soft-delete via new nullable deleted_at on needed_items + inventory_items
+    only; migration 0017. Ownership in service layer (mirror rename_family / _require_active_organizer).
+    Frontend inline-edit (family-rename template) in PanelPage; public krąg never shows edit/delete.
+  scope_expanded: null
+  architecture_decision: null
+  task_characteristics:
+    has_reproducible_defect: false
+    modifies_existing_code: true
+    creates_new_entities: false
+    involves_data_operations: true
+    ui_heavy: true
+  project_context:
+    project_doc_paths:
+      - .maister/docs/project/tech-stack.md
+      - .maister/docs/project/architecture.md
+  design_reference:
+    source: null
+    mockup_count: 0
+    has_brief: false
+    index_path: null
+  phase_summaries:
+    codebase_analysis:
+      key_files:
+        - src/backend/app/groups/{service,router,models,schemas}.py
+        - src/backend/app/circulation/{service,router,models,schemas}.py
+        - src/backend/app/core/auth_deps.py
+        - src/backend/app/core/base_model.py
+        - src/frontend/src/pages/panel/PanelPage.tsx
+        - src/frontend/src/api/{terms,groups,inventories}.ts
+      primary_language: "Python/FastAPI (backend), TypeScript/React (frontend)"
+      summary: >
+        PATCH endpoints for Term/Group/InventoryItem are near-mechanical copies of the
+        freshly-shipped rename_family / update_organization precedents (router resolves
+        principal -> profile.party_id -> delegate; service does get_X (404) -> ownership
+        check (403) -> if data.f is not None: assign -> commit/refresh). Ownership: Term/Group
+        via _require_active_organizer(db, circle_group_id, party_id); InventoryItem via
+        circulation's raw users.id + inventory.owner_user_id compare. The real work is SOFT
+        DELETE: NO deleted_at column exists anywhere (temporal soft-close is valid_to on
+        relationship rows only). Needs a new nullable deleted_at on Term + InventoryItem,
+        Alembic migration 0017 (down_revision 0016), and a manual `.where(deleted_at IS NULL)`
+        filter at ~10+ read sites (list_terms, get_term, get_public_circle_view x2,
+        list_my_attendances, list_needed_items, list_items, get_item, ...). api.patch/api.delete
+        already exist client-side. Frontend template = inline family-rename editor
+        (renamingX/xDraft/xError trio + load({silent:true})), NOT a modal. TrashIcon/PencilIcon
+        exist. PanelPage L60-66 has an explicit comment that the delete button was omitted
+        because no endpoint exists — this task removes that.
+    clarifications: []
+    gap_analysis:
+      integration_points:
+        - "Backend: PATCH routes on groups/router.py (terms, groups) + circulation/router.py (inventory-items); DELETE routes on groups/router.py (needed-items) + circulation/router.py (inventory-items)"
+        - "Services: update_term, update_group, update_needed_item, soft_delete_needed_item (+ pledge withdraw cascade), update_inventory_item, soft_delete_inventory_item (+ balance guard)"
+        - "auth_deps.py: combined _methods('PATCH','DELETE') matrix rows per path, ahead of blanket rows"
+        - "Migration 0017: deleted_at TIMESTAMP NULL on needed_items + inventory_items"
+        - "Read filters: list_needed_items, get_needed_item(404), list_items, get_item(404), get_public_circle_view needed-items, list_pledges guard"
+        - "Frontend: api/terms.ts + api/groups.ts + api/inventories.ts (update/delete fns); PanelPage.tsx inline edit for term/circle + needed-items sub-CRUD + item condition/delete; ConfirmDialog for destructive deletes; remove L60-66 comment"
+        - "Tests: test_groups.py (term/needed-item PATCH/DELETE), NEW test_circulation.py (inventory-item), auth_deps matrix test, PanelPage.test.tsx"
+      summary: >
+        Additive change. PATCH endpoints are mechanical copies of rename_family/update_organization.
+        Net-new: deleted_at column on needed_items + inventory_items (migration 0017) + manual
+        .where(deleted_at IS NULL) at ~6 read sites + NeededItem-delete pledge-withdraw cascade
+        (409 on FULFILLED) + InventoryItem-delete balance guard (409 if not AVAILABLE). ui_heavy:
+        inline edit affordances in PanelPage across term/circle/needed-items/items. No notification
+        system. Projected data-lifecycle completeness 100%.
+    scope_clarifications:
+      scope_expanded: false
+      summary: >
+        Matrix rows: combined _methods per path (internal, orchestrator picked). UX: per-field inline
+        term editors (not expand card), edit affordance in ALL organizer term views, optimistic delete
+        + informational toast (no ConfirmDialog, restore row on 409). NO restore endpoint. category is
+        enum-constrained. list_pledges gets a get_needed_item 404 guard. No partial index in 0017.
+    ui_mockups: {components_designed: [], summary: null}
+    specification:
+      summary: >
+        spec.md "Edit / soft-delete for Term, Group, NeededItem, InventoryItem" — 7 requirements,
+        6 endpoints (PATCH terms/needed-items/groups/inventory-items + DELETE needed-items/inventory-items).
+        Mechanical PATCH copies of update_organization/rename_family. Soft-delete = nullable deleted_at
+        on needed_items + inventory_items (migration 0017, down_revision 0016), central list_* filter +
+        get_* 404. Two 409 guards: NeededItem delete blocked on FULFILLED pledge / else withdraws
+        OPEN+CLAIMED in one tx; InventoryItem delete blocked when balance != AVAILABLE. Frontend:
+        per-field inline term editors in all organizer views + optimistic delete (restore on error,
+        no ConfirmDialog, no restore endpoint). ~6 read sites need the filter (checklist in spec §7).
+        Key assumption: UpdateGroupRequest = required non-blank name.
+    architecture_decision: {decision: null, summary: null}
+
+verification_context:
+  last_status: null
+  issues_found: []
+  fixes_applied: []
+  decisions_made: []
+  reverify_count: 0

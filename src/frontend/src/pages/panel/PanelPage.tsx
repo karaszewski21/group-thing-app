@@ -296,15 +296,23 @@ export function PanelPage() {
   const [toast, setToast] = useState("");
   const [busy, setBusy] = useState(false);
 
-  // --- Panel home dismissible hints (spec.md §3) — first precedent for a
-  // dismissible-banner `localStorage` convention in this codebase: read the
-  // flag once on mount, write it on dismiss-click. Two independent flags —
-  // `hint_first_term_dismissed` is shared by the GUEST and ORGANIZER
-  // variants of the same "add a first term" nudge (they never render at
-  // once, since one is gated on `!isOrganizer` and the other on
-  // `isOrganizer`), `hint_org_polish_dismissed` is ORGANIZER-only.
+  // --- Panel home dismissible hints (spec.md §3) — dismissible-banner
+  // `localStorage` convention: read the flag once on mount, write it on
+  // dismiss-click. Independent flags:
+  //  - `hint_first_term_dismissed`  — GUEST "add your first term" nudge (!isOrganizer)
+  //  - `hint_become_organizer_dismissed` — GUEST "you can become an organizer" nudge (!isOrganizer)
+  //  - `hint_org_first_term_dismissed` — ORGANIZER-with-zero-terms nudge; a SEPARATE
+  //    key from the guest one so a guest who dismissed the pre-promotion card
+  //    still sees this one after creating their circle.
+  //  - `hint_org_polish_dismissed`  — ORGANIZER-only "polish your org page" nudge
   const [hintFirstTermDismissed, setHintFirstTermDismissed] = useState(
     () => localStorage.getItem("hint_first_term_dismissed") === "1",
+  );
+  const [hintBecomeOrganizerDismissed, setHintBecomeOrganizerDismissed] = useState(
+    () => localStorage.getItem("hint_become_organizer_dismissed") === "1",
+  );
+  const [hintOrgFirstTermDismissed, setHintOrgFirstTermDismissed] = useState(
+    () => localStorage.getItem("hint_org_first_term_dismissed") === "1",
   );
   const [hintOrgPolishDismissed, setHintOrgPolishDismissed] = useState(
     () => localStorage.getItem("hint_org_polish_dismissed") === "1",
@@ -313,6 +321,16 @@ export function PanelPage() {
   function dismissFirstTermHint() {
     localStorage.setItem("hint_first_term_dismissed", "1");
     setHintFirstTermDismissed(true);
+  }
+
+  function dismissBecomeOrganizerHint() {
+    localStorage.setItem("hint_become_organizer_dismissed", "1");
+    setHintBecomeOrganizerDismissed(true);
+  }
+
+  function dismissOrgFirstTermHint() {
+    localStorage.setItem("hint_org_first_term_dismissed", "1");
+    setHintOrgFirstTermDismissed(true);
   }
 
   function dismissOrgPolishHint() {
@@ -754,7 +772,7 @@ export function PanelPage() {
                         <CalendarPlusIcon /> Dodaj pierwszy termin
                       </button>
                     )}
-                    {isOrganizer && terms.length === 0 && (
+                    {/* {isOrganizer && terms.length === 0 && (
                       <button
                         role="menuitem"
                         onClick={() => { setFirstTermForOrganizer(true); setModal("pierwszy-termin"); setMenuOpen(false); }}
@@ -762,7 +780,7 @@ export function PanelPage() {
                       >
                         <CalendarPlusIcon /> Dodaj pierwszy termin
                       </button>
-                    )}
+                    )} */}
                   </div>
                 </>
               )}
@@ -805,6 +823,17 @@ export function PanelPage() {
               />
             )}
 
+            {!isOrganizer && !hintBecomeOrganizerDismissed && (
+              <HintCard
+                icon={<BuildingIcon c="#1B8168" />}
+                title="Możesz zostać organizatorem"
+                description="Załóż własny krąg, zapraszaj rodziny i planuj zajęcia — bez zakładania nowego konta."
+                ctaLabel="Załóż krąg →"
+                onCtaClick={() => { setFirstTermForOrganizer(false); setModal("pierwszy-termin"); }}
+                onDismiss={dismissBecomeOrganizerHint}
+              />
+            )}
+
             {isOrganizer && !hintOrgPolishDismissed && (
               <HintCard
                 icon={<BuildingIcon c="#1B8168" />}
@@ -816,14 +845,17 @@ export function PanelPage() {
               />
             )}
 
-            {isOrganizer && terms.length === 0 && !hintFirstTermDismissed && (
+            {isOrganizer && terms.length === 0 && !hintOrgFirstTermDismissed && (
               <HintCard
                 icon={<CalendarPlusIcon c="#1B8168" />}
                 title="Dodaj swój pierwszy termin"
                 description="Ustal pierwsze zajęcia w swoim kręgu."
                 ctaLabel="Dodaj termin →"
-                onCtaClick={() => { setFirstTermForOrganizer(true); setModal("pierwszy-termin"); }}
-                onDismiss={dismissFirstTermHint}
+                onCtaClick={() => {
+                  setFirstTermForOrganizer(myGroups.length > 0);
+                  setModal("pierwszy-termin");
+                }}
+                onDismiss={dismissOrgFirstTermHint}
               />
             )}
 
@@ -1479,7 +1511,11 @@ export function PanelPage() {
 
       {/* ---------- modal: dodaj pierwszy termin (GUEST 2-step / ORGANIZER 1-step) ---------- */}
       {modal === "pierwszy-termin" && (
-        firstTermForOrganizer ? (
+        // The 1-step organizer stepper only works when a circle already exists;
+        // an organizer with zero circles (or a guest) needs the 2-step guest
+        // stepper whose step 1 creates the circle — that step IS the "add a
+        // group" shortcut.
+        firstTermForOrganizer && myGroups.length > 0 ? (
           <FirstTermStepperOrganizer
             circleGroupId={myGroups[0]?.id ?? null}
             organizerSlug={myGroups[0]?.organizer_slug ?? null}

@@ -235,6 +235,11 @@ _RAW_MATRIX: tuple[_RawEntry, ...] = (
     # the anonymous path — never a 401.
     (_methods("POST"), r"^/api/groups/public/[^/]+/rsvp$", "PUBLIC"),
     (_methods("POST"), r"^/api/groups/public/merge$", "PUBLIC"),
+    # Fine-grained circle rename — declared ahead of row 26's blanket
+    # /api/groups READ row and after the /mine + /public rows above, so
+    # first-match evaluation reaches it. The active-organizer check lives in
+    # `app.groups.service.update_group`; the matrix only gates it to EDIT.
+    (_methods("PATCH"), r"^/api/groups/[^/]+$", ("EDIT", "mcp:edit")),
     # 26-47: app.party / app.circulation — added beyond spec.md's original 25
     # rows for the Organizer/Circle/Family + Wypożyczalnia domain. Ownership
     # checks the matrix itself can't express (active organizer, own-family
@@ -253,14 +258,24 @@ _RAW_MATRIX: tuple[_RawEntry, ...] = (
     (_methods("POST"), r"^/api/families(/.*)?$", ("EDIT", "mcp:edit")),  # 29
     (_methods("POST"), r"^/api/leaderships(/.*)?$", ("EDIT", "mcp:edit")),  # 30
     (_methods("POST"), r"^/api/memberships(/.*)?$", ("EDIT", "mcp:edit")),  # 31
+    # Fine-grained term / needed-item edit + soft-delete — ahead of the
+    # blanket rows below (first-match-wins). Active-organizer checks live in
+    # `app.groups.service`; the matrix only gates them to EDIT.
+    (_methods("PATCH"), r"^/api/terms/[^/]+$", ("EDIT", "mcp:edit")),
     (_methods("GET"), r"^/api/terms(/.*)?$", ("READ", "mcp:read")),  # 32
     (_methods("POST"), r"^/api/terms(/.*)?$", ("EDIT", "mcp:edit")),  # 33
+    (_methods("PATCH", "DELETE"), r"^/api/needed-items/[^/]+$", ("EDIT", "mcp:edit")),
     (_methods("GET"), r"^/api/needed-items(/.*)?$", ("READ", "mcp:read")),  # 34
     (_methods("POST"), r"^/api/needed-items(/.*)?$", ("EDIT", "mcp:edit")),  # 35
     (_methods("GET"), r"^/api/pledges(/.*)?$", ("READ", "mcp:read")),  # 36
     (_methods("POST"), r"^/api/pledges(/.*)?$", ("EDIT", "mcp:edit")),  # 37
     (_methods("GET"), r"^/api/inventories(/.*)?$", ("READ", "mcp:read")),  # 38
     (_methods("POST"), r"^/api/inventories(/.*)?$", ("EDIT", "mcp:edit")),  # 39
+    # Fine-grained inventory-item edit + soft-delete — ahead of rows 40-41's
+    # blanket inventory-items requirements (first-match-wins). The owner check
+    # (`inventory.owner_user_id == acting user`) lives in
+    # `app.circulation.service`; the matrix only gates it to EDIT.
+    (_methods("PATCH", "DELETE"), r"^/api/inventory-items/[^/]+$", ("EDIT", "mcp:edit")),
     (_methods("GET"), r"^/api/inventory-items(/.*)?$", ("READ", "mcp:read")),  # 40
     (_methods("POST"), r"^/api/inventory-items(/.*)?$", ("EDIT", "mcp:edit")),  # 41
     (_methods("GET"), r"^/api/reservations(/.*)?$", ("READ", "mcp:read")),  # 42
