@@ -6,6 +6,7 @@ import {
   getGuardians,
   getMembershipsForFamily,
   getMyFamilies,
+  renameFamily,
   type FamilyOut,
   type GuardianResponse,
 } from "../../api/families";
@@ -13,8 +14,10 @@ import {
   createMyCircle,
   endLeadership,
   getGroup,
+  getMyAttendances,
   type GroupResponse,
   type LeadershipResponse,
+  type MyAttendanceResponse,
 } from "../../api/groups";
 import {
   createInventory,
@@ -38,6 +41,7 @@ import {
 import { PhoneFrame } from "../../components/shared/PhoneFrame";
 import { ItemQuickAddForm } from "../../components/shared/ItemQuickAddForm";
 import { createEmptyItemQuickAddValue, type ItemQuickAddValue } from "../../utils/itemQuickAdd";
+import { CreateFamilyDialog } from "../../components/panel/CreateFamilyDialog";
 import { FirstTermStepperGuest } from "../../components/panel/FirstTermStepperGuest";
 import { FirstTermStepperOrganizer } from "../../components/panel/FirstTermStepperOrganizer";
 
@@ -62,7 +66,7 @@ import { FirstTermStepperOrganizer } from "../../components/panel/FirstTermStepp
 /* ------------------------------------------------------------------ */
 
 type View = "home" | "spotkania" | "rzeczy" | "podarki" | "profil" | "ustawienia" | "rodzina";
-type ModalKind = "grupa" | "termin" | "rzecz" | "pierwszy-termin" | null;
+type ModalKind = "grupa" | "termin" | "rzecz" | "pierwszy-termin" | "rodzina-nowa" | null;
 type ItemMode = "wypożyczę" | "oddam" | "zamienię";
 type GiftSource = "pożyczone" | "otrzymane" | "zamienione";
 
@@ -114,6 +118,14 @@ function dayMonth(isoDate: string): { day: string; month: string } {
 function initials(name: string): string {
   const words = name.trim().split(/\s+/).filter(Boolean);
   return (words[0]?.[0] ?? "?").toUpperCase() + (words[1]?.[0] ?? "").toUpperCase();
+}
+
+/** Public per-term URL. `group.organizer_slug` is always set by the backend
+ * (the organizer's Organization slug, or a stable `k-<hash>` when they have
+ * no Organization) — the `?? "krag"` only guards the `GET /api/groups` list
+ * response, which the Panel never uses to build these links. */
+function termPublicPath(group: GroupResponse, termId: number): string {
+  return `/${group.organizer_slug ?? "krag"}/grupa/${group.id}/term/${termId}`;
 }
 
 /* ---------------- ikony ---------------- */
@@ -208,6 +220,14 @@ const FamilyIcon = ({ c = "#1E2E27" }: { c?: string }) => (
     <path d="M14.2 15.4c1.9.2 3.2 1.7 3.8 4.6" stroke={c} strokeWidth="2" strokeLinecap="round" />
   </svg>
 );
+const PencilIcon = ({ c = "#5C7069" }: { c?: string }) => (
+  <svg viewBox="0 0 24 24" fill="none" aria-hidden="true" className="h-4 w-4">
+    <path
+      d="M4 20h4L18.5 9.5a2 2 0 0 0 0-2.8l-1.2-1.2a2 2 0 0 0-2.8 0L4 16v4Z"
+      stroke={c} strokeWidth="2" strokeLinejoin="round"
+    />
+  </svg>
+);
 const LogoutIcon = () => (
   <svg viewBox="0 0 24 24" fill="none" aria-hidden="true" className="h-[18px] w-[18px]">
     <path
@@ -236,6 +256,11 @@ export function PanelPage() {
   const [terms, setTerms] = useState<TermWithNeeded[]>([]);
   const [family, setFamily] = useState<FamilyOut | null>(null);
   const [guardians, setGuardians] = useState<GuardianResponse[]>([]);
+  const [myAttendances, setMyAttendances] = useState<MyAttendanceResponse[]>([]);
+  // Inline "Mój dom" family rename (D4 / TC4) — no dedicated modal.
+  const [renamingFamily, setRenamingFamily] = useState(false);
+  const [familyNameDraft, setFamilyNameDraft] = useState("");
+  const [renameError, setRenameError] = useState<string | null>(null);
   // `null` = no Organization created yet (404) — "Moja organizacja"/the
   // org-polish hint then link to the /organization create form; once an
   // Organization exists, both link straight to its public page instead.
@@ -376,6 +401,14 @@ export function PanelPage() {
       } catch {
         // No Organization yet (404) — links fall back to the create form.
         setOrganizationSlug(null);
+      }
+
+      // "Zapisane zajęcia" (§R9) — read-only home-screen section. Guarded so
+      // a failure here still lets the rest of the home view render.
+      try {
+        setMyAttendances(await getMyAttendances());
+      } catch {
+        setMyAttendances([]);
       }
 
       let relevantGroups: GroupResponse[];
@@ -556,6 +589,40 @@ export function PanelPage() {
       await load();
     } catch {
       showToast("Nie udało się dodać członka rodziny");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  function startRenameFamily() {
+    if (!family) return;
+    setFamilyNameDraft(family.name);
+    setRenameError(null);
+    setRenamingFamily(true);
+  }
+
+  function cancelRenameFamily() {
+    setRenamingFamily(false);
+    setRenameError(null);
+  }
+
+  async function saveRenameFamily() {
+    if (!family) return;
+    const next = familyNameDraft.trim();
+    if (!next || next === family.name) {
+      cancelRenameFamily();
+      return;
+    }
+    setBusy(true);
+    setRenameError(null);
+    try {
+      await renameFamily(family.id, next);
+      setRenamingFamily(false);
+      await load({ silent: true });
+    } catch {
+      // Restore the previous name (exit the editor) and surface the error inline.
+      setRenamingFamily(false);
+      setRenameError("Nie udało się zmienić nazwy rodziny — spróbuj ponownie");
     } finally {
       setBusy(false);
     }
@@ -777,7 +844,7 @@ export function PanelPage() {
                 return (
                   <Link
                     key={term.id}
-                    to={`/krag/${group.id}/publiczny`}
+                    to={termPublicPath(group, term.id)}
                     className="mt-2.5 flex items-start gap-3.5 rounded-2xl border border-line bg-cream p-[15px] transition-colors first:mt-0 hover:border-mint"
                   >
                     <div className="flex h-[46px] w-[46px] flex-none flex-col items-center justify-center rounded-[13px] bg-mint-soft leading-none">
@@ -800,6 +867,39 @@ export function PanelPage() {
                   </Link>
                 );
               })}
+            </div>
+
+            <div className="mt-3.5 rounded-[22px] border border-line bg-paper p-5">
+              <h3 className="mb-3.5 text-base font-semibold text-ink">Zapisane zajęcia</h3>
+              {myAttendances.length === 0 ? (
+                <div className="rounded-2xl border-[1.5px] border-dashed border-line py-[26px] text-center text-[13.5px] text-ink-soft">
+                  Nie zapisałeś się jeszcze na żadne zajęcia.
+                </div>
+              ) : (
+                myAttendances.map((a) => {
+                  const { day, month } = dayMonth(a.occurs_on);
+                  return (
+                    <Link
+                      key={a.attendance_id}
+                      to={`/${a.organizer_slug}/grupa/${a.group_id}/term/${a.term_id}`}
+                      className="mt-2.5 flex items-start gap-3.5 rounded-2xl border border-line bg-cream p-[15px] transition-colors first:mt-0 hover:border-mint"
+                    >
+                      <div className="flex h-[46px] w-[46px] flex-none flex-col items-center justify-center rounded-[13px] bg-mint-soft leading-none">
+                        <b className="font-serif text-base text-ink">{day}</b>
+                        <small className="text-[9.5px] uppercase tracking-wide text-ink-soft">{month}</small>
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <h3 className="text-[15.5px] font-semibold text-ink">{a.group_name}</h3>
+                        {a.organizer_display_name && (
+                          <small className="mt-0.5 block text-[12.5px] text-ink-soft">
+                            {a.organizer_display_name}
+                          </small>
+                        )}
+                      </div>
+                    </Link>
+                  );
+                })
+              )}
             </div>
 
             <div className="mt-3.5 flex flex-col gap-3.5 rounded-[22px] border border-line bg-paper p-5">
@@ -1023,29 +1123,44 @@ export function PanelPage() {
                 {terms.map(({ term, group, neededItems }) => {
                   const { day, month } = dayMonth(term.occurs_on);
                   return (
-                    <Link
-                      key={term.id}
-                      to={`/krag/${group.id}/publiczny`}
-                      className="mt-2.5 flex items-start gap-3.5 rounded-2xl border border-line bg-cream p-[15px] transition-colors first:mt-0 hover:border-mint"
-                    >
-                      <div className="flex h-[46px] w-[46px] flex-none flex-col items-center justify-center rounded-[13px] bg-mint-soft leading-none">
-                        <b className="font-serif text-base text-ink">{day}</b>
-                        <small className="text-[9.5px] uppercase tracking-wide text-ink-soft">{month}</small>
-                      </div>
-                      <div className="min-w-0 flex-1">
-                        <h3 className="text-[15.5px] font-semibold text-ink">{group.name}</h3>
-                        <small className="mt-0.5 block text-[12.5px] text-ink-soft">{term.description || "Bez opisu"}</small>
-                        {neededItems.length > 0 && (
-                          <div className="mt-1.5 flex flex-wrap gap-1.5">
-                            {neededItems.map((ni) => (
-                              <span key={ni.id} className="rounded-full bg-lime-soft px-2.5 py-0.5 text-[10.5px] font-extrabold text-[#56701F]">
-                                {NEEDED_ITEM_LABELS[ni.category]}
-                              </span>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-                    </Link>
+                    <div key={term.id} className="mt-2.5 flex items-stretch gap-2 first:mt-0">
+                      <Link
+                        to={termPublicPath(group, term.id)}
+                        className="flex flex-1 items-start gap-3.5 rounded-2xl border border-line bg-cream p-[15px] transition-colors hover:border-mint"
+                      >
+                        <div className="flex h-[46px] w-[46px] flex-none flex-col items-center justify-center rounded-[13px] bg-mint-soft leading-none">
+                          <b className="font-serif text-base text-ink">{day}</b>
+                          <small className="text-[9.5px] uppercase tracking-wide text-ink-soft">{month}</small>
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <h3 className="text-[15.5px] font-semibold text-ink">{group.name}</h3>
+                          <small className="mt-0.5 block text-[12.5px] text-ink-soft">{term.description || "Bez opisu"}</small>
+                          {neededItems.length > 0 && (
+                            <div className="mt-1.5 flex flex-wrap gap-1.5">
+                              {neededItems.map((ni) => (
+                                <span key={ni.id} className="rounded-full bg-lime-soft px-2.5 py-0.5 text-[10.5px] font-extrabold text-[#56701F]">
+                                  {NEEDED_ITEM_LABELS[ni.category]}
+                                </span>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      </Link>
+                      <button
+                        type="button"
+                        title="Kopiuj link do terminu"
+                        aria-label="Kopiuj link do terminu"
+                        onClick={() => {
+                          void navigator.clipboard.writeText(
+                            `${window.location.origin}${termPublicPath(group, term.id)}`,
+                          );
+                          showToast("Skopiowano link");
+                        }}
+                        className="flex-none rounded-2xl border border-line bg-cream px-3.5 text-[12.5px] font-extrabold text-ink-soft transition-colors hover:border-mint"
+                      >
+                        Kopiuj link
+                      </button>
+                    </div>
                   );
                 })}
               </div>
@@ -1074,7 +1189,7 @@ export function PanelPage() {
                 return (
                   <Link
                     key={term.id}
-                    to={`/krag/${group.id}/publiczny`}
+                    to={termPublicPath(group, term.id)}
                     className="mt-2.5 flex items-start gap-3.5 rounded-2xl border border-line bg-cream p-[15px] transition-colors first:mt-0 hover:border-mint"
                   >
                     <div className="flex h-[46px] w-[46px] flex-none flex-col items-center justify-center rounded-[13px] bg-mint-soft leading-none">
@@ -1204,11 +1319,70 @@ export function PanelPage() {
           </div>
         )}
 
-        {view === "rodzina" && (
+        {view === "rodzina" && family === null && (
           <div>
             <div className="mb-3.5">
               <h2 className="text-[19px] font-semibold text-ink">Mój dom</h2>
-              <small className="text-[12.5px] text-ink-soft">
+            </div>
+            <div className="rounded-2xl border-[1.5px] border-dashed border-line p-6 text-center">
+              <p className="text-[15px] font-semibold text-ink">Nie masz jeszcze rodziny</p>
+              <p className="mt-1.5 text-[13.5px] text-ink-soft">
+                Załóż rodzinę, aby dodać opiekunów i dzieci oraz wspólnie zapisywać się na zajęcia.
+              </p>
+              <button
+                onClick={() => setModal("rodzina-nowa")}
+                className="mt-4 rounded-[13px] bg-mint px-5 py-3 text-[13.5px] font-extrabold text-white"
+              >
+                Załóż rodzinę
+              </button>
+            </div>
+          </div>
+        )}
+
+        {view === "rodzina" && family !== null && (
+          <div>
+            <div className="mb-3.5">
+              <h2 className="text-[19px] font-semibold text-ink">Mój dom</h2>
+              {renamingFamily ? (
+                <div className="mt-1.5 flex items-center gap-2">
+                  <input
+                    aria-label="Nazwa rodziny"
+                    autoFocus
+                    value={familyNameDraft}
+                    onChange={(e) => setFamilyNameDraft(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") void saveRenameFamily();
+                      if (e.key === "Escape") cancelRenameFamily();
+                    }}
+                    onBlur={() => {
+                      if (familyNameDraft.trim() === family.name) cancelRenameFamily();
+                    }}
+                    className="min-w-0 flex-1 rounded-xl border-[1.5px] border-line bg-cream px-3 py-2 text-ink"
+                  />
+                  <button
+                    onClick={() => void saveRenameFamily()}
+                    disabled={busy}
+                    className="flex-none rounded-[11px] bg-mint px-3.5 py-2 text-[12.5px] font-extrabold text-white disabled:opacity-60"
+                  >
+                    Zapisz
+                  </button>
+                </div>
+              ) : (
+                <div className="mt-1.5 flex items-center gap-2">
+                  <h3 className="text-[15.5px] font-semibold text-ink">{family.name}</h3>
+                  <button
+                    onClick={startRenameFamily}
+                    aria-label="Zmień nazwę rodziny"
+                    className="flex h-7 w-7 items-center justify-center rounded-[9px] text-ink-soft transition-colors hover:bg-cream hover:text-ink"
+                  >
+                    <PencilIcon />
+                  </button>
+                </div>
+              )}
+              {renameError && (
+                <p className="mt-1.5 text-[12.5px] font-semibold text-danger">{renameError}</p>
+              )}
+              <small className="mt-1 block text-[12.5px] text-ink-soft">
                 {guardians.length} {guardians.length === 1 ? "osoba" : "osoby"}
               </small>
             </div>
@@ -1308,6 +1482,7 @@ export function PanelPage() {
         firstTermForOrganizer ? (
           <FirstTermStepperOrganizer
             circleGroupId={myGroups[0]?.id ?? null}
+            organizerSlug={myGroups[0]?.organizer_slug ?? null}
             onClose={() => setModal(null)}
             onDone={() => {
               setModal(null);
@@ -1326,6 +1501,18 @@ export function PanelPage() {
             }}
           />
         )
+      )}
+
+      {/* ---------- modal: załóż rodzinę ---------- */}
+      {modal === "rodzina-nowa" && (
+        <CreateFamilyDialog
+          onClose={() => setModal(null)}
+          onCreated={() => {
+            setModal(null);
+            showToast("Rodzina utworzona");
+            void load({ silent: true });
+          }}
+        />
       )}
 
       {/* ---------- modal: dodaj grupę ---------- */}

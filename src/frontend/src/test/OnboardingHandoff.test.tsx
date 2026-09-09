@@ -28,9 +28,6 @@ vi.mock("../api/people", () => ({
   }),
   getLeadershipsForPerson: vi.fn().mockResolvedValue([]),
 }));
-vi.mock("../api/families", () => ({
-  createLightweightMembers: vi.fn(),
-}));
 vi.mock("../api/products", () => ({
   resolveProduct: vi.fn(),
 }));
@@ -83,7 +80,7 @@ beforeEach(() => {
 });
 
 describe("register -> onboarding -> panel handoff (crosses Group 4 / Group 7 boundary)", () => {
-  it("GUEST: registering lands on the 3-step wizard, and skipping reaches /panel", async () => {
+  it("GUEST: registering lands on the single-step item wizard, and skipping reaches /panel with no family request", async () => {
     mockFetch.mockResolvedValueOnce({
       ok: true,
       status: 201,
@@ -97,13 +94,20 @@ describe("register -> onboarding -> panel handoff (crosses Group 4 / Group 7 bou
     fireEvent.click(screen.getByRole("button", { name: /załóż konto/i }));
 
     // Real AuthProvider.register() -> real navigate -> real OnboardingPage
-    // reading registeredRole, no extra profile fetch needed for the GUEST
-    // branch.
-    expect(await screen.findByLabelText("Krok 1 z 3")).toBeInTheDocument();
+    // reading registeredRole. GUEST onboarding is now one step: the item
+    // form, no family-name / family-members chrome.
+    expect(await screen.findByRole("button", { name: "Zakończ ✓" })).toBeInTheDocument();
+    expect(screen.queryByRole("status")).not.toBeInTheDocument();
+    expect(screen.queryByText(/Krok \d+ z \d+/)).not.toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "Pomiń" }));
 
     expect(await screen.findByText("PANEL")).toBeInTheDocument();
+
+    const familyMemberCalls = mockFetch.mock.calls.filter(([url]) =>
+      String(url).includes("/families/mine/members"),
+    );
+    expect(familyMemberCalls).toHaveLength(0);
   });
 
   it("ORGANIZER: registering lands on the 3-step wizard with a mandatory organization-name step, then 'X' reaches /panel", async () => {

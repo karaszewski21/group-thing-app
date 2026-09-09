@@ -116,6 +116,13 @@ async def get_current_principal(request: Request) -> Principal | None:
     return Principal(username=username, authorities=authorities)
 
 
+OptionalPrincipal = Annotated[Principal | None, Depends(get_current_principal)]
+"""Readability alias for routes that optionally honour a session token —
+`get_current_principal` already returns `None` (never raises) on a missing,
+malformed, or expired token, so a route declaring this stays reachable
+unauthenticated and never 401s on a bad token."""
+
+
 def require_any(*permission_names: str) -> Callable[..., Awaitable[Principal]]:
     """Dependency factory: the caller must be authenticated, and — if any
     `permission_names` are given — must hold at least one of them (checked
@@ -212,11 +219,20 @@ _RAW_MATRIX: tuple[_RawEntry, ...] = (
     (_methods("PUT"), r"^/api/plugins/[^/]+/manifest$", ("PLUGIN_MANAGEMENT",)),  # 20
     (_methods("PATCH"), r"^/api/plugins/[^/]+/enabled$", ("PLUGIN_MANAGEMENT",)),  # 21
     (_methods("DELETE"), r"^/api/plugins/[^/]+$", ("PLUGIN_MANAGEMENT",)),  # 22
+    # Caller's own Term RSVPs (R10). Declared ahead of the public groups rows
+    # and row 26's blanket `^/api/groups(/.*)?$` READ row so the literal
+    # `mine/attendances` path matches here. Caller's party is derived from the
+    # principal in the route — no ownership check beyond authentication + READ.
+    (_methods("GET"), r"^/api/groups/mine/attendances$", ("READ", "mcp:read")),
     # Public circle/term page (`/krag/:groupId/publiczny`) — declared ahead of
     # row 26's blanket /api/groups READ requirement so an anonymous visitor
     # can load it, RSVP, and merge into a real account. Mirrors row 48's
     # placement.
     (_methods("GET"), r"^/api/groups/public/[^/]+$", "PUBLIC"),
+    # Stays PUBLIC (no require_any, no reorder): the route optionally honours a
+    # valid session token via get_current_principal to attach the RSVP to the
+    # caller's account; a missing/invalid/expired token degrades silently to
+    # the anonymous path — never a 401.
     (_methods("POST"), r"^/api/groups/public/[^/]+/rsvp$", "PUBLIC"),
     (_methods("POST"), r"^/api/groups/public/merge$", "PUBLIC"),
     # 26-47: app.party / app.circulation — added beyond spec.md's original 25
@@ -226,6 +242,13 @@ _RAW_MATRIX: tuple[_RawEntry, ...] = (
     # service.py — see standards/backend/security.md.
     (_methods("GET"), r"^/api/groups(/.*)?$", ("READ", "mcp:read")),  # 26
     (_methods("POST"), r"^/api/groups(/.*)?$", ("EDIT", "mcp:edit")),  # 27
+    # Fine-grained families routes — declared ahead of rows 28-29's blanket
+    # families requirements, in evaluation order. Idempotent create-own
+    # family and the guardian-only rename; the PATCH guardian check itself
+    # lives in `app.families.service.rename_family` (raises
+    # AccessDeniedException), the matrix only gates it to EDIT.
+    (_methods("POST"), r"^/api/families/mine$", ("EDIT", "mcp:edit")),
+    (_methods("PATCH"), r"^/api/families/[^/]+$", ("EDIT", "mcp:edit")),
     (_methods("GET"), r"^/api/families(/.*)?$", ("READ", "mcp:read")),  # 28
     (_methods("POST"), r"^/api/families(/.*)?$", ("EDIT", "mcp:edit")),  # 29
     (_methods("POST"), r"^/api/leaderships(/.*)?$", ("EDIT", "mcp:edit")),  # 30

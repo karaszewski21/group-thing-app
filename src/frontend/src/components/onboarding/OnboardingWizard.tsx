@@ -90,21 +90,25 @@ export function OnboardingWizard({ steps, onSkip, onComplete }: OnboardingWizard
           Krąg <span className="text-mint">grupy</span>
         </h1>
 
-        <div className="mb-1.5 flex justify-center gap-2">
-          {steps.map((step, i) => (
-            <span
-              key={step.id}
-              className={`h-2.5 w-2.5 rounded-full ${i === stepIndex ? "bg-mint" : "bg-line"}`}
-            />
-          ))}
-        </div>
-        <p
-          role="status"
-          aria-label={`Krok ${stepIndex + 1} z ${total}`}
-          className="mb-6 text-center text-xs font-bold text-ink-soft"
-        >
-          Krok {stepIndex + 1} z {total}
-        </p>
+        {total > 1 && (
+          <>
+            <div className="mb-1.5 flex justify-center gap-2">
+              {steps.map((step, i) => (
+                <span
+                  key={step.id}
+                  className={`h-2.5 w-2.5 rounded-full ${i === stepIndex ? "bg-mint" : "bg-line"}`}
+                />
+              ))}
+            </div>
+            <p
+              role="status"
+              aria-label={`Krok ${stepIndex + 1} z ${total}`}
+              className="mb-6 text-center text-xs font-bold text-ink-soft"
+            >
+              Krok {stepIndex + 1} z {total}
+            </p>
+          </>
+        )}
 
         <h2 className="mb-4 text-base font-semibold text-ink">{current.title}</h2>
 

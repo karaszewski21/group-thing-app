@@ -11,7 +11,7 @@ from typing import Annotated, cast
 from fastapi import APIRouter, Depends
 from fastapi.encoders import jsonable_encoder
 from fastapi.responses import JSONResponse
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -20,6 +20,7 @@ from app.core.errors import ErrorResponse
 from app.core.security import encode_login_token, verify_password
 from app.db import get_db
 from app.users.models import UserProfile
+from app.users.schemas import normalize_email
 
 from .models import User, user_permissions
 
@@ -31,6 +32,14 @@ DbSession = Annotated[AsyncSession, Depends(get_db)]
 class LoginRequest(BaseModel):
     email: str = Field(min_length=1)
     password: str = Field(min_length=1)
+
+    @field_validator("email")
+    @classmethod
+    def _normalize_email(cls, value: str) -> str:
+        # Same canonical form registration stores — a login must not fail
+        # just because the user typed a different casing (mobile keyboards
+        # auto-capitalize the first letter).
+        return normalize_email(value)
 
 
 class LoginResponse(BaseModel):

@@ -11,10 +11,10 @@ from __future__ import annotations
 from datetime import date
 from typing import cast
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.errors import EntityNotFoundException
+from app.core.errors import AccessDeniedException, EntityNotFoundException
 from app.groups.models import Membership
 from app.groups.service import list_memberships_for_party
 from app.party.models import PartyType
@@ -114,6 +114,69 @@ async def list_families_for_guardian_party(db: AsyncSession, party_id: int) -> l
         return []
     families = (await db.execute(select(Family).where(Family.id.in_(family_ids)))).scalars().all()
     return list(families)
+
+
+async def count_active_child_members(db: AsyncSession, family_id: int) -> int:
+    """Active CHILD-role member count for one Family. Per
+    `standards/backend/queries.md`: a single aggregate query (no per-member
+    loop) — joins `FamilyMembership` to its `FamilyRole`, keeps only
+    still-open memberships (`valid_to IS NULL`) whose role is `CHILD`, so
+    GUARDIANs and soft-closed memberships are both excluded."""
+    result = await db.execute(
+        select(func.count())
+        .select_from(FamilyMembership)
+        .join(FamilyRole, FamilyMembership.from_role_id == FamilyRole.id)
+        .where(
+            FamilyMembership.to_family_id == family_id,
+            FamilyMembership.valid_to.is_(None),
+            FamilyRole.role_type == FamilyRoleType.CHILD,
+        )
+    )
+    return int(result.scalar_one())
+
+
+async def create_own_family(
+    db: AsyncSession, guardian_party_id: int, name: str
+) -> Family:
+    """Self-service "create my family": idempotent create-own (mirrors
+    `create_own_organization`) — a caller who already guards a Family gets
+    that same Family back unchanged (never a rename, never a second row);
+    otherwise a fresh Family is bootstrapped with the caller as sole
+    GUARDIAN / primary contact."""
+    families = await list_families_for_guardian_party(db, guardian_party_id)
+    if families:
+        return families[0]
+    family = await bootstrap_family_for_party(db, name, guardian_party_id)
+    await db.commit()
+    await db.refresh(family)
+    return family
+
+
+async def rename_family(
+    db: AsyncSession, family_id: int, caller_party_id: int, name: str
+) -> Family:
+    """In-place rename, guardian-only — enforced here, not by the coarse
+    matrix (mirrors `update_organization`). Any current GUARDIAN of the
+    family may rename it (not only the primary contact)."""
+    family = await get_family(db, family_id)
+    guardian = (
+        await db.execute(
+            select(FamilyRole.id)
+            .join(FamilyMembership, FamilyMembership.from_role_id == FamilyRole.id)
+            .where(
+                FamilyRole.party_id == caller_party_id,
+                FamilyRole.role_type == FamilyRoleType.GUARDIAN,
+                FamilyMembership.to_family_id == family_id,
+                FamilyMembership.valid_to.is_(None),
+            )
+        )
+    ).first()
+    if guardian is None:
+        raise AccessDeniedException("You do not guard this Family")
+    family.name = name
+    await db.commit()
+    await db.refresh(family)
+    return family
 
 
 async def create_lightweight_family_member(

@@ -15,6 +15,17 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator
 EMAIL_PATTERN = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
 
 
+def normalize_email(value: str) -> str:
+    """Trim surrounding whitespace and lowercase — the canonical form
+    stored in `user_profiles.email` and matched on at login. Every request
+    schema that carries a login/account email (`RegisterRequest`,
+    `LoginRequest`, `MergeAnonymousProfileRequest`) runs this in a
+    `field_validator` so registration and login can never disagree on
+    casing (`standards/global/validation.md` — normalize before you
+    compare)."""
+    return value.strip().lower()
+
+
 class UserProfileResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
@@ -55,10 +66,11 @@ class RegisterRequest(BaseModel):
 
     @field_validator("email")
     @classmethod
-    def _validate_email_format(cls, value: str) -> str:
-        if not EMAIL_PATTERN.match(value):
+    def _normalize_and_validate_email(cls, value: str) -> str:
+        normalized = normalize_email(value)
+        if not EMAIL_PATTERN.match(normalized):
             raise ValueError("Invalid email format")
-        return value
+        return normalized
 
 
 class RegisterResponse(BaseModel):

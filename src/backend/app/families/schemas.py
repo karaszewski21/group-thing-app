@@ -5,7 +5,7 @@ from __future__ import annotations
 from datetime import date, datetime
 from typing import Literal
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 
 class FamilyOut(BaseModel):
@@ -16,6 +16,37 @@ class FamilyOut(BaseModel):
     name: str
     created_at: datetime
     updated_at: datetime
+    # Derived (not an ORM column): active CHILD-role member count of the
+    # caller's family. Populated only by the "mine" reads (`GET
+    # /api/families/mine`, the `POST /api/families/mine` response); every
+    # other `FamilyOut.model_validate(row)` site keeps working via this
+    # default since the ORM row has no such attribute.
+    child_count: int = Field(default=0)
+
+
+def _reject_blank_name(value: str) -> str:
+    trimmed = value.strip()
+    if not trimmed:
+        raise ValueError("name must not be blank")
+    return trimmed
+
+
+class CreateOwnFamilyRequest(BaseModel):
+    """Self-service "create my family" with a caller-supplied name — the
+    caller's party id always comes from the principal, never the body."""
+
+    name: str = Field(min_length=1, max_length=255)
+
+    _strip_name = field_validator("name")(_reject_blank_name)
+
+
+class UpdateFamilyRequest(BaseModel):
+    """Guardian-only in-place rename — the guardian check lives in
+    `service.rename_family`, not the matrix."""
+
+    name: str = Field(min_length=1, max_length=255)
+
+    _strip_name = field_validator("name")(_reject_blank_name)
 
 
 class CreateFamilyRequest(BaseModel):

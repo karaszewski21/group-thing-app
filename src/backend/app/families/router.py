@@ -18,9 +18,11 @@ from .schemas import (
     AddGuardianRequest,
     CreateFamilyRequest,
     CreateLightweightMembersBatchRequest,
+    CreateOwnFamilyRequest,
     FamilyOut,
     FamilyResponse,
     GuardianResponse,
+    UpdateFamilyRequest,
 )
 
 router = APIRouter(tags=["families"])
@@ -47,7 +49,41 @@ async def list_my_families(db: DbSession, principal: ReadPrincipal) -> list[Fami
     role + relationship, not a direct FK."""
     profile = await get_profile_by_principal(db, principal)
     families = await service.list_families_for_guardian_party(db, profile.party_id)
-    return [FamilyOut.model_validate(family) for family in families]
+    out: list[FamilyOut] = []
+    for family in families:
+        item = FamilyOut.model_validate(family)
+        item.child_count = await service.count_active_child_members(db, cast(int, family.id))
+        out.append(item)
+    return out
+
+
+@router.post("/api/families/mine", response_model=FamilyOut, status_code=status.HTTP_201_CREATED)
+async def create_own_family(
+    body: CreateOwnFamilyRequest, db: DbSession, principal: EditPrincipal
+) -> FamilyOut:
+    """Idempotent create-own family with a caller-supplied name — a caller
+    who already guards a Family gets it back unchanged (rename is `PATCH`).
+    Registered ahead of `get_family` per the `/mine`-before-`/{id}`
+    convention."""
+    profile = await get_profile_by_principal(db, principal)
+    family = await service.create_own_family(db, profile.party_id, body.name)
+    out = FamilyOut.model_validate(family)
+    out.child_count = await service.count_active_child_members(db, cast(int, family.id))
+    return out
+
+
+@router.patch("/api/families/{family_id}", response_model=FamilyOut)
+async def rename_family(
+    family_id: int, body: UpdateFamilyRequest, db: DbSession, principal: EditPrincipal
+) -> FamilyOut:
+    """Guardian-only in-place rename. The fine-grained guardian check lives
+    in `service.rename_family` (raises `AccessDeniedException` -> 403),
+    consistent with the organization precedent."""
+    profile = await get_profile_by_principal(db, principal)
+    family = await service.rename_family(db, family_id, profile.party_id, body.name)
+    out = FamilyOut.model_validate(family)
+    out.child_count = await service.count_active_child_members(db, cast(int, family.id))
+    return out
 
 
 @router.post(

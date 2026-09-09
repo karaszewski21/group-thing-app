@@ -13,8 +13,9 @@ import { PluginPageRoute } from "./pages/PluginPageRoute";
 import { LoginPage } from "./pages/LoginPage";
 import { RegisterPage } from "./pages/RegisterPage";
 import { OAuth2AuthorizePage } from "./pages/OAuth2AuthorizePage";
-import { KragGrupyPage } from "./pages/krag/KragGrupyPage";
+import { KragGrupyPage, PublicKragGrupyView } from "./pages/krag/KragGrupyPage";
 import { KragEntryPage } from "./pages/krag/KragEntryPage";
+import { PublicKragRedirectPage } from "./pages/krag/PublicKragRedirectPage";
 import { PanelPage } from "./pages/panel/PanelPage";
 import { OnboardingPage } from "./pages/OnboardingPage";
 import { OrganizationPage } from "./pages/OrganizationPage";
@@ -44,14 +45,6 @@ export const router = createBrowserRouter([
   {
     path: "/oauth2/authorize",
     element: <AuthGuard><OAuth2AuthorizePage /></AuthGuard>,
-  },
-  {
-    // Public, unauthenticated circle/term view (Core Requirement 5) — no
-    // AuthGuard, renders the same KragGrupyPage import, which branches
-    // internally on `isPublic` (Technical Approach §3). Placed above the
-    // AuthGuard-wrapped /krag/:groupId route below for readability.
-    path: "/krag/:groupId/publiczny",
-    element: <KragGrupyPage />,
   },
   {
     // Standalone mobile-style page (own phone-frame chrome) — deliberately
@@ -108,6 +101,23 @@ export const router = createBrowserRouter([
       { path: "plugins/:pluginId/edit", element: <PluginFormPage /> },
       { path: "plugins/:pluginId/*", element: <PluginPageRoute /> },
     ],
+  },
+  {
+    // Per-term public page (unauthenticated, no AuthGuard) — the canonical
+    // shareable URL for one specific term. `:organizationSlug` is cosmetic
+    // (echoed into redirect targets, never validated / never sent to the
+    // backend). Multi-segment, so React Router route-ranking keeps it ahead
+    // of the single-segment `/:organizationSlug` catch-all below regardless
+    // of declaration order — no RESERVED_SLUGS change needed.
+    path: "/:organizationSlug/grupa/:groupId/term/:termId",
+    element: <PublicKragGrupyView />,
+  },
+  {
+    // Term-less resolver (unauthenticated) — fetches the circle, redirects
+    // to the nearest term, or renders the "no terms yet" public page in
+    // place when the circle has zero terms.
+    path: "/:organizationSlug/grupa/:groupId",
+    element: <PublicKragRedirectPage />,
   },
   {
     // Public organizer page (`domena.pl/<slug>`) — deliberately declared

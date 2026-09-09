@@ -1,0 +1,15 @@
+# Design Context Inventory — Add per-term public pages
+
+Stable screen/component IDs for this task. The implementation-planner attaches these as
+`Visual References` on task groups. Sources point into `ascii/ui-mockups.md`.
+
+| ID | Type | Source | Description |
+|----|------|--------|-------------|
+| screen:public-term | screen | analysis/design-context/ascii/ui-mockups.md#screen-public-term-populated | Per-term public page, populated (one URL-named term: circle name + organizer, term date/description, needed-items, "Zapisani opiekunowie", "＋ Zapisz się na zajęcia" CTA). Same `.kg-*` layout as existing `PublicKragGrupyView`; new data source (`?term_id=`). |
+| screen:public-term-post-rsvp | screen | analysis/design-context/ascii/ui-mockups.md#screen-public-term-post-rsvp | Post-RSVP state of the per-term page: "✓ Zapisano!" `.kg-card` replaces the CTA; needed-items gain "Zgłoś się" + inline `AccountMergeForm`. No code change — existing branch. |
+| screen:public-term-no-terms | screen | analysis/design-context/ascii/ui-mockups.md#screen-public-no-terms | "No terms yet" fallback: organizer center + "Organizator nie dodał jeszcze żadnych zajęć." + empty needed-items + empty guardian list + no RSVP CTA. Existing `term === null` behavior of `PublicKragGrupyView`. |
+| screen:term-redirect-loading | screen | analysis/design-context/ascii/ui-mockups.md#screen-term-redirect-loading | Term-less entry (`/krag/:groupId/publiczny`, optional `/:organizationSlug/grupa/:groupId`): brief "Wczytywanie..." in the `.kg-state` frame, then `<Navigate replace>` to nearest term's per-term URL; zero terms → render screen:public-term-no-terms instead. NEW thin resolver, follows `KragEntryPage` pattern. |
+| component:public-term-view | component | analysis/design-context/ascii/ui-mockups.md#screen-public-term-populated | MODIFIED `PublicKragGrupyView` (`src/frontend/src/pages/krag/KragGrupyPage.tsx:494`): reads `:termId` route param, forwards to hook, `.kg-bring` #1 heading "Najbliższy termin" → "Termin". |
+| component:public-term-redirect | component | analysis/design-context/ascii/ui-mockups.md#screen-term-redirect-loading | NEW redirect resolver component in `src/frontend/src/pages/krag/`: `useEffect` → `getPublicCircle(groupId)` → `navigate(perTermUrl, { replace: true })`; reuses `.kg-stage`/`.kg-app`/`.kg-state` shell. |
+| component:panel-term-tile-links | component | analysis/design-context/ascii/ui-mockups.md#links-before-after | Existing PanelPage term tiles (`PanelPage.tsx` ~780 dashboard, ~1028 organizer "Terminy", ~1077 guest "Spotkania"): `to={`/krag/${group.id}/publiczny`}` → `to={`/krag/${group.id}/publiczny/${term.id}`}`. Markup unchanged. |
+| component:stepper-done-links | component | analysis/design-context/ascii/ui-mockups.md#links-before-after | Both first-term steppers' done-screen "Przejdź do publicznej strony →" `<Link>` (`FirstTermStepperOrganizer.tsx:53`, `FirstTermStepperGuest.tsx:82`): capture the discarded `createTerm()` return, deep-link to `/krag/${circleId}/publiczny/${createdTermId}`. |

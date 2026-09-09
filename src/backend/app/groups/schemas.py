@@ -8,7 +8,7 @@ from datetime import date, datetime
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from app.circulation.models import ItemCondition
-from app.users.schemas import EMAIL_PATTERN
+from app.users.schemas import EMAIL_PATTERN, normalize_email
 
 from .models import GroupRoleType, NeededItemCategory, PledgeStatus
 
@@ -19,6 +19,7 @@ class GroupResponse(BaseModel):
     id: int
     party_id: int
     name: str
+    organizer_slug: str | None = None
     created_at: datetime
     updated_at: datetime
 
@@ -163,6 +164,7 @@ class PublicCircleResponse(BaseModel):
     id: int
     name: str
     organizer_display_name: str | None
+    organizer_slug: str | None
     next_term: PublicTermResponse | None
     guardians: list[PublicGuardianResponse]
 
@@ -179,6 +181,28 @@ class RsvpResponse(BaseModel):
     user_profile_id: int
     guardian_name: str
     child_count: int
+    attached_to_account: bool
+
+
+# --- My attendances (authenticated, `GET /api/groups/mine/attendances`) --------
+
+
+class MyAttendanceResponse(BaseModel):
+    """One row of the caller's own Term RSVPs — carries enough to render a
+    panel tile (date, circle name, organizer) and rebuild the public-term
+    link (`organizer_slug` + `group_id` + `term_id`) with no second request.
+    `organizer_display_name` is `None` when the circle currently has no
+    active organizer; `organizer_slug` is always usable (falls back to a
+    stable hash — see `service.resolve_organizer_slug`)."""
+
+    attendance_id: int
+    term_id: int
+    occurs_on: date
+    child_count: int
+    group_id: int
+    group_name: str
+    organizer_display_name: str | None
+    organizer_slug: str
 
 
 # --- Account-merge (unauthenticated, `POST /api/groups/public/merge`) ----------
@@ -191,10 +215,11 @@ class MergeAnonymousProfileRequest(BaseModel):
 
     @field_validator("email")
     @classmethod
-    def _validate_email_format(cls, value: str) -> str:
-        if not EMAIL_PATTERN.match(value):
+    def _normalize_and_validate_email(cls, value: str) -> str:
+        normalized = normalize_email(value)
+        if not EMAIL_PATTERN.match(normalized):
             raise ValueError("Invalid email format")
-        return value
+        return normalized
 
 
 class MergeAnonymousProfileResponse(BaseModel):

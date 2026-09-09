@@ -18,22 +18,27 @@ const inputClass = "rounded-xl border-[1.5px] border-line bg-cream px-3.5 py-2.5
 interface FirstTermStepperOrganizerProps {
   onClose: () => void;
   circleGroupId: number | null;
+  /** The organizer's own Organization slug, or null when they have no
+   * Organization yet — drives the done-screen CTA. */
+  organizerSlug?: string | null;
   onDone: () => void;
 }
 
-export function FirstTermStepperOrganizer({ onClose, circleGroupId, onDone }: FirstTermStepperOrganizerProps) {
+export function FirstTermStepperOrganizer({ onClose, circleGroupId, organizerSlug, onDone }: FirstTermStepperOrganizerProps) {
   const [occursOn, setOccursOn] = useState("");
   const [description, setDescription] = useState("");
   const [busy, setBusy] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
   const [done, setDone] = useState(false);
+  const [createdTermId, setCreatedTermId] = useState<number | null>(null);
 
   async function handleSubmit() {
     if (!occursOn || !circleGroupId) return;
     setBusy(true);
     setFormError(null);
     try {
-      await createTerm({ circle_group_id: circleGroupId, occurs_on: occursOn, description: description || undefined });
+      const created = await createTerm({ circle_group_id: circleGroupId, occurs_on: occursOn, description: description || undefined });
+      setCreatedTermId(created.id);
       setDone(true);
     } catch {
       setFormError("Nie udało się dodać terminu — spróbuj ponownie");
@@ -50,7 +55,7 @@ export function FirstTermStepperOrganizer({ onClose, circleGroupId, onDone }: Fi
           tę stronę może zobaczyć każdy, kto dostanie do niej link, bez logowania.
         </p>
         <Link
-          to={`/krag/${circleGroupId}/publiczny`}
+          to={`/${organizerSlug ?? "krag"}/grupa/${circleGroupId}/term/${createdTermId}`}
           className="mt-4 block w-full rounded-[13px] bg-mint px-5 py-3 text-center text-[13.5px] font-extrabold text-white"
         >
           Przejdź do publicznej strony →

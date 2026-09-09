@@ -4,13 +4,13 @@
 from __future__ import annotations
 
 from datetime import date
-from typing import Annotated
+from typing import Annotated, cast
 
 from fastapi import APIRouter, Depends, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
-from app.core.auth_deps import Principal, require_any
+from app.core.auth_deps import OptionalPrincipal, Principal, require_any
 from app.core.security import encode_login_token
 from app.db import get_db
 from app.users.service import get_profile_by_principal
@@ -31,6 +31,7 @@ from .schemas import (
     MembershipResponse,
     MergeAnonymousProfileRequest,
     MergeAnonymousProfileResponse,
+    MyAttendanceResponse,
     NeededItemResponse,
     PledgeResponse,
     PublicCircleResponse,
@@ -53,7 +54,9 @@ async def create_circle(
     body: CreateCircleRequest, db: DbSession, principal: EditPrincipal
 ) -> GroupResponse:
     group = await service.create_circle(db, body)
-    return GroupResponse.model_validate(group)
+    response = GroupResponse.model_validate(group)
+    response.organizer_slug = await service.resolve_organizer_slug(db, cast(int, group.id))
+    return response
 
 
 @router.post("/api/groups/mine", response_model=GroupResponse, status_code=status.HTTP_201_CREATED)
@@ -62,7 +65,9 @@ async def create_my_circle(
 ) -> GroupResponse:
     profile = await get_profile_by_principal(db, principal)
     circle = await service.create_own_circle(db, profile.party_id, body.name)
-    return GroupResponse.model_validate(circle)
+    response = GroupResponse.model_validate(circle)
+    response.organizer_slug = await service.resolve_organizer_slug(db, cast(int, circle.id))
+    return response
 
 
 @router.get("/api/groups", response_model=list[GroupResponse])
@@ -72,14 +77,23 @@ async def list_groups(db: DbSession, principal: ReadPrincipal) -> list[GroupResp
 
 
 @router.get("/api/groups/public/{group_id}", response_model=PublicCircleResponse)
-async def get_public_circle(group_id: int, db: DbSession) -> PublicCircleResponse:
-    """Unauthenticated — the page a shared `/krag/:groupId/publiczny` link
-    resolves to, per `AUTHORIZATION_MATRIX`'s PUBLIC row declared ahead of
-    the blanket `/api/groups` READ row. Must be registered ahead of
-    `get_group` below, since `/public/{id}` would otherwise be swallowed by
-    `{group_id}: int` and fail path-param conversion instead of matching
-    here."""
-    return await service.get_public_circle_view(db, group_id)
+async def get_public_circle(
+    group_id: int, db: DbSession, term_id: int | None = None
+) -> PublicCircleResponse:
+    """Unauthenticated — the page a shared `/<slug>/grupa/<groupId>/term/<termId>`
+    (or term-less `/<slug>/grupa/<groupId>`) link resolves to. Still matched
+    by the unchanged `^/api/groups/public/[^/]+$` PUBLIC row in
+    `AUTHORIZATION_MATRIX` (declared ahead of the blanket `/api/groups` READ
+    row) — `term_id` is a query parameter, not a path segment, so the path
+    match is unaffected and no new matrix row / `Depends` / route-order
+    change is needed. Must be registered ahead of `get_group` below, since
+    `/public/{id}` would otherwise be swallowed by `{group_id}: int` and
+    fail path-param conversion instead of matching here.
+
+    `term_id` given: that exact Term drives the view (404 if it does not
+    exist or belongs to another Circle). `term_id` omitted: the nearest
+    upcoming Term is picked (else the most recent past Term)."""
+    return await service.get_public_circle_view(db, group_id, term_id)
 
 
 @router.post(
@@ -87,11 +101,19 @@ async def get_public_circle(group_id: int, db: DbSession) -> PublicCircleRespons
     response_model=RsvpResponse,
     status_code=status.HTTP_201_CREATED,
 )
-async def create_rsvp(group_id: int, body: CreateRsvpRequest, db: DbSession) -> RsvpResponse:
+async def create_rsvp(
+    group_id: int, body: CreateRsvpRequest, db: DbSession, principal: OptionalPrincipal = None
+) -> RsvpResponse:
     """Unauthenticated — anyone with the public circle-page link may RSVP
-    without an account. Mirrors `get_public_circle`'s unauthenticated
-    signature exactly (no `Depends(require_any(...))`)."""
-    return await service.create_rsvp(db, group_id, body.term_id, body.guardian_name, body.child_count)
+    without an account (no `Depends(require_any(...))`; stays PUBLIC in
+    `AUTHORIZATION_MATRIX`). A valid session token is optionally honoured
+    via `get_current_principal`: it attaches the `TermAttendance` to the
+    caller's existing party (idempotent per `(party, term)`) instead of
+    minting a new anonymous profile. A missing / malformed / expired token
+    degrades silently to the anonymous path — never a 401."""
+    return await service.create_rsvp(
+        db, group_id, body.term_id, body.guardian_name, body.child_count, principal
+    )
 
 
 @router.post("/api/groups/public/merge", response_model=MergeAnonymousProfileResponse)
@@ -111,10 +133,24 @@ async def merge_anonymous_profile(
     return MergeAnonymousProfileResponse(token=token, party_id=profile.party_id)
 
 
+@router.get("/api/groups/mine/attendances", response_model=list[MyAttendanceResponse])
+async def list_my_attendances(
+    db: DbSession, principal: ReadPrincipal
+) -> list[MyAttendanceResponse]:
+    """The caller's own Term RSVPs (R10). Registered ahead of `get_group`
+    below so the literal `mine/attendances` segments aren't consumed by
+    `{group_id}: int` path conversion. Caller's party is derived from the
+    principal — no ownership check beyond authentication + READ."""
+    profile = await get_profile_by_principal(db, principal)
+    return await service.list_my_attendances(db, profile.party_id)
+
+
 @router.get("/api/groups/{group_id}", response_model=GroupResponse)
 async def get_group(group_id: int, db: DbSession, principal: ReadPrincipal) -> GroupResponse:
     group = await service.get_group(db, group_id)
-    return GroupResponse.model_validate(group)
+    response = GroupResponse.model_validate(group)
+    response.organizer_slug = await service.resolve_organizer_slug(db, group_id)
+    return response
 
 
 @router.get("/api/groups/{group_id}/leadership", response_model=LeadershipResponse | None)

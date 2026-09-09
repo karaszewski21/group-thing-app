@@ -1,0 +1,152 @@
+orchestrator:
+  started_phase: phase-1
+  completed_phases: [phase-1-analysis, phase-1, phase-2-analysis, phase-2, phase-3, phase-5, phase-7, phase-8, phase-9, phase-10, phase-11, phase-14]
+  skipped_phases_verification: [phase-12-e2e, phase-13-user-docs]
+  skipped_phases: [phase-4-ui-mockups, phase-6-spec-audit]
+  skipped_notes:
+    phase-4-ui-mockups: "User explicitly chose 'Pomiń makiety' at the Phase 3 exit gate; mockups to be described in-prose in the spec."
+    phase-6-spec-audit: "User explicitly chose 'Pomiń audyt' at the Phase 5 exit gate."
+  tdd_red_passed: true
+  tdd_green_passed: true
+  failed_phases: []
+  auto_fix_attempts: {}
+  options:
+    spec_audit_enabled: true
+    skip_test_suite: true
+    e2e_enabled: false
+    user_docs_enabled: true
+    code_review_enabled: true
+    pragmatic_review_enabled: false
+    reality_check_enabled: false
+    production_check_enabled: false
+    skip_test_suite: false
+    sequential: true
+  created: 2026-09-09
+  updated: 2026-09-09
+  task_path: .maister/tasks/development/2026-09-09-guest-onboarding-family-panel
+  task_ids: {}
+
+task:
+  title: Guest onboarding simplification & family creation moved to panel
+  description: |
+    1. Fix guest onboarding — do not ask guests about family and members;
+       keep only the "add things/items" step.
+    2. Move family creation into the panel (like the current hamburger menu
+       entry). If a logged-in user has no family, the panel shows a 404-style
+       state with a dialog: step 1 (family name) and step 2 (members) taken
+       from the current onboarding. Do not force family creation up front at
+       account creation time.
+    3. Bug: an already-logged-in user cannot sign up for classes — temporary
+       accounts are being created instead of using the existing session.
+    4. For a guest (no account) who wants to sign up for classes — suggest
+       creating an account but do not force it.
+  status: completed
+  tags: [onboarding, guest, family, panel, auth]
+  priority: high
+
+task_context:
+  risk_level: null
+  clarifications_resolved: true
+  tech_clarified: true
+  architecture_decision: "RSVP endpoint reads optional bearer token (soft auth, no 401); create_rsvp attaches to existing party when logged in. Family creation moves to Panel 'Mój dom' empty state with 2-step dialog; backend persists typed family name. Guest onboarding reduced to 1 step (items only)."
+  scope_expanded: true
+  architecture_decision: null
+  task_characteristics:
+    has_reproducible_defect: true
+    modifies_existing_code: true
+    creates_new_entities: true
+    involves_data_operations: true
+    ui_heavy: true
+  project_context:
+    project_doc_paths:
+      - .maister/docs/project/tech-stack.md
+      - .maister/docs/project/architecture.md
+  design_reference:
+    source: null
+    mockup_count: 0
+    has_brief: false
+    index_path: null
+  risk_level: medium-high
+  phase_summaries:
+    codebase_analysis:
+      key_files:
+        - src/frontend/src/components/onboarding/steps/guestSteps.tsx
+        - src/frontend/src/pages/panel/PanelPage.tsx
+        - src/frontend/src/components/panel/FirstTermStepperGuest.tsx
+        - src/frontend/src/pages/krag/KragGrupyPage.tsx
+        - src/frontend/src/components/krag/RsvpDialog.tsx
+        - src/frontend/src/hooks/usePublicKragGrupy.ts
+        - src/backend/app/groups/router.py
+        - src/backend/app/groups/service.py
+        - src/backend/app/core/auth_deps.py
+        - src/frontend/src/api/families.ts
+      primary_language: "TypeScript/React (frontend), Python/FastAPI (backend)"
+      summary: >
+        Guest onboarding = 3 skippable steps (family-name draft never persisted,
+        family-members -> POST /api/families/mine/members, items). Panel has no explicit
+        create-family action; family auto-bootstraps on first member add and discards the
+        typed name (auto-names "Rodzina <display_name>"). RSVP bug root cause CONFIRMED:
+        POST /api/groups/public/{id}/rsvp has NO auth dependency and create_rsvp hardcodes
+        account_user_id=None; public page never calls useAuth(); Bearer header sent but
+        ignored. AccountMergeForm already exists for guest->account upgrade post-RSVP.
+    clarifications: []
+    gap_analysis:
+      integration_points:
+        - "app/groups/router.py create_rsvp gains Depends(get_current_principal) -> Principal|None (existing never-raising dep)"
+        - "app/groups/service.py create_rsvp(..., principal=None); attach TermAttendance to profile.party_id when logged in"
+        - "app/families/schemas.py + service.py: optional family_name plumbed into existing bootstrap_family_for_party"
+        - "guestSteps.tsx reduced to [items]; NEW CreateFamilyDialog.tsx mirrors FirstTermStepperGuest"
+        - "PanelPage.tsx no-family branch in 'rodzina' view + new ModalKind"
+        - "KragGrupyPage PublicKragGrupyView reads useAuth(); RsvpDialog logged-in variant"
+      summary: >
+        All 4 threads well-scoped. RSVP fix smaller than expected: get_current_principal
+        already returns Principal|None and never raises — no new soft-auth dep needed.
+        bootstrap_family_for_party already accepts a name (Q3 ~3 lines). No Alembic migration.
+        Main user-journey gap: logged-in attendee has no in-app view of classes they signed up for.
+    scope_clarifications:
+      scope_expanded: true
+      summary: >
+        D1: new dedicated POST /api/families/mine endpoint (idempotent, named). D2: family always
+        has >=1 member — creator auto-added as first GUARDIAN/primary; step 2 optional. D3: hide
+        wizard chrome when single step. D4/D5/D6/D7 all accepted as expansions: family rename
+        (PATCH /api/families/{id}), server-derived RSVP attached_to_account state, "Zapisane zajęcia"
+        panel view (GET /api/groups/mine/attendances), account suggestion in PublicKragGrupyView
+        confirmation block.
+    ui_mockups: {components_designed: [], summary: null}
+    specification:
+      summary: >
+        spec.md: 10 requirements (R1-R10). 3 new endpoints (POST /api/families/mine idempotent,
+        PATCH /api/families/{id} guardian-only rename, GET /api/groups/mine/attendances) + 1 changed
+        (POST rsvp gains optional Depends(get_current_principal)). No DB schema change, no migration.
+        Reuse-heavy: CreateFamilyDialog mirrors FirstTermStepperGuest; bootstrap_family_for_party +
+        create_own_* idempotent pattern; update_organization owner-check pattern. ~20 named tests
+        across 6 backend + 4 frontend files. Open-for-planning: R6 CHILD-count field placement (A2).
+    architecture_decision: {decision: null, summary: null}
+
+verification_context:
+  last_status: passed_with_issues
+  issues_found: [W1, W2, W3, W4, I1, I2, I3, I4, I5, I6, "spec-422-vs-400"]
+  fixes_applied:
+    - "I3: _resolve_organizer_display_name guards EntityNotFoundException -> organizer_display_name None (no 500 on /mine/attendances) + regression test"
+    - "W2: merged into single _resolve_organizer(db, group_id) helper — one leadership/party lookup per circle"
+    - "I5: CreateFamilyDialog draft members keyed on stable UI-only id (was array index) + middle-removal test"
+    - "I1: comment on create_rsvp logged-in-branch fall-through for unmerged anonymous profile"
+    - "I4: .kg-error class + --danger token in shared krag CSS; RsvpDialogLoggedIn uses it"
+    - "I6: comment on child_count===0 banner behaviour"
+    - "spec.md R3/R4 + API table: 422 -> 400 with app/core/errors.py note"
+  not_fixed: [W1, W3, W4, I2]
+  not_fixed_reasons:
+    W1: "user did not select — low impact (typically 1 family/guardian)"
+    W3: "pre-existing, not introduced by this task"
+    W4: "pre-existing, not introduced by this task"
+    I2: "needs an Alembic migration; spec scoped out migrations — follow-up task"
+  post_fix_tests:
+    backend: "35 passed / 0 failed (test_rsvp, test_families, test_my_attendances, test_public_term, test_lightweight_family_members)"
+    frontend: "59 passed / 0 failed (PanelPage 37, PublicKragGrupyPage 22); tsc --noEmit clean"
+  residual_notes:
+    - "test name test_createOwnFamily_blankName_returns422 still says 422 though it asserts 400 — cosmetic"
+    - "spec.md standards-compliance section (~lines 380/385) still lists 422 generically"
+    - "RsvpDialog.tsx / AccountMergeForm.tsx still use inline #B4443A — could migrate to .kg-error later"
+  decisions_made:
+    - "Fix I3, I5, W2, I1/I4/I6; update spec 422->400; defer W1/W3/W4/I2"
+  reverify_count: 1

@@ -11,6 +11,7 @@ may withdraw/fulfill their own Pledge, ...) live here, raising
 
 from __future__ import annotations
 
+import hashlib
 from datetime import date
 from typing import cast
 
@@ -22,6 +23,7 @@ from app.circulation import service as circulation_service
 from app.circulation.models import ReservationStatus
 from app.core.auth_deps import Principal
 from app.core.errors import AccessDeniedException, EntityNotFoundException
+from app.organizations import service as organizations_service
 from app.party.models import PartyType
 from app.party.service import create_party
 from app.users.models import UserProfile
@@ -53,6 +55,7 @@ from .schemas import (
     CreateNeededItemRequest,
     CreateTermRequest,
     FulfillPledgeRequest,
+    MyAttendanceResponse,
     PublicCircleResponse,
     PublicGuardianResponse,
     PublicNeededItemResponse,
@@ -431,7 +434,9 @@ async def get_needed_item(db: AsyncSession, needed_item_id: int) -> NeededItem:
 
 
 async def list_needed_items(db: AsyncSession, term_id: int) -> list[NeededItem]:
-    result = await db.execute(select(NeededItem).where(NeededItem.term_id == term_id))
+    result = await db.execute(
+        select(NeededItem).where(NeededItem.term_id == term_id).order_by(NeededItem.id)
+    )
     return list(result.scalars().all())
 
 
@@ -543,14 +548,140 @@ async def list_attendances_for_term(db: AsyncSession, term_id: int) -> list[Term
     return list(result.scalars().all())
 
 
-async def get_public_circle_view(db: AsyncSession, group_id: int) -> PublicCircleResponse:
+def _fallback_organizer_slug(seed: str) -> str:
+    """A stable, URL-safe pseudo-slug for the `/<slug>/grupa/<id>/term/<id>`
+    public URL when the organizer has not created an `Organization`. Keyed on
+    the organizer's party id so every Circle that person leads shares one
+    prefix, exactly as a real Organization slug would.
+
+    Not a secret: the slug segment is cosmetic (the backend fetches by
+    `group_id` + `term_id` and never validates it) and `group_id`/`term_id`
+    are already in the URL — so a plain digest, no pepper, is enough.
+    """
+    return "k-" + hashlib.blake2s(seed.encode("utf-8"), digest_size=6).hexdigest()
+
+
+async def resolve_organizer_slug(db: AsyncSession, group_id: int) -> str:
+    """The Circle's public-URL slug: the organizer's own `Organization` slug
+    when they have one, otherwise a stable hash (`_fallback_organizer_slug`)
+    so an organizer who does not want an Organization can still share
+    per-term links. Never `None` — every Circle always has a usable slug.
+
+    Cross-bounded-context read via a plain function call into
+    `app.organizations.service` + FK-id chaining (active `Leadership` ->
+    organizer party -> owned `Organization`) — no shared model, no ORM
+    relationship crossing the boundary, per `standards/backend/models.md`.
+    """
+    leadership = await get_current_leadership(db, group_id)
+    if leadership is None:
+        return _fallback_organizer_slug(f"group:{group_id}")
+    party_id = await _group_role_party_id(db, leadership.from_role_id)
+    organization = await organizations_service.get_own_organization(db, party_id)
+    if organization is not None:
+        return organization.slug
+    return _fallback_organizer_slug(f"party:{party_id}")
+
+
+async def _resolve_organizer(db: AsyncSession, group_id: int) -> tuple[str | None, str]:
+    """`(display_name, slug)` for a Circle's active organizer, resolving the
+    active `Leadership` -> `GroupRole` party id chain ONCE and deriving both
+    from it — instead of `_resolve_organizer_display_name` and
+    `resolve_organizer_slug` each re-running that chain per circle in
+    `list_my_attendances`.
+
+    `display_name` is `None` when the Circle has no active `Leadership` OR the
+    organizer party has no `UserProfile` — a missing organizer profile must
+    degrade gracefully, not 500 the whole attendances response (mirrors how
+    `create_rsvp` catches `EntityNotFoundException` for
+    `get_profile_by_principal`). `slug` is never `None` (`_fallback_organizer_slug`).
+
+    `resolve_organizer_slug` is kept as-is for its other callers; the slug
+    derivation here is deliberately identical."""
+    leadership = await get_current_leadership(db, group_id)
+    if leadership is None:
+        return None, _fallback_organizer_slug(f"group:{group_id}")
+
+    organizer_party_id = await _group_role_party_id(db, leadership.from_role_id)
+
+    display_name: str | None = None
+    try:
+        organizer_profile = await get_profile_by_party(db, organizer_party_id)
+        display_name = organizer_profile.display_name
+    except EntityNotFoundException:
+        display_name = None
+
+    organization = await organizations_service.get_own_organization(db, organizer_party_id)
+    slug = (
+        organization.slug
+        if organization is not None
+        else _fallback_organizer_slug(f"party:{organizer_party_id}")
+    )
+    return display_name, slug
+
+
+async def list_my_attendances(db: AsyncSession, party_id: int) -> list[MyAttendanceResponse]:
+    """The caller's own Term RSVPs, newest class last.
+
+    One joined `select(TermAttendance, Term, Group)` (these entities carry no
+    ORM `relationship()` — `lazy="raise"` + cross-BC FK-id only, per
+    `standards/backend/models.md` — so an explicit multi-entity join is the
+    correct eager form, not `joinedload`), with SQL-level ordering per
+    `standards/backend/queries.md` (no in-Python sort). Chosen ordering (A4):
+    chronological ascending by `Term.occurs_on`, then `TermAttendance.id` —
+    deterministic and consistent with `list_terms`.
+
+    Organizer `display_name` + `slug` are resolved once per DISTINCT circle in
+    the result (a caller typically attends 1-3 circles) — the same bounded-loop
+    precedent as `list_group_memberships_for_family`, not an N+1 over rows.
+    """
+    result = await db.execute(
+        select(TermAttendance, Term, Group)
+        .join(Term, TermAttendance.term_id == Term.id)
+        .join(Group, Term.circle_group_id == Group.id)
+        .where(TermAttendance.party_id == party_id)
+        .order_by(Term.occurs_on.asc(), TermAttendance.id.asc())
+    )
+    rows = result.all()
+
+    distinct_group_ids = {cast(int, group.id) for _attendance, _term, group in rows}
+    organizer_info: dict[int, tuple[str | None, str]] = {
+        group_id: await _resolve_organizer(db, group_id) for group_id in distinct_group_ids
+    }
+
+    responses: list[MyAttendanceResponse] = []
+    for attendance, term, group in rows:
+        display_name, slug = organizer_info[cast(int, group.id)]
+        responses.append(
+            MyAttendanceResponse(
+                attendance_id=cast(int, attendance.id),
+                term_id=cast(int, term.id),
+                occurs_on=term.occurs_on,
+                child_count=attendance.child_count,
+                group_id=cast(int, group.id),
+                group_name=group.name,
+                organizer_display_name=display_name,
+                organizer_slug=slug,
+            )
+        )
+    return responses
+
+
+async def get_public_circle_view(
+    db: AsyncSession, group_id: int, term_id: int | None = None
+) -> PublicCircleResponse:
     """Unauthenticated read assembled server-side in one call: organizer
     name (via the active `Leadership`, `None` if the Circle currently has
-    no organizer), the next upcoming Term (falling back to the most recent
-    past Term so the page is never empty), its needed items, and the
-    RSVP'd guardians' display names. Never reads or returns anything about
-    children beyond each guardian's own aggregate `child_count` — there is
-    no per-attendee child data anywhere in the schema to leak."""
+    no organizer), the organizer's Organization slug, one Term, its needed
+    items, and the RSVP'd guardians' display names. Never reads or returns
+    anything about children beyond each guardian's own aggregate
+    `child_count` — there is no per-attendee child data anywhere in the
+    schema to leak.
+
+    `term_id` given: that exact Term drives the view — `EntityNotFoundException`
+    (-> 404) when it does not exist or belongs to another Circle. `term_id`
+    absent: the next upcoming Term is picked (falling back to the most
+    recent past Term so the page is never empty; `None` when the Circle has
+    zero Terms)."""
     group = await get_group(db, group_id)
 
     organizer_display_name: str | None = None
@@ -560,11 +691,19 @@ async def get_public_circle_view(db: AsyncSession, group_id: int) -> PublicCircl
         organizer_profile = await get_profile_by_party(db, organizer_party_id)
         organizer_display_name = organizer_profile.display_name
 
-    terms = await list_terms(db, group_id)
+    organizer_slug = await resolve_organizer_slug(db, group_id)
+
     next_term: Term | None = None
-    if terms:
-        upcoming = [term for term in terms if term.occurs_on >= date.today()]
-        next_term = min(upcoming, key=lambda term: term.occurs_on) if upcoming else terms[0]
+    if term_id is not None:
+        term = await get_term(db, term_id)
+        if term.circle_group_id != group_id:
+            raise EntityNotFoundException("Term", term_id)
+        next_term = term
+    else:
+        terms = await list_terms(db, group_id)
+        if terms:
+            upcoming = [term for term in terms if term.occurs_on >= date.today()]
+            next_term = min(upcoming, key=lambda term: term.occurs_on) if upcoming else terms[0]
 
     next_term_response: PublicTermResponse | None = None
     guardians: list[PublicGuardianResponse] = []
@@ -603,23 +742,75 @@ async def get_public_circle_view(db: AsyncSession, group_id: int) -> PublicCircl
         id=cast(int, group.id),
         name=group.name,
         organizer_display_name=organizer_display_name,
+        organizer_slug=organizer_slug,
         next_term=next_term_response,
         guardians=guardians,
     )
 
 
 async def create_rsvp(
-    db: AsyncSession, group_id: int, term_id: int, guardian_name: str, child_count: int
+    db: AsyncSession,
+    group_id: int,
+    term_id: int,
+    guardian_name: str,
+    child_count: int,
+    principal: Principal | None = None,
 ) -> RsvpResponse:
-    """Anonymous RSVP: no `Principal` — anyone with the public circle-page
-    link may call this. Mirrors `create_lightweight_family_member`'s
-    four-step Party->UserProfile->attendance-row shape exactly, with an
-    added ownership check (`term.circle_group_id == group_id`) defending
-    against a caller pairing an unrelated `group_id`/`term_id` in the
-    request."""
+    """Public RSVP. Anonymous (no / invalid / expired token, `principal`
+    unresolvable): mirrors `create_lightweight_family_member`'s four-step
+    Party->UserProfile->attendance-row shape exactly, `attached_to_account`
+    False. Logged-in (`principal` resolves to a real account-backed
+    `UserProfile`): attaches a `TermAttendance` to that profile's existing
+    party — no new Party/UserProfile — idempotent per `(party, term.id)`
+    (an existing row's `child_count` is refreshed in place), the request
+    `guardian_name` is ignored in favour of the profile `display_name`,
+    `attached_to_account` True. The ownership check
+    (`term.circle_group_id == group_id`) guards both paths. This route
+    never 401s and never 500s on a bad token."""
     term = await get_term(db, term_id)
     if term.circle_group_id != group_id:
         raise EntityNotFoundException("Term", term_id)
+
+    profile: UserProfile | None = None
+    if principal is not None:
+        try:
+            profile = await get_profile_by_principal(db, principal)
+        except EntityNotFoundException:
+            profile = None
+
+    # A principal that resolves only to an unmerged anonymous profile
+    # (`account_user_id is None`) deliberately falls through to the anonymous
+    # branch below rather than attaching here — the attach path requires a real
+    # account-backed profile.
+    if profile is not None and profile.account_user_id is not None:
+        existing = (
+            await db.execute(
+                select(TermAttendance).where(
+                    TermAttendance.term_id == term.id,
+                    TermAttendance.party_id == profile.party_id,
+                )
+            )
+        ).scalar_one_or_none()
+        if existing is not None:
+            existing.child_count = child_count
+            attendance = existing
+        else:
+            attendance = TermAttendance(
+                term_id=cast(int, term.id),
+                party_id=cast(int, profile.party_id),
+                child_count=child_count,
+            )
+            db.add(attendance)
+        await db.commit()
+        await db.refresh(attendance)
+        return RsvpResponse(
+            id=cast(int, attendance.id),
+            term_id=cast(int, term.id),
+            user_profile_id=cast(int, profile.id),
+            guardian_name=profile.display_name,
+            child_count=child_count,
+            attached_to_account=True,
+        )
 
     party = await create_party(db, PartyType.PERSON)
     profile = UserProfile(
@@ -644,6 +835,7 @@ async def create_rsvp(
         user_profile_id=cast(int, profile.id),
         guardian_name=guardian_name,
         child_count=child_count,
+        attached_to_account=False,
     )
 
 

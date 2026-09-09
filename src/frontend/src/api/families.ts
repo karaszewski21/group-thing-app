@@ -7,6 +7,10 @@ export interface FamilyOut {
   name: string;
   created_at: string;
   updated_at: string;
+  /** Active CHILD-role member count of the caller's family — populated by
+   * the "mine" reads (`GET /api/families/mine`, the `POST
+   * /api/families/mine` response); 0 elsewhere. */
+  child_count: number;
 }
 
 export interface CreateFamilyRequest {
@@ -69,6 +73,18 @@ export function getFamiliesForGuardianParty(partyId: number): Promise<FamilyOut[
 
 export function getFamily(familyId: number): Promise<FamilyResponse> {
   return api.get(`/families/${familyId}`);
+}
+
+/** Idempotent create-own family with a caller-supplied name — a caller who
+ * already guards a family gets it back unchanged (use `renameFamily` to
+ * rename). */
+export function createOwnFamily(name: string): Promise<FamilyOut> {
+  return api.post("/families/mine", { name });
+}
+
+/** Guardian-only in-place rename. */
+export function renameFamily(familyId: number, name: string): Promise<FamilyOut> {
+  return api.patch(`/families/${familyId}`, { name });
 }
 
 export function addGuardian(familyId: number, request: AddGuardianRequest): Promise<GuardianResponse> {

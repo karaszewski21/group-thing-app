@@ -13,7 +13,10 @@ interface UsePublicKragGrupyResult {
  * authenticated call (which would 401 a visitor with no token). The
  * backend assembles organizer/term/needed-items/guardians in one call,
  * so unlike `useKragGrupy` there is no client-side fan-out needed. */
-export function usePublicKragGrupy(groupId: number): UsePublicKragGrupyResult {
+export function usePublicKragGrupy(
+  groupId: number,
+  termId?: number,
+): UsePublicKragGrupyResult {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [circle, setCircle] = useState<PublicCircleResponse | null>(null);
@@ -22,13 +25,13 @@ export function usePublicKragGrupy(groupId: number): UsePublicKragGrupyResult {
     setLoading(true);
     setError(null);
     try {
-      setCircle(await getPublicCircle(groupId));
+      setCircle(await getPublicCircle(groupId, termId));
     } catch (err) {
       setError(err instanceof Error ? err.message : "Nie udalo sie wczytac danych grupy");
     } finally {
       setLoading(false);
     }
-  }, [groupId]);
+  }, [groupId, termId]);
 
   useEffect(() => {
     void refetch();

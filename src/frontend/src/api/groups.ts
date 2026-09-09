@@ -5,6 +5,7 @@ export interface GroupResponse {
   id: number;
   party_id: number;
   name: string;
+  organizer_slug: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -95,7 +96,7 @@ export function endMembership(membershipId: number, validTo?: string): Promise<M
 }
 
 /* ------------------------------------------------------------------ */
-/*  Public circle/term view + RSVP (unauthenticated, `/krag/:id/publiczny`) */
+/*  Public circle/term view + RSVP (unauthenticated, `/:slug/grupa/:id/term/:id`) */
 /* ------------------------------------------------------------------ */
 
 export interface PublicNeededItemResponse {
@@ -120,6 +121,7 @@ export interface PublicCircleResponse {
   id: number;
   name: string;
   organizer_display_name: string | null;
+  organizer_slug: string | null;
   next_term: PublicTermResponse | null;
   guardians: PublicGuardianResponse[];
 }
@@ -136,10 +138,15 @@ export interface RsvpResponse {
   user_profile_id: number;
   guardian_name: string;
   child_count: number;
+  attached_to_account: boolean;
 }
 
-export function getPublicCircle(groupId: number): Promise<PublicCircleResponse> {
-  return api.get(`/groups/public/${groupId}`);
+export function getPublicCircle(
+  groupId: number,
+  termId?: number,
+): Promise<PublicCircleResponse> {
+  const query = termId !== undefined ? `?term_id=${termId}` : "";
+  return api.get(`/groups/public/${groupId}${query}`);
 }
 
 /**
@@ -155,6 +162,28 @@ export function guestProfileIdKey(groupId: number, termId: number): string {
 
 export function createRsvp(groupId: number, request: CreateRsvpRequest): Promise<RsvpResponse> {
   return api.post(`/groups/public/${groupId}/rsvp`, request);
+}
+
+/* ------------------------------------------------------------------ */
+/*  My attendances (authenticated, `GET /api/groups/mine/attendances`)  */
+/* ------------------------------------------------------------------ */
+
+/** One row of the caller's own Term RSVPs — enough to render a panel tile
+ * (date, circle name, organizer) and rebuild the public-term link
+ * (`organizer_slug` + `group_id` + `term_id`) with no second request. */
+export interface MyAttendanceResponse {
+  attendance_id: number;
+  term_id: number;
+  occurs_on: string;
+  child_count: number;
+  group_id: number;
+  group_name: string;
+  organizer_display_name: string | null;
+  organizer_slug: string;
+}
+
+export function getMyAttendances(): Promise<MyAttendanceResponse[]> {
+  return api.get("/groups/mine/attendances");
 }
 
 /* ------------------------------------------------------------------ */

@@ -1,0 +1,199 @@
+orchestrator:
+  started_phase: phase-1
+  completed_phases: [phase-1, phase-2, phase-4, phase-5, phase-7, phase-8, phase-14]
+  skipped_phases: [phase-3, phase-6, phase-9, phase-10, phase-11, phase-12, phase-13]
+  failed_phases: []
+  auto_fix_attempts: {}
+  options:
+    spec_audit_enabled: false  # user skipped Phase 6
+    skip_test_suite: true
+    e2e_enabled: true       # default: ui_heavy true
+    user_docs_enabled: true # default: ui_heavy + creates_new_entities true
+    code_review_enabled: true
+    pragmatic_review_enabled: true
+    reality_check_enabled: true
+    production_check_enabled: true
+    sequential: null
+  created: 2026-09-08T00:00:00Z
+  updated: 2026-09-08T00:00:00Z
+  task_path: .maister/tasks/development/2026-09-08-per-term-public-pages
+
+task:
+  title: Add per-term public pages
+  status: completed
+  description: >
+    Today the only public circle view is /krag/:groupId/publiczny, hardwired to
+    circle.next_term (backend get_public_circle_view picks the single nearest term).
+    When an organizer creates a second term, every link in the Panel still points at
+    the circle page and shows the nearest term, not the one they created. Expected:
+    a shareable per-term URL (organizer wrote domena.pl/<slug>/grupa/<x>/term/<y>).
+  tags: [frontend, backend, public-pages, routing]
+  priority: medium
+
+task_context:
+  risk_level: medium
+  clarifications_resolved: true
+  scope_expanded: true  # mild: redirect resolver + zero-term fallback + group-id fallback route
+  architecture_decision: >
+    Canonical route /:organizationSlug/grupa/:groupId/term/:termId (slug cosmetic, NOT validated),
+    registered before the /:organizationSlug catch-all. Backend GET /api/groups/public/{group_id}?term_id=
+    (query param -> no auth-matrix change), generalize get_public_circle_view(db, group_id, term_id=None)
+    reusing the term.circle_group_id==group_id guard. Term-less entries redirect to nearest term;
+    zero-term circles render the existing "no terms yet" page. Old /krag/:groupId/publiczny kept as
+    redirect. No term switcher / no public terms list. Private view out of scope. 5 link builders updated.
+    list_needed_items gets ORDER BY id.
+  task_characteristics:
+    has_reproducible_defect: false
+    modifies_existing_code: true
+    creates_new_entities: true
+    involves_data_operations: true
+    ui_heavy: true
+  design_reference:
+    source: "phase-4-ascii"
+    mockup_count: 5
+    has_brief: false
+    index_path: analysis/design-context/INDEX.md
+  project_context:
+    project_doc_paths:
+      - .maister/docs/INDEX.md
+      - .maister/docs/project/architecture.md
+      - .maister/docs/project/tech-stack.md
+  phase_summaries:
+    codebase_analysis:
+      key_files:
+        - src/frontend/src/router.tsx
+        - src/frontend/src/pages/krag/KragGrupyPage.tsx
+        - src/backend/app/groups/service.py
+        - src/backend/app/groups/router.py
+        - src/backend/app/groups/schemas.py
+        - src/frontend/src/api/groups.ts
+        - src/backend/app/core/auth_deps.py
+        - src/frontend/src/pages/panel/PanelPage.tsx
+        - src/frontend/src/components/panel/FirstTermStepperOrganizer.tsx
+        - src/frontend/src/components/panel/FirstTermStepperGuest.tsx
+        - src/frontend/src/hooks/usePublicKragGrupy.ts
+      primary_language: "TypeScript (frontend), Python/FastAPI (backend)"
+      summary: >
+        Public circle view is group-scoped only (/krag/:groupId/publiczny); term selection is
+        server-side in get_public_circle_view (nearest upcoming, else most recent). Per-term
+        helpers already take a term_id; RSVP + guestProfileIdKey(groupId,termId) already
+        term-scoped. Adding per-term pages = plumb a term id through one backend endpoint,
+        one API fn, one hook, one route, one view + update 5 link builders. Complexity moderate,
+        risk low-medium (auth-matrix ordering, org-slug route family).
+    clarifications:
+      - "URL shape = organizer's literal domena.pl/<slug-org>/grupa/<x>/term/<y>"
+      - "No term switcher — one page per term"
+      - "Term-less entry redirects to nearest term's per-term URL; nearest = current next_term rule"
+      - "Link-builder / private-view scope: no user preference, orchestrator default (update 3 PanelPage links + 2 steppers, private view out of scope)"
+    gap_analysis:
+      integration_points:
+        - src/backend/app/groups/service.py (generalize get_public_circle_view)
+        - src/backend/app/groups/router.py (new per-term endpoint)
+        - src/backend/app/groups/schemas.py
+        - src/backend/app/core/auth_deps.py (PUBLIC row if path-segment)
+        - src/frontend/src/router.tsx (new route + catch-all order)
+        - src/frontend/src/pages/krag/KragGrupyPage.tsx (isPublic rework, termId param)
+        - src/frontend/src/hooks/usePublicKragGrupy.ts
+        - src/frontend/src/api/groups.ts
+        - src/frontend/src/pages/panel/PanelPage.tsx (3 links)
+        - src/frontend/src/components/panel/FirstTermStepper{Organizer,Guest}.tsx
+      summary: >
+        Additive (new route + per-term endpoint + per-term view) with modificative edges (5-6 link
+        builders, isPublic detection, rsvped effect re-keying). Backend already term-parameterized.
+        CRITICAL open decisions: URL grammar (organizer's slug shape the user picked vs gap-analyzer's
+        group-id family recommendation — slug context is missing in the guest-stepper flow and in
+        PublicCircleResponse), slug->circle ownership guard, backend endpoint shape (query param vs
+        path segment vs slug-based), term-less redirect entry points + zero-term behavior, disposition
+        of the old /krag/:groupId/publiczny route. Risk medium.
+    scope_clarifications:
+      scope_expanded: true
+      summary: >
+        Slug URL cosmetic (not validated); query-param backend endpoint; term-less entries redirect
+        to nearest term with a zero-term fallback page; old public route kept; no switcher / no public
+        terms list; private view out of scope; all 5 link builders updated; ORDER BY id added.
+    ui_mockups:
+      components_designed:
+        - screen:public-term
+        - screen:public-term-post-rsvp
+        - screen:public-term-no-terms
+        - screen:term-redirect-loading
+        - component:public-term-view
+        - component:public-term-redirect
+        - component:panel-term-tile-links
+        - component:stepper-done-links
+      summary: >
+        No new visual layout — reuses PublicKragGrupyView (.kg-* classes, phone frame, RsvpDialog,
+        AccountMergeForm untouched). Only change: usePublicKragGrupy takes (groupId, termId),
+        getPublicCircle gets ?term_id=, .kg-bring heading "Najbliższy termin" -> "Termin". One NEW
+        thin resolver component (KragEntryPage/PublicOrganizationPage pattern) for the term-less
+        redirect; zero terms -> renders the no-terms page instead. 5 link call-sites change only the
+        to= string to /krag/${group.id}/publiczny/${term.id}; both steppers capture createTerm return.
+    design:
+      summary: >
+        ASCII mockups at analysis/design-context/ascii/ui-mockups.md; INDEX at
+        analysis/design-context/INDEX.md. 5 screens, all reusing existing .kg-* markup.
+      screen_count: 4
+      component_count: 4
+      index_path: analysis/design-context/INDEX.md
+    specification:
+      summary: >
+        spec.md ready. 10 FRs. 2 new public routes (per-term + term-less resolver), delete
+        /krag/:groupId/publiczny, generalize get_public_circle_view with ?term_id= (no auth-matrix
+        change), add organizer_slug to PublicCircleResponse + GroupResponse via new
+        resolve_organizer_slug helper, list_needed_items ORDER BY id, 5 link builders + copy-link
+        button with null-slug fallbacks. New: PublicKragRedirectPage, resolve_organizer_slug.
+        Test plan: 6 backend (test_public_term.py), ~7 frontend rework (PublicKragGrupyPage.test.tsx),
+        ~existing+3 PanelPage.test.tsx. Self-verification all PASS. Mockup URL strings flagged stale.
+    implementation:
+      summary: >
+        All 4 task groups SUCCESS. Backend: ?term_id= on get_public_circle_view + ownership guard,
+        resolve_organizer_slug helper, organizer_slug on PublicCircleResponse + GroupResponse,
+        list_needed_items ORDER BY id. Frontend: 2 slug routes + deleted /krag/:groupId/publiczny,
+        term-aware PublicKragGrupyView, new PublicKragRedirectPage, 5 link builders w/ null-slug
+        fallback, copy-link button on organizer Terminy rows, steppers capture createTerm return.
+        Tests: backend test_public_term.py 6/6, backend suite 50/50; frontend PublicKragGrupyPage
+        12/12, PanelPage 24/24, frontend suite 138 pass / 3 pre-existing fails (confirmed on clean tree).
+    architecture_decision:
+      decision: "slug-cosmetic per-term route; query-param backend; delete old /krag public route; organizer_slug on responses"
+      summary: >
+        Only public routes: /:organizationSlug/grupa/:groupId/term/:termId (per-term) and
+        /:organizationSlug/grupa/:groupId (redirect-to-nearest). /krag/:groupId/publiczny DELETED.
+        Backend GET /api/groups/public/{group_id}?term_id= (no auth-matrix change); generalize
+        get_public_circle_view; guard term.circle_group_id==group_id -> 404. Add organizer_slug:
+        string|null to PublicCircleResponse + GroupResponse (via get_own_organization). Copy-link
+        button on organizer "Terminy" rows (disabled+nudge when slug null). 5 link builders updated
+        with null-slug fallback. list_needed_items ORDER BY id. RSVP/merge/localStorage unchanged.
+    tech_clarified: true
+
+task_groups:
+  - id: 1
+    name: "Backend — public endpoint generalization, organizer_slug, needed-items ordering"
+    steps: 10
+    tests: 6
+    depends_on: []
+    status: completed  # wave 1, 6/6 tests pass, no regressions
+  - id: 2
+    name: "Frontend — data path & shared types"
+    steps: 5
+    tests: 0
+    depends_on: [1]
+    status: completed  # wave 2, tsc clean, 1 expected baseline break for G3
+  - id: 3
+    name: "Frontend — routing, per-term public page, term-less redirect resolver"
+    steps: 12
+    tests: 7
+    depends_on: [2]
+    status: completed  # wave 3, 12/12 tests
+  - id: 4
+    name: "Frontend — Panel link builders, copy-link button, stepper deep-links"
+    steps: 7
+    tests: 3
+    depends_on: [1, 2]
+    status: completed  # wave 3, 24/24 tests
+
+verification_context:
+  last_status: null
+  issues_found: []
+  fixes_applied: []
+  decisions_made: []
+  reverify_count: 0

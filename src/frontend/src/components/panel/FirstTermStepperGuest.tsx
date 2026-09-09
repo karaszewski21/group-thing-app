@@ -39,6 +39,7 @@ export function FirstTermStepperGuest({ onClose, onCircleCreated, onDone }: Firs
   const [description, setDescription] = useState("");
   const [busy, setBusy] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
+  const [createdTermId, setCreatedTermId] = useState<number | null>(null);
 
   async function handleStep1() {
     if (!circleName.trim()) return;
@@ -61,7 +62,8 @@ export function FirstTermStepperGuest({ onClose, onCircleCreated, onDone }: Firs
     setBusy(true);
     setFormError(null);
     try {
-      await createTerm({ circle_group_id: circle.id, occurs_on: occursOn, description: description || undefined });
+      const created = await createTerm({ circle_group_id: circle.id, occurs_on: occursOn, description: description || undefined });
+      setCreatedTermId(created.id);
       onCircleCreated(); // refresh host state (terms.length) now, not just on close
       setStep("done");
     } catch {
@@ -71,7 +73,7 @@ export function FirstTermStepperGuest({ onClose, onCircleCreated, onDone }: Firs
     }
   }
 
-  if (step === "done") {
+  if (step === "done" && circle) {
     return (
       <ModalSheet title="Dodaj pierwszy termin" onClose={onDone}>
         <p className="text-[13.5px] text-ink-soft">
@@ -79,7 +81,7 @@ export function FirstTermStepperGuest({ onClose, onCircleCreated, onDone }: Firs
           tę stronę może zobaczyć każdy, kto dostanie do niej link, bez logowania.
         </p>
         <Link
-          to={`/krag/${circle?.id}/publiczny`}
+          to={`/${circle.organizer_slug ?? "krag"}/grupa/${circle.id}/term/${createdTermId}`}
           className="mt-4 block w-full rounded-[13px] bg-mint px-5 py-3 text-center text-[13.5px] font-extrabold text-white"
         >
           Przejdź do publicznej strony →

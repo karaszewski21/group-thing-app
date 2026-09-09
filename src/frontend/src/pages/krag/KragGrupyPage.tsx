@@ -1,11 +1,14 @@
 import { useEffect, useMemo, useState } from "react";
-import { useLocation, useNavigate, useParams } from "react-router-dom";
+import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
 import { useKragGrupy } from "../../hooks/useKragGrupy";
 import { usePublicKragGrupy } from "../../hooks/usePublicKragGrupy";
 import { ProductPicker } from "../../components/shared/ProductPicker";
 import { createEmptyProductPickerValue, type ProductPickerValue } from "../../utils/productPicker";
 import { RsvpDialog } from "../../components/krag/RsvpDialog";
+import { RsvpDialogLoggedIn } from "../../components/krag/RsvpDialogLoggedIn";
+import { RsvpGateDialog } from "../../components/krag/RsvpGateDialog";
 import { AccountMergeForm } from "../../components/krag/AccountMergeForm";
+import { useAuth } from "../../auth/AuthContext";
 import { guestProfileIdKey, type RsvpResponse } from "../../api/groups";
 
 /* ------------------------------------------------------------------ */
@@ -18,11 +21,12 @@ import { guestProfileIdKey, type RsvpResponse } from "../../api/groups";
 /*  Pledge ("kto co przynosi").                                         */
 /* ------------------------------------------------------------------ */
 
-const CSS = `
+export const CSS = `
 :root{
   --cream:#F4F8F0;--paper:#FFFFFF;--ink:#1E2E27;--ink-soft:#5C7069;
   --mint:#1B8168;--mint-soft:#D8F0E6;--sage:#5D8A63;--sage-soft:#DFEBDC;
   --teal:#6FB6B8;--teal-soft:#D9ECEC;--lime:#A9C24F;--line:#E2EADF;
+  --danger:#B4443A;
 }
 *,*::before,*::after{box-sizing:border-box;}
 .kg-stage{background:#EDF1EA;min-height:100vh;display:flex;justify-content:center;
@@ -79,6 +83,7 @@ const CSS = `
 .kg-btn-primary:disabled{opacity:.6;}
 .kg-btn-ghost{border:1.5px solid var(--line);background:none;color:var(--ink-soft);border-radius:999px;padding:7px 14px;font-size:12px;font-weight:700;}
 .kg-status-line{font-size:12px;color:var(--sage);font-weight:700;margin-top:8px;}
+.kg-error{color:var(--danger);font-size:12px;margin-bottom:10px;}
 .kg-card{margin:18px 18px 24px;background:var(--paper);border:1px solid var(--line);border-radius:22px;padding:17px;}
 .kg-card-top{display:flex;align-items:center;gap:12px;}
 .kg-card-av{width:44px;height:44px;border-radius:50%;flex:none;color:#fff;font-weight:800;font-size:13.5px;display:flex;align-items:center;justify-content:center;}
@@ -111,19 +116,12 @@ function familyInitials(name: string): string {
   return (words[0]?.[0] ?? "?").toUpperCase() + (words[1]?.[0] ?? words[0]?.[1] ?? "").toUpperCase();
 }
 
-/** Route-level entry point: picks the anonymous-safe public view or the
- * existing authenticated view based on the URL, per Technical Approach §3.
- * `isPublic` is derived from the matched route and stays stable for the
- * lifetime of a mount (navigating between `/krag/:id` and
- * `/krag/:id/publiczny` swaps to a different `Route` entry, which remounts
- * this component) — so splitting into two thin view components here keeps
- * each one's data-fetching hook called unconditionally (no rules-of-hooks
- * violation) while both still share the same `.kg-*` CSS/shell classes
- * defined above as one code path. */
+/** Route element for the authenticated `/krag/:groupId` view. The public
+ * per-term page is a separate route element (`PublicKragGrupyView`, mounted
+ * directly by the slug routes in `router.tsx`); this component no longer
+ * sniffs the pathname. */
 export function KragGrupyPage() {
-  const location = useLocation();
-  const isPublic = location.pathname.endsWith("/publiczny");
-  return isPublic ? <PublicKragGrupyView /> : <PrivateKragGrupyView />;
+  return <PrivateKragGrupyView />;
 }
 
 function PrivateKragGrupyView() {
@@ -278,9 +276,14 @@ function PrivateKragGrupyView() {
       <style>{CSS}</style>
       <div className="kg-app">
         <header className="kg-head">
-          <button className="kg-back" onClick={() => navigate(-1)}>
-            ← Wróć
-          </button>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
+            <button className="kg-back" onClick={() => navigate(-1)}>
+              ← Wróć
+            </button>
+            <Link className="kg-back" to="/panel" style={{ paddingBottom: 8 }}>
+              Mój panel →
+            </Link>
+          </div>
           <div className="kg-head-row">
             <div>
               <div className="kg-eyebrow">Grupa</div>
@@ -491,14 +494,31 @@ function PrivateKragGrupyView() {
 /*  read-only needed items, guardian display-name list, RSVP CTA.        */
 /* ------------------------------------------------------------------ */
 
-function PublicKragGrupyView() {
-  const params = useParams<{ groupId: string }>();
+export function PublicKragGrupyView() {
+  const params = useParams<{ groupId: string; termId: string }>();
   const navigate = useNavigate();
+  const location = useLocation();
   const groupId = Number(params.groupId);
-  const { loading, error, circle, refetch } = usePublicKragGrupy(groupId);
+  // Term id comes straight from the `:termId` route param (same as `:groupId`
+  // above); absent when mounted by the term-less resolver's zero-term branch.
+  const termId = params.termId !== undefined ? Number(params.termId) : undefined;
+  const { loading, error, circle, refetch } = usePublicKragGrupy(groupId, termId);
+  // Auth is read here (not in `usePublicKragGrupy`, which stays anonymous-safe):
+  // a token switches the RSVP CTA to the logged-in dialog variant (R7) and the
+  // "already signed up" state becomes server-derived, never localStorage (D5).
+  const { token, displayName } = useAuth();
+  const isLoggedIn = Boolean(token);
 
   const [showRsvpDialog, setShowRsvpDialog] = useState(false);
+  // Anonymous visitors first see a choice: log in / register (attendance on a
+  // real account) or continue as a guest. Logged-in users skip straight to the
+  // logged-in dialog.
+  const [showRsvpGate, setShowRsvpGate] = useState(false);
   const [rsvped, setRsvped] = useState(false);
+  // The RSVP just submitted this session — drives the R8 post-anonymous
+  // account suggestion (only when `attached_to_account === false`).
+  const [lastRsvp, setLastRsvp] = useState<RsvpResponse | null>(null);
+  const [suggestionDismissed, setSuggestionDismissed] = useState(false);
   // Core Requirement 7 / §3a: which needed item's "Zgłoś się" pledge-trigger
   // is currently showing the inline account-merge mini-form, replacing that
   // row's action (not a modal) — at most one at a time.
@@ -514,26 +534,35 @@ function PublicKragGrupyView() {
     );
   }, []);
 
-  // Per §3a/Mockup 9: an existing `guest_profile_id:<groupId>:<termId>` in
-  // localStorage means the visitor already RSVP'd for THIS circle+term —
-  // show the confirmation state immediately, surviving a full reload
-  // (state is derived from localStorage on mount, not client-only React
-  // state alone). Scoped per circle+term (not a flat global key) so a
-  // visitor who RSVP'd on a different Circle's public page doesn't
-  // incorrectly see "already RSVP'd" here.
+  // Per §3a/Mockup 9: for an ANONYMOUS visitor an existing
+  // `guest_profile_id:<groupId>:<termId>` in localStorage means they already
+  // RSVP'd for THIS circle+term — show the confirmation immediately, surviving
+  // a full reload. Scoped per circle+term (not a flat global key) so a visitor
+  // who RSVP'd on a different Circle's public page doesn't incorrectly see
+  // "already RSVP'd" here. Derived on render (not an effect) — no setState.
   const nextTermId = circle?.next_term?.id;
-  useEffect(() => {
-    if (nextTermId && localStorage.getItem(guestProfileIdKey(groupId, nextTermId))) {
-      setRsvped(true);
-    }
-  }, [groupId, nextTermId]);
+  const storedGuestRsvp =
+    !isLoggedIn &&
+    nextTermId !== undefined &&
+    localStorage.getItem(guestProfileIdKey(groupId, nextTermId)) !== null;
 
-  const hasGuestProfile = rsvped;
+  // Server-derived "already signed up" for a logged-in user (A6 / D5): the
+  // public GET already returns guardian display names — a match means the
+  // caller has an attendance on this circle. Never the localStorage key.
+  const serverDerivedRsvp =
+    isLoggedIn &&
+    displayName !== null &&
+    (circle?.guardians.some((g) => g.display_name === displayName) ?? false);
 
-  function handleRsvpSubmitted(_rsvp: RsvpResponse) {
-    // RsvpDialog already stores the scoped guest_profile_id key in localStorage on submit.
+  const hasGuestProfile = rsvped || storedGuestRsvp || serverDerivedRsvp;
+
+  function handleRsvpSubmitted(rsvp: RsvpResponse) {
+    // The anonymous `RsvpDialog` writes its own scoped guest_profile_id key;
+    // `RsvpDialogLoggedIn` writes none. Nothing to touch here — just branch on
+    // `attached_to_account` for whether to offer the account suggestion (R8).
     setShowRsvpDialog(false);
     setRsvped(true);
+    setLastRsvp(rsvp);
     void refetch();
   }
 
@@ -549,11 +578,13 @@ function PublicKragGrupyView() {
   }
 
   if (error || !circle) {
+    // A missing circle and a mismatched / deleted term both surface as the
+    // same 404 here, so the wording stays generic (never "grupa").
     return (
       <div className="kg-stage">
         <style>{CSS}</style>
         <div className="kg-app">
-          <div className="kg-state">{error ?? "Nie znaleziono grupy"}</div>
+          <div className="kg-state">Nie znaleziono</div>
         </div>
       </div>
     );
@@ -566,9 +597,16 @@ function PublicKragGrupyView() {
       <style>{CSS}</style>
       <div className="kg-app">
         <header className="kg-head">
-          <button className="kg-back" onClick={() => navigate(-1)}>
-            ← Wróć
-          </button>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
+            <button className="kg-back" onClick={() => navigate(-1)}>
+              ← Wróć
+            </button>
+            {isLoggedIn && (
+              <Link className="kg-back" to="/panel" style={{ paddingBottom: 8 }}>
+                Mój panel →
+              </Link>
+            )}
+          </div>
           <div className="kg-head-row">
             <div>
               <div className="kg-eyebrow">Krąg</div>
@@ -597,7 +635,7 @@ function PublicKragGrupyView() {
         </div>
 
         <div className="kg-bring">
-          <h2>Najbliższy termin</h2>
+          <h2>Termin</h2>
           {term ? (
             <p className="kg-bring-sub">
               {term.occurs_on}
@@ -666,6 +704,24 @@ function PublicKragGrupyView() {
             <div className="kg-status-line" style={{ fontSize: 15 }}>
               ✓ Zapisano! Do zobaczenia na zajęciach.
             </div>
+            {isLoggedIn && displayName && (
+              <p style={{ fontSize: 13, color: "var(--ink-soft)", marginTop: 6 }}>
+                Zapisano jako {displayName}.
+              </p>
+            )}
+            {lastRsvp && !lastRsvp.attached_to_account && !suggestionDismissed && (
+              <div style={{ marginTop: 12 }}>
+                <h3 style={{ fontSize: 15 }}>Załóż konto, aby zachować dostęp</h3>
+                <AccountMergeForm userProfileId={lastRsvp.user_profile_id} />
+                <button
+                  className="kg-btn-ghost"
+                  style={{ marginTop: 8 }}
+                  onClick={() => setSuggestionDismissed(true)}
+                >
+                  Może później
+                </button>
+              </div>
+            )}
           </div>
         ) : (
           term && (
@@ -673,7 +729,7 @@ function PublicKragGrupyView() {
               <button
                 className="kg-btn-primary"
                 style={{ padding: "12px 22px", fontSize: 14 }}
-                onClick={() => setShowRsvpDialog(true)}
+                onClick={() => (isLoggedIn ? setShowRsvpDialog(true) : setShowRsvpGate(true))}
               >
                 ＋ Zapisz się na zajęcia
               </button>
@@ -682,13 +738,35 @@ function PublicKragGrupyView() {
         )}
       </div>
 
-      {showRsvpDialog && term && (
-        <RsvpDialog
-          groupId={groupId}
-          termId={term.id}
-          onClose={() => setShowRsvpDialog(false)}
-          onSubmitted={handleRsvpSubmitted}
+      {showRsvpGate && term && !isLoggedIn && (
+        <RsvpGateDialog
+          loginHref={`/login?returnTo=${encodeURIComponent(location.pathname)}`}
+          registerHref="/register"
+          onGuest={() => {
+            setShowRsvpGate(false);
+            setShowRsvpDialog(true);
+          }}
+          onClose={() => setShowRsvpGate(false)}
         />
+      )}
+
+      {showRsvpDialog && term && (
+        isLoggedIn && displayName ? (
+          <RsvpDialogLoggedIn
+            groupId={groupId}
+            termId={term.id}
+            displayName={displayName}
+            onClose={() => setShowRsvpDialog(false)}
+            onSubmitted={handleRsvpSubmitted}
+          />
+        ) : (
+          <RsvpDialog
+            groupId={groupId}
+            termId={term.id}
+            onClose={() => setShowRsvpDialog(false)}
+            onSubmitted={handleRsvpSubmitted}
+          />
+        )
       )}
     </div>
   );

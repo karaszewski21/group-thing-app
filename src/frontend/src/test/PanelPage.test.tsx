@@ -45,12 +45,15 @@ vi.mock("../api/families", () => ({
   getMembershipsForFamily: vi.fn(),
   getGuardians: vi.fn(),
   createLightweightMembers: vi.fn(),
+  createOwnFamily: vi.fn(),
+  renameFamily: vi.fn(),
 }));
 
 vi.mock("../api/groups", () => ({
   createMyCircle: vi.fn(),
   endLeadership: vi.fn(),
   getGroup: vi.fn(),
+  getMyAttendances: vi.fn(),
 }));
 
 vi.mock("../api/inventories", () => ({
@@ -106,17 +109,54 @@ const mockGroup: groupsApi.GroupResponse = {
   id: 5,
   party_id: 2,
   name: "Nowa grupa",
+  organizer_slug: "ania-kowalska",
   created_at: "2026-01-01T00:00:00Z",
   updated_at: "2026-01-01T00:00:00Z",
 };
+
+// Organizer/circle whose organizer owns no Organization — the backend still
+// returns a stable `k-<hash>` pseudo-slug so per-term links always work.
+const mockGroupHashSlug: groupsApi.GroupResponse = {
+  ...mockGroup,
+  organizer_slug: "k-abc123def456",
+};
+
+// per-file clipboard stub (jsdom has no navigator.clipboard) — call history is
+// wiped by vi.resetAllMocks() in each beforeEach.
+const clipboardWriteText = vi.fn();
+Object.assign(navigator, { clipboard: { writeText: clipboardWriteText } });
 
 const mockFamily: familiesApi.FamilyOut = {
   id: 10,
   party_id: 99,
   name: "Kowalscy",
+  child_count: 0,
   created_at: "2026-01-01T00:00:00Z",
   updated_at: "2026-01-01T00:00:00Z",
 };
+
+const mockAttendances: groupsApi.MyAttendanceResponse[] = [
+  {
+    attendance_id: 1,
+    term_id: 3,
+    occurs_on: "2026-02-15",
+    child_count: 2,
+    group_id: 5,
+    group_name: "Nutki dla starszaków",
+    organizer_display_name: "Ania Kowalska",
+    organizer_slug: "ania-kowalska",
+  },
+  {
+    attendance_id: 2,
+    term_id: 8,
+    occurs_on: "2026-03-01",
+    child_count: 1,
+    group_id: 6,
+    group_name: "Rytmika",
+    organizer_display_name: "Basia Nowak",
+    organizer_slug: "basia-nowak",
+  },
+];
 
 const mockGuardians: familiesApi.GuardianResponse[] = [
   {
@@ -158,6 +198,7 @@ function mockGuestDefaults() {
   vi.mocked(familiesApi.getMyFamilies).mockResolvedValue([]);
   vi.mocked(familiesApi.getMembershipsForFamily).mockResolvedValue([]);
   vi.mocked(familiesApi.getGuardians).mockResolvedValue([]);
+  vi.mocked(groupsApi.getMyAttendances).mockResolvedValue([]);
   vi.mocked(organizationsApi.getMyOrganization).mockRejectedValue(new Error("404"));
 }
 
@@ -174,6 +215,7 @@ function mockOrganizerDefaults() {
   vi.mocked(termsApi.getNeededItems).mockResolvedValue([]);
   vi.mocked(familiesApi.getMyFamilies).mockResolvedValue([]);
   vi.mocked(familiesApi.getGuardians).mockResolvedValue([]);
+  vi.mocked(groupsApi.getMyAttendances).mockResolvedValue([]);
   vi.mocked(organizationsApi.getMyOrganization).mockRejectedValue(new Error("404"));
 }
 
@@ -264,7 +306,10 @@ describe("PanelPage — hamburger promotion", () => {
 
   it("completing the GUEST 2-step flow calls createMyCircle then createTerm and flips isOrganizer to true after reload", async () => {
     mockGuestDefaults();
-    vi.mocked(groupsApi.createMyCircle).mockResolvedValue(mockGroup);
+    // A brand-new guest circle has no Organization → the backend returns a
+    // stable `k-<hash>` pseudo-slug so the done-screen CTA still deep-links
+    // to the just-created term.
+    vi.mocked(groupsApi.createMyCircle).mockResolvedValue(mockGroupHashSlug);
     vi.mocked(termsApi.createTerm).mockResolvedValue({
       id: 1, circle_group_id: 5, occurs_on: "2026-02-01", description: null, created_at: "", updated_at: "",
     });
@@ -309,9 +354,15 @@ describe("PanelPage — hamburger promotion", () => {
     );
 
     // Dialog stays open, offering a switch to the public circle page,
-    // instead of closing immediately.
-    const publicLink = await within(dialog).findByRole("link", { name: /Przejdź do publicznej strony/ });
-    expect(publicLink).toHaveAttribute("href", `/krag/${mockGroup.id}/publiczny`);
+    // instead of closing immediately — deep-linked to the created term via
+    // the circle's (hash) slug.
+    const publicLink = await within(dialog).findByRole("link", {
+      name: /Przejdź do publicznej strony/,
+    });
+    expect(publicLink).toHaveAttribute(
+      "href",
+      `/${mockGroupHashSlug.organizer_slug}/grupa/${mockGroupHashSlug.id}/term/1`,
+    );
 
     fireEvent.click(within(dialog).getByRole("button", { name: "Gotowe" }));
     await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
@@ -636,12 +687,302 @@ describe("PanelPage — Rodzina section", () => {
   });
 });
 
+describe("PanelPage — Mój dom — no family", () => {
+  beforeEach(() => {
+    vi.resetAllMocks();
+  });
+
+  async function openMojDom() {
+    await openMenu();
+    fireEvent.click(screen.getByRole("menuitem", { name: /Mój dom/ }));
+  }
+
+  it("renders the no-family empty-state card with a CTA for a GUEST", async () => {
+    mockGuestDefaults();
+    renderPanel();
+    await openMojDom();
+
+    expect(await screen.findByText("Nie masz jeszcze rodziny")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Załóż rodzinę" })).toBeInTheDocument();
+  });
+
+  it("renders the no-family empty-state card with a CTA for an ORGANIZER", async () => {
+    mockOrganizerDefaults();
+    renderPanel();
+    await openMojDom();
+
+    expect(await screen.findByText("Nie masz jeszcze rodziny")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Załóż rodzinę" })).toBeInTheDocument();
+  });
+
+  it("the CTA opens CreateFamilyDialog", async () => {
+    mockGuestDefaults();
+    renderPanel();
+    await openMojDom();
+
+    fireEvent.click(await screen.findByRole("button", { name: "Załóż rodzinę" }));
+
+    const dialog = await screen.findByRole("dialog", { name: "Załóż rodzinę" });
+    expect(within(dialog).getByLabelText("Nazwa rodziny")).toBeInTheDocument();
+    expect(within(dialog).getByRole("button", { name: "Dalej" })).toBeInTheDocument();
+  });
+
+  it("step 1 submits the typed name to createOwnFamily and advances to step 2", async () => {
+    mockGuestDefaults();
+    vi.mocked(familiesApi.createOwnFamily).mockResolvedValue({ ...mockFamily, name: "Nowakowie" });
+    renderPanel();
+    await openMojDom();
+    fireEvent.click(await screen.findByRole("button", { name: "Załóż rodzinę" }));
+
+    const dialog = await screen.findByRole("dialog", { name: "Załóż rodzinę" });
+    fireEvent.change(within(dialog).getByLabelText("Nazwa rodziny"), { target: { value: "Nowakowie" } });
+    fireEvent.click(within(dialog).getByRole("button", { name: "Dalej" }));
+
+    await waitFor(() => expect(familiesApi.createOwnFamily).toHaveBeenCalledWith("Nowakowie"));
+    expect(familiesApi.createOwnFamily).toHaveBeenCalledTimes(1);
+    expect(await within(dialog).findByRole("button", { name: "Zakończ" })).toBeInTheDocument();
+  });
+
+  it("step 2 with drafted members calls createLightweightMembers once with all rows, then the family shows in Mój dom", async () => {
+    mockGuestDefaults();
+    vi.mocked(familiesApi.createOwnFamily).mockResolvedValue(mockFamily);
+    vi.mocked(familiesApi.createLightweightMembers).mockResolvedValue({
+      family: mockFamily,
+      guardians: mockGuardians,
+    });
+    renderPanel();
+    await openMojDom();
+    fireEvent.click(await screen.findByRole("button", { name: "Załóż rodzinę" }));
+
+    const dialog = await screen.findByRole("dialog", { name: "Załóż rodzinę" });
+    fireEvent.change(within(dialog).getByLabelText("Nazwa rodziny"), { target: { value: "Kowalscy" } });
+    fireEvent.click(within(dialog).getByRole("button", { name: "Dalej" }));
+
+    await within(dialog).findByRole("button", { name: "Zakończ" });
+
+    fireEvent.change(within(dialog).getByLabelText("Imię i nazwisko"), { target: { value: "Marek Kowalski" } });
+    fireEvent.click(within(dialog).getByRole("button", { name: "Opiekun" }));
+    fireEvent.click(within(dialog).getByRole("button", { name: "Dodaj kolejną osobę" }));
+
+    fireEvent.change(within(dialog).getByLabelText("Imię i nazwisko"), { target: { value: "Zosia Kowalska" } });
+    fireEvent.click(within(dialog).getByRole("button", { name: "Dziecko" }));
+    fireEvent.click(within(dialog).getByRole("button", { name: "Dodaj kolejną osobę" }));
+
+    // family exists after the silent refresh that follows the dialog
+    vi.mocked(familiesApi.getMyFamilies).mockResolvedValue([mockFamily]);
+    vi.mocked(familiesApi.getGuardians).mockResolvedValue(mockGuardians);
+
+    fireEvent.click(within(dialog).getByRole("button", { name: "Zakończ" }));
+
+    await waitFor(() =>
+      expect(familiesApi.createLightweightMembers).toHaveBeenCalledWith([
+        { name: "Marek Kowalski", role_type: "GUARDIAN" },
+        { name: "Zosia Kowalska", role_type: "CHILD" },
+      ]),
+    );
+    expect(familiesApi.createLightweightMembers).toHaveBeenCalledTimes(1);
+
+    fireEvent.click(await within(dialog).findByRole("button", { name: "Gotowe" }));
+    await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+    expect(await screen.findByText("Kowalscy", { selector: "h3" })).toBeInTheDocument();
+  });
+
+  it("reopening the dialog after closing mid-flow starts clean on step 1 (local state, no stale name/step)", async () => {
+    mockGuestDefaults();
+    vi.mocked(familiesApi.createOwnFamily).mockResolvedValue(mockFamily);
+    renderPanel();
+    await openMojDom();
+    fireEvent.click(await screen.findByRole("button", { name: "Załóż rodzinę" }));
+
+    let dialog = await screen.findByRole("dialog", { name: "Załóż rodzinę" });
+    fireEvent.change(within(dialog).getByLabelText("Nazwa rodziny"), { target: { value: "Kowalscy" } });
+    fireEvent.click(within(dialog).getByRole("button", { name: "Dalej" }));
+    await within(dialog).findByRole("button", { name: "Zakończ" });
+
+    fireEvent.click(within(dialog).getByRole("button", { name: "Zamknij" }));
+    await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+
+    fireEvent.click(await screen.findByRole("button", { name: "Załóż rodzinę" }));
+    dialog = await screen.findByRole("dialog", { name: "Załóż rodzinę" });
+    expect(within(dialog).getByLabelText("Nazwa rodziny")).toHaveValue("");
+    expect(within(dialog).getByRole("button", { name: "Dalej" })).toBeInTheDocument();
+    expect(within(dialog).queryByRole("button", { name: "Zakończ" })).not.toBeInTheDocument();
+  });
+
+  it("step 2 skipped makes no members call and the family is still visible", async () => {
+    mockGuestDefaults();
+    vi.mocked(familiesApi.createOwnFamily).mockResolvedValue(mockFamily);
+    renderPanel();
+    await openMojDom();
+    fireEvent.click(await screen.findByRole("button", { name: "Załóż rodzinę" }));
+
+    const dialog = await screen.findByRole("dialog", { name: "Załóż rodzinę" });
+    fireEvent.change(within(dialog).getByLabelText("Nazwa rodziny"), { target: { value: "Kowalscy" } });
+    fireEvent.click(within(dialog).getByRole("button", { name: "Dalej" }));
+
+    vi.mocked(familiesApi.getMyFamilies).mockResolvedValue([mockFamily]);
+    vi.mocked(familiesApi.getGuardians).mockResolvedValue(mockGuardians);
+
+    fireEvent.click(await within(dialog).findByRole("button", { name: "Zakończ" }));
+    fireEvent.click(await within(dialog).findByRole("button", { name: "Gotowe" }));
+
+    await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+    expect(familiesApi.createLightweightMembers).not.toHaveBeenCalled();
+    expect(await screen.findByText("Kowalscy", { selector: "h3" })).toBeInTheDocument();
+  });
+
+  it("removing a middle draft member keeps the other rows' names/roles intact (stable keys, no bleed)", async () => {
+    mockGuestDefaults();
+    vi.mocked(familiesApi.createOwnFamily).mockResolvedValue(mockFamily);
+    renderPanel();
+    await openMojDom();
+    fireEvent.click(await screen.findByRole("button", { name: "Załóż rodzinę" }));
+
+    const dialog = await screen.findByRole("dialog", { name: "Załóż rodzinę" });
+    fireEvent.change(within(dialog).getByLabelText("Nazwa rodziny"), { target: { value: "Kowalscy" } });
+    fireEvent.click(within(dialog).getByRole("button", { name: "Dalej" }));
+    await within(dialog).findByRole("button", { name: "Zakończ" });
+
+    const addPerson = (name: string, role: "Opiekun" | "Dziecko") => {
+      fireEvent.change(within(dialog).getByLabelText("Imię i nazwisko"), { target: { value: name } });
+      fireEvent.click(within(dialog).getByRole("button", { name: role }));
+      fireEvent.click(within(dialog).getByRole("button", { name: "Dodaj kolejną osobę" }));
+    };
+    addPerson("Anna Nowak", "Opiekun");
+    addPerson("Bartek Nowak", "Dziecko");
+    addPerson("Celina Nowak", "Dziecko");
+
+    const rows = within(dialog).getAllByRole("listitem");
+    expect(rows).toHaveLength(3);
+
+    // remove the middle row — with an array-index key this would shift the
+    // third row's name/role onto the second position.
+    fireEvent.click(within(rows[1]).getByRole("button", { name: "Usuń" }));
+
+    const remaining = within(dialog).getAllByRole("listitem");
+    expect(remaining).toHaveLength(2);
+    expect(remaining[0]).toHaveTextContent("Anna Nowak");
+    expect(remaining[0]).toHaveTextContent("Opiekun");
+    expect(remaining[1]).toHaveTextContent("Celina Nowak");
+    expect(remaining[1]).toHaveTextContent("Dziecko");
+    expect(within(dialog).queryByText("Bartek Nowak")).not.toBeInTheDocument();
+
+    // and the surviving rows submit with the correct role mapping
+    vi.mocked(familiesApi.createLightweightMembers).mockResolvedValue({
+      family: mockFamily,
+      guardians: mockGuardians,
+    });
+    fireEvent.click(within(dialog).getByRole("button", { name: "Zakończ" }));
+    await waitFor(() =>
+      expect(familiesApi.createLightweightMembers).toHaveBeenCalledWith([
+        { name: "Anna Nowak", role_type: "GUARDIAN" },
+        { name: "Celina Nowak", role_type: "CHILD" },
+      ]),
+    );
+  });
+});
+
+describe("PanelPage — Mój dom — inline family rename", () => {
+  beforeEach(() => {
+    vi.resetAllMocks();
+  });
+
+  async function openMojDom() {
+    await openMenu();
+    fireEvent.click(screen.getByRole("menuitem", { name: /Mój dom/ }));
+    await screen.findByRole("heading", { name: "Mój dom", level: 2 });
+  }
+
+  it("calls renameFamily and updates the heading in place", async () => {
+    mockGuestDefaults();
+    vi.mocked(familiesApi.getMyFamilies).mockResolvedValue([mockFamily]);
+    vi.mocked(familiesApi.getGuardians).mockResolvedValue(mockGuardians);
+    vi.mocked(familiesApi.renameFamily).mockResolvedValue({ ...mockFamily, name: "Nowakowie" });
+    renderPanel();
+    await openMojDom();
+
+    fireEvent.click(screen.getByRole("button", { name: "Zmień nazwę rodziny" }));
+    const input = screen.getByLabelText("Nazwa rodziny");
+    fireEvent.change(input, { target: { value: "Nowakowie" } });
+
+    vi.mocked(familiesApi.getMyFamilies).mockResolvedValue([{ ...mockFamily, name: "Nowakowie" }]);
+    fireEvent.click(screen.getByRole("button", { name: "Zapisz" }));
+
+    await waitFor(() => expect(familiesApi.renameFamily).toHaveBeenCalledWith(10, "Nowakowie"));
+    expect(await screen.findByText("Nowakowie", { selector: "h3" })).toBeInTheDocument();
+  });
+
+  it("network error shows an inline message and restores the previous name", async () => {
+    mockGuestDefaults();
+    vi.mocked(familiesApi.getMyFamilies).mockResolvedValue([mockFamily]);
+    vi.mocked(familiesApi.getGuardians).mockResolvedValue(mockGuardians);
+    vi.mocked(familiesApi.renameFamily).mockRejectedValue(new Error("network"));
+    renderPanel();
+    await openMojDom();
+
+    fireEvent.click(screen.getByRole("button", { name: "Zmień nazwę rodziny" }));
+    fireEvent.change(screen.getByLabelText("Nazwa rodziny"), { target: { value: "Nowakowie" } });
+    fireEvent.click(screen.getByRole("button", { name: "Zapisz" }));
+
+    expect(await screen.findByText(/Nie udało się zmienić nazwy/)).toBeInTheDocument();
+    expect(screen.getByText("Kowalscy", { selector: "h3" })).toBeInTheDocument();
+  });
+});
+
+describe("PanelPage — Zapisane zajęcia", () => {
+  beforeEach(() => {
+    vi.resetAllMocks();
+  });
+
+  it("renders one tile per attendance with a public-term link (GUEST)", async () => {
+    mockGuestDefaults();
+    vi.mocked(groupsApi.getMyAttendances).mockResolvedValue(mockAttendances);
+    renderPanel();
+
+    await screen.findByRole("heading", { name: "Zapisane zajęcia" });
+    const first = await screen.findByRole("link", { name: /Nutki dla starszaków/ });
+    expect(first).toHaveAttribute("href", "/ania-kowalska/grupa/5/term/3");
+    expect(first).toHaveTextContent("Ania Kowalska");
+    const second = screen.getByRole("link", { name: /Rytmika/ });
+    expect(second).toHaveAttribute("href", "/basia-nowak/grupa/6/term/8");
+  });
+
+  it("renders a dashed empty state and no error when there are no attendances", async () => {
+    mockGuestDefaults();
+    renderPanel();
+
+    await screen.findByRole("heading", { name: "Zapisane zajęcia" });
+    expect(screen.getByText("Nie zapisałeś się jeszcze na żadne zajęcia.")).toBeInTheDocument();
+    expect(screen.queryByText(/Nie udało się/)).not.toBeInTheDocument();
+  });
+
+  it("renders the empty state and no error when getMyAttendances rejects (load() guard)", async () => {
+    mockGuestDefaults();
+    vi.mocked(groupsApi.getMyAttendances).mockRejectedValue(new Error("500"));
+    renderPanel();
+
+    await screen.findByRole("heading", { name: /Cześć/ });
+    expect(await screen.findByRole("heading", { name: "Zapisane zajęcia" })).toBeInTheDocument();
+    expect(screen.getByText("Nie zapisałeś się jeszcze na żadne zajęcia.")).toBeInTheDocument();
+    expect(screen.queryByText(/Nie udało się/)).not.toBeInTheDocument();
+  });
+
+  it("the section is present for an ORGANIZER too", async () => {
+    mockOrganizerDefaults();
+    vi.mocked(groupsApi.getMyAttendances).mockResolvedValue(mockAttendances);
+    renderPanel();
+
+    await screen.findByRole("heading", { name: "Zapisane zajęcia" });
+    expect(await screen.findByRole("link", { name: /Nutki dla starszaków/ })).toBeInTheDocument();
+  });
+});
+
 describe("PanelPage — Spotkania list links to the public circle page", () => {
   beforeEach(() => {
     vi.resetAllMocks();
   });
 
-  it("each term row in the Spotkania list is a link (the whole tile) to the public circle page, not the authenticated one", async () => {
+  it("each term row in the Spotkania list is a link (the whole tile) to the per-term public page, not the authenticated one", async () => {
     mockOrganizerDefaults();
     vi.mocked(termsApi.getTerms).mockResolvedValue([
       { id: 1, circle_group_id: 5, occurs_on: "2026-02-01", description: null, created_at: "", updated_at: "" },
@@ -652,6 +993,69 @@ describe("PanelPage — Spotkania list links to the public circle page", () => {
     fireEvent.click(await screen.findByRole("button", { name: "Spotkania" }));
 
     const link = await screen.findByRole("link", { name: new RegExp(mockGroup.name) });
-    expect(link).toHaveAttribute("href", `/krag/${mockGroup.id}/publiczny`);
+    expect(link).toHaveAttribute("href", `/${mockGroup.organizer_slug}/grupa/${mockGroup.id}/term/1`);
+  });
+});
+
+describe("PanelPage — per-term public links & copy-link button", () => {
+  beforeEach(() => {
+    vi.resetAllMocks();
+  });
+
+  it("organizer with no Organization — 'Terminy' row still links to the per-term public page via the hash slug", async () => {
+    mockOrganizerDefaults();
+    vi.mocked(groupsApi.getGroup).mockResolvedValue(mockGroupHashSlug);
+    vi.mocked(termsApi.getTerms).mockResolvedValue([
+      { id: 1, circle_group_id: 5, occurs_on: "2026-02-01", description: null, created_at: "", updated_at: "" },
+    ]);
+    vi.mocked(termsApi.getNeededItems).mockResolvedValue([]);
+    renderPanel();
+
+    fireEvent.click(await screen.findByRole("button", { name: "Spotkania" }));
+
+    const link = await screen.findByRole("link", { name: new RegExp(mockGroup.name) });
+    expect(link).toHaveAttribute("href", `/${mockGroupHashSlug.organizer_slug}/grupa/${mockGroup.id}/term/1`);
+  });
+
+  it("copy-link button on an organizer 'Terminy' row writes the absolute per-term URL and toasts", async () => {
+    mockOrganizerDefaults();
+    vi.mocked(termsApi.getTerms).mockResolvedValue([
+      { id: 1, circle_group_id: 5, occurs_on: "2026-02-01", description: null, created_at: "", updated_at: "" },
+    ]);
+    vi.mocked(termsApi.getNeededItems).mockResolvedValue([]);
+    renderPanel();
+
+    fireEvent.click(await screen.findByRole("button", { name: "Spotkania" }));
+
+    const copyBtn = await screen.findByRole("button", { name: "Kopiuj link do terminu" });
+    expect(copyBtn).not.toBeDisabled();
+    fireEvent.click(copyBtn);
+
+    expect(clipboardWriteText).toHaveBeenCalledWith(
+      `${window.location.origin}/${mockGroup.organizer_slug}/grupa/${mockGroup.id}/term/1`,
+    );
+    expect(await screen.findByText("Skopiowano link")).toBeInTheDocument();
+  });
+
+  it("organizer first-term stepper done-screen CTA deep-links to the just-created term using the circle's slug", async () => {
+    mockOrganizerDefaults();
+    vi.mocked(termsApi.createTerm).mockResolvedValue({
+      id: 7, circle_group_id: 5, occurs_on: "2026-02-01", description: null, created_at: "", updated_at: "",
+    });
+    renderPanel();
+    await openMenu();
+    fireEvent.click(screen.getByRole("menuitem", { name: /Dodaj pierwszy termin/ }));
+
+    const dialog = await screen.findByRole("dialog", { name: "Dodaj pierwszy termin" });
+    fireEvent.change(await within(dialog).findByLabelText("Data"), { target: { value: "2026-02-01" } });
+
+    vi.mocked(termsApi.getTerms).mockResolvedValue([
+      { id: 7, circle_group_id: 5, occurs_on: "2026-02-01", description: null, created_at: "", updated_at: "" },
+    ]);
+    vi.mocked(termsApi.getNeededItems).mockResolvedValue([]);
+    fireEvent.click(within(dialog).getByRole("button", { name: "Dodaj termin" }));
+
+    const publicLink = await within(dialog).findByRole("link", { name: /Przejdź do publicznej strony/ });
+    expect(publicLink).toHaveAttribute("href", `/${mockGroup.organizer_slug}/grupa/5/term/7`);
   });
 });

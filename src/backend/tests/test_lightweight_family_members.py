@@ -51,6 +51,25 @@ async def test_createLightweightMembers_firstCallForGuardian_bootstrapsFamilyAnd
     assert len(body["guardians"]) == 2
 
 
+async def test_createMembers_noExistingFamily_autoNamesFamilyFromDisplayName(
+    client: AsyncClient,
+) -> None:
+    """`POST /api/families/mine/members` with no prior family still
+    bootstraps `f"Rodzina {display_name}"` — the Panel inline "Dodaj
+    członka" path (R3 acceptance bullet 6). `noexisting.family@example.com`
+    -> display_name "Noexisting Family" via `_derive_display_name`."""
+    token = await _register_guardian(client, "noexisting.family@example.com")
+
+    response = await client.post(
+        "/api/families/mine/members",
+        json={"members": [{"name": "Nowy Czlonek", "role_type": "CHILD"}]},
+        headers=_auth_headers(token),
+    )
+
+    assert response.status_code == 201
+    assert response.json()["family"]["name"] == "Rodzina Noexisting Family"
+
+
 async def test_createLightweightMembers_secondCallSameGuardian_reusesExistingFamily(
     client: AsyncClient,
 ) -> None:
