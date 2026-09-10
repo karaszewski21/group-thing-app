@@ -125,32 +125,34 @@ that TG4b diffs against. **No commit.**
 **Dependencies**: None
 **Files to Modify**: None (writes only to the task folder / scratch — never `src/`)
 
-- [ ] 0.0 Capture and confirm baseline
-  - [ ] 0.1 `git status --porcelain src/` → confirm **clean** (no `src/` changes staged or unstaged).
+- [x] 0.0 Capture and confirm baseline
+  - [x] 0.1 `git status --porcelain src/` → confirm **clean** (no `src/` changes staged or unstaged).
         The work-tree may show only `.maister/` task files modified.
-  - [ ] 0.2 `cd src/backend && uv run pytest -q` → confirm `113 passed`, exit 0. Record the exact pass
+  - [x] 0.2 `cd src/backend && uv run pytest -q` → confirm `113 passed`, exit 0. Record the exact pass
         count and duration in `implementation/work-log.md`.
-  - [ ] 0.3 `uv run ruff check .` and `uv run ruff format --check .` → confirm exactly the 2 baseline
+  - [x] 0.3 `uv run ruff check .` and `uv run ruff format --check .` → confirm exactly the 2 baseline
         E501 errors in `app/organizations/models.py`, nothing in `core/ families/ circulation/ groups/`.
-  - [ ] 0.4 `uv run mypy .` → confirm exactly the 4 baseline errors (`organizations/service.py:88`;
+  - [x] 0.4 `uv run mypy .` → confirm exactly the 4 baseline errors (`organizations/service.py:88`;
         `groups/service.py:612`, `:618`, `:904`).
-  - [ ] 0.5 Capture the route dump (spec §4b command) to a **stable path outside `src/`**:
+  - [x] 0.5 Capture the route dump (spec §4b command) to a **stable path outside `src/`**:
         ```
         cd src/backend
         uv run python -c "from app.main import app; [print(f'{sorted(r.methods)} {r.path} -> {r.name}') for r in app.routes if hasattr(r,'methods')]" > ../../.maister/tasks/migrations/2026-09-10-backend-service-refactor/verification/routes_before.txt
         ```
         (Windows/Git-Bash: forward slashes ok; the spec shows `/tmp/routes_before.txt` — use the task
         `verification/` folder instead so it survives and is diffable in TG4b.)
-  - [ ] 0.6 Record in `work-log.md`: baseline pass count, the pre-refactor `db.commit`/`db.flush` counts
-        per vertical for the D1 check later — `circulation/service.py` = **15** commit/flush sites,
-        `groups/service.py` = **22** (per Phase 1 analysis; re-count with
-        `grep -c "db\.commit\|db\.flush" app/circulation/service.py app/groups/service.py` and note the
-        actual numbers).
+  - [x] 0.6 Record in `work-log.md`: baseline pass count + pre-refactor `db.commit`/`db.flush` counts:
+        `circulation/service.py` = **15**, `groups/service.py` = **22**, `families/service.py` = **13**,
+        `core/auth_deps.py` = **0** (re-counted with `grep -c`).
 
-**Acceptance Criteria**:
+**Acceptance Criteria**: ✅ ALL MET
 - `git status src/` clean; `113 passed`; ruff = 2 baseline errors; mypy = 4 baseline errors.
-- `verification/routes_before.txt` exists and is non-empty.
+- `verification/routes_before.txt` exists = 101 OpenAPI operations.
 - `work-log.md` records baseline pass count + per-vertical commit/flush counts.
+
+> **Note**: route snapshot uses `app.openapi()` (method/path/operationId/response-codes), not
+> `app.routes` — this FastAPI version wraps `include_router` results in `_IncludedRouter` objects
+> with no flat `.path`. TG4b compares `routes_after.txt` (same command) against `routes_before.txt`.
 
 ---
 
@@ -171,26 +173,26 @@ behind a flat `app/core/auth_deps.py` re-export facade; relocate the authorizati
 
 **Steps** — follow spec "Vertical 1 → Move-map" table exactly:
 
-- [ ] 1.0 Split `core/auth_deps` per spec Vertical 1
-  - [ ] 1.1 Create `app/core/_auth/` with empty `__init__.py`. Create `authorization_matrix.py` and move
+- [x] 1.0 Split `core/auth_deps` per spec Vertical 1 — DONE, commit `5623352`
+  - [x] 1.1 Create `app/core/_auth/` with empty `__init__.py`. Create `authorization_matrix.py` and move
         the matrix symbols + `import re` verbatim into it (move-map row 5; exact rows, exact evaluation
         order). Move the matrix-related docstring paragraph.
-  - [ ] 1.2 Move `_BEARER_PREFIX`, `_extract_token` → `_auth/token.py` (verbatim; preserve form/query/header
+  - [x] 1.2 Move `_BEARER_PREFIX`, `_extract_token` → `_auth/token.py` (verbatim; preserve form/query/header
         fallback order).
-  - [ ] 1.3 Move `Principal`, `AuthenticationRequiredException`, `get_current_principal`, `OptionalPrincipal`
+  - [x] 1.3 Move `Principal`, `AuthenticationRequiredException`, `get_current_principal`, `OptionalPrincipal`
         → `_auth/principal.py`.
-  - [ ] 1.4 Move `require_any` → `_auth/dependencies.py` (imports `Principal`,
+  - [x] 1.4 Move `require_any` → `_auth/dependencies.py` (imports `Principal`,
         `AuthenticationRequiredException` from `.principal`; `AccessDeniedException` from `app.core.errors`).
-  - [ ] 1.5 Move `_unauthorized_envelope`, `authentication_required_handler`,
+  - [x] 1.5 Move `_unauthorized_envelope`, `authentication_required_handler`,
         `register_auth_exception_handlers` → `_auth/exception_handlers.py` (preserve 401 envelope field order
         + values).
-  - [ ] 1.6 Rewrite `app/core/auth_deps.py` as the flat facade — exact contents in spec "Facade contents
+  - [x] 1.6 Rewrite `app/core/auth_deps.py` as the flat facade — exact contents in spec "Facade contents
         (`app/core/auth_deps.py`)": re-export the 6 preserved symbols with `__all__`; **no re-export of
         matrix symbols** (D6). Keep the non-matrix docstring text.
-  - [ ] 1.7 Update the single import in `tests/test_authorization_matrix.py` to pull `resolve_requirement`
+  - [x] 1.7 Update the single import in `tests/test_authorization_matrix.py` to pull `resolve_requirement`
         (+ any matrix symbols it uses) from `app.core.authorization_matrix`.
-  - [ ] 1.8 `git show` diff review — every moved body identical; run the global regression gate.
-  - [ ] 1.9 Spec grep checks:
+  - [x] 1.8 `git show` diff review — every moved body identical; run the global regression gate.
+  - [x] 1.9 Spec grep checks:
         ```
         grep -rn "from app.core.auth_deps import" app tests           # every hit still valid via facade
         grep -rn "from app.core.authorization_matrix import" tests     # exactly 1 (test_authorization_matrix.py)
