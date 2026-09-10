@@ -28,6 +28,18 @@ error outside `auth.test.tsx`; lint adds no finding in `src/pages/panel`. Format
   `panelIcons.tsx` component-only for `react-refresh/only-export-components`).
 - PanelPage.tsx: **2212 → 1949 lines**. Gate: 55/55, 182/2, no new tsc/lint. ✓
 
-### Step 2+ — (planned) state hook / context + per-view + per-modal components
-Pending decision on state-sharing approach (Context vs a `usePanelData()` hook returning one
-typed object). See below.
+Decision: **Context** (`PanelDataProvider` + `usePanelData()`) — matches `AuthContext`/`PluginContext`.
+Do the whole split this session (~10 commits).
+
+### Step 2a — PanelDataProvider + usePanelData() — DONE — commit `e6a8b71`
+- `PanelDataContext.tsx` (857) — Provider, verbatim state layer (all hooks, `useAuth`, every handler,
+  `organizerTermCard`, derived incl. `isTopLevel`). `load` stays `useCallback([])`.
+- `panelDataStore.ts` (16) — `createContext` + `usePanelData()` hook. Hookless `.ts` sibling: keeps
+  `PanelDataContext.tsx` a component-only export (`react-refresh/only-export-components`) and dodges
+  the Windows case-collision with a `panelDataContext.ts` name.
+- `PanelPage.tsx` 1949 → **1358** — `PanelPage()` → `<PanelDataProvider><PanelPageView/></>`;
+  `PanelPageView()` consumes the hook, does loading/error early-returns, renders verbatim.
+- Gate: tsc 4 pre-existing only · eslint clean · PanelPage.test 55/55 · full suite 182/2. ✓
+
+### Step 2b — extract 7 views → views/*.tsx — IN PROGRESS
+### Step 2c — extract 6 modals + header/nav — PENDING
