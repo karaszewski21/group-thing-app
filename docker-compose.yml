@@ -19,6 +19,9 @@ services:
     build:
       context: src/backend
       dockerfile: Dockerfile
+    # Bring the schema to head on every start (alembic upgrade is a no-op when
+    # already current), then hand off to uvicorn as PID 1 so it gets signals.
+    command: sh -c "alembic upgrade head && exec uvicorn app.main:app --host 0.0.0.0 --port 8080"
     ports:
       - "8080:8080"
     environment:
