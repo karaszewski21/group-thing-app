@@ -1,6 +1,6 @@
 orchestrator:
   started_phase: phase-1
-  completed_phases: []
+  completed_phases: [phase-1, phase-2, phase-3, phase-4]
   failed_phases: []
   auto_fix_attempts:
     phase-1: 0
@@ -39,10 +39,21 @@ migration_context:
   migration_strategy:
     approach: incremental
     phases: []
-  risk_level: null
+  risk_level: medium-high
   breaking_changes: []
-  rollback_plan_created: false
+  rollback_plan_created: true
   dual_run_configured: false
+  task_characteristics:
+    has_reproducible_defect: false
+    modifies_existing_code: true
+    creates_new_entities: false   # no DB entities / DDD aggregates; ~30-40 new structural modules
+    involves_data_operations: false
+    ui_heavy: false
+  per_vertical_risk:
+    core/auth_deps: low
+    families: low-medium
+    circulation: medium-high
+    groups: high
 
 external_research:
   performed: false
@@ -59,10 +70,79 @@ project_context:
     - .maister/docs/INDEX.md
     - .maister/docs/project/tech-stack.md
     - .maister/docs/project/architecture.md
-  clarifications_resolved: false
+  clarifications_resolved: true
+
+decisions:
+  scope: [groups, circulation, families, core/auth_deps]
+  deferred: [oauth2, plugin]
+  depth:
+    groups: full-ddd  # domain/ application(usecases)/ infrastructure(repo)/
+    circulation: full-ddd
+    families: layered-split-behind-facade
+    core/auth_deps: layered-split-behind-facade
+  conventions: structural-only
+  cleanups_allowed:
+    - relocate AUTHORIZATION_MATRIX out of core/auth_deps.py
+    - remove groups.end_group_role (after verifying no callers)
+  delivery: incremental-per-vertical  # recommended default; confirm at Phase 4
+  scope_expanded: false               # D2: no characterization-test task group
+  gate_decisions:
+    D1: preserve-every-commit-point-verbatim
+    D2: mechanical-move-discipline-only-no-new-tests
+    D3: move-slug-resolver-unchanged-keep-divergence
+    D4: flat-service.py-facade
+    D5: groups-router-package-by-resource
+    D6: new-core-authorization_matrix.py-update-test-import
+    D7: ledger-plain-function-port-layer-named-application
+    D8: leave-groups-schemas-itemcondition-import
+    D9: incremental-per-vertical-prs-no-chartest-pr
+  allowed_non_move_edits:
+    - families _require_family_guardian dedup
+    - circulation _load_reservation_for_transition preamble dedup
+    - relocate AUTHORIZATION_MATRIX to core/authorization_matrix.py
+    - delete groups.end_group_role (0 callers verified)
+    - groups router/ package assembly
 
 phase_summaries:
-  current_state_analysis: {summary: null, key_files: []}
-  gap_analysis: {summary: null, integration_points: []}
-  specification: {summary: null}
+  current_state_analysis:
+    summary: >
+      7 oversized files led by groups/service.py (983, also the coupling hub). Comment-banner
+      seams are pre-drawn; footprint/ is the in-repo layered template. ~113 HTTP-level
+      TestContainers tests cover groups/circulation/families/organizations/users and never
+      import service internals (internal moves are invisible to them). plugin/oauth2/footprint
+      have zero tests; oauth2 has no service.py at all. Main risks: module-alias cross-slice
+      imports (need re-export facades) and repo-wide transaction-ownership inconsistency.
+    key_files:
+      - src/backend/app/groups/service.py
+      - src/backend/app/oauth2/router.py
+      - src/backend/app/circulation/service.py
+      - src/backend/app/families/service.py
+      - src/backend/app/groups/router.py
+      - src/backend/app/core/auth_deps.py
+      - src/backend/app/plugin/service.py
+    complexity: complex
+  gap_analysis:
+    summary: >
+      Target: full DDD (domain/application/infrastructure + flat service.py facade) for groups &
+      circulation; layered file-split behind facade for families & core/auth_deps. 19 gaps (G1-G19).
+      Strict mechanical decomposition — D1 preserve all commits, D2 no new tests (mechanical-move
+      discipline only), D3 move slug resolver unchanged. Incremental per-vertical PRs, order
+      auth_deps || families -> circulation -> groups. Untested knots (reservation state machine,
+      ledger, fulfill_pledge saga) refactored as pure code-moves.
+    integration_points:
+      - "groups facade re-exports: list_memberships_for_party, build_membership_responses, build_leadership_responses, list_active_leaderships_for_party"
+      - "circulation facade re-exports: get_or_create_personal_inventory, register_item, create_lend_reservation, get_reservation"
+      - "core/auth_deps facade re-exports: Principal, require_any, OptionalPrincipal, get_current_principal, AuthenticationRequiredException, register_auth_exception_handlers"
+      - "tests/test_authorization_matrix.py import line -> app.core.authorization_matrix"
+      - "main.py include_router order + router object paths unchanged"
+  specification:
+    summary: >
+      spec.md + rollback-plan.md written. 6 steps (0 baseline + 5 commits: auth_deps || families
+      -> circulation -> groups service -> groups router). ~30 new modules, all verbatim moves.
+      5 sanctioned non-move edits (2 dedups, matrix relocation, end_group_role delete, router
+      assembly). auth_deps split package named _auth/ to avoid module/package name clash; facade
+      stays flat auth_deps.py. circulation domain/ kept thin (balance_state_machine extraction
+      deferred per D2). Gate after every commit: pytest 113 pass + no new ruff/mypy findings vs
+      baseline (2 ruff + 4 mypy pre-existing) + route-dump diff.
+    baseline: {tests: "113 passed", ruff_preexisting_errors: 2, mypy_preexisting_errors: 4}
   implementation: {summary: null}
