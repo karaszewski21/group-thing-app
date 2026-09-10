@@ -197,6 +197,12 @@ async def get_public_circle_view(
     guardians: list[PublicGuardianResponse] = []
     if next_term is not None:
         needed_item_views = await list_needed_item_views(db, cast(int, next_term.id))
+        pledger_by_item = {
+            needed_item_id: display_name
+            for needed_item_id, display_name in await repository.list_active_pledges_for_term(
+                db, cast(int, next_term.id)
+            )
+        }
         next_term_response = PublicTermResponse(
             id=cast(int, next_term.id),
             occurs_on=next_term.occurs_on,
@@ -208,6 +214,8 @@ async def get_public_circle_view(
                     product_name=view["product_name"],
                     product_category=view["product_category"],
                     description=view["description"],
+                    claimed=view["id"] in pledger_by_item,
+                    claimed_by_name=pledger_by_item.get(view["id"]),
                 )
                 for view in needed_item_views
             ],

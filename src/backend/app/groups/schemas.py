@@ -204,6 +204,10 @@ class PublicNeededItemResponse(BaseModel):
     product_name: str
     product_category: ProductCategory
     description: str | None
+    # `claimed` = someone has an active pledge for this item (single-claim);
+    # `claimed_by_name` is that pledger's display name (or `None`).
+    claimed: bool
+    claimed_by_name: str | None
 
 
 class PublicTermResponse(BaseModel):

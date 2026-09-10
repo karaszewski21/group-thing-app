@@ -618,12 +618,14 @@ export function PublicKragGrupyView() {
       await createPledge(neededItemId);
       setPledgedItemIds((prev) => [...prev, neededItemId]);
       setToast("Zgłoszono — szczegóły w Twoim panelu");
+      await refetch();
     } catch (err) {
       setToast(
         err instanceof ApiError && err.status === 409
           ? "Ktoś już zadeklarował przyniesienie tej rzeczy"
           : "Nie udało się zapisać zgłoszenia",
       );
+      if (err instanceof ApiError && err.status === 409) await refetch();
     } finally {
       setPledgingItemId(null);
     }
@@ -772,7 +774,10 @@ export function PublicKragGrupyView() {
                 const canMerge =
                   hasGuestProfile && Number.isFinite(guestProfileId) && guestProfileId > 0;
                 const isMerging = mergingItemId === item.id;
-                const pledged = pledgedItemIds.includes(item.id);
+                const pledgedHere = pledgedItemIds.includes(item.id);
+                const claimed = item.claimed || pledgedHere;
+                const claimedByMe =
+                  pledgedHere || (displayName !== null && item.claimed_by_name === displayName);
                 const onPledgeClick = isLoggedIn
                   ? () => void handlePublicPledge(item.id)
                   : canMerge
@@ -786,22 +791,21 @@ export function PublicKragGrupyView() {
                           {item.product_name}
                           {item.description ? ` — ${item.description}` : ""}
                         </strong>
+                        {claimed && (
+                          <small>
+                            Przynosi: {claimedByMe ? "Ty" : (item.claimed_by_name ?? "inna rodzina")}
+                          </small>
+                        )}
                       </div>
-                      {pledged ? (
-                        <span className="kg-status-line" style={{ marginTop: 0 }}>
-                          Zgłoszono ✓
-                        </span>
-                      ) : (
-                        !isMerging && (
-                          <button
-                            className="kg-bring-btn"
-                            disabled={pledgingItemId === item.id}
-                            aria-label={`Ja to przyniosę: ${item.product_name}`}
-                            onClick={onPledgeClick}
-                          >
-                            Ja to przyniosę
-                          </button>
-                        )
+                      {!claimed && !isMerging && (
+                        <button
+                          className="kg-bring-btn"
+                          disabled={pledgingItemId === item.id}
+                          aria-label={`Ja to przyniosę: ${item.product_name}`}
+                          onClick={onPledgeClick}
+                        >
+                          Ja to przyniosę
+                        </button>
                       )}
                     </div>
                     {!isLoggedIn && canMerge && isMerging && (

@@ -260,6 +260,31 @@ async def test_getPublicCircle_termWithNeededItems_unaffectedAfterSiblingDelete(
     assert items[0]["description"] == "grzechotka"
 
 
+async def test_getPublicCircle_neededItem_reflectsPledgeClaim(client: AsyncClient) -> None:
+    token = await _register_organizer(client, "pt.claim@example.com")
+    group_id = await _create_circle(client, token, "Krąg zgłoszeń")
+    term_id = await _create_term(client, token, group_id, date.today())
+    needed_item_id = await _create_needed_item(client, token, term_id, "Bębenek", "mały")
+
+    before = await client.get(f"/api/groups/public/{group_id}?term_id={term_id}")
+    item_before = before.json()["next_term"]["needed_items"][0]
+    assert item_before["claimed"] is False
+    assert item_before["claimed_by_name"] is None
+
+    guest_token, _ = await _register_guest(client, "pt.claim.guest@example.com")
+    pledge = await client.post(
+        "/api/pledges",
+        json={"needed_item_id": needed_item_id},
+        headers=_auth_headers(guest_token),
+    )
+    assert pledge.status_code == 201
+
+    after = await client.get(f"/api/groups/public/{group_id}?term_id={term_id}")
+    item_after = after.json()["next_term"]["needed_items"][0]
+    assert item_after["claimed"] is True
+    assert item_after["claimed_by_name"] is not None
+
+
 async def test_getPublicCircle_organizerSlug_isOrgSlugWhenOrgExists_elseStableHash(
     client: AsyncClient,
 ) -> None:

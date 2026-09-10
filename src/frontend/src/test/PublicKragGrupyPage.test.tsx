@@ -86,6 +86,8 @@ const circleWithTerm: groupsApi.PublicCircleResponse = {
         product_name: "Bębenek",
         product_category: "OTHER",
         description: "mały",
+        claimed: false,
+        claimed_by_name: null,
       },
     ],
   },
@@ -526,7 +528,7 @@ describe("PublicKragGrupyPage", () => {
   });
 
   describe("public 'Ja to przyniosę' pledge (needed items)", () => {
-    it("logged-in visitor pledges straight away → createPledge + confirmation", async () => {
+    it("logged-in visitor pledges straight away → createPledge + 'Przynosi: Ty'", async () => {
       mockAuthValue = { token: "valid.jwt.token", displayName: "Ala Testowa" };
       vi.mocked(groupsApi.getPublicCircle).mockResolvedValue(circleWithTerm);
       vi.mocked(pledgesApi.createPledge).mockResolvedValue({
@@ -544,7 +546,33 @@ describe("PublicKragGrupyPage", () => {
       fireEvent.click(await screen.findByRole("button", { name: "Ja to przyniosę: Bębenek" }));
 
       await waitFor(() => expect(pledgesApi.createPledge).toHaveBeenCalledWith(501));
-      expect(await screen.findByText("Zgłoszono ✓")).toBeInTheDocument();
+      expect(await screen.findByText("Przynosi: Ty")).toBeInTheDocument();
+      expect(
+        screen.queryByRole("button", { name: "Ja to przyniosę: Bębenek" }),
+      ).not.toBeInTheDocument();
+    });
+
+    it("on refresh, a server-claimed item shows 'Przynosi: <name>' and no button", async () => {
+      vi.mocked(groupsApi.getPublicCircle).mockResolvedValue({
+        ...circleWithTerm,
+        next_term: {
+          ...circleWithTerm.next_term!,
+          needed_items: [
+            {
+              ...circleWithTerm.next_term!.needed_items[0],
+              claimed: true,
+              claimed_by_name: "Kasia N.",
+            },
+          ],
+        },
+      });
+
+      renderAt(CANONICAL_PATH);
+
+      expect(await screen.findByText("Przynosi: Kasia N.")).toBeInTheDocument();
+      expect(
+        screen.queryByRole("button", { name: "Ja to przyniosę: Bębenek" }),
+      ).not.toBeInTheDocument();
     });
 
     it("logged-in pledge that 409s shows the 'ktoś już' toast, button stays", async () => {

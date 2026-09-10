@@ -109,6 +109,9 @@ export interface PublicNeededItemResponse {
   product_name: string;
   product_category: ProductCategory;
   description: string | null;
+  /** Someone already declared they'll bring this (single-claim). */
+  claimed: boolean;
+  claimed_by_name: string | null;
 }
 
 export interface PublicTermResponse {

@@ -217,6 +217,26 @@ async def list_pledges_for_needed_item(db: AsyncSession, needed_item_id: int) ->
     return list(result.scalars().all())
 
 
+async def list_active_pledges_for_term(
+    db: AsyncSession, term_id: int
+) -> list[Row[tuple[int, str]]]:
+    """`(needed_item_id, pledger_display_name)` for every non-withdrawn pledge
+    on the term's live needs — at most one row per need (single-claim). Inner
+    join: `pledged_by_party_id` is always a party with a `UserProfile`
+    (`create_pledge` reads it from `profile.party_id`)."""
+    result = await db.execute(
+        select(NeededItem.id, UserProfile.display_name)
+        .join(Pledge, Pledge.needed_item_id == NeededItem.id)
+        .join(UserProfile, UserProfile.party_id == Pledge.pledged_by_party_id)
+        .where(
+            NeededItem.term_id == term_id,
+            NeededItem.deleted_at.is_(None),
+            Pledge.status != PledgeStatus.WITHDRAWN,
+        )
+    )
+    return list(result.all())
+
+
 async def list_my_pledges_joined(
     db: AsyncSession, party_id: int
 ) -> list[Row[tuple[Pledge, str, str | None, Term, Group]]]:
