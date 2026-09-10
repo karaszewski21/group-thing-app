@@ -5,12 +5,13 @@ from __future__ import annotations
 
 from datetime import date, datetime
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 from app.circulation.models import ItemCondition
+from app.product.models import ProductCategory
 from app.users.schemas import EMAIL_PATTERN, normalize_email
 
-from .models import GroupRoleType, NeededItemCategory, PledgeStatus
+from .models import GroupRoleType, PledgeStatus
 
 
 class GroupResponse(BaseModel):
@@ -126,7 +127,9 @@ class NeededItemResponse(BaseModel):
 
     id: int
     term_id: int
-    category: NeededItemCategory
+    product_id: int
+    product_name: str
+    product_category: ProductCategory
     description: str | None
     created_at: datetime
     updated_at: datetime
@@ -134,12 +137,12 @@ class NeededItemResponse(BaseModel):
 
 class CreateNeededItemRequest(BaseModel):
     term_id: int
-    category: NeededItemCategory
+    product_id: int
     description: str | None = Field(default=None, max_length=500)
 
 
 class UpdateNeededItemRequest(BaseModel):
-    category: NeededItemCategory | None = None
+    product_id: int | None = None
     description: str | None = Field(default=None, max_length=500)
 
 
@@ -160,11 +163,36 @@ class CreatePledgeRequest(BaseModel):
 
 
 class FulfillPledgeRequest(BaseModel):
-    """Registers the concrete item the pledging guardian is bringing, and
-    creates the bridging `Reservation` in `app.circulation`."""
+    """The concrete item the pledging guardian brings, in one of two modes
+    (exactly one):
 
-    product_id: int
-    condition: ItemCondition
+    - **new item** — `condition` (+ optional `product_id` to override the
+      need's product); a fresh `InventoryItem` is registered in the
+      guardian's personal inventory.
+    - **owned item** — `inventory_item_id` of a thing already on the
+      guardian's shelf (must be `AVAILABLE`); no new item is created.
+
+    Either way the bridging `LEND` `Reservation` opens toward the organizer.
+    """
+
+    condition: ItemCondition | None = None
+    product_id: int | None = None
+    inventory_item_id: int | None = None
+
+    @model_validator(mode="after")
+    def _exactly_one_mode(self) -> FulfillPledgeRequest:
+        owned = self.inventory_item_id is not None
+        new_item = self.condition is not None
+        if owned and (new_item or self.product_id is not None):
+            raise ValueError(
+                "Podaj albo inventory_item_id (rzecz z Twoich zbiorów), albo condition "
+                "(nowa rzecz) — nie oba naraz"
+            )
+        if not owned and not new_item:
+            raise ValueError(
+                "Podaj condition (nowa rzecz) albo inventory_item_id (rzecz z Twoich zbiorów)"
+            )
+        return self
 
 
 # --- Public circle-view (unauthenticated, `GET /api/groups/public/{id}`) -------
@@ -172,7 +200,9 @@ class FulfillPledgeRequest(BaseModel):
 
 class PublicNeededItemResponse(BaseModel):
     id: int
-    category: NeededItemCategory
+    product_id: int
+    product_name: str
+    product_category: ProductCategory
     description: str | None
 
 

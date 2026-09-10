@@ -1,11 +1,10 @@
-import { type NeededItemCategory } from "../../api/terms";
 import { ItemQuickAddForm } from "../../components/shared/ItemQuickAddForm";
+import { NeededItemQuickAddForm } from "../../components/shared/NeededItemQuickAddForm";
 import { CreateFamilyDialog } from "../../components/panel/CreateFamilyDialog";
 import { EditTermDialog } from "../../components/panel/EditTermDialog";
 import { FirstTermStepperGuest } from "../../components/panel/FirstTermStepperGuest";
 import { FirstTermStepperOrganizer } from "../../components/panel/FirstTermStepperOrganizer";
 import { Field, ModalSheet } from "./panelComponents";
-import { NEEDED_ITEM_LABELS } from "./panelHelpers";
 import { usePanelData } from "./panelDataStore";
 
 /** The Panel's modal layer — one `{modal === "..." && ...}` block per modal
@@ -22,8 +21,7 @@ export function PanelModals() {
     termDate,
     termDescription,
     neededDraft,
-    draftCategory,
-    draftDescription,
+    draftNeededItem,
     itemDraft,
     busy,
     relevantGroupsForForm,
@@ -33,8 +31,7 @@ export function PanelModals() {
     setTermGroupId,
     setTermDate,
     setTermDescription,
-    setDraftCategory,
-    setDraftDescription,
+    setDraftNeededItem,
     setItemDraft,
     showToast,
     load,
@@ -181,7 +178,7 @@ export function PanelModals() {
               {neededDraft.map((item, index) => (
                 <div key={index} className="mb-1.5 flex items-center gap-2 text-[13px]">
                   <span className="flex-1">
-                    {NEEDED_ITEM_LABELS[item.category]}
+                    {item.name}
                     {item.description ? ` — ${item.description}` : ""}
                   </span>
                   <button onClick={() => removeDraftNeededItem(index)} className="text-xs font-bold text-danger">
@@ -189,26 +186,15 @@ export function PanelModals() {
                   </button>
                 </div>
               ))}
-              <div className="flex gap-2">
-                <select
-                  value={draftCategory}
-                  onChange={(e) => setDraftCategory(e.target.value as NeededItemCategory)}
-                  className="rounded-xl border-[1.5px] border-line bg-cream px-3.5 py-2.5 text-ink"
-                >
-                  {(Object.keys(NEEDED_ITEM_LABELS) as NeededItemCategory[]).map((c) => (
-                    <option key={c} value={c}>{NEEDED_ITEM_LABELS[c]}</option>
-                  ))}
-                </select>
-                <input
-                  value={draftDescription}
-                  onChange={(e) => setDraftDescription(e.target.value)}
-                  placeholder="Opis (opcjonalnie)"
-                  className="min-w-0 flex-1 rounded-xl border-[1.5px] border-line bg-cream px-3.5 py-2.5 text-ink"
-                />
-                <button onClick={addDraftNeededItem} className="rounded-full border border-line px-3 py-1.5 text-xs font-bold text-ink-soft">
-                  Dodaj
-                </button>
-              </div>
+              <NeededItemQuickAddForm value={draftNeededItem} onChange={setDraftNeededItem} />
+              <button
+                type="button"
+                onClick={addDraftNeededItem}
+                disabled={!draftNeededItem.name.trim()}
+                className="mt-2 self-start rounded-full border border-line px-3 py-1.5 text-xs font-bold text-ink-soft disabled:opacity-50"
+              >
+                Dodaj rzecz
+              </button>
             </Field>
           </div>
           <button

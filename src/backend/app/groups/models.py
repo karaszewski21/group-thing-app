@@ -8,8 +8,8 @@ owns the invariant it enforces — "at most one active leader per Circle" —
 per this domain's relationship-ownership rule: a relationship table lives
 wherever the invariant it protects belongs.
 
-Cross-module references (`parties.id`) are plain FK-id columns, never a
-`relationship()` crossing the module boundary, per
+Cross-module references (`parties.id`, `products.id`) are plain FK-id
+columns, never a `relationship()` crossing the module boundary, per
 `standards/backend/models.md`."""
 
 from __future__ import annotations
@@ -43,16 +43,6 @@ class GroupRoleType(enum.StrEnum):
 
     MEMBER = "MEMBER"
     ORGANIZATOR = "ORGANIZATOR"
-
-
-class NeededItemCategory(enum.StrEnum):
-    """Closed, extensible dictionary for "what's needed" — deliberately NOT
-    a reference to `app.product`'s catalog."""
-
-    INSTRUMENT = "INSTRUMENT"
-    MAT_BLANKET = "MAT_BLANKET"
-    ART_SUPPLIES = "ART_SUPPLIES"
-    OTHER = "OTHER"
 
 
 class PledgeStatus(enum.StrEnum):
@@ -152,8 +142,10 @@ class Term(BaseEntity):
 
 
 class NeededItem(BaseEntity):
-    """A structured "we need X for this Term" request — category +
-    optional free-text detail, independent of any product catalog."""
+    """A structured "we need X for this Term" request: a reference to a
+    concrete `app.product` catalog entry (`product_id`, a plain cross-module
+    FK-id per `standards/backend/models.md`) plus an optional free-text
+    refinement (`description` — e.g. "rozmiar 1/2", "czerwona")."""
 
     __tablename__ = "needed_items"
     __sequence_name__ = "needed_item_seq"
@@ -161,8 +153,10 @@ class NeededItem(BaseEntity):
     term_id: Mapped[int] = mapped_column(
         BigInteger, ForeignKey("terms.id", name="fk_needed_items_term_id_terms"), nullable=False
     )
-    category: Mapped[NeededItemCategory] = mapped_column(
-        _enum_column(NeededItemCategory, 30), nullable=False
+    product_id: Mapped[int] = mapped_column(
+        BigInteger,
+        ForeignKey("products.id", name="fk_needed_items_product_id_products"),
+        nullable=False,
     )
     description: Mapped[str | None] = mapped_column(String(500), nullable=True)
     deleted_at: Mapped[datetime | None] = mapped_column(DateTime(), nullable=True)
@@ -215,6 +209,8 @@ class TermAttendance(BaseEntity):
         BigInteger, ForeignKey("terms.id", name="fk_term_attendances_term_id_terms"), nullable=False
     )
     party_id: Mapped[int] = mapped_column(
-        BigInteger, ForeignKey("parties.id", name="fk_term_attendances_party_id_parties"), nullable=False
+        BigInteger,
+        ForeignKey("parties.id", name="fk_term_attendances_party_id_parties"),
+        nullable=False,
     )
     child_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)

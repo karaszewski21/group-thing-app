@@ -35,7 +35,7 @@ from ..schemas import (
     RsvpResponse,
 )
 from .circles import _group_role_party_id, get_current_leadership, get_group
-from .terms import get_term, list_needed_items, list_terms
+from .terms import get_term, list_needed_item_views, list_terms
 
 
 async def list_attendances_for_term(db: AsyncSession, term_id: int) -> list[TermAttendance]:
@@ -165,16 +165,20 @@ async def get_public_circle_view(
     next_term_response: PublicTermResponse | None = None
     guardians: list[PublicGuardianResponse] = []
     if next_term is not None:
-        needed_items = await list_needed_items(db, cast(int, next_term.id))
+        needed_item_views = await list_needed_item_views(db, cast(int, next_term.id))
         next_term_response = PublicTermResponse(
             id=cast(int, next_term.id),
             occurs_on=next_term.occurs_on,
             description=next_term.description,
             needed_items=[
                 PublicNeededItemResponse(
-                    id=cast(int, item.id), category=item.category, description=item.description
+                    id=view["id"],
+                    product_id=view["product_id"],
+                    product_name=view["product_name"],
+                    product_category=view["product_category"],
+                    description=view["description"],
                 )
-                for item in needed_items
+                for view in needed_item_views
             ],
         )
 

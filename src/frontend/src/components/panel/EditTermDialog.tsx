@@ -4,18 +4,13 @@ import {
   deleteNeededItem,
   updateNeededItem,
   updateTerm,
-  type NeededItemCategory,
   type NeededItemResponse,
   type TermResponse,
+  type UpdateNeededItemRequest,
 } from "../../api/terms";
+import { resolveProduct, type ProductCategory } from "../../api/products";
+import { CATEGORY_LABELS, PRODUCT_CATEGORIES } from "../../utils/productCategory";
 import { Field, ModalSheet } from "../../pages/panel/panelComponents";
-
-const NEEDED_ITEM_LABELS: Record<NeededItemCategory, string> = {
-  INSTRUMENT: "Instrument",
-  MAT_BLANKET: "Mata/koc",
-  ART_SUPPLIES: "Materiały plastyczne",
-  OTHER: "Inne",
-};
 
 /* ------------------------------------------------------------------ */
 /*  "Edytuj termin" — single Panel dialog replacing the inline per-    */
@@ -26,7 +21,8 @@ const NEEDED_ITEM_LABELS: Record<NeededItemCategory, string> = {
 /*  `load({ silent: true })` — so after each mutation we call          */
 /*  `onChanged()` and the dialog re-renders with the refreshed data.   */
 /*  Needed-item sub-CRUD is non-optimistic here (await, then refresh); */
-/*  a rejected delete keeps the row and shows an inline message.       */
+/*  a rejected delete keeps the row and shows an inline message. Each  */
+/*  needed item names a real `Product` (resolved by name + category).  */
 /* ------------------------------------------------------------------ */
 
 const inputClass = "w-full rounded-xl border-[1.5px] border-line bg-cream px-3.5 py-2.5 text-ink";
@@ -41,7 +37,13 @@ const rowCancelBtn =
 const rowIconBtn =
   "flex-none rounded-[9px] px-2.5 py-1.5 text-[11.5px] font-extrabold text-ink-soft transition-colors hover:bg-cream hover:text-ink";
 
-const CATEGORIES = Object.keys(NEEDED_ITEM_LABELS) as NeededItemCategory[];
+interface NeededItemDraft {
+  name: string;
+  category: ProductCategory;
+  description: string;
+}
+
+const emptyDraft: NeededItemDraft = { name: "", category: "OTHER", description: "" };
 
 interface EditTermDialogProps {
   term: TermResponse;
@@ -51,6 +53,47 @@ interface EditTermDialogProps {
   onClose: () => void;
 }
 
+function NeededItemFields({
+  value,
+  onChange,
+  namePrefix,
+}: {
+  value: NeededItemDraft;
+  onChange: (v: NeededItemDraft) => void;
+  namePrefix: string;
+}) {
+  return (
+    <>
+      <input
+        aria-label={`Nazwa ${namePrefix}`}
+        value={value.name}
+        onChange={(e) => onChange({ ...value, name: e.target.value })}
+        placeholder="np. Tamburyn"
+        className={rowInputClass}
+      />
+      <select
+        aria-label={`Typ ${namePrefix}`}
+        value={value.category}
+        onChange={(e) => onChange({ ...value, category: e.target.value as ProductCategory })}
+        className={selectClass}
+      >
+        {PRODUCT_CATEGORIES.map((c) => (
+          <option key={c} value={c}>
+            {CATEGORY_LABELS[c]}
+          </option>
+        ))}
+      </select>
+      <input
+        aria-label={`Doprecyzowanie ${namePrefix}`}
+        value={value.description}
+        onChange={(e) => onChange({ ...value, description: e.target.value })}
+        placeholder="Doprecyzowanie (opcjonalnie)"
+        className={rowInputClass}
+      />
+    </>
+  );
+}
+
 export function EditTermDialog({ term, neededItems, onChanged, onClose }: EditTermDialogProps) {
   const [occursOn, setOccursOn] = useState(term.occurs_on);
   const [description, setDescription] = useState(term.description ?? "");
@@ -58,12 +101,9 @@ export function EditTermDialog({ term, neededItems, onChanged, onClose }: EditTe
   const [formError, setFormError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
 
-  const [editing, setEditing] = useState<
-    { id: number; category: NeededItemCategory; description: string } | null
-  >(null);
+  const [editing, setEditing] = useState<({ id: number } & NeededItemDraft) | null>(null);
   const [adding, setAdding] = useState(false);
-  const [newCategory, setNewCategory] = useState<NeededItemCategory>("OTHER");
-  const [newDescription, setNewDescription] = useState("");
+  const [newDraft, setNewDraft] = useState<NeededItemDraft>(emptyDraft);
   const [itemsError, setItemsError] = useState<string | null>(null);
 
   async function saveTermFields() {
@@ -88,19 +128,30 @@ export function EditTermDialog({ term, neededItems, onChanged, onClose }: EditTe
   }
 
   function startEdit(item: NeededItemResponse) {
-    setEditing({ id: item.id, category: item.category, description: item.description ?? "" });
+    setEditing({
+      id: item.id,
+      name: item.product_name,
+      category: item.product_category,
+      description: item.description ?? "",
+    });
     setItemsError(null);
   }
 
   async function saveEdit() {
     if (!editing) return;
+    const orig = neededItems.find((ni) => ni.id === editing.id);
     setBusy(true);
     setItemsError(null);
     try {
-      await updateNeededItem(editing.id, {
-        category: editing.category,
-        description: editing.description.trim(),
-      });
+      const patch: UpdateNeededItemRequest = { description: editing.description.trim() };
+      if (
+        editing.name.trim() &&
+        (editing.name.trim() !== orig?.product_name || editing.category !== orig?.product_category)
+      ) {
+        const product = await resolveProduct({ name: editing.name.trim(), category: editing.category });
+        patch.product_id = product.id;
+      }
+      await updateNeededItem(editing.id, patch);
       setEditing(null);
       onChanged();
     } catch {
@@ -125,17 +176,21 @@ export function EditTermDialog({ term, neededItems, onChanged, onClose }: EditTe
   }
 
   async function addItem() {
+    if (!newDraft.name.trim()) return;
     setBusy(true);
     setItemsError(null);
     try {
+      const product = await resolveProduct({
+        name: newDraft.name.trim(),
+        category: newDraft.category,
+      });
       await createNeededItem({
         term_id: term.id,
-        category: newCategory,
-        description: newDescription.trim() || undefined,
+        product_id: product.id,
+        description: newDraft.description.trim() || undefined,
       });
       setAdding(false);
-      setNewCategory("OTHER");
-      setNewDescription("");
+      setNewDraft(emptyDraft);
       onChanged();
     } catch {
       setItemsError("Nie udało się dodać rzeczy — spróbuj ponownie");
@@ -177,9 +232,7 @@ export function EditTermDialog({ term, neededItems, onChanged, onClose }: EditTe
         </Field>
       </div>
       {formError && <p className="mt-2 text-[12.5px] font-semibold text-danger">{formError}</p>}
-      {saved && !formError && (
-        <p className="mt-2 text-[12.5px] font-bold text-mint">Zapisano</p>
-      )}
+      {saved && !formError && <p className="mt-2 text-[12.5px] font-bold text-mint">Zapisano</p>}
       <button
         type="button"
         onClick={() => void saveTermFields()}
@@ -199,34 +252,10 @@ export function EditTermDialog({ term, neededItems, onChanged, onClose }: EditTe
             >
               {editing?.id === ni.id ? (
                 <div className="flex w-full flex-col gap-1.5">
-                  <select
-                    aria-label="Kategoria rzeczy"
-                    value={editing.category}
-                    onChange={(e) =>
-                      setEditing((s) =>
-                        s ? { ...s, category: e.target.value as NeededItemCategory } : s,
-                      )
-                    }
-                    className={selectClass}
-                  >
-                    {CATEGORIES.map((c) => (
-                      <option key={c} value={c}>
-                        {NEEDED_ITEM_LABELS[c]}
-                      </option>
-                    ))}
-                  </select>
-                  <input
-                    aria-label="Opis rzeczy"
-                    value={editing.description}
-                    onChange={(e) =>
-                      setEditing((s) => (s ? { ...s, description: e.target.value } : s))
-                    }
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter") void saveEdit();
-                      if (e.key === "Escape") setEditing(null);
-                    }}
-                    placeholder="Opis (opcjonalnie)"
-                    className={rowInputClass}
+                  <NeededItemFields
+                    value={editing}
+                    onChange={(v) => setEditing((s) => (s ? { ...s, ...v } : s))}
+                    namePrefix="rzeczy"
                   />
                   <div className="flex gap-1.5">
                     <button
@@ -245,7 +274,7 @@ export function EditTermDialog({ term, neededItems, onChanged, onClose }: EditTe
               ) : (
                 <>
                   <span className="min-w-0 flex-1 text-ink-soft">
-                    {NEEDED_ITEM_LABELS[ni.category]}
+                    {ni.product_name}
                     {ni.description ? ` — ${ni.description}` : ""}
                   </span>
                   <button
@@ -273,31 +302,14 @@ export function EditTermDialog({ term, neededItems, onChanged, onClose }: EditTe
 
       {adding ? (
         <div className="mt-2 flex w-full flex-col gap-1.5">
-          <select
-            aria-label="Kategoria nowej rzeczy"
-            value={newCategory}
-            onChange={(e) => setNewCategory(e.target.value as NeededItemCategory)}
-            className={selectClass}
-          >
-            {CATEGORIES.map((c) => (
-              <option key={c} value={c}>
-                {NEEDED_ITEM_LABELS[c]}
-              </option>
-            ))}
-          </select>
-          <input
-            aria-label="Opis nowej rzeczy"
-            value={newDescription}
-            onChange={(e) => setNewDescription(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") void addItem();
-              if (e.key === "Escape") setAdding(false);
-            }}
-            placeholder="Opis (opcjonalnie)"
-            className={rowInputClass}
-          />
+          <NeededItemFields value={newDraft} onChange={setNewDraft} namePrefix="nowej rzeczy" />
           <div className="flex gap-1.5">
-            <button type="button" onClick={() => void addItem()} disabled={busy} className={rowSaveBtn}>
+            <button
+              type="button"
+              onClick={() => void addItem()}
+              disabled={busy || !newDraft.name.trim()}
+              className={rowSaveBtn}
+            >
               Dodaj
             </button>
             <button type="button" onClick={() => setAdding(false)} className={rowCancelBtn}>
@@ -310,8 +322,7 @@ export function EditTermDialog({ term, neededItems, onChanged, onClose }: EditTe
           type="button"
           onClick={() => {
             setAdding(true);
-            setNewCategory("OTHER");
-            setNewDescription("");
+            setNewDraft(emptyDraft);
             setItemsError(null);
           }}
           aria-label="Dodaj potrzebną rzecz"
@@ -321,9 +332,7 @@ export function EditTermDialog({ term, neededItems, onChanged, onClose }: EditTe
         </button>
       )}
 
-      {itemsError && (
-        <p className="mt-2 text-[12.5px] font-semibold text-danger">{itemsError}</p>
-      )}
+      {itemsError && <p className="mt-2 text-[12.5px] font-semibold text-danger">{itemsError}</p>}
     </ModalSheet>
   );
 }

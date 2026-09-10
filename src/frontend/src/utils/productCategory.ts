@@ -1,6 +1,15 @@
+import type { ItemCondition } from "../api/inventories";
 import type { ProductCategory } from "../api/products";
 
 export const PRODUCT_CATEGORIES: ProductCategory[] = ["TOY", "BOOK", "GAME", "CLOTHING", "OTHER"];
+
+export const CONDITION_LABELS: Record<ItemCondition, string> = {
+  NEW: "Nowy",
+  LIKE_NEW: "Jak nowy",
+  GOOD: "Dobry",
+  FAIR: "Znośny",
+  POOR: "Słaby",
+};
 
 export const CATEGORY_LABELS: Record<ProductCategory, string> = {
   TOY: "Toy",

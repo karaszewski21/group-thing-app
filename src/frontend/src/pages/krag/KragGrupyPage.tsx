@@ -2,8 +2,9 @@ import { useEffect, useMemo, useState } from "react";
 import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
 import { useKragGrupy } from "../../hooks/useKragGrupy";
 import { usePublicKragGrupy } from "../../hooks/usePublicKragGrupy";
-import { ProductPicker } from "../../components/shared/ProductPicker";
-import { createEmptyProductPickerValue, type ProductPickerValue } from "../../utils/productPicker";
+import type { ItemCondition } from "../../api/inventories";
+import type { FulfillPledgeRequest } from "../../api/pledges";
+import { CONDITION_LABELS } from "../../utils/productCategory";
 import { RsvpDialog } from "../../components/krag/RsvpDialog";
 import { RsvpDialogLoggedIn } from "../../components/krag/RsvpDialogLoggedIn";
 import { RsvpGateDialog } from "../../components/krag/RsvpGateDialog";
@@ -137,13 +138,12 @@ function PrivateKragGrupyView() {
     myPartyId,
     currentTerm,
     neededItems,
-    products,
+    myAvailableItems,
     pledgeFamilyName,
     pledge,
     withdraw,
     fulfillPledgeItem,
     confirmPledgeReceipt,
-    addProduct,
   } = useKragGrupy(groupId);
 
   const [activeFamilyId, setActiveFamilyId] = useState<number | null>(null);
@@ -151,7 +151,9 @@ function PrivateKragGrupyView() {
   const [busyItemId, setBusyItemId] = useState<number | null>(null);
   const [busyPledgeId, setBusyPledgeId] = useState<number | null>(null);
   const [fulfillingItemId, setFulfillingItemId] = useState<number | null>(null);
-  const [pickerValue, setPickerValue] = useState<ProductPickerValue>(createEmptyProductPickerValue());
+  const [fulfillMode, setFulfillMode] = useState<"new" | "mine">("new");
+  const [fulfillCondition, setFulfillCondition] = useState<ItemCondition>("GOOD");
+  const [fulfillItemId, setFulfillItemId] = useState<number | null>(null);
 
   useEffect(() => {
     const l = document.createElement("link");
@@ -202,34 +204,26 @@ function PrivateKragGrupyView() {
 
   function openFulfillForm(itemId: number) {
     setFulfillingItemId(itemId);
-    setPickerValue(createEmptyProductPickerValue(products[0]?.id ?? "new"));
+    setFulfillMode(myAvailableItems.length > 0 ? "mine" : "new");
+    setFulfillCondition("GOOD");
+    setFulfillItemId(myAvailableItems[0]?.id ?? null);
   }
 
   async function handleFulfillSubmit(pledgeId: number) {
     setBusyPledgeId(pledgeId);
     try {
-      let productId: number;
-      if (pickerValue.selectedProductId === "new") {
-        if (!pickerValue.newProductName.trim()) {
-          setToast("Podaj nazwę przedmiotu");
+      let request: FulfillPledgeRequest;
+      if (fulfillMode === "mine") {
+        if (fulfillItemId === null) {
+          setToast("Wybierz rzecz z Twoich zbiorów");
           return;
         }
-        // `price`/`sku` are the sales-catalog's own required fields (price
-        // must be > 0) — a guardian registering "I'm bringing this
-        // tambourine" has no natural value for either, so both get an
-        // invisible placeholder rather than surfacing fields nobody here
-        // cares about.
-        const product = await addProduct({
-          name: pickerValue.newProductName.trim(),
-          category: pickerValue.newProductCategory,
-          price: 0.01,
-          sku: `${pickerValue.newProductName.trim().slice(0, 10).toUpperCase()}-${Date.now()}`,
-        });
-        productId = product.id;
+        request = { inventory_item_id: fulfillItemId };
       } else {
-        productId = pickerValue.selectedProductId;
+        // product_id omitted -> backend uses the product the NeededItem names.
+        request = { condition: fulfillCondition };
       }
-      await fulfillPledgeItem(pledgeId, { product_id: productId, condition: pickerValue.condition });
+      await fulfillPledgeItem(pledgeId, request);
       setFulfillingItemId(null);
     } catch {
       setToast("Nie udało się zarejestrować przedmiotu");
@@ -384,7 +378,7 @@ function PrivateKragGrupyView() {
                       {shown ? familyInitials(pledgeFamilyName(shown)) : "?"}
                     </span>
                     <div className="kg-bring-body">
-                      <strong>{item.category}{item.description ? ` — ${item.description}` : ""}</strong>
+                      <strong>{item.product_name}{item.description ? ` — ${item.description}` : ""}</strong>
                       <small>
                         {shown
                           ? `Przynosi: ${myPledge ? "Ty" : pledgeFamilyName(shown)}`
@@ -398,8 +392,8 @@ function PrivateKragGrupyView() {
                         onClick={() => void handlePledgeToggle(item.id, myPledge?.id ?? null)}
                         aria-label={
                           myPledge
-                            ? `Rezygnuję z przyniesienia: ${item.category}`
-                            : `Ja to przyniosę: ${item.category}`
+                            ? `Rezygnuję z przyniesienia: ${item.product_name}`
+                            : `Ja to przyniosę: ${item.product_name}`
                         }
                       >
                         {myPledge ? "Rezygnuję" : "Ja to przyniosę"}
@@ -414,14 +408,59 @@ function PrivateKragGrupyView() {
 
                   {showFulfillAction && fulfillingItemId === item.id && myPledge && (
                     <div className="kg-fulfill">
-                      <ProductPicker
-                        products={products}
-                        value={pickerValue}
-                        onChange={setPickerValue}
-                        selectClassName="kg-select"
-                        inputClassName="kg-input"
-                        rowClassName="kg-fulfill-row"
-                      />
+                      <div className="kg-fulfill-row" role="radiogroup" aria-label="Sposób">
+                        <button
+                          type="button"
+                          className={`kg-bring-btn ${fulfillMode === "new" ? "is-on" : ""}`}
+                          aria-pressed={fulfillMode === "new"}
+                          onClick={() => setFulfillMode("new")}
+                        >
+                          Nowa rzecz
+                        </button>
+                        <button
+                          type="button"
+                          className={`kg-bring-btn ${fulfillMode === "mine" ? "is-on" : ""}`}
+                          aria-pressed={fulfillMode === "mine"}
+                          disabled={myAvailableItems.length === 0}
+                          onClick={() => setFulfillMode("mine")}
+                        >
+                          Z moich rzeczy
+                        </button>
+                      </div>
+
+                      {fulfillMode === "new" ? (
+                        <div className="kg-fulfill-row">
+                          <span>Przedmiot: {item.product_name}</span>
+                          <select
+                            className="kg-select"
+                            aria-label="Stan"
+                            value={fulfillCondition}
+                            onChange={(e) => setFulfillCondition(e.target.value as ItemCondition)}
+                          >
+                            {(Object.keys(CONDITION_LABELS) as ItemCondition[]).map((c) => (
+                              <option key={c} value={c}>
+                                {CONDITION_LABELS[c]}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                      ) : (
+                        <div className="kg-fulfill-row">
+                          <select
+                            className="kg-select"
+                            aria-label="Rzecz z moich zbiorów"
+                            value={fulfillItemId ?? ""}
+                            onChange={(e) => setFulfillItemId(Number(e.target.value))}
+                          >
+                            {myAvailableItems.map((mi) => (
+                              <option key={mi.id} value={mi.id}>
+                                {mi.productName}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                      )}
+
                       <div className="kg-fulfill-actions">
                         <button
                           className="kg-btn-primary"
@@ -663,14 +702,14 @@ export function PublicKragGrupyView() {
                   <div className="kg-bring-row">
                     <div className="kg-bring-body">
                       <strong>
-                        {item.category}
+                        {item.product_name}
                         {item.description ? ` — ${item.description}` : ""}
                       </strong>
                     </div>
                     {canMerge && !isMerging && (
                       <button
                         className="kg-bring-btn"
-                        aria-label={`Zgłoś się: ${item.category}`}
+                        aria-label={`Zgłoś się: ${item.product_name}`}
                         onClick={() => setMergingItemId(item.id)}
                       >
                         Zgłoś się

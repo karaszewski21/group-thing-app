@@ -1270,8 +1270,10 @@ describe("PanelPage — needed item sub-CRUD (in the term dialog)", () => {
   const neededItem = {
     id: 11,
     term_id: 1,
-    category: "INSTRUMENT" as const,
-    description: "Bębenek",
+    product_id: 5,
+    product_name: "Bębenek",
+    product_category: "OTHER" as const,
+    description: "mały",
     created_at: "",
     updated_at: "",
   };
@@ -1289,43 +1291,47 @@ describe("PanelPage — needed item sub-CRUD (in the term dialog)", () => {
     return screen.findByRole("dialog", { name: "Edytuj termin" });
   }
 
-  it("adds a needed item via the dialog add row", async () => {
+  it("adds a needed item via the dialog add row (resolveProduct then createNeededItem)", async () => {
     mockTermWithNeeded();
+    vi.mocked(productsApi.resolveProduct).mockResolvedValue({
+      id: 42, name: "Mata", description: null, photoUrl: null, price: 0.01, sku: "MATA-1",
+      category: "OTHER", pluginData: null, createdAt: "", updatedAt: "",
+    });
     vi.mocked(termsApi.createNeededItem).mockResolvedValue({
-      id: 12, term_id: 1, category: "MAT_BLANKET", description: "Koc", created_at: "", updated_at: "",
+      id: 12, term_id: 1, product_id: 42, product_name: "Mata", product_category: "OTHER",
+      description: "Koc", created_at: "", updated_at: "",
     });
     const dialog = await openEditDialog();
 
     fireEvent.click(within(dialog).getByRole("button", { name: "Dodaj potrzebną rzecz" }));
-    fireEvent.change(within(dialog).getByLabelText("Kategoria nowej rzeczy"), { target: { value: "MAT_BLANKET" } });
-    fireEvent.change(within(dialog).getByLabelText("Opis nowej rzeczy"), { target: { value: "Koc" } });
+    fireEvent.change(within(dialog).getByLabelText("Nazwa nowej rzeczy"), { target: { value: "Mata" } });
+    fireEvent.change(within(dialog).getByLabelText("Doprecyzowanie nowej rzeczy"), { target: { value: "Koc" } });
     fireEvent.click(within(dialog).getByRole("button", { name: "Dodaj" }));
 
     await waitFor(() =>
+      expect(productsApi.resolveProduct).toHaveBeenCalledWith({ name: "Mata", category: "OTHER" }),
+    );
+    await waitFor(() =>
       expect(termsApi.createNeededItem).toHaveBeenCalledWith({
-        term_id: 1, category: "MAT_BLANKET", description: "Koc",
+        term_id: 1, product_id: 42, description: "Koc",
       }),
     );
   });
 
-  it("edits a needed item's category and description via the dialog", async () => {
+  it("edits a needed item's description only via the dialog (no resolveProduct)", async () => {
     mockTermWithNeeded();
-    vi.mocked(termsApi.updateNeededItem).mockResolvedValue({
-      ...neededItem, category: "MAT_BLANKET", description: "Koc",
-    });
+    vi.mocked(termsApi.updateNeededItem).mockResolvedValue({ ...neededItem, description: "duży" });
     const dialog = await openEditDialog();
 
     fireEvent.click(within(dialog).getByRole("button", { name: "Edytuj potrzebną rzecz" }));
-    fireEvent.change(within(dialog).getByLabelText("Kategoria rzeczy"), { target: { value: "MAT_BLANKET" } });
-    fireEvent.change(within(dialog).getByLabelText("Opis rzeczy"), { target: { value: "Koc" } });
+    fireEvent.change(within(dialog).getByLabelText("Doprecyzowanie rzeczy"), { target: { value: "duży" } });
     const row = within(dialog).getByRole("listitem");
     fireEvent.click(within(row).getByRole("button", { name: "Zapisz" }));
 
     await waitFor(() =>
-      expect(termsApi.updateNeededItem).toHaveBeenCalledWith(11, {
-        category: "MAT_BLANKET", description: "Koc",
-      }),
+      expect(termsApi.updateNeededItem).toHaveBeenCalledWith(11, { description: "duży" }),
     );
+    expect(productsApi.resolveProduct).not.toHaveBeenCalled();
   });
 
   it("deletes a needed item via the dialog (await-then-refresh)", async () => {
@@ -1465,8 +1471,10 @@ describe("PanelPage — needed item edit error path", () => {
   const neededItem = {
     id: 11,
     term_id: 1,
-    category: "INSTRUMENT" as const,
-    description: "Bębenek",
+    product_id: 5,
+    product_name: "Bębenek",
+    product_category: "OTHER" as const,
+    description: "mały",
     created_at: "",
     updated_at: "",
   };
@@ -1483,7 +1491,9 @@ describe("PanelPage — needed item edit error path", () => {
     const dialog = await screen.findByRole("dialog", { name: "Edytuj termin" });
 
     fireEvent.click(within(dialog).getByRole("button", { name: "Edytuj potrzebną rzecz" }));
-    fireEvent.change(within(dialog).getByLabelText("Opis rzeczy"), { target: { value: "Coś innego" } });
+    fireEvent.change(within(dialog).getByLabelText("Doprecyzowanie rzeczy"), {
+      target: { value: "Coś innego" },
+    });
     const row = within(dialog).getByRole("listitem");
     fireEvent.click(within(row).getByRole("button", { name: "Zapisz" }));
 

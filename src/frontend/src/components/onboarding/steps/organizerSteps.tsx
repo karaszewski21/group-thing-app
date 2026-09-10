@@ -1,24 +1,18 @@
 import { useEffect, useState } from "react";
 import type { Step, StepContext } from "../OnboardingWizard";
 import { createMyCircle, type GroupResponse } from "../../../api/groups";
-import { createNeededItem, createTerm, type NeededItemCategory } from "../../../api/terms";
+import { createNeededItem, createTerm } from "../../../api/terms";
+import { resolveProduct } from "../../../api/products";
 import { createMyOrganization } from "../../../api/organizations";
+import { NeededItemQuickAddForm } from "../../shared/NeededItemQuickAddForm";
+import {
+  createEmptyNeededItemQuickAddValue,
+  type NeededItemQuickAddValue,
+} from "../../../utils/neededItemQuickAdd";
 
 const inputClass =
   "w-full rounded-xl border-[1.5px] border-line bg-cream px-3.5 py-2.5 text-sm text-ink outline-none focus:border-mint focus:ring-[3px] focus:ring-mint-soft";
 const labelClass = "mb-1.5 block text-xs font-extrabold tracking-wide text-ink-soft";
-
-const NEEDED_ITEM_LABELS: Record<NeededItemCategory, string> = {
-  INSTRUMENT: "Instrument",
-  MAT_BLANKET: "Mata/koc",
-  ART_SUPPLIES: "Materiały plastyczne",
-  OTHER: "Inne",
-};
-
-interface DraftNeededItem {
-  category: NeededItemCategory;
-  description: string;
-}
 
 /**
  * Holds the circle created by step 1 for step 2 to reference (`Grupa:
@@ -109,9 +103,8 @@ function CircleNameStepBody({ ctx }: { ctx: StepContext }) {
 function TermStepBody({ ctx }: { ctx: StepContext }) {
   const [occursOn, setOccursOn] = useState("");
   const [description, setDescription] = useState("");
-  const [neededDraft, setNeededDraft] = useState<DraftNeededItem[]>([]);
-  const [draftCategory, setDraftCategory] = useState<NeededItemCategory>("OTHER");
-  const [draftDescription, setDraftDescription] = useState("");
+  const [neededDraft, setNeededDraft] = useState<NeededItemQuickAddValue[]>([]);
+  const [draft, setDraft] = useState<NeededItemQuickAddValue>(createEmptyNeededItemQuickAddValue());
 
   useEffect(() => {
     ctx.setSubmit(async () => {
@@ -122,9 +115,10 @@ function TermStepBody({ ctx }: { ctx: StepContext }) {
         description: description || undefined,
       });
       for (const item of neededDraft) {
+        const product = await resolveProduct({ name: item.name, category: item.category });
         await createNeededItem({
           term_id: term.id,
-          category: item.category,
+          product_id: product.id,
           description: item.description || undefined,
         });
       }
@@ -133,8 +127,12 @@ function TermStepBody({ ctx }: { ctx: StepContext }) {
   }, [occursOn, description, neededDraft]);
 
   function addDraftNeededItem() {
-    setNeededDraft((prev) => [...prev, { category: draftCategory, description: draftDescription.trim() }]);
-    setDraftDescription("");
+    if (!draft.name.trim()) return;
+    setNeededDraft((prev) => [
+      ...prev,
+      { ...draft, name: draft.name.trim(), description: draft.description.trim() },
+    ]);
+    setDraft(createEmptyNeededItemQuickAddValue());
   }
 
   function removeDraftNeededItem(index: number) {
@@ -181,45 +179,28 @@ function TermStepBody({ ctx }: { ctx: StepContext }) {
         {neededDraft.map((item, index) => (
           <div key={index} className="mb-1.5 flex items-center gap-2 text-[13px]">
             <span className="flex-1">
-              {NEEDED_ITEM_LABELS[item.category]}
+              {item.name}
               {item.description ? ` — ${item.description}` : ""}
             </span>
             <button
               type="button"
               onClick={() => removeDraftNeededItem(index)}
-              aria-label={`Usuń ${NEEDED_ITEM_LABELS[item.category]}`}
+              aria-label={`Usuń ${item.name}`}
               className="text-xs font-bold text-danger"
             >
               Usuń
             </button>
           </div>
         ))}
-        <div className="flex gap-2">
-          <select
-            value={draftCategory}
-            onChange={(e) => setDraftCategory(e.target.value as NeededItemCategory)}
-            className="rounded-xl border-[1.5px] border-line bg-cream px-3.5 py-2.5 text-ink"
-          >
-            {(Object.keys(NEEDED_ITEM_LABELS) as NeededItemCategory[]).map((c) => (
-              <option key={c} value={c}>
-                {NEEDED_ITEM_LABELS[c]}
-              </option>
-            ))}
-          </select>
-          <input
-            value={draftDescription}
-            onChange={(e) => setDraftDescription(e.target.value)}
-            placeholder="Opis (opcjonalnie)"
-            className="min-w-0 flex-1 rounded-xl border-[1.5px] border-line bg-cream px-3.5 py-2.5 text-ink"
-          />
-          <button
-            type="button"
-            onClick={addDraftNeededItem}
-            className="rounded-full border border-line px-3 py-1.5 text-xs font-bold text-ink-soft"
-          >
-            Dodaj
-          </button>
-        </div>
+        <NeededItemQuickAddForm value={draft} onChange={setDraft} />
+        <button
+          type="button"
+          onClick={addDraftNeededItem}
+          disabled={!draft.name.trim()}
+          className="mt-2 rounded-full border border-line px-3 py-1.5 text-xs font-bold text-ink-soft disabled:opacity-50"
+        >
+          Dodaj rzecz
+        </button>
       </div>
     </div>
   );

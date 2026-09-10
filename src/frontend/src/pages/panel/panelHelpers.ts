@@ -1,5 +1,5 @@
 import type { GroupResponse } from "../../api/groups";
-import type { NeededItemCategory, NeededItemResponse, TermResponse } from "../../api/terms";
+import type { NeededItemResponse, TermResponse } from "../../api/terms";
 
 /* ------------------------------------------------------------------ */
 /*  Panel — współdzielone typy, stałe i czyste helpery                  */
@@ -34,23 +34,11 @@ export interface LocalGift {
   source: GiftSource;
 }
 
-export interface DraftNeededItem {
-  category: NeededItemCategory;
-  description: string;
-}
-
 export interface TermWithNeeded {
   term: TermResponse;
   group: GroupResponse;
   neededItems: NeededItemResponse[];
 }
-
-export const NEEDED_ITEM_LABELS: Record<NeededItemCategory, string> = {
-  INSTRUMENT: "Instrument",
-  MAT_BLANKET: "Mata/koc",
-  ART_SUPPLIES: "Materiały plastyczne",
-  OTHER: "Inne",
-};
 
 export const ITEM_MODES: ItemMode[] = ["wypożyczę", "oddam", "zamienię"];
 

@@ -1,6 +1,6 @@
 import { Link } from "react-router-dom";
 import { BoxIcon, PencilIcon, TrashIcon } from "../panelIcons";
-import { dayMonth, NEEDED_ITEM_LABELS, termPublicPath } from "../panelHelpers";
+import { dayMonth, termPublicPath } from "../panelHelpers";
 import { usePanelData } from "../panelDataStore";
 
 export function SpotkaniaView() {
@@ -178,7 +178,7 @@ export function SpotkaniaView() {
                   <div className="mt-1.5 flex flex-wrap gap-1.5">
                     {neededItems.map((ni) => (
                       <span key={ni.id} className="rounded-full bg-lime-soft px-2.5 py-0.5 text-[10.5px] font-extrabold text-[#56701F]">
-                        {NEEDED_ITEM_LABELS[ni.category]}
+                        {ni.product_name}
                       </span>
                     ))}
                   </div>

@@ -10,7 +10,11 @@ from typing import cast
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.auth_deps import Principal
-from app.core.errors import AccessDeniedException, EntityNotFoundException
+from app.core.errors import (
+    AccessDeniedException,
+    BusinessConflictException,
+    EntityNotFoundException,
+)
 from app.users.service import get_profile_by_party, get_profile_by_principal
 
 from ..infrastructure import circulation_bridge
@@ -24,9 +28,17 @@ from .terms import get_needed_item, get_term
 async def fulfill_pledge(
     db: AsyncSession, principal: Principal, pledge_id: int, data: FulfillPledgeRequest
 ) -> Pledge:
-    """Registers the concrete item the pledging guardian brings and opens
-    the bridging `Reservation`: `reservedBy` = the Term's currently active
-    Organizer (they physically receive the item at the class)."""
+    """Attaches the concrete item the pledging guardian brings and opens the
+    bridging `LEND` `Reservation`: `reservedBy` = the Term's currently active
+    Organizer (they physically receive the item at the class).
+
+    Two modes (`FulfillPledgeRequest` enforces exactly one):
+    - `inventory_item_id` — a thing the guardian already owns (must be
+      `AVAILABLE`); no new `InventoryItem` is registered.
+    - `condition` (+ optional `product_id` override) — a fresh `InventoryItem`
+      registered in the guardian's personal inventory, defaulting to the
+      product the need names.
+    """
     pledge = await get_pledge(db, pledge_id)
     profile = await get_profile_by_principal(db, principal)
     _require_pledging_party(pledge, profile.party_id)
@@ -39,12 +51,29 @@ async def fulfill_pledge(
     organizer_party_id = await _group_role_party_id(db, leadership.from_role_id)
     organizer_profile = await get_profile_by_party(db, organizer_party_id)
 
-    inventory = await circulation_bridge.get_or_create_personal_inventory(
-        db, profile.account_user_id
-    )
-    item = await circulation_bridge.register_item(
-        db, cast(int, inventory.id), data.product_id, data.condition.value
-    )
+    if data.inventory_item_id is not None:
+        item = await circulation_bridge.get_item(db, data.inventory_item_id)
+        inventory = await circulation_bridge.get_inventory(db, item.inventory_id)
+        if (
+            inventory.owner_user_id != profile.account_user_id
+            or inventory.inventory_type != circulation_bridge.InventoryType.PERSONAL
+        ):
+            raise AccessDeniedException
+        balance = await circulation_bridge.get_item_balance(db, cast(int, item.id))
+        if balance.status != circulation_bridge.BalanceStatus.AVAILABLE:
+            raise BusinessConflictException(
+                "Nie można użyć tej rzeczy — jest zarezerwowana lub wypożyczona"
+            )
+    else:
+        assert data.condition is not None  # FulfillPledgeRequest guarantees this
+        inventory = await circulation_bridge.get_or_create_personal_inventory(
+            db, profile.account_user_id
+        )
+        product_id = data.product_id if data.product_id is not None else needed_item.product_id
+        item = await circulation_bridge.register_item(
+            db, cast(int, inventory.id), product_id, data.condition.value
+        )
+
     reservation = await circulation_bridge.create_lend_reservation(
         db, item_id=cast(int, item.id), reserved_by_user_id=organizer_profile.account_user_id
     )

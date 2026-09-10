@@ -73,7 +73,15 @@ const circleWithTerm: groupsApi.PublicCircleResponse = {
     id: 101,
     occurs_on: "2026-03-12",
     description: "Zajęcia rytmiczne",
-    needed_items: [{ id: 501, category: "INSTRUMENT", description: "Bębenek" }],
+    needed_items: [
+      {
+        id: 501,
+        product_id: 5,
+        product_name: "Bębenek",
+        product_category: "OTHER",
+        description: "mały",
+      },
+    ],
   },
   guardians: [{ display_name: "Marek W." }],
 };
@@ -454,11 +462,11 @@ describe("PublicKragGrupyPage", () => {
 
       renderAt(CANONICAL_PATH);
 
-      const trigger = await screen.findByRole("button", { name: /Zgłoś się: INSTRUMENT/ });
+      const trigger = await screen.findByRole("button", { name: /Zgłoś się: Bębenek/ });
       fireEvent.click(trigger);
 
       expect(
-        screen.queryByRole("button", { name: /Zgłoś się: INSTRUMENT/ }),
+        screen.queryByRole("button", { name: /Zgłoś się: Bębenek/ }),
       ).not.toBeInTheDocument();
       expect(screen.getByLabelText("Email")).toBeInTheDocument();
       expect(screen.getByLabelText("Hasło")).toBeInTheDocument();
@@ -471,7 +479,7 @@ describe("PublicKragGrupyPage", () => {
 
       renderAt(CANONICAL_PATH);
 
-      fireEvent.click(await screen.findByRole("button", { name: /Zgłoś się: INSTRUMENT/ }));
+      fireEvent.click(await screen.findByRole("button", { name: /Zgłoś się: Bębenek/ }));
       fireEvent.change(screen.getByLabelText("Email"), { target: { value: "ania@example.com" } });
       fireEvent.change(screen.getByLabelText("Hasło"), { target: { value: "sekret123" } });
       fireEvent.click(screen.getByRole("button", { name: "Załóż konto" }));
@@ -496,7 +504,7 @@ describe("PublicKragGrupyPage", () => {
 
       renderAt(CANONICAL_PATH);
 
-      fireEvent.click(await screen.findByRole("button", { name: /Zgłoś się: INSTRUMENT/ }));
+      fireEvent.click(await screen.findByRole("button", { name: /Zgłoś się: Bębenek/ }));
       fireEvent.change(screen.getByLabelText("Email"), { target: { value: "ania@example.com" } });
       fireEvent.change(screen.getByLabelText("Hasło"), { target: { value: "sekret123" } });
       fireEvent.click(screen.getByRole("button", { name: "Załóż konto" }));

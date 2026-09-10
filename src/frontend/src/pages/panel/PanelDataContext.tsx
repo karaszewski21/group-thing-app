@@ -45,18 +45,19 @@ import {
   createTerm,
   getNeededItems,
   getTerms,
-  type NeededItemCategory,
   type NeededItemResponse,
   type TermResponse,
 } from "../../api/terms";
 import { createEmptyItemQuickAddValue, type ItemQuickAddValue } from "../../utils/itemQuickAdd";
+import {
+  createEmptyNeededItemQuickAddValue,
+  type NeededItemQuickAddValue,
+} from "../../utils/neededItemQuickAdd";
 import { ApiError } from "../../api/client";
 import { CopyIcon, PencilIcon } from "./panelIcons";
 import {
   dayMonth,
-  NEEDED_ITEM_LABELS,
   termPublicPath,
-  type DraftNeededItem,
   type ItemMode,
   type LocalGift,
   type ModalKind,
@@ -212,9 +213,10 @@ function usePanelDataValue() {
   const [termGroupId, setTermGroupId] = useState<number | null>(null);
   const [termDate, setTermDate] = useState("");
   const [termDescription, setTermDescription] = useState("");
-  const [neededDraft, setNeededDraft] = useState<DraftNeededItem[]>([]);
-  const [draftCategory, setDraftCategory] = useState<NeededItemCategory>("OTHER");
-  const [draftDescription, setDraftDescription] = useState("");
+  const [neededDraft, setNeededDraft] = useState<NeededItemQuickAddValue[]>([]);
+  const [draftNeededItem, setDraftNeededItem] = useState<NeededItemQuickAddValue>(
+    createEmptyNeededItemQuickAddValue(),
+  );
 
   // --- Moje rzeczy (realny Inventory/InventoryItem/Product) ---
   const [inventoryId, setInventoryId] = useState<number | null>(null);
@@ -377,8 +379,12 @@ function usePanelDataValue() {
   /* ---------- terminy ---------- */
 
   function addDraftNeededItem() {
-    setNeededDraft((prev) => [...prev, { category: draftCategory, description: draftDescription.trim() }]);
-    setDraftDescription("");
+    if (!draftNeededItem.name.trim()) return;
+    setNeededDraft((prev) => [
+      ...prev,
+      { ...draftNeededItem, name: draftNeededItem.name.trim(), description: draftNeededItem.description.trim() },
+    ]);
+    setDraftNeededItem(createEmptyNeededItemQuickAddValue());
   }
 
   function removeDraftNeededItem(index: number) {
@@ -394,8 +400,13 @@ function usePanelDataValue() {
         occurs_on: termDate,
         description: termDescription || undefined,
       });
-      for (const item of neededDraft) {
-        await createNeededItem({ term_id: term.id, category: item.category, description: item.description || undefined });
+      for (const draft of neededDraft) {
+        const product = await resolveProduct({ name: draft.name, category: draft.category });
+        await createNeededItem({
+          term_id: term.id,
+          product_id: product.id,
+          description: draft.description || undefined,
+        });
       }
       setTermGroupId(null);
       setTermDate("");
@@ -557,7 +568,7 @@ function usePanelDataValue() {
                     key={ni.id}
                     className="rounded-full bg-lime-soft px-2.5 py-0.5 text-[10.5px] font-extrabold text-[#56701F]"
                   >
-                    {NEEDED_ITEM_LABELS[ni.category]}
+                    {ni.product_name}
                   </span>
                 ))}
               </div>
@@ -783,8 +794,7 @@ function usePanelDataValue() {
     termDate,
     termDescription,
     neededDraft,
-    draftCategory,
-    draftDescription,
+    draftNeededItem,
     inventoryId,
     items,
     products,
@@ -801,8 +811,7 @@ function usePanelDataValue() {
     setTermGroupId,
     setTermDate,
     setTermDescription,
-    setDraftCategory,
-    setDraftDescription,
+    setDraftNeededItem,
     setEditTermId,
     setEditingItemCondition,
     setEditingItemMeta,

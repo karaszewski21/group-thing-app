@@ -1,6 +1,5 @@
 import { api } from "./client";
-
-export type NeededItemCategory = "INSTRUMENT" | "MAT_BLANKET" | "ART_SUPPLIES" | "OTHER";
+import type { ProductCategory } from "./products";
 
 export interface TermResponse {
   id: number;
@@ -20,7 +19,9 @@ export interface CreateTermRequest {
 export interface NeededItemResponse {
   id: number;
   term_id: number;
-  category: NeededItemCategory;
+  product_id: number;
+  product_name: string;
+  product_category: ProductCategory;
   description: string | null;
   created_at: string;
   updated_at: string;
@@ -28,7 +29,7 @@ export interface NeededItemResponse {
 
 export interface CreateNeededItemRequest {
   term_id: number;
-  category: NeededItemCategory;
+  product_id: number;
   description?: string;
 }
 
@@ -66,7 +67,7 @@ export function createNeededItem(request: CreateNeededItemRequest): Promise<Need
 }
 
 export interface UpdateNeededItemRequest {
-  category?: NeededItemCategory;
+  product_id?: number;
   description?: string;
 }
 

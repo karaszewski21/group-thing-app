@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import { fireEvent, render, screen } from "@testing-library/react";
 import { ItemQuickAddForm } from "../components/shared/ItemQuickAddForm";
 import { createEmptyItemQuickAddValue } from "../utils/itemQuickAdd";
-import { CONDITION_LABELS } from "../utils/productPicker";
+import { CONDITION_LABELS } from "../utils/productCategory";
 import { CATEGORY_LABELS, PRODUCT_CATEGORIES } from "../utils/productCategory";
 
 describe("ItemQuickAddForm", () => {

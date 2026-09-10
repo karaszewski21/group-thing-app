@@ -11,6 +11,7 @@ from __future__ import annotations
 from sqlalchemy import Row, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.product.models import Product, ProductCategory
 from app.users.models import UserProfile
 
 from ..models import (
@@ -175,6 +176,32 @@ async def list_needed_items_for_term(db: AsyncSession, term_id: int) -> list[Nee
         .order_by(NeededItem.id)
     )
     return list(result.scalars().all())
+
+
+async def get_needed_item_with_product(
+    db: AsyncSession, needed_item_id: int
+) -> Row[tuple[NeededItem, str, ProductCategory]] | None:
+    """`NeededItem` + its product's name/category via an explicit join
+    scoped to this one read (`standards/backend/models.md` cross-module
+    rule — no `relationship()` into `app.product`)."""
+    result = await db.execute(
+        select(NeededItem, Product.name, Product.category)
+        .join(Product, NeededItem.product_id == Product.id)
+        .where(NeededItem.id == needed_item_id)
+    )
+    return result.one_or_none()
+
+
+async def list_needed_items_with_product_for_term(
+    db: AsyncSession, term_id: int
+) -> list[Row[tuple[NeededItem, str, ProductCategory]]]:
+    result = await db.execute(
+        select(NeededItem, Product.name, Product.category)
+        .join(Product, NeededItem.product_id == Product.id)
+        .where(NeededItem.term_id == term_id, NeededItem.deleted_at.is_(None))
+        .order_by(NeededItem.id)
+    )
+    return list(result.all())
 
 
 # --- Pledge -------------------------------------------------------------------

@@ -67,24 +67,24 @@ async def update_term(
 async def create_needed_item(
     body: CreateNeededItemRequest, db: DbSession, principal: EditPrincipal
 ) -> NeededItemResponse:
-    needed_item = await service.create_needed_item(db, principal, body)
-    return NeededItemResponse.model_validate(needed_item)
+    view = await service.create_needed_item(db, principal, body)
+    return NeededItemResponse.model_validate(view)
 
 
 @router.get("/api/needed-items", response_model=list[NeededItemResponse])
 async def list_needed_items(
     term_id: int, db: DbSession, principal: ReadPrincipal
 ) -> list[NeededItemResponse]:
-    needed_items = await service.list_needed_items(db, term_id)
-    return [NeededItemResponse.model_validate(needed_item) for needed_item in needed_items]
+    views = await service.list_needed_item_views(db, term_id)
+    return [NeededItemResponse.model_validate(view) for view in views]
 
 
 @router.get("/api/needed-items/{needed_item_id}", response_model=NeededItemResponse)
 async def get_needed_item(
     needed_item_id: int, db: DbSession, principal: ReadPrincipal
 ) -> NeededItemResponse:
-    needed_item = await service.get_needed_item(db, needed_item_id)
-    return NeededItemResponse.model_validate(needed_item)
+    view = await service.get_needed_item_view(db, needed_item_id)
+    return NeededItemResponse.model_validate(view)
 
 
 @router.patch("/api/needed-items/{needed_item_id}", response_model=NeededItemResponse)
@@ -95,8 +95,8 @@ async def update_needed_item(
     principal: EditPrincipal,
 ) -> NeededItemResponse:
     profile = await get_profile_by_principal(db, principal)
-    needed_item = await service.update_needed_item(db, needed_item_id, profile.party_id, body)
-    return NeededItemResponse.model_validate(needed_item)
+    view = await service.update_needed_item(db, needed_item_id, profile.party_id, body)
+    return NeededItemResponse.model_validate(view)
 
 
 @router.delete("/api/needed-items/{needed_item_id}", status_code=status.HTTP_204_NO_CONTENT)

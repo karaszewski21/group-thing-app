@@ -68,12 +68,23 @@ async def _create_circle_with_term(
     return circle_id, term.json()["id"]
 
 
+async def _resolve_product(client: AsyncClient, token: str, name: str = "Bębenek") -> int:
+    resolved = await client.post(
+        "/api/products/resolve",
+        json={"name": name, "category": "OTHER"},
+        headers=_auth_headers(token),
+    )
+    assert resolved.status_code == 200
+    return int(resolved.json()["id"])
+
+
 async def _create_needed_item(
-    client: AsyncClient, token: str, term_id: int, category: str = "INSTRUMENT"
+    client: AsyncClient, token: str, term_id: int, product_name: str = "Instrument"
 ) -> int:
+    product_id = await _resolve_product(client, token, product_name)
     item = await client.post(
         "/api/needed-items",
-        json={"term_id": term_id, "category": category, "description": "Bębenek"},
+        json={"term_id": term_id, "product_id": product_id, "description": "Bębenek"},
         headers=_auth_headers(token),
     )
     assert item.status_code == 201
@@ -141,30 +152,56 @@ async def test_patchTerm_invalidBody_returns400(client: AsyncClient) -> None:
     assert response.status_code == 400
 
 
-async def test_patchNeededItem_activeOrganizer_updatesCategory(client: AsyncClient) -> None:
+async def test_patchNeededItem_activeOrganizer_updatesProductAndDescription(
+    client: AsyncClient,
+) -> None:
     token = await _register_organizer(client, "patch.ni1@example.com")
     _circle_id, term_id = await _create_circle_with_term(client, token, "Krąg rzeczy")
-    needed_item_id = await _create_needed_item(client, token, term_id, category="INSTRUMENT")
+    needed_item_id = await _create_needed_item(client, token, term_id, product_name="Instrument")
 
+    other_product_id = await _resolve_product(client, token, "Materiały plastyczne")
     response = await client.patch(
         f"/api/needed-items/{needed_item_id}",
-        json={"category": "ART_SUPPLIES"},
+        json={"product_id": other_product_id, "description": "duży format"},
         headers=_auth_headers(token),
     )
 
     assert response.status_code == 200
     body = response.json()
-    assert body["category"] == "ART_SUPPLIES"
-    assert body["description"] == "Bębenek"
+    assert body["product_id"] == other_product_id
+    assert body["product_name"] == "Materiały plastyczne"
+    assert body["description"] == "duży format"
+
+    # Description-only PATCH leaves the product untouched.
+    desc_only = await client.patch(
+        f"/api/needed-items/{needed_item_id}",
+        json={"description": "mały format"},
+        headers=_auth_headers(token),
+    )
+    assert desc_only.status_code == 200
+    assert desc_only.json()["product_id"] == other_product_id
+    assert desc_only.json()["description"] == "mały format"
 
     # Non-organizer PATCH on the same item → 403 (lightweight fold-in).
     guest_token, _party_id = await _register_guest(client, "patch.ni1.guest@example.com")
     forbidden = await client.patch(
         f"/api/needed-items/{needed_item_id}",
-        json={"category": "OTHER"},
+        json={"description": "x"},
         headers=_auth_headers(guest_token),
     )
     assert forbidden.status_code == 403
+
+
+async def test_createNeededItem_unknownProductId_returns404(client: AsyncClient) -> None:
+    token = await _register_organizer(client, "ni.unknownprod@example.com")
+    _circle_id, term_id = await _create_circle_with_term(client, token, "Krąg rzeczy")
+
+    response = await client.post(
+        "/api/needed-items",
+        json={"term_id": term_id, "product_id": 999999, "description": None},
+        headers=_auth_headers(token),
+    )
+    assert response.status_code == 404
 
 
 async def test_deleteNeededItem_openAndClaimedPledges_transitionsToWithdrawn(
@@ -337,7 +374,7 @@ async def test_createTerm_happyPath_returns201WithTermFields(
     assert body["description"] == "Pierwsze spotkanie"
 
 
-async def test_createNeededItem_happyPath_returns201WithCategory(
+async def test_createNeededItem_happyPath_returns201WithProduct(
     client: AsyncClient, db_session: AsyncSession
 ) -> None:
     token = await _register_organizer(client, "circle.owner3@example.com")
@@ -352,16 +389,19 @@ async def test_createNeededItem_happyPath_returns201WithCategory(
     )
     term_id = term.json()["id"]
 
+    product_id = await _resolve_product(client, token, "Instrument")
     response = await client.post(
         "/api/needed-items",
-        json={"term_id": term_id, "category": "INSTRUMENT", "description": "Bębenek"},
+        json={"term_id": term_id, "product_id": product_id, "description": "Bębenek"},
         headers=_auth_headers(token),
     )
 
     assert response.status_code == 201
     body = response.json()
     assert body["term_id"] == term_id
-    assert body["category"] == "INSTRUMENT"
+    assert body["product_id"] == product_id
+    assert body["product_name"] == "Instrument"
+    assert body["product_category"] == "OTHER"
     assert body["description"] == "Bębenek"
 
 
@@ -379,9 +419,10 @@ async def test_getNeededItem_softDeleted_returns404(
         headers=_auth_headers(token),
     )
     term_id = term.json()["id"]
+    product_id = await _resolve_product(client, token, "Instrument")
     item = await client.post(
         "/api/needed-items",
-        json={"term_id": term_id, "category": "INSTRUMENT", "description": "Bębenek"},
+        json={"term_id": term_id, "product_id": product_id, "description": "Bębenek"},
         headers=_auth_headers(token),
     )
     needed_item_id = item.json()["id"]
@@ -489,9 +530,10 @@ async def test_getPublicCircle_noAuthHeader_returnsExpectedShape(
         headers=_auth_headers(token),
     )
     term_id = term.json()["id"]
+    product_id = await _resolve_product(client, token, "Instrument")
     await client.post(
         "/api/needed-items",
-        json={"term_id": term_id, "category": "INSTRUMENT", "description": "Bębenek"},
+        json={"term_id": term_id, "product_id": product_id, "description": "Bębenek"},
         headers=_auth_headers(token),
     )
 
@@ -504,6 +546,7 @@ async def test_getPublicCircle_noAuthHeader_returnsExpectedShape(
     assert body["name"] == "Krąg Publiczny"
     assert body["organizer_display_name"] is not None
     assert body["next_term"]["id"] == term_id
+    assert body["next_term"]["needed_items"][0]["product_name"] == "Instrument"
     assert body["next_term"]["needed_items"][0]["description"] == "Bębenek"
     assert body["guardians"] == []
 

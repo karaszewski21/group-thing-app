@@ -1,53 +1,38 @@
-import type { ItemCondition } from "../../api/inventories";
 import type { ProductCategory } from "../../api/products";
-import type { ItemQuickAddValue } from "../../utils/itemQuickAdd";
-import { CONDITION_LABELS } from "../../utils/productCategory";
+import type { NeededItemQuickAddValue } from "../../utils/neededItemQuickAdd";
 import { CATEGORY_LABELS, PRODUCT_CATEGORIES } from "../../utils/productCategory";
 
 const inputClass =
   "min-w-0 flex-1 rounded-xl border-[1.5px] border-line bg-cream px-3.5 py-2.5 text-ink";
 const labelClass = "text-xs font-extrabold tracking-wide text-ink-soft";
 
-interface ItemQuickAddFormProps {
-  value: ItemQuickAddValue;
-  onChange: (value: ItemQuickAddValue) => void;
+interface NeededItemQuickAddFormProps {
+  value: NeededItemQuickAddValue;
+  onChange: (value: NeededItemQuickAddValue) => void;
   disabled?: boolean;
 }
 
 /**
- * Freeform "add item" form — Nazwa (name) / Stan (condition) / Typ (category).
- * Replaces the `ProductPicker` catalog-select flow: purely presentational and
- * prop-configured, no API calls inside the component itself — callers own
- * submission (resolving the `Product` via `resolveProduct()`, then
- * `registerInventoryItem`). Shared by PanelPage's "+ Dodaj rzecz" modal and
- * the onboarding wizard's item step.
+ * "What do we need for this class" form — Nazwa (product name) / Typ
+ * (category) / Doprecyzowanie (optional free-text refinement). The sibling
+ * of `ItemQuickAddForm` for `NeededItem`s: purely presentational, callers
+ * own submission (`resolveProduct()` then `createNeededItem`).
  */
-export function ItemQuickAddForm({ value, onChange, disabled = false }: ItemQuickAddFormProps) {
+export function NeededItemQuickAddForm({
+  value,
+  onChange,
+  disabled = false,
+}: NeededItemQuickAddFormProps) {
   return (
     <div className="flex flex-col gap-3">
       <Field label="Nazwa">
         <input
           className={inputClass}
-          placeholder="np. Rowerek biegowy"
+          placeholder="np. Tamburyn"
           value={value.name}
           onChange={(e) => onChange({ ...value, name: e.target.value })}
           disabled={disabled}
         />
-      </Field>
-
-      <Field label="Stan">
-        <select
-          className={inputClass}
-          value={value.condition}
-          onChange={(e) => onChange({ ...value, condition: e.target.value as ItemCondition })}
-          disabled={disabled}
-        >
-          {(Object.keys(CONDITION_LABELS) as ItemCondition[]).map((c) => (
-            <option key={c} value={c}>
-              {CONDITION_LABELS[c]}
-            </option>
-          ))}
-        </select>
       </Field>
 
       <Field label="Typ">
@@ -63,6 +48,16 @@ export function ItemQuickAddForm({ value, onChange, disabled = false }: ItemQuic
             </option>
           ))}
         </select>
+      </Field>
+
+      <Field label="Doprecyzowanie (opcjonalnie)">
+        <input
+          className={inputClass}
+          placeholder="np. rozmiar 1/2"
+          value={value.description}
+          onChange={(e) => onChange({ ...value, description: e.target.value })}
+          disabled={disabled}
+        />
       </Field>
     </div>
   );

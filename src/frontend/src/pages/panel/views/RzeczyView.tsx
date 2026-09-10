@@ -1,7 +1,6 @@
 import { type ItemCondition } from "../../../api/inventories";
 import { type ProductCategory } from "../../../api/products";
-import { CATEGORY_LABELS, PRODUCT_CATEGORIES } from "../../../utils/productCategory";
-import { CONDITION_LABELS } from "../../../utils/productPicker";
+import { CATEGORY_LABELS, CONDITION_LABELS, PRODUCT_CATEGORIES } from "../../../utils/productCategory";
 import { createEmptyItemQuickAddValue } from "../../../utils/itemQuickAdd";
 import { BoxIcon, PencilIcon, TrashIcon } from "../panelIcons";
 import { capitalize, ITEM_MODE_STYLE, ITEM_MODES } from "../panelHelpers";

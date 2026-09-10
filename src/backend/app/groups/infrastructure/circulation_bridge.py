@@ -9,11 +9,24 @@ from __future__ import annotations
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.circulation import service as circulation_service
-from app.circulation.models import Inventory, InventoryItem, Reservation, ReservationStatus
+from app.circulation.models import (
+    BalanceStatus,
+    Inventory,
+    InventoryBalance,
+    InventoryItem,
+    InventoryType,
+    Reservation,
+    ReservationStatus,
+)
 
 __all__ = [
+    "BalanceStatus",
+    "InventoryType",
     "ReservationStatus",
     "create_lend_reservation",
+    "get_inventory",
+    "get_item",
+    "get_item_balance",
     "get_or_create_personal_inventory",
     "get_reservation",
     "register_item",
@@ -40,3 +53,15 @@ async def create_lend_reservation(
 
 async def get_reservation(db: AsyncSession, reservation_id: int) -> Reservation:
     return await circulation_service.get_reservation(db, reservation_id)
+
+
+async def get_item(db: AsyncSession, item_id: int) -> InventoryItem:
+    return await circulation_service.get_item(db, item_id)
+
+
+async def get_item_balance(db: AsyncSession, item_id: int) -> InventoryBalance:
+    return await circulation_service.get_item_balance(db, item_id)
+
+
+async def get_inventory(db: AsyncSession, inventory_id: int) -> Inventory:
+    return await circulation_service.get_inventory(db, inventory_id)

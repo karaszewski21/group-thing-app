@@ -7,7 +7,6 @@ import {
   GIFT_SOURCE_STYLE,
   ITEM_MODE_STYLE,
   ITEM_MODES,
-  NEEDED_ITEM_LABELS,
   termPublicPath,
   type GiftSource,
 } from "../panelHelpers";
@@ -133,7 +132,7 @@ export function HomeView() {
                         <div className="mt-1.5 flex flex-wrap gap-1.5">
                           {neededItems.map((ni) => (
                             <span key={ni.id} className="rounded-full bg-lime-soft px-2.5 py-0.5 text-[10.5px] font-extrabold text-[#56701F]">
-                              {NEEDED_ITEM_LABELS[ni.category]}
+                              {ni.product_name}
                             </span>
                           ))}
                         </div>

@@ -13,10 +13,13 @@ export interface PledgeResponse {
   updated_at: string;
 }
 
-export interface FulfillPledgeRequest {
-  product_id: number;
-  condition: ItemCondition;
-}
+/** Exactly one mode:
+ * - `{ inventory_item_id }` — an item the pledger already owns (must be AVAILABLE).
+ * - `{ condition, product_id? }` — register a fresh item; `product_id` defaults
+ *   server-side to the product the NeededItem names. */
+export type FulfillPledgeRequest =
+  | { inventory_item_id: number }
+  | { condition: ItemCondition; product_id?: number };
 
 export function getPledges(neededItemId: number): Promise<PledgeResponse[]> {
   return api.get(`/pledges?needed_item_id=${neededItemId}`);

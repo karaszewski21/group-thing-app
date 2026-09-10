@@ -1,5 +1,5 @@
 import { api } from "./client";
-import type { NeededItemCategory } from "./terms";
+import type { ProductCategory } from "./products";
 
 export interface GroupResponse {
   id: number;
@@ -105,7 +105,9 @@ export function endMembership(membershipId: number, validTo?: string): Promise<M
 
 export interface PublicNeededItemResponse {
   id: number;
-  category: NeededItemCategory;
+  product_id: number;
+  product_name: string;
+  product_category: ProductCategory;
   description: string | null;
 }
 
