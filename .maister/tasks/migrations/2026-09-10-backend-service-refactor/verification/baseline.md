@@ -16,10 +16,12 @@ Warnings are all the pre-existing `datetime.utcnow()` DeprecationWarning — not
 ## ruff check
 
 `uv run ruff check app` → **2 errors (pre-existing, out of scope):**
-- `app/organizations/models.py:220` area — E501 line too long
+- `app/groups/models.py:218:101` — E501 line too long (corrected 2026-09-10 during TG4a; the
+  earlier note said `organizations/models.py:220` — misread from ruff context lines).
 - `app/organizations/models.py:124:101` — E501 line too long (103 > 100)
 
-No ruff-check findings in `groups/`, `circulation/`, `families/`, `core/`.
+Both are in `models.py` files, which this refactor never touches. No ruff-check findings in
+`groups/service.py` or the new `groups/`, `circulation/`, `families/`, `core/` modules.
 
 ## ruff format  (CORRECTED 2026-09-10 after TG2 — the earlier "clean" note was wrong)
 

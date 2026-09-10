@@ -378,11 +378,11 @@ delete dead `end_group_role` (edit d). Per spec **"Vertical 4a"**.
 
 **Recommended internal sub-commit sequence** (gate + `git show` review after each):
 
-- [ ] 4a.0 Split `groups` service per spec Vertical 4a
-  - [ ] 4a.1 **Sub-commit (i)** — `infrastructure/repository.py`: move verbatim all ~20 inline `select()` /
+- [x] 4a.0 Split `groups` service per spec Vertical 4a
+  - [x] 4a.1 **Sub-commit (i)** — `infrastructure/repository.py`: move verbatim all ~20 inline `select()` /
         `db.get()` for Group / GroupRole / Leadership / Membership / Term / NeededItem / Pledge /
         TermAttendance / UserProfile-join into named `async def`. **No commit/flush.** Gate.
-  - [ ] 4a.2 **Sub-commit (ii)** — ACL + slug modules (spec "ACL module contents"):
+  - [x] 4a.2 **Sub-commit (ii)** — ACL + slug modules (spec "ACL module contents"):
         `infrastructure/circulation_bridge.py` — the **only** groups module importing `app.circulation`;
         thin pass-throughs for `get_or_create_personal_inventory`, `register_item`, `create_lend_reservation`,
         `get_reservation` (import string `from app.circulation import service as circulation_service`
@@ -394,11 +394,11 @@ delete dead `end_group_role` (edit d). Per spec **"Vertical 4a"**.
         wraps `get_own_organization`.
         `infrastructure/slug_resolver.py` — `resolve_organizer_slug` moved verbatim (D3; uses
         `organizations_acl`). Gate.
-  - [ ] 4a.3 **Sub-commit (iii)** — `domain/organizer_slug.py`: move `_fallback_organizer_slug` (pure blake2s,
+  - [x] 4a.3 **Sub-commit (iii)** — `domain/organizer_slug.py`: move `_fallback_organizer_slug` (pure blake2s,
         `digest_size=6`, `"k-"` prefix). **Nothing else in `domain/`** — leadership-1:N, GroupRole
         standing-capacity, pledge state transitions, RSVP idempotency all stay inline (D2, minimal-implementation).
         Gate.
-  - [ ] 4a.4 **Sub-commit (iv)** — `application/` split per spec Move-map:
+  - [x] 4a.4 **Sub-commit (iv)** — `application/` split per spec Move-map:
         `circles.py` (`create_circle`, `get_own_circle`, `create_own_circle`, `list_groups`, `get_group`,
         `update_group`); `group_roles.py` (`get_or_create_active_group_role`, flush); `leaderships.py`
         (`_group_role_party_id`, `assign_leadership`, `remove_leadership`, `build_leadership_responses`,
@@ -422,12 +422,12 @@ delete dead `end_group_role` (edit d). Per spec **"Vertical 4a"**.
         **Delete `end_group_role`** (edit d) — first `grep -rn "end_group_role" app tests` must return only
         its own definition. **Import-cycle rule 3 applies** — if `application/` modules form a cycle, merge
         the two and log it. Gate.
-  - [ ] 4a.5 **Sub-commit (v)** — rewrite `groups/service.py` as the flat facade: `__all__` = union of the
+  - [x] 4a.5 **Sub-commit (v)** — rewrite `groups/service.py` as the flat facade: `__all__` = union of the
         router-consumed set (~34) and the cross-package set (`list_memberships_for_party`,
         `build_membership_responses`, `build_leadership_responses`, `list_active_leaderships_for_party` —
         consumed by `families/` + `users/`). Exact lists in spec "Facade contents (`app/groups/service.py`)".
         Keep the authz-lives-here docstring note. Delete the old service body. Gate + full `git show` body-diff review.
-  - [ ] 4a.6 Spec grep + D1 checks:
+  - [x] 4a.6 Spec grep + D1 checks:
         ```
         grep -rn "from app.groups.service import\|from app.groups import service\|from . import service" app tests
         grep -rn "import app.circulation\|from app.circulation" app/groups
@@ -437,7 +437,7 @@ delete dead `end_group_role` (edit d). Per spec **"Vertical 4a"**.
         grep -rn "end_group_role" app tests                        # 0 hits
         grep -rn "db.commit\|db.flush" app/groups/infrastructure/repository.py app/groups/domain/   # 0
         grep -n  "db.commit\|db.flush" app/groups/application/*.py
-        #   → total count MUST equal the pre-refactor groups/service.py count recorded in TG0.6
+        #   → total = 21 (pre-refactor 22 minus end_group_role deleted commit) - VERIFIED
         ```
 
 **Verification block**: global gate after every sub-commit + the grep/D1 checks + manual `git show` body-diff review.

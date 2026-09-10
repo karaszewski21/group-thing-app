@@ -21,6 +21,8 @@ gate must pass before the next; shared single Docker Postgres container + single
 
 **TG3 (circulation)**: `standards/global/minimal-implementation.md` (thin domain/, plain-function ledger port not Protocol, no authz.py), `standards/backend/security.md` (`_require_item_owner` / `_require_party_to_reservation` co-located), `standards/backend/queries.md` + `models.md` (eager-load options verbatim into repository.py; repos never commit/flush), `standards/global/conventions.md` + `coding-style.md`.
 
+**TG4a (groups service)**: `standards/global/minimal-implementation.md` (thin domain/, minimal ACLs, no authz.py, delete dead code), `standards/backend/security.md` (`_require_*` co-located with guarded mutations), `standards/backend/queries.md` + `models.md`, `standards/global/conventions.md` + `coding-style.md`. Checked & N/A: `backend/plugin-auth.md`, `backend/jooq.md`.
+
 ---
 
 ## 2026-09-10 — TG0 Baseline Capture — DONE (no commit)
@@ -38,8 +40,28 @@ Deferred-items tracker (to keep updated):
       transition field-mutation cascades (`if reservation_type == LEND: balance.status = ...` in
       create_reservation/create_swap/confirm/cancel/fulfill) stay inline in `circulation/application/`.
       Behavior-risk refactor on D2-untested paths. Candidate follow-up.
-- [ ] any `application/` module merges forced by import cycles — none so far (TG1/2/3)
-- [ ] any behavior/perf/N+1 issue noticed in passing (log only) — none flagged TG1/2/3
+- [x] `application/` module merges forced by import cycles — **TG4a**: `groups/application/circles.py`
+      absorbed `leaderships.py` (genuine cycle: `assign_leadership` → `get_group`;
+      `get_own_circle`/`update_group` → `list_active_leaderships_for_party`/`_require_active_organizer`).
+      Merged per cross-cutting rule 3, no TYPE_CHECKING/local-import hacks. `group_roles.py` stayed separate.
+- [ ] any behavior/perf/N+1 issue noticed in passing (log only) — none flagged TG1–4a
+
+---
+
+## 2026-09-10 — TG4a groups service full DDD — COMPLETE — commit `e33cecf`
+
+**Steps**: 4a.1–4a.6 done (gated after each internal sub-move).
+**Files**: `groups/service.py` 983→facade (36 re-exports, `__all__`); new `domain/{__init__,organizer_slug}.py`, `application/{__init__,circles,group_roles,memberships,terms,pledges,pledge_fulfillment,public_view,account_merge}.py`, `infrastructure/{__init__,repository,circulation_bridge,organizations_acl,slug_resolver}.py`. `models.py`/`schemas.py`/`router.py` untouched.
+**Sanctioned edit (d)**: `end_group_role` deleted — `grep -rn end_group_role app tests` = 0 before and after.
+**Forced module merge (rule 3)**: `application/leaderships.py` folded into `application/circles.py` — real bidirectional import cycle (`assign_leadership`→`get_group`; circle fns→`_require_active_organizer`/`list_active_leaderships_for_party`). Logged; no hacks.
+**D3**: `resolve_organizer_slug` → `infrastructure/slug_resolver.py` verbatim; `_resolve_organizer` → `public_view.py` verbatim; `get_public_circle_view`'s inline organizer-slug block left INLINE (not routed through either). 500-on-missing-profile (`get_public_circle_view`) vs `None` (`_resolve_organizer`) divergence preserved.
+**ACLs**: `circulation_bridge.py` is the only groups module importing `app.circulation` (4 pass-throughs + `ReservationStatus` re-export); `organizations_acl.py` the only one importing `app.organizations`. grep-verified.
+**Verbatim check**: 47 old top-level fns; all 46 relocated (`end_group_role` deleted). `_fallback_organizer_slug` in `domain/`.
+**Gate**: `pytest` 113 (40.69s); `ruff check app` 2 baseline; `ruff format --check` clean on all new files; `mypy app` **exactly 4** — the 3 in-scope carried verbatim to new locations, NOT fixed: `pledge_fulfillment.py:43` + `:49` (arg-type `int|None`, was `service.py:612/618`), `public_view.py:251` (redundant-cast, was `service.py:904`).
+**Commit/flush**: `application/*` = **21** = pre-refactor 22 − `end_group_role`'s deleted commit (D1 satisfied — every *surviving* commit/flush preserved in place, incl. `merge_anonymous_profile`'s `pg_advisory_xact_lock`). `domain/` + `repository.py` = 0. Plan grep-check note updated 22→21.
+**Inline-query carve-outs**: `soft_delete_needed_item`'s pledge query + `create_rsvp`'s attendance lookup kept inline (routing to `repository` would force a new `cast()` — forbidden). Bodies byte-identical.
+**Line counts**: all new modules ≤234 except `public_view.py` 290 (verbatim multi-para docstrings + 2 large inline-preserved fns; cohesive).
+**ruff baseline correction**: the 2 pre-existing E501 are `groups/models.py:218` + `organizations/models.py:124` (earlier note misread one as `organizations/models.py:220`). Both in untouched `models.py`. Fixed in baseline.md.
 
 ---
 
