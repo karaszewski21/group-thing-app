@@ -480,26 +480,26 @@ spec **"Vertical 4b"**.
 
 **Steps**:
 
-- [ ] 4b.0 Split `groups/router` per spec Vertical 4b
-  - [ ] 4b.1 Create each sub-module (`circles.py`, `leaderships.py`, `memberships.py`, `terms.py`,
+- [x] 4b.0 Split `groups/router` per spec Vertical 4b
+  - [x] 4b.1 Create each sub-module (`circles.py`, `leaderships.py`, `memberships.py`, `terms.py`,
         `pledges.py`) with its own `router = APIRouter(tags=["groups"])` + the 3 local aliases (`DbSession`,
         `ReadPrincipal`, `EditPrincipal`), then move its handlers **verbatim** — same `service.X` calls, same
         `response_model`, `status_code`, `Depends`. Resource → module mapping in spec "Vertical 4b → Target
         file tree".
-  - [ ] 4b.2 **Within `circles.py`, preserve the current top-to-bottom handler declaration order verbatim** —
+  - [x] 4b.2 **Within `circles.py`, preserve the current top-to-bottom handler declaration order verbatim** —
         this is where `/api/groups/mine/attendances`, `/api/groups/public/{id}`, `POST .../rsvp`,
         `POST .../public/merge`, and `PATCH /api/groups/{group_id}` are declared **before**
         `GET /api/groups/{group_id}` (FastAPI matches in registration order).
-  - [ ] 4b.3 Create `router/__init__.py` exactly per spec: `router = APIRouter()` then
+  - [x] 4b.3 Create `router/__init__.py` exactly per spec: `router = APIRouter()` then
         `router.include_router(circles.router)` → `leaderships` → `memberships` → `terms` → `pledges`, in that
         order, with the load-bearing-order guard comment. Expose `router` so `from app.groups.router import router`
         resolves.
-  - [ ] 4b.4 Delete `app/groups/router.py`.
-  - [ ] 4b.5 (Optional, D5 — add only if cheap) `tests/test_groups_route_order.py` asserting the app resolves
+  - [x] 4b.4 Delete `app/groups/router.py`.
+  - [x] 4b.5 (Optional, D5 — add only if cheap) `tests/test_groups_route_order.py` asserting the app resolves
         `GET /api/groups/mine/attendances` → `list_my_attendances` (not `get_group`) and
         `GET /api/groups/public/1` → the public-view handler.
-  - [ ] 4b.6 Run the global regression gate.
-  - [ ] 4b.7 **Route-dump diff** (the critical check for this TG):
+  - [x] 4b.6 Run the global regression gate.
+  - [x] 4b.7 **Route-dump diff** (the critical check for this TG):
         ```
         cd src/backend
         uv run python -c "from app.main import app; [print(f'{sorted(r.methods)} {r.path} -> {r.name}') for r in app.routes if hasattr(r,'methods')]" > ../../.maister/tasks/migrations/2026-09-10-backend-service-refactor/verification/routes_after.txt
@@ -507,7 +507,7 @@ spec **"Vertical 4b"**.
              ../../.maister/tasks/migrations/2026-09-10-backend-service-refactor/verification/routes_after.txt
         #   → expect: NO differences
         ```
-  - [ ] 4b.8 `grep -rn "from app.groups.router import\|from app.groups import router" app main.py` → unchanged.
+  - [x] 4b.8 `grep -rn "from app.groups.router import\|from app.groups import router" app main.py` → unchanged.
 
 **Verification block**: global gate + **empty `diff routes_before.txt routes_after.txt`** + the import grep.
 

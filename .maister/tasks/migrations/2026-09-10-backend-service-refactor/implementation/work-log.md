@@ -23,6 +23,8 @@ gate must pass before the next; shared single Docker Postgres container + single
 
 **TG4a (groups service)**: `standards/global/minimal-implementation.md` (thin domain/, minimal ACLs, no authz.py, delete dead code), `standards/backend/security.md` (`_require_*` co-located with guarded mutations), `standards/backend/queries.md` + `models.md`, `standards/global/conventions.md` + `coding-style.md`. Checked & N/A: `backend/plugin-auth.md`, `backend/jooq.md`.
 
+**TG4b (groups router)**: `standards/backend/api.md` (REST route conventions unchanged), `standards/global/conventions.md` + `coding-style.md`, `project/architecture.md` (vertical exports `router` at stable path; `main.py` unchanged).
+
 ---
 
 ## 2026-09-10 — TG0 Baseline Capture — DONE (no commit)
@@ -45,6 +47,32 @@ Deferred-items tracker (to keep updated):
       `get_own_circle`/`update_group` → `list_active_leaderships_for_party`/`_require_active_organizer`).
       Merged per cross-cutting rule 3, no TYPE_CHECKING/local-import hacks. `group_roles.py` stayed separate.
 - [ ] any behavior/perf/N+1 issue noticed in passing (log only) — none flagged TG1–4a
+
+---
+
+## 2026-09-10 — Implementation Complete
+
+**Commits on `main`** (code): `5623352` TG1 · `617cb1a` TG2 · `0b695e2` TG3 · `e33cecf` TG4a · `0cefd98` TG4b
+(+ interleaved `docs(refactor):` tracking commits).
+**Final full gate**: `pytest` **113 passed** (49s) · `ruff check app` **2** (baseline, `models.py` only) · `mypy app` **4** (baseline set, 3 in-scope carried verbatim to new locations) · OpenAPI route dump **101 ops, byte-identical** to pre-refactor.
+**File-size outcome** (was: service.py 983 / 569 / 418, router.py 378, auth_deps.py 323):
+largest in-scope file now `groups/application/public_view.py` **290**; everything else ≤234.
+`groups/schemas.py` (258) + `groups/models.py` (220) untouched (D8 / out of scope).
+**Standards Reading Log**: complete for TG1–TG4b (see above).
+**Deferred / follow-ups** (see tracker): D3 slug-resolver consolidation; `circulation/domain/balance_state_machine.py` extraction; standards-update candidate (the `repository.py` / `application/` / `infrastructure/*_acl.py` per-vertical pattern, now demonstrated 4×).
+**Forced merges**: 1 — `groups/application/leaderships.py` → `circles.py` (real import cycle).
+**No behavior/perf/N+1 issue applied**; none noted worth flagging beyond the deferred list.
+
+---
+
+## 2026-09-10 — TG4b groups router package — COMPLETE — commit `0cefd98`
+
+**Steps**: 4b.1–4b.8 (4b.5 optional ordering-test skipped; runtime resolution verified via TestClient instead).
+**Files**: deleted `groups/router.py`; created `groups/router/{__init__,circles,leaderships,memberships,terms,pledges}.py`. `main.py` + `groups/{service,schemas,models}.py` untouched.
+**Handlers moved verbatim.** `circles.py` preserves top-to-bottom declaration order → `/mine/attendances`, `/public/*`, `PATCH /{group_id}` all before `GET /{group_id}`. `__init__.py` includes sub-routers circles→leaderships→memberships→terms→pledges with the load-bearing-order guard comment. No prefix (paths are absolute `/api/...` literals, matching the old file).
+**Import-path change** (required, not behavior): `from . import service` → `from app.groups import service` (one level deeper).
+**Gate**: `pytest` 113 (49.98s); `ruff check app` 2 baseline; `ruff format --check app/groups/router/` clean; `mypy app` 4 (unchanged from post-TG4a). **Route-dump diff empty — 101 ops identical** (`verification/routes_after.txt`).
+**Non-verbatim**: `ruff format` collapsed 2 multi-line handler signatures in `terms.py` (old `router.py` was pre-existing format debt) — whitespace only, logic byte-identical.
 
 ---
 

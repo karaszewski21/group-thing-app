@@ -145,4 +145,14 @@ phase_summaries:
       deferred per D2). Gate after every commit: pytest 113 pass + no new ruff/mypy findings vs
       baseline (2 ruff + 4 mypy pre-existing) + route-dump diff.
     baseline: {tests: "113 passed", ruff_preexisting_errors: 2, mypy_preexisting_errors: 4}
-  implementation: {summary: null}
+  implementation:
+    summary: >
+      All 6 task groups done, 5 code commits on main (5623352 TG1 auth_deps, 617cb1a TG2 families,
+      0b695e2 TG3 circulation, e33cecf TG4a groups service, 0cefd98 TG4b groups router).
+      Final gate: pytest 113 passed, ruff 2 baseline, mypy 4 baseline, OpenAPI route dump
+      101 ops byte-identical. Largest in-scope file now 290 lines (was 983). One forced module
+      merge (groups leaderships->circles, import cycle). One executor review-correction in TG3
+      (preserved reservation-transition short-circuit order). Deferred: D3 consolidation,
+      balance_state_machine.py extraction.
+    commits: [5623352, 617cb1a, 0b695e2, e33cecf, 0cefd98]
+    final_gate: {pytest: "113 passed", ruff: "2 (baseline)", mypy: "4 (baseline)", route_dump: "101 ops identical"}
