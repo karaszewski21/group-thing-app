@@ -292,24 +292,24 @@ reservation-transition preamble into `_load_reservation_for_transition` (edit b)
 
 **Recommended internal sub-commit sequence** (gate + `git show` review after each — finer rollback granularity):
 
-- [ ] 3.0 Split `circulation` per spec Vertical 3
-  - [ ] 3.1 **Sub-commit (i)** — `infrastructure/repository.py`: collect verbatim every `select()` / `db.get()`
+- [x] 3.0 Split `circulation` per spec Vertical 3
+  - [x] 3.1 **Sub-commit (i)** — `infrastructure/repository.py`: collect verbatim every `select()` / `db.get()`
         currently in `circulation/service.py` (Inventory lookups; InventoryItem get/list incl. `deleted_at`
         filter; InventoryBalance by item; Account by code; CirculationEntry by account; CirculationTransaction
         with the `selectinload(...).joinedload(...)` options verbatim; Reservation get/list;
         `_current_holder_user_id`'s fulfilled-history query with ordering `reserved_at.desc(), id.desc()`).
         Each → a named `async def` returning ORM object(s). **No commit/flush.** Keep `EntityNotFoundException`
         raises where they are today (in the `application/` getter wrappers, not the repo). Gate.
-  - [ ] 3.2 **Sub-commit (ii)** — `infrastructure/ledger.py`: move `get_or_create_user_balance_account`
+  - [x] 3.2 **Sub-commit (ii)** — `infrastructure/ledger.py`: move `get_or_create_user_balance_account`
         (`db.flush()`), `_get_emission_account`, and `_post_circulation_transaction` renamed to
         `post_circulation(db, *, giver_user_id, amount, description) -> CirculationTransaction` (body identical,
         `db.flush()` inside verbatim; plain async function, **no `Protocol`** — D7). Move the accounting
         docstring paragraph here; leave a short pointer on the facade. Gate.
-  - [ ] 3.3 **Sub-commit (iii)** — `domain/`: `constants.py` (`_EMISSION_ACCOUNT_CODE`, `_DEFAULT_LEND_DAYS`,
+  - [x] 3.3 **Sub-commit (iii)** — `domain/`: `constants.py` (`_EMISSION_ACCOUNT_CODE`, `_DEFAULT_LEND_DAYS`,
         `_POSTED_AMOUNT`); `reservation_rules.py` (`_require_party_to_reservation`, `_next_transaction_number`
         — both already module-level pure). **Nothing else** — the `InventoryBalance` transition cascades stay
         inline in `application/` (D2, deferred `balance_state_machine.py`). Gate.
-  - [ ] 3.4 **Sub-commit (iv)** — `application/` split, one module per use-case cluster per the spec Move-map:
+  - [x] 3.4 **Sub-commit (iv)** — `application/` split, one module per use-case cluster per the spec Move-map:
         `identity.py` (`get_user_id_by_principal`); `inventory.py` (`create_inventory` commit,
         `get_inventory`/`list_inventories` → repo, `get_or_create_personal_inventory` **flush not commit**);
         `inventory_items.py` (`register_item` **flush then commit, both inside verbatim**, `get_item`/`list_items`/
@@ -325,11 +325,11 @@ reservation-transition preamble into `_load_reservation_for_transition` (edit b)
         `fulfill` calls `ledger.post_circulation(db, giver_user_id=holder_user_id, amount=_POSTED_AMOUNT, description=description)`);
         `accounts.py` (`get_account_balance` **keeps `db.commit()` in the getter — do NOT fix**,
         `get_transaction`/`list_transactions_for_account` with eager-load options verbatim). Gate.
-  - [ ] 3.5 **Sub-commit (v)** — rewrite `circulation/service.py` as the flat facade: re-export the 20
+  - [x] 3.5 **Sub-commit (v)** — rewrite `circulation/service.py` as the flat facade: re-export the 20
         router-consumed symbols + the 4 groups-consumed (`get_or_create_personal_inventory`, `register_item`,
         `create_lend_reservation`, `get_reservation` — overlap the 20), `__all__` listing all. Delete the old
         service body. Short docstring pointer to `ledger.py`. Gate + `git show` full-body diff review.
-  - [ ] 3.6 Spec grep + D1 checks:
+  - [x] 3.6 Spec grep + D1 checks:
         ```
         grep -rn "from app.circulation import service\|from app.circulation.service import" app tests
         grep -rn "get_or_create_personal_inventory\|create_lend_reservation" app/groups   # still resolves via circulation_service

@@ -19,6 +19,8 @@ gate must pass before the next; shared single Docker Postgres container + single
 
 **TG2 (families)**: `standards/backend/security.md` (`_require_*` co-located), `standards/global/minimal-implementation.md` (layered split, no triad), `standards/backend/queries.md` + `models.md` (queries → repository.py, no commit/flush there), `standards/global/conventions.md` + `coding-style.md`.
 
+**TG3 (circulation)**: `standards/global/minimal-implementation.md` (thin domain/, plain-function ledger port not Protocol, no authz.py), `standards/backend/security.md` (`_require_item_owner` / `_require_party_to_reservation` co-located), `standards/backend/queries.md` + `models.md` (eager-load options verbatim into repository.py; repos never commit/flush), `standards/global/conventions.md` + `coding-style.md`.
+
 ---
 
 ## 2026-09-10 — TG0 Baseline Capture — DONE (no commit)
@@ -31,10 +33,28 @@ gate must pass before the next; shared single Docker Postgres container + single
 - Route snapshot: `verification/routes_before.txt` = **101 OpenAPI operations** (method + path + operationId + response codes). Captured via `app.openapi()` — NOT `app.routes` (this FastAPI version wraps includes in `_IncludedRouter` objects without a flat `.path`). TG4b diffs `routes_after.txt` against this.
 
 Deferred-items tracker (to keep updated):
-- [ ] D3 triplicated organizer-slug resolution + 500-vs-None divergence — moved as-is, not consolidated
-- [ ] `circulation/domain/balance_state_machine.py` extraction — deferred under D2
-- [ ] any `application/` module merges forced by import cycles
-- [ ] any behavior/perf/N+1 issue noticed in passing (log only)
+- [ ] D3 triplicated organizer-slug resolution + 500-vs-None divergence — moved as-is, not consolidated (TG4a)
+- [x] `circulation/domain/balance_state_machine.py` extraction — **DEFERRED** (TG3). The `InventoryBalance`
+      transition field-mutation cascades (`if reservation_type == LEND: balance.status = ...` in
+      create_reservation/create_swap/confirm/cancel/fulfill) stay inline in `circulation/application/`.
+      Behavior-risk refactor on D2-untested paths. Candidate follow-up.
+- [ ] any `application/` module merges forced by import cycles — none so far (TG1/2/3)
+- [ ] any behavior/perf/N+1 issue noticed in passing (log only) — none flagged TG1/2/3
+
+---
+
+## 2026-09-10 — TG3 circulation full DDD — COMPLETE — commit `0b695e2`
+
+**Steps**: 3.1–3.6 done (implementer gated after each internal sub-move).
+**Files**: `circulation/service.py` 569→facade (22 re-exports); new `domain/{__init__,constants,reservation_rules}.py`, `application/{__init__,identity,inventory,inventory_items,reservations,reservation_transitions,accounts}.py`, `infrastructure/{__init__,repository,ledger}.py`. `models.py`/`schemas.py`/`router.py` untouched.
+**Sanctioned edit (b)**: `_load_reservation_for_transition` — dedups the confirm/cancel/fulfill item+holder lookup.
+**Executor correction applied on review**: implementer's first cut folded `get_reservation` + `get_item` + `_current_holder_user_id` all into the helper, moving `get_item`/`_current_holder_user_id` *before* each caller's status guard — a benign but real reordering (re-cancel a CANCELLED reservation whose item was later soft-deleted would return 404 instead of 409). Reshaped so each caller does `get_reservation` → status guard → `_load_reservation_for_transition(reservation)` → `_require_party_to_reservation`, exactly matching the pre-refactor short-circuit order. Re-verified: `test_circulation` + `test_product_resolution` 15 pass, full suite 113 pass.
+**`_post_circulation_transaction` → `post_circulation(db, *, giver_user_id, amount, description)`** — plain async fn, no Protocol; only place a `CirculationTransaction` is built; `db.flush()` inside verbatim.
+**Verbatim check**: all 29 old top-level fns relocated (only `_post_circulation_transaction` renamed). `_current_holder_user_id` ordering (`reserved_at.desc(), id.desc()`) preserved in `repository.latest_fulfilled_reservation_for_item`.
+**Gate**: `pytest` 113 (39.10s); `ruff check app` 2 baseline; `ruff format --check app/circulation/` clean; `mypy app` 4 baseline, same line numbers.
+**Commit/flush**: `application/*` + `ledger.py` = **15** (= pre-refactor); `domain/` + `repository.py` = **0**.
+**mypy note**: 2 new `cast(int, x.id)` added in `accounts.py` + `reservation_transitions._current_holder_user_id` — the established `Mapped[int]` `.id` idiom, not new logic.
+**No forced module merges.**
 
 ---
 
