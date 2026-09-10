@@ -155,6 +155,23 @@ async def make_primary_contact(
     return await service.build_guardian_responses(db, memberships)
 
 
+@router.delete(
+    "/api/families/{family_id}/guardians/{family_membership_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    response_model=None,
+)
+async def remove_family_member(
+    family_id: int, family_membership_id: int, db: DbSession, principal: EditPrincipal
+) -> None:
+    """Guardian-only soft-close of a family member's `FamilyMembership`
+    (the family reads all filter `valid_to IS NULL`, so the member just
+    disappears). The guardian ownership check and the last-guardian guard
+    live in `service.remove_family_member` (403 / 409)."""
+    profile = await get_profile_by_principal(db, principal)
+    await service.remove_family_member(db, family_id, family_membership_id, profile.party_id)
+    return None
+
+
 @router.get("/api/families/{family_id}/memberships", response_model=list[MembershipResponse])
 async def list_memberships_for_family(
     family_id: int, db: DbSession, principal: ReadPrincipal

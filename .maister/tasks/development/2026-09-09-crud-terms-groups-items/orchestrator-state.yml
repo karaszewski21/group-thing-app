@@ -1,6 +1,7 @@
 orchestrator:
   started_phase: phase-1
-  completed_phases: [phase-1-analysis, phase-1, phase-2-analysis, phase-2, phase-5, phase-7]
+  completed_phases: [phase-1-analysis, phase-1, phase-2-analysis, phase-2, phase-5, phase-7, phase-8, phase-10, phase-11]
+  skipped_phases_verification: [phase-12-e2e, phase-13-user-docs]
   skipped_phases: [phase-4-ui-mockups, phase-6-spec-audit]
   skipped_notes:
     phase-4-ui-mockups: "User chose 'Pomiń makiety' at the Phase 2 routing gate."
@@ -10,12 +11,12 @@ orchestrator:
   options:
     spec_audit_enabled: true
     skip_test_suite: true
-    e2e_enabled: true
-    user_docs_enabled: true
+    e2e_enabled: false
+    user_docs_enabled: false
     code_review_enabled: true
-    pragmatic_review_enabled: true
-    reality_check_enabled: true
-    production_check_enabled: true
+    pragmatic_review_enabled: false
+    reality_check_enabled: false
+    production_check_enabled: false
     sequential: true
   created: 2026-09-09
   updated: 2026-09-09
@@ -134,8 +135,20 @@ task_context:
     architecture_decision: {decision: null, summary: null}
 
 verification_context:
-  last_status: null
-  issues_found: []
-  fixes_applied: []
-  decisions_made: []
-  reverify_count: 0
+  last_status: passed_with_issues
+  issues_found: [W1-balance-leak, W2-double-delete-guard, W3-prior-task-residue, I1-dangling-balance, I2-cant-clear-text, I3-neededitem-both-fields, "user-ui-term-tile-too-wide", "user-q-item-name-not-editable"]
+  fixes_applied:
+    - "User feedback: term tile restructured — inline pencil beside date + description, needed-items compact within the tile body, removed the separate termEditControls strip + neededItemsEditor panel. 2 views."
+    - "User feedback: 'Kopiuj link' moved into the term tile as a CopyIcon (organizerTermCard header), shows in both views; external text button removed."
+    - "User feedback (reversal): replaced the inline per-field term editors with EditTermDialog (new component). Tile is now a read-only compact card + CopyIcon + 'Edytuj termin' pencil that opens the dialog (Data + Opis + Potrzebne rzeczy CRUD). Inline handlers/state removed from PanelPage."
+    - "User feedback: EditTermDialog needed-item edit/add rows -> vertical stack (description on its own full-width line)."
+    - "SCOPE ADDITION (user asked twice): edit inventory item name + category via Product re-resolve. Backend UpdateInventoryItemRequest + product_id (validated via get_product); frontend inline name+category editor in 'Moje rzeczy' -> resolveProduct -> updateInventoryItem({product_id}). +4 tests. Phase 1 Q4 'condition only' superseded by explicit user request."
+  not_fixed: [W1-balance-leak, W2-double-delete-guard, W3-prior-task-residue, I1, I2, I3]
+  not_fixed_reasons:
+    W1-balance-leak: "User did not select. Minor status-only leak; balance endpoint is organizer-facing. Documented as known issue."
+    W2-double-delete-guard: "User did not select. Rare (requires a fast double-click during the request window). Documented as known issue."
+    W3-prior-task-residue: "Prior task's uncommitted work swept into commit 48c3905; the commented-out menuitem is the user's explicit earlier decision."
+    item-name-edit: "User asked why the item name isn't editable; orchestrator explained the Product re-resolve approach; user did NOT add it to the fix scope. Stays condition-only (Phase 1 Q4)."
+  decisions_made:
+    - "Fix pass: ONLY the term-tile UI restructure. W1/W2/name-edit deferred."
+  reverify_count: 1

@@ -75,9 +75,14 @@ export function getInventoryItemBalance(itemId: number): Promise<InventoryBalanc
   return api.get(`/inventory-items/${itemId}/balance`);
 }
 
+export interface UpdateInventoryItemRequest {
+  condition?: ItemCondition;
+  product_id?: number;
+}
+
 export function updateInventoryItem(
   id: number,
-  request: { condition: ItemCondition },
+  request: UpdateInventoryItemRequest,
 ): Promise<InventoryItemResponse> {
   return api.patch(`/inventory-items/${id}`, request);
 }

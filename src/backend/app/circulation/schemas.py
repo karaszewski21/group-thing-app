@@ -69,11 +69,13 @@ class CreateInventoryItemRequest(BaseModel):
 
 
 class UpdateInventoryItemRequest(BaseModel):
-    """PATCH `/api/inventory-items/{id}` body. Only `condition` is editable
-    here — name/category belong to the shared `Product` catalog and are out
-    of scope for this route."""
+    """PATCH `/api/inventory-items/{id}` body. Both fields optional and
+    partial-apply. `product_id` re-points the item at a different entry in
+    the shared `Product` catalog — the frontend resolves a Product by
+    name+category first, then sends its id here to rename/re-categorise."""
 
     condition: ItemCondition | None = None
+    product_id: int | None = None
 
 
 class ReservationResponse(BaseModel):

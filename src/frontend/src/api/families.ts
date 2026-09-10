@@ -102,6 +102,16 @@ export function makePrimaryContact(
   return api.post(`/families/${familyId}/guardians/${familyMembershipId}/make-primary`, undefined);
 }
 
+/** Guardian-only soft-close of a family member's `FamilyMembership` (the
+ * backend sets `valid_to`, so the member drops out of every family read).
+ * Rejects with `ApiError` 403 (not a guardian) or 409 (last guardian). */
+export function removeFamilyMember(
+  familyId: number,
+  familyMembershipId: number,
+): Promise<void> {
+  return api.delete(`/families/${familyId}/guardians/${familyMembershipId}`);
+}
+
 export function getMembershipsForFamily(familyId: number): Promise<MembershipResponse[]> {
   return api.get(`/families/${familyId}/memberships`);
 }

@@ -1,0 +1,68 @@
+orchestrator:
+  started_phase: phase-1
+  completed_phases: []
+  failed_phases: []
+  auto_fix_attempts:
+    phase-1: 0
+    phase-2: 0
+    phase-3: 0
+    phase-4: 0
+    phase-5: 0
+    phase-6: 0
+  options:
+    docs_enabled: false
+    sequential: null
+    code_review_enabled: true
+  created: 2026-09-10
+  updated: 2026-09-10
+  task_path: .maister/tasks/migrations/2026-09-10-backend-service-refactor
+  note: "TaskCreate/TaskUpdate tooling unavailable in this environment; phase tracking lives in this file only."
+
+task:
+  title: "Backend service refactor toward DDD / clean architecture"
+  description: >
+    Refactor src/backend/app: split large files (especially oversized services) into
+    smaller focused modules. Apply DDD and clean-architecture patterns where reasonable.
+    Backend only. No behavior change intended. Goal: reduce spaghetti / oversized files.
+  status: in_progress
+  tags: [refactor, ddd, clean-architecture, backend]
+  priority: medium
+
+migration_context:
+  migration_type: architecture
+  current_system:
+    description: "FastAPI microkernel backend with per-vertical packages (router/service/schemas/models). Several services grown oversized."
+    technologies: [Python 3.12, FastAPI, SQLAlchemy 2.0 async, Pydantic v2, Alembic, PostgreSQL]
+  target_system:
+    description: "Same stack; services decomposed into cohesive modules with clearer DDD bounded-context / layered boundaries."
+    technologies: [Python 3.12, FastAPI, SQLAlchemy 2.0 async, Pydantic v2, Alembic, PostgreSQL]
+  migration_strategy:
+    approach: incremental
+    phases: []
+  risk_level: null
+  breaking_changes: []
+  rollback_plan_created: false
+  dual_run_configured: false
+
+external_research:
+  performed: false
+
+verification_context:
+  last_status: null
+  issues_found: []
+  fixes_applied: []
+  decisions_made: []
+  reverify_count: 0
+
+project_context:
+  project_doc_paths:
+    - .maister/docs/INDEX.md
+    - .maister/docs/project/tech-stack.md
+    - .maister/docs/project/architecture.md
+  clarifications_resolved: false
+
+phase_summaries:
+  current_state_analysis: {summary: null, key_files: []}
+  gap_analysis: {summary: null, integration_points: []}
+  specification: {summary: null}
+  implementation: {summary: null}

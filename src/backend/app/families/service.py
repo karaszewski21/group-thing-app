@@ -14,7 +14,11 @@ from typing import cast
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.errors import AccessDeniedException, EntityNotFoundException
+from app.core.errors import (
+    AccessDeniedException,
+    BusinessConflictException,
+    EntityNotFoundException,
+)
 from app.groups.models import Membership
 from app.groups.service import list_memberships_for_party
 from app.party.models import PartyType
@@ -177,6 +181,61 @@ async def rename_family(
     await db.commit()
     await db.refresh(family)
     return family
+
+
+async def remove_family_member(
+    db: AsyncSession, family_id: int, family_membership_id: int, caller_party_id: int
+) -> None:
+    """Soft-closes one member's `FamilyMembership` (sets `valid_to` to
+    today) — the temporal "preserve row, don't delete" pattern also used by
+    `make_primary_contact`/`end_membership`. The standing `FamilyRole` is
+    left untouched (it's a capacity that other families/roles may bind).
+    Guardian-only, enforced here (not the coarse matrix), mirroring
+    `rename_family`. The last active GUARDIAN of a family cannot be
+    removed (409); CHILD members have no such guard."""
+    family = await get_family(db, family_id)
+    guardian = (
+        await db.execute(
+            select(FamilyRole.id)
+            .join(FamilyMembership, FamilyMembership.from_role_id == FamilyRole.id)
+            .where(
+                FamilyRole.party_id == caller_party_id,
+                FamilyRole.role_type == FamilyRoleType.GUARDIAN,
+                FamilyMembership.to_family_id == cast(int, family.id),
+                FamilyMembership.valid_to.is_(None),
+            )
+        )
+    ).first()
+    if guardian is None:
+        raise AccessDeniedException("You do not guard this Family")
+
+    membership = await db.get(FamilyMembership, family_membership_id)
+    if (
+        membership is None
+        or membership.to_family_id != family_id
+        or membership.valid_to is not None
+    ):
+        raise EntityNotFoundException("FamilyMembership", family_membership_id)
+
+    role = await db.get(FamilyRole, membership.from_role_id)
+    if role is not None and role.role_type == FamilyRoleType.GUARDIAN:
+        active_guardians = (
+            await db.execute(
+                select(func.count())
+                .select_from(FamilyMembership)
+                .join(FamilyRole, FamilyMembership.from_role_id == FamilyRole.id)
+                .where(
+                    FamilyMembership.to_family_id == family_id,
+                    FamilyMembership.valid_to.is_(None),
+                    FamilyRole.role_type == FamilyRoleType.GUARDIAN,
+                )
+            )
+        ).scalar_one()
+        if int(active_guardians) <= 1:
+            raise BusinessConflictException("Nie można usunąć jedynego opiekuna rodziny")
+
+    membership.valid_to = date.today()
+    await db.commit()
 
 
 async def create_lightweight_family_member(

@@ -231,8 +231,8 @@ Concurrency note for the executor: G2 and G3 are logically independent but share
 - `src/frontend/src/test/PanelPage.test.tsx` (extend)
 **Estimated Steps:** 10
 
-- [ ] 4.0 Complete the api layer + term/circle inline editors
-  - [ ] 4.1 Write 5 focused tests in `src/frontend/src/test/PanelPage.test.tsx` (mirror the "Mój dom — inline family rename" block ~L909-954; `vi.mock` factory per api module, `vi.resetAllMocks()` in `beforeEach`, `renderWithProviders`)
+- [x] 4.0 Complete the api layer + term/circle inline editors
+  - [x] 4.1 Write 5 focused tests in `src/frontend/src/test/PanelPage.test.tsx` (mirror the "Mój dom — inline family rename" block ~L909-954; `vi.mock` factory per api module, `vi.resetAllMocks()` in `beforeEach`, `renderWithProviders`)
     - `describe("PanelPage — term inline edit")`:
       - `calls updateTerm with only the changed occurs_on field and updates the tile after silent load`
       - `shows an inline error and keeps the original value when the save is rejected`
@@ -240,18 +240,18 @@ Concurrency note for the executor: G2 and G3 are logically independent but share
     - `describe("PanelPage — circle rename")`:
       - `renames the circle in place on success`
       - `shows an inline error on a rejected rename`
-  - [ ] 4.2 `api/terms.ts`: add `UpdateTermRequest` (`{ occurs_on?: string; description?: string }`) + `updateTerm(id, req)` → `api.patch(\`/terms/${id}\`, req)`. Thin wrapper, no `client.ts` change (`request()` already maps 204 → `undefined`).
-  - [ ] 4.3 `api/groups.ts`: add `updateCircle(id, { name })` → `api.patch(\`/groups/${id}\`, { name })`.
-  - [ ] 4.4 Scaffold needed-item + inventory api wrappers (bodies used by G5):
+  - [x] 4.2 `api/terms.ts`: add `UpdateTermRequest` (`{ occurs_on?: string; description?: string }`) + `updateTerm(id, req)` → `api.patch(\`/terms/${id}\`, req)`. Thin wrapper, no `client.ts` change (`request()` already maps 204 → `undefined`).
+  - [x] 4.3 `api/groups.ts`: add `updateCircle(id, { name })` → `api.patch(\`/groups/${id}\`, { name })`.
+  - [x] 4.4 Scaffold needed-item + inventory api wrappers (bodies used by G5):
     - `updateNeededItem(id, req)` + `deleteNeededItem(id)` → `api.patch`/`api.delete` on `/needed-items/{id}`.
     - `api/inventories.ts`: `updateInventoryItem(id, { condition })` + `deleteInventoryItem(id)` → `/inventory-items/{id}`.
-  - [ ] 4.5 Remove the `PanelPage.tsx` L60-66 comment block (`"Termin / rzecz … przycisk celowo pominięty"`).
-  - [ ] 4.6 Term per-field inline editors in `PanelPage.tsx` — follow family-rename template (`editing<Field>` / `<field>Draft` / `<field>Error` state trio, `PencilIcon` affordance, early-return on unchanged, `catch` → inline error, `await load({ silent: true })` after success).
+  - [x] 4.5 Remove the `PanelPage.tsx` L60-66 comment block (`"Termin / rzecz … przycisk celowo pominięty"`).
+  - [x] 4.6 Term per-field inline editors in `PanelPage.tsx` — follow family-rename template (`editing<Field>` / `<field>Draft` / `<field>Error` state trio, `PencilIcon` affordance, early-return on unchanged, `catch` → inline error, `await load({ silent: true })` after success).
     - `occurs_on` (date input) and `description` (text input) editable INDEPENDENTLY — separate save each, each sends only its own field.
-  - [ ] 4.7 Render the pencil affordance wherever a term renders for the organizer: home "Najbliższe terminy", the "Terminy" view, and the "Spotkania" view. Public views (`PublicKragGrupyView`, `usePublicKragGrupy`) get NO new controls.
-  - [ ] 4.8 Circle rename inline editor — same family-rename pattern — next to the organizer's circle name in the circle / "Grupy" section (spec Assumption 10: if no such section, place next to wherever the organizer's circle name first appears).
-  - [ ] 4.9 Accessible labels on all new edit controls; inline inputs keyboard-operable (`standards/frontend/accessibility.md`). Reuse `Field`, `PencilIcon` (`standards/frontend/components.md`).
-  - [ ] 4.10 Ensure the 5 tests pass
+  - [x] 4.7 Render the pencil affordance wherever a term renders for the organizer: home "Najbliższe terminy", the "Terminy" view, and the "Spotkania" view. Public views (`PublicKragGrupyView`, `usePublicKragGrupy`) get NO new controls.
+  - [x] 4.8 Circle rename inline editor — same family-rename pattern — next to the organizer's circle name in the circle / "Grupy" section (spec Assumption 10: if no such section, place next to wherever the organizer's circle name first appears).
+  - [x] 4.9 Accessible labels on all new edit controls; inline inputs keyboard-operable (`standards/frontend/accessibility.md`). Reuse `Field`, `PencilIcon` (`standards/frontend/components.md`).
+  - [x] 4.10 Ensure the 5 tests pass
     - Run only: `cd src/frontend && npx vitest run src/test/PanelPage.test.tsx`.
 
 **Acceptance Criteria:**
@@ -274,8 +274,8 @@ Concurrency note for the executor: G2 and G3 are logically independent but share
 - `src/frontend/src/test/PublicKragGrupyPage.test.tsx` (verify only — no change expected)
 **Estimated Steps:** 11
 
-- [ ] 5.0 Complete needed-item and inventory-item inline CRUD
-  - [ ] 5.1 Write 6 focused tests in `src/frontend/src/test/PanelPage.test.tsx`
+- [x] 5.0 Complete needed-item and inventory-item inline CRUD
+  - [x] 5.1 Write 6 focused tests in `src/frontend/src/test/PanelPage.test.tsx`
     - `describe("PanelPage — needed item sub-CRUD")`:
       - `adds a needed item inline via the add row`
       - `edits a needed item's category and description inline`
@@ -284,16 +284,16 @@ Concurrency note for the executor: G2 and G3 are logically independent but share
     - `describe("PanelPage — inventory item edit/delete")`:
       - `edits an item's condition inline in "Moje rzeczy"`
       - `optimistically deletes an item and restores it on a 409`
-  - [ ] 5.2 NeededItem inline add row within a term's needed-items list (organizer surface) — reuse the existing add-needed-item form / `Field` export.
-  - [ ] 5.3 `PencilIcon` per needed-item row → inline edit: `category` select + `description` input → `updateNeededItem` → `await load({ silent: true })` on success, inline error on failure.
-  - [ ] 5.4 `TrashIcon` per needed-item row → optimistic removal from the `TermWithNeeded` list held in `PanelPage` state + toast `"Usunięto"`. NO `ConfirmDialog`, NO undo button.
-  - [ ] 5.5 On `deleteNeededItem` error (409 for FULFILLED-pledge item, or any failure) → re-insert the row at its original index + inline/toast error message.
-  - [ ] 5.6 InventoryItem `condition` inline editor per item in the "Moje rzeczy" view → `updateInventoryItem`.
-  - [ ] 5.7 `TrashIcon` per inventory item → optimistic removal + toast; on 409 (reserved/lent) or any error → restore row at original index + message. NO `ConfirmDialog`.
-  - [ ] 5.8 Finalize `updateNeededItem` / `deleteNeededItem` / `updateInventoryItem` / `deleteInventoryItem` wrapper bodies if stubbed in G4.
-  - [ ] 5.9 Accessible labels + keyboard operability on all new row controls; reuse `TrashIcon`, `Field`, item-condition field from `ItemQuickAddForm.tsx` / `utils/itemQuickAdd.ts`.
-  - [ ] 5.10 Verify `src/frontend/src/test/PublicKragGrupyPage.test.tsx` still asserts NO edit/delete controls on the public view — run it, expect green with no change.
-  - [ ] 5.11 Ensure the 6 tests pass
+  - [x] 5.2 NeededItem inline add row within a term's needed-items list (organizer surface) — reuse the existing add-needed-item form / `Field` export.
+  - [x] 5.3 `PencilIcon` per needed-item row → inline edit: `category` select + `description` input → `updateNeededItem` → `await load({ silent: true })` on success, inline error on failure.
+  - [x] 5.4 `TrashIcon` per needed-item row → optimistic removal from the `TermWithNeeded` list held in `PanelPage` state + toast `"Usunięto"`. NO `ConfirmDialog`, NO undo button.
+  - [x] 5.5 On `deleteNeededItem` error (409 for FULFILLED-pledge item, or any failure) → re-insert the row at its original index + inline/toast error message.
+  - [x] 5.6 InventoryItem `condition` inline editor per item in the "Moje rzeczy" view → `updateInventoryItem`.
+  - [x] 5.7 `TrashIcon` per inventory item → optimistic removal + toast; on 409 (reserved/lent) or any error → restore row at original index + message. NO `ConfirmDialog`.
+  - [x] 5.8 Finalize `updateNeededItem` / `deleteNeededItem` / `updateInventoryItem` / `deleteInventoryItem` wrapper bodies if stubbed in G4.
+  - [x] 5.9 Accessible labels + keyboard operability on all new row controls; reuse `TrashIcon`, `Field`, item-condition field from `ItemQuickAddForm.tsx` / `utils/itemQuickAdd.ts`.
+  - [x] 5.10 Verify `src/frontend/src/test/PublicKragGrupyPage.test.tsx` still asserts NO edit/delete controls on the public view — run it, expect green with no change.
+  - [x] 5.11 Ensure the 6 tests pass
     - Run only: `cd src/frontend && npx vitest run src/test/PanelPage.test.tsx src/test/PublicKragGrupyPage.test.tsx`.
 
 **Acceptance Criteria:**
@@ -313,19 +313,19 @@ Concurrency note for the executor: G2 and G3 are logically independent but share
 - `src/frontend/src/test/PanelPage.test.tsx` (append gap-fill tests only)
 **Estimated Steps:** 6
 
-- [ ] 6.0 Review and fill critical gaps for THIS feature only
-  - [ ] 6.1 Review the ~28 tests from G1-G5 for coverage of spec §14 success criteria.
-  - [ ] 6.2 Analyze gaps against spec §4 contract + §5 data lifecycle. Likely candidates (add only if genuinely missing):
+- [x] 6.0 Review and fill critical gaps for THIS feature only
+  - [x] 6.1 Review the ~28 tests from G1-G5 for coverage of spec §14 success criteria.
+  - [x] 6.2 Analyze gaps against spec §4 contract + §5 data lifecycle. Likely candidates (add only if genuinely missing):
     - `test_patchTerm_emptyBody_returns200Noop`
     - `test_deleteNeededItem_secondDelete_returns404` (idempotency)
     - `test_deleteNeededItem_nonOrganizer_returns403` / `test_deleteNeededItem_unknownId_returns404` (if not folded into 2.1)
     - `test_getPublicCircle_softDeletedNeededItem_notReturned` already in G1 — verify.
     - backend: soft-deleted item cannot be newly reserved (`create_reservation` → 404) — one downstream-path test.
     - `test_my_attendances.py` — confirm existing assertions still hold (terms have no `deleted_at`); no new test unless a regression appears.
-  - [ ] 6.3 Write up to 10 additional strategic tests total (backend + frontend combined). Do not exceed 10.
-  - [ ] 6.4 Run feature-affected backend tests: `cd src/backend && uv run pytest tests/test_groups.py tests/test_circulation.py tests/test_public_term.py tests/test_my_attendances.py <auth_deps matrix test path> -q`.
-  - [ ] 6.5 Run feature-affected frontend tests: `cd src/frontend && npx vitest run src/test/PanelPage.test.tsx src/test/PublicKragGrupyPage.test.tsx`.
-  - [ ] 6.6 Confirm total feature tests land in the 28-38 range and all pass; record final count in the work-log.
+  - [x] 6.3 Write up to 10 additional strategic tests total (backend + frontend combined). Do not exceed 10.
+  - [x] 6.4 Run feature-affected backend tests: `cd src/backend && uv run pytest tests/test_groups.py tests/test_circulation.py tests/test_public_term.py tests/test_my_attendances.py <auth_deps matrix test path> -q`.
+  - [x] 6.5 Run feature-affected frontend tests: `cd src/frontend && npx vitest run src/test/PanelPage.test.tsx src/test/PublicKragGrupyPage.test.tsx`.
+  - [x] 6.6 Confirm total feature tests land in the 28-38 range and all pass; record final count in the work-log.
 
 **Acceptance Criteria:**
 - All feature tests pass (~28-38 total across backend + frontend).

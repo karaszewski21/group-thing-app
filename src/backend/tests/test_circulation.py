@@ -92,6 +92,43 @@ async def test_patchInventoryItem_ownerWithReservedBalance_stillUpdatesCondition
     assert response.json()["condition"] == "POOR"
 
 
+async def test_patchInventoryItem_owner_changesProduct(client: AsyncClient) -> None:
+    headers = await _authed_headers(client, "circ-patch-product@example.com")
+    _, item_id = await _create_item(client, headers)
+
+    other_product = await client.post(
+        "/api/products/resolve",
+        json={"name": "Miś Uszatek", "category": "TOY"},
+        headers=headers,
+    )
+    assert other_product.status_code == 200
+    new_product_id = other_product.json()["id"]
+
+    response = await client.patch(
+        f"/api/inventory-items/{item_id}",
+        json={"product_id": new_product_id},
+        headers=headers,
+    )
+
+    assert response.status_code == 200
+    assert response.json()["product_id"] == new_product_id
+    assert response.json()["condition"] == "GOOD"
+
+
+async def test_patchInventoryItem_unknownProductId_returns404(client: AsyncClient) -> None:
+    headers = await _authed_headers(client, "circ-patch-badproduct@example.com")
+    _, item_id = await _create_item(client, headers)
+
+    response = await client.patch(
+        f"/api/inventory-items/{item_id}", json={"product_id": 999999}, headers=headers
+    )
+    assert response.status_code == 404
+
+    fetched = await client.get(f"/api/inventory-items/{item_id}", headers=headers)
+    assert fetched.status_code == 200
+    assert fetched.json()["condition"] == "GOOD"
+
+
 async def test_patchInventoryItem_nonOwner_returns403(client: AsyncClient) -> None:
     owner_headers = await _authed_headers(client, "circ-patch-real-owner@example.com")
     _, item_id = await _create_item(client, owner_headers)
@@ -146,4 +183,53 @@ async def test_getInventoryItem_softDeleted_returns404(client: AsyncClient) -> N
     ).status_code == 204
 
     response = await client.get(f"/api/inventory-items/{item_id}", headers=headers)
+    assert response.status_code == 404
+
+
+# --- Group 6 gap-fill: unknown-id / non-owner / downstream soft-delete path ----
+
+
+async def test_patchInventoryItem_unknownId_returns404(client: AsyncClient) -> None:
+    headers = await _authed_headers(client, "circ-patch-unknown@example.com")
+
+    response = await client.patch(
+        "/api/inventory-items/999999999", json={"condition": "FAIR"}, headers=headers
+    )
+    assert response.status_code == 404
+
+
+async def test_deleteInventoryItem_nonOwner_returns403(client: AsyncClient) -> None:
+    owner_headers = await _authed_headers(client, "circ-delete-real-owner@example.com")
+    _, item_id = await _create_item(client, owner_headers)
+    intruder_headers = await _authed_headers(client, "circ-delete-intruder@example.com")
+
+    response = await client.delete(
+        f"/api/inventory-items/{item_id}", headers=intruder_headers
+    )
+    assert response.status_code == 403
+
+    # Nothing was deleted — the owner can still fetch it.
+    assert (
+        await client.get(f"/api/inventory-items/{item_id}", headers=owner_headers)
+    ).status_code == 200
+
+
+async def test_createReservation_softDeletedItem_returns404(client: AsyncClient) -> None:
+    """Downstream lifecycle path: once an item is soft-deleted, `create_reservation`
+    -> `get_item` -> 404 before the balance guard is ever reached (spec §7 / §12)."""
+    headers = await _authed_headers(client, "circ-reserve-softdel@example.com")
+    _, item_id = await _create_item(client, headers)
+    assert (
+        await client.delete(f"/api/inventory-items/{item_id}", headers=headers)
+    ).status_code == 204
+
+    response = await client.post(
+        "/api/reservations",
+        json={
+            "item_id": item_id,
+            "reservation_type": "LEND",
+            "reserved_by_user_id": 999999,
+        },
+        headers=headers,
+    )
     assert response.status_code == 404

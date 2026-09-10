@@ -523,3 +523,88 @@ async def test_getPublicCircle_responseSchema_hasNoChildIdentifyingField(
 
     field_names = set(PublicCircleResponse.model_fields.keys())
     assert not any("child" in name.lower() for name in field_names)
+
+
+# --- Group 6 gap-fill: DELETE ownership / idempotency + pledge read guard ------
+
+
+async def test_deleteNeededItem_nonOrganizer_returns403(client: AsyncClient) -> None:
+    token = await _register_organizer(client, "del.ni.forbidden@example.com")
+    _circle_id, term_id = await _create_circle_with_term(client, token, "Krąg cudzego usuwania")
+    needed_item_id = await _create_needed_item(client, token, term_id)
+    guest_token, _party_id = await _register_guest(client, "del.ni.forbidden.guest@example.com")
+
+    response = await client.delete(
+        f"/api/needed-items/{needed_item_id}", headers=_auth_headers(guest_token)
+    )
+    assert response.status_code == 403
+
+    still_there = await client.get(
+        f"/api/needed-items/{needed_item_id}", headers=_auth_headers(token)
+    )
+    assert still_there.status_code == 200
+
+
+async def test_deleteNeededItem_secondDelete_returns404(client: AsyncClient) -> None:
+    token = await _register_organizer(client, "del.ni.idem@example.com")
+    _circle_id, term_id = await _create_circle_with_term(client, token, "Krąg idempotencji")
+    needed_item_id = await _create_needed_item(client, token, term_id)
+
+    first = await client.delete(
+        f"/api/needed-items/{needed_item_id}", headers=_auth_headers(token)
+    )
+    assert first.status_code == 204
+
+    second = await client.delete(
+        f"/api/needed-items/{needed_item_id}", headers=_auth_headers(token)
+    )
+    assert second.status_code == 404
+
+
+async def test_getNeededItemPledges_parentSoftDeleted_returns404(
+    client: AsyncClient, db_session: AsyncSession
+) -> None:
+    token = await _register_organizer(client, "pledges.softdel@example.com")
+    _circle_id, term_id = await _create_circle_with_term(client, token, "Krąg zobowiązań")
+    needed_item_id = await _create_needed_item(client, token, term_id)
+
+    assert (
+        await client.get(
+            f"/api/pledges?needed_item_id={needed_item_id}", headers=_auth_headers(token)
+        )
+    ).status_code == 200
+
+    row = await db_session.get(NeededItem, needed_item_id)
+    assert row is not None
+    row.deleted_at = datetime.utcnow()
+    await db_session.commit()
+
+    response = await client.get(
+        f"/api/pledges?needed_item_id={needed_item_id}", headers=_auth_headers(token)
+    )
+    assert response.status_code == 404
+
+
+async def test_patchTerm_emptyBody_returns200Noop(client: AsyncClient) -> None:
+    token = await _register_organizer(client, "patch.term.noop@example.com")
+    _circle_id, term_id = await _create_circle_with_term(
+        client, token, "Krąg no-op", description="Bez zmian"
+    )
+
+    response = await client.patch(
+        f"/api/terms/{term_id}", json={}, headers=_auth_headers(token)
+    )
+
+    assert response.status_code == 200
+    assert response.json()["description"] == "Bez zmian"
+
+
+async def test_patchGroup_unknownId_returns404(client: AsyncClient) -> None:
+    token = await _register_organizer(client, "patch.group.unknown@example.com")
+
+    response = await client.patch(
+        "/api/groups/999999999",
+        json={"name": "Nieistniejący"},
+        headers=_auth_headers(token),
+    )
+    assert response.status_code == 404

@@ -200,6 +200,108 @@ async def test_patchFamily_unknownId_returns404(client: AsyncClient) -> None:
     assert response.status_code == 404
 
 
+async def _sole_guardian_membership_id(client: AsyncClient, token: str, family_id: int) -> int:
+    guardians = await client.get(
+        f"/api/families/{family_id}/guardians", headers=_auth_headers(token)
+    )
+    assert guardians.status_code == 200
+    return int(guardians.json()[0]["family_membership_id"])
+
+
+async def test_removeFamilyMember_guardian_softClosesMembershipMemberDisappears(
+    client: AsyncClient, db_session: AsyncSession
+) -> None:
+    token, _party_id = await _register_guest(client, "remove.softclose@example.com")
+    created = await client.post(
+        "/api/families/mine", json={"name": "Rodzina Do Edycji"}, headers=_auth_headers(token)
+    )
+    family_id = created.json()["id"]
+    await client.post(
+        "/api/families/mine/members",
+        json={
+            "members": [
+                {"name": "Dziecko Zostaje", "role_type": "CHILD"},
+                {"name": "Dziecko Do Usuniecia", "role_type": "CHILD"},
+            ]
+        },
+        headers=_auth_headers(token),
+    )
+
+    guardians = (
+        await client.get(f"/api/families/{family_id}/guardians", headers=_auth_headers(token))
+    ).json()
+    target = next(g for g in guardians if g["display_name"] == "Dziecko Do Usuniecia")
+
+    response = await client.delete(
+        f"/api/families/{family_id}/guardians/{target['family_membership_id']}",
+        headers=_auth_headers(token),
+    )
+    assert response.status_code == 204
+
+    after = (
+        await client.get(f"/api/families/{family_id}/guardians", headers=_auth_headers(token))
+    ).json()
+    remaining = {g["display_name"] for g in after}
+    assert "Dziecko Do Usuniecia" not in remaining
+    assert "Dziecko Zostaje" in remaining
+
+    mine = await client.get("/api/families/mine", headers=_auth_headers(token))
+    assert mine.json()[0]["child_count"] == 1
+
+    # The row is preserved, only soft-closed.
+    membership = await db_session.get(FamilyMembership, target["family_membership_id"])
+    assert membership is not None
+    assert membership.valid_to is not None
+
+
+async def test_removeFamilyMember_lastGuardian_returns409(client: AsyncClient) -> None:
+    token, _party_id = await _register_guest(client, "remove.lastguardian@example.com")
+    created = await client.post(
+        "/api/families/mine", json={"name": "Rodzina Jednego Opiekuna"}, headers=_auth_headers(token)
+    )
+    family_id = created.json()["id"]
+    membership_id = await _sole_guardian_membership_id(client, token, family_id)
+
+    response = await client.delete(
+        f"/api/families/{family_id}/guardians/{membership_id}", headers=_auth_headers(token)
+    )
+    assert response.status_code == 409
+
+    still_there = (
+        await client.get(f"/api/families/{family_id}/guardians", headers=_auth_headers(token))
+    ).json()
+    assert [g["family_membership_id"] for g in still_there] == [membership_id]
+
+
+async def test_removeFamilyMember_nonGuardian_returns403(client: AsyncClient) -> None:
+    owner_token, _owner_party = await _register_guest(client, "remove.owner@example.com")
+    created = await client.post(
+        "/api/families/mine", json={"name": "Cudza Rodzina"}, headers=_auth_headers(owner_token)
+    )
+    family_id = created.json()["id"]
+    membership_id = await _sole_guardian_membership_id(client, owner_token, family_id)
+
+    stranger_token, _stranger_party = await _register_guest(client, "remove.stranger@example.com")
+    response = await client.delete(
+        f"/api/families/{family_id}/guardians/{membership_id}",
+        headers=_auth_headers(stranger_token),
+    )
+    assert response.status_code == 403
+
+
+async def test_removeFamilyMember_unknownMembershipId_returns404(client: AsyncClient) -> None:
+    token, _party_id = await _register_guest(client, "remove.unknown@example.com")
+    created = await client.post(
+        "/api/families/mine", json={"name": "Rodzina Widmo"}, headers=_auth_headers(token)
+    )
+    family_id = created.json()["id"]
+
+    response = await client.delete(
+        f"/api/families/{family_id}/guardians/999999", headers=_auth_headers(token)
+    )
+    assert response.status_code == 404
+
+
 async def test_familyMineRead_reportsActiveChildCountExcludingGuardiansAndClosedMemberships(
     client: AsyncClient,
 ) -> None:

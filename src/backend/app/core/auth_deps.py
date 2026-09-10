@@ -254,6 +254,12 @@ _RAW_MATRIX: tuple[_RawEntry, ...] = (
     # AccessDeniedException), the matrix only gates it to EDIT.
     (_methods("POST"), r"^/api/families/mine$", ("EDIT", "mcp:edit")),
     (_methods("PATCH"), r"^/api/families/[^/]+$", ("EDIT", "mcp:edit")),
+    # Guardian-only soft-close of a family member — declared ahead of rows
+    # 28-29's blanket families rows (which only cover GET/POST, so a
+    # DELETE would otherwise fall through to row 25's AUTHENTICATED
+    # catch-all). The guardian + last-guardian checks live in
+    # `app.families.service.remove_family_member`; the matrix gates to EDIT.
+    (_methods("DELETE"), r"^/api/families/[^/]+/guardians/[^/]+$", ("EDIT", "mcp:edit")),
     (_methods("GET"), r"^/api/families(/.*)?$", ("READ", "mcp:read")),  # 28
     (_methods("POST"), r"^/api/families(/.*)?$", ("EDIT", "mcp:edit")),  # 29
     (_methods("POST"), r"^/api/leaderships(/.*)?$", ("EDIT", "mcp:edit")),  # 30

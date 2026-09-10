@@ -16,6 +16,7 @@ import * as productsApi from "../api/products";
 import * as termsApi from "../api/terms";
 import * as organizationsApi from "../api/organizations";
 import { PanelPage } from "../pages/panel/PanelPage";
+import { ApiError } from "../api/client";
 
 vi.mock("../auth/AuthContext", async (importOriginal) => {
   const actual = await importOriginal<typeof import("../auth/AuthContext")>();
@@ -47,6 +48,7 @@ vi.mock("../api/families", () => ({
   createLightweightMembers: vi.fn(),
   createOwnFamily: vi.fn(),
   renameFamily: vi.fn(),
+  removeFamilyMember: vi.fn(),
 }));
 
 vi.mock("../api/groups", () => ({
@@ -54,6 +56,7 @@ vi.mock("../api/groups", () => ({
   endLeadership: vi.fn(),
   getGroup: vi.fn(),
   getMyAttendances: vi.fn(),
+  updateCircle: vi.fn(),
 }));
 
 vi.mock("../api/inventories", () => ({
@@ -61,6 +64,8 @@ vi.mock("../api/inventories", () => ({
   getInventories: vi.fn(),
   getInventoryItems: vi.fn(),
   registerInventoryItem: vi.fn(),
+  updateInventoryItem: vi.fn(),
+  deleteInventoryItem: vi.fn(),
 }));
 
 vi.mock("../api/products", () => ({
@@ -74,6 +79,9 @@ vi.mock("../api/terms", () => ({
   getNeededItems: vi.fn(),
   createTerm: vi.fn(),
   createNeededItem: vi.fn(),
+  updateTerm: vi.fn(),
+  updateNeededItem: vi.fn(),
+  deleteNeededItem: vi.fn(),
 }));
 
 vi.mock("../api/organizations", () => ({
@@ -953,6 +961,169 @@ describe("PanelPage — Mój dom — inline family rename", () => {
   });
 });
 
+describe("PanelPage — Mój dom — remove family member", () => {
+  beforeEach(() => {
+    vi.resetAllMocks();
+  });
+
+  async function openMojDom() {
+    await openMenu();
+    fireEvent.click(screen.getByRole("menuitem", { name: /Mój dom/ }));
+    await screen.findByRole("heading", { name: "Mój dom", level: 2 });
+  }
+
+  it("removes a family member and refreshes the list", async () => {
+    mockGuestDefaults();
+    vi.mocked(familiesApi.getMyFamilies).mockResolvedValue([mockFamily]);
+    vi.mocked(familiesApi.getGuardians)
+      .mockResolvedValueOnce(mockGuardians)
+      .mockResolvedValueOnce([mockGuardians[0]]);
+    vi.mocked(familiesApi.removeFamilyMember).mockResolvedValue(undefined);
+    renderPanel();
+    await openMojDom();
+
+    expect(screen.getByText("Marek Kowalski", { selector: "h3" })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Usuń członka rodziny Marek Kowalski" }));
+
+    await waitFor(() =>
+      expect(familiesApi.removeFamilyMember).toHaveBeenCalledWith(10, 2),
+    );
+    await waitFor(() =>
+      expect(screen.queryByText("Marek Kowalski", { selector: "h3" })).not.toBeInTheDocument(),
+    );
+  });
+
+  it("shows an inline error when member removal is rejected (e.g. last guardian 409)", async () => {
+    mockGuestDefaults();
+    vi.mocked(familiesApi.getMyFamilies).mockResolvedValue([mockFamily]);
+    vi.mocked(familiesApi.getGuardians).mockResolvedValue(mockGuardians);
+    vi.mocked(familiesApi.removeFamilyMember).mockRejectedValue(
+      new ApiError(409, "Conflict", { message: "Nie można usunąć jedynego opiekuna rodziny" }),
+    );
+    renderPanel();
+    await openMojDom();
+
+    fireEvent.click(screen.getByRole("button", { name: "Usuń członka rodziny Marek Kowalski" }));
+
+    expect(
+      await screen.findByText("Nie można usunąć jedynego opiekuna rodziny"),
+    ).toBeInTheDocument();
+    expect(screen.getByText("Marek Kowalski", { selector: "h3" })).toBeInTheDocument();
+  });
+});
+
+describe("PanelPage — term edit dialog", () => {
+  beforeEach(() => {
+    vi.resetAllMocks();
+  });
+
+  const term = {
+    id: 1,
+    circle_group_id: 5,
+    occurs_on: "2026-02-01",
+    description: "Pierwsze zajęcia",
+    created_at: "",
+    updated_at: "",
+  };
+
+  async function openEditDialog() {
+    fireEvent.click(await screen.findByRole("button", { name: "Spotkania" }));
+    await screen.findByRole("heading", { name: "Terminy" });
+    fireEvent.click((await screen.findAllByRole("button", { name: "Edytuj termin" }))[0]);
+    return screen.findByRole("dialog", { name: "Edytuj termin" });
+  }
+
+  it("calls updateTerm with only the changed occurs_on field", async () => {
+    mockOrganizerDefaults();
+    vi.mocked(termsApi.getTerms).mockResolvedValue([term]);
+    vi.mocked(termsApi.getNeededItems).mockResolvedValue([]);
+    vi.mocked(termsApi.updateTerm).mockResolvedValue({ ...term, occurs_on: "2026-03-09" });
+    renderPanel();
+    const dialog = await openEditDialog();
+
+    fireEvent.change(within(dialog).getByLabelText("Data"), { target: { value: "2026-03-09" } });
+    vi.mocked(termsApi.getTerms).mockResolvedValue([{ ...term, occurs_on: "2026-03-09" }]);
+    fireEvent.click(within(dialog).getByRole("button", { name: "Zapisz" }));
+
+    await waitFor(() =>
+      expect(termsApi.updateTerm).toHaveBeenCalledWith(1, { occurs_on: "2026-03-09" }),
+    );
+    // a silent reload runs after the successful save
+    await waitFor(() => expect(vi.mocked(termsApi.getTerms).mock.calls.length).toBeGreaterThan(1));
+  });
+
+  it("shows an inline error and stays open when the save is rejected", async () => {
+    mockOrganizerDefaults();
+    vi.mocked(termsApi.getTerms).mockResolvedValue([term]);
+    vi.mocked(termsApi.getNeededItems).mockResolvedValue([]);
+    vi.mocked(termsApi.updateTerm).mockRejectedValue(new Error("400"));
+    renderPanel();
+    const dialog = await openEditDialog();
+
+    fireEvent.change(within(dialog).getByLabelText("Opis"), { target: { value: "Zmieniony opis" } });
+    fireEvent.click(within(dialog).getByRole("button", { name: "Zapisz" }));
+
+    expect(await within(dialog).findByText(/Nie udało się zapisać zmian terminu/)).toBeInTheDocument();
+    expect(screen.getByRole("dialog", { name: "Edytuj termin" })).toBeInTheDocument();
+  });
+
+  it("closes without calling updateTerm when nothing changed", async () => {
+    mockOrganizerDefaults();
+    vi.mocked(termsApi.getTerms).mockResolvedValue([term]);
+    vi.mocked(termsApi.getNeededItems).mockResolvedValue([]);
+    renderPanel();
+    const dialog = await openEditDialog();
+
+    fireEvent.click(within(dialog).getByRole("button", { name: "Zapisz" }));
+
+    expect(termsApi.updateTerm).not.toHaveBeenCalled();
+    await waitFor(() =>
+      expect(screen.queryByRole("dialog", { name: "Edytuj termin" })).not.toBeInTheDocument(),
+    );
+  });
+});
+
+describe("PanelPage — circle rename", () => {
+  beforeEach(() => {
+    vi.resetAllMocks();
+  });
+
+  async function openGrupy() {
+    fireEvent.click(await screen.findByRole("button", { name: "Spotkania" }));
+    await screen.findByRole("heading", { name: "Grupy" });
+  }
+
+  it("renames the circle in place on success", async () => {
+    mockOrganizerDefaults();
+    vi.mocked(groupsApi.updateCircle).mockResolvedValue({ ...mockGroup, name: "Nutki" });
+    renderPanel();
+    await openGrupy();
+
+    fireEvent.click(await screen.findByRole("button", { name: "Zmień nazwę kręgu" }));
+    fireEvent.change(screen.getByLabelText("Nazwa kręgu"), { target: { value: "Nutki" } });
+
+    vi.mocked(groupsApi.getGroup).mockResolvedValue({ ...mockGroup, name: "Nutki" });
+    fireEvent.click(screen.getByRole("button", { name: "Zapisz" }));
+
+    await waitFor(() => expect(groupsApi.updateCircle).toHaveBeenCalledWith(5, { name: "Nutki" }));
+    expect(await screen.findByText("Nutki", { selector: "h3" })).toBeInTheDocument();
+  });
+
+  it("shows an inline error on a rejected rename", async () => {
+    mockOrganizerDefaults();
+    vi.mocked(groupsApi.updateCircle).mockRejectedValue(new Error("400"));
+    renderPanel();
+    await openGrupy();
+
+    fireEvent.click(await screen.findByRole("button", { name: "Zmień nazwę kręgu" }));
+    fireEvent.change(screen.getByLabelText("Nazwa kręgu"), { target: { value: "Nutki" } });
+    fireEvent.click(screen.getByRole("button", { name: "Zapisz" }));
+
+    expect(await screen.findByText(/Nie udało się zmienić nazwy kręgu/)).toBeInTheDocument();
+    expect(screen.getByText("Nowa grupa", { selector: "h3" })).toBeInTheDocument();
+  });
+});
+
 describe("PanelPage — Zapisane zajęcia", () => {
   beforeEach(() => {
     vi.resetAllMocks();
@@ -1080,5 +1251,243 @@ describe("PanelPage — per-term public links & copy-link button", () => {
 
     const publicLink = await within(dialog).findByRole("link", { name: /Przejdź do publicznej strony/ });
     expect(publicLink).toHaveAttribute("href", `/${mockGroup.organizer_slug}/grupa/5/term/7`);
+  });
+});
+
+describe("PanelPage — needed item sub-CRUD (in the term dialog)", () => {
+  beforeEach(() => {
+    vi.resetAllMocks();
+  });
+
+  const term = {
+    id: 1,
+    circle_group_id: 5,
+    occurs_on: "2026-02-01",
+    description: "Zajęcia",
+    created_at: "",
+    updated_at: "",
+  };
+  const neededItem = {
+    id: 11,
+    term_id: 1,
+    category: "INSTRUMENT" as const,
+    description: "Bębenek",
+    created_at: "",
+    updated_at: "",
+  };
+
+  function mockTermWithNeeded() {
+    mockOrganizerDefaults();
+    vi.mocked(termsApi.getTerms).mockResolvedValue([term]);
+    vi.mocked(termsApi.getNeededItems).mockResolvedValue([neededItem]);
+  }
+
+  async function openEditDialog() {
+    renderPanel();
+    fireEvent.click(await screen.findByRole("button", { name: "Spotkania" }));
+    fireEvent.click((await screen.findAllByRole("button", { name: "Edytuj termin" }))[0]);
+    return screen.findByRole("dialog", { name: "Edytuj termin" });
+  }
+
+  it("adds a needed item via the dialog add row", async () => {
+    mockTermWithNeeded();
+    vi.mocked(termsApi.createNeededItem).mockResolvedValue({
+      id: 12, term_id: 1, category: "MAT_BLANKET", description: "Koc", created_at: "", updated_at: "",
+    });
+    const dialog = await openEditDialog();
+
+    fireEvent.click(within(dialog).getByRole("button", { name: "Dodaj potrzebną rzecz" }));
+    fireEvent.change(within(dialog).getByLabelText("Kategoria nowej rzeczy"), { target: { value: "MAT_BLANKET" } });
+    fireEvent.change(within(dialog).getByLabelText("Opis nowej rzeczy"), { target: { value: "Koc" } });
+    fireEvent.click(within(dialog).getByRole("button", { name: "Dodaj" }));
+
+    await waitFor(() =>
+      expect(termsApi.createNeededItem).toHaveBeenCalledWith({
+        term_id: 1, category: "MAT_BLANKET", description: "Koc",
+      }),
+    );
+  });
+
+  it("edits a needed item's category and description via the dialog", async () => {
+    mockTermWithNeeded();
+    vi.mocked(termsApi.updateNeededItem).mockResolvedValue({
+      ...neededItem, category: "MAT_BLANKET", description: "Koc",
+    });
+    const dialog = await openEditDialog();
+
+    fireEvent.click(within(dialog).getByRole("button", { name: "Edytuj potrzebną rzecz" }));
+    fireEvent.change(within(dialog).getByLabelText("Kategoria rzeczy"), { target: { value: "MAT_BLANKET" } });
+    fireEvent.change(within(dialog).getByLabelText("Opis rzeczy"), { target: { value: "Koc" } });
+    const row = within(dialog).getByRole("listitem");
+    fireEvent.click(within(row).getByRole("button", { name: "Zapisz" }));
+
+    await waitFor(() =>
+      expect(termsApi.updateNeededItem).toHaveBeenCalledWith(11, {
+        category: "MAT_BLANKET", description: "Koc",
+      }),
+    );
+  });
+
+  it("deletes a needed item via the dialog (await-then-refresh)", async () => {
+    mockTermWithNeeded();
+    vi.mocked(termsApi.deleteNeededItem).mockResolvedValue(undefined);
+    const dialog = await openEditDialog();
+
+    fireEvent.click(within(dialog).getByRole("button", { name: "Usuń potrzebną rzecz" }));
+
+    await waitFor(() => expect(termsApi.deleteNeededItem).toHaveBeenCalledWith(11));
+  });
+
+  it("keeps the row and shows an inline message when delete returns 409", async () => {
+    mockTermWithNeeded();
+    vi.mocked(termsApi.deleteNeededItem).mockRejectedValue(Object.assign(new Error("409"), { status: 409 }));
+    const dialog = await openEditDialog();
+
+    expect(within(dialog).getByText(/Bębenek/)).toBeInTheDocument();
+    fireEvent.click(within(dialog).getByRole("button", { name: "Usuń potrzebną rzecz" }));
+
+    expect(await within(dialog).findByText(/Nie udało się usunąć/)).toBeInTheDocument();
+    expect(within(dialog).getByText(/Bębenek/)).toBeInTheDocument();
+  });
+});
+
+describe("PanelPage — inventory item edit/delete", () => {
+  beforeEach(() => {
+    vi.resetAllMocks();
+  });
+
+  const invItem = {
+    id: 21,
+    inventory_id: 1,
+    product_id: 7,
+    condition: "GOOD" as const,
+    added_at: "",
+    created_at: "",
+    updated_at: "",
+  };
+  const product = {
+    id: 7,
+    name: "Rowerek",
+    description: null,
+    photoUrl: null,
+    price: 0,
+    sku: "SKU7",
+    category: "TOY" as const,
+    pluginData: null,
+    createdAt: "",
+    updatedAt: "",
+  };
+
+  function mockItems() {
+    mockGuestDefaults();
+    vi.mocked(inventoriesApi.getInventoryItems).mockResolvedValue([invItem]);
+    vi.mocked(productsApi.getProducts).mockResolvedValue([product]);
+  }
+
+  it("edits an item's condition inline in 'Moje rzeczy'", async () => {
+    mockItems();
+    vi.mocked(inventoriesApi.updateInventoryItem).mockResolvedValue({ ...invItem, condition: "NEW" });
+    renderPanel();
+
+    fireEvent.click(await screen.findByRole("button", { name: "Moje rzeczy" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Edytuj stan rzeczy" }));
+    fireEvent.change(screen.getByLabelText("Stan rzeczy"), { target: { value: "NEW" } });
+    fireEvent.click(screen.getByRole("button", { name: "Zapisz" }));
+
+    await waitFor(() =>
+      expect(inventoriesApi.updateInventoryItem).toHaveBeenCalledWith(21, { condition: "NEW" }),
+    );
+  });
+
+  it("edits an item name+category → resolveProduct then updateInventoryItem with the new product_id", async () => {
+    mockItems();
+    vi.mocked(productsApi.resolveProduct).mockResolvedValue({ ...product, id: 99, name: "Hulajnoga" });
+    vi.mocked(inventoriesApi.updateInventoryItem).mockResolvedValue({ ...invItem, product_id: 99 });
+    renderPanel();
+
+    fireEvent.click(await screen.findByRole("button", { name: "Moje rzeczy" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Edytuj rzecz Rowerek" }));
+    fireEvent.change(screen.getByLabelText("Nazwa rzeczy"), { target: { value: "Hulajnoga" } });
+    fireEvent.change(screen.getByLabelText("Typ rzeczy"), { target: { value: "GAME" } });
+    fireEvent.click(screen.getByRole("button", { name: "Zapisz" }));
+
+    await waitFor(() =>
+      expect(productsApi.resolveProduct).toHaveBeenCalledWith({ name: "Hulajnoga", category: "GAME" }),
+    );
+    await waitFor(() =>
+      expect(inventoriesApi.updateInventoryItem).toHaveBeenCalledWith(21, { product_id: 99 }),
+    );
+  });
+
+  it("shows an inline error when the item name save is rejected", async () => {
+    mockItems();
+    vi.mocked(productsApi.resolveProduct).mockRejectedValue(new Error("500"));
+    renderPanel();
+
+    fireEvent.click(await screen.findByRole("button", { name: "Moje rzeczy" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Edytuj rzecz Rowerek" }));
+    fireEvent.change(screen.getByLabelText("Nazwa rzeczy"), { target: { value: "Hulajnoga" } });
+    fireEvent.click(screen.getByRole("button", { name: "Zapisz" }));
+
+    expect(await screen.findByText(/Nie udało się zapisać zmian/)).toBeInTheDocument();
+  });
+
+  it("optimistically deletes an item and restores it on a 409", async () => {
+    mockItems();
+    vi.mocked(inventoriesApi.deleteInventoryItem).mockRejectedValue(
+      Object.assign(new Error("409"), { status: 409 }),
+    );
+    renderPanel();
+
+    fireEvent.click(await screen.findByRole("button", { name: "Moje rzeczy" }));
+    expect(await screen.findByText("Rowerek")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Usuń rzecz Rowerek" }));
+
+    expect(screen.getByRole("status")).toHaveTextContent("Usunięto");
+    expect(await screen.findByText(/Nie udało się usunąć/)).toBeInTheDocument();
+    expect(screen.getByText("Rowerek")).toBeInTheDocument();
+  });
+});
+
+describe("PanelPage — needed item edit error path", () => {
+  beforeEach(() => {
+    vi.resetAllMocks();
+  });
+
+  const term = {
+    id: 1,
+    circle_group_id: 5,
+    occurs_on: "2026-02-01",
+    description: "Zajęcia",
+    created_at: "",
+    updated_at: "",
+  };
+  const neededItem = {
+    id: 11,
+    term_id: 1,
+    category: "INSTRUMENT" as const,
+    description: "Bębenek",
+    created_at: "",
+    updated_at: "",
+  };
+
+  it("shows an inline error and keeps the original needed item when the edit is rejected", async () => {
+    mockOrganizerDefaults();
+    vi.mocked(termsApi.getTerms).mockResolvedValue([term]);
+    vi.mocked(termsApi.getNeededItems).mockResolvedValue([neededItem]);
+    vi.mocked(termsApi.updateNeededItem).mockRejectedValue(new Error("500"));
+    renderPanel();
+
+    fireEvent.click(await screen.findByRole("button", { name: "Spotkania" }));
+    fireEvent.click((await screen.findAllByRole("button", { name: "Edytuj termin" }))[0]);
+    const dialog = await screen.findByRole("dialog", { name: "Edytuj termin" });
+
+    fireEvent.click(within(dialog).getByRole("button", { name: "Edytuj potrzebną rzecz" }));
+    fireEvent.change(within(dialog).getByLabelText("Opis rzeczy"), { target: { value: "Coś innego" } });
+    const row = within(dialog).getByRole("listitem");
+    fireEvent.click(within(row).getByRole("button", { name: "Zapisz" }));
+
+    expect(await within(dialog).findByText(/Nie udało się zapisać zmiany/)).toBeInTheDocument();
+    expect(within(dialog).getByText(/Bębenek/)).toBeInTheDocument();
   });
 });

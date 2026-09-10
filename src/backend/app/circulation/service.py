@@ -207,6 +207,9 @@ async def update_item(
     `InventoryBalance` status — a reserved or lent item can still have its
     condition corrected."""
     item = await _require_item_owner(db, item_id, principal)
+    if data.product_id is not None and data.product_id != item.product_id:
+        await product_service.get_product(db, data.product_id)
+        item.product_id = data.product_id
     if data.condition is not None:
         item.condition = data.condition
     await db.commit()

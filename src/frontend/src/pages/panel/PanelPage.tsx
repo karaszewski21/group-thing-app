@@ -6,6 +6,7 @@ import {
   getGuardians,
   getMembershipsForFamily,
   getMyFamilies,
+  removeFamilyMember,
   renameFamily,
   type FamilyOut,
   type GuardianResponse,
@@ -15,20 +16,31 @@ import {
   endLeadership,
   getGroup,
   getMyAttendances,
+  updateCircle,
   type GroupResponse,
   type LeadershipResponse,
   type MyAttendanceResponse,
 } from "../../api/groups";
 import {
   createInventory,
+  deleteInventoryItem,
   getInventories,
   getInventoryItems,
   registerInventoryItem,
+  updateInventoryItem,
   type InventoryItemResponse,
+  type ItemCondition,
 } from "../../api/inventories";
+import { CONDITION_LABELS } from "../../utils/productPicker";
 import { getLeadershipsForPerson, getMyProfile, type UserProfileResponse } from "../../api/people";
 import { getMyOrganization } from "../../api/organizations";
-import { getProducts, resolveProduct, type ProductResponse } from "../../api/products";
+import {
+  getProducts,
+  resolveProduct,
+  type ProductCategory,
+  type ProductResponse,
+} from "../../api/products";
+import { CATEGORY_LABELS, PRODUCT_CATEGORIES } from "../../utils/productCategory";
 import {
   createNeededItem,
   createTerm,
@@ -41,7 +53,9 @@ import {
 import { PhoneFrame } from "../../components/shared/PhoneFrame";
 import { ItemQuickAddForm } from "../../components/shared/ItemQuickAddForm";
 import { createEmptyItemQuickAddValue, type ItemQuickAddValue } from "../../utils/itemQuickAdd";
+import { ApiError } from "../../api/client";
 import { CreateFamilyDialog } from "../../components/panel/CreateFamilyDialog";
+import { EditTermDialog } from "../../components/panel/EditTermDialog";
 import { FirstTermStepperGuest } from "../../components/panel/FirstTermStepperGuest";
 import { FirstTermStepperOrganizer } from "../../components/panel/FirstTermStepperOrganizer";
 
@@ -59,14 +73,18 @@ import { FirstTermStepperOrganizer } from "../../components/panel/FirstTermStepp
 /*  żeby nie pokazywać zmyślonych danych prawdziwemu użytkownikowi.      */
 /*                                                                       */
 /*  "Usuń" dla realnych encji: Grupa → prawdziwe zakończenie własnego    */
-/*  Leadership (`endLeadership`) — grupa realnie znika z listy. Termin/  */
-/*  rzecz w magazynie nie mają dziś endpointu usuwania — przycisk        */
-/*  celowo pominięty (fałszywe lokalne "usuń", które wraca po odświeże-  */
-/*  niu, byłoby gorsze niż jego brak).                                   */
+/*  Leadership (`endLeadership`) — grupa realnie znika z listy.          */
 /* ------------------------------------------------------------------ */
 
 type View = "home" | "spotkania" | "rzeczy" | "podarki" | "profil" | "ustawienia" | "rodzina";
-type ModalKind = "grupa" | "termin" | "rzecz" | "pierwszy-termin" | "rodzina-nowa" | null;
+type ModalKind =
+  | "grupa"
+  | "termin"
+  | "rzecz"
+  | "pierwszy-termin"
+  | "rodzina-nowa"
+  | "edit-termin"
+  | null;
 type ItemMode = "wypożyczę" | "oddam" | "zamienię";
 type GiftSource = "pożyczone" | "otrzymane" | "zamienione";
 
@@ -228,6 +246,15 @@ const PencilIcon = ({ c = "#5C7069" }: { c?: string }) => (
     />
   </svg>
 );
+const CopyIcon = ({ c = "#5C7069" }: { c?: string }) => (
+  <svg viewBox="0 0 24 24" fill="none" aria-hidden="true" className="h-4 w-4">
+    <rect x="9" y="9" width="11" height="11" rx="2" stroke={c} strokeWidth="2" />
+    <path
+      d="M15 5.5A2.5 2.5 0 0 0 12.5 3h-7A2.5 2.5 0 0 0 3 5.5v7A2.5 2.5 0 0 0 5.5 15"
+      stroke={c} strokeWidth="2" strokeLinecap="round"
+    />
+  </svg>
+);
 const LogoutIcon = () => (
   <svg viewBox="0 0 24 24" fill="none" aria-hidden="true" className="h-[18px] w-[18px]">
     <path
@@ -261,6 +288,30 @@ export function PanelPage() {
   const [renamingFamily, setRenamingFamily] = useState(false);
   const [familyNameDraft, setFamilyNameDraft] = useState("");
   const [renameError, setRenameError] = useState<string | null>(null);
+  const [familyMemberError, setFamilyMemberError] = useState<string | null>(null);
+  // Term editing (date, description, needed-items sub-CRUD) lives in the
+  // `EditTermDialog` opened from each organizer tile — the tile itself is a
+  // read-only compact card. `editTermId` is resolved back to a live `terms`
+  // entry at render time so the open dialog always sees fresh props after a
+  // `load({ silent: true })` refresh.
+  const [editTermId, setEditTermId] = useState<number | null>(null);
+  // Inline circle rename next to each led circle in the "Grupy" section.
+  const [renamingCircle, setRenamingCircle] = useState<number | null>(null);
+  const [circleNameDraft, setCircleNameDraft] = useState("");
+  const [circleRenameError, setCircleRenameError] = useState<
+    { groupId: number; message: string } | null
+  >(null);
+  // InventoryItem condition edit + optimistic delete in the "Moje rzeczy" view.
+  const [editingItemCondition, setEditingItemCondition] = useState<
+    { id: number; condition: ItemCondition } | null
+  >(null);
+  const [itemError, setItemError] = useState<string | null>(null);
+  // Inline name+category edit for a single item — re-resolves a Product then
+  // re-points the item's product_id at it.
+  const [editingItemMeta, setEditingItemMeta] = useState<
+    { id: number; name: string; category: ProductCategory } | null
+  >(null);
+  const [itemMetaError, setItemMetaError] = useState<string | null>(null);
   // `null` = no Organization created yet (404) — "Moja organizacja"/the
   // org-polish hint then link to the /organization create form; once an
   // Organization exists, both link straight to its public page instead.
@@ -612,6 +663,28 @@ export function PanelPage() {
     }
   }
 
+  async function handleRemoveFamilyMember(g: GuardianResponse) {
+    if (!family) return;
+    setBusy(true);
+    setFamilyMemberError(null);
+    try {
+      await removeFamilyMember(family.id, g.family_membership_id);
+      await load({ silent: true });
+    } catch (err) {
+      // 409 (last guardian) / 403 carry a server message — surface it;
+      // otherwise a generic fallback (mirrors AccountMergeForm).
+      if (err instanceof ApiError && err.body && typeof err.body === "object" && "message" in err.body) {
+        setFamilyMemberError(
+          String((err.body as { message?: unknown }).message ?? "Nie udało się usunąć członka rodziny — spróbuj ponownie"),
+        );
+      } else {
+        setFamilyMemberError("Nie udało się usunąć członka rodziny — spróbuj ponownie");
+      }
+    } finally {
+      setBusy(false);
+    }
+  }
+
   function startRenameFamily() {
     if (!family) return;
     setFamilyNameDraft(family.name);
@@ -646,6 +719,187 @@ export function PanelPage() {
     }
   }
 
+  /** Organizer term tile — a read-only compact card. The circle name links to
+   * the public per-term page; a copy-link button and an edit pencil (opening
+   * `EditTermDialog`) are the only controls. Date, description and needed-items
+   * editing all live in that dialog. Guest views keep their own `<Link>` card. */
+  function organizerTermCard(
+    term: TermResponse,
+    group: GroupResponse,
+    neededItems: NeededItemResponse[],
+  ) {
+    const { day, month } = dayMonth(term.occurs_on);
+    const iconBtnClass =
+      "flex h-7 w-7 flex-none items-center justify-center rounded-[8px] text-ink-soft transition-colors hover:bg-paper hover:text-ink";
+
+    return (
+      <div className="rounded-2xl border border-line bg-cream p-[15px]">
+        <div className="flex items-start gap-3.5">
+          <div className="flex h-[46px] w-[46px] flex-none flex-col items-center justify-center rounded-[13px] bg-mint-soft leading-none">
+            <b className="font-serif text-base text-ink">{day}</b>
+            <small className="text-[9.5px] uppercase tracking-wide text-ink-soft">{month}</small>
+          </div>
+          <div className="min-w-0 flex-1">
+            <Link
+              to={termPublicPath(group, term.id)}
+              className="text-[15.5px] font-semibold text-ink hover:underline"
+            >
+              {group.name}
+            </Link>
+            <p className="mt-0.5 text-[12.5px] text-ink-soft">{term.description || "Bez opisu"}</p>
+            {neededItems.length > 0 && (
+              <div className="mt-1.5 flex flex-wrap gap-1.5">
+                {neededItems.map((ni) => (
+                  <span
+                    key={ni.id}
+                    className="rounded-full bg-lime-soft px-2.5 py-0.5 text-[10.5px] font-extrabold text-[#56701F]"
+                  >
+                    {NEEDED_ITEM_LABELS[ni.category]}
+                  </span>
+                ))}
+              </div>
+            )}
+          </div>
+          <div className="flex flex-none flex-col gap-1">
+            <button
+              type="button"
+              title="Kopiuj link do terminu"
+              aria-label="Kopiuj link do terminu"
+              onClick={() => {
+                void navigator.clipboard.writeText(
+                  `${window.location.origin}${termPublicPath(group, term.id)}`,
+                );
+                showToast("Skopiowano link");
+              }}
+              className={iconBtnClass}
+            >
+              <CopyIcon />
+            </button>
+            <button
+              type="button"
+              aria-label="Edytuj termin"
+              onClick={() => {
+                setEditTermId(term.id);
+                setModal("edit-termin");
+              }}
+              className={iconBtnClass}
+            >
+              <PencilIcon />
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  /* ---------- krąg: zmiana nazwy inline ---------- */
+
+  function startRenameCircle(group: GroupResponse) {
+    setRenamingCircle(group.id);
+    setCircleNameDraft(group.name);
+    setCircleRenameError(null);
+  }
+
+  function cancelRenameCircle() {
+    setRenamingCircle(null);
+    setCircleRenameError(null);
+  }
+
+  async function saveRenameCircle(group: GroupResponse) {
+    const next = circleNameDraft.trim();
+    if (!next || next === group.name) {
+      cancelRenameCircle();
+      return;
+    }
+    setBusy(true);
+    setCircleRenameError(null);
+    try {
+      await updateCircle(group.id, { name: next });
+      setRenamingCircle(null);
+      await load({ silent: true });
+    } catch {
+      setRenamingCircle(null);
+      setCircleRenameError({ groupId: group.id, message: "Nie udało się zmienić nazwy kręgu — spróbuj ponownie" });
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  /* ---------- rzeczy: edycja stanu + usuwanie ---------- */
+
+  async function saveItemCondition() {
+    if (!editingItemCondition) return;
+    setBusy(true);
+    setItemError(null);
+    try {
+      await updateInventoryItem(editingItemCondition.id, { condition: editingItemCondition.condition });
+      setEditingItemCondition(null);
+      await load({ silent: true });
+    } catch {
+      setEditingItemCondition(null);
+      setItemError("Nie udało się zapisać stanu — spróbuj ponownie");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  function startEditItemMeta(it: InventoryItemResponse) {
+    const prod = products.find((p) => p.id === it.product_id);
+    setItemMetaError(null);
+    setEditingItemMeta({
+      id: it.id,
+      name: prod?.name ?? "",
+      category: prod?.category ?? "OTHER",
+    });
+  }
+
+  async function saveItemMeta() {
+    if (!editingItemMeta) return;
+    const draft = editingItemMeta;
+    const name = draft.name.trim();
+    if (!name) {
+      setItemMetaError("Podaj nazwę rzeczy");
+      return;
+    }
+    const item = items.find((i) => i.id === draft.id);
+    const current = item ? products.find((p) => p.id === item.product_id) : undefined;
+    if (current && current.name === name && current.category === draft.category) {
+      setEditingItemMeta(null);
+      return;
+    }
+    setBusy(true);
+    setItemMetaError(null);
+    try {
+      const resolved = await resolveProduct({ name, category: draft.category });
+      await updateInventoryItem(draft.id, { product_id: resolved.id });
+      await load({ silent: true });
+      setEditingItemMeta(null);
+    } catch {
+      setItemMetaError("Nie udało się zapisać zmian — spróbuj ponownie");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function handleDeleteItem(itemId: number) {
+    const index = items.findIndex((i) => i.id === itemId);
+    if (index === -1) return;
+    const removed = items[index];
+    setItemError(null);
+    setItems((prev) => prev.filter((i) => i.id !== itemId));
+    showToast("Usunięto");
+    try {
+      await deleteInventoryItem(itemId);
+    } catch {
+      setItems((prev) => {
+        const next = [...prev];
+        next.splice(index, 0, removed);
+        return next;
+      });
+      setItemError("Nie udało się usunąć — przywrócono pozycję");
+    }
+  }
+
   /* ---------- podarki (lokalne) ---------- */
 
   const giftCounts = useMemo(
@@ -667,6 +921,10 @@ export function PanelPage() {
   }
 
   const relevantGroupsForForm = isOrganizer ? myGroups : guestCircles;
+  // Resolved from live `terms` at render time so the open EditTermDialog keeps
+  // getting fresh props after each `load({ silent: true })` refresh.
+  const editTermEntry =
+    editTermId === null ? null : terms.find((t) => t.term.id === editTermId) ?? null;
 
   if (loading) {
     return (
@@ -872,12 +1130,19 @@ export function PanelPage() {
                 </div>
               )}
               {terms.slice(0, 3).map(({ term, group, neededItems }) => {
+                if (isOrganizer) {
+                  return (
+                    <div key={term.id} className="mt-2.5 first:mt-0">
+                      {organizerTermCard(term, group, neededItems)}
+                    </div>
+                  );
+                }
                 const { day, month } = dayMonth(term.occurs_on);
                 return (
+                  <div key={term.id} className="mt-2.5 first:mt-0">
                   <Link
-                    key={term.id}
                     to={termPublicPath(group, term.id)}
-                    className="mt-2.5 flex items-start gap-3.5 rounded-2xl border border-line bg-cream p-[15px] transition-colors first:mt-0 hover:border-mint"
+                    className="flex items-start gap-3.5 rounded-2xl border border-line bg-cream p-[15px] transition-colors hover:border-mint"
                   >
                     <div className="flex h-[46px] w-[46px] flex-none flex-col items-center justify-center rounded-[13px] bg-mint-soft leading-none">
                       <b className="font-serif text-base text-ink">{day}</b>
@@ -897,6 +1162,7 @@ export function PanelPage() {
                       )}
                     </div>
                   </Link>
+                  </div>
                 );
               })}
             </div>
@@ -1110,7 +1376,42 @@ export function PanelPage() {
                         <BoxIcon c="#12604D" />
                       </span>
                       <div className="min-w-0 flex-1">
-                        <h3 className="text-[15.5px] font-semibold text-ink">{g.name}</h3>
+                        {renamingCircle === g.id ? (
+                          <div className="flex items-center gap-2">
+                            <input
+                              aria-label="Nazwa kręgu"
+                              autoFocus
+                              value={circleNameDraft}
+                              onChange={(e) => setCircleNameDraft(e.target.value)}
+                              onKeyDown={(e) => {
+                                if (e.key === "Enter") void saveRenameCircle(g);
+                                if (e.key === "Escape") cancelRenameCircle();
+                              }}
+                              className="min-w-0 flex-1 rounded-xl border-[1.5px] border-line bg-cream px-3 py-2 text-ink"
+                            />
+                            <button
+                              onClick={() => void saveRenameCircle(g)}
+                              disabled={busy}
+                              className="flex-none rounded-[11px] bg-mint px-3.5 py-2 text-[12.5px] font-extrabold text-white disabled:opacity-60"
+                            >
+                              Zapisz
+                            </button>
+                          </div>
+                        ) : (
+                          <div className="flex items-center gap-2">
+                            <h3 className="text-[15.5px] font-semibold text-ink">{g.name}</h3>
+                            <button
+                              onClick={() => startRenameCircle(g)}
+                              aria-label="Zmień nazwę kręgu"
+                              className="flex h-7 w-7 flex-none items-center justify-center rounded-[9px] text-ink-soft transition-colors hover:bg-paper hover:text-ink"
+                            >
+                              <PencilIcon />
+                            </button>
+                          </div>
+                        )}
+                        {circleRenameError?.groupId === g.id && (
+                          <p className="mt-1.5 text-[12.5px] font-semibold text-danger">{circleRenameError.message}</p>
+                        )}
                         {extra?.location && <small className="mt-0.5 block text-[12.5px] text-ink-soft">{extra.location}</small>}
                         {extra && extra.freeSpots > 0 && (
                           <span className="mt-1.5 inline-block rounded-full bg-lime-soft px-2.5 py-1 text-[11.5px] font-extrabold text-[#56701F]">
@@ -1152,49 +1453,11 @@ export function PanelPage() {
                     Brak zaplanowanych terminów.
                   </div>
                 )}
-                {terms.map(({ term, group, neededItems }) => {
-                  const { day, month } = dayMonth(term.occurs_on);
-                  return (
-                    <div key={term.id} className="mt-2.5 flex items-stretch gap-2 first:mt-0">
-                      <Link
-                        to={termPublicPath(group, term.id)}
-                        className="flex flex-1 items-start gap-3.5 rounded-2xl border border-line bg-cream p-[15px] transition-colors hover:border-mint"
-                      >
-                        <div className="flex h-[46px] w-[46px] flex-none flex-col items-center justify-center rounded-[13px] bg-mint-soft leading-none">
-                          <b className="font-serif text-base text-ink">{day}</b>
-                          <small className="text-[9.5px] uppercase tracking-wide text-ink-soft">{month}</small>
-                        </div>
-                        <div className="min-w-0 flex-1">
-                          <h3 className="text-[15.5px] font-semibold text-ink">{group.name}</h3>
-                          <small className="mt-0.5 block text-[12.5px] text-ink-soft">{term.description || "Bez opisu"}</small>
-                          {neededItems.length > 0 && (
-                            <div className="mt-1.5 flex flex-wrap gap-1.5">
-                              {neededItems.map((ni) => (
-                                <span key={ni.id} className="rounded-full bg-lime-soft px-2.5 py-0.5 text-[10.5px] font-extrabold text-[#56701F]">
-                                  {NEEDED_ITEM_LABELS[ni.category]}
-                                </span>
-                              ))}
-                            </div>
-                          )}
-                        </div>
-                      </Link>
-                      <button
-                        type="button"
-                        title="Kopiuj link do terminu"
-                        aria-label="Kopiuj link do terminu"
-                        onClick={() => {
-                          void navigator.clipboard.writeText(
-                            `${window.location.origin}${termPublicPath(group, term.id)}`,
-                          );
-                          showToast("Skopiowano link");
-                        }}
-                        className="flex-none rounded-2xl border border-line bg-cream px-3.5 text-[12.5px] font-extrabold text-ink-soft transition-colors hover:border-mint"
-                      >
-                        Kopiuj link
-                      </button>
-                    </div>
-                  );
-                })}
+                {terms.map(({ term, group, neededItems }) => (
+                  <div key={term.id} className="mt-2.5 first:mt-0">
+                    {organizerTermCard(term, group, neededItems)}
+                  </div>
+                ))}
               </div>
             </div>
           </>
@@ -1282,8 +1545,111 @@ export function PanelPage() {
                       <BoxIcon c={style ? style.c : "#5C7069"} />
                     </span>
                     <div className="min-w-0 flex-1">
-                      <h3 className="text-[15.5px] font-semibold text-ink">{productName(it.product_id)}</h3>
-                      <small className="mt-0.5 block text-[12.5px] text-ink-soft">Stan: {it.condition}</small>
+                      {editingItemMeta?.id === it.id ? (
+                        <div className="flex flex-wrap items-center gap-2">
+                          <input
+                            aria-label="Nazwa rzeczy"
+                            value={editingItemMeta.name}
+                            onChange={(e) =>
+                              setEditingItemMeta((s) => (s ? { ...s, name: e.target.value } : s))
+                            }
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter") void saveItemMeta();
+                              if (e.key === "Escape") setEditingItemMeta(null);
+                            }}
+                            className="min-w-0 flex-1 rounded-lg border-[1.5px] border-line bg-cream px-2 py-1.5 text-[13.5px] text-ink"
+                          />
+                          <select
+                            aria-label="Typ rzeczy"
+                            value={editingItemMeta.category}
+                            onChange={(e) =>
+                              setEditingItemMeta((s) =>
+                                s ? { ...s, category: e.target.value as ProductCategory } : s,
+                              )
+                            }
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter") void saveItemMeta();
+                              if (e.key === "Escape") setEditingItemMeta(null);
+                            }}
+                            className="rounded-lg border-[1.5px] border-line bg-cream px-2 py-1.5 text-[12.5px] text-ink"
+                          >
+                            {PRODUCT_CATEGORIES.map((c) => (
+                              <option key={c} value={c}>{CATEGORY_LABELS[c]}</option>
+                            ))}
+                          </select>
+                          <button
+                            onClick={() => void saveItemMeta()}
+                            disabled={busy}
+                            className="flex-none rounded-[9px] bg-mint px-3 py-1.5 text-[11.5px] font-extrabold text-white disabled:opacity-60"
+                          >
+                            Zapisz
+                          </button>
+                          <button
+                            onClick={() => setEditingItemMeta(null)}
+                            className="flex-none rounded-[9px] border border-line px-2.5 py-1.5 text-[11.5px] font-extrabold text-ink-soft"
+                          >
+                            Anuluj
+                          </button>
+                        </div>
+                      ) : (
+                        <div className="flex items-center gap-1.5">
+                          <h3 className="text-[15.5px] font-semibold text-ink">{productName(it.product_id)}</h3>
+                          <button
+                            onClick={() => startEditItemMeta(it)}
+                            aria-label={`Edytuj rzecz ${productName(it.product_id)}`}
+                            className="flex h-6 w-6 flex-none items-center justify-center rounded-[8px] text-ink-soft transition-colors hover:bg-paper hover:text-ink"
+                          >
+                            <PencilIcon />
+                          </button>
+                        </div>
+                      )}
+                      {editingItemMeta?.id === it.id && itemMetaError && (
+                        <p className="mt-1 text-[12.5px] font-semibold text-danger">{itemMetaError}</p>
+                      )}
+                      {editingItemCondition?.id === it.id ? (
+                        <div className="mt-1 flex flex-wrap items-center gap-2">
+                          <select
+                            aria-label="Stan rzeczy"
+                            value={editingItemCondition.condition}
+                            onChange={(e) =>
+                              setEditingItemCondition((s) =>
+                                s ? { ...s, condition: e.target.value as ItemCondition } : s,
+                              )
+                            }
+                            className="rounded-lg border-[1.5px] border-line bg-cream px-2 py-1.5 text-[12.5px] text-ink"
+                          >
+                            {(Object.keys(CONDITION_LABELS) as ItemCondition[]).map((c) => (
+                              <option key={c} value={c}>{CONDITION_LABELS[c]}</option>
+                            ))}
+                          </select>
+                          <button
+                            onClick={() => void saveItemCondition()}
+                            disabled={busy}
+                            className="flex-none rounded-[9px] bg-mint px-3 py-1.5 text-[11.5px] font-extrabold text-white disabled:opacity-60"
+                          >
+                            Zapisz
+                          </button>
+                          <button
+                            onClick={() => setEditingItemCondition(null)}
+                            className="flex-none rounded-[9px] border border-line px-2.5 py-1.5 text-[11.5px] font-extrabold text-ink-soft"
+                          >
+                            Anuluj
+                          </button>
+                        </div>
+                      ) : (
+                        <div className="mt-0.5 flex items-center gap-1.5">
+                          <small className="text-[12.5px] text-ink-soft">
+                            Stan: {CONDITION_LABELS[it.condition]}
+                          </small>
+                          <button
+                            onClick={() => setEditingItemCondition({ id: it.id, condition: it.condition })}
+                            aria-label="Edytuj stan rzeczy"
+                            className="flex h-6 w-6 flex-none items-center justify-center rounded-[8px] text-ink-soft transition-colors hover:bg-paper hover:text-ink"
+                          >
+                            <PencilIcon />
+                          </button>
+                        </div>
+                      )}
                       <div className="mt-2 flex flex-wrap gap-1.5">
                         {ITEM_MODES.map((m) => {
                           const on = mode === m;
@@ -1302,9 +1668,19 @@ export function PanelPage() {
                         })}
                       </div>
                     </div>
+                    <button
+                      onClick={() => void handleDeleteItem(it.id)}
+                      aria-label={`Usuń rzecz ${productName(it.product_id)}`}
+                      className="flex h-[30px] w-[30px] flex-none items-center justify-center rounded-[10px] text-ink-soft hover:bg-danger-soft hover:text-danger"
+                    >
+                      <TrashIcon />
+                    </button>
                   </div>
                 );
               })}
+              {itemError && (
+                <p className="mt-2 text-[12.5px] font-semibold text-danger">{itemError}</p>
+              )}
             </div>
           </div>
         )}
@@ -1436,8 +1812,21 @@ export function PanelPage() {
                       {g.party_id !== profile.party_id && <span className="ml-1.5 text-ink-soft">(opiekun)</span>}
                     </h3>
                   </div>
+                  {g.party_id !== profile.party_id && (
+                    <button
+                      onClick={() => void handleRemoveFamilyMember(g)}
+                      disabled={busy}
+                      aria-label={`Usuń członka rodziny ${g.display_name}`}
+                      className="flex h-7 w-7 flex-none items-center justify-center rounded-[9px] text-ink-soft transition-colors hover:bg-paper hover:text-danger disabled:opacity-60"
+                    >
+                      <TrashIcon />
+                    </button>
+                  )}
                 </div>
               ))}
+              {familyMemberError && (
+                <p className="mt-2.5 text-[12.5px] font-semibold text-danger">{familyMemberError}</p>
+              )}
             </div>
 
             <div className="mt-7">
@@ -1547,6 +1936,19 @@ export function PanelPage() {
             setModal(null);
             showToast("Rodzina utworzona");
             void load({ silent: true });
+          }}
+        />
+      )}
+
+      {/* ---------- modal: edytuj termin ---------- */}
+      {modal === "edit-termin" && editTermEntry && (
+        <EditTermDialog
+          term={editTermEntry.term}
+          neededItems={editTermEntry.neededItems}
+          onChanged={() => void load({ silent: true })}
+          onClose={() => {
+            setModal(null);
+            setEditTermId(null);
           }}
         />
       )}
