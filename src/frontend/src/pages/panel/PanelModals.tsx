@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { ItemQuickAddForm } from "../../components/shared/ItemQuickAddForm";
 import { NeededItemQuickAddForm } from "../../components/shared/NeededItemQuickAddForm";
 import { CreateFamilyDialog } from "../../components/panel/CreateFamilyDialog";
@@ -41,6 +42,10 @@ export function PanelModals() {
     addDraftNeededItem,
     removeDraftNeededItem,
   } = usePanelData();
+
+  // "Potrzebne rzeczy" is optional — collapsed behind a small button until
+  // the organizer actually wants to add one (same pattern as EditTermDialog).
+  const [addingNeeded, setAddingNeeded] = useState(false);
 
   return (
     <>
@@ -144,7 +149,13 @@ export function PanelModals() {
 
       {/* ---------- modal: dodaj termin ---------- */}
       {modal === "termin" && (
-        <ModalSheet title="Dodaj termin zajęć" onClose={() => setModal(null)}>
+        <ModalSheet
+          title="Dodaj termin zajęć"
+          onClose={() => {
+            setModal(null);
+            setAddingNeeded(false);
+          }}
+        >
           <div className="grid grid-cols-1 gap-3">
             <Field label="Grupa">
               <select
@@ -174,7 +185,7 @@ export function PanelModals() {
                 className="rounded-xl border-[1.5px] border-line bg-cream px-3.5 py-2.5 text-ink"
               />
             </Field>
-            <Field label="Potrzebne rzeczy">
+            <Field label="Potrzebne rzeczy (opcjonalnie)">
               {neededDraft.map((item, index) => (
                 <div key={index} className="mb-1.5 flex items-center gap-2 text-[13px]">
                   <span className="flex-1">
@@ -186,15 +197,36 @@ export function PanelModals() {
                   </button>
                 </div>
               ))}
-              <NeededItemQuickAddForm value={draftNeededItem} onChange={setDraftNeededItem} />
-              <button
-                type="button"
-                onClick={addDraftNeededItem}
-                disabled={!draftNeededItem.name.trim()}
-                className="mt-2 self-start rounded-full border border-line px-3 py-1.5 text-xs font-bold text-ink-soft disabled:opacity-50"
-              >
-                Dodaj rzecz
-              </button>
+              {addingNeeded ? (
+                <div className="mt-1.5 flex flex-col gap-1.5">
+                  <NeededItemQuickAddForm value={draftNeededItem} onChange={setDraftNeededItem} />
+                  <div className="flex gap-1.5">
+                    <button
+                      type="button"
+                      onClick={addDraftNeededItem}
+                      disabled={!draftNeededItem.name.trim()}
+                      className="rounded-full border border-line px-3 py-1.5 text-xs font-bold text-ink-soft disabled:opacity-50"
+                    >
+                      Dodaj rzecz
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setAddingNeeded(false)}
+                      className="rounded-full px-3 py-1.5 text-xs font-bold text-ink-soft hover:bg-cream"
+                    >
+                      Zwiń
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => setAddingNeeded(true)}
+                  className="mt-1 self-start rounded-[9px] px-1.5 py-1 text-[12px] font-bold text-ink-soft transition-colors hover:bg-cream hover:text-ink"
+                >
+                  + Dodaj potrzebną rzecz
+                </button>
+              )}
             </Field>
           </div>
           <button

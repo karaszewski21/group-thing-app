@@ -105,6 +105,7 @@ function TermStepBody({ ctx }: { ctx: StepContext }) {
   const [description, setDescription] = useState("");
   const [neededDraft, setNeededDraft] = useState<NeededItemQuickAddValue[]>([]);
   const [draft, setDraft] = useState<NeededItemQuickAddValue>(createEmptyNeededItemQuickAddValue());
+  const [addingNeeded, setAddingNeeded] = useState(false);
 
   useEffect(() => {
     ctx.setSubmit(async () => {
@@ -175,7 +176,7 @@ function TermStepBody({ ctx }: { ctx: StepContext }) {
       </div>
 
       <div>
-        <span className={labelClass}>Potrzebne rzeczy</span>
+        <span className={labelClass}>Potrzebne rzeczy (opcjonalnie)</span>
         {neededDraft.map((item, index) => (
           <div key={index} className="mb-1.5 flex items-center gap-2 text-[13px]">
             <span className="flex-1">
@@ -192,15 +193,36 @@ function TermStepBody({ ctx }: { ctx: StepContext }) {
             </button>
           </div>
         ))}
-        <NeededItemQuickAddForm value={draft} onChange={setDraft} />
-        <button
-          type="button"
-          onClick={addDraftNeededItem}
-          disabled={!draft.name.trim()}
-          className="mt-2 rounded-full border border-line px-3 py-1.5 text-xs font-bold text-ink-soft disabled:opacity-50"
-        >
-          Dodaj rzecz
-        </button>
+        {addingNeeded ? (
+          <div className="mt-1.5 flex flex-col gap-1.5">
+            <NeededItemQuickAddForm value={draft} onChange={setDraft} />
+            <div className="flex gap-1.5">
+              <button
+                type="button"
+                onClick={addDraftNeededItem}
+                disabled={!draft.name.trim()}
+                className="rounded-full border border-line px-3 py-1.5 text-xs font-bold text-ink-soft disabled:opacity-50"
+              >
+                Dodaj rzecz
+              </button>
+              <button
+                type="button"
+                onClick={() => setAddingNeeded(false)}
+                className="rounded-full px-3 py-1.5 text-xs font-bold text-ink-soft hover:bg-cream"
+              >
+                Zwiń
+              </button>
+            </div>
+          </div>
+        ) : (
+          <button
+            type="button"
+            onClick={() => setAddingNeeded(true)}
+            className="mt-1 rounded-[9px] px-1.5 py-1 text-[12px] font-bold text-ink-soft transition-colors hover:bg-cream hover:text-ink"
+          >
+            + Dodaj potrzebną rzecz
+          </button>
+        )}
       </div>
     </div>
   );

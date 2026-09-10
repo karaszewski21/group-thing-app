@@ -1272,6 +1272,31 @@ describe("PanelPage — per-term public links & copy-link button", () => {
     expect(await screen.findByText("Skopiowano link")).toBeInTheDocument();
   });
 
+  it("'Dodaj termin' dialog keeps 'Potrzebne rzeczy' collapsed behind a small optional button", async () => {
+    mockOrganizerDefaults();
+    vi.mocked(termsApi.getTerms).mockResolvedValue([]);
+    vi.mocked(termsApi.getNeededItems).mockResolvedValue([]);
+    renderPanel();
+
+    fireEvent.click(await screen.findByRole("button", { name: "Spotkania" }));
+    fireEvent.click(await screen.findByRole("button", { name: "+ Dodaj termin" }));
+
+    const dialog = await screen.findByRole("dialog", { name: "Dodaj termin zajęć" });
+    expect(within(dialog).getByText("Potrzebne rzeczy (opcjonalnie)")).toBeInTheDocument();
+    // form is not shown yet
+    expect(within(dialog).queryByLabelText("Nazwa")).not.toBeInTheDocument();
+
+    fireEvent.click(within(dialog).getByRole("button", { name: "+ Dodaj potrzebną rzecz" }));
+    expect(within(dialog).getByLabelText("Nazwa")).toBeInTheDocument();
+    expect(within(dialog).getByRole("button", { name: "Dodaj rzecz" })).toBeInTheDocument();
+
+    fireEvent.click(within(dialog).getByRole("button", { name: "Zwiń" }));
+    expect(within(dialog).queryByLabelText("Nazwa")).not.toBeInTheDocument();
+    expect(
+      within(dialog).getByRole("button", { name: "+ Dodaj potrzebną rzecz" }),
+    ).toBeInTheDocument();
+  });
+
   it("organizer first-term stepper done-screen CTA deep-links to the just-created term using the circle's slug", async () => {
     mockOrganizerDefaults();
     vi.mocked(termsApi.createTerm).mockResolvedValue({
