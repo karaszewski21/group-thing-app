@@ -21,8 +21,27 @@ export type FulfillPledgeRequest =
   | { inventory_item_id: number }
   | { condition: ItemCondition; product_id?: number };
 
+/** One row of the caller's own "rzeczy, które obiecałem przynieść" list. */
+export interface MyPledgeResponse {
+  pledge_id: number;
+  status: PledgeStatus;
+  product_name: string;
+  item_description: string | null;
+  term_id: number;
+  group_id: number;
+  group_name: string;
+  occurs_on: string;
+  organizer_slug: string;
+  /** `true` once a concrete item + LEND reservation are opened — "Rezygnuję" no longer offered. */
+  registered: boolean;
+}
+
 export function getPledges(neededItemId: number): Promise<PledgeResponse[]> {
   return api.get(`/pledges?needed_item_id=${neededItemId}`);
+}
+
+export function getMyPledges(): Promise<MyPledgeResponse[]> {
+  return api.get("/pledges/mine");
 }
 
 export function getPledge(id: number): Promise<PledgeResponse> {

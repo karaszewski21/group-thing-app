@@ -1,6 +1,7 @@
 import { Link } from "react-router-dom";
 import {
   BackIcon,
+  BellIcon,
   BuildingIcon,
   CalendarPlusIcon,
   FamilyIcon,
@@ -28,6 +29,12 @@ export function PanelHeader() {
     setModal,
     setMenuOpen,
     setFirstTermForOrganizer,
+    notifications,
+    unreadCount,
+    notifOpen,
+    setNotifOpen,
+    openNotification,
+    markAllRead,
   } = usePanelData();
 
   if (!profile) return null;
@@ -48,6 +55,71 @@ export function PanelHeader() {
               {profile.display_name}
             </h1>
             {localLocation && <small className="mt-0.5 block text-xs text-ink-soft">{localLocation}</small>}
+          </div>
+          <div className="relative flex-none">
+            <button
+              onClick={() => setNotifOpen((o) => !o)}
+              aria-label={
+                unreadCount > 0 ? `Powiadomienia (${unreadCount} nieprzeczytane)` : "Powiadomienia"
+              }
+              aria-expanded={notifOpen}
+              className="relative flex h-10 w-10 items-center justify-center rounded-[14px] border border-line bg-cream transition-colors hover:bg-mint-soft"
+            >
+              <BellIcon />
+              {unreadCount > 0 && (
+                <span className="absolute -right-1 -top-1 flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-mint px-1 text-[10.5px] font-extrabold text-white">
+                  {unreadCount > 9 ? "9+" : unreadCount}
+                </span>
+              )}
+            </button>
+            {notifOpen && (
+              <>
+                <button
+                  onClick={() => setNotifOpen(false)}
+                  aria-label="Zamknij powiadomienia"
+                  className="fixed inset-0 z-[25] cursor-default border-none bg-transparent p-0"
+                />
+                <div
+                  role="menu"
+                  className="absolute right-0 top-12 z-30 max-h-[70vh] w-[290px] overflow-y-auto rounded-2xl border border-line bg-paper p-1.5 shadow-[0_16px_34px_-16px_rgba(30,46,39,0.45)]"
+                >
+                  <div className="flex items-center justify-between px-2.5 py-2">
+                    <span className="text-xs font-extrabold uppercase tracking-wide text-ink-soft">
+                      Powiadomienia
+                    </span>
+                    {unreadCount > 0 && (
+                      <button
+                        onClick={() => void markAllRead()}
+                        className="text-[11px] font-bold text-mint hover:underline"
+                      >
+                        Oznacz jako przeczytane
+                      </button>
+                    )}
+                  </div>
+                  {notifications.length === 0 ? (
+                    <p className="px-2.5 py-4 text-center text-[13px] text-ink-soft">
+                      Brak powiadomień
+                    </p>
+                  ) : (
+                    notifications.map((n) => (
+                      <button
+                        key={n.id}
+                        role="menuitem"
+                        onClick={() => void openNotification(n)}
+                        className={`block w-full rounded-[11px] px-2.5 py-2 text-left text-[12.5px] leading-snug hover:bg-cream ${
+                          n.read_at === null ? "font-bold text-ink" : "text-ink-soft"
+                        }`}
+                      >
+                        {n.read_at === null && (
+                          <span className="mr-1.5 inline-block h-1.5 w-1.5 rounded-full bg-mint align-middle" />
+                        )}
+                        {n.message}
+                      </button>
+                    ))
+                  )}
+                </div>
+              </>
+            )}
           </div>
           <div className="relative flex-none">
             <button

@@ -64,6 +64,17 @@ export const MenuIcon = () => (
     <path d="M4 7h16M4 12h16M4 17h16" stroke="#1E2E27" strokeWidth="2.1" strokeLinecap="round" />
   </svg>
 );
+export const BellIcon = ({ c = "#1E2E27" }: { c?: string }) => (
+  <svg viewBox="0 0 24 24" fill="none" aria-hidden="true" className="h-[21px] w-[21px]">
+    <path
+      d="M6 9a6 6 0 0 1 12 0c0 4 1.2 5.5 2 6.5H4c.8-1 2-2.5 2-6.5Z"
+      stroke={c}
+      strokeWidth="2"
+      strokeLinejoin="round"
+    />
+    <path d="M9.5 19a2.5 2.5 0 0 0 5 0" stroke={c} strokeWidth="2" strokeLinecap="round" />
+  </svg>
+);
 export const BackIcon = () => (
   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
     <path d="M14.5 5 8 12l6.5 7" stroke="#1E2E27" strokeWidth="2.3" strokeLinecap="round" strokeLinejoin="round" />

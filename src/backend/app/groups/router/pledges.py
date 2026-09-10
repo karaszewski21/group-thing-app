@@ -10,7 +10,13 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.auth_deps import Principal, require_any
 from app.db import get_db
 from app.groups import service
-from app.groups.schemas import CreatePledgeRequest, FulfillPledgeRequest, PledgeResponse
+from app.groups.schemas import (
+    CreatePledgeRequest,
+    FulfillPledgeRequest,
+    MyPledgeResponse,
+    PledgeResponse,
+)
+from app.users.service import get_profile_by_principal
 
 router = APIRouter(tags=["groups"])
 
@@ -36,6 +42,16 @@ async def list_pledges(
 ) -> list[PledgeResponse]:
     pledges = await service.list_pledges(db, needed_item_id)
     return [PledgeResponse.model_validate(pledge) for pledge in pledges]
+
+
+# Declared before `GET /api/pledges/{pledge_id}` so the literal `mine`
+# segment is not parsed as `pledge_id: int`. Covered by matrix row 36
+# (`GET ^/api/pledges(/.*)?$` -> READ); no ownership check beyond auth (the
+# caller's own party is derived from the principal).
+@router.get("/api/pledges/mine", response_model=list[MyPledgeResponse])
+async def list_my_pledges(db: DbSession, principal: ReadPrincipal) -> list[MyPledgeResponse]:
+    profile = await get_profile_by_principal(db, principal)
+    return await service.list_my_pledges(db, profile.party_id)
 
 
 @router.get("/api/pledges/{pledge_id}", response_model=PledgeResponse)

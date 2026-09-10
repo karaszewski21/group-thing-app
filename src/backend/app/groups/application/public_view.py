@@ -28,6 +28,7 @@ from ..infrastructure.slug_resolver import resolve_organizer_slug
 from ..models import Term, TermAttendance
 from ..schemas import (
     MyAttendanceResponse,
+    MyPledgeResponse,
     PublicCircleResponse,
     PublicGuardianResponse,
     PublicNeededItemResponse,
@@ -121,6 +122,35 @@ async def list_my_attendances(db: AsyncSession, party_id: int) -> list[MyAttenda
             )
         )
     return responses
+
+
+async def list_my_pledges(db: AsyncSession, party_id: int) -> list[MyPledgeResponse]:
+    """The caller's own "obiecałem przynieść" list — non-withdrawn pledges
+    joined to product / term / circle, class date ascending. Organizer slug
+    resolved once per DISTINCT circle (same bounded-loop precedent as
+    `list_my_attendances`), for the public-term deep link."""
+    rows = await repository.list_my_pledges_joined(db, party_id)
+
+    distinct_group_ids = {cast(int, group.id) for _pledge, _name, _desc, _term, group in rows}
+    slug_by_group: dict[int, str] = {
+        group_id: (await _resolve_organizer(db, group_id))[1] for group_id in distinct_group_ids
+    }
+
+    return [
+        MyPledgeResponse(
+            pledge_id=cast(int, pledge.id),
+            status=pledge.status,
+            product_name=product_name,
+            item_description=item_description,
+            term_id=cast(int, term.id),
+            group_id=cast(int, group.id),
+            group_name=group.name,
+            occurs_on=term.occurs_on,
+            organizer_slug=slug_by_group[cast(int, group.id)],
+            registered=pledge.resolved_reservation_id is not None,
+        )
+        for pledge, product_name, item_description, term, group in rows
+    ]
 
 
 async def get_public_circle_view(

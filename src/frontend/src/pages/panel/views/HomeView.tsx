@@ -25,6 +25,8 @@ export function HomeView() {
     terms,
     myGroups,
     myAttendances,
+    myPledges,
+    withdrawMyPledge,
     itemCounts,
     giftCounts,
     setView,
@@ -180,6 +182,55 @@ export function HomeView() {
                         </small>
                       </div>
                     </Link>
+                  );
+                })
+              )}
+            </div>
+
+            <div className="mt-3.5 rounded-[22px] border border-line bg-paper p-5">
+              <h3 className="mb-3.5 text-base font-semibold text-ink">Zadeklarowane rzeczy</h3>
+              {myPledges.length === 0 ? (
+                <div className="rounded-2xl border-[1.5px] border-dashed border-line py-[26px] text-center text-[13.5px] text-ink-soft">
+                  Nie zadeklarowałeś jeszcze przyniesienia żadnej rzeczy.
+                </div>
+              ) : (
+                myPledges.map((p) => {
+                  const { day, month } = dayMonth(p.occurs_on);
+                  const time = termTime(p.occurs_on);
+                  const statusLabel =
+                    p.status === "FULFILLED"
+                      ? "Zrealizowane ✓"
+                      : p.registered
+                        ? "Zarejestrowane"
+                        : "Zadeklarowane";
+                  return (
+                    <div
+                      key={p.pledge_id}
+                      className="mt-2.5 flex items-start gap-3.5 rounded-2xl border border-line bg-cream p-[15px] first:mt-0"
+                    >
+                      <div className="flex h-[46px] w-[46px] flex-none flex-col items-center justify-center rounded-[13px] bg-lime-soft leading-none">
+                        <b className="font-serif text-base text-ink">{day}</b>
+                        <small className="text-[9.5px] uppercase tracking-wide text-ink-soft">{month}</small>
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <h4 className="text-[14.5px] font-semibold text-ink">
+                          {p.product_name}
+                          {p.item_description ? ` — ${p.item_description}` : ""}
+                        </h4>
+                        <small className="mt-0.5 block text-[12.5px] text-ink-soft">
+                          {p.group_name}
+                          {time ? ` · godz. ${time}` : ""} · {statusLabel}
+                        </small>
+                      </div>
+                      {p.status === "CLAIMED" && !p.registered && (
+                        <button
+                          onClick={() => void withdrawMyPledge(p.pledge_id)}
+                          className="flex-none rounded-full border border-line px-3 py-1.5 text-xs font-bold text-danger hover:bg-paper"
+                        >
+                          Rezygnuję
+                        </button>
+                      )}
+                    </div>
                   );
                 })
               )}

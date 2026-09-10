@@ -4,6 +4,7 @@ import { MemoryRouter, Route, Routes } from "react-router-dom";
 import type { NeededItemResponse } from "../api/terms";
 import type { PledgeResponse } from "../api/pledges";
 import type { UseKragGrupyResult } from "../hooks/useKragGrupy";
+import { ApiError } from "../api/client";
 import { KragGrupyPage } from "../pages/krag/KragGrupyPage";
 
 const fulfillPledgeItem = vi.fn();
@@ -99,6 +100,31 @@ describe("KragGrupyPage (private view) — fulfill a pledge", () => {
     await waitFor(() =>
       expect(fulfillPledgeItem).toHaveBeenCalledWith(91, { condition: "GOOD" }),
     );
+  });
+
+  it("a pledge that 409s shows the 'ktoś już' toast and refetches", async () => {
+    const pledge = vi
+      .fn()
+      .mockRejectedValue(
+        new ApiError(409, "Conflict", {
+          message: "Ktoś już zadeklarował przyniesienie tej rzeczy",
+        }),
+      );
+    const refetch = vi.fn();
+    hookValue = baseHookValue({
+      myPartyId: 99, // not the pledger → "Ja to przyniosę" toggle is shown
+      neededItems: [{ item: neededItem, pledges: [] }],
+      pledge,
+      refetch,
+    });
+    renderPage();
+
+    fireEvent.click(screen.getByRole("button", { name: "Ja to przyniosę: Bębenek" }));
+
+    expect(
+      await screen.findByText("Ktoś już zadeklarował przyniesienie tej rzeczy"),
+    ).toBeInTheDocument();
+    await waitFor(() => expect(refetch).toHaveBeenCalled());
   });
 
   it("with an AVAILABLE item: defaults to 'z moich rzeczy', Zapisz → fulfillPledge({inventory_item_id})", async () => {

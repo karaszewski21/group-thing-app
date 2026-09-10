@@ -4,6 +4,7 @@ import { useKragGrupy } from "../../hooks/useKragGrupy";
 import { usePublicKragGrupy } from "../../hooks/usePublicKragGrupy";
 import type { ItemCondition } from "../../api/inventories";
 import { createPledge, type FulfillPledgeRequest } from "../../api/pledges";
+import { ApiError } from "../../api/client";
 import { CONDITION_LABELS } from "../../utils/productCategory";
 import { RsvpDialog } from "../../components/krag/RsvpDialog";
 import { RsvpDialogLoggedIn } from "../../components/krag/RsvpDialogLoggedIn";
@@ -167,6 +168,7 @@ function PrivateKragGrupyView() {
     withdraw,
     fulfillPledgeItem,
     confirmPledgeReceipt,
+    refetch,
   } = useKragGrupy(groupId);
 
   const [activeFamilyId, setActiveFamilyId] = useState<number | null>(null);
@@ -225,8 +227,13 @@ function PrivateKragGrupyView() {
       } else {
         await pledge(neededItemId);
       }
-    } catch {
-      setToast("Nie udalo sie zapisac zgloszenia");
+    } catch (err) {
+      if (err instanceof ApiError && err.status === 409) {
+        setToast("Ktoś już zadeklarował przyniesienie tej rzeczy");
+        await refetch();
+      } else {
+        setToast("Nie udało się zapisać zgłoszenia");
+      }
     } finally {
       setBusyItemId(null);
     }
@@ -611,8 +618,12 @@ export function PublicKragGrupyView() {
       await createPledge(neededItemId);
       setPledgedItemIds((prev) => [...prev, neededItemId]);
       setToast("Zgłoszono — szczegóły w Twoim panelu");
-    } catch {
-      setToast("Nie udało się zapisać zgłoszenia");
+    } catch (err) {
+      setToast(
+        err instanceof ApiError && err.status === 409
+          ? "Ktoś już zadeklarował przyniesienie tej rzeczy"
+          : "Nie udało się zapisać zgłoszenia",
+      );
     } finally {
       setPledgingItemId(null);
     }

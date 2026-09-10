@@ -547,6 +547,25 @@ describe("PublicKragGrupyPage", () => {
       expect(await screen.findByText("Zgłoszono ✓")).toBeInTheDocument();
     });
 
+    it("logged-in pledge that 409s shows the 'ktoś już' toast, button stays", async () => {
+      mockAuthValue = { token: "valid.jwt.token", displayName: "Ala Testowa" };
+      vi.mocked(groupsApi.getPublicCircle).mockResolvedValue(circleWithTerm);
+      vi.mocked(pledgesApi.createPledge).mockRejectedValue(
+        new ApiError(409, "Conflict", { message: "Ktoś już zadeklarował przyniesienie tej rzeczy" }),
+      );
+
+      renderAt(CANONICAL_PATH);
+
+      fireEvent.click(await screen.findByRole("button", { name: "Ja to przyniosę: Bębenek" }));
+
+      expect(
+        await screen.findByText("Ktoś już zadeklarował przyniesienie tej rzeczy"),
+      ).toBeInTheDocument();
+      expect(
+        screen.getByRole("button", { name: "Ja to przyniosę: Bębenek" }),
+      ).toBeInTheDocument();
+    });
+
     it("anonymous visitor gets the login/register gate, no pledge call", async () => {
       vi.mocked(groupsApi.getPublicCircle).mockResolvedValue(circleWithTerm);
 

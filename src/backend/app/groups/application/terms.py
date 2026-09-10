@@ -14,7 +14,7 @@ from app.core.errors import BusinessConflictException, EntityNotFoundException
 from app.product.models import ProductCategory
 from app.users.service import get_profile_by_principal
 
-from ..infrastructure import product_bridge, repository
+from ..infrastructure import notifications_bridge, product_bridge, repository
 from ..models import NeededItem, Pledge, PledgeStatus, Term
 from ..schemas import (
     CreateNeededItemRequest,
@@ -154,17 +154,13 @@ async def update_needed_item(
     return await get_needed_item_view(db, needed_item_id)
 
 
-def _withdraw_pledge_row(pledge: Pledge) -> None:
-    # TODO: notify pledger that the organizer no longer needs this item
-    pledge.status = PledgeStatus.WITHDRAWN
-
-
 async def soft_delete_needed_item(
     db: AsyncSession, needed_item_id: int, caller_party_id: int
 ) -> None:
     """Soft-delete a needed item in one transaction. Blocked (409) if any
     pledge is already FULFILLED; otherwise every OPEN/CLAIMED pledge is
-    transitioned to WITHDRAWN and `deleted_at` is stamped."""
+    transitioned to WITHDRAWN, its party is notified, and `deleted_at` is
+    stamped."""
     needed_item = await _require_needed_item_organizer(db, needed_item_id, caller_party_id)
 
     pledges = list(
@@ -177,9 +173,28 @@ async def soft_delete_needed_item(
     ):
         raise BusinessConflictException("Nie można usunąć — rzecz została już dostarczona")
 
+    affected_party_ids = [
+        pledge.pledged_by_party_id
+        for pledge in pledges
+        if pledge.status in (PledgeStatus.OPEN, PledgeStatus.CLAIMED)
+    ]
     for pledge in pledges:
         if pledge.status in (PledgeStatus.OPEN, PledgeStatus.CLAIMED):
-            _withdraw_pledge_row(pledge)
+            pledge.status = PledgeStatus.WITHDRAWN
 
     needed_item.deleted_at = datetime.utcnow()
+
+    if affected_party_ids:
+        product = await product_bridge.get_product(db, needed_item.product_id)
+        for party_id in affected_party_ids:
+            await notifications_bridge.create_notification(
+                db,
+                party_id=party_id,
+                kind=notifications_bridge.NotificationKind.NEEDED_ITEM_REMOVED,
+                message=(
+                    f"Organizator usunął z listy rzecz, którą miałeś przynieść: {product.name}"
+                ),
+                link_path="/panel",
+            )
+
     await db.commit()

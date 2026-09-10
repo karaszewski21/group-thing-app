@@ -48,6 +48,7 @@ from app.groups.application.public_view import (
     create_rsvp,
     get_public_circle_view,
     list_my_attendances,
+    list_my_pledges,
 )
 from app.groups.application.terms import (
     create_needed_item,
@@ -87,6 +88,7 @@ __all__ = [
     "list_memberships_for_circle",
     "list_memberships_for_party",
     "list_my_attendances",
+    "list_my_pledges",
     "list_needed_item_views",
     "list_pledges",
     "list_terms",

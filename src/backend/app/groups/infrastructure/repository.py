@@ -22,6 +22,7 @@ from ..models import (
     Membership,
     NeededItem,
     Pledge,
+    PledgeStatus,
     Term,
     TermAttendance,
 )
@@ -214,6 +215,30 @@ async def get_pledge(db: AsyncSession, pledge_id: int) -> Pledge | None:
 async def list_pledges_for_needed_item(db: AsyncSession, needed_item_id: int) -> list[Pledge]:
     result = await db.execute(select(Pledge).where(Pledge.needed_item_id == needed_item_id))
     return list(result.scalars().all())
+
+
+async def list_my_pledges_joined(
+    db: AsyncSession, party_id: int
+) -> list[Row[tuple[Pledge, str, str | None, Term, Group]]]:
+    """The caller's own non-withdrawn pledges + the product name / need
+    refinement / term / circle, one explicit multi-entity join (these
+    entities carry no `relationship()` — same form as
+    `list_my_attendances_joined`). Live needs only (`deleted_at IS NULL`),
+    SQL-level ordering by class date."""
+    result = await db.execute(
+        select(Pledge, Product.name, NeededItem.description, Term, Group)
+        .join(NeededItem, Pledge.needed_item_id == NeededItem.id)
+        .join(Product, NeededItem.product_id == Product.id)
+        .join(Term, NeededItem.term_id == Term.id)
+        .join(Group, Term.circle_group_id == Group.id)
+        .where(
+            Pledge.pledged_by_party_id == party_id,
+            Pledge.status != PledgeStatus.WITHDRAWN,
+            NeededItem.deleted_at.is_(None),
+        )
+        .order_by(Term.occurs_on.asc(), Pledge.id.asc())
+    )
+    return list(result.all())
 
 
 # --- Public circle-view -------------------------------------------------------

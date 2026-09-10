@@ -206,14 +206,14 @@ async def test_createNeededItem_unknownProductId_returns404(client: AsyncClient)
     assert response.status_code == 404
 
 
-async def test_deleteNeededItem_openAndClaimedPledges_transitionsToWithdrawn(
+async def test_deleteNeededItem_claimedPledge_transitionsToWithdrawn(
     client: AsyncClient, db_session: AsyncSession
 ) -> None:
     token = await _register_organizer(client, "del.ni1@example.com")
     _circle_id, term_id = await _create_circle_with_term(client, token, "Krąg usuwania")
     needed_item_id = await _create_needed_item(client, token, term_id)
 
-    guest_token, guest_party_id = await _register_guest(client, "del.ni1.guest@example.com")
+    guest_token, _guest_party_id = await _register_guest(client, "del.ni1.guest@example.com")
     claimed = await client.post(
         "/api/pledges",
         json={"needed_item_id": needed_item_id},
@@ -222,15 +222,6 @@ async def test_deleteNeededItem_openAndClaimedPledges_transitionsToWithdrawn(
     assert claimed.status_code == 201
     claimed_pledge_id = claimed.json()["id"]
 
-    open_pledge = Pledge(
-        needed_item_id=needed_item_id,
-        pledged_by_party_id=guest_party_id,
-        status=PledgeStatus.OPEN,
-    )
-    db_session.add(open_pledge)
-    await db_session.commit()
-    open_pledge_id = open_pledge.id
-
     response = await client.delete(
         f"/api/needed-items/{needed_item_id}", headers=_auth_headers(token)
     )
@@ -238,15 +229,19 @@ async def test_deleteNeededItem_openAndClaimedPledges_transitionsToWithdrawn(
 
     db_session.expire_all()
     claimed_row = await db_session.get(Pledge, claimed_pledge_id)
-    open_row = await db_session.get(Pledge, open_pledge_id)
     item_row = await db_session.get(NeededItem, needed_item_id)
     assert claimed_row is not None and claimed_row.status == PledgeStatus.WITHDRAWN
-    assert open_row is not None and open_row.status == PledgeStatus.WITHDRAWN
     assert item_row is not None and item_row.deleted_at is not None
 
     listed = await client.get(f"/api/needed-items?term_id={term_id}", headers=_auth_headers(token))
     assert listed.status_code == 200
     assert all(item["id"] != needed_item_id for item in listed.json())
+
+    # The pledger was told their item is no longer needed.
+    notifs = (
+        await client.get("/api/notifications/mine", headers=_auth_headers(guest_token))
+    ).json()
+    assert any(n["kind"] == "NEEDED_ITEM_REMOVED" for n in notifs)
 
 
 async def test_deleteNeededItem_fulfilledPledgeExists_returns409(
@@ -622,6 +617,85 @@ async def test_getNeededItemPledges_parentSoftDeleted_returns404(
         f"/api/pledges?needed_item_id={needed_item_id}", headers=_auth_headers(token)
     )
     assert response.status_code == 404
+
+
+async def test_createPledge_secondActiveClaim_returns409(client: AsyncClient) -> None:
+    org_token = await _register_organizer(client, "pledge.single.org@example.com")
+    _circle_id, term_id = await _create_circle_with_term(client, org_token, "Krąg jednego")
+    needed_item_id = await _create_needed_item(client, org_token, term_id)
+
+    guest_a, _ = await _register_guest(client, "pledge.single.a@example.com")
+    guest_b, _ = await _register_guest(client, "pledge.single.b@example.com")
+
+    first = await client.post(
+        "/api/pledges", json={"needed_item_id": needed_item_id}, headers=_auth_headers(guest_a)
+    )
+    assert first.status_code == 201
+
+    # A different party — 409.
+    other = await client.post(
+        "/api/pledges", json={"needed_item_id": needed_item_id}, headers=_auth_headers(guest_b)
+    )
+    assert other.status_code == 409
+
+    # The same party pledging again — also 409 (one active claim, full stop).
+    again = await client.post(
+        "/api/pledges", json={"needed_item_id": needed_item_id}, headers=_auth_headers(guest_a)
+    )
+    assert again.status_code == 409
+
+
+async def test_createPledge_afterWithdraw_allowsNewClaim(client: AsyncClient) -> None:
+    org_token = await _register_organizer(client, "pledge.rewithdraw.org@example.com")
+    _circle_id, term_id = await _create_circle_with_term(client, org_token, "Krąg ponownego")
+    needed_item_id = await _create_needed_item(client, org_token, term_id)
+
+    guest_a, _ = await _register_guest(client, "pledge.rewithdraw.a@example.com")
+    guest_b, _ = await _register_guest(client, "pledge.rewithdraw.b@example.com")
+
+    pledge = await client.post(
+        "/api/pledges", json={"needed_item_id": needed_item_id}, headers=_auth_headers(guest_a)
+    )
+    assert pledge.status_code == 201
+    withdrawn = await client.post(
+        f"/api/pledges/{pledge.json()['id']}/withdraw", headers=_auth_headers(guest_a)
+    )
+    assert withdrawn.status_code == 200
+
+    reclaim = await client.post(
+        "/api/pledges", json={"needed_item_id": needed_item_id}, headers=_auth_headers(guest_b)
+    )
+    assert reclaim.status_code == 201
+
+
+async def test_getMyPledges_returnsCallersNonWithdrawnPledges(client: AsyncClient) -> None:
+    org_token = await _register_organizer(client, "mypledges.org@example.com")
+    _circle_id, term_id = await _create_circle_with_term(client, org_token, "Krąg moich rzeczy")
+    needed_item_id = await _create_needed_item(client, org_token, term_id)
+
+    guest_token, _ = await _register_guest(client, "mypledges.guest@example.com")
+    pledge = await client.post(
+        "/api/pledges", json={"needed_item_id": needed_item_id}, headers=_auth_headers(guest_token)
+    )
+    assert pledge.status_code == 201
+
+    mine = await client.get("/api/pledges/mine", headers=_auth_headers(guest_token))
+    assert mine.status_code == 200
+    rows = mine.json()
+    assert len(rows) == 1
+    assert rows[0]["status"] == "CLAIMED"
+    assert rows[0]["registered"] is False
+    assert rows[0]["product_name"] == "Instrument"
+    assert rows[0]["term_id"] == term_id
+
+    # The organizer has no pledges of their own.
+    assert (await client.get("/api/pledges/mine", headers=_auth_headers(org_token))).json() == []
+
+    withdrawn = await client.post(
+        f"/api/pledges/{pledge.json()['id']}/withdraw", headers=_auth_headers(guest_token)
+    )
+    assert withdrawn.status_code == 200
+    assert (await client.get("/api/pledges/mine", headers=_auth_headers(guest_token))).json() == []
 
 
 async def test_patchTerm_emptyBody_returns200Noop(client: AsyncClient) -> None:

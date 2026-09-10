@@ -15,6 +15,8 @@ import * as inventoriesApi from "../api/inventories";
 import * as productsApi from "../api/products";
 import * as termsApi from "../api/terms";
 import * as organizationsApi from "../api/organizations";
+import * as pledgesApi from "../api/pledges";
+import * as notificationsApi from "../api/notifications";
 import { PanelPage } from "../pages/panel/PanelPage";
 import { ApiError } from "../api/client";
 
@@ -86,6 +88,17 @@ vi.mock("../api/terms", () => ({
 
 vi.mock("../api/organizations", () => ({
   getMyOrganization: vi.fn(),
+}));
+
+vi.mock("../api/pledges", () => ({
+  getMyPledges: vi.fn(),
+  withdrawPledge: vi.fn(),
+}));
+
+vi.mock("../api/notifications", () => ({
+  getMyNotifications: vi.fn(),
+  markNotificationRead: vi.fn(),
+  markAllNotificationsRead: vi.fn(),
 }));
 
 const mockProfile: peopleApi.UserProfileResponse = {
@@ -208,6 +221,8 @@ function mockGuestDefaults() {
   vi.mocked(familiesApi.getGuardians).mockResolvedValue([]);
   vi.mocked(groupsApi.getMyAttendances).mockResolvedValue([]);
   vi.mocked(organizationsApi.getMyOrganization).mockRejectedValue(new Error("404"));
+  vi.mocked(pledgesApi.getMyPledges).mockResolvedValue([]);
+  vi.mocked(notificationsApi.getMyNotifications).mockResolvedValue([]);
 }
 
 function mockOrganizerDefaults() {
@@ -225,6 +240,8 @@ function mockOrganizerDefaults() {
   vi.mocked(familiesApi.getGuardians).mockResolvedValue([]);
   vi.mocked(groupsApi.getMyAttendances).mockResolvedValue([]);
   vi.mocked(organizationsApi.getMyOrganization).mockRejectedValue(new Error("404"));
+  vi.mocked(pledgesApi.getMyPledges).mockResolvedValue([]);
+  vi.mocked(notificationsApi.getMyNotifications).mockResolvedValue([]);
 }
 
 async function openMenu() {
@@ -1499,5 +1516,130 @@ describe("PanelPage — needed item edit error path", () => {
 
     expect(await within(dialog).findByText(/Nie udało się zapisać zmiany/)).toBeInTheDocument();
     expect(within(dialog).getByText(/Bębenek/)).toBeInTheDocument();
+  });
+});
+
+describe("PanelPage — Zadeklarowane rzeczy (my pledges)", () => {
+  beforeEach(() => {
+    vi.resetAllMocks();
+  });
+
+  const myPledge: pledgesApi.MyPledgeResponse = {
+    pledge_id: 7,
+    status: "CLAIMED",
+    product_name: "Bębenek",
+    item_description: "mały",
+    term_id: 3,
+    group_id: 5,
+    group_name: "Nutki",
+    occurs_on: "2026-03-12T17:30:00",
+    organizer_slug: "ania",
+    registered: false,
+  };
+
+  it("renders a declared item and 'Rezygnuję' calls withdrawPledge then reloads", async () => {
+    mockGuestDefaults();
+    vi.mocked(pledgesApi.getMyPledges).mockResolvedValueOnce([myPledge]).mockResolvedValue([]);
+    vi.mocked(pledgesApi.withdrawPledge).mockResolvedValue({
+      id: 7,
+      needed_item_id: 1,
+      pledged_by_party_id: 1,
+      status: "WITHDRAWN",
+      resolved_reservation_id: null,
+      created_at: "",
+      updated_at: "",
+    });
+    renderPanel();
+
+    expect(await screen.findByRole("heading", { name: "Zadeklarowane rzeczy" })).toBeInTheDocument();
+    expect(screen.getByText(/Bębenek/)).toBeInTheDocument();
+    expect(screen.getByText(/Nutki/)).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Rezygnuję" }));
+    await waitFor(() => expect(pledgesApi.withdrawPledge).toHaveBeenCalledWith(7));
+  });
+
+  it("shows the empty state when there are no pledges", async () => {
+    mockGuestDefaults();
+    renderPanel();
+
+    expect(
+      await screen.findByText("Nie zadeklarowałeś jeszcze przyniesienia żadnej rzeczy."),
+    ).toBeInTheDocument();
+  });
+
+  it("hides 'Rezygnuję' once the item is registered", async () => {
+    mockGuestDefaults();
+    vi.mocked(pledgesApi.getMyPledges).mockResolvedValue([{ ...myPledge, registered: true }]);
+    renderPanel();
+
+    expect(await screen.findByText(/Bębenek/)).toBeInTheDocument();
+    expect(screen.getByText(/Zarejestrowane/)).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Rezygnuję" })).not.toBeInTheDocument();
+  });
+});
+
+describe("PanelPage — notification bell", () => {
+  beforeEach(() => {
+    vi.resetAllMocks();
+  });
+
+  const notif = (over: Partial<notificationsApi.NotificationResponse> = {}) => ({
+    id: 1,
+    kind: "PLEDGE_CREATED" as const,
+    message: "„Kasia\" zadeklarował(a) przyniesienie: Bębenek",
+    link_path: "/ania/grupa/5/term/3",
+    read_at: null,
+    created_at: "2026-03-01T10:00:00",
+    ...over,
+  });
+
+  it("shows an unread badge and lists messages in the dropdown", async () => {
+    mockGuestDefaults();
+    vi.mocked(notificationsApi.getMyNotifications).mockResolvedValue([notif(), notif({ id: 2 })]);
+    renderPanel();
+
+    const bell = await screen.findByRole("button", {
+      name: /Powiadomienia \(2 nieprzeczytane\)/,
+    });
+    fireEvent.click(bell);
+
+    expect(
+      screen.getAllByText(/zadeklarował\(a\) przyniesienie: Bębenek/).length,
+    ).toBeGreaterThanOrEqual(2);
+  });
+
+  it("clicking a notification marks it read and navigates to its link_path", async () => {
+    mockGuestDefaults();
+    vi.mocked(notificationsApi.getMyNotifications).mockResolvedValue([notif()]);
+    vi.mocked(notificationsApi.markNotificationRead).mockResolvedValue(undefined);
+    renderPanel();
+
+    fireEvent.click(await screen.findByRole("button", { name: /Powiadomienia/ }));
+    fireEvent.click(screen.getByRole("menuitem", { name: /zadeklarował\(a\)/ }));
+
+    await waitFor(() => expect(notificationsApi.markNotificationRead).toHaveBeenCalledWith(1));
+  });
+
+  it("'Oznacz jako przeczytane' calls markAllNotificationsRead", async () => {
+    mockGuestDefaults();
+    vi.mocked(notificationsApi.getMyNotifications).mockResolvedValue([notif()]);
+    vi.mocked(notificationsApi.markAllNotificationsRead).mockResolvedValue(undefined);
+    renderPanel();
+
+    fireEvent.click(await screen.findByRole("button", { name: /Powiadomienia/ }));
+    fireEvent.click(screen.getByRole("button", { name: "Oznacz jako przeczytane" }));
+
+    await waitFor(() => expect(notificationsApi.markAllNotificationsRead).toHaveBeenCalled());
+  });
+
+  it("shows no badge when everything is read", async () => {
+    mockGuestDefaults();
+    vi.mocked(notificationsApi.getMyNotifications).mockResolvedValue([
+      notif({ read_at: "2026-03-02T09:00:00" }),
+    ]);
+    renderPanel();
+
+    expect(await screen.findByRole("button", { name: "Powiadomienia" })).toBeInTheDocument();
   });
 });

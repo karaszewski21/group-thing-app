@@ -17,7 +17,9 @@ from app.core.errors import (
 )
 from app.users.service import get_profile_by_party, get_profile_by_principal
 
-from ..infrastructure import circulation_bridge
+from ..infrastructure import circulation_bridge, notifications_bridge, product_bridge
+from ..infrastructure.notifications_bridge import NotificationKind
+from ..infrastructure.slug_resolver import resolve_organizer_slug
 from ..models import Pledge, PledgeStatus
 from ..schemas import FulfillPledgeRequest
 from .circles import _group_role_party_id, get_current_leadership
@@ -79,6 +81,19 @@ async def fulfill_pledge(
     )
 
     pledge.resolved_reservation_id = reservation.id
+
+    product = await product_bridge.get_product(db, needed_item.product_id)
+    slug = await resolve_organizer_slug(db, term.circle_group_id)
+    await notifications_bridge.create_notification(
+        db,
+        party_id=organizer_profile.party_id,
+        kind=NotificationKind.PLEDGE_ITEM_REGISTERED,
+        message=(
+            f'„{profile.display_name}" zarejestrował(a) przedmiot: {product.name} — czeka na odbiór'
+        ),
+        link_path=f"/{slug}/grupa/{term.circle_group_id}/term/{term.id}",
+    )
+
     await db.commit()
     await db.refresh(pledge)
     return pledge

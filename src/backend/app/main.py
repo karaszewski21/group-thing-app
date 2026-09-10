@@ -32,6 +32,7 @@ from app.families.router import router as families_router
 from app.footprint.errors import register_footprint_exception_handlers
 from app.footprint.router import router as footprint_router
 from app.groups.router import router as groups_router
+from app.notifications.router import router as notifications_router
 from app.oauth2.metadata_router import router as oauth2_metadata_router
 from app.oauth2.router import router as oauth2_router
 from app.organizations.router import router as organizations_router
@@ -72,4 +73,5 @@ app.include_router(groups_router)
 app.include_router(organizations_router)
 app.include_router(families_router)
 app.include_router(circulation_router)
+app.include_router(notifications_router)
 app.include_router(system_router)

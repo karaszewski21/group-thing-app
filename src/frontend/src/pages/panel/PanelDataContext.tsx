@@ -1,7 +1,14 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { ReactNode } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../../auth/AuthContext";
+import {
+  getMyNotifications,
+  markAllNotificationsRead,
+  markNotificationRead,
+  type NotificationResponse,
+} from "../../api/notifications";
+import { getMyPledges, withdrawPledge, type MyPledgeResponse } from "../../api/pledges";
 import {
   createLightweightMembers,
   getGuardians,
@@ -78,6 +85,7 @@ export type PanelDataContextValue = ReturnType<typeof usePanelDataValue>;
 
 function usePanelDataValue() {
   const { logout } = useAuth();
+  const navigate = useNavigate();
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -89,6 +97,11 @@ function usePanelDataValue() {
   const [family, setFamily] = useState<FamilyOut | null>(null);
   const [guardians, setGuardians] = useState<GuardianResponse[]>([]);
   const [myAttendances, setMyAttendances] = useState<MyAttendanceResponse[]>([]);
+  // "Zadeklarowane rzeczy" (HomeView) — the caller's own non-withdrawn pledges.
+  const [myPledges, setMyPledges] = useState<MyPledgeResponse[]>([]);
+  // In-app notification bell (PanelHeader). `notifOpen` drives the dropdown.
+  const [notifications, setNotifications] = useState<NotificationResponse[]>([]);
+  const [notifOpen, setNotifOpen] = useState(false);
   // Inline "Mój dom" family rename (D4 / TC4) — no dedicated modal.
   const [renamingFamily, setRenamingFamily] = useState(false);
   const [familyNameDraft, setFamilyNameDraft] = useState("");
@@ -286,6 +299,18 @@ function usePanelDataValue() {
         setMyAttendances([]);
       }
 
+      // "Zadeklarowane rzeczy" + notification bell — same guarded pattern.
+      try {
+        setMyPledges(await getMyPledges());
+      } catch {
+        setMyPledges([]);
+      }
+      try {
+        setNotifications(await getMyNotifications());
+      } catch {
+        setNotifications([]);
+      }
+
       let relevantGroups: GroupResponse[];
       if (activeLeaderships.length > 0) {
         relevantGroups = await Promise.all(activeLeaderships.map((l) => getGroup(l.to_group_id)));
@@ -336,6 +361,45 @@ function usePanelDataValue() {
 
   function productName(productId: number): string {
     return products.find((p) => p.id === productId)?.name ?? `#${productId}`;
+  }
+
+  /* ---------- zadeklarowane rzeczy / powiadomienia ---------- */
+
+  async function withdrawMyPledge(pledgeId: number) {
+    setBusy(true);
+    try {
+      await withdrawPledge(pledgeId);
+      showToast("Wycofano zgłoszenie");
+      await load({ silent: true });
+    } catch {
+      showToast("Nie udało się wycofać zgłoszenia");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  const unreadCount = notifications.filter((n) => n.read_at === null).length;
+
+  async function openNotification(n: NotificationResponse) {
+    setNotifOpen(false);
+    if (n.read_at === null) {
+      setNotifications((prev) =>
+        prev.map((x) => (x.id === n.id ? { ...x, read_at: new Date().toISOString() } : x)),
+      );
+      void markNotificationRead(n.id).catch(() => undefined);
+    }
+    if (n.link_path) navigate(n.link_path);
+  }
+
+  async function markAllRead() {
+    setNotifications((prev) =>
+      prev.map((n) => (n.read_at === null ? { ...n, read_at: new Date().toISOString() } : n)),
+    );
+    try {
+      await markAllNotificationsRead();
+    } catch {
+      await load({ silent: true });
+    }
   }
 
   /* ---------- grupy ---------- */
@@ -763,6 +827,14 @@ function usePanelDataValue() {
     family,
     guardians,
     myAttendances,
+    myPledges,
+    withdrawMyPledge,
+    notifications,
+    unreadCount,
+    notifOpen,
+    setNotifOpen,
+    openNotification,
+    markAllRead,
     renamingFamily,
     familyNameDraft,
     renameError,

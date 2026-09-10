@@ -47,5 +47,17 @@ def test_resolveRequirement_groupsMineAttendances_notRegressedByGroupsPatchRow()
     assert resolve_requirement("GET", "/api/groups/mine/attendances") == READ
 
 
+def test_resolveRequirement_pledgesMine_resolvesToRead() -> None:
+    assert resolve_requirement("GET", "/api/pledges/mine") == READ
+
+
+def test_resolveRequirement_notificationsMine_resolvesToRead() -> None:
+    assert resolve_requirement("GET", "/api/notifications/mine") == READ
+
+
+def test_resolveRequirement_notificationsMarkRead_resolvesToEdit() -> None:
+    assert resolve_requirement("POST", "/api/notifications/42/read") == EDIT
+
+
 def test_resolveRequirement_publicGroup_notRegressedByGroupsPatchRow() -> None:
     assert resolve_requirement("GET", "/api/groups/public/some-id") == "PUBLIC"

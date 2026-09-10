@@ -248,6 +248,25 @@ class RsvpResponse(BaseModel):
 # --- My attendances (authenticated, `GET /api/groups/mine/attendances`) --------
 
 
+class MyPledgeResponse(BaseModel):
+    """One row of the caller's own "rzeczy, które obiecałem przynieść" list —
+    carries enough to render a panel tile and rebuild the public-term link
+    (`organizer_slug` + `group_id` + `term_id`). `registered` is `True` once
+    a concrete `InventoryItem` + `LEND` `Reservation` have been opened
+    (`resolved_reservation_id` set) — i.e. "Rezygnuję" is no longer offered."""
+
+    pledge_id: int
+    status: PledgeStatus
+    product_name: str
+    item_description: str | None
+    term_id: int
+    group_id: int
+    group_name: str
+    occurs_on: datetime
+    organizer_slug: str
+    registered: bool
+
+
 class MyAttendanceResponse(BaseModel):
     """One row of the caller's own Term RSVPs — carries enough to render a
     panel tile (date, circle name, organizer) and rebuild the public-term

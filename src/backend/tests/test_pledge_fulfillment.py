@@ -119,6 +119,24 @@ async def test_fulfillPledge_newItemMode_registersItemWithNeedProduct(client: As
     assert detail["item"]["condition"] == "GOOD"
 
 
+async def test_fulfillPledge_notifiesOrganizerItemRegistered(client: AsyncClient) -> None:
+    guest_token, _party, _need_product_id, pledge_id = await _setup_pledge(client, "fnotif")
+
+    response = await client.post(
+        f"/api/pledges/{pledge_id}/fulfill",
+        json={"condition": "GOOD"},
+        headers=_auth(guest_token),
+    )
+    assert response.status_code == 200
+
+    login = await client.post(
+        "/api/auth/login", json={"email": "fnotif.org@example.com", "password": "secret123"}
+    )
+    org_token = login.json()["token"]
+    notifs = (await client.get("/api/notifications/mine", headers=_auth(org_token))).json()
+    assert any(n["kind"] == "PLEDGE_ITEM_REGISTERED" for n in notifs)
+
+
 async def test_fulfillPledge_newItemMode_productIdOverride(client: AsyncClient) -> None:
     guest_token, _party, _need_product_id, pledge_id = await _setup_pledge(client, "fover")
     override_id = await _resolve_product(client, guest_token, "Wiolonczela")
