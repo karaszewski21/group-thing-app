@@ -338,8 +338,8 @@ describe("PanelPage — hamburger promotion", () => {
     fireEvent.click(within(dialog).getByRole("button", { name: "Dalej →" }));
     await waitFor(() => expect(groupsApi.createMyCircle).toHaveBeenCalledWith({ name: "Nutki" }));
 
-    const dateInput = await within(dialog).findByLabelText("Data");
-    fireEvent.change(dateInput, { target: { value: "2026-02-01" } });
+    const dateInput = await within(dialog).findByLabelText("Data i godzina");
+    fireEvent.change(dateInput, { target: { value: "2026-02-01T17:00" } });
 
     // After the term is created, the final (non-silent) `load()` re-fetches
     // terms — reflect that a term now exists so the hamburger item's
@@ -353,7 +353,7 @@ describe("PanelPage — hamburger promotion", () => {
     await waitFor(() =>
       expect(termsApi.createTerm).toHaveBeenCalledWith({
         circle_group_id: mockGroup.id,
-        occurs_on: "2026-02-01",
+        occurs_on: "2026-02-01T17:00",
         description: undefined,
       }),
     );
@@ -602,8 +602,8 @@ describe("PanelPage — dismissible home hints", () => {
     fireEvent.click(within(dialog).getByRole("button", { name: "Dalej →" }));
     await waitFor(() => expect(groupsApi.createMyCircle).toHaveBeenCalled());
 
-    const dateInput = await within(dialog).findByLabelText("Data");
-    fireEvent.change(dateInput, { target: { value: "2026-02-01" } });
+    const dateInput = await within(dialog).findByLabelText("Data i godzina");
+    fireEvent.change(dateInput, { target: { value: "2026-02-01T17:00" } });
 
     vi.mocked(termsApi.getTerms).mockResolvedValue([
       { id: 1, circle_group_id: 5, occurs_on: "2026-02-01", description: null, created_at: "", updated_at: "" },
@@ -632,8 +632,8 @@ describe("PanelPage — dismissible home hints", () => {
     fireEvent.click(screen.getByRole("button", { name: "Dodaj termin →" }));
 
     const dialog = await screen.findByRole("dialog", { name: "Dodaj pierwszy termin" });
-    const dateInput = await within(dialog).findByLabelText("Data");
-    fireEvent.change(dateInput, { target: { value: "2026-02-01" } });
+    const dateInput = await within(dialog).findByLabelText("Data i godzina");
+    fireEvent.change(dateInput, { target: { value: "2026-02-01T17:00" } });
 
     vi.mocked(termsApi.getTerms).mockResolvedValue([
       { id: 1, circle_group_id: 5, occurs_on: "2026-02-01", description: null, created_at: "", updated_at: "" },
@@ -1037,16 +1037,16 @@ describe("PanelPage — term edit dialog", () => {
     mockOrganizerDefaults();
     vi.mocked(termsApi.getTerms).mockResolvedValue([term]);
     vi.mocked(termsApi.getNeededItems).mockResolvedValue([]);
-    vi.mocked(termsApi.updateTerm).mockResolvedValue({ ...term, occurs_on: "2026-03-09" });
+    vi.mocked(termsApi.updateTerm).mockResolvedValue({ ...term, occurs_on: "2026-03-09T18:00:00" });
     renderPanel();
     const dialog = await openEditDialog();
 
-    fireEvent.change(within(dialog).getByLabelText("Data"), { target: { value: "2026-03-09" } });
-    vi.mocked(termsApi.getTerms).mockResolvedValue([{ ...term, occurs_on: "2026-03-09" }]);
+    fireEvent.change(within(dialog).getByLabelText("Data i godzina"), { target: { value: "2026-03-09T18:00" } });
+    vi.mocked(termsApi.getTerms).mockResolvedValue([{ ...term, occurs_on: "2026-03-09T18:00:00" }]);
     fireEvent.click(within(dialog).getByRole("button", { name: "Zapisz" }));
 
     await waitFor(() =>
-      expect(termsApi.updateTerm).toHaveBeenCalledWith(1, { occurs_on: "2026-03-09" }),
+      expect(termsApi.updateTerm).toHaveBeenCalledWith(1, { occurs_on: "2026-03-09T18:00" }),
     );
     // a silent reload runs after the successful save
     await waitFor(() => expect(vi.mocked(termsApi.getTerms).mock.calls.length).toBeGreaterThan(1));
@@ -1241,7 +1241,7 @@ describe("PanelPage — per-term public links & copy-link button", () => {
     fireEvent.click(await screen.findByRole("button", { name: "Dodaj termin →" }));
 
     const dialog = await screen.findByRole("dialog", { name: "Dodaj pierwszy termin" });
-    fireEvent.change(await within(dialog).findByLabelText("Data"), { target: { value: "2026-02-01" } });
+    fireEvent.change(await within(dialog).findByLabelText("Data i godzina"), { target: { value: "2026-02-01T17:00" } });
 
     vi.mocked(termsApi.getTerms).mockResolvedValue([
       { id: 7, circle_group_id: 5, occurs_on: "2026-02-01", description: null, created_at: "", updated_at: "" },

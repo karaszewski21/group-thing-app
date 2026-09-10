@@ -150,11 +150,11 @@ function TermStepBody({ ctx }: { ctx: StepContext }) {
 
       <div>
         <label htmlFor="onboarding-term-date" className={labelClass}>
-          Data
+          Data i godzina
         </label>
         <input
           id="onboarding-term-date"
-          type="date"
+          type="datetime-local"
           className={inputClass}
           value={occursOn}
           onChange={(e) => setOccursOn(e.target.value)}

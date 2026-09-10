@@ -94,8 +94,13 @@ function NeededItemFields({
   );
 }
 
+/** `<input type="datetime-local">` wants `YYYY-MM-DDTHH:MM`; the API sends
+ * seconds (and sometimes only a date). */
+const toLocalInput = (iso: string): string =>
+  iso.length >= 16 ? iso.slice(0, 16) : `${iso.slice(0, 10)}T00:00`;
+
 export function EditTermDialog({ term, neededItems, onChanged, onClose }: EditTermDialogProps) {
-  const [occursOn, setOccursOn] = useState(term.occurs_on);
+  const [occursOn, setOccursOn] = useState(toLocalInput(term.occurs_on));
   const [description, setDescription] = useState(term.description ?? "");
   const [busy, setBusy] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
@@ -108,7 +113,7 @@ export function EditTermDialog({ term, neededItems, onChanged, onClose }: EditTe
 
   async function saveTermFields() {
     const patch: { occurs_on?: string; description?: string } = {};
-    if (occursOn && occursOn !== term.occurs_on) patch.occurs_on = occursOn;
+    if (occursOn && occursOn !== toLocalInput(term.occurs_on)) patch.occurs_on = occursOn;
     if (description !== (term.description ?? "")) patch.description = description;
     if (Object.keys(patch).length === 0) {
       onClose();
@@ -202,10 +207,10 @@ export function EditTermDialog({ term, neededItems, onChanged, onClose }: EditTe
   return (
     <ModalSheet title="Edytuj termin" onClose={onClose}>
       <div className="grid grid-cols-1 gap-3">
-        <Field label="Data">
+        <Field label="Data i godzina">
           <input
-            aria-label="Data"
-            type="date"
+            aria-label="Data i godzina"
+            type="datetime-local"
             value={occursOn}
             onChange={(e) => {
               setOccursOn(e.target.value);

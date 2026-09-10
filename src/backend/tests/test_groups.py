@@ -99,17 +99,19 @@ async def test_patchTerm_activeOrganizer_updatesInPlace(client: AsyncClient) -> 
     _circle_id, term_id = await _create_circle_with_term(
         client, token, "Krąg edycji", description="Oryginalny opis"
     )
-    new_date = (date.today() + timedelta(days=7)).isoformat()
+    new_start = datetime.combine(date.today() + timedelta(days=7), datetime.min.time()).replace(
+        hour=17, minute=30
+    )
 
     response = await client.patch(
         f"/api/terms/{term_id}",
-        json={"occurs_on": new_date},
+        json={"occurs_on": new_start.isoformat()},
         headers=_auth_headers(token),
     )
 
     assert response.status_code == 200
     body = response.json()
-    assert body["occurs_on"] == new_date
+    assert body["occurs_on"] == new_start.isoformat()
     assert body["description"] == "Oryginalny opis"
 
 
@@ -242,9 +244,7 @@ async def test_deleteNeededItem_openAndClaimedPledges_transitionsToWithdrawn(
     assert open_row is not None and open_row.status == PledgeStatus.WITHDRAWN
     assert item_row is not None and item_row.deleted_at is not None
 
-    listed = await client.get(
-        f"/api/needed-items?term_id={term_id}", headers=_auth_headers(token)
-    )
+    listed = await client.get(f"/api/needed-items?term_id={term_id}", headers=_auth_headers(token))
     assert listed.status_code == 200
     assert all(item["id"] != needed_item_id for item in listed.json())
 
@@ -339,9 +339,7 @@ async def test_createMyCircle_secondCall_returnsSameCircle_notADuplicate(
 
     # Row-count assertion, not just a 200-shape check: exactly one Group
     # and one active Leadership were ever created for this party.
-    group_count = (
-        await db_session.execute(select(func.count()).select_from(Group))
-    ).scalar_one()
+    group_count = (await db_session.execute(select(func.count()).select_from(Group))).scalar_one()
     leadership_count = (
         await db_session.execute(select(func.count()).select_from(Leadership))
     ).scalar_one()
@@ -428,9 +426,7 @@ async def test_getNeededItem_softDeleted_returns404(
     needed_item_id = item.json()["id"]
 
     assert (
-        await client.get(
-            f"/api/needed-items/{needed_item_id}", headers=_auth_headers(token)
-        )
+        await client.get(f"/api/needed-items/{needed_item_id}", headers=_auth_headers(token))
     ).status_code == 200
 
     row = await db_session.get(NeededItem, needed_item_id)
@@ -438,9 +434,7 @@ async def test_getNeededItem_softDeleted_returns404(
     row.deleted_at = datetime.utcnow()
     await db_session.commit()
 
-    response = await client.get(
-        f"/api/needed-items/{needed_item_id}", headers=_auth_headers(token)
-    )
+    response = await client.get(f"/api/needed-items/{needed_item_id}", headers=_auth_headers(token))
     assert response.status_code == 404
 
 
@@ -456,7 +450,11 @@ async def _create_group_and_term(db_session: AsyncSession) -> tuple[Party, Term]
     db_session.add(group)
     await db_session.flush()
 
-    term = Term(circle_group_id=group.id, occurs_on=date.today(), description=None)
+    term = Term(
+        circle_group_id=group.id,
+        occurs_on=datetime.combine(date.today(), datetime.min.time()),
+        description=None,
+    )
     db_session.add(term)
     await db_session.flush()
 
@@ -593,9 +591,7 @@ async def test_deleteNeededItem_secondDelete_returns404(client: AsyncClient) -> 
     _circle_id, term_id = await _create_circle_with_term(client, token, "Krąg idempotencji")
     needed_item_id = await _create_needed_item(client, token, term_id)
 
-    first = await client.delete(
-        f"/api/needed-items/{needed_item_id}", headers=_auth_headers(token)
-    )
+    first = await client.delete(f"/api/needed-items/{needed_item_id}", headers=_auth_headers(token))
     assert first.status_code == 204
 
     second = await client.delete(
@@ -634,9 +630,7 @@ async def test_patchTerm_emptyBody_returns200Noop(client: AsyncClient) -> None:
         client, token, "Krąg no-op", description="Bez zmian"
     )
 
-    response = await client.patch(
-        f"/api/terms/{term_id}", json={}, headers=_auth_headers(token)
-    )
+    response = await client.patch(f"/api/terms/{term_id}", json={}, headers=_auth_headers(token))
 
     assert response.status_code == 200
     assert response.json()["description"] == "Bez zmian"

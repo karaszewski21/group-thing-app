@@ -1,8 +1,9 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import * as groupsApi from "../api/groups";
 import * as familiesApi from "../api/families";
+import * as pledgesApi from "../api/pledges";
 import { ApiError } from "../api/client";
 import { PublicKragGrupyView } from "../pages/krag/KragGrupyPage";
 import { PublicKragRedirectPage } from "../pages/krag/PublicKragRedirectPage";
@@ -23,6 +24,11 @@ vi.mock("../api/families", async (importOriginal) => {
     ...actual,
     getMyFamilies: vi.fn(),
   };
+});
+
+vi.mock("../api/pledges", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../api/pledges")>();
+  return { ...actual, createPledge: vi.fn() };
 });
 
 const mockApplyExternalToken = vi.fn();
@@ -71,7 +77,7 @@ const circleWithTerm: groupsApi.PublicCircleResponse = {
   organizer_slug: "ania-kowalska",
   next_term: {
     id: 101,
-    occurs_on: "2026-03-12",
+    occurs_on: "2026-03-12T17:30:00",
     description: "Zajęcia rytmiczne",
     needed_items: [
       {
@@ -130,8 +136,9 @@ describe("PublicKragGrupyPage", () => {
     expect(await screen.findByText("Nutki dla starszaków")).toBeInTheDocument();
     expect(groupsApi.getPublicCircle).toHaveBeenCalledWith(7, 101);
     expect(screen.getAllByText(/Ania Kowalska/).length).toBeGreaterThan(0);
-    expect(screen.getByRole("heading", { name: "Termin" })).toBeInTheDocument();
-    expect(screen.getByText(/2026-03-12/)).toBeInTheDocument();
+    expect(screen.getByText("Termin zajęć")).toBeInTheDocument();
+    expect(screen.getByText(/12 marca/)).toBeInTheDocument();
+    expect(screen.getByText(/godz\. 17:30/)).toBeInTheDocument();
     expect(screen.getByText(/Bębenek/)).toBeInTheDocument();
     expect(screen.getByText("Marek W.")).toBeInTheDocument();
   });
@@ -462,11 +469,11 @@ describe("PublicKragGrupyPage", () => {
 
       renderAt(CANONICAL_PATH);
 
-      const trigger = await screen.findByRole("button", { name: /Zgłoś się: Bębenek/ });
+      const trigger = await screen.findByRole("button", { name: /Ja to przyniosę: Bębenek/ });
       fireEvent.click(trigger);
 
       expect(
-        screen.queryByRole("button", { name: /Zgłoś się: Bębenek/ }),
+        screen.queryByRole("button", { name: /Ja to przyniosę: Bębenek/ }),
       ).not.toBeInTheDocument();
       expect(screen.getByLabelText("Email")).toBeInTheDocument();
       expect(screen.getByLabelText("Hasło")).toBeInTheDocument();
@@ -479,7 +486,7 @@ describe("PublicKragGrupyPage", () => {
 
       renderAt(CANONICAL_PATH);
 
-      fireEvent.click(await screen.findByRole("button", { name: /Zgłoś się: Bębenek/ }));
+      fireEvent.click(await screen.findByRole("button", { name: /Ja to przyniosę: Bębenek/ }));
       fireEvent.change(screen.getByLabelText("Email"), { target: { value: "ania@example.com" } });
       fireEvent.change(screen.getByLabelText("Hasło"), { target: { value: "sekret123" } });
       fireEvent.click(screen.getByRole("button", { name: "Załóż konto" }));
@@ -504,7 +511,7 @@ describe("PublicKragGrupyPage", () => {
 
       renderAt(CANONICAL_PATH);
 
-      fireEvent.click(await screen.findByRole("button", { name: /Zgłoś się: Bębenek/ }));
+      fireEvent.click(await screen.findByRole("button", { name: /Ja to przyniosę: Bębenek/ }));
       fireEvent.change(screen.getByLabelText("Email"), { target: { value: "ania@example.com" } });
       fireEvent.change(screen.getByLabelText("Hasło"), { target: { value: "sekret123" } });
       fireEvent.click(screen.getByRole("button", { name: "Załóż konto" }));
@@ -515,6 +522,61 @@ describe("PublicKragGrupyPage", () => {
       expect(mockApplyExternalToken).not.toHaveBeenCalled();
       expect(mockNavigate).not.toHaveBeenCalledWith("/panel");
       expect(localStorage.getItem(GUEST_KEY)).toBe("55");
+    });
+  });
+
+  describe("public 'Ja to przyniosę' pledge (needed items)", () => {
+    it("logged-in visitor pledges straight away → createPledge + confirmation", async () => {
+      mockAuthValue = { token: "valid.jwt.token", displayName: "Ala Testowa" };
+      vi.mocked(groupsApi.getPublicCircle).mockResolvedValue(circleWithTerm);
+      vi.mocked(pledgesApi.createPledge).mockResolvedValue({
+        id: 1,
+        needed_item_id: 501,
+        pledged_by_party_id: 3,
+        status: "CLAIMED",
+        resolved_reservation_id: null,
+        created_at: "",
+        updated_at: "",
+      });
+
+      renderAt(CANONICAL_PATH);
+
+      fireEvent.click(await screen.findByRole("button", { name: "Ja to przyniosę: Bębenek" }));
+
+      await waitFor(() => expect(pledgesApi.createPledge).toHaveBeenCalledWith(501));
+      expect(await screen.findByText("Zgłoszono ✓")).toBeInTheDocument();
+    });
+
+    it("anonymous visitor gets the login/register gate, no pledge call", async () => {
+      vi.mocked(groupsApi.getPublicCircle).mockResolvedValue(circleWithTerm);
+
+      renderAt(CANONICAL_PATH);
+
+      fireEvent.click(await screen.findByRole("button", { name: "Ja to przyniosę: Bębenek" }));
+
+      const dialog = await screen.findByRole("dialog", { name: "Załóż konto, aby przynieść rzecz" });
+      expect(within(dialog).getByRole("link", { name: "Zaloguj się" })).toHaveAttribute(
+        "href",
+        `/login?returnTo=${encodeURIComponent(CANONICAL_PATH)}`,
+      );
+      expect(within(dialog).getByRole("link", { name: "Zarejestruj się" })).toHaveAttribute(
+        "href",
+        "/register",
+      );
+      expect(pledgesApi.createPledge).not.toHaveBeenCalled();
+    });
+
+    it("hides the whole 'Potrzebne rzeczy' section when the term has no needed items", async () => {
+      vi.mocked(groupsApi.getPublicCircle).mockResolvedValue({
+        ...circleWithTerm,
+        next_term: { ...circleWithTerm.next_term!, needed_items: [] },
+      });
+
+      renderAt(CANONICAL_PATH);
+
+      expect(await screen.findByText("Termin zajęć")).toBeInTheDocument();
+      expect(screen.queryByRole("heading", { name: "Potrzebne rzeczy" })).not.toBeInTheDocument();
+      expect(screen.queryByText(/Brak listy potrzebnych rzeczy/)).not.toBeInTheDocument();
     });
   });
 

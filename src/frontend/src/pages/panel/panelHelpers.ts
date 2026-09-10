@@ -56,11 +56,21 @@ export const GIFT_SOURCE_STYLE: Record<GiftSource, { bg: string; c: string }> = 
 
 export const capitalize = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
 
-export function dayMonth(isoDate: string): { day: string; month: string } {
-  const d = new Date(`${isoDate}T00:00:00`);
+/** `occurs_on` is an ISO datetime (`2026-03-12T17:30:00`); older callers may
+ * still pass a bare date. Slice to the date part so `new Date()` stays local
+ * (no UTC shift) regardless. */
+export function dayMonth(iso: string): { day: string; month: string } {
+  const d = new Date(`${iso.slice(0, 10)}T00:00:00`);
   const day = String(d.getDate());
   const month = d.toLocaleDateString("pl-PL", { month: "short" }).replace(".", "");
   return { day, month };
+}
+
+/** `HH:MM` from an ISO datetime, or `""` when there is no time part (bare
+ * date, or the midnight sentinel of a pre-time term). */
+export function termTime(iso: string): string {
+  const t = iso.slice(11, 16);
+  return /^\d{2}:\d{2}$/.test(t) && t !== "00:00" ? t : "";
 }
 
 export function initials(name: string): string {

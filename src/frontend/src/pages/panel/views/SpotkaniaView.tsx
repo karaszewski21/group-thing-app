@@ -1,6 +1,6 @@
 import { Link } from "react-router-dom";
 import { BoxIcon, PencilIcon, TrashIcon } from "../panelIcons";
-import { dayMonth, termPublicPath } from "../panelHelpers";
+import { dayMonth, termPublicPath, termTime } from "../panelHelpers";
 import { usePanelData } from "../panelDataStore";
 
 export function SpotkaniaView() {
@@ -161,6 +161,7 @@ export function SpotkaniaView() {
         )}
         {terms.map(({ term, group, neededItems }) => {
           const { day, month } = dayMonth(term.occurs_on);
+          const time = termTime(term.occurs_on);
           return (
             <Link
               key={term.id}
@@ -173,7 +174,11 @@ export function SpotkaniaView() {
               </div>
               <div className="min-w-0 flex-1">
                 <h3 className="text-[15.5px] font-semibold text-ink">{group.name}</h3>
-                <small className="mt-0.5 block text-[12.5px] text-ink-soft">{term.description || "Bez opisu"}</small>
+                <small className="mt-0.5 block text-[12.5px] text-ink-soft">
+                  {time && <span className="font-bold text-ink">godz. {time}</span>}
+                  {time && (term.description ? " · " : "")}
+                  {term.description || (time ? "" : "Bez opisu")}
+                </small>
                 {neededItems.length > 0 && (
                   <div className="mt-1.5 flex flex-wrap gap-1.5">
                     {neededItems.map((ni) => (

@@ -3,14 +3,28 @@ import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
 import { useKragGrupy } from "../../hooks/useKragGrupy";
 import { usePublicKragGrupy } from "../../hooks/usePublicKragGrupy";
 import type { ItemCondition } from "../../api/inventories";
-import type { FulfillPledgeRequest } from "../../api/pledges";
+import { createPledge, type FulfillPledgeRequest } from "../../api/pledges";
 import { CONDITION_LABELS } from "../../utils/productCategory";
 import { RsvpDialog } from "../../components/krag/RsvpDialog";
 import { RsvpDialogLoggedIn } from "../../components/krag/RsvpDialogLoggedIn";
 import { RsvpGateDialog } from "../../components/krag/RsvpGateDialog";
+import { PledgeGateDialog } from "../../components/krag/PledgeGateDialog";
 import { AccountMergeForm } from "../../components/krag/AccountMergeForm";
 import { useAuth } from "../../auth/AuthContext";
 import { guestProfileIdKey, type RsvpResponse } from "../../api/groups";
+
+/** Class date + wall-clock start time for display. `occurs_on` is an ISO
+ * datetime; a bare-date fallback (no time part) shows just the date. */
+function formatTermWhen(iso: string): { date: string; time: string } {
+  const date = new Date(`${iso.slice(0, 10)}T00:00:00`).toLocaleDateString("pl-PL", {
+    weekday: "long",
+    day: "numeric",
+    month: "long",
+  });
+  const t = iso.slice(11, 16);
+  const time = /^\d{2}:\d{2}$/.test(t) && t !== "00:00" ? t : "";
+  return { date, time };
+}
 
 /* ------------------------------------------------------------------ */
 /*  Krąg grupy — zajęcia + prośby o rzeczy (dane z API, nie mock)       */
@@ -94,6 +108,15 @@ export const CSS = `
 .kg-toast{position:fixed;left:50%;bottom:26px;transform:translateX(-50%);z-index:120;background:var(--ink);color:#EAF2E9;
   border-radius:999px;padding:11px 20px;font-size:14px;font-weight:600;box-shadow:0 14px 30px -14px rgba(30,46,39,.9);}
 .kg-state{text-align:center;padding:60px 24px;color:var(--ink-soft);}
+.kg-term{margin:18px 18px 0;background:linear-gradient(135deg,var(--mint-soft),var(--paper));
+  border:1px solid var(--line);border-radius:22px;padding:18px;}
+.kg-term-eyebrow{font-size:11px;letter-spacing:.14em;text-transform:uppercase;font-weight:800;color:var(--mint);}
+.kg-term-date{font-family:Fraunces,Georgia,serif;font-size:20px;font-weight:600;color:var(--ink);
+  margin-top:6px;text-transform:capitalize;line-height:1.15;}
+.kg-term-time{display:inline-flex;align-items:center;gap:6px;margin-top:10px;background:var(--paper);
+  border:1px solid var(--line);border-radius:999px;padding:5px 12px;font-size:13px;font-weight:800;color:var(--ink);}
+.kg-term-desc{font-size:13px;color:var(--ink-soft);margin-top:10px;}
+.kg-term-empty{font-size:13.5px;color:var(--ink-soft);}
 @media (min-width:520px){
   .kg-stage{padding:26px 16px;background:#E7EDE4;}
   .kg-app{min-height:0;border-radius:34px;overflow:hidden;box-shadow:0 40px 80px -40px rgba(30,46,39,.6),0 0 0 9px #1E2E27;margin:8px 0;}
@@ -179,6 +202,13 @@ function PrivateKragGrupyView() {
 
   const isOrganizerViewer =
     myPartyId !== null && organizer !== null && myPartyId === organizer.party_id;
+
+  const currentTermWhen = currentTerm
+    ? (() => {
+        const { date, time } = formatTermWhen(currentTerm.occurs_on);
+        return time ? `${date}, godz. ${time}` : date;
+      })()
+    : "";
 
   const slots = families.length + 1;
   const R = 38;
@@ -283,8 +313,8 @@ function PrivateKragGrupyView() {
               <div className="kg-eyebrow">Grupa</div>
               <h1>{group.name}</h1>
               <div className="kg-head-sub">
-                {currentTerm ? `Najbliższe zajęcia: ${currentTerm.occurs_on}` : "Brak zaplanowanych zajęć"} ·{" "}
-                {families.length} {families.length === 1 ? "rodzina" : "rodzin"}
+                {currentTerm ? `Najbliższe zajęcia: ${currentTermWhen}` : "Brak zaplanowanych zajęć"}{" "}
+                · {families.length} {families.length === 1 ? "rodzina" : "rodzin"}
               </div>
             </div>
           </div>
@@ -562,6 +592,31 @@ export function PublicKragGrupyView() {
   // is currently showing the inline account-merge mini-form, replacing that
   // row's action (not a modal) — at most one at a time.
   const [mergingItemId, setMergingItemId] = useState<number | null>(null);
+  // "Ja to przyniosę" on a needed item: a logged-in visitor pledges straight
+  // away; an anonymous one gets `PledgeGateDialog` (a pledge needs a real
+  // account — no guest path). Pledged ids are tracked locally just to swap
+  // the button to a confirmation for the rest of the session.
+  const [showPledgeGate, setShowPledgeGate] = useState(false);
+  const [pledgedItemIds, setPledgedItemIds] = useState<number[]>([]);
+  const [pledgingItemId, setPledgingItemId] = useState<number | null>(null);
+  const [toast, setToast] = useState("");
+
+  async function handlePublicPledge(neededItemId: number) {
+    if (!isLoggedIn) {
+      setShowPledgeGate(true);
+      return;
+    }
+    setPledgingItemId(neededItemId);
+    try {
+      await createPledge(neededItemId);
+      setPledgedItemIds((prev) => [...prev, neededItemId]);
+      setToast("Zgłoszono — szczegóły w Twoim panelu");
+    } catch {
+      setToast("Nie udało się zapisać zgłoszenia");
+    } finally {
+      setPledgingItemId(null);
+    }
+  }
 
   useEffect(() => {
     document.head.appendChild(
@@ -572,6 +627,12 @@ export function PublicKragGrupyView() {
       }),
     );
   }, []);
+
+  useEffect(() => {
+    if (!toast) return;
+    const t = setTimeout(() => setToast(""), 2600);
+    return () => clearTimeout(t);
+  }, [toast]);
 
   // Per §3a/Mockup 9: for an ANONYMOUS visitor an existing
   // `guest_profile_id:<groupId>:<termId>` in localStorage means they already
@@ -673,55 +734,74 @@ export function PublicKragGrupyView() {
           </div>
         </div>
 
-        <div className="kg-bring">
-          <h2>Termin</h2>
+        <div className="kg-term">
+          <div className="kg-term-eyebrow">Termin zajęć</div>
           {term ? (
-            <p className="kg-bring-sub">
-              {term.occurs_on}
-              {term.description ? ` — ${term.description}` : ""}
-            </p>
+            <>
+              <div className="kg-term-date">{formatTermWhen(term.occurs_on).date}</div>
+              {formatTermWhen(term.occurs_on).time && (
+                <div className="kg-term-time">🕒 godz. {formatTermWhen(term.occurs_on).time}</div>
+              )}
+              {term.description && <p className="kg-term-desc">{term.description}</p>}
+            </>
           ) : (
-            <p className="kg-bring-sub">Organizator nie dodał jeszcze żadnych zajęć.</p>
+            <p className="kg-term-empty">Organizator nie dodał jeszcze żadnych zajęć.</p>
           )}
         </div>
 
-        <div className="kg-bring">
-          <h2>Potrzebne rzeczy</h2>
-          <div className="kg-bring-list">
-            {(!term || term.needed_items.length === 0) && (
-              <div className="kg-bring-empty">Brak listy potrzebnych rzeczy na te zajęcia.</div>
-            )}
-            {term?.needed_items.map((item) => {
-              const guestProfileId = term
-                ? Number(localStorage.getItem(guestProfileIdKey(groupId, term.id)))
-                : NaN;
-              const canMerge = hasGuestProfile && Number.isFinite(guestProfileId) && guestProfileId > 0;
-              const isMerging = mergingItemId === item.id;
-              return (
-                <div className="kg-bring-item" key={item.id}>
-                  <div className="kg-bring-row">
-                    <div className="kg-bring-body">
-                      <strong>
-                        {item.product_name}
-                        {item.description ? ` — ${item.description}` : ""}
-                      </strong>
+        {term && term.needed_items.length > 0 && (
+          <div className="kg-bring">
+            <h2>Potrzebne rzeczy</h2>
+            <p className="kg-bring-sub">Zgłoś się, jeśli możesz coś przynieść na te zajęcia.</p>
+            <div className="kg-bring-list">
+              {term.needed_items.map((item) => {
+                const guestProfileId = Number(
+                  localStorage.getItem(guestProfileIdKey(groupId, term.id)),
+                );
+                const canMerge =
+                  hasGuestProfile && Number.isFinite(guestProfileId) && guestProfileId > 0;
+                const isMerging = mergingItemId === item.id;
+                const pledged = pledgedItemIds.includes(item.id);
+                const onPledgeClick = isLoggedIn
+                  ? () => void handlePublicPledge(item.id)
+                  : canMerge
+                    ? () => setMergingItemId(item.id)
+                    : () => setShowPledgeGate(true);
+                return (
+                  <div className="kg-bring-item" key={item.id}>
+                    <div className="kg-bring-row">
+                      <div className="kg-bring-body">
+                        <strong>
+                          {item.product_name}
+                          {item.description ? ` — ${item.description}` : ""}
+                        </strong>
+                      </div>
+                      {pledged ? (
+                        <span className="kg-status-line" style={{ marginTop: 0 }}>
+                          Zgłoszono ✓
+                        </span>
+                      ) : (
+                        !isMerging && (
+                          <button
+                            className="kg-bring-btn"
+                            disabled={pledgingItemId === item.id}
+                            aria-label={`Ja to przyniosę: ${item.product_name}`}
+                            onClick={onPledgeClick}
+                          >
+                            Ja to przyniosę
+                          </button>
+                        )
+                      )}
                     </div>
-                    {canMerge && !isMerging && (
-                      <button
-                        className="kg-bring-btn"
-                        aria-label={`Zgłoś się: ${item.product_name}`}
-                        onClick={() => setMergingItemId(item.id)}
-                      >
-                        Zgłoś się
-                      </button>
+                    {!isLoggedIn && canMerge && isMerging && (
+                      <AccountMergeForm userProfileId={guestProfileId} />
                     )}
                   </div>
-                  {canMerge && isMerging && <AccountMergeForm userProfileId={guestProfileId} />}
-                </div>
-              );
-            })}
+                );
+              })}
+            </div>
           </div>
-        </div>
+        )}
 
         <div className="kg-card">
           <h3>Zapisani opiekunowie</h3>
@@ -806,6 +886,20 @@ export function PublicKragGrupyView() {
             onSubmitted={handleRsvpSubmitted}
           />
         )
+      )}
+
+      {showPledgeGate && !isLoggedIn && (
+        <PledgeGateDialog
+          loginHref={`/login?returnTo=${encodeURIComponent(location.pathname)}`}
+          registerHref="/register"
+          onClose={() => setShowPledgeGate(false)}
+        />
+      )}
+
+      {toast && (
+        <div className="kg-toast" role="status">
+          {toast}
+        </div>
       )}
     </div>
   );

@@ -9,7 +9,7 @@ D3: `get_public_circle_view`'s inline slug/organizer block is kept inline
 
 from __future__ import annotations
 
-from datetime import date
+from datetime import date, datetime, time
 from typing import cast
 
 from sqlalchemy import select
@@ -159,7 +159,8 @@ async def get_public_circle_view(
     else:
         terms = await list_terms(db, group_id)
         if terms:
-            upcoming = [term for term in terms if term.occurs_on >= date.today()]
+            midnight_today = datetime.combine(date.today(), time.min)
+            upcoming = [term for term in terms if term.occurs_on >= midnight_today]
             next_term = min(upcoming, key=lambda term: term.occurs_on) if upcoming else terms[0]
 
     next_term_response: PublicTermResponse | None = None

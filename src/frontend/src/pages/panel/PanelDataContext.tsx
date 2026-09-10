@@ -57,6 +57,7 @@ import { ApiError } from "../../api/client";
 import { CopyIcon, PencilIcon } from "./panelIcons";
 import {
   dayMonth,
+  termTime,
   termPublicPath,
   type ItemMode,
   type LocalGift,
@@ -543,6 +544,7 @@ function usePanelDataValue() {
     neededItems: NeededItemResponse[],
   ) {
     const { day, month } = dayMonth(term.occurs_on);
+    const time = termTime(term.occurs_on);
     const iconBtnClass =
       "flex h-7 w-7 flex-none items-center justify-center rounded-[8px] text-ink-soft transition-colors hover:bg-paper hover:text-ink";
 
@@ -560,7 +562,11 @@ function usePanelDataValue() {
             >
               {group.name}
             </Link>
-            <p className="mt-0.5 text-[12.5px] text-ink-soft">{term.description || "Bez opisu"}</p>
+            <p className="mt-0.5 text-[12.5px] text-ink-soft">
+              {time && <span className="font-bold text-ink">godz. {time}</span>}
+              {time && (term.description ? " · " : "")}
+              {term.description || (time ? "" : "Bez opisu")}
+            </p>
             {neededItems.length > 0 && (
               <div className="mt-1.5 flex flex-wrap gap-1.5">
                 {neededItems.map((ni) => (

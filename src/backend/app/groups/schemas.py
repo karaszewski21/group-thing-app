@@ -105,7 +105,7 @@ class TermResponse(BaseModel):
 
     id: int
     circle_group_id: int
-    occurs_on: date
+    occurs_on: datetime
     description: str | None
     created_at: datetime
     updated_at: datetime
@@ -113,12 +113,12 @@ class TermResponse(BaseModel):
 
 class CreateTermRequest(BaseModel):
     circle_group_id: int
-    occurs_on: date
+    occurs_on: datetime
     description: str | None = Field(default=None, max_length=2000)
 
 
 class UpdateTermRequest(BaseModel):
-    occurs_on: date | None = None
+    occurs_on: datetime | None = None
     description: str | None = Field(default=None, max_length=2000)
 
 
@@ -208,7 +208,7 @@ class PublicNeededItemResponse(BaseModel):
 
 class PublicTermResponse(BaseModel):
     id: int
-    occurs_on: date
+    occurs_on: datetime
     description: str | None
     needed_items: list[PublicNeededItemResponse]
 
@@ -258,7 +258,7 @@ class MyAttendanceResponse(BaseModel):
 
     attendance_id: int
     term_id: int
-    occurs_on: date
+    occurs_on: datetime
     child_count: int
     group_id: int
     group_name: str

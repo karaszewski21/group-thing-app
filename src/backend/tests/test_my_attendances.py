@@ -11,7 +11,7 @@ naming follows `action_condition_expectedResult`
 
 from __future__ import annotations
 
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
 from typing import cast
 
 from httpx import AsyncClient
@@ -223,7 +223,7 @@ async def test_getMyAttendances_organizerPartyWithoutProfile_returnsNullDisplayN
     )
     term = Term(
         circle_group_id=cast(int, group.id),
-        occurs_on=date.today() + timedelta(days=7),
+        occurs_on=datetime.combine(date.today() + timedelta(days=7), datetime.min.time()),
         description=None,
     )
     db_session.add(term)

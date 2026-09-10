@@ -137,7 +137,10 @@ class Term(BaseEntity):
     circle_group_id: Mapped[int] = mapped_column(
         BigInteger, ForeignKey("groups.id", name="fk_terms_circle_group_id_groups"), nullable=False
     )
-    occurs_on: Mapped[date] = mapped_column(Date(), nullable=False)
+    # Date *and* wall-clock start time of the class (the time matters to
+    # guardians — "which hour do we show up?"). Naive local datetime, same
+    # convention as `created_at`/`updated_at`.
+    occurs_on: Mapped[datetime] = mapped_column(DateTime(), nullable=False)
     description: Mapped[str | None] = mapped_column(String(2000), nullable=True)
 
 

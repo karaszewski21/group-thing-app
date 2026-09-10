@@ -8,6 +8,7 @@ import {
   ITEM_MODE_STYLE,
   ITEM_MODES,
   termPublicPath,
+  termTime,
   type GiftSource,
 } from "../panelHelpers";
 import { usePanelData } from "../panelDataStore";
@@ -115,6 +116,7 @@ export function HomeView() {
                   );
                 }
                 const { day, month } = dayMonth(term.occurs_on);
+                const time = termTime(term.occurs_on);
                 return (
                   <div key={term.id} className="mt-2.5 first:mt-0">
                   <Link
@@ -127,7 +129,11 @@ export function HomeView() {
                     </div>
                     <div className="min-w-0 flex-1">
                       <h3 className="text-[15.5px] font-semibold text-ink">{group.name}</h3>
-                      <small className="mt-0.5 block text-[12.5px] text-ink-soft">{term.description || "Bez opisu"}</small>
+                      <small className="mt-0.5 block text-[12.5px] text-ink-soft">
+                        {time && <span className="font-bold text-ink">godz. {time}</span>}
+                        {time && (term.description ? " · " : "")}
+                        {term.description || (time ? "" : "Bez opisu")}
+                      </small>
                       {neededItems.length > 0 && (
                         <div className="mt-1.5 flex flex-wrap gap-1.5">
                           {neededItems.map((ni) => (
@@ -165,11 +171,13 @@ export function HomeView() {
                       </div>
                       <div className="min-w-0 flex-1">
                         <h3 className="text-[15.5px] font-semibold text-ink">{a.group_name}</h3>
-                        {a.organizer_display_name && (
-                          <small className="mt-0.5 block text-[12.5px] text-ink-soft">
-                            {a.organizer_display_name}
-                          </small>
-                        )}
+                        <small className="mt-0.5 block text-[12.5px] text-ink-soft">
+                          {termTime(a.occurs_on) && (
+                            <span className="font-bold text-ink">godz. {termTime(a.occurs_on)}</span>
+                          )}
+                          {termTime(a.occurs_on) && a.organizer_display_name ? " · " : ""}
+                          {a.organizer_display_name ?? ""}
+                        </small>
                       </div>
                     </Link>
                   );

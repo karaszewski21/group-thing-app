@@ -128,10 +128,10 @@ export function FirstTermStepperGuest({ onClose, onCircleCreated, onDone }: Firs
       ) : (
         <>
           <div className="grid grid-cols-1 gap-3">
-            <Field label="Data">
+            <Field label="Data i godzina">
               <input
-                type="date"
-                aria-label="Data"
+                type="datetime-local"
+                aria-label="Data i godzina"
                 value={occursOn}
                 onChange={(e) => setOccursOn(e.target.value)}
                 className={inputClass}

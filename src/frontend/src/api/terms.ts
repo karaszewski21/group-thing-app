@@ -4,6 +4,7 @@ import type { ProductCategory } from "./products";
 export interface TermResponse {
   id: number;
   circle_group_id: number;
+  /** ISO datetime — class date *and* wall-clock start time (`2026-03-12T17:30:00`). */
   occurs_on: string;
   description: string | null;
   created_at: string;

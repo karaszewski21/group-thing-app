@@ -158,9 +158,9 @@ export function PanelModals() {
                 ))}
               </select>
             </Field>
-            <Field label="Data">
+            <Field label="Data i godzina">
               <input
-                type="date"
+                type="datetime-local"
                 value={termDate}
                 onChange={(e) => setTermDate(e.target.value)}
                 className="rounded-xl border-[1.5px] border-line bg-cream px-3.5 py-2.5 text-ink"
@@ -170,7 +170,7 @@ export function PanelModals() {
               <input
                 value={termDescription}
                 onChange={(e) => setTermDescription(e.target.value)}
-                placeholder="17:00 · Park Sołacki · wstęp wolny"
+                placeholder="Park Sołacki · wstęp wolny"
                 className="rounded-xl border-[1.5px] border-line bg-cream px-3.5 py-2.5 text-ink"
               />
             </Field>
