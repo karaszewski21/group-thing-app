@@ -36,7 +36,11 @@ const mockUseAuth = vi.fn((): {
   displayName: string | null;
   permissions: string[];
   login: (email: string, password: string) => Promise<void>;
-  register: (payload: { role: string; email: string; password: string }) => Promise<{ partyId: number; role: string }>;
+  register: (payload: {
+    role: "GUEST" | "ORGANIZER";
+    email: string;
+    password: string;
+  }) => Promise<{ partyId: number; role: string }>;
   logout: () => void;
 } => ({
   token: "test-token",
@@ -203,7 +207,7 @@ describe("RegisterPage", () => {
       });
     });
 
-    const calledPayload = mockRegister.mock.calls[0][0];
+    const calledPayload = (mockRegister.mock.calls as unknown as Record<string, unknown>[][])[0][0];
     expect(Object.keys(calledPayload).sort()).toEqual(["email", "password", "role"]);
   });
 
@@ -307,8 +311,10 @@ describe("Permission-based UI visibility", () => {
     mockUseAuth.mockReturnValue({
       token: "test-token",
       username: "reader",
+      displayName: null,
       permissions: [],
       login: vi.fn(),
+      register: vi.fn(),
       logout: vi.fn(),
     });
 
