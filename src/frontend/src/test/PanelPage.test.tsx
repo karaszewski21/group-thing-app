@@ -1229,6 +1229,29 @@ describe("PanelPage — per-term public links & copy-link button", () => {
     expect(link).toHaveAttribute("href", `/${mockGroupHashSlug.organizer_slug}/grupa/${mockGroup.id}/term/1`);
   });
 
+  it("organizer term tile marks a claimed needed item with a checkmark", async () => {
+    mockOrganizerDefaults();
+    vi.mocked(termsApi.getTerms).mockResolvedValue([
+      { id: 1, circle_group_id: 5, occurs_on: "2026-02-01", description: null, created_at: "", updated_at: "" },
+    ]);
+    vi.mocked(termsApi.getNeededItems).mockResolvedValue([
+      {
+        id: 1, term_id: 1, product_id: 5, product_name: "Bębenek",
+        product_category: "OTHER", description: null, claimed: true, created_at: "", updated_at: "",
+      },
+      {
+        id: 2, term_id: 1, product_id: 6, product_name: "Koc",
+        product_category: "OTHER", description: null, claimed: false, created_at: "", updated_at: "",
+      },
+    ]);
+    renderPanel();
+
+    fireEvent.click(await screen.findByRole("button", { name: "Spotkania" }));
+
+    expect(await screen.findByText("✓ Bębenek")).toBeInTheDocument();
+    expect(screen.getByText("Koc")).toBeInTheDocument();
+  });
+
   it("copy-link button on an organizer 'Terminy' row writes the absolute per-term URL and toasts", async () => {
     mockOrganizerDefaults();
     vi.mocked(termsApi.getTerms).mockResolvedValue([
@@ -1291,6 +1314,7 @@ describe("PanelPage — needed item sub-CRUD (in the term dialog)", () => {
     product_name: "Bębenek",
     product_category: "OTHER" as const,
     description: "mały",
+    claimed: false,
     created_at: "",
     updated_at: "",
   };
@@ -1316,7 +1340,7 @@ describe("PanelPage — needed item sub-CRUD (in the term dialog)", () => {
     });
     vi.mocked(termsApi.createNeededItem).mockResolvedValue({
       id: 12, term_id: 1, product_id: 42, product_name: "Mata", product_category: "OTHER",
-      description: "Koc", created_at: "", updated_at: "",
+      description: "Koc", claimed: false, created_at: "", updated_at: "",
     });
     const dialog = await openEditDialog();
 
@@ -1492,6 +1516,7 @@ describe("PanelPage — needed item edit error path", () => {
     product_name: "Bębenek",
     product_category: "OTHER" as const,
     description: "mały",
+    claimed: false,
     created_at: "",
     updated_at: "",
   };

@@ -24,6 +24,8 @@ export interface NeededItemResponse {
   product_name: string;
   product_category: ProductCategory;
   description: string | null;
+  /** An active (non-withdrawn) pledge exists — "ktoś przyniesie". */
+  claimed: boolean;
   created_at: string;
   updated_at: string;
 }

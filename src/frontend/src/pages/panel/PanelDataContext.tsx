@@ -636,8 +636,14 @@ function usePanelDataValue() {
                 {neededItems.map((ni) => (
                   <span
                     key={ni.id}
-                    className="rounded-full bg-lime-soft px-2.5 py-0.5 text-[10.5px] font-extrabold text-[#56701F]"
+                    title={ni.claimed ? "Ktoś zadeklarował, że to przyniesie" : undefined}
+                    className={`rounded-full px-2.5 py-0.5 text-[10.5px] font-extrabold ${
+                      ni.claimed
+                        ? "bg-mint-soft text-[#12604D]"
+                        : "bg-lime-soft text-[#56701F]"
+                    }`}
                   >
+                    {ni.claimed ? "✓ " : ""}
                     {ni.product_name}
                   </span>
                 ))}

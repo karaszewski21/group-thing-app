@@ -214,7 +214,7 @@ async def get_public_circle_view(
                     product_name=view["product_name"],
                     product_category=view["product_category"],
                     description=view["description"],
-                    claimed=view["id"] in pledger_by_item,
+                    claimed=view["claimed"],
                     claimed_by_name=pledger_by_item.get(view["id"]),
                 )
                 for view in needed_item_views

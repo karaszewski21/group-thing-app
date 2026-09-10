@@ -27,6 +27,7 @@ const neededItem: NeededItemResponse = {
   product_name: "Bębenek",
   product_category: "OTHER",
   description: "mały",
+  claimed: false,
   created_at: "",
   updated_at: "",
 };

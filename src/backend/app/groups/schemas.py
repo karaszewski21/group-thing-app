@@ -131,6 +131,9 @@ class NeededItemResponse(BaseModel):
     product_name: str
     product_category: ProductCategory
     description: str | None
+    # An active (non-withdrawn) pledge exists — the organizer's term tile
+    # shows a "ktoś przyniesie" mark; who exactly is on the term page.
+    claimed: bool
     created_at: datetime
     updated_at: datetime
 

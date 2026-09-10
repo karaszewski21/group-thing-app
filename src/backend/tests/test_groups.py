@@ -698,6 +698,37 @@ async def test_getMyPledges_returnsCallersNonWithdrawnPledges(client: AsyncClien
     assert (await client.get("/api/pledges/mine", headers=_auth_headers(guest_token))).json() == []
 
 
+async def test_listNeededItems_claimedFlag_reflectsActivePledge(client: AsyncClient) -> None:
+    org_token = await _register_organizer(client, "ni.claimed.org@example.com")
+    _circle_id, term_id = await _create_circle_with_term(client, org_token, "Krąg ptaszka")
+    needed_item_id = await _create_needed_item(client, org_token, term_id)
+
+    before = await client.get(
+        f"/api/needed-items?term_id={term_id}", headers=_auth_headers(org_token)
+    )
+    assert before.json()[0]["claimed"] is False
+
+    guest_token, _ = await _register_guest(client, "ni.claimed.guest@example.com")
+    pledge = await client.post(
+        "/api/pledges", json={"needed_item_id": needed_item_id}, headers=_auth_headers(guest_token)
+    )
+    assert pledge.status_code == 201
+
+    after = await client.get(
+        f"/api/needed-items?term_id={term_id}", headers=_auth_headers(org_token)
+    )
+    assert after.json()[0]["claimed"] is True
+
+    withdrawn = await client.post(
+        f"/api/pledges/{pledge.json()['id']}/withdraw", headers=_auth_headers(guest_token)
+    )
+    assert withdrawn.status_code == 200
+    reverted = await client.get(
+        f"/api/needed-items?term_id={term_id}", headers=_auth_headers(org_token)
+    )
+    assert reverted.json()[0]["claimed"] is False
+
+
 async def test_patchTerm_emptyBody_returns200Noop(client: AsyncClient) -> None:
     token = await _register_organizer(client, "patch.term.noop@example.com")
     _circle_id, term_id = await _create_circle_with_term(

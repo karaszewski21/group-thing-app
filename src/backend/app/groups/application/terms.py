@@ -68,9 +68,12 @@ async def update_term(
     return term
 
 
-def _needed_item_view(row: Row[tuple[NeededItem, str, ProductCategory]]) -> dict[str, Any]:
+def _needed_item_view(
+    row: Row[tuple[NeededItem, str, ProductCategory]], *, claimed: bool
+) -> dict[str, Any]:
     """Flatten a `(NeededItem, product_name, product_category)` join row into
-    the shape `NeededItemResponse` / `PublicNeededItemResponse` expect."""
+    the shape `NeededItemResponse` / `PublicNeededItemResponse` expect.
+    `claimed` = an active (non-withdrawn) pledge exists for this item."""
     item, product_name, product_category = row
     return {
         "id": item.id,
@@ -79,6 +82,7 @@ def _needed_item_view(row: Row[tuple[NeededItem, str, ProductCategory]]) -> dict
         "product_name": product_name,
         "product_category": product_category,
         "description": item.description,
+        "claimed": claimed,
         "created_at": item.created_at,
         "updated_at": item.updated_at,
     }
@@ -115,12 +119,18 @@ async def get_needed_item_view(db: AsyncSession, needed_item_id: int) -> dict[st
     row = await repository.get_needed_item_with_product(db, needed_item_id)
     if row is None or row[0].deleted_at is not None:
         raise EntityNotFoundException("NeededItem", needed_item_id)
-    return _needed_item_view(row)
+    pledges = await repository.list_pledges_for_needed_item(db, needed_item_id)
+    claimed = any(pledge.status != PledgeStatus.WITHDRAWN for pledge in pledges)
+    return _needed_item_view(row, claimed=claimed)
 
 
 async def list_needed_item_views(db: AsyncSession, term_id: int) -> list[dict[str, Any]]:
+    claimed_ids = {
+        needed_item_id
+        for needed_item_id, _name in await repository.list_active_pledges_for_term(db, term_id)
+    }
     return [
-        _needed_item_view(row)
+        _needed_item_view(row, claimed=row[0].id in claimed_ids)
         for row in await repository.list_needed_items_with_product_for_term(db, term_id)
     ]
 
