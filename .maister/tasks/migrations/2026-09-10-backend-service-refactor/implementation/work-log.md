@@ -17,6 +17,8 @@ gate must pass before the next; shared single Docker Postgres container + single
 
 **TG1 (core/auth_deps)**: `standards/backend/security.md` (matrix rows + first-match order verbatim; `require_any` untouched), `standards/global/minimal-implementation.md`, `standards/global/conventions.md` + `coding-style.md`, `standards/global/error-handling.md` (discovered — typed exceptions preserved).
 
+**TG2 (families)**: `standards/backend/security.md` (`_require_*` co-located), `standards/global/minimal-implementation.md` (layered split, no triad), `standards/backend/queries.md` + `models.md` (queries → repository.py, no commit/flush there), `standards/global/conventions.md` + `coding-style.md`.
+
 ---
 
 ## 2026-09-10 — TG0 Baseline Capture — DONE (no commit)
@@ -33,6 +35,20 @@ Deferred-items tracker (to keep updated):
 - [ ] `circulation/domain/balance_state_machine.py` extraction — deferred under D2
 - [ ] any `application/` module merges forced by import cycles
 - [ ] any behavior/perf/N+1 issue noticed in passing (log only)
+
+---
+
+## 2026-09-10 — TG2 families split — COMPLETE — commit `617cb1a`
+
+**Steps**: 2.1–2.8 done. **Files**: created `repository.py` (5 fns, 0 commit/flush), `bootstrap.py` (3), `members.py` (2), `primary_contact.py` (1), `guardians.py` (4 fns + `_require_family_guardian`); `service.py` 418→47 lines (flat facade, `__all__`=14).
+**Sanctioned edit (a)**: `_require_family_guardian(db, family_id: int, caller_party_id: int)` extracted from the byte-identical checks in `rename_family` + `remove_family_member`; both call sites now call it; last-guardian 409 stayed inline in `remove_family_member`.
+**Consequential micro-edit**: in `remove_family_member`, `family = await get_family(...)` → `await get_family(...)` (assignment dropped — `family` became unused after the guardian subquery moved into the helper; call kept for its 404 side-effect). Behavior identical, covered by `test_families.py`.
+**Formatting**: `create_own_family`'s 3-line signature collapsed to 1 line by `ruff format` (pre-existing `families/service.py` was not format-clean); body unchanged.
+**Verbatim check**: all 15 old top-level functions found relocated; `_require_family_guardian` present.
+**Gate**: `pytest` 113 passed (48.72s); `ruff check app` = 2 baseline; `mypy app` = 4 baseline (unchanged); `ruff format --check app/families/` clean.
+**Commit/flush**: bootstrap 5 + guardians 4 + members 3 + primary_contact 1 + repository 0 = **13** (= pre-refactor).
+**No forced module merges.** No new deferred items.
+**Baseline correction**: `verification/baseline.md` "ruff format --check . clean" was wrong — 9 pre-existing files repo-wide would reformat (incl. `groups/service.py`, `groups/router.py` — both replaced in TG4a/b). Format gate is now per-TG-touched-files only. Corrected in baseline.md.
 
 ---
 

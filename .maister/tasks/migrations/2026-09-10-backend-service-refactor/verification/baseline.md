@@ -13,13 +13,26 @@ worsen any of these.
 
 Warnings are all the pre-existing `datetime.utcnow()` DeprecationWarning — not in scope.
 
-## ruff
+## ruff check
 
 `uv run ruff check app` → **2 errors (pre-existing, out of scope):**
 - `app/organizations/models.py:220` area — E501 line too long
 - `app/organizations/models.py:124:101` — E501 line too long (103 > 100)
 
-No ruff findings in `groups/`, `circulation/`, `families/`, `core/`.
+No ruff-check findings in `groups/`, `circulation/`, `families/`, `core/`.
+
+## ruff format  (CORRECTED 2026-09-10 after TG2 — the earlier "clean" note was wrong)
+
+`uv run ruff format --check app` → **9 files would be reformatted (all pre-existing):**
+`app/footprint/engine/breakdown_scaler.py`, `app/groups/models.py`, `app/groups/router.py`,
+`app/groups/service.py`, `app/oauth2/models.py`, `app/organizations/models.py`,
+`app/organizations/router.py`, `app/product/query_service.py`, `app/product/router.py`.
+
+**Gate rule for format**: check ONLY the files a task group creates/rewrites — those must be
+`ruff format`-clean. Do NOT run `ruff format --check app` as a pass/fail gate; the 9 pre-existing
+files are not this refactor's problem. Note `groups/service.py` + `groups/router.py` are in that
+list but get fully replaced in TG4a/TG4b, so the count drops to 7 after those (an improvement,
+never touch `groups/models.py`).
 
 ## mypy
 

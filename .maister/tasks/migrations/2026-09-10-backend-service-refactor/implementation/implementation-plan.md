@@ -231,28 +231,28 @@ depth is flat-layered here.
 
 **Steps** — follow spec "Vertical 2 → Move-map" table (17 rows) exactly:
 
-- [ ] 2.0 Split `families` per spec Vertical 2
-  - [ ] 2.1 Create `repository.py` — move `get_family`, `list_families_for_guardian_party`,
+- [x] 2.0 Split `families` per spec Vertical 2
+  - [x] 2.1 Create `repository.py` — move `get_family`, `list_families_for_guardian_party`,
         `count_active_child_members`, `list_guardian_memberships`, `list_group_memberships_for_family`
         verbatim (no commit/flush). Keep the cross-slice `list_memberships_for_party` import from
         `app.groups.service` inside `list_group_memberships_for_family` (one-directional read, no ACL this pass).
-  - [ ] 2.2 Create `bootstrap.py` — move `bootstrap_family_for_party`, `create_family`, `create_own_family`
+  - [x] 2.2 Create `bootstrap.py` — move `bootstrap_family_for_party`, `create_family`, `create_own_family`
         (latter two keep their `db.commit()`).
-  - [ ] 2.3 Create `members.py` — move `create_lightweight_family_member` (flush only),
+  - [x] 2.3 Create `members.py` — move `create_lightweight_family_member` (flush only),
         `create_lightweight_members_batch` (keeps `db.commit()`).
-  - [ ] 2.4 Create `primary_contact.py` — move `make_primary_contact` (keeps `db.commit()`; close-row /
+  - [x] 2.4 Create `primary_contact.py` — move `make_primary_contact` (keeps `db.commit()`; close-row /
         open-replacement temporal logic verbatim).
-  - [ ] 2.5 Create `guardians.py` — move `add_guardian`, `build_guardian_responses`, `rename_family`,
+  - [x] 2.5 Create `guardians.py` — move `add_guardian`, `build_guardian_responses`, `rename_family`,
         `remove_family_member`. Then **edit (a)**: extract `_require_family_guardian(db, family_id, caller_party_id)`
         as the *verbatim body* of the deduped check (the `select(FamilyRole.id).join(FamilyMembership...)`
         + `if guardian is None: raise AccessDeniedException("You do not guard this Family")`); call it from
         both `rename_family` and `remove_family_member` passing the id (one site passed `family_id`, the other
         `cast(int, family.id)` — same value). Last-guardian 409 guard stays inline in `remove_family_member`.
-  - [ ] 2.6 Rewrite `families/service.py` as the flat facade — re-export the 13 router-consumed symbols +
+  - [x] 2.6 Rewrite `families/service.py` as the flat facade — re-export the 13 router-consumed symbols +
         `bootstrap_family_for_party`, `__all__` listing all; keep the "ownership checks live here" docstring note.
         Exact list in spec "Facade contents (`app/families/service.py`)".
-  - [ ] 2.7 `git show` diff review; run the global regression gate.
-  - [ ] 2.8 Spec grep checks:
+  - [x] 2.7 `git show` diff review; run the global regression gate.
+  - [x] 2.8 Spec grep checks:
         ```
         grep -rn "from app.families.service import\|from app.families import service\|from . import service" app tests
         grep -c "_require_family_guardian" app/families/guardians.py     # 3  (1 def + 2 calls)
