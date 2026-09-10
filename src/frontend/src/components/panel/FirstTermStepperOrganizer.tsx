@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { createTerm } from "../../api/terms";
-import { Field, ModalSheet } from "../../pages/panel/PanelPage";
+import { Field, ModalSheet } from "../../pages/panel/panelComponents";
 
 /* ------------------------------------------------------------------ */
 /*  ORGANIZER "first term" stepper — 1 step (term only), for an          */

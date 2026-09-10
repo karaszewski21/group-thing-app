@@ -8,7 +8,7 @@ import {
   type NeededItemResponse,
   type TermResponse,
 } from "../../api/terms";
-import { Field, ModalSheet } from "../../pages/panel/PanelPage";
+import { Field, ModalSheet } from "../../pages/panel/panelComponents";
 
 const NEEDED_ITEM_LABELS: Record<NeededItemCategory, string> = {
   INSTRUMENT: "Instrument",

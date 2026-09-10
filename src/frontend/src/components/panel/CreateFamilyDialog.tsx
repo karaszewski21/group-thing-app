@@ -1,7 +1,7 @@
 import { useRef, useState } from "react";
 import { ApiError } from "../../api/client";
 import { createLightweightMembers, createOwnFamily, type FamilyOut } from "../../api/families";
-import { Field, ModalSheet } from "../../pages/panel/PanelPage";
+import { Field, ModalSheet } from "../../pages/panel/panelComponents";
 
 /* ------------------------------------------------------------------ */
 /*  "Załóż rodzinę" — 2-step Panel dialog (family name -> optional     */

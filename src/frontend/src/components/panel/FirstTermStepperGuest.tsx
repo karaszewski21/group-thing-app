@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Link } from "react-router-dom";
 import { createMyCircle, type GroupResponse } from "../../api/groups";
 import { createTerm } from "../../api/terms";
-import { Field, ModalSheet } from "../../pages/panel/PanelPage";
+import { Field, ModalSheet } from "../../pages/panel/panelComponents";
 
 /* ------------------------------------------------------------------ */
 /*  GUEST "first term" stepper — 2 steps (circle name -> term date/     */

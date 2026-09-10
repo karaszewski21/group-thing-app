@@ -58,6 +58,41 @@ import { CreateFamilyDialog } from "../../components/panel/CreateFamilyDialog";
 import { EditTermDialog } from "../../components/panel/EditTermDialog";
 import { FirstTermStepperGuest } from "../../components/panel/FirstTermStepperGuest";
 import { FirstTermStepperOrganizer } from "../../components/panel/FirstTermStepperOrganizer";
+import {
+  BackIcon,
+  BoxIcon,
+  BuildingIcon,
+  CalendarIcon,
+  CalendarPlusIcon,
+  CopyIcon,
+  FamilyIcon,
+  GiftIcon,
+  HomeIcon,
+  LogoutIcon,
+  MenuIcon,
+  PencilIcon,
+  SettingsIcon,
+  TrashIcon,
+  UserIcon,
+} from "./panelIcons";
+import { Field, HintCard, ModalSheet, ToggleRow } from "./panelComponents";
+import {
+  capitalize,
+  dayMonth,
+  GIFT_SOURCE_STYLE,
+  initials,
+  ITEM_MODE_STYLE,
+  ITEM_MODES,
+  NEEDED_ITEM_LABELS,
+  termPublicPath,
+  type DraftNeededItem,
+  type GiftSource,
+  type ItemMode,
+  type LocalGift,
+  type ModalKind,
+  type TermWithNeeded,
+  type View,
+} from "./panelHelpers";
 
 /* ------------------------------------------------------------------ */
 /*  Panel — organizator/gość (port z pages/PanelOrganizatora.tsx +      */
@@ -74,195 +109,10 @@ import { FirstTermStepperOrganizer } from "../../components/panel/FirstTermStepp
 /*                                                                       */
 /*  "Usuń" dla realnych encji: Grupa → prawdziwe zakończenie własnego    */
 /*  Leadership (`endLeadership`) — grupa realnie znika z listy.          */
+/*                                                                       */
+/*  Typy/stałe/helpery → ./panelHelpers; ikony → ./panelIcons;          */
+/*  ToggleRow/HintCard/Field/ModalSheet → ./panelComponents.            */
 /* ------------------------------------------------------------------ */
-
-type View = "home" | "spotkania" | "rzeczy" | "podarki" | "profil" | "ustawienia" | "rodzina";
-type ModalKind =
-  | "grupa"
-  | "termin"
-  | "rzecz"
-  | "pierwszy-termin"
-  | "rodzina-nowa"
-  | "edit-termin"
-  | null;
-type ItemMode = "wypożyczę" | "oddam" | "zamienię";
-type GiftSource = "pożyczone" | "otrzymane" | "zamienione";
-
-interface LocalGift {
-  id: string;
-  name: string;
-  from: string;
-  source: GiftSource;
-}
-
-interface DraftNeededItem {
-  category: NeededItemCategory;
-  description: string;
-}
-
-interface TermWithNeeded {
-  term: TermResponse;
-  group: GroupResponse;
-  neededItems: NeededItemResponse[];
-}
-
-const NEEDED_ITEM_LABELS: Record<NeededItemCategory, string> = {
-  INSTRUMENT: "Instrument",
-  MAT_BLANKET: "Mata/koc",
-  ART_SUPPLIES: "Materiały plastyczne",
-  OTHER: "Inne",
-};
-
-const ITEM_MODES: ItemMode[] = ["wypożyczę", "oddam", "zamienię"];
-const ITEM_MODE_STYLE: Record<ItemMode, { bg: string; c: string }> = {
-  "wypożyczę": { bg: "var(--color-teal-soft)", c: "#245F61" },
-  "oddam": { bg: "var(--color-mint-soft)", c: "#12604D" },
-  "zamienię": { bg: "var(--color-lime-soft)", c: "#56701F" },
-};
-const GIFT_SOURCE_STYLE: Record<GiftSource, { bg: string; c: string }> = {
-  "pożyczone": { bg: "var(--color-teal-soft)", c: "#245F61" },
-  "otrzymane": { bg: "var(--color-mint-soft)", c: "#12604D" },
-  "zamienione": { bg: "var(--color-lime-soft)", c: "#56701F" },
-};
-const capitalize = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
-
-function dayMonth(isoDate: string): { day: string; month: string } {
-  const d = new Date(`${isoDate}T00:00:00`);
-  const day = String(d.getDate());
-  const month = d.toLocaleDateString("pl-PL", { month: "short" }).replace(".", "");
-  return { day, month };
-}
-
-function initials(name: string): string {
-  const words = name.trim().split(/\s+/).filter(Boolean);
-  return (words[0]?.[0] ?? "?").toUpperCase() + (words[1]?.[0] ?? "").toUpperCase();
-}
-
-/** Public per-term URL. `group.organizer_slug` is always set by the backend
- * (the organizer's Organization slug, or a stable `k-<hash>` when they have
- * no Organization) — the `?? "krag"` only guards the `GET /api/groups` list
- * response, which the Panel never uses to build these links. */
-function termPublicPath(group: GroupResponse, termId: number): string {
-  return `/${group.organizer_slug ?? "krag"}/grupa/${group.id}/term/${termId}`;
-}
-
-/* ---------------- ikony ---------------- */
-
-const HomeIcon = ({ c = "#1E2E27" }: { c?: string }) => (
-  <svg viewBox="0 0 24 24" fill="none" aria-hidden="true" className="h-[22px] w-[22px]">
-    <path d="M4 11.5 12 4l8 7.5" stroke={c} strokeWidth="2.1" strokeLinecap="round" strokeLinejoin="round" />
-    <path
-      d="M6 10v9a1 1 0 0 0 1 1h3v-5a2 2 0 0 1 2-2 2 2 0 0 1 2 2v5h3a1 1 0 0 0 1-1v-9"
-      stroke={c} strokeWidth="2.1" strokeLinejoin="round"
-    />
-  </svg>
-);
-const CalendarIcon = ({ c = "#1E2E27" }: { c?: string }) => (
-  <svg viewBox="0 0 24 24" fill="none" aria-hidden="true" className="h-[22px] w-[22px]">
-    <rect x="3.5" y="5" width="17" height="15" rx="3" stroke={c} strokeWidth="2.1" />
-    <path d="M3.5 9.5h17M8 3v4M16 3v4" stroke={c} strokeWidth="2.1" strokeLinecap="round" />
-  </svg>
-);
-const BoxIcon = ({ c = "#1E2E27" }: { c?: string }) => (
-  <svg viewBox="0 0 24 24" fill="none" aria-hidden="true" className="h-[22px] w-[22px]">
-    <path d="M3.5 8.3 12 4l8.5 4.3-8.5 4.3-8.5-4.3Z" stroke={c} strokeWidth="2" strokeLinejoin="round" />
-    <path d="M3.5 8.3V16l8.5 4 8.5-4V8.3M12 12.6V20" stroke={c} strokeWidth="2" strokeLinejoin="round" />
-  </svg>
-);
-const GiftIcon = ({ c = "#1E2E27" }: { c?: string }) => (
-  <svg viewBox="0 0 24 24" fill="none" aria-hidden="true" className="h-[22px] w-[22px]">
-    <rect x="3.5" y="9.5" width="17" height="11" rx="2" stroke={c} strokeWidth="2" strokeLinejoin="round" />
-    <path d="M3.5 9.5h17M12 9.5v11" stroke={c} strokeWidth="2" strokeLinecap="round" />
-    <path
-      d="M12 9.5c-2.5 0-4-1.4-4-3a2 2 0 0 1 4 0 2 2 0 0 1 4 0c0 1.6-1.5 3-4 3Z"
-      stroke={c} strokeWidth="2" strokeLinejoin="round"
-    />
-  </svg>
-);
-const SettingsIcon = ({ c = "#1E2E27" }: { c?: string }) => (
-  <svg viewBox="0 0 24 24" fill="none" aria-hidden="true" className="h-[18px] w-[18px]">
-    <circle cx="12" cy="12" r="3.2" stroke={c} strokeWidth="2" />
-    <path
-      d="M19.4 13.5c.1-.5.1-1 0-1.5l1.9-1.4-1.5-2.6-2.2.7c-.4-.3-.8-.6-1.3-.8l-.3-2.3H11l-.3 2.3c-.5.2-.9.5-1.3.8l-2.2-.7-1.5 2.6L7.6 12c-.1.5-.1 1 0 1.5l-1.9 1.4 1.5 2.6 2.2-.7c.4.3.8.6 1.3.8l.3 2.3h3l.3-2.3c.5-.2.9-.5 1.3-.8l2.2.7 1.5-2.6-1.9-1.4Z"
-      stroke={c} strokeWidth="1.7" strokeLinejoin="round"
-    />
-  </svg>
-);
-const CalendarPlusIcon = ({ c = "#1E2E27" }: { c?: string }) => (
-  <svg viewBox="0 0 24 24" fill="none" aria-hidden="true" className="h-[18px] w-[18px]">
-    <rect x="3.5" y="5" width="17" height="15" rx="3" stroke={c} strokeWidth="2" />
-    <path d="M3.5 9.5h17M8 3v4M16 3v4" stroke={c} strokeWidth="2" strokeLinecap="round" />
-    <path d="M12 12.5v5M9.5 15h5" stroke={c} strokeWidth="2" strokeLinecap="round" />
-  </svg>
-);
-const BuildingIcon = ({ c = "#1E2E27" }: { c?: string }) => (
-  <svg viewBox="0 0 24 24" fill="none" aria-hidden="true" className="h-[18px] w-[18px]">
-    <rect x="4" y="3" width="16" height="18" rx="1.5" stroke={c} strokeWidth="2" />
-    <path d="M8 7h1.5M14.5 7H16M8 11h1.5M14.5 11H16M8 15h1.5M14.5 15H16" stroke={c} strokeWidth="2" strokeLinecap="round" />
-  </svg>
-);
-const UserIcon = ({ c = "#1E2E27" }: { c?: string }) => (
-  <svg viewBox="0 0 24 24" fill="none" aria-hidden="true" className="h-[18px] w-[18px]">
-    <circle cx="12" cy="8" r="3.6" stroke={c} strokeWidth="2" />
-    <path d="M4.5 20c.8-4 3.7-6 7.5-6s6.7 2 7.5 6" stroke={c} strokeWidth="2" strokeLinecap="round" />
-  </svg>
-);
-const MenuIcon = () => (
-  <svg viewBox="0 0 24 24" fill="none" aria-hidden="true" className="h-[22px] w-[22px]">
-    <path d="M4 7h16M4 12h16M4 17h16" stroke="#1E2E27" strokeWidth="2.1" strokeLinecap="round" />
-  </svg>
-);
-const BackIcon = () => (
-  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-    <path d="M14.5 5 8 12l6.5 7" stroke="#1E2E27" strokeWidth="2.3" strokeLinecap="round" strokeLinejoin="round" />
-  </svg>
-);
-const CloseIcon = () => (
-  <svg viewBox="0 0 24 24" fill="none" aria-hidden="true" className="h-4 w-4">
-    <path d="M6 6l12 12M18 6 6 18" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" />
-  </svg>
-);
-const TrashIcon = () => (
-  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-    <path
-      d="M4 7h16M9.5 7V4.8c0-.7.6-1.3 1.3-1.3h2.4c.7 0 1.3.6 1.3 1.3V7M6.5 7l1 12.4c.1 1 .9 1.8 1.9 1.8h5.2c1 0 1.8-.8 1.9-1.8L17.5 7"
-      stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
-    />
-  </svg>
-);
-const FamilyIcon = ({ c = "#1E2E27" }: { c?: string }) => (
-  <svg viewBox="0 0 24 24" fill="none" aria-hidden="true" className="h-[22px] w-[22px]">
-    <circle cx="8" cy="8" r="2.6" stroke={c} strokeWidth="2" />
-    <circle cx="17" cy="9" r="2.1" stroke={c} strokeWidth="2" />
-    <path d="M3 20c.7-3.4 2.6-5.2 5-5.2s4.3 1.8 5 5.2" stroke={c} strokeWidth="2" strokeLinecap="round" />
-    <path d="M14.2 15.4c1.9.2 3.2 1.7 3.8 4.6" stroke={c} strokeWidth="2" strokeLinecap="round" />
-  </svg>
-);
-const PencilIcon = ({ c = "#5C7069" }: { c?: string }) => (
-  <svg viewBox="0 0 24 24" fill="none" aria-hidden="true" className="h-4 w-4">
-    <path
-      d="M4 20h4L18.5 9.5a2 2 0 0 0 0-2.8l-1.2-1.2a2 2 0 0 0-2.8 0L4 16v4Z"
-      stroke={c} strokeWidth="2" strokeLinejoin="round"
-    />
-  </svg>
-);
-const CopyIcon = ({ c = "#5C7069" }: { c?: string }) => (
-  <svg viewBox="0 0 24 24" fill="none" aria-hidden="true" className="h-4 w-4">
-    <rect x="9" y="9" width="11" height="11" rx="2" stroke={c} strokeWidth="2" />
-    <path
-      d="M15 5.5A2.5 2.5 0 0 0 12.5 3h-7A2.5 2.5 0 0 0 3 5.5v7A2.5 2.5 0 0 0 5.5 15"
-      stroke={c} strokeWidth="2" strokeLinecap="round"
-    />
-  </svg>
-);
-const LogoutIcon = () => (
-  <svg viewBox="0 0 24 24" fill="none" aria-hidden="true" className="h-[18px] w-[18px]">
-    <path
-      d="M15 4h3.5A1.5 1.5 0 0 1 20 5.5v13a1.5 1.5 0 0 1-1.5 1.5H15M14 12H4m0 0 4-4m-4 4 4 4"
-      stroke="#B23B3B" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
-    />
-  </svg>
-);
 
 const NAV_ITEMS: { key: View; label: string; Icon: typeof HomeIcon }[] = [
   { key: "home", label: "Home", Icon: HomeIcon },
@@ -2095,118 +1945,5 @@ export function PanelPage() {
         </div>
       )}
     </PhoneFrame>
-  );
-}
-
-/* ---------------- małe komponenty pomocnicze ---------------- */
-
-function ToggleRow({
-  label, hint, checked, onChange,
-}: { label: string; hint: string; checked: boolean; onChange: () => void }) {
-  return (
-    <div className="flex items-center justify-between gap-3 border-t border-line py-3.5 first:border-t-0">
-      <div>
-        <strong className="block text-sm text-ink">{label}</strong>
-        <small className="mt-0.5 block text-xs text-ink-soft">{hint}</small>
-      </div>
-      <button
-        role="switch"
-        aria-checked={checked}
-        aria-label={label}
-        onClick={onChange}
-        className={`relative h-[26px] w-11 flex-none rounded-full transition-colors ${checked ? "bg-mint" : "bg-line"}`}
-      >
-        <span
-          className="absolute top-[3px] left-[3px] h-5 w-5 rounded-full bg-white shadow transition-transform"
-          style={checked ? { transform: "translateX(18px)" } : undefined}
-        />
-      </button>
-    </div>
-  );
-}
-
-/** Dismissible Panel-home nudge card (spec.md §3, Mockups 4/5). Same card
- * shell/spacing rhythm as "Najbliższe terminy"/"Twoje rzeczy", with a mint
- * accent to read as actionable/new. CTA is either a `Link` (org-polish, to
- * "/organization") or a plain button (both first-term variants, opens the
- * "pierwszy-termin" modal) — never both, so exactly one of `ctaTo`/
- * `onCtaClick` is expected per instance. */
-function HintCard({
-  icon, title, description, ctaLabel, ctaTo, onCtaClick, onDismiss,
-}: {
-  icon: React.ReactNode;
-  title: string;
-  description: string;
-  ctaLabel: string;
-  ctaTo?: string;
-  onCtaClick?: () => void;
-  onDismiss: () => void;
-}) {
-  return (
-    <div className="mb-3.5 rounded-[22px] border border-mint bg-mint-soft p-5">
-      <div className="mb-1.5 flex items-start justify-between gap-2.5">
-        <div className="flex items-center gap-2">
-          {icon}
-          <h3 className="text-base font-semibold text-ink">{title}</h3>
-        </div>
-        <button
-          onClick={onDismiss}
-          aria-label={`Zamknij: ${title}`}
-          className="flex h-[34px] w-[34px] flex-none items-center justify-center rounded-full bg-cream text-ink-soft hover:bg-danger-soft hover:text-danger"
-        >
-          <CloseIcon />
-        </button>
-      </div>
-      <p className="text-[13.5px] text-ink-soft">{description}</p>
-      {ctaTo ? (
-        <Link to={ctaTo} className="mt-3 inline-block text-[13px] font-extrabold text-mint hover:underline">
-          {ctaLabel}
-        </Link>
-      ) : (
-        <button onClick={onCtaClick} className="mt-3 text-[13px] font-extrabold text-mint hover:underline">
-          {ctaLabel}
-        </button>
-      )}
-    </div>
-  );
-}
-
-export function Field({ label, children }: { label: string; children: React.ReactNode }) {
-  return (
-    <div className="flex flex-col gap-1.5">
-      <label className="text-xs font-extrabold tracking-wide text-ink-soft">{label}</label>
-      {children}
-    </div>
-  );
-}
-
-export function ModalSheet({
-  title, onClose, children,
-}: { title: string; onClose: () => void; children: React.ReactNode }) {
-  return (
-    <div
-      className="fixed inset-0 z-[60] flex items-end justify-center bg-[rgba(20,28,24,0.55)] min-[520px]:items-center"
-      onClick={onClose}
-    >
-      <div
-        role="dialog"
-        aria-modal="true"
-        aria-label={title}
-        onClick={(e) => e.stopPropagation()}
-        className="max-h-[88vh] w-full max-w-[430px] overflow-y-auto rounded-t-[24px] bg-paper p-5 min-[520px]:max-h-[80vh] min-[520px]:rounded-[24px]"
-      >
-        <div className="mb-4 flex items-center justify-between">
-          <h3 className="text-lg font-semibold text-ink">{title}</h3>
-          <button
-            onClick={onClose}
-            aria-label="Zamknij"
-            className="flex h-[34px] w-[34px] items-center justify-center rounded-full bg-cream text-ink-soft hover:bg-danger-soft hover:text-danger"
-          >
-            <CloseIcon />
-          </button>
-        </div>
-        {children}
-      </div>
-    </div>
   );
 }
