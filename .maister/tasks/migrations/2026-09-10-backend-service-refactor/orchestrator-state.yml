@@ -1,6 +1,7 @@
 orchestrator:
   started_phase: phase-1
-  completed_phases: [phase-1, phase-2, phase-3, phase-4]
+  completed_phases: [phase-1, phase-2, phase-3, phase-4, phase-5]
+  skipped_phases: [phase-6, phase-7, phase-8]   # user chose to finalize; per-commit gate (113 tests + route-dump + ruff/mypy) served as verification
   failed_phases: []
   auto_fix_attempts:
     phase-1: 0
@@ -24,7 +25,7 @@ task:
     Refactor src/backend/app: split large files (especially oversized services) into
     smaller focused modules. Apply DDD and clean-architecture patterns where reasonable.
     Backend only. No behavior change intended. Goal: reduce spaghetti / oversized files.
-  status: in_progress
+  status: completed
   tags: [refactor, ddd, clean-architecture, backend]
   priority: medium
 
