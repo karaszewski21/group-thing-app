@@ -9,7 +9,7 @@ to their own requirements despite the new `PATCH /api/groups/{id}` row.
 
 from __future__ import annotations
 
-from app.core.auth_deps import resolve_requirement
+from app.core.authorization_matrix import resolve_requirement
 
 EDIT = ("EDIT", "mcp:edit")
 READ = ("READ", "mcp:read")
