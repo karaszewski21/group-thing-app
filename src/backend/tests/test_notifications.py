@@ -3,6 +3,14 @@
 Notifications are produced as a side effect of the pledge cycle (see
 `app.groups.application.pledges` / `pledge_fulfillment` / `terms`), so each
 test drives a real pledge to generate one, then asserts the inbox routes.
+
+`create_pledge`/`withdraw_pledge` now go through the outbox pattern (stage an
+`OutboxEntry`, not a `Notification`, in the same transaction) rather than
+writing the `Notification` row synchronously — see
+`app.groups.application.pledges` and `app.notifications.outbox_listener`. So
+each test must explicitly run the poller (`dispatch_pending`) after the
+pledge action, before asserting on `/api/notifications/mine`, to simulate the
+30s background poll.
 """
 
 from __future__ import annotations
@@ -10,10 +18,19 @@ from __future__ import annotations
 from datetime import date
 
 from httpx import AsyncClient
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.notifications.outbox_listener import register as register_outbox_handlers
+from app.outbox.dispatcher import dispatch_pending
 
 
 def _auth(token: str) -> dict[str, str]:
     return {"Authorization": f"Bearer {token}"}
+
+
+async def _process_outbox(db_session: AsyncSession) -> None:
+    register_outbox_handlers()
+    await dispatch_pending(db_session)
 
 
 async def _register(client: AsyncClient, role: str, email: str) -> tuple[str, int]:
@@ -32,8 +49,12 @@ async def _resolve_product(client: AsyncClient, token: str, name: str) -> int:
     return int(r.json()["id"])
 
 
-async def _setup_pledge(client: AsyncClient, prefix: str) -> tuple[str, str, int]:
-    """`(organizer_token, guest_token, pledge_id)` — organizer circle+term+need, guest pledges."""
+async def _setup_pledge(
+    client: AsyncClient, db_session: AsyncSession, prefix: str
+) -> tuple[str, str, int]:
+    """`(organizer_token, guest_token, pledge_id)` — organizer circle+term+need, guest pledges.
+    Runs the outbox poller once before returning so the resulting
+    PLEDGE_CREATED notification is already visible to callers."""
     org_token, _ = await _register(client, "ORGANIZER", f"{prefix}.org@example.com")
     circle = await client.post(
         "/api/groups/mine", json={"name": f"Krąg {prefix}"}, headers=_auth(org_token)
@@ -56,6 +77,7 @@ async def _setup_pledge(client: AsyncClient, prefix: str) -> tuple[str, str, int
         "/api/pledges", json={"needed_item_id": needed.json()["id"]}, headers=_auth(guest_token)
     )
     assert pledge.status_code == 201
+    await _process_outbox(db_session)
     return org_token, guest_token, int(pledge.json()["id"])
 
 
@@ -71,8 +93,10 @@ async def _unread_count(client: AsyncClient, token: str) -> int:
     return int(r.json()["count"])
 
 
-async def test_createPledge_notifiesOrganizer_appearsInMineUnread(client: AsyncClient) -> None:
-    org_token, _guest_token, _pledge_id = await _setup_pledge(client, "notif.create")
+async def test_createPledge_notifiesOrganizer_appearsInMineUnread(
+    client: AsyncClient, db_session: AsyncSession
+) -> None:
+    org_token, _guest_token, _pledge_id = await _setup_pledge(client, db_session, "notif.create")
 
     rows = await _my_notifications(client, org_token)
     assert len(rows) == 1
@@ -83,8 +107,10 @@ async def test_createPledge_notifiesOrganizer_appearsInMineUnread(client: AsyncC
     assert await _unread_count(client, org_token) == 1
 
 
-async def test_markRead_dropsUnreadCount_keepsRowWithTimestamp(client: AsyncClient) -> None:
-    org_token, _guest_token, _pledge_id = await _setup_pledge(client, "notif.read")
+async def test_markRead_dropsUnreadCount_keepsRowWithTimestamp(
+    client: AsyncClient, db_session: AsyncSession
+) -> None:
+    org_token, _guest_token, _pledge_id = await _setup_pledge(client, db_session, "notif.read")
     notification_id = (await _my_notifications(client, org_token))[0]["id"]
 
     read = await client.post(f"/api/notifications/{notification_id}/read", headers=_auth(org_token))
@@ -96,8 +122,10 @@ async def test_markRead_dropsUnreadCount_keepsRowWithTimestamp(client: AsyncClie
     assert rows[0]["read_at"] is not None
 
 
-async def test_markRead_otherPartysNotification_returns403(client: AsyncClient) -> None:
-    org_token, guest_token, _pledge_id = await _setup_pledge(client, "notif.forbidden")
+async def test_markRead_otherPartysNotification_returns403(
+    client: AsyncClient, db_session: AsyncSession
+) -> None:
+    org_token, guest_token, _pledge_id = await _setup_pledge(client, db_session, "notif.forbidden")
     notification_id = (await _my_notifications(client, org_token))[0]["id"]
 
     forbidden = await client.post(
@@ -106,17 +134,22 @@ async def test_markRead_otherPartysNotification_returns403(client: AsyncClient) 
     assert forbidden.status_code == 403
 
 
-async def test_mine_neverLeaksAnotherPartysNotifications(client: AsyncClient) -> None:
-    _org_token, guest_token, _pledge_id = await _setup_pledge(client, "notif.isolation")
+async def test_mine_neverLeaksAnotherPartysNotifications(
+    client: AsyncClient, db_session: AsyncSession
+) -> None:
+    _org_token, guest_token, _pledge_id = await _setup_pledge(client, db_session, "notif.isolation")
 
     assert await _my_notifications(client, guest_token) == []
 
 
-async def test_withdrawPledge_secondNotification_readAllClears(client: AsyncClient) -> None:
-    org_token, guest_token, pledge_id = await _setup_pledge(client, "notif.withdraw")
+async def test_withdrawPledge_secondNotification_readAllClears(
+    client: AsyncClient, db_session: AsyncSession
+) -> None:
+    org_token, guest_token, pledge_id = await _setup_pledge(client, db_session, "notif.withdraw")
 
     withdrawn = await client.post(f"/api/pledges/{pledge_id}/withdraw", headers=_auth(guest_token))
     assert withdrawn.status_code == 200
+    await _process_outbox(db_session)
 
     kinds = {r["kind"] for r in await _my_notifications(client, org_token)}
     assert kinds == {"PLEDGE_CREATED", "PLEDGE_WITHDRAWN"}

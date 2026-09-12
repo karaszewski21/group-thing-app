@@ -20,6 +20,11 @@ before the app can be considered fully wired.
 
 from __future__ import annotations
 
+import asyncio
+import contextlib
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -32,16 +37,35 @@ from app.families.router import router as families_router
 from app.footprint.errors import register_footprint_exception_handlers
 from app.footprint.router import router as footprint_router
 from app.groups.router import router as groups_router
+from app.notifications import outbox_listener as notifications_outbox_listener
 from app.notifications.router import router as notifications_router
 from app.oauth2.metadata_router import router as oauth2_metadata_router
 from app.oauth2.router import router as oauth2_router
 from app.organizations.router import router as organizations_router
+from app.outbox import scheduler as outbox_scheduler
 from app.plugin.router import router as plugin_router
 from app.product.router import router as product_router
 from app.system.router import router as system_router
 from app.users.router import router as users_router
 
-app = FastAPI()
+_outbox_task: asyncio.Task[None] | None = None
+
+
+@asynccontextmanager
+async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
+    """Starts the 30s outbox poller as a background task alongside the app
+    process, after wiring every vertical's outbox event handlers. Cancels it
+    cleanly on shutdown rather than leaving a dangling task."""
+    global _outbox_task
+    notifications_outbox_listener.register()
+    _outbox_task = asyncio.create_task(outbox_scheduler.run_forever())
+    yield
+    _outbox_task.cancel()
+    with contextlib.suppress(asyncio.CancelledError):
+        await _outbox_task
+
+
+app = FastAPI(lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,

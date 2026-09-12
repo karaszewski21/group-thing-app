@@ -3,9 +3,11 @@ with the mutations it guards (per `standards/backend/security.md`).
 
 A needed item can be claimed by at most one active pledge — enforced here
 (fail-fast 409) and by the `uq_pledges_active_needed_item` partial unique
-index. Every state change notifies the Term's organizer through the
-`notifications_bridge` ACL (a missing organizer degrades to no notification,
-never a 500)."""
+index. Every state change emits an outbox event through the `outbox_bridge`
+ACL (a missing organizer degrades to no event, never a 500); `app.notifications`
+consumes those events asynchronously (see `app.notifications.outbox_listener`)
+to build the Term organizer's notification — groups no longer knows
+`NotificationKind` or builds notification text itself."""
 
 from __future__ import annotations
 
@@ -19,20 +21,20 @@ from app.core.errors import (
 )
 from app.users.service import get_profile_by_principal
 
-from ..infrastructure import notifications_bridge, product_bridge, repository
-from ..infrastructure.notifications_bridge import NotificationKind
+from ..domain import pledge_events
+from ..infrastructure import outbox_bridge, product_bridge, repository
 from ..infrastructure.slug_resolver import resolve_organizer_slug
 from ..models import Pledge, PledgeStatus
 from .circles import _group_role_party_id, get_current_leadership
 from .terms import get_needed_item
 
 
-async def _notify_organizer_about_pledge(
-    db: AsyncSession, needed_item_id: int, actor_name: str, kind: NotificationKind, action: str
+async def _emit_pledge_event(
+    db: AsyncSession, needed_item_id: int, actor_name: str, event_type: str
 ) -> None:
-    """Best-effort organizer notification for a pledge state change. Every
-    lookup that could be absent (soft-deleted need, term gone, circle with
-    no active organizer) short-circuits to no notification — a pledge action
+    """Best-effort organizer-notification event for a pledge state change.
+    Every lookup that could be absent (soft-deleted need, term gone, circle
+    with no active organizer) short-circuits to no event — a pledge action
     must never 500 because a notification could not be addressed."""
     needed_item = await repository.get_needed_item(db, needed_item_id)
     if needed_item is None:
@@ -46,12 +48,15 @@ async def _notify_organizer_about_pledge(
     organizer_party_id = await _group_role_party_id(db, leadership.from_role_id)
     product = await product_bridge.get_product(db, needed_item.product_id)
     slug = await resolve_organizer_slug(db, term.circle_group_id)
-    await notifications_bridge.create_notification(
+    await outbox_bridge.append_event(
         db,
-        party_id=organizer_party_id,
-        kind=kind,
-        message=f'„{actor_name}" {action}: {product.name}',
-        link_path=f"/{slug}/grupa/{term.circle_group_id}/term/{term.id}",
+        event_type=event_type,
+        payload={
+            "organizer_party_id": organizer_party_id,
+            "actor_name": actor_name,
+            "product_name": product.name,
+            "link_path": f"/{slug}/grupa/{term.circle_group_id}/term/{term.id}",
+        },
     )
 
 
@@ -69,12 +74,11 @@ async def create_pledge(db: AsyncSession, principal: Principal, needed_item_id: 
         status=PledgeStatus.CLAIMED,
     )
     db.add(pledge)
-    await _notify_organizer_about_pledge(
+    await _emit_pledge_event(
         db,
         needed_item_id,
         profile.display_name,
-        NotificationKind.PLEDGE_CREATED,
-        "zadeklarował(a) przyniesienie",
+        pledge_events.PLEDGE_CLAIMED,
     )
     await db.commit()
     await db.refresh(pledge)
@@ -106,12 +110,11 @@ async def withdraw_pledge(db: AsyncSession, principal: Principal, pledge_id: int
     already_withdrawn = pledge.status == PledgeStatus.WITHDRAWN
     pledge.status = PledgeStatus.WITHDRAWN
     if not already_withdrawn:
-        await _notify_organizer_about_pledge(
+        await _emit_pledge_event(
             db,
             pledge.needed_item_id,
             profile.display_name,
-            NotificationKind.PLEDGE_WITHDRAWN,
-            "zrezygnował(a) z przyniesienia",
+            pledge_events.PLEDGE_WITHDRAWN,
         )
     await db.commit()
     await db.refresh(pledge)
