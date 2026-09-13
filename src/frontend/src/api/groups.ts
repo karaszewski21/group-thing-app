@@ -1,5 +1,4 @@
 import { api } from "./client";
-import type { ProductCategory } from "./products";
 
 export interface GroupResponse {
   id: number;
@@ -107,7 +106,8 @@ export interface PublicNeededItemResponse {
   id: number;
   product_id: number;
   product_name: string;
-  product_category: ProductCategory;
+  product_category_id: number;
+  product_category_name: string;
   description: string | null;
   /** Someone already declared they'll bring this (single-claim). */
   claimed: boolean;

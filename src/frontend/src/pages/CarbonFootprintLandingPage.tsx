@@ -3,9 +3,9 @@ import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { getProducts } from "../api/products";
 import type { ProductResponse } from "../api/products";
+import { useCategories } from "../hooks/useCategories";
 import { EmptyState } from "../components/shared/EmptyState";
 import { FootprintIcon } from "../components/shared/Icons";
-import { CATEGORY_LABELS } from "../utils/productCategory";
 
 export function CarbonFootprintLandingPage() {
   const [searchInput, setSearchInput] = useState("");
@@ -14,6 +14,9 @@ export function CarbonFootprintLandingPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout>>(null);
+  const { data: categories } = useCategories();
+  const categoryName = (categoryId: number): string =>
+    categories.find((c) => c.id === categoryId)?.name ?? `#${categoryId}`;
 
   useEffect(() => {
     if (debounceRef.current) clearTimeout(debounceRef.current);
@@ -111,7 +114,7 @@ export function CarbonFootprintLandingPage() {
                       {product.name}
                     </Text>
                     <Text fontSize="12px" color="gray.500" fontFamily="monospace">
-                      {product.sku} · {CATEGORY_LABELS[product.category]}
+                      {product.sku} · {categoryName(product.category_id)}
                     </Text>
                   </Box>
                 </Flex>

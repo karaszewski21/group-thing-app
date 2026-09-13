@@ -11,11 +11,10 @@ import {
 import { useCallback, useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { getProduct, createProduct, updateProduct } from "../api/products";
-import type { ProductCategory } from "../api/products";
+import { useCategories } from "../hooks/useCategories";
 import { PhotoPlaceholder } from "../components/shared/Icons";
 import { isValidImageUrl } from "../utils/url";
 import { PrimaryButton } from "../components/shared/PrimaryButton";
-import { CATEGORY_LABELS, PRODUCT_CATEGORIES } from "../utils/productCategory";
 
 const labelStyle: React.CSSProperties = {
   fontSize: "14px",
@@ -33,12 +32,13 @@ export function ProductFormPage() {
   const [name, setName] = useState("");
   const [sku, setSku] = useState("");
   const [price, setPrice] = useState("");
-  const [category, setCategory] = useState<ProductCategory | "">("");
+  const [categoryId, setCategoryId] = useState<number | "">("");
   const [description, setDescription] = useState("");
   const [photoUrl, setPhotoUrl] = useState("");
   const [loading, setLoading] = useState(false);
   const [loadingData, setLoadingData] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const { data: categories } = useCategories();
 
   const loadData = useCallback(async () => {
     setLoadingData(true);
@@ -48,7 +48,7 @@ export function ProductFormPage() {
         setName(product.name);
         setSku(product.sku);
         setPrice(String(product.price));
-        setCategory(product.category);
+        setCategoryId(product.category_id);
         setDescription(product.description ?? "");
         setPhotoUrl(product.photoUrl ?? "");
       }
@@ -65,14 +65,14 @@ export function ProductFormPage() {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!category) return;
+    if (!categoryId) return;
     setLoading(true);
     setError(null);
     const payload = {
       name,
       sku,
       price: parseFloat(price),
-      category,
+      category_id: categoryId,
       description: description || undefined,
       photoUrl: photoUrl || undefined,
     };
@@ -161,8 +161,8 @@ export function ProductFormPage() {
             </label>
             <select
               id="product-category"
-              value={category}
-              onChange={(e) => setCategory(e.target.value as ProductCategory)}
+              value={categoryId}
+              onChange={(e) => setCategoryId(e.target.value ? Number(e.target.value) : "")}
               required
               style={{
                 width: "100%",
@@ -174,9 +174,9 @@ export function ProductFormPage() {
               }}
             >
               <option value="">Select a category...</option>
-              {PRODUCT_CATEGORIES.map((cat) => (
-                <option key={cat} value={cat}>
-                  {CATEGORY_LABELS[cat]}
+              {categories.map((cat) => (
+                <option key={cat.id} value={cat.id}>
+                  {cat.name}
                 </option>
               ))}
             </select>

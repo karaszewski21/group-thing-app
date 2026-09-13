@@ -4,8 +4,9 @@ data / object sections) — 3 route groups in one router. Follows
 
 Permission matrix (spec.md rows 14-24): GET -> `READ`; PUT/DELETE on
 objects and data -> `EDIT`; manifest/enabled/delete on the descriptor
-itself -> `PLUGIN_MANAGEMENT`. Deliberately **no** `mcp:*` bridge anywhere
-in this module (unlike category/product) — do not add one.
+itself -> `PLUGIN_MANAGEMENT` or `ADMIN` (additive alternative, Core
+Requirement #6). Deliberately **no** `mcp:*` bridge anywhere in this
+module (unlike category/product) — do not add one.
 """
 
 from __future__ import annotations
@@ -31,7 +32,7 @@ router = APIRouter(prefix="/api/plugins", tags=["plugins"])
 DbSession = Annotated[AsyncSession, Depends(get_db)]
 ReadPrincipal = Annotated[Principal, Depends(require_any("READ"))]
 EditPrincipal = Annotated[Principal, Depends(require_any("EDIT"))]
-ManagementPrincipal = Annotated[Principal, Depends(require_any("PLUGIN_MANAGEMENT"))]
+ManagementPrincipal = Annotated[Principal, Depends(require_any("PLUGIN_MANAGEMENT", "ADMIN"))]
 
 EntityType = Annotated[str | None, Query(alias="entityType")]
 EntityId = Annotated[int | None, Query(alias="entityId")]

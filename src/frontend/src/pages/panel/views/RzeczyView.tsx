@@ -1,6 +1,5 @@
 import { type ItemCondition } from "../../../api/inventories";
-import { type ProductCategory } from "../../../api/products";
-import { CATEGORY_LABELS, CONDITION_LABELS, PRODUCT_CATEGORIES } from "../../../utils/productCategory";
+import { CONDITION_LABELS } from "../../../utils/productCategory";
 import { createEmptyItemQuickAddValue } from "../../../utils/itemQuickAdd";
 import { BoxIcon, PencilIcon, TrashIcon } from "../panelIcons";
 import { capitalize, ITEM_MODE_STYLE, ITEM_MODES } from "../panelHelpers";
@@ -16,6 +15,7 @@ export function RzeczyView() {
     itemError,
     busy,
     productName,
+    categories,
     setItemDraft,
     setModal,
     setEditingItemMeta,
@@ -37,7 +37,10 @@ export function RzeczyView() {
           </small>
         </div>
         <button
-          onClick={() => { setItemDraft(createEmptyItemQuickAddValue()); setModal("rzecz"); }}
+          onClick={() => {
+            setItemDraft(createEmptyItemQuickAddValue(categories[0]?.id ?? 0));
+            setModal("rzecz");
+          }}
           className="inline-flex flex-none items-center gap-1.5 rounded-full bg-ink px-[15px] py-2.5 text-[12.5px] font-extrabold text-[#EAF2E9] transition-transform hover:-translate-y-0.5"
         >
           + Dodaj rzecz
@@ -77,10 +80,10 @@ export function RzeczyView() {
                     />
                     <select
                       aria-label="Typ rzeczy"
-                      value={editingItemMeta.category}
+                      value={editingItemMeta.category_id}
                       onChange={(e) =>
                         setEditingItemMeta((s) =>
-                          s ? { ...s, category: e.target.value as ProductCategory } : s,
+                          s ? { ...s, category_id: Number(e.target.value) } : s,
                         )
                       }
                       onKeyDown={(e) => {
@@ -89,8 +92,8 @@ export function RzeczyView() {
                       }}
                       className="rounded-lg border-[1.5px] border-line bg-cream px-2 py-1.5 text-[12.5px] text-ink"
                     >
-                      {PRODUCT_CATEGORIES.map((c) => (
-                        <option key={c} value={c}>{CATEGORY_LABELS[c]}</option>
+                      {categories.map((c) => (
+                        <option key={c.id} value={c.id}>{c.name}</option>
                       ))}
                     </select>
                     <button

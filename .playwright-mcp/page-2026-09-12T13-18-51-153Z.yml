@@ -1,0 +1,21 @@
+- generic [ref=e4]:
+  - generic [ref=e5]: KG
+  - heading "Krąg grupy" [level=1] [ref=e6]
+  - paragraph [ref=e7]: Zaloguj się do swojego konta
+  - generic [ref=e8]:
+    - generic [ref=e9]:
+      - generic [ref=e10]: Email
+      - textbox "Email" [ref=e11]:
+        - /placeholder: ty@przyklad.pl
+        - text: karaszewski21@gmail.com
+    - generic [ref=e12]:
+      - generic [ref=e13]: Hasło
+      - textbox "Hasło" [active] [ref=e14]:
+        - /placeholder: Wpisz hasło
+        - text: krag1234
+    - generic [ref=e19]: Invalid username or password
+    - button "Zaloguj się" [ref=e15]
+  - paragraph [ref=e17]:
+    - text: Nie masz konta?
+    - link "Zarejestruj się" [ref=e18] [cursor=pointer]:
+      - /url: /register

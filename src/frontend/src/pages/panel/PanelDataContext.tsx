@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { ReactNode } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useParams } from "react-router-dom";
 import { useAuth } from "../../auth/AuthContext";
 import {
   getMyNotifications,
@@ -44,9 +44,9 @@ import { getMyOrganization } from "../../api/organizations";
 import {
   getProducts,
   resolveProduct,
-  type ProductCategory,
   type ProductResponse,
 } from "../../api/products";
+import { useCategories } from "../../hooks/useCategories";
 import {
   createNeededItem,
   createTerm,
@@ -83,9 +83,31 @@ import { PanelDataContext } from "./panelDataStore";
 
 export type PanelDataContextValue = ReturnType<typeof usePanelDataValue>;
 
+const VIEW_VALUES: readonly View[] = [
+  "home",
+  "spotkania",
+  "rzeczy",
+  "podarki",
+  "profil",
+  "ustawienia",
+  "rodzina",
+];
+
+function isView(value: string | undefined): value is View {
+  return value !== undefined && (VIEW_VALUES as readonly string[]).includes(value);
+}
+
 function usePanelDataValue() {
   const { logout } = useAuth();
   const navigate = useNavigate();
+  // Single source of truth for the category list — RzeczyView's inline
+  // "Typ rzeczy" select and the item/needed-item quick-add defaults below
+  // all read from this instead of a compile-time enum.
+  const { data: categoriesData } = useCategories();
+  // The active section is the `/panel` vs `/panel/:view` route param, not
+  // local state — this way a refresh (or a shared/bookmarked link) lands
+  // back on the same section instead of always resetting to "home".
+  const { view: viewParam } = useParams<{ view?: string }>();
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -127,7 +149,7 @@ function usePanelDataValue() {
   // Inline name+category edit for a single item — re-resolves a Product then
   // re-points the item's product_id at it.
   const [editingItemMeta, setEditingItemMeta] = useState<
-    { id: number; name: string; category: ProductCategory } | null
+    { id: number; name: string; category_id: number } | null
   >(null);
   const [itemMetaError, setItemMetaError] = useState<string | null>(null);
   // `null` = no Organization created yet (404) — "Moja organizacja"/the
@@ -150,7 +172,11 @@ function usePanelDataValue() {
   // Circle-ownership check.
   const isOrganizer = profile?.is_organizer === true || myGroups.length > 0;
 
-  const [view, setView] = useState<View>("home");
+  const view: View = isView(viewParam) ? viewParam : "home";
+  const setView = useCallback(
+    (next: View) => navigate(next === "home" ? "/panel" : `/panel/${next}`),
+    [navigate],
+  );
   const [modal, setModal] = useState<ModalKind>(null);
   // Which "pierwszy-termin" variant to render, captured at the moment the
   // hamburger item is clicked rather than read live from `isOrganizer` at
@@ -449,7 +475,7 @@ function usePanelDataValue() {
       ...prev,
       { ...draftNeededItem, name: draftNeededItem.name.trim(), description: draftNeededItem.description.trim() },
     ]);
-    setDraftNeededItem(createEmptyNeededItemQuickAddValue());
+    setDraftNeededItem(createEmptyNeededItemQuickAddValue(categoriesData[0]?.id ?? 0));
   }
 
   function removeDraftNeededItem(index: number) {
@@ -466,7 +492,7 @@ function usePanelDataValue() {
         description: termDescription || undefined,
       });
       for (const draft of neededDraft) {
-        const product = await resolveProduct({ name: draft.name, category: draft.category });
+        const product = await resolveProduct({ name: draft.name, category_id: draft.category_id });
         await createNeededItem({
           term_id: term.id,
           product_id: product.id,
@@ -494,13 +520,16 @@ function usePanelDataValue() {
     if (!itemDraft.name.trim()) return;
     setBusy(true);
     try {
-      const product = await resolveProduct({ name: itemDraft.name.trim(), category: itemDraft.category });
+      const product = await resolveProduct({
+        name: itemDraft.name.trim(),
+        category_id: itemDraft.category_id,
+      });
       await registerInventoryItem({
         inventory_id: inventoryId,
         product_id: product.id,
         condition: itemDraft.condition,
       });
-      setItemDraft(createEmptyItemQuickAddValue());
+      setItemDraft(createEmptyItemQuickAddValue(categoriesData[0]?.id ?? 0));
       setModal(null);
       showToast("Dodano rzecz");
       setItems(await getInventoryItems(inventoryId));
@@ -739,7 +768,7 @@ function usePanelDataValue() {
     setEditingItemMeta({
       id: it.id,
       name: prod?.name ?? "",
-      category: prod?.category ?? "OTHER",
+      category_id: prod?.category_id ?? 0,
     });
   }
 
@@ -753,14 +782,14 @@ function usePanelDataValue() {
     }
     const item = items.find((i) => i.id === draft.id);
     const current = item ? products.find((p) => p.id === item.product_id) : undefined;
-    if (current && current.name === name && current.category === draft.category) {
+    if (current && current.name === name && current.category_id === draft.category_id) {
       setEditingItemMeta(null);
       return;
     }
     setBusy(true);
     setItemMetaError(null);
     try {
-      const resolved = await resolveProduct({ name, category: draft.category });
+      const resolved = await resolveProduct({ name, category_id: draft.category_id });
       await updateInventoryItem(draft.id, { product_id: resolved.id });
       await load({ silent: true });
       setEditingItemMeta(null);
@@ -882,6 +911,7 @@ function usePanelDataValue() {
     inventoryId,
     items,
     products,
+    categories: categoriesData,
     itemDraft,
     // --- setters the render calls directly ---
     setView,

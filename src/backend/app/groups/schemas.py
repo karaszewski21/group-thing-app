@@ -8,7 +8,6 @@ from datetime import date, datetime
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 from app.circulation.models import ItemCondition
-from app.product.models import ProductCategory
 from app.users.schemas import EMAIL_PATTERN, normalize_email
 
 from .models import GroupRoleType, PledgeStatus
@@ -129,7 +128,8 @@ class NeededItemResponse(BaseModel):
     term_id: int
     product_id: int
     product_name: str
-    product_category: ProductCategory
+    product_category_id: int
+    product_category_name: str
     description: str | None
     # An active (non-withdrawn) pledge exists — the organizer's term tile
     # shows a "ktoś przyniesie" mark; who exactly is on the term page.
@@ -205,7 +205,8 @@ class PublicNeededItemResponse(BaseModel):
     id: int
     product_id: int
     product_name: str
-    product_category: ProductCategory
+    product_category_id: int
+    product_category_name: str
     description: str | None
     # `claimed` = someone has an active pledge for this item (single-claim);
     # `claimed_by_name` is that pledger's display name (or `None`).

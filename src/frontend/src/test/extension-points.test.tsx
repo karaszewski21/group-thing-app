@@ -8,6 +8,7 @@ import type { ProductResponse } from "../api/products";
 import { MENU_MAIN, PRODUCT_DETAIL_TABS, PRODUCT_LIST_FILTERS } from "../plugins/extensionPoints";
 import * as pluginsApi from "../api/plugins";
 import * as productsApi from "../api/products";
+import * as categoriesApi from "../api/categories";
 
 vi.mock("../auth/AuthContext", async (importOriginal) => {
   const actual = await importOriginal<typeof import("../auth/AuthContext")>();
@@ -38,6 +39,10 @@ vi.mock("../api/products", () => ({
   createProduct: vi.fn(),
   updateProduct: vi.fn(),
   deleteProduct: vi.fn(),
+}));
+
+vi.mock("../api/categories", () => ({
+  getCategories: vi.fn(),
 }));
 
 const mockPlugins: PluginResponse[] = [
@@ -86,13 +91,17 @@ const mockProduct: ProductResponse = {
   photoUrl: "https://example.com/headphones.jpg",
   price: 149.99,
   sku: "WHP-001",
-  category: "TOY",
+  category_id: 1,
   pluginData: null,
   createdAt: "2026-03-28T10:00:00Z",
   updatedAt: "2026-03-28T10:00:00Z",
 };
 
 const mockProducts: ProductResponse[] = [mockProduct];
+
+const mockCategories: categoriesApi.Category[] = [
+  { id: 1, name: "Zabawka", description: null, sortOrder: 1, productCount: 0, createdAt: "", updatedAt: "" },
+];
 
 function renderWithProviders(ui: React.ReactElement, initialRoute = "/") {
   return render(
@@ -107,6 +116,7 @@ beforeEach(() => {
   vi.mocked(pluginsApi.getPlugins).mockResolvedValue(mockPlugins);
   vi.mocked(productsApi.getProducts).mockResolvedValue(mockProducts);
   vi.mocked(productsApi.getProduct).mockResolvedValue(mockProduct);
+  vi.mocked(categoriesApi.getCategories).mockResolvedValue(mockCategories);
 });
 
 describe("Sidebar with plugin menu items", () => {

@@ -22,6 +22,7 @@ class Permission(enum.StrEnum):
     READ = "READ"
     EDIT = "EDIT"
     PLUGIN_MANAGEMENT = "PLUGIN_MANAGEMENT"
+    ADMIN = "ADMIN"
 
 
 # Plain `Table`, deliberately NOT a mapped class — mirrors JPA

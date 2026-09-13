@@ -1,7 +1,7 @@
 """Product business logic: CRUD against `Product`, delegating listing to
-`query_service.list_products`. `category` is a plain enum column (no
-relationship to eager-load) since the standalone `Category` entity was
-removed.
+`query_service.list_products`. `category_id` is a plain FK-id column (no
+relationship to eager-load, per `standards/backend/models.md`'s cross-module
+rule) into the standalone `app.category` module's `Category` table.
 
 `delete_product` handles the FK violation raised when a product is still
 referenced by an `app.circulation.InventoryItem` — mirroring the pattern
@@ -22,7 +22,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.errors import BusinessConflictException, EntityNotFoundException
 
 from . import query_service
-from .models import Product, ProductCategory
+from .models import Product
 from .schemas import CreateProductRequest, UpdateProductRequest
 
 # Placeholder price/sku for a Product auto-created from a freeform item
@@ -51,13 +51,13 @@ def _product_select() -> Select[tuple[Product]]:
 async def list_products(
     db: AsyncSession,
     *,
-    category: ProductCategory | None,
+    category_id: int | None,
     search: str | None,
     sort: str | None,
     plugin_filters: list[str] | None,
 ) -> list[Product]:
     return await query_service.list_products(
-        db, category=category, search=search, sort=sort, plugin_filters=plugin_filters
+        db, category_id=category_id, search=search, sort=sort, plugin_filters=plugin_filters
     )
 
 
@@ -76,7 +76,7 @@ async def create_product(db: AsyncSession, data: CreateProductRequest) -> Produc
         photo_url=data.photo_url,
         price=data.price,
         sku=data.sku,
-        category=data.category,
+        category_id=data.category_id,
     )
     db.add(product)
     await db.commit()
@@ -90,22 +90,22 @@ async def update_product(db: AsyncSession, product_id: int, data: UpdateProductR
     product.photo_url = data.photo_url
     product.price = data.price
     product.sku = data.sku
-    product.category = data.category
+    product.category_id = data.category_id
     await db.commit()
     return await get_product(db, product_id)
 
 
 async def get_or_create_product_by_name(
-    db: AsyncSession, name: str, category: ProductCategory
+    db: AsyncSession, name: str, category_id: int
 ) -> Product:
     """Resolves a freeform item name typed by a user (e.g. during
-    onboarding) to an existing `Product` in the same `category` — matched
+    onboarding) to an existing `Product` in the same `category_id` — matched
     case-insensitively — or creates a new one with a placeholder price/sku
     when no match exists. See `_PLACEHOLDER_PRICE` docstring above for the
     provenance of the placeholder values."""
     result = await db.execute(
         _product_select().where(
-            func.lower(Product.name) == name.lower(), Product.category == category
+            func.lower(Product.name) == name.lower(), Product.category_id == category_id
         )
     )
     product = result.scalars().first()
@@ -118,7 +118,7 @@ async def get_or_create_product_by_name(
         photo_url=None,
         price=_PLACEHOLDER_PRICE,
         sku=f"{name[:10].upper()}-{int(time.time() * 1000)}",
-        category=category,
+        category_id=category_id,
     )
     db.add(product)
     await db.commit()

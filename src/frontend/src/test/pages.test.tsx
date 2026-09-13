@@ -7,6 +7,7 @@ import type { ProductResponse } from "../api/products";
 import * as productsApi from "../api/products";
 import { PluginProvider } from "../plugins/PluginContext";
 import * as pluginsApi from "../api/plugins";
+import * as categoriesApi from "../api/categories";
 
 vi.mock("../auth/AuthContext", async (importOriginal) => {
   const actual = await importOriginal<typeof import("../auth/AuthContext")>();
@@ -40,6 +41,15 @@ vi.mock("../api/plugins", () => ({
   setPluginEnabled: vi.fn(),
 }));
 
+vi.mock("../api/categories", () => ({
+  getCategories: vi.fn(),
+}));
+
+const mockCategories: categoriesApi.Category[] = [
+  { id: 1, name: "Zabawka", description: null, sortOrder: 1, productCount: 0, createdAt: "", updatedAt: "" },
+  { id: 4, name: "Ubranie", description: null, sortOrder: 4, productCount: 0, createdAt: "", updatedAt: "" },
+];
+
 const mockProducts: ProductResponse[] = [
   {
     id: 1,
@@ -48,7 +58,7 @@ const mockProducts: ProductResponse[] = [
     photoUrl: "https://example.com/headphones.jpg",
     price: 149.99,
     sku: "WHP-001",
-    category: "TOY",
+    category_id: 1,
     pluginData: null,
     createdAt: "2026-03-28T10:00:00Z",
     updatedAt: "2026-03-28T10:00:00Z",
@@ -60,7 +70,7 @@ const mockProducts: ProductResponse[] = [
     photoUrl: null,
     price: 89.50,
     sku: "CAW-042",
-    category: "CLOTHING",
+    category_id: 4,
     pluginData: null,
     createdAt: "2026-03-27T10:00:00Z",
     updatedAt: "2026-03-27T10:00:00Z",
@@ -80,6 +90,7 @@ function renderWithProviders(ui: React.ReactElement, initialRoute = "/") {
 beforeEach(() => {
   vi.resetAllMocks();
   vi.mocked(pluginsApi.getPlugins).mockResolvedValue([]);
+  vi.mocked(categoriesApi.getCategories).mockResolvedValue(mockCategories);
   vi.mocked(productsApi.getProducts).mockResolvedValue(mockProducts);
   vi.mocked(productsApi.getProduct).mockResolvedValue(mockProducts[0]!);
 });

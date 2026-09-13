@@ -29,6 +29,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.auth.router import router as auth_router
+from app.category.router import router as category_router
 from app.circulation.router import router as circulation_router
 from app.config import settings
 from app.core.auth_deps import register_auth_exception_handlers
@@ -90,6 +91,7 @@ app.include_router(auth_router)
 app.include_router(oauth2_router)
 app.include_router(oauth2_metadata_router)
 app.include_router(product_router)
+app.include_router(category_router)
 app.include_router(plugin_router)
 app.include_router(footprint_router)
 app.include_router(users_router)

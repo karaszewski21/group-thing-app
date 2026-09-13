@@ -7,9 +7,14 @@ import { CarbonFootprintLandingPage } from "../pages/CarbonFootprintLandingPage"
 import { Sidebar } from "../components/layout/Sidebar";
 import * as productsApi from "../api/products";
 import type { ProductResponse } from "../api/products";
+import * as categoriesApi from "../api/categories";
 
 vi.mock("../api/products", () => ({
   getProducts: vi.fn(),
+}));
+
+vi.mock("../api/categories", () => ({
+  getCategories: vi.fn(),
 }));
 
 vi.mock("../auth/AuthContext", async (importOriginal) => {
@@ -45,7 +50,7 @@ const products: ProductResponse[] = [
     photoUrl: null,
     price: 9.99,
     sku: "OFB-330",
-    category: "OTHER",
+    category_id: 5,
     pluginData: null,
     createdAt: "2026-01-01T00:00:00Z",
     updatedAt: "2026-01-01T00:00:00Z",
@@ -57,11 +62,15 @@ const products: ProductResponse[] = [
     photoUrl: null,
     price: 6.49,
     sku: "BPR-220",
-    category: "OTHER",
+    category_id: 5,
     pluginData: null,
     createdAt: "2026-01-01T00:00:00Z",
     updatedAt: "2026-01-01T00:00:00Z",
   },
+];
+
+const mockCategories: categoriesApi.Category[] = [
+  { id: 5, name: "Inne", description: null, sortOrder: 5, productCount: 0, createdAt: "", updatedAt: "" },
 ];
 
 function renderLanding() {
@@ -84,6 +93,7 @@ describe("CarbonFootprintLandingPage", () => {
   beforeEach(() => {
     vi.resetAllMocks();
     vi.mocked(productsApi.getProducts).mockResolvedValue(products);
+    vi.mocked(categoriesApi.getCategories).mockResolvedValue(mockCategories);
   });
 
   it("with no search term, renders EmptyState message and does not call getProducts", () => {

@@ -32,7 +32,7 @@ async def _register(client: AsyncClient, role: str, email: str) -> tuple[str, in
 
 async def _resolve_product(client: AsyncClient, token: str, name: str) -> int:
     r = await client.post(
-        "/api/products/resolve", json={"name": name, "category": "OTHER"}, headers=_auth(token)
+        "/api/products/resolve", json={"name": name, "category_id": 5}, headers=_auth(token)
     )
     assert r.status_code == 200
     return int(r.json()["id"])

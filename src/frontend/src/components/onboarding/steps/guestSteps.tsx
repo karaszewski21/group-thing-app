@@ -24,7 +24,7 @@ function ItemsStepBody({ ctx }: { ctx: StepContext }) {
       const inventories = await getInventories(profile.account_user_id);
       let inventory = inventories.find((i) => i.inventory_type === "PERSONAL") ?? null;
       if (!inventory) inventory = await createInventory({ inventory_type: "PERSONAL" });
-      const product = await resolveProduct({ name: value.name.trim(), category: value.category });
+      const product = await resolveProduct({ name: value.name.trim(), category_id: value.category_id });
       await registerInventoryItem({
         inventory_id: inventory.id,
         product_id: product.id,

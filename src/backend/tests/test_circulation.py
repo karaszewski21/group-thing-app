@@ -30,7 +30,7 @@ async def _create_item(client: AsyncClient, headers: dict[str, str]) -> tuple[in
     Returns `(inventory_id, item_id)`."""
     resolved = await client.post(
         "/api/products/resolve",
-        json={"name": "Klocki Duplo", "category": "TOY"},
+        json={"name": "Klocki Duplo", "category_id": 1},
         headers=headers,
     )
     assert resolved.status_code == 200
@@ -98,7 +98,7 @@ async def test_patchInventoryItem_owner_changesProduct(client: AsyncClient) -> N
 
     other_product = await client.post(
         "/api/products/resolve",
-        json={"name": "Miś Uszatek", "category": "TOY"},
+        json={"name": "Miś Uszatek", "category_id": 1},
         headers=headers,
     )
     assert other_product.status_code == 200

@@ -3,6 +3,7 @@ import {
   LayoutList,
   Leaf,
   Plug,
+  Tag,
   Users,
   Warehouse,
   Image as ImageIcon,
@@ -15,6 +16,7 @@ export const PluginsIcon = Plug;
 export const WarehouseIcon = Warehouse;
 export const FootprintIcon = Leaf;
 export const KragIcon = Users;
+export const CategoriesIcon = Tag;
 
 const ICON_MAP: Record<string, LucideIcon> = {
   package: Package,

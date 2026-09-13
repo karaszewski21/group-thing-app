@@ -63,9 +63,13 @@ _RAW_MATRIX: tuple[_RawEntry, ...] = (
     (_methods("POST", "PUT", "DELETE"), r"^/api/products(/.*)?$", ("EDIT", "mcp:edit")),  # 17
     (_methods("PUT", "DELETE"), r"^/api/plugins/[^/]+/objects(/.*)?$", ("EDIT",)),  # 18
     (_methods("PUT", "DELETE"), r"^/api/plugins/[^/]+/products/[^/]+/data$", ("EDIT",)),  # 19
-    (_methods("PUT"), r"^/api/plugins/[^/]+/manifest$", ("PLUGIN_MANAGEMENT",)),  # 20
-    (_methods("PATCH"), r"^/api/plugins/[^/]+/enabled$", ("PLUGIN_MANAGEMENT",)),  # 21
-    (_methods("DELETE"), r"^/api/plugins/[^/]+$", ("PLUGIN_MANAGEMENT",)),  # 22
+    # 20-22: ADMIN added as an additive alternative alongside PLUGIN_MANAGEMENT
+    # (implementation plan Task Group 4 / spec.md Core Requirement #6) — a
+    # principal with either permission reaches these 3 routes; no other
+    # plugin route or behavior changes.
+    (_methods("PUT"), r"^/api/plugins/[^/]+/manifest$", ("PLUGIN_MANAGEMENT", "ADMIN")),  # 20
+    (_methods("PATCH"), r"^/api/plugins/[^/]+/enabled$", ("PLUGIN_MANAGEMENT", "ADMIN")),  # 21
+    (_methods("DELETE"), r"^/api/plugins/[^/]+$", ("PLUGIN_MANAGEMENT", "ADMIN")),  # 22
     # Caller's own Term RSVPs (R10). Declared ahead of the public groups rows
     # and row 26's blanket `^/api/groups(/.*)?$` READ row so the literal
     # `mine/attendances` path matches here. Caller's party is derived from the
@@ -152,6 +156,13 @@ _RAW_MATRIX: tuple[_RawEntry, ...] = (
     # notifications") is enforced in `app.notifications.service.mark_read`.
     (_methods("GET"), r"^/api/notifications(/.*)?$", ("READ", "mcp:read")),  # 51
     (_methods("POST"), r"^/api/notifications(/.*)?$", ("EDIT", "mcp:edit")),  # 52
+    # 53-54: app.category — reintroduced standalone Category reference
+    # table (implementation/spec.md). GETs stay READ-gated (never ADMIN):
+    # the seeded `editor` account's product-creation category dropdown
+    # depends on this. All mutations (create/update/delete/reorder) are
+    # ADMIN-only, unlike app.product's EDIT-gated mutations.
+    (_methods("GET"), r"^/api/categories(/.*)?$", ("READ", "mcp:read")),  # 53
+    (_methods("POST", "PUT", "DELETE", "PATCH"), r"^/api/categories(/.*)?$", ("ADMIN",)),  # 54
     (None, r"^.*$", "AUTHENTICATED"),  # 25 - catch-all
 )
 

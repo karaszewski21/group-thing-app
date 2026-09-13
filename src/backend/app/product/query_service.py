@@ -17,7 +17,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.filter_dsl import ALLOWED_OPERATORS, IDENTIFIER_PATTERN
 
-from .models import Product, ProductCategory
+from .models import Product
 
 # Sort whitelist: unknown/blank `field` silently falls back to the default
 # (`created_at DESC`) — never a 400. `createdAt` (camelCase, matching the
@@ -130,15 +130,15 @@ def _parse_plugin_filter(raw: str) -> ColumnElement[Any]:
 async def list_products(
     db: AsyncSession,
     *,
-    category: ProductCategory | None,
+    category_id: int | None,
     search: str | None,
     sort: str | None,
     plugin_filters: list[str] | None,
 ) -> list[Product]:
     stmt = select(Product)
 
-    if category is not None:
-        stmt = stmt.where(Product.category == category)
+    if category_id is not None:
+        stmt = stmt.where(Product.category_id == category_id)
 
     if search:
         stmt = stmt.where(Product.name.ilike(f"%{search}%"))

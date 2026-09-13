@@ -1,0 +1,27 @@
+- generic [ref=f3e4]:
+  - banner [ref=f3e6]:
+    - button "Wróć" [ref=f3e115]
+    - heading "Ustawienia" [level=1] [ref=f3e118]
+  - generic [ref=f3e19]:
+    - generic [ref=f3e119]:
+      - heading "Powiadomienia" [level=3] [ref=f3e120]
+      - generic [ref=f3e121]:
+        - generic [ref=f3e122]:
+          - strong [ref=f3e123]: Powiadomienia e-mail
+          - generic [ref=f3e124]: Nowe zgłoszenia i wiadomości
+        - switch "Powiadomienia e-mail" [checked] [ref=f3e125]
+      - generic [ref=f3e127]:
+        - generic [ref=f3e128]:
+          - strong [ref=f3e129]: Powiadomienia SMS
+          - generic [ref=f3e130]: Przypomnienia o nadchodzących zajęciach
+        - switch "Powiadomienia SMS" [ref=f3e131]
+    - generic [ref=f3e133]:
+      - heading "Prywatność" [level=3] [ref=f3e134]
+      - generic [ref=f3e135]:
+        - generic [ref=f3e136]:
+          - strong [ref=f3e137]: Widoczny profil publiczny
+          - generic [ref=f3e138]: Inne rodziny mogą Cię znaleźć
+        - switch "Widoczny profil publiczny" [checked] [ref=f3e139]
+    - generic [ref=f3e141]:
+      - heading "Konto" [level=3] [ref=f3e142]
+      - button "Wyloguj się" [ref=f3e143]

@@ -11,7 +11,8 @@ from __future__ import annotations
 from sqlalchemy import Row, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.product.models import Product, ProductCategory
+from app.category.models import Category
+from app.product.models import Product
 from app.users.models import UserProfile
 
 from ..models import (
@@ -181,13 +182,14 @@ async def list_needed_items_for_term(db: AsyncSession, term_id: int) -> list[Nee
 
 async def get_needed_item_with_product(
     db: AsyncSession, needed_item_id: int
-) -> Row[tuple[NeededItem, str, ProductCategory]] | None:
+) -> Row[tuple[NeededItem, str, int, str]] | None:
     """`NeededItem` + its product's name/category via an explicit join
     scoped to this one read (`standards/backend/models.md` cross-module
-    rule — no `relationship()` into `app.product`)."""
+    rule — no `relationship()` into `app.product` or `app.category`)."""
     result = await db.execute(
-        select(NeededItem, Product.name, Product.category)
+        select(NeededItem, Product.name, Category.id, Category.name)
         .join(Product, NeededItem.product_id == Product.id)
+        .join(Category, Product.category_id == Category.id)
         .where(NeededItem.id == needed_item_id)
     )
     return result.one_or_none()
@@ -195,10 +197,11 @@ async def get_needed_item_with_product(
 
 async def list_needed_items_with_product_for_term(
     db: AsyncSession, term_id: int
-) -> list[Row[tuple[NeededItem, str, ProductCategory]]]:
+) -> list[Row[tuple[NeededItem, str, int, str]]]:
     result = await db.execute(
-        select(NeededItem, Product.name, Product.category)
+        select(NeededItem, Product.name, Category.id, Category.name)
         .join(Product, NeededItem.product_id == Product.id)
+        .join(Category, Product.category_id == Category.id)
         .where(NeededItem.term_id == term_id, NeededItem.deleted_at.is_(None))
         .order_by(NeededItem.id)
     )

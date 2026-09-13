@@ -1,0 +1,17 @@
+[     176ms] [INFO] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold @ http://localhost:5175/node_modules/.vite/deps/react-dom_client.js?v=ae0e2484:14336
+[ 2542179ms] [LOG] [vite] server connection lost. Polling for restart... @ http://localhost:5175/@vite/client:968
+[ 3028797ms] [INFO] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold @ http://localhost:5175/node_modules/.vite/deps/react-dom_client.js?v=ae0e2484:14336
+[ 6203320ms] [LOG] [vite] server connection lost. Polling for restart... @ http://localhost:5175/@vite/client:968
+[ 6203924ms] [INFO] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold @ http://localhost:5175/node_modules/.vite/deps/react-dom_client.js?v=ae0e2484:14336
+[ 6204004ms] [LOG] [vite] server connection lost. Polling for restart... @ http://localhost:5175/@vite/client:968
+[ 6204064ms] [ERROR] Failed to load resource: net::ERR_NETWORK_IO_SUSPENDED @ http://localhost:5175/favicon.svg:0
+[ 6204068ms] [ERROR] Failed to load resource: net::ERR_NETWORK_IO_SUSPENDED @ http://localhost:5175/favicon.svg:0
+[ 6205994ms] [VERBOSE] [DOM] Input elements should have autocomplete attributes (suggested: "current-password"): (More info: https://goo.gl/9p2vKq) %o @ http://localhost:5175/login?returnTo=%2Fpanel%2Fustawienia:0
+[ 6206345ms] [INFO] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold @ http://localhost:5175/node_modules/.vite/deps/react-dom_client.js?v=ae0e2484:14336
+[ 6206528ms] [VERBOSE] [DOM] Input elements should have autocomplete attributes (suggested: "current-password"): (More info: https://goo.gl/9p2vKq) %o @ http://localhost:5175/login?returnTo=%2Fpanel%2Fustawienia:0
+[ 6560939ms] [LOG] [vite] server connection lost. Polling for restart... @ http://localhost:5175/@vite/client:968
+[ 6619711ms] [INFO] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold @ http://localhost:5175/node_modules/.vite/deps/react-dom_client.js?v=ae0e2484:14336
+[ 6620107ms] [VERBOSE] [DOM] Input elements should have autocomplete attributes (suggested: "current-password"): (More info: https://goo.gl/9p2vKq) %o @ http://localhost:5175/login?returnTo=%2Fpanel%2Fustawienia:0
+[ 6958062ms] [LOG] [vite] server connection lost. Polling for restart... @ http://localhost:5175/@vite/client:968
+[25531380ms] [INFO] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold @ http://localhost:5175/node_modules/.vite/deps/react-dom_client.js?v=ae0e2484:14336
+[25531922ms] [VERBOSE] [DOM] Input elements should have autocomplete attributes (suggested: "current-password"): (More info: https://goo.gl/9p2vKq) %o @ http://localhost:5175/login?returnTo=%2Fpanel%2Fustawienia:0

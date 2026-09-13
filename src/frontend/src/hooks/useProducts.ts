@@ -3,7 +3,6 @@ import type {
   ProductResponse,
   CreateProductRequest,
   UpdateProductRequest,
-  ProductCategory,
 } from "../api/products";
 import {
   getProducts,
@@ -23,7 +22,7 @@ interface UseProductsResult {
 }
 
 interface UseProductsParams {
-  category?: ProductCategory;
+  category_id?: number;
   search?: string;
   sortField?: string;
   pluginFilters?: string[];
@@ -34,7 +33,7 @@ export function useProducts(params?: UseProductsParams): UseProductsResult {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const category = params?.category;
+  const categoryId = params?.category_id;
   const search = params?.search;
   const sortField = params?.sortField;
   const pluginFilters = params?.pluginFilters;
@@ -45,7 +44,7 @@ export function useProducts(params?: UseProductsParams): UseProductsResult {
     setError(null);
     try {
       const products = await getProducts({
-        category: category,
+        category_id: categoryId,
         search: search,
         sort: sortField ? `${sortField},asc` : undefined,
         pluginFilters: pluginFilters,
@@ -56,7 +55,7 @@ export function useProducts(params?: UseProductsParams): UseProductsResult {
     } finally {
       setLoading(false);
     }
-  }, [category, search, sortField, pluginFiltersKey]);
+  }, [categoryId, search, sortField, pluginFiltersKey]);
 
   useEffect(() => {
     void refetch();

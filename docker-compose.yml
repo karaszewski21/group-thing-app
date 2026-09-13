@@ -15,6 +15,21 @@ services:
       timeout: 5s
       retries: 10
 
+  # One-shot: builds the real frontend (same builder stage the `frontend`
+  # image uses) and copies just `index.html` into `frontend_index` — the
+  # backend's public-preview routes (app/system/router.py) inject Open
+  # Graph/Twitter meta tags into this file, so they need the actual current
+  # build's <script>/<link> tags, not a placeholder. Exits once done; both
+  # `backend` and `frontend` wait on it via `service_completed_successfully`.
+  frontend-build:
+    build:
+      context: .
+      dockerfile: src/frontend/Dockerfile
+      target: builder
+    volumes:
+      - frontend_index:/output
+    command: sh -c "cp /app/src/frontend/dist/index.html /output/index.html"
+
   backend:
     build:
       context: src/backend
@@ -33,9 +48,13 @@ services:
       FOOTPRINT_AUDIT_RETRY_MAX_ATTEMPTS: ${FOOTPRINT_AUDIT_RETRY_MAX_ATTEMPTS:-3}
       FOOTPRINT_AUDIT_RETRY_DELAY_MS: ${FOOTPRINT_AUDIT_RETRY_DELAY_MS:-200}
       FOOTPRINT_AUDIT_RETRY_MULTIPLIER: ${FOOTPRINT_AUDIT_RETRY_MULTIPLIER:-2.0}
+    volumes:
+      - frontend_index:/app/static
     depends_on:
       postgres:
         condition: service_healthy
+      frontend-build:
+        condition: service_completed_successfully
 
   frontend:
     build:
@@ -46,7 +65,11 @@ services:
     ports:
       - "5174:80"
     depends_on:
-      - backend
+      backend:
+        condition: service_started
+      frontend-build:
+        condition: service_completed_successfully
 
 volumes:
   postgres_data:
+  frontend_index:

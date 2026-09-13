@@ -2,6 +2,8 @@ import { createBrowserRouter, Navigate, Outlet } from "react-router-dom";
 import { AppShell } from "./components/layout/AppShell";
 import { ProductListPage } from "./pages/ProductListPage";
 import { ProductFormPage } from "./pages/ProductFormPage";
+import { CategoryListPage } from "./pages/CategoryListPage";
+import { CategoryFormPage } from "./pages/CategoryFormPage";
 import { ProductDetailPage } from "./pages/ProductDetailPage";
 import { ProductFootprintPage } from "./pages/ProductFootprintPage";
 import { FootprintComparisonPage } from "./pages/FootprintComparisonPage";
@@ -61,8 +63,16 @@ export const router = createBrowserRouter([
   },
   {
     // Role-aware landing for Guest/Organizer accounts — same standalone,
-    // Tailwind phone-frame pattern as /krag above.
+    // Tailwind phone-frame pattern as /krag above. `/panel/:view` is a
+    // second, identical route (not a child route) so each Panel section
+    // (spotkania/rzeczy/podarki/profil/ustawienia/rodzina) has its own real
+    // URL and survives a refresh instead of always resetting to "home" —
+    // see PanelDataContext.tsx, which derives `view` from this param.
     path: "/panel",
+    element: <AuthGuard><PanelPage /></AuthGuard>,
+  },
+  {
+    path: "/panel/:view",
     element: <AuthGuard><PanelPage /></AuthGuard>,
   },
   {
@@ -95,6 +105,9 @@ export const router = createBrowserRouter([
       { path: "products/:id/footprint", element: <ProductFootprintPage /> },
       { path: "products/:id/footprint/compare", element: <FootprintComparisonPage /> },
       { path: "carbon-footprint", element: <CarbonFootprintLandingPage /> },
+      { path: "categories", element: <CategoryListPage /> },
+      { path: "categories/new", element: <CategoryFormPage /> },
+      { path: "categories/:id/edit", element: <CategoryFormPage /> },
       { path: "plugins", element: <PluginListPage /> },
       { path: "plugins/new", element: <PluginFormPage /> },
       { path: "plugins/:pluginId/detail", element: <PluginDetailPage /> },

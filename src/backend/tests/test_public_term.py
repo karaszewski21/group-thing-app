@@ -77,7 +77,7 @@ async def _create_needed_item(
 ) -> int:
     resolved = await client.post(
         "/api/products/resolve",
-        json={"name": product_name, "category": "OTHER"},
+        json={"name": product_name, "category_id": 5},
         headers=_auth_headers(token),
     )
     assert resolved.status_code == 200
@@ -118,7 +118,8 @@ async def test_getPublicCircle_withTermIdParam_returnsThatTermsItemsAndGuardians
     assert body["next_term"]["id"] == far_term_id
     assert [item["description"] for item in body["next_term"]["needed_items"]] == ["5 grzechotek"]
     assert body["next_term"]["needed_items"][0]["product_name"] == "Grzechotka"
-    assert body["next_term"]["needed_items"][0]["product_category"] == "OTHER"
+    assert body["next_term"]["needed_items"][0]["product_category_id"] == 5
+    assert body["next_term"]["needed_items"][0]["product_category_name"] == "Inne"
     assert body["guardians"] == [{"display_name": "Marek Nowak"}]
 
 

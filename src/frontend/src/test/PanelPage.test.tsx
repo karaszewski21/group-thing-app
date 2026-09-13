@@ -1,7 +1,7 @@
 import { render, screen, waitFor, within } from "@testing-library/react";
 import { fireEvent } from "@testing-library/react";
 import { describe, expect, it, vi, beforeEach } from "vitest";
-import { MemoryRouter } from "react-router-dom";
+import { MemoryRouter, Route, Routes } from "react-router-dom";
 
 // TODO(Group 8): this unit suite can only exercise the hamburger-promotion
 // click-through and item-dialog rework at the component level — if the
@@ -17,6 +17,7 @@ import * as termsApi from "../api/terms";
 import * as organizationsApi from "../api/organizations";
 import * as pledgesApi from "../api/pledges";
 import * as notificationsApi from "../api/notifications";
+import * as categoriesApi from "../api/categories";
 import { PanelPage } from "../pages/panel/PanelPage";
 import { ApiError } from "../api/client";
 
@@ -101,6 +102,10 @@ vi.mock("../api/notifications", () => ({
   markAllNotificationsRead: vi.fn(),
 }));
 
+vi.mock("../api/categories", () => ({
+  getCategories: vi.fn(),
+}));
+
 const mockProfile: peopleApi.UserProfileResponse = {
   id: 1,
   party_id: 1,
@@ -125,6 +130,15 @@ const mockInventory: inventoriesApi.InventoryResponse = {
   created_at: "2026-01-01T00:00:00Z",
   updated_at: "2026-01-01T00:00:00Z",
 };
+
+// Seeded category ids/names (migration 0025_category_reintroduction.py).
+const mockCategories: categoriesApi.Category[] = [
+  { id: 1, name: "Zabawka", description: null, sortOrder: 1, productCount: 0, createdAt: "", updatedAt: "" },
+  { id: 2, name: "Książka", description: null, sortOrder: 2, productCount: 0, createdAt: "", updatedAt: "" },
+  { id: 3, name: "Gra", description: null, sortOrder: 3, productCount: 0, createdAt: "", updatedAt: "" },
+  { id: 4, name: "Ubranie", description: null, sortOrder: 4, productCount: 0, createdAt: "", updatedAt: "" },
+  { id: 5, name: "Inne", description: null, sortOrder: 5, productCount: 0, createdAt: "", updatedAt: "" },
+];
 
 const mockGroup: groupsApi.GroupResponse = {
   id: 5,
@@ -204,13 +218,17 @@ const mockGuardians: familiesApi.GuardianResponse[] = [
 
 function renderPanel() {
   return render(
-    <MemoryRouter>
-      <PanelPage />
+    <MemoryRouter initialEntries={["/panel"]}>
+      <Routes>
+        <Route path="/panel" element={<PanelPage />} />
+        <Route path="/panel/:view" element={<PanelPage />} />
+      </Routes>
     </MemoryRouter>,
   );
 }
 
 function mockGuestDefaults() {
+  vi.mocked(categoriesApi.getCategories).mockResolvedValue(mockCategories);
   vi.mocked(peopleApi.getMyProfile).mockResolvedValue(mockProfile);
   vi.mocked(peopleApi.getLeadershipsForPerson).mockResolvedValue([]);
   vi.mocked(inventoriesApi.getInventories).mockResolvedValue([mockInventory]);
@@ -226,6 +244,7 @@ function mockGuestDefaults() {
 }
 
 function mockOrganizerDefaults() {
+  vi.mocked(categoriesApi.getCategories).mockResolvedValue(mockCategories);
   vi.mocked(peopleApi.getMyProfile).mockResolvedValue(mockOrganizerProfile);
   vi.mocked(peopleApi.getLeadershipsForPerson).mockResolvedValue([
     { id: 1, from_role_id: 1, to_group_id: 5, organizer_party_id: 1, valid_from: "2026-01-01", valid_to: null },
@@ -448,7 +467,7 @@ describe("PanelPage — item add dialog rework", () => {
       photoUrl: null,
       price: 0,
       sku: "SKU",
-      category: "TOY",
+      category_id: 1,
       pluginData: null,
       createdAt: "",
       updatedAt: "",
@@ -472,7 +491,7 @@ describe("PanelPage — item add dialog rework", () => {
     fireEvent.click(within(dialog).getByRole("button", { name: "Dodaj rzecz" }));
 
     await waitFor(() =>
-      expect(productsApi.resolveProduct).toHaveBeenCalledWith({ name: "Rowerek", category: "OTHER" }),
+      expect(productsApi.resolveProduct).toHaveBeenCalledWith({ name: "Rowerek", category_id: 1 }),
     );
     await waitFor(() =>
       expect(inventoriesApi.registerInventoryItem).toHaveBeenCalledWith({
@@ -1237,11 +1256,11 @@ describe("PanelPage — per-term public links & copy-link button", () => {
     vi.mocked(termsApi.getNeededItems).mockResolvedValue([
       {
         id: 1, term_id: 1, product_id: 5, product_name: "Bębenek",
-        product_category: "OTHER", description: null, claimed: true, created_at: "", updated_at: "",
+        product_category_id: 5, product_category_name: "Inne", description: null, claimed: true, created_at: "", updated_at: "",
       },
       {
         id: 2, term_id: 1, product_id: 6, product_name: "Koc",
-        product_category: "OTHER", description: null, claimed: false, created_at: "", updated_at: "",
+        product_category_id: 5, product_category_name: "Inne", description: null, claimed: false, created_at: "", updated_at: "",
       },
     ]);
     renderPanel();
@@ -1337,7 +1356,8 @@ describe("PanelPage — needed item sub-CRUD (in the term dialog)", () => {
     term_id: 1,
     product_id: 5,
     product_name: "Bębenek",
-    product_category: "OTHER" as const,
+    product_category_id: 5,
+    product_category_name: "Inne",
     description: "mały",
     claimed: false,
     created_at: "",
@@ -1361,10 +1381,10 @@ describe("PanelPage — needed item sub-CRUD (in the term dialog)", () => {
     mockTermWithNeeded();
     vi.mocked(productsApi.resolveProduct).mockResolvedValue({
       id: 42, name: "Mata", description: null, photoUrl: null, price: 0.01, sku: "MATA-1",
-      category: "OTHER", pluginData: null, createdAt: "", updatedAt: "",
+      category_id: 1, pluginData: null, createdAt: "", updatedAt: "",
     });
     vi.mocked(termsApi.createNeededItem).mockResolvedValue({
-      id: 12, term_id: 1, product_id: 42, product_name: "Mata", product_category: "OTHER",
+      id: 12, term_id: 1, product_id: 42, product_name: "Mata", product_category_id: 1, product_category_name: "Zabawka",
       description: "Koc", claimed: false, created_at: "", updated_at: "",
     });
     const dialog = await openEditDialog();
@@ -1375,7 +1395,7 @@ describe("PanelPage — needed item sub-CRUD (in the term dialog)", () => {
     fireEvent.click(within(dialog).getByRole("button", { name: "Dodaj" }));
 
     await waitFor(() =>
-      expect(productsApi.resolveProduct).toHaveBeenCalledWith({ name: "Mata", category: "OTHER" }),
+      expect(productsApi.resolveProduct).toHaveBeenCalledWith({ name: "Mata", category_id: 1 }),
     );
     await waitFor(() =>
       expect(termsApi.createNeededItem).toHaveBeenCalledWith({
@@ -1444,7 +1464,7 @@ describe("PanelPage — inventory item edit/delete", () => {
     photoUrl: null,
     price: 0,
     sku: "SKU7",
-    category: "TOY" as const,
+    category_id: 1,
     pluginData: null,
     createdAt: "",
     updatedAt: "",
@@ -1480,11 +1500,11 @@ describe("PanelPage — inventory item edit/delete", () => {
     fireEvent.click(await screen.findByRole("button", { name: "Moje rzeczy" }));
     fireEvent.click(await screen.findByRole("button", { name: "Edytuj rzecz Rowerek" }));
     fireEvent.change(screen.getByLabelText("Nazwa rzeczy"), { target: { value: "Hulajnoga" } });
-    fireEvent.change(screen.getByLabelText("Typ rzeczy"), { target: { value: "GAME" } });
+    fireEvent.change(screen.getByLabelText("Typ rzeczy"), { target: { value: "3" } });
     fireEvent.click(screen.getByRole("button", { name: "Zapisz" }));
 
     await waitFor(() =>
-      expect(productsApi.resolveProduct).toHaveBeenCalledWith({ name: "Hulajnoga", category: "GAME" }),
+      expect(productsApi.resolveProduct).toHaveBeenCalledWith({ name: "Hulajnoga", category_id: 3 }),
     );
     await waitFor(() =>
       expect(inventoriesApi.updateInventoryItem).toHaveBeenCalledWith(21, { product_id: 99 }),
@@ -1539,7 +1559,8 @@ describe("PanelPage — needed item edit error path", () => {
     term_id: 1,
     product_id: 5,
     product_name: "Bębenek",
-    product_category: "OTHER" as const,
+    product_category_id: 5,
+    product_category_name: "Inne",
     description: "mały",
     claimed: false,
     created_at: "",

@@ -29,14 +29,14 @@ async def test_resolveProduct_noExistingMatch_createsNewProductWithPlaceholderPr
 
     response = await client.post(
         "/api/products/resolve",
-        json={"name": "Lego Duplo", "category": "TOY"},
+        json={"name": "Lego Duplo", "category_id": 1},
         headers=headers,
     )
 
     assert response.status_code == 200
     body = response.json()
     assert body["name"] == "Lego Duplo"
-    assert body["category"] == "TOY"
+    assert body["category_id"] == 1
     assert body["price"] == "0.01"
     assert body["sku"].startswith("LEGO DUPLO"[:10])
 
@@ -48,7 +48,7 @@ async def test_resolveProduct_caseInsensitiveNameMatchSameCategory_returnsExisti
 
     first = await client.post(
         "/api/products/resolve",
-        json={"name": "Rowerek Biegowy", "category": "TOY"},
+        json={"name": "Rowerek Biegowy", "category_id": 1},
         headers=headers,
     )
     assert first.status_code == 200
@@ -56,7 +56,7 @@ async def test_resolveProduct_caseInsensitiveNameMatchSameCategory_returnsExisti
 
     second = await client.post(
         "/api/products/resolve",
-        json={"name": "ROWEREK biegowy", "category": "TOY"},
+        json={"name": "ROWEREK biegowy", "category_id": 1},
         headers=headers,
     )
 
@@ -71,12 +71,12 @@ async def test_resolveProduct_sameNameDifferentCategory_createsNew(
 
     first = await client.post(
         "/api/products/resolve",
-        json={"name": "Zestaw", "category": "TOY"},
+        json={"name": "Zestaw", "category_id": 1},
         headers=headers,
     )
     second = await client.post(
         "/api/products/resolve",
-        json={"name": "Zestaw", "category": "BOOK"},
+        json={"name": "Zestaw", "category_id": 2},
         headers=headers,
     )
 
@@ -92,7 +92,7 @@ async def test_resolveProduct_thenRegisterInventoryItem_producesRealInventoryIte
 
     resolved = await client.post(
         "/api/products/resolve",
-        json={"name": "Klocki Duplo", "category": "TOY"},
+        json={"name": "Klocki Duplo", "category_id": 1},
         headers=headers,
     )
     assert resolved.status_code == 200

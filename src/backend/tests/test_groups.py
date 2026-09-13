@@ -71,7 +71,7 @@ async def _create_circle_with_term(
 async def _resolve_product(client: AsyncClient, token: str, name: str = "Bębenek") -> int:
     resolved = await client.post(
         "/api/products/resolve",
-        json={"name": name, "category": "OTHER"},
+        json={"name": name, "category_id": 5},
         headers=_auth_headers(token),
     )
     assert resolved.status_code == 200
@@ -394,7 +394,8 @@ async def test_createNeededItem_happyPath_returns201WithProduct(
     assert body["term_id"] == term_id
     assert body["product_id"] == product_id
     assert body["product_name"] == "Instrument"
-    assert body["product_category"] == "OTHER"
+    assert body["product_category_id"] == 5
+    assert body["product_category_name"] == "Inne"
     assert body["description"] == "Bębenek"
 
 

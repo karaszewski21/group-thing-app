@@ -1,7 +1,7 @@
 import { Box, Flex, Text } from "@chakra-ui/react";
 import { Link, useLocation } from "react-router-dom";
 import type { LucideIcon } from "lucide-react";
-import { ProductsIcon, PluginsIcon, FootprintIcon, KragIcon, resolveIcon } from "../shared/Icons";
+import { ProductsIcon, PluginsIcon, FootprintIcon, KragIcon, CategoriesIcon, resolveIcon } from "../shared/Icons";
 import { usePluginContext } from "../../plugins/PluginContext";
 import { useAuth } from "../../auth/AuthContext";
 
@@ -65,6 +65,7 @@ function PluginMenuItems() {
 export function Sidebar() {
   const { permissions } = useAuth();
   const hasPluginManagement = permissions.includes("PLUGIN_MANAGEMENT");
+  const isAdmin = permissions.includes("ADMIN");
 
   return (
     <Box
@@ -91,10 +92,11 @@ export function Sidebar() {
         <NavItem to="/products" label="Products" icon={ProductsIcon} />
         <NavItem to="/carbon-footprint" label="Carbon Footprint" icon={FootprintIcon} />
         <NavItem to="/panel" label="Krąg grupy" icon={KragIcon} />
-        {hasPluginManagement && (
+        {isAdmin && <NavItem to="/categories" label="Categories" icon={CategoriesIcon} />}
+        {(hasPluginManagement || isAdmin) && (
           <NavItem to="/plugins" label="Plugins" icon={PluginsIcon} />
         )}
-        {hasPluginManagement && <PluginMenuItems />}
+        {(hasPluginManagement || isAdmin) && <PluginMenuItems />}
       </Flex>
     </Box>
   );

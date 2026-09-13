@@ -116,7 +116,7 @@ function TermStepBody({ ctx }: { ctx: StepContext }) {
         description: description || undefined,
       });
       for (const item of neededDraft) {
-        const product = await resolveProduct({ name: item.name, category: item.category });
+        const product = await resolveProduct({ name: item.name, category_id: item.category_id });
         await createNeededItem({
           term_id: term.id,
           product_id: product.id,

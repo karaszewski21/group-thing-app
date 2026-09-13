@@ -1,8 +1,7 @@
 import type { ItemCondition } from "../../api/inventories";
-import type { ProductCategory } from "../../api/products";
 import type { ItemQuickAddValue } from "../../utils/itemQuickAdd";
 import { CONDITION_LABELS } from "../../utils/productCategory";
-import { CATEGORY_LABELS, PRODUCT_CATEGORIES } from "../../utils/productCategory";
+import { useCategories } from "../../hooks/useCategories";
 
 const inputClass =
   "min-w-0 flex-1 rounded-xl border-[1.5px] border-line bg-cream px-3.5 py-2.5 text-ink";
@@ -20,9 +19,13 @@ interface ItemQuickAddFormProps {
  * prop-configured, no API calls inside the component itself — callers own
  * submission (resolving the `Product` via `resolveProduct()`, then
  * `registerInventoryItem`). Shared by PanelPage's "+ Dodaj rzecz" modal and
- * the onboarding wizard's item step.
+ * the onboarding wizard's item step. Renders the "Typ" select from
+ * `useCategories()`'s live data — categories are now a backend-managed FK,
+ * not a compile-time enum.
  */
 export function ItemQuickAddForm({ value, onChange, disabled = false }: ItemQuickAddFormProps) {
+  const { data: categories } = useCategories();
+
   return (
     <div className="flex flex-col gap-3">
       <Field label="Nazwa">
@@ -53,13 +56,13 @@ export function ItemQuickAddForm({ value, onChange, disabled = false }: ItemQuic
       <Field label="Typ">
         <select
           className={inputClass}
-          value={value.category}
-          onChange={(e) => onChange({ ...value, category: e.target.value as ProductCategory })}
+          value={value.category_id}
+          onChange={(e) => onChange({ ...value, category_id: Number(e.target.value) })}
           disabled={disabled}
         >
-          {PRODUCT_CATEGORIES.map((cat) => (
-            <option key={cat} value={cat}>
-              {CATEGORY_LABELS[cat]}
+          {categories.map((cat) => (
+            <option key={cat.id} value={cat.id}>
+              {cat.name}
             </option>
           ))}
         </select>

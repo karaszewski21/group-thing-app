@@ -1,0 +1,164 @@
+orchestrator:
+  started_phase: phase-1
+  completed_phases: [phase-1, phase-2, phase-4, phase-5, phase-6, phase-7]
+  failed_phases: []
+  auto_fix_attempts: {phase-5: 2}
+  options:
+    spec_audit_enabled: true  # confirmed by user
+    skip_test_suite: true
+    e2e_enabled: null
+    user_docs_enabled: null
+    code_review_enabled: true
+    pragmatic_review_enabled: true
+    reality_check_enabled: true
+    production_check_enabled: true
+    sequential: null
+  created: "2026-09-12T00:00:00"
+  updated: "2026-09-12T00:00:00"
+  task_path: .maister/tasks/development/2026-09-12-admin-panel-plugins-categories
+  task_ids: {}
+
+task:
+  title: "Panel administratora — zarządzanie pluginami i kategoriami produktów"
+  description: >
+    Panel dla admina, gdzie będzie można zarządzać (m.in. dodawać) pluginami
+    oraz kategoriami dla rzeczy (produktów). Zgłoszone przez użytkownika po
+    dodaniu routingu URL-owego do podstron istniejącego panelu Gościa/Organizatora
+    (/panel, /panel/:view).
+  status: in_progress
+  tags: [admin, plugins, categories, panel]
+  priority: null
+
+task_context:
+  risk_level: high
+  clarifications_resolved: true
+  scope_expanded: true
+  architecture_decision: "New Permission.ADMIN (coexists with PLUGIN_MANAGEMENT); Category reintroduced as flat FK-backed entity mirroring app/product; app.groups DTOs updated for id+name shape; sort_order-based ordering with up/down UI, no colors, no DnD lib"
+  task_characteristics:
+    has_reproducible_defect: false
+    modifies_existing_code: true
+    creates_new_entities: true
+    involves_data_operations: true
+    ui_heavy: true
+  research_reference:
+    path: null
+    research_question: null
+    research_type: null
+    confidence_level: null
+  design_reference:
+    source: null
+    product_design_path: null
+    mockup_count: 0
+    has_brief: false
+    index_path: null
+  project_doc_paths:
+    - .maister/docs/project/tech-stack.md
+    - .maister/docs/project/architecture.md
+  phase_summaries:
+    research: {summary: null, key_findings: [], recommended_approach: null}
+    design: {summary: null, screen_count: 0, component_count: 0, index_path: null}
+    codebase_analysis:
+      key_files:
+        - src/backend/app/plugin/models.py
+        - src/backend/app/plugin/router.py
+        - src/backend/app/plugin/service.py
+        - src/backend/app/product/models.py
+        - src/backend/app/product/router.py
+        - src/backend/app/auth/models.py
+        - src/backend/app/core/authorization_matrix.py
+        - src/backend/app/core/_auth/dependencies.py
+        - src/frontend/src/pages/PluginListPage.tsx
+        - src/frontend/src/pages/ProductListPage.tsx
+        - src/frontend/src/pages/ProductFormPage.tsx
+        - src/frontend/src/utils/productCategory.ts
+        - src/frontend/src/router.tsx
+        - src/frontend/src/auth/AuthGuard.tsx
+      primary_language: "Python (FastAPI) + TypeScript (React)"
+      summary: >
+        Plugin management already exists as a complete, permission-gated backend
+        (PLUGIN_MANAGEMENT) with a partial frontend (no Edit/Delete wiring, raw-JSON
+        form). Product categories are a closed Python StrEnum, not a DB entity — a
+        real Category table was deliberately removed in migration 0006. No ADMIN
+        permission/role exists anywhere; auth is a flat Permission enum (READ, EDIT,
+        PLUGIN_MANAGEMENT) with no frontend permission-based gating.
+    clarifications:
+      - "Category management = real CRUD (reintroduce Category entity, reverse migration 0006)"
+      - "Admin model = single new Permission.ADMIN, no new UserRoleType"
+      - "Admin panel UI lives in existing AppShell/Sidebar, not a new /admin panel-style shell"
+      - "Plugin-admin UI gaps (Edit/Delete, JSON form) are out of scope — gating only"
+    gap_analysis:
+      integration_points:
+        - "new app/category/ router+service+schemas+models, mirroring app/product"
+        - "AUTHORIZATION_MATRIX new rows (GET->READ, mutations->ADMIN)"
+        - "new Alembic migration: categories table, seed 5 rows, backfill products.category_id, drop enum column"
+        - "app/groups DDD module (repository.py join + schemas.py NeededItemResponse/PublicNeededItemResponse) — second bounded-context consumer of Product.category, incl. a public unauthenticated endpoint"
+        - "frontend: new api/categories.ts + useCategories() hook; 8 existing consumers of utils/productCategory.ts need migration (4 of which submit data)"
+        - "router.tsx: categories/ categories/new/ categories/:id/edit siblings; Sidebar.tsx new ADMIN-gated NavItem"
+        - "app/auth/models.py Permission gains ADMIN; seed/data migration grants it to dev admin account"
+      summary: >
+        Risk escalated medium->high. Two corrections/expansions vs Phase 1: (1) frontend
+        already decodes JWT permissions via useAuth() — no new mechanism needed; (2) the
+        Category FK reversal reaches a second bounded context (app.groups, incl. a public
+        unauthenticated endpoint) and requires migrating 8 frontend category consumers, not
+        just 2 new admin pages. 4 critical + 3 important decisions surfaced for the user.
+    scope_clarifications:
+      scope_expanded: true
+      summary: >
+        Scope expands beyond the locked Phase-1 decisions: Category FK reversal also
+        touches app.groups (second bounded context, public endpoint) and 8 frontend
+        category consumers (not just the 2 new admin pages).
+    ui_mockups:
+      components_designed:
+        - "screen:category-list"
+        - "screen:category-list-empty"
+        - "screen:category-form"
+        - "screen:category-delete-blocked"
+        - "component:sidebar-admin-nav"
+      summary: >
+        5 ASCII mockups generated, structurally mirroring ProductListPage/ProductFormPage
+        under the existing English-copy admin Chakra shell (category data itself is Polish
+        per locked decision, screen chrome stays English to match Products/Plugins
+        convention). ConfirmDialog needs one additive `error` prop for the delete-blocked
+        (409 CategoryHasProductsException) state.
+    design:
+      summary: "5 admin screens/components mocked (category list/empty/form/delete-blocked, sidebar nav)."
+      screen_count: 4
+      component_count: 1
+      index_path: analysis/design-context/INDEX.md
+    specification:
+      summary: >
+        implementation/spec.md written: Permission.ADMIN, new app/category/ module (flat,
+        mirrors app/product), Alembic migration reversing 0006 with Polish seed data and
+        sort_order, app.groups DTO breaking change (public endpoint included), 13 frontend
+        consumers migrated to useCategories()/category_id, CategoryListPage/CategoryFormPage
+        per mockups, ConfirmDialog gets additive `error` prop. Now at Revision 3 after two
+        audit-fix passes. One doc/reality drift flagged (architecture.md stale re:
+        app/category/).
+    spec_audit:
+      rounds: 3
+      final_verdict: FAIL
+      user_decision: "proceed_with_documented_gaps (2026-09-13) — 3 consecutive audit FAILs, each finding new sibling touch-files in the same category (enum->FK rename); user chose not to loop a 3rd revision and instead pass known gaps to implementation-planner/implementer with an explicit exhaustive-grep safety-net instruction."
+      known_gaps_for_planner:
+        - "Backend: 3 more test files with breaking `category: \"TOY\"/\"OTHER\"` POSTs to /api/products/resolve via shared helpers — src/backend/tests/test_circulation.py (lines 31-35, 101), test_notifications.py (line 46), test_pledge_fulfillment.py (line 35)."
+        - "Frontend: src/frontend/src/api/groups.ts (line 2 import, line 110 PublicNeededItemResponse.product_category: ProductCategory) — 14th frontend touch file, backs the public/unauthenticated page (getPublicCircle -> usePublicKragGrupy -> PublicKragGrupyView); needs product_category_id/product_category_name per the same app.groups DTO rename as api/terms.ts."
+        - "Frontend: src/frontend/src/components/layout/Sidebar.tsx line 97 — second `hasPluginManagement` gate (`{hasPluginManagement && <PluginMenuItems />}`) not covered by the isAdmin-OR-hasPluginManagement change at line 94; an ADMIN-only principal would see the Plugins nav link but not plugin-contributed menu items."
+        - "plugins/server-sdk.ts getProducts (lines 83-88) has the same category-query-param-becomes-no-op regression as plugins/PluginMessageHandler.ts:108 — same accepted/out-of-scope treatment, needs its own Known Limitations line."
+      planner_sweep_result: "implementation-planner ran its own independent repo-wide grep sweep before finalizing task groups: confirmed all 4 known_gaps items as real, found no additional undiscovered files. Corrected existing-test tally from spec.md's 13 to verified 16 (6 backend + 10 frontend)."
+      planner_instruction: >
+        Before finalizing task groups for the category->category_id rename, run a fresh
+        repo-wide grep for `ProductCategory`, `category:`, and `product_category` across both
+        src/backend and src/frontend as an explicit verification step (not just implementing
+        the files spec.md names) — three consecutive audit rounds each missed sibling files in
+        this exact category, so treat spec.md's touch-file list as a floor, not a ceiling.
+        Include the 4 known_gaps_for_planner items above as required task-group scope.
+    architecture_decision:
+      decision: "See task_context.architecture_decision above"
+      summary: "Locked via 4 critical + 2 important Phase-2 decisions and 5 Phase-5 technical clarifications; see analysis/scope-clarifications.md and analysis/technical-clarifications.md."
+
+verification_context:
+  last_status: null
+  issues_found: []
+  fixes_applied: []
+  decisions_made:
+    - "2026-09-13: Phase 6 spec-audit reached 3 consecutive FAIL rounds on implementation/spec.md. User chose 'proceed with documented gaps' over a 4th spec revision — see task_context.phase_summaries.spec_audit.known_gaps_for_planner for the carried-forward scope."
+  reverify_count: 0

@@ -11,7 +11,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.auth_deps import Principal
 from app.core.errors import BusinessConflictException, EntityNotFoundException
-from app.product.models import ProductCategory
 from app.users.service import get_profile_by_principal
 
 from ..infrastructure import notifications_bridge, product_bridge, repository
@@ -69,18 +68,20 @@ async def update_term(
 
 
 def _needed_item_view(
-    row: Row[tuple[NeededItem, str, ProductCategory]], *, claimed: bool
+    row: Row[tuple[NeededItem, str, int, str]], *, claimed: bool
 ) -> dict[str, Any]:
-    """Flatten a `(NeededItem, product_name, product_category)` join row into
-    the shape `NeededItemResponse` / `PublicNeededItemResponse` expect.
-    `claimed` = an active (non-withdrawn) pledge exists for this item."""
-    item, product_name, product_category = row
+    """Flatten a `(NeededItem, product_name, category_id, category_name)`
+    join row into the shape `NeededItemResponse` / `PublicNeededItemResponse`
+    expect. `claimed` = an active (non-withdrawn) pledge exists for this
+    item."""
+    item, product_name, category_id, category_name = row
     return {
         "id": item.id,
         "term_id": item.term_id,
         "product_id": item.product_id,
         "product_name": product_name,
-        "product_category": product_category,
+        "product_category_id": category_id,
+        "product_category_name": category_name,
         "description": item.description,
         "claimed": claimed,
         "created_at": item.created_at,

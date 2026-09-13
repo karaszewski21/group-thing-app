@@ -47,7 +47,7 @@ const product: ProductResponse = {
   photoUrl: null,
   price: 9.99,
   sku: "OFB-330",
-  category: "OTHER",
+  category_id: 5,
   pluginData: null,
   createdAt: "2026-01-01T00:00:00Z",
   updatedAt: "2026-01-01T00:00:00Z",

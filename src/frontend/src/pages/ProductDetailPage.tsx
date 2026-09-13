@@ -10,13 +10,13 @@ import { useCallback, useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { getProduct } from "../api/products";
 import type { ProductResponse } from "../api/products";
+import { useCategories } from "../hooks/useCategories";
 import { usePluginContext } from "../plugins/PluginContext";
 import { PRODUCT_DETAIL_INFO, PRODUCT_DETAIL_TABS } from "../plugins/extensionPoints";
 import { PluginFrame } from "../plugins/PluginFrame";
 import { FootprintIcon, PhotoPlaceholder } from "../components/shared/Icons";
 import { formatPrice } from "../utils/format";
 import { isValidImageUrl } from "../utils/url";
-import { CATEGORY_LABELS } from "../utils/productCategory";
 
 export function ProductDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -26,6 +26,7 @@ export function ProductDetailPage() {
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState(0);
   const { getProductDetailTabs, getProductDetailInfo } = usePluginContext();
+  const { data: categories } = useCategories();
 
   const loadProduct = useCallback(async () => {
     if (!id) return;
@@ -170,7 +171,10 @@ export function ProductDetailPage() {
                   <Text fontSize="12px" fontWeight="600" color="#64748B" textTransform="uppercase">
                     Category
                   </Text>
-                  <Text color="#334155">{CATEGORY_LABELS[product.category]}</Text>
+                  <Text color="#334155">
+                    {categories.find((c) => c.id === product.category_id)?.name ??
+                      `#${product.category_id}`}
+                  </Text>
                 </Box>
                 {product.description && (
                   <Box>

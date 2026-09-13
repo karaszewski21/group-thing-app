@@ -1,7 +1,7 @@
 """Pydantic request/response models for `/api/products` (spec.md's API
 Route Spec, `ProductResponse`/`CreateProductRequest`/`UpdateProductRequest`).
-`category` is a closed `ProductCategory` enum value, not a nested
-`CategoryResponse` — the standalone `app.category` module was removed.
+`category_id` is a plain FK-id into the standalone `app.category` module's
+`Category` table, not a nested `CategoryResponse`.
 """
 
 from __future__ import annotations
@@ -13,8 +13,6 @@ from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 from pydantic_core import PydanticCustomError
-
-from .models import ProductCategory
 
 _PHOTO_URL_PATTERN = re.compile(r"^https?://.*")
 
@@ -34,7 +32,7 @@ def _validate_photo_url(value: str | None) -> str | None:
 
 class ProductResponse(BaseModel):
     """Field order is significant (mirrors the Java DTO): `id, name,
-    description, photo_url, price, sku, category, plugin_data, created_at,
+    description, photo_url, price, sku, category_id, plugin_data, created_at,
     updated_at`."""
 
     model_config = ConfigDict(from_attributes=True)
@@ -45,7 +43,7 @@ class ProductResponse(BaseModel):
     photo_url: str | None
     price: Decimal
     sku: str
-    category: ProductCategory
+    category_id: int
     plugin_data: dict[str, Any] | None
     created_at: datetime
     updated_at: datetime
@@ -57,7 +55,7 @@ class CreateProductRequest(BaseModel):
     photo_url: str | None = Field(default=None, max_length=500)
     price: Decimal = Field(gt=0)
     sku: str = Field(min_length=1, max_length=50)
-    category: ProductCategory
+    category_id: int
 
     @field_validator("photo_url")
     @classmethod
@@ -71,7 +69,7 @@ class UpdateProductRequest(BaseModel):
     photo_url: str | None = Field(default=None, max_length=500)
     price: Decimal = Field(gt=0)
     sku: str = Field(min_length=1, max_length=50)
-    category: ProductCategory
+    category_id: int
 
     @field_validator("photo_url")
     @classmethod
@@ -86,4 +84,4 @@ class ResolveProductRequest(BaseModel):
     shape; no dedicated response schema."""
 
     name: str = Field(min_length=1, max_length=255)
-    category: ProductCategory
+    category_id: int

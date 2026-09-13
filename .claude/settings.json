@@ -7,7 +7,8 @@
       "Bash(docker compose *)",
       "Bash(docker port *)",
       "Bash(uv run *)",
-      "Bash(taskkill //F //T //PID 37872)"
+      "Bash(taskkill //F //T //PID 37872)",
+      "Bash(git log *)"
     ]
   }
 }

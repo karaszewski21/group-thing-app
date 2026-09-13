@@ -1,5 +1,4 @@
 import { api } from "./client";
-import type { ProductCategory } from "./products";
 
 export interface TermResponse {
   id: number;
@@ -22,7 +21,8 @@ export interface NeededItemResponse {
   term_id: number;
   product_id: number;
   product_name: string;
-  product_category: ProductCategory;
+  product_category_id: number;
+  product_category_name: string;
   description: string | null;
   /** An active (non-withdrawn) pledge exists — "ktoś przyniesie". */
   claimed: boolean;

@@ -10,8 +10,8 @@ import {
 } from "@chakra-ui/react";
 import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
-import type { ProductCategory } from "../api/products";
 import { useProducts } from "../hooks/useProducts";
+import { useCategories } from "../hooks/useCategories";
 import { usePluginContext } from "../plugins/PluginContext";
 import { PluginFilterBar } from "../plugins/PluginFilterBar";
 import { ConfirmDialog } from "../components/shared/ConfirmDialog";
@@ -21,18 +21,20 @@ import { PrimaryButton } from "../components/shared/PrimaryButton";
 import { useAuth } from "../auth/AuthContext";
 import { formatDate, formatPrice } from "../utils/format";
 import { isValidImageUrl } from "../utils/url";
-import { CATEGORY_LABELS, CATEGORY_COLORS, PRODUCT_CATEGORIES } from "../utils/productCategory";
 
 export function ProductListPage() {
   const { permissions } = useAuth();
   const canEdit = permissions.includes("EDIT");
   const [searchInput, setSearchInput] = useState("");
   const [search, setSearch] = useState("");
-  const [categoryFilter, setCategoryFilter] = useState<ProductCategory | undefined>(undefined);
+  const [categoryFilter, setCategoryFilter] = useState<number | undefined>(undefined);
   const [sortField, setSortField] = useState<string | undefined>(undefined);
   const [pluginFilters, setPluginFilters] = useState<string[]>([]);
   const debounceRef = useRef<ReturnType<typeof setTimeout>>(null);
   const { getProductListFilters } = usePluginContext();
+  const { data: categories } = useCategories();
+  const categoryName = (categoryId: number): string =>
+    categories.find((c) => c.id === categoryId)?.name ?? `#${categoryId}`;
 
   useEffect(() => {
     if (debounceRef.current) {
@@ -50,7 +52,7 @@ export function ProductListPage() {
 
   const { data: products, loading, error, remove } = useProducts({
     search: search || undefined,
-    category: categoryFilter,
+    category_id: categoryFilter,
     sortField,
     pluginFilters: pluginFilters.length > 0 ? pluginFilters : undefined,
   });
@@ -131,7 +133,7 @@ export function ProductListPage() {
           aria-label="Filter by category"
           value={categoryFilter ?? ""}
           onChange={(e) =>
-            setCategoryFilter(e.target.value ? (e.target.value as ProductCategory) : undefined)
+            setCategoryFilter(e.target.value ? Number(e.target.value) : undefined)
           }
           style={{
             padding: "8px 12px",
@@ -144,9 +146,9 @@ export function ProductListPage() {
           }}
         >
           <option value="">All Categories</option>
-          {PRODUCT_CATEGORIES.map((cat) => (
-            <option key={cat} value={cat}>
-              {CATEGORY_LABELS[cat]}
+          {categories.map((cat) => (
+            <option key={cat.id} value={cat.id}>
+              {cat.name}
             </option>
           ))}
         </select>
@@ -252,7 +254,6 @@ export function ProductListPage() {
             </Table.Header>
             <Table.Body>
               {products.map((product) => {
-                const categoryColor = CATEGORY_COLORS[product.category];
                 return (
                   <Table.Row key={product.id} _hover={{ bg: "#F8FAFC" }}>
                     <Table.Cell>
@@ -299,9 +300,9 @@ export function ProductListPage() {
                         as="span"
                         fontSize="13px"
                         fontWeight="500"
-                        color={categoryColor}
+                        color="#334155"
                       >
-                        {CATEGORY_LABELS[product.category]}
+                        {categoryName(product.category_id)}
                       </Text>
                     </Table.Cell>
                     <Table.Cell color="#64748B" fontSize="13px">

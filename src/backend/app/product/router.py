@@ -16,7 +16,6 @@ from app.core.auth_deps import Principal, require_any
 from app.db import get_db
 
 from . import service
-from .models import ProductCategory
 from .schemas import (
     CreateProductRequest,
     ProductResponse,
@@ -35,13 +34,13 @@ EditPrincipal = Annotated[Principal, Depends(require_any("EDIT", "mcp:edit"))]
 async def list_products(
     db: DbSession,
     principal: ReadPrincipal,
-    category: ProductCategory | None = None,
+    category_id: int | None = None,
     search: str | None = None,
     sort: str | None = None,
     plugin_filter: Annotated[list[str] | None, Query(alias="pluginFilter")] = None,
 ) -> list[ProductResponse]:
     products = await service.list_products(
-        db, category=category, search=search, sort=sort, plugin_filters=plugin_filter
+        db, category_id=category_id, search=search, sort=sort, plugin_filters=plugin_filter
     )
     return [ProductResponse.model_validate(product) for product in products]
 
@@ -66,7 +65,7 @@ async def create_product(
 async def resolve_product(
     body: ResolveProductRequest, db: DbSession, principal: EditPrincipal
 ) -> ProductResponse:
-    product = await service.get_or_create_product_by_name(db, body.name, body.category)
+    product = await service.get_or_create_product_by_name(db, body.name, body.category_id)
     return ProductResponse.model_validate(product)
 
 
