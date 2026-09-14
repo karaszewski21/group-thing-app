@@ -217,3 +217,38 @@ class TermAttendance(BaseEntity):
         nullable=False,
     )
     child_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    # `NULL` = active RSVP; non-null = the guardian withdrew. Nullable-
+    # timestamp shape follows `NeededItem.deleted_at`.
+    withdrawn_at: Mapped[datetime | None] = mapped_column(DateTime(), nullable=True)
+
+
+class ItemListingPreference(BaseEntity):
+    """A standing "I'll lend/swap/gift this item" mode set on one of the
+    owner's own items from `Moje rzeczy` — not scoped to any Term. Whether
+    it's actually visible/takeable for a given Term is derived at read time
+    (`application/term_item_listings.py`) from the owner's `TermAttendance`
+    (or organizer status) for that Term and the item's current
+    `InventoryBalance`, never cached here — same "derived, never stored"
+    principle the exchange mechanism already applies to takeability.
+    `item_id` is a deliberate loose pointer into
+    `app.circulation.InventoryItem`, mirroring `Pledge.resolved_reservation_id`
+    — no `ForeignKeyConstraint`, per `standards/backend/models.md`'s
+    cross-module-reference rule. One row per item; clearing the mode deletes
+    the row rather than nulling it out."""
+
+    __tablename__ = "item_listing_preferences"
+    __sequence_name__ = "item_listing_preference_seq"
+
+    # Loose cross-BC pointer into `app.circulation.InventoryItem` — no FK,
+    # same precedent as `Pledge.resolved_reservation_id`. Unique: at most one
+    # standing preference per item.
+    item_id: Mapped[int] = mapped_column(BigInteger, nullable=False, unique=True)
+    owner_party_id: Mapped[int] = mapped_column(
+        BigInteger,
+        ForeignKey("parties.id", name="fk_item_listing_preferences_owner_party_id_parties"),
+        nullable=False,
+    )
+    # One of `ReservationType`'s LEND/GIFT/SWAP values (validated in
+    # schemas.py against `_OFFERABLE_RESERVATION_TYPES`) — plain string, not
+    # the circulation enum type itself, per the module-boundary rule.
+    mode: Mapped[str] = mapped_column(String(20), nullable=False)

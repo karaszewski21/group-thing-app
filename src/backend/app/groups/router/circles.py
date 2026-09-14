@@ -36,6 +36,7 @@ from app.groups.schemas import (
     PublicCircleResponse,
     RsvpResponse,
     UpdateGroupRequest,
+    WithdrawAttendanceResponse,
 )
 from app.users.service import get_profile_by_principal
 
@@ -144,6 +145,22 @@ async def list_my_attendances(
     principal — no ownership check beyond authentication + READ."""
     profile = await get_profile_by_principal(db, principal)
     return await service.list_my_attendances(db, profile.party_id)
+
+
+@router.post(
+    "/api/groups/mine/attendances/{attendance_id}/withdraw",
+    response_model=WithdrawAttendanceResponse,
+)
+async def withdraw_attendance(
+    attendance_id: int, db: DbSession, principal: EditPrincipal
+) -> WithdrawAttendanceResponse:
+    """Idempotent withdrawal of the caller's own Term RSVP. Registered
+    among the other literal `/mine/...` routes above, ahead of `get_group`
+    below, for the same route-ordering reason as `list_my_attendances`.
+    Covered by row 27's blanket `POST ^/api/groups(/.*)?$` EDIT row — no
+    new matrix row needed (see `test_authorization_matrix.py`)."""
+    attendance = await service.withdraw_attendance(db, principal, attendance_id)
+    return WithdrawAttendanceResponse.model_validate(attendance)
 
 
 @router.get("/api/groups/moderation", response_model=list[ModerationGroupResponse])

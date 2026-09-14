@@ -34,12 +34,15 @@ def _enum_column(enum_cls: type[enum.StrEnum], length: int) -> Enum:
 
 class NotificationKind(enum.StrEnum):
     """What happened. The recipient differs by kind: the first three go to a
-    Term's organizer, `NEEDED_ITEM_REMOVED` goes to the affected pledger."""
+    Term's organizer, `NEEDED_ITEM_REMOVED` goes to the affected pledger,
+    `TERM_ITEM_LISTING_TAKEN` goes to the lister whose offered item was just
+    taken by another attendee."""
 
     PLEDGE_CREATED = "PLEDGE_CREATED"
     PLEDGE_WITHDRAWN = "PLEDGE_WITHDRAWN"
     PLEDGE_ITEM_REGISTERED = "PLEDGE_ITEM_REGISTERED"
     NEEDED_ITEM_REMOVED = "NEEDED_ITEM_REMOVED"
+    TERM_ITEM_LISTING_TAKEN = "TERM_ITEM_LISTING_TAKEN"
 
 
 class Notification(BaseEntity):

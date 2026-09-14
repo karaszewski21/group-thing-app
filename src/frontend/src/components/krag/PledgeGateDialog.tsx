@@ -2,19 +2,25 @@ import { Link } from "react-router-dom";
 
 /**
  * Shown when an ANONYMOUS visitor on the public term page taps
- * "Ja to przyniosę" on a needed item. Unlike `RsvpGateDialog` there is no
- * "as a guest" path — a pledge needs a real party, so the only ways forward
- * are logging in or registering. `.kg-*` tokens / inline styles, matching
- * the rest of this page (off Tailwind per `frontend/css.md`).
+ * "Ja to przyniosę" on a needed item, or "Pożycz"/"Zamień"/"Weź na stałe" on
+ * an offered one. Unlike `RsvpGateDialog` there is no "as a guest" path —
+ * both actions need a real party, so the only ways forward are logging in
+ * or registering. `message`/`ariaLabel` override the pledge-specific
+ * defaults for the item-listing case. `.kg-*` tokens / inline styles,
+ * matching the rest of this page (off Tailwind per `frontend/css.md`).
  */
 export function PledgeGateDialog({
   loginHref,
   registerHref,
   onClose,
+  message,
+  ariaLabel,
 }: {
   loginHref: string;
   registerHref: string;
   onClose: () => void;
+  message?: string;
+  ariaLabel?: string;
 }) {
   return (
     <div
@@ -33,7 +39,7 @@ export function PledgeGateDialog({
       <div
         role="dialog"
         aria-modal="true"
-        aria-label="Załóż konto, aby przynieść rzecz"
+        aria-label={ariaLabel ?? "Załóż konto, aby przynieść rzecz"}
         onClick={(e) => e.stopPropagation()}
         style={{
           width: "100%",
@@ -71,8 +77,9 @@ export function PledgeGateDialog({
         </div>
 
         <p style={{ fontSize: 13, color: "var(--ink-soft)", marginBottom: 16 }}>
-          Żeby zgłosić, że przyniesiesz coś na zajęcia, musisz mieć konto — dzięki temu
-          organizator wie, kto co przynosi, a rzecz trafia do Twoich zbiorów.
+          {message ??
+            "Żeby zgłosić, że przyniesiesz coś na zajęcia, musisz mieć konto — dzięki temu " +
+              "organizator wie, kto co przynosi, a rzecz trafia do Twoich zbiorów."}
         </p>
 
         <Link

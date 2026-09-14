@@ -4,6 +4,7 @@ import { MemoryRouter, Route, Routes } from "react-router-dom";
 import * as groupsApi from "../api/groups";
 import * as familiesApi from "../api/families";
 import * as pledgesApi from "../api/pledges";
+import * as termItemListingsApi from "../api/termItemListings";
 import { ApiError } from "../api/client";
 import { PublicKragGrupyView } from "../pages/krag/KragGrupyPage";
 import { PublicKragRedirectPage } from "../pages/krag/PublicKragRedirectPage";
@@ -29,6 +30,11 @@ vi.mock("../api/families", async (importOriginal) => {
 vi.mock("../api/pledges", async (importOriginal) => {
   const actual = await importOriginal<typeof import("../api/pledges")>();
   return { ...actual, createPledge: vi.fn() };
+});
+
+vi.mock("../api/termItemListings", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../api/termItemListings")>();
+  return { ...actual, takeTermItemListing: vi.fn() };
 });
 
 const mockApplyExternalToken = vi.fn();
@@ -91,8 +97,26 @@ const circleWithTerm: groupsApi.PublicCircleResponse = {
         claimed_by_name: null,
       },
     ],
+    item_listings: [],
   },
   guardians: [{ display_name: "Marek W." }],
+};
+
+const circleWithListing: groupsApi.PublicCircleResponse = {
+  ...circleWithTerm,
+  next_term: {
+    ...circleWithTerm.next_term!,
+    item_listings: [
+      {
+        id: 9,
+        item_id: 9,
+        product_name: "Rowerek",
+        condition: "GOOD",
+        offered_types: ["LEND"],
+        lister_display_name: "Ola",
+      },
+    ],
+  },
 };
 
 function familyOut(overrides: Partial<familiesApi.FamilyOut> = {}): familiesApi.FamilyOut {
@@ -625,6 +649,73 @@ describe("PublicKragGrupyPage", () => {
       expect(await screen.findByText("Termin zajęć")).toBeInTheDocument();
       expect(screen.queryByRole("heading", { name: "Potrzebne rzeczy" })).not.toBeInTheDocument();
       expect(screen.queryByText(/Brak listy potrzebnych rzeczy/)).not.toBeInTheDocument();
+    });
+  });
+
+  describe("public exchange listings ('Rzeczy do wymiany')", () => {
+    it("shows offered items and lister names to an ANONYMOUS visitor, no account needed just to see them", async () => {
+      vi.mocked(groupsApi.getPublicCircle).mockResolvedValue(circleWithListing);
+
+      renderAt(CANONICAL_PATH);
+
+      expect(await screen.findByText("Rowerek")).toBeInTheDocument();
+      expect(screen.getByText("Wystawia: Ola")).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "Pożycz: Rowerek" })).toBeInTheDocument();
+    });
+
+    it("hides the whole section when the term has no item listings", async () => {
+      vi.mocked(groupsApi.getPublicCircle).mockResolvedValue(circleWithTerm);
+
+      renderAt(CANONICAL_PATH);
+
+      expect(await screen.findByText("Termin zajęć")).toBeInTheDocument();
+      expect(screen.queryByRole("heading", { name: "Rzeczy do wymiany" })).not.toBeInTheDocument();
+    });
+
+    it("anonymous visitor tapping a take button gets the login/register gate, no take call", async () => {
+      vi.mocked(groupsApi.getPublicCircle).mockResolvedValue(circleWithListing);
+
+      renderAt(CANONICAL_PATH);
+
+      fireEvent.click(await screen.findByRole("button", { name: "Pożycz: Rowerek" }));
+
+      const dialog = await screen.findByRole("dialog", { name: "Załóż konto, aby wziąć rzecz" });
+      expect(within(dialog).getByRole("link", { name: "Zaloguj się" })).toHaveAttribute(
+        "href",
+        `/login?returnTo=${encodeURIComponent(CANONICAL_PATH)}`,
+      );
+      expect(termItemListingsApi.takeTermItemListing).not.toHaveBeenCalled();
+    });
+
+    it("logged-in visitor taking a LEND item calls takeTermItemListing with the current term id and refetches", async () => {
+      mockAuthValue = { token: "valid.jwt.token", displayName: "Ala Testowa" };
+      vi.mocked(groupsApi.getPublicCircle).mockResolvedValue(circleWithListing);
+      vi.mocked(termItemListingsApi.takeTermItemListing).mockResolvedValue({
+        id: 9,
+        term_id: 101,
+        item_id: 9,
+        lister_party_id: 7,
+        offered_types: ["LEND"],
+        resolved_reservation_id: 900,
+        taken_by_party_id: 3,
+        product_name: "Rowerek",
+        condition: "GOOD",
+        lister_display_name: "Ola",
+        created_at: "",
+        updated_at: "",
+      });
+
+      renderAt(CANONICAL_PATH);
+
+      fireEvent.click(await screen.findByRole("button", { name: "Pożycz: Rowerek" }));
+
+      await waitFor(() =>
+        expect(termItemListingsApi.takeTermItemListing).toHaveBeenCalledWith(9, {
+          term_id: 101,
+          reservation_type: "LEND",
+        }),
+      );
+      expect(groupsApi.getPublicCircle).toHaveBeenCalledTimes(2);
     });
   });
 

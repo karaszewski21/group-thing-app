@@ -2,8 +2,15 @@ import { useEffect, useMemo, useState } from "react";
 import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
 import { useKragGrupy } from "../../hooks/useKragGrupy";
 import { usePublicKragGrupy } from "../../hooks/usePublicKragGrupy";
-import type { ItemCondition } from "../../api/inventories";
+import {
+  getInventories,
+  getInventoryItemBalance,
+  getInventoryItems,
+  type ItemCondition,
+} from "../../api/inventories";
 import { createPledge, type FulfillPledgeRequest } from "../../api/pledges";
+import { getMyProfile } from "../../api/people";
+import { getProducts } from "../../api/products";
 import { ApiError } from "../../api/client";
 import { CONDITION_LABELS } from "../../utils/productCategory";
 import { RsvpDialog } from "../../components/krag/RsvpDialog";
@@ -13,6 +20,13 @@ import { PledgeGateDialog } from "../../components/krag/PledgeGateDialog";
 import { AccountMergeForm } from "../../components/krag/AccountMergeForm";
 import { useAuth } from "../../auth/AuthContext";
 import { guestProfileIdKey, type RsvpResponse } from "../../api/groups";
+import { getReservation, type ReservationResponse, type ReservationType } from "../../api/reservations";
+import {
+  takeTermItemListing,
+  type BrowseTermItemListingResponse,
+  type TakeTermItemListingRequest,
+} from "../../api/termItemListings";
+import type { AvailableItem } from "../../hooks/useKragGrupy";
 
 /** Class date + wall-clock start time for display. `occurs_on` is an ISO
  * datetime; a bare-date fallback (no time part) shows just the date. */
@@ -31,10 +45,11 @@ function formatTermWhen(iso: string): { date: string; time: string } {
 /*  Krąg grupy — zajęcia + prośby o rzeczy (dane z API, nie mock)       */
 /*  Scalenie KragGrupy.tsx + KragGrupyStart.tsx z pages/ (SPEC.md #3): */
 /*  jeden komponent, liczba rodzin wynika z realnych Membership.        */
-/*  Funkcja "wymiana/pożyczka" z prototypu usunięta — nie ma dziś        */
-/*  odpowiednika w modelu domenowym (Reservation wymaga już istniejącego */
-/*  InventoryItem); zostawiona wyłącznie realna funkcja Term/NeededItem/ */
-/*  Pledge ("kto co przynosi").                                         */
+/*  Term/NeededItem/Pledge ("kto co przynosi") plus the lending exchange   */
+/*  ("pożycz/zamień/weź na stałe"), sourced from each item's standing      */
+/*  ItemListingPreference (set in Moje rzeczy — no per-Term listing form   */
+/*  here anymore) and gated on the caller's own TermAttendance for the     */
+/*  current Term, OR being the Term's Circle organizer.                    */
 /* ------------------------------------------------------------------ */
 
 export const CSS = `
@@ -141,6 +156,27 @@ function familyInitials(name: string): string {
   return (words[0]?.[0] ?? "?").toUpperCase() + (words[1]?.[0] ?? words[0]?.[1] ?? "").toUpperCase();
 }
 
+/** Offered `ReservationType`s a lister can pick when creating a new "Wystaw
+ * rzecz" listing — `RETURN` is never offered here: it's for giving an
+ * already-borrowed item back, not for a fresh Term listing. */
+const LISTABLE_RESERVATION_TYPES: ReservationType[] = ["LEND", "SWAP", "GIFT"];
+
+const OFFERED_TYPE_LABELS: Record<ReservationType, string> = {
+  LEND: "Pożyczę",
+  SWAP: "Zamienię",
+  GIFT: "Oddam na stałe",
+  RETURN: "Zwrot",
+};
+
+/** Labels for the "Rzeczy od innych" take buttons — per spec.md's Visual
+ * Design section: "Pożycz" / "Zamień" / "Weź na stałe". */
+const TAKE_ACTION_LABELS: Record<ReservationType, string> = {
+  LEND: "Pożycz",
+  SWAP: "Zamień",
+  GIFT: "Weź na stałe",
+  RETURN: "Zwrot",
+};
+
 /** Route element for the authenticated `/krag/:groupId` view. The public
  * per-term page is a separate route element (`PublicKragGrupyView`, mounted
  * directly by the slug routes in `router.tsx`); this component no longer
@@ -163,11 +199,17 @@ function PrivateKragGrupyView() {
     currentTerm,
     neededItems,
     myAvailableItems,
+    myAttendanceForCurrentTerm,
+    myItemListings,
+    browseListings,
     pledgeFamilyName,
     pledge,
     withdraw,
     fulfillPledgeItem,
     confirmPledgeReceipt,
+    takeListing,
+    withdrawMyAttendance,
+    confirmListingReceipt,
     refetch,
   } = useKragGrupy(groupId);
 
@@ -179,6 +221,19 @@ function PrivateKragGrupyView() {
   const [fulfillMode, setFulfillMode] = useState<"new" | "mine">("new");
   const [fulfillCondition, setFulfillCondition] = useState<ItemCondition>("GOOD");
   const [fulfillItemId, setFulfillItemId] = useState<number | null>(null);
+
+  // ---- "Twoje wystawione rzeczy" / "Rzeczy od innych" (exchange card) ----
+  const [takeListingId, setTakeListingId] = useState<number | null>(null);
+  const [takeOfferedItemId, setTakeOfferedItemId] = useState<number | null>(null);
+  const [busyTakeListingId, setBusyTakeListingId] = useState<number | null>(null);
+  const [busyConfirmListingReservationId, setBusyConfirmListingReservationId] = useState<number | null>(null);
+  const [busyWithdrawAttendance, setBusyWithdrawAttendance] = useState(false);
+  // Reservation.status for every resolved_reservation_id encountered across
+  // myItemListings/browseListings, keyed by reservation id — resolved client
+  // side (no listing-owned status field, per the backend's minimal-
+  // implementation stance) so the status line + "Potwierdź odbiór" gating
+  // below can read it without a per-row fetch during render.
+  const [reservationsById, setReservationsById] = useState<Record<number, ReservationResponse>>({});
 
   useEffect(() => {
     const l = document.createElement("link");
@@ -280,6 +335,131 @@ function PrivateKragGrupyView() {
     }
   }
 
+  // Fetches every resolved_reservation_id present across myItemListings/
+  // browseListings that isn't already cached, then — once a lister's own
+  // SWAP reservation is known — also fetches its paired leg (the lister is
+  // the receiving party for THAT reservation). Re-runs as reservationsById
+  // grows, which is what drives the second (paired) fetch pass.
+  useEffect(() => {
+    const idsToFetch = new Set<number>();
+    for (const row of [...myItemListings, ...browseListings]) {
+      if (row.resolved_reservation_id != null && !(row.resolved_reservation_id in reservationsById)) {
+        idsToFetch.add(row.resolved_reservation_id);
+      }
+    }
+    for (const row of myItemListings) {
+      if (row.resolved_reservation_id == null) continue;
+      const primary = reservationsById[row.resolved_reservation_id];
+      if (primary?.paired_reservation_id != null && !(primary.paired_reservation_id in reservationsById)) {
+        idsToFetch.add(primary.paired_reservation_id);
+      }
+    }
+    if (idsToFetch.size === 0) return;
+    let cancelled = false;
+    void Promise.all(Array.from(idsToFetch, (id) => getReservation(id))).then((fetched) => {
+      if (cancelled) return;
+      setReservationsById((prev) => {
+        const next = { ...prev };
+        for (const r of fetched) next[r.id] = r;
+        return next;
+      });
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [myItemListings, browseListings, reservationsById]);
+
+  function primaryReservationFor(row: BrowseTermItemListingResponse): ReservationResponse | null {
+    return row.resolved_reservation_id != null ? (reservationsById[row.resolved_reservation_id] ?? null) : null;
+  }
+
+  /** "Twoje wystawione rzeczy" status line — mirrors the pledge section's
+   * "Zrealizowane ✓" / "czeka na potwierdzenie odbioru" wording+styling,
+   * derived here from the fetched Reservation.status instead of a stored
+   * Pledge.status field (listings don't have one). */
+  function listingStatusLine(row: BrowseTermItemListingResponse): string | null {
+    const reservation = primaryReservationFor(row);
+    if (!reservation || reservation.status === "CANCELLED") return null;
+    if (reservation.status === "FULFILLED") return "Zrealizowane ✓";
+    return "czeka na potwierdzenie odbioru";
+  }
+
+  /** Where the viewer is the RECEIVING party of a still-open reservation
+   * tied to this listing: the taker for the primary reservation, or the
+   * lister for a SWAP's paired leg (spec.md's Frontend section). Gated on
+   * "not yet FULFILLED/CANCELLED" rather than literally already-CONFIRMED —
+   * confirmListingReceipt() (Task Group 4) performs confirm+fulfill together
+   * in one call, so the button must be reachable from PENDING; gating on an
+   * already-CONFIRMED reservation would make it unreachable, since nothing
+   * else ever confirms a listing reservation ahead of this same click. */
+  function confirmActionFor(row: BrowseTermItemListingResponse): number | null {
+    const reservation = primaryReservationFor(row);
+    if (!reservation || reservation.status === "FULFILLED" || reservation.status === "CANCELLED") return null;
+    if (row.taken_by_party_id === myPartyId) return reservation.id;
+    if (row.lister_party_id === myPartyId && reservation.reservation_type === "SWAP" && reservation.paired_reservation_id != null) {
+      const paired = reservationsById[reservation.paired_reservation_id];
+      if (paired && paired.status !== "FULFILLED" && paired.status !== "CANCELLED") return paired.id;
+    }
+    return null;
+  }
+
+  async function handleConfirmListing(reservationId: number) {
+    setBusyConfirmListingReservationId(reservationId);
+    try {
+      await confirmListingReceipt(reservationId);
+    } catch {
+      setToast("Nie udało się potwierdzić odbioru");
+    } finally {
+      setBusyConfirmListingReservationId(null);
+    }
+  }
+
+  function openSwapSelect(listingId: number) {
+    setTakeListingId(listingId);
+    setTakeOfferedItemId(myAvailableItems[0]?.id ?? null);
+  }
+
+  function closeSwapSelect() {
+    setTakeListingId(null);
+    setTakeOfferedItemId(null);
+  }
+
+  async function handleTakeListing(listingId: number, reservationType: ReservationType) {
+    if (reservationType === "SWAP" && takeOfferedItemId === null) {
+      setToast("Wybierz rzecz do zamiany");
+      return;
+    }
+    setBusyTakeListingId(listingId);
+    try {
+      await takeListing(listingId, reservationType, reservationType === "SWAP" ? (takeOfferedItemId ?? undefined) : undefined);
+      closeSwapSelect();
+    } catch {
+      setToast("Nie udało się wziąć tej rzeczy");
+    } finally {
+      setBusyTakeListingId(null);
+    }
+  }
+
+  function handleTakeButtonClick(listingId: number, reservationType: ReservationType) {
+    if (reservationType === "SWAP") {
+      openSwapSelect(listingId);
+      return;
+    }
+    void handleTakeListing(listingId, reservationType);
+  }
+
+  async function handleWithdrawAttendance() {
+    setBusyWithdrawAttendance(true);
+    try {
+      await withdrawMyAttendance();
+      setToast("Wypisano z zajęć");
+    } catch {
+      setToast("Nie udało się wypisać z zajęć");
+    } finally {
+      setBusyWithdrawAttendance(false);
+    }
+  }
+
   if (loading) {
     return (
       <div className="kg-stage">
@@ -323,6 +503,17 @@ function PrivateKragGrupyView() {
                 {currentTerm ? `Najbliższe zajęcia: ${currentTermWhen}` : "Brak zaplanowanych zajęć"}{" "}
                 · {families.length} {families.length === 1 ? "rodzina" : "rodzin"}
               </div>
+              {currentTerm && myAttendanceForCurrentTerm && (
+                <button
+                  type="button"
+                  className="kg-bring-btn"
+                  style={{ marginTop: 8 }}
+                  disabled={busyWithdrawAttendance}
+                  onClick={() => void handleWithdrawAttendance()}
+                >
+                  Wycofaj się z zajęć
+                </button>
+              )}
             </div>
           </div>
         </header>
@@ -534,6 +725,133 @@ function PrivateKragGrupyView() {
           </div>
         </div>
 
+        {(myAttendanceForCurrentTerm !== null || isOrganizerViewer) && (
+          <div className="kg-bring">
+            <h2>Twoje wystawione rzeczy</h2>
+            <p className="kg-bring-sub">Rzeczy, które oferujesz na te zajęcia — do pożyczenia, zamiany lub oddania.</p>
+            <div className="kg-bring-list">
+              {myItemListings.length === 0 && (
+                <div className="kg-bring-empty">
+                  Nie wystawiłeś jeszcze żadnej rzeczy. Ustaw tryb rzeczy w{" "}
+                  <Link to="/panel/rzeczy">Moje rzeczy</Link>, żeby pojawiła się tutaj.
+                </div>
+              )}
+              {myItemListings.map((row) => {
+                const statusLine = listingStatusLine(row);
+                const confirmReservationId = confirmActionFor(row);
+                return (
+                  <div className="kg-bring-item" key={row.id}>
+                    <div className="kg-bring-row">
+                      <div className="kg-bring-body">
+                        <strong>{row.product_name}</strong>
+                        <small>
+                          {row.offered_types
+                            .map((t) => OFFERED_TYPE_LABELS[t as ReservationType] ?? t)
+                            .join(" · ")}
+                        </small>
+                      </div>
+                    </div>
+                    {statusLine && <div className="kg-status-line">{statusLine}</div>}
+                    {confirmReservationId !== null && (
+                      <div className="kg-fulfill-actions" style={{ marginTop: "8px" }}>
+                        <button
+                          className="kg-btn-primary"
+                          disabled={busyConfirmListingReservationId === confirmReservationId}
+                          onClick={() => void handleConfirmListing(confirmReservationId)}
+                        >
+                          Potwierdź odbiór
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+
+            <h2 style={{ marginTop: 20 }}>Rzeczy od innych</h2>
+            <p className="kg-bring-sub">Rzeczy wystawione przez innych uczestników tych zajęć.</p>
+            <div className="kg-bring-list">
+              {browseListings.length === 0 && (
+                <div className="kg-bring-empty">Nikt jeszcze nie wystawił żadnej rzeczy.</div>
+              )}
+              {browseListings.map((row) => {
+                const offeredTypes = row.offered_types.filter((t): t is ReservationType =>
+                  LISTABLE_RESERVATION_TYPES.includes(t as ReservationType),
+                );
+                const isTakingThis = takeListingId === row.id;
+                const confirmReservationId = confirmActionFor(row);
+                return (
+                  <div className="kg-bring-item" key={row.id}>
+                    <div className="kg-bring-row">
+                      <div className="kg-bring-body">
+                        <strong>{row.product_name}</strong>
+                        <small>Wystawia: {row.lister_display_name}</small>
+                      </div>
+                    </div>
+                    <div className="kg-fulfill-row" style={{ flexWrap: "wrap" }}>
+                      {offeredTypes.map((t) => (
+                        <button
+                          key={t}
+                          type="button"
+                          className="kg-bring-btn"
+                          disabled={busyTakeListingId === row.id}
+                          aria-label={`${TAKE_ACTION_LABELS[t]}: ${row.product_name}`}
+                          onClick={() => handleTakeButtonClick(row.id, t)}
+                        >
+                          {TAKE_ACTION_LABELS[t]}
+                        </button>
+                      ))}
+                    </div>
+
+                    {isTakingThis && (
+                      <div className="kg-fulfill">
+                        <div className="kg-fulfill-row">
+                          <select
+                            className="kg-select"
+                            aria-label="Twoja rzecz do zamiany"
+                            value={takeOfferedItemId ?? ""}
+                            onChange={(e) => setTakeOfferedItemId(Number(e.target.value))}
+                          >
+                            {myAvailableItems.map((mi) => (
+                              <option key={mi.id} value={mi.id}>
+                                {mi.productName}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                        <div className="kg-fulfill-actions">
+                          <button
+                            className="kg-btn-primary"
+                            disabled={busyTakeListingId === row.id || takeOfferedItemId === null}
+                            onClick={() => void handleTakeListing(row.id, "SWAP")}
+                          >
+                            Zapisz
+                          </button>
+                          <button className="kg-btn-ghost" onClick={closeSwapSelect}>
+                            Anuluj
+                          </button>
+                        </div>
+                      </div>
+                    )}
+
+                    {confirmReservationId !== null && (
+                      <div className="kg-fulfill-actions" style={{ marginTop: "8px" }}>
+                        <button
+                          className="kg-btn-primary"
+                          disabled={busyConfirmListingReservationId === confirmReservationId}
+                          onClick={() => void handleConfirmListing(confirmReservationId)}
+                        >
+                          Potwierdź odbiór
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
         {activeFamily && (
           <div className="kg-card" key={activeFamily.familyId} aria-live="polite">
             <div className="kg-card-top">
@@ -607,6 +925,76 @@ export function PublicKragGrupyView() {
   const [pledgedItemIds, setPledgedItemIds] = useState<number[]>([]);
   const [pledgingItemId, setPledgingItemId] = useState<number | null>(null);
   const [toast, setToast] = useState("");
+
+  // ---- "Rzeczy do wymiany/oddania/wypożyczenia" (public exchange list) ----
+  // Visible to everyone, unauthenticated included (per product decision:
+  // seeing what's on offer needs no account, only taking one does) — unlike
+  // `usePublicKragGrupy`'s own fetch, these lazily-loaded pieces (available
+  // items for a SWAP counter-offer) only ever run once the visitor is
+  // logged in and actually attempts a take.
+  const [showTakeGate, setShowTakeGate] = useState(false);
+  const [takingItemId, setTakingItemId] = useState<number | null>(null);
+  const [takeOfferedItemId, setTakeOfferedItemId] = useState<number | null>(null);
+  const [busyTakeItemId, setBusyTakeItemId] = useState<number | null>(null);
+  const [myAvailableItems, setMyAvailableItems] = useState<AvailableItem[] | null>(null);
+
+  async function loadMyAvailableItems(): Promise<AvailableItem[]> {
+    if (myAvailableItems !== null) return myAvailableItems;
+    const [profile, products] = await Promise.all([getMyProfile(), getProducts()]);
+    if (profile.account_user_id == null) return [];
+    const inventories = await getInventories(profile.account_user_id);
+    const personal = inventories.find((inv) => inv.inventory_type === "PERSONAL") ?? null;
+    if (!personal) return [];
+    const items = await getInventoryItems(personal.id);
+    const withStatus = await Promise.all(
+      items.map(async (it) => ({ it, balance: await getInventoryItemBalance(it.id) })),
+    );
+    const available = withStatus
+      .filter(({ balance }) => balance.status === "AVAILABLE")
+      .map(({ it }) => ({
+        id: it.id,
+        productName: products.find((p) => p.id === it.product_id)?.name ?? `Rzecz #${it.id}`,
+      }));
+    setMyAvailableItems(available);
+    return available;
+  }
+
+  async function handlePublicTake(itemId: number, reservationType: ReservationType) {
+    if (!isLoggedIn || !circle?.next_term) {
+      setShowTakeGate(true);
+      return;
+    }
+    if (reservationType === "SWAP" && takingItemId !== itemId) {
+      const available = await loadMyAvailableItems();
+      setTakingItemId(itemId);
+      setTakeOfferedItemId(available[0]?.id ?? null);
+      return;
+    }
+    if (reservationType === "SWAP" && takeOfferedItemId === null) {
+      setToast("Wybierz rzecz do zamiany");
+      return;
+    }
+    setBusyTakeItemId(itemId);
+    try {
+      const request: TakeTermItemListingRequest =
+        reservationType === "SWAP"
+          ? {
+              term_id: circle.next_term.id,
+              reservation_type: reservationType,
+              offered_item_id: takeOfferedItemId ?? undefined,
+            }
+          : { term_id: circle.next_term.id, reservation_type: reservationType };
+      await takeTermItemListing(itemId, request);
+      setTakingItemId(null);
+      setTakeOfferedItemId(null);
+      setToast("Wzięto! Szczegóły w Twoim panelu");
+      await refetch();
+    } catch {
+      setToast("Nie udało się wziąć tej rzeczy");
+    } finally {
+      setBusyTakeItemId(null);
+    }
+  }
 
   async function handlePublicPledge(neededItemId: number) {
     if (!isLoggedIn) {
@@ -818,6 +1206,84 @@ export function PublicKragGrupyView() {
           </div>
         )}
 
+        {term && term.item_listings.length > 0 && (
+          <div className="kg-bring">
+            <h2>Rzeczy do wymiany</h2>
+            <p className="kg-bring-sub">
+              Uczestnicy tych zajęć oferują te rzeczy — do pożyczenia, zamiany lub oddania.
+            </p>
+            <div className="kg-bring-list">
+              {term.item_listings.map((row) => {
+                const offeredTypes = row.offered_types.filter((t): t is ReservationType =>
+                  LISTABLE_RESERVATION_TYPES.includes(t as ReservationType),
+                );
+                const isTakingThis = takingItemId === row.item_id;
+                return (
+                  <div className="kg-bring-item" key={row.item_id}>
+                    <div className="kg-bring-row">
+                      <div className="kg-bring-body">
+                        <strong>{row.product_name}</strong>
+                        <small>Wystawia: {row.lister_display_name}</small>
+                      </div>
+                    </div>
+                    <div className="kg-fulfill-row" style={{ flexWrap: "wrap" }}>
+                      {offeredTypes.map((t) => (
+                        <button
+                          key={t}
+                          type="button"
+                          className="kg-bring-btn"
+                          disabled={busyTakeItemId === row.item_id}
+                          aria-label={`${TAKE_ACTION_LABELS[t]}: ${row.product_name}`}
+                          onClick={() => void handlePublicTake(row.item_id, t)}
+                        >
+                          {TAKE_ACTION_LABELS[t]}
+                        </button>
+                      ))}
+                    </div>
+
+                    {isTakingThis && (
+                      <div className="kg-fulfill">
+                        <div className="kg-fulfill-row">
+                          <select
+                            className="kg-select"
+                            aria-label="Twoja rzecz do zamiany"
+                            value={takeOfferedItemId ?? ""}
+                            onChange={(e) => setTakeOfferedItemId(Number(e.target.value))}
+                          >
+                            {(myAvailableItems ?? []).map((mi) => (
+                              <option key={mi.id} value={mi.id}>
+                                {mi.productName}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                        <div className="kg-fulfill-actions">
+                          <button
+                            className="kg-btn-primary"
+                            disabled={busyTakeItemId === row.item_id || takeOfferedItemId === null}
+                            onClick={() => void handlePublicTake(row.item_id, "SWAP")}
+                          >
+                            Zapisz
+                          </button>
+                          <button
+                            className="kg-btn-ghost"
+                            onClick={() => {
+                              setTakingItemId(null);
+                              setTakeOfferedItemId(null);
+                            }}
+                          >
+                            Anuluj
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
         <div className="kg-card">
           <h3>Zapisani opiekunowie</h3>
           {circle.guardians.length === 0 ? (
@@ -908,6 +1374,16 @@ export function PublicKragGrupyView() {
           loginHref={`/login?returnTo=${encodeURIComponent(location.pathname)}`}
           registerHref="/register"
           onClose={() => setShowPledgeGate(false)}
+        />
+      )}
+
+      {showTakeGate && !isLoggedIn && (
+        <PledgeGateDialog
+          loginHref={`/login?returnTo=${encodeURIComponent(location.pathname)}`}
+          registerHref="/register"
+          onClose={() => setShowTakeGate(false)}
+          ariaLabel="Załóż konto, aby wziąć rzecz"
+          message="Żeby wziąć, pożyczyć albo zamienić się rzeczą, musisz mieć konto — dzięki temu wiadomo, kto co bierze, a rzecz trafia do Twoich zbiorów."
         />
       )}
 

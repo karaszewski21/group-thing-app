@@ -166,6 +166,17 @@ _RAW_MATRIX: tuple[_RawEntry, ...] = (
     # ADMIN-only, unlike app.product's EDIT-gated mutations.
     (_methods("GET"), r"^/api/categories(/.*)?$", ("READ", "mcp:read")),  # 53
     (_methods("POST", "PUT", "DELETE", "PATCH"), r"^/api/categories(/.*)?$", ("ADMIN",)),  # 54
+    # 55-58: app.groups' exchange mechanism (`/api/term-item-listings`,
+    # `/api/item-listing-preferences`, implementation/spec.md's
+    # lending-exchange task). `/mine` and `/browse` need no separate
+    # literal-segment row the way `pledges.py`'s `/mine` needed none
+    # either here. `POST /api/groups/mine/attendances/{id}/withdraw`
+    # likewise needs no new row: it already falls under row 27's blanket
+    # `POST ^/api/groups(/.*)?$`.
+    (_methods("GET"), r"^/api/term-item-listings(/.*)?$", ("READ", "mcp:read")),  # 55
+    (_methods("POST"), r"^/api/term-item-listings(/.*)?$", ("EDIT", "mcp:edit")),  # 56
+    (_methods("GET"), r"^/api/item-listing-preferences(/.*)?$", ("READ", "mcp:read")),  # 57
+    (_methods("PUT"), r"^/api/item-listing-preferences(/.*)?$", ("EDIT", "mcp:edit")),  # 58
     (None, r"^.*$", "AUTHENTICATED"),  # 25 - catch-all
 )
 

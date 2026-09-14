@@ -130,11 +130,23 @@ export interface PublicNeededItemResponse {
   claimed_by_name: string | null;
 }
 
+/** A still-available exchange-mechanism offer — always AVAILABLE-only, so
+ * no status/taken fields (see `app.groups.schemas.PublicItemListingResponse`). */
+export interface PublicItemListingResponse {
+  id: number;
+  item_id: number;
+  product_name: string;
+  condition: string;
+  offered_types: string[];
+  lister_display_name: string;
+}
+
 export interface PublicTermResponse {
   id: number;
   occurs_on: string;
   description: string | null;
   needed_items: PublicNeededItemResponse[];
+  item_listings: PublicItemListingResponse[];
 }
 
 export interface PublicGuardianResponse {
@@ -209,6 +221,22 @@ export interface MyAttendanceResponse {
 
 export function getMyAttendances(): Promise<MyAttendanceResponse[]> {
   return api.get("/groups/mine/attendances");
+}
+
+/** Bare `TermAttendance` row returned by the withdraw endpoint —
+ * `withdrawn_at` is the field callers check to confirm the (idempotent)
+ * withdrawal. Deliberately not `MyAttendanceResponse` (which never exposes
+ * `withdrawn_at` by design — see that interface's docstring). */
+export interface WithdrawAttendanceResponse {
+  id: number;
+  term_id: number;
+  party_id: number;
+  child_count: number;
+  withdrawn_at: string | null;
+}
+
+export function withdrawMyAttendance(attendanceId: number): Promise<WithdrawAttendanceResponse> {
+  return api.post(`/groups/mine/attendances/${attendanceId}/withdraw`, undefined);
 }
 
 /* ------------------------------------------------------------------ */

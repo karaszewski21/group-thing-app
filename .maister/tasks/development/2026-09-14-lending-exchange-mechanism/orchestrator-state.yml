@@ -1,0 +1,186 @@
+orchestrator:
+  started_phase: phase-1
+  completed_phases: [phase-1, phase-2, phase-5, phase-6, phase-7, phase-8]
+  started_phase: phase-10
+  skip_test_suite: true
+  failed_phases: []
+  auto_fix_attempts:
+    phase-8-group-3: 1  # first dispatch cut off by session rate limit, redispatched successfully
+  options:
+    spec_audit_enabled: true
+    skip_test_suite: true
+    e2e_enabled: true
+    user_docs_enabled: true
+    code_review_enabled: true
+    pragmatic_review_enabled: true
+    reality_check_enabled: true
+    production_check_enabled: true
+    sequential: null
+  created: "2026-09-14T00:00:00"
+  updated: "2026-09-14T00:00:00"
+  task_path: .maister/tasks/development/2026-09-14-lending-exchange-mechanism
+  task_ids: {}
+
+task:
+  title: "Lending / return / exchange mechanism gated on term registration"
+  description: >
+    Cały mechanizm oddania wypożyczenia, zamiany rzeczy.
+    Gdy user zapisał się na zajęcia, ma możliwość wystawienia rzeczy do oddania,
+    wypożyczenia, zamiany rzeczy. Gdy user zapisał się na zajęcia ma możliwość
+    wypożyczyć, wziąć, oraz zamieniać się.
+  status: in_progress
+  tags: [circulation, terms, panel]
+  priority: null
+
+task_context:
+  risk_level: medium-high
+  clarifications_resolved: true
+  scope_expanded: true
+  architecture_decision: "TermItemListing entity in app.groups (loose FK to circulation, mirrors Pledge.resolved_reservation_id); all new groups->circulation calls via circulation_bridge.py only; availability derived (no listing-owned status field)"
+  tech_clarified: true
+  task_characteristics:
+    has_reproducible_defect: false
+    modifies_existing_code: true
+    creates_new_entities: true
+    involves_data_operations: true
+    ui_heavy: true
+  research_reference:
+    path: null
+    research_question: null
+    research_type: null
+    confidence_level: null
+  design_reference:
+    source: null
+    product_design_path: null
+    mockup_count: 0
+    has_brief: false
+    index_path: null
+  project_context:
+    project_doc_paths:
+      - .maister/docs/project/architecture.md
+      - .maister/docs/project/tech-stack.md
+  phase_summaries:
+    research: {summary: null, key_findings: [], recommended_approach: null}
+    design: {summary: null, screen_count: 0, component_count: 0, index_path: null}
+    codebase_analysis:
+      key_files:
+        - src/backend/app/circulation/models.py
+        - src/backend/app/circulation/router.py
+        - src/backend/app/circulation/application/reservation_transitions.py
+        - src/backend/app/circulation/domain/reservation_rules.py
+        - src/backend/app/groups/models.py
+        - src/backend/app/groups/application/pledge_fulfillment.py
+        - src/backend/app/groups/application/pledges.py
+        - src/backend/app/groups/infrastructure/circulation_bridge.py
+        - src/backend/app/groups/router/circles.py
+        - src/frontend/src/pages/panel/PanelDataContext.tsx
+        - src/frontend/src/pages/panel/views/RzeczyView.tsx
+        - src/frontend/src/hooks/useKragGrupy.ts
+        - src/backend/app/core/authorization_matrix.py
+        - docs/system-wypozyczalni-inventory-accounting.md
+      primary_language: python-fastapi-react-ts
+      summary: >
+        The requested RSVP-gated lend/return/exchange mechanism does not exist.
+        app.circulation (Reservation/InventoryBalance/CirculationTransaction,
+        points-for-circulation ledger) is fully built but deliberately global and
+        Term-independent (confirmed against docs/system-wypozyczalni-inventory-accounting.md,
+        which never mentions Terms/attendance). The only Term bridge today is
+        Pledge->fulfill_pledge for organizer-posted NeededItems, unrelated to free
+        peer listing. Panel's "Wypożyczę/Oddam/Zamienię" and
+        "Pożyczone/Otrzymane/Zamienione" tiles are decorative local-only React
+        state, zero backend persistence. New capability needed at the
+        app.groups/app.circulation boundary via the existing circulation_bridge
+        anti-corruption-layer pattern.
+    clarifications:
+      - "Listing scope: any of the user's own items, not just Term-needed items (new capability, NeededItem/Pledge flow stays unchanged)"
+      - "Browse/take scope: only users with TermAttendance for that exact same Term (not general Circle membership)"
+      - "Reuse existing Reservation -> CirculationTransaction points pipeline rather than a simpler parallel mechanism"
+      - "Listings auto-disappear once the Term's date has passed or the lister's TermAttendance is withdrawn"
+    gap_analysis:
+      integration_points:
+        - app.groups.infrastructure.circulation_bridge (extend, mirroring pledge_fulfillment.py precedent)
+        - app.groups TermAttendance (needs withdrawal capability added)
+        - new app.groups entity: TermItemListing (term_id, inventory_item_id/reservation linkage)
+      summary: >
+        New TermItemListing entity recommended in app.groups (not a column on
+        circulation's InventoryItem/Reservation) to preserve circulation's
+        documented "given, unchanged" contract. Browse endpoint doesn't exist and
+        must be built (GET /api/inventory-items requires a specific inventory_id
+        today). No reusable "has TermAttendance" auth primitive exists.
+        TermAttendance withdrawal doesn't exist anywhere (only idempotent
+        create + list) - needed for clarification #4 (listings expire on
+        un-RSVP) to actually hold.
+    scope_clarifications:
+      scope_expanded: true
+      summary: >
+        New TermItemListing entity in app.groups; TermAttendance withdrawal built
+        from scratch (withdrawn_at); browse/take UI lives in Krąg/Term context
+        (KragGrupyPage/useKragGrupy), not the Panel; expiry cutoff = exactly
+        Term.occurs_on; no reservation-pipeline shortcuts, GIFT included.
+    ui_mockups: {components_designed: [], summary: null}
+    specification:
+      summary: >
+        spec.md complete: TermItemListing entity (app.groups, real FK to
+        terms/parties, loose pointer to circulation's InventoryItem/Reservation
+        mirroring Pledge.resolved_reservation_id). Verified /krag/:groupId is
+        already reachable by any guardian with Circle Membership (not
+        organizer-only) but is NOT TermAttendance-gated today — new UI section
+        added inside KragGrupyPage.tsx with its own TermAttendance check via
+        existing getMyAttendances(). New endpoints: browse/mine/take listings,
+        withdraw-attendance. New _require_term_attendance primitive. Two new
+        circulation_bridge pass-throughs (create_reservation, create_swap).
+        ItemQuickAddForm reused via composition, not prop extension.
+    architecture_decision: {decision: null, summary: null}
+    implementation:
+      summary: >
+        All 6 task groups complete, 41/41 plan steps. 40 new tests added
+        (4 model + 8 domain + 6 router + 5 hook + 11 UI + 6 gap-review).
+        Full backend suite 201/201 passing, full frontend suite 195/199
+        (4 pre-existing unrelated failures in 3 files, confirmed via two
+        independent verification passes). Group 3's first dispatch was cut
+        off by a session rate limit and successfully redispatched with no
+        duplicated work. One flagged implementation deviation (Group 5's
+        "Potwierdź odbiór" gating) was verified correct and pinned with a
+        regression test in Group 6.
+
+verification_context:
+  last_status: passed_with_issues
+  issues_found:
+    - severity: high
+      id: withdrawal-ui-not-wired
+      description: >
+        Spec's frontend section says the listing card disappears on TermAttendance
+        withdrawal, but the plan never adds withdrawn_at to MyAttendanceResponse
+        or filters it server-side in list_my_attendances_joined. Backend 403 still
+        correctly blocks mutation; this is a UI-only gap. User chose to defer this
+        fix to implementation planning rather than editing spec.md now.
+    - severity: high
+      id: testing-approach-factually-wrong
+      description: >
+        Spec's Testing Approach section incorrectly claims no pytest suite exists;
+        src/backend/tests/ has 25 files including test_pledge_fulfillment.py (the
+        closest existing analog) and test_authorization_matrix.py. Must be
+        corrected during implementation planning/execution: real test gate is
+        `uv run pytest` in src/backend, new tests should follow
+        test_pledge_fulfillment.py's structure. User chose to defer this fix to
+        implementation planning rather than editing spec.md now.
+    - severity: medium
+      id: bad-citations
+      description: >
+        Spec cites a non-existent "binding decision #13", a wrong numbering
+        scheme for an authorization-matrix row ("row 76" = raw line number not
+        comment-sequence number), and EditTermDialog.tsx as a wrong
+        ItemQuickAddForm composition precedent (actual: PanelModals.tsx,
+        guestSteps.tsx, organizerSteps.tsx). Underlying claims are correct;
+        citations are wrong. Low implementation risk, cosmetic.
+    - severity: medium
+      id: cancelled-reservation-reopen-n1-gap
+      description: >
+        Derived-availability rule needs a per-listing circulation_bridge.get_reservation
+        lookup to detect CANCELLED status and reopen the listing; the spec's N+1
+        handling section doesn't explicitly call this out alongside the
+        product_name/condition/lister-name lookups it does mention.
+  fixes_applied: []
+  decisions_made:
+    - "User explicitly deferred fixing the 2 high-severity spec-audit findings to implementation planning rather than patching spec.md now"
+  reverify_count: 0

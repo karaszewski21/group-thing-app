@@ -16,9 +16,10 @@ import re
 from datetime import date, datetime, timedelta
 
 from httpx import AsyncClient
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.groups.models import NeededItem
+from app.groups.models import NeededItem, Term
 
 
 async def _register_organizer(client: AsyncClient, email: str) -> str:
@@ -170,7 +171,13 @@ async def test_getPublicCircle_noTermIdParam_returnsNearestTermUnchanged(
         "next_term",
         "guardians",
     }
-    assert set(body["next_term"].keys()) == {"id", "occurs_on", "description", "needed_items"}
+    assert set(body["next_term"].keys()) == {
+        "id",
+        "occurs_on",
+        "description",
+        "needed_items",
+        "item_listings",
+    }
 
 
 async def test_getPublicCircle_neededItems_orderedById(client: AsyncClient) -> None:
@@ -213,7 +220,13 @@ async def test_getPublicCircle_afterLoggedInRsvp_stillExposesOnlyGuardianDisplay
     assert response.status_code == 200
     body = response.json()
     assert body["guardians"] == [{"display_name": "Pt Loggedin Parent"}]
-    assert set(body["next_term"].keys()) == {"id", "occurs_on", "description", "needed_items"}
+    assert set(body["next_term"].keys()) == {
+        "id",
+        "occurs_on",
+        "description",
+        "needed_items",
+        "item_listings",
+    }
     assert "child_count" not in body
     assert "children" not in body
 
@@ -317,3 +330,125 @@ async def test_getPublicCircle_organizerSlug_isOrgSlugWhenOrgExists_elseStableHa
     assert re.fullmatch(r"k-[0-9a-f]{12}", slug)
     # Stable across calls.
     assert (await client.get(url)).json()["organizer_slug"] == slug
+
+
+async def _register_personal_item(client: AsyncClient, token: str, product_name: str) -> int:
+    resolved = await client.post(
+        "/api/products/resolve",
+        json={"name": product_name, "category_id": 5},
+        headers=_auth_headers(token),
+    )
+    assert resolved.status_code == 200
+    inv = await client.post(
+        "/api/inventories",
+        json={"inventory_type": "PERSONAL", "location": None},
+        headers=_auth_headers(token),
+    )
+    assert inv.status_code == 201
+    item = await client.post(
+        "/api/inventory-items",
+        json={
+            "inventory_id": inv.json()["id"],
+            "product_id": resolved.json()["id"],
+            "condition": "GOOD",
+        },
+        headers=_auth_headers(token),
+    )
+    assert item.status_code == 201
+    return item.json()["id"]
+
+
+async def _set_preference(client: AsyncClient, token: str, item_id: int, mode: str) -> None:
+    r = await client.put(
+        f"/api/item-listing-preferences/{item_id}",
+        json={"mode": mode},
+        headers=_auth_headers(token),
+    )
+    assert r.status_code == 200
+
+
+async def test_getPublicCircle_organizerAndAttendeeListings_visibleAnonymously(
+    client: AsyncClient,
+) -> None:
+    """The exchange mechanism's whole point is that even an ANONYMOUS
+    visitor to the public per-Term page can see what's on offer (taking one
+    still requires an account) — the organizer's own moded item and an
+    attendee's both show up, unauthenticated."""
+    org_token = await _register_organizer(client, "pt.exchange.org@example.com")
+    group_id = await _create_circle(client, org_token, "Krąg wymiany")
+    term_id = await _create_term(client, org_token, group_id, date.today() + timedelta(days=7))
+    org_item_id = await _register_personal_item(client, org_token, "Namiot")
+    await _set_preference(client, org_token, org_item_id, "LEND")
+
+    attendee_token, _ = await _register_guest(client, "pt.exchange.attendee@example.com")
+    rsvp = await client.post(
+        f"/api/groups/public/{group_id}/rsvp",
+        json={"term_id": term_id, "guardian_name": "ignored", "child_count": 0},
+        headers=_auth_headers(attendee_token),
+    )
+    assert rsvp.status_code == 201
+    attendee_item_id = await _register_personal_item(client, attendee_token, "Sanki")
+    await _set_preference(client, attendee_token, attendee_item_id, "GIFT")
+
+    response = await client.get(f"/api/groups/public/{group_id}?term_id={term_id}")
+
+    assert response.status_code == 200
+    listings = response.json()["next_term"]["item_listings"]
+    assert {(row["item_id"], row["offered_types"][0]) for row in listings} == {
+        (org_item_id, "LEND"),
+        (attendee_item_id, "GIFT"),
+    }
+    lister_names = {row["lister_display_name"] for row in listings}
+    assert "Pt Exchange Org" in lister_names
+
+
+async def test_getPublicCircle_takenItem_disappearsFromPublicListings(client: AsyncClient) -> None:
+    org_token = await _register_organizer(client, "pt.exchange.taken@example.com")
+    group_id = await _create_circle(client, org_token, "Krąg wzięty")
+    term_id = await _create_term(client, org_token, group_id, date.today() + timedelta(days=7))
+    item_id = await _register_personal_item(client, org_token, "Deskorolka")
+    await _set_preference(client, org_token, item_id, "LEND")
+
+    taker_token, _ = await _register_guest(client, "pt.exchange.taker@example.com")
+    await client.post(
+        f"/api/groups/public/{group_id}/rsvp",
+        json={"term_id": term_id, "guardian_name": "ignored", "child_count": 0},
+        headers=_auth_headers(taker_token),
+    )
+    take = await client.post(
+        f"/api/term-item-listings/{item_id}/take",
+        json={"term_id": term_id, "reservation_type": "LEND"},
+        headers=_auth_headers(taker_token),
+    )
+    assert take.status_code == 200
+
+    response = await client.get(f"/api/groups/public/{group_id}?term_id={term_id}")
+    assert response.json()["next_term"]["item_listings"] == []
+
+
+async def test_getPublicCircle_termOccursOnInPast_listingsStillVisible(
+    client: AsyncClient, db_session: AsyncSession
+) -> None:
+    """Unlike `list_browsable_term_item_listings` (authenticated browsing —
+    correctly hidden once a Term passes, since there's nothing left to
+    take), the public page's `item_listings` must stay visible for a past
+    Term: `needed_items` on the same response is never date-filtered, and
+    `get_public_circle_view` falls back to the most recent PAST Term
+    whenever a Circle has no upcoming one — so a still-`AVAILABLE` listing
+    disappearing there just because the Term already occurred would make
+    an already-visited public page silently go blank."""
+    org_token = await _register_organizer(client, "pt.exchange.past@example.com")
+    group_id = await _create_circle(client, org_token, "Krąg miniony")
+    term_id = await _create_term(client, org_token, group_id, date.today() + timedelta(days=7))
+    item_id = await _register_personal_item(client, org_token, "Rower")
+    await _set_preference(client, org_token, item_id, "LEND")
+
+    term = (await db_session.execute(select(Term).where(Term.id == term_id))).scalar_one()
+    term.occurs_on = datetime.utcnow() - timedelta(days=1)
+    await db_session.commit()
+
+    response = await client.get(f"/api/groups/public/{group_id}?term_id={term_id}")
+
+    assert response.status_code == 200
+    listings = response.json()["next_term"]["item_listings"]
+    assert {(row["item_id"], row["offered_types"][0]) for row in listings} == {(item_id, "LEND")}

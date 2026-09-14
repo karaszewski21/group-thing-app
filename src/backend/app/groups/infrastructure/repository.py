@@ -19,6 +19,7 @@ from ..models import (
     Group,
     GroupRole,
     GroupRoleType,
+    ItemListingPreference,
     Leadership,
     Membership,
     NeededItem,
@@ -321,17 +322,52 @@ async def list_attendances_for_term(db: AsyncSession, term_id: int) -> list[Term
     return list(result.scalars().all())
 
 
+async def list_active_attendances_for_term(db: AsyncSession, term_id: int) -> list[TermAttendance]:
+    """Unlike `list_attendances_for_term` (public-view attendee list, keeps
+    withdrawn rows), excludes withdrawn RSVPs — used to find who's currently
+    eligible to browse/offer exchange-mechanism listings for this Term."""
+    result = await db.execute(
+        select(TermAttendance)
+        .where(TermAttendance.term_id == term_id, TermAttendance.withdrawn_at.is_(None))
+        .order_by(TermAttendance.created_at)
+    )
+    return list(result.scalars().all())
+
+
 async def list_my_attendances_joined(
     db: AsyncSession, party_id: int
 ) -> list[Row[tuple[TermAttendance, Term, Group]]]:
+    """Excludes withdrawn attendances (`withdrawn_at IS NOT NULL`) — mirrors
+    `list_my_pledges_joined`'s existing `Pledge.status != PledgeStatus.WITHDRAWN`
+    precedent. Without this filter, "Wycofaj się z zajęć" would withdraw a
+    `TermAttendance` but the row would keep showing up here, since this is
+    the query `MyAttendanceResponse`/the frontend's `myAttendanceForCurrentTerm`
+    derivation depends on (spec-audit HIGH finding #1)."""
     result = await db.execute(
         select(TermAttendance, Term, Group)
         .join(Term, TermAttendance.term_id == Term.id)
         .join(Group, Term.circle_group_id == Group.id)
-        .where(TermAttendance.party_id == party_id)
+        .where(TermAttendance.party_id == party_id, TermAttendance.withdrawn_at.is_(None))
         .order_by(Term.occurs_on.asc(), TermAttendance.id.asc())
     )
     return list(result.all())
+
+
+async def get_attendance(db: AsyncSession, attendance_id: int) -> TermAttendance | None:
+    return await db.get(TermAttendance, attendance_id)
+
+
+async def get_active_attendance(
+    db: AsyncSession, term_id: int, party_id: int
+) -> TermAttendance | None:
+    result = await db.execute(
+        select(TermAttendance).where(
+            TermAttendance.term_id == term_id,
+            TermAttendance.party_id == party_id,
+            TermAttendance.withdrawn_at.is_(None),
+        )
+    )
+    return result.scalar_one_or_none()
 
 
 async def list_profile_names_by_party_ids(
@@ -352,3 +388,39 @@ async def find_profile_by_email(db: AsyncSession, email: str) -> UserProfile | N
     return (
         await db.execute(select(UserProfile).where(UserProfile.email == email))
     ).scalar_one_or_none()
+
+
+# --- ItemListingPreference -----------------------------------------------------
+
+
+async def get_item_listing_preference(
+    db: AsyncSession, item_id: int
+) -> ItemListingPreference | None:
+    result = await db.execute(
+        select(ItemListingPreference).where(ItemListingPreference.item_id == item_id)
+    )
+    return result.scalar_one_or_none()
+
+
+async def list_item_listing_preferences_for_party(
+    db: AsyncSession, party_id: int
+) -> list[ItemListingPreference]:
+    result = await db.execute(
+        select(ItemListingPreference)
+        .where(ItemListingPreference.owner_party_id == party_id)
+        .order_by(ItemListingPreference.id)
+    )
+    return list(result.scalars().all())
+
+
+async def list_item_listing_preferences_for_parties(
+    db: AsyncSession, party_ids: set[int]
+) -> list[ItemListingPreference]:
+    if not party_ids:
+        return []
+    result = await db.execute(
+        select(ItemListingPreference)
+        .where(ItemListingPreference.owner_party_id.in_(party_ids))
+        .order_by(ItemListingPreference.id)
+    )
+    return list(result.scalars().all())

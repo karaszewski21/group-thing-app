@@ -176,7 +176,7 @@ export function RzeczyView() {
                     return (
                       <button
                         key={m}
-                        onClick={() => setItemMode(it.id, m)}
+                        onClick={() => void setItemMode(it.id, m)}
                         aria-pressed={on}
                         className="rounded-full border-[1.5px] border-line px-3 py-1.5 text-[11.5px] font-extrabold text-ink-soft transition-colors hover:border-sage"
                         style={on ? { background: mStyle.bg, color: mStyle.c, borderColor: "transparent" } : undefined}

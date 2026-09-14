@@ -9,6 +9,7 @@ import {
   type NotificationResponse,
 } from "../../api/notifications";
 import { getMyPledges, withdrawPledge, type MyPledgeResponse } from "../../api/pledges";
+import type { ReservationType } from "../../api/reservations";
 import {
   createLightweightMembers,
   getGuardians,
@@ -61,11 +62,17 @@ import {
   type NeededItemQuickAddValue,
 } from "../../utils/neededItemQuickAdd";
 import { ApiError } from "../../api/client";
+import {
+  getMyItemListingPreferences,
+  setItemListingPreference,
+} from "../../api/itemListingPreferences";
 import { CopyIcon, PencilIcon } from "./panelIcons";
 import {
   dayMonth,
   termTime,
   termPublicPath,
+  ITEM_MODE_TO_RESERVATION_TYPE,
+  RESERVATION_TYPE_TO_ITEM_MODE,
   type ItemMode,
   type LocalGift,
   type ModalKind,
@@ -296,6 +303,17 @@ function usePanelDataValue() {
       if (!inventory) inventory = await createInventory({ inventory_type: "PERSONAL" });
       setInventoryId(inventory.id);
       setItems(await getInventoryItems(inventory.id));
+      const preferences = await getMyItemListingPreferences();
+      setItemModes(
+        Object.fromEntries(
+          preferences
+            .map(
+              (p) =>
+                [p.item_id, RESERVATION_TYPE_TO_ITEM_MODE[p.mode as ReservationType]] as const,
+            )
+            .filter((entry): entry is [number, ItemMode] => entry[1] !== undefined),
+        ),
+      );
 
       const activeLeaderships = leaderships.filter((l) => l.valid_to === null);
       setMyLeaderships(activeLeaderships);
@@ -540,8 +558,18 @@ function usePanelDataValue() {
     }
   }
 
-  function setItemMode(itemId: number, mode: ItemMode) {
-    setItemModes((prev) => ({ ...prev, [itemId]: prev[itemId] === mode ? null : mode }));
+  async function setItemMode(itemId: number, mode: ItemMode) {
+    const next = itemModes[itemId] === mode ? null : mode;
+    setItemError(null);
+    try {
+      await setItemListingPreference(
+        itemId,
+        next ? ITEM_MODE_TO_RESERVATION_TYPE[next] : null,
+      );
+      setItemModes((prev) => ({ ...prev, [itemId]: next }));
+    } catch {
+      setItemError("Nie udało się zapisać trybu — spróbuj ponownie");
+    }
   }
 
   const itemCounts = useMemo(

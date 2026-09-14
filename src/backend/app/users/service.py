@@ -115,6 +115,20 @@ async def get_profile_by_party(db: AsyncSession, party_id: int) -> UserProfile:
     return profile
 
 
+async def get_profile_by_account_user_id(db: AsyncSession, account_user_id: int) -> UserProfile:
+    """The inverse of `UserProfile.account_user_id` — used by
+    `app.groups.application.term_item_listings` to map a `circulation.
+    Reservation.reserved_by_user_id` (an account `users.id`) back to the
+    taking party for display, since that reservation is the only place the
+    taker is recorded once listings became fully derived."""
+    profile = (
+        await db.execute(select(UserProfile).where(UserProfile.account_user_id == account_user_id))
+    ).scalar_one_or_none()
+    if profile is None:
+        raise EntityNotFoundException("UserProfile", account_user_id)
+    return profile
+
+
 async def get_or_create_active_user_role(
     db: AsyncSession, party_id: int, role_type: UserRoleType
 ) -> UserRole:

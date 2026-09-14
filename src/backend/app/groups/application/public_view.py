@@ -31,11 +31,13 @@ from ..schemas import (
     MyPledgeResponse,
     PublicCircleResponse,
     PublicGuardianResponse,
+    PublicItemListingResponse,
     PublicNeededItemResponse,
     PublicTermResponse,
     RsvpResponse,
 )
 from .circles import _group_role_party_id, get_current_leadership, get_group
+from .term_item_listings import list_public_term_item_listings
 from .terms import get_term, list_needed_item_views, list_terms
 
 
@@ -203,6 +205,7 @@ async def get_public_circle_view(
                 db, cast(int, next_term.id)
             )
         }
+        item_listings = await list_public_term_item_listings(db, cast(int, next_term.id))
         next_term_response = PublicTermResponse(
             id=cast(int, next_term.id),
             occurs_on=next_term.occurs_on,
@@ -219,6 +222,17 @@ async def get_public_circle_view(
                     claimed_by_name=pledger_by_item.get(view["id"]),
                 )
                 for view in needed_item_views
+            ],
+            item_listings=[
+                PublicItemListingResponse(
+                    id=listing.item_id,
+                    item_id=listing.item_id,
+                    product_name=listing.product_name,
+                    condition=listing.condition,
+                    offered_types=listing.offered_types,
+                    lister_display_name=listing.lister_display_name,
+                )
+                for listing in item_listings
             ],
         )
 

@@ -1,4 +1,5 @@
 import type { GroupResponse } from "../../api/groups";
+import type { ReservationType } from "../../api/reservations";
 import type { NeededItemResponse, TermResponse } from "../../api/terms";
 
 /* ------------------------------------------------------------------ */
@@ -41,6 +42,21 @@ export interface TermWithNeeded {
 }
 
 export const ITEM_MODES: ItemMode[] = ["wypożyczę", "oddam", "zamienię"];
+
+/** `ItemMode` <-> backend `ReservationType` — the Panel's "Moje rzeczy"
+ * mode toggle persists as a standing `ItemListingPreference.mode`
+ * (`/api/item-listing-preferences`), one of `LEND`/`GIFT`/`SWAP`. */
+export const ITEM_MODE_TO_RESERVATION_TYPE: Record<ItemMode, ReservationType> = {
+  "wypożyczę": "LEND",
+  "oddam": "GIFT",
+  "zamienię": "SWAP",
+};
+
+export const RESERVATION_TYPE_TO_ITEM_MODE: Partial<Record<ReservationType, ItemMode>> = {
+  LEND: "wypożyczę",
+  GIFT: "oddam",
+  SWAP: "zamienię",
+};
 
 export const ITEM_MODE_STYLE: Record<ItemMode, { bg: string; c: string }> = {
   "wypożyczę": { bg: "var(--color-teal-soft)", c: "#245F61" },

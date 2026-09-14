@@ -7,10 +7,16 @@ from datetime import date, datetime
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
-from app.circulation.models import ItemCondition
+from app.circulation.models import ItemCondition, ReservationType
 from app.users.schemas import EMAIL_PATTERN, normalize_email
 
 from .models import GroupRoleType, PledgeStatus
+
+# Listing-time offer subset — never RETURN (a lifecycle transition, not a
+# listing-time choice; see `ItemListingPreference.mode`'s docstring).
+_OFFERABLE_RESERVATION_TYPES = frozenset(
+    {ReservationType.LEND, ReservationType.SWAP, ReservationType.GIFT}
+)
 
 
 class GroupResponse(BaseModel):
@@ -229,11 +235,26 @@ class PublicNeededItemResponse(BaseModel):
     claimed_by_name: str | None
 
 
+class PublicItemListingResponse(BaseModel):
+    """One still-available exchange-mechanism offer for the public Term
+    page — always derived AVAILABLE-only (see `list_public_term_item_listings`),
+    so no status/taken fields to leak. `id` is the item's id, same
+    convention as `BrowseTermItemListingResponse`."""
+
+    id: int
+    item_id: int
+    product_name: str
+    condition: str
+    offered_types: list[str]
+    lister_display_name: str
+
+
 class PublicTermResponse(BaseModel):
     id: int
     occurs_on: datetime
     description: str | None
     needed_items: list[PublicNeededItemResponse]
+    item_listings: list[PublicItemListingResponse]
 
 
 class PublicGuardianResponse(BaseModel):
@@ -308,6 +329,20 @@ class MyAttendanceResponse(BaseModel):
     organizer_slug: str
 
 
+class WithdrawAttendanceResponse(BaseModel):
+    """Bare `TermAttendance` row returned by
+    `POST /api/groups/mine/attendances/{id}/withdraw` — `withdrawn_at`
+    is the field callers check to confirm the (idempotent) withdrawal."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    term_id: int
+    party_id: int
+    child_count: int
+    withdrawn_at: datetime | None
+
+
 # --- Account-merge (unauthenticated, `POST /api/groups/public/merge`) ----------
 
 
@@ -328,3 +363,77 @@ class MergeAnonymousProfileRequest(BaseModel):
 class MergeAnonymousProfileResponse(BaseModel):
     token: str
     party_id: int
+
+
+# --- ItemListingPreference (authenticated, `/api/item-listing-preferences`,
+# `/api/term-item-listings`) -----------------------------------------------
+
+
+class SetItemListingPreferenceRequest(BaseModel):
+    """`mode=None` clears the item's standing listing preference."""
+
+    mode: ReservationType | None = None
+
+    @field_validator("mode")
+    @classmethod
+    def _validate_mode(cls, value: ReservationType | None) -> ReservationType | None:
+        if value is not None and value not in _OFFERABLE_RESERVATION_TYPES:
+            raise ValueError(
+                "mode may only be LEND, SWAP or GIFT — RETURN is a lifecycle transition, "
+                "never a listing-time choice"
+            )
+        return value
+
+
+class ItemListingPreferenceResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    item_id: int
+    owner_party_id: int
+    mode: str
+    created_at: datetime
+    updated_at: datetime
+
+
+class BrowseTermItemListingResponse(BaseModel):
+    """One row of "Twoje wystawione rzeczy" (`list_my_term_item_listings`)
+    or "Rzeczy od innych" (`list_browsable_term_item_listings`) — one
+    `ItemListingPreference`, resolved against `term_id`, plus the cross-BC
+    display data (product name/condition from `app.circulation`/
+    `app.product`, lister display name from `app.users`) and derived
+    status (`resolved_reservation_id`/`taken_by_party_id`, from the item's
+    live `Reservation` history — see `_resolve_listing_status`). `id` is the
+    item's id: one derived listing per item, not per creation event."""
+
+    id: int
+    term_id: int
+    item_id: int
+    lister_party_id: int
+    offered_types: list[str]
+    resolved_reservation_id: int | None
+    taken_by_party_id: int | None
+    product_name: str
+    condition: str
+    lister_display_name: str
+    created_at: datetime
+    updated_at: datetime
+
+
+class TakeTermItemListingRequest(BaseModel):
+    """`offered_item_id` is required for, and only meaningful for, a `SWAP`
+    take — validated here so a malformed combination never reaches
+    `take_item_listing`. `term_id` is the Term context the take happens in
+    (eligibility, notification link) — the listing itself is Term-independent."""
+
+    term_id: int
+    reservation_type: ReservationType
+    offered_item_id: int | None = None
+
+    @model_validator(mode="after")
+    def _offered_item_id_matches_swap(self) -> TakeTermItemListingRequest:
+        if self.reservation_type == ReservationType.SWAP and self.offered_item_id is None:
+            raise ValueError("offered_item_id jest wymagane dla zamiany (SWAP)")
+        if self.reservation_type != ReservationType.SWAP and self.offered_item_id is not None:
+            raise ValueError("offered_item_id dotyczy tylko zamiany (SWAP)")
+        return self

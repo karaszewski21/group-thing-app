@@ -12,6 +12,7 @@ import * as peopleApi from "../api/people";
 import * as familiesApi from "../api/families";
 import * as groupsApi from "../api/groups";
 import * as inventoriesApi from "../api/inventories";
+import * as itemListingPreferencesApi from "../api/itemListingPreferences";
 import * as productsApi from "../api/products";
 import * as termsApi from "../api/terms";
 import * as organizationsApi from "../api/organizations";
@@ -69,6 +70,11 @@ vi.mock("../api/inventories", () => ({
   registerInventoryItem: vi.fn(),
   updateInventoryItem: vi.fn(),
   deleteInventoryItem: vi.fn(),
+}));
+
+vi.mock("../api/itemListingPreferences", () => ({
+  getMyItemListingPreferences: vi.fn(),
+  setItemListingPreference: vi.fn(),
 }));
 
 vi.mock("../api/products", () => ({
@@ -233,6 +239,7 @@ function mockGuestDefaults() {
   vi.mocked(peopleApi.getLeadershipsForPerson).mockResolvedValue([]);
   vi.mocked(inventoriesApi.getInventories).mockResolvedValue([mockInventory]);
   vi.mocked(inventoriesApi.getInventoryItems).mockResolvedValue([]);
+  vi.mocked(itemListingPreferencesApi.getMyItemListingPreferences).mockResolvedValue([]);
   vi.mocked(productsApi.getProducts).mockResolvedValue([]);
   vi.mocked(familiesApi.getMyFamilies).mockResolvedValue([]);
   vi.mocked(familiesApi.getMembershipsForFamily).mockResolvedValue([]);
@@ -251,6 +258,7 @@ function mockOrganizerDefaults() {
   ]);
   vi.mocked(inventoriesApi.getInventories).mockResolvedValue([mockInventory]);
   vi.mocked(inventoriesApi.getInventoryItems).mockResolvedValue([]);
+  vi.mocked(itemListingPreferencesApi.getMyItemListingPreferences).mockResolvedValue([]);
   vi.mocked(productsApi.getProducts).mockResolvedValue([]);
   vi.mocked(groupsApi.getGroup).mockResolvedValue(mockGroup);
   vi.mocked(termsApi.getTerms).mockResolvedValue([]);

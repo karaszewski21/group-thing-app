@@ -10,7 +10,14 @@ from __future__ import annotations
 
 from fastapi import APIRouter
 
-from app.groups.router import circles, leaderships, memberships, pledges, terms
+from app.groups.router import (
+    circles,
+    leaderships,
+    memberships,
+    pledges,
+    term_item_listings,
+    terms,
+)
 
 router = APIRouter()
 # Registration order is load-bearing: circles.py's routes register first so
@@ -21,3 +28,4 @@ router.include_router(leaderships.router)
 router.include_router(memberships.router)
 router.include_router(terms.router)
 router.include_router(pledges.router)
+router.include_router(term_item_listings.router)

@@ -61,3 +61,15 @@ def test_resolveRequirement_notificationsMarkRead_resolvesToEdit() -> None:
 
 def test_resolveRequirement_publicGroup_notRegressedByGroupsPatchRow() -> None:
     assert resolve_requirement("GET", "/api/groups/public/some-id") == "PUBLIC"
+
+
+def test_resolveRequirement_termItemListingsBrowseAndTake_andWithdrawAttendance() -> None:
+    """Rows for the exchange mechanism (`/api/term-item-listings`,
+    `/api/item-listing-preferences`), plus confirmation that
+    `POST /api/groups/mine/attendances/{id}/withdraw` needs no new row of
+    its own — it falls under the pre-existing blanket
+    `POST ^/api/groups(/.*)?$` row (row 27)."""
+    assert resolve_requirement("GET", "/api/term-item-listings/browse") == READ
+    assert resolve_requirement("POST", "/api/term-item-listings/123/take") == EDIT
+    assert resolve_requirement("PUT", "/api/item-listing-preferences/123") == EDIT
+    assert resolve_requirement("POST", "/api/groups/mine/attendances/42/withdraw") == EDIT
