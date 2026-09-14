@@ -8,10 +8,9 @@ is a plain FK-id column into the standalone `app.category` module's
 
 from __future__ import annotations
 
-from decimal import Decimal
 from typing import Any
 
-from sqlalchemy import BigInteger, ForeignKey, Numeric, String
+from sqlalchemy import BigInteger, ForeignKey, String
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -25,7 +24,6 @@ class Product(BaseEntity):
     name: Mapped[str] = mapped_column(String(255), nullable=False)
     description: Mapped[str | None] = mapped_column(String(2000), nullable=True)
     photo_url: Mapped[str | None] = mapped_column(String(500), nullable=True)
-    price: Mapped[Decimal] = mapped_column(Numeric(19, 2), nullable=False)
     # No unique constraint on `sku` at the DB level (see the migration),
     # even though it's this entity's business key below — preserve that
     # absence exactly, matching the Java source.

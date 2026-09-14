@@ -26,8 +26,9 @@ RESERVED_SLUGS: frozenset[str] = frozenset(
         "onboarding",
         "organization",
         "products",
+        "categories",
+        "moderation",
         "plugins",
-        "carbon-footprint",
         # Backend/static namespaces and other names that must never be
         # shadowed by a public organization page.
         "api",

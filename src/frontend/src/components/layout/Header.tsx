@@ -22,12 +22,6 @@ function getBreadcrumbs(pathname: string): string[] {
     crumbs.push("Products");
     if (segments[1] === "new") crumbs.push("New Product");
     else if (segments[2] === "edit") crumbs.push("Edit Product");
-    else if (segments[2] === "footprint") {
-      crumbs.push("Footprint");
-      if (segments[3] === "compare") crumbs.push("Compare");
-    }
-  } else if (segments[0] === "carbon-footprint") {
-    crumbs.push("Carbon Footprint");
   }
 
   return crumbs;

@@ -1,4 +1,4 @@
-import { render, screen, fireEvent, act, waitFor } from "@testing-library/react";
+import { render, screen } from "@testing-library/react";
 import { MemoryRouter, Routes, Route } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { ChakraProvider } from "@chakra-ui/react";
@@ -8,7 +8,6 @@ import type { ProductResponse } from "../api/products";
 import * as categoriesApi from "../api/categories";
 import type { Category } from "../api/categories";
 import { ProductDetailPage } from "../pages/ProductDetailPage";
-import { CarbonFootprintLandingPage } from "../pages/CarbonFootprintLandingPage";
 
 vi.mock("../api/products", () => ({
   getProduct: vi.fn(),
@@ -46,7 +45,6 @@ const mockProduct: ProductResponse = {
   name: "Słuchawki",
   description: null,
   photoUrl: null,
-  price: 99.99,
   sku: "SKU-1",
   category_id: 42,
   pluginData: null,
@@ -74,27 +72,5 @@ describe("Category display resolves via useCategories(), not CATEGORY_LABELS", (
     );
 
     expect(await screen.findByText("Elektronika")).toBeInTheDocument();
-  });
-
-  it("CarbonFootprintLandingPage shows the category name looked up by category_id", async () => {
-    vi.mocked(productsApi.getProducts).mockResolvedValue([mockProduct]);
-
-    render(
-      <ChakraProvider value={system}>
-        <MemoryRouter initialEntries={["/carbon-footprint"]}>
-          <Routes>
-            <Route path="/carbon-footprint" element={<CarbonFootprintLandingPage />} />
-          </Routes>
-        </MemoryRouter>
-      </ChakraProvider>,
-    );
-
-    const input = screen.getByPlaceholderText(/search/i);
-    await act(async () => {
-      fireEvent.change(input, { target: { value: "słuchawki" } });
-    });
-
-    await waitFor(() => expect(productsApi.getProducts).toHaveBeenCalled(), { timeout: 1000 });
-    expect(await screen.findByText(/SKU-1 · Elektronika/)).toBeInTheDocument();
   });
 });

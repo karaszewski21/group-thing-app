@@ -4,10 +4,8 @@ import { ProductListPage } from "./pages/ProductListPage";
 import { ProductFormPage } from "./pages/ProductFormPage";
 import { CategoryListPage } from "./pages/CategoryListPage";
 import { CategoryFormPage } from "./pages/CategoryFormPage";
+import { ModerationPage } from "./pages/ModerationPage";
 import { ProductDetailPage } from "./pages/ProductDetailPage";
-import { ProductFootprintPage } from "./pages/ProductFootprintPage";
-import { FootprintComparisonPage } from "./pages/FootprintComparisonPage";
-import { CarbonFootprintLandingPage } from "./pages/CarbonFootprintLandingPage";
 import { PluginListPage } from "./pages/PluginListPage";
 import { PluginDetailPage } from "./pages/PluginDetailPage";
 import { PluginFormPage } from "./pages/PluginFormPage";
@@ -23,6 +21,7 @@ import { OnboardingPage } from "./pages/OnboardingPage";
 import { OrganizationPage } from "./pages/OrganizationPage";
 import { PublicOrganizationPage } from "./pages/PublicOrganizationPage";
 import { AuthGuard } from "./auth/AuthGuard";
+import { useAuth } from "./auth/AuthContext";
 import { PluginProvider } from "./plugins/PluginContext";
 
 function Layout() {
@@ -33,6 +32,17 @@ function Layout() {
       </AppShell>
     </PluginProvider>
   );
+}
+
+/** Index route for "/": sends back-office roles (ADMIN / PLUGIN_MANAGEMENT —
+ * the permissions gating the Categories/Plugins Sidebar links) to the
+ * AppShell's own back-office pages instead of the Guest/Organizer Panel,
+ * so logging in as an admin account lands where its Sidebar links actually
+ * are, rather than requiring a manual URL edit. */
+function HomeRedirect() {
+  const { permissions } = useAuth();
+  const isBackOffice = permissions.includes("ADMIN") || permissions.includes("PLUGIN_MANAGEMENT");
+  return <Navigate to={isBackOffice ? "/products" : "/panel"} replace />;
 }
 
 export const router = createBrowserRouter([
@@ -97,17 +107,15 @@ export const router = createBrowserRouter([
       </AuthGuard>
     ),
     children: [
-      { index: true, element: <Navigate to="/panel" replace /> },
+      { index: true, element: <HomeRedirect /> },
       { path: "products", element: <ProductListPage /> },
       { path: "products/new", element: <ProductFormPage /> },
       { path: "products/:id", element: <ProductDetailPage /> },
       { path: "products/:id/edit", element: <ProductFormPage /> },
-      { path: "products/:id/footprint", element: <ProductFootprintPage /> },
-      { path: "products/:id/footprint/compare", element: <FootprintComparisonPage /> },
-      { path: "carbon-footprint", element: <CarbonFootprintLandingPage /> },
       { path: "categories", element: <CategoryListPage /> },
       { path: "categories/new", element: <CategoryFormPage /> },
       { path: "categories/:id/edit", element: <CategoryFormPage /> },
+      { path: "moderation", element: <ModerationPage /> },
       { path: "plugins", element: <PluginListPage /> },
       { path: "plugins/new", element: <PluginFormPage /> },
       { path: "plugins/:pluginId/detail", element: <PluginDetailPage /> },

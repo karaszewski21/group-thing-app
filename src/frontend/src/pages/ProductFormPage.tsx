@@ -31,7 +31,6 @@ export function ProductFormPage() {
 
   const [name, setName] = useState("");
   const [sku, setSku] = useState("");
-  const [price, setPrice] = useState("");
   const [categoryId, setCategoryId] = useState<number | "">("");
   const [description, setDescription] = useState("");
   const [photoUrl, setPhotoUrl] = useState("");
@@ -47,7 +46,6 @@ export function ProductFormPage() {
         const product = await getProduct(Number(id));
         setName(product.name);
         setSku(product.sku);
-        setPrice(String(product.price));
         setCategoryId(product.category_id);
         setDescription(product.description ?? "");
         setPhotoUrl(product.photoUrl ?? "");
@@ -71,7 +69,6 @@ export function ProductFormPage() {
     const payload = {
       name,
       sku,
-      price: parseFloat(price),
       category_id: categoryId,
       description: description || undefined,
       photoUrl: photoUrl || undefined,
@@ -138,21 +135,6 @@ export function ProductFormPage() {
             <Text fontSize="12px" color="#94A3B8" mt="6px">
               Unique stock keeping unit identifier
             </Text>
-          </Box>
-
-          <Box>
-            <label htmlFor="product-price" style={labelStyle}>
-              Price <Text as="span" color="#EF4444">*</Text>
-            </label>
-            <Input
-              id="product-price"
-              type="number"
-              step="0.01"
-              value={price}
-              onChange={(e) => setPrice(e.target.value)}
-              placeholder="0.00"
-              required
-            />
           </Box>
 
           <Box>

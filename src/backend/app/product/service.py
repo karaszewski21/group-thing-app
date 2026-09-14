@@ -12,7 +12,6 @@ the now-removed `category/service.py` used for
 from __future__ import annotations
 
 import time
-from decimal import Decimal
 from typing import cast
 
 from sqlalchemy import Select, func, select
@@ -24,13 +23,6 @@ from app.core.errors import BusinessConflictException, EntityNotFoundException
 from . import query_service
 from .models import Product
 from .schemas import CreateProductRequest, UpdateProductRequest
-
-# Placeholder price/sku for a Product auto-created from a freeform item
-# name — mirrors the exact client-side synthesis previously in
-# `PanelPage.tsx:401-410` (`price: 0.01`, `sku: "<NAME[:10].upper()>-
-# <epoch millis>"`), moved server-side so the client no longer needs to
-# fabricate these values itself.
-_PLACEHOLDER_PRICE = Decimal("0.01")
 
 
 class ProductHasInventoryItemsException(BusinessConflictException):
@@ -74,7 +66,6 @@ async def create_product(db: AsyncSession, data: CreateProductRequest) -> Produc
         name=data.name,
         description=data.description,
         photo_url=data.photo_url,
-        price=data.price,
         sku=data.sku,
         category_id=data.category_id,
     )
@@ -88,7 +79,6 @@ async def update_product(db: AsyncSession, product_id: int, data: UpdateProductR
     product.name = data.name
     product.description = data.description
     product.photo_url = data.photo_url
-    product.price = data.price
     product.sku = data.sku
     product.category_id = data.category_id
     await db.commit()
@@ -100,9 +90,8 @@ async def get_or_create_product_by_name(
 ) -> Product:
     """Resolves a freeform item name typed by a user (e.g. during
     onboarding) to an existing `Product` in the same `category_id` — matched
-    case-insensitively — or creates a new one with a placeholder price/sku
-    when no match exists. See `_PLACEHOLDER_PRICE` docstring above for the
-    provenance of the placeholder values."""
+    case-insensitively — or creates a new one with a placeholder sku
+    (`"<NAME[:10].upper()>-<epoch millis>"`) when no match exists."""
     result = await db.execute(
         _product_select().where(
             func.lower(Product.name) == name.lower(), Product.category_id == category_id
@@ -116,7 +105,6 @@ async def get_or_create_product_by_name(
         name=name,
         description=None,
         photo_url=None,
-        price=_PLACEHOLDER_PRICE,
         sku=f"{name[:10].upper()}-{int(time.time() * 1000)}",
         category_id=category_id,
     )

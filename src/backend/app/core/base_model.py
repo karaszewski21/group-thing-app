@@ -1,8 +1,8 @@
 """Declarative base and shared `BaseEntity` mapped-superclass mixin.
 
 Mirrors the Java `BaseEntity` (`@MappedSuperclass`): applies to `categories`,
-`products`, `plugin_objects`, `footprint_audit_log`, `users` (per spec.md's
-"Shared base pattern"). `PluginDescriptor` and `RegisteredClientEntity` do
+`products`, `plugin_objects`, `users` (per spec.md's "Shared base pattern").
+`PluginDescriptor` and `RegisteredClientEntity` do
 NOT use this mixin (different PK strategies — string PK / UUID PK, no
 sequence) and are modeled as standalone mapped classes elsewhere.
 """
@@ -40,8 +40,7 @@ class BaseEntity(Base):
     """Shared mapped superclass. Each concrete subclass must set
     `__sequence_name__` to the Postgres sequence Alembic created for its
     table's `id` column (`category_seq`, `product_seq`, `plugin_object_seq`,
-    `footprint_audit_log_id_seq`, `user_seq`) — mirrors the Java entities'
-    per-class `@SequenceGenerator`."""
+    `user_seq`) — mirrors the Java entities' per-class `@SequenceGenerator`."""
 
     __abstract__ = True
 

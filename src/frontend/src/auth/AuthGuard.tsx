@@ -7,7 +7,9 @@ interface AuthGuardProps {
   requireAuth?: boolean;
   /** Where to send an already-authenticated user away from a
    * `requireAuth={false}` page (e.g. /login, /register) when no
-   * `?returnTo=` is present. Defaults to "/panel". `/register` passes
+   * `?returnTo=` is present. Defaults to "/", which resolves through the
+   * "/" index route's `HomeRedirect` (router.tsx) to send back-office
+   * roles to `/products` and everyone else to `/panel`. `/register` passes
    * "/onboarding" here so this guard's own redirect (which fires the
    * instant `register()` sets a token, racing the imperative
    * `navigate("/onboarding")` in RegisterPage's submit handler) can never
@@ -15,7 +17,7 @@ interface AuthGuardProps {
   authenticatedRedirect?: string;
 }
 
-export function AuthGuard({ children, requireAuth = true, authenticatedRedirect = "/panel" }: AuthGuardProps) {
+export function AuthGuard({ children, requireAuth = true, authenticatedRedirect = "/" }: AuthGuardProps) {
   const { token } = useAuth();
   const location = useLocation();
   const [searchParams] = useSearchParams();

@@ -80,7 +80,6 @@ describe("ItemQuickAddForm — category_id rename", () => {
       name: emitted.name,
       description: null,
       photoUrl: null,
-      price: 0,
       sku: "SKU",
       category_id: emitted.category_id,
       pluginData: null,

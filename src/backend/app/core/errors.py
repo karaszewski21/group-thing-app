@@ -1,11 +1,6 @@
 """Legacy flat error envelope: `ErrorResponse` model, typed exceptions, and
 the exception handlers implementing spec.md's Error-Handling Spec priority
-table. Everything routes through this handler set EXCEPT the 6
-footprint-domain exception types (RFC7807 `ProblemDetail`, `app/footprint/
-errors.py`, Group 12) — including `EntityNotFoundException`/`ValueError`
-*raised from within* the footprint module (e.g. the export 404 and the
-PER_100G bug), which deliberately still surface through this legacy handler
-set per fixed decision #1.
+table.
 """
 
 from __future__ import annotations

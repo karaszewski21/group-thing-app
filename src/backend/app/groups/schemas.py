@@ -24,6 +24,21 @@ class GroupResponse(BaseModel):
     updated_at: datetime
 
 
+class ModerationGroupResponse(BaseModel):
+    """`GET /api/groups/moderation` (ADMIN-only) row: every Circle in the
+    system with its current organizer (if any — a Circle can be
+    leaderless, e.g. right after registration) and aggregated member/term
+    counts, for spotting empty or abandoned Circles at a glance."""
+
+    id: int
+    name: str
+    created_at: datetime
+    organizer_name: str | None
+    organizer_email: str | None
+    member_count: int
+    term_count: int
+
+
 def _reject_blank_name(value: str) -> str:
     trimmed = value.strip()
     if not trimmed:

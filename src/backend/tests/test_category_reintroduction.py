@@ -72,9 +72,9 @@ async def test_productsCategoryId_afterMigration_isNotNullAndFkConstrained(
         await db_session.execute(
             text(
                 "INSERT INTO products "
-                "(id, name, price, sku, category_id, created_at, updated_at) "
+                "(id, name, sku, category_id, created_at, updated_at) "
                 "VALUES "
-                "(nextval('product_seq'), 'Invalid FK Product', 1.00, 'SKU-INVALID', "
+                "(nextval('product_seq'), 'Invalid FK Product', 'SKU-INVALID', "
                 "999999, now(), now())"
             )
         )

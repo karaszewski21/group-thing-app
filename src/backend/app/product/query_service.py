@@ -24,7 +24,6 @@ from .models import Product
 # Java DTO's field name) maps to the `created_at` column.
 _SORT_WHITELIST: dict[str, Any] = {
     "name": Product.name,
-    "price": Product.price,
     "sku": Product.sku,
     "createdAt": Product.created_at,
 }

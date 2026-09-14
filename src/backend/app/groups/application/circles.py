@@ -23,7 +23,7 @@ from app.party.service import create_party
 
 from ..infrastructure import repository
 from ..models import Group, GroupRoleType, Leadership
-from ..schemas import CreateCircleRequest
+from ..schemas import CreateCircleRequest, ModerationGroupResponse
 from .group_roles import get_or_create_active_group_role
 
 # --- Groups (Circles) ---------------------------------------------------------
@@ -80,6 +80,22 @@ async def create_own_circle(db: AsyncSession, organizer_party_id: int, circle_na
 
 async def list_groups(db: AsyncSession) -> list[Group]:
     return await repository.list_groups(db)
+
+
+async def list_groups_for_moderation(db: AsyncSession) -> list[ModerationGroupResponse]:
+    rows = await repository.list_groups_for_moderation(db)
+    return [
+        ModerationGroupResponse(
+            id=cast(int, group.id),
+            name=group.name,
+            created_at=group.created_at,
+            organizer_name=organizer_name,
+            organizer_email=organizer_email,
+            member_count=member_count,
+            term_count=term_count,
+        )
+        for group, organizer_name, organizer_email, member_count, term_count in rows
+    ]
 
 
 async def get_group(db: AsyncSession, group_id: int) -> Group:

@@ -55,7 +55,6 @@ _RAW_MATRIX: tuple[_RawEntry, ...] = (
     # that path, and lets it correctly fall through to row 25.
     (_methods("GET"), r"^(?!/api/).*$", "PUBLIC"),
     (_methods("GET"), r"^/api/products(/.*)?$", ("READ", "mcp:read")),  # 11
-    (_methods("GET"), r"^/api/footprints/calculations/[^/]+/export$", ("READ", "mcp:read")),  # 12
     (_methods("GET"), r"^/api/plugins$", ("READ",)),  # 13
     (_methods("GET"), r"^/api/plugins/[^/]+$", ("READ",)),  # 14
     (_methods("GET"), r"^/api/plugins/[^/]+/objects(/.*)?$", ("READ",)),  # 15
@@ -91,6 +90,10 @@ _RAW_MATRIX: tuple[_RawEntry, ...] = (
     # first-match evaluation reaches it. The active-organizer check lives in
     # `app.groups.service.update_group`; the matrix only gates it to EDIT.
     (_methods("PATCH"), r"^/api/groups/[^/]+$", ("EDIT", "mcp:edit")),
+    # ADMIN-only Circle moderation list — declared ahead of row 26's blanket
+    # /api/groups READ row so the literal `moderation` segment doesn't fall
+    # through to the READ-only rule below.
+    (_methods("GET"), r"^/api/groups/moderation$", ("ADMIN",)),
     # 26-47: app.party / app.circulation — added beyond spec.md's original 25
     # rows for the Organizer/Circle/Family + Wypożyczalnia domain. Ownership
     # checks the matrix itself can't express (active organizer, own-family

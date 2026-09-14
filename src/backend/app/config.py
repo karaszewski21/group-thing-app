@@ -25,10 +25,6 @@ class Settings(BaseSettings):
     # Operational tuning knobs — defaults match `.env.example`.
     jwt_expiration_ms: int = 3_600_000
     cors_allowed_origins: str = "http://localhost:5173"
-    footprint_problem_base_uri: str = "https://aj.example.com/problems/"
-    footprint_audit_retry_max_attempts: int = 3
-    footprint_audit_retry_delay_ms: int = 200
-    footprint_audit_retry_multiplier: float = 2.0
 
     @property
     def cors_allowed_origins_list(self) -> list[str]:

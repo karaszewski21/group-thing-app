@@ -3,6 +3,7 @@ import {
   LayoutList,
   Leaf,
   Plug,
+  ShieldCheck,
   Tag,
   Users,
   Warehouse,
@@ -14,9 +15,9 @@ import * as icons from "lucide-react";
 export const ProductsIcon = Package;
 export const PluginsIcon = Plug;
 export const WarehouseIcon = Warehouse;
-export const FootprintIcon = Leaf;
 export const KragIcon = Users;
 export const CategoriesIcon = Tag;
+export const ModerationIcon = ShieldCheck;
 
 const ICON_MAP: Record<string, LucideIcon> = {
   package: Package,

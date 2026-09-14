@@ -43,7 +43,6 @@ async def test_listProducts_filteredByCategoryId_returnsOnlyMatchingProducts(
         "/api/products",
         json={
             "name": "Katalogowa Zabawka",
-            "price": "9.99",
             "sku": "CATFK-TOY-1",
             "category_id": _ZABAWKA_ID,
         },
@@ -54,7 +53,6 @@ async def test_listProducts_filteredByCategoryId_returnsOnlyMatchingProducts(
         "/api/products",
         json={
             "name": "Katalogowa Książka",
-            "price": "19.99",
             "sku": "CATFK-BOOK-1",
             "category_id": _KSIAZKA_ID,
         },
@@ -80,7 +78,6 @@ async def test_createAndUpdateProduct_persistCategoryId_roundTripsThroughGet(
         db_session,
         CreateProductRequest(
             name="Round-trip Product",
-            price="5.00",
             sku="CATFK-RT-1",
             category_id=_ZABAWKA_ID,
         ),
@@ -95,7 +92,6 @@ async def test_createAndUpdateProduct_persistCategoryId_roundTripsThroughGet(
         created.id,
         UpdateProductRequest(
             name="Round-trip Product",
-            price="5.00",
             sku="CATFK-RT-1",
             category_id=_KSIAZKA_ID,
         ),
@@ -142,7 +138,6 @@ async def test_getPublicCircle_unauthenticated_returnsCategoryIdAndNameForNeeded
         "/api/products",
         json={
             "name": "Publiczna Zabawka",
-            "price": "3.50",
             "sku": "CATFK-PUB-1",
             "category_id": _ZABAWKA_ID,
         },
@@ -186,7 +181,6 @@ async def test_listNeededItems_returnsCategoryIdAndNamePairFromJoin(client: Asyn
         "/api/products",
         json={
             "name": "Instrumentalna Książka",
-            "price": "12.00",
             "sku": "CATFK-NI-1",
             "category_id": _KSIAZKA_ID,
         },
@@ -239,7 +233,6 @@ async def test_createProductWithSeededZabawkaCategory_thenPublicNeededItem_retur
         "/api/products",
         json={
             "name": "E2E Zabawka",
-            "price": "7.00",
             "sku": "CATFK-E2E-1",
             "category_id": _ZABAWKA_ID,
         },

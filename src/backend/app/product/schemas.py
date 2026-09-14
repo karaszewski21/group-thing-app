@@ -8,7 +8,6 @@ from __future__ import annotations
 
 import re
 from datetime import datetime
-from decimal import Decimal
 from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
@@ -32,7 +31,7 @@ def _validate_photo_url(value: str | None) -> str | None:
 
 class ProductResponse(BaseModel):
     """Field order is significant (mirrors the Java DTO): `id, name,
-    description, photo_url, price, sku, category_id, plugin_data, created_at,
+    description, photo_url, sku, category_id, plugin_data, created_at,
     updated_at`."""
 
     model_config = ConfigDict(from_attributes=True)
@@ -41,7 +40,6 @@ class ProductResponse(BaseModel):
     name: str
     description: str | None
     photo_url: str | None
-    price: Decimal
     sku: str
     category_id: int
     plugin_data: dict[str, Any] | None
@@ -53,7 +51,6 @@ class CreateProductRequest(BaseModel):
     name: str = Field(min_length=1, max_length=255)
     description: str | None = Field(default=None, max_length=2000)
     photo_url: str | None = Field(default=None, max_length=500)
-    price: Decimal = Field(gt=0)
     sku: str = Field(min_length=1, max_length=50)
     category_id: int
 
@@ -67,7 +64,6 @@ class UpdateProductRequest(BaseModel):
     name: str = Field(min_length=1, max_length=255)
     description: str | None = Field(default=None, max_length=2000)
     photo_url: str | None = Field(default=None, max_length=500)
-    price: Decimal = Field(gt=0)
     sku: str = Field(min_length=1, max_length=50)
     category_id: int
 
@@ -80,7 +76,7 @@ class UpdateProductRequest(BaseModel):
 class ResolveProductRequest(BaseModel):
     """`POST /api/products/resolve` — resolves a freeform item name (e.g.
     typed during onboarding) to an existing `Product`, or creates one on the
-    fly with a placeholder price/sku. Reuses `ProductResponse` as the return
+    fly with a placeholder sku. Reuses `ProductResponse` as the return
     shape; no dedicated response schema."""
 
     name: str = Field(min_length=1, max_length=255)

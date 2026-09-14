@@ -22,7 +22,7 @@ async def _authed_headers(client: AsyncClient, email: str) -> dict[str, str]:
     return {"Authorization": f"Bearer {token}"}
 
 
-async def test_resolveProduct_noExistingMatch_createsNewProductWithPlaceholderPriceAndSku(
+async def test_resolveProduct_noExistingMatch_createsNewProductWithPlaceholderSku(
     client: AsyncClient,
 ) -> None:
     headers = await _authed_headers(client, "resolve1@example.com")
@@ -37,7 +37,6 @@ async def test_resolveProduct_noExistingMatch_createsNewProductWithPlaceholderPr
     body = response.json()
     assert body["name"] == "Lego Duplo"
     assert body["category_id"] == 1
-    assert body["price"] == "0.01"
     assert body["sku"].startswith("LEGO DUPLO"[:10])
 
 

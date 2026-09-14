@@ -1,26 +1,23 @@
 import {
   Box,
-  Button,
   Flex,
   Heading,
   Image,
   Text,
 } from "@chakra-ui/react";
 import { useCallback, useEffect, useState } from "react";
-import { Link, useNavigate, useParams } from "react-router-dom";
+import { Link, useParams } from "react-router-dom";
 import { getProduct } from "../api/products";
 import type { ProductResponse } from "../api/products";
 import { useCategories } from "../hooks/useCategories";
 import { usePluginContext } from "../plugins/PluginContext";
 import { PRODUCT_DETAIL_INFO, PRODUCT_DETAIL_TABS } from "../plugins/extensionPoints";
 import { PluginFrame } from "../plugins/PluginFrame";
-import { FootprintIcon, PhotoPlaceholder } from "../components/shared/Icons";
-import { formatPrice } from "../utils/format";
+import { PhotoPlaceholder } from "../components/shared/Icons";
 import { isValidImageUrl } from "../utils/url";
 
 export function ProductDetailPage() {
   const { id } = useParams<{ id: string }>();
-  const navigate = useNavigate();
   const [product, setProduct] = useState<ProductResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -78,15 +75,6 @@ export function ProductDetailPage() {
           <Heading as="h1" fontSize="24px" fontWeight="700" color="#0F172A">
             {product.name}
           </Heading>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => navigate(`/products/${product.id}/footprint`)}
-            aria-label="View carbon footprint"
-          >
-            <FootprintIcon size={16} />
-            View carbon footprint
-          </Button>
         </Flex>
       </Box>
 
@@ -151,14 +139,6 @@ export function ProductDetailPage() {
             </Box>
             <Box flex="1">
               <Flex direction="column" gap="12px">
-                <Box>
-                  <Text fontSize="12px" fontWeight="600" color="#64748B" textTransform="uppercase">
-                    Price
-                  </Text>
-                  <Text fontSize="20px" fontWeight="700" color="brand.700">
-                    {formatPrice(product.price)}
-                  </Text>
-                </Box>
                 <Box>
                   <Text fontSize="12px" fontWeight="600" color="#64748B" textTransform="uppercase">
                     SKU

@@ -19,7 +19,7 @@ import { EmptyState } from "../components/shared/EmptyState";
 import { PhotoPlaceholder } from "../components/shared/Icons";
 import { PrimaryButton } from "../components/shared/PrimaryButton";
 import { useAuth } from "../auth/AuthContext";
-import { formatDate, formatPrice } from "../utils/format";
+import { formatDate } from "../utils/format";
 import { isValidImageUrl } from "../utils/url";
 
 export function ProductListPage() {
@@ -213,17 +213,6 @@ export function ProductListPage() {
                   color="brand.500"
                   textTransform="uppercase"
                   letterSpacing="0.05em"
-                  cursor="pointer"
-                  onClick={() => handleSort("price")}
-                >
-                  Price {sortField === "price" ? "^" : ""}
-                </Table.ColumnHeader>
-                <Table.ColumnHeader
-                  fontSize="12px"
-                  fontWeight="600"
-                  color="brand.500"
-                  textTransform="uppercase"
-                  letterSpacing="0.05em"
                 >
                   Category
                 </Table.ColumnHeader>
@@ -291,9 +280,6 @@ export function ProductListPage() {
                     </Table.Cell>
                     <Table.Cell fontFamily="monospace" fontSize="13px" color="#64748B">
                       {product.sku}
-                    </Table.Cell>
-                    <Table.Cell fontWeight="600" color="#0F172A">
-                      {formatPrice(product.price)}
                     </Table.Cell>
                     <Table.Cell>
                       <Text

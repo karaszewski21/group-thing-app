@@ -13,6 +13,18 @@ export interface CreateCircleRequest {
   name: string;
 }
 
+/** `GET /api/groups/moderation` (ADMIN-only) row — every Circle with its
+ * current organizer (if any) and aggregated member/term counts. */
+export interface ModerationGroupResponse {
+  id: number;
+  name: string;
+  created_at: string;
+  organizer_name: string | null;
+  organizer_email: string | null;
+  member_count: number;
+  term_count: number;
+}
+
 /** `organizer_party_id` is denormalized by the backend — no second lookup
  * through `GroupRoleResponse` needed just to find out who this is. */
 export interface LeadershipResponse {
@@ -50,6 +62,10 @@ export interface CreateMembershipRequest {
 
 export function getGroups(): Promise<GroupResponse[]> {
   return api.get("/groups");
+}
+
+export function getGroupsForModeration(): Promise<ModerationGroupResponse[]> {
+  return api.get("/groups/moderation");
 }
 
 export function getGroup(id: number): Promise<GroupResponse> {

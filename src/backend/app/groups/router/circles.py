@@ -31,6 +31,7 @@ from app.groups.schemas import (
     MembershipResponse,
     MergeAnonymousProfileRequest,
     MergeAnonymousProfileResponse,
+    ModerationGroupResponse,
     MyAttendanceResponse,
     PublicCircleResponse,
     RsvpResponse,
@@ -43,6 +44,7 @@ router = APIRouter(tags=["groups"])
 DbSession = Annotated[AsyncSession, Depends(get_db)]
 ReadPrincipal = Annotated[Principal, Depends(require_any("READ", "mcp:read"))]
 EditPrincipal = Annotated[Principal, Depends(require_any("EDIT", "mcp:edit"))]
+ModerationPrincipal = Annotated[Principal, Depends(require_any("ADMIN"))]
 
 
 # --- Groups (Circles) --------------------------------------------------------
@@ -142,6 +144,17 @@ async def list_my_attendances(
     principal — no ownership check beyond authentication + READ."""
     profile = await get_profile_by_principal(db, principal)
     return await service.list_my_attendances(db, profile.party_id)
+
+
+@router.get("/api/groups/moderation", response_model=list[ModerationGroupResponse])
+async def list_groups_for_moderation(
+    db: DbSession, principal: ModerationPrincipal
+) -> list[ModerationGroupResponse]:
+    """ADMIN-only: every Circle in the system with its current organizer and
+    member/term counts. Registered ahead of `get_group` below so the
+    literal `moderation` segment isn't consumed by `{group_id}: int` path
+    conversion — same reasoning as `list_my_attendances` above."""
+    return await service.list_groups_for_moderation(db)
 
 
 @router.patch("/api/groups/{group_id}", response_model=GroupResponse)

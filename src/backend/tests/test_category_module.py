@@ -133,8 +133,8 @@ async def test_deleteCategory_referencedByProducts_raisesWithExactBlockingCount(
     for i in range(2):
         await db_session.execute(
             text(
-                "INSERT INTO products (id, name, price, sku, category_id, created_at, updated_at) "
-                "VALUES (nextval('product_seq'), :name, 1.00, :sku, :category_id, now(), now())"
+                "INSERT INTO products (id, name, sku, category_id, created_at, updated_at) "
+                "VALUES (nextval('product_seq'), :name, :sku, :category_id, now(), now())"
             ),
             {"name": f"Produkt {i}", "sku": f"SKU-CAT-{i}", "category_id": category_id},
         )
@@ -155,8 +155,8 @@ async def test_listCategories_returnsRowsOrderedBySortOrderWithAggregatedProduct
     category_id = category.id
     await db_session.execute(
         text(
-            "INSERT INTO products (id, name, price, sku, category_id, created_at, updated_at) "
-            "VALUES (nextval('product_seq'), 'Produkt', 1.00, 'SKU-CAT-COUNT', "
+            "INSERT INTO products (id, name, sku, category_id, created_at, updated_at) "
+            "VALUES (nextval('product_seq'), 'Produkt', 'SKU-CAT-COUNT', "
             ":category_id, now(), now())"
         ),
         {"category_id": category_id},
@@ -284,7 +284,6 @@ async def test_editorEquivalentPrincipal_categoriesAndProductsEndToEnd_regressio
         "/api/products",
         json={
             "name": "Regresyjny Produkt",
-            "price": "4.20",
             "sku": "CAT-REGRESSION-1",
             "category_id": first_category_id,
         },
@@ -298,7 +297,6 @@ async def test_editorEquivalentPrincipal_categoriesAndProductsEndToEnd_regressio
         f"/api/products/{product_id}",
         json={
             "name": "Regresyjny Produkt",
-            "price": "4.20",
             "sku": "CAT-REGRESSION-1",
             "category_id": other_category_id,
         },

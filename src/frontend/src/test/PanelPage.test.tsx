@@ -465,7 +465,6 @@ describe("PanelPage — item add dialog rework", () => {
       name: "Rowerek",
       description: null,
       photoUrl: null,
-      price: 0,
       sku: "SKU",
       category_id: 1,
       pluginData: null,
@@ -1380,7 +1379,7 @@ describe("PanelPage — needed item sub-CRUD (in the term dialog)", () => {
   it("adds a needed item via the dialog add row (resolveProduct then createNeededItem)", async () => {
     mockTermWithNeeded();
     vi.mocked(productsApi.resolveProduct).mockResolvedValue({
-      id: 42, name: "Mata", description: null, photoUrl: null, price: 0.01, sku: "MATA-1",
+      id: 42, name: "Mata", description: null, photoUrl: null, sku: "MATA-1",
       category_id: 1, pluginData: null, createdAt: "", updatedAt: "",
     });
     vi.mocked(termsApi.createNeededItem).mockResolvedValue({
@@ -1462,7 +1461,6 @@ describe("PanelPage — inventory item edit/delete", () => {
     name: "Rowerek",
     description: null,
     photoUrl: null,
-    price: 0,
     sku: "SKU7",
     category_id: 1,
     pluginData: null,

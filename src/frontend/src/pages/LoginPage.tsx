@@ -21,7 +21,7 @@ export function LoginPage() {
     setLoading(true);
     try {
       await login(email, password);
-      const returnTo = searchParams.get("returnTo") || "/panel";
+      const returnTo = searchParams.get("returnTo") || "/";
       navigate(returnTo, { replace: true });
     } catch (err) {
       setError(err instanceof Error ? err.message : "Nie udało się zalogować");

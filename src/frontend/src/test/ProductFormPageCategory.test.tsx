@@ -60,7 +60,6 @@ describe("ProductFormPage — category data source", () => {
       name: "Rowerek",
       description: null,
       photoUrl: null,
-      price: 10,
       sku: "ABC",
       category_id: 5,
       pluginData: null,
@@ -83,7 +82,6 @@ describe("ProductFormPage — category data source", () => {
 
     fireEvent.change(screen.getByLabelText(/product name/i), { target: { value: "Rowerek" } });
     fireEvent.change(screen.getByLabelText(/sku/i), { target: { value: "ABC" } });
-    fireEvent.change(screen.getByLabelText(/price/i), { target: { value: "10" } });
     fireEvent.change(select, { target: { value: "7" } });
 
     fireEvent.click(screen.getByRole("button", { name: /save product/i }));

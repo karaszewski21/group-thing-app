@@ -56,7 +56,6 @@ const mockProducts: ProductResponse[] = [
     name: "Wireless Headphones Pro",
     description: "Premium wireless headphones",
     photoUrl: "https://example.com/headphones.jpg",
-    price: 149.99,
     sku: "WHP-001",
     category_id: 1,
     pluginData: null,
@@ -68,7 +67,6 @@ const mockProducts: ProductResponse[] = [
     name: "Classic Watch",
     description: "Analog watch",
     photoUrl: null,
-    price: 89.50,
     sku: "CAW-042",
     category_id: 4,
     pluginData: null,
@@ -115,7 +113,6 @@ describe("ProductFormPage", () => {
 
     expect(await screen.findByLabelText(/product name/i)).toBeInTheDocument();
     expect(screen.getByLabelText(/sku/i)).toBeInTheDocument();
-    expect(screen.getByLabelText(/price/i)).toBeInTheDocument();
     expect(screen.getByLabelText(/category/i)).toBeInTheDocument();
     expect(screen.getByLabelText(/description/i)).toBeInTheDocument();
     expect(screen.getByLabelText(/photo url/i)).toBeInTheDocument();

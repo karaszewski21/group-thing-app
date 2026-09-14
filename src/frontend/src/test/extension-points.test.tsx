@@ -89,7 +89,6 @@ const mockProduct: ProductResponse = {
   name: "Wireless Headphones Pro",
   description: "Premium wireless headphones with noise cancellation",
   photoUrl: "https://example.com/headphones.jpg",
-  price: 149.99,
   sku: "WHP-001",
   category_id: 1,
   pluginData: null,
@@ -163,7 +162,6 @@ describe("ProductDetailPage", () => {
 
     // Product info should load
     expect(await screen.findByRole("heading", { name: "Wireless Headphones Pro" })).toBeInTheDocument();
-    expect(screen.getByText("$149.99")).toBeInTheDocument();
     expect(screen.getByText("WHP-001")).toBeInTheDocument();
 
     // Tab navigation: Details tab plus plugin tabs

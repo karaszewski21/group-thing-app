@@ -5,7 +5,6 @@ export interface ProductResponse {
   name: string;
   description: string | null;
   photoUrl: string | null;
-  price: number;
   sku: string;
   category_id: number;
   pluginData: Record<string, Record<string, unknown>> | null;
@@ -17,7 +16,6 @@ export interface CreateProductRequest {
   name: string;
   description?: string;
   photoUrl?: string;
-  price: number;
   sku: string;
   category_id: number;
 }
@@ -26,7 +24,6 @@ export interface UpdateProductRequest {
   name: string;
   description?: string;
   photoUrl?: string;
-  price: number;
   sku: string;
   category_id: number;
 }

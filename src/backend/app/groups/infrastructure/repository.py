@@ -8,7 +8,7 @@ Never commits or flushes; `EntityNotFoundException` raising stays in the
 
 from __future__ import annotations
 
-from sqlalchemy import Row, select
+from sqlalchemy import Row, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.category.models import Category
@@ -38,6 +38,51 @@ async def list_groups(db: AsyncSession) -> list[Group]:
 
 async def get_group(db: AsyncSession, group_id: int) -> Group | None:
     return await db.get(Group, group_id)
+
+
+async def list_groups_for_moderation(
+    db: AsyncSession,
+) -> list[Row[tuple[Group, str | None, str | None, int, int]]]:
+    """One aggregated query — `LEFT JOIN`/`GROUP BY` subqueries for member
+    and term counts plus the current organizer's `UserProfile`, per
+    `standards/backend/queries.md` (mirrors `app.category.service.
+    list_categories`'s product-count pattern). Never one query per Circle."""
+    member_counts = (
+        select(Membership.to_group_id, func.count().label("member_count"))
+        .where(Membership.valid_to.is_(None))
+        .group_by(Membership.to_group_id)
+        .subquery()
+    )
+    term_counts = (
+        select(Term.circle_group_id, func.count().label("term_count"))
+        .group_by(Term.circle_group_id)
+        .subquery()
+    )
+    organizers = (
+        select(
+            Leadership.to_group_id,
+            UserProfile.display_name,
+            UserProfile.email,
+        )
+        .join(GroupRole, GroupRole.id == Leadership.from_role_id)
+        .join(UserProfile, UserProfile.party_id == GroupRole.party_id)
+        .where(Leadership.valid_to.is_(None))
+        .subquery()
+    )
+    result = await db.execute(
+        select(
+            Group,
+            organizers.c.display_name,
+            organizers.c.email,
+            func.coalesce(member_counts.c.member_count, 0),
+            func.coalesce(term_counts.c.term_count, 0),
+        )
+        .outerjoin(member_counts, member_counts.c.to_group_id == Group.id)
+        .outerjoin(term_counts, term_counts.c.circle_group_id == Group.id)
+        .outerjoin(organizers, organizers.c.to_group_id == Group.id)
+        .order_by(Group.created_at.desc())
+    )
+    return list(result.all())
 
 
 # --- GroupRole -------------------------------------------------------------------

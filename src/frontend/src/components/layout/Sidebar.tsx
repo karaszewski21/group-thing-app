@@ -1,7 +1,7 @@
 import { Box, Flex, Text } from "@chakra-ui/react";
 import { Link, useLocation } from "react-router-dom";
 import type { LucideIcon } from "lucide-react";
-import { ProductsIcon, PluginsIcon, FootprintIcon, KragIcon, CategoriesIcon, resolveIcon } from "../shared/Icons";
+import { ProductsIcon, PluginsIcon, KragIcon, CategoriesIcon, ModerationIcon, resolveIcon } from "../shared/Icons";
 import { usePluginContext } from "../../plugins/PluginContext";
 import { useAuth } from "../../auth/AuthContext";
 
@@ -85,18 +85,18 @@ export function Sidebar() {
         letterSpacing="-0.3px"
         whiteSpace="nowrap"
       >
-        <Text as="span" color="brand.400">Tomorrow</Text>
-        <Text as="span" color="white" fontWeight="800">Commerce</Text>
+        <Text as="span" color="brand.400">Group</Text>
+        <Text as="span" color="white" fontWeight="800">Thing</Text>
       </Text>
       <Flex as="nav" direction="column" gap="2px" role="navigation" aria-label="Main navigation">
         <NavItem to="/products" label="Products" icon={ProductsIcon} />
-        <NavItem to="/carbon-footprint" label="Carbon Footprint" icon={FootprintIcon} />
-        <NavItem to="/panel" label="Krąg grupy" icon={KragIcon} />
         {isAdmin && <NavItem to="/categories" label="Categories" icon={CategoriesIcon} />}
+        {isAdmin && <NavItem to="/moderation" label="Moderation" icon={ModerationIcon} />}
+        {(hasPluginManagement || isAdmin) && <PluginMenuItems />}
         {(hasPluginManagement || isAdmin) && (
           <NavItem to="/plugins" label="Plugins" icon={PluginsIcon} />
         )}
-        {(hasPluginManagement || isAdmin) && <PluginMenuItems />}
+        <NavItem to="/panel" label="Panel" icon={KragIcon} />
       </Flex>
     </Box>
   );
