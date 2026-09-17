@@ -79,6 +79,14 @@ async def fulfill_pledge(
     reservation = await circulation_bridge.create_lend_reservation(
         db, item_id=cast(int, item.id), reserved_by_user_id=organizer_profile.account_user_id
     )
+    # The guardian calling this endpoint IS the item's current holder (its
+    # own inventory) — their consent already exists in the act of pledging
+    # and registering/offering the item, so confirm on their behalf rather
+    # than making the organizer come back later to do it (they never could:
+    # only the holder may confirm, and the organizer never holds the item).
+    await circulation_bridge.confirm_reservation(
+        db, reservation.id, acting_user_id=profile.account_user_id
+    )
 
     pledge.resolved_reservation_id = reservation.id
 

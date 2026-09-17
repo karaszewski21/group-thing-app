@@ -13,6 +13,7 @@ from app.circulation.application.inventory import get_inventory
 from app.circulation.infrastructure import repository
 from app.circulation.models import (
     BalanceStatus,
+    Inventory,
     InventoryBalance,
     InventoryItem,
     ItemCondition,
@@ -69,11 +70,39 @@ async def list_items(db: AsyncSession, inventory_id: int) -> list[InventoryItem]
     return await repository.list_items_for_inventory(db, inventory_id)
 
 
+async def list_items_with_product_name(
+    db: AsyncSession, inventory_id: int
+) -> list[tuple[InventoryItem, str]]:
+    """Joined read backing `GET /api/inventory-items`'s response — the
+    product name is resolved via one SQL join instead of the caller having
+    to separately fetch the whole product catalog to label each item."""
+    return await repository.list_items_for_inventory_with_product_name(db, inventory_id)
+
+
+async def get_item_with_product_name(db: AsyncSession, item_id: int) -> tuple[InventoryItem, str]:
+    """Joined read backing `GET /api/inventory-items/{id}`'s response."""
+    row = await repository.get_item_with_product_name(db, item_id)
+    if row is None or row[0].deleted_at is not None:
+        raise EntityNotFoundException("InventoryItem", item_id)
+    return row
+
+
 async def get_item_balance(db: AsyncSession, item_id: int) -> InventoryBalance:
     balance = await repository.find_item_balance(db, item_id)
     if balance is None:
         raise EntityNotFoundException("InventoryBalance", item_id)
     return balance
+
+
+async def resolve_owning_inventory(db: AsyncSession, item: InventoryItem) -> Inventory:
+    """The item's *permanent* owning inventory — `home_inventory_id` when
+    set (the item is currently lent out and `inventory_id` points at the
+    borrower's VIRTUAL inventory instead), else `inventory_id` itself. Use
+    this for ownership/permission decisions (edit/delete, listing
+    preferences) — never the raw `inventory_id`, which reflects current
+    *physical* location, not legal ownership, during a loan."""
+    permanent_id = item.home_inventory_id if item.home_inventory_id is not None else item.inventory_id
+    return await get_inventory(db, permanent_id)
 
 
 async def _require_item_owner(
@@ -84,7 +113,7 @@ async def _require_item_owner(
     `users.id` (see `get_user_id_by_principal`), never `party_id`."""
     acting_user_id = await get_user_id_by_principal(db, principal)
     item = await get_item(db, item_id)
-    inventory = await get_inventory(db, item.inventory_id)
+    inventory = await resolve_owning_inventory(db, item)
     if inventory.owner_user_id != acting_user_id:
         raise AccessDeniedException
     return item

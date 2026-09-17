@@ -1,21 +1,30 @@
-"""`/api/item-listing-preferences` and `/api/term-item-listings` routes —
-the exchange-mechanism HTTP layer over `application/term_item_listings.py`'s
-set/list/browse/take use cases."""
+"""`/api/item-listing-preferences`, `/api/term-item-listings`,
+`/api/swap-proposals` and the `/api/reservations/{id}/confirm-transaction`
+routes — the exchange-mechanism HTTP layer over
+`application/term_item_listings.py`'s set/list/browse/take/propose/accept/
+reject/confirm use cases."""
 
 from __future__ import annotations
 
 from typing import Annotated
 
 from fastapi import APIRouter, Depends
+from fastapi.encoders import jsonable_encoder
+from fastapi.responses import JSONResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.auth_deps import Principal, require_any
 from app.db import get_db
 from app.groups import service
+from app.groups.application.term_item_listings import TermAlreadyResolvedException
 from app.groups.schemas import (
     BrowseTermItemListingResponse,
+    ConfirmTransactionRequest,
+    ConfirmTransactionResponse,
     ItemListingPreferenceResponse,
+    ProposeSwapRequest,
     SetItemListingPreferenceRequest,
+    SwapProposalResponse,
     TakeTermItemListingRequest,
 )
 from app.users.service import get_profile_by_principal
@@ -72,3 +81,55 @@ async def take_item_listing(
     item_id: int, body: TakeTermItemListingRequest, db: DbSession, principal: EditPrincipal
 ) -> BrowseTermItemListingResponse:
     return await service.take_item_listing(db, principal, item_id, body)
+
+
+@router.post("/api/term-item-listings/{item_id}/propose", response_model=SwapProposalResponse)
+async def propose_swap(
+    item_id: int, body: ProposeSwapRequest, db: DbSession, principal: EditPrincipal
+) -> SwapProposalResponse:
+    proposal = await service.propose_swap(
+        db, principal, item_id, body.offered_item_id, body.term_id
+    )
+    return SwapProposalResponse.model_validate(proposal)
+
+
+@router.post("/api/swap-proposals/{proposal_id}/accept", response_model=SwapProposalResponse)
+async def accept_swap_proposal(
+    proposal_id: int, db: DbSession, principal: EditPrincipal
+) -> SwapProposalResponse:
+    proposal = await service.accept_swap_proposal(db, principal, proposal_id)
+    return SwapProposalResponse.model_validate(proposal)
+
+
+@router.post("/api/swap-proposals/{proposal_id}/reject", response_model=SwapProposalResponse)
+async def reject_swap_proposal(
+    proposal_id: int, db: DbSession, principal: EditPrincipal
+) -> SwapProposalResponse:
+    proposal = await service.reject_swap_proposal(db, principal, proposal_id)
+    return SwapProposalResponse.model_validate(proposal)
+
+
+@router.post(
+    "/api/reservations/{reservation_id}/confirm-transaction",
+    response_model=ConfirmTransactionResponse,
+)
+async def confirm_transaction(
+    reservation_id: int, body: ConfirmTransactionRequest, db: DbSession, principal: EditPrincipal
+) -> ConfirmTransactionResponse | JSONResponse:
+    """Maps `TermAlreadyResolvedException` (Group 3's marker for "the other
+    party already resolved this transaction") to an explicit 409 body with
+    `already_resolved=True` — distinct from the generic `BusinessConflictException`
+    409 envelope (e.g. the "term hasn't ended yet" conflict), per spec.md
+    Requirement 3 and this group's acceptance criteria."""
+    try:
+        reservation = await service.confirm_transaction(
+            db, principal, reservation_id, body.term_id
+        )
+    except TermAlreadyResolvedException:
+        body_out = ConfirmTransactionResponse(
+            reservation_id=reservation_id, status="ALREADY_RESOLVED", already_resolved=True
+        )
+        return JSONResponse(status_code=409, content=jsonable_encoder(body_out.model_dump()))
+    return ConfirmTransactionResponse(
+        reservation_id=reservation_id, status=reservation.status.value, already_resolved=False
+    )

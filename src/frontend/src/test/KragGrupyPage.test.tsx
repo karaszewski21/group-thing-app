@@ -121,6 +121,7 @@ function baseHookValue(overrides: Partial<UseKragGrupyResult> = {}): UseKragGrup
     fulfillPledgeItem,
     confirmPledgeReceipt: vi.fn(),
     takeListing: vi.fn(),
+    proposeSwap: vi.fn(),
     withdrawMyAttendance: vi.fn(),
     confirmListingReceipt: vi.fn(),
     refetch: vi.fn(),
@@ -268,13 +269,20 @@ describe("KragGrupyPage (private view) — lending exchange mechanism", () => {
     expect(screen.queryByText("Zwrot")).not.toBeInTheDocument();
   });
 
-  it("clicking a SWAP button reveals the taker's own myAvailableItems <select> before allowing submit", async () => {
+  it("clicking a SWAP button reveals the taker's own myAvailableItems <select> and proposes (not takes) the swap on submit", async () => {
+    // Group 7: SWAP no longer goes through `takeListing` at all — the
+    // backend now rejects a SWAP take outright (see
+    // `TakeTermItemListingRequest`'s docstring) — it's always a proposal
+    // via the hook's dedicated `proposeSwap`, which the listing owner must
+    // separately accept/reject.
     const takeListing = vi.fn().mockResolvedValue(undefined);
+    const proposeSwap = vi.fn().mockResolvedValue(undefined);
     hookValue = baseHookValue({
       myAttendanceForCurrentTerm: attendanceRow,
       myAvailableItems: [{ id: 900, productName: "Mój rowerek" }],
       browseListings: [browseListing({ offered_types: ["SWAP"] })],
       takeListing,
+      proposeSwap,
     });
     renderPage();
 
@@ -284,9 +292,10 @@ describe("KragGrupyPage (private view) — lending exchange mechanism", () => {
 
     expect(screen.getByLabelText("Twoja rzecz do zamiany")).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole("button", { name: "Zapisz" }));
+    fireEvent.click(screen.getByRole("button", { name: "Zaproponuj zamianę" }));
 
-    await waitFor(() => expect(takeListing).toHaveBeenCalledWith(501, "SWAP", 900));
+    await waitFor(() => expect(proposeSwap).toHaveBeenCalledWith(501, 900));
+    expect(takeListing).not.toHaveBeenCalled();
   });
 
   it("'Wycofaj się z zajęć' calls withdrawMyAttendance() and the card disappears on success", async () => {

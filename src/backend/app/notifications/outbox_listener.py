@@ -26,6 +26,11 @@ from .models import NotificationKind
 
 _PLEDGE_CLAIMED = "groups.pledge_claimed"
 _PLEDGE_WITHDRAWN = "groups.pledge_withdrawn"
+# Wire strings agreed with `app.groups.domain.swap_events` — same
+# deliberate string-only contract as the pledge events above, not a shared
+# import: `app.notifications` never imports `app.groups`.
+_TERM_ENDED_GIVEAWAY = "groups.term_ended_giveaway"
+_TERM_ENDED_SWAP = "groups.term_ended_swap"
 
 __all__ = ["register"]
 
@@ -38,6 +43,8 @@ def register() -> None:
         return
     registry.register_handler(_PLEDGE_CLAIMED, _handle_pledge_claimed)
     registry.register_handler(_PLEDGE_WITHDRAWN, _handle_pledge_withdrawn)
+    registry.register_handler(_TERM_ENDED_GIVEAWAY, _handle_term_ended_giveaway)
+    registry.register_handler(_TERM_ENDED_SWAP, _handle_term_ended_swap)
 
 
 async def _handle_pledge_claimed(db: AsyncSession, payload: dict[str, Any]) -> None:
@@ -62,3 +69,32 @@ async def _handle_pledge_withdrawn(db: AsyncSession, payload: dict[str, Any]) ->
         message=f'„{actor_name}" zrezygnował(a) z przyniesienia: {product_name}',
         link_path=payload["link_path"],
     )
+
+
+async def _handle_term_ended_giveaway(db: AsyncSession, payload: dict[str, Any]) -> None:
+    """One `Notification` per affected party (the lister and the taker) of a
+    giveaway `Reservation` whose Term just ended — same payload-driven,
+    fully pre-rendered message shape as `_handle_pledge_claimed`."""
+    link_path = payload["link_path"]
+    for party_id in (payload["owner_party_id"], payload["taker_party_id"]):
+        await service.create_notification(
+            db,
+            party_id=party_id,
+            kind=NotificationKind.TERM_CONFIRMATION_NEEDED,
+            message="Termin się odbył — potwierdź przekazanie rzeczy",
+            link_path=link_path,
+        )
+
+
+async def _handle_term_ended_swap(db: AsyncSession, payload: dict[str, Any]) -> None:
+    """One `Notification` per party (the proposer and the listing owner) of
+    an `ACCEPTED` `SwapProposal` whose Term just ended."""
+    link_path = payload["link_path"]
+    for party_id in (payload["proposer_party_id"], payload["owner_party_id"]):
+        await service.create_notification(
+            db,
+            party_id=party_id,
+            kind=NotificationKind.TERM_CONFIRMATION_NEEDED,
+            message="Termin się odbył — potwierdź zamianę",
+            link_path=link_path,
+        )

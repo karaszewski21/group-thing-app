@@ -15,7 +15,6 @@ import { RegisterPage } from "./pages/RegisterPage";
 import { OAuth2AuthorizePage } from "./pages/OAuth2AuthorizePage";
 import { KragGrupyPage, PublicKragGrupyView } from "./pages/krag/KragGrupyPage";
 import { KragEntryPage } from "./pages/krag/KragEntryPage";
-import { PublicKragRedirectPage } from "./pages/krag/PublicKragRedirectPage";
 import { PanelPage } from "./pages/panel/PanelPage";
 import { OnboardingPage } from "./pages/OnboardingPage";
 import { OrganizationPage } from "./pages/OrganizationPage";
@@ -132,13 +131,6 @@ export const router = createBrowserRouter([
     // of declaration order — no RESERVED_SLUGS change needed.
     path: "/:organizationSlug/grupa/:groupId/term/:termId",
     element: <PublicKragGrupyView />,
-  },
-  {
-    // Term-less resolver (unauthenticated) — fetches the circle, redirects
-    // to the nearest term, or renders the "no terms yet" public page in
-    // place when the circle has zero terms.
-    path: "/:organizationSlug/grupa/:groupId",
-    element: <PublicKragRedirectPage />,
   },
   {
     // Public organizer page (`domena.pl/<slug>`) — deliberately declared

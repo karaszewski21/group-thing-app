@@ -21,7 +21,9 @@ export interface CreateInventoryRequest {
 export interface InventoryItemResponse {
   id: number;
   inventory_id: number;
+  home_inventory_id: number | null;
   product_id: number;
+  product_name: string;
   condition: ItemCondition;
   added_at: string;
   created_at: string;
@@ -73,6 +75,29 @@ export function registerInventoryItem(
 
 export function getInventoryItemBalance(itemId: number): Promise<InventoryBalanceResponse> {
   return api.get(`/inventory-items/${itemId}/balance`);
+}
+
+/** `BalanceStatus` values that mean "this item currently has an active
+ * lock" — a `Reservation` is in flight (or just resulted from an accepted
+ * swap proposal) and the item isn't free for a new action. Used by
+ * `RzeczyView` to render a passive status badge; see that file for the
+ * per-status label mapping. Deliberately excludes `LENT`/`RETURNED` — an
+ * already-lent item isn't "pending", it's a settled state with its own
+ * "Wypożyczone" view. */
+export const ACTIVE_LOCK_BALANCE_STATUSES: readonly BalanceStatus[] = ["RESERVED", "IN_TRANSIT"];
+
+/** One bounded fan-out over the existing single-item balance endpoint,
+ * keyed by item id — there is no bulk `/inventory-items/balances` route on
+ * the backend (out of scope to add one here), so this is the narrowest
+ * "not looped one-call-at-a-time inside the render path" shape available:
+ * a single `Promise.all` round-trip the caller awaits once, per
+ * `standards/backend/queries.md`'s N+1 principle applied to this
+ * component's own data-fetching. */
+export async function getInventoryItemBalances(
+  itemIds: number[],
+): Promise<Record<number, BalanceStatus>> {
+  const balances = await Promise.all(itemIds.map((id) => getInventoryItemBalance(id)));
+  return Object.fromEntries(balances.map((b) => [b.item_id, b.status]));
 }
 
 export interface UpdateInventoryItemRequest {

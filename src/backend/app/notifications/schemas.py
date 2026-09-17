@@ -18,6 +18,7 @@ class NotificationResponse(BaseModel):
     link_path: str | None
     read_at: datetime | None
     created_at: datetime
+    proposal_id: int | None = None
 
 
 class UnreadCountResponse(BaseModel):

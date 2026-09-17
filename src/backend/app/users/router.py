@@ -65,6 +65,17 @@ async def get_profile_by_party(
     return await _to_profile_response(db, profile)
 
 
+@router.get("/api/people/by-account-user-id/{account_user_id}", response_model=UserProfileResponse)
+async def get_profile_by_account_user_id(
+    account_user_id: int, db: DbSession, principal: ReadPrincipal
+) -> UserProfileResponse:
+    """Resolves a raw `app.circulation` `users.id` (e.g. an `Inventory.
+    owner_user_id`) back to its display profile — used by the "Wypożyczone"
+    panel view to show who a borrowed item's lender is."""
+    profile = await service.get_profile_by_account_user_id(db, account_user_id)
+    return await _to_profile_response(db, profile)
+
+
 @router.get("/api/people/{user_profile_id}/leaderships", response_model=list[LeadershipResponse])
 async def list_leaderships_for_person(
     user_profile_id: int, db: DbSession, principal: ReadPrincipal

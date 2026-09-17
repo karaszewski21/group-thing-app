@@ -1,0 +1,255 @@
+orchestrator:
+  started_phase: phase-14
+  completed_phases: [phase-1, phase-2, phase-5, phase-7, phase-8, phase-10, phase-11]
+  failed_phases: []
+  auto_fix_attempts: {}
+  options:
+    spec_audit_enabled: false
+    skip_test_suite: true
+    e2e_enabled: false
+    user_docs_enabled: false
+    code_review_enabled: true
+    pragmatic_review_enabled: false
+    reality_check_enabled: false
+    production_check_enabled: false
+    sequential: null
+  created: "2026-09-16T00:00:00"
+  updated: "2026-09-16T00:00:00"
+  task_path: .maister/tasks/development/2026-09-16-item-giveaway-exchange-rework
+  task_ids: {}
+
+task:
+  status_final: completed
+  title: "Re-implementation of item giveaway (oddanie) and exchange (zamiana) flows"
+  description: >
+    Reimplementacja mechanizmu oddania i zamiany rzeczy w ramach terminu zajęć.
+
+    1) Oddanie: dawca wystawia rzecz do oddania; odbiorca (zapisany na termin)
+    widzi listę rzeczy do oddania na stronie terminu, klika i w dialogu wybiera
+    "Chcę wziąć" - powoduje to blokadę rzeczy w "moje rzeczy" u dawcy. Po
+    zakończeniu zajęć obie strony (dawca i odbiorca) dostają notyfikację oraz
+    na kaflu rzeczy pojawia się możliwość potwierdzenia ("potwierdź że
+    wziął(-a)" / "potwierdź że odebrałeś(-aś)"). Kto pierwszy potwierdzi -
+    dochodzi do transakcji: rzecz jest usuwana z magazynu dawcy i dodawana do
+    magazynu odbiorcy.
+
+    2) Zamiana: obie strony (dawca/odbiorca) mogą wystawić rzecz do zamiany.
+    Jedna ze stron, będąc na stronie terminu, w dialogu z listą rzeczy do
+    zamiany wybiera "Chcę" i podaje listę swoich rzeczy, którymi chce się
+    zamienić ("Na co chcesz się zamienić"). Druga strona dostaje notyfikację
+    + blokadę w "moje rzeczy" + możliwość accept/reject, co generuje
+    notyfikację zwrotną. Po terminie zajęć obie strony widzą pytanie "Czy
+    doszło do zamiany?" - kto pierwszy potwierdzi, dochodzi do transakcji
+    (wymiana rzeczy w magazynach obu stron).
+
+    This supersedes/refines the prior task
+    .maister/tasks/development/2026-09-14-lending-exchange-mechanism, which
+    left substantial uncommitted WIP in the working tree (circulation +
+    groups + panel frontend) that does not yet implement this
+    notification/first-to-confirm/accept-reject flow.
+  status: completed
+  tags: [circulation, terms, panel, notifications]
+  priority: null
+
+task_context:
+  risk_level: medium-high
+  clarifications_resolved: true
+  scope_expanded: true
+  architecture_decision: null
+  tech_clarified: true
+  architecture_decision: "APScheduler (new dependency) wired into FastAPI app lifecycle for the term-end scan job; job lives in app.groups, emits a domain event into the existing outbox exactly once per affected proposal/reservation (idempotent), reusing today's outbox->listener->notification delivery unchanged"
+  task_characteristics:
+    has_reproducible_defect: false
+    modifies_existing_code: true
+    creates_new_entities: true
+    involves_data_operations: true
+    ui_heavy: true
+  research_reference:
+    path: null
+    research_question: null
+    research_type: null
+    confidence_level: null
+  design_reference:
+    source: null
+    product_design_path: null
+    mockup_count: 0
+    has_brief: false
+    index_path: null
+  project_context:
+    project_doc_paths:
+      - .maister/docs/project/architecture.md
+      - .maister/docs/project/tech-stack.md
+      - .maister/docs/standards/global/error-handling.md
+      - .maister/docs/standards/global/validation.md
+      - .maister/docs/standards/global/conventions.md
+      - .maister/docs/standards/global/coding-style.md
+      - .maister/docs/standards/global/commenting.md
+      - .maister/docs/standards/global/minimal-implementation.md
+      - .maister/docs/standards/backend/api.md
+      - .maister/docs/standards/backend/models.md
+      - .maister/docs/standards/backend/queries.md
+      - .maister/docs/standards/backend/jooq.md
+      - .maister/docs/standards/backend/migrations.md
+      - .maister/docs/standards/backend/security.md
+      - .maister/docs/standards/backend/plugin-auth.md
+      - .maister/docs/standards/frontend/css.md
+      - .maister/docs/standards/frontend/components.md
+      - .maister/docs/standards/frontend/accessibility.md
+      - .maister/docs/standards/frontend/responsive.md
+      - .maister/docs/standards/testing/backend-testing.md
+      - .maister/docs/standards/testing/frontend-testing.md
+  prior_task_reference: .maister/tasks/development/2026-09-14-lending-exchange-mechanism
+  phase_summaries:
+    research: {summary: null, key_findings: [], recommended_approach: null}
+    design: {summary: null, screen_count: 0, component_count: 0, index_path: null}
+    codebase_analysis:
+      key_files:
+        - src/backend/app/circulation/models.py
+        - src/backend/app/circulation/domain/reservation_rules.py
+        - src/backend/app/circulation/application/reservation_transitions.py
+        - src/backend/app/groups/models.py
+        - src/backend/app/groups/application/term_item_listings.py
+        - src/backend/app/groups/application/attendance.py
+        - src/backend/app/groups/infrastructure/circulation_bridge.py
+        - src/backend/app/groups/infrastructure/notifications_bridge.py
+        - src/backend/app/notifications/models.py
+        - src/backend/app/outbox/service.py
+        - src/frontend/src/pages/krag/KragGrupyPage.tsx
+        - src/frontend/src/pages/panel/views/RzeczyView.tsx
+        - src/frontend/src/hooks/useKragGrupy.ts
+      primary_language: python-fastapi-react-ts
+      summary: >
+        Existing uncommitted WIP (from prior task 2026-09-14-lending-exchange-mechanism)
+        already has solid, reusable circulation primitives (Reservation with
+        LEND/RETURN/SWAP/GIFT types, paired SWAP legs, InventoryBalance locking,
+        ledger) and a full working notification system (Notification model,
+        outbox pattern, notifications_bridge ACL, PanelHeader bell UI) -
+        neither needs to be built from scratch. However the WIP's
+        take_item_listing flow AUTO-CONFIRMS both reservation legs immediately
+        on the taker's action (collapsing propose+accept into one step),
+        which is the OPPOSITE of the new spec's required two-party
+        lock-then-notify-then-first-to-confirm-wins race, and there is no
+        reject/decline operation anywhere (only a blunt cancel). Term gating
+        today blocks taking a listing once term.occurs_on has passed
+        ("Termin już się odbył") - inverse of the new spec, which wants the
+        final confirm/transaction step gated to AFTER the term ends. Frontend
+        has real API-backed listing browse/take/fulfill wiring but no
+        accept/reject UI, no multi-item swap-offer dialog (only a single
+        <select>), and no locked/pending indicator in "moje rzeczy"
+        (RzeczyView.tsx). Unrelated WIP pieces confirmed out of scope:
+        home_inventory_id migration + WypozyczoneView.tsx + people-router
+        endpoint (a separate "borrowed items" display feature).
+    clarifications:
+      - "Remove existing WIP's auto-confirm-on-take; build genuine lock -> (accept/reject for swap) -> post-term first-to-confirm-wins race"
+      - "Lock + notification fire immediately on take/propose action, not deferred to term-end; only the confirm UI is gated on term.occurs_on having passed"
+      - "Swap is two distinct stages: propose+accept/reject (pre/during term) then post-term 'did the swap happen' first-confirm-wins finalization"
+      - "Leave unrelated in-flight WIP (home_inventory_id migration, WypozyczoneView.tsx, people-router by-account-user-id endpoint) untouched - separate feature"
+    gap_analysis:
+      integration_points:
+        - app.groups.infrastructure.circulation_bridge (add cancel/reject pass-through)
+        - app.groups.application.term_item_listings (remove auto-confirm; add propose/accept/reject + post-term confirm-race functions)
+        - app.notifications (new NotificationKind values)
+        - app.circulation (possible new feature-scoped confirm rule, kept separate from _require_holder_to_confirm used by Pledge flow)
+      summary: >
+        Circulation primitives (Reservation/SWAP/GIFT/fulfill) and the
+        notification system are reusable as-is. Real gaps: (1) swap
+        propose->accept/reject has no backend representation today (WIP
+        auto-confirms both legs atomically instead) - needs Decision D1/D2 on
+        whether a new SwapProposal entity + multi-item support is in scope;
+        (2) no either-party-first-to-confirm race exists for either flow,
+        gated to only after term.occurs_on (inverse of today's not-yet-occurred
+        check); (3) no term-end notification trigger mechanism exists
+        (Decision D3, lean toward lazy-check); (4) no losing-side feedback
+        defined (Decision D4). Frontend needs a new multi-item swap dialog,
+        accept/reject UI, and lock/pending badges in RzeczyView - none exist
+        even in prototype form.
+    scope_clarifications:
+      scope_expanded: true
+      summary: >
+        D1: new dedicated SwapProposal entity (proposer, target listing,
+        offered item, status PROPOSED/ACCEPTED/REJECTED). D2: V1 is
+        one-item-for-one-item only, multi-item swap explicitly descoped. D3:
+        term-end detection via a NEW periodic worker/scheduler (no precedent
+        in codebase) that emits a domain event into the existing outbox
+        exactly once per affected proposal/reservation; delivery mechanism
+        itself (outbox->listener->notification) unchanged from today's
+        pattern. D4: losing side of the confirm race also gets a
+        Notification. Important: dedicated reject_swap_proposal function
+        (cancel + release lock + notify, one transaction); new
+        feature-scoped confirm-authorization rule, _require_holder_to_confirm
+        used by Pledge flow left untouched. User chose to skip Phase 4 (UI
+        mockups) and go straight to Phase 5.
+    ui_mockups: {components_designed: [], summary: null}
+    specification:
+      summary: >
+        spec.md complete (397 lines). Removes take_item_listing's
+        auto-confirm; new SwapProposal entity (V1 one-for-one only) with
+        propose/accept/reject functions; new feature-scoped confirm-race
+        function (either party, first wins, gated on term.occurs_on having
+        passed) kept separate from circulation's Pledge-shared
+        _require_holder_to_confirm; new circulation_bridge.cancel_reservation
+        pass-through; new NotificationKind members (no migration needed -
+        kind column is sa.String(30) native_enum=False, watch the 30-char
+        limit); new APScheduler-based worker wired into app/main.py's
+        lifespan alongside the existing app/outbox/scheduler.py
+        run_forever() precedent; frontend unifies
+        Private/PublicKragGrupyView into one shared presentational
+        component (routing split stays), replaces the single-select swap
+        picker with a real offer dialog (still one-for-one), adds a global
+        modal (extending PanelDataContext.tsx) for accept/reject and
+        post-term confirm prompts, and a passive status badge in
+        RzeczyView.tsx. 4 existing test files flagged for rewrite, not just
+        additive tests.
+    architecture_decision: {decision: null, summary: null}
+    implementation:
+      summary: >
+        All 9 task groups complete (61 planned steps + 1 critical gap fix
+        discovered and closed during Group 9: SwapProposal.id exposure via
+        new Notification.proposal_id column/migration 0032, so the global
+        modal can accept/reject swap proposals in place instead of
+        deep-linking). Two groups (7, 8) needed one retry each after
+        hitting a session rate limit mid-execution; both retries recovered
+        cleanly with no lost/duplicated work (Group 8's implementation had
+        already landed correctly before the cutoff, only its tests needed
+        finishing). Final whole-suite gate: uv run pytest from src/backend
+        249/249 passed; full frontend vitest 218/222 passed (4 pre-existing
+        unrelated failures, re-confirmed via git stash). Migrations 0031
+        (SwapProposal/GiveawayTermEndMarker) and 0032 (Notification.proposal_id)
+        applied to local dev DB. Local dev DB was also cleared per separate
+        user request (kept accounts/groups/organizations/roles/catalog,
+        wiped all term/item/reservation/notification data) after
+        implementation completed.
+
+verification_context:
+  last_status: passed_with_issues
+  issues_found:
+    - severity: warning
+      id: confirm-transaction-toctou
+      description: >
+        confirm_transaction's TOCTOU window is closed for the sequential
+        race but not a genuinely concurrent one - a true simultaneous
+        double-confirm can raise unhandled StaleDataError -> raw 500
+        instead of the intended clean TermAlreadyResolvedException 409.
+    - severity: warning
+      id: swap-proposals-missing-index
+      description: "No index on swap_proposals.listing_item_id/offered_item_id, queried on every term-listing view."
+    - severity: warning
+      id: scheduler-max-instances-undocumented
+      description: "APScheduler add_job relies on default max_instances=1 with no comment/assertion documenting it."
+    - severity: warning
+      id: scheduler-shutdown-asymmetric
+      description: "_term_end_scheduler.shutdown(wait=False) is asymmetric with the outbox task's graceful awaited cancel."
+    - severity: warning
+      id: deleted-item-orphaned-listing-crash
+      description: >
+        Found and FIXED during manual testing (not part of automated code
+        review): deleting an item with an active ItemListingPreference
+        crashed the entire public/browse term-listing response with an
+        uncaught EntityNotFoundException. Fixed in
+        _resolve_item_display_info/_is_item_available to skip unresolvable
+        items. Verified: 37/37 affected tests pass, live endpoint 404->200.
+  fixes_applied:
+    - "deleted-item-orphaned-listing-crash: fixed during manual testing, verified via tests + live endpoint"
+  decisions_made:
+    - "User chose to skip fixing all 4 code-review warnings (W1-W4) and proceed as-is with passed_with_issues status"
+  reverify_count: 0

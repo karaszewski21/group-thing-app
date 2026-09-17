@@ -156,6 +156,16 @@ class InventoryItem(BaseEntity):
     )
     added_at: Mapped[datetime] = mapped_column(DateTime(), nullable=False)
     deleted_at: Mapped[datetime | None] = mapped_column(DateTime(), nullable=True)
+    # Set only while the item is temporarily elsewhere (lent out — see
+    # `application/reservation_transitions.py`'s LEND/RETURN branches):
+    # records the item's permanent inventory so a RETURN knows where to put
+    # it back, since `inventory_id` itself points at the borrower's VIRTUAL
+    # inventory for the loan's duration.
+    home_inventory_id: Mapped[int | None] = mapped_column(
+        BigInteger,
+        ForeignKey("inventories.id", name="fk_inventory_items_home_inventory_id_inventories"),
+        nullable=True,
+    )
 
 
 class InventoryBalance(BaseEntity):

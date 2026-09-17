@@ -22,8 +22,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.auth_deps import Principal, require_any
 from app.db import get_db
+from app.product import service as product_service
 
 from . import service
+from .models import InventoryItem
 from .schemas import (
     AccountBalanceResponse,
     AccountResponse,
@@ -44,6 +46,20 @@ router = APIRouter(tags=["circulation"])
 DbSession = Annotated[AsyncSession, Depends(get_db)]
 ReadPrincipal = Annotated[Principal, Depends(require_any("READ", "mcp:read"))]
 EditPrincipal = Annotated[Principal, Depends(require_any("EDIT", "mcp:edit"))]
+
+
+def _item_response(item: InventoryItem, product_name: str) -> InventoryItemResponse:
+    return InventoryItemResponse(
+        id=item.id,
+        inventory_id=item.inventory_id,
+        home_inventory_id=item.home_inventory_id,
+        product_id=item.product_id,
+        product_name=product_name,
+        condition=item.condition,
+        added_at=item.added_at,
+        created_at=item.created_at,
+        updated_at=item.updated_at,
+    )
 
 
 # --- Inventory / InventoryItem ------------------------------------------------
@@ -88,21 +104,22 @@ async def register_item(
     item = await service.register_item(
         db, body.inventory_id, body.product_id, body.condition.value, owner_user_id=owner_user_id
     )
-    return InventoryItemResponse.model_validate(item)
+    product = await product_service.get_product(db, item.product_id)
+    return _item_response(item, product.name)
 
 
 @router.get("/api/inventory-items", response_model=list[InventoryItemResponse])
 async def list_items(
     inventory_id: int, db: DbSession, principal: ReadPrincipal
 ) -> list[InventoryItemResponse]:
-    items = await service.list_items(db, inventory_id)
-    return [InventoryItemResponse.model_validate(item) for item in items]
+    rows = await service.list_items_with_product_name(db, inventory_id)
+    return [_item_response(item, product_name) for item, product_name in rows]
 
 
 @router.get("/api/inventory-items/{item_id}", response_model=InventoryItemResponse)
 async def get_item(item_id: int, db: DbSession, principal: ReadPrincipal) -> InventoryItemResponse:
-    item = await service.get_item(db, item_id)
-    return InventoryItemResponse.model_validate(item)
+    item, product_name = await service.get_item_with_product_name(db, item_id)
+    return _item_response(item, product_name)
 
 
 @router.patch("/api/inventory-items/{item_id}", response_model=InventoryItemResponse)
@@ -110,7 +127,8 @@ async def update_item(
     item_id: int, body: UpdateInventoryItemRequest, db: DbSession, principal: EditPrincipal
 ) -> InventoryItemResponse:
     item = await service.update_item(db, item_id, principal, body)
-    return InventoryItemResponse.model_validate(item)
+    product = await product_service.get_product(db, item.product_id)
+    return _item_response(item, product.name)
 
 
 @router.delete("/api/inventory-items/{item_id}", status_code=status.HTTP_204_NO_CONTENT)

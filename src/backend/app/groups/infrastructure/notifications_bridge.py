@@ -22,7 +22,13 @@ async def create_notification(
     kind: NotificationKind,
     message: str,
     link_path: str | None = None,
+    proposal_id: int | None = None,
 ) -> None:
     await notifications_service.create_notification(
-        db, party_id=party_id, kind=kind, message=message, link_path=link_path
+        db,
+        party_id=party_id,
+        kind=kind,
+        message=message,
+        link_path=link_path,
+        proposal_id=proposal_id,
     )

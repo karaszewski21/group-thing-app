@@ -8,7 +8,7 @@ Never commits or flushes; `EntityNotFoundException` raising stays in the
 
 from __future__ import annotations
 
-from sqlalchemy import Row, func, select
+from sqlalchemy import Row, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.category.models import Category
@@ -25,6 +25,8 @@ from ..models import (
     NeededItem,
     Pledge,
     PledgeStatus,
+    SwapProposal,
+    SwapProposalStatus,
     Term,
     TermAttendance,
 )
@@ -424,3 +426,46 @@ async def list_item_listing_preferences_for_parties(
         .order_by(ItemListingPreference.id)
     )
     return list(result.scalars().all())
+
+
+# --- SwapProposal -----------------------------------------------------------
+
+
+async def get_swap_proposal(db: AsyncSession, proposal_id: int) -> SwapProposal | None:
+    return await db.get(SwapProposal, proposal_id)
+
+
+async def get_active_swap_proposal_for_listing_item(
+    db: AsyncSession, listing_item_id: int
+) -> SwapProposal | None:
+    """The latest not-yet-`REJECTED` `SwapProposal` targeting this listing
+    item, if any — used by `_resolve_listing_status`'s fallback to
+    recognize a `PROPOSED` swap (which, unlike an accepted one, leaves no
+    `Reservation` on the listing item itself yet, so the reservation-history
+    scan alone would otherwise miss it)."""
+    result = await db.execute(
+        select(SwapProposal)
+        .where(
+            SwapProposal.listing_item_id == listing_item_id,
+            SwapProposal.status.in_((SwapProposalStatus.PROPOSED, SwapProposalStatus.ACCEPTED)),
+        )
+        .order_by(SwapProposal.id.desc())
+    )
+    return result.scalars().first()
+
+
+async def get_swap_proposal_for_item(db: AsyncSession, item_id: int) -> SwapProposal | None:
+    """The most recent `SwapProposal` (of either status) touching
+    `item_id` as either its listing leg or its offered leg — used by
+    `confirm_transaction` to identify which stable party (listing owner vs
+    proposer) originally held a given SWAP reservation's item, since the
+    item's *current* physical owner is no longer meaningful once a leg has
+    already been fulfilled (permanent change of possession)."""
+    result = await db.execute(
+        select(SwapProposal)
+        .where(
+            or_(SwapProposal.listing_item_id == item_id, SwapProposal.offered_item_id == item_id)
+        )
+        .order_by(SwapProposal.id.desc())
+    )
+    return result.scalars().first()

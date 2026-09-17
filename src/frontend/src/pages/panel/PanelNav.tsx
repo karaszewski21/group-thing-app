@@ -6,7 +6,7 @@ const NAV_ITEMS: { key: View; label: string; Icon: typeof HomeIcon }[] = [
   { key: "home", label: "Home", Icon: HomeIcon },
   { key: "spotkania", label: "Spotkania", Icon: CalendarIcon },
   { key: "rzeczy", label: "Moje rzeczy", Icon: BoxIcon },
-  { key: "podarki", label: "Podarki", Icon: GiftIcon },
+  { key: "podarki", label: "Wypożyczone", Icon: GiftIcon },
 ];
 
 /** Sticky bottom tab bar — only shown on the four top-level views. */

@@ -4,7 +4,13 @@ export type NotificationKind =
   | "PLEDGE_CREATED"
   | "PLEDGE_WITHDRAWN"
   | "PLEDGE_ITEM_REGISTERED"
-  | "NEEDED_ITEM_REMOVED";
+  | "NEEDED_ITEM_REMOVED"
+  | "TERM_ITEM_LISTING_TAKEN"
+  | "SWAP_PROPOSED"
+  | "SWAP_ACCEPTED"
+  | "SWAP_REJECTED"
+  | "TERM_CONFIRMATION_NEEDED"
+  | "TERM_ALREADY_RESOLVED";
 
 export interface NotificationResponse {
   id: number;
@@ -15,6 +21,11 @@ export interface NotificationResponse {
   /** `null` = unread. */
   read_at: string | null;
   created_at: string;
+  /** Loose pointer at `SwapProposal.id`, populated only for
+   * `SWAP_PROPOSED` — lets the global pending-actions modal call
+   * `acceptSwapProposal`/`rejectSwapProposal` directly. `null`/absent for
+   * every other kind. */
+  proposal_id?: number | null;
 }
 
 export function getMyNotifications(): Promise<NotificationResponse[]> {

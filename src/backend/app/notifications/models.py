@@ -36,13 +36,23 @@ class NotificationKind(enum.StrEnum):
     """What happened. The recipient differs by kind: the first three go to a
     Term's organizer, `NEEDED_ITEM_REMOVED` goes to the affected pledger,
     `TERM_ITEM_LISTING_TAKEN` goes to the lister whose offered item was just
-    taken by another attendee."""
+    taken by another attendee, `SWAP_PROPOSED` goes to the target listing's
+    owner, `SWAP_ACCEPTED`/`SWAP_REJECTED` go back to the swap's proposer,
+    `TERM_CONFIRMATION_NEEDED` goes to a party with a locked leg (swap or
+    giveaway) once its Term ends, and `TERM_ALREADY_RESOLVED` goes to the
+    other party in a swap/giveaway when they act after the first party
+    already resolved the same transaction."""
 
     PLEDGE_CREATED = "PLEDGE_CREATED"
     PLEDGE_WITHDRAWN = "PLEDGE_WITHDRAWN"
     PLEDGE_ITEM_REGISTERED = "PLEDGE_ITEM_REGISTERED"
     NEEDED_ITEM_REMOVED = "NEEDED_ITEM_REMOVED"
     TERM_ITEM_LISTING_TAKEN = "TERM_ITEM_LISTING_TAKEN"
+    SWAP_PROPOSED = "SWAP_PROPOSED"
+    SWAP_ACCEPTED = "SWAP_ACCEPTED"
+    SWAP_REJECTED = "SWAP_REJECTED"
+    TERM_CONFIRMATION_NEEDED = "TERM_CONFIRMATION_NEEDED"
+    TERM_ALREADY_RESOLVED = "TERM_ALREADY_RESOLVED"
 
 
 class Notification(BaseEntity):
@@ -62,3 +72,10 @@ class Notification(BaseEntity):
     # "/panel"). `None` = no navigation target.
     link_path: Mapped[str | None] = mapped_column(String(255), nullable=True)
     read_at: Mapped[datetime | None] = mapped_column(DateTime(), nullable=True)
+    # Loose cross-BC pointer (no FK, per `standards/backend/models.md`'s
+    # `ItemListingPreference`/`Pledge.resolved_reservation_id` convention) at
+    # `app.groups.models.SwapProposal.id`. Populated only for `SWAP_PROPOSED`
+    # so the frontend's global pending-actions modal can call
+    # `acceptSwapProposal`/`rejectSwapProposal` directly instead of
+    # deep-linking to the term page. `None` for every other kind.
+    proposal_id: Mapped[int | None] = mapped_column(BigInteger, nullable=True)

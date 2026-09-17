@@ -7,7 +7,7 @@ import { PanelModals } from "./PanelModals";
 import { HomeView } from "./views/HomeView";
 import { SpotkaniaView } from "./views/SpotkaniaView";
 import { RzeczyView } from "./views/RzeczyView";
-import { PodarkiView } from "./views/PodarkiView";
+import { WypozyczoneView } from "./views/WypozyczoneView";
 import { ProfilView } from "./views/ProfilView";
 import { UstawieniaView } from "./views/UstawieniaView";
 import { RodzinaView } from "./views/RodzinaView";
@@ -66,7 +66,7 @@ function PanelPageView() {
         {view === "home" && <HomeView />}
         {view === "spotkania" && <SpotkaniaView />}
         {view === "rzeczy" && <RzeczyView />}
-        {view === "podarki" && <PodarkiView />}
+        {view === "podarki" && <WypozyczoneView />}
         {view === "profil" && <ProfilView />}
         {view === "ustawienia" && <UstawieniaView />}
         {view === "rodzina" && <RodzinaView />}

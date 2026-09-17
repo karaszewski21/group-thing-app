@@ -1,9 +1,30 @@
-import { type ItemCondition } from "../../../api/inventories";
+import { useEffect, useState } from "react";
+import {
+  getInventoryItemBalances,
+  type BalanceStatus,
+  type ItemCondition,
+} from "../../../api/inventories";
 import { CONDITION_LABELS } from "../../../utils/productCategory";
 import { createEmptyItemQuickAddValue } from "../../../utils/itemQuickAdd";
 import { BoxIcon, PencilIcon, TrashIcon } from "../panelIcons";
 import { capitalize, ITEM_MODE_STYLE, ITEM_MODES } from "../panelHelpers";
 import { usePanelData } from "../panelDataStore";
+
+/** Passive "moje rzeczy" status badge label for an item's current
+ * `BalanceStatus` — `null` means no badge (the item is free). Only the two
+ * "something is in flight, no new action is possible right now" statuses
+ * get one: `RESERVED` (a reservation exists but the holder hasn't
+ * confirmed yet — including the proposer's own auto-locked leg of a SWAP
+ * proposal still awaiting the listing owner's accept/reject) and
+ * `IN_TRANSIT` (already confirmed and moving — including an accepted
+ * swap). `LENT`/`RETURNED`/`AVAILABLE` are settled states, not "pending",
+ * so they render no badge here. This view is purely informational per
+ * spec.md Requirement 12-13 — no action button is ever added next to it. */
+function lockBadgeLabel(status: BalanceStatus | undefined): string | null {
+  if (status === "RESERVED") return "czeka na potwierdzenie";
+  if (status === "IN_TRANSIT") return "zablokowane";
+  return null;
+}
 
 export function RzeczyView() {
   const {
@@ -14,7 +35,6 @@ export function RzeczyView() {
     itemMetaError,
     itemError,
     busy,
-    productName,
     categories,
     setItemDraft,
     setModal,
@@ -26,6 +46,28 @@ export function RzeczyView() {
     setItemMode,
     handleDeleteItem,
   } = usePanelData();
+
+  // Per-item lock/pending status — kept local to this view (not lifted into
+  // PanelDataContext) since nothing else needs it, per
+  // `standards/frontend/components.md`'s "keep state as close to where
+  // it's used as possible". One bounded fetch per `items` change (a single
+  // `Promise.all` round-trip, not a per-item call inside the render loop —
+  // see `api/inventories.ts`'s `getInventoryItemBalances`), not on every
+  // render.
+  const [itemBalances, setItemBalances] = useState<Record<number, BalanceStatus>>({});
+  useEffect(() => {
+    if (items.length === 0) {
+      setItemBalances({});
+      return;
+    }
+    let cancelled = false;
+    void getInventoryItemBalances(items.map((it) => it.id)).then((balances) => {
+      if (!cancelled) setItemBalances(balances);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [items]);
 
   return (
     <div>
@@ -112,10 +154,10 @@ export function RzeczyView() {
                   </div>
                 ) : (
                   <div className="flex items-center gap-1.5">
-                    <h3 className="text-[15.5px] font-semibold text-ink">{productName(it.product_id)}</h3>
+                    <h3 className="text-[15.5px] font-semibold text-ink">{it.product_name}</h3>
                     <button
                       onClick={() => startEditItemMeta(it)}
-                      aria-label={`Edytuj rzecz ${productName(it.product_id)}`}
+                      aria-label={`Edytuj rzecz ${it.product_name}`}
                       className="flex h-6 w-6 flex-none items-center justify-center rounded-[8px] text-ink-soft transition-colors hover:bg-paper hover:text-ink"
                     >
                       <PencilIcon />
@@ -185,11 +227,27 @@ export function RzeczyView() {
                       </button>
                     );
                   })}
+                  {(() => {
+                    const label = lockBadgeLabel(itemBalances[it.id]);
+                    if (!label) return null;
+                    // Text-carried label, not color-only, per
+                    // `standards/frontend/accessibility.md` — the dot is
+                    // `aria-hidden` decoration, never the sole signal.
+                    return (
+                      <span
+                        role="status"
+                        className="inline-flex items-center gap-1.5 rounded-full border-[1.5px] border-line bg-cream px-3 py-1.5 text-[11.5px] font-extrabold text-ink-soft"
+                      >
+                        <span aria-hidden="true" className="h-1.5 w-1.5 rounded-full bg-ink-soft" />
+                        {label}
+                      </span>
+                    );
+                  })()}
                 </div>
               </div>
               <button
                 onClick={() => void handleDeleteItem(it.id)}
-                aria-label={`Usuń rzecz ${productName(it.product_id)}`}
+                aria-label={`Usuń rzecz ${it.product_name}`}
                 className="flex h-[30px] w-[30px] flex-none items-center justify-center rounded-[10px] text-ink-soft hover:bg-danger-soft hover:text-danger"
               >
                 <TrashIcon />

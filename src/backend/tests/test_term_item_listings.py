@@ -30,6 +30,7 @@ from app.core.auth_deps import Principal
 from app.core.errors import AccessDeniedException, BusinessConflictException
 from app.core.security import decode_token
 from app.groups import service
+from app.groups.application.term_item_listings import TermAlreadyResolvedException
 from app.groups.models import Term
 from app.groups.schemas import TakeTermItemListingRequest
 
@@ -232,9 +233,12 @@ async def test_browseListing_organizerItem_visibleWithoutOrganizerAttendance(
     assert mine[0].item_id == item_id
 
 
-async def test_takeListing_lendType_createsReservationAndReportsIt(
+async def test_takeListing_lendType_leavesReservationPendingAndNotifiesLister(
     client: AsyncClient, db_session: AsyncSession
 ) -> None:
+    """(a) No more unilateral auto-confirm: a GIFT/LEND take leaves the
+    `Reservation` `PENDING` — the lister must resolve it later via
+    `confirm_transaction` — and the lister is notified of the take."""
     org_token, _ = await _register(client, "ORGANIZER", "til.org5@example.com")
     group_id, term_id = await _create_circle_and_term(client, org_token, "til5")
 
@@ -264,11 +268,18 @@ async def test_takeListing_lendType_createsReservationAndReportsIt(
     assert reservation.status_code == 200
     assert reservation.json()["reservation_type"] == "LEND"
     assert reservation.json()["item_id"] == item_id
+    assert reservation.json()["status"] == "PENDING"
+
+    notifs = (await client.get("/api/notifications/mine", headers=_auth(lister_token))).json()
+    assert any(n["kind"] == "TERM_ITEM_LISTING_TAKEN" for n in notifs)
 
 
-async def test_takeListing_swapType_reportsFirstLegReservation(
+async def test_proposeSwap_locksOnlyProposerItem_andNotifiesOwner(
     client: AsyncClient, db_session: AsyncSession
 ) -> None:
+    """(b) `propose_swap` locks (and auto-confirms) only the proposer's own
+    offered item, creates a `PROPOSED` `SwapProposal`, leaves the listed
+    item `AVAILABLE`, and notifies the listing owner."""
     org_token, _ = await _register(client, "ORGANIZER", "til.org6@example.com")
     group_id, term_id = await _create_circle_and_term(client, org_token, "til6")
 
@@ -283,29 +294,289 @@ async def test_takeListing_swapType_reportsFirstLegReservation(
     await _rsvp(client, taker_token, group_id, term_id)
     offered_item_id = await _register_personal_item(client, taker_token, "Puzzle")
 
+    proposal = await service.propose_swap(
+        db_session, _principal(taker_token), listed_item_id, offered_item_id, term_id
+    )
+
+    assert proposal.status == "PROPOSED"
+    assert proposal.listing_item_id == listed_item_id
+    assert proposal.offered_item_id == offered_item_id
+
+    proposer_reservation = await client.get(
+        f"/api/reservations/{proposal.proposer_reservation_id}", headers=_auth(taker_token)
+    )
+    assert proposer_reservation.status_code == 200
+    assert proposer_reservation.json()["item_id"] == offered_item_id
+    assert proposer_reservation.json()["status"] == "CONFIRMED"
+
+    listing_balance = await get_item_balance(db_session, listed_item_id)
+    assert listing_balance.status == BalanceStatus.AVAILABLE
+
+    notifs = (await client.get("/api/notifications/mine", headers=_auth(lister_token))).json()
+    assert any(n["kind"] == "SWAP_PROPOSED" for n in notifs)
+
+
+async def test_proposeSwap_notificationCarriesRealProposalId(
+    client: AsyncClient, db_session: AsyncSession
+) -> None:
+    """Group 9 gap fix: the `SWAP_PROPOSED` notification exposes the real
+    `SwapProposal.id` (not the proposer's `Reservation.id`) so the frontend's
+    global pending-actions modal can `accept`/`reject` it directly, without
+    a deep-link to the term page."""
+    org_token, _ = await _register(client, "ORGANIZER", "til.org22@example.com")
+    group_id, term_id = await _create_circle_and_term(client, org_token, "til22")
+
+    lister_token, _ = await _register(client, "GUEST", "til.lister22@example.com")
+    await _rsvp(client, lister_token, group_id, term_id)
+    listed_item_id = await _register_personal_item(client, lister_token, "Deskorolka")
+    await service.set_item_listing_preference(
+        db_session, _principal(lister_token), listed_item_id, ReservationType.SWAP
+    )
+
+    taker_token, _ = await _register(client, "GUEST", "til.taker22@example.com")
+    await _rsvp(client, taker_token, group_id, term_id)
+    offered_item_id = await _register_personal_item(client, taker_token, "Kask")
+
+    proposal = await service.propose_swap(
+        db_session, _principal(taker_token), listed_item_id, offered_item_id, term_id
+    )
+
+    notifs = (await client.get("/api/notifications/mine", headers=_auth(lister_token))).json()
+    swap_notif = next(n for n in notifs if n["kind"] == "SWAP_PROPOSED")
+    assert swap_notif["proposal_id"] == proposal.id
+    # Distinct from the proposer's own reservation leg — this is exactly the
+    # gap the fix closes (they must never be conflated).
+    assert swap_notif["proposal_id"] != proposal.proposer_reservation_id
+
+
+async def test_acceptSwapProposal_locksOwnerItem_pairsLegs_andNotifiesProposer(
+    client: AsyncClient, db_session: AsyncSession
+) -> None:
+    """(c) Accepting locks the listing owner's item as the second, paired
+    leg, sets the proposal `ACCEPTED`, and notifies the proposer."""
+    org_token, _ = await _register(client, "ORGANIZER", "til.org13@example.com")
+    group_id, term_id = await _create_circle_and_term(client, org_token, "til13")
+
+    lister_token, _ = await _register(client, "GUEST", "til.lister13@example.com")
+    await _rsvp(client, lister_token, group_id, term_id)
+    listed_item_id = await _register_personal_item(client, lister_token, "Rower")
+    await service.set_item_listing_preference(
+        db_session, _principal(lister_token), listed_item_id, ReservationType.SWAP
+    )
+
+    taker_token, _ = await _register(client, "GUEST", "til.taker13@example.com")
+    await _rsvp(client, taker_token, group_id, term_id)
+    offered_item_id = await _register_personal_item(client, taker_token, "Deska")
+
+    proposal = await service.propose_swap(
+        db_session, _principal(taker_token), listed_item_id, offered_item_id, term_id
+    )
+
+    accepted = await service.accept_swap_proposal(
+        db_session, _principal(lister_token), proposal.id
+    )
+    assert accepted.status == "ACCEPTED"
+
+    owner_leg = await client.get(
+        f"/api/reservations/{accepted.proposer_reservation_id}", headers=_auth(lister_token)
+    )
+    paired_id = owner_leg.json()["paired_reservation_id"]
+    assert paired_id is not None
+
+    listing_leg = await client.get(f"/api/reservations/{paired_id}", headers=_auth(lister_token))
+    assert listing_leg.status_code == 200
+    assert listing_leg.json()["item_id"] == listed_item_id
+    assert listing_leg.json()["status"] == "CONFIRMED"
+    assert listing_leg.json()["paired_reservation_id"] == accepted.proposer_reservation_id
+
+    notifs = (await client.get("/api/notifications/mine", headers=_auth(taker_token))).json()
+    assert any(n["kind"] == "SWAP_ACCEPTED" for n in notifs)
+
+
+async def test_rejectSwapProposal_releasesProposerLock_andNotifiesProposer(
+    client: AsyncClient, db_session: AsyncSession
+) -> None:
+    """(d) Rejecting cancels the proposer's own lock (item goes back to
+    `AVAILABLE`), sets the proposal `REJECTED`, and notifies the proposer."""
+    org_token, _ = await _register(client, "ORGANIZER", "til.org14@example.com")
+    group_id, term_id = await _create_circle_and_term(client, org_token, "til14")
+
+    lister_token, _ = await _register(client, "GUEST", "til.lister14@example.com")
+    await _rsvp(client, lister_token, group_id, term_id)
+    listed_item_id = await _register_personal_item(client, lister_token, "Aparat")
+    await service.set_item_listing_preference(
+        db_session, _principal(lister_token), listed_item_id, ReservationType.SWAP
+    )
+
+    taker_token, _ = await _register(client, "GUEST", "til.taker14@example.com")
+    await _rsvp(client, taker_token, group_id, term_id)
+    offered_item_id = await _register_personal_item(client, taker_token, "Statyw")
+
+    proposal = await service.propose_swap(
+        db_session, _principal(taker_token), listed_item_id, offered_item_id, term_id
+    )
+
+    rejected = await service.reject_swap_proposal(
+        db_session, _principal(lister_token), proposal.id
+    )
+    assert rejected.status == "REJECTED"
+
+    offered_balance = await get_item_balance(db_session, offered_item_id)
+    assert offered_balance.status == BalanceStatus.AVAILABLE
+
+    notifs = (await client.get("/api/notifications/mine", headers=_auth(taker_token))).json()
+    assert any(n["kind"] == "SWAP_REJECTED" for n in notifs)
+
+
+async def test_confirmTransaction_beforeTermEnd_raisesBusinessConflict(
+    client: AsyncClient, db_session: AsyncSession
+) -> None:
+    """(e) `confirm_transaction` is blocked while the Term hasn't occurred
+    yet."""
+    org_token, _ = await _register(client, "ORGANIZER", "til.org15@example.com")
+    group_id, term_id = await _create_circle_and_term(client, org_token, "til15")
+
+    lister_token, _ = await _register(client, "GUEST", "til.lister15@example.com")
+    await _rsvp(client, lister_token, group_id, term_id)
+    item_id = await _register_personal_item(client, lister_token, "Kajak")
+    await service.set_item_listing_preference(
+        db_session, _principal(lister_token), item_id, ReservationType.GIFT
+    )
+
+    taker_token, _ = await _register(client, "GUEST", "til.taker15@example.com")
+    await _rsvp(client, taker_token, group_id, term_id)
+
     taken = await service.take_item_listing(
         db_session,
         _principal(taker_token),
-        listed_item_id,
-        TakeTermItemListingRequest(
-            term_id=term_id, reservation_type="SWAP", offered_item_id=offered_item_id
-        ),
+        item_id,
+        TakeTermItemListingRequest(term_id=term_id, reservation_type="GIFT"),
     )
 
-    reservation = await client.get(
-        f"/api/reservations/{taken.resolved_reservation_id}", headers=_auth(taker_token)
-    )
-    assert reservation.status_code == 200
-    body = reservation.json()
-    assert body["item_id"] == listed_item_id
-    assert body["reservation_type"] == "SWAP"
-    assert body["paired_reservation_id"] is not None
+    with pytest.raises(BusinessConflictException):
+        await service.confirm_transaction(
+            db_session, _principal(taker_token), taken.resolved_reservation_id, term_id
+        )
 
-    paired = await client.get(
-        f"/api/reservations/{body['paired_reservation_id']}", headers=_auth(taker_token)
+
+async def test_confirmTransaction_afterTermEnd_fulfillsReservation(
+    client: AsyncClient, db_session: AsyncSession
+) -> None:
+    """(f) After the Term has ended, either party's `confirm_transaction`
+    call succeeds and actually moves inventory (`FULFILLED`)."""
+    org_token, _ = await _register(client, "ORGANIZER", "til.org16@example.com")
+    group_id, term_id = await _create_circle_and_term(client, org_token, "til16")
+
+    lister_token, _ = await _register(client, "GUEST", "til.lister16@example.com")
+    await _rsvp(client, lister_token, group_id, term_id)
+    item_id = await _register_personal_item(client, lister_token, "Namiot16")
+    await service.set_item_listing_preference(
+        db_session, _principal(lister_token), item_id, ReservationType.GIFT
     )
-    assert paired.status_code == 200
-    assert paired.json()["item_id"] == offered_item_id
+
+    taker_token, _ = await _register(client, "GUEST", "til.taker16@example.com")
+    await _rsvp(client, taker_token, group_id, term_id)
+
+    taken = await service.take_item_listing(
+        db_session,
+        _principal(taker_token),
+        item_id,
+        TakeTermItemListingRequest(term_id=term_id, reservation_type="GIFT"),
+    )
+
+    term = (await db_session.execute(select(Term).where(Term.id == term_id))).scalar_one()
+    term.occurs_on = datetime.utcnow() - timedelta(days=1)
+    await db_session.commit()
+
+    fulfilled = await service.confirm_transaction(
+        db_session, _principal(taker_token), taken.resolved_reservation_id, term_id
+    )
+    assert fulfilled.status == "FULFILLED"
+
+    balance = await get_item_balance(db_session, item_id)
+    assert balance.status == BalanceStatus.AVAILABLE
+
+
+async def test_confirmTransaction_secondCaller_getsAlreadyResolvedOutcomeAndNotification(
+    client: AsyncClient, db_session: AsyncSession
+) -> None:
+    """(g) Once the first party has resolved the transaction, the second
+    (losing) party's call gets a distinguishable `TermAlreadyResolvedException`
+    outcome, not a raw `BusinessConflictException`, plus a
+    `TERM_ALREADY_RESOLVED` notification."""
+    org_token, _ = await _register(client, "ORGANIZER", "til.org17@example.com")
+    group_id, term_id = await _create_circle_and_term(client, org_token, "til17")
+
+    lister_token, _ = await _register(client, "GUEST", "til.lister17@example.com")
+    await _rsvp(client, lister_token, group_id, term_id)
+    item_id = await _register_personal_item(client, lister_token, "Sanki17")
+    await service.set_item_listing_preference(
+        db_session, _principal(lister_token), item_id, ReservationType.GIFT
+    )
+
+    taker_token, _ = await _register(client, "GUEST", "til.taker17@example.com")
+    await _rsvp(client, taker_token, group_id, term_id)
+
+    taken = await service.take_item_listing(
+        db_session,
+        _principal(taker_token),
+        item_id,
+        TakeTermItemListingRequest(term_id=term_id, reservation_type="GIFT"),
+    )
+
+    term = (await db_session.execute(select(Term).where(Term.id == term_id))).scalar_one()
+    term.occurs_on = datetime.utcnow() - timedelta(days=1)
+    await db_session.commit()
+
+    await service.confirm_transaction(
+        db_session, _principal(taker_token), taken.resolved_reservation_id, term_id
+    )
+
+    with pytest.raises(TermAlreadyResolvedException):
+        await service.confirm_transaction(
+            db_session, _principal(lister_token), taken.resolved_reservation_id, term_id
+        )
+
+    notifs = (await client.get("/api/notifications/mine", headers=_auth(lister_token))).json()
+    assert any(n["kind"] == "TERM_ALREADY_RESOLVED" for n in notifs)
+
+
+async def test_confirmTransaction_nonParty_raisesAccessDenied(
+    client: AsyncClient, db_session: AsyncSession
+) -> None:
+    """(h) A caller who is neither the reservation's holder nor its
+    `reserved_by` party is rejected by
+    `confirm_race_rules._require_race_participant`."""
+    org_token, _ = await _register(client, "ORGANIZER", "til.org18@example.com")
+    group_id, term_id = await _create_circle_and_term(client, org_token, "til18")
+
+    lister_token, _ = await _register(client, "GUEST", "til.lister18@example.com")
+    await _rsvp(client, lister_token, group_id, term_id)
+    item_id = await _register_personal_item(client, lister_token, "Piłka18")
+    await service.set_item_listing_preference(
+        db_session, _principal(lister_token), item_id, ReservationType.GIFT
+    )
+
+    taker_token, _ = await _register(client, "GUEST", "til.taker18@example.com")
+    await _rsvp(client, taker_token, group_id, term_id)
+
+    taken = await service.take_item_listing(
+        db_session,
+        _principal(taker_token),
+        item_id,
+        TakeTermItemListingRequest(term_id=term_id, reservation_type="GIFT"),
+    )
+
+    term = (await db_session.execute(select(Term).where(Term.id == term_id))).scalar_one()
+    term.occurs_on = datetime.utcnow() - timedelta(days=1)
+    await db_session.commit()
+
+    outsider_token, _ = await _register(client, "GUEST", "til.outsider18@example.com")
+
+    with pytest.raises(AccessDeniedException):
+        await service.confirm_transaction(
+            db_session, _principal(outsider_token), taken.resolved_reservation_id, term_id
+        )
 
 
 async def test_takeListing_unofferedReservationType_raisesBusinessConflict(
@@ -331,6 +602,60 @@ async def test_takeListing_unofferedReservationType_raisesBusinessConflict(
             item_id,
             TakeTermItemListingRequest(term_id=term_id, reservation_type="GIFT"),
         )
+
+
+async def test_setPreference_whileItemLentOut_stillSucceeds(
+    client: AsyncClient, db_session: AsyncSession
+) -> None:
+    """Regression guard: while an item is on loan, `item.inventory_id`
+    temporarily points at the borrower's VIRTUAL inventory (see
+    `app.circulation`'s LEND fulfillment). `set_item_listing_preference`'s
+    ownership check must resolve the item's *permanent* owner
+    (`resolve_owning_inventory`), not its current physical location — the
+    true owner must still be able to manage their own item's listing
+    preference during the loan."""
+    org_token, _ = await _register(client, "ORGANIZER", "til.org8@example.com")
+    group_id, term_id = await _create_circle_and_term(client, org_token, "til8")
+
+    lister_token, _ = await _register(client, "GUEST", "til.lister8@example.com")
+    await _rsvp(client, lister_token, group_id, term_id)
+    item_id = await _register_personal_item(client, lister_token, "Sanki")
+
+    borrower_token, _ = await _register(client, "GUEST", "til.borrower8@example.com")
+    borrower_inventory = await client.post(
+        "/api/inventories",
+        json={"inventory_type": "PERSONAL", "location": None},
+        headers=_auth(borrower_token),
+    )
+    assert borrower_inventory.status_code == 201
+    borrower_user_id = borrower_inventory.json()["owner_user_id"]
+
+    reservation = await client.post(
+        "/api/reservations",
+        json={
+            "item_id": item_id,
+            "reservation_type": "LEND",
+            "reserved_by_user_id": borrower_user_id,
+        },
+        headers=_auth(lister_token),
+    )
+    assert reservation.status_code == 201
+    reservation_id = reservation.json()["id"]
+    assert (
+        await client.post(f"/api/reservations/{reservation_id}/confirm", headers=_auth(lister_token))
+    ).status_code == 200
+    assert (
+        await client.post(f"/api/reservations/{reservation_id}/fulfill", headers=_auth(lister_token))
+    ).status_code == 200
+
+    item = await client.get(f"/api/inventory-items/{item_id}", headers=_auth(lister_token))
+    assert item.json()["home_inventory_id"] is not None
+
+    preference = await service.set_item_listing_preference(
+        db_session, _principal(lister_token), item_id, ReservationType.SWAP
+    )
+    assert preference is not None
+    assert preference.mode == "SWAP"
 
 
 # --- Gap-analysis coverage carried over from the original design -----------
@@ -453,13 +778,8 @@ async def test_takeListing_swapOfferedItemNotOwnedByTaker_raisesAccessDenied(
     )
 
     with pytest.raises(AccessDeniedException):
-        await service.take_item_listing(
-            db_session,
-            _principal(taker_token),
-            listed_item_id,
-            TakeTermItemListingRequest(
-                term_id=term_id, reservation_type="SWAP", offered_item_id=someone_elses_item_id
-            ),
+        await service.propose_swap(
+            db_session, _principal(taker_token), listed_item_id, someone_elses_item_id, term_id
         )
 
 
@@ -488,11 +808,6 @@ async def test_takeListing_swapOfferedItemNotAvailable_raisesBusinessConflict(
     await db_session.commit()
 
     with pytest.raises(BusinessConflictException):
-        await service.take_item_listing(
-            db_session,
-            _principal(taker_token),
-            listed_item_id,
-            TakeTermItemListingRequest(
-                term_id=term_id, reservation_type="SWAP", offered_item_id=offered_item_id
-            ),
+        await service.propose_swap(
+            db_session, _principal(taker_token), listed_item_id, offered_item_id, term_id
         )

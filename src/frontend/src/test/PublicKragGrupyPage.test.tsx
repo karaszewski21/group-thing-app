@@ -6,8 +6,8 @@ import * as familiesApi from "../api/families";
 import * as pledgesApi from "../api/pledges";
 import * as termItemListingsApi from "../api/termItemListings";
 import { ApiError } from "../api/client";
-import { PublicKragGrupyView } from "../pages/krag/KragGrupyPage";
-import { PublicKragRedirectPage } from "../pages/krag/PublicKragRedirectPage";
+import { PublicKragGrupyView, TermPageView } from "../pages/krag/KragGrupyPage";
+import { gateAction } from "../utils/actionGate";
 
 vi.mock("../api/groups", async (importOriginal) => {
   const actual = await importOriginal<typeof import("../api/groups")>();
@@ -131,8 +131,8 @@ function familyOut(overrides: Partial<familiesApi.FamilyOut> = {}): familiesApi.
   };
 }
 
-// Mount the real slug routes so the component reads `:groupId` / `:termId`
-// (and the resolver reads `:organizationSlug`) straight from the URL.
+// Mount the real slug route so the component reads `:groupId` / `:termId`
+// straight from the URL.
 function renderAt(path: string) {
   return render(
     <MemoryRouter initialEntries={[path]}>
@@ -141,7 +141,6 @@ function renderAt(path: string) {
           path="/:organizationSlug/grupa/:groupId/term/:termId"
           element={<PublicKragGrupyView />}
         />
-        <Route path="/:organizationSlug/grupa/:groupId" element={<PublicKragRedirectPage />} />
       </Routes>
     </MemoryRouter>,
   );
@@ -719,32 +718,117 @@ describe("PublicKragGrupyPage", () => {
     });
   });
 
-  describe("term-less redirect (PublicKragRedirectPage)", () => {
-    it("redirects to the nearest term, echoing the cosmetic slug", async () => {
-      vi.mocked(groupsApi.getPublicCircle).mockResolvedValue(circleWithTerm);
+});
 
-      renderAt("/ania-kowalska/grupa/7");
+// Task Group 6 — unified term page component + generalized auth gate.
+// `TermPageView` is the presentational tree shared by `KragGrupyPage`
+// (private) and `PublicKragGrupyView` (public); `gateAction` is the single
+// wrapper every action handler on either view routes through.
+describe("TermPageView (unified term page) + gateAction (generalized auth gate)", () => {
+  it("renders identical listing action buttons for a logged-in and a not-logged-in viewer", () => {
+    const browseListingsSection = {
+      heading: "Rzeczy do wymiany",
+      rows: [
+        {
+          key: 1,
+          title: <strong>Rowerek</strong>,
+          subtitle: "Wystawia: Ola",
+          actions: [
+            { key: "LEND", label: "Pożycz", onClick: () => {} },
+            { key: "SWAP", label: "Zamień", onClick: () => {} },
+          ],
+        },
+      ],
+    };
 
-      await waitFor(() =>
-        expect(mockNavigate).toHaveBeenCalledWith("/ania-kowalska/grupa/7/term/101", {
-          replace: true,
-        }),
-      );
-      expect(groupsApi.getPublicCircle).toHaveBeenCalledWith(7);
-    });
+    const loggedOut = render(
+      <TermPageView isLoggedIn={false} browseListingsSection={browseListingsSection} />,
+    );
+    const loggedOutLabels = loggedOut.getAllByRole("button").map((b) => b.textContent);
+    loggedOut.unmount();
 
-    it("renders the 'no terms yet' page in place when the circle has zero terms", async () => {
-      vi.mocked(groupsApi.getPublicCircle).mockResolvedValue({
-        ...circleWithTerm,
-        next_term: null,
-      });
+    const loggedIn = render(
+      <TermPageView isLoggedIn={true} browseListingsSection={browseListingsSection} />,
+    );
+    const loggedInLabels = loggedIn.getAllByRole("button").map((b) => b.textContent);
 
-      renderAt("/ania-kowalska/grupa/7");
+    expect(loggedOutLabels).toEqual(["Pożycz", "Zamień"]);
+    expect(loggedInLabels).toEqual(loggedOutLabels);
+  });
 
-      expect(
-        await screen.findByText("Organizator nie dodał jeszcze żadnych zajęć."),
-      ).toBeInTheDocument();
-      expect(mockNavigate).not.toHaveBeenCalled();
-    });
+  it("gateAction: while logged out, clicking opens the gate instead of calling the real handler", () => {
+    const openGate = vi.fn();
+    const realHandler = vi.fn();
+    const onClick = gateAction(false, openGate, realHandler);
+
+    render(<button onClick={onClick}>Pożycz: Rowerek</button>);
+    fireEvent.click(screen.getByRole("button", { name: "Pożycz: Rowerek" }));
+
+    expect(openGate).toHaveBeenCalledTimes(1);
+    expect(realHandler).not.toHaveBeenCalled();
+  });
+
+  it("gateAction: while logged in, clicking calls the real handler directly, never the gate", () => {
+    const openGate = vi.fn();
+    const realHandler = vi.fn();
+    const onClick = gateAction(true, openGate, realHandler);
+
+    render(<button onClick={onClick}>Pożycz: Rowerek</button>);
+    fireEvent.click(screen.getByRole("button", { name: "Pożycz: Rowerek" }));
+
+    expect(realHandler).toHaveBeenCalledTimes(1);
+    expect(openGate).not.toHaveBeenCalled();
+  });
+
+  it("renders correctly when fed needed-items data shaped like useKragGrupy (private): family avatar + toggle action", () => {
+    render(
+      <TermPageView
+        isLoggedIn={true}
+        neededItemsSection={{
+          heading: "Kto co przynosi",
+          rows: [
+            {
+              key: 11,
+              avatar: { initials: "RT", color: "#1B8168" },
+              title: <strong>Bębenek</strong>,
+              subtitle: "Przynosi: Ty",
+              inlineActions: [
+                { key: "withdraw-toggle", label: "Rezygnuję", ariaLabel: "Rezygnuję z przyniesienia: Bębenek", onClick: () => {} },
+              ],
+            },
+          ],
+        }}
+      />,
+    );
+
+    expect(screen.getByText("Bębenek")).toBeInTheDocument();
+    expect(screen.getByText("Przynosi: Ty")).toBeInTheDocument();
+    expect(screen.getByText("RT")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Rezygnuję z przyniesienia: Bębenek" })).toBeInTheDocument();
+  });
+
+  it("renders correctly when fed needed-items data shaped like usePublicKragGrupy (public): no avatar, single gated pledge action", () => {
+    const { container } = render(
+      <TermPageView
+        isLoggedIn={false}
+        neededItemsSection={{
+          heading: "Potrzebne rzeczy",
+          rows: [
+            {
+              key: 11,
+              title: <strong>Bębenek</strong>,
+              subtitle: null,
+              inlineActions: [
+                { key: "pledge", label: "Ja to przyniosę", ariaLabel: "Ja to przyniosę: Bębenek", onClick: () => {} },
+              ],
+            },
+          ],
+        }}
+      />,
+    );
+
+    expect(screen.getByText("Bębenek")).toBeInTheDocument();
+    expect(container.querySelector(".kg-bring-av")).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Ja to przyniosę: Bębenek" })).toBeInTheDocument();
   });
 });

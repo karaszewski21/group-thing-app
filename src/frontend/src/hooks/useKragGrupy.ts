@@ -21,10 +21,11 @@ import {
 import { getInventories, getInventoryItemBalance, getInventoryItems } from "../api/inventories";
 import { getMyProfile, getProfileByParty, type UserProfileResponse } from "../api/people";
 import { getProducts } from "../api/products";
-import { confirmReservation, fulfillReservation, type ReservationType } from "../api/reservations";
+import { fulfillReservation, type ReservationType } from "../api/reservations";
 import {
   getBrowseTermItemListings,
   getMyTermItemListings,
+  proposeSwap as proposeSwapApi,
   takeTermItemListing,
   type BrowseTermItemListingResponse,
   type TakeTermItemListingRequest,
@@ -78,6 +79,12 @@ export interface UseKragGrupyResult {
     reservationType: ReservationType,
     offeredItemId?: number,
   ) => Promise<void>;
+  /** Proposes a swap: the caller's own `offeredItemId` for `itemId` (the
+   * target listing) on `currentTerm`. Unlike `takeListing`'s LEND/GIFT
+   * path, this never creates a Reservation on the listing item itself —
+   * the owner must `accept`/`reject` first (Group 5's propose/accept/
+   * reject flow) — so there is no immediate "taken" result to return. */
+  proposeSwap: (itemId: number, offeredItemId: number) => Promise<void>;
   withdrawMyAttendance: () => Promise<void>;
   confirmListingReceipt: (reservationId: number) => Promise<void>;
   refetch: () => Promise<void>;
@@ -241,11 +248,13 @@ export function useKragGrupy(groupId: number): UseKragGrupyResult {
     [refetch],
   );
 
-  // Shared by the existing pledge-confirm flow and the new listing-take
-  // flow — both bridge a `Reservation` from CONFIRMED through FULFILLED
-  // the same way; only what happens afterward differs.
+  // Shared by the existing pledge-confirm flow and the listing-take flow.
+  // Both reservations are already `CONFIRMED` by the time this runs — the
+  // backend auto-confirms on behalf of the holder right at creation, since
+  // their consent already exists (a published `ItemListingPreference`, or
+  // the guardian's own act of registering the pledged item) — so this is
+  // just the receiving party's later "I physically got it" step.
   const confirmReservationReceipt = useCallback(async (reservationId: number) => {
-    await confirmReservation(reservationId);
     await fulfillReservation(reservationId);
   }, []);
 
@@ -283,6 +292,15 @@ export function useKragGrupy(groupId: number): UseKragGrupyResult {
     [currentTerm, refetch],
   );
 
+  const proposeSwap = useCallback(
+    async (itemId: number, offeredItemId: number) => {
+      if (!currentTerm) return;
+      await proposeSwapApi(itemId, { term_id: currentTerm.id, offered_item_id: offeredItemId });
+      await refetch();
+    },
+    [currentTerm, refetch],
+  );
+
   const withdrawMyAttendance = useCallback(async () => {
     if (!myAttendanceForCurrentTerm) return;
     await withdrawMyAttendanceApi(myAttendanceForCurrentTerm.attendance_id);
@@ -308,6 +326,7 @@ export function useKragGrupy(groupId: number): UseKragGrupyResult {
     fulfillPledgeItem,
     confirmPledgeReceipt,
     takeListing,
+    proposeSwap,
     withdrawMyAttendance,
     confirmListingReceipt,
     refetch,

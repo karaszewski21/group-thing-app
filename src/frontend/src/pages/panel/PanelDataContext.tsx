@@ -34,13 +34,33 @@ import {
   createInventory,
   deleteInventoryItem,
   getInventories,
+  getInventory,
+  getInventoryItemBalance,
   getInventoryItems,
   registerInventoryItem,
   updateInventoryItem,
   type InventoryItemResponse,
   type ItemCondition,
 } from "../../api/inventories";
-import { getLeadershipsForPerson, getMyProfile, type UserProfileResponse } from "../../api/people";
+import {
+  confirmReservation,
+  confirmTransaction,
+  createReservation,
+  fulfillReservation,
+  getReservation,
+} from "../../api/reservations";
+import {
+  acceptSwapProposal,
+  getBrowseTermItemListings,
+  getMyTermItemListings,
+  rejectSwapProposal,
+} from "../../api/termItemListings";
+import {
+  getLeadershipsForPerson,
+  getMyProfile,
+  getProfileByAccountUserId,
+  type UserProfileResponse,
+} from "../../api/people";
 import { getMyOrganization } from "../../api/organizations";
 import {
   getProducts,
@@ -73,13 +93,14 @@ import {
   termPublicPath,
   ITEM_MODE_TO_RESERVATION_TYPE,
   RESERVATION_TYPE_TO_ITEM_MODE,
+  type BorrowedItem,
   type ItemMode,
-  type LocalGift,
   type ModalKind,
   type TermWithNeeded,
   type View,
 } from "./panelHelpers";
 import { PanelDataContext } from "./panelDataStore";
+import { ModalSheet } from "./panelComponents";
 
 /* ------------------------------------------------------------------ */
 /*  Panel — warstwa stanu (state/effects/handlers/derived) wydzielona  */
@@ -89,6 +110,89 @@ import { PanelDataContext } from "./panelDataStore";
 /* ------------------------------------------------------------------ */
 
 export type PanelDataContextValue = ReturnType<typeof usePanelDataValue>;
+
+/** One actionable item surfaced by Group 7's global pending-actions modal
+ * (spec.md Requirement 10-11 / the "GLOBALNYM dialogiem" quote) — derived
+ * client-side from `notifications`' `kind`/`link_path`/`proposal_id` rather
+ * than a new backend endpoint, per the plan's [RESOLVED] note. `termId` is
+ * parsed out of `linkPath` (every producing notification's `link_path` ends
+ * in `/term/<id>`), since that's the only structured data the feed carries.
+ *
+ * `proposalId` is `Notification.proposal_id` (added in Group 9 to close a
+ * flagged gap): a real `SwapProposal.id` the modal can `acceptSwapProposal`/
+ * `rejectSwapProposal` on directly, without navigating to the term page. */
+export interface PendingSwapAction {
+  kind: "SWAP_PROPOSED";
+  notificationId: number;
+  message: string;
+  linkPath: string | null;
+  proposalId: number | null;
+}
+
+/** The post-term-end confirm-race prompt — fully wired to
+ * `confirmTransaction`, since (unlike a bare `SwapProposal`) the
+ * reservation needing confirmation IS resolvable client-side from the
+ * term's existing `getMyTermItemListings`/`getBrowseTermItemListings` (see
+ * `resolvePendingReservationId`). */
+export interface PendingConfirmAction {
+  kind: "TERM_CONFIRMATION_NEEDED";
+  notificationId: number;
+  message: string;
+  linkPath: string | null;
+  termId: number | null;
+}
+
+export type PendingAction = PendingSwapAction | PendingConfirmAction;
+
+const TERM_LINK_PATH_RE = /\/term\/(\d+)$/;
+
+function parseTermIdFromLinkPath(linkPath: string | null): number | null {
+  if (!linkPath) return null;
+  const match = TERM_LINK_PATH_RE.exec(linkPath);
+  return match ? Number(match[1]) : null;
+}
+
+/** Resolves the `Reservation.id` the caller (`myPartyId`) needs to
+ * `confirmTransaction` on `termId`, purely from the two existing
+ * term-item-listing endpoints (no new backend surface) — mirrors
+ * `KragGrupyPage.tsx`'s own `confirmActionFor`, generalized to run without
+ * that page's local `reservationsById` cache since the global modal can
+ * render on any route. Checks the taker side first (a still-open
+ * `resolved_reservation_id` on a listing the caller took), then the
+ * lister side of an accepted SWAP (the paired leg on one of the caller's
+ * own listings) — `null` when neither applies (nothing left to confirm,
+ * or it doesn't belong to this caller). */
+async function resolvePendingReservationId(
+  termId: number,
+  myPartyId: number,
+): Promise<number | null> {
+  const [mine, browse] = await Promise.all([
+    getMyTermItemListings(termId),
+    getBrowseTermItemListings(termId),
+  ]);
+
+  const takenRow = browse.find(
+    (r) => r.taken_by_party_id === myPartyId && r.resolved_reservation_id != null,
+  );
+  if (takenRow?.resolved_reservation_id != null) {
+    const reservation = await getReservation(takenRow.resolved_reservation_id);
+    if (reservation.status !== "FULFILLED" && reservation.status !== "CANCELLED") {
+      return reservation.id;
+    }
+  }
+
+  for (const row of mine) {
+    if (row.resolved_reservation_id == null) continue;
+    const primary = await getReservation(row.resolved_reservation_id);
+    if (primary.reservation_type === "SWAP" && primary.paired_reservation_id != null) {
+      const paired = await getReservation(primary.paired_reservation_id);
+      if (paired.status !== "FULFILLED" && paired.status !== "CANCELLED") {
+        return paired.id;
+      }
+    }
+  }
+  return null;
+}
 
 const VIEW_VALUES: readonly View[] = [
   "home",
@@ -131,6 +235,13 @@ function usePanelDataValue() {
   // In-app notification bell (PanelHeader). `notifOpen` drives the dropdown.
   const [notifications, setNotifications] = useState<NotificationResponse[]>([]);
   const [notifOpen, setNotifOpen] = useState(false);
+  // Group 7's global pending-actions modal (swap accept/reject prompt +
+  // post-term-end confirm-race prompt) — `notificationId`s currently mid-
+  // confirm, and ones whose confirm attempt came back "already resolved by
+  // the other party" (409, `already_resolved: true`) — kept distinct from
+  // a generic error toast per spec.md Requirement 3.
+  const [pendingActionBusyId, setPendingActionBusyId] = useState<number | null>(null);
+  const [alreadyResolvedIds, setAlreadyResolvedIds] = useState<ReadonlySet<number>>(new Set());
   // Inline "Mój dom" family rename (D4 / TC4) — no dedicated modal.
   const [renamingFamily, setRenamingFamily] = useState(false);
   const [familyNameDraft, setFamilyNameDraft] = useState("");
@@ -247,7 +358,7 @@ function usePanelDataValue() {
   const [settings, setSettings] = useState({ emailNotifs: true, smsNotifs: false, publicProfile: true });
   const [groupExtras, setGroupExtras] = useState<Record<number, { location: string; freeSpots: number }>>({});
   const [itemModes, setItemModes] = useState<Record<number, ItemMode | null>>({});
-  const [gifts, setGifts] = useState<LocalGift[]>([]);
+  const [borrowedItems, setBorrowedItems] = useState<BorrowedItem[]>([]);
 
   // --- formularz: dodaj członka rodziny ("Rodzina" section, inline form) ---
   const [memberName, setMemberName] = useState("");
@@ -303,6 +414,40 @@ function usePanelDataValue() {
       if (!inventory) inventory = await createInventory({ inventory_type: "PERSONAL" });
       setInventoryId(inventory.id);
       setItems(await getInventoryItems(inventory.id));
+
+      // "Wypożyczone" — items currently sitting in the caller's own VIRTUAL
+      // inventory (borrowed from someone else). Given/swapped-in items are
+      // full ownership and already show up in "Moje rzeczy" instead, so no
+      // VIRTUAL inventory means nothing is currently on loan.
+      const virtualInventory = inventories.find((i) => i.inventory_type === "VIRTUAL") ?? null;
+      if (virtualInventory) {
+        const virtualItems = await getInventoryItems(virtualInventory.id);
+        setBorrowedItems(
+          await Promise.all(
+            virtualItems.map(async (item) => {
+              const [balance, lenderInventory] = await Promise.all([
+                getInventoryItemBalance(item.id),
+                item.home_inventory_id !== null
+                  ? getInventory(item.home_inventory_id)
+                  : Promise.resolve(null),
+              ]);
+              const lenderProfile = lenderInventory
+                ? await getProfileByAccountUserId(lenderInventory.owner_user_id)
+                : null;
+              return {
+                itemId: item.id,
+                productName: item.product_name,
+                lenderUserId: lenderInventory?.owner_user_id ?? null,
+                lenderName: lenderProfile?.display_name ?? "nieznana osoba",
+                dueDate: balance.due_date,
+              };
+            }),
+          ),
+        );
+      } else {
+        setBorrowedItems([]);
+      }
+
       const preferences = await getMyItemListingPreferences();
       setItemModes(
         Object.fromEntries(
@@ -403,10 +548,6 @@ function usePanelDataValue() {
     return () => clearTimeout(t);
   }, [toast]);
 
-  function productName(productId: number): string {
-    return products.find((p) => p.id === productId)?.name ?? `#${productId}`;
-  }
-
   /* ---------- zadeklarowane rzeczy / powiadomienia ---------- */
 
   async function withdrawMyPledge(pledgeId: number) {
@@ -443,6 +584,148 @@ function usePanelDataValue() {
       await markAllNotificationsRead();
     } catch {
       await load({ silent: true });
+    }
+  }
+
+  /* ---------- global pending-actions modal (Group 7) ---------- */
+
+  // Derived, not fetched — every unread `SWAP_PROPOSED`/`TERM_CONFIRMATION_
+  // NEEDED` notification IS an outstanding pending action; nothing to
+  // reconcile beyond what the notification feed already carries.
+  const pendingActions: PendingAction[] = useMemo(
+    () =>
+      notifications
+        .filter((n) => n.read_at === null)
+        .flatMap((n): PendingAction[] => {
+          if (n.kind === "SWAP_PROPOSED") {
+            return [
+              {
+                kind: "SWAP_PROPOSED",
+                notificationId: n.id,
+                message: n.message,
+                linkPath: n.link_path,
+                proposalId: n.proposal_id ?? null,
+              },
+            ];
+          }
+          if (n.kind === "TERM_CONFIRMATION_NEEDED") {
+            return [
+              {
+                kind: "TERM_CONFIRMATION_NEEDED",
+                notificationId: n.id,
+                message: n.message,
+                linkPath: n.link_path,
+                termId: parseTermIdFromLinkPath(n.link_path),
+              },
+            ];
+          }
+          return [];
+        }),
+    [notifications],
+  );
+
+  /** Marks the underlying notification read (optimistic, same pattern as
+   * `openNotification`) — the item then drops out of `pendingActions`
+   * (derived from `notifications`) on the next render, without a separate
+   * "dismissed" list to keep in sync. */
+  function dismissPendingAction(notificationId: number) {
+    setAlreadyResolvedIds((prev) => {
+      if (!prev.has(notificationId)) return prev;
+      const next = new Set(prev);
+      next.delete(notificationId);
+      return next;
+    });
+    setNotifications((prev) =>
+      prev.map((n) => (n.id === notificationId ? { ...n, read_at: new Date().toISOString() } : n)),
+    );
+    void markNotificationRead(notificationId).catch(() => undefined);
+  }
+
+  /** Fallback only: a `SWAP_PROPOSED` notification created before this
+   * `proposal_id` field existed (pre-Group-9) has no resolvable proposal —
+   * deep-link to the term page instead of failing silently. Freshly-created
+   * notifications always carry `proposal_id` and use
+   * `acceptPendingSwap`/`rejectPendingSwap` below instead. */
+  function openSwapPendingAction(notificationId: number, linkPath: string | null) {
+    dismissPendingAction(notificationId);
+    if (linkPath) navigate(linkPath);
+  }
+
+  async function acceptPendingSwap(notificationId: number, proposalId: number) {
+    setPendingActionBusyId(notificationId);
+    try {
+      await acceptSwapProposal(proposalId);
+      dismissPendingAction(notificationId);
+      showToast("Zamiana zaakceptowana");
+    } catch (err) {
+      if (
+        err instanceof ApiError &&
+        err.status === 409 &&
+        err.body &&
+        typeof err.body === "object" &&
+        (err.body as { already_resolved?: unknown }).already_resolved === true
+      ) {
+        setAlreadyResolvedIds((prev) => new Set(prev).add(notificationId));
+      } else {
+        showToast("Nie udało się zaakceptować — spróbuj ponownie");
+      }
+    } finally {
+      setPendingActionBusyId(null);
+    }
+  }
+
+  async function rejectPendingSwap(notificationId: number, proposalId: number) {
+    setPendingActionBusyId(notificationId);
+    try {
+      await rejectSwapProposal(proposalId);
+      dismissPendingAction(notificationId);
+      showToast("Zamiana odrzucona");
+    } catch (err) {
+      if (
+        err instanceof ApiError &&
+        err.status === 409 &&
+        err.body &&
+        typeof err.body === "object" &&
+        (err.body as { already_resolved?: unknown }).already_resolved === true
+      ) {
+        setAlreadyResolvedIds((prev) => new Set(prev).add(notificationId));
+      } else {
+        showToast("Nie udało się odrzucić — spróbuj ponownie");
+      }
+    } finally {
+      setPendingActionBusyId(null);
+    }
+  }
+
+  async function confirmPendingAction(notificationId: number, termId: number | null) {
+    if (termId === null || profile?.account_user_id == null) {
+      showToast("Nie udało się potwierdzić — spróbuj ponownie");
+      return;
+    }
+    setPendingActionBusyId(notificationId);
+    try {
+      const reservationId = await resolvePendingReservationId(termId, profile.party_id);
+      if (reservationId === null) {
+        showToast("Nie znaleziono transakcji do potwierdzenia");
+        return;
+      }
+      await confirmTransaction(reservationId, { term_id: termId });
+      dismissPendingAction(notificationId);
+      showToast("Potwierdzono");
+    } catch (err) {
+      if (
+        err instanceof ApiError &&
+        err.status === 409 &&
+        err.body &&
+        typeof err.body === "object" &&
+        (err.body as { already_resolved?: unknown }).already_resolved === true
+      ) {
+        setAlreadyResolvedIds((prev) => new Set(prev).add(notificationId));
+      } else {
+        showToast("Nie udało się potwierdzić — spróbuj ponownie");
+      }
+    } finally {
+      setPendingActionBusyId(null);
     }
   }
 
@@ -547,6 +830,13 @@ function usePanelDataValue() {
         product_id: product.id,
         condition: itemDraft.condition,
       });
+      // `resolveProduct` may have just created a brand-new Product — merge
+      // it into the locally cached list so `startEditItemMeta`'s category_id
+      // lookup resolves it immediately if the item is edited right away,
+      // without waiting for the next full `load()`. Display itself no
+      // longer needs this: `InventoryItemResponse.product_name` is already
+      // joined server-side.
+      setProducts((prev) => (prev.some((p) => p.id === product.id) ? prev : [...prev, product]));
       setItemDraft(createEmptyItemQuickAddValue(categoriesData[0]?.id ?? 0));
       setModal(null);
       showToast("Dodano rzecz");
@@ -847,17 +1137,32 @@ function usePanelDataValue() {
     }
   }
 
-  /* ---------- podarki (lokalne) ---------- */
+  /* ---------- wypożyczone (oddawanie pożyczonej rzeczy) ---------- */
 
-  const giftCounts = useMemo(
-    () => ({
-      "pożyczone": gifts.filter((g) => g.source === "pożyczone").length,
-      "otrzymane": gifts.filter((g) => g.source === "otrzymane").length,
-      "zamienione": gifts.filter((g) => g.source === "zamienione").length,
-    }),
-    [gifts],
-  );
-  const removeGift = (id: string) => setGifts((gs) => gs.filter((g) => g.id !== id));
+  async function returnBorrowedItem(itemId: number) {
+    const borrowed = borrowedItems.find((b) => b.itemId === itemId);
+    if (borrowed?.lenderUserId == null) return;
+    setItemError(null);
+    try {
+      // `reserved_by_user_id` is always who *receives* the item as a result
+      // of this reservation — for RETURN, that's the lender. The caller
+      // (the borrower) is still the item's current holder, so per the
+      // confirm-authorization rule they may confirm and fulfill their own
+      // proposal in one go — no separate approval from the lender is
+      // needed to hand it back.
+      const reservation = await createReservation({
+        item_id: itemId,
+        reservation_type: "RETURN",
+        reserved_by_user_id: borrowed.lenderUserId,
+      });
+      await confirmReservation(reservation.id);
+      await fulfillReservation(reservation.id);
+      setBorrowedItems((prev) => prev.filter((b) => b.itemId !== itemId));
+      showToast("Oddano");
+    } catch {
+      setItemError("Nie udało się oddać rzeczy — spróbuj ponownie");
+    }
+  }
 
   /* ---------- profil (lokalne) ---------- */
 
@@ -898,6 +1203,14 @@ function usePanelDataValue() {
     setNotifOpen,
     openNotification,
     markAllRead,
+    pendingActions,
+    pendingActionBusyId,
+    alreadyResolvedIds,
+    dismissPendingAction,
+    openSwapPendingAction,
+    acceptPendingSwap,
+    rejectPendingSwap,
+    confirmPendingAction,
     renamingFamily,
     familyNameDraft,
     renameError,
@@ -927,7 +1240,7 @@ function usePanelDataValue() {
     settings,
     groupExtras,
     itemModes,
-    gifts,
+    borrowedItems,
     memberName,
     memberRole,
     groupForm,
@@ -966,10 +1279,8 @@ function usePanelDataValue() {
     isOrganizer,
     showToast,
     load,
-    productName,
     itemCounts,
-    giftCounts,
-    removeGift,
+    returnBorrowedItem,
     relevantGroupsForForm,
     editTermEntry,
     isTopLevel,
@@ -1002,7 +1313,119 @@ function usePanelDataValue() {
   };
 }
 
+/** Group 7's global pending-actions modal — rendered from this same top-
+ * level provider (alongside the notification-bell state it's derived
+ * from), so it appears on top of whichever `/panel/*` section is mounted,
+ * not just the term page. Shows at most one prompt at a time (oldest
+ * first, via `pendingActions[0]`); accepting/dismissing one immediately
+ * reveals the next on the next render. */
+function GlobalPendingActionsModal({ value }: { value: PanelDataContextValue }) {
+  const {
+    pendingActions,
+    pendingActionBusyId,
+    alreadyResolvedIds,
+    dismissPendingAction,
+    openSwapPendingAction,
+    acceptPendingSwap,
+    rejectPendingSwap,
+    confirmPendingAction,
+  } = value;
+  const action = pendingActions[0];
+  if (!action) return null;
+
+  const busy = pendingActionBusyId === action.notificationId;
+  const alreadyResolved = alreadyResolvedIds.has(action.notificationId);
+  const title = action.kind === "SWAP_PROPOSED" ? "Propozycja zamiany" : "Potwierdź transakcję";
+
+  return (
+    <ModalSheet title={title} onClose={() => dismissPendingAction(action.notificationId)}>
+      <p className="text-sm text-ink">{action.message}</p>
+
+      {alreadyResolved ? (
+        <>
+          <p className="mt-3 text-sm font-semibold text-danger" role="alert">
+            Transakcja została już rozstrzygnięta przez drugą stronę.
+          </p>
+          <button
+            type="button"
+            className="mt-3 rounded-full border border-line px-4 py-2 text-sm font-semibold text-ink-soft"
+            onClick={() => dismissPendingAction(action.notificationId)}
+          >
+            Rozumiem
+          </button>
+        </>
+      ) : action.kind === "TERM_CONFIRMATION_NEEDED" ? (
+        <div className="mt-3 flex gap-2">
+          <button
+            type="button"
+            className="rounded-full bg-mint px-4 py-2 text-sm font-bold text-white disabled:opacity-60"
+            disabled={busy}
+            onClick={() => void confirmPendingAction(action.notificationId, action.termId)}
+          >
+            Potwierdź
+          </button>
+          <button
+            type="button"
+            className="rounded-full border border-line px-4 py-2 text-sm font-semibold text-ink-soft"
+            onClick={() => dismissPendingAction(action.notificationId)}
+          >
+            Później
+          </button>
+        </div>
+      ) : action.proposalId !== null ? (
+        <div className="mt-3 flex gap-2">
+          <button
+            type="button"
+            className="rounded-full bg-mint px-4 py-2 text-sm font-bold text-white disabled:opacity-60"
+            disabled={busy}
+            onClick={() => void acceptPendingSwap(action.notificationId, action.proposalId as number)}
+          >
+            Akceptuj
+          </button>
+          <button
+            type="button"
+            className="rounded-full border border-line px-4 py-2 text-sm font-semibold text-ink-soft disabled:opacity-60"
+            disabled={busy}
+            onClick={() => void rejectPendingSwap(action.notificationId, action.proposalId as number)}
+          >
+            Odrzuć
+          </button>
+          <button
+            type="button"
+            className="rounded-full border border-line px-4 py-2 text-sm font-semibold text-ink-soft"
+            onClick={() => dismissPendingAction(action.notificationId)}
+          >
+            Później
+          </button>
+        </div>
+      ) : (
+        <div className="mt-3 flex gap-2">
+          <button
+            type="button"
+            className="rounded-full bg-mint px-4 py-2 text-sm font-bold text-white"
+            onClick={() => openSwapPendingAction(action.notificationId, action.linkPath)}
+          >
+            Zobacz i zdecyduj
+          </button>
+          <button
+            type="button"
+            className="rounded-full border border-line px-4 py-2 text-sm font-semibold text-ink-soft"
+            onClick={() => dismissPendingAction(action.notificationId)}
+          >
+            Później
+          </button>
+        </div>
+      )}
+    </ModalSheet>
+  );
+}
+
 export function PanelDataProvider({ children }: { children: ReactNode }) {
   const value = usePanelDataValue();
-  return <PanelDataContext value={value}>{children}</PanelDataContext>;
+  return (
+    <PanelDataContext value={value}>
+      {children}
+      <GlobalPendingActionsModal value={value} />
+    </PanelDataContext>
+  );
 }

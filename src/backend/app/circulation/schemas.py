@@ -55,7 +55,9 @@ class InventoryItemResponse(BaseModel):
 
     id: int
     inventory_id: int
+    home_inventory_id: int | None
     product_id: int
+    product_name: str
     condition: ItemCondition
     added_at: datetime
     created_at: datetime

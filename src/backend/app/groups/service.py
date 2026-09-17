@@ -53,9 +53,13 @@ from app.groups.application.public_view import (
     list_my_pledges,
 )
 from app.groups.application.term_item_listings import (
+    accept_swap_proposal,
+    confirm_transaction,
     list_browsable_term_item_listings,
     list_my_item_listing_preferences,
     list_my_term_item_listings,
+    propose_swap,
+    reject_swap_proposal,
     set_item_listing_preference,
     take_item_listing,
 )
@@ -73,9 +77,11 @@ from app.groups.application.terms import (
 from app.groups.infrastructure.slug_resolver import resolve_organizer_slug
 
 __all__ = [
+    "accept_swap_proposal",
     "assign_leadership",
     "build_leadership_responses",
     "build_membership_responses",
+    "confirm_transaction",
     "create_circle",
     "create_membership",
     "create_needed_item",
@@ -106,6 +112,8 @@ __all__ = [
     "list_pledges",
     "list_terms",
     "merge_anonymous_profile",
+    "propose_swap",
+    "reject_swap_proposal",
     "remove_leadership",
     "resolve_organizer_slug",
     "set_item_listing_preference",

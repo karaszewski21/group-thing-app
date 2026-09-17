@@ -46,3 +46,18 @@ async def get_or_create_personal_inventory(db: AsyncSession, owner_user_id: int)
     db.add(inventory)
     await db.flush()
     return inventory
+
+
+async def get_or_create_virtual_inventory(db: AsyncSession, owner_user_id: int) -> Inventory:
+    """A borrower's holding place for items lent to them — auto-provisioned
+    on first loan, mirroring `get_or_create_personal_inventory`. Used by
+    `application/reservation_transitions.py`'s LEND fulfillment branch."""
+    inventory = await repository.find_virtual_inventory(db, owner_user_id)
+    if inventory is not None:
+        return inventory
+    inventory = Inventory(
+        owner_user_id=owner_user_id, inventory_type=InventoryType.VIRTUAL, location=None
+    )
+    db.add(inventory)
+    await db.flush()
+    return inventory

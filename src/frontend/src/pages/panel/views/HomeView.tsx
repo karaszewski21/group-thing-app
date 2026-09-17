@@ -4,12 +4,10 @@ import { HintCard } from "../panelComponents";
 import {
   capitalize,
   dayMonth,
-  GIFT_SOURCE_STYLE,
   ITEM_MODE_STYLE,
   ITEM_MODES,
   termPublicPath,
   termTime,
-  type GiftSource,
 } from "../panelHelpers";
 import { usePanelData } from "../panelDataStore";
 
@@ -28,7 +26,7 @@ export function HomeView() {
     myPledges,
     withdrawMyPledge,
     itemCounts,
-    giftCounts,
+    borrowedItems,
     setView,
     setModal,
     setFirstTermForOrganizer,
@@ -269,18 +267,13 @@ export function HomeView() {
                 </button>
               </div>
               <div className="flex gap-2.5">
-                {(["pożyczone", "otrzymane", "zamienione"] as GiftSource[]).map((s) => {
-                  const style = GIFT_SOURCE_STYLE[s];
-                  return (
-                    <div key={s} className="flex min-w-0 flex-1 flex-col items-start gap-1.5 rounded-2xl p-3.5" style={{ background: style.bg }}>
-                      <span className="flex h-[30px] w-[30px] items-center justify-center rounded-[10px] bg-white/60">
-                        <GiftIcon c={style.c} />
-                      </span>
-                      <b className="font-serif text-[27px] leading-none" style={{ color: style.c }}>{giftCounts[s]}</b>
-                      <small className="text-[11.5px] font-extrabold" style={{ color: style.c }}>{capitalize(s)}</small>
-                    </div>
-                  );
-                })}
+                <div className="flex min-w-0 flex-1 flex-col items-start gap-1.5 rounded-2xl p-3.5" style={{ background: "var(--color-teal-soft)" }}>
+                  <span className="flex h-[30px] w-[30px] items-center justify-center rounded-[10px] bg-white/60">
+                    <GiftIcon c="#245F61" />
+                  </span>
+                  <b className="font-serif text-[27px] leading-none" style={{ color: "#245F61" }}>{borrowedItems.length}</b>
+                  <small className="text-[11.5px] font-extrabold" style={{ color: "#245F61" }}>{capitalize("pożyczone")}</small>
+                </div>
               </div>
             </div>
     </>

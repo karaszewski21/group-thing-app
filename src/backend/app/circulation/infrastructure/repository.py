@@ -21,8 +21,8 @@ from app.circulation.models import (
     InventoryItem,
     InventoryType,
     Reservation,
-    ReservationStatus,
 )
+from app.product.models import Product
 
 
 async def get_inventory(db: AsyncSession, inventory_id: int) -> Inventory | None:
@@ -46,6 +46,16 @@ async def find_personal_inventory(db: AsyncSession, owner_user_id: int) -> Inven
     return result.scalars().first()
 
 
+async def find_virtual_inventory(db: AsyncSession, owner_user_id: int) -> Inventory | None:
+    result = await db.execute(
+        select(Inventory).where(
+            Inventory.owner_user_id == owner_user_id,
+            Inventory.inventory_type == InventoryType.VIRTUAL,
+        )
+    )
+    return result.scalars().first()
+
+
 async def get_item(db: AsyncSession, item_id: int) -> InventoryItem | None:
     return await db.get(InventoryItem, item_id)
 
@@ -58,6 +68,38 @@ async def list_items_for_inventory(db: AsyncSession, inventory_id: int) -> list[
         )
     )
     return list(result.scalars().all())
+
+
+async def list_items_for_inventory_with_product_name(
+    db: AsyncSession, inventory_id: int
+) -> list[tuple[InventoryItem, str]]:
+    """Joined read for the list endpoint's response, so the caller doesn't
+    need a separate full-catalog fetch to resolve each item's product name
+    (and doesn't pay an N+1 doing it item-by-item either) — an explicit
+    query-level join into `app.product`'s table, never an ORM
+    `relationship()` on `InventoryItem` itself, per
+    `standards/backend/models.md`'s Cross-Module References."""
+    result = await db.execute(
+        select(InventoryItem, Product.name)
+        .join(Product, Product.id == InventoryItem.product_id)
+        .where(
+            InventoryItem.inventory_id == inventory_id,
+            InventoryItem.deleted_at.is_(None),
+        )
+    )
+    return [(item, name) for item, name in result.all()]
+
+
+async def get_item_with_product_name(
+    db: AsyncSession, item_id: int
+) -> tuple[InventoryItem, str] | None:
+    result = await db.execute(
+        select(InventoryItem, Product.name)
+        .join(Product, Product.id == InventoryItem.product_id)
+        .where(InventoryItem.id == item_id)
+    )
+    row = result.first()
+    return (row[0], row[1]) if row is not None else None
 
 
 async def find_item_balance(db: AsyncSession, item_id: int) -> InventoryBalance | None:
@@ -109,14 +151,3 @@ async def get_reservation(db: AsyncSession, reservation_id: int) -> Reservation 
 async def list_reservations_for_item(db: AsyncSession, item_id: int) -> list[Reservation]:
     result = await db.execute(select(Reservation).where(Reservation.item_id == item_id))
     return list(result.scalars().all())
-
-
-async def latest_fulfilled_reservation_for_item(
-    db: AsyncSession, item_id: int
-) -> Reservation | None:
-    result = await db.execute(
-        select(Reservation)
-        .where(Reservation.item_id == item_id, Reservation.status == ReservationStatus.FULFILLED)
-        .order_by(Reservation.reserved_at.desc(), Reservation.id.desc())
-    )
-    return result.scalars().first()

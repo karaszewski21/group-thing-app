@@ -26,13 +26,17 @@ export type ModalKind =
   | null;
 
 export type ItemMode = "wypożyczę" | "oddam" | "zamienię";
-export type GiftSource = "pożyczone" | "otrzymane" | "zamienione";
 
-export interface LocalGift {
-  id: string;
-  name: string;
-  from: string;
-  source: GiftSource;
+/** One row of the "Wypożyczone" view — an item currently sitting in the
+ * caller's own VIRTUAL inventory (borrowed from someone else). Given-away
+ * or swapped-in items are full ownership and already appear in "Moje
+ * rzeczy" instead (they land in the recipient's PERSONAL inventory). */
+export interface BorrowedItem {
+  itemId: number;
+  productName: string;
+  lenderUserId: number | null;
+  lenderName: string;
+  dueDate: string | null;
 }
 
 export interface TermWithNeeded {
@@ -62,12 +66,6 @@ export const ITEM_MODE_STYLE: Record<ItemMode, { bg: string; c: string }> = {
   "wypożyczę": { bg: "var(--color-teal-soft)", c: "#245F61" },
   "oddam": { bg: "var(--color-mint-soft)", c: "#12604D" },
   "zamienię": { bg: "var(--color-lime-soft)", c: "#56701F" },
-};
-
-export const GIFT_SOURCE_STYLE: Record<GiftSource, { bg: string; c: string }> = {
-  "pożyczone": { bg: "var(--color-teal-soft)", c: "#245F61" },
-  "otrzymane": { bg: "var(--color-mint-soft)", c: "#12604D" },
-  "zamienione": { bg: "var(--color-lime-soft)", c: "#56701F" },
 };
 
 export const capitalize = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);

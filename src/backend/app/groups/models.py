@@ -52,6 +52,12 @@ class PledgeStatus(enum.StrEnum):
     FULFILLED = "FULFILLED"
 
 
+class SwapProposalStatus(enum.StrEnum):
+    PROPOSED = "PROPOSED"
+    ACCEPTED = "ACCEPTED"
+    REJECTED = "REJECTED"
+
+
 class Group(BaseEntity):
     """A class/activity Circle."""
 
@@ -252,3 +258,58 @@ class ItemListingPreference(BaseEntity):
     # schemas.py against `_OFFERABLE_RESERVATION_TYPES`) — plain string, not
     # the circulation enum type itself, per the module-boundary rule.
     mode: Mapped[str] = mapped_column(String(20), nullable=False)
+
+
+class SwapProposal(BaseEntity):
+    """A proposer's "I'll trade my item for yours" offer against a target
+    listing: the proposer's own item/leg (`offered_item_id`,
+    `proposer_reservation_id`) is already locked (a real `Reservation`
+    exists) before the target party ever sees the proposal; the target's
+    own leg is only created once they `ACCEPT`. `listing_item_id`,
+    `offered_item_id`, and `proposer_reservation_id` are deliberate loose
+    pointers into `app.circulation` — no `ForeignKeyConstraint` — mirroring
+    `ItemListingPreference.item_id`/`Pledge.resolved_reservation_id`'s
+    cross-BC-pointer convention, per `standards/backend/models.md`.
+    `term_ended_notified_at` is the idempotency marker the term-end scanner
+    (Group 4) sets the first time it notifies about this proposal's swap
+    legs once `ACCEPTED` — giveaway (GIFT) reservations have no
+    groups-owned row to carry an equivalent marker, hence the separate
+    `GiveawayTermEndMarker` below."""
+
+    __tablename__ = "swap_proposals"
+    __sequence_name__ = "swap_proposal_seq"
+
+    proposer_party_id: Mapped[int] = mapped_column(
+        BigInteger,
+        ForeignKey("parties.id", name="fk_swap_proposals_proposer_party_id_parties"),
+        nullable=False,
+    )
+    # Loose cross-BC pointer into `app.circulation.InventoryItem` (the
+    # target listing's item) — no FK, same precedent as
+    # `ItemListingPreference.item_id`.
+    listing_item_id: Mapped[int] = mapped_column(BigInteger, nullable=False)
+    # Loose cross-BC pointer into `app.circulation.InventoryItem` (the
+    # proposer's own item being offered) — no FK.
+    offered_item_id: Mapped[int] = mapped_column(BigInteger, nullable=False)
+    # Loose cross-BC pointer into `app.circulation.Reservation` (the
+    # proposer's own already-locked leg) — no FK.
+    proposer_reservation_id: Mapped[int] = mapped_column(BigInteger, nullable=False)
+    status: Mapped[SwapProposalStatus] = mapped_column(
+        _enum_column(SwapProposalStatus, 20), nullable=False
+    )
+    term_ended_notified_at: Mapped[datetime | None] = mapped_column(DateTime(), nullable=True)
+
+
+class GiveawayTermEndMarker(BaseEntity):
+    """Idempotency marker for the term-end scanner (Group 4) on a giveaway
+    (GIFT) `Reservation` — `app.circulation.Reservation` must stay
+    untouched by this task, so this minimal groups-owned row carries the
+    "already notified" flag instead of a column on `Reservation` itself.
+    `reservation_id` is a loose cross-BC pointer — no FK, same precedent as
+    `SwapProposal`'s `*_item_id`/`proposer_reservation_id` fields."""
+
+    __tablename__ = "giveaway_term_end_markers"
+    __sequence_name__ = "giveaway_term_end_marker_seq"
+
+    reservation_id: Mapped[int] = mapped_column(BigInteger, nullable=False, unique=True)
+    notified_at: Mapped[datetime] = mapped_column(DateTime(), nullable=False)

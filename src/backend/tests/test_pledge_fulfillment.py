@@ -114,7 +114,10 @@ async def test_fulfillPledge_newItemMode_registersItemWithNeedProduct(client: As
 
     detail = await _item_of_reservation(client, guest_token, body["resolved_reservation_id"])
     assert detail["reservation"]["reservation_type"] == "LEND"
-    assert detail["reservation"]["status"] == "PENDING"
+    # Auto-confirmed on the guardian's (holder's) behalf right at pledge-
+    # fulfillment time — their consent already exists in the act of
+    # registering/offering the item.
+    assert detail["reservation"]["status"] == "CONFIRMED"
     assert detail["item"]["product_id"] == need_product_id
     assert detail["item"]["condition"] == "GOOD"
 
@@ -263,9 +266,9 @@ async def test_syncPledge_afterReservationFulfilled_marksPledgeFulfilled(
     )
     reservation_id = fulfilled.json()["resolved_reservation_id"]
 
-    assert (
-        await client.post(f"/api/reservations/{reservation_id}/confirm", headers=_auth(guest_token))
-    ).status_code == 200
+    # `fulfill_pledge` already auto-confirms the reservation on the
+    # guardian's (holder's) behalf — only `fulfill` (the organizer's later
+    # physical-receipt step) remains.
     assert (
         await client.post(f"/api/reservations/{reservation_id}/fulfill", headers=_auth(guest_token))
     ).status_code == 200

@@ -10,7 +10,7 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator, model_valida
 from app.circulation.models import ItemCondition, ReservationType
 from app.users.schemas import EMAIL_PATTERN, normalize_email
 
-from .models import GroupRoleType, PledgeStatus
+from .models import GroupRoleType, PledgeStatus, SwapProposalStatus
 
 # Listing-time offer subset — never RETURN (a lifecycle transition, not a
 # listing-time choice; see `ItemListingPreference.mode`'s docstring).
@@ -421,19 +421,64 @@ class BrowseTermItemListingResponse(BaseModel):
 
 
 class TakeTermItemListingRequest(BaseModel):
-    """`offered_item_id` is required for, and only meaningful for, a `SWAP`
-    take — validated here so a malformed combination never reaches
-    `take_item_listing`. `term_id` is the Term context the take happens in
-    (eligibility, notification link) — the listing itself is Term-independent."""
+    """`term_id` is the Term context the take happens in (eligibility,
+    notification link) — the listing itself is Term-independent. SWAP no
+    longer goes through this route (see `take_item_listing`'s docstring) —
+    `reservation_type` is only ever `LEND`/`GIFT` here; a SWAP take is
+    rejected by `take_item_listing` itself, so this schema no longer carries
+    a SWAP-specific `offered_item_id` field (that now lives on
+    `ProposeSwapRequest`, dispatched through the dedicated propose/accept/
+    reject flow instead)."""
 
     term_id: int
     reservation_type: ReservationType
-    offered_item_id: int | None = None
 
-    @model_validator(mode="after")
-    def _offered_item_id_matches_swap(self) -> TakeTermItemListingRequest:
-        if self.reservation_type == ReservationType.SWAP and self.offered_item_id is None:
-            raise ValueError("offered_item_id jest wymagane dla zamiany (SWAP)")
-        if self.reservation_type != ReservationType.SWAP and self.offered_item_id is not None:
-            raise ValueError("offered_item_id dotyczy tylko zamiany (SWAP)")
-        return self
+
+# --- Swap proposals (authenticated, `/api/term-item-listings/{id}/propose`,
+# `/api/swap-proposals`) ----------------------------------------------------
+
+
+class ProposeSwapRequest(BaseModel):
+    """Body of `POST /api/term-item-listings/{item_id}/propose` — `term_id`
+    is the eligibility/notification context (same role as
+    `TakeTermItemListingRequest.term_id`), `offered_item_id` is the
+    proposer's own counter-offer item."""
+
+    term_id: int
+    offered_item_id: int
+
+
+class SwapProposalResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    proposer_party_id: int
+    listing_item_id: int
+    offered_item_id: int
+    proposer_reservation_id: int
+    status: SwapProposalStatus
+    created_at: datetime
+    updated_at: datetime
+
+
+# --- Transaction confirmation (authenticated,
+# `/api/reservations/{id}/confirm-transaction`) -----------------------------
+
+
+class ConfirmTransactionRequest(BaseModel):
+    """`term_id` is caller-supplied context — a bare `Reservation` carries
+    no Term reference — used only to gate on `term.occurs_on`."""
+
+    term_id: int
+
+
+class ConfirmTransactionResponse(BaseModel):
+    """`already_resolved` is the explicit discriminator the frontend uses
+    to render "too late, the other party already resolved this" distinctly
+    from a generic error, per spec.md Requirement 3. It is only ever `True`
+    when this response accompanies a 409 (the reservation itself carries no
+    "already resolved" status of its own — see `TermAlreadyResolvedException`)."""
+
+    reservation_id: int
+    status: str
+    already_resolved: bool = False

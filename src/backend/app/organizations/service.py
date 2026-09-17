@@ -15,6 +15,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.errors import AccessDeniedException, EntityNotFoundException
 from app.party.models import PartyType
 from app.party.service import create_party
+from app.users.models import UserRoleType
+from app.users.service import get_or_create_active_user_role
 
 from .models import Organization, OrganizationMembership, OrganizationRole, OrganizationRoleType
 from .schemas import CreateOwnOrganizationRequest, UpdateOrganizationRequest
@@ -111,6 +113,12 @@ async def create_own_organization(
         valid_to=None,
     )
     db.add(membership)
+    # Founding an Organization grants the same global ORGANIZATOR capacity
+    # self-registration's ORGANIZER branch does (`users.service.register`) —
+    # per the user's explicit request, creating an Organization should
+    # unlock the panel's organizer views/actions exactly like creating a
+    # Circle does, not require a separate Circle first.
+    await get_or_create_active_user_role(db, owner_party_id, UserRoleType.ORGANIZATOR)
     await db.commit()
     return organization
 

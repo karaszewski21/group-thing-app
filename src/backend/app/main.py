@@ -15,6 +15,7 @@ import contextlib
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
+from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -24,7 +25,9 @@ from app.circulation.router import router as circulation_router
 from app.config import settings
 from app.core.auth_deps import register_auth_exception_handlers
 from app.core.errors import register_exception_handlers
+from app.db import async_session_factory
 from app.families.router import router as families_router
+from app.groups.application.term_end_scan import scan_for_term_ended
 from app.groups.router import router as groups_router
 from app.notifications import outbox_listener as notifications_outbox_listener
 from app.notifications.router import router as notifications_router
@@ -38,20 +41,43 @@ from app.system.router import router as system_router
 from app.users.router import router as users_router
 
 _outbox_task: asyncio.Task[None] | None = None
+_term_end_scheduler: AsyncIOScheduler | None = None
+
+# How often the term-end scan job runs — a plain constant, not a
+# configurable-interval settings system, per
+# `standards/global/minimal-implementation.md`.
+_TERM_END_SCAN_INTERVAL_MINUTES = 5
+
+
+async def _run_term_end_scan() -> None:
+    async with async_session_factory() as db:
+        await scan_for_term_ended(db)
 
 
 @asynccontextmanager
 async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
     """Starts the 30s outbox poller as a background task alongside the app
-    process, after wiring every vertical's outbox event handlers. Cancels it
-    cleanly on shutdown rather than leaving a dangling task."""
-    global _outbox_task
+    process, after wiring every vertical's outbox event handlers. Also
+    starts the term-end scan job on an `AsyncIOScheduler` (APScheduler,
+    interval-based) — the same "started on startup, cancelled/shut down on
+    shutdown" lifecycle shape as the outbox poller, using APScheduler's own
+    `start`/`shutdown(wait=False)` API rather than a second sleep loop."""
+    global _outbox_task, _term_end_scheduler
     notifications_outbox_listener.register()
     _outbox_task = asyncio.create_task(outbox_scheduler.run_forever())
+
+    _term_end_scheduler = AsyncIOScheduler()
+    _term_end_scheduler.add_job(
+        _run_term_end_scan, "interval", minutes=_TERM_END_SCAN_INTERVAL_MINUTES
+    )
+    _term_end_scheduler.start()
+
     yield
+
     _outbox_task.cancel()
     with contextlib.suppress(asyncio.CancelledError):
         await _outbox_task
+    _term_end_scheduler.shutdown(wait=False)
 
 
 app = FastAPI(lifespan=lifespan)

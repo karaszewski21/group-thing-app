@@ -34,11 +34,22 @@ async def create_notification(
     kind: NotificationKind,
     message: str,
     link_path: str | None = None,
+    proposal_id: int | None = None,
 ) -> None:
     """Stage a notification on the session — no commit/flush. The producing
     use case's own trailing `db.commit()` persists it atomically with the
-    action that triggered it."""
-    db.add(Notification(party_id=party_id, kind=kind, message=message, link_path=link_path))
+    action that triggered it. `proposal_id` is the loose
+    `app.groups.models.SwapProposal.id` pointer, only meaningful for
+    `SWAP_PROPOSED`."""
+    db.add(
+        Notification(
+            party_id=party_id,
+            kind=kind,
+            message=message,
+            link_path=link_path,
+            proposal_id=proposal_id,
+        )
+    )
 
 
 async def list_my_notifications(db: AsyncSession, party_id: int) -> list[Notification]:

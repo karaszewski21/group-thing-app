@@ -48,3 +48,45 @@ export function takeTermItemListing(
 ): Promise<BrowseTermItemListingResponse> {
   return api.post(`/term-item-listings/${itemId}/take`, request);
 }
+
+/** `PROPOSED` (awaiting the listing owner's decision), `ACCEPTED` or
+ * `REJECTED` — mirrors the backend's `SwapProposalStatus` StrEnum. */
+export type SwapProposalStatus = "PROPOSED" | "ACCEPTED" | "REJECTED";
+
+/** Body of `POST /term-item-listings/{item_id}/propose` — `term_id` is the
+ * eligibility/notification context (same role as
+ * `TakeTermItemListingRequest.term_id`), `offered_item_id` is the
+ * proposer's own single counter-offer item (V1 scope: exactly one). */
+export interface ProposeSwapRequest {
+  term_id: number;
+  offered_item_id: number;
+}
+
+export interface SwapProposalResponse {
+  id: number;
+  proposer_party_id: number;
+  listing_item_id: number;
+  offered_item_id: number;
+  proposer_reservation_id: number;
+  status: SwapProposalStatus;
+  created_at: string;
+  updated_at: string;
+}
+
+/** SWAP no longer goes through `takeTermItemListing` (the backend rejects
+ * it there) — a swap "take" is always a proposal the listing owner must
+ * accept or reject. */
+export function proposeSwap(
+  itemId: number,
+  request: ProposeSwapRequest,
+): Promise<SwapProposalResponse> {
+  return api.post(`/term-item-listings/${itemId}/propose`, request);
+}
+
+export function acceptSwapProposal(proposalId: number): Promise<SwapProposalResponse> {
+  return api.post(`/swap-proposals/${proposalId}/accept`, undefined);
+}
+
+export function rejectSwapProposal(proposalId: number): Promise<SwapProposalResponse> {
+  return api.post(`/swap-proposals/${proposalId}/reject`, undefined);
+}

@@ -26,6 +26,10 @@ export function getProfileByParty(partyId: number): Promise<UserProfileResponse>
   return api.get(`/people/by-party/${partyId}`);
 }
 
+export function getProfileByAccountUserId(accountUserId: number): Promise<UserProfileResponse> {
+  return api.get(`/people/by-account-user-id/${accountUserId}`);
+}
+
 export function getLeadershipsForPerson(userProfileId: number): Promise<LeadershipResponse[]> {
   return api.get(`/people/${userProfileId}/leaderships`);
 }

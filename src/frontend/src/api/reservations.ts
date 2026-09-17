@@ -58,3 +58,27 @@ export function cancelReservation(id: number): Promise<ReservationResponse> {
 export function fulfillReservation(id: number): Promise<ReservationResponse> {
   return api.post(`/reservations/${id}/fulfill`, undefined);
 }
+
+/** `term_id` is caller-supplied context (a bare `Reservation` carries no
+ * Term reference) — used only to gate on `term.occurs_on`. */
+export interface ConfirmTransactionRequest {
+  term_id: number;
+}
+
+/** `already_resolved` is the explicit discriminator the global pending-
+ * actions modal uses to render "the other party already resolved this"
+ * distinctly from a generic error — it is only ever `true` when this
+ * response accompanies a 409 (see `api/client.ts`'s `ApiError`, whose
+ * `body` carries this same shape on that status). */
+export interface ConfirmTransactionResponse {
+  reservation_id: number;
+  status: string;
+  already_resolved: boolean;
+}
+
+export function confirmTransaction(
+  reservationId: number,
+  request: ConfirmTransactionRequest,
+): Promise<ConfirmTransactionResponse> {
+  return api.post(`/reservations/${reservationId}/confirm-transaction`, request);
+}
