@@ -94,6 +94,26 @@ async def get_item_balance(db: AsyncSession, item_id: int) -> InventoryBalance:
     return balance
 
 
+async def get_active_reservation_id_for_item(
+    db: AsyncSession, item_id: int, status: BalanceStatus
+) -> int | None:
+    """Resolves the item's in-flight `Reservation.id` for
+    `InventoryBalanceResponse.reservation_id` (bug #4c) — `None` without
+    querying unless `status` is `RESERVED`/`IN_TRANSIT` (the only statuses
+    where a `PENDING`/`CONFIRMED` reservation can exist for the item), so
+    the common `AVAILABLE`/`LENT`/`RETURNED` case costs nothing extra.
+    Reuses `repository.list_active_reservations_for_item`'s query shape
+    (same as `list_active_reservations_for_taker`, scoped by item) — no new
+    query pattern. At most one active reservation exists per item at a time
+    (the balance lock invariant), so the single match (if any) is it."""
+    if status not in (BalanceStatus.RESERVED, BalanceStatus.IN_TRANSIT):
+        return None
+    reservations = await repository.list_active_reservations_for_item(db, item_id)
+    if not reservations:
+        return None
+    return max(reservations, key=lambda r: r.reserved_at).id
+
+
 async def resolve_owning_inventory(db: AsyncSession, item: InventoryItem) -> Inventory:
     """The item's *permanent* owning inventory — `home_inventory_id` when
     set (the item is currently lent out and `inventory_id` points at the

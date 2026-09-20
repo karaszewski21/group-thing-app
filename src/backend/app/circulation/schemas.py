@@ -9,7 +9,7 @@ from __future__ import annotations
 from datetime import date, datetime
 from decimal import Decimal
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from .models import (
     AccountType,
@@ -48,6 +48,13 @@ class InventoryBalanceResponse(BaseModel):
     lent_at: datetime | None
     returned_at: datetime | None
     due_date: datetime | None
+    # The item's in-flight `Reservation.id` — populated (via
+    # `get_active_reservation_id_for_item`) only for `RESERVED`/`IN_TRANSIT`
+    # `status`, `None` otherwise (`AVAILABLE`/`LENT`/`RETURNED` have no
+    # active reservation to point at). Not an `InventoryBalance` column —
+    # resolved alongside the balance at the router, same active-reservation
+    # query shape as `list_active_reservations_for_taker`. See bug #4c.
+    reservation_id: int | None = None
 
 
 class InventoryItemResponse(BaseModel):
@@ -87,6 +94,7 @@ class ReservationResponse(BaseModel):
     item_id: int
     reservation_type: ReservationType
     reserved_by_user_id: int
+    term_id: int
     paired_reservation_id: int | None
     reserved_at: datetime
     expires_at: datetime | None
@@ -98,8 +106,22 @@ class CreateReservationRequest(BaseModel):
     item_id: int
     reservation_type: ReservationType
     reserved_by_user_id: int
+    # Required for every `reservation_type` except `RETURN`, where the
+    # server derives it from the item's most recent LEND leg (see
+    # `create_reservation`) — there's no Term context at a RETURN call site
+    # (e.g. `PanelDataContext.tsx::returnBorrowedItem`).
+    term_id: int | None = None
     expires_at: datetime | None = None
     notes: str | None = Field(default=None, max_length=1000)
+
+    @model_validator(mode="after")
+    def _require_term_id_unless_return(self) -> "CreateReservationRequest":
+        if self.reservation_type != ReservationType.RETURN and self.term_id is None:
+            raise ValueError(
+                f"term_id is required for reservation_type={self.reservation_type} "
+                "(only RETURN derives it server-side)"
+            )
+        return self
 
 
 class CreateSwapRequest(BaseModel):
@@ -111,6 +133,10 @@ class CreateSwapRequest(BaseModel):
     first_reserved_by_user_id: int
     second_item_id: int
     second_reserved_by_user_id: int
+    # Required — added purely for schema/DB consistency (this route has no
+    # live frontend caller, confirmed by grep in an earlier phase), same as
+    # `CreateReservationRequest.term_id` for every non-RETURN type.
+    term_id: int
     expires_at: datetime | None = None
 
 

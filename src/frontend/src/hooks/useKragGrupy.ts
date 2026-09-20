@@ -19,9 +19,10 @@ import {
   type PledgeResponse,
 } from "../api/pledges";
 import { getInventories, getInventoryItemBalance, getInventoryItems } from "../api/inventories";
+import { getMyItemListingPreferences } from "../api/itemListingPreferences";
 import { getMyProfile, getProfileByParty, type UserProfileResponse } from "../api/people";
 import { getProducts } from "../api/products";
-import { fulfillReservation, type ReservationType } from "../api/reservations";
+import { confirmTransaction, fulfillReservation, type ReservationType } from "../api/reservations";
 import {
   getBrowseTermItemListings,
   getMyTermItemListings,
@@ -58,6 +59,13 @@ export interface UseKragGrupyResult {
   currentTerm: TermResponse | null;
   neededItems: KragNeededItemWithPledges[];
   myAvailableItems: AvailableItem[];
+  /** Subset of `myAvailableItems` whose `ItemListingPreference.mode` is
+   * `"SWAP"` ("zamienię") — the only items eligible as a counter-offer in
+   * `SwapProposeDialog`. Kept separate from `myAvailableItems` because that
+   * list also feeds the unrelated pledge-fulfil "Z moich rzeczy" picker,
+   * which must keep offering every AVAILABLE personal item regardless of
+   * its listing tag. */
+  mySwapAvailableItems: AvailableItem[];
   /** The caller's own active `TermAttendance` for `currentTerm`, or `null`
    * when they haven't RSVP'd (or there's no current Term). Gates visibility
    * of the "list/browse/take" section — see spec.md's Verification note. */
@@ -86,7 +94,13 @@ export interface UseKragGrupyResult {
    * reject flow) — so there is no immediate "taken" result to return. */
   proposeSwap: (itemId: number, offeredItemId: number) => Promise<void>;
   withdrawMyAttendance: () => Promise<void>;
-  confirmListingReceipt: (reservationId: number) => Promise<void>;
+  /** Confirms receipt of a term-page listing's reservation via the shared
+   * `confirmTransaction` endpoint (also used by the global pending-actions
+   * modal) — `termId` is caller-supplied context so the backend can gate on
+   * `term.occurs_on`. Unlike `confirmPledgeReceipt`, this never goes through
+   * `fulfillReservation`: a bare fulfill has no term-end/race check and,
+   * for SWAP, only ever resolves one leg of the pair. */
+  confirmListingReceipt: (reservationId: number, termId: number) => Promise<void>;
   refetch: () => Promise<void>;
 }
 
@@ -117,6 +131,7 @@ export function useKragGrupy(groupId: number): UseKragGrupyResult {
   const [currentTerm, setCurrentTerm] = useState<TermResponse | null>(null);
   const [neededItems, setNeededItems] = useState<KragNeededItemWithPledges[]>([]);
   const [myAvailableItems, setMyAvailableItems] = useState<AvailableItem[]>([]);
+  const [mySwapAvailableItems, setMySwapAvailableItems] = useState<AvailableItem[]>([]);
   const [myPartyId, setMyPartyId] = useState<number | null>(null);
   const [attendances, setAttendances] = useState<MyAttendanceResponse[]>([]);
   const [myItemListings, setMyItemListings] = useState<BrowseTermItemListingResponse[]>([]);
@@ -145,29 +160,47 @@ export function useKragGrupy(groupId: number): UseKragGrupyResult {
       // The pledger's own AVAILABLE personal items — offered as "z moich
       // rzeczy" in the fulfil form, and as the pool a lister can list from
       // in "Wystaw rzecz". Bounded per-item balance fetch, same shape as
-      // `resolveFamiliesForMemberships` above.
+      // `resolveFamiliesForMemberships` above. Deliberately NOT filtered by
+      // `ItemListingPreference` — fulfilling a pledge ("bringing" a needed
+      // item) is unrelated to an item's standing lend/gift/swap tag, so this
+      // list must keep offering every AVAILABLE personal item.
+      //
+      // `mySwapAvailableItems` below is a separate, narrower derivation for
+      // the SWAP counter-offer picker (`SwapProposeDialog`), which — unlike
+      // the pledge-fulfil pool — must only offer items the caller has tagged
+      // "zamienię" (`ItemListingPreference.mode === "SWAP"`), mirroring the
+      // backend's parallel enforcement in `_require_own_available_personal_item`.
       if (myProfile.account_user_id != null) {
         const inventories = await getInventories(myProfile.account_user_id);
         const personal = inventories.find((inv) => inv.inventory_type === "PERSONAL") ?? null;
         if (personal) {
-          const items = await getInventoryItems(personal.id);
+          const [items, preferences] = await Promise.all([
+            getInventoryItems(personal.id),
+            getMyItemListingPreferences(),
+          ]);
           const withStatus = await Promise.all(
             items.map(async (it) => ({ it, balance: await getInventoryItemBalance(it.id) })),
           );
-          setMyAvailableItems(
-            withStatus
-              .filter(({ balance }) => balance.status === "AVAILABLE")
-              .map(({ it }) => ({
-                id: it.id,
-                productName:
-                  productsData.find((p) => p.id === it.product_id)?.name ?? `Rzecz #${it.id}`,
-              })),
+          const available = withStatus.filter(({ balance }) => balance.status === "AVAILABLE");
+          const toAvailableItem = ({ it }: (typeof available)[number]): AvailableItem => ({
+            id: it.id,
+            productName: productsData.find((p) => p.id === it.product_id)?.name ?? `Rzecz #${it.id}`,
+          });
+          setMyAvailableItems(available.map(toAvailableItem));
+
+          const swapTaggedItemIds = new Set(
+            preferences.filter((p) => p.mode === "SWAP").map((p) => p.item_id),
+          );
+          setMySwapAvailableItems(
+            available.filter(({ it }) => swapTaggedItemIds.has(it.id)).map(toAvailableItem),
           );
         } else {
           setMyAvailableItems([]);
+          setMySwapAvailableItems([]);
         }
       } else {
         setMyAvailableItems([]);
+        setMySwapAvailableItems([]);
       }
 
       // Newest Term first (backend orders desc by occurs_on) — treated as
@@ -268,11 +301,11 @@ export function useKragGrupy(groupId: number): UseKragGrupyResult {
   );
 
   const confirmListingReceipt = useCallback(
-    async (reservationId: number) => {
-      await confirmReservationReceipt(reservationId);
+    async (reservationId: number, termId: number) => {
+      await confirmTransaction(reservationId, { term_id: termId });
       await refetch();
     },
-    [confirmReservationReceipt, refetch],
+    [refetch],
   );
 
   const myAttendanceForCurrentTerm = currentTerm
@@ -317,6 +350,7 @@ export function useKragGrupy(groupId: number): UseKragGrupyResult {
     currentTerm,
     neededItems,
     myAvailableItems,
+    mySwapAvailableItems,
     myAttendanceForCurrentTerm,
     myItemListings,
     browseListings,

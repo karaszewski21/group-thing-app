@@ -26,6 +26,7 @@ from app.circulation.application.inventory import (
     list_inventories,
 )
 from app.circulation.application.inventory_items import (
+    get_active_reservation_id_for_item,
     get_item,
     get_item_balance,
     get_item_with_product_name,
@@ -46,6 +47,7 @@ from app.circulation.application.reservations import (
     create_reservation,
     create_swap,
     get_reservation,
+    list_active_reservations_for_taker,
     list_reservations,
 )
 
@@ -58,6 +60,7 @@ __all__ = [
     "create_swap",
     "fulfill_reservation",
     "get_account_balance",
+    "get_active_reservation_id_for_item",
     "get_inventory",
     "get_item",
     "get_item_balance",
@@ -66,6 +69,7 @@ __all__ = [
     "get_reservation",
     "get_transaction",
     "get_user_id_by_principal",
+    "list_active_reservations_for_taker",
     "list_inventories",
     "list_items",
     "list_items_with_product_name",

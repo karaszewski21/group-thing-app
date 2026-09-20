@@ -5,19 +5,50 @@ Ownership is `inventory.owner_user_id == acting user` (raw `users.id`, never
 `party_id` — see `standards/backend/security.md`). PATCH `condition` is
 allowed regardless of `InventoryBalance` status; DELETE is blocked with 409
 unless the balance is `AVAILABLE`.
+
+Bug #4a (`Reservation.term_id`): every `POST /api/reservations` call below
+for a non-RETURN `reservation_type` now needs a real `term_id` — `_create_term`
+mints a throwaway Circle+Term via the acting caller's own token (any
+authenticated user has the `EDIT` permission `POST /api/groups/mine`/
+`POST /api/terms` require, no separate ORGANIZER registration needed).
 """
 
 from __future__ import annotations
 
+from datetime import date, timedelta
+
 import pytest
 from httpx import AsyncClient
-from sqlalchemy import select
+from sqlalchemy import select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.circulation.models import BalanceStatus, InventoryBalance, ReservationStatus
+from app.circulation.application import inventory as inventory_service
+from app.circulation.models import BalanceStatus, Inventory, InventoryBalance, InventoryType, ReservationStatus
 from app.core.errors import AccessDeniedException, BusinessConflictException
 from app.groups.domain.confirm_race_rules import _require_race_participant
 from app.groups.infrastructure import circulation_bridge
+
+
+async def _create_term(client: AsyncClient, headers: dict[str, str]) -> int:
+    """Mints a throwaway Circle+Term for `headers`'s own caller — just
+    enough Term context for a non-RETURN `Reservation.term_id` (Bug #4a).
+    The caller's own identity/role is irrelevant to takeability here, so
+    reusing whichever `headers` the test already has avoids a second
+    registration round-trip."""
+    circle = await client.post(
+        "/api/groups/mine", json={"name": "Krąg testowy"}, headers=headers
+    )
+    assert circle.status_code == 201
+    term = await client.post(
+        "/api/terms",
+        json={
+            "circle_group_id": circle.json()["id"],
+            "occurs_on": (date.today() + timedelta(days=7)).isoformat(),
+        },
+        headers=headers,
+    )
+    assert term.status_code == 201
+    return int(term.json()["id"])
 
 
 async def _authed_headers(client: AsyncClient, email: str) -> dict[str, str]:
@@ -206,13 +237,16 @@ async def test_patchInventoryItem_unknownId_returns404(client: AsyncClient) -> N
 
 
 async def _user_id(client: AsyncClient, headers: dict[str, str]) -> int:
-    """Resolves the acting principal's raw `users.id` by creating a
-    throwaway PERSONAL inventory and reading back its `owner_user_id`."""
-    inventory = await client.post(
-        "/api/inventories", json={"inventory_type": "PERSONAL", "location": None}, headers=headers
-    )
-    assert inventory.status_code == 201
-    return inventory.json()["owner_user_id"]
+    """Resolves the acting principal's raw `users.id` via `/api/people/me`
+    — side-effect-free (previously created a throwaway PERSONAL inventory
+    per call, which broke once migration 0033's one-PERSONAL-inventory-per-
+    owner constraint landed for any caller that already has one, e.g. via
+    `_create_item`)."""
+    me = await client.get("/api/people/me", headers=headers)
+    assert me.status_code == 200
+    account_user_id = me.json()["account_user_id"]
+    assert account_user_id is not None
+    return account_user_id
 
 
 async def _lend_and_confirm(
@@ -225,13 +259,18 @@ async def _lend_and_confirm(
 ) -> int:
     """Creates a `LEND` reservation for `item_id`, has the holder (owner)
     confirm it, and returns the reservation id — still `CONFIRMED`, not yet
-    fulfilled."""
+    fulfilled. Mints its own throwaway Term (Bug #4a: `term_id` is now
+    required for a LEND reservation) — callers that need the term itself
+    (e.g. to fabricate a RETURN afterward) don't currently exist, so it's
+    not returned."""
+    term_id = await _create_term(client, owner_headers)
     reservation = await client.post(
         "/api/reservations",
         json={
             "item_id": item_id,
             "reservation_type": "LEND",
             "reserved_by_user_id": borrower_user_id,
+            "term_id": term_id,
         },
         headers=owner_headers,
     )
@@ -400,6 +439,7 @@ async def test_confirmReservation_byRequester_returns403_onlyHolderMayConfirm(
 
     borrower_headers = await _authed_headers(client, "circ-confirm-borrower1@example.com")
     borrower_user_id = await _user_id(client, borrower_headers)
+    term_id = await _create_term(client, owner_headers)
 
     reservation = await client.post(
         "/api/reservations",
@@ -407,6 +447,7 @@ async def test_confirmReservation_byRequester_returns403_onlyHolderMayConfirm(
             "item_id": item_id,
             "reservation_type": "LEND",
             "reserved_by_user_id": borrower_user_id,
+            "term_id": term_id,
         },
         headers=owner_headers,
     )
@@ -480,6 +521,7 @@ async def test_createReservation_softDeletedItem_returns404(client: AsyncClient)
     assert (
         await client.delete(f"/api/inventory-items/{item_id}", headers=headers)
     ).status_code == 204
+    term_id = await _create_term(client, headers)
 
     response = await client.post(
         "/api/reservations",
@@ -487,6 +529,7 @@ async def test_createReservation_softDeletedItem_returns404(client: AsyncClient)
             "item_id": item_id,
             "reservation_type": "LEND",
             "reserved_by_user_id": 999999,
+            "term_id": term_id,
         },
         headers=headers,
     )
@@ -505,6 +548,7 @@ async def test_circulationBridge_cancelReservation_pendingReservation_cancelsAnd
 
     borrower_headers = await _authed_headers(client, "circ-bridge-cancel-borrower@example.com")
     borrower_user_id = await _user_id(client, borrower_headers)
+    term_id = await _create_term(client, owner_headers)
 
     reservation = await client.post(
         "/api/reservations",
@@ -512,6 +556,7 @@ async def test_circulationBridge_cancelReservation_pendingReservation_cancelsAnd
             "item_id": item_id,
             "reservation_type": "LEND",
             "reserved_by_user_id": borrower_user_id,
+            "term_id": term_id,
         },
         headers=owner_headers,
     )
@@ -576,6 +621,7 @@ async def test_circulationBridge_cancelReservation_repeatCall_raisesBusinessConf
 
     borrower_headers = await _authed_headers(client, "circ-bridge-race-borrower@example.com")
     borrower_user_id = await _user_id(client, borrower_headers)
+    term_id = await _create_term(client, owner_headers)
 
     reservation = await client.post(
         "/api/reservations",
@@ -583,6 +629,7 @@ async def test_circulationBridge_cancelReservation_repeatCall_raisesBusinessConf
             "item_id": item_id,
             "reservation_type": "LEND",
             "reserved_by_user_id": borrower_user_id,
+            "term_id": term_id,
         },
         headers=owner_headers,
     )
@@ -607,6 +654,7 @@ async def test_circulationBridge_cancelReservation_repeatCall_raisesBusinessConf
             "item_id": item_id,
             "reservation_type": "LEND",
             "reserved_by_user_id": borrower_user_id,
+            "term_id": term_id,
         },
         headers=owner_headers,
     )
@@ -615,3 +663,259 @@ async def test_circulationBridge_cancelReservation_repeatCall_raisesBusinessConf
 
     with pytest.raises(AccessDeniedException):
         await circulation_bridge.cancel_reservation(db_session, other_reservation_id, intruder_user_id)
+
+
+async def test_getOrCreatePersonalInventory_calledTwice_isIdempotent_noDuplicateRow(
+    client: AsyncClient, db_session: AsyncSession
+) -> None:
+    """Regression test for the 2026-09-17 duplicate-inventory bug: repeated
+    calls for the same owner must resolve to the exact same row, never a
+    second PERSONAL inventory (which used to silently split a user's items
+    across two inventories — the newer, empty one then hid the real one
+    behind `list_inventories`'s `created_at DESC` ordering). A genuinely
+    concurrent-insert race is not exercisable here — `tests/conftest.py`
+    gives each test one shared `AsyncSession`/transaction (see
+    `test_term_item_listings.py`'s `confirmTransaction` race tests for the
+    same documented limitation) — so this covers the idempotent-get half;
+    migration 0033's partial unique index covers the race half at the DB
+    level directly (see the sibling 409 test below)."""
+    headers = await _authed_headers(client, "circ-inventory-idempotent@example.com")
+    user_id = await _user_id(client, headers)
+
+    first = await inventory_service.get_or_create_personal_inventory(db_session, user_id)
+    second = await inventory_service.get_or_create_personal_inventory(db_session, user_id)
+    assert first.id == second.id
+
+    all_personal = (
+        (
+            await db_session.execute(
+                select(Inventory).where(
+                    Inventory.owner_user_id == user_id,
+                    Inventory.inventory_type == InventoryType.PERSONAL,
+                )
+            )
+        )
+        .scalars()
+        .all()
+    )
+    assert len(all_personal) == 1
+
+
+async def test_createInventory_secondPersonalForSameOwner_raisesIntegrityConflict(
+    client: AsyncClient,
+) -> None:
+    """The raw `POST /api/inventories` endpoint (unlike the get-or-create
+    helpers) has no existence check at all — a second explicit call for the
+    same owner+PERSONAL now fails fast against migration 0033's unique
+    index (409) instead of silently creating a duplicate."""
+    headers = await _authed_headers(client, "circ-inventory-dup@example.com")
+    first = await client.post(
+        "/api/inventories", json={"inventory_type": "PERSONAL", "location": None}, headers=headers
+    )
+    assert first.status_code == 201
+
+    second = await client.post(
+        "/api/inventories", json={"inventory_type": "PERSONAL", "location": None}, headers=headers
+    )
+    assert second.status_code == 409
+
+
+# --- Bug #4a: Reservation.term_id ------------------------------------------
+
+
+async def test_createReservation_lendMissingTermId_returns400(client: AsyncClient) -> None:
+    """`term_id` is required for every non-RETURN `reservation_type` —
+    `CreateReservationRequest`'s own validator rejects a LEND with no
+    `term_id` before the request ever reaches `create_reservation`. Pydantic
+    request-body validation failures map to 400 in this app (see
+    `app/core/errors.py::validation_error_handler`), not the framework's
+    default 422."""
+    headers = await _authed_headers(client, "circ-termid-lend-missing@example.com")
+    _, item_id = await _create_item(client, headers)
+
+    response = await client.post(
+        "/api/reservations",
+        json={"item_id": item_id, "reservation_type": "LEND", "reserved_by_user_id": 999999},
+        headers=headers,
+    )
+    assert response.status_code == 400
+
+
+async def test_createSwap_missingTermId_returns400(client: AsyncClient) -> None:
+    """Same validator, on `CreateSwapRequest` — mechanical (this route has
+    no live frontend caller), but still enforced at the schema level."""
+    headers = await _authed_headers(client, "circ-termid-swap-missing@example.com")
+
+    response = await client.post(
+        "/api/reservations/swap",
+        json={
+            "first_item_id": 1,
+            "first_reserved_by_user_id": 1,
+            "second_item_id": 2,
+            "second_reserved_by_user_id": 2,
+        },
+        headers=headers,
+    )
+    assert response.status_code == 400
+
+
+async def test_createReservation_return_derivesTermIdFromPriorFulfilledLend(
+    client: AsyncClient,
+) -> None:
+    """A RETURN reservation is created with NO `term_id` in the request body
+    (matching `PanelDataContext.tsx::returnBorrowedItem`'s payload, which
+    has no Term context at all) — the server derives it from the item's
+    most recent FULFILLED LEND leg's own `term_id`."""
+    owner_headers = await _authed_headers(client, "circ-termid-return-owner@example.com")
+    _, item_id = await _create_item(client, owner_headers)
+    owner_user_id = await _user_id(client, owner_headers)
+
+    borrower_headers = await _authed_headers(client, "circ-termid-return-borrower@example.com")
+    borrower_user_id = await _user_id(client, borrower_headers)
+
+    lend_id = await _lend_and_confirm(
+        client,
+        owner_headers=owner_headers,
+        borrower_headers=borrower_headers,
+        item_id=item_id,
+        borrower_user_id=borrower_user_id,
+    )
+    lend_fulfilled = await client.post(f"/api/reservations/{lend_id}/fulfill", headers=owner_headers)
+    assert lend_fulfilled.status_code == 200
+    lend_term_id = lend_fulfilled.json()["term_id"]
+
+    return_response = await client.post(
+        "/api/reservations",
+        json={
+            "item_id": item_id,
+            "reservation_type": "RETURN",
+            "reserved_by_user_id": owner_user_id,
+        },
+        headers=borrower_headers,
+    )
+    assert return_response.status_code == 201
+    assert return_response.json()["term_id"] == lend_term_id
+
+
+async def test_createReservation_returnWithNoPriorLend_returns409(client: AsyncClient) -> None:
+    """No RETURN can be derived without an existing FULFILLED LEND to reuse
+    the `term_id` from — a fresh AVAILABLE item has none, so `create_reservation`
+    fails fast on the balance guard before the derivation is even attempted
+    (RETURN requires `LENT`, which this item never reached)."""
+    headers = await _authed_headers(client, "circ-termid-return-nolend@example.com")
+    _, item_id = await _create_item(client, headers)
+
+    response = await client.post(
+        "/api/reservations",
+        json={"item_id": item_id, "reservation_type": "RETURN", "reserved_by_user_id": 999999},
+        headers=headers,
+    )
+    assert response.status_code == 409
+
+
+async def test_createReservation_returnWithLentBalanceButNoFulfilledLend_raisesBusinessConflict(
+    client: AsyncClient, db_session: AsyncSession
+) -> None:
+    """Data-corruption / direct-API-misuse edge case (Group 7 gap analysis):
+    an item whose `InventoryBalance.status` is `LENT` (so the balance guard
+    in `create_reservation` passes) but which has NO `FULFILLED` `LEND`
+    `Reservation` row to derive a `term_id` from — e.g. the balance was
+    forced to `LENT` directly, bypassing the normal fulfill path. Must raise
+    `_resolve_return_term_id`'s typed `BusinessConflictException`, never
+    silently create a `Reservation` with a null/garbage `term_id` (the
+    column is NOT NULL)."""
+    owner_headers = await _authed_headers(client, "circ-termid-return-corrupt-owner@example.com")
+    _, item_id = await _create_item(client, owner_headers)
+    owner_user_id = await _user_id(client, owner_headers)
+
+    await _set_balance_status(db_session, item_id, BalanceStatus.LENT)
+
+    response = await client.post(
+        "/api/reservations",
+        json={"item_id": item_id, "reservation_type": "RETURN", "reserved_by_user_id": owner_user_id},
+        headers=owner_headers,
+    )
+    assert response.status_code == 409
+
+
+async def test_migration0034_backfillsLegacyNullTermIdRows_withoutError(
+    client: AsyncClient, db_session: AsyncSession
+) -> None:
+    """Exercises migration `0034_reservation_term_id`'s own backfill SQL
+    (reproduced inline — the migration itself already ran once, against an
+    empty `reservations` table, as part of this test session's `alembic
+    upgrade head` in `conftest.py`, so re-running it here can't observe the
+    NULL-row case). Simulates the pre-migration state directly against the
+    already-upgraded schema: drops the NOT NULL constraint, nulls out an
+    existing row's `term_id`, re-runs the same owner-preference-based
+    nearest-Term backfill query migration 0034 performs, then restores NOT
+    NULL — asserting the row resolves to a non-null `term_id` without the
+    backfill erroring."""
+    owner_headers = await _authed_headers(client, "circ-migration-backfill-owner@example.com")
+    _, item_id = await _create_item(client, owner_headers)
+    owner_user_id = await _user_id(client, owner_headers)
+
+    borrower_headers = await _authed_headers(client, "circ-migration-backfill-borrower@example.com")
+    borrower_user_id = await _user_id(client, borrower_headers)
+
+    reservation_id = await _lend_and_confirm(
+        client,
+        owner_headers=owner_headers,
+        borrower_headers=borrower_headers,
+        item_id=item_id,
+        borrower_user_id=borrower_user_id,
+    )
+
+    await db_session.execute(text("ALTER TABLE reservations ALTER COLUMN term_id DROP NOT NULL"))
+    await db_session.execute(
+        text("UPDATE reservations SET term_id = NULL WHERE id = :id"), {"id": reservation_id}
+    )
+    await db_session.commit()
+
+    # Same backfill query as migration 0034's step 1 (owner-preference-based
+    # nearest-Term match) — this reservation's item has no
+    # `item_listing_preferences` row, so this alone won't resolve it; the
+    # step-2 system-wide nearest-Term fallback below is what actually
+    # backfills it, exactly as it would for a real legacy row with no
+    # listing-preference trail.
+    await db_session.execute(
+        text(
+            """
+            UPDATE reservations r
+            SET term_id = sub.term_id
+            FROM (
+                SELECT DISTINCT ON (r2.id) r2.id AS reservation_id, t.id AS term_id
+                FROM reservations r2
+                JOIN item_listing_preferences ilp ON ilp.item_id = r2.item_id
+                JOIN term_attendances ta ON ta.party_id = ilp.owner_party_id
+                JOIN terms t ON t.id = ta.term_id
+                WHERE r2.term_id IS NULL
+                ORDER BY r2.id, ABS(EXTRACT(EPOCH FROM (t.occurs_on - r2.reserved_at)))
+            ) sub
+            WHERE sub.reservation_id = r.id
+            """
+        )
+    )
+    await db_session.execute(
+        text(
+            """
+            UPDATE reservations r
+            SET term_id = sub.term_id
+            FROM (
+                SELECT DISTINCT ON (r2.id) r2.id AS reservation_id, t.id AS term_id
+                FROM reservations r2
+                CROSS JOIN terms t
+                WHERE r2.term_id IS NULL
+                ORDER BY r2.id, ABS(EXTRACT(EPOCH FROM (t.occurs_on - r2.reserved_at)))
+            ) sub
+            WHERE sub.reservation_id = r.id
+            """
+        )
+    )
+    await db_session.execute(text("ALTER TABLE reservations ALTER COLUMN term_id SET NOT NULL"))
+    await db_session.commit()
+
+    backfilled = (
+        await db_session.execute(text("SELECT term_id FROM reservations WHERE id = :id"), {"id": reservation_id})
+    ).scalar_one()
+    assert backfilled is not None

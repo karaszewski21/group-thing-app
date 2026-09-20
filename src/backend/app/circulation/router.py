@@ -142,7 +142,17 @@ async def get_item_balance(
     item_id: int, db: DbSession, principal: ReadPrincipal
 ) -> InventoryBalanceResponse:
     balance = await service.get_item_balance(db, item_id)
-    return InventoryBalanceResponse.model_validate(balance)
+    reservation_id = await service.get_active_reservation_id_for_item(db, item_id, balance.status)
+    return InventoryBalanceResponse(
+        id=balance.id,
+        item_id=balance.item_id,
+        status=balance.status,
+        reserved_at=balance.reserved_at,
+        lent_at=balance.lent_at,
+        returned_at=balance.returned_at,
+        due_date=balance.due_date,
+        reservation_id=reservation_id,
+    )
 
 
 # --- Reservation ---------------------------------------------------------------

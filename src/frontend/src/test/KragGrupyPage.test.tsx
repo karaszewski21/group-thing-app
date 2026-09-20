@@ -10,6 +10,7 @@ import type { UseKragGrupyResult } from "../hooks/useKragGrupy";
 import { ApiError } from "../api/client";
 import { KragGrupyPage } from "../pages/krag/KragGrupyPage";
 import * as reservationsApi from "../api/reservations";
+import * as termItemListingsApi from "../api/termItemListings";
 
 const fulfillPledgeItem = vi.fn();
 
@@ -30,6 +31,16 @@ vi.mock("react-router-dom", async (importOriginal) => {
 // resolved_reservation_id, so it's never actually invoked.
 vi.mock("../api/reservations", () => ({
   getReservation: vi.fn(),
+}));
+
+// Group 4 (2026-09-17-fix-giveaway-exchange): KragGrupyPage now also fetches
+// the caller's own taken listings directly (getMyTakenTermItemListings,
+// availability-independent unlike the mocked useKragGrupy's browseListings)
+// to keep a taken-but-unconfirmed row's confirm button rendering after the
+// term has occurred. Mocked to resolve empty by default so no real network
+// call happens; individual tests override it when they need a merged row.
+vi.mock("../api/termItemListings", () => ({
+  getMyTakenTermItemListings: vi.fn().mockResolvedValue([]),
 }));
 
 const neededItem: NeededItemResponse = {
@@ -112,6 +123,7 @@ function baseHookValue(overrides: Partial<UseKragGrupyResult> = {}): UseKragGrup
     currentTerm: { id: 1, circle_group_id: 1, occurs_on: "2026-03-10", description: null } as never,
     neededItems: [{ item: neededItem, pledges: [myClaimedPledge] }],
     myAvailableItems: [],
+    mySwapAvailableItems: [],
     myAttendanceForCurrentTerm: null,
     myItemListings: [],
     browseListings: [],
@@ -142,6 +154,12 @@ function renderPage() {
 beforeEach(() => {
   vi.clearAllMocks();
   hookValue = baseHookValue();
+  // clearAllMocks() clears call history but not a mockResolvedValue set by a
+  // prior test — reset explicitly so tests overriding this stay isolated
+  // from each other (Group 6: the cross-surface-consistency test overrides
+  // this mock, and without this reset a later test could pick up its
+  // leftover value and see a stray merged row).
+  vi.mocked(termItemListingsApi.getMyTakenTermItemListings).mockResolvedValue([]);
 });
 
 describe("KragGrupyPage (private view) — fulfill a pledge", () => {
@@ -269,7 +287,7 @@ describe("KragGrupyPage (private view) — lending exchange mechanism", () => {
     expect(screen.queryByText("Zwrot")).not.toBeInTheDocument();
   });
 
-  it("clicking a SWAP button reveals the taker's own myAvailableItems <select> and proposes (not takes) the swap on submit", async () => {
+  it("clicking a SWAP button reveals the taker's own mySwapAvailableItems <select> and proposes (not takes) the swap on submit", async () => {
     // Group 7: SWAP no longer goes through `takeListing` at all — the
     // backend now rejects a SWAP take outright (see
     // `TakeTermItemListingRequest`'s docstring) — it's always a proposal
@@ -279,7 +297,7 @@ describe("KragGrupyPage (private view) — lending exchange mechanism", () => {
     const proposeSwap = vi.fn().mockResolvedValue(undefined);
     hookValue = baseHookValue({
       myAttendanceForCurrentTerm: attendanceRow,
-      myAvailableItems: [{ id: 900, productName: "Mój rowerek" }],
+      mySwapAvailableItems: [{ id: 900, productName: "Mój rowerek" }],
       browseListings: [browseListing({ offered_types: ["SWAP"] })],
       takeListing,
       proposeSwap,
@@ -296,6 +314,43 @@ describe("KragGrupyPage (private view) — lending exchange mechanism", () => {
 
     await waitFor(() => expect(proposeSwap).toHaveBeenCalledWith(501, 900));
     expect(takeListing).not.toHaveBeenCalled();
+  });
+
+  // Group 5 — the picker only ever receives already-SWAP-filtered items from
+  // the hook (`mySwapAvailableItems`), so when that array is empty it must
+  // show an inline empty-state message instead of a bare, optionless <select>.
+  it("SwapProposeDialog renders the kg-bring-sub empty-state message when mySwapAvailableItems is empty", async () => {
+    hookValue = baseHookValue({
+      myAttendanceForCurrentTerm: attendanceRow,
+      mySwapAvailableItems: [],
+      browseListings: [browseListing({ offered_types: ["SWAP"] })],
+    });
+    renderPage();
+
+    fireEvent.click(screen.getByRole("button", { name: "Zamień: Rowerek" }));
+
+    expect(screen.queryByLabelText("Twoja rzecz do zamiany")).not.toBeInTheDocument();
+    expect(
+      screen.getByText(/Nie masz żadnej rzeczy oznaczonej "zamienię"/),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Zaproponuj zamianę" })).toBeDisabled();
+  });
+
+  it("SwapProposeDialog renders the <select> + trade preview, preserving aria-label, when at least one SWAP-tagged item exists", async () => {
+    hookValue = baseHookValue({
+      myAttendanceForCurrentTerm: attendanceRow,
+      mySwapAvailableItems: [{ id: 900, productName: "Mój rowerek" }],
+      browseListings: [browseListing({ offered_types: ["SWAP"] })],
+    });
+    renderPage();
+
+    fireEvent.click(screen.getByRole("button", { name: "Zamień: Rowerek" }));
+
+    expect(screen.getByLabelText("Twoja rzecz do zamiany")).toBeInTheDocument();
+    expect(screen.getByText(/Twoja rzecz/)).toBeInTheDocument();
+    expect(
+      screen.queryByText(/Nie masz żadnej rzeczy oznaczonej "zamienię"/),
+    ).not.toBeInTheDocument();
   });
 
   it("'Wycofaj się z zajęć' calls withdrawMyAttendance() and the card disappears on success", async () => {
@@ -377,5 +432,175 @@ describe("KragGrupyPage (private view) — lending exchange mechanism", () => {
     expect(within(fulfilledRow).queryByRole("button", { name: "Potwierdź odbiór" })).not.toBeInTheDocument();
 
     expect(screen.getAllByRole("button", { name: "Potwierdź odbiór" })).toHaveLength(1);
+  });
+
+  // Group 3 — term-page confirm button wiring + term-end gating (Root Cause
+  // A fix, ui-mockups.md Mockup 1): same button/position/label, but now
+  // gated on the current Term having actually occurred, and wired to
+  // confirmListingReceipt (which the hook implements via confirmTransaction,
+  // never fulfillReservation — see useKragGrupy.test.ts for that guard).
+  it("the confirm button renders disabled with a 'dostępne po zakończeniu zajęć' statusLine before the term has occurred", async () => {
+    vi.mocked(reservationsApi.getReservation).mockResolvedValue(
+      reservation({ id: 900, status: "PENDING" }),
+    );
+    hookValue = baseHookValue({
+      myAttendanceForCurrentTerm: attendanceRow,
+      currentTerm: { id: 1, circle_group_id: 1, occurs_on: "2099-01-01T00:00:00", description: null } as never,
+      browseListings: [browseListing({ resolved_reservation_id: 900, taken_by_party_id: 42 })],
+    });
+    renderPage();
+
+    const button = await screen.findByRole("button", { name: "Potwierdź odbiór" });
+    expect(button).toBeDisabled();
+    expect(screen.getByText("dostępne po zakończeniu zajęć")).toBeInTheDocument();
+  });
+
+  it("the confirm button is enabled (no disabled attribute) once the term has occurred", async () => {
+    vi.mocked(reservationsApi.getReservation).mockResolvedValue(
+      reservation({ id: 900, status: "PENDING" }),
+    );
+    hookValue = baseHookValue({
+      myAttendanceForCurrentTerm: attendanceRow,
+      currentTerm: { id: 1, circle_group_id: 1, occurs_on: "2020-01-01T00:00:00", description: null } as never,
+      browseListings: [browseListing({ resolved_reservation_id: 900, taken_by_party_id: 42 })],
+    });
+    renderPage();
+
+    const button = await screen.findByRole("button", { name: "Potwierdź odbiór" });
+    expect(button).not.toBeDisabled();
+  });
+
+  it("clicking 'Potwierdź odbiór' after term-end calls confirmListingReceipt with the reservation id and the current term id", async () => {
+    vi.mocked(reservationsApi.getReservation).mockResolvedValue(
+      reservation({ id: 900, status: "PENDING" }),
+    );
+    const confirmListingReceipt = vi.fn().mockResolvedValue(undefined);
+    hookValue = baseHookValue({
+      myAttendanceForCurrentTerm: attendanceRow,
+      currentTerm: { id: 1, circle_group_id: 1, occurs_on: "2020-01-01T00:00:00", description: null } as never,
+      browseListings: [browseListing({ resolved_reservation_id: 900, taken_by_party_id: 42 })],
+      confirmListingReceipt,
+    });
+    renderPage();
+
+    const button = await screen.findByRole("button", { name: "Potwierdź odbiór" });
+    fireEvent.click(button);
+
+    await waitFor(() => expect(confirmListingReceipt).toHaveBeenCalledWith(900, 1));
+  });
+
+  // Group 6 — cross-surface consistency (spec.md's Root Cause B): the term
+  // page's effectiveBrowseListings/confirmActionFor and the global
+  // pending-actions modal's resolvePendingReservationId
+  // (PanelDataContext.tsx) both derive from the SAME
+  // getMyTakenTermItemListings row for a taken GIFT listing. This test uses
+  // the identical listing id (9) / reservation id (77) as
+  // PanelPage.test.tsx's "resolves a GIFT reservation id for the taker even
+  // when the term has already ended" test, so the two together demonstrate
+  // both surfaces resolve to the same reservation id for the same
+  // underlying data — not just independently to *some* id.
+  it("term page resolves the same reservation id (77) for a taken GIFT listing that the global modal resolves for the identical fixture", async () => {
+    vi.mocked(termItemListingsApi.getMyTakenTermItemListings).mockResolvedValue([
+      browseListing({ id: 9, item_id: 9, resolved_reservation_id: 77, taken_by_party_id: 42 }),
+    ]);
+    vi.mocked(reservationsApi.getReservation).mockResolvedValue(
+      reservation({ id: 77, item_id: 9, reservation_type: "GIFT", status: "PENDING" }),
+    );
+    const confirmListingReceipt = vi.fn().mockResolvedValue(undefined);
+    hookValue = baseHookValue({
+      myAttendanceForCurrentTerm: attendanceRow,
+      currentTerm: { id: 1, circle_group_id: 1, occurs_on: "2020-01-01T00:00:00", description: null } as never,
+      browseListings: [],
+      confirmListingReceipt,
+    });
+    renderPage();
+
+    const button = await screen.findByRole("button", { name: "Potwierdź odbiór" });
+    fireEvent.click(button);
+
+    await waitFor(() => expect(confirmListingReceipt).toHaveBeenCalledWith(77, 1));
+  });
+
+  // Group 6 — regression guard against Root Cause A's premature-fulfillment
+  // bug, specifically for the SWAP paired-leg (lister) branch of
+  // confirmActionFor: the existing pre-term-end gating tests above only
+  // exercise the generic taker branch (default LEND fixture); this proves
+  // the lister's own paired-leg confirm button is *also* disabled before
+  // the term has occurred, not just before the taker's.
+  it("the SWAP paired-leg confirm button (lister side) is also disabled with the term-gate statusLine before the term has occurred", async () => {
+    vi.mocked(reservationsApi.getReservation).mockImplementation((id: number) =>
+      Promise.resolve(
+        id === 900
+          ? reservation({ id: 900, reservation_type: "SWAP", paired_reservation_id: 901, status: "CONFIRMED" })
+          : reservation({ id: 901, reservation_type: "SWAP", status: "PENDING" }),
+      ),
+    );
+    hookValue = baseHookValue({
+      myAttendanceForCurrentTerm: attendanceRow,
+      currentTerm: { id: 1, circle_group_id: 1, occurs_on: "2099-01-01T00:00:00", description: null } as never,
+      myItemListings: [
+        browseListing({
+          id: 501,
+          resolved_reservation_id: 900,
+          lister_party_id: 42, // myPartyId — viewer is the listing owner/lister
+          taken_by_party_id: 7,
+        }),
+      ],
+    });
+    renderPage();
+
+    const button = await screen.findByRole("button", { name: "Potwierdź odbiór" });
+    expect(button).toBeDisabled();
+    expect(screen.getByText("dostępne po zakończeniu zajęć")).toBeInTheDocument();
+  });
+
+  // Group 6 — GIFT/LEND owner/lister confirmation is intentionally NOT
+  // surfaced as a term-page button (unlike SWAP's paired leg); it only
+  // resolves via the global pending-actions modal's symmetric owner branch
+  // (PanelDataContext.test coverage). Guards the two surfaces' "when is
+  // this actionable" logic from silently drifting apart.
+  it("a GIFT listing's owner/lister gets no term-page confirm button (only the global modal resolves that side)", async () => {
+    vi.mocked(reservationsApi.getReservation).mockResolvedValue(
+      reservation({ id: 900, reservation_type: "GIFT", paired_reservation_id: null, status: "PENDING" }),
+    );
+    hookValue = baseHookValue({
+      myAttendanceForCurrentTerm: attendanceRow,
+      myItemListings: [
+        browseListing({
+          id: 501,
+          resolved_reservation_id: 900,
+          lister_party_id: 42, // myPartyId — viewer is the listing owner/lister
+          taken_by_party_id: 7,
+          offered_types: ["GIFT"],
+        }),
+      ],
+    });
+    renderPage();
+
+    await waitFor(() => expect(reservationsApi.getReservation).toHaveBeenCalledWith(900));
+    expect(screen.queryByRole("button", { name: "Potwierdź odbiór" })).not.toBeInTheDocument();
+  });
+
+  // Group 6 — defense-in-depth: if the frontend somehow still submits a
+  // non-SWAP-tagged offered item (e.g. a stale mySwapAvailableItems cache),
+  // the backend's 409 BusinessConflict (test_proposeSwap_offeredItemModeMismatch_raisesBusinessConflict)
+  // must surface as a toast, not an unhandled crash.
+  it("a rejected SWAP proposal (409, non-tagged item) shows the generic error toast instead of crashing", async () => {
+    const proposeSwap = vi.fn().mockRejectedValue(
+      new ApiError(409, "Conflict", { detail: "Ta rzecz nie jest oznaczona do zamiany" }),
+    );
+    hookValue = baseHookValue({
+      myAttendanceForCurrentTerm: attendanceRow,
+      mySwapAvailableItems: [{ id: 900, productName: "Mój rowerek" }],
+      browseListings: [browseListing({ offered_types: ["SWAP"] })],
+      proposeSwap,
+    });
+    renderPage();
+
+    fireEvent.click(screen.getByRole("button", { name: "Zamień: Rowerek" }));
+    fireEvent.click(screen.getByRole("button", { name: "Zaproponuj zamianę" }));
+
+    await waitFor(() => expect(proposeSwap).toHaveBeenCalledWith(501, 900));
+    expect(await screen.findByText("Nie udało się zaproponować zamiany")).toBeInTheDocument();
   });
 });

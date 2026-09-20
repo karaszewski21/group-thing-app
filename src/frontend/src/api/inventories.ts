@@ -44,6 +44,10 @@ export interface InventoryBalanceResponse {
   lent_at: string | null;
   returned_at: string | null;
   due_date: string | null;
+  // The item's in-flight Reservation id — set only for RESERVED/IN_TRANSIT
+  // `status`, `null` otherwise. Backs RzeczyView's "Odebrał"/"Anuluj
+  // wymianę" fallback buttons (bug #4c).
+  reservation_id: number | null;
 }
 
 export function getInventories(ownerUserId?: number): Promise<InventoryResponse[]> {
@@ -93,11 +97,18 @@ export const ACTIVE_LOCK_BALANCE_STATUSES: readonly BalanceStatus[] = ["RESERVED
  * a single `Promise.all` round-trip the caller awaits once, per
  * `standards/backend/queries.md`'s N+1 principle applied to this
  * component's own data-fetching. */
+export interface ItemBalanceSummary {
+  status: BalanceStatus;
+  reservationId: number | null;
+}
+
 export async function getInventoryItemBalances(
   itemIds: number[],
-): Promise<Record<number, BalanceStatus>> {
+): Promise<Record<number, ItemBalanceSummary>> {
   const balances = await Promise.all(itemIds.map((id) => getInventoryItemBalance(id)));
-  return Object.fromEntries(balances.map((b) => [b.item_id, b.status]));
+  return Object.fromEntries(
+    balances.map((b) => [b.item_id, { status: b.status, reservationId: b.reservation_id }]),
+  );
 }
 
 export interface UpdateInventoryItemRequest {

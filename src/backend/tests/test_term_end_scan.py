@@ -206,6 +206,9 @@ async def test_scan_acceptedSwapProposalPastTermEnd_emitsTermEndedSwap(
     proposer_token, _ = await _register(client, "GUEST", "tes.proposer3@example.com")
     await _rsvp(client, proposer_token, group_id, term_id)
     offered_item_id = await _register_personal_item(client, proposer_token, "Sanki3")
+    await service.set_item_listing_preference(
+        db_session, _principal(proposer_token), offered_item_id, ReservationType.SWAP
+    )
 
     proposal = await service.propose_swap(
         db_session, _principal(proposer_token), listing_item_id, offered_item_id, term_id

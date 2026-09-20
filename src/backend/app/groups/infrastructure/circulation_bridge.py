@@ -42,6 +42,7 @@ __all__ = [
     "get_item_balance",
     "get_or_create_personal_inventory",
     "get_reservation",
+    "list_active_reservations_for_taker",
     "list_reservations",
     "register_item",
     "resolve_current_holder_user_id",
@@ -60,25 +61,36 @@ async def register_item(
 
 
 async def create_lend_reservation(
-    db: AsyncSession, *, item_id: int, reserved_by_user_id: int
+    db: AsyncSession, *, item_id: int, reserved_by_user_id: int, term_id: int
 ) -> Reservation:
     return await circulation_service.create_lend_reservation(
-        db, item_id=item_id, reserved_by_user_id=reserved_by_user_id
+        db, item_id=item_id, reserved_by_user_id=reserved_by_user_id, term_id=term_id
     )
 
 
 async def create_reservation(
-    db: AsyncSession, *, item_id: int, reservation_type: ReservationType, reserved_by_user_id: int
+    db: AsyncSession,
+    *,
+    item_id: int,
+    reservation_type: ReservationType,
+    reserved_by_user_id: int,
+    term_id: int | None = None,
 ) -> Reservation:
-    """Generic reservation creation (`LEND`/`GIFT` for the exchange
+    """Generic reservation creation (`LEND`/`GIFT`/`SWAP` for the exchange
     mechanism — `create_lend_reservation` above stays as the narrower
-    Pledge-only helper). Used by `app.groups.application.term_item_listings`."""
+    Pledge-only helper). Used by `app.groups.application.term_item_listings`.
+
+    `term_id` is required for every `reservation_type` except `RETURN`
+    (`CreateReservationRequest`'s own validator enforces this) — no caller
+    in this module creates a bare RETURN through here today, but the
+    parameter stays optional to mirror the schema it wraps."""
     return await circulation_service.create_reservation(
         db,
         CreateReservationRequest(
             item_id=item_id,
             reservation_type=reservation_type,
             reserved_by_user_id=reserved_by_user_id,
+            term_id=term_id,
         ),
     )
 
@@ -90,6 +102,7 @@ async def create_swap(
     first_reserved_by_user_id: int,
     second_item_id: int,
     second_reserved_by_user_id: int,
+    term_id: int,
 ) -> tuple[Reservation, Reservation]:
     """Used by `app.groups.application.term_item_listings`'s `SWAP` take
     path. Returns `(first, second)` — the **first** is the listed-item leg,
@@ -102,6 +115,7 @@ async def create_swap(
             first_reserved_by_user_id=first_reserved_by_user_id,
             second_item_id=second_item_id,
             second_reserved_by_user_id=second_reserved_by_user_id,
+            term_id=term_id,
         ),
     )
 
@@ -151,6 +165,15 @@ async def list_reservations(db: AsyncSession, item_id: int) -> list[Reservation]
     current listing status (active or most-recently-fulfilled reservation)
     since that's no longer cached on a stored listing row."""
     return await circulation_service.list_reservations(db, item_id)
+
+
+async def list_active_reservations_for_taker(
+    db: AsyncSession, account_user_id: int
+) -> list[Reservation]:
+    """Used by `application/term_item_listings.py`'s
+    `list_my_active_taken_term_item_listings` — the availability-independent
+    taker-side counterpart to `list_reservations` above."""
+    return await circulation_service.list_active_reservations_for_taker(db, account_user_id)
 
 
 async def get_item(db: AsyncSession, item_id: int) -> InventoryItem:

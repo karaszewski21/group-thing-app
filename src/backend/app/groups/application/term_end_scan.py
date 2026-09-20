@@ -54,7 +54,11 @@ __all__ = ["scan_for_term_ended", "DEFAULT_WINDOW"]
 async def _find_terms_just_ended(db: AsyncSession, *, window: timedelta) -> list[Term]:
     """One bounded query — `occurs_on` in `[now - window, now]` — never a
     per-Term or unbounded scan, per `standards/backend/queries.md`."""
-    now = datetime.utcnow()
+    # `Term.occurs_on` is a naive LOCAL wall-clock value (see
+    # `TermResponse.occurs_on`'s docstring) — compared against server-local
+    # `datetime.now()`, matching every other `occurs_on` comparison in
+    # `term_item_listings.py`, not `datetime.utcnow()`.
+    now = datetime.now()
     result = await db.execute(select(Term).where(Term.occurs_on >= now - window, Term.occurs_on <= now))
     return list(result.scalars().all())
 

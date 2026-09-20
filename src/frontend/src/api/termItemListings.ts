@@ -42,6 +42,16 @@ export function getBrowseTermItemListings(termId: number): Promise<BrowseTermIte
   return api.get(`/term-item-listings/browse?term_id=${termId}`);
 }
 
+/** The caller's own active (`PENDING`/`CONFIRMED`) taken reservations for
+ * this Term — availability-independent, unlike `getBrowseTermItemListings`,
+ * so it still resolves once the Term has occurred (the post-term-end
+ * `confirm_transaction` flow). */
+export function getMyTakenTermItemListings(
+  termId: number,
+): Promise<BrowseTermItemListingResponse[]> {
+  return api.get(`/term-item-listings/mine-as-taker?term_id=${termId}`);
+}
+
 export function takeTermItemListing(
   itemId: number,
   request: TakeTermItemListingRequest,

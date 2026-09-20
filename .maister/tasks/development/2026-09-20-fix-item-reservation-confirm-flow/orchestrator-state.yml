@@ -1,0 +1,182 @@
+orchestrator:
+  started_phase: phase-1
+  completed_phases: [phase-1, phase-2, phase-4, phase-5, phase-7, phase-8, phase-10, phase-11, phase-14]
+  failed_phases: []
+  auto_fix_attempts: {}
+  options:
+    spec_audit_enabled: false
+    skip_test_suite: true
+    e2e_enabled: false
+    user_docs_enabled: false
+    code_review_enabled: true
+    pragmatic_review_enabled: false
+    reality_check_enabled: false
+    production_check_enabled: false
+    sequential: null
+  created: "2026-09-20T00:00:00"
+  updated: "2026-09-20T00:00:00"
+  task_path: .maister/tasks/development/2026-09-20-fix-item-reservation-confirm-flow
+  task_ids: {}
+  project_context:
+    project_doc_paths:
+      - .maister/docs/project/tech-stack.md
+      - .maister/docs/project/architecture.md
+      - .maister/docs/standards/global/error-handling.md
+      - .maister/docs/standards/global/validation.md
+      - .maister/docs/standards/global/conventions.md
+      - .maister/docs/standards/global/coding-style.md
+      - .maister/docs/standards/global/commenting.md
+      - .maister/docs/standards/global/minimal-implementation.md
+      - .maister/docs/standards/backend/api.md
+      - .maister/docs/standards/backend/models.md
+      - .maister/docs/standards/backend/queries.md
+      - .maister/docs/standards/backend/jooq.md
+      - .maister/docs/standards/backend/migrations.md
+      - .maister/docs/standards/backend/security.md
+      - .maister/docs/standards/backend/plugin-auth.md
+      - .maister/docs/standards/frontend/css.md
+      - .maister/docs/standards/frontend/components.md
+      - .maister/docs/standards/frontend/accessibility.md
+      - .maister/docs/standards/frontend/responsive.md
+      - .maister/docs/standards/testing/backend-testing.md
+      - .maister/docs/standards/testing/frontend-testing.md
+
+task_context:
+  risk_level: medium
+  clarifications_resolved: true
+  scope_expanded: true
+  architecture_decision: null
+  task_characteristics:
+    has_reproducible_defect: true
+    modifies_existing_code: true
+    creates_new_entities: true
+    involves_data_operations: true
+    ui_heavy: true
+  related_prior_task: .maister/tasks/development/2026-09-17-fix-giveaway-exchange
+  phase_summaries:
+    codebase_analysis:
+      key_files:
+        - src/backend/app/groups/application/term_item_listings.py
+        - src/frontend/src/pages/panel/views/RzeczyView.tsx
+        - src/frontend/src/pages/panel/PanelDataContext.tsx
+        - src/frontend/src/api/inventories.ts
+        - src/frontend/src/pages/krag/KragGrupyPage.tsx
+        - src/backend/app/groups/application/term_end_scan.py
+        - src/backend/app/groups/models.py
+      primary_language: "Python/FastAPI + React/TypeScript"
+      summary: >
+        All four bugs root-caused. #1 (tile locking): RzeczyView.tsx already
+        fetches itemBalances and has ACTIVE_LOCK_BALANCE_STATUSES defined but
+        never applies `disabled` to the mode-toggle buttons — pure UI fix.
+        #2 (re-list after transaction): set_item_listing_preference in
+        term_item_listings.py reuses an existing ItemListingPreference row on
+        `mode` update but never reassigns `owner_party_id`, so a newly
+        acquired item's preference row stays attributed to the previous
+        owner — one-line backend fix. #3 (cache refresh): confirmPendingAction
+        in PanelDataContext.tsx is the only mutation handler in that file
+        that omits `await load({ silent: true })` after its mutation — every
+        sibling handler follows that pattern. #4 (skip fallback): backend
+        confirm_transaction endpoint is already generic/re-callable, but no
+        entity (Reservation/ItemListingPreference) persists a term_id — the
+        only term_id source is the notification's link_path, which
+        "Później" (skip) marks read and thus discards. Needs a scope
+        decision: frontend-only re-resolution from read notifications vs. a
+        backend migration to persist term_id. Zero test coverage exists for
+        bugs #2, #3, #4; bug #1 has only badge-level (non-e2e) coverage.
+    clarifications: []
+    gap_analysis:
+      integration_points:
+        - "circulation/application/reservations.py::create_reservation/create_lend_reservation -> new term_id param, threaded from groups/term_item_listings.py::take_item_listing and propose_swap"
+        - "groups/application/term_item_listings.py::confirm_transaction -> shared gating helper (proposed) -> circulation_bridge.confirm_reservation/fulfill_reservation"
+        - "groups/application/term_item_listings.py::NEW cancel_transaction -> same shared gating helper -> circulation_bridge.cancel_reservation (x2 for SWAP paired leg)"
+        - "groups/router/term_item_listings.py -> NEW POST /api/reservations/{id}/cancel-transaction route"
+        - "frontend api/inventories.ts::getInventoryItemBalance(s) -> needs new reservation_id field for tile buttons"
+        - "frontend RzeczyView.tsx tile -> ACTIVE_LOCK_BALANCE_STATUSES (disable toggles) + new Odebrał/Anuluj buttons"
+        - "PanelDataContext.tsx::confirmPendingAction -> add await load({ silent: true })"
+        - "groups/application/term_item_listings.py::set_item_listing_preference update branch -> existing.owner_party_id reassignment"
+      summary: >
+        Risk elevated to medium: bug #4 requires a new cancel_transaction
+        use case (no existing primitive handles SWAP-pairing or the
+        confirm-style race check), a new Reservation.term_id column
+        threaded through 3 creation call sites across the groups/circulation
+        boundary, and a previously-unflagged gap — RzeczyView's tile has no
+        reservation_id at all, so the balances endpoint must be extended.
+        Bugs #1-#3 remain low-risk, no-schema-change fixes. 4 critical + 2
+        important decisions raised for user review.
+    scope_clarifications: {scope_expanded: null, summary: null}
+    ui_mockups:
+      components_designed:
+        - "component:rzeczy-tile-locked"
+        - "component:rzeczy-tile-locked-post-term"
+      summary: >
+        4 ASCII mockups produced for RzeczyView.tsx's item tile: baseline,
+        AVAILABLE-after-fix (unchanged), RESERVED/IN_TRANSIT pre-term-end
+        (disabled toggles + existing badge, no new buttons), and
+        RESERVED/IN_TRANSIT post-term-end (disabled toggles + badge + new
+        "Odebrał" and "Anuluj wymianę" buttons inserted into the existing
+        status row). Styling reuses disabled:opacity-60 (toggles) and the
+        trash icon's hover:bg-danger-soft/text-danger convention (cancel
+        button), keeping "Anuluj wymianę" visually distinct from the
+        unrelated bare "Anuluj" edit-cancel button already on the tile.
+    specification:
+      summary: >
+        implementation/spec.md written covering all 4 bugs + cancel_transaction
+        + term_id migration + tile buttons. During spec-writing, found one
+        additional reachable Reservation-creation path missing term_id
+        context: PanelDataContext.tsx::returnBorrowedItem creates a RETURN
+        reservation with no term — resolved by deriving term_id server-side
+        from the prior LEND reservation being reversed (RETURN's term_id
+        becomes optional at the schema level, server-derived). Also
+        confirmed pledge_fulfillment.py has term context available and
+        POST /api/reservations/swap has no live frontend caller (schema
+        still updated for NOT NULL consistency, zero behavior risk).
+    architecture_decision: {decision: null, summary: null}
+
+verification_context:
+  last_status: passed
+  issues_found: []
+  fixes_applied: []
+  decisions_made: []
+  reverify_count: 0
+
+task:
+  title: "Fix reservation locking, re-listing, cache refresh, and pickup confirmation for item exchange"
+  description: >
+    Four related bugs in the panel/krag item-listing and reservation flow (PL, as reported by user):
+
+    1) Blokowanie kafla rzeczy w panelu gdy jest zarezerowany — gdy rzecz jest
+       zarezerowana, nie powinno dać się zmienić jej oznaczeń
+       wypożyczę/oddam/zamienię (kafel powinien być zablokowany do edycji
+       tych flag podczas aktywnej rezerwacji).
+
+    2) Po zaszłej transakcji (odebraniu/oddaniu/zamianie), user nie może
+       ponownie wystawić rzeczy, którą wcześniej wziął/otrzymał w zamian —
+       powinien móc ponownie wystawić uzyskaną (poprzednio otrzymaną) rzecz
+       do ponownego obiegu. Konkretny błąd: PUT
+       /api/item-listing-preferences/{id} nie ustawia poprawnie flag
+       Wypożyczę/Oddam/Zamienię — wymaga weryfikacji i naprawy.
+
+    3) Problem z cache/odświeżaniem — gdy dochodzi do wymiany/oddania
+       rzeczy, lista "Moje rzeczy" w panelu się nie odświeża automatycznie
+       (stare dane pozostają widoczne po zakończeniu transakcji).
+
+    4) Brakująca dodatkowa akcja potwierdzenia wymiany/oddania — jeżeli user
+       kliknie "pomiń" na dialogu potwierdzenia po zakończonym terminie, nie
+       ma już żadnej innej akcji pozwalającej potwierdzić transakcję później.
+       Należy dodać na zablokowanym (zarezerwowanym) kaflu rzeczy dodatkową
+       akcję "odebrał/nieodebrał rzeczy", żeby transakcja (wymiana/oddanie
+       rzeczy na magazynie) mogła jednak dojść do skutku po pominięciu
+       dialogu.
+
+    Context: A related but distinct task
+    (.maister/tasks/development/2026-09-17-fix-giveaway-exchange, currently
+    in_progress at phase-10) previously fixed root-cause defects in the
+    giveaway/exchange confirm-transaction flow (wrong fulfill endpoint,
+    missing GIFT/LEND reservation resolution). This task addresses further
+    issues reported by the user after those fixes: UI locking during active
+    reservations, re-listing previously-acquired items, cache invalidation,
+    and a fallback confirmation action when the post-term dialog is
+    skipped.
+  status: completed
+  tags: [bugfix, circulation, giveaway, exchange, panel, cache, ui]
+  priority: high

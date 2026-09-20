@@ -1,0 +1,130 @@
+orchestrator:
+  started_phase: phase-10
+  completed_phases: [phase-1, phase-2, phase-3, phase-4, phase-5, phase-6, phase-7, phase-8, phase-9]
+  tdd_green_passed: true
+  failed_phases: []
+  auto_fix_attempts: {}
+  options:
+    spec_audit_enabled: true
+    skip_test_suite: true
+    e2e_enabled: true
+    user_docs_enabled: null
+    code_review_enabled: true
+    pragmatic_review_enabled: true
+    reality_check_enabled: true
+    production_check_enabled: true
+    sequential: null
+  created: "2026-09-17T00:00:00"
+  updated: "2026-09-17T00:00:00"
+  task_path: .maister/tasks/development/2026-09-17-fix-giveaway-exchange
+  task_ids: {}
+
+task_context:
+  risk_level: medium
+  clarifications_resolved: true
+  scope_expanded: true
+  task_characteristics:
+    has_reproducible_defect: true
+    modifies_existing_code: true
+    creates_new_entities: false
+    involves_data_operations: true
+    ui_heavy: true
+  phase_summaries:
+    codebase_analysis:
+      summary: >
+        Two real backend bugs (SWAP reserved_by_user_id inversion,
+        utcnow/now term-end gating mismatch) are already fixed uncommitted
+        and pass 21/21 backend tests. Open gap: SWAP counter-offer not
+        restricted to "zamienię"-tagged items (frontend+backend). Missing
+        test coverage: no assertion that circulation_entries/transactions
+        are actually posted. SpotkaniaView.tsx/PanelPage.test.tsx changes
+        are unrelated (guest RSVP list fix) — leave untouched per user.
+      key_files:
+        - src/backend/app/groups/application/term_item_listings.py
+        - src/backend/app/groups/application/term_end_scan.py
+        - src/backend/app/circulation/application/reservation_transitions.py
+        - src/backend/app/circulation/infrastructure/ledger.py
+        - src/frontend/src/pages/krag/KragGrupyPage.tsx
+        - src/frontend/src/hooks/useKragGrupy.ts
+        - src/frontend/src/pages/panel/PanelDataContext.tsx
+    gap_analysis:
+      summary: >
+        Root cause of "still doesn't work after applying the known fixes"
+        found: two NEW frontend-only defects. (A) The term-page "confirm
+        receipt" button calls raw POST /api/reservations/{id}/fulfill
+        instead of /confirm-transaction, bypassing the term-end gate and
+        SWAP pairing — reachable immediately after a swap is accepted,
+        silently fulfilling one leg while orphaning the paired leg with no
+        error. (B) Neither PanelDataContext.tsx's
+        resolvePendingReservationId nor KragGrupyPage.tsx's
+        confirmActionFor ever resolves a reservation id for the GIFT/LEND
+        *owner* side, and the *taker's* row disappears from both
+        browse-listing queries the instant the item is reserved (balance
+        flips from AVAILABLE) — so give-away (oddanie) has NO working
+        post-term confirm path for either party at all. Both are
+        code-verified via direct source reads (not just Phase 1 summary).
+      integration_points:
+        - "KragGrupyPage.tsx confirm button -> api/reservations.ts fulfill() [WRONG endpoint]"
+        - "PanelDataContext.tsx resolvePendingReservationId -> browse/mine listing queries [misses GIFT/LEND owner + taker]"
+  tdd_red_passed: true
+  decisions_resolved:
+    - id: fix-root-cause-a-premature-fulfill
+      decision: "Repoint term-page confirm button at confirm-transaction endpoint + gate on term-end"
+    - id: fix-root-cause-b-reservation-resolution
+      decision: "Extend mine-loop resolution to cover GIFT/LEND + add unfiltered taker-side lookup"
+    - id: swap-mode-enforcement-scope
+      decision: "Include in this task — enforce SWAP counter-offer restricted to zamienię-tagged items, both frontend and backend"
+    - id: unrelated-files-handling
+      decision: "Leave SpotkaniaView.tsx / PanelPage.test.tsx untouched, exclude from this task's changes"
+    - id: test-coverage-additions
+      decision: "Add both: backend circulation-ledger audit-trail test + frontend confirm-flow regression tests covering GIFT/LEND and SWAP post-term confirm paths"
+
+task:
+  title: "Fix broken giveaway (oddanie) and exchange (zamiana) mechanism"
+  description: >
+    Cały czas nie działa mechanizm oddania i zamiany. Mechanizm ma działać wg
+    poniższych kroków (PL, jak podane przez użytkownika):
+
+    Wszystkie rzeczy oznaczone Oddam/Wypożyczę/Zamienię są pokazywane na
+    stronie terminu. Tylko osoby zapisane na termin mogą brać udział.
+
+    ODDANIE — tylko rzeczy oznaczone "oddam" mogą być oddane:
+    1) Organizator (lub osoba z uprawnieniem do dodawania terminów) dodaje
+       termin.
+    2) Na stronie terminu widoczna jest lista rzeczy oferowanych, w różnych
+       stanach.
+    3) Zalogowany user może wziąć rzecz; niezalogowany musi się zalogować i
+       zapisać na zajęcia.
+    4) Po rezerwacji rzeczy: notyfikacja + zablokowanie rzeczy u dawcy.
+    5) Po zajęciach: dialog u dawcy i odbiorcy — "Czy dałeś rzecz X?" /
+       "Czy otrzymałeś rzecz X?".
+    6) Po akceptacji przez którąkolwiek stronę (kto pierwszy) — produkt
+       zostaje przepisany do inventory_items odbiorcy + tworzy się
+       circulation_entries / circulation_transactions (księgowanie
+       transakcji, potrzebne do audytu historii przekazywania rzeczy).
+
+    ZAMIANA — tylko rzeczy oznaczone "zamienię" mogą być zamienione:
+    1) Organizator dodaje termin.
+    2) Na stronie terminu lista rzeczy oferowanych w różnych stanach.
+    3) Zalogowany user może zamienić się na rzecz, ale TYLKO oferując rzecz
+       oznaczoną "zamienię" ze swojej listy; niezalogowany musi się
+       zalogować i zapisać na zajęcia.
+    4) Po rezerwacji: notyfikacja + zablokowanie rzeczy u dawcy; obie strony
+       stają się jakby jednocześnie dawcami/odbiorcami.
+    5) Po zajęciach: dialog u obu stron — "Czy dałeś rzecz X?".
+    6) Po akceptacji przez którąkolwiek stronę (kto pierwszy) — 2 produkty
+       zostają zamienione między inventory_items obu stron + tworzy się
+       circulation_entries / circulation_transactions (księgowanie,
+       potrzebne do audytu historii).
+
+    Uncommitted working-tree state (per git status) already touches this
+    exact area (term_end_scan.py, term_item_listings.py, main.py,
+    SpotkaniaView.tsx, test_term_item_listings.py, PanelPage.test.tsx),
+    likely leftover/WIP from prior task
+    .maister/tasks/development/2026-09-16-item-giveaway-exchange-rework
+    which was marked "completed" in its own state file. User reports the
+    mechanism still does not work — this task must determine WHY (root
+    cause) and fix it, not just re-describe desired behavior.
+  status: in_progress
+  tags: [bugfix, circulation, giveaway, exchange]
+  priority: high

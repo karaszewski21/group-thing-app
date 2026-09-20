@@ -54,8 +54,10 @@ from app.groups.application.public_view import (
 )
 from app.groups.application.term_item_listings import (
     accept_swap_proposal,
+    cancel_transaction,
     confirm_transaction,
     list_browsable_term_item_listings,
+    list_my_active_taken_term_item_listings,
     list_my_item_listing_preferences,
     list_my_term_item_listings,
     propose_swap,
@@ -81,6 +83,7 @@ __all__ = [
     "assign_leadership",
     "build_leadership_responses",
     "build_membership_responses",
+    "cancel_transaction",
     "confirm_transaction",
     "create_circle",
     "create_membership",
@@ -104,6 +107,7 @@ __all__ = [
     "list_leaderships",
     "list_memberships_for_circle",
     "list_memberships_for_party",
+    "list_my_active_taken_term_item_listings",
     "list_my_attendances",
     "list_my_item_listing_preferences",
     "list_my_pledges",

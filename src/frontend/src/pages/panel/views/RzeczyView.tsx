@@ -1,9 +1,13 @@
 import { useEffect, useState } from "react";
 import {
+  ACTIVE_LOCK_BALANCE_STATUSES,
   getInventoryItemBalances,
   type BalanceStatus,
+  type ItemBalanceSummary,
   type ItemCondition,
 } from "../../../api/inventories";
+import { cancelTransaction, confirmTransaction, getReservation } from "../../../api/reservations";
+import { getTerm } from "../../../api/terms";
 import { CONDITION_LABELS } from "../../../utils/productCategory";
 import { createEmptyItemQuickAddValue } from "../../../utils/itemQuickAdd";
 import { BoxIcon, PencilIcon, TrashIcon } from "../panelIcons";
@@ -45,6 +49,7 @@ export function RzeczyView() {
     startEditItemMeta,
     setItemMode,
     handleDeleteItem,
+    load,
   } = usePanelData();
 
   // Per-item lock/pending status — kept local to this view (not lifted into
@@ -54,7 +59,7 @@ export function RzeczyView() {
   // `Promise.all` round-trip, not a per-item call inside the render loop —
   // see `api/inventories.ts`'s `getInventoryItemBalances`), not on every
   // render.
-  const [itemBalances, setItemBalances] = useState<Record<number, BalanceStatus>>({});
+  const [itemBalances, setItemBalances] = useState<Record<number, ItemBalanceSummary>>({});
   useEffect(() => {
     if (items.length === 0) {
       setItemBalances({});
@@ -68,6 +73,100 @@ export function RzeczyView() {
       cancelled = true;
     };
   }, [items]);
+
+  // Bug #4c: whether the active reservation's Term has already occurred,
+  // keyed by `reservationId` — mirrors `KragGrupyPage.tsx`'s
+  // `currentTermHasOccurred()`, resolved the same bounded way
+  // `itemBalances` itself is (one batched round-trip over the distinct
+  // reservations/terms among the currently-locked items, never per-row).
+  // Also kept local to this view, same rationale as `itemBalances` above.
+  const [reservationTermInfo, setReservationTermInfo] = useState<
+    Record<number, { termId: number; hasEnded: boolean }>
+  >({});
+  useEffect(() => {
+    const lockedReservationIds = Array.from(
+      new Set(
+        Object.values(itemBalances)
+          .filter((b) => ACTIVE_LOCK_BALANCE_STATUSES.includes(b.status))
+          .map((b) => b.reservationId)
+          .filter((id): id is number => id !== null),
+      ),
+    );
+    if (lockedReservationIds.length === 0) {
+      setReservationTermInfo({});
+      return;
+    }
+    let cancelled = false;
+    void (async () => {
+      const reservations = await Promise.all(
+        lockedReservationIds.map((id) => getReservation(id)),
+      );
+      const termIds = Array.from(
+        new Set(
+          reservations
+            .map((r) => r.term_id)
+            .filter((id): id is number => id !== undefined),
+        ),
+      );
+      const terms = await Promise.all(termIds.map((id) => getTerm(id)));
+      const termById = new Map(terms.map((t) => [t.id, t]));
+      if (cancelled) return;
+      const next: Record<number, { termId: number; hasEnded: boolean }> = {};
+      for (const r of reservations) {
+        if (r.term_id === undefined) continue;
+        const term = termById.get(r.term_id);
+        next[r.id] = {
+          termId: r.term_id,
+          hasEnded: term ? new Date(term.occurs_on).getTime() <= Date.now() : false,
+        };
+      }
+      setReservationTermInfo(next);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [itemBalances]);
+
+  const [actionBusyItemId, setActionBusyItemId] = useState<number | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
+
+  function termHasEnded(itemId: number): boolean {
+    const reservationId = itemBalances[itemId]?.reservationId;
+    if (reservationId == null) return false;
+    return reservationTermInfo[reservationId]?.hasEnded === true;
+  }
+
+  async function handleConfirmReceipt(itemId: number) {
+    const reservationId = itemBalances[itemId]?.reservationId;
+    const termId = reservationId != null ? reservationTermInfo[reservationId]?.termId : undefined;
+    if (reservationId == null || termId === undefined) return;
+    setActionError(null);
+    setActionBusyItemId(itemId);
+    try {
+      await confirmTransaction(reservationId, { term_id: termId });
+      await load({ silent: true });
+    } catch {
+      setActionError("Nie udało się potwierdzić odbioru — spróbuj ponownie");
+    } finally {
+      setActionBusyItemId(null);
+    }
+  }
+
+  async function handleCancelTransaction(itemId: number) {
+    const reservationId = itemBalances[itemId]?.reservationId;
+    const termId = reservationId != null ? reservationTermInfo[reservationId]?.termId : undefined;
+    if (reservationId == null || termId === undefined) return;
+    setActionError(null);
+    setActionBusyItemId(itemId);
+    try {
+      await cancelTransaction(reservationId, { term_id: termId });
+      await load({ silent: true });
+    } catch {
+      setActionError("Nie udało się anulować wymiany — spróbuj ponownie");
+    } finally {
+      setActionBusyItemId(null);
+    }
+  }
 
   return (
     <div>
@@ -97,6 +196,9 @@ export function RzeczyView() {
         {items.map((it) => {
           const mode = itemModes[it.id] ?? null;
           const style = mode ? ITEM_MODE_STYLE[mode] : null;
+          const locked = ACTIVE_LOCK_BALANCE_STATUSES.includes(
+            itemBalances[it.id]?.status ?? "AVAILABLE",
+          );
           return (
             <div key={it.id} className="mt-2.5 flex items-start gap-3.5 rounded-2xl border border-line bg-cream p-[15px] first:mt-0">
               <span
@@ -220,7 +322,9 @@ export function RzeczyView() {
                         key={m}
                         onClick={() => void setItemMode(it.id, m)}
                         aria-pressed={on}
-                        className="rounded-full border-[1.5px] border-line px-3 py-1.5 text-[11.5px] font-extrabold text-ink-soft transition-colors hover:border-sage"
+                        disabled={locked}
+                        aria-disabled={locked}
+                        className="rounded-full border-[1.5px] border-line px-3 py-1.5 text-[11.5px] font-extrabold text-ink-soft transition-colors hover:border-sage disabled:opacity-60 disabled:cursor-not-allowed"
                         style={on ? { background: mStyle.bg, color: mStyle.c, borderColor: "transparent" } : undefined}
                       >
                         {capitalize(m)}
@@ -228,7 +332,7 @@ export function RzeczyView() {
                     );
                   })}
                   {(() => {
-                    const label = lockBadgeLabel(itemBalances[it.id]);
+                    const label = lockBadgeLabel(itemBalances[it.id]?.status);
                     if (!label) return null;
                     // Text-carried label, not color-only, per
                     // `standards/frontend/accessibility.md` — the dot is
@@ -243,7 +347,30 @@ export function RzeczyView() {
                       </span>
                     );
                   })()}
+                  {locked && termHasEnded(it.id) && (
+                    <>
+                      <button
+                        type="button"
+                        onClick={() => void handleConfirmReceipt(it.id)}
+                        disabled={actionBusyItemId === it.id}
+                        className="flex-none rounded-[9px] bg-mint px-3 py-1.5 text-[11.5px] font-extrabold text-white disabled:opacity-60"
+                      >
+                        Odebrał
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => void handleCancelTransaction(it.id)}
+                        disabled={actionBusyItemId === it.id}
+                        className="flex-none rounded-[9px] px-3 py-1.5 text-[11.5px] font-extrabold text-danger transition-colors hover:bg-danger-soft disabled:opacity-60"
+                      >
+                        Anuluj wymianę
+                      </button>
+                    </>
+                  )}
                 </div>
+                {actionError && (
+                  <p className="mt-1.5 text-[12.5px] font-semibold text-danger">{actionError}</p>
+                )}
               </div>
               <button
                 onClick={() => void handleDeleteItem(it.id)}

@@ -285,6 +285,7 @@ async def test_proposeSwap_returns2xxWithProposalPayload(client: AsyncClient) ->
     proposer_token, _ = await _register(client, "GUEST", "tilr.proposer7@example.com")
     await _rsvp(client, proposer_token, group_id, term_id)
     offered_item_id = await _register_personal_item(client, proposer_token, "Gra planszowa")
+    await _set_preference(client, proposer_token, offered_item_id, "SWAP")
 
     propose = await client.post(
         f"/api/term-item-listings/{listing_item_id}/propose",
@@ -310,6 +311,7 @@ async def test_acceptSwapProposal_returns2xxWithUpdatedStatus(client: AsyncClien
     proposer_token, _ = await _register(client, "GUEST", "tilr.proposer8@example.com")
     await _rsvp(client, proposer_token, group_id, term_id)
     offered_item_id = await _register_personal_item(client, proposer_token, "Lalka")
+    await _set_preference(client, proposer_token, offered_item_id, "SWAP")
 
     propose = await client.post(
         f"/api/term-item-listings/{listing_item_id}/propose",
@@ -338,6 +340,7 @@ async def test_rejectSwapProposal_returns2xxWithUpdatedStatus(client: AsyncClien
     proposer_token, _ = await _register(client, "GUEST", "tilr.proposer9@example.com")
     await _rsvp(client, proposer_token, group_id, term_id)
     offered_item_id = await _register_personal_item(client, proposer_token, "Piłka")
+    await _set_preference(client, proposer_token, offered_item_id, "SWAP")
 
     propose = await client.post(
         f"/api/term-item-listings/{listing_item_id}/propose",
@@ -371,6 +374,7 @@ async def test_swapLifecycle_proposeAcceptTermEndConfirm_bothLegsFulfilledThroug
     proposer_token, _ = await _register(client, "GUEST", "tilr.proposer14@example.com")
     await _rsvp(client, proposer_token, group_id, term_id)
     offered_item_id = await _register_personal_item(client, proposer_token, "Keyboard")
+    await _set_preference(client, proposer_token, offered_item_id, "SWAP")
 
     propose = await client.post(
         f"/api/term-item-listings/{listing_item_id}/propose",

@@ -482,3 +482,21 @@ class ConfirmTransactionResponse(BaseModel):
     reservation_id: int
     status: str
     already_resolved: bool = False
+
+
+class CancelTransactionRequest(BaseModel):
+    """Identical `{term_id: int}` shape to `ConfirmTransactionRequest` —
+    kept as its own model (rather than reused directly) so the two request
+    bodies can evolve independently even though they're identical today,
+    matching the router's existing one-model-per-route convention."""
+
+    term_id: int
+
+
+class CancelTransactionResponse(BaseModel):
+    """Same `status`/`already_resolved` discriminator pattern as
+    `ConfirmTransactionResponse` — see that model's docstring."""
+
+    reservation_id: int
+    status: str
+    already_resolved: bool = False

@@ -209,6 +209,18 @@ class Reservation(BaseEntity):
         ForeignKey("users.id", name="fk_reservations_reserved_by_user_id_users"),
         nullable=False,
     )
+    # Plain FK-id column, no ORM relationship — `Term` lives in the `groups`
+    # module, and `circulation` must not take an ORM-level dependency on it,
+    # per `standards/backend/models.md`'s cross-module-reference convention.
+    # Required for every creation site: caller-supplied for LEND/SWAP/GIFT
+    # (the creating use case has already resolved a `Term` by then), derived
+    # server-side for RETURN (see `create_reservation`'s RETURN branch) since
+    # a RETURN call site (e.g. `PanelDataContext.tsx::returnBorrowedItem`)
+    # has no Term context of its own — a RETURN reverses a specific prior
+    # LEND, so it just reuses that LEND leg's own `term_id`.
+    term_id: Mapped[int] = mapped_column(
+        BigInteger, ForeignKey("terms.id", name="fk_reservations_term_id_terms"), nullable=False
+    )
     # Self-referential — only populated for `SWAP`, pointing at the other
     # item's Reservation in the same exchange.
     paired_reservation_id: Mapped[int | None] = mapped_column(

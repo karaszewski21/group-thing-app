@@ -21,6 +21,7 @@ from app.circulation.models import (
     InventoryItem,
     InventoryType,
     Reservation,
+    ReservationStatus,
 )
 from app.product.models import Product
 
@@ -150,4 +151,34 @@ async def get_reservation(db: AsyncSession, reservation_id: int) -> Reservation 
 
 async def list_reservations_for_item(db: AsyncSession, item_id: int) -> list[Reservation]:
     result = await db.execute(select(Reservation).where(Reservation.item_id == item_id))
+    return list(result.scalars().all())
+
+
+async def list_active_reservations_for_taker(
+    db: AsyncSession, account_user_id: int
+) -> list[Reservation]:
+    """Every `PENDING`/`CONFIRMED` reservation held by `account_user_id` as
+    taker — sibling to `list_reservations_for_item` above, but scoped by
+    taker identity instead of item. Backs the taker-side "my active
+    reservations" query chain (availability-independent, unlike
+    `list_browsable_term_item_listings`)."""
+    result = await db.execute(
+        select(Reservation).where(
+            Reservation.reserved_by_user_id == account_user_id,
+            Reservation.status.in_((ReservationStatus.PENDING, ReservationStatus.CONFIRMED)),
+        )
+    )
+    return list(result.scalars().all())
+
+
+async def list_active_reservations_for_item(db: AsyncSession, item_id: int) -> list[Reservation]:
+    """Every `PENDING`/`CONFIRMED` reservation for `item_id` — same query
+    shape as `list_active_reservations_for_taker`, scoped by item instead of
+    taker. Backs `InventoryBalanceResponse.reservation_id` (bug #4c)."""
+    result = await db.execute(
+        select(Reservation).where(
+            Reservation.item_id == item_id,
+            Reservation.status.in_((ReservationStatus.PENDING, ReservationStatus.CONFIRMED)),
+        )
+    )
     return list(result.scalars().all())

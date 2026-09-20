@@ -21,6 +21,29 @@ from app.circulation.schemas import CreateReservationRequest, CreateSwapRequest
 from app.core.errors import BusinessConflictException, EntityNotFoundException
 
 
+async def _resolve_return_term_id(db: AsyncSession, item_id: int) -> int:
+    """A RETURN reverses a specific prior LEND, so its `term_id` is derived
+    server-side rather than caller-supplied — the one real RETURN call site
+    (`PanelDataContext.tsx::returnBorrowedItem`) has no Term context at all.
+    Mirrors `term_item_listings._resolve_listing_status`'s "chosen
+    reservation" pattern: among this item's LEND reservations that actually
+    put it into `LENT` (i.e. `FULFILLED`), pick the most recent one (highest
+    id) and reuse its `term_id`."""
+    reservations = await repository.list_reservations_for_item(db, item_id)
+    lend_reservations = [
+        r
+        for r in reservations
+        if r.reservation_type == ReservationType.LEND and r.status == ReservationStatus.FULFILLED
+    ]
+    if not lend_reservations:
+        raise BusinessConflictException(
+            f"InventoryItem {item_id} has no fulfilled LEND reservation to derive a RETURN "
+            "term_id from"
+        )
+    chosen = max(lend_reservations, key=lambda r: cast(int, r.id))
+    return cast(int, chosen.term_id)
+
+
 async def create_reservation(db: AsyncSession, data: CreateReservationRequest) -> Reservation:
     item = await get_item(db, data.item_id)
     balance = await get_item_balance(db, cast(int, item.id))
@@ -37,10 +60,19 @@ async def create_reservation(db: AsyncSession, data: CreateReservationRequest) -
             f"(status={balance.status})"
         )
 
+    if data.reservation_type == ReservationType.RETURN:
+        term_id = await _resolve_return_term_id(db, cast(int, item.id))
+    else:
+        # `CreateReservationRequest`'s own validator guarantees this for
+        # every non-RETURN type.
+        assert data.term_id is not None
+        term_id = data.term_id
+
     reservation = Reservation(
         item_id=item.id,
         reservation_type=data.reservation_type,
         reserved_by_user_id=data.reserved_by_user_id,
+        term_id=term_id,
         reserved_at=datetime.utcnow(),
         expires_at=data.expires_at,
         status=ReservationStatus.PENDING,
@@ -58,7 +90,7 @@ async def create_reservation(db: AsyncSession, data: CreateReservationRequest) -
 
 
 async def create_lend_reservation(
-    db: AsyncSession, *, item_id: int, reserved_by_user_id: int
+    db: AsyncSession, *, item_id: int, reserved_by_user_id: int, term_id: int
 ) -> Reservation:
     """Used by `app.party`'s Pledge->Reservation bridge."""
     return await create_reservation(
@@ -67,6 +99,7 @@ async def create_lend_reservation(
             item_id=item_id,
             reservation_type=ReservationType.LEND,
             reserved_by_user_id=reserved_by_user_id,
+            term_id=term_id,
         ),
     )
 
@@ -87,6 +120,7 @@ async def create_swap(db: AsyncSession, data: CreateSwapRequest) -> tuple[Reserv
         item_id=first_item.id,
         reservation_type=ReservationType.SWAP,
         reserved_by_user_id=data.first_reserved_by_user_id,
+        term_id=data.term_id,
         reserved_at=now,
         expires_at=data.expires_at,
         status=ReservationStatus.PENDING,
@@ -95,6 +129,7 @@ async def create_swap(db: AsyncSession, data: CreateSwapRequest) -> tuple[Reserv
         item_id=second_item.id,
         reservation_type=ReservationType.SWAP,
         reserved_by_user_id=data.second_reserved_by_user_id,
+        term_id=data.term_id,
         reserved_at=now,
         expires_at=data.expires_at,
         status=ReservationStatus.PENDING,
@@ -124,3 +159,10 @@ async def get_reservation(db: AsyncSession, reservation_id: int) -> Reservation:
 
 async def list_reservations(db: AsyncSession, item_id: int) -> list[Reservation]:
     return await repository.list_reservations_for_item(db, item_id)
+
+
+async def list_active_reservations_for_taker(
+    db: AsyncSession, account_user_id: int
+) -> list[Reservation]:
+    """Thin wrapper, same shape as `list_reservations` above."""
+    return await repository.list_active_reservations_for_taker(db, account_user_id)

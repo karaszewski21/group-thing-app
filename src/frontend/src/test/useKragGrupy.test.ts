@@ -5,8 +5,10 @@ import * as inventoriesApi from "../api/inventories";
 import * as peopleApi from "../api/people";
 import * as pledgesApi from "../api/pledges";
 import * as productsApi from "../api/products";
+import * as reservationsApi from "../api/reservations";
 import * as termItemListingsApi from "../api/termItemListings";
 import * as termsApi from "../api/terms";
+import * as itemListingPreferencesApi from "../api/itemListingPreferences";
 import { useKragGrupy } from "../hooks/useKragGrupy";
 
 vi.mock("../api/families", () => ({
@@ -48,6 +50,7 @@ vi.mock("../api/products", () => ({
 vi.mock("../api/reservations", () => ({
   confirmReservation: vi.fn(),
   fulfillReservation: vi.fn(),
+  confirmTransaction: vi.fn(),
 }));
 
 vi.mock("../api/terms", () => ({
@@ -59,6 +62,10 @@ vi.mock("../api/termItemListings", () => ({
   getMyTermItemListings: vi.fn(),
   getBrowseTermItemListings: vi.fn(),
   takeTermItemListing: vi.fn(),
+}));
+
+vi.mock("../api/itemListingPreferences", () => ({
+  getMyItemListingPreferences: vi.fn(),
 }));
 
 const GROUP_ID = 1;
@@ -138,6 +145,7 @@ function setupDefaultMocks() {
   vi.mocked(inventoriesApi.getInventories).mockResolvedValue([]);
   vi.mocked(termItemListingsApi.getMyTermItemListings).mockResolvedValue([]);
   vi.mocked(termItemListingsApi.getBrowseTermItemListings).mockResolvedValue([]);
+  vi.mocked(itemListingPreferencesApi.getMyItemListingPreferences).mockResolvedValue([]);
 }
 
 describe("useKragGrupy", () => {
@@ -256,5 +264,85 @@ describe("useKragGrupy", () => {
     expect(groupsApi.withdrawMyAttendance).toHaveBeenCalledWith(77);
     // refetch() re-runs the Promise.all batch, so getMyAttendances is called again.
     expect(vi.mocked(groupsApi.getMyAttendances).mock.calls.length).toBeGreaterThan(callsBefore);
+  });
+
+  // Group 3 — Root Cause A fix: the term-page "Potwierdź odbiór" button must
+  // drive confirmTransaction (term-end/race gated, SWAP-pairing aware), not
+  // the raw fulfillReservation POST /fulfill the pledge-confirm flow still
+  // uses (confirmPledgeReceipt, unchanged, out of scope here).
+  // Group 5 — SWAP counter-offer picker fix: `mySwapAvailableItems` must
+  // only surface items the caller has tagged "zamienię" (ItemListingPreference
+  // mode === "SWAP"), not every AVAILABLE personal item, mirroring the
+  // backend's parallel fix to `_require_own_available_personal_item`.
+  // `myAvailableItems` itself stays unfiltered — it also feeds the unrelated
+  // pledge-fulfil "Z moich rzeczy" picker, which isn't gated on any tag.
+  it("mySwapAvailableItems includes only AVAILABLE personal items with a SWAP-tagged ItemListingPreference; myAvailableItems stays unfiltered", async () => {
+    vi.mocked(peopleApi.getMyProfile).mockResolvedValue(myProfile({ account_user_id: 7 }));
+    vi.mocked(inventoriesApi.getInventories).mockResolvedValue([
+      { id: 55, owner_user_id: 7, inventory_type: "PERSONAL", location: null, created_at: "", updated_at: "" },
+    ]);
+    vi.mocked(inventoriesApi.getInventoryItems).mockResolvedValue([
+      { id: 1, inventory_id: 55, home_inventory_id: null, product_id: 1, product_name: "Fotelik", condition: "GOOD", added_at: "", created_at: "", updated_at: "" },
+      { id: 2, inventory_id: 55, home_inventory_id: null, product_id: 2, product_name: "Wózek", condition: "GOOD", added_at: "", created_at: "", updated_at: "" },
+    ]);
+    vi.mocked(inventoriesApi.getInventoryItemBalance).mockImplementation((itemId: number) =>
+      Promise.resolve({ id: itemId, item_id: itemId, status: "AVAILABLE", reserved_at: null, lent_at: null, returned_at: null, due_date: null }),
+    );
+    vi.mocked(itemListingPreferencesApi.getMyItemListingPreferences).mockResolvedValue([
+      { id: 1, item_id: 1, owner_party_id: 42, mode: "SWAP", created_at: "", updated_at: "" },
+    ]);
+
+    const { result } = renderHook(() => useKragGrupy(GROUP_ID));
+    await waitFor(() => expect(result.current.loading).toBe(false));
+
+    expect(result.current.mySwapAvailableItems).toEqual([{ id: 1, productName: "Rzecz #1" }]);
+    expect(result.current.myAvailableItems).toEqual([
+      { id: 1, productName: "Rzecz #1" },
+      { id: 2, productName: "Rzecz #2" },
+    ]);
+  });
+
+  it("mySwapAvailableItems excludes an AVAILABLE item tagged GIFT or LEND, or with no ItemListingPreference at all", async () => {
+    vi.mocked(peopleApi.getMyProfile).mockResolvedValue(myProfile({ account_user_id: 7 }));
+    vi.mocked(inventoriesApi.getInventories).mockResolvedValue([
+      { id: 55, owner_user_id: 7, inventory_type: "PERSONAL", location: null, created_at: "", updated_at: "" },
+    ]);
+    vi.mocked(inventoriesApi.getInventoryItems).mockResolvedValue([
+      { id: 1, inventory_id: 55, home_inventory_id: null, product_id: 1, product_name: "Fotelik", condition: "GOOD", added_at: "", created_at: "", updated_at: "" },
+      { id: 2, inventory_id: 55, home_inventory_id: null, product_id: 2, product_name: "Wózek", condition: "GOOD", added_at: "", created_at: "", updated_at: "" },
+      { id: 3, inventory_id: 55, home_inventory_id: null, product_id: 3, product_name: "Rowerek", condition: "GOOD", added_at: "", created_at: "", updated_at: "" },
+    ]);
+    vi.mocked(inventoriesApi.getInventoryItemBalance).mockImplementation((itemId: number) =>
+      Promise.resolve({ id: itemId, item_id: itemId, status: "AVAILABLE", reserved_at: null, lent_at: null, returned_at: null, due_date: null }),
+    );
+    // item 1 -> GIFT, item 2 -> LEND, item 3 -> untagged (no preference row).
+    vi.mocked(itemListingPreferencesApi.getMyItemListingPreferences).mockResolvedValue([
+      { id: 1, item_id: 1, owner_party_id: 42, mode: "GIFT", created_at: "", updated_at: "" },
+      { id: 2, item_id: 2, owner_party_id: 42, mode: "LEND", created_at: "", updated_at: "" },
+    ]);
+
+    const { result } = renderHook(() => useKragGrupy(GROUP_ID));
+    await waitFor(() => expect(result.current.loading).toBe(false));
+
+    expect(result.current.mySwapAvailableItems).toEqual([]);
+    expect(result.current.myAvailableItems).toHaveLength(3);
+  });
+
+  it("confirmListingReceipt() calls confirmTransaction with { term_id }, never fulfillReservation", async () => {
+    vi.mocked(reservationsApi.confirmTransaction).mockResolvedValue({
+      reservation_id: 900,
+      status: "FULFILLED",
+      already_resolved: false,
+    });
+
+    const { result } = renderHook(() => useKragGrupy(GROUP_ID));
+    await waitFor(() => expect(result.current.loading).toBe(false));
+
+    await act(async () => {
+      await result.current.confirmListingReceipt(900, term.id);
+    });
+
+    expect(reservationsApi.confirmTransaction).toHaveBeenCalledWith(900, { term_id: term.id });
+    expect(reservationsApi.fulfillReservation).not.toHaveBeenCalled();
   });
 });

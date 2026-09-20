@@ -19,6 +19,8 @@ from app.groups import service
 from app.groups.application.term_item_listings import TermAlreadyResolvedException
 from app.groups.schemas import (
     BrowseTermItemListingResponse,
+    CancelTransactionRequest,
+    CancelTransactionResponse,
     ConfirmTransactionRequest,
     ConfirmTransactionResponse,
     ItemListingPreferenceResponse,
@@ -66,6 +68,16 @@ async def list_my_term_item_listings(
 ) -> list[BrowseTermItemListingResponse]:
     profile = await get_profile_by_principal(db, principal)
     return await service.list_my_term_item_listings(db, term_id, profile.party_id)
+
+
+@router.get(
+    "/api/term-item-listings/mine-as-taker", response_model=list[BrowseTermItemListingResponse]
+)
+async def list_my_active_taken_term_item_listings(
+    term_id: int, db: DbSession, principal: ReadPrincipal
+) -> list[BrowseTermItemListingResponse]:
+    profile = await get_profile_by_principal(db, principal)
+    return await service.list_my_active_taken_term_item_listings(db, term_id, profile.party_id)
 
 
 @router.get("/api/term-item-listings/browse", response_model=list[BrowseTermItemListingResponse])
@@ -131,5 +143,28 @@ async def confirm_transaction(
         )
         return JSONResponse(status_code=409, content=jsonable_encoder(body_out.model_dump()))
     return ConfirmTransactionResponse(
+        reservation_id=reservation_id, status=reservation.status.value, already_resolved=False
+    )
+
+
+@router.post(
+    "/api/reservations/{reservation_id}/cancel-transaction",
+    response_model=CancelTransactionResponse,
+)
+async def cancel_transaction(
+    reservation_id: int, body: CancelTransactionRequest, db: DbSession, principal: EditPrincipal
+) -> CancelTransactionResponse | JSONResponse:
+    """The cancel counterpart of `confirm_transaction` above — same
+    `TermAlreadyResolvedException` -> 409 mapping and verb-suffix sibling
+    route naming (`.../confirm-transaction` / `.../cancel-transaction`),
+    per `standards/backend/api.md`."""
+    try:
+        reservation = await service.cancel_transaction(db, principal, reservation_id, body.term_id)
+    except TermAlreadyResolvedException:
+        body_out = CancelTransactionResponse(
+            reservation_id=reservation_id, status="ALREADY_RESOLVED", already_resolved=True
+        )
+        return JSONResponse(status_code=409, content=jsonable_encoder(body_out.model_dump()))
+    return CancelTransactionResponse(
         reservation_id=reservation_id, status=reservation.status.value, already_resolved=False
     )

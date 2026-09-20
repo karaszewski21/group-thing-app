@@ -2,13 +2,18 @@ import { Link } from "react-router-dom";
 import { BoxIcon, BuildingIcon, CalendarPlusIcon, GiftIcon } from "../panelIcons";
 import { HintCard } from "../panelComponents";
 import {
-  capitalize,
   dayMonth,
   ITEM_MODE_STYLE,
   ITEM_MODES,
   termPublicPath,
   termTime,
 } from "../panelHelpers";
+
+const ITEM_MODE_INFINITIVE_LABEL: Record<(typeof ITEM_MODES)[number], string> = {
+  "wypożyczę": "Wypożyczyć",
+  "oddam": "Oddać",
+  "zamienię": "Zamienić",
+};
 import { usePanelData } from "../panelDataStore";
 
 export function HomeView() {
@@ -235,11 +240,14 @@ export function HomeView() {
             </div>
 
             <div className="mt-3.5 flex flex-col gap-3.5 rounded-[22px] border border-line bg-paper p-5">
-              <h3 className="text-base font-semibold text-ink">Twoje rzeczy</h3>
-
-              <div className="flex items-center justify-between gap-2.5">
-                <span className="text-[11.5px] font-extrabold uppercase tracking-wide text-ink-soft">Dla innych</span>
-                <button onClick={() => setView("rzeczy")} className="text-xs font-extrabold text-mint hover:underline">
+              <div className="flex items-start justify-between gap-2.5">
+                <div>
+                  <h3 className="text-base font-semibold text-ink">Twoje rzeczy</h3>
+                  <p className="mt-0.5 text-[12.5px] text-ink-soft">
+                    Rzeczy, które chcesz wypożyczyć, oddać lub zamienić
+                  </p>
+                </div>
+                <button onClick={() => setView("rzeczy")} className="flex-none text-xs font-extrabold text-mint hover:underline">
                   Zobacz →
                 </button>
               </div>
@@ -252,17 +260,20 @@ export function HomeView() {
                         <BoxIcon c={style.c} />
                       </span>
                       <b className="font-serif text-[27px] leading-none" style={{ color: style.c }}>{itemCounts[m]}</b>
-                      <small className="text-[11.5px] font-extrabold" style={{ color: style.c }}>{capitalize(m)}</small>
+                      <small className="text-[11.5px] font-extrabold" style={{ color: style.c }}>{ITEM_MODE_INFINITIVE_LABEL[m]}</small>
                     </div>
                   );
                 })}
               </div>
+            </div>
 
-              <div className="h-px bg-line" />
-
-              <div className="flex items-center justify-between gap-2.5">
-                <span className="text-[11.5px] font-extrabold uppercase tracking-wide text-ink-soft">Od innych</span>
-                <button onClick={() => setView("podarki")} className="text-xs font-extrabold text-mint hover:underline">
+            <div className="mt-3.5 flex flex-col gap-3.5 rounded-[22px] border border-line bg-paper p-5">
+              <div className="flex items-start justify-between gap-2.5">
+                <div>
+                  <h3 className="text-base font-semibold text-ink">Rzeczy wypożyczone</h3>
+                  <p className="mt-0.5 text-[12.5px] text-ink-soft">Rzeczy, które wypożyczyłeś od innych</p>
+                </div>
+                <button onClick={() => setView("podarki")} className="flex-none text-xs font-extrabold text-mint hover:underline">
                   Zobacz →
                 </button>
               </div>
@@ -272,7 +283,7 @@ export function HomeView() {
                     <GiftIcon c="#245F61" />
                   </span>
                   <b className="font-serif text-[27px] leading-none" style={{ color: "#245F61" }}>{borrowedItems.length}</b>
-                  <small className="text-[11.5px] font-extrabold" style={{ color: "#245F61" }}>{capitalize("pożyczone")}</small>
+                  <small className="text-[11.5px] font-extrabold" style={{ color: "#245F61" }}>Wypożyczone</small>
                 </div>
               </div>
             </div>

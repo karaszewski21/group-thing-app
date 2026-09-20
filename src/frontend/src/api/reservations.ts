@@ -8,6 +8,14 @@ export interface ReservationResponse {
   item_id: number;
   reservation_type: ReservationType;
   reserved_by_user_id: number;
+  // Optional here (not on the actual backend response, which always sets
+  // it — see `circulation/schemas.py`'s `ReservationResponse.term_id`)
+  // purely so pre-existing mocked `ReservationResponse` object literals in
+  // `KragGrupyPage.test.tsx`/`PanelPage.test.tsx` (written before this
+  // field existed on the frontend type) keep compiling without an
+  // unrelated, out-of-scope rewrite. `RzeczyView.tsx`'s term-end
+  // resolution (bug #4c) is the one real caller that reads it.
+  term_id?: number;
   paired_reservation_id: number | null;
   reserved_at: string;
   expires_at: string | null;
@@ -81,4 +89,18 @@ export function confirmTransaction(
   request: ConfirmTransactionRequest,
 ): Promise<ConfirmTransactionResponse> {
   return api.post(`/reservations/${reservationId}/confirm-transaction`, request);
+}
+
+/** Mirrors `ConfirmTransactionRequest`/`ConfirmTransactionResponse` exactly
+ * — same `term_id`-gated shared gating helper backend-side
+ * (`_resolve_transaction_reservations_for_action`), same
+ * `already_resolved`-discriminated 409 race-loss shape. */
+export type CancelTransactionRequest = ConfirmTransactionRequest;
+export type CancelTransactionResponse = ConfirmTransactionResponse;
+
+export function cancelTransaction(
+  reservationId: number,
+  request: CancelTransactionRequest,
+): Promise<CancelTransactionResponse> {
+  return api.post(`/reservations/${reservationId}/cancel-transaction`, request);
 }

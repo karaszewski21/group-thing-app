@@ -46,7 +46,7 @@ _term_end_scheduler: AsyncIOScheduler | None = None
 # How often the term-end scan job runs — a plain constant, not a
 # configurable-interval settings system, per
 # `standards/global/minimal-implementation.md`.
-_TERM_END_SCAN_INTERVAL_MINUTES = 5
+_TERM_END_SCAN_INTERVAL_MINUTES = 1
 
 
 async def _run_term_end_scan() -> None:

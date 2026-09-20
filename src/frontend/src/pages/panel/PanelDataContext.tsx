@@ -1,6 +1,6 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { ReactNode } from "react";
-import { Link, useNavigate, useParams } from "react-router-dom";
+import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
 import { useAuth } from "../../auth/AuthContext";
 import {
   getMyNotifications,
@@ -31,6 +31,7 @@ import {
   type MyAttendanceResponse,
 } from "../../api/groups";
 import {
+  ACTIVE_LOCK_BALANCE_STATUSES,
   createInventory,
   deleteInventoryItem,
   getInventories,
@@ -51,7 +52,7 @@ import {
 } from "../../api/reservations";
 import {
   acceptSwapProposal,
-  getBrowseTermItemListings,
+  getMyTakenTermItemListings,
   getMyTermItemListings,
   rejectSwapProposal,
 } from "../../api/termItemListings";
@@ -132,7 +133,7 @@ export interface PendingSwapAction {
 /** The post-term-end confirm-race prompt — fully wired to
  * `confirmTransaction`, since (unlike a bare `SwapProposal`) the
  * reservation needing confirmation IS resolvable client-side from the
- * term's existing `getMyTermItemListings`/`getBrowseTermItemListings` (see
+ * term's existing `getMyTermItemListings`/`getMyTakenTermItemListings` (see
  * `resolvePendingReservationId`). */
 export interface PendingConfirmAction {
   kind: "TERM_CONFIRMATION_NEEDED";
@@ -153,25 +154,35 @@ function parseTermIdFromLinkPath(linkPath: string | null): number | null {
 }
 
 /** Resolves the `Reservation.id` the caller (`myPartyId`) needs to
- * `confirmTransaction` on `termId`, purely from the two existing
- * term-item-listing endpoints (no new backend surface) — mirrors
- * `KragGrupyPage.tsx`'s own `confirmActionFor`, generalized to run without
- * that page's local `reservationsById` cache since the global modal can
- * render on any route. Checks the taker side first (a still-open
- * `resolved_reservation_id` on a listing the caller took), then the
- * lister side of an accepted SWAP (the paired leg on one of the caller's
- * own listings) — `null` when neither applies (nothing left to confirm,
- * or it doesn't belong to this caller). */
+ * `confirmTransaction` on `termId`, purely from existing term-item-listing
+ * endpoints (no new backend surface) — mirrors `KragGrupyPage.tsx`'s own
+ * `confirmActionFor`, generalized to run without that page's local
+ * `reservationsById` cache since the global modal can render on any route.
+ *
+ * Checks the taker side first, via `getMyTakenTermItemListings` — unlike
+ * `getBrowseTermItemListings` (which excludes RESERVED/taken items and
+ * short-circuits to `[]` entirely once the Term has occurred, per
+ * `list_browsable_term_item_listings`), this endpoint resolves the caller's
+ * own active taken reservations independent of availability status, so it
+ * still works for the post-term-end `TERM_CONFIRMATION_NEEDED` prompt.
+ *
+ * Then checks the lister/owner side of the caller's own listings: an
+ * accepted SWAP resolves via its paired leg, while GIFT/LEND resolve
+ * directly to the caller's own reservation id (symmetric to the SWAP
+ * branch — the owner IS the party who must confirm handoff for those
+ * types, there's no separate paired reservation to look up).
+ *
+ * `null` when neither side applies (nothing left to confirm, or it
+ * doesn't belong to this caller). */
 async function resolvePendingReservationId(
   termId: number,
   myPartyId: number,
 ): Promise<number | null> {
-  const [mine, browse] = await Promise.all([
+  const [mine, taken] = await Promise.all([
     getMyTermItemListings(termId),
-    getBrowseTermItemListings(termId),
+    getMyTakenTermItemListings(termId),
   ]);
-
-  const takenRow = browse.find(
+  const takenRow = taken.find(
     (r) => r.taken_by_party_id === myPartyId && r.resolved_reservation_id != null,
   );
   if (takenRow?.resolved_reservation_id != null) {
@@ -184,11 +195,18 @@ async function resolvePendingReservationId(
   for (const row of mine) {
     if (row.resolved_reservation_id == null) continue;
     const primary = await getReservation(row.resolved_reservation_id);
-    if (primary.reservation_type === "SWAP" && primary.paired_reservation_id != null) {
+    if (primary.reservation_type === "SWAP") {
+      if (primary.paired_reservation_id == null) continue;
       const paired = await getReservation(primary.paired_reservation_id);
       if (paired.status !== "FULFILLED" && paired.status !== "CANCELLED") {
         return paired.id;
       }
+    } else if (
+      (primary.reservation_type === "GIFT" || primary.reservation_type === "LEND") &&
+      primary.status !== "FULFILLED" &&
+      primary.status !== "CANCELLED"
+    ) {
+      return primary.id;
     }
   }
   return null;
@@ -542,6 +560,32 @@ function usePanelDataValue() {
     void load();
   }, [load]);
 
+  // Bug #3 (cache refresh, structural fix): a term-page confirmation
+  // (KragGrupyPage) doesn't otherwise refresh this provider's data, so the
+  // panel can show stale pledges/items/notifications after the user
+  // navigates back here. Silently reload whenever the pathname *transitions*
+  // onto a /panel/* route from somewhere else (re-entry after navigating
+  // away and back — e.g. from KragGrupyPage). The very first render at a
+  // panel route is deliberately excluded: that case is already covered by
+  // the plain mount effect above (non-silent, shows the loading screen),
+  // and firing this one too would double every ordinary panel-open network
+  // call. `prevPathnameRef` starts `null` (no observed pathname yet) so the
+  // first run only records the pathname instead of treating it as a
+  // transition; switching between panel sections (e.g. /panel ->
+  // /panel/rzeczy) also doesn't re-fire this, since both are /panel/* and
+  // `wasPanelRoute` stays true across that change.
+  const prevPathnameRef = useRef<string | null>(null);
+  const location = useLocation();
+  useEffect(() => {
+    const isPanelRoute = location.pathname === "/panel" || location.pathname.startsWith("/panel/");
+    const prevPathname = prevPathnameRef.current;
+    const wasPanelRoute = prevPathname !== null && (prevPathname === "/panel" || prevPathname.startsWith("/panel/"));
+    prevPathnameRef.current = location.pathname;
+    if (isPanelRoute && !wasPanelRoute && prevPathname !== null) {
+      void load({ silent: true });
+    }
+  }, [location.pathname, load]);
+
   useEffect(() => {
     if (!toast) return;
     const t = setTimeout(() => setToast(""), 2200);
@@ -655,6 +699,11 @@ function usePanelDataValue() {
     setPendingActionBusyId(notificationId);
     try {
       await acceptSwapProposal(proposalId);
+      // Same cache-refresh bug class as confirmPendingAction (Bug #3):
+      // accepting a swap locks/reassigns items, which "Moje rzeczy" needs
+      // to reflect (locked toggle state, item list) without a manual
+      // reload.
+      await load({ silent: true });
       dismissPendingAction(notificationId);
       showToast("Zamiana zaakceptowana");
     } catch (err) {
@@ -706,10 +755,23 @@ function usePanelDataValue() {
     try {
       const reservationId = await resolvePendingReservationId(termId, profile.party_id);
       if (reservationId === null) {
-        showToast("Nie znaleziono transakcji do potwierdzenia");
+        // resolvePendingReservationId only ever omits an ACTIVE reservation
+        // (it explicitly skips FULFILLED/CANCELLED ones) — since this party
+        // received a TERM_CONFIRMATION_NEEDED notification for an active
+        // reservation in the first place, null here means the other party
+        // already confirmed/resolved it in the meantime, not "nothing to
+        // confirm". Treat it the same as the backend's own already-resolved
+        // 409, instead of a generic toast that left the notification stuck
+        // (never dismissed) so the modal kept reappearing.
+        setAlreadyResolvedIds((prev) => new Set(prev).add(notificationId));
         return;
       }
       await confirmTransaction(reservationId, { term_id: termId });
+      // Bug #3 (cache refresh): matches every sibling mutation handler's
+      // convention (e.g. withdrawMyPledge) — without this, the panel's
+      // pledges/items/notifications stayed stale until the next unrelated
+      // reload.
+      await load({ silent: true });
       dismissPendingAction(notificationId);
       showToast("Potwierdzono");
     } catch (err) {
@@ -849,6 +911,11 @@ function usePanelDataValue() {
   }
 
   async function setItemMode(itemId: number, mode: ItemMode) {
+    // Defense-in-depth: `RzeczyView` already disables the toggle buttons
+    // while an item is locked (Bug #1 fix), but re-check here too, since
+    // the client-side disable is UX, not the sole guard.
+    const balance = await getInventoryItemBalance(itemId);
+    if (ACTIVE_LOCK_BALANCE_STATUSES.includes(balance.status)) return;
     const next = itemModes[itemId] === mode ? null : mode;
     setItemError(null);
     try {

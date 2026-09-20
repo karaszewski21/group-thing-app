@@ -1,6 +1,7 @@
+import { useMemo } from "react";
 import { Link } from "react-router-dom";
 import { BoxIcon, PencilIcon, TrashIcon } from "../panelIcons";
-import { dayMonth, termPublicPath, termTime } from "../panelHelpers";
+import { dayMonth, termPublicPath, termTime, type TermWithNeeded } from "../panelHelpers";
 import { usePanelData } from "../panelDataStore";
 
 export function SpotkaniaView() {
@@ -8,6 +9,7 @@ export function SpotkaniaView() {
     isOrganizer,
     myGroups,
     terms,
+    myAttendances,
     groupExtras,
     renamingCircle,
     circleNameDraft,
@@ -22,6 +24,46 @@ export function SpotkaniaView() {
     handleRemoveGroup,
     organizerTermCard,
   } = usePanelData();
+
+  // GUEST only: an RSVP on the public term page never creates a `Membership`
+  // row, so `terms` (built from Circle-membership in PanelDataContext) alone
+  // misses any session the caller merely signed up for without ever joining
+  // that Circle — this merges those in, LOCAL to this view only (not lifted
+  // into the shared `terms` context state, which Home's own "Najbliższe
+  // terminy" section also reads — merging there would duplicate the same
+  // card under both that section and Home's separate "Zapisane zajęcia").
+  // Built directly from `MyAttendanceResponse`, which already carries
+  // everything this card needs (date, circle name, organizer slug) with no
+  // second request, per that type's own docstring; `description`/
+  // `neededItems` are unavailable in that shape and degrade to empty/null.
+  const guestTerms = useMemo<TermWithNeeded[]>(() => {
+    if (isOrganizer) return terms;
+    const coveredTermIds = new Set(terms.map((t) => t.term.id));
+    const extraTerms: TermWithNeeded[] = myAttendances
+      .filter((a) => !coveredTermIds.has(a.term_id))
+      .map((attendance) => ({
+        term: {
+          id: attendance.term_id,
+          circle_group_id: attendance.group_id,
+          occurs_on: attendance.occurs_on,
+          description: null,
+          created_at: attendance.occurs_on,
+          updated_at: attendance.occurs_on,
+        },
+        group: {
+          id: attendance.group_id,
+          party_id: attendance.group_id,
+          name: attendance.group_name,
+          organizer_slug: attendance.organizer_slug,
+          created_at: attendance.occurs_on,
+          updated_at: attendance.occurs_on,
+        },
+        neededItems: [],
+      }));
+    return [...terms, ...extraTerms].sort((a, b) =>
+      a.term.occurs_on.localeCompare(b.term.occurs_on),
+    );
+  }, [isOrganizer, terms, myAttendances]);
 
   if (isOrganizer) {
     return (
@@ -148,18 +190,18 @@ export function SpotkaniaView() {
       <div className="mb-3.5">
         <h2 className="text-[19px] font-semibold text-ink">Spotkania</h2>
         <small className="text-[12.5px] text-ink-soft">
-          {terms.length === 0
+          {guestTerms.length === 0
             ? "Nie jesteś jeszcze zapisana na żadne zajęcia"
-            : `${terms.length} ${terms.length === 1 ? "termin, na który jesteś zapisana" : "terminy, na które jesteś zapisana"}`}
+            : `${guestTerms.length} ${guestTerms.length === 1 ? "termin, na który jesteś zapisana" : "terminy, na które jesteś zapisana"}`}
         </small>
       </div>
       <div className="rounded-[22px] border border-line bg-paper p-5">
-        {terms.length === 0 && (
+        {guestTerms.length === 0 && (
           <div className="rounded-2xl border-[1.5px] border-dashed border-line py-[26px] text-center text-[13.5px] text-ink-soft">
             Nie jesteś jeszcze zapisana na żadne zajęcia.
           </div>
         )}
-        {terms.map(({ term, group, neededItems }) => {
+        {guestTerms.map(({ term, group, neededItems }) => {
           const { day, month } = dayMonth(term.occurs_on);
           const time = termTime(term.occurs_on);
           return (
