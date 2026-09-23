@@ -1,5 +1,4 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
 import { ApiError } from "../../api/client";
 import { mergeAnonymousProfile } from "../../api/groups";
 import { useAuth } from "../../auth/AuthContext";
@@ -20,7 +19,6 @@ export function AccountMergeForm({ userProfileId }: { userProfileId: number }) {
   const [busy, setBusy] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
   const auth = useAuth();
-  const navigate = useNavigate();
 
   async function handleSubmit() {
     if (!email.trim() || !password) {
@@ -35,8 +33,9 @@ export function AccountMergeForm({ userProfileId }: { userProfileId: number }) {
         email: email.trim(),
         password,
       });
+      // Stays on the term page: the new token re-resolves access in
+      // `TermAccessBoundary`, which re-renders it as the logged-in visitor.
       auth.applyExternalToken(token);
-      navigate("/panel");
     } catch (err) {
       // Failure (409 duplicate-email or already-merged) shows an inline
       // message without clearing "guest_profile_id" — the RSVP state

@@ -15,9 +15,18 @@ interface AuthGuardProps {
    * `navigate("/onboarding")` in RegisterPage's submit handler) can never
    * disagree with — and beat — the intended post-registration destination. */
   authenticatedRedirect?: string;
+  /** Pass a `?returnTo=` on to `authenticatedRedirect` instead of jumping
+   * straight to it — `/register` uses this so onboarding still runs before
+   * the visitor is sent back. */
+  forwardReturnTo?: boolean;
 }
 
-export function AuthGuard({ children, requireAuth = true, authenticatedRedirect = "/" }: AuthGuardProps) {
+export function AuthGuard({
+  children,
+  requireAuth = true,
+  authenticatedRedirect = "/",
+  forwardReturnTo = false,
+}: AuthGuardProps) {
   const { token } = useAuth();
   const location = useLocation();
   const [searchParams] = useSearchParams();
@@ -28,7 +37,11 @@ export function AuthGuard({ children, requireAuth = true, authenticatedRedirect 
   }
 
   if (!requireAuth && token) {
-    const returnTo = searchParams.get("returnTo") || authenticatedRedirect;
+    const returnTo = searchParams.get("returnTo");
+    if (!returnTo) return <Navigate to={authenticatedRedirect} replace />;
+    if (forwardReturnTo) {
+      return <Navigate to={`${authenticatedRedirect}?returnTo=${encodeURIComponent(returnTo)}`} replace />;
+    }
     return <Navigate to={returnTo} replace />;
   }
 

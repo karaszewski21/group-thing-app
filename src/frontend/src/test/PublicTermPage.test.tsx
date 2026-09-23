@@ -121,11 +121,6 @@ const circleWithListing: groupsApi.PublicCircleResponse = {
   },
 };
 
-const privateCircle: groupsApi.PublicCircleResponse = {
-  ...circleWithTerm,
-  visibility: "PRIVATE",
-};
-
 function familyOut(overrides: Partial<familiesApi.FamilyOut> = {}): familiesApi.FamilyOut {
   return {
     id: 1,
@@ -221,7 +216,10 @@ describe("PublicTermPage", () => {
       "href",
       `/login?returnTo=${encodeURIComponent(CANONICAL_PATH)}`,
     );
-    expect(screen.getByRole("link", { name: "Zarejestruj się" })).toHaveAttribute("href", "/register");
+    expect(screen.getByRole("link", { name: "Zarejestruj się" })).toHaveAttribute(
+      "href",
+      `/register?returnTo=${encodeURIComponent(CANONICAL_PATH)}`,
+    );
     expect(screen.queryByLabelText("Imię")).not.toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "Zapisz się jako gość" }));
@@ -267,36 +265,6 @@ describe("PublicTermPage", () => {
       await screen.findByRole("button", { name: /Zapisz się na zajęcia/ }),
     ).toBeInTheDocument();
     expect(screen.queryByText(/✓ Zapisano!/)).not.toBeInTheDocument();
-  });
-
-  it("a logged-out visitor on a PRIVATE group's 'Dołącz na stałe' card sees a login/register prompt, never JoinPrivateGroupDialog", async () => {
-    vi.mocked(groupsApi.getPublicCircle).mockResolvedValue(privateCircle);
-
-    renderAt(CANONICAL_PATH);
-
-    expect(await screen.findByText(/grupa jest prywatna/)).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Dołącz na stałe" })).not.toBeInTheDocument();
-
-    expect(screen.getByRole("link", { name: "Zaloguj się" })).toHaveAttribute(
-      "href",
-      `/login?returnTo=${encodeURIComponent(CANONICAL_PATH)}`,
-    );
-    expect(screen.getByRole("link", { name: "Zarejestruj się" })).toHaveAttribute("href", "/register");
-
-    expect(screen.queryByRole("dialog", { name: "Dołącz na stałe do grupy" })).not.toBeInTheDocument();
-    expect(groupsApi.joinPrivateGroup).not.toHaveBeenCalled();
-  });
-
-  it("a logged-in visitor on a PRIVATE group still sees the existing 'Dołącz na stałe' → JoinPrivateGroupDialog flow", async () => {
-    mockAuthValue = { token: "tok", displayName: "Ania" };
-    vi.mocked(groupsApi.getPublicCircle).mockResolvedValue(privateCircle);
-
-    renderAt(CANONICAL_PATH);
-
-    fireEvent.click(await screen.findByRole("button", { name: "Dołącz na stałe" }));
-
-    expect(await screen.findByRole("dialog", { name: "Dołącz na stałe do grupy" })).toBeInTheDocument();
-    expect(screen.queryByRole("link", { name: "Zaloguj się" })).not.toBeInTheDocument();
   });
 
   it("shows 'Nie znaleziono' for a mismatched / nonexistent term and does not redirect", async () => {
@@ -573,7 +541,7 @@ describe("PublicTermPage", () => {
       expect(termItemListingsApi.takeTermItemListing).not.toHaveBeenCalled();
     });
 
-    it("successful submit stores the token via applyExternalToken and navigates to /panel", async () => {
+    it("successful submit stores the token via applyExternalToken and stays on the term page", async () => {
       groupsApi.writeGuestProfile(GUEST_KEY, 55);
       vi.mocked(groupsApi.getPublicCircle).mockResolvedValue(circleWithTerm);
       vi.mocked(groupsApi.mergeAnonymousProfile).mockResolvedValue({ token: "jwt-token", party_id: 9 });
@@ -593,7 +561,7 @@ describe("PublicTermPage", () => {
         }),
       );
       await waitFor(() => expect(mockApplyExternalToken).toHaveBeenCalledWith("jwt-token"));
-      expect(mockNavigate).toHaveBeenCalledWith("/panel");
+      expect(mockNavigate).not.toHaveBeenCalled();
     });
 
     it("a 409 duplicate-email/already-merged response shows an inline error and keeps guest_profile_id stored", async () => {
@@ -614,7 +582,7 @@ describe("PublicTermPage", () => {
         await screen.findByText("Ten email jest już zarejestrowany, zaloguj się"),
       ).toBeInTheDocument();
       expect(mockApplyExternalToken).not.toHaveBeenCalled();
-      expect(mockNavigate).not.toHaveBeenCalledWith("/panel");
+      expect(mockNavigate).not.toHaveBeenCalled();
       expect(groupsApi.readValidGuestProfile(GUEST_KEY)).toBe(55);
     });
   });
@@ -700,7 +668,7 @@ describe("PublicTermPage", () => {
       );
       expect(within(dialog).getByRole("link", { name: "Zarejestruj się" })).toHaveAttribute(
         "href",
-        "/register",
+        `/register?returnTo=${encodeURIComponent(CANONICAL_PATH)}`,
       );
       expect(pledgesApi.createPledge).not.toHaveBeenCalled();
     });
@@ -789,41 +757,9 @@ describe("PublicTermPage", () => {
 });
 
 // Task Group 6 — unified term page component + generalized auth gate.
-// `TermPageView` is the presentational tree shared by `TermPage`
-// (private) and `PublicTermView` (public); `gateAction` is the single
-// wrapper every action handler on either view routes through.
+// `TermPageView` is the presentational tree shared by `PrivateTermView`
+// and `PublicTermView`; `gateAction` wraps the public view's actions.
 describe("TermPageView (unified term page) + gateAction (generalized auth gate)", () => {
-  it("renders identical listing action buttons for a logged-in and a not-logged-in viewer", () => {
-    const browseListingsSection = {
-      heading: "Rzeczy do wymiany",
-      rows: [
-        {
-          key: 1,
-          title: <strong>Rowerek</strong>,
-          subtitle: "Wystawia: Ola",
-          actions: [
-            { key: "LEND", label: "Pożycz", onClick: () => {} },
-            { key: "SWAP", label: "Zamień", onClick: () => {} },
-          ],
-        },
-      ],
-    };
-
-    const loggedOut = render(
-      <TermPageView isLoggedIn={false} browseListingsSection={browseListingsSection} />,
-    );
-    const loggedOutLabels = loggedOut.getAllByRole("button").map((b) => b.textContent);
-    loggedOut.unmount();
-
-    const loggedIn = render(
-      <TermPageView isLoggedIn={true} browseListingsSection={browseListingsSection} />,
-    );
-    const loggedInLabels = loggedIn.getAllByRole("button").map((b) => b.textContent);
-
-    expect(loggedOutLabels).toEqual(["Pożycz", "Zamień"]);
-    expect(loggedInLabels).toEqual(loggedOutLabels);
-  });
-
   it("gateAction: while logged out, clicking opens the gate instead of calling the real handler", () => {
     const openGate = vi.fn();
     const realHandler = vi.fn();
@@ -851,7 +787,6 @@ describe("TermPageView (unified term page) + gateAction (generalized auth gate)"
   it("renders correctly when fed needed-items data shaped like useKragGrupy (private): family avatar + toggle action", () => {
     render(
       <TermPageView
-        isLoggedIn={true}
         neededItemsSection={{
           heading: "Kto co przynosi",
           rows: [
@@ -878,7 +813,6 @@ describe("TermPageView (unified term page) + gateAction (generalized auth gate)"
   it("renders correctly when fed needed-items data shaped like usePublicKragGrupy (public): no avatar, single gated pledge action", () => {
     const { container } = render(
       <TermPageView
-        isLoggedIn={false}
         neededItemsSection={{
           heading: "Potrzebne rzeczy",
           rows: [

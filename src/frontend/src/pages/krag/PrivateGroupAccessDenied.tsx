@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
-import { Link, useLocation, useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
+import { AuthGateLinks } from "../../components/krag/AuthGateSheet";
 import { JoinPrivateGroupDialog } from "../../components/krag/JoinPrivateGroupDialog";
 import type { PublicCircleResponse } from "../../api/groups";
 import { CSS } from "./TermPage";
@@ -32,7 +33,6 @@ export function PrivateGroupAccessDenied({
   isLoggedIn: boolean;
   onJoined: () => void;
 }) {
-  const location = useLocation();
   const navigate = useNavigate();
   const [showJoinDialog, setShowJoinDialog] = useState(false);
   const [joined, setJoined] = useState(false);
@@ -85,30 +85,10 @@ export function PrivateGroupAccessDenied({
                 </button>
               ) : (
                 // Logged-out visitor: no guest path for a standing membership
-                // (unlike the term-scoped RSVP gate), so this reuses the same
-                // login/register `<Link>` markup pattern used elsewhere on
-                // this page's other gates.
+                // (unlike the term-scoped RSVP gate), so the login/register
+                // choice sits inline in the card instead of a bottom sheet.
                 <div style={{ marginTop: 12 }}>
-                  <Link
-                    to={`/login?returnTo=${encodeURIComponent(location.pathname)}`}
-                    className="kg-btn-primary"
-                    style={{
-                      display: "block",
-                      textAlign: "center",
-                      width: "100%",
-                      padding: "11px 14px",
-                      fontSize: 13,
-                      marginBottom: 10,
-                    }}
-                  >
-                    Zaloguj się
-                  </Link>
-                  <p style={{ fontSize: 12, color: "var(--ink-soft)", textAlign: "center" }}>
-                    Nie masz konta?{" "}
-                    <Link to="/register" style={{ fontWeight: 700, color: "var(--mint, #1b8168)" }}>
-                      Zarejestruj się
-                    </Link>
-                  </p>
+                  <AuthGateLinks />
                 </div>
               )}
             </>

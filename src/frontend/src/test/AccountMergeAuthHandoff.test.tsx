@@ -78,10 +78,10 @@ describe("account-merge -> real AuthContext.applyExternalToken -> authenticated 
     // 401 would), not just that a token string was stored.
     await waitFor(() => expect(peopleApi.getMyProfile).toHaveBeenCalled());
 
-    expect(mockNavigate).toHaveBeenCalledWith("/panel");
+    expect(mockNavigate).not.toHaveBeenCalled();
   });
 
-  it("when the subsequent getMyProfile() call fails, the merge itself is unaffected — token stays stored and navigation still happens", async () => {
+  it("when the subsequent getMyProfile() call fails, the merge itself is unaffected — token stays stored and the visitor stays on the page", async () => {
     vi.mocked(groupsApi.mergeAnonymousProfile).mockResolvedValue({
       token: "merged-jwt-token-2",
       party_id: 10,
@@ -96,6 +96,6 @@ describe("account-merge -> real AuthContext.applyExternalToken -> authenticated 
 
     await waitFor(() => expect(localStorage.getItem("auth_token")).toBe("merged-jwt-token-2"));
     await waitFor(() => expect(peopleApi.getMyProfile).toHaveBeenCalled());
-    expect(mockNavigate).toHaveBeenCalledWith("/panel");
+    expect(mockNavigate).not.toHaveBeenCalled();
   });
 });

@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "../auth/AuthContext";
 import { getLeadershipsForPerson, getMyProfile } from "../api/people";
 import { OnboardingWizard } from "../components/onboarding/OnboardingWizard";
@@ -18,6 +18,7 @@ type Role = "GUEST" | "ORGANIZER";
 export function OnboardingPage() {
   const { registeredRole } = useAuth();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const [role, setRole] = useState<Role | null>(
     registeredRole ? (registeredRole.role === "ORGANIZER" ? "ORGANIZER" : "GUEST") : null,
   );
@@ -44,8 +45,8 @@ export function OnboardingPage() {
     };
   }, [role]);
 
-  function goToPanel() {
-    navigate("/panel", { replace: true });
+  function finishOnboarding() {
+    navigate(searchParams.get("returnTo") || "/panel", { replace: true });
   }
 
   if (loading || role === null) {
@@ -59,8 +60,8 @@ export function OnboardingPage() {
   return (
     <OnboardingWizard
       steps={role === "ORGANIZER" ? organizerSteps : guestSteps}
-      onSkip={goToPanel}
-      onComplete={goToPanel}
+      onSkip={finishOnboarding}
+      onComplete={finishOnboarding}
     />
   );
 }

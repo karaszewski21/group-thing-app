@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { gateAction } from "../../utils/actionGate";
-import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
+import { Link, useNavigate, useParams } from "react-router-dom";
 import { useKragGrupy } from "../../hooks/useKragGrupy";
 import { usePublicKragGrupy } from "../../hooks/usePublicKragGrupy";
 import { PrivateGroupAccessDenied } from "./PrivateGroupAccessDenied";
@@ -20,9 +20,7 @@ import { familyColor, familyInitials } from "../../components/shared/Avatar";
 import { GroupVisualization } from "./GroupVisualization";
 import { RsvpDialog } from "../../components/krag/RsvpDialog";
 import { RsvpDialogLoggedIn } from "../../components/krag/RsvpDialogLoggedIn";
-import { JoinPrivateGroupDialog } from "../../components/krag/JoinPrivateGroupDialog";
-import { RsvpGateDialog } from "../../components/krag/RsvpGateDialog";
-import { PledgeGateDialog } from "../../components/krag/PledgeGateDialog";
+import { AuthGateSheet } from "../../components/krag/AuthGateSheet";
 import { AccountMergeForm } from "../../components/krag/AccountMergeForm";
 import { useAuth } from "../../auth/AuthContext";
 import {
@@ -173,13 +171,11 @@ export const CSS = `
 /** Shared presentational tree for the needed-items and listings sections —
  * the parts of the term page that are structurally identical whether the
  * data came from `useKragGrupy` (private) or `usePublicKragGrupy` (public).
- * Both callers build `*RowVM`s from their own hook's data and their own
- * gate-wrapped (`gateAction`) handlers; a not-logged-in viewer is fed the
- * exact same rows/buttons as a logged-in one — only the wrapped handlers
- * behave differently on click. `myListingsSection` is private-only (the
- * public view never has "your own" listings for a term it hasn't joined). */
+ * Both callers build `*RowVM`s from their own hook's data and handlers (the
+ * public view's `gateAction`-wrapped, so a not-logged-in viewer sees the same
+ * buttons). `myListingsSection` is private-only (the public view never has
+ * "your own" listings for a term it hasn't joined). */
 export interface TermPageViewProps {
-  isLoggedIn: boolean;
   neededItemsSection?: TermSectionVM<NeededItemRowVM>;
   myListingsSection?: TermSectionVM<ListingRowVM>;
   browseListingsSection?: TermSectionVM<ListingRowVM>;
@@ -200,44 +196,20 @@ export function TermPageView({ neededItemsSection, myListingsSection, browseList
   );
 }
 
-/** Route element for `/:organizationSlug/grupa/:groupId/term/:termId` — the
- * SOLE URL for a group/circle screen (the former separate `/krag/:groupId`
- * private route and `/krag` entry-resolver route were removed; this route
- * now serves both audiences from one address). Branches purely on auth
- * presence (`token`), matching the coarse-READ authorization this app has
- * always used for the private view (any logged-in principal, not just this
- * circle's own members, per `AUTHORIZATION_MATRIX`'s blanket `GET
- * /api/groups(/.*)?` row) — a logged-in visitor gets the full member
- * experience (family orbit, exchange cards, layout switcher-free read of
- * `group.layout_mode`); everyone else gets the anonymous-safe public view. */
-/** Route element for `/:organizationSlug/grupa/:groupId/term/:termId`.
- * Owns exactly one decision — can this caller see this Circle's content —
- * resolved server-side via `getGroupAccess` (`GroupAccessResponse`), not by
- * raw auth-token presence. Delegates the decision itself to
- * `TermAccessBoundary`, and renders `PrivateTermView`/`PublicTermView`
- * (unchanged internally) or `PrivateGroupAccessDenied` accordingly. */
+/** Route element for `/:organizationSlug/grupa/:groupId/term/:termId`. */
 export function TermPage() {
   return <TermAccessBoundary />;
 }
 
 /**
- * Replaces the previous `token ? <PrivateTermView /> : <PublicTermView />`
- * heuristic, which treated ANY logged-in principal as belonging to every
- * Circle — both a real bug (a `PRIVATE` group's content was reachable by an
- * unrelated logged-in visitor, since `PrivateTermView`'s own data hook
- * relies on the backend's blanket authenticated-READ row, not a
- * membership check) and the root cause of a related one already patched
- * ad hoc (a logged-in non-member had no way to RSVP to a `PUBLIC` group's
- * term, since `PrivateTermView` only ever supported withdrawing from a term
- * already joined). `getGroupAccess` fixes both at the source: `is_member`/
- * `is_organizer` are `False` for a non-member even while authenticated.
+ * Decides whether this caller may see the Circle's content, from the
+ * server-side `getGroupAccess` — not from auth-token presence, since a
+ * logged-in non-member must not reach a `PRIVATE` group's content.
  *
- * - `is_member || is_organizer` → `PrivateTermView` (today's full member
- *   dashboard: family orbit, exchange, layout switching, promote-members,
- *   sign-up/withdraw — unchanged).
- * - else, `PUBLIC` group → `PublicTermView` (today's anonymous-safe public
- *   page — unchanged; still separately handles its own logged-in/out RSVP
- *   gating for a non-member visitor of a `PUBLIC` group).
+ * - `is_member || is_organizer` → `PrivateTermView` (member dashboard:
+ *   family orbit, exchange, promote-members, sign-up/withdraw).
+ * - else, `PUBLIC` group → `PublicTermView` (anonymous-safe public page,
+ *   with its own logged-in/out RSVP gating).
  * - else (`PRIVATE`, not a member) → `PrivateGroupAccessDenied` — never
  *   fetches or renders any Term/family/exchange content.
  */
@@ -260,9 +232,10 @@ function TermAccessBoundary() {
       .catch(() => setState({ status: "error" }));
   }, [groupId, termId]);
 
+  // `token` re-resolves access after an in-page login (e.g. `AccountMergeForm`).
   useEffect(() => {
     fetchAccess();
-  }, [fetchAccess]);
+  }, [fetchAccess, token]);
 
   if (state.status === "loading") {
     return (
@@ -308,7 +281,6 @@ function TermAccessBoundary() {
 function PrivateTermView() {
   const params = useParams<{ groupId: string }>();
   const navigate = useNavigate();
-  const location = useLocation();
   const { displayName } = useAuth();
   const groupId = Number(params.groupId);
   const {
@@ -342,22 +314,9 @@ function PrivateTermView() {
     refetch,
   } = useKragGrupy(groupId);
 
-  // `TermPage` (the route element) only mounts this view when `token`
-  // is truthy, so this view is only ever reached while logged in —
-  // `isLoggedIn` is always true here. Routing every action through the same
-  // `gateAction` wrapper as the public view (which computes `isLoggedIn`
-  // from real auth state) keeps the two views' action-handling identical
-  // and gives Group 7's actions (propose swap / accept / reject /
-  // confirm-race) one place to register the check on either view.
-  const isLoggedIn = true;
-  const [showActionGate, setShowActionGate] = useState(false);
-  const openActionGate = () => setShowActionGate(true);
 
   const [activeFamilyId, setActiveFamilyId] = useState<number | null>(null);
   const [toast, setToast] = useState("");
-  // Only meaningful for a PRIVATE group's `InviteSlot` — a PUBLIC group has
-  // no direct join link, so this stays unused/hidden there.
-  const [showJoinDialog, setShowJoinDialog] = useState(false);
   const [busyItemId, setBusyItemId] = useState<number | null>(null);
   const [busyPledgeId, setBusyPledgeId] = useState<number | null>(null);
   const [fulfillingItemId, setFulfillingItemId] = useState<number | null>(null);
@@ -376,13 +335,8 @@ function PrivateTermView() {
   const [busyTakeListingId, setBusyTakeListingId] = useState<number | null>(null);
   const [busyConfirmListingReservationId, setBusyConfirmListingReservationId] = useState<number | null>(null);
   const [busyWithdrawAttendance, setBusyWithdrawAttendance] = useState(false);
-  // Any logged-in visitor (not just this circle's own organizer/members)
-  // lands on this view per `TermPage`'s auth-presence routing — so a
-  // PUBLIC group's not-yet-attending logged-in visitor needs its own
-  // sign-up affordance here too, mirroring `PublicTermView`'s
-  // "Zapisz się na zajęcia" button/dialog (bug: previously this view had
-  // no way to RSVP to a new term at all, only to withdraw from one already
-  // joined).
+  // A member not yet attending the current term signs up here, mirroring
+  // `PublicTermView`'s "Zapisz się na zajęcia" button/dialog.
   const [showRsvpDialog, setShowRsvpDialog] = useState(false);
 
   // ---- "Dodaj stałych członków z tego terminu" card (Group 5) ----
@@ -869,25 +823,9 @@ function PrivateTermView() {
           families={families}
           activeFamilyId={activeFamilyId}
           onSelectFamily={handleSelectFamily}
-          onInviteSlotClick={
-            group.visibility === "PRIVATE"
-              ? () => setShowJoinDialog(true)
-              : () => setToast("Zaproszenie do grupy — wkrótce")
-          }
+          onInviteSlotClick={() => setToast("Zaproszenie do grupy — wkrótce")}
           groupId={groupId}
         />
-
-        {showJoinDialog && (
-          <JoinPrivateGroupDialog
-            groupId={groupId}
-            onClose={() => setShowJoinDialog(false)}
-            onSubmitted={() => {
-              setShowJoinDialog(false);
-              setToast("Dołączono do grupy!");
-              void refetch();
-            }}
-          />
-        )}
 
         {showRsvpDialog && currentTerm && displayName && (
           <RsvpDialogLoggedIn
@@ -900,7 +838,6 @@ function PrivateTermView() {
         )}
 
         <TermPageView
-          isLoggedIn={isLoggedIn}
           neededItemsSection={{
             heading: "Kto co przynosi",
             subtitleText: currentTerm
@@ -930,9 +867,7 @@ function PrivateTermView() {
                     : `Ja to przyniosę: ${item.product_name}`,
                   active: Boolean(myPledge),
                   disabled: busyItemId === item.id,
-                  onClick: gateAction(isLoggedIn, openActionGate, () =>
-                    void handlePledgeToggle(item.id, myPledge?.id ?? null),
-                  ),
+                  onClick: () => void handlePledgeToggle(item.id, myPledge?.id ?? null),
                 });
               }
               if (showFulfillAction && fulfillingItemId !== item.id) {
@@ -1027,9 +962,7 @@ function PrivateTermView() {
                       key: "confirm",
                       label: "Potwierdź odbiór",
                       disabled: busyPledgeId === shown.id,
-                      onClick: gateAction(isLoggedIn, openActionGate, () =>
-                        void handleConfirmReceipt(shown.id, shown.resolved_reservation_id as number),
-                      ),
+                      onClick: () => void handleConfirmReceipt(shown.id, shown.resolved_reservation_id as number),
                     }
                   : null;
 
@@ -1083,9 +1016,7 @@ function PrivateTermView() {
                               key: "confirm",
                               label: "Potwierdź odbiór",
                               disabled: termGated || busyConfirmListingReservationId === confirmReservationId,
-                              onClick: gateAction(isLoggedIn, openActionGate, () =>
-                                void handleConfirmListing(confirmReservationId),
-                              ),
+                              onClick: () => void handleConfirmListing(confirmReservationId),
                             }
                           : null,
                     };
@@ -1127,9 +1058,7 @@ function PrivateTermView() {
                         label: TAKE_ACTION_LABELS[t],
                         ariaLabel: `${TAKE_ACTION_LABELS[t]}: ${row.product_name}`,
                         disabled: busyTakeListingId === row.id,
-                        onClick: gateAction(isLoggedIn, openActionGate, () =>
-                          handleTakeButtonClick(row.id, t, "browse"),
-                        ),
+                        onClick: () => handleTakeButtonClick(row.id, t, "browse"),
                       })),
                       extra,
                       statusLine: termGated ? TERM_GATE_STATUS_LINE : null,
@@ -1139,9 +1068,7 @@ function PrivateTermView() {
                               key: "confirm",
                               label: "Potwierdź odbiór",
                               disabled: termGated || busyConfirmListingReservationId === confirmReservationId,
-                              onClick: gateAction(isLoggedIn, openActionGate, () =>
-                                void handleConfirmListing(confirmReservationId),
-                              ),
+                              onClick: () => void handleConfirmListing(confirmReservationId),
                             }
                           : null,
                     };
@@ -1150,14 +1077,6 @@ function PrivateTermView() {
               : undefined
           }
         />
-
-        {showActionGate && (
-          <PledgeGateDialog
-            loginHref={`/login?returnTo=${encodeURIComponent(location.pathname)}`}
-            registerHref="/register"
-            onClose={() => setShowActionGate(false)}
-          />
-        )}
 
         {activeFamily && (
           <FamilyCard
@@ -1172,9 +1091,7 @@ function PrivateTermView() {
             swapAvailableItems={mySwapAvailableItems}
             swapOfferedItemId={takeOfferedItemId}
             onSwapOfferedItemChange={setTakeOfferedItemId}
-            onTakeButtonClick={(offerId, type) =>
-              gateAction(isLoggedIn, openActionGate, () => handleTakeButtonClick(offerId, type, "card"))()
-            }
+            onTakeButtonClick={(offerId, type) => handleTakeButtonClick(offerId, type, "card")}
             onConfirmSwap={(offerId) => void handleProposeSwap(offerId)}
             onCancelSwap={closeSwapSelect}
           />
@@ -1201,10 +1118,9 @@ function PrivateTermView() {
 export function PublicTermView() {
   const params = useParams<{ groupId: string; termId: string }>();
   const navigate = useNavigate();
-  const location = useLocation();
   const groupId = Number(params.groupId);
   // Term id comes straight from the `:termId` route param (same as `:groupId`
-  // above); absent when mounted by the term-less resolver's zero-term branch.
+  // above).
   const termId = params.termId !== undefined ? Number(params.termId) : undefined;
   const { loading, error, circle, refetch } = usePublicKragGrupy(groupId, termId);
   // Auth is read here (not in `usePublicKragGrupy`, which stays anonymous-safe):
@@ -1230,10 +1146,10 @@ export function PublicTermView() {
   // Same inline account-merge mini-form, extended (per the approved plan's
   // Frontend section 5) to the "Rzeczy do wymiany" take/swap rows — an
   // anonymous visitor with a valid stored guest profile who clicks
-  // "Pożycz"/"Zamień"/"Weź na stałe" gets this instead of `PledgeGateDialog`.
+  // "Pożycz"/"Zamień"/"Weź na stałe" gets this instead of `AuthGateSheet`.
   const [mergingTakeItemId, setMergingTakeItemId] = useState<number | null>(null);
   // "Ja to przyniosę" on a needed item: a logged-in visitor pledges straight
-  // away; an anonymous one gets `PledgeGateDialog` (a pledge needs a real
+  // away; an anonymous one gets `AuthGateSheet` (a pledge needs a real
   // account — no guest path). Pledged ids are tracked locally just to swap
   // the button to a confirmation for the rest of the session.
   const [showPledgeGate, setShowPledgeGate] = useState(false);
@@ -1252,11 +1168,6 @@ export function PublicTermView() {
   const [takeOfferedItemId, setTakeOfferedItemId] = useState<number | null>(null);
   const [busyTakeItemId, setBusyTakeItemId] = useState<number | null>(null);
   const [myAvailableItems, setMyAvailableItems] = useState<AvailableItem[] | null>(null);
-
-  // A PRIVATE group's reduced public response (no `next_term`/`guardians`) —
-  // this drives the "Dołącz na stałe" CTA instead of the normal RSVP flow.
-  const [showJoinDialog, setShowJoinDialog] = useState(false);
-  const [joined, setJoined] = useState(false);
 
   // Public view has no pledge-fulfil "Z moich rzeczy" picker sharing this
   // state — it's used solely to seed the SWAP counter-offer picker
@@ -1355,7 +1266,7 @@ export function PublicTermView() {
 
   // Every caller (needed-items "Ja to przyniosę", item-listing take buttons)
   // routes the actual take through this one gate-wrapped handler — the same
-  // `gateAction` mechanism the private view uses.
+  // `gateAction` mechanism.
   const handlePublicTake = gateAction(isLoggedIn, () => setShowTakeGate(true), performPublicTake);
 
   async function performPublicPledge(neededItemId: number) {
@@ -1451,86 +1362,6 @@ export function PublicTermView() {
     );
   }
 
-  if (circle.visibility === "PRIVATE") {
-    return (
-      <div className="kg-stage">
-        <style>{CSS}</style>
-        <div className="kg-app">
-          <GroupHeader
-            eyebrow="Krąg"
-            title={circle.name}
-            onBack={() => navigate(-1)}
-            subtitle={
-              circle.organizer_display_name
-                ? `Prowadzi: ${circle.organizer_display_name}`
-                : "Brak organizatora"
-            }
-          />
-
-          <div className="kg-card" role="status">
-            {joined ? (
-              <div className="kg-status-line" style={{ fontSize: 15 }}>
-                ✓ Dołączono! Do zobaczenia na zajęciach.
-              </div>
-            ) : (
-              <>
-                <p>Ta grupa jest prywatna — mogą się do niej zapisać tylko stali członkowie.</p>
-                {isLoggedIn ? (
-                  <button
-                    className="kg-btn-primary"
-                    style={{ marginTop: 12, padding: "10px 18px", fontSize: 13 }}
-                    onClick={() => setShowJoinDialog(true)}
-                  >
-                    Dołącz na stałe
-                  </button>
-                ) : (
-                  // Logged-out visitor: no guest path for a standing membership
-                  // (unlike the term-scoped RSVP gate), so this reuses
-                  // `RsvpGateDialog`'s login/register `<Link>` markup inline in
-                  // the existing card instead of opening a modal.
-                  <div style={{ marginTop: 12 }}>
-                    <Link
-                      to={`/login?returnTo=${encodeURIComponent(location.pathname)}`}
-                      className="kg-btn-primary"
-                      style={{
-                        display: "block",
-                        textAlign: "center",
-                        width: "100%",
-                        padding: "11px 14px",
-                        fontSize: 13,
-                        marginBottom: 10,
-                      }}
-                    >
-                      Zaloguj się
-                    </Link>
-                    <p style={{ fontSize: 12, color: "var(--ink-soft)", textAlign: "center" }}>
-                      Nie masz konta?{" "}
-                      <Link to="/register" style={{ fontWeight: 700, color: "var(--mint, #1b8168)" }}>
-                        Zarejestruj się
-                      </Link>
-                    </p>
-                  </div>
-                )}
-              </>
-            )}
-          </div>
-
-          {isLoggedIn && showJoinDialog && (
-            <JoinPrivateGroupDialog
-              groupId={groupId}
-              onClose={() => setShowJoinDialog(false)}
-              onSubmitted={() => {
-                setShowJoinDialog(false);
-                setJoined(true);
-                void refetch();
-              }}
-            />
-          )}
-        </div>
-      </div>
-    );
-  }
-
   const term = circle.next_term;
 
   return (
@@ -1570,7 +1401,6 @@ export function PublicTermView() {
         />
 
         <TermPageView
-          isLoggedIn={isLoggedIn}
           neededItemsSection={
             term && term.needed_items.length > 0
               ? {
@@ -1737,9 +1567,9 @@ export function PublicTermView() {
       </div>
 
       {showRsvpGate && term && !isLoggedIn && (
-        <RsvpGateDialog
-          loginHref={`/login?returnTo=${encodeURIComponent(location.pathname)}`}
-          registerHref="/register"
+        <AuthGateSheet
+          title="Zapisz się na zajęcia"
+          message="Zaloguj się, żeby zapis trafił na Twoje konto — albo zapisz się jako gość."
           onGuest={() => {
             setShowRsvpGate(false);
             setShowRsvpDialog(true);
@@ -1768,20 +1598,20 @@ export function PublicTermView() {
       )}
 
       {showPledgeGate && !isLoggedIn && (
-        <PledgeGateDialog
-          loginHref={`/login?returnTo=${encodeURIComponent(location.pathname)}`}
-          registerHref="/register"
+        <AuthGateSheet
+          title="Potrzebne konto"
+          message="Żeby zgłosić, że przyniesiesz coś na zajęcia, musisz mieć konto — dzięki temu organizator wie, kto co przynosi, a rzecz trafia do Twoich zbiorów."
+          ariaLabel="Załóż konto, aby przynieść rzecz"
           onClose={() => setShowPledgeGate(false)}
         />
       )}
 
       {showTakeGate && !isLoggedIn && (
-        <PledgeGateDialog
-          loginHref={`/login?returnTo=${encodeURIComponent(location.pathname)}`}
-          registerHref="/register"
-          onClose={() => setShowTakeGate(false)}
-          ariaLabel="Załóż konto, aby wziąć rzecz"
+        <AuthGateSheet
+          title="Potrzebne konto"
           message="Żeby wziąć, pożyczyć albo zamienić się rzeczą, musisz mieć konto — dzięki temu wiadomo, kto co bierze, a rzecz trafia do Twoich zbiorów."
+          ariaLabel="Załóż konto, aby wziąć rzecz"
+          onClose={() => setShowTakeGate(false)}
         />
       )}
 

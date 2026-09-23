@@ -14,6 +14,7 @@ export function LoginPage() {
   const { login } = useAuth();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
+  const returnTo = searchParams.get("returnTo");
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -21,8 +22,7 @@ export function LoginPage() {
     setLoading(true);
     try {
       await login(email, password);
-      const returnTo = searchParams.get("returnTo") || "/";
-      navigate(returnTo, { replace: true });
+      navigate(returnTo || "/", { replace: true });
     } catch (err) {
       setError(err instanceof Error ? err.message : "Nie udało się zalogować");
     } finally {
@@ -92,7 +92,10 @@ export function LoginPage() {
 
         <p className="mt-5 text-center text-[13px] text-ink-soft">
           Nie masz konta?{" "}
-          <Link to="/register" className="font-semibold text-mint hover:underline">
+          <Link
+            to={returnTo ? `/register?returnTo=${encodeURIComponent(returnTo)}` : "/register"}
+            className="font-semibold text-mint hover:underline"
+          >
             Zarejestruj się
           </Link>
         </p>

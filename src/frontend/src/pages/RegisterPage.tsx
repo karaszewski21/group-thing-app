@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth, type RegisterPayload } from "../auth/AuthContext";
 
 const inputClass =
@@ -16,6 +16,11 @@ export function RegisterPage() {
   const [loading, setLoading] = useState(false);
   const { register } = useAuth();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  // Carried through onboarding (and onto the login link) so a visitor who
+  // came from a term page's account gate lands back on it.
+  const returnTo = searchParams.get("returnTo");
+  const returnToQuery = returnTo ? `?returnTo=${encodeURIComponent(returnTo)}` : "";
 
   const isOrganizer = role === "ORGANIZER";
   const canSubmit = Boolean(role && email && password && !loading);
@@ -26,7 +31,7 @@ export function RegisterPage() {
     setLoading(true);
     try {
       await register({ role, email, password });
-      navigate("/onboarding", { replace: true });
+      navigate(`/onboarding${returnToQuery}`, { replace: true });
     } catch (err) {
       setError(err instanceof Error ? err.message : "Nie udało się zarejestrować");
     } finally {
@@ -117,7 +122,7 @@ export function RegisterPage() {
               {error === DUPLICATE_EMAIL_MESSAGE && (
                 <>
                   {" "}
-                  <Link to="/login" className="font-semibold underline">
+                  <Link to={`/login${returnToQuery}`} className="font-semibold underline">
                     Zaloguj się
                   </Link>
                 </>
@@ -138,7 +143,7 @@ export function RegisterPage() {
 
         <p className="mt-5 text-center text-[13px] text-ink-soft">
           Masz już konto?{" "}
-          <Link to="/login" className="font-semibold text-mint hover:underline">
+          <Link to={`/login${returnToQuery}`} className="font-semibold text-mint hover:underline">
             Zaloguj się
           </Link>
         </p>

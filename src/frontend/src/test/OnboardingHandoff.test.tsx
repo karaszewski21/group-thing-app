@@ -68,6 +68,7 @@ function renderApp(initialRoute = "/register") {
           <Route path="/register" element={<RegisterPage />} />
           <Route path="/onboarding" element={<OnboardingPage />} />
           <Route path="/panel" element={<div>PANEL</div>} />
+          <Route path="/zajecia/grupa/7/term/9" element={<div>TERM PAGE</div>} />
         </Routes>
       </MemoryRouter>
     </AuthProvider>,
@@ -108,6 +109,29 @@ describe("register -> onboarding -> panel handoff (crosses Group 4 / Group 7 bou
       String(url).includes("/families/mine/members"),
     );
     expect(familyMemberCalls).toHaveLength(0);
+  });
+
+  it("registering with ?returnTo= still runs onboarding, then returns to that page instead of /panel", async () => {
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      status: 201,
+      json: () => Promise.resolve({ token: fakeJwt("jan.kowalski"), party_id: 1, role: "GUEST" }),
+    });
+
+    renderApp(`/register?returnTo=${encodeURIComponent("/zajecia/grupa/7/term/9")}`);
+
+    expect(screen.getByRole("link", { name: "Zaloguj się" })).toHaveAttribute(
+      "href",
+      `/login?returnTo=${encodeURIComponent("/zajecia/grupa/7/term/9")}`,
+    );
+
+    fireEvent.change(screen.getByLabelText(/^email$/i), { target: { value: "jan.kowalski@example.com" } });
+    fireEvent.change(screen.getByLabelText(/hasło/i), { target: { value: "secret123" } });
+    fireEvent.click(screen.getByRole("button", { name: /załóż konto/i }));
+
+    fireEvent.click(await screen.findByRole("button", { name: "Pomiń" }));
+
+    expect(await screen.findByText("TERM PAGE")).toBeInTheDocument();
   });
 
   it("ORGANIZER: registering lands on the 3-step wizard with a mandatory organization-name step, then 'X' reaches /panel", async () => {

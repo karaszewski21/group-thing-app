@@ -50,7 +50,7 @@ export const router = createBrowserRouter([
   },
   {
     path: "/register",
-    element: <AuthGuard requireAuth={false} authenticatedRedirect="/onboarding"><RegisterPage /></AuthGuard>,
+    element: <AuthGuard requireAuth={false} authenticatedRedirect="/onboarding" forwardReturnTo><RegisterPage /></AuthGuard>,
   },
   {
     path: "/oauth2/authorize",
