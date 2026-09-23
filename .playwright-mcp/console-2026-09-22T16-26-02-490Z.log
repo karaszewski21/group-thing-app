@@ -1,0 +1,5 @@
+[     218ms] [INFO] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold @ http://localhost:5173/node_modules/.vite/deps/react-dom_client.js?v=4ba0ec84:14336
+[     258ms] [WARNING] No routes matched location "/muzyczne-skrzaty-docs/grupa/3"  @ http://localhost:5173/node_modules/.vite/deps/react-router-dom.js?v=4ba0ec84:162
+[     258ms] [WARNING] No routes matched location "/muzyczne-skrzaty-docs/grupa/3"  @ http://localhost:5173/node_modules/.vite/deps/react-router-dom.js?v=4ba0ec84:162
+[     259ms] [ERROR] Error handled by React Router default ErrorBoundary: ErrorResponseImpl @ http://localhost:5173/node_modules/.vite/deps/react-router-dom.js?v=4ba0ec84:3931
+[     260ms] [ERROR] Error handled by React Router default ErrorBoundary: ErrorResponseImpl @ http://localhost:5173/node_modules/.vite/deps/react-router-dom.js?v=4ba0ec84:3931

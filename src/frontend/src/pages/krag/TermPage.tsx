@@ -1,8 +1,9 @@
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { gateAction } from "../../utils/actionGate";
 import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
 import { useKragGrupy } from "../../hooks/useKragGrupy";
 import { usePublicKragGrupy } from "../../hooks/usePublicKragGrupy";
+import { PrivateGroupAccessDenied } from "./PrivateGroupAccessDenied";
 import {
   getInventories,
   getInventoryItemBalance,
@@ -15,13 +16,22 @@ import { getMyProfile } from "../../api/people";
 import { getProducts } from "../../api/products";
 import { ApiError } from "../../api/client";
 import { CONDITION_LABELS } from "../../utils/productCategory";
+import { familyColor, familyInitials } from "../../components/shared/Avatar";
+import { GroupVisualization } from "./GroupVisualization";
 import { RsvpDialog } from "../../components/krag/RsvpDialog";
 import { RsvpDialogLoggedIn } from "../../components/krag/RsvpDialogLoggedIn";
+import { JoinPrivateGroupDialog } from "../../components/krag/JoinPrivateGroupDialog";
 import { RsvpGateDialog } from "../../components/krag/RsvpGateDialog";
 import { PledgeGateDialog } from "../../components/krag/PledgeGateDialog";
 import { AccountMergeForm } from "../../components/krag/AccountMergeForm";
 import { useAuth } from "../../auth/AuthContext";
-import { guestProfileIdKey, type RsvpResponse } from "../../api/groups";
+import {
+  getGroupAccess,
+  guestProfileIdKey,
+  readValidGuestProfile,
+  type GroupAccessResponse,
+  type RsvpResponse,
+} from "../../api/groups";
 import { getReservation, type ReservationResponse, type ReservationType } from "../../api/reservations";
 import {
   getMyTakenTermItemListings,
@@ -31,6 +41,19 @@ import {
   type TakeTermItemListingRequest,
 } from "../../api/termItemListings";
 import type { AvailableItem } from "../../hooks/useKragGrupy";
+import { GroupHeader } from "./components/GroupHeader";
+import { TermCard } from "./components/TermCard";
+import { FamilyCard } from "./components/FamilyCard";
+import { NeededItemsSection } from "./components/NeededItemsSection";
+import { ListingsSection } from "./components/ListingsSection";
+import { SwapProposeDialog } from "./components/SwapProposeDialog";
+import { LISTABLE_RESERVATION_TYPES, OFFERED_TYPE_LABELS, TAKE_ACTION_LABELS } from "./components/termLabels";
+import type {
+  ListingRowVM,
+  NeededItemRowVM,
+  TermActionVM,
+  TermSectionVM,
+} from "./components/termSectionTypes";
 
 /** Class date + wall-clock start time for display. `occurs_on` is an ISO
  * datetime; a bare-date fallback (no time part) shows just the date. */
@@ -87,8 +110,12 @@ export const CSS = `
   transition:transform .22s cubic-bezier(.2,.8,.2,1);}
 .kg-fam:hover .kg-av{transform:scale(1.09);}
 .kg-fam.is-on .kg-av{transform:scale(1.1);box-shadow:0 0 0 4px var(--mint-soft),0 8px 18px -10px rgba(30,46,39,.7);}
-.kg-mark{position:absolute;right:-5px;bottom:-5px;width:20px;height:20px;border-radius:50%;background:var(--teal);
-  display:flex;align-items:center;justify-content:center;border:2.5px solid var(--cream);font-size:11px;}
+.kg-mark{position:absolute;right:-5px;bottom:-5px;width:20px;height:20px;border-radius:50%;
+  display:flex;align-items:center;justify-content:center;border:2.5px solid var(--cream);font-size:11px;color:#fff;}
+.kg-mark-left{position:absolute;left:-5px;bottom:-5px;width:20px;height:20px;border-radius:50%;
+  display:flex;align-items:center;justify-content:center;border:2.5px solid var(--cream);font-size:11px;color:#fff;}
+.kg-mark-shares{background:var(--mint);}
+.kg-mark-brings{background:var(--teal);}
 .kg-center{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);text-align:center;width:48%;}
 .kg-center-av{width:74px;height:74px;border-radius:50%;background:var(--ink);margin:0 auto;display:flex;align-items:center;justify-content:center;
   color:#fff;font-family:Fraunces,Georgia,serif;font-size:22px;box-shadow:0 14px 28px -14px rgba(30,46,39,.85);}
@@ -143,246 +170,6 @@ export const CSS = `
 }
 `;
 
-const PALETTE = ["#1B8168", "#5D8A63", "#3F8E90", "#7E9A34", "#2A6B58", "#4E7D55", "#35797B", "#6B8A2F"];
-
-function hashString(value: string): number {
-  let hash = 0;
-  for (let i = 0; i < value.length; i++) hash = (hash * 31 + value.charCodeAt(i)) >>> 0;
-  return hash;
-}
-
-function familyColor(name: string): string {
-  return PALETTE[hashString(name) % PALETTE.length];
-}
-
-function familyInitials(name: string): string {
-  const words = name.replace(/^Rodzina\s+/i, "").split(/\s+/).filter(Boolean);
-  return (words[0]?.[0] ?? "?").toUpperCase() + (words[1]?.[0] ?? words[0]?.[1] ?? "").toUpperCase();
-}
-
-/** Offered `ReservationType`s a lister can pick when creating a new "Wystaw
- * rzecz" listing — `RETURN` is never offered here: it's for giving an
- * already-borrowed item back, not for a fresh Term listing. */
-const LISTABLE_RESERVATION_TYPES: ReservationType[] = ["LEND", "SWAP", "GIFT"];
-
-const OFFERED_TYPE_LABELS: Record<ReservationType, string> = {
-  LEND: "Pożyczę",
-  SWAP: "Zamienię",
-  GIFT: "Oddam na stałe",
-  RETURN: "Zwrot",
-};
-
-/** Labels for the "Rzeczy od innych" take buttons — per spec.md's Visual
- * Design section: "Pożycz" / "Zamień" / "Weź na stałe". */
-const TAKE_ACTION_LABELS: Record<ReservationType, string> = {
-  LEND: "Pożycz",
-  SWAP: "Zamień",
-  GIFT: "Weź na stałe",
-  RETURN: "Zwrot",
-};
-
-interface TermActionVM {
-  key: string;
-  label: string;
-  ariaLabel?: string;
-  onClick: () => void;
-  disabled?: boolean;
-  active?: boolean;
-}
-
-/** A needed-item ("kto co przynosi" / "potrzebne rzeczy") row. `avatar`
- * `undefined` renders no avatar element at all (the public view never shows
- * one); `null` renders the empty dashed placeholder; an object renders the
- * colored family avatar (private view only). `inlineActions` render directly
- * in the row (0-2 buttons); `extra` is arbitrary content below the row
- * (the private fulfil mini-form, or the public account-merge mini-form). */
-interface NeededItemRowVM {
-  key: string | number;
-  avatar?: { initials: string; color: string } | null;
-  title: ReactNode;
-  subtitle?: ReactNode | null;
-  inlineActions: TermActionVM[];
-  extra?: ReactNode;
-  statusLine?: string | null;
-  confirmAction?: TermActionVM | null;
-}
-
-/** A listing ("twoje wystawione rzeczy" / "rzeczy od innych" / "rzeczy do
- * wymiany") row — always body-only, then a wrapped row of take-type action
- * buttons (if any), then optional extra content (the swap-select mini-form)
- * and an optional confirm-receipt action. */
-interface ListingRowVM {
-  key: string | number;
-  title: ReactNode;
-  subtitle?: ReactNode;
-  actions: TermActionVM[];
-  extra?: ReactNode;
-  statusLine?: string | null;
-  confirmAction?: TermActionVM | null;
-}
-
-interface TermSectionVM<Row> {
-  heading: string;
-  subtitleText?: string;
-  emptyNode?: ReactNode;
-  rows: Row[];
-  headingStyle?: React.CSSProperties;
-}
-
-function NeededItemRow({ row }: { row: NeededItemRowVM }) {
-  return (
-    <div className="kg-bring-item">
-      <div className="kg-bring-row">
-        {row.avatar !== undefined && (
-          <span
-            className={`kg-bring-av ${row.avatar ? "" : "kg-bring-av-empty"}`}
-            style={row.avatar ? { background: row.avatar.color } : undefined}
-          >
-            {row.avatar ? row.avatar.initials : "?"}
-          </span>
-        )}
-        <div className="kg-bring-body">
-          {row.title}
-          {row.subtitle != null && <small>{row.subtitle}</small>}
-        </div>
-        {row.inlineActions.map((a) => (
-          <button
-            key={a.key}
-            className={`kg-bring-btn ${a.active ? "is-on" : ""}`}
-            disabled={a.disabled}
-            aria-label={a.ariaLabel}
-            onClick={a.onClick}
-          >
-            {a.label}
-          </button>
-        ))}
-      </div>
-      {row.extra}
-      {row.statusLine && <div className="kg-status-line">{row.statusLine}</div>}
-      {row.confirmAction && (
-        <div className="kg-fulfill-actions" style={{ marginTop: "8px" }}>
-          <button className="kg-btn-primary" disabled={row.confirmAction.disabled} onClick={row.confirmAction.onClick}>
-            {row.confirmAction.label}
-          </button>
-        </div>
-      )}
-    </div>
-  );
-}
-
-function ListingRow({ row }: { row: ListingRowVM }) {
-  return (
-    <div className="kg-bring-item">
-      <div className="kg-bring-row">
-        <div className="kg-bring-body">
-          {row.title}
-          {row.subtitle != null && <small>{row.subtitle}</small>}
-        </div>
-      </div>
-      {row.actions.length > 0 && (
-        <div className="kg-fulfill-row" style={{ flexWrap: "wrap" }}>
-          {row.actions.map((a) => (
-            <button
-              key={a.key}
-              type="button"
-              className="kg-bring-btn"
-              disabled={a.disabled}
-              aria-label={a.ariaLabel}
-              onClick={a.onClick}
-            >
-              {a.label}
-            </button>
-          ))}
-        </div>
-      )}
-      {row.extra}
-      {row.statusLine && <div className="kg-status-line">{row.statusLine}</div>}
-      {row.confirmAction && (
-        <div className="kg-fulfill-actions" style={{ marginTop: "8px" }}>
-          <button className="kg-btn-primary" disabled={row.confirmAction.disabled} onClick={row.confirmAction.onClick}>
-            {row.confirmAction.label}
-          </button>
-        </div>
-      )}
-    </div>
-  );
-}
-
-/** Group 7's swap-offer dialog — a single-item picker (V1 scope: exactly
- * ONE offered item, never a multi-select) plus an explicit trade preview
- * ("Twoja rzecz X za ich rzecz Y"), replacing the earlier bare `<select>`
- * with no preview at both the private (`PrivateKragGrupyView`) and public
- * (`PublicKragGrupyView`) "Rzeczy od innych"/"Rzeczy do wymiany" call
- * sites. Submitting calls the caller's `onConfirm` (wired to `proposeSwap`
- * on either side) rather than the old `takeListing` — a SWAP is now always
- * a proposal the listing owner must accept/reject, never a single-shot
- * take. */
-function SwapProposeDialog({
-  availableItems,
-  offeredItemId,
-  onOfferedItemChange,
-  listingProductName,
-  onConfirm,
-  onCancel,
-  busy,
-}: {
-  availableItems: AvailableItem[];
-  offeredItemId: number | null;
-  onOfferedItemChange: (id: number) => void;
-  listingProductName: string;
-  onConfirm: () => void;
-  onCancel: () => void;
-  busy: boolean;
-}) {
-  const offered = availableItems.find((i) => i.id === offeredItemId) ?? null;
-  return (
-    <div className="kg-fulfill">
-      {availableItems.length === 0 ? (
-        <p className="kg-bring-sub" style={{ marginTop: 2, marginBottom: 6 }}>
-          Nie masz żadnej rzeczy oznaczonej "zamienię". Oznacz rzecz w "Moje rzeczy", aby móc
-          zaproponować zamianę.
-        </p>
-      ) : (
-        <>
-          <div className="kg-fulfill-row">
-            <select
-              className="kg-select"
-              aria-label="Twoja rzecz do zamiany"
-              value={offeredItemId ?? ""}
-              onChange={(e) => onOfferedItemChange(Number(e.target.value))}
-            >
-              {availableItems.map((mi) => (
-                <option key={mi.id} value={mi.id}>
-                  {mi.productName}
-                </option>
-              ))}
-            </select>
-          </div>
-          {offered && (
-            <p className="kg-bring-sub" style={{ marginTop: 2, marginBottom: 6 }}>
-              Twoja rzecz <strong>{offered.productName}</strong> za ich rzecz{" "}
-              <strong>{listingProductName}</strong>
-            </p>
-          )}
-        </>
-      )}
-      <div className="kg-fulfill-actions">
-        <button
-          type="button"
-          className="kg-btn-primary"
-          disabled={busy || offeredItemId === null}
-          onClick={onConfirm}
-        >
-          Zaproponuj zamianę
-        </button>
-        <button type="button" className="kg-btn-ghost" onClick={onCancel}>
-          Anuluj
-        </button>
-      </div>
-    </div>
-  );
-}
-
 /** Shared presentational tree for the needed-items and listings sections —
  * the parts of the term page that are structurally identical whether the
  * data came from `useKragGrupy` (private) or `usePublicKragGrupy` (public).
@@ -401,63 +188,128 @@ export interface TermPageViewProps {
 export function TermPageView({ neededItemsSection, myListingsSection, browseListingsSection }: TermPageViewProps) {
   return (
     <>
-      {neededItemsSection && (
-        <div className="kg-bring">
-          <h2>{neededItemsSection.heading}</h2>
-          {neededItemsSection.subtitleText && <p className="kg-bring-sub">{neededItemsSection.subtitleText}</p>}
-          <div className="kg-bring-list">
-            {neededItemsSection.rows.length === 0 && neededItemsSection.emptyNode}
-            {neededItemsSection.rows.map((row) => (
-              <NeededItemRow key={row.key} row={row} />
-            ))}
-          </div>
-        </div>
-      )}
+      {neededItemsSection && <NeededItemsSection section={neededItemsSection} />}
 
       {(myListingsSection || browseListingsSection) && (
         <div className="kg-bring">
-          {myListingsSection && (
-            <>
-              <h2 style={myListingsSection.headingStyle}>{myListingsSection.heading}</h2>
-              {myListingsSection.subtitleText && <p className="kg-bring-sub">{myListingsSection.subtitleText}</p>}
-              <div className="kg-bring-list">
-                {myListingsSection.rows.length === 0 && myListingsSection.emptyNode}
-                {myListingsSection.rows.map((row) => (
-                  <ListingRow key={row.key} row={row} />
-                ))}
-              </div>
-            </>
-          )}
-          {browseListingsSection && (
-            <>
-              <h2 style={browseListingsSection.headingStyle}>{browseListingsSection.heading}</h2>
-              {browseListingsSection.subtitleText && <p className="kg-bring-sub">{browseListingsSection.subtitleText}</p>}
-              <div className="kg-bring-list">
-                {browseListingsSection.rows.length === 0 && browseListingsSection.emptyNode}
-                {browseListingsSection.rows.map((row) => (
-                  <ListingRow key={row.key} row={row} />
-                ))}
-              </div>
-            </>
-          )}
+          {myListingsSection && <ListingsSection section={myListingsSection} />}
+          {browseListingsSection && <ListingsSection section={browseListingsSection} />}
         </div>
       )}
     </>
   );
 }
 
-/** Route element for the authenticated `/krag/:groupId` view. The public
- * per-term page is a separate route element (`PublicKragGrupyView`, mounted
- * directly by the slug routes in `router.tsx`); this component no longer
- * sniffs the pathname. */
-export function KragGrupyPage() {
-  return <PrivateKragGrupyView />;
+/** Route element for `/:organizationSlug/grupa/:groupId/term/:termId` — the
+ * SOLE URL for a group/circle screen (the former separate `/krag/:groupId`
+ * private route and `/krag` entry-resolver route were removed; this route
+ * now serves both audiences from one address). Branches purely on auth
+ * presence (`token`), matching the coarse-READ authorization this app has
+ * always used for the private view (any logged-in principal, not just this
+ * circle's own members, per `AUTHORIZATION_MATRIX`'s blanket `GET
+ * /api/groups(/.*)?` row) — a logged-in visitor gets the full member
+ * experience (family orbit, exchange cards, layout switcher-free read of
+ * `group.layout_mode`); everyone else gets the anonymous-safe public view. */
+/** Route element for `/:organizationSlug/grupa/:groupId/term/:termId`.
+ * Owns exactly one decision — can this caller see this Circle's content —
+ * resolved server-side via `getGroupAccess` (`GroupAccessResponse`), not by
+ * raw auth-token presence. Delegates the decision itself to
+ * `TermAccessBoundary`, and renders `PrivateTermView`/`PublicTermView`
+ * (unchanged internally) or `PrivateGroupAccessDenied` accordingly. */
+export function TermPage() {
+  return <TermAccessBoundary />;
 }
 
-function PrivateKragGrupyView() {
+/**
+ * Replaces the previous `token ? <PrivateTermView /> : <PublicTermView />`
+ * heuristic, which treated ANY logged-in principal as belonging to every
+ * Circle — both a real bug (a `PRIVATE` group's content was reachable by an
+ * unrelated logged-in visitor, since `PrivateTermView`'s own data hook
+ * relies on the backend's blanket authenticated-READ row, not a
+ * membership check) and the root cause of a related one already patched
+ * ad hoc (a logged-in non-member had no way to RSVP to a `PUBLIC` group's
+ * term, since `PrivateTermView` only ever supported withdrawing from a term
+ * already joined). `getGroupAccess` fixes both at the source: `is_member`/
+ * `is_organizer` are `False` for a non-member even while authenticated.
+ *
+ * - `is_member || is_organizer` → `PrivateTermView` (today's full member
+ *   dashboard: family orbit, exchange, layout switching, promote-members,
+ *   sign-up/withdraw — unchanged).
+ * - else, `PUBLIC` group → `PublicTermView` (today's anonymous-safe public
+ *   page — unchanged; still separately handles its own logged-in/out RSVP
+ *   gating for a non-member visitor of a `PUBLIC` group).
+ * - else (`PRIVATE`, not a member) → `PrivateGroupAccessDenied` — never
+ *   fetches or renders any Term/family/exchange content.
+ */
+function TermAccessBoundary() {
+  const params = useParams<{ groupId: string; termId: string }>();
+  const { token } = useAuth();
+  const groupId = Number(params.groupId);
+  const termId = params.termId ? Number(params.termId) : undefined;
+
+  const [state, setState] = useState<
+    | { status: "loading" }
+    | { status: "error" }
+    | { status: "loaded"; response: GroupAccessResponse }
+  >({ status: "loading" });
+
+  const fetchAccess = useCallback(() => {
+    setState({ status: "loading" });
+    getGroupAccess(groupId, termId)
+      .then((response) => setState({ status: "loaded", response }))
+      .catch(() => setState({ status: "error" }));
+  }, [groupId, termId]);
+
+  useEffect(() => {
+    fetchAccess();
+  }, [fetchAccess]);
+
+  if (state.status === "loading") {
+    return (
+      <div className="kg-stage">
+        <style>{CSS}</style>
+        <div className="kg-app">
+          <div className="kg-state">Wczytywanie...</div>
+        </div>
+      </div>
+    );
+  }
+
+  if (state.status === "error") {
+    return (
+      <div className="kg-stage">
+        <style>{CSS}</style>
+        <div className="kg-app">
+          <div className="kg-state">Nie znaleziono grupy</div>
+        </div>
+      </div>
+    );
+  }
+
+  const { group, access } = state.response;
+
+  if (access.is_member || access.is_organizer) {
+    return <PrivateTermView />;
+  }
+  if (group.visibility === "PUBLIC") {
+    return <PublicTermView />;
+  }
+  return (
+    <PrivateGroupAccessDenied
+      groupId={groupId}
+      group={group}
+      canJoin={access.can_join}
+      isLoggedIn={Boolean(token)}
+      onJoined={fetchAccess}
+    />
+  );
+}
+
+function PrivateTermView() {
   const params = useParams<{ groupId: string }>();
   const navigate = useNavigate();
   const location = useLocation();
+  const { displayName } = useAuth();
   const groupId = Number(params.groupId);
   const {
     loading,
@@ -478,19 +330,24 @@ function PrivateKragGrupyView() {
     withdraw,
     fulfillPledgeItem,
     confirmPledgeReceipt,
-    takeListing,
-    proposeSwap,
     withdrawMyAttendance,
     confirmListingReceipt,
+    activeFamilyExchangeOffers,
+    loadingExchangeOffers,
+    exchangeOffersError,
+    loadExchangeOffersForFamily,
+    takeOrProposeExchange,
+    termAttendeesForFormalization,
+    formalizeStandingMembers,
     refetch,
   } = useKragGrupy(groupId);
 
-  // The `/krag/:groupId` route is already behind `AuthGuard`, so this view
-  // is only ever reached while logged in — `isLoggedIn` is always true here
-  // (no `useAuth()` call needed). Routing every action through the same
+  // `TermPage` (the route element) only mounts this view when `token`
+  // is truthy, so this view is only ever reached while logged in —
+  // `isLoggedIn` is always true here. Routing every action through the same
   // `gateAction` wrapper as the public view (which computes `isLoggedIn`
   // from real auth state) keeps the two views' action-handling identical
-  // and gives Group 7's new actions (propose swap / accept / reject /
+  // and gives Group 7's actions (propose swap / accept / reject /
   // confirm-race) one place to register the check on either view.
   const isLoggedIn = true;
   const [showActionGate, setShowActionGate] = useState(false);
@@ -498,6 +355,9 @@ function PrivateKragGrupyView() {
 
   const [activeFamilyId, setActiveFamilyId] = useState<number | null>(null);
   const [toast, setToast] = useState("");
+  // Only meaningful for a PRIVATE group's `InviteSlot` — a PUBLIC group has
+  // no direct join link, so this stays unused/hidden there.
+  const [showJoinDialog, setShowJoinDialog] = useState(false);
   const [busyItemId, setBusyItemId] = useState<number | null>(null);
   const [busyPledgeId, setBusyPledgeId] = useState<number | null>(null);
   const [fulfillingItemId, setFulfillingItemId] = useState<number | null>(null);
@@ -508,9 +368,53 @@ function PrivateKragGrupyView() {
   // ---- "Twoje wystawione rzeczy" / "Rzeczy od innych" (exchange card) ----
   const [takeListingId, setTakeListingId] = useState<number | null>(null);
   const [takeOfferedItemId, setTakeOfferedItemId] = useState<number | null>(null);
+  // Same item id can legitimately appear in both "Rzeczy od innych" and the
+  // active family's "Do wymiany w grupie" card at once — this disambiguates
+  // which section actually opened the swap picker, so the dialog never
+  // renders in both places for the same listing.
+  const [takeSection, setTakeSection] = useState<"browse" | "card" | null>(null);
   const [busyTakeListingId, setBusyTakeListingId] = useState<number | null>(null);
   const [busyConfirmListingReservationId, setBusyConfirmListingReservationId] = useState<number | null>(null);
   const [busyWithdrawAttendance, setBusyWithdrawAttendance] = useState(false);
+  // Any logged-in visitor (not just this circle's own organizer/members)
+  // lands on this view per `TermPage`'s auth-presence routing — so a
+  // PUBLIC group's not-yet-attending logged-in visitor needs its own
+  // sign-up affordance here too, mirroring `PublicTermView`'s
+  // "Zapisz się na zajęcia" button/dialog (bug: previously this view had
+  // no way to RSVP to a new term at all, only to withdraw from one already
+  // joined).
+  const [showRsvpDialog, setShowRsvpDialog] = useState(false);
+
+  // ---- "Dodaj stałych członków z tego terminu" card (Group 5) ----
+  const [selectedStandingMemberPartyIds, setSelectedStandingMemberPartyIds] = useState<Set<number>>(
+    new Set(),
+  );
+  const [busyFormalizingStandingMembers, setBusyFormalizingStandingMembers] = useState(false);
+  const [formalizeStandingMembersError, setFormalizeStandingMembersError] = useState<string | null>(null);
+  const [standingMembersPromotedCount, setStandingMembersPromotedCount] = useState<number | null>(null);
+
+  // Pre-selects every attendee not yet a member whenever a fresh attendee
+  // list arrives (initial fetch, or a re-fetch after `formalizeStandingMembers`
+  // updates `already_member` flags) — mirrors `EditTermDialog.tsx`'s
+  // selection-reset effect, minus the `family_id !== null` condition
+  // (Decision 4.2 — family is no longer an eligibility signal).
+  useEffect(() => {
+    if (!termAttendeesForFormalization) return;
+    setSelectedStandingMemberPartyIds(
+      new Set(
+        termAttendeesForFormalization.filter((a) => !a.already_member).map((a) => a.party_id),
+      ),
+    );
+  }, [termAttendeesForFormalization]);
+
+  function toggleStandingMemberSelection(partyId: number) {
+    setSelectedStandingMemberPartyIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(partyId)) next.delete(partyId);
+      else next.add(partyId);
+      return next;
+    });
+  }
   // Reservation.status for every resolved_reservation_id encountered across
   // myItemListings/browseListings, keyed by reservation id — resolved client
   // side (no listing-owned status field, per the backend's minimal-
@@ -582,12 +486,16 @@ function PrivateKragGrupyView() {
       })()
     : "";
 
-  const slots = families.length + 1;
-  const R = 38;
-  const pos = (i: number) => {
-    const a = (i / slots) * 2 * Math.PI - Math.PI / 2;
-    return { left: `${50 + R * Math.cos(a)}%`, top: `${50 + R * Math.sin(a)}%` };
-  };
+  /** Own family, resolved from `myPartyId` against `activeFamily.guardians`
+   * — gates the family card's "DO WYMIANY W GRUPIE" section (spec.md Core
+   * Requirement 9: never shown for the viewer's own family). */
+  const isOwnActiveFamily =
+    activeFamily !== null && activeFamily.guardians.some((g) => g.party_id === myPartyId);
+
+  function handleSelectFamily(familyId: number) {
+    setActiveFamilyId(familyId);
+    void loadExchangeOffersForFamily(familyId);
+  }
 
   async function handlePledgeToggle(neededItemId: number, myPledgeId: number | null) {
     setBusyItemId(neededItemId);
@@ -742,25 +650,39 @@ function PrivateKragGrupyView() {
     }
   }
 
-  function openSwapSelect(listingId: number) {
+  function openSwapSelect(listingId: number, section: "browse" | "card") {
     setTakeListingId(listingId);
+    setTakeSection(section);
     setTakeOfferedItemId(mySwapAvailableItems[0]?.id ?? null);
   }
 
   function closeSwapSelect() {
     setTakeListingId(null);
+    setTakeSection(null);
     setTakeOfferedItemId(null);
   }
 
-  async function handleTakeListing(listingId: number, reservationType: ReservationType) {
-    // `reservationType` is only ever LEND/GIFT here now — SWAP always goes
-    // through `handleProposeSwap` below (the backend rejects a SWAP take
-    // on this route; see `TakeTermItemListingRequest`'s docstring).
+  // Shared "Biorę" dispatch for both "Rzeczy od innych" (browseListingsSection)
+  // and the family-card "DO WYMIANY W GRUPIE" section (Group 8) — both call
+  // sites route through this one function (wrapping the hook's
+  // `takeOrProposeExchange`, Group 7) instead of each keeping its own
+  // take/proposeSwap copy, per spec.md Core Requirement 10.
+  async function handleExchangeTake(
+    listingId: number,
+    reservationType: ReservationType,
+    offeredItemId?: number,
+  ) {
     setBusyTakeListingId(listingId);
     try {
-      await takeListing(listingId, reservationType);
+      await takeOrProposeExchange(listingId, reservationType, offeredItemId);
+      if (reservationType === "SWAP") {
+        closeSwapSelect();
+        setToast("Zaproponowano zamianę");
+      }
     } catch {
-      setToast("Nie udało się wziąć tej rzeczy");
+      setToast(
+        reservationType === "SWAP" ? "Nie udało się zaproponować zamiany" : "Nie udało się wziąć tej rzeczy",
+      );
     } finally {
       setBusyTakeListingId(null);
     }
@@ -771,24 +693,19 @@ function PrivateKragGrupyView() {
       setToast("Wybierz rzecz do zamiany");
       return;
     }
-    setBusyTakeListingId(listingId);
-    try {
-      await proposeSwap(listingId, takeOfferedItemId);
-      closeSwapSelect();
-      setToast("Zaproponowano zamianę");
-    } catch {
-      setToast("Nie udało się zaproponować zamiany");
-    } finally {
-      setBusyTakeListingId(null);
-    }
+    await handleExchangeTake(listingId, "SWAP", takeOfferedItemId);
   }
 
-  function handleTakeButtonClick(listingId: number, reservationType: ReservationType) {
+  function handleTakeButtonClick(
+    listingId: number,
+    reservationType: ReservationType,
+    section: "browse" | "card",
+  ) {
     if (reservationType === "SWAP") {
-      openSwapSelect(listingId);
+      openSwapSelect(listingId, section);
       return;
     }
-    void handleTakeListing(listingId, reservationType);
+    void handleExchangeTake(listingId, reservationType);
   }
 
   async function handleWithdrawAttendance() {
@@ -800,6 +717,27 @@ function PrivateKragGrupyView() {
       setToast("Nie udało się wypisać z zajęć");
     } finally {
       setBusyWithdrawAttendance(false);
+    }
+  }
+
+  function handleRsvpSubmitted() {
+    setShowRsvpDialog(false);
+    setToast("Zapisano na zajęcia");
+    void refetch();
+  }
+
+  async function handlePromoteStandingMembers() {
+    if (selectedStandingMemberPartyIds.size === 0) return;
+    const count = selectedStandingMemberPartyIds.size;
+    setBusyFormalizingStandingMembers(true);
+    setFormalizeStandingMembersError(null);
+    try {
+      await formalizeStandingMembers(Array.from(selectedStandingMemberPartyIds));
+      setStandingMembersPromotedCount(count);
+    } catch {
+      setFormalizeStandingMembersError("Nie udało się dodać stałych członków — spróbuj ponownie");
+    } finally {
+      setBusyFormalizingStandingMembers(false);
     }
   }
 
@@ -829,23 +767,19 @@ function PrivateKragGrupyView() {
     <div className="kg-stage">
       <style>{CSS}</style>
       <div className="kg-app">
-        <header className="kg-head">
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
-            <button className="kg-back" onClick={() => navigate(-1)}>
-              ← Wróć
-            </button>
-            <Link className="kg-back" to="/panel" style={{ paddingBottom: 8 }}>
-              Mój panel →
-            </Link>
-          </div>
-          <div className="kg-head-row">
-            <div>
-              <div className="kg-eyebrow">Grupa</div>
-              <h1>{group.name}</h1>
-              <div className="kg-head-sub">
-                {currentTerm ? `Najbliższe zajęcia: ${currentTermWhen}` : "Brak zaplanowanych zajęć"}{" "}
-                · {families.length} {families.length === 1 ? "rodzina" : "rodzin"}
-              </div>
+        <GroupHeader
+          eyebrow="Grupa"
+          title={group.name}
+          onBack={() => navigate(-1)}
+          showPanelLink
+          subtitle={
+            <>
+              {currentTerm ? `Najbliższe zajęcia: ${currentTermWhen}` : "Brak zaplanowanych zajęć"}{" "}
+              · {families.length} {families.length === 1 ? "rodzina" : "rodzin"}
+            </>
+          }
+          actions={
+            <>
               {currentTerm && myAttendanceForCurrentTerm && (
                 <button
                   type="button"
@@ -857,67 +791,113 @@ function PrivateKragGrupyView() {
                   Wycofaj się z zajęć
                 </button>
               )}
-            </div>
-          </div>
-        </header>
-
-        <div className="kg-circle-wrap">
-          <div className="kg-stagebox">
-            <div className="kg-square">
-              <div className="kg-inner">
-                <svg className="kg-svg" viewBox="0 0 100 100" aria-hidden="true">
-                  {families.map((f, i) => {
-                    const a = (i / slots) * 2 * Math.PI - Math.PI / 2;
-                    const on = activeFamily?.familyId === f.familyId;
-                    return (
-                      <line
-                        key={f.familyId}
-                        x1="50"
-                        y1="50"
-                        x2={50 + R * Math.cos(a)}
-                        y2={50 + R * Math.sin(a)}
-                        stroke={on ? "#1B8168" : "#CBDAC7"}
-                        strokeWidth={on ? "1" : "0.45"}
-                      />
-                    );
-                  })}
-                </svg>
-
-                {families.map((f, i) => (
-                  <button
-                    key={f.familyId}
-                    className={`kg-fam ${activeFamily?.familyId === f.familyId ? "is-on" : ""}`}
-                    style={pos(i)}
-                    onClick={() => setActiveFamilyId(f.familyId)}
-                    aria-pressed={activeFamily?.familyId === f.familyId}
-                    aria-label={f.name}
-                  >
-                    <span className="kg-av" style={{ background: familyColor(f.name) }}>
-                      {familyInitials(f.name)}
-                    </span>
-                  </button>
-                ))}
-
+              {currentTerm && !myAttendanceForCurrentTerm && group.visibility === "PUBLIC" && (
                 <button
-                  className="kg-fam"
-                  style={pos(families.length)}
-                  onClick={() => setToast("Zaproszenie do grupy — wkrótce")}
-                  aria-label="Zaproś kolejną rodzinę"
+                  type="button"
+                  className="kg-bring-btn"
+                  style={{ marginTop: 8 }}
+                  onClick={() => setShowRsvpDialog(true)}
                 >
-                  <span className="kg-av" style={{ background: "var(--cream)", color: "var(--mint)", border: "2.5px dashed var(--mint)", boxShadow: "none" }}>
-                    +
-                  </span>
+                  ＋ Zapisz się na zajęcia
                 </button>
+              )}
+            </>
+          }
+        />
 
-                <div className="kg-center">
-                  <div className="kg-center-av">{organizer ? organizer.display_name.slice(0, 1) : "?"}</div>
-                  <strong>{organizer ? organizer.display_name : "Brak organizatora"}</strong>
-                  <span>prowadzi zajęcia</span>
-                </div>
-              </div>
-            </div>
+        {isOrganizerViewer && currentTerm && (
+          <div className="kg-card">
+            <h3 style={{ fontSize: 15 }}>Dodaj stałych członków z tego terminu</h3>
+            {standingMembersPromotedCount !== null ? (
+              <p className="kg-status-line">
+                Dodano {standingMembersPromotedCount}{" "}
+                {standingMembersPromotedCount === 1 ? "osobę" : "osób"} jako stałych członków grupy.
+              </p>
+            ) : termAttendeesForFormalization === null ? (
+              <p className="kg-bring-sub">Wczytywanie zapisanych…</p>
+            ) : termAttendeesForFormalization.length === 0 ||
+              termAttendeesForFormalization.every((a) => a.already_member) ? (
+              <p className="kg-bring-sub">
+                Wszyscy zapisani na ten termin są już stałymi członkami grupy.
+              </p>
+            ) : (
+              <>
+                <p className="kg-bring-sub">
+                  {termAttendeesForFormalization.filter((a) => !a.already_member).length} osób z
+                  listy obecności na «{formatTermWhen(currentTerm.occurs_on).date}» nie są jeszcze
+                  stałymi członkami grupy.
+                </p>
+                <ul className="flex flex-col">
+                  {termAttendeesForFormalization.map((a) => (
+                    <li
+                      key={a.party_id}
+                      style={{ display: "flex", alignItems: "center", gap: 8, padding: "6px 0" }}
+                    >
+                      <input
+                        type="checkbox"
+                        aria-label={`Ustal ${a.display_name} jako stałego członka`}
+                        checked={selectedStandingMemberPartyIds.has(a.party_id)}
+                        disabled={a.already_member}
+                        onChange={() => toggleStandingMemberSelection(a.party_id)}
+                      />
+                      <span>
+                        {a.display_name}
+                        {a.already_member ? " — już jest stałym członkiem" : ""}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+                {formalizeStandingMembersError && (
+                  <p className="kg-error">{formalizeStandingMembersError}</p>
+                )}
+                <button
+                  type="button"
+                  className="kg-btn-primary"
+                  disabled={busyFormalizingStandingMembers || selectedStandingMemberPartyIds.size === 0}
+                  onClick={() => void handlePromoteStandingMembers()}
+                >
+                  Dodaj stałych członków
+                </button>
+              </>
+            )}
           </div>
-        </div>
+        )}
+
+        <GroupVisualization
+          layoutMode={group.layout_mode}
+          organizerName={organizer ? organizer.display_name : ""}
+          families={families}
+          activeFamilyId={activeFamilyId}
+          onSelectFamily={handleSelectFamily}
+          onInviteSlotClick={
+            group.visibility === "PRIVATE"
+              ? () => setShowJoinDialog(true)
+              : () => setToast("Zaproszenie do grupy — wkrótce")
+          }
+          groupId={groupId}
+        />
+
+        {showJoinDialog && (
+          <JoinPrivateGroupDialog
+            groupId={groupId}
+            onClose={() => setShowJoinDialog(false)}
+            onSubmitted={() => {
+              setShowJoinDialog(false);
+              setToast("Dołączono do grupy!");
+              void refetch();
+            }}
+          />
+        )}
+
+        {showRsvpDialog && currentTerm && displayName && (
+          <RsvpDialogLoggedIn
+            groupId={groupId}
+            termId={currentTerm.id}
+            displayName={displayName}
+            onClose={() => setShowRsvpDialog(false)}
+            onSubmitted={handleRsvpSubmitted}
+          />
+        )}
 
         <TermPageView
           isLoggedIn={isLoggedIn}
@@ -1124,7 +1104,7 @@ function PrivateKragGrupyView() {
                     const offeredTypes = row.offered_types.filter((t): t is ReservationType =>
                       LISTABLE_RESERVATION_TYPES.includes(t as ReservationType),
                     );
-                    const isTakingThis = takeListingId === row.id;
+                    const isTakingThis = takeListingId === row.id && takeSection === "browse";
                     const confirmReservationId = confirmActionFor(row);
                     const termGated = confirmReservationId !== null && !currentTermHasOccurred();
                     const extra = isTakingThis ? (
@@ -1148,7 +1128,7 @@ function PrivateKragGrupyView() {
                         ariaLabel: `${TAKE_ACTION_LABELS[t]}: ${row.product_name}`,
                         disabled: busyTakeListingId === row.id,
                         onClick: gateAction(isLoggedIn, openActionGate, () =>
-                          handleTakeButtonClick(row.id, t),
+                          handleTakeButtonClick(row.id, t, "browse"),
                         ),
                       })),
                       extra,
@@ -1180,21 +1160,24 @@ function PrivateKragGrupyView() {
         )}
 
         {activeFamily && (
-          <div className="kg-card" key={activeFamily.familyId} aria-live="polite">
-            <div className="kg-card-top">
-              <span className="kg-card-av" style={{ background: familyColor(activeFamily.name) }}>
-                {familyInitials(activeFamily.name)}
-              </span>
-              <div style={{ minWidth: 0 }}>
-                <h3>{activeFamily.name}</h3>
-                <small>
-                  {activeFamily.guardians.length}{" "}
-                  {activeFamily.guardians.length === 1 ? "opiekun" : "opiekunów"}:{" "}
-                  {activeFamily.guardians.map((g) => g.display_name).join(", ")}
-                </small>
-              </div>
-            </div>
-          </div>
+          <FamilyCard
+            family={activeFamily}
+            isOwnFamily={isOwnActiveFamily}
+            loadingOffers={loadingExchangeOffers}
+            offersError={exchangeOffersError}
+            onRetryLoadOffers={() => void loadExchangeOffersForFamily(activeFamily.familyId)}
+            offers={activeFamilyExchangeOffers}
+            activeSwapOfferId={takeSection === "card" ? takeListingId : null}
+            busyTakeListingId={busyTakeListingId}
+            swapAvailableItems={mySwapAvailableItems}
+            swapOfferedItemId={takeOfferedItemId}
+            onSwapOfferedItemChange={setTakeOfferedItemId}
+            onTakeButtonClick={(offerId, type) =>
+              gateAction(isLoggedIn, openActionGate, () => handleTakeButtonClick(offerId, type, "card"))()
+            }
+            onConfirmSwap={(offerId) => void handleProposeSwap(offerId)}
+            onCancelSwap={closeSwapSelect}
+          />
         )}
 
         <p className="kg-hint">Dotknij rodziny, żeby zobaczyć jej kartę.</p>
@@ -1215,7 +1198,7 @@ function PrivateKragGrupyView() {
 /*  read-only needed items, guardian display-name list, RSVP CTA.        */
 /* ------------------------------------------------------------------ */
 
-export function PublicKragGrupyView() {
+export function PublicTermView() {
   const params = useParams<{ groupId: string; termId: string }>();
   const navigate = useNavigate();
   const location = useLocation();
@@ -1244,6 +1227,11 @@ export function PublicKragGrupyView() {
   // is currently showing the inline account-merge mini-form, replacing that
   // row's action (not a modal) — at most one at a time.
   const [mergingItemId, setMergingItemId] = useState<number | null>(null);
+  // Same inline account-merge mini-form, extended (per the approved plan's
+  // Frontend section 5) to the "Rzeczy do wymiany" take/swap rows — an
+  // anonymous visitor with a valid stored guest profile who clicks
+  // "Pożycz"/"Zamień"/"Weź na stałe" gets this instead of `PledgeGateDialog`.
+  const [mergingTakeItemId, setMergingTakeItemId] = useState<number | null>(null);
   // "Ja to przyniosę" on a needed item: a logged-in visitor pledges straight
   // away; an anonymous one gets `PledgeGateDialog` (a pledge needs a real
   // account — no guest path). Pledged ids are tracked locally just to swap
@@ -1264,6 +1252,11 @@ export function PublicKragGrupyView() {
   const [takeOfferedItemId, setTakeOfferedItemId] = useState<number | null>(null);
   const [busyTakeItemId, setBusyTakeItemId] = useState<number | null>(null);
   const [myAvailableItems, setMyAvailableItems] = useState<AvailableItem[] | null>(null);
+
+  // A PRIVATE group's reduced public response (no `next_term`/`guardians`) —
+  // this drives the "Dołącz na stałe" CTA instead of the normal RSVP flow.
+  const [showJoinDialog, setShowJoinDialog] = useState(false);
+  const [joined, setJoined] = useState(false);
 
   // Public view has no pledge-fulfil "Z moich rzeczy" picker sharing this
   // state — it's used solely to seed the SWAP counter-offer picker
@@ -1412,7 +1405,7 @@ export function PublicKragGrupyView() {
   const storedGuestRsvp =
     !isLoggedIn &&
     nextTermId !== undefined &&
-    localStorage.getItem(guestProfileIdKey(groupId, nextTermId)) !== null;
+    readValidGuestProfile(guestProfileIdKey(groupId, nextTermId)) !== null;
 
   // Server-derived "already signed up" for a logged-in user (A6 / D5): the
   // public GET already returns guardian display names — a match means the
@@ -1458,33 +1451,101 @@ export function PublicKragGrupyView() {
     );
   }
 
+  if (circle.visibility === "PRIVATE") {
+    return (
+      <div className="kg-stage">
+        <style>{CSS}</style>
+        <div className="kg-app">
+          <GroupHeader
+            eyebrow="Krąg"
+            title={circle.name}
+            onBack={() => navigate(-1)}
+            subtitle={
+              circle.organizer_display_name
+                ? `Prowadzi: ${circle.organizer_display_name}`
+                : "Brak organizatora"
+            }
+          />
+
+          <div className="kg-card" role="status">
+            {joined ? (
+              <div className="kg-status-line" style={{ fontSize: 15 }}>
+                ✓ Dołączono! Do zobaczenia na zajęciach.
+              </div>
+            ) : (
+              <>
+                <p>Ta grupa jest prywatna — mogą się do niej zapisać tylko stali członkowie.</p>
+                {isLoggedIn ? (
+                  <button
+                    className="kg-btn-primary"
+                    style={{ marginTop: 12, padding: "10px 18px", fontSize: 13 }}
+                    onClick={() => setShowJoinDialog(true)}
+                  >
+                    Dołącz na stałe
+                  </button>
+                ) : (
+                  // Logged-out visitor: no guest path for a standing membership
+                  // (unlike the term-scoped RSVP gate), so this reuses
+                  // `RsvpGateDialog`'s login/register `<Link>` markup inline in
+                  // the existing card instead of opening a modal.
+                  <div style={{ marginTop: 12 }}>
+                    <Link
+                      to={`/login?returnTo=${encodeURIComponent(location.pathname)}`}
+                      className="kg-btn-primary"
+                      style={{
+                        display: "block",
+                        textAlign: "center",
+                        width: "100%",
+                        padding: "11px 14px",
+                        fontSize: 13,
+                        marginBottom: 10,
+                      }}
+                    >
+                      Zaloguj się
+                    </Link>
+                    <p style={{ fontSize: 12, color: "var(--ink-soft)", textAlign: "center" }}>
+                      Nie masz konta?{" "}
+                      <Link to="/register" style={{ fontWeight: 700, color: "var(--mint, #1b8168)" }}>
+                        Zarejestruj się
+                      </Link>
+                    </p>
+                  </div>
+                )}
+              </>
+            )}
+          </div>
+
+          {isLoggedIn && showJoinDialog && (
+            <JoinPrivateGroupDialog
+              groupId={groupId}
+              onClose={() => setShowJoinDialog(false)}
+              onSubmitted={() => {
+                setShowJoinDialog(false);
+                setJoined(true);
+                void refetch();
+              }}
+            />
+          )}
+        </div>
+      </div>
+    );
+  }
+
   const term = circle.next_term;
 
   return (
     <div className="kg-stage">
       <style>{CSS}</style>
       <div className="kg-app">
-        <header className="kg-head">
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
-            <button className="kg-back" onClick={() => navigate(-1)}>
-              ← Wróć
-            </button>
-            {isLoggedIn && (
-              <Link className="kg-back" to="/panel" style={{ paddingBottom: 8 }}>
-                Mój panel →
-              </Link>
-            )}
-          </div>
-          <div className="kg-head-row">
-            <div>
-              <div className="kg-eyebrow">Krąg</div>
-              <h1>{circle.name}</h1>
-              <div className="kg-head-sub">
-                {circle.organizer_display_name ? `Prowadzi: ${circle.organizer_display_name}` : "Brak organizatora"}
-              </div>
-            </div>
-          </div>
-        </header>
+        <GroupHeader
+          eyebrow="Krąg"
+          title={circle.name}
+          onBack={() => navigate(-1)}
+          showPanelLink={isLoggedIn}
+          subtitle={
+            circle.organizer_display_name ? `Prowadzi: ${circle.organizer_display_name}` : "Brak organizatora"
+          }
+        />
 
         <div className="kg-circle-wrap">
           <div className="kg-stagebox">
@@ -1502,20 +1563,11 @@ export function PublicKragGrupyView() {
           </div>
         </div>
 
-        <div className="kg-term">
-          <div className="kg-term-eyebrow">Termin zajęć</div>
-          {term ? (
-            <>
-              <div className="kg-term-date">{formatTermWhen(term.occurs_on).date}</div>
-              {formatTermWhen(term.occurs_on).time && (
-                <div className="kg-term-time">🕒 godz. {formatTermWhen(term.occurs_on).time}</div>
-              )}
-              {term.description && <p className="kg-term-desc">{term.description}</p>}
-            </>
-          ) : (
-            <p className="kg-term-empty">Organizator nie dodał jeszcze żadnych zajęć.</p>
-          )}
-        </div>
+        <TermCard
+          date={term ? formatTermWhen(term.occurs_on).date : null}
+          time={term ? formatTermWhen(term.occurs_on).time : undefined}
+          description={term?.description}
+        />
 
         <TermPageView
           isLoggedIn={isLoggedIn}
@@ -1525,11 +1577,10 @@ export function PublicKragGrupyView() {
                   heading: "Potrzebne rzeczy",
                   subtitleText: "Zgłoś się, jeśli możesz coś przynieść na te zajęcia.",
                   rows: term.needed_items.map((item): NeededItemRowVM => {
-                    const guestProfileId = Number(
-                      localStorage.getItem(guestProfileIdKey(groupId, term.id)),
+                    const guestProfileId = readValidGuestProfile(
+                      guestProfileIdKey(groupId, term.id),
                     );
-                    const canMerge =
-                      hasGuestProfile && Number.isFinite(guestProfileId) && guestProfileId > 0;
+                    const canMerge = hasGuestProfile && guestProfileId !== null;
                     const isMerging = mergingItemId === item.id;
                     const pledgedHere = pledgedItemIds.includes(item.id);
                     const claimed = item.claimed || pledgedHere;
@@ -1585,8 +1636,15 @@ export function PublicKragGrupyView() {
                     const offeredTypes = row.offered_types.filter((t): t is ReservationType =>
                       LISTABLE_RESERVATION_TYPES.includes(t as ReservationType),
                     );
+                    const guestProfileId = readValidGuestProfile(
+                      guestProfileIdKey(groupId, term.id),
+                    );
+                    const canMerge = hasGuestProfile && guestProfileId !== null;
+                    const isMergingThis = mergingTakeItemId === row.item_id;
                     const isTakingThis = takingItemId === row.item_id;
-                    const extra = isTakingThis ? (
+                    const extra = isMergingThis ? (
+                      <AccountMergeForm userProfileId={guestProfileId as number} />
+                    ) : isTakingThis ? (
                       <SwapProposeDialog
                         availableItems={myAvailableItems ?? []}
                         offeredItemId={takeOfferedItemId}
@@ -1604,13 +1662,18 @@ export function PublicKragGrupyView() {
                       key: row.item_id,
                       title: <strong>{row.product_name}</strong>,
                       subtitle: `Wystawia: ${row.lister_display_name}`,
-                      actions: offeredTypes.map((t) => ({
-                        key: t,
-                        label: TAKE_ACTION_LABELS[t],
-                        ariaLabel: `${TAKE_ACTION_LABELS[t]}: ${row.product_name}`,
-                        disabled: busyTakeItemId === row.item_id,
-                        onClick: () => void handlePublicTake(row.item_id, t),
-                      })),
+                      actions: isMergingThis
+                        ? []
+                        : offeredTypes.map((t) => ({
+                            key: t,
+                            label: TAKE_ACTION_LABELS[t],
+                            ariaLabel: `${TAKE_ACTION_LABELS[t]}: ${row.product_name}`,
+                            disabled: busyTakeItemId === row.item_id,
+                            onClick:
+                              !isLoggedIn && canMerge
+                                ? () => setMergingTakeItemId(row.item_id)
+                                : () => void handlePublicTake(row.item_id, t),
+                          })),
                       extra,
                     };
                   }),

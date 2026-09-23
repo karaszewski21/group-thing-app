@@ -22,7 +22,7 @@ from app.party.models import PartyType
 from app.party.service import create_party
 
 from ..infrastructure import repository
-from ..models import Group, GroupRoleType, Leadership
+from ..models import Group, GroupLayoutMode, GroupRoleType, GroupVisibility, Leadership
 from ..schemas import CreateCircleRequest, ModerationGroupResponse
 from .group_roles import get_or_create_active_group_role
 
@@ -78,6 +78,38 @@ async def create_own_circle(db: AsyncSession, organizer_party_id: int, circle_na
     return circle
 
 
+async def create_additional_circle(
+    db: AsyncSession,
+    organizer_party_id: int,
+    circle_name: str,
+    visibility: GroupVisibility | None = None,
+) -> Group:
+    """Non-idempotent twin of `create_own_circle` — always creates a brand
+    new Circle and a brand new `Leadership` for `organizer_party_id`, never
+    short-circuiting to an existing one. `create_own_circle`'s "return the
+    existing Circle" behavior is correct for its own callers (the one-time
+    "become an Organizer" self-service flows: `FirstTermStepperGuest`,
+    onboarding), but is wrong for the Panel's "+ Dodaj grupę" button, whose
+    whole point is letting an organizer who already leads one or more
+    Circles add another — that action must never be a silent no-op.
+    `visibility` lets the organizer pick Public/Private at creation time
+    instead of always starting `PUBLIC` and editing afterward."""
+    circle = await create_circle(db, CreateCircleRequest(name=circle_name))
+    if visibility is not None:
+        circle.visibility = visibility
+    role = await get_or_create_active_group_role(db, organizer_party_id, GroupRoleType.ORGANIZATOR)
+    leadership = Leadership(
+        from_role_id=cast(int, role.id),
+        to_group_id=cast(int, circle.id),
+        valid_from=date.today(),
+        valid_to=None,
+    )
+    db.add(leadership)
+    await db.commit()
+    await db.refresh(circle)
+    return circle
+
+
 async def list_groups(db: AsyncSession) -> list[Group]:
     return await repository.list_groups(db)
 
@@ -105,12 +137,30 @@ async def get_group(db: AsyncSession, group_id: int) -> Group:
     return group
 
 
-async def update_group(db: AsyncSession, group_id: int, caller_party_id: int, name: str) -> Group:
-    """In-place circle rename. Only the Circle's currently active organizer
-    may rename it — enforced here, not by the coarse matrix."""
+async def update_group(
+    db: AsyncSession,
+    group_id: int,
+    caller_party_id: int,
+    name: str,
+    layout_mode: GroupLayoutMode | None = None,
+    visibility: GroupVisibility | None = None,
+) -> Group:
+    """In-place circle rename (plus optional `layout_mode`/`visibility`
+    change). Only the Circle's currently active organizer may update it —
+    enforced here, not by the coarse matrix. `layout_mode`/`visibility` are
+    only applied `is not None` — a caller who omits them leaves the current
+    value untouched. Switching visibility in either direction here is
+    intentionally unrestricted (the organizer's own call); `visibility`
+    change and standing-`Membership` creation are two fully independent
+    actions — `formalize_group_from_term` no longer touches visibility at
+    all."""
     group = await get_group(db, group_id)
     await _require_active_organizer(db, group_id, caller_party_id)
     group.name = name
+    if layout_mode is not None:
+        group.layout_mode = layout_mode
+    if visibility is not None:
+        group.visibility = visibility
     await db.commit()
     await db.refresh(group)
     return group
@@ -190,7 +240,14 @@ async def list_active_leaderships_for_party(db: AsyncSession, party_id: int) -> 
     return await repository.list_active_leaderships_for_role_ids(db, role_ids)
 
 
-async def _require_active_organizer(db: AsyncSession, group_id: int, party_id: int) -> None:
+async def _is_active_organizer(db: AsyncSession, group_id: int, party_id: int) -> bool:
+    """Non-raising twin of `_require_active_organizer` — for call sites that
+    need to compose this check with another (e.g. "organizer OR standing
+    member") rather than gate on it alone."""
     current = await get_current_leadership(db, group_id)
-    if current is None or await _group_role_party_id(db, current.from_role_id) != party_id:
+    return current is not None and await _group_role_party_id(db, current.from_role_id) == party_id
+
+
+async def _require_active_organizer(db: AsyncSession, group_id: int, party_id: int) -> None:
+    if not await _is_active_organizer(db, group_id, party_id):
         raise AccessDeniedException

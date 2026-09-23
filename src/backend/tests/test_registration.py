@@ -77,9 +77,14 @@ async def test_register_organizerRole_grantsOrganizatorRoleButCreatesNoCircle(
     assert response.json()["role"] == "ORGANIZER"
 
     # Dev-seed data may already contain Family/Group rows (unrelated
-    # migrations) — assert registration didn't add any *new* ones, rather
-    # than asserting the tables are empty.
+    # migrations) — assert registration didn't add any *new* Groups (this
+    # test's actual point: ORGANIZER registration alone creates no Circle),
+    # rather than asserting the table is empty. It DOES add exactly one new
+    # Family, unconditionally for every role (spec.md Core Requirements 3-4)
+    # — the solo Family auto-created so the party has a resolvable Family for
+    # the groups member-visualization; this is unrelated to, and does not
+    # contradict, "creates no Circle".
     groups_after = (await db_session.execute(select(Group))).scalars().all()
     families_after = (await db_session.execute(select(Family))).scalars().all()
     assert len(groups_after) == len(groups_before)
-    assert len(families_after) == len(families_before)
+    assert len(families_after) == len(families_before) + 1

@@ -1,0 +1,87 @@
+orchestrator:
+  started_phase: phase-1
+  completed_phases: [phase-1, phase-2, phase-5, phase-6, phase-7, phase-8, phase-10, phase-11, phase-14]
+  failed_phases: []
+  auto_fix_attempts: {}
+  options:
+    spec_audit_enabled: true
+    skip_test_suite: true
+    e2e_enabled: true
+    user_docs_enabled: false
+    code_review_enabled: true
+    pragmatic_review_enabled: false
+    reality_check_enabled: false
+    production_check_enabled: false
+    sequential: null
+  created: "2026-09-20T00:00:00Z"
+  updated: "2026-09-20T00:00:00Z"
+  task_path: .maister/tasks/development/2026-09-20-wizualizacja-grupy
+  task_ids: {}
+
+task:
+  title: "Wizualizacja grupy zajęciowej (koło / boisko / stół)"
+  description: >
+    Rozbudowa istniejącego ekranu /krag/:groupId o 3 tryby layoutu wizualizacji
+    uczestników grupy (koło/mandala — istnieje, boisko piłkarskie — nowy, stół —
+    nowy), organizator-wybierany i zapisywany per grupa (Group.layout_mode),
+    ikony "udostępnia rzecz"/"przynosi na zajęcia" na avatarach (nowa agregacja
+    backendowa), oraz rozbudowana karta rodziny z sekcją "do wymiany w grupie"
+    (lista aktywnych ofert + przycisk Biorę, bez przycisku Napisz). Pełna
+    specyfikacja i zatwierdzone mockupy pochodzą z zakończonego zadania
+    product-design .maister/tasks/product-design/2026-09-20-wizualizacja-grupy/.
+  status: completed
+  tags: [ui, groups, circulation, frontend, backend]
+  priority: null
+
+project_context:
+  project_doc_paths:
+    - .maister/docs/project/tech-stack.md
+    - .maister/docs/project/architecture.md
+    - .maister/docs/standards/backend/models.md
+    - .maister/docs/standards/backend/api.md
+    - .maister/docs/standards/backend/queries.md
+    - .maister/docs/standards/backend/security.md
+    - .maister/docs/standards/backend/migrations.md
+    - .maister/docs/standards/frontend/components.md
+    - .maister/docs/standards/testing/backend-testing.md
+    - .maister/docs/standards/testing/frontend-testing.md
+
+task_context:
+  risk_level: medium
+  clarifications_resolved: true
+  scope_expanded: null
+  architecture_decision: null
+  task_characteristics:
+    has_reproducible_defect: false
+    modifies_existing_code: true
+    creates_new_entities: true
+    involves_data_operations: true
+    ui_heavy: true
+  research_reference:
+    path: null
+    research_question: null
+    research_type: null
+    confidence_level: null
+  design_reference:
+    source: "product-design"
+    product_design_path: .maister/tasks/product-design/2026-09-20-wizualizacja-grupy
+    mockup_count: 3
+    has_brief: true
+    index_path: analysis/design-context/INDEX.md
+  phase_summaries:
+    research: {summary: null, key_findings: [], recommended_approach: null}
+    design:
+      summary: >
+        3 zatwierdzone mockupy HTML (koło/boisko/stół) + pełny product brief z
+        zakończonego zadania product-design, wraz z pełną specyfikacją
+        implementacyjną (8 sekcji) skopiowaną do source-design-docs/.
+      screen_count: 3
+      component_count: 5
+      index_path: analysis/design-context/INDEX.md
+    codebase_analysis: {key_files: [], primary_language: null, summary: null}
+    clarifications: []
+    gap_analysis: {integration_points: [], summary: null}
+    scope_clarifications: {scope_expanded: null, summary: null}
+    ui_mockups: {components_designed: [], summary: null}
+    specification: {summary: null}
+    architecture_decision: {decision: null, summary: null}

@@ -1,0 +1,424 @@
+- generic [active] [ref=f3e1]:
+  - banner [ref=f3e2]:
+    - heading "Design Gallery — 5 screens" [level=1] [ref=f3e3]
+    - generic [ref=f3e4]:
+      - button "Annotations" [ref=f3e5] [cursor=pointer]
+      - text: Connected
+  - main [ref=f3e6]:
+    - generic [ref=f3e7]:
+      - link "Wizualizacja grupy — Koło" [ref=f3e8] [cursor=pointer]:
+        - /url: /screen/wizualizacja-grupy-ko-o
+      - generic:
+        - link:
+          - /url: /screen/wizualizacja-grupy-ko-o
+        - generic:
+          - 'link "Wszyscy równi wobec siebie. Tak wygląda sala podczas zajęć. ⭕ Koło ⚽ Boisko 🍽️ Stół Widoczne tylko dla organizatora — zmiana zapisuje się dla całej grupy 🎵 Kasia Wójcik prowadzi zajęcia WI ⇄ WI NO 🎒 NO LE LE KO ⇄ KO MA MA ZI ZI KA 🎒 KA DA DA + udostępnia rzecz przynosi na zajęcia WI Rodzina Wiśniewskich wymienię Zosia, 2 lata DO WYMIANY W GRUPIE Książka: Pucio Pożyczę Odbiór przy najbliższych zajęciach, w środę o 16:30. Biorę Wózek spacerowy Zamienię Zamiana na coś dla starszaka. Biorę"':
+            - /url: /screen/wizualizacja-grupy-ko-o
+            - generic: Wszyscy równi wobec siebie. Tak wygląda sala podczas zajęć.
+            - generic:
+              - button "⭕ Koło"
+              - button "⚽ Boisko"
+              - button "🍽️ Stół"
+            - generic: Widoczne tylko dla organizatora — zmiana zapisuje się dla całej grupy
+            - generic:
+              - generic:
+                - generic: 🎵
+                - generic: Kasia Wójcik
+                - generic: prowadzi zajęcia
+              - generic:
+                - generic:
+                  - text: WI
+                  - generic: ⇄
+                - generic: WI
+              - generic:
+                - generic:
+                  - text: "NO"
+                  - generic: 🎒
+                - generic: "NO"
+              - generic:
+                - generic: LE
+                - generic: LE
+              - generic:
+                - generic:
+                  - text: KO
+                  - generic: ⇄
+                - generic: KO
+              - generic:
+                - generic: MA
+                - generic: MA
+              - generic:
+                - generic: ZI
+                - generic: ZI
+              - generic:
+                - generic:
+                  - text: KA
+                  - generic: 🎒
+                - generic: KA
+              - generic:
+                - generic: DA
+                - generic: DA
+              - generic: +
+            - generic:
+              - generic: udostępnia rzecz
+              - generic: przynosi na zajęcia
+            - generic:
+              - generic:
+                - generic: WI
+                - generic: Rodzina Wiśniewskich
+                - generic: wymienię
+              - generic: Zosia, 2 lata
+              - generic: DO WYMIANY W GRUPIE
+              - generic:
+                - generic:
+                  - generic: "Książka: Pucio"
+                  - generic: Pożyczę
+                  - generic: Odbiór przy najbliższych zajęciach, w środę o 16:30.
+                - button "Biorę"
+              - generic:
+                - generic:
+                  - generic: Wózek spacerowy
+                  - generic: Zamienię
+                  - generic: Zamiana na coś dla starszaka.
+                - button "Biorę"
+          - generic:
+            - link "Zobacz też:":
+              - /url: /screen/wizualizacja-grupy-ko-o
+            - text: Boisko · Stół
+      - link "Wizualizacja grupy - Boisko" [ref=f3e10] [cursor=pointer]:
+        - /url: /screen/wizualizacja-grupy-boisko
+      - generic:
+        - link:
+          - /url: /screen/wizualizacja-grupy-boisko
+        - generic:
+          - link "Trener przy linii, rodziny w ustawieniu. Plus to ławka rezerwowych. ⭕ Koło ⚽ Boisko 🍽️ Stół Rozkład rodzin na boisku jest losowy — bez znaczenia taktycznego 🎵 Kasia Wójcik trenerka WI ⇄ WI NO 🎒 NO LE LE KO ⇄ KO MA MA ZI ZI KA 🎒 KA DA DA + ławka udostępnia rzecz przynosi na zajęcia MA Rodzina Mazurów wymienię Tosia, 3 lata DO WYMIANY W GRUPIE Klocki drewniane Oddam Za darmo, do odebrania po zajęciach. Biorę":
+            - /url: /screen/wizualizacja-grupy-boisko
+            - generic: Trener przy linii, rodziny w ustawieniu. Plus to ławka rezerwowych.
+            - generic:
+              - button "⭕ Koło"
+              - button "⚽ Boisko"
+              - button "🍽️ Stół"
+            - generic: Rozkład rodzin na boisku jest losowy — bez znaczenia taktycznego
+            - generic:
+              - generic: 🎵
+              - generic: Kasia Wójcik
+              - generic: trenerka
+            - generic:
+              - generic:
+                - generic:
+                  - text: WI
+                  - generic: ⇄
+                - generic: WI
+              - generic:
+                - generic:
+                  - text: "NO"
+                  - generic: 🎒
+                - generic: "NO"
+              - generic:
+                - generic: LE
+                - generic: LE
+              - generic:
+                - generic:
+                  - text: KO
+                  - generic: ⇄
+                - generic: KO
+              - generic:
+                - generic: MA
+                - generic: MA
+              - generic:
+                - generic: ZI
+                - generic: ZI
+              - generic:
+                - generic:
+                  - text: KA
+                  - generic: 🎒
+                - generic: KA
+              - generic:
+                - generic: DA
+                - generic: DA
+              - generic:
+                - generic: +
+                - generic: ławka
+            - generic:
+              - generic: udostępnia rzecz
+              - generic: przynosi na zajęcia
+            - generic:
+              - generic:
+                - generic: MA
+                - generic: Rodzina Mazurów
+                - generic: wymienię
+              - generic: Tosia, 3 lata
+              - generic: DO WYMIANY W GRUPIE
+              - generic:
+                - generic:
+                  - generic: Klocki drewniane
+                  - generic: Oddam
+                  - generic: Za darmo, do odebrania po zajęciach.
+                - button "Biorę"
+          - generic:
+            - link "Zobacz też:":
+              - /url: /screen/wizualizacja-grupy-boisko
+            - text: Koło · Stół
+      - link "Wizualizacja grupy — Stół" [ref=f3e12] [cursor=pointer]:
+        - /url: /screen/wizualizacja-grupy-st
+      - generic:
+        - link:
+          - /url: /screen/wizualizacja-grupy-st
+        - generic:
+          - link "Prowadząca u szczytu. Rzeczy leżą na stole — widać, co już jest. ⭕ Koło ⚽ Boisko 🍽️ Stół Widoczne tylko dla organizatora — zmiana zapisuje się dla całej grupy 🎵 Kasia Wójcik prowadzi zajęcia 🥁 Tamburyn 🧣 2 koce 🍎 Owoce WI ⇄ WI Wiśniewscy KO KO Kowalscy ZI 🎒 ZI Zielińscy MA MA Mazurowie + KA ⇄ KA Kaczmarkowie DA DA Dąbrowscy NO 🎒 NO Nowakowie udostępnia rzecz przynosi na zajęcia KA Rodzina Kaczmarków wymienię Antek, 4 lata DO WYMIANY W GRUPIE Rowerek biegowy Zamienię Zamiana na rozmiar 18-24m. Biorę Piłka plażowa Oddam Za darmo, do odebrania dziś. Biorę":
+            - /url: /screen/wizualizacja-grupy-st
+            - generic: Prowadząca u szczytu. Rzeczy leżą na stole — widać, co już jest.
+            - generic:
+              - button "⭕ Koło"
+              - button "⚽ Boisko"
+              - button "🍽️ Stół"
+            - generic: Widoczne tylko dla organizatora — zmiana zapisuje się dla całej grupy
+            - generic:
+              - generic:
+                - generic: 🎵
+                - generic: Kasia Wójcik
+                - generic: prowadzi zajęcia
+              - generic:
+                - generic: 🥁 Tamburyn
+                - generic: 🧣 2 koce
+                - generic: 🍎 Owoce
+              - generic:
+                - generic:
+                  - text: WI
+                  - generic: ⇄
+                - generic:
+                  - text: WI
+                  - generic: Wiśniewscy
+              - generic:
+                - generic: KO
+                - generic:
+                  - text: KO
+                  - generic: Kowalscy
+              - generic:
+                - generic:
+                  - text: ZI
+                  - generic: 🎒
+                - generic:
+                  - text: ZI
+                  - generic: Zielińscy
+              - generic:
+                - generic: MA
+                - generic:
+                  - text: MA
+                  - generic: Mazurowie
+              - generic: +
+              - generic:
+                - generic:
+                  - text: KA
+                  - generic: ⇄
+                - generic:
+                  - text: KA
+                  - generic: Kaczmarkowie
+              - generic:
+                - generic: DA
+                - generic:
+                  - text: DA
+                  - generic: Dąbrowscy
+              - generic:
+                - generic:
+                  - text: "NO"
+                  - generic: 🎒
+                - generic:
+                  - text: "NO"
+                  - generic: Nowakowie
+            - generic:
+              - generic: udostępnia rzecz
+              - generic: przynosi na zajęcia
+            - generic:
+              - generic:
+                - generic: KA
+                - generic: Rodzina Kaczmarków
+                - generic: wymienię
+              - generic: Antek, 4 lata
+              - generic: DO WYMIANY W GRUPIE
+              - generic:
+                - generic:
+                  - generic: Rowerek biegowy
+                  - generic: Zamienię
+                  - generic: Zamiana na rozmiar 18-24m.
+                - button "Biorę"
+              - generic:
+                - generic:
+                  - generic: Piłka plażowa
+                  - generic: Oddam
+                  - generic: Za darmo, do odebrania dziś.
+                - button "Biorę"
+          - generic:
+            - link "Zobacz też:":
+              - /url: /screen/wizualizacja-grupy-st
+            - text: Koło · Boisko
+      - link "Wizualizacja grupy - Kolo (mandala)" [ref=f3e14] [cursor=pointer]:
+        - /url: /screen/wizualizacja-grupy-kolo-mandala
+      - generic:
+        - link:
+          - /url: /screen/wizualizacja-grupy-kolo-mandala
+        - generic:
+          - 'link "Wszyscy równi wobec siebie. Tak wygląda sala podczas zajęć. ⭕ Koło ⚽ Boisko 🍽️ Stół Widoczne tylko dla organizatora — zmiana zapisuje się dla całej grupy 🎵 Kasia Wójcik prowadzi zajęcia WI ⇄ WI NO 🎒 NO LE LE KO ⇄ KO MA MA ZI ZI KA 🎒 KA DA DA + udostępnia rzecz przynosi na zajęcia WI Rodzina Wiśniewskich wymienię Zosia, 2 lata DO WYMIANY W GRUPIE Książka: Pucio Pożyczę Odbiór przy najbliższych zajęciach, w środę o 16:30. Biorę Wózek spacerowy Zamienię Zamiana na coś dla starszaka. Biorę"':
+            - /url: /screen/wizualizacja-grupy-kolo-mandala
+            - generic: Wszyscy równi wobec siebie. Tak wygląda sala podczas zajęć.
+            - generic:
+              - button "⭕ Koło"
+              - button "⚽ Boisko"
+              - button "🍽️ Stół"
+            - generic: Widoczne tylko dla organizatora — zmiana zapisuje się dla całej grupy
+            - generic:
+              - generic:
+                - generic: 🎵
+                - generic: Kasia Wójcik
+                - generic: prowadzi zajęcia
+              - generic:
+                - generic:
+                  - text: WI
+                  - generic: ⇄
+                - generic: WI
+              - generic:
+                - generic:
+                  - text: "NO"
+                  - generic: 🎒
+                - generic: "NO"
+              - generic:
+                - generic: LE
+                - generic: LE
+              - generic:
+                - generic:
+                  - text: KO
+                  - generic: ⇄
+                - generic: KO
+              - generic:
+                - generic: MA
+                - generic: MA
+              - generic:
+                - generic: ZI
+                - generic: ZI
+              - generic:
+                - generic:
+                  - text: KA
+                  - generic: 🎒
+                - generic: KA
+              - generic:
+                - generic: DA
+                - generic: DA
+              - generic: +
+            - generic:
+              - generic: udostępnia rzecz
+              - generic: przynosi na zajęcia
+            - generic:
+              - generic:
+                - generic: WI
+                - generic: Rodzina Wiśniewskich
+                - generic: wymienię
+              - generic: Zosia, 2 lata
+              - generic: DO WYMIANY W GRUPIE
+              - generic:
+                - generic:
+                  - generic: "Książka: Pucio"
+                  - generic: Pożyczę
+                  - generic: Odbiór przy najbliższych zajęciach, w środę o 16:30.
+                - button "Biorę"
+              - generic:
+                - generic:
+                  - generic: Wózek spacerowy
+                  - generic: Zamienię
+                  - generic: Zamiana na coś dla starszaka.
+                - button "Biorę"
+          - generic:
+            - link "Zobacz też:":
+              - /url: /screen/wizualizacja-grupy-kolo-mandala
+            - text: Boisko · Stół
+      - link "Wizualizacja grupy - Stol" [ref=f3e16] [cursor=pointer]:
+        - /url: /screen/wizualizacja-grupy-stol
+      - generic:
+        - link:
+          - /url: /screen/wizualizacja-grupy-stol
+        - generic:
+          - link "Prowadząca u szczytu. Rzeczy leżą na stole — widać, co już jest. ⭕ Koło ⚽ Boisko 🍽️ Stół Widoczne tylko dla organizatora — zmiana zapisuje się dla całej grupy 🎵 Kasia Wójcik prowadzi zajęcia 🥁 Tamburyn 🧣 2 koce 🍎 Owoce WI ⇄ WI Wiśniewscy KO KO Kowalscy ZI 🎒 ZI Zielińscy MA MA Mazurowie + KA ⇄ KA Kaczmarkowie DA DA Dąbrowscy NO 🎒 NO Nowakowie udostępnia rzecz przynosi na zajęcia KA Rodzina Kaczmarków wymienię Antek, 4 lata DO WYMIANY W GRUPIE Rowerek biegowy Zamienię Zamiana na rozmiar 18-24m. Biorę Piłka plażowa Oddam Za darmo, do odebrania dziś. Biorę":
+            - /url: /screen/wizualizacja-grupy-stol
+            - generic: Prowadząca u szczytu. Rzeczy leżą na stole — widać, co już jest.
+            - generic:
+              - button "⭕ Koło"
+              - button "⚽ Boisko"
+              - button "🍽️ Stół"
+            - generic: Widoczne tylko dla organizatora — zmiana zapisuje się dla całej grupy
+            - generic:
+              - generic:
+                - generic: 🎵
+                - generic: Kasia Wójcik
+                - generic: prowadzi zajęcia
+              - generic:
+                - generic: 🥁 Tamburyn
+                - generic: 🧣 2 koce
+                - generic: 🍎 Owoce
+              - generic:
+                - generic:
+                  - text: WI
+                  - generic: ⇄
+                - generic:
+                  - text: WI
+                  - generic: Wiśniewscy
+              - generic:
+                - generic: KO
+                - generic:
+                  - text: KO
+                  - generic: Kowalscy
+              - generic:
+                - generic:
+                  - text: ZI
+                  - generic: 🎒
+                - generic:
+                  - text: ZI
+                  - generic: Zielińscy
+              - generic:
+                - generic: MA
+                - generic:
+                  - text: MA
+                  - generic: Mazurowie
+              - generic: +
+              - generic:
+                - generic:
+                  - text: KA
+                  - generic: ⇄
+                - generic:
+                  - text: KA
+                  - generic: Kaczmarkowie
+              - generic:
+                - generic: DA
+                - generic:
+                  - text: DA
+                  - generic: Dąbrowscy
+              - generic:
+                - generic:
+                  - text: "NO"
+                  - generic: 🎒
+                - generic:
+                  - text: "NO"
+                  - generic: Nowakowie
+            - generic:
+              - generic: udostępnia rzecz
+              - generic: przynosi na zajęcia
+            - generic:
+              - generic:
+                - generic: KA
+                - generic: Rodzina Kaczmarków
+                - generic: wymienię
+              - generic: Antek, 4 lata
+              - generic: DO WYMIANY W GRUPIE
+              - generic:
+                - generic:
+                  - generic: Rowerek biegowy
+                  - generic: Zamienię
+                  - generic: Zamiana na rozmiar 18-24m.
+                - button "Biorę"
+              - generic:
+                - generic:
+                  - generic: Piłka plażowa
+                  - generic: Oddam
+                  - generic: Za darmo, do odebrania dziś.
+                - button "Biorę"
+          - generic:
+            - link "Zobacz też:":
+              - /url: /screen/wizualizacja-grupy-stol
+            - text: Koło · Boisko

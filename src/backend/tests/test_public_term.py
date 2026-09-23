@@ -168,6 +168,7 @@ async def test_getPublicCircle_noTermIdParam_returnsNearestTermUnchanged(
         "name",
         "organizer_display_name",
         "organizer_slug",
+        "visibility",
         "next_term",
         "guardians",
     }

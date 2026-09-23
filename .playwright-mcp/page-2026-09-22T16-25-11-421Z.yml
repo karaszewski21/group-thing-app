@@ -1,0 +1,86 @@
+- generic [ref=f8e20]:
+  - banner [ref=f8e21]:
+    - button "Otwórz dane profilowe" [ref=f8e22]: DO
+    - heading "Docs Organizer 20260922" [level=1] [ref=f8e24]
+    - button "Powiadomienia" [ref=f8e26]
+    - button "Menu" [ref=f8e31]
+  - generic [ref=f8e34]:
+    - generic [ref=f8e35]:
+      - heading "Cześć, Docs!" [level=2] [ref=f8e36]
+      - paragraph [ref=f8e37]: Oto co dzieje się w Twojej grupie.
+    - generic [ref=f8e38]:
+      - generic [ref=f8e39]:
+        - heading "Dopracuj stronę organizacji" [level=3] [ref=f8e44]
+        - 'button "Zamknij: Dopracuj stronę organizacji" [ref=f8e45]'
+      - paragraph [ref=f8e48]: Dodaj opis, kolory i logo — zobaczą je odwiedzający Twój krąg.
+      - link "Przejdź →" [ref=f8e49] [cursor=pointer]:
+        - /url: /muzyczne-skrzaty-docs
+    - generic [ref=f8e50]:
+      - generic [ref=f8e51]:
+        - heading "Najbliższe terminy" [level=3] [ref=f8e52]
+        - button "Zobacz wszystkie" [ref=f8e53]
+      - generic [ref=f8e56]:
+        - generic [ref=f8e57]:
+          - generic [ref=f8e58]: "25"
+          - generic [ref=f8e59]: wrz
+        - generic [ref=f8e60]:
+          - link "Muzyczne Maluchy Docs" [ref=f8e61] [cursor=pointer]:
+            - /url: /muzyczne-skrzaty-docs/grupa/3/term/3
+          - paragraph [ref=f8e62]:
+            - generic [ref=f8e63]: godz. 17:00
+        - generic [ref=f8e64]:
+          - button "Kopiuj link do terminu" [ref=f8e65]
+          - button "Edytuj termin" [ref=f8e69]
+    - generic [ref=f8e72]:
+      - heading "Zapisane zajęcia" [level=3] [ref=f8e73]
+      - generic [ref=f8e74]: Nie zapisałeś się jeszcze na żadne zajęcia.
+    - generic [ref=f8e75]:
+      - heading "Zadeklarowane rzeczy" [level=3] [ref=f8e76]
+      - generic [ref=f8e77]: Nie zadeklarowałeś jeszcze przyniesienia żadnej rzeczy.
+    - generic [ref=f8e78]:
+      - generic [ref=f8e79]:
+        - generic [ref=f8e80]:
+          - heading "Twoje rzeczy" [level=3] [ref=f8e81]
+          - paragraph [ref=f8e82]: Rzeczy, które chcesz wypożyczyć, oddać lub zamienić
+        - button "Zobacz →" [ref=f8e83]
+      - generic [ref=f8e84]:
+        - generic [ref=f8e85]:
+          - generic [ref=f8e90]: "0"
+          - generic [ref=f8e91]: Wypożyczyć
+        - generic [ref=f8e92]:
+          - generic [ref=f8e97]: "0"
+          - generic [ref=f8e98]: Oddać
+        - generic [ref=f8e99]:
+          - generic [ref=f8e104]: "0"
+          - generic [ref=f8e105]: Zamienić
+    - generic [ref=f8e106]:
+      - generic [ref=f8e107]:
+        - generic [ref=f8e108]:
+          - heading "Rzeczy wypożyczone" [level=3] [ref=f8e109]
+          - paragraph [ref=f8e110]: Rzeczy, które wypożyczyłeś od innych
+        - button "Zobacz →" [ref=f8e111]
+      - generic [ref=f8e113]:
+        - generic [ref=f8e119]: "0"
+        - generic [ref=f8e120]: Wypożyczone
+  - navigation "Nawigacja panelu" [ref=f8e121]:
+    - button "Home" [ref=f8e122]
+    - button "Spotkania" [ref=f8e126]
+    - button "Moje rzeczy" [ref=f8e130]
+    - button "Wypożyczone" [ref=f8e134]
+  - dialog "Edytuj termin" [ref=f8e140]:
+    - generic [ref=f8e141]:
+      - heading "Edytuj termin" [level=3] [ref=f8e142]
+      - button "Zamknij" [ref=f8e143]
+    - generic [ref=f8e146]:
+      - generic [ref=f8e147]:
+        - generic [ref=f8e148]: Data i godzina
+        - textbox "Data i godzina" [ref=f8e149]: 2026-09-25T17:00
+      - generic [ref=f8e150]:
+        - generic [ref=f8e151]: Opis
+        - textbox "Opis" [ref=f8e152]:
+          - /placeholder: 17:00 · Park Sołacki · wstęp wolny
+    - button "Zapisz" [ref=f8e153]
+    - heading "Potrzebne rzeczy" [level=4] [ref=f8e154]
+    - button "Dodaj potrzebną rzecz" [ref=f8e155]: + Dodaj potrzebną rzecz
+    - heading "Formalizuj stałych członków" [level=4] [ref=f8e156]
+    - paragraph [ref=f8e166]: Dodano 1 osobę jako stałych członków grupy.

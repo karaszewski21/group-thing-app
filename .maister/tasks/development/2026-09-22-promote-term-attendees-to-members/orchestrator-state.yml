@@ -1,0 +1,162 @@
+orchestrator:
+  started_phase: phase-14
+  completed_phases: [phase-1, phase-2, phase-4, phase-5, phase-6, phase-7, phase-8, phase-10, phase-11, phase-13, phase-14]
+  design_reference:
+    source: "ascii-generation"
+    mockup_count: 3
+    has_brief: false
+    index_path: analysis/design-context/INDEX.md
+  failed_phases: []
+  auto_fix_attempts: {}
+  options:
+    spec_audit_enabled: false
+    skip_test_suite: true
+    e2e_enabled: false
+    user_docs_enabled: true
+    code_review_enabled: true
+    pragmatic_review_enabled: false
+    reality_check_enabled: false
+    production_check_enabled: false
+  created: "2026-09-22T00:00:00Z"
+  updated: "2026-09-22T00:00:00Z"
+  task_path: .maister/tasks/development/2026-09-22-promote-term-attendees-to-members
+  task_ids: {}
+  codebase_analysis_summary: >
+    Coupling isolated to formalize_group_from_term (memberships.py:125-163):
+    creates Memberships AND unconditionally flips Group.visibility to
+    PRIVATE. Visibility is already independently settable via PATCH
+    /groups/{id}, proving separability. EditTermDialog.tsx (only current UI
+    consumer) gates its whole formalize section on visibility === PUBLIC,
+    conflating "still public" with "not yet formalized". KragGrupyPage.tsx
+    has zero existing formalize code; new integration should go through
+    useKragGrupy.ts following its refetch()-after-mutation pattern, gated
+    by isOrganizerViewer. Complexity: moderate. Risk: medium. One existing
+    test (test_formalizeGroupFromTerm_organizer_createsMembershipAndSetsPrivate)
+    asserts visibility flips to PRIVATE -- this assertion breaks by design
+    once decoupled.
+
+task:
+  title: "Decouple standing-membership promotion from group visibility flip; expose from organizer's own group page"
+  description: |
+    Implement the fix for use case 1 (ad-hoc music-class sessions ->
+    promotable, ongoing, addable standing group) identified by research at
+    .maister/tasks/research/2026-09-22-business-model-fit-recurring-groups.
+
+    Approach: decouple "add term attendees as standing members" from the
+    PUBLIC->PRIVATE visibility flip (Approach A/B in the research
+    synthesis). A PUBLIC group must be able to have standing Membership
+    rows while continuing to accept ad-hoc TermAttendance signups for new
+    terms -- the two should coexist, not be mutually exclusive.
+
+    Required constraint: the new/adjusted "add standing members from a
+    term's attendees" action must be reachable directly from the
+    organizer's own group page (src/frontend/src/pages/krag/KragGrupyPage.tsx),
+    not only from the internal /panel route's EditTermDialog.
+
+    Use cases 2-4 (family gatherings, teacher's class, football coach's
+    team) are already fully supported by the existing PRIVATE-group +
+    join_private_group + Membership mechanism per the research -- no
+    changes needed there.
+  status: completed
+  tags: [development, groups, membership, backend, frontend]
+  priority: high
+
+project_context:
+  project_doc_paths:
+    - .maister/docs/project/tech-stack.md
+    - .maister/docs/project/architecture.md
+    - .maister/docs/standards/global/error-handling.md
+    - .maister/docs/standards/global/validation.md
+    - .maister/docs/standards/global/conventions.md
+    - .maister/docs/standards/global/coding-style.md
+    - .maister/docs/standards/global/commenting.md
+    - .maister/docs/standards/global/minimal-implementation.md
+    - .maister/docs/standards/backend/api.md
+    - .maister/docs/standards/backend/models.md
+    - .maister/docs/standards/backend/queries.md
+    - .maister/docs/standards/backend/jooq.md
+    - .maister/docs/standards/backend/migrations.md
+    - .maister/docs/standards/backend/security.md
+    - .maister/docs/standards/backend/plugin-auth.md
+    - .maister/docs/standards/frontend/css.md
+    - .maister/docs/standards/frontend/components.md
+    - .maister/docs/standards/frontend/accessibility.md
+    - .maister/docs/standards/frontend/responsive.md
+    - .maister/docs/standards/testing/backend-testing.md
+    - .maister/docs/standards/testing/frontend-testing.md
+
+task_context:
+  risk_level: null
+  clarifications_resolved: null
+  scope_expanded: null
+  architecture_decision: null
+  task_characteristics:
+    has_reproducible_defect: false
+    modifies_existing_code: true
+    creates_new_entities: true
+    involves_data_operations: true
+    ui_heavy: true
+  scope_expanded: true
+  gap_analysis_summary: >
+    Risk medium, effort medium. Core coupling break confirmed feasible with
+    low architectural impact. Two NEW critical findings beyond prior
+    phases: (1) family-less promoted members become invisible in
+    KragGrupyPage.tsx's family-orbit display (resolveFamiliesForMemberships
+    drops parties with no resolvable Family) -- a display gap that
+    undermines the whole point of relaxing the family filter; (2)
+    EditTermDialog.tsx has three more family-coupled UI behaviors
+    (pre-selection, disabled-checkbox, "brak rodziny" copy) beyond the
+    already-known visibility gate, all needing rework together. Two
+    "important" open decisions: rename formalize_group_from_term or keep
+    name; rewrite existing backend test in place vs. add new tests
+    alongside.
+  research_reference:
+    path: .maister/tasks/research/2026-09-22-business-model-fit-recurring-groups
+    research_question: >
+      Does the current group-thing-app data model and UX cover ad-hoc
+      music-class sign-up, family gatherings, teacher classes, and coach
+      teams, and what gap exists in promoting ad-hoc attendees into a
+      standing, ongoing, addable group?
+    research_type: mixed
+    confidence_level: high
+  design_reference:
+    source: null
+    product_design_path: null
+    mockup_count: 0
+    has_brief: false
+    index_path: null
+  phase_summaries:
+    research:
+      summary: >
+        Use cases 2-4 (family/teacher/coach) already fully supported by
+        PRIVATE-group + join_private_group + Membership. Use case 1
+        partially supported: formalize_group_from_term exists and is
+        tested but is one-shot, forecloses further ad-hoc signup by
+        flipping PUBLIC->PRIVATE, requires a resolvable Family, and is
+        reachable only from the internal /panel route. Recommended fix
+        (Approach A/B): decouple "add standing members" from the
+        visibility flip; keep it available while a group stays PUBLIC;
+        expose it from the organizer's own group page.
+      key_findings:
+        - "Membership (standing) and TermAttendance (ad-hoc) are separate tables with no FK link (models.py:149-170, 239-264)"
+        - "formalize_group_from_term (application/memberships.py:125-163) creates Membership rows from term attendees but also flips group.visibility PUBLIC->PRIVATE in the same transaction"
+        - "Once PRIVATE, create_rsvp (public_view.py:310-321) rejects new anonymous/non-member RSVPs, foreclosing further ad-hoc signup"
+        - "The formalize action is UI-reachable only from components/panel/EditTermDialog.tsx under the internal /panel route, not from KragGrupyPage.tsx"
+        - "Formalization requires a resolvable Family per attendee (memberships.py:147-149); solo adults without a Family record are silently unselectable"
+        - "No DB constraint ties Membership creation to visibility change -- the coupling is application-layer logic, not structural"
+      recommended_approach: >
+        Approach A/B: introduce/adjust an application-layer operation that
+        creates standing Membership rows from selected term attendees
+        WITHOUT changing group.visibility, so a PUBLIC group can keep
+        accepting ad-hoc signups while also accumulating standing members.
+        Expose this action on the organizer's own group page
+        (KragGrupyPage.tsx), in addition to (or replacing) the existing
+        /panel-only entry point.
+    design: {summary: null, screen_count: 0, component_count: 0, index_path: null}
+    codebase_analysis: {key_files: [], primary_language: null, summary: null}
+    clarifications: []
+    gap_analysis: {integration_points: [], summary: null}
+    scope_clarifications: {scope_expanded: null, summary: null}
+    ui_mockups: {components_designed: [], summary: null}
+    specification: {summary: null}
+    architecture_decision: {decision: null, summary: null}

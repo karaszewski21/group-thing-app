@@ -207,7 +207,11 @@ async def register(db: AsyncSession, data: RegisterRequest) -> tuple[User, int]:
     `create_own_circle` under any role (spec.md Core Requirements 3-4) —
     ORGANIZER registration only grants the `UserRole(ORGANIZATOR)`
     capacity; circle creation moves to the onboarding wizard's
-    `POST /api/groups/mine` step."""
+    `POST /api/groups/mine` step. It does, unconditionally for every role,
+    ensure the new party has a resolvable solo Family (spec.md Core
+    Requirements 3-4) — distinct from the removed organizer-role-triggered
+    bootstrap, this one is not role-gated and exists purely so the party
+    renders correctly in a group's family-orbit visualization."""
     existing_profile = (
         await db.execute(select(UserProfile).where(UserProfile.email == data.email))
     ).scalar_one_or_none()
@@ -222,6 +226,14 @@ async def register(db: AsyncSession, data: RegisterRequest) -> tuple[User, int]:
     )
     if data.role == "ORGANIZER":
         await get_or_create_active_user_role(db, cast(int, party.id), UserRoleType.ORGANIZATOR)
+
+    # Deferred import: app.families.bootstrap imports create_account_and_profile
+    # from this module at module load time, so a top-level import here would
+    # trigger a circular-import ImportError while this module is still
+    # mid-initialization.
+    from app.families.service import create_solo_family_for_party
+
+    await create_solo_family_for_party(db, cast(int, party.id), display_name)
 
     await db.commit()
     user = await db.get(User, profile.account_user_id)

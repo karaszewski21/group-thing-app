@@ -1,0 +1,41 @@
+- generic [ref=f3e4]:
+  - banner [ref=f3e6]:
+    - generic [ref=f3e7]:
+      - button "← Wróć" [ref=f3e8] [cursor=pointer]
+      - link "Mój panel →" [ref=f3e9] [cursor=pointer]:
+        - /url: /panel
+    - generic [ref=f3e11]:
+      - generic [ref=f3e12]: Grupa
+      - heading "Bugcheck Circle" [level=1] [ref=f3e13]
+      - generic [ref=f3e14]: "Najbliższe zajęcia: czwartek, 8 października · 0 rodzin"
+      - button "＋ Zapisz się na zajęcia" [active] [ref=f3e15] [cursor=pointer]
+  - generic [ref=f3e19]:
+    - button "Zaproś kolejną rodzinę" [ref=f3e21] [cursor=pointer]:
+      - generic [ref=f3e22]: +
+    - generic [ref=f3e23]:
+      - generic [ref=f3e24]: B
+      - strong [ref=f3e25]: Bugcheck Org1
+      - generic [ref=f3e26]: prowadzi zajęcia
+  - generic [ref=f3e27]:
+    - generic [ref=f3e28]: udostępnia rzecz
+    - generic [ref=f3e33]: przynosi na zajęcia
+  - dialog "Zapisz się na zajęcia" [ref=f3e46]:
+    - generic [ref=f3e47]:
+      - heading "Zapisz się na zajęcia" [level=3] [ref=f3e48]
+      - button "Zamknij" [ref=f3e49] [cursor=pointer]: ✕
+    - paragraph [ref=f3e50]:
+      - text: Zapisujesz się jako
+      - strong [ref=f3e51]: Bugcheck1
+    - generic [ref=f3e52]:
+      - paragraph [ref=f3e53]: Dodaj rodzinę, aby uzupełnić liczbę dzieci
+      - paragraph [ref=f3e54]: Liczbę dzieci uzupełnimy automatycznie z Twojego domu.
+      - generic [ref=f3e55]:
+        - link "Przejdź do „Mój dom”" [ref=f3e56] [cursor=pointer]:
+          - /url: /panel
+        - button "Pomiń" [ref=f3e57] [cursor=pointer]
+    - button "Zapisz się" [ref=f3e58] [cursor=pointer]
+  - generic [ref=f3e39]:
+    - heading "Kto co przynosi" [level=2] [ref=f3e40]
+    - paragraph [ref=f3e41]: Te rzeczy są potrzebne na najbliższe zajęcia — zgłoś się, jeśli możesz coś przynieść.
+    - generic [ref=f3e42]: Brak listy potrzebnych rzeczy na te zajęcia.
+  - paragraph [ref=f3e44]: Dotknij rodziny, żeby zobaczyć jej kartę.

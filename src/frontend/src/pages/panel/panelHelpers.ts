@@ -18,6 +18,7 @@ export type View =
 
 export type ModalKind =
   | "grupa"
+  | "edit-grupa"
   | "termin"
   | "rzecz"
   | "pierwszy-termin"

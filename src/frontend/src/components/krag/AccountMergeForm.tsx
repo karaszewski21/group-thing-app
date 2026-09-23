@@ -11,7 +11,7 @@ const DEFAULT_ERROR_MESSAGE = "Nie udało się założyć konta — spróbuj pon
  * inline mini-form — deliberately NOT the full `RegisterPage.tsx` (no
  * GUEST/ORGANIZER role toggle, since this merges an already-anonymous
  * GUEST profile into a real account rather than choosing a fresh role).
- * Rendered by `KragGrupyPage.tsx` in place of a needed item's "Zgłoś się"
+ * Rendered by `TermPage.tsx` in place of a needed item's "Zgłoś się"
  * pledge-trigger, not as a modal/overlay — see §4/§3a of spec.md.
  */
 export function AccountMergeForm({ userProfileId }: { userProfileId: number }) {

@@ -1,13 +1,21 @@
 import { useCallback, useEffect, useState } from "react";
 import { getFamiliesForGuardianParty, getGuardians, type GuardianResponse } from "../api/families";
 import {
+  formalizeGroupFromTerm as formalizeGroupFromTermApi,
   getCurrentLeadership,
+  getFamilyExchangeOffers,
   getGroup,
+  getGroupExchangeSummary,
   getMembershipsForCircle,
   getMyAttendances,
+  getTermAttendeesForFormalization,
+  updateGroupLayoutMode as updateGroupLayoutModeApi,
   withdrawMyAttendance as withdrawMyAttendanceApi,
+  type FamilyExchangeOffer,
+  type GroupLayoutMode,
   type GroupResponse,
   type MyAttendanceResponse,
+  type TermAttendeeResponse,
 } from "../api/groups";
 import {
   createPledge,
@@ -42,6 +50,14 @@ export interface KragFamily {
   familyId: number;
   name: string;
   guardians: GuardianResponse[];
+  /** "udostępnia rzecz" marker — from `getGroupExchangeSummary`, mapped in at
+   * mount. Falls back to `false` (soft degradation) when the summary fetch
+   * fails, so a summary-endpoint outage never blocks the rest of the screen
+   * from rendering — see `GroupVisualization.tsx`'s `VisualizationFamily`,
+   * the consumer contract this shape satisfies. */
+  sharesItem: boolean;
+  /** "przynosi na zajęcia" marker — same fetch/fallback as `sharesItem`. */
+  bringsItem: boolean;
 }
 
 export interface KragNeededItemWithPledges {
@@ -101,6 +117,48 @@ export interface UseKragGrupyResult {
    * `fulfillReservation`: a bare fulfill has no term-end/race check and,
    * for SWAP, only ever resolves one leg of the pair. */
   confirmListingReceipt: (reservationId: number, termId: number) => Promise<void>;
+  /** Every active exchange-mechanism offer from the family last passed to
+   * `loadExchangeOffersForFamily` — empty until that action has been called
+   * at least once (lazy, not fetched at mount). */
+  activeFamilyExchangeOffers: FamilyExchangeOffer[];
+  /** True only while the request kicked off by `loadExchangeOffersForFamily`
+   * is in flight — scoped to that one family card's section, not the whole
+   * screen's `loading`. */
+  loadingExchangeOffers: boolean;
+  /** Set (to a user-facing message) when the last `loadExchangeOffersForFamily`
+   * call failed; cleared at the start of the next call. Lets the family-card
+   * section show a retry affordance instead of silently looking empty. */
+  exchangeOffersError: string | null;
+  /** Lazily loads `familyId`'s active exchange offers into
+   * `activeFamilyExchangeOffers` — called from an avatar-click handler, not
+   * at mount. */
+  loadExchangeOffersForFamily: (familyId: number) => Promise<void>;
+  /** Optimistically applies `layoutMode` to `group`, then PATCHes it —
+   * rolls back to the previous `group` value if the PATCH fails, matching
+   * the optimistic-update-with-rollback pattern of this hook's other
+   * mutations. */
+  setGroupLayoutMode: (layoutMode: GroupLayoutMode) => Promise<void>;
+  /** This term's attendees, resolved for the organizer's "add standing
+   * members from this term" card (`getTermAttendeesForFormalization`) —
+   * `null` while loading/not-yet-fetched (no `currentTerm` yet), an array
+   * once resolved. Family-independent and visibility-independent: every
+   * attendee is a candidate, `already_member` is the only exclusion. */
+  termAttendeesForFormalization: TermAttendeeResponse[] | null;
+  /** Promotes `partyIds` (a subset of `termAttendeesForFormalization`) to
+   * standing members of `currentTerm`'s group, following the same shape as
+   * `withdrawMyAttendance` — a thin API call + `await refetch()`, with any
+   * busy-flag/toast/error-copy handling left to the caller. */
+  formalizeStandingMembers: (partyIds: number[]) => Promise<void>;
+  /** Shared "Biorę" dispatch for both the existing "Rzeczy od innych" list
+   * and the family-card exchange-offers section (Group 8) — routes to the
+   * direct LEND/GIFT take (`takeListing`) or the SWAP propose flow
+   * (`proposeSwap`) based on `reservationType`, so callers don't duplicate
+   * that branch. */
+  takeOrProposeExchange: (
+    itemId: number,
+    reservationType: ReservationType,
+    offeredItemId?: number,
+  ) => Promise<void>;
   refetch: () => Promise<void>;
 }
 
@@ -117,7 +175,13 @@ async function resolveFamiliesForMemberships(
     const family = families[0];
     if (!family || familiesById.has(family.id)) continue;
     const guardians = await getGuardians(family.id);
-    familiesById.set(family.id, { familyId: family.id, name: family.name, guardians });
+    familiesById.set(family.id, {
+      familyId: family.id,
+      name: family.name,
+      guardians,
+      sharesItem: false,
+      bringsItem: false,
+    });
   }
   return Array.from(familiesById.values());
 }
@@ -136,12 +200,17 @@ export function useKragGrupy(groupId: number): UseKragGrupyResult {
   const [attendances, setAttendances] = useState<MyAttendanceResponse[]>([]);
   const [myItemListings, setMyItemListings] = useState<BrowseTermItemListingResponse[]>([]);
   const [browseListings, setBrowseListings] = useState<BrowseTermItemListingResponse[]>([]);
+  const [activeFamilyExchangeOffers, setActiveFamilyExchangeOffers] = useState<FamilyExchangeOffer[]>([]);
+  const [loadingExchangeOffers, setLoadingExchangeOffers] = useState(false);
+  const [exchangeOffersError, setExchangeOffersError] = useState<string | null>(null);
+  const [termAttendeesForFormalization, setTermAttendeesForFormalization] =
+    useState<TermAttendeeResponse[] | null>(null);
 
   const refetch = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      const [groupData, leadership, memberships, terms, myProfile, productsData, attendancesData] =
+      const [groupData, leadership, memberships, terms, myProfile, productsData, attendancesData, exchangeSummary] =
         await Promise.all([
           getGroup(groupId),
           getCurrentLeadership(groupId),
@@ -150,11 +219,25 @@ export function useKragGrupy(groupId: number): UseKragGrupyResult {
           getMyProfile(),
           getProducts(),
           getMyAttendances(),
+          // Soft-degrades to an empty summary on failure — mapped to
+          // sharesItem/bringsItem === false below — so an outage of this
+          // endpoint never blocks the rest of the screen from rendering.
+          getGroupExchangeSummary(groupId).catch(() => ({ families: [] })),
         ]);
       setMyPartyId(myProfile.party_id);
       setGroup(groupData);
       setOrganizer(leadership ? await getProfileByParty(leadership.organizer_party_id) : null);
-      setFamilies(await resolveFamiliesForMemberships(memberships.map((m) => m.member_party_id)));
+      const resolvedFamilies = await resolveFamiliesForMemberships(
+        memberships.map((m) => m.member_party_id),
+      );
+      const exchangeByFamilyId = new Map(exchangeSummary.families.map((f) => [f.family_id, f]));
+      setFamilies(
+        resolvedFamilies.map((family) => ({
+          ...family,
+          sharesItem: exchangeByFamilyId.get(family.familyId)?.shares_item ?? false,
+          bringsItem: exchangeByFamilyId.get(family.familyId)?.brings_item ?? false,
+        })),
+      );
       setAttendances(attendancesData);
 
       // The pledger's own AVAILABLE personal items — offered as "z moich
@@ -246,6 +329,32 @@ export function useKragGrupy(groupId: number): UseKragGrupyResult {
   useEffect(() => {
     void refetch();
   }, [refetch]);
+
+  // "Dodaj stałych członków z tego terminu" card data — fetched once
+  // `currentTerm` is known, mirroring `EditTermDialog.tsx`'s attendee-fetch
+  // timing but adapted to this hook's `refetch()`-driven lifecycle (refetch
+  // re-runs `setCurrentTerm`, which re-triggers this effect with a fresh
+  // `TermResponse` reference, keeping `already_member` in sync after a
+  // promotion). Deliberately NOT gated on `group.visibility` — Decision 4.1
+  // drops visibility as an eligibility signal entirely.
+  useEffect(() => {
+    if (!group || !currentTerm) {
+      setTermAttendeesForFormalization(null);
+      return;
+    }
+    let cancelled = false;
+    setTermAttendeesForFormalization(null);
+    getTermAttendeesForFormalization(group.id, currentTerm.id)
+      .then((rows) => {
+        if (!cancelled) setTermAttendeesForFormalization(rows);
+      })
+      .catch(() => {
+        if (!cancelled) setTermAttendeesForFormalization([]);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [group, currentTerm]);
 
   const pledgeFamilyName = useCallback(
     (pledgeItem: PledgeResponse): string => {
@@ -340,6 +449,64 @@ export function useKragGrupy(groupId: number): UseKragGrupyResult {
     await refetch();
   }, [myAttendanceForCurrentTerm, refetch]);
 
+  const formalizeStandingMembers = useCallback(
+    async (partyIds: number[]) => {
+      if (!group || !currentTerm) return;
+      await formalizeGroupFromTermApi(group.id, currentTerm.id, partyIds);
+      await refetch();
+    },
+    [group, currentTerm, refetch],
+  );
+
+  const loadExchangeOffersForFamily = useCallback(async (familyId: number) => {
+    setLoadingExchangeOffers(true);
+    setExchangeOffersError(null);
+    try {
+      const detail = await getFamilyExchangeOffers(groupId, familyId);
+      setActiveFamilyExchangeOffers(detail.offers);
+    } catch {
+      setActiveFamilyExchangeOffers([]);
+      setExchangeOffersError("Nie udało się wczytać rzeczy do wymiany.");
+    } finally {
+      setLoadingExchangeOffers(false);
+    }
+  }, [groupId]);
+
+  const setGroupLayoutMode = useCallback(
+    async (layoutMode: GroupLayoutMode) => {
+      if (!group) return;
+      const previousGroup = group;
+      // Optimistic update, matching this hook's other mutations — rolled
+      // back below if the PATCH fails.
+      setGroup({ ...group, layout_mode: layoutMode });
+      try {
+        const updated = await updateGroupLayoutModeApi(group.id, group.name, layoutMode);
+        setGroup(updated);
+      } catch (err) {
+        setGroup(previousGroup);
+        throw err;
+      }
+    },
+    [group],
+  );
+
+  // Shared by "Rzeczy od innych" (existing browse-listings flow) and the
+  // family-card exchange-offers section (Group 8) — see this function's
+  // docstring on `UseKragGrupyResult`.
+  const takeOrProposeExchange = useCallback(
+    async (itemId: number, reservationType: ReservationType, offeredItemId?: number) => {
+      if (reservationType === "SWAP") {
+        if (offeredItemId === undefined) {
+          throw new Error("offeredItemId is required for a SWAP proposal");
+        }
+        await proposeSwap(itemId, offeredItemId);
+        return;
+      }
+      await takeListing(itemId, reservationType);
+    },
+    [proposeSwap, takeListing],
+  );
+
   return {
     loading,
     error,
@@ -363,6 +530,14 @@ export function useKragGrupy(groupId: number): UseKragGrupyResult {
     proposeSwap,
     withdrawMyAttendance,
     confirmListingReceipt,
+    activeFamilyExchangeOffers,
+    loadingExchangeOffers,
+    exchangeOffersError,
+    loadExchangeOffersForFamily,
+    setGroupLayoutMode,
+    takeOrProposeExchange,
+    termAttendeesForFormalization,
+    formalizeStandingMembers,
     refetch,
   };
 }

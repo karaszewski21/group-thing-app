@@ -1,0 +1,33 @@
+- generic [ref=f7e3]:
+  - generic [ref=f7e4]:
+    - banner [ref=f7e6]:
+      - button "← Wróć" [ref=f7e8] [cursor=pointer]
+      - generic [ref=f7e10]:
+        - generic [ref=f7e11]: Krąg
+        - heading "Muzyczne Maluchy Docs" [level=1] [ref=f7e12]
+        - generic [ref=f7e13]: "Prowadzi: Docs Organizer 20260922"
+    - generic [ref=f7e18]:
+      - generic [ref=f7e19]: D
+      - strong [ref=f7e20]: Docs Organizer 20260922
+      - generic [ref=f7e21]: prowadzi zajęcia
+    - generic [ref=f7e22]:
+      - generic [ref=f7e23]: Termin zajęć
+      - generic [ref=f7e24]: piątek, 25 września
+      - generic [ref=f7e25]: 🕒 godz. 17:00
+    - generic [ref=f7e26]:
+      - heading "Zapisani opiekunowie" [level=3] [ref=f7e27]
+      - list [ref=f7e28]:
+        - listitem [ref=f7e29]: Ania Testowa
+    - button "＋ Zapisz się na zajęcia" [active] [ref=f7e31] [cursor=pointer]
+  - dialog "Zapisz się na zajęcia" [ref=f7e33]:
+    - generic [ref=f7e34]:
+      - heading "Zapisz się na zajęcia" [level=3] [ref=f7e35]
+      - button "Zamknij" [ref=f7e36]: ✕
+    - paragraph [ref=f7e37]: Zaloguj się, żeby zapis trafił na Twoje konto — albo zapisz się jako gość.
+    - link "Zaloguj się" [ref=f7e38] [cursor=pointer]:
+      - /url: /login?returnTo=%2Fmuzyczne-skrzaty-docs%2Fgrupa%2F3%2Fterm%2F3
+    - button "Zapisz się jako gość" [ref=f7e39]
+    - paragraph [ref=f7e40]:
+      - text: Nie masz konta?
+      - link "Zarejestruj się" [ref=f7e41] [cursor=pointer]:
+        - /url: /register

@@ -58,6 +58,32 @@ class SwapProposalStatus(enum.StrEnum):
     REJECTED = "REJECTED"
 
 
+class GroupLayoutMode(enum.StrEnum):
+    """The participant-visualization layout an organizer picks for their
+    Circle's `/krag/{id}` screen — `CIRCLE` is the long-standing layout,
+    `PITCH`/`TABLE` are the two new algorithmic layouts. A stable, always-
+    sensible default (`CIRCLE`), so the column carries a permanent
+    `server_default` rather than a temporary backfill one — see the
+    `0035_group_layout_mode` migration's docstring."""
+
+    CIRCLE = "CIRCLE"
+    PITCH = "PITCH"
+    TABLE = "TABLE"
+
+
+class GroupVisibility(enum.StrEnum):
+    """`PUBLIC` (default): anyone with the link may RSVP to a Term (today's
+    only behavior, unchanged). `PRIVATE`: only existing standing `Membership`
+    members (or the active organizer) may RSVP; new members join exclusively
+    via the group's own join-link (`join_private_group`), never anonymous
+    per-term RSVP. Visibility changes only via `PATCH /groups/{id}`
+    (`update_group`); it is fully independent of standing-`Membership`
+    creation (`formalize_group_from_term` never reads or writes it)."""
+
+    PUBLIC = "PUBLIC"
+    PRIVATE = "PRIVATE"
+
+
 class Group(BaseEntity):
     """A class/activity Circle."""
 
@@ -68,6 +94,16 @@ class Group(BaseEntity):
         BigInteger, ForeignKey("parties.id", name="fk_groups_party_id_parties"), nullable=False
     )
     name: Mapped[str] = mapped_column(String(255), nullable=False)
+    layout_mode: Mapped[GroupLayoutMode] = mapped_column(
+        _enum_column(GroupLayoutMode, 10),
+        nullable=False,
+        server_default="CIRCLE",
+    )
+    visibility: Mapped[GroupVisibility] = mapped_column(
+        _enum_column(GroupVisibility, 10),
+        nullable=False,
+        server_default="PUBLIC",
+    )
 
 
 class GroupRole(BaseEntity):

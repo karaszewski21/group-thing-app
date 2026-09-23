@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   createNeededItem,
   deleteNeededItem,
@@ -12,6 +12,12 @@ import { resolveProduct } from "../../api/products";
 import type { Category } from "../../api/categories";
 import { useCategories } from "../../hooks/useCategories";
 import { Field, ModalSheet } from "../../pages/panel/panelComponents";
+import {
+  formalizeGroupFromTerm,
+  getTermAttendeesForFormalization,
+  type GroupResponse,
+  type TermAttendeeResponse,
+} from "../../api/groups";
 
 /* ------------------------------------------------------------------ */
 /*  "Edytuj termin" — single Panel dialog replacing the inline per-    */
@@ -54,6 +60,11 @@ function makeEmptyDraft(categories: Category[]): NeededItemDraft {
 interface EditTermDialogProps {
   term: TermResponse;
   neededItems: NeededItemResponse[];
+  /** The term's Circle — used to scope the "Formalizuj stałych członków"
+   * section's fetch/submit calls. That section is independent of the
+   * group's visibility: it always fetches this term's attendees and shows
+   * whichever state (loading/error/empty/populated) applies. */
+  group: GroupResponse;
   /** `() => void load({ silent: true })` on the host — refreshes the props. */
   onChanged: () => void;
   onClose: () => void;
@@ -107,13 +118,64 @@ function NeededItemFields({
 const toLocalInput = (iso: string): string =>
   iso.length >= 16 ? iso.slice(0, 16) : `${iso.slice(0, 10)}T00:00`;
 
-export function EditTermDialog({ term, neededItems, onChanged, onClose }: EditTermDialogProps) {
+export function EditTermDialog({ term, neededItems, group, onChanged, onClose }: EditTermDialogProps) {
   const { data: categories } = useCategories();
   const [occursOn, setOccursOn] = useState(toLocalInput(term.occurs_on));
   const [description, setDescription] = useState(term.description ?? "");
   const [busy, setBusy] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
+
+  // --- "Formalizuj stałych członków" (family-/visibility-independent) ----
+  const [attendees, setAttendees] = useState<TermAttendeeResponse[] | null>(null);
+  const [attendeesError, setAttendeesError] = useState<string | null>(null);
+  const [selectedPartyIds, setSelectedPartyIds] = useState<Set<number>>(new Set());
+  const [formalizing, setFormalizing] = useState(false);
+  const [formalizeError, setFormalizeError] = useState<string | null>(null);
+  const [formalized, setFormalized] = useState(false);
+  const [formalizedCount, setFormalizedCount] = useState(0);
+
+  useEffect(() => {
+    let cancelled = false;
+    getTermAttendeesForFormalization(group.id, term.id)
+      .then((rows) => {
+        if (cancelled) return;
+        setAttendees(rows);
+        setSelectedPartyIds(new Set(rows.filter((r) => !r.already_member).map((r) => r.party_id)));
+      })
+      .catch(() => {
+        if (!cancelled) setAttendeesError("Nie udało się wczytać listy zapisanych");
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [group.id, term.id]);
+
+  function toggleAttendee(partyId: number) {
+    setSelectedPartyIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(partyId)) next.delete(partyId);
+      else next.add(partyId);
+      return next;
+    });
+  }
+
+  async function formalize() {
+    if (selectedPartyIds.size === 0) return;
+    setFormalizing(true);
+    setFormalizeError(null);
+    try {
+      const partyIds = Array.from(selectedPartyIds);
+      await formalizeGroupFromTerm(group.id, term.id, partyIds);
+      setFormalizedCount(partyIds.length);
+      setFormalized(true);
+      onChanged();
+    } catch {
+      setFormalizeError("Nie udało się ustalić stałych członków — spróbuj ponownie");
+    } finally {
+      setFormalizing(false);
+    }
+  }
 
   const [editing, setEditing] = useState<({ id: number } & NeededItemDraft) | null>(null);
   const [adding, setAdding] = useState(false);
@@ -357,6 +419,65 @@ export function EditTermDialog({ term, neededItems, onChanged, onClose }: EditTe
       )}
 
       {itemsError && <p className="mt-2 text-[12.5px] font-semibold text-danger">{itemsError}</p>}
+
+      {attendees !== null && (
+        <>
+          <h4 className="mb-1.5 mt-6 text-sm font-semibold text-ink">Formalizuj stałych członków</h4>
+          {formalized ? (
+            <p className="text-[12.5px] font-bold text-mint">
+              Dodano {formalizedCount} {formalizedCount === 1 ? "osobę" : "osób"} jako stałych
+              członków grupy.
+            </p>
+          ) : attendeesError ? (
+            <p className="text-[12.5px] font-semibold text-danger">{attendeesError}</p>
+          ) : attendees === null ? (
+            <p className="text-[12.5px] text-ink-soft">Wczytywanie zapisanych…</p>
+          ) : attendees.length === 0 ? (
+            <p className="text-[12.5px] text-ink-soft">Nikt jeszcze nie zapisał się na ten termin.</p>
+          ) : (
+            <>
+              <p className="mb-1.5 text-[12.5px] text-ink-soft">
+                Zaznacz, kto ma zostać stałym członkiem grupy.
+              </p>
+              <ul className="flex flex-col">
+                {attendees.map((a) => (
+                  <li
+                    key={a.party_id}
+                    className="flex items-center gap-2 border-t border-line/60 py-2 text-[12.5px] first:border-t-0"
+                  >
+                    <input
+                      type="checkbox"
+                      aria-label={`Ustal ${a.display_name} jako stałego członka`}
+                      checked={selectedPartyIds.has(a.party_id)}
+                      disabled={a.already_member}
+                      onChange={() => toggleAttendee(a.party_id)}
+                    />
+                    <span className="min-w-0 flex-1 text-ink-soft">
+                      {a.display_name}
+                      {a.already_member
+                        ? " — już jest stałym członkiem"
+                        : a.family_name
+                          ? ` — ${a.family_name}`
+                          : ""}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+              {formalizeError && (
+                <p className="mt-2 text-[12.5px] font-semibold text-danger">{formalizeError}</p>
+              )}
+              <button
+                type="button"
+                onClick={() => void formalize()}
+                disabled={formalizing || selectedPartyIds.size === 0}
+                className="mt-3 w-full rounded-[13px] bg-mint px-5 py-3 text-[13.5px] font-extrabold text-white disabled:opacity-60"
+              >
+                Ustal stałych członków
+              </button>
+            </>
+          )}
+        </>
+      )}
     </ModalSheet>
   );
 }

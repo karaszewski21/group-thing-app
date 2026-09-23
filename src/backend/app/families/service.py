@@ -12,7 +12,12 @@ This module is a flat re-export facade over the cohesive sibling modules
 
 from __future__ import annotations
 
-from .bootstrap import bootstrap_family_for_party, create_family, create_own_family
+from .bootstrap import (
+    bootstrap_family_for_party,
+    create_family,
+    create_own_family,
+    create_solo_family_for_party,
+)
 from .guardians import (
     add_guardian,
     build_guardian_responses,
@@ -37,6 +42,7 @@ __all__ = [
     "create_family",
     "create_lightweight_members_batch",
     "create_own_family",
+    "create_solo_family_for_party",
     "get_family",
     "list_families_for_guardian_party",
     "list_group_memberships_for_family",

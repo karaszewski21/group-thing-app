@@ -18,6 +18,8 @@ export function PanelModals() {
     myGroups,
     editTermEntry,
     groupForm,
+    editGroupForm,
+    editGroupError,
     termGroupId,
     termDate,
     termDescription,
@@ -29,6 +31,7 @@ export function PanelModals() {
     setModal,
     setEditTermId,
     setGroupForm,
+    setEditGroupForm,
     setTermGroupId,
     setTermDate,
     setTermDescription,
@@ -37,11 +40,19 @@ export function PanelModals() {
     showToast,
     load,
     handleAddGroup,
+    cancelEditGroup,
+    saveEditGroup,
     handleAddTerm,
     handleAddItem,
     addDraftNeededItem,
     removeDraftNeededItem,
   } = usePanelData();
+
+  const LAYOUT_OPTIONS = [
+    { mode: "CIRCLE", label: "Koło" },
+    { mode: "PITCH", label: "Boisko" },
+    { mode: "TABLE", label: "Stół" },
+  ] as const;
 
   // "Potrzebne rzeczy" is optional — collapsed behind a small button until
   // the organizer actually wants to add one (same pattern as EditTermDialog).
@@ -92,17 +103,24 @@ export function PanelModals() {
       )}
 
       {/* ---------- modal: edytuj termin ---------- */}
-      {modal === "edit-termin" && editTermEntry && (
-        <EditTermDialog
-          term={editTermEntry.term}
-          neededItems={editTermEntry.neededItems}
-          onChanged={() => void load({ silent: true })}
-          onClose={() => {
-            setModal(null);
-            setEditTermId(null);
-          }}
-        />
-      )}
+      {modal === "edit-termin" &&
+        editTermEntry &&
+        (() => {
+          const group = myGroups.find((g) => g.id === editTermEntry.term.circle_group_id);
+          if (!group) return null;
+          return (
+            <EditTermDialog
+              term={editTermEntry.term}
+              neededItems={editTermEntry.neededItems}
+              group={group}
+              onChanged={() => void load({ silent: true })}
+              onClose={() => {
+                setModal(null);
+                setEditTermId(null);
+              }}
+            />
+          );
+        })()}
 
       {/* ---------- modal: dodaj grupę ---------- */}
       {modal === "grupa" && (
@@ -136,6 +154,22 @@ export function PanelModals() {
                 />
               </Field>
             </div>
+            <Field label="Widoczność grupy">
+              <select
+                aria-label="Widoczność grupy"
+                value={groupForm.visibility}
+                onChange={(e) =>
+                  setGroupForm({
+                    ...groupForm,
+                    visibility: e.target.value as typeof groupForm.visibility,
+                  })
+                }
+                className="rounded-xl border-[1.5px] border-line bg-cream px-3.5 py-2.5 text-ink"
+              >
+                <option value="PUBLIC">Publiczna — zapisy RSVP dla każdego</option>
+                <option value="PRIVATE">Prywatna — tylko stali członkowie (link dołączenia)</option>
+              </select>
+            </Field>
           </div>
           <button
             onClick={() => void handleAddGroup()}
@@ -143,6 +177,87 @@ export function PanelModals() {
             className="mt-4 w-full rounded-[13px] bg-mint px-5 py-3 text-[13.5px] font-extrabold text-white disabled:opacity-60"
           >
             Dodaj grupę
+          </button>
+        </ModalSheet>
+      )}
+
+      {/* ---------- modal: edytuj grupę (nazwa, lokalizacja, miejsca, layout) ---------- */}
+      {modal === "edit-grupa" && (
+        <ModalSheet title="Edytuj grupę" onClose={cancelEditGroup}>
+          <div className="grid grid-cols-1 gap-3">
+            <Field label="Nazwa grupy">
+              <input
+                aria-label="Nazwa grupy"
+                value={editGroupForm.name}
+                onChange={(e) => setEditGroupForm({ ...editGroupForm, name: e.target.value })}
+                className="rounded-xl border-[1.5px] border-line bg-cream px-3.5 py-2.5 text-ink"
+              />
+            </Field>
+            <div className="grid grid-cols-2 gap-3">
+              <Field label="Lokalizacja">
+                <input
+                  value={editGroupForm.location}
+                  onChange={(e) => setEditGroupForm({ ...editGroupForm, location: e.target.value })}
+                  placeholder="Sala nr 2"
+                  className="rounded-xl border-[1.5px] border-line bg-cream px-3.5 py-2.5 text-ink"
+                />
+              </Field>
+              <Field label="Ile miejsc">
+                <input
+                  type="number"
+                  min={0}
+                  value={editGroupForm.freeSpots}
+                  onChange={(e) => setEditGroupForm({ ...editGroupForm, freeSpots: e.target.value })}
+                  placeholder="0"
+                  className="rounded-xl border-[1.5px] border-line bg-cream px-3.5 py-2.5 text-ink"
+                />
+              </Field>
+            </div>
+            <Field label="Szablon wizualizacji">
+              <select
+                aria-label="Szablon wizualizacji"
+                value={editGroupForm.layoutMode}
+                onChange={(e) =>
+                  setEditGroupForm({
+                    ...editGroupForm,
+                    layoutMode: e.target.value as typeof editGroupForm.layoutMode,
+                  })
+                }
+                className="rounded-xl border-[1.5px] border-line bg-cream px-3.5 py-2.5 text-ink"
+              >
+                {LAYOUT_OPTIONS.map(({ mode, label }) => (
+                  <option key={mode} value={mode}>
+                    {label}
+                  </option>
+                ))}
+              </select>
+            </Field>
+            <Field label="Widoczność grupy">
+              <select
+                aria-label="Widoczność grupy"
+                value={editGroupForm.visibility}
+                onChange={(e) =>
+                  setEditGroupForm({
+                    ...editGroupForm,
+                    visibility: e.target.value as typeof editGroupForm.visibility,
+                  })
+                }
+                className="rounded-xl border-[1.5px] border-line bg-cream px-3.5 py-2.5 text-ink"
+              >
+                <option value="PUBLIC">Publiczna — zapisy RSVP dla każdego</option>
+                <option value="PRIVATE">Prywatna — tylko stali członkowie (link dołączenia)</option>
+              </select>
+            </Field>
+          </div>
+          {editGroupError && (
+            <p className="mt-2 text-[12.5px] font-semibold text-danger">{editGroupError}</p>
+          )}
+          <button
+            onClick={() => void saveEditGroup()}
+            disabled={busy || !editGroupForm.name.trim()}
+            className="mt-4 w-full rounded-[13px] bg-mint px-5 py-3 text-[13.5px] font-extrabold text-white disabled:opacity-60"
+          >
+            Zapisz
           </button>
         </ModalSheet>
       )}

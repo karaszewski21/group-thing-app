@@ -1,0 +1,12 @@
+- generic [ref=e26]:
+  - button "Zamknij" [ref=e42]: ✕
+  - heading "Krąg grupy" [level=1] [ref=e27]
+  - status "Krok 2 z 3" [ref=e43]
+  - heading "Nazwa grupy" [level=2] [ref=e44]
+  - generic [ref=e45]:
+    - generic [ref=e46]: Nazwa grupy
+    - textbox "Nazwa grupy" [ref=e47]:
+      - /placeholder: np. Muzyczne Maluchy
+  - generic [ref=e39]:
+    - button "Pomiń" [ref=e48]
+    - button "Dalej →" [ref=e41]

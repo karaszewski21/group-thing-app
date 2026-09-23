@@ -1,0 +1,41 @@
+- generic [ref=f8e20]:
+  - banner [ref=f8e21]:
+    - button "Otwórz dane profilowe" [ref=f8e22]: DO
+    - heading "Docs Organizer 20260922" [level=1] [ref=f8e24]
+    - button "Powiadomienia" [ref=f8e26]
+    - button "Menu" [ref=f8e31]
+  - generic [ref=f8e34]:
+    - generic [ref=f8e167]:
+      - generic [ref=f8e168]:
+        - generic [ref=f8e169]:
+          - heading "Grupy" [level=2] [ref=f8e170]
+          - generic [ref=f8e171]: 1 grupa
+        - button "+ Dodaj grupę" [ref=f8e172]
+      - generic [ref=f8e174]:
+        - generic [ref=f8e180]:
+          - heading "Muzyczne Maluchy Docs" [level=3] [ref=f8e181]
+          - button "Edytuj grupę Muzyczne Maluchy Docs" [ref=f8e182]
+        - button "Usuń grupę Muzyczne Maluchy Docs" [ref=f8e185]
+    - generic [ref=f8e188]:
+      - generic [ref=f8e189]:
+        - generic [ref=f8e190]:
+          - heading "Terminy" [level=2] [ref=f8e191]
+          - generic [ref=f8e192]: 1 termin
+        - button "+ Dodaj termin" [ref=f8e193]
+      - generic [ref=f8e197]:
+        - generic [ref=f8e198]:
+          - generic [ref=f8e199]: "25"
+          - generic [ref=f8e200]: wrz
+        - generic [ref=f8e201]:
+          - link "Muzyczne Maluchy Docs" [ref=f8e202] [cursor=pointer]:
+            - /url: /muzyczne-skrzaty-docs/grupa/3/term/3
+          - paragraph [ref=f8e203]:
+            - generic [ref=f8e204]: godz. 17:00
+        - generic [ref=f8e205]:
+          - button "Kopiuj link do terminu" [ref=f8e206]
+          - button "Edytuj termin" [ref=f8e210]
+  - navigation "Nawigacja panelu" [ref=f8e121]:
+    - button "Home" [ref=f8e122]
+    - button "Spotkania" [active] [ref=f8e126]
+    - button "Moje rzeczy" [ref=f8e130]
+    - button "Wypożyczone" [ref=f8e134]

@@ -1,0 +1,35 @@
+- generic [ref=f4e4]:
+  - banner [ref=f4e53]:
+    - button "← Wróć" [ref=f4e55] [cursor=pointer]
+    - generic [ref=f4e57]:
+      - generic [ref=f4e58]: Krąg
+      - heading "Muzyczne Maluchy Docs" [level=1] [ref=f4e59]
+      - generic [ref=f4e60]: "Prowadzi: Docs Organizer 20260922"
+  - generic [ref=f4e65]:
+    - generic [ref=f4e66]: D
+    - strong [ref=f4e67]: Docs Organizer 20260922
+    - generic [ref=f4e68]: prowadzi zajęcia
+  - generic [ref=f4e69]:
+    - generic [ref=f4e70]: Termin zajęć
+    - generic [ref=f4e71]: piątek, 25 września
+    - generic [ref=f4e72]: 🕒 godz. 17:00
+  - generic [ref=f4e73]:
+    - heading "Zapisani opiekunowie" [level=3] [ref=f4e74]
+    - list [ref=f4e75]:
+      - listitem [ref=f4e76]: Ania Testowa
+  - status [ref=f4e77]:
+    - generic [ref=f4e78]: ✓ Zapisano! Do zobaczenia na zajęciach.
+    - generic [ref=f4e79]:
+      - heading "Załóż konto, aby zachować dostęp" [level=3] [ref=f4e80]
+      - form "Załóż konto, aby pożyczać i wypożyczać rzeczy" [ref=f4e81]:
+        - paragraph [ref=f4e82]: Załóż konto, aby pożyczać i wypożyczać rzeczy
+        - paragraph [ref=f4e83]: Twoje zapisanie na zajęcia zostanie zachowane.
+        - generic [ref=f4e84]:
+          - generic [ref=f4e85]: Email
+          - textbox "Email" [ref=f4e86]:
+            - /placeholder: ania@example.com
+        - generic [ref=f4e87]:
+          - generic [ref=f4e88]: Hasło
+          - textbox "Hasło" [ref=f4e89]
+        - button "Załóż konto" [ref=f4e90] [cursor=pointer]
+      - button "Może później" [ref=f4e91] [cursor=pointer]

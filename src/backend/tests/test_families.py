@@ -7,11 +7,17 @@ R3, R4, R6. Same conftest / SAVEPOINT isolation as the sibling family tests;
 
 from __future__ import annotations
 
+from typing import cast
+
 from httpx import AsyncClient
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.families.bootstrap import create_own_family
 from app.families.models import Family, FamilyMembership, FamilyRole, FamilyRoleType
+from app.families.repository import list_families_for_guardian_party
+from app.party.models import PartyType
+from app.party.service import create_party
 
 
 async def _register_guest(client: AsyncClient, email: str) -> tuple[str, int]:
@@ -29,23 +35,25 @@ def _auth_headers(token: str) -> dict[str, str]:
 
 
 async def test_createOwnFamily_noExistingFamily_createsNamedFamilyWithCallerAsGuardian(
-    client: AsyncClient, db_session: AsyncSession
+    db_session: AsyncSession,
 ) -> None:
-    token, party_id = await _register_guest(client, "createown.solo@example.com")
+    """`register()` now unconditionally auto-creates a solo Family for every
+    new party (spec.md Core Requirements 3-4), so a party reachable through
+    `/api/auth/register` is never truly family-less. To exercise
+    `create_own_family`'s actual "no existing family" create-path, this test
+    builds a bare `Party` directly (bypassing `register()`) and calls the
+    service function itself — the genuine family-less fixture the HTTP API
+    can no longer produce."""
+    party = await create_party(db_session, PartyType.PERSON)
+    party_id = cast(int, party.id)
+    await db_session.commit()
 
-    response = await client.post(
-        "/api/families/mine", json={"name": "Rodzina Testowa"}, headers=_auth_headers(token)
-    )
+    family = await create_own_family(db_session, party_id, "Rodzina Testowa")
 
-    assert response.status_code == 201
-    body = response.json()
-    assert body["name"] == "Rodzina Testowa"
-    assert body["child_count"] == 0
+    assert family.name == "Rodzina Testowa"
 
-    # Exactly one Family for the caller's own party (migration 0010 seeds
-    # unrelated dev-login families, so an absolute count is not meaningful).
     families = (
-        await db_session.execute(select(Family).where(Family.id == body["id"]))
+        await db_session.execute(select(Family).where(Family.id == family.id))
     ).scalars().all()
     assert len(families) == 1
 
@@ -62,7 +70,7 @@ async def test_createOwnFamily_noExistingFamily_createsNamedFamilyWithCallerAsGu
     memberships = (
         await db_session.execute(
             select(FamilyMembership).where(
-                FamilyMembership.to_family_id == body["id"],
+                FamilyMembership.to_family_id == family.id,
                 FamilyMembership.is_primary_contact.is_(True),
                 FamilyMembership.valid_to.is_(None),
             )
@@ -74,7 +82,13 @@ async def test_createOwnFamily_noExistingFamily_createsNamedFamilyWithCallerAsGu
 async def test_createOwnFamily_calledTwiceWithDifferentName_returnsExistingFamilyUnchanged(
     client: AsyncClient, db_session: AsyncSession
 ) -> None:
-    token, _party_id = await _register_guest(client, "createown.twice@example.com")
+    """`register()`'s auto-created solo Family is itself the "existing
+    family" `create_own_family`'s idempotency check short-circuits on — both
+    calls below are no-ops against that pre-existing row (never a rename,
+    never a second Family), regardless of the caller-supplied name."""
+    token, party_id = await _register_guest(client, "createown.twice@example.com")
+    pre_existing = await list_families_for_guardian_party(db_session, party_id)
+    assert len(pre_existing) == 1
 
     first = await client.post(
         "/api/families/mine", json={"name": "Pierwsza Nazwa"}, headers=_auth_headers(token)
@@ -85,8 +99,10 @@ async def test_createOwnFamily_calledTwiceWithDifferentName_returnsExistingFamil
 
     assert first.status_code == 201
     assert second.status_code == 201
+    assert first.json()["id"] == pre_existing[0].id
     assert second.json()["id"] == first.json()["id"]
-    assert second.json()["name"] == "Pierwsza Nazwa"
+    assert second.json()["name"] == first.json()["name"]
+    assert first.json()["name"] not in ("Pierwsza Nazwa", "Druga Nazwa")
 
     mine = await client.get("/api/families/mine", headers=_auth_headers(token))
     assert [family["id"] for family in mine.json()] == [first.json()["id"]]
@@ -142,10 +158,16 @@ async def test_patchFamily_guardian_renamesFamilyInPlace(
 
 async def test_patchFamily_nonGuardian_returns403(client: AsyncClient) -> None:
     owner_token, _owner_party = await _register_guest(client, "patch.owner@example.com")
+    # `POST /api/families/mine` is idempotent against `register()`'s
+    # auto-created solo Family (spec.md Core Requirements 3-4) — it returns
+    # that pre-existing row unchanged rather than a fresh "Cudza Rodzina", so
+    # the name asserted below is whatever name actually came back, not the
+    # requested one.
     created = await client.post(
         "/api/families/mine", json={"name": "Cudza Rodzina"}, headers=_auth_headers(owner_token)
     )
     family_id = created.json()["id"]
+    original_name = created.json()["name"]
 
     stranger_token, _stranger_party = await _register_guest(client, "patch.stranger@example.com")
     response = await client.patch(
@@ -159,7 +181,7 @@ async def test_patchFamily_nonGuardian_returns403(client: AsyncClient) -> None:
     unchanged = await client.get(
         f"/api/families/{family_id}", headers=_auth_headers(owner_token)
     )
-    assert unchanged.json()["family"]["name"] == "Cudza Rodzina"
+    assert unchanged.json()["family"]["name"] == original_name
 
 
 async def test_patchFamily_guardianOfDifferentFamily_returns403(client: AsyncClient) -> None:
@@ -167,10 +189,14 @@ async def test_patchFamily_guardianOfDifferentFamily_returns403(client: AsyncCli
     family — still cannot rename family A (the service guardian check is
     scoped to the target `family_id`, not "is a guardian anywhere")."""
     owner_token, _owner_party = await _register_guest(client, "patch.crossfam.owner@example.com")
+    # Idempotent against the auto-created solo Family (see note in
+    # `test_patchFamily_nonGuardian_returns403` above) — capture the actual
+    # returned name rather than assuming "Rodzina A" was created.
     family_a = await client.post(
         "/api/families/mine", json={"name": "Rodzina A"}, headers=_auth_headers(owner_token)
     )
     family_a_id = family_a.json()["id"]
+    family_a_name = family_a.json()["name"]
 
     other_token, _other_party = await _register_guest(client, "patch.crossfam.other@example.com")
     other_family = await client.post(
@@ -189,7 +215,7 @@ async def test_patchFamily_guardianOfDifferentFamily_returns403(client: AsyncCli
     unchanged = await client.get(
         f"/api/families/{family_a_id}", headers=_auth_headers(owner_token)
     )
-    assert unchanged.json()["family"]["name"] == "Rodzina A"
+    assert unchanged.json()["family"]["name"] == family_a_name
 
 
 async def test_patchFamily_unknownId_returns404(client: AsyncClient) -> None:
@@ -326,7 +352,12 @@ async def test_familyMineRead_reportsActiveChildCountExcludingGuardiansAndClosed
     assert len(mine.json()) == 1
     assert mine.json()[0]["child_count"] == 2
 
+    # `register()` now auto-creates a solo Family for every new party (spec.md
+    # Core Requirements 3-4), so a fresh registrant is no longer family-less —
+    # they resolve to exactly their own solo Family, with zero children (no
+    # `/members` batch was ever posted for it).
     other_token, _other_party = await _register_guest(client, "childcount.nofamily@example.com")
-    empty = await client.get("/api/families/mine", headers=_auth_headers(other_token))
-    assert empty.status_code == 200
-    assert empty.json() == []
+    solo = await client.get("/api/families/mine", headers=_auth_headers(other_token))
+    assert solo.status_code == 200
+    assert len(solo.json()) == 1
+    assert solo.json()[0]["child_count"] == 0

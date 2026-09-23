@@ -11,16 +11,9 @@ export function SpotkaniaView() {
     terms,
     myAttendances,
     groupExtras,
-    renamingCircle,
-    circleNameDraft,
-    circleRenameError,
-    busy,
     setModal,
     setTermGroupId,
-    setCircleNameDraft,
-    startRenameCircle,
-    cancelRenameCircle,
-    saveRenameCircle,
+    startEditGroup,
     handleRemoveGroup,
     organizerTermCard,
   } = usePanelData();
@@ -55,6 +48,8 @@ export function SpotkaniaView() {
           party_id: attendance.group_id,
           name: attendance.group_name,
           organizer_slug: attendance.organizer_slug,
+          layout_mode: "CIRCLE",
+          visibility: "PUBLIC",
           created_at: attendance.occurs_on,
           updated_at: attendance.occurs_on,
         },
@@ -97,42 +92,16 @@ export function SpotkaniaView() {
                     <BoxIcon c="#12604D" />
                   </span>
                   <div className="min-w-0 flex-1">
-                    {renamingCircle === g.id ? (
-                      <div className="flex items-center gap-2">
-                        <input
-                          aria-label="Nazwa kręgu"
-                          autoFocus
-                          value={circleNameDraft}
-                          onChange={(e) => setCircleNameDraft(e.target.value)}
-                          onKeyDown={(e) => {
-                            if (e.key === "Enter") void saveRenameCircle(g);
-                            if (e.key === "Escape") cancelRenameCircle();
-                          }}
-                          className="min-w-0 flex-1 rounded-xl border-[1.5px] border-line bg-cream px-3 py-2 text-ink"
-                        />
-                        <button
-                          onClick={() => void saveRenameCircle(g)}
-                          disabled={busy}
-                          className="flex-none rounded-[11px] bg-mint px-3.5 py-2 text-[12.5px] font-extrabold text-white disabled:opacity-60"
-                        >
-                          Zapisz
-                        </button>
-                      </div>
-                    ) : (
-                      <div className="flex items-center gap-2">
-                        <h3 className="text-[15.5px] font-semibold text-ink">{g.name}</h3>
-                        <button
-                          onClick={() => startRenameCircle(g)}
-                          aria-label="Zmień nazwę kręgu"
-                          className="flex h-7 w-7 flex-none items-center justify-center rounded-[9px] text-ink-soft transition-colors hover:bg-paper hover:text-ink"
-                        >
-                          <PencilIcon />
-                        </button>
-                      </div>
-                    )}
-                    {circleRenameError?.groupId === g.id && (
-                      <p className="mt-1.5 text-[12.5px] font-semibold text-danger">{circleRenameError.message}</p>
-                    )}
+                    <div className="flex items-center gap-2">
+                      <h3 className="text-[15.5px] font-semibold text-ink">{g.name}</h3>
+                      <button
+                        onClick={() => startEditGroup(g)}
+                        aria-label={`Edytuj grupę ${g.name}`}
+                        className="flex h-7 w-7 flex-none items-center justify-center rounded-[9px] text-ink-soft transition-colors hover:bg-paper hover:text-ink"
+                      >
+                        <PencilIcon />
+                      </button>
+                    </div>
                     {extra?.location && <small className="mt-0.5 block text-[12.5px] text-ink-soft">{extra.location}</small>}
                     {extra && extra.freeSpots > 0 && (
                       <span className="mt-1.5 inline-block rounded-full bg-lime-soft px-2.5 py-1 text-[11.5px] font-extrabold text-[#56701F]">

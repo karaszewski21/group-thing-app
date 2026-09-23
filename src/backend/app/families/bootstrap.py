@@ -62,6 +62,21 @@ async def create_family(db: AsyncSession, data: CreateFamilyRequest) -> tuple[Fa
     return family, cast(int, profile.id)
 
 
+async def create_solo_family_for_party(db: AsyncSession, party_id: int, display_name: str) -> Family:
+    """Ensures `party_id` has a resolvable solo Family, creating one named
+    `"Rodzina {display_name}"` if none exists yet — the automatic-bootstrap
+    counterpart to `create_own_family`'s explicit self-service call, used at
+    both account registration and anonymous RSVP so every Party renders
+    correctly in a group's family-orbit visualization even if it never
+    explicitly created or joined a Family. Idempotent (mirrors
+    `create_own_family`'s existing-family short-circuit); flushes only, does
+    not commit — the caller owns the transaction boundary."""
+    families = await list_families_for_guardian_party(db, party_id)
+    if families:
+        return families[0]
+    return await bootstrap_family_for_party(db, f"Rodzina {display_name}", party_id)
+
+
 async def create_own_family(db: AsyncSession, guardian_party_id: int, name: str) -> Family:
     """Self-service "create my family": idempotent create-own (mirrors
     `create_own_organization`) — a caller who already guards a Family gets

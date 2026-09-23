@@ -1,0 +1,8 @@
+- generic [active] [ref=e1]:
+  - banner [ref=e2]:
+    - heading "Design Gallery — 0 screens" [level=1] [ref=e3]
+    - generic [ref=e4]:
+      - button "Annotations" [ref=e5] [cursor=pointer]
+      - text: Connected
+  - main [ref=e6]:
+    - generic [ref=e7]: Waiting for design mockups...The orchestrator will send screens here.

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { createRsvp, guestProfileIdKey, type RsvpResponse } from "../../api/groups";
+import { createRsvp, guestProfileIdKey, writeGuestProfile, type RsvpResponse } from "../../api/groups";
 
 /**
  * `.kg-*`-token-restyled `ModalSheet`/`Field` (same structure/behavior as
@@ -38,7 +38,7 @@ export function RsvpDialog({
         guardian_name: guardianName.trim(),
         child_count: childCount,
       });
-      localStorage.setItem(guestProfileIdKey(groupId, termId), String(rsvp.user_profile_id));
+      writeGuestProfile(guestProfileIdKey(groupId, termId), rsvp.user_profile_id);
       onSubmitted(rsvp);
     } catch {
       setFormError("Nie udało się zapisać — spróbuj ponownie");

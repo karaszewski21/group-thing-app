@@ -21,6 +21,7 @@ from app.groups.application.attendance import withdraw_attendance
 from app.groups.application.circles import (
     assign_leadership,
     build_leadership_responses,
+    create_additional_circle,
     create_circle,
     create_own_circle,
     get_current_leadership,
@@ -32,12 +33,18 @@ from app.groups.application.circles import (
     remove_leadership,
     update_group,
 )
+from app.groups.application.exchange_summary import (
+    get_family_exchange_offers,
+    get_group_exchange_summary,
+)
 from app.groups.application.memberships import (
     build_membership_responses,
     create_membership,
     end_membership,
+    formalize_group_from_term,
     list_memberships_for_circle,
     list_memberships_for_party,
+    list_term_attendees_for_formalization,
 )
 from app.groups.application.pledge_fulfillment import fulfill_pledge, sync_pledge_fulfillment
 from app.groups.application.pledges import (
@@ -48,7 +55,9 @@ from app.groups.application.pledges import (
 )
 from app.groups.application.public_view import (
     create_rsvp,
+    get_group_access,
     get_public_circle_view,
+    join_private_group,
     list_my_attendances,
     list_my_pledges,
 )
@@ -85,6 +94,7 @@ __all__ = [
     "build_membership_responses",
     "cancel_transaction",
     "confirm_transaction",
+    "create_additional_circle",
     "create_circle",
     "create_membership",
     "create_needed_item",
@@ -93,13 +103,18 @@ __all__ = [
     "create_rsvp",
     "create_term",
     "end_membership",
+    "formalize_group_from_term",
     "fulfill_pledge",
     "get_current_leadership",
+    "get_family_exchange_offers",
     "get_group",
+    "get_group_access",
+    "get_group_exchange_summary",
     "get_needed_item_view",
     "get_pledge",
     "get_public_circle_view",
     "get_term",
+    "join_private_group",
     "list_active_leaderships_for_party",
     "list_browsable_term_item_listings",
     "list_groups",
@@ -114,6 +129,7 @@ __all__ = [
     "list_my_term_item_listings",
     "list_needed_item_views",
     "list_pledges",
+    "list_term_attendees_for_formalization",
     "list_terms",
     "merge_anonymous_profile",
     "propose_swap",

@@ -1,5 +1,6 @@
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import * as familiesApi from "../api/families";
 import * as groupsApi from "../api/groups";
 import * as inventoriesApi from "../api/inventories";
 import * as peopleApi from "../api/people";
@@ -19,9 +20,14 @@ vi.mock("../api/families", () => ({
 vi.mock("../api/groups", () => ({
   getCurrentLeadership: vi.fn(),
   getGroup: vi.fn(),
+  getGroupExchangeSummary: vi.fn(),
+  getFamilyExchangeOffers: vi.fn(),
   getMembershipsForCircle: vi.fn(),
   getMyAttendances: vi.fn(),
+  updateGroupLayoutMode: vi.fn(),
   withdrawMyAttendance: vi.fn(),
+  getTermAttendeesForFormalization: vi.fn(),
+  formalizeGroupFromTerm: vi.fn(),
 }));
 
 vi.mock("../api/pledges", () => ({
@@ -79,14 +85,54 @@ const term = {
   updated_at: "2026-01-01T00:00:00",
 };
 
-const groupResponse = {
+const groupResponse: groupsApi.GroupResponse = {
   id: GROUP_ID,
   party_id: 5,
   name: "Test Circle",
   organizer_slug: "test-circle",
+  layout_mode: "CIRCLE",
+  visibility: "PUBLIC",
   created_at: "2026-01-01T00:00:00",
   updated_at: "2026-01-01T00:00:00",
 };
+
+const familyFixture: familiesApi.FamilyOut = {
+  id: 10,
+  party_id: 70,
+  name: "Rodzina Kowalskich",
+  created_at: "2026-01-01T00:00:00",
+  updated_at: "2026-01-01T00:00:00",
+  child_count: 0,
+};
+
+const guardianFixture: familiesApi.GuardianResponse = {
+  family_membership_id: 1,
+  party_id: 7,
+  user_profile_id: 2,
+  display_name: "Anna Kowalska",
+  email: "anna@example.com",
+  is_primary_contact: true,
+  valid_from: "2026-01-01",
+  valid_to: null,
+};
+
+const membershipFixture: groupsApi.MembershipResponse = {
+  id: 1,
+  from_role_id: 1,
+  to_group_id: GROUP_ID,
+  member_party_id: 7,
+  valid_from: "2026-01-01",
+  valid_to: null,
+};
+
+/** Wires the membership -> family -> guardians chain so `families` resolves
+ * to exactly `[familyFixture]` — several of this group's tests need a real
+ * family present to assert on `sharesItem`/`bringsItem`. */
+function setupSingleFamily() {
+  vi.mocked(groupsApi.getMembershipsForCircle).mockResolvedValue([membershipFixture]);
+  vi.mocked(familiesApi.getFamiliesForGuardianParty).mockResolvedValue([familyFixture]);
+  vi.mocked(familiesApi.getGuardians).mockResolvedValue([guardianFixture]);
+}
 
 function myProfile(overrides: Partial<peopleApi.UserProfileResponse> = {}): peopleApi.UserProfileResponse {
   return {
@@ -136,6 +182,11 @@ function setupDefaultMocks() {
   vi.mocked(groupsApi.getCurrentLeadership).mockResolvedValue(null);
   vi.mocked(groupsApi.getMembershipsForCircle).mockResolvedValue([]);
   vi.mocked(groupsApi.getMyAttendances).mockResolvedValue([]);
+  vi.mocked(groupsApi.getGroupExchangeSummary).mockResolvedValue({ families: [] });
+  vi.mocked(groupsApi.getFamilyExchangeOffers).mockResolvedValue({ family_id: 0, offers: [] });
+  vi.mocked(groupsApi.updateGroupLayoutMode).mockResolvedValue(groupResponse);
+  vi.mocked(familiesApi.getFamiliesForGuardianParty).mockResolvedValue([]);
+  vi.mocked(familiesApi.getGuardians).mockResolvedValue([]);
   vi.mocked(termsApi.getTerms).mockResolvedValue([term]);
   vi.mocked(termsApi.getNeededItems).mockResolvedValue([]);
   vi.mocked(peopleApi.getMyProfile).mockResolvedValue(myProfile());
@@ -146,6 +197,8 @@ function setupDefaultMocks() {
   vi.mocked(termItemListingsApi.getMyTermItemListings).mockResolvedValue([]);
   vi.mocked(termItemListingsApi.getBrowseTermItemListings).mockResolvedValue([]);
   vi.mocked(itemListingPreferencesApi.getMyItemListingPreferences).mockResolvedValue([]);
+  vi.mocked(groupsApi.getTermAttendeesForFormalization).mockResolvedValue([]);
+  vi.mocked(groupsApi.formalizeGroupFromTerm).mockResolvedValue(groupResponse);
 }
 
 describe("useKragGrupy", () => {
@@ -344,5 +397,133 @@ describe("useKragGrupy", () => {
 
     expect(reservationsApi.confirmTransaction).toHaveBeenCalledWith(900, { term_id: term.id });
     expect(reservationsApi.fulfillReservation).not.toHaveBeenCalled();
+  });
+
+  // --- Group 7: API client + useKragGrupy.ts integration -----------------
+
+  it("fetches getGroupExchangeSummary in the mount Promise.all and maps shares_item/brings_item onto the matching family's sharesItem/bringsItem", async () => {
+    setupSingleFamily();
+    vi.mocked(groupsApi.getGroupExchangeSummary).mockResolvedValue({
+      families: [{ family_id: familyFixture.id, shares_item: true, brings_item: false }],
+    });
+
+    const { result } = renderHook(() => useKragGrupy(GROUP_ID));
+    await waitFor(() => expect(result.current.loading).toBe(false));
+
+    expect(groupsApi.getGroupExchangeSummary).toHaveBeenCalledWith(GROUP_ID);
+    expect(result.current.families).toHaveLength(1);
+    expect(result.current.families[0].sharesItem).toBe(true);
+    expect(result.current.families[0].bringsItem).toBe(false);
+  });
+
+  it("falls back to sharesItem/bringsItem = false, without surfacing a page-level error, when getGroupExchangeSummary rejects", async () => {
+    setupSingleFamily();
+    vi.mocked(groupsApi.getGroupExchangeSummary).mockRejectedValue(new Error("timeout"));
+
+    const { result } = renderHook(() => useKragGrupy(GROUP_ID));
+    await waitFor(() => expect(result.current.loading).toBe(false));
+
+    expect(result.current.error).toBeNull();
+    expect(result.current.families).toHaveLength(1);
+    expect(result.current.families[0].sharesItem).toBe(false);
+    expect(result.current.families[0].bringsItem).toBe(false);
+  });
+
+  it("loadExchangeOffersForFamily() only fetches offers when explicitly invoked, not at mount, and populates activeFamilyExchangeOffers", async () => {
+    setupSingleFamily();
+    const offers = [
+      { id: 1, item_id: 1, product_name: "Fotelik", condition: "GOOD", offered_types: ["LEND"] },
+    ];
+    vi.mocked(groupsApi.getFamilyExchangeOffers).mockResolvedValue({
+      family_id: familyFixture.id,
+      offers,
+    });
+
+    const { result } = renderHook(() => useKragGrupy(GROUP_ID));
+    await waitFor(() => expect(result.current.loading).toBe(false));
+
+    expect(groupsApi.getFamilyExchangeOffers).not.toHaveBeenCalled();
+    expect(result.current.activeFamilyExchangeOffers).toEqual([]);
+
+    await act(async () => {
+      await result.current.loadExchangeOffersForFamily(familyFixture.id);
+    });
+
+    expect(groupsApi.getFamilyExchangeOffers).toHaveBeenCalledWith(GROUP_ID, familyFixture.id);
+    expect(result.current.activeFamilyExchangeOffers).toEqual(offers);
+    expect(result.current.loadingExchangeOffers).toBe(false);
+  });
+
+  it("setGroupLayoutMode() applies the update optimistically, then rolls back to the previous group on a PATCH failure", async () => {
+    const { result } = renderHook(() => useKragGrupy(GROUP_ID));
+    await waitFor(() => expect(result.current.loading).toBe(false));
+    expect(result.current.group?.layout_mode).toBe("CIRCLE");
+
+    vi.mocked(groupsApi.updateGroupLayoutMode).mockResolvedValueOnce({
+      ...groupResponse,
+      layout_mode: "PITCH",
+    });
+    await act(async () => {
+      await result.current.setGroupLayoutMode("PITCH");
+    });
+    expect(groupsApi.updateGroupLayoutMode).toHaveBeenCalledWith(GROUP_ID, groupResponse.name, "PITCH");
+    expect(result.current.group?.layout_mode).toBe("PITCH");
+
+    vi.mocked(groupsApi.updateGroupLayoutMode).mockRejectedValueOnce(new Error("network down"));
+    await act(async () => {
+      await expect(result.current.setGroupLayoutMode("TABLE")).rejects.toThrow("network down");
+    });
+    // Rolled back to the group value from just before this failed call
+    // (still PITCH from the successful update above), not the original CIRCLE.
+    expect(result.current.group?.layout_mode).toBe("PITCH");
+  });
+
+  it("extended KragFamily objects carry sharesItem/bringsItem alongside the existing familyId/name/guardians fields", async () => {
+    setupSingleFamily();
+    vi.mocked(groupsApi.getGroupExchangeSummary).mockResolvedValue({
+      families: [{ family_id: familyFixture.id, shares_item: true, brings_item: true }],
+    });
+
+    const { result } = renderHook(() => useKragGrupy(GROUP_ID));
+    await waitFor(() => expect(result.current.loading).toBe(false));
+
+    expect(result.current.families).toEqual([
+      {
+        familyId: familyFixture.id,
+        name: familyFixture.name,
+        guardians: [guardianFixture],
+        sharesItem: true,
+        bringsItem: true,
+      },
+    ]);
+  });
+
+  // Group 5 — "Dodaj stałych członków z tego terminu" card on TermPage.
+  it("fetches getTermAttendeesForFormalization for the current term once it is available", async () => {
+    const rows: groupsApi.TermAttendeeResponse[] = [
+      { party_id: 7, display_name: "Kasia Nowak", child_count: 1, family_id: 10, family_name: "Rodzina Nowak", already_member: false },
+    ];
+    vi.mocked(groupsApi.getTermAttendeesForFormalization).mockResolvedValue(rows);
+
+    const { result } = renderHook(() => useKragGrupy(GROUP_ID));
+    await waitFor(() => expect(result.current.loading).toBe(false));
+    await waitFor(() =>
+      expect(groupsApi.getTermAttendeesForFormalization).toHaveBeenCalledWith(GROUP_ID, term.id),
+    );
+    await waitFor(() => expect(result.current.termAttendeesForFormalization).toEqual(rows));
+  });
+
+  it("formalizeStandingMembers() calls formalizeGroupFromTerm(group.id, currentTerm.id, partyIds) then refetches", async () => {
+    const { result } = renderHook(() => useKragGrupy(GROUP_ID));
+    await waitFor(() => expect(result.current.loading).toBe(false));
+
+    const callsBefore = vi.mocked(groupsApi.getGroup).mock.calls.length;
+    await act(async () => {
+      await result.current.formalizeStandingMembers([7, 8]);
+    });
+
+    expect(groupsApi.formalizeGroupFromTerm).toHaveBeenCalledWith(GROUP_ID, term.id, [7, 8]);
+    // refetch() re-runs the mount Promise.all batch, so getGroup is called again.
+    expect(vi.mocked(groupsApi.getGroup).mock.calls.length).toBeGreaterThan(callsBefore);
   });
 });

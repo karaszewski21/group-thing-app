@@ -1,0 +1,39 @@
+- generic [ref=f3e3]:
+  - generic [ref=f3e4]:
+    - banner [ref=f3e59]:
+      - generic [ref=f3e60]:
+        - button "← Wróć" [ref=f3e61] [cursor=pointer]
+        - link "Mój panel →" [ref=f3e62] [cursor=pointer]:
+          - /url: /panel
+      - generic [ref=f3e64]:
+        - generic [ref=f3e65]: Grupa
+        - heading "Bugcheck Circle" [level=1] [ref=f3e66]
+        - generic [ref=f3e67]: "Najbliższe zajęcia: czwartek, 8 października · 0 rodzin"
+        - button "Wycofaj się z zajęć" [ref=f3e68] [cursor=pointer]
+    - generic [ref=f3e72]:
+      - button "Zaproś kolejną rodzinę" [ref=f3e74] [cursor=pointer]:
+        - generic [ref=f3e75]: +
+      - generic [ref=f3e76]:
+        - generic [ref=f3e77]: B
+        - strong [ref=f3e78]: Bugcheck Org1
+        - generic [ref=f3e79]: prowadzi zajęcia
+    - generic [ref=f3e80]:
+      - generic [ref=f3e81]: udostępnia rzecz
+      - generic [ref=f3e86]: przynosi na zajęcia
+    - generic [ref=f3e92]:
+      - heading "Kto co przynosi" [level=2] [ref=f3e93]
+      - paragraph [ref=f3e94]: Te rzeczy są potrzebne na najbliższe zajęcia — zgłoś się, jeśli możesz coś przynieść.
+      - generic [ref=f3e95]: Brak listy potrzebnych rzeczy na te zajęcia.
+    - generic [ref=f3e97]:
+      - heading "Twoje wystawione rzeczy" [level=2] [ref=f3e98]
+      - paragraph [ref=f3e99]: Rzeczy, które oferujesz na te zajęcia — do pożyczenia, zamiany lub oddania.
+      - generic [ref=f3e101]:
+        - text: Nie wystawiłeś jeszcze żadnej rzeczy. Ustaw tryb rzeczy w
+        - link "Moje rzeczy" [ref=f3e102] [cursor=pointer]:
+          - /url: /panel/rzeczy
+        - text: ", żeby pojawiła się tutaj."
+      - heading "Rzeczy od innych" [level=2] [ref=f3e103]
+      - paragraph [ref=f3e104]: Rzeczy wystawione przez innych uczestników tych zajęć.
+      - generic [ref=f3e105]: Nikt jeszcze nie wystawił żadnej rzeczy.
+    - paragraph [ref=f3e107]: Dotknij rodziny, żeby zobaczyć jej kartę.
+  - status [ref=f3e108]: Zapisano na zajęcia

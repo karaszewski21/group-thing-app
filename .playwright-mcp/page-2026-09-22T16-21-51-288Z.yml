@@ -1,0 +1,22 @@
+- generic [ref=e26]:
+  - button "Zamknij" [ref=e42]: ✕
+  - heading "Krąg grupy" [level=1] [ref=e27]
+  - status "Krok 3 z 3" [ref=e49]
+  - heading "Termin zajęć" [level=2] [ref=e50]
+  - generic [ref=e51]:
+    - generic [ref=e52]:
+      - generic [ref=e53]: Grupa
+      - paragraph [ref=e54]: Muzyczne Maluchy Docs
+    - generic [ref=e55]:
+      - generic [ref=e56]: Data i godzina
+      - textbox "Data i godzina" [ref=e57]
+    - generic [ref=e58]:
+      - generic [ref=e59]: Opis (opcjonalnie)
+      - textbox "Opis (opcjonalnie)" [ref=e60]:
+        - /placeholder: 17:00 · Park Sołacki · wstęp wolny
+    - generic [ref=e61]:
+      - generic [ref=e62]: Potrzebne rzeczy (opcjonalnie)
+      - button "+ Dodaj potrzebną rzecz" [ref=e63]
+  - generic [ref=e39]:
+    - button "Pomiń" [ref=e48]
+    - button "Zakończ ✓" [ref=e64]

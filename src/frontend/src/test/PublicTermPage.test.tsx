@@ -6,7 +6,7 @@ import * as familiesApi from "../api/families";
 import * as pledgesApi from "../api/pledges";
 import * as termItemListingsApi from "../api/termItemListings";
 import { ApiError } from "../api/client";
-import { PublicKragGrupyView, TermPageView } from "../pages/krag/KragGrupyPage";
+import { PublicTermView, TermPageView } from "../pages/krag/TermPage";
 import { gateAction } from "../utils/actionGate";
 
 vi.mock("../api/groups", async (importOriginal) => {
@@ -16,6 +16,7 @@ vi.mock("../api/groups", async (importOriginal) => {
     getPublicCircle: vi.fn(),
     createRsvp: vi.fn(),
     mergeAnonymousProfile: vi.fn(),
+    joinPrivateGroup: vi.fn(),
   };
 });
 
@@ -81,6 +82,7 @@ const circleWithTerm: groupsApi.PublicCircleResponse = {
   name: "Nutki dla starszaków",
   organizer_display_name: "Ania Kowalska",
   organizer_slug: "ania-kowalska",
+  visibility: "PUBLIC",
   next_term: {
     id: 101,
     occurs_on: "2026-03-12T17:30:00",
@@ -119,6 +121,11 @@ const circleWithListing: groupsApi.PublicCircleResponse = {
   },
 };
 
+const privateCircle: groupsApi.PublicCircleResponse = {
+  ...circleWithTerm,
+  visibility: "PRIVATE",
+};
+
 function familyOut(overrides: Partial<familiesApi.FamilyOut> = {}): familiesApi.FamilyOut {
   return {
     id: 1,
@@ -139,7 +146,7 @@ function renderAt(path: string) {
       <Routes>
         <Route
           path="/:organizationSlug/grupa/:groupId/term/:termId"
-          element={<PublicKragGrupyView />}
+          element={<PublicTermView />}
         />
       </Routes>
     </MemoryRouter>,
@@ -153,7 +160,7 @@ beforeEach(() => {
   vi.mocked(familiesApi.getMyFamilies).mockResolvedValue([]);
 });
 
-describe("PublicKragGrupyPage", () => {
+describe("PublicTermPage", () => {
   it("renders the URL-named term with circle, needed items and guardians", async () => {
     vi.mocked(groupsApi.getPublicCircle).mockResolvedValue(circleWithTerm);
 
@@ -199,7 +206,7 @@ describe("PublicKragGrupyPage", () => {
     fireEvent.click(screen.getByRole("button", { name: "Zapisz się" }));
 
     expect(await screen.findByText(/✓ Zapisano!/)).toBeInTheDocument();
-    expect(localStorage.getItem(GUEST_KEY)).toBe("55");
+    expect(groupsApi.readValidGuestProfile(GUEST_KEY)).toBe(55);
   });
 
   it("anonymous 'Zapisz się na zajęcia' first shows a login/register-or-guest choice", async () => {
@@ -223,7 +230,7 @@ describe("PublicKragGrupyPage", () => {
   });
 
   it("shows the confirmation state on reload when the scoped key is already stored", async () => {
-    localStorage.setItem(GUEST_KEY, "55");
+    groupsApi.writeGuestProfile(GUEST_KEY, 55);
     vi.mocked(groupsApi.getPublicCircle).mockResolvedValue(circleWithTerm);
 
     renderAt(CANONICAL_PATH);
@@ -234,8 +241,12 @@ describe("PublicKragGrupyPage", () => {
     ).not.toBeInTheDocument();
   });
 
-  it("an RSVP stored for a DIFFERENT circle/term does not falsely show the confirmation here", async () => {
-    localStorage.setItem(groupsApi.guestProfileIdKey(99, 999), "12");
+  it("treats a guest profile older than 1h as expired and shows the RSVP button again", async () => {
+    localStorage.setItem(
+      GUEST_KEY,
+      JSON.stringify({ userProfileId: 55, createdAt: Date.now() - 61 * 60 * 1000 }),
+    );
+    expect(groupsApi.readValidGuestProfile(GUEST_KEY)).toBeNull();
     vi.mocked(groupsApi.getPublicCircle).mockResolvedValue(circleWithTerm);
 
     renderAt(CANONICAL_PATH);
@@ -244,6 +255,48 @@ describe("PublicKragGrupyPage", () => {
       await screen.findByRole("button", { name: /Zapisz się na zajęcia/ }),
     ).toBeInTheDocument();
     expect(screen.queryByText(/✓ Zapisano!/)).not.toBeInTheDocument();
+  });
+
+  it("an RSVP stored for a DIFFERENT circle/term does not falsely show the confirmation here", async () => {
+    groupsApi.writeGuestProfile(groupsApi.guestProfileIdKey(99, 999), 12);
+    vi.mocked(groupsApi.getPublicCircle).mockResolvedValue(circleWithTerm);
+
+    renderAt(CANONICAL_PATH);
+
+    expect(
+      await screen.findByRole("button", { name: /Zapisz się na zajęcia/ }),
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/✓ Zapisano!/)).not.toBeInTheDocument();
+  });
+
+  it("a logged-out visitor on a PRIVATE group's 'Dołącz na stałe' card sees a login/register prompt, never JoinPrivateGroupDialog", async () => {
+    vi.mocked(groupsApi.getPublicCircle).mockResolvedValue(privateCircle);
+
+    renderAt(CANONICAL_PATH);
+
+    expect(await screen.findByText(/grupa jest prywatna/)).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Dołącz na stałe" })).not.toBeInTheDocument();
+
+    expect(screen.getByRole("link", { name: "Zaloguj się" })).toHaveAttribute(
+      "href",
+      `/login?returnTo=${encodeURIComponent(CANONICAL_PATH)}`,
+    );
+    expect(screen.getByRole("link", { name: "Zarejestruj się" })).toHaveAttribute("href", "/register");
+
+    expect(screen.queryByRole("dialog", { name: "Dołącz na stałe do grupy" })).not.toBeInTheDocument();
+    expect(groupsApi.joinPrivateGroup).not.toHaveBeenCalled();
+  });
+
+  it("a logged-in visitor on a PRIVATE group still sees the existing 'Dołącz na stałe' → JoinPrivateGroupDialog flow", async () => {
+    mockAuthValue = { token: "tok", displayName: "Ania" };
+    vi.mocked(groupsApi.getPublicCircle).mockResolvedValue(privateCircle);
+
+    renderAt(CANONICAL_PATH);
+
+    fireEvent.click(await screen.findByRole("button", { name: "Dołącz na stałe" }));
+
+    expect(await screen.findByRole("dialog", { name: "Dołącz na stałe do grupy" })).toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "Zaloguj się" })).not.toBeInTheDocument();
   });
 
   it("shows 'Nie znaleziono' for a mismatched / nonexistent term and does not redirect", async () => {
@@ -258,7 +311,7 @@ describe("PublicKragGrupyPage", () => {
   });
 
   it("never renders any child-identifying field", async () => {
-    localStorage.setItem(GUEST_KEY, "55");
+    groupsApi.writeGuestProfile(GUEST_KEY, 55);
     vi.mocked(groupsApi.getPublicCircle).mockResolvedValue(circleWithTerm);
 
     renderAt(CANONICAL_PATH);
@@ -297,7 +350,7 @@ describe("PublicKragGrupyPage", () => {
         }),
       );
       expect(await screen.findByText(/✓ Zapisano!/)).toBeInTheDocument();
-      expect(localStorage.getItem(GUEST_KEY)).toBeNull();
+      expect(groupsApi.readValidGuestProfile(GUEST_KEY)).toBeNull();
       // no guest_profile_id:* key at all
       expect(
         Object.keys(localStorage).some((k) => k.startsWith("guest_profile_id:")),
@@ -490,7 +543,7 @@ describe("PublicKragGrupyPage", () => {
 
   describe("account-merge trigger (Core Requirement 7 / Group 10)", () => {
     it("clicking 'Zgłoś się' for a visitor with a stored guest_profile_id renders AccountMergeForm inline in place of that row's action", async () => {
-      localStorage.setItem(GUEST_KEY, "55");
+      groupsApi.writeGuestProfile(GUEST_KEY, 55);
       vi.mocked(groupsApi.getPublicCircle).mockResolvedValue(circleWithTerm);
 
       renderAt(CANONICAL_PATH);
@@ -505,8 +558,23 @@ describe("PublicKragGrupyPage", () => {
       expect(screen.getByLabelText("Hasło")).toBeInTheDocument();
     });
 
+    it("clicking a take/swap action for a visitor with a stored guest_profile_id renders AccountMergeForm inline too (Frontend section 5)", async () => {
+      groupsApi.writeGuestProfile(GUEST_KEY, 55);
+      vi.mocked(groupsApi.getPublicCircle).mockResolvedValue(circleWithListing);
+
+      renderAt(CANONICAL_PATH);
+
+      const trigger = await screen.findByRole("button", { name: "Pożycz: Rowerek" });
+      fireEvent.click(trigger);
+
+      expect(screen.queryByRole("button", { name: "Pożycz: Rowerek" })).not.toBeInTheDocument();
+      expect(screen.getByLabelText("Email")).toBeInTheDocument();
+      expect(screen.getByLabelText("Hasło")).toBeInTheDocument();
+      expect(termItemListingsApi.takeTermItemListing).not.toHaveBeenCalled();
+    });
+
     it("successful submit stores the token via applyExternalToken and navigates to /panel", async () => {
-      localStorage.setItem(GUEST_KEY, "55");
+      groupsApi.writeGuestProfile(GUEST_KEY, 55);
       vi.mocked(groupsApi.getPublicCircle).mockResolvedValue(circleWithTerm);
       vi.mocked(groupsApi.mergeAnonymousProfile).mockResolvedValue({ token: "jwt-token", party_id: 9 });
 
@@ -529,7 +597,7 @@ describe("PublicKragGrupyPage", () => {
     });
 
     it("a 409 duplicate-email/already-merged response shows an inline error and keeps guest_profile_id stored", async () => {
-      localStorage.setItem(GUEST_KEY, "55");
+      groupsApi.writeGuestProfile(GUEST_KEY, 55);
       vi.mocked(groupsApi.getPublicCircle).mockResolvedValue(circleWithTerm);
       vi.mocked(groupsApi.mergeAnonymousProfile).mockRejectedValue(
         new ApiError(409, "Conflict", { message: "Ten email jest już zarejestrowany, zaloguj się" }),
@@ -547,7 +615,7 @@ describe("PublicKragGrupyPage", () => {
       ).toBeInTheDocument();
       expect(mockApplyExternalToken).not.toHaveBeenCalled();
       expect(mockNavigate).not.toHaveBeenCalledWith("/panel");
-      expect(localStorage.getItem(GUEST_KEY)).toBe("55");
+      expect(groupsApi.readValidGuestProfile(GUEST_KEY)).toBe(55);
     });
   });
 
@@ -721,8 +789,8 @@ describe("PublicKragGrupyPage", () => {
 });
 
 // Task Group 6 — unified term page component + generalized auth gate.
-// `TermPageView` is the presentational tree shared by `KragGrupyPage`
-// (private) and `PublicKragGrupyView` (public); `gateAction` is the single
+// `TermPageView` is the presentational tree shared by `TermPage`
+// (private) and `PublicTermView` (public); `gateAction` is the single
 // wrapper every action handler on either view routes through.
 describe("TermPageView (unified term page) + gateAction (generalized auth gate)", () => {
   it("renders identical listing action buttons for a logged-in and a not-logged-in viewer", () => {

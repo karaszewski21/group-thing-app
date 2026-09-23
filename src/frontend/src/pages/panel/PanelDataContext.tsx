@@ -21,12 +21,15 @@ import {
   type GuardianResponse,
 } from "../../api/families";
 import {
+  createAdditionalMyCircle,
   createMyCircle,
   endLeadership,
   getGroup,
   getMyAttendances,
-  updateCircle,
+  updateGroupLayoutMode,
+  type GroupLayoutMode,
   type GroupResponse,
+  type GroupVisibility,
   type LeadershipResponse,
   type MyAttendanceResponse,
 } from "../../api/groups";
@@ -155,7 +158,7 @@ function parseTermIdFromLinkPath(linkPath: string | null): number | null {
 
 /** Resolves the `Reservation.id` the caller (`myPartyId`) needs to
  * `confirmTransaction` on `termId`, purely from existing term-item-listing
- * endpoints (no new backend surface) — mirrors `KragGrupyPage.tsx`'s own
+ * endpoints (no new backend surface) — mirrors `TermPage.tsx`'s own
  * `confirmActionFor`, generalized to run without that page's local
  * `reservationsById` cache since the global modal can render on any route.
  *
@@ -271,12 +274,19 @@ function usePanelDataValue() {
   // entry at render time so the open dialog always sees fresh props after a
   // `load({ silent: true })` refresh.
   const [editTermId, setEditTermId] = useState<number | null>(null);
-  // Inline circle rename next to each led circle in the "Grupy" section.
-  const [renamingCircle, setRenamingCircle] = useState<number | null>(null);
-  const [circleNameDraft, setCircleNameDraft] = useState("");
-  const [circleRenameError, setCircleRenameError] = useState<
-    { groupId: number; message: string } | null
-  >(null);
+  // "Edytuj grupę" dialog (name, location, capacity, layout template) next
+  // to each led circle in the "Grupy" section — consolidates what used to be
+  // an inline pencil-rename plus a separate always-visible layout pill
+  // picker into one dialog (`modal === "edit-grupa"`).
+  const [editingGroupId, setEditingGroupId] = useState<number | null>(null);
+  const [editGroupForm, setEditGroupForm] = useState<{
+    name: string;
+    location: string;
+    freeSpots: string;
+    layoutMode: GroupLayoutMode;
+    visibility: GroupVisibility;
+  }>({ name: "", location: "", freeSpots: "", layoutMode: "CIRCLE", visibility: "PUBLIC" });
+  const [editGroupError, setEditGroupError] = useState<string | null>(null);
   // InventoryItem condition edit + optimistic delete in the "Moje rzeczy" view.
   const [editingItemCondition, setEditingItemCondition] = useState<
     { id: number; condition: ItemCondition } | null
@@ -383,7 +393,12 @@ function usePanelDataValue() {
   const [memberRole, setMemberRole] = useState<"GUARDIAN" | "CHILD">("GUARDIAN");
 
   // --- formularz: dodaj grupę ---
-  const [groupForm, setGroupForm] = useState({ name: "", location: "", freeSpots: "" });
+  const [groupForm, setGroupForm] = useState<{
+    name: string;
+    location: string;
+    freeSpots: string;
+    visibility: GroupVisibility;
+  }>({ name: "", location: "", freeSpots: "", visibility: "PUBLIC" });
 
   // --- formularz: dodaj termin ---
   const [termGroupId, setTermGroupId] = useState<number | null>(null);
@@ -561,11 +576,11 @@ function usePanelDataValue() {
   }, [load]);
 
   // Bug #3 (cache refresh, structural fix): a term-page confirmation
-  // (KragGrupyPage) doesn't otherwise refresh this provider's data, so the
+  // (TermPage) doesn't otherwise refresh this provider's data, so the
   // panel can show stale pledges/items/notifications after the user
   // navigates back here. Silently reload whenever the pathname *transitions*
   // onto a /panel/* route from somewhere else (re-entry after navigating
-  // away and back — e.g. from KragGrupyPage). The very first render at a
+  // away and back — e.g. from TermPage). The very first render at a
   // panel route is deliberately excluded: that case is already covered by
   // the plain mount effect above (non-silent, shows the loading screen),
   // and firing this one too would double every ordinary panel-open network
@@ -727,6 +742,11 @@ function usePanelDataValue() {
     setPendingActionBusyId(notificationId);
     try {
       await rejectSwapProposal(proposalId);
+      // Same cache-refresh bug class as confirmPendingAction (Bug #3):
+      // rejecting releases the proposer's self-locked item back to
+      // AVAILABLE, which "Moje rzeczy" needs to reflect without a manual
+      // reload.
+      await load({ silent: true });
       dismissPendingAction(notificationId);
       showToast("Zamiana odrzucona");
     } catch (err) {
@@ -797,14 +817,20 @@ function usePanelDataValue() {
     if (!groupForm.name.trim()) return;
     setBusy(true);
     try {
-      const group = await createMyCircle({ name: groupForm.name.trim() });
+      // Non-idempotent — an organizer who already leads a Circle still gets
+      // a genuinely NEW one here (unlike `createMyCircle`, which is reserved
+      // for the one-time "become an Organizer" flows).
+      const group = await createAdditionalMyCircle({
+        name: groupForm.name.trim(),
+        visibility: groupForm.visibility,
+      });
       if (groupForm.location.trim() || groupForm.freeSpots.trim()) {
         setGroupExtras((prev) => ({
           ...prev,
           [group.id]: { location: groupForm.location.trim(), freeSpots: Number(groupForm.freeSpots) || 0 },
         }));
       }
-      setGroupForm({ name: "", location: "", freeSpots: "" });
+      setGroupForm({ name: "", location: "", freeSpots: "", visibility: "PUBLIC" });
       setModal(null);
       showToast("Dodano grupę");
       await load();
@@ -1096,34 +1122,64 @@ function usePanelDataValue() {
     );
   }
 
-  /* ---------- krąg: zmiana nazwy inline ---------- */
+  /* ---------- krąg: dialog "Edytuj grupę" (nazwa, lokalizacja, miejsca, layout) ---------- */
 
-  function startRenameCircle(group: GroupResponse) {
-    setRenamingCircle(group.id);
-    setCircleNameDraft(group.name);
-    setCircleRenameError(null);
+  function startEditGroup(group: GroupResponse) {
+    const extra = groupExtras[group.id];
+    setEditingGroupId(group.id);
+    setEditGroupForm({
+      name: group.name,
+      location: extra?.location ?? "",
+      freeSpots: extra ? String(extra.freeSpots) : "",
+      layoutMode: group.layout_mode,
+      visibility: group.visibility,
+    });
+    setEditGroupError(null);
+    setModal("edit-grupa");
   }
 
-  function cancelRenameCircle() {
-    setRenamingCircle(null);
-    setCircleRenameError(null);
+  function cancelEditGroup() {
+    setEditingGroupId(null);
+    setEditGroupError(null);
+    setModal(null);
   }
 
-  async function saveRenameCircle(group: GroupResponse) {
-    const next = circleNameDraft.trim();
-    if (!next || next === group.name) {
-      cancelRenameCircle();
-      return;
-    }
+  async function saveEditGroup() {
+    const group = myGroups.find((g) => g.id === editingGroupId);
+    if (!group) return;
+    const name = editGroupForm.name.trim();
+    if (!name) return;
     setBusy(true);
-    setCircleRenameError(null);
+    setEditGroupError(null);
     try {
-      await updateCircle(group.id, { name: next });
-      setRenamingCircle(null);
+      // `layout_mode`/`visibility` are always sent alongside `name` —
+      // `UpdateGroupRequest.name` is a required field (not partial-apply), so
+      // this single PATCH covers the rename, the layout-template change, and
+      // the public/private toggle in one request.
+      await updateGroupLayoutMode(group.id, name, editGroupForm.layoutMode, editGroupForm.visibility);
+      // Location/"ile miejsc" stay client-local only (no backend field yet —
+      // same as the "Dodaj grupę" creation form's `groupForm.location`/
+      // `freeSpots`), mirroring `handleAddGroup`'s pattern.
+      if (editGroupForm.location.trim() || editGroupForm.freeSpots.trim()) {
+        setGroupExtras((prev) => ({
+          ...prev,
+          [group.id]: {
+            location: editGroupForm.location.trim(),
+            freeSpots: Number(editGroupForm.freeSpots) || 0,
+          },
+        }));
+      } else {
+        setGroupExtras((prev) => {
+          const { [group.id]: _removed, ...rest } = prev;
+          return rest;
+        });
+      }
+      setEditingGroupId(null);
+      setModal(null);
+      showToast("Zapisano zmiany grupy");
       await load({ silent: true });
     } catch {
-      setRenamingCircle(null);
-      setCircleRenameError({ groupId: group.id, message: "Nie udało się zmienić nazwy kręgu — spróbuj ponownie" });
+      setEditGroupError("Nie udało się zapisać zmian — spróbuj ponownie");
     } finally {
       setBusy(false);
     }
@@ -1283,9 +1339,9 @@ function usePanelDataValue() {
     renameError,
     familyMemberError,
     editTermId,
-    renamingCircle,
-    circleNameDraft,
-    circleRenameError,
+    editingGroupId,
+    editGroupForm,
+    editGroupError,
     editingItemCondition,
     itemError,
     editingItemMeta,
@@ -1339,7 +1395,7 @@ function usePanelDataValue() {
     setEditingItemMeta,
     setMemberName,
     setMemberRole,
-    setCircleNameDraft,
+    setEditGroupForm,
     setFamilyNameDraft,
     setItemDraft,
     // --- derived ---
@@ -1369,9 +1425,9 @@ function usePanelDataValue() {
     startRenameFamily,
     cancelRenameFamily,
     saveRenameFamily,
-    startRenameCircle,
-    cancelRenameCircle,
-    saveRenameCircle,
+    startEditGroup,
+    cancelEditGroup,
+    saveEditGroup,
     saveItemCondition,
     startEditItemMeta,
     saveItemMeta,

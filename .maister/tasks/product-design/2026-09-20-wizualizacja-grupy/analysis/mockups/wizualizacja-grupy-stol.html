@@ -1,0 +1,423 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Wizualizacja grupy - Stol — Product Design</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      background: #f5f5f5;
+      color: #222;
+    }
+    header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0.75rem 1.5rem;
+      background: #fff;
+      border-bottom: 1px solid #ddd;
+    }
+    header h1 { margin: 0; font-size: 1.1rem; font-weight: 600; }
+    #status { font-size: 0.8rem; color: #4a4; font-weight: 500; }
+    #status.disconnected { color: #a44; }
+
+    /* Screen navigation */
+    .screen-nav {
+      background: #fafafa;
+      border-bottom: 1px solid #e0e0e0;
+      padding: 0.5rem 1.5rem;
+    }
+    .nav-screens {
+      display: flex;
+      gap: 0.25rem;
+      flex-wrap: wrap;
+      margin-bottom: 0.25rem;
+    }
+    .nav-screen {
+      padding: 0.3rem 0.7rem;
+      border-radius: 4px;
+      text-decoration: none;
+      color: #555;
+      font-size: 0.8rem;
+      background: #eee;
+      transition: background 0.15s;
+    }
+    .nav-screen:hover { background: #ddd; }
+    .nav-screen.active { background: #333; color: #fff; }
+    .nav-prevnext {
+      display: flex;
+      justify-content: space-between;
+      margin-top: 0.25rem;
+    }
+    .nav-arrow {
+      font-size: 0.8rem;
+      color: #0066cc;
+      text-decoration: none;
+    }
+    .nav-arrow:hover { text-decoration: underline; }
+
+    /* Gallery */
+    .gallery-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+      gap: 1.5rem;
+      padding: 1rem 0;
+    }
+    .gallery-card {
+      display: block;
+      background: #fff;
+      border: 1px solid #e0e0e0;
+      border-radius: 6px;
+      overflow: hidden;
+      text-decoration: none;
+      color: inherit;
+      transition: box-shadow 0.2s, transform 0.15s;
+    }
+    .gallery-card:hover {
+      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+      transform: translateY(-2px);
+    }
+    .gallery-card-title {
+      padding: 0.75rem 1rem;
+      font-weight: 600;
+      font-size: 0.9rem;
+      border-bottom: 1px solid #eee;
+      background: #fafafa;
+    }
+    .gallery-card-preview {
+      padding: 1rem;
+      max-height: 200px;
+      overflow: hidden;
+      position: relative;
+      font-size: 0.7rem;
+      transform: scale(0.8);
+      transform-origin: top left;
+      pointer-events: none;
+    }
+    .gallery-card-preview::after {
+      content: '';
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      height: 60px;
+      background: linear-gradient(transparent, white);
+    }
+
+    /* Mockup content */
+    main {
+      max-width: 1200px;
+      margin: 1.5rem auto;
+      padding: 1.5rem;
+      background: #fff;
+      border: 1px solid #e0e0e0;
+      border-radius: 4px;
+      min-height: 300px;
+      position: relative;
+    }
+    .placeholder {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 300px;
+      color: #999;
+      font-size: 1rem;
+      text-align: center;
+      line-height: 1.8;
+    }
+    .annotation-tooltip {
+      position: absolute;
+      background: rgba(0, 0, 0, 0.75);
+      color: #fff;
+      font-size: 0.75rem;
+      padding: 4px 8px;
+      border-radius: 3px;
+      pointer-events: none;
+      max-width: 250px;
+      z-index: 1000;
+      line-height: 1.3;
+    }
+    .annotation-tooltip::before {
+      content: '';
+      position: absolute;
+      top: -4px;
+      left: 10px;
+      width: 8px;
+      height: 8px;
+      background: rgba(0, 0, 0, 0.75);
+      transform: rotate(45deg);
+    }
+
+    /* Interactive screen-to-screen navigation */
+    [data-screen] { cursor: pointer; }
+    [data-screen]:hover { outline: 2px solid #0066cc; outline-offset: 2px; border-radius: 2px; }
+
+    /* Annotation toggle */
+    .annotations-hidden .annotation-tooltip { display: none; }
+    #annotation-toggle {
+      font-size: 0.8rem;
+      padding: 0.25rem 0.6rem;
+      border: 1px solid #ccc;
+      border-radius: 3px;
+      background: #f0f0f0;
+      cursor: pointer;
+      margin-left: 0.75rem;
+    }
+    #annotation-toggle:hover { background: #e0e0e0; }
+    #annotation-toggle.active { background: #333; color: #fff; border-color: #333; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Wizualizacja grupy - Stol</h1>
+    <div>
+      <button id="annotation-toggle" class="active" title="Toggle annotation tooltips">Annotations</button>
+      <span id="status">Connected</span>
+    </div>
+  </header>
+
+  <nav class="screen-nav"><div class="nav-screens"><a href="/screen/wizualizacja-grupy-kolo-mandala" class="nav-screen">Wizualizacja grupy - Kolo (mandala)</a><a href="/screen/wizualizacja-grupy-boisko" class="nav-screen">Wizualizacja grupy - Boisko</a><a href="/screen/wizualizacja-grupy-stol" class="nav-screen active">Wizualizacja grupy - Stol</a></div><div class="nav-prevnext"><a href="/screen/wizualizacja-grupy-boisko" class="nav-arrow">&larr; Wizualizacja grupy - Boisko</a><span></span></div></nav>
+
+  <main id="mockup-container">
+    <style>:root {
+  --cream: #f4f8f0;
+  --paper: #ffffff;
+  --ink: #1e2e27;
+  --ink-soft: #5c7069;
+  --mint: #1b8168;
+  --mint-bright: #3fb68f;
+  --mint-soft: #d8f0e6;
+  --sage: #5d8a63;
+  --teal: #6fb6b8;
+  --teal-soft: #d9ecec;
+  --lime: #a9c24f;
+  --line: #e2eadf;
+}
+* { box-sizing: border-box; }
+body { font-family: 'Karla', -apple-system, sans-serif; background: var(--cream); color: var(--ink); margin: 0; }
+.phone { max-width: 420px; margin: 0 auto; background: var(--cream); min-height: 100vh; padding-bottom: 24px; }
+.header { padding: 18px 20px 8px; }
+.header .eyebrow { font-size: 12.5px; color: var(--ink-soft); line-height: 1.4; }
+.switcher { display: flex; gap: 6px; margin: 12px 20px 6px; background: var(--paper); border: 1px solid var(--line); border-radius: 999px; padding: 4px; }
+.switcher button { flex: 1; border: none; background: transparent; padding: 8px 6px; border-radius: 999px; font-size: 12.5px; font-weight: 700; color: var(--ink-soft); cursor: pointer; font-family: inherit; }
+.switcher button.active { background: var(--mint); color: #fff; }
+.switcher-label { font-size: 10.5px; color: var(--ink-soft); text-align: center; margin-top: -2px; margin-bottom: 6px; }
+
+.stage { position: relative; width: calc(100% - 40px); margin: 8px 20px; aspect-ratio: 1 / 1; }
+.stage.pitch-bg { background: linear-gradient(180deg, #3f7a45, #356839); border-radius: 18px; overflow: hidden; box-shadow: inset 0 0 0 4px rgba(255,255,255,0.35); }
+.stage.pitch-bg::before { content:""; position:absolute; left:50%; top:50%; width:26%; height:26%; border:2px solid rgba(255,255,255,0.55); border-radius:50%; transform: translate(-50%,-50%); }
+.stage.pitch-bg::after { content:""; position:absolute; left:50%; top:0; width:0; height:100%; border-left:2px solid rgba(255,255,255,0.4); }
+.pitch-goal { position:absolute; left:50%; width:34%; height:10%; border:2px solid rgba(255,255,255,0.5); transform: translateX(-50%); border-top:none; }
+.pitch-goal.top { top:0; border-bottom:none; border-top:none; }
+.pitch-goal.bottom { bottom:0; }
+
+.stage.table-bg { display:flex; align-items:center; justify-content:center; }
+.table-oval { position:absolute; left:50%; top:50%; width:64%; height:46%; transform: translate(-50%,-50%); background:#e7cfa8; border: 6px solid var(--ink); border-radius: 50%; display:flex; align-items:center; justify-content:center; gap:8px; flex-direction:column; padding:10px; }
+.table-chip { background:#fff; border-radius:14px; padding:6px 14px; font-size:12px; font-weight:700; color:var(--ink); box-shadow:0 4px 8px rgba(0,0,0,0.12); display:flex; align-items:center; gap:6px; }
+
+.center-node { position:absolute; left:50%; top:50%; transform:translate(-50%,-50%); text-align:center; z-index:5; }
+.center-node .bubble { width:64px; height:64px; border-radius:50%; background: var(--ink); color:#fff; display:flex; align-items:center; justify-content:center; font-size:22px; box-shadow:0 8px 18px -10px rgba(30,46,39,0.7); }
+.center-node .name { font-size:11.5px; font-weight:700; margin-top:6px; color:var(--ink); background:rgba(255,255,255,0.75); padding:2px 8px; border-radius:8px; }
+.center-node .role { font-size:9.5px; color:var(--ink-soft); }
+.center-node.on-pitch .name, .center-node.on-pitch .role { color:#fff; background:transparent; }
+
+.fam { position:absolute; transform: translate(-50%,-50%); text-align:center; cursor:pointer; }
+.fam .av { width:52px; height:52px; border-radius:50%; display:flex; align-items:center; justify-content:center; color:#fff; font-weight:800; font-size:15px; border:3px solid var(--paper); box-shadow:0 8px 18px -10px rgba(30,46,39,0.7); position:relative; }
+.fam.selected .av { outline: 3px solid var(--mint); outline-offset: 2px; transform: scale(1.06); }
+.fam .icon { position:absolute; width:18px; height:18px; border-radius:50%; border:2px solid var(--paper); display:flex; align-items:center; justify-content:center; font-size:10px; }
+.fam .icon.shares { background: var(--mint); bottom:-2px; right:-2px; }
+.fam .icon.brings { background: var(--teal); bottom:-2px; left:-2px; }
+.fam .label { font-size:10px; margin-top:4px; color: var(--ink); font-weight:600; }
+.fam .label.on-pitch { color:#fff; }
+.fam .surname { font-size:9px; color: var(--ink-soft); display:block; }
+
+.legend { display:flex; gap:14px; justify-content:center; font-size:11px; color: var(--ink-soft); margin: 10px 20px 4px; }
+.legend span { display:inline-flex; align-items:center; gap:5px; }
+.legend .dot { width:12px; height:12px; border-radius:50%; display:inline-block; }
+.legend .dot.shares { background: var(--mint); }
+.legend .dot.brings { background: var(--teal); }
+
+.card { margin: 14px 20px 0; background: var(--paper); border: 1px solid var(--line); border-radius: 22px; padding: 17px; }
+.card-top { display:flex; align-items:center; gap:10px; }
+.card-top .av-sm { width:38px; height:38px; border-radius:50%; display:flex; align-items:center; justify-content:center; color:#fff; font-weight:800; font-size:12px; }
+.card-top .name { font-weight:800; font-size:14.5px; flex:1; }
+.card-top .tag { background: var(--mint-soft); color: var(--mint); font-size:10.5px; font-weight:700; padding:3px 10px; border-radius:999px; }
+.card-sub { font-size:12px; color: var(--ink-soft); margin: 2px 0 12px 48px; }
+
+.exchange-heading { font-size:10.5px; font-weight:800; color: var(--ink-soft); letter-spacing: 0.04em; margin: 4px 0 8px; }
+.exchange-item { background: var(--cream); border: 1px solid var(--line); border-radius: 13px; padding: 10px 12px; margin-bottom: 8px; display:flex; align-items:center; justify-content:space-between; gap:10px; }
+.exchange-item .info { flex:1; }
+.exchange-item .item-name { font-weight:700; font-size:13px; }
+.exchange-item .item-type { font-size:11px; color: var(--sage); font-weight:700; }
+.exchange-item .item-meta { font-size:11px; color: var(--ink-soft); margin-top:2px; }
+.btn-take { background: var(--mint); color:#fff; border:none; border-radius:12px; padding:9px 16px; font-weight:800; font-size:12.5px; cursor:pointer; white-space:nowrap; }
+
+.nav-hint { text-align:center; font-size:11px; color: var(--ink-soft); margin-top: 18px; }
+.nav-hint a { color: var(--mint); font-weight:700; text-decoration:none; margin: 0 4px; }
+</style>
+<div id="mockup-content"><div class="phone">
+  <div class="header">
+    <div class="eyebrow">Prowadząca u szczytu. Rzeczy leżą na stole — widać, co już jest.</div>
+  </div>
+
+  <div class="switcher">
+    <button data-screen="wizualizacja-grupy-kolo-mandala">⭕ Koło</button>
+    <button data-screen="wizualizacja-grupy-boisko">⚽ Boisko</button>
+    <button class="active">🍽️ Stół</button>
+  </div>
+  <div class="switcher-label">Widoczne tylko dla organizatora — zmiana zapisuje się dla całej grupy</div>
+
+  <div class="stage" data-annotate="group-visualization-table">
+    <div class="center-node" style="top:8%;">
+      <div class="bubble" style="width:52px;height:52px;font-size:18px;">🎵</div>
+      <div class="name">Kasia Wójcik</div>
+      <div class="role">prowadzi zajęcia</div>
+    </div>
+
+    <div class="table-oval">
+      <div class="table-chip">🥁 Tamburyn</div>
+      <div class="table-chip">🧣 2 koce</div>
+      <div class="table-chip">🍎 Owoce</div>
+    </div>
+
+    <div class="fam" style="left:50%; top:20%; top:26%;">
+      <div class="av" style="background:#1B8168;">WI<span class="icon shares">⇄</span></div>
+      <div class="label">WI<span class="surname">Wiśniewscy</span></div>
+    </div>
+    <div class="fam" style="left:77%; top:33%;">
+      <div class="av" style="background:#7E9A34;">KO</div>
+      <div class="label">KO<span class="surname">Kowalscy</span></div>
+    </div>
+    <div class="fam" style="left:91%; top:50%;">
+      <div class="av" style="background:#2A6B58;">ZI<span class="icon brings">🎒</span></div>
+      <div class="label">ZI<span class="surname">Zielińscy</span></div>
+    </div>
+    <div class="fam" style="left:77%; top:70%;">
+      <div class="av" style="background:#6B8A2F;">MA</div>
+      <div class="label">MA<span class="surname">Mazurowie</span></div>
+    </div>
+    <div class="fam" style="left:50%; top:82%;">
+      <div class="av" style="background:transparent;border:2px dashed var(--mint);color:var(--mint);box-shadow:none;">+</div>
+    </div>
+    <div class="fam selected" style="left:23%; top:70%;">
+      <div class="av" style="background:#35797B;">KA<span class="icon shares">⇄</span></div>
+      <div class="label">KA<span class="surname">Kaczmarkowie</span></div>
+    </div>
+    <div class="fam" style="left:9%; top:50%;">
+      <div class="av" style="background:#3F8E90;">DA</div>
+      <div class="label">DA<span class="surname">Dąbrowscy</span></div>
+    </div>
+    <div class="fam" style="left:23%; top:33%;">
+      <div class="av" style="background:#5D8A63;">NO<span class="icon brings">🎒</span></div>
+      <div class="label">NO<span class="surname">Nowakowie</span></div>
+    </div>
+  </div>
+
+  <div class="legend">
+    <span><span class="dot shares"></span>udostępnia rzecz</span>
+    <span><span class="dot brings"></span>przynosi na zajęcia</span>
+  </div>
+
+  <div class="card">
+    <div class="card-top">
+      <div class="av-sm" style="background:#35797B;">KA</div>
+      <div class="name">Rodzina Kaczmarków</div>
+      <div class="tag">wymienię</div>
+    </div>
+    <div class="card-sub">Antek, 4 lata</div>
+    <div class="exchange-heading" data-annotate="no-empty-state">DO WYMIANY W GRUPIE</div>
+    <div class="exchange-item">
+      <div class="info">
+        <div class="item-name">Rowerek biegowy</div>
+        <div class="item-type">Zamienię</div>
+        <div class="item-meta">Zamiana na rozmiar 18-24m.</div>
+      </div>
+      <button class="btn-take">Biorę</button>
+    </div>
+    <div class="exchange-item">
+      <div class="info">
+        <div class="item-name">Piłka plażowa</div>
+        <div class="item-type">Oddam</div>
+        <div class="item-meta">Za darmo, do odebrania dziś.</div>
+      </div>
+      <button class="btn-take">Biorę</button>
+    </div>
+  </div>
+
+  <div class="nav-hint">Zobacz też: <a data-screen="wizualizacja-grupy-kolo-mandala">Koło</a> · <a data-screen="wizualizacja-grupy-boisko">Boisko</a></div>
+</div>
+</div>
+  </main>
+
+  <script>
+    // SSE client for live refresh — navigates to /latest on new screen
+    const statusEl = document.getElementById('status');
+    const evtSource = new EventSource('/events');
+    evtSource.onmessage = function(e) {
+      if (e.data === 'refresh') window.location.href = '/latest';
+    };
+    evtSource.onopen = function() {
+      statusEl.textContent = 'Connected';
+      statusEl.className = '';
+    };
+    evtSource.onerror = function() {
+      statusEl.textContent = 'Reconnecting...';
+      statusEl.className = 'disconnected';
+    };
+
+    // Annotation overlay rendering
+    const annotations = [{"selector":"[data-annotate='group-visualization-table']","note":"Nowy TableLayout — elipsa (getTablePosition), przedmioty na środku to statyczna dekoracja (nie interaktywne w tym zadaniu)"},{"selector":"[data-annotate='no-empty-state']","note":"Jeśli rodzina nie ma ofert, cała sekcja się nie renderuje (brak pustego stanu) — zdecydowane w Fazie 6"}];
+    function renderAnnotations() {
+      const container = document.getElementById('mockup-container');
+      annotations.forEach(function(ann) {
+        if (!ann.selector) return;
+        const target = container.querySelector(ann.selector);
+        if (!target) return;
+        const text = ann.note || ann.text || '';
+        if (!text) return;
+        const rect = target.getBoundingClientRect();
+        const containerRect = container.getBoundingClientRect();
+        const tooltip = document.createElement('div');
+        tooltip.className = 'annotation-tooltip';
+        tooltip.textContent = text;
+        tooltip.style.top = (rect.bottom - containerRect.top + 6) + 'px';
+        tooltip.style.left = (rect.left - containerRect.left) + 'px';
+        container.appendChild(tooltip);
+      });
+    }
+    if (annotations.length > 0) requestAnimationFrame(renderAnnotations);
+
+    // Annotation toggle with localStorage persistence
+    var toggleBtn = document.getElementById('annotation-toggle');
+    var container = document.getElementById('mockup-container');
+    var annotationsVisible = localStorage.getItem('annotations-visible') !== 'false'; // default: true
+    function updateToggle() {
+      if (annotationsVisible) {
+        container.classList.remove('annotations-hidden');
+        toggleBtn.classList.add('active');
+      } else {
+        container.classList.add('annotations-hidden');
+        toggleBtn.classList.remove('active');
+      }
+    }
+    updateToggle();
+    toggleBtn.addEventListener('click', function() {
+      annotationsVisible = !annotationsVisible;
+      localStorage.setItem('annotations-visible', annotationsVisible);
+      updateToggle();
+    });
+
+    // Screen-to-screen navigation: clicking elements with data-screen="slug" navigates to that screen
+    document.getElementById('mockup-container').addEventListener('click', function(e) {
+      var target = e.target.closest('[data-screen]');
+      if (target) {
+        e.preventDefault();
+        window.location.href = '/screen/' + target.getAttribute('data-screen');
+      }
+    });
+  </script>
+</body>
+</html>

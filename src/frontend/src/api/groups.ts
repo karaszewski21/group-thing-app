@@ -1,16 +1,33 @@
 import { api } from "./client";
 
+/** The participant-visualization layout an organizer picks for their
+ * Circle's `/krag/{id}` screen — mirrors `app.groups.models.GroupLayoutMode`.
+ * Kept as its own literal union here (rather than importing
+ * `GroupVisualization.tsx`'s `GroupLayoutMode`) so the API layer doesn't
+ * depend on a UI component module — see that file's `VisualizationFamily`
+ * docstring for the same decoupling rationale. */
+export type GroupLayoutMode = "CIRCLE" | "PITCH" | "TABLE";
+
+/** Mirrors `app.groups.models.GroupVisibility` — `PUBLIC` (today's only
+ * behavior: anyone RSVPs per-term, optionally without an account) vs
+ * `PRIVATE` (only standing members/organizer may RSVP; new members join
+ * only via the group's join link, which creates standing membership). */
+export type GroupVisibility = "PUBLIC" | "PRIVATE";
+
 export interface GroupResponse {
   id: number;
   party_id: number;
   name: string;
   organizer_slug: string | null;
+  layout_mode: GroupLayoutMode;
+  visibility: GroupVisibility;
   created_at: string;
   updated_at: string;
 }
 
 export interface CreateCircleRequest {
   name: string;
+  visibility?: GroupVisibility;
 }
 
 /** `GET /api/groups/moderation` (ADMIN-only) row — every Circle with its
@@ -76,12 +93,41 @@ export function createCircle(request: CreateCircleRequest): Promise<GroupRespons
   return api.post("/groups", request);
 }
 
+/** Idempotent "become an Organizer" — a caller who already leads a Circle
+ * gets that same Circle back. Only for the one-time first-circle flows
+ * (`FirstTermStepperGuest`, onboarding) — NOT for "add another group"
+ * (see `createAdditionalMyCircle`). */
 export function createMyCircle(request: CreateCircleRequest): Promise<GroupResponse> {
   return api.post("/groups/mine", request);
 }
 
-export function updateCircle(id: number, request: { name: string }): Promise<GroupResponse> {
-  return api.patch(`/groups/${id}`, request);
+/** Non-idempotent — always creates a brand new Circle led by the caller.
+ * The Panel's "+ Dodaj grupę" button targets this, never `createMyCircle`,
+ * whose idempotency would silently no-op a repeat organizer's click. */
+export function createAdditionalMyCircle(request: CreateCircleRequest): Promise<GroupResponse> {
+  return api.post("/groups/mine/new", request);
+}
+
+/** `PATCH /groups/{id}` with `layout_mode` (and, optionally, `visibility`)
+ * set — `name` is a required field on `UpdateGroupRequest` ("required
+ * value, not partial-apply", per that schema's docstring), so the caller's
+ * current group name must be supplied alongside the new layout mode.
+ * `visibility` is omitted from the request body entirely when not passed,
+ * leaving the group's current visibility untouched (mirrors the backend's
+ * `is not None`-only-apply semantics) — existing callers that only ever
+ * change `layout_mode` (e.g. `useKragGrupy`'s inline layout switcher) are
+ * unaffected. */
+export function updateGroupLayoutMode(
+  id: number,
+  name: string,
+  layoutMode: GroupLayoutMode,
+  visibility?: GroupVisibility,
+): Promise<GroupResponse> {
+  return api.patch(`/groups/${id}`, {
+    name,
+    layout_mode: layoutMode,
+    ...(visibility !== undefined ? { visibility } : {}),
+  });
 }
 
 export function getCurrentLeadership(groupId: number): Promise<LeadershipResponse | null> {
@@ -153,12 +199,15 @@ export interface PublicGuardianResponse {
   display_name: string;
 }
 
-/** Never carries a per-child field — see `app.groups.schemas.PublicCircleResponse`. */
+/** Never carries a per-child field — see `app.groups.schemas.PublicCircleResponse`.
+ * For a `PRIVATE` group, `next_term`/`guardians` come back empty/null even
+ * when Terms exist — see that endpoint's reduced-response docstring. */
 export interface PublicCircleResponse {
   id: number;
   name: string;
   organizer_display_name: string | null;
   organizer_slug: string | null;
+  visibility: GroupVisibility;
   next_term: PublicTermResponse | null;
   guardians: PublicGuardianResponse[];
 }
@@ -186,6 +235,31 @@ export function getPublicCircle(
   return api.get(`/groups/public/${groupId}${query}`);
 }
 
+/** The caller's server-resolved relationship to a Circle — mirrors
+ * `app.groups.schemas.GroupAccessDetails`. Replaces client-side "any auth
+ * token means the member view" heuristics: an authenticated visitor who
+ * doesn't actually belong to this Circle gets `is_member`/`is_organizer`
+ * both `false`, same as an anonymous one. */
+export interface GroupAccessDetails {
+  is_member: boolean;
+  is_organizer: boolean;
+  can_view_content: boolean;
+  can_join: boolean;
+}
+
+/** Mirrors `app.groups.schemas.GroupAccessResponse` — `GET
+ * /groups/public/{groupId}/access`. `group` is the same shape as
+ * `getPublicCircle`'s response. */
+export interface GroupAccessResponse {
+  group: PublicCircleResponse;
+  access: GroupAccessDetails;
+}
+
+export function getGroupAccess(groupId: number, termId?: number): Promise<GroupAccessResponse> {
+  const query = termId !== undefined ? `?term_id=${termId}` : "";
+  return api.get(`/groups/public/${groupId}/access${query}`);
+}
+
 /**
  * localStorage key for an anonymous visitor's RSVP identity — scoped per
  * circle+term so a visitor who RSVPs on one Circle's public page doesn't
@@ -197,8 +271,99 @@ export function guestProfileIdKey(groupId: number, termId: number): string {
   return `guest_profile_id:${groupId}:${termId}`;
 }
 
+/** How long an anonymous guest's identity stays valid in `localStorage`
+ * before it's treated as expired — 1 hour, per the approved plan (a guest
+ * who RSVPs, closes the tab, and comes back a week later shouldn't be
+ * silently treated as "still that guest"). */
+const GUEST_PROFILE_TTL_MS = 60 * 60 * 1000;
+
+interface StoredGuestProfile {
+  userProfileId: number;
+  createdAt: number;
+}
+
+/** Writes an anonymous guest's `userProfileId` under `key`, stamped with
+ * the current time so `readValidGuestProfile` can later expire it. */
+export function writeGuestProfile(key: string, userProfileId: number): void {
+  const stored: StoredGuestProfile = { userProfileId, createdAt: Date.now() };
+  localStorage.setItem(key, JSON.stringify(stored));
+}
+
+/** Reads back a guest profile written by `writeGuestProfile`, returning
+ * `null` if it's missing, malformed, or older than `GUEST_PROFILE_TTL_MS`.
+ * Also tolerates the old bare-string shape (pre-TTL) by treating it as
+ * expired rather than throwing. */
+export function readValidGuestProfile(key: string): number | null {
+  const raw = localStorage.getItem(key);
+  if (raw === null) return null;
+  try {
+    const parsed = JSON.parse(raw) as Partial<StoredGuestProfile>;
+    if (typeof parsed.userProfileId !== "number" || typeof parsed.createdAt !== "number") {
+      return null;
+    }
+    if (Date.now() - parsed.createdAt > GUEST_PROFILE_TTL_MS) return null;
+    return parsed.userProfileId;
+  } catch {
+    return null;
+  }
+}
+
 export function createRsvp(groupId: number, request: CreateRsvpRequest): Promise<RsvpResponse> {
   return api.post(`/groups/public/${groupId}/rsvp`, request);
+}
+
+/* ------------------------------------------------------------------ */
+/*  Formalize a PUBLIC group's past term into standing membership,     */
+/*  and join a PRIVATE group's link (authenticated org actions +       */
+/*  unauthenticated join, `POST /groups/public/{id}/join`)             */
+/* ------------------------------------------------------------------ */
+
+/** One RSVP'd Term attendee, resolved for the organizer's "which attendees
+ * become standing members" picker — `family_id`/`family_name` are `null`
+ * for an attendee with no real Family (not selectable for formalization). */
+export interface TermAttendeeResponse {
+  party_id: number;
+  display_name: string;
+  child_count: number;
+  family_id: number | null;
+  family_name: string | null;
+  already_member: boolean;
+}
+
+export function getTermAttendeesForFormalization(
+  groupId: number,
+  termId: number,
+): Promise<TermAttendeeResponse[]> {
+  return api.get(`/groups/${groupId}/terms/${termId}/attendees`);
+}
+
+export function formalizeGroupFromTerm(
+  groupId: number,
+  termId: number,
+  partyIds: number[],
+): Promise<GroupResponse> {
+  return api.post(`/groups/${groupId}/terms/${termId}/formalize`, { party_ids: partyIds });
+}
+
+export interface JoinGroupRequest {
+  guardian_name: string;
+  child_count?: number;
+}
+
+export interface JoinGroupResponse {
+  membership_id: number;
+  group_id: number;
+  user_profile_id: number;
+  guardian_name: string;
+  child_count: number;
+  attached_to_account: boolean;
+}
+
+export function joinPrivateGroup(
+  groupId: number,
+  request: JoinGroupRequest,
+): Promise<JoinGroupResponse> {
+  return api.post(`/groups/public/${groupId}/join`, request);
 }
 
 /* ------------------------------------------------------------------ */
@@ -258,4 +423,50 @@ export function mergeAnonymousProfile(
   request: MergeAnonymousProfileRequest,
 ): Promise<MergeAnonymousProfileResponse> {
   return api.post("/groups/public/merge", request);
+}
+
+/* ------------------------------------------------------------------ */
+/*  Group exchange summary (authenticated,                             */
+/*  `GET /groups/{id}/exchange-summary`,                               */
+/*  `GET /groups/{id}/families/{familyId}/exchange-offers`)            */
+/* ------------------------------------------------------------------ */
+
+/** One family's "udostępnia rzecz"/"przynosi na zajęcia" status marks for
+ * the group's current Term — mirrors `app.groups.schemas.FamilyExchangeSummary`. */
+export interface FamilyExchangeSummary {
+  family_id: number;
+  shares_item: boolean;
+  brings_item: boolean;
+}
+
+export interface GroupExchangeSummaryResponse {
+  families: FamilyExchangeSummary[];
+}
+
+export function getGroupExchangeSummary(groupId: number): Promise<GroupExchangeSummaryResponse> {
+  return api.get(`/groups/${groupId}/exchange-summary`);
+}
+
+/** One active exchange-mechanism offer from any guardian of a family, for
+ * the family card's "DO WYMIANY W GRUPIE" section — field shape reused 1:1
+ * from `BrowseTermItemListingResponse`, mirroring
+ * `app.groups.schemas.FamilyExchangeOffer`. */
+export interface FamilyExchangeOffer {
+  id: number;
+  item_id: number;
+  product_name: string;
+  condition: string;
+  offered_types: string[];
+}
+
+export interface FamilyExchangeDetailResponse {
+  family_id: number;
+  offers: FamilyExchangeOffer[];
+}
+
+export function getFamilyExchangeOffers(
+  groupId: number,
+  familyId: number,
+): Promise<FamilyExchangeDetailResponse> {
+  return api.get(`/groups/${groupId}/families/${familyId}/exchange-offers`);
 }

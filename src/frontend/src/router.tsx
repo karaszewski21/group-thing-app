@@ -13,8 +13,7 @@ import { PluginPageRoute } from "./pages/PluginPageRoute";
 import { LoginPage } from "./pages/LoginPage";
 import { RegisterPage } from "./pages/RegisterPage";
 import { OAuth2AuthorizePage } from "./pages/OAuth2AuthorizePage";
-import { KragGrupyPage, PublicKragGrupyView } from "./pages/krag/KragGrupyPage";
-import { KragEntryPage } from "./pages/krag/KragEntryPage";
+import { TermPage } from "./pages/krag/TermPage";
 import { PanelPage } from "./pages/panel/PanelPage";
 import { OnboardingPage } from "./pages/OnboardingPage";
 import { OrganizationPage } from "./pages/OrganizationPage";
@@ -56,19 +55,6 @@ export const router = createBrowserRouter([
   {
     path: "/oauth2/authorize",
     element: <AuthGuard><OAuth2AuthorizePage /></AuthGuard>,
-  },
-  {
-    // Standalone mobile-style page (own phone-frame chrome) — deliberately
-    // outside the admin AppShell/Sidebar layout, same pattern as /login and
-    // /oauth2/authorize above.
-    path: "/krag/:groupId",
-    element: <AuthGuard><KragGrupyPage /></AuthGuard>,
-  },
-  {
-    // Resolves the current guardian's own Circle and redirects — the entry
-    // point linked from the Sidebar, since /krag/:groupId itself needs an id.
-    path: "/krag",
-    element: <AuthGuard><KragEntryPage /></AuthGuard>,
   },
   {
     // Role-aware landing for Guest/Organizer accounts — same standalone,
@@ -123,14 +109,18 @@ export const router = createBrowserRouter([
     ],
   },
   {
-    // Per-term public page (unauthenticated, no AuthGuard) — the canonical
-    // shareable URL for one specific term. `:organizationSlug` is cosmetic
-    // (echoed into redirect targets, never validated / never sent to the
-    // backend). Multi-segment, so React Router route-ranking keeps it ahead
-    // of the single-segment `/:organizationSlug` catch-all below regardless
-    // of declaration order — no RESERVED_SLUGS change needed.
+    // The SOLE group/circle screen route (former separate `/krag/:groupId`
+    // + `/krag` entry-resolver were removed — this address now serves both
+    // audiences). No `AuthGuard`: `TermPage` itself branches on auth
+    // presence, rendering the full private member experience for a logged-in
+    // visitor and the anonymous-safe public view otherwise (see that
+    // component's own doc comment). `:organizationSlug` is cosmetic (echoed
+    // into redirect targets, never validated / never sent to the backend).
+    // Multi-segment, so React Router route-ranking keeps it ahead of the
+    // single-segment `/:organizationSlug` catch-all below regardless of
+    // declaration order — no RESERVED_SLUGS change needed.
     path: "/:organizationSlug/grupa/:groupId/term/:termId",
-    element: <PublicKragGrupyView />,
+    element: <TermPage />,
   },
   {
     // Public organizer page (`domena.pl/<slug>`) — deliberately declared

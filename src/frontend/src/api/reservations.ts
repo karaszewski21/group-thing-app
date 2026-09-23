@@ -11,7 +11,7 @@ export interface ReservationResponse {
   // Optional here (not on the actual backend response, which always sets
   // it — see `circulation/schemas.py`'s `ReservationResponse.term_id`)
   // purely so pre-existing mocked `ReservationResponse` object literals in
-  // `KragGrupyPage.test.tsx`/`PanelPage.test.tsx` (written before this
+  // `TermPage.test.tsx`/`PanelPage.test.tsx` (written before this
   // field existed on the frontend type) keep compiling without an
   // unrelated, out-of-scope rewrite. `RzeczyView.tsx`'s term-end
   // resolution (bug #4c) is the one real caller that reads it.

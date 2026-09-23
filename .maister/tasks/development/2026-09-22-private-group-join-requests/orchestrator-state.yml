@@ -1,0 +1,139 @@
+orchestrator:
+  started_phase: phase-2
+  completed_phases: [phase-1]
+  failed_phases: []
+  auto_fix_attempts: {}
+  options:
+    spec_audit_enabled: true
+    skip_test_suite: true
+    e2e_enabled: null
+    user_docs_enabled: null
+    code_review_enabled: true
+    pragmatic_review_enabled: true
+    reality_check_enabled: true
+    production_check_enabled: true
+  created: "2026-09-22T17:28:53Z"
+  updated: "2026-09-22T17:35:00Z"
+  task_path: .maister/tasks/development/2026-09-22-private-group-join-requests
+  task_ids: {}
+
+task:
+  title: "Private group join-request/approval flow + PrivateTermView/PublicTermView refactor continuation"
+  description: |
+    Two related pieces of work on src/frontend/src/pages/krag/TermPage.tsx
+    (PrivateTermView + PublicTermView, the group/term screen):
+
+    1. BUG/GAP: A logged-in user viewing a PRIVATE group they don't belong
+       to sees "Dołącz na stałe" (join for good), which opens
+       JoinPrivateGroupDialog — a form asking for guardian_name/child_count
+       and calling POST /api/groups/public/{id}/join, which creates
+       IMMEDIATE standing membership (join_private_group). This is wrong
+       for an already-authenticated user: it's the same anonymous-guest-style
+       form (asks for a name as if the caller weren't already identified),
+       and it grants access instantly with no organizer gate. The user wants
+       a real request/approval flow instead: the logged-in visitor sends a
+       join REQUEST to the group; the organizer sees pending requests and
+       accepts (or rejects) them; membership is created only on acceptance.
+
+    2. REFACTOR CONTINUATION: the user has been incrementally refactoring
+       PrivateTermView/PublicTermView (see project memory / prior session:
+       KragGrupyPage.tsx was renamed to TermPage.tsx, a TermAccessBoundary +
+       PrivateGroupAccessDenied component were introduced backed by a new
+       GET /groups/public/{id}/access endpoint, and GroupHeader/TermCard/
+       FamilyCard/NeededItemsSection/ListingsSection/SwapProposeDialog were
+       extracted into src/pages/krag/components/ as shared presentational
+       pieces). The user wants this refactor continued/finished to a "good"
+       state — exact scope to be determined via codebase analysis + gap
+       analysis (current state vs. what "done" looks like), not assumed.
+
+  status: in_progress
+  tags: [development, groups, membership, frontend, backend]
+  priority: high
+
+project_context:
+  project_doc_paths:
+    - .maister/docs/project/tech-stack.md
+    - .maister/docs/project/architecture.md
+    - .maister/docs/standards/global/error-handling.md
+    - .maister/docs/standards/global/validation.md
+    - .maister/docs/standards/global/conventions.md
+    - .maister/docs/standards/global/coding-style.md
+    - .maister/docs/standards/global/commenting.md
+    - .maister/docs/standards/global/minimal-implementation.md
+    - .maister/docs/standards/backend/api.md
+    - .maister/docs/standards/backend/models.md
+    - .maister/docs/standards/backend/queries.md
+    - .maister/docs/standards/backend/jooq.md
+    - .maister/docs/standards/backend/migrations.md
+    - .maister/docs/standards/backend/security.md
+    - .maister/docs/standards/backend/plugin-auth.md
+    - .maister/docs/standards/frontend/css.md
+    - .maister/docs/standards/frontend/components.md
+    - .maister/docs/standards/frontend/accessibility.md
+    - .maister/docs/standards/frontend/responsive.md
+    - .maister/docs/standards/testing/backend-testing.md
+    - .maister/docs/standards/testing/frontend-testing.md
+
+task_context:
+  risk_level: medium-high
+  clarifications_resolved: true
+  scope_expanded: null
+  architecture_decision: null
+  task_characteristics:
+    has_reproducible_defect: false
+    modifies_existing_code: true
+    creates_new_entities: false
+    involves_data_operations: false
+    ui_heavy: false
+  research_reference:
+    path: null
+    research_question: null
+    research_type: null
+    confidence_level: null
+  design_reference:
+    source: null
+    product_design_path: null
+    mockup_count: 0
+    has_brief: false
+    index_path: null
+  phase_summaries:
+    research: {summary: null, key_findings: [], recommended_approach: null}
+    design: {summary: null, screen_count: 0, component_count: 0, index_path: null}
+    codebase_analysis:
+      key_files:
+        - src/backend/app/groups/application/public_view.py
+        - src/backend/app/groups/router/circles.py
+        - src/backend/app/groups/models.py
+        - src/backend/app/groups/schemas.py
+        - src/backend/app/core/authorization_matrix.py
+        - src/backend/app/groups/service.py
+        - src/backend/app/groups/infrastructure/notifications_bridge.py
+        - src/frontend/src/components/krag/JoinPrivateGroupDialog.tsx
+        - src/frontend/src/api/groups.ts
+        - src/frontend/src/pages/krag/PrivateGroupAccessDenied.tsx
+        - src/frontend/src/pages/krag/TermPage.tsx
+      primary_language: "TypeScript (React) + Python (FastAPI)"
+      summary: >
+        join_private_group (public_view.py:443-497) grants standing
+        Membership instantly on first authenticated call, with no
+        pending/status concept anywhere in models.py. Closest existing
+        patterns to mirror: SwapProposal/SwapProposalStatus (PROPOSED/
+        ACCEPTED/REJECTED, two-party propose-then-respond) for the request
+        entity, and formalize_group_from_term's checkbox-list UI
+        (TermPage.tsx:808-864) for the organizer's approval screen.
+        Existing notifications bounded context (app.notifications +
+        notifications_bridge ACL) is ready to hook a JOIN_REQUESTED/
+        JOIN_APPROVED/JOIN_REJECTED notification into. TermPage.tsx is
+        1796 lines; 8 shared presentational components already extracted
+        (GroupHeader, TermCard, FamilyCard, NeededItemsSection,
+        ListingsSection, SwapProposeDialog, termLabels, termSectionTypes);
+        PrivateTermView (~885 lines) and PublicTermView (~595 lines)
+        remain monolithic, with a confirmed likely-dead duplicate
+        PRIVATE-denied block in PublicTermView (lines 1454-1531,
+        superseded by PrivateGroupAccessDenied.tsx via TermAccessBoundary).
+    clarifications: []
+    gap_analysis: {integration_points: [], summary: null}
+    scope_clarifications: {scope_expanded: null, summary: null}
+    ui_mockups: {components_designed: [], summary: null}
+    specification: {summary: null}
+    architecture_decision: {decision: null, summary: null}

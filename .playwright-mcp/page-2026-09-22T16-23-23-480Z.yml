@@ -1,0 +1,32 @@
+- generic [ref=f4e3]:
+  - generic [ref=f4e4]:
+    - banner [ref=f4e6]:
+      - button "← Wróć" [ref=f4e8] [cursor=pointer]
+      - generic [ref=f4e10]:
+        - generic [ref=f4e11]: Krąg
+        - heading "Muzyczne Maluchy Docs" [level=1] [ref=f4e12]
+        - generic [ref=f4e13]: "Prowadzi: Docs Organizer 20260922"
+    - generic [ref=f4e18]:
+      - generic [ref=f4e19]: D
+      - strong [ref=f4e20]: Docs Organizer 20260922
+      - generic [ref=f4e21]: prowadzi zajęcia
+    - generic [ref=f4e22]:
+      - generic [ref=f4e23]: Termin zajęć
+      - generic [ref=f4e24]: piątek, 25 września
+      - generic [ref=f4e25]: 🕒 godz. 17:00
+    - generic [ref=f4e26]:
+      - heading "Zapisani opiekunowie" [level=3] [ref=f4e27]
+      - paragraph [ref=f4e28]: Nikt jeszcze się nie zapisał.
+    - button "＋ Zapisz się na zajęcia" [ref=f4e30] [cursor=pointer]
+  - dialog "Zapisz się na zajęcia" [ref=f4e42]:
+    - generic [ref=f4e43]:
+      - heading "Zapisz się na zajęcia" [level=3] [ref=f4e44]
+      - button "Zamknij" [ref=f4e45]: ✕
+    - generic [ref=f4e46]:
+      - generic [ref=f4e47]: Imię
+      - textbox "Imię" [ref=f4e48]:
+        - /placeholder: np. Ania Kowalska
+    - generic [ref=f4e49]:
+      - generic [ref=f4e50]: Liczba dzieci
+      - spinbutton "Liczba dzieci" [ref=f4e51]: "0"
+    - button "Zapisz się" [ref=f4e52]

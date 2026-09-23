@@ -8,6 +8,8 @@ import {
   Users,
   Warehouse,
   Image as ImageIcon,
+  ArrowLeftRight,
+  Backpack,
   type LucideIcon,
 } from "lucide-react";
 import * as icons from "lucide-react";
@@ -18,6 +20,10 @@ export const WarehouseIcon = Warehouse;
 export const KragIcon = Users;
 export const CategoriesIcon = Tag;
 export const ModerationIcon = ShieldCheck;
+/** "Udostępnia" avatar-corner marker (Avatar's `showsSharesIcon`). */
+export const SharesIcon = ArrowLeftRight;
+/** "Przynosi" avatar-corner marker (Avatar's `showsBringsIcon`). */
+export const BringsIcon = Backpack;
 
 const ICON_MAP: Record<string, LucideIcon> = {
   package: Package,

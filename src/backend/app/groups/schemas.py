@@ -10,7 +10,13 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator, model_valida
 from app.circulation.models import ItemCondition, ReservationType
 from app.users.schemas import EMAIL_PATTERN, normalize_email
 
-from .models import GroupRoleType, PledgeStatus, SwapProposalStatus
+from .models import (
+    GroupLayoutMode,
+    GroupRoleType,
+    GroupVisibility,
+    PledgeStatus,
+    SwapProposalStatus,
+)
 
 # Listing-time offer subset — never RETURN (a lifecycle transition, not a
 # listing-time choice; see `ItemListingPreference.mode`'s docstring).
@@ -26,6 +32,8 @@ class GroupResponse(BaseModel):
     party_id: int
     name: str
     organizer_slug: str | None = None
+    layout_mode: GroupLayoutMode
+    visibility: GroupVisibility
     created_at: datetime
     updated_at: datetime
 
@@ -62,6 +70,8 @@ class UpdateGroupRequest(BaseModel):
     Group field, so this is a required value, not partial-apply."""
 
     name: str = Field(min_length=1, max_length=255)
+    layout_mode: GroupLayoutMode | None = None
+    visibility: GroupVisibility | None = None
 
     _strip_name = field_validator("name")(_reject_blank_name)
 
@@ -72,6 +82,7 @@ UpdateCircleRequest = UpdateGroupRequest
 
 class CreateOwnCircleRequest(BaseModel):
     name: str = Field(min_length=1, max_length=255)
+    visibility: GroupVisibility | None = None
 
 
 class GroupRoleResponse(BaseModel):
@@ -270,8 +281,32 @@ class PublicCircleResponse(BaseModel):
     name: str
     organizer_display_name: str | None
     organizer_slug: str | None
+    visibility: GroupVisibility
     next_term: PublicTermResponse | None
     guardians: list[PublicGuardianResponse]
+
+
+class GroupAccessDetails(BaseModel):
+    """The caller's relationship to a Circle, resolved server-side so the
+    frontend never has to infer "can I see this / can I join" from raw
+    auth-token presence — the previous `token ? private-view : public-view`
+    frontend branching treated ANY logged-in principal as if they belonged
+    to every Circle, which is wrong (see `GroupAccessResponse`)."""
+
+    is_member: bool
+    is_organizer: bool
+    can_view_content: bool
+    can_join: bool
+
+
+class GroupAccessResponse(BaseModel):
+    """`GET /api/groups/public/{group_id}/access` — the Circle's public
+    identity plus the caller's resolved access, in one call. `group` reuses
+    `PublicCircleResponse`'s already-privacy-safe shape (a `PRIVATE` group's
+    response still omits `next_term`/`guardians` regardless of `access`)."""
+
+    group: PublicCircleResponse
+    access: GroupAccessDetails
 
 
 class CreateRsvpRequest(BaseModel):
@@ -283,6 +318,49 @@ class CreateRsvpRequest(BaseModel):
 class RsvpResponse(BaseModel):
     id: int
     term_id: int
+    user_profile_id: int
+    guardian_name: str
+    child_count: int
+    attached_to_account: bool
+
+
+# --- Formalize a Term's attendees into standing Memberships, independent of
+# Group.visibility (`POST /api/groups/{id}/terms/{id}/formalize`) -----------
+
+
+class TermAttendeeResponse(BaseModel):
+    """One RSVP'd party for a chosen Term, resolved for the organizer's
+    "which attendees become standing members" picker. `family_id`/
+    `family_name` are display-only, purely informational — a family-less
+    attendee (e.g. an anonymous guest party) remains selectable for
+    formalization; `None` should now only occur for legacy pre-existing
+    family-less parties."""
+
+    party_id: int
+    display_name: str
+    child_count: int
+    family_id: int | None
+    family_name: str | None
+    already_member: bool
+
+
+class FormalizeGroupFromTermRequest(BaseModel):
+    party_ids: list[int] = Field(min_length=1)
+
+
+# --- Join a PRIVATE group as a standing member
+# (`POST /api/groups/public/{id}/join`, PUBLIC — mirrors `CreateRsvpRequest`/
+# `RsvpResponse` exactly, one term-scoped, the other group-scoped) ------------
+
+
+class JoinGroupRequest(BaseModel):
+    guardian_name: str = Field(min_length=1, max_length=255)
+    child_count: int = Field(ge=0, default=0)
+
+
+class JoinGroupResponse(BaseModel):
+    membership_id: int
+    group_id: int
     user_profile_id: int
     guardian_name: str
     child_count: int
@@ -459,6 +537,50 @@ class SwapProposalResponse(BaseModel):
     status: SwapProposalStatus
     created_at: datetime
     updated_at: datetime
+
+
+# --- Group exchange summary (authenticated,
+# `/api/groups/{id}/exchange-summary`,
+# `/api/groups/{id}/families/{family_id}/exchange-offers`) ------------------
+
+
+class FamilyExchangeSummary(BaseModel):
+    """One family's "udostępnia rzecz"/"przynosi na zajęcia" status marks
+    for the group's current Term, in `get_group_exchange_summary`'s
+    stable, family-order-preserving output — see
+    `app/groups/application/exchange_summary.py`."""
+
+    family_id: int
+    shares_item: bool
+    brings_item: bool
+
+
+class GroupExchangeSummaryResponse(BaseModel):
+    """`GET /api/groups/{id}/exchange-summary` body — one
+    `FamilyExchangeSummary` per family currently in the group."""
+
+    families: list[FamilyExchangeSummary]
+
+
+class FamilyExchangeOffer(BaseModel):
+    """One active exchange-mechanism offer from any guardian of a given
+    family, for the family card's "DO WYMIANY W GRUPIE" section — field
+    shape reused 1:1 from `BrowseTermItemListingResponse` (`product_name`,
+    `condition`, `offered_types`), per spec.md's reuse note."""
+
+    id: int
+    item_id: int
+    product_name: str
+    condition: str
+    offered_types: list[str]
+
+
+class FamilyExchangeDetailResponse(BaseModel):
+    """`GET /api/groups/{id}/families/{family_id}/exchange-offers` body —
+    every active offer from any guardian of the requested family."""
+
+    family_id: int
+    offers: list[FamilyExchangeOffer]
 
 
 # --- Transaction confirmation (authenticated,

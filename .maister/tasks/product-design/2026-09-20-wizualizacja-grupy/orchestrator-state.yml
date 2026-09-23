@@ -1,0 +1,68 @@
+orchestrator:
+  started_phase: phase-0
+  completed_phases: [phase-0, phase-1, phase-2, phase-3, phase-4, phase-5, phase-6, phase-7, phase-8]
+  next_phase: null
+  failed_phases: []
+  auto_fix_attempts: {}
+  options:
+    e2e_enabled: null
+    user_docs_enabled: null
+    code_review_enabled: null
+    sequential: null
+  created: "2026-09-20T00:00:00Z"
+  updated: "2026-09-20T00:00:00Z"
+  task_path: .maister/tasks/product-design/2026-09-20-wizualizacja-grupy
+  task_ids: {}
+
+task:
+  title: "Wizualizacja grupy zajęciowej (widok kołowy / boisko / stół)"
+  description: >
+    Ekran wizualizacji grupy zajęciowej na bazie makiet z ux-grup/
+    (default.png, boisko.png, table.png). Widok pokazuje uczestników grupy
+    rozmieszczonych wokół/na prowadzącej osoby w 3 trybach layoutu
+    (mandala/koło, boisko piłkarskie z pozycjami, stół), z ikonami
+    "udostępnia rzecz" / "przynosi na zajęcia" przy każdym uczestniku, plus
+    kartę szczegółów wybranej rodziny na dole z sekcją "do wymiany w grupie"
+    i akcjami Napisz/Biorę.
+  status: completed
+  tags: [ui, groups, circulation]
+  priority: null
+
+design_context:
+  design_characteristics:
+    is_greenfield: false
+    is_enhancement: true
+    is_ui_focused: true
+    is_backend: false
+    is_complex: true
+    is_simple: false
+  complexity_level: "complex"
+  collected_urls: []
+  research_topics: []
+  user_files_list:
+    - context/default.png
+    - context/boisko.png
+    - context/table.png
+  refinement_iterations:
+    phase_2: 0
+    phase_3: 0
+    phase_5: 0
+    phase_6_sections: {}
+    phase_7: 0
+  visual_companion:
+    available: null
+    port: null
+    pid: null
+    fallback_to_ascii: false
+  research_reference:
+    path: null
+    research_question: null
+  phase_summaries:
+    context_synthesis: {summary: null, sources_count: 0}
+    problem_exploration: {problem_statement: null, constraints: [], success_criteria: []}
+    persona_exploration: {personas: [], user_journeys: []}
+    idea_generation: {alternatives_count: 0, summary: null}
+    idea_convergence: {selected_approach: null, trade_offs_accepted: [], key_decisions: []}
+    feature_specification: {spec_sections: {}, sections_count: 0}
+    visual_prototyping: {mockup_references: [], summary: null}
+    review_handoff: {brief_layers: [], summary: null}

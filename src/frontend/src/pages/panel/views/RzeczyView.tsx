@@ -75,7 +75,7 @@ export function RzeczyView() {
   }, [items]);
 
   // Bug #4c: whether the active reservation's Term has already occurred,
-  // keyed by `reservationId` — mirrors `KragGrupyPage.tsx`'s
+  // keyed by `reservationId` — mirrors `TermPage.tsx`'s
   // `currentTermHasOccurred()`, resolved the same bounded way
   // `itemBalances` itself is (one batched round-trip over the distinct
   // reservations/terms among the currently-locked items, never per-row).

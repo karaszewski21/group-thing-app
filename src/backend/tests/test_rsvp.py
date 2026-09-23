@@ -202,6 +202,19 @@ async def test_createRsvp_loggedInUserNotCircleMember_attachesAttendanceWithoutM
     group_id, term_id = await _create_circle_with_term(client, "rsvp.nomember.owner@example.com")
     guest_token, guest_party_id = await _register_guest(client, "rsvp.nomember.guest@example.com")
 
+    # `register()` now auto-creates a solo Family (one FamilyRole(GUARDIAN))
+    # for every new party (spec.md Core Requirements 3-4), so
+    # `guest_party_id` already has exactly one FamilyRole at this point —
+    # capture it so the assertion below proves the RSVP itself adds no
+    # *additional* Family* row, rather than assuming a pristine zero.
+    family_roles_before = (
+        await db_session.execute(
+            select(func.count())
+            .select_from(FamilyRole)
+            .where(FamilyRole.party_id == guest_party_id)
+        )
+    ).scalar_one()
+
     response = await client.post(
         f"/api/groups/public/{group_id}/rsvp",
         json={"term_id": term_id, "guardian_name": "Nieczlonek", "child_count": 2},
@@ -234,7 +247,7 @@ async def test_createRsvp_loggedInUserNotCircleMember_attachesAttendanceWithoutM
             .where(FamilyRole.party_id == guest_party_id)
         )
     ).scalar_one()
-    assert family_roles == 0
+    assert family_roles == family_roles_before
 
 
 async def test_createRsvp_expiredToken_fallsBackToAnonymousNot401(

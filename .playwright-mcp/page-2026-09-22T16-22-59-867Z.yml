@@ -1,0 +1,22 @@
+- generic [ref=f3e4]:
+  - banner [ref=f3e6]:
+    - button "Wróć" [ref=f3e144]
+    - heading "Dane profilowe" [level=1] [ref=f3e147]
+  - generic [ref=f3e148]:
+    - heading "Dane profilowe" [level=3] [ref=f3e149]
+    - generic [ref=f3e150]:
+      - generic [ref=f3e151]: DO
+      - paragraph [ref=f3e152]: Zdjęcie profilowe pojawi się tutaj, gdy będzie dostępne — dziś pokazujemy inicjały.
+    - generic [ref=f3e153]:
+      - generic [ref=f3e154]:
+        - generic [ref=f3e155]: Imię i nazwisko
+        - textbox [disabled] [ref=f3e156]: Docs Organizer 20260922
+      - generic [ref=f3e157]:
+        - generic [ref=f3e158]: Lokalizacja
+        - textbox "Lokalizacja" [ref=f3e159]:
+          - /placeholder: Miasto, dzielnica
+      - generic [ref=f3e160]:
+        - generic [ref=f3e161]: O mnie
+        - textbox "O mnie" [ref=f3e162]:
+          - /placeholder: Kilka zdań o Tobie
+    - button "Zapisz zmiany" [ref=f3e164]

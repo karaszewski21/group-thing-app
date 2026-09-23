@@ -22,7 +22,7 @@ import * as categoriesApi from "../api/categories";
 import * as termItemListingsApi from "../api/termItemListings";
 import * as reservationsApi from "../api/reservations";
 import { PanelPage } from "../pages/panel/PanelPage";
-import { KragGrupyPage } from "../pages/krag/KragGrupyPage";
+import { TermPage } from "../pages/krag/TermPage";
 import type { UseKragGrupyResult } from "../hooks/useKragGrupy";
 import type { BrowseTermItemListingResponse } from "../api/termItemListings";
 import { ApiError } from "../api/client";
@@ -65,7 +65,19 @@ vi.mock("../api/groups", () => ({
   endLeadership: vi.fn(),
   getGroup: vi.fn(),
   getMyAttendances: vi.fn(),
-  updateCircle: vi.fn(),
+  updateGroupLayoutMode: vi.fn(),
+  // `EditTermDialog`'s "Formalizuj stałych członków" section calls these on
+  // mount whenever the term's group is still PUBLIC — default resolution set
+  // per-test in `mockOrganizerDefaults()` (a bare mock here would go stale
+  // after each `beforeEach`'s `vi.resetAllMocks()`, same reasoning as every
+  // other default below).
+  getTermAttendeesForFormalization: vi.fn(),
+  formalizeGroupFromTerm: vi.fn(),
+  // `TermAccessBoundary` (TermPage.tsx) resolves access before rendering
+  // the private/member view `renderKrag()` mounts — default set per-`describe`
+  // block that calls `renderKrag()` (same `resetAllMocks()`-goes-stale
+  // reasoning as `getTermAttendeesForFormalization` above).
+  getGroupAccess: vi.fn(),
 }));
 
 vi.mock("../api/inventories", () => ({
@@ -153,10 +165,10 @@ vi.mock("../api/reservations", () => ({
   cancelTransaction: vi.fn(),
 }));
 
-// KragGrupyPage's swap-offer-dialog tests mock the whole hook (same
-// pattern as test/KragGrupyPage.test.tsx) rather than every API it calls —
+// TermPage's swap-offer-dialog tests mock the whole hook (same
+// pattern as test/TermPage.test.tsx) rather than every API it calls —
 // the dialog/preview/proposeSwap wiring under test lives entirely in
-// KragGrupyPage.tsx itself, not in the hook.
+// TermPage.tsx itself, not in the hook.
 let kragHookValue: UseKragGrupyResult;
 
 vi.mock("../hooks/useKragGrupy", () => ({
@@ -216,6 +228,12 @@ function baseKragHookValue(overrides: Partial<UseKragGrupyResult> = {}): UseKrag
     proposeSwap: vi.fn(),
     withdrawMyAttendance: vi.fn(),
     confirmListingReceipt: vi.fn(),
+    activeFamilyExchangeOffers: [],
+    loadingExchangeOffers: false,
+    exchangeOffersError: null,
+    loadExchangeOffersForFamily: vi.fn(),
+    setGroupLayoutMode: vi.fn(),
+    takeOrProposeExchange: vi.fn(),
     refetch: vi.fn(),
     ...overrides,
   };
@@ -225,7 +243,7 @@ function renderKrag() {
   return render(
     <MemoryRouter initialEntries={["/krag/5"]}>
       <Routes>
-        <Route path="/krag/:groupId" element={<KragGrupyPage />} />
+        <Route path="/krag/:groupId" element={<TermPage />} />
       </Routes>
     </MemoryRouter>,
   );
@@ -270,6 +288,8 @@ const mockGroup: groupsApi.GroupResponse = {
   party_id: 2,
   name: "Nowa grupa",
   organizer_slug: "ania-kowalska",
+  layout_mode: "CIRCLE",
+  visibility: "PUBLIC",
   created_at: "2026-01-01T00:00:00Z",
   updated_at: "2026-01-01T00:00:00Z",
 };
@@ -413,6 +433,7 @@ function mockOrganizerDefaults() {
   vi.mocked(itemListingPreferencesApi.getMyItemListingPreferences).mockResolvedValue([]);
   vi.mocked(productsApi.getProducts).mockResolvedValue([]);
   vi.mocked(groupsApi.getGroup).mockResolvedValue(mockGroup);
+  vi.mocked(groupsApi.getTermAttendeesForFormalization).mockResolvedValue([]);
   vi.mocked(termsApi.getTerms).mockResolvedValue([]);
   vi.mocked(termsApi.getNeededItems).mockResolvedValue([]);
   vi.mocked(familiesApi.getMyFamilies).mockResolvedValue([]);
@@ -529,6 +550,7 @@ describe("PanelPage — hamburger promotion", () => {
       { id: 1, from_role_id: 1, to_group_id: 5, organizer_party_id: 1, valid_from: "2026-01-01", valid_to: null },
     ]);
     vi.mocked(groupsApi.getGroup).mockResolvedValue(mockGroup);
+    vi.mocked(groupsApi.getTermAttendeesForFormalization).mockResolvedValue([]);
     vi.mocked(termsApi.getTerms).mockResolvedValue([]);
 
     fireEvent.click(within(dialog).getByRole("button", { name: "Dalej →" }));
@@ -794,6 +816,7 @@ describe("PanelPage — dismissible home hints", () => {
       { id: 1, from_role_id: 1, to_group_id: 5, organizer_party_id: 1, valid_from: "2026-01-01", valid_to: null },
     ]);
     vi.mocked(groupsApi.getGroup).mockResolvedValue(mockGroup);
+    vi.mocked(groupsApi.getTermAttendeesForFormalization).mockResolvedValue([]);
     vi.mocked(termsApi.getTerms).mockResolvedValue([]);
 
     fireEvent.click(within(dialog).getByRole("button", { name: "Dalej →" }));
@@ -1278,46 +1301,151 @@ describe("PanelPage — term edit dialog", () => {
       expect(screen.queryByRole("dialog", { name: "Edytuj termin" })).not.toBeInTheDocument(),
     );
   });
+
+  // Group 4 (promote-term-attendees-to-members): the "Formalizuj stałych
+  // członków" section no longer gates on family resolution or group
+  // visibility — every non-member attendee is selectable and pre-selected,
+  // regardless of `family_id`.
+  const mockAttendees: groupsApi.TermAttendeeResponse[] = [
+    {
+      party_id: 200,
+      display_name: "Zosia Nowak",
+      child_count: 0,
+      family_id: 10,
+      family_name: "Nowakowie",
+      already_member: false,
+    },
+    {
+      party_id: 201,
+      display_name: "Tomek Wiśniewski",
+      child_count: 0,
+      family_id: null,
+      family_name: null,
+      already_member: false,
+    },
+  ];
+
+  it("submits the pre-selected attendees' party_ids and shows the shared success copy", async () => {
+    mockOrganizerDefaults();
+    vi.mocked(termsApi.getTerms).mockResolvedValue([term]);
+    vi.mocked(termsApi.getNeededItems).mockResolvedValue([]);
+    vi.mocked(groupsApi.getTermAttendeesForFormalization).mockResolvedValue(mockAttendees);
+    vi.mocked(groupsApi.formalizeGroupFromTerm).mockResolvedValue(mockGroup);
+    renderPanel();
+    const dialog = await openEditDialog();
+
+    // Both attendees are pre-selected (neither is already_member); deselect
+    // one so the asserted party_ids call exercises real selection state
+    // rather than just "everything returned by the fetch".
+    fireEvent.click(
+      await within(dialog).findByLabelText("Ustal Tomek Wiśniewski jako stałego członka"),
+    );
+    fireEvent.click(within(dialog).getByRole("button", { name: "Ustal stałych członków" }));
+
+    await waitFor(() =>
+      expect(groupsApi.formalizeGroupFromTerm).toHaveBeenCalledWith(5, 1, [200]),
+    );
+    expect(
+      await within(dialog).findByText("Dodano 1 osobę jako stałych członków grupy."),
+    ).toBeInTheDocument();
+  });
+
+  it("leaves a family-less attendee's row selectable and pre-selected", async () => {
+    mockOrganizerDefaults();
+    vi.mocked(termsApi.getTerms).mockResolvedValue([term]);
+    vi.mocked(termsApi.getNeededItems).mockResolvedValue([]);
+    vi.mocked(groupsApi.getTermAttendeesForFormalization).mockResolvedValue(mockAttendees);
+    renderPanel();
+    const dialog = await openEditDialog();
+
+    const checkbox = await within(dialog).findByLabelText(
+      "Ustal Tomek Wiśniewski jako stałego członka",
+    );
+    expect(checkbox).not.toBeDisabled();
+    expect(checkbox).toBeChecked();
+  });
+
+  it("shows an inline error and stays open when formalizeGroupFromTerm fails", async () => {
+    // Group 7 gap analysis: the success path is covered above, but the
+    // error/retry path on this surface (mirroring
+    // TermPage.test.tsx's "shows the inline error message when the
+    // submit fails") was never exercised at the /panel surface.
+    mockOrganizerDefaults();
+    vi.mocked(termsApi.getTerms).mockResolvedValue([term]);
+    vi.mocked(termsApi.getNeededItems).mockResolvedValue([]);
+    vi.mocked(groupsApi.getTermAttendeesForFormalization).mockResolvedValue(mockAttendees);
+    vi.mocked(groupsApi.formalizeGroupFromTerm).mockRejectedValue(new Error("boom"));
+    renderPanel();
+    const dialog = await openEditDialog();
+
+    fireEvent.click(within(dialog).getByRole("button", { name: "Ustal stałych członków" }));
+
+    expect(
+      await within(dialog).findByText(
+        "Nie udało się ustalić stałych członków — spróbuj ponownie",
+      ),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("dialog", { name: "Edytuj termin" })).toBeInTheDocument();
+  });
 });
 
-describe("PanelPage — circle rename", () => {
+describe("PanelPage — edit group dialog (name/location/spots/layout, replaces old inline rename + layout pills)", () => {
   beforeEach(() => {
     vi.resetAllMocks();
   });
 
-  async function openGrupy() {
+  async function openEditDialog() {
     fireEvent.click(await screen.findByRole("button", { name: "Spotkania" }));
     await screen.findByRole("heading", { name: "Grupy" });
+    fireEvent.click(await screen.findByRole("button", { name: "Edytuj grupę Nowa grupa" }));
+    await screen.findByRole("dialog", { name: "Edytuj grupę" });
   }
 
-  it("renames the circle in place on success", async () => {
+  it("pre-fills the form from the group's current name and layout_mode", async () => {
     mockOrganizerDefaults();
-    vi.mocked(groupsApi.updateCircle).mockResolvedValue({ ...mockGroup, name: "Nutki" });
     renderPanel();
-    await openGrupy();
+    await openEditDialog();
 
-    fireEvent.click(await screen.findByRole("button", { name: "Zmień nazwę kręgu" }));
-    fireEvent.change(screen.getByLabelText("Nazwa kręgu"), { target: { value: "Nutki" } });
-
-    vi.mocked(groupsApi.getGroup).mockResolvedValue({ ...mockGroup, name: "Nutki" });
-    fireEvent.click(screen.getByRole("button", { name: "Zapisz" }));
-
-    await waitFor(() => expect(groupsApi.updateCircle).toHaveBeenCalledWith(5, { name: "Nutki" }));
-    expect(await screen.findByText("Nutki", { selector: "h3" })).toBeInTheDocument();
+    expect(screen.getByLabelText("Nazwa grupy")).toHaveValue("Nowa grupa");
+    expect(screen.getByLabelText("Szablon wizualizacji")).toHaveValue("CIRCLE");
   });
 
-  it("shows an inline error on a rejected rename", async () => {
+  it("saves name + layout in one updateGroupLayoutMode call and closes on success", async () => {
     mockOrganizerDefaults();
-    vi.mocked(groupsApi.updateCircle).mockRejectedValue(new Error("400"));
+    vi.mocked(groupsApi.updateGroupLayoutMode).mockResolvedValue({
+      ...mockGroup,
+      name: "Nutki",
+      layout_mode: "PITCH",
+    });
     renderPanel();
-    await openGrupy();
+    await openEditDialog();
 
-    fireEvent.click(await screen.findByRole("button", { name: "Zmień nazwę kręgu" }));
-    fireEvent.change(screen.getByLabelText("Nazwa kręgu"), { target: { value: "Nutki" } });
+    fireEvent.change(screen.getByLabelText("Nazwa grupy"), { target: { value: "Nutki" } });
+    fireEvent.change(screen.getByLabelText("Szablon wizualizacji"), { target: { value: "PITCH" } });
+    // The post-save `load({ silent: true })` re-fetches via `getGroup` — only
+    // switch its resolved value to the updated name/layout NOW, after the
+    // dialog already opened against the original "Nowa grupa" fixture.
+    vi.mocked(groupsApi.getGroup).mockResolvedValue({ ...mockGroup, name: "Nutki", layout_mode: "PITCH" });
+    vi.mocked(groupsApi.getTermAttendeesForFormalization).mockResolvedValue([]);
     fireEvent.click(screen.getByRole("button", { name: "Zapisz" }));
 
-    expect(await screen.findByText(/Nie udało się zmienić nazwy kręgu/)).toBeInTheDocument();
-    expect(screen.getByText("Nowa grupa", { selector: "h3" })).toBeInTheDocument();
+    await waitFor(() =>
+      expect(groupsApi.updateGroupLayoutMode).toHaveBeenCalledWith(5, "Nutki", "PITCH", "PUBLIC"),
+    );
+    expect(await screen.findByText("Nutki", { selector: "h3" })).toBeInTheDocument();
+    expect(screen.queryByRole("dialog", { name: "Edytuj grupę" })).not.toBeInTheDocument();
+  });
+
+  it("shows an inline error and keeps the dialog open on a rejected save", async () => {
+    mockOrganizerDefaults();
+    vi.mocked(groupsApi.updateGroupLayoutMode).mockRejectedValue(new Error("500"));
+    renderPanel();
+    await openEditDialog();
+
+    fireEvent.click(screen.getByRole("button", { name: "Zapisz" }));
+
+    expect(await screen.findByText(/Nie udało się zapisać zmian/)).toBeInTheDocument();
+    expect(screen.getByRole("dialog", { name: "Edytuj grupę" })).toBeInTheDocument();
   });
 });
 
@@ -1434,6 +1562,7 @@ describe("PanelPage — per-term public links & copy-link button", () => {
   it("organizer with no Organization — 'Terminy' row still links to the per-term public page via the hash slug", async () => {
     mockOrganizerDefaults();
     vi.mocked(groupsApi.getGroup).mockResolvedValue(mockGroupHashSlug);
+    vi.mocked(groupsApi.getTermAttendeesForFormalization).mockResolvedValue([]);
     vi.mocked(termsApi.getTerms).mockResolvedValue([
       { id: 1, circle_group_id: 5, occurs_on: "2026-02-01", description: null, created_at: "", updated_at: "" },
     ]);
@@ -1914,25 +2043,29 @@ describe("PanelPage — notification bell", () => {
   });
 });
 
-describe("KragGrupyPage (private view) — Group 7 swap-offer dialog", () => {
+describe("TermPage (private view) — Group 7 swap-offer dialog", () => {
   beforeEach(() => {
     vi.resetAllMocks();
     kragHookValue = baseKragHookValue();
-    // KragGrupyPage now also fetches the caller's own taken listings
+    // TermPage now also fetches the caller's own taken listings
     // directly (getMyTakenTermItemListings, Group 4) independent of the
     // mocked useKragGrupy's browseListings — default to empty so these
     // swap-offer-dialog tests (which don't care about it) don't hit an
     // unresolved vi.fn().
     vi.mocked(termItemListingsApi.getMyTakenTermItemListings).mockResolvedValue([]);
+    vi.mocked(groupsApi.getGroupAccess).mockResolvedValue({
+      group: { ...mockGroup, organizer_display_name: "Ola", organizer_slug: "ola", next_term: null, guardians: [] },
+      access: { is_member: true, is_organizer: true, can_view_content: true, can_join: false },
+    });
   });
 
-  it("renders a single-item picker (not the old bare select-with-no-context) with a 'Twoja rzecz X za ich rzecz Y' preview, and Zaproponuj zamianę calls proposeSwap with the chosen item", async () => {
-    const proposeSwap = vi.fn().mockResolvedValue(undefined);
+  it("renders a single-item picker (not the old bare select-with-no-context) with a 'Twoja rzecz X za ich rzecz Y' preview, and Zaproponuj zamianę calls takeOrProposeExchange with the chosen item", async () => {
+    const takeOrProposeExchange = vi.fn().mockResolvedValue(undefined);
     kragHookValue = baseKragHookValue({
       browseListings: [browseListing({ id: 501, product_name: "Rowerek" })],
       myAvailableItems: [{ id: 500, productName: "Autko" }],
       mySwapAvailableItems: [{ id: 500, productName: "Autko" }],
-      proposeSwap,
+      takeOrProposeExchange,
     });
     renderKrag();
 
@@ -1950,20 +2083,20 @@ describe("KragGrupyPage (private view) — Group 7 swap-offer dialog", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Zaproponuj zamianę" }));
 
-    await waitFor(() => expect(proposeSwap).toHaveBeenCalledWith(501, 500));
+    await waitFor(() => expect(takeOrProposeExchange).toHaveBeenCalledWith(501, "SWAP", 500));
   });
 
-  it("a plain LEND take (not SWAP) still calls takeListing directly, with no dialog involved", async () => {
-    const takeListing = vi.fn().mockResolvedValue(undefined);
+  it("a plain LEND take (not SWAP) still calls takeOrProposeExchange directly, with no dialog involved", async () => {
+    const takeOrProposeExchange = vi.fn().mockResolvedValue(undefined);
     kragHookValue = baseKragHookValue({
       browseListings: [browseListing({ id: 502, product_name: "Klocki", offered_types: ["LEND"] })],
-      takeListing,
+      takeOrProposeExchange,
     });
     renderKrag();
 
     fireEvent.click(await screen.findByRole("button", { name: "Pożycz: Klocki" }));
 
-    await waitFor(() => expect(takeListing).toHaveBeenCalledWith(502, "LEND"));
+    await waitFor(() => expect(takeOrProposeExchange).toHaveBeenCalledWith(502, "LEND", undefined));
     expect(screen.queryByRole("combobox", { name: "Twoja rzecz do zamiany" })).not.toBeInTheDocument();
   });
 });
@@ -2025,6 +2158,7 @@ describe("PanelPage — Group 7 global pending-actions modal", () => {
     });
     renderPanel();
 
+    const initialItemsCalls = vi.mocked(inventoriesApi.getInventoryItems).mock.calls.length;
     const dialog = await screen.findByRole("dialog", { name: "Propozycja zamiany" });
     expect(within(dialog).queryByRole("button", { name: "Zobacz i zdecyduj" })).not.toBeInTheDocument();
     fireEvent.click(within(dialog).getByRole("button", { name: "Akceptuj" }));
@@ -2032,6 +2166,14 @@ describe("PanelPage — Group 7 global pending-actions modal", () => {
     await waitFor(() => expect(termItemListingsApi.acceptSwapProposal).toHaveBeenCalledWith(42));
     await waitFor(() =>
       expect(screen.queryByRole("dialog", { name: "Propozycja zamiany" })).not.toBeInTheDocument(),
+    );
+    // Cache-refresh bug (same class as confirmPendingAction/Bug #3):
+    // accepting a swap locks/reassigns items, so "Moje rzeczy" must
+    // silently re-fetch rather than showing stale data until reload.
+    await waitFor(() =>
+      expect(vi.mocked(inventoriesApi.getInventoryItems).mock.calls.length).toBeGreaterThan(
+        initialItemsCalls,
+      ),
     );
   });
 
@@ -2053,12 +2195,21 @@ describe("PanelPage — Group 7 global pending-actions modal", () => {
     });
     renderPanel();
 
+    const initialItemsCalls = vi.mocked(inventoriesApi.getInventoryItems).mock.calls.length;
     const dialog = await screen.findByRole("dialog", { name: "Propozycja zamiany" });
     fireEvent.click(within(dialog).getByRole("button", { name: "Odrzuć" }));
 
     await waitFor(() => expect(termItemListingsApi.rejectSwapProposal).toHaveBeenCalledWith(43));
     await waitFor(() =>
       expect(screen.queryByRole("dialog", { name: "Propozycja zamiany" })).not.toBeInTheDocument(),
+    );
+    // Same cache-refresh fix as accepting: rejecting releases the
+    // proposer's self-locked item back to AVAILABLE, which "Moje rzeczy"
+    // must reflect without a manual reload.
+    await waitFor(() =>
+      expect(vi.mocked(inventoriesApi.getInventoryItems).mock.calls.length).toBeGreaterThan(
+        initialItemsCalls,
+      ),
     );
   });
 
@@ -2176,7 +2327,7 @@ describe("PanelPage — Group 7 global pending-actions modal", () => {
   // Bug #3 (cache refresh, structural fix): PanelDataContext gains a
   // route-watching effect (useLocation) that silently reloads panel data
   // whenever the pathname transitions onto a /panel/* route — so a
-  // confirmation made from the term page (KragGrupyPage) is reflected once
+  // confirmation made from the term page (TermPage) is reflected once
   // the user navigates back to the panel, without needing a manual refresh.
   it("silently reloads panel data on re-entry to a /panel/* route after navigating away and back", async () => {
     mockGuestDefaults();

@@ -1,0 +1,39 @@
+[     230ms] [INFO] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold @ http://localhost:5173/node_modules/.vite/deps/react-dom_client.js?v=4ba0ec84:14336
+[     488ms] [ERROR] Failed to load resource: the server responded with a status of 403 (Forbidden) @ http://localhost:5173/api/groups/4/exchange-summary:0
+[     549ms] [ERROR] Failed to load resource: the server responded with a status of 403 (Forbidden) @ http://localhost:5173/api/groups/4/exchange-summary:0
+[     639ms] [ERROR] Failed to load resource: the server responded with a status of 403 (Forbidden) @ http://localhost:5173/api/groups/4/terms/5/attendees:0
+[     639ms] [ERROR] Failed to load resource: the server responded with a status of 403 (Forbidden) @ http://localhost:5173/api/term-item-listings/mine-as-taker?term_id=5:0
+[     648ms] ApiError: 403 Forbidden
+    at request (http://localhost:5173/src/api/client.ts:40:9)
+[     674ms] [ERROR] Failed to load resource: the server responded with a status of 403 (Forbidden) @ http://localhost:5173/api/groups/4/terms/5/attendees:0
+[     684ms] [ERROR] Failed to load resource: the server responded with a status of 403 (Forbidden) @ http://localhost:5173/api/term-item-listings/mine-as-taker?term_id=5:0
+[     685ms] ApiError: 403 Forbidden
+    at request (http://localhost:5173/src/api/client.ts:40:9)
+[  116178ms] [ERROR] Failed to load resource: the server responded with a status of 403 (Forbidden) @ http://localhost:5173/api/groups/4/exchange-summary:0
+[  116291ms] [ERROR] Failed to load resource: the server responded with a status of 403 (Forbidden) @ http://localhost:5173/api/groups/4/terms/5/attendees:0
+[  116292ms] [ERROR] Failed to load resource: the server responded with a status of 403 (Forbidden) @ http://localhost:5173/api/term-item-listings/mine-as-taker?term_id=5:0
+[  116297ms] ApiError: 403 Forbidden
+    at request (http://localhost:5173/src/api/client.ts:40:9)
+[  121844ms] [ERROR] Failed to load resource: the server responded with a status of 403 (Forbidden) @ http://localhost:5173/api/groups/4/exchange-summary:0
+[  121974ms] [ERROR] Failed to load resource: the server responded with a status of 403 (Forbidden) @ http://localhost:5173/api/groups/4/terms/5/attendees:0
+[  121981ms] [ERROR] Failed to load resource: the server responded with a status of 403 (Forbidden) @ http://localhost:5173/api/term-item-listings/mine-as-taker?term_id=5:0
+[  121986ms] ApiError: 403 Forbidden
+    at request (http://localhost:5173/src/api/client.ts:40:9)
+[  126206ms] [ERROR] Failed to load resource: the server responded with a status of 403 (Forbidden) @ http://localhost:5173/api/groups/4/exchange-summary:0
+[  126248ms] [ERROR] Failed to load resource: the server responded with a status of 403 (Forbidden) @ http://localhost:5173/api/groups/4/terms/5/attendees:0
+[  126308ms] [ERROR] Failed to load resource: the server responded with a status of 403 (Forbidden) @ http://localhost:5173/api/groups/4/terms/5/attendees:0
+[  126321ms] [ERROR] Failed to load resource: the server responded with a status of 403 (Forbidden) @ http://localhost:5173/api/term-item-listings/mine-as-taker?term_id=5:0
+[  126322ms] ApiError: 403 Forbidden
+    at request (http://localhost:5173/src/api/client.ts:40:9)
+[  132859ms] [ERROR] Failed to load resource: the server responded with a status of 403 (Forbidden) @ http://localhost:5173/api/groups/4/exchange-summary:0
+[  132892ms] [ERROR] Failed to load resource: the server responded with a status of 403 (Forbidden) @ http://localhost:5173/api/groups/4/terms/5/attendees:0
+[  133001ms] [ERROR] Failed to load resource: the server responded with a status of 403 (Forbidden) @ http://localhost:5173/api/groups/4/terms/5/attendees:0
+[  133002ms] [ERROR] Failed to load resource: the server responded with a status of 403 (Forbidden) @ http://localhost:5173/api/term-item-listings/mine-as-taker?term_id=5:0
+[  133011ms] ApiError: 403 Forbidden
+    at request (http://localhost:5173/src/api/client.ts:40:9)
+[  155787ms] [ERROR] Failed to load resource: the server responded with a status of 403 (Forbidden) @ http://localhost:5173/api/groups/4/exchange-summary:0
+[  155822ms] [ERROR] Failed to load resource: the server responded with a status of 403 (Forbidden) @ http://localhost:5173/api/groups/4/terms/5/attendees:0
+[  155909ms] [ERROR] Failed to load resource: the server responded with a status of 403 (Forbidden) @ http://localhost:5173/api/groups/4/terms/5/attendees:0
+[  155934ms] [ERROR] Failed to load resource: the server responded with a status of 403 (Forbidden) @ http://localhost:5173/api/term-item-listings/mine-as-taker?term_id=5:0
+[  155936ms] ApiError: 403 Forbidden
+    at request (http://localhost:5173/src/api/client.ts:40:9)

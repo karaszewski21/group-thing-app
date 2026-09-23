@@ -1,0 +1,70 @@
+orchestrator:
+  started_phase: phase-2
+  completed_phases: [phase-1]
+  failed_phases: []
+  auto_fix_attempts: {}
+  options:
+    brainstorming_enabled: false
+    design_enabled: true
+  created: "2026-09-22T00:00:00Z"
+  updated: "2026-09-22T00:00:00Z"
+  task_path: .maister/tasks/research/2026-09-22-business-model-fit-recurring-groups
+  task_ids: {}
+
+task:
+  title: "Business model fit + new approach for recurring-group formation from ad-hoc sessions"
+  description: |
+    User wants to verify whether the current app (group-thing-app, a Polish
+    scheduling/RSVP platform organized around "kręgi"/groups and "terminy"/
+    time-slots) covers 4 target business use cases, and wants a fresh design
+    (PoC stage, free to introduce new models) for the recurring-group-from-
+    single-session use case in particular:
+
+    1) Music classes: anyone can sign up to a single session via a shared
+       link, no fixed members, different people each time — but the
+       organizer needs a path to "promote" a given session's attendees into
+       a standing/recurring group (with ability to add more people later).
+    2) Family gatherings (Christmas Eve dinner, parties, etc.) with fixed
+       members.
+    3) Teacher creating a class with fixed members (students).
+    4) Football coach creating a team with fixed members (players + parents).
+  status: in_progress
+  tags: [research, business-fit, domain-model, groups]
+  priority: high
+
+research_context:
+  research_type: mixed
+  research_question: >
+    Does the current group-thing-app data model and UX (circles/groups,
+    terms/sessions, RSVP, membership) support: (a) ad-hoc single-session
+    sign-up via public link with no fixed membership, with a later
+    promotion path to a standing group: (b) fixed-membership family
+    event groups; (c) fixed-membership teacher/class groups; (d)
+    fixed-membership sports-team groups with parent+player members? Where
+    are the gaps, and what new domain model/approach (PoC stage, backward
+    compatibility not required) would best support all four, especially
+    the "promote ad-hoc attendees into a standing group" flow?
+  scope:
+    included:
+      - Existing groups/circles domain model (backend + frontend)
+      - Membership model (fixed vs ad-hoc/per-term signup)
+      - Public term/session signup flow and its data model
+      - Group visibility/privacy model (recent additions: 0035/0036 migrations)
+      - Path to "create standing group from a term's attendees"
+    excluded:
+      - Payments/billing
+      - Notifications/email delivery mechanics
+      - Unrelated auth/OAuth2 server internals
+    constraints:
+      - Code is PoC stage — no backward-compatibility constraints, free to
+        redesign domain model
+      - Must respect .maister/docs/standards (SQLAlchemy modeling, DDD
+        layering) if new backend code is proposed later
+  methodology: []
+  sources: []
+  confidence_level: null
+  gathering_strategy:
+    categories: []
+    count: 0
+    source: null
+  phase_summaries: {}
