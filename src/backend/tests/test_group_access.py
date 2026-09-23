@@ -9,6 +9,8 @@ naming follows `action_condition_expectedResult`
 
 from __future__ import annotations
 
+from datetime import date, timedelta
+
 from httpx import AsyncClient
 
 
@@ -56,6 +58,7 @@ async def test_getGroupAccess_publicGroupUnauthenticated_canViewNoMembership(
         "is_organizer": False,
         "can_view_content": True,
         "can_join": False,
+        "is_attending": False,
     }
 
 
@@ -75,6 +78,7 @@ async def test_getGroupAccess_organizerOwnGroup_reportsOrganizerAndMember(
         "is_organizer": True,
         "can_view_content": True,
         "can_join": False,
+        "is_attending": False,
     }
 
 
@@ -95,6 +99,7 @@ async def test_getGroupAccess_privateGroupUnrelatedLoggedInVisitor_cannotViewCan
         "is_organizer": False,
         "can_view_content": False,
         "can_join": True,
+        "is_attending": False,
     }
 
 
@@ -112,3 +117,38 @@ async def test_getGroupAccess_privateGroupUnauthenticated_cannotViewCanJoin(
     assert body["access"]["can_join"] is True
     assert body["group"]["next_term"] is None
     assert body["group"]["guardians"] == []
+
+
+async def test_getGroupAccess_loggedInAttendeeOfShownTerm_reportsAttending(
+    client: AsyncClient,
+) -> None:
+    org_token = await _register(client, "ORGANIZER", "access.org5@example.com")
+    group_id = await _create_circle(client, org_token, "Access Attending Circle")
+    term = await client.post(
+        "/api/terms",
+        json={
+            "circle_group_id": group_id,
+            "occurs_on": (date.today() + timedelta(days=7)).isoformat(),
+        },
+        headers=_auth(org_token),
+    )
+    assert term.status_code == 201
+    term_id = term.json()["id"]
+    attendee_token = await _register(client, "GUEST", "access.attendee5@example.com")
+    bystander_token = await _register(client, "GUEST", "access.bystander5@example.com")
+    rsvp = await client.post(
+        f"/api/groups/public/{group_id}/rsvp",
+        json={"term_id": term_id, "guardian_name": "ignored"},
+        headers=_auth(attendee_token),
+    )
+    assert rsvp.status_code == 201
+
+    attendee = await client.get(
+        f"/api/groups/public/{group_id}/access?term_id={term_id}", headers=_auth(attendee_token)
+    )
+    bystander = await client.get(
+        f"/api/groups/public/{group_id}/access?term_id={term_id}", headers=_auth(bystander_token)
+    )
+
+    assert attendee.json()["access"]["is_attending"] is True
+    assert bystander.json()["access"]["is_attending"] is False

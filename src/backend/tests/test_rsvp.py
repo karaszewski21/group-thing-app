@@ -109,7 +109,7 @@ async def test_createRsvp_thenPublicGet_guardianNameAndChildCountRoundTrip(
 
     assert public_view.status_code == 200
     guardians = public_view.json()["guardians"]
-    assert {"display_name": "Piotr Zielinski"} in guardians
+    assert "Piotr Zielinski" in {guardian["display_name"] for guardian in guardians}
 
 
 async def test_createRsvp_loggedInUser_attachesToExistingAccountNotNewAnonymousProfile(

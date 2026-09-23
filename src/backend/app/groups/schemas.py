@@ -244,6 +244,7 @@ class PublicNeededItemResponse(BaseModel):
     # `claimed_by_name` is that pledger's display name (or `None`).
     claimed: bool
     claimed_by_name: str | None
+    claimed_by_party_id: int | None
 
 
 class PublicItemListingResponse(BaseModel):
@@ -257,6 +258,7 @@ class PublicItemListingResponse(BaseModel):
     product_name: str
     condition: str
     offered_types: list[str]
+    lister_party_id: int
     lister_display_name: str
 
 
@@ -269,6 +271,7 @@ class PublicTermResponse(BaseModel):
 
 
 class PublicGuardianResponse(BaseModel):
+    party_id: int
     display_name: str
 
 
@@ -282,6 +285,7 @@ class PublicCircleResponse(BaseModel):
     organizer_display_name: str | None
     organizer_slug: str | None
     visibility: GroupVisibility
+    layout_mode: GroupLayoutMode
     next_term: PublicTermResponse | None
     guardians: list[PublicGuardianResponse]
 
@@ -297,6 +301,8 @@ class GroupAccessDetails(BaseModel):
     is_organizer: bool
     can_view_content: bool
     can_join: bool
+    # The caller has a `TermAttendance` on the response's `next_term`.
+    is_attending: bool
 
 
 class GroupAccessResponse(BaseModel):

@@ -128,7 +128,9 @@ async def get_needed_item_view(db: AsyncSession, needed_item_id: int) -> dict[st
 async def list_needed_item_views(db: AsyncSession, term_id: int) -> list[dict[str, Any]]:
     claimed_ids = {
         needed_item_id
-        for needed_item_id, _name in await repository.list_active_pledges_for_term(db, term_id)
+        for needed_item_id, _name, _party_id in await repository.list_active_pledges_for_term(
+            db, term_id
+        )
     }
     return [
         _needed_item_view(row, claimed=row[0].id in claimed_ids)

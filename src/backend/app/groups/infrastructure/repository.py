@@ -270,13 +270,13 @@ async def list_pledges_for_needed_item(db: AsyncSession, needed_item_id: int) ->
 
 async def list_active_pledges_for_term(
     db: AsyncSession, term_id: int
-) -> list[Row[tuple[int, str]]]:
-    """`(needed_item_id, pledger_display_name)` for every non-withdrawn pledge
+) -> list[Row[tuple[int, str, int]]]:
+    """`(needed_item_id, pledger_display_name, pledger_party_id)` for every non-withdrawn pledge
     on the term's live needs — at most one row per need (single-claim). Inner
     join: `pledged_by_party_id` is always a party with a `UserProfile`
     (`create_pledge` reads it from `profile.party_id`)."""
     result = await db.execute(
-        select(NeededItem.id, UserProfile.display_name)
+        select(NeededItem.id, UserProfile.display_name, Pledge.pledged_by_party_id)
         .join(Pledge, Pledge.needed_item_id == NeededItem.id)
         .join(UserProfile, UserProfile.party_id == Pledge.pledged_by_party_id)
         .where(

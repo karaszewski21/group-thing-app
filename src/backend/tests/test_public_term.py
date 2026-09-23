@@ -121,7 +121,7 @@ async def test_getPublicCircle_withTermIdParam_returnsThatTermsItemsAndGuardians
     assert body["next_term"]["needed_items"][0]["product_name"] == "Grzechotka"
     assert body["next_term"]["needed_items"][0]["product_category_id"] == 5
     assert body["next_term"]["needed_items"][0]["product_category_name"] == "Inne"
-    assert body["guardians"] == [{"display_name": "Marek Nowak"}]
+    assert [guardian["display_name"] for guardian in body["guardians"]] == ["Marek Nowak"]
 
 
 async def test_getPublicCircle_termIdFromAnotherGroup_returns404(client: AsyncClient) -> None:
@@ -169,9 +169,11 @@ async def test_getPublicCircle_noTermIdParam_returnsNearestTermUnchanged(
         "organizer_display_name",
         "organizer_slug",
         "visibility",
+        "layout_mode",
         "next_term",
         "guardians",
     }
+    assert body["layout_mode"] == "CIRCLE"
     assert set(body["next_term"].keys()) == {
         "id",
         "occurs_on",
@@ -207,7 +209,7 @@ async def test_getPublicCircle_afterLoggedInRsvp_stillExposesOnlyGuardianDisplay
     group_id = await _create_circle(client, token, "Krąg z zalogowanym rodzicem")
     term_id = await _create_term(client, token, group_id, date.today() + timedelta(days=7))
 
-    guest_token, _guest_party_id = await _register_guest(client, "pt.loggedin.parent@example.com")
+    guest_token, guest_party_id = await _register_guest(client, "pt.loggedin.parent@example.com")
     rsvp = await client.post(
         f"/api/groups/public/{group_id}/rsvp",
         json={"term_id": term_id, "guardian_name": "Ignorowane Imie", "child_count": 3},
@@ -220,7 +222,7 @@ async def test_getPublicCircle_afterLoggedInRsvp_stillExposesOnlyGuardianDisplay
 
     assert response.status_code == 200
     body = response.json()
-    assert body["guardians"] == [{"display_name": "Pt Loggedin Parent"}]
+    assert body["guardians"] == [{"party_id": guest_party_id, "display_name": "Pt Loggedin Parent"}]
     assert set(body["next_term"].keys()) == {
         "id",
         "occurs_on",
@@ -381,7 +383,9 @@ async def test_getPublicCircle_organizerAndAttendeeListings_visibleAnonymously(
     org_item_id = await _register_personal_item(client, org_token, "Namiot")
     await _set_preference(client, org_token, org_item_id, "LEND")
 
-    attendee_token, _ = await _register_guest(client, "pt.exchange.attendee@example.com")
+    attendee_token, attendee_party_id = await _register_guest(
+        client, "pt.exchange.attendee@example.com"
+    )
     rsvp = await client.post(
         f"/api/groups/public/{group_id}/rsvp",
         json={"term_id": term_id, "guardian_name": "ignored", "child_count": 0},
@@ -401,6 +405,8 @@ async def test_getPublicCircle_organizerAndAttendeeListings_visibleAnonymously(
     }
     lister_names = {row["lister_display_name"] for row in listings}
     assert "Pt Exchange Org" in lister_names
+    lister_by_item = {row["item_id"]: row["lister_party_id"] for row in listings}
+    assert lister_by_item[attendee_item_id] == attendee_party_id
 
 
 async def test_getPublicCircle_takenItem_disappearsFromPublicListings(client: AsyncClient) -> None:
@@ -453,3 +459,23 @@ async def test_getPublicCircle_termOccursOnInPast_listingsStillVisible(
     assert response.status_code == 200
     listings = response.json()["next_term"]["item_listings"]
     assert {(row["item_id"], row["offered_types"][0]) for row in listings} == {(item_id, "LEND")}
+
+
+async def test_getPublicCircle_pledgedNeededItem_exposesPledgerPartyId(client: AsyncClient) -> None:
+    token = await _register_organizer(client, "pt.pledger.owner@example.com")
+    group_id = await _create_circle(client, token, "Krąg z deklaracją")
+    term_id = await _create_term(client, token, group_id, date.today() + timedelta(days=7))
+    needed_item_id = await _create_needed_item(client, token, term_id, "Bębenek", "bębenek")
+    guest_token, guest_party_id = await _register_guest(client, "pt.pledger.guest@example.com")
+    pledge = await client.post(
+        "/api/pledges",
+        json={"needed_item_id": needed_item_id},
+        headers=_auth_headers(guest_token),
+    )
+    assert pledge.status_code == 201
+
+    response = await client.get(f"/api/groups/public/{group_id}?term_id={term_id}")
+
+    item = response.json()["next_term"]["needed_items"][0]
+    assert item["claimed_by_party_id"] == guest_party_id
+    assert item["claimed_by_name"] == "Pt Pledger Guest"

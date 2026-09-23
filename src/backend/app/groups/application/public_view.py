@@ -198,6 +198,7 @@ async def get_public_circle_view(
             organizer_display_name=organizer_display_name,
             organizer_slug=organizer_slug,
             visibility=group.visibility,
+            layout_mode=group.layout_mode,
             next_term=None,
             guardians=[],
         )
@@ -219,12 +220,9 @@ async def get_public_circle_view(
     guardians: list[PublicGuardianResponse] = []
     if next_term is not None:
         needed_item_views = await list_needed_item_views(db, cast(int, next_term.id))
-        pledger_by_item = {
-            needed_item_id: display_name
-            for needed_item_id, display_name in await repository.list_active_pledges_for_term(
-                db, cast(int, next_term.id)
-            )
-        }
+        active_pledges = await repository.list_active_pledges_for_term(db, cast(int, next_term.id))
+        pledger_name_by_item = {item_id: name for item_id, name, _ in active_pledges}
+        pledger_party_by_item = {item_id: party for item_id, _, party in active_pledges}
         item_listings = await list_public_term_item_listings(db, cast(int, next_term.id))
         next_term_response = PublicTermResponse(
             id=cast(int, next_term.id),
@@ -239,7 +237,8 @@ async def get_public_circle_view(
                     product_category_name=view["product_category_name"],
                     description=view["description"],
                     claimed=view["claimed"],
-                    claimed_by_name=pledger_by_item.get(view["id"]),
+                    claimed_by_name=pledger_name_by_item.get(view["id"]),
+                    claimed_by_party_id=pledger_party_by_item.get(view["id"]),
                 )
                 for view in needed_item_views
             ],
@@ -250,6 +249,7 @@ async def get_public_circle_view(
                     product_name=listing.product_name,
                     condition=listing.condition,
                     offered_types=listing.offered_types,
+                    lister_party_id=listing.lister_party_id,
                     lister_display_name=listing.lister_display_name,
                 )
                 for listing in item_listings
@@ -262,7 +262,10 @@ async def get_public_circle_view(
             profile_rows = await repository.list_profile_names_by_party_ids(db, party_ids)
             names_by_party_id = {row.party_id: row.display_name for row in profile_rows}
             guardians = [
-                PublicGuardianResponse(display_name=names_by_party_id[attendance.party_id])
+                PublicGuardianResponse(
+                    party_id=attendance.party_id,
+                    display_name=names_by_party_id[attendance.party_id],
+                )
                 for attendance in attendances
                 if attendance.party_id in names_by_party_id
             ]
@@ -273,6 +276,7 @@ async def get_public_circle_view(
         organizer_display_name=organizer_display_name,
         organizer_slug=organizer_slug,
         visibility=group.visibility,
+        layout_mode=group.layout_mode,
         next_term=next_term_response,
         guardians=guardians,
     )
@@ -300,6 +304,7 @@ async def get_group_access(
 
     is_member = False
     is_organizer = False
+    is_attending = False
     if principal is not None:
         try:
             profile = await get_profile_by_principal(db, principal)
@@ -308,6 +313,9 @@ async def get_group_access(
         if profile is not None:
             is_organizer = await _is_active_organizer(db, group_id, profile.party_id)
             is_member = is_organizer or await _is_active_member(db, group_id, profile.party_id)
+            is_attending = any(
+                guardian.party_id == profile.party_id for guardian in group_response.guardians
+            )
 
     if group.visibility == GroupVisibility.PRIVATE:
         can_view_content = is_member or is_organizer
@@ -323,6 +331,7 @@ async def get_group_access(
             is_organizer=is_organizer,
             can_view_content=can_view_content,
             can_join=can_join,
+            is_attending=is_attending,
         ),
     )
 

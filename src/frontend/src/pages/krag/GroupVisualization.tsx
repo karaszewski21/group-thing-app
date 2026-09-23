@@ -10,11 +10,7 @@ import { BringsIcon, SharesIcon } from "../../components/shared/Icons";
 
 export type GroupLayoutMode = "CIRCLE" | "PITCH" | "TABLE";
 
-/** Minimal family shape `GroupVisualization` needs — a local type rather than
- * importing `KragFamily` from `useKragGrupy.ts` directly, since that
- * interface doesn't carry `sharesItem`/`bringsItem` yet (added by a later
- * task group per spec.md's Core Requirement 7); any object with these
- * fields (including a future extended `KragFamily`) satisfies this shape. */
+/** One avatar in the visualization — a person signed up for the Term. */
 export interface VisualizationFamily {
   familyId: number;
   name: string;
@@ -32,9 +28,6 @@ export interface GroupVisualizationProps {
   families: VisualizationFamily[];
   activeFamilyId: number | string | null;
   onSelectFamily: (familyId: number) => void;
-  /** Invite ("+") slot handler — same slot in all 3 layouts; omitted means the
-   * slot still renders (matching today's CIRCLE spacing) but does nothing. */
-  onInviteSlotClick?: () => void;
   /** Seeds the deterministic PITCH/TABLE family→slot shuffle
    * (`getStableSlotOrder`); unused by CIRCLE, which keeps `families`' natural
    * order. Still accepted uniformly so all 3 layouts share one prop contract. */
@@ -68,41 +61,19 @@ function FamilySlot({ family, active, style, onSelectFamily }: FamilySlotProps) 
   );
 }
 
-/** The "+" invite-another-family slot — shared markup across all 3 layouts. */
-function InviteSlot({ style, onClick }: { style: CSSProperties; onClick?: () => void }) {
-  return (
-    <button type="button" className="kg-fam" style={style} onClick={onClick} aria-label="Zaproś kolejną rodzinę">
-      <span
-        className="kg-av"
-        style={{
-          background: "var(--cream)",
-          color: "var(--mint)",
-          border: "2.5px dashed var(--mint)",
-          boxShadow: "none",
-        }}
-      >
-        +
-      </span>
-    </button>
-  );
-}
-
 interface LayoutProps {
   families: VisualizationFamily[];
   organizerName: string;
   activeFamilyId: number | string | null;
   onSelectFamily: (familyId: number) => void;
-  onInviteSlotClick?: () => void;
 }
 
 /**
- * CIRCLE layout — 1:1 port of `TermPage.tsx`'s pre-refactor circle
- * rendering (former inline `pos()` + duplicated SVG-line-mapper formula, both
- * now sourced from `getCirclePosition`). No new logic; positions and markup
- * are unchanged, per spec.md's "zero visual regression" requirement.
+ * CIRCLE layout — people evenly spaced around the organizer
+ * (`getCirclePosition`), each joined to the center by a line.
  */
-function CircleLayout({ families, organizerName, activeFamilyId, onSelectFamily, onInviteSlotClick }: LayoutProps) {
-  const slots = families.length + 1;
+function CircleLayout({ families, organizerName, activeFamilyId, onSelectFamily }: LayoutProps) {
+  const slots = families.length;
   const pos = (i: number) => {
     const { x, y } = getCirclePosition(i, slots);
     return { left: `${x}%`, top: `${y}%` };
@@ -141,8 +112,6 @@ function CircleLayout({ families, organizerName, activeFamilyId, onSelectFamily,
               />
             ))}
 
-            <InviteSlot style={pos(families.length)} onClick={onInviteSlotClick} />
-
             <div className="kg-center">
               <div className="kg-center-av">{organizerName ? organizerName.slice(0, 1) : "?"}</div>
               <strong>{organizerName || "Brak organizatora"}</strong>
@@ -169,13 +138,11 @@ function PitchLayout({
   organizerName,
   activeFamilyId,
   onSelectFamily,
-  onInviteSlotClick,
   groupId,
 }: LayoutProps & { groupId: number | string }) {
-  const slots = families.length + 1;
+  const slots = families.length;
   const order = getStableSlotOrder(groupId, families.map((f) => f.familyId));
   const byId = new Map(families.map((f) => [f.familyId, f]));
-  const invitePos = getPitchPosition(order.length, slots);
 
   return (
     <div className="px-[18px] pt-[16px]">
@@ -208,7 +175,6 @@ function PitchLayout({
             />
           );
         })}
-        <InviteSlot style={{ left: `${invitePos.x}%`, top: `${invitePos.y}%` }} onClick={onInviteSlotClick} />
       </div>
     </div>
   );
@@ -235,13 +201,11 @@ function TableLayout({
   organizerName,
   activeFamilyId,
   onSelectFamily,
-  onInviteSlotClick,
   groupId,
 }: LayoutProps & { groupId: number | string }) {
-  const slots = families.length + 1;
+  const slots = families.length;
   const order = getStableSlotOrder(groupId, families.map((f) => f.familyId));
   const byId = new Map(families.map((f) => [f.familyId, f]));
-  const invitePos = getTablePosition(order.length, slots);
 
   return (
     <div className="px-[18px] pt-[16px]">
@@ -285,7 +249,6 @@ function TableLayout({
             />
           );
         })}
-        <InviteSlot style={{ left: `${invitePos.x}%`, top: `${invitePos.y}%` }} onClick={onInviteSlotClick} />
       </div>
     </div>
   );
@@ -325,7 +288,6 @@ export function GroupVisualization({
   families,
   activeFamilyId,
   onSelectFamily,
-  onInviteSlotClick,
   groupId,
 }: GroupVisualizationProps) {
   return (
@@ -336,7 +298,6 @@ export function GroupVisualization({
           organizerName={organizerName}
           activeFamilyId={activeFamilyId}
           onSelectFamily={onSelectFamily}
-          onInviteSlotClick={onInviteSlotClick}
         />
       )}
       {layoutMode === "PITCH" && (
@@ -345,7 +306,6 @@ export function GroupVisualization({
           organizerName={organizerName}
           activeFamilyId={activeFamilyId}
           onSelectFamily={onSelectFamily}
-          onInviteSlotClick={onInviteSlotClick}
           groupId={groupId}
         />
       )}
@@ -355,7 +315,6 @@ export function GroupVisualization({
           organizerName={organizerName}
           activeFamilyId={activeFamilyId}
           onSelectFamily={onSelectFamily}
-          onInviteSlotClick={onInviteSlotClick}
           groupId={groupId}
         />
       )}

@@ -1,12 +1,13 @@
-import type { AvailableItem } from "../../../hooks/useKragGrupy";
+/** One of the viewer's own items that can be offered in a swap. */
+export interface AvailableItem {
+  id: number;
+  productName: string;
+}
 
-/** Group 7's swap-offer dialog — a single-item picker (V1 scope: exactly
- * ONE offered item, never a multi-select) plus an explicit trade preview
- * ("Twoja rzecz X za ich rzecz Y"), used at every "Rzeczy od innych"/
- * "Rzeczy do wymiany"/family-card take-SWAP call site on both `PrivateTermView`
- * and `PublicTermView`. Submitting calls the caller's `onConfirm` (wired to
- * `proposeSwap` on either side) — a SWAP is always a proposal the listing
- * owner must separately accept/reject, never a single-shot take. */
+/** Swap-offer picker — exactly ONE offered item plus an explicit trade
+ * preview ("Twoja rzecz X za ich rzecz Y"). Submitting calls `onConfirm`
+ * (wired to `proposeSwap`) — a SWAP is always a proposal the listing owner
+ * must separately accept/reject, never a single-shot take. */
 export function SwapProposeDialog({
   availableItems,
   offeredItemId,

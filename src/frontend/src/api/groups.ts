@@ -115,8 +115,7 @@ export function createAdditionalMyCircle(request: CreateCircleRequest): Promise<
  * `visibility` is omitted from the request body entirely when not passed,
  * leaving the group's current visibility untouched (mirrors the backend's
  * `is not None`-only-apply semantics) — existing callers that only ever
- * change `layout_mode` (e.g. `useKragGrupy`'s inline layout switcher) are
- * unaffected. */
+ * change `layout_mode` are unaffected. */
 export function updateGroupLayoutMode(
   id: number,
   name: string,
@@ -174,6 +173,7 @@ export interface PublicNeededItemResponse {
   /** Someone already declared they'll bring this (single-claim). */
   claimed: boolean;
   claimed_by_name: string | null;
+  claimed_by_party_id: number | null;
 }
 
 /** A still-available exchange-mechanism offer — always AVAILABLE-only, so
@@ -184,6 +184,7 @@ export interface PublicItemListingResponse {
   product_name: string;
   condition: string;
   offered_types: string[];
+  lister_party_id: number;
   lister_display_name: string;
 }
 
@@ -196,6 +197,7 @@ export interface PublicTermResponse {
 }
 
 export interface PublicGuardianResponse {
+  party_id: number;
   display_name: string;
 }
 
@@ -208,6 +210,7 @@ export interface PublicCircleResponse {
   organizer_display_name: string | null;
   organizer_slug: string | null;
   visibility: GroupVisibility;
+  layout_mode: GroupLayoutMode;
   next_term: PublicTermResponse | null;
   guardians: PublicGuardianResponse[];
 }
@@ -245,6 +248,8 @@ export interface GroupAccessDetails {
   is_organizer: boolean;
   can_view_content: boolean;
   can_join: boolean;
+  /** The caller has a `TermAttendance` on `group.next_term`. */
+  is_attending: boolean;
 }
 
 /** Mirrors `app.groups.schemas.GroupAccessResponse` — `GET

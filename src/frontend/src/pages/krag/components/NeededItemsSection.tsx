@@ -1,21 +1,9 @@
-import type { NeededItemRowVM, TermSectionVM } from "./termSectionTypes";
+import type { NeededItemRowVM } from "./termSectionTypes";
 
-/** One "kto co przynosi" / "potrzebne rzeczy" row — shared by both
- * `PrivateTermView` and `PublicTermView`, whose callers build the
- * `NeededItemRowVM`s from their own hook's data and their own
- * `gateAction`-wrapped handlers. */
 function NeededItemRow({ row }: { row: NeededItemRowVM }) {
   return (
     <div className="kg-bring-item">
       <div className="kg-bring-row">
-        {row.avatar !== undefined && (
-          <span
-            className={`kg-bring-av ${row.avatar ? "" : "kg-bring-av-empty"}`}
-            style={row.avatar ? { background: row.avatar.color } : undefined}
-          >
-            {row.avatar ? row.avatar.initials : "?"}
-          </span>
-        )}
         <div className="kg-bring-body">
           {row.title}
           {row.subtitle != null && <small>{row.subtitle}</small>}
@@ -23,7 +11,7 @@ function NeededItemRow({ row }: { row: NeededItemRowVM }) {
         {row.inlineActions.map((a) => (
           <button
             key={a.key}
-            className={`kg-bring-btn ${a.active ? "is-on" : ""}`}
+            className="kg-bring-btn"
             disabled={a.disabled}
             aria-label={a.ariaLabel}
             onClick={a.onClick}
@@ -33,32 +21,30 @@ function NeededItemRow({ row }: { row: NeededItemRowVM }) {
         ))}
       </div>
       {row.extra}
-      {row.statusLine && <div className="kg-status-line">{row.statusLine}</div>}
-      {row.confirmAction && (
-        <div className="kg-fulfill-actions" style={{ marginTop: "8px" }}>
-          <button className="kg-btn-primary" disabled={row.confirmAction.disabled} onClick={row.confirmAction.onClick}>
-            {row.confirmAction.label}
-          </button>
-        </div>
-      )}
     </div>
   );
 }
 
-/** "Kto co przynosi" (private) / "Potrzebne rzeczy" (public) card —
- * structurally identical between the two views; only the row data and
- * click handlers differ, supplied entirely via `section`. */
-export function NeededItemsSection({ section }: { section: TermSectionVM<NeededItemRowVM> }) {
+/** "Potrzebne rzeczy" card — the Term's needed items and who brings each;
+ * row data and click handlers come entirely from the caller. */
+export function NeededItemsSection({
+  heading,
+  subtitle,
+  rows,
+}: {
+  heading: string;
+  subtitle?: string;
+  rows: NeededItemRowVM[];
+}) {
   return (
-    <div className="kg-bring">
-      <h2>{section.heading}</h2>
-      {section.subtitleText && <p className="kg-bring-sub">{section.subtitleText}</p>}
+    <section className="kg-bring" aria-labelledby="needed-items-heading">
+      <h2 id="needed-items-heading">{heading}</h2>
+      {subtitle && <p className="kg-bring-sub">{subtitle}</p>}
       <div className="kg-bring-list">
-        {section.rows.length === 0 && section.emptyNode}
-        {section.rows.map((row) => (
+        {rows.map((row) => (
           <NeededItemRow key={row.key} row={row} />
         ))}
       </div>
-    </div>
+    </section>
   );
 }

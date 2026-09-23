@@ -11,6 +11,7 @@ import { MemoryRouter, Route, Routes, useNavigate } from "react-router-dom";
 import * as peopleApi from "../api/people";
 import * as familiesApi from "../api/families";
 import * as groupsApi from "../api/groups";
+import type { BrowseTermItemListingResponse } from "../api/termItemListings";
 import * as inventoriesApi from "../api/inventories";
 import * as itemListingPreferencesApi from "../api/itemListingPreferences";
 import * as productsApi from "../api/products";
@@ -22,9 +23,6 @@ import * as categoriesApi from "../api/categories";
 import * as termItemListingsApi from "../api/termItemListings";
 import * as reservationsApi from "../api/reservations";
 import { PanelPage } from "../pages/panel/PanelPage";
-import { TermPage } from "../pages/krag/TermPage";
-import type { UseKragGrupyResult } from "../hooks/useKragGrupy";
-import type { BrowseTermItemListingResponse } from "../api/termItemListings";
 import { ApiError } from "../api/client";
 
 vi.mock("../auth/AuthContext", async (importOriginal) => {
@@ -73,11 +71,6 @@ vi.mock("../api/groups", () => ({
   // other default below).
   getTermAttendeesForFormalization: vi.fn(),
   formalizeGroupFromTerm: vi.fn(),
-  // `TermAccessBoundary` (TermPage.tsx) resolves access before rendering
-  // the private/member view `renderKrag()` mounts — default set per-`describe`
-  // block that calls `renderKrag()` (same `resetAllMocks()`-goes-stale
-  // reasoning as `getTermAttendeesForFormalization` above).
-  getGroupAccess: vi.fn(),
 }));
 
 vi.mock("../api/inventories", () => ({
@@ -165,15 +158,6 @@ vi.mock("../api/reservations", () => ({
   cancelTransaction: vi.fn(),
 }));
 
-// TermPage's swap-offer-dialog tests mock the whole hook (same
-// pattern as test/TermPage.test.tsx) rather than every API it calls —
-// the dialog/preview/proposeSwap wiring under test lives entirely in
-// TermPage.tsx itself, not in the hook.
-let kragHookValue: UseKragGrupyResult;
-
-vi.mock("../hooks/useKragGrupy", () => ({
-  useKragGrupy: () => kragHookValue,
-}));
 
 function browseListing(
   overrides: Partial<BrowseTermItemListingResponse> = {},
@@ -193,60 +177,6 @@ function browseListing(
     updated_at: "",
     ...overrides,
   };
-}
-
-function baseKragHookValue(overrides: Partial<UseKragGrupyResult> = {}): UseKragGrupyResult {
-  return {
-    loading: false,
-    error: null,
-    group: { id: 5, name: "Grupa Nutki", organizer_party_id: 7 } as never,
-    organizer: { party_id: 7, display_name: "Ola" } as never,
-    families: [],
-    myPartyId: 42,
-    currentTerm: { id: 3, circle_group_id: 5, occurs_on: "2026-03-10", description: null } as never,
-    neededItems: [],
-    myAvailableItems: [],
-    mySwapAvailableItems: [],
-    myAttendanceForCurrentTerm: {
-      attendance_id: 1,
-      term_id: 3,
-      occurs_on: "2026-03-10",
-      child_count: 1,
-      group_id: 5,
-      group_name: "Grupa Nutki",
-      organizer_display_name: "Ola",
-      organizer_slug: "ola",
-    },
-    myItemListings: [],
-    browseListings: [],
-    pledgeFamilyName: () => "Rodzina Testowa",
-    pledge: vi.fn(),
-    withdraw: vi.fn(),
-    fulfillPledgeItem: vi.fn(),
-    confirmPledgeReceipt: vi.fn(),
-    takeListing: vi.fn(),
-    proposeSwap: vi.fn(),
-    withdrawMyAttendance: vi.fn(),
-    confirmListingReceipt: vi.fn(),
-    activeFamilyExchangeOffers: [],
-    loadingExchangeOffers: false,
-    exchangeOffersError: null,
-    loadExchangeOffersForFamily: vi.fn(),
-    setGroupLayoutMode: vi.fn(),
-    takeOrProposeExchange: vi.fn(),
-    refetch: vi.fn(),
-    ...overrides,
-  };
-}
-
-function renderKrag() {
-  return render(
-    <MemoryRouter initialEntries={["/krag/5"]}>
-      <Routes>
-        <Route path="/krag/:groupId" element={<TermPage />} />
-      </Routes>
-    </MemoryRouter>,
-  );
 }
 
 const mockProfile: peopleApi.UserProfileResponse = {
@@ -1367,9 +1297,8 @@ describe("PanelPage — term edit dialog", () => {
 
   it("shows an inline error and stays open when formalizeGroupFromTerm fails", async () => {
     // Group 7 gap analysis: the success path is covered above, but the
-    // error/retry path on this surface (mirroring
-    // TermPage.test.tsx's "shows the inline error message when the
-    // submit fails") was never exercised at the /panel surface.
+    // error/retry path on this surface was never exercised at the /panel
+    // surface.
     mockOrganizerDefaults();
     vi.mocked(termsApi.getTerms).mockResolvedValue([term]);
     vi.mocked(termsApi.getNeededItems).mockResolvedValue([]);
@@ -2040,64 +1969,6 @@ describe("PanelPage — notification bell", () => {
     renderPanel();
 
     expect(await screen.findByRole("button", { name: "Powiadomienia" })).toBeInTheDocument();
-  });
-});
-
-describe("TermPage (private view) — Group 7 swap-offer dialog", () => {
-  beforeEach(() => {
-    vi.resetAllMocks();
-    kragHookValue = baseKragHookValue();
-    // TermPage now also fetches the caller's own taken listings
-    // directly (getMyTakenTermItemListings, Group 4) independent of the
-    // mocked useKragGrupy's browseListings — default to empty so these
-    // swap-offer-dialog tests (which don't care about it) don't hit an
-    // unresolved vi.fn().
-    vi.mocked(termItemListingsApi.getMyTakenTermItemListings).mockResolvedValue([]);
-    vi.mocked(groupsApi.getGroupAccess).mockResolvedValue({
-      group: { ...mockGroup, organizer_display_name: "Ola", organizer_slug: "ola", next_term: null, guardians: [] },
-      access: { is_member: true, is_organizer: true, can_view_content: true, can_join: false },
-    });
-  });
-
-  it("renders a single-item picker (not the old bare select-with-no-context) with a 'Twoja rzecz X za ich rzecz Y' preview, and Zaproponuj zamianę calls takeOrProposeExchange with the chosen item", async () => {
-    const takeOrProposeExchange = vi.fn().mockResolvedValue(undefined);
-    kragHookValue = baseKragHookValue({
-      browseListings: [browseListing({ id: 501, product_name: "Rowerek" })],
-      myAvailableItems: [{ id: 500, productName: "Autko" }],
-      mySwapAvailableItems: [{ id: 500, productName: "Autko" }],
-      takeOrProposeExchange,
-    });
-    renderKrag();
-
-    fireEvent.click(await screen.findByRole("button", { name: "Zamień: Rowerek" }));
-
-    // exactly one single-item picker — no multi-select checkboxes anywhere.
-    expect(screen.getByRole("combobox", { name: "Twoja rzecz do zamiany" })).toBeInTheDocument();
-    expect(screen.queryAllByRole("checkbox")).toHaveLength(0);
-    // the trade preview — "Twoja rzecz Autko za ich rzecz Rowerek" — is one
-    // paragraph's full text (matched as a whole so it doesn't collide with
-    // the identically-worded <option>/row-title text elsewhere on the page).
-    expect(
-      screen.getByText((_, el) => (el?.textContent ?? "").trim() === "Twoja rzecz Autko za ich rzecz Rowerek"),
-    ).toBeInTheDocument();
-
-    fireEvent.click(screen.getByRole("button", { name: "Zaproponuj zamianę" }));
-
-    await waitFor(() => expect(takeOrProposeExchange).toHaveBeenCalledWith(501, "SWAP", 500));
-  });
-
-  it("a plain LEND take (not SWAP) still calls takeOrProposeExchange directly, with no dialog involved", async () => {
-    const takeOrProposeExchange = vi.fn().mockResolvedValue(undefined);
-    kragHookValue = baseKragHookValue({
-      browseListings: [browseListing({ id: 502, product_name: "Klocki", offered_types: ["LEND"] })],
-      takeOrProposeExchange,
-    });
-    renderKrag();
-
-    fireEvent.click(await screen.findByRole("button", { name: "Pożycz: Klocki" }));
-
-    await waitFor(() => expect(takeOrProposeExchange).toHaveBeenCalledWith(502, "LEND", undefined));
-    expect(screen.queryByRole("combobox", { name: "Twoja rzecz do zamiany" })).not.toBeInTheDocument();
   });
 });
 

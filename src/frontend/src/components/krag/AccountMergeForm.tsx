@@ -33,8 +33,8 @@ export function AccountMergeForm({ userProfileId }: { userProfileId: number }) {
         email: email.trim(),
         password,
       });
-      // Stays on the term page: the new token re-resolves access in
-      // `TermAccessBoundary`, which re-renders it as the logged-in visitor.
+      // Stays on the term page: the new token makes `useTermAccess`
+      // re-fetch, re-rendering the page as the logged-in visitor.
       auth.applyExternalToken(token);
     } catch (err) {
       // Failure (409 duplicate-email or already-merged) shows an inline
