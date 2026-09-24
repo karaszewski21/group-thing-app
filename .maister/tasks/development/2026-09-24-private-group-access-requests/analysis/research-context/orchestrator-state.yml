@@ -1,0 +1,58 @@
+orchestrator:
+  started_phase: phase-1
+  completed_phases: [phase-1, phase-2, phase-6]
+  skipped_phases: [phase-3, phase-4, phase-5]
+  failed_phases: []
+  auto_fix_attempts:
+    phase-1: 0
+  created: 2026-09-23T00:00:00Z
+  updated: 2026-09-23T00:00:00Z
+  task_path: .maister/tasks/research/2026-09-23-termpage-private-access-request
+  task_ids: {}  # TaskCreate unavailable in this session
+
+task:
+  title: "TermPage: private-group term with login + access request"
+  description: "dalszy research do poprzedniego: czy jak dodam do tego samego komponentu termin tylko dla prywatnych gości, gdzie musi być zalogowany oraz musi wysłać prośbę o dostęp do grupy prywatnej?"
+  status: completed
+  tags: [frontend, backend, state-machine, term-page, private-group, access-request]
+  priority: null
+
+research_context:
+  research_type: mixed
+  research_question: "Czy (i jak) obsłużyć w tym samym komponencie TermPage termin grupy PRIWATNEJ, gdzie odwiedzający musi być zalogowany i wysłać prośbę o dostęp (zatwierdzaną przez organizatora) — i jak zmienia to rekomendację maszyny stanów z poprzedniego badania?"
+  previous_research: .maister/tasks/research/2026-09-23-termpage-state-machine
+  scope:
+    included:
+      - "src/frontend/src/pages/krag/TermPage.tsx, PrivateGroupAccessDenied.tsx, components/*, hooks/useTermAccess.ts, components/krag/JoinPrivateGroupDialog.tsx"
+      - "Backend: /api/groups/public/{id}/access (GroupAccessDetails), /public/{id}/join (join_private_group), reduced PRIVATE PublicCircleResponse, memberships"
+      - "Prior unfinished task .maister/tasks/development/2026-09-22-private-group-join-requests (analysis + clarifications)"
+      - "Access-request lifecycle states: anonymous, logged-in no request, request pending, rejected, approved/member, organizer"
+      - "Impact on the FSM recommendation (useReducer + discriminated unions) from the previous research"
+      - "Patterns: one component with visibility variants vs separate views; request-to-join UX in other products"
+    excluded:
+      - "Implementation"
+      - "Panel UI for organizer approving requests (only mention as dependency)"
+    constraints:
+      - "React 19 / TS 5.9, no state library; minimal-deps & minimal-implementation standards"
+      - "Privacy: PRIVATE group content must not leak to non-members (existing reduced response)"
+      - "Pre-production app: URL/data changes allowed without backward compatibility"
+  project_doc_paths:
+    - .maister/docs/project/architecture.md
+    - .maister/docs/project/tech-stack.md
+  methodology: [code-tracing-front-back, holds-stale-verification, lifecycle-state-modelling, external-ux-review]
+  sources: [codebase-frontend, codebase-backend, prior-tasks, external-products]
+  confidence_level: high
+  gathering_strategy:
+    categories: [codebase-frontend-private, codebase-backend-access, prior-task-and-requirements, external-join-request-patterns]
+    count: 4
+    source: planner
+  user_decisions:
+    - "2026-09-23: logged-in non-member of PRIVATE group gets 'Poproś o dostęp' opening a request-sending dialog (replaces JoinPrivateGroupDialog; no name/child fields); request goes to organizer for approval. Dialog content (confirm only vs optional message) TBD"
+  phase_summaries:
+    phase-1:
+      summary: "YES same TermPage/route as thin switch on TermAccess union (view | gate{loginRequired|canRequest|pending|rejected}) via pure resolveTermAccess from /access; view = PublicTermView renamed TermView with prior §7.2 reducer unchanged; gate = PrivateGroupGate. Backend prerequisites: B13 membership-aware content in /access, B14 remove POST /api/memberships + /join bypass; GroupJoinRequest entity + migration 0037 + endpoints + notifications. §7.3 hook fix becomes prerequisite; S4 raised to P2. 19 open product decisions (Q-A..Q-S)."
+      steps_completed: [initialize, plan, gather, synthesize]
+
+options:
+  brainstorming_enabled: false
+  design_enabled: false

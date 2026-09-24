@@ -1,0 +1,98 @@
+orchestrator:
+  started_phase: phase-1
+  completed_phases: [phase-1, phase-2, phase-3, phase-4]
+  tdd_red_passed: true
+  failed_phases: []
+  auto_fix_attempts: {}
+  options:
+    spec_audit_enabled: true
+    skip_test_suite: true
+    e2e_enabled: true
+    user_docs_enabled: true
+    code_review_enabled: true
+    pragmatic_review_enabled: true
+    reality_check_enabled: true
+    production_check_enabled: true
+  created: "2026-09-24T00:00:00Z"
+  updated: "2026-09-24T00:00:00Z"
+  task_path: .maister/tasks/development/2026-09-24-private-group-access-requests
+  task_ids: {}  # TaskCreate unavailable in this session
+
+task:
+  title: "PRIVATE group term in TermPage: login + access request approved by organizer"
+  description: |
+    Handle PRIVATE groups in the same TermPage component/route. Visitor must be logged in and
+    send an access request (via a request dialog opened by "Poproś o dostęp"; replaces
+    JoinPrivateGroupDialog, no name/child fields); organizer receives and approves/rejects it;
+    approved members see the full term view. Based on research
+    .maister/tasks/research/2026-09-23-termpage-private-access-request (+ FSM research
+    .maister/tasks/research/2026-09-23-termpage-state-machine).
+  status: in_progress
+  tags: [frontend, backend, private-group, access-request, term-page]
+  priority: null
+  supersedes: .maister/tasks/development/2026-09-22-private-group-join-requests
+
+project_context:
+  project_doc_paths:
+    - .maister/docs/project/architecture.md
+    - .maister/docs/project/tech-stack.md
+
+task_context:
+  risk_level: medium-high
+  clarifications_resolved: true
+  scope_expanded: true  # D-1: organizer pending join-requests endpoint
+  architecture_decision: null
+  task_characteristics:
+    has_reproducible_defect: true
+    modifies_existing_code: true
+    creates_new_entities: true
+    involves_data_operations: true
+    ui_heavy: true
+  research_reference:
+    path: .maister/tasks/research/2026-09-23-termpage-private-access-request
+    research_question: "Czy (i jak) obsłużyć w tym samym komponencie TermPage termin grupy PRIVATE, gdzie odwiedzający musi być zalogowany i wysłać prośbę o dostęp (zatwierdzaną przez organizatora) — i jak to zmienia rekomendację maszyny stanów?"
+    research_type: mixed
+    confidence_level: high
+  design_reference:
+    source: phase-4-ascii
+    product_design_path: null
+    mockup_count: 11
+    has_brief: false
+    index_path: analysis/design-context/INDEX.md
+  phase_summaries:
+    research:
+      summary: "YES same TermPage/route: thin switch on TermAccess union (view | gate{loginRequired|canRequest|pending|rejected}) via pure resolveTermAccess from /access; view = PublicTermView renamed TermView (FSM §7.2 reducer unchanged); gate = PrivateGroupGate. Backend prerequisites: B13 membership-aware content in /access, B14 remove POST /api/memberships + /join bypass; GroupJoinRequest entity (PENDING/APPROVED/REJECTED/WITHDRAWN) + migration 0037 partial unique PENDING + 4-5 endpoints + /access join_request + 3 notification kinds. useTermAccess §7.3 fix prerequisite; S4 (RSVP dialog by displayName) P2. 19 open product decisions Q-A..Q-S (Q-A decided: request dialog; content TBD)."
+      key_findings:
+        - "get_public_circle_view strips PRIVATE content even for members (public_view.py:190-204); /access reuses it"
+        - "POST /api/memberships lets any logged-in user self-join any group (memberships.py:23-39)"
+        - "TermPage branches on visibility (TermPage.tsx:65); can_view_content unused"
+        - "No approval discovery: needs notification + refetch on focus in pending"
+        - "Privacy gaps on /api/terms, needed-items, pledges (incl. POST), memberships list — separate task"
+      recommended_approach: "Order: B14 -> useTermAccess seq token -> B13 + can_view_content switch + S4 -> join-request backend + gate + organizer card (one release) -> FSM reducer -> privacy gaps (separate)"
+      decisions_made:
+        - "Logged-in non-member: 'Poproś o dostęp' opens a request-sending dialog (replaces JoinPrivateGroupDialog, no name/child count); request goes to organizer"
+    design:
+      summary: "11 ASCII mockups: TermPage access switch, PrivateGroupGate shell + 4 states (login, canRequest, pending w/ refetch on focus + withdraw, rejected), RequestAccessDialog confirm sheet, gate flow, organizer GlobalPendingActionsModal join-request action + 409 resolved state, bell notifications."
+      screen_count: 5
+      component_count: 5
+      index_path: analysis/design-context/INDEX.md
+    codebase_analysis:
+      key_files: [src/backend/app/groups/application/public_view.py, src/backend/app/groups/models.py, src/backend/app/groups/application/memberships.py, src/backend/app/groups/application/term_item_listings.py, src/backend/app/groups/schemas.py, src/backend/app/groups/router/circles.py, src/backend/app/core/authorization_matrix.py, src/backend/app/groups/service.py, src/frontend/src/pages/krag/TermPage.tsx, src/frontend/src/pages/krag/PrivateGroupAccessDenied.tsx, src/frontend/src/components/krag/JoinPrivateGroupDialog.tsx, src/frontend/src/api/groups.ts, src/frontend/src/pages/panel/PanelDataContext.tsx]
+      primary_language: python+typescript
+      summary: "SwapProposal is the template for GroupJoinRequest (migration 0037). Blockers: B13 PRIVATE members get reduced view (public_view.py 190-211, wrong termId 200), B14 POST /api/memberships + /join allow unapproved join. Removing them breaks ~16 backend tests (11 via membership helpers, ~5 /join) + 3 access-dict tests; PanelPage.test fixed api/groups mock. TermPage must branch on can_view_content. Risks: approve/reject race (no StaleDataError handler), generic 409 on duplicate PENDING. Side fix: dangling aria-labelledby in NeededItemsSection/AttendeeList."
+    clarifications:
+      - "C1 dialog = confirmation only (no name/child/message)"
+      - "C2 organizer approves via notification + panel GlobalPendingActionsModal (needs join_request_id pointer); no card on term page"
+      - "C3 withdraw while pending + re-request after rejection (no cooldown)"
+      - "C4 scope: access requests + B13 + B14 + PrivateGroupGate + useTermAccess fix; FSM reducer and privacy gaps are separate tasks"
+    gap_analysis:
+      integration_points: [public_view.get_group_access/get_public_circle_view, GroupAccessDetails DTO, authorization_matrix, groups router/service facade, notifications (kind + join_request_id), TermPage switch, PrivateGroupGate, useTermAccess, PanelDataContext pendingActions/GlobalPendingActionsModal, api/groups.ts, api/notifications.ts]
+      summary: "No join-request lifecycle exists; B13 (reduced view for members, wrong termId 200) and B14 (self-join bypass) are reproducible defects to fix alongside. Biggest gap: organizer pending actions derive only from unread notifications, so requests orphan after dismissal (D-1). ~19 backend tests to rewrite; 409 already_resolved check never fires."
+    scope_clarifications:
+      scope_expanded: true
+      summary: "D-1=A organizer pending-requests endpoint merged into panel actions; D-2=A any 409 on approve/reject = already resolved; all 17 important defaults accepted (see analysis/scope-clarifications.md)."
+    ui_mockups:
+      components_designed: [PrivateGroupGate, RequestAccessDialog, PendingJoinRequestAction in GlobalPendingActionsModal, bell join notifications]
+      summary: "See analysis/design-context/ascii/ui-mockups.md"
+    specification: {summary: null}
+    architecture_decision: {decision: null, summary: null}

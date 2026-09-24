@@ -7,10 +7,10 @@ export function TermCard({ date, time }: { date: string | null; time?: string })
     <div className="kg-term">
       <div className="kg-term-eyebrow">Termin zajęć</div>
       {date ? (
-        <>
+        <div className="flex justify-between items-center">
           <div className="kg-term-date">{date}</div>
           {time && <div className="kg-term-time">🕒 godz. {time}</div>}
-        </>
+        </div>
       ) : (
         <p className="kg-term-empty">Organizator nie dodał jeszcze żadnych zajęć.</p>
       )}
