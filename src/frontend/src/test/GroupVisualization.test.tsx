@@ -24,6 +24,7 @@ describe("GroupVisualization", () => {
         layoutMode="CIRCLE"
         organizerName="Kasia Wójcik"
         families={FAMILIES}
+        neededItemRows={[]}
         activeFamilyId={null}
         onSelectFamily={vi.fn()}
         groupId={1}
@@ -38,6 +39,7 @@ describe("GroupVisualization", () => {
         layoutMode="PITCH"
         organizerName="Kasia Wójcik"
         families={FAMILIES}
+        neededItemRows={[]}
         activeFamilyId={null}
         onSelectFamily={vi.fn()}
         groupId={1}
@@ -52,6 +54,7 @@ describe("GroupVisualization", () => {
         layoutMode="TABLE"
         organizerName="Kasia Wójcik"
         families={FAMILIES}
+        neededItemRows={[]}
         activeFamilyId={null}
         onSelectFamily={vi.fn()}
         groupId={1}
@@ -67,6 +70,7 @@ describe("GroupVisualization", () => {
         layoutMode="CIRCLE"
         organizerName="Kasia Wójcik"
         families={FAMILIES}
+        neededItemRows={[]}
         activeFamilyId={null}
         onSelectFamily={onSelectFamily}
         groupId={1}
@@ -82,6 +86,7 @@ describe("GroupVisualization", () => {
         layoutMode="PITCH"
         organizerName="Kasia Wójcik"
         families={FAMILIES}
+        neededItemRows={[]}
         activeFamilyId={null}
         onSelectFamily={vi.fn()}
         groupId={1}
@@ -91,19 +96,25 @@ describe("GroupVisualization", () => {
     expect(screen.getByText("trenerka")).toBeInTheDocument();
   });
 
-  it("TABLE mode renders static, non-interactive item chips that don't trigger onSelectFamily", () => {
+  it("TABLE mode renders the needed items as non-interactive chips that don't trigger onSelectFamily", () => {
     const onSelectFamily = vi.fn();
     render(
       <GroupVisualization
         layoutMode="TABLE"
         organizerName="Kasia Wójcik"
         families={FAMILIES}
+        neededItemRows={[
+          { key: 1, title: "Tamburyn", inlineActions: [] },
+          { key: 2, title: "2 koce", inlineActions: [] },
+        ]}
         activeFamilyId={null}
         onSelectFamily={onSelectFamily}
         groupId={1}
       />,
     );
     const chips = screen.getByTestId("table-chips");
+    expect(chips).toHaveTextContent("Tamburyn");
+    expect(chips).toHaveTextContent("2 koce");
     expect(chips.querySelectorAll("button")).toHaveLength(0);
     fireEvent.click(chips);
     expect(onSelectFamily).not.toHaveBeenCalled();
@@ -117,6 +128,7 @@ describe("GroupVisualization", () => {
           layoutMode={layoutMode}
           organizerName="Kasia Wójcik"
           families={FAMILIES}
+          neededItemRows={[]}
           activeFamilyId={2}
           onSelectFamily={vi.fn()}
           groupId={1}
@@ -135,6 +147,7 @@ describe("GroupVisualization", () => {
         layoutMode="TABLE"
         organizerName="Kasia Wójcik"
         families={FAMILIES}
+        neededItemRows={[]}
         activeFamilyId={null}
         onSelectFamily={vi.fn()}
         groupId={1}

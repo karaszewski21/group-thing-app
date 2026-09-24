@@ -7,6 +7,7 @@ import * as productsApi from "../api/products";
 import * as categoriesApi from "../api/categories";
 import type { Category } from "../api/categories";
 import { ProductFormPage } from "../pages/ProductFormPage";
+import { createQueryWrapper } from "./queryClient";
 
 vi.mock("../api/products", () => ({
   getProduct: vi.fn(),
@@ -47,7 +48,7 @@ function renderForm() {
       <MemoryRouter initialEntries={["/products/new"]}>
         <ProductFormPage />
       </MemoryRouter>
-    </ChakraProvider>,
+    </ChakraProvider>, { wrapper: createQueryWrapper() },
   );
 }
 

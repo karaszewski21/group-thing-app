@@ -4,6 +4,7 @@ import { ItemQuickAddForm } from "../components/shared/ItemQuickAddForm";
 import { createEmptyItemQuickAddValue } from "../utils/itemQuickAdd";
 import { CONDITION_LABELS } from "../utils/productCategory";
 import * as categoriesApi from "../api/categories";
+import { createQueryWrapper } from "./queryClient";
 
 vi.mock("../api/categories", () => ({
   getCategories: vi.fn(),
@@ -24,7 +25,7 @@ describe("ItemQuickAddForm", () => {
   });
 
   it("renders exactly 3 fields (name input, condition select, type select) with no product dropdown", async () => {
-    render(<ItemQuickAddForm value={createEmptyItemQuickAddValue()} onChange={vi.fn()} />);
+    render(<ItemQuickAddForm value={createEmptyItemQuickAddValue()} onChange={vi.fn()} />, { wrapper: createQueryWrapper() });
 
     expect(screen.getByLabelText("Nazwa")).toBeInTheDocument();
     expect(screen.getByLabelText("Stan")).toBeInTheDocument();
@@ -39,7 +40,7 @@ describe("ItemQuickAddForm", () => {
   });
 
   it("`Stan` select options match CONDITION_LABELS", async () => {
-    render(<ItemQuickAddForm value={createEmptyItemQuickAddValue()} onChange={vi.fn()} />);
+    render(<ItemQuickAddForm value={createEmptyItemQuickAddValue()} onChange={vi.fn()} />, { wrapper: createQueryWrapper() });
     const select = screen.getByLabelText("Stan") as HTMLSelectElement;
     const optionLabels = Array.from(select.options).map((o) => o.textContent);
     expect(optionLabels).toEqual(Object.values(CONDITION_LABELS));
@@ -47,7 +48,7 @@ describe("ItemQuickAddForm", () => {
   });
 
   it("`Typ` select options match useCategories()'s fetched data", async () => {
-    render(<ItemQuickAddForm value={createEmptyItemQuickAddValue()} onChange={vi.fn()} />);
+    render(<ItemQuickAddForm value={createEmptyItemQuickAddValue()} onChange={vi.fn()} />, { wrapper: createQueryWrapper() });
     const select = screen.getByLabelText("Typ") as HTMLSelectElement;
     await screen.findByText("Zabawka");
     const optionLabels = Array.from(select.options).map((o) => o.textContent);
@@ -56,7 +57,7 @@ describe("ItemQuickAddForm", () => {
 
   it("calls onChange with updated {name, condition, category_id} when fields are edited", async () => {
     const onChange = vi.fn();
-    render(<ItemQuickAddForm value={createEmptyItemQuickAddValue()} onChange={onChange} />);
+    render(<ItemQuickAddForm value={createEmptyItemQuickAddValue()} onChange={onChange} />, { wrapper: createQueryWrapper() });
 
     fireEvent.change(screen.getByLabelText("Nazwa"), { target: { value: "Rowerek" } });
 
@@ -70,7 +71,7 @@ describe("ItemQuickAddForm", () => {
 
   it("disables the name input and selects when `disabled` is true", async () => {
     render(
-      <ItemQuickAddForm value={createEmptyItemQuickAddValue()} onChange={vi.fn()} disabled />,
+      <ItemQuickAddForm value={createEmptyItemQuickAddValue()} onChange={vi.fn()} disabled />, { wrapper: createQueryWrapper() },
     );
     expect(screen.getByLabelText("Nazwa")).toBeDisabled();
     expect(screen.getByLabelText("Stan")).toBeDisabled();

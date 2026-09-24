@@ -1,6 +1,6 @@
 """Per-term public-page tests: the `GET /api/groups/public/{group_id}?term_id=`
 generalization. The URL-named term (not only the server-picked nearest one)
-drives `next_term` / `needed_items` / `guardians`; a cross-circle or unknown
+drives `term` / `needed_items` / `guardians`; a cross-circle or unknown
 `term_id` is a 404; the no-`term_id` path is unchanged; `needed_items` come
 back id-ordered; and `organizer_slug` resolves via the active Leadership's
 organizer party's owned Organization (else `None`).
@@ -116,11 +116,11 @@ async def test_getPublicCircle_withTermIdParam_returnsThatTermsItemsAndGuardians
 
     assert response.status_code == 200
     body = response.json()
-    assert body["next_term"]["id"] == far_term_id
-    assert [item["description"] for item in body["next_term"]["needed_items"]] == ["5 grzechotek"]
-    assert body["next_term"]["needed_items"][0]["product_name"] == "Grzechotka"
-    assert body["next_term"]["needed_items"][0]["product_category_id"] == 5
-    assert body["next_term"]["needed_items"][0]["product_category_name"] == "Inne"
+    assert body["term"]["id"] == far_term_id
+    assert [item["description"] for item in body["term"]["needed_items"]] == ["5 grzechotek"]
+    assert body["term"]["needed_items"][0]["product_name"] == "Grzechotka"
+    assert body["term"]["needed_items"][0]["product_category_id"] == 5
+    assert body["term"]["needed_items"][0]["product_category_name"] == "Inne"
     assert [guardian["display_name"] for guardian in body["guardians"]] == ["Marek Nowak"]
 
 
@@ -161,7 +161,7 @@ async def test_getPublicCircle_noTermIdParam_returnsNearestTermUnchanged(
 
     assert response.status_code == 200
     body = response.json()
-    assert body["next_term"]["id"] == nearer_term_id
+    assert body["term"]["id"] == nearer_term_id
     # Response shape unchanged apart from the additive `organizer_slug`.
     assert set(body.keys()) == {
         "id",
@@ -170,11 +170,11 @@ async def test_getPublicCircle_noTermIdParam_returnsNearestTermUnchanged(
         "organizer_slug",
         "visibility",
         "layout_mode",
-        "next_term",
+        "term",
         "guardians",
     }
     assert body["layout_mode"] == "CIRCLE"
-    assert set(body["next_term"].keys()) == {
+    assert set(body["term"].keys()) == {
         "id",
         "occurs_on",
         "description",
@@ -194,7 +194,7 @@ async def test_getPublicCircle_neededItems_orderedById(client: AsyncClient) -> N
     response = await client.get(f"/api/groups/public/{group_id}?term_id={term_id}")
 
     assert response.status_code == 200
-    returned_ids = [item["id"] for item in response.json()["next_term"]["needed_items"]]
+    returned_ids = [item["id"] for item in response.json()["term"]["needed_items"]]
     assert returned_ids == sorted([id_1, id_2, id_3])
 
 
@@ -204,7 +204,7 @@ async def test_getPublicCircle_afterLoggedInRsvp_stillExposesOnlyGuardianDisplay
     """After the R5 logged-in attach path lands, the public view must still
     leak nothing per-child: `guardians` carries only the account profile's
     `display_name` (never the request's `guardian_name`, never a per-attendee
-    child count) and `next_term` keeps its unchanged 4-key shape."""
+    child count) and `term` keeps its unchanged 4-key shape."""
     token = await _register_organizer(client, "pt.loggedin.owner@example.com")
     group_id = await _create_circle(client, token, "Krąg z zalogowanym rodzicem")
     term_id = await _create_term(client, token, group_id, date.today() + timedelta(days=7))
@@ -223,7 +223,7 @@ async def test_getPublicCircle_afterLoggedInRsvp_stillExposesOnlyGuardianDisplay
     assert response.status_code == 200
     body = response.json()
     assert body["guardians"] == [{"party_id": guest_party_id, "display_name": "Pt Loggedin Parent"}]
-    assert set(body["next_term"].keys()) == {
+    assert set(body["term"].keys()) == {
         "id",
         "occurs_on",
         "description",
@@ -251,7 +251,7 @@ async def test_getPublicCircle_softDeletedNeededItem_notReturned(
     response = await client.get(f"/api/groups/public/{group_id}?term_id={term_id}")
 
     assert response.status_code == 200
-    returned_ids = [item["id"] for item in response.json()["next_term"]["needed_items"]]
+    returned_ids = [item["id"] for item in response.json()["term"]["needed_items"]]
     assert returned_ids == [kept_id]
 
 
@@ -272,7 +272,7 @@ async def test_getPublicCircle_termWithNeededItems_unaffectedAfterSiblingDelete(
     response = await client.get(f"/api/groups/public/{group_id}?term_id={term_id}")
 
     assert response.status_code == 200
-    items = response.json()["next_term"]["needed_items"]
+    items = response.json()["term"]["needed_items"]
     assert [item["id"] for item in items] == [sibling_id]
     assert items[0]["description"] == "grzechotka"
 
@@ -284,7 +284,7 @@ async def test_getPublicCircle_neededItem_reflectsPledgeClaim(client: AsyncClien
     needed_item_id = await _create_needed_item(client, token, term_id, "Bębenek", "mały")
 
     before = await client.get(f"/api/groups/public/{group_id}?term_id={term_id}")
-    item_before = before.json()["next_term"]["needed_items"][0]
+    item_before = before.json()["term"]["needed_items"][0]
     assert item_before["claimed"] is False
     assert item_before["claimed_by_name"] is None
 
@@ -297,7 +297,7 @@ async def test_getPublicCircle_neededItem_reflectsPledgeClaim(client: AsyncClien
     assert pledge.status_code == 201
 
     after = await client.get(f"/api/groups/public/{group_id}?term_id={term_id}")
-    item_after = after.json()["next_term"]["needed_items"][0]
+    item_after = after.json()["term"]["needed_items"][0]
     assert item_after["claimed"] is True
     assert item_after["claimed_by_name"] is not None
 
@@ -398,7 +398,7 @@ async def test_getPublicCircle_organizerAndAttendeeListings_visibleAnonymously(
     response = await client.get(f"/api/groups/public/{group_id}?term_id={term_id}")
 
     assert response.status_code == 200
-    listings = response.json()["next_term"]["item_listings"]
+    listings = response.json()["term"]["item_listings"]
     assert {(row["item_id"], row["offered_types"][0]) for row in listings} == {
         (org_item_id, "LEND"),
         (attendee_item_id, "GIFT"),
@@ -430,7 +430,7 @@ async def test_getPublicCircle_takenItem_disappearsFromPublicListings(client: As
     assert take.status_code == 200
 
     response = await client.get(f"/api/groups/public/{group_id}?term_id={term_id}")
-    assert response.json()["next_term"]["item_listings"] == []
+    assert response.json()["term"]["item_listings"] == []
 
 
 async def test_getPublicCircle_termOccursOnInPast_listingsStillVisible(
@@ -457,7 +457,7 @@ async def test_getPublicCircle_termOccursOnInPast_listingsStillVisible(
     response = await client.get(f"/api/groups/public/{group_id}?term_id={term_id}")
 
     assert response.status_code == 200
-    listings = response.json()["next_term"]["item_listings"]
+    listings = response.json()["term"]["item_listings"]
     assert {(row["item_id"], row["offered_types"][0]) for row in listings} == {(item_id, "LEND")}
 
 
@@ -476,6 +476,6 @@ async def test_getPublicCircle_pledgedNeededItem_exposesPledgerPartyId(client: A
 
     response = await client.get(f"/api/groups/public/{group_id}?term_id={term_id}")
 
-    item = response.json()["next_term"]["needed_items"][0]
+    item = response.json()["term"]["needed_items"][0]
     assert item["claimed_by_party_id"] == guest_party_id
     assert item["claimed_by_name"] == "Pt Pledger Guest"

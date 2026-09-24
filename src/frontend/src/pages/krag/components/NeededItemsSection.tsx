@@ -33,7 +33,7 @@ export function NeededItemsSection({
   rows: NeededItemRowVM[];
 }) {
   return (
-    <section className="kg-bring" aria-labelledby="needed-items-heading">
+    <section className="kg-bring" aria-label="Potrzebne rzeczy">
       <p className="kg-bring-sub">Zgłoś się, jeśli możesz coś przynieść na te zajęcia.</p>
       <div className="kg-bring-list">
         {rows.map((row) => (

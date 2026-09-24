@@ -5,6 +5,7 @@ import { ChakraProvider } from "@chakra-ui/react";
 import { system } from "../theme";
 import { AppShell } from "../components/layout/AppShell";
 import { PluginProvider } from "../plugins/PluginContext";
+import { createQueryWrapper } from "./queryClient";
 
 vi.mock("../api/plugins", () => ({
   getPlugins: vi.fn().mockResolvedValue([]),
@@ -35,7 +36,7 @@ function renderWithProviders(ui: React.ReactElement, initialRoute = "/") {
       <PluginProvider>
         <MemoryRouter initialEntries={[initialRoute]}>{ui}</MemoryRouter>
       </PluginProvider>
-    </ChakraProvider>,
+    </ChakraProvider>, { wrapper: createQueryWrapper() },
   );
 }
 

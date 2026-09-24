@@ -37,9 +37,17 @@ from app.groups.application.exchange_summary import (
     get_family_exchange_offers,
     get_group_exchange_summary,
 )
+from app.groups.application.join_requests import (
+    approve_join_request,
+    create_join_request,
+    list_group_pending_join_requests,
+    list_my_pending_join_requests,
+    reject_join_request,
+    withdraw_join_request,
+)
 from app.groups.application.memberships import (
+    add_active_membership,
     build_membership_responses,
-    create_membership,
     end_membership,
     formalize_group_from_term,
     list_memberships_for_circle,
@@ -57,7 +65,6 @@ from app.groups.application.public_view import (
     create_rsvp,
     get_group_access,
     get_public_circle_view,
-    join_private_group,
     list_my_attendances,
     list_my_pledges,
 )
@@ -89,6 +96,8 @@ from app.groups.infrastructure.slug_resolver import resolve_organizer_slug
 
 __all__ = [
     "accept_swap_proposal",
+    "add_active_membership",
+    "approve_join_request",
     "assign_leadership",
     "build_leadership_responses",
     "build_membership_responses",
@@ -96,7 +105,7 @@ __all__ = [
     "confirm_transaction",
     "create_additional_circle",
     "create_circle",
-    "create_membership",
+    "create_join_request",
     "create_needed_item",
     "create_own_circle",
     "create_pledge",
@@ -114,9 +123,9 @@ __all__ = [
     "get_pledge",
     "get_public_circle_view",
     "get_term",
-    "join_private_group",
     "list_active_leaderships_for_party",
     "list_browsable_term_item_listings",
+    "list_group_pending_join_requests",
     "list_groups",
     "list_groups_for_moderation",
     "list_leaderships",
@@ -125,6 +134,7 @@ __all__ = [
     "list_my_active_taken_term_item_listings",
     "list_my_attendances",
     "list_my_item_listing_preferences",
+    "list_my_pending_join_requests",
     "list_my_pledges",
     "list_my_term_item_listings",
     "list_needed_item_views",
@@ -133,6 +143,7 @@ __all__ = [
     "list_terms",
     "merge_anonymous_profile",
     "propose_swap",
+    "reject_join_request",
     "reject_swap_proposal",
     "remove_leadership",
     "resolve_organizer_slug",
@@ -144,5 +155,6 @@ __all__ = [
     "update_needed_item",
     "update_term",
     "withdraw_attendance",
+    "withdraw_join_request",
     "withdraw_pledge",
 ]

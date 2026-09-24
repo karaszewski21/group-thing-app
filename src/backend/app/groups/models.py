@@ -58,6 +58,13 @@ class SwapProposalStatus(enum.StrEnum):
     REJECTED = "REJECTED"
 
 
+class GroupJoinRequestStatus(enum.StrEnum):
+    PENDING = "PENDING"
+    APPROVED = "APPROVED"
+    REJECTED = "REJECTED"
+    WITHDRAWN = "WITHDRAWN"
+
+
 class GroupLayoutMode(enum.StrEnum):
     """The participant-visualization layout an organizer picks for their
     Circle's `/krag/{id}` screen — `CIRCLE` is the long-standing layout,
@@ -72,13 +79,14 @@ class GroupLayoutMode(enum.StrEnum):
 
 
 class GroupVisibility(enum.StrEnum):
-    """`PUBLIC` (default): anyone with the link may RSVP to a Term (today's
-    only behavior, unchanged). `PRIVATE`: only existing standing `Membership`
-    members (or the active organizer) may RSVP; new members join exclusively
-    via the group's own join-link (`join_private_group`), never anonymous
-    per-term RSVP. Visibility changes only via `PATCH /groups/{id}`
-    (`update_group`); it is fully independent of standing-`Membership`
-    creation (`formalize_group_from_term` never reads or writes it)."""
+    """`PUBLIC` (default): anyone with the link may RSVP to a Term.
+    `PRIVATE`: only existing standing `Membership` members (or the active
+    organizer) may RSVP or see the Circle's content; an outsider sends a
+    `GroupJoinRequest`, and only the organizer approving it creates the
+    `Membership` — never anonymous per-term RSVP. Visibility changes only
+    via `PATCH /groups/{id}` (`update_group`); it is fully independent of
+    standing-`Membership` creation (`formalize_group_from_term` never reads
+    or writes it)."""
 
     PUBLIC = "PUBLIC"
     PRIVATE = "PRIVATE"
@@ -168,6 +176,39 @@ class Membership(BaseEntity):
     )
     valid_from: Mapped[date] = mapped_column(Date(), nullable=False)
     valid_to: Mapped[date | None] = mapped_column(Date(), nullable=True)
+
+
+class GroupJoinRequest(BaseEntity):
+    """A person's request to join a `PRIVATE` Circle, decided by whoever is
+    the Circle's active organizer at action time (hence no organizer
+    column). `term_id` is only the link context the request came from.
+    Terminal statuses (APPROVED/REJECTED/WITHDRAWN) are kept as history;
+    `updated_at` doubles as the decision time. "At most one PENDING row per
+    (requester, group)" is enforced by the partial unique index
+    `uq_group_join_requests_pending_requester_group`, declared only in
+    migration 0037 (same precedent as `uq_pledges_active_needed_item`)."""
+
+    __tablename__ = "group_join_requests"
+    __sequence_name__ = "group_join_request_seq"
+
+    group_id: Mapped[int] = mapped_column(
+        BigInteger,
+        ForeignKey("groups.id", name="fk_group_join_requests_group_id_groups"),
+        nullable=False,
+    )
+    requester_party_id: Mapped[int] = mapped_column(
+        BigInteger,
+        ForeignKey("parties.id", name="fk_group_join_requests_requester_party_id_parties"),
+        nullable=False,
+    )
+    term_id: Mapped[int | None] = mapped_column(
+        BigInteger,
+        ForeignKey("terms.id", name="fk_group_join_requests_term_id_terms"),
+        nullable=True,
+    )
+    status: Mapped[GroupJoinRequestStatus] = mapped_column(
+        _enum_column(GroupJoinRequestStatus, 20), nullable=False
+    )
 
 
 class Term(BaseEntity):

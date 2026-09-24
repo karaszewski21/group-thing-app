@@ -10,7 +10,7 @@ function useReturnToQuery(): string {
 /**
  * The login / (optional guest) / register choice — the one piece of
  * markup every "you need an account" prompt on the term pages shares.
- * Rendered bare inside a card (`PrivateGroupAccessDenied`) or inside
+ * Rendered bare inside a card (`PrivateGroupGate`) or inside
  * `AuthGateSheet`'s bottom sheet.
  */
 export function AuthGateLinks({ onGuest }: { onGuest?: () => void }) {

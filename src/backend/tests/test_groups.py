@@ -539,9 +539,9 @@ async def test_getPublicCircle_noAuthHeader_returnsExpectedShape(
     assert body["id"] == circle_group_id
     assert body["name"] == "Krąg Publiczny"
     assert body["organizer_display_name"] is not None
-    assert body["next_term"]["id"] == term_id
-    assert body["next_term"]["needed_items"][0]["product_name"] == "Instrument"
-    assert body["next_term"]["needed_items"][0]["description"] == "Bębenek"
+    assert body["term"]["id"] == term_id
+    assert body["term"]["needed_items"][0]["product_name"] == "Instrument"
+    assert body["term"]["needed_items"][0]["description"] == "Bębenek"
     assert body["guardians"] == []
 
 

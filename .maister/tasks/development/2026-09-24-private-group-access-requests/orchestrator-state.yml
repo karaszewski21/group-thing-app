@@ -1,12 +1,13 @@
 orchestrator:
   started_phase: phase-1
-  completed_phases: [phase-1, phase-2, phase-3, phase-4, phase-5, phase-6, phase-7]
+  completed_phases: [phase-1, phase-2, phase-3, phase-4, phase-5, phase-6, phase-7, phase-8, phase-9, phase-10]
   tdd_red_passed: true
+  tdd_green_passed: true
   failed_phases: []
   auto_fix_attempts: {}
   options:
     spec_audit_enabled: true
-    skip_test_suite: true
+    skip_test_suite: false
     e2e_enabled: true
     user_docs_enabled: true
     code_review_enabled: true
@@ -95,8 +96,22 @@ task_context:
     ui_mockups:
       components_designed: [PrivateGroupGate, RequestAccessDialog, PendingJoinRequestAction in GlobalPendingActionsModal, bell join notifications]
       summary: "See analysis/design-context/ascii/ui-mockups.md"
+    implementation:
+      summary: "11/11 groups done in 5 waves. Backend: B14 removals + add_active_membership; B13 include_private_content; GroupJoinRequest + migrations 0037/0038; create/withdraw/approve/reject + mine/per-group lists; StaleDataError→409; /access join_request. Frontend: useTermAccess state union; resolveTermAccess; PrivateGroupGate; RequestAccessDialog; panel JoinRequestActionSheet; S4 + aria fixes; RsvpDialogLoggedIn null name. Backend 371/371, red gate 5/5, frontend 260 pass + 8 baseline failures (auth, extension-points x2, foundation, GroupVisualization x4 from user commit). No regressions."
     specification:
       summary: "16 requirements (R1-R16: 10 backend, 6 frontend), 11 binding mockup refs. Endpoints: POST /api/groups/public/{gid}/join-requests (+/{rid}/withdraw) AUTHENTICATED row; GET /api/groups/mine/join-requests (organizer cross-group list, row 26); POST /api/groups/{gid}/join-requests/{rid}/approve|reject (row 27). Migrations 0037/0038. User confirmed: per-group list GET /api/groups/{gid}/join-requests reinstated (backend-only); duplicate create returns 201 with existing row; decision record S-1..S-6."
     architecture_decision:
       decision: "Same TermPage route, thin TermAccess switch"
       summary: "Decided in research + clarifications; no alternative approaches presented in Phase 5 Part A."
+
+verification_context:
+  last_status: passed_with_issues
+  issues_found: [13 warnings, info items; 0 critical]
+  fixes_applied:
+    - "backend: term_id null, organizer link /panel, 24h notification cooldown, race tests, 0038 downgrade cleanup, conflict logging, pending LIMIT 200, profile 401, redundant cast, stale pycache"
+    - "frontend: build errors (GroupVisualization, Sidebar.test, PanelDataContext), useTermAccess identity key, dialog focus trap + focus return, RSVP submit disabled until name, pending fetch error logged, comment, withdrawFailedFor, redundant sort"
+  decisions_made:
+    - "#6 no repeat organizer notification within 24h after WITHDRAWN/REJECTED"
+    - "#12 organizer notification links to /panel"
+    - "#11 unknown/foreign term_id stored as null (no 404)"
+  reverify_count: 0

@@ -158,7 +158,7 @@ async def test_getPublicCircle_unauthenticated_returnsCategoryIdAndNameForNeeded
     response = await client.get(f"/api/groups/public/{circle.json()['id']}")
 
     assert response.status_code == 200
-    item = response.json()["next_term"]["needed_items"][0]
+    item = response.json()["term"]["needed_items"][0]
     assert item["product_category_id"] == _ZABAWKA_ID
     assert item["product_category_name"] == "Zabawka"
 
@@ -253,5 +253,5 @@ async def test_createProductWithSeededZabawkaCategory_thenPublicNeededItem_retur
     response = await client.get(f"/api/groups/public/{circle.json()['id']}")
 
     assert response.status_code == 200
-    item = response.json()["next_term"]["needed_items"][0]
+    item = response.json()["term"]["needed_items"][0]
     assert item["product_category_name"] == "Zabawka"

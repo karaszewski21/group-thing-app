@@ -3,6 +3,7 @@ import { describe, expect, it, vi, beforeEach } from "vitest";
 import { MemoryRouter } from "react-router-dom";
 import { ChakraProvider } from "@chakra-ui/react";
 import { system } from "../theme";
+import { createQueryWrapper } from "./queryClient";
 
 // Mock fetch globally
 const mockFetch = vi.fn();
@@ -82,7 +83,7 @@ function renderWithProviders(ui: React.ReactElement, initialRoute = "/") {
   return render(
     <ChakraProvider value={system}>
       <MemoryRouter initialEntries={[initialRoute]}>{ui}</MemoryRouter>
-    </ChakraProvider>,
+    </ChakraProvider>, { wrapper: createQueryWrapper() },
   );
 }
 
@@ -291,7 +292,7 @@ describe("AuthContext", () => {
         <RealAuthProvider>
           <TestConsumer />
         </RealAuthProvider>
-      </ChakraProvider>,
+      </ChakraProvider>, { wrapper: createQueryWrapper() },
     );
 
     expect(screen.getByTestId("token")).toHaveTextContent(mockToken);
@@ -328,7 +329,7 @@ describe("Permission-based UI visibility", () => {
             <ProductListPage />
           </MemoryRouter>
         </PluginProvider>
-      </ChakraProvider>,
+      </ChakraProvider>, { wrapper: createQueryWrapper() },
     );
 
     await waitFor(() => {

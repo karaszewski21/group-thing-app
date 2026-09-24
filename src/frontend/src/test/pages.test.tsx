@@ -8,6 +8,7 @@ import * as productsApi from "../api/products";
 import { PluginProvider } from "../plugins/PluginContext";
 import * as pluginsApi from "../api/plugins";
 import * as categoriesApi from "../api/categories";
+import { createQueryWrapper } from "./queryClient";
 
 vi.mock("../auth/AuthContext", async (importOriginal) => {
   const actual = await importOriginal<typeof import("../auth/AuthContext")>();
@@ -81,7 +82,7 @@ function renderWithProviders(ui: React.ReactElement, initialRoute = "/") {
       <PluginProvider>
         <MemoryRouter initialEntries={[initialRoute]}>{ui}</MemoryRouter>
       </PluginProvider>
-    </ChakraProvider>,
+    </ChakraProvider>, { wrapper: createQueryWrapper() },
   );
 }
 

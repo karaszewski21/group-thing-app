@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 from datetime import date, datetime
+from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
@@ -11,6 +12,7 @@ from app.circulation.models import ItemCondition, ReservationType
 from app.users.schemas import EMAIL_PATTERN, normalize_email
 
 from .models import (
+    GroupJoinRequestStatus,
     GroupLayoutMode,
     GroupRoleType,
     GroupVisibility,
@@ -124,11 +126,6 @@ class MembershipResponse(BaseModel):
     member_party_id: int
     valid_from: date
     valid_to: date | None
-
-
-class CreateMembershipRequest(BaseModel):
-    group_id: int
-    valid_from: date
 
 
 class TermResponse(BaseModel):
@@ -286,22 +283,25 @@ class PublicCircleResponse(BaseModel):
     organizer_slug: str | None
     visibility: GroupVisibility
     layout_mode: GroupLayoutMode
-    next_term: PublicTermResponse | None
+    term: PublicTermResponse | None
     guardians: list[PublicGuardianResponse]
 
 
 class GroupAccessDetails(BaseModel):
     """The caller's relationship to a Circle, resolved server-side so the
-    frontend never has to infer "can I see this / can I join" from raw
-    auth-token presence — the previous `token ? private-view : public-view`
-    frontend branching treated ANY logged-in principal as if they belonged
-    to every Circle, which is wrong (see `GroupAccessResponse`)."""
+    frontend never has to infer "can I see this / can I request access" from
+    raw auth-token presence — the previous `token ? private-view :
+    public-view` frontend branching treated ANY logged-in principal as if
+    they belonged to every Circle, which is wrong (see `GroupAccessResponse`).
+
+    `join_request` is only ever the caller's own latest request, and only
+    when it is PENDING or REJECTED; `None` otherwise."""
 
     is_member: bool
     is_organizer: bool
     can_view_content: bool
-    can_join: bool
-    # The caller has a `TermAttendance` on the response's `next_term`.
+    join_request: JoinRequestSummary | None
+    # The caller has a `TermAttendance` on the response's `term`.
     is_attending: bool
 
 
@@ -309,7 +309,7 @@ class GroupAccessResponse(BaseModel):
     """`GET /api/groups/public/{group_id}/access` — the Circle's public
     identity plus the caller's resolved access, in one call. `group` reuses
     `PublicCircleResponse`'s already-privacy-safe shape (a `PRIVATE` group's
-    response still omits `next_term`/`guardians` regardless of `access`)."""
+    response still omits `term`/`guardians` regardless of `access`)."""
 
     group: PublicCircleResponse
     access: GroupAccessDetails
@@ -352,25 +352,6 @@ class TermAttendeeResponse(BaseModel):
 
 class FormalizeGroupFromTermRequest(BaseModel):
     party_ids: list[int] = Field(min_length=1)
-
-
-# --- Join a PRIVATE group as a standing member
-# (`POST /api/groups/public/{id}/join`, PUBLIC — mirrors `CreateRsvpRequest`/
-# `RsvpResponse` exactly, one term-scoped, the other group-scoped) ------------
-
-
-class JoinGroupRequest(BaseModel):
-    guardian_name: str = Field(min_length=1, max_length=255)
-    child_count: int = Field(ge=0, default=0)
-
-
-class JoinGroupResponse(BaseModel):
-    membership_id: int
-    group_id: int
-    user_profile_id: int
-    guardian_name: str
-    child_count: int
-    attached_to_account: bool
 
 
 # --- My attendances (authenticated, `GET /api/groups/mine/attendances`) --------
@@ -530,6 +511,43 @@ class ProposeSwapRequest(BaseModel):
 
     term_id: int
     offered_item_id: int
+
+
+class CreateJoinRequestRequest(BaseModel):
+    """`term_id` is only the link context the requester came from; it must
+    belong to the group."""
+
+    term_id: int | None = None
+
+
+class JoinRequestResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    group_id: int
+    requester_party_id: int
+    term_id: int | None
+    status: GroupJoinRequestStatus
+    created_at: datetime
+    updated_at: datetime
+
+
+class PendingJoinRequestResponse(BaseModel):
+    id: int
+    group_id: int
+    group_name: str
+    term_id: int | None
+    requester_party_id: int
+    requester_display_name: str
+    created_at: datetime
+
+
+class JoinRequestSummary(BaseModel):
+    """The caller's latest request for a PRIVATE group, as surfaced by
+    `/access` — only PENDING or REJECTED are ever reported."""
+
+    id: int
+    status: Literal["PENDING", "REJECTED"]
 
 
 class SwapProposalResponse(BaseModel):

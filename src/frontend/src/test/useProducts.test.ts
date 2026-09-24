@@ -2,6 +2,7 @@ import { renderHook, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import * as productsApi from "../api/products";
 import { useProducts } from "../hooks/useProducts";
+import { createQueryWrapper } from "./queryClient";
 
 vi.mock("../api/products", () => ({
   getProducts: vi.fn(),
@@ -17,7 +18,7 @@ describe("useProducts", () => {
   });
 
   it("passes category_id through to getProducts()'s query params, not the retired category string", async () => {
-    const { result } = renderHook(() => useProducts({ category_id: 4 }));
+    const { result } = renderHook(() => useProducts({ category_id: 4 }), { wrapper: createQueryWrapper() });
 
     await waitFor(() => expect(result.current.loading).toBe(false));
 

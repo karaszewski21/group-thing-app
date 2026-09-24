@@ -21,6 +21,7 @@ vi.mock("../api/categories", () => ({
 }));
 
 import { useAuth } from "../auth/AuthContext";
+import { createQueryWrapper } from "./queryClient";
 
 const mockCategories: Category[] = [
   {
@@ -47,7 +48,7 @@ function renderWithProviders(ui: React.ReactElement) {
   return render(
     <ChakraProvider value={system}>
       <MemoryRouter initialEntries={["/categories"]}>{ui}</MemoryRouter>
-    </ChakraProvider>,
+    </ChakraProvider>, { wrapper: createQueryWrapper() },
   );
 }
 

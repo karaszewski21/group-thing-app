@@ -10,6 +10,9 @@ import { createRsvp, type RsvpResponse } from "../../api/groups";
  * `guest_profile_id` localStorage key (the logged-in "already signed up"
  * state is server-derived — D5). `.kg-*` styling, not Tailwind
  * (`frontend/css.md`); overlay/sheet inline styles mirror `RsvpDialog`.
+ * Submit stays disabled until `displayName` has loaded: the RSVP endpoint
+ * falls back to an anonymous signup when the token doesn't resolve, so a
+ * placeholder name could create a junk attendee.
  */
 export function RsvpDialogLoggedIn({
   groupId,
@@ -20,7 +23,7 @@ export function RsvpDialogLoggedIn({
 }: {
   groupId: number;
   termId: number;
-  displayName: string;
+  displayName: string | null;
   onClose: () => void;
   onSubmitted: (rsvp: RsvpResponse) => void;
 }) {
@@ -57,6 +60,7 @@ export function RsvpDialogLoggedIn({
   const showNumericField = hasChildPrefill || skipBanner;
 
   async function handleSubmit() {
+    if (displayName === null) return;
     setBusy(true);
     setFormError(null);
     try {
@@ -120,9 +124,11 @@ export function RsvpDialogLoggedIn({
           </button>
         </div>
 
-        <p style={{ fontSize: 13.5, color: "var(--ink-soft)", marginBottom: 14 }}>
-          Zapisujesz się jako <strong style={{ color: "var(--ink)" }}>{displayName}</strong>
-        </p>
+        {displayName !== null && (
+          <p style={{ fontSize: 13.5, color: "var(--ink-soft)", marginBottom: 14 }}>
+            Zapisujesz się jako <strong style={{ color: "var(--ink)" }}>{displayName}</strong>
+          </p>
+        )}
 
         {showNumericField ? (
           <div style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: 14 }}>
@@ -169,7 +175,7 @@ export function RsvpDialogLoggedIn({
         <button
           className="kg-btn-primary"
           style={{ width: "100%", padding: "10px 14px", fontSize: 13 }}
-          disabled={busy}
+          disabled={busy || displayName === null}
           onClick={() => void handleSubmit()}
         >
           Zapisz się

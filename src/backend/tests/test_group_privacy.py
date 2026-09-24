@@ -1,5 +1,5 @@
-"""`Group.visibility` (PUBLIC/PRIVATE), `formalize_group_from_term`, and
-`join_private_group` — integration tests for the approved plan
+"""`Group.visibility` (PUBLIC/PRIVATE) and `formalize_group_from_term` —
+integration tests for the approved plan
 `crystalline-drifting-koala.md`'s Backend sections 1-4.
 
 Flat `tests/` placement, same convention as `test_circles_router.py`."""
@@ -211,38 +211,6 @@ async def test_formalizeGroupFromTerm_nonOrganizer_returns403(client: AsyncClien
     )
 
     assert response.status_code == 403
-
-
-async def test_joinPrivateGroup_publicGroup_returns404(client: AsyncClient) -> None:
-    """Still exercises the PUBLIC-group-returns-404 path (not the auth gate):
-    the anonymous join path is gone (Core Requirement 10), so an
-    unauthenticated request against this same PUBLIC group would now 401
-    before the visibility check ever runs (see
-    `test_circles_router.py::test_joinPrivateGroup_unauthenticated_returns401`
-    for that gate itself) — an authenticated principal is required here so
-    the request actually reaches `join_private_group`'s
-    `group.visibility != PRIVATE` check."""
-    org_token, _ = await _register(client, "ORGANIZER", "priv.join.org6@example.com")
-    group_id, _term_id = await _create_circle_and_term(client, org_token, "priv6")
-    caller_token, _ = await _register(client, "GUEST", "priv.join.caller6@example.com")
-
-    response = await client.post(
-        f"/api/groups/public/{group_id}/join",
-        json={"guardian_name": "Nowy", "child_count": 0},
-        headers=_auth(caller_token),
-    )
-
-    assert response.status_code == 404
-
-
-# NOTE: the former `test_joinPrivateGroup_anonymous_createsStandingMembership`
-# tested a code path removed by Core Requirement 10 (the anonymous join
-# branch no longer exists). It is deleted rather than rewritten — the
-# authenticated-join-creates-membership behavior it was partially covering is
-# already exercised, without duplication, by
-# `test_circles_router.py::test_joinPrivateGroup_authenticatedAccountBackedPrincipal_attachesExistingMembership`
-# and the unauthenticated-rejection behavior by
-# `test_circles_router.py::test_joinPrivateGroup_unauthenticated_returns401`.
 
 
 async def test_formalizeGroupFromTerm_idempotent_skipsStaleSelection(

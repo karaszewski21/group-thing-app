@@ -47,11 +47,11 @@ def _inject(title: str, description: str) -> str:
 
 
 def render_public_circle_meta(circle: PublicCircleResponse) -> str:
-    if circle.next_term is not None:
-        when = circle.next_term.occurs_on.strftime("%d.%m.%Y")
+    if circle.term is not None:
+        when = circle.term.occurs_on.strftime("%d.%m.%Y")
         description = f"Najbliższy termin: {when}."
-        if circle.next_term.description:
-            description += f" {circle.next_term.description}"
+        if circle.term.description:
+            description += f" {circle.term.description}"
     else:
         description = "Dołącz i zobacz najbliższe spotkania."
     return _inject(circle.name, description)

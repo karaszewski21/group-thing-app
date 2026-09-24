@@ -27,7 +27,7 @@ import "@testing-library/jest-dom/vitest";
 
 ### renderWithProviders Helper
 
-Define a `renderWithProviders()` helper per test file that wraps components in required providers (ChakraProvider, MemoryRouter). Keep helpers per-file, not shared globally.
+Define a `renderWithProviders()` helper per test file that wraps components in required providers (ChakraProvider, MemoryRouter). Keep helpers per-file, not shared globally. If the tree uses React Query, also pass `wrapper: createQueryWrapper()` (see React Query in Tests).
 
 ```typescript
 function renderWithProviders(ui: React.ReactElement, initialRoute = "/") {
@@ -35,8 +35,21 @@ function renderWithProviders(ui: React.ReactElement, initialRoute = "/") {
     <ChakraProvider value={system}>
       <MemoryRouter initialEntries={[initialRoute]}>{ui}</MemoryRouter>
     </ChakraProvider>,
+    { wrapper: createQueryWrapper() },
   );
 }
+```
+
+### React Query in Tests
+
+Wrap anything that renders a component or hook using React Query with a QueryClient from `src/test/queryClient.tsx`. The module exports `createQueryWrapper()`, `createTestQueryClient()` and `withQueryClient(ui)`.
+- Use a fresh QueryClient per test (no cache shared across tests), with `retry: false` so mocked rejections surface immediately.
+- Pass the wrapper via render's `wrapper` option (not inside the ui element) so `rerender()` keeps the same client and cache.
+- `src/test/setup.ts` sets `notifyManager.setScheduler(queueMicrotask)` so React Query's observer notifications flush inside `act()` instead of after it (the default is `setTimeout(0)`). Do not remove it.
+
+```typescript
+renderHook(() => useCategories(), { wrapper: createQueryWrapper() });
+render(<CategoriesPage />, { wrapper: createQueryWrapper() });
 ```
 
 ### API Module Mocking

@@ -139,7 +139,6 @@ function CircleLayout({ families, organizerName, activeFamilyId, onSelectFamily 
 function PitchLayout({
   families,
   organizerName,
-  neededItemRows,
   activeFamilyId,
   onSelectFamily,
   groupId,
@@ -184,21 +183,12 @@ function PitchLayout({
   );
 }
 
-/** Static, decorative center-of-table "item chips" — presentational only,
- * intentionally not wired to real listing data (Out of Scope: "Interaktywne
- * 'chipy' przedmiotów na środku stołu — czysto dekoracyjne"). */
-const TABLE_CHIPS: Array<{ emoji: string; label: string }> = [
-  { emoji: "🥁", label: "Tamburyn" },
-  { emoji: "🧣", label: "2 koce" },
-  { emoji: "🍎", label: "Owoce" },
-];
-
 /**
  * TABLE layout (new) — families distributed around an ellipse's perimeter
  * (`getTablePosition`), any family count without avatar overlap, same
- * deterministic slot shuffle as PITCH. Static decorative "chips" sit in the
- * center of the table and are never interactive (no `onClick`, not
- * `<button>` elements) — Core Requirement 6 / Out of Scope.
+ * deterministic slot shuffle as PITCH. The term's needed items sit as
+ * "chips" in the center of the table and are never interactive (no
+ * `onClick`, not `<button>` elements).
  */
 function TableLayout({
   families,

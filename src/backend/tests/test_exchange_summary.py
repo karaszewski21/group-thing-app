@@ -1,8 +1,9 @@
 """`app.groups.application.exchange_summary` — the "udostępnia rzecz"/
 "przynosi na zajęcia" aggregation for a Circle's current Term. Setup (users,
-circle, term, families, memberships) goes through the real HTTP API,
-mirroring `test_term_item_listings.py`'s style; the aggregation functions
-under test are called directly against `db_session`.
+circle, term, families) goes through the real HTTP API, mirroring
+`test_term_item_listings.py`'s style; memberships are seeded via
+`service.add_active_membership`, and the aggregation functions under test
+are called directly against `db_session`.
 
 Flat `tests/` placement (no `tests/groups/` subpackage exists in this
 codebase — see `test_group_layout_mode.py`)."""
@@ -25,6 +26,7 @@ from app.families.models import Family, FamilyMembership, FamilyRole, FamilyRole
 from app.groups import service
 from app.groups.schemas import TakeTermItemListingRequest
 from app.party.models import Party, PartyType
+from app.users.service import get_profile_by_principal
 
 
 def _auth(token: str) -> dict[str, str]:
@@ -64,22 +66,23 @@ async def _create_circle_and_term(
 
 
 async def _join_group_as_family_guardian(
-    client: AsyncClient, guardian_token: str, group_id: int, family_name: str
+    client: AsyncClient,
+    db_session: AsyncSession,
+    guardian_token: str,
+    group_id: int,
+    family_name: str,
 ) -> int:
-    """Bootstraps `guardian_token`'s own Family and joins `group_id` as a
-    plain `Membership` — the shape `resolveFamiliesForMemberships` (and this
-    module's own `_resolve_family_guardians`) expect: a group member who is
-    also an active GUARDIAN of a Family. Returns the Family id."""
+    """Bootstraps `guardian_token`'s own Family and seeds a plain active
+    `Membership` in `group_id` — the shape `_resolve_family_guardians`
+    expects: a group member who is also an active GUARDIAN of a Family.
+    Returns the Family id."""
     family = await client.post(
         "/api/families/mine", json={"name": family_name}, headers=_auth(guardian_token)
     )
     assert family.status_code == 201
-    membership = await client.post(
-        "/api/memberships",
-        json={"group_id": group_id, "valid_from": date.today().isoformat()},
-        headers=_auth(guardian_token),
-    )
-    assert membership.status_code == 201
+    profile = await get_profile_by_principal(db_session, _principal(guardian_token))
+    await service.add_active_membership(db_session, group_id, profile.party_id)
+    await db_session.commit()
     return int(family.json()["id"])
 
 
@@ -128,8 +131,12 @@ async def test_familyWithActivePledge_bringsItemTrue_sharesItemFalse(
     group_id, term_id = await _create_circle_and_term(client, org_token, "exs1")
     needed_item_id = await _create_needed_item(client, org_token, term_id, "Kredki")
 
-    guardian_token, guardian_party_id = await _register(client, "GUEST", "exs.guardian1@example.com")
-    family_id = await _join_group_as_family_guardian(client, guardian_token, group_id, "Rodzina 1")
+    guardian_token, guardian_party_id = await _register(
+        client, "GUEST", "exs.guardian1@example.com"
+    )
+    family_id = await _join_group_as_family_guardian(
+        client, db_session, guardian_token, group_id, "Rodzina 1"
+    )
 
     pledge = await client.post(
         "/api/pledges", json={"needed_item_id": needed_item_id}, headers=_auth(guardian_token)
@@ -150,8 +157,12 @@ async def test_familyWithActiveListingPreference_sharesItemTrue(
     org_token, _ = await _register(client, "ORGANIZER", "exs.org2@example.com")
     group_id, term_id = await _create_circle_and_term(client, org_token, "exs2")
 
-    guardian_token, guardian_party_id = await _register(client, "GUEST", "exs.guardian2@example.com")
-    family_id = await _join_group_as_family_guardian(client, guardian_token, group_id, "Rodzina 2")
+    guardian_token, guardian_party_id = await _register(
+        client, "GUEST", "exs.guardian2@example.com"
+    )
+    family_id = await _join_group_as_family_guardian(
+        client, db_session, guardian_token, group_id, "Rodzina 2"
+    )
 
     # Eligibility for exchange-mechanism listings is Term-attendance-based
     # (or organizer), not Circle-Membership-based — RSVP separately, same
@@ -180,8 +191,12 @@ async def test_familyWithNeitherPledgeNorListing_bothFalse(
     org_token, _ = await _register(client, "ORGANIZER", "exs.org3@example.com")
     group_id, _term_id = await _create_circle_and_term(client, org_token, "exs3")
 
-    guardian_token, guardian_party_id = await _register(client, "GUEST", "exs.guardian3@example.com")
-    family_id = await _join_group_as_family_guardian(client, guardian_token, group_id, "Rodzina 3")
+    guardian_token, guardian_party_id = await _register(
+        client, "GUEST", "exs.guardian3@example.com"
+    )
+    family_id = await _join_group_as_family_guardian(
+        client, db_session, guardian_token, group_id, "Rodzina 3"
+    )
 
     summary = await service.get_group_exchange_summary(db_session, group_id, guardian_party_id)
 
@@ -202,7 +217,9 @@ async def test_fulfilledOrCancelledOffer_doesNotCountAsActive_sharesItemFalse(
     group_id, term_id = await _create_circle_and_term(client, org_token, "exs4")
 
     lister_token, lister_party_id = await _register(client, "GUEST", "exs.lister4@example.com")
-    await _join_group_as_family_guardian(client, lister_token, group_id, "Rodzina Listera")
+    await _join_group_as_family_guardian(
+        client, db_session, lister_token, group_id, "Rodzina Listera"
+    )
     await client.post(
         f"/api/groups/public/{group_id}/rsvp",
         json={"term_id": term_id, "guardian_name": "ignored", "child_count": 0},
@@ -240,9 +257,11 @@ async def test_viewerOutsideGroup_raisesAccessDenied(
     group_id, _term_id = await _create_circle_and_term(client, org_token, "exs5")
 
     guardian_token, _ = await _register(client, "GUEST", "exs.guardian5@example.com")
-    await _join_group_as_family_guardian(client, guardian_token, group_id, "Rodzina 5")
+    await _join_group_as_family_guardian(client, db_session, guardian_token, group_id, "Rodzina 5")
 
-    outsider_token, outsider_party_id = await _register(client, "GUEST", "exs.outsider5@example.com")
+    outsider_token, outsider_party_id = await _register(
+        client, "GUEST", "exs.outsider5@example.com"
+    )
 
     with pytest.raises(AccessDeniedException):
         await service.get_group_exchange_summary(db_session, group_id, outsider_party_id)
@@ -309,12 +328,8 @@ async def test_familyWithoutActiveGuardian_emptyPartyIds_bothFalseNoCrash(
     )
     await db_session.commit()
 
-    membership = await client.post(
-        "/api/memberships",
-        json={"group_id": group_id, "valid_from": date.today().isoformat()},
-        headers=_auth(child_token),
-    )
-    assert membership.status_code == 201
+    await service.add_active_membership(db_session, group_id, child_party_id)
+    await db_session.commit()
 
     summary = await service.get_group_exchange_summary(db_session, group_id, child_party_id)
 
@@ -330,8 +345,12 @@ async def test_getFamilyExchangeOffers_returnsAllGuardianOffers(
     org_token, _ = await _register(client, "ORGANIZER", "exs.org7@example.com")
     group_id, term_id = await _create_circle_and_term(client, org_token, "exs7")
 
-    guardian_token, guardian_party_id = await _register(client, "GUEST", "exs.guardian7@example.com")
-    family_id = await _join_group_as_family_guardian(client, guardian_token, group_id, "Rodzina 7")
+    guardian_token, guardian_party_id = await _register(
+        client, "GUEST", "exs.guardian7@example.com"
+    )
+    family_id = await _join_group_as_family_guardian(
+        client, db_session, guardian_token, group_id, "Rodzina 7"
+    )
     await client.post(
         f"/api/groups/public/{group_id}/rsvp",
         json={"term_id": term_id, "guardian_name": "ignored", "child_count": 0},
@@ -343,7 +362,9 @@ async def test_getFamilyExchangeOffers_returnsAllGuardianOffers(
     )
 
     viewer_token, viewer_party_id = await _register(client, "GUEST", "exs.viewer7@example.com")
-    await _join_group_as_family_guardian(client, viewer_token, group_id, "Rodzina Widza")
+    await _join_group_as_family_guardian(
+        client, db_session, viewer_token, group_id, "Rodzina Widza"
+    )
 
     offers = await service.get_family_exchange_offers(
         db_session, group_id, family_id, viewer_party_id
@@ -361,13 +382,15 @@ async def test_getFamilyExchangeOffers_familyFromOtherGroup_raisesNotFound(
     org1_token, _ = await _register(client, "ORGANIZER", "exs.org8a@example.com")
     group1_id, _term1_id = await _create_circle_and_term(client, org1_token, "exs8a")
     viewer_token, viewer_party_id = await _register(client, "GUEST", "exs.viewer8@example.com")
-    await _join_group_as_family_guardian(client, viewer_token, group1_id, "Rodzina Widza 8")
+    await _join_group_as_family_guardian(
+        client, db_session, viewer_token, group1_id, "Rodzina Widza 8"
+    )
 
     org2_token, _ = await _register(client, "ORGANIZER", "exs.org8b@example.com")
     group2_id, _term2_id = await _create_circle_and_term(client, org2_token, "exs8b")
     other_guardian_token, _ = await _register(client, "GUEST", "exs.other8@example.com")
     other_family_id = await _join_group_as_family_guardian(
-        client, other_guardian_token, group2_id, "Rodzina Innej Grupy"
+        client, db_session, other_guardian_token, group2_id, "Rodzina Innej Grupy"
     )
 
     with pytest.raises(EntityNotFoundException):

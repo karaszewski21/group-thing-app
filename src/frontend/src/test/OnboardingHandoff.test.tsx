@@ -4,6 +4,7 @@ import { MemoryRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "../auth/AuthContext";
 import { RegisterPage } from "../pages/RegisterPage";
 import { OnboardingPage } from "../pages/OnboardingPage";
+import { createQueryWrapper } from "./queryClient";
 
 // Group 8 gap fill (implementation-plan.md 8.2(a)): Groups 1-7 each tested
 // their own surface in isolation (Group 4: register() posts the right body
@@ -71,7 +72,7 @@ function renderApp(initialRoute = "/register") {
           <Route path="/zajecia/grupa/7/term/9" element={<div>TERM PAGE</div>} />
         </Routes>
       </MemoryRouter>
-    </AuthProvider>,
+    </AuthProvider>, { wrapper: createQueryWrapper() },
   );
 }
 

@@ -3,6 +3,7 @@ import { fireEvent, render, screen } from "@testing-library/react";
 import { NeededItemQuickAddForm } from "../components/shared/NeededItemQuickAddForm";
 import { createEmptyNeededItemQuickAddValue } from "../utils/neededItemQuickAdd";
 import * as categoriesApi from "../api/categories";
+import { createQueryWrapper } from "./queryClient";
 
 vi.mock("../api/categories", () => ({
   getCategories: vi.fn(),
@@ -24,7 +25,7 @@ describe("NeededItemQuickAddForm", () => {
 
   it("renders name input, type select, and a description input (no condition)", async () => {
     render(
-      <NeededItemQuickAddForm value={createEmptyNeededItemQuickAddValue()} onChange={vi.fn()} />,
+      <NeededItemQuickAddForm value={createEmptyNeededItemQuickAddValue()} onChange={vi.fn()} />, { wrapper: createQueryWrapper() },
     );
     expect(screen.getByLabelText("Nazwa")).toBeInTheDocument();
     expect(screen.getByLabelText("Typ")).toBeInTheDocument();
@@ -38,7 +39,7 @@ describe("NeededItemQuickAddForm", () => {
 
   it("`Typ` options match useCategories()'s fetched data", async () => {
     render(
-      <NeededItemQuickAddForm value={createEmptyNeededItemQuickAddValue()} onChange={vi.fn()} />,
+      <NeededItemQuickAddForm value={createEmptyNeededItemQuickAddValue()} onChange={vi.fn()} />, { wrapper: createQueryWrapper() },
     );
     const select = screen.getByLabelText("Typ") as HTMLSelectElement;
     await screen.findByText("Zabawka");
@@ -50,7 +51,7 @@ describe("NeededItemQuickAddForm", () => {
   it("calls onChange with the updated {name, category_id, description}", async () => {
     const onChange = vi.fn();
     render(
-      <NeededItemQuickAddForm value={createEmptyNeededItemQuickAddValue()} onChange={onChange} />,
+      <NeededItemQuickAddForm value={createEmptyNeededItemQuickAddValue()} onChange={onChange} />, { wrapper: createQueryWrapper() },
     );
     fireEvent.change(screen.getByLabelText("Nazwa"), { target: { value: "Tamburyn" } });
     expect(onChange).toHaveBeenCalledWith({ name: "Tamburyn", category_id: 0, description: "" });
@@ -63,7 +64,7 @@ describe("NeededItemQuickAddForm", () => {
         value={createEmptyNeededItemQuickAddValue()}
         onChange={vi.fn()}
         disabled
-      />,
+      />, { wrapper: createQueryWrapper() },
     );
     expect(screen.getByLabelText("Nazwa")).toBeDisabled();
     expect(screen.getByLabelText("Typ")).toBeDisabled();

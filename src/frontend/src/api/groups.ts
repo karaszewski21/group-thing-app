@@ -70,13 +70,6 @@ export interface MembershipResponse {
   valid_to: string | null;
 }
 
-/** No `family_group_id` — membership is now per individual guardian/child,
- * resolved server-side from the calling principal, not the whole family. */
-export interface CreateMembershipRequest {
-  group_id: number;
-  valid_from: string;
-}
-
 export function getGroups(): Promise<GroupResponse[]> {
   return api.get("/groups");
 }
@@ -150,10 +143,6 @@ export function getMembershipsForCircle(groupId: number): Promise<MembershipResp
   return api.get(`/groups/${groupId}/memberships`);
 }
 
-export function createMembership(request: CreateMembershipRequest): Promise<MembershipResponse> {
-  return api.post("/memberships", request);
-}
-
 export function endMembership(membershipId: number, validTo?: string): Promise<MembershipResponse> {
   const query = validTo ? `?valid_to=${validTo}` : "";
   return api.post(`/memberships/${membershipId}/end${query}`, undefined);
@@ -202,7 +191,7 @@ export interface PublicGuardianResponse {
 }
 
 /** Never carries a per-child field — see `app.groups.schemas.PublicCircleResponse`.
- * For a `PRIVATE` group, `next_term`/`guardians` come back empty/null even
+ * For a `PRIVATE` group, `term`/`guardians` come back empty/null even
  * when Terms exist — see that endpoint's reduced-response docstring. */
 export interface PublicCircleResponse {
   id: number;
@@ -211,7 +200,7 @@ export interface PublicCircleResponse {
   organizer_slug: string | null;
   visibility: GroupVisibility;
   layout_mode: GroupLayoutMode;
-  next_term: PublicTermResponse | null;
+  term: PublicTermResponse | null;
   guardians: PublicGuardianResponse[];
 }
 
@@ -247,9 +236,12 @@ export interface GroupAccessDetails {
   is_member: boolean;
   is_organizer: boolean;
   can_view_content: boolean;
-  can_join: boolean;
-  /** The caller has a `TermAttendance` on `group.next_term`. */
+  /** The caller has a `TermAttendance` on `group.term`. */
   is_attending: boolean;
+  /** The caller's latest access request for a PRIVATE group they don't
+   * belong to, when it is PENDING or REJECTED; `null` otherwise (anonymous
+   * caller, PUBLIC group, member/organizer, or a withdrawn/approved one). */
+  join_request: JoinRequestSummary | null;
 }
 
 /** Mirrors `app.groups.schemas.GroupAccessResponse` — `GET
@@ -318,9 +310,8 @@ export function createRsvp(groupId: number, request: CreateRsvpRequest): Promise
 }
 
 /* ------------------------------------------------------------------ */
-/*  Formalize a PUBLIC group's past term into standing membership,     */
-/*  and join a PRIVATE group's link (authenticated org actions +       */
-/*  unauthenticated join, `POST /groups/public/{id}/join`)             */
+/*  Formalize a PUBLIC group's past term into standing membership      */
+/*  (authenticated organizer action)                                   */
 /* ------------------------------------------------------------------ */
 
 /** One RSVP'd Term attendee, resolved for the organizer's "which attendees
@@ -350,25 +341,61 @@ export function formalizeGroupFromTerm(
   return api.post(`/groups/${groupId}/terms/${termId}/formalize`, { party_ids: partyIds });
 }
 
-export interface JoinGroupRequest {
-  guardian_name: string;
-  child_count?: number;
+/* ------------------------------------------------------------------ */
+/*  PRIVATE-group access requests (requester: `/groups/public/{id}/    */
+/*  join-requests`; organizer: `/groups/{id}/join-requests/{rid}/…`)   */
+/* ------------------------------------------------------------------ */
+
+export type JoinRequestStatus = "PENDING" | "APPROVED" | "REJECTED" | "WITHDRAWN";
+
+/** The `/access` view of the caller's own latest request. */
+export interface JoinRequestSummary {
+  id: number;
+  status: Extract<JoinRequestStatus, "PENDING" | "REJECTED">;
 }
 
-export interface JoinGroupResponse {
-  membership_id: number;
+export interface JoinRequestResponse {
+  id: number;
   group_id: number;
-  user_profile_id: number;
-  guardian_name: string;
-  child_count: number;
-  attached_to_account: boolean;
+  requester_party_id: number;
+  term_id: number | null;
+  status: JoinRequestStatus;
+  created_at: string;
+  updated_at: string;
 }
 
-export function joinPrivateGroup(
-  groupId: number,
-  request: JoinGroupRequest,
-): Promise<JoinGroupResponse> {
-  return api.post(`/groups/public/${groupId}/join`, request);
+/** A PENDING request awaiting the organizer's decision, denormalized for
+ * the panel's pending-actions list. */
+export interface PendingJoinRequestResponse {
+  id: number;
+  group_id: number;
+  group_name: string;
+  term_id: number | null;
+  requester_party_id: number;
+  requester_display_name: string;
+  created_at: string;
+}
+
+/** Idempotent: an existing PENDING request is returned instead of a new one. */
+export function createJoinRequest(groupId: number, termId?: number): Promise<JoinRequestResponse> {
+  return api.post(`/groups/public/${groupId}/join-requests`, { term_id: termId ?? null });
+}
+
+export function withdrawJoinRequest(groupId: number, requestId: number): Promise<JoinRequestResponse> {
+  return api.post(`/groups/public/${groupId}/join-requests/${requestId}/withdraw`, undefined);
+}
+
+/** PENDING requests across every group the caller organizes. */
+export function listMyPendingJoinRequests(): Promise<PendingJoinRequestResponse[]> {
+  return api.get("/groups/mine/join-requests");
+}
+
+export function approveJoinRequest(groupId: number, requestId: number): Promise<JoinRequestResponse> {
+  return api.post(`/groups/${groupId}/join-requests/${requestId}/approve`, undefined);
+}
+
+export function rejectJoinRequest(groupId: number, requestId: number): Promise<JoinRequestResponse> {
+  return api.post(`/groups/${groupId}/join-requests/${requestId}/reject`, undefined);
 }
 
 /* ------------------------------------------------------------------ */

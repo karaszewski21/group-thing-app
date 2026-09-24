@@ -5,6 +5,7 @@ import { createEmptyItemQuickAddValue } from "../utils/itemQuickAdd";
 import * as categoriesApi from "../api/categories";
 import type { Category } from "../api/categories";
 import { resolveProduct } from "../api/products";
+import { createQueryWrapper } from "./queryClient";
 
 vi.mock("../api/categories", () => ({
   getCategories: vi.fn(),
@@ -45,7 +46,7 @@ describe("ItemQuickAddForm — category_id rename", () => {
 
   it("renders the Typ select from useCategories()'s live data, keyed by category_id", async () => {
     render(
-      <ItemQuickAddForm value={createEmptyItemQuickAddValue(3)} onChange={vi.fn()} />,
+      <ItemQuickAddForm value={createEmptyItemQuickAddValue(3)} onChange={vi.fn()} />, { wrapper: createQueryWrapper() },
     );
 
     const select = (await screen.findByLabelText("Typ")) as HTMLSelectElement;
@@ -61,7 +62,7 @@ describe("ItemQuickAddForm — category_id rename", () => {
   it("selecting a category emits onChange with a numeric category_id, which the caller then resolves via resolveProduct({ name, category_id })", async () => {
     const onChange = vi.fn();
     const value = createEmptyItemQuickAddValue(3);
-    render(<ItemQuickAddForm value={{ ...value, name: "Rowerek" }} onChange={onChange} />);
+    render(<ItemQuickAddForm value={{ ...value, name: "Rowerek" }} onChange={onChange} />, { wrapper: createQueryWrapper() });
 
     const select = await screen.findByLabelText("Typ");
     await waitFor(() => expect((select as HTMLSelectElement).options.length).toBe(2));

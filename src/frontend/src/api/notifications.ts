@@ -10,7 +10,10 @@ export type NotificationKind =
   | "SWAP_ACCEPTED"
   | "SWAP_REJECTED"
   | "TERM_CONFIRMATION_NEEDED"
-  | "TERM_ALREADY_RESOLVED";
+  | "TERM_ALREADY_RESOLVED"
+  | "GROUP_JOIN_REQUESTED"
+  | "GROUP_JOIN_APPROVED"
+  | "GROUP_JOIN_REJECTED";
 
 export interface NotificationResponse {
   id: number;
@@ -26,6 +29,11 @@ export interface NotificationResponse {
    * `acceptSwapProposal`/`rejectSwapProposal` directly. `null`/absent for
    * every other kind. */
   proposal_id?: number | null;
+  /** Loose pointer at `GroupJoinRequest.id`, populated for the
+   * `GROUP_JOIN_*` kinds — lets the pending-actions modal approve/reject a
+   * `GROUP_JOIN_REQUESTED` request directly. `null`/absent for every other
+   * kind. */
+  join_request_id?: number | null;
 }
 
 export function getMyNotifications(): Promise<NotificationResponse[]> {

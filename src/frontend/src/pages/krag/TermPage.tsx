@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { gateAction } from "../../utils/actionGate";
+import dayjs from "../../utils/dayjs";
 import { useTermAccess } from "../../hooks/useTermAccess";
 import { useAuth } from "../../auth/AuthContext";
 import { getInventories, getInventoryItemBalance, getInventoryItems } from "../../api/inventories";
@@ -22,7 +23,8 @@ import { RsvpDialog } from "../../components/krag/RsvpDialog";
 import { RsvpDialogLoggedIn } from "../../components/krag/RsvpDialogLoggedIn";
 import { AuthGateSheet } from "../../components/krag/AuthGateSheet";
 import { AccountMergeForm } from "../../components/krag/AccountMergeForm";
-import { PrivateGroupAccessDenied } from "./PrivateGroupAccessDenied";
+import { PrivateGroupGate } from "./PrivateGroupGate";
+import { resolveTermAccess } from "./termAccess";
 import { GroupVisualization, type VisualizationFamily } from "./GroupVisualization";
 import { KragStage, KragStageMessage } from "./components/KragStage";
 import { GroupHeader } from "./components/GroupHeader";
@@ -35,51 +37,54 @@ import { LISTABLE_RESERVATION_TYPES, TAKE_ACTION_LABELS } from "./components/ter
 import { attendeeElementId, type ListingRowVM, type NeededItemRowVM } from "./components/termSectionTypes";
 
 /** Class date + wall-clock start time for display. `occurs_on` is an ISO
- * datetime; a bare-date fallback (no time part) shows just the date. */
+ * datetime; any UTC offset is dropped so the time shows as entered, not
+ * shifted to the viewer's zone. A bare-date fallback (no time part) parses
+ * as midnight and shows just the date. */
 function formatTermWhen(iso: string): { date: string; time: string } {
-  const date = new Date(`${iso.slice(0, 10)}T00:00:00`).toLocaleDateString("pl-PL", {
-    weekday: "long",
-    day: "numeric",
-    month: "long",
-  });
-  const t = iso.slice(11, 16);
-  const time = /^\d{2}:\d{2}$/.test(t) && t !== "00:00" ? t : "";
-  return { date, time };
+  const wallClock = dayjs(iso.slice(0, 16));
+  const time = wallClock.format("HH:mm");
+  return { date: wallClock.format("dddd, D MMMM"), time: time === "00:00" ? "" : time };
 }
 
-/** Route element for `/:organizationSlug/grupa/:groupId/term/:termId`. A
- * `PRIVATE` group renders `PrivateGroupAccessDenied`; a `PUBLIC` one the
- * term page. */
+/** Route element for `/:organizationSlug/grupa/:groupId/term/:termId`.
+ * Whoever may see the content gets the term page; anyone else gets the
+ * `PrivateGroupGate` for their server-resolved state. */
 export function TermPage() {
   const params = useParams<{ groupId: string; termId: string }>();
-  const { token } = useAuth();
   const groupId = Number(params.groupId);
   const termId = params.termId !== undefined ? Number(params.termId) : undefined;
-  const { loading, error, data, refetch } = useTermAccess(groupId, termId);
+  const { state, isStale, refetch } = useTermAccess(groupId, termId);
 
-  if (loading) return <KragStageMessage>Wczytywanie...</KragStageMessage>;
+  if (state.status === "loading") return <KragStageMessage>Wczytywanie...</KragStageMessage>;
   // A missing circle and a mismatched / deleted term both surface as the
   // same 404 here, so the wording stays generic.
-  if (error || !data) return <KragStageMessage>Nie znaleziono</KragStageMessage>;
+  if (state.status === "error") return <KragStageMessage>Nie znaleziono</KragStageMessage>;
 
-  if (data.group.visibility === "PRIVATE") {
+  const access = resolveTermAccess(state.data, state.forToken !== null);
+  if (access.kind === "view") {
     return (
-      <PrivateGroupAccessDenied
+      <PublicTermView
         groupId={groupId}
-        group={data.group}
-        canJoin={data.access.can_join}
-        isLoggedIn={Boolean(token)}
-        onJoined={() => void refetch()}
+        circle={access.group}
+        isAttendingOnServer={access.isAttending}
+        refetch={refetch}
       />
     );
   }
 
+  // The gate was resolved for another token: wait for the current one's
+  // answer rather than offer a step that may no longer apply.
+  if (isStale && state.refreshError === null) return <KragStageMessage>Wczytywanie...</KragStageMessage>;
+
   return (
-    <PublicTermView
+    <PrivateGroupGate
       groupId={groupId}
-      circle={data.group}
-      isAttendingOnServer={data.access.is_attending}
+      termId={termId}
+      group={access.group}
+      gate={access.gate}
       refetch={refetch}
+      refreshError={state.refreshError}
+      stale={isStale}
     />
   );
 }
@@ -90,7 +95,7 @@ function buildAttendees(
   circle: PublicCircleResponse,
   toRow: (listing: PublicItemListingResponse) => ListingRowVM,
 ): AttendeeVM[] {
-  const listings = circle.next_term?.item_listings ?? [];
+  const listings = circle.term?.item_listings ?? [];
   const people = new Map<number, string>(circle.guardians.map((g) => [g.party_id, g.display_name]));
   for (const listing of listings) {
     if (!people.has(listing.lister_party_id)) people.set(listing.lister_party_id, listing.lister_display_name);
@@ -116,7 +121,7 @@ function PublicTermView({
   const navigate = useNavigate();
   const { token, displayName } = useAuth();
   const isLoggedIn = Boolean(token);
-  const term = circle.next_term;
+  const term = circle.term;
 
   const [activePartyId, setActivePartyId] = useState<number | null>(null);
   const [toast, setToast] = useState("");
@@ -372,7 +377,7 @@ function PublicTermView({
           )}
           {showRsvpDialog &&
             term &&
-            (isLoggedIn && displayName ? (
+            (isLoggedIn ? (
               <RsvpDialogLoggedIn
                 groupId={groupId}
                 termId={term.id}

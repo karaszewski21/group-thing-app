@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useCallback } from "react";
 import type { Category, MoveCategoryDirection } from "../api/categories";
 import {
   getCategories,
@@ -16,33 +17,30 @@ interface UseCategoriesResult {
   move: (id: number, direction: MoveCategoryDirection) => Promise<void>;
 }
 
+const CATEGORIES_KEY = ["categories"] as const;
+const NO_CATEGORIES: Category[] = [];
+
 /**
  * Single source of truth for the frontend's category list (mirrors
  * `useProducts.ts`'s shape). The backend already returns categories
  * ordered by `sort_order` (`app/category/service.py::list_categories`),
- * so this hook doesn't re-sort — it just fetches and exposes.
+ * so this hook doesn't re-sort — it just fetches and exposes. Every caller
+ * shares one cached query, so mounting it in several components costs a
+ * single request.
  */
 export function useCategories(): UseCategoriesResult {
-  const [data, setData] = useState<Category[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const queryClient = useQueryClient();
+  const query = useQuery({ queryKey: CATEGORIES_KEY, queryFn: getCategories });
+  const { refetch: queryRefetch } = query;
 
   const refetch = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const categories = await getCategories();
-      setData(categories);
-    } catch (err) {
-      setError(extractProblemMessage(err));
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+    await queryRefetch();
+  }, [queryRefetch]);
 
-  useEffect(() => {
-    void refetch();
-  }, [refetch]);
+  const invalidate = useCallback(
+    () => queryClient.invalidateQueries({ queryKey: CATEGORIES_KEY }),
+    [queryClient],
+  );
 
   // Deliberately does NOT swallow the backend's actual error message behind
   // a generic string — e.g. a 409 "category still has N products" conflict
@@ -54,18 +52,25 @@ export function useCategories(): UseCategoriesResult {
       } catch (err) {
         throw new Error(extractProblemMessage(err));
       }
-      await refetch();
+      await invalidate();
     },
-    [refetch],
+    [invalidate],
   );
 
   const move = useCallback(
     async (id: number, direction: MoveCategoryDirection) => {
       await apiMoveCategory(id, direction);
-      await refetch();
+      await invalidate();
     },
-    [refetch],
+    [invalidate],
   );
 
-  return { data, loading, error, refetch, remove, move };
+  return {
+    data: query.data ?? NO_CATEGORIES,
+    loading: query.isPending,
+    error: query.error ? extractProblemMessage(query.error) : null,
+    refetch,
+    remove,
+    move,
+  };
 }

@@ -8,6 +8,7 @@ import type { ProductResponse } from "../api/products";
 import * as categoriesApi from "../api/categories";
 import type { Category } from "../api/categories";
 import { ProductDetailPage } from "../pages/ProductDetailPage";
+import { createQueryWrapper } from "./queryClient";
 
 vi.mock("../api/products", () => ({
   getProduct: vi.fn(),
@@ -68,7 +69,7 @@ describe("Category display resolves via useCategories(), not CATEGORY_LABELS", (
             <Route path="/products/:id" element={<ProductDetailPage />} />
           </Routes>
         </MemoryRouter>
-      </ChakraProvider>,
+      </ChakraProvider>, { wrapper: createQueryWrapper() },
     );
 
     expect(await screen.findByText("Elektronika")).toBeInTheDocument();

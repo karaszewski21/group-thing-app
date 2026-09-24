@@ -41,7 +41,9 @@ class NotificationKind(enum.StrEnum):
     `TERM_CONFIRMATION_NEEDED` goes to a party with a locked leg (swap or
     giveaway) once its Term ends, and `TERM_ALREADY_RESOLVED` goes to the
     other party in a swap/giveaway when they act after the first party
-    already resolved the same transaction."""
+    already resolved the same transaction. `GROUP_JOIN_REQUESTED` goes to a
+    private Circle's active organizer, and `GROUP_JOIN_APPROVED`/
+    `GROUP_JOIN_REJECTED` go back to the request's requester."""
 
     PLEDGE_CREATED = "PLEDGE_CREATED"
     PLEDGE_WITHDRAWN = "PLEDGE_WITHDRAWN"
@@ -53,6 +55,9 @@ class NotificationKind(enum.StrEnum):
     SWAP_REJECTED = "SWAP_REJECTED"
     TERM_CONFIRMATION_NEEDED = "TERM_CONFIRMATION_NEEDED"
     TERM_ALREADY_RESOLVED = "TERM_ALREADY_RESOLVED"
+    GROUP_JOIN_REQUESTED = "GROUP_JOIN_REQUESTED"
+    GROUP_JOIN_APPROVED = "GROUP_JOIN_APPROVED"
+    GROUP_JOIN_REJECTED = "GROUP_JOIN_REJECTED"
 
 
 class Notification(BaseEntity):
@@ -79,3 +84,7 @@ class Notification(BaseEntity):
     # `acceptSwapProposal`/`rejectSwapProposal` directly instead of
     # deep-linking to the term page. `None` for every other kind.
     proposal_id: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
+    # Loose cross-BC pointer (no FK, same convention as `proposal_id`) at
+    # `app.groups.models.GroupJoinRequest.id`. Populated only for the
+    # `GROUP_JOIN_*` kinds; `None` for every other kind.
+    join_request_id: Mapped[int | None] = mapped_column(BigInteger, nullable=True)

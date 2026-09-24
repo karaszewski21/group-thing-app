@@ -79,7 +79,7 @@ _RAW_MATRIX: tuple[_RawEntry, ...] = (
     # can load it, RSVP, and merge into a real account. Mirrors row 48's
     # placement.
     (_methods("GET"), r"^/api/groups/public/[^/]+$", "PUBLIC"),
-    # The caller's resolved is_member/is_organizer/can_view_content/can_join
+    # The caller's resolved is_member/is_organizer/can_view_content/join_request
     # for a Circle — unauthenticated-friendly like the row above (an
     # unauthenticated caller just gets all-False access flags, never a
     # 401/403), declared ahead of row 26's blanket READ row for the same
@@ -92,13 +92,17 @@ _RAW_MATRIX: tuple[_RawEntry, ...] = (
     # the anonymous path — never a 401.
     (_methods("POST"), r"^/api/groups/public/[^/]+/rsvp$", "PUBLIC"),
     (_methods("POST"), r"^/api/groups/public/merge$", "PUBLIC"),
-    # The `PRIVATE`-group join link now requires authentication (an account-
-    # backed principal, not just any authority) — `require_any()` with no
-    # arguments on the route. Declared explicitly, ahead of row 27's blanket
-    # `POST ^/api/groups(/.*)?$` EDIT row, because that blanket row would
-    # otherwise swallow this path and require EDIT permission, which is
-    # stricter than (and doesn't match) the route's actual dependency.
-    (_methods("POST"), r"^/api/groups/public/[^/]+/join$", "AUTHENTICATED"),
+    # Creating / withdrawing one's own PRIVATE-group join request needs only an
+    # account-backed principal (`require_any()` with no arguments on the
+    # routes). Declared ahead of row 27's blanket `POST ^/api/groups(/.*)?$`
+    # EDIT row, which would otherwise swallow these paths and demand EDIT —
+    # stricter than the routes' actual dependency. Requester ownership is
+    # checked in `app.groups.service`.
+    (
+        _methods("POST"),
+        r"^/api/groups/public/[^/]+/join-requests(/[^/]+/withdraw)?$",
+        "AUTHENTICATED",
+    ),
     # Fine-grained circle rename — declared ahead of row 26's blanket
     # /api/groups READ row and after the /mine + /public rows above, so
     # first-match evaluation reaches it. The active-organizer check lives in

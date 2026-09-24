@@ -89,6 +89,9 @@ Semantic HTML, keyboard navigation, color contrast (4.5:1), alt text and labels,
 #### Responsive Design (`standards/frontend/responsive.md`)
 Mobile-first approach, standard breakpoints, fluid layouts, relative units (rem/em), and cross-device testing.
 
+#### Data Fetching & Dates (`standards/frontend/data-fetching.md`)
+TanStack Query v5 hooks in `src/hooks/` wrapping `src/api/*.ts` (no `useState`+`useEffect` fetching, no ad hoc `useQuery` in components), one shared `queryClient` in `src/api/queryClient.ts` (no retry on `ApiError` 4xx, up to 2 retries on network/5xx), array query keys with a resource-name prefix constant followed by params, mutations that `await invalidateQueries` on the whole resource prefix and pass `extractProblemMessage` errors through verbatim, app-shaped hook returns (`data` with a stable module-level empty fallback, `loading = isPending`, `error: string | null`, `refetch(): Promise<void>`), keeping values such as the auth token out of the key when shown data must survive their change (`useTermAccess` `forToken`/`isStale` pattern), and dates via `dayjs` imported from `src/utils/dayjs.ts` (Polish `pl` locale; never import `"dayjs"` directly; `src/utils/format.ts` is legacy).
+
 ### Testing Standards
 
 Located in `.maister/docs/standards/testing/`
@@ -97,7 +100,7 @@ Located in `.maister/docs/standards/testing/`
 Integration test infrastructure with TestContainers and real PostgreSQL 18, integration-first testing strategy (over unit tests), what NOT to test (auto-generated repos, Lombok getters/setters, private methods), test data isolation with @Transactional rollback, MockMvc with jsonPath()/Hamcrest for HTTP assertions, test class naming (*Tests suffix, package-private, same package as production), test method naming (action_condition_expectedResult pattern), private createAndSave*() helper methods with saveAndFlush(), integration vs validation test class split, test scope guidelines (2-8 tests per feature, CRUD plus edge cases), MockMvc security integration requiring SecurityMockMvcConfiguration import for Spring Boot 4/Security 7, custom security test annotations (@WithMockEditUser, @WithMockAdminUser), and Spring Security 7 PathPattern constraints (single-segment `*` vs multi-segment `**`).
 
 #### Frontend Testing (`standards/testing/frontend-testing.md`)
-Vitest with globals and jsdom environment, @testing-library/react for component rendering and queries, @testing-library/jest-dom for extended DOM matchers, per-file renderWithProviders() helper wrapping ChakraProvider and MemoryRouter, API module mocking with vi.mock() factory functions and vi.resetAllMocks() in beforeEach, vi.mocked() for type-safe mock configuration, describe blocks named after pages/features, and test files in src/test/ directory.
+Vitest with globals and jsdom environment, @testing-library/react for component rendering and queries, @testing-library/jest-dom for extended DOM matchers, per-file renderWithProviders() helper wrapping ChakraProvider and MemoryRouter, React Query test wrapper from src/test/queryClient.tsx (createQueryWrapper() passed via render/renderHook `wrapper` option, fresh QueryClient per test with retry: false, createTestQueryClient()/withQueryClient()), microtask notifyManager scheduler in src/test/setup.ts so query notifications flush inside act(), API module mocking with vi.mock() factory functions and vi.resetAllMocks() in beforeEach, vi.mocked() for type-safe mock configuration, describe blocks named after pages/features, and test files in src/test/ directory.
 
 ---
 

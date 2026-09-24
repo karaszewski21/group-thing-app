@@ -14,6 +14,7 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy.exc import IntegrityError
+from sqlalchemy.orm.exc import StaleDataError
 
 logger = logging.getLogger(__name__)
 
@@ -80,7 +81,18 @@ async def business_conflict_handler(
 
 
 async def integrity_error_handler(request: Request, exc: IntegrityError) -> JSONResponse:
+    logger.warning("Integrity violation on %s %s", request.method, request.url.path)
     return _envelope(status.HTTP_409_CONFLICT, "Conflict", "Data integrity violation")
+
+
+async def stale_data_error_handler(request: Request, exc: StaleDataError) -> JSONResponse:
+    """A lost optimistic-lock race (`updated_at` is the `version_id_col`)."""
+    logger.warning("Stale data conflict on %s %s", request.method, request.url.path)
+    return _envelope(
+        status.HTTP_409_CONFLICT,
+        "Conflict",
+        "Dane zostały w międzyczasie zmienione — odśwież i spróbuj ponownie",
+    )
 
 
 async def validation_error_handler(request: Request, exc: RequestValidationError) -> JSONResponse:
@@ -123,6 +135,7 @@ def register_exception_handlers(app: FastAPI) -> None:
     app.add_exception_handler(EntityNotFoundException, entity_not_found_handler)  # type: ignore[arg-type]
     app.add_exception_handler(BusinessConflictException, business_conflict_handler)  # type: ignore[arg-type]
     app.add_exception_handler(IntegrityError, integrity_error_handler)  # type: ignore[arg-type]
+    app.add_exception_handler(StaleDataError, stale_data_error_handler)  # type: ignore[arg-type]
     app.add_exception_handler(RequestValidationError, validation_error_handler)  # type: ignore[arg-type]
     app.add_exception_handler(AccessDeniedException, access_denied_handler)  # type: ignore[arg-type]
     app.add_exception_handler(ValueError, value_error_handler)  # type: ignore[arg-type]

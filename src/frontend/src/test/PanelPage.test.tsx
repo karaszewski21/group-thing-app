@@ -24,6 +24,7 @@ import * as termItemListingsApi from "../api/termItemListings";
 import * as reservationsApi from "../api/reservations";
 import { PanelPage } from "../pages/panel/PanelPage";
 import { ApiError } from "../api/client";
+import { createQueryWrapper } from "./queryClient";
 
 vi.mock("../auth/AuthContext", async (importOriginal) => {
   const actual = await importOriginal<typeof import("../auth/AuthContext")>();
@@ -71,6 +72,12 @@ vi.mock("../api/groups", () => ({
   // other default below).
   getTermAttendeesForFormalization: vi.fn(),
   formalizeGroupFromTerm: vi.fn(),
+  // The panel's `load()` fetches the organizer's pending join requests on
+  // every (silent) reload — each `beforeEach` re-seeds it with `[]` right
+  // after `vi.resetAllMocks()`.
+  listMyPendingJoinRequests: vi.fn(),
+  approveJoinRequest: vi.fn(),
+  rejectJoinRequest: vi.fn(),
 }));
 
 vi.mock("../api/inventories", () => ({
@@ -298,7 +305,7 @@ function renderPanel() {
         <Route path="/panel" element={<PanelPage />} />
         <Route path="/panel/:view" element={<PanelPage />} />
       </Routes>
-    </MemoryRouter>,
+    </MemoryRouter>, { wrapper: createQueryWrapper() },
   );
 }
 
@@ -329,7 +336,7 @@ function renderPanelWithNavigation() {
         <Route path="/panel/:view" element={<PanelPage />} />
         <Route path="/other" element={<div>Poza panelem</div>} />
       </Routes>
-    </MemoryRouter>,
+    </MemoryRouter>, { wrapper: createQueryWrapper() },
   );
 }
 
@@ -382,6 +389,7 @@ async function openMenu() {
 describe("PanelPage — hamburger promotion", () => {
   beforeEach(() => {
     vi.resetAllMocks();
+    vi.mocked(groupsApi.listMyPendingJoinRequests).mockResolvedValue([]);
   });
 
   it('shows "Dodaj pierwszy termin" (not "Chcę dodać krąg") for a GUEST-without-circle session and opens FirstTermStepperGuest', async () => {
@@ -554,6 +562,7 @@ describe("PanelPage — hamburger promotion", () => {
 describe("PanelPage — item add dialog rework", () => {
   beforeEach(() => {
     vi.resetAllMocks();
+    vi.mocked(groupsApi.listMyPendingJoinRequests).mockResolvedValue([]);
   });
 
   it('the "+ Dodaj rzecz" modal renders ItemQuickAddForm (3 fields, no product dropdown)', async () => {
@@ -619,6 +628,7 @@ describe("PanelPage — item add dialog rework", () => {
 describe("PanelPage — dismissible home hints", () => {
   beforeEach(() => {
     vi.resetAllMocks();
+    vi.mocked(groupsApi.listMyPendingJoinRequests).mockResolvedValue([]);
     localStorage.clear();
   });
 
@@ -806,6 +816,7 @@ describe("PanelPage — dismissible home hints", () => {
 describe("PanelPage — Rodzina section", () => {
   beforeEach(() => {
     vi.resetAllMocks();
+    vi.mocked(groupsApi.listMyPendingJoinRequests).mockResolvedValue([]);
   });
 
   it('"Mój dom" hamburger item renders and navigates to the family list (name + role tag, no avatars)', async () => {
@@ -872,6 +883,7 @@ describe("PanelPage — Rodzina section", () => {
 describe("PanelPage — Mój dom — no family", () => {
   beforeEach(() => {
     vi.resetAllMocks();
+    vi.mocked(groupsApi.listMyPendingJoinRequests).mockResolvedValue([]);
   });
 
   async function openMojDom() {
@@ -1067,6 +1079,7 @@ describe("PanelPage — Mój dom — no family", () => {
 describe("PanelPage — Mój dom — inline family rename", () => {
   beforeEach(() => {
     vi.resetAllMocks();
+    vi.mocked(groupsApi.listMyPendingJoinRequests).mockResolvedValue([]);
   });
 
   async function openMojDom() {
@@ -1114,6 +1127,7 @@ describe("PanelPage — Mój dom — inline family rename", () => {
 describe("PanelPage — Mój dom — remove family member", () => {
   beforeEach(() => {
     vi.resetAllMocks();
+    vi.mocked(groupsApi.listMyPendingJoinRequests).mockResolvedValue([]);
   });
 
   async function openMojDom() {
@@ -1165,6 +1179,7 @@ describe("PanelPage — Mój dom — remove family member", () => {
 describe("PanelPage — term edit dialog", () => {
   beforeEach(() => {
     vi.resetAllMocks();
+    vi.mocked(groupsApi.listMyPendingJoinRequests).mockResolvedValue([]);
   });
 
   const term = {
@@ -1321,6 +1336,7 @@ describe("PanelPage — term edit dialog", () => {
 describe("PanelPage — edit group dialog (name/location/spots/layout, replaces old inline rename + layout pills)", () => {
   beforeEach(() => {
     vi.resetAllMocks();
+    vi.mocked(groupsApi.listMyPendingJoinRequests).mockResolvedValue([]);
   });
 
   async function openEditDialog() {
@@ -1381,6 +1397,7 @@ describe("PanelPage — edit group dialog (name/location/spots/layout, replaces 
 describe("PanelPage — Zapisane zajęcia", () => {
   beforeEach(() => {
     vi.resetAllMocks();
+    vi.mocked(groupsApi.listMyPendingJoinRequests).mockResolvedValue([]);
   });
 
   it("renders one tile per attendance with a public-term link (GUEST)", async () => {
@@ -1429,6 +1446,7 @@ describe("PanelPage — Zapisane zajęcia", () => {
 describe("PanelPage — Spotkania list links to the public circle page", () => {
   beforeEach(() => {
     vi.resetAllMocks();
+    vi.mocked(groupsApi.listMyPendingJoinRequests).mockResolvedValue([]);
   });
 
   it("each term row in the Spotkania list is a link (the whole tile) to the per-term public page, not the authenticated one", async () => {
@@ -1486,6 +1504,7 @@ describe("PanelPage — Spotkania list links to the public circle page", () => {
 describe("PanelPage — per-term public links & copy-link button", () => {
   beforeEach(() => {
     vi.resetAllMocks();
+    vi.mocked(groupsApi.listMyPendingJoinRequests).mockResolvedValue([]);
   });
 
   it("organizer with no Organization — 'Terminy' row still links to the per-term public page via the hash slug", async () => {
@@ -1597,6 +1616,7 @@ describe("PanelPage — per-term public links & copy-link button", () => {
 describe("PanelPage — needed item sub-CRUD (in the term dialog)", () => {
   beforeEach(() => {
     vi.resetAllMocks();
+    vi.mocked(groupsApi.listMyPendingJoinRequests).mockResolvedValue([]);
   });
 
   const term = {
@@ -1702,6 +1722,7 @@ describe("PanelPage — needed item sub-CRUD (in the term dialog)", () => {
 describe("PanelPage — inventory item edit/delete", () => {
   beforeEach(() => {
     vi.resetAllMocks();
+    vi.mocked(groupsApi.listMyPendingJoinRequests).mockResolvedValue([]);
   });
 
   const invItem = {
@@ -1801,6 +1822,7 @@ describe("PanelPage — inventory item edit/delete", () => {
 describe("PanelPage — needed item edit error path", () => {
   beforeEach(() => {
     vi.resetAllMocks();
+    vi.mocked(groupsApi.listMyPendingJoinRequests).mockResolvedValue([]);
   });
 
   const term = {
@@ -1850,6 +1872,7 @@ describe("PanelPage — needed item edit error path", () => {
 describe("PanelPage — Zadeklarowane rzeczy (my pledges)", () => {
   beforeEach(() => {
     vi.resetAllMocks();
+    vi.mocked(groupsApi.listMyPendingJoinRequests).mockResolvedValue([]);
   });
 
   const myPledge: pledgesApi.MyPledgeResponse = {
@@ -1910,6 +1933,7 @@ describe("PanelPage — Zadeklarowane rzeczy (my pledges)", () => {
 describe("PanelPage — notification bell", () => {
   beforeEach(() => {
     vi.resetAllMocks();
+    vi.mocked(groupsApi.listMyPendingJoinRequests).mockResolvedValue([]);
   });
 
   const notif = (over: Partial<notificationsApi.NotificationResponse> = {}) => ({
@@ -1975,6 +1999,7 @@ describe("PanelPage — notification bell", () => {
 describe("PanelPage — Group 7 global pending-actions modal", () => {
   beforeEach(() => {
     vi.resetAllMocks();
+    vi.mocked(groupsApi.listMyPendingJoinRequests).mockResolvedValue([]);
   });
 
   function pendingNotif(
@@ -2492,6 +2517,7 @@ describe("PanelPage — Group 7 global pending-actions modal", () => {
 describe("PanelPage — RzeczyView post-term-end fallback buttons (Bug #4c, full flow)", () => {
   beforeEach(() => {
     vi.resetAllMocks();
+    vi.mocked(groupsApi.listMyPendingJoinRequests).mockResolvedValue([]);
   });
 
   const lockedItem = {
@@ -2572,5 +2598,237 @@ describe("PanelPage — RzeczyView post-term-end fallback buttons (Bug #4c, full
     // true })` re-ran after the confirm (same convention as Bug #3's own
     // TERM_CONFIRMATION_NEEDED refresh test above).
     await waitFor(() => expect(inventoriesApi.getInventoryItems).toHaveBeenCalledTimes(2));
+  });
+});
+
+describe("PanelPage — organizer join-request pending action", () => {
+  beforeEach(() => {
+    vi.resetAllMocks();
+    vi.mocked(groupsApi.listMyPendingJoinRequests).mockResolvedValue([]);
+  });
+
+  function joinRequest(
+    over: Partial<groupsApi.PendingJoinRequestResponse> = {},
+  ): groupsApi.PendingJoinRequestResponse {
+    return {
+      id: 11,
+      group_id: 5,
+      group_name: "Poranne Maluchy",
+      term_id: 3,
+      requester_party_id: 42,
+      requester_display_name: "Kasia Nowak",
+      created_at: "2026-09-24T10:00:00",
+      ...over,
+    };
+  }
+
+  function joinNotif(
+    over: Partial<notificationsApi.NotificationResponse> = {},
+  ): notificationsApi.NotificationResponse {
+    return {
+      id: 70,
+      kind: "GROUP_JOIN_REQUESTED",
+      message: "Kasia Nowak prosi o dostęp do grupy „Poranne Maluchy”",
+      link_path: "/ania/grupa/5/term/3",
+      read_at: null,
+      created_at: "2026-09-24T10:00:00",
+      join_request_id: 11,
+      ...over,
+    };
+  }
+
+  const decided = (status: groupsApi.JoinRequestStatus): groupsApi.JoinRequestResponse => ({
+    id: 11,
+    group_id: 5,
+    requester_party_id: 42,
+    term_id: 3,
+    status,
+    created_at: "",
+    updated_at: "",
+  });
+
+  it("shows the server-listed request even when its notification is already read", async () => {
+    mockOrganizerDefaults();
+    vi.mocked(notificationsApi.getMyNotifications).mockResolvedValue([
+      joinNotif({ read_at: "2026-09-24T11:00:00" }),
+    ]);
+    vi.mocked(groupsApi.listMyPendingJoinRequests).mockResolvedValue([joinRequest()]);
+    renderPanel();
+
+    const dialog = await screen.findByRole("dialog", { name: "Prośba o dostęp" });
+    expect(within(dialog).getByText(/Kasia Nowak prosi o dostęp do grupy/)).toBeInTheDocument();
+    expect(within(dialog).getByText("„Poranne Maluchy”")).toBeInTheDocument();
+    expect(within(dialog).getByText("Wysłano 24 września")).toBeInTheDocument();
+    expect(within(dialog).getByRole("button", { name: "Zatwierdź" })).toBeInTheDocument();
+    expect(within(dialog).getByRole("button", { name: "Odrzuć" })).toBeInTheDocument();
+    expect(within(dialog).getByRole("button", { name: "Później" })).toBeInTheDocument();
+  });
+
+  it("Zatwierdź shows a busy state, approves, marks the linked notification read, reloads and toasts", async () => {
+    mockOrganizerDefaults();
+    vi.mocked(notificationsApi.getMyNotifications).mockResolvedValue([joinNotif()]);
+    vi.mocked(notificationsApi.markNotificationRead).mockResolvedValue(undefined);
+    vi.mocked(groupsApi.listMyPendingJoinRequests)
+      .mockResolvedValueOnce([joinRequest()])
+      .mockResolvedValue([]);
+    let resolveApprove: (value: groupsApi.JoinRequestResponse) => void = () => undefined;
+    vi.mocked(groupsApi.approveJoinRequest).mockReturnValue(
+      new Promise((resolve) => {
+        resolveApprove = resolve;
+      }),
+    );
+    renderPanel();
+
+    const dialog = await screen.findByRole("dialog", { name: "Prośba o dostęp" });
+    fireEvent.click(within(dialog).getByRole("button", { name: "Zatwierdź" }));
+
+    const busyButton = await within(dialog).findByRole("button", { name: "Zatwierdzanie…" });
+    expect(busyButton).toBeDisabled();
+    expect(busyButton).toHaveAttribute("aria-busy", "true");
+    expect(within(dialog).getByRole("button", { name: "Odrzuć" })).toBeDisabled();
+    expect(groupsApi.approveJoinRequest).toHaveBeenCalledWith(5, 11);
+
+    resolveApprove(decided("APPROVED"));
+
+    expect(await screen.findByText("Prośba zatwierdzona")).toBeInTheDocument();
+    expect(notificationsApi.markNotificationRead).toHaveBeenCalledWith(70);
+    expect(groupsApi.listMyPendingJoinRequests).toHaveBeenCalledTimes(2);
+    expect(screen.queryByRole("dialog", { name: "Prośba o dostęp" })).not.toBeInTheDocument();
+  });
+
+  it("Odrzuć rejects without extra confirmation; a non-409 failure shows a retryable alert first", async () => {
+    mockOrganizerDefaults();
+    vi.mocked(groupsApi.listMyPendingJoinRequests)
+      .mockResolvedValueOnce([joinRequest()])
+      .mockResolvedValue([]);
+    vi.mocked(groupsApi.rejectJoinRequest)
+      .mockRejectedValueOnce(new ApiError(500, "Server Error", null))
+      .mockResolvedValueOnce(decided("REJECTED"));
+    renderPanel();
+
+    const dialog = await screen.findByRole("dialog", { name: "Prośba o dostęp" });
+    fireEvent.click(within(dialog).getByRole("button", { name: "Odrzuć" }));
+
+    expect(await within(dialog).findByRole("alert")).toHaveTextContent(
+      "Nie udało się zapisać decyzji — spróbuj ponownie",
+    );
+
+    fireEvent.click(within(dialog).getByRole("button", { name: "Odrzuć" }));
+
+    expect(await screen.findByText("Prośba odrzucona")).toBeInTheDocument();
+    expect(groupsApi.rejectJoinRequest).toHaveBeenLastCalledWith(5, 11);
+    expect(groupsApi.approveJoinRequest).not.toHaveBeenCalled();
+    expect(screen.queryByRole("dialog", { name: "Prośba o dostęp" })).not.toBeInTheDocument();
+  });
+
+  it("any 409 shows the already-resolved state; Rozumiem dismisses and reloads", async () => {
+    mockOrganizerDefaults();
+    vi.mocked(groupsApi.listMyPendingJoinRequests).mockResolvedValue([joinRequest()]);
+    vi.mocked(groupsApi.approveJoinRequest).mockRejectedValue(
+      new ApiError(409, "Conflict", { detail: "Join request is no longer pending" }),
+    );
+    renderPanel();
+
+    const dialog = await screen.findByRole("dialog", { name: "Prośba o dostęp" });
+    fireEvent.click(within(dialog).getByRole("button", { name: "Zatwierdź" }));
+
+    expect(await within(dialog).findByRole("alert")).toHaveTextContent(
+      "Prośba została już rozstrzygnięta.",
+    );
+    expect(within(dialog).queryByRole("button", { name: "Zatwierdź" })).not.toBeInTheDocument();
+
+    fireEvent.click(within(dialog).getByRole("button", { name: "Rozumiem" }));
+
+    await waitFor(() =>
+      expect(screen.queryByRole("dialog", { name: "Prośba o dostęp" })).not.toBeInTheDocument(),
+    );
+    await waitFor(() => expect(groupsApi.listMyPendingJoinRequests).toHaveBeenCalledTimes(2));
+  });
+
+  it("Później hides the item without touching notifications and reveals the next one", async () => {
+    mockOrganizerDefaults();
+    vi.mocked(notificationsApi.getMyNotifications).mockResolvedValue([joinNotif()]);
+    // The server lists pending requests oldest first; the panel keeps that order.
+    vi.mocked(groupsApi.listMyPendingJoinRequests).mockResolvedValue([
+      joinRequest(),
+      joinRequest({ id: 12, requester_display_name: "Ola Zielińska", created_at: "2026-09-24T12:00:00" }),
+    ]);
+    renderPanel();
+
+    const dialog = await screen.findByRole("dialog", { name: "Prośba o dostęp" });
+    expect(within(dialog).getByText(/Kasia Nowak prosi/)).toBeInTheDocument();
+    fireEvent.click(within(dialog).getByRole("button", { name: "Później" }));
+
+    expect(
+      await within(screen.getByRole("dialog", { name: "Prośba o dostęp" })).findByText(/Ola Zielińska prosi/),
+    ).toBeInTheDocument();
+    expect(notificationsApi.markNotificationRead).not.toHaveBeenCalled();
+  });
+
+  it("an item hidden with Później stays hidden across a silent reload", async () => {
+    mockOrganizerDefaults();
+    const older = joinRequest();
+    const newer = joinRequest({ id: 12, requester_display_name: "Ola Zielińska", created_at: "2026-09-24T12:00:00" });
+    vi.mocked(groupsApi.listMyPendingJoinRequests)
+      .mockResolvedValueOnce([older, newer])
+      .mockResolvedValue([older]);
+    vi.mocked(groupsApi.approveJoinRequest).mockResolvedValue(decided("APPROVED"));
+    renderPanel();
+
+    const dialog = await screen.findByRole("dialog", { name: "Prośba o dostęp" });
+    fireEvent.click(within(dialog).getByRole("button", { name: "Później" }));
+
+    const next = screen.getByRole("dialog", { name: "Prośba o dostęp" });
+    expect(within(next).getByText(/Ola Zielińska prosi/)).toBeInTheDocument();
+    fireEvent.click(within(next).getByRole("button", { name: "Zatwierdź" }));
+
+    expect(await screen.findByText("Prośba zatwierdzona")).toBeInTheDocument();
+    expect(groupsApi.approveJoinRequest).toHaveBeenCalledWith(5, 12);
+    expect(groupsApi.listMyPendingJoinRequests).toHaveBeenCalledTimes(2);
+    expect(screen.queryByRole("dialog", { name: "Prośba o dostęp" })).not.toBeInTheDocument();
+  });
+
+  it("an undefined pending-requests result still renders the panel with no item", async () => {
+    mockOrganizerDefaults();
+    vi.mocked(groupsApi.listMyPendingJoinRequests).mockResolvedValue(
+      undefined as unknown as groupsApi.PendingJoinRequestResponse[],
+    );
+    renderPanel();
+
+    expect(await screen.findByRole("button", { name: "Powiadomienia" })).toBeInTheDocument();
+    expect(screen.queryByRole("dialog", { name: "Prośba o dostęp" })).not.toBeInTheDocument();
+    expect(screen.queryByText("Nie udało się wczytać panelu")).not.toBeInTheDocument();
+  });
+
+  it("a failed pending-requests fetch is logged and the panel still renders", async () => {
+    mockOrganizerDefaults();
+    const failure = new Error("500");
+    vi.mocked(groupsApi.listMyPendingJoinRequests).mockRejectedValue(failure);
+    const consoleError = vi.spyOn(console, "error").mockImplementation(() => {});
+    try {
+      renderPanel();
+
+      expect(await screen.findByRole("button", { name: "Powiadomienia" })).toBeInTheDocument();
+      expect(screen.queryByText("Nie udało się wczytać panelu")).not.toBeInTheDocument();
+      expect(screen.queryByRole("dialog", { name: "Prośba o dostęp" })).not.toBeInTheDocument();
+      expect(consoleError).toHaveBeenCalledWith(expect.any(String), failure);
+    } finally {
+      consoleError.mockRestore();
+    }
+  });
+
+  it("a GROUP_JOIN_REQUESTED bell row renders its message, marks it read on open and keeps the pending action", async () => {
+    mockOrganizerDefaults();
+    vi.mocked(notificationsApi.getMyNotifications).mockResolvedValue([joinNotif({ link_path: "/panel" })]);
+    vi.mocked(notificationsApi.markNotificationRead).mockResolvedValue(undefined);
+    vi.mocked(groupsApi.listMyPendingJoinRequests).mockResolvedValue([joinRequest()]);
+    renderPanel();
+
+    await screen.findByRole("dialog", { name: "Prośba o dostęp" });
+    fireEvent.click(screen.getByRole("button", { name: /Powiadomienia \(1 nieprzeczytane\)/ }));
+    fireEvent.click(screen.getByRole("menuitem", { name: /Kasia Nowak prosi o dostęp do grupy/ }));
+
+    await waitFor(() => expect(notificationsApi.markNotificationRead).toHaveBeenCalledWith(70));
+    expect(screen.getByRole("dialog", { name: "Prośba o dostęp" })).toBeInTheDocument();
   });
 });

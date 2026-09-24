@@ -4,6 +4,7 @@ import { ApiError } from "../api/client";
 import * as categoriesApi from "../api/categories";
 import type { Category } from "../api/categories";
 import { useCategories } from "../hooks/useCategories";
+import { createQueryWrapper } from "./queryClient";
 
 vi.mock("../api/categories", () => ({
   getCategories: vi.fn(),
@@ -40,7 +41,7 @@ describe("useCategories", () => {
   it("fetches and returns categories ordered by sortOrder", async () => {
     vi.mocked(categoriesApi.getCategories).mockResolvedValue(mockCategories);
 
-    const { result } = renderHook(() => useCategories());
+    const { result } = renderHook(() => useCategories(), { wrapper: createQueryWrapper() });
 
     await waitFor(() => expect(result.current.loading).toBe(false));
 
@@ -59,7 +60,7 @@ describe("useCategories", () => {
       }),
     );
 
-    const { result } = renderHook(() => useCategories());
+    const { result } = renderHook(() => useCategories(), { wrapper: createQueryWrapper() });
     await waitFor(() => expect(result.current.loading).toBe(false));
 
     await expect(result.current.remove(1)).rejects.toThrow(

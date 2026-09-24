@@ -1,6 +1,6 @@
 """Read-side queries for `app.groups`: every `select()` / `db.get()` for
 `Group` / `GroupRole` / `Leadership` / `Membership` / `Term` /
-`NeededItem` / `Pledge` / `TermAttendance` and the public-view
+`NeededItem` / `Pledge` / `TermAttendance` / `GroupJoinRequest` and the public-view
 `UserProfile` join, relocated verbatim into named functions. Eager-loading
 and ordering options are preserved exactly per `standards/backend/queries.md`.
 Never commits or flushes; `EntityNotFoundException` raising stays in the
@@ -8,7 +8,9 @@ Never commits or flushes; `EntityNotFoundException` raising stays in the
 
 from __future__ import annotations
 
-from sqlalchemy import Row, func, or_, select
+from datetime import datetime
+
+from sqlalchemy import Row, exists, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.category.models import Category
@@ -17,6 +19,8 @@ from app.users.models import UserProfile
 
 from ..models import (
     Group,
+    GroupJoinRequest,
+    GroupJoinRequestStatus,
     GroupRole,
     GroupRoleType,
     ItemListingPreference,
@@ -469,3 +473,81 @@ async def get_swap_proposal_for_item(db: AsyncSession, item_id: int) -> SwapProp
         .order_by(SwapProposal.id.desc())
     )
     return result.scalars().first()
+
+
+# --- GroupJoinRequest ----------------------------------------------------------
+
+
+async def get_join_request(db: AsyncSession, request_id: int) -> GroupJoinRequest | None:
+    return await db.get(GroupJoinRequest, request_id)
+
+
+async def find_pending_join_request(
+    db: AsyncSession, requester_party_id: int, group_id: int
+) -> GroupJoinRequest | None:
+    result = await db.execute(
+        select(GroupJoinRequest).where(
+            GroupJoinRequest.requester_party_id == requester_party_id,
+            GroupJoinRequest.group_id == group_id,
+            GroupJoinRequest.status == GroupJoinRequestStatus.PENDING,
+        )
+    )
+    return result.scalar_one_or_none()
+
+
+async def find_latest_join_request(
+    db: AsyncSession, requester_party_id: int, group_id: int
+) -> GroupJoinRequest | None:
+    result = await db.execute(
+        select(GroupJoinRequest)
+        .where(
+            GroupJoinRequest.requester_party_id == requester_party_id,
+            GroupJoinRequest.group_id == group_id,
+        )
+        .order_by(GroupJoinRequest.id.desc())
+        .limit(1)
+    )
+    return result.scalar_one_or_none()
+
+
+async def has_join_request_closed_since(
+    db: AsyncSession, requester_party_id: int, group_id: int, since: datetime
+) -> bool:
+    """Whether the requester withdrew, or had rejected, a request for
+    `group_id` at or after `since` (`updated_at` is the decision time)."""
+    return bool(
+        await db.scalar(
+            select(
+                exists().where(
+                    GroupJoinRequest.requester_party_id == requester_party_id,
+                    GroupJoinRequest.group_id == group_id,
+                    GroupJoinRequest.status.in_(
+                        (GroupJoinRequestStatus.WITHDRAWN, GroupJoinRequestStatus.REJECTED)
+                    ),
+                    GroupJoinRequest.updated_at >= since,
+                )
+            )
+        )
+    )
+
+
+PENDING_JOIN_REQUESTS_LIMIT = 200
+
+
+async def list_pending_join_requests_for_groups(
+    db: AsyncSession, group_ids: list[int]
+) -> list[Row[tuple[GroupJoinRequest, str]]]:
+    """PENDING requests in `group_ids` with their group's name, oldest first
+    — one query regardless of the number of groups, capped at
+    `PENDING_JOIN_REQUESTS_LIMIT` rows."""
+    result = await db.execute(
+        select(GroupJoinRequest, Group.name)
+        .join(Group, Group.id == GroupJoinRequest.group_id)
+        .where(
+            GroupJoinRequest.group_id.in_(group_ids),
+            GroupJoinRequest.status == GroupJoinRequestStatus.PENDING,
+        )
+        .order_by(GroupJoinRequest.created_at, GroupJoinRequest.id)
+        .limit(PENDING_JOIN_REQUESTS_LIMIT)
+    )
+    return list(result.all())

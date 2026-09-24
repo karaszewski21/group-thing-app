@@ -31,8 +31,6 @@ from app.groups.schemas import (
     GroupAccessResponse,
     GroupExchangeSummaryResponse,
     GroupResponse,
-    JoinGroupRequest,
-    JoinGroupResponse,
     LeadershipResponse,
     MembershipResponse,
     MergeAnonymousProfileRequest,
@@ -160,29 +158,6 @@ async def create_rsvp(
     degrades silently to the anonymous path — never a 401."""
     return await service.create_rsvp(
         db, group_id, body.term_id, body.guardian_name, body.child_count, principal
-    )
-
-
-@router.post(
-    "/api/groups/public/{group_id}/join",
-    response_model=JoinGroupResponse,
-    status_code=status.HTTP_201_CREATED,
-)
-async def join_private_group(
-    group_id: int,
-    body: JoinGroupRequest,
-    db: DbSession,
-    principal: Annotated[Principal, Depends(require_any())],
-) -> JoinGroupResponse:
-    """Authenticated-only — the group-level "join on a standing basis" link
-    for a `PRIVATE` group (404 if `group_id` isn't currently `PRIVATE`).
-    Unlike `create_rsvp`, an unauthenticated caller is rejected with a 401
-    (via `Depends(require_any())`, "just authenticated", matching row 25's
-    `"AUTHENTICATED"` matrix catch-all) before `service.join_private_group`
-    ever runs — no anonymous join path exists for standing membership of a
-    `PRIVATE` group."""
-    return await service.join_private_group(
-        db, group_id, body.guardian_name, body.child_count, principal
     )
 
 

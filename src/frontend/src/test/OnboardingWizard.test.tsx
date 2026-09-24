@@ -3,6 +3,7 @@ import { describe, expect, it, vi, beforeEach } from "vitest";
 import { OnboardingWizard } from "../components/onboarding/OnboardingWizard";
 import { guestSteps } from "../components/onboarding/steps/guestSteps";
 import { organizerSteps } from "../components/onboarding/steps/organizerSteps";
+import { createQueryWrapper } from "./queryClient";
 
 vi.mock("../api/products", () => ({
   resolveProduct: vi.fn(),
@@ -40,7 +41,7 @@ describe("OnboardingWizard — GUEST single-step config", () => {
 
   it("renders neither the step-dot row nor the 'Krok 1 z 1' status counter", () => {
     const { container } = render(
-      <OnboardingWizard steps={guestSteps} onSkip={vi.fn()} onComplete={vi.fn()} />,
+      <OnboardingWizard steps={guestSteps} onSkip={vi.fn()} onComplete={vi.fn()} />, { wrapper: createQueryWrapper() },
     );
 
     expect(screen.queryByRole("status")).not.toBeInTheDocument();
@@ -49,7 +50,7 @@ describe("OnboardingWizard — GUEST single-step config", () => {
   });
 
   it("primary button reads 'Zakończ ✓' (single step ⇒ isLast)", () => {
-    render(<OnboardingWizard steps={guestSteps} onSkip={vi.fn()} onComplete={vi.fn()} />);
+    render(<OnboardingWizard steps={guestSteps} onSkip={vi.fn()} onComplete={vi.fn()} />, { wrapper: createQueryWrapper() });
 
     expect(screen.getByRole("button", { name: "Zakończ ✓" })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Dalej →" })).not.toBeInTheDocument();
@@ -57,7 +58,7 @@ describe("OnboardingWizard — GUEST single-step config", () => {
 
   it("clicking 'Pomiń' calls onSkip", () => {
     const onSkip = vi.fn();
-    render(<OnboardingWizard steps={guestSteps} onSkip={onSkip} onComplete={vi.fn()} />);
+    render(<OnboardingWizard steps={guestSteps} onSkip={onSkip} onComplete={vi.fn()} />, { wrapper: createQueryWrapper() });
 
     fireEvent.click(screen.getByRole("button", { name: "Pomiń" }));
 
@@ -66,7 +67,7 @@ describe("OnboardingWizard — GUEST single-step config", () => {
 
   it("clicking '✕' calls the same handler as 'Pomiń'", () => {
     const onSkip = vi.fn();
-    render(<OnboardingWizard steps={guestSteps} onSkip={onSkip} onComplete={vi.fn()} />);
+    render(<OnboardingWizard steps={guestSteps} onSkip={onSkip} onComplete={vi.fn()} />, { wrapper: createQueryWrapper() });
 
     fireEvent.click(screen.getByRole("button", { name: "Zamknij" }));
 
@@ -77,7 +78,7 @@ describe("OnboardingWizard — GUEST single-step config", () => {
 describe("OnboardingWizard — ORGANIZER multi-step chrome", () => {
   it("renders step-dot progress and 'Krok 1 z 3' text with an aria-label", () => {
     const { container } = render(
-      <OnboardingWizard steps={organizerSteps} onSkip={vi.fn()} onComplete={vi.fn()} />,
+      <OnboardingWizard steps={organizerSteps} onSkip={vi.fn()} onComplete={vi.fn()} />, { wrapper: createQueryWrapper() },
     );
 
     expect(screen.getByLabelText("Krok 1 z 3")).toBeInTheDocument();
@@ -95,7 +96,7 @@ describe("OnboardingWizard — ORGANIZER multi-step chrome", () => {
   });
 
   it("ORGANIZER's organization-name step is mandatory: no 'Pomiń'/'X', blocks advancing when empty", async () => {
-    render(<OnboardingWizard steps={organizerSteps} onSkip={vi.fn()} onComplete={vi.fn()} />);
+    render(<OnboardingWizard steps={organizerSteps} onSkip={vi.fn()} onComplete={vi.fn()} />, { wrapper: createQueryWrapper() });
 
     expect(screen.queryByRole("button", { name: "Pomiń" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Zamknij" })).not.toBeInTheDocument();

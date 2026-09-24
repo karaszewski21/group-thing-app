@@ -15,7 +15,7 @@ from typing import cast
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.auth_deps import AuthenticationRequiredException, Principal
+from app.core.auth_deps import Principal
 from app.core.errors import AccessDeniedException, EntityNotFoundException
 from app.party.models import PartyType
 from app.party.service import create_party
@@ -25,11 +25,11 @@ from app.users.service import get_profile_by_party, get_profile_by_principal
 from ..domain.organizer_slug import _fallback_organizer_slug
 from ..infrastructure import organizations_acl, repository
 from ..infrastructure.slug_resolver import resolve_organizer_slug
-from ..models import GroupRoleType, GroupVisibility, Membership, Term, TermAttendance
+from ..models import GroupJoinRequestStatus, GroupVisibility, Term, TermAttendance
 from ..schemas import (
     GroupAccessDetails,
     GroupAccessResponse,
-    JoinGroupResponse,
+    JoinRequestSummary,
     MyAttendanceResponse,
     MyPledgeResponse,
     PublicCircleResponse,
@@ -40,7 +40,6 @@ from ..schemas import (
     RsvpResponse,
 )
 from .circles import _group_role_party_id, _is_active_organizer, get_current_leadership, get_group
-from .group_roles import get_or_create_active_group_role
 from .memberships import _is_active_member
 from .term_item_listings import list_public_term_item_listings
 from .terms import get_term, list_needed_item_views, list_terms
@@ -161,7 +160,10 @@ async def list_my_pledges(db: AsyncSession, party_id: int) -> list[MyPledgeRespo
 
 
 async def get_public_circle_view(
-    db: AsyncSession, group_id: int, term_id: int | None = None
+    db: AsyncSession,
+    group_id: int,
+    term_id: int | None = None,
+    include_private_content: bool = False,
 ) -> PublicCircleResponse:
     """Unauthenticated read assembled server-side in one call: organizer
     name (via the active `Leadership`, `None` if the Circle currently has
@@ -175,7 +177,12 @@ async def get_public_circle_view(
     (-> 404) when it does not exist or belongs to another Circle. `term_id`
     absent: the next upcoming Term is picked (falling back to the most
     recent past Term so the page is never empty; `None` when the Circle has
-    zero Terms)."""
+    zero Terms).
+
+    A `PRIVATE` Circle gets the reduced response (no Term, no guardians)
+    unless `include_private_content` — set only from server-resolved
+    member/organizer roles. The reduced branch skips `term_id` validation
+    so an outsider cannot probe which Terms exist."""
     group = await get_group(db, group_id)
 
     organizer_display_name: str | None = None
@@ -187,7 +194,7 @@ async def get_public_circle_view(
 
     organizer_slug = await resolve_organizer_slug(db, group_id)
 
-    if group.visibility == GroupVisibility.PRIVATE:
+    if group.visibility == GroupVisibility.PRIVATE and not include_private_content:
         # Reduced response for a PRIVATE group: name + organizer only, no
         # terms/needed-items/offers/guardian names — an anonymous visitor
         # without the join link gets "this group is private" context, not a
@@ -199,35 +206,34 @@ async def get_public_circle_view(
             organizer_slug=organizer_slug,
             visibility=group.visibility,
             layout_mode=group.layout_mode,
-            next_term=None,
+            term=None,
             guardians=[],
         )
 
-    next_term: Term | None = None
+    term: Term | None = None
     if term_id is not None:
         term = await get_term(db, term_id)
         if term.circle_group_id != group_id:
             raise EntityNotFoundException("Term", term_id)
-        next_term = term
     else:
         terms = await list_terms(db, group_id)
         if terms:
             midnight_today = datetime.combine(date.today(), time.min)
-            upcoming = [term for term in terms if term.occurs_on >= midnight_today]
-            next_term = min(upcoming, key=lambda term: term.occurs_on) if upcoming else terms[0]
+            upcoming = [t for t in terms if t.occurs_on >= midnight_today]
+            term = min(upcoming, key=lambda t: t.occurs_on) if upcoming else terms[0]
 
-    next_term_response: PublicTermResponse | None = None
+    term_response: PublicTermResponse | None = None
     guardians: list[PublicGuardianResponse] = []
-    if next_term is not None:
-        needed_item_views = await list_needed_item_views(db, cast(int, next_term.id))
-        active_pledges = await repository.list_active_pledges_for_term(db, cast(int, next_term.id))
+    if term is not None:
+        needed_item_views = await list_needed_item_views(db, cast(int, term.id))
+        active_pledges = await repository.list_active_pledges_for_term(db, cast(int, term.id))
         pledger_name_by_item = {item_id: name for item_id, name, _ in active_pledges}
         pledger_party_by_item = {item_id: party for item_id, _, party in active_pledges}
-        item_listings = await list_public_term_item_listings(db, cast(int, next_term.id))
-        next_term_response = PublicTermResponse(
-            id=cast(int, next_term.id),
-            occurs_on=next_term.occurs_on,
-            description=next_term.description,
+        item_listings = await list_public_term_item_listings(db, cast(int, term.id))
+        term_response = PublicTermResponse(
+            id=cast(int, term.id),
+            occurs_on=term.occurs_on,
+            description=term.description,
             needed_items=[
                 PublicNeededItemResponse(
                     id=view["id"],
@@ -256,7 +262,7 @@ async def get_public_circle_view(
             ],
         )
 
-        attendances = await list_attendances_for_term(db, cast(int, next_term.id))
+        attendances = await list_attendances_for_term(db, cast(int, term.id))
         if attendances:
             party_ids = [attendance.party_id for attendance in attendances]
             profile_rows = await repository.list_profile_names_by_party_ids(db, party_ids)
@@ -277,52 +283,64 @@ async def get_public_circle_view(
         organizer_slug=organizer_slug,
         visibility=group.visibility,
         layout_mode=group.layout_mode,
-        next_term=next_term_response,
+        term=term_response,
         guardians=guardians,
     )
+
+
+_GATE_JOIN_REQUEST_STATUSES = frozenset(
+    {GroupJoinRequestStatus.PENDING, GroupJoinRequestStatus.REJECTED}
+)
 
 
 async def get_group_access(
     db: AsyncSession, group_id: int, term_id: int | None, principal: Principal | None
 ) -> GroupAccessResponse:
-    """`group` is exactly `get_public_circle_view`'s response (a `PRIVATE`
-    group's reduced shape is unaffected by the caller's `access`). `access`
-    replaces the frontend's previous "any auth token means the private/
-    member view" heuristic (`KragGrupyPage`'s `token ? Private : Public`
-    branch) with a real, server-resolved relationship: an unauthenticated
-    or non-member/non-organizer principal now gets `is_member`/
-    `is_organizer` both `False` even while logged in.
+    """`group` is `get_public_circle_view`'s response, with the full `PRIVATE`
+    content only for an active member or the organizer (roles resolved
+    server-side first; an unresolvable principal is treated as anonymous).
+    `access` replaces the frontend's previous "any auth token means the
+    private/member view" heuristic with a real, server-resolved
+    relationship.
 
     `can_view_content`: `True` for any `PUBLIC` group (unauthenticated
-    included — unchanged from today's behavior); for `PRIVATE`, only when
-    `is_member` or `is_organizer`. `can_join`: `True` only for a `PRIVATE`
-    group the caller does not already belong to (mirrors
-    `join_private_group`'s own 404-on-non-PRIVATE / no-op-if-already-member
-    contract) — `PUBLIC` groups have no "join" action, only per-term RSVP."""
-    group_response = await get_public_circle_view(db, group_id, term_id)
-    group = await get_group(db, group_id)
-
-    is_member = False
-    is_organizer = False
-    is_attending = False
+    included); for `PRIVATE`, only when `is_member` or `is_organizer`.
+    `join_request`: the caller's latest (highest-id) request, only for a
+    `PRIVATE` group the caller is identified in but does not belong to, and
+    only when that request is PENDING or REJECTED — an APPROVED (e.g. an
+    ex-member) or WITHDRAWN latest request, an anonymous caller and any
+    `PUBLIC` group all give `None`."""
+    profile: UserProfile | None = None
     if principal is not None:
         try:
             profile = await get_profile_by_principal(db, principal)
         except EntityNotFoundException:
             profile = None
-        if profile is not None:
-            is_organizer = await _is_active_organizer(db, group_id, profile.party_id)
-            is_member = is_organizer or await _is_active_member(db, group_id, profile.party_id)
-            is_attending = any(
-                guardian.party_id == profile.party_id for guardian in group_response.guardians
-            )
 
-    if group.visibility == GroupVisibility.PRIVATE:
+    is_member = False
+    is_organizer = False
+    if profile is not None:
+        is_organizer = await _is_active_organizer(db, group_id, profile.party_id)
+        is_member = is_organizer or await _is_active_member(db, group_id, profile.party_id)
+
+    group_response = await get_public_circle_view(
+        db, group_id, term_id, include_private_content=is_member or is_organizer
+    )
+    is_attending = profile is not None and any(
+        guardian.party_id == profile.party_id for guardian in group_response.guardians
+    )
+
+    join_request: JoinRequestSummary | None = None
+    if group_response.visibility == GroupVisibility.PRIVATE:
         can_view_content = is_member or is_organizer
-        can_join = not (is_member or is_organizer)
+        if profile is not None and not can_view_content:
+            latest = await repository.find_latest_join_request(db, profile.party_id, group_id)
+            if latest is not None and latest.status in _GATE_JOIN_REQUEST_STATUSES:
+                join_request = JoinRequestSummary(
+                    id=cast(int, latest.id), status=latest.status.value
+                )
     else:
         can_view_content = True
-        can_join = False
 
     return GroupAccessResponse(
         group=group_response,
@@ -330,7 +348,7 @@ async def get_group_access(
             is_member=is_member,
             is_organizer=is_organizer,
             can_view_content=can_view_content,
-            can_join=can_join,
+            join_request=join_request,
             is_attending=is_attending,
         ),
     )
@@ -369,9 +387,8 @@ async def create_rsvp(
 
     if group.visibility == GroupVisibility.PRIVATE:
         # PRIVATE groups only accept RSVP from an already-standing member or
-        # the organizer — everyone else must go through the group-level join
-        # link (`join_private_group`), which creates standing membership
-        # rather than a per-term attendance.
+        # the organizer — membership itself is only ever granted by the
+        # organizer, never by the caller.
         if profile is None or profile.account_user_id is None:
             raise AccessDeniedException
         if not (
@@ -399,7 +416,7 @@ async def create_rsvp(
         else:
             attendance = TermAttendance(
                 term_id=cast(int, term.id),
-                party_id=cast(int, profile.party_id),
+                party_id=profile.party_id,
                 child_count=child_count,
             )
             db.add(attendance)
@@ -446,61 +463,4 @@ async def create_rsvp(
         guardian_name=guardian_name,
         child_count=child_count,
         attached_to_account=False,
-    )
-
-
-async def join_private_group(
-    db: AsyncSession,
-    group_id: int,
-    guardian_name: str,
-    child_count: int,
-    principal: Principal,
-) -> JoinGroupResponse:
-    """Authenticated-only join-link target for a `PRIVATE` group — the
-    group-scoped twin of `create_rsvp`, except it requires a real,
-    account-backed principal and creates a standing `Membership` rather than
-    a per-term `TermAttendance`. A principal that doesn't resolve to a real
-    `UserProfile` (via `get_profile_by_principal`) is treated the same as
-    "not authenticated" for this operation — there is no anonymous fallback,
-    unlike `create_rsvp`. Idempotent: a party that's already an active member
-    is returned as-is rather than duplicated. `child_count` is echoed back in
-    the response but, unlike `TermAttendance`, isn't persisted anywhere on
-    `Membership` — group-level membership has no per-term attendance count to
-    store."""
-    group = await get_group(db, group_id)
-    if group.visibility != GroupVisibility.PRIVATE:
-        raise EntityNotFoundException("Group", group_id)
-
-    try:
-        profile = await get_profile_by_principal(db, principal)
-    except EntityNotFoundException:
-        raise AuthenticationRequiredException from None
-
-    if not await _is_active_member(db, group_id, profile.party_id):
-        role = await get_or_create_active_group_role(db, profile.party_id, GroupRoleType.MEMBER)
-        membership = Membership(
-            from_role_id=cast(int, role.id),
-            to_group_id=group_id,
-            valid_from=date.today(),
-            valid_to=None,
-        )
-        db.add(membership)
-        await db.commit()
-        await db.refresh(membership)
-    else:
-        active = await repository.list_active_memberships_for_group(db, group_id)
-        found: Membership | None = None
-        for m in active:
-            if await _group_role_party_id(db, m.from_role_id) == profile.party_id:
-                found = m
-                break
-        assert found is not None  # guaranteed by _is_active_member just above
-        membership = found
-    return JoinGroupResponse(
-        membership_id=cast(int, membership.id),
-        group_id=group_id,
-        user_profile_id=cast(int, profile.id),
-        guardian_name=profile.display_name,
-        child_count=child_count,
-        attached_to_account=True,
     )

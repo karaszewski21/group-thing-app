@@ -15,27 +15,23 @@ from app.users.service import get_profile_by_principal
 
 from ..infrastructure import repository
 from ..models import Group, GroupRoleType, Membership
-from ..schemas import CreateMembershipRequest, TermAttendeeResponse
+from ..schemas import TermAttendeeResponse
 from .circles import _group_role_party_id, _require_active_organizer, get_group
 from .group_roles import get_or_create_active_group_role
 
 
-async def create_membership(
-    db: AsyncSession, principal: Principal, data: CreateMembershipRequest
-) -> Membership:
-    profile = await get_profile_by_principal(db, principal)
-    await get_group(db, data.group_id)
-
-    role = await get_or_create_active_group_role(db, profile.party_id, GroupRoleType.MEMBER)
+async def add_active_membership(db: AsyncSession, group_id: int, party_id: int) -> Membership:
+    """Flushes (never commits) a new active `Membership` of `party_id` in
+    `group_id`. The caller checks "already a member" and owns the commit."""
+    role = await get_or_create_active_group_role(db, party_id, GroupRoleType.MEMBER)
     membership = Membership(
         from_role_id=cast(int, role.id),
-        to_group_id=data.group_id,
-        valid_from=data.valid_from,
+        to_group_id=group_id,
+        valid_from=date.today(),
         valid_to=None,
     )
     db.add(membership)
-    await db.commit()
-    await db.refresh(membership)
+    await db.flush()
     return membership
 
 
@@ -147,15 +143,7 @@ async def formalize_group_from_term(
     selected_party_ids = (eligible_party_ids & set(party_ids)) - already_member_party_ids
 
     for party_id in selected_party_ids:
-        role = await get_or_create_active_group_role(db, party_id, GroupRoleType.MEMBER)
-        db.add(
-            Membership(
-                from_role_id=cast(int, role.id),
-                to_group_id=group_id,
-                valid_from=date.today(),
-                valid_to=None,
-            )
-        )
+        await add_active_membership(db, group_id, party_id)
 
     await db.commit()
     await db.refresh(group)

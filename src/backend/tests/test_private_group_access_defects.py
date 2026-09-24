@@ -76,8 +76,8 @@ async def test_getGroupAccess_privateGroupOrganizer_returnsFullTermContent(
     assert response.status_code == 200
     body = response.json()
     assert body["access"]["can_view_content"] is True
-    assert body["group"]["next_term"] is not None
-    assert body["group"]["next_term"]["id"] == term_id
+    assert body["group"]["term"] is not None
+    assert body["group"]["term"]["id"] == term_id
 
 
 async def test_getGroupAccess_privateGroupOrganizerUnknownTermId_returns404(
@@ -108,7 +108,7 @@ async def test_getGroupAccess_privateGroupOutsider_keepsReducedResponse(
     assert response.status_code == 200
     body = response.json()
     assert body["access"]["can_view_content"] is False
-    assert body["group"]["next_term"] is None
+    assert body["group"]["term"] is None
     assert body["group"]["guardians"] == []
 
 

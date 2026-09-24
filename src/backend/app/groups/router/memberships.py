@@ -1,17 +1,17 @@
-"""`/api/memberships` routes — create / end a circle membership."""
+"""`/api/memberships` routes — end a circle membership."""
 
 from __future__ import annotations
 
 from datetime import date
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.auth_deps import Principal, require_any
 from app.db import get_db
 from app.groups import service
-from app.groups.schemas import CreateMembershipRequest, MembershipResponse
+from app.groups.schemas import MembershipResponse
 
 router = APIRouter(tags=["groups"])
 
@@ -20,17 +20,6 @@ EditPrincipal = Annotated[Principal, Depends(require_any("EDIT", "mcp:edit"))]
 
 
 # --- Membership ----------------------------------------------------------------
-
-
-@router.post(
-    "/api/memberships", response_model=MembershipResponse, status_code=status.HTTP_201_CREATED
-)
-async def create_membership(
-    body: CreateMembershipRequest, db: DbSession, principal: EditPrincipal
-) -> MembershipResponse:
-    membership = await service.create_membership(db, principal, body)
-    rows = await service.build_membership_responses(db, [membership])
-    return MembershipResponse(**rows[0])
 
 
 @router.post("/api/memberships/{membership_id}/end", response_model=MembershipResponse)

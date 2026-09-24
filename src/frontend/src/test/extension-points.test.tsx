@@ -9,6 +9,7 @@ import { MENU_MAIN, PRODUCT_DETAIL_TABS, PRODUCT_LIST_FILTERS } from "../plugins
 import * as pluginsApi from "../api/plugins";
 import * as productsApi from "../api/products";
 import * as categoriesApi from "../api/categories";
+import { createQueryWrapper } from "./queryClient";
 
 vi.mock("../auth/AuthContext", async (importOriginal) => {
   const actual = await importOriginal<typeof import("../auth/AuthContext")>();
@@ -106,7 +107,7 @@ function renderWithProviders(ui: React.ReactElement, initialRoute = "/") {
   return render(
     <ChakraProvider value={system}>
       <MemoryRouter initialEntries={[initialRoute]}>{ui}</MemoryRouter>
-    </ChakraProvider>,
+    </ChakraProvider>, { wrapper: createQueryWrapper() },
   );
 }
 
@@ -157,7 +158,7 @@ describe("ProductDetailPage", () => {
             </Routes>
           </MemoryRouter>
         </PluginProvider>
-      </ChakraProvider>,
+      </ChakraProvider>, { wrapper: createQueryWrapper() },
     );
 
     // Product info should load
@@ -214,7 +215,7 @@ describe("Plugin page route", () => {
             </Routes>
           </MemoryRouter>
         </PluginProvider>
-      </ChakraProvider>,
+      </ChakraProvider>, { wrapper: createQueryWrapper() },
     );
 
     // Wait for plugins to load and iframe to render
@@ -244,7 +245,7 @@ describe("ProductDetailPage with no plugins", () => {
             </Routes>
           </MemoryRouter>
         </PluginProvider>
-      </ChakraProvider>,
+      </ChakraProvider>, { wrapper: createQueryWrapper() },
     );
 
     // Product info should load

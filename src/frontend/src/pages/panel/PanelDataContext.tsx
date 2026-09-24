@@ -21,17 +21,20 @@ import {
   type GuardianResponse,
 } from "../../api/families";
 import {
+  approveJoinRequest,
   createAdditionalMyCircle,
-  createMyCircle,
   endLeadership,
   getGroup,
   getMyAttendances,
+  listMyPendingJoinRequests,
+  rejectJoinRequest,
   updateGroupLayoutMode,
   type GroupLayoutMode,
   type GroupResponse,
   type GroupVisibility,
   type LeadershipResponse,
   type MyAttendanceResponse,
+  type PendingJoinRequestResponse,
 } from "../../api/groups";
 import {
   ACTIVE_LOCK_BALANCE_STATUSES,
@@ -146,7 +149,21 @@ export interface PendingConfirmAction {
   termId: number | null;
 }
 
-export type PendingAction = PendingSwapAction | PendingConfirmAction;
+/** A PENDING request to join a group the caller organizes. Sourced from the
+ * server's pending list rather than from notifications, so it stays until
+ * decided even when its `GROUP_JOIN_REQUESTED` notification was read. */
+export interface PendingJoinRequestAction {
+  kind: "GROUP_JOIN_REQUESTED";
+  joinRequestId: number;
+  groupId: number;
+  groupName: string;
+  requesterName: string;
+  createdAt: string;
+}
+
+export type PendingAction = PendingSwapAction | PendingConfirmAction | PendingJoinRequestAction;
+
+export type JoinRequestDecision = "approve" | "reject";
 
 const TERM_LINK_PATH_RE = /\/term\/(\d+)$/;
 
@@ -263,6 +280,16 @@ function usePanelDataValue() {
   // a generic error toast per spec.md Requirement 3.
   const [pendingActionBusyId, setPendingActionBusyId] = useState<number | null>(null);
   const [alreadyResolvedIds, setAlreadyResolvedIds] = useState<ReadonlySet<number>>(new Set());
+  // Organizer join-request actions, keyed by `joinRequestId`. The "Później"
+  // hidden set is deliberately never cleared by `load()`: it lasts until the
+  // provider remounts.
+  const [pendingJoinRequests, setPendingJoinRequests] = useState<PendingJoinRequestResponse[]>([]);
+  const [hiddenJoinRequestIds, setHiddenJoinRequestIds] = useState<ReadonlySet<number>>(new Set());
+  const [joinRequestBusy, setJoinRequestBusy] = useState<
+    { joinRequestId: number; decision: JoinRequestDecision } | null
+  >(null);
+  const [resolvedJoinRequestIds, setResolvedJoinRequestIds] = useState<ReadonlySet<number>>(new Set());
+  const [joinRequestErrorId, setJoinRequestErrorId] = useState<number | null>(null);
   // Inline "Mój dom" family rename (D4 / TC4) — no dedicated modal.
   const [renamingFamily, setRenamingFamily] = useState(false);
   const [familyNameDraft, setFamilyNameDraft] = useState("");
@@ -532,6 +559,14 @@ function usePanelDataValue() {
       } catch {
         setNotifications([]);
       }
+      try {
+        const pendingRequests = await listMyPendingJoinRequests();
+        setPendingJoinRequests(Array.isArray(pendingRequests) ? pendingRequests : []);
+      } catch (err) {
+        // Non-blocking: the panel still works, only the pending-request cards are missing.
+        console.error("Nie udało się wczytać próśb o dostęp", err);
+        setPendingJoinRequests([]);
+      }
 
       let relevantGroups: GroupResponse[];
       if (activeLeaderships.length > 0) {
@@ -648,12 +683,11 @@ function usePanelDataValue() {
 
   /* ---------- global pending-actions modal (Group 7) ---------- */
 
-  // Derived, not fetched — every unread `SWAP_PROPOSED`/`TERM_CONFIRMATION_
-  // NEEDED` notification IS an outstanding pending action; nothing to
-  // reconcile beyond what the notification feed already carries.
+  // Swap/confirm actions are derived from unread notifications; join-request
+  // actions come from the server's pending list and follow them, oldest first.
   const pendingActions: PendingAction[] = useMemo(
-    () =>
-      notifications
+    () => [
+      ...notifications
         .filter((n) => n.read_at === null)
         .flatMap((n): PendingAction[] => {
           if (n.kind === "SWAP_PROPOSED") {
@@ -680,7 +714,20 @@ function usePanelDataValue() {
           }
           return [];
         }),
-    [notifications],
+      ...pendingJoinRequests
+        .filter((r) => !hiddenJoinRequestIds.has(r.id))
+        .map(
+          (r): PendingJoinRequestAction => ({
+            kind: "GROUP_JOIN_REQUESTED",
+            joinRequestId: r.id,
+            groupId: r.group_id,
+            groupName: r.group_name,
+            requesterName: r.requester_display_name,
+            createdAt: r.created_at,
+          }),
+        ),
+    ],
+    [notifications, pendingJoinRequests, hiddenJoinRequestIds],
   );
 
   /** Marks the underlying notification read (optimistic, same pattern as
@@ -808,6 +855,54 @@ function usePanelDataValue() {
       }
     } finally {
       setPendingActionBusyId(null);
+    }
+  }
+
+  /** "Później" / ✕ — session-only; no server call, no notification change. */
+  function hideJoinRequest(joinRequestId: number) {
+    setHiddenJoinRequestIds((prev) => new Set(prev).add(joinRequestId));
+    setResolvedJoinRequestIds((prev) => {
+      if (!prev.has(joinRequestId)) return prev;
+      const next = new Set(prev);
+      next.delete(joinRequestId);
+      return next;
+    });
+    setJoinRequestErrorId((prev) => (prev === joinRequestId ? null : prev));
+  }
+
+  function acknowledgeResolvedJoinRequest(joinRequestId: number) {
+    hideJoinRequest(joinRequestId);
+    void load({ silent: true });
+  }
+
+  async function decideJoinRequest(action: PendingJoinRequestAction, decision: JoinRequestDecision) {
+    const { joinRequestId, groupId } = action;
+    setJoinRequestBusy({ joinRequestId, decision });
+    setJoinRequestErrorId(null);
+    try {
+      if (decision === "approve") await approveJoinRequest(groupId, joinRequestId);
+      else await rejectJoinRequest(groupId, joinRequestId);
+      const linked = notifications.find(
+        (n) => n.kind === "GROUP_JOIN_REQUESTED" && n.join_request_id === joinRequestId && n.read_at === null,
+      );
+      if (linked) {
+        setNotifications((prev) =>
+          prev.map((n) => (n.id === linked.id ? { ...n, read_at: new Date().toISOString() } : n)),
+        );
+        void markNotificationRead(linked.id).catch(() => undefined);
+      }
+      await load({ silent: true });
+      showToast(decision === "approve" ? "Prośba zatwierdzona" : "Prośba odrzucona");
+    } catch (err) {
+      // Any 409 means someone (the requester, another organizer, another tab)
+      // already moved the request out of PENDING.
+      if (err instanceof ApiError && err.status === 409) {
+        setResolvedJoinRequestIds((prev) => new Set(prev).add(joinRequestId));
+      } else {
+        setJoinRequestErrorId(joinRequestId);
+      }
+    } finally {
+      setJoinRequestBusy(null);
     }
   }
 
@@ -1170,7 +1265,8 @@ function usePanelDataValue() {
         }));
       } else {
         setGroupExtras((prev) => {
-          const { [group.id]: _removed, ...rest } = prev;
+          const rest = { ...prev };
+          delete rest[group.id];
           return rest;
         });
       }
@@ -1334,6 +1430,12 @@ function usePanelDataValue() {
     acceptPendingSwap,
     rejectPendingSwap,
     confirmPendingAction,
+    joinRequestBusy,
+    resolvedJoinRequestIds,
+    joinRequestErrorId,
+    hideJoinRequest,
+    acknowledgeResolvedJoinRequest,
+    decideJoinRequest,
     renamingFamily,
     familyNameDraft,
     renameError,
@@ -1455,6 +1557,7 @@ function GlobalPendingActionsModal({ value }: { value: PanelDataContextValue }) 
   } = value;
   const action = pendingActions[0];
   if (!action) return null;
+  if (action.kind === "GROUP_JOIN_REQUESTED") return <JoinRequestActionSheet action={action} value={value} />;
 
   const busy = pendingActionBusyId === action.notificationId;
   const alreadyResolved = alreadyResolvedIds.has(action.notificationId);
@@ -1538,6 +1641,85 @@ function GlobalPendingActionsModal({ value }: { value: PanelDataContextValue }) 
             Później
           </button>
         </div>
+      )}
+    </ModalSheet>
+  );
+}
+
+function JoinRequestActionSheet({
+  action,
+  value,
+}: {
+  action: PendingJoinRequestAction;
+  value: PanelDataContextValue;
+}) {
+  const {
+    joinRequestBusy,
+    resolvedJoinRequestIds,
+    joinRequestErrorId,
+    hideJoinRequest,
+    acknowledgeResolvedJoinRequest,
+    decideJoinRequest,
+  } = value;
+  const { joinRequestId } = action;
+  const busyDecision = joinRequestBusy?.joinRequestId === joinRequestId ? joinRequestBusy.decision : null;
+  const sentOn = new Date(action.createdAt).toLocaleDateString("pl-PL", { day: "numeric", month: "long" });
+
+  return (
+    <ModalSheet title="Prośba o dostęp" onClose={() => hideJoinRequest(joinRequestId)}>
+      <p className="text-sm text-ink">
+        {action.requesterName} prosi o dostęp do grupy <strong>„{action.groupName}”</strong>.
+      </p>
+      <p className="mt-1 text-xs text-ink-soft">Wysłano {sentOn}</p>
+
+      {resolvedJoinRequestIds.has(joinRequestId) ? (
+        <>
+          <p className="mt-3 text-sm font-semibold text-danger" role="alert">
+            Prośba została już rozstrzygnięta.
+          </p>
+          <button
+            type="button"
+            className="mt-3 rounded-full border border-line px-4 py-2 text-sm font-semibold text-ink-soft"
+            onClick={() => acknowledgeResolvedJoinRequest(joinRequestId)}
+          >
+            Rozumiem
+          </button>
+        </>
+      ) : (
+        <>
+          {joinRequestErrorId === joinRequestId && (
+            <p className="mt-3 text-sm font-semibold text-danger" role="alert">
+              Nie udało się zapisać decyzji — spróbuj ponownie
+            </p>
+          )}
+          <div className="mt-3 flex flex-wrap gap-2">
+            <button
+              type="button"
+              className="rounded-full bg-mint px-4 py-2 text-sm font-bold text-white disabled:opacity-60"
+              disabled={busyDecision !== null}
+              aria-busy={busyDecision !== null}
+              onClick={() => void decideJoinRequest(action, "approve")}
+            >
+              {busyDecision === "approve" ? "Zatwierdzanie…" : "Zatwierdź"}
+            </button>
+            <button
+              type="button"
+              className="rounded-full border border-line px-4 py-2 text-sm font-semibold text-ink-soft disabled:opacity-60"
+              disabled={busyDecision !== null}
+              aria-busy={busyDecision !== null}
+              onClick={() => void decideJoinRequest(action, "reject")}
+            >
+              {busyDecision === "reject" ? "Odrzucanie…" : "Odrzuć"}
+            </button>
+            <button
+              type="button"
+              className="rounded-full border border-line px-4 py-2 text-sm font-semibold text-ink-soft"
+              onClick={() => hideJoinRequest(joinRequestId)}
+            >
+              Później
+            </button>
+          </div>
+        </>
       )}
     </ModalSheet>
   );

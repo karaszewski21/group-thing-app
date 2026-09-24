@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useCallback } from "react";
 import type {
   ProductResponse,
   CreateProductRequest,
@@ -28,55 +29,67 @@ interface UseProductsParams {
   pluginFilters?: string[];
 }
 
-export function useProducts(params?: UseProductsParams): UseProductsResult {
-  const [data, setData] = useState<ProductResponse[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+const PRODUCTS_KEY = ["products"] as const;
+const NO_PRODUCTS: ProductResponse[] = [];
 
+function errorMessage(err: Error): string {
+  return err.message || "Failed to load products";
+}
+
+export function useProducts(params?: UseProductsParams): UseProductsResult {
+  const queryClient = useQueryClient();
   const categoryId = params?.category_id;
   const search = params?.search;
   const sortField = params?.sortField;
   const pluginFilters = params?.pluginFilters;
-  const pluginFiltersKey = pluginFilters?.join("\0") ?? "";
 
-  const refetch = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const products = await getProducts({
+  const query = useQuery({
+    queryKey: [...PRODUCTS_KEY, { categoryId, search, sortField, pluginFilters }],
+    queryFn: () =>
+      getProducts({
         category_id: categoryId,
         search: search,
         sort: sortField ? `${sortField},asc` : undefined,
         pluginFilters: pluginFilters,
-      });
-      setData(products);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to load products");
-    } finally {
-      setLoading(false);
-    }
-  }, [categoryId, search, sortField, pluginFiltersKey]);
+      }),
+  });
+  const { refetch: queryRefetch } = query;
 
-  useEffect(() => {
-    void refetch();
-  }, [refetch]);
+  const refetch = useCallback(async () => {
+    await queryRefetch();
+  }, [queryRefetch]);
+
+  // Invalidates every product list, not just this one's filter combination:
+  // a create/update/delete can move a product into or out of any of them.
+  const invalidate = useCallback(
+    () => queryClient.invalidateQueries({ queryKey: PRODUCTS_KEY }),
+    [queryClient],
+  );
 
   const create = useCallback(async (request: CreateProductRequest) => {
     const created = await apiCreateProduct(request);
-    await refetch();
+    await invalidate();
     return created;
-  }, [refetch]);
+  }, [invalidate]);
 
   const update = useCallback(async (id: number, request: UpdateProductRequest) => {
     const updated = await apiUpdateProduct(id, request);
-    await refetch();
+    await invalidate();
     return updated;
-  }, [refetch]);
+  }, [invalidate]);
 
   const remove = useCallback(async (id: number) => {
     await apiDeleteProduct(id);
-    await refetch();
-  }, [refetch]);
+    await invalidate();
+  }, [invalidate]);
 
-  return { data, loading, error, refetch, create, update, remove };
+  return {
+    data: query.data ?? NO_PRODUCTS,
+    loading: query.isPending,
+    error: query.error ? errorMessage(query.error) : null,
+    refetch,
+    create,
+    update,
+    remove,
+  };
 }

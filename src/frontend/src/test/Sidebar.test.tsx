@@ -47,6 +47,7 @@ function mockPlugins(menuItems: Array<{ pluginId: string; pluginName: string; pa
     getMenuItems: () =>
       menuItems.map((item) => ({
         ...item,
+        pluginUrl: "http://localhost:3001",
         type: "menu.main",
         priority: 0,
       })),
