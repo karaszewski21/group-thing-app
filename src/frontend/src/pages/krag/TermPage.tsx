@@ -427,11 +427,7 @@ function PublicTermView({
         <TermCard date={when?.date ?? null} time={when?.time} />
 
         {neededItemRows.length > 0 && (
-          <NeededItemsSection
-            heading="Potrzebne rzeczy"
-            subtitle="Zgłoś się, jeśli możesz coś przynieść na te zajęcia."
-            rows={neededItemRows}
-          />
+            <NeededItemsSection rows={neededItemRows}/>
         )}
 
         {term && <AttendeeList attendees={buildAttendees(circle, toListingRow)} activePartyId={activePartyId} />}

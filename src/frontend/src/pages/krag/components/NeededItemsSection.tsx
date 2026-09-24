@@ -6,9 +6,9 @@ function NeededItemRow({ row }: { row: NeededItemRowVM }) {
       <div className="kg-bring-row">
         <div className="kg-bring-body">
           {row.title}
-          {row.subtitle != null && <small>{row.subtitle}</small>}
         </div>
-        {row.inlineActions.map((a) => (
+        {row.subtitle != null && <small>{row.subtitle}</small>}
+        { row.inlineActions.map((a) => (
           <button
             key={a.key}
             className="kg-bring-btn"
@@ -28,18 +28,13 @@ function NeededItemRow({ row }: { row: NeededItemRowVM }) {
 /** "Potrzebne rzeczy" card — the Term's needed items and who brings each;
  * row data and click handlers come entirely from the caller. */
 export function NeededItemsSection({
-  heading,
-  subtitle,
   rows,
 }: {
-  heading: string;
-  subtitle?: string;
   rows: NeededItemRowVM[];
 }) {
   return (
     <section className="kg-bring" aria-labelledby="needed-items-heading">
-      <h2 id="needed-items-heading">{heading}</h2>
-      {subtitle && <p className="kg-bring-sub">{subtitle}</p>}
+      <p className="kg-bring-sub">Zgłoś się, jeśli możesz coś przynieść na te zajęcia.</p>
       <div className="kg-bring-list">
         {rows.map((row) => (
           <NeededItemRow key={row.key} row={row} />

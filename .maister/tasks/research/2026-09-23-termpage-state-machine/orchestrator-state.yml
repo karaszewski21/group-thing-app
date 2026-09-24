@@ -1,0 +1,54 @@
+orchestrator:
+  started_phase: phase-1
+  completed_phases: [phase-1, phase-2, phase-6]
+  skipped_phases: [phase-3, phase-4, phase-5]
+  failed_phases: []
+  auto_fix_attempts:
+    phase-1: 0
+  created: 2026-09-23T00:00:00Z
+  updated: 2026-09-23T00:00:00Z
+  task_path: .maister/tasks/research/2026-09-23-termpage-state-machine
+  task_ids: {}  # TaskCreate unavailable in this session
+
+task:
+  title: "State machine for TermPage"
+  description: "czy można do obecnej strony TermPage zastosować maszynę stanów?"
+  status: completed
+  tags: [frontend, react, state-machine, term-page]
+  priority: null
+
+research_context:
+  research_type: mixed
+  research_question: "Czy (i jak) można zastosować maszynę stanów do obecnej strony TermPage (src/frontend/src/pages/krag/TermPage.tsx)?"
+  scope:
+    included:
+      - "TermPage.tsx (PublicTermView + TermPage route element) and its components in pages/krag/components"
+      - "useTermAccess hook, AuthGateSheet, RsvpDialog/RsvpDialogLoggedIn, AccountMergeForm, SwapProposeDialog"
+      - "UI state flows: page load/access, sign-up (footer), pledge, take/swap, guest merge, toast, attendee selection"
+      - "Options: hand-rolled useReducer FSM, discriminated unions, XState v5, other small FSM libs"
+    excluded:
+      - "Backend changes"
+      - "Private term view (removed)"
+      - "Panel pages"
+    constraints:
+      - "React 19, TypeScript 5.9, Vite, Vitest + Testing Library; no state library currently installed"
+      - "Minimal-dependencies standard (global/conventions.md) and minimal-implementation standard"
+      - "Existing tests in src/test/TermPage.test.tsx must keep passing / be adaptable"
+  project_doc_paths:
+    - .maister/docs/project/architecture.md
+    - .maister/docs/project/tech-stack.md
+  methodology: [codebase-reverse-engineering, impossible-state-matrix, race-analysis, per-flow-cost-benefit, weighted-technique-comparison]
+  sources: [codebase, project-standards, react-docs, xstate-docs, bundlephobia]
+  confidence_level: high
+  gathering_strategy:
+    categories: [codebase-termpage-state, codebase-conventions, external-fsm-options]
+    count: 3
+    source: planner
+  phase_summaries:
+    phase-1:
+      summary: "PARTIAL YES: useReducer + discriminated unions (no dep) for overlays, take/swap, in-flight sets; XState not recommended (89 vs 69 weighted). ~15 reachable bugs (S1 merge key never reset, R2 failed refetch -> Nie znaleziono, R5 unhandled rejection); ~half need non-FSM fixes (route key, useTermAccess status union + request token, try/catch, party-id compare)."
+      steps_completed: [initialize, plan, gather, synthesize]
+
+options:
+  brainstorming_enabled: false
+  design_enabled: false

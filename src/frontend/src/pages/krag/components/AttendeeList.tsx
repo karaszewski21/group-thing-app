@@ -10,7 +10,7 @@ export interface AttendeeVM {
 
 function ListingRow({ row }: { row: ListingRowVM }) {
   return (
-    <div className="kg-bring-item">
+    <div className="kg-bring-item flex">
       <div className="kg-bring-body">
         {row.title}
         {row.subtitle != null && <small>{row.subtitle}</small>}
@@ -48,7 +48,6 @@ export function AttendeeList({
 }) {
   return (
     <section className="kg-bring" aria-labelledby="attendees-heading">
-      <h2 id="attendees-heading">Zapisani na zajęcia</h2>
       <p className="kg-bring-sub">Rzeczy, które uczestnicy oferują do pożyczenia, zamiany lub oddania.</p>
       <ul className="kg-bring-list" style={{ listStyle: "none", padding: 0 }}>
         {attendees.length === 0 && <li className="kg-bring-empty">Nikt jeszcze się nie zapisał.</li>}
@@ -59,7 +58,7 @@ export function AttendeeList({
             tabIndex={-1}
             className={`kg-attendee ${attendee.partyId === activePartyId ? "is-on" : ""}`}
           >
-            <div className="kg-attendee-head">
+            <div className="kg-attendee-head ">
               <Avatar name={attendee.name} showsSharesIcon={attendee.listings.length > 0} />
               <strong>{attendee.name}</strong>
             </div>
