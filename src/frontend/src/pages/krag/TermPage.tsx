@@ -420,6 +420,7 @@ function PublicTermView({
           organizerName={circle.organizer_display_name ?? ""}
           families={visualizationPeople}
           activeFamilyId={activePartyId}
+          neededItemRows={neededItemRows}
           onSelectFamily={handleSelectAttendee}
           groupId={groupId}
         />

@@ -7,6 +7,7 @@ import {
 } from "../../utils/layoutPositions";
 import { Avatar } from "../../components/shared/Avatar";
 import { BringsIcon, SharesIcon } from "../../components/shared/Icons";
+import type { NeededItemRowVM } from "./components/termSectionTypes";
 
 export type GroupLayoutMode = "CIRCLE" | "PITCH" | "TABLE";
 
@@ -26,6 +27,7 @@ export interface GroupVisualizationProps {
    * "trenerka" above the PITCH, and the top node above the TABLE. */
   organizerName: string;
   families: VisualizationFamily[];
+  neededItemRows: NeededItemRowVM[]
   activeFamilyId: number | string | null;
   onSelectFamily: (familyId: number) => void;
   /** Seeds the deterministic PITCH/TABLE family→slot shuffle
@@ -63,6 +65,7 @@ function FamilySlot({ family, active, style, onSelectFamily }: FamilySlotProps) 
 
 interface LayoutProps {
   families: VisualizationFamily[];
+  neededItemRows: NeededItemRowVM[]
   organizerName: string;
   activeFamilyId: number | string | null;
   onSelectFamily: (familyId: number) => void;
@@ -136,6 +139,7 @@ function CircleLayout({ families, organizerName, activeFamilyId, onSelectFamily 
 function PitchLayout({
   families,
   organizerName,
+  neededItemRows,
   activeFamilyId,
   onSelectFamily,
   groupId,
@@ -200,6 +204,7 @@ function TableLayout({
   families,
   organizerName,
   activeFamilyId,
+  neededItemRows,
   onSelectFamily,
   groupId,
 }: LayoutProps & { groupId: number | string }) {
@@ -225,12 +230,12 @@ function TableLayout({
           style={{ background: "#e7cfa8", border: "6px solid var(--ink)" }}
           data-testid="table-chips"
         >
-          {TABLE_CHIPS.map((chip) => (
+          {neededItemRows.map((chip) => (
             <span
-              key={chip.label}
+              key={chip.key}
               className="bg-white rounded-2xl px-3.5 py-1.5 text-[12px] font-bold text-[var(--ink)] shadow-[0_4px_8px_rgba(0,0,0,0.12)] flex items-center gap-1.5"
             >
-              {chip.emoji} {chip.label}
+              {chip.title}
             </span>
           ))}
         </div>
@@ -286,6 +291,7 @@ export function GroupVisualization({
   layoutMode,
   organizerName,
   families,
+  neededItemRows,
   activeFamilyId,
   onSelectFamily,
   groupId,
@@ -295,6 +301,7 @@ export function GroupVisualization({
       {layoutMode === "CIRCLE" && (
         <CircleLayout
           families={families}
+          neededItemRows={neededItemRows}
           organizerName={organizerName}
           activeFamilyId={activeFamilyId}
           onSelectFamily={onSelectFamily}
@@ -304,6 +311,7 @@ export function GroupVisualization({
         <PitchLayout
           families={families}
           organizerName={organizerName}
+          neededItemRows={neededItemRows}
           activeFamilyId={activeFamilyId}
           onSelectFamily={onSelectFamily}
           groupId={groupId}
@@ -312,6 +320,7 @@ export function GroupVisualization({
       {layoutMode === "TABLE" && (
         <TableLayout
           families={families}
+          neededItemRows={neededItemRows}
           organizerName={organizerName}
           activeFamilyId={activeFamilyId}
           onSelectFamily={onSelectFamily}

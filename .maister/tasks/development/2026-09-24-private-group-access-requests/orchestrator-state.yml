@@ -1,6 +1,6 @@
 orchestrator:
   started_phase: phase-1
-  completed_phases: [phase-1, phase-2, phase-3, phase-4]
+  completed_phases: [phase-1, phase-2, phase-3, phase-4, phase-5, phase-6, phase-7]
   tdd_red_passed: true
   failed_phases: []
   auto_fix_attempts: {}
@@ -13,6 +13,7 @@ orchestrator:
     pragmatic_review_enabled: true
     reality_check_enabled: true
     production_check_enabled: true
+    sequential: false
   created: "2026-09-24T00:00:00Z"
   updated: "2026-09-24T00:00:00Z"
   task_path: .maister/tasks/development/2026-09-24-private-group-access-requests
@@ -41,7 +42,7 @@ task_context:
   risk_level: medium-high
   clarifications_resolved: true
   scope_expanded: true  # D-1: organizer pending join-requests endpoint
-  architecture_decision: null
+  architecture_decision: "TermPage thin switch on TermAccess union via pure resolveTermAccess; view=PublicTermView (S4 fix); gate=PrivateGroupGate; backend GroupJoinRequest per SwapProposal template"
   task_characteristics:
     has_reproducible_defect: true
     modifies_existing_code: true
@@ -94,5 +95,8 @@ task_context:
     ui_mockups:
       components_designed: [PrivateGroupGate, RequestAccessDialog, PendingJoinRequestAction in GlobalPendingActionsModal, bell join notifications]
       summary: "See analysis/design-context/ascii/ui-mockups.md"
-    specification: {summary: null}
-    architecture_decision: {decision: null, summary: null}
+    specification:
+      summary: "16 requirements (R1-R16: 10 backend, 6 frontend), 11 binding mockup refs. Endpoints: POST /api/groups/public/{gid}/join-requests (+/{rid}/withdraw) AUTHENTICATED row; GET /api/groups/mine/join-requests (organizer cross-group list, row 26); POST /api/groups/{gid}/join-requests/{rid}/approve|reject (row 27). Migrations 0037/0038. User confirmed: per-group list GET /api/groups/{gid}/join-requests reinstated (backend-only); duplicate create returns 201 with existing row; decision record S-1..S-6."
+    architecture_decision:
+      decision: "Same TermPage route, thin TermAccess switch"
+      summary: "Decided in research + clarifications; no alternative approaches presented in Phase 5 Part A."
