@@ -11,12 +11,11 @@ from typing import cast
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.circulation.application.inventory import (
-    get_inventory,
     get_or_create_personal_inventory,
     get_or_create_virtual_inventory,
 )
 from app.circulation.application.inventory_items import get_item, get_item_balance
-from app.circulation.application.reservations import get_reservation
+from app.circulation.application.reservations import _current_holder_user_id, get_reservation
 from app.circulation.domain.constants import _DEFAULT_LEND_DAYS, _POSTED_AMOUNT
 from app.circulation.domain.reservation_rules import (
     _require_holder_to_confirm,
@@ -32,16 +31,6 @@ from app.circulation.models import (
 )
 from app.core.errors import BusinessConflictException
 from app.product import service as product_service
-
-
-async def _current_holder_user_id(db: AsyncSession, item: InventoryItem) -> int:
-    """Who currently physically holds this item — the party a fulfillment
-    now credits. `item.inventory_id` always reflects the current physical
-    location: the borrower's VIRTUAL inventory during a `LEND`, or the
-    owner's PERSONAL inventory otherwise (including post-`SWAP`/`GIFT`) —
-    so the holder is simply that inventory's owner."""
-    inventory = await get_inventory(db, item.inventory_id)
-    return inventory.owner_user_id
 
 
 async def _load_reservation_for_transition(

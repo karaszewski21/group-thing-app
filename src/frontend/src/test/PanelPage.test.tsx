@@ -13,7 +13,6 @@ import * as familiesApi from "../api/families";
 import * as groupsApi from "../api/groups";
 import type { BrowseTermItemListingResponse } from "../api/termItemListings";
 import * as inventoriesApi from "../api/inventories";
-import * as itemListingPreferencesApi from "../api/itemListingPreferences";
 import * as productsApi from "../api/products";
 import * as termsApi from "../api/terms";
 import * as organizationsApi from "../api/organizations";
@@ -84,6 +83,7 @@ vi.mock("../api/inventories", () => ({
   createInventory: vi.fn(),
   getInventories: vi.fn(),
   getInventoryItems: vi.fn(),
+  getMyInventoryItems: vi.fn(),
   registerInventoryItem: vi.fn(),
   updateInventoryItem: vi.fn(),
   deleteInventoryItem: vi.fn(),
@@ -100,7 +100,6 @@ vi.mock("../api/inventories", () => ({
 }));
 
 vi.mock("../api/itemListingPreferences", () => ({
-  getMyItemListingPreferences: vi.fn(),
   setItemListingPreference: vi.fn(),
 }));
 
@@ -345,9 +344,8 @@ function mockGuestDefaults() {
   vi.mocked(peopleApi.getMyProfile).mockResolvedValue(mockProfile);
   vi.mocked(peopleApi.getLeadershipsForPerson).mockResolvedValue([]);
   vi.mocked(inventoriesApi.getInventories).mockResolvedValue([mockInventory]);
-  vi.mocked(inventoriesApi.getInventoryItems).mockResolvedValue([]);
+  vi.mocked(inventoriesApi.getMyInventoryItems).mockResolvedValue([]);
   vi.mocked(inventoriesApi.getInventoryItemBalances).mockResolvedValue({});
-  vi.mocked(itemListingPreferencesApi.getMyItemListingPreferences).mockResolvedValue([]);
   vi.mocked(productsApi.getProducts).mockResolvedValue([]);
   vi.mocked(familiesApi.getMyFamilies).mockResolvedValue([]);
   vi.mocked(familiesApi.getMembershipsForFamily).mockResolvedValue([]);
@@ -365,9 +363,8 @@ function mockOrganizerDefaults() {
     { id: 1, from_role_id: 1, to_group_id: 5, organizer_party_id: 1, valid_from: "2026-01-01", valid_to: null },
   ]);
   vi.mocked(inventoriesApi.getInventories).mockResolvedValue([mockInventory]);
-  vi.mocked(inventoriesApi.getInventoryItems).mockResolvedValue([]);
+  vi.mocked(inventoriesApi.getMyInventoryItems).mockResolvedValue([]);
   vi.mocked(inventoriesApi.getInventoryItemBalances).mockResolvedValue({});
-  vi.mocked(itemListingPreferencesApi.getMyItemListingPreferences).mockResolvedValue([]);
   vi.mocked(productsApi.getProducts).mockResolvedValue([]);
   vi.mocked(groupsApi.getGroup).mockResolvedValue(mockGroup);
   vi.mocked(groupsApi.getTermAttendeesForFormalization).mockResolvedValue([]);
@@ -1735,6 +1732,7 @@ describe("PanelPage — inventory item edit/delete", () => {
     added_at: "",
     created_at: "",
     updated_at: "",
+    listing_mode: null,
   };
   const product = {
     id: 7,
@@ -1750,9 +1748,29 @@ describe("PanelPage — inventory item edit/delete", () => {
 
   function mockItems() {
     mockGuestDefaults();
-    vi.mocked(inventoriesApi.getInventoryItems).mockResolvedValue([invItem]);
+    vi.mocked(inventoriesApi.getMyInventoryItems).mockResolvedValue([invItem]);
     vi.mocked(productsApi.getProducts).mockResolvedValue([product]);
   }
+
+  it("seeds each item's mode toggle from its listing_mode in 'Moje rzeczy'", async () => {
+    mockGuestDefaults();
+    vi.mocked(inventoriesApi.getMyInventoryItems).mockResolvedValue([
+      { ...invItem, listing_mode: "GIFT" },
+    ]);
+    vi.mocked(productsApi.getProducts).mockResolvedValue([product]);
+    renderPanel();
+
+    fireEvent.click(await screen.findByRole("button", { name: "Moje rzeczy" }));
+
+    expect(await screen.findByRole("button", { name: "Oddam" })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+    expect(screen.getByRole("button", { name: "Wypożyczę" })).toHaveAttribute(
+      "aria-pressed",
+      "false",
+    );
+  });
 
   it("edits an item's condition inline in 'Moje rzeczy'", async () => {
     mockItems();
@@ -2054,7 +2072,7 @@ describe("PanelPage — Group 7 global pending-actions modal", () => {
     });
     renderPanel();
 
-    const initialItemsCalls = vi.mocked(inventoriesApi.getInventoryItems).mock.calls.length;
+    const initialItemsCalls = vi.mocked(inventoriesApi.getMyInventoryItems).mock.calls.length;
     const dialog = await screen.findByRole("dialog", { name: "Propozycja zamiany" });
     expect(within(dialog).queryByRole("button", { name: "Zobacz i zdecyduj" })).not.toBeInTheDocument();
     fireEvent.click(within(dialog).getByRole("button", { name: "Akceptuj" }));
@@ -2067,7 +2085,7 @@ describe("PanelPage — Group 7 global pending-actions modal", () => {
     // accepting a swap locks/reassigns items, so "Moje rzeczy" must
     // silently re-fetch rather than showing stale data until reload.
     await waitFor(() =>
-      expect(vi.mocked(inventoriesApi.getInventoryItems).mock.calls.length).toBeGreaterThan(
+      expect(vi.mocked(inventoriesApi.getMyInventoryItems).mock.calls.length).toBeGreaterThan(
         initialItemsCalls,
       ),
     );
@@ -2091,7 +2109,7 @@ describe("PanelPage — Group 7 global pending-actions modal", () => {
     });
     renderPanel();
 
-    const initialItemsCalls = vi.mocked(inventoriesApi.getInventoryItems).mock.calls.length;
+    const initialItemsCalls = vi.mocked(inventoriesApi.getMyInventoryItems).mock.calls.length;
     const dialog = await screen.findByRole("dialog", { name: "Propozycja zamiany" });
     fireEvent.click(within(dialog).getByRole("button", { name: "Odrzuć" }));
 
@@ -2103,7 +2121,7 @@ describe("PanelPage — Group 7 global pending-actions modal", () => {
     // proposer's self-locked item back to AVAILABLE, which "Moje rzeczy"
     // must reflect without a manual reload.
     await waitFor(() =>
-      expect(vi.mocked(inventoriesApi.getInventoryItems).mock.calls.length).toBeGreaterThan(
+      expect(vi.mocked(inventoriesApi.getMyInventoryItems).mock.calls.length).toBeGreaterThan(
         initialItemsCalls,
       ),
     );
@@ -2208,16 +2226,16 @@ describe("PanelPage — Group 7 global pending-actions modal", () => {
     renderPanel();
 
     const dialog = await screen.findByRole("dialog", { name: "Potwierdź transakcję" });
-    await waitFor(() => expect(inventoriesApi.getInventoryItems).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(inventoriesApi.getMyInventoryItems).toHaveBeenCalledTimes(1));
 
     fireEvent.click(within(dialog).getByRole("button", { name: "Potwierdź" }));
 
     await waitFor(() =>
       expect(reservationsApi.confirmTransaction).toHaveBeenCalledWith(77, { term_id: 9 }),
     );
-    // A second `getInventoryItems` call is the signal that `load({ silent: true })`
+    // A second `getMyInventoryItems` call is the signal that `load({ silent: true })`
     // re-ran after the confirm, not just `dismissPendingAction`.
-    await waitFor(() => expect(inventoriesApi.getInventoryItems).toHaveBeenCalledTimes(2));
+    await waitFor(() => expect(inventoriesApi.getMyInventoryItems).toHaveBeenCalledTimes(2));
   });
 
   // Bug #3 (cache refresh, structural fix): PanelDataContext gains a
@@ -2530,11 +2548,12 @@ describe("PanelPage — RzeczyView post-term-end fallback buttons (Bug #4c, full
     added_at: "",
     created_at: "",
     updated_at: "",
+    listing_mode: null,
   };
 
   it("dismissing the global confirm prompt still leaves the tile's own 'Odebrał' fallback usable — clicking it confirms the transaction and silently refreshes the panel", async () => {
     mockGuestDefaults();
-    vi.mocked(inventoriesApi.getInventoryItems).mockResolvedValue([lockedItem]);
+    vi.mocked(inventoriesApi.getMyInventoryItems).mockResolvedValue([lockedItem]);
     vi.mocked(inventoriesApi.getInventoryItemBalances).mockResolvedValue({
       [lockedItem.id]: { status: "IN_TRANSIT", reservationId: 88 },
     });
@@ -2586,7 +2605,7 @@ describe("PanelPage — RzeczyView post-term-end fallback buttons (Bug #4c, full
     );
 
     fireEvent.click(await screen.findByRole("button", { name: "Moje rzeczy" }));
-    await waitFor(() => expect(inventoriesApi.getInventoryItems).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(inventoriesApi.getMyInventoryItems).toHaveBeenCalledTimes(1));
 
     const odebral = await screen.findByRole("button", { name: "Odebrał" });
     fireEvent.click(odebral);
@@ -2594,10 +2613,10 @@ describe("PanelPage — RzeczyView post-term-end fallback buttons (Bug #4c, full
     await waitFor(() =>
       expect(reservationsApi.confirmTransaction).toHaveBeenCalledWith(88, { term_id: 9 }),
     );
-    // A second `getInventoryItems` call is the signal that `load({ silent:
+    // A second `getMyInventoryItems` call is the signal that `load({ silent:
     // true })` re-ran after the confirm (same convention as Bug #3's own
     // TERM_CONFIRMATION_NEEDED refresh test above).
-    await waitFor(() => expect(inventoriesApi.getInventoryItems).toHaveBeenCalledTimes(2));
+    await waitFor(() => expect(inventoriesApi.getMyInventoryItems).toHaveBeenCalledTimes(2));
   });
 });
 

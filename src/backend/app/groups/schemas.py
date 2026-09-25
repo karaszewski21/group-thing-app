@@ -461,6 +461,24 @@ class ItemListingPreferenceResponse(BaseModel):
     updated_at: datetime
 
 
+class MyInventoryItemResponse(BaseModel):
+    """One row of `GET /api/inventory-items/mine` — an item the caller
+    currently owns (their PERSONAL inventory) together with its standing
+    `ItemListingPreference.mode` (`None` = not offered), so `Moje rzeczy`
+    only ever shows and seeds toggles for the caller's own items."""
+
+    id: int
+    inventory_id: int
+    home_inventory_id: int | None
+    product_id: int
+    product_name: str
+    condition: ItemCondition
+    added_at: datetime
+    created_at: datetime
+    updated_at: datetime
+    listing_mode: ReservationType | None
+
+
 class BrowseTermItemListingResponse(BaseModel):
     """One row of "Twoje wystawione rzeczy" (`list_my_term_item_listings`)
     or "Rzeczy od innych" (`list_browsable_term_item_listings`) — one

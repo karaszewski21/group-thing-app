@@ -1,8 +1,5 @@
 import { useState } from "react";
-import { getInventories, getInventoryItemBalance, getInventoryItems } from "../../../api/inventories";
-import { getMyItemListingPreferences } from "../../../api/itemListingPreferences";
-import { getMyProfile } from "../../../api/people";
-import { getProducts } from "../../../api/products";
+import { getInventoryItemBalance, getMyInventoryItems } from "../../../api/inventories";
 import type { ReservationType } from "../../../api/reservations";
 import { proposeSwap, takeTermItemListing } from "../../../api/termItemListings";
 import type { AvailableItem } from "../components/SwapProposeDialog";
@@ -11,17 +8,7 @@ import { useAccountGate, type TermActionDeps } from "./useAccountGate";
 /** SWAP counter-offers may only use the viewer's own "zamienię"-tagged,
  * currently available items. */
 async function fetchMySwapItems(): Promise<AvailableItem[]> {
-  const [profile, products, preferences] = await Promise.all([
-    getMyProfile(),
-    getProducts(),
-    getMyItemListingPreferences(),
-  ]);
-  if (profile.account_user_id == null) return [];
-  const inventories = await getInventories(profile.account_user_id);
-  const personal = inventories.find((inv) => inv.inventory_type === "PERSONAL") ?? null;
-  if (!personal) return [];
-  const swapTaggedItemIds = new Set(preferences.filter((p) => p.mode === "SWAP").map((p) => p.item_id));
-  const items = (await getInventoryItems(personal.id)).filter((it) => swapTaggedItemIds.has(it.id));
+  const items = (await getMyInventoryItems()).filter((it) => it.listing_mode === "SWAP");
   const withStatus = await Promise.all(
     items.map(async (it) => ({ it, balance: await getInventoryItemBalance(it.id) })),
   );
@@ -29,7 +16,7 @@ async function fetchMySwapItems(): Promise<AvailableItem[]> {
     .filter(({ balance }) => balance.status === "AVAILABLE")
     .map(({ it }) => ({
       id: it.id,
-      productName: products.find((p) => p.id === it.product_id)?.name ?? `Rzecz #${it.id}`,
+      productName: it.product_name,
     }));
 }
 

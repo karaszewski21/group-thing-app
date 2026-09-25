@@ -20,9 +20,3 @@ export function setItemListingPreference(
 ): Promise<ItemListingPreferenceResponse | null> {
   return api.put(`/item-listing-preferences/${itemId}`, { mode });
 }
-
-/** All of the caller's own standing preferences — used to seed each item's
- * mode toggle in "Moje rzeczy" on load. */
-export function getMyItemListingPreferences(): Promise<ItemListingPreferenceResponse[]> {
-  return api.get("/item-listing-preferences/mine");
-}

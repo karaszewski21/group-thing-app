@@ -1,4 +1,5 @@
 import { api } from "./client";
+import type { ReservationType } from "./reservations";
 
 export type InventoryType = "PERSONAL" | "PICKUP_POINT" | "VIRTUAL";
 export type ItemCondition = "NEW" | "LIKE_NEW" | "GOOD" | "FAIR" | "POOR";
@@ -28,6 +29,12 @@ export interface InventoryItemResponse {
   added_at: string;
   created_at: string;
   updated_at: string;
+}
+
+/** One of the caller's own items (their PERSONAL inventory) with its
+ * standing lend/gift/swap mode — `null` when not offered. */
+export interface MyInventoryItemResponse extends InventoryItemResponse {
+  listing_mode: ReservationType | null;
 }
 
 export interface CreateInventoryItemRequest {
@@ -65,6 +72,12 @@ export function createInventory(request: CreateInventoryRequest): Promise<Invent
 
 export function getInventoryItems(inventoryId: number): Promise<InventoryItemResponse[]> {
   return api.get(`/inventory-items?inventory_id=${inventoryId}`);
+}
+
+/** "Moje rzeczy": only items the logged-in user currently owns — an item
+ * given or swapped away drops out, one received shows up with no mode. */
+export function getMyInventoryItems(): Promise<MyInventoryItemResponse[]> {
+  return api.get("/inventory-items/mine");
 }
 
 export function getInventoryItem(id: number): Promise<InventoryItemResponse> {

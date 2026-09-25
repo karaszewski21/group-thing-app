@@ -10,7 +10,7 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from sqlalchemy import Row, exists, func, or_, select
+from sqlalchemy import Row, exists, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.category.models import Category
@@ -452,23 +452,6 @@ async def get_active_swap_proposal_for_listing_item(
         .where(
             SwapProposal.listing_item_id == listing_item_id,
             SwapProposal.status.in_((SwapProposalStatus.PROPOSED, SwapProposalStatus.ACCEPTED)),
-        )
-        .order_by(SwapProposal.id.desc())
-    )
-    return result.scalars().first()
-
-
-async def get_swap_proposal_for_item(db: AsyncSession, item_id: int) -> SwapProposal | None:
-    """The most recent `SwapProposal` (of either status) touching
-    `item_id` as either its listing leg or its offered leg — used by
-    `confirm_transaction` to identify which stable party (listing owner vs
-    proposer) originally held a given SWAP reservation's item, since the
-    item's *current* physical owner is no longer meaningful once a leg has
-    already been fulfilled (permanent change of possession)."""
-    result = await db.execute(
-        select(SwapProposal)
-        .where(
-            or_(SwapProposal.listing_item_id == item_id, SwapProposal.offered_item_id == item_id)
         )
         .order_by(SwapProposal.id.desc())
     )

@@ -9,10 +9,12 @@ from typing import cast
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.circulation.application.inventory import get_inventory
 from app.circulation.application.inventory_items import get_item, get_item_balance
 from app.circulation.infrastructure import repository
 from app.circulation.models import (
     BalanceStatus,
+    InventoryItem,
     Reservation,
     ReservationStatus,
     ReservationType,
@@ -44,6 +46,17 @@ async def _resolve_return_term_id(db: AsyncSession, item_id: int) -> int:
     return cast(int, chosen.term_id)
 
 
+async def _current_holder_user_id(db: AsyncSession, item: InventoryItem) -> int:
+    """Who currently physically holds this item — the party a fulfillment
+    credits and a new reservation records as `giver_user_id`.
+    `item.inventory_id` always reflects the current physical location: the
+    borrower's VIRTUAL inventory during a `LEND`, or the owner's PERSONAL
+    inventory otherwise (including post-`SWAP`/`GIFT`) — so the holder is
+    simply that inventory's owner."""
+    inventory = await get_inventory(db, item.inventory_id)
+    return inventory.owner_user_id
+
+
 async def create_reservation(db: AsyncSession, data: CreateReservationRequest) -> Reservation:
     item = await get_item(db, data.item_id)
     balance = await get_item_balance(db, cast(int, item.id))
@@ -72,6 +85,7 @@ async def create_reservation(db: AsyncSession, data: CreateReservationRequest) -
         item_id=item.id,
         reservation_type=data.reservation_type,
         reserved_by_user_id=data.reserved_by_user_id,
+        giver_user_id=await _current_holder_user_id(db, item),
         term_id=term_id,
         reserved_at=datetime.utcnow(),
         expires_at=data.expires_at,
@@ -120,6 +134,7 @@ async def create_swap(db: AsyncSession, data: CreateSwapRequest) -> tuple[Reserv
         item_id=first_item.id,
         reservation_type=ReservationType.SWAP,
         reserved_by_user_id=data.first_reserved_by_user_id,
+        giver_user_id=await _current_holder_user_id(db, first_item),
         term_id=data.term_id,
         reserved_at=now,
         expires_at=data.expires_at,
@@ -129,6 +144,7 @@ async def create_swap(db: AsyncSession, data: CreateSwapRequest) -> tuple[Reserv
         item_id=second_item.id,
         reservation_type=ReservationType.SWAP,
         reserved_by_user_id=data.second_reserved_by_user_id,
+        giver_user_id=await _current_holder_user_id(db, second_item),
         term_id=data.term_id,
         reserved_at=now,
         expires_at=data.expires_at,

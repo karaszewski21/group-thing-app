@@ -36,6 +36,7 @@ __all__ = [
     "create_lend_reservation",
     "create_reservation",
     "create_swap",
+    "find_personal_inventory",
     "fulfill_reservation",
     "get_inventory",
     "get_item",
@@ -43,6 +44,7 @@ __all__ = [
     "get_or_create_personal_inventory",
     "get_reservation",
     "list_active_reservations_for_taker",
+    "list_items_with_product_name",
     "list_reservations",
     "register_item",
     "resolve_current_holder_user_id",
@@ -149,12 +151,11 @@ async def fulfill_reservation(db: AsyncSession, reservation_id: int, acting_user
 
 async def resolve_current_holder_user_id(db: AsyncSession, item_id: int) -> int:
     """Who currently physically holds `item_id` — item -> inventory ->
-    `owner_user_id`, the exact derivation
-    `reservation_transitions._current_holder_user_id` performs internally.
-    Exposed so `confirm_transaction` (Group 3) can determine who to pass as
-    `acting_user_id` into `confirm_reservation`, trivially satisfying that
-    function's own holder-only check; the real actor-identity check for the
-    confirm-race happens earlier, via `app.groups.domain.confirm_race_rules`."""
+    `owner_user_id`, the exact derivation circulation's own confirm/fulfill
+    holder-only check performs internally. `confirm_transaction` passes it
+    as `acting_user_id` into `confirm_reservation`/`fulfill_reservation`;
+    the real actor-identity check happens earlier, via
+    `app.groups.domain.confirm_race_rules`."""
     item = await circulation_service.get_item(db, item_id)
     inventory = await circulation_service.get_inventory(db, item.inventory_id)
     return inventory.owner_user_id
@@ -174,6 +175,21 @@ async def list_active_reservations_for_taker(
     `list_my_active_taken_term_item_listings` — the availability-independent
     taker-side counterpart to `list_reservations` above."""
     return await circulation_service.list_active_reservations_for_taker(db, account_user_id)
+
+
+async def find_personal_inventory(db: AsyncSession, owner_user_id: int) -> Inventory | None:
+    """The user's PERSONAL inventory, or `None` if they have never created
+    one — read-only, unlike `get_or_create_personal_inventory`."""
+    inventories = await circulation_service.list_inventories(db, owner_user_id)
+    return next(
+        (inv for inv in inventories if inv.inventory_type == InventoryType.PERSONAL), None
+    )
+
+
+async def list_items_with_product_name(
+    db: AsyncSession, inventory_id: int
+) -> list[tuple[InventoryItem, str]]:
+    return await circulation_service.list_items_with_product_name(db, inventory_id)
 
 
 async def get_item(db: AsyncSession, item_id: int) -> InventoryItem:

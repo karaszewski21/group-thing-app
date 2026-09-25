@@ -1,0 +1,55 @@
+orchestrator:
+  started_phase: phase-1
+  completed_phases: []
+  failed_phases: []
+  auto_fix_attempts:
+    phase-1: 0
+  options:
+    brainstorming_enabled: null
+    design_enabled: null
+  created: 2026-09-25T13:30:00
+  updated: 2026-09-25T13:30:00
+  task_path: .maister/tasks/research/2026-09-25-lend-lifecycle-virtual-inventory
+
+task:
+  title: Cykl życia wypożyczenia (LEND) — co po przekazaniu rzeczy
+  description: >
+    Research przed dodaniem funkcji wypożyczenia. Przy relacji wypożyczenia tworzy się
+    wirtualny magazyn. Brak zaplanowanych kroków po wypożyczeniu: chęć zwrotu, żądanie
+    zwrotu, oddanie itp.
+  status: in_progress
+  tags: [lend, circulation, virtual-inventory, return]
+
+research_context:
+  research_type: mixed
+  research_question: >
+    Jak zaprojektować funkcję wypożyczenia (LEND) obejmującą pełny cykl życia po przekazaniu
+    rzeczy — wirtualny magazyn pożyczającego, chęć/żądanie zwrotu, przedłużenie, termin
+    zwrotu, potwierdzenie odbioru, zaległości i spory?
+  scope:
+    included:
+      - model stanów wypożyczenia od oferty do zamknięcia
+      - zdarzenia po wypożyczeniu (chęć zwrotu, żądanie zwrotu, przedłużenie, due date, zaległość, potwierdzenie zwrotu, spór)
+      - miejsce/czas fizycznego zwrotu (Termin vs poza Terminem)
+      - VIRTUAL inventory, home_inventory_id, InventoryBalance, ledger
+      - powiadomienia i UI
+      - relacja z Pledge->LEND do organizatora
+    excluded:
+      - implementacja
+      - płatności/kaucje/ubezpieczenia
+      - zmiany GIFT/SWAP
+    constraints:
+      - DDD boundary groups<->circulation via circulation_bridge
+      - standards in .maister/docs/standards
+      - pre-production, schema changes allowed
+  methodology: []
+  sources: []
+  confidence_level: null
+  gathering_strategy: null
+  project_doc_paths:
+    - .maister/docs/project/tech-stack.md
+    - .maister/docs/project/architecture.md
+  phase_summaries:
+    phase-1:
+      summary: null
+      steps_completed: [initialize]

@@ -41,7 +41,11 @@ from ..infrastructure import circulation_bridge, notifications_bridge, product_b
 from ..infrastructure.notifications_bridge import NotificationKind
 from ..infrastructure.slug_resolver import resolve_organizer_slug
 from ..models import ItemListingPreference, SwapProposal, SwapProposalStatus, Term
-from ..schemas import BrowseTermItemListingResponse, TakeTermItemListingRequest
+from ..schemas import (
+    BrowseTermItemListingResponse,
+    MyInventoryItemResponse,
+    TakeTermItemListingRequest,
+)
 from .attendance import _require_term_eligibility
 from .circles import _group_role_party_id, get_current_leadership
 from .terms import get_term
@@ -49,6 +53,10 @@ from .terms import get_term
 _ACTIVE_RESERVATION_STATUSES = (
     circulation_bridge.ReservationStatus.PENDING,
     circulation_bridge.ReservationStatus.CONFIRMED,
+)
+_OWNERSHIP_TRANSFER_TYPES = (
+    circulation_bridge.ReservationType.GIFT,
+    circulation_bridge.ReservationType.SWAP,
 )
 
 
@@ -126,13 +134,38 @@ async def set_item_listing_preference(
     return preference
 
 
-async def list_my_item_listing_preferences(
+async def list_my_inventory_items(
     db: AsyncSession, principal: Principal
-) -> list[ItemListingPreference]:
-    """All of the caller's own standing preferences, Term-independent —
-    used by `Moje rzeczy` to seed each item's mode toggle on load."""
+) -> list[MyInventoryItemResponse]:
+    """The caller's own items (their PERSONAL inventory — never a borrowed
+    VIRTUAL one) with each item's standing listing mode — used by
+    `Moje rzeczy` to list items and seed each mode toggle on load."""
     profile = await get_profile_by_principal(db, principal)
-    return await repository.list_item_listing_preferences_for_party(db, profile.party_id)
+    inventory = await circulation_bridge.find_personal_inventory(
+        db, cast(int, profile.account_user_id)
+    )
+    if inventory is None:
+        return []
+    rows = await circulation_bridge.list_items_with_product_name(db, cast(int, inventory.id))
+    modes = {
+        pref.item_id: pref.mode
+        for pref in await repository.list_item_listing_preferences_for_party(db, profile.party_id)
+    }
+    return [
+        MyInventoryItemResponse(
+            id=cast(int, item.id),
+            inventory_id=item.inventory_id,
+            home_inventory_id=item.home_inventory_id,
+            product_id=item.product_id,
+            product_name=product_name,
+            condition=item.condition,
+            added_at=item.added_at,
+            created_at=item.created_at,
+            updated_at=item.updated_at,
+            listing_mode=modes.get(cast(int, item.id)),
+        )
+        for item, product_name in rows
+    ]
 
 
 async def _is_item_available(db: AsyncSession, item_id: int) -> bool:
@@ -621,53 +654,6 @@ async def reject_swap_proposal(
     return proposal
 
 
-async def _resolve_transaction_holder_user_id(
-    db: AsyncSession, reservation: circulation_bridge.Reservation
-) -> int:
-    """The *stable* other party to `reservation` — the lister (GIFT/LEND)
-    or the item's originally-listed/offered owner (each SWAP leg) —
-    resolved from the standing `ItemListingPreference`/`SwapProposal`
-    record rather than `circulation_bridge.resolve_current_holder_user_id`:
-    that helper reports the item's *current* physical owner, which for
-    GIFT/SWAP permanently changes the moment `fulfill_reservation` runs —
-    exactly the moment the *second* (losing) party's `confirm_transaction`
-    call needs this identity to still resolve correctly, so a "current
-    holder" lookup would misidentify them as a non-party on that second call."""
-    if reservation.reservation_type != circulation_bridge.ReservationType.SWAP:
-        preference = await repository.get_item_listing_preference(db, reservation.item_id)
-        if preference is not None:
-            owner_profile = await get_profile_by_party(db, preference.owner_party_id)
-            return cast(int, owner_profile.account_user_id)
-    else:
-        proposal = await repository.get_swap_proposal_for_item(db, reservation.item_id)
-        if proposal is not None:
-            # `reserved_by_user_id` on a SWAP leg is now (per the fix in
-            # `propose_swap`/`accept_swap_proposal`) the party GAINING that
-            # leg's item; this function returns the OTHER real party — the
-            # one currently contributing/giving it up — so
-            # `_require_race_participant(reserved_by, holder, acting)`
-            # names the transaction's two genuinely different sides and
-            # either one can act, regardless of which leg's reservation_id
-            # they were handed.
-            if reservation.item_id == proposal.offered_item_id:
-                # This leg is the proposer's own offered item — they are
-                # the one contributing/giving it up.
-                proposer_profile = await get_profile_by_party(db, proposal.proposer_party_id)
-                return cast(int, proposer_profile.account_user_id)
-            else:
-                # This leg is the listing owner's item — they are the one
-                # contributing/giving it up.
-                preference = await repository.get_item_listing_preference(
-                    db, proposal.listing_item_id
-                )
-                if preference is not None:
-                    owner_profile = await get_profile_by_party(db, preference.owner_party_id)
-                    return cast(int, owner_profile.account_user_id)
-    # Fallback (preference/proposal row no longer exists, e.g. cleared) —
-    # best-effort current-physical-owner lookup.
-    return await circulation_bridge.resolve_current_holder_user_id(db, reservation.item_id)
-
-
 async def _resolve_transaction_reservations_for_action(
     db: AsyncSession, principal: Principal, reservation_id: int, term_id: int
 ) -> list[circulation_bridge.Reservation]:
@@ -704,10 +690,14 @@ async def _resolve_transaction_reservations_for_action(
         raise BusinessConflictException("Termin jeszcze się nie odbył")
 
     reservation = await circulation_bridge.get_reservation(db, reservation_id)
-    holder_user_id = await _resolve_transaction_holder_user_id(db, reservation)
+    # `giver_user_id` (captured at reservation creation), not the item's
+    # current holder: for GIFT/SWAP possession changes permanently at
+    # fulfillment, and the giver's `ItemListingPreference` is cleared then
+    # too — yet the losing party's later call must still be recognized as a
+    # participant so it gets `TermAlreadyResolvedException`, not a 403.
     confirm_race_rules._require_race_participant(
         reservation.reserved_by_user_id,
-        holder_user_id,
+        reservation.giver_user_id,
         acting_user_id=cast(int, profile.account_user_id),
     )
 
@@ -744,20 +734,21 @@ async def confirm_transaction(
         db, principal, reservation_id, term_id
     )
 
-    # `circulation_bridge.confirm_reservation`'s own internal check requires
-    # `acting_user_id` to equal the item's actual CURRENT physical holder
-    # (derived from `item.inventory_id`'s owner) — a different value than
-    # `_resolve_transaction_holder_user_id`'s result, which names the
-    # exchange's *counterparty* for race-participant purposes. Before
-    # fulfillment those two coincide for GIFT/LEND (the lister IS the
-    # item's current holder) but NOT for a SWAP leg (the item's current
-    # holder is whoever registered/still owns THAT specific item — i.e.
-    # `reserved_by_user_id` on that leg — while the counterparty is the
-    # party on the OTHER leg). Resolving it fresh here (rather than reusing
-    # the counterparty id) keeps these two concerns separate instead of
-    # conflating them, which previously made either the race check or the
-    # underlying confirm/fulfill call fail depending on which leg's
-    # reservation_id the caller was handed.
+    # A GIFT/SWAP permanently hands the item to someone else, so the giver's
+    # standing listing mode no longer applies — deleted here (flushed, then
+    # committed together with the first `fulfill_reservation`) so the item
+    # isn't re-offered on the giver's behalf at their next Term. The new
+    # owner sets their own mode from `Moje rzeczy` if they want to pass it on.
+    for r in reservations:
+        if r.reservation_type in _OWNERSHIP_TRANSFER_TYPES:
+            preference = await repository.get_item_listing_preference(db, r.item_id)
+            if preference is not None:
+                await db.delete(preference)
+    await db.flush()
+
+    # `circulation_bridge.confirm_reservation`/`fulfill_reservation` require
+    # `acting_user_id` to be the item's CURRENT physical holder — resolved
+    # fresh per leg, since for a SWAP each leg's item has a different holder.
     primary_result: circulation_bridge.Reservation | None = None
     for r in reservations:
         physical_holder_user_id = await circulation_bridge.resolve_current_holder_user_id(

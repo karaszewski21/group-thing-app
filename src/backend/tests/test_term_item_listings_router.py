@@ -1,4 +1,5 @@
-"""`/api/item-listing-preferences` and `/api/term-item-listings` routes
+"""`/api/item-listing-preferences`, `/api/inventory-items/mine` and
+`/api/term-item-listings` routes
 (`app/groups/router/term_item_listings.py`) and
 `POST /api/groups/mine/attendances/{id}/withdraw`
 (`app/groups/router/circles.py`) — the HTTP-layer counterpart to
@@ -156,20 +157,36 @@ async def test_setPreference_ownItem_needsNoAttendance(client: AsyncClient) -> N
     assert response.json()["mode"] == "GIFT"
 
 
-async def test_listMyPreferences_returnsOnlyCallersOwnAndReflectsClearing(
+async def test_listMyInventoryItems_returnsOnlyCallersOwnWithModeAndReflectsClearing(
     client: AsyncClient,
 ) -> None:
     owner_token, _ = await _register(client, "GUEST", "tilr.owner2c@example.com")
     item_id = await _register_personal_item(client, owner_token, "Bilard")
+    inventory_id = (
+        await client.get(f"/api/inventory-items/{item_id}", headers=_auth(owner_token))
+    ).json()["inventory_id"]
+    untagged = await client.post(
+        "/api/inventory-items",
+        json={
+            "inventory_id": inventory_id,
+            "product_id": await _resolve_product(client, owner_token, "Kredki"),
+            "condition": "GOOD",
+        },
+        headers=_auth(owner_token),
+    )
+    assert untagged.status_code == 201
+    untagged_item_id = untagged.json()["id"]
     await _set_preference(client, owner_token, item_id, "LEND")
 
     other_token, _ = await _register(client, "GUEST", "tilr.other2c@example.com")
 
-    mine = await client.get("/api/item-listing-preferences/mine", headers=_auth(owner_token))
+    mine = await client.get("/api/inventory-items/mine", headers=_auth(owner_token))
     assert mine.status_code == 200
-    assert [row["item_id"] for row in mine.json()] == [item_id]
+    modes = {row["id"]: row["listing_mode"] for row in mine.json()}
+    assert modes == {item_id: "LEND", untagged_item_id: None}
+    assert {row["product_name"] for row in mine.json()} == {"Bilard", "Kredki"}
 
-    other_mine = await client.get("/api/item-listing-preferences/mine", headers=_auth(other_token))
+    other_mine = await client.get("/api/inventory-items/mine", headers=_auth(other_token))
     assert other_mine.status_code == 200
     assert other_mine.json() == []
 
@@ -179,10 +196,11 @@ async def test_listMyPreferences_returnsOnlyCallersOwnAndReflectsClearing(
     assert clear.status_code == 200
     assert clear.json() is None
 
-    mine_after_clear = await client.get(
-        "/api/item-listing-preferences/mine", headers=_auth(owner_token)
-    )
-    assert mine_after_clear.json() == []
+    mine_after_clear = await client.get("/api/inventory-items/mine", headers=_auth(owner_token))
+    assert {row["id"]: row["listing_mode"] for row in mine_after_clear.json()} == {
+        item_id: None,
+        untagged_item_id: None,
+    }
 
 
 async def test_listMine_returnsOnlyCallersOwnListings(client: AsyncClient) -> None:

@@ -209,6 +209,15 @@ class Reservation(BaseEntity):
         ForeignKey("users.id", name="fk_reservations_reserved_by_user_id_users"),
         nullable=False,
     )
+    # Who physically held the item when this reservation was created — the
+    # party handing it over. Captured once here because, for GIFT/SWAP,
+    # possession changes permanently at fulfillment, after which the item's
+    # current holder no longer names the giving side of the transaction.
+    giver_user_id: Mapped[int] = mapped_column(
+        BigInteger,
+        ForeignKey("users.id", name="fk_reservations_giver_user_id_users"),
+        nullable=False,
+    )
     # Plain FK-id column, no ORM relationship — `Term` lives in the `groups`
     # module, and `circulation` must not take an ORM-level dependency on it,
     # per `standards/backend/models.md`'s cross-module-reference convention.

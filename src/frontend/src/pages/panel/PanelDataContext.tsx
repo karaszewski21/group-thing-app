@@ -9,7 +9,6 @@ import {
   type NotificationResponse,
 } from "../../api/notifications";
 import { getMyPledges, withdrawPledge, type MyPledgeResponse } from "../../api/pledges";
-import type { ReservationType } from "../../api/reservations";
 import {
   createLightweightMembers,
   getGuardians,
@@ -44,6 +43,7 @@ import {
   getInventory,
   getInventoryItemBalance,
   getInventoryItems,
+  getMyInventoryItems,
   registerInventoryItem,
   updateInventoryItem,
   type InventoryItemResponse,
@@ -89,10 +89,7 @@ import {
   type NeededItemQuickAddValue,
 } from "../../utils/neededItemQuickAdd";
 import { ApiError } from "../../api/client";
-import {
-  getMyItemListingPreferences,
-  setItemListingPreference,
-} from "../../api/itemListingPreferences";
+import { setItemListingPreference } from "../../api/itemListingPreferences";
 import { CopyIcon, PencilIcon } from "./panelIcons";
 import {
   dayMonth,
@@ -472,7 +469,18 @@ function usePanelDataValue() {
       let inventory = inventories.find((i) => i.inventory_type === "PERSONAL") ?? null;
       if (!inventory) inventory = await createInventory({ inventory_type: "PERSONAL" });
       setInventoryId(inventory.id);
-      setItems(await getInventoryItems(inventory.id));
+      const myItems = await getMyInventoryItems();
+      setItems(myItems);
+      setItemModes(
+        Object.fromEntries(
+          myItems
+            .map(
+              (it) =>
+                [it.id, it.listing_mode && RESERVATION_TYPE_TO_ITEM_MODE[it.listing_mode]] as const,
+            )
+            .filter((entry): entry is [number, ItemMode] => entry[1] != null),
+        ),
+      );
 
       // "Wypożyczone" — items currently sitting in the caller's own VIRTUAL
       // inventory (borrowed from someone else). Given/swapped-in items are
@@ -506,18 +514,6 @@ function usePanelDataValue() {
       } else {
         setBorrowedItems([]);
       }
-
-      const preferences = await getMyItemListingPreferences();
-      setItemModes(
-        Object.fromEntries(
-          preferences
-            .map(
-              (p) =>
-                [p.item_id, RESERVATION_TYPE_TO_ITEM_MODE[p.mode as ReservationType]] as const,
-            )
-            .filter((entry): entry is [number, ItemMode] => entry[1] !== undefined),
-        ),
-      );
 
       const activeLeaderships = leaderships.filter((l) => l.valid_to === null);
       setMyLeaderships(activeLeaderships);
@@ -1022,7 +1018,7 @@ function usePanelDataValue() {
       setItemDraft(createEmptyItemQuickAddValue(categoriesData[0]?.id ?? 0));
       setModal(null);
       showToast("Dodano rzecz");
-      setItems(await getInventoryItems(inventoryId));
+      setItems(await getMyInventoryItems());
     } catch {
       showToast("Nie udało się dodać rzeczy");
     } finally {

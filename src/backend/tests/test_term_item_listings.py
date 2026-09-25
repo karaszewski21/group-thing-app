@@ -40,6 +40,7 @@ from app.core.errors import AccessDeniedException, BusinessConflictException
 from app.core.security import decode_token
 from app.groups import service
 from app.groups.application.term_item_listings import TermAlreadyResolvedException
+from app.groups.infrastructure import repository
 from app.groups.models import Term
 from app.groups.schemas import TakeTermItemListingRequest
 
@@ -939,11 +940,10 @@ async def test_setPreference_afterGiftFulfillment_reassignsOwnerToNewHolder(
     client: AsyncClient, db_session: AsyncSession
 ) -> None:
     """Bug #2 regression: once a GIFT `confirm_transaction` actually moves
-    the item into the taker's own personal inventory,
-    `set_item_listing_preference`'s reused-row branch (`existing is not
-    None`) must reassign `owner_party_id` to the new holder — not leave it
-    pointing at the original lister forever, which previously left the
-    listing permanently misattributed to whoever first offered it."""
+    the item into the taker's own personal inventory, the taker listing it
+    must yield a preference owned by the new holder — not one still
+    pointing at the original lister, which previously left the listing
+    permanently misattributed to whoever first offered it."""
     org_token, _ = await _register(client, "ORGANIZER", "til.org20@example.com")
     group_id, term_id = await _create_circle_and_term(client, org_token, "til20")
 
@@ -972,9 +972,9 @@ async def test_setPreference_afterGiftFulfillment_reassignsOwnerToNewHolder(
         db_session, _principal(taker_token), taken.resolved_reservation_id, term_id
     )
 
-    # The item now physically belongs to the taker — they re-list it under
-    # their own standing preference, reusing the same `ItemListingPreference`
-    # row (same item_id).
+    # The item now physically belongs to the taker — the lister's GIFT
+    # preference was cleared at fulfillment, so listing it creates a fresh
+    # `ItemListingPreference` row owned by the taker.
     relisted = await service.set_item_listing_preference(
         db_session, _principal(taker_token), item_id, ReservationType.LEND
     )
@@ -986,8 +986,7 @@ async def test_setPreference_afterGiftFulfillment_reassignsOwnerToNewHolder(
     assert taker_mine[0].item_id == item_id
     assert taker_mine[0].lister_party_id == taker_party_id
 
-    # The original lister no longer sees it under their own listings — the
-    # row was reassigned, not duplicated.
+    # The original lister no longer sees it under their own listings.
     original_lister_mine = await service.list_my_term_item_listings(
         db_session, term_id, lister_party_id
     )
@@ -1045,6 +1044,135 @@ async def test_setPreference_afterSwapFulfillment_reassignsOwnerForReceivedItem(
     proposer_mine = await service.list_my_term_item_listings(db_session, term_id, proposer_party_id)
     item_ids = {pref.item_id for pref in proposer_mine}
     assert listed_item_id in item_ids
+
+
+async def test_confirmTransaction_organizerGift_clearsPreference_notReofferedOnNextTerm(
+    client: AsyncClient, db_session: AsyncSession
+) -> None:
+    """Regression: after an organizer's GIFT is fulfilled the item belongs to
+    the taker, so the organizer's standing GIFT preference is deleted —
+    otherwise the organizer (always eligible to list) kept re-offering the
+    already-given item on every following Term."""
+    org_token, _ = await _register(client, "ORGANIZER", "til.org40@example.com")
+    group_id, term_id = await _create_circle_and_term(client, org_token, "til40")
+    item_id = await _register_personal_item(client, org_token, "Hulajnoga40")
+    await service.set_item_listing_preference(
+        db_session, _principal(org_token), item_id, ReservationType.GIFT
+    )
+
+    taker_token, _ = await _register(client, "GUEST", "til.taker40@example.com")
+    await _rsvp(client, taker_token, group_id, term_id)
+    taken = await service.take_item_listing(
+        db_session,
+        _principal(taker_token),
+        item_id,
+        TakeTermItemListingRequest(term_id=term_id, reservation_type="GIFT"),
+    )
+
+    term = (await db_session.execute(select(Term).where(Term.id == term_id))).scalar_one()
+    term.occurs_on = datetime.utcnow() - timedelta(days=1)
+    await db_session.commit()
+
+    await service.confirm_transaction(
+        db_session, _principal(taker_token), taken.resolved_reservation_id, term_id
+    )
+
+    assert await repository.get_item_listing_preference(db_session, item_id) is None
+
+    next_term_id = await _add_term(client, org_token, group_id)
+    viewer_token, viewer_party_id = await _register(client, "GUEST", "til.viewer40@example.com")
+    await _rsvp(client, viewer_token, group_id, next_term_id)
+    browse = await service.list_browsable_term_item_listings(
+        db_session, next_term_id, viewer_party_id
+    )
+    assert item_id not in {row.item_id for row in browse}
+
+    org_items = await service.list_my_inventory_items(db_session, _principal(org_token))
+    assert item_id not in {row.id for row in org_items}
+    taker_items = await service.list_my_inventory_items(db_session, _principal(taker_token))
+    assert {row.id: row.listing_mode for row in taker_items} == {item_id: None}
+
+
+async def test_confirmTransaction_swap_clearsBothPreferences(
+    client: AsyncClient, db_session: AsyncSession
+) -> None:
+    """Both swapped items change hands, so both parties' SWAP preferences
+    are deleted — and the listing owner's later call is still recognized as
+    a participant (via `giver_user_id`), getting the already-resolved
+    outcome rather than a 403."""
+    org_token, _ = await _register(client, "ORGANIZER", "til.org41@example.com")
+    group_id, term_id = await _create_circle_and_term(client, org_token, "til41")
+
+    lister_token, _ = await _register(client, "GUEST", "til.lister41@example.com")
+    await _rsvp(client, lister_token, group_id, term_id)
+    listed_item_id = await _register_personal_item(client, lister_token, "Gitara41")
+    await service.set_item_listing_preference(
+        db_session, _principal(lister_token), listed_item_id, ReservationType.SWAP
+    )
+
+    proposer_token, _ = await _register(client, "GUEST", "til.proposer41@example.com")
+    await _rsvp(client, proposer_token, group_id, term_id)
+    offered_item_id = await _register_personal_item(client, proposer_token, "Keyboard41")
+    await service.set_item_listing_preference(
+        db_session, _principal(proposer_token), offered_item_id, ReservationType.SWAP
+    )
+
+    proposal = await service.propose_swap(
+        db_session, _principal(proposer_token), listed_item_id, offered_item_id, term_id
+    )
+    await service.accept_swap_proposal(db_session, _principal(lister_token), proposal.id)
+
+    term = (await db_session.execute(select(Term).where(Term.id == term_id))).scalar_one()
+    term.occurs_on = datetime.utcnow() - timedelta(days=1)
+    await db_session.commit()
+
+    await service.confirm_transaction(
+        db_session, _principal(proposer_token), proposal.proposer_reservation_id, term_id
+    )
+
+    assert await repository.get_item_listing_preference(db_session, listed_item_id) is None
+    assert await repository.get_item_listing_preference(db_session, offered_item_id) is None
+
+    with pytest.raises(TermAlreadyResolvedException):
+        await service.confirm_transaction(
+            db_session, _principal(lister_token), proposal.proposer_reservation_id, term_id
+        )
+
+
+async def test_cancelTransaction_gift_keepsPreference(
+    client: AsyncClient, db_session: AsyncSession
+) -> None:
+    """A cancelled GIFT never changes hands, so the lister's offer stands."""
+    org_token, _ = await _register(client, "ORGANIZER", "til.org42@example.com")
+    group_id, term_id = await _create_circle_and_term(client, org_token, "til42")
+
+    lister_token, _ = await _register(client, "GUEST", "til.lister42@example.com")
+    await _rsvp(client, lister_token, group_id, term_id)
+    item_id = await _register_personal_item(client, lister_token, "Sanki42")
+    await service.set_item_listing_preference(
+        db_session, _principal(lister_token), item_id, ReservationType.GIFT
+    )
+
+    taker_token, _ = await _register(client, "GUEST", "til.taker42@example.com")
+    await _rsvp(client, taker_token, group_id, term_id)
+    taken = await service.take_item_listing(
+        db_session,
+        _principal(taker_token),
+        item_id,
+        TakeTermItemListingRequest(term_id=term_id, reservation_type="GIFT"),
+    )
+
+    term = (await db_session.execute(select(Term).where(Term.id == term_id))).scalar_one()
+    term.occurs_on = datetime.utcnow() - timedelta(days=1)
+    await db_session.commit()
+
+    await service.cancel_transaction(
+        db_session, _principal(taker_token), taken.resolved_reservation_id, term_id
+    )
+
+    preference = await repository.get_item_listing_preference(db_session, item_id)
+    assert preference is not None
+    assert preference.mode == ReservationType.GIFT.value
 
 
 async def test_takeListing_unofferedReservationType_raisesBusinessConflict(

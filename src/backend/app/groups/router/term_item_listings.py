@@ -1,6 +1,6 @@
-"""`/api/item-listing-preferences`, `/api/term-item-listings`,
-`/api/swap-proposals` and the `/api/reservations/{id}/confirm-transaction`
-routes — the exchange-mechanism HTTP layer over
+"""`/api/item-listing-preferences`, `/api/inventory-items/mine`,
+`/api/term-item-listings`, `/api/swap-proposals` and the
+`/api/reservations/{id}/confirm-transaction` routes — the exchange-mechanism HTTP layer over
 `application/term_item_listings.py`'s set/list/browse/take/propose/accept/
 reject/confirm use cases."""
 
@@ -24,6 +24,7 @@ from app.groups.schemas import (
     ConfirmTransactionRequest,
     ConfirmTransactionResponse,
     ItemListingPreferenceResponse,
+    MyInventoryItemResponse,
     ProposeSwapRequest,
     SetItemListingPreferenceRequest,
     SwapProposalResponse,
@@ -49,14 +50,14 @@ async def set_item_listing_preference(
     return ItemListingPreferenceResponse.model_validate(preference) if preference else None
 
 
-@router.get(
-    "/api/item-listing-preferences/mine", response_model=list[ItemListingPreferenceResponse]
-)
-async def list_my_item_listing_preferences(
+# Registered by `app.main` ahead of circulation's router, so the literal
+# `mine` segment is matched here before `GET /api/inventory-items/{item_id}`
+# could try to parse it as an `int`.
+@router.get("/api/inventory-items/mine", response_model=list[MyInventoryItemResponse])
+async def list_my_inventory_items(
     db: DbSession, principal: ReadPrincipal
-) -> list[ItemListingPreferenceResponse]:
-    preferences = await service.list_my_item_listing_preferences(db, principal)
-    return [ItemListingPreferenceResponse.model_validate(p) for p in preferences]
+) -> list[MyInventoryItemResponse]:
+    return await service.list_my_inventory_items(db, principal)
 
 
 # Declared before `POST /api/term-item-listings/{item_id}/take` so the

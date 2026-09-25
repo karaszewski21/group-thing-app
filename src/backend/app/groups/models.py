@@ -317,7 +317,9 @@ class ItemListingPreference(BaseEntity):
     `app.circulation.InventoryItem`, mirroring `Pledge.resolved_reservation_id`
     — no `ForeignKeyConstraint`, per `standards/backend/models.md`'s
     cross-module-reference rule. One row per item; clearing the mode deletes
-    the row rather than nulling it out."""
+    the row rather than nulling it out, and so does a fulfilled GIFT/SWAP
+    (`confirm_transaction`) — the item then belongs to someone else, who
+    sets their own mode."""
 
     __tablename__ = "item_listing_preferences"
     __sequence_name__ = "item_listing_preference_seq"
