@@ -1,5 +1,6 @@
 import { createBrowserRouter, Navigate, Outlet } from "react-router-dom";
 import { AppShell } from "./components/layout/AppShell";
+import { PublicLayout } from "./components/layout/PublicLayout";
 import { ProductListPage } from "./pages/ProductListPage";
 import { ProductFormPage } from "./pages/ProductFormPage";
 import { CategoryListPage } from "./pages/CategoryListPage";
@@ -109,27 +110,34 @@ export const router = createBrowserRouter([
     ],
   },
   {
-    // The SOLE group/circle screen route (former separate `/krag/:groupId`
-    // + `/krag` entry-resolver were removed — this address now serves both
-    // audiences). No `AuthGuard`: `TermPage` itself branches on auth
-    // presence, rendering the full private member experience for a logged-in
-    // visitor and the anonymous-safe public view otherwise (see that
-    // component's own doc comment). `:organizationSlug` is cosmetic (echoed
-    // into redirect targets, never validated / never sent to the backend).
-    // Multi-segment, so React Router route-ranking keeps it ahead of the
-    // single-segment `/:organizationSlug` catch-all below regardless of
-    // declaration order — no RESERVED_SLUGS change needed.
-    path: "/:organizationSlug/grupa/:groupId/term/:termId",
-    element: <TermPage />,
-  },
-  {
-    // Public organizer page (`domena.pl/<slug>`) — deliberately declared
-    // LAST as a single-segment catch-all, and deliberately unauthenticated
-    // (no AuthGuard). The backend's reserved-slug whitelist
-    // (app/organizations/slugs.py's RESERVED_SLUGS) guarantees a slug can
-    // never collide with any of the fixed paths above, so this can never
-    // shadow a real route.
-    path: "/:organizationSlug",
-    element: <PublicOrganizationPage />,
+    // Pathless layout route for the public pages below: a logged-in
+    // visitor gets the account menu bar above them (see PublicLayout).
+    element: <PublicLayout />,
+    children: [
+      {
+        // The SOLE group/circle screen route (former separate `/krag/:groupId`
+        // + `/krag` entry-resolver were removed — this address now serves both
+        // audiences). No `AuthGuard`: `TermPage` itself branches on auth
+        // presence, rendering the full private member experience for a logged-in
+        // visitor and the anonymous-safe public view otherwise (see that
+        // component's own doc comment). `:organizationSlug` is cosmetic (echoed
+        // into redirect targets, never validated / never sent to the backend).
+        // Multi-segment, so React Router route-ranking keeps it ahead of the
+        // single-segment `/:organizationSlug` catch-all below regardless of
+        // declaration order — no RESERVED_SLUGS change needed.
+        path: "/:organizationSlug/grupa/:groupId/term/:termId",
+        element: <TermPage />,
+      },
+      {
+        // Public organizer page (`domena.pl/<slug>`) — deliberately declared
+        // LAST as a single-segment catch-all, and deliberately unauthenticated
+        // (no AuthGuard). The backend's reserved-slug whitelist
+        // (app/organizations/slugs.py's RESERVED_SLUGS) guarantees a slug can
+        // never collide with any of the fixed paths above, so this can never
+        // shadow a real route.
+        path: "/:organizationSlug",
+        element: <PublicOrganizationPage />,
+      },
+    ],
   },
 ]);

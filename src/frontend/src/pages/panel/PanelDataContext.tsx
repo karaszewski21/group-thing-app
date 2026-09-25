@@ -360,7 +360,6 @@ function usePanelDataValue() {
   // the instant that happens. The picking decision itself still lives only
   // in the host, per spec.md §2 — this just freezes *when* it is read.
   const [firstTermForOrganizer, setFirstTermForOrganizer] = useState(false);
-  const [menuOpen, setMenuOpen] = useState(false);
   const [toast, setToast] = useState("");
   const [busy, setBusy] = useState(false);
 
@@ -1452,7 +1451,6 @@ function usePanelDataValue() {
     view,
     modal,
     firstTermForOrganizer,
-    menuOpen,
     toast,
     busy,
     hintFirstTermDismissed,
@@ -1482,7 +1480,6 @@ function usePanelDataValue() {
     // --- setters the render calls directly ---
     setView,
     setModal,
-    setMenuOpen,
     setFirstTermForOrganizer,
     setLocalLocation,
     setLocalBio,

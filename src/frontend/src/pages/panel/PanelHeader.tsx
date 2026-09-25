@@ -1,21 +1,11 @@
-import { Link } from "react-router-dom";
-import {
-  BackIcon,
-  BellIcon,
-  BuildingIcon,
-  CalendarPlusIcon,
-  FamilyIcon,
-  MenuIcon,
-  SettingsIcon,
-  UserIcon,
-} from "./panelIcons";
+import { AccountMenu, ACCOUNT_MENU_ITEM_CLASS } from "../../components/shared/AccountMenu";
+import { BackIcon, BellIcon, CalendarPlusIcon } from "./panelIcons";
 import { initials } from "./panelHelpers";
 import { usePanelData } from "./panelDataStore";
 
-/** Sticky Panel header: on the four top-level views an avatar + name + a menu
- * dropdown (Profil / Ustawienia / Moja organizacja / Mój dom / Dodaj pierwszy
- * termin); on the sub-views (profil / ustawienia / rodzina) a "Wróć" button +
- * the view title. */
+/** Sticky Panel header: on the four top-level views an avatar + name + the
+ * shared `AccountMenu` (plus "Dodaj pierwszy termin" for a GUEST); on the
+ * sub-views (profil / ustawienia / rodzina) a "Wróć" button + the view title. */
 export function PanelHeader() {
   const {
     profile,
@@ -24,10 +14,8 @@ export function PanelHeader() {
     localLocation,
     organizationSlug,
     view,
-    menuOpen,
     setView,
     setModal,
-    setMenuOpen,
     setFirstTermForOrganizer,
     notifications,
     unreadCount,
@@ -121,83 +109,31 @@ export function PanelHeader() {
               </>
             )}
           </div>
-          <div className="relative flex-none">
-            <button
-              onClick={() => setMenuOpen((o) => !o)}
-              aria-label="Menu"
-              aria-expanded={menuOpen}
-              className="flex h-10 w-10 items-center justify-center rounded-[14px] border border-line bg-cream transition-colors hover:bg-mint-soft"
-            >
-              <MenuIcon />
-            </button>
-            {menuOpen && (
+          <AccountMenu
+            organizationSlug={organizationSlug}
+            extraItems={(close) => (
               <>
-                <button
-                  onClick={() => setMenuOpen(false)}
-                  aria-label="Zamknij menu"
-                  className="fixed inset-0 z-[25] cursor-default border-none bg-transparent p-0"
-                />
-                <div
-                  role="menu"
-                  className="absolute right-0 top-12 z-30 min-w-[190px] rounded-2xl border border-line bg-paper p-1.5 shadow-[0_16px_34px_-16px_rgba(30,46,39,0.45)]"
-                >
+                {!isOrganizer && (
                   <button
                     role="menuitem"
-                    onClick={() => { setView("profil"); setMenuOpen(false); }}
-                    className="flex w-full items-center gap-2.5 rounded-[11px] px-3 py-2.5 text-left text-sm font-bold text-ink hover:bg-cream"
+                    onClick={() => { setFirstTermForOrganizer(false); setModal("pierwszy-termin"); close(); }}
+                    className={ACCOUNT_MENU_ITEM_CLASS}
                   >
-                    <UserIcon /> Profil
+                    <CalendarPlusIcon /> Dodaj pierwszy termin
                   </button>
+                )}
+                {/* {isOrganizer && terms.length === 0 && (
                   <button
                     role="menuitem"
-                    onClick={() => { setView("ustawienia"); setMenuOpen(false); }}
-                    className="flex w-full items-center gap-2.5 rounded-[11px] px-3 py-2.5 text-left text-sm font-bold text-ink hover:bg-cream"
+                    onClick={() => { setFirstTermForOrganizer(true); setModal("pierwszy-termin"); close(); }}
+                    className={ACCOUNT_MENU_ITEM_CLASS}
                   >
-                    <SettingsIcon /> Ustawienia
+                    <CalendarPlusIcon /> Dodaj pierwszy termin
                   </button>
-                  {/* Unconditional — creating an Organization is deliberately
-                      independent of "Chcę dodać krąg"/isOrganizer (a Circle-
-                      leadership signal). Backend authorization agrees: any
-                      authenticated account (GUEST or ORGANIZER) already has
-                      EDIT permission, so nothing blocks a GUEST from owning
-                      an Organization without ever running a Circle. */}
-                  <Link
-                    role="menuitem"
-                    to={organizationSlug ? `/${organizationSlug}` : "/organization"}
-                    onClick={() => setMenuOpen(false)}
-                    className="flex w-full items-center gap-2.5 rounded-[11px] px-3 py-2.5 text-left text-sm font-bold text-ink hover:bg-cream"
-                  >
-                    <BuildingIcon /> Moja organizacja
-                  </Link>
-                  <button
-                    role="menuitem"
-                    onClick={() => { setView("rodzina"); setMenuOpen(false); }}
-                    className="flex w-full items-center gap-2.5 rounded-[11px] px-3 py-2.5 text-left text-sm font-bold text-ink hover:bg-cream"
-                  >
-                    <FamilyIcon /> Mój dom
-                  </button>
-                  {!isOrganizer && (
-                    <button
-                      role="menuitem"
-                      onClick={() => { setFirstTermForOrganizer(false); setModal("pierwszy-termin"); setMenuOpen(false); }}
-                      className="flex w-full items-center gap-2.5 rounded-[11px] px-3 py-2.5 text-left text-sm font-bold text-ink hover:bg-cream"
-                    >
-                      <CalendarPlusIcon /> Dodaj pierwszy termin
-                    </button>
-                  )}
-                  {/* {isOrganizer && terms.length === 0 && (
-                    <button
-                      role="menuitem"
-                      onClick={() => { setFirstTermForOrganizer(true); setModal("pierwszy-termin"); setMenuOpen(false); }}
-                      className="flex w-full items-center gap-2.5 rounded-[11px] px-3 py-2.5 text-left text-sm font-bold text-ink hover:bg-cream"
-                    >
-                      <CalendarPlusIcon /> Dodaj pierwszy termin
-                    </button>
-                  )} */}
-                </div>
+                )} */}
               </>
             )}
-          </div>
+          />
         </>
       ) : (
         <>
