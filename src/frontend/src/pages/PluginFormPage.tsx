@@ -85,7 +85,7 @@ export function PluginFormPage() {
     setLoading(true);
     try {
       await uploadManifest(id.trim(), manifest);
-      navigate(`/plugins/${id.trim()}/detail`);
+      navigate(`/admin/plugins/${id.trim()}/detail`);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to save plugin.");
     } finally {
@@ -99,7 +99,7 @@ export function PluginFormPage() {
     <Box maxW="700px">
       <Box mb="24px">
         <Flex as="nav" fontSize="13px" color="#64748B" gap="4px" aria-label="Breadcrumb">
-          <Link to="/plugins" style={{ color: "var(--chakra-colors-brand-600)", textDecoration: "none" }}>
+          <Link to="/admin/plugins" style={{ color: "var(--chakra-colors-brand-600)", textDecoration: "none" }}>
             Plugins
           </Link>
           <Text as="span">/</Text>
@@ -156,7 +156,7 @@ export function PluginFormPage() {
 
         <Flex justify="flex-end" gap="12px" mt="28px" pt="20px" borderTop="1px solid" borderColor="#F1F5F9">
           <Button asChild variant="outline">
-            <Link to="/plugins">Cancel</Link>
+            <Link to="/admin/plugins">Cancel</Link>
           </Button>
           <PrimaryButton type="submit" loading={loading}>
             Save Plugin

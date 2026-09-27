@@ -23,20 +23,12 @@ export interface ReservationResponse {
   notes: string | null;
 }
 
-export interface CreateReservationRequest {
+/** The raw `POST /reservations` route only creates RETURNs; the server
+ * derives the recipient (the item's home owner) from the item itself. */
+export interface CreateReturnReservationRequest {
   item_id: number;
-  reservation_type: ReservationType;
-  reserved_by_user_id: number;
-  expires_at?: string;
-  notes?: string;
-}
-
-export interface CreateSwapRequest {
-  first_item_id: number;
-  first_reserved_by_user_id: number;
-  second_item_id: number;
-  second_reserved_by_user_id: number;
-  expires_at?: string;
+  reservation_type?: "RETURN";
+  notes?: string | null;
 }
 
 export function getReservations(itemId: number): Promise<ReservationResponse[]> {
@@ -47,30 +39,18 @@ export function getReservation(id: number): Promise<ReservationResponse> {
   return api.get(`/reservations/${id}`);
 }
 
-export function createReservation(request: CreateReservationRequest): Promise<ReservationResponse> {
+export function createReservation(
+  request: CreateReturnReservationRequest,
+): Promise<ReservationResponse> {
   return api.post("/reservations", request);
-}
-
-export function createSwap(request: CreateSwapRequest): Promise<ReservationResponse[]> {
-  return api.post("/reservations/swap", request);
 }
 
 export function confirmReservation(id: number): Promise<ReservationResponse> {
   return api.post(`/reservations/${id}/confirm`, undefined);
 }
 
-export function cancelReservation(id: number): Promise<ReservationResponse> {
-  return api.post(`/reservations/${id}/cancel`, undefined);
-}
-
 export function fulfillReservation(id: number): Promise<ReservationResponse> {
   return api.post(`/reservations/${id}/fulfill`, undefined);
-}
-
-/** `term_id` is caller-supplied context (a bare `Reservation` carries no
- * Term reference) — used only to gate on `term.occurs_on`. */
-export interface ConfirmTransactionRequest {
-  term_id: number;
 }
 
 /** `already_resolved` is the explicit discriminator the global pending-
@@ -84,23 +64,17 @@ export interface ConfirmTransactionResponse {
   already_resolved: boolean;
 }
 
-export function confirmTransaction(
-  reservationId: number,
-  request: ConfirmTransactionRequest,
-): Promise<ConfirmTransactionResponse> {
-  return api.post(`/reservations/${reservationId}/confirm-transaction`, request);
+/** The backend gates on the reservation's own Term (`reservation.term_id`
+ * → `term.occurs_on`), so no request body is sent. */
+export function confirmTransaction(reservationId: number): Promise<ConfirmTransactionResponse> {
+  return api.post(`/reservations/${reservationId}/confirm-transaction`, undefined);
 }
 
-/** Mirrors `ConfirmTransactionRequest`/`ConfirmTransactionResponse` exactly
- * — same `term_id`-gated shared gating helper backend-side
- * (`_resolve_transaction_reservations_for_action`), same
+/** Mirrors `confirmTransaction` exactly — same shared gating helper
+ * backend-side (`_resolve_transaction_reservations_for_action`), same
  * `already_resolved`-discriminated 409 race-loss shape. */
-export type CancelTransactionRequest = ConfirmTransactionRequest;
 export type CancelTransactionResponse = ConfirmTransactionResponse;
 
-export function cancelTransaction(
-  reservationId: number,
-  request: CancelTransactionRequest,
-): Promise<CancelTransactionResponse> {
-  return api.post(`/reservations/${reservationId}/cancel-transaction`, request);
+export function cancelTransaction(reservationId: number): Promise<CancelTransactionResponse> {
+  return api.post(`/reservations/${reservationId}/cancel-transaction`, undefined);
 }

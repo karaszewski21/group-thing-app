@@ -267,10 +267,12 @@ async def test_syncPledge_afterReservationFulfilled_marksPledgeFulfilled(
     reservation_id = fulfilled.json()["resolved_reservation_id"]
 
     # `fulfill_pledge` already auto-confirms the reservation on the
-    # guardian's (holder's) behalf — only `fulfill` (the organizer's later
-    # physical-receipt step) remains.
+    # guardian's (holder's) behalf; the Term (today) has started, so the
+    # hand-over is completed through `confirm-transaction`.
     assert (
-        await client.post(f"/api/reservations/{reservation_id}/fulfill", headers=_auth(guest_token))
+        await client.post(
+            f"/api/reservations/{reservation_id}/confirm-transaction", headers=_auth(guest_token)
+        )
     ).status_code == 200
 
     synced = await client.post(f"/api/pledges/{pledge_id}/sync", headers=_auth(guest_token))

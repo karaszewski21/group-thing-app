@@ -40,3 +40,8 @@
   --font-serif: "Fraunces", Georgia, serif;
   --font-sans: "Karla", "Segoe UI", system-ui, sans-serif;
 }
+#root {
+  width: 100%;
+  max-width: 1200px;
+  margin-inline: auto;
+}

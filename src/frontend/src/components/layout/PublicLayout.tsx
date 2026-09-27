@@ -10,8 +10,12 @@ import { AccountMenu } from "../shared/AccountMenu";
 export function PublicLayout() {
   return (
     <>
-      <PublicAccountBar />
-      <Outlet />
+     <nav aria-label="Menu konta" className="border-b border-line bg-paper">  
+        <PublicAccountBar />
+     </nav>
+      <main>
+        <Outlet />
+      </main>
     </>
   );
 }
@@ -21,10 +25,8 @@ function PublicAccountBar() {
   const organizationSlug = useMyOrganizationSlug();
   if (token === null) return null;
   return (
-    <nav aria-label="Menu konta" className="border-b border-line bg-paper">
-      <div className="mx-auto flex max-w-[430px] justify-end px-[18px] py-2">
+      <div className="mx-auto flex justify-end px-[18px] py-2">
         <AccountMenu organizationSlug={organizationSlug} showPanelHome />
       </div>
-    </nav>
   );
 }

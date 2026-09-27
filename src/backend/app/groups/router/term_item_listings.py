@@ -19,9 +19,7 @@ from app.groups import service
 from app.groups.application.term_item_listings import TermAlreadyResolvedException
 from app.groups.schemas import (
     BrowseTermItemListingResponse,
-    CancelTransactionRequest,
     CancelTransactionResponse,
-    ConfirmTransactionRequest,
     ConfirmTransactionResponse,
     ItemListingPreferenceResponse,
     MyInventoryItemResponse,
@@ -127,7 +125,7 @@ async def reject_swap_proposal(
     response_model=ConfirmTransactionResponse,
 )
 async def confirm_transaction(
-    reservation_id: int, body: ConfirmTransactionRequest, db: DbSession, principal: EditPrincipal
+    reservation_id: int, db: DbSession, principal: EditPrincipal
 ) -> ConfirmTransactionResponse | JSONResponse:
     """Maps `TermAlreadyResolvedException` (Group 3's marker for "the other
     party already resolved this transaction") to an explicit 409 body with
@@ -135,9 +133,7 @@ async def confirm_transaction(
     409 envelope (e.g. the "term hasn't ended yet" conflict), per spec.md
     Requirement 3 and this group's acceptance criteria."""
     try:
-        reservation = await service.confirm_transaction(
-            db, principal, reservation_id, body.term_id
-        )
+        reservation = await service.confirm_transaction(db, principal, reservation_id)
     except TermAlreadyResolvedException:
         body_out = ConfirmTransactionResponse(
             reservation_id=reservation_id, status="ALREADY_RESOLVED", already_resolved=True
@@ -153,14 +149,14 @@ async def confirm_transaction(
     response_model=CancelTransactionResponse,
 )
 async def cancel_transaction(
-    reservation_id: int, body: CancelTransactionRequest, db: DbSession, principal: EditPrincipal
+    reservation_id: int, db: DbSession, principal: EditPrincipal
 ) -> CancelTransactionResponse | JSONResponse:
     """The cancel counterpart of `confirm_transaction` above — same
     `TermAlreadyResolvedException` -> 409 mapping and verb-suffix sibling
     route naming (`.../confirm-transaction` / `.../cancel-transaction`),
     per `standards/backend/api.md`."""
     try:
-        reservation = await service.cancel_transaction(db, principal, reservation_id, body.term_id)
+        reservation = await service.cancel_transaction(db, principal, reservation_id)
     except TermAlreadyResolvedException:
         body_out = CancelTransactionResponse(
             reservation_id=reservation_id, status="ALREADY_RESOLVED", already_resolved=True

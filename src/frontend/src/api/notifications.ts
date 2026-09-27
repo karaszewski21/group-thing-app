@@ -34,6 +34,11 @@ export interface NotificationResponse {
    * `GROUP_JOIN_REQUESTED` request directly. `null`/absent for every other
    * kind. */
   join_request_id?: number | null;
+  /** Loose pointer at `Reservation.id`, populated for
+   * `TERM_CONFIRMATION_NEEDED` raised from a GIFT/LEND reservation — lets
+   * the pending-actions modal `confirmTransaction` on it directly. `null`
+   * for every other kind (and for SWAP prompts). */
+  reservation_id: number | null;
 }
 
 export function getMyNotifications(): Promise<NotificationResponse[]> {

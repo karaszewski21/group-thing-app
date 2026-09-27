@@ -8,8 +8,8 @@ interface AuthGuardProps {
   /** Where to send an already-authenticated user away from a
    * `requireAuth={false}` page (e.g. /login, /register) when no
    * `?returnTo=` is present. Defaults to "/", which resolves through the
-   * "/" index route's `HomeRedirect` (router.tsx) to send back-office
-   * roles to `/products` and everyone else to `/panel`. `/register` passes
+   * "/" route's `HomeRedirect` (router.tsx) to send back-office
+   * roles to `/admin/products` and everyone else to `/panel`. `/register` passes
    * "/onboarding" here so this guard's own redirect (which fires the
    * instant `register()` sets a token, racing the imperative
    * `navigate("/onboarding")` in RegisterPage's submit handler) can never

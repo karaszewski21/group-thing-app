@@ -66,7 +66,7 @@ describe("Frontend Foundation", () => {
       <AppShell>
         <div>routed content</div>
       </AppShell>,
-      "/products",
+      "/admin/products",
     );
     expect(container).toBeTruthy();
     expect(screen.getByText("routed content")).toBeInTheDocument();

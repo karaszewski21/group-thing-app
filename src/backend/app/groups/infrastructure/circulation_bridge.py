@@ -4,8 +4,8 @@ drives the Pledge->Reservation bridge exclusively through these thin
 pass-throughs, and reads `ReservationStatus` from here rather than
 importing circulation models directly. `application/term_item_listings`
 and `application/attendance` drive the ItemListingPreference->Reservation
-bridge the same way, via the `create_reservation`/`create_swap`/
-`list_reservations` pass-throughs and the re-exported `ReservationType`."""
+bridge the same way, via the `create_reservation`/`list_reservations`
+pass-throughs and the re-exported `ReservationType`."""
 
 from __future__ import annotations
 
@@ -22,7 +22,7 @@ from app.circulation.models import (
     ReservationStatus,
     ReservationType,
 )
-from app.circulation.schemas import CreateReservationRequest, CreateSwapRequest
+from app.circulation.schemas import CreateReservationRequest
 
 __all__ = [
     "BalanceStatus",
@@ -35,7 +35,6 @@ __all__ = [
     "confirm_reservation",
     "create_lend_reservation",
     "create_reservation",
-    "create_swap",
     "find_personal_inventory",
     "fulfill_reservation",
     "get_inventory",
@@ -43,8 +42,9 @@ __all__ = [
     "get_item_balance",
     "get_or_create_personal_inventory",
     "get_reservation",
+    "list_active_hand_over_reservations_for_terms",
     "list_active_reservations_for_taker",
-    "list_items_with_product_name",
+    "list_owned_items_including_lent_with_product_name",
     "list_reservations",
     "register_item",
     "resolve_current_holder_user_id",
@@ -97,31 +97,6 @@ async def create_reservation(
     )
 
 
-async def create_swap(
-    db: AsyncSession,
-    *,
-    first_item_id: int,
-    first_reserved_by_user_id: int,
-    second_item_id: int,
-    second_reserved_by_user_id: int,
-    term_id: int,
-) -> tuple[Reservation, Reservation]:
-    """Used by `app.groups.application.term_item_listings`'s `SWAP` take
-    path. Returns `(first, second)` — the **first** is the listed-item leg,
-    whose reservation id `_resolve_listing_status` later reports back as
-    `resolved_reservation_id` (derived, not stored)."""
-    return await circulation_service.create_swap(
-        db,
-        CreateSwapRequest(
-            first_item_id=first_item_id,
-            first_reserved_by_user_id=first_reserved_by_user_id,
-            second_item_id=second_item_id,
-            second_reserved_by_user_id=second_reserved_by_user_id,
-            term_id=term_id,
-        ),
-    )
-
-
 async def get_reservation(db: AsyncSession, reservation_id: int) -> Reservation:
     return await circulation_service.get_reservation(db, reservation_id)
 
@@ -144,8 +119,8 @@ async def cancel_reservation(db: AsyncSession, reservation_id: int, acting_user_
 
 async def fulfill_reservation(db: AsyncSession, reservation_id: int, acting_user_id: int) -> Reservation:
     """Thin pass-through, same shape as `confirm_reservation` above. Used by
-    the future `confirm_transaction` use case (`app.groups`, Group 3) after
-    `confirm_reservation` has moved a reservation to `CONFIRMED`."""
+    `term_item_listings.confirm_transaction` after `confirm_reservation` has
+    moved a reservation to `CONFIRMED`."""
     return await circulation_service.fulfill_reservation(db, reservation_id, acting_user_id)
 
 
@@ -177,6 +152,14 @@ async def list_active_reservations_for_taker(
     return await circulation_service.list_active_reservations_for_taker(db, account_user_id)
 
 
+async def list_active_hand_over_reservations_for_terms(
+    db: AsyncSession, term_ids: list[int]
+) -> list[Reservation]:
+    """Used by `application/term_end_scan.py`: the still-open GIFT/LEND
+    reservations of the just-ended Terms, in one query."""
+    return await circulation_service.list_active_hand_over_reservations_for_terms(db, term_ids)
+
+
 async def find_personal_inventory(db: AsyncSession, owner_user_id: int) -> Inventory | None:
     """The user's PERSONAL inventory, or `None` if they have never created
     one — read-only, unlike `get_or_create_personal_inventory`."""
@@ -186,10 +169,14 @@ async def find_personal_inventory(db: AsyncSession, owner_user_id: int) -> Inven
     )
 
 
-async def list_items_with_product_name(
-    db: AsyncSession, inventory_id: int
+async def list_owned_items_including_lent_with_product_name(
+    db: AsyncSession, personal_inventory_id: int
 ) -> list[tuple[InventoryItem, str]]:
-    return await circulation_service.list_items_with_product_name(db, inventory_id)
+    """Used by `list_my_inventory_items`: the owner's items at home plus
+    those currently lent out (`home_inventory_id` = this PERSONAL)."""
+    return await circulation_service.list_owned_items_including_lent_with_product_name(
+        db, personal_inventory_id
+    )
 
 
 async def get_item(db: AsyncSession, item_id: int) -> InventoryItem:

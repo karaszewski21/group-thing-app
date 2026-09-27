@@ -21,8 +21,8 @@ export function PluginPageRoute() {
     );
   }
 
-  // Extract the path after /plugins/:pluginId
-  const basePath = `/plugins/${pluginId}`;
+  // Extract the path after /admin/plugins/:pluginId
+  const basePath = `/admin/plugins/${pluginId}`;
   const pluginPath = location.pathname.slice(basePath.length) || "/";
 
   return (

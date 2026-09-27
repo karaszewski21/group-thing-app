@@ -45,7 +45,7 @@ const mockCategories: Category[] = [
 function renderForm() {
   return render(
     <ChakraProvider value={system}>
-      <MemoryRouter initialEntries={["/products/new"]}>
+      <MemoryRouter initialEntries={["/admin/products/new"]}>
         <ProductFormPage />
       </MemoryRouter>
     </ChakraProvider>, { wrapper: createQueryWrapper() },

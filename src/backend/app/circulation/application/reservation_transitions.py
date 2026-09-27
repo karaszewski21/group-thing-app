@@ -73,9 +73,14 @@ async def cancel_reservation(
 
     reservation.status = ReservationStatus.CANCELLED
     balance = await get_item_balance(db, cast(int, item.id))
-    balance.status = BalanceStatus.AVAILABLE
     balance.reserved_at = None
-    balance.due_date = None
+    if reservation.reservation_type == ReservationType.RETURN:
+        # The item is still in the borrower's VIRTUAL inventory, so the loan
+        # simply continues — same `lent_at`/`due_date`.
+        balance.status = BalanceStatus.LENT
+    else:
+        balance.status = BalanceStatus.AVAILABLE
+        balance.due_date = None
 
     await db.commit()
     await db.refresh(reservation)
@@ -98,6 +103,10 @@ async def fulfill_reservation(
     now = datetime.utcnow()
 
     if reservation.reservation_type == ReservationType.LEND:
+        if item.home_inventory_id is not None:
+            raise BusinessConflictException(
+                f"InventoryItem {item.id} is already on loan and cannot be lent again"
+            )
         virtual_inventory = await get_or_create_virtual_inventory(
             db, reservation.reserved_by_user_id
         )

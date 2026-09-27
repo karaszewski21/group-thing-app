@@ -325,7 +325,7 @@ describe("Permission-based UI visibility", () => {
     render(
       <ChakraProvider value={system}>
         <PluginProvider>
-          <MemoryRouter initialEntries={["/products"]}>
+          <MemoryRouter initialEntries={["/admin/products"]}>
             <ProductListPage />
           </MemoryRouter>
         </PluginProvider>

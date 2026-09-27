@@ -1,15 +1,16 @@
 """Periodic background scan for `Term`s whose `occurs_on` has just passed,
-emitting an idempotent outbox event for each still-unresolved giveaway
-(GIFT) `Reservation` and each `ACCEPTED` `SwapProposal` it affects — the
-trigger `app.notifications.outbox_listener` listens for to prompt both
-parties to call `confirm_transaction`.
+emitting an idempotent outbox event for each still-open GIFT or LEND
+`Reservation` and each `ACCEPTED` `SwapProposal` it affects — the trigger
+`app.notifications.outbox_listener` listens for to prompt both parties to
+call `confirm_transaction`.
 
 Reads circulation state ONLY through `circulation_bridge` — this module
-never imports `app.circulation` directly. A bare `Reservation` carries no
-`Term` reference, so "which reservations does this Term affect" is derived
-the same way `list_browsable_term_item_listings` already derives listing
-membership: the standing `ItemListingPreference` of every party eligible
-for the Term (active attendee, or its organizer) — see
+never imports `app.circulation` directly. GIFT/LEND candidates come from
+`Reservation.term_id` (statuses `PENDING`/`CONFIRMED`; RETURN and SWAP
+excluded), so Take-LEND, Pledge-LEND and GIFT are covered regardless of
+listing preferences. SWAP candidates are still derived from the standing
+`ItemListingPreference` of every party eligible for the Term (active
+attendee, or its organizer) — see
 `term_item_listings._list_eligible_lister_party_ids`.
 
 The outbox-append and the idempotency marker (`GiveawayTermEndMarker` row,
@@ -20,12 +21,14 @@ commit into re-emitting the same event."""
 
 from __future__ import annotations
 
+import logging
 from datetime import datetime, timedelta
 from typing import cast
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.errors import EntityNotFoundException
 from app.outbox import service as outbox_service
 from app.users.service import get_profile_by_account_user_id
 
@@ -50,6 +53,8 @@ DEFAULT_WINDOW = timedelta(hours=24)
 
 __all__ = ["scan_for_term_ended", "DEFAULT_WINDOW"]
 
+logger = logging.getLogger(__name__)
+
 
 async def _find_terms_just_ended(db: AsyncSession, *, window: timedelta) -> list[Term]:
     """One bounded query — `occurs_on` in `[now - window, now]` — never a
@@ -59,37 +64,23 @@ async def _find_terms_just_ended(db: AsyncSession, *, window: timedelta) -> list
     # `datetime.now()`, matching every other `occurs_on` comparison in
     # `term_item_listings.py`, not `datetime.utcnow()`.
     now = datetime.now()
-    result = await db.execute(select(Term).where(Term.occurs_on >= now - window, Term.occurs_on <= now))
+    result = await db.execute(
+        select(Term).where(Term.occurs_on >= now - window, Term.occurs_on <= now)
+    )
     return list(result.scalars().all())
 
 
-async def _scan_giveaways(
-    db: AsyncSession, preferences: list[ItemListingPreference], link_path: str
-) -> None:
-    gift_item_ids = [
-        pref.item_id
-        for pref in preferences
-        if pref.mode == circulation_bridge.ReservationType.GIFT.value
-    ]
-    if not gift_item_ids:
-        return
-
-    # `circulation_bridge.list_reservations` is a per-item pass-through (no
-    # batch equivalent exists on the bridge) — bounded by this Term's own
-    # eligible listing items, same "bounded loop, not per-row N+1"
-    # precedent `term_item_listings._resolve_item_display_info` already
-    # applies to bridge calls.
-    candidates: list[circulation_bridge.Reservation] = []
-    for item_id in gift_item_ids:
-        reservations = await circulation_bridge.list_reservations(db, item_id)
-        candidates.extend(
-            r
-            for r in reservations
-            if r.reservation_type == circulation_bridge.ReservationType.GIFT
-            and r.status == circulation_bridge.ReservationStatus.PENDING
-        )
+async def _scan_hand_over_reservations(db: AsyncSession, link_paths: dict[int, str]) -> int:
+    """One bridge query for every just-ended Term's still-open GIFT/LEND
+    reservations, minus those already carrying a `GiveawayTermEndMarker`.
+    Deliberately independent of eligibility and `ItemListingPreference` — a
+    Pledge-LEND has no listing preference behind it. Returns how many events
+    it emitted."""
+    candidates = await circulation_bridge.list_active_hand_over_reservations_for_terms(
+        db, list(link_paths)
+    )
     if not candidates:
-        return
+        return 0
 
     reservation_ids = [cast(int, r.id) for r in candidates]
     already_marked = set(
@@ -104,38 +95,49 @@ async def _scan_giveaways(
         .all()
     )
 
-    preferences_by_item = {pref.item_id: pref for pref in preferences}
+    emitted = 0
     for reservation in candidates:
         reservation_id = cast(int, reservation.id)
         if reservation_id in already_marked:
             continue
-        preference = preferences_by_item.get(reservation.item_id)
-        if preference is None:
+        # Skipped (not raised): the scan commits once, so one party without a
+        # profile would otherwise roll back every other Term's events, every run.
+        try:
+            owner_profile = await get_profile_by_account_user_id(db, reservation.giver_user_id)
+            taker_profile = await get_profile_by_account_user_id(
+                db, reservation.reserved_by_user_id
+            )
+        except EntityNotFoundException:
+            logger.warning(
+                "Term-end scan skipped reservation %s: a party has no user profile",
+                reservation_id,
+            )
             continue
-        taker_profile = await get_profile_by_account_user_id(db, reservation.reserved_by_user_id)
         await outbox_service.append(
             db,
             event_type=swap_events.TERM_ENDED_GIVEAWAY,
             payload={
-                "owner_party_id": preference.owner_party_id,
+                "owner_party_id": owner_profile.party_id,
                 "taker_party_id": taker_profile.party_id,
                 "reservation_id": reservation_id,
-                "link_path": link_path,
+                "link_path": link_paths[reservation.term_id],
             },
         )
         db.add(GiveawayTermEndMarker(reservation_id=reservation_id, notified_at=datetime.utcnow()))
+        emitted += 1
+    return emitted
 
 
 async def _scan_swaps(
     db: AsyncSession, preferences: list[ItemListingPreference], link_path: str
-) -> None:
+) -> int:
     swap_item_ids = [
         pref.item_id
         for pref in preferences
         if pref.mode == circulation_bridge.ReservationType.SWAP.value
     ]
     if not swap_item_ids:
-        return
+        return 0
 
     result = await db.execute(
         select(SwapProposal).where(
@@ -146,8 +148,9 @@ async def _scan_swaps(
     )
     proposals = list(result.scalars().all())
     if not proposals:
-        return
+        return 0
 
+    emitted = 0
     preferences_by_item = {pref.item_id: pref for pref in preferences}
     for proposal in proposals:
         preference = preferences_by_item.get(proposal.listing_item_id)
@@ -164,6 +167,8 @@ async def _scan_swaps(
             },
         )
         proposal.term_ended_notified_at = datetime.utcnow()
+        emitted += 1
+    return emitted
 
 
 async def scan_for_term_ended(db: AsyncSession, *, window: timedelta = DEFAULT_WINDOW) -> None:
@@ -172,6 +177,13 @@ async def scan_for_term_ended(db: AsyncSession, *, window: timedelta = DEFAULT_W
     marker for every affected row across every just-ended Term land in one
     atomic transaction."""
     terms = await _find_terms_just_ended(db, window=window)
+    link_paths: dict[int, str] = {}
+    for term in terms:
+        slug = await resolve_organizer_slug(db, term.circle_group_id)
+        link_paths[cast(int, term.id)] = f"/{slug}/grupa/{term.circle_group_id}/term/{term.id}"
+    hand_over_events = await _scan_hand_over_reservations(db, link_paths) if link_paths else 0
+    swap_events_emitted = 0
+
     for term in terms:
         eligible_party_ids = await _list_eligible_lister_party_ids(db, term)
         if not eligible_party_ids:
@@ -181,8 +193,15 @@ async def scan_for_term_ended(db: AsyncSession, *, window: timedelta = DEFAULT_W
         )
         if not preferences:
             continue
-        slug = await resolve_organizer_slug(db, term.circle_group_id)
-        link_path = f"/{slug}/grupa/{term.circle_group_id}/term/{term.id}"
-        await _scan_giveaways(db, preferences, link_path)
-        await _scan_swaps(db, preferences, link_path)
+        swap_events_emitted += await _scan_swaps(db, preferences, link_paths[cast(int, term.id)])
     await db.commit()
+
+    # The job runs every minute; INFO only when it actually emitted something.
+    level = logging.INFO if hand_over_events or swap_events_emitted else logging.DEBUG
+    logger.log(
+        level,
+        "Term-end scan: %d terms, %d hand-over events, %d swap events",
+        len(terms),
+        hand_over_events,
+        swap_events_emitted,
+    )

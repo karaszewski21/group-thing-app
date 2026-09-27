@@ -64,9 +64,9 @@ describe("Category display resolves via useCategories(), not CATEGORY_LABELS", (
 
     render(
       <ChakraProvider value={system}>
-        <MemoryRouter initialEntries={["/products/1"]}>
+        <MemoryRouter initialEntries={["/admin/products/1"]}>
           <Routes>
-            <Route path="/products/:id" element={<ProductDetailPage />} />
+            <Route path="/admin/products/:id" element={<ProductDetailPage />} />
           </Routes>
         </MemoryRouter>
       </ChakraProvider>, { wrapper: createQueryWrapper() },

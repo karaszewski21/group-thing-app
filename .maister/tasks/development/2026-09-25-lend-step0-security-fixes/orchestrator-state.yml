@@ -1,0 +1,115 @@
+orchestrator:
+  started_phase: phase-1
+  completed_phases: [phase-1, phase-2, phase-3, phase-4, phase-5, phase-6, phase-7, phase-8, phase-9, phase-10]
+  failed_phases: []
+  auto_fix_attempts: {}
+  options:
+    spec_audit_enabled: true
+    skip_test_suite: false
+    e2e_enabled: true
+    user_docs_enabled: true
+    code_review_enabled: true
+    pragmatic_review_enabled: true
+    reality_check_enabled: true
+    production_check_enabled: true
+    sequential: null
+  created: 2026-09-25T21:00:00
+  updated: 2026-09-25T21:00:00
+  task_path: .maister/tasks/development/2026-09-25-lend-step0-security-fixes
+  task_ids: {}
+
+task:
+  title: "Krok 0 wypożyczeń — poprawki B6, B7, B10, B12"
+  description: >
+    Krok 0 z research 2026-09-25-lend-lifecycle-virtual-inventory (ADR-008, ADR-010):
+    B6 — surowe /api/reservations* (POST, confirm, cancel, fulfill) biorą reserved_by z body i omijają
+    reguły groups: aktor = principal + reguły per typ (trasy zostają, usunięcie w MVP);
+    B7 — confirm_transaction/cancel_transaction ufają term_id z body: Termin z rezerwacji;
+    B10 — właściciel nie widzi pożyczonej rzeczy w GET /api/inventory-items/mine (po home_inventory_id, pole „pożyczone: komu, do kiedy”);
+    B12 — term_end_scan ignoruje PENDING LEND i Pledge-LEND: TERM_CONFIRMATION_NEEDED dla LEND.
+    Każda poprawka z testami regresji. Poza zakresem: B2, B3, B11, encja Loan (MVP).
+  status: in_progress
+  tags: [lend, security, bugfix, circulation, groups]
+  priority: high
+
+task_context:
+  risk_level: medium
+  tdd_red_passed: true
+  tdd_green_passed: true
+  clarifications_resolved: true
+  scope_expanded: true
+  architecture_decision: "router-only guards + new create_return_reservation use case; shared transitions only get R5-R7"
+  task_characteristics:
+    has_reproducible_defect: true
+    modifies_existing_code: true
+    creates_new_entities: false
+    involves_data_operations: true
+    ui_heavy: true
+  research_reference:
+    path: .maister/tasks/research/2026-09-25-lend-lifecycle-virtual-inventory
+    research_question: >
+      Jak zaprojektować funkcję wypożyczenia (LEND) obejmującą pełny cykl życia po przekazaniu rzeczy?
+    research_type: mixed
+    confidence_level: medium
+  design_reference:
+    source: phase-4-ascii
+    product_design_path: null
+    mockup_count: 0
+    has_brief: false
+    index_path: analysis/design-context/INDEX.md
+  project_context:
+    project_doc_paths:
+      - .maister/docs/project/tech-stack.md
+      - .maister/docs/project/architecture.md
+  phase_summaries:
+    research:
+      summary: >
+        Only first half of LEND works; return borrower-only one-click; owner can't see lent items; bugs B2,B3,B6,B7,B10,B11,B12.
+        Chosen: VIRTUAL + Loan (MVP), two-sided return, due_date+14d, loan_due_scan, disputes outside system, step 0 first.
+      key_findings:
+        - "B6: POST /api/reservations trusts body reserved_by_user_id; raw confirm/cancel/fulfill bypass groups rules (circulation/router.py:161-223)"
+        - "B7: confirm/cancel-transaction trust body term_id (term_item_listings.py ~687-702)"
+        - "B10: /api/inventory-items/mine lists only current PERSONAL inventory; lent items vanish for owner"
+        - "B12: term_end_scan scans only GIFT/SWAP; no TERM_CONFIRMATION_NEEDED for LEND"
+      recommended_approach: "ADR-008 step 0 separate; ADR-010 secure raw routes now (principal actor + per-type rules), remove in MVP"
+      decisions_made: [ADR-008, ADR-010]
+    design: {summary: "ASCII mockups: lent tile in RzeczyView (badge 'Pożyczone: {imię}, do DD.MM.YYYY', modes+delete disabled, post-term buttons hidden), lent+return-pending tile, pending-actions modal unchanged visually but uses notification.reservation_id, home counters include lent.", screen_count: 1, component_count: 6, index_path: analysis/design-context/INDEX.md}
+    codebase_analysis:
+      key_files: [src/backend/app/circulation/router.py, src/backend/app/circulation/application/reservations.py, src/backend/app/circulation/application/reservation_transitions.py, src/backend/app/circulation/domain/reservation_rules.py, src/backend/app/groups/application/term_item_listings.py, src/backend/app/groups/router/term_item_listings.py, src/backend/app/groups/schemas.py, src/backend/app/circulation/infrastructure/repository.py, src/backend/app/groups/application/term_end_scan.py, src/frontend/src/pages/panel/PanelDataContext.tsx, src/frontend/src/pages/panel/views/RzeczyView.tsx]
+      primary_language: python/typescript
+      summary: "All 4 bugs confirmed. Latent theft chain via raw cancel RETURN -> AVAILABLE in VIRTUAL -> raw GIFT to self (B2-lite needed in step 0). Pledge-LEND FE prompt unresolvable (B12 needs FE reservation lookup). Actor rules must be router-only (shared transitions used by groups). Research claim 'Pledge uses raw /fulfill' wrong (only tests)."
+
+    clarifications:
+      - "C1: B2-lite in step 0 (cancel RETURN restores LENT; raw non-RETURN create requires home_inventory_id IS NULL)"
+      - "C2: raw POST/swap/fulfill reject LEND/GIFT/SWAP (only RETURN: actor=holder, reserved_by derived=home owner); ~12 test_circulation tests rewritten; rules router-only"
+      - "C3: B12 Pledge-LEND via new Notification.reservation_id column (migration 0040), modal uses it directly"
+    gap_analysis:
+      integration_points: [circulation/router.py, circulation/domain/reservation_rules.py, circulation/application/reservation_transitions.py, circulation/application/reservations.py, circulation/schemas.py, circulation repository+bridge, groups term_item_listings (app/router/schemas), groups term_end_scan, notifications models/service/schemas/outbox_listener + alembic 0040, FE api/reservations.ts, api/inventories.ts, api/notifications.ts, PanelDataContext.tsx, RzeczyView.tsx]
+      summary: "All 4 bugs confirmed; medium risk/effort; 2 new critical decisions (raw confirm/cancel per type; RETURN exposed to owner after B10) + 10 important; B7->B6+B2lite->B10->B12 order; many raw-route tests to rewrite."
+
+    scope_clarifications:
+      scope_expanded: true
+      summary: "Added B2-lite (RETURN cancel->LENT, no due_date wipe, home-inventory guard in shared create + LEND fulfil). Raw writes RETURN-only (new CreateReturnReservationRequest, 403). B7 term_id removed entirely. RETURN blocked in confirm/cancel-transaction + FE buttons hidden for lent. B10 lent_to_display_name/lent_due_date + badge. B12 unified term_id scan GIFT+LEND, reuse event/marker, Notification.reservation_id (0040). Pledge sync out of scope."
+
+    ui_mockups: {components_designed: [component:rzeczy-item-tile-lent, component:rzeczy-lent-badge, component:rzeczy-item-tile-lent-return-pending, component:pending-actions-modal-lend, component:pending-actions-modal-lend-states, component:home-item-counters], summary: "see design"}
+    specification: {summary: "spec.md R1-R20: raw writes RETURN-only via router CreateReturnReservationRequest {item_id, notes?, reservation_type? default RETURN, else 403}, create_return_reservation use case (actor=holder, reserved_by derived), router-only type rule; RETURN cancel->LENT, no due_date wipe, home guard 409; B7 request bodies removed, term from reservation, RETURN 409; B10 new repo query + lent_to_display_name/lent_due_date + FE badge/disables/aria/guards; B12 term_id scan GIFT+LEND PENDING/CONFIRMED, migration 0040 notifications.reservation_id, FE reservationId w/ fallback."}
+    architecture_decision: {decision: null, summary: null}
+    implementation:
+      summary: "7 groups / 62 steps (1 skipped w/ reason), 5 waves. BE 413 passed, TDD gate 13/13 unmodified; FE 290 passed + 4 pre-existing unrelated failures; tsc/eslint clean; ruff/mypy no new errors. ~26 BE + 12 FE new tests. Migration 0040. Dead swap chain + lenderUserId removed."
+
+
+verification_context:
+  last_status: failed
+  issues_found: []
+  fixes_applied:
+    - "K-1: unpaired SWAP leg -> 409 in _resolve_transaction_reservations_for_action (+ HTTP test)"
+    - "W-1/Z2: returnBorrowedItem resumable via findUnfinishedReturn (+ FE test)"
+    - "W-2: mine-as-taker skips RETURN and filters reservation.term_id (+ test)"
+    - "Z1+Z3: term_end_scan per-reservation try/except + logger + per-run counts (+ test)"
+    - "raw /cancel RETURN holder-only in router (+ 3 tests incl. owner-create RETURN 403)"
+  decisions_made:
+    - "spec-audit: PASS WITH CONCERNS (0 crit, 2 major, 11 minor) — resolutions appended to spec.md"
+    - "lent_* required in FE type + fixtures + tsc/eslint gate"
+    - "remove dead create_swap chain + /swap route + bridge.list_items_with_product_name + FE createSwap/cancelReservation"
+    - "R9 order: participant before RETURN guard"
+  reverify_count: 0

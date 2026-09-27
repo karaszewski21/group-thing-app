@@ -46,8 +46,8 @@ import {
   getMyInventoryItems,
   registerInventoryItem,
   updateInventoryItem,
-  type InventoryItemResponse,
   type ItemCondition,
+  type MyInventoryItemResponse,
 } from "../../api/inventories";
 import {
   confirmReservation,
@@ -55,6 +55,7 @@ import {
   createReservation,
   fulfillReservation,
   getReservation,
+  type ReservationResponse,
 } from "../../api/reservations";
 import {
   acceptSwapProposal,
@@ -134,9 +135,10 @@ export interface PendingSwapAction {
 }
 
 /** The post-term-end confirm-race prompt — fully wired to
- * `confirmTransaction`, since (unlike a bare `SwapProposal`) the
- * reservation needing confirmation IS resolvable client-side from the
- * term's existing `getMyTermItemListings`/`getMyTakenTermItemListings` (see
+ * `confirmTransaction`. `reservationId` is `Notification.reservation_id`
+ * (set for GIFT/LEND prompts, incl. Pledge-LEND); when it is `null` (SWAP,
+ * older notifications) the reservation is resolved client-side from the
+ * term's `getMyTermItemListings`/`getMyTakenTermItemListings` (see
  * `resolvePendingReservationId`). */
 export interface PendingConfirmAction {
   kind: "TERM_CONFIRMATION_NEEDED";
@@ -144,6 +146,7 @@ export interface PendingConfirmAction {
   message: string;
   linkPath: string | null;
   termId: number | null;
+  reservationId: number | null;
 }
 
 /** A PENDING request to join a group the caller organizes. Sourced from the
@@ -227,6 +230,18 @@ async function resolvePendingReservationId(
     }
   }
   return null;
+}
+
+/** The item's RETURN left half-done by an earlier "Oddaję" whose confirm or
+ * fulfill failed. The item is no longer `LENT` then, so creating a new
+ * RETURN would be rejected — the retry has to finish this one instead. */
+async function findUnfinishedReturn(itemId: number): Promise<ReservationResponse | null> {
+  const balance = await getInventoryItemBalance(itemId);
+  if (!ACTIVE_LOCK_BALANCE_STATUSES.includes(balance.status) || balance.reservation_id === null) {
+    return null;
+  }
+  const reservation = await getReservation(balance.reservation_id);
+  return reservation.reservation_type === "RETURN" ? reservation : null;
 }
 
 const VIEW_VALUES: readonly View[] = [
@@ -434,7 +449,7 @@ function usePanelDataValue() {
 
   // --- Moje rzeczy (realny Inventory/InventoryItem/Product) ---
   const [inventoryId, setInventoryId] = useState<number | null>(null);
-  const [items, setItems] = useState<InventoryItemResponse[]>([]);
+  const [items, setItems] = useState<MyInventoryItemResponse[]>([]);
   const [products, setProducts] = useState<ProductResponse[]>([]);
   const [itemDraft, setItemDraft] = useState<ItemQuickAddValue>(createEmptyItemQuickAddValue());
 
@@ -504,7 +519,6 @@ function usePanelDataValue() {
               return {
                 itemId: item.id,
                 productName: item.product_name,
-                lenderUserId: lenderInventory?.owner_user_id ?? null,
                 lenderName: lenderProfile?.display_name ?? "nieznana osoba",
                 dueDate: balance.due_date,
               };
@@ -704,6 +718,7 @@ function usePanelDataValue() {
                 message: n.message,
                 linkPath: n.link_path,
                 termId: parseTermIdFromLinkPath(n.link_path),
+                reservationId: n.reservation_id ?? null,
               },
             ];
           }
@@ -808,14 +823,25 @@ function usePanelDataValue() {
     }
   }
 
-  async function confirmPendingAction(notificationId: number, termId: number | null) {
-    if (termId === null || profile?.account_user_id == null) {
+  async function confirmPendingAction(
+    notificationId: number,
+    termId: number | null,
+    notificationReservationId: number | null,
+  ) {
+    if (
+      notificationReservationId === null &&
+      (termId === null || profile?.account_user_id == null)
+    ) {
       showToast("Nie udało się potwierdzić — spróbuj ponownie");
       return;
     }
     setPendingActionBusyId(notificationId);
     try {
-      const reservationId = await resolvePendingReservationId(termId, profile.party_id);
+      const reservationId =
+        notificationReservationId ??
+        (termId !== null && profile
+          ? await resolvePendingReservationId(termId, profile.party_id)
+          : null);
       if (reservationId === null) {
         // resolvePendingReservationId only ever omits an ACTIVE reservation
         // (it explicitly skips FULFILLED/CANCELLED ones) — since this party
@@ -828,7 +854,7 @@ function usePanelDataValue() {
         setAlreadyResolvedIds((prev) => new Set(prev).add(notificationId));
         return;
       }
-      await confirmTransaction(reservationId, { term_id: termId });
+      await confirmTransaction(reservationId);
       // Bug #3 (cache refresh): matches every sibling mutation handler's
       // convention (e.g. withdrawMyPledge) — without this, the panel's
       // pledges/items/notifications stayed stale until the next unrelated
@@ -1027,6 +1053,7 @@ function usePanelDataValue() {
   }
 
   async function setItemMode(itemId: number, mode: ItemMode) {
+    if (items.find((i) => i.id === itemId)?.home_inventory_id != null) return;
     // Defense-in-depth: `RzeczyView` already disables the toggle buttons
     // while an item is locked (Bug #1 fix), but re-check here too, since
     // the client-side disable is UX, not the sole guard.
@@ -1294,7 +1321,7 @@ function usePanelDataValue() {
     }
   }
 
-  function startEditItemMeta(it: InventoryItemResponse) {
+  function startEditItemMeta(it: MyInventoryItemResponse) {
     const prod = products.find((p) => p.id === it.product_id);
     setItemMetaError(null);
     setEditingItemMeta({
@@ -1336,6 +1363,7 @@ function usePanelDataValue() {
     const index = items.findIndex((i) => i.id === itemId);
     if (index === -1) return;
     const removed = items[index];
+    if (removed.home_inventory_id != null) return;
     setItemError(null);
     setItems((prev) => prev.filter((i) => i.id !== itemId));
     showToast("Usunięto");
@@ -1354,22 +1382,19 @@ function usePanelDataValue() {
   /* ---------- wypożyczone (oddawanie pożyczonej rzeczy) ---------- */
 
   async function returnBorrowedItem(itemId: number) {
-    const borrowed = borrowedItems.find((b) => b.itemId === itemId);
-    if (borrowed?.lenderUserId == null) return;
     setItemError(null);
     try {
-      // `reserved_by_user_id` is always who *receives* the item as a result
-      // of this reservation — for RETURN, that's the lender. The caller
-      // (the borrower) is still the item's current holder, so per the
+      // The server derives the recipient (the item's home owner) itself. The
+      // caller (the borrower) is still the item's current holder, so per the
       // confirm-authorization rule they may confirm and fulfill their own
       // proposal in one go — no separate approval from the lender is
       // needed to hand it back.
-      const reservation = await createReservation({
-        item_id: itemId,
-        reservation_type: "RETURN",
-        reserved_by_user_id: borrowed.lenderUserId,
-      });
-      await confirmReservation(reservation.id);
+      const reservation =
+        (await findUnfinishedReturn(itemId)) ??
+        (await createReservation({ item_id: itemId, reservation_type: "RETURN" }));
+      if (reservation.status === "PENDING") {
+        await confirmReservation(reservation.id);
+      }
       await fulfillReservation(reservation.id);
       setBorrowedItems((prev) => prev.filter((b) => b.itemId !== itemId));
       showToast("Oddano");
@@ -1579,7 +1604,9 @@ function GlobalPendingActionsModal({ value }: { value: PanelDataContextValue }) 
             type="button"
             className="rounded-full bg-mint px-4 py-2 text-sm font-bold text-white disabled:opacity-60"
             disabled={busy}
-            onClick={() => void confirmPendingAction(action.notificationId, action.termId)}
+            onClick={() =>
+              void confirmPendingAction(action.notificationId, action.termId, action.reservationId)
+            }
           >
             Potwierdź
           </button>

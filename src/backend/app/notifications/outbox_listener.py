@@ -72,10 +72,12 @@ async def _handle_pledge_withdrawn(db: AsyncSession, payload: dict[str, Any]) ->
 
 
 async def _handle_term_ended_giveaway(db: AsyncSession, payload: dict[str, Any]) -> None:
-    """One `Notification` per affected party (the lister and the taker) of a
-    giveaway `Reservation` whose Term just ended — same payload-driven,
-    fully pre-rendered message shape as `_handle_pledge_claimed`."""
+    """One `Notification` per party (the giver and the taker) of a GIFT or
+    LEND `Reservation` whose Term just ended — same payload-driven, fully
+    pre-rendered message shape as `_handle_pledge_claimed`. Both carry
+    `reservation_id` so the client can confirm that reservation directly."""
     link_path = payload["link_path"]
+    reservation_id = payload["reservation_id"]
     for party_id in (payload["owner_party_id"], payload["taker_party_id"]):
         await service.create_notification(
             db,
@@ -83,6 +85,7 @@ async def _handle_term_ended_giveaway(db: AsyncSession, payload: dict[str, Any])
             kind=NotificationKind.TERM_CONFIRMATION_NEEDED,
             message="Termin się odbył — potwierdź przekazanie rzeczy",
             link_path=link_path,
+            reservation_id=reservation_id,
         )
 
 

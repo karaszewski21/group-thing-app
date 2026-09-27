@@ -6,11 +6,13 @@ Ownership is `inventory.owner_user_id == acting user` (raw `users.id`, never
 allowed regardless of `InventoryBalance` status; DELETE is blocked with 409
 unless the balance is `AVAILABLE`.
 
-Bug #4a (`Reservation.term_id`): every `POST /api/reservations` call below
-for a non-RETURN `reservation_type` now needs a real `term_id` — `_create_term`
-mints a throwaway Circle+Term via the acting caller's own token (any
-authenticated user has the `EDIT` permission `POST /api/groups/mine`/
-`POST /api/terms` require, no separate ORGANIZER registration needed).
+The raw `/api/reservations` write routes are RETURN-only (B6), so every LEND
+below is created and moved through the shared `app.circulation.service`
+transitions on `db_session`; only the RETURN ("Oddaję") stays on HTTP. A
+non-RETURN reservation needs a real `term_id` (Bug #4a) — `_create_term` mints
+a throwaway Circle+Term via the acting caller's own token (any authenticated
+user has the `EDIT` permission `POST /api/groups/mine`/`POST /api/terms`
+require, no separate ORGANIZER registration needed).
 """
 
 from __future__ import annotations
@@ -22,8 +24,18 @@ from httpx import AsyncClient
 from sqlalchemy import select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.circulation import service as circulation_service
 from app.circulation.application import inventory as inventory_service
-from app.circulation.models import BalanceStatus, Inventory, InventoryBalance, InventoryType, ReservationStatus
+from app.circulation.models import (
+    BalanceStatus,
+    Inventory,
+    InventoryBalance,
+    InventoryItem,
+    InventoryType,
+    ReservationStatus,
+    ReservationType,
+)
+from app.circulation.schemas import CreateReservationRequest
 from app.core.errors import AccessDeniedException, BusinessConflictException
 from app.groups.domain.confirm_race_rules import _require_race_participant
 from app.groups.infrastructure import circulation_bridge
@@ -249,43 +261,76 @@ async def _user_id(client: AsyncClient, headers: dict[str, str]) -> int:
     return account_user_id
 
 
-async def _lend_and_confirm(
+async def _create_lend(
     client: AsyncClient,
+    db_session: AsyncSession,
     *,
     owner_headers: dict[str, str],
-    borrower_headers: dict[str, str],
     item_id: int,
     borrower_user_id: int,
 ) -> int:
-    """Creates a `LEND` reservation for `item_id`, has the holder (owner)
-    confirm it, and returns the reservation id — still `CONFIRMED`, not yet
-    fulfilled. Mints its own throwaway Term (Bug #4a: `term_id` is now
-    required for a LEND reservation) — callers that need the term itself
-    (e.g. to fabricate a RETURN afterward) don't currently exist, so it's
-    not returned."""
+    """Creates a PENDING `LEND` reservation through the shared circulation
+    transition (the raw `/api/reservations` write routes are RETURN-only)."""
     term_id = await _create_term(client, owner_headers)
-    reservation = await client.post(
-        "/api/reservations",
-        json={
-            "item_id": item_id,
-            "reservation_type": "LEND",
-            "reserved_by_user_id": borrower_user_id,
-            "term_id": term_id,
-        },
-        headers=owner_headers,
+    reservation = await circulation_service.create_reservation(
+        db_session,
+        CreateReservationRequest(
+            item_id=item_id,
+            reservation_type=ReservationType.LEND,
+            reserved_by_user_id=borrower_user_id,
+            term_id=term_id,
+        ),
     )
-    assert reservation.status_code == 201
-    reservation_id = reservation.json()["id"]
+    return int(reservation.id)
 
-    confirm = await client.post(
-        f"/api/reservations/{reservation_id}/confirm", headers=owner_headers
+
+async def _lend_and_confirm(
+    client: AsyncClient,
+    db_session: AsyncSession,
+    *,
+    owner_headers: dict[str, str],
+    item_id: int,
+    borrower_user_id: int,
+) -> int:
+    """Creates a `LEND` reservation for `item_id` through the shared
+    circulation transitions, has the holder (owner) confirm it, and returns
+    the reservation id — still `CONFIRMED`, not yet fulfilled."""
+    reservation_id = await _create_lend(
+        client,
+        db_session,
+        owner_headers=owner_headers,
+        item_id=item_id,
+        borrower_user_id=borrower_user_id,
     )
-    assert confirm.status_code == 200
+    owner_user_id = await _user_id(client, owner_headers)
+    await circulation_service.confirm_reservation(db_session, reservation_id, owner_user_id)
+    return reservation_id
+
+
+async def _lend_out(
+    client: AsyncClient,
+    db_session: AsyncSession,
+    *,
+    owner_headers: dict[str, str],
+    item_id: int,
+    borrower_user_id: int,
+) -> int:
+    """`_lend_and_confirm` plus the owner's fulfil: the item ends up in the
+    borrower's VIRTUAL inventory, balance `LENT`. Returns the LEND id."""
+    reservation_id = await _lend_and_confirm(
+        client,
+        db_session,
+        owner_headers=owner_headers,
+        item_id=item_id,
+        borrower_user_id=borrower_user_id,
+    )
+    owner_user_id = await _user_id(client, owner_headers)
+    await circulation_service.fulfill_reservation(db_session, reservation_id, owner_user_id)
     return reservation_id
 
 
 async def test_fulfillLend_movesItemToBorrowerVirtualInventory_andSetsHomeInventoryId(
-    client: AsyncClient,
+    client: AsyncClient, db_session: AsyncSession
 ) -> None:
     owner_headers = await _authed_headers(client, "circ-lend-owner1@example.com")
     owner_inventory_id, item_id = await _create_item(client, owner_headers)
@@ -293,17 +338,13 @@ async def test_fulfillLend_movesItemToBorrowerVirtualInventory_andSetsHomeInvent
     borrower_headers = await _authed_headers(client, "circ-lend-borrower1@example.com")
     borrower_user_id = await _user_id(client, borrower_headers)
 
-    reservation_id = await _lend_and_confirm(
+    await _lend_out(
         client,
+        db_session,
         owner_headers=owner_headers,
-        borrower_headers=borrower_headers,
         item_id=item_id,
         borrower_user_id=borrower_user_id,
     )
-    fulfill = await client.post(
-        f"/api/reservations/{reservation_id}/fulfill", headers=owner_headers
-    )
-    assert fulfill.status_code == 200
 
     item = await client.get(f"/api/inventory-items/{item_id}", headers=owner_headers)
     assert item.status_code == 200
@@ -323,7 +364,7 @@ async def test_fulfillLend_movesItemToBorrowerVirtualInventory_andSetsHomeInvent
 
 
 async def test_fulfillReturn_movesItemBackHome_andClearsHomeInventoryId(
-    client: AsyncClient,
+    client: AsyncClient, db_session: AsyncSession
 ) -> None:
     owner_headers = await _authed_headers(client, "circ-return-owner1@example.com")
     owner_inventory_id, item_id = await _create_item(client, owner_headers)
@@ -332,30 +373,22 @@ async def test_fulfillReturn_movesItemBackHome_andClearsHomeInventoryId(
     borrower_headers = await _authed_headers(client, "circ-return-borrower1@example.com")
     borrower_user_id = await _user_id(client, borrower_headers)
 
-    lend_id = await _lend_and_confirm(
+    await _lend_out(
         client,
+        db_session,
         owner_headers=owner_headers,
-        borrower_headers=borrower_headers,
         item_id=item_id,
         borrower_user_id=borrower_user_id,
     )
-    assert (
-        await client.post(f"/api/reservations/{lend_id}/fulfill", headers=owner_headers)
-    ).status_code == 200
 
-    # RETURN: reserved_by = owner (receiving it back); the borrower is now
-    # the holder, so per the confirm-authorization fix, the borrower must
-    # confirm — not the owner who proposed it.
+    # RETURN ("Oddaję") stays on the raw route: the borrower (current holder)
+    # starts it, the server derives reserved_by = the home owner, and the
+    # borrower confirms and fulfils it.
     return_reservation = await client.post(
-        "/api/reservations",
-        json={
-            "item_id": item_id,
-            "reservation_type": "RETURN",
-            "reserved_by_user_id": owner_user_id,
-        },
-        headers=borrower_headers,
+        "/api/reservations", json={"item_id": item_id}, headers=borrower_headers
     )
     assert return_reservation.status_code == 201
+    assert return_reservation.json()["reserved_by_user_id"] == owner_user_id
     return_id = return_reservation.json()["id"]
 
     assert (
@@ -376,7 +409,7 @@ async def test_fulfillReturn_movesItemBackHome_andClearsHomeInventoryId(
 
 
 async def test_patchInventoryItem_ownerWhileLentOut_stillUpdatesCondition(
-    client: AsyncClient,
+    client: AsyncClient, db_session: AsyncSession
 ) -> None:
     owner_headers = await _authed_headers(client, "circ-lend-patchowner@example.com")
     _, item_id = await _create_item(client, owner_headers)
@@ -384,16 +417,13 @@ async def test_patchInventoryItem_ownerWhileLentOut_stillUpdatesCondition(
     borrower_headers = await _authed_headers(client, "circ-lend-patchborrower@example.com")
     borrower_user_id = await _user_id(client, borrower_headers)
 
-    lend_id = await _lend_and_confirm(
+    await _lend_out(
         client,
+        db_session,
         owner_headers=owner_headers,
-        borrower_headers=borrower_headers,
         item_id=item_id,
         borrower_user_id=borrower_user_id,
     )
-    assert (
-        await client.post(f"/api/reservations/{lend_id}/fulfill", headers=owner_headers)
-    ).status_code == 200
 
     response = await client.patch(
         f"/api/inventory-items/{item_id}", json={"condition": "POOR"}, headers=owner_headers
@@ -403,7 +433,7 @@ async def test_patchInventoryItem_ownerWhileLentOut_stillUpdatesCondition(
 
 
 async def test_patchAndDeleteInventoryItem_borrowerWhileLentOut_return403(
-    client: AsyncClient,
+    client: AsyncClient, db_session: AsyncSession
 ) -> None:
     owner_headers = await _authed_headers(client, "circ-lend-securityowner@example.com")
     _, item_id = await _create_item(client, owner_headers)
@@ -411,16 +441,13 @@ async def test_patchAndDeleteInventoryItem_borrowerWhileLentOut_return403(
     borrower_headers = await _authed_headers(client, "circ-lend-securityborrower@example.com")
     borrower_user_id = await _user_id(client, borrower_headers)
 
-    lend_id = await _lend_and_confirm(
+    await _lend_out(
         client,
+        db_session,
         owner_headers=owner_headers,
-        borrower_headers=borrower_headers,
         item_id=item_id,
         borrower_user_id=borrower_user_id,
     )
-    assert (
-        await client.post(f"/api/reservations/{lend_id}/fulfill", headers=owner_headers)
-    ).status_code == 200
 
     patch = await client.patch(
         f"/api/inventory-items/{item_id}", json={"condition": "POOR"}, headers=borrower_headers
@@ -432,43 +459,36 @@ async def test_patchAndDeleteInventoryItem_borrowerWhileLentOut_return403(
 
 
 async def test_confirmReservation_byRequester_returns403_onlyHolderMayConfirm(
-    client: AsyncClient,
+    client: AsyncClient, db_session: AsyncSession
 ) -> None:
     owner_headers = await _authed_headers(client, "circ-confirm-owner1@example.com")
     _, item_id = await _create_item(client, owner_headers)
 
+    owner_user_id = await _user_id(client, owner_headers)
+
     borrower_headers = await _authed_headers(client, "circ-confirm-borrower1@example.com")
     borrower_user_id = await _user_id(client, borrower_headers)
-    term_id = await _create_term(client, owner_headers)
-
-    reservation = await client.post(
-        "/api/reservations",
-        json={
-            "item_id": item_id,
-            "reservation_type": "LEND",
-            "reserved_by_user_id": borrower_user_id,
-            "term_id": term_id,
-        },
-        headers=owner_headers,
+    reservation_id = await _create_lend(
+        client,
+        db_session,
+        owner_headers=owner_headers,
+        item_id=item_id,
+        borrower_user_id=borrower_user_id,
     )
-    assert reservation.status_code == 201
-    reservation_id = reservation.json()["id"]
 
     # The requester (borrower) may not confirm their own request.
-    self_confirm = await client.post(
-        f"/api/reservations/{reservation_id}/confirm", headers=borrower_headers
-    )
-    assert self_confirm.status_code == 403
+    with pytest.raises(AccessDeniedException):
+        await circulation_service.confirm_reservation(db_session, reservation_id, borrower_user_id)
 
     # Only the holder (owner) may.
-    holder_confirm = await client.post(
-        f"/api/reservations/{reservation_id}/confirm", headers=owner_headers
+    confirmed = await circulation_service.confirm_reservation(
+        db_session, reservation_id, owner_user_id
     )
-    assert holder_confirm.status_code == 200
+    assert confirmed.status == ReservationStatus.CONFIRMED
 
 
 async def test_fulfillLend_postsCirculationTransactionCreditingOwner(
-    client: AsyncClient,
+    client: AsyncClient, db_session: AsyncSession
 ) -> None:
     owner_headers = await _authed_headers(client, "circ-ledger-owner1@example.com")
     _, item_id = await _create_item(client, owner_headers)
@@ -481,16 +501,13 @@ async def test_fulfillLend_postsCirculationTransactionCreditingOwner(
     assert before.status_code == 200
     before_balance = float(before.json()["balance"])
 
-    lend_id = await _lend_and_confirm(
+    await _lend_out(
         client,
+        db_session,
         owner_headers=owner_headers,
-        borrower_headers=borrower_headers,
         item_id=item_id,
         borrower_user_id=borrower_user_id,
     )
-    assert (
-        await client.post(f"/api/reservations/{lend_id}/fulfill", headers=owner_headers)
-    ).status_code == 200
 
     after = await client.get(f"/api/accounts/{owner_user_id}/balance", headers=owner_headers)
     assert after.status_code == 200
@@ -514,25 +531,16 @@ async def test_deleteInventoryItem_nonOwner_returns403(client: AsyncClient) -> N
 
 
 async def test_createReservation_softDeletedItem_returns404(client: AsyncClient) -> None:
-    """Downstream lifecycle path: once an item is soft-deleted, `create_reservation`
-    -> `get_item` -> 404 before the balance guard is ever reached (spec §7 / §12)."""
+    """Downstream lifecycle path: once an item is soft-deleted, the raw RETURN
+    create -> `get_item` -> 404 before any holder/balance guard is reached
+    (spec §7 / §12)."""
     headers = await _authed_headers(client, "circ-reserve-softdel@example.com")
     _, item_id = await _create_item(client, headers)
     assert (
         await client.delete(f"/api/inventory-items/{item_id}", headers=headers)
     ).status_code == 204
-    term_id = await _create_term(client, headers)
 
-    response = await client.post(
-        "/api/reservations",
-        json={
-            "item_id": item_id,
-            "reservation_type": "LEND",
-            "reserved_by_user_id": 999999,
-            "term_id": term_id,
-        },
-        headers=headers,
-    )
+    response = await client.post("/api/reservations", json={"item_id": item_id}, headers=headers)
     assert response.status_code == 404
 
 
@@ -548,20 +556,13 @@ async def test_circulationBridge_cancelReservation_pendingReservation_cancelsAnd
 
     borrower_headers = await _authed_headers(client, "circ-bridge-cancel-borrower@example.com")
     borrower_user_id = await _user_id(client, borrower_headers)
-    term_id = await _create_term(client, owner_headers)
-
-    reservation = await client.post(
-        "/api/reservations",
-        json={
-            "item_id": item_id,
-            "reservation_type": "LEND",
-            "reserved_by_user_id": borrower_user_id,
-            "term_id": term_id,
-        },
-        headers=owner_headers,
+    reservation_id = await _create_lend(
+        client,
+        db_session,
+        owner_headers=owner_headers,
+        item_id=item_id,
+        borrower_user_id=borrower_user_id,
     )
-    assert reservation.status_code == 201
-    reservation_id = reservation.json()["id"]
 
     cancelled = await circulation_bridge.cancel_reservation(db_session, reservation_id, owner_user_id)
     assert cancelled.status == ReservationStatus.CANCELLED
@@ -586,8 +587,8 @@ async def test_circulationBridge_fulfillReservation_confirmedReservation_fulfill
 
     reservation_id = await _lend_and_confirm(
         client,
+        db_session,
         owner_headers=owner_headers,
-        borrower_headers=borrower_headers,
         item_id=item_id,
         borrower_user_id=borrower_user_id,
     )
@@ -621,20 +622,13 @@ async def test_circulationBridge_cancelReservation_repeatCall_raisesBusinessConf
 
     borrower_headers = await _authed_headers(client, "circ-bridge-race-borrower@example.com")
     borrower_user_id = await _user_id(client, borrower_headers)
-    term_id = await _create_term(client, owner_headers)
-
-    reservation = await client.post(
-        "/api/reservations",
-        json={
-            "item_id": item_id,
-            "reservation_type": "LEND",
-            "reserved_by_user_id": borrower_user_id,
-            "term_id": term_id,
-        },
-        headers=owner_headers,
+    reservation_id = await _create_lend(
+        client,
+        db_session,
+        owner_headers=owner_headers,
+        item_id=item_id,
+        borrower_user_id=borrower_user_id,
     )
-    assert reservation.status_code == 201
-    reservation_id = reservation.json()["id"]
 
     await circulation_bridge.cancel_reservation(db_session, reservation_id, owner_user_id)
 
@@ -648,18 +642,13 @@ async def test_circulationBridge_cancelReservation_repeatCall_raisesBusinessConf
     intruder_headers = await _authed_headers(client, "circ-bridge-race-intruder@example.com")
     intruder_user_id = await _user_id(client, intruder_headers)
 
-    other_reservation = await client.post(
-        "/api/reservations",
-        json={
-            "item_id": item_id,
-            "reservation_type": "LEND",
-            "reserved_by_user_id": borrower_user_id,
-            "term_id": term_id,
-        },
-        headers=owner_headers,
+    other_reservation_id = await _create_lend(
+        client,
+        db_session,
+        owner_headers=owner_headers,
+        item_id=item_id,
+        borrower_user_id=borrower_user_id,
     )
-    assert other_reservation.status_code == 201
-    other_reservation_id = other_reservation.json()["id"]
 
     with pytest.raises(AccessDeniedException):
         await circulation_bridge.cancel_reservation(db_session, other_reservation_id, intruder_user_id)
@@ -723,13 +712,9 @@ async def test_createInventory_secondPersonalForSameOwner_raisesIntegrityConflic
 # --- Bug #4a: Reservation.term_id ------------------------------------------
 
 
-async def test_createReservation_lendMissingTermId_returns400(client: AsyncClient) -> None:
-    """`term_id` is required for every non-RETURN `reservation_type` —
-    `CreateReservationRequest`'s own validator rejects a LEND with no
-    `term_id` before the request ever reaches `create_reservation`. Pydantic
-    request-body validation failures map to 400 in this app (see
-    `app/core/errors.py::validation_error_handler`), not the framework's
-    default 422."""
+async def test_rawCreateReservation_lendType_returns403(client: AsyncClient) -> None:
+    """The raw create route is RETURN-only: any other `reservation_type` is
+    rejected by the type rule (403), even with a syntactically valid body."""
     headers = await _authed_headers(client, "circ-termid-lend-missing@example.com")
     _, item_id = await _create_item(client, headers)
 
@@ -738,29 +723,23 @@ async def test_createReservation_lendMissingTermId_returns400(client: AsyncClien
         json={"item_id": item_id, "reservation_type": "LEND", "reserved_by_user_id": 999999},
         headers=headers,
     )
-    assert response.status_code == 400
+    assert response.status_code == 403
 
 
-async def test_createSwap_missingTermId_returns400(client: AsyncClient) -> None:
-    """Same validator, on `CreateSwapRequest` — mechanical (this route has
-    no live frontend caller), but still enforced at the schema level."""
-    headers = await _authed_headers(client, "circ-termid-swap-missing@example.com")
+async def test_rawCreateReservation_missingItemId_returns400(client: AsyncClient) -> None:
+    """Pydantic request-body validation failures map to 400 in this app (see
+    `app/core/errors.py::validation_error_handler`), not the framework's
+    default 422."""
+    headers = await _authed_headers(client, "circ-raw-create-noitem@example.com")
 
     response = await client.post(
-        "/api/reservations/swap",
-        json={
-            "first_item_id": 1,
-            "first_reserved_by_user_id": 1,
-            "second_item_id": 2,
-            "second_reserved_by_user_id": 2,
-        },
-        headers=headers,
+        "/api/reservations", json={"reservation_type": "RETURN"}, headers=headers
     )
     assert response.status_code == 400
 
 
 async def test_createReservation_return_derivesTermIdFromPriorFulfilledLend(
-    client: AsyncClient,
+    client: AsyncClient, db_session: AsyncSession
 ) -> None:
     """A RETURN reservation is created with NO `term_id` in the request body
     (matching `PanelDataContext.tsx::returnBorrowedItem`'s payload, which
@@ -768,40 +747,30 @@ async def test_createReservation_return_derivesTermIdFromPriorFulfilledLend(
     most recent FULFILLED LEND leg's own `term_id`."""
     owner_headers = await _authed_headers(client, "circ-termid-return-owner@example.com")
     _, item_id = await _create_item(client, owner_headers)
-    owner_user_id = await _user_id(client, owner_headers)
 
     borrower_headers = await _authed_headers(client, "circ-termid-return-borrower@example.com")
     borrower_user_id = await _user_id(client, borrower_headers)
 
-    lend_id = await _lend_and_confirm(
+    lend_id = await _lend_out(
         client,
+        db_session,
         owner_headers=owner_headers,
-        borrower_headers=borrower_headers,
         item_id=item_id,
         borrower_user_id=borrower_user_id,
     )
-    lend_fulfilled = await client.post(f"/api/reservations/{lend_id}/fulfill", headers=owner_headers)
-    assert lend_fulfilled.status_code == 200
-    lend_term_id = lend_fulfilled.json()["term_id"]
+    lend_term_id = (await circulation_service.get_reservation(db_session, lend_id)).term_id
 
     return_response = await client.post(
-        "/api/reservations",
-        json={
-            "item_id": item_id,
-            "reservation_type": "RETURN",
-            "reserved_by_user_id": owner_user_id,
-        },
-        headers=borrower_headers,
+        "/api/reservations", json={"item_id": item_id}, headers=borrower_headers
     )
     assert return_response.status_code == 201
     assert return_response.json()["term_id"] == lend_term_id
 
 
-async def test_createReservation_returnWithNoPriorLend_returns409(client: AsyncClient) -> None:
-    """No RETURN can be derived without an existing FULFILLED LEND to reuse
-    the `term_id` from — a fresh AVAILABLE item has none, so `create_reservation`
-    fails fast on the balance guard before the derivation is even attempted
-    (RETURN requires `LENT`, which this item never reached)."""
+async def test_rawCreateReturn_itemNotLent_returns403(client: AsyncClient) -> None:
+    """Only a lent item (`home_inventory_id IS NOT NULL`) can be given back
+    — a fresh item in its owner's PERSONAL inventory is rejected by the raw
+    route before any balance/term derivation."""
     headers = await _authed_headers(client, "circ-termid-return-nolend@example.com")
     _, item_id = await _create_item(client, headers)
 
@@ -810,32 +779,40 @@ async def test_createReservation_returnWithNoPriorLend_returns409(client: AsyncC
         json={"item_id": item_id, "reservation_type": "RETURN", "reserved_by_user_id": 999999},
         headers=headers,
     )
-    assert response.status_code == 409
+    assert response.status_code == 403
 
 
 async def test_createReservation_returnWithLentBalanceButNoFulfilledLend_raisesBusinessConflict(
     client: AsyncClient, db_session: AsyncSession
 ) -> None:
-    """Data-corruption / direct-API-misuse edge case (Group 7 gap analysis):
-    an item whose `InventoryBalance.status` is `LENT` (so the balance guard
-    in `create_reservation` passes) but which has NO `FULFILLED` `LEND`
-    `Reservation` row to derive a `term_id` from — e.g. the balance was
-    forced to `LENT` directly, bypassing the normal fulfill path. Must raise
-    `_resolve_return_term_id`'s typed `BusinessConflictException`, never
-    silently create a `Reservation` with a null/garbage `term_id` (the
-    column is NOT NULL)."""
+    """Data-corruption edge case (Group 7 gap analysis): an item whose
+    `InventoryBalance.status` is `LENT` (so the balance guard in
+    `create_reservation` passes) but which has NO `FULFILLED` `LEND`
+    `Reservation` row to derive a `term_id` from. The shared
+    `create_reservation` must raise `_resolve_return_term_id`'s typed
+    `BusinessConflictException`, never silently create a `Reservation` with a
+    null/garbage `term_id` (the column is NOT NULL). The raw route rejects the
+    same item earlier with 403 — it was never actually lent
+    (`home_inventory_id IS NULL`)."""
     owner_headers = await _authed_headers(client, "circ-termid-return-corrupt-owner@example.com")
     _, item_id = await _create_item(client, owner_headers)
     owner_user_id = await _user_id(client, owner_headers)
-
     await _set_balance_status(db_session, item_id, BalanceStatus.LENT)
 
     response = await client.post(
-        "/api/reservations",
-        json={"item_id": item_id, "reservation_type": "RETURN", "reserved_by_user_id": owner_user_id},
-        headers=owner_headers,
+        "/api/reservations", json={"item_id": item_id}, headers=owner_headers
     )
-    assert response.status_code == 409
+    assert response.status_code == 403
+
+    with pytest.raises(BusinessConflictException):
+        await circulation_service.create_reservation(
+            db_session,
+            CreateReservationRequest(
+                item_id=item_id,
+                reservation_type=ReservationType.RETURN,
+                reserved_by_user_id=owner_user_id,
+            ),
+        )
 
 
 async def test_migration0034_backfillsLegacyNullTermIdRows_withoutError(
@@ -853,15 +830,14 @@ async def test_migration0034_backfillsLegacyNullTermIdRows_withoutError(
     backfill erroring."""
     owner_headers = await _authed_headers(client, "circ-migration-backfill-owner@example.com")
     _, item_id = await _create_item(client, owner_headers)
-    owner_user_id = await _user_id(client, owner_headers)
 
     borrower_headers = await _authed_headers(client, "circ-migration-backfill-borrower@example.com")
     borrower_user_id = await _user_id(client, borrower_headers)
 
     reservation_id = await _lend_and_confirm(
         client,
+        db_session,
         owner_headers=owner_headers,
-        borrower_headers=borrower_headers,
         item_id=item_id,
         borrower_user_id=borrower_user_id,
     )
@@ -919,3 +895,232 @@ async def test_migration0034_backfillsLegacyNullTermIdRows_withoutError(
         await db_session.execute(text("SELECT term_id FROM reservations WHERE id = :id"), {"id": reservation_id})
     ).scalar_one()
     assert backfilled is not None
+
+
+# --- B6 + B2-lite: raw routes are RETURN-only; R7 home-inventory invariant ---
+
+
+async def test_rawCancelReservation_lendReservation_returns403(
+    client: AsyncClient, db_session: AsyncSession
+) -> None:
+    owner_headers = await _authed_headers(client, "circ-b6-rawcancel-owner@example.com")
+    _, item_id = await _create_item(client, owner_headers)
+    borrower_headers = await _authed_headers(client, "circ-b6-rawcancel-borrower@example.com")
+    borrower_user_id = await _user_id(client, borrower_headers)
+    reservation_id = await _create_lend(
+        client,
+        db_session,
+        owner_headers=owner_headers,
+        item_id=item_id,
+        borrower_user_id=borrower_user_id,
+    )
+
+    response = await client.post(
+        f"/api/reservations/{reservation_id}/cancel", headers=owner_headers
+    )
+
+    assert response.status_code == 403
+    reservation = await client.get(f"/api/reservations/{reservation_id}", headers=owner_headers)
+    assert reservation.json()["status"] == "PENDING"
+
+
+async def test_rawCancelReturn_keepsLentAtAndClearsReservedAt(
+    client: AsyncClient, db_session: AsyncSession
+) -> None:
+    owner_headers = await _authed_headers(client, "circ-b2-cancelreturn-owner@example.com")
+    _, item_id = await _create_item(client, owner_headers)
+    borrower_headers = await _authed_headers(client, "circ-b2-cancelreturn-borrower@example.com")
+    borrower_user_id = await _user_id(client, borrower_headers)
+    await _lend_out(
+        client,
+        db_session,
+        owner_headers=owner_headers,
+        item_id=item_id,
+        borrower_user_id=borrower_user_id,
+    )
+    lent_at_before = (
+        await client.get(f"/api/inventory-items/{item_id}/balance", headers=owner_headers)
+    ).json()["lent_at"]
+    assert lent_at_before is not None
+    return_reservation = await client.post(
+        "/api/reservations", json={"item_id": item_id}, headers=borrower_headers
+    )
+    assert return_reservation.status_code == 201
+
+    cancel = await client.post(
+        f"/api/reservations/{return_reservation.json()['id']}/cancel", headers=borrower_headers
+    )
+
+    assert cancel.status_code == 200
+    balance = (
+        await client.get(f"/api/inventory-items/{item_id}/balance", headers=owner_headers)
+    ).json()
+    assert balance["status"] == "LENT"
+    assert balance["lent_at"] == lent_at_before
+    assert balance["reserved_at"] is None
+
+
+async def test_rawFulfillReservation_lendReservation_returns403(
+    client: AsyncClient, db_session: AsyncSession
+) -> None:
+    owner_headers = await _authed_headers(client, "circ-b6-rawfulfill-owner@example.com")
+    _, item_id = await _create_item(client, owner_headers)
+    owner_user_id = await _user_id(client, owner_headers)
+    borrower_headers = await _authed_headers(client, "circ-b6-rawfulfill-borrower@example.com")
+    borrower_user_id = await _user_id(client, borrower_headers)
+    reservation_id = await _create_lend(
+        client,
+        db_session,
+        owner_headers=owner_headers,
+        item_id=item_id,
+        borrower_user_id=borrower_user_id,
+    )
+    await circulation_service.confirm_reservation(db_session, reservation_id, owner_user_id)
+
+    response = await client.post(
+        f"/api/reservations/{reservation_id}/fulfill", headers=owner_headers
+    )
+
+    assert response.status_code == 403
+    item = await client.get(f"/api/inventory-items/{item_id}", headers=owner_headers)
+    assert item.json()["home_inventory_id"] is None
+
+
+async def test_rawCreateSwap_routeRemoved_returns404or405(client: AsyncClient) -> None:
+    headers = await _authed_headers(client, "circ-b6-swap-removed@example.com")
+
+    response = await client.post("/api/reservations/swap", json={}, headers=headers)
+
+    assert response.status_code in (404, 405)
+
+
+async def test_createReservation_giftForItemWithHomeInventory_raisesBusinessConflict(
+    client: AsyncClient, db_session: AsyncSession
+) -> None:
+    """R7: a lent item (`home_inventory_id` set) forced back to `AVAILABLE`
+    (legacy B2 data) must still never enter a non-RETURN reservation."""
+    owner_headers = await _authed_headers(client, "circ-r7-gift-owner@example.com")
+    owner_inventory_id, item_id = await _create_item(client, owner_headers)
+    borrower_headers = await _authed_headers(client, "circ-r7-gift-borrower@example.com")
+    borrower_user_id = await _user_id(client, borrower_headers)
+    term_id = await _create_term(client, owner_headers)
+    item = (
+        await db_session.execute(select(InventoryItem).where(InventoryItem.id == item_id))
+    ).scalar_one()
+    item.home_inventory_id = owner_inventory_id
+    await db_session.commit()
+
+    with pytest.raises(BusinessConflictException):
+        await circulation_service.create_reservation(
+            db_session,
+            CreateReservationRequest(
+                item_id=item_id,
+                reservation_type=ReservationType.GIFT,
+                reserved_by_user_id=borrower_user_id,
+                term_id=term_id,
+            ),
+        )
+
+
+async def test_fulfillReservation_lendForItemWithHomeInventory_raisesBusinessConflict(
+    client: AsyncClient, db_session: AsyncSession
+) -> None:
+    """R7: fulfilling a LEND must never overwrite an item's existing home
+    (sub-lending)."""
+    owner_headers = await _authed_headers(client, "circ-r7-fulfill-owner@example.com")
+    owner_inventory_id, item_id = await _create_item(client, owner_headers)
+    owner_user_id = await _user_id(client, owner_headers)
+    borrower_headers = await _authed_headers(client, "circ-r7-fulfill-borrower@example.com")
+    borrower_user_id = await _user_id(client, borrower_headers)
+    reservation_id = await _create_lend(
+        client,
+        db_session,
+        owner_headers=owner_headers,
+        item_id=item_id,
+        borrower_user_id=borrower_user_id,
+    )
+    await circulation_service.confirm_reservation(db_session, reservation_id, owner_user_id)
+    item = (
+        await db_session.execute(select(InventoryItem).where(InventoryItem.id == item_id))
+    ).scalar_one()
+    item.home_inventory_id = owner_inventory_id
+    await db_session.commit()
+
+    with pytest.raises(BusinessConflictException):
+        await circulation_service.fulfill_reservation(db_session, reservation_id, owner_user_id)
+
+
+async def _lent_out_with_return(
+    client: AsyncClient, db_session: AsyncSession, prefix: str
+) -> tuple[dict[str, str], dict[str, str], int, int]:
+    """An item lent out plus the borrower's PENDING RETURN. Returns
+    `(owner_headers, borrower_headers, item_id, return_id)`."""
+    owner_headers = await _authed_headers(client, f"{prefix}-owner@example.com")
+    _, item_id = await _create_item(client, owner_headers)
+    borrower_headers = await _authed_headers(client, f"{prefix}-borrower@example.com")
+    await _lend_out(
+        client,
+        db_session,
+        owner_headers=owner_headers,
+        item_id=item_id,
+        borrower_user_id=await _user_id(client, borrower_headers),
+    )
+    return_reservation = await client.post(
+        "/api/reservations", json={"item_id": item_id}, headers=borrower_headers
+    )
+    assert return_reservation.status_code == 201
+    return owner_headers, borrower_headers, item_id, int(return_reservation.json()["id"])
+
+
+async def test_rawCancelReturn_byOwner_returns403AndReturnStaysPending(
+    client: AsyncClient, db_session: AsyncSession
+) -> None:
+    owner_headers, _, item_id, return_id = await _lent_out_with_return(
+        client, db_session, "circ-cancelreturn-byowner"
+    )
+
+    response = await client.post(f"/api/reservations/{return_id}/cancel", headers=owner_headers)
+
+    assert response.status_code == 403
+    reservation = await client.get(f"/api/reservations/{return_id}", headers=owner_headers)
+    assert reservation.json()["status"] == "PENDING"
+    balance = await client.get(f"/api/inventory-items/{item_id}/balance", headers=owner_headers)
+    assert balance.json()["status"] == "RESERVED"
+
+
+async def test_rawCancelReturn_byThirdParty_returns403(
+    client: AsyncClient, db_session: AsyncSession
+) -> None:
+    owner_headers, _, _, return_id = await _lent_out_with_return(
+        client, db_session, "circ-cancelreturn-bythird"
+    )
+    outsider_headers = await _authed_headers(client, "circ-cancelreturn-outsider@example.com")
+
+    response = await client.post(f"/api/reservations/{return_id}/cancel", headers=outsider_headers)
+
+    assert response.status_code == 403
+    reservation = await client.get(f"/api/reservations/{return_id}", headers=owner_headers)
+    assert reservation.json()["status"] == "PENDING"
+
+
+async def test_rawCreateReturn_byOwnerNotHolder_returns403(
+    client: AsyncClient, db_session: AsyncSession
+) -> None:
+    owner_headers = await _authed_headers(client, "circ-ownerreturn-owner@example.com")
+    _, item_id = await _create_item(client, owner_headers)
+    borrower_headers = await _authed_headers(client, "circ-ownerreturn-borrower@example.com")
+    await _lend_out(
+        client,
+        db_session,
+        owner_headers=owner_headers,
+        item_id=item_id,
+        borrower_user_id=await _user_id(client, borrower_headers),
+    )
+
+    response = await client.post(
+        "/api/reservations", json={"item_id": item_id}, headers=owner_headers
+    )
+
+    assert response.status_code == 403
+    balance = await client.get(f"/api/inventory-items/{item_id}/balance", headers=owner_headers)
+    assert balance.json()["status"] == "LENT"

@@ -16,8 +16,8 @@ const labelStyle: React.CSSProperties = {
 /**
  * Structural port of `ProductFormPage.tsx`, reduced to the 2 category
  * fields (`name`, `description`) in a single-column `Grid` per
- * `ui-mockups.md` Mockup 4. Shared between `/categories/new` and
- * `/categories/:id/edit`.
+ * `ui-mockups.md` Mockup 4. Shared between `/admin/categories/new` and
+ * `/admin/categories/:id/edit`.
  */
 export function CategoryFormPage() {
   const { id } = useParams<{ id: string }>();
@@ -63,7 +63,7 @@ export function CategoryFormPage() {
       } else {
         await createCategory(payload);
       }
-      navigate("/categories");
+      navigate("/admin/categories");
     } catch (err) {
       // Explicit fix of the generic-catch anti-pattern in
       // ProductFormPage.tsx — surface the backend's actual message
@@ -82,7 +82,7 @@ export function CategoryFormPage() {
     <Box maxW="800px">
       <Box mb="24px">
         <Flex as="nav" fontSize="13px" color="#64748B" gap="4px" aria-label="Breadcrumb">
-          <Link to="/categories" style={{ color: "var(--chakra-colors-brand-600)", textDecoration: "none" }}>
+          <Link to="/admin/categories" style={{ color: "var(--chakra-colors-brand-600)", textDecoration: "none" }}>
             Categories
           </Link>
           <Text as="span">/</Text>
@@ -130,7 +130,7 @@ export function CategoryFormPage() {
 
         <Flex justify="flex-end" gap="12px" mt="28px" pt="20px" borderTop="1px solid" borderColor="#F1F5F9">
           <Button asChild variant="outline">
-            <Link to="/categories">Cancel</Link>
+            <Link to="/admin/categories">Cancel</Link>
           </Button>
           <PrimaryButton type="submit" loading={loading}>
             Save Category

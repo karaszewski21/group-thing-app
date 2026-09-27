@@ -35,6 +35,10 @@ export interface InventoryItemResponse {
  * standing lend/gift/swap mode — `null` when not offered. */
 export interface MyInventoryItemResponse extends InventoryItemResponse {
   listing_mode: ReservationType | null;
+  /** Set only while the item is lent out (`home_inventory_id != null`):
+   * the borrower's display name and the agreed return date. */
+  lent_to_display_name: string | null;
+  lent_due_date: string | null;
 }
 
 export interface CreateInventoryItemRequest {

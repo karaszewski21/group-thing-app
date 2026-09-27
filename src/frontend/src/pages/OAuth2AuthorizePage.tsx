@@ -79,7 +79,7 @@ export function OAuth2AuthorizePage() {
       if (state) url.searchParams.set("state", state);
       window.location.href = url.toString();
     } else {
-      navigate("/products");
+      navigate("/admin/products");
     }
   }
 

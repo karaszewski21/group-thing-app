@@ -20,6 +20,7 @@ class NotificationResponse(BaseModel):
     created_at: datetime
     proposal_id: int | None = None
     join_request_id: int | None = None
+    reservation_id: int | None = None
 
 
 class UnreadCountResponse(BaseModel):

@@ -40,7 +40,7 @@ from app.core.errors import AccessDeniedException, BusinessConflictException
 from app.core.security import decode_token
 from app.groups import service
 from app.groups.application.term_item_listings import TermAlreadyResolvedException
-from app.groups.infrastructure import repository
+from app.groups.infrastructure import circulation_bridge, repository
 from app.groups.models import Term
 from app.groups.schemas import TakeTermItemListingRequest
 
@@ -515,7 +515,7 @@ async def test_confirmTransaction_beforeTermEnd_raisesBusinessConflict(
 
     with pytest.raises(BusinessConflictException):
         await service.confirm_transaction(
-            db_session, _principal(taker_token), taken.resolved_reservation_id, term_id
+            db_session, _principal(taker_token), taken.resolved_reservation_id
         )
 
 
@@ -549,7 +549,7 @@ async def test_confirmTransaction_afterTermEnd_fulfillsReservation(
     await db_session.commit()
 
     fulfilled = await service.confirm_transaction(
-        db_session, _principal(taker_token), taken.resolved_reservation_id, term_id
+        db_session, _principal(taker_token), taken.resolved_reservation_id
     )
     assert fulfilled.status == "FULFILLED"
 
@@ -589,12 +589,12 @@ async def test_confirmTransaction_secondCaller_getsAlreadyResolvedOutcomeAndNoti
     await db_session.commit()
 
     await service.confirm_transaction(
-        db_session, _principal(taker_token), taken.resolved_reservation_id, term_id
+        db_session, _principal(taker_token), taken.resolved_reservation_id
     )
 
     with pytest.raises(TermAlreadyResolvedException):
         await service.confirm_transaction(
-            db_session, _principal(lister_token), taken.resolved_reservation_id, term_id
+            db_session, _principal(lister_token), taken.resolved_reservation_id
         )
 
     notifs = (await client.get("/api/notifications/mine", headers=_auth(lister_token))).json()
@@ -635,7 +635,7 @@ async def test_confirmTransaction_nonParty_raisesAccessDenied(
 
     with pytest.raises(AccessDeniedException):
         await service.confirm_transaction(
-            db_session, _principal(outsider_token), taken.resolved_reservation_id, term_id
+            db_session, _principal(outsider_token), taken.resolved_reservation_id
         )
 
 
@@ -689,7 +689,7 @@ async def test_confirmTransaction_swapCounterpartyConfirmsViaPairedLegId_succeed
     # leg from the lister's own perspective) — exactly the id
     # `resolvePendingReservationId` would hand them on the frontend.
     fulfilled = await service.confirm_transaction(
-        db_session, _principal(lister_token), proposal.proposer_reservation_id, term_id
+        db_session, _principal(lister_token), proposal.proposer_reservation_id
     )
     assert fulfilled.status == "FULFILLED"
 
@@ -753,7 +753,7 @@ async def test_cancelTransaction_beforeTermEnd_raisesBusinessConflict(
 
     with pytest.raises(BusinessConflictException):
         await service.cancel_transaction(
-            db_session, _principal(taker_token), taken.resolved_reservation_id, term_id
+            db_session, _principal(taker_token), taken.resolved_reservation_id
         )
 
 
@@ -788,7 +788,7 @@ async def test_cancelTransaction_singleLendReservation_releasedToAvailable(
     await db_session.commit()
 
     cancelled = await service.cancel_transaction(
-        db_session, _principal(taker_token), taken.resolved_reservation_id, term_id
+        db_session, _principal(taker_token), taken.resolved_reservation_id
     )
     assert cancelled.status == "CANCELLED"
 
@@ -838,7 +838,7 @@ async def test_cancelTransaction_swapPairedLegs_bothReleasedTogether(
     # paired-leg-id scenario `test_confirmTransaction_swapCounterpartyConfirmsViaPairedLegId_succeeds`
     # exercises for confirm.
     cancelled = await service.cancel_transaction(
-        db_session, _principal(lister_token), proposal.proposer_reservation_id, term_id
+        db_session, _principal(lister_token), proposal.proposer_reservation_id
     )
     assert cancelled.status == "CANCELLED"
 
@@ -885,12 +885,12 @@ async def test_cancelTransaction_secondCaller_getsAlreadyResolvedOutcomeAndNotif
     await db_session.commit()
 
     await service.cancel_transaction(
-        db_session, _principal(taker_token), taken.resolved_reservation_id, term_id
+        db_session, _principal(taker_token), taken.resolved_reservation_id
     )
 
     with pytest.raises(TermAlreadyResolvedException):
         await service.cancel_transaction(
-            db_session, _principal(lister_token), taken.resolved_reservation_id, term_id
+            db_session, _principal(lister_token), taken.resolved_reservation_id
         )
 
     notifs = (await client.get("/api/notifications/mine", headers=_auth(lister_token))).json()
@@ -932,7 +932,7 @@ async def test_cancelTransaction_nonParty_raisesAccessDenied(
 
     with pytest.raises(AccessDeniedException):
         await service.cancel_transaction(
-            db_session, _principal(outsider_token), taken.resolved_reservation_id, term_id
+            db_session, _principal(outsider_token), taken.resolved_reservation_id
         )
 
 
@@ -969,7 +969,7 @@ async def test_setPreference_afterGiftFulfillment_reassignsOwnerToNewHolder(
     await db_session.commit()
 
     await service.confirm_transaction(
-        db_session, _principal(taker_token), taken.resolved_reservation_id, term_id
+        db_session, _principal(taker_token), taken.resolved_reservation_id
     )
 
     # The item now physically belongs to the taker — the lister's GIFT
@@ -1030,7 +1030,7 @@ async def test_setPreference_afterSwapFulfillment_reassignsOwnerForReceivedItem(
     await db_session.commit()
 
     await service.confirm_transaction(
-        db_session, _principal(proposer_token), proposal.proposer_reservation_id, term_id
+        db_session, _principal(proposer_token), proposal.proposer_reservation_id
     )
 
     # The proposer now physically holds the originally-listed item — they
@@ -1074,7 +1074,7 @@ async def test_confirmTransaction_organizerGift_clearsPreference_notReofferedOnN
     await db_session.commit()
 
     await service.confirm_transaction(
-        db_session, _principal(taker_token), taken.resolved_reservation_id, term_id
+        db_session, _principal(taker_token), taken.resolved_reservation_id
     )
 
     assert await repository.get_item_listing_preference(db_session, item_id) is None
@@ -1127,7 +1127,7 @@ async def test_confirmTransaction_swap_clearsBothPreferences(
     await db_session.commit()
 
     await service.confirm_transaction(
-        db_session, _principal(proposer_token), proposal.proposer_reservation_id, term_id
+        db_session, _principal(proposer_token), proposal.proposer_reservation_id
     )
 
     assert await repository.get_item_listing_preference(db_session, listed_item_id) is None
@@ -1135,7 +1135,7 @@ async def test_confirmTransaction_swap_clearsBothPreferences(
 
     with pytest.raises(TermAlreadyResolvedException):
         await service.confirm_transaction(
-            db_session, _principal(lister_token), proposal.proposer_reservation_id, term_id
+            db_session, _principal(lister_token), proposal.proposer_reservation_id
         )
 
 
@@ -1167,7 +1167,7 @@ async def test_cancelTransaction_gift_keepsPreference(
     await db_session.commit()
 
     await service.cancel_transaction(
-        db_session, _principal(taker_token), taken.resolved_reservation_id, term_id
+        db_session, _principal(taker_token), taken.resolved_reservation_id
     )
 
     preference = await repository.get_item_listing_preference(db_session, item_id)
@@ -1216,34 +1216,24 @@ async def test_setPreference_whileItemLentOut_stillSucceeds(
     lister_token, _ = await _register(client, "GUEST", "til.lister8@example.com")
     await _rsvp(client, lister_token, group_id, term_id)
     item_id = await _register_personal_item(client, lister_token, "Sanki")
+    await service.set_item_listing_preference(
+        db_session, _principal(lister_token), item_id, ReservationType.LEND
+    )
 
     borrower_token, _ = await _register(client, "GUEST", "til.borrower8@example.com")
-    borrower_inventory = await client.post(
-        "/api/inventories",
-        json={"inventory_type": "PERSONAL", "location": None},
-        headers=_auth(borrower_token),
+    await _rsvp(client, borrower_token, group_id, term_id)
+    taken = await service.take_item_listing(
+        db_session,
+        _principal(borrower_token),
+        item_id,
+        TakeTermItemListingRequest(term_id=term_id, reservation_type="LEND"),
     )
-    assert borrower_inventory.status_code == 201
-    borrower_user_id = borrower_inventory.json()["owner_user_id"]
-
-    reservation = await client.post(
-        "/api/reservations",
-        json={
-            "item_id": item_id,
-            "reservation_type": "LEND",
-            "reserved_by_user_id": borrower_user_id,
-            "term_id": term_id,
-        },
-        headers=_auth(lister_token),
+    term = (await db_session.execute(select(Term).where(Term.id == term_id))).scalar_one()
+    term.occurs_on = datetime.utcnow() - timedelta(days=1)
+    await db_session.commit()
+    await service.confirm_transaction(
+        db_session, _principal(borrower_token), taken.resolved_reservation_id
     )
-    assert reservation.status_code == 201
-    reservation_id = reservation.json()["id"]
-    assert (
-        await client.post(f"/api/reservations/{reservation_id}/confirm", headers=_auth(lister_token))
-    ).status_code == 200
-    assert (
-        await client.post(f"/api/reservations/{reservation_id}/fulfill", headers=_auth(lister_token))
-    ).status_code == 200
 
     item = await client.get(f"/api/inventory-items/{item_id}", headers=_auth(lister_token))
     assert item.json()["home_inventory_id"] is not None
@@ -1703,7 +1693,7 @@ async def test_confirmTransaction_giftFulfillment_postsCirculationTransactionAnd
     ).json()["account_user_id"]
 
     await service.confirm_transaction(
-        db_session, _principal(taker_token), taken.resolved_reservation_id, term_id
+        db_session, _principal(taker_token), taken.resolved_reservation_id
     )
 
     transaction, entries = await _latest_ledger_entries_for_giver(
@@ -1758,7 +1748,7 @@ async def test_confirmTransaction_swapFulfillment_postsCirculationTransactionAnd
     ).json()["account_user_id"]
 
     await service.confirm_transaction(
-        db_session, _principal(lister_token), proposal.proposer_reservation_id, term_id
+        db_session, _principal(lister_token), proposal.proposer_reservation_id
     )
 
     # The proposer's leg: at fulfillment time the proposer still physically
@@ -1937,10 +1927,10 @@ async def test_getItemBalance_inTransitStatus_stillReportsSameReservationId(
     )
 
     # The item's owner (still the holder before fulfillment) confirms.
-    confirm = await client.post(
-        f"/api/reservations/{taken.resolved_reservation_id}/confirm", headers=_auth(lister_token)
+    lister_me = await client.get("/api/people/me", headers=_auth(lister_token))
+    await circulation_bridge.confirm_reservation(
+        db_session, taken.resolved_reservation_id, lister_me.json()["account_user_id"]
     )
-    assert confirm.status_code == 200
 
     balance = await client.get(
         f"/api/inventory-items/{item_id}/balance", headers=_auth(lister_token)
@@ -2036,7 +2026,7 @@ async def test_getItemBalance_afterCancelTransaction_reservationIdClearedToNull(
     await db_session.commit()
 
     await service.cancel_transaction(
-        db_session, _principal(taker_token), taken.resolved_reservation_id, term_id
+        db_session, _principal(taker_token), taken.resolved_reservation_id
     )
 
     balance = await client.get(

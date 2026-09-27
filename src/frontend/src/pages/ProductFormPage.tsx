@@ -79,7 +79,7 @@ export function ProductFormPage() {
       } else {
         await createProduct(payload);
       }
-      navigate("/products");
+      navigate("/admin/products");
     } catch {
       setError("Failed to save product.");
     } finally {
@@ -95,7 +95,7 @@ export function ProductFormPage() {
     <Box maxW="800px">
       <Box mb="24px">
         <Flex as="nav" fontSize="13px" color="#64748B" gap="4px" aria-label="Breadcrumb">
-          <Link to="/products" style={{ color: "var(--chakra-colors-brand-600)", textDecoration: "none" }}>
+          <Link to="/admin/products" style={{ color: "var(--chakra-colors-brand-600)", textDecoration: "none" }}>
             Products
           </Link>
           <Text as="span">/</Text>
@@ -235,7 +235,7 @@ export function ProductFormPage() {
 
         <Flex justify="flex-end" gap="12px" mt="28px" pt="20px" borderTop="1px solid" borderColor="#F1F5F9">
           <Button asChild variant="outline">
-            <Link to="/products">Cancel</Link>
+            <Link to="/admin/products">Cancel</Link>
           </Button>
           <PrimaryButton type="submit" loading={loading}>
             Save Product

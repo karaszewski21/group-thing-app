@@ -77,7 +77,7 @@ export function CategoryListPage() {
         </Box>
         {isAdmin && (
           <PrimaryButton asChild>
-            <Link to="/categories/new">+ Add Category</Link>
+            <Link to="/admin/categories/new">+ Add Category</Link>
           </PrimaryButton>
         )}
       </Flex>
@@ -91,7 +91,7 @@ export function CategoryListPage() {
           action={
             isAdmin ? (
               <PrimaryButton asChild>
-                <Link to="/categories/new">+ Add Category</Link>
+                <Link to="/admin/categories/new">+ Add Category</Link>
               </PrimaryButton>
             ) : undefined
           }
@@ -173,7 +173,7 @@ export function CategoryListPage() {
                           fontWeight="500"
                           aria-label={`Edit ${category.name}`}
                         >
-                          <Link to={`/categories/${category.id}/edit`}>Edit</Link>
+                          <Link to={`/admin/categories/${category.id}/edit`}>Edit</Link>
                         </Button>
                         <Button
                           variant="ghost"

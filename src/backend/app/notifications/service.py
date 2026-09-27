@@ -36,6 +36,7 @@ async def create_notification(
     link_path: str | None = None,
     proposal_id: int | None = None,
     join_request_id: int | None = None,
+    reservation_id: int | None = None,
 ) -> None:
     """Stage a notification on the session — no commit/flush. The producing
     use case's own trailing `db.commit()` persists it atomically with the
@@ -43,7 +44,9 @@ async def create_notification(
     `app.groups.models.SwapProposal.id` pointer, only meaningful for
     `SWAP_PROPOSED`; `join_request_id` is the loose
     `app.groups.models.GroupJoinRequest.id` pointer, only meaningful for
-    the `GROUP_JOIN_*` kinds."""
+    the `GROUP_JOIN_*` kinds; `reservation_id` is the loose
+    `app.circulation.models.Reservation.id` pointer, only meaningful for a
+    GIFT/LEND `TERM_CONFIRMATION_NEEDED`."""
     db.add(
         Notification(
             party_id=party_id,
@@ -52,6 +55,7 @@ async def create_notification(
             link_path=link_path,
             proposal_id=proposal_id,
             join_request_id=join_request_id,
+            reservation_id=reservation_id,
         )
     )
 

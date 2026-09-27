@@ -79,6 +79,16 @@ async def list_items_with_product_name(
     return await repository.list_items_for_inventory_with_product_name(db, inventory_id)
 
 
+async def list_owned_items_including_lent_with_product_name(
+    db: AsyncSession, personal_inventory_id: int
+) -> list[tuple[InventoryItem, str]]:
+    """Joined read backing `GET /api/inventory-items/mine`: the owner's
+    items at home plus those currently lent out."""
+    return await repository.list_owned_items_including_lent_with_product_name(
+        db, personal_inventory_id
+    )
+
+
 async def get_item_with_product_name(db: AsyncSession, item_id: int) -> tuple[InventoryItem, str]:
     """Joined read backing `GET /api/inventory-items/{id}`'s response."""
     row = await repository.get_item_with_product_name(db, item_id)

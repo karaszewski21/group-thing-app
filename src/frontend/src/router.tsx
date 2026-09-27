@@ -33,15 +33,14 @@ function Layout() {
   );
 }
 
-/** Index route for "/": sends back-office roles (ADMIN / PLUGIN_MANAGEMENT —
- * the permissions gating the Categories/Plugins Sidebar links) to the
- * AppShell's own back-office pages instead of the Guest/Organizer Panel,
- * so logging in as an admin account lands where its Sidebar links actually
- * are, rather than requiring a manual URL edit. */
+/** "/" — the post-login landing (LoginPage navigates to "/" when there is no
+ * `?returnTo=`): sends back-office roles (ADMIN / PLUGIN_MANAGEMENT — the
+ * permissions gating the Categories/Plugins Sidebar links) straight to
+ * `/admin/products`, everyone else to the Guest/Organizer `/panel`. */
 function HomeRedirect() {
   const { permissions } = useAuth();
   const isBackOffice = permissions.includes("ADMIN") || permissions.includes("PLUGIN_MANAGEMENT");
-  return <Navigate to={isBackOffice ? "/products" : "/panel"} replace />;
+  return <Navigate to={isBackOffice ? "/admin/products" : "/panel"} replace />;
 }
 
 export const router = createBrowserRouter([
@@ -58,20 +57,6 @@ export const router = createBrowserRouter([
     element: <AuthGuard><OAuth2AuthorizePage /></AuthGuard>,
   },
   {
-    // Role-aware landing for Guest/Organizer accounts — same standalone,
-    // Tailwind phone-frame pattern as /krag above. `/panel/:view` is a
-    // second, identical route (not a child route) so each Panel section
-    // (spotkania/rzeczy/podarki/profil/ustawienia/rodzina) has its own real
-    // URL and survives a refresh instead of always resetting to "home" —
-    // see PanelDataContext.tsx, which derives `view` from this param.
-    path: "/panel",
-    element: <AuthGuard><PanelPage /></AuthGuard>,
-  },
-  {
-    path: "/panel/:view",
-    element: <AuthGuard><PanelPage /></AuthGuard>,
-  },
-  {
     // Skippable post-registration wizard, entered right after
     // RegisterPage's success handler — standalone chrome (own card, not
     // PhoneFrame), same pattern as /login/register above.
@@ -86,34 +71,28 @@ export const router = createBrowserRouter([
     element: <AuthGuard><OrganizationPage /></AuthGuard>,
   },
   {
-    path: "/",
-    element: (
-      <AuthGuard>
-        <Layout />
-      </AuthGuard>
-    ),
-    children: [
-      { index: true, element: <HomeRedirect /> },
-      { path: "products", element: <ProductListPage /> },
-      { path: "products/new", element: <ProductFormPage /> },
-      { path: "products/:id", element: <ProductDetailPage /> },
-      { path: "products/:id/edit", element: <ProductFormPage /> },
-      { path: "categories", element: <CategoryListPage /> },
-      { path: "categories/new", element: <CategoryFormPage /> },
-      { path: "categories/:id/edit", element: <CategoryFormPage /> },
-      { path: "moderation", element: <ModerationPage /> },
-      { path: "plugins", element: <PluginListPage /> },
-      { path: "plugins/new", element: <PluginFormPage /> },
-      { path: "plugins/:pluginId/detail", element: <PluginDetailPage /> },
-      { path: "plugins/:pluginId/edit", element: <PluginFormPage /> },
-      { path: "plugins/:pluginId/*", element: <PluginPageRoute /> },
-    ],
-  },
-  {
     // Pathless layout route for the public pages below: a logged-in
     // visitor gets the account menu bar above them (see PublicLayout).
     element: <PublicLayout />,
     children: [
+      {
+        path: "/",
+        element: <AuthGuard><HomeRedirect /></AuthGuard>,
+      },
+      {
+        // Role-aware landing for Guest/Organizer accounts — same standalone,
+        // Tailwind phone-frame pattern as /krag above. `/panel/:view` is a
+        // second, identical route (not a child route) so each Panel section
+        // (spotkania/rzeczy/podarki/profil/ustawienia/rodzina) has its own real
+        // URL and survives a refresh instead of always resetting to "home" —
+        // see PanelDataContext.tsx, which derives `view` from this param.
+        path: "/panel",
+        element: <AuthGuard><PanelPage /></AuthGuard>,
+      },
+      {
+        path: "/panel/:view",
+        element: <AuthGuard><PanelPage /></AuthGuard>,
+      },
       {
         // The SOLE group/circle screen route (former separate `/krag/:groupId`
         // + `/krag` entry-resolver were removed — this address now serves both
@@ -138,6 +117,32 @@ export const router = createBrowserRouter([
         path: "/:organizationSlug",
         element: <PublicOrganizationPage />,
       },
+    ],
+  },
+  {
+    path: "/admin",
+    element: (
+      <AuthGuard>
+        <Layout />
+      </AuthGuard>
+    ),
+    // Child paths are relative to "/admin" — "products" resolves to
+    // "/admin/products".
+    children: [
+      { index: true, element: <Navigate to="products" replace /> },
+      { path: "products", element: <ProductListPage /> },
+      { path: "products/new", element: <ProductFormPage /> },
+      { path: "products/:id", element: <ProductDetailPage /> },
+      { path: "products/:id/edit", element: <ProductFormPage /> },
+      { path: "categories", element: <CategoryListPage /> },
+      { path: "categories/new", element: <CategoryFormPage /> },
+      { path: "categories/:id/edit", element: <CategoryFormPage /> },
+      { path: "moderation", element: <ModerationPage /> },
+      { path: "plugins", element: <PluginListPage /> },
+      { path: "plugins/new", element: <PluginFormPage /> },
+      { path: "plugins/:pluginId/detail", element: <PluginDetailPage /> },
+      { path: "plugins/:pluginId/edit", element: <PluginFormPage /> },
+      { path: "plugins/:pluginId/*", element: <PluginPageRoute /> },
     ],
   },
 ]);

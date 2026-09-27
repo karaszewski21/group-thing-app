@@ -380,10 +380,10 @@ class SwapProposal(BaseEntity):
 
 
 class GiveawayTermEndMarker(BaseEntity):
-    """Idempotency marker for the term-end scanner (Group 4) on a giveaway
-    (GIFT) `Reservation` — `app.circulation.Reservation` must stay
-    untouched by this task, so this minimal groups-owned row carries the
-    "already notified" flag instead of a column on `Reservation` itself.
+    """Idempotency marker for the term-end scanner
+    (`application/term_end_scan`) on a GIFT or LEND `Reservation` (the name
+    predates LEND coverage). This groups-owned row carries the "already
+    notified" flag so circulation's `Reservation` needs no column for it.
     `reservation_id` is a loose cross-BC pointer — no FK, same precedent as
     `SwapProposal`'s `*_item_id`/`proposer_reservation_id` fields."""
 

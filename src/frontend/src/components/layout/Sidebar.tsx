@@ -53,7 +53,7 @@ function PluginMenuItems() {
       {menuItems.map((item) => (
         <NavItem
           key={`${item.pluginId}-${item.path}`}
-          to={`/plugins/${item.pluginId}${item.path}`}
+          to={`/admin/plugins/${item.pluginId}${item.path}`}
           label={item.label ?? item.pluginName}
           icon={resolveIcon(item.icon)}
         />
@@ -89,12 +89,12 @@ export function Sidebar() {
         <Text as="span" color="white" fontWeight="800">Thing</Text>
       </Text>
       <Flex as="nav" direction="column" gap="2px" role="navigation" aria-label="Main navigation">
-        <NavItem to="/products" label="Products" icon={ProductsIcon} />
-        {isAdmin && <NavItem to="/categories" label="Categories" icon={CategoriesIcon} />}
-        {isAdmin && <NavItem to="/moderation" label="Moderation" icon={ModerationIcon} />}
+        <NavItem to="/admin/products" label="Products" icon={ProductsIcon} />
+        {isAdmin && <NavItem to="/admin/categories" label="Categories" icon={CategoriesIcon} />}
+        {isAdmin && <NavItem to="/admin/moderation" label="Moderation" icon={ModerationIcon} />}
         {(hasPluginManagement || isAdmin) && <PluginMenuItems />}
         {(hasPluginManagement || isAdmin) && (
-          <NavItem to="/plugins" label="Plugins" icon={PluginsIcon} />
+          <NavItem to="/admin/plugins" label="Plugins" icon={PluginsIcon} />
         )}
         <NavItem to="/panel" label="Panel" icon={KragIcon} />
       </Flex>

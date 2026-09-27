@@ -60,8 +60,6 @@ function PanelPageView() {
 
   return (
     <PhoneFrame>
-      <PanelHeader />
-
       <div className="flex-1 overflow-y-auto px-[18px] pb-6 pt-[18px]">
         {view === "home" && <HomeView />}
         {view === "spotkania" && <SpotkaniaView />}

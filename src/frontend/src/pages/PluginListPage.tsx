@@ -36,7 +36,7 @@ export function PluginListPage() {
         </Box>
         {canManagePlugins && (
           <PrimaryButton asChild>
-            <Link to="/plugins/new">+ Add Plugin</Link>
+            <Link to="/admin/plugins/new">+ Add Plugin</Link>
           </PrimaryButton>
         )}
       </Flex>
@@ -74,7 +74,7 @@ export function PluginListPage() {
                 <Table.Row key={plugin.id} _hover={{ bg: "#F8FAFC" }}>
                   <Table.Cell fontWeight="600" color="#1E293B">
                     <Link
-                      to={`/plugins/${plugin.id}/detail`}
+                      to={`/admin/plugins/${plugin.id}/detail`}
                       style={{ textDecoration: "none", color: "inherit" }}
                     >
                       {plugin.name}

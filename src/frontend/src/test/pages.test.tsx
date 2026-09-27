@@ -110,7 +110,7 @@ describe("ProductListPage", () => {
 describe("ProductFormPage", () => {
   it("renders form fields for product creation", async () => {
     const { ProductFormPage } = await import("../pages/ProductFormPage");
-    renderWithProviders(<ProductFormPage />, "/products/new");
+    renderWithProviders(<ProductFormPage />, "/admin/products/new");
 
     expect(await screen.findByLabelText(/product name/i)).toBeInTheDocument();
     expect(screen.getByLabelText(/sku/i)).toBeInTheDocument();

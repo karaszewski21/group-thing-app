@@ -38,10 +38,11 @@ class NotificationKind(enum.StrEnum):
     `TERM_ITEM_LISTING_TAKEN` goes to the lister whose offered item was just
     taken by another attendee, `SWAP_PROPOSED` goes to the target listing's
     owner, `SWAP_ACCEPTED`/`SWAP_REJECTED` go back to the swap's proposer,
-    `TERM_CONFIRMATION_NEEDED` goes to a party with a locked leg (swap or
-    giveaway) once its Term ends, and `TERM_ALREADY_RESOLVED` goes to the
-    other party in a swap/giveaway when they act after the first party
-    already resolved the same transaction. `GROUP_JOIN_REQUESTED` goes to a
+    `TERM_CONFIRMATION_NEEDED` goes to both parties of an `ACCEPTED` swap
+    or of a still-open GIFT/LEND reservation once its Term ends, and
+    `TERM_ALREADY_RESOLVED` goes to the other party in a swap/giveaway when
+    they act after the first party already resolved the same transaction.
+    `GROUP_JOIN_REQUESTED` goes to a
     private Circle's active organizer, and `GROUP_JOIN_APPROVED`/
     `GROUP_JOIN_REJECTED` go back to the request's requester."""
 
@@ -88,3 +89,8 @@ class Notification(BaseEntity):
     # `app.groups.models.GroupJoinRequest.id`. Populated only for the
     # `GROUP_JOIN_*` kinds; `None` for every other kind.
     join_request_id: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
+    # Loose cross-BC pointer (no FK, same convention as `proposal_id`) at
+    # `app.circulation.models.Reservation.id`. Populated for
+    # `TERM_CONFIRMATION_NEEDED` raised for a GIFT or LEND reservation;
+    # `None` for every other kind (including the SWAP prompt).
+    reservation_id: Mapped[int | None] = mapped_column(BigInteger, nullable=True)

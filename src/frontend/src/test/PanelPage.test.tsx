@@ -21,6 +21,7 @@ import * as notificationsApi from "../api/notifications";
 import * as categoriesApi from "../api/categories";
 import * as termItemListingsApi from "../api/termItemListings";
 import * as reservationsApi from "../api/reservations";
+import * as itemListingPreferencesApi from "../api/itemListingPreferences";
 import { PanelPage } from "../pages/panel/PanelPage";
 import { ApiError } from "../api/client";
 import { createQueryWrapper } from "./queryClient";
@@ -45,6 +46,7 @@ vi.mock("../api/people", () => ({
   getMyProfile: vi.fn(),
   getProfile: vi.fn(),
   getProfileByParty: vi.fn(),
+  getProfileByAccountUserId: vi.fn(),
   getLeadershipsForPerson: vi.fn(),
 }));
 
@@ -82,7 +84,9 @@ vi.mock("../api/groups", () => ({
 vi.mock("../api/inventories", () => ({
   createInventory: vi.fn(),
   getInventories: vi.fn(),
+  getInventory: vi.fn(),
   getInventoryItems: vi.fn(),
+  getInventoryItemBalance: vi.fn(),
   getMyInventoryItems: vi.fn(),
   registerInventoryItem: vi.fn(),
   updateInventoryItem: vi.fn(),
@@ -1733,6 +1737,8 @@ describe("PanelPage — inventory item edit/delete", () => {
     created_at: "",
     updated_at: "",
     listing_mode: null,
+    lent_to_display_name: null,
+    lent_due_date: null,
   };
   const product = {
     id: 7,
@@ -1834,6 +1840,209 @@ describe("PanelPage — inventory item edit/delete", () => {
     expect(screen.getByRole("status")).toHaveTextContent("Usunięto");
     expect(await screen.findByText(/Nie udało się usunąć/)).toBeInTheDocument();
     expect(screen.getByText("Rowerek")).toBeInTheDocument();
+  });
+
+  const lentItem = {
+    ...invItem,
+    home_inventory_id: 1,
+    inventory_id: 2,
+    listing_mode: "LEND" as const,
+    lent_to_display_name: "Marek",
+    lent_due_date: "2026-10-15T00:00:00Z",
+  };
+
+  it("does not delete a lent item — no deleteInventoryItem call and no optimistic removal", async () => {
+    mockGuestDefaults();
+    vi.mocked(inventoriesApi.getMyInventoryItems).mockResolvedValue([lentItem]);
+    vi.mocked(productsApi.getProducts).mockResolvedValue([product]);
+    renderPanel();
+
+    fireEvent.click(await screen.findByRole("button", { name: "Moje rzeczy" }));
+    expect(await screen.findByText("Rowerek")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Usuń rzecz Rowerek" }));
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(inventoriesApi.deleteInventoryItem).not.toHaveBeenCalled();
+    expect(screen.getByText("Rowerek")).toBeInTheDocument();
+    expect(screen.queryByText("Usunięto")).not.toBeInTheDocument();
+  });
+
+  it("does not change a lent item's mode — no balance lookup and no listing-preference call", async () => {
+    mockGuestDefaults();
+    vi.mocked(inventoriesApi.getMyInventoryItems).mockResolvedValue([lentItem]);
+    vi.mocked(productsApi.getProducts).mockResolvedValue([product]);
+    renderPanel();
+
+    fireEvent.click(await screen.findByRole("button", { name: "Moje rzeczy" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Oddam" }));
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(inventoriesApi.getInventoryItemBalance).not.toHaveBeenCalled();
+    expect(itemListingPreferencesApi.setItemListingPreference).not.toHaveBeenCalled();
+  });
+
+  it("counts lent items in the Home 'Twoje rzeczy' mode counters", async () => {
+    mockGuestDefaults();
+    vi.mocked(inventoriesApi.getMyInventoryItems).mockResolvedValue([
+      { ...invItem, listing_mode: "LEND" },
+      { ...lentItem, id: 22 },
+    ]);
+    vi.mocked(productsApi.getProducts).mockResolvedValue([product]);
+    renderPanel();
+
+    const label = await screen.findByText("Wypożyczyć");
+    await waitFor(() => expect(label.previousElementSibling).toHaveTextContent("2"));
+  });
+});
+
+describe("PanelPage — Wypożyczone: 'Oddaję'", () => {
+  beforeEach(() => {
+    vi.resetAllMocks();
+    vi.mocked(groupsApi.listMyPendingJoinRequests).mockResolvedValue([]);
+  });
+
+  it("sends a RETURN reservation with only item_id and reservation_type — no reserved_by_user_id", async () => {
+    mockGuestDefaults();
+    vi.mocked(inventoriesApi.getInventories).mockResolvedValue([
+      mockInventory,
+      { ...mockInventory, id: 2, inventory_type: "VIRTUAL" },
+    ]);
+    vi.mocked(inventoriesApi.getInventoryItems).mockResolvedValue([
+      {
+        id: 40,
+        inventory_id: 2,
+        home_inventory_id: 50,
+        product_id: 8,
+        product_name: "Wiertarka",
+        condition: "GOOD",
+        added_at: "",
+        created_at: "",
+        updated_at: "",
+      },
+    ]);
+    vi.mocked(inventoriesApi.getInventoryItemBalance).mockResolvedValue({
+      id: 1,
+      item_id: 40,
+      status: "LENT",
+      reserved_at: null,
+      lent_at: null,
+      returned_at: null,
+      due_date: null,
+      reservation_id: null,
+    });
+    vi.mocked(inventoriesApi.getInventory).mockResolvedValue({ ...mockInventory, id: 50, owner_user_id: 7 });
+    vi.mocked(peopleApi.getProfileByAccountUserId).mockResolvedValue({
+      ...mockProfile,
+      id: 7,
+      account_user_id: 7,
+      display_name: "Ola",
+    });
+    const reservation = {
+      id: 300,
+      item_id: 40,
+      reservation_type: "RETURN" as const,
+      reserved_by_user_id: 7,
+      paired_reservation_id: null,
+      reserved_at: "",
+      expires_at: null,
+      status: "PENDING" as const,
+      notes: null,
+    };
+    vi.mocked(reservationsApi.createReservation).mockResolvedValue(reservation);
+    vi.mocked(reservationsApi.confirmReservation).mockResolvedValue({ ...reservation, status: "CONFIRMED" });
+    vi.mocked(reservationsApi.fulfillReservation).mockResolvedValue({ ...reservation, status: "FULFILLED" });
+    renderPanel();
+
+    fireEvent.click(await screen.findByRole("button", { name: "Wypożyczone" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Oddaję Wiertarka" }));
+
+    await waitFor(() =>
+      expect(reservationsApi.createReservation).toHaveBeenCalledWith({
+        item_id: 40,
+        reservation_type: "RETURN",
+      }),
+    );
+    await waitFor(() => expect(reservationsApi.fulfillReservation).toHaveBeenCalledWith(300));
+    expect(reservationsApi.confirmReservation).toHaveBeenCalledWith(300);
+    expect(reservationsApi.getReservation).not.toHaveBeenCalled();
+  });
+
+  it("retrying after a failed fulfill finishes the existing RETURN instead of creating a new one", async () => {
+    mockGuestDefaults();
+    vi.mocked(inventoriesApi.getInventories).mockResolvedValue([
+      mockInventory,
+      { ...mockInventory, id: 2, inventory_type: "VIRTUAL" },
+    ]);
+    vi.mocked(inventoriesApi.getInventoryItems).mockResolvedValue([
+      {
+        id: 40,
+        inventory_id: 2,
+        home_inventory_id: 50,
+        product_id: 8,
+        product_name: "Wiertarka",
+        condition: "GOOD",
+        added_at: "",
+        created_at: "",
+        updated_at: "",
+      },
+    ]);
+    // Server-side state the mocks share: the RETURN locks the balance until fulfilled.
+    let balance: { status: "LENT" | "IN_TRANSIT"; reservation_id: number | null } = {
+      status: "LENT",
+      reservation_id: null,
+    };
+    vi.mocked(inventoriesApi.getInventoryItemBalance).mockImplementation(async () => ({
+      id: 1,
+      item_id: 40,
+      reserved_at: null,
+      lent_at: null,
+      returned_at: null,
+      due_date: null,
+      ...balance,
+    }));
+    vi.mocked(inventoriesApi.getInventory).mockResolvedValue({ ...mockInventory, id: 50, owner_user_id: 7 });
+    vi.mocked(peopleApi.getProfileByAccountUserId).mockResolvedValue({
+      ...mockProfile,
+      id: 7,
+      account_user_id: 7,
+      display_name: "Ola",
+    });
+    const reservation = {
+      id: 300,
+      item_id: 40,
+      reservation_type: "RETURN" as const,
+      reserved_by_user_id: 7,
+      paired_reservation_id: null,
+      reserved_at: "",
+      expires_at: null,
+      status: "PENDING" as const,
+      notes: null,
+    };
+    vi.mocked(reservationsApi.createReservation).mockImplementation(async () => {
+      balance = { status: "IN_TRANSIT", reservation_id: 300 };
+      return reservation;
+    });
+    vi.mocked(reservationsApi.confirmReservation).mockResolvedValue({ ...reservation, status: "CONFIRMED" });
+    vi.mocked(reservationsApi.getReservation).mockResolvedValue({ ...reservation, status: "CONFIRMED" });
+    vi.mocked(reservationsApi.fulfillReservation)
+      .mockRejectedValueOnce(new Error("500"))
+      .mockResolvedValueOnce({ ...reservation, status: "FULFILLED" });
+    renderPanel();
+
+    fireEvent.click(await screen.findByRole("button", { name: "Wypożyczone" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Oddaję Wiertarka" }));
+    await waitFor(() => expect(reservationsApi.fulfillReservation).toHaveBeenCalledTimes(1));
+
+    fireEvent.click(screen.getByRole("button", { name: "Oddaję Wiertarka" }));
+
+    await waitFor(() => expect(reservationsApi.fulfillReservation).toHaveBeenCalledTimes(2));
+    await waitFor(() =>
+      expect(screen.queryByRole("button", { name: "Oddaję Wiertarka" })).not.toBeInTheDocument(),
+    );
+    expect(reservationsApi.createReservation).toHaveBeenCalledTimes(1);
+    expect(reservationsApi.confirmReservation).toHaveBeenCalledTimes(1);
+    expect(reservationsApi.getReservation).toHaveBeenCalledWith(300);
+    expect(reservationsApi.fulfillReservation).toHaveBeenLastCalledWith(300);
   });
 });
 
@@ -1961,6 +2170,7 @@ describe("PanelPage — notification bell", () => {
     link_path: "/ania/grupa/5/term/3",
     read_at: null,
     created_at: "2026-03-01T10:00:00",
+    reservation_id: null,
     ...over,
   });
 
@@ -2030,6 +2240,7 @@ describe("PanelPage — Group 7 global pending-actions modal", () => {
       link_path: "/ania/grupa/5/term/3",
       read_at: null,
       created_at: "2026-03-01T10:00:00",
+      reservation_id: null,
       ...over,
     };
   }
@@ -2145,7 +2356,7 @@ describe("PanelPage — Group 7 global pending-actions modal", () => {
     ).toBeInTheDocument();
   });
 
-  it("renders a post-term-end confirm prompt for TERM_CONFIRMATION_NEEDED, and confirming resolves the reservation id from the term's listings then calls confirmTransaction", async () => {
+  it("renders a post-term-end confirm prompt for TERM_CONFIRMATION_NEEDED; without reservation_id, confirming falls back to resolving the reservation id from the term's listings then calls confirmTransaction", async () => {
     mockGuestDefaults();
     vi.mocked(notificationsApi.getMyNotifications).mockResolvedValue([
       pendingNotif({
@@ -2181,11 +2392,65 @@ describe("PanelPage — Group 7 global pending-actions modal", () => {
     fireEvent.click(within(dialog).getByRole("button", { name: "Potwierdź" }));
 
     await waitFor(() =>
-      expect(reservationsApi.confirmTransaction).toHaveBeenCalledWith(77, { term_id: 9 }),
+      expect(reservationsApi.confirmTransaction).toHaveBeenCalledWith(77),
     );
     await waitFor(() =>
       expect(screen.queryByRole("dialog", { name: "Potwierdź transakcję" })).not.toBeInTheDocument(),
     );
+  });
+
+  it("confirms a TERM_CONFIRMATION_NEEDED action carrying reservation_id (Pledge-LEND) directly via confirmTransaction, without the resolver", async () => {
+    mockGuestDefaults();
+    vi.mocked(notificationsApi.getMyNotifications).mockResolvedValue([
+      pendingNotif({
+        id: 2,
+        kind: "TERM_CONFIRMATION_NEEDED",
+        message: "Termin się odbył — potwierdź przekazanie rzeczy",
+        link_path: "/ania/grupa/5/term/9",
+        reservation_id: 501,
+      }),
+    ]);
+    vi.mocked(notificationsApi.markNotificationRead).mockResolvedValue(undefined);
+    vi.mocked(reservationsApi.confirmTransaction).mockResolvedValue({
+      reservation_id: 501,
+      status: "CONFIRMED",
+      already_resolved: false,
+    });
+    renderPanel();
+
+    const dialog = await screen.findByRole("dialog", { name: "Potwierdź transakcję" });
+    fireEvent.click(within(dialog).getByRole("button", { name: "Potwierdź" }));
+
+    await waitFor(() => expect(reservationsApi.confirmTransaction).toHaveBeenCalledWith(501));
+    expect(termItemListingsApi.getMyTakenTermItemListings).not.toHaveBeenCalled();
+    expect(termItemListingsApi.getMyTermItemListings).not.toHaveBeenCalled();
+    expect(reservationsApi.getReservation).not.toHaveBeenCalled();
+    await waitFor(() => expect(screen.getByRole("status")).toHaveTextContent("Potwierdzono"));
+  });
+
+  it("confirms via reservation_id even when the notification's link carries no term id", async () => {
+    mockGuestDefaults();
+    vi.mocked(notificationsApi.getMyNotifications).mockResolvedValue([
+      pendingNotif({
+        id: 2,
+        kind: "TERM_CONFIRMATION_NEEDED",
+        message: "Termin się odbył — potwierdź przekazanie rzeczy",
+        link_path: null,
+        reservation_id: 502,
+      }),
+    ]);
+    vi.mocked(notificationsApi.markNotificationRead).mockResolvedValue(undefined);
+    vi.mocked(reservationsApi.confirmTransaction).mockResolvedValue({
+      reservation_id: 502,
+      status: "CONFIRMED",
+      already_resolved: false,
+    });
+    renderPanel();
+
+    const dialog = await screen.findByRole("dialog", { name: "Potwierdź transakcję" });
+    fireEvent.click(within(dialog).getByRole("button", { name: "Potwierdź" }));
+
+    await waitFor(() => expect(reservationsApi.confirmTransaction).toHaveBeenCalledWith(502));
   });
 
   // Bug #3 (cache refresh, frontend-only): confirmPendingAction previously
@@ -2231,7 +2496,7 @@ describe("PanelPage — Group 7 global pending-actions modal", () => {
     fireEvent.click(within(dialog).getByRole("button", { name: "Potwierdź" }));
 
     await waitFor(() =>
-      expect(reservationsApi.confirmTransaction).toHaveBeenCalledWith(77, { term_id: 9 }),
+      expect(reservationsApi.confirmTransaction).toHaveBeenCalledWith(77),
     );
     // A second `getMyInventoryItems` call is the signal that `load({ silent: true })`
     // re-ran after the confirm, not just `dismissPendingAction`.
@@ -2309,7 +2574,7 @@ describe("PanelPage — Group 7 global pending-actions modal", () => {
     fireEvent.click(within(dialog).getByRole("button", { name: "Potwierdź" }));
 
     await waitFor(() =>
-      expect(reservationsApi.confirmTransaction).toHaveBeenCalledWith(77, { term_id: 9 }),
+      expect(reservationsApi.confirmTransaction).toHaveBeenCalledWith(77),
     );
   });
 
@@ -2396,7 +2661,7 @@ describe("PanelPage — Group 7 global pending-actions modal", () => {
     fireEvent.click(within(dialog).getByRole("button", { name: "Potwierdź" }));
 
     await waitFor(() =>
-      expect(reservationsApi.confirmTransaction).toHaveBeenCalledWith(55, { term_id: 9 }),
+      expect(reservationsApi.confirmTransaction).toHaveBeenCalledWith(55),
     );
   });
 
@@ -2454,7 +2719,7 @@ describe("PanelPage — Group 7 global pending-actions modal", () => {
     fireEvent.click(within(dialog).getByRole("button", { name: "Potwierdź" }));
 
     await waitFor(() =>
-      expect(reservationsApi.confirmTransaction).toHaveBeenCalledWith(61, { term_id: 9 }),
+      expect(reservationsApi.confirmTransaction).toHaveBeenCalledWith(61),
     );
   });
 
@@ -2549,6 +2814,8 @@ describe("PanelPage — RzeczyView post-term-end fallback buttons (Bug #4c, full
     created_at: "",
     updated_at: "",
     listing_mode: null,
+    lent_to_display_name: null,
+    lent_due_date: null,
   };
 
   it("dismissing the global confirm prompt still leaves the tile's own 'Odebrał' fallback usable — clicking it confirms the transaction and silently refreshes the panel", async () => {
@@ -2588,6 +2855,7 @@ describe("PanelPage — RzeczyView post-term-end fallback buttons (Bug #4c, full
         link_path: "/ania/grupa/5/term/9",
         read_at: null,
         created_at: "2026-03-01T10:00:00",
+        reservation_id: null,
       },
     ]);
     vi.mocked(notificationsApi.markNotificationRead).mockResolvedValue(undefined);
@@ -2611,7 +2879,7 @@ describe("PanelPage — RzeczyView post-term-end fallback buttons (Bug #4c, full
     fireEvent.click(odebral);
 
     await waitFor(() =>
-      expect(reservationsApi.confirmTransaction).toHaveBeenCalledWith(88, { term_id: 9 }),
+      expect(reservationsApi.confirmTransaction).toHaveBeenCalledWith(88),
     );
     // A second `getMyInventoryItems` call is the signal that `load({ silent:
     // true })` re-ran after the confirm (same convention as Bug #3's own
@@ -2652,6 +2920,7 @@ describe("PanelPage — organizer join-request pending action", () => {
       read_at: null,
       created_at: "2026-09-24T10:00:00",
       join_request_id: 11,
+      reservation_id: null,
       ...over,
     };
   }

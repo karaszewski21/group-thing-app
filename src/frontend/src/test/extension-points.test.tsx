@@ -152,9 +152,9 @@ describe("ProductDetailPage", () => {
     render(
       <ChakraProvider value={system}>
         <PluginProvider>
-          <MemoryRouter initialEntries={["/products/42"]}>
+          <MemoryRouter initialEntries={["/admin/products/42"]}>
             <Routes>
-              <Route path="/products/:id" element={<ProductDetailPage />} />
+              <Route path="/admin/products/:id" element={<ProductDetailPage />} />
             </Routes>
           </MemoryRouter>
         </PluginProvider>
@@ -196,7 +196,7 @@ describe("ProductListPage with plugin filters", () => {
 
     // Product rows should link to detail page
     const productLinks = screen.getAllByRole("link", { name: /wireless headphones pro/i });
-    const detailLink = productLinks.find((link) => link.getAttribute("href") === "/products/42");
+    const detailLink = productLinks.find((link) => link.getAttribute("href") === "/admin/products/42");
     expect(detailLink).toBeTruthy();
   });
 });
@@ -209,9 +209,9 @@ describe("Plugin page route", () => {
     render(
       <ChakraProvider value={system}>
         <PluginProvider>
-          <MemoryRouter initialEntries={["/plugins/warehouse/some/path"]}>
+          <MemoryRouter initialEntries={["/admin/plugins/warehouse/some/path"]}>
             <Routes>
-              <Route path="/plugins/:pluginId/*" element={<PluginPageRoute />} />
+              <Route path="/admin/plugins/:pluginId/*" element={<PluginPageRoute />} />
             </Routes>
           </MemoryRouter>
         </PluginProvider>
@@ -239,9 +239,9 @@ describe("ProductDetailPage with no plugins", () => {
     render(
       <ChakraProvider value={system}>
         <PluginProvider>
-          <MemoryRouter initialEntries={["/products/42"]}>
+          <MemoryRouter initialEntries={["/admin/products/42"]}>
             <Routes>
-              <Route path="/products/:id" element={<ProductDetailPage />} />
+              <Route path="/admin/products/:id" element={<ProductDetailPage />} />
             </Routes>
           </MemoryRouter>
         </PluginProvider>

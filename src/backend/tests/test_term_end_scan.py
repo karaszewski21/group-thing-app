@@ -12,16 +12,20 @@ past directly via `db_session`, same precedent that file already uses."""
 from __future__ import annotations
 
 from datetime import date, datetime, timedelta
+from typing import cast
 
+import pytest
 from httpx import AsyncClient
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.circulation.models import ReservationType
-from app.core.auth_deps import Principal
 from app.config import settings
+from app.core.auth_deps import Principal
+from app.core.errors import EntityNotFoundException
 from app.core.security import decode_token
 from app.groups import service
+from app.groups.application import term_end_scan
 from app.groups.application.term_end_scan import scan_for_term_ended
 from app.groups.domain import swap_events
 from app.groups.models import GiveawayTermEndMarker, SwapProposal, SwapProposalStatus, Term
@@ -332,3 +336,215 @@ async def test_outboxListener_termEndedSwap_createsNotificationForBothParties(
     ).scalars().all()
     assert len(notifs) == 2
     assert {n.party_id for n in notifs} == {proposer_party_id, owner_party_id}
+
+
+async def _outbox_payloads(db_session: AsyncSession, event_type: str) -> list[dict]:
+    result = await db_session.execute(
+        select(OutboxEntry).where(OutboxEntry.event_type == event_type)
+    )
+    return [entry.payload for entry in result.scalars().all()]
+
+
+async def test_scan_giftReservationOfOtherTerm_isNotPrompted(
+    client: AsyncClient, db_session: AsyncSession
+) -> None:
+    """The lister is eligible for the ended Term, but the GIFT was taken for
+    a later Term of the same circle — only `Reservation.term_id` decides."""
+    org_token, _ = await _register(client, "ORGANIZER", "tes.org5@example.com")
+    group_id, ended_term_id = await _create_circle_and_term(client, org_token, "tes5")
+    later_term = await client.post(
+        "/api/terms",
+        json={
+            "circle_group_id": group_id,
+            "occurs_on": (date.today() + timedelta(days=14)).isoformat(),
+        },
+        headers=_auth(org_token),
+    )
+    assert later_term.status_code == 201
+    later_term_id = later_term.json()["id"]
+
+    lister_token, _ = await _register(client, "GUEST", "tes.lister5@example.com")
+    taker_token, _ = await _register(client, "GUEST", "tes.taker5@example.com")
+    for token in (lister_token, taker_token):
+        await _rsvp(client, token, group_id, ended_term_id)
+        await _rsvp(client, token, group_id, later_term_id)
+    item_id = await _register_personal_item(client, lister_token, "Rowerek5")
+    await service.set_item_listing_preference(
+        db_session, _principal(lister_token), item_id, ReservationType.GIFT
+    )
+    await service.take_item_listing(
+        db_session,
+        _principal(taker_token),
+        item_id,
+        TakeTermItemListingRequest(term_id=later_term_id, reservation_type="GIFT"),
+    )
+
+    await _push_term_into_past(db_session, ended_term_id)
+
+    await scan_for_term_ended(db_session)
+
+    assert await _count_outbox_entries(db_session, swap_events.TERM_ENDED_GIVEAWAY) == 0
+    markers = (await db_session.execute(select(GiveawayTermEndMarker))).scalars().all()
+    assert len(markers) == 0
+
+
+async def test_scan_termWithoutEligibleListersOrPreferences_stillPromptsReservation(
+    client: AsyncClient, db_session: AsyncSession
+) -> None:
+    """A Pledge-LEND lives on a Term with no `ItemListingPreference` at all —
+    the reservation path must not be gated by the SWAP path's preference
+    lookup. Parties come from the reservation: owner = giver (the pledger),
+    taker = `reserved_by` (the organizer)."""
+    org_token, org_party_id = await _register(client, "ORGANIZER", "tes.org6@example.com")
+    circle = await client.post(
+        "/api/groups/mine", json={"name": "Krąg tes6"}, headers=_auth(org_token)
+    )
+    term = await client.post(
+        "/api/terms",
+        json={
+            "circle_group_id": circle.json()["id"],
+            "occurs_on": (date.today() + timedelta(days=1)).isoformat(),
+        },
+        headers=_auth(org_token),
+    )
+    term_id = term.json()["id"]
+    product_id = await _resolve_product(client, org_token, "Skrzypce6")
+    needed = await client.post(
+        "/api/needed-items",
+        json={"term_id": term_id, "product_id": product_id, "description": None},
+        headers=_auth(org_token),
+    )
+    guest_token, guest_party_id = await _register(client, "GUEST", "tes.guest6@example.com")
+    pledge = await client.post(
+        "/api/pledges", json={"needed_item_id": needed.json()["id"]}, headers=_auth(guest_token)
+    )
+    fulfilled = await client.post(
+        f"/api/pledges/{pledge.json()['id']}/fulfill",
+        json={"condition": "GOOD"},
+        headers=_auth(guest_token),
+    )
+    assert fulfilled.status_code == 200
+    reservation_id = fulfilled.json()["resolved_reservation_id"]
+
+    await _push_term_into_past(db_session, term_id)
+
+    await scan_for_term_ended(db_session)
+
+    payloads = await _outbox_payloads(db_session, swap_events.TERM_ENDED_GIVEAWAY)
+    assert len(payloads) == 1
+    assert payloads[0]["reservation_id"] == reservation_id
+    assert payloads[0]["owner_party_id"] == guest_party_id
+    assert payloads[0]["taker_party_id"] == org_party_id
+
+
+async def test_scan_confirmedPledgeLend_secondRun_oneEventAndTwoNotificationsWithReservationId(
+    client: AsyncClient, db_session: AsyncSession
+) -> None:
+    org_token, org_party_id = await _register(client, "ORGANIZER", "tes.org7@example.com")
+    circle = await client.post(
+        "/api/groups/mine", json={"name": "Krąg tes7"}, headers=_auth(org_token)
+    )
+    term = await client.post(
+        "/api/terms",
+        json={
+            "circle_group_id": circle.json()["id"],
+            "occurs_on": (date.today() + timedelta(days=1)).isoformat(),
+        },
+        headers=_auth(org_token),
+    )
+    term_id = term.json()["id"]
+    product_id = await _resolve_product(client, org_token, "Skrzypce7")
+    needed = await client.post(
+        "/api/needed-items",
+        json={"term_id": term_id, "product_id": product_id, "description": None},
+        headers=_auth(org_token),
+    )
+    guest_token, guest_party_id = await _register(client, "GUEST", "tes.guest7@example.com")
+    pledge = await client.post(
+        "/api/pledges", json={"needed_item_id": needed.json()["id"]}, headers=_auth(guest_token)
+    )
+    fulfilled = await client.post(
+        f"/api/pledges/{pledge.json()['id']}/fulfill",
+        json={"condition": "GOOD"},
+        headers=_auth(guest_token),
+    )
+    assert fulfilled.status_code == 200
+    reservation_id = fulfilled.json()["resolved_reservation_id"]
+    await _push_term_into_past(db_session, term_id)
+
+    await scan_for_term_ended(db_session)
+    await scan_for_term_ended(db_session)
+
+    assert await _count_outbox_entries(db_session, swap_events.TERM_ENDED_GIVEAWAY) == 1
+    markers = (await db_session.execute(select(GiveawayTermEndMarker))).scalars().all()
+    assert len(markers) == 1
+    register_outbox_handlers()
+    await dispatch_pending(db_session)
+    notifications = (
+        await db_session.execute(
+            select(Notification).where(
+                Notification.kind == NotificationKind.TERM_CONFIRMATION_NEEDED
+            )
+        )
+    ).scalars().all()
+    assert {n.party_id for n in notifications} == {guest_party_id, org_party_id}
+    assert len(notifications) == 2
+    assert {n.reservation_id for n in notifications} == {reservation_id}
+
+
+async def test_scan_candidateWithMissingGiverProfile_isSkippedWhileOthersStillPrompted(
+    client: AsyncClient, db_session: AsyncSession, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """One reservation whose party has no profile must not abort the whole
+    scan (and so roll back every other Term's events)."""
+    org_token, _ = await _register(client, "ORGANIZER", "tes.org40@example.com")
+    group_id, term_id = await _create_circle_and_term(client, org_token, "tes40")
+    taker_token, _ = await _register(client, "GUEST", "tes.taker40@example.com")
+    await _rsvp(client, taker_token, group_id, term_id)
+
+    reservation_ids: list[int] = []
+    lister_user_ids: list[int] = []
+    for suffix in ("a", "b"):
+        lister_token, _ = await _register(client, "GUEST", f"tes.lister40{suffix}@example.com")
+        await _rsvp(client, lister_token, group_id, term_id)
+        item_id = await _register_personal_item(client, lister_token, f"Klocki40{suffix}")
+        await service.set_item_listing_preference(
+            db_session, _principal(lister_token), item_id, ReservationType.GIFT
+        )
+        taken = await service.take_item_listing(
+            db_session,
+            _principal(taker_token),
+            item_id,
+            TakeTermItemListingRequest(term_id=term_id, reservation_type="GIFT"),
+        )
+        reservation_ids.append(cast(int, taken.resolved_reservation_id))
+        me = await client.get("/api/people/me", headers=_auth(lister_token))
+        lister_user_ids.append(me.json()["account_user_id"])
+    await _push_term_into_past(db_session, term_id)
+
+    real_lookup = term_end_scan.get_profile_by_account_user_id
+    broken_user_id = lister_user_ids[0]
+
+    async def _lookup_with_one_missing(db: AsyncSession, account_user_id: int) -> object:
+        if account_user_id == broken_user_id:
+            raise EntityNotFoundException("UserProfile", account_user_id)
+        return await real_lookup(db, account_user_id)
+
+    monkeypatch.setattr(term_end_scan, "get_profile_by_account_user_id", _lookup_with_one_missing)
+
+    await scan_for_term_ended(db_session)
+
+    payloads = await _outbox_payloads(db_session, swap_events.TERM_ENDED_GIVEAWAY)
+    assert [p["reservation_id"] for p in payloads] == [reservation_ids[1]]
+    marked = (
+        (
+            await db_session.execute(
+                select(GiveawayTermEndMarker.reservation_id).where(
+                    GiveawayTermEndMarker.reservation_id.in_(reservation_ids)
+                )
+            )
+        )
+        .scalars()
+        .all()
+    )
+    assert list(marked) == [reservation_ids[1]]

@@ -11,6 +11,14 @@ Permission matrix additions: GET -> `READ`/`mcp:read`; POST -> `EDIT`/
 checks the matrix can't express (only an item's owner may register into
 their own inventory, only a reservation's holder/recipient may confirm/
 cancel/fulfill it) are enforced in `service.py`.
+
+The raw reservation write routes (create/confirm/cancel/fulfill) serve only
+the borrower's one-sided RETURN ("Oddaję"); the actor is always the
+authenticated principal, and every other reservation type gets 403 — LEND/
+GIFT/SWAP are created and resolved exclusively by the groups exchange flow.
+Only the current holder of a lent item may create or cancel its RETURN,
+which always goes back to the item's home owner. These routes are temporary until the
+Loan MVP (ADR-010).
 """
 
 from __future__ import annotations
@@ -21,6 +29,7 @@ from fastapi import APIRouter, Depends, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.auth_deps import Principal, require_any
+from app.core.errors import AccessDeniedException
 from app.db import get_db
 from app.product import service as product_service
 
@@ -32,8 +41,7 @@ from .schemas import (
     CirculationTransactionResponse,
     CreateInventoryItemRequest,
     CreateInventoryRequest,
-    CreateReservationRequest,
-    CreateSwapRequest,
+    CreateReturnReservationRequest,
     InventoryBalanceResponse,
     InventoryItemResponse,
     InventoryResponse,
@@ -162,22 +170,14 @@ async def get_item_balance(
     "/api/reservations", response_model=ReservationResponse, status_code=status.HTTP_201_CREATED
 )
 async def create_reservation(
-    body: CreateReservationRequest, db: DbSession, principal: EditPrincipal
+    body: CreateReturnReservationRequest, db: DbSession, principal: EditPrincipal
 ) -> ReservationResponse:
-    reservation = await service.create_reservation(db, body)
+    service.require_raw_route_reservation_type(body.reservation_type)
+    acting_user_id = await service.get_user_id_by_principal(db, principal)
+    reservation = await service.create_return_reservation(
+        db, item_id=body.item_id, notes=body.notes, acting_user_id=acting_user_id
+    )
     return ReservationResponse.model_validate(reservation)
-
-
-@router.post(
-    "/api/reservations/swap",
-    response_model=list[ReservationResponse],
-    status_code=status.HTTP_201_CREATED,
-)
-async def create_swap(
-    body: CreateSwapRequest, db: DbSession, principal: EditPrincipal
-) -> list[ReservationResponse]:
-    first, second = await service.create_swap(db, body)
-    return [ReservationResponse.model_validate(first), ReservationResponse.model_validate(second)]
 
 
 @router.get("/api/reservations", response_model=list[ReservationResponse])
@@ -200,6 +200,8 @@ async def get_reservation(
 async def confirm_reservation(
     reservation_id: int, db: DbSession, principal: EditPrincipal
 ) -> ReservationResponse:
+    reservation = await service.get_reservation(db, reservation_id)
+    service.require_raw_route_reservation_type(reservation.reservation_type)
     acting_user_id = await service.get_user_id_by_principal(db, principal)
     reservation = await service.confirm_reservation(db, reservation_id, acting_user_id)
     return ReservationResponse.model_validate(reservation)
@@ -209,7 +211,15 @@ async def confirm_reservation(
 async def cancel_reservation(
     reservation_id: int, db: DbSession, principal: EditPrincipal
 ) -> ReservationResponse:
+    reservation = await service.get_reservation(db, reservation_id)
+    service.require_raw_route_reservation_type(reservation.reservation_type)
     acting_user_id = await service.get_user_id_by_principal(db, principal)
+    # The shared cancel accepts either party, but the home owner (`reserved_by`)
+    # must not be able to keep blocking the borrower's return.
+    item = await service.get_item(db, reservation.item_id)
+    holder = await service.get_inventory(db, item.inventory_id)
+    if holder.owner_user_id != acting_user_id:
+        raise AccessDeniedException("Zwrot może anulować tylko osoba, która ma tę rzecz")
     reservation = await service.cancel_reservation(db, reservation_id, acting_user_id)
     return ReservationResponse.model_validate(reservation)
 
@@ -218,6 +228,8 @@ async def cancel_reservation(
 async def fulfill_reservation(
     reservation_id: int, db: DbSession, principal: EditPrincipal
 ) -> ReservationResponse:
+    reservation = await service.get_reservation(db, reservation_id)
+    service.require_raw_route_reservation_type(reservation.reservation_type)
     acting_user_id = await service.get_user_id_by_principal(db, principal)
     reservation = await service.fulfill_reservation(db, reservation_id, acting_user_id)
     return ReservationResponse.model_validate(reservation)

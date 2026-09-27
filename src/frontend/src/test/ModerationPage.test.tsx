@@ -35,7 +35,7 @@ const mockGroups: ModerationGroupResponse[] = [
 function renderWithProviders() {
   return render(
     <ChakraProvider value={system}>
-      <MemoryRouter initialEntries={["/moderation"]}>
+      <MemoryRouter initialEntries={["/admin/moderation"]}>
         <ModerationPage />
       </MemoryRouter>
     </ChakraProvider>,

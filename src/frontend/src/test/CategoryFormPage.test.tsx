@@ -27,9 +27,9 @@ function renderWithProviders(ui: React.ReactElement, initialRoute: string) {
     <ChakraProvider value={system}>
       <MemoryRouter initialEntries={[initialRoute]}>
         <Routes>
-          <Route path="/categories" element={<div>Categories List</div>} />
-          <Route path="/categories/new" element={ui} />
-          <Route path="/categories/:id/edit" element={ui} />
+          <Route path="/admin/categories" element={<div>Categories List</div>} />
+          <Route path="/admin/categories/new" element={ui} />
+          <Route path="/admin/categories/:id/edit" element={ui} />
         </Routes>
       </MemoryRouter>
     </ChakraProvider>,
@@ -45,7 +45,7 @@ describe("CategoryFormPage", () => {
     vi.mocked(categoriesApi.createCategory).mockResolvedValue(mockCategory);
     const { CategoryFormPage } = await import("../pages/CategoryFormPage");
 
-    renderWithProviders(<CategoryFormPage />, "/categories/new");
+    renderWithProviders(<CategoryFormPage />, "/admin/categories/new");
 
     const nameInput = await screen.findByLabelText(/^name/i);
     expect(nameInput).toBeRequired();
@@ -74,7 +74,7 @@ describe("CategoryFormPage", () => {
     vi.mocked(categoriesApi.updateCategory).mockResolvedValue(mockCategory);
     const { CategoryFormPage } = await import("../pages/CategoryFormPage");
 
-    renderWithProviders(<CategoryFormPage />, "/categories/1/edit");
+    renderWithProviders(<CategoryFormPage />, "/admin/categories/1/edit");
 
     await screen.findByDisplayValue("Zabawka");
     await act(async () => {
@@ -95,7 +95,7 @@ describe("CategoryFormPage", () => {
   it("blocks submission via native required-field validation when name is left empty", async () => {
     const { CategoryFormPage } = await import("../pages/CategoryFormPage");
 
-    renderWithProviders(<CategoryFormPage />, "/categories/new");
+    renderWithProviders(<CategoryFormPage />, "/admin/categories/new");
 
     const nameInput = await screen.findByLabelText(/^name/i);
     expect(nameInput).toHaveValue("");

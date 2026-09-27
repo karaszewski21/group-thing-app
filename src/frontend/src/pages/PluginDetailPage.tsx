@@ -56,7 +56,7 @@ export function PluginDetailPage() {
     <Box maxW="800px">
       <Box mb="24px">
         <Flex as="nav" fontSize="13px" color="#64748B" gap="4px" aria-label="Breadcrumb">
-          <Link to="/plugins" style={{ color: "var(--chakra-colors-brand-600)", textDecoration: "none" }}>
+          <Link to="/admin/plugins" style={{ color: "var(--chakra-colors-brand-600)", textDecoration: "none" }}>
             Plugins
           </Link>
           <Text as="span">/</Text>
@@ -67,7 +67,7 @@ export function PluginDetailPage() {
             {plugin.name}
           </Heading>
           <Button asChild variant="outline" size="sm">
-            <Link to={`/plugins/${plugin.id}/edit`}>Edit</Link>
+            <Link to={`/admin/plugins/${plugin.id}/edit`}>Edit</Link>
           </Button>
         </Flex>
       </Box>

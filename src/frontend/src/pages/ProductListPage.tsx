@@ -98,7 +98,7 @@ export function ProductListPage() {
         </Box>
         {canEdit && (
           <PrimaryButton asChild>
-            <Link to="/products/new">+ Add Product</Link>
+            <Link to="/admin/products/new">+ Add Product</Link>
           </PrimaryButton>
         )}
       </Flex>
@@ -167,7 +167,7 @@ export function ProductListPage() {
           action={
             canEdit ? (
               <PrimaryButton asChild>
-                <Link to="/products/new">+ Add Product</Link>
+                <Link to="/admin/products/new">+ Add Product</Link>
               </PrimaryButton>
             ) : undefined
           }
@@ -271,7 +271,7 @@ export function ProductListPage() {
                     </Table.Cell>
                     <Table.Cell fontWeight="500" color="#1E293B">
                       <Link
-                        to={`/products/${product.id}`}
+                        to={`/admin/products/${product.id}`}
                         style={{ textDecoration: "none", color: "inherit" }}
                         aria-label={product.name}
                       >
@@ -305,7 +305,7 @@ export function ProductListPage() {
                             fontWeight="500"
                             aria-label={`Edit ${product.name}`}
                           >
-                            <Link to={`/products/${product.id}/edit`}>Edit</Link>
+                            <Link to={`/admin/products/${product.id}/edit`}>Edit</Link>
                           </Button>
                           <Button
                             variant="ghost"

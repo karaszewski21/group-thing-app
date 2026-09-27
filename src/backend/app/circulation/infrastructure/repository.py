@@ -8,7 +8,7 @@ getter wrappers."""
 
 from __future__ import annotations
 
-from sqlalchemy import select
+from sqlalchemy import and_, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -22,6 +22,7 @@ from app.circulation.models import (
     InventoryType,
     Reservation,
     ReservationStatus,
+    ReservationType,
 )
 from app.product.models import Product
 
@@ -86,6 +87,31 @@ async def list_items_for_inventory_with_product_name(
         .where(
             InventoryItem.inventory_id == inventory_id,
             InventoryItem.deleted_at.is_(None),
+        )
+    )
+    return [(item, name) for item, name in result.all()]
+
+
+async def list_owned_items_including_lent_with_product_name(
+    db: AsyncSession, personal_inventory_id: int
+) -> list[tuple[InventoryItem, str]]:
+    """Items whose home is `personal_inventory_id`: those sitting there
+    (`home_inventory_id IS NULL`) plus those currently lent out
+    (`home_inventory_id` pointing back at it) — unlike
+    `list_items_for_inventory_with_product_name`, which lists by physical
+    location. Same explicit product join as that query."""
+    result = await db.execute(
+        select(InventoryItem, Product.name)
+        .join(Product, Product.id == InventoryItem.product_id)
+        .where(
+            InventoryItem.deleted_at.is_(None),
+            or_(
+                and_(
+                    InventoryItem.inventory_id == personal_inventory_id,
+                    InventoryItem.home_inventory_id.is_(None),
+                ),
+                InventoryItem.home_inventory_id == personal_inventory_id,
+            ),
         )
     )
     return [(item, name) for item, name in result.all()]
@@ -180,5 +206,25 @@ async def list_active_reservations_for_item(db: AsyncSession, item_id: int) -> l
             Reservation.item_id == item_id,
             Reservation.status.in_((ReservationStatus.PENDING, ReservationStatus.CONFIRMED)),
         )
+    )
+    return list(result.scalars().all())
+
+
+async def list_active_hand_over_reservations_for_terms(
+    db: AsyncSession, term_ids: list[int]
+) -> list[Reservation]:
+    """Every `PENDING`/`CONFIRMED` GIFT or LEND reservation whose `term_id`
+    is one of `term_ids` — the candidates of the term-end prompt. RETURN
+    (inherits its LEND's past `term_id`) and SWAP (prompted via
+    `SwapProposal`) are excluded. Same query shape as
+    `list_active_reservations_for_item`."""
+    result = await db.execute(
+        select(Reservation)
+        .where(
+            Reservation.term_id.in_(term_ids),
+            Reservation.reservation_type.in_((ReservationType.GIFT, ReservationType.LEND)),
+            Reservation.status.in_((ReservationStatus.PENDING, ReservationStatus.CONFIRMED)),
+        )
+        .order_by(Reservation.id)
     )
     return list(result.scalars().all())

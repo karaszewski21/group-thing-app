@@ -137,35 +137,53 @@ async def set_item_listing_preference(
 async def list_my_inventory_items(
     db: AsyncSession, principal: Principal
 ) -> list[MyInventoryItemResponse]:
-    """The caller's own items (their PERSONAL inventory — never a borrowed
-    VIRTUAL one) with each item's standing listing mode — used by
-    `Moje rzeczy` to list items and seed each mode toggle on load."""
+    """The caller's own items — those whose home is their PERSONAL
+    inventory, including ones currently lent out (never an item borrowed
+    from someone else) — with each item's standing listing mode, used by
+    `Moje rzeczy` to list items and seed each mode toggle on load. A lent
+    item also carries the borrower's display name and the loan's due date,
+    resolved per lent item only (bounded loop, same precedent as
+    `_resolve_item_display_info`)."""
     profile = await get_profile_by_principal(db, principal)
     inventory = await circulation_bridge.find_personal_inventory(
         db, cast(int, profile.account_user_id)
     )
     if inventory is None:
         return []
-    rows = await circulation_bridge.list_items_with_product_name(db, cast(int, inventory.id))
+    rows = await circulation_bridge.list_owned_items_including_lent_with_product_name(
+        db, cast(int, inventory.id)
+    )
     modes = {
         pref.item_id: pref.mode
         for pref in await repository.list_item_listing_preferences_for_party(db, profile.party_id)
     }
-    return [
-        MyInventoryItemResponse(
-            id=cast(int, item.id),
-            inventory_id=item.inventory_id,
-            home_inventory_id=item.home_inventory_id,
-            product_id=item.product_id,
-            product_name=product_name,
-            condition=item.condition,
-            added_at=item.added_at,
-            created_at=item.created_at,
-            updated_at=item.updated_at,
-            listing_mode=modes.get(cast(int, item.id)),
+    responses: list[MyInventoryItemResponse] = []
+    for item, product_name in rows:
+        lent_to_display_name = None
+        lent_due_date = None
+        if item.home_inventory_id is not None:
+            balance = await circulation_bridge.get_item_balance(db, cast(int, item.id))
+            borrower_inventory = await circulation_bridge.get_inventory(db, item.inventory_id)
+            borrower = await get_profile_by_account_user_id(db, borrower_inventory.owner_user_id)
+            lent_to_display_name = borrower.display_name
+            lent_due_date = balance.due_date
+        responses.append(
+            MyInventoryItemResponse(
+                id=cast(int, item.id),
+                inventory_id=item.inventory_id,
+                home_inventory_id=item.home_inventory_id,
+                product_id=item.product_id,
+                product_name=product_name,
+                condition=item.condition,
+                added_at=item.added_at,
+                created_at=item.created_at,
+                updated_at=item.updated_at,
+                listing_mode=modes.get(cast(int, item.id)),
+                lent_to_display_name=lent_to_display_name,
+                lent_due_date=lent_due_date,
+            )
         )
-        for item, product_name in rows
-    ]
+    return responses
 
 
 async def _is_item_available(db: AsyncSession, item_id: int) -> bool:
@@ -317,11 +335,11 @@ async def list_my_active_taken_term_item_listings(
     db: AsyncSession, term_id: int, party_id: int
 ) -> list[BrowseTermItemListingResponse]:
     """The taker-side counterpart of `list_my_term_item_listings`: the
-    caller's own active (`PENDING`/`CONFIRMED`) reservations as taker for
-    this Term, resolved availability-independently — unlike
-    `list_browsable_term_item_listings`, this still resolves after
-    `term.occurs_on` has passed, which is exactly the post-term-end window
-    `confirm_transaction` needs a reservation id for."""
+    caller's own active (`PENDING`/`CONFIRMED`) takes of this Term, resolved
+    availability-independently — unlike `list_browsable_term_item_listings`,
+    this still resolves after `term.occurs_on` has passed, which is exactly
+    the post-term-end window `confirm_transaction` needs a reservation id
+    for."""
     term = await get_term(db, term_id)
     await _require_term_eligibility(db, term_id, term.circle_group_id, party_id)
 
@@ -333,6 +351,13 @@ async def list_my_active_taken_term_item_listings(
     eligible_lister_party_ids = await _list_eligible_lister_party_ids(db, term)
     preferences: list[ItemListingPreference] = []
     for reservation in reservations:
+        # A RETURN names the home owner as `reserved_by`, yet the owner took
+        # nothing — it is the borrower giving the item back.
+        if (
+            reservation.reservation_type == circulation_bridge.ReservationType.RETURN
+            or reservation.term_id != term_id
+        ):
+            continue
         preference = await repository.get_item_listing_preference(db, reservation.item_id)
         if preference is not None and preference.owner_party_id in eligible_lister_party_ids:
             preferences.append(preference)
@@ -552,11 +577,9 @@ async def accept_swap_proposal(
     """Creates the listing owner's own leg (auto-confirmed on their own
     behalf, same reasoning as `propose_swap`'s proposer leg) and pairs it
     with the proposer's already-locked leg by directly wiring
-    `paired_reservation_id` on both ORM objects already in hand — the exact
-    linkage `circulation.application.reservations.create_swap` performs
-    internally right after creating both legs from scratch, replicated here
-    for the one-leg-already-exists scenario since calling `create_swap`
-    itself would create a *second*, redundant proposer leg."""
+    `paired_reservation_id` on both ORM objects already in hand — circulation
+    has no use case that pairs an existing leg with a new one, so the
+    linkage is wired here directly."""
     owner_profile = await get_profile_by_principal(db, principal)
     proposal = await repository.get_swap_proposal(db, proposal_id)
     if proposal is None:
@@ -655,19 +678,19 @@ async def reject_swap_proposal(
 
 
 async def _resolve_transaction_reservations_for_action(
-    db: AsyncSession, principal: Principal, reservation_id: int, term_id: int
+    db: AsyncSession, principal: Principal, reservation_id: int
 ) -> list[circulation_bridge.Reservation]:
     """Shared gating sequence for both `confirm_transaction` and
-    `cancel_transaction`: term-ended check, race-participant authorization,
-    and the already-resolved guard — then returns the reservation(s) the
-    caller should act on next (one, or two for a resolved SWAP pair via
-    `paired_reservation_id`). Extracted per spec.md Bug #4's "shared gating
-    helper" requirement: `cancel_transaction` needs the *exact* same
-    SWAP-pairing resolution `confirm_transaction` already had (the
-    highest-regression-risk logic in this area per gap analysis), and a
-    second independent copy would let the two paths silently drift apart —
-    the concrete second caller here is what justifies factoring this out
-    now rather than speculatively, per
+    `cancel_transaction`: race-participant authorization (403 before any
+    409), the RETURN guard, the term-ended check, and the already-resolved
+    guard — then returns the reservation(s) the caller should act on next
+    (one, or two for a resolved SWAP pair via `paired_reservation_id`).
+    Extracted per spec.md Bug #4's "shared gating helper" requirement:
+    `cancel_transaction` needs the *exact* same SWAP-pairing resolution
+    `confirm_transaction` already had (the highest-regression-risk logic in
+    this area per gap analysis), and a second independent copy would let
+    the two paths silently drift apart — the concrete second caller here is
+    what justifies factoring this out now rather than speculatively, per
     `standards/global/minimal-implementation.md`.
 
     Callers own their own terminal step (confirm+fulfill vs. cancel) per
@@ -675,9 +698,13 @@ async def _resolve_transaction_reservations_for_action(
     helper stops right before that, matching `confirm_transaction`'s
     original inline sequence exactly.
 
-    `term_id` is caller-supplied context (a bare `Reservation` carries no
-    Term reference) — only used to gate on `term.occurs_on`, deliberately
-    NOT sharing a helper with `take_item_listing`'s own, differently-timed
+    A RETURN is not a Term transaction (the two-sided return arrives with
+    the Loan MVP), so it is rejected here rather than confirmed/cancelled.
+
+    The Term gated on is always the reservation's own `term_id` — never a
+    caller-supplied one, which would let a party resolve an exchange early
+    by naming some other, already-ended Term. It deliberately does NOT
+    share a helper with `take_item_listing`'s own, differently-timed
     `occurs_on < datetime.now()` check (see spec.md Technical Approach step
     3). Both compare against server-local `datetime.now()`, not
     `datetime.utcnow()` — `occurs_on` is itself a naive LOCAL wall-clock
@@ -685,10 +712,6 @@ async def _resolve_transaction_reservations_for_action(
     against true UTC "now" was throwing every check off by the server's
     UTC offset (e.g. ~2h during CEST)."""
     profile = await get_profile_by_principal(db, principal)
-    term = await get_term(db, term_id)
-    if term.occurs_on > datetime.now():
-        raise BusinessConflictException("Termin jeszcze się nie odbył")
-
     reservation = await circulation_bridge.get_reservation(db, reservation_id)
     # `giver_user_id` (captured at reservation creation), not the item's
     # current holder: for GIFT/SWAP possession changes permanently at
@@ -700,6 +723,22 @@ async def _resolve_transaction_reservations_for_action(
         reservation.giver_user_id,
         acting_user_id=cast(int, profile.account_user_id),
     )
+
+    if reservation.reservation_type == circulation_bridge.ReservationType.RETURN:
+        raise BusinessConflictException("Zwrot nie jest transakcją Terminu")
+
+    # An unpaired SWAP leg is a still-PROPOSED swap's proposer lock: resolving
+    # it alone would hand the proposer's item over without the listing owner
+    # giving theirs. A proposal is only released via `reject_swap_proposal`.
+    if (
+        reservation.reservation_type == circulation_bridge.ReservationType.SWAP
+        and reservation.paired_reservation_id is None
+    ):
+        raise BusinessConflictException("Zamiana nie została zaakceptowana")
+
+    term = await get_term(db, reservation.term_id)
+    if term.occurs_on > datetime.now():
+        raise BusinessConflictException("Termin jeszcze się nie odbył")
 
     if reservation.status not in _ACTIVE_RESERVATION_STATUSES:
         # The other party already resolved this transaction first.
@@ -723,16 +762,14 @@ async def _resolve_transaction_reservations_for_action(
 
 
 async def confirm_transaction(
-    db: AsyncSession, principal: Principal, reservation_id: int, term_id: int
+    db: AsyncSession, principal: Principal, reservation_id: int
 ) -> circulation_bridge.Reservation:
     """Resolves a locked exchange (LEND/GIFT leg, or a SWAP's paired legs)
     once its Term has ended: whichever party of the transaction calls this
     first wins the race and both legs (for SWAP) get confirmed+fulfilled;
     the other party's later call is recognized as a no-op via
     `TermAlreadyResolvedException` rather than a raw, unexplained conflict."""
-    reservations = await _resolve_transaction_reservations_for_action(
-        db, principal, reservation_id, term_id
-    )
+    reservations = await _resolve_transaction_reservations_for_action(db, principal, reservation_id)
 
     # A GIFT/SWAP permanently hands the item to someone else, so the giver's
     # standing listing mode no longer applies — deleted here (flushed, then
@@ -768,18 +805,16 @@ async def confirm_transaction(
 
 
 async def cancel_transaction(
-    db: AsyncSession, principal: Principal, reservation_id: int, term_id: int
+    db: AsyncSession, principal: Principal, reservation_id: int
 ) -> circulation_bridge.Reservation:
     """The cancel counterpart of `confirm_transaction`: same shared gating
-    (term-ended, race-participant, already-resolved) via
+    (race-participant, RETURN guard, term-ended, already-resolved) via
     `_resolve_transaction_reservations_for_action`, but releases the
     resolved reservation(s) back to `AVAILABLE` via
     `circulation_bridge.cancel_reservation` instead of confirming and
     fulfilling them — mirroring confirm's per-leg pattern so a SWAP's two
     paired legs are released together, not just the one the caller named."""
-    reservations = await _resolve_transaction_reservations_for_action(
-        db, principal, reservation_id, term_id
-    )
+    reservations = await _resolve_transaction_reservations_for_action(db, principal, reservation_id)
 
     primary_result: circulation_bridge.Reservation | None = None
     for r in reservations:

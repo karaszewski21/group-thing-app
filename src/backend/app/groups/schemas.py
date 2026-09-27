@@ -462,10 +462,13 @@ class ItemListingPreferenceResponse(BaseModel):
 
 
 class MyInventoryItemResponse(BaseModel):
-    """One row of `GET /api/inventory-items/mine` — an item the caller
-    currently owns (their PERSONAL inventory) together with its standing
-    `ItemListingPreference.mode` (`None` = not offered), so `Moje rzeczy`
-    only ever shows and seeds toggles for the caller's own items."""
+    """One row of `GET /api/inventory-items/mine` — an item whose home is
+    the caller's PERSONAL inventory (including one currently lent out)
+    together with its standing `ItemListingPreference.mode` (`None` = not
+    offered), so `Moje rzeczy` only ever shows and seeds toggles for the
+    caller's own items. `lent_to_display_name`/`lent_due_date` are set only
+    for a lent item (`home_inventory_id` not null): the borrower's display
+    name and the loan's `InventoryBalance.due_date`."""
 
     id: int
     inventory_id: int
@@ -477,6 +480,8 @@ class MyInventoryItemResponse(BaseModel):
     created_at: datetime
     updated_at: datetime
     listing_mode: ReservationType | None
+    lent_to_display_name: str | None = None
+    lent_due_date: datetime | None = None
 
 
 class BrowseTermItemListingResponse(BaseModel):
@@ -629,13 +634,6 @@ class FamilyExchangeDetailResponse(BaseModel):
 # `/api/reservations/{id}/confirm-transaction`) -----------------------------
 
 
-class ConfirmTransactionRequest(BaseModel):
-    """`term_id` is caller-supplied context — a bare `Reservation` carries
-    no Term reference — used only to gate on `term.occurs_on`."""
-
-    term_id: int
-
-
 class ConfirmTransactionResponse(BaseModel):
     """`already_resolved` is the explicit discriminator the frontend uses
     to render "too late, the other party already resolved this" distinctly
@@ -646,15 +644,6 @@ class ConfirmTransactionResponse(BaseModel):
     reservation_id: int
     status: str
     already_resolved: bool = False
-
-
-class CancelTransactionRequest(BaseModel):
-    """Identical `{term_id: int}` shape to `ConfirmTransactionRequest` —
-    kept as its own model (rather than reused directly) so the two request
-    bodies can evolve independently even though they're identical today,
-    matching the router's existing one-model-per-route convention."""
-
-    term_id: int
 
 
 class CancelTransactionResponse(BaseModel):

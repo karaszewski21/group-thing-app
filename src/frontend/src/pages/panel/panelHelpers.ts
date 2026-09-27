@@ -35,7 +35,6 @@ export type ItemMode = "wypożyczę" | "oddam" | "zamienię";
 export interface BorrowedItem {
   itemId: number;
   productName: string;
-  lenderUserId: number | null;
   lenderName: string;
   dueDate: string | null;
 }

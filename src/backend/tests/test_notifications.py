@@ -18,9 +18,12 @@ from __future__ import annotations
 from datetime import date
 
 from httpx import AsyncClient
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.notifications.models import Notification, NotificationKind
 from app.notifications.outbox_listener import register as register_outbox_handlers
+from app.outbox import service as outbox_service
 from app.outbox.dispatcher import dispatch_pending
 
 
@@ -158,3 +161,57 @@ async def test_withdrawPledge_secondNotification_readAllClears(
     read_all = await client.post("/api/notifications/read-all", headers=_auth(org_token))
     assert read_all.status_code == 204
     assert await _unread_count(client, org_token) == 0
+
+
+async def _append_term_ended_giveaway(
+    db_session: AsyncSession, owner_party_id: int, taker_party_id: int, reservation_id: int
+) -> None:
+    await outbox_service.append(
+        db_session,
+        event_type="groups.term_ended_giveaway",
+        payload={
+            "owner_party_id": owner_party_id,
+            "taker_party_id": taker_party_id,
+            "reservation_id": reservation_id,
+            "link_path": "/x/grupa/1/term/1",
+        },
+    )
+    await db_session.commit()
+
+
+async def test_handleTermEndedGiveaway_payloadWithReservationId_setsItOnBothNotifications(
+    client: AsyncClient, db_session: AsyncSession
+) -> None:
+    _, owner_party_id = await _register(client, "GUEST", "notif.resid.owner@example.com")
+    _, taker_party_id = await _register(client, "GUEST", "notif.resid.taker@example.com")
+    await _append_term_ended_giveaway(db_session, owner_party_id, taker_party_id, 4242)
+
+    await _process_outbox(db_session)
+
+    notifications = (
+        await db_session.execute(
+            select(Notification).where(
+                Notification.party_id.in_((owner_party_id, taker_party_id)),
+                Notification.kind == NotificationKind.TERM_CONFIRMATION_NEEDED,
+            )
+        )
+    ).scalars().all()
+    assert {n.party_id for n in notifications} == {owner_party_id, taker_party_id}
+    assert [n.reservation_id for n in notifications] == [4242, 4242]
+
+
+async def test_listMyNotifications_notificationWithReservationId_returnsReservationId(
+    client: AsyncClient, db_session: AsyncSession
+) -> None:
+    owner_token, owner_party_id = await _register(
+        client, "GUEST", "notif.resid.api.owner@example.com"
+    )
+    _, taker_party_id = await _register(client, "GUEST", "notif.resid.api.taker@example.com")
+    await _append_term_ended_giveaway(db_session, owner_party_id, taker_party_id, 4343)
+    await _process_outbox(db_session)
+
+    rows = await _my_notifications(client, owner_token)
+
+    assert len(rows) == 1
+    assert rows[0]["kind"] == "TERM_CONFIRMATION_NEEDED"
+    assert rows[0]["reservation_id"] == 4343

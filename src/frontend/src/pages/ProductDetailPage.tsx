@@ -65,7 +65,7 @@ export function ProductDetailPage() {
     <Box>
       <Box mb="24px">
         <Flex as="nav" fontSize="13px" color="#64748B" gap="4px" aria-label="Breadcrumb">
-          <Link to="/products" style={{ color: "var(--chakra-colors-brand-600)", textDecoration: "none" }}>
+          <Link to="/admin/products" style={{ color: "var(--chakra-colors-brand-600)", textDecoration: "none" }}>
             Products
           </Link>
           <Text as="span">/</Text>

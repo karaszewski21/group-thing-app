@@ -10,7 +10,11 @@ from typing import cast
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.circulation.application.inventory import get_inventory
-from app.circulation.application.inventory_items import get_item, get_item_balance
+from app.circulation.application.inventory_items import (
+    get_item,
+    get_item_balance,
+    resolve_owning_inventory,
+)
 from app.circulation.infrastructure import repository
 from app.circulation.models import (
     BalanceStatus,
@@ -19,8 +23,12 @@ from app.circulation.models import (
     ReservationStatus,
     ReservationType,
 )
-from app.circulation.schemas import CreateReservationRequest, CreateSwapRequest
-from app.core.errors import BusinessConflictException, EntityNotFoundException
+from app.circulation.schemas import CreateReservationRequest
+from app.core.errors import (
+    AccessDeniedException,
+    BusinessConflictException,
+    EntityNotFoundException,
+)
 
 
 async def _resolve_return_term_id(db: AsyncSession, item_id: int) -> int:
@@ -72,6 +80,13 @@ async def create_reservation(db: AsyncSession, data: CreateReservationRequest) -
             f"InventoryItem {item.id} is not eligible for a {data.reservation_type} reservation "
             f"(status={balance.status})"
         )
+    # Only the RETURN may touch an item that is out on loan; anything else
+    # would re-lend or give away someone else's item.
+    if data.reservation_type != ReservationType.RETURN and item.home_inventory_id is not None:
+        raise BusinessConflictException(
+            f"InventoryItem {item.id} is on loan and cannot enter a {data.reservation_type} "
+            "reservation"
+        )
 
     if data.reservation_type == ReservationType.RETURN:
         term_id = await _resolve_return_term_id(db, cast(int, item.id))
@@ -96,11 +111,37 @@ async def create_reservation(db: AsyncSession, data: CreateReservationRequest) -
 
     balance.status = BalanceStatus.RESERVED
     balance.reserved_at = datetime.utcnow()
-    balance.due_date = data.expires_at
+    # A RETURN keeps the loan's own due date (a cancelled RETURN falls back
+    # to LENT with it intact).
+    if data.reservation_type != ReservationType.RETURN:
+        balance.due_date = data.expires_at
 
     await db.commit()
     await db.refresh(reservation)
     return reservation
+
+
+async def create_return_reservation(
+    db: AsyncSession, *, item_id: int, notes: str | None, acting_user_id: int
+) -> Reservation:
+    """The raw-route RETURN ("Oddaję"): only the current holder of a lent
+    item may start it, and the item always goes back to its home owner —
+    `reserved_by_user_id` is derived here, never caller-supplied."""
+    item = await get_item(db, item_id)
+    if item.home_inventory_id is None:
+        raise AccessDeniedException("Tę rzecz można oddać tylko, gdy jest pożyczona")
+    if await _current_holder_user_id(db, item) != acting_user_id:
+        raise AccessDeniedException("Zwrot może rozpocząć tylko osoba, która ma tę rzecz")
+    home_inventory = await resolve_owning_inventory(db, item)
+    return await create_reservation(
+        db,
+        CreateReservationRequest(
+            item_id=item_id,
+            reservation_type=ReservationType.RETURN,
+            reserved_by_user_id=home_inventory.owner_user_id,
+            notes=notes,
+        ),
+    )
 
 
 async def create_lend_reservation(
@@ -116,54 +157,6 @@ async def create_lend_reservation(
             term_id=term_id,
         ),
     )
-
-
-async def create_swap(db: AsyncSession, data: CreateSwapRequest) -> tuple[Reservation, Reservation]:
-    first_item = await get_item(db, data.first_item_id)
-    second_item = await get_item(db, data.second_item_id)
-    first_balance = await get_item_balance(db, cast(int, first_item.id))
-    second_balance = await get_item_balance(db, cast(int, second_item.id))
-    if (
-        first_balance.status != BalanceStatus.AVAILABLE
-        or second_balance.status != BalanceStatus.AVAILABLE
-    ):
-        raise BusinessConflictException("Both swap items must be AVAILABLE")
-
-    now = datetime.utcnow()
-    first = Reservation(
-        item_id=first_item.id,
-        reservation_type=ReservationType.SWAP,
-        reserved_by_user_id=data.first_reserved_by_user_id,
-        giver_user_id=await _current_holder_user_id(db, first_item),
-        term_id=data.term_id,
-        reserved_at=now,
-        expires_at=data.expires_at,
-        status=ReservationStatus.PENDING,
-    )
-    second = Reservation(
-        item_id=second_item.id,
-        reservation_type=ReservationType.SWAP,
-        reserved_by_user_id=data.second_reserved_by_user_id,
-        giver_user_id=await _current_holder_user_id(db, second_item),
-        term_id=data.term_id,
-        reserved_at=now,
-        expires_at=data.expires_at,
-        status=ReservationStatus.PENDING,
-    )
-    db.add_all([first, second])
-    await db.flush()
-    first.paired_reservation_id = second.id
-    second.paired_reservation_id = first.id
-
-    first_balance.status = BalanceStatus.RESERVED
-    first_balance.reserved_at = now
-    second_balance.status = BalanceStatus.RESERVED
-    second_balance.reserved_at = now
-
-    await db.commit()
-    await db.refresh(first)
-    await db.refresh(second)
-    return first, second
 
 
 async def get_reservation(db: AsyncSession, reservation_id: int) -> Reservation:
@@ -182,3 +175,10 @@ async def list_active_reservations_for_taker(
 ) -> list[Reservation]:
     """Thin wrapper, same shape as `list_reservations` above."""
     return await repository.list_active_reservations_for_taker(db, account_user_id)
+
+
+async def list_active_hand_over_reservations_for_terms(
+    db: AsyncSession, term_ids: list[int]
+) -> list[Reservation]:
+    """Thin wrapper, same shape as `list_reservations` above."""
+    return await repository.list_active_hand_over_reservations_for_terms(db, term_ids)

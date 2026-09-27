@@ -124,20 +124,17 @@ class CreateReservationRequest(BaseModel):
         return self
 
 
-class CreateSwapRequest(BaseModel):
-    """Creates the two paired `Reservation`s a swap always needs in one
-    atomic call — see `docs/system-wypozyczalni-inventory-accounting.md`
-    KROK 6."""
+class CreateReturnReservationRequest(BaseModel):
+    """`POST /api/reservations` body — the raw route only creates the
+    borrower's RETURN. `reserved_by_user_id` is derived server-side (the
+    item's home owner) and `term_id` from the item's last fulfilled LEND, so
+    neither is accepted here; extra body fields are ignored.
+    `reservation_type` exists only so that any other value is rejected with
+    403 instead of being silently treated as a RETURN."""
 
-    first_item_id: int
-    first_reserved_by_user_id: int
-    second_item_id: int
-    second_reserved_by_user_id: int
-    # Required — added purely for schema/DB consistency (this route has no
-    # live frontend caller, confirmed by grep in an earlier phase), same as
-    # `CreateReservationRequest.term_id` for every non-RETURN type.
-    term_id: int
-    expires_at: datetime | None = None
+    item_id: int
+    reservation_type: ReservationType = ReservationType.RETURN
+    notes: str | None = Field(default=None, max_length=1000)
 
 
 class AccountResponse(BaseModel):

@@ -5,9 +5,11 @@ import {
   type BalanceStatus,
   type ItemBalanceSummary,
   type ItemCondition,
+  type MyInventoryItemResponse,
 } from "../../../api/inventories";
 import { cancelTransaction, confirmTransaction, getReservation } from "../../../api/reservations";
 import { getTerm } from "../../../api/terms";
+import dayjs from "../../../utils/dayjs";
 import { CONDITION_LABELS } from "../../../utils/productCategory";
 import { createEmptyItemQuickAddValue } from "../../../utils/itemQuickAdd";
 import { BoxIcon, PencilIcon, TrashIcon } from "../panelIcons";
@@ -28,6 +30,17 @@ function lockBadgeLabel(status: BalanceStatus | undefined): string | null {
   if (status === "RESERVED") return "czeka na potwierdzenie";
   if (status === "IN_TRANSIT") return "zablokowane";
   return null;
+}
+
+/** Owner-side label for an item currently lent out (`home_inventory_id` set).
+ * It takes precedence over `lockBadgeLabel`: a borrower's pending RETURN
+ * leaves the balance `RESERVED`, which would otherwise read as
+ * "czeka na potwierdzenie". */
+function lentBadgeLabel(item: MyInventoryItemResponse): string {
+  const label = `Pożyczone: ${item.lent_to_display_name ?? ""}`;
+  return item.lent_due_date
+    ? `${label}, do ${dayjs(item.lent_due_date).format("DD.MM.YYYY")}`
+    : label;
 }
 
 export function RzeczyView() {
@@ -81,7 +94,7 @@ export function RzeczyView() {
   // reservations/terms among the currently-locked items, never per-row).
   // Also kept local to this view, same rationale as `itemBalances` above.
   const [reservationTermInfo, setReservationTermInfo] = useState<
-    Record<number, { termId: number; hasEnded: boolean }>
+    Record<number, { hasEnded: boolean }>
   >({});
   useEffect(() => {
     const lockedReservationIds = Array.from(
@@ -111,12 +124,11 @@ export function RzeczyView() {
       const terms = await Promise.all(termIds.map((id) => getTerm(id)));
       const termById = new Map(terms.map((t) => [t.id, t]));
       if (cancelled) return;
-      const next: Record<number, { termId: number; hasEnded: boolean }> = {};
+      const next: Record<number, { hasEnded: boolean }> = {};
       for (const r of reservations) {
         if (r.term_id === undefined) continue;
         const term = termById.get(r.term_id);
         next[r.id] = {
-          termId: r.term_id,
           hasEnded: term ? new Date(term.occurs_on).getTime() <= Date.now() : false,
         };
       }
@@ -138,12 +150,11 @@ export function RzeczyView() {
 
   async function handleConfirmReceipt(itemId: number) {
     const reservationId = itemBalances[itemId]?.reservationId;
-    const termId = reservationId != null ? reservationTermInfo[reservationId]?.termId : undefined;
-    if (reservationId == null || termId === undefined) return;
+    if (reservationId == null) return;
     setActionError(null);
     setActionBusyItemId(itemId);
     try {
-      await confirmTransaction(reservationId, { term_id: termId });
+      await confirmTransaction(reservationId);
       await load({ silent: true });
     } catch {
       setActionError("Nie udało się potwierdzić odbioru — spróbuj ponownie");
@@ -154,12 +165,11 @@ export function RzeczyView() {
 
   async function handleCancelTransaction(itemId: number) {
     const reservationId = itemBalances[itemId]?.reservationId;
-    const termId = reservationId != null ? reservationTermInfo[reservationId]?.termId : undefined;
-    if (reservationId == null || termId === undefined) return;
+    if (reservationId == null) return;
     setActionError(null);
     setActionBusyItemId(itemId);
     try {
-      await cancelTransaction(reservationId, { term_id: termId });
+      await cancelTransaction(reservationId);
       await load({ silent: true });
     } catch {
       setActionError("Nie udało się anulować wymiany — spróbuj ponownie");
@@ -199,6 +209,9 @@ export function RzeczyView() {
           const locked = ACTIVE_LOCK_BALANCE_STATUSES.includes(
             itemBalances[it.id]?.status ?? "AVAILABLE",
           );
+          const lent = it.home_inventory_id != null;
+          const lentBadgeId = `lent-badge-${it.id}`;
+          const badgeLabel = lent ? lentBadgeLabel(it) : lockBadgeLabel(itemBalances[it.id]?.status);
           return (
             <div key={it.id} className="mt-2.5 flex items-start gap-3.5 rounded-2xl border border-line bg-cream p-[15px] first:mt-0">
               <span
@@ -322,8 +335,9 @@ export function RzeczyView() {
                         key={m}
                         onClick={() => void setItemMode(it.id, m)}
                         aria-pressed={on}
-                        disabled={locked}
-                        aria-disabled={locked}
+                        disabled={locked || lent}
+                        aria-disabled={locked || lent}
+                        aria-describedby={lent ? lentBadgeId : undefined}
                         className="rounded-full border-[1.5px] border-line px-3 py-1.5 text-[11.5px] font-extrabold text-ink-soft transition-colors hover:border-sage disabled:opacity-60 disabled:cursor-not-allowed"
                         style={on ? { background: mStyle.bg, color: mStyle.c, borderColor: "transparent" } : undefined}
                       >
@@ -331,23 +345,20 @@ export function RzeczyView() {
                       </button>
                     );
                   })}
-                  {(() => {
-                    const label = lockBadgeLabel(itemBalances[it.id]?.status);
-                    if (!label) return null;
-                    // Text-carried label, not color-only, per
-                    // `standards/frontend/accessibility.md` — the dot is
-                    // `aria-hidden` decoration, never the sole signal.
-                    return (
-                      <span
-                        role="status"
-                        className="inline-flex items-center gap-1.5 rounded-full border-[1.5px] border-line bg-cream px-3 py-1.5 text-[11.5px] font-extrabold text-ink-soft"
-                      >
-                        <span aria-hidden="true" className="h-1.5 w-1.5 rounded-full bg-ink-soft" />
-                        {label}
-                      </span>
-                    );
-                  })()}
-                  {locked && termHasEnded(it.id) && (
+                  {/* Text-carried label, not color-only, per
+                      `standards/frontend/accessibility.md` — the dot is
+                      `aria-hidden` decoration, never the sole signal. */}
+                  {badgeLabel && (
+                    <span
+                      role="status"
+                      id={lent ? lentBadgeId : undefined}
+                      className="inline-flex items-center gap-1.5 rounded-full border-[1.5px] border-line bg-cream px-3 py-1.5 text-[11.5px] font-extrabold text-ink-soft"
+                    >
+                      <span aria-hidden="true" className="h-1.5 w-1.5 rounded-full bg-ink-soft" />
+                      {badgeLabel}
+                    </span>
+                  )}
+                  {locked && !lent && termHasEnded(it.id) && (
                     <>
                       <button
                         type="button"
@@ -375,7 +386,10 @@ export function RzeczyView() {
               <button
                 onClick={() => void handleDeleteItem(it.id)}
                 aria-label={`Usuń rzecz ${it.product_name}`}
-                className="flex h-[30px] w-[30px] flex-none items-center justify-center rounded-[10px] text-ink-soft hover:bg-danger-soft hover:text-danger"
+                disabled={lent}
+                aria-disabled={lent}
+                aria-describedby={lent ? lentBadgeId : undefined}
+                className="flex h-[30px] w-[30px] flex-none items-center justify-center rounded-[10px] text-ink-soft hover:bg-danger-soft hover:text-danger disabled:opacity-60 disabled:cursor-not-allowed disabled:hover:bg-transparent"
               >
                 <TrashIcon />
               </button>

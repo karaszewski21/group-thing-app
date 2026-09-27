@@ -420,7 +420,6 @@ async def test_swapLifecycle_proposeAcceptTermEndConfirm_bothLegsFulfilledThroug
     # which (being a paired SWAP) must resolve both legs at once.
     confirm = await client.post(
         f"/api/reservations/{proposer_reservation_id}/confirm-transaction",
-        json={"term_id": term_id},
         headers=_auth(proposer_token),
     )
     assert confirm.status_code == 200
@@ -433,11 +432,63 @@ async def test_swapLifecycle_proposeAcceptTermEndConfirm_bothLegsFulfilledThroug
     # "already resolved" outcome, not a generic conflict.
     second_confirm = await client.post(
         f"/api/reservations/{paired_id}/confirm-transaction",
-        json={"term_id": term_id},
         headers=_auth(lister_token),
     )
     assert second_confirm.status_code == 409
     assert second_confirm.json()["already_resolved"] is True
+
+
+async def test_confirmOrCancelTransaction_unacceptedSwapProposerLeg_returns409AndItemStays(
+    client: AsyncClient,
+) -> None:
+    """A still-PROPOSED swap's proposer leg is unpaired; the listing owner
+    must not be able to resolve it alone after the Term and take the
+    proposer's item without giving their own."""
+    org_token, _ = await _register(client, "ORGANIZER", "tilr.org30@example.com")
+    group_id, term_id = await _create_circle_and_term(client, org_token, "tilr30")
+
+    lister_token, _ = await _register(client, "GUEST", "tilr.lister30@example.com")
+    await _rsvp(client, lister_token, group_id, term_id)
+    listing_item_id = await _register_personal_item(client, lister_token, "Rower 30")
+    await _set_preference(client, lister_token, listing_item_id, "SWAP")
+
+    proposer_token, _ = await _register(client, "GUEST", "tilr.proposer30@example.com")
+    await _rsvp(client, proposer_token, group_id, term_id)
+    offered_item_id = await _register_personal_item(client, proposer_token, "Hulajnoga 30")
+    await _set_preference(client, proposer_token, offered_item_id, "SWAP")
+    inventory_before = (
+        await client.get(f"/api/inventory-items/{offered_item_id}", headers=_auth(proposer_token))
+    ).json()["inventory_id"]
+
+    propose = await client.post(
+        f"/api/term-item-listings/{listing_item_id}/propose",
+        json={"term_id": term_id, "offered_item_id": offered_item_id},
+        headers=_auth(proposer_token),
+    )
+    assert propose.status_code in (200, 201)
+    proposer_reservation_id = propose.json()["proposer_reservation_id"]
+    await _end_term(client, org_token, term_id)
+
+    confirm = await client.post(
+        f"/api/reservations/{proposer_reservation_id}/confirm-transaction",
+        headers=_auth(lister_token),
+    )
+    cancel = await client.post(
+        f"/api/reservations/{proposer_reservation_id}/cancel-transaction",
+        headers=_auth(lister_token),
+    )
+
+    assert confirm.status_code == 409
+    assert confirm.json().get("already_resolved") is not True
+    assert cancel.status_code == 409
+    leg = await client.get(
+        f"/api/reservations/{proposer_reservation_id}", headers=_auth(proposer_token)
+    )
+    assert leg.json()["status"] == "CONFIRMED"
+    item = await client.get(
+        f"/api/inventory-items/{offered_item_id}", headers=_auth(proposer_token)
+    )
+    assert item.json()["inventory_id"] == inventory_before
 
 
 async def _take_lend_listing(
@@ -493,7 +544,6 @@ async def test_confirmTransaction_beforeTermEnd_returnsConflict(client: AsyncCli
 
     confirm = await client.post(
         f"/api/reservations/{reservation_id}/confirm-transaction",
-        json={"term_id": term_id},
         headers=_auth(taker_token),
     )
     assert confirm.status_code == 409
@@ -515,7 +565,6 @@ async def test_confirmTransaction_afterTermEnd_returns2xxAndFulfillsReservation(
 
     confirm = await client.post(
         f"/api/reservations/{reservation_id}/confirm-transaction",
-        json={"term_id": term_id},
         headers=_auth(taker_token),
     )
     assert confirm.status_code == 200
@@ -539,7 +588,6 @@ async def test_confirmTransaction_secondCaller_getsDistinguishableAlreadyResolve
 
     first = await client.post(
         f"/api/reservations/{reservation_id}/confirm-transaction",
-        json={"term_id": term_id},
         headers=_auth(taker_token),
     )
     assert first.status_code == 200
@@ -549,7 +597,6 @@ async def test_confirmTransaction_secondCaller_getsDistinguishableAlreadyResolve
     # not a generic unexplained 409.
     second = await client.post(
         f"/api/reservations/{reservation_id}/confirm-transaction",
-        json={"term_id": term_id},
         headers=_auth(lister_token),
     )
     assert second.status_code == 409
@@ -571,10 +618,183 @@ async def test_confirmTransaction_nonParty_returns403(client: AsyncClient) -> No
 
     outsider_confirm = await client.post(
         f"/api/reservations/{reservation_id}/confirm-transaction",
-        json={"term_id": term_id},
         headers=_auth(outsider_token),
     )
     assert outsider_confirm.status_code == 403
+
+
+async def test_cancelTransaction_afterReservationTermEnded_returns200AndCancels(
+    client: AsyncClient,
+) -> None:
+    org_token, _ = await _register(client, "ORGANIZER", "tilr.org14@example.com")
+    group_id, term_id = await _create_circle_and_term(client, org_token, "tilr14")
+
+    lister_token, _ = await _register(client, "GUEST", "tilr.lister14@example.com")
+    taker_token, _ = await _register(client, "GUEST", "tilr.taker14@example.com")
+    reservation_id = await _take_lend_listing(
+        client, lister_token, taker_token, group_id, term_id, "14"
+    )
+    await _end_term(client, org_token, term_id)
+
+    cancel = await client.post(
+        f"/api/reservations/{reservation_id}/cancel-transaction", headers=_auth(taker_token)
+    )
+
+    assert cancel.status_code == 200
+    assert cancel.json()["already_resolved"] is False
+    assert cancel.json()["status"] == "CANCELLED"
+
+
+async def test_cancelTransaction_reservationTermUpcoming_returns409(client: AsyncClient) -> None:
+    """The Term gate reads the reservation's own `term_id`; a `term_id` of
+    some other, already-ended Term sent in the body is ignored."""
+    org_token, _ = await _register(client, "ORGANIZER", "tilr.org15@example.com")
+    group_id, term_id = await _create_circle_and_term(client, org_token, "tilr15")
+
+    lister_token, _ = await _register(client, "GUEST", "tilr.lister15@example.com")
+    taker_token, _ = await _register(client, "GUEST", "tilr.taker15@example.com")
+    reservation_id = await _take_lend_listing(
+        client, lister_token, taker_token, group_id, term_id, "15"
+    )
+    other_term = await client.post(
+        "/api/terms",
+        json={
+            "circle_group_id": group_id,
+            "occurs_on": (date.today() + timedelta(days=3)).isoformat(),
+        },
+        headers=_auth(org_token),
+    )
+    assert other_term.status_code == 201
+    await _end_term(client, org_token, other_term.json()["id"])
+
+    cancel = await client.post(
+        f"/api/reservations/{reservation_id}/cancel-transaction",
+        json={"term_id": other_term.json()["id"]},
+        headers=_auth(taker_token),
+    )
+
+    assert cancel.status_code == 409
+    assert cancel.json().get("already_resolved") is not True
+    status = await client.get(f"/api/reservations/{reservation_id}", headers=_auth(taker_token))
+    assert status.json()["status"] == "PENDING"
+
+
+async def test_cancelTransaction_onReturnReservation_returns409(client: AsyncClient) -> None:
+    org_token, _ = await _register(client, "ORGANIZER", "tilr.org16@example.com")
+    group_id, term_id = await _create_circle_and_term(client, org_token, "tilr16")
+
+    lister_token, _ = await _register(client, "GUEST", "tilr.lister16@example.com")
+    taker_token, _ = await _register(client, "GUEST", "tilr.taker16@example.com")
+    reservation_id = await _take_lend_listing(
+        client, lister_token, taker_token, group_id, term_id, "16"
+    )
+    await _end_term(client, org_token, term_id)
+    confirm = await client.post(
+        f"/api/reservations/{reservation_id}/confirm-transaction", headers=_auth(taker_token)
+    )
+    assert confirm.status_code == 200
+
+    item_id = (
+        await client.get(f"/api/reservations/{reservation_id}", headers=_auth(taker_token))
+    ).json()["item_id"]
+    lister_me = await client.get("/api/people/me", headers=_auth(lister_token))
+    return_reservation = await client.post(
+        "/api/reservations",
+        json={
+            "item_id": item_id,
+            "reservation_type": "RETURN",
+            "reserved_by_user_id": lister_me.json()["account_user_id"],
+        },
+        headers=_auth(taker_token),
+    )
+    assert return_reservation.status_code == 201, return_reservation.text
+    return_id = return_reservation.json()["id"]
+
+    cancel = await client.post(
+        f"/api/reservations/{return_id}/cancel-transaction", headers=_auth(lister_token)
+    )
+
+    assert cancel.status_code == 409
+    status = await client.get(f"/api/reservations/{return_id}", headers=_auth(lister_token))
+    assert status.json()["status"] == "PENDING"
+
+
+async def _lend_to_taker(client: AsyncClient, prefix: str) -> tuple[str, str, int]:
+    """A LEND fulfilled via the groups flow. Returns `(lister_token,
+    taker_token, item_id)` — the item now sits in the taker's VIRTUAL
+    inventory with `home_inventory_id` pointing at the lister's PERSONAL."""
+    org_token, _ = await _register(client, "ORGANIZER", f"tilr.org{prefix}@example.com")
+    group_id, term_id = await _create_circle_and_term(client, org_token, f"tilr{prefix}")
+    lister_token, _ = await _register(client, "GUEST", f"tilr.lister{prefix}@example.com")
+    taker_token, _ = await _register(client, "GUEST", f"tilr.taker{prefix}@example.com")
+    reservation_id = await _take_lend_listing(
+        client, lister_token, taker_token, group_id, term_id, prefix
+    )
+    await _end_term(client, org_token, term_id)
+    confirm = await client.post(
+        f"/api/reservations/{reservation_id}/confirm-transaction", headers=_auth(taker_token)
+    )
+    assert confirm.status_code == 200
+    reservation = await client.get(
+        f"/api/reservations/{reservation_id}", headers=_auth(taker_token)
+    )
+    return lister_token, taker_token, int(reservation.json()["item_id"])
+
+
+async def test_listMyInventoryItems_borrower_doesNotSeeBorrowedItemOfOwner(
+    client: AsyncClient,
+) -> None:
+    _lister_token, taker_token, item_id = await _lend_to_taker(client, "17")
+    own_item_id = await _register_personal_item(client, taker_token, "Własna rzecz 17")
+
+    mine = await client.get("/api/inventory-items/mine", headers=_auth(taker_token))
+
+    assert mine.status_code == 200
+    assert [row["id"] for row in mine.json()] == [own_item_id]
+    assert item_id != own_item_id
+
+
+async def test_listMyInventoryItems_softDeletedItem_isExcluded(client: AsyncClient) -> None:
+    owner_token, _ = await _register(client, "GUEST", "tilr.owner18@example.com")
+    kept_id = await _register_personal_item(client, owner_token, "Zostaje 18")
+    inventory_id = (
+        await client.get(f"/api/inventory-items/{kept_id}", headers=_auth(owner_token))
+    ).json()["inventory_id"]
+    deleted = await client.post(
+        "/api/inventory-items",
+        json={
+            "inventory_id": inventory_id,
+            "product_id": await _resolve_product(client, owner_token, "Usunięta 18"),
+            "condition": "GOOD",
+        },
+        headers=_auth(owner_token),
+    )
+    assert deleted.status_code == 201
+    deleted_id = deleted.json()["id"]
+    delete = await client.delete(f"/api/inventory-items/{deleted_id}", headers=_auth(owner_token))
+    assert delete.status_code == 204
+
+    mine = await client.get("/api/inventory-items/mine", headers=_auth(owner_token))
+
+    assert [row["id"] for row in mine.json()] == [kept_id]
+
+
+async def test_listInventoryItems_borrowerVirtualInventory_stillListsBorrowedItem(
+    client: AsyncClient,
+) -> None:
+    _lister_token, taker_token, item_id = await _lend_to_taker(client, "19")
+    virtual_inventory_id = (
+        await client.get(f"/api/inventory-items/{item_id}", headers=_auth(taker_token))
+    ).json()["inventory_id"]
+
+    listed = await client.get(
+        "/api/inventory-items",
+        params={"inventory_id": virtual_inventory_id},
+        headers=_auth(taker_token),
+    )
+
+    assert listed.status_code == 200
+    assert [row["id"] for row in listed.json()] == [item_id]
 
 
 async def test_newExchangeRoutes_unauthenticated_return401(client: AsyncClient) -> None:
@@ -589,7 +809,137 @@ async def test_newExchangeRoutes_unauthenticated_return401(client: AsyncClient) 
     reject = await client.post("/api/swap-proposals/1/reject")
     assert reject.status_code == 401
 
-    confirm = await client.post(
-        "/api/reservations/1/confirm-transaction", json={"term_id": 1}
-    )
+    confirm = await client.post("/api/reservations/1/confirm-transaction")
     assert confirm.status_code == 401
+
+
+async def test_cancelTransaction_nonParty_reservationTermUpcoming_returns403(
+    client: AsyncClient,
+) -> None:
+    """The participant gate runs before the Term gate: an outsider learns
+    nothing about the Term's timing (403, not 409)."""
+    org_token, _ = await _register(client, "ORGANIZER", "tilr.org20@example.com")
+    group_id, term_id = await _create_circle_and_term(client, org_token, "tilr20")
+    lister_token, _ = await _register(client, "GUEST", "tilr.lister20@example.com")
+    taker_token, _ = await _register(client, "GUEST", "tilr.taker20@example.com")
+    reservation_id = await _take_lend_listing(
+        client, lister_token, taker_token, group_id, term_id, "20"
+    )
+    outsider_token, _ = await _register(client, "GUEST", "tilr.outsider20@example.com")
+
+    cancel = await client.post(
+        f"/api/reservations/{reservation_id}/cancel-transaction",
+        headers=_auth(outsider_token),
+    )
+
+    assert cancel.status_code == 403
+    status = await client.get(f"/api/reservations/{reservation_id}", headers=_auth(taker_token))
+    assert status.json()["status"] == "PENDING"
+
+
+async def test_confirmTransaction_nonParty_onReturnReservation_returns403(
+    client: AsyncClient,
+) -> None:
+    lister_token, taker_token, item_id = await _lend_to_taker(client, "21")
+    return_reservation = await client.post(
+        "/api/reservations", json={"item_id": item_id}, headers=_auth(taker_token)
+    )
+    assert return_reservation.status_code == 201, return_reservation.text
+    return_id = return_reservation.json()["id"]
+    outsider_token, _ = await _register(client, "GUEST", "tilr.outsider21@example.com")
+
+    confirm = await client.post(
+        f"/api/reservations/{return_id}/confirm-transaction", headers=_auth(outsider_token)
+    )
+
+    assert confirm.status_code == 403
+    status = await client.get(f"/api/reservations/{return_id}", headers=_auth(lister_token))
+    assert status.json()["status"] == "PENDING"
+
+
+async def test_listMyInventoryItems_lentItem_lentFieldsMatchBorrowerProfileAndBalanceDueDate(
+    client: AsyncClient,
+) -> None:
+    lister_token, taker_token, item_id = await _lend_to_taker(client, "22")
+    taker_name = (
+        await client.get("/api/people/me", headers=_auth(taker_token))
+    ).json()["display_name"]
+    lister_name = (
+        await client.get("/api/people/me", headers=_auth(lister_token))
+    ).json()["display_name"]
+    balance = await client.get(
+        f"/api/inventory-items/{item_id}/balance", headers=_auth(lister_token)
+    )
+    assert balance.json()["due_date"] is not None
+
+    mine = await client.get("/api/inventory-items/mine", headers=_auth(lister_token))
+
+    rows = {row["id"]: row for row in mine.json()}
+    assert rows[item_id]["lent_to_display_name"] == taker_name
+    assert rows[item_id]["lent_to_display_name"] != lister_name
+    assert rows[item_id]["lent_due_date"] == balance.json()["due_date"]
+
+
+async def test_listMineAsTaker_ownerWithBorrowersPendingReturn_showsOnlyOwnTakesOfThatTerm(
+    client: AsyncClient,
+) -> None:
+    """A RETURN names the owner as `reserved_by`, but it is not something the
+    owner took; and a take belongs only to its own Term's list."""
+    org_token, _ = await _register(client, "ORGANIZER", "tilr.org31@example.com")
+    group_id, term_id = await _create_circle_and_term(client, org_token, "tilr31")
+    later_term = await client.post(
+        "/api/terms",
+        json={
+            "circle_group_id": group_id,
+            "occurs_on": (date.today() + timedelta(days=14)).isoformat(),
+        },
+        headers=_auth(org_token),
+    )
+    assert later_term.status_code == 201
+    later_term_id = later_term.json()["id"]
+
+    owner_token, _ = await _register(client, "GUEST", "tilr.lister31@example.com")
+    borrower_token, _ = await _register(client, "GUEST", "tilr.taker31@example.com")
+    lend_id = await _take_lend_listing(client, owner_token, borrower_token, group_id, term_id, "31")
+    await _end_term(client, org_token, term_id)
+    confirm = await client.post(
+        f"/api/reservations/{lend_id}/confirm-transaction", headers=_auth(borrower_token)
+    )
+    assert confirm.status_code == 200
+    lent_item_id = (
+        await client.get(f"/api/reservations/{lend_id}", headers=_auth(borrower_token))
+    ).json()["item_id"]
+    return_reservation = await client.post(
+        "/api/reservations",
+        json={"item_id": lent_item_id, "reservation_type": "RETURN"},
+        headers=_auth(borrower_token),
+    )
+    assert return_reservation.status_code == 201, return_reservation.text
+
+    other_lister_token, _ = await _register(client, "GUEST", "tilr.other31@example.com")
+    await _rsvp(client, other_lister_token, group_id, term_id)
+    await _rsvp(client, other_lister_token, group_id, later_term_id)
+    await _rsvp(client, owner_token, group_id, later_term_id)
+    other_item_id = await _register_personal_item(client, other_lister_token, "Namiot 31")
+    await _set_preference(client, other_lister_token, other_item_id, "LEND")
+    take = await client.post(
+        f"/api/term-item-listings/{other_item_id}/take",
+        json={"term_id": later_term_id, "reservation_type": "LEND"},
+        headers=_auth(owner_token),
+    )
+    assert take.status_code == 200
+
+    ended_term_list = await client.get(
+        "/api/term-item-listings/mine-as-taker",
+        params={"term_id": term_id},
+        headers=_auth(owner_token),
+    )
+    later_term_list = await client.get(
+        "/api/term-item-listings/mine-as-taker",
+        params={"term_id": later_term_id},
+        headers=_auth(owner_token),
+    )
+
+    assert ended_term_list.status_code == 200
+    assert ended_term_list.json() == []
+    assert [row["item_id"] for row in later_term_list.json()] == [other_item_id]

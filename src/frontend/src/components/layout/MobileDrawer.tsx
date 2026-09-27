@@ -81,16 +81,16 @@ export function MobileDrawer({ open, onClose }: MobileDrawerProps) {
           </DrawerHeader>
           <DrawerBody px="0" pt="16px">
             <Flex as="nav" direction="column" gap="2px" role="navigation" aria-label="Mobile navigation">
-              <MobileNavItem to="/products" label="Products" icon={ProductsIcon} onClick={onClose} />
+              <MobileNavItem to="/admin/products" label="Products" icon={ProductsIcon} onClick={onClose} />
               <MobileNavItem to="/panel" label="Krąg grupy" icon={KragIcon} onClick={onClose} />
               {isAdmin && (
-                <MobileNavItem to="/categories" label="Categories" icon={CategoriesIcon} onClick={onClose} />
+                <MobileNavItem to="/admin/categories" label="Categories" icon={CategoriesIcon} onClick={onClose} />
               )}
               {(hasPluginManagement || isAdmin) && (
-                <MobileNavItem to="/plugins" label="Plugins" icon={PluginsIcon} onClick={onClose} />
+                <MobileNavItem to="/admin/plugins" label="Plugins" icon={PluginsIcon} onClick={onClose} />
               )}
               {isAdmin && (
-                <MobileNavItem to="/moderation" label="Moderation" icon={ModerationIcon} onClick={onClose} />
+                <MobileNavItem to="/admin/moderation" label="Moderation" icon={ModerationIcon} onClick={onClose} />
               )}
             </Flex>
           </DrawerBody>

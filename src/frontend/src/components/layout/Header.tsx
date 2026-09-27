@@ -16,6 +16,7 @@ interface HeaderProps {
 
 function getBreadcrumbs(pathname: string): string[] {
   const segments = pathname.split("/").filter(Boolean);
+  if (segments[0] === "admin") segments.shift();
   const crumbs: string[] = [];
 
   if (segments[0] === "products") {
