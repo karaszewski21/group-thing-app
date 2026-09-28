@@ -1,7 +1,6 @@
 import { PhoneFrame } from "../../components/shared/PhoneFrame";
 import { PanelDataProvider } from "./PanelDataContext";
 import { usePanelData } from "./panelDataStore";
-import { PanelHeader } from "./PanelHeader";
 import { PanelNav } from "./PanelNav";
 import { PanelModals } from "./PanelModals";
 import { HomeView } from "./views/HomeView";
@@ -23,7 +22,7 @@ import { RodzinaView } from "./views/RodzinaView";
 /*  (znikają po odświeżeniu, tak jak w prototypie).                      */
 /*                                                                       */
 /*  Struktura: stan/efekty/handlery → ./PanelDataContext (usePanelData); */
-/*  ekran = <PanelHeader/> + przełącznik widoków (./views/*) +           */
+/*  ekran = przełącznik widoków (./views/*) +                            */
 /*  <PanelNav/> + <PanelModals/>. Typy/stałe/helpery → ./panelHelpers,   */
 /*  ikony → ./panelIcons, ToggleRow/HintCard/Field/ModalSheet →          */
 /*  ./panelComponents.                                                   */

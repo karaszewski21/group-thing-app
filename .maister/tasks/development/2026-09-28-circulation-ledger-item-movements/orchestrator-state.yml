@@ -1,6 +1,6 @@
 orchestrator:
   started_phase: phase-1
-  completed_phases: [phase-1, phase-2, phase-5, phase-6]
+  completed_phases: [phase-1, phase-2, phase-5, phase-6, phase-7]
   failed_phases: []
   auto_fix_attempts:
     phase-1: 0
@@ -136,7 +136,7 @@ spec_audit:
   verdict: fail_blocked_by_uuid_collision
   counts: {critical: 1, high: 2, medium: 6, low: 9}
   decisions_path: verification/spec-audit-decisions.md
-  blocker: "Implementacja dopiero po zacommitowaniu migracji UUID (0041_baseentity_id_uuid); spec do rewizji pod UUID + 0042"
+  blocker: null  # UUID zacommitowany w 23a5dd8; spec zrewidowany pod UUID + 0042 (sekcja "Zmiany po audycie")
 
 verification_context:
   last_status: null
