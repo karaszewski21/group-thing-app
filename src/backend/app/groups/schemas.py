@@ -462,13 +462,11 @@ class ItemListingPreferenceResponse(BaseModel):
 
 
 class MyInventoryItemResponse(BaseModel):
-    """One row of `GET /api/inventory-items/mine` — an item whose home is
-    the caller's PERSONAL inventory (including one currently lent out)
-    together with its standing `ItemListingPreference.mode` (`None` = not
-    offered), so `Moje rzeczy` only ever shows and seeds toggles for the
-    caller's own items. `lent_to_display_name`/`lent_due_date` are set only
-    for a lent item (`home_inventory_id` not null): the borrower's display
-    name and the loan's `InventoryBalance.due_date`."""
+    """One row of `GET /api/inventory-items/mine` — an item physically in
+    the caller's PERSONAL inventory (a lent-out one is listed by
+    `GET /api/inventory-items/mine/lent-out` instead) together with its
+    standing `ItemListingPreference.mode` (`None` = not offered), so
+    `Moje rzeczy` only ever shows and seeds toggles for items at home."""
 
     id: int
     inventory_id: int
@@ -480,8 +478,20 @@ class MyInventoryItemResponse(BaseModel):
     created_at: datetime
     updated_at: datetime
     listing_mode: ReservationType | None
-    lent_to_display_name: str | None = None
-    lent_due_date: datetime | None = None
+
+
+class LentOutItemResponse(BaseModel):
+    """One row of `GET /api/inventory-items/mine/lent-out` — one of the
+    caller's items currently sitting in a borrower's VIRTUAL inventory,
+    with the borrower's display name and the loan's
+    `InventoryBalance.due_date`."""
+
+    id: int
+    product_id: int
+    product_name: str
+    condition: ItemCondition
+    lent_to_display_name: str
+    lent_due_date: datetime | None
 
 
 class BrowseTermItemListingResponse(BaseModel):

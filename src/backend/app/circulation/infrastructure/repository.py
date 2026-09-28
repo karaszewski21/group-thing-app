@@ -8,7 +8,7 @@ getter wrappers."""
 
 from __future__ import annotations
 
-from sqlalchemy import and_, or_, select
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -92,26 +92,19 @@ async def list_items_for_inventory_with_product_name(
     return [(item, name) for item, name in result.all()]
 
 
-async def list_owned_items_including_lent_with_product_name(
-    db: AsyncSession, personal_inventory_id: int
+async def list_lent_out_items_with_product_name(
+    db: AsyncSession, home_inventory_id: int
 ) -> list[tuple[InventoryItem, str]]:
-    """Items whose home is `personal_inventory_id`: those sitting there
-    (`home_inventory_id IS NULL`) plus those currently lent out
-    (`home_inventory_id` pointing back at it) — unlike
-    `list_items_for_inventory_with_product_name`, which lists by physical
-    location. Same explicit product join as that query."""
+    """Items currently lent out of `home_inventory_id` — physically in a
+    borrower's VIRTUAL inventory, with `home_inventory_id` pointing back
+    home. Same explicit product join as
+    `list_items_for_inventory_with_product_name`."""
     result = await db.execute(
         select(InventoryItem, Product.name)
         .join(Product, Product.id == InventoryItem.product_id)
         .where(
+            InventoryItem.home_inventory_id == home_inventory_id,
             InventoryItem.deleted_at.is_(None),
-            or_(
-                and_(
-                    InventoryItem.inventory_id == personal_inventory_id,
-                    InventoryItem.home_inventory_id.is_(None),
-                ),
-                InventoryItem.home_inventory_id == personal_inventory_id,
-            ),
         )
     )
     return [(item, name) for item, name in result.all()]

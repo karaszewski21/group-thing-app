@@ -31,13 +31,21 @@ export interface InventoryItemResponse {
   updated_at: string;
 }
 
-/** One of the caller's own items (their PERSONAL inventory) with its
- * standing lend/gift/swap mode — `null` when not offered. */
+/** One of the caller's items physically in their PERSONAL inventory with
+ * its standing lend/gift/swap mode — `null` when not offered. Lent-out
+ * items are listed by `getMyLentOutItems` instead. */
 export interface MyInventoryItemResponse extends InventoryItemResponse {
   listing_mode: ReservationType | null;
-  /** Set only while the item is lent out (`home_inventory_id != null`):
-   * the borrower's display name and the agreed return date. */
-  lent_to_display_name: string | null;
+}
+
+/** One of the caller's items currently lent out — sitting in the
+ * borrower's VIRTUAL inventory — with the borrower and the return date. */
+export interface LentOutItemResponse {
+  id: number;
+  product_id: number;
+  product_name: string;
+  condition: ItemCondition;
+  lent_to_display_name: string;
   lent_due_date: string | null;
 }
 
@@ -82,6 +90,10 @@ export function getInventoryItems(inventoryId: number): Promise<InventoryItemRes
  * given or swapped away drops out, one received shows up with no mode. */
 export function getMyInventoryItems(): Promise<MyInventoryItemResponse[]> {
   return api.get("/inventory-items/mine");
+}
+
+export function getMyLentOutItems(): Promise<LentOutItemResponse[]> {
+  return api.get("/inventory-items/mine/lent-out");
 }
 
 export function getInventoryItem(id: number): Promise<InventoryItemResponse> {

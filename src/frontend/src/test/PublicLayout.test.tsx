@@ -2,12 +2,18 @@ import { fireEvent, render, screen, waitFor, within } from "@testing-library/rea
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { ApiError } from "../api/client";
+import * as notificationsApi from "../api/notifications";
 import * as organizationsApi from "../api/organizations";
 import type { OrganizationResponse } from "../api/organizations";
 import { PublicLayout } from "../components/layout/PublicLayout";
 import { createQueryWrapper } from "./queryClient";
 
 vi.mock("../api/organizations", () => ({ getMyOrganization: vi.fn() }));
+vi.mock("../api/notifications", () => ({
+  getMyNotifications: vi.fn(),
+  markNotificationRead: vi.fn(),
+  markAllNotificationsRead: vi.fn(),
+}));
 
 let mockAuth: { token: string | null };
 vi.mock("../auth/AuthContext", () => ({ useAuth: () => mockAuth }));
@@ -34,6 +40,7 @@ beforeEach(() => {
   vi.resetAllMocks();
   mockAuth = { token: null };
   vi.mocked(organizationsApi.getMyOrganization).mockRejectedValue(new ApiError(404, "Not Found", null));
+  vi.mocked(notificationsApi.getMyNotifications).mockResolvedValue([]);
 });
 
 describe("PublicLayout", () => {
@@ -67,6 +74,14 @@ describe("PublicLayout", () => {
     await waitFor(() =>
       expect(within(menu).getByRole("menuitem", { name: /Moja organizacja/ })).toHaveAttribute("href", "/moja-org"),
     );
+  });
+
+  it("logged in: the bar shows the notification bell next to the menu", async () => {
+    mockAuth = { token: "tok" };
+    renderPublicPage();
+
+    expect(await screen.findByRole("button", { name: "Powiadomienia" })).toBeInTheDocument();
+    expect(notificationsApi.getMyNotifications).toHaveBeenCalled();
   });
 
   it("picking a menu item closes the menu", async () => {

@@ -139,8 +139,6 @@ const item: MyInventoryItemResponse = {
   created_at: "2026-01-01T00:00:00Z",
   updated_at: "2026-01-01T00:00:00Z",
   listing_mode: null,
-  lent_to_display_name: null,
-  lent_due_date: null,
 };
 
 function makeContextValue(
@@ -448,113 +446,6 @@ describe("RzeczyView — post-term-end fallback buttons (Bug #4c)", () => {
       expect(reservationsApi.cancelTransaction).toHaveBeenCalledWith(55),
     );
     await waitFor(() => expect(load).toHaveBeenCalledWith({ silent: true }));
-  });
-});
-
-describe("RzeczyView — lent item tile (home_inventory_id set)", () => {
-  const lentItem: MyInventoryItemResponse = {
-    ...item,
-    id: 11,
-    inventory_id: 7,
-    home_inventory_id: 1,
-    product_name: "Rower",
-    lent_to_display_name: "Ania",
-    lent_due_date: "2026-10-12T12:00:00Z",
-  };
-
-  beforeEach(() => {
-    vi.mocked(api.get).mockReset();
-  });
-
-  function renderLent(overrides: Partial<PanelDataContextValue> = {}) {
-    vi.mocked(panelDataStore.usePanelData).mockReturnValue(
-      makeContextValue({ items: [lentItem], editingItemMeta: null, ...overrides }),
-    );
-    render(<RzeczyView />);
-  }
-
-  it("shows a single status badge 'Pożyczone: Ania, do 12.10.2026' for a lent item with a due date", async () => {
-    vi.mocked(api.get).mockResolvedValue(mockBalance(lentItem.id, "LENT"));
-    renderLent();
-
-    await waitFor(() => expect(api.get).toHaveBeenCalled());
-    const badges = screen.getAllByRole("status");
-    expect(badges).toHaveLength(1);
-    expect(badges[0]).toHaveTextContent("Pożyczone: Ania, do 12.10.2026");
-    expect(badges[0]).toHaveAttribute("id", `lent-badge-${lentItem.id}`);
-  });
-
-  it("shows 'Pożyczone: Ania' without a date when lent_due_date is null", async () => {
-    vi.mocked(api.get).mockResolvedValue(mockBalance(lentItem.id, "LENT"));
-    vi.mocked(panelDataStore.usePanelData).mockReturnValue(
-      makeContextValue({
-        items: [{ ...lentItem, lent_due_date: null }],
-        editingItemMeta: null,
-      }),
-    );
-    render(<RzeczyView />);
-
-    await waitFor(() => expect(api.get).toHaveBeenCalled());
-    expect(screen.getByRole("status").textContent).toBe("Pożyczone: Ania");
-  });
-
-  it("disables mode toggles and the trash button, describing them by the lent badge, and keeps the trash aria-label", async () => {
-    vi.mocked(api.get).mockResolvedValue(mockBalance(lentItem.id, "LENT"));
-    renderLent({ itemModes: { [lentItem.id]: "wypożyczę" } });
-
-    await waitFor(() => expect(api.get).toHaveBeenCalled());
-    const badgeId = screen.getByRole("status").id;
-    const trash = screen.getByRole("button", { name: "Usuń rzecz Rower" });
-    const modeButtons = ["Wypożyczę", "Oddam", "Zamienię"].map((name) =>
-      screen.getByRole("button", { name }),
-    );
-    for (const button of [...modeButtons, trash]) {
-      expect(button).toBeDisabled();
-      expect(button).toHaveAttribute("aria-disabled", "true");
-      expect(button).toHaveAttribute("aria-describedby", badgeId);
-    }
-    expect(modeButtons[0]).toHaveAttribute("aria-pressed", "true");
-  });
-
-  it("hides 'Odebrał' / 'Anuluj wymianę' and shows only the lent badge for a lent item with a RESERVED balance past its Term", async () => {
-    mockApiGetRouter({
-      balance: mockBalance(lentItem.id, "RESERVED", 57),
-      reservation: { ...mockReservation(57, 9), item_id: lentItem.id, reservation_type: "RETURN" },
-      term: mockTerm(9, "2020-01-01T10:00:00"),
-    });
-    renderLent();
-
-    await waitFor(() =>
-      expect(api.get).toHaveBeenCalledWith(expect.stringContaining("/terms/9")),
-    );
-    await act(async () => {});
-    const badges = screen.getAllByRole("status");
-    expect(badges).toHaveLength(1);
-    expect(badges[0]).toHaveTextContent("Pożyczone: Ania, do 12.10.2026");
-    expect(screen.queryByText("czeka na potwierdzenie")).not.toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Odebrał" })).not.toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Anuluj wymianę" })).not.toBeInTheDocument();
-  });
-
-  it("keeps name/category and condition editing available for a lent item", async () => {
-    const startEditItemMeta = vi.fn();
-    vi.mocked(api.get).mockResolvedValue(mockBalance(lentItem.id, "LENT"));
-    renderLent({ startEditItemMeta });
-
-    await waitFor(() => expect(api.get).toHaveBeenCalled());
-    const editName = screen.getByRole("button", { name: "Edytuj rzecz Rower" });
-    expect(editName).not.toBeDisabled();
-    expect(screen.getByRole("button", { name: "Edytuj stan rzeczy" })).not.toBeDisabled();
-    fireEvent.click(editName);
-    expect(startEditItemMeta).toHaveBeenCalledWith(lentItem);
-  });
-
-  it("counts the lent item in the header counter", async () => {
-    vi.mocked(api.get).mockResolvedValue(mockBalance(item.id, "AVAILABLE"));
-    renderLent({ items: [item, lentItem] });
-
-    await waitFor(() => expect(api.get).toHaveBeenCalled());
-    expect(screen.getByText("2 rzeczy")).toBeInTheDocument();
   });
 });
 

@@ -2,6 +2,7 @@ import { Outlet } from "react-router-dom";
 import { useAuth } from "../../auth/AuthContext";
 import { useMyOrganizationSlug } from "../../hooks/useMyOrganizationSlug";
 import { AccountMenu } from "../shared/AccountMenu";
+import { NotificationBell } from "../shared/NotificationBell";
 
 /** Layout route for the public, unauthenticated pages (term page, public
  * organization page): a logged-in visitor gets a slim bar with their
@@ -25,7 +26,8 @@ function PublicAccountBar() {
   const organizationSlug = useMyOrganizationSlug();
   if (token === null) return null;
   return (
-      <div className="mx-auto flex justify-end px-[18px] py-2">
+      <div className="mx-auto flex justify-end gap-2 px-[18px] py-2">
+        <NotificationBell />
         <AccountMenu organizationSlug={organizationSlug} showPanelHome />
       </div>
   );

@@ -2,12 +2,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
 import { useAuth } from "../../auth/AuthContext";
-import {
-  getMyNotifications,
-  markAllNotificationsRead,
-  markNotificationRead,
-  type NotificationResponse,
-} from "../../api/notifications";
+import { useQueryClient } from "@tanstack/react-query";
+import { NOTIFICATIONS_KEY, useNotifications } from "../../hooks/useNotifications";
 import { getMyPledges, withdrawPledge, type MyPledgeResponse } from "../../api/pledges";
 import {
   createLightweightMembers,
@@ -44,9 +40,11 @@ import {
   getInventoryItemBalance,
   getInventoryItems,
   getMyInventoryItems,
+  getMyLentOutItems,
   registerInventoryItem,
   updateInventoryItem,
   type ItemCondition,
+  type LentOutItemResponse,
   type MyInventoryItemResponse,
 } from "../../api/inventories";
 import {
@@ -282,9 +280,10 @@ function usePanelDataValue() {
   const [myAttendances, setMyAttendances] = useState<MyAttendanceResponse[]>([]);
   // "Zadeklarowane rzeczy" (HomeView) — the caller's own non-withdrawn pledges.
   const [myPledges, setMyPledges] = useState<MyPledgeResponse[]>([]);
-  // In-app notification bell (PanelHeader). `notifOpen` drives the dropdown.
-  const [notifications, setNotifications] = useState<NotificationResponse[]>([]);
-  const [notifOpen, setNotifOpen] = useState(false);
+  // Shared with the header bell (`NotificationBell`) — pending actions below
+  // are derived from the unread entries.
+  const queryClient = useQueryClient();
+  const { data: notifications, markRead: markNotificationRead } = useNotifications();
   // Group 7's global pending-actions modal (swap accept/reject prompt +
   // post-term-end confirm-race prompt) — `notificationId`s currently mid-
   // confirm, and ones whose confirm attempt came back "already resolved by
@@ -425,6 +424,7 @@ function usePanelDataValue() {
   const [groupExtras, setGroupExtras] = useState<Record<number, { location: string; freeSpots: number }>>({});
   const [itemModes, setItemModes] = useState<Record<number, ItemMode | null>>({});
   const [borrowedItems, setBorrowedItems] = useState<BorrowedItem[]>([]);
+  const [lentOutItems, setLentOutItems] = useState<LentOutItemResponse[]>([]);
 
   // --- formularz: dodaj członka rodziny ("Rodzina" section, inline form) ---
   const [memberName, setMemberName] = useState("");
@@ -484,8 +484,12 @@ function usePanelDataValue() {
       let inventory = inventories.find((i) => i.inventory_type === "PERSONAL") ?? null;
       if (!inventory) inventory = await createInventory({ inventory_type: "PERSONAL" });
       setInventoryId(inventory.id);
-      const myItems = await getMyInventoryItems();
+      const [myItems, myLentOutItems] = await Promise.all([
+        getMyInventoryItems(),
+        getMyLentOutItems(),
+      ]);
       setItems(myItems);
+      setLentOutItems(myLentOutItems);
       setItemModes(
         Object.fromEntries(
           myItems
@@ -563,11 +567,7 @@ function usePanelDataValue() {
       } catch {
         setMyPledges([]);
       }
-      try {
-        setNotifications(await getMyNotifications());
-      } catch {
-        setNotifications([]);
-      }
+      await queryClient.invalidateQueries({ queryKey: NOTIFICATIONS_KEY });
       try {
         const pendingRequests = await listMyPendingJoinRequests();
         setPendingJoinRequests(Array.isArray(pendingRequests) ? pendingRequests : []);
@@ -613,7 +613,7 @@ function usePanelDataValue() {
     } finally {
       if (!options?.silent) setLoading(false);
     }
-  }, []);
+  }, [queryClient]);
 
   useEffect(() => {
     void load();
@@ -663,30 +663,6 @@ function usePanelDataValue() {
       showToast("Nie udało się wycofać zgłoszenia");
     } finally {
       setBusy(false);
-    }
-  }
-
-  const unreadCount = notifications.filter((n) => n.read_at === null).length;
-
-  async function openNotification(n: NotificationResponse) {
-    setNotifOpen(false);
-    if (n.read_at === null) {
-      setNotifications((prev) =>
-        prev.map((x) => (x.id === n.id ? { ...x, read_at: new Date().toISOString() } : x)),
-      );
-      void markNotificationRead(n.id).catch(() => undefined);
-    }
-    if (n.link_path) navigate(n.link_path);
-  }
-
-  async function markAllRead() {
-    setNotifications((prev) =>
-      prev.map((n) => (n.read_at === null ? { ...n, read_at: new Date().toISOString() } : n)),
-    );
-    try {
-      await markAllNotificationsRead();
-    } catch {
-      await load({ silent: true });
     }
   }
 
@@ -751,10 +727,7 @@ function usePanelDataValue() {
       next.delete(notificationId);
       return next;
     });
-    setNotifications((prev) =>
-      prev.map((n) => (n.id === notificationId ? { ...n, read_at: new Date().toISOString() } : n)),
-    );
-    void markNotificationRead(notificationId).catch(() => undefined);
+    markNotificationRead(notificationId);
   }
 
   /** Fallback only: a `SWAP_PROPOSED` notification created before this
@@ -906,12 +879,7 @@ function usePanelDataValue() {
       const linked = notifications.find(
         (n) => n.kind === "GROUP_JOIN_REQUESTED" && n.join_request_id === joinRequestId && n.read_at === null,
       );
-      if (linked) {
-        setNotifications((prev) =>
-          prev.map((n) => (n.id === linked.id ? { ...n, read_at: new Date().toISOString() } : n)),
-        );
-        void markNotificationRead(linked.id).catch(() => undefined);
-      }
+      if (linked) markNotificationRead(linked.id);
       await load({ silent: true });
       showToast(decision === "approve" ? "Prośba zatwierdzona" : "Prośba odrzucona");
     } catch (err) {
@@ -1053,7 +1021,6 @@ function usePanelDataValue() {
   }
 
   async function setItemMode(itemId: number, mode: ItemMode) {
-    if (items.find((i) => i.id === itemId)?.home_inventory_id != null) return;
     // Defense-in-depth: `RzeczyView` already disables the toggle buttons
     // while an item is locked (Bug #1 fix), but re-check here too, since
     // the client-side disable is UX, not the sole guard.
@@ -1363,7 +1330,6 @@ function usePanelDataValue() {
     const index = items.findIndex((i) => i.id === itemId);
     if (index === -1) return;
     const removed = items[index];
-    if (removed.home_inventory_id != null) return;
     setItemError(null);
     setItems((prev) => prev.filter((i) => i.id !== itemId));
     showToast("Usunięto");
@@ -1436,12 +1402,6 @@ function usePanelDataValue() {
     myAttendances,
     myPledges,
     withdrawMyPledge,
-    notifications,
-    unreadCount,
-    notifOpen,
-    setNotifOpen,
-    openNotification,
-    markAllRead,
     pendingActions,
     pendingActionBusyId,
     alreadyResolvedIds,
@@ -1485,6 +1445,7 @@ function usePanelDataValue() {
     groupExtras,
     itemModes,
     borrowedItems,
+    lentOutItems,
     memberName,
     memberRole,
     groupForm,

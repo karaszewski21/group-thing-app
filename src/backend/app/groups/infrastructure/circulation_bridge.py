@@ -44,7 +44,8 @@ __all__ = [
     "get_reservation",
     "list_active_hand_over_reservations_for_terms",
     "list_active_reservations_for_taker",
-    "list_owned_items_including_lent_with_product_name",
+    "list_items_with_product_name",
+    "list_lent_out_items_with_product_name",
     "list_reservations",
     "register_item",
     "resolve_current_holder_user_id",
@@ -169,13 +170,19 @@ async def find_personal_inventory(db: AsyncSession, owner_user_id: int) -> Inven
     )
 
 
-async def list_owned_items_including_lent_with_product_name(
-    db: AsyncSession, personal_inventory_id: int
+async def list_items_with_product_name(
+    db: AsyncSession, inventory_id: int
 ) -> list[tuple[InventoryItem, str]]:
-    """Used by `list_my_inventory_items`: the owner's items at home plus
-    those currently lent out (`home_inventory_id` = this PERSONAL)."""
-    return await circulation_service.list_owned_items_including_lent_with_product_name(
-        db, personal_inventory_id
+    """Used by `list_my_inventory_items`: items physically in `inventory_id`."""
+    return await circulation_service.list_items_with_product_name(db, inventory_id)
+
+
+async def list_lent_out_items_with_product_name(
+    db: AsyncSession, home_inventory_id: int
+) -> list[tuple[InventoryItem, str]]:
+    """Used by `list_my_lent_out_items`: items lent out of `home_inventory_id`."""
+    return await circulation_service.list_lent_out_items_with_product_name(
+        db, home_inventory_id
     )
 
 

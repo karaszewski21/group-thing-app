@@ -23,6 +23,7 @@ import * as termItemListingsApi from "../api/termItemListings";
 import * as reservationsApi from "../api/reservations";
 import * as itemListingPreferencesApi from "../api/itemListingPreferences";
 import { PanelPage } from "../pages/panel/PanelPage";
+import { NotificationBell } from "../components/shared/NotificationBell";
 import { ApiError } from "../api/client";
 import { createQueryWrapper } from "./queryClient";
 
@@ -88,6 +89,7 @@ vi.mock("../api/inventories", () => ({
   getInventoryItems: vi.fn(),
   getInventoryItemBalance: vi.fn(),
   getMyInventoryItems: vi.fn(),
+  getMyLentOutItems: vi.fn(),
   registerInventoryItem: vi.fn(),
   updateInventoryItem: vi.fn(),
   deleteInventoryItem: vi.fn(),
@@ -349,6 +351,7 @@ function mockGuestDefaults() {
   vi.mocked(peopleApi.getLeadershipsForPerson).mockResolvedValue([]);
   vi.mocked(inventoriesApi.getInventories).mockResolvedValue([mockInventory]);
   vi.mocked(inventoriesApi.getMyInventoryItems).mockResolvedValue([]);
+  vi.mocked(inventoriesApi.getMyLentOutItems).mockResolvedValue([]);
   vi.mocked(inventoriesApi.getInventoryItemBalances).mockResolvedValue({});
   vi.mocked(productsApi.getProducts).mockResolvedValue([]);
   vi.mocked(familiesApi.getMyFamilies).mockResolvedValue([]);
@@ -368,6 +371,7 @@ function mockOrganizerDefaults() {
   ]);
   vi.mocked(inventoriesApi.getInventories).mockResolvedValue([mockInventory]);
   vi.mocked(inventoriesApi.getMyInventoryItems).mockResolvedValue([]);
+  vi.mocked(inventoriesApi.getMyLentOutItems).mockResolvedValue([]);
   vi.mocked(inventoriesApi.getInventoryItemBalances).mockResolvedValue({});
   vi.mocked(productsApi.getProducts).mockResolvedValue([]);
   vi.mocked(groupsApi.getGroup).mockResolvedValue(mockGroup);
@@ -1737,8 +1741,6 @@ describe("PanelPage — inventory item edit/delete", () => {
     created_at: "",
     updated_at: "",
     listing_mode: null,
-    lent_to_display_name: null,
-    lent_due_date: null,
   };
   const product = {
     id: 7,
@@ -1842,56 +1844,28 @@ describe("PanelPage — inventory item edit/delete", () => {
     expect(screen.getByText("Rowerek")).toBeInTheDocument();
   });
 
-  const lentItem = {
-    ...invItem,
-    home_inventory_id: 1,
-    inventory_id: 2,
-    listing_mode: "LEND" as const,
-    lent_to_display_name: "Marek",
-    lent_due_date: "2026-10-15T00:00:00Z",
-  };
-
-  it("does not delete a lent item — no deleteInventoryItem call and no optimistic removal", async () => {
+  it("shows a lent-out item under 'Wypożyczone innym', not in 'Moje rzeczy'", async () => {
     mockGuestDefaults();
-    vi.mocked(inventoriesApi.getMyInventoryItems).mockResolvedValue([lentItem]);
-    vi.mocked(productsApi.getProducts).mockResolvedValue([product]);
-    renderPanel();
-
-    fireEvent.click(await screen.findByRole("button", { name: "Moje rzeczy" }));
-    expect(await screen.findByText("Rowerek")).toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: "Usuń rzecz Rowerek" }));
-    await new Promise((resolve) => setTimeout(resolve, 0));
-
-    expect(inventoriesApi.deleteInventoryItem).not.toHaveBeenCalled();
-    expect(screen.getByText("Rowerek")).toBeInTheDocument();
-    expect(screen.queryByText("Usunięto")).not.toBeInTheDocument();
-  });
-
-  it("does not change a lent item's mode — no balance lookup and no listing-preference call", async () => {
-    mockGuestDefaults();
-    vi.mocked(inventoriesApi.getMyInventoryItems).mockResolvedValue([lentItem]);
-    vi.mocked(productsApi.getProducts).mockResolvedValue([product]);
-    renderPanel();
-
-    fireEvent.click(await screen.findByRole("button", { name: "Moje rzeczy" }));
-    fireEvent.click(await screen.findByRole("button", { name: "Oddam" }));
-    await new Promise((resolve) => setTimeout(resolve, 0));
-
-    expect(inventoriesApi.getInventoryItemBalance).not.toHaveBeenCalled();
-    expect(itemListingPreferencesApi.setItemListingPreference).not.toHaveBeenCalled();
-  });
-
-  it("counts lent items in the Home 'Twoje rzeczy' mode counters", async () => {
-    mockGuestDefaults();
-    vi.mocked(inventoriesApi.getMyInventoryItems).mockResolvedValue([
-      { ...invItem, listing_mode: "LEND" },
-      { ...lentItem, id: 22 },
+    vi.mocked(inventoriesApi.getMyLentOutItems).mockResolvedValue([
+      {
+        id: 22,
+        product_id: 7,
+        product_name: "Rowerek",
+        condition: "GOOD",
+        lent_to_display_name: "Marek",
+        lent_due_date: "2026-10-15T00:00:00Z",
+      },
     ]);
     vi.mocked(productsApi.getProducts).mockResolvedValue([product]);
     renderPanel();
 
-    const label = await screen.findByText("Wypożyczyć");
-    await waitFor(() => expect(label.previousElementSibling).toHaveTextContent("2"));
+    fireEvent.click(await screen.findByRole("button", { name: "Moje rzeczy" }));
+    expect(await screen.findByText("Nie masz jeszcze żadnej rzeczy.")).toBeInTheDocument();
+    expect(screen.queryByText("Rowerek")).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Wypożyczone" }));
+    fireEvent.click(await screen.findByRole("tab", { name: "Wypożyczone innym" }));
+    expect(within(screen.getByRole("tabpanel")).getByText("Rowerek")).toBeInTheDocument();
   });
 });
 
@@ -2045,6 +2019,63 @@ describe("PanelPage — Wypożyczone: 'Oddaję'", () => {
     expect(reservationsApi.fulfillReservation).toHaveBeenLastCalledWith(300);
   });
 });
+describe("PanelPage — Wypożyczone: tabs", () => {
+  beforeEach(() => {
+    vi.resetAllMocks();
+    vi.mocked(groupsApi.listMyPendingJoinRequests).mockResolvedValue([]);
+  });
+
+  const ownItem = {
+    id: 60,
+    inventory_id: 1,
+    home_inventory_id: null,
+    product_id: 9,
+    product_name: "Hulajnoga",
+    condition: "GOOD" as const,
+    added_at: "",
+    created_at: "",
+    updated_at: "",
+    listing_mode: null,
+  };
+  const lentOutItem = {
+    id: 61,
+    product_id: 9,
+    product_name: "Rowerek",
+    condition: "GOOD" as const,
+    lent_to_display_name: "Marek",
+    lent_due_date: "2026-10-15T00:00:00Z",
+  };
+
+  it("'Wypożyczone innym' lists the lent-out items with borrower and due date", async () => {
+    mockGuestDefaults();
+    vi.mocked(inventoriesApi.getMyInventoryItems).mockResolvedValue([ownItem]);
+    vi.mocked(inventoriesApi.getMyLentOutItems).mockResolvedValue([lentOutItem]);
+    renderPanel();
+
+    fireEvent.click(await screen.findByRole("button", { name: "Wypożyczone" }));
+    expect(await screen.findByRole("tab", { name: "Wypożyczone od innych" })).toHaveAttribute("aria-selected", "true");
+    expect(screen.getByText("Nie masz teraz nic pożyczonego.")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("tab", { name: "Wypożyczone innym" }));
+
+    const panel = screen.getByRole("tabpanel");
+    expect(within(panel).getByText("Rowerek")).toBeInTheDocument();
+    expect(within(panel).getByText("U: Marek")).toBeInTheDocument();
+    expect(within(panel).getByText("Zwrot do: 15.10.2026")).toBeInTheDocument();
+    expect(within(panel).queryByText("Hulajnoga")).not.toBeInTheDocument();
+  });
+
+  it("'Wypożyczone innym' shows an empty state when nothing is lent out", async () => {
+    mockGuestDefaults();
+    vi.mocked(inventoriesApi.getMyInventoryItems).mockResolvedValue([ownItem]);
+    renderPanel();
+
+    fireEvent.click(await screen.findByRole("button", { name: "Wypożyczone" }));
+    fireEvent.click(await screen.findByRole("tab", { name: "Wypożyczone innym" }));
+
+    expect(screen.getByText("Nikt nie ma teraz twoich rzeczy.")).toBeInTheDocument();
+  });
+});
 
 describe("PanelPage — needed item edit error path", () => {
   beforeEach(() => {
@@ -2154,73 +2185,6 @@ describe("PanelPage — Zadeklarowane rzeczy (my pledges)", () => {
     expect(await screen.findByText(/Bębenek/)).toBeInTheDocument();
     expect(screen.getByText(/Zarejestrowane/)).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Rezygnuję" })).not.toBeInTheDocument();
-  });
-});
-
-describe("PanelPage — notification bell", () => {
-  beforeEach(() => {
-    vi.resetAllMocks();
-    vi.mocked(groupsApi.listMyPendingJoinRequests).mockResolvedValue([]);
-  });
-
-  const notif = (over: Partial<notificationsApi.NotificationResponse> = {}) => ({
-    id: 1,
-    kind: "PLEDGE_CREATED" as const,
-    message: "„Kasia\" zadeklarował(a) przyniesienie: Bębenek",
-    link_path: "/ania/grupa/5/term/3",
-    read_at: null,
-    created_at: "2026-03-01T10:00:00",
-    reservation_id: null,
-    ...over,
-  });
-
-  it("shows an unread badge and lists messages in the dropdown", async () => {
-    mockGuestDefaults();
-    vi.mocked(notificationsApi.getMyNotifications).mockResolvedValue([notif(), notif({ id: 2 })]);
-    renderPanel();
-
-    const bell = await screen.findByRole("button", {
-      name: /Powiadomienia \(2 nieprzeczytane\)/,
-    });
-    fireEvent.click(bell);
-
-    expect(
-      screen.getAllByText(/zadeklarował\(a\) przyniesienie: Bębenek/).length,
-    ).toBeGreaterThanOrEqual(2);
-  });
-
-  it("clicking a notification marks it read and navigates to its link_path", async () => {
-    mockGuestDefaults();
-    vi.mocked(notificationsApi.getMyNotifications).mockResolvedValue([notif()]);
-    vi.mocked(notificationsApi.markNotificationRead).mockResolvedValue(undefined);
-    renderPanel();
-
-    fireEvent.click(await screen.findByRole("button", { name: /Powiadomienia/ }));
-    fireEvent.click(screen.getByRole("menuitem", { name: /zadeklarował\(a\)/ }));
-
-    await waitFor(() => expect(notificationsApi.markNotificationRead).toHaveBeenCalledWith(1));
-  });
-
-  it("'Oznacz jako przeczytane' calls markAllNotificationsRead", async () => {
-    mockGuestDefaults();
-    vi.mocked(notificationsApi.getMyNotifications).mockResolvedValue([notif()]);
-    vi.mocked(notificationsApi.markAllNotificationsRead).mockResolvedValue(undefined);
-    renderPanel();
-
-    fireEvent.click(await screen.findByRole("button", { name: /Powiadomienia/ }));
-    fireEvent.click(screen.getByRole("button", { name: "Oznacz jako przeczytane" }));
-
-    await waitFor(() => expect(notificationsApi.markAllNotificationsRead).toHaveBeenCalled());
-  });
-
-  it("shows no badge when everything is read", async () => {
-    mockGuestDefaults();
-    vi.mocked(notificationsApi.getMyNotifications).mockResolvedValue([
-      notif({ read_at: "2026-03-02T09:00:00" }),
-    ]);
-    renderPanel();
-
-    expect(await screen.findByRole("button", { name: "Powiadomienia" })).toBeInTheDocument();
   });
 });
 
@@ -2814,8 +2778,6 @@ describe("PanelPage — RzeczyView post-term-end fallback buttons (Bug #4c, full
     created_at: "",
     updated_at: "",
     listing_mode: null,
-    lent_to_display_name: null,
-    lent_due_date: null,
   };
 
   it("dismissing the global confirm prompt still leaves the tile's own 'Odebrał' fallback usable — clicking it confirms the transaction and silently refreshes the panel", async () => {
@@ -3105,12 +3067,22 @@ describe("PanelPage — organizer join-request pending action", () => {
     }
   });
 
-  it("a GROUP_JOIN_REQUESTED bell row renders its message, marks it read on open and keeps the pending action", async () => {
+  it("a GROUP_JOIN_REQUESTED row in the header bell renders its message, marks it read on open and keeps the pending action", async () => {
     mockOrganizerDefaults();
     vi.mocked(notificationsApi.getMyNotifications).mockResolvedValue([joinNotif({ link_path: "/panel" })]);
     vi.mocked(notificationsApi.markNotificationRead).mockResolvedValue(undefined);
     vi.mocked(groupsApi.listMyPendingJoinRequests).mockResolvedValue([joinRequest()]);
-    renderPanel();
+    // The bell lives in the top account bar (PublicLayout), above the Panel;
+    // both read the same notifications query.
+    render(
+      <MemoryRouter initialEntries={["/panel"]}>
+        <NotificationBell />
+        <Routes>
+          <Route path="/panel" element={<PanelPage />} />
+        </Routes>
+      </MemoryRouter>,
+      { wrapper: createQueryWrapper() },
+    );
 
     await screen.findByRole("dialog", { name: "Prośba o dostęp" });
     fireEvent.click(screen.getByRole("button", { name: /Powiadomienia \(1 nieprzeczytane\)/ }));

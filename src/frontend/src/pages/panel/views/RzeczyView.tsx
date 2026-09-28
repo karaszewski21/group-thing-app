@@ -5,11 +5,9 @@ import {
   type BalanceStatus,
   type ItemBalanceSummary,
   type ItemCondition,
-  type MyInventoryItemResponse,
 } from "../../../api/inventories";
 import { cancelTransaction, confirmTransaction, getReservation } from "../../../api/reservations";
 import { getTerm } from "../../../api/terms";
-import dayjs from "../../../utils/dayjs";
 import { CONDITION_LABELS } from "../../../utils/productCategory";
 import { createEmptyItemQuickAddValue } from "../../../utils/itemQuickAdd";
 import { BoxIcon, PencilIcon, TrashIcon } from "../panelIcons";
@@ -30,17 +28,6 @@ function lockBadgeLabel(status: BalanceStatus | undefined): string | null {
   if (status === "RESERVED") return "czeka na potwierdzenie";
   if (status === "IN_TRANSIT") return "zablokowane";
   return null;
-}
-
-/** Owner-side label for an item currently lent out (`home_inventory_id` set).
- * It takes precedence over `lockBadgeLabel`: a borrower's pending RETURN
- * leaves the balance `RESERVED`, which would otherwise read as
- * "czeka na potwierdzenie". */
-function lentBadgeLabel(item: MyInventoryItemResponse): string {
-  const label = `Pożyczone: ${item.lent_to_display_name ?? ""}`;
-  return item.lent_due_date
-    ? `${label}, do ${dayjs(item.lent_due_date).format("DD.MM.YYYY")}`
-    : label;
 }
 
 export function RzeczyView() {
@@ -209,9 +196,7 @@ export function RzeczyView() {
           const locked = ACTIVE_LOCK_BALANCE_STATUSES.includes(
             itemBalances[it.id]?.status ?? "AVAILABLE",
           );
-          const lent = it.home_inventory_id != null;
-          const lentBadgeId = `lent-badge-${it.id}`;
-          const badgeLabel = lent ? lentBadgeLabel(it) : lockBadgeLabel(itemBalances[it.id]?.status);
+          const badgeLabel = lockBadgeLabel(itemBalances[it.id]?.status);
           return (
             <div key={it.id} className="mt-2.5 flex items-start gap-3.5 rounded-2xl border border-line bg-cream p-[15px] first:mt-0">
               <span
@@ -335,9 +320,8 @@ export function RzeczyView() {
                         key={m}
                         onClick={() => void setItemMode(it.id, m)}
                         aria-pressed={on}
-                        disabled={locked || lent}
-                        aria-disabled={locked || lent}
-                        aria-describedby={lent ? lentBadgeId : undefined}
+                        disabled={locked}
+                        aria-disabled={locked}
                         className="rounded-full border-[1.5px] border-line px-3 py-1.5 text-[11.5px] font-extrabold text-ink-soft transition-colors hover:border-sage disabled:opacity-60 disabled:cursor-not-allowed"
                         style={on ? { background: mStyle.bg, color: mStyle.c, borderColor: "transparent" } : undefined}
                       >
@@ -351,14 +335,13 @@ export function RzeczyView() {
                   {badgeLabel && (
                     <span
                       role="status"
-                      id={lent ? lentBadgeId : undefined}
                       className="inline-flex items-center gap-1.5 rounded-full border-[1.5px] border-line bg-cream px-3 py-1.5 text-[11.5px] font-extrabold text-ink-soft"
                     >
                       <span aria-hidden="true" className="h-1.5 w-1.5 rounded-full bg-ink-soft" />
                       {badgeLabel}
                     </span>
                   )}
-                  {locked && !lent && termHasEnded(it.id) && (
+                  {locked && termHasEnded(it.id) && (
                     <>
                       <button
                         type="button"
@@ -386,10 +369,7 @@ export function RzeczyView() {
               <button
                 onClick={() => void handleDeleteItem(it.id)}
                 aria-label={`Usuń rzecz ${it.product_name}`}
-                disabled={lent}
-                aria-disabled={lent}
-                aria-describedby={lent ? lentBadgeId : undefined}
-                className="flex h-[30px] w-[30px] flex-none items-center justify-center rounded-[10px] text-ink-soft hover:bg-danger-soft hover:text-danger disabled:opacity-60 disabled:cursor-not-allowed disabled:hover:bg-transparent"
+                className="flex h-[30px] w-[30px] flex-none items-center justify-center rounded-[10px] text-ink-soft hover:bg-danger-soft hover:text-danger"
               >
                 <TrashIcon />
               </button>

@@ -857,7 +857,7 @@ async def test_confirmTransaction_nonParty_onReturnReservation_returns403(
     assert status.json()["status"] == "PENDING"
 
 
-async def test_listMyInventoryItems_lentItem_lentFieldsMatchBorrowerProfileAndBalanceDueDate(
+async def test_listMyLentOutItems_lentFieldsMatchBorrowerProfileAndBalanceDueDate(
     client: AsyncClient,
 ) -> None:
     lister_token, taker_token, item_id = await _lend_to_taker(client, "22")
@@ -872,9 +872,9 @@ async def test_listMyInventoryItems_lentItem_lentFieldsMatchBorrowerProfileAndBa
     )
     assert balance.json()["due_date"] is not None
 
-    mine = await client.get("/api/inventory-items/mine", headers=_auth(lister_token))
+    lent = await client.get("/api/inventory-items/mine/lent-out", headers=_auth(lister_token))
 
-    rows = {row["id"]: row for row in mine.json()}
+    rows = {row["id"]: row for row in lent.json()}
     assert rows[item_id]["lent_to_display_name"] == taker_name
     assert rows[item_id]["lent_to_display_name"] != lister_name
     assert rows[item_id]["lent_due_date"] == balance.json()["due_date"]

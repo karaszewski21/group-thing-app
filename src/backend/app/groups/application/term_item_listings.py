@@ -43,6 +43,7 @@ from ..infrastructure.slug_resolver import resolve_organizer_slug
 from ..models import ItemListingPreference, SwapProposal, SwapProposalStatus, Term
 from ..schemas import (
     BrowseTermItemListingResponse,
+    LentOutItemResponse,
     MyInventoryItemResponse,
     TakeTermItemListingRequest,
 )
@@ -137,12 +138,44 @@ async def set_item_listing_preference(
 async def list_my_inventory_items(
     db: AsyncSession, principal: Principal
 ) -> list[MyInventoryItemResponse]:
-    """The caller's own items — those whose home is their PERSONAL
-    inventory, including ones currently lent out (never an item borrowed
-    from someone else) — with each item's standing listing mode, used by
-    `Moje rzeczy` to list items and seed each mode toggle on load. A lent
-    item also carries the borrower's display name and the loan's due date,
-    resolved per lent item only (bounded loop, same precedent as
+    """The caller's items physically in their PERSONAL inventory — never a
+    lent-out one (see `list_my_lent_out_items`) nor one borrowed from
+    someone else — with each item's standing listing mode, used by
+    `Moje rzeczy` to list items and seed each mode toggle on load."""
+    profile = await get_profile_by_principal(db, principal)
+    inventory = await circulation_bridge.find_personal_inventory(
+        db, cast(int, profile.account_user_id)
+    )
+    if inventory is None:
+        return []
+    rows = await circulation_bridge.list_items_with_product_name(db, cast(int, inventory.id))
+    modes = {
+        pref.item_id: pref.mode
+        for pref in await repository.list_item_listing_preferences_for_party(db, profile.party_id)
+    }
+    return [
+        MyInventoryItemResponse(
+            id=cast(int, item.id),
+            inventory_id=item.inventory_id,
+            home_inventory_id=item.home_inventory_id,
+            product_id=item.product_id,
+            product_name=product_name,
+            condition=item.condition,
+            added_at=item.added_at,
+            created_at=item.created_at,
+            updated_at=item.updated_at,
+            listing_mode=modes.get(cast(int, item.id)),
+        )
+        for item, product_name in rows
+    ]
+
+
+async def list_my_lent_out_items(
+    db: AsyncSession, principal: Principal
+) -> list[LentOutItemResponse]:
+    """The caller's items currently lent out of their PERSONAL inventory,
+    backing "Wypożyczone innym". The borrower's display name and the loan's
+    due date are resolved per lent item (bounded loop, same precedent as
     `_resolve_item_display_info`)."""
     profile = await get_profile_by_principal(db, principal)
     inventory = await circulation_bridge.find_personal_inventory(
@@ -150,37 +183,22 @@ async def list_my_inventory_items(
     )
     if inventory is None:
         return []
-    rows = await circulation_bridge.list_owned_items_including_lent_with_product_name(
+    rows = await circulation_bridge.list_lent_out_items_with_product_name(
         db, cast(int, inventory.id)
     )
-    modes = {
-        pref.item_id: pref.mode
-        for pref in await repository.list_item_listing_preferences_for_party(db, profile.party_id)
-    }
-    responses: list[MyInventoryItemResponse] = []
+    responses: list[LentOutItemResponse] = []
     for item, product_name in rows:
-        lent_to_display_name = None
-        lent_due_date = None
-        if item.home_inventory_id is not None:
-            balance = await circulation_bridge.get_item_balance(db, cast(int, item.id))
-            borrower_inventory = await circulation_bridge.get_inventory(db, item.inventory_id)
-            borrower = await get_profile_by_account_user_id(db, borrower_inventory.owner_user_id)
-            lent_to_display_name = borrower.display_name
-            lent_due_date = balance.due_date
+        balance = await circulation_bridge.get_item_balance(db, cast(int, item.id))
+        borrower_inventory = await circulation_bridge.get_inventory(db, item.inventory_id)
+        borrower = await get_profile_by_account_user_id(db, borrower_inventory.owner_user_id)
         responses.append(
-            MyInventoryItemResponse(
+            LentOutItemResponse(
                 id=cast(int, item.id),
-                inventory_id=item.inventory_id,
-                home_inventory_id=item.home_inventory_id,
                 product_id=item.product_id,
                 product_name=product_name,
                 condition=item.condition,
-                added_at=item.added_at,
-                created_at=item.created_at,
-                updated_at=item.updated_at,
-                listing_mode=modes.get(cast(int, item.id)),
-                lent_to_display_name=lent_to_display_name,
-                lent_due_date=lent_due_date,
+                lent_to_display_name=borrower.display_name,
+                lent_due_date=balance.due_date,
             )
         )
     return responses

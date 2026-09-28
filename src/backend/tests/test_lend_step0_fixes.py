@@ -319,32 +319,36 @@ async def test_confirmTransaction_onReturnReservation_returns409(client: AsyncCl
 # --- B10: owner still sees a lent item ----------------------------------------
 
 
-async def test_listMyInventoryItems_lentItem_stillListedForOwnerWithBorrowerAndDueDate(
+async def test_listMyLentOutItems_lentItem_listedForOwnerWithBorrowerAndDueDate(
     client: AsyncClient,
 ) -> None:
     _org, owner_token, borrower_token, item_id = await _lent_item(client, "s0b10a")
 
-    owner_items = await client.get("/api/inventory-items/mine", headers=_auth(owner_token))
-    assert owner_items.status_code == 200
-    rows = {row["id"]: row for row in owner_items.json()}
+    owner_lent = await client.get("/api/inventory-items/mine/lent-out", headers=_auth(owner_token))
+    assert owner_lent.status_code == 200
+    rows = {row["id"]: row for row in owner_lent.json()}
     assert item_id in rows
-    assert rows[item_id]["home_inventory_id"] is not None
     assert rows[item_id]["lent_to_display_name"]
     assert rows[item_id]["lent_due_date"] is not None
 
-    borrower_items = await client.get("/api/inventory-items/mine", headers=_auth(borrower_token))
-    assert item_id not in {row["id"] for row in borrower_items.json()}
+    owner_items = await client.get("/api/inventory-items/mine", headers=_auth(owner_token))
+    assert item_id not in {row["id"] for row in owner_items.json()}
+
+    borrower_lent = await client.get(
+        "/api/inventory-items/mine/lent-out", headers=_auth(borrower_token)
+    )
+    assert borrower_lent.json() == []
 
 
-async def test_listMyInventoryItems_notLentItem_hasNullLentFields(client: AsyncClient) -> None:
+async def test_listMyLentOutItems_nothingLent_isEmpty(client: AsyncClient) -> None:
     owner_token, _ = await _register(client, "GUEST", "s0b10b.owner@example.com")
     item_id = await _register_personal_item(client, owner_token, "Sanki s0b10b")
 
-    rows = (await client.get("/api/inventory-items/mine", headers=_auth(owner_token))).json()
+    lent = await client.get("/api/inventory-items/mine/lent-out", headers=_auth(owner_token))
+    mine = await client.get("/api/inventory-items/mine", headers=_auth(owner_token))
 
-    assert [row["id"] for row in rows] == [item_id]
-    assert rows[0]["lent_to_display_name"] is None
-    assert rows[0]["lent_due_date"] is None
+    assert lent.json() == []
+    assert [row["id"] for row in mine.json()] == [item_id]
 
 
 # --- B12: term-end prompt for LEND --------------------------------------------
