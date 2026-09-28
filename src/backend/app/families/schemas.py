@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import uuid
 from datetime import date, datetime
 from typing import Literal
 
@@ -11,8 +12,8 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator
 class FamilyOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
-    id: int
-    party_id: int
+    id: uuid.UUID
+    party_id: uuid.UUID
     name: str
     created_at: datetime
     updated_at: datetime
@@ -86,9 +87,9 @@ class GuardianResponse(BaseModel):
     caller shouldn't need a second round trip to find out who a guardian
     is or whether they're the family's primary contact."""
 
-    family_membership_id: int
-    party_id: int
-    user_profile_id: int
+    family_membership_id: uuid.UUID
+    party_id: uuid.UUID
+    user_profile_id: uuid.UUID
     display_name: str
     email: str | None
     is_primary_contact: bool

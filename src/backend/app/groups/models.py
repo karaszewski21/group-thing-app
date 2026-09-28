@@ -15,9 +15,11 @@ columns, never a `relationship()` crossing the module boundary, per
 from __future__ import annotations
 
 import enum
+import uuid
 from datetime import date, datetime
 
-from sqlalchemy import BigInteger, Date, DateTime, Enum, ForeignKey, Integer, String
+from sqlalchemy import Date, DateTime, Enum, ForeignKey, Integer, String
+from sqlalchemy.dialects import postgresql
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.core.base_model import BaseEntity
@@ -96,10 +98,11 @@ class Group(BaseEntity):
     """A class/activity Circle."""
 
     __tablename__ = "groups"
-    __sequence_name__ = "group_seq"
 
-    party_id: Mapped[int] = mapped_column(
-        BigInteger, ForeignKey("parties.id", name="fk_groups_party_id_parties"), nullable=False
+    party_id: Mapped[uuid.UUID] = mapped_column(
+        postgresql.UUID(as_uuid=True),
+        ForeignKey("parties.id", name="fk_groups_party_id_parties"),
+        nullable=False,
     )
     name: Mapped[str] = mapped_column(String(255), nullable=False)
     layout_mode: Mapped[GroupLayoutMode] = mapped_column(
@@ -120,10 +123,11 @@ class GroupRole(BaseEntity):
     `Membership`, not here; see module docstring."""
 
     __tablename__ = "group_roles"
-    __sequence_name__ = "group_role_seq"
 
-    party_id: Mapped[int] = mapped_column(
-        BigInteger, ForeignKey("parties.id", name="fk_group_roles_party_id_parties"), nullable=False
+    party_id: Mapped[uuid.UUID] = mapped_column(
+        postgresql.UUID(as_uuid=True),
+        ForeignKey("parties.id", name="fk_group_roles_party_id_parties"),
+        nullable=False,
     )
     role_type: Mapped[GroupRoleType] = mapped_column(
         _enum_column(GroupRoleType, 20), nullable=False
@@ -138,15 +142,14 @@ class Leadership(BaseEntity):
     index in the migration, not just application logic)."""
 
     __tablename__ = "leaderships"
-    __sequence_name__ = "leadership_seq"
 
-    from_role_id: Mapped[int] = mapped_column(
-        BigInteger,
+    from_role_id: Mapped[uuid.UUID] = mapped_column(
+        postgresql.UUID(as_uuid=True),
         ForeignKey("group_roles.id", name="fk_leaderships_from_role_id_group_roles"),
         nullable=False,
     )
-    to_group_id: Mapped[int] = mapped_column(
-        BigInteger,
+    to_group_id: Mapped[uuid.UUID] = mapped_column(
+        postgresql.UUID(as_uuid=True),
         ForeignKey("groups.id", name="fk_leaderships_to_group_id_groups"),
         nullable=False,
     )
@@ -162,15 +165,14 @@ class Membership(BaseEntity):
     `app.families.models.FamilyMembership` for family-side membership."""
 
     __tablename__ = "memberships"
-    __sequence_name__ = "membership_seq"
 
-    from_role_id: Mapped[int] = mapped_column(
-        BigInteger,
+    from_role_id: Mapped[uuid.UUID] = mapped_column(
+        postgresql.UUID(as_uuid=True),
         ForeignKey("group_roles.id", name="fk_memberships_from_role_id_group_roles"),
         nullable=False,
     )
-    to_group_id: Mapped[int] = mapped_column(
-        BigInteger,
+    to_group_id: Mapped[uuid.UUID] = mapped_column(
+        postgresql.UUID(as_uuid=True),
         ForeignKey("groups.id", name="fk_memberships_to_group_id_groups"),
         nullable=False,
     )
@@ -189,20 +191,19 @@ class GroupJoinRequest(BaseEntity):
     migration 0037 (same precedent as `uq_pledges_active_needed_item`)."""
 
     __tablename__ = "group_join_requests"
-    __sequence_name__ = "group_join_request_seq"
 
-    group_id: Mapped[int] = mapped_column(
-        BigInteger,
+    group_id: Mapped[uuid.UUID] = mapped_column(
+        postgresql.UUID(as_uuid=True),
         ForeignKey("groups.id", name="fk_group_join_requests_group_id_groups"),
         nullable=False,
     )
-    requester_party_id: Mapped[int] = mapped_column(
-        BigInteger,
+    requester_party_id: Mapped[uuid.UUID] = mapped_column(
+        postgresql.UUID(as_uuid=True),
         ForeignKey("parties.id", name="fk_group_join_requests_requester_party_id_parties"),
         nullable=False,
     )
-    term_id: Mapped[int | None] = mapped_column(
-        BigInteger,
+    term_id: Mapped[uuid.UUID | None] = mapped_column(
+        postgresql.UUID(as_uuid=True),
         ForeignKey("terms.id", name="fk_group_join_requests_term_id_terms"),
         nullable=True,
     )
@@ -215,10 +216,11 @@ class Term(BaseEntity):
     """A concrete class/meeting occurrence for a Circle."""
 
     __tablename__ = "terms"
-    __sequence_name__ = "term_seq"
 
-    circle_group_id: Mapped[int] = mapped_column(
-        BigInteger, ForeignKey("groups.id", name="fk_terms_circle_group_id_groups"), nullable=False
+    circle_group_id: Mapped[uuid.UUID] = mapped_column(
+        postgresql.UUID(as_uuid=True),
+        ForeignKey("groups.id", name="fk_terms_circle_group_id_groups"),
+        nullable=False,
     )
     # Date *and* wall-clock start time of the class (the time matters to
     # guardians — "which hour do we show up?"). Naive local datetime, same
@@ -234,13 +236,14 @@ class NeededItem(BaseEntity):
     refinement (`description` — e.g. "rozmiar 1/2", "czerwona")."""
 
     __tablename__ = "needed_items"
-    __sequence_name__ = "needed_item_seq"
 
-    term_id: Mapped[int] = mapped_column(
-        BigInteger, ForeignKey("terms.id", name="fk_needed_items_term_id_terms"), nullable=False
+    term_id: Mapped[uuid.UUID] = mapped_column(
+        postgresql.UUID(as_uuid=True),
+        ForeignKey("terms.id", name="fk_needed_items_term_id_terms"),
+        nullable=False,
     )
-    product_id: Mapped[int] = mapped_column(
-        BigInteger,
+    product_id: Mapped[uuid.UUID] = mapped_column(
+        postgresql.UUID(as_uuid=True),
         ForeignKey("products.id", name="fk_needed_items_product_id_products"),
         nullable=False,
     )
@@ -258,15 +261,14 @@ class Pledge(BaseEntity):
     where `app.circulation` actually needs a raw account id."""
 
     __tablename__ = "pledges"
-    __sequence_name__ = "pledge_seq"
 
-    needed_item_id: Mapped[int] = mapped_column(
-        BigInteger,
+    needed_item_id: Mapped[uuid.UUID] = mapped_column(
+        postgresql.UUID(as_uuid=True),
         ForeignKey("needed_items.id", name="fk_pledges_needed_item_id_needed_items"),
         nullable=False,
     )
-    pledged_by_party_id: Mapped[int] = mapped_column(
-        BigInteger,
+    pledged_by_party_id: Mapped[uuid.UUID] = mapped_column(
+        postgresql.UUID(as_uuid=True),
         ForeignKey("parties.id", name="fk_pledges_pledged_by_party_id_parties"),
         nullable=False,
     )
@@ -274,7 +276,9 @@ class Pledge(BaseEntity):
     # Deliberate loose reference into `app.circulation.Reservation` — no FK,
     # mirrors `app.plugin.models.PluginObject.entity_id`'s precedent for a
     # cross-bounded-context pointer.
-    resolved_reservation_id: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
+    resolved_reservation_id: Mapped[uuid.UUID | None] = mapped_column(
+        postgresql.UUID(as_uuid=True), nullable=True
+    )
 
 
 class TermAttendance(BaseEntity):
@@ -289,13 +293,14 @@ class TermAttendance(BaseEntity):
     shape."""
 
     __tablename__ = "term_attendances"
-    __sequence_name__ = "term_attendance_seq"
 
-    term_id: Mapped[int] = mapped_column(
-        BigInteger, ForeignKey("terms.id", name="fk_term_attendances_term_id_terms"), nullable=False
+    term_id: Mapped[uuid.UUID] = mapped_column(
+        postgresql.UUID(as_uuid=True),
+        ForeignKey("terms.id", name="fk_term_attendances_term_id_terms"),
+        nullable=False,
     )
-    party_id: Mapped[int] = mapped_column(
-        BigInteger,
+    party_id: Mapped[uuid.UUID] = mapped_column(
+        postgresql.UUID(as_uuid=True),
         ForeignKey("parties.id", name="fk_term_attendances_party_id_parties"),
         nullable=False,
     )
@@ -322,14 +327,15 @@ class ItemListingPreference(BaseEntity):
     sets their own mode."""
 
     __tablename__ = "item_listing_preferences"
-    __sequence_name__ = "item_listing_preference_seq"
 
     # Loose cross-BC pointer into `app.circulation.InventoryItem` — no FK,
     # same precedent as `Pledge.resolved_reservation_id`. Unique: at most one
     # standing preference per item.
-    item_id: Mapped[int] = mapped_column(BigInteger, nullable=False, unique=True)
-    owner_party_id: Mapped[int] = mapped_column(
-        BigInteger,
+    item_id: Mapped[uuid.UUID] = mapped_column(
+        postgresql.UUID(as_uuid=True), nullable=False, unique=True
+    )
+    owner_party_id: Mapped[uuid.UUID] = mapped_column(
+        postgresql.UUID(as_uuid=True),
         ForeignKey("parties.id", name="fk_item_listing_preferences_owner_party_id_parties"),
         nullable=False,
     )
@@ -356,23 +362,28 @@ class SwapProposal(BaseEntity):
     `GiveawayTermEndMarker` below."""
 
     __tablename__ = "swap_proposals"
-    __sequence_name__ = "swap_proposal_seq"
 
-    proposer_party_id: Mapped[int] = mapped_column(
-        BigInteger,
+    proposer_party_id: Mapped[uuid.UUID] = mapped_column(
+        postgresql.UUID(as_uuid=True),
         ForeignKey("parties.id", name="fk_swap_proposals_proposer_party_id_parties"),
         nullable=False,
     )
     # Loose cross-BC pointer into `app.circulation.InventoryItem` (the
     # target listing's item) — no FK, same precedent as
     # `ItemListingPreference.item_id`.
-    listing_item_id: Mapped[int] = mapped_column(BigInteger, nullable=False)
+    listing_item_id: Mapped[uuid.UUID] = mapped_column(
+        postgresql.UUID(as_uuid=True), nullable=False
+    )
     # Loose cross-BC pointer into `app.circulation.InventoryItem` (the
     # proposer's own item being offered) — no FK.
-    offered_item_id: Mapped[int] = mapped_column(BigInteger, nullable=False)
+    offered_item_id: Mapped[uuid.UUID] = mapped_column(
+        postgresql.UUID(as_uuid=True), nullable=False
+    )
     # Loose cross-BC pointer into `app.circulation.Reservation` (the
     # proposer's own already-locked leg) — no FK.
-    proposer_reservation_id: Mapped[int] = mapped_column(BigInteger, nullable=False)
+    proposer_reservation_id: Mapped[uuid.UUID] = mapped_column(
+        postgresql.UUID(as_uuid=True), nullable=False
+    )
     status: Mapped[SwapProposalStatus] = mapped_column(
         _enum_column(SwapProposalStatus, 20), nullable=False
     )
@@ -388,7 +399,8 @@ class GiveawayTermEndMarker(BaseEntity):
     `SwapProposal`'s `*_item_id`/`proposer_reservation_id` fields."""
 
     __tablename__ = "giveaway_term_end_markers"
-    __sequence_name__ = "giveaway_term_end_marker_seq"
 
-    reservation_id: Mapped[int] = mapped_column(BigInteger, nullable=False, unique=True)
+    reservation_id: Mapped[uuid.UUID] = mapped_column(
+        postgresql.UUID(as_uuid=True), nullable=False, unique=True
+    )
     notified_at: Mapped[datetime] = mapped_column(DateTime(), nullable=False)

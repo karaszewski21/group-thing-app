@@ -4,6 +4,8 @@ here, not the router (per `standards/backend/security.md`)."""
 
 from __future__ import annotations
 
+import uuid
+
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -21,7 +23,7 @@ from ..infrastructure import repository
 
 
 async def merge_anonymous_profile(
-    db: AsyncSession, user_profile_id: int, email: str, password: str
+    db: AsyncSession, user_profile_id: uuid.UUID, email: str, password: str
 ) -> tuple[User, UserProfile]:
     """Merges an anonymous RSVP's `UserProfile` into a newly-created
     account: **updates the existing row's `account_user_id`/`email` in

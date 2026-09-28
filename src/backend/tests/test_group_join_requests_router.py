@@ -7,6 +7,7 @@ Flat `tests/` placement, same convention as `test_group_privacy.py`.
 
 from __future__ import annotations
 
+import uuid
 from datetime import date, timedelta
 from typing import Any
 
@@ -246,10 +247,10 @@ async def test_createJoinRequest_concurrentPendingInsert_returnsWinnerWithoutNot
     group_id, _term_id = await _create_circle_and_term(client, org_token, "jr-race")
     guest_token, guest_party_id = await _register(client, "GUEST", "jr.race.guest@example.com")
     original_find = repository.find_pending_join_request
-    competing_ids: list[int] = []
+    competing_ids: list[uuid.UUID] = []
 
     async def find_then_lose_race(
-        db: AsyncSession, requester_party_id: int, target_group_id: int
+        db: AsyncSession, requester_party_id: uuid.UUID, target_group_id: uuid.UUID
     ) -> Any:
         found = await original_find(db, requester_party_id, target_group_id)
         if not competing_ids:
@@ -257,7 +258,7 @@ async def test_createJoinRequest_concurrentPendingInsert_returnsWinnerWithoutNot
                 text(
                     "INSERT INTO group_join_requests "
                     "(id, group_id, requester_party_id, term_id, status, created_at, updated_at) "
-                    "VALUES (nextval('group_join_request_seq'), :group_id, :party_id, NULL, "
+                    "VALUES (gen_random_uuid(), :group_id, :party_id, NULL, "
                     "'PENDING', now(), now()) RETURNING id"
                 ),
                 {"group_id": target_group_id, "party_id": requester_party_id},

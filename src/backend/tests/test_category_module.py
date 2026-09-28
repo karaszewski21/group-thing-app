@@ -134,7 +134,7 @@ async def test_deleteCategory_referencedByProducts_raisesWithExactBlockingCount(
         await db_session.execute(
             text(
                 "INSERT INTO products (id, name, sku, category_id, created_at, updated_at) "
-                "VALUES (nextval('product_seq'), :name, :sku, :category_id, now(), now())"
+                "VALUES (gen_random_uuid(), :name, :sku, :category_id, now(), now())"
             ),
             {"name": f"Produkt {i}", "sku": f"SKU-CAT-{i}", "category_id": category_id},
         )
@@ -156,7 +156,7 @@ async def test_listCategories_returnsRowsOrderedBySortOrderWithAggregatedProduct
     await db_session.execute(
         text(
             "INSERT INTO products (id, name, sku, category_id, created_at, updated_at) "
-            "VALUES (nextval('product_seq'), 'Produkt', 'SKU-CAT-COUNT', "
+            "VALUES (gen_random_uuid(), 'Produkt', 'SKU-CAT-COUNT', "
             ":category_id, now(), now())"
         ),
         {"category_id": category_id},

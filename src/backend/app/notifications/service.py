@@ -8,6 +8,8 @@ recipient-facing reads/marks are used only by `app.notifications.router`.
 
 from __future__ import annotations
 
+import uuid
+
 from datetime import datetime
 
 from sqlalchemy import update
@@ -30,13 +32,13 @@ __all__ = [
 async def create_notification(
     db: AsyncSession,
     *,
-    party_id: int,
+    party_id: uuid.UUID,
     kind: NotificationKind,
     message: str,
     link_path: str | None = None,
-    proposal_id: int | None = None,
-    join_request_id: int | None = None,
-    reservation_id: int | None = None,
+    proposal_id: uuid.UUID | None = None,
+    join_request_id: uuid.UUID | None = None,
+    reservation_id: uuid.UUID | None = None,
 ) -> None:
     """Stage a notification on the session — no commit/flush. The producing
     use case's own trailing `db.commit()` persists it atomically with the
@@ -60,15 +62,15 @@ async def create_notification(
     )
 
 
-async def list_my_notifications(db: AsyncSession, party_id: int) -> list[Notification]:
+async def list_my_notifications(db: AsyncSession, party_id: uuid.UUID) -> list[Notification]:
     return await repository.list_for_party(db, party_id)
 
 
-async def count_unread(db: AsyncSession, party_id: int) -> int:
+async def count_unread(db: AsyncSession, party_id: uuid.UUID) -> int:
     return await repository.count_unread(db, party_id)
 
 
-async def mark_read(db: AsyncSession, notification_id: int, party_id: int) -> None:
+async def mark_read(db: AsyncSession, notification_id: uuid.UUID, party_id: uuid.UUID) -> None:
     notification = await repository.get(db, notification_id)
     if notification is None:
         raise EntityNotFoundException("Notification", notification_id)
@@ -79,7 +81,7 @@ async def mark_read(db: AsyncSession, notification_id: int, party_id: int) -> No
         await db.commit()
 
 
-async def mark_all_read(db: AsyncSession, party_id: int) -> None:
+async def mark_all_read(db: AsyncSession, party_id: uuid.UUID) -> None:
     await db.execute(
         update(Notification)
         .where(Notification.party_id == party_id, Notification.read_at.is_(None))

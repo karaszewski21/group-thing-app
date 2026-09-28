@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import uuid
+
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -11,7 +13,7 @@ from .models import Notification
 _MAX_NOTIFICATIONS = 50
 
 
-async def list_for_party(db: AsyncSession, party_id: int) -> list[Notification]:
+async def list_for_party(db: AsyncSession, party_id: uuid.UUID) -> list[Notification]:
     result = await db.execute(
         select(Notification)
         .where(Notification.party_id == party_id)
@@ -21,7 +23,7 @@ async def list_for_party(db: AsyncSession, party_id: int) -> list[Notification]:
     return list(result.scalars().all())
 
 
-async def count_unread(db: AsyncSession, party_id: int) -> int:
+async def count_unread(db: AsyncSession, party_id: uuid.UUID) -> int:
     result = await db.execute(
         select(func.count())
         .select_from(Notification)
@@ -30,5 +32,5 @@ async def count_unread(db: AsyncSession, party_id: int) -> int:
     return int(result.scalar_one())
 
 
-async def get(db: AsyncSession, notification_id: int) -> Notification | None:
+async def get(db: AsyncSession, notification_id: uuid.UUID) -> Notification | None:
     return await db.get(Notification, notification_id)

@@ -11,6 +11,7 @@ routers use instead.
 
 from __future__ import annotations
 
+import uuid
 from datetime import datetime
 from typing import TYPE_CHECKING, Any
 
@@ -58,12 +59,12 @@ class SetEnabledRequest(BaseModel):
 class PluginObjectResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
-    id: int
+    id: uuid.UUID
     plugin_id: str
     object_type: str
     object_id: str
     data: dict[str, Any]
     entity_type: str | None
-    entity_id: int | None
+    entity_id: uuid.UUID | None
     created_at: datetime
     updated_at: datetime

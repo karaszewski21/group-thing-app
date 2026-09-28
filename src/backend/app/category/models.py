@@ -20,7 +20,6 @@ from app.core.base_model import BaseEntity
 
 class Category(BaseEntity):
     __tablename__ = "categories"
-    __sequence_name__ = "category_seq"
 
     name: Mapped[str] = mapped_column(String(100), nullable=False)
     description: Mapped[str | None] = mapped_column(String(500), nullable=True)

@@ -8,6 +8,8 @@ here, raising `AccessDeniedException` — the matrix only gates the routes to
 
 from __future__ import annotations
 
+import uuid
+
 from datetime import datetime, timedelta
 from typing import cast
 
@@ -40,7 +42,7 @@ from .memberships import _is_active_member, add_active_membership
 REQUEST_NOTIFICATION_COOLDOWN = timedelta(hours=24)
 
 
-async def _requester_link_path(db: AsyncSession, group_id: int, term_id: int | None) -> str:
+async def _requester_link_path(db: AsyncSession, group_id: uuid.UUID, term_id: uuid.UUID | None) -> str:
     if term_id is None:
         return "/panel"
     slug = await resolve_organizer_slug(db, group_id)
@@ -58,7 +60,7 @@ async def _get_caller_party_id(db: AsyncSession, principal: Principal) -> tuple[
 
 
 async def _get_join_request_in_group(
-    db: AsyncSession, group_id: int, request_id: int
+    db: AsyncSession, group_id: uuid.UUID, request_id: uuid.UUID
 ) -> GroupJoinRequest:
     join_request = await repository.get_join_request(db, request_id)
     if join_request is None or join_request.group_id != group_id:
@@ -66,7 +68,7 @@ async def _get_join_request_in_group(
     return join_request
 
 
-async def _get_private_group(db: AsyncSession, group_id: int) -> Group:
+async def _get_private_group(db: AsyncSession, group_id: uuid.UUID) -> Group:
     group = await get_group(db, group_id)
     if group.visibility != GroupVisibility.PRIVATE:
         raise EntityNotFoundException("Group", group_id)
@@ -74,7 +76,7 @@ async def _get_private_group(db: AsyncSession, group_id: int) -> Group:
 
 
 async def create_join_request(
-    db: AsyncSession, principal: Principal, group_id: int, term_id: int | None
+    db: AsyncSession, principal: Principal, group_id: uuid.UUID, term_id: uuid.UUID | None
 ) -> GroupJoinRequest:
     """Idempotent: an existing PENDING request for (caller, group) is
     returned as-is, with no second notification. A concurrent duplicate
@@ -138,7 +140,7 @@ async def create_join_request(
             kind=NotificationKind.GROUP_JOIN_REQUESTED,
             message=f"{requester_name} prosi o dostęp do grupy „{group.name}”",
             link_path="/panel",
-            join_request_id=cast(int, join_request.id),
+            join_request_id=cast(uuid.UUID, join_request.id),
         )
     await db.commit()
     await db.refresh(join_request)
@@ -146,7 +148,7 @@ async def create_join_request(
 
 
 async def withdraw_join_request(
-    db: AsyncSession, principal: Principal, group_id: int, request_id: int
+    db: AsyncSession, principal: Principal, group_id: uuid.UUID, request_id: uuid.UUID
 ) -> GroupJoinRequest:
     party_id, _ = await _get_caller_party_id(db, principal)
     join_request = await _get_join_request_in_group(db, group_id, request_id)
@@ -162,7 +164,7 @@ async def withdraw_join_request(
 
 
 async def _get_pending_join_request_for_organizer(
-    db: AsyncSession, principal: Principal, group_id: int, request_id: int
+    db: AsyncSession, principal: Principal, group_id: uuid.UUID, request_id: uuid.UUID
 ) -> tuple[GroupJoinRequest, Group]:
     party_id, _ = await _get_caller_party_id(db, principal)
     join_request = await _get_join_request_in_group(db, group_id, request_id)
@@ -189,7 +191,7 @@ async def _decide_join_request(
         kind=kind,
         message=f"Twoja prośba o dostęp do grupy „{group.name}” została {verdict}",
         link_path=await _requester_link_path(db, join_request.group_id, join_request.term_id),
-        join_request_id=cast(int, join_request.id),
+        join_request_id=cast(uuid.UUID, join_request.id),
     )
     await db.commit()
     await db.refresh(join_request)
@@ -197,7 +199,7 @@ async def _decide_join_request(
 
 
 async def approve_join_request(
-    db: AsyncSession, principal: Principal, group_id: int, request_id: int
+    db: AsyncSession, principal: Principal, group_id: uuid.UUID, request_id: uuid.UUID
 ) -> GroupJoinRequest:
     join_request, group = await _get_pending_join_request_for_organizer(
         db, principal, group_id, request_id
@@ -215,7 +217,7 @@ async def approve_join_request(
 
 
 async def reject_join_request(
-    db: AsyncSession, principal: Principal, group_id: int, request_id: int
+    db: AsyncSession, principal: Principal, group_id: uuid.UUID, request_id: uuid.UUID
 ) -> GroupJoinRequest:
     join_request, group = await _get_pending_join_request_for_organizer(
         db, principal, group_id, request_id
@@ -231,7 +233,7 @@ async def reject_join_request(
 
 
 async def _build_pending_join_request_responses(
-    db: AsyncSession, group_ids: list[int]
+    db: AsyncSession, group_ids: list[uuid.UUID]
 ) -> list[PendingJoinRequestResponse]:
     if not group_ids:
         return []
@@ -244,7 +246,7 @@ async def _build_pending_join_request_responses(
     names = {row.party_id: row.display_name for row in profile_rows}
     return [
         PendingJoinRequestResponse(
-            id=cast(int, join_request.id),
+            id=cast(uuid.UUID, join_request.id),
             group_id=join_request.group_id,
             group_name=group_name,
             term_id=join_request.term_id,
@@ -269,7 +271,7 @@ async def list_my_pending_join_requests(
 
 
 async def list_group_pending_join_requests(
-    db: AsyncSession, principal: Principal, group_id: int
+    db: AsyncSession, principal: Principal, group_id: uuid.UUID
 ) -> list[PendingJoinRequestResponse]:
     party_id, _ = await _get_caller_party_id(db, principal)
     await get_group(db, group_id)

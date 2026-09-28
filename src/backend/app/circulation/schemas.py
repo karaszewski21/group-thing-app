@@ -6,6 +6,7 @@ below always refers to that shared catalog.
 
 from __future__ import annotations
 
+import uuid
 from datetime import date, datetime
 from decimal import Decimal
 
@@ -25,8 +26,8 @@ from .models import (
 class InventoryResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
-    id: int
-    owner_user_id: int
+    id: uuid.UUID
+    owner_user_id: uuid.UUID
     inventory_type: InventoryType
     location: str | None
     created_at: datetime
@@ -41,8 +42,8 @@ class CreateInventoryRequest(BaseModel):
 class InventoryBalanceResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
-    id: int
-    item_id: int
+    id: uuid.UUID
+    item_id: uuid.UUID
     status: BalanceStatus
     reserved_at: datetime | None
     lent_at: datetime | None
@@ -54,16 +55,16 @@ class InventoryBalanceResponse(BaseModel):
     # active reservation to point at). Not an `InventoryBalance` column —
     # resolved alongside the balance at the router, same active-reservation
     # query shape as `list_active_reservations_for_taker`. See bug #4c.
-    reservation_id: int | None = None
+    reservation_id: uuid.UUID | None = None
 
 
 class InventoryItemResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
-    id: int
-    inventory_id: int
-    home_inventory_id: int | None
-    product_id: int
+    id: uuid.UUID
+    inventory_id: uuid.UUID
+    home_inventory_id: uuid.UUID | None
+    product_id: uuid.UUID
     product_name: str
     condition: ItemCondition
     added_at: datetime
@@ -72,8 +73,8 @@ class InventoryItemResponse(BaseModel):
 
 
 class CreateInventoryItemRequest(BaseModel):
-    inventory_id: int
-    product_id: int
+    inventory_id: uuid.UUID
+    product_id: uuid.UUID
     condition: ItemCondition
 
 
@@ -84,18 +85,18 @@ class UpdateInventoryItemRequest(BaseModel):
     name+category first, then sends its id here to rename/re-categorise."""
 
     condition: ItemCondition | None = None
-    product_id: int | None = None
+    product_id: uuid.UUID | None = None
 
 
 class ReservationResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
-    id: int
-    item_id: int
+    id: uuid.UUID
+    item_id: uuid.UUID
     reservation_type: ReservationType
-    reserved_by_user_id: int
-    term_id: int
-    paired_reservation_id: int | None
+    reserved_by_user_id: uuid.UUID
+    term_id: uuid.UUID
+    paired_reservation_id: uuid.UUID | None
     reserved_at: datetime
     expires_at: datetime | None
     status: ReservationStatus
@@ -103,14 +104,14 @@ class ReservationResponse(BaseModel):
 
 
 class CreateReservationRequest(BaseModel):
-    item_id: int
+    item_id: uuid.UUID
     reservation_type: ReservationType
-    reserved_by_user_id: int
+    reserved_by_user_id: uuid.UUID
     # Required for every `reservation_type` except `RETURN`, where the
     # server derives it from the item's most recent LEND leg (see
     # `create_reservation`) — there's no Term context at a RETURN call site
     # (e.g. `PanelDataContext.tsx::returnBorrowedItem`).
-    term_id: int | None = None
+    term_id: uuid.UUID | None = None
     expires_at: datetime | None = None
     notes: str | None = Field(default=None, max_length=1000)
 
@@ -132,7 +133,7 @@ class CreateReturnReservationRequest(BaseModel):
     `reservation_type` exists only so that any other value is rejected with
     403 instead of being silently treated as a RETURN."""
 
-    item_id: int
+    item_id: uuid.UUID
     reservation_type: ReservationType = ReservationType.RETURN
     notes: str | None = Field(default=None, max_length=1000)
 
@@ -140,11 +141,11 @@ class CreateReturnReservationRequest(BaseModel):
 class AccountResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
-    id: int
+    id: uuid.UUID
     code: str
     name: str
     account_type: AccountType
-    owner_user_id: int | None
+    owner_user_id: uuid.UUID | None
 
 
 class AccountBalanceResponse(BaseModel):
@@ -155,7 +156,7 @@ class AccountBalanceResponse(BaseModel):
 class CirculationEntryResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
-    id: int
+    id: uuid.UUID
     account: AccountResponse
     amount: Decimal
     entry_side: EntrySide
@@ -166,7 +167,7 @@ class CirculationEntryResponse(BaseModel):
 class CirculationTransactionResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
-    id: int
+    id: uuid.UUID
     transaction_number: str
     transaction_date: date
     description: str

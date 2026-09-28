@@ -1,0 +1,146 @@
+orchestrator:
+  started_phase: phase-1
+  completed_phases: [phase-1, phase-2, phase-5, phase-6]
+  failed_phases: []
+  auto_fix_attempts:
+    phase-1: 0
+    phase-2: 0
+    phase-5: 0
+    phase-7: 0
+    phase-8: 0
+    phase-11: 0
+  options:
+    spec_audit_enabled: true
+    skip_test_suite: true
+    e2e_enabled: false
+    user_docs_enabled: true
+    code_review_enabled: true
+    pragmatic_review_enabled: true
+    reality_check_enabled: true
+    production_check_enabled: true
+    sequential: null
+  created: 2026-09-28T00:00:00
+  updated: 2026-09-28T00:00:00
+  task_path: .maister/tasks/development/2026-09-28-circulation-ledger-item-movements
+  task_ids: {}  # TaskCreate tool unavailable in this session; phases tracked in this file only
+  gate_policy: "AskUserQuestion at every Pause/MANDATORY GATE, decided once at entry"
+
+task:
+  title: Circulation ledger — księgowanie przepływu rzeczy między magazynami
+  description: >
+    Poprawić założenia transakcji w app.circulation, bo model się rozjechał. Encje
+    Account, CirculationEntry, CirculationTransaction (dziś ledger punktów: +1 dla
+    dającego) mają zgodnie z pierwotnym założeniem użytkownika służyć wzorcowi
+    accounting do "księgowania" produktów — rejestrowania przepływu rzeczy między
+    użytkownikami i ich magazynami. Np. User A oddaje userowi B rzecz X → transakcja:
+    X schodzi z magazynu A, dochodzi do magazynu B — kompletna historia produktu.
+    Tak samo przy wypożyczeniu (LEND), zwrocie (RETURN) i zamianie (SWAP).
+    Wcześniejszy research zaproponował encję Loan (historia, nadpisywanie due_date
+    w InventoryBalance) — użytkownik uważa, że to nie trafia w jego intencję.
+  status: in_progress
+  tags: [circulation, ledger, accounting, inventory, history]
+  priority: null
+
+task_context:
+  risk_level: medium
+  clarifications_resolved: true
+  scope_expanded: false
+  architecture_decision: null
+  task_characteristics:
+    has_reproducible_defect: false
+    modifies_existing_code: true
+    creates_new_entities: true
+    involves_data_operations: true
+    ui_heavy: false
+  research_reference:
+    path: .maister/tasks/research/2026-09-25-lend-lifecycle-virtual-inventory
+    research_question: "Pełny cykl życia LEND (od oferty do zamknięcia) — model stanów, magazyn VIRTUAL vs holder"
+    research_type: mixed
+    confidence_level: medium
+    note: "Informacyjnie — użytkownik uważa, że propozycja encji Loan nie trafia w jego intencję (ledger ruchów rzeczy)."
+  design_reference:
+    source: null
+    product_design_path: null
+    mockup_count: 0
+    has_brief: false
+    index_path: null
+  project_context:
+    project_doc_paths:
+      - .maister/docs/INDEX.md
+      - .maister/docs/project/tech-stack.md
+      - .maister/docs/project/architecture.md
+  phase_summaries:
+    research:
+      summary: >
+        Research proponował: VIRTUAL inventory zostaje + nowa encja Loan (ACTIVE/RETURN_PENDING/RETURNED)
+        jako nośnik stanu pożyczki; ledger zostaje ledgerem punktów (+1 holder). Wskazał brak historii
+        pożyczek i nadpisywanie InventoryBalance.due_date (B3).
+      key_findings: []
+      recommended_approach: "Loan entity (odrzucane przez użytkownika jako niezgodne z intencją)"
+    design: {summary: null, screen_count: 0, component_count: 0, index_path: null}
+    codebase_analysis:
+      key_files:
+        - src/backend/app/circulation/models.py
+        - src/backend/app/circulation/infrastructure/ledger.py
+        - src/backend/app/circulation/application/reservation_transitions.py
+        - src/backend/app/circulation/application/accounts.py
+        - src/backend/app/circulation/application/inventory_items.py
+        - src/backend/app/circulation/router.py
+        - src/backend/app/circulation/schemas.py
+        - src/backend/app/groups/application/term_item_listings.py
+      primary_language: python
+      summary: >
+        Obecny ledger to ledger punktów (DEBIT 100-{user} / CREDIT 900-100, 1 pkt), bez item_id/reservation_id/
+        from-to inventory — historii rzeczy nie da się odtworzyć. Jedyny zapisujący: fulfill_reservation
+        (reservation_transitions.py:139); 3 GET endpointy, FE api/accounts.ts nieużywany. Ruch rzeczy w 3 gałęziach
+        fulfill (LEND :105, RETURN :118, GIFT/SWAP :127). SWAP nieatomowy (2 commity). INV doc też opisuje punkty
+        — zmiana intencji. Ostatnia migracja 0040.
+    clarifications:
+      - "Punkty usunąć — ledger tylko do ruchów rzeczy"
+      - "Konto = magazyn (PERSONAL/VIRTUAL); transakcja −X z konta A, +X na konto B"
+      - "Rejestracja i usunięcie rzeczy księgowane z/do konta systemowego (świat zewnętrzny)"
+      - "PoC — dowolne zmiany schematu/danych, bez kompatybilności wstecz"
+    gap_analysis:
+      integration_points:
+        - "reservation_transitions.py fulfill_reservation (LEND :105, RETURN :118, GIFT/SWAP :127, ledger :139)"
+        - "inventory_items.py register_item :31, soft_delete_item :166"
+        - "inventory.py create_inventory / _get_or_create_inventory (tworzenie konta)"
+        - "term_item_listings.py confirm_transaction :782-822, cancel_transaction :825-848"
+        - "circulation_bridge.py (nowy pass-through dla atomowego SWAP)"
+        - "circulation/router.py + core/authorization_matrix.py wiersze 40, 44, 45"
+      summary: >
+        Zmiana semantyki istniejących tabel (modificative), ryzyko średnie, nakład średni. SWAP robi do 4 commitów
+        (confirm :61 + fulfill :143 per noga). Nowe punkty księgowania: register_item, soft_delete_item. B3 już naprawiony.
+        Rekomendacja: księga jako źródło prawdy + kolumny jako projekcja, accounts z inventory_id UNIQUE + EXTERNAL,
+        wpisy item_id + qty ±1, SWAP = 1 transakcja/4 wpisy/1 commit, reset + bilans otwarcia (0041 schema, 0042 dane).
+    scope_clarifications:
+      scope_expanded: false
+      summary: >
+        Księga = źródło prawdy (inventory_id/home_inventory_id jako projekcja w tym samym commicie + test zgodności);
+        tabela accounts (inventory_id UNIQUE, INVENTORY/EXTERNAL); wpis item_id + qty ±1; SWAP = 1 transakcja/4 wpisy/1 commit;
+        reset + bilans otwarcia (0041 schema, 0042 dane); stany pośrednie i PATCH nic nie księgują; tylko API historii;
+        due_date w InventoryBalance; konto z magazynem; suma=0 w kodzie (bez CHECK/triggera); occurred_at DateTime;
+        reservation_id na wpisie; anulowanie SWAP w 1 commicie; usunięcie endpointów punktowych + api/accounts.ts;
+        historia dla każdego z READ. Szczegóły: analysis/scope-clarifications.md
+    ui_mockups: {components_designed: [], summary: null}
+    specification:
+      summary: >
+        spec.md: 15 wymagań, 10 kryteriów. post_movement (flush-only, jedyna droga ruchu, projekcja inventory_id/home_inventory_id),
+        MovementType 6 typów, accounts bez code/name/owner_user_id + CHECK + partial unique EXTERNAL, fulfill_exchange/cancel_exchange
+        (atomowy SWAP, też LEND/GIFT przez confirm_transaction), migracja 0041 czyszczenie+schemat+konta, GET history, usunięcie API punktów.
+    architecture_decision:
+      decision: "Księga = źródło prawdy; post_movement jako jedyna ścieżka ruchu; przejścia rezerwacji rozdzielone na flush-only + committing wrappers"
+      summary: "Założenia A1-A6 w spec.md (m.in. fulfill_exchange dla LEND/GIFT, 409 dla dwóch nieosiągalnych ścieżek, jedna migracja jako świadome odstępstwo)"
+
+spec_audit:
+  verdict: fail_blocked_by_uuid_collision
+  counts: {critical: 1, high: 2, medium: 6, low: 9}
+  decisions_path: verification/spec-audit-decisions.md
+  blocker: "Implementacja dopiero po zacommitowaniu migracji UUID (0041_baseentity_id_uuid); spec do rewizji pod UUID + 0042"
+
+verification_context:
+  last_status: null
+  issues_found: []
+  fixes_applied: []
+  decisions_made: []
+  reverify_count: 0

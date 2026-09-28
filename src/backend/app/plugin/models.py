@@ -19,11 +19,13 @@ calling this out explicitly.
 
 from __future__ import annotations
 
+import uuid
 from datetime import datetime
 from typing import Any
 
-from sqlalchemy import BigInteger, Boolean, DateTime, String, Text, UniqueConstraint
+from sqlalchemy import Boolean, DateTime, String, Text, UniqueConstraint
 from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy.dialects import postgresql
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.core.base_model import Base, BaseEntity
@@ -67,7 +69,6 @@ class PluginDescriptor(Base):
 
 class PluginObject(BaseEntity):
     __tablename__ = "plugin_objects"
-    __sequence_name__ = "plugin_object_seq"
     __table_args__ = (
         UniqueConstraint(
             "plugin_id",
@@ -84,4 +85,4 @@ class PluginObject(BaseEntity):
     entity_type: Mapped[str | None] = mapped_column(String(50), nullable=True)
     # No FK to any entity table — deliberate loose reference, do not add
     # referential integrity here (see module docstring).
-    entity_id: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
+    entity_id: Mapped[uuid.UUID | None] = mapped_column(postgresql.UUID(as_uuid=True), nullable=True)

@@ -39,7 +39,6 @@ class OutboxStatus(enum.StrEnum):
 
 class OutboxEntry(BaseEntity):
     __tablename__ = "outbox_entries"
-    __sequence_name__ = "outbox_entry_seq"
 
     event_type: Mapped[str] = mapped_column(String(100), nullable=False)
     payload: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False)

@@ -30,6 +30,7 @@ not the SPA fallback).
 
 from __future__ import annotations
 
+import uuid
 from pathlib import Path
 from typing import Annotated
 
@@ -79,10 +80,13 @@ async def public_term_preview(
 ) -> HTMLResponse | FileResponse:
     """`organization_slug` is cosmetic here too (see `router.tsx` and
     `termPublicPath`) — only `group_id`/`term_id` drive the lookup."""
-    if not group_id.isdigit() or not term_id.isdigit():
+    try:
+        group_uuid = uuid.UUID(group_id)
+        term_uuid = uuid.UUID(term_id)
+    except ValueError:
         return _plain_index()
     try:
-        circle = await groups_service.get_public_circle_view(db, int(group_id), int(term_id))
+        circle = await groups_service.get_public_circle_view(db, group_uuid, term_uuid)
     except EntityNotFoundException:
         return _plain_index()
     return HTMLResponse(render_public_circle_meta(circle))
@@ -92,10 +96,12 @@ async def public_term_preview(
 async def public_circle_preview(
     organization_slug: str, group_id: str, db: DbSession
 ) -> HTMLResponse | FileResponse:
-    if not group_id.isdigit():
+    try:
+        group_uuid = uuid.UUID(group_id)
+    except ValueError:
         return _plain_index()
     try:
-        circle = await groups_service.get_public_circle_view(db, int(group_id))
+        circle = await groups_service.get_public_circle_view(db, group_uuid)
     except EntityNotFoundException:
         return _plain_index()
     return HTMLResponse(render_public_circle_meta(circle))

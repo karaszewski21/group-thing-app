@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from datetime import date
+import uuid
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, status
@@ -37,7 +38,7 @@ async def assign_leadership(
 
 @router.post("/api/leaderships/{leadership_id}/end", response_model=LeadershipResponse)
 async def remove_leadership(
-    leadership_id: int, db: DbSession, principal: EditPrincipal, valid_to: date | None = None
+    leadership_id: uuid.UUID, db: DbSession, principal: EditPrincipal, valid_to: date | None = None
 ) -> LeadershipResponse:
     leadership = await service.remove_leadership(db, leadership_id, valid_to or date.today())
     rows = await service.build_leadership_responses(db, [leadership])

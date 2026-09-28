@@ -18,11 +18,13 @@ link back is the loose `Pledge.resolved_reservation_id` id column on the
 from __future__ import annotations
 
 import enum
+import uuid
 from datetime import date, datetime
 from decimal import Decimal
 from typing import Any
 
-from sqlalchemy import BigInteger, Boolean, Date, DateTime, Enum, ForeignKey, Numeric, String
+from sqlalchemy import Boolean, Date, DateTime, Enum, ForeignKey, Numeric, String
+from sqlalchemy.dialects import postgresql
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.base_model import BaseEntity
@@ -93,13 +95,14 @@ class Account(BaseEntity):
     `owner_user_id IS NULL`)."""
 
     __tablename__ = "accounts"
-    __sequence_name__ = "account_seq"
 
     code: Mapped[str] = mapped_column(String(20), nullable=False)
     name: Mapped[str] = mapped_column(String(255), nullable=False)
     account_type: Mapped[AccountType] = mapped_column(_enum_column(AccountType, 20), nullable=False)
-    owner_user_id: Mapped[int | None] = mapped_column(
-        BigInteger, ForeignKey("users.id", name="fk_accounts_owner_user_id_users"), nullable=True
+    owner_user_id: Mapped[uuid.UUID | None] = mapped_column(
+        postgresql.UUID(as_uuid=True),
+        ForeignKey("users.id", name="fk_accounts_owner_user_id_users"),
+        nullable=True,
     )
 
     def __eq__(self, other: Any) -> bool:
@@ -119,10 +122,9 @@ class Inventory(BaseEntity):
     structured address shape beyond display text."""
 
     __tablename__ = "inventories"
-    __sequence_name__ = "inventory_seq"
 
-    owner_user_id: Mapped[int] = mapped_column(
-        BigInteger,
+    owner_user_id: Mapped[uuid.UUID] = mapped_column(
+        postgresql.UUID(as_uuid=True),
         ForeignKey("users.id", name="fk_inventories_owner_user_id_users"),
         nullable=False,
     )
@@ -139,15 +141,14 @@ class InventoryItem(BaseEntity):
     referenced `Product`."""
 
     __tablename__ = "inventory_items"
-    __sequence_name__ = "inventory_item_seq"
 
-    inventory_id: Mapped[int] = mapped_column(
-        BigInteger,
+    inventory_id: Mapped[uuid.UUID] = mapped_column(
+        postgresql.UUID(as_uuid=True),
         ForeignKey("inventories.id", name="fk_inventory_items_inventory_id_inventories"),
         nullable=False,
     )
-    product_id: Mapped[int] = mapped_column(
-        BigInteger,
+    product_id: Mapped[uuid.UUID] = mapped_column(
+        postgresql.UUID(as_uuid=True),
         ForeignKey("products.id", name="fk_inventory_items_product_id_products"),
         nullable=False,
     )
@@ -161,8 +162,8 @@ class InventoryItem(BaseEntity):
     # records the item's permanent inventory so a RETURN knows where to put
     # it back, since `inventory_id` itself points at the borrower's VIRTUAL
     # inventory for the loan's duration.
-    home_inventory_id: Mapped[int | None] = mapped_column(
-        BigInteger,
+    home_inventory_id: Mapped[uuid.UUID | None] = mapped_column(
+        postgresql.UUID(as_uuid=True),
         ForeignKey("inventories.id", name="fk_inventory_items_home_inventory_id_inventories"),
         nullable=True,
     )
@@ -174,10 +175,9 @@ class InventoryBalance(BaseEntity):
     reference doc treats it as a distinct, explicitly-named concept."""
 
     __tablename__ = "inventory_balances"
-    __sequence_name__ = "inventory_balance_seq"
 
-    item_id: Mapped[int] = mapped_column(
-        BigInteger,
+    item_id: Mapped[uuid.UUID] = mapped_column(
+        postgresql.UUID(as_uuid=True),
         ForeignKey("inventory_items.id", name="fk_inventory_balances_item_id_inventory_items"),
         nullable=False,
     )
@@ -194,18 +194,17 @@ class Reservation(BaseEntity):
     the research synthesis."""
 
     __tablename__ = "reservations"
-    __sequence_name__ = "reservation_seq"
 
-    item_id: Mapped[int] = mapped_column(
-        BigInteger,
+    item_id: Mapped[uuid.UUID] = mapped_column(
+        postgresql.UUID(as_uuid=True),
         ForeignKey("inventory_items.id", name="fk_reservations_item_id_inventory_items"),
         nullable=False,
     )
     reservation_type: Mapped[ReservationType] = mapped_column(
         _enum_column(ReservationType, 20), nullable=False
     )
-    reserved_by_user_id: Mapped[int] = mapped_column(
-        BigInteger,
+    reserved_by_user_id: Mapped[uuid.UUID] = mapped_column(
+        postgresql.UUID(as_uuid=True),
         ForeignKey("users.id", name="fk_reservations_reserved_by_user_id_users"),
         nullable=False,
     )
@@ -213,8 +212,8 @@ class Reservation(BaseEntity):
     # party handing it over. Captured once here because, for GIFT/SWAP,
     # possession changes permanently at fulfillment, after which the item's
     # current holder no longer names the giving side of the transaction.
-    giver_user_id: Mapped[int] = mapped_column(
-        BigInteger,
+    giver_user_id: Mapped[uuid.UUID] = mapped_column(
+        postgresql.UUID(as_uuid=True),
         ForeignKey("users.id", name="fk_reservations_giver_user_id_users"),
         nullable=False,
     )
@@ -227,13 +226,15 @@ class Reservation(BaseEntity):
     # a RETURN call site (e.g. `PanelDataContext.tsx::returnBorrowedItem`)
     # has no Term context of its own — a RETURN reverses a specific prior
     # LEND, so it just reuses that LEND leg's own `term_id`.
-    term_id: Mapped[int] = mapped_column(
-        BigInteger, ForeignKey("terms.id", name="fk_reservations_term_id_terms"), nullable=False
+    term_id: Mapped[uuid.UUID] = mapped_column(
+        postgresql.UUID(as_uuid=True),
+        ForeignKey("terms.id", name="fk_reservations_term_id_terms"),
+        nullable=False,
     )
     # Self-referential — only populated for `SWAP`, pointing at the other
     # item's Reservation in the same exchange.
-    paired_reservation_id: Mapped[int | None] = mapped_column(
-        BigInteger,
+    paired_reservation_id: Mapped[uuid.UUID | None] = mapped_column(
+        postgresql.UUID(as_uuid=True),
         ForeignKey("reservations.id", name="fk_reservations_paired_reservation_id_reservations"),
         nullable=True,
     )
@@ -250,7 +251,6 @@ class CirculationTransaction(BaseEntity):
     reaches `fulfilled` — never at `pending`/`confirmed`."""
 
     __tablename__ = "circulation_transactions"
-    __sequence_name__ = "circulation_transaction_seq"
 
     transaction_number: Mapped[str] = mapped_column(String(50), nullable=False)
     transaction_date: Mapped[date] = mapped_column(Date(), nullable=False)
@@ -276,18 +276,17 @@ class CirculationEntry(BaseEntity):
     `Numeric`, never `Float`, per `standards/backend/models.md`."""
 
     __tablename__ = "circulation_entries"
-    __sequence_name__ = "circulation_entry_seq"
 
-    transaction_id: Mapped[int] = mapped_column(
-        BigInteger,
+    transaction_id: Mapped[uuid.UUID] = mapped_column(
+        postgresql.UUID(as_uuid=True),
         ForeignKey(
             "circulation_transactions.id",
             name="fk_circulation_entries_transaction_id_circulation_transactions",
         ),
         nullable=False,
     )
-    account_id: Mapped[int] = mapped_column(
-        BigInteger,
+    account_id: Mapped[uuid.UUID] = mapped_column(
+        postgresql.UUID(as_uuid=True),
         ForeignKey("accounts.id", name="fk_circulation_entries_account_id_accounts"),
         nullable=False,
     )

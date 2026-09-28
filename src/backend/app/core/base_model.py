@@ -2,17 +2,19 @@
 
 Mirrors the Java `BaseEntity` (`@MappedSuperclass`): applies to `categories`,
 `products`, `plugin_objects`, `users` (per spec.md's "Shared base pattern").
-`PluginDescriptor` and `RegisteredClientEntity` do
-NOT use this mixin (different PK strategies — string PK / UUID PK, no
-sequence) and are modeled as standalone mapped classes elsewhere.
+`PluginDescriptor` does NOT use this mixin (string PK, no sequence) and is
+modeled as a standalone mapped class elsewhere.
 """
 
 from __future__ import annotations
 
+import uuid
 from datetime import datetime
-from typing import Any, ClassVar
+from typing import Any
 
-from sqlalchemy import BigInteger, DateTime, Sequence
+import sqlalchemy as sa
+from sqlalchemy import DateTime
+from sqlalchemy.dialects import postgresql
 from sqlalchemy.orm import DeclarativeBase, Mapped, declared_attr, mapped_column
 
 
@@ -37,21 +39,20 @@ def _version_timestamp(_current_version: datetime | None) -> datetime:
 
 
 class BaseEntity(Base):
-    """Shared mapped superclass. Each concrete subclass must set
-    `__sequence_name__` to the Postgres sequence Alembic created for its
-    table's `id` column (`category_seq`, `product_seq`, `plugin_object_seq`,
-    `user_seq`) — mirrors the Java entities' per-class `@SequenceGenerator`."""
+    """Shared mapped superclass. `id` is a UUID primary key (Python-side
+    `uuid.uuid4()` default, `gen_random_uuid()` as a DB-side fallback for
+    inserts that bypass the ORM) — deliberately non-sequential/non-enumerable,
+    unlike the legacy `BigInteger` + per-class Postgres sequence it replaced."""
 
     __abstract__ = True
 
-    __sequence_name__: ClassVar[str]
-
     @declared_attr.directive
-    def id(cls) -> Mapped[int]:  # noqa: N805 - SQLAlchemy declared_attr convention
+    def id(cls) -> Mapped[uuid.UUID]:  # noqa: N805 - SQLAlchemy declared_attr convention
         return mapped_column(
-            BigInteger,
-            Sequence(cls.__sequence_name__),
+            postgresql.UUID(as_uuid=True),
             primary_key=True,
+            default=uuid.uuid4,
+            server_default=sa.text("gen_random_uuid()"),
         )
 
     created_at: Mapped[datetime] = mapped_column(

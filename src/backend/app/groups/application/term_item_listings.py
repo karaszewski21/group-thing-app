@@ -19,6 +19,8 @@ listing-owned status field, per `standards/global/minimal-implementation.md`."""
 
 from __future__ import annotations
 
+import uuid
+
 from datetime import datetime
 from typing import cast
 
@@ -74,7 +76,7 @@ class TermAlreadyResolvedException(BusinessConflictException):
 
 
 async def _require_own_available_personal_item(
-    db: AsyncSession, account_user_id: int | None, item_id: int
+    db: AsyncSession, account_user_id: uuid.UUID | None, item_id: uuid.UUID
 ) -> circulation_bridge.InventoryItem:
     """Identical check to `fulfill_pledge`'s `inventory_item_id` branch —
     used by a `SWAP` taker's own counter-offer, per spec.md's "reuse the
@@ -87,7 +89,7 @@ async def _require_own_available_personal_item(
         or inventory.inventory_type != circulation_bridge.InventoryType.PERSONAL
     ):
         raise AccessDeniedException
-    balance = await circulation_bridge.get_item_balance(db, cast(int, item.id))
+    balance = await circulation_bridge.get_item_balance(db, cast(uuid.UUID, item.id))
     if balance.status != circulation_bridge.BalanceStatus.AVAILABLE:
         raise BusinessConflictException(
             "Nie można użyć tej rzeczy — jest zarezerwowana lub wypożyczona"
@@ -98,7 +100,7 @@ async def _require_own_available_personal_item(
 async def set_item_listing_preference(
     db: AsyncSession,
     principal: Principal,
-    item_id: int,
+    item_id: uuid.UUID,
     mode: circulation_bridge.ReservationType | None,
 ) -> ItemListingPreference | None:
     """Sets, changes, or (when `mode` is `None`) clears the standing listing
@@ -144,18 +146,18 @@ async def list_my_inventory_items(
     `Moje rzeczy` to list items and seed each mode toggle on load."""
     profile = await get_profile_by_principal(db, principal)
     inventory = await circulation_bridge.find_personal_inventory(
-        db, cast(int, profile.account_user_id)
+        db, cast(uuid.UUID, profile.account_user_id)
     )
     if inventory is None:
         return []
-    rows = await circulation_bridge.list_items_with_product_name(db, cast(int, inventory.id))
+    rows = await circulation_bridge.list_items_with_product_name(db, cast(uuid.UUID, inventory.id))
     modes = {
         pref.item_id: pref.mode
         for pref in await repository.list_item_listing_preferences_for_party(db, profile.party_id)
     }
     return [
         MyInventoryItemResponse(
-            id=cast(int, item.id),
+            id=cast(uuid.UUID, item.id),
             inventory_id=item.inventory_id,
             home_inventory_id=item.home_inventory_id,
             product_id=item.product_id,
@@ -164,7 +166,7 @@ async def list_my_inventory_items(
             added_at=item.added_at,
             created_at=item.created_at,
             updated_at=item.updated_at,
-            listing_mode=modes.get(cast(int, item.id)),
+            listing_mode=modes.get(cast(uuid.UUID, item.id)),
         )
         for item, product_name in rows
     ]
@@ -179,21 +181,21 @@ async def list_my_lent_out_items(
     `_resolve_item_display_info`)."""
     profile = await get_profile_by_principal(db, principal)
     inventory = await circulation_bridge.find_personal_inventory(
-        db, cast(int, profile.account_user_id)
+        db, cast(uuid.UUID, profile.account_user_id)
     )
     if inventory is None:
         return []
     rows = await circulation_bridge.list_lent_out_items_with_product_name(
-        db, cast(int, inventory.id)
+        db, cast(uuid.UUID, inventory.id)
     )
     responses: list[LentOutItemResponse] = []
     for item, product_name in rows:
-        balance = await circulation_bridge.get_item_balance(db, cast(int, item.id))
+        balance = await circulation_bridge.get_item_balance(db, cast(uuid.UUID, item.id))
         borrower_inventory = await circulation_bridge.get_inventory(db, item.inventory_id)
         borrower = await get_profile_by_account_user_id(db, borrower_inventory.owner_user_id)
         responses.append(
             LentOutItemResponse(
-                id=cast(int, item.id),
+                id=cast(uuid.UUID, item.id),
                 product_id=item.product_id,
                 product_name=product_name,
                 condition=item.condition,
@@ -204,7 +206,7 @@ async def list_my_lent_out_items(
     return responses
 
 
-async def _is_item_available(db: AsyncSession, item_id: int) -> bool:
+async def _is_item_available(db: AsyncSession, item_id: uuid.UUID) -> bool:
     try:
         await circulation_bridge.get_item(db, item_id)
     except EntityNotFoundException:
@@ -213,24 +215,27 @@ async def _is_item_available(db: AsyncSession, item_id: int) -> bool:
     return balance.status == circulation_bridge.BalanceStatus.AVAILABLE
 
 
-async def _resolve_listing_status(db: AsyncSession, item_id: int) -> tuple[int | None, int | None]:
+async def _resolve_listing_status(
+    db: AsyncSession, item_id: uuid.UUID
+) -> tuple[uuid.UUID | None, uuid.UUID | None]:
     """`(resolved_reservation_id, taken_by_party_id)` derived from the
     item's `Reservation` history: the active (`PENDING`/`CONFIRMED`) one if
     present, else the latest `FULFILLED` one, else `(None, None)` — still
     open. A lingering `CANCELLED`-only history also resolves to `(None,
     None)`, which is exactly "reopened" — no special-case handling needed
     since a cancelled reservation already put the balance back to
-    `AVAILABLE`."""
+    `AVAILABLE`. "Latest" is by `created_at`, not `id` — a UUID primary key
+    carries no creation-order information."""
     reservations = await circulation_bridge.list_reservations(db, item_id)
     active = [r for r in reservations if r.status in _ACTIVE_RESERVATION_STATUSES]
     chosen: circulation_bridge.Reservation | None
     if active:
-        chosen = max(active, key=lambda r: cast(int, r.id))
+        chosen = max(active, key=lambda r: r.created_at)
     else:
         fulfilled = [
             r for r in reservations if r.status == circulation_bridge.ReservationStatus.FULFILLED
         ]
-        chosen = max(fulfilled, key=lambda r: cast(int, r.id)) if fulfilled else None
+        chosen = max(fulfilled, key=lambda r: r.created_at) if fulfilled else None
     if chosen is None:
         # No `Reservation` yet on the listing item itself — but a `PROPOSED`
         # swap only locks the *proposer's* offered item at this stage (the
@@ -245,12 +250,12 @@ async def _resolve_listing_status(db: AsyncSession, item_id: int) -> tuple[int |
             return swap_proposal.proposer_reservation_id, swap_proposal.proposer_party_id
         return None, None
     taker_profile = await get_profile_by_account_user_id(db, chosen.reserved_by_user_id)
-    return cast(int, chosen.id), taker_profile.party_id
+    return chosen.id, taker_profile.party_id
 
 
 async def _resolve_item_display_info(
-    db: AsyncSession, item_ids: set[int]
-) -> dict[int, tuple[str, str]]:
+    db: AsyncSession, item_ids: set[uuid.UUID]
+) -> dict[uuid.UUID, tuple[str, str]]:
     """`item_id -> (product_name, condition)`, resolved once per DISTINCT
     item id present in a result set (bounded loop, per
     `standards/backend/queries.md` — not a per-row N+1).
@@ -264,7 +269,7 @@ async def _resolve_item_display_info(
     preference would take down every browse/public-view response that
     happens to include it. `_build_listing_views` filters out any
     preference whose item_id isn't in the returned dict."""
-    info: dict[int, tuple[str, str]] = {}
+    info: dict[uuid.UUID, tuple[str, str]] = {}
     for item_id in item_ids:
         try:
             item = await circulation_bridge.get_item(db, item_id)
@@ -275,10 +280,10 @@ async def _resolve_item_display_info(
     return info
 
 
-async def _resolve_lister_display_names(db: AsyncSession, party_ids: set[int]) -> dict[int, str]:
+async def _resolve_lister_display_names(db: AsyncSession, party_ids: set[uuid.UUID]) -> dict[uuid.UUID, str]:
     """`party_id -> display_name`, resolved once per DISTINCT lister in a
     result set — same bounded-loop precedent as `_resolve_item_display_info`."""
-    names: dict[int, str] = {}
+    names: dict[uuid.UUID, str] = {}
     for party_id in party_ids:
         profile = await get_profile_by_party(db, party_id)
         names[party_id] = profile.display_name
@@ -286,7 +291,7 @@ async def _resolve_lister_display_names(db: AsyncSession, party_ids: set[int]) -
 
 
 async def _build_listing_views(
-    db: AsyncSession, term_id: int, preferences: list[ItemListingPreference]
+    db: AsyncSession, term_id: uuid.UUID, preferences: list[ItemListingPreference]
 ) -> list[BrowseTermItemListingResponse]:
     item_ids = {pref.item_id for pref in preferences}
     lister_ids = {pref.owner_party_id for pref in preferences}
@@ -324,13 +329,13 @@ async def _build_listing_views(
 
 
 async def _list_eligible_lister_party_ids(
-    db: AsyncSession, term: Term, exclude_party_id: int | None = None
-) -> set[int]:
+    db: AsyncSession, term: Term, exclude_party_id: uuid.UUID | None = None
+) -> set[uuid.UUID]:
     """Everyone whose items may show up as listings for `term`: active
     attendees plus the Circle's organizer, minus the viewer themself
     (`exclude_party_id=None` — the public, viewer-less listing — excludes
     nobody)."""
-    attendances = await repository.list_active_attendances_for_term(db, cast(int, term.id))
+    attendances = await repository.list_active_attendances_for_term(db, cast(uuid.UUID, term.id))
     party_ids = {a.party_id for a in attendances}
     leadership = await get_current_leadership(db, term.circle_group_id)
     if leadership is not None:
@@ -341,7 +346,7 @@ async def _list_eligible_lister_party_ids(
 
 
 async def list_my_term_item_listings(
-    db: AsyncSession, term_id: int, party_id: int
+    db: AsyncSession, term_id: uuid.UUID, party_id: uuid.UUID
 ) -> list[BrowseTermItemListingResponse]:
     term = await get_term(db, term_id)
     await _require_term_eligibility(db, term_id, term.circle_group_id, party_id)
@@ -350,7 +355,7 @@ async def list_my_term_item_listings(
 
 
 async def list_my_active_taken_term_item_listings(
-    db: AsyncSession, term_id: int, party_id: int
+    db: AsyncSession, term_id: uuid.UUID, party_id: uuid.UUID
 ) -> list[BrowseTermItemListingResponse]:
     """The taker-side counterpart of `list_my_term_item_listings`: the
     caller's own active (`PENDING`/`CONFIRMED`) takes of this Term, resolved
@@ -363,7 +368,7 @@ async def list_my_active_taken_term_item_listings(
 
     profile = await get_profile_by_party(db, party_id)
     reservations = await circulation_bridge.list_active_reservations_for_taker(
-        db, cast(int, profile.account_user_id)
+        db, cast(uuid.UUID, profile.account_user_id)
     )
 
     eligible_lister_party_ids = await _list_eligible_lister_party_ids(db, term)
@@ -384,7 +389,7 @@ async def list_my_active_taken_term_item_listings(
 
 
 async def list_browsable_term_item_listings(
-    db: AsyncSession, term_id: int, viewer_party_id: int
+    db: AsyncSession, term_id: uuid.UUID, viewer_party_id: uuid.UUID
 ) -> list[BrowseTermItemListingResponse]:
     term = await get_term(db, term_id)
     await _require_term_eligibility(db, term_id, term.circle_group_id, viewer_party_id)
@@ -398,7 +403,7 @@ async def list_browsable_term_item_listings(
 
 
 async def list_public_term_item_listings(
-    db: AsyncSession, term_id: int
+    db: AsyncSession, term_id: uuid.UUID
 ) -> list[BrowseTermItemListingResponse]:
     """The anonymous-safe sibling of `list_browsable_term_item_listings` —
     no caller identity, so no eligibility check and nobody excluded, per
@@ -423,7 +428,7 @@ async def list_public_term_item_listings(
 
 
 async def take_item_listing(
-    db: AsyncSession, principal: Principal, item_id: int, data: TakeTermItemListingRequest
+    db: AsyncSession, principal: Principal, item_id: uuid.UUID, data: TakeTermItemListingRequest
 ) -> BrowseTermItemListingResponse:
     taker_profile = await get_profile_by_principal(db, principal)
     term = await get_term(db, data.term_id)
@@ -462,7 +467,7 @@ async def take_item_listing(
             "Zamianę zaproponuj przez propozycję zamiany, nie przez wzięcie rzeczy"
         )
 
-    taker_account_user_id = cast(int, taker_profile.account_user_id)
+    taker_account_user_id = cast(uuid.UUID, taker_profile.account_user_id)
 
     # No longer auto-confirmed: the `Reservation` stays `PENDING` after
     # creation — the lister must review and, once the Term ends, either
@@ -493,7 +498,7 @@ async def take_item_listing(
 
 
 async def propose_swap(
-    db: AsyncSession, principal: Principal, listing_item_id: int, offered_item_id: int, term_id: int
+    db: AsyncSession, principal: Principal, listing_item_id: uuid.UUID, offered_item_id: uuid.UUID, term_id: uuid.UUID
 ) -> SwapProposal:
     """The SWAP counterpart of `take_item_listing`: locks only the
     proposer's own offered item (auto-confirmed on their own behalf, same
@@ -534,7 +539,7 @@ async def propose_swap(
             "Możesz zaproponować w zamian tylko rzecz oznaczoną jako do zamiany"
         )
 
-    proposer_account_user_id = cast(int, proposer_profile.account_user_id)
+    proposer_account_user_id = cast(uuid.UUID, proposer_profile.account_user_id)
     # `reserved_by_user_id` must be the party GAINING the item (the listing
     # owner, who will receive the proposer's offered item once fulfilled),
     # per `reservation_rules.py`'s documented invariant — NOT the proposer
@@ -551,21 +556,21 @@ async def propose_swap(
         db,
         item_id=offered_item_id,
         reservation_type=circulation_bridge.ReservationType.SWAP,
-        reserved_by_user_id=cast(int, owner_profile_for_reservation.account_user_id),
-        term_id=cast(int, term.id),
+        reserved_by_user_id=cast(uuid.UUID, owner_profile_for_reservation.account_user_id),
+        term_id=cast(uuid.UUID, term.id),
     )
     # Confirming is keyed on the item's actual CURRENT physical holder
     # (derived from inventory, independent of `reserved_by_user_id` above)
     # — still the proposer at this point, since nothing has moved yet.
     await circulation_bridge.confirm_reservation(
-        db, cast(int, proposer_reservation.id), acting_user_id=proposer_account_user_id
+        db, cast(uuid.UUID, proposer_reservation.id), acting_user_id=proposer_account_user_id
     )
 
     proposal = SwapProposal(
         proposer_party_id=proposer_profile.party_id,
         listing_item_id=listing_item_id,
         offered_item_id=offered_item_id,
-        proposer_reservation_id=cast(int, proposer_reservation.id),
+        proposer_reservation_id=cast(uuid.UUID, proposer_reservation.id),
         status=SwapProposalStatus.PROPOSED,
     )
     db.add(proposal)
@@ -582,7 +587,7 @@ async def propose_swap(
         kind=NotificationKind.SWAP_PROPOSED,
         message=f'„{proposer_profile.display_name}" proponuje zamianę za: {product.name}',
         link_path=f"/{slug}/grupa/{term.circle_group_id}/term/{term.id}",
-        proposal_id=cast(int, proposal.id),
+        proposal_id=cast(uuid.UUID, proposal.id),
     )
     await db.commit()
     await db.refresh(proposal)
@@ -590,7 +595,7 @@ async def propose_swap(
 
 
 async def accept_swap_proposal(
-    db: AsyncSession, principal: Principal, proposal_id: int
+    db: AsyncSession, principal: Principal, proposal_id: uuid.UUID
 ) -> SwapProposal:
     """Creates the listing owner's own leg (auto-confirmed on their own
     behalf, same reasoning as `propose_swap`'s proposer leg) and pairs it
@@ -612,7 +617,7 @@ async def accept_swap_proposal(
     if listing_balance.status != circulation_bridge.BalanceStatus.AVAILABLE:
         raise BusinessConflictException("Ta rzecz jest już zajęta")
 
-    owner_account_user_id = cast(int, owner_profile.account_user_id)
+    owner_account_user_id = cast(uuid.UUID, owner_profile.account_user_id)
     # Same fix as `propose_swap`: `reserved_by_user_id` is the GAINING
     # party — here, the proposer, who will receive the listing owner's item
     # once fulfilled — not the listing owner themself.
@@ -628,13 +633,13 @@ async def accept_swap_proposal(
         db,
         item_id=proposal.listing_item_id,
         reservation_type=circulation_bridge.ReservationType.SWAP,
-        reserved_by_user_id=cast(int, proposer_profile_for_reservation.account_user_id),
+        reserved_by_user_id=cast(uuid.UUID, proposer_profile_for_reservation.account_user_id),
         term_id=proposer_reservation.term_id,
     )
     # Confirming is keyed on the item's actual current physical holder
     # (still the owner at this point) — independent of `reserved_by_user_id`.
     await circulation_bridge.confirm_reservation(
-        db, cast(int, owner_reservation.id), acting_user_id=owner_account_user_id
+        db, cast(uuid.UUID, owner_reservation.id), acting_user_id=owner_account_user_id
     )
 
     proposer_reservation.paired_reservation_id = owner_reservation.id
@@ -656,7 +661,7 @@ async def accept_swap_proposal(
 
 
 async def reject_swap_proposal(
-    db: AsyncSession, principal: Principal, proposal_id: int
+    db: AsyncSession, principal: Principal, proposal_id: uuid.UUID
 ) -> SwapProposal:
     owner_profile = await get_profile_by_principal(db, principal)
     proposal = await repository.get_swap_proposal(db, proposal_id)
@@ -677,7 +682,7 @@ async def reject_swap_proposal(
     await circulation_bridge.cancel_reservation(
         db,
         proposal.proposer_reservation_id,
-        acting_user_id=cast(int, proposer_profile.account_user_id),
+        acting_user_id=cast(uuid.UUID, proposer_profile.account_user_id),
     )
 
     proposal.status = SwapProposalStatus.REJECTED
@@ -696,7 +701,7 @@ async def reject_swap_proposal(
 
 
 async def _resolve_transaction_reservations_for_action(
-    db: AsyncSession, principal: Principal, reservation_id: int
+    db: AsyncSession, principal: Principal, reservation_id: uuid.UUID
 ) -> list[circulation_bridge.Reservation]:
     """Shared gating sequence for both `confirm_transaction` and
     `cancel_transaction`: race-participant authorization (403 before any
@@ -739,7 +744,7 @@ async def _resolve_transaction_reservations_for_action(
     confirm_race_rules._require_race_participant(
         reservation.reserved_by_user_id,
         reservation.giver_user_id,
-        acting_user_id=cast(int, profile.account_user_id),
+        acting_user_id=cast(uuid.UUID, profile.account_user_id),
     )
 
     if reservation.reservation_type == circulation_bridge.ReservationType.RETURN:
@@ -780,7 +785,7 @@ async def _resolve_transaction_reservations_for_action(
 
 
 async def confirm_transaction(
-    db: AsyncSession, principal: Principal, reservation_id: int
+    db: AsyncSession, principal: Principal, reservation_id: uuid.UUID
 ) -> circulation_bridge.Reservation:
     """Resolves a locked exchange (LEND/GIFT leg, or a SWAP's paired legs)
     once its Term has ended: whichever party of the transaction calls this
@@ -811,10 +816,10 @@ async def confirm_transaction(
         )
         if r.status == circulation_bridge.ReservationStatus.PENDING:
             await circulation_bridge.confirm_reservation(
-                db, cast(int, r.id), acting_user_id=physical_holder_user_id
+                db, cast(uuid.UUID, r.id), acting_user_id=physical_holder_user_id
             )
         result = await circulation_bridge.fulfill_reservation(
-            db, cast(int, r.id), acting_user_id=physical_holder_user_id
+            db, cast(uuid.UUID, r.id), acting_user_id=physical_holder_user_id
         )
         if r.id == reservation_id:
             primary_result = result
@@ -823,7 +828,7 @@ async def confirm_transaction(
 
 
 async def cancel_transaction(
-    db: AsyncSession, principal: Principal, reservation_id: int
+    db: AsyncSession, principal: Principal, reservation_id: uuid.UUID
 ) -> circulation_bridge.Reservation:
     """The cancel counterpart of `confirm_transaction`: same shared gating
     (race-participant, RETURN guard, term-ended, already-resolved) via
@@ -840,7 +845,7 @@ async def cancel_transaction(
             db, r.item_id
         )
         result = await circulation_bridge.cancel_reservation(
-            db, cast(int, r.id), acting_user_id=physical_holder_user_id
+            db, cast(uuid.UUID, r.id), acting_user_id=physical_holder_user_id
         )
         if r.id == reservation_id:
             primary_result = result

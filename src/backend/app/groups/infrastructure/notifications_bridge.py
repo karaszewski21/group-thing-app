@@ -7,6 +7,8 @@ caller's trailing `db.commit()`."""
 
 from __future__ import annotations
 
+import uuid
+
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.notifications import service as notifications_service
@@ -18,12 +20,12 @@ __all__ = ["NotificationKind", "create_notification"]
 async def create_notification(
     db: AsyncSession,
     *,
-    party_id: int,
+    party_id: uuid.UUID,
     kind: NotificationKind,
     message: str,
     link_path: str | None = None,
-    proposal_id: int | None = None,
-    join_request_id: int | None = None,
+    proposal_id: uuid.UUID | None = None,
+    join_request_id: uuid.UUID | None = None,
 ) -> None:
     await notifications_service.create_notification(
         db,

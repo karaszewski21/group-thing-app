@@ -7,6 +7,7 @@ Route Spec, `ProductResponse`/`CreateProductRequest`/`UpdateProductRequest`).
 from __future__ import annotations
 
 import re
+import uuid
 from datetime import datetime
 from typing import Any
 
@@ -36,12 +37,12 @@ class ProductResponse(BaseModel):
 
     model_config = ConfigDict(from_attributes=True)
 
-    id: int
+    id: uuid.UUID
     name: str
     description: str | None
     photo_url: str | None
     sku: str
-    category_id: int
+    category_id: uuid.UUID
     plugin_data: dict[str, Any] | None
     created_at: datetime
     updated_at: datetime
@@ -52,7 +53,7 @@ class CreateProductRequest(BaseModel):
     description: str | None = Field(default=None, max_length=2000)
     photo_url: str | None = Field(default=None, max_length=500)
     sku: str = Field(min_length=1, max_length=50)
-    category_id: int
+    category_id: uuid.UUID
 
     @field_validator("photo_url")
     @classmethod
@@ -65,7 +66,7 @@ class UpdateProductRequest(BaseModel):
     description: str | None = Field(default=None, max_length=2000)
     photo_url: str | None = Field(default=None, max_length=500)
     sku: str = Field(min_length=1, max_length=50)
-    category_id: int
+    category_id: uuid.UUID
 
     @field_validator("photo_url")
     @classmethod
@@ -80,4 +81,4 @@ class ResolveProductRequest(BaseModel):
     shape; no dedicated response schema."""
 
     name: str = Field(min_length=1, max_length=255)
-    category_id: int
+    category_id: uuid.UUID

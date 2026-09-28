@@ -9,6 +9,8 @@ pass-throughs and the re-exported `ReservationType`."""
 
 from __future__ import annotations
 
+import uuid
+
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.circulation import service as circulation_service
@@ -53,18 +55,18 @@ __all__ = [
 ]
 
 
-async def get_or_create_personal_inventory(db: AsyncSession, owner_user_id: int) -> Inventory:
+async def get_or_create_personal_inventory(db: AsyncSession, owner_user_id: uuid.UUID) -> Inventory:
     return await circulation_service.get_or_create_personal_inventory(db, owner_user_id)
 
 
 async def register_item(
-    db: AsyncSession, inventory_id: int, product_id: int, condition: str
+    db: AsyncSession, inventory_id: uuid.UUID, product_id: uuid.UUID, condition: str
 ) -> InventoryItem:
     return await circulation_service.register_item(db, inventory_id, product_id, condition)
 
 
 async def create_lend_reservation(
-    db: AsyncSession, *, item_id: int, reserved_by_user_id: int, term_id: int
+    db: AsyncSession, *, item_id: uuid.UUID, reserved_by_user_id: uuid.UUID, term_id: uuid.UUID
 ) -> Reservation:
     return await circulation_service.create_lend_reservation(
         db, item_id=item_id, reserved_by_user_id=reserved_by_user_id, term_id=term_id
@@ -74,10 +76,10 @@ async def create_lend_reservation(
 async def create_reservation(
     db: AsyncSession,
     *,
-    item_id: int,
+    item_id: uuid.UUID,
     reservation_type: ReservationType,
-    reserved_by_user_id: int,
-    term_id: int | None = None,
+    reserved_by_user_id: uuid.UUID,
+    term_id: uuid.UUID | None = None,
 ) -> Reservation:
     """Generic reservation creation (`LEND`/`GIFT`/`SWAP` for the exchange
     mechanism — `create_lend_reservation` above stays as the narrower
@@ -98,11 +100,11 @@ async def create_reservation(
     )
 
 
-async def get_reservation(db: AsyncSession, reservation_id: int) -> Reservation:
+async def get_reservation(db: AsyncSession, reservation_id: uuid.UUID) -> Reservation:
     return await circulation_service.get_reservation(db, reservation_id)
 
 
-async def confirm_reservation(db: AsyncSession, reservation_id: int, acting_user_id: int) -> Reservation:
+async def confirm_reservation(db: AsyncSession, reservation_id: uuid.UUID, acting_user_id: uuid.UUID) -> Reservation:
     """Used by `pledge_fulfillment`/`term_item_listings` to auto-confirm a
     just-created reservation on behalf of the item's current holder, whose
     consent already exists — a published `ItemListingPreference`, or the
@@ -113,19 +115,19 @@ async def confirm_reservation(db: AsyncSession, reservation_id: int, acting_user
     return await circulation_service.confirm_reservation(db, reservation_id, acting_user_id)
 
 
-async def cancel_reservation(db: AsyncSession, reservation_id: int, acting_user_id: int) -> Reservation:
+async def cancel_reservation(db: AsyncSession, reservation_id: uuid.UUID, acting_user_id: uuid.UUID) -> Reservation:
     """Thin pass-through, same shape as `confirm_reservation` above."""
     return await circulation_service.cancel_reservation(db, reservation_id, acting_user_id)
 
 
-async def fulfill_reservation(db: AsyncSession, reservation_id: int, acting_user_id: int) -> Reservation:
+async def fulfill_reservation(db: AsyncSession, reservation_id: uuid.UUID, acting_user_id: uuid.UUID) -> Reservation:
     """Thin pass-through, same shape as `confirm_reservation` above. Used by
     `term_item_listings.confirm_transaction` after `confirm_reservation` has
     moved a reservation to `CONFIRMED`."""
     return await circulation_service.fulfill_reservation(db, reservation_id, acting_user_id)
 
 
-async def resolve_current_holder_user_id(db: AsyncSession, item_id: int) -> int:
+async def resolve_current_holder_user_id(db: AsyncSession, item_id: uuid.UUID) -> uuid.UUID:
     """Who currently physically holds `item_id` — item -> inventory ->
     `owner_user_id`, the exact derivation circulation's own confirm/fulfill
     holder-only check performs internally. `confirm_transaction` passes it
@@ -137,7 +139,7 @@ async def resolve_current_holder_user_id(db: AsyncSession, item_id: int) -> int:
     return inventory.owner_user_id
 
 
-async def list_reservations(db: AsyncSession, item_id: int) -> list[Reservation]:
+async def list_reservations(db: AsyncSession, item_id: uuid.UUID) -> list[Reservation]:
     """Used by `application/term_item_listings.py` to derive an item's
     current listing status (active or most-recently-fulfilled reservation)
     since that's no longer cached on a stored listing row."""
@@ -145,7 +147,7 @@ async def list_reservations(db: AsyncSession, item_id: int) -> list[Reservation]
 
 
 async def list_active_reservations_for_taker(
-    db: AsyncSession, account_user_id: int
+    db: AsyncSession, account_user_id: uuid.UUID
 ) -> list[Reservation]:
     """Used by `application/term_item_listings.py`'s
     `list_my_active_taken_term_item_listings` — the availability-independent
@@ -154,14 +156,14 @@ async def list_active_reservations_for_taker(
 
 
 async def list_active_hand_over_reservations_for_terms(
-    db: AsyncSession, term_ids: list[int]
+    db: AsyncSession, term_ids: list[uuid.UUID]
 ) -> list[Reservation]:
     """Used by `application/term_end_scan.py`: the still-open GIFT/LEND
     reservations of the just-ended Terms, in one query."""
     return await circulation_service.list_active_hand_over_reservations_for_terms(db, term_ids)
 
 
-async def find_personal_inventory(db: AsyncSession, owner_user_id: int) -> Inventory | None:
+async def find_personal_inventory(db: AsyncSession, owner_user_id: uuid.UUID) -> Inventory | None:
     """The user's PERSONAL inventory, or `None` if they have never created
     one — read-only, unlike `get_or_create_personal_inventory`."""
     inventories = await circulation_service.list_inventories(db, owner_user_id)
@@ -171,14 +173,14 @@ async def find_personal_inventory(db: AsyncSession, owner_user_id: int) -> Inven
 
 
 async def list_items_with_product_name(
-    db: AsyncSession, inventory_id: int
+    db: AsyncSession, inventory_id: uuid.UUID
 ) -> list[tuple[InventoryItem, str]]:
     """Used by `list_my_inventory_items`: items physically in `inventory_id`."""
     return await circulation_service.list_items_with_product_name(db, inventory_id)
 
 
 async def list_lent_out_items_with_product_name(
-    db: AsyncSession, home_inventory_id: int
+    db: AsyncSession, home_inventory_id: uuid.UUID
 ) -> list[tuple[InventoryItem, str]]:
     """Used by `list_my_lent_out_items`: items lent out of `home_inventory_id`."""
     return await circulation_service.list_lent_out_items_with_product_name(
@@ -186,15 +188,15 @@ async def list_lent_out_items_with_product_name(
     )
 
 
-async def get_item(db: AsyncSession, item_id: int) -> InventoryItem:
+async def get_item(db: AsyncSession, item_id: uuid.UUID) -> InventoryItem:
     return await circulation_service.get_item(db, item_id)
 
 
-async def get_item_balance(db: AsyncSession, item_id: int) -> InventoryBalance:
+async def get_item_balance(db: AsyncSession, item_id: uuid.UUID) -> InventoryBalance:
     return await circulation_service.get_item_balance(db, item_id)
 
 
-async def get_inventory(db: AsyncSession, inventory_id: int) -> Inventory:
+async def get_inventory(db: AsyncSession, inventory_id: uuid.UUID) -> Inventory:
     return await circulation_service.get_inventory(db, inventory_id)
 
 

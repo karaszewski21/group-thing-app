@@ -14,9 +14,11 @@ Cross-module reference (`parties.id`) is a plain FK-id column, never a
 from __future__ import annotations
 
 import enum
+import uuid
 from datetime import datetime
 
-from sqlalchemy import BigInteger, DateTime, Enum, ForeignKey, String
+from sqlalchemy import DateTime, Enum, ForeignKey, String
+from sqlalchemy.dialects import postgresql
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.core.base_model import BaseEntity
@@ -63,10 +65,9 @@ class NotificationKind(enum.StrEnum):
 
 class Notification(BaseEntity):
     __tablename__ = "notifications"
-    __sequence_name__ = "notification_seq"
 
-    party_id: Mapped[int] = mapped_column(
-        BigInteger,
+    party_id: Mapped[uuid.UUID] = mapped_column(
+        postgresql.UUID(as_uuid=True),
         ForeignKey("parties.id", name="fk_notifications_party_id_parties"),
         nullable=False,
     )
@@ -84,13 +85,17 @@ class Notification(BaseEntity):
     # so the frontend's global pending-actions modal can call
     # `acceptSwapProposal`/`rejectSwapProposal` directly instead of
     # deep-linking to the term page. `None` for every other kind.
-    proposal_id: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
+    proposal_id: Mapped[uuid.UUID | None] = mapped_column(postgresql.UUID(as_uuid=True), nullable=True)
     # Loose cross-BC pointer (no FK, same convention as `proposal_id`) at
     # `app.groups.models.GroupJoinRequest.id`. Populated only for the
     # `GROUP_JOIN_*` kinds; `None` for every other kind.
-    join_request_id: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
+    join_request_id: Mapped[uuid.UUID | None] = mapped_column(
+        postgresql.UUID(as_uuid=True), nullable=True
+    )
     # Loose cross-BC pointer (no FK, same convention as `proposal_id`) at
     # `app.circulation.models.Reservation.id`. Populated for
     # `TERM_CONFIRMATION_NEEDED` raised for a GIFT or LEND reservation;
     # `None` for every other kind (including the SWAP prompt).
-    reservation_id: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
+    reservation_id: Mapped[uuid.UUID | None] = mapped_column(
+        postgresql.UUID(as_uuid=True), nullable=True
+    )

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import uuid
 from datetime import datetime
 
 from pydantic import BaseModel, ConfigDict, Field
@@ -12,8 +13,8 @@ _HEX_COLOR_REGEX = r"^#[0-9a-fA-F]{6}$"
 class OrganizationResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
-    id: int
-    party_id: int
+    id: uuid.UUID
+    party_id: uuid.UUID
     name: str
     slug: str
     primary_color: str | None

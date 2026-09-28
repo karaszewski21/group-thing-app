@@ -3,6 +3,8 @@ a given type."""
 
 from __future__ import annotations
 
+import uuid
+
 from datetime import date
 
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -12,7 +14,7 @@ from ..models import GroupRole, GroupRoleType
 
 
 async def get_or_create_active_group_role(
-    db: AsyncSession, party_id: int, role_type: GroupRoleType
+    db: AsyncSession, party_id: uuid.UUID, role_type: GroupRoleType
 ) -> GroupRole:
     """The same active role instance is reused across repeat grants for the
     same party (e.g. a person leading several Circles shares one

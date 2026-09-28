@@ -5,6 +5,8 @@ check is co-located with the mutations it guards, per
 
 from __future__ import annotations
 
+import uuid
+
 from datetime import date
 from typing import cast
 
@@ -23,7 +25,9 @@ from .repository import get_family
 from .schemas import AddGuardianRequest, GuardianResponse
 
 
-async def add_guardian(db: AsyncSession, family_id: int, data: AddGuardianRequest) -> int:
+async def add_guardian(
+    db: AsyncSession, family_id: uuid.UUID, data: AddGuardianRequest
+) -> uuid.UUID:
     await get_family(db, family_id)
     _party, profile = await create_account_and_profile(
         db, data.username, data.password, data.display_name, data.email
@@ -37,7 +41,7 @@ async def add_guardian(db: AsyncSession, family_id: int, data: AddGuardianReques
     db.add(role)
     await db.flush()
     membership = FamilyMembership(
-        from_role_id=cast(int, role.id),
+        from_role_id=cast(uuid.UUID, role.id),
         to_family_id=family_id,
         is_primary_contact=False,
         valid_from=date.today(),
@@ -45,7 +49,7 @@ async def add_guardian(db: AsyncSession, family_id: int, data: AddGuardianReques
     )
     db.add(membership)
     await db.commit()
-    return cast(int, profile.id)
+    return cast(uuid.UUID, profile.id)
 
 
 async def build_guardian_responses(
@@ -59,9 +63,9 @@ async def build_guardian_responses(
         profile = await get_profile_by_party(db, role.party_id)
         responses.append(
             GuardianResponse(
-                family_membership_id=cast(int, membership.id),
+                family_membership_id=cast(uuid.UUID, membership.id),
                 party_id=role.party_id,
-                user_profile_id=cast(int, profile.id),
+                user_profile_id=cast(uuid.UUID, profile.id),
                 display_name=profile.display_name,
                 email=profile.email,
                 is_primary_contact=membership.is_primary_contact,
@@ -72,7 +76,7 @@ async def build_guardian_responses(
     return responses
 
 
-async def _require_family_guardian(db: AsyncSession, family_id: int, caller_party_id: int) -> None:
+async def _require_family_guardian(db: AsyncSession, family_id: uuid.UUID, caller_party_id: uuid.UUID) -> None:
     """Verbatim body of the guardian-authz check shared by `rename_family`
     and `remove_family_member`: the caller must hold an active GUARDIAN
     role bound to this Family, else `AccessDeniedException` (-> 403)."""
@@ -93,7 +97,7 @@ async def _require_family_guardian(db: AsyncSession, family_id: int, caller_part
 
 
 async def rename_family(
-    db: AsyncSession, family_id: int, caller_party_id: int, name: str
+    db: AsyncSession, family_id: uuid.UUID, caller_party_id: uuid.UUID, name: str
 ) -> Family:
     """In-place rename, guardian-only — enforced here, not by the coarse
     matrix (mirrors `update_organization`). Any current GUARDIAN of the
@@ -107,7 +111,7 @@ async def rename_family(
 
 
 async def remove_family_member(
-    db: AsyncSession, family_id: int, family_membership_id: int, caller_party_id: int
+    db: AsyncSession, family_id: uuid.UUID, family_membership_id: uuid.UUID, caller_party_id: uuid.UUID
 ) -> None:
     """Soft-closes one member's `FamilyMembership` (sets `valid_to` to
     today) — the temporal "preserve row, don't delete" pattern also used by

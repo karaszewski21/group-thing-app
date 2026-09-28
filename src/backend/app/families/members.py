@@ -3,6 +3,8 @@ in a batch against the calling guardian's Family."""
 
 from __future__ import annotations
 
+import uuid
+
 from datetime import date
 from typing import cast
 
@@ -20,7 +22,7 @@ from .schemas import CreateLightweightMemberRequest
 
 
 async def create_lightweight_family_member(
-    db: AsyncSession, family_id: int, name: str, role_type: FamilyRoleType
+    db: AsyncSession, family_id: uuid.UUID, name: str, role_type: FamilyRoleType
 ) -> UserProfile:
     """A family member with no login of their own — no `auth.User` row, so
     `UserProfile.account_user_id` is left `None` (see
@@ -29,14 +31,14 @@ async def create_lightweight_family_member(
     transaction boundary."""
     party = await create_party(db, PartyType.PERSON)
     profile = UserProfile(
-        party_id=cast(int, party.id),
+        party_id=cast(uuid.UUID, party.id),
         account_user_id=None,
         display_name=name,
         email=None,
     )
     db.add(profile)
     role = FamilyRole(
-        party_id=cast(int, party.id),
+        party_id=cast(uuid.UUID, party.id),
         role_type=role_type,
         valid_from=date.today(),
         valid_to=None,
@@ -44,7 +46,7 @@ async def create_lightweight_family_member(
     db.add(role)
     await db.flush()
     membership = FamilyMembership(
-        from_role_id=cast(int, role.id),
+        from_role_id=cast(uuid.UUID, role.id),
         to_family_id=family_id,
         is_primary_contact=False,
         valid_from=date.today(),
@@ -56,7 +58,7 @@ async def create_lightweight_family_member(
 
 
 async def create_lightweight_members_batch(
-    db: AsyncSession, guardian_party_id: int, members: list[CreateLightweightMemberRequest]
+    db: AsyncSession, guardian_party_id: uuid.UUID, members: list[CreateLightweightMemberRequest]
 ) -> Family:
     """Resolves the calling guardian's own Family, bootstrapping one on the
     first call (server-generated name `f"Rodzina {display_name}"` — the
@@ -73,7 +75,7 @@ async def create_lightweight_members_batch(
 
     for member in members:
         await create_lightweight_family_member(
-            db, cast(int, family.id), member.name, FamilyRoleType(member.role_type)
+            db, cast(uuid.UUID, family.id), member.name, FamilyRoleType(member.role_type)
         )
 
     await db.commit()

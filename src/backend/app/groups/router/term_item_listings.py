@@ -6,6 +6,7 @@ reject/confirm use cases."""
 
 from __future__ import annotations
 
+import uuid
 from typing import Annotated
 
 from fastapi import APIRouter, Depends
@@ -43,7 +44,7 @@ EditPrincipal = Annotated[Principal, Depends(require_any("EDIT", "mcp:edit"))]
     response_model=ItemListingPreferenceResponse | None,
 )
 async def set_item_listing_preference(
-    item_id: int, body: SetItemListingPreferenceRequest, db: DbSession, principal: EditPrincipal
+    item_id: uuid.UUID, body: SetItemListingPreferenceRequest, db: DbSession, principal: EditPrincipal
 ) -> ItemListingPreferenceResponse | None:
     preference = await service.set_item_listing_preference(db, principal, item_id, body.mode)
     return ItemListingPreferenceResponse.model_validate(preference) if preference else None
@@ -67,11 +68,11 @@ async def list_my_lent_out_items(
 
 
 # Declared before `POST /api/term-item-listings/{item_id}/take` so the
-# literal `mine`/`browse` segments are not parsed as `item_id: int` — same
+# literal `mine`/`browse` segments are not parsed as `item_id: uuid.UUID` — same
 # ordering caveat as `pledges.py`'s `list_my_pledges` (see comment there).
 @router.get("/api/term-item-listings/mine", response_model=list[BrowseTermItemListingResponse])
 async def list_my_term_item_listings(
-    term_id: int, db: DbSession, principal: ReadPrincipal
+    term_id: uuid.UUID, db: DbSession, principal: ReadPrincipal
 ) -> list[BrowseTermItemListingResponse]:
     profile = await get_profile_by_principal(db, principal)
     return await service.list_my_term_item_listings(db, term_id, profile.party_id)
@@ -81,7 +82,7 @@ async def list_my_term_item_listings(
     "/api/term-item-listings/mine-as-taker", response_model=list[BrowseTermItemListingResponse]
 )
 async def list_my_active_taken_term_item_listings(
-    term_id: int, db: DbSession, principal: ReadPrincipal
+    term_id: uuid.UUID, db: DbSession, principal: ReadPrincipal
 ) -> list[BrowseTermItemListingResponse]:
     profile = await get_profile_by_principal(db, principal)
     return await service.list_my_active_taken_term_item_listings(db, term_id, profile.party_id)
@@ -89,7 +90,7 @@ async def list_my_active_taken_term_item_listings(
 
 @router.get("/api/term-item-listings/browse", response_model=list[BrowseTermItemListingResponse])
 async def list_browsable_term_item_listings(
-    term_id: int, db: DbSession, principal: ReadPrincipal
+    term_id: uuid.UUID, db: DbSession, principal: ReadPrincipal
 ) -> list[BrowseTermItemListingResponse]:
     profile = await get_profile_by_principal(db, principal)
     return await service.list_browsable_term_item_listings(db, term_id, profile.party_id)
@@ -97,14 +98,14 @@ async def list_browsable_term_item_listings(
 
 @router.post("/api/term-item-listings/{item_id}/take", response_model=BrowseTermItemListingResponse)
 async def take_item_listing(
-    item_id: int, body: TakeTermItemListingRequest, db: DbSession, principal: EditPrincipal
+    item_id: uuid.UUID, body: TakeTermItemListingRequest, db: DbSession, principal: EditPrincipal
 ) -> BrowseTermItemListingResponse:
     return await service.take_item_listing(db, principal, item_id, body)
 
 
 @router.post("/api/term-item-listings/{item_id}/propose", response_model=SwapProposalResponse)
 async def propose_swap(
-    item_id: int, body: ProposeSwapRequest, db: DbSession, principal: EditPrincipal
+    item_id: uuid.UUID, body: ProposeSwapRequest, db: DbSession, principal: EditPrincipal
 ) -> SwapProposalResponse:
     proposal = await service.propose_swap(
         db, principal, item_id, body.offered_item_id, body.term_id
@@ -114,7 +115,7 @@ async def propose_swap(
 
 @router.post("/api/swap-proposals/{proposal_id}/accept", response_model=SwapProposalResponse)
 async def accept_swap_proposal(
-    proposal_id: int, db: DbSession, principal: EditPrincipal
+    proposal_id: uuid.UUID, db: DbSession, principal: EditPrincipal
 ) -> SwapProposalResponse:
     proposal = await service.accept_swap_proposal(db, principal, proposal_id)
     return SwapProposalResponse.model_validate(proposal)
@@ -122,7 +123,7 @@ async def accept_swap_proposal(
 
 @router.post("/api/swap-proposals/{proposal_id}/reject", response_model=SwapProposalResponse)
 async def reject_swap_proposal(
-    proposal_id: int, db: DbSession, principal: EditPrincipal
+    proposal_id: uuid.UUID, db: DbSession, principal: EditPrincipal
 ) -> SwapProposalResponse:
     proposal = await service.reject_swap_proposal(db, principal, proposal_id)
     return SwapProposalResponse.model_validate(proposal)
@@ -133,7 +134,7 @@ async def reject_swap_proposal(
     response_model=ConfirmTransactionResponse,
 )
 async def confirm_transaction(
-    reservation_id: int, db: DbSession, principal: EditPrincipal
+    reservation_id: uuid.UUID, db: DbSession, principal: EditPrincipal
 ) -> ConfirmTransactionResponse | JSONResponse:
     """Maps `TermAlreadyResolvedException` (Group 3's marker for "the other
     party already resolved this transaction") to an explicit 409 body with
@@ -157,7 +158,7 @@ async def confirm_transaction(
     response_model=CancelTransactionResponse,
 )
 async def cancel_transaction(
-    reservation_id: int, db: DbSession, principal: EditPrincipal
+    reservation_id: uuid.UUID, db: DbSession, principal: EditPrincipal
 ) -> CancelTransactionResponse | JSONResponse:
     """The cancel counterpart of `confirm_transaction` above — same
     `TermAlreadyResolvedException` -> 409 mapping and verb-suffix sibling

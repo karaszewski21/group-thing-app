@@ -4,6 +4,8 @@ extraction is deferred)."""
 
 from __future__ import annotations
 
+import uuid
+
 from datetime import datetime
 from typing import cast
 
@@ -31,14 +33,15 @@ from app.core.errors import (
 )
 
 
-async def _resolve_return_term_id(db: AsyncSession, item_id: int) -> int:
+async def _resolve_return_term_id(db: AsyncSession, item_id: uuid.UUID) -> uuid.UUID:
     """A RETURN reverses a specific prior LEND, so its `term_id` is derived
     server-side rather than caller-supplied — the one real RETURN call site
     (`PanelDataContext.tsx::returnBorrowedItem`) has no Term context at all.
     Mirrors `term_item_listings._resolve_listing_status`'s "chosen
     reservation" pattern: among this item's LEND reservations that actually
-    put it into `LENT` (i.e. `FULFILLED`), pick the most recent one (highest
-    id) and reuse its `term_id`."""
+    put it into `LENT` (i.e. `FULFILLED`), pick the most recent one (by
+    `created_at` — a UUID primary key carries no creation-order information)
+    and reuse its `term_id`."""
     reservations = await repository.list_reservations_for_item(db, item_id)
     lend_reservations = [
         r
@@ -50,11 +53,11 @@ async def _resolve_return_term_id(db: AsyncSession, item_id: int) -> int:
             f"InventoryItem {item_id} has no fulfilled LEND reservation to derive a RETURN "
             "term_id from"
         )
-    chosen = max(lend_reservations, key=lambda r: cast(int, r.id))
-    return cast(int, chosen.term_id)
+    chosen = max(lend_reservations, key=lambda r: r.created_at)
+    return cast(uuid.UUID, chosen.term_id)
 
 
-async def _current_holder_user_id(db: AsyncSession, item: InventoryItem) -> int:
+async def _current_holder_user_id(db: AsyncSession, item: InventoryItem) -> uuid.UUID:
     """Who currently physically holds this item — the party a fulfillment
     credits and a new reservation records as `giver_user_id`.
     `item.inventory_id` always reflects the current physical location: the
@@ -67,7 +70,7 @@ async def _current_holder_user_id(db: AsyncSession, item: InventoryItem) -> int:
 
 async def create_reservation(db: AsyncSession, data: CreateReservationRequest) -> Reservation:
     item = await get_item(db, data.item_id)
-    balance = await get_item_balance(db, cast(int, item.id))
+    balance = await get_item_balance(db, cast(uuid.UUID, item.id))
     # RETURN is the one type that starts from LENT (giving back an item
     # currently on loan); every other type starts from AVAILABLE.
     required_status = (
@@ -89,7 +92,7 @@ async def create_reservation(db: AsyncSession, data: CreateReservationRequest) -
         )
 
     if data.reservation_type == ReservationType.RETURN:
-        term_id = await _resolve_return_term_id(db, cast(int, item.id))
+        term_id = await _resolve_return_term_id(db, cast(uuid.UUID, item.id))
     else:
         # `CreateReservationRequest`'s own validator guarantees this for
         # every non-RETURN type.
@@ -122,7 +125,7 @@ async def create_reservation(db: AsyncSession, data: CreateReservationRequest) -
 
 
 async def create_return_reservation(
-    db: AsyncSession, *, item_id: int, notes: str | None, acting_user_id: int
+    db: AsyncSession, *, item_id: uuid.UUID, notes: str | None, acting_user_id: uuid.UUID
 ) -> Reservation:
     """The raw-route RETURN ("Oddaję"): only the current holder of a lent
     item may start it, and the item always goes back to its home owner —
@@ -145,7 +148,7 @@ async def create_return_reservation(
 
 
 async def create_lend_reservation(
-    db: AsyncSession, *, item_id: int, reserved_by_user_id: int, term_id: int
+    db: AsyncSession, *, item_id: uuid.UUID, reserved_by_user_id: uuid.UUID, term_id: uuid.UUID
 ) -> Reservation:
     """Used by `app.party`'s Pledge->Reservation bridge."""
     return await create_reservation(
@@ -159,26 +162,26 @@ async def create_lend_reservation(
     )
 
 
-async def get_reservation(db: AsyncSession, reservation_id: int) -> Reservation:
+async def get_reservation(db: AsyncSession, reservation_id: uuid.UUID) -> Reservation:
     reservation = await repository.get_reservation(db, reservation_id)
     if reservation is None:
         raise EntityNotFoundException("Reservation", reservation_id)
     return reservation
 
 
-async def list_reservations(db: AsyncSession, item_id: int) -> list[Reservation]:
+async def list_reservations(db: AsyncSession, item_id: uuid.UUID) -> list[Reservation]:
     return await repository.list_reservations_for_item(db, item_id)
 
 
 async def list_active_reservations_for_taker(
-    db: AsyncSession, account_user_id: int
+    db: AsyncSession, account_user_id: uuid.UUID
 ) -> list[Reservation]:
     """Thin wrapper, same shape as `list_reservations` above."""
     return await repository.list_active_reservations_for_taker(db, account_user_id)
 
 
 async def list_active_hand_over_reservations_for_terms(
-    db: AsyncSession, term_ids: list[int]
+    db: AsyncSession, term_ids: list[uuid.UUID]
 ) -> list[Reservation]:
     """Thin wrapper, same shape as `list_reservations` above."""
     return await repository.list_active_hand_over_reservations_for_terms(db, term_ids)

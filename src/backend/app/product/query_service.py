@@ -9,6 +9,8 @@ regex/operator-allowlist constants, not a parser.
 
 from __future__ import annotations
 
+import uuid
+
 from decimal import Decimal, InvalidOperation
 from typing import Any
 
@@ -129,7 +131,7 @@ def _parse_plugin_filter(raw: str) -> ColumnElement[Any]:
 async def list_products(
     db: AsyncSession,
     *,
-    category_id: int | None,
+    category_id: uuid.UUID | None,
     search: str | None,
     sort: str | None,
     plugin_filters: list[str] | None,

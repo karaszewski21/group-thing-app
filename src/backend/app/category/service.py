@@ -14,6 +14,8 @@ here.
 
 from __future__ import annotations
 
+import uuid
+
 from typing import Literal
 
 from sqlalchemy import Select, column, func, select, table
@@ -41,7 +43,7 @@ class CategoryHasProductsException(BusinessConflictException):
     `app.product.Product` row. Mirrors `app.product.service.
     ProductHasInventoryItemsException`."""
 
-    def __init__(self, category_id: int, product_count: int) -> None:
+    def __init__(self, category_id: uuid.UUID, product_count: int) -> None:
         super().__init__(
             f"Category with id {category_id} cannot be deleted because it has "
             f"{product_count} associated product(s)"
@@ -52,7 +54,7 @@ def _category_select() -> Select[tuple[Category]]:
     return select(Category)
 
 
-async def _get_category_entity(db: AsyncSession, category_id: int) -> Category:
+async def _get_category_entity(db: AsyncSession, category_id: uuid.UUID) -> Category:
     result = await db.execute(_category_select().where(Category.id == category_id))
     category = result.scalar_one_or_none()
     if category is None:
@@ -60,7 +62,7 @@ async def _get_category_entity(db: AsyncSession, category_id: int) -> Category:
     return category
 
 
-async def _count_products(db: AsyncSession, category_id: int) -> int:
+async def _count_products(db: AsyncSession, category_id: uuid.UUID) -> int:
     result = await db.execute(
         select(func.count()).select_from(_products).where(_products.c.category_id == category_id)
     )
@@ -84,7 +86,7 @@ async def list_categories(db: AsyncSession) -> list[CategoryResponse]:
     return [category_response_from(category, int(count)) for category, count in result.all()]
 
 
-async def get_category(db: AsyncSession, category_id: int) -> CategoryResponse:
+async def get_category(db: AsyncSession, category_id: uuid.UUID) -> CategoryResponse:
     category = await _get_category_entity(db, category_id)
     count = await _count_products(db, category_id)
     return category_response_from(category, count)
@@ -101,7 +103,7 @@ async def create_category(db: AsyncSession, data: CreateCategoryRequest) -> Cate
 
 
 async def update_category(
-    db: AsyncSession, category_id: int, data: UpdateCategoryRequest
+    db: AsyncSession, category_id: uuid.UUID, data: UpdateCategoryRequest
 ) -> CategoryResponse:
     category = await _get_category_entity(db, category_id)
     category.name = data.name
@@ -112,7 +114,7 @@ async def update_category(
     return category_response_from(category, count)
 
 
-async def delete_category(db: AsyncSession, category_id: int) -> None:
+async def delete_category(db: AsyncSession, category_id: uuid.UUID) -> None:
     category = await _get_category_entity(db, category_id)
     await db.delete(category)
     try:
@@ -125,7 +127,7 @@ async def delete_category(db: AsyncSession, category_id: int) -> None:
 
 
 async def move_category(
-    db: AsyncSession, category_id: int, direction: Literal["up", "down"]
+    db: AsyncSession, category_id: uuid.UUID, direction: Literal["up", "down"]
 ) -> None:
     """Swaps `sort_order` with the adjacent row in current order — one
     flush/commit covers both updates, so the swap is atomic. A no-op (not

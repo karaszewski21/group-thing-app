@@ -6,6 +6,7 @@ resolves `UserProfile` by `email` -> `auth.User` via `account_user_id`
 
 from __future__ import annotations
 
+import uuid
 from typing import Annotated, cast
 
 from fastapi import APIRouter, Depends
@@ -46,7 +47,7 @@ class LoginResponse(BaseModel):
     token: str
 
 
-async def _load_permissions(db: AsyncSession, user_id: int) -> list[str]:
+async def _load_permissions(db: AsyncSession, user_id: uuid.UUID) -> list[str]:
     result = await db.execute(
         select(user_permissions.c.permission).where(user_permissions.c.user_id == user_id)
     )
@@ -79,7 +80,7 @@ async def login(body: LoginRequest, db: DbSession) -> LoginResponse | JSONRespon
             status_code=401, content=jsonable_encoder(error.model_dump(by_alias=True))
         )
 
-    permissions = await _load_permissions(db, cast(int, user.id))
+    permissions = await _load_permissions(db, cast(uuid.UUID, user.id))
     token = encode_login_token(
         user.username, permissions, settings.jwt_secret, settings.jwt_expiration_ms
     )

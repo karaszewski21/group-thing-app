@@ -8,6 +8,8 @@ below are spec.md's Java terminology, ported here as function groups.
 
 from __future__ import annotations
 
+import uuid
+
 import re
 from typing import Any
 
@@ -115,14 +117,14 @@ async def set_enabled(db: AsyncSession, plugin_id: str, enabled: bool) -> Plugin
 # --- PluginDataService ---------------------------------------------------
 
 
-async def _require_product(db: AsyncSession, product_id: int) -> Product:
+async def _require_product(db: AsyncSession, product_id: uuid.UUID) -> Product:
     product = await db.get(Product, product_id)
     if product is None:
         raise EntityNotFoundException("Product", product_id)
     return product
 
 
-async def get_plugin_data(db: AsyncSession, plugin_id: str, product_id: int) -> dict[str, Any]:
+async def get_plugin_data(db: AsyncSession, plugin_id: str, product_id: uuid.UUID) -> dict[str, Any]:
     await find_enabled_or_throw(db, plugin_id)
     product = await _require_product(db, product_id)
     plugin_data = product.plugin_data or {}
@@ -130,7 +132,7 @@ async def get_plugin_data(db: AsyncSession, plugin_id: str, product_id: int) -> 
 
 
 async def replace_plugin_data(
-    db: AsyncSession, plugin_id: str, product_id: int, data: dict[str, Any]
+    db: AsyncSession, plugin_id: str, product_id: uuid.UUID, data: dict[str, Any]
 ) -> dict[str, Any]:
     """Confirmed REPLACE-at-key semantics (fixed decision #5): copy the
     existing `plugin_data` map, whole-blob-overwrite the `pluginId` key,
@@ -147,7 +149,7 @@ async def replace_plugin_data(
     return data
 
 
-async def delete_plugin_data(db: AsyncSession, plugin_id: str, product_id: int) -> None:
+async def delete_plugin_data(db: AsyncSession, plugin_id: str, product_id: uuid.UUID) -> None:
     await find_enabled_or_throw(db, plugin_id)
     product = await _require_product(db, product_id)
     if product.plugin_data and plugin_id in product.plugin_data:
@@ -160,7 +162,7 @@ async def delete_plugin_data(db: AsyncSession, plugin_id: str, product_id: int) 
 # --- PluginObjectService --------------------------------------------------
 
 
-def _require_both_entity_fields(entity_type: str | None, entity_id: int | None) -> None:
+def _require_both_entity_fields(entity_type: str | None, entity_id: uuid.UUID | None) -> None:
     """Cross-type listing: both `entityType`/`entityId` are mandatory
     together (neither is truly optional here, despite the query-string
     `?` in spec.md's route table)."""
@@ -168,7 +170,7 @@ def _require_both_entity_fields(entity_type: str | None, entity_id: int | None) 
         raise ValueError("Both entityType and entityId are required for cross-type listing")
 
 
-def _require_paired_entity_fields(entity_type: str | None, entity_id: int | None) -> None:
+def _require_paired_entity_fields(entity_type: str | None, entity_id: uuid.UUID | None) -> None:
     """Per-type listing and object PUT: both-or-neither — distinct message
     from the cross-type case above."""
     if (entity_type is None) != (entity_id is None):
@@ -180,7 +182,7 @@ async def list_cross_type_objects(
     plugin_id: str,
     *,
     entity_type: str | None,
-    entity_id: int | None,
+    entity_id: uuid.UUID | None,
     filter_expr: str | None,
     limit: int,
 ) -> list[PluginObject]:
@@ -203,7 +205,7 @@ async def list_per_type_objects(
     object_type: str,
     *,
     entity_type: str | None,
-    entity_id: int | None,
+    entity_id: uuid.UUID | None,
     filter_expr: str | None,
     limit: int,
 ) -> list[PluginObject]:
@@ -251,7 +253,7 @@ async def put_object(
     data: dict[str, Any],
     *,
     entity_type: str | None,
-    entity_id: int | None,
+    entity_id: uuid.UUID | None,
 ) -> PluginObject:
     await find_enabled_or_throw(db, plugin_id)
     _require_paired_entity_fields(entity_type, entity_id)

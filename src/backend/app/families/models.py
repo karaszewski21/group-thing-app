@@ -15,9 +15,11 @@ Cross-module references (`parties.id`) are plain FK-id columns, never a
 from __future__ import annotations
 
 import enum
+import uuid
 from datetime import date
 
-from sqlalchemy import BigInteger, Boolean, Date, Enum, ForeignKey, String
+from sqlalchemy import Boolean, Date, Enum, ForeignKey, String
+from sqlalchemy.dialects import postgresql
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.core.base_model import BaseEntity
@@ -47,10 +49,11 @@ class FamilyRoleType(enum.StrEnum):
 
 class Family(BaseEntity):
     __tablename__ = "families"
-    __sequence_name__ = "family_seq"
 
-    party_id: Mapped[int] = mapped_column(
-        BigInteger, ForeignKey("parties.id", name="fk_families_party_id_parties"), nullable=False
+    party_id: Mapped[uuid.UUID] = mapped_column(
+        postgresql.UUID(as_uuid=True),
+        ForeignKey("parties.id", name="fk_families_party_id_parties"),
+        nullable=False,
     )
     name: Mapped[str] = mapped_column(String(255), nullable=False)
 
@@ -61,10 +64,9 @@ class FamilyRole(BaseEntity):
     `FamilyMembership`, not here."""
 
     __tablename__ = "family_roles"
-    __sequence_name__ = "family_role_seq"
 
-    party_id: Mapped[int] = mapped_column(
-        BigInteger,
+    party_id: Mapped[uuid.UUID] = mapped_column(
+        postgresql.UUID(as_uuid=True),
         ForeignKey("parties.id", name="fk_family_roles_party_id_parties"),
         nullable=False,
     )
@@ -84,15 +86,14 @@ class FamilyMembership(BaseEntity):
     per Family")."""
 
     __tablename__ = "family_memberships"
-    __sequence_name__ = "family_membership_seq"
 
-    from_role_id: Mapped[int] = mapped_column(
-        BigInteger,
+    from_role_id: Mapped[uuid.UUID] = mapped_column(
+        postgresql.UUID(as_uuid=True),
         ForeignKey("family_roles.id", name="fk_family_memberships_from_role_id_family_roles"),
         nullable=False,
     )
-    to_family_id: Mapped[int] = mapped_column(
-        BigInteger,
+    to_family_id: Mapped[uuid.UUID] = mapped_column(
+        postgresql.UUID(as_uuid=True),
         ForeignKey("families.id", name="fk_family_memberships_to_family_id_families"),
         nullable=False,
     )

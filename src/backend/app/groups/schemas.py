@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+import uuid
 from datetime import date, datetime
 from typing import Literal
 
@@ -30,8 +31,8 @@ _OFFERABLE_RESERVATION_TYPES = frozenset(
 class GroupResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
-    id: int
-    party_id: int
+    id: uuid.UUID
+    party_id: uuid.UUID
     name: str
     organizer_slug: str | None = None
     layout_mode: GroupLayoutMode
@@ -46,7 +47,7 @@ class ModerationGroupResponse(BaseModel):
     leaderless, e.g. right after registration) and aggregated member/term
     counts, for spotting empty or abandoned Circles at a glance."""
 
-    id: int
+    id: uuid.UUID
     name: str
     created_at: datetime
     organizer_name: str | None
@@ -90,8 +91,8 @@ class CreateOwnCircleRequest(BaseModel):
 class GroupRoleResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
-    id: int
-    party_id: int
+    id: uuid.UUID
+    party_id: uuid.UUID
     role_type: GroupRoleType
     valid_from: date
     valid_to: date | None
@@ -102,17 +103,17 @@ class LeadershipResponse(BaseModel):
     `service.py`, not stored on the row) so callers don't need a second
     round trip through `GroupRoleResponse` just to find out who this is."""
 
-    id: int
-    from_role_id: int
-    to_group_id: int
-    organizer_party_id: int
+    id: uuid.UUID
+    from_role_id: uuid.UUID
+    to_group_id: uuid.UUID
+    organizer_party_id: uuid.UUID
     valid_from: date
     valid_to: date | None
 
 
 class AssignLeadershipRequest(BaseModel):
-    group_id: int
-    organizer_party_id: int
+    group_id: uuid.UUID
+    organizer_party_id: uuid.UUID
     valid_from: date
 
 
@@ -120,10 +121,10 @@ class MembershipResponse(BaseModel):
     """`member_party_id` is denormalized the same way as
     `LeadershipResponse.organizer_party_id`."""
 
-    id: int
-    from_role_id: int
-    to_group_id: int
-    member_party_id: int
+    id: uuid.UUID
+    from_role_id: uuid.UUID
+    to_group_id: uuid.UUID
+    member_party_id: uuid.UUID
     valid_from: date
     valid_to: date | None
 
@@ -131,8 +132,8 @@ class MembershipResponse(BaseModel):
 class TermResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
-    id: int
-    circle_group_id: int
+    id: uuid.UUID
+    circle_group_id: uuid.UUID
     occurs_on: datetime
     description: str | None
     created_at: datetime
@@ -140,7 +141,7 @@ class TermResponse(BaseModel):
 
 
 class CreateTermRequest(BaseModel):
-    circle_group_id: int
+    circle_group_id: uuid.UUID
     occurs_on: datetime
     description: str | None = Field(default=None, max_length=2000)
 
@@ -153,11 +154,11 @@ class UpdateTermRequest(BaseModel):
 class NeededItemResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
-    id: int
-    term_id: int
-    product_id: int
+    id: uuid.UUID
+    term_id: uuid.UUID
+    product_id: uuid.UUID
     product_name: str
-    product_category_id: int
+    product_category_id: uuid.UUID
     product_category_name: str
     description: str | None
     # An active (non-withdrawn) pledge exists — the organizer's term tile
@@ -168,30 +169,30 @@ class NeededItemResponse(BaseModel):
 
 
 class CreateNeededItemRequest(BaseModel):
-    term_id: int
-    product_id: int
+    term_id: uuid.UUID
+    product_id: uuid.UUID
     description: str | None = Field(default=None, max_length=500)
 
 
 class UpdateNeededItemRequest(BaseModel):
-    product_id: int | None = None
+    product_id: uuid.UUID | None = None
     description: str | None = Field(default=None, max_length=500)
 
 
 class PledgeResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
-    id: int
-    needed_item_id: int
-    pledged_by_party_id: int
+    id: uuid.UUID
+    needed_item_id: uuid.UUID
+    pledged_by_party_id: uuid.UUID
     status: PledgeStatus
-    resolved_reservation_id: int | None
+    resolved_reservation_id: uuid.UUID | None
     created_at: datetime
     updated_at: datetime
 
 
 class CreatePledgeRequest(BaseModel):
-    needed_item_id: int
+    needed_item_id: uuid.UUID
 
 
 class FulfillPledgeRequest(BaseModel):
@@ -208,8 +209,8 @@ class FulfillPledgeRequest(BaseModel):
     """
 
     condition: ItemCondition | None = None
-    product_id: int | None = None
-    inventory_item_id: int | None = None
+    product_id: uuid.UUID | None = None
+    inventory_item_id: uuid.UUID | None = None
 
     @model_validator(mode="after")
     def _exactly_one_mode(self) -> FulfillPledgeRequest:
@@ -231,17 +232,17 @@ class FulfillPledgeRequest(BaseModel):
 
 
 class PublicNeededItemResponse(BaseModel):
-    id: int
-    product_id: int
+    id: uuid.UUID
+    product_id: uuid.UUID
     product_name: str
-    product_category_id: int
+    product_category_id: uuid.UUID
     product_category_name: str
     description: str | None
     # `claimed` = someone has an active pledge for this item (single-claim);
     # `claimed_by_name` is that pledger's display name (or `None`).
     claimed: bool
     claimed_by_name: str | None
-    claimed_by_party_id: int | None
+    claimed_by_party_id: uuid.UUID | None
 
 
 class PublicItemListingResponse(BaseModel):
@@ -250,17 +251,17 @@ class PublicItemListingResponse(BaseModel):
     so no status/taken fields to leak. `id` is the item's id, same
     convention as `BrowseTermItemListingResponse`."""
 
-    id: int
-    item_id: int
+    id: uuid.UUID
+    item_id: uuid.UUID
     product_name: str
     condition: str
     offered_types: list[str]
-    lister_party_id: int
+    lister_party_id: uuid.UUID
     lister_display_name: str
 
 
 class PublicTermResponse(BaseModel):
-    id: int
+    id: uuid.UUID
     occurs_on: datetime
     description: str | None
     needed_items: list[PublicNeededItemResponse]
@@ -268,7 +269,7 @@ class PublicTermResponse(BaseModel):
 
 
 class PublicGuardianResponse(BaseModel):
-    party_id: int
+    party_id: uuid.UUID
     display_name: str
 
 
@@ -277,7 +278,7 @@ class PublicCircleResponse(BaseModel):
     aggregate `child_count` each guardian RSVP'd with (see
     `TermAttendance`), so there is nothing per-attendee to leak."""
 
-    id: int
+    id: uuid.UUID
     name: str
     organizer_display_name: str | None
     organizer_slug: str | None
@@ -316,15 +317,15 @@ class GroupAccessResponse(BaseModel):
 
 
 class CreateRsvpRequest(BaseModel):
-    term_id: int
+    term_id: uuid.UUID
     guardian_name: str = Field(min_length=1, max_length=255)
     child_count: int = Field(ge=0, default=0)
 
 
 class RsvpResponse(BaseModel):
-    id: int
-    term_id: int
-    user_profile_id: int
+    id: uuid.UUID
+    term_id: uuid.UUID
+    user_profile_id: uuid.UUID
     guardian_name: str
     child_count: int
     attached_to_account: bool
@@ -342,16 +343,16 @@ class TermAttendeeResponse(BaseModel):
     formalization; `None` should now only occur for legacy pre-existing
     family-less parties."""
 
-    party_id: int
+    party_id: uuid.UUID
     display_name: str
     child_count: int
-    family_id: int | None
+    family_id: uuid.UUID | None
     family_name: str | None
     already_member: bool
 
 
 class FormalizeGroupFromTermRequest(BaseModel):
-    party_ids: list[int] = Field(min_length=1)
+    party_ids: list[uuid.UUID] = Field(min_length=1)
 
 
 # --- My attendances (authenticated, `GET /api/groups/mine/attendances`) --------
@@ -364,12 +365,12 @@ class MyPledgeResponse(BaseModel):
     a concrete `InventoryItem` + `LEND` `Reservation` have been opened
     (`resolved_reservation_id` set) — i.e. "Rezygnuję" is no longer offered."""
 
-    pledge_id: int
+    pledge_id: uuid.UUID
     status: PledgeStatus
     product_name: str
     item_description: str | None
-    term_id: int
-    group_id: int
+    term_id: uuid.UUID
+    group_id: uuid.UUID
     group_name: str
     occurs_on: datetime
     organizer_slug: str
@@ -384,11 +385,11 @@ class MyAttendanceResponse(BaseModel):
     active organizer; `organizer_slug` is always usable (falls back to a
     stable hash — see `service.resolve_organizer_slug`)."""
 
-    attendance_id: int
-    term_id: int
+    attendance_id: uuid.UUID
+    term_id: uuid.UUID
     occurs_on: datetime
     child_count: int
-    group_id: int
+    group_id: uuid.UUID
     group_name: str
     organizer_display_name: str | None
     organizer_slug: str
@@ -401,9 +402,9 @@ class WithdrawAttendanceResponse(BaseModel):
 
     model_config = ConfigDict(from_attributes=True)
 
-    id: int
-    term_id: int
-    party_id: int
+    id: uuid.UUID
+    term_id: uuid.UUID
+    party_id: uuid.UUID
     child_count: int
     withdrawn_at: datetime | None
 
@@ -412,7 +413,7 @@ class WithdrawAttendanceResponse(BaseModel):
 
 
 class MergeAnonymousProfileRequest(BaseModel):
-    user_profile_id: int
+    user_profile_id: uuid.UUID
     email: str = Field(min_length=3, max_length=255)
     password: str = Field(min_length=1)
 
@@ -427,7 +428,7 @@ class MergeAnonymousProfileRequest(BaseModel):
 
 class MergeAnonymousProfileResponse(BaseModel):
     token: str
-    party_id: int
+    party_id: uuid.UUID
 
 
 # --- ItemListingPreference (authenticated, `/api/item-listing-preferences`,
@@ -453,9 +454,9 @@ class SetItemListingPreferenceRequest(BaseModel):
 class ItemListingPreferenceResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
-    id: int
-    item_id: int
-    owner_party_id: int
+    id: uuid.UUID
+    item_id: uuid.UUID
+    owner_party_id: uuid.UUID
     mode: str
     created_at: datetime
     updated_at: datetime
@@ -468,10 +469,10 @@ class MyInventoryItemResponse(BaseModel):
     standing `ItemListingPreference.mode` (`None` = not offered), so
     `Moje rzeczy` only ever shows and seeds toggles for items at home."""
 
-    id: int
-    inventory_id: int
-    home_inventory_id: int | None
-    product_id: int
+    id: uuid.UUID
+    inventory_id: uuid.UUID
+    home_inventory_id: uuid.UUID | None
+    product_id: uuid.UUID
     product_name: str
     condition: ItemCondition
     added_at: datetime
@@ -486,8 +487,8 @@ class LentOutItemResponse(BaseModel):
     with the borrower's display name and the loan's
     `InventoryBalance.due_date`."""
 
-    id: int
-    product_id: int
+    id: uuid.UUID
+    product_id: uuid.UUID
     product_name: str
     condition: ItemCondition
     lent_to_display_name: str
@@ -504,13 +505,13 @@ class BrowseTermItemListingResponse(BaseModel):
     live `Reservation` history — see `_resolve_listing_status`). `id` is the
     item's id: one derived listing per item, not per creation event."""
 
-    id: int
-    term_id: int
-    item_id: int
-    lister_party_id: int
+    id: uuid.UUID
+    term_id: uuid.UUID
+    item_id: uuid.UUID
+    lister_party_id: uuid.UUID
     offered_types: list[str]
-    resolved_reservation_id: int | None
-    taken_by_party_id: int | None
+    resolved_reservation_id: uuid.UUID | None
+    taken_by_party_id: uuid.UUID | None
     product_name: str
     condition: str
     lister_display_name: str
@@ -528,7 +529,7 @@ class TakeTermItemListingRequest(BaseModel):
     `ProposeSwapRequest`, dispatched through the dedicated propose/accept/
     reject flow instead)."""
 
-    term_id: int
+    term_id: uuid.UUID
     reservation_type: ReservationType
 
 
@@ -542,35 +543,35 @@ class ProposeSwapRequest(BaseModel):
     `TakeTermItemListingRequest.term_id`), `offered_item_id` is the
     proposer's own counter-offer item."""
 
-    term_id: int
-    offered_item_id: int
+    term_id: uuid.UUID
+    offered_item_id: uuid.UUID
 
 
 class CreateJoinRequestRequest(BaseModel):
     """`term_id` is only the link context the requester came from; it must
     belong to the group."""
 
-    term_id: int | None = None
+    term_id: uuid.UUID | None = None
 
 
 class JoinRequestResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
-    id: int
-    group_id: int
-    requester_party_id: int
-    term_id: int | None
+    id: uuid.UUID
+    group_id: uuid.UUID
+    requester_party_id: uuid.UUID
+    term_id: uuid.UUID | None
     status: GroupJoinRequestStatus
     created_at: datetime
     updated_at: datetime
 
 
 class PendingJoinRequestResponse(BaseModel):
-    id: int
-    group_id: int
+    id: uuid.UUID
+    group_id: uuid.UUID
     group_name: str
-    term_id: int | None
-    requester_party_id: int
+    term_id: uuid.UUID | None
+    requester_party_id: uuid.UUID
     requester_display_name: str
     created_at: datetime
 
@@ -579,18 +580,18 @@ class JoinRequestSummary(BaseModel):
     """The caller's latest request for a PRIVATE group, as surfaced by
     `/access` — only PENDING or REJECTED are ever reported."""
 
-    id: int
+    id: uuid.UUID
     status: Literal["PENDING", "REJECTED"]
 
 
 class SwapProposalResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
-    id: int
-    proposer_party_id: int
-    listing_item_id: int
-    offered_item_id: int
-    proposer_reservation_id: int
+    id: uuid.UUID
+    proposer_party_id: uuid.UUID
+    listing_item_id: uuid.UUID
+    offered_item_id: uuid.UUID
+    proposer_reservation_id: uuid.UUID
     status: SwapProposalStatus
     created_at: datetime
     updated_at: datetime
@@ -607,7 +608,7 @@ class FamilyExchangeSummary(BaseModel):
     stable, family-order-preserving output — see
     `app/groups/application/exchange_summary.py`."""
 
-    family_id: int
+    family_id: uuid.UUID
     shares_item: bool
     brings_item: bool
 
@@ -625,8 +626,8 @@ class FamilyExchangeOffer(BaseModel):
     shape reused 1:1 from `BrowseTermItemListingResponse` (`product_name`,
     `condition`, `offered_types`), per spec.md's reuse note."""
 
-    id: int
-    item_id: int
+    id: uuid.UUID
+    item_id: uuid.UUID
     product_name: str
     condition: str
     offered_types: list[str]
@@ -636,7 +637,7 @@ class FamilyExchangeDetailResponse(BaseModel):
     """`GET /api/groups/{id}/families/{family_id}/exchange-offers` body —
     every active offer from any guardian of the requested family."""
 
-    family_id: int
+    family_id: uuid.UUID
     offers: list[FamilyExchangeOffer]
 
 
@@ -651,7 +652,7 @@ class ConfirmTransactionResponse(BaseModel):
     when this response accompanies a 409 (the reservation itself carries no
     "already resolved" status of its own — see `TermAlreadyResolvedException`)."""
 
-    reservation_id: int
+    reservation_id: uuid.UUID
     status: str
     already_resolved: bool = False
 
@@ -660,6 +661,6 @@ class CancelTransactionResponse(BaseModel):
     """Same `status`/`already_resolved` discriminator pattern as
     `ConfirmTransactionResponse` — see that model's docstring."""
 
-    reservation_id: int
+    reservation_id: uuid.UUID
     status: str
     already_resolved: bool = False

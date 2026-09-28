@@ -5,6 +5,8 @@ driven `InventoryBalance` field-mutation cascades (kept inline per D2). The
 
 from __future__ import annotations
 
+import uuid
+
 from datetime import datetime, timedelta
 from typing import cast
 
@@ -45,7 +47,7 @@ async def _load_reservation_for_transition(
 
 
 async def confirm_reservation(
-    db: AsyncSession, reservation_id: int, acting_user_id: int
+    db: AsyncSession, reservation_id: uuid.UUID, acting_user_id: uuid.UUID
 ) -> Reservation:
     reservation = await get_reservation(db, reservation_id)
     if reservation.status != ReservationStatus.PENDING:
@@ -54,7 +56,7 @@ async def confirm_reservation(
     _require_holder_to_confirm(holder_user_id, acting_user_id)
 
     reservation.status = ReservationStatus.CONFIRMED
-    balance = await get_item_balance(db, cast(int, item.id))
+    balance = await get_item_balance(db, cast(uuid.UUID, item.id))
     balance.status = BalanceStatus.IN_TRANSIT
 
     await db.commit()
@@ -63,7 +65,7 @@ async def confirm_reservation(
 
 
 async def cancel_reservation(
-    db: AsyncSession, reservation_id: int, acting_user_id: int
+    db: AsyncSession, reservation_id: uuid.UUID, acting_user_id: uuid.UUID
 ) -> Reservation:
     reservation = await get_reservation(db, reservation_id)
     if reservation.status in (ReservationStatus.FULFILLED, ReservationStatus.CANCELLED):
@@ -72,7 +74,7 @@ async def cancel_reservation(
     _require_party_to_reservation(reservation, holder_user_id, acting_user_id)
 
     reservation.status = ReservationStatus.CANCELLED
-    balance = await get_item_balance(db, cast(int, item.id))
+    balance = await get_item_balance(db, cast(uuid.UUID, item.id))
     balance.reserved_at = None
     if reservation.reservation_type == ReservationType.RETURN:
         # The item is still in the borrower's VIRTUAL inventory, so the loan
@@ -88,7 +90,7 @@ async def cancel_reservation(
 
 
 async def fulfill_reservation(
-    db: AsyncSession, reservation_id: int, acting_user_id: int
+    db: AsyncSession, reservation_id: uuid.UUID, acting_user_id: uuid.UUID
 ) -> Reservation:
     """The only place a `CirculationTransaction` is created — matches the
     reference doc's "never at pending/confirmed" rule exactly."""
@@ -99,7 +101,7 @@ async def fulfill_reservation(
     _require_party_to_reservation(reservation, holder_user_id, acting_user_id)
 
     product = await product_service.get_product(db, item.product_id)
-    balance = await get_item_balance(db, cast(int, item.id))
+    balance = await get_item_balance(db, cast(uuid.UUID, item.id))
     now = datetime.utcnow()
 
     if reservation.reservation_type == ReservationType.LEND:

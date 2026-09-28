@@ -7,6 +7,8 @@ pass-through so an unknown id fails fast as a clean 404 rather than an FK
 
 from __future__ import annotations
 
+import uuid
+
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.product import service as product_service
@@ -15,5 +17,5 @@ from app.product.models import Product
 __all__ = ["get_product"]
 
 
-async def get_product(db: AsyncSession, product_id: int) -> Product:
+async def get_product(db: AsyncSession, product_id: uuid.UUID) -> Product:
     return await product_service.get_product(db, product_id)

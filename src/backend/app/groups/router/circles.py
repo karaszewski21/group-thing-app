@@ -12,6 +12,7 @@ registration order) does not swallow the literal segments into
 
 from __future__ import annotations
 
+import uuid
 from typing import Annotated, cast
 
 from fastapi import APIRouter, Depends, status
@@ -62,7 +63,7 @@ async def create_circle(
 ) -> GroupResponse:
     group = await service.create_circle(db, body)
     response = GroupResponse.model_validate(group)
-    response.organizer_slug = await service.resolve_organizer_slug(db, cast(int, group.id))
+    response.organizer_slug = await service.resolve_organizer_slug(db, cast(uuid.UUID, group.id))
     return response
 
 
@@ -77,7 +78,7 @@ async def create_my_circle(
     profile = await get_profile_by_principal(db, principal)
     circle = await service.create_own_circle(db, profile.party_id, body.name)
     response = GroupResponse.model_validate(circle)
-    response.organizer_slug = await service.resolve_organizer_slug(db, cast(int, circle.id))
+    response.organizer_slug = await service.resolve_organizer_slug(db, cast(uuid.UUID, circle.id))
     return response
 
 
@@ -97,7 +98,7 @@ async def create_additional_my_circle(
         db, profile.party_id, body.name, body.visibility
     )
     response = GroupResponse.model_validate(circle)
-    response.organizer_slug = await service.resolve_organizer_slug(db, cast(int, circle.id))
+    response.organizer_slug = await service.resolve_organizer_slug(db, cast(uuid.UUID, circle.id))
     return response
 
 
@@ -109,7 +110,7 @@ async def list_groups(db: DbSession, principal: ReadPrincipal) -> list[GroupResp
 
 @router.get("/api/groups/public/{group_id}", response_model=PublicCircleResponse)
 async def get_public_circle(
-    group_id: int, db: DbSession, term_id: int | None = None
+    group_id: uuid.UUID, db: DbSession, term_id: uuid.UUID | None = None
 ) -> PublicCircleResponse:
     """Unauthenticated — the page a shared `/<slug>/grupa/<groupId>/term/<termId>`
     (or term-less `/<slug>/grupa/<groupId>`) link resolves to. Still matched
@@ -129,7 +130,7 @@ async def get_public_circle(
 
 @router.get("/api/groups/public/{group_id}/access", response_model=GroupAccessResponse)
 async def get_group_access(
-    group_id: int, db: DbSession, principal: OptionalPrincipal = None, term_id: int | None = None
+    group_id: uuid.UUID, db: DbSession, principal: OptionalPrincipal = None, term_id: uuid.UUID | None = None
 ) -> GroupAccessResponse:
     """Unauthenticated-friendly (mirrors `get_public_circle` above — same
     `PUBLIC` matrix row, `/access` is an extra path segment so it never
@@ -147,7 +148,7 @@ async def get_group_access(
     status_code=status.HTTP_201_CREATED,
 )
 async def create_rsvp(
-    group_id: int, body: CreateRsvpRequest, db: DbSession, principal: OptionalPrincipal = None
+    group_id: uuid.UUID, body: CreateRsvpRequest, db: DbSession, principal: OptionalPrincipal = None
 ) -> RsvpResponse:
     """Unauthenticated — anyone with the public circle-page link may RSVP
     without an account (no `Depends(require_any(...))`; stays PUBLIC in
@@ -166,7 +167,7 @@ async def create_rsvp(
     response_model=list[TermAttendeeResponse],
 )
 async def list_term_attendees(
-    group_id: int, term_id: int, db: DbSession, principal: EditPrincipal
+    group_id: uuid.UUID, term_id: uuid.UUID, db: DbSession, principal: EditPrincipal
 ) -> list[TermAttendeeResponse]:
     """Candidate list for the organizer's "formalize standing members"
     picker — covered by row 27's blanket `GET ^/api/groups(/.*)?$` READ/EDIT
@@ -180,8 +181,8 @@ async def list_term_attendees(
     response_model=GroupResponse,
 )
 async def formalize_group_from_term(
-    group_id: int,
-    term_id: int,
+    group_id: uuid.UUID,
+    term_id: uuid.UUID,
     body: FormalizeGroupFromTermRequest,
     db: DbSession,
     principal: EditPrincipal,
@@ -232,7 +233,7 @@ async def list_my_attendances(
     response_model=WithdrawAttendanceResponse,
 )
 async def withdraw_attendance(
-    attendance_id: int, db: DbSession, principal: EditPrincipal
+    attendance_id: uuid.UUID, db: DbSession, principal: EditPrincipal
 ) -> WithdrawAttendanceResponse:
     """Idempotent withdrawal of the caller's own Term RSVP. Registered
     among the other literal `/mine/...` routes above, ahead of `get_group`
@@ -256,7 +257,7 @@ async def list_groups_for_moderation(
 
 @router.patch("/api/groups/{group_id}", response_model=GroupResponse)
 async def update_group(
-    group_id: int, body: UpdateGroupRequest, db: DbSession, principal: EditPrincipal
+    group_id: uuid.UUID, body: UpdateGroupRequest, db: DbSession, principal: EditPrincipal
 ) -> GroupResponse:
     profile = await get_profile_by_principal(db, principal)
     group = await service.update_group(
@@ -268,7 +269,7 @@ async def update_group(
 
 
 @router.get("/api/groups/{group_id}", response_model=GroupResponse)
-async def get_group(group_id: int, db: DbSession, principal: ReadPrincipal) -> GroupResponse:
+async def get_group(group_id: uuid.UUID, db: DbSession, principal: ReadPrincipal) -> GroupResponse:
     group = await service.get_group(db, group_id)
     response = GroupResponse.model_validate(group)
     response.organizer_slug = await service.resolve_organizer_slug(db, group_id)
@@ -279,7 +280,7 @@ async def get_group(group_id: int, db: DbSession, principal: ReadPrincipal) -> G
     "/api/groups/{group_id}/exchange-summary", response_model=GroupExchangeSummaryResponse
 )
 async def get_exchange_summary(
-    group_id: int, db: DbSession, principal: ReadPrincipal
+    group_id: uuid.UUID, db: DbSession, principal: ReadPrincipal
 ) -> GroupExchangeSummaryResponse:
     """`shares_item`/`brings_item` per family currently in `group_id`.
     Membership/leadership check happens inside `service.get_group_exchange_summary`
@@ -295,7 +296,7 @@ async def get_exchange_summary(
     response_model=FamilyExchangeDetailResponse,
 )
 async def get_family_exchange_offers(
-    group_id: int, family_id: int, db: DbSession, principal: ReadPrincipal
+    group_id: uuid.UUID, family_id: uuid.UUID, db: DbSession, principal: ReadPrincipal
 ) -> FamilyExchangeDetailResponse:
     """Every active exchange-mechanism offer from any guardian of
     `family_id`, for `group_id`'s current Term. Membership/leadership and
@@ -309,7 +310,7 @@ async def get_family_exchange_offers(
 
 @router.get("/api/groups/{group_id}/leadership", response_model=LeadershipResponse | None)
 async def get_current_leadership(
-    group_id: int, db: DbSession, principal: ReadPrincipal
+    group_id: uuid.UUID, db: DbSession, principal: ReadPrincipal
 ) -> LeadershipResponse | None:
     leadership = await service.get_current_leadership(db, group_id)
     if leadership is None:
@@ -320,7 +321,7 @@ async def get_current_leadership(
 
 @router.get("/api/groups/{group_id}/leaderships", response_model=list[LeadershipResponse])
 async def list_leaderships(
-    group_id: int, db: DbSession, principal: ReadPrincipal
+    group_id: uuid.UUID, db: DbSession, principal: ReadPrincipal
 ) -> list[LeadershipResponse]:
     leaderships = await service.list_leaderships(db, group_id)
     rows = await service.build_leadership_responses(db, leaderships)
@@ -329,7 +330,7 @@ async def list_leaderships(
 
 @router.get("/api/groups/{group_id}/memberships", response_model=list[MembershipResponse])
 async def list_memberships_for_circle(
-    group_id: int, db: DbSession, principal: ReadPrincipal
+    group_id: uuid.UUID, db: DbSession, principal: ReadPrincipal
 ) -> list[MembershipResponse]:
     memberships = await service.list_memberships_for_circle(db, group_id)
     rows = await service.build_membership_responses(db, memberships)

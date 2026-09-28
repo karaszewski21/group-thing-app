@@ -11,6 +11,8 @@ the now-removed `category/service.py` used for
 
 from __future__ import annotations
 
+import uuid
+
 import time
 from typing import cast
 
@@ -29,7 +31,7 @@ class ProductHasInventoryItemsException(BusinessConflictException):
     """Raised when deleting a product still referenced by at least one
     `app.circulation.InventoryItem`."""
 
-    def __init__(self, product_id: int) -> None:
+    def __init__(self, product_id: uuid.UUID) -> None:
         super().__init__(
             f"Product with id {product_id} cannot be deleted because it has "
             "associated inventory items"
@@ -43,7 +45,7 @@ def _product_select() -> Select[tuple[Product]]:
 async def list_products(
     db: AsyncSession,
     *,
-    category_id: int | None,
+    category_id: uuid.UUID | None,
     search: str | None,
     sort: str | None,
     plugin_filters: list[str] | None,
@@ -53,7 +55,7 @@ async def list_products(
     )
 
 
-async def get_product(db: AsyncSession, product_id: int) -> Product:
+async def get_product(db: AsyncSession, product_id: uuid.UUID) -> Product:
     result = await db.execute(_product_select().where(Product.id == product_id))
     product = result.scalar_one_or_none()
     if product is None:
@@ -71,10 +73,10 @@ async def create_product(db: AsyncSession, data: CreateProductRequest) -> Produc
     )
     db.add(product)
     await db.commit()
-    return await get_product(db, cast(int, product.id))
+    return await get_product(db, cast(uuid.UUID, product.id))
 
 
-async def update_product(db: AsyncSession, product_id: int, data: UpdateProductRequest) -> Product:
+async def update_product(db: AsyncSession, product_id: uuid.UUID, data: UpdateProductRequest) -> Product:
     product = await get_product(db, product_id)
     product.name = data.name
     product.description = data.description
@@ -86,7 +88,7 @@ async def update_product(db: AsyncSession, product_id: int, data: UpdateProductR
 
 
 async def get_or_create_product_by_name(
-    db: AsyncSession, name: str, category_id: int
+    db: AsyncSession, name: str, category_id: uuid.UUID
 ) -> Product:
     """Resolves a freeform item name typed by a user (e.g. during
     onboarding) to an existing `Product` in the same `category_id` — matched
@@ -110,10 +112,10 @@ async def get_or_create_product_by_name(
     )
     db.add(product)
     await db.commit()
-    return await get_product(db, cast(int, product.id))
+    return await get_product(db, cast(uuid.UUID, product.id))
 
 
-async def delete_product(db: AsyncSession, product_id: int) -> None:
+async def delete_product(db: AsyncSession, product_id: uuid.UUID) -> None:
     product = await get_product(db, product_id)
     await db.delete(product)
     try:

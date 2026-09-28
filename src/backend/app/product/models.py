@@ -8,9 +8,11 @@ is a plain FK-id column into the standalone `app.category` module's
 
 from __future__ import annotations
 
+import uuid
 from typing import Any
 
-from sqlalchemy import BigInteger, ForeignKey, String
+from sqlalchemy import ForeignKey, String
+from sqlalchemy.dialects import postgresql
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -19,7 +21,6 @@ from app.core.base_model import BaseEntity
 
 class Product(BaseEntity):
     __tablename__ = "products"
-    __sequence_name__ = "product_seq"
 
     name: Mapped[str] = mapped_column(String(255), nullable=False)
     description: Mapped[str | None] = mapped_column(String(2000), nullable=True)
@@ -28,8 +29,8 @@ class Product(BaseEntity):
     # even though it's this entity's business key below — preserve that
     # absence exactly, matching the Java source.
     sku: Mapped[str] = mapped_column(String(50), nullable=False)
-    category_id: Mapped[int] = mapped_column(
-        BigInteger, ForeignKey("categories.id"), nullable=False
+    category_id: Mapped[uuid.UUID] = mapped_column(
+        postgresql.UUID(as_uuid=True), ForeignKey("categories.id"), nullable=False
     )
     plugin_data: Mapped[dict[str, Any] | None] = mapped_column(JSONB, nullable=True)
 

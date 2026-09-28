@@ -7,6 +7,7 @@ POST/PUT/DELETE -> `EDIT`/`mcp:edit`.
 
 from __future__ import annotations
 
+import uuid
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, Query, status
@@ -34,7 +35,7 @@ EditPrincipal = Annotated[Principal, Depends(require_any("EDIT", "mcp:edit"))]
 async def list_products(
     db: DbSession,
     principal: ReadPrincipal,
-    category_id: int | None = None,
+    category_id: uuid.UUID | None = None,
     search: str | None = None,
     sort: str | None = None,
     plugin_filter: Annotated[list[str] | None, Query(alias="pluginFilter")] = None,
@@ -47,7 +48,7 @@ async def list_products(
 
 @router.get("/{product_id}", response_model=ProductResponse)
 async def get_product(
-    product_id: int, db: DbSession, principal: ReadPrincipal
+    product_id: uuid.UUID, db: DbSession, principal: ReadPrincipal
 ) -> ProductResponse:
     product = await service.get_product(db, product_id)
     return ProductResponse.model_validate(product)
@@ -71,12 +72,12 @@ async def resolve_product(
 
 @router.put("/{product_id}", response_model=ProductResponse)
 async def update_product(
-    product_id: int, body: UpdateProductRequest, db: DbSession, principal: EditPrincipal
+    product_id: uuid.UUID, body: UpdateProductRequest, db: DbSession, principal: EditPrincipal
 ) -> ProductResponse:
     product = await service.update_product(db, product_id, body)
     return ProductResponse.model_validate(product)
 
 
 @router.delete("/{product_id}", status_code=status.HTTP_204_NO_CONTENT, response_model=None)
-async def delete_product(product_id: int, db: DbSession, principal: EditPrincipal) -> None:
+async def delete_product(product_id: uuid.UUID, db: DbSession, principal: EditPrincipal) -> None:
     await service.delete_product(db, product_id)

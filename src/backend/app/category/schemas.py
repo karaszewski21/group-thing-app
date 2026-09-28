@@ -4,6 +4,7 @@ Route Spec, Category section). Follows `app/product/schemas.py`'s pattern.
 
 from __future__ import annotations
 
+import uuid
 from datetime import datetime
 from typing import TYPE_CHECKING, Literal
 
@@ -22,7 +23,7 @@ class CategoryResponse(BaseModel):
 
     model_config = ConfigDict(from_attributes=True)
 
-    id: int
+    id: uuid.UUID
     name: str
     description: str | None
     sort_order: int

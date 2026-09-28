@@ -12,6 +12,8 @@ raising `AccessDeniedException` — per `standards/backend/security.md`.
 
 from __future__ import annotations
 
+import uuid
+
 from datetime import date
 from typing import cast
 
@@ -31,14 +33,14 @@ from .group_roles import get_or_create_active_group_role
 
 async def create_circle(db: AsyncSession, data: CreateCircleRequest) -> Group:
     party = await create_party(db, PartyType.ORGANIZATION)
-    group = Group(party_id=cast(int, party.id), name=data.name)
+    group = Group(party_id=cast(uuid.UUID, party.id), name=data.name)
     db.add(group)
     await db.commit()
     await db.refresh(group)
     return group
 
 
-async def get_own_circle(db: AsyncSession, organizer_party_id: int) -> Group | None:
+async def get_own_circle(db: AsyncSession, organizer_party_id: uuid.UUID) -> Group | None:
     """`None` (not an exception) when the caller doesn't currently lead any
     Circle — mirrors `app.organizations.service.get_own_organization`'s
     resolve-or-None shape. Resolves via `list_active_leaderships_for_party`
@@ -50,7 +52,7 @@ async def get_own_circle(db: AsyncSession, organizer_party_id: int) -> Group | N
     return await get_group(db, leaderships[0].to_group_id)
 
 
-async def create_own_circle(db: AsyncSession, organizer_party_id: int, circle_name: str) -> Group:
+async def create_own_circle(db: AsyncSession, organizer_party_id: uuid.UUID, circle_name: str) -> Group:
     """Self-service 'become an Organizer': creates a brand-new Circle and
     assigns `organizer_party_id` as its leader in one call. Idempotent by
     design (mirrors `create_own_organization`) — a caller who already leads
@@ -68,8 +70,8 @@ async def create_own_circle(db: AsyncSession, organizer_party_id: int, circle_na
     circle = await create_circle(db, CreateCircleRequest(name=circle_name))
     role = await get_or_create_active_group_role(db, organizer_party_id, GroupRoleType.ORGANIZATOR)
     leadership = Leadership(
-        from_role_id=cast(int, role.id),
-        to_group_id=cast(int, circle.id),
+        from_role_id=cast(uuid.UUID, role.id),
+        to_group_id=cast(uuid.UUID, circle.id),
         valid_from=date.today(),
         valid_to=None,
     )
@@ -80,7 +82,7 @@ async def create_own_circle(db: AsyncSession, organizer_party_id: int, circle_na
 
 async def create_additional_circle(
     db: AsyncSession,
-    organizer_party_id: int,
+    organizer_party_id: uuid.UUID,
     circle_name: str,
     visibility: GroupVisibility | None = None,
 ) -> Group:
@@ -99,8 +101,8 @@ async def create_additional_circle(
         circle.visibility = visibility
     role = await get_or_create_active_group_role(db, organizer_party_id, GroupRoleType.ORGANIZATOR)
     leadership = Leadership(
-        from_role_id=cast(int, role.id),
-        to_group_id=cast(int, circle.id),
+        from_role_id=cast(uuid.UUID, role.id),
+        to_group_id=cast(uuid.UUID, circle.id),
         valid_from=date.today(),
         valid_to=None,
     )
@@ -118,7 +120,7 @@ async def list_groups_for_moderation(db: AsyncSession) -> list[ModerationGroupRe
     rows = await repository.list_groups_for_moderation(db)
     return [
         ModerationGroupResponse(
-            id=cast(int, group.id),
+            id=cast(uuid.UUID, group.id),
             name=group.name,
             created_at=group.created_at,
             organizer_name=organizer_name,
@@ -130,7 +132,7 @@ async def list_groups_for_moderation(db: AsyncSession) -> list[ModerationGroupRe
     ]
 
 
-async def get_group(db: AsyncSession, group_id: int) -> Group:
+async def get_group(db: AsyncSession, group_id: uuid.UUID) -> Group:
     group = await repository.get_group(db, group_id)
     if group is None:
         raise EntityNotFoundException("Group", group_id)
@@ -139,8 +141,8 @@ async def get_group(db: AsyncSession, group_id: int) -> Group:
 
 async def update_group(
     db: AsyncSession,
-    group_id: int,
-    caller_party_id: int,
+    group_id: uuid.UUID,
+    caller_party_id: uuid.UUID,
     name: str,
     layout_mode: GroupLayoutMode | None = None,
     visibility: GroupVisibility | None = None,
@@ -169,7 +171,7 @@ async def update_group(
 # --- Leadership (GroupRole(ORGANIZATOR) -> Group, strictly 1:N) ----------------
 
 
-async def _group_role_party_id(db: AsyncSession, group_role_id: int) -> int:
+async def _group_role_party_id(db: AsyncSession, group_role_id: uuid.UUID) -> uuid.UUID:
     role = await repository.get_group_role(db, group_role_id)
     if role is None:
         raise EntityNotFoundException("GroupRole", group_role_id)
@@ -177,7 +179,7 @@ async def _group_role_party_id(db: AsyncSession, group_role_id: int) -> int:
 
 
 async def assign_leadership(
-    db: AsyncSession, group_id: int, organizer_party_id: int, valid_from: date
+    db: AsyncSession, group_id: uuid.UUID, organizer_party_id: uuid.UUID, valid_from: date
 ) -> Leadership:
     await get_group(db, group_id)
 
@@ -187,7 +189,7 @@ async def assign_leadership(
 
     role = await get_or_create_active_group_role(db, organizer_party_id, GroupRoleType.ORGANIZATOR)
     leadership = Leadership(
-        from_role_id=cast(int, role.id), to_group_id=group_id, valid_from=valid_from, valid_to=None
+        from_role_id=cast(uuid.UUID, role.id), to_group_id=group_id, valid_from=valid_from, valid_to=None
     )
     db.add(leadership)
     await db.commit()
@@ -195,7 +197,7 @@ async def assign_leadership(
     return leadership
 
 
-async def remove_leadership(db: AsyncSession, leadership_id: int, valid_to: date) -> Leadership:
+async def remove_leadership(db: AsyncSession, leadership_id: uuid.UUID, valid_to: date) -> Leadership:
     leadership = await repository.get_leadership(db, leadership_id)
     if leadership is None:
         raise EntityNotFoundException("Leadership", leadership_id)
@@ -224,15 +226,15 @@ async def build_leadership_responses(
     return rows
 
 
-async def get_current_leadership(db: AsyncSession, group_id: int) -> Leadership | None:
+async def get_current_leadership(db: AsyncSession, group_id: uuid.UUID) -> Leadership | None:
     return await repository.find_current_leadership(db, group_id)
 
 
-async def list_leaderships(db: AsyncSession, group_id: int) -> list[Leadership]:
+async def list_leaderships(db: AsyncSession, group_id: uuid.UUID) -> list[Leadership]:
     return await repository.list_leaderships_for_group(db, group_id)
 
 
-async def list_active_leaderships_for_party(db: AsyncSession, party_id: int) -> list[Leadership]:
+async def list_active_leaderships_for_party(db: AsyncSession, party_id: uuid.UUID) -> list[Leadership]:
     """Every Circle `party_id` currently, actively leads."""
     role_ids = await repository.list_organizer_role_ids_for_party(db, party_id)
     if not role_ids:
@@ -240,7 +242,7 @@ async def list_active_leaderships_for_party(db: AsyncSession, party_id: int) -> 
     return await repository.list_active_leaderships_for_role_ids(db, role_ids)
 
 
-async def _is_active_organizer(db: AsyncSession, group_id: int, party_id: int) -> bool:
+async def _is_active_organizer(db: AsyncSession, group_id: uuid.UUID, party_id: uuid.UUID) -> bool:
     """Non-raising twin of `_require_active_organizer` — for call sites that
     need to compose this check with another (e.g. "organizer OR standing
     member") rather than gate on it alone."""
@@ -248,6 +250,6 @@ async def _is_active_organizer(db: AsyncSession, group_id: int, party_id: int) -
     return current is not None and await _group_role_party_id(db, current.from_role_id) == party_id
 
 
-async def _require_active_organizer(db: AsyncSession, group_id: int, party_id: int) -> None:
+async def _require_active_organizer(db: AsyncSession, group_id: uuid.UUID, party_id: uuid.UUID) -> None:
     if not await _is_active_organizer(db, group_id, party_id):
         raise AccessDeniedException

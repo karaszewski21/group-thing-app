@@ -74,8 +74,8 @@ async def test_productsCategoryId_afterMigration_isNotNullAndFkConstrained(
                 "INSERT INTO products "
                 "(id, name, sku, category_id, created_at, updated_at) "
                 "VALUES "
-                "(nextval('product_seq'), 'Invalid FK Product', 'SKU-INVALID', "
-                "999999, now(), now())"
+                "(gen_random_uuid(), 'Invalid FK Product', 'SKU-INVALID', "
+                "gen_random_uuid(), now(), now())"
             )
         )
         await db_session.flush()

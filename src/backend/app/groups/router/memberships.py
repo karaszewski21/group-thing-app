@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from datetime import date
+import uuid
 from typing import Annotated
 
 from fastapi import APIRouter, Depends
@@ -24,7 +25,7 @@ EditPrincipal = Annotated[Principal, Depends(require_any("EDIT", "mcp:edit"))]
 
 @router.post("/api/memberships/{membership_id}/end", response_model=MembershipResponse)
 async def end_membership(
-    membership_id: int, db: DbSession, principal: EditPrincipal, valid_to: date | None = None
+    membership_id: uuid.UUID, db: DbSession, principal: EditPrincipal, valid_to: date | None = None
 ) -> MembershipResponse:
     membership = await service.end_membership(
         db, principal, membership_id, valid_to or date.today()

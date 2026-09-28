@@ -3,6 +3,7 @@ lifecycle over `application/join_requests.py`."""
 
 from __future__ import annotations
 
+import uuid
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, status
@@ -31,7 +32,7 @@ EditPrincipal = Annotated[Principal, Depends(require_any("EDIT", "mcp:edit"))]
     status_code=status.HTTP_201_CREATED,
 )
 async def create_join_request(
-    group_id: int,
+    group_id: uuid.UUID,
     db: DbSession,
     principal: AuthenticatedPrincipal,
     body: CreateJoinRequestRequest | None = None,
@@ -46,7 +47,7 @@ async def create_join_request(
     response_model=JoinRequestResponse,
 )
 async def withdraw_join_request(
-    group_id: int, request_id: int, db: DbSession, principal: AuthenticatedPrincipal
+    group_id: uuid.UUID, request_id: uuid.UUID, db: DbSession, principal: AuthenticatedPrincipal
 ) -> JoinRequestResponse:
     join_request = await service.withdraw_join_request(db, principal, group_id, request_id)
     return JoinRequestResponse.model_validate(join_request)
@@ -63,7 +64,7 @@ async def list_my_pending_join_requests(
 
 @router.get("/api/groups/{group_id}/join-requests", response_model=list[PendingJoinRequestResponse])
 async def list_group_pending_join_requests(
-    group_id: int, db: DbSession, principal: ReadPrincipal
+    group_id: uuid.UUID, db: DbSession, principal: ReadPrincipal
 ) -> list[PendingJoinRequestResponse]:
     return await service.list_group_pending_join_requests(db, principal, group_id)
 
@@ -73,7 +74,7 @@ async def list_group_pending_join_requests(
     response_model=JoinRequestResponse,
 )
 async def approve_join_request(
-    group_id: int, request_id: int, db: DbSession, principal: EditPrincipal
+    group_id: uuid.UUID, request_id: uuid.UUID, db: DbSession, principal: EditPrincipal
 ) -> JoinRequestResponse:
     join_request = await service.approve_join_request(db, principal, group_id, request_id)
     return JoinRequestResponse.model_validate(join_request)
@@ -84,7 +85,7 @@ async def approve_join_request(
     response_model=JoinRequestResponse,
 )
 async def reject_join_request(
-    group_id: int, request_id: int, db: DbSession, principal: EditPrincipal
+    group_id: uuid.UUID, request_id: uuid.UUID, db: DbSession, principal: EditPrincipal
 ) -> JoinRequestResponse:
     join_request = await service.reject_join_request(db, principal, group_id, request_id)
     return JoinRequestResponse.model_validate(join_request)

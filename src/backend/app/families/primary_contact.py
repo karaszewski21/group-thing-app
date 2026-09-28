@@ -3,6 +3,8 @@ don't delete", never an in-place flip of the flag."""
 
 from __future__ import annotations
 
+import uuid
+
 from datetime import date
 
 from sqlalchemy import select
@@ -13,7 +15,7 @@ from app.core.errors import EntityNotFoundException
 from .models import FamilyMembership
 
 
-async def make_primary_contact(db: AsyncSession, family_id: int, family_membership_id: int) -> None:
+async def make_primary_contact(db: AsyncSession, family_id: uuid.UUID, family_membership_id: uuid.UUID) -> None:
     """Ends the current primary contact's membership row and opens a new
     one for `family_membership_id`'s guardian, both dated today — "preserve
     row with validTo set, don't delete", never an in-place flip of

@@ -4,6 +4,8 @@ guards, per `standards/backend/security.md`)."""
 
 from __future__ import annotations
 
+import uuid
+
 from datetime import datetime
 
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -30,11 +32,11 @@ from app.product import service as product_service
 
 async def register_item(
     db: AsyncSession,
-    inventory_id: int,
-    product_id: int,
+    inventory_id: uuid.UUID,
+    product_id: uuid.UUID,
     condition: str,
     *,
-    owner_user_id: int | None = None,
+    owner_user_id: uuid.UUID | None = None,
 ) -> InventoryItem:
     inventory = await get_inventory(db, inventory_id)
     if owner_user_id is not None and inventory.owner_user_id != owner_user_id:
@@ -57,7 +59,7 @@ async def register_item(
     return item
 
 
-async def get_item(db: AsyncSession, item_id: int) -> InventoryItem:
+async def get_item(db: AsyncSession, item_id: uuid.UUID) -> InventoryItem:
     item = await repository.get_item(db, item_id)
     if item is None:
         raise EntityNotFoundException("InventoryItem", item_id)
@@ -66,12 +68,12 @@ async def get_item(db: AsyncSession, item_id: int) -> InventoryItem:
     return item
 
 
-async def list_items(db: AsyncSession, inventory_id: int) -> list[InventoryItem]:
+async def list_items(db: AsyncSession, inventory_id: uuid.UUID) -> list[InventoryItem]:
     return await repository.list_items_for_inventory(db, inventory_id)
 
 
 async def list_items_with_product_name(
-    db: AsyncSession, inventory_id: int
+    db: AsyncSession, inventory_id: uuid.UUID
 ) -> list[tuple[InventoryItem, str]]:
     """Joined read backing `GET /api/inventory-items`'s response — the
     product name is resolved via one SQL join instead of the caller having
@@ -80,13 +82,13 @@ async def list_items_with_product_name(
 
 
 async def list_lent_out_items_with_product_name(
-    db: AsyncSession, home_inventory_id: int
+    db: AsyncSession, home_inventory_id: uuid.UUID
 ) -> list[tuple[InventoryItem, str]]:
     """Joined read backing `GET /api/inventory-items/mine/lent-out`."""
     return await repository.list_lent_out_items_with_product_name(db, home_inventory_id)
 
 
-async def get_item_with_product_name(db: AsyncSession, item_id: int) -> tuple[InventoryItem, str]:
+async def get_item_with_product_name(db: AsyncSession, item_id: uuid.UUID) -> tuple[InventoryItem, str]:
     """Joined read backing `GET /api/inventory-items/{id}`'s response."""
     row = await repository.get_item_with_product_name(db, item_id)
     if row is None or row[0].deleted_at is not None:
@@ -94,7 +96,7 @@ async def get_item_with_product_name(db: AsyncSession, item_id: int) -> tuple[In
     return row
 
 
-async def get_item_balance(db: AsyncSession, item_id: int) -> InventoryBalance:
+async def get_item_balance(db: AsyncSession, item_id: uuid.UUID) -> InventoryBalance:
     balance = await repository.find_item_balance(db, item_id)
     if balance is None:
         raise EntityNotFoundException("InventoryBalance", item_id)
@@ -102,8 +104,8 @@ async def get_item_balance(db: AsyncSession, item_id: int) -> InventoryBalance:
 
 
 async def get_active_reservation_id_for_item(
-    db: AsyncSession, item_id: int, status: BalanceStatus
-) -> int | None:
+    db: AsyncSession, item_id: uuid.UUID, status: BalanceStatus
+) -> uuid.UUID | None:
     """Resolves the item's in-flight `Reservation.id` for
     `InventoryBalanceResponse.reservation_id` (bug #4c) — `None` without
     querying unless `status` is `RESERVED`/`IN_TRANSIT` (the only statuses
@@ -133,7 +135,7 @@ async def resolve_owning_inventory(db: AsyncSession, item: InventoryItem) -> Inv
 
 
 async def _require_item_owner(
-    db: AsyncSession, item_id: int, principal: Principal
+    db: AsyncSession, item_id: uuid.UUID, principal: Principal
 ) -> InventoryItem:
     """Ownership gate for the edit/delete surface: only the owner of the
     inventory holding an item may mutate it. Circulation deals in raw
@@ -147,7 +149,7 @@ async def _require_item_owner(
 
 
 async def update_item(
-    db: AsyncSession, item_id: int, principal: Principal, data: UpdateInventoryItemRequest
+    db: AsyncSession, item_id: uuid.UUID, principal: Principal, data: UpdateInventoryItemRequest
 ) -> InventoryItem:
     """PATCH an item's `condition`. Allowed regardless of the item's
     `InventoryBalance` status — a reserved or lent item can still have its
@@ -163,7 +165,7 @@ async def update_item(
     return item
 
 
-async def soft_delete_item(db: AsyncSession, item_id: int, principal: Principal) -> None:
+async def soft_delete_item(db: AsyncSession, item_id: uuid.UUID, principal: Principal) -> None:
     """Soft-delete an item (sets `deleted_at`). Blocked with a 409 when the
     item's balance is not `AVAILABLE` — a reserved/in-transit/lent item
     can't be withdrawn from circulation. The 1:1 `InventoryBalance` row is

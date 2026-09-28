@@ -13,11 +13,13 @@ already has in hand before it ever calls into `circulation_bridge`."""
 
 from __future__ import annotations
 
+import uuid
+
 from app.core.errors import AccessDeniedException
 
 
 def _require_race_participant(
-    reserved_by_user_id: int, holder_user_id: int, acting_user_id: int
+    reserved_by_user_id: uuid.UUID, holder_user_id: uuid.UUID, acting_user_id: uuid.UUID
 ) -> None:
     if acting_user_id not in (reserved_by_user_id, holder_user_id):
         raise AccessDeniedException

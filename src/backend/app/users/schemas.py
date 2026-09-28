@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import re
+import uuid
 from datetime import date, datetime
 from typing import Literal
 
@@ -29,9 +30,9 @@ def normalize_email(value: str) -> str:
 class UserProfileResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
-    id: int
-    party_id: int
-    account_user_id: int | None
+    id: uuid.UUID
+    party_id: uuid.UUID
+    account_user_id: uuid.UUID | None
     display_name: str
     email: str | None
     created_at: datetime
@@ -46,8 +47,8 @@ class UserProfileResponse(BaseModel):
 class UserRoleResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
-    id: int
-    party_id: int
+    id: uuid.UUID
+    party_id: uuid.UUID
     role_type: str
     valid_from: date
     valid_to: date | None
@@ -75,5 +76,5 @@ class RegisterRequest(BaseModel):
 
 class RegisterResponse(BaseModel):
     token: str
-    party_id: int
+    party_id: uuid.UUID
     role: str

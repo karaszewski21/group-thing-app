@@ -9,6 +9,7 @@ management is admin-only, unlike `app.product`'s EDIT-gated mutations.
 
 from __future__ import annotations
 
+import uuid
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, status
@@ -39,7 +40,7 @@ async def list_categories(db: DbSession, principal: ReadPrincipal) -> list[Categ
 
 @router.get("/{category_id}", response_model=CategoryResponse)
 async def get_category(
-    category_id: int, db: DbSession, principal: ReadPrincipal
+    category_id: uuid.UUID, db: DbSession, principal: ReadPrincipal
 ) -> CategoryResponse:
     return await service.get_category(db, category_id)
 
@@ -53,19 +54,19 @@ async def create_category(
 
 @router.put("/{category_id}", response_model=CategoryResponse)
 async def update_category(
-    category_id: int, body: UpdateCategoryRequest, db: DbSession, principal: AdminPrincipal
+    category_id: uuid.UUID, body: UpdateCategoryRequest, db: DbSession, principal: AdminPrincipal
 ) -> CategoryResponse:
     return await service.update_category(db, category_id, body)
 
 
 @router.delete("/{category_id}", status_code=status.HTTP_204_NO_CONTENT, response_model=None)
-async def delete_category(category_id: int, db: DbSession, principal: AdminPrincipal) -> None:
+async def delete_category(category_id: uuid.UUID, db: DbSession, principal: AdminPrincipal) -> None:
     await service.delete_category(db, category_id)
 
 
 @router.patch("/{category_id}/move", response_model=CategoryResponse)
 async def move_category(
-    category_id: int, body: MoveCategoryRequest, db: DbSession, principal: AdminPrincipal
+    category_id: uuid.UUID, body: MoveCategoryRequest, db: DbSession, principal: AdminPrincipal
 ) -> CategoryResponse:
     await service.move_category(db, category_id, body.direction)
     return await service.get_category(db, category_id)

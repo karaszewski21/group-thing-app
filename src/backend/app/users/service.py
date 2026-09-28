@@ -3,6 +3,8 @@
 
 from __future__ import annotations
 
+import uuid
+
 import re
 from datetime import date
 from typing import cast
@@ -68,14 +70,14 @@ async def create_account_and_profile(
     user = await create_account(db, username, password)
     party = await create_party(db, PartyType.PERSON)
     profile = UserProfile(
-        party_id=cast(int, party.id),
-        account_user_id=cast(int, user.id),
+        party_id=cast(uuid.UUID, party.id),
+        account_user_id=cast(uuid.UUID, user.id),
         display_name=display_name,
         email=email,
     )
     db.add(profile)
     role = UserRole(
-        party_id=cast(int, party.id),
+        party_id=cast(uuid.UUID, party.id),
         role_type=UserRoleType.USER,
         valid_from=date.today(),
         valid_to=None,
@@ -99,14 +101,14 @@ async def get_profile_by_principal(db: AsyncSession, principal: Principal) -> Us
     return profile
 
 
-async def get_profile(db: AsyncSession, user_profile_id: int) -> UserProfile:
+async def get_profile(db: AsyncSession, user_profile_id: uuid.UUID) -> UserProfile:
     profile = await db.get(UserProfile, user_profile_id)
     if profile is None:
         raise EntityNotFoundException("UserProfile", user_profile_id)
     return profile
 
 
-async def get_profile_by_party(db: AsyncSession, party_id: int) -> UserProfile:
+async def get_profile_by_party(db: AsyncSession, party_id: uuid.UUID) -> UserProfile:
     profile = (
         await db.execute(select(UserProfile).where(UserProfile.party_id == party_id))
     ).scalar_one_or_none()
@@ -115,7 +117,7 @@ async def get_profile_by_party(db: AsyncSession, party_id: int) -> UserProfile:
     return profile
 
 
-async def get_profile_by_account_user_id(db: AsyncSession, account_user_id: int) -> UserProfile:
+async def get_profile_by_account_user_id(db: AsyncSession, account_user_id: uuid.UUID) -> UserProfile:
     """The inverse of `UserProfile.account_user_id` — used by
     `app.groups.application.term_item_listings` to map a `circulation.
     Reservation.reserved_by_user_id` (an account `users.id`) back to the
@@ -130,7 +132,7 @@ async def get_profile_by_account_user_id(db: AsyncSession, account_user_id: int)
 
 
 async def get_or_create_active_user_role(
-    db: AsyncSession, party_id: int, role_type: UserRoleType
+    db: AsyncSession, party_id: uuid.UUID, role_type: UserRoleType
 ) -> UserRole:
     """The same active role instance is reused across repeat grants for the
     same party — a role is a standing capacity, not a per-event record."""
@@ -151,7 +153,7 @@ async def get_or_create_active_user_role(
     return role
 
 
-async def is_active_organizer(db: AsyncSession, party_id: int) -> bool:
+async def is_active_organizer(db: AsyncSession, party_id: uuid.UUID) -> bool:
     """Whether `party_id` currently holds an active `UserRole(ORGANIZATOR)`
     grant — independent of whether they've created/lead any Circle yet.
     Registration grants this role on its own (see `register()`'s ORGANIZER
@@ -201,7 +203,7 @@ def _derive_display_name(email: str) -> str:
     return re.sub(r"[._-]+", " ", local_part).strip().title() or local_part
 
 
-async def register(db: AsyncSession, data: RegisterRequest) -> tuple[User, int]:
+async def register(db: AsyncSession, data: RegisterRequest) -> tuple[User, uuid.UUID]:
     """Returns `(user, party_id)` so the router can build the enriched
     `RegisterResponse`. No longer calls `bootstrap_family_for_party` or
     `create_own_circle` under any role (spec.md Core Requirements 3-4) —
@@ -225,7 +227,7 @@ async def register(db: AsyncSession, data: RegisterRequest) -> tuple[User, int]:
         db, username, data.password, display_name, data.email
     )
     if data.role == "ORGANIZER":
-        await get_or_create_active_user_role(db, cast(int, party.id), UserRoleType.ORGANIZATOR)
+        await get_or_create_active_user_role(db, cast(uuid.UUID, party.id), UserRoleType.ORGANIZATOR)
 
     # Deferred import: app.families.bootstrap imports create_account_and_profile
     # from this module at module load time, so a top-level import here would
@@ -233,10 +235,10 @@ async def register(db: AsyncSession, data: RegisterRequest) -> tuple[User, int]:
     # mid-initialization.
     from app.families.service import create_solo_family_for_party
 
-    await create_solo_family_for_party(db, cast(int, party.id), display_name)
+    await create_solo_family_for_party(db, cast(uuid.UUID, party.id), display_name)
 
     await db.commit()
     user = await db.get(User, profile.account_user_id)
     if user is None:
         raise EntityNotFoundException("User", profile.account_user_id)
-    return user, cast(int, party.id)
+    return user, cast(uuid.UUID, party.id)

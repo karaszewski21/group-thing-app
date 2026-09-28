@@ -11,13 +11,13 @@ from app.core.errors import AccessDeniedException
 
 
 def _require_party_to_reservation(
-    reservation: Reservation, holder_user_id: int, acting_user_id: int
+    reservation: Reservation, holder_user_id: uuid.UUID, acting_user_id: uuid.UUID
 ) -> None:
     if acting_user_id not in (reservation.reserved_by_user_id, holder_user_id):
         raise AccessDeniedException
 
 
-def _require_holder_to_confirm(holder_user_id: int, acting_user_id: int) -> None:
+def _require_holder_to_confirm(holder_user_id: uuid.UUID, acting_user_id: uuid.UUID) -> None:
     """Mutual-consent gate for `confirm`: `reserved_by_user_id` is always
     the party *gaining* the item as a result of this reservation (the one
     who proposed it — see `create_reservation`/`take_item_listing`), and

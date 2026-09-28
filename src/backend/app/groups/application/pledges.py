@@ -11,6 +11,8 @@ to build the Term organizer's notification — groups no longer knows
 
 from __future__ import annotations
 
+import uuid
+
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.auth_deps import Principal
@@ -30,7 +32,7 @@ from .terms import get_needed_item
 
 
 async def _emit_pledge_event(
-    db: AsyncSession, needed_item_id: int, actor_name: str, event_type: str
+    db: AsyncSession, needed_item_id: uuid.UUID, actor_name: str, event_type: str
 ) -> None:
     """Best-effort organizer-notification event for a pledge state change.
     Every lookup that could be absent (soft-deleted need, term gone, circle
@@ -60,7 +62,7 @@ async def _emit_pledge_event(
     )
 
 
-async def create_pledge(db: AsyncSession, principal: Principal, needed_item_id: int) -> Pledge:
+async def create_pledge(db: AsyncSession, principal: Principal, needed_item_id: uuid.UUID) -> Pledge:
     profile = await get_profile_by_principal(db, principal)
     await get_needed_item(db, needed_item_id)
 
@@ -85,24 +87,24 @@ async def create_pledge(db: AsyncSession, principal: Principal, needed_item_id: 
     return pledge
 
 
-async def get_pledge(db: AsyncSession, pledge_id: int) -> Pledge:
+async def get_pledge(db: AsyncSession, pledge_id: uuid.UUID) -> Pledge:
     pledge = await repository.get_pledge(db, pledge_id)
     if pledge is None:
         raise EntityNotFoundException("Pledge", pledge_id)
     return pledge
 
 
-async def list_pledges(db: AsyncSession, needed_item_id: int) -> list[Pledge]:
+async def list_pledges(db: AsyncSession, needed_item_id: uuid.UUID) -> list[Pledge]:
     await get_needed_item(db, needed_item_id)
     return await repository.list_pledges_for_needed_item(db, needed_item_id)
 
 
-def _require_pledging_party(pledge: Pledge, party_id: int) -> None:
+def _require_pledging_party(pledge: Pledge, party_id: uuid.UUID) -> None:
     if pledge.pledged_by_party_id != party_id:
         raise AccessDeniedException
 
 
-async def withdraw_pledge(db: AsyncSession, principal: Principal, pledge_id: int) -> Pledge:
+async def withdraw_pledge(db: AsyncSession, principal: Principal, pledge_id: uuid.UUID) -> Pledge:
     pledge = await get_pledge(db, pledge_id)
     profile = await get_profile_by_principal(db, principal)
     _require_pledging_party(pledge, profile.party_id)

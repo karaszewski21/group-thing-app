@@ -3,6 +3,8 @@ co-located with the mutations it guards (per `standards/backend/security.md`).""
 
 from __future__ import annotations
 
+import uuid
+
 from datetime import datetime
 from typing import Any, cast
 
@@ -38,19 +40,19 @@ async def create_term(db: AsyncSession, principal: Principal, data: CreateTermRe
     return term
 
 
-async def get_term(db: AsyncSession, term_id: int) -> Term:
+async def get_term(db: AsyncSession, term_id: uuid.UUID) -> Term:
     term = await repository.get_term(db, term_id)
     if term is None:
         raise EntityNotFoundException("Term", term_id)
     return term
 
 
-async def list_terms(db: AsyncSession, circle_group_id: int) -> list[Term]:
+async def list_terms(db: AsyncSession, circle_group_id: uuid.UUID) -> list[Term]:
     return await repository.list_terms_for_group(db, circle_group_id)
 
 
 async def update_term(
-    db: AsyncSession, term_id: int, caller_party_id: int, data: UpdateTermRequest
+    db: AsyncSession, term_id: uuid.UUID, caller_party_id: uuid.UUID, data: UpdateTermRequest
 ) -> Term:
     """Partial in-place term edit. Only the parent Circle's currently active
     organizer may edit — enforced here, not by the coarse matrix."""
@@ -102,10 +104,10 @@ async def create_needed_item(
     )
     db.add(needed_item)
     await db.commit()
-    return await get_needed_item_view(db, cast(int, needed_item.id))
+    return await get_needed_item_view(db, cast(uuid.UUID, needed_item.id))
 
 
-async def get_needed_item(db: AsyncSession, needed_item_id: int) -> NeededItem:
+async def get_needed_item(db: AsyncSession, needed_item_id: uuid.UUID) -> NeededItem:
     """ORM getter — kept as the dependency of `pledges` / `pledge_fulfillment`
     / `_require_needed_item_organizer`. A soft-deleted row is a 404."""
     needed_item = await repository.get_needed_item(db, needed_item_id)
@@ -116,7 +118,7 @@ async def get_needed_item(db: AsyncSession, needed_item_id: int) -> NeededItem:
     return needed_item
 
 
-async def get_needed_item_view(db: AsyncSession, needed_item_id: int) -> dict[str, Any]:
+async def get_needed_item_view(db: AsyncSession, needed_item_id: uuid.UUID) -> dict[str, Any]:
     row = await repository.get_needed_item_with_product(db, needed_item_id)
     if row is None or row[0].deleted_at is not None:
         raise EntityNotFoundException("NeededItem", needed_item_id)
@@ -125,7 +127,7 @@ async def get_needed_item_view(db: AsyncSession, needed_item_id: int) -> dict[st
     return _needed_item_view(row, claimed=claimed)
 
 
-async def list_needed_item_views(db: AsyncSession, term_id: int) -> list[dict[str, Any]]:
+async def list_needed_item_views(db: AsyncSession, term_id: uuid.UUID) -> list[dict[str, Any]]:
     claimed_ids = {
         needed_item_id
         for needed_item_id, _name, _party_id in await repository.list_active_pledges_for_term(
@@ -139,7 +141,7 @@ async def list_needed_item_views(db: AsyncSession, term_id: int) -> list[dict[st
 
 
 async def _require_needed_item_organizer(
-    db: AsyncSession, needed_item_id: int, caller_party_id: int
+    db: AsyncSession, needed_item_id: uuid.UUID, caller_party_id: uuid.UUID
 ) -> NeededItem:
     needed_item = await get_needed_item(db, needed_item_id)
     term = await get_term(db, needed_item.term_id)
@@ -149,8 +151,8 @@ async def _require_needed_item_organizer(
 
 async def update_needed_item(
     db: AsyncSession,
-    needed_item_id: int,
-    caller_party_id: int,
+    needed_item_id: uuid.UUID,
+    caller_party_id: uuid.UUID,
     data: UpdateNeededItemRequest,
 ) -> dict[str, Any]:
     """Partial in-place needed-item edit, gated on the parent term's Circle
@@ -168,7 +170,7 @@ async def update_needed_item(
 
 
 async def soft_delete_needed_item(
-    db: AsyncSession, needed_item_id: int, caller_party_id: int
+    db: AsyncSession, needed_item_id: uuid.UUID, caller_party_id: uuid.UUID
 ) -> None:
     """Soft-delete a needed item in one transaction. Blocked (409) if any
     pledge is already FULFILLED; otherwise every OPEN/CLAIMED pledge is

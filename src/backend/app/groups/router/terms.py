@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import uuid
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, status
@@ -40,21 +41,21 @@ async def create_term(
 
 @router.get("/api/terms", response_model=list[TermResponse])
 async def list_terms(
-    circle_group_id: int, db: DbSession, principal: ReadPrincipal
+    circle_group_id: uuid.UUID, db: DbSession, principal: ReadPrincipal
 ) -> list[TermResponse]:
     terms = await service.list_terms(db, circle_group_id)
     return [TermResponse.model_validate(term) for term in terms]
 
 
 @router.get("/api/terms/{term_id}", response_model=TermResponse)
-async def get_term(term_id: int, db: DbSession, principal: ReadPrincipal) -> TermResponse:
+async def get_term(term_id: uuid.UUID, db: DbSession, principal: ReadPrincipal) -> TermResponse:
     term = await service.get_term(db, term_id)
     return TermResponse.model_validate(term)
 
 
 @router.patch("/api/terms/{term_id}", response_model=TermResponse)
 async def update_term(
-    term_id: int, body: UpdateTermRequest, db: DbSession, principal: EditPrincipal
+    term_id: uuid.UUID, body: UpdateTermRequest, db: DbSession, principal: EditPrincipal
 ) -> TermResponse:
     profile = await get_profile_by_principal(db, principal)
     term = await service.update_term(db, term_id, profile.party_id, body)
@@ -73,7 +74,7 @@ async def create_needed_item(
 
 @router.get("/api/needed-items", response_model=list[NeededItemResponse])
 async def list_needed_items(
-    term_id: int, db: DbSession, principal: ReadPrincipal
+    term_id: uuid.UUID, db: DbSession, principal: ReadPrincipal
 ) -> list[NeededItemResponse]:
     views = await service.list_needed_item_views(db, term_id)
     return [NeededItemResponse.model_validate(view) for view in views]
@@ -81,7 +82,7 @@ async def list_needed_items(
 
 @router.get("/api/needed-items/{needed_item_id}", response_model=NeededItemResponse)
 async def get_needed_item(
-    needed_item_id: int, db: DbSession, principal: ReadPrincipal
+    needed_item_id: uuid.UUID, db: DbSession, principal: ReadPrincipal
 ) -> NeededItemResponse:
     view = await service.get_needed_item_view(db, needed_item_id)
     return NeededItemResponse.model_validate(view)
@@ -89,7 +90,7 @@ async def get_needed_item(
 
 @router.patch("/api/needed-items/{needed_item_id}", response_model=NeededItemResponse)
 async def update_needed_item(
-    needed_item_id: int,
+    needed_item_id: uuid.UUID,
     body: UpdateNeededItemRequest,
     db: DbSession,
     principal: EditPrincipal,
@@ -100,7 +101,7 @@ async def update_needed_item(
 
 
 @router.delete("/api/needed-items/{needed_item_id}", status_code=status.HTTP_204_NO_CONTENT)
-async def delete_needed_item(needed_item_id: int, db: DbSession, principal: EditPrincipal) -> None:
+async def delete_needed_item(needed_item_id: uuid.UUID, db: DbSession, principal: EditPrincipal) -> None:
     profile = await get_profile_by_principal(db, principal)
     await service.soft_delete_needed_item(db, needed_item_id, profile.party_id)
     return None

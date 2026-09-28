@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import uuid
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, status
@@ -62,7 +63,7 @@ async def create_my_organization(
 
 @router.patch("/api/organizations/{organization_id}", response_model=OrganizationResponse)
 async def update_organization(
-    organization_id: int, body: UpdateOrganizationRequest, db: DbSession, principal: EditPrincipal
+    organization_id: uuid.UUID, body: UpdateOrganizationRequest, db: DbSession, principal: EditPrincipal
 ) -> OrganizationResponse:
     profile = await get_profile_by_principal(db, principal)
     organization = await service.update_organization(

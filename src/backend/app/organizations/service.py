@@ -6,6 +6,8 @@ their own Organization) live here, raising `AccessDeniedException` — per
 
 from __future__ import annotations
 
+import uuid
+
 from datetime import date
 from typing import cast
 
@@ -48,14 +50,14 @@ async def _generate_unique_slug(db: AsyncSession, name: str) -> str:
 async def create_organization(db: AsyncSession, name: str) -> Organization:
     party = await create_party(db, PartyType.ORGANIZATION)
     slug = await _generate_unique_slug(db, name)
-    organization = Organization(party_id=cast(int, party.id), name=name, slug=slug)
+    organization = Organization(party_id=cast(uuid.UUID, party.id), name=name, slug=slug)
     db.add(organization)
     await db.commit()
     await db.refresh(organization)
     return organization
 
 
-async def get_organization(db: AsyncSession, organization_id: int) -> Organization:
+async def get_organization(db: AsyncSession, organization_id: uuid.UUID) -> Organization:
     organization = await db.get(Organization, organization_id)
     if organization is None:
         raise EntityNotFoundException("Organization", organization_id)
@@ -70,7 +72,7 @@ async def get_organization_by_slug(db: AsyncSession, slug: str) -> Organization 
     ).scalar_one_or_none()
 
 
-async def get_own_organization(db: AsyncSession, owner_party_id: int) -> Organization | None:
+async def get_own_organization(db: AsyncSession, owner_party_id: uuid.UUID) -> Organization | None:
     """`None` (not an exception) when the caller has no Organization yet —
     callers decide whether that's a 404 (`GET /me`) or a "go ahead and
     create one" signal (`POST /mine`)."""
@@ -87,11 +89,11 @@ async def get_own_organization(db: AsyncSession, owner_party_id: int) -> Organiz
     ).scalar_one_or_none()
     if membership is None:
         return None
-    return await get_organization(db, cast(int, membership.to_organization_id))
+    return await get_organization(db, cast(uuid.UUID, membership.to_organization_id))
 
 
 async def create_own_organization(
-    db: AsyncSession, owner_party_id: int, data: CreateOwnOrganizationRequest
+    db: AsyncSession, owner_party_id: uuid.UUID, data: CreateOwnOrganizationRequest
 ) -> Organization:
     """Self-service "create my organization": idempotent by design (per
     this module's 1:1 cardinality decision — see model docstrings) — a
@@ -107,8 +109,8 @@ async def create_own_organization(
         db, owner_party_id, OrganizationRoleType.OWNER
     )
     membership = OrganizationMembership(
-        from_role_id=cast(int, role.id),
-        to_organization_id=cast(int, organization.id),
+        from_role_id=cast(uuid.UUID, role.id),
+        to_organization_id=cast(uuid.UUID, organization.id),
         valid_from=date.today(),
         valid_to=None,
     )
@@ -124,7 +126,7 @@ async def create_own_organization(
 
 
 async def update_organization(
-    db: AsyncSession, organization_id: int, owner_party_id: int, data: UpdateOrganizationRequest
+    db: AsyncSession, organization_id: uuid.UUID, owner_party_id: uuid.UUID, data: UpdateOrganizationRequest
 ) -> Organization:
     """Only the Organization's own OWNER may update it — enforced here,
     not by the coarse matrix, per `standards/backend/security.md`."""
@@ -148,7 +150,7 @@ async def update_organization(
 
 
 async def get_or_create_active_organization_role(
-    db: AsyncSession, party_id: int, role_type: OrganizationRoleType
+    db: AsyncSession, party_id: uuid.UUID, role_type: OrganizationRoleType
 ) -> OrganizationRole:
     """The same active role instance is reused across repeat grants for the
     same party — a role is a standing capacity, not a per-Organization

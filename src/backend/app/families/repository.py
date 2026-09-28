@@ -3,6 +3,8 @@ FamilyMembership lookups and aggregates. Never commits or flushes."""
 
 from __future__ import annotations
 
+import uuid
+
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -13,14 +15,14 @@ from app.groups.service import list_memberships_for_party
 from .models import Family, FamilyMembership, FamilyRole, FamilyRoleType
 
 
-async def get_family(db: AsyncSession, family_id: int) -> Family:
+async def get_family(db: AsyncSession, family_id: uuid.UUID) -> Family:
     family = await db.get(Family, family_id)
     if family is None:
         raise EntityNotFoundException("Family", family_id)
     return family
 
 
-async def list_families_for_guardian_party(db: AsyncSession, party_id: int) -> list[Family]:
+async def list_families_for_guardian_party(db: AsyncSession, party_id: uuid.UUID) -> list[Family]:
     """Resolves a guardian's own Family/Families — the capability that used
     to be a flat `Person.family_group_id` field, now derived through
     `FamilyRole`/`FamilyMembership` since family membership is a role +
@@ -53,7 +55,7 @@ async def list_families_for_guardian_party(db: AsyncSession, party_id: int) -> l
     return list(families)
 
 
-async def count_active_child_members(db: AsyncSession, family_id: int) -> int:
+async def count_active_child_members(db: AsyncSession, family_id: uuid.UUID) -> int:
     """Active CHILD-role member count for one Family. Per
     `standards/backend/queries.md`: a single aggregate query (no per-member
     loop) — joins `FamilyMembership` to its `FamilyRole`, keeps only
@@ -72,7 +74,7 @@ async def count_active_child_members(db: AsyncSession, family_id: int) -> int:
     return int(result.scalar_one())
 
 
-async def list_guardian_memberships(db: AsyncSession, family_id: int) -> list[FamilyMembership]:
+async def list_guardian_memberships(db: AsyncSession, family_id: uuid.UUID) -> list[FamilyMembership]:
     result = await db.execute(
         select(FamilyMembership)
         .where(FamilyMembership.to_family_id == family_id, FamilyMembership.valid_to.is_(None))
@@ -81,7 +83,7 @@ async def list_guardian_memberships(db: AsyncSession, family_id: int) -> list[Fa
     return list(result.scalars().all())
 
 
-async def list_group_memberships_for_family(db: AsyncSession, family_id: int) -> list[Membership]:
+async def list_group_memberships_for_family(db: AsyncSession, family_id: uuid.UUID) -> list[Membership]:
     """Aggregates active Circle memberships across every guardian/child in
     this Family (decision: each family member joins a Circle individually,
     not the Family as a whole — see `app.groups.models.Membership`'s

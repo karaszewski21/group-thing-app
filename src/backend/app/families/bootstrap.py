@@ -3,6 +3,8 @@ two account-creating entry points (`create_family`, `create_own_family`)."""
 
 from __future__ import annotations
 
+import uuid
+
 from datetime import date
 from typing import cast
 
@@ -18,13 +20,13 @@ from .schemas import CreateFamilyRequest
 
 
 async def bootstrap_family_for_party(
-    db: AsyncSession, family_name: str, guardian_party_id: int
+    db: AsyncSession, family_name: str, guardian_party_id: uuid.UUID
 ) -> Family:
     """Creates a brand-new Family for an *already-existing* Party (used by
     both `create_family`, right after it bootstraps a fresh account, and
     `app.users.service.register`, whose caller already has a Party)."""
     family_party = await create_party(db, PartyType.ORGANIZATION)
-    family = Family(party_id=cast(int, family_party.id), name=family_name)
+    family = Family(party_id=cast(uuid.UUID, family_party.id), name=family_name)
     db.add(family)
     await db.flush()
 
@@ -38,8 +40,8 @@ async def bootstrap_family_for_party(
     await db.flush()
 
     membership = FamilyMembership(
-        from_role_id=cast(int, role.id),
-        to_family_id=cast(int, family.id),
+        from_role_id=cast(uuid.UUID, role.id),
+        to_family_id=cast(uuid.UUID, family.id),
         is_primary_contact=True,
         valid_from=date.today(),
         valid_to=None,
@@ -59,10 +61,10 @@ async def create_family(db: AsyncSession, data: CreateFamilyRequest) -> tuple[Fa
     family = await bootstrap_family_for_party(db, data.family_name, profile.party_id)
     await db.commit()
     await db.refresh(family)
-    return family, cast(int, profile.id)
+    return family, cast(uuid.UUID, profile.id)
 
 
-async def create_solo_family_for_party(db: AsyncSession, party_id: int, display_name: str) -> Family:
+async def create_solo_family_for_party(db: AsyncSession, party_id: uuid.UUID, display_name: str) -> Family:
     """Ensures `party_id` has a resolvable solo Family, creating one named
     `"Rodzina {display_name}"` if none exists yet — the automatic-bootstrap
     counterpart to `create_own_family`'s explicit self-service call, used at
@@ -77,7 +79,7 @@ async def create_solo_family_for_party(db: AsyncSession, party_id: int, display_
     return await bootstrap_family_for_party(db, f"Rodzina {display_name}", party_id)
 
 
-async def create_own_family(db: AsyncSession, guardian_party_id: int, name: str) -> Family:
+async def create_own_family(db: AsyncSession, guardian_party_id: uuid.UUID, name: str) -> Family:
     """Self-service "create my family": idempotent create-own (mirrors
     `create_own_organization`) — a caller who already guards a Family gets
     that same Family back unchanged (never a rename, never a second row);

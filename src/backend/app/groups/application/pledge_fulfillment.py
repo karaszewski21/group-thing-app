@@ -5,6 +5,8 @@ commits inside `register_item` / `create_reservation` live in circulation."""
 
 from __future__ import annotations
 
+import uuid
+
 from typing import cast
 
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -28,7 +30,7 @@ from .terms import get_needed_item, get_term
 
 
 async def fulfill_pledge(
-    db: AsyncSession, principal: Principal, pledge_id: int, data: FulfillPledgeRequest
+    db: AsyncSession, principal: Principal, pledge_id: uuid.UUID, data: FulfillPledgeRequest
 ) -> Pledge:
     """Attaches the concrete item the pledging guardian brings and opens the
     bridging `LEND` `Reservation`: `reservedBy` = the Term's currently active
@@ -61,7 +63,7 @@ async def fulfill_pledge(
             or inventory.inventory_type != circulation_bridge.InventoryType.PERSONAL
         ):
             raise AccessDeniedException
-        balance = await circulation_bridge.get_item_balance(db, cast(int, item.id))
+        balance = await circulation_bridge.get_item_balance(db, cast(uuid.UUID, item.id))
         if balance.status != circulation_bridge.BalanceStatus.AVAILABLE:
             raise BusinessConflictException(
                 "Nie można użyć tej rzeczy — jest zarezerwowana lub wypożyczona"
@@ -73,14 +75,14 @@ async def fulfill_pledge(
         )
         product_id = data.product_id if data.product_id is not None else needed_item.product_id
         item = await circulation_bridge.register_item(
-            db, cast(int, inventory.id), product_id, data.condition.value
+            db, cast(uuid.UUID, inventory.id), product_id, data.condition.value
         )
 
     reservation = await circulation_bridge.create_lend_reservation(
         db,
-        item_id=cast(int, item.id),
+        item_id=cast(uuid.UUID, item.id),
         reserved_by_user_id=organizer_profile.account_user_id,
-        term_id=cast(int, term.id),
+        term_id=cast(uuid.UUID, term.id),
     )
     # The guardian calling this endpoint IS the item's current holder (its
     # own inventory) — their consent already exists in the act of pledging
@@ -110,7 +112,7 @@ async def fulfill_pledge(
     return pledge
 
 
-async def sync_pledge_fulfillment(db: AsyncSession, pledge_id: int) -> Pledge:
+async def sync_pledge_fulfillment(db: AsyncSession, pledge_id: uuid.UUID) -> Pledge:
     pledge = await get_pledge(db, pledge_id)
     if pledge.resolved_reservation_id is None:
         raise AccessDeniedException

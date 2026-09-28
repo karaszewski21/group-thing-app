@@ -22,6 +22,7 @@ commit into re-emitting the same event."""
 from __future__ import annotations
 
 import logging
+import uuid
 from datetime import datetime, timedelta
 from typing import cast
 
@@ -70,7 +71,7 @@ async def _find_terms_just_ended(db: AsyncSession, *, window: timedelta) -> list
     return list(result.scalars().all())
 
 
-async def _scan_hand_over_reservations(db: AsyncSession, link_paths: dict[int, str]) -> int:
+async def _scan_hand_over_reservations(db: AsyncSession, link_paths: dict[uuid.UUID, str]) -> int:
     """One bridge query for every just-ended Term's still-open GIFT/LEND
     reservations, minus those already carrying a `GiveawayTermEndMarker`.
     Deliberately independent of eligibility and `ItemListingPreference` — a
@@ -82,7 +83,7 @@ async def _scan_hand_over_reservations(db: AsyncSession, link_paths: dict[int, s
     if not candidates:
         return 0
 
-    reservation_ids = [cast(int, r.id) for r in candidates]
+    reservation_ids = [cast(uuid.UUID, r.id) for r in candidates]
     already_marked = set(
         (
             await db.execute(
@@ -97,7 +98,7 @@ async def _scan_hand_over_reservations(db: AsyncSession, link_paths: dict[int, s
 
     emitted = 0
     for reservation in candidates:
-        reservation_id = cast(int, reservation.id)
+        reservation_id = cast(uuid.UUID, reservation.id)
         if reservation_id in already_marked:
             continue
         # Skipped (not raised): the scan commits once, so one party without a
@@ -177,10 +178,10 @@ async def scan_for_term_ended(db: AsyncSession, *, window: timedelta = DEFAULT_W
     marker for every affected row across every just-ended Term land in one
     atomic transaction."""
     terms = await _find_terms_just_ended(db, window=window)
-    link_paths: dict[int, str] = {}
+    link_paths: dict[uuid.UUID, str] = {}
     for term in terms:
         slug = await resolve_organizer_slug(db, term.circle_group_id)
-        link_paths[cast(int, term.id)] = f"/{slug}/grupa/{term.circle_group_id}/term/{term.id}"
+        link_paths[cast(uuid.UUID, term.id)] = f"/{slug}/grupa/{term.circle_group_id}/term/{term.id}"
     hand_over_events = await _scan_hand_over_reservations(db, link_paths) if link_paths else 0
     swap_events_emitted = 0
 
@@ -193,7 +194,7 @@ async def scan_for_term_ended(db: AsyncSession, *, window: timedelta = DEFAULT_W
         )
         if not preferences:
             continue
-        swap_events_emitted += await _scan_swaps(db, preferences, link_paths[cast(int, term.id)])
+        swap_events_emitted += await _scan_swaps(db, preferences, link_paths[cast(uuid.UUID, term.id)])
     await db.commit()
 
     # The job runs every minute; INFO only when it actually emitted something.

@@ -49,7 +49,6 @@ class Party(BaseEntity):
     groups.models.GroupRole`, `app.families.models.FamilyRole`)."""
 
     __tablename__ = "parties"
-    __sequence_name__ = "party_seq"
 
     party_type: Mapped[PartyType] = mapped_column(_enum_column(PartyType, 20), nullable=False)
     active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)

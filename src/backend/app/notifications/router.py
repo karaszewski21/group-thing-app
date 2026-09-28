@@ -7,6 +7,7 @@ the recipient-ownership check on a single notification lives in
 
 from __future__ import annotations
 
+import uuid
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, status
@@ -48,6 +49,6 @@ async def mark_all_read(db: DbSession, principal: EditPrincipal) -> None:
 
 
 @router.post("/{notification_id}/read", status_code=status.HTTP_204_NO_CONTENT)
-async def mark_read(notification_id: int, db: DbSession, principal: EditPrincipal) -> None:
+async def mark_read(notification_id: uuid.UUID, db: DbSession, principal: EditPrincipal) -> None:
     profile = await get_profile_by_principal(db, principal)
     await service.mark_read(db, notification_id, profile.party_id)

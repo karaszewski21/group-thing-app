@@ -57,7 +57,7 @@ export function HomeView() {
               <HintCard
                 icon={<CalendarPlusIcon c="#1B8168" />}
                 title="Dodaj swój pierwszy termin"
-                description="Załóż krąg i ustal pierwsze zajęcia — to pierwszy krok."
+                description="Załóż grupę i ustal pierwsze zajęcia — to pierwszy krok."
                 ctaLabel="Zacznijmy →"
                 onCtaClick={() => { setFirstTermForOrganizer(false); setModal("pierwszy-termin"); }}
                 onDismiss={dismissFirstTermHint}
@@ -68,8 +68,8 @@ export function HomeView() {
               <HintCard
                 icon={<BuildingIcon c="#1B8168" />}
                 title="Możesz zostać organizatorem"
-                description="Załóż własny krąg, zapraszaj rodziny i planuj zajęcia — bez zakładania nowego konta."
-                ctaLabel="Załóż krąg →"
+                description="Załóż własną stronę, zapraszaj rodziny i planuj zajęcia — bez zakładania nowego konta."
+                ctaLabel="Zacznijmy →"
                 onCtaClick={() => { setFirstTermForOrganizer(false); setModal("pierwszy-termin"); }}
                 onDismiss={dismissBecomeOrganizerHint}
               />
@@ -79,7 +79,7 @@ export function HomeView() {
               <HintCard
                 icon={<BuildingIcon c="#1B8168" />}
                 title="Dopracuj stronę organizacji"
-                description="Dodaj opis, kolory i logo — zobaczą je odwiedzający Twój krąg."
+                description="Dodaj opis, kolory i logo — zobaczą je odwiedzający."
                 ctaLabel="Przejdź →"
                 ctaTo={organizationSlug ? `/${organizationSlug}` : "/organization"}
                 onDismiss={dismissOrgPolishHint}
@@ -90,7 +90,7 @@ export function HomeView() {
               <HintCard
                 icon={<CalendarPlusIcon c="#1B8168" />}
                 title="Dodaj swój pierwszy termin"
-                description="Ustal pierwsze zajęcia w swoim kręgu."
+                description="Ustal pierwsze spotkanie w swojej grupie."
                 ctaLabel="Dodaj termin →"
                 onCtaClick={() => {
                   setFirstTermForOrganizer(myGroups.length > 0);

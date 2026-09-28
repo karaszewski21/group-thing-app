@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import uuid
 from typing import Annotated, cast
 
 from fastapi import APIRouter, Depends, status
@@ -37,7 +38,7 @@ async def create_family(
     body: CreateFamilyRequest, db: DbSession, principal: EditPrincipal
 ) -> FamilyResponse:
     family, _guardian_profile_id = await service.create_family(db, body)
-    memberships = await service.list_guardian_memberships(db, cast(int, family.id))
+    memberships = await service.list_guardian_memberships(db, cast(uuid.UUID, family.id))
     guardians = await service.build_guardian_responses(db, memberships)
     return FamilyResponse(family=FamilyOut.model_validate(family), guardians=guardians)
 
@@ -52,7 +53,7 @@ async def list_my_families(db: DbSession, principal: ReadPrincipal) -> list[Fami
     out: list[FamilyOut] = []
     for family in families:
         item = FamilyOut.model_validate(family)
-        item.child_count = await service.count_active_child_members(db, cast(int, family.id))
+        item.child_count = await service.count_active_child_members(db, cast(uuid.UUID, family.id))
         out.append(item)
     return out
 
@@ -68,13 +69,13 @@ async def create_own_family(
     profile = await get_profile_by_principal(db, principal)
     family = await service.create_own_family(db, profile.party_id, body.name)
     out = FamilyOut.model_validate(family)
-    out.child_count = await service.count_active_child_members(db, cast(int, family.id))
+    out.child_count = await service.count_active_child_members(db, cast(uuid.UUID, family.id))
     return out
 
 
 @router.patch("/api/families/{family_id}", response_model=FamilyOut)
 async def rename_family(
-    family_id: int, body: UpdateFamilyRequest, db: DbSession, principal: EditPrincipal
+    family_id: uuid.UUID, body: UpdateFamilyRequest, db: DbSession, principal: EditPrincipal
 ) -> FamilyOut:
     """Guardian-only in-place rename. The fine-grained guardian check lives
     in `service.rename_family` (raises `AccessDeniedException` -> 403),
@@ -82,7 +83,7 @@ async def rename_family(
     profile = await get_profile_by_principal(db, principal)
     family = await service.rename_family(db, family_id, profile.party_id, body.name)
     out = FamilyOut.model_validate(family)
-    out.child_count = await service.count_active_child_members(db, cast(int, family.id))
+    out.child_count = await service.count_active_child_members(db, cast(uuid.UUID, family.id))
     return out
 
 
@@ -97,14 +98,14 @@ async def create_lightweight_members(
     member (no login of their own) to it."""
     profile = await get_profile_by_principal(db, principal)
     family = await service.create_lightweight_members_batch(db, profile.party_id, body.members)
-    memberships = await service.list_guardian_memberships(db, cast(int, family.id))
+    memberships = await service.list_guardian_memberships(db, cast(uuid.UUID, family.id))
     guardians = await service.build_guardian_responses(db, memberships)
     return FamilyResponse(family=FamilyOut.model_validate(family), guardians=guardians)
 
 
 @router.get("/api/families/by-guardian-party/{party_id}", response_model=list[FamilyOut])
 async def list_families_for_guardian_party(
-    party_id: int, db: DbSession, principal: ReadPrincipal
+    party_id: uuid.UUID, db: DbSession, principal: ReadPrincipal
 ) -> list[FamilyOut]:
     """Same lookup as `/api/families/mine`, but for an arbitrary party
     (e.g. resolving which Family a fellow Circle member belongs to) rather
@@ -114,7 +115,7 @@ async def list_families_for_guardian_party(
 
 
 @router.get("/api/families/{family_id}", response_model=FamilyResponse)
-async def get_family(family_id: int, db: DbSession, principal: ReadPrincipal) -> FamilyResponse:
+async def get_family(family_id: uuid.UUID, db: DbSession, principal: ReadPrincipal) -> FamilyResponse:
     family = await service.get_family(db, family_id)
     memberships = await service.list_guardian_memberships(db, family_id)
     guardians = await service.build_guardian_responses(db, memberships)
@@ -127,7 +128,7 @@ async def get_family(family_id: int, db: DbSession, principal: ReadPrincipal) ->
     status_code=status.HTTP_201_CREATED,
 )
 async def add_guardian(
-    family_id: int, body: AddGuardianRequest, db: DbSession, principal: EditPrincipal
+    family_id: uuid.UUID, body: AddGuardianRequest, db: DbSession, principal: EditPrincipal
 ) -> GuardianResponse:
     new_guardian_profile_id = await service.add_guardian(db, family_id, body)
     memberships = await service.list_guardian_memberships(db, family_id)
@@ -137,7 +138,7 @@ async def add_guardian(
 
 @router.get("/api/families/{family_id}/guardians", response_model=list[GuardianResponse])
 async def list_guardians(
-    family_id: int, db: DbSession, principal: ReadPrincipal
+    family_id: uuid.UUID, db: DbSession, principal: ReadPrincipal
 ) -> list[GuardianResponse]:
     memberships = await service.list_guardian_memberships(db, family_id)
     return await service.build_guardian_responses(db, memberships)
@@ -148,7 +149,7 @@ async def list_guardians(
     response_model=list[GuardianResponse],
 )
 async def make_primary_contact(
-    family_id: int, family_membership_id: int, db: DbSession, principal: EditPrincipal
+    family_id: uuid.UUID, family_membership_id: uuid.UUID, db: DbSession, principal: EditPrincipal
 ) -> list[GuardianResponse]:
     await service.make_primary_contact(db, family_id, family_membership_id)
     memberships = await service.list_guardian_memberships(db, family_id)
@@ -161,7 +162,7 @@ async def make_primary_contact(
     response_model=None,
 )
 async def remove_family_member(
-    family_id: int, family_membership_id: int, db: DbSession, principal: EditPrincipal
+    family_id: uuid.UUID, family_membership_id: uuid.UUID, db: DbSession, principal: EditPrincipal
 ) -> None:
     """Guardian-only soft-close of a family member's `FamilyMembership`
     (the family reads all filter `valid_to IS NULL`, so the member just
@@ -174,7 +175,7 @@ async def remove_family_member(
 
 @router.get("/api/families/{family_id}/memberships", response_model=list[MembershipResponse])
 async def list_memberships_for_family(
-    family_id: int, db: DbSession, principal: ReadPrincipal
+    family_id: uuid.UUID, db: DbSession, principal: ReadPrincipal
 ) -> list[MembershipResponse]:
     memberships = await service.list_group_memberships_for_family(db, family_id)
     rows = await build_membership_responses(db, memberships)

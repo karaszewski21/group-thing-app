@@ -9,6 +9,8 @@ D3: `get_public_circle_view`'s inline slug/organizer block is kept inline
 
 from __future__ import annotations
 
+import uuid
+
 from datetime import date, datetime, time
 from typing import cast
 
@@ -45,7 +47,7 @@ from .term_item_listings import list_public_term_item_listings
 from .terms import get_term, list_needed_item_views, list_terms
 
 
-async def list_attendances_for_term(db: AsyncSession, term_id: int) -> list[TermAttendance]:
+async def list_attendances_for_term(db: AsyncSession, term_id: uuid.UUID) -> list[TermAttendance]:
     """Row-level `TermAttendance` list for a Term, ordered by creation —
     used to build the public guardian list's `display_name`s via a join in
     `get_public_circle_view` (no N+1: one query resolves every attendance's
@@ -53,7 +55,7 @@ async def list_attendances_for_term(db: AsyncSession, term_id: int) -> list[Term
     return await repository.list_attendances_for_term(db, term_id)
 
 
-async def _resolve_organizer(db: AsyncSession, group_id: int) -> tuple[str | None, str]:
+async def _resolve_organizer(db: AsyncSession, group_id: uuid.UUID) -> tuple[str | None, str]:
     """`(display_name, slug)` for a Circle's active organizer, resolving the
     active `Leadership` -> `GroupRole` party id chain ONCE and deriving both
     from it — instead of `_resolve_organizer_display_name` and
@@ -90,7 +92,7 @@ async def _resolve_organizer(db: AsyncSession, group_id: int) -> tuple[str | Non
     return display_name, slug
 
 
-async def list_my_attendances(db: AsyncSession, party_id: int) -> list[MyAttendanceResponse]:
+async def list_my_attendances(db: AsyncSession, party_id: uuid.UUID) -> list[MyAttendanceResponse]:
     """The caller's own Term RSVPs, newest class last.
 
     One joined `select(TermAttendance, Term, Group)` (these entities carry no
@@ -107,21 +109,21 @@ async def list_my_attendances(db: AsyncSession, party_id: int) -> list[MyAttenda
     """
     rows = await repository.list_my_attendances_joined(db, party_id)
 
-    distinct_group_ids = {cast(int, group.id) for _attendance, _term, group in rows}
+    distinct_group_ids = {cast(uuid.UUID, group.id) for _attendance, _term, group in rows}
     organizer_info: dict[int, tuple[str | None, str]] = {
         group_id: await _resolve_organizer(db, group_id) for group_id in distinct_group_ids
     }
 
     responses: list[MyAttendanceResponse] = []
     for attendance, term, group in rows:
-        display_name, slug = organizer_info[cast(int, group.id)]
+        display_name, slug = organizer_info[cast(uuid.UUID, group.id)]
         responses.append(
             MyAttendanceResponse(
-                attendance_id=cast(int, attendance.id),
-                term_id=cast(int, term.id),
+                attendance_id=cast(uuid.UUID, attendance.id),
+                term_id=cast(uuid.UUID, term.id),
                 occurs_on=term.occurs_on,
                 child_count=attendance.child_count,
-                group_id=cast(int, group.id),
+                group_id=cast(uuid.UUID, group.id),
                 group_name=group.name,
                 organizer_display_name=display_name,
                 organizer_slug=slug,
@@ -130,29 +132,29 @@ async def list_my_attendances(db: AsyncSession, party_id: int) -> list[MyAttenda
     return responses
 
 
-async def list_my_pledges(db: AsyncSession, party_id: int) -> list[MyPledgeResponse]:
+async def list_my_pledges(db: AsyncSession, party_id: uuid.UUID) -> list[MyPledgeResponse]:
     """The caller's own "obiecałem przynieść" list — non-withdrawn pledges
     joined to product / term / circle, class date ascending. Organizer slug
     resolved once per DISTINCT circle (same bounded-loop precedent as
     `list_my_attendances`), for the public-term deep link."""
     rows = await repository.list_my_pledges_joined(db, party_id)
 
-    distinct_group_ids = {cast(int, group.id) for _pledge, _name, _desc, _term, group in rows}
+    distinct_group_ids = {cast(uuid.UUID, group.id) for _pledge, _name, _desc, _term, group in rows}
     slug_by_group: dict[int, str] = {
         group_id: (await _resolve_organizer(db, group_id))[1] for group_id in distinct_group_ids
     }
 
     return [
         MyPledgeResponse(
-            pledge_id=cast(int, pledge.id),
+            pledge_id=cast(uuid.UUID, pledge.id),
             status=pledge.status,
             product_name=product_name,
             item_description=item_description,
-            term_id=cast(int, term.id),
-            group_id=cast(int, group.id),
+            term_id=cast(uuid.UUID, term.id),
+            group_id=cast(uuid.UUID, group.id),
             group_name=group.name,
             occurs_on=term.occurs_on,
-            organizer_slug=slug_by_group[cast(int, group.id)],
+            organizer_slug=slug_by_group[cast(uuid.UUID, group.id)],
             registered=pledge.resolved_reservation_id is not None,
         )
         for pledge, product_name, item_description, term, group in rows
@@ -161,8 +163,8 @@ async def list_my_pledges(db: AsyncSession, party_id: int) -> list[MyPledgeRespo
 
 async def get_public_circle_view(
     db: AsyncSession,
-    group_id: int,
-    term_id: int | None = None,
+    group_id: uuid.UUID,
+    term_id: uuid.UUID | None = None,
     include_private_content: bool = False,
 ) -> PublicCircleResponse:
     """Unauthenticated read assembled server-side in one call: organizer
@@ -200,7 +202,7 @@ async def get_public_circle_view(
         # without the join link gets "this group is private" context, not a
         # bare 404, but nothing about its members or activity leaks.
         return PublicCircleResponse(
-            id=cast(int, group.id),
+            id=cast(uuid.UUID, group.id),
             name=group.name,
             organizer_display_name=organizer_display_name,
             organizer_slug=organizer_slug,
@@ -225,13 +227,13 @@ async def get_public_circle_view(
     term_response: PublicTermResponse | None = None
     guardians: list[PublicGuardianResponse] = []
     if term is not None:
-        needed_item_views = await list_needed_item_views(db, cast(int, term.id))
-        active_pledges = await repository.list_active_pledges_for_term(db, cast(int, term.id))
+        needed_item_views = await list_needed_item_views(db, cast(uuid.UUID, term.id))
+        active_pledges = await repository.list_active_pledges_for_term(db, cast(uuid.UUID, term.id))
         pledger_name_by_item = {item_id: name for item_id, name, _ in active_pledges}
         pledger_party_by_item = {item_id: party for item_id, _, party in active_pledges}
-        item_listings = await list_public_term_item_listings(db, cast(int, term.id))
+        item_listings = await list_public_term_item_listings(db, cast(uuid.UUID, term.id))
         term_response = PublicTermResponse(
-            id=cast(int, term.id),
+            id=cast(uuid.UUID, term.id),
             occurs_on=term.occurs_on,
             description=term.description,
             needed_items=[
@@ -262,7 +264,7 @@ async def get_public_circle_view(
             ],
         )
 
-        attendances = await list_attendances_for_term(db, cast(int, term.id))
+        attendances = await list_attendances_for_term(db, cast(uuid.UUID, term.id))
         if attendances:
             party_ids = [attendance.party_id for attendance in attendances]
             profile_rows = await repository.list_profile_names_by_party_ids(db, party_ids)
@@ -277,7 +279,7 @@ async def get_public_circle_view(
             ]
 
     return PublicCircleResponse(
-        id=cast(int, group.id),
+        id=cast(uuid.UUID, group.id),
         name=group.name,
         organizer_display_name=organizer_display_name,
         organizer_slug=organizer_slug,
@@ -294,7 +296,7 @@ _GATE_JOIN_REQUEST_STATUSES = frozenset(
 
 
 async def get_group_access(
-    db: AsyncSession, group_id: int, term_id: int | None, principal: Principal | None
+    db: AsyncSession, group_id: uuid.UUID, term_id: uuid.UUID | None, principal: Principal | None
 ) -> GroupAccessResponse:
     """`group` is `get_public_circle_view`'s response, with the full `PRIVATE`
     content only for an active member or the organizer (roles resolved
@@ -337,7 +339,7 @@ async def get_group_access(
             latest = await repository.find_latest_join_request(db, profile.party_id, group_id)
             if latest is not None and latest.status in _GATE_JOIN_REQUEST_STATUSES:
                 join_request = JoinRequestSummary(
-                    id=cast(int, latest.id), status=latest.status.value
+                    id=cast(uuid.UUID, latest.id), status=latest.status.value
                 )
     else:
         can_view_content = True
@@ -356,8 +358,8 @@ async def get_group_access(
 
 async def create_rsvp(
     db: AsyncSession,
-    group_id: int,
-    term_id: int,
+    group_id: uuid.UUID,
+    term_id: uuid.UUID,
     guardian_name: str,
     child_count: int,
     principal: Principal | None = None,
@@ -415,7 +417,7 @@ async def create_rsvp(
             attendance = existing
         else:
             attendance = TermAttendance(
-                term_id=cast(int, term.id),
+                term_id=cast(uuid.UUID, term.id),
                 party_id=profile.party_id,
                 child_count=child_count,
             )
@@ -423,9 +425,9 @@ async def create_rsvp(
         await db.commit()
         await db.refresh(attendance)
         return RsvpResponse(
-            id=cast(int, attendance.id),
-            term_id=cast(int, term.id),
-            user_profile_id=cast(int, profile.id),
+            id=cast(uuid.UUID, attendance.id),
+            term_id=cast(uuid.UUID, term.id),
+            user_profile_id=cast(uuid.UUID, profile.id),
             guardian_name=profile.display_name,
             child_count=child_count,
             attached_to_account=True,
@@ -433,7 +435,7 @@ async def create_rsvp(
 
     party = await create_party(db, PartyType.PERSON)
     profile = UserProfile(
-        party_id=cast(int, party.id),
+        party_id=cast(uuid.UUID, party.id),
         account_user_id=None,
         display_name=guardian_name,
         email=None,
@@ -447,19 +449,19 @@ async def create_rsvp(
     # import depending on that chain's current ordering.
     from app.families.service import create_solo_family_for_party
 
-    await create_solo_family_for_party(db, cast(int, party.id), guardian_name)
+    await create_solo_family_for_party(db, cast(uuid.UUID, party.id), guardian_name)
 
     attendance = TermAttendance(
-        term_id=cast(int, term.id), party_id=cast(int, party.id), child_count=child_count
+        term_id=cast(uuid.UUID, term.id), party_id=cast(uuid.UUID, party.id), child_count=child_count
     )
     db.add(attendance)
     await db.commit()
     await db.refresh(attendance)
 
     return RsvpResponse(
-        id=cast(int, attendance.id),
-        term_id=cast(int, term.id),
-        user_profile_id=cast(int, profile.id),
+        id=cast(uuid.UUID, attendance.id),
+        term_id=cast(uuid.UUID, term.id),
+        user_profile_id=cast(uuid.UUID, profile.id),
         guardian_name=guardian_name,
         child_count=child_count,
         attached_to_account=False,

@@ -8,7 +8,8 @@ from __future__ import annotations
 
 import enum
 
-from sqlalchemy import BigInteger, Column, ForeignKey, String, Table
+from sqlalchemy import Column, ForeignKey, String, Table
+from sqlalchemy.dialects import postgresql
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.core.base_model import Base, BaseEntity
@@ -34,7 +35,7 @@ user_permissions = Table(
     Base.metadata,
     Column(
         "user_id",
-        BigInteger,
+        postgresql.UUID(as_uuid=True),
         ForeignKey("users.id", name="fk_user_permissions_user_id_users"),
         nullable=False,
     ),
@@ -44,7 +45,6 @@ user_permissions = Table(
 
 class User(BaseEntity):
     __tablename__ = "users"
-    __sequence_name__ = "user_seq"
 
     username: Mapped[str] = mapped_column(String(50), nullable=False, unique=True)
     password_hash: Mapped[str] = mapped_column(String(72), nullable=False)

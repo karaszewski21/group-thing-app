@@ -10,9 +10,11 @@ never a `relationship()` crossing the module boundary, per
 from __future__ import annotations
 
 import enum
+import uuid
 from datetime import date
 
-from sqlalchemy import BigInteger, Date, Enum, ForeignKey, String
+from sqlalchemy import Date, Enum, ForeignKey, String
+from sqlalchemy.dialects import postgresql
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.core.base_model import BaseEntity
@@ -42,15 +44,14 @@ class UserRoleType(enum.StrEnum):
 
 class UserProfile(BaseEntity):
     __tablename__ = "user_profiles"
-    __sequence_name__ = "user_profile_seq"
 
-    party_id: Mapped[int] = mapped_column(
-        BigInteger,
+    party_id: Mapped[uuid.UUID] = mapped_column(
+        postgresql.UUID(as_uuid=True),
         ForeignKey("parties.id", name="fk_user_profiles_party_id_parties"),
         nullable=False,
     )
-    account_user_id: Mapped[int | None] = mapped_column(
-        BigInteger,
+    account_user_id: Mapped[uuid.UUID | None] = mapped_column(
+        postgresql.UUID(as_uuid=True),
         ForeignKey("users.id", name="fk_user_profiles_account_user_id_users"),
         nullable=True,
     )
@@ -68,10 +69,11 @@ class UserRole(BaseEntity):
     once); see `app.groups.service`'s cascade-close-on-role-end logic."""
 
     __tablename__ = "user_roles"
-    __sequence_name__ = "user_role_seq"
 
-    party_id: Mapped[int] = mapped_column(
-        BigInteger, ForeignKey("parties.id", name="fk_user_roles_party_id_parties"), nullable=False
+    party_id: Mapped[uuid.UUID] = mapped_column(
+        postgresql.UUID(as_uuid=True),
+        ForeignKey("parties.id", name="fk_user_roles_party_id_parties"),
+        nullable=False,
     )
     role_type: Mapped[UserRoleType] = mapped_column(_enum_column(UserRoleType, 20), nullable=False)
     valid_from: Mapped[date] = mapped_column(Date(), nullable=False)

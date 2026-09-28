@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import uuid
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, status
@@ -51,7 +52,7 @@ async def get_my_profile(db: DbSession, principal: ReadPrincipal) -> UserProfile
 
 @router.get("/api/people/{user_profile_id}", response_model=UserProfileResponse)
 async def get_profile(
-    user_profile_id: int, db: DbSession, principal: ReadPrincipal
+    user_profile_id: uuid.UUID, db: DbSession, principal: ReadPrincipal
 ) -> UserProfileResponse:
     profile = await service.get_profile(db, user_profile_id)
     return await _to_profile_response(db, profile)
@@ -59,7 +60,7 @@ async def get_profile(
 
 @router.get("/api/people/by-party/{party_id}", response_model=UserProfileResponse)
 async def get_profile_by_party(
-    party_id: int, db: DbSession, principal: ReadPrincipal
+    party_id: uuid.UUID, db: DbSession, principal: ReadPrincipal
 ) -> UserProfileResponse:
     profile = await service.get_profile_by_party(db, party_id)
     return await _to_profile_response(db, profile)
@@ -67,7 +68,7 @@ async def get_profile_by_party(
 
 @router.get("/api/people/by-account-user-id/{account_user_id}", response_model=UserProfileResponse)
 async def get_profile_by_account_user_id(
-    account_user_id: int, db: DbSession, principal: ReadPrincipal
+    account_user_id: uuid.UUID, db: DbSession, principal: ReadPrincipal
 ) -> UserProfileResponse:
     """Resolves a raw `app.circulation` `users.id` (e.g. an `Inventory.
     owner_user_id`) back to its display profile — used by the "Wypożyczone"
@@ -78,7 +79,7 @@ async def get_profile_by_account_user_id(
 
 @router.get("/api/people/{user_profile_id}/leaderships", response_model=list[LeadershipResponse])
 async def list_leaderships_for_person(
-    user_profile_id: int, db: DbSession, principal: ReadPrincipal
+    user_profile_id: uuid.UUID, db: DbSession, principal: ReadPrincipal
 ) -> list[LeadershipResponse]:
     profile = await service.get_profile(db, user_profile_id)
     leaderships = await list_active_leaderships_for_party(db, profile.party_id)

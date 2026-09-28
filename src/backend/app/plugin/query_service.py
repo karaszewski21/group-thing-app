@@ -11,6 +11,8 @@ regex/operator-allowlist constants in `app/core/filter_dsl.py` are shared.
 
 from __future__ import annotations
 
+import uuid
+
 from decimal import Decimal, InvalidOperation
 from typing import Any
 
@@ -90,7 +92,7 @@ async def list_plugin_objects(
     plugin_id: str,
     object_type: str | None,
     entity_type: str | None,
-    entity_id: int | None,
+    entity_id: uuid.UUID | None,
     filter_expr: str | None,
     limit: int,
 ) -> list[PluginObject]:

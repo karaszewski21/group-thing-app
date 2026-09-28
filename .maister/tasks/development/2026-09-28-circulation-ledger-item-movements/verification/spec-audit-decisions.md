@@ -1,0 +1,13 @@
+# User decisions after the specification audit (2026-09-28)
+
+Audit: `verification/spec-audit.md`. Verdict: FAIL, caused only by C1 (the UUID collision). The spec content itself counts as pass-with-concerns.
+
+| Finding | User decision | Consequence for the spec |
+|---|---|---|
+| C1: concurrent PK → UUID migration (`0041_baseentity_id_uuid.py`, ~85 uncommitted files) | **UUID goes first, then the ledger.** | The spec is to be revised for UUID: `uuid.UUID` types, `postgresql.UUID` PK/FK columns, no sequences or `__sequence_name__` for the new tables and none in the migration. The ledger migration is **0042** with `down_revision = 0041_baseentity_id_uuid`. Implementation starts only once the UUID work is committed and the working tree is clean in the files this task touches. The downgrade does not re-seed `900-100` from 0005 on BigInteger; it restores the points schema on UUID types. |
+| H1: `fulfill_exchange` / `cancel_exchange` have no authorization | **Add it.** | Both take `acting_user_id` and return 403 when the caller is not a party to any leg (giver or reserved_by), like today's confirm/fulfill. |
+| H2: SWAP does not check that the legs cross | **PERSONAL ↔ PERSONAL only.** | `post_movement(SWAP)` requires: X from PERSONAL(A) to PERSONAL(B), Y from PERSONAL(B) to PERSONAL(A), with A ≠ B and X ≠ Y. Anything else is 409 or a validation error. |
+| M3: FULFILLED pledges without a reservation after the wipe | **Delete all pledges.** | Migration 0042 clears the whole `pledges` table, along with its dependent rows and pointers (e.g. the pledge notifications). The spec must enumerate the FKs to `pledges`. |
+| L4: CHECK on the account shape | **Keep it.** | CHECK: INVENTORY ⇒ `inventory_id IS NOT NULL`, EXTERNAL ⇒ `inventory_id IS NULL`, plus a partial unique index allowing at most one EXTERNAL. There is still no CHECK or trigger on the transaction sum. |
+| M4: the migration test | **Light test.** | `alembic upgrade head` in conftest must pass, and a test checks that exactly one EXTERNAL account exists and that every inventory has an account. Downgrade is checked by hand on the local DB. No separate database and no multiple Alembic runs. |
+| M1, M2, M5, M6, L* | Accepted as written in the audit. | M1: the history query joins `UserProfile` from circulation infrastructure; recorded as an accepted exception, with a precedent in `repository.py:27`. M2: the real protection is `version_id_col`/`StaleDataError` → 409; the `from` check is defensive only. M5: the cross-module commit contract goes in the docstrings. M6: one line about intermediate commits in `fulfill_pledge`/`accept_swap_proposal` (out of scope). The L items are fixed according to the audit's recommendations. |

@@ -19,6 +19,8 @@ work around (`app.families.repository` imports `app.groups.service`)."""
 
 from __future__ import annotations
 
+import uuid
+
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -41,7 +43,7 @@ from .term_item_listings import (
 )
 
 
-async def _get_current_term(db: AsyncSession, group_id: int) -> Term | None:
+async def _get_current_term(db: AsyncSession, group_id: uuid.UUID) -> Term | None:
     """The `useKragGrupy.ts` "current term": the *newest* Term for this
     Circle (`occurs_on DESC`, first row) — deliberately not the nearest
     *upcoming* one `public_view.py` picks. See module docstring."""
@@ -51,7 +53,7 @@ async def _get_current_term(db: AsyncSession, group_id: int) -> Term | None:
     return result.scalars().first()
 
 
-async def _ordered_group_member_party_ids(db: AsyncSession, group_id: int) -> list[int]:
+async def _ordered_group_member_party_ids(db: AsyncSession, group_id: uuid.UUID) -> list[uuid.UUID]:
     """Every party currently holding an active `Membership` in `group_id`,
     in `Membership` order (`valid_from DESC`, per
     `repository.list_active_memberships_for_group`), deduplicated keeping
@@ -66,8 +68,8 @@ async def _ordered_group_member_party_ids(db: AsyncSession, group_id: int) -> li
     roles = (await db.execute(select(GroupRole).where(GroupRole.id.in_(role_ids)))).scalars().all()
     role_to_party = {role.id: role.party_id for role in roles}
 
-    seen: set[int] = set()
-    ordered: list[int] = []
+    seen: set[uuid.UUID] = set()
+    ordered: list[uuid.UUID] = []
     for membership in memberships:
         party_id = role_to_party.get(membership.from_role_id)
         if party_id is not None and party_id not in seen:
@@ -77,7 +79,7 @@ async def _ordered_group_member_party_ids(db: AsyncSession, group_id: int) -> li
 
 
 async def _require_group_member_or_leader(
-    db: AsyncSession, group_id: int, viewer_party_id: int, member_party_ids: list[int]
+    db: AsyncSession, group_id: uuid.UUID, viewer_party_id: uuid.UUID, member_party_ids: list[uuid.UUID]
 ) -> None:
     """Membership/leadership check that can't live in the coarse
     `AUTHORIZATION_MATRIX` — per `standards/backend/security.md`. Takes the
@@ -93,8 +95,8 @@ async def _require_group_member_or_leader(
 
 
 async def _resolve_family_guardians(
-    db: AsyncSession, party_ids: list[int]
-) -> tuple[list[int], dict[int, list[int]]]:
+    db: AsyncSession, party_ids: list[uuid.UUID]
+) -> tuple[list[uuid.UUID], dict[int, list[uuid.UUID]]]:
     """`(family_order, family_id -> guardian_party_ids)` for `party_ids`
     (the group's members): `family_order` lists every Family reachable from
     `party_ids` through an active `FamilyMembership` (any role — a member
@@ -112,15 +114,15 @@ async def _resolve_family_guardians(
         .join(FamilyRole, FamilyMembership.from_role_id == FamilyRole.id)
         .where(FamilyRole.party_id.in_(party_ids), FamilyMembership.valid_to.is_(None))
     )
-    party_to_family: dict[int, int] = {}
-    family_guardians: dict[int, list[int]] = {}
+    party_to_family: dict[uuid.UUID, uuid.UUID] = {}
+    family_guardians: dict[int, list[uuid.UUID]] = {}
     for family_id, party_id, role_type in rows.all():
         party_to_family.setdefault(party_id, family_id)
         if role_type == FamilyRoleType.GUARDIAN:
             family_guardians.setdefault(family_id, []).append(party_id)
 
-    seen_families: set[int] = set()
-    family_order: list[int] = []
+    seen_families: set[uuid.UUID] = set()
+    family_order: list[uuid.UUID] = []
     for party_id in party_ids:
         family_id = party_to_family.get(party_id)
         if family_id is not None and family_id not in seen_families:
@@ -129,7 +131,7 @@ async def _resolve_family_guardians(
     return family_order, family_guardians
 
 
-async def _guardian_party_ids_for_family(db: AsyncSession, family_id: int) -> set[int]:
+async def _guardian_party_ids_for_family(db: AsyncSession, family_id: uuid.UUID) -> set[uuid.UUID]:
     """Every party currently holding an active GUARDIAN `FamilyMembership`
     for `family_id` — may be empty (see `_resolve_family_guardians`'s
     docstring)."""
@@ -146,8 +148,8 @@ async def _guardian_party_ids_for_family(db: AsyncSession, family_id: int) -> se
 
 
 async def _pledging_party_ids(
-    db: AsyncSession, term: Term | None, guardian_party_ids: set[int]
-) -> set[int]:
+    db: AsyncSession, term: Term | None, guardian_party_ids: set[uuid.UUID]
+) -> set[uuid.UUID]:
     """Which of `guardian_party_ids` have an active (`status != WITHDRAWN`
     — the same "active" `list_needed_item_views`/`_needed_item_view` use)
     `Pledge` on one of `term`'s live needs. One batched `IN (...)` query for
@@ -169,8 +171,8 @@ async def _pledging_party_ids(
 
 
 async def _sharing_party_ids(
-    db: AsyncSession, term: Term | None, guardian_party_ids: set[int]
-) -> set[int]:
+    db: AsyncSession, term: Term | None, guardian_party_ids: set[uuid.UUID]
+) -> set[uuid.UUID]:
     """Which of `guardian_party_ids` currently have a takeable exchange-
     mechanism offer for `term`: eligible to list for this Term
     (`_list_eligible_lister_party_ids`) **and** their listed item is still
@@ -186,7 +188,7 @@ async def _sharing_party_ids(
     if not relevant_party_ids:
         return set()
     preferences = await repository.list_item_listing_preferences_for_parties(db, relevant_party_ids)
-    sharing: set[int] = set()
+    sharing: set[uuid.UUID] = set()
     for preference in preferences:
         if await _is_item_available(db, preference.item_id):
             sharing.add(preference.owner_party_id)
@@ -194,7 +196,7 @@ async def _sharing_party_ids(
 
 
 async def get_group_exchange_summary(
-    db: AsyncSession, group_id: int, viewer_party_id: int
+    db: AsyncSession, group_id: uuid.UUID, viewer_party_id: uuid.UUID
 ) -> GroupExchangeSummaryResponse:
     """`shares_item`/`brings_item` for every family currently in `group_id`,
     for its current Term (see module docstring for "current"). Raises
@@ -225,7 +227,7 @@ async def get_group_exchange_summary(
 
 
 async def get_family_exchange_offers(
-    db: AsyncSession, group_id: int, family_id: int, viewer_party_id: int
+    db: AsyncSession, group_id: uuid.UUID, family_id: uuid.UUID, viewer_party_id: uuid.UUID
 ) -> FamilyExchangeDetailResponse:
     """Every active exchange-mechanism offer from any guardian of
     `family_id`, for `group_id`'s current Term. `family_id` must have an

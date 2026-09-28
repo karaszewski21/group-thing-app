@@ -7,6 +7,8 @@ before this module). Mirrors how `pledges.py` co-locates
 
 from __future__ import annotations
 
+import uuid
+
 from datetime import datetime
 
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -20,7 +22,7 @@ from ..models import TermAttendance
 from .circles import _group_role_party_id, get_current_leadership
 
 
-async def _is_term_organizer(db: AsyncSession, term_circle_group_id: int, party_id: int) -> bool:
+async def _is_term_organizer(db: AsyncSession, term_circle_group_id: uuid.UUID, party_id: uuid.UUID) -> bool:
     """Whether `party_id` is the current organizer of the Circle that owns
     this Term — the organizer never RSVPs to their own Term (no
     `TermAttendance` row), so exchange-mechanism visibility for their own
@@ -33,7 +35,7 @@ async def _is_term_organizer(db: AsyncSession, term_circle_group_id: int, party_
 
 
 async def _require_term_eligibility(
-    db: AsyncSession, term_id: int, term_circle_group_id: int, party_id: int
+    db: AsyncSession, term_id: uuid.UUID, term_circle_group_id: uuid.UUID, party_id: uuid.UUID
 ) -> None:
     """Raises `AccessDeniedException` unless `party_id` has active
     `TermAttendance` for `term_id` **or** is the Term's Circle organizer —
@@ -48,7 +50,7 @@ async def _require_term_eligibility(
 
 
 async def withdraw_attendance(
-    db: AsyncSession, principal: Principal, attendance_id: int
+    db: AsyncSession, principal: Principal, attendance_id: uuid.UUID
 ) -> TermAttendance:
     """Idempotent: a second call on an already-withdrawn row leaves
     `withdrawn_at` at its first-set value and does not raise. Ownership

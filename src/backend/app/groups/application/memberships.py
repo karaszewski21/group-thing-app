@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import uuid
+
 from datetime import date
 from typing import cast
 
@@ -20,12 +22,12 @@ from .circles import _group_role_party_id, _require_active_organizer, get_group
 from .group_roles import get_or_create_active_group_role
 
 
-async def add_active_membership(db: AsyncSession, group_id: int, party_id: int) -> Membership:
+async def add_active_membership(db: AsyncSession, group_id: uuid.UUID, party_id: uuid.UUID) -> Membership:
     """Flushes (never commits) a new active `Membership` of `party_id` in
     `group_id`. The caller checks "already a member" and owns the commit."""
     role = await get_or_create_active_group_role(db, party_id, GroupRoleType.MEMBER)
     membership = Membership(
-        from_role_id=cast(int, role.id),
+        from_role_id=cast(uuid.UUID, role.id),
         to_group_id=group_id,
         valid_from=date.today(),
         valid_to=None,
@@ -36,7 +38,7 @@ async def add_active_membership(db: AsyncSession, group_id: int, party_id: int) 
 
 
 async def end_membership(
-    db: AsyncSession, principal: Principal, membership_id: int, valid_to: date
+    db: AsyncSession, principal: Principal, membership_id: uuid.UUID, valid_to: date
 ) -> Membership:
     membership = await repository.get_membership(db, membership_id)
     if membership is None:
@@ -51,7 +53,7 @@ async def end_membership(
     return membership
 
 
-async def _is_active_member(db: AsyncSession, group_id: int, party_id: int) -> bool:
+async def _is_active_member(db: AsyncSession, group_id: uuid.UUID, party_id: uuid.UUID) -> bool:
     """Non-raising: does `party_id` have a currently-active `Membership` in
     `group_id`? Used to gate `PRIVATE`-group RSVP alongside
     `circles._is_active_organizer` (an organizer need not also be a member)."""
@@ -60,8 +62,8 @@ async def _is_active_member(db: AsyncSession, group_id: int, party_id: int) -> b
 
 
 async def _resolve_party_families(
-    db: AsyncSession, party_ids: list[int]
-) -> dict[int, tuple[int, str]]:
+    db: AsyncSession, party_ids: list[uuid.UUID]
+) -> dict[uuid.UUID, tuple[uuid.UUID, str]]:
     """Batched `party_id -> (family_id, family_name)` lookup — mirrors
     `application/exchange_summary.py`'s `_resolve_family_guardians` query
     shape, but flat/per-party rather than grouped-by-family, since callers
@@ -78,14 +80,14 @@ async def _resolve_party_families(
         .join(Family, Family.id == FamilyMembership.to_family_id)
         .where(FamilyRole.party_id.in_(party_ids), FamilyMembership.valid_to.is_(None))
     )
-    result: dict[int, tuple[int, str]] = {}
+    result: dict[uuid.UUID, tuple[uuid.UUID, str]] = {}
     for party_id, family_id, family_name in rows.all():
         result.setdefault(party_id, (family_id, family_name))
     return result
 
 
 async def list_term_attendees_for_formalization(
-    db: AsyncSession, principal: Principal, group_id: int, term_id: int
+    db: AsyncSession, principal: Principal, group_id: uuid.UUID, term_id: uuid.UUID
 ) -> list[TermAttendeeResponse]:
     """Candidate list for the "formalize standing members" picker — active
     (non-withdrawn) RSVPs on `term_id`, annotated with the attendee's
@@ -119,7 +121,7 @@ async def list_term_attendees_for_formalization(
 
 
 async def formalize_group_from_term(
-    db: AsyncSession, principal: Principal, group_id: int, term_id: int, party_ids: list[int]
+    db: AsyncSession, principal: Principal, group_id: uuid.UUID, term_id: uuid.UUID, party_ids: list[uuid.UUID]
 ) -> Group:
     """Turns the selected, still-attending `party_id`s from a term's RSVP
     list into standing `Membership`s. Independent of `Group.visibility` —
@@ -150,11 +152,11 @@ async def formalize_group_from_term(
     return group
 
 
-async def list_memberships_for_circle(db: AsyncSession, circle_group_id: int) -> list[Membership]:
+async def list_memberships_for_circle(db: AsyncSession, circle_group_id: uuid.UUID) -> list[Membership]:
     return await repository.list_active_memberships_for_group(db, circle_group_id)
 
 
-async def list_memberships_for_party(db: AsyncSession, party_id: int) -> list[Membership]:
+async def list_memberships_for_party(db: AsyncSession, party_id: uuid.UUID) -> list[Membership]:
     role_ids = await repository.list_member_role_ids_for_party(db, party_id)
     if not role_ids:
         return []

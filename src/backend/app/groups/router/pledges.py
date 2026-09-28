@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import uuid
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, status
@@ -38,14 +39,14 @@ async def create_pledge(
 
 @router.get("/api/pledges", response_model=list[PledgeResponse])
 async def list_pledges(
-    needed_item_id: int, db: DbSession, principal: ReadPrincipal
+    needed_item_id: uuid.UUID, db: DbSession, principal: ReadPrincipal
 ) -> list[PledgeResponse]:
     pledges = await service.list_pledges(db, needed_item_id)
     return [PledgeResponse.model_validate(pledge) for pledge in pledges]
 
 
 # Declared before `GET /api/pledges/{pledge_id}` so the literal `mine`
-# segment is not parsed as `pledge_id: int`. Covered by matrix row 36
+# segment is not parsed as `pledge_id: uuid.UUID`. Covered by matrix row 36
 # (`GET ^/api/pledges(/.*)?$` -> READ); no ownership check beyond auth (the
 # caller's own party is derived from the principal).
 @router.get("/api/pledges/mine", response_model=list[MyPledgeResponse])
@@ -55,14 +56,14 @@ async def list_my_pledges(db: DbSession, principal: ReadPrincipal) -> list[MyPle
 
 
 @router.get("/api/pledges/{pledge_id}", response_model=PledgeResponse)
-async def get_pledge(pledge_id: int, db: DbSession, principal: ReadPrincipal) -> PledgeResponse:
+async def get_pledge(pledge_id: uuid.UUID, db: DbSession, principal: ReadPrincipal) -> PledgeResponse:
     pledge = await service.get_pledge(db, pledge_id)
     return PledgeResponse.model_validate(pledge)
 
 
 @router.post("/api/pledges/{pledge_id}/withdraw", response_model=PledgeResponse)
 async def withdraw_pledge(
-    pledge_id: int, db: DbSession, principal: EditPrincipal
+    pledge_id: uuid.UUID, db: DbSession, principal: EditPrincipal
 ) -> PledgeResponse:
     pledge = await service.withdraw_pledge(db, principal, pledge_id)
     return PledgeResponse.model_validate(pledge)
@@ -70,7 +71,7 @@ async def withdraw_pledge(
 
 @router.post("/api/pledges/{pledge_id}/fulfill", response_model=PledgeResponse)
 async def fulfill_pledge(
-    pledge_id: int, body: FulfillPledgeRequest, db: DbSession, principal: EditPrincipal
+    pledge_id: uuid.UUID, body: FulfillPledgeRequest, db: DbSession, principal: EditPrincipal
 ) -> PledgeResponse:
     pledge = await service.fulfill_pledge(db, principal, pledge_id, body)
     return PledgeResponse.model_validate(pledge)
@@ -78,7 +79,7 @@ async def fulfill_pledge(
 
 @router.post("/api/pledges/{pledge_id}/sync", response_model=PledgeResponse)
 async def sync_pledge_fulfillment(
-    pledge_id: int, db: DbSession, principal: EditPrincipal
+    pledge_id: uuid.UUID, db: DbSession, principal: EditPrincipal
 ) -> PledgeResponse:
     pledge = await service.sync_pledge_fulfillment(db, pledge_id)
     return PledgeResponse.model_validate(pledge)

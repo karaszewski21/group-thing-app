@@ -8,6 +8,8 @@ Never commits or flushes; `EntityNotFoundException` raising stays in the
 
 from __future__ import annotations
 
+import uuid
+
 from datetime import datetime
 
 from sqlalchemy import Row, exists, func, select
@@ -43,7 +45,7 @@ async def list_groups(db: AsyncSession) -> list[Group]:
     return list(result.scalars().all())
 
 
-async def get_group(db: AsyncSession, group_id: int) -> Group | None:
+async def get_group(db: AsyncSession, group_id: uuid.UUID) -> Group | None:
     return await db.get(Group, group_id)
 
 
@@ -96,7 +98,7 @@ async def list_groups_for_moderation(
 
 
 async def find_active_group_role(
-    db: AsyncSession, party_id: int, role_type: GroupRoleType
+    db: AsyncSession, party_id: uuid.UUID, role_type: GroupRoleType
 ) -> GroupRole | None:
     return (
         await db.execute(
@@ -109,25 +111,25 @@ async def find_active_group_role(
     ).scalar_one_or_none()
 
 
-async def get_group_role(db: AsyncSession, group_role_id: int) -> GroupRole | None:
+async def get_group_role(db: AsyncSession, group_role_id: uuid.UUID) -> GroupRole | None:
     return await db.get(GroupRole, group_role_id)
 
 
 # --- Leadership -------------------------------------------------------------------
 
 
-async def get_leadership(db: AsyncSession, leadership_id: int) -> Leadership | None:
+async def get_leadership(db: AsyncSession, leadership_id: uuid.UUID) -> Leadership | None:
     return await db.get(Leadership, leadership_id)
 
 
-async def find_current_leadership(db: AsyncSession, group_id: int) -> Leadership | None:
+async def find_current_leadership(db: AsyncSession, group_id: uuid.UUID) -> Leadership | None:
     result = await db.execute(
         select(Leadership).where(Leadership.to_group_id == group_id, Leadership.valid_to.is_(None))
     )
     return result.scalar_one_or_none()
 
 
-async def list_leaderships_for_group(db: AsyncSession, group_id: int) -> list[Leadership]:
+async def list_leaderships_for_group(db: AsyncSession, group_id: uuid.UUID) -> list[Leadership]:
     result = await db.execute(
         select(Leadership)
         .where(Leadership.to_group_id == group_id)
@@ -136,7 +138,7 @@ async def list_leaderships_for_group(db: AsyncSession, group_id: int) -> list[Le
     return list(result.scalars().all())
 
 
-async def list_organizer_role_ids_for_party(db: AsyncSession, party_id: int) -> list[int]:
+async def list_organizer_role_ids_for_party(db: AsyncSession, party_id: uuid.UUID) -> list[uuid.UUID]:
     return list(
         (
             await db.execute(
@@ -152,7 +154,7 @@ async def list_organizer_role_ids_for_party(db: AsyncSession, party_id: int) -> 
 
 
 async def list_active_leaderships_for_role_ids(
-    db: AsyncSession, role_ids: list[int]
+    db: AsyncSession, role_ids: list[uuid.UUID]
 ) -> list[Leadership]:
     result = await db.execute(
         select(Leadership).where(
@@ -165,12 +167,12 @@ async def list_active_leaderships_for_role_ids(
 # --- Membership -------------------------------------------------------------------
 
 
-async def get_membership(db: AsyncSession, membership_id: int) -> Membership | None:
+async def get_membership(db: AsyncSession, membership_id: uuid.UUID) -> Membership | None:
     return await db.get(Membership, membership_id)
 
 
 async def list_active_memberships_for_group(
-    db: AsyncSession, circle_group_id: int
+    db: AsyncSession, circle_group_id: uuid.UUID
 ) -> list[Membership]:
     result = await db.execute(
         select(Membership)
@@ -180,7 +182,7 @@ async def list_active_memberships_for_group(
     return list(result.scalars().all())
 
 
-async def list_member_role_ids_for_party(db: AsyncSession, party_id: int) -> list[int]:
+async def list_member_role_ids_for_party(db: AsyncSession, party_id: uuid.UUID) -> list[uuid.UUID]:
     return list(
         (
             await db.execute(
@@ -195,7 +197,7 @@ async def list_member_role_ids_for_party(db: AsyncSession, party_id: int) -> lis
 
 
 async def list_active_memberships_for_role_ids(
-    db: AsyncSession, role_ids: list[int]
+    db: AsyncSession, role_ids: list[uuid.UUID]
 ) -> list[Membership]:
     result = await db.execute(
         select(Membership).where(
@@ -208,22 +210,22 @@ async def list_active_memberships_for_role_ids(
 # --- Term / NeededItem ----------------------------------------------------------
 
 
-async def get_term(db: AsyncSession, term_id: int) -> Term | None:
+async def get_term(db: AsyncSession, term_id: uuid.UUID) -> Term | None:
     return await db.get(Term, term_id)
 
 
-async def list_terms_for_group(db: AsyncSession, circle_group_id: int) -> list[Term]:
+async def list_terms_for_group(db: AsyncSession, circle_group_id: uuid.UUID) -> list[Term]:
     result = await db.execute(
         select(Term).where(Term.circle_group_id == circle_group_id).order_by(Term.occurs_on.desc())
     )
     return list(result.scalars().all())
 
 
-async def get_needed_item(db: AsyncSession, needed_item_id: int) -> NeededItem | None:
+async def get_needed_item(db: AsyncSession, needed_item_id: uuid.UUID) -> NeededItem | None:
     return await db.get(NeededItem, needed_item_id)
 
 
-async def list_needed_items_for_term(db: AsyncSession, term_id: int) -> list[NeededItem]:
+async def list_needed_items_for_term(db: AsyncSession, term_id: uuid.UUID) -> list[NeededItem]:
     result = await db.execute(
         select(NeededItem)
         .where(NeededItem.term_id == term_id, NeededItem.deleted_at.is_(None))
@@ -233,7 +235,7 @@ async def list_needed_items_for_term(db: AsyncSession, term_id: int) -> list[Nee
 
 
 async def get_needed_item_with_product(
-    db: AsyncSession, needed_item_id: int
+    db: AsyncSession, needed_item_id: uuid.UUID
 ) -> Row[tuple[NeededItem, str, int, str]] | None:
     """`NeededItem` + its product's name/category via an explicit join
     scoped to this one read (`standards/backend/models.md` cross-module
@@ -248,7 +250,7 @@ async def get_needed_item_with_product(
 
 
 async def list_needed_items_with_product_for_term(
-    db: AsyncSession, term_id: int
+    db: AsyncSession, term_id: uuid.UUID
 ) -> list[Row[tuple[NeededItem, str, int, str]]]:
     result = await db.execute(
         select(NeededItem, Product.name, Category.id, Category.name)
@@ -263,18 +265,18 @@ async def list_needed_items_with_product_for_term(
 # --- Pledge -------------------------------------------------------------------
 
 
-async def get_pledge(db: AsyncSession, pledge_id: int) -> Pledge | None:
+async def get_pledge(db: AsyncSession, pledge_id: uuid.UUID) -> Pledge | None:
     return await db.get(Pledge, pledge_id)
 
 
-async def list_pledges_for_needed_item(db: AsyncSession, needed_item_id: int) -> list[Pledge]:
+async def list_pledges_for_needed_item(db: AsyncSession, needed_item_id: uuid.UUID) -> list[Pledge]:
     result = await db.execute(select(Pledge).where(Pledge.needed_item_id == needed_item_id))
     return list(result.scalars().all())
 
 
 async def list_active_pledges_for_term(
-    db: AsyncSession, term_id: int
-) -> list[Row[tuple[int, str, int]]]:
+    db: AsyncSession, term_id: uuid.UUID
+) -> list[Row[tuple[uuid.UUID, str, uuid.UUID]]]:
     """`(needed_item_id, pledger_display_name, pledger_party_id)` for every non-withdrawn pledge
     on the term's live needs — at most one row per need (single-claim). Inner
     join: `pledged_by_party_id` is always a party with a `UserProfile`
@@ -293,7 +295,7 @@ async def list_active_pledges_for_term(
 
 
 async def list_my_pledges_joined(
-    db: AsyncSession, party_id: int
+    db: AsyncSession, party_id: uuid.UUID
 ) -> list[Row[tuple[Pledge, str, str | None, Term, Group]]]:
     """The caller's own non-withdrawn pledges + the product name / need
     refinement / term / circle, one explicit multi-entity join (these
@@ -319,7 +321,7 @@ async def list_my_pledges_joined(
 # --- Public circle-view -------------------------------------------------------
 
 
-async def list_attendances_for_term(db: AsyncSession, term_id: int) -> list[TermAttendance]:
+async def list_attendances_for_term(db: AsyncSession, term_id: uuid.UUID) -> list[TermAttendance]:
     result = await db.execute(
         select(TermAttendance)
         .where(TermAttendance.term_id == term_id)
@@ -328,7 +330,7 @@ async def list_attendances_for_term(db: AsyncSession, term_id: int) -> list[Term
     return list(result.scalars().all())
 
 
-async def list_active_attendances_for_term(db: AsyncSession, term_id: int) -> list[TermAttendance]:
+async def list_active_attendances_for_term(db: AsyncSession, term_id: uuid.UUID) -> list[TermAttendance]:
     """Unlike `list_attendances_for_term` (public-view attendee list, keeps
     withdrawn rows), excludes withdrawn RSVPs — used to find who's currently
     eligible to browse/offer exchange-mechanism listings for this Term."""
@@ -341,7 +343,7 @@ async def list_active_attendances_for_term(db: AsyncSession, term_id: int) -> li
 
 
 async def list_my_attendances_joined(
-    db: AsyncSession, party_id: int
+    db: AsyncSession, party_id: uuid.UUID
 ) -> list[Row[tuple[TermAttendance, Term, Group]]]:
     """Excludes withdrawn attendances (`withdrawn_at IS NOT NULL`) — mirrors
     `list_my_pledges_joined`'s existing `Pledge.status != PledgeStatus.WITHDRAWN`
@@ -359,12 +361,12 @@ async def list_my_attendances_joined(
     return list(result.all())
 
 
-async def get_attendance(db: AsyncSession, attendance_id: int) -> TermAttendance | None:
+async def get_attendance(db: AsyncSession, attendance_id: uuid.UUID) -> TermAttendance | None:
     return await db.get(TermAttendance, attendance_id)
 
 
 async def get_active_attendance(
-    db: AsyncSession, term_id: int, party_id: int
+    db: AsyncSession, term_id: uuid.UUID, party_id: uuid.UUID
 ) -> TermAttendance | None:
     result = await db.execute(
         select(TermAttendance).where(
@@ -377,7 +379,7 @@ async def get_active_attendance(
 
 
 async def list_profile_names_by_party_ids(
-    db: AsyncSession, party_ids: list[int]
+    db: AsyncSession, party_ids: list[uuid.UUID]
 ) -> list[Row[tuple[int, str]]]:
     return list(
         (
@@ -400,7 +402,7 @@ async def find_profile_by_email(db: AsyncSession, email: str) -> UserProfile | N
 
 
 async def get_item_listing_preference(
-    db: AsyncSession, item_id: int
+    db: AsyncSession, item_id: uuid.UUID
 ) -> ItemListingPreference | None:
     result = await db.execute(
         select(ItemListingPreference).where(ItemListingPreference.item_id == item_id)
@@ -409,7 +411,7 @@ async def get_item_listing_preference(
 
 
 async def list_item_listing_preferences_for_party(
-    db: AsyncSession, party_id: int
+    db: AsyncSession, party_id: uuid.UUID
 ) -> list[ItemListingPreference]:
     result = await db.execute(
         select(ItemListingPreference)
@@ -420,7 +422,7 @@ async def list_item_listing_preferences_for_party(
 
 
 async def list_item_listing_preferences_for_parties(
-    db: AsyncSession, party_ids: set[int]
+    db: AsyncSession, party_ids: set[uuid.UUID]
 ) -> list[ItemListingPreference]:
     if not party_ids:
         return []
@@ -435,12 +437,12 @@ async def list_item_listing_preferences_for_parties(
 # --- SwapProposal -----------------------------------------------------------
 
 
-async def get_swap_proposal(db: AsyncSession, proposal_id: int) -> SwapProposal | None:
+async def get_swap_proposal(db: AsyncSession, proposal_id: uuid.UUID) -> SwapProposal | None:
     return await db.get(SwapProposal, proposal_id)
 
 
 async def get_active_swap_proposal_for_listing_item(
-    db: AsyncSession, listing_item_id: int
+    db: AsyncSession, listing_item_id: uuid.UUID
 ) -> SwapProposal | None:
     """The latest not-yet-`REJECTED` `SwapProposal` targeting this listing
     item, if any — used by `_resolve_listing_status`'s fallback to
@@ -461,12 +463,12 @@ async def get_active_swap_proposal_for_listing_item(
 # --- GroupJoinRequest ----------------------------------------------------------
 
 
-async def get_join_request(db: AsyncSession, request_id: int) -> GroupJoinRequest | None:
+async def get_join_request(db: AsyncSession, request_id: uuid.UUID) -> GroupJoinRequest | None:
     return await db.get(GroupJoinRequest, request_id)
 
 
 async def find_pending_join_request(
-    db: AsyncSession, requester_party_id: int, group_id: int
+    db: AsyncSession, requester_party_id: uuid.UUID, group_id: uuid.UUID
 ) -> GroupJoinRequest | None:
     result = await db.execute(
         select(GroupJoinRequest).where(
@@ -479,7 +481,7 @@ async def find_pending_join_request(
 
 
 async def find_latest_join_request(
-    db: AsyncSession, requester_party_id: int, group_id: int
+    db: AsyncSession, requester_party_id: uuid.UUID, group_id: uuid.UUID
 ) -> GroupJoinRequest | None:
     result = await db.execute(
         select(GroupJoinRequest)
@@ -494,7 +496,7 @@ async def find_latest_join_request(
 
 
 async def has_join_request_closed_since(
-    db: AsyncSession, requester_party_id: int, group_id: int, since: datetime
+    db: AsyncSession, requester_party_id: uuid.UUID, group_id: uuid.UUID, since: datetime
 ) -> bool:
     """Whether the requester withdrew, or had rejected, a request for
     `group_id` at or after `since` (`updated_at` is the decision time)."""
@@ -518,7 +520,7 @@ PENDING_JOIN_REQUESTS_LIMIT = 200
 
 
 async def list_pending_join_requests_for_groups(
-    db: AsyncSession, group_ids: list[int]
+    db: AsyncSession, group_ids: list[uuid.UUID]
 ) -> list[Row[tuple[GroupJoinRequest, str]]]:
     """PENDING requests in `group_ids` with their group's name, oldest first
     — one query regardless of the number of groups, capped at

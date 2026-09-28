@@ -16,9 +16,11 @@ from __future__ import annotations
 
 import enum
 import re
+import uuid
 from datetime import date
 
-from sqlalchemy import BigInteger, CheckConstraint, Date, Enum, ForeignKey, String
+from sqlalchemy import CheckConstraint, Date, Enum, ForeignKey, String
+from sqlalchemy.dialects import postgresql
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.core.base_model import BaseEntity
@@ -64,10 +66,9 @@ class Organization(BaseEntity):
     organizer changes their display name."""
 
     __tablename__ = "organizations"
-    __sequence_name__ = "organization_seq"
 
-    party_id: Mapped[int] = mapped_column(
-        BigInteger,
+    party_id: Mapped[uuid.UUID] = mapped_column(
+        postgresql.UUID(as_uuid=True),
         ForeignKey("parties.id", name="fk_organizations_party_id_parties"),
         nullable=False,
     )
@@ -94,10 +95,9 @@ class OrganizationRole(BaseEntity):
     `OrganizationMembership`, not here; see module docstring."""
 
     __tablename__ = "organization_roles"
-    __sequence_name__ = "organization_role_seq"
 
-    party_id: Mapped[int] = mapped_column(
-        BigInteger,
+    party_id: Mapped[uuid.UUID] = mapped_column(
+        postgresql.UUID(as_uuid=True),
         ForeignKey("parties.id", name="fk_organization_roles_party_id_parties"),
         nullable=False,
     )
@@ -116,17 +116,16 @@ class OrganizationMembership(BaseEntity):
     which caps active leaders per *Circle*, not per person)."""
 
     __tablename__ = "organization_memberships"
-    __sequence_name__ = "organization_membership_seq"
 
-    from_role_id: Mapped[int] = mapped_column(
-        BigInteger,
+    from_role_id: Mapped[uuid.UUID] = mapped_column(
+        postgresql.UUID(as_uuid=True),
         ForeignKey(
             "organization_roles.id", name="fk_organization_memberships_from_role_id_organization_roles"
         ),
         nullable=False,
     )
-    to_organization_id: Mapped[int] = mapped_column(
-        BigInteger,
+    to_organization_id: Mapped[uuid.UUID] = mapped_column(
+        postgresql.UUID(as_uuid=True),
         ForeignKey(
             "organizations.id", name="fk_organization_memberships_to_organization_id_organizations"
         ),

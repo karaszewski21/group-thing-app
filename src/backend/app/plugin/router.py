@@ -11,6 +11,7 @@ module (unlike category/product) — do not add one.
 
 from __future__ import annotations
 
+import uuid
 from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, Query, status
@@ -81,7 +82,7 @@ async def set_enabled(
 
 @router.get("/{plugin_id}/products/{product_id}/data")
 async def get_plugin_data(
-    plugin_id: str, product_id: int, db: DbSession, principal: ReadPrincipal
+    plugin_id: str, product_id: uuid.UUID, db: DbSession, principal: ReadPrincipal
 ) -> dict[str, Any]:
     return await service.get_plugin_data(db, plugin_id, product_id)
 
@@ -89,7 +90,7 @@ async def get_plugin_data(
 @router.put("/{plugin_id}/products/{product_id}/data")
 async def replace_plugin_data(
     plugin_id: str,
-    product_id: int,
+    product_id: uuid.UUID,
     data: dict[str, Any],
     db: DbSession,
     principal: EditPrincipal,
@@ -103,7 +104,7 @@ async def replace_plugin_data(
     response_model=None,
 )
 async def delete_plugin_data(
-    plugin_id: str, product_id: int, db: DbSession, principal: EditPrincipal
+    plugin_id: str, product_id: uuid.UUID, db: DbSession, principal: EditPrincipal
 ) -> None:
     await service.delete_plugin_data(db, plugin_id, product_id)
 

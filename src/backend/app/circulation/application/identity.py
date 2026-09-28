@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+import uuid
 from typing import cast
 
 from sqlalchemy import select
@@ -13,7 +14,7 @@ from app.core.auth_deps import Principal
 from app.core.errors import EntityNotFoundException
 
 
-async def get_user_id_by_principal(db: AsyncSession, principal: Principal) -> int:
+async def get_user_id_by_principal(db: AsyncSession, principal: Principal) -> uuid.UUID:
     """Resolves the calling `Principal` (a JWT `sub`/username) to its
     `users.id` — this vertical has no `Person` concept of its own (see
     module docstring), it only ever deals in raw `User` ids."""
@@ -22,4 +23,4 @@ async def get_user_id_by_principal(db: AsyncSession, principal: Principal) -> in
     ).scalar_one_or_none()
     if user is None:
         raise EntityNotFoundException("User", principal.username)
-    return cast(int, user.id)
+    return cast(uuid.UUID, user.id)

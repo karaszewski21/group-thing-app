@@ -18,6 +18,8 @@ product-catalog unification plan); `Product` carries no points-value field.
 
 from __future__ import annotations
 
+import uuid
+
 from datetime import datetime
 from decimal import Decimal
 
@@ -36,7 +38,7 @@ from app.circulation.models import (
 from app.core.errors import EntityNotFoundException
 
 
-async def get_or_create_user_balance_account(db: AsyncSession, user_id: int) -> Account:
+async def get_or_create_user_balance_account(db: AsyncSession, user_id: uuid.UUID) -> Account:
     code = f"100-{user_id}"
     account = await repository.find_account_by_code(db, code)
     if account is not None:
@@ -60,7 +62,7 @@ async def _get_emission_account(db: AsyncSession) -> Account:
 
 
 async def post_circulation(
-    db: AsyncSession, *, giver_user_id: int, amount: Decimal, description: str
+    db: AsyncSession, *, giver_user_id: uuid.UUID, amount: Decimal, description: str
 ) -> CirculationTransaction:
     giver_account = await get_or_create_user_balance_account(db, giver_user_id)
     emission_account = await _get_emission_account(db)
