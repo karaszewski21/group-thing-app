@@ -22,21 +22,28 @@ async def _authed_headers(client: AsyncClient, email: str) -> dict[str, str]:
     return {"Authorization": f"Bearer {token}"}
 
 
+async def _category_ids(client: AsyncClient, headers: dict[str, str]) -> list[str]:
+    categories = await client.get("/api/categories", headers=headers)
+    assert categories.status_code == 200
+    return [str(category["id"]) for category in categories.json()]
+
+
 async def test_resolveProduct_noExistingMatch_createsNewProductWithPlaceholderSku(
     client: AsyncClient,
 ) -> None:
     headers = await _authed_headers(client, "resolve1@example.com")
+    category_ids = await _category_ids(client, headers)
 
     response = await client.post(
         "/api/products/resolve",
-        json={"name": "Lego Duplo", "category_id": 1},
+        json={"name": "Lego Duplo", "category_id": category_ids[0]},
         headers=headers,
     )
 
     assert response.status_code == 200
     body = response.json()
     assert body["name"] == "Lego Duplo"
-    assert body["category_id"] == 1
+    assert body["category_id"] == category_ids[0]
     assert body["sku"].startswith("LEGO DUPLO"[:10])
 
 
@@ -44,10 +51,11 @@ async def test_resolveProduct_caseInsensitiveNameMatchSameCategory_returnsExisti
     client: AsyncClient,
 ) -> None:
     headers = await _authed_headers(client, "resolve2@example.com")
+    category_ids = await _category_ids(client, headers)
 
     first = await client.post(
         "/api/products/resolve",
-        json={"name": "Rowerek Biegowy", "category_id": 1},
+        json={"name": "Rowerek Biegowy", "category_id": category_ids[0]},
         headers=headers,
     )
     assert first.status_code == 200
@@ -55,7 +63,7 @@ async def test_resolveProduct_caseInsensitiveNameMatchSameCategory_returnsExisti
 
     second = await client.post(
         "/api/products/resolve",
-        json={"name": "ROWEREK biegowy", "category_id": 1},
+        json={"name": "ROWEREK biegowy", "category_id": category_ids[0]},
         headers=headers,
     )
 
@@ -67,15 +75,16 @@ async def test_resolveProduct_sameNameDifferentCategory_createsNew(
     client: AsyncClient,
 ) -> None:
     headers = await _authed_headers(client, "resolve3@example.com")
+    category_ids = await _category_ids(client, headers)
 
     first = await client.post(
         "/api/products/resolve",
-        json={"name": "Zestaw", "category_id": 1},
+        json={"name": "Zestaw", "category_id": category_ids[0]},
         headers=headers,
     )
     second = await client.post(
         "/api/products/resolve",
-        json={"name": "Zestaw", "category_id": 2},
+        json={"name": "Zestaw", "category_id": category_ids[1]},
         headers=headers,
     )
 
@@ -88,10 +97,11 @@ async def test_resolveProduct_thenRegisterInventoryItem_producesRealInventoryIte
     client: AsyncClient,
 ) -> None:
     headers = await _authed_headers(client, "resolve4@example.com")
+    category_ids = await _category_ids(client, headers)
 
     resolved = await client.post(
         "/api/products/resolve",
-        json={"name": "Klocki Duplo", "category_id": 1},
+        json={"name": "Klocki Duplo", "category_id": category_ids[0]},
         headers=headers,
     )
     assert resolved.status_code == 200

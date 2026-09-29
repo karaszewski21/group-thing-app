@@ -109,19 +109,10 @@ export function KragStage({ children, overlay }: { children: ReactNode; overlay?
   }, []);
 
   return (
-    <div className="kg-stage">
+    <div>
       <style>{CSS}</style>
-      <div className="kg-app">{children}</div>
+      {children}
       {overlay}
     </div>
-  );
-}
-
-/** Full-page loading / error message inside `KragStage`. */
-export function KragStageMessage({ children }: { children: ReactNode }) {
-  return (
-    <KragStage>
-      <div className="kg-state">{children}</div>
-    </KragStage>
   );
 }

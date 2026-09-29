@@ -5,6 +5,8 @@
 
 from __future__ import annotations
 
+import uuid
+
 import pytest
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -47,8 +49,8 @@ def test_updateGroupRequest_acceptsLayoutModeNone_nameStillRequired() -> None:
 
 def test_groupResponse_serializesLayoutMode() -> None:
     response = GroupResponse(
-        id=1,
-        party_id=2,
+        id=uuid.uuid4(),
+        party_id=uuid.uuid4(),
         name="Krąg",
         organizer_slug=None,
         layout_mode=GroupLayoutMode.TABLE,

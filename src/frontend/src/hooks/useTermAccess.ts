@@ -37,7 +37,7 @@ function errorMessage(err: unknown): string {
  * termId) is a new key, so it behaves like a first load: `loading` until its
  * response, `error` if that fails. React Query cancels an in-flight fetch
  * when a new one starts, so the latest request always wins. */
-export function useTermAccess(groupId: number, termId?: number): UseTermAccessResult {
+export function useTermAccess(groupId: string, termId: string): UseTermAccessResult {
   const { token } = useAuth();
   const query = useQuery({
     queryKey: ["groupAccess", groupId, termId ?? null],

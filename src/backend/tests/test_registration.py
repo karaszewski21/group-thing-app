@@ -5,6 +5,8 @@ implementation/spec.md's Core Requirements 1-5, 7."""
 
 from __future__ import annotations
 
+import uuid
+
 from httpx import AsyncClient
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -25,7 +27,7 @@ async def test_register_withEmailAndPassword_returns201WithPartyIdAndRole(
     assert response.status_code == 201
     body = response.json()
     assert body["role"] == "GUEST"
-    assert isinstance(body["party_id"], int)
+    assert isinstance(body["party_id"], str) and uuid.UUID(body["party_id"])
     assert isinstance(body["token"], str) and body["token"]
 
 

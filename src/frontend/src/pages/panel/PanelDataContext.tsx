@@ -153,7 +153,7 @@ export interface PendingConfirmAction {
 export interface PendingJoinRequestAction {
   kind: "GROUP_JOIN_REQUESTED";
   joinRequestId: number;
-  groupId: number;
+  groupId: string;
   groupName: string;
   requesterName: string;
   createdAt: string;

@@ -71,7 +71,7 @@ async def _join_group_as_family_guardian(
     )
     await service.add_active_membership(db_session, group_id, profile.party_id)
     await db_session.commit()
-    return int(family.json()["id"])
+    return family.json()["id"]
 
 
 async def test_getExchangeSummary_groupMember_returns200WithFamiliesShape(

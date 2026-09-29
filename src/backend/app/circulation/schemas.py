@@ -1,5 +1,6 @@
 """Pydantic request/response models for `/api/inventories`,
-`/api/inventory-items`, `/api/reservations` and `/api/accounts`. The product
+`/api/inventory-items`, `/api/reservations` and
+`/api/circulation-transactions`. The product
 catalog itself (`/api/products`) lives in `app.product` — `product_id`
 below always refers to that shared catalog.
 """
@@ -7,17 +8,16 @@ below always refers to that shared catalog.
 from __future__ import annotations
 
 import uuid
-from datetime import date, datetime
-from decimal import Decimal
+from datetime import datetime
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from .models import (
     AccountType,
     BalanceStatus,
-    EntrySide,
     InventoryType,
     ItemCondition,
+    MovementType,
     ReservationStatus,
     ReservationType,
 )
@@ -138,38 +138,26 @@ class CreateReturnReservationRequest(BaseModel):
     notes: str | None = Field(default=None, max_length=1000)
 
 
-class AccountResponse(BaseModel):
-    model_config = ConfigDict(from_attributes=True)
-
-    id: uuid.UUID
-    code: str
-    name: str
-    account_type: AccountType
-    owner_user_id: uuid.UUID | None
-
-
-class AccountBalanceResponse(BaseModel):
-    account: AccountResponse
-    balance: Decimal
-
-
 class CirculationEntryResponse(BaseModel):
-    model_config = ConfigDict(from_attributes=True)
+    """One ledger entry with its account flattened: `inventory_id`,
+    `inventory_type` and `owner_user_id` are `None` for the EXTERNAL
+    account."""
 
     id: uuid.UUID
-    account: AccountResponse
-    amount: Decimal
-    entry_side: EntrySide
-    description: str
-    entry_date: date
+    account_id: uuid.UUID
+    account_type: AccountType
+    inventory_id: uuid.UUID | None
+    inventory_type: InventoryType | None
+    owner_user_id: uuid.UUID | None
+    item_id: uuid.UUID
+    quantity: int
+    reservation_id: uuid.UUID | None
 
 
 class CirculationTransactionResponse(BaseModel):
-    model_config = ConfigDict(from_attributes=True)
-
     id: uuid.UUID
     transaction_number: str
-    transaction_date: date
+    movement_type: MovementType
+    occurred_at: datetime
     description: str
-    is_posted: bool
     entries: list[CirculationEntryResponse]

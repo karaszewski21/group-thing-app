@@ -12,6 +12,7 @@ Naming follows `action_condition_expectedResult`
 
 from __future__ import annotations
 
+import uuid
 from datetime import date, timedelta
 
 from httpx import AsyncClient
@@ -56,9 +57,7 @@ async def _create_private_circle_and_term(
 
 
 async def _member_count(client: AsyncClient, org_token: str, group_id: int) -> int:
-    memberships = await client.get(
-        f"/api/groups/{group_id}/memberships", headers=_auth(org_token)
-    )
+    memberships = await client.get(f"/api/groups/{group_id}/memberships", headers=_auth(org_token))
     assert memberships.status_code == 200
     return len(memberships.json())
 
@@ -87,7 +86,7 @@ async def test_getGroupAccess_privateGroupOrganizerUnknownTermId_returns404(
     group_id, _term_id = await _create_private_circle_and_term(client, org_token, "b13b")
 
     response = await client.get(
-        f"/api/groups/public/{group_id}/access?term_id=999999999", headers=_auth(org_token)
+        f"/api/groups/public/{group_id}/access?term_id={uuid.uuid4()}", headers=_auth(org_token)
     )
 
     assert response.status_code == 404

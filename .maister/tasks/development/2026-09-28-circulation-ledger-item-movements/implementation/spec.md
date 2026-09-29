@@ -13,6 +13,7 @@ Spec zrewidowano po audycie `verification/spec-audit.md` zgodnie z decyzjami w `
 - **L4.** CHECK kształtu konta i indeks częściowy dla EXTERNAL zostają, co potwierdził użytkownik. Nadal nie ma CHECK ani triggera na sumę transakcji.
 - **M4.** Ciężki test migracji (osobna baza, wiele przebiegów Alembica) zastąpiono lekkim: `alembic upgrade head` w `conftest` plus test „dokładnie jedno EXTERNAL, konto dla każdego inwentarza”. Downgrade jest sprawdzany ręcznie (sekcja „Weryfikacja ręczna”).
 - **M1**: join do `UserProfile` jest zapisany jako akceptowany wyjątek od reguły fasady. **M2**: sprawdzenie `from` jest tylko defensywne, a współbieżność zabezpiecza `version_id_col` → `StaleDataError` → 409. **M5**: kontrakt commita między modułami trafia do docstringów, a test sprawdza usunięcie preferencji po sukcesie. **M6**: dodano zdanie o pośrednich commitach poza zakresem.
+- **Korekta niezmiennika (po G2, zgoda użytkownika)**: w zbilansowanej księdze EXTERNAL trwale trzyma −1 każdego żywego itemu (REGISTER), więc niezmiennik sprawdza +1 wśród kont INVENTORY, a EXTERNAL osobno (−1 dla żywego, 0 dla usuniętego). Dawne „pozostałe konta 0” i „usunięty ma +1 na EXTERNAL” były sprzeczne z bilansem transakcji.
 - **L1-L9**: poprawiono opis czyszczenia powiadomień (L1), listę konsumentów `confirm_reservation` (L2), kryterium „jednym zapytaniem” (L3), uzasadnienie wiersza 45 (L5), punkt wstrzyknięcia awarii dla `cancel_exchange` (L6), `populate_by_name` dla `from_` (L7), race dwóch stron (L8) i importy bridge'a (L9).
 
 ## Warunek wstępny implementacji
@@ -73,8 +74,8 @@ Przebudować księgę `Account` / `CirculationTransaction` / `CirculationEntry` 
     - w `app/core/authorization_matrix.py` usuwamy wiersz 44, a wiersz 45 zawężamy;
     - usuwamy plik FE `src/frontend/src/api/accounts.ts`.
 13. **Niezmiennik** sprawdzany testami:
-    - dla każdego żywego itemu dokładnie jedno konto ma saldo +1 i jest to konto `item.inventory_id`, a pozostałe konta mają saldo 0;
-    - dla itemu usuniętego (soft delete) saldo +1 ma EXTERNAL;
+    - wśród kont INVENTORY żywy item ma saldo +1 wyłącznie na koncie `item.inventory_id`, a na pozostałych kontach INVENTORY saldo 0; item usunięty (soft delete) ma saldo 0 na wszystkich kontach INVENTORY;
+    - saldo itemu na koncie EXTERNAL wynosi −1 dla żywego itemu (REGISTER) i 0 dla usuniętego (REGISTER −1, REMOVE +1);
     - każda transakcja sumuje się do 0 per item.
 14. **Stan pożyczki** (`InventoryBalance.status`, `lent_at`, `due_date`) zostaje bez zmian semantyki. To stan, a nie ruch.
 15. **Dokumentacja:** przepisać `docs/system-wypozyczalni-inventory-accounting.md`, zaktualizować docstringi modułów i dopisać krótki akapit w `.maister/docs/project/architecture.md`.
@@ -503,8 +504,8 @@ Wszystkie identyfikatory w ścieżkach i odpowiedziach to `uuid.UUID` (w JSON st
 - **Helper `tests/ledger_assertions.py`** (nowy):
   - `movements_for_item(db, item_id)`: lista transakcji z zapisami itemu, w kolejności `(occurred_at, id)`;
   - `assert_ledger_matches_projection(db, item_ids)`:
-    - dla każdego itemu `SUM(quantity)` per konto: dokładnie jedno konto z +1, reszta 0;
-    - dla żywego itemu konto z +1 jest kontem `item.inventory_id`, dla usuniętego jest nim EXTERNAL;
+    - dla każdego itemu `SUM(quantity)` per konto INVENTORY: żywy item ma dokładnie `{konto item.inventory_id: +1}`, usunięty nie ma żadnego niezerowego salda INVENTORY;
+    - saldo EXTERNAL itemu wynosi −1 dla żywego i 0 dla usuniętego;
     - w każdej transakcji suma per item wynosi 0.
 
   Asercja jest zawężona do podanych itemów, bo niektóre istniejące testy celowo wymuszają „legacy” stan (`test_circulation.py:1010`, `:1046`).

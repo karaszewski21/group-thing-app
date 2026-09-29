@@ -54,15 +54,23 @@ async def _rsvp(client: AsyncClient, token: str, group_id: int, term_id: int) ->
     )
     assert r.status_code == 201
     assert r.json()["attached_to_account"] is True
-    return int(r.json()["id"])
+    return r.json()["id"]
+
+
+async def _category_id(client: AsyncClient, token: str) -> str:
+    categories = await client.get("/api/categories", headers=_auth(token))
+    assert categories.status_code == 200
+    return str(categories.json()[0]["id"])
 
 
 async def _resolve_product(client: AsyncClient, token: str, name: str) -> int:
     r = await client.post(
-        "/api/products/resolve", json={"name": name, "category_id": 5}, headers=_auth(token)
+        "/api/products/resolve",
+        json={"name": name, "category_id": await _category_id(client, token)},
+        headers=_auth(token),
     )
     assert r.status_code == 200
-    return int(r.json()["id"])
+    return r.json()["id"]
 
 
 async def _register_personal_item(client: AsyncClient, token: str, product_name: str) -> int:
@@ -79,7 +87,7 @@ async def _register_personal_item(client: AsyncClient, token: str, product_name:
         headers=_auth(token),
     )
     assert item.status_code == 201
-    return int(item.json()["id"])
+    return item.json()["id"]
 
 
 async def _set_preference(client: AsyncClient, token: str, item_id: int, mode: str) -> None:
@@ -738,7 +746,7 @@ async def _lend_to_taker(client: AsyncClient, prefix: str) -> tuple[str, str, in
     reservation = await client.get(
         f"/api/reservations/{reservation_id}", headers=_auth(taker_token)
     )
-    return lister_token, taker_token, int(reservation.json()["item_id"])
+    return lister_token, taker_token, reservation.json()["item_id"]
 
 
 async def test_listMyInventoryItems_borrower_doesNotSeeBorrowedItemOfOwner(
@@ -861,12 +869,12 @@ async def test_listMyLentOutItems_lentFieldsMatchBorrowerProfileAndBalanceDueDat
     client: AsyncClient,
 ) -> None:
     lister_token, taker_token, item_id = await _lend_to_taker(client, "22")
-    taker_name = (
-        await client.get("/api/people/me", headers=_auth(taker_token))
-    ).json()["display_name"]
-    lister_name = (
-        await client.get("/api/people/me", headers=_auth(lister_token))
-    ).json()["display_name"]
+    taker_name = (await client.get("/api/people/me", headers=_auth(taker_token))).json()[
+        "display_name"
+    ]
+    lister_name = (await client.get("/api/people/me", headers=_auth(lister_token))).json()[
+        "display_name"
+    ]
     balance = await client.get(
         f"/api/inventory-items/{item_id}/balance", headers=_auth(lister_token)
     )

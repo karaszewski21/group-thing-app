@@ -230,13 +230,13 @@ async def test_getMyAttendances_organizerPartyWithoutProfile_returnsNullDisplayN
     await db_session.flush()
 
     guest_token, _ = await _register_guest(client, "ma.noprofile.guest@example.com")
-    await _rsvp(client, cast(int, group.id), cast(int, term.id), 2, guest_token)
+    await _rsvp(client, str(group.id), str(term.id), 2, guest_token)
 
     response = await client.get("/api/groups/mine/attendances", headers=_auth_headers(guest_token))
 
     assert response.status_code == 200
     rows = response.json()
     assert len(rows) == 1
-    assert rows[0]["term_id"] == term.id
+    assert rows[0]["term_id"] == str(term.id)
     assert rows[0]["organizer_display_name"] is None
     assert rows[0]["organizer_slug"].startswith("k-")

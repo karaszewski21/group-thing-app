@@ -15,10 +15,6 @@ export function GroupHeader({
 }) {
   return (
     <header className="kg-head">
-      <button className="kg-back" onClick={onBack}>
-        ← Wróć
-      </button>
-      {eyebrow && <div className="kg-eyebrow">{eyebrow}</div>}
       <h1>{title}</h1>
       {subtitle != null && <div className="kg-head-sub">{subtitle}</div>}
     </header>

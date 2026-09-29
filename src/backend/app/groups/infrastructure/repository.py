@@ -9,7 +9,6 @@ Never commits or flushes; `EntityNotFoundException` raising stays in the
 from __future__ import annotations
 
 import uuid
-
 from datetime import datetime
 
 from sqlalchemy import Row, exists, func, select
@@ -138,7 +137,9 @@ async def list_leaderships_for_group(db: AsyncSession, group_id: uuid.UUID) -> l
     return list(result.scalars().all())
 
 
-async def list_organizer_role_ids_for_party(db: AsyncSession, party_id: uuid.UUID) -> list[uuid.UUID]:
+async def list_organizer_role_ids_for_party(
+    db: AsyncSession, party_id: uuid.UUID
+) -> list[uuid.UUID]:
     return list(
         (
             await db.execute(
@@ -236,7 +237,7 @@ async def list_needed_items_for_term(db: AsyncSession, term_id: uuid.UUID) -> li
 
 async def get_needed_item_with_product(
     db: AsyncSession, needed_item_id: uuid.UUID
-) -> Row[tuple[NeededItem, str, int, str]] | None:
+) -> Row[tuple[NeededItem, str, uuid.UUID, str]] | None:
     """`NeededItem` + its product's name/category via an explicit join
     scoped to this one read (`standards/backend/models.md` cross-module
     rule — no `relationship()` into `app.product` or `app.category`)."""
@@ -251,7 +252,7 @@ async def get_needed_item_with_product(
 
 async def list_needed_items_with_product_for_term(
     db: AsyncSession, term_id: uuid.UUID
-) -> list[Row[tuple[NeededItem, str, int, str]]]:
+) -> list[Row[tuple[NeededItem, str, uuid.UUID, str]]]:
     result = await db.execute(
         select(NeededItem, Product.name, Category.id, Category.name)
         .join(Product, NeededItem.product_id == Product.id)
@@ -330,7 +331,9 @@ async def list_attendances_for_term(db: AsyncSession, term_id: uuid.UUID) -> lis
     return list(result.scalars().all())
 
 
-async def list_active_attendances_for_term(db: AsyncSession, term_id: uuid.UUID) -> list[TermAttendance]:
+async def list_active_attendances_for_term(
+    db: AsyncSession, term_id: uuid.UUID
+) -> list[TermAttendance]:
     """Unlike `list_attendances_for_term` (public-view attendee list, keeps
     withdrawn rows), excludes withdrawn RSVPs — used to find who's currently
     eligible to browse/offer exchange-mechanism listings for this Term."""
@@ -380,7 +383,7 @@ async def get_active_attendance(
 
 async def list_profile_names_by_party_ids(
     db: AsyncSession, party_ids: list[uuid.UUID]
-) -> list[Row[tuple[int, str]]]:
+) -> list[Row[tuple[uuid.UUID, str]]]:
     return list(
         (
             await db.execute(
@@ -455,7 +458,7 @@ async def get_active_swap_proposal_for_listing_item(
             SwapProposal.listing_item_id == listing_item_id,
             SwapProposal.status.in_((SwapProposalStatus.PROPOSED, SwapProposalStatus.ACCEPTED)),
         )
-        .order_by(SwapProposal.id.desc())
+        .order_by(SwapProposal.created_at.desc(), SwapProposal.id.desc())
     )
     return result.scalars().first()
 
@@ -489,7 +492,7 @@ async def find_latest_join_request(
             GroupJoinRequest.requester_party_id == requester_party_id,
             GroupJoinRequest.group_id == group_id,
         )
-        .order_by(GroupJoinRequest.id.desc())
+        .order_by(GroupJoinRequest.created_at.desc(), GroupJoinRequest.id.desc())
         .limit(1)
     )
     return result.scalar_one_or_none()

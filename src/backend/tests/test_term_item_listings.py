@@ -17,21 +17,28 @@ header — it attaches the RSVP to the caller's own account party
 from __future__ import annotations
 
 import inspect
+import uuid
+from dataclasses import dataclass
 from datetime import date, datetime, timedelta
+from typing import cast
 
 import pytest
 from httpx import AsyncClient
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.circulation.application import reservation_transitions
 from app.circulation.application.inventory import get_inventory
 from app.circulation.application.inventory_items import get_item, get_item_balance
 from app.circulation.models import (
-    Account,
     BalanceStatus,
-    CirculationEntry,
     CirculationTransaction,
-    EntrySide,
+    Inventory,
+    InventoryBalance,
+    InventoryItem,
+    MovementType,
+    Reservation,
+    ReservationStatus,
     ReservationType,
 )
 from app.config import settings
@@ -43,6 +50,7 @@ from app.groups.application.term_item_listings import TermAlreadyResolvedExcepti
 from app.groups.infrastructure import circulation_bridge, repository
 from app.groups.models import Term
 from app.groups.schemas import TakeTermItemListingRequest
+from tests.ledger_assertions import assert_ledger_matches_projection, movements_for_item
 
 
 def _auth(token: str) -> dict[str, str]:
@@ -57,17 +65,17 @@ def _principal(token: str) -> Principal:
     return Principal(username=claims["sub"], authorities=frozenset())
 
 
-async def _register(client: AsyncClient, role: str, email: str) -> tuple[str, int]:
+async def _register(client: AsyncClient, role: str, email: str) -> tuple[str, uuid.UUID]:
     r = await client.post(
         "/api/auth/register", json={"role": role, "email": email, "password": "secret123"}
     )
     assert r.status_code == 201
-    return r.json()["token"], r.json()["party_id"]
+    return r.json()["token"], uuid.UUID(r.json()["party_id"])
 
 
 async def _create_circle_and_term(
     client: AsyncClient, org_token: str, prefix: str
-) -> tuple[int, int]:
+) -> tuple[uuid.UUID, uuid.UUID]:
     circle = await client.post(
         "/api/groups/mine", json={"name": f"Krąg {prefix}"}, headers=_auth(org_token)
     )
@@ -81,42 +89,52 @@ async def _create_circle_and_term(
         headers=_auth(org_token),
     )
     assert term.status_code == 201
-    return circle.json()["id"], term.json()["id"]
+    return uuid.UUID(circle.json()["id"]), uuid.UUID(term.json()["id"])
 
 
-async def _add_term(client: AsyncClient, org_token: str, group_id: int) -> int:
+async def _add_term(client: AsyncClient, org_token: str, group_id: uuid.UUID) -> uuid.UUID:
     term = await client.post(
         "/api/terms",
         json={
-            "circle_group_id": group_id,
+            "circle_group_id": str(group_id),
             "occurs_on": (date.today() + timedelta(days=7)).isoformat(),
         },
         headers=_auth(org_token),
     )
     assert term.status_code == 201
-    return int(term.json()["id"])
+    return uuid.UUID(term.json()["id"])
 
 
-async def _rsvp(client: AsyncClient, token: str, group_id: int, term_id: int) -> int:
+async def _rsvp(
+    client: AsyncClient, token: str, group_id: uuid.UUID, term_id: uuid.UUID
+) -> uuid.UUID:
     r = await client.post(
         f"/api/groups/public/{group_id}/rsvp",
-        json={"term_id": term_id, "guardian_name": "ignored", "child_count": 0},
+        json={"term_id": str(term_id), "guardian_name": "ignored", "child_count": 0},
         headers=_auth(token),
     )
     assert r.status_code == 201
     assert r.json()["attached_to_account"] is True
-    return int(r.json()["id"])
+    return uuid.UUID(r.json()["id"])
 
 
-async def _resolve_product(client: AsyncClient, token: str, name: str) -> int:
+async def _category_id(client: AsyncClient, token: str) -> str:
+    categories = await client.get("/api/categories", headers=_auth(token))
+    assert categories.status_code == 200
+    return str(categories.json()[0]["id"])
+
+
+async def _resolve_product(client: AsyncClient, token: str, name: str) -> str:
     r = await client.post(
-        "/api/products/resolve", json={"name": name, "category_id": 5}, headers=_auth(token)
+        "/api/products/resolve",
+        json={"name": name, "category_id": await _category_id(client, token)},
+        headers=_auth(token),
     )
     assert r.status_code == 200
-    return int(r.json()["id"])
+    return r.json()["id"]
 
 
-async def _register_personal_item(client: AsyncClient, token: str, product_name: str) -> int:
+async def _register_personal_item(client: AsyncClient, token: str, product_name: str) -> uuid.UUID:
     product_id = await _resolve_product(client, token, product_name)
     inv = await client.post(
         "/api/inventories",
@@ -130,45 +148,7 @@ async def _register_personal_item(client: AsyncClient, token: str, product_name:
         headers=_auth(token),
     )
     assert item.status_code == 201
-    return int(item.json()["id"])
-
-
-async def _latest_ledger_entries_for_giver(
-    db_session: AsyncSession, giver_user_id: int
-) -> tuple[CirculationTransaction, list[CirculationEntry]]:
-    """Direct SQLAlchemy select of the most recently posted
-    `CirculationTransaction`/`CirculationEntry` pair for `giver_user_id` —
-    the item's holder at fulfillment time, per
-    `ledger.post_circulation`'s DEBIT-the-giver/CREDIT-the-emission-account
-    convention. Mirrors this file's existing helper-function style."""
-    account = (
-        await db_session.execute(select(Account).where(Account.code == f"100-{giver_user_id}"))
-    ).scalar_one()
-    debit_entries = (
-        await db_session.execute(
-            select(CirculationEntry)
-            .where(
-                CirculationEntry.account_id == account.id,
-                CirculationEntry.entry_side == EntrySide.DEBIT,
-            )
-            .order_by(CirculationEntry.id.desc())
-        )
-    ).scalars().all()
-    assert debit_entries, f"no CirculationEntry posted for giver {giver_user_id}"
-    latest_debit = debit_entries[0]
-    transaction = (
-        await db_session.execute(
-            select(CirculationTransaction).where(
-                CirculationTransaction.id == latest_debit.transaction_id
-            )
-        )
-    ).scalar_one()
-    entries = (
-        await db_session.execute(
-            select(CirculationEntry).where(CirculationEntry.transaction_id == transaction.id)
-        )
-    ).scalars().all()
-    return transaction, list(entries)
+    return uuid.UUID(item.json()["id"])
 
 
 async def test_setPreference_activeAttendee_thenVisibleInMyListings(
@@ -315,7 +295,7 @@ async def test_takeListing_lendType_leavesReservationPendingAndNotifiesLister(
     )
     assert reservation.status_code == 200
     assert reservation.json()["reservation_type"] == "LEND"
-    assert reservation.json()["item_id"] == item_id
+    assert reservation.json()["item_id"] == str(item_id)
     assert reservation.json()["status"] == "PENDING"
 
     notifs = (await client.get("/api/notifications/mine", headers=_auth(lister_token))).json()
@@ -357,7 +337,7 @@ async def test_proposeSwap_locksOnlyProposerItem_andNotifiesOwner(
         f"/api/reservations/{proposal.proposer_reservation_id}", headers=_auth(taker_token)
     )
     assert proposer_reservation.status_code == 200
-    assert proposer_reservation.json()["item_id"] == offered_item_id
+    assert proposer_reservation.json()["item_id"] == str(offered_item_id)
     assert proposer_reservation.json()["status"] == "CONFIRMED"
 
     listing_balance = await get_item_balance(db_session, listed_item_id)
@@ -397,10 +377,10 @@ async def test_proposeSwap_notificationCarriesRealProposalId(
 
     notifs = (await client.get("/api/notifications/mine", headers=_auth(lister_token))).json()
     swap_notif = next(n for n in notifs if n["kind"] == "SWAP_PROPOSED")
-    assert swap_notif["proposal_id"] == proposal.id
+    assert swap_notif["proposal_id"] == str(proposal.id)
     # Distinct from the proposer's own reservation leg — this is exactly the
     # gap the fix closes (they must never be conflated).
-    assert swap_notif["proposal_id"] != proposal.proposer_reservation_id
+    assert swap_notif["proposal_id"] != str(proposal.proposer_reservation_id)
 
 
 async def test_acceptSwapProposal_locksOwnerItem_pairsLegs_andNotifiesProposer(
@@ -429,9 +409,7 @@ async def test_acceptSwapProposal_locksOwnerItem_pairsLegs_andNotifiesProposer(
         db_session, _principal(taker_token), listed_item_id, offered_item_id, term_id
     )
 
-    accepted = await service.accept_swap_proposal(
-        db_session, _principal(lister_token), proposal.id
-    )
+    accepted = await service.accept_swap_proposal(db_session, _principal(lister_token), proposal.id)
     assert accepted.status == "ACCEPTED"
 
     owner_leg = await client.get(
@@ -442,9 +420,9 @@ async def test_acceptSwapProposal_locksOwnerItem_pairsLegs_andNotifiesProposer(
 
     listing_leg = await client.get(f"/api/reservations/{paired_id}", headers=_auth(lister_token))
     assert listing_leg.status_code == 200
-    assert listing_leg.json()["item_id"] == listed_item_id
+    assert listing_leg.json()["item_id"] == str(listed_item_id)
     assert listing_leg.json()["status"] == "CONFIRMED"
-    assert listing_leg.json()["paired_reservation_id"] == accepted.proposer_reservation_id
+    assert listing_leg.json()["paired_reservation_id"] == str(accepted.proposer_reservation_id)
 
     notifs = (await client.get("/api/notifications/mine", headers=_auth(taker_token))).json()
     assert any(n["kind"] == "SWAP_ACCEPTED" for n in notifs)
@@ -476,9 +454,7 @@ async def test_rejectSwapProposal_releasesProposerLock_andNotifiesProposer(
         db_session, _principal(taker_token), listed_item_id, offered_item_id, term_id
     )
 
-    rejected = await service.reject_swap_proposal(
-        db_session, _principal(lister_token), proposal.id
-    )
+    rejected = await service.reject_swap_proposal(db_session, _principal(lister_token), proposal.id)
     assert rejected.status == "REJECTED"
 
     offered_balance = await get_item_balance(db_session, offered_item_id)
@@ -693,9 +669,7 @@ async def test_confirmTransaction_swapCounterpartyConfirmsViaPairedLegId_succeed
     )
     assert fulfilled.status == "FULFILLED"
 
-    paired = await client.get(
-        f"/api/reservations/{paired_leg_id}", headers=_auth(lister_token)
-    )
+    paired = await client.get(f"/api/reservations/{paired_leg_id}", headers=_auth(lister_token))
     assert paired.json()["status"] == "FULFILLED"
 
     # The actual point of a swap: each item must now sit in the OTHER
@@ -703,12 +677,14 @@ async def test_confirmTransaction_swapCounterpartyConfirmsViaPairedLegId_succeed
     # that let the real bug through every earlier test here — those only
     # ever asserted `Reservation.status`/`InventoryBalance.status`, never
     # where the item actually ended up.
-    lister_account_user_id = (
-        await client.get("/api/people/me", headers=_auth(lister_token))
-    ).json()["account_user_id"]
-    proposer_account_user_id = (
-        await client.get("/api/people/me", headers=_auth(proposer_token))
-    ).json()["account_user_id"]
+    lister_account_user_id = uuid.UUID(
+        (await client.get("/api/people/me", headers=_auth(lister_token))).json()["account_user_id"]
+    )
+    proposer_account_user_id = uuid.UUID(
+        (await client.get("/api/people/me", headers=_auth(proposer_token))).json()[
+            "account_user_id"
+        ]
+    )
 
     listed_item_after = await get_item(db_session, listed_item_id)
     offered_item_after = await get_item(db_session, offered_item_id)
@@ -835,16 +811,15 @@ async def test_cancelTransaction_swapPairedLegs_bothReleasedTogether(
     assert paired_leg_id is not None
 
     # The LISTER cancels using the PROPOSER's reservation id — exactly the
-    # paired-leg-id scenario `test_confirmTransaction_swapCounterpartyConfirmsViaPairedLegId_succeeds`
+    # paired-leg-id scenario that
+    # `test_confirmTransaction_swapCounterpartyConfirmsViaPairedLegId_succeeds`
     # exercises for confirm.
     cancelled = await service.cancel_transaction(
         db_session, _principal(lister_token), proposal.proposer_reservation_id
     )
     assert cancelled.status == "CANCELLED"
 
-    paired = await client.get(
-        f"/api/reservations/{paired_leg_id}", headers=_auth(lister_token)
-    )
+    paired = await client.get(f"/api/reservations/{paired_leg_id}", headers=_auth(lister_token))
     assert paired.json()["status"] == "CANCELLED"
 
     listing_balance = await get_item_balance(db_session, listed_item_id)
@@ -1506,9 +1481,7 @@ async def test_listMyActiveTakenTermItemListings_afterTermEnd_stillResolves(
     await db_session.commit()
 
     # The existing browse path structurally cannot serve this anymore.
-    browsable = await service.list_browsable_term_item_listings(
-        db_session, term_id, taker_party_id
-    )
+    browsable = await service.list_browsable_term_item_listings(db_session, term_id, taker_party_id)
     assert browsable == []
 
     mine_as_taker = await service.list_my_active_taken_term_item_listings(
@@ -1656,14 +1629,116 @@ async def test_proposeSwap_offeredItemModeMismatch_raisesBusinessConflict(
         )
 
 
-async def test_confirmTransaction_giftFulfillment_postsCirculationTransactionAndEntries(
+async def _account_user_id(client: AsyncClient, token: str) -> uuid.UUID:
+    me = await client.get("/api/people/me", headers=_auth(token))
+    assert me.status_code == 200
+    return uuid.UUID(me.json()["account_user_id"])
+
+
+def _entry_lines(
+    transaction: CirculationTransaction,
+) -> set[tuple[uuid.UUID, uuid.UUID | None, int, uuid.UUID | None]]:
+    """`(item_id, inventory_id, quantity, reservation_id)` per entry."""
+    return {
+        (entry.item_id, entry.account.inventory_id, entry.quantity, entry.reservation_id)
+        for entry in transaction.entries
+    }
+
+
+async def _fresh_reservation(db: AsyncSession, reservation_id: uuid.UUID) -> Reservation:
+    return (
+        await db.execute(
+            select(Reservation)
+            .where(Reservation.id == reservation_id)
+            .execution_options(populate_existing=True)
+        )
+    ).scalar_one()
+
+
+async def _fresh_item(db: AsyncSession, item_id: uuid.UUID) -> InventoryItem:
+    return (
+        await db.execute(
+            select(InventoryItem)
+            .where(InventoryItem.id == item_id)
+            .execution_options(populate_existing=True)
+        )
+    ).scalar_one()
+
+
+async def _fresh_balance_status(db: AsyncSession, item_id: uuid.UUID) -> BalanceStatus:
+    return (
+        await db.execute(
+            select(InventoryBalance.status)
+            .where(InventoryBalance.item_id == item_id)
+            .execution_options(populate_existing=True)
+        )
+    ).scalar_one()
+
+
+@dataclass(frozen=True)
+class _AcceptedSwap:
+    lister_token: str
+    proposer_token: str
+    listed_item_id: uuid.UUID
+    offered_item_id: uuid.UUID
+    proposer_reservation_id: uuid.UUID
+    owner_reservation_id: uuid.UUID
+
+
+async def _accepted_swap_after_term(
+    client: AsyncClient,
+    db_session: AsyncSession,
+    suffix: str,
+    listed_name: str = "Monopoly",
+    offered_name: str = "Scrabble",
+) -> _AcceptedSwap:
+    """Lister's item and proposer's item, both in their owners' PERSONAL
+    inventories and tagged SWAP; the proposal is accepted (both legs
+    CONFIRMED and paired) and the Term has already ended."""
+    org_token, _ = await _register(client, "ORGANIZER", f"til.org{suffix}@example.com")
+    group_id, term_id = await _create_circle_and_term(client, org_token, f"til{suffix}")
+
+    lister_token, _ = await _register(client, "GUEST", f"til.lister{suffix}@example.com")
+    await _rsvp(client, lister_token, group_id, term_id)
+    listed_item_id = await _register_personal_item(client, lister_token, listed_name)
+    await service.set_item_listing_preference(
+        db_session, _principal(lister_token), listed_item_id, ReservationType.SWAP
+    )
+
+    proposer_token, _ = await _register(client, "GUEST", f"til.proposer{suffix}@example.com")
+    await _rsvp(client, proposer_token, group_id, term_id)
+    offered_item_id = await _register_personal_item(client, proposer_token, offered_name)
+    await service.set_item_listing_preference(
+        db_session, _principal(proposer_token), offered_item_id, ReservationType.SWAP
+    )
+
+    proposal = await service.propose_swap(
+        db_session, _principal(proposer_token), listed_item_id, offered_item_id, term_id
+    )
+    await service.accept_swap_proposal(db_session, _principal(lister_token), proposal.id)
+    proposer_reservation = await circulation_bridge.get_reservation(
+        db_session, proposal.proposer_reservation_id
+    )
+
+    term = (await db_session.execute(select(Term).where(Term.id == term_id))).scalar_one()
+    term.occurs_on = datetime.utcnow() - timedelta(days=1)
+    await db_session.commit()
+
+    return _AcceptedSwap(
+        lister_token=lister_token,
+        proposer_token=proposer_token,
+        listed_item_id=listed_item_id,
+        offered_item_id=offered_item_id,
+        proposer_reservation_id=proposal.proposer_reservation_id,
+        owner_reservation_id=cast(uuid.UUID, proposer_reservation.paired_reservation_id),
+    )
+
+
+async def test_confirmTransaction_giftFulfillment_postsGiftTransactionBetweenPersonalInventories(
     client: AsyncClient, db_session: AsyncSession
 ) -> None:
-    """After a GIFT `fulfill_reservation` (driven via `confirm_transaction`),
-    a `CirculationTransaction` row exists with a paired DEBIT (the giver/
-    lister, who physically holds the item at fulfillment) / CREDIT (the
-    system emission account) `CirculationEntry`, referencing the correct
-    item via the transaction's description."""
+    """A GIFT fulfilled via `confirm_transaction` posts one GIFT transaction
+    moving the item from the lister's PERSONAL inventory to the taker's."""
     org_token, _ = await _register(client, "ORGANIZER", "til.org31@example.com")
     group_id, term_id = await _create_circle_and_term(client, org_token, "til31")
 
@@ -1688,86 +1763,240 @@ async def test_confirmTransaction_giftFulfillment_postsCirculationTransactionAnd
     term.occurs_on = datetime.utcnow() - timedelta(days=1)
     await db_session.commit()
 
-    lister_account_user_id = (
-        await client.get("/api/people/me", headers=_auth(lister_token))
-    ).json()["account_user_id"]
+    lister_inventory_id = (await _fresh_item(db_session, item_id)).inventory_id
+    reservation_id = cast(uuid.UUID, taken.resolved_reservation_id)
 
-    await service.confirm_transaction(
-        db_session, _principal(taker_token), taken.resolved_reservation_id
+    await service.confirm_transaction(db_session, _principal(taker_token), reservation_id)
+
+    taker_inventory = await circulation_bridge.find_personal_inventory(
+        db_session, await _account_user_id(client, taker_token)
     )
+    assert taker_inventory is not None
+    gift = (await movements_for_item(db_session, item_id))[-1]
+    assert gift.movement_type == MovementType.GIFT
+    assert "Encyklopedia" in gift.description
+    assert _entry_lines(gift) == {
+        (item_id, lister_inventory_id, -1, reservation_id),
+        (item_id, cast(uuid.UUID, taker_inventory.id), 1, reservation_id),
+    }
+    await assert_ledger_matches_projection(db_session, [item_id])
 
-    transaction, entries = await _latest_ledger_entries_for_giver(
-        db_session, lister_account_user_id
-    )
-    assert transaction.is_posted is True
-    assert "Encyklopedia" in transaction.description
-    assert len(entries) == 2
-    debit = next(e for e in entries if e.entry_side == EntrySide.DEBIT)
-    credit = next(e for e in entries if e.entry_side == EntrySide.CREDIT)
-    assert debit.amount == credit.amount
 
-
-async def test_confirmTransaction_swapFulfillment_postsCirculationTransactionAndEntriesPerLeg(
+async def test_confirmTransaction_swap_postsSingleSwapTransactionWithFourEntries(
     client: AsyncClient, db_session: AsyncSession
 ) -> None:
-    """After each leg of a SWAP `fulfill_reservation` (driven via
-    `confirm_transaction`), a distinct `CirculationTransaction`/
-    `CirculationEntry` pair exists — one posted for each party as the giver
-    of their own leg's item."""
-    org_token, _ = await _register(client, "ORGANIZER", "til.org32@example.com")
-    group_id, term_id = await _create_circle_and_term(client, org_token, "til32")
+    """Both legs of a SWAP are posted as ONE SWAP transaction with 4 entries
+    PERSONAL(A) <-> PERSONAL(B), each leg tagged with its own reservation,
+    committed together with the deletion of both listing preferences."""
+    swap = await _accepted_swap_after_term(client, db_session, "32")
+    lister_inventory_id = (await _fresh_item(db_session, swap.listed_item_id)).inventory_id
+    proposer_inventory_id = (await _fresh_item(db_session, swap.offered_item_id)).inventory_id
 
-    lister_token, _ = await _register(client, "GUEST", "til.lister32@example.com")
+    await service.confirm_transaction(
+        db_session, _principal(swap.lister_token), swap.proposer_reservation_id
+    )
+    # Discarding whatever is left uncommitted proves the use case committed
+    # the exchange and the preference deletions together.
+    await db_session.rollback()
+
+    swap_transactions = [
+        t
+        for t in await movements_for_item(db_session, swap.listed_item_id)
+        if t.movement_type == MovementType.SWAP
+    ]
+    assert len(swap_transactions) == 1
+    transaction = swap_transactions[0]
+    assert transaction.description == "SWAP: Scrabble ⇄ Monopoly"
+    assert _entry_lines(transaction) == {
+        (swap.offered_item_id, proposer_inventory_id, -1, swap.proposer_reservation_id),
+        (swap.offered_item_id, lister_inventory_id, 1, swap.proposer_reservation_id),
+        (swap.listed_item_id, lister_inventory_id, -1, swap.owner_reservation_id),
+        (swap.listed_item_id, proposer_inventory_id, 1, swap.owner_reservation_id),
+    }
+    offered_movements = await movements_for_item(db_session, swap.offered_item_id)
+    assert offered_movements[-1].id == transaction.id
+
+    listed_item = await _fresh_item(db_session, swap.listed_item_id)
+    offered_item = await _fresh_item(db_session, swap.offered_item_id)
+    assert listed_item.inventory_id == proposer_inventory_id
+    assert offered_item.inventory_id == lister_inventory_id
+    for reservation_id in (swap.proposer_reservation_id, swap.owner_reservation_id):
+        reservation = await _fresh_reservation(db_session, reservation_id)
+        assert reservation.status == ReservationStatus.FULFILLED
+    assert await repository.get_item_listing_preference(db_session, swap.listed_item_id) is None
+    assert await repository.get_item_listing_preference(db_session, swap.offered_item_id) is None
+    await assert_ledger_matches_projection(
+        db_session, [swap.listed_item_id, swap.offered_item_id]
+    )
+
+
+async def test_confirmTransaction_swapFailureInSecondLeg_leavesNoChanges(
+    client: AsyncClient, db_session: AsyncSession, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    swap = await _accepted_swap_after_term(client, db_session, "50")
+    item_ids = (swap.listed_item_id, swap.offered_item_id)
+    inventories_before = {
+        item_id: (await _fresh_item(db_session, item_id)).inventory_id for item_id in item_ids
+    }
+    transactions_before = {
+        item_id: len(await movements_for_item(db_session, item_id)) for item_id in item_ids
+    }
+
+    original = reservation_transitions.get_or_create_personal_inventory
+    calls = 0
+
+    async def failing_on_second_call(db: AsyncSession, owner_user_id: uuid.UUID) -> Inventory:
+        nonlocal calls
+        calls += 1
+        if calls == 2:
+            raise RuntimeError("forced failure in the second leg")
+        return await original(db, owner_user_id)
+
+    monkeypatch.setattr(
+        reservation_transitions, "get_or_create_personal_inventory", failing_on_second_call
+    )
+
+    with pytest.raises(RuntimeError):
+        await service.confirm_transaction(
+            db_session, _principal(swap.proposer_token), swap.proposer_reservation_id
+        )
+    await db_session.rollback()
+
+    assert calls == 2
+    for reservation_id in (swap.proposer_reservation_id, swap.owner_reservation_id):
+        reservation = await _fresh_reservation(db_session, reservation_id)
+        assert reservation.status == ReservationStatus.CONFIRMED
+    for item_id in item_ids:
+        assert (await _fresh_item(db_session, item_id)).inventory_id == inventories_before[item_id]
+        assert len(await movements_for_item(db_session, item_id)) == transactions_before[item_id]
+        assert await repository.get_item_listing_preference(db_session, item_id) is not None
+
+
+async def test_cancelTransaction_swap_cancelsBothLegsInOneCommit(
+    client: AsyncClient, db_session: AsyncSession
+) -> None:
+    swap = await _accepted_swap_after_term(client, db_session, "51")
+
+    await service.cancel_transaction(
+        db_session, _principal(swap.proposer_token), swap.owner_reservation_id
+    )
+    await db_session.rollback()
+
+    for reservation_id in (swap.proposer_reservation_id, swap.owner_reservation_id):
+        reservation = await _fresh_reservation(db_session, reservation_id)
+        assert reservation.status == ReservationStatus.CANCELLED
+    for item_id in (swap.listed_item_id, swap.offered_item_id):
+        assert await _fresh_balance_status(db_session, item_id) == BalanceStatus.AVAILABLE
+
+
+async def test_cancelExchange_failureInSecondLeg_leavesFirstLegUntouched(
+    client: AsyncClient, db_session: AsyncSession, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    swap = await _accepted_swap_after_term(client, db_session, "52")
+    lister_user_id = await _account_user_id(client, swap.lister_token)
+
+    original = reservation_transitions.get_item_balance
+    calls = 0
+
+    async def failing_on_second_call(db: AsyncSession, item_id: uuid.UUID) -> InventoryBalance:
+        nonlocal calls
+        calls += 1
+        if calls == 2:
+            raise RuntimeError("forced failure in the second leg")
+        return await original(db, item_id)
+
+    monkeypatch.setattr(reservation_transitions, "get_item_balance", failing_on_second_call)
+
+    with pytest.raises(RuntimeError):
+        await circulation_bridge.cancel_exchange(
+            db_session,
+            [swap.proposer_reservation_id, swap.owner_reservation_id],
+            lister_user_id,
+        )
+    await db_session.rollback()
+
+    assert calls == 2
+    first_leg = await _fresh_reservation(db_session, swap.proposer_reservation_id)
+    assert first_leg.status == ReservationStatus.CONFIRMED
+    assert await _fresh_balance_status(db_session, swap.offered_item_id) == (
+        BalanceStatus.IN_TRANSIT
+    )
+
+
+async def test_fulfillExchange_unpairedLegs_raisesConflict(
+    client: AsyncClient, db_session: AsyncSession
+) -> None:
+    """A still-PROPOSED swap has one unpaired SWAP leg: it can be fulfilled
+    neither alone nor passed twice as its own pair."""
+    org_token, _ = await _register(client, "ORGANIZER", "til.org53@example.com")
+    group_id, term_id = await _create_circle_and_term(client, org_token, "til53")
+    lister_token, _ = await _register(client, "GUEST", "til.lister53@example.com")
     await _rsvp(client, lister_token, group_id, term_id)
-    listed_item_id = await _register_personal_item(client, lister_token, "Monopoly")
+    listed_item_id = await _register_personal_item(client, lister_token, "Gitara53")
     await service.set_item_listing_preference(
         db_session, _principal(lister_token), listed_item_id, ReservationType.SWAP
     )
-
-    proposer_token, _ = await _register(client, "GUEST", "til.proposer32@example.com")
+    proposer_token, _ = await _register(client, "GUEST", "til.proposer53@example.com")
     await _rsvp(client, proposer_token, group_id, term_id)
-    offered_item_id = await _register_personal_item(client, proposer_token, "Scrabble")
+    offered_item_id = await _register_personal_item(client, proposer_token, "Keyboard53")
     await service.set_item_listing_preference(
         db_session, _principal(proposer_token), offered_item_id, ReservationType.SWAP
     )
-
     proposal = await service.propose_swap(
         db_session, _principal(proposer_token), listed_item_id, offered_item_id, term_id
     )
-    await service.accept_swap_proposal(db_session, _principal(lister_token), proposal.id)
+    proposer_user_id = await _account_user_id(client, proposer_token)
+    leg_id = proposal.proposer_reservation_id
 
-    term = (await db_session.execute(select(Term).where(Term.id == term_id))).scalar_one()
-    term.occurs_on = datetime.utcnow() - timedelta(days=1)
-    await db_session.commit()
+    for reservation_ids in ([leg_id], [leg_id, leg_id]):
+        with pytest.raises(BusinessConflictException):
+            await circulation_bridge.fulfill_exchange(db_session, reservation_ids, proposer_user_id)
 
-    lister_account_user_id = (
-        await client.get("/api/people/me", headers=_auth(lister_token))
-    ).json()["account_user_id"]
-    proposer_account_user_id = (
-        await client.get("/api/people/me", headers=_auth(proposer_token))
-    ).json()["account_user_id"]
+    assert (await _fresh_reservation(db_session, leg_id)).status == ReservationStatus.CONFIRMED
 
-    await service.confirm_transaction(
-        db_session, _principal(lister_token), proposal.proposer_reservation_id
-    )
 
-    # The proposer's leg: at fulfillment time the proposer still physically
-    # holds their own offered item, so the proposer is the DEBIT giver.
-    proposer_transaction, proposer_entries = await _latest_ledger_entries_for_giver(
-        db_session, proposer_account_user_id
-    )
-    assert "Scrabble" in proposer_transaction.description
-    assert len(proposer_entries) == 2
+async def test_fulfillExchange_nonPartyActor_raisesAccessDeniedWithoutStateChange(
+    client: AsyncClient, db_session: AsyncSession
+) -> None:
+    swap = await _accepted_swap_after_term(client, db_session, "54")
+    outsider_token, _ = await _register(client, "GUEST", "til.outsider54@example.com")
+    outsider_user_id = await _account_user_id(client, outsider_token)
+    inventory_before = (await _fresh_item(db_session, swap.listed_item_id)).inventory_id
+    transactions_before = len(await movements_for_item(db_session, swap.listed_item_id))
 
-    # The listing owner's leg: the lister still physically holds the listed
-    # item at that same moment, so the lister is the DEBIT giver for the
-    # *other*, separately-posted transaction.
-    lister_transaction, lister_entries = await _latest_ledger_entries_for_giver(
-        db_session, lister_account_user_id
-    )
-    assert "Monopoly" in lister_transaction.description
-    assert len(lister_entries) == 2
-    assert lister_transaction.id != proposer_transaction.id
+    with pytest.raises(AccessDeniedException):
+        await circulation_bridge.fulfill_exchange(
+            db_session,
+            [swap.proposer_reservation_id, swap.owner_reservation_id],
+            outsider_user_id,
+        )
+
+    for reservation_id in (swap.proposer_reservation_id, swap.owner_reservation_id):
+        reservation = await _fresh_reservation(db_session, reservation_id)
+        assert reservation.status == ReservationStatus.CONFIRMED
+    assert (await _fresh_item(db_session, swap.listed_item_id)).inventory_id == inventory_before
+    assert len(await movements_for_item(db_session, swap.listed_item_id)) == transactions_before
+
+
+async def test_cancelExchange_nonPartyActor_raisesAccessDeniedWithoutStateChange(
+    client: AsyncClient, db_session: AsyncSession
+) -> None:
+    swap = await _accepted_swap_after_term(client, db_session, "55")
+    outsider_token, _ = await _register(client, "GUEST", "til.outsider55@example.com")
+    outsider_user_id = await _account_user_id(client, outsider_token)
+
+    with pytest.raises(AccessDeniedException):
+        await circulation_bridge.cancel_exchange(
+            db_session,
+            [swap.owner_reservation_id, swap.proposer_reservation_id],
+            outsider_user_id,
+        )
+
+    for reservation_id in (swap.proposer_reservation_id, swap.owner_reservation_id):
+        reservation = await _fresh_reservation(db_session, reservation_id)
+        assert reservation.status == ReservationStatus.CONFIRMED
+    for item_id in (swap.listed_item_id, swap.offered_item_id):
+        assert await _fresh_balance_status(db_session, item_id) == BalanceStatus.IN_TRANSIT
 
 
 async def test_swapReservedByUserId_notInverted_andTermEndGate_usesLocalNow(
@@ -1820,9 +2049,7 @@ async def test_swapReservedByUserId_notInverted_andTermEndGate_usesLocalNow(
     )
     assert proposer_leg.json()["reserved_by_user_id"] == lister_account_user_id
 
-    accepted = await service.accept_swap_proposal(
-        db_session, _principal(lister_token), proposal.id
-    )
+    accepted = await service.accept_swap_proposal(db_session, _principal(lister_token), proposal.id)
     owner_leg = await client.get(
         f"/api/reservations/{accepted.proposer_reservation_id}", headers=_auth(lister_token)
     )
@@ -1898,7 +2125,7 @@ async def test_getItemBalance_reservedStatus_includesReservationId(
     )
     assert balance.status_code == 200
     assert balance.json()["status"] == "RESERVED"
-    assert balance.json()["reservation_id"] == taken.resolved_reservation_id
+    assert balance.json()["reservation_id"] == str(taken.resolved_reservation_id)
 
 
 async def test_getItemBalance_inTransitStatus_stillReportsSameReservationId(
@@ -1929,7 +2156,7 @@ async def test_getItemBalance_inTransitStatus_stillReportsSameReservationId(
     # The item's owner (still the holder before fulfillment) confirms.
     lister_me = await client.get("/api/people/me", headers=_auth(lister_token))
     await circulation_bridge.confirm_reservation(
-        db_session, taken.resolved_reservation_id, lister_me.json()["account_user_id"]
+        db_session, taken.resolved_reservation_id, uuid.UUID(lister_me.json()["account_user_id"])
     )
 
     balance = await client.get(
@@ -1937,7 +2164,7 @@ async def test_getItemBalance_inTransitStatus_stillReportsSameReservationId(
     )
     assert balance.status_code == 200
     assert balance.json()["status"] == "IN_TRANSIT"
-    assert balance.json()["reservation_id"] == taken.resolved_reservation_id
+    assert balance.json()["reservation_id"] == str(taken.resolved_reservation_id)
 
 
 async def test_getItemBalance_swapBothLegs_eachHasOwnDistinctReservationId(
@@ -1991,7 +2218,7 @@ async def test_getItemBalance_swapBothLegs_eachHasOwnDistinctReservationId(
     )
     paired_leg_id = proposer_leg.json()["paired_reservation_id"]
     assert {listed_reservation_id, offered_reservation_id} == {
-        proposal.proposer_reservation_id,
+        str(proposal.proposer_reservation_id),
         paired_leg_id,
     }
 

@@ -36,8 +36,8 @@ export function RequestAccessDialog({
   onSubmitted,
   onConflict,
 }: {
-  groupId: number;
-  termId?: number;
+  groupId: string;
+  termId?: string;
   groupName: string;
   onClose: () => void;
   onSubmitted: () => void;

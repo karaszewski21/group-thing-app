@@ -8,7 +8,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.circulation.infrastructure import repository
-from app.circulation.models import Inventory, InventoryType
+from app.circulation.models import Account, AccountType, Inventory, InventoryType
 from app.circulation.schemas import CreateInventoryRequest
 from app.core.errors import EntityNotFoundException
 
@@ -20,6 +20,8 @@ async def create_inventory(
         owner_user_id=owner_user_id, inventory_type=data.inventory_type, location=data.location
     )
     db.add(inventory)
+    await db.flush()
+    db.add(Account(account_type=AccountType.INVENTORY, inventory_id=inventory.id))
     await db.commit()
     await db.refresh(inventory)
     return inventory
@@ -48,7 +50,9 @@ async def _get_or_create_inventory(
     `IntegrityError` instead of silently creating a duplicate; caught here
     via a `SAVEPOINT` (`begin_nested`) so only this insert rolls back, not
     the caller's wider transaction, then re-fetched to return the winner's
-    row."""
+    row. The inventory's ledger account is inserted in the same `SAVEPOINT`,
+    so a lost race rolls back both and the winner's row already has its
+    account."""
     find = repository.find_personal_inventory if inventory_type == InventoryType.PERSONAL else repository.find_virtual_inventory
     inventory = await find(db, owner_user_id)
     if inventory is not None:
@@ -57,6 +61,8 @@ async def _get_or_create_inventory(
     try:
         async with db.begin_nested():
             db.add(inventory)
+            await db.flush()
+            db.add(Account(account_type=AccountType.INVENTORY, inventory_id=inventory.id))
             await db.flush()
     except IntegrityError:
         inventory = await find(db, owner_user_id)

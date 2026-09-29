@@ -37,10 +37,12 @@ async def _register(client: AsyncClient, role: str, email: str) -> tuple[str, in
 async def _user_id(client: AsyncClient, token: str) -> int:
     me = await client.get("/api/people/me", headers=_auth(token))
     assert me.status_code == 200
-    return int(me.json()["account_user_id"])
+    return me.json()["account_user_id"]
 
 
-async def _create_circle_and_term(client: AsyncClient, org_token: str, prefix: str) -> tuple[int, int]:
+async def _create_circle_and_term(
+    client: AsyncClient, org_token: str, prefix: str
+) -> tuple[int, int]:
     circle = await client.post(
         "/api/groups/mine", json={"name": f"Krąg {prefix}"}, headers=_auth(org_token)
     )
@@ -66,9 +68,17 @@ async def _rsvp(client: AsyncClient, token: str, group_id: int, term_id: int) ->
     assert r.status_code == 201
 
 
+async def _category_id(client: AsyncClient, token: str) -> str:
+    categories = await client.get("/api/categories", headers=_auth(token))
+    assert categories.status_code == 200
+    return str(categories.json()[0]["id"])
+
+
 async def _register_personal_item(client: AsyncClient, token: str, product_name: str) -> int:
     product = await client.post(
-        "/api/products/resolve", json={"name": product_name, "category_id": 5}, headers=_auth(token)
+        "/api/products/resolve",
+        json={"name": product_name, "category_id": await _category_id(client, token)},
+        headers=_auth(token),
     )
     assert product.status_code == 200
     inv = await client.post(
@@ -79,11 +89,15 @@ async def _register_personal_item(client: AsyncClient, token: str, product_name:
     assert inv.status_code == 201
     item = await client.post(
         "/api/inventory-items",
-        json={"inventory_id": inv.json()["id"], "product_id": product.json()["id"], "condition": "GOOD"},
+        json={
+            "inventory_id": inv.json()["id"],
+            "product_id": product.json()["id"],
+            "condition": "GOOD",
+        },
         headers=_auth(token),
     )
     assert item.status_code == 201
-    return int(item.json()["id"])
+    return item.json()["id"]
 
 
 async def _end_term(client: AsyncClient, org_token: str, term_id: int) -> None:
@@ -95,9 +109,7 @@ async def _end_term(client: AsyncClient, org_token: str, term_id: int) -> None:
     assert patch.status_code == 200
 
 
-async def _take_lend(
-    client: AsyncClient, prefix: str
-) -> tuple[str, str, str, int, int, int, int]:
+async def _take_lend(client: AsyncClient, prefix: str) -> tuple[str, str, str, int, int, int, int]:
     """Owner lists a LEND item, borrower takes it (still PENDING, Term
     upcoming). Returns `(org_token, owner_token, borrower_token, group_id,
     term_id, item_id, reservation_id)`."""
@@ -108,7 +120,9 @@ async def _take_lend(
     await _rsvp(client, owner_token, group_id, term_id)
     item_id = await _register_personal_item(client, owner_token, f"Wózek {prefix}")
     pref = await client.put(
-        f"/api/item-listing-preferences/{item_id}", json={"mode": "LEND"}, headers=_auth(owner_token)
+        f"/api/item-listing-preferences/{item_id}",
+        json={"mode": "LEND"},
+        headers=_auth(owner_token),
     )
     assert pref.status_code == 200
 
@@ -120,7 +134,7 @@ async def _take_lend(
         headers=_auth(borrower_token),
     )
     assert take.status_code == 200
-    reservation_id = int(take.json()["resolved_reservation_id"])
+    reservation_id = take.json()["resolved_reservation_id"]
     return org_token, owner_token, borrower_token, group_id, term_id, item_id, reservation_id
 
 
@@ -154,7 +168,7 @@ async def _raw_return(client: AsyncClient, token: str, item_id: int, reserved_by
         headers=_auth(token),
     )
     assert r.status_code == 201, r.text
-    return int(r.json()["id"])
+    return r.json()["id"]
 
 
 # --- B6: raw write routes ---------------------------------------------------
@@ -232,7 +246,9 @@ async def test_rawCancelReturn_restoresLentAndKeepsDueDate(client: AsyncClient) 
     assert due_before is not None
 
     return_id = await _raw_return(client, borrower_token, item_id, reserved_by=owner_id)
-    cancel = await client.post(f"/api/reservations/{return_id}/cancel", headers=_auth(borrower_token))
+    cancel = await client.post(
+        f"/api/reservations/{return_id}/cancel", headers=_auth(borrower_token)
+    )
     assert cancel.status_code == 200
 
     balance = await _balance(client, owner_token, item_id)
@@ -277,7 +293,10 @@ async def test_confirmTransaction_otherPastTermId_whileOwnTermUpcoming_returns40
     )
     other_term = await client.post(
         "/api/terms",
-        json={"circle_group_id": group_id, "occurs_on": (date.today() + timedelta(days=3)).isoformat()},
+        json={
+            "circle_group_id": group_id,
+            "occurs_on": (date.today() + timedelta(days=3)).isoformat(),
+        },
         headers=_auth(org_token),
     )
     assert other_term.status_code == 201
@@ -361,7 +380,9 @@ async def _push_term_into_past(db_session: AsyncSession, term_id: int) -> None:
 
 
 async def _outbox_payloads(db_session: AsyncSession, event_type: str) -> list[dict]:
-    result = await db_session.execute(select(OutboxEntry).where(OutboxEntry.event_type == event_type))
+    result = await db_session.execute(
+        select(OutboxEntry).where(OutboxEntry.event_type == event_type)
+    )
     return [entry.payload for entry in result.scalars().all()]
 
 
@@ -382,27 +403,40 @@ async def test_scan_pendingLendPastTermEnd_promptsBothPartiesWithReservationId(
     register_outbox_handlers()
     await dispatch_pending(db_session)
     notifications = (
-        await db_session.execute(
-            select(Notification).where(Notification.kind == NotificationKind.TERM_CONFIRMATION_NEEDED)
+        (
+            await db_session.execute(
+                select(Notification).where(
+                    Notification.kind == NotificationKind.TERM_CONFIRMATION_NEEDED
+                )
+            )
         )
-    ).scalars().all()
+        .scalars()
+        .all()
+    )
     assert len(notifications) == 2
-    assert {getattr(n, "reservation_id", None) for n in notifications} == {reservation_id}
+    assert {str(getattr(n, "reservation_id", None)) for n in notifications} == {reservation_id}
 
 
 async def test_scan_confirmedPledgeLend_promptsWithReservationId(
     client: AsyncClient, db_session: AsyncSession
 ) -> None:
     org_token, _ = await _register(client, "ORGANIZER", "s0b12b.org@example.com")
-    circle = await client.post("/api/groups/mine", json={"name": "Krąg s0b12b"}, headers=_auth(org_token))
+    circle = await client.post(
+        "/api/groups/mine", json={"name": "Krąg s0b12b"}, headers=_auth(org_token)
+    )
     term = await client.post(
         "/api/terms",
-        json={"circle_group_id": circle.json()["id"], "occurs_on": (date.today() + timedelta(days=1)).isoformat()},
+        json={
+            "circle_group_id": circle.json()["id"],
+            "occurs_on": (date.today() + timedelta(days=1)).isoformat(),
+        },
         headers=_auth(org_token),
     )
     term_id = term.json()["id"]
     product = await client.post(
-        "/api/products/resolve", json={"name": "Skrzypce s0b12b", "category_id": 5}, headers=_auth(org_token)
+        "/api/products/resolve",
+        json={"name": "Skrzypce s0b12b", "category_id": await _category_id(client, org_token)},
+        headers=_auth(org_token),
     )
     needed = await client.post(
         "/api/needed-items",
@@ -414,7 +448,9 @@ async def test_scan_confirmedPledgeLend_promptsWithReservationId(
         "/api/pledges", json={"needed_item_id": needed.json()["id"]}, headers=_auth(guest_token)
     )
     fulfilled = await client.post(
-        f"/api/pledges/{pledge.json()['id']}/fulfill", json={"condition": "GOOD"}, headers=_auth(guest_token)
+        f"/api/pledges/{pledge.json()['id']}/fulfill",
+        json={"condition": "GOOD"},
+        headers=_auth(guest_token),
     )
     assert fulfilled.status_code == 200
     reservation_id = fulfilled.json()["resolved_reservation_id"]

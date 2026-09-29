@@ -22,7 +22,7 @@ async def _claim_batch(db: AsyncSession, batch_size: int) -> list[OutboxEntry]:
     stmt = (
         select(OutboxEntry)
         .where(OutboxEntry.status == OutboxStatus.PENDING)
-        .order_by(OutboxEntry.id)
+        .order_by(OutboxEntry.created_at, OutboxEntry.id)
         .limit(batch_size)
         .with_for_update(skip_locked=True)
     )

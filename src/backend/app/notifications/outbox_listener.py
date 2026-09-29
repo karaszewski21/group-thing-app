@@ -15,6 +15,7 @@ notification text or `NotificationKind`."""
 
 from __future__ import annotations
 
+import uuid
 from typing import Any
 
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -52,7 +53,7 @@ async def _handle_pledge_claimed(db: AsyncSession, payload: dict[str, Any]) -> N
     product_name = payload["product_name"]
     await service.create_notification(
         db,
-        party_id=payload["organizer_party_id"],
+        party_id=uuid.UUID(payload["organizer_party_id"]),
         kind=NotificationKind.PLEDGE_CREATED,
         message=f'„{actor_name}" zadeklarował(a) przyniesienie: {product_name}',
         link_path=payload["link_path"],
@@ -64,7 +65,7 @@ async def _handle_pledge_withdrawn(db: AsyncSession, payload: dict[str, Any]) ->
     product_name = payload["product_name"]
     await service.create_notification(
         db,
-        party_id=payload["organizer_party_id"],
+        party_id=uuid.UUID(payload["organizer_party_id"]),
         kind=NotificationKind.PLEDGE_WITHDRAWN,
         message=f'„{actor_name}" zrezygnował(a) z przyniesienia: {product_name}',
         link_path=payload["link_path"],
@@ -77,11 +78,11 @@ async def _handle_term_ended_giveaway(db: AsyncSession, payload: dict[str, Any])
     pre-rendered message shape as `_handle_pledge_claimed`. Both carry
     `reservation_id` so the client can confirm that reservation directly."""
     link_path = payload["link_path"]
-    reservation_id = payload["reservation_id"]
+    reservation_id = uuid.UUID(payload["reservation_id"])
     for party_id in (payload["owner_party_id"], payload["taker_party_id"]):
         await service.create_notification(
             db,
-            party_id=party_id,
+            party_id=uuid.UUID(party_id),
             kind=NotificationKind.TERM_CONFIRMATION_NEEDED,
             message="Termin się odbył — potwierdź przekazanie rzeczy",
             link_path=link_path,
@@ -96,7 +97,7 @@ async def _handle_term_ended_swap(db: AsyncSession, payload: dict[str, Any]) -> 
     for party_id in (payload["proposer_party_id"], payload["owner_party_id"]):
         await service.create_notification(
             db,
-            party_id=party_id,
+            party_id=uuid.UUID(party_id),
             kind=NotificationKind.TERM_CONFIRMATION_NEEDED,
             message="Termin się odbył — potwierdź zamianę",
             link_path=link_path,

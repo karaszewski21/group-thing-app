@@ -17,6 +17,7 @@ require, no separate ORGANIZER registration needed).
 
 from __future__ import annotations
 
+import uuid
 from datetime import date, timedelta
 
 import pytest
@@ -32,6 +33,7 @@ from app.circulation.models import (
     InventoryBalance,
     InventoryItem,
     InventoryType,
+    MovementType,
     ReservationStatus,
     ReservationType,
 )
@@ -39,6 +41,7 @@ from app.circulation.schemas import CreateReservationRequest
 from app.core.errors import AccessDeniedException, BusinessConflictException
 from app.groups.domain.confirm_race_rules import _require_race_participant
 from app.groups.infrastructure import circulation_bridge
+from tests.ledger_assertions import movements_for_item
 
 
 async def _create_term(client: AsyncClient, headers: dict[str, str]) -> int:
@@ -60,7 +63,7 @@ async def _create_term(client: AsyncClient, headers: dict[str, str]) -> int:
         headers=headers,
     )
     assert term.status_code == 201
-    return int(term.json()["id"])
+    return term.json()["id"]
 
 
 async def _authed_headers(client: AsyncClient, email: str) -> dict[str, str]:
@@ -72,12 +75,18 @@ async def _authed_headers(client: AsyncClient, email: str) -> dict[str, str]:
     return {"Authorization": f"Bearer {response.json()['token']}"}
 
 
+async def _category_id(client: AsyncClient, headers: dict[str, str]) -> str:
+    categories = await client.get("/api/categories", headers=headers)
+    assert categories.status_code == 200
+    return str(categories.json()[0]["id"])
+
+
 async def _create_item(client: AsyncClient, headers: dict[str, str]) -> tuple[int, int]:
     """Resolves a product, creates a PERSONAL inventory, registers one item.
     Returns `(inventory_id, item_id)`."""
     resolved = await client.post(
         "/api/products/resolve",
-        json={"name": "Klocki Duplo", "category_id": 1},
+        json={"name": "Klocki Duplo", "category_id": await _category_id(client, headers)},
         headers=headers,
     )
     assert resolved.status_code == 200
@@ -145,7 +154,7 @@ async def test_patchInventoryItem_owner_changesProduct(client: AsyncClient) -> N
 
     other_product = await client.post(
         "/api/products/resolve",
-        json={"name": "Miś Uszatek", "category_id": 1},
+        json={"name": "Miś Uszatek", "category_id": await _category_id(client, headers)},
         headers=headers,
     )
     assert other_product.status_code == 200
@@ -167,7 +176,7 @@ async def test_patchInventoryItem_unknownProductId_returns404(client: AsyncClien
     _, item_id = await _create_item(client, headers)
 
     response = await client.patch(
-        f"/api/inventory-items/{item_id}", json={"product_id": 999999}, headers=headers
+        f"/api/inventory-items/{item_id}", json={"product_id": str(uuid.uuid4())}, headers=headers
     )
     assert response.status_code == 404
 
@@ -240,7 +249,7 @@ async def test_patchInventoryItem_unknownId_returns404(client: AsyncClient) -> N
     headers = await _authed_headers(client, "circ-patch-unknown@example.com")
 
     response = await client.patch(
-        "/api/inventory-items/999999999", json={"condition": "FAIR"}, headers=headers
+        f"/api/inventory-items/{uuid.uuid4()}", json={"condition": "FAIR"}, headers=headers
     )
     assert response.status_code == 404
 
@@ -258,7 +267,7 @@ async def _user_id(client: AsyncClient, headers: dict[str, str]) -> int:
     assert me.status_code == 200
     account_user_id = me.json()["account_user_id"]
     assert account_user_id is not None
-    return account_user_id
+    return uuid.UUID(account_user_id)
 
 
 async def _create_lend(
@@ -281,7 +290,7 @@ async def _create_lend(
             term_id=term_id,
         ),
     )
-    return int(reservation.id)
+    return reservation.id
 
 
 async def _lend_and_confirm(
@@ -356,7 +365,7 @@ async def test_fulfillLend_movesItemToBorrowerVirtualInventory_andSetsHomeInvent
         f"/api/inventories/{body['inventory_id']}", headers=owner_headers
     )
     assert virtual_inventory.status_code == 200
-    assert virtual_inventory.json()["owner_user_id"] == borrower_user_id
+    assert virtual_inventory.json()["owner_user_id"] == str(borrower_user_id)
     assert virtual_inventory.json()["inventory_type"] == "VIRTUAL"
 
     balance = await client.get(f"/api/inventory-items/{item_id}/balance", headers=owner_headers)
@@ -388,7 +397,7 @@ async def test_fulfillReturn_movesItemBackHome_andClearsHomeInventoryId(
         "/api/reservations", json={"item_id": item_id}, headers=borrower_headers
     )
     assert return_reservation.status_code == 201
-    assert return_reservation.json()["reserved_by_user_id"] == owner_user_id
+    assert return_reservation.json()["reserved_by_user_id"] == str(owner_user_id)
     return_id = return_reservation.json()["id"]
 
     assert (
@@ -487,21 +496,16 @@ async def test_confirmReservation_byRequester_returns403_onlyHolderMayConfirm(
     assert confirmed.status == ReservationStatus.CONFIRMED
 
 
-async def test_fulfillLend_postsCirculationTransactionCreditingOwner(
+async def test_fulfillLend_postsLendMovementFromPersonalToVirtual(
     client: AsyncClient, db_session: AsyncSession
 ) -> None:
     owner_headers = await _authed_headers(client, "circ-ledger-owner1@example.com")
-    _, item_id = await _create_item(client, owner_headers)
-    owner_user_id = await _user_id(client, owner_headers)
+    owner_inventory_id, item_id = await _create_item(client, owner_headers)
 
     borrower_headers = await _authed_headers(client, "circ-ledger-borrower1@example.com")
     borrower_user_id = await _user_id(client, borrower_headers)
 
-    before = await client.get(f"/api/accounts/{owner_user_id}/balance", headers=owner_headers)
-    assert before.status_code == 200
-    before_balance = float(before.json()["balance"])
-
-    await _lend_out(
+    lend_id = await _lend_out(
         client,
         db_session,
         owner_headers=owner_headers,
@@ -509,9 +513,22 @@ async def test_fulfillLend_postsCirculationTransactionCreditingOwner(
         borrower_user_id=borrower_user_id,
     )
 
-    after = await client.get(f"/api/accounts/{owner_user_id}/balance", headers=owner_headers)
-    assert after.status_code == 200
-    assert float(after.json()["balance"]) == before_balance + 1
+    lend = (await movements_for_item(db_session, uuid.UUID(item_id)))[-1]
+    assert lend.movement_type == MovementType.LEND
+    entries = sorted(lend.entries, key=lambda entry: entry.quantity)
+    virtual_inventory = await inventory_service.get_or_create_virtual_inventory(
+        db_session, borrower_user_id
+    )
+    assert [
+        (entry.account.inventory_id, entry.quantity, entry.reservation_id) for entry in entries
+    ] == [
+        (uuid.UUID(owner_inventory_id), -1, lend_id),
+        (virtual_inventory.id, 1, lend_id),
+    ]
+    item = (
+        await db_session.execute(select(InventoryItem).where(InventoryItem.id == item_id))
+    ).scalar_one()
+    assert item.home_inventory_id == uuid.UUID(owner_inventory_id)
 
 
 async def test_deleteInventoryItem_nonOwner_returns403(client: AsyncClient) -> None:
@@ -575,12 +592,11 @@ async def test_circulationBridge_cancelReservation_pendingReservation_cancelsAnd
     assert balance.status == BalanceStatus.AVAILABLE
 
 
-async def test_circulationBridge_fulfillReservation_confirmedReservation_fulfillsThroughBridge(
+async def test_circulationBridge_fulfillExchange_singleLendLeg_fulfillsAndPostsLend(
     client: AsyncClient, db_session: AsyncSession
 ) -> None:
     owner_headers = await _authed_headers(client, "circ-bridge-fulfill-owner@example.com")
     _, item_id = await _create_item(client, owner_headers)
-    owner_user_id = await _user_id(client, owner_headers)
 
     borrower_headers = await _authed_headers(client, "circ-bridge-fulfill-borrower@example.com")
     borrower_user_id = await _user_id(client, borrower_headers)
@@ -593,8 +609,15 @@ async def test_circulationBridge_fulfillReservation_confirmedReservation_fulfill
         borrower_user_id=borrower_user_id,
     )
 
-    fulfilled = await circulation_bridge.fulfill_reservation(db_session, reservation_id, owner_user_id)
+    # The borrower is a party to the reservation but not the holder: the
+    # exchange still runs the leg on behalf of the item's holder.
+    [fulfilled] = await circulation_bridge.fulfill_exchange(
+        db_session, [reservation_id], borrower_user_id
+    )
     assert fulfilled.status == ReservationStatus.FULFILLED
+    lend = (await movements_for_item(db_session, item_id))[-1]
+    assert lend.movement_type == MovementType.LEND
+    assert {entry.reservation_id for entry in lend.entries} == {reservation_id}
 
 
 async def test_requireRaceParticipant_reservedByOrHolderUser_doesNotRaise() -> None:
@@ -764,7 +787,7 @@ async def test_createReservation_return_derivesTermIdFromPriorFulfilledLend(
         "/api/reservations", json={"item_id": item_id}, headers=borrower_headers
     )
     assert return_response.status_code == 201
-    assert return_response.json()["term_id"] == lend_term_id
+    assert return_response.json()["term_id"] == str(lend_term_id)
 
 
 async def test_rawCreateReturn_itemNotLent_returns403(client: AsyncClient) -> None:
@@ -1069,7 +1092,7 @@ async def _lent_out_with_return(
         "/api/reservations", json={"item_id": item_id}, headers=borrower_headers
     )
     assert return_reservation.status_code == 201
-    return owner_headers, borrower_headers, item_id, int(return_reservation.json()["id"])
+    return owner_headers, borrower_headers, item_id, return_reservation.json()["id"]
 
 
 async def test_rawCancelReturn_byOwner_returns403AndReturnStaysPending(

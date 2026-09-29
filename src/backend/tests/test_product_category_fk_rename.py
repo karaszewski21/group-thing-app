@@ -7,22 +7,40 @@ rewritten test files (`test_product_resolution.py`, `test_circulation.py`,
 `category_id` — these 6 are new, targeted at the rename's specific risk
 points (spec.md Core Requirements #3 and #7).
 
-Seeded category ids (from `0025_category_reintroduction`): 1=Zabawka,
-2=Książka, 3=Gra, 4=Ubranie, 5=Inne.
+Seeded categories (from `0025_category_reintroduction`, re-keyed to UUIDs by
+`0041_baseentity_id_uuid`) are looked up by name: Zabawka, Książka, Gra,
+Ubranie, Inne.
 """
 
 from __future__ import annotations
 
+import uuid
 from datetime import date
 
+import pytest
 from httpx import AsyncClient
+from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.product import service as product_service
 from app.product.schemas import CreateProductRequest, UpdateProductRequest
 
-_ZABAWKA_ID = 1
-_KSIAZKA_ID = 2
+
+async def _seeded_category_id(db_session: AsyncSession, name: str) -> uuid.UUID:
+    result = await db_session.execute(
+        text("SELECT id FROM categories WHERE name = :name"), {"name": name}
+    )
+    return result.scalar_one()
+
+
+@pytest.fixture
+async def zabawka_id(db_session: AsyncSession) -> uuid.UUID:
+    return await _seeded_category_id(db_session, "Zabawka")
+
+
+@pytest.fixture
+async def ksiazka_id(db_session: AsyncSession) -> uuid.UUID:
+    return await _seeded_category_id(db_session, "Książka")
 
 
 async def _authed_headers(client: AsyncClient, email: str, role: str = "GUEST") -> dict[str, str]:
@@ -36,6 +54,8 @@ async def _authed_headers(client: AsyncClient, email: str, role: str = "GUEST") 
 
 async def test_listProducts_filteredByCategoryId_returnsOnlyMatchingProducts(
     client: AsyncClient,
+    zabawka_id: uuid.UUID,
+    ksiazka_id: uuid.UUID,
 ) -> None:
     headers = await _authed_headers(client, "catfk.list@example.com")
 
@@ -44,7 +64,7 @@ async def test_listProducts_filteredByCategoryId_returnsOnlyMatchingProducts(
         json={
             "name": "Katalogowa Zabawka",
             "sku": "CATFK-TOY-1",
-            "category_id": _ZABAWKA_ID,
+            "category_id": str(zabawka_id),
         },
         headers=headers,
     )
@@ -54,38 +74,40 @@ async def test_listProducts_filteredByCategoryId_returnsOnlyMatchingProducts(
         json={
             "name": "Katalogowa Książka",
             "sku": "CATFK-BOOK-1",
-            "category_id": _KSIAZKA_ID,
+            "category_id": str(ksiazka_id),
         },
         headers=headers,
     )
     assert book.status_code == 201
 
     listing = await client.get(
-        "/api/products", params={"category_id": _ZABAWKA_ID}, headers=headers
+        "/api/products", params={"category_id": str(zabawka_id)}, headers=headers
     )
 
     assert listing.status_code == 200
     ids = {item["id"] for item in listing.json()}
     assert toy.json()["id"] in ids
     assert book.json()["id"] not in ids
-    assert all(item["category_id"] == _ZABAWKA_ID for item in listing.json())
+    assert all(item["category_id"] == str(zabawka_id) for item in listing.json())
 
 
 async def test_createAndUpdateProduct_persistCategoryId_roundTripsThroughGet(
     db_session: AsyncSession,
+    zabawka_id: uuid.UUID,
+    ksiazka_id: uuid.UUID,
 ) -> None:
     created = await product_service.create_product(
         db_session,
         CreateProductRequest(
             name="Round-trip Product",
             sku="CATFK-RT-1",
-            category_id=_ZABAWKA_ID,
+            category_id=zabawka_id,
         ),
     )
-    assert created.category_id == _ZABAWKA_ID
+    assert created.category_id == zabawka_id
 
     fetched = await product_service.get_product(db_session, created.id)
-    assert fetched.category_id == _ZABAWKA_ID
+    assert fetched.category_id == zabawka_id
 
     updated = await product_service.update_product(
         db_session,
@@ -93,40 +115,41 @@ async def test_createAndUpdateProduct_persistCategoryId_roundTripsThroughGet(
         UpdateProductRequest(
             name="Round-trip Product",
             sku="CATFK-RT-1",
-            category_id=_KSIAZKA_ID,
+            category_id=ksiazka_id,
         ),
     )
-    assert updated.category_id == _KSIAZKA_ID
+    assert updated.category_id == ksiazka_id
 
     refetched = await product_service.get_product(db_session, created.id)
-    assert refetched.category_id == _KSIAZKA_ID
+    assert refetched.category_id == ksiazka_id
 
 
 async def test_getOrCreateProductByName_matchesOnNameAndCategoryId_notRetiredEnum(
     db_session: AsyncSession,
+    zabawka_id: uuid.UUID,
+    ksiazka_id: uuid.UUID,
 ) -> None:
     first = await product_service.get_or_create_product_by_name(
-        db_session, "Katalogowany Bębenek", _ZABAWKA_ID
+        db_session, "Katalogowany Bębenek", zabawka_id
     )
     same_category_again = await product_service.get_or_create_product_by_name(
-        db_session, "katalogowany bębenek", _ZABAWKA_ID
+        db_session, "katalogowany bębenek", zabawka_id
     )
     different_category = await product_service.get_or_create_product_by_name(
-        db_session, "Katalogowany Bębenek", _KSIAZKA_ID
+        db_session, "Katalogowany Bębenek", ksiazka_id
     )
 
     assert same_category_again.id == first.id
     assert different_category.id != first.id
-    assert different_category.category_id == _KSIAZKA_ID
+    assert different_category.category_id == ksiazka_id
 
 
 async def test_getPublicCircle_unauthenticated_returnsCategoryIdAndNameForNeededItem(
     client: AsyncClient,
+    zabawka_id: uuid.UUID,
 ) -> None:
     org_headers = await _authed_headers(client, "catfk.public.org@example.com", role="ORGANIZER")
-    circle = await client.post(
-        "/api/groups/mine", json={"name": "Krąg FK"}, headers=org_headers
-    )
+    circle = await client.post("/api/groups/mine", json={"name": "Krąg FK"}, headers=org_headers)
     assert circle.status_code == 201
     term = await client.post(
         "/api/terms",
@@ -139,7 +162,7 @@ async def test_getPublicCircle_unauthenticated_returnsCategoryIdAndNameForNeeded
         json={
             "name": "Publiczna Zabawka",
             "sku": "CATFK-PUB-1",
-            "category_id": _ZABAWKA_ID,
+            "category_id": str(zabawka_id),
         },
         headers=org_headers,
     )
@@ -159,17 +182,18 @@ async def test_getPublicCircle_unauthenticated_returnsCategoryIdAndNameForNeeded
 
     assert response.status_code == 200
     item = response.json()["term"]["needed_items"][0]
-    assert item["product_category_id"] == _ZABAWKA_ID
+    assert item["product_category_id"] == str(zabawka_id)
     assert item["product_category_name"] == "Zabawka"
 
 
-async def test_listNeededItems_returnsCategoryIdAndNamePairFromJoin(client: AsyncClient) -> None:
+async def test_listNeededItems_returnsCategoryIdAndNamePairFromJoin(
+    client: AsyncClient,
+    ksiazka_id: uuid.UUID,
+) -> None:
     org_headers = await _authed_headers(
         client, "catfk.neededitems.org@example.com", role="ORGANIZER"
     )
-    circle = await client.post(
-        "/api/groups/mine", json={"name": "Krąg FK 2"}, headers=org_headers
-    )
+    circle = await client.post("/api/groups/mine", json={"name": "Krąg FK 2"}, headers=org_headers)
     assert circle.status_code == 201
     term = await client.post(
         "/api/terms",
@@ -182,7 +206,7 @@ async def test_listNeededItems_returnsCategoryIdAndNamePairFromJoin(client: Asyn
         json={
             "name": "Instrumentalna Książka",
             "sku": "CATFK-NI-1",
-            "category_id": _KSIAZKA_ID,
+            "category_id": str(ksiazka_id),
         },
         headers=org_headers,
     )
@@ -204,24 +228,21 @@ async def test_listNeededItems_returnsCategoryIdAndNamePairFromJoin(client: Asyn
 
     assert listing.status_code == 200
     body = listing.json()[0]
-    assert body["product_category_id"] == _KSIAZKA_ID
+    assert body["product_category_id"] == str(ksiazka_id)
     assert body["product_category_name"] == "Książka"
 
 
 async def test_createProductWithSeededZabawkaCategory_thenPublicNeededItem_returnsZabawkaName(
     client: AsyncClient,
+    zabawka_id: uuid.UUID,
 ) -> None:
     """End-to-end round trip through both bounded contexts: a product created
     against the seeded `Zabawka` category id, referenced by a needed item,
     surfaces `product_category_name == "Zabawka"` on the public,
     unauthenticated circle-view endpoint — the task's highest-risk
     integration point."""
-    org_headers = await _authed_headers(
-        client, "catfk.e2e.org@example.com", role="ORGANIZER"
-    )
-    circle = await client.post(
-        "/api/groups/mine", json={"name": "Krąg E2E"}, headers=org_headers
-    )
+    org_headers = await _authed_headers(client, "catfk.e2e.org@example.com", role="ORGANIZER")
+    circle = await client.post("/api/groups/mine", json={"name": "Krąg E2E"}, headers=org_headers)
     assert circle.status_code == 201
     term = await client.post(
         "/api/terms",
@@ -234,7 +255,7 @@ async def test_createProductWithSeededZabawkaCategory_thenPublicNeededItem_retur
         json={
             "name": "E2E Zabawka",
             "sku": "CATFK-E2E-1",
-            "category_id": _ZABAWKA_ID,
+            "category_id": str(zabawka_id),
         },
         headers=org_headers,
     )

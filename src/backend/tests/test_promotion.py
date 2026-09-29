@@ -38,8 +38,10 @@ async def test_promoteGuestToOrganizer_singleCallToGroupsMine_grantsRoleAndCreat
     # grants only the users-BC UserRoleType.ORGANIZATOR when role==ORGANIZER
     # — never the groups-BC GroupRole — per Core Requirement 4).
     roles_before = (
-        await db_session.execute(select(GroupRole).where(GroupRole.party_id == party_id))
-    ).scalars().all()
+        (await db_session.execute(select(GroupRole).where(GroupRole.party_id == party_id)))
+        .scalars()
+        .all()
+    )
     assert roles_before == []
 
     response = await client.post(
@@ -56,17 +58,21 @@ async def test_promoteGuestToOrganizer_singleCallToGroupsMine_grantsRoleAndCreat
     # exactly one new active Leadership pointing at the new circle — atomic,
     # not two separately-observable steps.
     roles_after = (
-        await db_session.execute(select(GroupRole).where(GroupRole.party_id == party_id))
-    ).scalars().all()
+        (await db_session.execute(select(GroupRole).where(GroupRole.party_id == party_id)))
+        .scalars()
+        .all()
+    )
     assert len(roles_after) == 1
     role = roles_after[0]
     assert role.role_type == GroupRoleType.ORGANIZATOR
 
     leaderships = (
-        await db_session.execute(select(Leadership).where(Leadership.from_role_id == role.id))
-    ).scalars().all()
+        (await db_session.execute(select(Leadership).where(Leadership.from_role_id == role.id)))
+        .scalars()
+        .all()
+    )
     assert len(leaderships) == 1
-    assert leaderships[0].to_group_id == circle["id"]
+    assert str(leaderships[0].to_group_id) == circle["id"]
     assert leaderships[0].valid_to is None
 
 
@@ -82,9 +88,11 @@ async def test_promoteGuestToOrganizer_priorGuestSession_hadNoActiveLeadership(
     profile = (
         await db_session.execute(select(UserProfile).where(UserProfile.party_id == party_id))
     ).scalar_one()
-    assert profile.party_id == party_id
+    assert str(profile.party_id) == party_id
 
     roles = (
-        await db_session.execute(select(GroupRole).where(GroupRole.party_id == party_id))
-    ).scalars().all()
+        (await db_session.execute(select(GroupRole).where(GroupRole.party_id == party_id)))
+        .scalars()
+        .all()
+    )
     assert roles == []

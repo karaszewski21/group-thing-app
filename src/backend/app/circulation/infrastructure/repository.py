@@ -9,13 +9,15 @@ getter wrappers."""
 from __future__ import annotations
 
 import uuid
+from collections.abc import Collection
 
-from sqlalchemy import select
+from sqlalchemy import ColumnElement, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import selectinload
+from sqlalchemy.orm import joinedload, selectinload
 
 from app.circulation.models import (
     Account,
+    AccountType,
     CirculationEntry,
     CirculationTransaction,
     Inventory,
@@ -129,14 +131,17 @@ async def find_item_balance(db: AsyncSession, item_id: uuid.UUID) -> InventoryBa
     return result.scalar_one_or_none()
 
 
-async def find_account_by_code(db: AsyncSession, code: str) -> Account | None:
-    result = await db.execute(select(Account).where(Account.code == code))
-    return result.scalar_one_or_none()
-
-
-async def list_entries_for_account(db: AsyncSession, account_id: uuid.UUID) -> list[CirculationEntry]:
+async def find_accounts_for_posting(
+    db: AsyncSession, inventory_ids: Collection[uuid.UUID], include_external: bool
+) -> list[Account]:
+    """The INVENTORY accounts of `inventory_ids` (each with its `inventory`
+    loaded) plus, when `include_external`, the EXTERNAL account, in one
+    query."""
+    condition: ColumnElement[bool] = Account.inventory_id.in_(inventory_ids)
+    if include_external:
+        condition = or_(condition, Account.account_type == AccountType.EXTERNAL)
     result = await db.execute(
-        select(CirculationEntry).where(CirculationEntry.account_id == account_id)
+        select(Account).options(joinedload(Account.inventory)).where(condition)
     )
     return list(result.scalars().all())
 
@@ -146,24 +151,14 @@ async def find_transaction_with_entries(
 ) -> CirculationTransaction | None:
     result = await db.execute(
         select(CirculationTransaction)
-        .options(selectinload(CirculationTransaction.entries).joinedload(CirculationEntry.account))
+        .options(
+            selectinload(CirculationTransaction.entries)
+            .joinedload(CirculationEntry.account)
+            .joinedload(Account.inventory)
+        )
         .where(CirculationTransaction.id == transaction_id)
     )
     return result.scalar_one_or_none()
-
-
-async def list_transactions_for_account(
-    db: AsyncSession, account_id: uuid.UUID
-) -> list[CirculationTransaction]:
-    result = await db.execute(
-        select(CirculationTransaction)
-        .join(CirculationEntry, CirculationEntry.transaction_id == CirculationTransaction.id)
-        .options(selectinload(CirculationTransaction.entries).joinedload(CirculationEntry.account))
-        .where(CirculationEntry.account_id == account_id)
-        .order_by(CirculationTransaction.transaction_date.desc())
-        .distinct()
-    )
-    return list(result.scalars().all())
 
 
 async def get_reservation(db: AsyncSession, reservation_id: uuid.UUID) -> Reservation | None:

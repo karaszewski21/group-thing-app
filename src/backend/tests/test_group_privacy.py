@@ -6,6 +6,7 @@ Flat `tests/` placement, same convention as `test_circles_router.py`."""
 
 from __future__ import annotations
 
+import uuid
 from datetime import date, timedelta
 
 from httpx import AsyncClient
@@ -131,9 +132,7 @@ async def test_formalizeGroupFromTerm_organizer_createsMembershipStaysPublic(
     assert response.status_code == 200
     assert response.json()["visibility"] == "PUBLIC"
 
-    memberships = await client.get(
-        f"/api/groups/{group_id}/memberships", headers=_auth(org_token)
-    )
+    memberships = await client.get(f"/api/groups/{group_id}/memberships", headers=_auth(org_token))
     assert memberships.status_code == 200
     assert any(m["member_party_id"] == party_id for m in memberships.json())
 
@@ -154,9 +153,7 @@ async def test_formalizeGroupFromTerm_familyLessAttendee_createsMembership(
         f"/api/groups/{group_id}/terms/{term_id}/attendees", headers=_auth(org_token)
     )
     assert attendees.status_code == 200
-    attendee = next(
-        a for a in attendees.json() if a["display_name"] == "Gość Bezrodzinny"
-    )
+    attendee = next(a for a in attendees.json() if a["display_name"] == "Gość Bezrodzinny")
     party_id = attendee["party_id"]
 
     response = await client.post(
@@ -167,9 +164,7 @@ async def test_formalizeGroupFromTerm_familyLessAttendee_createsMembership(
 
     assert response.status_code == 200
 
-    memberships = await client.get(
-        f"/api/groups/{group_id}/memberships", headers=_auth(org_token)
-    )
+    memberships = await client.get(f"/api/groups/{group_id}/memberships", headers=_auth(org_token))
     assert memberships.status_code == 200
     assert any(m["member_party_id"] == party_id for m in memberships.json())
 
@@ -206,7 +201,7 @@ async def test_formalizeGroupFromTerm_nonOrganizer_returns403(client: AsyncClien
 
     response = await client.post(
         f"/api/groups/{group_id}/terms/{term_id}/formalize",
-        json={"party_ids": [1]},
+        json={"party_ids": [str(uuid.uuid4())]},
         headers=_auth(outsider_token),
     )
 
@@ -241,9 +236,7 @@ async def test_formalizeGroupFromTerm_idempotent_skipsStaleSelection(
     )
     assert second.status_code == 200
 
-    memberships = await client.get(
-        f"/api/groups/{group_id}/memberships", headers=_auth(org_token)
-    )
+    memberships = await client.get(f"/api/groups/{group_id}/memberships", headers=_auth(org_token))
     assert memberships.status_code == 200
     matching = [m for m in memberships.json() if m["member_party_id"] == party_id]
     assert len(matching) == 1
@@ -270,9 +263,7 @@ async def test_updateGroup_visibilityChange_doesNotCreateMemberships(
     assert patch.status_code == 200
     assert patch.json()["visibility"] == "PRIVATE"
 
-    memberships = await client.get(
-        f"/api/groups/{group_id}/memberships", headers=_auth(org_token)
-    )
+    memberships = await client.get(f"/api/groups/{group_id}/memberships", headers=_auth(org_token))
     assert memberships.status_code == 200
     assert memberships.json() == []
 
@@ -283,9 +274,7 @@ async def test_createMyCircle_calledTwice_returnsSameCircleBothTimes(client: Asy
     first = await client.post(
         "/api/groups/mine", json={"name": "Pierwszy"}, headers=_auth(org_token)
     )
-    second = await client.post(
-        "/api/groups/mine", json={"name": "Drugi"}, headers=_auth(org_token)
-    )
+    second = await client.post("/api/groups/mine", json={"name": "Drugi"}, headers=_auth(org_token))
 
     assert first.status_code == 201
     assert second.status_code == 201

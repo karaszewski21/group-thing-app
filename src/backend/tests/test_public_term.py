@@ -13,6 +13,7 @@ naming follows `action_condition_expectedResult`
 from __future__ import annotations
 
 import re
+import uuid
 from datetime import date, datetime, timedelta
 
 from httpx import AsyncClient
@@ -73,12 +74,19 @@ async def _create_term(
     return term.json()["id"]
 
 
+async def _other_category_id(client: AsyncClient, token: str) -> str:
+    """The seeded "Inne" category — the one the name assertions below expect."""
+    categories = await client.get("/api/categories", headers=_auth_headers(token))
+    assert categories.status_code == 200
+    return next(c["id"] for c in categories.json() if c["name"] == "Inne")
+
+
 async def _create_needed_item(
     client: AsyncClient, token: str, term_id: int, product_name: str, description: str
 ) -> int:
     resolved = await client.post(
         "/api/products/resolve",
-        json={"name": product_name, "category_id": 5},
+        json={"name": product_name, "category_id": await _other_category_id(client, token)},
         headers=_auth_headers(token),
     )
     assert resolved.status_code == 200
@@ -119,7 +127,9 @@ async def test_getPublicCircle_withTermIdParam_returnsThatTermsItemsAndGuardians
     assert body["term"]["id"] == far_term_id
     assert [item["description"] for item in body["term"]["needed_items"]] == ["5 grzechotek"]
     assert body["term"]["needed_items"][0]["product_name"] == "Grzechotka"
-    assert body["term"]["needed_items"][0]["product_category_id"] == 5
+    assert body["term"]["needed_items"][0]["product_category_id"] == await _other_category_id(
+        client, token
+    )
     assert body["term"]["needed_items"][0]["product_category_name"] == "Inne"
     assert [guardian["display_name"] for guardian in body["guardians"]] == ["Marek Nowak"]
 
@@ -142,7 +152,7 @@ async def test_getPublicCircle_nonexistentTermId_returns404(client: AsyncClient)
     group_id = await _create_circle(client, token, "Krąg C")
     await _create_term(client, token, group_id, date.today())
 
-    response = await client.get(f"/api/groups/public/{group_id}?term_id=999999999")
+    response = await client.get(f"/api/groups/public/{group_id}?term_id={uuid.uuid4()}")
 
     assert response.status_code == 404
 
@@ -338,7 +348,7 @@ async def test_getPublicCircle_organizerSlug_isOrgSlugWhenOrgExists_elseStableHa
 async def _register_personal_item(client: AsyncClient, token: str, product_name: str) -> int:
     resolved = await client.post(
         "/api/products/resolve",
-        json={"name": product_name, "category_id": 5},
+        json={"name": product_name, "category_id": await _other_category_id(client, token)},
         headers=_auth_headers(token),
     )
     assert resolved.status_code == 200

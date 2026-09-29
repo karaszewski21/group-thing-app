@@ -5,11 +5,14 @@ pass-throughs, and reads `ReservationStatus` from here rather than
 importing circulation models directly. `application/term_item_listings`
 and `application/attendance` drive the ItemListingPreference->Reservation
 bridge the same way, via the `create_reservation`/`list_reservations`
-pass-throughs and the re-exported `ReservationType`."""
+pass-throughs and the re-exported `ReservationType`; a Term transaction is
+resolved in one circulation commit through `fulfill_exchange`/
+`cancel_exchange`."""
 
 from __future__ import annotations
 
 import uuid
+from collections.abc import Sequence
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -33,12 +36,13 @@ __all__ = [
     "Reservation",
     "ReservationStatus",
     "ReservationType",
+    "cancel_exchange",
     "cancel_reservation",
     "confirm_reservation",
     "create_lend_reservation",
     "create_reservation",
     "find_personal_inventory",
-    "fulfill_reservation",
+    "fulfill_exchange",
     "get_inventory",
     "get_item",
     "get_item_balance",
@@ -50,7 +54,6 @@ __all__ = [
     "list_lent_out_items_with_product_name",
     "list_reservations",
     "register_item",
-    "resolve_current_holder_user_id",
     "resolve_owning_inventory",
 ]
 
@@ -120,23 +123,21 @@ async def cancel_reservation(db: AsyncSession, reservation_id: uuid.UUID, acting
     return await circulation_service.cancel_reservation(db, reservation_id, acting_user_id)
 
 
-async def fulfill_reservation(db: AsyncSession, reservation_id: uuid.UUID, acting_user_id: uuid.UUID) -> Reservation:
-    """Thin pass-through, same shape as `confirm_reservation` above. Used by
-    `term_item_listings.confirm_transaction` after `confirm_reservation` has
-    moved a reservation to `CONFIRMED`."""
-    return await circulation_service.fulfill_reservation(db, reservation_id, acting_user_id)
+async def fulfill_exchange(
+    db: AsyncSession, reservation_ids: Sequence[uuid.UUID], acting_user_id: uuid.UUID
+) -> list[Reservation]:
+    """Used by `term_item_listings.confirm_transaction`. Commits the
+    session, including the caller's flushed changes — see
+    `app.circulation.service.fulfill_exchange`."""
+    return await circulation_service.fulfill_exchange(db, reservation_ids, acting_user_id)
 
 
-async def resolve_current_holder_user_id(db: AsyncSession, item_id: uuid.UUID) -> uuid.UUID:
-    """Who currently physically holds `item_id` — item -> inventory ->
-    `owner_user_id`, the exact derivation circulation's own confirm/fulfill
-    holder-only check performs internally. `confirm_transaction` passes it
-    as `acting_user_id` into `confirm_reservation`/`fulfill_reservation`;
-    the real actor-identity check happens earlier, via
-    `app.groups.domain.confirm_race_rules`."""
-    item = await circulation_service.get_item(db, item_id)
-    inventory = await circulation_service.get_inventory(db, item.inventory_id)
-    return inventory.owner_user_id
+async def cancel_exchange(
+    db: AsyncSession, reservation_ids: Sequence[uuid.UUID], acting_user_id: uuid.UUID
+) -> list[Reservation]:
+    """Used by `term_item_listings.cancel_transaction`; same commit contract
+    as `fulfill_exchange`."""
+    return await circulation_service.cancel_exchange(db, reservation_ids, acting_user_id)
 
 
 async def list_reservations(db: AsyncSession, item_id: uuid.UUID) -> list[Reservation]:

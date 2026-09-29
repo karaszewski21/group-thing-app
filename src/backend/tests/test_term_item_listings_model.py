@@ -5,6 +5,7 @@ declared on either model, per `standards/backend/models.md`)."""
 
 from __future__ import annotations
 
+import uuid
 from datetime import datetime
 
 from sqlalchemy import insert, select
@@ -14,14 +15,14 @@ from app.groups.models import Group, ItemListingPreference, Term, TermAttendance
 from app.party.models import Party, PartyType
 
 
-async def _create_party(db_session: AsyncSession) -> int:
+async def _create_party(db_session: AsyncSession) -> uuid.UUID:
     party = Party(party_type=PartyType.PERSON)
     db_session.add(party)
     await db_session.flush()
     return party.id
 
 
-async def _create_term(db_session: AsyncSession) -> int:
+async def _create_term(db_session: AsyncSession) -> uuid.UUID:
     organizer_party_id = await _create_party(db_session)
     group = Group(party_id=organizer_party_id, name="Test Circle")
     db_session.add(group)
@@ -37,10 +38,11 @@ async def test_itemListingPreference_roundTripsAllColumns_viaRawInsertAndSelect(
 ) -> None:
     owner_party_id = await _create_party(db_session)
     now = datetime.utcnow()
+    item_id = uuid.uuid4()
 
     await db_session.execute(
         insert(ItemListingPreference.__table__).values(
-            item_id=4242,
+            item_id=item_id,
             owner_party_id=owner_party_id,
             mode="LEND",
             created_at=now,
@@ -51,11 +53,11 @@ async def test_itemListingPreference_roundTripsAllColumns_viaRawInsertAndSelect(
 
     row = (
         await db_session.execute(
-            select(ItemListingPreference).where(ItemListingPreference.item_id == 4242)
+            select(ItemListingPreference).where(ItemListingPreference.item_id == item_id)
         )
     ).scalar_one()
 
-    assert row.item_id == 4242
+    assert row.item_id == item_id
     assert row.owner_party_id == owner_party_id
     assert row.mode == "LEND"
 
@@ -63,7 +65,9 @@ async def test_itemListingPreference_roundTripsAllColumns_viaRawInsertAndSelect(
 async def test_itemListingPreference_mode_persistsAsString(db_session: AsyncSession) -> None:
     owner_party_id = await _create_party(db_session)
 
-    preference = ItemListingPreference(item_id=1, owner_party_id=owner_party_id, mode="SWAP")
+    preference = ItemListingPreference(
+        item_id=uuid.uuid4(), owner_party_id=owner_party_id, mode="SWAP"
+    )
     db_session.add(preference)
     await db_session.commit()
 

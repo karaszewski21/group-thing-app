@@ -1,16 +1,19 @@
-"""Wypożyczalnia (item circulation) + points-accounting ORM models.
+"""Wypożyczalnia (item circulation) ORM models and the item-movement ledger.
 
-This vertical implements the **given, unchanged** contract described in
-`docs/system-wypozyczalni-inventory-accounting.md` — an Accounting-archetype
-(Fowler) points ledger rewarding circulation of items between users.
-`InventoryItem.product_id` points at `app.product.models.Product` — the
-single, shared product catalog (the standalone `CirculationProduct` catalog
-this vertical used to keep separately was removed; see the product-catalog
-unification plan).
+`Inventory` / `InventoryItem` / `InventoryBalance` / `Reservation` model
+where items are and who is about to receive them. `Account` /
+`CirculationTransaction` / `CirculationEntry` form an append-only ledger of
+item movements between inventories: every inventory has exactly one
+INVENTORY account, the single EXTERNAL account stands for the world outside
+the system, and each movement is one balanced transaction of -1/+1 entries
+per item. `InventoryItem.inventory_id` / `home_inventory_id` are the
+projection of that ledger (see `docs/system-wypozyczalni-inventory-accounting.md`).
+`InventoryItem.product_id` points at `app.product.models.Product`, the
+shared product catalog.
 
-Cross-module references (`users.id`, `products.id`) are plain FK-id
-columns, never a `relationship()` crossing the module boundary, per
-`standards/backend/models.md`. `app.party` never appears here — the only
+Cross-module references (`users.id`, `products.id`, `terms.id`) are plain
+FK-id columns, never a `relationship()` crossing the module boundary, per
+`standards/backend/models.md`. `app.party` never appears here; the only
 link back is the loose `Pledge.resolved_reservation_id` id column on the
 *party* side (see `app/party/models.py`).
 """
@@ -19,11 +22,20 @@ from __future__ import annotations
 
 import enum
 import uuid
-from datetime import date, datetime
-from decimal import Decimal
+from datetime import datetime
 from typing import Any
 
-from sqlalchemy import Boolean, Date, DateTime, Enum, ForeignKey, Numeric, String
+from sqlalchemy import (
+    CheckConstraint,
+    DateTime,
+    Enum,
+    ForeignKey,
+    Index,
+    Integer,
+    String,
+    UniqueConstraint,
+    text,
+)
 from sqlalchemy.dialects import postgresql
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -44,8 +56,20 @@ def _enum_column(enum_cls: type[enum.StrEnum], length: int) -> Enum:
 
 
 class AccountType(enum.StrEnum):
-    USER_BALANCE = "USER_BALANCE"
-    SYSTEM_EMISSION = "SYSTEM_EMISSION"
+    INVENTORY = "INVENTORY"
+    EXTERNAL = "EXTERNAL"
+
+
+class MovementType(enum.StrEnum):
+    """LEND/RETURN/GIFT/SWAP share their values with `ReservationType`, so
+    a fulfilled reservation maps to `MovementType(reservation_type.value)`."""
+
+    REGISTER = "REGISTER"
+    REMOVE = "REMOVE"
+    GIFT = "GIFT"
+    LEND = "LEND"
+    RETURN = "RETURN"
+    SWAP = "SWAP"
 
 
 class InventoryType(enum.StrEnum):
@@ -84,36 +108,46 @@ class ReservationStatus(enum.StrEnum):
     FULFILLED = "FULFILLED"
 
 
-class EntrySide(enum.StrEnum):
-    DEBIT = "DEBIT"
-    CREDIT = "CREDIT"
-
-
 class Account(BaseEntity):
-    """A points ledger account — either a per-user balance (`100-100` per
-    the reference doc) or the single system emission account (`900-100`,
-    `owner_user_id IS NULL`)."""
+    """A ledger account: the INVENTORY account of exactly one `Inventory`,
+    or the single EXTERNAL account (`inventory_id IS NULL`) that items come
+    from on REGISTER and go to on REMOVE. The owner is derived through
+    `inventory.owner_user_id`."""
 
     __tablename__ = "accounts"
+    __table_args__ = (
+        UniqueConstraint("inventory_id", name="uq_accounts_inventory_id"),
+        CheckConstraint(
+            "(account_type = 'INVENTORY' AND inventory_id IS NOT NULL) "
+            "OR (account_type = 'EXTERNAL' AND inventory_id IS NULL)",
+            name="ck_accounts_inventory_id_account_type",
+        ),
+        Index(
+            "uq_accounts_account_type_external",
+            "account_type",
+            unique=True,
+            postgresql_where=text("account_type = 'EXTERNAL'"),
+        ),
+    )
 
-    code: Mapped[str] = mapped_column(String(20), nullable=False)
-    name: Mapped[str] = mapped_column(String(255), nullable=False)
     account_type: Mapped[AccountType] = mapped_column(_enum_column(AccountType, 20), nullable=False)
-    owner_user_id: Mapped[uuid.UUID | None] = mapped_column(
+    inventory_id: Mapped[uuid.UUID | None] = mapped_column(
         postgresql.UUID(as_uuid=True),
-        ForeignKey("users.id", name="fk_accounts_owner_user_id_users"),
+        ForeignKey("inventories.id", name="fk_accounts_inventory_id_inventories"),
         nullable=True,
     )
 
+    inventory: Mapped[Inventory | None] = relationship("Inventory", lazy="raise")
+
     def __eq__(self, other: Any) -> bool:
-        """Business-key equality on `code` — the account code is this
-        entity's real-world identifier, never the surrogate id."""
+        """Business-key equality on `(account_type, inventory_id)`, never
+        the surrogate id."""
         if not isinstance(other, Account):
             return NotImplemented
-        return self.code == other.code
+        return (self.account_type, self.inventory_id) == (other.account_type, other.inventory_id)
 
     def __hash__(self) -> int:
-        return hash(self.code)
+        return hash((self.account_type, self.inventory_id))
 
 
 class Inventory(BaseEntity):
@@ -247,18 +281,24 @@ class Reservation(BaseEntity):
 
 
 class CirculationTransaction(BaseEntity):
-    """A posted points-ledger transaction, created only when a `Reservation`
-    reaches `fulfilled` — never at `pending`/`confirmed`."""
+    """One item movement: a balanced set of entries (per item -1 on the
+    source account, +1 on the target account). Chronological order is
+    `(occurred_at, id)`; `id` only breaks ties deterministically."""
 
     __tablename__ = "circulation_transactions"
 
     transaction_number: Mapped[str] = mapped_column(String(50), nullable=False)
-    transaction_date: Mapped[date] = mapped_column(Date(), nullable=False)
+    movement_type: Mapped[MovementType] = mapped_column(
+        _enum_column(MovementType, 20), nullable=False
+    )
+    occurred_at: Mapped[datetime] = mapped_column(DateTime(), nullable=False)
     description: Mapped[str] = mapped_column(String(500), nullable=False)
-    is_posted: Mapped[bool] = mapped_column(Boolean, nullable=False)
 
     entries: Mapped[list[CirculationEntry]] = relationship(
-        "CirculationEntry", back_populates="transaction", lazy="raise"
+        "CirculationEntry",
+        back_populates="transaction",
+        order_by="CirculationEntry.id",
+        lazy="raise",
     )
 
     def __eq__(self, other: Any) -> bool:
@@ -272,10 +312,15 @@ class CirculationTransaction(BaseEntity):
 
 
 class CirculationEntry(BaseEntity):
-    """One debit or credit line of a `CirculationTransaction`. Amounts use
-    `Numeric`, never `Float`, per `standards/backend/models.md`."""
+    """One line of a movement: `quantity` (-1 or +1) of `item_id` on
+    `account_id`. `reservation_id` names the reservation of the movement's
+    leg, NULL for REGISTER/REMOVE. No relationship to the item or the
+    reservation: nothing reads them through the entry."""
 
     __tablename__ = "circulation_entries"
+    __table_args__ = (
+        Index("ix_circulation_entries_item_id_transaction_id", "item_id", "transaction_id"),
+    )
 
     transaction_id: Mapped[uuid.UUID] = mapped_column(
         postgresql.UUID(as_uuid=True),
@@ -290,10 +335,17 @@ class CirculationEntry(BaseEntity):
         ForeignKey("accounts.id", name="fk_circulation_entries_account_id_accounts"),
         nullable=False,
     )
-    amount: Mapped[Decimal] = mapped_column(Numeric(precision=12, scale=2), nullable=False)
-    entry_side: Mapped[EntrySide] = mapped_column(_enum_column(EntrySide, 10), nullable=False)
-    description: Mapped[str] = mapped_column(String(500), nullable=False)
-    entry_date: Mapped[date] = mapped_column(Date(), nullable=False)
+    item_id: Mapped[uuid.UUID] = mapped_column(
+        postgresql.UUID(as_uuid=True),
+        ForeignKey("inventory_items.id", name="fk_circulation_entries_item_id_inventory_items"),
+        nullable=False,
+    )
+    quantity: Mapped[int] = mapped_column(Integer, nullable=False)
+    reservation_id: Mapped[uuid.UUID | None] = mapped_column(
+        postgresql.UUID(as_uuid=True),
+        ForeignKey("reservations.id", name="fk_circulation_entries_reservation_id_reservations"),
+        nullable=True,
+    )
 
     transaction: Mapped[CirculationTransaction] = relationship(
         CirculationTransaction, back_populates="entries", lazy="raise"

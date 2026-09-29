@@ -27,7 +27,17 @@ export function SwapProposeDialog({
 }) {
   const offered = availableItems.find((i) => i.id === offeredItemId) ?? null;
   return (
-    <div className="kg-fulfill">
+    <div className="kg-modal-overlay"
+      style={{
+        position: "fixed",
+        inset: 0,
+        zIndex: 60,
+        display: "flex",
+        alignItems: "c",
+        justifyContent: "center",
+        background: "rgba(20,28,24,0.55)",
+      }}
+      >
       {availableItems.length === 0 ? (
         <p className="kg-bring-sub" style={{ marginTop: 2, marginBottom: 6 }}>
           Nie masz żadnej rzeczy oznaczonej "zamienię". Oznacz rzecz w "Moje rzeczy", aby móc

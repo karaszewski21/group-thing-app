@@ -64,7 +64,7 @@ Usunięcie `EntrySide`, `Account.code` i starych wartości `AccountType` w `mode
     - Wiersz 45 (`:162`) zawęzić do `^/api/circulation-transactions/[^/]+$` (READ/mcp:read).
     - Numeracji pozostałych wierszy w komentarzach nie zmieniać. Wiersz 40 zostaje bez zmian.
   - [x] 1.9 Testowy helper i odblokowanie importów testów
-    - Nowy `tests/ledger_assertions.py`: `movements_for_item(db, item_id)` (transakcje z zapisami itemu, kolejność `(occurred_at, id)`, eager load zapisów) oraz `assert_ledger_matches_projection(db, item_ids)` (per item `SUM(quantity)` per konto: dokładnie jedno +1, reszta 0; konto +1 to konto `item.inventory_id` dla żywego itemu albo EXTERNAL dla usuniętego; w każdej transakcji suma per item = 0).
+    - Nowy `tests/ledger_assertions.py`: `movements_for_item(db, item_id)` (transakcje z zapisami itemu, kolejność `(occurred_at, id)`, eager load zapisów) oraz `assert_ledger_matches_projection(db, item_ids)` (per item `SUM(quantity)` per konto — POPRAWIONE w G2 pod podwójny zapis: wśród kont INVENTORY żywy item ma +1 wyłącznie na koncie `item.inventory_id`, usunięty 0 na każdym; EXTERNAL −1 dla żywego, 0 dla usuniętego; w każdej transakcji suma per item = 0).
     - `tests/test_term_item_listings.py`: usunąć importy `Account`, `EntrySide` i helper `_latest_ledger_entries_for_giver` (`:136-170`), zastąpić go importem `movements_for_item`. Treść asercji GIFT/SWAP przepisuje G4.
   - [x] 1.10 Frontend: usunąć `src/frontend/src/api/accounts.ts`. Potwierdzić grepem brak importów, potem w `src/frontend` uruchomić `npx tsc --noEmit -p .`.
   - [x] 1.11 Upewnić się, że testy tej grupy przechodzą i wykonać weryfikację ręczną migracji
@@ -92,8 +92,8 @@ Usunięcie `EntrySide`, `Account.code` i starych wartości `AccountType` w `mode
 **Pliki do modyfikacji:** `app/circulation/infrastructure/ledger.py`, `app/circulation/infrastructure/repository.py`, `app/circulation/application/inventory.py`, `tests/test_circulation_ledger.py`
 **Szacowana liczba kroków:** 7
 
-- [ ] 2.0 Ukończyć rdzeń księgi
-  - [ ] 2.1 Napisać 6-8 skupionych testów w `tests/test_circulation_ledger.py` (część „konta + walidacja `post_movement`”)
+- [x] 2.0 Ukończyć rdzeń księgi
+  - [x] 2.1 Napisać 6-8 skupionych testów w `tests/test_circulation_ledger.py` (część „konta + walidacja `post_movement`”)
     - `test_createInventory_viaApi_createsInventoryAccount`: `POST /api/inventories` daje dokładnie jedno konto INVENTORY z `inventory_id` nowego inwentarza.
     - `test_getOrCreatePersonalInventory_createsAccountOnce`: dwa wywołania `get_or_create_personal_inventory`/`get_or_create_virtual_inventory` dają jedno konto na inwentarz (brak duplikatu, ścieżka SAVEPOINT).
     - `test_postMovement_fromNotMatchingProjection_raisesConflictWithoutEntries`: noga z `from` ≠ `item.inventory_id` daje `BusinessConflictException`, bez nowych wierszy transakcji ani zapisów.
@@ -102,10 +102,10 @@ Usunięcie `EntrySide`, `Account.code` i starych wartości `AccountType` w `mode
     - `test_postMovement_swapWithVirtualSide_raisesConflict` (jedna strona VIRTUAL lub PICKUP_POINT).
     - `test_postMovement_validPersonalSwap_postsFourEntriesAndMatchesProjection`: SWAP PERSONAL(A) ↔ PERSONAL(B) daje 4 zapisy, zamienia `inventory_id` obu itemów i spełnia `assert_ledger_matches_projection`.
     - Dane testowe budować bezpośrednio przez ORM w sesji (items tworzone z `inventory_id`, bez przechodzenia przez `register_item`, który zacznie księgować dopiero w G3). Asercję niezmiennika w teście SWAP poprzedzić ręcznym `post_movement(REGISTER)` dla obu itemów.
-  - [ ] 2.2 Dodać `repository.find_accounts_for_posting(db, inventory_ids, include_external)`
+  - [x] 2.2 Dodać `repository.find_accounts_for_posting(db, inventory_ids, include_external)`
     - **Jedno** zapytanie: konta INVENTORY dla zbioru `inventory_id` z `joinedload(Account.inventory)` oraz konto EXTERNAL (`OR account_type='EXTERNAL'`), gdy `include_external`.
-  - [ ] 2.3 Zaimplementować `MovementLeg` (frozen dataclass: `item`, `from_inventory_id`, `to_inventory_id`, `reservation_id`) i szkielet `post_movement(db, *, movement_type, legs, description, occurred_at) -> CirculationTransaction` w `infrastructure/ledger.py`
-  - [ ] 2.4 Walidacja przed jakimkolwiek zapisem (kolejność jak w spec, „Walidacja”)
+  - [x] 2.3 Zaimplementować `MovementLeg` (frozen dataclass: `item`, `from_inventory_id`, `to_inventory_id`, `reservation_id`) i szkielet `post_movement(db, *, movement_type, legs, description, occurred_at) -> CirculationTransaction` w `infrastructure/ledger.py`
+  - [x] 2.4 Walidacja przed jakimkolwiek zapisem (kolejność jak w spec, „Walidacja”)
     - liczba nóg (SWAP = 2 różne itemy, inne typy = 1);
     - kształt nogi (REGISTER `from=None`, REMOVE `to=None`, pozostałe oba ≠ None i `from ≠ to`);
     - `item.deleted_at IS NULL`;
@@ -113,14 +113,14 @@ Usunięcie `EntrySide`, `Account.code` i starych wartości `AccountType` w `mode
     - rozwiązanie kont przez `find_accounts_for_posting`, brak konta daje `EntityNotFoundException("Account", …)`;
     - reguła krzyżowania SWAP: wszystkie 4 strony PERSONAL, `X.from == Y.to`, `X.to == Y.from`, różni `owner_user_id`;
     - naruszenia reguł dają `BusinessConflictException`, niezbilansowanie daje `ValueError` (jawne sprawdzenie sumy `quantity` per `item_id` po zbudowaniu listy zapisów).
-  - [ ] 2.5 Zapis i projekcja
+  - [x] 2.5 Zapis i projekcja
     - `CirculationTransaction` z `_next_transaction_number()` (`domain/reservation_rules.py:44`), flush, potem dla każdej nogi zapis −1 (konto from) i +1 (konto to) z `item_id` i `reservation_id` nogi.
     - Projekcja per noga: `to ≠ None` daje `item.inventory_id = to`; REMOVE daje `item.deleted_at = occurred_at` (bez zmiany `inventory_id`); LEND daje `home_inventory_id = from`; RETURN daje `home_inventory_id = None`. Flush, bez commita, zwrot transakcji.
     - Docstring modułu (`ledger.py:1-17`) i funkcji: jedyna ścieżka zmiany lokalizacji, flush-only, współbieżność przez `version_id_col` → `StaleDataError` → 409. Testu współbieżności nie pisać.
-  - [ ] 2.6 Konta tworzone razem z inwentarzem w `application/inventory.py`
+  - [x] 2.6 Konta tworzone razem z inwentarzem w `application/inventory.py`
     - `create_inventory` (`:16-25`): add `Inventory`, flush, add `Account(account_type=INVENTORY, inventory_id=inventory.id)`, istniejący commit.
     - `_get_or_create_inventory` (`:39-65`): w istniejącym `async with db.begin_nested()` add inwentarz, flush, add konto, flush. `IntegrityError` cofa oba, ponowny `find` bez zmian.
-  - [ ] 2.7 Upewnić się, że testy rdzenia przechodzą
+  - [x] 2.7 Upewnić się, że testy rdzenia przechodzą
     - Uruchomić tylko testy z 2.1 (np. `uv run pytest tests/test_circulation_ledger.py -k "postMovement or Inventory"`), plus ruff i mypy na zmienionych plikach.
 
 **Kryteria akceptacji:**
@@ -135,8 +135,8 @@ Usunięcie `EntrySide`, `Account.code` i starych wartości `AccountType` w `mode
 **Pliki do modyfikacji:** `app/circulation/application/inventory_items.py`, `app/circulation/application/reservation_transitions.py`, `app/circulation/domain/reservation_rules.py`, `tests/test_circulation_ledger.py`, `tests/test_circulation.py`
 **Szacowana liczba kroków:** 8
 
-- [ ] 3.0 Ukończyć punkty księgowania
-  - [ ] 3.1 Napisać 7-8 skupionych testów (w `tests/test_circulation_ledger.py`, poza przepisanym testem w `test_circulation.py`)
+- [x] 3.0 Ukończyć punkty księgowania
+  - [x] 3.1 Napisać 7-8 skupionych testów (w `tests/test_circulation_ledger.py`, poza przepisanym testem w `test_circulation.py`)
     - `test_registerItem_viaApi_postsRegisterFromExternal`: transakcja REGISTER, EXTERNAL −1 / konto inwentarza +1, `reservation_id` NULL.
     - `test_fulfillPledge_registersItem_postsRegister` (przez `pledge_fulfillment`, dane jak w `tests/test_pledge_fulfillment.py`).
     - `test_deleteItem_postsRemoveToExternalAndSetsDeletedAt`.
@@ -146,21 +146,21 @@ Usunięcie `EntrySide`, `Account.code` i starych wartości `AccountType` w `mode
     - `test_fulfillReservation_swapType_raisesConflict`.
     - `test_itemLifecycle_registerLendReturnGiftRemove_ledgerMatchesProjectionAtEachStep` (GIFT jako pojedyncza noga przez `fulfill_reservation`).
     - Przepisać `tests/test_circulation.py:490` `test_fulfillLend_postsCirculationTransactionCreditingOwner` na `test_fulfillLend_postsLendMovementFromPersonalToVirtual`: PERSONAL(A) −1 / VIRTUAL(B) +1, `reservation_id` = id rezerwacji, `home_inventory_id` = PERSONAL(A), bez `/api/accounts`.
-  - [ ] 3.2 REGISTER w `application/inventory_items.py::register_item`
+  - [x] 3.2 REGISTER w `application/inventory_items.py::register_item`
     - Item tworzony z docelowym `inventory_id` (konstruktor, NOT NULL), flush, `InventoryBalance` jak dziś, potem `post_movement(REGISTER, from=None, to=inventory_id)` z opisem `"REGISTER: {nazwa produktu}"` (nazwa z istniejącego `product_service.get_product`, `:42`), przed istniejącym `db.commit()`. Sygnatura bez zmian, więc bridge i `pledge_fulfillment.py:75` bez zmian.
-  - [ ] 3.3 REMOVE w `soft_delete_item`
+  - [x] 3.3 REMOVE w `soft_delete_item`
     - Istniejąca blokada statusu ≠ AVAILABLE (`:175-178`) zostaje. Zamiast ręcznego `item.deleted_at = …` wołać `post_movement(REMOVE, from=item.inventory_id, to=None)`, a potem istniejący commit.
-  - [ ] 3.4 Wydzielić funkcje flush-only w `application/reservation_transitions.py`
+  - [x] 3.4 Wydzielić funkcje flush-only w `application/reservation_transitions.py`
     - `_confirm(db, reservation, acting_user_id)`, `_cancel(db, reservation, acting_user_id)`, `_fulfill(db, reservation, acting_user_id, now) -> MovementLeg`.
     - `_fulfill` przejmuje gałęzie `:107-136`: guard CONFIRMED, autoryzacja, `from = item.inventory_id`, `to` per typ (LEND: `get_or_create_virtual_inventory(reserved_by)`; GIFT: `get_or_create_personal_inventory(reserved_by)`; RETURN: `home_inventory_id`, a jego brak daje 409), mutacje `InventoryBalance` jak dziś, status FULFILLED. **Nie** przypisuje `inventory_id`/`home_inventory_id`.
     - Istniejąca blokada ponownego LEND (`:108-111`) zostaje.
-  - [ ] 3.5 Publiczne wrappery z commitem
+  - [x] 3.5 Publiczne wrappery z commitem
     - `confirm_reservation` = load + `_confirm` + commit + refresh; `cancel_reservation` analogicznie.
     - `fulfill_reservation` = load, odrzucenie typu SWAP (`BusinessConflictException`, „zamiana realizowana jest wyłącznie parą”), `_fulfill`, `post_movement(MovementType(reservation.reservation_type.value), [leg], description, occurred_at=now)`, commit, refresh. Ten sam `now` dla `InventoryBalance` i `occurred_at`.
     - Sygnatury publiczne bez zmian.
-  - [ ] 3.6 Docstringi: `reservation_transitions.py:1-4` oraz `reservation_rules._require_holder_to_confirm` (usunąć zdanie „accounting always credits the holder”, opisać ruch LEND z konta posiadacza).
-  - [ ] 3.7 Grep kontrolny: w `app/circulation/` przypisania `.inventory_id =`, `.home_inventory_id =`, `.deleted_at =` na itemie występują tylko w `post_movement` oraz w konstruktorze w `register_item`.
-  - [ ] 3.8 Upewnić się, że testy punktów księgowania przechodzą
+  - [x] 3.6 Docstringi: `reservation_transitions.py:1-4` oraz `reservation_rules._require_holder_to_confirm` (usunąć zdanie „accounting always credits the holder”, opisać ruch LEND z konta posiadacza).
+  - [x] 3.7 Grep kontrolny: w `app/circulation/` przypisania `.inventory_id =`, `.home_inventory_id =`, `.deleted_at =` na itemie występują tylko w `post_movement` oraz w konstruktorze w `register_item`.
+  - [x] 3.8 Upewnić się, że testy punktów księgowania przechodzą
     - Uruchomić tylko testy z 3.1 oraz istniejące testy przenoszące rzeczy, które muszą przejść bez zmian w asercjach: `tests/test_circulation.py` (`:332`, `:366`, `:741`, przepisany `:490`), `tests/test_lend_step0_fixes.py`, `tests/test_pledge_fulfillment.py`.
     - Testy R7 wymuszające stan legacy (`test_circulation.py:1010`, `:1046`) sprawdzić: po zmianie REMOVE z `home_inventory_id` daje 409 z `post_movement`, co jest zgodne z intencją. Dostosować oczekiwanie tylko wtedy, gdy test zakładał inne zachowanie, i odnotować to w work-logu.
     - Ruff i mypy na zmienionych plikach.

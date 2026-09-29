@@ -5,6 +5,7 @@ and the per-group pending list (`GET /api/groups/{group_id}/join-requests`).
 
 from __future__ import annotations
 
+import uuid
 from datetime import date, timedelta
 from typing import Any
 
@@ -21,12 +22,12 @@ def _auth(token: str) -> dict[str, str]:
     return {"Authorization": f"Bearer {token}"}
 
 
-async def _register(client: AsyncClient, role: str, email: str) -> tuple[str, int]:
+async def _register(client: AsyncClient, role: str, email: str) -> tuple[str, uuid.UUID]:
     r = await client.post(
         "/api/auth/register", json={"role": role, "email": email, "password": "secret123"}
     )
     assert r.status_code == 201
-    return r.json()["token"], r.json()["party_id"]
+    return r.json()["token"], uuid.UUID(r.json()["party_id"])
 
 
 async def _create_private_circle_and_term(
@@ -64,7 +65,7 @@ async def _request_access(
         headers=_auth(token),
     )
     assert response.status_code == 201
-    return int(response.json()["id"])
+    return response.json()["id"]
 
 
 async def _notifications(client: AsyncClient, token: str, kind: str) -> list[dict[str, Any]]:
@@ -75,7 +76,7 @@ async def _notifications(client: AsyncClient, token: str, kind: str) -> list[dic
 
 async def _active_memberships_in(db: AsyncSession, party_id: int, group_id: int) -> int:
     memberships = await service.list_memberships_for_party(db, party_id)
-    return sum(1 for m in memberships if m.to_group_id == group_id)
+    return sum(1 for m in memberships if str(m.to_group_id) == str(group_id))
 
 
 async def test_approveJoinRequest_organizer_createsMembershipSetsApprovedAndNotifiesRequester(
@@ -223,9 +224,9 @@ async def test_listMyPendingJoinRequests_returnsOnlyOrganizedGroupsOldestFirstWi
     assert [item["id"] for item in body] == [first_id, second_id]
     assert body[0]["group_id"] == group_b
     assert body[0]["group_name"] == "Krąg jd-mine-b"
-    assert body[0]["requester_party_id"] == anna_party_id
+    assert body[0]["requester_party_id"] == str(anna_party_id)
     assert body[1]["group_name"] == "Krąg jd-mine-a"
-    assert body[1]["requester_party_id"] == bob_party_id
+    assert body[1]["requester_party_id"] == str(bob_party_id)
     assert all(item["requester_display_name"] for item in body)
     assert as_guest.status_code == 200
     assert as_guest.json() == []
@@ -251,7 +252,9 @@ async def test_listGroupJoinRequests_organizer200OnlyPending_nonOrganizer403_unk
 
     as_organizer = await client.get(url, headers=_auth(org_token))
     as_guest = await client.get(url, headers=_auth(anna_token))
-    unknown = await client.get("/api/groups/999999999/join-requests", headers=_auth(org_token))
+    unknown = await client.get(
+        f"/api/groups/{uuid.uuid4()}/join-requests", headers=_auth(org_token)
+    )
 
     assert as_organizer.status_code == 200
     assert [item["id"] for item in as_organizer.json()] == [pending_id]

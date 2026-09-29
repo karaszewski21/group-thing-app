@@ -5,6 +5,8 @@ only in migration 0037, so these tests exercise the real schema."""
 
 from __future__ import annotations
 
+import uuid
+
 import pytest
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
@@ -139,6 +141,7 @@ async def test_createNotification_storesJoinRequestIdPointer(
     db_session: AsyncSession,
 ) -> None:
     recipient_party_id = await _create_party(db_session)
+    join_request_id = uuid.uuid4()
 
     await notifications_service.create_notification(
         db_session,
@@ -146,7 +149,7 @@ async def test_createNotification_storesJoinRequestIdPointer(
         kind=NotificationKind.GROUP_JOIN_REQUESTED,
         message="Anna prosi o dostęp do grupy „Krąg testowy”",
         link_path="/panel",
-        join_request_id=987_654_321,
+        join_request_id=join_request_id,
     )
     await db_session.commit()
 
@@ -156,5 +159,5 @@ async def test_createNotification_storesJoinRequestIdPointer(
         )
     ).scalar_one()
     assert row.kind == NotificationKind.GROUP_JOIN_REQUESTED
-    assert row.join_request_id == 987_654_321
+    assert row.join_request_id == join_request_id
     assert row.proposal_id is None

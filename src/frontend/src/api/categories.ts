@@ -3,7 +3,7 @@ import { api } from "./client";
 /** Mirrors `api/products.ts`'s camelCase convention (`productCount`,
  * `sortOrder`) — this file is a direct structural mirror of that one. */
 export interface Category {
-  id: number;
+  id: string;
   name: string;
   description: string | null;
   sortOrder: number;

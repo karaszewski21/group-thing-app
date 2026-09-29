@@ -158,8 +158,7 @@ _RAW_MATRIX: tuple[_RawEntry, ...] = (
     (_methods("POST"), r"^/api/inventory-items(/.*)?$", ("EDIT", "mcp:edit")),  # 41
     (_methods("GET"), r"^/api/reservations(/.*)?$", ("READ", "mcp:read")),  # 42
     (_methods("POST"), r"^/api/reservations(/.*)?$", ("EDIT", "mcp:edit")),  # 43
-    (_methods("GET"), r"^/api/accounts(/.*)?$", ("READ", "mcp:read")),  # 44
-    (_methods("GET"), r"^/api/circulation-transactions(/.*)?$", ("READ", "mcp:read")),  # 45
+    (_methods("GET"), r"^/api/circulation-transactions/[^/]+$", ("READ", "mcp:read")),  # 45
     (_methods("GET"), r"^/api/people(/.*)?$", ("READ", "mcp:read")),  # 46
     # 47: public self-registration — the party-module counterpart to row 6's
     # `/api/auth/login`. No existing row matches this literal path, so it's

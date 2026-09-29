@@ -544,13 +544,8 @@ async def propose_swap(
     # owner, who will receive the proposer's offered item once fulfilled),
     # per `reservation_rules.py`'s documented invariant — NOT the proposer
     # themself, even though the proposer is the one whose action creates
-    # this leg and who currently holds/contributes the item. Getting this
-    # backwards (as originally written here) made `fulfill_reservation`'s
-    # inventory-transfer step a no-op: it always moves the item to
-    # `reserved_by_user_id`'s own personal inventory, so if that's the
-    # item's own current owner, "fulfilling" the swap never actually
-    # changes who has it — the real bug behind "nie dochodzi do wymiany
-    # rzeczy w magazynie".
+    # this leg and who currently holds/contributes the item: fulfilment
+    # moves each leg's item to `reserved_by_user_id`'s PERSONAL inventory.
     owner_profile_for_reservation = await get_profile_by_party(db, preference.owner_party_id)
     proposer_reservation = await circulation_bridge.create_reservation(
         db,
@@ -702,12 +697,13 @@ async def reject_swap_proposal(
 
 async def _resolve_transaction_reservations_for_action(
     db: AsyncSession, principal: Principal, reservation_id: uuid.UUID
-) -> list[circulation_bridge.Reservation]:
+) -> tuple[uuid.UUID, list[circulation_bridge.Reservation]]:
     """Shared gating sequence for both `confirm_transaction` and
     `cancel_transaction`: race-participant authorization (403 before any
     409), the RETURN guard, the term-ended check, and the already-resolved
-    guard — then returns the reservation(s) the caller should act on next
-    (one, or two for a resolved SWAP pair via `paired_reservation_id`).
+    guard — then returns the caller's account user id and the
+    reservation(s) the caller should act on next (one, or two for a
+    resolved SWAP pair via `paired_reservation_id`).
     Extracted per spec.md Bug #4's "shared gating helper" requirement:
     `cancel_transaction` needs the *exact* same SWAP-pairing resolution
     `confirm_transaction` already had (the highest-regression-risk logic in
@@ -716,10 +712,8 @@ async def _resolve_transaction_reservations_for_action(
     what justifies factoring this out now rather than speculatively, per
     `standards/global/minimal-implementation.md`.
 
-    Callers own their own terminal step (confirm+fulfill vs. cancel) per
-    resolved reservation, using each one's own physical holder — this
-    helper stops right before that, matching `confirm_transaction`'s
-    original inline sequence exactly.
+    Callers own their own terminal step (circulation's `fulfill_exchange`
+    vs. `cancel_exchange`) — this helper stops right before that.
 
     A RETURN is not a Term transaction (the two-sided return arrives with
     the Loan MVP), so it is rejected here rather than confirmed/cancelled.
@@ -741,10 +735,11 @@ async def _resolve_transaction_reservations_for_action(
     # fulfillment, and the giver's `ItemListingPreference` is cleared then
     # too — yet the losing party's later call must still be recognized as a
     # participant so it gets `TermAlreadyResolvedException`, not a 403.
+    acting_user_id = cast(uuid.UUID, profile.account_user_id)
     confirm_race_rules._require_race_participant(
         reservation.reserved_by_user_id,
         reservation.giver_user_id,
-        acting_user_id=cast(uuid.UUID, profile.account_user_id),
+        acting_user_id=acting_user_id,
     )
 
     if reservation.reservation_type == circulation_bridge.ReservationType.RETURN:
@@ -781,7 +776,7 @@ async def _resolve_transaction_reservations_for_action(
     ):
         paired = await circulation_bridge.get_reservation(db, reservation.paired_reservation_id)
         reservations.append(paired)
-    return reservations
+    return acting_user_id, reservations
 
 
 async def confirm_transaction(
@@ -789,14 +784,17 @@ async def confirm_transaction(
 ) -> circulation_bridge.Reservation:
     """Resolves a locked exchange (LEND/GIFT leg, or a SWAP's paired legs)
     once its Term has ended: whichever party of the transaction calls this
-    first wins the race and both legs (for SWAP) get confirmed+fulfilled;
-    the other party's later call is recognized as a no-op via
-    `TermAlreadyResolvedException` rather than a raw, unexplained conflict."""
-    reservations = await _resolve_transaction_reservations_for_action(db, principal, reservation_id)
+    first wins the race and circulation's `fulfill_exchange` confirms and
+    fulfils every leg in one commit, which also commits the listing
+    preferences deleted here; the other party's later call is recognized
+    as a no-op via `TermAlreadyResolvedException` rather than a raw,
+    unexplained conflict."""
+    acting_user_id, reservations = await _resolve_transaction_reservations_for_action(
+        db, principal, reservation_id
+    )
 
     # A GIFT/SWAP permanently hands the item to someone else, so the giver's
-    # standing listing mode no longer applies — deleted here (flushed, then
-    # committed together with the first `fulfill_reservation`) so the item
+    # standing listing mode no longer applies — deleted here so the item
     # isn't re-offered on the giver's behalf at their next Term. The new
     # owner sets their own mode from `Moje rzeczy` if they want to pass it on.
     for r in reservations:
@@ -806,25 +804,10 @@ async def confirm_transaction(
                 await db.delete(preference)
     await db.flush()
 
-    # `circulation_bridge.confirm_reservation`/`fulfill_reservation` require
-    # `acting_user_id` to be the item's CURRENT physical holder — resolved
-    # fresh per leg, since for a SWAP each leg's item has a different holder.
-    primary_result: circulation_bridge.Reservation | None = None
-    for r in reservations:
-        physical_holder_user_id = await circulation_bridge.resolve_current_holder_user_id(
-            db, r.item_id
-        )
-        if r.status == circulation_bridge.ReservationStatus.PENDING:
-            await circulation_bridge.confirm_reservation(
-                db, cast(uuid.UUID, r.id), acting_user_id=physical_holder_user_id
-            )
-        result = await circulation_bridge.fulfill_reservation(
-            db, cast(uuid.UUID, r.id), acting_user_id=physical_holder_user_id
-        )
-        if r.id == reservation_id:
-            primary_result = result
-
-    return cast(circulation_bridge.Reservation, primary_result)
+    fulfilled = await circulation_bridge.fulfill_exchange(
+        db, [cast(uuid.UUID, r.id) for r in reservations], acting_user_id
+    )
+    return next(r for r in fulfilled if r.id == reservation_id)
 
 
 async def cancel_transaction(
@@ -832,22 +815,13 @@ async def cancel_transaction(
 ) -> circulation_bridge.Reservation:
     """The cancel counterpart of `confirm_transaction`: same shared gating
     (race-participant, RETURN guard, term-ended, already-resolved) via
-    `_resolve_transaction_reservations_for_action`, but releases the
-    resolved reservation(s) back to `AVAILABLE` via
-    `circulation_bridge.cancel_reservation` instead of confirming and
-    fulfilling them — mirroring confirm's per-leg pattern so a SWAP's two
-    paired legs are released together, not just the one the caller named."""
-    reservations = await _resolve_transaction_reservations_for_action(db, principal, reservation_id)
-
-    primary_result: circulation_bridge.Reservation | None = None
-    for r in reservations:
-        physical_holder_user_id = await circulation_bridge.resolve_current_holder_user_id(
-            db, r.item_id
-        )
-        result = await circulation_bridge.cancel_reservation(
-            db, cast(uuid.UUID, r.id), acting_user_id=physical_holder_user_id
-        )
-        if r.id == reservation_id:
-            primary_result = result
-
-    return cast(circulation_bridge.Reservation, primary_result)
+    `_resolve_transaction_reservations_for_action`, then circulation's
+    `cancel_exchange` releases every resolved leg — both paired legs of a
+    SWAP, not just the one the caller named — in one commit."""
+    acting_user_id, reservations = await _resolve_transaction_reservations_for_action(
+        db, principal, reservation_id
+    )
+    cancelled = await circulation_bridge.cancel_exchange(
+        db, [cast(uuid.UUID, r.id) for r in reservations], acting_user_id
+    )
+    return next(r for r in cancelled if r.id == reservation_id)

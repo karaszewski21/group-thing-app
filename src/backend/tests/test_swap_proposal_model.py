@@ -6,6 +6,7 @@ members added alongside these entities."""
 
 from __future__ import annotations
 
+import uuid
 from datetime import datetime
 
 import pytest
@@ -18,7 +19,7 @@ from app.notifications.models import NotificationKind
 from app.party.models import Party, PartyType
 
 
-async def _create_party(db_session: AsyncSession) -> int:
+async def _create_party(db_session: AsyncSession) -> uuid.UUID:
     party = Party(party_type=PartyType.PERSON)
     db_session.add(party)
     await db_session.flush()
@@ -30,11 +31,16 @@ async def test_swapProposal_roundTripsAllColumns_withExplicitProposedStatus(
 ) -> None:
     proposer_party_id = await _create_party(db_session)
 
+    listing_item_id, offered_item_id, proposer_reservation_id = (
+        uuid.uuid4(),
+        uuid.uuid4(),
+        uuid.uuid4(),
+    )
     proposal = SwapProposal(
         proposer_party_id=proposer_party_id,
-        listing_item_id=101,
-        offered_item_id=202,
-        proposer_reservation_id=303,
+        listing_item_id=listing_item_id,
+        offered_item_id=offered_item_id,
+        proposer_reservation_id=proposer_reservation_id,
         status=SwapProposalStatus.PROPOSED,
     )
     db_session.add(proposal)
@@ -45,9 +51,9 @@ async def test_swapProposal_roundTripsAllColumns_withExplicitProposedStatus(
     ).scalar_one()
 
     assert row.proposer_party_id == proposer_party_id
-    assert row.listing_item_id == 101
-    assert row.offered_item_id == 202
-    assert row.proposer_reservation_id == 303
+    assert row.listing_item_id == listing_item_id
+    assert row.offered_item_id == offered_item_id
+    assert row.proposer_reservation_id == proposer_reservation_id
     assert row.status == SwapProposalStatus.PROPOSED
     assert isinstance(row.status, str)
     assert row.term_ended_notified_at is None
@@ -58,10 +64,10 @@ async def test_swapProposal_unknownProposerPartyId_violatesForeignKeyConstraint(
 ) -> None:
     db_session.add(
         SwapProposal(
-            proposer_party_id=999_999_999,
-            listing_item_id=1,
-            offered_item_id=2,
-            proposer_reservation_id=3,
+            proposer_party_id=uuid.uuid4(),
+            listing_item_id=uuid.uuid4(),
+            offered_item_id=uuid.uuid4(),
+            proposer_reservation_id=uuid.uuid4(),
             status=SwapProposalStatus.PROPOSED,
         )
     )
@@ -69,19 +75,24 @@ async def test_swapProposal_unknownProposerPartyId_violatesForeignKeyConstraint(
         await db_session.flush()
 
 
-async def test_swapProposal_looseItemAndReservationPointers_acceptArbitraryBigints_noFk(
+async def test_swapProposal_looseItemAndReservationPointers_acceptArbitraryIds_noFk(
     db_session: AsyncSession,
 ) -> None:
     proposer_party_id = await _create_party(db_session)
 
-    # Arbitrary bigints with no corresponding circulation rows must succeed
+    # Arbitrary ids with no corresponding circulation rows must succeed
     # — these fields are deliberate loose cross-BC pointers, no FK
     # constraint, matching `ItemListingPreference`'s convention.
+    listing_item_id, offered_item_id, proposer_reservation_id = (
+        uuid.uuid4(),
+        uuid.uuid4(),
+        uuid.uuid4(),
+    )
     proposal = SwapProposal(
         proposer_party_id=proposer_party_id,
-        listing_item_id=987_654_321,
-        offered_item_id=123_456_789,
-        proposer_reservation_id=555_555_555,
+        listing_item_id=listing_item_id,
+        offered_item_id=offered_item_id,
+        proposer_reservation_id=proposer_reservation_id,
         status=SwapProposalStatus.ACCEPTED,
     )
     db_session.add(proposal)
@@ -90,28 +101,31 @@ async def test_swapProposal_looseItemAndReservationPointers_acceptArbitraryBigin
     row = (
         await db_session.execute(select(SwapProposal).where(SwapProposal.id == proposal.id))
     ).scalar_one()
-    assert row.listing_item_id == 987_654_321
-    assert row.offered_item_id == 123_456_789
-    assert row.proposer_reservation_id == 555_555_555
+    assert row.listing_item_id == listing_item_id
+    assert row.offered_item_id == offered_item_id
+    assert row.proposer_reservation_id == proposer_reservation_id
 
 
 async def test_giveawayTermEndMarker_roundTrips_andEnforcesUniqueReservationId(
     db_session: AsyncSession,
 ) -> None:
     notified_at = datetime.utcnow().replace(microsecond=0)
+    reservation_id = uuid.uuid4()
 
-    marker = GiveawayTermEndMarker(reservation_id=42, notified_at=notified_at)
+    marker = GiveawayTermEndMarker(reservation_id=reservation_id, notified_at=notified_at)
     db_session.add(marker)
     await db_session.commit()
 
     row = (
         await db_session.execute(
-            select(GiveawayTermEndMarker).where(GiveawayTermEndMarker.reservation_id == 42)
+            select(GiveawayTermEndMarker).where(
+                GiveawayTermEndMarker.reservation_id == reservation_id
+            )
         )
     ).scalar_one()
     assert row.notified_at == notified_at
 
-    db_session.add(GiveawayTermEndMarker(reservation_id=42, notified_at=notified_at))
+    db_session.add(GiveawayTermEndMarker(reservation_id=reservation_id, notified_at=notified_at))
     with pytest.raises(IntegrityError):
         await db_session.flush()
 

@@ -9,6 +9,8 @@ to their own requirements despite the new `PATCH /api/groups/{id}` row.
 
 from __future__ import annotations
 
+import uuid
+
 import pytest
 
 from app.core.authorization_matrix import resolve_requirement
@@ -75,6 +77,16 @@ def test_resolveRequirement_termItemListingsBrowseAndTake_andWithdrawAttendance(
     assert resolve_requirement("POST", "/api/term-item-listings/123/take") == EDIT
     assert resolve_requirement("PUT", "/api/item-listing-preferences/123") == EDIT
     assert resolve_requirement("POST", "/api/groups/mine/attendances/42/withdraw") == EDIT
+
+
+def test_resolveRequirement_circulationLedgerRoutes_resolveToExpectedRow() -> None:
+    """Row 45 covers only the single-transaction read; the removed points
+    routes (`/api/accounts/...`, the transaction list) fall to the
+    catch-all."""
+    transaction_id = uuid.uuid4()
+    assert resolve_requirement("GET", f"/api/circulation-transactions/{transaction_id}") == READ
+    assert resolve_requirement("GET", "/api/circulation-transactions") == "AUTHENTICATED"
+    assert resolve_requirement("GET", f"/api/accounts/{uuid.uuid4()}/balance") == "AUTHENTICATED"
 
 
 @pytest.mark.parametrize(

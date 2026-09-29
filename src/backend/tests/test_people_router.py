@@ -4,6 +4,8 @@ frontend's "Wypożyczone" panel view to show a borrowed item's lender."""
 
 from __future__ import annotations
 
+import uuid
+
 from httpx import AsyncClient
 
 
@@ -41,7 +43,5 @@ async def test_getProfileByAccountUserId_ownAccount_returnsOwnProfile(
 async def test_getProfileByAccountUserId_unknown_returns404(client: AsyncClient) -> None:
     headers = await _authed_headers(client, "people-by-account-user-404@example.com")
 
-    response = await client.get(
-        "/api/people/by-account-user-id/999999999", headers=headers
-    )
+    response = await client.get(f"/api/people/by-account-user-id/{uuid.uuid4()}", headers=headers)
     assert response.status_code == 404

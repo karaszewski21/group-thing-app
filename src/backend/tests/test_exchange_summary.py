@@ -10,6 +10,7 @@ codebase — see `test_group_layout_mode.py`)."""
 
 from __future__ import annotations
 
+import uuid
 from datetime import date, timedelta
 
 import pytest
@@ -38,17 +39,17 @@ def _principal(token: str) -> Principal:
     return Principal(username=claims["sub"], authorities=frozenset())
 
 
-async def _register(client: AsyncClient, role: str, email: str) -> tuple[str, int]:
+async def _register(client: AsyncClient, role: str, email: str) -> tuple[str, uuid.UUID]:
     r = await client.post(
         "/api/auth/register", json={"role": role, "email": email, "password": "secret123"}
     )
     assert r.status_code == 201
-    return r.json()["token"], r.json()["party_id"]
+    return r.json()["token"], uuid.UUID(r.json()["party_id"])
 
 
 async def _create_circle_and_term(
     client: AsyncClient, org_token: str, prefix: str
-) -> tuple[int, int]:
+) -> tuple[uuid.UUID, str]:
     circle = await client.post(
         "/api/groups/mine", json={"name": f"Krąg {prefix}"}, headers=_auth(org_token)
     )
@@ -62,16 +63,16 @@ async def _create_circle_and_term(
         headers=_auth(org_token),
     )
     assert term.status_code == 201
-    return circle.json()["id"], term.json()["id"]
+    return uuid.UUID(circle.json()["id"]), term.json()["id"]
 
 
 async def _join_group_as_family_guardian(
     client: AsyncClient,
     db_session: AsyncSession,
     guardian_token: str,
-    group_id: int,
+    group_id: uuid.UUID,
     family_name: str,
-) -> int:
+) -> uuid.UUID:
     """Bootstraps `guardian_token`'s own Family and seeds a plain active
     `Membership` in `group_id` — the shape `_resolve_family_guardians`
     expects: a group member who is also an active GUARDIAN of a Family.
@@ -83,15 +84,23 @@ async def _join_group_as_family_guardian(
     profile = await get_profile_by_principal(db_session, _principal(guardian_token))
     await service.add_active_membership(db_session, group_id, profile.party_id)
     await db_session.commit()
-    return int(family.json()["id"])
+    return uuid.UUID(family.json()["id"])
+
+
+async def _category_id(client: AsyncClient, token: str) -> str:
+    categories = await client.get("/api/categories", headers=_auth(token))
+    assert categories.status_code == 200
+    return str(categories.json()[0]["id"])
 
 
 async def _resolve_product(client: AsyncClient, token: str, name: str) -> int:
     r = await client.post(
-        "/api/products/resolve", json={"name": name, "category_id": 5}, headers=_auth(token)
+        "/api/products/resolve",
+        json={"name": name, "category_id": await _category_id(client, token)},
+        headers=_auth(token),
     )
     assert r.status_code == 200
-    return int(r.json()["id"])
+    return r.json()["id"]
 
 
 async def _create_needed_item(
@@ -104,10 +113,10 @@ async def _create_needed_item(
         headers=_auth(org_token),
     )
     assert r.status_code == 201
-    return int(r.json()["id"])
+    return r.json()["id"]
 
 
-async def _register_personal_item(client: AsyncClient, token: str, product_name: str) -> int:
+async def _register_personal_item(client: AsyncClient, token: str, product_name: str) -> uuid.UUID:
     product_id = await _resolve_product(client, token, product_name)
     inv = await client.post(
         "/api/inventories",
@@ -121,7 +130,7 @@ async def _register_personal_item(client: AsyncClient, token: str, product_name:
         headers=_auth(token),
     )
     assert item.status_code == 201
-    return int(item.json()["id"])
+    return uuid.UUID(item.json()["id"])
 
 
 async def test_familyWithActivePledge_bringsItemTrue_sharesItemFalse(

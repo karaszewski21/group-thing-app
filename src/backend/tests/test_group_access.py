@@ -9,6 +9,7 @@ naming follows `action_condition_expectedResult`
 
 from __future__ import annotations
 
+import uuid
 from datetime import date, timedelta
 
 from httpx import AsyncClient
@@ -169,7 +170,7 @@ async def _create_term(client: AsyncClient, org_token: str, group_id: int) -> in
         headers=_auth(org_token),
     )
     assert term.status_code == 201
-    return int(term.json()["id"])
+    return term.json()["id"]
 
 
 async def _add_member(db_session: AsyncSession, token: str, group_id: int) -> None:
@@ -251,7 +252,7 @@ async def test_getGroupAccess_privateOutsiderForeignTermId_keepsReduced200(
     outsider_token = await _register(client, "GUEST", "access.pm3.outsider@example.com")
 
     response = await client.get(
-        f"/api/groups/public/{group_id}/access?term_id=999999999",
+        f"/api/groups/public/{group_id}/access?term_id={uuid.uuid4()}",
         headers=_auth(outsider_token),
     )
 
@@ -301,7 +302,7 @@ async def _request_access(client: AsyncClient, token: str, group_id: int, term_i
         headers=_auth(token),
     )
     assert r.status_code == 201
-    return int(r.json()["id"])
+    return r.json()["id"]
 
 
 async def _access(client: AsyncClient, token: str, group_id: int, term_id: int) -> dict:

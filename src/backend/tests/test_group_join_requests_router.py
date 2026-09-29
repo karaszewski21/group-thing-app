@@ -168,7 +168,7 @@ async def test_createJoinRequest_foreignOrUnknownTermId_returns201WithNullTermId
         url, json={"term_id": foreign_term_id}, headers=_auth(foreign_guest_token)
     )
     unknown = await client.post(
-        url, json={"term_id": 999_999_999}, headers=_auth(unknown_guest_token)
+        url, json={"term_id": str(uuid.uuid4())}, headers=_auth(unknown_guest_token)
     )
 
     assert foreign.status_code == 201
@@ -273,7 +273,7 @@ async def test_createJoinRequest_concurrentPendingInsert_returnsWinnerWithoutNot
     )
 
     assert response.status_code == 201
-    assert response.json()["id"] == competing_ids[0]
+    assert response.json()["id"] == str(competing_ids[0])
     assert response.json()["requester_party_id"] == guest_party_id
     assert response.json()["status"] == "PENDING"
     assert await _join_request_notifications(client, org_token) == []

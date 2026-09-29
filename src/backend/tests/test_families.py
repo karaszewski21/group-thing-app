@@ -7,6 +7,7 @@ R3, R4, R6. Same conftest / SAVEPOINT isolation as the sibling family tests;
 
 from __future__ import annotations
 
+import uuid
 from typing import cast
 
 from httpx import AsyncClient
@@ -53,29 +54,37 @@ async def test_createOwnFamily_noExistingFamily_createsNamedFamilyWithCallerAsGu
     assert family.name == "Rodzina Testowa"
 
     families = (
-        await db_session.execute(select(Family).where(Family.id == family.id))
-    ).scalars().all()
+        (await db_session.execute(select(Family).where(Family.id == family.id))).scalars().all()
+    )
     assert len(families) == 1
 
     roles = (
-        await db_session.execute(
-            select(FamilyRole).where(
-                FamilyRole.party_id == party_id,
-                FamilyRole.role_type == FamilyRoleType.GUARDIAN,
+        (
+            await db_session.execute(
+                select(FamilyRole).where(
+                    FamilyRole.party_id == party_id,
+                    FamilyRole.role_type == FamilyRoleType.GUARDIAN,
+                )
             )
         )
-    ).scalars().all()
+        .scalars()
+        .all()
+    )
     assert len(roles) == 1
 
     memberships = (
-        await db_session.execute(
-            select(FamilyMembership).where(
-                FamilyMembership.to_family_id == family.id,
-                FamilyMembership.is_primary_contact.is_(True),
-                FamilyMembership.valid_to.is_(None),
+        (
+            await db_session.execute(
+                select(FamilyMembership).where(
+                    FamilyMembership.to_family_id == family.id,
+                    FamilyMembership.is_primary_contact.is_(True),
+                    FamilyMembership.valid_to.is_(None),
+                )
             )
         )
-    ).scalars().all()
+        .scalars()
+        .all()
+    )
     assert len(memberships) == 1
 
 
@@ -99,7 +108,7 @@ async def test_createOwnFamily_calledTwiceWithDifferentName_returnsExistingFamil
 
     assert first.status_code == 201
     assert second.status_code == 201
-    assert first.json()["id"] == pre_existing[0].id
+    assert first.json()["id"] == str(pre_existing[0].id)
     assert second.json()["id"] == first.json()["id"]
     assert second.json()["name"] == first.json()["name"]
     assert first.json()["name"] not in ("Pierwsza Nazwa", "Druga Nazwa")
@@ -114,9 +123,7 @@ async def test_createOwnFamily_blankName_returns422(client: AsyncClient) -> None
     whitespace = await client.post(
         "/api/families/mine", json={"name": "   "}, headers=_auth_headers(token)
     )
-    empty = await client.post(
-        "/api/families/mine", json={"name": ""}, headers=_auth_headers(token)
-    )
+    empty = await client.post("/api/families/mine", json={"name": ""}, headers=_auth_headers(token))
 
     # This codebase maps both Pydantic min_length failures and
     # field-validator ValueErrors to 400 (see
@@ -149,9 +156,7 @@ async def test_patchFamily_guardian_renamesFamilyInPlace(
     assert response.json()["id"] == family_id
 
     # In-place update: the same row, renamed — not a new Family.
-    rows = (
-        await db_session.execute(select(Family).where(Family.id == family_id))
-    ).scalars().all()
+    rows = (await db_session.execute(select(Family).where(Family.id == family_id))).scalars().all()
     assert len(rows) == 1
     assert rows[0].name == "Nowa Nazwa"
 
@@ -178,9 +183,7 @@ async def test_patchFamily_nonGuardian_returns403(client: AsyncClient) -> None:
 
     assert response.status_code == 403
 
-    unchanged = await client.get(
-        f"/api/families/{family_id}", headers=_auth_headers(owner_token)
-    )
+    unchanged = await client.get(f"/api/families/{family_id}", headers=_auth_headers(owner_token))
     assert unchanged.json()["family"]["name"] == original_name
 
 
@@ -212,16 +215,14 @@ async def test_patchFamily_guardianOfDifferentFamily_returns403(client: AsyncCli
 
     assert response.status_code == 403
 
-    unchanged = await client.get(
-        f"/api/families/{family_a_id}", headers=_auth_headers(owner_token)
-    )
+    unchanged = await client.get(f"/api/families/{family_a_id}", headers=_auth_headers(owner_token))
     assert unchanged.json()["family"]["name"] == family_a_name
 
 
 async def test_patchFamily_unknownId_returns404(client: AsyncClient) -> None:
     token, _party_id = await _register_guest(client, "patch.unknown@example.com")
     response = await client.patch(
-        "/api/families/999999", json={"name": "Widmo"}, headers=_auth_headers(token)
+        f"/api/families/{uuid.uuid4()}", json={"name": "Widmo"}, headers=_auth_headers(token)
     )
     assert response.status_code == 404
 
@@ -231,7 +232,7 @@ async def _sole_guardian_membership_id(client: AsyncClient, token: str, family_i
         f"/api/families/{family_id}/guardians", headers=_auth_headers(token)
     )
     assert guardians.status_code == 200
-    return int(guardians.json()[0]["family_membership_id"])
+    return guardians.json()[0]["family_membership_id"]
 
 
 async def test_removeFamilyMember_guardian_softClosesMembershipMemberDisappears(
@@ -283,7 +284,9 @@ async def test_removeFamilyMember_guardian_softClosesMembershipMemberDisappears(
 async def test_removeFamilyMember_lastGuardian_returns409(client: AsyncClient) -> None:
     token, _party_id = await _register_guest(client, "remove.lastguardian@example.com")
     created = await client.post(
-        "/api/families/mine", json={"name": "Rodzina Jednego Opiekuna"}, headers=_auth_headers(token)
+        "/api/families/mine",
+        json={"name": "Rodzina Jednego Opiekuna"},
+        headers=_auth_headers(token),
     )
     family_id = created.json()["id"]
     membership_id = await _sole_guardian_membership_id(client, token, family_id)
@@ -323,7 +326,7 @@ async def test_removeFamilyMember_unknownMembershipId_returns404(client: AsyncCl
     family_id = created.json()["id"]
 
     response = await client.delete(
-        f"/api/families/{family_id}/guardians/999999", headers=_auth_headers(token)
+        f"/api/families/{family_id}/guardians/{uuid.uuid4()}", headers=_auth_headers(token)
     )
     assert response.status_code == 404
 

@@ -11,6 +11,7 @@ past directly via `db_session`, same precedent that file already uses."""
 
 from __future__ import annotations
 
+import uuid
 from datetime import date, datetime, timedelta
 from typing import cast
 
@@ -79,15 +80,23 @@ async def _rsvp(client: AsyncClient, token: str, group_id: int, term_id: int) ->
         headers=_auth(token),
     )
     assert r.status_code == 201
-    return int(r.json()["id"])
+    return r.json()["id"]
+
+
+async def _category_id(client: AsyncClient, token: str) -> str:
+    categories = await client.get("/api/categories", headers=_auth(token))
+    assert categories.status_code == 200
+    return str(categories.json()[0]["id"])
 
 
 async def _resolve_product(client: AsyncClient, token: str, name: str) -> int:
     r = await client.post(
-        "/api/products/resolve", json={"name": name, "category_id": 5}, headers=_auth(token)
+        "/api/products/resolve",
+        json={"name": name, "category_id": await _category_id(client, token)},
+        headers=_auth(token),
     )
     assert r.status_code == 200
-    return int(r.json()["id"])
+    return r.json()["id"]
 
 
 async def _register_personal_item(client: AsyncClient, token: str, product_name: str) -> int:
@@ -104,7 +113,7 @@ async def _register_personal_item(client: AsyncClient, token: str, product_name:
         headers=_auth(token),
     )
     assert item.status_code == 201
-    return int(item.json()["id"])
+    return item.json()["id"]
 
 
 async def _push_term_into_past(db_session: AsyncSession, term_id: int) -> None:
@@ -186,11 +195,7 @@ async def test_scan_secondRunOverSameWindow_isIdempotent(
     await scan_for_term_ended(db_session)
 
     assert await _count_outbox_entries(db_session, swap_events.TERM_ENDED_GIVEAWAY) == 1
-    markers = (
-        await db_session.execute(
-            select(GiveawayTermEndMarker)
-        )
-    ).scalars().all()
+    markers = (await db_session.execute(select(GiveawayTermEndMarker))).scalars().all()
     assert len(markers) == 1
 
 
@@ -217,9 +222,7 @@ async def test_scan_acceptedSwapProposalPastTermEnd_emitsTermEndedSwap(
     proposal = await service.propose_swap(
         db_session, _principal(proposer_token), listing_item_id, offered_item_id, term_id
     )
-    accepted = await service.accept_swap_proposal(
-        db_session, _principal(owner_token), proposal.id
-    )
+    accepted = await service.accept_swap_proposal(db_session, _principal(owner_token), proposal.id)
     assert accepted.status == "ACCEPTED"
 
     await _push_term_into_past(db_session, term_id)
@@ -283,7 +286,7 @@ async def test_outboxListener_termEndedGiveaway_createsNotificationPerParty(
         payload={
             "owner_party_id": owner_party_id,
             "taker_party_id": taker_party_id,
-            "reservation_id": 999,
+            "reservation_id": str(uuid.uuid4()),
             "link_path": "/x/grupa/1/term/1",
         },
     )
@@ -292,15 +295,19 @@ async def test_outboxListener_termEndedGiveaway_createsNotificationPerParty(
     await dispatch_pending(db_session)
 
     notifs = (
-        await db_session.execute(
-            select(Notification).where(
-                Notification.party_id.in_((owner_party_id, taker_party_id)),
-                Notification.kind == NotificationKind.TERM_CONFIRMATION_NEEDED,
+        (
+            await db_session.execute(
+                select(Notification).where(
+                    Notification.party_id.in_((owner_party_id, taker_party_id)),
+                    Notification.kind == NotificationKind.TERM_CONFIRMATION_NEEDED,
+                )
             )
         )
-    ).scalars().all()
+        .scalars()
+        .all()
+    )
     assert len(notifs) == 2
-    assert {n.party_id for n in notifs} == {owner_party_id, taker_party_id}
+    assert {str(n.party_id) for n in notifs} == {owner_party_id, taker_party_id}
 
 
 async def test_outboxListener_termEndedSwap_createsNotificationForBothParties(
@@ -318,7 +325,7 @@ async def test_outboxListener_termEndedSwap_createsNotificationForBothParties(
         payload={
             "proposer_party_id": proposer_party_id,
             "owner_party_id": owner_party_id,
-            "proposal_id": 999,
+            "proposal_id": str(uuid.uuid4()),
             "link_path": "/x/grupa/1/term/1",
         },
     )
@@ -327,15 +334,19 @@ async def test_outboxListener_termEndedSwap_createsNotificationForBothParties(
     await dispatch_pending(db_session)
 
     notifs = (
-        await db_session.execute(
-            select(Notification).where(
-                Notification.party_id.in_((proposer_party_id, owner_party_id)),
-                Notification.kind == NotificationKind.TERM_CONFIRMATION_NEEDED,
+        (
+            await db_session.execute(
+                select(Notification).where(
+                    Notification.party_id.in_((proposer_party_id, owner_party_id)),
+                    Notification.kind == NotificationKind.TERM_CONFIRMATION_NEEDED,
+                )
             )
         )
-    ).scalars().all()
+        .scalars()
+        .all()
+    )
     assert len(notifs) == 2
-    assert {n.party_id for n in notifs} == {proposer_party_id, owner_party_id}
+    assert {str(n.party_id) for n in notifs} == {proposer_party_id, owner_party_id}
 
 
 async def _outbox_payloads(db_session: AsyncSession, event_type: str) -> list[dict]:
@@ -481,15 +492,19 @@ async def test_scan_confirmedPledgeLend_secondRun_oneEventAndTwoNotificationsWit
     register_outbox_handlers()
     await dispatch_pending(db_session)
     notifications = (
-        await db_session.execute(
-            select(Notification).where(
-                Notification.kind == NotificationKind.TERM_CONFIRMATION_NEEDED
+        (
+            await db_session.execute(
+                select(Notification).where(
+                    Notification.kind == NotificationKind.TERM_CONFIRMATION_NEEDED
+                )
             )
         )
-    ).scalars().all()
-    assert {n.party_id for n in notifications} == {guest_party_id, org_party_id}
+        .scalars()
+        .all()
+    )
+    assert {str(n.party_id) for n in notifications} == {guest_party_id, org_party_id}
     assert len(notifications) == 2
-    assert {n.reservation_id for n in notifications} == {reservation_id}
+    assert {str(n.reservation_id) for n in notifications} == {reservation_id}
 
 
 async def test_scan_candidateWithMissingGiverProfile_isSkippedWhileOthersStillPrompted(
@@ -502,8 +517,8 @@ async def test_scan_candidateWithMissingGiverProfile_isSkippedWhileOthersStillPr
     taker_token, _ = await _register(client, "GUEST", "tes.taker40@example.com")
     await _rsvp(client, taker_token, group_id, term_id)
 
-    reservation_ids: list[int] = []
-    lister_user_ids: list[int] = []
+    reservation_ids: list[uuid.UUID] = []
+    lister_user_ids: list[uuid.UUID] = []
     for suffix in ("a", "b"):
         lister_token, _ = await _register(client, "GUEST", f"tes.lister40{suffix}@example.com")
         await _rsvp(client, lister_token, group_id, term_id)
@@ -517,15 +532,15 @@ async def test_scan_candidateWithMissingGiverProfile_isSkippedWhileOthersStillPr
             item_id,
             TakeTermItemListingRequest(term_id=term_id, reservation_type="GIFT"),
         )
-        reservation_ids.append(cast(int, taken.resolved_reservation_id))
+        reservation_ids.append(cast(uuid.UUID, taken.resolved_reservation_id))
         me = await client.get("/api/people/me", headers=_auth(lister_token))
-        lister_user_ids.append(me.json()["account_user_id"])
+        lister_user_ids.append(uuid.UUID(me.json()["account_user_id"]))
     await _push_term_into_past(db_session, term_id)
 
     real_lookup = term_end_scan.get_profile_by_account_user_id
     broken_user_id = lister_user_ids[0]
 
-    async def _lookup_with_one_missing(db: AsyncSession, account_user_id: int) -> object:
+    async def _lookup_with_one_missing(db: AsyncSession, account_user_id: uuid.UUID) -> object:
         if account_user_id == broken_user_id:
             raise EntityNotFoundException("UserProfile", account_user_id)
         return await real_lookup(db, account_user_id)
@@ -535,7 +550,7 @@ async def test_scan_candidateWithMissingGiverProfile_isSkippedWhileOthersStillPr
     await scan_for_term_ended(db_session)
 
     payloads = await _outbox_payloads(db_session, swap_events.TERM_ENDED_GIVEAWAY)
-    assert [p["reservation_id"] for p in payloads] == [reservation_ids[1]]
+    assert [p["reservation_id"] for p in payloads] == [str(reservation_ids[1])]
     marked = (
         (
             await db_session.execute(

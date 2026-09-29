@@ -3,7 +3,7 @@ import type { ItemCondition } from "../api/inventories";
 export interface ItemQuickAddValue {
   name: string;
   condition: ItemCondition;
-  category_id: number;
+  category_id: string;
 }
 
 /**
@@ -17,7 +17,7 @@ export interface ItemQuickAddValue {
  * to `0` (no category yet resolved) for callers that don't have category
  * data on hand.
  */
-export function createEmptyItemQuickAddValue(categoryId = 0): ItemQuickAddValue {
+export function createEmptyItemQuickAddValue(categoryId = ''): ItemQuickAddValue {
   return {
     name: "",
     condition: "GOOD",

@@ -4,6 +4,7 @@ shape), `create_term` happy path, and basic `NeededItem` creation."""
 
 from __future__ import annotations
 
+import uuid
 from datetime import date, datetime, timedelta
 
 import pytest
@@ -68,14 +69,21 @@ async def _create_circle_with_term(
     return circle_id, term.json()["id"]
 
 
+async def _other_category_id(client: AsyncClient, token: str) -> str:
+    """The seeded "Inne" category — the one the name assertions below expect."""
+    categories = await client.get("/api/categories", headers=_auth_headers(token))
+    assert categories.status_code == 200
+    return next(c["id"] for c in categories.json() if c["name"] == "Inne")
+
+
 async def _resolve_product(client: AsyncClient, token: str, name: str = "Bębenek") -> int:
     resolved = await client.post(
         "/api/products/resolve",
-        json={"name": name, "category_id": 5},
+        json={"name": name, "category_id": await _other_category_id(client, token)},
         headers=_auth_headers(token),
     )
     assert resolved.status_code == 200
-    return int(resolved.json()["id"])
+    return resolved.json()["id"]
 
 
 async def _create_needed_item(
@@ -133,7 +141,7 @@ async def test_patchTerm_unknownId_returns404(client: AsyncClient) -> None:
     token = await _register_organizer(client, "patch.term3@example.com")
 
     response = await client.patch(
-        "/api/terms/999999999",
+        f"/api/terms/{uuid.uuid4()}",
         json={"description": "cokolwiek"},
         headers=_auth_headers(token),
     )
@@ -200,7 +208,7 @@ async def test_createNeededItem_unknownProductId_returns404(client: AsyncClient)
 
     response = await client.post(
         "/api/needed-items",
-        json={"term_id": term_id, "product_id": 999999, "description": None},
+        json={"term_id": term_id, "product_id": str(uuid.uuid4()), "description": None},
         headers=_auth_headers(token),
     )
     assert response.status_code == 404
@@ -252,11 +260,12 @@ async def test_deleteNeededItem_fulfilledPledgeExists_returns409(
     needed_item_id = await _create_needed_item(client, token, term_id)
 
     _guest_token, guest_party_id = await _register_guest(client, "del.ni2.guest@example.com")
+    resolved_reservation_id = uuid.uuid4()
     fulfilled = Pledge(
         needed_item_id=needed_item_id,
         pledged_by_party_id=guest_party_id,
         status=PledgeStatus.FULFILLED,
-        resolved_reservation_id=123456,
+        resolved_reservation_id=resolved_reservation_id,
     )
     db_session.add(fulfilled)
     await db_session.commit()
@@ -273,7 +282,7 @@ async def test_deleteNeededItem_fulfilledPledgeExists_returns409(
     assert item_row is not None and item_row.deleted_at is None
     assert pledge_row is not None
     assert pledge_row.status == PledgeStatus.FULFILLED
-    assert pledge_row.resolved_reservation_id == 123456
+    assert pledge_row.resolved_reservation_id == resolved_reservation_id
 
     still_there = await client.get(
         f"/api/needed-items/{needed_item_id}", headers=_auth_headers(token)
@@ -394,7 +403,7 @@ async def test_createNeededItem_happyPath_returns201WithProduct(
     assert body["term_id"] == term_id
     assert body["product_id"] == product_id
     assert body["product_name"] == "Instrument"
-    assert body["product_category_id"] == 5
+    assert body["product_category_id"] == await _other_category_id(client, token)
     assert body["product_category_name"] == "Inne"
     assert body["description"] == "Bębenek"
 
@@ -496,12 +505,12 @@ async def test_termAttendance_unknownTermOrPartyId_violatesForeignKeyConstraint(
     db_session.add(guest_party)
     await db_session.flush()
 
-    db_session.add(TermAttendance(term_id=999_999_999, party_id=guest_party.id, child_count=0))
+    db_session.add(TermAttendance(term_id=uuid.uuid4(), party_id=guest_party.id, child_count=0))
     with pytest.raises(IntegrityError):
         await db_session.flush()
     await db_session.rollback()
 
-    db_session.add(TermAttendance(term_id=term.id, party_id=999_999_999, child_count=0))
+    db_session.add(TermAttendance(term_id=term.id, party_id=uuid.uuid4(), child_count=0))
     with pytest.raises(IntegrityError):
         await db_session.flush()
 
@@ -546,7 +555,7 @@ async def test_getPublicCircle_noAuthHeader_returnsExpectedShape(
 
 
 async def test_getPublicCircle_unknownId_returns404(client: AsyncClient) -> None:
-    response = await client.get("/api/groups/public/999999999")
+    response = await client.get(f"/api/groups/public/{uuid.uuid4()}")
     assert response.status_code == 404
 
 
@@ -746,7 +755,7 @@ async def test_patchGroup_unknownId_returns404(client: AsyncClient) -> None:
     token = await _register_organizer(client, "patch.group.unknown@example.com")
 
     response = await client.patch(
-        "/api/groups/999999999",
+        f"/api/groups/{uuid.uuid4()}",
         json={"name": "Nieistniejący"},
         headers=_auth_headers(token),
     )

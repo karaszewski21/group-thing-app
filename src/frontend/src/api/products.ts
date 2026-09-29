@@ -37,7 +37,7 @@ export interface ProductSearchParams {
 
 export interface ResolveProductRequest {
   name: string;
-  category_id: number;
+  category_id: string;
 }
 
 export function getProducts(params?: ProductSearchParams): Promise<ProductResponse[]> {

@@ -29,8 +29,8 @@ export function PrivateGroupGate({
   refreshError,
   stale,
 }: {
-  groupId: number;
-  termId?: number;
+  groupId: string;
+  termId: string;
   group: PublicCircleResponse;
   gate: PrivateGate;
   refetch: () => Promise<void>;

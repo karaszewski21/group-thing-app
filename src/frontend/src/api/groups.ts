@@ -252,7 +252,7 @@ export interface GroupAccessResponse {
   access: GroupAccessDetails;
 }
 
-export function getGroupAccess(groupId: number, termId?: number): Promise<GroupAccessResponse> {
+export function getGroupAccess(groupId: string, termId: string): Promise<GroupAccessResponse> {
   const query = termId !== undefined ? `?term_id=${termId}` : "";
   return api.get(`/groups/public/${groupId}/access${query}`);
 }
@@ -264,7 +264,7 @@ export function getGroupAccess(groupId: number, termId?: number): Promise<GroupA
  * Circle's public page (a flat, unscoped key was a real cross-page
  * state-leak bug found during verification).
  */
-export function guestProfileIdKey(groupId: number, termId: number): string {
+export function guestProfileIdKey(groupId: string, termId: string): string {
   return `guest_profile_id:${groupId}:${termId}`;
 }
 
@@ -377,11 +377,11 @@ export interface PendingJoinRequestResponse {
 }
 
 /** Idempotent: an existing PENDING request is returned instead of a new one. */
-export function createJoinRequest(groupId: number, termId?: number): Promise<JoinRequestResponse> {
+export function createJoinRequest(groupId: string, termId?: string): Promise<JoinRequestResponse> {
   return api.post(`/groups/public/${groupId}/join-requests`, { term_id: termId ?? null });
 }
 
-export function withdrawJoinRequest(groupId: number, requestId: number): Promise<JoinRequestResponse> {
+export function withdrawJoinRequest(groupId: string, requestId: number): Promise<JoinRequestResponse> {
   return api.post(`/groups/public/${groupId}/join-requests/${requestId}/withdraw`, undefined);
 }
 
@@ -390,11 +390,11 @@ export function listMyPendingJoinRequests(): Promise<PendingJoinRequestResponse[
   return api.get("/groups/mine/join-requests");
 }
 
-export function approveJoinRequest(groupId: number, requestId: number): Promise<JoinRequestResponse> {
+export function approveJoinRequest(groupId: string, requestId: number): Promise<JoinRequestResponse> {
   return api.post(`/groups/${groupId}/join-requests/${requestId}/approve`, undefined);
 }
 
-export function rejectJoinRequest(groupId: number, requestId: number): Promise<JoinRequestResponse> {
+export function rejectJoinRequest(groupId: string, requestId: number): Promise<JoinRequestResponse> {
   return api.post(`/groups/${groupId}/join-requests/${requestId}/reject`, undefined);
 }
 

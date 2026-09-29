@@ -134,12 +134,12 @@ async def test_createRsvp_loggedInUser_attachesToExistingAccountNotNewAnonymousP
     body = response.json()
 
     attendance = (
-        await db_session.execute(
-            select(TermAttendance).where(TermAttendance.term_id == term_id)
-        )
-    ).scalars().all()
+        (await db_session.execute(select(TermAttendance).where(TermAttendance.term_id == term_id)))
+        .scalars()
+        .all()
+    )
     assert len(attendance) == 1
-    assert attendance[0].party_id == guest_party_id
+    assert str(attendance[0].party_id) == guest_party_id
 
     anonymous_profiles = (
         await db_session.execute(
@@ -155,7 +155,7 @@ async def test_createRsvp_loggedInUser_attachesToExistingAccountNotNewAnonymousP
 
     profile = await db_session.get(UserProfile, body["user_profile_id"])
     assert profile is not None
-    assert profile.party_id == guest_party_id
+    assert str(profile.party_id) == guest_party_id
     assert profile.account_user_id is not None
 
     assert body["attached_to_account"] is True
@@ -184,12 +184,12 @@ async def test_createRsvp_loggedInUserRepeat_updatesChildCountNoDuplicateRow(
     assert second.json()["attached_to_account"] is True
 
     attendance = (
-        await db_session.execute(
-            select(TermAttendance).where(TermAttendance.term_id == term_id)
-        )
-    ).scalars().all()
+        (await db_session.execute(select(TermAttendance).where(TermAttendance.term_id == term_id)))
+        .scalars()
+        .all()
+    )
     assert len(attendance) == 1
-    assert attendance[0].party_id == guest_party_id
+    assert str(attendance[0].party_id) == guest_party_id
     assert attendance[0].child_count == 3
 
 
@@ -225,17 +225,15 @@ async def test_createRsvp_loggedInUserNotCircleMember_attachesAttendanceWithoutM
     assert response.json()["attached_to_account"] is True
 
     attendances = (
-        await db_session.execute(
-            select(TermAttendance).where(TermAttendance.term_id == term_id)
-        )
-    ).scalars().all()
-    assert [attendance.party_id for attendance in attendances] == [guest_party_id]
+        (await db_session.execute(select(TermAttendance).where(TermAttendance.term_id == term_id)))
+        .scalars()
+        .all()
+    )
+    assert [str(attendance.party_id) for attendance in attendances] == [guest_party_id]
 
     group_roles = (
         await db_session.execute(
-            select(func.count())
-            .select_from(GroupRole)
-            .where(GroupRole.party_id == guest_party_id)
+            select(func.count()).select_from(GroupRole).where(GroupRole.party_id == guest_party_id)
         )
     ).scalar_one()
     assert group_roles == 0

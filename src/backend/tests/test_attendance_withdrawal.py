@@ -65,15 +65,23 @@ async def _rsvp(client: AsyncClient, token: str, group_id: int, term_id: int) ->
     )
     assert r.status_code == 201
     assert r.json()["attached_to_account"] is True
-    return int(r.json()["id"])
+    return r.json()["id"]
+
+
+async def _category_id(client: AsyncClient, token: str) -> str:
+    categories = await client.get("/api/categories", headers=_auth(token))
+    assert categories.status_code == 200
+    return str(categories.json()[0]["id"])
 
 
 async def _resolve_product(client: AsyncClient, token: str, name: str) -> int:
     r = await client.post(
-        "/api/products/resolve", json={"name": name, "category_id": 5}, headers=_auth(token)
+        "/api/products/resolve",
+        json={"name": name, "category_id": await _category_id(client, token)},
+        headers=_auth(token),
     )
     assert r.status_code == 200
-    return int(r.json()["id"])
+    return r.json()["id"]
 
 
 async def _register_personal_item(client: AsyncClient, token: str, product_name: str) -> int:
@@ -90,7 +98,7 @@ async def _register_personal_item(client: AsyncClient, token: str, product_name:
         headers=_auth(token),
     )
     assert item.status_code == 201
-    return int(item.json()["id"])
+    return item.json()["id"]
 
 
 async def test_withdrawAttendance_calledTwice_isIdempotent(

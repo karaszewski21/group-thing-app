@@ -166,8 +166,8 @@ export function PanelModals() {
                 }
                 className="rounded-xl border-[1.5px] border-line bg-cream px-3.5 py-2.5 text-ink"
               >
-                <option value="PUBLIC">Publiczna — zapisy RSVP dla każdego</option>
-                <option value="PRIVATE">Prywatna — tylko stali członkowie (dostęp na prośbę)</option>
+                <option value="PUBLIC">Publiczna</option>
+                <option value="PRIVATE">Prywatna — (dostęp na prośbę)</option>
               </select>
             </Field>
           </div>

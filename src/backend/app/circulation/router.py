@@ -1,6 +1,6 @@
 """`/api/inventories`, `/api/inventory-items`, `/api/reservations` and
-`/api/accounts` routes (the product catalog itself is `/api/products`, in
-`app.product`). Follows `app/category/router.py`'s
+`/api/circulation-transactions` routes (the product catalog itself is
+`/api/products`, in `app.product`). Follows `app/category/router.py`'s
 `Depends(require_any(...))` auth-dependency style, but — unlike `category`/
 `product` — combines all of this vertical's resources into one un-prefixed
 router with full paths per route, rather than one `APIRouter(prefix=...)`
@@ -35,10 +35,9 @@ from app.db import get_db
 from app.product import service as product_service
 
 from . import service
-from .models import InventoryItem
+from .models import CirculationTransaction, InventoryItem
 from .schemas import (
-    AccountBalanceResponse,
-    AccountResponse,
+    CirculationEntryResponse,
     CirculationTransactionResponse,
     CreateInventoryItemRequest,
     CreateInventoryRequest,
@@ -68,6 +67,33 @@ def _item_response(item: InventoryItem, product_name: str) -> InventoryItemRespo
         added_at=item.added_at,
         created_at=item.created_at,
         updated_at=item.updated_at,
+    )
+
+
+def _transaction_response(transaction: CirculationTransaction) -> CirculationTransactionResponse:
+    entries = []
+    for entry in transaction.entries:
+        inventory = entry.account.inventory
+        entries.append(
+            CirculationEntryResponse(
+                id=entry.id,
+                account_id=entry.account_id,
+                account_type=entry.account.account_type,
+                inventory_id=inventory.id if inventory is not None else None,
+                inventory_type=inventory.inventory_type if inventory is not None else None,
+                owner_user_id=inventory.owner_user_id if inventory is not None else None,
+                item_id=entry.item_id,
+                quantity=entry.quantity,
+                reservation_id=entry.reservation_id,
+            )
+        )
+    return CirculationTransactionResponse(
+        id=transaction.id,
+        transaction_number=transaction.transaction_number,
+        movement_type=transaction.movement_type,
+        occurred_at=transaction.occurred_at,
+        description=transaction.description,
+        entries=entries,
     )
 
 
@@ -236,28 +262,7 @@ async def fulfill_reservation(
     return ReservationResponse.model_validate(reservation)
 
 
-# --- Accounts --------------------------------------------------------------
-
-
-@router.get("/api/accounts/{user_id}/balance", response_model=AccountBalanceResponse)
-async def get_account_balance(
-    user_id: uuid.UUID, db: DbSession, principal: ReadPrincipal
-) -> AccountBalanceResponse:
-    account, balance = await service.get_account_balance(db, user_id)
-    return AccountBalanceResponse(account=AccountResponse.model_validate(account), balance=balance)
-
-
 # --- CirculationTransaction (audit trail) ------------------------------------
-
-
-@router.get("/api/circulation-transactions", response_model=list[CirculationTransactionResponse])
-async def list_transactions(
-    account_id: uuid.UUID, db: DbSession, principal: ReadPrincipal
-) -> list[CirculationTransactionResponse]:
-    transactions = await service.list_transactions_for_account(db, account_id)
-    return [
-        CirculationTransactionResponse.model_validate(transaction) for transaction in transactions
-    ]
 
 
 @router.get(
@@ -267,4 +272,4 @@ async def get_transaction(
     transaction_id: uuid.UUID, db: DbSession, principal: ReadPrincipal
 ) -> CirculationTransactionResponse:
     transaction = await service.get_transaction(db, transaction_id)
-    return CirculationTransactionResponse.model_validate(transaction)
+    return _transaction_response(transaction)

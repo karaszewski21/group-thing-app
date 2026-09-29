@@ -6,6 +6,7 @@ pre-existing `TermAttendance`."""
 
 from __future__ import annotations
 
+import uuid
 from datetime import date
 
 from httpx import AsyncClient
@@ -77,11 +78,11 @@ async def test_mergeAnonymousProfile_updatesAccountUserIdOnSameProfileId(
     assert response.status_code == 200
     body = response.json()
     assert isinstance(body["token"], str) and body["token"]
-    assert isinstance(body["party_id"], int)
+    assert isinstance(body["party_id"], str) and uuid.UUID(body["party_id"])
 
     profile = await db_session.get(UserProfile, profile_id)
     assert profile is not None
-    assert profile.id == profile_id
+    assert str(profile.id) == profile_id
     assert profile.account_user_id is not None
     assert profile.email == "kasia.merge1@example.com"
 
@@ -118,9 +119,7 @@ async def test_mergeAnonymousProfile_preservesExistingTermAttendance(
     profile_id = rsvp["user_profile_id"]
 
     attendance_before = (
-        await db_session.execute(
-            select(TermAttendance).where(TermAttendance.term_id == term_id)
-        )
+        await db_session.execute(select(TermAttendance).where(TermAttendance.term_id == term_id))
     ).scalar_one()
     attendance_id_before = attendance_before.id
     party_id_before = attendance_before.party_id

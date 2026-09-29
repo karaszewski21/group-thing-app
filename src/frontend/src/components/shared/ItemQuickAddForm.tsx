@@ -57,7 +57,7 @@ export function ItemQuickAddForm({ value, onChange, disabled = false }: ItemQuic
         <select
           className={inputClass}
           value={value.category_id}
-          onChange={(e) => onChange({ ...value, category_id: Number(e.target.value) })}
+          onChange={(e) => onChange({ ...value, category_id: e.target.value})}
           disabled={disabled}
         >
           {categories.map((cat) => (
