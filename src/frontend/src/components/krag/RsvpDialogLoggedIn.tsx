@@ -2,14 +2,17 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { getMyFamilies, type FamilyOut } from "../../api/families";
 import { createRsvp, type RsvpResponse } from "../../api/groups";
+import { Field } from "../../pages/panel/panelComponents";
+import { ModalSheet } from "./ModalSheet";
 
 /**
  * Logged-in variant of `RsvpDialog` (Thread 3 / R7). Separate component per
  * variant per `frontend/components.md` — this one never asks for a name
  * (the profile `display_name` is authoritative) and never writes the
  * `guest_profile_id` localStorage key (the logged-in "already signed up"
- * state is server-derived — D5). `.kg-*` styling, not Tailwind
- * (`frontend/css.md`); overlay/sheet inline styles mirror `RsvpDialog`.
+ * state is server-derived — D5). `ModalSheet`/`Field` (Tailwind) shared with
+ * `RsvpDialog`; `kg-input`/`kg-btn-*`/`kg-fulfill`/`kg-error` for form
+ * controls to match the rest of the term page.
  * Submit stays disabled until `displayName` has loaded: the RSVP endpoint
  * falls back to an anonymous signup when the token doesn't resolve, so a
  * placeholder name could create a junk attendee.
@@ -78,66 +81,16 @@ export function RsvpDialogLoggedIn({
   }
 
   return (
-    <div
-      className="kg-modal-overlay"
-      style={{
-        position: "fixed",
-        inset: 0,
-        zIndex: 60,
-        display: "flex",
-        alignItems: "flex-end",
-        justifyContent: "center",
-        background: "rgba(20,28,24,0.55)",
-      }}
-      onClick={onClose}
-    >
-      <div
-        role="dialog"
-        aria-modal="true"
-        aria-label="Zapisz się na zajęcia"
-        onClick={(e) => e.stopPropagation()}
-        style={{
-          width: "100%",
-          maxWidth: 430,
-          background: "var(--paper)",
-          borderRadius: "24px 24px 0 0",
-          padding: 20,
-        }}
-      >
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
-          <h3 style={{ fontFamily: "Fraunces,Georgia,serif", fontSize: 18, fontWeight: 600 }}>
-            Zapisz się na zajęcia
-          </h3>
-          <button
-            onClick={onClose}
-            aria-label="Zamknij"
-            style={{
-              border: "none",
-              background: "var(--cream)",
-              color: "var(--ink-soft)",
-              borderRadius: "50%",
-              width: 34,
-              height: 34,
-            }}
-          >
-            ✕
-          </button>
-        </div>
+    <ModalSheet title="Zapisz się na zajęcia" onClose={onClose}>
+      {displayName !== null && (
+        <p className="mb-3.5 text-[13.5px] text-ink-soft">
+          Zapisujesz się jako <strong className="text-ink">{displayName}</strong>
+        </p>
+      )}
 
-        {displayName !== null && (
-          <p style={{ fontSize: 13.5, color: "var(--ink-soft)", marginBottom: 14 }}>
-            Zapisujesz się jako <strong style={{ color: "var(--ink)" }}>{displayName}</strong>
-          </p>
-        )}
-
-        {showNumericField ? (
-          <div style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: 14 }}>
-            <label
-              htmlFor="rsvp-li-children"
-              style={{ fontSize: 12, fontWeight: 800, color: "var(--ink-soft)" }}
-            >
-              Liczba dzieci
-            </label>
+      {showNumericField ? (
+        <div className="mb-3.5">
+          <Field label="Liczba dzieci">
             <input
               id="rsvp-li-children"
               className="kg-input"
@@ -146,41 +99,34 @@ export function RsvpDialogLoggedIn({
               value={childCount}
               onChange={(e) => setChildCount(Math.max(0, Number(e.target.value) || 0))}
             />
+          </Field>
+        </div>
+      ) : (
+        <div className="kg-fulfill mb-3.5">
+          <p className="mb-1 text-[13px] font-bold">Dodaj rodzinę, aby uzupełnić liczbę dzieci</p>
+          <p className="mb-2.5 text-xs text-ink-soft">
+            Liczbę dzieci uzupełnimy automatycznie z Twojego domu.
+          </p>
+          <div className="flex items-center gap-2">
+            <Link to="/panel" className="kg-btn-primary inline-block no-underline">
+              Przejdź do „Mój dom”
+            </Link>
+            <button className="kg-btn-ghost" type="button" onClick={() => setSkipBanner(true)}>
+              Pomiń
+            </button>
           </div>
-        ) : (
-          <div className="kg-fulfill" style={{ marginBottom: 14 }}>
-            <p style={{ fontSize: 13, fontWeight: 700, marginBottom: 4 }}>
-              Dodaj rodzinę, aby uzupełnić liczbę dzieci
-            </p>
-            <p style={{ fontSize: 12, color: "var(--ink-soft)", marginBottom: 10 }}>
-              Liczbę dzieci uzupełnimy automatycznie z Twojego domu.
-            </p>
-            <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-              <Link
-                to="/panel"
-                className="kg-btn-primary"
-                style={{ textDecoration: "none", display: "inline-block" }}
-              >
-                Przejdź do „Mój dom”
-              </Link>
-              <button className="kg-btn-ghost" type="button" onClick={() => setSkipBanner(true)}>
-                Pomiń
-              </button>
-            </div>
-          </div>
-        )}
+        </div>
+      )}
 
-        {formError && <div className="kg-error">{formError}</div>}
+      {formError && <div className="kg-error">{formError}</div>}
 
-        <button
-          className="kg-btn-primary"
-          style={{ width: "100%", padding: "10px 14px", fontSize: 13 }}
-          disabled={busy || displayName === null}
-          onClick={() => void handleSubmit()}
-        >
-          Zapisz się
-        </button>
-      </div>
-    </div>
+      <button
+        className="kg-btn-primary w-full px-3.5 py-2.5 text-[13px]"
+        disabled={busy || displayName === null}
+        onClick={() => void handleSubmit()}
+      >
+        Zapisz się
+      </button>
+    </ModalSheet>
   );
 }

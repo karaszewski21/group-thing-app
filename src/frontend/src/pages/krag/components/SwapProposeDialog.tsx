@@ -1,3 +1,5 @@
+import { ModalSheet } from "../../../components/krag/ModalSheet";
+
 /** One of the viewer's own items that can be offered in a swap. */
 export interface AvailableItem {
   id: number;
@@ -7,7 +9,8 @@ export interface AvailableItem {
 /** Swap-offer picker — exactly ONE offered item plus an explicit trade
  * preview ("Twoja rzecz X za ich rzecz Y"). Submitting calls `onConfirm`
  * (wired to `proposeSwap`) — a SWAP is always a proposal the listing owner
- * must separately accept/reject, never a single-shot take. */
+ * must separately accept/reject, never a single-shot take. Bottom-sheet
+ * modal, same `ModalSheet` chrome as `AuthGateSheet`/`RsvpDialog`. */
 export function SwapProposeDialog({
   availableItems,
   offeredItemId,
@@ -27,25 +30,15 @@ export function SwapProposeDialog({
 }) {
   const offered = availableItems.find((i) => i.id === offeredItemId) ?? null;
   return (
-    <div className="kg-modal-overlay"
-      style={{
-        position: "fixed",
-        inset: 0,
-        zIndex: 60,
-        display: "flex",
-        alignItems: "c",
-        justifyContent: "center",
-        background: "rgba(20,28,24,0.55)",
-      }}
-      >
+    <ModalSheet title="Zaproponuj zamianę" onClose={onCancel}>
       {availableItems.length === 0 ? (
-        <p className="kg-bring-sub" style={{ marginTop: 2, marginBottom: 6 }}>
+        <p className="mb-1.5 mt-0.5 text-[13px] text-ink-soft">
           Nie masz żadnej rzeczy oznaczonej "zamienię". Oznacz rzecz w "Moje rzeczy", aby móc
           zaproponować zamianę.
         </p>
       ) : (
         <>
-          <div className="kg-fulfill-row">
+          <div className="mb-3.5">
             <select
               className="kg-select"
               aria-label="Twoja rzecz do zamiany"
@@ -60,26 +53,26 @@ export function SwapProposeDialog({
             </select>
           </div>
           {offered && (
-            <p className="kg-bring-sub" style={{ marginTop: 2, marginBottom: 6 }}>
+            <p className="mb-1.5 mt-0.5 text-[13px] text-ink-soft">
               Twoja rzecz <strong>{offered.productName}</strong> za ich rzecz{" "}
               <strong>{listingProductName}</strong>
             </p>
           )}
         </>
       )}
-      <div className="kg-fulfill-actions">
+      <div className="mt-3.5 flex gap-2">
         <button
           type="button"
-          className="kg-btn-primary"
+          className="kg-btn-primary flex-1"
           disabled={busy || offeredItemId === null}
           onClick={onConfirm}
         >
           Zaproponuj zamianę
         </button>
-        <button type="button" className="kg-btn-ghost" onClick={onCancel}>
+        <button type="button" className="kg-btn-ghost flex-1" onClick={onCancel}>
           Anuluj
         </button>
       </div>
-    </div>
+    </ModalSheet>
   );
 }

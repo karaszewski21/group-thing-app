@@ -73,19 +73,7 @@ export function PublicTermView({
             disabled: itemTake.busyItemId === listing.item_id,
             onClick: guest.orMerge(mergeKey, () => itemTake.take(listing.item_id, t)),
           })),
-      extra:
-        guest.mergeForm(mergeKey) ??
-        (itemTake.swap.itemId === listing.item_id ? (
-          <SwapProposeDialog
-            availableItems={itemTake.swap.availableItems}
-            offeredItemId={itemTake.swap.offeredItemId}
-            onOfferedItemChange={itemTake.swap.setOfferedItemId}
-            listingProductName={listing.product_name}
-            busy={itemTake.busyItemId === listing.item_id}
-            onConfirm={() => itemTake.swap.confirm(listing.item_id)}
-            onCancel={itemTake.swap.cancel}
-          />
-        ) : null),
+      extra: guest.mergeForm(mergeKey),
     };
   }
 
@@ -165,6 +153,21 @@ export function PublicTermView({
               onClose={itemTake.closeGate}
             />
           )}
+          {itemTake.swap.itemId !== null &&
+            (() => {
+              const listing = term?.item_listings.find((l) => l.item_id === itemTake.swap.itemId);
+              return listing ? (
+                <SwapProposeDialog
+                  availableItems={itemTake.swap.availableItems}
+                  offeredItemId={itemTake.swap.offeredItemId}
+                  onOfferedItemChange={itemTake.swap.setOfferedItemId}
+                  listingProductName={listing.product_name}
+                  busy={itemTake.busyItemId === listing.item_id}
+                  onConfirm={() => itemTake.swap.confirm(listing.item_id)}
+                  onCancel={itemTake.swap.cancel}
+                />
+              ) : null;
+            })()}
           {toast && (
             <div className="kg-toast" role="status">
               {toast}

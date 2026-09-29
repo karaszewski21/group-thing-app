@@ -1,14 +1,11 @@
 import { useState } from "react";
 import { createRsvp, guestProfileIdKey, writeGuestProfile, type RsvpResponse } from "../../api/groups";
+import { Field } from "../../pages/panel/panelComponents";
+import { ModalSheet } from "./ModalSheet";
 
-/**
- * `.kg-*`-token-restyled `ModalSheet`/`Field` (same structure/behavior as
- * `PanelPage.tsx`'s Tailwind version — bottom-sheet on mobile, centered
- * ≥520px, dim overlay, ✕ close) — kept as a standalone component instead
- * of importing PanelPage's Tailwind version, since this page deliberately
- * stays on `.kg-*` CSS, not Tailwind (per `frontend/css.md`, confirmed
- * out of scope to migrate).
- */
+/** Bottom-sheet RSVP form for an anonymous visitor — `ModalSheet`/`Field`
+ * shared with `pages/panel` (Tailwind), `kg-input`/`kg-btn-primary` for the
+ * form controls to match the rest of the term page's inputs/buttons. */
 export function RsvpDialog({
   groupId,
   termId,
@@ -48,56 +45,9 @@ export function RsvpDialog({
   }
 
   return (
-    <div
-      className="kg-modal-overlay"
-      style={{
-        position: "fixed",
-        inset: 0,
-        zIndex: 60,
-        display: "flex",
-        alignItems: "flex-end",
-        justifyContent: "center",
-        background: "rgba(20,28,24,0.55)",
-      }}
-      onClick={onClose}
-    >
-      <div
-        role="dialog"
-        aria-modal="true"
-        aria-label="Zapisz się na zajęcia"
-        onClick={(e) => e.stopPropagation()}
-        style={{
-          width: "100%",
-          maxWidth: 430,
-          background: "var(--paper)",
-          borderRadius: "24px 24px 0 0",
-          padding: 20,
-        }}
-      >
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
-          <h3 style={{ fontFamily: "Fraunces,Georgia,serif", fontSize: 18, fontWeight: 600 }}>
-            Zapisz się na zajęcia
-          </h3>
-          <button
-            onClick={onClose}
-            aria-label="Zamknij"
-            style={{
-              border: "none",
-              background: "var(--cream)",
-              color: "var(--ink-soft)",
-              borderRadius: "50%",
-              width: 34,
-              height: 34,
-            }}
-          >
-            ✕
-          </button>
-        </div>
-
-        <div style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: 14 }}>
-          <label htmlFor="rsvp-name" style={{ fontSize: 12, fontWeight: 800, color: "var(--ink-soft)" }}>
-            Imię
-          </label>
+    <ModalSheet title="Zapisz się na zajęcia" onClose={onClose}>
+      <div className="mb-3.5">
+        <Field label="Imię">
           <input
             id="rsvp-name"
             className="kg-input"
@@ -105,12 +55,11 @@ export function RsvpDialog({
             value={guardianName}
             onChange={(e) => setGuardianName(e.target.value)}
           />
-        </div>
+        </Field>
+      </div>
 
-        <div style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: 14 }}>
-          <label htmlFor="rsvp-children" style={{ fontSize: 12, fontWeight: 800, color: "var(--ink-soft)" }}>
-            Liczba dzieci
-          </label>
+      <div className="mb-3.5">
+        <Field label="Liczba dzieci">
           <input
             id="rsvp-children"
             className="kg-input"
@@ -119,19 +68,18 @@ export function RsvpDialog({
             value={childCount}
             onChange={(e) => setChildCount(Math.max(0, Number(e.target.value) || 0))}
           />
-        </div>
-
-        {formError && <div style={{ color: "#B4443A", fontSize: 12, marginBottom: 10 }}>{formError}</div>}
-
-        <button
-          className="kg-btn-primary"
-          style={{ width: "100%", padding: "10px 14px", fontSize: 13 }}
-          disabled={busy}
-          onClick={() => void handleSubmit()}
-        >
-          Zapisz się
-        </button>
+        </Field>
       </div>
-    </div>
+
+      {formError && <div className="mb-2.5 text-xs text-danger">{formError}</div>}
+
+      <button
+        className="kg-btn-primary w-full px-3.5 py-2.5 text-[13px]"
+        disabled={busy}
+        onClick={() => void handleSubmit()}
+      >
+        Zapisz się
+      </button>
+    </ModalSheet>
   );
 }

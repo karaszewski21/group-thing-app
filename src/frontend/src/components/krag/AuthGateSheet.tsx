@@ -1,4 +1,5 @@
 import { Link, useLocation } from "react-router-dom";
+import { ModalSheet } from "./ModalSheet";
 
 /** `?returnTo=` query for the current page, so both logging in and
  * registering (via onboarding) bring the visitor back here. */
@@ -19,32 +20,23 @@ export function AuthGateLinks({ onGuest }: { onGuest?: () => void }) {
     <>
       <Link
         to={`/login${returnToQuery}`}
-        className="kg-btn-primary"
-        style={{
-          display: "block",
-          textAlign: "center",
-          width: "100%",
-          padding: "11px 14px",
-          fontSize: 13,
-          marginBottom: 10,
-        }}
+        className="kg-btn-primary mb-2.5 block w-full px-3.5 py-2.5 text-center text-[13px]"
       >
         Zaloguj się
       </Link>
 
       {onGuest && (
         <button
-          className="kg-btn-ghost"
-          style={{ width: "100%", padding: "10px 14px", fontSize: 13, marginBottom: 14 }}
+          className="kg-btn-ghost mb-3.5 w-full px-3.5 py-2.5 text-[13px]"
           onClick={onGuest}
         >
           Zapisz się jako gość
         </button>
       )}
 
-      <p style={{ fontSize: 12, color: "var(--ink-soft)", textAlign: "center" }}>
+      <p className="text-center text-xs text-ink-soft">
         Nie masz konta?{" "}
-        <Link to={`/register${returnToQuery}`} style={{ fontWeight: 700, color: "var(--mint, #1b8168)" }}>
+        <Link to={`/register${returnToQuery}`} className="font-bold text-mint">
           Zarejestruj się
         </Link>
       </p>
@@ -56,8 +48,8 @@ export function AuthGateLinks({ onGuest }: { onGuest?: () => void }) {
  * Bottom sheet shown when an ANONYMOUS visitor on a term page attempts an
  * action that needs (or offers) an account — RSVP, "Ja to przyniosę",
  * "Pożycz"/"Zamień"/"Weź na stałe". `onGuest` adds the "as a guest" path,
- * which only the RSVP flow has. `.kg-*` tokens / inline styles, matching
- * the rest of the term page (off Tailwind per `frontend/css.md`).
+ * which only the RSVP flow has. Tailwind for layout/spacing, `.kg-btn-*`
+ * shared button classes to match the rest of the term page.
  */
 export function AuthGateSheet({
   title,
@@ -73,54 +65,9 @@ export function AuthGateSheet({
   onClose: () => void;
 }) {
   return (
-    <div
-      className="kg-modal-overlay"
-      style={{
-        position: "fixed",
-        inset: 0,
-        zIndex: 60,
-        display: "flex",
-        alignItems: "flex-end",
-        justifyContent: "center",
-        background: "rgba(20,28,24,0.55)",
-      }}
-      onClick={onClose}
-    >
-      <div
-        role="dialog"
-        aria-modal="true"
-        aria-label={ariaLabel ?? title}
-        onClick={(e) => e.stopPropagation()}
-        style={{
-          width: "100%",
-          maxWidth: 430,
-          background: "var(--paper)",
-          borderRadius: "24px 24px 0 0",
-          padding: 20,
-        }}
-      >
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
-          <h3 style={{ fontFamily: "Fraunces,Georgia,serif", fontSize: 18, fontWeight: 600 }}>{title}</h3>
-          <button
-            onClick={onClose}
-            aria-label="Zamknij"
-            style={{
-              border: "none",
-              background: "var(--cream)",
-              color: "var(--ink-soft)",
-              borderRadius: "50%",
-              width: 34,
-              height: 34,
-            }}
-          >
-            ✕
-          </button>
-        </div>
-
-        <p style={{ fontSize: 13, color: "var(--ink-soft)", marginBottom: 16 }}>{message}</p>
-
-        <AuthGateLinks onGuest={onGuest} />
-      </div>
-    </div>
+    <ModalSheet title={title} ariaLabel={ariaLabel} onClose={onClose}>
+      <p className="mb-4 text-[13px] text-ink-soft">{message}</p>
+      <AuthGateLinks onGuest={onGuest} />
+    </ModalSheet>
   );
 }
