@@ -25,8 +25,8 @@ Usunięcie `EntrySide`, `Account.code` i starych wartości `AccountType` w `mode
 **Pliki do modyfikacji:** `app/circulation/models.py`, `alembic/versions/0042_circulation_item_movement_ledger.py` (nowy), `app/circulation/infrastructure/ledger.py`, `app/circulation/infrastructure/repository.py`, `app/circulation/application/accounts.py` (usuwany), `app/circulation/application/movements.py` (nowy), `app/circulation/application/reservation_transitions.py`, `app/circulation/domain/constants.py`, `app/circulation/schemas.py`, `app/circulation/service.py`, `app/circulation/router.py`, `app/core/authorization_matrix.py`, `tests/test_authorization_matrix.py`, `tests/ledger_assertions.py` (nowy), `tests/test_circulation_ledger.py` (nowy), `tests/test_term_item_listings.py`, `src/frontend/src/api/accounts.ts` (usuwany)
 **Szacowana liczba kroków:** 11
 
-- [ ] 1.0 Ukończyć warstwę modelu, migracji i usunięcia punktów
-  - [ ] 1.1 Napisać 6-8 skupionych testów w `tests/test_circulation_ledger.py` (część „migracja + model + usunięcia”) oraz testy macierzy w `tests/test_authorization_matrix.py`
+- [x] 1.0 Ukończyć warstwę modelu, migracji i usunięcia punktów
+  - [x] 1.1 Napisać 6-8 skupionych testów w `tests/test_circulation_ledger.py` (część „migracja + model + usunięcia”) oraz testy macierzy w `tests/test_authorization_matrix.py`
     - `test_migration0042_seedsExactlyOneExternalAccount`: `SELECT count(*) FROM accounts WHERE account_type='EXTERNAL'` = 1, a kolumna `code` nie istnieje (zapytanie do `information_schema.columns`).
     - `test_migration0042_everyInventoryHasExactlyOneInventoryAccount`: LEFT JOIN `inventories` → `accounts` zwraca 0 inwentarzy bez konta (w bazie testowej zbiór jest pusty, patrz ograniczenie L5 w spec).
     - `test_accountCheck_inventoryWithoutInventoryId_raisesIntegrityError`: insert `Account(account_type=INVENTORY, inventory_id=None)` + flush daje `IntegrityError` (`ck_accounts_inventory_id_account_type`).
@@ -34,40 +34,40 @@ Usunięcie `EntrySide`, `Account.code` i starych wartości `AccountType` w `mode
     - `test_getAccountBalance_removedEndpoint_returns404` i `test_listCirculationTransactions_removedEndpoint_returns404` (z tokenem READ, `GET /api/accounts/{uuid}/balance` oraz `GET /api/circulation-transactions?account_id=…`).
     - W `tests/test_authorization_matrix.py`: `resolve_requirement` dla `GET /api/circulation-transactions/{uuid}` daje READ/mcp:read, a `GET /api/accounts/{uuid}/balance` trafia do catch-all (AUTHENTICATED).
     - Testy przejdą dopiero po krokach 1.2-1.10. Uruchomić je po 1.11.
-  - [ ] 1.2 Przebudować `app/circulation/models.py`
+  - [x] 1.2 Przebudować `app/circulation/models.py`
     - `AccountType` = {`INVENTORY`, `EXTERNAL`}, nowy `MovementType` = {`REGISTER`, `REMOVE`, `GIFT`, `LEND`, `RETURN`, `SWAP`}, usunąć `EntrySide`. Oba enumy przez `_enum_column(..., native_enum=False)` z długością 20.
     - `Account`: usunąć `code`, `name`, `owner_user_id`; dodać `inventory_id: Mapped[uuid.UUID | None]` (`postgresql.UUID(as_uuid=True)`, FK `fk_accounts_inventory_id_inventories`, UNIQUE `uq_accounts_inventory_id`), `__table_args__` z `CheckConstraint` `ck_accounts_inventory_id_account_type` oraz `Index("uq_accounts_account_type_external", "account_type", unique=True, postgresql_where=text("account_type = 'EXTERNAL'"))`, relację `inventory` (`lazy="raise"`), `__eq__`/`__hash__` po `(account_type, inventory_id)`.
     - `CirculationTransaction`: usunąć `transaction_date`, `is_posted`; dodać `movement_type` (NOT NULL) i `occurred_at: DateTime()` (NOT NULL). `entries` z `order_by=CirculationEntry.id`, `lazy="raise"`.
     - `CirculationEntry`: usunąć `amount`, `entry_side`, `description`, `entry_date`; dodać `item_id` (UUID NOT NULL, FK `fk_circulation_entries_item_id_inventory_items`), `quantity: Integer NOT NULL`, `reservation_id` (UUID NULL, FK `fk_circulation_entries_reservation_id_reservations`), indeks `ix_circulation_entries_item_id_transaction_id` na `(item_id, transaction_id)`. Bez relacji do itemu i rezerwacji.
     - Przepisać docstring modułu (`models.py:1-16`) i docstringi trzech encji: opis stanu bieżącego, bez changelogu.
-  - [ ] 1.3 Napisać migrację `alembic/versions/0042_circulation_item_movement_ledger.py` (`revision = "0042"`, `down_revision = "0041"`)
+  - [x] 1.3 Napisać migrację `alembic/versions/0042_circulation_item_movement_ledger.py` (`revision = "0042"`, `down_revision = "0041"`)
     - Najpierw sprawdzić w lokalnej bazie rzeczywiste nazwy indeksów i ograniczeń na `accounts` (`\d accounts` lub `pg_constraint`/`pg_indexes`), bo 0041 odtwarzał FK pod nazwami z `FK_CONSTRAINTS`.
     - Stała `_WIPE_STATEMENTS` z 12 instrukcjami w kolejności z tabeli „Upgrade, krok 1” w spec (circulation_entries → circulation_transactions → accounts → notifications (warunek z listą `kind`) → outbox_entries (4 typy zdarzeń) → giveaway_term_end_markers → swap_proposals → item_listing_preferences → pledges → reservations → inventory_balances → inventory_items).
     - Krok schematu dla `accounts`, `circulation_transactions` i `circulation_entries` według spec („Upgrade, krok 2”), z nazwami `fk_/uq_/ix_/ck_`.
     - Stała `_SEED_ACCOUNTS_STATEMENTS`: jedno EXTERNAL oraz `INSERT … SELECT gen_random_uuid(), 'INVENTORY', id, now(), now() FROM inventories`.
     - `downgrade()`: DELETE trzech tabel księgi, odwrócenie schematu do stanu 0041 (typy UUID, `uq_accounts_code`, `fk_accounts_owner_user_id_users`, indeks `ix_accounts_owner_user_id`), **bez** seedu `900-100`.
     - Docstring: odstępstwo od „Separate Schema and Data” (decyzja użytkownika, kolumny NOT NULL wymagają pustych tabel) oraz to, że downgrade nie odtwarza wyczyszczonych danych (precedens `0007`, nieodwracalne `0041`).
-  - [ ] 1.4 Usunąć kod punktowy z infrastruktury
+  - [x] 1.4 Usunąć kod punktowy z infrastruktury
     - `infrastructure/ledger.py`: usunąć `post_circulation`, `get_or_create_user_balance_account`, `_get_emission_account` i importy `EntrySide`/starych `AccountType`. Plik zostaje z docstringiem opisującym nową rolę. `post_movement` powstaje w G2.
     - `infrastructure/repository.py`: usunąć `find_account_by_code`, `list_entries_for_account`, `list_transactions_for_account`. `find_transaction_with_entries` (`:144-152`) rozszerzyć do `selectinload(CirculationTransaction.entries).joinedload(CirculationEntry.account).joinedload(Account.inventory)`.
     - `domain/constants.py`: zostawić tylko `_DEFAULT_LEND_DAYS`, usunąć `_EMISSION_ACCOUNT_CODE`/`_POSTED_AMOUNT`, zaktualizować docstring.
-  - [ ] 1.5 Usunąć wywołanie `ledger.post_circulation` w `application/reservation_transitions.py:141` (okno przejściowe do G3). Pozostała logika fulfill bez zmian.
-  - [ ] 1.6 Warstwa application i fasada
+  - [x] 1.5 Usunąć wywołanie `ledger.post_circulation` w `application/reservation_transitions.py:141` (okno przejściowe do G3). Pozostała logika fulfill bez zmian.
+  - [x] 1.6 Warstwa application i fasada
     - Usunąć `application/accounts.py`.
     - Utworzyć `application/movements.py` z `get_transaction` (przeniesione z `accounts.py`, 404 przez `EntityNotFoundException`). `get_item_history` dojdzie w G5.
     - `service.py`: usunąć `get_account_balance`, `list_transactions_for_account` i import z `accounts`, `get_transaction` importować z `movements`. Zaktualizować docstring.
-  - [ ] 1.7 Schematy i router
+  - [x] 1.7 Schematy i router
     - `schemas.py`: usunąć `AccountResponse` i `AccountBalanceResponse`. Przepisać `CirculationEntryResponse` (`id`, `account_id`, `account_type`, `inventory_id | None`, `inventory_type | None`, `owner_user_id | None`, `item_id`, `quantity`, `reservation_id | None`) oraz `CirculationTransactionResponse` (`id`, `transaction_number`, `movement_type`, `occurred_at`, `description`, `entries`). Zaktualizować docstring modułu.
     - `router.py`: usunąć trasy `GET /api/accounts/{user_id}/balance` (`:242`) i `GET /api/circulation-transactions` (lista, `:253`) oraz sekcję „Accounts”. `GET /api/circulation-transactions/{transaction_id}` mapuje jawnie płaskie pola z `entry.account.inventory` (EXTERNAL daje `None`), bez `from_attributes` na zagnieżdżonym koncie. Docstring modułu bez `/api/accounts`.
-  - [ ] 1.8 Macierz autoryzacji `app/core/authorization_matrix.py`
+  - [x] 1.8 Macierz autoryzacji `app/core/authorization_matrix.py`
     - Usunąć wiersz 44 (`GET ^/api/accounts(/.*)?$`, `:161`).
     - Wiersz 45 (`:162`) zawęzić do `^/api/circulation-transactions/[^/]+$` (READ/mcp:read).
     - Numeracji pozostałych wierszy w komentarzach nie zmieniać. Wiersz 40 zostaje bez zmian.
-  - [ ] 1.9 Testowy helper i odblokowanie importów testów
+  - [x] 1.9 Testowy helper i odblokowanie importów testów
     - Nowy `tests/ledger_assertions.py`: `movements_for_item(db, item_id)` (transakcje z zapisami itemu, kolejność `(occurred_at, id)`, eager load zapisów) oraz `assert_ledger_matches_projection(db, item_ids)` (per item `SUM(quantity)` per konto: dokładnie jedno +1, reszta 0; konto +1 to konto `item.inventory_id` dla żywego itemu albo EXTERNAL dla usuniętego; w każdej transakcji suma per item = 0).
     - `tests/test_term_item_listings.py`: usunąć importy `Account`, `EntrySide` i helper `_latest_ledger_entries_for_giver` (`:136-170`), zastąpić go importem `movements_for_item`. Treść asercji GIFT/SWAP przepisuje G4.
-  - [ ] 1.10 Frontend: usunąć `src/frontend/src/api/accounts.ts`. Potwierdzić grepem brak importów, potem w `src/frontend` uruchomić `npx tsc --noEmit -p .`.
-  - [ ] 1.11 Upewnić się, że testy tej grupy przechodzą i wykonać weryfikację ręczną migracji
+  - [x] 1.10 Frontend: usunąć `src/frontend/src/api/accounts.ts`. Potwierdzić grepem brak importów, potem w `src/frontend` uruchomić `npx tsc --noEmit -p .`.
+  - [x] 1.11 Upewnić się, że testy tej grupy przechodzą i wykonać weryfikację ręczną migracji
     - Uruchomić tylko testy z 1.1: `uv run pytest tests/test_circulation_ledger.py tests/test_authorization_matrix.py` (conftest wykonuje `alembic upgrade head` do 0042).
     - `uv run ruff check` i `uv run mypy` na zmienionych plikach.
     - Weryfikacja ręczna na lokalnej bazie, w `src/backend`, po `set -a; . ./.env; set +a`:
