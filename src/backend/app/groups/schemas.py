@@ -597,6 +597,21 @@ class SwapProposalResponse(BaseModel):
     updated_at: datetime
 
 
+class SwapProposalOfferResponse(BaseModel):
+    """One pending offer against one of the caller's own SWAP-listed items
+    (`GET /api/term-item-listings/{item_id}/swap-proposals`) — enough to
+    render "X oferuje Y" and let the owner `acceptSwapProposal` directly,
+    without a second round trip to resolve the proposer's name or their
+    offered item's product."""
+
+    id: uuid.UUID
+    proposer_party_id: uuid.UUID
+    proposer_display_name: str
+    offered_item_id: uuid.UUID
+    offered_product_name: str
+    created_at: datetime
+
+
 # --- Group exchange summary (authenticated,
 # `/api/groups/{id}/exchange-summary`,
 # `/api/groups/{id}/families/{family_id}/exchange-offers`) ------------------

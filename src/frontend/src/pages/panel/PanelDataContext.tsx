@@ -55,12 +55,7 @@ import {
   getReservation,
   type ReservationResponse,
 } from "../../api/reservations";
-import {
-  acceptSwapProposal,
-  getMyTakenTermItemListings,
-  getMyTermItemListings,
-  rejectSwapProposal,
-} from "../../api/termItemListings";
+import { getMyTakenTermItemListings, getMyTermItemListings } from "../../api/termItemListings";
 import {
   getLeadershipsForPerson,
   getMyProfile,
@@ -116,20 +111,21 @@ export type PanelDataContextValue = ReturnType<typeof usePanelDataValue>;
 
 /** One actionable item surfaced by Group 7's global pending-actions modal
  * (spec.md Requirement 10-11 / the "GLOBALNYM dialogiem" quote) — derived
- * client-side from `notifications`' `kind`/`link_path`/`proposal_id` rather
- * than a new backend endpoint, per the plan's [RESOLVED] note. `termId` is
- * parsed out of `linkPath` (every producing notification's `link_path` ends
- * in `/term/<id>`), since that's the only structured data the feed carries.
+ * client-side from `notifications`' `kind`/`link_path` rather than a new
+ * backend endpoint, per the plan's [RESOLVED] note. `termId` is parsed out
+ * of `linkPath` (every producing notification's `link_path` ends in
+ * `/term/<id>`), since that's the only structured data the feed carries.
  *
- * `proposalId` is `Notification.proposal_id` (added in Group 9 to close a
- * flagged gap): a real `SwapProposal.id` the modal can `acceptSwapProposal`/
- * `rejectSwapProposal` on directly, without navigating to the term page. */
+ * `SWAP_PROPOSED` carries no `proposalId`/accept-reject affordance here —
+ * this modal can only ever surface the FIRST pending notification
+ * (`pendingActions[0]`), which would pre-empt the actual choice among
+ * possibly several competing offers. It only links to "Moje rzeczy", where
+ * `RzeczyView` lists every pending offer against the item together. */
 export interface PendingSwapAction {
   kind: "SWAP_PROPOSED";
   notificationId: number;
   message: string;
   linkPath: string | null;
-  proposalId: number | null;
 }
 
 /** The post-term-end confirm-race prompt — fully wired to
@@ -143,8 +139,8 @@ export interface PendingConfirmAction {
   notificationId: number;
   message: string;
   linkPath: string | null;
-  termId: number | null;
-  reservationId: number | null;
+  termId: string | null;
+  reservationId: string | null;
 }
 
 /** A PENDING request to join a group the caller organizes. Sourced from the
@@ -163,12 +159,12 @@ export type PendingAction = PendingSwapAction | PendingConfirmAction | PendingJo
 
 export type JoinRequestDecision = "approve" | "reject";
 
-const TERM_LINK_PATH_RE = /\/term\/(\d+)$/;
+const TERM_LINK_PATH_RE = /\/term\/([^/]+)$/;
 
-function parseTermIdFromLinkPath(linkPath: string | null): number | null {
+function parseTermIdFromLinkPath(linkPath: string | null): string | null {
   if (!linkPath) return null;
   const match = TERM_LINK_PATH_RE.exec(linkPath);
-  return match ? Number(match[1]) : null;
+  return match ? match[1] : null;
 }
 
 /** Resolves the `Reservation.id` the caller (`myPartyId`) needs to
@@ -193,20 +189,25 @@ function parseTermIdFromLinkPath(linkPath: string | null): number | null {
  * `null` when neither side applies (nothing left to confirm, or it
  * doesn't belong to this caller). */
 async function resolvePendingReservationId(
-  termId: number,
-  myPartyId: number,
-): Promise<number | null> {
+  termId: string,
+  myPartyId: string,
+): Promise<string | null> {
+  // `getMyTermItemListings`/`getMyTakenTermItemListings`/`getReservation`'s
+  // own param/field types still say `number` (pre-existing frontend debt —
+  // every id is a real UUID string at runtime now, see backend's
+  // BigInteger->UUID migration); cast at this boundary rather than widen
+  // those shared API types here.
   const [mine, taken] = await Promise.all([
-    getMyTermItemListings(termId),
-    getMyTakenTermItemListings(termId),
+    getMyTermItemListings(termId as unknown as number),
+    getMyTakenTermItemListings(termId as unknown as number),
   ]);
   const takenRow = taken.find(
-    (r) => r.taken_by_party_id === myPartyId && r.resolved_reservation_id != null,
+    (r) => (r.taken_by_party_id as unknown as string) === myPartyId && r.resolved_reservation_id != null,
   );
   if (takenRow?.resolved_reservation_id != null) {
     const reservation = await getReservation(takenRow.resolved_reservation_id);
     if (reservation.status !== "FULFILLED" && reservation.status !== "CANCELLED") {
-      return reservation.id;
+      return reservation.id as unknown as string;
     }
   }
 
@@ -217,14 +218,14 @@ async function resolvePendingReservationId(
       if (primary.paired_reservation_id == null) continue;
       const paired = await getReservation(primary.paired_reservation_id);
       if (paired.status !== "FULFILLED" && paired.status !== "CANCELLED") {
-        return paired.id;
+        return paired.id as unknown as string;
       }
     } else if (
       (primary.reservation_type === "GIFT" || primary.reservation_type === "LEND") &&
       primary.status !== "FULFILLED" &&
       primary.status !== "CANCELLED"
     ) {
-      return primary.id;
+      return primary.id as unknown as string;
     }
   }
   return null;
@@ -682,7 +683,6 @@ function usePanelDataValue() {
                 notificationId: n.id,
                 message: n.message,
                 linkPath: n.link_path,
-                proposalId: n.proposal_id ?? null,
               },
             ];
           }
@@ -694,7 +694,7 @@ function usePanelDataValue() {
                 message: n.message,
                 linkPath: n.link_path,
                 termId: parseTermIdFromLinkPath(n.link_path),
-                reservationId: n.reservation_id ?? null,
+                reservationId: (n.reservation_id as unknown as string | null) ?? null,
               },
             ];
           }
@@ -730,76 +730,22 @@ function usePanelDataValue() {
     markNotificationRead(notificationId);
   }
 
-  /** Fallback only: a `SWAP_PROPOSED` notification created before this
-   * `proposal_id` field existed (pre-Group-9) has no resolvable proposal —
-   * deep-link to the term page instead of failing silently. Freshly-created
-   * notifications always carry `proposal_id` and use
-   * `acceptPendingSwap`/`rejectPendingSwap` below instead. */
-  function openSwapPendingAction(notificationId: number, linkPath: string | null) {
+  /** `SWAP_PROPOSED` no longer accepts/rejects from this global, one-at-a-
+   * time modal (it can only ever show the FIRST pending proposal, which
+   * pre-empts the actual choice — see `RzeczyView`'s per-item list of every
+   * competing offer). This just dismisses the notification and sends the
+   * caller to "Moje rzeczy", where every pending offer against the item is
+   * visible together. */
+  function openSwapProposalsOnMyItems(notificationId: number) {
     dismissPendingAction(notificationId);
-    if (linkPath) navigate(linkPath);
-  }
-
-  async function acceptPendingSwap(notificationId: number, proposalId: number) {
-    setPendingActionBusyId(notificationId);
-    try {
-      await acceptSwapProposal(proposalId);
-      // Same cache-refresh bug class as confirmPendingAction (Bug #3):
-      // accepting a swap locks/reassigns items, which "Moje rzeczy" needs
-      // to reflect (locked toggle state, item list) without a manual
-      // reload.
-      await load({ silent: true });
-      dismissPendingAction(notificationId);
-      showToast("Zamiana zaakceptowana");
-    } catch (err) {
-      if (
-        err instanceof ApiError &&
-        err.status === 409 &&
-        err.body &&
-        typeof err.body === "object" &&
-        (err.body as { already_resolved?: unknown }).already_resolved === true
-      ) {
-        setAlreadyResolvedIds((prev) => new Set(prev).add(notificationId));
-      } else {
-        showToast("Nie udało się zaakceptować — spróbuj ponownie");
-      }
-    } finally {
-      setPendingActionBusyId(null);
-    }
-  }
-
-  async function rejectPendingSwap(notificationId: number, proposalId: number) {
-    setPendingActionBusyId(notificationId);
-    try {
-      await rejectSwapProposal(proposalId);
-      // Same cache-refresh bug class as confirmPendingAction (Bug #3):
-      // rejecting releases the proposer's self-locked item back to
-      // AVAILABLE, which "Moje rzeczy" needs to reflect without a manual
-      // reload.
-      await load({ silent: true });
-      dismissPendingAction(notificationId);
-      showToast("Zamiana odrzucona");
-    } catch (err) {
-      if (
-        err instanceof ApiError &&
-        err.status === 409 &&
-        err.body &&
-        typeof err.body === "object" &&
-        (err.body as { already_resolved?: unknown }).already_resolved === true
-      ) {
-        setAlreadyResolvedIds((prev) => new Set(prev).add(notificationId));
-      } else {
-        showToast("Nie udało się odrzucić — spróbuj ponownie");
-      }
-    } finally {
-      setPendingActionBusyId(null);
-    }
+    navigate("/panel");
+    setView("rzeczy");
   }
 
   async function confirmPendingAction(
     notificationId: number,
-    termId: number | null,
-    notificationReservationId: number | null,
+    termId: string | null,
+    notificationReservationId: string | null,
   ) {
     if (
       notificationReservationId === null &&
@@ -813,7 +759,7 @@ function usePanelDataValue() {
       const reservationId =
         notificationReservationId ??
         (termId !== null && profile
-          ? await resolvePendingReservationId(termId, profile.party_id)
+          ? await resolvePendingReservationId(termId, profile.party_id as unknown as string)
           : null);
       if (reservationId === null) {
         // resolvePendingReservationId only ever omits an ACTIVE reservation
@@ -827,7 +773,7 @@ function usePanelDataValue() {
         setAlreadyResolvedIds((prev) => new Set(prev).add(notificationId));
         return;
       }
-      await confirmTransaction(reservationId);
+      await confirmTransaction(reservationId as unknown as number);
       // Bug #3 (cache refresh): matches every sibling mutation handler's
       // convention (e.g. withdrawMyPledge) — without this, the panel's
       // pledges/items/notifications stayed stale until the next unrelated
@@ -1406,9 +1352,7 @@ function usePanelDataValue() {
     pendingActionBusyId,
     alreadyResolvedIds,
     dismissPendingAction,
-    openSwapPendingAction,
-    acceptPendingSwap,
-    rejectPendingSwap,
+    openSwapProposalsOnMyItems,
     confirmPendingAction,
     joinRequestBusy,
     resolvedJoinRequestIds,
@@ -1529,9 +1473,7 @@ function GlobalPendingActionsModal({ value }: { value: PanelDataContextValue }) 
     pendingActionBusyId,
     alreadyResolvedIds,
     dismissPendingAction,
-    openSwapPendingAction,
-    acceptPendingSwap,
-    rejectPendingSwap,
+    openSwapProposalsOnMyItems,
     confirmPendingAction,
   } = value;
   const action = pendingActions[0];
@@ -1579,40 +1521,19 @@ function GlobalPendingActionsModal({ value }: { value: PanelDataContextValue }) 
             Później
           </button>
         </div>
-      ) : action.proposalId !== null ? (
-        <div className="mt-3 flex gap-2">
-          <button
-            type="button"
-            className="rounded-full bg-mint px-4 py-2 text-sm font-bold text-white disabled:opacity-60"
-            disabled={busy}
-            onClick={() => void acceptPendingSwap(action.notificationId, action.proposalId as number)}
-          >
-            Akceptuj
-          </button>
-          <button
-            type="button"
-            className="rounded-full border border-line px-4 py-2 text-sm font-semibold text-ink-soft disabled:opacity-60"
-            disabled={busy}
-            onClick={() => void rejectPendingSwap(action.notificationId, action.proposalId as number)}
-          >
-            Odrzuć
-          </button>
-          <button
-            type="button"
-            className="rounded-full border border-line px-4 py-2 text-sm font-semibold text-ink-soft"
-            onClick={() => dismissPendingAction(action.notificationId)}
-          >
-            Później
-          </button>
-        </div>
       ) : (
+        // Info only, no Accept/Reject here — this modal can only ever show
+        // the FIRST pending proposal (`pendingActions[0]`), which would
+        // pre-empt the actual choice among competing offers. Sends the
+        // caller to "Moje rzeczy" instead, where every pending offer
+        // against the item is listed together (see `RzeczyView`).
         <div className="mt-3 flex gap-2">
           <button
             type="button"
             className="rounded-full bg-mint px-4 py-2 text-sm font-bold text-white"
-            onClick={() => openSwapPendingAction(action.notificationId, action.linkPath)}
+            onClick={() => openSwapProposalsOnMyItems(action.notificationId)}
           >
-            Zobacz i zdecyduj
+            Zobacz w Moje rzeczy
           </button>
           <button
             type="button"

@@ -463,6 +463,35 @@ async def get_active_swap_proposal_for_listing_item(
     return result.scalars().first()
 
 
+async def list_pending_swap_proposals_for_listing_item(
+    db: AsyncSession, listing_item_id: uuid.UUID
+) -> list[SwapProposal]:
+    """Every still-`PROPOSED` `SwapProposal` targeting this listing item —
+    the owner's full set of pending offers to choose from
+    (`list_swap_proposals_for_my_item`), oldest first."""
+    result = await db.execute(
+        select(SwapProposal)
+        .where(
+            SwapProposal.listing_item_id == listing_item_id,
+            SwapProposal.status == SwapProposalStatus.PROPOSED,
+        )
+        .order_by(SwapProposal.created_at)
+    )
+    return list(result.scalars().all())
+
+
+async def list_other_pending_swap_proposals_for_listing_item(
+    db: AsyncSession, listing_item_id: uuid.UUID, exclude_proposal_id: uuid.UUID
+) -> list[SwapProposal]:
+    """Every still-`PROPOSED` `SwapProposal` targeting this listing item
+    other than `exclude_proposal_id` — used by `accept_swap_proposal` to
+    auto-reject every other pending offer once the owner picks one, instead
+    of leaving them (and the losing proposers' locked offered items)
+    hanging forever."""
+    proposals = await list_pending_swap_proposals_for_listing_item(db, listing_item_id)
+    return [p for p in proposals if p.id != exclude_proposal_id]
+
+
 # --- GroupJoinRequest ----------------------------------------------------------
 
 

@@ -2209,7 +2209,12 @@ describe("PanelPage — Group 7 global pending-actions modal", () => {
     };
   }
 
-  it("renders an incoming swap accept/reject prompt fed from pendingActions; 'Zobacz i zdecyduj' marks it read and clears it from the modal", async () => {
+  // Accept/reject no longer happen from this global, one-at-a-time modal —
+  // it can only ever surface the FIRST pending proposal, which would
+  // pre-empt an actual choice among possibly several competing offers (see
+  // `RzeczyView`'s per-item list of every offer). It only links to "Moje
+  // rzeczy", where every pending offer against the item is shown together.
+  it("renders an incoming swap prompt fed from pendingActions; 'Zobacz w Moje rzeczy' marks it read, switches to the rzeczy view and clears it from the modal", async () => {
     mockGuestDefaults();
     vi.mocked(notificationsApi.getMyNotifications).mockResolvedValue([pendingNotif()]);
     vi.mocked(notificationsApi.markNotificationRead).mockResolvedValue(undefined);
@@ -2217,8 +2222,10 @@ describe("PanelPage — Group 7 global pending-actions modal", () => {
 
     const dialog = await screen.findByRole("dialog", { name: "Propozycja zamiany" });
     expect(within(dialog).getByText(/proponuje zamianę/)).toBeInTheDocument();
+    expect(within(dialog).queryByRole("button", { name: "Akceptuj" })).not.toBeInTheDocument();
+    expect(within(dialog).queryByRole("button", { name: "Odrzuć" })).not.toBeInTheDocument();
 
-    fireEvent.click(within(dialog).getByRole("button", { name: "Zobacz i zdecyduj" }));
+    fireEvent.click(within(dialog).getByRole("button", { name: "Zobacz w Moje rzeczy" }));
 
     await waitFor(() => expect(notificationsApi.markNotificationRead).toHaveBeenCalledWith(1));
     await waitFor(() =>
@@ -2226,98 +2233,17 @@ describe("PanelPage — Group 7 global pending-actions modal", () => {
     );
   });
 
-  // Group 9 gap fix: once the notification carries a real `proposal_id`,
-  // the modal calls acceptSwapProposal/rejectSwapProposal directly instead
-  // of only offering the "Zobacz i zdecyduj" deep-link fallback above.
-  it("with a proposal_id present, offers Akceptuj/Odrzuć and accepting calls acceptSwapProposal directly (no navigation)", async () => {
+  it("a proposal_id on the notification changes nothing — still just info and the 'Moje rzeczy' link, no accept/reject", async () => {
     mockGuestDefaults();
     vi.mocked(notificationsApi.getMyNotifications).mockResolvedValue([
       pendingNotif({ proposal_id: 42 }),
     ]);
-    vi.mocked(notificationsApi.markNotificationRead).mockResolvedValue(undefined);
-    vi.mocked(termItemListingsApi.acceptSwapProposal).mockResolvedValue({
-      id: 42,
-      proposer_party_id: 1,
-      listing_item_id: 500,
-      offered_item_id: 501,
-      proposer_reservation_id: 900,
-      status: "ACCEPTED",
-      created_at: "",
-      updated_at: "",
-    });
-    renderPanel();
-
-    const initialItemsCalls = vi.mocked(inventoriesApi.getMyInventoryItems).mock.calls.length;
-    const dialog = await screen.findByRole("dialog", { name: "Propozycja zamiany" });
-    expect(within(dialog).queryByRole("button", { name: "Zobacz i zdecyduj" })).not.toBeInTheDocument();
-    fireEvent.click(within(dialog).getByRole("button", { name: "Akceptuj" }));
-
-    await waitFor(() => expect(termItemListingsApi.acceptSwapProposal).toHaveBeenCalledWith(42));
-    await waitFor(() =>
-      expect(screen.queryByRole("dialog", { name: "Propozycja zamiany" })).not.toBeInTheDocument(),
-    );
-    // Cache-refresh bug (same class as confirmPendingAction/Bug #3):
-    // accepting a swap locks/reassigns items, so "Moje rzeczy" must
-    // silently re-fetch rather than showing stale data until reload.
-    await waitFor(() =>
-      expect(vi.mocked(inventoriesApi.getMyInventoryItems).mock.calls.length).toBeGreaterThan(
-        initialItemsCalls,
-      ),
-    );
-  });
-
-  it("with a proposal_id present, rejecting calls rejectSwapProposal directly and clears the modal", async () => {
-    mockGuestDefaults();
-    vi.mocked(notificationsApi.getMyNotifications).mockResolvedValue([
-      pendingNotif({ proposal_id: 43 }),
-    ]);
-    vi.mocked(notificationsApi.markNotificationRead).mockResolvedValue(undefined);
-    vi.mocked(termItemListingsApi.rejectSwapProposal).mockResolvedValue({
-      id: 43,
-      proposer_party_id: 1,
-      listing_item_id: 500,
-      offered_item_id: 501,
-      proposer_reservation_id: 900,
-      status: "REJECTED",
-      created_at: "",
-      updated_at: "",
-    });
-    renderPanel();
-
-    const initialItemsCalls = vi.mocked(inventoriesApi.getMyInventoryItems).mock.calls.length;
-    const dialog = await screen.findByRole("dialog", { name: "Propozycja zamiany" });
-    fireEvent.click(within(dialog).getByRole("button", { name: "Odrzuć" }));
-
-    await waitFor(() => expect(termItemListingsApi.rejectSwapProposal).toHaveBeenCalledWith(43));
-    await waitFor(() =>
-      expect(screen.queryByRole("dialog", { name: "Propozycja zamiany" })).not.toBeInTheDocument(),
-    );
-    // Same cache-refresh fix as accepting: rejecting releases the
-    // proposer's self-locked item back to AVAILABLE, which "Moje rzeczy"
-    // must reflect without a manual reload.
-    await waitFor(() =>
-      expect(vi.mocked(inventoriesApi.getMyInventoryItems).mock.calls.length).toBeGreaterThan(
-        initialItemsCalls,
-      ),
-    );
-  });
-
-  it("a swap proposal's accept attempt that lost the confirm race shows the 'already resolved' message", async () => {
-    mockGuestDefaults();
-    vi.mocked(notificationsApi.getMyNotifications).mockResolvedValue([
-      pendingNotif({ proposal_id: 44 }),
-    ]);
-    vi.mocked(termItemListingsApi.acceptSwapProposal).mockRejectedValue(
-      new ApiError(409, "Conflict", { already_resolved: true }),
-    );
     renderPanel();
 
     const dialog = await screen.findByRole("dialog", { name: "Propozycja zamiany" });
-    fireEvent.click(within(dialog).getByRole("button", { name: "Akceptuj" }));
-
-    expect(
-      await within(dialog).findByText("Transakcja została już rozstrzygnięta przez drugą stronę."),
-    ).toBeInTheDocument();
+    expect(within(dialog).getByRole("button", { name: "Zobacz w Moje rzeczy" })).toBeInTheDocument();
+    expect(within(dialog).queryByRole("button", { name: "Akceptuj" })).not.toBeInTheDocument();
+    expect(within(dialog).queryByRole("button", { name: "Odrzuć" })).not.toBeInTheDocument();
   });
 
   it("renders a post-term-end confirm prompt for TERM_CONFIRMATION_NEEDED; without reservation_id, confirming falls back to resolving the reservation id from the term's listings then calls confirmTransaction", async () => {

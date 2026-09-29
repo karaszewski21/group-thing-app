@@ -48,7 +48,6 @@ export function AttendeeList({
 }) {
   return (
     <section className="kg-bring" aria-label="Zapisani na zajęcia">
-      <p className="kg-bring-sub">Rzeczy, które uczestnicy oferują do pożyczenia, zamiany lub oddania.</p>
       <ul className="kg-bring-list" style={{ listStyle: "none", padding: 0 }}>
         {attendees.length === 0 && <li className="kg-bring-empty">Nikt jeszcze się nie zapisał.</li>}
         {attendees.map((attendee) => (

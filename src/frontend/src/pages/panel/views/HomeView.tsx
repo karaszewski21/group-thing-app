@@ -50,7 +50,6 @@ export function HomeView() {
               <h2 className="font-serif text-xl font-semibold text-ink">
                 Cześć, {profile.display_name.split(" ")[0]}!
               </h2>
-              <p className="mt-1 text-[13.5px] text-ink-soft">Oto co dzieje się w Twojej grupie.</p>
             </div>
 
             {!isOrganizer && !hintFirstTermDismissed && (

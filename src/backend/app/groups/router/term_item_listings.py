@@ -27,6 +27,7 @@ from app.groups.schemas import (
     MyInventoryItemResponse,
     ProposeSwapRequest,
     SetItemListingPreferenceRequest,
+    SwapProposalOfferResponse,
     SwapProposalResponse,
     TakeTermItemListingRequest,
 )
@@ -111,6 +112,16 @@ async def propose_swap(
         db, principal, item_id, body.offered_item_id, body.term_id
     )
     return SwapProposalResponse.model_validate(proposal)
+
+
+@router.get(
+    "/api/term-item-listings/{item_id}/swap-proposals",
+    response_model=list[SwapProposalOfferResponse],
+)
+async def list_swap_proposals_for_my_item(
+    item_id: uuid.UUID, db: DbSession, principal: ReadPrincipal
+) -> list[SwapProposalOfferResponse]:
+    return await service.list_swap_proposals_for_my_item(db, principal, item_id)
 
 
 @router.post("/api/swap-proposals/{proposal_id}/accept", response_model=SwapProposalResponse)

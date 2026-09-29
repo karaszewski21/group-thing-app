@@ -8,6 +8,11 @@ import {
 } from "../../../api/inventories";
 import { cancelTransaction, confirmTransaction, getReservation } from "../../../api/reservations";
 import { getTerm } from "../../../api/terms";
+import {
+  acceptSwapProposal,
+  getSwapProposalsForItem,
+  type SwapProposalOfferResponse,
+} from "../../../api/termItemListings";
 import { CONDITION_LABELS } from "../../../utils/productCategory";
 import { createEmptyItemQuickAddValue } from "../../../utils/itemQuickAdd";
 import { BoxIcon, PencilIcon, TrashIcon } from "../panelIcons";
@@ -129,6 +134,49 @@ export function RzeczyView() {
   const [actionBusyItemId, setActionBusyItemId] = useState<number | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
 
+  // Pending swap offers against each of the caller's own "zamienię"-tagged
+  // items — fetched only for those (not every item), so a listing owner
+  // sees every competing proposal on the tile itself and can pick one
+  // (the rest auto-reject server-side, see `accept_swap_proposal`).
+  const [swapProposals, setSwapProposals] = useState<Record<number, SwapProposalOfferResponse[]>>({});
+  const [acceptBusyProposalId, setAcceptBusyProposalId] = useState<number | null>(null);
+  const swapItemIds = items.filter((it) => itemModes[it.id] === "zamienię").map((it) => it.id);
+  const swapItemIdsKey = swapItemIds.join(",");
+
+  useEffect(() => {
+    if (swapItemIds.length === 0) {
+      setSwapProposals({});
+      return;
+    }
+    let cancelled = false;
+    void Promise.all(swapItemIds.map((id) => getSwapProposalsForItem(id))).then((results) => {
+      if (cancelled) return;
+      const next: Record<number, SwapProposalOfferResponse[]> = {};
+      swapItemIds.forEach((id, i) => {
+        next[id] = results[i];
+      });
+      setSwapProposals(next);
+    });
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [swapItemIdsKey]);
+
+  async function handleAcceptSwapProposal(itemId: number, proposalId: number) {
+    setActionError(null);
+    setAcceptBusyProposalId(proposalId);
+    try {
+      await acceptSwapProposal(proposalId);
+      setSwapProposals((s) => ({ ...s, [itemId]: [] }));
+      await load({ silent: true });
+    } catch {
+      setActionError("Nie udało się zaakceptować propozycji — spróbuj ponownie");
+    } finally {
+      setAcceptBusyProposalId(null);
+    }
+  }
+
   function termHasEnded(itemId: number): boolean {
     const reservationId = itemBalances[itemId]?.reservationId;
     if (reservationId == null) return false;
@@ -184,7 +232,7 @@ export function RzeczyView() {
           + Dodaj rzecz
         </button>
       </div>
-      <div className="rounded-[22px] border border-line bg-paper p-5">
+      <div className="rounded-[22px] border border-line bg-paper p-2">
         {items.length === 0 && (
           <div className="rounded-2xl border-[1.5px] border-dashed border-line py-[26px] text-center text-[13.5px] text-ink-soft">
             Nie masz jeszcze żadnej rzeczy.
@@ -362,6 +410,32 @@ export function RzeczyView() {
                     </>
                   )}
                 </div>
+                {(swapProposals[it.id]?.length ?? 0) > 0 && (
+                  <div className="mt-2.5 flex flex-col gap-1.5">
+                    <small className="text-[11.5px] font-extrabold text-ink-soft">
+                      Propozycje zamiany ({swapProposals[it.id]!.length})
+                    </small>
+                    {swapProposals[it.id]!.map((p) => (
+                      <div
+                        key={p.id}
+                        className="flex items-center justify-between gap-2 rounded-xl border border-line bg-paper px-2.5 py-2"
+                      >
+                        <span className="min-w-0 flex-1 text-[12.5px] text-ink">
+                          <strong>{p.proposer_display_name}</strong> oferuje{" "}
+                          <strong>{p.offered_product_name}</strong>
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => void handleAcceptSwapProposal(it.id, p.id)}
+                          disabled={acceptBusyProposalId !== null}
+                          className="flex-none rounded-[9px] bg-mint px-2.5 py-1.5 text-[11.5px] font-extrabold text-white disabled:opacity-60"
+                        >
+                          Wybierz
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
                 {actionError && (
                   <p className="mt-1.5 text-[12.5px] font-semibold text-danger">{actionError}</p>
                 )}

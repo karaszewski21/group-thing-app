@@ -100,3 +100,21 @@ export function acceptSwapProposal(proposalId: number): Promise<SwapProposalResp
 export function rejectSwapProposal(proposalId: number): Promise<SwapProposalResponse> {
   return api.post(`/swap-proposals/${proposalId}/reject`, undefined);
 }
+
+/** One pending offer against one of the caller's own SWAP-listed items —
+ * enough to render "X oferuje Y" on the `Moje rzeczy` tile and
+ * `acceptSwapProposal` directly. */
+export interface SwapProposalOfferResponse {
+  id: number;
+  proposer_party_id: number;
+  proposer_display_name: string;
+  offered_item_id: number;
+  offered_product_name: string;
+  created_at: string;
+}
+
+/** Every pending `SwapProposal` against `itemId`, for the item's own
+ * owner — 403s for anyone else (see `service.list_swap_proposals_for_my_item`). */
+export function getSwapProposalsForItem(itemId: number): Promise<SwapProposalOfferResponse[]> {
+  return api.get(`/term-item-listings/${itemId}/swap-proposals`);
+}

@@ -7,6 +7,7 @@ from __future__ import annotations
 import uuid
 from datetime import datetime
 
+from sqlalchemy import column, func, select, table
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.circulation.application.identity import get_user_id_by_principal
@@ -144,6 +145,37 @@ async def resolve_owning_inventory(db: AsyncSession, item: InventoryItem) -> Inv
     return await get_inventory(db, permanent_id)
 
 
+# Ad-hoc Core reference to `app.groups`' `item_listing_preferences` table —
+# never `app.groups.models.ItemListingPreference`, per `standards/backend/
+# models.md`'s cross-module rule (mirrors `app.category.service`'s identical
+# `_products` reference into `app.product`). `item_id` is the only column
+# `_has_standing_listing` needs.
+_item_listing_preferences = table("item_listing_preferences", column("item_id"))
+
+
+class ItemHasStandingListingException(BusinessConflictException):
+    """Raised when deleting an item that still has a standing `app.groups.
+    ItemListingPreference` (an active "zamienię"/"pożyczę"/"oddam" mode,
+    possibly with pending `SwapProposal`s against it) — deleting it out from
+    under that listing would orphan the preference row and leave any
+    proposer's locked counter-offer item stuck with no way to resolve."""
+
+    def __init__(self, item_id: uuid.UUID) -> None:
+        super().__init__(
+            f"Nie można usunąć rzeczy {item_id} — jest wystawiona jako dostępna do "
+            "wymiany. Wyłącz tryb wypożyczę/oddam/zamienię dla tej rzeczy, zanim ją usuniesz."
+        )
+
+
+async def _has_standing_listing(db: AsyncSession, item_id: uuid.UUID) -> bool:
+    result = await db.execute(
+        select(func.count())
+        .select_from(_item_listing_preferences)
+        .where(_item_listing_preferences.c.item_id == item_id)
+    )
+    return int(result.scalar_one()) > 0
+
+
 async def _require_item_owner(
     db: AsyncSession, item_id: uuid.UUID, principal: Principal
 ) -> InventoryItem:
@@ -179,9 +211,13 @@ async def soft_delete_item(db: AsyncSession, item_id: uuid.UUID, principal: Prin
     """Soft-deletes an item by posting its REMOVE movement to EXTERNAL,
     which sets `deleted_at`. Blocked with a 409 when the item's balance is
     not `AVAILABLE` (a reserved/in-transit/lent item can't be withdrawn from
-    circulation) and, by `post_movement`, when the item is away from its
-    home inventory. The 1:1 `InventoryBalance` row is left in place."""
+    circulation), when it still has a standing `app.groups.
+    ItemListingPreference` (see `ItemHasStandingListingException`), and, by
+    `post_movement`, when the item is away from its home inventory. The 1:1
+    `InventoryBalance` row is left in place."""
     item = await _require_item_owner(db, item_id, principal)
+    if await _has_standing_listing(db, item_id):
+        raise ItemHasStandingListingException(item_id)
     balance = await get_item_balance(db, item_id)
     if balance.status != BalanceStatus.AVAILABLE:
         raise BusinessConflictException(

@@ -47,6 +47,7 @@ from ..schemas import (
     BrowseTermItemListingResponse,
     LentOutItemResponse,
     MyInventoryItemResponse,
+    SwapProposalOfferResponse,
     TakeTermItemListingRequest,
 )
 from .attendance import _require_term_eligibility
@@ -497,6 +498,37 @@ async def take_item_listing(
     return views[0]
 
 
+async def list_swap_proposals_for_my_item(
+    db: AsyncSession, principal: Principal, item_id: uuid.UUID
+) -> list[SwapProposalOfferResponse]:
+    """Every pending offer against `item_id`, for the item's own owner —
+    lets the owner see every competing proposal at once on the `Moje
+    rzeczy` tile and `acceptSwapProposal` whichever they prefer (the rest
+    auto-reject, see `accept_swap_proposal`)."""
+    owner_profile = await get_profile_by_principal(db, principal)
+    preference = await repository.get_item_listing_preference(db, item_id)
+    if preference is None or preference.owner_party_id != owner_profile.party_id:
+        raise AccessDeniedException
+
+    proposals = await repository.list_pending_swap_proposals_for_listing_item(db, item_id)
+    offers = []
+    for proposal in proposals:
+        proposer_profile = await get_profile_by_party(db, proposal.proposer_party_id)
+        offered_item = await circulation_bridge.get_item(db, proposal.offered_item_id)
+        product = await product_bridge.get_product(db, offered_item.product_id)
+        offers.append(
+            SwapProposalOfferResponse(
+                id=cast(uuid.UUID, proposal.id),
+                proposer_party_id=proposal.proposer_party_id,
+                proposer_display_name=proposer_profile.display_name,
+                offered_item_id=proposal.offered_item_id,
+                offered_product_name=product.name,
+                created_at=proposal.created_at,
+            )
+        )
+    return offers
+
+
 async def propose_swap(
     db: AsyncSession, principal: Principal, listing_item_id: uuid.UUID, offered_item_id: uuid.UUID, term_id: uuid.UUID
 ) -> SwapProposal:
@@ -650,6 +682,29 @@ async def accept_swap_proposal(
         kind=NotificationKind.SWAP_ACCEPTED,
         message=f"Twoja propozycja zamiany za „{product.name}\" została zaakceptowana",
     )
+
+    # The listing item now has an owner — every other still-`PROPOSED`
+    # offer against it is moot. Auto-reject them (release each losing
+    # proposer's locked offered item and let them know) instead of leaving
+    # them stuck forever with a reserved item and no answer.
+    other_pending = await repository.list_other_pending_swap_proposals_for_listing_item(
+        db, proposal.listing_item_id, exclude_proposal_id=cast(uuid.UUID, proposal.id)
+    )
+    for other in other_pending:
+        other_proposer_profile = await get_profile_by_party(db, other.proposer_party_id)
+        await circulation_bridge.cancel_reservation(
+            db,
+            other.proposer_reservation_id,
+            acting_user_id=cast(uuid.UUID, other_proposer_profile.account_user_id),
+        )
+        other.status = SwapProposalStatus.REJECTED
+        await notifications_bridge.create_notification(
+            db,
+            party_id=other.proposer_party_id,
+            kind=NotificationKind.SWAP_REJECTED,
+            message=f'Twoja propozycja zamiany za „{product.name}" została odrzucona — rzecz trafiła do kogoś innego',
+        )
+
     await db.commit()
     await db.refresh(proposal)
     return proposal
