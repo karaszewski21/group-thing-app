@@ -11,8 +11,8 @@ export function TermFooter({
 }) {
   if (isAttending) return null;
   return (
-    <footer className="w-full flex justify-center my-5">
-      <button type="button" className="kg-btn-primary" onClick={onSignUp}>
+    <footer className="w-full flex justify-center my-5 ">
+      <button type="button" className="rounded-full border-0 bg-[#1B8168] px-4.5 py-1.75 font-extrabold text-white disabled:opacity-60" onClick={onSignUp}>
         {isLoggedIn ? "＋ Zapisz się na zajęcia" : "Zaloguj się, żeby się zapisać"}
       </button>
     </footer>

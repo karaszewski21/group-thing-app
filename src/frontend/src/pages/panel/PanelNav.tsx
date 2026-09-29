@@ -22,7 +22,7 @@ export function PanelNav() {
           key={key}
           onClick={() => setView(key)}
           aria-current={view === key}
-          className={`flex flex-1 flex-col items-center gap-1 rounded-[14px] py-2 text-[11.5px] font-bold transition-colors hover:bg-cream ${
+          className={`flex flex-1 flex-col items-center gap-1 rounded-[14px]  text-[11.5px] font-bold transition-colors hover:bg-cream ${
             view === key ? "text-mint" : "text-ink-soft"
           }`}
         >

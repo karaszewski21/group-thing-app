@@ -14,9 +14,9 @@ export function GroupHeader({
   onBack: () => void;
 }) {
   return (
-    <header className="kg-head">
-      <h1>{title}</h1>
-      {subtitle != null && <div className="kg-head-sub">{subtitle}</div>}
+    <header className="sticky top-0 z-20 bg-transparent px-4.5 pb-4 pt-4.5 ">
+      <h1 className="text-xl">{title}</h1>
+      {subtitle != null && <div className="px-4.5 pb-4 pt-4.5 bg-white">{subtitle}</div>}
     </header>
   );
 }

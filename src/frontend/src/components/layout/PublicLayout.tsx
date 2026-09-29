@@ -9,26 +9,19 @@ import { NotificationBell } from "../shared/NotificationBell";
  * account menu above the page, so they can get back to their Panel.
  * Anonymous visitors see the page alone. */
 export function PublicLayout() {
+  const { token } = useAuth();
+  const organizationSlug = useMyOrganizationSlug();
+
   return (
     <>
-     <nav aria-label="Menu konta" className="border-b border-line bg-paper">  
-        <PublicAccountBar />
-     </nav>
+     {token && <nav aria-label="Menu konta" className="sticky top-0 z-20 flex justify-end gap-2 border-t border-line bg-paper px-2.5 py-2 shadow-[0_-10px_30px_-22px_rgba(30,46,39,0.7)]">  
+        <NotificationBell />
+        <AccountMenu organizationSlug={organizationSlug} showPanelHome />
+      </nav>
+     }
       <main>
         <Outlet />
       </main>
     </>
-  );
-}
-
-function PublicAccountBar() {
-  const { token } = useAuth();
-  const organizationSlug = useMyOrganizationSlug();
-  if (token === null) return null;
-  return (
-      <div className="mx-auto flex justify-end gap-2 px-[18px] py-2">
-        <NotificationBell />
-        <AccountMenu organizationSlug={organizationSlug} showPanelHome />
-      </div>
   );
 }

@@ -23,7 +23,7 @@ export function AccountMenu({
   const close = () => setOpen(false);
 
   return (
-    <div className="relative flex-none">
+    <div className="relative flex-none  z-100" >
       <button
         onClick={() => setOpen((o) => !o)}
         aria-label="Menu"
@@ -37,11 +37,11 @@ export function AccountMenu({
           <button
             onClick={close}
             aria-label="Zamknij menu"
-            className="fixed inset-0 z-[25] cursor-default border-none bg-transparent p-0"
+            className="fixed inset-0 cursor-default border-none bg-transparent p-0"
           />
           <div
             role="menu"
-            className="absolute right-0 top-12 z-30 min-w-[190px] rounded-2xl border border-line bg-paper p-1.5 shadow-[0_16px_34px_-16px_rgba(30,46,39,0.45)]"
+            className="absolute right-0 top-12 min-w-[190px] rounded-2xl border border-line bg-paper p-1.5 shadow-[0_16px_34px_-16px_rgba(30,46,39,0.45)]"
           >
             {showPanelHome && (
               <Link role="menuitem" to="/panel" onClick={close} className={ACCOUNT_MENU_ITEM_CLASS}>
