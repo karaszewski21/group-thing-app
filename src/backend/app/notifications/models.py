@@ -38,7 +38,8 @@ class NotificationKind(enum.StrEnum):
     """What happened. The recipient differs by kind: the first three go to a
     Term's organizer, `NEEDED_ITEM_REMOVED` goes to the affected pledger,
     `TERM_ITEM_LISTING_TAKEN` goes to the lister whose offered item was just
-    taken by another attendee, `SWAP_PROPOSED` goes to the target listing's
+    taken by another attendee, `ITEM_RESERVED_FOR_PICKUP` goes to the taker
+    of a term listing at take time, `SWAP_PROPOSED` goes to the target listing's
     owner, `SWAP_ACCEPTED`/`SWAP_REJECTED` go back to the swap's proposer,
     `TERM_CONFIRMATION_NEEDED` goes to both parties of an `ACCEPTED` swap
     or of a still-open GIFT/LEND reservation once its Term ends, and
@@ -53,6 +54,7 @@ class NotificationKind(enum.StrEnum):
     PLEDGE_ITEM_REGISTERED = "PLEDGE_ITEM_REGISTERED"
     NEEDED_ITEM_REMOVED = "NEEDED_ITEM_REMOVED"
     TERM_ITEM_LISTING_TAKEN = "TERM_ITEM_LISTING_TAKEN"
+    ITEM_RESERVED_FOR_PICKUP = "ITEM_RESERVED_FOR_PICKUP"
     SWAP_PROPOSED = "SWAP_PROPOSED"
     SWAP_ACCEPTED = "SWAP_ACCEPTED"
     SWAP_REJECTED = "SWAP_REJECTED"

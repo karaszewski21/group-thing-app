@@ -59,7 +59,12 @@ _RAW_MATRIX: tuple[_RawEntry, ...] = (
     (_methods("GET"), r"^/api/plugins/[^/]+$", ("READ",)),  # 14
     (_methods("GET"), r"^/api/plugins/[^/]+/objects(/.*)?$", ("READ",)),  # 15
     (_methods("GET"), r"^/api/plugins/[^/]+/products/[^/]+/data$", ("READ",)),  # 16
-    (_methods("POST", "PUT", "DELETE"), r"^/api/products(/.*)?$", ("EDIT", "mcp:edit")),  # 17
+    # 17 — PATCH covers the shared description; the gallery uses POST/PUT/DELETE.
+    (
+        _methods("POST", "PUT", "PATCH", "DELETE"),
+        r"^/api/products(/.*)?$",
+        ("EDIT", "mcp:edit"),
+    ),
     (_methods("PUT", "DELETE"), r"^/api/plugins/[^/]+/objects(/.*)?$", ("EDIT",)),  # 18
     (_methods("PUT", "DELETE"), r"^/api/plugins/[^/]+/products/[^/]+/data$", ("EDIT",)),  # 19
     # 20-22: ADMIN added as an additive alternative alongside PLUGIN_MANAGEMENT

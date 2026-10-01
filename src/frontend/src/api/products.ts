@@ -35,6 +35,30 @@ export interface ProductSearchParams {
   pluginFilters?: string[];
 }
 
+/** A gallery photo. Photos belong to the catalog product and are shared by
+ * every item of it, like the description. */
+export interface ProductPhotoResponse {
+  id: string;
+  url: string;
+  sort_order: number;
+}
+
+export interface AddProductPhotoRequest {
+  url: string;
+}
+
+export interface ReorderProductPhotosRequest {
+  photo_ids: string[];
+}
+
+export interface UpdateProductDescriptionRequest {
+  description: string | null;
+}
+
+export interface ProductDescriptionResponse {
+  description: string | null;
+}
+
 export interface ResolveProductRequest {
   name: string;
   category_id: string;
@@ -77,4 +101,29 @@ export function deleteProduct(id: number): Promise<void> {
  */
 export function resolveProduct(request: ResolveProductRequest): Promise<ProductResponse> {
   return api.post("/products/resolve", request);
+}
+
+export function addProductPhoto(productId: string, url: string): Promise<ProductPhotoResponse> {
+  const request: AddProductPhotoRequest = { url };
+  return api.post(`/products/${productId}/photos`, request);
+}
+
+export function deleteProductPhoto(productId: string, photoId: string): Promise<void> {
+  return api.delete(`/products/${productId}/photos/${photoId}`);
+}
+
+export function reorderProductPhotos(
+  productId: string,
+  photoIds: string[],
+): Promise<ProductPhotoResponse[]> {
+  const request: ReorderProductPhotosRequest = { photo_ids: photoIds };
+  return api.put(`/products/${productId}/photos/order`, request);
+}
+
+export function updateProductDescription(
+  productId: string,
+  description: string | null,
+): Promise<ProductDescriptionResponse> {
+  const request: UpdateProductDescriptionRequest = { description };
+  return api.patch(`/products/${productId}/description`, request);
 }

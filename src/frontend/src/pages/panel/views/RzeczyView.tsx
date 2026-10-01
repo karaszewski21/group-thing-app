@@ -1,10 +1,10 @@
 import { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
 import {
   ACTIVE_LOCK_BALANCE_STATUSES,
   getInventoryItemBalances,
   type BalanceStatus,
   type ItemBalanceSummary,
-  type ItemCondition,
 } from "../../../api/inventories";
 import { cancelTransaction, confirmTransaction, getReservation } from "../../../api/reservations";
 import { getTerm } from "../../../api/terms";
@@ -15,7 +15,7 @@ import {
 } from "../../../api/termItemListings";
 import { CONDITION_LABELS } from "../../../utils/productCategory";
 import { createEmptyItemQuickAddValue } from "../../../utils/itemQuickAdd";
-import { BoxIcon, PencilIcon, TrashIcon } from "../panelIcons";
+import { BoxIcon, EyeIcon, PencilIcon, TrashIcon } from "../panelIcons";
 import { capitalize, ITEM_MODE_STYLE, ITEM_MODES } from "../panelHelpers";
 import { usePanelData } from "../panelDataStore";
 
@@ -39,19 +39,10 @@ export function RzeczyView() {
   const {
     items,
     itemModes,
-    editingItemMeta,
-    editingItemCondition,
-    itemMetaError,
     itemError,
-    busy,
     categories,
     setItemDraft,
     setModal,
-    setEditingItemMeta,
-    setEditingItemCondition,
-    saveItemMeta,
-    saveItemCondition,
-    startEditItemMeta,
     setItemMode,
     handleDeleteItem,
     load,
@@ -254,111 +245,10 @@ export function RzeczyView() {
                 <BoxIcon c={style ? style.c : "#5C7069"} />
               </span>
               <div className="min-w-0 flex-1">
-                {editingItemMeta?.id === it.id ? (
-                  <div className="flex flex-wrap items-center gap-2">
-                    <input
-                      aria-label="Nazwa rzeczy"
-                      value={editingItemMeta.name}
-                      onChange={(e) =>
-                        setEditingItemMeta((s) => (s ? { ...s, name: e.target.value } : s))
-                      }
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter") void saveItemMeta();
-                        if (e.key === "Escape") setEditingItemMeta(null);
-                      }}
-                      className="min-w-0 flex-1 rounded-lg border-[1.5px] border-line bg-cream px-2 py-1.5 text-[13.5px] text-ink"
-                    />
-                    <select
-                      aria-label="Typ rzeczy"
-                      value={editingItemMeta.category_id}
-                      onChange={(e) =>
-                        setEditingItemMeta((s) =>
-                          s ? { ...s, category_id: Number(e.target.value) } : s,
-                        )
-                      }
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter") void saveItemMeta();
-                        if (e.key === "Escape") setEditingItemMeta(null);
-                      }}
-                      className="rounded-lg border-[1.5px] border-line bg-cream px-2 py-1.5 text-[12.5px] text-ink"
-                    >
-                      {categories.map((c) => (
-                        <option key={c.id} value={c.id}>{c.name}</option>
-                      ))}
-                    </select>
-                    <button
-                      onClick={() => void saveItemMeta()}
-                      disabled={busy}
-                      className="flex-none rounded-[9px] bg-mint px-3 py-1.5 text-[11.5px] font-extrabold text-white disabled:opacity-60"
-                    >
-                      Zapisz
-                    </button>
-                    <button
-                      onClick={() => setEditingItemMeta(null)}
-                      className="flex-none rounded-[9px] border border-line px-2.5 py-1.5 text-[11.5px] font-extrabold text-ink-soft"
-                    >
-                      Anuluj
-                    </button>
-                  </div>
-                ) : (
-                  <div className="flex items-center gap-1.5">
-                    <h3 className="text-[15.5px] font-semibold text-ink">{it.product_name}</h3>
-                    <button
-                      onClick={() => startEditItemMeta(it)}
-                      aria-label={`Edytuj rzecz ${it.product_name}`}
-                      className="flex h-6 w-6 flex-none items-center justify-center rounded-[8px] text-ink-soft transition-colors hover:bg-paper hover:text-ink"
-                    >
-                      <PencilIcon />
-                    </button>
-                  </div>
-                )}
-                {editingItemMeta?.id === it.id && itemMetaError && (
-                  <p className="mt-1 text-[12.5px] font-semibold text-danger">{itemMetaError}</p>
-                )}
-                {editingItemCondition?.id === it.id ? (
-                  <div className="mt-1 flex flex-wrap items-center gap-2">
-                    <select
-                      aria-label="Stan rzeczy"
-                      value={editingItemCondition.condition}
-                      onChange={(e) =>
-                        setEditingItemCondition((s) =>
-                          s ? { ...s, condition: e.target.value as ItemCondition } : s,
-                        )
-                      }
-                      className="rounded-lg border-[1.5px] border-line bg-cream px-2 py-1.5 text-[12.5px] text-ink"
-                    >
-                      {(Object.keys(CONDITION_LABELS) as ItemCondition[]).map((c) => (
-                        <option key={c} value={c}>{CONDITION_LABELS[c]}</option>
-                      ))}
-                    </select>
-                    <button
-                      onClick={() => void saveItemCondition()}
-                      disabled={busy}
-                      className="flex-none rounded-[9px] bg-mint px-3 py-1.5 text-[11.5px] font-extrabold text-white disabled:opacity-60"
-                    >
-                      Zapisz
-                    </button>
-                    <button
-                      onClick={() => setEditingItemCondition(null)}
-                      className="flex-none rounded-[9px] border border-line px-2.5 py-1.5 text-[11.5px] font-extrabold text-ink-soft"
-                    >
-                      Anuluj
-                    </button>
-                  </div>
-                ) : (
-                  <div className="mt-0.5 flex items-center gap-1.5">
-                    <small className="text-[12.5px] text-ink-soft">
-                      Stan: {CONDITION_LABELS[it.condition]}
-                    </small>
-                    <button
-                      onClick={() => setEditingItemCondition({ id: it.id, condition: it.condition })}
-                      aria-label="Edytuj stan rzeczy"
-                      className="flex h-6 w-6 flex-none items-center justify-center rounded-[8px] text-ink-soft transition-colors hover:bg-paper hover:text-ink"
-                    >
-                      <PencilIcon />
-                    </button>
-                  </div>
-                )}
+                <h3 className="text-[15.5px] font-semibold text-ink">{it.product_name}</h3>
+                <small className="mt-0.5 block text-[12.5px] text-ink-soft">
+                  Stan: {CONDITION_LABELS[it.condition]}
+                </small>
                 <div className="mt-2 flex flex-wrap gap-1.5">
                   {ITEM_MODES.map((m) => {
                     const on = mode === m;
@@ -440,13 +330,29 @@ export function RzeczyView() {
                   <p className="mt-1.5 text-[12.5px] font-semibold text-danger">{actionError}</p>
                 )}
               </div>
-              <button
-                onClick={() => void handleDeleteItem(it.id)}
-                aria-label={`Usuń rzecz ${it.product_name}`}
-                className="flex h-[30px] w-[30px] flex-none items-center justify-center rounded-[10px] text-ink-soft hover:bg-danger-soft hover:text-danger"
-              >
-                <TrashIcon />
-              </button>
+              <div className="flex flex-none flex-col gap-1">
+                <Link
+                  to={`/product/${it.id}`}
+                  aria-label={`Zobacz rzecz ${it.product_name}`}
+                  className="flex h-[30px] w-[30px] items-center justify-center rounded-[10px] text-ink-soft transition-colors hover:bg-paper hover:text-ink"
+                >
+                  <EyeIcon />
+                </Link>
+                <Link
+                  to={`/product/${it.id}/edit`}
+                  aria-label={`Edytuj rzecz ${it.product_name}`}
+                  className="flex h-[30px] w-[30px] items-center justify-center rounded-[10px] text-ink-soft transition-colors hover:bg-paper hover:text-ink"
+                >
+                  <PencilIcon />
+                </Link>
+                <button
+                  onClick={() => void handleDeleteItem(it.id)}
+                  aria-label={`Usuń rzecz ${it.product_name}`}
+                  className="flex h-[30px] w-[30px] items-center justify-center rounded-[10px] text-ink-soft hover:bg-danger-soft hover:text-danger"
+                >
+                  <TrashIcon />
+                </button>
+              </div>
             </div>
           );
         })}

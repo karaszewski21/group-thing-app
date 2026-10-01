@@ -2262,3 +2262,163 @@ async def test_getItemBalance_afterCancelTransaction_reservationIdClearedToNull(
     assert balance.status_code == 200
     assert balance.json()["status"] == "AVAILABLE"
     assert balance.json()["reservation_id"] is None
+
+
+async def _swap_listing(
+    client: AsyncClient, db_session: AsyncSession, prefix: str
+) -> tuple[str, str, uuid.UUID, uuid.UUID, uuid.UUID, uuid.UUID]:
+    """A SWAP-moded listing plus one attendee's SWAP-moded offer. Returns
+    `(lister_token, taker_token, group_id, term_id, listed_item_id,
+    offered_item_id)`."""
+    org_token, _ = await _register(client, "ORGANIZER", f"{prefix}.org@example.com")
+    group_id, term_id = await _create_circle_and_term(client, org_token, prefix)
+
+    lister_token, _ = await _register(client, "GUEST", f"{prefix}.lister@example.com")
+    await _rsvp(client, lister_token, group_id, term_id)
+    listed_item_id = await _register_personal_item(client, lister_token, f"Lista {prefix}")
+    await service.set_item_listing_preference(
+        db_session, _principal(lister_token), listed_item_id, ReservationType.SWAP
+    )
+
+    taker_token, _ = await _register(client, "GUEST", f"{prefix}.taker@example.com")
+    await _rsvp(client, taker_token, group_id, term_id)
+    offered_item_id = await _register_personal_item(client, taker_token, f"Oferta {prefix}")
+    await service.set_item_listing_preference(
+        db_session, _principal(taker_token), offered_item_id, ReservationType.SWAP
+    )
+    return lister_token, taker_token, group_id, term_id, listed_item_id, offered_item_id
+
+
+async def _notifications(client: AsyncClient, token: str, kind: str) -> list[dict[str, object]]:
+    notifs = (await client.get("/api/notifications/mine", headers=_auth(token))).json()
+    return [n for n in notifs if n["kind"] == kind]
+
+
+async def test_takeItemListing_taker_receivesItemReservedForPickupWithProductLink(
+    client: AsyncClient, db_session: AsyncSession
+) -> None:
+    org_token, _ = await _register(client, "ORGANIZER", "til.link1.org@example.com")
+    group_id, term_id = await _create_circle_and_term(client, org_token, "tillink1")
+
+    lister_token, _ = await _register(client, "GUEST", "til.link1.lister@example.com")
+    await _rsvp(client, lister_token, group_id, term_id)
+    item_id = await _register_personal_item(client, lister_token, "Hulajnoga link1")
+    await service.set_item_listing_preference(
+        db_session, _principal(lister_token), item_id, ReservationType.LEND
+    )
+
+    taker_token, _ = await _register(client, "GUEST", "til.link1.taker@example.com")
+    await _rsvp(client, taker_token, group_id, term_id)
+
+    await service.take_item_listing(
+        db_session,
+        _principal(taker_token),
+        item_id,
+        TakeTermItemListingRequest(term_id=term_id, reservation_type="LEND"),
+    )
+
+    term = (await db_session.execute(select(Term).where(Term.id == term_id))).scalar_one()
+    [reserved] = await _notifications(client, taker_token, "ITEM_RESERVED_FOR_PICKUP")
+    assert reserved["message"] == (
+        f"Zarezerwowano „Hulajnoga link1” — odbierz na terminie {term.occurs_on:%d.%m}"
+    )
+    assert reserved["link_path"] == f"/product/{item_id}"
+
+    [taken] = await _notifications(client, lister_token, "TERM_ITEM_LISTING_TAKEN")
+    assert taken["link_path"] == f"/product/{item_id}"
+
+
+async def test_proposeSwap_owner_notificationLinksToOfferedItem(
+    client: AsyncClient, db_session: AsyncSession
+) -> None:
+    lister_token, taker_token, _, term_id, listed_item_id, offered_item_id = await _swap_listing(
+        client, db_session, "tillink2"
+    )
+
+    await service.propose_swap(
+        db_session, _principal(taker_token), listed_item_id, offered_item_id, term_id
+    )
+
+    [proposed] = await _notifications(client, lister_token, "SWAP_PROPOSED")
+    assert proposed["link_path"] == f"/product/{offered_item_id}"
+
+
+async def test_acceptSwapProposal_proposerAndAutoRejected_notificationsLinkToListingItem(
+    client: AsyncClient, db_session: AsyncSession
+) -> None:
+    lister_token, taker_token, group_id, term_id, listed_item_id, offered_item_id = (
+        await _swap_listing(client, db_session, "tillink3")
+    )
+    rival_token, _ = await _register(client, "GUEST", "tillink3.rival@example.com")
+    await _rsvp(client, rival_token, group_id, term_id)
+    rival_item_id = await _register_personal_item(client, rival_token, "Rywal tillink3")
+    await service.set_item_listing_preference(
+        db_session, _principal(rival_token), rival_item_id, ReservationType.SWAP
+    )
+
+    proposal = await service.propose_swap(
+        db_session, _principal(taker_token), listed_item_id, offered_item_id, term_id
+    )
+    await service.propose_swap(
+        db_session, _principal(rival_token), listed_item_id, rival_item_id, term_id
+    )
+    await service.accept_swap_proposal(db_session, _principal(lister_token), proposal.id)
+
+    [accepted] = await _notifications(client, taker_token, "SWAP_ACCEPTED")
+    assert accepted["link_path"] == f"/product/{listed_item_id}"
+    [auto_rejected] = await _notifications(client, rival_token, "SWAP_REJECTED")
+    assert auto_rejected["link_path"] == f"/product/{listed_item_id}"
+
+
+async def test_rejectSwapProposal_proposer_notificationLinksToListingItem(
+    client: AsyncClient, db_session: AsyncSession
+) -> None:
+    lister_token, taker_token, _, term_id, listed_item_id, offered_item_id = await _swap_listing(
+        client, db_session, "tillink4"
+    )
+
+    proposal = await service.propose_swap(
+        db_session, _principal(taker_token), listed_item_id, offered_item_id, term_id
+    )
+    await service.reject_swap_proposal(db_session, _principal(lister_token), proposal.id)
+
+    [rejected] = await _notifications(client, taker_token, "SWAP_REJECTED")
+    assert rejected["link_path"] == f"/product/{listed_item_id}"
+
+
+async def test_resolveTransactionReservations_alreadyResolved_notificationLinksToItem(
+    client: AsyncClient, db_session: AsyncSession
+) -> None:
+    org_token, _ = await _register(client, "ORGANIZER", "til.link5.org@example.com")
+    group_id, term_id = await _create_circle_and_term(client, org_token, "tillink5")
+
+    lister_token, _ = await _register(client, "GUEST", "til.link5.lister@example.com")
+    await _rsvp(client, lister_token, group_id, term_id)
+    item_id = await _register_personal_item(client, lister_token, "Sanki link5")
+    await service.set_item_listing_preference(
+        db_session, _principal(lister_token), item_id, ReservationType.GIFT
+    )
+
+    taker_token, _ = await _register(client, "GUEST", "til.link5.taker@example.com")
+    await _rsvp(client, taker_token, group_id, term_id)
+    taken = await service.take_item_listing(
+        db_session,
+        _principal(taker_token),
+        item_id,
+        TakeTermItemListingRequest(term_id=term_id, reservation_type="GIFT"),
+    )
+
+    term = (await db_session.execute(select(Term).where(Term.id == term_id))).scalar_one()
+    term.occurs_on = datetime.utcnow() - timedelta(days=1)
+    await db_session.commit()
+
+    await service.confirm_transaction(
+        db_session, _principal(taker_token), taken.resolved_reservation_id
+    )
+    with pytest.raises(TermAlreadyResolvedException):
+        await service.confirm_transaction(
+            db_session, _principal(lister_token), taken.resolved_reservation_id
+        )
+
+    [resolved] = await _notifications(client, lister_token, "TERM_ALREADY_RESOLVED")
+    assert resolved["link_path"] == f"/product/{item_id}"

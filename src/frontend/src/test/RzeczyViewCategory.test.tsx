@@ -1,4 +1,5 @@
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { MemoryRouter } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { RzeczyView } from "../pages/panel/views/RzeczyView";
 import * as panelDataStore from "../pages/panel/panelDataStore";
@@ -154,19 +155,11 @@ function makeContextValue(
   return {
     items: [item],
     itemModes: {},
-    editingItemMeta: { id: 10, name: "Rowerek", category_id: 1 },
-    editingItemCondition: null,
-    itemMetaError: null,
     itemError: null,
     busy: false,
     categories: mockCategories,
     setItemDraft: vi.fn(),
     setModal: vi.fn(),
-    setEditingItemMeta: vi.fn(),
-    setEditingItemCondition: vi.fn(),
-    saveItemMeta: vi.fn(),
-    saveItemCondition: vi.fn(),
-    startEditItemMeta: vi.fn(),
     setItemMode: vi.fn(),
     handleDeleteItem: vi.fn(),
     load: vi.fn().mockResolvedValue(undefined),
@@ -174,8 +167,16 @@ function makeContextValue(
   } as unknown as PanelDataContextValue;
 }
 
-describe("RzeczyView — category select renders from live category data", () => {
-  it("renders the 'Typ rzeczy' select options from useCategories()'s live data (via panel context)", async () => {
+function renderView() {
+  return render(
+    <MemoryRouter>
+      <RzeczyView />
+    </MemoryRouter>,
+  );
+}
+
+describe("RzeczyView — item card links to the item page", () => {
+  it("renders view and edit links to /product/:id and no inline name, category or condition editors", async () => {
     // RzeczyView always fires its balance-fetch effect for every mounted
     // item (see the badge describe block below), so `api.get` needs a
     // valid response here too — otherwise the unconfigured mock resolves
@@ -184,12 +185,21 @@ describe("RzeczyView — category select renders from live category data", () =>
     vi.mocked(api.get).mockResolvedValue(mockBalance(item.id, "AVAILABLE"));
     vi.mocked(panelDataStore.usePanelData).mockReturnValue(makeContextValue());
 
-    render(<RzeczyView />);
+    renderView();
 
-    const select = screen.getByLabelText("Typ rzeczy") as HTMLSelectElement;
-    expect(Array.from(select.options).map((o) => o.textContent)).toEqual(["Zabawki", "Ubrania"]);
-    expect(Array.from(select.options).map((o) => o.value)).toEqual(["1", "2"]);
-    expect(select.value).toBe("1");
+    expect(screen.getByRole("link", { name: "Zobacz rzecz Rowerek" })).toHaveAttribute(
+      "href",
+      `/product/${item.id}`,
+    );
+    expect(screen.getByRole("link", { name: "Edytuj rzecz Rowerek" })).toHaveAttribute(
+      "href",
+      `/product/${item.id}/edit`,
+    );
+    expect(screen.queryByRole("button", { name: "Edytuj stan rzeczy" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Edytuj rzecz Rowerek" })).toBeNull();
+    expect(screen.queryByLabelText("Typ rzeczy")).toBeNull();
+    expect(screen.queryByLabelText("Stan rzeczy")).toBeNull();
+    expect(screen.getByText("Stan: Dobry")).toBeInTheDocument();
     // Let the balance-fetch effect settle before the test (and its mocks)
     // tear down, so the state update lands inside this test's act() scope.
     await waitFor(() => expect(api.get).toHaveBeenCalled());
@@ -204,10 +214,10 @@ describe("RzeczyView — passive lock/pending balance badge", () => {
   it("renders 'czeka na potwierdzenie' for an item with a RESERVED balance", async () => {
     vi.mocked(api.get).mockResolvedValue(mockBalance(item.id, "RESERVED"));
     vi.mocked(panelDataStore.usePanelData).mockReturnValue(
-      makeContextValue({ editingItemMeta: null }),
+      makeContextValue(),
     );
 
-    render(<RzeczyView />);
+    renderView();
 
     const badge = await screen.findByRole("status");
     expect(badge).toHaveTextContent("czeka na potwierdzenie");
@@ -216,10 +226,10 @@ describe("RzeczyView — passive lock/pending balance badge", () => {
   it("renders 'zablokowane' for an item with an IN_TRANSIT balance", async () => {
     vi.mocked(api.get).mockResolvedValue(mockBalance(item.id, "IN_TRANSIT"));
     vi.mocked(panelDataStore.usePanelData).mockReturnValue(
-      makeContextValue({ editingItemMeta: null }),
+      makeContextValue(),
     );
 
-    render(<RzeczyView />);
+    renderView();
 
     const badge = await screen.findByRole("status");
     expect(badge).toHaveTextContent("zablokowane");
@@ -228,10 +238,10 @@ describe("RzeczyView — passive lock/pending balance badge", () => {
   it("renders no badge for an AVAILABLE item", async () => {
     vi.mocked(api.get).mockResolvedValue(mockBalance(item.id, "AVAILABLE"));
     vi.mocked(panelDataStore.usePanelData).mockReturnValue(
-      makeContextValue({ editingItemMeta: null }),
+      makeContextValue(),
     );
 
-    render(<RzeczyView />);
+    renderView();
 
     await waitFor(() => expect(api.get).toHaveBeenCalled());
     expect(screen.queryByRole("status")).not.toBeInTheDocument();
@@ -240,10 +250,10 @@ describe("RzeczyView — passive lock/pending balance badge", () => {
   it("does not render any new action button for a locked (IN_TRANSIT) item", async () => {
     vi.mocked(api.get).mockResolvedValue(mockBalance(item.id, "IN_TRANSIT"));
     vi.mocked(panelDataStore.usePanelData).mockReturnValue(
-      makeContextValue({ editingItemMeta: null }),
+      makeContextValue(),
     );
 
-    render(<RzeczyView />);
+    renderView();
 
     await screen.findByRole("status");
     const buttonNames = screen.getAllByRole("button").map((b) => b.getAttribute("aria-label") ?? b.textContent);
@@ -266,10 +276,10 @@ describe("RzeczyView — mode toggle buttons locked while a reservation is activ
   it("disables the three mode toggle buttons (native + aria-disabled) for a RESERVED item", async () => {
     vi.mocked(api.get).mockResolvedValue(mockBalance(item.id, "RESERVED"));
     vi.mocked(panelDataStore.usePanelData).mockReturnValue(
-      makeContextValue({ editingItemMeta: null }),
+      makeContextValue(),
     );
 
-    render(<RzeczyView />);
+    renderView();
 
     await screen.findByRole("status");
     for (const button of modeToggleButtons()) {
@@ -281,10 +291,10 @@ describe("RzeczyView — mode toggle buttons locked while a reservation is activ
   it("disables the three mode toggle buttons (native + aria-disabled) for an IN_TRANSIT item", async () => {
     vi.mocked(api.get).mockResolvedValue(mockBalance(item.id, "IN_TRANSIT"));
     vi.mocked(panelDataStore.usePanelData).mockReturnValue(
-      makeContextValue({ editingItemMeta: null }),
+      makeContextValue(),
     );
 
-    render(<RzeczyView />);
+    renderView();
 
     await screen.findByRole("status");
     for (const button of modeToggleButtons()) {
@@ -296,10 +306,10 @@ describe("RzeczyView — mode toggle buttons locked while a reservation is activ
   it("leaves the three mode toggle buttons enabled for an AVAILABLE item", async () => {
     vi.mocked(api.get).mockResolvedValue(mockBalance(item.id, "AVAILABLE"));
     vi.mocked(panelDataStore.usePanelData).mockReturnValue(
-      makeContextValue({ editingItemMeta: null }),
+      makeContextValue(),
     );
 
-    render(<RzeczyView />);
+    renderView();
 
     await waitFor(() => expect(api.get).toHaveBeenCalled());
     for (const button of modeToggleButtons()) {
@@ -315,10 +325,10 @@ describe("RzeczyView — mode toggle buttons locked while a reservation is activ
     // an unhandled rejection.
     vi.mocked(api.get).mockReturnValue(new Promise(() => {}));
     vi.mocked(panelDataStore.usePanelData).mockReturnValue(
-      makeContextValue({ editingItemMeta: null }),
+      makeContextValue(),
     );
 
-    render(<RzeczyView />);
+    renderView();
 
     for (const button of modeToggleButtons()) {
       expect(button).not.toBeDisabled();
@@ -341,10 +351,10 @@ describe("RzeczyView — post-term-end fallback buttons (Bug #4c)", () => {
       term: mockTerm(ENDED_TERM_ID, "2020-01-01T10:00:00"), // long past
     });
     vi.mocked(panelDataStore.usePanelData).mockReturnValue(
-      makeContextValue({ editingItemMeta: null }),
+      makeContextValue(),
     );
 
-    render(<RzeczyView />);
+    renderView();
 
     const badge = await screen.findByRole("status");
     const odebral = await screen.findByRole("button", { name: "Odebrał" });
@@ -377,10 +387,10 @@ describe("RzeczyView — post-term-end fallback buttons (Bug #4c)", () => {
       term: mockTerm(FUTURE_TERM_ID, "2999-01-01T10:00:00"), // far future
     });
     vi.mocked(panelDataStore.usePanelData).mockReturnValue(
-      makeContextValue({ editingItemMeta: null }),
+      makeContextValue(),
     );
 
-    render(<RzeczyView />);
+    renderView();
 
     await screen.findByRole("status");
     await waitFor(() => expect(api.get).toHaveBeenCalledWith(expect.stringContaining("/reservations/56")));
@@ -391,10 +401,10 @@ describe("RzeczyView — post-term-end fallback buttons (Bug #4c)", () => {
   it("does not render the new buttons for an AVAILABLE item (no active reservation)", async () => {
     mockApiGetRouter({ balance: mockBalance(item.id, "AVAILABLE", null) });
     vi.mocked(panelDataStore.usePanelData).mockReturnValue(
-      makeContextValue({ editingItemMeta: null }),
+      makeContextValue(),
     );
 
-    render(<RzeczyView />);
+    renderView();
 
     await waitFor(() => expect(api.get).toHaveBeenCalled());
     expect(screen.queryByRole("button", { name: "Odebrał" })).not.toBeInTheDocument();
@@ -414,10 +424,10 @@ describe("RzeczyView — post-term-end fallback buttons (Bug #4c)", () => {
       already_resolved: false,
     });
     vi.mocked(panelDataStore.usePanelData).mockReturnValue(
-      makeContextValue({ editingItemMeta: null, load }),
+      makeContextValue({ load }),
     );
 
-    render(<RzeczyView />);
+    renderView();
 
     const odebral = await screen.findByRole("button", { name: "Odebrał" });
     fireEvent.click(odebral);
@@ -441,10 +451,10 @@ describe("RzeczyView — post-term-end fallback buttons (Bug #4c)", () => {
       already_resolved: false,
     });
     vi.mocked(panelDataStore.usePanelData).mockReturnValue(
-      makeContextValue({ editingItemMeta: null, load }),
+      makeContextValue({ load }),
     );
 
-    render(<RzeczyView />);
+    renderView();
 
     const anuluj = await screen.findByRole("button", { name: "Anuluj wymianę" });
     fireEvent.click(anuluj);
@@ -457,7 +467,7 @@ describe("RzeczyView — post-term-end fallback buttons (Bug #4c)", () => {
 });
 
 describe("NotificationKind — frontend union matches backend enum", () => {
-  it("includes all 10 backend NotificationKind members", () => {
+  it("includes all 11 backend NotificationKind members", () => {
     const allKinds: NotificationKind[] = [
       "PLEDGE_CREATED",
       "PLEDGE_WITHDRAWN",
@@ -469,8 +479,9 @@ describe("NotificationKind — frontend union matches backend enum", () => {
       "SWAP_REJECTED",
       "TERM_CONFIRMATION_NEEDED",
       "TERM_ALREADY_RESOLVED",
+      "ITEM_RESERVED_FOR_PICKUP",
     ];
-    expect(allKinds).toHaveLength(10);
-    expect(new Set(allKinds).size).toBe(10);
+    expect(allKinds).toHaveLength(11);
+    expect(new Set(allKinds).size).toBe(11);
   });
 });

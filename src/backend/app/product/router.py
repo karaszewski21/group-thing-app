@@ -2,7 +2,9 @@
 Follows `app/category/router.py`'s pattern (Group 7's reference module).
 
 Permission matrix (spec.md rows 12/19): GET -> `READ`/`mcp:read`;
-POST/PUT/DELETE -> `EDIT`/`mcp:edit`.
+POST/PUT/PATCH/DELETE -> `EDIT`/`mcp:edit` (gallery and shared description
+included; those additionally require owning a non-deleted item of
+the product, 403 otherwise).
 """
 
 from __future__ import annotations
@@ -18,9 +20,14 @@ from app.db import get_db
 
 from . import service
 from .schemas import (
+    AddProductPhotoRequest,
     CreateProductRequest,
+    ProductDescriptionResponse,
+    ProductPhotoResponse,
     ProductResponse,
+    ReorderProductPhotosRequest,
     ResolveProductRequest,
+    UpdateProductDescriptionRequest,
     UpdateProductRequest,
 )
 
@@ -81,3 +88,56 @@ async def update_product(
 @router.delete("/{product_id}", status_code=status.HTTP_204_NO_CONTENT, response_model=None)
 async def delete_product(product_id: uuid.UUID, db: DbSession, principal: EditPrincipal) -> None:
     await service.delete_product(db, product_id)
+
+
+@router.get("/{product_id}/photos", response_model=list[ProductPhotoResponse])
+async def list_product_photos(
+    product_id: uuid.UUID, db: DbSession, principal: ReadPrincipal
+) -> list[ProductPhotoResponse]:
+    photos = await service.list_product_photos(db, product_id)
+    return [ProductPhotoResponse.model_validate(photo) for photo in photos]
+
+
+@router.post(
+    "/{product_id}/photos",
+    response_model=ProductPhotoResponse,
+    status_code=status.HTTP_201_CREATED,
+)
+async def add_product_photo(
+    product_id: uuid.UUID, body: AddProductPhotoRequest, db: DbSession, principal: EditPrincipal
+) -> ProductPhotoResponse:
+    photo = await service.add_product_photo(db, product_id, body.url, principal)
+    return ProductPhotoResponse.model_validate(photo)
+
+
+@router.put("/{product_id}/photos/order", response_model=list[ProductPhotoResponse])
+async def reorder_product_photos(
+    product_id: uuid.UUID,
+    body: ReorderProductPhotosRequest,
+    db: DbSession,
+    principal: EditPrincipal,
+) -> list[ProductPhotoResponse]:
+    photos = await service.reorder_product_photos(db, product_id, body.photo_ids, principal)
+    return [ProductPhotoResponse.model_validate(photo) for photo in photos]
+
+
+@router.delete(
+    "/{product_id}/photos/{photo_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    response_model=None,
+)
+async def remove_product_photo(
+    product_id: uuid.UUID, photo_id: uuid.UUID, db: DbSession, principal: EditPrincipal
+) -> None:
+    await service.remove_product_photo(db, product_id, photo_id, principal)
+
+
+@router.patch("/{product_id}/description", response_model=ProductDescriptionResponse)
+async def update_product_description(
+    product_id: uuid.UUID,
+    body: UpdateProductDescriptionRequest,
+    db: DbSession,
+    principal: EditPrincipal,
+) -> ProductDescriptionResponse:
+    description = await service.set_shared_description(db, product_id, body.description, principal)
+    return ProductDescriptionResponse(description=description)

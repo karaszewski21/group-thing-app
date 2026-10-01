@@ -1,4 +1,5 @@
 import { api } from "./client";
+import type { ProductResponse } from "./products";
 import type { ReservationType } from "./reservations";
 
 export type InventoryType = "PERSONAL" | "PICKUP_POINT" | "VIRTUAL";
@@ -142,11 +143,11 @@ export async function getInventoryItemBalances(
 
 export interface UpdateInventoryItemRequest {
   condition?: ItemCondition;
-  product_id?: number;
+  product_id?: ProductResponse["id"];
 }
 
 export function updateInventoryItem(
-  id: number,
+  id: string,
   request: UpdateInventoryItemRequest,
 ): Promise<InventoryItemResponse> {
   return api.patch(`/inventory-items/${id}`, request);

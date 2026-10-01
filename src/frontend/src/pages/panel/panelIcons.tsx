@@ -109,6 +109,15 @@ export const PencilIcon = ({ c = "#5C7069" }: { c?: string }) => (
     />
   </svg>
 );
+export const EyeIcon = ({ c = "#5C7069" }: { c?: string }) => (
+  <svg viewBox="0 0 24 24" fill="none" aria-hidden="true" className="h-4 w-4">
+    <path
+      d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12Z"
+      stroke={c} strokeWidth="2" strokeLinejoin="round"
+    />
+    <circle cx="12" cy="12" r="2.8" stroke={c} strokeWidth="2" />
+  </svg>
+);
 export const CopyIcon = ({ c = "#5C7069" }: { c?: string }) => (
   <svg viewBox="0 0 24 24" fill="none" aria-hidden="true" className="h-4 w-4">
     <rect x="9" y="9" width="11" height="11" rx="2" stroke={c} strokeWidth="2" />

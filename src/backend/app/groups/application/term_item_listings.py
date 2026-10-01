@@ -41,7 +41,6 @@ from app.users.service import (
 from ..domain import confirm_race_rules
 from ..infrastructure import circulation_bridge, notifications_bridge, product_bridge, repository
 from ..infrastructure.notifications_bridge import NotificationKind
-from ..infrastructure.slug_resolver import resolve_organizer_slug
 from ..models import ItemListingPreference, SwapProposal, SwapProposalStatus, Term
 from ..schemas import (
     BrowseTermItemListingResponse,
@@ -483,13 +482,19 @@ async def take_item_listing(
     )
 
     product = await product_bridge.get_product(db, listed_item.product_id)
-    slug = await resolve_organizer_slug(db, term.circle_group_id)
     await notifications_bridge.create_notification(
         db,
         party_id=preference.owner_party_id,
         kind=NotificationKind.TERM_ITEM_LISTING_TAKEN,
         message=f'„{taker_profile.display_name}" chce wziąć Twoją rzecz: {product.name}',
-        link_path=f"/{slug}/grupa/{term.circle_group_id}/term/{term.id}",
+        link_path=f"/product/{item_id}",
+    )
+    await notifications_bridge.create_notification(
+        db,
+        party_id=taker_profile.party_id,
+        kind=NotificationKind.ITEM_RESERVED_FOR_PICKUP,
+        message=f"Zarezerwowano „{product.name}” — odbierz na terminie {term.occurs_on:%d.%m}",
+        link_path=f"/product/{item_id}",
     )
     await db.commit()
     await db.refresh(reservation)
@@ -607,13 +612,12 @@ async def propose_swap(
     await db.flush()
 
     product = await product_bridge.get_product(db, listed_item.product_id)
-    slug = await resolve_organizer_slug(db, term.circle_group_id)
     await notifications_bridge.create_notification(
         db,
         party_id=preference.owner_party_id,
         kind=NotificationKind.SWAP_PROPOSED,
         message=f'„{proposer_profile.display_name}" proponuje zamianę za: {product.name}',
-        link_path=f"/{slug}/grupa/{term.circle_group_id}/term/{term.id}",
+        link_path=f"/product/{offered_item_id}",
         proposal_id=cast(uuid.UUID, proposal.id),
     )
     await db.commit()
@@ -681,6 +685,7 @@ async def accept_swap_proposal(
         party_id=proposal.proposer_party_id,
         kind=NotificationKind.SWAP_ACCEPTED,
         message=f"Twoja propozycja zamiany za „{product.name}\" została zaakceptowana",
+        link_path=f"/product/{proposal.listing_item_id}",
     )
 
     # The listing item now has an owner — every other still-`PROPOSED`
@@ -703,6 +708,7 @@ async def accept_swap_proposal(
             party_id=other.proposer_party_id,
             kind=NotificationKind.SWAP_REJECTED,
             message=f'Twoja propozycja zamiany za „{product.name}" została odrzucona — rzecz trafiła do kogoś innego',
+            link_path=f"/product/{other.listing_item_id}",
         )
 
     await db.commit()
@@ -744,6 +750,7 @@ async def reject_swap_proposal(
         party_id=proposal.proposer_party_id,
         kind=NotificationKind.SWAP_REJECTED,
         message=f'Twoja propozycja zamiany za „{product.name}" została odrzucona',
+        link_path=f"/product/{proposal.listing_item_id}",
     )
     await db.commit()
     await db.refresh(proposal)
@@ -820,6 +827,7 @@ async def _resolve_transaction_reservations_for_action(
             party_id=profile.party_id,
             kind=NotificationKind.TERM_ALREADY_RESOLVED,
             message="Ta transakcja została już rozstrzygnięta przez drugą stronę",
+            link_path=f"/product/{reservation.item_id}",
         )
         await db.commit()
         raise TermAlreadyResolvedException

@@ -71,6 +71,22 @@ async def test_createMyOrganization_nameCollidingWithReservedRoute_getsSuffixedS
     assert response.json()["slug"] == "panel-2"
 
 
+async def test_createMyOrganization_nameProduct_neverGetsReservedSlug(
+    client: AsyncClient, db_session: AsyncSession
+) -> None:
+    token = await _register_organizer(client, "org.owner.slugproduct@example.com")
+
+    response = await client.post(
+        "/api/organizations/mine",
+        json={"name": "Product"},
+        headers=_auth_headers(token),
+    )
+
+    assert response.status_code == 201
+    # "/product/:id" is the item detail page — the slug must not shadow it.
+    assert response.json()["slug"] == "product-2"
+
+
 async def test_getPublicOrganization_byExistingSlug_returnsNameAndColors(
     client: AsyncClient, db_session: AsyncSession
 ) -> None:

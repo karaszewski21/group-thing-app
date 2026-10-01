@@ -17,6 +17,8 @@ import { OAuth2AuthorizePage } from "./pages/OAuth2AuthorizePage";
 import { TermPage } from "./pages/krag/TermPage";
 import { PanelPage } from "./pages/panel/PanelPage";
 import { TermAttendeesPage } from "./pages/panel/TermAttendeesPage";
+import { ItemDetailPage } from "./pages/product/ItemDetailPage";
+import { ItemEditPage } from "./pages/product/ItemEditPage";
 import { OnboardingPage } from "./pages/OnboardingPage";
 import { OrganizationPage } from "./pages/OrganizationPage";
 import { PublicOrganizationPage } from "./pages/PublicOrganizationPage";
@@ -100,6 +102,15 @@ export const router = createBrowserRouter([
         // (no PanelDataProvider): the page resolves the group from the term.
         path: "/panel/terminy/:termId",
         element: <AuthGuard><TermAttendeesPage /></AuthGuard>,
+      },
+      {
+        // Item page; "product" is in the backend's RESERVED_SLUGS.
+        path: "/product/:id",
+        element: <AuthGuard><ItemDetailPage /></AuthGuard>,
+      },
+      {
+        path: "/product/:id/edit",
+        element: <AuthGuard><ItemEditPage /></AuthGuard>,
       },
       {
         // The SOLE group/circle screen route (former separate `/krag/:groupId`

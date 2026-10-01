@@ -43,8 +43,6 @@ import {
   getMyInventoryItems,
   getMyLentOutItems,
   registerInventoryItem,
-  updateInventoryItem,
-  type ItemCondition,
   type LentOutItemResponse,
   type MyInventoryItemResponse,
 } from "../../api/inventories";
@@ -64,11 +62,7 @@ import {
   type UserProfileResponse,
 } from "../../api/people";
 import { getMyOrganization } from "../../api/organizations";
-import {
-  getProducts,
-  resolveProduct,
-  type ProductResponse,
-} from "../../api/products";
+import { resolveProduct } from "../../api/products";
 import { useCategories } from "../../hooks/useCategories";
 import {
   createNeededItem,
@@ -115,9 +109,11 @@ export type PanelDataContextValue = ReturnType<typeof usePanelDataValue>;
 /** One actionable item surfaced by Group 7's global pending-actions modal
  * (spec.md Requirement 10-11 / the "GLOBALNYM dialogiem" quote) — derived
  * client-side from `notifications`' `kind`/`link_path` rather than a new
- * backend endpoint, per the plan's [RESOLVED] note. `termId` is parsed out
- * of `linkPath` (every producing notification's `link_path` ends in
- * `/term/<id>`), since that's the only structured data the feed carries.
+ * backend endpoint, per the plan's [RESOLVED] note. Only
+ * `TERM_CONFIRMATION_NEEDED` carries a term-shaped `link_path`, and its
+ * `termId` is parsed out of it, since that's the only structured data the
+ * feed carries. Item-related kinds, `SWAP_PROPOSED` included, link to
+ * `/product/<itemId>`, so `PendingSwapAction.linkPath` is not a term link.
  *
  * `SWAP_PROPOSED` carries no `proposalId`/accept-reject affordance here —
  * this modal can only ever surface the FIRST pending notification
@@ -343,17 +339,8 @@ function usePanelDataValue() {
     visibility: GroupVisibility;
   }>({ name: "", location: "", freeSpots: "", layoutMode: "CIRCLE", visibility: "PUBLIC" });
   const [editGroupError, setEditGroupError] = useState<string | null>(null);
-  // InventoryItem condition edit + optimistic delete in the "Moje rzeczy" view.
-  const [editingItemCondition, setEditingItemCondition] = useState<
-    { id: number; condition: ItemCondition } | null
-  >(null);
+  // Optimistic item delete in the "Moje rzeczy" view.
   const [itemError, setItemError] = useState<string | null>(null);
-  // Inline name+category edit for a single item — re-resolves a Product then
-  // re-points the item's product_id at it.
-  const [editingItemMeta, setEditingItemMeta] = useState<
-    { id: number; name: string; category_id: number } | null
-  >(null);
-  const [itemMetaError, setItemMetaError] = useState<string | null>(null);
   // `null` = no Organization created yet (404) — "Moja organizacja"/the
   // org-polish hint then link to the /organization create form; once an
   // Organization exists, both link straight to its public page instead.
@@ -452,7 +439,6 @@ function usePanelDataValue() {
   // --- Moje rzeczy (realny Inventory/InventoryItem/Product) ---
   const [inventoryId, setInventoryId] = useState<number | null>(null);
   const [items, setItems] = useState<MyInventoryItemResponse[]>([]);
-  const [products, setProducts] = useState<ProductResponse[]>([]);
   const [itemDraft, setItemDraft] = useState<ItemQuickAddValue>(createEmptyItemQuickAddValue());
 
   const showToast = useCallback((msg: string) => setToast(msg), []);
@@ -476,12 +462,10 @@ function usePanelDataValue() {
         throw new Error("Zalogowany profil nie ma powiązanego konta użytkownika");
       }
 
-      const [leaderships, inventories, productsData] = await Promise.all([
+      const [leaderships, inventories] = await Promise.all([
         getLeadershipsForPerson(me.id),
         getInventories(me.account_user_id),
-        getProducts(),
       ]);
-      setProducts(productsData);
 
       let inventory = inventories.find((i) => i.inventory_type === "PERSONAL") ?? null;
       if (!inventory) inventory = await createInventory({ inventory_type: "PERSONAL" });
@@ -949,13 +933,6 @@ function usePanelDataValue() {
         product_id: product.id,
         condition: itemDraft.condition,
       });
-      // `resolveProduct` may have just created a brand-new Product — merge
-      // it into the locally cached list so `startEditItemMeta`'s category_id
-      // lookup resolves it immediately if the item is edited right away,
-      // without waiting for the next full `load()`. Display itself no
-      // longer needs this: `InventoryItemResponse.product_name` is already
-      // joined server-side.
-      setProducts((prev) => (prev.some((p) => p.id === product.id) ? prev : [...prev, product]));
       setItemDraft(createEmptyItemQuickAddValue(categoriesData[0]?.id ?? 0));
       setModal(null);
       showToast("Dodano rzecz");
@@ -1265,61 +1242,7 @@ function usePanelDataValue() {
     }
   }
 
-  /* ---------- rzeczy: edycja stanu + usuwanie ---------- */
-
-  async function saveItemCondition() {
-    if (!editingItemCondition) return;
-    setBusy(true);
-    setItemError(null);
-    try {
-      await updateInventoryItem(editingItemCondition.id, { condition: editingItemCondition.condition });
-      setEditingItemCondition(null);
-      await load({ silent: true });
-    } catch {
-      setEditingItemCondition(null);
-      setItemError("Nie udało się zapisać stanu — spróbuj ponownie");
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  function startEditItemMeta(it: MyInventoryItemResponse) {
-    const prod = products.find((p) => p.id === it.product_id);
-    setItemMetaError(null);
-    setEditingItemMeta({
-      id: it.id,
-      name: prod?.name ?? "",
-      category_id: prod?.category_id ?? 0,
-    });
-  }
-
-  async function saveItemMeta() {
-    if (!editingItemMeta) return;
-    const draft = editingItemMeta;
-    const name = draft.name.trim();
-    if (!name) {
-      setItemMetaError("Podaj nazwę rzeczy");
-      return;
-    }
-    const item = items.find((i) => i.id === draft.id);
-    const current = item ? products.find((p) => p.id === item.product_id) : undefined;
-    if (current && current.name === name && current.category_id === draft.category_id) {
-      setEditingItemMeta(null);
-      return;
-    }
-    setBusy(true);
-    setItemMetaError(null);
-    try {
-      const resolved = await resolveProduct({ name, category_id: draft.category_id });
-      await updateInventoryItem(draft.id, { product_id: resolved.id });
-      await load({ silent: true });
-      setEditingItemMeta(null);
-    } catch {
-      setItemMetaError("Nie udało się zapisać zmian — spróbuj ponownie");
-    } finally {
-      setBusy(false);
-    }
-  }
+  /* ---------- rzeczy: usuwanie ---------- */
 
   async function handleDeleteItem(itemId: number) {
     const index = items.findIndex((i) => i.id === itemId);
@@ -1417,10 +1340,7 @@ function usePanelDataValue() {
     editingGroupId,
     editGroupForm,
     editGroupError,
-    editingItemCondition,
     itemError,
-    editingItemMeta,
-    itemMetaError,
     organizationSlug,
     view,
     modal,
@@ -1450,7 +1370,6 @@ function usePanelDataValue() {
     draftNeededItem,
     inventoryId,
     items,
-    products,
     categories: categoriesData,
     itemDraft,
     // --- setters the render calls directly ---
@@ -1466,8 +1385,6 @@ function usePanelDataValue() {
     setTermDescription,
     setDraftNeededItem,
     setEditTermId,
-    setEditingItemCondition,
-    setEditingItemMeta,
     setMemberName,
     setMemberRole,
     setMemberBirthYear,
@@ -1505,9 +1422,6 @@ function usePanelDataValue() {
     startEditGroup,
     cancelEditGroup,
     saveEditGroup,
-    saveItemCondition,
-    startEditItemMeta,
-    saveItemMeta,
     handleDeleteItem,
     saveProfile,
   };

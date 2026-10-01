@@ -27,7 +27,7 @@ interface UseTermAttendeesResult {
   refetch: () => Promise<void>;
 }
 
-function hasStatus(err: unknown, status: number): boolean {
+export function hasStatus(err: unknown, status: number): boolean {
   return err instanceof ApiError && err.status === status;
 }
 

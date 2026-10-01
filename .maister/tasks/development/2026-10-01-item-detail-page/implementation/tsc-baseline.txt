@@ -1,0 +1,72 @@
+# tsc baseline (captured 2026-10-01, before any Group 5 frontend edit)
+# Command: npx tsc -p tsconfig.app.json --noEmit (in src/frontend), exit code 2
+# Error count: 57
+
+## Known pre-existing vitest failures (19), from orchestrator
+- PanelPage hamburger promotion: 6
+- PanelPage organizer join-request pending action: 2
+- TermPage: 5 (subtitle "Zajęcia w parku" / "Imię" label drift)
+- auth.test: 1
+- extension-points: 2
+- foundation: 1
+- ItemQuickAddForm: 1
+- ItemQuickAddFormCategory: 1
+
+## Full tsc output
+src/components/krag/RsvpDialog.tsx(39,43): error TS2345: Argument of type 'number' is not assignable to parameter of type 'string'.
+src/components/onboarding/steps/organizerSteps.tsx(119,65): error TS2322: Type 'number' is not assignable to type 'string'.
+src/components/panel/EditTermDialog.tsx(57,22): error TS2322: Type 'string' is not assignable to type 'number'.
+src/components/panel/EditTermDialog.tsx(230,11): error TS2322: Type 'number' is not assignable to type 'string'.
+src/components/panel/EditTermDialog.tsx(265,9): error TS2322: Type 'number' is not assignable to type 'string'.
+src/pages/CategoryListPage.tsx(154,53): error TS2345: Argument of type 'string' is not assignable to parameter of type 'number'.
+src/pages/CategoryListPage.tsx(164,53): error TS2345: Argument of type 'string' is not assignable to parameter of type 'number'.
+src/pages/CategoryListPage.tsx(184,54): error TS2345: Argument of type 'string' is not assignable to parameter of type 'SetStateAction<number | null>'.
+src/pages/krag/components/GroupHeader.tsx(7,3): error TS6133: 'subtitle' is declared but its value is never read.
+src/pages/krag/components/GroupHeader.tsx(8,3): error TS6133: 'eyebrow' is declared but its value is never read.
+src/pages/krag/components/GroupHeader.tsx(9,3): error TS6133: 'onBack' is declared but its value is never read.
+src/pages/krag/hooks/useGuestMerge.tsx(20,78): error TS2345: Argument of type 'number' is not assignable to parameter of type 'string'.
+src/pages/panel/PanelDataContext.tsx(710,13): error TS2322: Type 'number' is not assignable to type 'string'.
+src/pages/panel/PanelDataContext.tsx(898,59): error TS2345: Argument of type 'string' is not assignable to parameter of type 'number'.
+src/pages/panel/PanelDataContext.tsx(915,66): error TS2322: Type 'number' is not assignable to type 'string'.
+src/pages/panel/PanelDataContext.tsx(1313,53): error TS2322: Type 'number' is not assignable to type 'string'.
+src/pages/ProductDetailPage.tsx(155,45): error TS2367: This comparison appears to be unintentional because the types 'string' and 'number' have no overlap.
+src/pages/ProductListPage.tsx(37,28): error TS2367: This comparison appears to be unintentional because the types 'string' and 'number' have no overlap.
+src/test/CategoryFormPage.test.tsx(16,3): error TS2322: Type 'number' is not assignable to type 'string'.
+src/test/CategoryListPage.test.tsx(28,5): error TS2322: Type 'number' is not assignable to type 'string'.
+src/test/CategoryListPage.test.tsx(37,5): error TS2322: Type 'number' is not assignable to type 'string'.
+src/test/extension-points.test.tsx(103,5): error TS2322: Type 'number' is not assignable to type 'string'.
+src/test/ItemQuickAddForm.test.tsx(14,5): error TS2322: Type 'number' is not assignable to type 'string'.
+src/test/ItemQuickAddForm.test.tsx(15,5): error TS2322: Type 'number' is not assignable to type 'string'.
+src/test/ItemQuickAddForm.test.tsx(16,5): error TS2322: Type 'number' is not assignable to type 'string'.
+src/test/ItemQuickAddForm.test.tsx(17,5): error TS2322: Type 'number' is not assignable to type 'string'.
+src/test/ItemQuickAddForm.test.tsx(18,5): error TS2322: Type 'number' is not assignable to type 'string'.
+src/test/ItemQuickAddFormCategory.test.tsx(22,5): error TS2322: Type 'number' is not assignable to type 'string'.
+src/test/ItemQuickAddFormCategory.test.tsx(31,5): error TS2322: Type 'number' is not assignable to type 'string'.
+src/test/ItemQuickAddFormCategory.test.tsx(49,61): error TS2345: Argument of type 'number' is not assignable to parameter of type 'string'.
+src/test/ItemQuickAddFormCategory.test.tsx(64,48): error TS2345: Argument of type 'number' is not assignable to parameter of type 'string'.
+src/test/ItemQuickAddFormCategory.test.tsx(90,48): error TS2322: Type 'number' is not assignable to type 'string'.
+src/test/NeededItemQuickAddForm.test.tsx(13,5): error TS2322: Type 'number' is not assignable to type 'string'.
+src/test/NeededItemQuickAddForm.test.tsx(14,5): error TS2322: Type 'number' is not assignable to type 'string'.
+src/test/NeededItemQuickAddForm.test.tsx(15,5): error TS2322: Type 'number' is not assignable to type 'string'.
+src/test/NeededItemQuickAddForm.test.tsx(16,5): error TS2322: Type 'number' is not assignable to type 'string'.
+src/test/NeededItemQuickAddForm.test.tsx(17,5): error TS2322: Type 'number' is not assignable to type 'string'.
+src/test/pages.test.tsx(50,5): error TS2322: Type 'number' is not assignable to type 'string'.
+src/test/pages.test.tsx(51,5): error TS2322: Type 'number' is not assignable to type 'string'.
+src/test/PanelPage.test.tsx(24,1): error TS6133: 'itemListingPreferencesApi' is declared but its value is never read.
+src/test/PanelPage.test.tsx(224,5): error TS2322: Type 'number' is not assignable to type 'string'.
+src/test/PanelPage.test.tsx(225,5): error TS2322: Type 'number' is not assignable to type 'string'.
+src/test/PanelPage.test.tsx(226,5): error TS2322: Type 'number' is not assignable to type 'string'.
+src/test/PanelPage.test.tsx(227,5): error TS2322: Type 'number' is not assignable to type 'string'.
+src/test/PanelPage.test.tsx(228,5): error TS2322: Type 'number' is not assignable to type 'string'.
+src/test/ProductCategoryDisplayByCategoriesHook.test.tsx(34,5): error TS2322: Type 'number' is not assignable to type 'string'.
+src/test/ProductFormPageCategory.test.tsx(26,5): error TS2322: Type 'number' is not assignable to type 'string'.
+src/test/ProductFormPageCategory.test.tsx(35,5): error TS2322: Type 'number' is not assignable to type 'string'.
+src/test/RzeczyViewCategory.test.tsx(1,10): error TS6133: 'act' is declared but its value is never read.
+src/test/RzeczyViewCategory.test.tsx(62,5): error TS2322: Type 'number' is not assignable to type 'string'.
+src/test/RzeczyViewCategory.test.tsx(71,5): error TS2322: Type 'number' is not assignable to type 'string'.
+src/test/useCategories.test.ts(17,5): error TS2322: Type 'number' is not assignable to type 'string'.
+src/test/useCategories.test.ts(26,5): error TS2322: Type 'number' is not assignable to type 'string'.
+src/test/useTermAccess.test.ts(29,47): error TS2345: Argument of type 'number' is not assignable to parameter of type 'string'.
+src/test/useTermAccess.test.ts(56,55): error TS2345: Argument of type 'number' is not assignable to parameter of type 'string'.
+src/test/useTermAccess.test.ts(128,59): error TS2345: Argument of type 'number' is not assignable to parameter of type 'string'.
+src/test/useTermAccess.test.ts(146,60): error TS2345: Argument of type 'number' is not assignable to parameter of type 'string'.

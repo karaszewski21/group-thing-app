@@ -82,3 +82,40 @@ class ResolveProductRequest(BaseModel):
 
     name: str = Field(min_length=1, max_length=255)
     category_id: uuid.UUID
+
+
+_GALLERY_URL_MESSAGE = "Podaj poprawny link zaczynający się od http:// lub https://"
+# A whole http(s) URL with a host and no whitespace or control characters.
+_GALLERY_URL_PATTERN = re.compile(r"https?://[^\s/$.?#\x00-\x1f\x7f][^\s\x00-\x1f\x7f]*")
+
+
+class ProductPhotoResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    url: str
+    sort_order: int
+
+
+class AddProductPhotoRequest(BaseModel):
+    url: str = Field(max_length=500)
+
+    @field_validator("url")
+    @classmethod
+    def _check_url(cls, value: str) -> str:
+        trimmed = value.strip()
+        if not _GALLERY_URL_PATTERN.fullmatch(trimmed):
+            raise PydanticCustomError("value_error", _GALLERY_URL_MESSAGE)
+        return trimmed
+
+
+class ReorderProductPhotosRequest(BaseModel):
+    photo_ids: list[uuid.UUID] = Field(max_length=10)
+
+
+class UpdateProductDescriptionRequest(BaseModel):
+    description: str | None = Field(default=None, max_length=2000)
+
+
+class ProductDescriptionResponse(BaseModel):
+    description: str | None

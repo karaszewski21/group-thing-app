@@ -194,6 +194,20 @@ describe("TermPage — header and content", () => {
     expect(within(list).getByText("Ania Kowalska")).toBeInTheDocument();
     expect(within(document.getElementById("attendee-99")!).getByText("Namiot")).toBeInTheDocument();
   });
+
+  it("links each offered item's title to its item page, leaving needed items plain", async () => {
+    renderPage();
+
+    await screen.findByRole("region", { name: "Zapisani na zajęcia" });
+    const ola = document.getElementById("attendee-21")!;
+    expect(within(ola).getByRole("link", { name: "Rowerek" })).toHaveAttribute("href", "/product/9");
+    expect(within(document.getElementById("attendee-99")!).getByRole("link", { name: "Namiot" })).toHaveAttribute(
+      "href",
+      "/product/10",
+    );
+    expect(screen.getAllByText("Bębenek").length).toBeGreaterThan(0);
+    expect(screen.queryByRole("link", { name: /Bębenek/ })).toBeNull();
+  });
 });
 
 describe("TermPage — sign-up footer", () => {

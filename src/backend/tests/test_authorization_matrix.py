@@ -93,6 +93,16 @@ def test_resolveRequirement_circulationLedgerRoutes_resolveToExpectedRow() -> No
     assert resolve_requirement("GET", f"/api/accounts/{uuid.uuid4()}/balance") == "AUTHENTICATED"
 
 
+def test_resolveRequirement_productPhotoAndDescriptionRoutes_resolveToEditOrRead() -> None:
+    product_id = uuid.uuid4()
+    photo_id = uuid.uuid4()
+    assert resolve_requirement("PATCH", f"/api/products/{product_id}/description") == EDIT
+    assert resolve_requirement("POST", f"/api/products/{product_id}/photos") == EDIT
+    assert resolve_requirement("PUT", f"/api/products/{product_id}/photos/order") == EDIT
+    assert resolve_requirement("DELETE", f"/api/products/{product_id}/photos/{photo_id}") == EDIT
+    assert resolve_requirement("GET", f"/api/products/{product_id}/photos") == READ
+
+
 @pytest.mark.parametrize(
     ("method", "path", "expected"),
     [

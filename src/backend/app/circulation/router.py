@@ -45,6 +45,8 @@ from .schemas import (
     InventoryBalanceResponse,
     InventoryItemResponse,
     InventoryResponse,
+    ItemDetailsResponse,
+    ItemHistoryEntryResponse,
     ReservationResponse,
     UpdateInventoryItemRequest,
 )
@@ -170,6 +172,24 @@ async def update_item(
 async def delete_item(item_id: uuid.UUID, db: DbSession, principal: EditPrincipal) -> None:
     await service.soft_delete_item(db, item_id, principal)
     return None
+
+
+@router.get("/api/inventory-items/{item_id}/details", response_model=ItemDetailsResponse)
+async def get_item_details(
+    item_id: uuid.UUID, db: DbSession, principal: ReadPrincipal
+) -> ItemDetailsResponse:
+    """Item page read model; 200 for a soft-deleted item (status `DELETED`)."""
+    details = await service.get_item_details(db, item_id, principal)
+    return ItemDetailsResponse.model_validate(details)
+
+
+@router.get("/api/inventory-items/{item_id}/history", response_model=list[ItemHistoryEntryResponse])
+async def get_item_history(
+    item_id: uuid.UUID, db: DbSession, principal: ReadPrincipal
+) -> list[ItemHistoryEntryResponse]:
+    """Privacy-labelled movements, newest first; 200 for a soft-deleted item."""
+    entries = await service.get_item_history(db, item_id, principal)
+    return [ItemHistoryEntryResponse.model_validate(entry) for entry in entries]
 
 
 @router.get("/api/inventory-items/{item_id}/balance", response_model=InventoryBalanceResponse)

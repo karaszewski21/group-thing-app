@@ -11,7 +11,10 @@ posting rules are documented on `app.circulation.infrastructure.ledger`.
 
 from __future__ import annotations
 
-from app.circulation.application.identity import get_user_id_by_principal
+from app.circulation.application.identity import (
+    find_user_id_by_principal,
+    get_user_id_by_principal,
+)
 from app.circulation.application.inventory import (
     create_inventory,
     get_inventory,
@@ -31,7 +34,8 @@ from app.circulation.application.inventory_items import (
     soft_delete_item,
     update_item,
 )
-from app.circulation.application.movements import get_transaction
+from app.circulation.application.item_details import get_item_details
+from app.circulation.application.movements import get_item_history, get_transaction
 from app.circulation.application.reservation_transitions import (
     cancel_exchange,
     cancel_reservation,
@@ -59,11 +63,14 @@ __all__ = [
     "create_reservation",
     "create_return_reservation",
     "fulfill_exchange",
+    "find_user_id_by_principal",
     "fulfill_reservation",
     "get_active_reservation_id_for_item",
     "get_inventory",
     "get_item",
     "get_item_balance",
+    "get_item_details",
+    "get_item_history",
     "get_item_with_product_name",
     "get_or_create_personal_inventory",
     "get_reservation",

@@ -1,6 +1,7 @@
 import { useState, type ReactNode } from "react";
+import { Link } from "react-router-dom";
 import dayjs from "../../../utils/dayjs";
-import { GiftIcon } from "../panelIcons";
+import { EyeIcon, GiftIcon } from "../panelIcons";
 import { usePanelData } from "../panelDataStore";
 
 type Tab = "od-innych" | "innym";
@@ -57,6 +58,7 @@ export function WypozyczoneView() {
             {borrowedItems.map((b) => (
               <LoanRow
                 key={b.itemId}
+                itemId={b.itemId}
                 productName={b.productName}
                 who={`Od: ${b.lenderName}`}
                 dueDate={b.dueDate}
@@ -78,6 +80,7 @@ export function WypozyczoneView() {
             {lentOutItems.map((it) => (
               <LoanRow
                 key={it.id}
+                itemId={it.id}
                 productName={it.product_name}
                 who={`U: ${it.lent_to_display_name}`}
                 dueDate={it.lent_due_date}
@@ -100,12 +103,14 @@ function EmptyState({ text }: { text: string }) {
 }
 
 function LoanRow({
+  itemId,
   productName,
   who,
   dueDate,
   dueLabel,
   children,
 }: {
+  itemId: number;
   productName: string;
   who: string;
   dueDate: string | null;
@@ -126,6 +131,13 @@ function LoanRow({
           </small>
         )}
       </div>
+      <Link
+        to={`/product/${itemId}`}
+        aria-label={`Zobacz rzecz ${productName}`}
+        className="flex h-[30px] w-[30px] flex-none items-center justify-center rounded-[10px] text-ink-soft transition-colors hover:bg-paper hover:text-ink"
+      >
+        <EyeIcon />
+      </Link>
       {children}
     </div>
   );

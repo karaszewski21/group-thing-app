@@ -25,6 +25,7 @@ RESERVED_SLUGS: frozenset[str] = frozenset(
         "panel",
         "onboarding",
         "organization",
+        "product",
         "products",
         "categories",
         "moderation",

@@ -384,7 +384,6 @@ function mockGuestDefaults() {
   vi.mocked(inventoriesApi.getMyInventoryItems).mockResolvedValue([]);
   vi.mocked(inventoriesApi.getMyLentOutItems).mockResolvedValue([]);
   vi.mocked(inventoriesApi.getInventoryItemBalances).mockResolvedValue({});
-  vi.mocked(productsApi.getProducts).mockResolvedValue([]);
   vi.mocked(familiesApi.getMyFamilies).mockResolvedValue([]);
   vi.mocked(familiesApi.getMembershipsForFamily).mockResolvedValue([]);
   vi.mocked(familiesApi.getGuardians).mockResolvedValue([]);
@@ -404,7 +403,6 @@ function mockOrganizerDefaults() {
   vi.mocked(inventoriesApi.getMyInventoryItems).mockResolvedValue([]);
   vi.mocked(inventoriesApi.getMyLentOutItems).mockResolvedValue([]);
   vi.mocked(inventoriesApi.getInventoryItemBalances).mockResolvedValue({});
-  vi.mocked(productsApi.getProducts).mockResolvedValue([]);
   vi.mocked(groupsApi.getGroup).mockResolvedValue(mockGroup);
   vi.mocked(groupsApi.getTermAttendeesForFormalization).mockResolvedValue([]);
   vi.mocked(termsApi.getTerms).mockResolvedValue([]);
@@ -2064,22 +2062,10 @@ describe("PanelPage — inventory item edit/delete", () => {
     updated_at: "",
     listing_mode: null,
   };
-  const product = {
-    id: 7,
-    name: "Rowerek",
-    description: null,
-    photoUrl: null,
-    sku: "SKU7",
-    category_id: 1,
-    pluginData: null,
-    createdAt: "",
-    updatedAt: "",
-  };
 
   function mockItems() {
     mockGuestDefaults();
     vi.mocked(inventoriesApi.getMyInventoryItems).mockResolvedValue([invItem]);
-    vi.mocked(productsApi.getProducts).mockResolvedValue([product]);
   }
 
   it("seeds each item's mode toggle from its listing_mode in 'Moje rzeczy'", async () => {
@@ -2087,7 +2073,6 @@ describe("PanelPage — inventory item edit/delete", () => {
     vi.mocked(inventoriesApi.getMyInventoryItems).mockResolvedValue([
       { ...invItem, listing_mode: "GIFT" },
     ]);
-    vi.mocked(productsApi.getProducts).mockResolvedValue([product]);
     renderPanel();
 
     fireEvent.click(await screen.findByRole("button", { name: "Moje rzeczy" }));
@@ -2100,54 +2085,6 @@ describe("PanelPage — inventory item edit/delete", () => {
       "aria-pressed",
       "false",
     );
-  });
-
-  it("edits an item's condition inline in 'Moje rzeczy'", async () => {
-    mockItems();
-    vi.mocked(inventoriesApi.updateInventoryItem).mockResolvedValue({ ...invItem, condition: "NEW" });
-    renderPanel();
-
-    fireEvent.click(await screen.findByRole("button", { name: "Moje rzeczy" }));
-    fireEvent.click(await screen.findByRole("button", { name: "Edytuj stan rzeczy" }));
-    fireEvent.change(screen.getByLabelText("Stan rzeczy"), { target: { value: "NEW" } });
-    fireEvent.click(screen.getByRole("button", { name: "Zapisz" }));
-
-    await waitFor(() =>
-      expect(inventoriesApi.updateInventoryItem).toHaveBeenCalledWith(21, { condition: "NEW" }),
-    );
-  });
-
-  it("edits an item name+category → resolveProduct then updateInventoryItem with the new product_id", async () => {
-    mockItems();
-    vi.mocked(productsApi.resolveProduct).mockResolvedValue({ ...product, id: 99, name: "Hulajnoga" });
-    vi.mocked(inventoriesApi.updateInventoryItem).mockResolvedValue({ ...invItem, product_id: 99 });
-    renderPanel();
-
-    fireEvent.click(await screen.findByRole("button", { name: "Moje rzeczy" }));
-    fireEvent.click(await screen.findByRole("button", { name: "Edytuj rzecz Rowerek" }));
-    fireEvent.change(screen.getByLabelText("Nazwa rzeczy"), { target: { value: "Hulajnoga" } });
-    fireEvent.change(screen.getByLabelText("Typ rzeczy"), { target: { value: "3" } });
-    fireEvent.click(screen.getByRole("button", { name: "Zapisz" }));
-
-    await waitFor(() =>
-      expect(productsApi.resolveProduct).toHaveBeenCalledWith({ name: "Hulajnoga", category_id: 3 }),
-    );
-    await waitFor(() =>
-      expect(inventoriesApi.updateInventoryItem).toHaveBeenCalledWith(21, { product_id: 99 }),
-    );
-  });
-
-  it("shows an inline error when the item name save is rejected", async () => {
-    mockItems();
-    vi.mocked(productsApi.resolveProduct).mockRejectedValue(new Error("500"));
-    renderPanel();
-
-    fireEvent.click(await screen.findByRole("button", { name: "Moje rzeczy" }));
-    fireEvent.click(await screen.findByRole("button", { name: "Edytuj rzecz Rowerek" }));
-    fireEvent.change(screen.getByLabelText("Nazwa rzeczy"), { target: { value: "Hulajnoga" } });
-    fireEvent.click(screen.getByRole("button", { name: "Zapisz" }));
-
-    expect(await screen.findByText(/Nie udało się zapisać zmian/)).toBeInTheDocument();
   });
 
   it("optimistically deletes an item and restores it on a 409", async () => {
@@ -2178,7 +2115,6 @@ describe("PanelPage — inventory item edit/delete", () => {
         lent_due_date: "2026-10-15T00:00:00Z",
       },
     ]);
-    vi.mocked(productsApi.getProducts).mockResolvedValue([product]);
     renderPanel();
 
     fireEvent.click(await screen.findByRole("button", { name: "Moje rzeczy" }));
@@ -2385,6 +2321,57 @@ describe("PanelPage — Wypożyczone: tabs", () => {
     expect(within(panel).getByText("U: Marek")).toBeInTheDocument();
     expect(within(panel).getByText("Zwrot do: 15.10.2026")).toBeInTheDocument();
     expect(within(panel).queryByText("Hulajnoga")).not.toBeInTheDocument();
+  });
+
+  it("shows a 'Zobacz rzecz' link to /product/:itemId on both tabs", async () => {
+    mockGuestDefaults();
+    vi.mocked(inventoriesApi.getInventories).mockResolvedValue([
+      mockInventory,
+      { ...mockInventory, id: 2, inventory_type: "VIRTUAL" },
+    ]);
+    vi.mocked(inventoriesApi.getInventoryItems).mockResolvedValue([
+      {
+        id: 40,
+        inventory_id: 2,
+        home_inventory_id: 50,
+        product_id: 8,
+        product_name: "Wiertarka",
+        condition: "GOOD",
+        added_at: "",
+        created_at: "",
+        updated_at: "",
+      },
+    ]);
+    vi.mocked(inventoriesApi.getInventoryItemBalance).mockResolvedValue({
+      id: 1,
+      item_id: 40,
+      status: "LENT",
+      reserved_at: null,
+      lent_at: null,
+      returned_at: null,
+      due_date: null,
+      reservation_id: null,
+    });
+    vi.mocked(inventoriesApi.getInventory).mockResolvedValue({ ...mockInventory, id: 50, owner_user_id: 7 });
+    vi.mocked(peopleApi.getProfileByAccountUserId).mockResolvedValue({
+      ...mockProfile,
+      id: 7,
+      account_user_id: 7,
+      display_name: "Ola",
+    });
+    vi.mocked(inventoriesApi.getMyLentOutItems).mockResolvedValue([lentOutItem]);
+    renderPanel();
+
+    fireEvent.click(await screen.findByRole("button", { name: "Wypożyczone" }));
+    expect(await screen.findByRole("link", { name: "Zobacz rzecz Wiertarka" })).toHaveAttribute(
+      "href",
+      "/product/40",
+    );
+
+    fireEvent.click(screen.getByRole("tab", { name: "Wypożyczone innym" }));
+    expect(
+      within(screen.getByRole("tabpanel")).getByRole("link", { name: "Zobacz rzecz Rowerek" }),
+    ).toHaveAttribute("href", "/product/61");
   });
 
   it("'Wypożyczone innym' shows an empty state when nothing is lent out", async () => {

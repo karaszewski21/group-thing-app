@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../../auth/AuthContext";
 import type { PublicCircleResponse, PublicItemListingResponse } from "../../api/groups";
 import type { ReservationType } from "../../api/reservations";
@@ -63,7 +63,15 @@ export function PublicTermView({
     );
     return {
       key: listing.item_id,
-      title: <strong>{listing.product_name}</strong>,
+      title: (
+        <Link
+          to={`/product/${listing.item_id}`}
+          className="text-inherit underline decoration-[1.5px] underline-offset-2 hover:text-mint"
+        >
+          <strong>{listing.product_name}</strong>
+          <span aria-hidden="true"> ›</span>
+        </Link>
+      ),
       actions: guest.isMerging(mergeKey)
         ? []
         : offeredTypes.map((t) => ({

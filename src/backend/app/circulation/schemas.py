@@ -12,6 +12,9 @@ from datetime import datetime
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
+from app.product.schemas import ProductPhotoResponse
+
+from .domain.item_privacy import ItemStatusCode
 from .models import (
     AccountType,
     BalanceStatus,
@@ -116,7 +119,7 @@ class CreateReservationRequest(BaseModel):
     notes: str | None = Field(default=None, max_length=1000)
 
     @model_validator(mode="after")
-    def _require_term_id_unless_return(self) -> "CreateReservationRequest":
+    def _require_term_id_unless_return(self) -> CreateReservationRequest:
         if self.reservation_type != ReservationType.RETURN and self.term_id is None:
             raise ValueError(
                 f"term_id is required for reservation_type={self.reservation_type} "
@@ -161,3 +164,44 @@ class CirculationTransactionResponse(BaseModel):
     occurred_at: datetime
     description: str
     entries: list[CirculationEntryResponse]
+
+
+class ItemStatusResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    code: ItemStatusCode
+    term_occurs_on: datetime | None
+    due_date: datetime | None
+    counterparty_label: str | None
+
+
+class ItemDetailsResponse(BaseModel):
+    """`GET /api/inventory-items/{id}/details` — the item page's read
+    model. Carries no user, inventory or reservation ids."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    product_id: uuid.UUID
+    name: str
+    category_id: uuid.UUID
+    category_name: str | None
+    condition: ItemCondition
+    description: str | None
+    photos: list[ProductPhotoResponse]
+    product_photo_url: str | None
+    is_owner: bool
+    deleted_at: datetime | None
+    status: ItemStatusResponse
+
+
+class ItemHistoryEntryResponse(BaseModel):
+    """One privacy-labelled movement of `GET /api/inventory-items/{id}/
+    history`. Deliberately no ids and no raw transaction description."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    occurred_at: datetime
+    movement_type: MovementType
+    description: str
+    term_occurs_on: datetime | None
