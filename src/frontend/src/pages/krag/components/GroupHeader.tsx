@@ -14,9 +14,9 @@ export function GroupHeader({
   onBack: () => void;
 }) {
   return (
-    <header className="sticky top-0 z-20 bg-transparent px-4.5 pb-4 pt-4.5 ">
+    <header className="sticky top-0 bg-transparent px-4.5 pb-4 pt-4.5 ">
       <h1 className="text-xl">{title}</h1>
-      {subtitle != null && <div className="px-4.5 pb-4 pt-4.5 bg-white">{subtitle}</div>}
+      {/* {subtitle != null && <div className="px-4.5 pb-4 pt-4.5 bg-white">{subtitle}</div>} */}
     </header>
   );
 }

@@ -1,0 +1,104 @@
+orchestrator:
+  started_phase: phase-1
+  completed_phases: [phase-1, phase-2, phase-3, phase-4, phase-5, phase-6]
+  failed_phases: []
+  auto_fix_attempts:
+    phase-1: 0
+    phase-2: 0
+  options:
+    spec_audit_enabled: true
+    skip_test_suite: true
+    e2e_enabled: true
+    user_docs_enabled: true
+    code_review_enabled: true
+    pragmatic_review_enabled: true
+    reality_check_enabled: true
+    production_check_enabled: true
+    sequential: null
+  created: 2026-09-29T00:00:00Z
+  updated: 2026-09-30T00:00:00Z
+  tdd_red_passed: true
+  tech_clarified: true
+  task_path: .maister/tasks/development/2026-09-29-family-profile-signup-flow
+  task_ids: {}
+
+task:
+  title: Family profile completion flow from term signup (/panel/rodzic)
+  description: |
+    strona /panel/rodzic
+    gdy user sie zapisuje i nie ma uzupełnionej rodziny, modal na terminie prosi o uzupełnienie.
+    1) Dodać query param, żeby po uzupełnieniu wrócić do terminu -> button na dole "wróć do terminu"
+    2) Poprawka: gdy dodaję rolę child, dodaj mi opiekuna
+    3) Dodać pole wiek tylko dla dziecka
+    4) Dla organizatora dać info: ktoś się zapisał, ile dzieci, ile lat
+  status: in_progress
+  tags: [frontend, backend, families, terms]
+  priority: null
+
+task_context:
+  risk_level: medium
+  clarifications_resolved: true
+  scope_expanded: true
+  architecture_decision: null
+  task_characteristics:
+    has_reproducible_defect: true
+    modifies_existing_code: true
+    creates_new_entities: true
+    involves_data_operations: true
+    ui_heavy: true
+  research_reference:
+    path: null
+    research_question: null
+    research_type: null
+    confidence_level: null
+  design_reference:
+    source: null
+    product_design_path: null
+    mockup_count: 0
+    has_brief: false
+    index_path: null
+  project_context:
+    project_doc_paths:
+      - .maister/docs/project/tech-stack.md
+      - .maister/docs/project/architecture.md
+  phase_summaries:
+    research: {summary: null, key_findings: [], recommended_approach: null}
+    design: {summary: "ASCII mockups from Phase 4", screen_count: 10, component_count: 13, index_path: analysis/design-context/INDEX.md}
+    codebase_analysis:
+      primary_language: TypeScript + Python
+      summary: "Family panel is /panel/rodzina (not /panel/rodzic); term prompt is an inline banner in RsvpDialogLoggedIn linking bare /panel. Children mislabeled '(opiekun)' since GuardianResponse lacks role_type. No age field anywhere (next migration 0044). Organizer attendee list (EditTermDialog) fetches child_count but doesn't render it; no ages; no RSVP notification."
+      key_files:
+        - src/frontend/src/components/krag/RsvpDialogLoggedIn.tsx
+        - src/frontend/src/pages/panel/views/RodzinaView.tsx
+        - src/frontend/src/pages/panel/PanelDataContext.tsx
+        - src/frontend/src/api/families.ts
+        - src/frontend/src/components/panel/CreateFamilyDialog.tsx
+        - src/frontend/src/components/panel/EditTermDialog.tsx
+        - src/backend/app/families/schemas.py
+        - src/backend/app/families/guardians.py
+        - src/backend/app/families/members.py
+        - src/backend/app/families/models.py
+        - src/backend/app/groups/application/memberships.py
+        - src/backend/app/groups/schemas.py
+    clarifications:
+      - "Route stays /panel/rodzina (no /panel/rodzic alias)"
+      - "Child age stored as birth year, age computed"
+      - "Organizer: attendee list per term in panel, possibly new organizer-only term details page; no notification"
+      - "Ages = all CHILD members of attendee's family; RSVP stays aggregate child_count"
+      - "Wróć do terminu button at bottom of /panel/rodzina via ?returnTo=, preserved through create-family dialog"
+    gap_analysis:
+      summary: "Points 1-3 are small additive changes (safe returnTo + button; role_type in GuardianResponse; birth_year migration 0044 + CHILD-only validator). Real gaps: no organizer signup display (part 4) and no way to edit birth year of existing children."
+      integration_points: [RsvpDialogLoggedIn banner link, RodzinaView, CreateFamilyDialog, families schemas/members/guardians, groups memberships attendees endpoint, organizerTermCard, router /panel/terminy/:termId]
+    scope_clarifications:
+      scope_expanded: true
+      summary: "Birth-year-only PATCH + inline edit for children; new organizer-only page /panel/terminy/:termId; attendee/child counts in organizer terms payload; all gap-analysis defaults accepted (birth_year on user_profiles, extend attendees endpoint, ages only no names, isSafeReturnPath)." 
+    ui_mockups: {components_designed: [rsvp-banner, rodzina-populated, rodzina-empty, return-to-term-button, child-birth-year-inline, birth-year-field, create-family-step2, organizer-term-card, organizer-term-attendees, organizer-term-attendees-states], summary: "10 ASCII mockups, phone-first, reuse existing panel patterns; open point: /panel/terminy/:termId lacks groupId (recommend resolving group from PanelDataContext terms list)"}
+    specification: {summary: "spec.md: 25 requirements. returnTo+isSafeReturnPath; role_type/birth_year in GuardianResponse; migration 0044 user_profiles.birth_year; PATCH /api/families/{fid}/guardians/{mid} birth_year-only; TermAttendeeResponse.children [{birth_year}]; organizer-gated attendee_count/child_count on GET /api/terms; standalone TermAttendeesPage /panel/terminy/:termId via useTermAttendees; attendees term-group mismatch -> 404; family GET endpoints now guardian-only (403/404). After audit (pass-with-concerns, 0C/2H/5M/8L, all resolved): 30 reqs; add-guardian/make-primary guardian-only; formalize term-in-group 404; ORDER BY family created_at; per-request birth-year upper bound; full frontend id widening to string for terms/groups (+reservations.term_id), fixes PanelModals Number(uuid) bug; gate = no new tsc errors vs 60-error baseline."}
+    architecture_decision: {decision: "termId-only route; group resolved via GET /api/terms/{id}", summary: "No groupId in URL; dependent queries term->group->attendees"}
+
+verification_context:
+  last_status: null
+  issues_found: []
+  fixes_applied: []
+  decisions_made: []
+  reverify_count: 0

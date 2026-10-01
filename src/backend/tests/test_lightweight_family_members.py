@@ -168,3 +168,27 @@ async def test_lightweightMember_cannotLogin_returns401(
         await db_session.execute(select(UserProfile).where(UserProfile.display_name == "Bez Konta"))
     ).scalar_one()
     assert profile.account_user_id is None
+
+
+async def test_listGuardians_childAndCaller_exposeRoleTypePerMember(client: AsyncClient) -> None:
+    """Adding a CHILD must leave the caller visibly a GUARDIAN: the member
+    listing carries each member's `role_type` so the panel can label a child
+    as a child instead of "(opiekun)"."""
+    token = await _register_guardian(client, "role.type.listing@example.com")
+
+    create_response = await client.post(
+        "/api/families/mine/members",
+        json={"members": [{"name": "Zosia Dziecko", "role_type": "CHILD"}]},
+        headers=_auth_headers(token),
+    )
+    assert create_response.status_code == 201
+    family_id = create_response.json()["family"]["id"]
+
+    list_response = await client.get(
+        f"/api/families/{family_id}/guardians", headers=_auth_headers(token)
+    )
+
+    assert list_response.status_code == 200
+    roles = {g["display_name"]: g.get("role_type") for g in list_response.json()}
+    assert roles["Zosia Dziecko"] == "CHILD"
+    assert roles["Role Type Listing"] == "GUARDIAN"
