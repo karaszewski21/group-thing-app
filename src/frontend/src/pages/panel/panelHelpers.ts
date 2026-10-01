@@ -16,11 +16,15 @@ export type View =
   | "ustawienia"
   | "rodzina";
 
+/** The URL of a panel view: `/panel` for home, `/panel/<view>` otherwise. */
+export function viewPath(view: View): string {
+  return view === "home" ? "/panel" : `/panel/${view}`;
+}
+
 export type ModalKind =
   | "grupa"
   | "edit-grupa"
   | "termin"
-  | "rzecz"
   | "pierwszy-termin"
   | "zostan-organizatorem"
   | "rodzina-nowa"

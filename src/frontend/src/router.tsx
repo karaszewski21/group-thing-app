@@ -17,6 +17,7 @@ import { OAuth2AuthorizePage } from "./pages/OAuth2AuthorizePage";
 import { TermPage } from "./pages/krag/TermPage";
 import { PanelPage } from "./pages/panel/PanelPage";
 import { TermAttendeesPage } from "./pages/panel/TermAttendeesPage";
+import { ItemCreatePage } from "./pages/product/ItemCreatePage";
 import { ItemDetailPage } from "./pages/product/ItemDetailPage";
 import { ItemEditPage } from "./pages/product/ItemEditPage";
 import { OnboardingPage } from "./pages/OnboardingPage";
@@ -104,7 +105,11 @@ export const router = createBrowserRouter([
         element: <AuthGuard><TermAttendeesPage /></AuthGuard>,
       },
       {
-        // Item page; "product" is in the backend's RESERVED_SLUGS.
+        // Item pages; "product" is in the backend's RESERVED_SLUGS.
+        path: "/product/new",
+        element: <AuthGuard><ItemCreatePage /></AuthGuard>,
+      },
+      {
         path: "/product/:id",
         element: <AuthGuard><ItemDetailPage /></AuthGuard>,
       },

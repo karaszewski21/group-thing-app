@@ -21,7 +21,6 @@ import * as notificationsApi from "../api/notifications";
 import * as categoriesApi from "../api/categories";
 import * as termItemListingsApi from "../api/termItemListings";
 import * as reservationsApi from "../api/reservations";
-import * as itemListingPreferencesApi from "../api/itemListingPreferences";
 import { PanelPage } from "../pages/panel/PanelPage";
 import { NotificationBell } from "../components/shared/NotificationBell";
 import { ApiError } from "../api/client";
@@ -85,14 +84,12 @@ vi.mock("../api/groups", () => ({
 }));
 
 vi.mock("../api/inventories", () => ({
-  createInventory: vi.fn(),
   getInventories: vi.fn(),
   getInventory: vi.fn(),
   getInventoryItems: vi.fn(),
   getInventoryItemBalance: vi.fn(),
   getMyInventoryItems: vi.fn(),
   getMyLentOutItems: vi.fn(),
-  registerInventoryItem: vi.fn(),
   updateInventoryItem: vi.fn(),
   deleteInventoryItem: vi.fn(),
   // Added alongside Group 7's own additions below: RzeczyView.tsx (Group 8)
@@ -594,69 +591,21 @@ describe("PanelPage — hamburger promotion", () => {
   });
 });
 
-describe("PanelPage — item add dialog rework", () => {
+describe("PanelPage — item add entry point", () => {
   beforeEach(() => {
     vi.resetAllMocks();
     vi.mocked(groupsApi.listMyPendingJoinRequests).mockResolvedValue([]);
   });
 
-  it('the "+ Dodaj rzecz" modal renders ItemQuickAddForm (3 fields, no product dropdown)', async () => {
+  it('"+ Dodaj rzecz" links to the /product/new page instead of opening a modal', async () => {
     mockGuestDefaults();
     renderPanel();
 
     fireEvent.click(await screen.findByRole("button", { name: "Moje rzeczy" }));
-    fireEvent.click(await screen.findByRole("button", { name: "+ Dodaj rzecz" }));
+    const link = await screen.findByRole("link", { name: "+ Dodaj rzecz" });
 
-    const dialog = await screen.findByRole("dialog", { name: "Dodaj rzecz" });
-    expect(within(dialog).getByLabelText("Nazwa")).toBeInTheDocument();
-    expect(within(dialog).getByLabelText("Stan")).toBeInTheDocument();
-    expect(within(dialog).getByLabelText("Typ")).toBeInTheDocument();
-    expect(within(dialog).queryByText("+ inny przedmiot")).not.toBeInTheDocument();
-  });
-
-  it("submitting it calls resolveProduct then registerInventoryItem with the resolved product_id", async () => {
-    mockGuestDefaults();
-    vi.mocked(productsApi.resolveProduct).mockResolvedValue({
-      id: 42,
-      name: "Rowerek",
-      description: null,
-      photoUrl: null,
-      sku: "SKU",
-      category_id: 1,
-      pluginData: null,
-      createdAt: "",
-      updatedAt: "",
-    });
-    vi.mocked(inventoriesApi.registerInventoryItem).mockResolvedValue({
-      id: 1,
-      inventory_id: 1,
-      home_inventory_id: null,
-      product_id: 42,
-      product_name: "Rowerek",
-      condition: "GOOD",
-      added_at: "",
-      created_at: "",
-      updated_at: "",
-    });
-
-    renderPanel();
-    fireEvent.click(await screen.findByRole("button", { name: "Moje rzeczy" }));
-    fireEvent.click(await screen.findByRole("button", { name: "+ Dodaj rzecz" }));
-
-    const dialog = await screen.findByRole("dialog", { name: "Dodaj rzecz" });
-    fireEvent.change(within(dialog).getByLabelText("Nazwa"), { target: { value: "Rowerek" } });
-    fireEvent.click(within(dialog).getByRole("button", { name: "Dodaj rzecz" }));
-
-    await waitFor(() =>
-      expect(productsApi.resolveProduct).toHaveBeenCalledWith({ name: "Rowerek", category_id: 1 }),
-    );
-    await waitFor(() =>
-      expect(inventoriesApi.registerInventoryItem).toHaveBeenCalledWith({
-        inventory_id: 1,
-        product_id: 42,
-        condition: "GOOD",
-      }),
-    );
+    expect(link).toHaveAttribute("href", "/product/new");
+    expect(screen.queryByRole("dialog", { name: "Dodaj rzecz" })).not.toBeInTheDocument();
   });
 });
 

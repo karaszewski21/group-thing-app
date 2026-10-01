@@ -29,14 +29,6 @@ vi.mock("../api/people", () => ({
   }),
   getLeadershipsForPerson: vi.fn().mockResolvedValue([]),
 }));
-vi.mock("../api/products", () => ({
-  resolveProduct: vi.fn(),
-}));
-vi.mock("../api/inventories", () => ({
-  getInventories: vi.fn(),
-  createInventory: vi.fn(),
-  registerInventoryItem: vi.fn(),
-}));
 vi.mock("../api/groups", () => ({
   createMyCircle: vi.fn(),
 }));
@@ -53,7 +45,6 @@ vi.mock("../api/organizations", () => ({
 }));
 vi.mock("../api/terms", () => ({
   createTerm: vi.fn(),
-  createNeededItem: vi.fn(),
 }));
 
 function fakeJwt(sub: string): string {
@@ -82,7 +73,7 @@ beforeEach(() => {
 });
 
 describe("register -> onboarding -> panel handoff (crosses Group 4 / Group 7 boundary)", () => {
-  it("GUEST: registering lands on the single-step item wizard, and skipping reaches /panel with no family request", async () => {
+  it("GUEST: registering skips onboarding and lands straight on /panel, with no family request", async () => {
     mockFetch.mockResolvedValueOnce({
       ok: true,
       status: 201,
@@ -95,16 +86,8 @@ describe("register -> onboarding -> panel handoff (crosses Group 4 / Group 7 bou
     fireEvent.change(screen.getByLabelText(/hasło/i), { target: { value: "secret123" } });
     fireEvent.click(screen.getByRole("button", { name: /załóż konto/i }));
 
-    // Real AuthProvider.register() -> real navigate -> real OnboardingPage
-    // reading registeredRole. GUEST onboarding is now one step: the item
-    // form, no family-name / family-members chrome.
-    expect(await screen.findByRole("button", { name: "Zakończ ✓" })).toBeInTheDocument();
-    expect(screen.queryByRole("status")).not.toBeInTheDocument();
-    expect(screen.queryByText(/Krok \d+ z \d+/)).not.toBeInTheDocument();
-
-    fireEvent.click(screen.getByRole("button", { name: "Pomiń" }));
-
     expect(await screen.findByText("PANEL")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Zakończ ✓" })).not.toBeInTheDocument();
 
     const familyMemberCalls = mockFetch.mock.calls.filter(([url]) =>
       String(url).includes("/families/mine/members"),
@@ -112,7 +95,7 @@ describe("register -> onboarding -> panel handoff (crosses Group 4 / Group 7 bou
     expect(familyMemberCalls).toHaveLength(0);
   });
 
-  it("registering with ?returnTo= still runs onboarding, then returns to that page instead of /panel", async () => {
+  it("GUEST registering with ?returnTo= goes straight back to that page instead of /panel", async () => {
     mockFetch.mockResolvedValueOnce({
       ok: true,
       status: 201,
@@ -129,8 +112,6 @@ describe("register -> onboarding -> panel handoff (crosses Group 4 / Group 7 bou
     fireEvent.change(screen.getByLabelText(/^email$/i), { target: { value: "jan.kowalski@example.com" } });
     fireEvent.change(screen.getByLabelText(/hasło/i), { target: { value: "secret123" } });
     fireEvent.click(screen.getByRole("button", { name: /załóż konto/i }));
-
-    fireEvent.click(await screen.findByRole("button", { name: "Pomiń" }));
 
     expect(await screen.findByText("TERM PAGE")).toBeInTheDocument();
   });

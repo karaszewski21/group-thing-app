@@ -1,12 +1,10 @@
 import { ChevronDown, ChevronUp } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type RefObject } from "react";
 import type { ProductPhotoResponse } from "../../api/products";
 import { isValidImageUrl } from "../../utils/url";
 import { TrashIcon } from "../panel/panelIcons";
 import { SafeImage } from "./ItemGallery";
-import { MAX_PRODUCT_PHOTOS } from "./itemPageShared";
-
-const INVALID_URL_MESSAGE = "Podaj poprawny link zaczynający się od http:// lub https://";
+import { INVALID_PHOTO_URL_MESSAGE, MAX_PRODUCT_PHOTOS } from "./itemPageShared";
 
 /** Idle edit-mode preview of the photo row. */
 export function ItemPhotoStrip({ photos }: { photos: ProductPhotoResponse[] }) {
@@ -74,7 +72,7 @@ export function ItemGalleryEditor({ photos, busy, onAdd, onRemove, onMove, onClo
   function handleAdd() {
     const trimmed = url.trim();
     if (!isValidImageUrl(trimmed)) {
-      setError(INVALID_URL_MESSAGE);
+      setError(INVALID_PHOTO_URL_MESSAGE);
       return;
     }
     void run(async () => {
@@ -145,33 +143,14 @@ export function ItemGalleryEditor({ photos, busy, onAdd, onRemove, onMove, onClo
           })}
         </ul>
       )}
-      <div className="mt-2 flex items-center gap-2">
-        <input
-          ref={inputRef}
-          type="url"
-          aria-label="Link do zdjęcia"
-          placeholder="Wklej link do zdjęcia (https://…)"
-          value={url}
-          disabled={busy || atLimit}
-          onChange={(e) => setUrl(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === "Enter") {
-              e.preventDefault();
-              handleAdd();
-            }
-            if (e.key === "Escape") onClose();
-          }}
-          className="min-w-0 flex-1 rounded-lg border-[1.5px] border-line bg-cream px-2 py-1.5 text-[13.5px] text-ink disabled:opacity-60"
-        />
-        <button
-          type="button"
-          onClick={handleAdd}
-          disabled={busy || atLimit}
-          className="flex-none rounded-[9px] bg-mint px-3 py-1.5 text-[11.5px] font-extrabold text-white disabled:opacity-60"
-        >
-          + Dodaj
-        </button>
-      </div>
+      <PhotoUrlField
+        inputRef={inputRef}
+        value={url}
+        disabled={busy || atLimit}
+        onChange={setUrl}
+        onAdd={handleAdd}
+        onEscape={onClose}
+      />
       {atLimit && <p className="mt-1.5 text-[12.5px] text-ink-soft">Osiągnięto limit {MAX_PRODUCT_PHOTOS} zdjęć.</p>}
       <p className="mt-1.5 text-[11.5px] text-ink-soft">
         Zdjęcia są wspólne dla wszystkich rzeczy tego produktu.
@@ -187,6 +166,49 @@ export function ItemGalleryEditor({ photos, busy, onAdd, onRemove, onMove, onClo
         className="mt-2.5 rounded-[9px] border border-line px-2.5 py-1.5 text-[11.5px] font-extrabold text-ink-soft"
       >
         Gotowe
+      </button>
+    </div>
+  );
+}
+
+interface PhotoUrlFieldProps {
+  value: string;
+  disabled: boolean;
+  onChange: (value: string) => void;
+  onAdd: () => void;
+  onEscape?: () => void;
+  inputRef?: RefObject<HTMLInputElement | null>;
+}
+
+/** The "paste a photo link + Dodaj" row; Enter adds instead of submitting an
+ * enclosing form. Validation stays with the caller. */
+export function PhotoUrlField({ value, disabled, onChange, onAdd, onEscape, inputRef }: PhotoUrlFieldProps) {
+  return (
+    <div className="mt-2 flex items-center gap-2">
+      <input
+        ref={inputRef}
+        type="url"
+        aria-label="Link do zdjęcia"
+        placeholder="Wklej link do zdjęcia (https://…)"
+        value={value}
+        disabled={disabled}
+        onChange={(e) => onChange(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") {
+            e.preventDefault();
+            onAdd();
+          }
+          if (e.key === "Escape") onEscape?.();
+        }}
+        className="min-w-0 flex-1 rounded-lg border-[1.5px] border-line bg-cream px-2 py-1.5 text-[13.5px] text-ink disabled:opacity-60"
+      />
+      <button
+        type="button"
+        onClick={onAdd}
+        disabled={disabled}
+        className="flex-none rounded-[9px] bg-mint px-3 py-1.5 text-[11.5px] font-extrabold text-white disabled:opacity-60"
+      >
+        + Dodaj
       </button>
     </div>
   );

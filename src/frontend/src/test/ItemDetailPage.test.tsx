@@ -465,4 +465,30 @@ describe("ItemDetailPage fallbacks", () => {
     expect(screen.queryByRole("heading", { name: "Edycja rzeczy" })).not.toBeInTheDocument();
     expect(screen.getByRole("link", { name: /Edytuj/ })).toBeInTheDocument();
   });
+
+  it.each([
+    ["view", `/product/${ITEM_ID}`, "Wózek spacerowy Baby Jogger"],
+    ["edit", `/product/${ITEM_ID}/edit`, "Edycja rzeczy"],
+  ])("%s page shows the panel bottom nav with Moje rzeczy active, leading to /panel/rzeczy", async (_, path, heading) => {
+    vi.mocked(itemsApi.getItemDetails).mockResolvedValue(details());
+    render(
+      <MemoryRouter initialEntries={[path]}>
+        <Routes>
+          <Route path="/product/:id" element={<ItemDetailPage />} />
+          <Route path="/product/:id/edit" element={<ItemEditPage />} />
+          <Route path="/panel/rzeczy" element={<p>Panel rzeczy</p>} />
+        </Routes>
+      </MemoryRouter>,
+      { wrapper: createQueryWrapper() },
+    );
+    await screen.findByRole("heading", { name: heading });
+
+    const nav = screen.getByRole("navigation", { name: "Nawigacja panelu" });
+    const rzeczy = within(nav).getByRole("button", { name: "Moje rzeczy" });
+    expect(rzeczy).toHaveAttribute("aria-current", "true");
+    expect(within(nav).getByRole("button", { name: "Spotkania" })).toHaveAttribute("aria-current", "false");
+
+    fireEvent.click(rzeczy);
+    expect(await screen.findByText("Panel rzeczy")).toBeInTheDocument();
+  });
 });

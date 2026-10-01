@@ -15,13 +15,9 @@ interface ItemQuickAddFormProps {
 
 /**
  * Freeform "add item" form — Nazwa (name) / Stan (condition) / Typ (category).
- * Replaces the `ProductPicker` catalog-select flow: purely presentational and
- * prop-configured, no API calls inside the component itself — callers own
- * submission (resolving the `Product` via `resolveProduct()`, then
- * `registerInventoryItem`). Shared by PanelPage's "+ Dodaj rzecz" modal and
- * the onboarding wizard's item step. Renders the "Typ" select from
- * `useCategories()`'s live data — categories are now a backend-managed FK,
- * not a compile-time enum.
+ * Purely presentational: the caller owns submission (`resolveProduct()`, then
+ * `registerInventoryItem`). Used by `ItemCreatePage` (`/product/new`). The
+ * "Typ" select lists `useCategories()`'s live data.
  */
 export function ItemQuickAddForm({ value, onChange, disabled = false }: ItemQuickAddFormProps) {
   const { data: categories } = useCategories();

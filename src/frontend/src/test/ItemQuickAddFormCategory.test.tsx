@@ -73,7 +73,7 @@ describe("ItemQuickAddForm — category_id rename", () => {
       expect.objectContaining({ category_id: 9, name: "Rowerek" }),
     );
 
-    // Simulate the caller (PanelDataContext.handleAddItem) resolving the
+    // Simulate the caller (ItemCreatePage via useCreateItem) resolving the
     // Product with the emitted category_id.
     const emitted = onChange.mock.calls[0]![0] as { name: string; category_id: number };
     vi.mocked(resolveProduct).mockResolvedValue({

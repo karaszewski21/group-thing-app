@@ -1,14 +1,21 @@
-import { Link, useParams } from "react-router-dom";
+import { Link, useLocation, useParams } from "react-router-dom";
 import type { ItemDetailsResponse } from "../../api/items";
 import { PhoneFrame } from "../../components/shared/PhoneFrame";
 import { useItemDetail, useItemHistory } from "../../hooks/useItemDetail";
 import dayjs from "../../utils/dayjs";
 import { CONDITION_LABELS } from "../../utils/productCategory";
+import { PanelNavBar } from "../panel/PanelNav";
 import { PencilIcon, TrashIcon } from "../panel/panelIcons";
 import { ItemBackButton } from "./ItemBackButton";
 import { ItemGallery } from "./ItemGallery";
 import { ItemLoadStates } from "./ItemLoadStates";
-import { FIELD_LABEL, NO_CATEGORY_LABEL, type HistoryState } from "./itemPageShared";
+import {
+  FIELD_LABEL,
+  MAX_PRODUCT_PHOTOS,
+  NO_CATEGORY_LABEL,
+  type HistoryState,
+  type ItemCreatedState,
+} from "./itemPageShared";
 import { DescriptionText, ReadOnlyCards } from "./ItemReadOnlyParts";
 
 /** `/product/:id`. Standalone, outside PanelDataProvider: two parallel reads,
@@ -22,13 +29,27 @@ export function ItemDetailPage() {
     <PhoneFrame>
       <div className="flex-1 overflow-y-auto px-[18px] pb-6 pt-[18px]">
         <ItemBackButton />
+        <FailedPhotosNotice />
         {item ? (
           <ItemViewContent item={item} history={history} />
         ) : (
           <ItemLoadStates notFound={notFound} error={error} loading={loading} onRetry={() => void refetch()} />
         )}
       </div>
+      <PanelNavBar active="rzeczy" />
     </PhoneFrame>
+  );
+}
+
+/** Shown right after `/product/new` when some photos were refused. */
+export function FailedPhotosNotice() {
+  const state = useLocation().state as ItemCreatedState | null;
+  if (!state?.failedPhotos) return null;
+  return (
+    <div role="status" className="mb-3 rounded-[14px] border border-line bg-cream px-3.5 py-2.5 text-[12.5px] text-ink">
+      {`Rzecz została dodana, ale nie udało się dodać części zdjęć (${state.failedPhotos}). ` +
+        `Mogły się powtarzać albo przekroczyć limit ${MAX_PRODUCT_PHOTOS} zdjęć produktu — możesz je poprawić w edycji.`}
+    </div>
   );
 }
 

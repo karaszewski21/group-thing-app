@@ -7,15 +7,9 @@ export interface ItemQuickAddValue {
 }
 
 /**
- * Empty-state factory for `ItemQuickAddForm`'s value shape, mirroring
- * `createEmptyProductPickerValue`'s role — shared by the onboarding item
- * step (Group 7) and PanelPage's "+ Dodaj rzecz" modal (Group 6).
- *
- * `categoryId` has no hardcoded default (there's no more "OTHER" literal
- * once category is a backend-defined FK) — callers source it from
- * `useCategories()`'s live data at the call site. Omitting it falls back
- * to `0` (no category yet resolved) for callers that don't have category
- * data on hand.
+ * Empty value for `ItemQuickAddForm`, used by `ItemCreatePage`. Categories
+ * are backend data, so there is no hardcoded default: the caller passes one
+ * from `useCategories()` or leaves it empty until they load.
  */
 export function createEmptyItemQuickAddValue(categoryId = ''): ItemQuickAddValue {
   return {

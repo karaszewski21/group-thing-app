@@ -7,7 +7,7 @@ import type { ReactNode } from "react";
  * register the async work that should run when the wizard advances past it
  * — e.g. POSTing an accumulated draft list. Passing `null` (or never
  * calling `setSubmit`) makes the step a pure local-draft step with nothing
- * to persist (see `guestSteps.tsx`'s frontend-only family-name step).
+ * to persist.
  */
 export interface StepContext {
   setSubmit: (submit: (() => Promise<void> | void) | null) => void;
@@ -28,9 +28,9 @@ interface OnboardingWizardProps {
 }
 
 /**
- * Generic, prop-configured onboarding shell reused by both the GUEST and
- * ORGANIZER flows (`standards/frontend/components.md`) — GUEST/ORGANIZER
- * differ only in which `Step[]` is passed in, not in wizard behavior.
+ * Generic, prop-configured onboarding shell (`standards/frontend/components.md`):
+ * the flow is defined entirely by the `Step[]` passed in (currently only the
+ * ORGANIZER flow; a GUEST skips onboarding).
  * Reuses the `RegisterPage`/`LoginPage` card shell verbatim.
  */
 export function OnboardingWizard({ steps, onSkip, onComplete }: OnboardingWizardProps) {

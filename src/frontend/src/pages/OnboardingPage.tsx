@@ -1,16 +1,16 @@
 import { useEffect, useState } from "react";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { Navigate, useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "../auth/AuthContext";
 import { getLeadershipsForPerson, getMyProfile } from "../api/people";
 import { OnboardingWizard } from "../components/onboarding/OnboardingWizard";
-import { guestSteps } from "../components/onboarding/steps/guestSteps";
 import { organizerSteps } from "../components/onboarding/steps/organizerSteps";
 
 type Role = "GUEST" | "ORGANIZER";
 
 /**
  * Role-aware landing for `/onboarding`, entered immediately after
- * registration. Prefers the role captured by `AuthContext.register()`
+ * registration. Only an ORGANIZER gets a wizard; a GUEST goes straight on
+ * to `returnTo` (or `/panel`). Prefers the role captured by `AuthContext.register()`
  * (no extra round trip); falls back to a profile/leaderships lookup for
  * the rarer case of the route being reached via a stored token (e.g. a
  * page refresh) rather than a fresh register call.
@@ -45,8 +45,10 @@ export function OnboardingPage() {
     };
   }, [role]);
 
+  const returnTo = searchParams.get("returnTo") || "/panel";
+
   function finishOnboarding() {
-    navigate(searchParams.get("returnTo") || "/panel", { replace: true });
+    navigate(returnTo, { replace: true });
   }
 
   if (loading || role === null) {
@@ -57,9 +59,11 @@ export function OnboardingPage() {
     );
   }
 
+  if (role === "GUEST") return <Navigate to={returnTo} replace />;
+
   return (
     <OnboardingWizard
-      steps={role === "ORGANIZER" ? organizerSteps : guestSteps}
+      steps={organizerSteps}
       onSkip={finishOnboarding}
       onComplete={finishOnboarding}
     />

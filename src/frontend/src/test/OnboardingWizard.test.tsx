@@ -1,21 +1,9 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi, beforeEach } from "vitest";
-import { OnboardingWizard } from "../components/onboarding/OnboardingWizard";
-import { guestSteps } from "../components/onboarding/steps/guestSteps";
+import { OnboardingWizard, type Step } from "../components/onboarding/OnboardingWizard";
 import { organizerSteps } from "../components/onboarding/steps/organizerSteps";
 import { createQueryWrapper } from "./queryClient";
 
-vi.mock("../api/products", () => ({
-  resolveProduct: vi.fn(),
-}));
-vi.mock("../api/inventories", () => ({
-  getInventories: vi.fn(),
-  createInventory: vi.fn(),
-  registerInventoryItem: vi.fn(),
-}));
-vi.mock("../api/people", () => ({
-  getMyProfile: vi.fn(),
-}));
 vi.mock("../api/groups", () => ({
   createMyCircle: vi.fn(),
 }));
@@ -24,24 +12,18 @@ vi.mock("../api/organizations", () => ({
 }));
 vi.mock("../api/terms", () => ({
   createTerm: vi.fn(),
-  createNeededItem: vi.fn(),
 }));
 
 beforeEach(() => {
   vi.resetAllMocks();
 });
 
-describe("OnboardingWizard — GUEST single-step config", () => {
-  it("guestSteps is a single 'items' step titled 'Co chcesz oddać, wymienić lub wypożyczyć?'", () => {
-    expect(guestSteps.map((s) => s.id)).toEqual(["items"]);
-    expect(guestSteps.map((s) => s.title)).toEqual([
-      "Co chcesz oddać, wymienić lub wypożyczyć?",
-    ]);
-  });
+const singleStep: Step[] = [{ id: "only", title: "Jedyny krok", render: () => null }];
 
+describe("OnboardingWizard — single-step chrome", () => {
   it("renders neither the step-dot row nor the 'Krok 1 z 1' status counter", () => {
     const { container } = render(
-      <OnboardingWizard steps={guestSteps} onSkip={vi.fn()} onComplete={vi.fn()} />, { wrapper: createQueryWrapper() },
+      <OnboardingWizard steps={singleStep} onSkip={vi.fn()} onComplete={vi.fn()} />, { wrapper: createQueryWrapper() },
     );
 
     expect(screen.queryByRole("status")).not.toBeInTheDocument();
@@ -50,7 +32,7 @@ describe("OnboardingWizard — GUEST single-step config", () => {
   });
 
   it("primary button reads 'Zakończ ✓' (single step ⇒ isLast)", () => {
-    render(<OnboardingWizard steps={guestSteps} onSkip={vi.fn()} onComplete={vi.fn()} />, { wrapper: createQueryWrapper() });
+    render(<OnboardingWizard steps={singleStep} onSkip={vi.fn()} onComplete={vi.fn()} />, { wrapper: createQueryWrapper() });
 
     expect(screen.getByRole("button", { name: "Zakończ ✓" })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Dalej →" })).not.toBeInTheDocument();
@@ -58,7 +40,7 @@ describe("OnboardingWizard — GUEST single-step config", () => {
 
   it("clicking 'Pomiń' calls onSkip", () => {
     const onSkip = vi.fn();
-    render(<OnboardingWizard steps={guestSteps} onSkip={onSkip} onComplete={vi.fn()} />, { wrapper: createQueryWrapper() });
+    render(<OnboardingWizard steps={singleStep} onSkip={onSkip} onComplete={vi.fn()} />, { wrapper: createQueryWrapper() });
 
     fireEvent.click(screen.getByRole("button", { name: "Pomiń" }));
 
@@ -67,7 +49,7 @@ describe("OnboardingWizard — GUEST single-step config", () => {
 
   it("clicking '✕' calls the same handler as 'Pomiń'", () => {
     const onSkip = vi.fn();
-    render(<OnboardingWizard steps={guestSteps} onSkip={onSkip} onComplete={vi.fn()} />, { wrapper: createQueryWrapper() });
+    render(<OnboardingWizard steps={singleStep} onSkip={onSkip} onComplete={vi.fn()} />, { wrapper: createQueryWrapper() });
 
     fireEvent.click(screen.getByRole("button", { name: "Zamknij" }));
 
@@ -84,6 +66,14 @@ describe("OnboardingWizard — ORGANIZER multi-step chrome", () => {
     expect(screen.getByLabelText("Krok 1 z 3")).toBeInTheDocument();
     expect(screen.getByText("Krok 1 z 3")).toBeInTheDocument();
     expect(container.querySelectorAll("span.h-2\\.5.w-2\\.5")).toHaveLength(3);
+  });
+
+  it("the term step has no needed-items section", () => {
+    render(<>{organizerSteps[2].render({ setSubmit: vi.fn(), busy: false })}</>, { wrapper: createQueryWrapper() });
+
+    expect(screen.getByLabelText("Data i godzina")).toBeInTheDocument();
+    expect(screen.queryByText(/Potrzebne rzeczy/)).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Dodaj potrzebną rzecz/ })).not.toBeInTheDocument();
   });
 
   it("ORGANIZER config renders 3 steps (organization name, circle name, term/schedule) in order", () => {

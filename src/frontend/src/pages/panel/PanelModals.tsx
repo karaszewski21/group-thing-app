@@ -1,5 +1,4 @@
 import { useState } from "react";
-import { ItemQuickAddForm } from "../../components/shared/ItemQuickAddForm";
 import { NeededItemQuickAddForm } from "../../components/shared/NeededItemQuickAddForm";
 import { CreateFamilyDialog } from "../../components/panel/CreateFamilyDialog";
 import { EditTermDialog } from "../../components/panel/EditTermDialog";
@@ -26,7 +25,6 @@ export function PanelModals() {
     termDescription,
     neededDraft,
     draftNeededItem,
-    itemDraft,
     busy,
     relevantGroupsForForm,
     setModal,
@@ -37,14 +35,12 @@ export function PanelModals() {
     setTermDate,
     setTermDescription,
     setDraftNeededItem,
-    setItemDraft,
     showToast,
     load,
     handleAddGroup,
     cancelEditGroup,
     saveEditGroup,
     handleAddTerm,
-    handleAddItem,
     addDraftNeededItem,
     removeDraftNeededItem,
   } = usePanelData();
@@ -365,23 +361,6 @@ export function PanelModals() {
             className="mt-4 w-full rounded-[13px] bg-mint px-5 py-3 text-[13.5px] font-extrabold text-white disabled:opacity-60"
           >
             Dodaj termin
-          </button>
-        </ModalSheet>
-      )}
-
-      {/* ---------- modal: dodaj rzecz ---------- */}
-      {modal === "rzecz" && (
-        <ModalSheet title="Dodaj rzecz" onClose={() => setModal(null)}>
-          <ItemQuickAddForm value={itemDraft} onChange={setItemDraft} disabled={busy} />
-          <p className="mt-2 text-xs text-ink-soft">
-            Sposób udostępnienia (wypożyczę / oddam / zamienię) ustawisz na liście po dodaniu.
-          </p>
-          <button
-            onClick={() => void handleAddItem()}
-            disabled={busy || !itemDraft.name.trim()}
-            className="mt-4 w-full rounded-[13px] bg-mint px-5 py-3 text-[13.5px] font-extrabold text-white disabled:opacity-60"
-          >
-            Dodaj rzecz
           </button>
         </ModalSheet>
       )}

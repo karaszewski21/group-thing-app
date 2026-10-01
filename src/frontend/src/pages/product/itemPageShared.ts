@@ -4,6 +4,14 @@ export type HistoryState = ReturnType<typeof useItemHistory>;
 
 export const MAX_PRODUCT_PHOTOS = 10;
 
+export const INVALID_PHOTO_URL_MESSAGE = "Podaj poprawny link zaczynający się od http:// lub https://";
+
+/** Navigation state `/product/new` hands the new item's page when some of
+ * the photos could not be added. */
+export interface ItemCreatedState {
+  failedPhotos: number;
+}
+
 /** Shown where a product has no category (`category_name` is nullable). */
 export const NO_CATEGORY_LABEL = "Bez kategorii";
 

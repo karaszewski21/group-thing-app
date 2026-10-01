@@ -34,7 +34,6 @@ import {
 } from "../../api/groups";
 import {
   ACTIVE_LOCK_BALANCE_STATUSES,
-  createInventory,
   deleteInventoryItem,
   getInventories,
   getInventory,
@@ -42,7 +41,6 @@ import {
   getInventoryItems,
   getMyInventoryItems,
   getMyLentOutItems,
-  registerInventoryItem,
   type LentOutItemResponse,
   type MyInventoryItemResponse,
 } from "../../api/inventories";
@@ -72,7 +70,6 @@ import {
   type NeededItemResponse,
   type TermResponse,
 } from "../../api/terms";
-import { createEmptyItemQuickAddValue, type ItemQuickAddValue } from "../../utils/itemQuickAdd";
 import {
   createEmptyNeededItemQuickAddValue,
   type NeededItemQuickAddValue,
@@ -93,6 +90,7 @@ import {
   type ModalKind,
   type TermWithNeeded,
   type View,
+  viewPath,
 } from "./panelHelpers";
 import { PanelDataContext } from "./panelDataStore";
 import { ModalSheet } from "./panelComponents";
@@ -363,7 +361,7 @@ function usePanelDataValue() {
 
   const view: View = isView(viewParam) ? viewParam : "home";
   const setView = useCallback(
-    (next: View) => navigate(next === "home" ? "/panel" : `/panel/${next}`),
+    (next: View) => navigate(viewPath(next)),
     [navigate],
   );
   const [modal, setModal] = useState<ModalKind>(null);
@@ -437,9 +435,7 @@ function usePanelDataValue() {
   );
 
   // --- Moje rzeczy (realny Inventory/InventoryItem/Product) ---
-  const [inventoryId, setInventoryId] = useState<number | null>(null);
   const [items, setItems] = useState<MyInventoryItemResponse[]>([]);
-  const [itemDraft, setItemDraft] = useState<ItemQuickAddValue>(createEmptyItemQuickAddValue());
 
   const showToast = useCallback((msg: string) => setToast(msg), []);
 
@@ -467,9 +463,6 @@ function usePanelDataValue() {
         getInventories(me.account_user_id),
       ]);
 
-      let inventory = inventories.find((i) => i.inventory_type === "PERSONAL") ?? null;
-      if (!inventory) inventory = await createInventory({ inventory_type: "PERSONAL" });
-      setInventoryId(inventory.id);
       const [myItems, myLentOutItems] = await Promise.all([
         getMyInventoryItems(),
         getMyLentOutItems(),
@@ -919,31 +912,6 @@ function usePanelDataValue() {
 
   /* ---------- rzeczy ---------- */
 
-  async function handleAddItem() {
-    if (inventoryId === null) return;
-    if (!itemDraft.name.trim()) return;
-    setBusy(true);
-    try {
-      const product = await resolveProduct({
-        name: itemDraft.name.trim(),
-        category_id: itemDraft.category_id,
-      });
-      await registerInventoryItem({
-        inventory_id: inventoryId,
-        product_id: product.id,
-        condition: itemDraft.condition,
-      });
-      setItemDraft(createEmptyItemQuickAddValue(categoriesData[0]?.id ?? 0));
-      setModal(null);
-      showToast("Dodano rzecz");
-      setItems(await getMyInventoryItems());
-    } catch {
-      showToast("Nie udało się dodać rzeczy");
-    } finally {
-      setBusy(false);
-    }
-  }
-
   async function setItemMode(itemId: number, mode: ItemMode) {
     // Defense-in-depth: `RzeczyView` already disables the toggle buttons
     // while an item is locked (Bug #1 fix), but re-check here too, since
@@ -1368,10 +1336,8 @@ function usePanelDataValue() {
     termDescription,
     neededDraft,
     draftNeededItem,
-    inventoryId,
     items,
     categories: categoriesData,
-    itemDraft,
     // --- setters the render calls directly ---
     setView,
     setModal,
@@ -1390,7 +1356,6 @@ function usePanelDataValue() {
     setMemberBirthYear,
     setEditGroupForm,
     setFamilyNameDraft,
-    setItemDraft,
     // --- derived ---
     isOrganizer,
     showToast,
@@ -1411,7 +1376,6 @@ function usePanelDataValue() {
     addDraftNeededItem,
     removeDraftNeededItem,
     handleAddTerm,
-    handleAddItem,
     setItemMode,
     handleAddFamilyMember,
     handleRemoveFamilyMember,

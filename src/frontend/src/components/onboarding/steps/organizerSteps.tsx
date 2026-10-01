@@ -1,14 +1,8 @@
 import { useEffect, useState } from "react";
 import type { Step, StepContext } from "../OnboardingWizard";
 import { createMyCircle, type GroupResponse } from "../../../api/groups";
-import { createNeededItem, createTerm } from "../../../api/terms";
-import { resolveProduct } from "../../../api/products";
+import { createTerm } from "../../../api/terms";
 import { createMyOrganization } from "../../../api/organizations";
-import { NeededItemQuickAddForm } from "../../shared/NeededItemQuickAddForm";
-import {
-  createEmptyNeededItemQuickAddValue,
-  type NeededItemQuickAddValue,
-} from "../../../utils/neededItemQuickAdd";
 
 const inputClass =
   "w-full rounded-xl border-[1.5px] border-line bg-cream px-3.5 py-2.5 text-sm text-ink outline-none focus:border-mint focus:ring-[3px] focus:ring-mint-soft";
@@ -95,50 +89,25 @@ function CircleNameStepBody({ ctx }: { ctx: StepContext }) {
 }
 
 /* ------------------------------------------------------------------ */
-/*  Step 3/3 — Termin zajęć: mirrors PanelPage's "+ Dodaj termin" modal  */
-/*  fields (Grupa/Data/Opis/Potrzebne rzeczy), including its own local   */
-/*  needed-items draft list submitted after the term itself is created. */
+/*  Step 3/3 — Termin zajęć: Grupa/Data/Opis only; needed items are    */
+/*  added later from the panel's term modal.                            */
 /* ------------------------------------------------------------------ */
 
 function TermStepBody({ ctx }: { ctx: StepContext }) {
   const [occursOn, setOccursOn] = useState("");
   const [description, setDescription] = useState("");
-  const [neededDraft, setNeededDraft] = useState<NeededItemQuickAddValue[]>([]);
-  const [draft, setDraft] = useState<NeededItemQuickAddValue>(createEmptyNeededItemQuickAddValue());
-  const [addingNeeded, setAddingNeeded] = useState(false);
 
   useEffect(() => {
     ctx.setSubmit(async () => {
       if (!occursOn || !createdCircle) return;
-      const term = await createTerm({
+      await createTerm({
         circle_group_id: createdCircle.id,
         occurs_on: occursOn,
         description: description || undefined,
       });
-      for (const item of neededDraft) {
-        const product = await resolveProduct({ name: item.name, category_id: item.category_id });
-        await createNeededItem({
-          term_id: term.id,
-          product_id: product.id,
-          description: item.description || undefined,
-        });
-      }
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [occursOn, description, neededDraft]);
-
-  function addDraftNeededItem() {
-    if (!draft.name.trim()) return;
-    setNeededDraft((prev) => [
-      ...prev,
-      { ...draft, name: draft.name.trim(), description: draft.description.trim() },
-    ]);
-    setDraft(createEmptyNeededItemQuickAddValue());
-  }
-
-  function removeDraftNeededItem(index: number) {
-    setNeededDraft((prev) => prev.filter((_, i) => i !== index));
-  }
+  }, [occursOn, description]);
 
   return (
     <div className="flex flex-col gap-3">
@@ -173,56 +142,6 @@ function TermStepBody({ ctx }: { ctx: StepContext }) {
           value={description}
           onChange={(e) => setDescription(e.target.value)}
         />
-      </div>
-
-      <div>
-        <span className={labelClass}>Potrzebne rzeczy (opcjonalnie)</span>
-        {neededDraft.map((item, index) => (
-          <div key={index} className="mb-1.5 flex items-center gap-2 text-[13px]">
-            <span className="flex-1">
-              {item.name}
-              {item.description ? ` — ${item.description}` : ""}
-            </span>
-            <button
-              type="button"
-              onClick={() => removeDraftNeededItem(index)}
-              aria-label={`Usuń ${item.name}`}
-              className="text-xs font-bold text-danger"
-            >
-              Usuń
-            </button>
-          </div>
-        ))}
-        {addingNeeded ? (
-          <div className="mt-1.5 flex flex-col gap-1.5">
-            <NeededItemQuickAddForm value={draft} onChange={setDraft} />
-            <div className="flex gap-1.5">
-              <button
-                type="button"
-                onClick={addDraftNeededItem}
-                disabled={!draft.name.trim()}
-                className="rounded-full border border-line px-3 py-1.5 text-xs font-bold text-ink-soft disabled:opacity-50"
-              >
-                Dodaj rzecz
-              </button>
-              <button
-                type="button"
-                onClick={() => setAddingNeeded(false)}
-                className="rounded-full px-3 py-1.5 text-xs font-bold text-ink-soft hover:bg-cream"
-              >
-                Zwiń
-              </button>
-            </div>
-          </div>
-        ) : (
-          <button
-            type="button"
-            onClick={() => setAddingNeeded(true)}
-            className="mt-1 rounded-[9px] px-1.5 py-1 text-[12px] font-bold text-ink-soft transition-colors hover:bg-cream hover:text-ink"
-          >
-            + Dodaj potrzebną rzecz
-          </button>
-        )}
       </div>
     </div>
   );

@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { RzeczyView } from "../pages/panel/views/RzeczyView";
@@ -7,7 +7,6 @@ import type { PanelDataContextValue } from "../pages/panel/PanelDataContext";
 import type { InventoryBalanceResponse, MyInventoryItemResponse } from "../api/inventories";
 import type { ReservationResponse } from "../api/reservations";
 import type { TermResponse } from "../api/terms";
-import type { Category } from "../api/categories";
 import type { NotificationKind } from "../api/notifications";
 import { api } from "../api/client";
 import * as reservationsApi from "../api/reservations";
@@ -57,27 +56,6 @@ function mockBalance(
     reservation_id: reservationId,
   };
 }
-
-const mockCategories: Category[] = [
-  {
-    id: 1,
-    name: "Zabawki",
-    description: null,
-    sortOrder: 0,
-    productCount: 1,
-    createdAt: "2026-01-01T00:00:00Z",
-    updatedAt: "2026-01-01T00:00:00Z",
-  },
-  {
-    id: 2,
-    name: "Ubrania",
-    description: null,
-    sortOrder: 1,
-    productCount: 0,
-    createdAt: "2026-01-01T00:00:00Z",
-    updatedAt: "2026-01-01T00:00:00Z",
-  },
-];
 
 // Term/Group ids are UUID strings (spec R29).
 const GROUP_ID = "5f0c2a7e-3b1d-4e6a-9c8f-0000000000a5";
@@ -157,9 +135,6 @@ function makeContextValue(
     itemModes: {},
     itemError: null,
     busy: false,
-    categories: mockCategories,
-    setItemDraft: vi.fn(),
-    setModal: vi.fn(),
     setItemMode: vi.fn(),
     handleDeleteItem: vi.fn(),
     load: vi.fn().mockResolvedValue(undefined),

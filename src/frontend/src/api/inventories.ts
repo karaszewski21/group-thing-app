@@ -83,6 +83,13 @@ export function createInventory(request: CreateInventoryRequest): Promise<Invent
   return api.post("/inventories", request);
 }
 
+/** The user's PERSONAL inventory, created on first use. */
+export async function getOrCreatePersonalInventory(ownerUserId: number): Promise<InventoryResponse> {
+  const inventories = await getInventories(ownerUserId);
+  const personal = inventories.find((i) => i.inventory_type === "PERSONAL");
+  return personal ?? createInventory({ inventory_type: "PERSONAL" });
+}
+
 export function getInventoryItems(inventoryId: number): Promise<InventoryItemResponse[]> {
   return api.get(`/inventory-items?inventory_id=${inventoryId}`);
 }

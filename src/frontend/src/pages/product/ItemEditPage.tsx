@@ -9,6 +9,7 @@ import {
   type ProductDetailsState,
 } from "../../hooks/useItemDetail";
 import { CONDITION_LABELS } from "../../utils/productCategory";
+import { PanelNavBar } from "../panel/PanelNav";
 import { BackIcon, PencilIcon } from "../panel/panelIcons";
 import { ItemBackButton } from "./ItemBackButton";
 import { ConditionEditor, DescriptionEditor, NameCategoryEditor } from "./ItemFieldEditors";
@@ -59,6 +60,7 @@ export function ItemEditPage() {
           </>
         )}
       </div>
+      <PanelNavBar active="rzeczy" />
     </PhoneFrame>
   );
 }

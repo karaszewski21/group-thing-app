@@ -14,7 +14,6 @@ import {
   type SwapProposalOfferResponse,
 } from "../../../api/termItemListings";
 import { CONDITION_LABELS } from "../../../utils/productCategory";
-import { createEmptyItemQuickAddValue } from "../../../utils/itemQuickAdd";
 import { BoxIcon, EyeIcon, PencilIcon, TrashIcon } from "../panelIcons";
 import { capitalize, ITEM_MODE_STYLE, ITEM_MODES } from "../panelHelpers";
 import { usePanelData } from "../panelDataStore";
@@ -40,9 +39,6 @@ export function RzeczyView() {
     items,
     itemModes,
     itemError,
-    categories,
-    setItemDraft,
-    setModal,
     setItemMode,
     handleDeleteItem,
     load,
@@ -213,15 +209,12 @@ export function RzeczyView() {
             {items.length} {items.length === 1 ? "rzecz" : "rzeczy"}
           </small>
         </div>
-        <button
-          onClick={() => {
-            setItemDraft(createEmptyItemQuickAddValue(categories[0]?.id ?? 0));
-            setModal("rzecz");
-          }}
+        <Link
+          to="/product/new"
           className="inline-flex flex-none items-center gap-1.5 rounded-full bg-ink px-[15px] py-2.5 text-[12.5px] font-extrabold text-[#EAF2E9] transition-transform hover:-translate-y-0.5"
         >
           + Dodaj rzecz
-        </button>
+        </Link>
       </div>
       <div className="rounded-[22px] border border-line bg-paper p-2">
         {items.length === 0 && (
