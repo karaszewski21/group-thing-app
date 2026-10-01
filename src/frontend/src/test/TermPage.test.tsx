@@ -217,7 +217,7 @@ describe("TermPage — sign-up footer", () => {
 
     fireEvent.click(await screen.findByRole("button", { name: "＋ Zapisz się na zajęcia" }));
 
-    expect(screen.getByRole("dialog", { name: "Zapisz się na zajęcia" })).toBeInTheDocument();
+    expect(await screen.findByRole("dialog", { name: "Zapisz się na zajęcia" })).toBeInTheDocument();
     expect(screen.queryByLabelText("Imię")).not.toBeInTheDocument();
   });
 
@@ -230,7 +230,7 @@ describe("TermPage — sign-up footer", () => {
 
     fireEvent.click(await screen.findByRole("button", { name: "＋ Zapisz się na zajęcia" }));
 
-    const dialog = screen.getByRole("dialog", { name: "Zapisz się na zajęcia" });
+    const dialog = await screen.findByRole("dialog", { name: "Zapisz się na zajęcia" });
     await waitFor(() => expect(familiesApi.getMyFamilies).toHaveBeenCalled());
     expect(within(dialog).getByRole("link", { name: "Przejdź do „Mój dom”" })).toHaveAttribute(
       "href",
@@ -522,7 +522,7 @@ describe("TermPage — view fixes", () => {
 
     fireEvent.click(await screen.findByRole("button", { name: "＋ Zapisz się na zajęcia" }));
 
-    expect(screen.getByRole("dialog", { name: "Zapisz się na zajęcia" })).toBeInTheDocument();
+    expect(await screen.findByRole("dialog", { name: "Zapisz się na zajęcia" })).toBeInTheDocument();
     expect(screen.queryByLabelText("Imię")).not.toBeInTheDocument();
   });
 
@@ -532,7 +532,7 @@ describe("TermPage — view fixes", () => {
     const { rerender } = renderPage();
 
     fireEvent.click(await screen.findByRole("button", { name: "＋ Zapisz się na zajęcia" }));
-    const dialog = screen.getByRole("dialog", { name: "Zapisz się na zajęcia" });
+    const dialog = await screen.findByRole("dialog", { name: "Zapisz się na zajęcia" });
     expect(within(dialog).queryByText(/Zapisujesz się jako/)).not.toBeInTheDocument();
     expect(within(dialog).getByRole("button", { name: "Zapisz się" })).toBeDisabled();
 
@@ -555,7 +555,7 @@ describe("TermPage — view fixes", () => {
 
     fireEvent.click(await screen.findByRole("button", { name: "＋ Zapisz się na zajęcia" }));
 
-    const dialog = screen.getByRole("dialog", { name: "Zapisz się na zajęcia" });
+    const dialog = await screen.findByRole("dialog", { name: "Zapisz się na zajęcia" });
     expect(within(dialog).getByText(/Zapisujesz się jako/)).toHaveTextContent("Zapisujesz się jako Ala");
   });
 
@@ -580,5 +580,63 @@ describe("TermPage — view fixes", () => {
     const needed = await screen.findByRole("region", { name: "Potrzebne rzeczy" });
     expect(within(needed).getByText("Bębenek")).toBeInTheDocument();
     expect(screen.getByRole("region", { name: "Zapisani na zajęcia" })).toBeInTheDocument();
+  });
+});
+
+describe("TermPage — direct sign-up and server error messages", () => {
+  it("logged in with children in the family: signs up straight away with that child count, no dialog", async () => {
+    mockAuth = { token: "tok", displayName: "Ala" };
+    vi.mocked(familiesApi.getMyFamilies).mockResolvedValue([
+      { id: 3, party_id: 4, name: "Kowalscy", child_count: 2, created_at: "", updated_at: "" },
+    ]);
+    vi.mocked(groupsApi.createRsvp).mockResolvedValue({ attached_to_account: true } as never);
+    renderPage();
+
+    fireEvent.click(await screen.findByRole("button", { name: "＋ Zapisz się na zajęcia" }));
+
+    await waitFor(() =>
+      expect(groupsApi.createRsvp).toHaveBeenCalledWith(7, { term_id: 101, guardian_name: "Ala", child_count: 2 }),
+    );
+    expect(await screen.findByRole("status")).toHaveTextContent("Zapisano na zajęcia z 2 dziećmi");
+    expect(screen.queryByRole("dialog", { name: "Zapisz się na zajęcia" })).not.toBeInTheDocument();
+  });
+
+  it("direct sign-up rejected with 409 shows the server's message", async () => {
+    mockAuth = { token: "tok", displayName: "Ala" };
+    vi.mocked(familiesApi.getMyFamilies).mockResolvedValue([
+      { id: 3, party_id: 4, name: "Kowalscy", child_count: 1, created_at: "", updated_at: "" },
+    ]);
+    vi.mocked(groupsApi.createRsvp).mockRejectedValue(
+      new ApiError(409, "Conflict", { message: "Termin już się odbył" }),
+    );
+    renderPage();
+
+    fireEvent.click(await screen.findByRole("button", { name: "＋ Zapisz się na zajęcia" }));
+
+    expect(await screen.findByRole("status")).toHaveTextContent("Termin już się odbył");
+  });
+
+  it("a 403 on 'Ja to przyniosę' explains the missing permission instead of a generic failure", async () => {
+    mockAuth = { token: "tok", displayName: "Ala" };
+    vi.mocked(pledgesApi.createPledge).mockRejectedValue(
+      new ApiError(403, "Forbidden", { message: "Access denied" }),
+    );
+    renderPage();
+
+    fireEvent.click(await screen.findByRole("button", { name: "Ja to przyniosę: Bębenek" }));
+
+    expect(await screen.findByRole("status")).toHaveTextContent("Nie masz uprawnień do tej akcji");
+  });
+
+  it("a 409 on 'Pożycz' shows the server's reason", async () => {
+    mockAuth = { token: "tok", displayName: "Ala" };
+    vi.mocked(termItemListingsApi.takeTermItemListing).mockRejectedValue(
+      new ApiError(409, "Conflict", { message: "Ta rzecz jest już zajęta" }),
+    );
+    renderPage();
+
+    fireEvent.click(await screen.findByRole("button", { name: "Pożycz: Rowerek" }));
+
+    expect(await screen.findByRole("status")).toHaveTextContent("Ta rzecz jest już zajęta");
   });
 });

@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { getInventoryItemBalance, getMyInventoryItems } from "../../../api/inventories";
+import { serverMessageOr } from "../../../api/problem";
 import type { ReservationType } from "../../../api/reservations";
 import { proposeSwap, takeTermItemListing } from "../../../api/termItemListings";
 import type { AvailableItem } from "../components/SwapProposeDialog";
@@ -62,8 +63,8 @@ export function useItemTake({ isLoggedIn, refetch, showToast, termId }: TermActi
       closeSwapPicker();
       showToast("Zaproponowano zamianę! Szczegóły w Twoim panelu");
       await refetch();
-    } catch {
-      showToast("Nie udało się zaproponować zamiany");
+    } catch (err) {
+      showToast(serverMessageOr(err, "Nie udało się zaproponować zamiany"));
     } finally {
       setBusyItemId(null);
     }
@@ -81,8 +82,8 @@ export function useItemTake({ isLoggedIn, refetch, showToast, termId }: TermActi
       closeSwapPicker();
       showToast("Wzięto! Szczegóły w Twoim panelu");
       await refetch();
-    } catch {
-      showToast("Nie udało się wziąć tej rzeczy");
+    } catch (err) {
+      showToast(serverMessageOr(err, "Nie udało się wziąć tej rzeczy"));
     } finally {
       setBusyItemId(null);
     }

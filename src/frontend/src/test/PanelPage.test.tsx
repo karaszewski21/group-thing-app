@@ -130,6 +130,7 @@ vi.mock("../api/terms", () => ({
 
 vi.mock("../api/organizations", () => ({
   getMyOrganization: vi.fn(),
+  createMyOrganization: vi.fn(),
 }));
 
 vi.mock("../api/pledges", () => ({
@@ -676,7 +677,7 @@ describe("PanelPage — dismissible home hints", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Zamknij: Dodaj swój pierwszy termin" }));
     expect(screen.queryByText("Dodaj swój pierwszy termin")).not.toBeInTheDocument();
-    expect(localStorage.getItem("hint_first_term_dismissed")).toBe("1");
+    expect(localStorage.getItem("hint_first_term_dismissed:guest")).toBe("1");
 
     unmount();
     mockGuestDefaults();
@@ -685,31 +686,52 @@ describe("PanelPage — dismissible home hints", () => {
     expect(screen.queryByText("Dodaj swój pierwszy termin")).not.toBeInTheDocument();
   });
 
-  it('GUEST sees a "Możesz zostać organizatorem" card that opens the circle-creation flow and dismisses on its own key', async () => {
+  it('GUEST "Możesz zostać organizatorem" opens a 3-step flow starting with the organization name, and dismisses on its own key', async () => {
     mockGuestDefaults();
+    vi.mocked(organizationsApi.createMyOrganization).mockResolvedValue({
+      id: 1, party_id: 1, name: "Studio Nutka", slug: "studio-nutka",
+      primary_color: null, accent_color: null, created_at: "", updated_at: "",
+    });
     renderPanel();
 
     expect(await screen.findByText("Możesz zostać organizatorem")).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole("button", { name: "Załóż krąg →" }));
-    const dialog = await screen.findByRole("dialog", { name: "Dodaj pierwszy termin" });
-    // guest 2-step flow — step 1 is the circle-name field (the "add a group" shortcut)
-    expect(within(dialog).getByPlaceholderText("np. Nutki dla starszaków")).toBeInTheDocument();
+    // the second "Zacznijmy →" belongs to the become-organizer card
+    fireEvent.click(screen.getAllByRole("button", { name: "Zacznijmy →" })[1]);
+    const dialog = await screen.findByRole("dialog", { name: "Zostań organizatorem" });
+    fireEvent.change(within(dialog).getByLabelText("Nazwa organizacji"), { target: { value: "Studio Nutka" } });
+    fireEvent.click(within(dialog).getByRole("button", { name: "Dalej →" }));
+
+    await waitFor(() =>
+      expect(organizationsApi.createMyOrganization).toHaveBeenCalledWith({ name: "Studio Nutka" }),
+    );
+    // step 2 is the circle name, step 3 the term
+    expect(await within(dialog).findByPlaceholderText("np. Nutki dla starszaków")).toBeInTheDocument();
     fireEvent.click(within(dialog).getByRole("button", { name: "Zamknij" }));
 
     fireEvent.click(screen.getByRole("button", { name: "Zamknij: Możesz zostać organizatorem" }));
     expect(screen.queryByText("Możesz zostać organizatorem")).not.toBeInTheDocument();
-    expect(localStorage.getItem("hint_become_organizer_dismissed")).toBe("1");
+    expect(localStorage.getItem("hint_become_organizer_dismissed:guest")).toBe("1");
     // the other guest card is independent
     expect(screen.getByText("Dodaj swój pierwszy termin")).toBeInTheDocument();
   });
 
+  it("a hint dismissed by another account in the same browser is still shown to this account", async () => {
+    localStorage.setItem("hint_first_term_dismissed:someone-else", "1");
+    localStorage.setItem("hint_become_organizer_dismissed:someone-else", "1");
+    mockGuestDefaults();
+    renderPanel();
+
+    expect(await screen.findByText("Dodaj swój pierwszy termin")).toBeInTheDocument();
+    expect(screen.getByText("Możesz zostać organizatorem")).toBeInTheDocument();
+  });
+
   it("a GUEST who dismissed the pre-promotion first-term card still sees the organizer first-term card after getting a circle", async () => {
-    localStorage.setItem("hint_first_term_dismissed", "1");
+    localStorage.setItem("hint_first_term_dismissed:guest", "1");
     mockOrganizerDefaults(); // organizer-by-circle, zero terms
     renderPanel();
 
-    expect(await screen.findByText("Ustal pierwsze zajęcia w swoim kręgu.")).toBeInTheDocument();
+    expect(await screen.findByText("Ustal pierwsze spotkanie w swojej grupie.")).toBeInTheDocument();
   });
 
   it("both ORGANIZER hints render stacked (org-polish first, first-term second) and dismiss independently via their own localStorage keys", async () => {
@@ -725,12 +747,12 @@ describe("PanelPage — dismissible home hints", () => {
     fireEvent.click(screen.getByRole("button", { name: "Zamknij: Dopracuj stronę organizacji" }));
     expect(screen.queryByText("Dopracuj stronę organizacji")).not.toBeInTheDocument();
     expect(screen.getByText("Dodaj swój pierwszy termin")).toBeInTheDocument();
-    expect(localStorage.getItem("hint_org_polish_dismissed")).toBe("1");
-    expect(localStorage.getItem("hint_org_first_term_dismissed")).toBeNull();
+    expect(localStorage.getItem("hint_org_polish_dismissed:guest")).toBe("1");
+    expect(localStorage.getItem("hint_org_first_term_dismissed:guest")).toBeNull();
 
     fireEvent.click(screen.getByRole("button", { name: "Zamknij: Dodaj swój pierwszy termin" }));
     expect(screen.queryByText("Dodaj swój pierwszy termin")).not.toBeInTheDocument();
-    expect(localStorage.getItem("hint_org_first_term_dismissed")).toBe("1");
+    expect(localStorage.getItem("hint_org_first_term_dismissed:guest")).toBe("1");
   });
 
   it("ORGANIZER first-term hint auto-hides once terms.length > 0, with no manual dismiss needed", async () => {
@@ -741,7 +763,7 @@ describe("PanelPage — dismissible home hints", () => {
     renderPanel();
 
     await screen.findByText("Dopracuj stronę organizacji");
-    expect(screen.queryByText("Ustal pierwsze zajęcia w swoim kręgu.")).not.toBeInTheDocument();
+    expect(screen.queryByText("Ustal pierwsze spotkanie w swojej grupie.")).not.toBeInTheDocument();
   });
 
   it('org-polish hint\'s CTA links to "/organization" when no Organization exists yet', async () => {
@@ -782,7 +804,8 @@ describe("PanelPage — dismissible home hints", () => {
     renderPanel();
 
     expect(await screen.findByText("Dodaj swój pierwszy termin")).toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: "Zacznijmy →" }));
+    // two guest hints share the CTA label — the first is "Dodaj swój pierwszy termin"
+    fireEvent.click(screen.getAllByRole("button", { name: "Zacznijmy →" })[0]);
 
     const dialog = await screen.findByRole("dialog", { name: "Dodaj pierwszy termin" });
     fireEvent.change(within(dialog).getByPlaceholderText("np. Nutki dla starszaków"), {
@@ -815,7 +838,7 @@ describe("PanelPage — dismissible home hints", () => {
     // Hint disappears purely because `!isOrganizer` flips false — it was
     // never dismissed via its own "Zamknij" button in this test.
     await waitFor(() => expect(screen.queryByText("Dodaj swój pierwszy termin")).not.toBeInTheDocument());
-    expect(localStorage.getItem("hint_first_term_dismissed")).toBeNull();
+    expect(localStorage.getItem("hint_first_term_dismissed:guest")).toBeNull();
   });
 
   it("ORGANIZER first-term hint auto-hides after a term is added via the real ORGANIZER 1-step stepper (not just terms mocked directly)", async () => {
@@ -826,7 +849,7 @@ describe("PanelPage — dismissible home hints", () => {
     });
     renderPanel();
 
-    expect(await screen.findByText("Ustal pierwsze zajęcia w swoim kręgu.")).toBeInTheDocument();
+    expect(await screen.findByText("Ustal pierwsze spotkanie w swojej grupie.")).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Dodaj termin →" }));
 
     const dialog = await screen.findByRole("dialog", { name: "Dodaj pierwszy termin" });
@@ -844,7 +867,7 @@ describe("PanelPage — dismissible home hints", () => {
     await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
 
     await waitFor(() =>
-      expect(screen.queryByText("Ustal pierwsze zajęcia w swoim kręgu.")).not.toBeInTheDocument(),
+      expect(screen.queryByText("Ustal pierwsze spotkanie w swojej grupie.")).not.toBeInTheDocument(),
     );
     // org-polish hint is a separate, still-undismissed card — unaffected.
     expect(screen.getByText("Dopracuj stronę organizacji")).toBeInTheDocument();

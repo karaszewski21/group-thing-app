@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { createRsvp, guestProfileIdKey, writeGuestProfile, type RsvpResponse } from "../../api/groups";
+import { serverMessageOr } from "../../api/problem";
 import { Field } from "../../pages/panel/panelComponents";
 import { ModalSheet } from "./ModalSheet";
 
@@ -37,8 +38,8 @@ export function RsvpDialog({
       });
       writeGuestProfile(guestProfileIdKey(groupId, termId), rsvp.user_profile_id);
       onSubmitted(rsvp);
-    } catch {
-      setFormError("Nie udało się zapisać — spróbuj ponownie");
+    } catch (err) {
+      setFormError(serverMessageOr(err, "Nie udało się zapisać — spróbuj ponownie"));
     } finally {
       setBusy(false);
     }

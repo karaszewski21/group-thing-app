@@ -260,8 +260,22 @@ function isView(value: string | undefined): value is View {
   return value !== undefined && (VIEW_VALUES as readonly string[]).includes(value);
 }
 
+/** The `localStorage` key of a home hint's "dismissed" flag for one account. */
+function hintKey(flag: string, username: string | null): string {
+  return `${flag}:${username ?? ""}`;
+}
+
+function useDismissibleHint(storageKey: string): [boolean, () => void] {
+  const [dismissed, setDismissed] = useState(() => localStorage.getItem(storageKey) === "1");
+  function dismiss() {
+    localStorage.setItem(storageKey, "1");
+    setDismissed(true);
+  }
+  return [dismissed, dismiss];
+}
+
 function usePanelDataValue() {
-  const { logout } = useAuth();
+  const { logout, username } = useAuth();
   const navigate = useNavigate();
   // Single source of truth for the category list — RzeczyView's inline
   // "Typ rzeczy" select and the item/needed-item quick-add defaults below
@@ -380,45 +394,27 @@ function usePanelDataValue() {
 
   // --- Panel home dismissible hints (spec.md §3) — dismissible-banner
   // `localStorage` convention: read the flag once on mount, write it on
-  // dismiss-click. Independent flags:
+  // dismiss-click. Keys are per account (`hintKey`), so a browser shared by
+  // several accounts never hides a new account's hints because another
+  // account dismissed them. Independent flags:
   //  - `hint_first_term_dismissed`  — GUEST "add your first term" nudge (!isOrganizer)
   //  - `hint_become_organizer_dismissed` — GUEST "you can become an organizer" nudge (!isOrganizer)
   //  - `hint_org_first_term_dismissed` — ORGANIZER-with-zero-terms nudge; a SEPARATE
   //    key from the guest one so a guest who dismissed the pre-promotion card
   //    still sees this one after creating their circle.
   //  - `hint_org_polish_dismissed`  — ORGANIZER-only "polish your org page" nudge
-  const [hintFirstTermDismissed, setHintFirstTermDismissed] = useState(
-    () => localStorage.getItem("hint_first_term_dismissed") === "1",
+  const [hintFirstTermDismissed, dismissFirstTermHint] = useDismissibleHint(
+    hintKey("hint_first_term_dismissed", username),
   );
-  const [hintBecomeOrganizerDismissed, setHintBecomeOrganizerDismissed] = useState(
-    () => localStorage.getItem("hint_become_organizer_dismissed") === "1",
+  const [hintBecomeOrganizerDismissed, dismissBecomeOrganizerHint] = useDismissibleHint(
+    hintKey("hint_become_organizer_dismissed", username),
   );
-  const [hintOrgFirstTermDismissed, setHintOrgFirstTermDismissed] = useState(
-    () => localStorage.getItem("hint_org_first_term_dismissed") === "1",
+  const [hintOrgFirstTermDismissed, dismissOrgFirstTermHint] = useDismissibleHint(
+    hintKey("hint_org_first_term_dismissed", username),
   );
-  const [hintOrgPolishDismissed, setHintOrgPolishDismissed] = useState(
-    () => localStorage.getItem("hint_org_polish_dismissed") === "1",
+  const [hintOrgPolishDismissed, dismissOrgPolishHint] = useDismissibleHint(
+    hintKey("hint_org_polish_dismissed", username),
   );
-
-  function dismissFirstTermHint() {
-    localStorage.setItem("hint_first_term_dismissed", "1");
-    setHintFirstTermDismissed(true);
-  }
-
-  function dismissBecomeOrganizerHint() {
-    localStorage.setItem("hint_become_organizer_dismissed", "1");
-    setHintBecomeOrganizerDismissed(true);
-  }
-
-  function dismissOrgFirstTermHint() {
-    localStorage.setItem("hint_org_first_term_dismissed", "1");
-    setHintOrgFirstTermDismissed(true);
-  }
-
-  function dismissOrgPolishHint() {
-    localStorage.setItem("hint_org_polish_dismissed", "1");
-    setHintOrgPolishDismissed(true);
-  }
 
   // --- lokalne, niepersystentne pola (patrz komentarz na górze pliku) ---
   const [localBio, setLocalBio] = useState("");

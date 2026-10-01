@@ -16,6 +16,7 @@ export function PanelModals() {
     modal,
     firstTermForOrganizer,
     myGroups,
+    organizationSlug,
     editTermEntry,
     groupForm,
     editGroupForm,
@@ -88,6 +89,20 @@ export function PanelModals() {
             }}
           />
         )
+      )}
+
+      {/* ---------- modal: zostań organizatorem (organization -> circle -> term) ---------- */}
+      {modal === "zostan-organizatorem" && (
+        <FirstTermStepperGuest
+          withOrganizationStep={organizationSlug === null}
+          onClose={() => setModal(null)}
+          onCircleCreated={() => void load({ silent: true })}
+          onDone={() => {
+            setModal(null);
+            showToast("Jesteś organizatorem — dodano pierwszy termin");
+            void load();
+          }}
+        />
       )}
 
       {/* ---------- modal: załóż rodzinę ---------- */}

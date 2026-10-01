@@ -1,6 +1,7 @@
 import { useEffect, useId, useRef, useState } from "react";
 import { ApiError } from "../../api/client";
 import { createJoinRequest } from "../../api/groups";
+import { serverMessageOr } from "../../api/problem";
 
 /** Keeps Tab/Shift+Tab focus cycling inside `container`. */
 function trapFocus(e: KeyboardEvent, container: HTMLElement | null) {
@@ -76,7 +77,7 @@ export function RequestAccessDialog({
         onConflict();
         return;
       }
-      setFlow({ status: "failed", message: "Nie udało się wysłać prośby — spróbuj ponownie" });
+      setFlow({ status: "failed", message: serverMessageOr(err, "Nie udało się wysłać prośby — spróbuj ponownie") });
     }
   }
 

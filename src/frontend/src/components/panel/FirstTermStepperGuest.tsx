@@ -1,6 +1,8 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { createMyCircle, type GroupResponse } from "../../api/groups";
+import { createMyOrganization } from "../../api/organizations";
+import { serverMessageOr } from "../../api/problem";
 import { createTerm } from "../../api/terms";
 import { Field, ModalSheet } from "../../pages/panel/panelComponents";
 
@@ -15,12 +17,16 @@ import { Field, ModalSheet } from "../../pages/panel/panelComponents";
 /*  organizerSteps.tsx's `createdCircle` — this modal can be opened/     */
 /*  closed/reopened many times in one page session without a reload,     */
 /*  where a module-scoped variable would leak stale state across         */
-/*  re-opens (spec.md §2).                                               */
+/*  re-opens (spec.md §2). With `withOrganizationStep` ("Zostań         */
+/*  organizatorem") an organization-name step comes first: 3 steps.     */
 /* ------------------------------------------------------------------ */
 
 const inputClass = "rounded-xl border-[1.5px] border-line bg-cream px-3.5 py-2.5 text-ink";
 
 interface FirstTermStepperGuestProps {
+  /** "Zostań organizatorem" flow: an extra first step names the caller's
+   * Organization (its slug becomes the public address) before the circle. */
+  withOrganizationStep?: boolean;
   onClose: () => void;
   /** Fired immediately after step 1 (circle creation) succeeds, so the
    * host can refresh `myGroups`/`isOrganizer` without waiting for the
@@ -31,8 +37,14 @@ interface FirstTermStepperGuestProps {
   onDone: () => void;
 }
 
-export function FirstTermStepperGuest({ onClose, onCircleCreated, onDone }: FirstTermStepperGuestProps) {
-  const [step, setStep] = useState<1 | 2 | "done">(1);
+export function FirstTermStepperGuest({
+  withOrganizationStep = false,
+  onClose,
+  onCircleCreated,
+  onDone,
+}: FirstTermStepperGuestProps) {
+  const [step, setStep] = useState<"organization" | 1 | 2 | "done">(withOrganizationStep ? "organization" : 1);
+  const [organizationName, setOrganizationName] = useState("");
   const [circleName, setCircleName] = useState("");
   const [circle, setCircle] = useState<GroupResponse | null>(null);
   const [occursOn, setOccursOn] = useState("");
@@ -40,6 +52,20 @@ export function FirstTermStepperGuest({ onClose, onCircleCreated, onDone }: Firs
   const [busy, setBusy] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
   const [createdTermId, setCreatedTermId] = useState<string | null>(null);
+
+  async function handleOrganizationStep() {
+    if (!organizationName.trim()) return;
+    setBusy(true);
+    setFormError(null);
+    try {
+      await createMyOrganization({ name: organizationName.trim() });
+      setStep(1);
+    } catch (err) {
+      setFormError(serverMessageOr(err, "Nie udało się utworzyć organizacji — spróbuj ponownie"));
+    } finally {
+      setBusy(false);
+    }
+  }
 
   async function handleStep1() {
     if (!circleName.trim()) return;
@@ -50,8 +76,8 @@ export function FirstTermStepperGuest({ onClose, onCircleCreated, onDone }: Firs
       setCircle(created);
       setStep(2);
       onCircleCreated();
-    } catch {
-      setFormError("Nie udało się utworzyć kręgu — spróbuj ponownie");
+    } catch (err) {
+      setFormError(serverMessageOr(err, "Nie udało się utworzyć kręgu — spróbuj ponownie"));
     } finally {
       setBusy(false);
     }
@@ -66,16 +92,19 @@ export function FirstTermStepperGuest({ onClose, onCircleCreated, onDone }: Firs
       setCreatedTermId(created.id);
       onCircleCreated(); // refresh host state (terms.length) now, not just on close
       setStep("done");
-    } catch {
-      setFormError("Nie udało się dodać terminu — spróbuj ponownie");
+    } catch (err) {
+      setFormError(serverMessageOr(err, "Nie udało się dodać terminu — spróbuj ponownie"));
     } finally {
       setBusy(false);
     }
   }
 
+  const title = withOrganizationStep ? "Zostań organizatorem" : "Dodaj pierwszy termin";
+  const steps: (typeof step)[] = withOrganizationStep ? ["organization", 1, 2] : [1, 2];
+
   if (step === "done" && circle) {
     return (
-      <ModalSheet title="Dodaj pierwszy termin" onClose={onDone}>
+      <ModalSheet title={title} onClose={onDone}>
         <p className="text-[13.5px] text-ink-soft">
           Termin dodany! Możesz teraz zobaczyć, jak wygląda Twoja publiczna strona kręgu —
           tę stronę może zobaczyć każdy, kto dostanie do niej link, bez logowania.
@@ -98,13 +127,39 @@ export function FirstTermStepperGuest({ onClose, onCircleCreated, onDone }: Firs
   }
 
   return (
-    <ModalSheet title="Dodaj pierwszy termin" onClose={onClose}>
+    <ModalSheet title={title} onClose={onClose}>
       <div className="mb-4 flex items-center justify-center gap-1.5" aria-hidden="true">
-        <span className={`h-1.5 w-1.5 rounded-full ${step === 1 ? "bg-mint" : "bg-line"}`} />
-        <span className={`h-1.5 w-1.5 rounded-full ${step === 2 ? "bg-mint" : "bg-line"}`} />
+        {steps.map((s) => (
+          <span key={s} className={`h-1.5 w-1.5 rounded-full ${step === s ? "bg-mint" : "bg-line"}`} />
+        ))}
       </div>
 
-      {step === 1 ? (
+      {step === "organization" ? (
+        <>
+          <div className="grid grid-cols-1 gap-3">
+            <Field label="Nazwa organizacji">
+              <input
+                aria-label="Nazwa organizacji"
+                value={organizationName}
+                onChange={(e) => setOrganizationName(e.target.value)}
+                placeholder="np. Studio Muzyczne Nutka"
+                className={inputClass}
+              />
+            </Field>
+            <p className="text-[12.5px] text-ink-soft">
+              Pod tą nazwą rodziny zobaczą Twoje grupy i terminy.
+            </p>
+          </div>
+          {formError && <p className="mt-2 text-[12.5px] font-semibold text-danger">{formError}</p>}
+          <button
+            onClick={() => void handleOrganizationStep()}
+            disabled={busy || !organizationName.trim()}
+            className="mt-4 w-full rounded-[13px] bg-mint px-5 py-3 text-[13.5px] font-extrabold text-white disabled:opacity-60"
+          >
+            Dalej →
+          </button>
+        </>
+      ) : step === 1 ? (
         <>
           <div className="grid grid-cols-1 gap-3">
             <Field label="Nazwa kręgu">

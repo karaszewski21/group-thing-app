@@ -69,7 +69,7 @@ export function HomeView() {
                 title="Możesz zostać organizatorem"
                 description="Załóż własną stronę, zapraszaj rodziny i planuj zajęcia — bez zakładania nowego konta."
                 ctaLabel="Zacznijmy →"
-                onCtaClick={() => { setFirstTermForOrganizer(false); setModal("pierwszy-termin"); }}
+                onCtaClick={() => setModal("zostan-organizatorem")}
                 onDismiss={dismissBecomeOrganizerHint}
               />
             )}

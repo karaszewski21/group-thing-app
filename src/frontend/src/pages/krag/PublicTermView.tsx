@@ -45,7 +45,7 @@ export function PublicTermView({
   const { toast, showToast } = useToast();
   const deps = { isLoggedIn, refetch, showToast };
   const guest = useGuestMerge({ groupId, termId, isLoggedIn, isAttendingOnServer });
-  const signUp = useTermSignUp(deps);
+  const signUp = useTermSignUp({ ...deps, groupId, termId, displayName });
   const pledge = useNeededItemPledge(deps);
   const itemTake = useItemTake({ ...deps, termId });
 
@@ -212,6 +212,7 @@ export function PublicTermView({
         <TermFooter
           isLoggedIn={isLoggedIn}
           isAttending={guest.isAttending}
+          busy={signUp.signingUp}
           onSignUp={signUp.openSignUp}
         />
       )}

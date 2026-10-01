@@ -22,6 +22,7 @@ export type ModalKind =
   | "termin"
   | "rzecz"
   | "pierwszy-termin"
+  | "zostan-organizatorem"
   | "rodzina-nowa"
   | "edit-termin"
   | null;

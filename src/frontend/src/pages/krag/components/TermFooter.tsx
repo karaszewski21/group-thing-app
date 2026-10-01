@@ -3,16 +3,19 @@
 export function TermFooter({
   isLoggedIn,
   isAttending,
+  busy = false,
   onSignUp,
 }: {
   isLoggedIn: boolean;
   isAttending: boolean;
+  /** A sign-up request is in flight — the button is disabled meanwhile. */
+  busy?: boolean;
   onSignUp: () => void;
 }) {
   if (isAttending) return null;
   return (
     <footer className="w-full flex justify-center my-5 ">
-      <button type="button" className="rounded-full border-0 bg-[#1B8168] px-4.5 py-1.75 font-extrabold text-white disabled:opacity-60" onClick={onSignUp}>
+      <button type="button" className="rounded-full border-0 bg-[#1B8168] px-4.5 py-1.75 font-extrabold text-white disabled:opacity-60" disabled={busy} onClick={onSignUp}>
         {isLoggedIn ? "＋ Zapisz się na zajęcia" : "Zaloguj się, żeby się zapisać"}
       </button>
     </footer>
