@@ -11,8 +11,9 @@ const NAV_ITEMS: { key: View; label: string; Icon: typeof HomeIcon }[] = [
 ];
 
 /** The panel's sticky bottom tab bar, outside the panel too (item pages):
- * each tab navigates to its panel view's URL. */
-export function PanelNavBar({ active }: { active: View }) {
+ * each tab navigates to its panel view's URL. Without `active` no tab is
+ * highlighted — an item page is not one of the panel's views. */
+export function PanelNavBar({ active }: { active?: View }) {
   const navigate = useNavigate();
 
   return (

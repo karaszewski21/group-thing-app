@@ -75,7 +75,7 @@ export function ItemCreatePage() {
           </button>
         </form>
       </div>
-      <PanelNavBar active="rzeczy" />
+      <PanelNavBar />
     </PhoneFrame>
   );
 }

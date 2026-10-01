@@ -60,7 +60,7 @@ export function ItemEditPage() {
           </>
         )}
       </div>
-      <PanelNavBar active="rzeczy" />
+      <PanelNavBar />
     </PhoneFrame>
   );
 }

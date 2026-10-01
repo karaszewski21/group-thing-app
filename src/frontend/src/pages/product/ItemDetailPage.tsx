@@ -36,7 +36,7 @@ export function ItemDetailPage() {
           <ItemLoadStates notFound={notFound} error={error} loading={loading} onRetry={() => void refetch()} />
         )}
       </div>
-      <PanelNavBar active="rzeczy" />
+      <PanelNavBar />
     </PhoneFrame>
   );
 }

@@ -230,12 +230,12 @@ describe("ItemCreatePage", () => {
     });
   });
 
-  it("shows the panel bottom nav with Moje rzeczy active, leading to /panel/rzeczy", async () => {
+  it("shows the panel bottom nav with no tab active; Moje rzeczy leads to /panel/rzeczy", async () => {
     await renderLoadedPage();
 
     const nav = screen.getByRole("navigation", { name: "Nawigacja panelu" });
     const rzeczy = within(nav).getByRole("button", { name: "Moje rzeczy" });
-    expect(rzeczy).toHaveAttribute("aria-current", "true");
+    expect(rzeczy).toHaveAttribute("aria-current", "false");
     expect(within(nav).getByRole("button", { name: "Home" })).toHaveAttribute("aria-current", "false");
 
     fireEvent.click(rzeczy);
