@@ -16,6 +16,7 @@ import { RegisterPage } from "./pages/RegisterPage";
 import { OAuth2AuthorizePage } from "./pages/OAuth2AuthorizePage";
 import { TermPage } from "./pages/krag/TermPage";
 import { PanelPage } from "./pages/panel/PanelPage";
+import { TermAttendeesPage } from "./pages/panel/TermAttendeesPage";
 import { OnboardingPage } from "./pages/OnboardingPage";
 import { OrganizationPage } from "./pages/OrganizationPage";
 import { PublicOrganizationPage } from "./pages/PublicOrganizationPage";
@@ -92,6 +93,13 @@ export const router = createBrowserRouter([
       {
         path: "/panel/:view",
         element: <AuthGuard><PanelPage /></AuthGuard>,
+      },
+      {
+        // Organizer-only attendee list for one term — an explicit route,
+        // since `/panel/:view` matches a single segment only. Standalone
+        // (no PanelDataProvider): the page resolves the group from the term.
+        path: "/panel/terminy/:termId",
+        element: <AuthGuard><TermAttendeesPage /></AuthGuard>,
       },
       {
         // The SOLE group/circle screen route (former separate `/krag/:groupId`

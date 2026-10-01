@@ -1,0 +1,10 @@
+- generic [ref=f10e2]:
+  - navigation "Menu konta" [ref=f10e3]:
+    - button "Powiadomienia" [ref=f10e5]
+    - button "Menu" [ref=f10e10]
+  - main [ref=f10e13]:
+    - generic [ref=f10e16]:
+      - link "Wróć" [ref=f10e17] [cursor=pointer]:
+        - /url: /panel/spotkania
+      - heading "Zapisani" [level=2] [ref=f10e20]
+      - paragraph [ref=f10e21]: Wczytywanie zapisanych…

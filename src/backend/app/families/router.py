@@ -23,6 +23,7 @@ from .schemas import (
     FamilyOut,
     FamilyResponse,
     GuardianResponse,
+    UpdateFamilyMemberRequest,
     UpdateFamilyRequest,
 )
 
@@ -116,7 +117,8 @@ async def list_families_for_guardian_party(
 
 @router.get("/api/families/{family_id}", response_model=FamilyResponse)
 async def get_family(family_id: uuid.UUID, db: DbSession, principal: ReadPrincipal) -> FamilyResponse:
-    family = await service.get_family(db, family_id)
+    profile = await get_profile_by_principal(db, principal)
+    family = await service.get_family_for_guardian(db, family_id, profile.party_id)
     memberships = await service.list_guardian_memberships(db, family_id)
     guardians = await service.build_guardian_responses(db, memberships)
     return FamilyResponse(family=FamilyOut.model_validate(family), guardians=guardians)
@@ -130,7 +132,8 @@ async def get_family(family_id: uuid.UUID, db: DbSession, principal: ReadPrincip
 async def add_guardian(
     family_id: uuid.UUID, body: AddGuardianRequest, db: DbSession, principal: EditPrincipal
 ) -> GuardianResponse:
-    new_guardian_profile_id = await service.add_guardian(db, family_id, body)
+    profile = await get_profile_by_principal(db, principal)
+    new_guardian_profile_id = await service.add_guardian(db, family_id, profile.party_id, body)
     memberships = await service.list_guardian_memberships(db, family_id)
     guardians = await service.build_guardian_responses(db, memberships)
     return next(g for g in guardians if g.user_profile_id == new_guardian_profile_id)
@@ -140,6 +143,8 @@ async def add_guardian(
 async def list_guardians(
     family_id: uuid.UUID, db: DbSession, principal: ReadPrincipal
 ) -> list[GuardianResponse]:
+    profile = await get_profile_by_principal(db, principal)
+    await service.get_family_for_guardian(db, family_id, profile.party_id)
     memberships = await service.list_guardian_memberships(db, family_id)
     return await service.build_guardian_responses(db, memberships)
 
@@ -151,9 +156,30 @@ async def list_guardians(
 async def make_primary_contact(
     family_id: uuid.UUID, family_membership_id: uuid.UUID, db: DbSession, principal: EditPrincipal
 ) -> list[GuardianResponse]:
-    await service.make_primary_contact(db, family_id, family_membership_id)
+    profile = await get_profile_by_principal(db, principal)
+    await service.make_primary_contact(db, family_id, family_membership_id, profile.party_id)
     memberships = await service.list_guardian_memberships(db, family_id)
     return await service.build_guardian_responses(db, memberships)
+
+
+@router.patch(
+    "/api/families/{family_id}/guardians/{family_membership_id}",
+    response_model=GuardianResponse,
+)
+async def update_family_member(
+    family_id: uuid.UUID,
+    family_membership_id: uuid.UUID,
+    body: UpdateFamilyMemberRequest,
+    db: DbSession,
+    principal: EditPrincipal,
+) -> GuardianResponse:
+    """Guardian-only birth-year edit of a CHILD member. The guardian,
+    membership and CHILD-role checks live in
+    `service.update_child_birth_year` (403 / 404 / 400)."""
+    profile = await get_profile_by_principal(db, principal)
+    return await service.update_child_birth_year(
+        db, family_id, family_membership_id, profile.party_id, body.birth_year
+    )
 
 
 @router.delete(

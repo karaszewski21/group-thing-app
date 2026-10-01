@@ -129,7 +129,7 @@ export function EditTermDialog({ term, neededItems, group, onChanged, onClose }:
   // --- "Formalizuj stałych członków" (family-/visibility-independent) ----
   const [attendees, setAttendees] = useState<TermAttendeeResponse[] | null>(null);
   const [attendeesError, setAttendeesError] = useState<string | null>(null);
-  const [selectedPartyIds, setSelectedPartyIds] = useState<Set<number>>(new Set());
+  const [selectedPartyIds, setSelectedPartyIds] = useState<Set<string>>(new Set());
   const [formalizing, setFormalizing] = useState(false);
   const [formalizeError, setFormalizeError] = useState<string | null>(null);
   const [formalized, setFormalized] = useState(false);
@@ -151,7 +151,7 @@ export function EditTermDialog({ term, neededItems, group, onChanged, onClose }:
     };
   }, [group.id, term.id]);
 
-  function toggleAttendee(partyId: number) {
+  function toggleAttendee(partyId: string) {
     setSelectedPartyIds((prev) => {
       const next = new Set(prev);
       if (next.has(partyId)) next.delete(partyId);

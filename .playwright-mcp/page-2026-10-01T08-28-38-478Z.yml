@@ -1,0 +1,5 @@
+- generic [ref=f11e2]:
+  - navigation "Menu konta" [ref=f11e3]:
+    - button "Powiadomienia" [ref=f11e5]
+    - button "Menu" [ref=f11e10]
+  - main [ref=f11e13]: Wczytywanie...

@@ -1,13 +1,13 @@
 orchestrator:
   started_phase: phase-1
-  completed_phases: [phase-1, phase-2, phase-3, phase-4, phase-5, phase-6]
+  completed_phases: [phase-1, phase-2, phase-3, phase-4, phase-5, phase-6, phase-7, phase-8, phase-9, phase-10, phase-11, phase-12, phase-13, phase-14]
   failed_phases: []
   auto_fix_attempts:
     phase-1: 0
     phase-2: 0
   options:
     spec_audit_enabled: true
-    skip_test_suite: true
+    skip_test_suite: false
     e2e_enabled: true
     user_docs_enabled: true
     code_review_enabled: true
@@ -19,6 +19,7 @@ orchestrator:
   updated: 2026-09-30T00:00:00Z
   tdd_red_passed: true
   tech_clarified: true
+  tdd_green_passed: true
   task_path: .maister/tasks/development/2026-09-29-family-profile-signup-flow
   task_ids: {}
 
@@ -31,7 +32,7 @@ task:
     2) Poprawka: gdy dodaję rolę child, dodaj mi opiekuna
     3) Dodać pole wiek tylko dla dziecka
     4) Dla organizatora dać info: ktoś się zapisał, ile dzieci, ile lat
-  status: in_progress
+  status: completed
   tags: [frontend, backend, families, terms]
   priority: null
 
@@ -92,13 +93,14 @@ task_context:
     scope_clarifications:
       scope_expanded: true
       summary: "Birth-year-only PATCH + inline edit for children; new organizer-only page /panel/terminy/:termId; attendee/child counts in organizer terms payload; all gap-analysis defaults accepted (birth_year on user_profiles, extend attendees endpoint, ages only no names, isSafeReturnPath)." 
+    implementation: {summary: "11 groups / 82 steps / 5 waves done. pytest 481 pass; alembic 0044 head; vitest 315 pass / 23 fail (all pre-existing at HEAD, 0 new, 17 pre-existing fixed); tsc 57 vs 58 baseline, 0 new. Deviations: 0-children pill border, field label without (opcjonalnie)."}
     ui_mockups: {components_designed: [rsvp-banner, rodzina-populated, rodzina-empty, return-to-term-button, child-birth-year-inline, birth-year-field, create-family-step2, organizer-term-card, organizer-term-attendees, organizer-term-attendees-states], summary: "10 ASCII mockups, phone-first, reuse existing panel patterns; open point: /panel/terminy/:termId lacks groupId (recommend resolving group from PanelDataContext terms list)"}
     specification: {summary: "spec.md: 25 requirements. returnTo+isSafeReturnPath; role_type/birth_year in GuardianResponse; migration 0044 user_profiles.birth_year; PATCH /api/families/{fid}/guardians/{mid} birth_year-only; TermAttendeeResponse.children [{birth_year}]; organizer-gated attendee_count/child_count on GET /api/terms; standalone TermAttendeesPage /panel/terminy/:termId via useTermAttendees; attendees term-group mismatch -> 404; family GET endpoints now guardian-only (403/404). After audit (pass-with-concerns, 0C/2H/5M/8L, all resolved): 30 reqs; add-guardian/make-primary guardian-only; formalize term-in-group 404; ORDER BY family created_at; per-request birth-year upper bound; full frontend id widening to string for terms/groups (+reservations.term_id), fixes PanelModals Number(uuid) bug; gate = no new tsc errors vs 60-error baseline."}
     architecture_decision: {decision: "termId-only route; group resolved via GET /api/terms/{id}", summary: "No groupId in URL; dependent queries term->group->attendees"}
 
 verification_context:
-  last_status: null
-  issues_found: []
-  fixes_applied: []
+  last_status: passed_with_issues
+  issues_found: [C1 open redirect isSafeReturnPath, W1 refetch race, W2 double PATCH, W3 error messages, I1 birthYearError dup, W4 cache after logout, mixed PL/EN messages, deploy order runbook]
+  fixes_applied: [C1 control-char rejection + tests, W1 refetch only enabled dependents, W2 busy guard, W3 serverMessageOr helper + tests, I1 shared birthYearError/MIN_BIRTH_YEAR, PL backend messages, W4 no change needed (logout full reload)]
   decisions_made: []
   reverify_count: 0

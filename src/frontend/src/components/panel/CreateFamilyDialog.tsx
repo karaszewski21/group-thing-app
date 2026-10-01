@@ -2,6 +2,9 @@ import { useRef, useState } from "react";
 import { ApiError } from "../../api/client";
 import { createLightweightMembers, createOwnFamily, type FamilyOut } from "../../api/families";
 import { Field, ModalSheet } from "../../pages/panel/panelComponents";
+import dayjs from "../../utils/dayjs";
+import { approxAge, birthYearError, formatApproxAge, MIN_BIRTH_YEAR } from "../../utils/age";
+import { serverMessageOr } from "../../api/problem";
 
 /* ------------------------------------------------------------------ */
 /*  "Załóż rodzinę" — 2-step Panel dialog (family name -> optional     */
@@ -19,10 +22,12 @@ interface MemberDraft {
   /** Stable UI-only id (monotonic counter) so the list keys on identity, not
    * array index — removing a member mid-list must not shift inputs/state onto
    * the wrong row. Dropped on submit (`createLightweightMembers` takes only
-   * `{name, role_type}`). */
+   * `{name, role_type, birth_year?}`). */
   id: number;
   name: string;
   roleType: "GUARDIAN" | "CHILD";
+  /** CHILD only; null when not given. */
+  birthYear: number | null;
 }
 
 interface CreateFamilyDialogProps {
@@ -39,6 +44,7 @@ export function CreateFamilyDialog({ onClose, onCreated }: CreateFamilyDialogPro
   const [members, setMembers] = useState<MemberDraft[]>([]);
   const [draftName, setDraftName] = useState("");
   const [draftRole, setDraftRole] = useState<"GUARDIAN" | "CHILD">("GUARDIAN");
+  const [draftBirthYear, setDraftBirthYear] = useState("");
   const [busy, setBusy] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
   const nextMemberId = useRef(0);
@@ -62,14 +68,18 @@ export function CreateFamilyDialog({ onClose, onCreated }: CreateFamilyDialogPro
     }
   }
 
+  const draftYearError = draftRole === "CHILD" ? birthYearError(draftBirthYear) : null;
+
   function addDraftMember() {
-    if (!draftName.trim()) return;
+    if (!draftName.trim() || draftYearError) return;
+    const birthYear = draftRole === "CHILD" && draftBirthYear.trim() ? Number(draftBirthYear) : null;
     setMembers((prev) => [
       ...prev,
-      { id: nextMemberId.current++, name: draftName.trim(), roleType: draftRole },
+      { id: nextMemberId.current++, name: draftName.trim(), roleType: draftRole, birthYear },
     ]);
     setDraftName("");
     setDraftRole("GUARDIAN");
+    setDraftBirthYear("");
   }
 
   function removeDraftMember(id: number) {
@@ -82,12 +92,16 @@ export function CreateFamilyDialog({ onClose, onCreated }: CreateFamilyDialogPro
     try {
       if (members.length > 0) {
         await createLightweightMembers(
-          members.map((m) => ({ name: m.name, role_type: m.roleType })),
+          members.map((m) => ({
+            name: m.name,
+            role_type: m.roleType,
+            ...(m.roleType === "CHILD" && m.birthYear !== null && { birth_year: m.birthYear }),
+          })),
         );
       }
       setStep("done");
-    } catch {
-      setFormError("Nie udało się dodać członków — spróbuj ponownie");
+    } catch (err) {
+      setFormError(serverMessageOr(err, "Nie udało się dodać członków — spróbuj ponownie"));
     } finally {
       setBusy(false);
     }
@@ -155,7 +169,11 @@ export function CreateFamilyDialog({ onClose, onCreated }: CreateFamilyDialogPro
                 >
                   <span className="flex-1 text-ink">{m.name}</span>
                   <span className="text-ink-soft">
-                    {m.roleType === "GUARDIAN" ? "Opiekun" : "Dziecko"}
+                    {m.roleType === "GUARDIAN"
+                      ? "Opiekun"
+                      : m.birthYear === null
+                        ? "Dziecko"
+                        : `Dziecko · ${formatApproxAge(approxAge(m.birthYear))}`}
                   </span>
                   <button
                     type="button"
@@ -183,7 +201,10 @@ export function CreateFamilyDialog({ onClose, onCreated }: CreateFamilyDialogPro
               <div className="flex gap-2">
                 <button
                   type="button"
-                  onClick={() => setDraftRole("GUARDIAN")}
+                  onClick={() => {
+                    setDraftRole("GUARDIAN");
+                    setDraftBirthYear("");
+                  }}
                   aria-pressed={draftRole === "GUARDIAN"}
                   className={`flex-1 rounded-xl border-[1.5px] px-3 py-2.5 text-sm font-bold transition ${
                     draftRole === "GUARDIAN"
@@ -207,12 +228,34 @@ export function CreateFamilyDialog({ onClose, onCreated }: CreateFamilyDialogPro
                 </button>
               </div>
             </Field>
+            {draftRole === "CHILD" && (
+              <Field label="Rok urodzenia">
+                <input
+                  type="number"
+                  inputMode="numeric"
+                  min={MIN_BIRTH_YEAR}
+                  max={dayjs().year()}
+                  aria-label="Rok urodzenia"
+                  value={draftBirthYear}
+                  onChange={(e) => setDraftBirthYear(e.target.value)}
+                  placeholder="np. 2018"
+                  className={inputClass}
+                />
+                {draftYearError ? (
+                  <p className="text-[12.5px] font-semibold text-danger">{draftYearError}</p>
+                ) : (
+                  draftBirthYear.trim() && (
+                    <p className="text-[12px] text-ink-soft">{formatApproxAge(approxAge(Number(draftBirthYear)))}</p>
+                  )
+                )}
+              </Field>
+            )}
           </div>
 
           <button
             type="button"
             onClick={addDraftMember}
-            disabled={!draftName.trim()}
+            disabled={!draftName.trim() || draftYearError !== null}
             className="mt-3 w-full rounded-[13px] border-[1.5px] border-line px-5 py-2.5 text-[13px] font-extrabold text-ink-soft disabled:opacity-60"
           >
             Dodaj kolejną osobę

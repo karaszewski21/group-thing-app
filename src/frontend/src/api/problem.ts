@@ -51,3 +51,20 @@ export function extractProblemMessage(err: unknown): string {
   }
   return "Network error — check connection";
 }
+
+/** The server's own `message` for domain errors (400 without field errors,
+ * 409), which the backend writes in Polish; otherwise the Polish fallback,
+ * so generic envelopes like "Validation failed" never reach the user. */
+export function serverMessageOr(err: unknown, fallback: string): string {
+  if (
+    err instanceof ApiError &&
+    (err.status === 400 || err.status === 409) &&
+    isLegacyErrorEnvelope(err.body) &&
+    !err.body.fieldErrors &&
+    err.body.message
+  ) {
+    return err.body.message;
+  }
+  return fallback;
+}
+

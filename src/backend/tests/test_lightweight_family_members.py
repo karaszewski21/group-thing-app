@@ -8,6 +8,11 @@ and reuses it on every subsequent call."""
 
 from __future__ import annotations
 
+import uuid
+from datetime import date
+from typing import Any
+
+import pytest
 from httpx import AsyncClient
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -192,3 +197,214 @@ async def test_listGuardians_childAndCaller_exposeRoleTypePerMember(client: Asyn
     roles = {g["display_name"]: g.get("role_type") for g in list_response.json()}
     assert roles["Zosia Dziecko"] == "CHILD"
     assert roles["Role Type Listing"] == "GUARDIAN"
+
+
+async def _create_members(
+    client: AsyncClient, token: str, members: list[dict[str, Any]]
+) -> dict[str, Any]:
+    response = await client.post(
+        "/api/families/mine/members", json={"members": members}, headers=_auth_headers(token)
+    )
+    assert response.status_code == 201, response.text
+    body: dict[str, Any] = response.json()
+    return body
+
+
+def _member(body: dict[str, Any], name: str) -> dict[str, Any]:
+    member: dict[str, Any] = next(g for g in body["guardians"] if g["display_name"] == name)
+    return member
+
+
+async def test_createMembers_childWithBirthYear_persistsAndReturnsIt(client: AsyncClient) -> None:
+    token = await _register_guardian(client, "birth.year.create@example.com")
+
+    body = await _create_members(
+        client,
+        token,
+        [
+            {"name": "Rocznik Dziecko", "role_type": "CHILD", "birth_year": 2018},
+            {"name": "Bez Rocznika", "role_type": "CHILD"},
+        ],
+    )
+
+    assert _member(body, "Rocznik Dziecko")["birth_year"] == 2018
+    assert _member(body, "Bez Rocznika")["birth_year"] is None
+
+    listing = await client.get(
+        f"/api/families/{body['family']['id']}/guardians", headers=_auth_headers(token)
+    )
+    assert listing.status_code == 200
+    by_name = {g["display_name"]: g for g in listing.json()}
+    assert by_name["Rocznik Dziecko"]["birth_year"] == 2018
+    assert by_name["Rocznik Dziecko"]["role_type"] == "CHILD"
+    assert by_name["Bez Rocznika"]["birth_year"] is None
+    assert by_name["Birth Year Create"]["birth_year"] is None
+
+
+async def test_createMembers_guardianWithBirthYear_returns400(client: AsyncClient) -> None:
+    token = await _register_guardian(client, "birth.year.guardian@example.com")
+
+    response = await client.post(
+        "/api/families/mine/members",
+        json={"members": [{"name": "Opiekun", "role_type": "GUARDIAN", "birth_year": 1980}]},
+        headers=_auth_headers(token),
+    )
+
+    assert response.status_code == 400
+
+
+@pytest.mark.parametrize("year_offset", ["too_old", "next_year"])
+async def test_createMembers_birthYearOutOfRange_returns400(
+    client: AsyncClient, year_offset: str
+) -> None:
+    token = await _register_guardian(client, f"birth.year.range.{year_offset}@example.com")
+    birth_year = 1899 if year_offset == "too_old" else date.today().year + 1
+
+    response = await client.post(
+        "/api/families/mine/members",
+        json={"members": [{"name": "Dziecko", "role_type": "CHILD", "birth_year": birth_year}]},
+        headers=_auth_headers(token),
+    )
+
+    assert response.status_code == 400
+    assert "members.0.birth_year" in response.json()["fieldErrors"]
+
+    current_year = await client.post(
+        "/api/families/mine/members",
+        json={
+            "members": [{"name": "Dziecko", "role_type": "CHILD", "birth_year": date.today().year}]
+        },
+        headers=_auth_headers(token),
+    )
+    assert current_year.status_code == 201
+
+
+async def test_patchBirthYear_guardianSetsAndClearsChildYear_returns200(
+    client: AsyncClient,
+) -> None:
+    token = await _register_guardian(client, "birth.year.patch@example.com")
+    body = await _create_members(client, token, [{"name": "Patch Dziecko", "role_type": "CHILD"}])
+    family_id = body["family"]["id"]
+    child = _member(body, "Patch Dziecko")
+    url = f"/api/families/{family_id}/guardians/{child['family_membership_id']}"
+
+    set_response = await client.patch(url, json={"birth_year": 2019}, headers=_auth_headers(token))
+    assert set_response.status_code == 200
+    assert set_response.json()["birth_year"] == 2019
+    assert set_response.json()["role_type"] == "CHILD"
+    assert set_response.json()["family_membership_id"] == child["family_membership_id"]
+
+    clear_response = await client.patch(
+        url, json={"birth_year": None}, headers=_auth_headers(token)
+    )
+    assert clear_response.status_code == 200
+    assert clear_response.json()["birth_year"] is None
+
+
+async def test_patchBirthYear_nonGuardianOrUnknownMembership_rejected(client: AsyncClient) -> None:
+    owner_token = await _register_guardian(client, "birth.year.owner@example.com")
+    owner_body = await _create_members(
+        client, owner_token, [{"name": "Cudze Dziecko", "role_type": "CHILD"}]
+    )
+    family_id = owner_body["family"]["id"]
+    child_membership_id = _member(owner_body, "Cudze Dziecko")["family_membership_id"]
+
+    other_token = await _register_guardian(client, "birth.year.other@example.com")
+    other_body = await _create_members(
+        client, other_token, [{"name": "Inne Dziecko", "role_type": "CHILD"}]
+    )
+    foreign_membership_id = _member(other_body, "Inne Dziecko")["family_membership_id"]
+
+    forbidden = await client.patch(
+        f"/api/families/{family_id}/guardians/{child_membership_id}",
+        json={"birth_year": 2018},
+        headers=_auth_headers(other_token),
+    )
+    assert forbidden.status_code == 403
+
+    foreign = await client.patch(
+        f"/api/families/{family_id}/guardians/{foreign_membership_id}",
+        json={"birth_year": 2018},
+        headers=_auth_headers(owner_token),
+    )
+    assert foreign.status_code == 404
+
+    unknown = await client.patch(
+        f"/api/families/{family_id}/guardians/{uuid.uuid4()}",
+        json={"birth_year": 2018},
+        headers=_auth_headers(owner_token),
+    )
+    assert unknown.status_code == 404
+
+    missing_family = await client.patch(
+        f"/api/families/{uuid.uuid4()}/guardians/{child_membership_id}",
+        json={"birth_year": 2018},
+        headers=_auth_headers(owner_token),
+    )
+    assert missing_family.status_code == 404
+
+
+async def test_patchBirthYear_guardianTargetOrExtraField_returns400(client: AsyncClient) -> None:
+    token = await _register_guardian(client, "birth.year.target@example.com")
+    body = await _create_members(client, token, [{"name": "Extra Dziecko", "role_type": "CHILD"}])
+    family_id = body["family"]["id"]
+    guardian = _member(body, "Birth Year Target")
+    child = _member(body, "Extra Dziecko")
+
+    guardian_target = await client.patch(
+        f"/api/families/{family_id}/guardians/{guardian['family_membership_id']}",
+        json={"birth_year": 2018},
+        headers=_auth_headers(token),
+    )
+    assert guardian_target.status_code == 400
+    assert guardian_target.json()["message"] == "Rok urodzenia można ustawić tylko dziecku"
+
+    extra_field = await client.patch(
+        f"/api/families/{family_id}/guardians/{child['family_membership_id']}",
+        json={"birth_year": 2018, "name": "x"},
+        headers=_auth_headers(token),
+    )
+    assert extra_field.status_code == 400
+
+
+@pytest.mark.parametrize(("year_delta", "expected_status"), [(0, 200), (1, 400), (None, 400)])
+async def test_patchBirthYear_rangeBoundary_currentYearAcceptedFutureAndPre1900Rejected(
+    client: AsyncClient, year_delta: int | None, expected_status: int
+) -> None:
+    token = await _register_guardian(client, f"birth.year.patch.range.{year_delta}@example.com")
+    body = await _create_members(client, token, [{"name": "Zakres Dziecko", "role_type": "CHILD"}])
+    child = _member(body, "Zakres Dziecko")
+    birth_year = 1899 if year_delta is None else date.today().year + year_delta
+
+    response = await client.patch(
+        f"/api/families/{body['family']['id']}/guardians/{child['family_membership_id']}",
+        json={"birth_year": birth_year},
+        headers=_auth_headers(token),
+    )
+
+    assert response.status_code == expected_status
+    if expected_status == 200:
+        assert response.json()["birth_year"] == birth_year
+
+
+async def test_patchBirthYear_removedChildMembership_returns404(
+    client: AsyncClient,
+) -> None:
+    token = await _register_guardian(client, "birth.year.patch.removed@example.com")
+    body = await _create_members(
+        client, token, [{"name": "Usunięte Dziecko", "role_type": "CHILD", "birth_year": 2016}]
+    )
+    family_id = body["family"]["id"]
+    membership_id = _member(body, "Usunięte Dziecko")["family_membership_id"]
+    removed = await client.delete(
+        f"/api/families/{family_id}/guardians/{membership_id}", headers=_auth_headers(token)
+    )
+    assert removed.status_code == 204
+
+    response = await client.patch(
+        f"/api/families/{family_id}/guardians/{membership_id}",
+        json={"birth_year": 2017},
+        headers=_auth_headers(token),
+    )
+
+    assert response.status_code == 404

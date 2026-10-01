@@ -110,7 +110,7 @@ export function RzeczyView() {
         new Set(
           reservations
             .map((r) => r.term_id)
-            .filter((id): id is number => id !== undefined),
+            .filter((id): id is string => id !== undefined),
         ),
       );
       const terms = await Promise.all(termIds.map((id) => getTerm(id)));

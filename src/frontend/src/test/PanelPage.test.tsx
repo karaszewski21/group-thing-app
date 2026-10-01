@@ -26,6 +26,7 @@ import { PanelPage } from "../pages/panel/PanelPage";
 import { NotificationBell } from "../components/shared/NotificationBell";
 import { ApiError } from "../api/client";
 import { createQueryWrapper } from "./queryClient";
+import { approxAge, formatApproxAge } from "../utils/age";
 
 vi.mock("../auth/AuthContext", async (importOriginal) => {
   const actual = await importOriginal<typeof import("../auth/AuthContext")>();
@@ -59,6 +60,7 @@ vi.mock("../api/families", () => ({
   createOwnFamily: vi.fn(),
   renameFamily: vi.fn(),
   removeFamilyMember: vi.fn(),
+  updateChildBirthYear: vi.fn(),
 }));
 
 vi.mock("../api/groups", () => ({
@@ -225,9 +227,21 @@ const mockCategories: categoriesApi.Category[] = [
   { id: 5, name: "Inne", description: null, sortOrder: 5, productCount: 0, createdAt: "", updatedAt: "" },
 ];
 
+// Term/Group ids are UUID strings end to end (spec R29) — never coerced.
+const GROUP_ID = "5f0c2a7e-3b1d-4e6a-9c8f-0000000000a5";
+const OTHER_GROUP_ID = "6a1d3b8f-4c2e-4f7b-8d9a-0000000000a6";
+const GROUP_PARTY_ID = "2b7e4c1a-9d3f-4a6b-8e5c-0000000000b2";
+const TERM_ID = "1c2d3e4f-5a6b-4c7d-8e9f-0000000000c1";
+const LATER_TERM_ID = "7d8e9fa0-b1c2-4d3e-8f4a-0000000000c7";
+const ATTENDEE_PARTY_ID = "a0b1c2d3-e4f5-4a6b-8c7d-0000000000d0";
+const OTHER_ATTENDEE_PARTY_ID = "a1b2c3d4-e5f6-4a7b-8c8d-0000000000d1";
+const ATTENDED_TERM_ID = "3e4f5a6b-7c8d-4e9f-8a0b-0000000000c3";
+const OTHER_ATTENDED_TERM_ID = "8f9a0b1c-2d3e-4f4a-8b5c-0000000000c8";
+const ENDED_TERM_ID = "9a0b1c2d-3e4f-4a5b-8c6d-0000000000c9";
+
 const mockGroup: groupsApi.GroupResponse = {
-  id: 5,
-  party_id: 2,
+  id: GROUP_ID,
+  party_id: GROUP_PARTY_ID,
   name: "Nowa grupa",
   organizer_slug: "ania-kowalska",
   layout_mode: "CIRCLE",
@@ -260,20 +274,20 @@ const mockFamily: familiesApi.FamilyOut = {
 const mockAttendances: groupsApi.MyAttendanceResponse[] = [
   {
     attendance_id: 1,
-    term_id: 3,
+    term_id: ATTENDED_TERM_ID,
     occurs_on: "2026-02-15",
     child_count: 2,
-    group_id: 5,
+    group_id: GROUP_ID,
     group_name: "Nutki dla starszaków",
     organizer_display_name: "Ania Kowalska",
     organizer_slug: "ania-kowalska",
   },
   {
     attendance_id: 2,
-    term_id: 8,
+    term_id: OTHER_ATTENDED_TERM_ID,
     occurs_on: "2026-03-01",
     child_count: 1,
-    group_id: 6,
+    group_id: OTHER_GROUP_ID,
     group_name: "Rytmika",
     organizer_display_name: "Basia Nowak",
     organizer_slug: "basia-nowak",
@@ -290,6 +304,8 @@ const mockGuardians: familiesApi.GuardianResponse[] = [
     is_primary_contact: true,
     valid_from: "2026-01-01",
     valid_to: null,
+    role_type: "GUARDIAN",
+    birth_year: null,
   },
   {
     family_membership_id: 2,
@@ -300,12 +316,26 @@ const mockGuardians: familiesApi.GuardianResponse[] = [
     is_primary_contact: false,
     valid_from: "2026-01-01",
     valid_to: null,
+    role_type: "GUARDIAN",
+    birth_year: null,
+  },
+  {
+    family_membership_id: 3,
+    party_id: 3,
+    user_profile_id: 3,
+    display_name: "Zosia Kowalska",
+    email: null,
+    is_primary_contact: false,
+    valid_from: "2026-01-01",
+    valid_to: null,
+    role_type: "CHILD",
+    birth_year: 2018,
   },
 ];
 
-function renderPanel() {
+function renderPanel(initialEntry = "/panel") {
   return render(
-    <MemoryRouter initialEntries={["/panel"]}>
+    <MemoryRouter initialEntries={[initialEntry]}>
       <Routes>
         <Route path="/panel" element={<PanelPage />} />
         <Route path="/panel/:view" element={<PanelPage />} />
@@ -367,7 +397,7 @@ function mockOrganizerDefaults() {
   vi.mocked(categoriesApi.getCategories).mockResolvedValue(mockCategories);
   vi.mocked(peopleApi.getMyProfile).mockResolvedValue(mockOrganizerProfile);
   vi.mocked(peopleApi.getLeadershipsForPerson).mockResolvedValue([
-    { id: 1, from_role_id: 1, to_group_id: 5, organizer_party_id: 1, valid_from: "2026-01-01", valid_to: null },
+    { id: 1, from_role_id: 1, to_group_id: GROUP_ID, organizer_party_id: 1, valid_from: "2026-01-01", valid_to: null },
   ]);
   vi.mocked(inventoriesApi.getInventories).mockResolvedValue([mockInventory]);
   vi.mocked(inventoriesApi.getMyInventoryItems).mockResolvedValue([]);
@@ -430,7 +460,7 @@ describe("PanelPage — hamburger promotion", () => {
   it('shows neither hamburger item for an ORGANIZER who already has terms', async () => {
     mockOrganizerDefaults();
     vi.mocked(termsApi.getTerms).mockResolvedValue([
-      { id: 1, circle_group_id: 5, occurs_on: "2026-02-01", description: null, created_at: "", updated_at: "" },
+      { id: TERM_ID, circle_group_id: GROUP_ID, occurs_on: "2026-02-01", description: null, created_at: "", updated_at: "", attendee_count: null, child_count: null },
     ]);
     renderPanel();
     await openMenu();
@@ -476,7 +506,8 @@ describe("PanelPage — hamburger promotion", () => {
     // to the just-created term.
     vi.mocked(groupsApi.createMyCircle).mockResolvedValue(mockGroupHashSlug);
     vi.mocked(termsApi.createTerm).mockResolvedValue({
-      id: 1, circle_group_id: 5, occurs_on: "2026-02-01", description: null, created_at: "", updated_at: "",
+      id: TERM_ID, circle_group_id: GROUP_ID, occurs_on: "2026-02-01", description: null, created_at: "", updated_at: "",
+      attendee_count: null, child_count: null,
     });
     renderPanel();
     await openMenu();
@@ -490,7 +521,7 @@ describe("PanelPage — hamburger promotion", () => {
     // Step 1 -> step 2 immediately triggers a `load()` refresh (via
     // onCircleCreated) so a reopened menu already reflects the new circle.
     vi.mocked(peopleApi.getLeadershipsForPerson).mockResolvedValue([
-      { id: 1, from_role_id: 1, to_group_id: 5, organizer_party_id: 1, valid_from: "2026-01-01", valid_to: null },
+      { id: 1, from_role_id: 1, to_group_id: GROUP_ID, organizer_party_id: 1, valid_from: "2026-01-01", valid_to: null },
     ]);
     vi.mocked(groupsApi.getGroup).mockResolvedValue(mockGroup);
     vi.mocked(groupsApi.getTermAttendeesForFormalization).mockResolvedValue([]);
@@ -506,7 +537,7 @@ describe("PanelPage — hamburger promotion", () => {
     // terms — reflect that a term now exists so the hamburger item's
     // `terms.length === 0` gate correctly hides it below.
     vi.mocked(termsApi.getTerms).mockResolvedValue([
-      { id: 1, circle_group_id: 5, occurs_on: "2026-02-01", description: null, created_at: "", updated_at: "" },
+      { id: TERM_ID, circle_group_id: GROUP_ID, occurs_on: "2026-02-01", description: null, created_at: "", updated_at: "", attendee_count: null, child_count: null },
     ]);
     vi.mocked(termsApi.getNeededItems).mockResolvedValue([]);
     fireEvent.click(within(dialog).getByRole("button", { name: "Dodaj" }));
@@ -527,7 +558,7 @@ describe("PanelPage — hamburger promotion", () => {
     });
     expect(publicLink).toHaveAttribute(
       "href",
-      `/${mockGroupHashSlug.organizer_slug}/grupa/${mockGroupHashSlug.id}/term/1`,
+      `/${mockGroupHashSlug.organizer_slug}/grupa/${mockGroupHashSlug.id}/term/${TERM_ID}`,
     );
 
     fireEvent.click(within(dialog).getByRole("button", { name: "Gotowe" }));
@@ -705,7 +736,7 @@ describe("PanelPage — dismissible home hints", () => {
   it("ORGANIZER first-term hint auto-hides once terms.length > 0, with no manual dismiss needed", async () => {
     mockOrganizerDefaults();
     vi.mocked(termsApi.getTerms).mockResolvedValue([
-      { id: 1, circle_group_id: 5, occurs_on: "2026-02-01", description: null, created_at: "", updated_at: "" },
+      { id: TERM_ID, circle_group_id: GROUP_ID, occurs_on: "2026-02-01", description: null, created_at: "", updated_at: "", attendee_count: null, child_count: null },
     ]);
     renderPanel();
 
@@ -745,7 +776,8 @@ describe("PanelPage — dismissible home hints", () => {
     mockGuestDefaults();
     vi.mocked(groupsApi.createMyCircle).mockResolvedValue(mockGroup);
     vi.mocked(termsApi.createTerm).mockResolvedValue({
-      id: 1, circle_group_id: 5, occurs_on: "2026-02-01", description: null, created_at: "", updated_at: "",
+      id: TERM_ID, circle_group_id: GROUP_ID, occurs_on: "2026-02-01", description: null, created_at: "", updated_at: "",
+      attendee_count: null, child_count: null,
     });
     renderPanel();
 
@@ -758,7 +790,7 @@ describe("PanelPage — dismissible home hints", () => {
     });
 
     vi.mocked(peopleApi.getLeadershipsForPerson).mockResolvedValue([
-      { id: 1, from_role_id: 1, to_group_id: 5, organizer_party_id: 1, valid_from: "2026-01-01", valid_to: null },
+      { id: 1, from_role_id: 1, to_group_id: GROUP_ID, organizer_party_id: 1, valid_from: "2026-01-01", valid_to: null },
     ]);
     vi.mocked(groupsApi.getGroup).mockResolvedValue(mockGroup);
     vi.mocked(groupsApi.getTermAttendeesForFormalization).mockResolvedValue([]);
@@ -771,7 +803,7 @@ describe("PanelPage — dismissible home hints", () => {
     fireEvent.change(dateInput, { target: { value: "2026-02-01T17:00" } });
 
     vi.mocked(termsApi.getTerms).mockResolvedValue([
-      { id: 1, circle_group_id: 5, occurs_on: "2026-02-01", description: null, created_at: "", updated_at: "" },
+      { id: TERM_ID, circle_group_id: GROUP_ID, occurs_on: "2026-02-01", description: null, created_at: "", updated_at: "", attendee_count: null, child_count: null },
     ]);
     vi.mocked(termsApi.getNeededItems).mockResolvedValue([]);
     fireEvent.click(within(dialog).getByRole("button", { name: "Dodaj" }));
@@ -789,7 +821,8 @@ describe("PanelPage — dismissible home hints", () => {
   it("ORGANIZER first-term hint auto-hides after a term is added via the real ORGANIZER 1-step stepper (not just terms mocked directly)", async () => {
     mockOrganizerDefaults();
     vi.mocked(termsApi.createTerm).mockResolvedValue({
-      id: 1, circle_group_id: 5, occurs_on: "2026-02-01", description: null, created_at: "", updated_at: "",
+      id: TERM_ID, circle_group_id: GROUP_ID, occurs_on: "2026-02-01", description: null, created_at: "", updated_at: "",
+      attendee_count: null, child_count: null,
     });
     renderPanel();
 
@@ -801,7 +834,7 @@ describe("PanelPage — dismissible home hints", () => {
     fireEvent.change(dateInput, { target: { value: "2026-02-01T17:00" } });
 
     vi.mocked(termsApi.getTerms).mockResolvedValue([
-      { id: 1, circle_group_id: 5, occurs_on: "2026-02-01", description: null, created_at: "", updated_at: "" },
+      { id: TERM_ID, circle_group_id: GROUP_ID, occurs_on: "2026-02-01", description: null, created_at: "", updated_at: "", attendee_count: null, child_count: null },
     ]);
     vi.mocked(termsApi.getNeededItems).mockResolvedValue([]);
     fireEvent.click(within(dialog).getByRole("button", { name: "Dodaj termin" }));
@@ -824,20 +857,19 @@ describe("PanelPage — Rodzina section", () => {
     vi.mocked(groupsApi.listMyPendingJoinRequests).mockResolvedValue([]);
   });
 
-  it('"Mój dom" hamburger item renders and navigates to the family list (name + role tag, no avatars)', async () => {
+  it("/panel/rodzina renders the family list with role labels (Ty / opiekun / dziecko, no avatars)", async () => {
     mockGuestDefaults();
     vi.mocked(familiesApi.getMyFamilies).mockResolvedValue([mockFamily]);
     vi.mocked(familiesApi.getGuardians).mockResolvedValue(mockGuardians);
-    renderPanel();
-    await openMenu();
-
-    fireEvent.click(screen.getByRole("menuitem", { name: /Mój dom/ }));
+    renderPanel("/panel/rodzina");
 
     expect(await screen.findByRole("heading", { name: "Mój dom", level: 2 })).toBeInTheDocument();
-    expect(screen.getByText("Jan Kowalski", { selector: "h3" })).toBeInTheDocument();
-    expect(screen.getByText("(Ty)")).toBeInTheDocument();
-    expect(screen.getByText("Marek Kowalski", { selector: "h3" })).toBeInTheDocument();
-    expect(screen.getByText("(opiekun)")).toBeInTheDocument();
+    expect(screen.getByText("Jan Kowalski", { selector: "h3" })).toHaveTextContent("Jan Kowalski(Ty)");
+    expect(screen.getByText("Marek Kowalski", { selector: "h3" })).toHaveTextContent("Marek Kowalski(opiekun)");
+    // a CHILD is never labelled "(opiekun)"
+    expect(screen.getByText("Zosia Kowalska", { selector: "h3" })).toHaveTextContent("Zosia Kowalska(dziecko)");
+    expect(screen.getAllByText("(opiekun)")).toHaveLength(1);
+    expect(screen.getByText(`rocznik 2018 · ${formatApproxAge(approxAge(2018))}`)).toBeInTheDocument();
     // no avatars — rows carry no <img> element
     expect(screen.queryAllByRole("img")).toHaveLength(0);
   });
@@ -850,10 +882,7 @@ describe("PanelPage — Rodzina section", () => {
       family: mockFamily,
       guardians: mockGuardians,
     });
-    renderPanel();
-    await openMenu();
-
-    fireEvent.click(screen.getByRole("menuitem", { name: /Mój dom/ }));
+    renderPanel("/panel/rodzina");
     await screen.findByRole("heading", { name: "Mój dom", level: 2 });
 
     fireEvent.change(screen.getByPlaceholderText("np. Zosia Kowalska"), {
@@ -874,10 +903,7 @@ describe("PanelPage — Rodzina section", () => {
     mockOrganizerDefaults();
     vi.mocked(familiesApi.getMyFamilies).mockResolvedValue([mockFamily]);
     vi.mocked(familiesApi.getGuardians).mockResolvedValue(mockGuardians);
-    renderPanel();
-    await openMenu();
-
-    fireEvent.click(screen.getByRole("menuitem", { name: /Mój dom/ }));
+    renderPanel("/panel/rodzina");
 
     expect(await screen.findByRole("heading", { name: "Mój dom", level: 2 })).toBeInTheDocument();
     expect(screen.getByText("Jan Kowalski", { selector: "h3" })).toBeInTheDocument();
@@ -891,15 +917,15 @@ describe("PanelPage — Mój dom — no family", () => {
     vi.mocked(groupsApi.listMyPendingJoinRequests).mockResolvedValue([]);
   });
 
-  async function openMojDom() {
-    await openMenu();
-    fireEvent.click(screen.getByRole("menuitem", { name: /Mój dom/ }));
+  // The "Mój dom" entry lives in the header AccountMenu (outside PanelPage),
+  // so these tests land on the section route directly.
+  function openMojDom() {
+    renderPanel("/panel/rodzina");
   }
 
   it("renders the no-family empty-state card with a CTA for a GUEST", async () => {
     mockGuestDefaults();
-    renderPanel();
-    await openMojDom();
+    openMojDom();
 
     expect(await screen.findByText("Nie masz jeszcze rodziny")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Załóż rodzinę" })).toBeInTheDocument();
@@ -907,8 +933,7 @@ describe("PanelPage — Mój dom — no family", () => {
 
   it("renders the no-family empty-state card with a CTA for an ORGANIZER", async () => {
     mockOrganizerDefaults();
-    renderPanel();
-    await openMojDom();
+    openMojDom();
 
     expect(await screen.findByText("Nie masz jeszcze rodziny")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Załóż rodzinę" })).toBeInTheDocument();
@@ -916,8 +941,7 @@ describe("PanelPage — Mój dom — no family", () => {
 
   it("the CTA opens CreateFamilyDialog", async () => {
     mockGuestDefaults();
-    renderPanel();
-    await openMojDom();
+    openMojDom();
 
     fireEvent.click(await screen.findByRole("button", { name: "Załóż rodzinę" }));
 
@@ -929,8 +953,7 @@ describe("PanelPage — Mój dom — no family", () => {
   it("step 1 submits the typed name to createOwnFamily and advances to step 2", async () => {
     mockGuestDefaults();
     vi.mocked(familiesApi.createOwnFamily).mockResolvedValue({ ...mockFamily, name: "Nowakowie" });
-    renderPanel();
-    await openMojDom();
+    openMojDom();
     fireEvent.click(await screen.findByRole("button", { name: "Załóż rodzinę" }));
 
     const dialog = await screen.findByRole("dialog", { name: "Załóż rodzinę" });
@@ -949,8 +972,7 @@ describe("PanelPage — Mój dom — no family", () => {
       family: mockFamily,
       guardians: mockGuardians,
     });
-    renderPanel();
-    await openMojDom();
+    openMojDom();
     fireEvent.click(await screen.findByRole("button", { name: "Załóż rodzinę" }));
 
     const dialog = await screen.findByRole("dialog", { name: "Załóż rodzinę" });
@@ -989,8 +1011,7 @@ describe("PanelPage — Mój dom — no family", () => {
   it("reopening the dialog after closing mid-flow starts clean on step 1 (local state, no stale name/step)", async () => {
     mockGuestDefaults();
     vi.mocked(familiesApi.createOwnFamily).mockResolvedValue(mockFamily);
-    renderPanel();
-    await openMojDom();
+    openMojDom();
     fireEvent.click(await screen.findByRole("button", { name: "Załóż rodzinę" }));
 
     let dialog = await screen.findByRole("dialog", { name: "Załóż rodzinę" });
@@ -1011,8 +1032,7 @@ describe("PanelPage — Mój dom — no family", () => {
   it("step 2 skipped makes no members call and the family is still visible", async () => {
     mockGuestDefaults();
     vi.mocked(familiesApi.createOwnFamily).mockResolvedValue(mockFamily);
-    renderPanel();
-    await openMojDom();
+    openMojDom();
     fireEvent.click(await screen.findByRole("button", { name: "Załóż rodzinę" }));
 
     const dialog = await screen.findByRole("dialog", { name: "Załóż rodzinę" });
@@ -1033,8 +1053,7 @@ describe("PanelPage — Mój dom — no family", () => {
   it("removing a middle draft member keeps the other rows' names/roles intact (stable keys, no bleed)", async () => {
     mockGuestDefaults();
     vi.mocked(familiesApi.createOwnFamily).mockResolvedValue(mockFamily);
-    renderPanel();
-    await openMojDom();
+    openMojDom();
     fireEvent.click(await screen.findByRole("button", { name: "Załóż rodzinę" }));
 
     const dialog = await screen.findByRole("dialog", { name: "Załóż rodzinę" });
@@ -1088,8 +1107,7 @@ describe("PanelPage — Mój dom — inline family rename", () => {
   });
 
   async function openMojDom() {
-    await openMenu();
-    fireEvent.click(screen.getByRole("menuitem", { name: /Mój dom/ }));
+    renderPanel("/panel/rodzina");
     await screen.findByRole("heading", { name: "Mój dom", level: 2 });
   }
 
@@ -1098,7 +1116,6 @@ describe("PanelPage — Mój dom — inline family rename", () => {
     vi.mocked(familiesApi.getMyFamilies).mockResolvedValue([mockFamily]);
     vi.mocked(familiesApi.getGuardians).mockResolvedValue(mockGuardians);
     vi.mocked(familiesApi.renameFamily).mockResolvedValue({ ...mockFamily, name: "Nowakowie" });
-    renderPanel();
     await openMojDom();
 
     fireEvent.click(screen.getByRole("button", { name: "Zmień nazwę rodziny" }));
@@ -1117,7 +1134,6 @@ describe("PanelPage — Mój dom — inline family rename", () => {
     vi.mocked(familiesApi.getMyFamilies).mockResolvedValue([mockFamily]);
     vi.mocked(familiesApi.getGuardians).mockResolvedValue(mockGuardians);
     vi.mocked(familiesApi.renameFamily).mockRejectedValue(new Error("network"));
-    renderPanel();
     await openMojDom();
 
     fireEvent.click(screen.getByRole("button", { name: "Zmień nazwę rodziny" }));
@@ -1136,8 +1152,7 @@ describe("PanelPage — Mój dom — remove family member", () => {
   });
 
   async function openMojDom() {
-    await openMenu();
-    fireEvent.click(screen.getByRole("menuitem", { name: /Mój dom/ }));
+    renderPanel("/panel/rodzina");
     await screen.findByRole("heading", { name: "Mój dom", level: 2 });
   }
 
@@ -1148,7 +1163,6 @@ describe("PanelPage — Mój dom — remove family member", () => {
       .mockResolvedValueOnce(mockGuardians)
       .mockResolvedValueOnce([mockGuardians[0]]);
     vi.mocked(familiesApi.removeFamilyMember).mockResolvedValue(undefined);
-    renderPanel();
     await openMojDom();
 
     expect(screen.getByText("Marek Kowalski", { selector: "h3" })).toBeInTheDocument();
@@ -1169,7 +1183,6 @@ describe("PanelPage — Mój dom — remove family member", () => {
     vi.mocked(familiesApi.removeFamilyMember).mockRejectedValue(
       new ApiError(409, "Conflict", { message: "Nie można usunąć jedynego opiekuna rodziny" }),
     );
-    renderPanel();
     await openMojDom();
 
     fireEvent.click(screen.getByRole("button", { name: "Usuń członka rodziny Marek Kowalski" }));
@@ -1181,6 +1194,136 @@ describe("PanelPage — Mój dom — remove family member", () => {
   });
 });
 
+describe("PanelPage — Mój dom — birth year, return to term, errors", () => {
+  const RETURN_PATH = "/x/grupa/1/term/2";
+
+  beforeEach(() => {
+    vi.resetAllMocks();
+    vi.mocked(groupsApi.listMyPendingJoinRequests).mockResolvedValue([]);
+  });
+
+  async function openFamily(initialEntry = "/panel/rodzina") {
+    mockGuestDefaults();
+    vi.mocked(familiesApi.getMyFamilies).mockResolvedValue([mockFamily]);
+    vi.mocked(familiesApi.getGuardians).mockResolvedValue(mockGuardians);
+    renderPanel(initialEntry);
+    await screen.findByRole("heading", { name: "Mój dom", level: 2 });
+  }
+
+  it("birth-year field appears only for Dziecko and is sent only for CHILD", async () => {
+    vi.mocked(familiesApi.createLightweightMembers).mockResolvedValue({ family: mockFamily, guardians: mockGuardians });
+    await openFamily();
+
+    expect(screen.queryByLabelText("Rok urodzenia")).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Dziecko" }));
+    fireEvent.change(screen.getByLabelText("Rok urodzenia"), { target: { value: "2019" } });
+    expect(screen.getByText(formatApproxAge(approxAge(2019)))).toBeInTheDocument();
+
+    // switching to Opiekun hides and clears the year
+    fireEvent.click(screen.getByRole("button", { name: "Opiekun" }));
+    expect(screen.queryByLabelText("Rok urodzenia")).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Dziecko" }));
+    expect(screen.getByLabelText("Rok urodzenia")).toHaveValue(null);
+
+    // out-of-range year: inline error, submit disabled
+    fireEvent.change(screen.getByPlaceholderText("np. Zosia Kowalska"), { target: { value: "Ola Kowalska" } });
+    fireEvent.change(screen.getByLabelText("Rok urodzenia"), { target: { value: "1890" } });
+    expect(screen.getByText(`Podaj rok urodzenia z zakresu 1900–${new Date().getFullYear()}`)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Dodaj" })).toBeDisabled();
+
+    fireEvent.change(screen.getByLabelText("Rok urodzenia"), { target: { value: "2019" } });
+    fireEvent.click(screen.getByRole("button", { name: "Dodaj" }));
+
+    await waitFor(() =>
+      expect(familiesApi.createLightweightMembers).toHaveBeenCalledWith([
+        { name: "Ola Kowalska", role_type: "CHILD", birth_year: 2019 },
+      ]),
+    );
+  });
+
+  it("inline birth-year edit saves and toasts", async () => {
+    vi.mocked(familiesApi.updateChildBirthYear).mockResolvedValue(undefined);
+    await openFamily();
+
+    fireEvent.click(screen.getByRole("button", { name: "Edytuj rok urodzenia: Zosia Kowalska" }));
+    const input = screen.getByLabelText("Rok urodzenia: Zosia Kowalska");
+    expect(input).toHaveValue(2018);
+    fireEvent.change(input, { target: { value: "2017" } });
+    fireEvent.keyDown(input, { key: "Enter" });
+
+    await waitFor(() => expect(familiesApi.updateChildBirthYear).toHaveBeenCalledWith(10, 3, 2017));
+    expect(await screen.findByText("Zapisano rok urodzenia")).toBeInTheDocument();
+    expect(screen.queryByLabelText("Rok urodzenia: Zosia Kowalska")).not.toBeInTheDocument();
+  });
+
+  it("returnTo safe shows link; unsafe hides it", async () => {
+    await openFamily(`/panel/rodzina?returnTo=${encodeURIComponent(RETURN_PATH)}`);
+    expect(screen.getByRole("link", { name: "Wróć do terminu" })).toHaveAttribute("href", RETURN_PATH);
+  });
+
+  it("an unsafe returnTo (//evil.com) renders no return link", async () => {
+    await openFamily(`/panel/rodzina?returnTo=${encodeURIComponent("//evil.com")}`);
+    expect(screen.queryByRole("link", { name: "Wróć do terminu" })).not.toBeInTheDocument();
+  });
+
+  it("empty family state shows the return button", async () => {
+    mockGuestDefaults();
+    renderPanel(`/panel/rodzina?returnTo=${encodeURIComponent(RETURN_PATH)}`);
+
+    expect(await screen.findByText("Nie masz jeszcze rodziny")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Wróć do terminu" })).toHaveAttribute("href", RETURN_PATH);
+  });
+
+  it("CreateFamilyDialog step 2 sends birth_year for a child draft", async () => {
+    mockGuestDefaults();
+    vi.mocked(familiesApi.createOwnFamily).mockResolvedValue(mockFamily);
+    vi.mocked(familiesApi.createLightweightMembers).mockResolvedValue({ family: mockFamily, guardians: mockGuardians });
+    renderPanel(`/panel/rodzina?returnTo=${encodeURIComponent(RETURN_PATH)}`);
+    fireEvent.click(await screen.findByRole("button", { name: "Załóż rodzinę" }));
+
+    const dialog = await screen.findByRole("dialog", { name: "Załóż rodzinę" });
+    fireEvent.change(within(dialog).getByLabelText("Nazwa rodziny"), { target: { value: "Kowalscy" } });
+    fireEvent.click(within(dialog).getByRole("button", { name: "Dalej" }));
+    await within(dialog).findByRole("button", { name: "Zakończ" });
+
+    fireEvent.change(within(dialog).getByLabelText("Imię i nazwisko"), { target: { value: "Marek Kowalski" } });
+    expect(within(dialog).queryByLabelText("Rok urodzenia")).not.toBeInTheDocument();
+    fireEvent.click(within(dialog).getByRole("button", { name: "Dodaj kolejną osobę" }));
+
+    fireEvent.change(within(dialog).getByLabelText("Imię i nazwisko"), { target: { value: "Zosia Kowalska" } });
+    fireEvent.click(within(dialog).getByRole("button", { name: "Dziecko" }));
+    fireEvent.change(within(dialog).getByLabelText("Rok urodzenia"), { target: { value: "2018" } });
+    fireEvent.click(within(dialog).getByRole("button", { name: "Dodaj kolejną osobę" }));
+
+    const rows = within(dialog).getAllByRole("listitem");
+    expect(rows[1]).toHaveTextContent(`Dziecko · ${formatApproxAge(approxAge(2018))}`);
+    // the year resets together with the role after a draft is added
+    expect(within(dialog).queryByLabelText("Rok urodzenia")).not.toBeInTheDocument();
+
+    fireEvent.click(within(dialog).getByRole("button", { name: "Zakończ" }));
+    await waitFor(() =>
+      expect(familiesApi.createLightweightMembers).toHaveBeenCalledWith([
+        { name: "Marek Kowalski", role_type: "GUARDIAN" },
+        { name: "Zosia Kowalska", role_type: "CHILD", birth_year: 2018 },
+      ]),
+    );
+    // the dialog never navigates, so returnTo survives
+    expect(screen.getByRole("link", { name: "Wróć do terminu" })).toHaveAttribute("href", RETURN_PATH);
+  });
+
+  it("add-member server error message shown verbatim", async () => {
+    vi.mocked(familiesApi.createLightweightMembers).mockRejectedValue(
+      new ApiError(400, "Bad Request", { message: "Rok urodzenia można ustawić tylko dziecku" }),
+    );
+    await openFamily();
+
+    fireEvent.change(screen.getByPlaceholderText("np. Zosia Kowalska"), { target: { value: "Ola Kowalska" } });
+    fireEvent.click(screen.getByRole("button", { name: "Dodaj" }));
+
+    expect(await screen.findByText("Rok urodzenia można ustawić tylko dziecku")).toBeInTheDocument();
+  });
+});
+
 describe("PanelPage — term edit dialog", () => {
   beforeEach(() => {
     vi.resetAllMocks();
@@ -1188,12 +1331,14 @@ describe("PanelPage — term edit dialog", () => {
   });
 
   const term = {
-    id: 1,
-    circle_group_id: 5,
+    id: TERM_ID,
+    circle_group_id: GROUP_ID,
     occurs_on: "2026-02-01",
     description: "Pierwsze zajęcia",
     created_at: "",
     updated_at: "",
+    attendee_count: null,
+    child_count: null,
   };
 
   async function openEditDialog() {
@@ -1216,7 +1361,7 @@ describe("PanelPage — term edit dialog", () => {
     fireEvent.click(within(dialog).getByRole("button", { name: "Zapisz" }));
 
     await waitFor(() =>
-      expect(termsApi.updateTerm).toHaveBeenCalledWith(1, { occurs_on: "2026-03-09T18:00" }),
+      expect(termsApi.updateTerm).toHaveBeenCalledWith(TERM_ID, { occurs_on: "2026-03-09T18:00" }),
     );
     // a silent reload runs after the successful save
     await waitFor(() => expect(vi.mocked(termsApi.getTerms).mock.calls.length).toBeGreaterThan(1));
@@ -1258,19 +1403,21 @@ describe("PanelPage — term edit dialog", () => {
   // regardless of `family_id`.
   const mockAttendees: groupsApi.TermAttendeeResponse[] = [
     {
-      party_id: 200,
+      party_id: ATTENDEE_PARTY_ID,
       display_name: "Zosia Nowak",
       child_count: 0,
-      family_id: 10,
+      family_id: "f0e1d2c3-b4a5-4968-8776-0000000000e0",
       family_name: "Nowakowie",
+      children: [],
       already_member: false,
     },
     {
-      party_id: 201,
+      party_id: OTHER_ATTENDEE_PARTY_ID,
       display_name: "Tomek Wiśniewski",
       child_count: 0,
       family_id: null,
       family_name: null,
+      children: [],
       already_member: false,
     },
   ];
@@ -1293,7 +1440,7 @@ describe("PanelPage — term edit dialog", () => {
     fireEvent.click(within(dialog).getByRole("button", { name: "Ustal stałych członków" }));
 
     await waitFor(() =>
-      expect(groupsApi.formalizeGroupFromTerm).toHaveBeenCalledWith(5, 1, [200]),
+      expect(groupsApi.formalizeGroupFromTerm).toHaveBeenCalledWith(GROUP_ID, TERM_ID, [ATTENDEE_PARTY_ID]),
     );
     expect(
       await within(dialog).findByText("Dodano 1 osobę jako stałych członków grupy."),
@@ -1335,6 +1482,91 @@ describe("PanelPage — term edit dialog", () => {
       ),
     ).toBeInTheDocument();
     expect(screen.getByRole("dialog", { name: "Edytuj termin" })).toBeInTheDocument();
+  });
+});
+
+describe("PanelPage — Term/Group ids stay UUID strings (R29)", () => {
+  beforeEach(() => {
+    vi.resetAllMocks();
+    vi.mocked(groupsApi.listMyPendingJoinRequests).mockResolvedValue([]);
+  });
+
+  const term: termsApi.TermResponse = {
+    id: TERM_ID,
+    circle_group_id: GROUP_ID,
+    occurs_on: "2026-02-01",
+    description: null,
+    created_at: "",
+    updated_at: "",
+    attendee_count: null,
+    child_count: null,
+  };
+
+  it('"Nowy termin" group select keeps the selected group\'s UUID', async () => {
+    mockOrganizerDefaults();
+    const otherGroup: groupsApi.GroupResponse = { ...mockGroup, id: OTHER_GROUP_ID, name: "Rytmika" };
+    vi.mocked(peopleApi.getLeadershipsForPerson).mockResolvedValue([
+      { id: 1, from_role_id: 1, to_group_id: GROUP_ID, organizer_party_id: 1, valid_from: "2026-01-01", valid_to: null },
+      { id: 2, from_role_id: 1, to_group_id: OTHER_GROUP_ID, organizer_party_id: 1, valid_from: "2026-01-01", valid_to: null },
+    ]);
+    vi.mocked(groupsApi.getGroup).mockImplementation(async (id) => (id === OTHER_GROUP_ID ? otherGroup : mockGroup));
+    vi.mocked(termsApi.createTerm).mockResolvedValue({ ...term, circle_group_id: OTHER_GROUP_ID });
+    renderPanel();
+
+    fireEvent.click(await screen.findByRole("button", { name: "Spotkania" }));
+    fireEvent.click(await screen.findByRole("button", { name: "+ Dodaj termin" }));
+    const dialog = await screen.findByRole("dialog", { name: "Dodaj termin zajęć" });
+
+    fireEvent.change(within(dialog).getByRole("combobox"), { target: { value: OTHER_GROUP_ID } });
+    // This modal's `Field` label isn't associated with its input.
+    const dateInput = dialog.querySelector<HTMLInputElement>('input[type="datetime-local"]')!;
+    fireEvent.change(dateInput, { target: { value: "2026-02-01T17:00" } });
+    fireEvent.click(within(dialog).getByRole("button", { name: "Dodaj termin" }));
+
+    await waitFor(() =>
+      expect(termsApi.createTerm).toHaveBeenCalledWith({
+        circle_group_id: OTHER_GROUP_ID,
+        occurs_on: "2026-02-01T17:00",
+        description: undefined,
+      }),
+    );
+  });
+
+  it("formalize picker sends string party ids", async () => {
+    mockOrganizerDefaults();
+    vi.mocked(termsApi.getTerms).mockResolvedValue([term]);
+    vi.mocked(groupsApi.getTermAttendeesForFormalization).mockResolvedValue([
+      {
+        party_id: ATTENDEE_PARTY_ID,
+        display_name: "Zosia Nowak",
+        child_count: 1,
+        family_id: "f0e1d2c3-b4a5-4968-8776-0000000000e0",
+        family_name: "Nowakowie",
+        children: [],
+        already_member: false,
+      },
+    ]);
+    vi.mocked(groupsApi.formalizeGroupFromTerm).mockResolvedValue(mockGroup);
+    renderPanel();
+
+    fireEvent.click(await screen.findByRole("button", { name: "Spotkania" }));
+    fireEvent.click((await screen.findAllByRole("button", { name: "Edytuj termin" }))[0]);
+    const dialog = await screen.findByRole("dialog", { name: "Edytuj termin" });
+    await within(dialog).findByLabelText("Ustal Zosia Nowak jako stałego członka");
+    fireEvent.click(within(dialog).getByRole("button", { name: "Ustal stałych członków" }));
+
+    await waitFor(() =>
+      expect(groupsApi.formalizeGroupFromTerm).toHaveBeenCalledWith(GROUP_ID, TERM_ID, [ATTENDEE_PARTY_ID]),
+    );
+    expect(groupsApi.getTermAttendeesForFormalization).toHaveBeenCalledWith(GROUP_ID, TERM_ID);
+  });
+
+  it("getTerms is called with the group's UUID string", async () => {
+    mockOrganizerDefaults();
+    renderPanel();
+
+    await waitFor(() => expect(termsApi.getTerms).toHaveBeenCalledWith(GROUP_ID));
+    expect(groupsApi.getGroup).toHaveBeenCalledWith(GROUP_ID);
   });
 });
 
@@ -1380,7 +1612,7 @@ describe("PanelPage — edit group dialog (name/location/spots/layout, replaces 
     fireEvent.click(screen.getByRole("button", { name: "Zapisz" }));
 
     await waitFor(() =>
-      expect(groupsApi.updateGroupLayoutMode).toHaveBeenCalledWith(5, "Nutki", "PITCH", "PUBLIC"),
+      expect(groupsApi.updateGroupLayoutMode).toHaveBeenCalledWith(GROUP_ID, "Nutki", "PITCH", "PUBLIC"),
     );
     expect(await screen.findByText("Nutki", { selector: "h3" })).toBeInTheDocument();
     expect(screen.queryByRole("dialog", { name: "Edytuj grupę" })).not.toBeInTheDocument();
@@ -1412,10 +1644,10 @@ describe("PanelPage — Zapisane zajęcia", () => {
 
     await screen.findByRole("heading", { name: "Zapisane zajęcia" });
     const first = await screen.findByRole("link", { name: /Nutki dla starszaków/ });
-    expect(first).toHaveAttribute("href", "/ania-kowalska/grupa/5/term/3");
+    expect(first).toHaveAttribute("href", `/ania-kowalska/grupa/${GROUP_ID}/term/${ATTENDED_TERM_ID}`);
     expect(first).toHaveTextContent("Ania Kowalska");
     const second = screen.getByRole("link", { name: /Rytmika/ });
-    expect(second).toHaveAttribute("href", "/basia-nowak/grupa/6/term/8");
+    expect(second).toHaveAttribute("href", `/basia-nowak/grupa/${OTHER_GROUP_ID}/term/${OTHER_ATTENDED_TERM_ID}`);
   });
 
   it("renders a dashed empty state and no error when there are no attendances", async () => {
@@ -1457,7 +1689,7 @@ describe("PanelPage — Spotkania list links to the public circle page", () => {
   it("each term row in the Spotkania list is a link (the whole tile) to the per-term public page, not the authenticated one", async () => {
     mockOrganizerDefaults();
     vi.mocked(termsApi.getTerms).mockResolvedValue([
-      { id: 1, circle_group_id: 5, occurs_on: "2026-02-01", description: null, created_at: "", updated_at: "" },
+      { id: TERM_ID, circle_group_id: GROUP_ID, occurs_on: "2026-02-01", description: null, created_at: "", updated_at: "", attendee_count: null, child_count: null },
     ]);
     vi.mocked(termsApi.getNeededItems).mockResolvedValue([]);
     renderPanel();
@@ -1465,7 +1697,7 @@ describe("PanelPage — Spotkania list links to the public circle page", () => {
     fireEvent.click(await screen.findByRole("button", { name: "Spotkania" }));
 
     const link = await screen.findByRole("link", { name: new RegExp(mockGroup.name) });
-    expect(link).toHaveAttribute("href", `/${mockGroup.organizer_slug}/grupa/${mockGroup.id}/term/1`);
+    expect(link).toHaveAttribute("href", `/${mockGroup.organizer_slug}/grupa/${mockGroup.id}/term/${TERM_ID}`);
   });
 
   it("GUEST who only RSVP'd (never joined the Circle as a family member) still sees that session in Spotkania", async () => {
@@ -1481,9 +1713,9 @@ describe("PanelPage — Spotkania list links to the public circle page", () => {
     fireEvent.click(await screen.findByRole("button", { name: "Spotkania" }));
 
     const first = await screen.findByRole("link", { name: /Nutki dla starszaków/ });
-    expect(first).toHaveAttribute("href", "/ania-kowalska/grupa/5/term/3");
+    expect(first).toHaveAttribute("href", `/ania-kowalska/grupa/${GROUP_ID}/term/${ATTENDED_TERM_ID}`);
     const second = screen.getByRole("link", { name: /Rytmika/ });
-    expect(second).toHaveAttribute("href", "/basia-nowak/grupa/6/term/8");
+    expect(second).toHaveAttribute("href", `/basia-nowak/grupa/${OTHER_GROUP_ID}/term/${OTHER_ATTENDED_TERM_ID}`);
   });
 
   it("ORGANIZER's own personal RSVP to someone else's Circle is not mixed into their 'Grupy'/'Terminy' management lists", async () => {
@@ -1506,6 +1738,70 @@ describe("PanelPage — Spotkania list links to the public circle page", () => {
   });
 });
 
+describe("PanelPage — organizer term card signup chip", () => {
+  const chipName = /^Zapisani na termin:/;
+
+  function mockOrganizerTerm(attendeeCount: number | null, childCount: number | null) {
+    mockOrganizerDefaults();
+    vi.mocked(termsApi.getTerms).mockResolvedValue([
+      {
+        id: TERM_ID, circle_group_id: GROUP_ID, occurs_on: "2026-02-01", description: null, created_at: "", updated_at: "",
+        attendee_count: attendeeCount, child_count: childCount,
+      },
+    ]);
+    vi.mocked(termsApi.getNeededItems).mockResolvedValue([]);
+  }
+
+  beforeEach(() => {
+    vi.resetAllMocks();
+    vi.mocked(groupsApi.listMyPendingJoinRequests).mockResolvedValue([]);
+  });
+
+  it("organizer card shows signup chip linking to attendees page", async () => {
+    mockOrganizerTerm(5, 8);
+    renderPanel();
+
+    // Home (first three terms) renders the shared organizer card…
+    const homeChip = await screen.findByRole("link", { name: chipName });
+    expect(homeChip).toHaveTextContent("5 zapisów · 8 dzieci");
+    expect(homeChip).toHaveAccessibleName("Zapisani na termin: 5 zapisów, 8 dzieci");
+    expect(homeChip).toHaveAttribute("href", `/panel/terminy/${TERM_ID}`);
+
+    // …and so does Spotkania.
+    fireEvent.click(await screen.findByRole("button", { name: "Spotkania" }));
+    const listChip = await screen.findByRole("link", { name: chipName });
+    expect(listChip).toHaveAttribute("href", `/panel/terminy/${TERM_ID}`);
+  });
+
+  it("organizer card chip uses Polish plural forms (2 zapisy · 1 dziecko)", async () => {
+    mockOrganizerTerm(2, 1);
+    renderPanel();
+
+    const chip = await screen.findByRole("link", { name: chipName });
+    expect(chip).toHaveTextContent("2 zapisy · 1 dziecko");
+  });
+
+  it('organizer card shows "Brak zapisów" for zero attendees', async () => {
+    mockOrganizerTerm(0, 0);
+    renderPanel();
+
+    const chip = await screen.findByRole("link", { name: chipName });
+    expect(chip).toHaveTextContent("Brak zapisów");
+    expect(chip).not.toHaveTextContent("dzieci");
+    expect(chip).toHaveAttribute("href", `/panel/terminy/${TERM_ID}`);
+  });
+
+  it("no chip when counts are null", async () => {
+    mockOrganizerTerm(null, null);
+    renderPanel();
+
+    fireEvent.click(await screen.findByRole("button", { name: "Spotkania" }));
+    await screen.findByRole("link", { name: new RegExp(mockGroup.name) });
+    expect(screen.queryByRole("link", { name: chipName })).not.toBeInTheDocument();
+    expect(screen.queryByText("Brak zapisów")).not.toBeInTheDocument();
+  });
+});
+
 describe("PanelPage — per-term public links & copy-link button", () => {
   beforeEach(() => {
     vi.resetAllMocks();
@@ -1517,7 +1813,7 @@ describe("PanelPage — per-term public links & copy-link button", () => {
     vi.mocked(groupsApi.getGroup).mockResolvedValue(mockGroupHashSlug);
     vi.mocked(groupsApi.getTermAttendeesForFormalization).mockResolvedValue([]);
     vi.mocked(termsApi.getTerms).mockResolvedValue([
-      { id: 1, circle_group_id: 5, occurs_on: "2026-02-01", description: null, created_at: "", updated_at: "" },
+      { id: TERM_ID, circle_group_id: GROUP_ID, occurs_on: "2026-02-01", description: null, created_at: "", updated_at: "", attendee_count: null, child_count: null },
     ]);
     vi.mocked(termsApi.getNeededItems).mockResolvedValue([]);
     renderPanel();
@@ -1525,21 +1821,21 @@ describe("PanelPage — per-term public links & copy-link button", () => {
     fireEvent.click(await screen.findByRole("button", { name: "Spotkania" }));
 
     const link = await screen.findByRole("link", { name: new RegExp(mockGroup.name) });
-    expect(link).toHaveAttribute("href", `/${mockGroupHashSlug.organizer_slug}/grupa/${mockGroup.id}/term/1`);
+    expect(link).toHaveAttribute("href", `/${mockGroupHashSlug.organizer_slug}/grupa/${mockGroup.id}/term/${TERM_ID}`);
   });
 
   it("organizer term tile marks a claimed needed item with a checkmark", async () => {
     mockOrganizerDefaults();
     vi.mocked(termsApi.getTerms).mockResolvedValue([
-      { id: 1, circle_group_id: 5, occurs_on: "2026-02-01", description: null, created_at: "", updated_at: "" },
+      { id: TERM_ID, circle_group_id: GROUP_ID, occurs_on: "2026-02-01", description: null, created_at: "", updated_at: "", attendee_count: null, child_count: null },
     ]);
     vi.mocked(termsApi.getNeededItems).mockResolvedValue([
       {
-        id: 1, term_id: 1, product_id: 5, product_name: "Bębenek",
+        id: 1, term_id: TERM_ID, product_id: 5, product_name: "Bębenek",
         product_category_id: 5, product_category_name: "Inne", description: null, claimed: true, created_at: "", updated_at: "",
       },
       {
-        id: 2, term_id: 1, product_id: 6, product_name: "Koc",
+        id: 2, term_id: TERM_ID, product_id: 6, product_name: "Koc",
         product_category_id: 5, product_category_name: "Inne", description: null, claimed: false, created_at: "", updated_at: "",
       },
     ]);
@@ -1554,7 +1850,7 @@ describe("PanelPage — per-term public links & copy-link button", () => {
   it("copy-link button on an organizer 'Terminy' row writes the absolute per-term URL and toasts", async () => {
     mockOrganizerDefaults();
     vi.mocked(termsApi.getTerms).mockResolvedValue([
-      { id: 1, circle_group_id: 5, occurs_on: "2026-02-01", description: null, created_at: "", updated_at: "" },
+      { id: TERM_ID, circle_group_id: GROUP_ID, occurs_on: "2026-02-01", description: null, created_at: "", updated_at: "", attendee_count: null, child_count: null },
     ]);
     vi.mocked(termsApi.getNeededItems).mockResolvedValue([]);
     renderPanel();
@@ -1566,7 +1862,7 @@ describe("PanelPage — per-term public links & copy-link button", () => {
     fireEvent.click(copyBtn);
 
     expect(clipboardWriteText).toHaveBeenCalledWith(
-      `${window.location.origin}/${mockGroup.organizer_slug}/grupa/${mockGroup.id}/term/1`,
+      `${window.location.origin}/${mockGroup.organizer_slug}/grupa/${mockGroup.id}/term/${TERM_ID}`,
     );
     expect(await screen.findByText("Skopiowano link")).toBeInTheDocument();
   });
@@ -1599,7 +1895,8 @@ describe("PanelPage — per-term public links & copy-link button", () => {
   it("organizer first-term stepper done-screen CTA deep-links to the just-created term using the circle's slug", async () => {
     mockOrganizerDefaults();
     vi.mocked(termsApi.createTerm).mockResolvedValue({
-      id: 7, circle_group_id: 5, occurs_on: "2026-02-01", description: null, created_at: "", updated_at: "",
+      id: LATER_TERM_ID, circle_group_id: GROUP_ID, occurs_on: "2026-02-01", description: null, created_at: "", updated_at: "",
+      attendee_count: null, child_count: null,
     });
     renderPanel();
     fireEvent.click(await screen.findByRole("button", { name: "Dodaj termin →" }));
@@ -1608,13 +1905,13 @@ describe("PanelPage — per-term public links & copy-link button", () => {
     fireEvent.change(await within(dialog).findByLabelText("Data i godzina"), { target: { value: "2026-02-01T17:00" } });
 
     vi.mocked(termsApi.getTerms).mockResolvedValue([
-      { id: 7, circle_group_id: 5, occurs_on: "2026-02-01", description: null, created_at: "", updated_at: "" },
+      { id: LATER_TERM_ID, circle_group_id: GROUP_ID, occurs_on: "2026-02-01", description: null, created_at: "", updated_at: "", attendee_count: null, child_count: null },
     ]);
     vi.mocked(termsApi.getNeededItems).mockResolvedValue([]);
     fireEvent.click(within(dialog).getByRole("button", { name: "Dodaj termin" }));
 
     const publicLink = await within(dialog).findByRole("link", { name: /Przejdź do publicznej strony/ });
-    expect(publicLink).toHaveAttribute("href", `/${mockGroup.organizer_slug}/grupa/5/term/7`);
+    expect(publicLink).toHaveAttribute("href", `/${mockGroup.organizer_slug}/grupa/${GROUP_ID}/term/${LATER_TERM_ID}`);
   });
 });
 
@@ -1625,16 +1922,18 @@ describe("PanelPage — needed item sub-CRUD (in the term dialog)", () => {
   });
 
   const term = {
-    id: 1,
-    circle_group_id: 5,
+    id: TERM_ID,
+    circle_group_id: GROUP_ID,
     occurs_on: "2026-02-01",
     description: "Zajęcia",
     created_at: "",
     updated_at: "",
+    attendee_count: null,
+    child_count: null,
   };
   const neededItem = {
     id: 11,
-    term_id: 1,
+    term_id: TERM_ID,
     product_id: 5,
     product_name: "Bębenek",
     product_category_id: 5,
@@ -1665,7 +1964,7 @@ describe("PanelPage — needed item sub-CRUD (in the term dialog)", () => {
       category_id: 1, pluginData: null, createdAt: "", updatedAt: "",
     });
     vi.mocked(termsApi.createNeededItem).mockResolvedValue({
-      id: 12, term_id: 1, product_id: 42, product_name: "Mata", product_category_id: 1, product_category_name: "Zabawka",
+      id: 12, term_id: TERM_ID, product_id: 42, product_name: "Mata", product_category_id: 1, product_category_name: "Zabawka",
       description: "Koc", claimed: false, created_at: "", updated_at: "",
     });
     const dialog = await openEditDialog();
@@ -1680,7 +1979,7 @@ describe("PanelPage — needed item sub-CRUD (in the term dialog)", () => {
     );
     await waitFor(() =>
       expect(termsApi.createNeededItem).toHaveBeenCalledWith({
-        term_id: 1, product_id: 42, description: "Koc",
+        term_id: TERM_ID, product_id: 42, description: "Koc",
       }),
     );
   });
@@ -2084,16 +2383,18 @@ describe("PanelPage — needed item edit error path", () => {
   });
 
   const term = {
-    id: 1,
-    circle_group_id: 5,
+    id: TERM_ID,
+    circle_group_id: GROUP_ID,
     occurs_on: "2026-02-01",
     description: "Zajęcia",
     created_at: "",
     updated_at: "",
+    attendee_count: null,
+    child_count: null,
   };
   const neededItem = {
     id: 11,
-    term_id: 1,
+    term_id: TERM_ID,
     product_id: 5,
     product_name: "Bębenek",
     product_category_id: 5,
@@ -2717,7 +3018,7 @@ describe("PanelPage — RzeczyView post-term-end fallback buttons (Bug #4c, full
       item_id: lockedItem.id,
       reservation_type: "LEND",
       reserved_by_user_id: 1,
-      term_id: 9,
+      term_id: ENDED_TERM_ID,
       paired_reservation_id: null,
       reserved_at: "",
       expires_at: null,
@@ -2725,12 +3026,14 @@ describe("PanelPage — RzeczyView post-term-end fallback buttons (Bug #4c, full
       notes: null,
     });
     vi.mocked(termsApi.getTerm).mockResolvedValue({
-      id: 9,
-      circle_group_id: 5,
+      id: ENDED_TERM_ID,
+      circle_group_id: GROUP_ID,
       occurs_on: "2020-01-01T10:00:00", // long past — term has ended
       description: null,
       created_at: "",
       updated_at: "",
+      attendee_count: null,
+      child_count: null,
     });
     // A TERM_CONFIRMATION_NEEDED prompt also happens to be pending (e.g.
     // for a different reservation) — dismissing it via "Później" must not
@@ -3016,5 +3319,46 @@ describe("PanelPage — organizer join-request pending action", () => {
 
     await waitFor(() => expect(notificationsApi.markNotificationRead).toHaveBeenCalledWith(70));
     expect(screen.getByRole("dialog", { name: "Prośba o dostęp" })).toBeInTheDocument();
+  });
+});
+
+describe("PanelPage — Mój dom — inline birth-year editor and returnTo (gap tests)", () => {
+  const RETURN_PATH = "/x/grupa/1/term/2";
+
+  beforeEach(() => {
+    vi.resetAllMocks();
+    vi.mocked(groupsApi.listMyPendingJoinRequests).mockResolvedValue([]);
+  });
+
+  it("Esc cancels the inline edit without saving; an out-of-range year disables Zapisz", async () => {
+    mockGuestDefaults();
+    vi.mocked(familiesApi.getMyFamilies).mockResolvedValue([mockFamily]);
+    vi.mocked(familiesApi.getGuardians).mockResolvedValue(mockGuardians);
+    renderPanel("/panel/rodzina");
+    await screen.findByRole("heading", { name: "Mój dom", level: 2 });
+
+    fireEvent.click(screen.getByRole("button", { name: "Edytuj rok urodzenia: Zosia Kowalska" }));
+    const input = screen.getByLabelText("Rok urodzenia: Zosia Kowalska");
+    fireEvent.change(input, { target: { value: String(new Date().getFullYear() + 1) } });
+    expect(screen.getByRole("button", { name: "Zapisz" })).toBeDisabled();
+
+    fireEvent.keyDown(input, { key: "Escape" });
+
+    expect(screen.queryByLabelText("Rok urodzenia: Zosia Kowalska")).not.toBeInTheDocument();
+    expect(screen.getByText(`rocznik 2018 · ${formatApproxAge(approxAge(2018))}`)).toBeInTheDocument();
+    expect(familiesApi.updateChildBirthYear).not.toHaveBeenCalled();
+  });
+
+  it("closing CreateFamilyDialog mid-flow keeps the 'Wróć do terminu' link", async () => {
+    mockGuestDefaults();
+    renderPanel(`/panel/rodzina?returnTo=${encodeURIComponent(RETURN_PATH)}`);
+    fireEvent.click(await screen.findByRole("button", { name: "Załóż rodzinę" }));
+
+    const dialog = await screen.findByRole("dialog", { name: "Załóż rodzinę" });
+    fireEvent.click(within(dialog).getByRole("button", { name: "Zamknij" }));
+
+    expect(screen.queryByRole("dialog", { name: "Załóż rodzinę" })).not.toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Wróć do terminu" })).toHaveAttribute("href", RETURN_PATH);
+    expect(familiesApi.createOwnFamily).not.toHaveBeenCalled();
   });
 });

@@ -17,7 +17,7 @@ const inputClass = "rounded-xl border-[1.5px] border-line bg-cream px-3.5 py-2.5
 
 interface FirstTermStepperOrganizerProps {
   onClose: () => void;
-  circleGroupId: number | null;
+  circleGroupId: string | null;
   /** The organizer's own Organization slug, or null when they have no
    * Organization yet — drives the done-screen CTA. */
   organizerSlug?: string | null;
@@ -30,7 +30,7 @@ export function FirstTermStepperOrganizer({ onClose, circleGroupId, organizerSlu
   const [busy, setBusy] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
   const [done, setDone] = useState(false);
-  const [createdTermId, setCreatedTermId] = useState<number | null>(null);
+  const [createdTermId, setCreatedTermId] = useState<string | null>(null);
 
   async function handleSubmit() {
     if (!occursOn || !circleGroupId) return;

@@ -364,3 +364,166 @@ async def test_familyMineRead_reportsActiveChildCountExcludingGuardiansAndClosed
     assert solo.status_code == 200
     assert len(solo.json()) == 1
     assert solo.json()[0]["child_count"] == 0
+
+
+async def _guest_with_family(client: AsyncClient, email: str) -> tuple[str, str]:
+    token, _party_id = await _register_guest(client, email)
+    created = await client.post(
+        "/api/families/mine", json={"name": "Rodzina"}, headers=_auth_headers(token)
+    )
+    assert created.status_code == 201
+    return token, created.json()["id"]
+
+
+def _new_guardian_body(username: str) -> dict[str, str]:
+    return {"username": username, "password": "secret123", "display_name": "Drugi Opiekun"}
+
+
+async def test_getFamilyAndGuardians_unrelatedUser_returns403(client: AsyncClient) -> None:
+    _owner_token, family_id = await _guest_with_family(client, "read.owner@example.com")
+    stranger_token, _stranger_party = await _register_guest(client, "read.stranger@example.com")
+
+    family = await client.get(f"/api/families/{family_id}", headers=_auth_headers(stranger_token))
+    guardians = await client.get(
+        f"/api/families/{family_id}/guardians", headers=_auth_headers(stranger_token)
+    )
+
+    assert family.status_code == 403
+    assert guardians.status_code == 403
+
+
+async def test_getFamilyAndGuardians_guardianOfOtherFamily_returns403(client: AsyncClient) -> None:
+    _owner_token, family_a_id = await _guest_with_family(client, "read.crossfam.a@example.com")
+    other_token, _family_b_id = await _guest_with_family(client, "read.crossfam.b@example.com")
+
+    family = await client.get(f"/api/families/{family_a_id}", headers=_auth_headers(other_token))
+    guardians = await client.get(
+        f"/api/families/{family_a_id}/guardians", headers=_auth_headers(other_token)
+    )
+
+    assert family.status_code == 403
+    assert guardians.status_code == 403
+
+
+async def test_getFamilyAndGuardians_ownGuardian_returns200WithRoleFields(
+    client: AsyncClient,
+) -> None:
+    token, family_id = await _guest_with_family(client, "read.own@example.com")
+    await client.post(
+        "/api/families/mine/members",
+        json={"members": [{"name": "Dziecko", "role_type": "CHILD"}]},
+        headers=_auth_headers(token),
+    )
+
+    family = await client.get(f"/api/families/{family_id}", headers=_auth_headers(token))
+    guardians = await client.get(
+        f"/api/families/{family_id}/guardians", headers=_auth_headers(token)
+    )
+
+    assert family.status_code == 200
+    assert family.json()["family"]["id"] == family_id
+    assert guardians.status_code == 200
+    items = guardians.json()
+    assert {item["role_type"] for item in items} == {"GUARDIAN", "CHILD"}
+    assert all("birth_year" in item for item in items)
+
+
+async def test_getFamilyAndGuardians_unknownFamily_returns404(client: AsyncClient) -> None:
+    token, _party_id = await _register_guest(client, "read.unknown@example.com")
+    unknown = uuid.uuid4()
+
+    family = await client.get(f"/api/families/{unknown}", headers=_auth_headers(token))
+    guardians = await client.get(f"/api/families/{unknown}/guardians", headers=_auth_headers(token))
+
+    assert family.status_code == 404
+    assert guardians.status_code == 404
+
+
+async def test_addGuardian_nonGuardianOrUnknownFamily_rejectedAndUnchanged(
+    client: AsyncClient,
+) -> None:
+    owner_token, family_id = await _guest_with_family(client, "addg.owner@example.com")
+    stranger_token, _stranger_party = await _register_guest(client, "addg.stranger@example.com")
+
+    forbidden = await client.post(
+        f"/api/families/{family_id}/guardians",
+        json=_new_guardian_body("addg_intruder"),
+        headers=_auth_headers(stranger_token),
+    )
+    assert forbidden.status_code == 403
+    members = await client.get(
+        f"/api/families/{family_id}/guardians", headers=_auth_headers(owner_token)
+    )
+    assert len(members.json()) == 1
+
+    missing = await client.post(
+        f"/api/families/{uuid.uuid4()}/guardians",
+        json=_new_guardian_body("addg_ghost"),
+        headers=_auth_headers(owner_token),
+    )
+    assert missing.status_code == 404
+
+    created = await client.post(
+        f"/api/families/{family_id}/guardians",
+        json=_new_guardian_body("addg_second"),
+        headers=_auth_headers(owner_token),
+    )
+    assert created.status_code == 201
+    members = await client.get(
+        f"/api/families/{family_id}/guardians", headers=_auth_headers(owner_token)
+    )
+    assert len(members.json()) == 2
+
+
+async def test_makePrimary_nonGuardianOrUnknownFamily_rejectedAndUnchanged(
+    client: AsyncClient,
+) -> None:
+    owner_token, family_id = await _guest_with_family(client, "mkprim.owner@example.com")
+    second = await client.post(
+        f"/api/families/{family_id}/guardians",
+        json=_new_guardian_body("mkprim_second"),
+        headers=_auth_headers(owner_token),
+    )
+    second_membership_id = second.json()["family_membership_id"]
+    stranger_token, stranger_family_id = await _guest_with_family(
+        client, "mkprim.stranger@example.com"
+    )
+
+    def primary_ids(rows: list[dict[str, object]]) -> list[object]:
+        return [row["user_profile_id"] for row in rows if row["is_primary_contact"]]
+
+    before = (
+        await client.get(f"/api/families/{family_id}/guardians", headers=_auth_headers(owner_token))
+    ).json()
+
+    forbidden = await client.post(
+        f"/api/families/{family_id}/guardians/{second_membership_id}/make-primary",
+        headers=_auth_headers(stranger_token),
+    )
+    assert forbidden.status_code == 403
+    after_forbidden = (
+        await client.get(f"/api/families/{family_id}/guardians", headers=_auth_headers(owner_token))
+    ).json()
+    assert primary_ids(after_forbidden) == primary_ids(before)
+
+    missing = await client.post(
+        f"/api/families/{uuid.uuid4()}/guardians/{second_membership_id}/make-primary",
+        headers=_auth_headers(owner_token),
+    )
+    assert missing.status_code == 404
+
+    stranger_membership_id = await _sole_guardian_membership_id(
+        client, stranger_token, stranger_family_id
+    )
+    foreign = await client.post(
+        f"/api/families/{family_id}/guardians/{stranger_membership_id}/make-primary",
+        headers=_auth_headers(owner_token),
+    )
+    assert foreign.status_code == 404
+
+    promoted = await client.post(
+        f"/api/families/{family_id}/guardians/{second_membership_id}/make-primary",
+        headers=_auth_headers(owner_token),
+    )
+    assert promoted.status_code == 200
+    assert primary_ids(promoted.json()) == [second.json()["user_profile_id"]]

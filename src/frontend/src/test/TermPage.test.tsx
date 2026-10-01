@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { Link, MemoryRouter, Route, Routes } from "react-router-dom";
 import { TermPage } from "../pages/krag/TermPage";
 import * as groupsApi from "../api/groups";
+import * as familiesApi from "../api/families";
 import * as pledgesApi from "../api/pledges";
 import * as termItemListingsApi from "../api/termItemListings";
 import { ApiError } from "../api/client";
@@ -21,6 +22,7 @@ vi.mock("../api/groups", async (importOriginal) => {
   };
 });
 vi.mock("../api/pledges", () => ({ createPledge: vi.fn() }));
+vi.mock("../api/families", () => ({ getMyFamilies: vi.fn() }));
 vi.mock("../api/termItemListings", () => ({ takeTermItemListing: vi.fn(), proposeSwap: vi.fn() }));
 
 let mockAuth: { token: string | null; displayName: string | null };
@@ -29,8 +31,11 @@ vi.mock("../auth/AuthContext", () => ({
   useAuth: () => ({ ...mockAuth, applyExternalToken: vi.fn() }),
 }));
 
-const PATH = "/zajecia/grupa/7/term/101";
-const GUEST_KEY = groupsApi.guestProfileIdKey(7, 101);
+// Term/Group ids are UUID strings end to end (spec R29) — route params are never coerced.
+const GROUP_ID = "5f0c2a7e-3b1d-4e6a-9c8f-0000000000a5";
+const TERM_ID = "1c2d3e4f-5a6b-4c7d-8e9f-0000000000c1";
+const OTHER_TERM_ID = "7d8e9fa0-b1c2-4d3e-8f4a-0000000000c7";
+const PATH = `/zajecia/grupa/${GROUP_ID}/term/${TERM_ID}`;
 
 const circle: PublicCircleResponse = {
   id: 7,
@@ -83,6 +88,9 @@ const circle: PublicCircleResponse = {
   ],
 };
 
+// The page keys the guest RSVP off the public payload's ids (still typed as numbers there).
+const GUEST_KEY = groupsApi.guestProfileIdKey(`${circle.id}`, `${circle.term!.id}`);
+
 function access(
   overrides: { group?: Partial<PublicCircleResponse>; access?: Partial<GroupAccessResponse["access"]> } = {},
 ): GroupAccessResponse {
@@ -119,6 +127,7 @@ beforeEach(() => {
   mockAuth = { token: null, displayName: null };
   Element.prototype.scrollIntoView = vi.fn();
   vi.mocked(groupsApi.getGroupAccess).mockResolvedValue(access());
+  vi.mocked(familiesApi.getMyFamilies).mockResolvedValue([]);
 });
 
 describe("TermPage — header and content", () => {
@@ -127,7 +136,7 @@ describe("TermPage — header and content", () => {
 
     expect(await screen.findByRole("heading", { level: 1, name: "Muzyczne Skrzaty" })).toBeInTheDocument();
     expect(screen.getByText("Zajęcia w parku")).toBeInTheDocument();
-    expect(groupsApi.getGroupAccess).toHaveBeenCalledWith(7, 101);
+    expect(groupsApi.getGroupAccess).toHaveBeenCalledWith(GROUP_ID, TERM_ID);
   });
 
   it("renders no subtitle when the term has no description", async () => {
@@ -210,6 +219,23 @@ describe("TermPage — sign-up footer", () => {
 
     expect(screen.getByRole("dialog", { name: "Zapisz się na zajęcia" })).toBeInTheDocument();
     expect(screen.queryByLabelText("Imię")).not.toBeInTheDocument();
+  });
+
+  it("logged-in RSVP banner links to family view with returnTo", async () => {
+    mockAuth = { token: "tok", displayName: "Ala" };
+    vi.mocked(familiesApi.getMyFamilies).mockResolvedValue([
+      { id: 3, party_id: 4, name: "Kowalscy", child_count: 0, created_at: "", updated_at: "" },
+    ]);
+    renderPage();
+
+    fireEvent.click(await screen.findByRole("button", { name: "＋ Zapisz się na zajęcia" }));
+
+    const dialog = screen.getByRole("dialog", { name: "Zapisz się na zajęcia" });
+    await waitFor(() => expect(familiesApi.getMyFamilies).toHaveBeenCalled());
+    expect(within(dialog).getByRole("link", { name: "Przejdź do „Mój dom”" })).toHaveAttribute(
+      "href",
+      `/panel/rodzina?returnTo=${encodeURIComponent(PATH)}`,
+    );
   });
 
   it("logged in and attending: no sign-up button", async () => {
@@ -309,7 +335,7 @@ describe("TermPage — access", () => {
     vi.mocked(groupsApi.getGroupAccess).mockResolvedValueOnce(access()).mockRejectedValueOnce(new Error("404"));
     render(
       <MemoryRouter initialEntries={[PATH]}>
-        <Link to="/zajecia/grupa/7/term/202">Następne zajęcia</Link>
+        <Link to={`/zajecia/grupa/${GROUP_ID}/term/${OTHER_TERM_ID}`}>Następne zajęcia</Link>
         <Routes>
           <Route path="/:organizationSlug/grupa/:groupId/term/:termId" element={<TermPage />} />
         </Routes>
@@ -321,7 +347,7 @@ describe("TermPage — access", () => {
 
     expect(await screen.findByText("Nie znaleziono")).toBeInTheDocument();
     expect(screen.queryByText("Zajęcia w parku")).not.toBeInTheDocument();
-    expect(groupsApi.getGroupAccess).toHaveBeenLastCalledWith(7, 202);
+    expect(groupsApi.getGroupAccess).toHaveBeenLastCalledWith(GROUP_ID, OTHER_TERM_ID);
   });
 });
 
@@ -340,7 +366,7 @@ describe("TermPage — private group gate", () => {
     expect(within(dialog).getByRole("button", { name: "Wyślij" })).toHaveFocus();
     fireEvent.click(within(dialog).getByRole("button", { name: "Wyślij" }));
 
-    await waitFor(() => expect(groupsApi.createJoinRequest).toHaveBeenCalledWith(7, 101));
+    await waitFor(() => expect(groupsApi.createJoinRequest).toHaveBeenCalledWith(GROUP_ID, TERM_ID));
     expect(await within(screen.getByRole("status")).findByText(/Prośba wysłana/)).toBeInTheDocument();
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
     expect(screen.getByRole("heading", { level: 2, name: /Ta grupa jest prywatna/ })).toHaveFocus();
@@ -388,7 +414,7 @@ describe("TermPage — private group gate", () => {
 
     fireEvent.click(await screen.findByRole("button", { name: "Wycofaj prośbę" }));
 
-    await waitFor(() => expect(groupsApi.withdrawJoinRequest).toHaveBeenCalledWith(7, 5));
+    await waitFor(() => expect(groupsApi.withdrawJoinRequest).toHaveBeenCalledWith(GROUP_ID, 5));
     expect(await screen.findByRole("button", { name: "Poproś o dostęp" })).toBeInTheDocument();
   });
 

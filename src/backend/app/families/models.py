@@ -36,12 +36,10 @@ def _enum_column(enum_cls: type[enum.StrEnum], length: int) -> Enum:
 
 
 class FamilyRoleType(enum.StrEnum):
-    """`CHILD` is a supported-but-currently-unused value: nothing in this
-    codebase creates a `Person`/`UserProfile` for a child today (a family's
-    children are, where they appear at all, free text elsewhere), so no
-    service function ever assigns it yet — kept only so the schema doesn't
-    need a migration the day a real "child as its own Party" feature is
-    requested."""
+    """`CHILD` is assigned to family members added as children (typically
+    lightweight members with no login account, see
+    `app.families.service.create_lightweight_family_member`); only CHILD
+    members carry a `UserProfile.birth_year`."""
 
     GUARDIAN = "GUARDIAN"
     CHILD = "CHILD"

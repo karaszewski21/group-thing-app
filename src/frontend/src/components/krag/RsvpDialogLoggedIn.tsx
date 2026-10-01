@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 import { getMyFamilies, type FamilyOut } from "../../api/families";
 import { createRsvp, type RsvpResponse } from "../../api/groups";
 import { Field } from "../../pages/panel/panelComponents";
@@ -30,12 +30,15 @@ export function RsvpDialogLoggedIn({
   onClose: () => void;
   onSubmitted: (rsvp: RsvpResponse) => void;
 }) {
+  const { pathname } = useLocation();
   const [family, setFamily] = useState<FamilyOut | null>(null);
   const [childCount, setChildCount] = useState(0);
   const [skipBanner, setSkipBanner] = useState(false);
   const [busy, setBusy] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
 
+  // Fetched on every mount: after "Wróć do terminu" the dialog is closed, and
+  // reopening it picks up the children added in "Mój dom" for the prefill.
   useEffect(() => {
     let active = true;
     void (async () => {
@@ -108,7 +111,10 @@ export function RsvpDialogLoggedIn({
             Liczbę dzieci uzupełnimy automatycznie z Twojego domu.
           </p>
           <div className="flex items-center gap-2">
-            <Link to="/panel" className="kg-btn-primary inline-block no-underline">
+            <Link
+              to={`/panel/rodzina?returnTo=${encodeURIComponent(pathname)}`}
+              className="kg-btn-primary inline-block no-underline"
+            >
               Przejdź do „Mój dom”
             </Link>
             <button className="kg-btn-ghost" type="button" onClick={() => setSkipBanner(true)}>

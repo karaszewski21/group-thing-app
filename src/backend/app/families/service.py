@@ -21,8 +21,10 @@ from .bootstrap import (
 from .guardians import (
     add_guardian,
     build_guardian_responses,
+    get_family_for_guardian,
     remove_family_member,
     rename_family,
+    update_child_birth_year,
 )
 from .members import create_lightweight_members_batch
 from .primary_contact import make_primary_contact
@@ -44,10 +46,12 @@ __all__ = [
     "create_own_family",
     "create_solo_family_for_party",
     "get_family",
+    "get_family_for_guardian",
     "list_families_for_guardian_party",
     "list_group_memberships_for_family",
     "list_guardian_memberships",
     "make_primary_contact",
     "remove_family_member",
     "rename_family",
+    "update_child_birth_year",
 ]

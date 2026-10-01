@@ -23,7 +23,7 @@ from ..schemas import (
     UpdateNeededItemRequest,
     UpdateTermRequest,
 )
-from .circles import _require_active_organizer, get_group
+from .circles import _is_active_organizer, _require_active_organizer, get_group
 
 
 async def create_term(db: AsyncSession, principal: Principal, data: CreateTermRequest) -> Term:
@@ -49,6 +49,24 @@ async def get_term(db: AsyncSession, term_id: uuid.UUID) -> Term:
 
 async def list_terms(db: AsyncSession, circle_group_id: uuid.UUID) -> list[Term]:
     return await repository.list_terms_for_group(db, circle_group_id)
+
+
+async def list_terms_with_counts(
+    db: AsyncSession, circle_group_id: uuid.UUID, caller_party_id: uuid.UUID | None
+) -> list[tuple[Term, int | None, int | None]]:
+    """Terms of a Circle with organizer-only signup counts: `(attendee_count,
+    child_count)` over non-withdrawn RSVPs for the active organizer, `(None,
+    None)` for everyone else (including callers without a profile)."""
+    terms = await repository.list_terms_for_group(db, circle_group_id)
+    if caller_party_id is None or not await _is_active_organizer(
+        db, circle_group_id, caller_party_id
+    ):
+        return [(term, None, None) for term in terms]
+
+    counts = await repository.count_active_attendances_by_term(
+        db, [cast(uuid.UUID, term.id) for term in terms]
+    )
+    return [(term, *counts.get(cast(uuid.UUID, term.id), (0, 0))) for term in terms]
 
 
 async def update_term(

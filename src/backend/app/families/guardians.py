@@ -26,9 +26,9 @@ from .schemas import AddGuardianRequest, GuardianResponse
 
 
 async def add_guardian(
-    db: AsyncSession, family_id: uuid.UUID, data: AddGuardianRequest
+    db: AsyncSession, family_id: uuid.UUID, caller_party_id: uuid.UUID, data: AddGuardianRequest
 ) -> uuid.UUID:
-    await get_family(db, family_id)
+    await get_family_for_guardian(db, family_id, caller_party_id)
     _party, profile = await create_account_and_profile(
         db, data.username, data.password, data.display_name, data.email
     )
@@ -61,6 +61,7 @@ async def build_guardian_responses(
         if role is None:
             raise EntityNotFoundException("FamilyRole", membership.from_role_id)
         profile = await get_profile_by_party(db, role.party_id)
+        is_child = role.role_type == FamilyRoleType.CHILD
         responses.append(
             GuardianResponse(
                 family_membership_id=cast(uuid.UUID, membership.id),
@@ -68,6 +69,8 @@ async def build_guardian_responses(
                 user_profile_id=cast(uuid.UUID, profile.id),
                 display_name=profile.display_name,
                 email=profile.email,
+                role_type=role.role_type.value,
+                birth_year=profile.birth_year if is_child else None,
                 is_primary_contact=membership.is_primary_contact,
                 valid_from=membership.valid_from,
                 valid_to=membership.valid_to,
@@ -94,6 +97,48 @@ async def _require_family_guardian(db: AsyncSession, family_id: uuid.UUID, calle
     ).first()
     if guardian is None:
         raise AccessDeniedException("You do not guard this Family")
+
+
+async def get_family_for_guardian(
+    db: AsyncSession, family_id: uuid.UUID, caller_party_id: uuid.UUID
+) -> Family:
+    """The Family (404 if missing), provided the caller is one of its
+    active guardians (else 403)."""
+    family = await get_family(db, family_id)
+    await _require_family_guardian(db, family_id, caller_party_id)
+    return family
+
+
+async def update_child_birth_year(
+    db: AsyncSession,
+    family_id: uuid.UUID,
+    family_membership_id: uuid.UUID,
+    caller_party_id: uuid.UUID,
+    birth_year: int | None,
+) -> GuardianResponse:
+    """Guardian-only edit of a CHILD member's birth year (`None` clears
+    it). Checks in order: family 404, guardian 403, active membership of
+    this family 404, CHILD role 400."""
+    await get_family_for_guardian(db, family_id, caller_party_id)
+
+    membership = await db.get(FamilyMembership, family_membership_id)
+    if (
+        membership is None
+        or membership.to_family_id != family_id
+        or membership.valid_to is not None
+    ):
+        raise EntityNotFoundException("FamilyMembership", family_membership_id)
+
+    role = await db.get(FamilyRole, membership.from_role_id)
+    if role is None or role.role_type != FamilyRoleType.CHILD:
+        raise ValueError("Rok urodzenia można ustawić tylko dziecku")
+
+    profile = await get_profile_by_party(db, role.party_id)
+    profile.birth_year = birth_year
+    await db.flush()
+    response = (await build_guardian_responses(db, [membership]))[0]
+    await db.commit()
+    return response
 
 
 async def rename_family(

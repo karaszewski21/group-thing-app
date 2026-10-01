@@ -33,6 +33,8 @@ export interface AddGuardianRequest {
 export interface CreateLightweightMemberRequest {
   name: string;
   role_type: "GUARDIAN" | "CHILD";
+  /** CHILD only — the backend rejects it together with GUARDIAN. */
+  birth_year?: number | null;
 }
 
 /** Denormalized join of `FamilyMembership` + `UserProfile` — no second
@@ -47,6 +49,9 @@ export interface GuardianResponse {
   is_primary_contact: boolean;
   valid_from: string;
   valid_to: string | null;
+  role_type: "GUARDIAN" | "CHILD";
+  /** Always null for guardians. */
+  birth_year: number | null;
 }
 
 export interface FamilyResponse {
@@ -110,6 +115,16 @@ export function removeFamilyMember(
   familyMembershipId: number,
 ): Promise<void> {
   return api.delete(`/families/${familyId}/guardians/${familyMembershipId}`);
+}
+
+/** Guardian-only birth-year edit of a CHILD member; `null` clears the year.
+ * Callers reload the family instead of reading the response. */
+export function updateChildBirthYear(
+  familyId: number,
+  familyMembershipId: number,
+  birthYear: number | null,
+): Promise<void> {
+  return api.patch(`/families/${familyId}/guardians/${familyMembershipId}`, { birth_year: birthYear });
 }
 
 export function getMembershipsForFamily(familyId: number): Promise<MembershipResponse[]> {

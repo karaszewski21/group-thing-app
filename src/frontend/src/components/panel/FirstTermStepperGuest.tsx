@@ -39,7 +39,7 @@ export function FirstTermStepperGuest({ onClose, onCircleCreated, onDone }: Firs
   const [description, setDescription] = useState("");
   const [busy, setBusy] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
-  const [createdTermId, setCreatedTermId] = useState<number | null>(null);
+  const [createdTermId, setCreatedTermId] = useState<string | null>(null);
 
   async function handleStep1() {
     if (!circleName.trim()) return;

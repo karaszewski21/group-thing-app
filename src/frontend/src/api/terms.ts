@@ -1,24 +1,28 @@
 import { api } from "./client";
 
 export interface TermResponse {
-  id: number;
-  circle_group_id: number;
+  id: string;
+  circle_group_id: string;
   /** ISO datetime — class date *and* wall-clock start time (`2026-03-12T17:30:00`). */
   occurs_on: string;
   description: string | null;
   created_at: string;
   updated_at: string;
+  /** Non-withdrawn RSVPs — set only for the term's organizer, else `null`. */
+  attendee_count: number | null;
+  /** Sum of those RSVPs' `child_count` — `null` alongside `attendee_count`. */
+  child_count: number | null;
 }
 
 export interface CreateTermRequest {
-  circle_group_id: number;
+  circle_group_id: string;
   occurs_on: string;
   description?: string;
 }
 
 export interface NeededItemResponse {
   id: number;
-  term_id: number;
+  term_id: string;
   product_id: number;
   product_name: string;
   product_category_id: number;
@@ -31,16 +35,16 @@ export interface NeededItemResponse {
 }
 
 export interface CreateNeededItemRequest {
-  term_id: number;
+  term_id: string;
   product_id: number;
   description?: string;
 }
 
-export function getTerms(circleGroupId: number): Promise<TermResponse[]> {
+export function getTerms(circleGroupId: string): Promise<TermResponse[]> {
   return api.get(`/terms?circle_group_id=${circleGroupId}`);
 }
 
-export function getTerm(id: number): Promise<TermResponse> {
+export function getTerm(id: string): Promise<TermResponse> {
   return api.get(`/terms/${id}`);
 }
 
@@ -53,11 +57,11 @@ export interface UpdateTermRequest {
   description?: string;
 }
 
-export function updateTerm(id: number, request: UpdateTermRequest): Promise<TermResponse> {
+export function updateTerm(id: string, request: UpdateTermRequest): Promise<TermResponse> {
   return api.patch(`/terms/${id}`, request);
 }
 
-export function getNeededItems(termId: number): Promise<NeededItemResponse[]> {
+export function getNeededItems(termId: string): Promise<NeededItemResponse[]> {
   return api.get(`/needed-items?term_id=${termId}`);
 }
 

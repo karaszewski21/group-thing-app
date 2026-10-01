@@ -78,7 +78,12 @@ const mockCategories: Category[] = [
   },
 ];
 
-function mockReservation(id: number, termId: number): ReservationResponse {
+// Term/Group ids are UUID strings (spec R29).
+const GROUP_ID = "5f0c2a7e-3b1d-4e6a-9c8f-0000000000a5";
+const ENDED_TERM_ID = "9a0b1c2d-3e4f-4a5b-8c6d-0000000000c9";
+const FUTURE_TERM_ID = "0b1c2d3e-4f5a-4b6c-8d7e-0000000000ca";
+
+function mockReservation(id: number, termId: string): ReservationResponse {
   return {
     id,
     item_id: item.id,
@@ -93,14 +98,16 @@ function mockReservation(id: number, termId: number): ReservationResponse {
   };
 }
 
-function mockTerm(id: number, occursOn: string): TermResponse {
+function mockTerm(id: string, occursOn: string): TermResponse {
   return {
     id,
-    circle_group_id: 1,
+    circle_group_id: GROUP_ID,
     occurs_on: occursOn,
     description: null,
     created_at: "",
     updated_at: "",
+    attendee_count: null,
+    child_count: null,
   };
 }
 
@@ -330,8 +337,8 @@ describe("RzeczyView — post-term-end fallback buttons (Bug #4c)", () => {
   it("renders 'Odebrał' and 'Anuluj wymianę', full-word-labeled, immediately after the badge, when locked AND the term has ended", async () => {
     mockApiGetRouter({
       balance: mockBalance(item.id, "IN_TRANSIT", 55),
-      reservation: mockReservation(55, 9),
-      term: mockTerm(9, "2020-01-01T10:00:00"), // long past
+      reservation: mockReservation(55, ENDED_TERM_ID),
+      term: mockTerm(ENDED_TERM_ID, "2020-01-01T10:00:00"), // long past
     });
     vi.mocked(panelDataStore.usePanelData).mockReturnValue(
       makeContextValue({ editingItemMeta: null }),
@@ -366,8 +373,8 @@ describe("RzeczyView — post-term-end fallback buttons (Bug #4c)", () => {
   it("does not render the new buttons when locked but the term has NOT yet ended (Mockup 3)", async () => {
     mockApiGetRouter({
       balance: mockBalance(item.id, "RESERVED", 56),
-      reservation: mockReservation(56, 10),
-      term: mockTerm(10, "2999-01-01T10:00:00"), // far future
+      reservation: mockReservation(56, FUTURE_TERM_ID),
+      term: mockTerm(FUTURE_TERM_ID, "2999-01-01T10:00:00"), // far future
     });
     vi.mocked(panelDataStore.usePanelData).mockReturnValue(
       makeContextValue({ editingItemMeta: null }),
@@ -398,8 +405,8 @@ describe("RzeczyView — post-term-end fallback buttons (Bug #4c)", () => {
     const load = vi.fn().mockResolvedValue(undefined);
     mockApiGetRouter({
       balance: mockBalance(item.id, "IN_TRANSIT", 55),
-      reservation: mockReservation(55, 9),
-      term: mockTerm(9, "2020-01-01T10:00:00"),
+      reservation: mockReservation(55, ENDED_TERM_ID),
+      term: mockTerm(ENDED_TERM_ID, "2020-01-01T10:00:00"),
     });
     vi.mocked(reservationsApi.confirmTransaction).mockResolvedValue({
       reservation_id: 55,
@@ -425,8 +432,8 @@ describe("RzeczyView — post-term-end fallback buttons (Bug #4c)", () => {
     const load = vi.fn().mockResolvedValue(undefined);
     mockApiGetRouter({
       balance: mockBalance(item.id, "IN_TRANSIT", 55),
-      reservation: mockReservation(55, 9),
-      term: mockTerm(9, "2020-01-01T10:00:00"),
+      reservation: mockReservation(55, ENDED_TERM_ID),
+      term: mockTerm(ENDED_TERM_ID, "2020-01-01T10:00:00"),
     });
     vi.mocked(reservationsApi.cancelTransaction).mockResolvedValue({
       reservation_id: 55,

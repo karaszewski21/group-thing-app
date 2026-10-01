@@ -1,0 +1,41 @@
+- generic [ref=f2e2]:
+  - navigation "Menu konta" [ref=f2e3]:
+    - button "Powiadomienia" [ref=f2e5]
+    - button "Menu" [ref=f2e10]
+  - main [ref=f2e13]:
+    - generic [ref=f2e92]:
+      - generic [ref=f2e93]:
+        - heading "Mój dom" [level=2] [ref=f2e94]
+        - generic [ref=f2e95]:
+          - heading "Rodzina Karaszewski21" [level=3] [ref=f2e96]
+          - button "Zmień nazwę rodziny" [ref=f2e97]
+        - generic [ref=f2e100]: 3 osoby
+      - generic [ref=f2e101]:
+        - heading "Karaszewski21(Ty)" [level=3] [ref=f2e104]
+        - generic [ref=f2e105]:
+          - generic [ref=f2e106]:
+            - heading "E2E Dziecko Test(dziecko)" [level=3] [ref=f2e107]
+            - generic [ref=f2e108]:
+              - paragraph [ref=f2e109]: rocznik 2018 · ok. 8 lat
+              - 'button "Edytuj rok urodzenia: E2E Dziecko Test" [ref=f2e110]'
+          - button "Usuń członka rodziny E2E Dziecko Test" [ref=f2e113]
+        - generic [ref=f2e116]:
+          - generic [ref=f2e117]:
+            - heading "E2E Dziecko Bez Roku(dziecko)" [level=3] [ref=f2e118]
+            - generic [ref=f2e144]:
+              - 'spinbutton "Rok urodzenia: E2E Dziecko Bez Roku" [active] [ref=f2e145]'
+              - button "Zapisz" [ref=f2e146]
+          - button "Usuń członka rodziny E2E Dziecko Bez Roku" [ref=f2e120]
+      - generic [ref=f2e123]:
+        - heading "Dodaj kolejnego członka" [level=3] [ref=f2e124]
+        - generic [ref=f2e125]:
+          - generic [ref=f2e126]:
+            - generic [ref=f2e127]:
+              - generic [ref=f2e128]: Imię i nazwisko
+              - textbox "np. Zosia Kowalska" [ref=f2e129]
+            - generic [ref=f2e130]:
+              - generic [ref=f2e131]: Rola
+              - generic [ref=f2e132]:
+                - button "Opiekun" [pressed] [ref=f2e133]
+                - button "Dziecko" [ref=f2e134]
+          - button "Dodaj" [disabled] [ref=f2e135]

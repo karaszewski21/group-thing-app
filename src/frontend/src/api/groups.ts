@@ -15,8 +15,8 @@ export type GroupLayoutMode = "CIRCLE" | "PITCH" | "TABLE";
 export type GroupVisibility = "PUBLIC" | "PRIVATE";
 
 export interface GroupResponse {
-  id: number;
-  party_id: number;
+  id: string;
+  party_id: string;
   name: string;
   organizer_slug: string | null;
   layout_mode: GroupLayoutMode;
@@ -47,7 +47,7 @@ export interface ModerationGroupResponse {
 export interface LeadershipResponse {
   id: number;
   from_role_id: number;
-  to_group_id: number;
+  to_group_id: string;
   organizer_party_id: number;
   valid_from: string;
   valid_to: string | null;
@@ -64,7 +64,7 @@ export interface AssignLeadershipRequest {
 export interface MembershipResponse {
   id: number;
   from_role_id: number;
-  to_group_id: number;
+  to_group_id: string;
   member_party_id: number;
   valid_from: string;
   valid_to: string | null;
@@ -78,7 +78,7 @@ export function getGroupsForModeration(): Promise<ModerationGroupResponse[]> {
   return api.get("/groups/moderation");
 }
 
-export function getGroup(id: number): Promise<GroupResponse> {
+export function getGroup(id: string): Promise<GroupResponse> {
   return api.get(`/groups/${id}`);
 }
 
@@ -110,7 +110,7 @@ export function createAdditionalMyCircle(request: CreateCircleRequest): Promise<
  * `is not None`-only-apply semantics) — existing callers that only ever
  * change `layout_mode` are unaffected. */
 export function updateGroupLayoutMode(
-  id: number,
+  id: string,
   name: string,
   layoutMode: GroupLayoutMode,
   visibility?: GroupVisibility,
@@ -122,11 +122,11 @@ export function updateGroupLayoutMode(
   });
 }
 
-export function getCurrentLeadership(groupId: number): Promise<LeadershipResponse | null> {
+export function getCurrentLeadership(groupId: string): Promise<LeadershipResponse | null> {
   return api.get(`/groups/${groupId}/leadership`);
 }
 
-export function getLeadershipHistory(groupId: number): Promise<LeadershipResponse[]> {
+export function getLeadershipHistory(groupId: string): Promise<LeadershipResponse[]> {
   return api.get(`/groups/${groupId}/leaderships`);
 }
 
@@ -139,7 +139,7 @@ export function endLeadership(leadershipId: number, validTo?: string): Promise<L
   return api.post(`/leaderships/${leadershipId}/end${query}`, undefined);
 }
 
-export function getMembershipsForCircle(groupId: number): Promise<MembershipResponse[]> {
+export function getMembershipsForCircle(groupId: string): Promise<MembershipResponse[]> {
   return api.get(`/groups/${groupId}/memberships`);
 }
 
@@ -316,27 +316,29 @@ export function createRsvp(groupId: number, request: CreateRsvpRequest): Promise
 
 /** One RSVP'd Term attendee, resolved for the organizer's "which attendees
  * become standing members" picker — `family_id`/`family_name` are `null`
- * for an attendee with no real Family (not selectable for formalization). */
+ * for an attendee with no real Family (still selectable for formalization).
+ * `children` holds only the birth years of that family's active children. */
 export interface TermAttendeeResponse {
-  party_id: number;
+  party_id: string;
   display_name: string;
   child_count: number;
-  family_id: number | null;
+  family_id: string | null;
   family_name: string | null;
+  children: { birth_year: number | null }[];
   already_member: boolean;
 }
 
 export function getTermAttendeesForFormalization(
-  groupId: number,
-  termId: number,
+  groupId: string,
+  termId: string,
 ): Promise<TermAttendeeResponse[]> {
   return api.get(`/groups/${groupId}/terms/${termId}/attendees`);
 }
 
 export function formalizeGroupFromTerm(
-  groupId: number,
-  termId: number,
-  partyIds: number[],
+  groupId: string,
+  termId: string,
+  partyIds: string[],
 ): Promise<GroupResponse> {
   return api.post(`/groups/${groupId}/terms/${termId}/formalize`, { party_ids: partyIds });
 }
@@ -407,10 +409,10 @@ export function rejectJoinRequest(groupId: string, requestId: number): Promise<J
  * (`organizer_slug` + `group_id` + `term_id`) with no second request. */
 export interface MyAttendanceResponse {
   attendance_id: number;
-  term_id: number;
+  term_id: string;
   occurs_on: string;
   child_count: number;
-  group_id: number;
+  group_id: string;
   group_name: string;
   organizer_display_name: string | null;
   organizer_slug: string;

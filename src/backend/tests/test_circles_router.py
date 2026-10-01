@@ -11,15 +11,18 @@ this group's job is verifying the router wiring itself."""
 
 from __future__ import annotations
 
-from datetime import date, timedelta
+import uuid
+from datetime import UTC, date, datetime, timedelta
 
 from httpx import AsyncClient
+from sqlalchemy import update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
 from app.core.auth_deps import Principal
-from app.core.security import decode_token
+from app.core.security import decode_token, encode_login_token
 from app.groups import service
+from app.groups.models import TermAttendance
 from app.users.service import get_profile_by_principal
 
 
@@ -203,3 +206,94 @@ async def test_patchGroup_missingName_returns400(client: AsyncClient) -> None:
     )
 
     assert response.status_code == 400
+
+
+async def _anonymous_rsvp(
+    client: AsyncClient, group_id: int, term_id: int, name: str, kids: int
+) -> None:
+    r = await client.post(
+        f"/api/groups/public/{group_id}/rsvp",
+        json={"term_id": term_id, "guardian_name": name, "child_count": kids},
+    )
+    assert r.status_code == 201
+
+
+async def test_listTerms_organizer_returnsAttendeeAndChildCounts(
+    client: AsyncClient, db_session: AsyncSession
+) -> None:
+    org_token, _ = await _register(client, "ORGANIZER", "router.counts.org1@example.com")
+    group_id, term_id = await _create_circle_and_term(client, org_token, "counts1")
+    empty_term = await client.post(
+        "/api/terms",
+        json={
+            "circle_group_id": group_id,
+            "occurs_on": (date.today() + timedelta(days=14)).isoformat(),
+        },
+        headers=_auth(org_token),
+    )
+    assert empty_term.status_code == 201
+    await _anonymous_rsvp(client, group_id, term_id, "Gość A", 2)
+    await _anonymous_rsvp(client, group_id, term_id, "Gość B", 1)
+    await _anonymous_rsvp(client, group_id, term_id, "Gość Wycofany", 5)
+    await db_session.execute(
+        update(TermAttendance)
+        .where(TermAttendance.term_id == uuid.UUID(term_id), TermAttendance.child_count == 5)
+        .values(withdrawn_at=datetime.now(UTC).replace(tzinfo=None))
+    )
+    await db_session.commit()
+
+    response = await client.get(
+        "/api/terms", params={"circle_group_id": group_id}, headers=_auth(org_token)
+    )
+
+    assert response.status_code == 200
+    by_id = {t["id"]: t for t in response.json()}
+    assert (by_id[term_id]["attendee_count"], by_id[term_id]["child_count"]) == (2, 3)
+    empty = by_id[empty_term.json()["id"]]
+    assert (empty["attendee_count"], empty["child_count"]) == (0, 0)
+
+
+async def test_listTerms_nonOrganizerMember_returnsNullCounts(
+    client: AsyncClient, db_session: AsyncSession
+) -> None:
+    org_token, _ = await _register(client, "ORGANIZER", "router.counts.org2@example.com")
+    group_id, term_id = await _create_circle_and_term(client, org_token, "counts2")
+    guardian_token, _ = await _register(client, "GUEST", "router.counts.guardian2@example.com")
+    await _join_group_as_family_guardian(client, db_session, guardian_token, group_id, "Rodzina C2")
+    await _anonymous_rsvp(client, group_id, term_id, "Gość C", 2)
+
+    response = await client.get(
+        "/api/terms", params={"circle_group_id": group_id}, headers=_auth(guardian_token)
+    )
+
+    assert response.status_code == 200
+    assert response.json()[0]["attendee_count"] is None
+    assert response.json()[0]["child_count"] is None
+
+
+async def test_getTerm_organizer_returnsNullCounts(client: AsyncClient) -> None:
+    org_token, _ = await _register(client, "ORGANIZER", "router.counts.org3@example.com")
+    group_id, term_id = await _create_circle_and_term(client, org_token, "counts3")
+    await _anonymous_rsvp(client, group_id, term_id, "Gość D", 1)
+
+    response = await client.get(f"/api/terms/{term_id}", headers=_auth(org_token))
+
+    assert response.status_code == 200
+    assert response.json()["attendee_count"] is None
+    assert response.json()["child_count"] is None
+
+
+async def test_listTerms_principalWithoutProfile_returns200NullCounts(client: AsyncClient) -> None:
+    org_token, _ = await _register(client, "ORGANIZER", "router.counts.org4@example.com")
+    group_id, _term_id = await _create_circle_and_term(client, org_token, "counts4")
+    profileless_token = encode_login_token(
+        "no-such-user@example.com", ["READ"], settings.jwt_secret, settings.jwt_expiration_ms
+    )
+
+    response = await client.get(
+        "/api/terms", params={"circle_group_id": group_id}, headers=_auth(profileless_token)
+    )
+
+    assert response.status_code == 200
+    assert response.json()[0]["attendee_count"] is None
+    assert response.json()[0]["child_count"] is None

@@ -22,7 +22,11 @@ from .schemas import CreateLightweightMemberRequest
 
 
 async def create_lightweight_family_member(
-    db: AsyncSession, family_id: uuid.UUID, name: str, role_type: FamilyRoleType
+    db: AsyncSession,
+    family_id: uuid.UUID,
+    name: str,
+    role_type: FamilyRoleType,
+    birth_year: int | None = None,
 ) -> UserProfile:
     """A family member with no login of their own — no `auth.User` row, so
     `UserProfile.account_user_id` is left `None` (see
@@ -35,6 +39,7 @@ async def create_lightweight_family_member(
         account_user_id=None,
         display_name=name,
         email=None,
+        birth_year=birth_year,
     )
     db.add(profile)
     role = FamilyRole(
@@ -75,7 +80,11 @@ async def create_lightweight_members_batch(
 
     for member in members:
         await create_lightweight_family_member(
-            db, cast(uuid.UUID, family.id), member.name, FamilyRoleType(member.role_type)
+            db,
+            cast(uuid.UUID, family.id),
+            member.name,
+            FamilyRoleType(member.role_type),
+            member.birth_year,
         )
 
     await db.commit()

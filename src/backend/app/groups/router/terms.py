@@ -9,6 +9,7 @@ from fastapi import APIRouter, Depends, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.auth_deps import Principal, require_any
+from app.core.errors import EntityNotFoundException
 from app.db import get_db
 from app.groups import service
 from app.groups.schemas import (
@@ -43,8 +44,21 @@ async def create_term(
 async def list_terms(
     circle_group_id: uuid.UUID, db: DbSession, principal: ReadPrincipal
 ) -> list[TermResponse]:
-    terms = await service.list_terms(db, circle_group_id)
-    return [TermResponse.model_validate(term) for term in terms]
+    """`attendee_count`/`child_count` are filled only for the Circle's active
+    organizer; a caller without a profile is treated as a non-organizer."""
+    try:
+        caller_party_id: uuid.UUID | None = (await get_profile_by_principal(db, principal)).party_id
+    except EntityNotFoundException:
+        caller_party_id = None
+
+    rows = await service.list_terms_with_counts(db, circle_group_id, caller_party_id)
+    responses = []
+    for term, attendee_count, child_count in rows:
+        response = TermResponse.model_validate(term)
+        response.attendee_count = attendee_count
+        response.child_count = child_count
+        responses.append(response)
+    return responses
 
 
 @router.get("/api/terms/{term_id}", response_model=TermResponse)

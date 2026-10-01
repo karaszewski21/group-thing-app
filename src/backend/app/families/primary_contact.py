@@ -12,14 +12,22 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.errors import EntityNotFoundException
 
+from .guardians import get_family_for_guardian
 from .models import FamilyMembership
 
 
-async def make_primary_contact(db: AsyncSession, family_id: uuid.UUID, family_membership_id: uuid.UUID) -> None:
+async def make_primary_contact(
+    db: AsyncSession,
+    family_id: uuid.UUID,
+    family_membership_id: uuid.UUID,
+    caller_party_id: uuid.UUID,
+) -> None:
     """Ends the current primary contact's membership row and opens a new
     one for `family_membership_id`'s guardian, both dated today — "preserve
     row with validTo set, don't delete", never an in-place flip of
-    `is_primary_contact` on an existing row."""
+    `is_primary_contact` on an existing row. Guardian-only: 404 for an
+    unknown family, then 403 for a non-guardian caller."""
+    await get_family_for_guardian(db, family_id, caller_party_id)
     new_primary = await db.get(FamilyMembership, family_membership_id)
     if new_primary is None or new_primary.to_family_id != family_id:
         raise EntityNotFoundException("FamilyMembership", family_membership_id)

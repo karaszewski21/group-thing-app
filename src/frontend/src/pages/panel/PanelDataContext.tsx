@@ -12,6 +12,7 @@ import {
   getMyFamilies,
   removeFamilyMember,
   renameFamily,
+  updateChildBirthYear,
   type FamilyOut,
   type GuardianResponse,
 } from "../../api/families";
@@ -83,8 +84,10 @@ import {
   type NeededItemQuickAddValue,
 } from "../../utils/neededItemQuickAdd";
 import { ApiError } from "../../api/client";
+import { serverMessageOr } from "../../api/problem";
 import { setItemListingPreference } from "../../api/itemListingPreferences";
-import { CopyIcon, PencilIcon } from "./panelIcons";
+import { pluralPl } from "../../utils/plural";
+import { CopyIcon, FamilyIcon, PencilIcon } from "./panelIcons";
 import {
   dayMonth,
   termTime,
@@ -312,12 +315,12 @@ function usePanelDataValue() {
   // read-only compact card. `editTermId` is resolved back to a live `terms`
   // entry at render time so the open dialog always sees fresh props after a
   // `load({ silent: true })` refresh.
-  const [editTermId, setEditTermId] = useState<number | null>(null);
+  const [editTermId, setEditTermId] = useState<string | null>(null);
   // "Edytuj grupę" dialog (name, location, capacity, layout template) next
   // to each led circle in the "Grupy" section — consolidates what used to be
   // an inline pencil-rename plus a separate always-visible layout pill
   // picker into one dialog (`modal === "edit-grupa"`).
-  const [editingGroupId, setEditingGroupId] = useState<number | null>(null);
+  const [editingGroupId, setEditingGroupId] = useState<string | null>(null);
   const [editGroupForm, setEditGroupForm] = useState<{
     name: string;
     location: string;
@@ -422,7 +425,7 @@ function usePanelDataValue() {
   const [localLocation, setLocalLocation] = useState("");
   const [profileSaved, setProfileSaved] = useState(false);
   const [settings, setSettings] = useState({ emailNotifs: true, smsNotifs: false, publicProfile: true });
-  const [groupExtras, setGroupExtras] = useState<Record<number, { location: string; freeSpots: number }>>({});
+  const [groupExtras, setGroupExtras] = useState<Record<string, { location: string; freeSpots: number }>>({});
   const [itemModes, setItemModes] = useState<Record<number, ItemMode | null>>({});
   const [borrowedItems, setBorrowedItems] = useState<BorrowedItem[]>([]);
   const [lentOutItems, setLentOutItems] = useState<LentOutItemResponse[]>([]);
@@ -430,6 +433,8 @@ function usePanelDataValue() {
   // --- formularz: dodaj członka rodziny ("Rodzina" section, inline form) ---
   const [memberName, setMemberName] = useState("");
   const [memberRole, setMemberRole] = useState<"GUARDIAN" | "CHILD">("GUARDIAN");
+  // Raw input value; only sent (as a number) for CHILD members.
+  const [memberBirthYear, setMemberBirthYear] = useState("");
 
   // --- formularz: dodaj grupę ---
   const [groupForm, setGroupForm] = useState<{
@@ -440,7 +445,7 @@ function usePanelDataValue() {
   }>({ name: "", location: "", freeSpots: "", visibility: "PUBLIC" });
 
   // --- formularz: dodaj termin ---
-  const [termGroupId, setTermGroupId] = useState<number | null>(null);
+  const [termGroupId, setTermGroupId] = useState<string | null>(null);
   const [termDate, setTermDate] = useState("");
   const [termDescription, setTermDescription] = useState("");
   const [neededDraft, setNeededDraft] = useState<NeededItemQuickAddValue[]>([]);
@@ -871,7 +876,7 @@ function usePanelDataValue() {
     }
   }
 
-  async function handleRemoveGroup(groupId: number) {
+  async function handleRemoveGroup(groupId: string) {
     const leadership = myLeaderships.find((l) => l.to_group_id === groupId);
     if (!leadership) return;
     setBusy(true);
@@ -998,15 +1003,39 @@ function usePanelDataValue() {
 
   async function handleAddFamilyMember() {
     if (!memberName.trim()) return;
+    const birthYear = memberRole === "CHILD" && memberBirthYear.trim() ? Number(memberBirthYear) : null;
     setBusy(true);
     try {
-      await createLightweightMembers([{ name: memberName.trim(), role_type: memberRole }]);
+      await createLightweightMembers([
+        {
+          name: memberName.trim(),
+          role_type: memberRole,
+          ...(birthYear !== null && { birth_year: birthYear }),
+        },
+      ]);
       setMemberName("");
       setMemberRole("GUARDIAN");
+      setMemberBirthYear("");
       showToast("Dodano członka rodziny");
       await load();
-    } catch {
-      showToast("Nie udało się dodać członka rodziny");
+    } catch (err) {
+      showToast(serverMessageOr(err, "Nie udało się dodać członka rodziny"));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  /** Resolves to the inline error message, or `null` once saved. */
+  async function saveChildBirthYear(member: GuardianResponse, birthYear: number | null): Promise<string | null> {
+    if (!family) return null;
+    setBusy(true);
+    try {
+      await updateChildBirthYear(family.id, member.family_membership_id, birthYear);
+      await load({ silent: true });
+      showToast("Zapisano rok urodzenia");
+      return null;
+    } catch (err) {
+      return serverMessageOr(err, "Nie udało się zapisać roku urodzenia — spróbuj ponownie");
     } finally {
       setBusy(false);
     }
@@ -1020,15 +1049,7 @@ function usePanelDataValue() {
       await removeFamilyMember(family.id, g.family_membership_id);
       await load({ silent: true });
     } catch (err) {
-      // 409 (last guardian) / 403 carry a server message — surface it;
-      // otherwise a generic fallback (mirrors AccountMergeForm).
-      if (err instanceof ApiError && err.body && typeof err.body === "object" && "message" in err.body) {
-        setFamilyMemberError(
-          String((err.body as { message?: unknown }).message ?? "Nie udało się usunąć członka rodziny — spróbuj ponownie"),
-        );
-      } else {
-        setFamilyMemberError("Nie udało się usunąć członka rodziny — spróbuj ponownie");
-      }
+      setFamilyMemberError(serverMessageOr(err, "Nie udało się usunąć członka rodziny — spróbuj ponownie"));
     } finally {
       setBusy(false);
     }
@@ -1066,6 +1087,37 @@ function usePanelDataValue() {
     } finally {
       setBusy(false);
     }
+  }
+
+  /** Sign-up summary pill linking to the organizer attendees page. Counts come
+   * from the terms payload and are `null` for non-organizers — no chip then. */
+  function signupSummaryChip(term: TermResponse) {
+    const attendees = term.attendee_count;
+    if (attendees === null) return null;
+    const children = term.child_count ?? 0;
+    const hasAttendees = attendees > 0;
+    const attendeesText = `${attendees} ${pluralPl(attendees, "zapis", "zapisy", "zapisów")}`;
+    const childrenText = `${children} ${pluralPl(children, "dziecko", "dzieci", "dzieci")}`;
+
+    return (
+      <div className="mt-1.5">
+        <Link
+          to={`/panel/terminy/${term.id}`}
+          aria-label={`Zapisani na termin: ${
+            hasAttendees ? `${attendeesText}, ${childrenText}` : "brak zapisów"
+          }`}
+          className="inline-flex items-center gap-1 rounded-full border border-line bg-paper px-2.5 py-0.5 text-[10.5px] font-extrabold text-ink transition-colors hover:border-mint"
+        >
+          {hasAttendees && (
+            <span aria-hidden="true" className="flex [&>svg]:h-3.5 [&>svg]:w-3.5">
+              <FamilyIcon />
+            </span>
+          )}
+          {hasAttendees ? `${attendeesText} · ${childrenText}` : "Brak zapisów"}
+          <span aria-hidden="true">›</span>
+        </Link>
+      </div>
+    );
   }
 
   /** Organizer term tile — a read-only compact card. The circle name links to
@@ -1119,6 +1171,7 @@ function usePanelDataValue() {
                 ))}
               </div>
             )}
+            {signupSummaryChip(term)}
           </div>
           <div className="flex flex-none flex-col gap-1">
             <button
@@ -1392,6 +1445,7 @@ function usePanelDataValue() {
     lentOutItems,
     memberName,
     memberRole,
+    memberBirthYear,
     groupForm,
     termGroupId,
     termDate,
@@ -1420,6 +1474,7 @@ function usePanelDataValue() {
     setEditingItemMeta,
     setMemberName,
     setMemberRole,
+    setMemberBirthYear,
     setEditGroupForm,
     setFamilyNameDraft,
     setItemDraft,
@@ -1447,6 +1502,7 @@ function usePanelDataValue() {
     setItemMode,
     handleAddFamilyMember,
     handleRemoveFamilyMember,
+    saveChildBirthYear,
     startRenameFamily,
     cancelRenameFamily,
     saveRenameFamily,

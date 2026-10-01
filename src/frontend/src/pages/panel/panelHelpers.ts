@@ -96,6 +96,6 @@ export function initials(name: string): string {
  * (the organizer's Organization slug, or a stable `k-<hash>` when they have
  * no Organization) — the `?? "krag"` only guards the `GET /api/groups` list
  * response, which the Panel never uses to build these links. */
-export function termPublicPath(group: GroupResponse, termId: number): string {
+export function termPublicPath(group: GroupResponse, termId: string): string {
   return `/${group.organizer_slug ?? "krag"}/grupa/${group.id}/term/${termId}`;
 }

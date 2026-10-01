@@ -275,7 +275,7 @@ export function PanelModals() {
             <Field label="Grupa">
               <select
                 value={termGroupId ?? ""}
-                onChange={(e) => setTermGroupId(Number(e.target.value))}
+                onChange={(e) => setTermGroupId(e.target.value || null)}
                 className="rounded-xl border-[1.5px] border-line bg-cream px-3.5 py-2.5 text-ink"
               >
                 <option value="" disabled>Wybierz grupę…</option>

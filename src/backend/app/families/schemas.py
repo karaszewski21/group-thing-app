@@ -6,7 +6,7 @@ import uuid
 from datetime import date, datetime
 from typing import Literal
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 
 class FamilyOut(BaseModel):
@@ -69,6 +69,15 @@ class AddGuardianRequest(BaseModel):
     email: str | None = Field(default=None, max_length=255)
 
 
+def _birth_year_not_in_future(value: int | None) -> int | None:
+    """Upper bound of a child's birth year. Reads `date.today()` on every
+    call, so the bound moves with the calendar (a static `le=` would freeze
+    it at import time)."""
+    if value is not None and value > date.today().year:
+        raise ValueError("Rok urodzenia nie może być z przyszłości")
+    return value
+
+
 class CreateLightweightMemberRequest(BaseModel):
     """One entry of a `POST /api/families/mine/members` batch — a family
     member with no login of their own (see
@@ -76,10 +85,30 @@ class CreateLightweightMemberRequest(BaseModel):
 
     name: str = Field(min_length=1, max_length=255)
     role_type: Literal["GUARDIAN", "CHILD"]
+    birth_year: int | None = Field(default=None, ge=1900)
+
+    _check_birth_year = field_validator("birth_year")(_birth_year_not_in_future)
+
+    @model_validator(mode="after")
+    def _birth_year_only_for_child(self) -> CreateLightweightMemberRequest:
+        if self.birth_year is not None and self.role_type == "GUARDIAN":
+            raise ValueError("Rok urodzenia można podać tylko dla dziecka")
+        return self
 
 
 class CreateLightweightMembersBatchRequest(BaseModel):
     members: list[CreateLightweightMemberRequest]
+
+
+class UpdateFamilyMemberRequest(BaseModel):
+    """Birth-year-only edit of a CHILD member. The key is required (an
+    explicit `null` clears the year) and nothing else may be sent."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    birth_year: int | None = Field(..., ge=1900)
+
+    _check_birth_year = field_validator("birth_year")(_birth_year_not_in_future)
 
 
 class GuardianResponse(BaseModel):
@@ -92,6 +121,8 @@ class GuardianResponse(BaseModel):
     user_profile_id: uuid.UUID
     display_name: str
     email: str | None
+    role_type: Literal["GUARDIAN", "CHILD"]
+    birth_year: int | None = None
     is_primary_contact: bool
     valid_from: date
     valid_to: date | None

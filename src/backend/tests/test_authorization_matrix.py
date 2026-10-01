@@ -47,6 +47,10 @@ def test_resolveRequirement_deleteFamilyMember_resolvesToEdit() -> None:
     assert resolve_requirement("DELETE", "/api/families/10/guardians/42") == EDIT
 
 
+def test_resolveRequirement_patchFamilyGuardian_requiresEdit() -> None:
+    assert resolve_requirement("PATCH", "/api/families/x/guardians/y") == EDIT
+
+
 def test_resolveRequirement_groupsMineAttendances_notRegressedByGroupsPatchRow() -> None:
     assert resolve_requirement("GET", "/api/groups/mine/attendances") == READ
 

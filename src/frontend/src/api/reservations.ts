@@ -15,7 +15,7 @@ export interface ReservationResponse {
   // field existed on the frontend type) keep compiling without an
   // unrelated, out-of-scope rewrite. `RzeczyView.tsx`'s term-end
   // resolution (bug #4c) is the one real caller that reads it.
-  term_id?: number;
+  term_id?: string;
   paired_reservation_id: number | null;
   reserved_at: string;
   expires_at: string | null;

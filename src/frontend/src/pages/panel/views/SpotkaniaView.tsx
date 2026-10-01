@@ -42,6 +42,8 @@ export function SpotkaniaView() {
           description: null,
           created_at: attendance.occurs_on,
           updated_at: attendance.occurs_on,
+          attendee_count: null,
+          child_count: null,
         },
         group: {
           id: attendance.group_id,

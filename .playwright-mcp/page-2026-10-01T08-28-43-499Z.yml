@@ -1,0 +1,67 @@
+- generic [ref=f11e2]:
+  - navigation "Menu konta" [ref=f11e3]:
+    - button "Powiadomienia" [ref=f11e5]
+    - button "Menu" [ref=f11e10]
+  - main [ref=f11e13]:
+    - generic [ref=f11e14]:
+      - heading "marina" [level=1] [ref=f11e16]
+      - main [ref=f11e17]:
+        - generic [ref=f11e18]:
+          - generic [ref=f11e19]:
+            - generic [ref=f11e20]: 🎵
+            - strong [ref=f11e21]: Karaszewski21
+            - generic [ref=f11e22]: trenerka
+          - generic [ref=f11e23]:
+            - button "Ela" [ref=f11e24]:
+              - generic [ref=f11e25]:
+                - text: EL
+                - generic "Udostępnia rzecz" [ref=f11e26]
+            - button "justyna" [ref=f11e30]:
+              - generic [ref=f11e31]: JU
+            - button "Org" [ref=f11e32]:
+              - generic [ref=f11e33]: OR
+            - button "krzyś" [ref=f11e34]:
+              - generic [ref=f11e35]: KR
+        - generic [ref=f11e36]:
+          - generic [ref=f11e37]: udostępnia rzecz
+          - generic [ref=f11e42]: przynosi na zajęcia
+        - generic [ref=f11e48]:
+          - generic [ref=f11e49]: Termin zajęć
+          - generic [ref=f11e50]:
+            - generic [ref=f11e51]: 29 września 2026
+            - generic [ref=f11e52]: 🕒 godz. 15:40
+        - region "Zapisani na zajęcia" [ref=f11e53]:
+          - list [ref=f11e54]:
+            - listitem [ref=f11e55]:
+              - generic [ref=f11e56]:
+                - generic [ref=f11e57]:
+                  - text: EL
+                  - generic "Udostępnia rzecz" [ref=f11e58]
+                - strong [ref=f11e62]: Ela
+              - generic [ref=f11e64]:
+                - strong [ref=f11e66]: ela
+                - 'button "Zamień: ela" [ref=f11e68]': Zamień
+            - listitem [ref=f11e69]:
+              - generic [ref=f11e70]:
+                - generic [ref=f11e71]: OR
+                - strong [ref=f11e72]: Org
+            - listitem [ref=f11e73]:
+              - generic [ref=f11e74]:
+                - generic [ref=f11e75]: JU
+                - strong [ref=f11e76]: justyna
+            - listitem [ref=f11e77]:
+              - generic [ref=f11e78]:
+                - generic [ref=f11e79]: KR
+                - strong [ref=f11e80]: krzyś
+      - button "＋ Zapisz się na zajęcia" [active] [ref=f11e82]
+      - dialog "Zapisz się na zajęcia" [ref=f11e84]:
+        - generic [ref=f11e85]:
+          - heading "Zapisz się na zajęcia" [level=3] [ref=f11e86]
+          - button "Zamknij" [ref=f11e87]
+        - paragraph [ref=f11e90]:
+          - text: Zapisujesz się jako
+          - strong [ref=f11e91]: Karaszewski21
+        - generic [ref=f11e93]:
+          - generic [ref=f11e94]: Liczba dzieci
+          - spinbutton [ref=f11e95]: "2"
+        - button "Zapisz się" [ref=f11e96]

@@ -1,0 +1,30 @@
+   × PanelPage — hamburger promotion > shows "Dodaj pierwszy termin" (not "Chcę dodać krąg") for a GUEST-without-circle session and opens FirstTermStepperGuest 1053ms
+   × PanelPage — hamburger promotion > shows neither hamburger item for an ORGANIZER who already has terms 1020ms
+   × PanelPage — hamburger promotion > shows "Moja organizacja" (linking to /organization) for an organizer session with no Organization yet 1025ms
+   × PanelPage — hamburger promotion > "Moja organizacja" links directly to the public organization page once one already exists 1009ms
+   × PanelPage — hamburger promotion > completing the GUEST 2-step flow calls createMyCircle then createTerm and flips isOrganizer to true after reload 1008ms
+   × PanelPage — hamburger promotion > shows an inline error (not a silent failure) when createMyCircle rejects in the GUEST stepper 1021ms
+   × PanelPage — dismissible home hints > GUEST sees a "Możesz zostać organizatorem" card that opens the circle-creation flow and dismisses on its own key 212ms
+   × PanelPage — dismissible home hints > a GUEST who dismissed the pre-promotion first-term card still sees the organizer first-term card after getting a circle 1019ms
+   × PanelPage — dismissible home hints > GUEST hint auto-disappears after completing the real 2-step first-term stepper (isOrganizer flip, not a manual dismiss) 45ms
+   × PanelPage — dismissible home hints > ORGANIZER first-term hint auto-hides after a term is added via the real ORGANIZER 1-step stepper (not just terms mocked directly) 1016ms
+   × PanelPage — Rodzina section > "Mój dom" hamburger item renders and navigates to the family list (name + role tag, no avatars) 1008ms
+   × PanelPage — Rodzina section > inline add-member form submits and the new member appears without a reload 1010ms
+   × PanelPage — Rodzina section > the "Mój dom" section is reachable and shows the same family list for both GUEST and ORGANIZER accounts 1021ms
+   × PanelPage — Mój dom — no family > renders the no-family empty-state card with a CTA for a GUEST 1012ms
+   × PanelPage — Mój dom — no family > renders the no-family empty-state card with a CTA for an ORGANIZER 1008ms
+   × PanelPage — Mój dom — no family > the CTA opens CreateFamilyDialog 1009ms
+   × PanelPage — Mój dom — no family > step 1 submits the typed name to createOwnFamily and advances to step 2 1021ms
+   × PanelPage — Mój dom — no family > step 2 with drafted members calls createLightweightMembers once with all rows, then the family shows in Mój dom 1018ms
+   × PanelPage — Mój dom — no family > reopening the dialog after closing mid-flow starts clean on step 1 (local state, no stale name/step) 1014ms
+   × PanelPage — Mój dom — no family > step 2 skipped makes no members call and the family is still visible 1021ms
+   × PanelPage — Mój dom — no family > removing a middle draft member keeps the other rows' names/roles intact (stable keys, no bleed) 1018ms
+   × PanelPage — Mój dom — inline family rename > calls renameFamily and updates the heading in place 1020ms
+   × PanelPage — Mój dom — inline family rename > network error shows an inline message and restores the previous name 1013ms
+   × PanelPage — Mój dom — remove family member > removes a family member and refreshes the list 1023ms
+   × PanelPage — Mój dom — remove family member > shows an inline error when member removal is rejected (e.g. last guardian 409) 1021ms
+   × PanelPage — organizer join-request pending action > an undefined pending-requests result still renders the panel with no item 1022ms
+   × PanelPage — organizer join-request pending action > a failed pending-requests fetch is logged and the panel still renders 1022ms
+⎯⎯⎯⎯⎯⎯ Failed Tests 27 ⎯⎯⎯⎯⎯⎯⎯
+ Test Files  1 failed | 1 passed (2)
+      Tests  27 failed | 84 passed (111)

@@ -13,7 +13,7 @@ import enum
 import uuid
 from datetime import date
 
-from sqlalchemy import Date, Enum, ForeignKey, String
+from sqlalchemy import Date, Enum, ForeignKey, SmallInteger, String
 from sqlalchemy.dialects import postgresql
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -60,6 +60,8 @@ class UserProfile(BaseEntity):
     row backs it, so there is nothing to log in with."""
     display_name: Mapped[str] = mapped_column(String(255), nullable=False)
     email: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    birth_year: Mapped[int | None] = mapped_column(SmallInteger, nullable=True)
+    """Set only for CHILD family members (`app.families.models.FamilyRoleType`)."""
 
 
 class UserRole(BaseEntity):

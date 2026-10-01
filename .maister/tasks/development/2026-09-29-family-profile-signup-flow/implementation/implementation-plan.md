@@ -32,18 +32,18 @@ All paths below are relative to the repo root (`C:\Users\karas\Desktop\group-thi
 **Files to Modify:** src/backend/alembic/versions/0044_user_profiles_birth_year.py, src/backend/app/users/models.py, src/backend/app/families/models.py, src/backend/tests/test_user_profile_birth_year.py
 **Estimated Steps:** 6
 
-- [ ] 1.0 Complete the database layer
-  - [ ] 1.1 Write 2 focused tests in the new `tests/test_user_profile_birth_year.py` (integration, real PostgreSQL, `action_condition_expectedResult` naming)
+- [x] 1.0 Complete the database layer
+  - [x] 1.1 Write 2 focused tests in the new `tests/test_user_profile_birth_year.py` (integration, real PostgreSQL, `action_condition_expectedResult` naming)
     - `test_saveUserProfile_withBirthYear_persistsSmallInt`: persist a `UserProfile` with `birth_year=2018`, re-read it in a fresh select, and assert 2018.
     - `test_saveUserProfile_withoutBirthYear_defaultsNull`: persist it without the field and assert `None`.
-  - [ ] 1.2 Create `alembic/versions/0044_user_profiles_birth_year.py` with `revision = "0044"` and `down_revision = "0043"`. Copy the header shape from `0043_restore_admin_permission.py`.
+  - [x] 1.2 Create `alembic/versions/0044_user_profiles_birth_year.py` with `revision = "0044"` and `down_revision = "0043"`. Copy the header shape from `0043_restore_admin_permission.py`.
     - `upgrade`: `op.add_column("user_profiles", sa.Column("birth_year", sa.SmallInteger(), nullable=True))`.
     - `downgrade`: `op.drop_column("user_profiles", "birth_year")`.
     - Schema only: no backfill, no index, no CHECK (spec "Database Migration").
-  - [ ] 1.3 Add `birth_year: Mapped[int | None] = mapped_column(SmallInteger, nullable=True)` to `UserProfile` in `app/users/models.py`, with a one-line docstring or comment: "set only for CHILD family members".
-  - [ ] 1.4 In `app/families/models.py`, fix the stale "CHILD currently unused" `FamilyRoleType` docstring. Do not change behaviour.
-  - [ ] 1.5 Apply the migration locally (in `src/backend`): `set -a; . ./.env; set +a; uv run alembic upgrade head`. Verify that `uv run alembic current` reports `0044`. Run `uv run alembic downgrade -1 && uv run alembic upgrade head` once to prove reversibility.
-  - [ ] 1.6 Ensure the database layer tests pass
+  - [x] 1.3 Add `birth_year: Mapped[int | None] = mapped_column(SmallInteger, nullable=True)` to `UserProfile` in `app/users/models.py`, with a one-line docstring or comment: "set only for CHILD family members".
+  - [x] 1.4 In `app/families/models.py`, fix the stale "CHILD currently unused" `FamilyRoleType` docstring. Do not change behaviour.
+  - [x] 1.5 Apply the migration locally (in `src/backend`): `set -a; . ./.env; set +a; uv run alembic upgrade head`. Verify that `uv run alembic current` reports `0044`. Run `uv run alembic downgrade -1 && uv run alembic upgrade head` once to prove reversibility.
+  - [x] 1.6 Ensure the database layer tests pass
     - `uv run pytest tests/test_user_profile_birth_year.py -q`
     - Run ONLY these 2 tests.
 
@@ -59,8 +59,8 @@ All paths below are relative to the repo root (`C:\Users\karas\Desktop\group-thi
 **Files to Modify:** src/backend/app/families/schemas.py, src/backend/app/families/guardians.py, src/backend/app/families/members.py, src/backend/app/families/service.py, src/backend/app/families/router.py, src/backend/app/core/authorization_matrix.py, src/backend/tests/test_lightweight_family_members.py, src/backend/tests/test_authorization_matrix.py
 **Estimated Steps:** 10
 
-- [ ] 2.0 Complete role-aware member data and child birth year (R5, R7, R9-R11)
-  - [ ] 2.1 Write up to 7 new focused tests (the red-gate test already exists and is the eighth)
+- [x] 2.0 Complete role-aware member data and child birth year (R5, R7, R9-R11)
+  - [x] 2.1 Write up to 7 new focused tests (the red-gate test already exists and is the eighth)
     - In `tests/test_lightweight_family_members.py`:
       - `test_createMembers_childWithBirthYear_persistsAndReturnsIt`: POST `/api/families/mine/members` with a CHILD `birth_year=2018` and a second CHILD with the field omitted. The response and a subsequent `GET /guardians` show 2018 and `null`, and `role_type == "CHILD"`.
       - `test_createMembers_guardianWithBirthYear_returns400`.
@@ -70,24 +70,24 @@ All paths below are relative to the repo root (`C:\Users\karas\Desktop\group-thi
       - `test_patchBirthYear_guardianTargetOrExtraField_returns400`: a target member with the GUARDIAN role gets 400 "Rok urodzenia można ustawić tylko dziecku". A body `{"birth_year": 2018, "name": "x"}` gets 400 because `extra="forbid"`.
     - In `tests/test_authorization_matrix.py`:
       - `test_resolveRequirement_patchFamilyGuardian_requiresEdit`: `resolve_requirement("PATCH", "/api/families/x/guardians/y")` resolves to EDIT.
-  - [ ] 2.2 In `app/families/schemas.py`:
+  - [x] 2.2 In `app/families/schemas.py`:
     - Add a shared module-level helper or validator, `_birth_year_not_in_future(v)`, that rejects `v > date.today().year` and reads `date.today()` on **every** call. A static `Field(le=...)` is forbidden.
     - Lower bound: `Field(default=None, ge=1900)`.
     - Add `birth_year: int | None = Field(default=None, ge=1900)` plus a `field_validator("birth_year")` to `CreateLightweightMemberRequest`. Add a `model_validator(mode="after")` that rejects a non-null `birth_year` when `role_type == "GUARDIAN"`.
     - Add `UpdateFamilyMemberRequest` with `model_config = ConfigDict(extra="forbid")` and a **required** `birth_year: int | None = Field(..., ge=1900)`, using the same field validator.
     - Add `role_type: Literal["GUARDIAN", "CHILD"]` and `birth_year: int | None = None` to `GuardianResponse`.
-  - [ ] 2.3 In `app/families/guardians.py`, change `build_guardian_responses` (55-76) to fill `role_type` from the already-loaded `FamilyRole` and `birth_year` from the already-loaded `UserProfile`. `birth_year` is forced to `None` for GUARDIAN rows. Add no new query.
-  - [ ] 2.4 In `app/families/members.py`, give `create_lightweight_family_member` a `birth_year: int | None = None` parameter and set it on the new `UserProfile`. `create_lightweight_members_batch` passes `item.birth_year` through.
-  - [ ] 2.5 In `app/families/guardians.py`, add the public `get_family_for_guardian(db, family_id, caller_party_id) -> Family`, which calls `repository.get_family` (404) and then `_require_family_guardian` (403). Add `update_child_birth_year(db, family_id, family_membership_id, caller_party_id, birth_year) -> GuardianResponse`. It checks, in order:
+  - [x] 2.3 In `app/families/guardians.py`, change `build_guardian_responses` (55-76) to fill `role_type` from the already-loaded `FamilyRole` and `birth_year` from the already-loaded `UserProfile`. `birth_year` is forced to `None` for GUARDIAN rows. Add no new query.
+  - [x] 2.4 In `app/families/members.py`, give `create_lightweight_family_member` a `birth_year: int | None = None` parameter and set it on the new `UserProfile`. `create_lightweight_members_batch` passes `item.birth_year` through.
+  - [x] 2.5 In `app/families/guardians.py`, add the public `get_family_for_guardian(db, family_id, caller_party_id) -> Family`, which calls `repository.get_family` (404) and then `_require_family_guardian` (403). Add `update_child_birth_year(db, family_id, family_membership_id, caller_party_id, birth_year) -> GuardianResponse`. It checks, in order:
     1. `get_family_for_guardian`;
     2. the membership exists, has `to_family_id == family_id` and is active (`valid_to IS NULL`), else `EntityNotFoundException`;
     3. the role is CHILD, else `ValueError("Rok urodzenia można ustawić tylko dziecku")`;
     4. it sets `UserProfile.birth_year`, flushes, and returns the built response for that member. Reuse `build_guardian_responses`.
-  - [ ] 2.6 Export `get_family_for_guardian` and `update_child_birth_year` from `app/families/service.py` (`__all__`). Routers import only from the facade.
-  - [ ] 2.7 In `app/families/router.py`, add `PATCH /api/families/{family_id}/guardians/{family_membership_id}` with `EditPrincipal`, mirroring the DELETE route (164-165). It resolves the caller via `get_profile_by_principal`, calls `service.update_child_birth_year`, and returns 200 `GuardianResponse`.
-  - [ ] 2.8 In `app/core/authorization_matrix.py` (about line 134), widen the DELETE row for `^/api/families/[^/]+/guardians/[^/]+$` to `_methods("PATCH", "DELETE")`. Leave the GET row (#28, READ) unchanged.
-  - [ ] 2.9 Run `uv run ruff check app/families app/core` and `uv run mypy app/families` if configured. Fix only issues introduced by this group.
-  - [ ] 2.10 Ensure the group's tests pass
+  - [x] 2.6 Export `get_family_for_guardian` and `update_child_birth_year` from `app/families/service.py` (`__all__`). Routers import only from the facade.
+  - [x] 2.7 In `app/families/router.py`, add `PATCH /api/families/{family_id}/guardians/{family_membership_id}` with `EditPrincipal`, mirroring the DELETE route (164-165). It resolves the caller via `get_profile_by_principal`, calls `service.update_child_birth_year`, and returns 200 `GuardianResponse`.
+  - [x] 2.8 In `app/core/authorization_matrix.py` (about line 134), widen the DELETE row for `^/api/families/[^/]+/guardians/[^/]+$` to `_methods("PATCH", "DELETE")`. Leave the GET row (#28, READ) unchanged.
+  - [x] 2.9 Run `uv run ruff check app/families app/core` and `uv run mypy app/families` if configured. Fix only issues introduced by this group.
+  - [x] 2.10 Ensure the group's tests pass
     - `uv run pytest tests/test_lightweight_family_members.py tests/test_authorization_matrix.py -q`
     - The red-gate test `test_listGuardians_childAndCaller_exposeRoleTypePerMember` is now GREEN, and the file's existing tests stay green.
 
@@ -104,20 +104,20 @@ All paths below are relative to the repo root (`C:\Users\karas\Desktop\group-thi
 **Files to Modify:** src/backend/app/families/guardians.py, src/backend/app/families/primary_contact.py, src/backend/app/families/service.py, src/backend/app/families/router.py, src/backend/tests/test_families.py
 **Estimated Steps:** 7
 
-- [ ] 3.0 Restrict GuardianResponse-producing family routes to the family's own guardians
-  - [ ] 3.1 Write 6 focused tests in `tests/test_families.py`
+- [x] 3.0 Restrict GuardianResponse-producing family routes to the family's own guardians
+  - [x] 3.1 Write 6 focused tests in `tests/test_families.py`
     - `test_getFamilyAndGuardians_unrelatedUser_returns403`: both `GET /api/families/{id}` and `GET /api/families/{id}/guardians`.
     - `test_getFamilyAndGuardians_guardianOfOtherFamily_returns403`
     - `test_getFamilyAndGuardians_ownGuardian_returns200WithRoleFields`: the guardians items include `role_type` and `birth_year`.
     - `test_getFamilyAndGuardians_unknownFamily_returns404` (random UUID).
     - `test_addGuardian_nonGuardianOrUnknownFamily_rejectedAndUnchanged`: 403 for a non-guardian, after which the family's member count is unchanged; 404 for a random UUID; 201 for the own guardian.
     - `test_makePrimary_nonGuardianOrUnknownFamily_rejectedAndUnchanged`: 403 for a non-guardian, after which the primary contact is unchanged; 404 for a random UUID; 200 for the own guardian. Membership-of-another-family still returns 404.
-  - [ ] 3.2 Router `GET /api/families/{family_id}` (`router.py:118`) and `GET /api/families/{family_id}/guardians`: resolve the caller profile with `get_profile_by_principal`, then call `service.get_family_for_guardian(db, family_id, profile.party_id)` before building the response. Keep `ReadPrincipal`.
-  - [ ] 3.3 `add_guardian(db, family_id, caller_party_id, data)` in `guardians.py:28`: add the parameter and call `get_family_for_guardian` first, then the existing logic.
-  - [ ] 3.4 `make_primary_contact(db, family_id, family_membership_id, caller_party_id)` in `primary_contact.py:18`: add the parameter and call `get_family_for_guardian` first (import it from `guardians`, not the facade, to avoid an intra-package cycle), then the existing logic, including the existing 404 for a foreign or unknown membership.
-  - [ ] 3.5 Routers `add_guardian` (`router.py:130`) and `make_primary_contact` (`router.py:151`): keep `EditPrincipal`, resolve the caller profile, and pass `caller_party_id`. Update any facade re-exports in `service.py` if the signatures are re-declared there.
-  - [ ] 3.6 Re-run the existing guardian-self reads unchanged: `test_families.py` (186, 218, 231-235, 258, 269, 300) and `test_lightweight_family_members.py` (133, 187).
-  - [ ] 3.7 Ensure the group's tests pass
+  - [x] 3.2 Router `GET /api/families/{family_id}` (`router.py:118`) and `GET /api/families/{family_id}/guardians`: resolve the caller profile with `get_profile_by_principal`, then call `service.get_family_for_guardian(db, family_id, profile.party_id)` before building the response. Keep `ReadPrincipal`.
+  - [x] 3.3 `add_guardian(db, family_id, caller_party_id, data)` in `guardians.py:28`: add the parameter and call `get_family_for_guardian` first, then the existing logic.
+  - [x] 3.4 `make_primary_contact(db, family_id, family_membership_id, caller_party_id)` in `primary_contact.py:18`: add the parameter and call `get_family_for_guardian` first (import it from `guardians`, not the facade, to avoid an intra-package cycle), then the existing logic, including the existing 404 for a foreign or unknown membership.
+  - [x] 3.5 Routers `add_guardian` (`router.py:130`) and `make_primary_contact` (`router.py:151`): keep `EditPrincipal`, resolve the caller profile, and pass `caller_party_id`. Update any facade re-exports in `service.py` if the signatures are re-declared there.
+  - [x] 3.6 Re-run the existing guardian-self reads unchanged: `test_families.py` (186, 218, 231-235, 258, 269, 300) and `test_lightweight_family_members.py` (133, 187).
+  - [x] 3.7 Ensure the group's tests pass
     - `uv run pytest tests/test_families.py tests/test_lightweight_family_members.py -q`
     - Run only these files.
 
@@ -133,8 +133,8 @@ All paths below are relative to the repo root (`C:\Users\karas\Desktop\group-thi
 **Files to Modify:** src/backend/app/groups/application/memberships.py, src/backend/app/groups/schemas.py, src/backend/tests/test_term_attendees.py
 **Estimated Steps:** 8
 
-- [ ] 4.0 Extend the organizer attendees use case and harden formalize
-  - [ ] 4.1 Write 7 focused tests in the new `tests/test_term_attendees.py`. Reuse or copy the `_rsvp_with_family` seeding style from `test_group_privacy.py`, and create children through `POST /api/families/mine/members` with `birth_year`.
+- [x] 4.0 Extend the organizer attendees use case and harden formalize
+  - [x] 4.1 Write 7 focused tests in the new `tests/test_term_attendees.py`. Reuse or copy the `_rsvp_with_family` seeding style from `test_group_privacy.py`, and create children through `POST /api/families/mine/members` with `birth_year`.
     - `test_listAttendees_familyWithChildren_returnsChildBirthYearsOnly`: guardians excluded; ordered by `birth_year` DESC with nulls last; the null is kept; the JSON has no names or ids inside `children`.
     - `test_listAttendees_attendeeWithoutFamilyOrChildren_returnsEmptyChildren`
     - `test_listAttendees_withdrawnRsvp_excluded`
@@ -142,13 +142,13 @@ All paths below are relative to the repo root (`C:\Users\karas\Desktop\group-thi
     - `test_listAttendees_termOfOtherGroup_returns404`: also covers an unknown term UUID.
     - `test_listAttendees_partyInTwoFamilies_resolvesOldestFamily`: `family_id`, `family_name` and `children` come from the earlier-created family. Repeat the call to show the result is stable.
     - `test_formalize_termOfOtherGroup_returns404AndCreatesNoMembership`
-  - [ ] 4.2 In `app/groups/schemas.py`, add `TermAttendeeChildResponse(BaseModel)` with `birth_year: int | None`, and add `children: list[TermAttendeeChildResponse] = []` (use `Field(default_factory=list)`) to `TermAttendeeResponse` (338).
-  - [ ] 4.3 In `memberships.py`, add `_require_term_in_group(db, group_id, term_id)`. It loads the term through `repository.get_term` and raises `EntityNotFoundException` when the term is missing or `term.circle_group_id != group_id`.
-  - [ ] 4.4 Call `_require_term_in_group` right after `_require_active_organizer` in both `list_term_attendees_for_formalization` (89) and `formalize_group_from_term` (123), so the order is 403 first, then 404.
-  - [ ] 4.5 In `_resolve_party_families` (64-86), add `.order_by(Family.created_at, Family.id)`. With the existing `setdefault`, the oldest family wins. Update the docstring to state this.
-  - [ ] 4.6 Add `_resolve_family_child_birth_years(db, family_ids) -> dict[uuid.UUID, list[int | None]]`. It is **one** batched select: `FamilyMembership` (`to_family_id IN ids`, `valid_to IS NULL`) → `FamilyRole` (role_type CHILD) → `UserProfile` on `party_id`, selecting `(to_family_id, birth_year)` and ordered `birth_year DESC NULLS LAST`. Group the rows in Python. Import `app.families.models` and `app.users.models.UserProfile` directly, as `_resolve_party_families` does; do NOT import `app.families.service`, because that would create a cycle. Return early with `{}` when `family_ids` is empty.
-  - [ ] 4.7 In `list_term_attendees_for_formalization`, call the new function once over all resolved family ids and fill `children` per attendee (`[]` when the attendee has no family). Leave the existing per-membership `_group_role_party_id` loop untouched.
-  - [ ] 4.8 Ensure the group's tests pass
+  - [x] 4.2 In `app/groups/schemas.py`, add `TermAttendeeChildResponse(BaseModel)` with `birth_year: int | None`, and add `children: list[TermAttendeeChildResponse] = []` (use `Field(default_factory=list)`) to `TermAttendeeResponse` (338).
+  - [x] 4.3 In `memberships.py`, add `_require_term_in_group(db, group_id, term_id)`. It loads the term through `repository.get_term` and raises `EntityNotFoundException` when the term is missing or `term.circle_group_id != group_id`.
+  - [x] 4.4 Call `_require_term_in_group` right after `_require_active_organizer` in both `list_term_attendees_for_formalization` (89) and `formalize_group_from_term` (123), so the order is 403 first, then 404.
+  - [x] 4.5 In `_resolve_party_families` (64-86), add `.order_by(Family.created_at, Family.id)`. With the existing `setdefault`, the oldest family wins. Update the docstring to state this.
+  - [x] 4.6 Add `_resolve_family_child_birth_years(db, family_ids) -> dict[uuid.UUID, list[int | None]]`. It is **one** batched select: `FamilyMembership` (`to_family_id IN ids`, `valid_to IS NULL`) → `FamilyRole` (role_type CHILD) → `UserProfile` on `party_id`, selecting `(to_family_id, birth_year)` and ordered `birth_year DESC NULLS LAST`. Group the rows in Python. Import `app.families.models` and `app.users.models.UserProfile` directly, as `_resolve_party_families` does; do NOT import `app.families.service`, because that would create a cycle. Return early with `{}` when `family_ids` is empty.
+  - [x] 4.7 In `list_term_attendees_for_formalization`, call the new function once over all resolved family ids and fill `children` per attendee (`[]` when the attendee has no family). Leave the existing per-membership `_group_role_party_id` loop untouched.
+  - [x] 4.8 Ensure the group's tests pass
     - `uv run pytest tests/test_term_attendees.py tests/test_add_active_membership.py tests/test_group_privacy.py -q`
     - The existing formalize and privacy tests stay green.
 
@@ -164,8 +164,8 @@ All paths below are relative to the repo root (`C:\Users\karas\Desktop\group-thi
 **Files to Modify:** src/backend/app/groups/infrastructure/repository.py, src/backend/app/groups/application/terms.py, src/backend/app/groups/service.py, src/backend/app/groups/schemas.py, src/backend/app/groups/router/terms.py, src/backend/tests/test_circles_router.py, src/backend/tests/test_group_privacy.py
 **Estimated Steps:** 8
 
-- [ ] 5.0 Add organizer-only signup counts to the terms list and prove the public payloads stay child-free
-  - [ ] 5.1 Write 5 focused tests
+- [x] 5.0 Add organizer-only signup counts to the terms list and prove the public payloads stay child-free
+  - [x] 5.1 Write 5 focused tests
     - In `tests/test_circles_router.py`:
       - `test_listTerms_organizer_returnsAttendeeAndChildCounts`: two RSVPs (child_count 2 and 1) plus one withdrawn RSVP give 2/3; a term with no RSVPs gives 0/0.
       - `test_listTerms_nonOrganizerMember_returnsNullCounts`
@@ -173,17 +173,17 @@ All paths below are relative to the repo root (`C:\Users\karas\Desktop\group-thi
       - (optional, per the spec) `test_listTerms_principalWithoutProfile_returns200NullCounts`. Write it only if an existing fixture can create a profile-less principal easily; otherwise note that it was skipped in the work log.
     - In `tests/test_group_privacy.py`:
       - `test_publicTermViewAndAccess_familyWithAgedChildren_exposeNoChildData`: an attendee's family has CHILD members with `birth_year`. The public circle/term view and the `GroupAccessResponse` JSON, searched recursively over keys, contain no `birth_year`, `children`, `attendee_count` or `child_count` keys. RSVP `child_count`, if part of an existing public shape, is checked against the existing contract only.
-  - [ ] 5.2 In `infrastructure/repository.py`, add `count_active_attendances_by_term(db, term_ids) -> dict[uuid.UUID, tuple[int, int]]`. It is one grouped query: `SELECT term_id, COUNT(*), COALESCE(SUM(child_count), 0) ... WHERE term_id IN (...) AND withdrawn_at IS NULL GROUP BY term_id`. Reuse the withdrawn filter semantics of `list_active_attendances_for_term` (334). Return early with `{}` when `term_ids` is empty.
-  - [ ] 5.3 In `application/terms.py`, add `list_terms_with_counts(db, circle_group_id, caller_party_id: uuid.UUID | None) -> list[tuple[Term, int | None, int | None]]`. It calls `_is_active_organizer` (from `circles.py`) once. Only for an organizer does it run the grouped query; missing term ids default to (0, 0). Non-organizers and callers without a profile get `(None, None)`.
-  - [ ] 5.4 Export it from `app/groups/service.py`.
-  - [ ] 5.5 In `schemas.py`, add `attendee_count: int | None = None` and `child_count: int | None = None` to `TermResponse` (132). Follow the defaulted derived-field precedent of `FamilyOut.child_count`.
-  - [ ] 5.6 In `router/terms.py`, change `list_terms` (42-48):
+  - [x] 5.2 In `infrastructure/repository.py`, add `count_active_attendances_by_term(db, term_ids) -> dict[uuid.UUID, tuple[int, int]]`. It is one grouped query: `SELECT term_id, COUNT(*), COALESCE(SUM(child_count), 0) ... WHERE term_id IN (...) AND withdrawn_at IS NULL GROUP BY term_id`. Reuse the withdrawn filter semantics of `list_active_attendances_for_term` (334). Return early with `{}` when `term_ids` is empty.
+  - [x] 5.3 In `application/terms.py`, add `list_terms_with_counts(db, circle_group_id, caller_party_id: uuid.UUID | None) -> list[tuple[Term, int | None, int | None]]`. It calls `_is_active_organizer` (from `circles.py`) once. Only for an organizer does it run the grouped query; missing term ids default to (0, 0). Non-organizers and callers without a profile get `(None, None)`.
+  - [x] 5.4 Export it from `app/groups/service.py`.
+  - [x] 5.5 In `schemas.py`, add `attendee_count: int | None = None` and `child_count: int | None = None` to `TermResponse` (132). Follow the defaulted derived-field precedent of `FamilyOut.child_count`.
+  - [x] 5.6 In `router/terms.py`, change `list_terms` (42-48):
     - Resolve the caller profile with `get_profile_by_principal` inside `try/except EntityNotFoundException` → `caller_party_id = None`. This is the same pattern as `app/groups/application/public_view.py:83`.
     - Call `service.list_terms_with_counts`.
     - Build each `TermResponse` with `model_validate(term)` and then set the two counts.
     - Other term endpoints are untouched, so the schema defaults give `null`.
-  - [ ] 5.7 Run `uv run ruff check app/groups`.
-  - [ ] 5.8 Ensure the group's tests pass
+  - [x] 5.7 Run `uv run ruff check app/groups`.
+  - [x] 5.8 Ensure the group's tests pass
     - `uv run pytest tests/test_circles_router.py tests/test_group_privacy.py -q`
 
 **Acceptance Criteria:**
@@ -199,8 +199,8 @@ All paths below are relative to the repo root (`C:\Users\karas\Desktop\group-thi
 **Files to Modify:** src/frontend/src/utils/url.ts, src/frontend/src/utils/plural.ts, src/frontend/src/utils/age.ts, src/frontend/src/test/url.test.ts, src/frontend/src/test/plural.test.ts, src/frontend/src/test/age.test.ts
 **Estimated Steps:** 5
 
-- [ ] 6.0 Complete the pure helpers used by groups 8, 9 and 10
-  - [ ] 6.1 Write 6 focused unit tests (Vitest, in `src/test/`)
+- [x] 6.0 Complete the pure helpers used by groups 8, 9 and 10
+  - [x] 6.1 Write 6 focused unit tests (Vitest, in `src/test/`)
     - `url.test.ts`:
       - `isSafeReturnPath` accepts `/x/grupa/1/term/2`.
       - It rejects `""`, `null`/`undefined`, `//evil.com`, `https://evil.com`, `/\evil`, `\\evil` and `evil`. Use a table-driven `it.each` that mirrors mockup 4's visibility table.
@@ -211,10 +211,10 @@ All paths below are relative to the repo root (`C:\Users\karas\Desktop\group-thi
       - `approxAge(year)` is `dayjs().year() - year`. Freeze time with `vi.setSystemTime`.
       - `formatApproxAge` gives "ok. 1 rok", "ok. 3 lata" and "ok. 8 lat".
       - `formatChildAges([2018, 2021, null])` gives "5, 8 lat, wiek nieznany" (computed against the frozen year): the numbers are sorted ascending to match the order in mockup 9, the plural follows the **last** number, and unknown years come last. An all-unknown list gives "wiek nieznany". The empty list is handled by the caller, which shows "brak dzieci w profilu rodziny".
-  - [ ] 6.2 `src/utils/url.ts`: add `export function isSafeReturnPath(value: string | null | undefined): value is string`. It returns true only for a non-empty string that starts with `/`, does not start with `//`, and contains no `\`. Place it next to `isValidImageUrl`.
-  - [ ] 6.3 `src/utils/plural.ts`: add `pluralPl(n, one, few, many)` with the standard Polish rule. Use `one` only for n === 1. Use `few` when n % 10 is 2-4 and n % 100 is not 12-14. Use `many` otherwise.
-  - [ ] 6.4 `src/utils/age.ts`: add `approxAge(birthYear)`, `formatApproxAge(age)` ("ok. N rok/lata/lat") and `formatChildAges(birthYears)` ("5, 8 lat" plus "wiek nieznany"). Import `dayjs` **only** from `src/utils/dayjs.ts`.
-  - [ ] 6.5 Ensure the utility tests pass
+  - [x] 6.2 `src/utils/url.ts`: add `export function isSafeReturnPath(value: string | null | undefined): value is string`. It returns true only for a non-empty string that starts with `/`, does not start with `//`, and contains no `\`. Place it next to `isValidImageUrl`.
+  - [x] 6.3 `src/utils/plural.ts`: add `pluralPl(n, one, few, many)` with the standard Polish rule. Use `one` only for n === 1. Use `few` when n % 10 is 2-4 and n % 100 is not 12-14. Use `many` otherwise.
+  - [x] 6.4 `src/utils/age.ts`: add `approxAge(birthYear)`, `formatApproxAge(age)` ("ok. N rok/lata/lat") and `formatChildAges(birthYears)` ("5, 8 lat" plus "wiek nieznany"). Import `dayjs` **only** from `src/utils/dayjs.ts`.
+  - [x] 6.5 Ensure the utility tests pass
     - `npx vitest run src/test/url.test.ts src/test/plural.test.ts src/test/age.test.ts`
 
 **Acceptance Criteria:**
@@ -229,23 +229,23 @@ All paths below are relative to the repo root (`C:\Users\karas\Desktop\group-thi
 **Files to Modify:** src/frontend/src/api/terms.ts, src/frontend/src/api/groups.ts, src/frontend/src/api/reservations.ts, src/frontend/src/pages/panel/panelHelpers.ts, src/frontend/src/pages/panel/PanelDataContext.tsx, src/frontend/src/pages/panel/PanelModals.tsx, src/frontend/src/components/panel/EditTermDialog.tsx, src/frontend/src/components/panel/FirstTermStepperGuest.tsx, src/frontend/src/components/panel/FirstTermStepperOrganizer.tsx, src/frontend/src/pages/panel/views/RzeczyView.tsx, src/frontend/src/pages/panel/views/SpotkaniaView.tsx, src/frontend/src/pages/panel/views/HomeView.tsx, src/frontend/src/test/PanelPage.test.tsx, src/frontend/src/test/RzeczyViewCategory.test.tsx
 **Estimated Steps:** 10
 
-- [ ] 7.0 Widen Term and Group ids to `string` end to end, with no `String(...)` wrappers and no `Number()` or `parseInt` on ids
-  - [ ] 7.1 Capture the type-check **baseline before any edit**. Run `npx tsc -p tsconfig.app.json --noEmit > <scratch>/tsc-baseline.txt` (the error count is about 60) and record the count and file list in the work log. Every later tsc comparison uses this baseline.
-  - [ ] 7.2 Write or update 3 focused tests in `src/test/PanelPage.test.tsx`
+- [x] 7.0 Widen Term and Group ids to `string` end to end, with no `String(...)` wrappers and no `Number()` or `parseInt` on ids
+  - [x] 7.1 Capture the type-check **baseline before any edit**. Run `npx tsc -p tsconfig.app.json --noEmit > <scratch>/tsc-baseline.txt` (the error count is about 60) and record the count and file list in the work log. Every later tsc comparison uses this baseline.
+  - [x] 7.2 Write or update 3 focused tests in `src/test/PanelPage.test.tsx`
     - `"Nowy termin" group select keeps the selected group's UUID`: pick a group in the PanelModals select, submit, and assert that `createTerm` receives `circle_group_id: "<uuid>"` (not `NaN`).
     - `formalize picker sends string party ids`: in the EditTermDialog formalize picker, assert that `formalizeGroupFromTerm(groupUuid, termUuid, ["<party-uuid>"])` is called. Fixtures gain `children: []`.
     - `getTerms is called with the group's UUID string`: assert `toHaveBeenCalledWith("<group-uuid>")` once the fixtures are converted.
-  - [ ] 7.3 `src/api/terms.ts`:
+  - [x] 7.3 `src/api/terms.ts`:
     - Change `TermResponse.id` and `circle_group_id`, `CreateTermRequest.circle_group_id`, `NeededItemResponse.term_id` and `CreateNeededItemRequest.term_id` to `string`.
     - Change the params of `getTerms`, `getTerm`, `updateTerm` and `getNeededItems` to `string`.
     - Add `attendee_count: number | null` and `child_count: number | null` to `TermResponse`.
-  - [ ] 7.4 `src/api/groups.ts`:
+  - [x] 7.4 `src/api/groups.ts`:
     - Change `GroupResponse.id` and `party_id`, `LeadershipResponse.to_group_id`, `MembershipResponse.to_group_id`, `TermAttendeeResponse.party_id` and `family_id`, and `MyAttendanceResponse.term_id` and `group_id` to `string`.
     - Change the params of `getGroup`, `updateGroupLayoutMode`, `getCurrentLeadership`, `getLeadershipHistory`, `getMembershipsForCircle`, `getTermAttendeesForFormalization(groupId: string, termId: string)` and `formalizeGroupFromTerm(groupId: string, termId: string, partyIds: string[])` to `string`.
     - Add `children: { birth_year: number | null }[]` to `TermAttendeeResponse`.
     - Fix the stale comment at 318-319, which says family-less attendees are not selectable.
-  - [ ] 7.5 `src/api/reservations.ts`: `ReservationResponse.term_id?: string`. Leave the families, public, RSVP, join-request, exchange, pledges, termItemListings, `ModerationGroupResponse` and `AssignLeadershipRequest` types as `number`.
-  - [ ] 7.6 Consumer adjustments (spec R29 list):
+  - [x] 7.5 `src/api/reservations.ts`: `ReservationResponse.term_id?: string`. Leave the families, public, RSVP, join-request, exchange, pledges, termItemListings, `ModerationGroupResponse` and `AssignLeadershipRequest` types as `number`.
+  - [x] 7.6 Consumer adjustments (spec R29 list):
     - `panelHelpers.ts:99`: `termPublicPath(group, termId: string)`.
     - `PanelDataContext.tsx`:
       - `editTermId` (315), `editingGroupId` (320) and `termGroupId` (443) become `string | null`;
@@ -256,12 +256,12 @@ All paths below are relative to the repo root (`C:\Users\karas\Desktop\group-thi
     - `FirstTermStepperGuest.tsx:42` and `FirstTermStepperOrganizer.tsx:33`: `createdTermId: string | null`. `FirstTermStepperOrganizer.tsx:20`: `circleGroupId: string | null`.
     - `RzeczyView.tsx:113`: `(id): id is string`.
     - `SpotkaniaView.tsx` and `HomeView.tsx`: touch these only if tsc still reports new errors there after the changes above.
-  - [ ] 7.7 Grep check: `rg -n "Number\(|parseInt\(|String\(" src/frontend/src` over the touched files. No numeric coercion of a Term or Group id and no `String(...)` wrappers may remain or be introduced. The category and product `Number(id)` calls are out of scope and stay.
-  - [ ] 7.8 Convert the fixtures to UUID-like strings.
+  - [x] 7.7 Grep check: `rg -n "Number\(|parseInt\(|String\(" src/frontend/src` over the touched files. No numeric coercion of a Term or Group id and no `String(...)` wrappers may remain or be introduced. The category and product `Number(id)` calls are out of scope and stay.
+  - [x] 7.8 Convert the fixtures to UUID-like strings.
     - `PanelPage.test.tsx`: `mockGroup` 229-230, the term fixtures 263-276, and the listed sites at 370, 433, 479, 493, 509, 708, 748, 761, 774, 792, 804, 1208-1323, 1460-1690, 2109-2110 and 2720-2729. Update the matching `toHaveBeenCalledWith(<id>)` assertions.
     - `RzeczyViewCategory.test.tsx`: `term_id` at 87 and `mockTerm` at 98-99.
-  - [ ] 7.9 Re-run `npx tsc -p tsconfig.app.json --noEmit` and diff it against the 7.1 baseline. Production code must have **zero new errors**, and all fixture errors introduced by the widening must be resolved. The pre-existing baseline errors may remain.
-  - [ ] 7.10 Ensure the group's tests pass
+  - [x] 7.9 Re-run `npx tsc -p tsconfig.app.json --noEmit` and diff it against the 7.1 baseline. Production code must have **zero new errors**, and all fixture errors introduced by the widening must be resolved. The pre-existing baseline errors may remain.
+  - [x] 7.10 Ensure the group's tests pass
     - `npx vitest run src/test/PanelPage.test.tsx src/test/RzeczyViewCategory.test.tsx`
 
 **Acceptance Criteria:**
@@ -323,8 +323,8 @@ All paths below are relative to the repo root (`C:\Users\karas\Desktop\group-thi
     - `MemberDraft.birthYear` holds the year, and `birth_year` is sent only for CHILD drafts.
 **Estimated Steps:** 10
 
-- [ ] 8.0 Complete the family view flow
-  - [ ] 8.1 Write 8 focused tests
+- [x] 8.0 Complete the family view flow
+  - [x] 8.1 Write 8 focused tests
     - Setup in `PanelPage.test.tsx`:
       - Add `role_type`/`birth_year` to `mockGuardians` (283-304), with one CHILD whose `birth_year` is 2018.
       - Give `renderPanel` (306-315) an optional `initialEntry` parameter, defaulting to `"/panel"`.
@@ -343,31 +343,31 @@ All paths below are relative to the repo root (`C:\Users\karas\Desktop\group-thi
          - Add `vi.mock("../api/families")` with `getMyFamilies` resolving a family whose `child_count` is 0.
          - Assert that the banner `href` equals `/panel/rodzina?returnTo=<encodeURIComponent(term path)>`.
          - The existing logged-in RSVP tests stay green.
-  - [ ] 8.2 `src/api/families.ts`:
+  - [x] 8.2 `src/api/families.ts`:
     - `GuardianResponse` gains `role_type: "GUARDIAN" | "CHILD"` and `birth_year: number | null`.
     - `CreateLightweightMemberRequest` gains `birth_year?: number | null`.
     - Add `updateChildBirthYear(familyId, membershipId, birthYear: number | null)`, which sends a PATCH to `/api/families/{familyId}/guardians/{membershipId}` with `{ birth_year }`. Keep the families id types unchanged.
-  - [ ] 8.3 `RsvpDialogLoggedIn.tsx`: change the banner link to ``to={`/panel/rodzina?returnTo=${encodeURIComponent(useLocation().pathname)}`}``. Nothing else changes.
-  - [ ] 8.4 `PanelDataContext.tsx`:
+  - [x] 8.3 `RsvpDialogLoggedIn.tsx`: change the banner link to ``to={`/panel/rodzina?returnTo=${encodeURIComponent(useLocation().pathname)}`}``. Nothing else changes.
+  - [x] 8.4 `PanelDataContext.tsx`:
     - Add `memberBirthYear` state next to `memberRole` (431-432).
     - `handleAddFamilyMember` (999-1013) sends `birth_year` only for CHILD. It resets name, role and year. On failure it shows `err.body.message` verbatim, in the same way as `handleRemoveFamilyMember` at 1015-1037, falling back to "Nie udało się dodać członka rodziny".
     - Add `saveChildBirthYear(membership, birthYear)`. It calls `updateChildBirthYear`, then `load({ silent: true })`, then shows the toast "Zapisano rok urodzenia", and returns or throws the error message for inline display. This follows the `saveRenameFamily` pattern (1046-1066).
     - Expose the new state and handler through the context value.
-  - [ ] 8.5 `RodzinaView.tsx` labels: implement the role label with the self-check precedence (R6), replacing the current `(opiekun)` fallback at about 113-114.
-  - [ ] 8.6 `RodzinaView.tsx` add form: add the birth-year `Field` under the role toggle (137-169), visible only when `memberRole === "CHILD"`. Clear the year when switching to GUARDIAN. Show the client validation text "Podaj rok urodzenia z zakresu 1900–YYYY" (YYYY is `dayjs().year()` from `src/utils/dayjs.ts`) for invalid input and disable submit. Show the live "ok. N lat" hint using `formatApproxAge`.
-  - [ ] 8.7 `RodzinaView.tsx` CHILD row: add the meta line "rocznik YYYY · ok. N lat" plus the pencil button, or "+ Dodaj rok urodzenia" when the year is null. Add the inline editor, following the rename editor at 56-91, with local `editingBirthYearFor`, draft and error state. One row edits at a time. Enter saves, Esc cancels, and blur with no change cancels.
-  - [ ] 8.8 `RodzinaView.tsx` return button:
+  - [x] 8.5 `RodzinaView.tsx` labels: implement the role label with the self-check precedence (R6), replacing the current `(opiekun)` fallback at about 113-114.
+  - [x] 8.6 `RodzinaView.tsx` add form: add the birth-year `Field` under the role toggle (137-169), visible only when `memberRole === "CHILD"`. Clear the year when switching to GUARDIAN. Show the client validation text "Podaj rok urodzenia z zakresu 1900–YYYY" (YYYY is `dayjs().year()` from `src/utils/dayjs.ts`) for invalid input and disable submit. Show the live "ok. N lat" hint using `formatApproxAge`.
+  - [x] 8.7 `RodzinaView.tsx` CHILD row: add the meta line "rocznik YYYY · ok. N lat" plus the pencil button, or "+ Dodaj rok urodzenia" when the year is null. Add the inline editor, following the rename editor at 56-91, with local `editingBirthYearFor`, draft and error state. One row edits at a time. Enter saves, Esc cancels, and blur with no change cancels.
+  - [x] 8.8 `RodzinaView.tsx` return button:
     - Read `returnTo` with `useSearchParams()`.
     - Declare a local `ReturnToTermButton` (a full-width secondary outline `<Link>` with `BackIcon aria-hidden`).
     - Render it as the last element (`mt-7` wrapper) in both the populated and empty branches, guarded by `isSafeReturnPath`.
-  - [ ] 8.9 `CreateFamilyDialog.tsx`:
+  - [x] 8.9 `CreateFamilyDialog.tsx`:
     - Add `MemberDraft.birthYear` (18) and `draftBirthYear` state.
     - Show the field only when `draftRole === "CHILD"` (41), and reset it in `addDraftMember` (about 69).
     - The draft suffix reads "Dziecko · ok. N lat".
     - Map `birth_year` for CHILD drafts only (84-86).
     - On submit failure, set `formError` to the server `message` verbatim, with a fallback (89-90).
     - The dialog must not navigate, so `returnTo` is preserved.
-  - [ ] 8.10 Ensure the group's tests pass
+  - [x] 8.10 Ensure the group's tests pass
     - `npx vitest run src/test/PanelPage.test.tsx src/test/TermPage.test.tsx`
     - Re-run tsc and confirm no new errors compared with the baseline.
 
@@ -416,8 +416,8 @@ All paths below are relative to the repo root (`C:\Users\karas\Desktop\group-thi
     - In the denied, notFound and error states, the header is only the back link and "Zapisani", with no summary and no term card.
 **Estimated Steps:** 7
 
-- [ ] 9.0 Complete the organizer attendees page
-  - [ ] 9.1 Write 7 focused tests in the new `src/test/TermAttendeesPage.test.tsx`
+- [x] 9.0 Complete the organizer attendees page
+  - [x] 9.1 Write 7 focused tests in the new `src/test/TermAttendeesPage.test.tsx`
     - Setup:
       - `vi.mock("../api/terms")` and `vi.mock("../api/groups")` (factory functions), with `vi.resetAllMocks()` in `beforeEach`.
       - Render with `createQueryWrapper()` plus a MemoryRouter at `/panel/terminy/<uuid>`.
@@ -430,7 +430,7 @@ All paths below are relative to the repo root (`C:\Users\karas\Desktop\group-thi
       5. `unknown term 404 shows notFound and never loads dependents`: `getTerm` rejects with an `ApiError` 404, so "Nie znaleziono tego terminu." is present, "Wczytywanie zapisanych…" is absent, and `getGroup` and `getTermAttendeesForFormalization` are never called.
       6. `getGroup 500 shows error with retry and minimal header`: "Spróbuj ponownie" is present. Only the back link and "Zapisani" show, with no term card.
       7. `generic attendees error retry refetches`: clicking "Spróbuj ponownie" calls `getTermAttendeesForFormalization` again.
-  - [ ] 9.2 Create `src/hooks/useTermAttendees.ts` with `useTermAttendees(termId: string)`. It composes three `useQuery` calls:
+  - [x] 9.2 Create `src/hooks/useTermAttendees.ts` with `useTermAttendees(termId: string)`. It composes three `useQuery` calls:
     - `[TERM_KEY, termId]` → `getTerm(termId)`;
     - `[GROUP_KEY, groupId]` → `getGroup(groupId)`, enabled when `termQ.isSuccess`;
     - `[TERM_ATTENDEES_KEY, groupId, termId]` → `getTermAttendeesForFormalization(groupId, termId)`, enabled when `termQ.isSuccess`;
@@ -442,15 +442,15 @@ All paths below are relative to the repo root (`C:\Users\karas\Desktop\group-thi
       - a `getGroup` failure of any status sets `error`.
     - `refetch` awaits the term refetch, then the dependents.
     - Do not coerce ids, and do not use `Number`.
-  - [ ] 9.3 Create `src/pages/panel/TermAttendeesPage.tsx`:
+  - [x] 9.3 Create `src/pages/panel/TermAttendeesPage.tsx`:
     - It reads `useParams().termId` and passes it unchanged.
     - It renders the header, states, term head and the `<ul>` of rows per the Visual References.
     - It uses `pluralPl`, `formatChildAges`, `termPublicPath`, `dayMonth`/`termTime`, `BackIcon` and `PhoneFrame`.
     - Keep the row as a small local component (`TermAttendeeRow`).
-  - [ ] 9.4 In `src/router.tsx`, add `{ path: "/panel/terminy/:termId", element: <AuthGuard><TermAttendeesPage /></AuthGuard> }` next to the `/panel` routes (about lines 89-95). It is an explicit three-segment route.
-  - [ ] 9.5 Accessibility pass: semantic `<ul>/<li>`, `<Link>` for navigation, `aria-hidden` on decorative icons, and the h2 heading.
-  - [ ] 9.6 Re-run tsc and confirm no new errors compared with the baseline.
-  - [ ] 9.7 Ensure the group's tests pass
+  - [x] 9.4 In `src/router.tsx`, add `{ path: "/panel/terminy/:termId", element: <AuthGuard><TermAttendeesPage /></AuthGuard> }` next to the `/panel` routes (about lines 89-95). It is an explicit three-segment route.
+  - [x] 9.5 Accessibility pass: semantic `<ul>/<li>`, `<Link>` for navigation, `aria-hidden` on decorative icons, and the h2 heading.
+  - [x] 9.6 Re-run tsc and confirm no new errors compared with the baseline.
+  - [x] 9.7 Ensure the group's tests pass
     - `npx vitest run src/test/TermAttendeesPage.test.tsx`
 
 **Acceptance Criteria:**
@@ -483,14 +483,14 @@ All paths below are relative to the repo root (`C:\Users\karas\Desktop\group-thi
     - It is not rendered when `attendee_count` is `null`.
 **Estimated Steps:** 4
 
-- [ ] 10.0 Complete the organizer card chip
-  - [ ] 10.1 Write 3 focused tests in `PanelPage.test.tsx`. The organizer term fixtures from group 7 gain `attendee_count`/`child_count`.
+- [x] 10.0 Complete the organizer card chip
+  - [x] 10.1 Write 3 focused tests in `PanelPage.test.tsx`. The organizer term fixtures from group 7 gain `attendee_count`/`child_count`.
     - `organizer card shows signup chip linking to attendees page`: with counts 5/8, the text is "5 zapisów · 8 dzieci" and `href="/panel/terminy/<term-uuid>"`. Check the plural forms with a 2/1 or 22 case ("2 zapisy · 1 dziecko").
     - `organizer card shows "Brak zapisów" for zero attendees`
     - `no chip when counts are null`: the guest or non-organizer payload has `attendee_count: null`.
-  - [ ] 10.2 In `organizerTermCard` (`PanelDataContext.tsx`, 1075-1150), add the chip row after the needed-items row. It reads `term.attendee_count` and `term.child_count` from the existing `terms` state, so no new request is made. Reuse the pill shape from 1105-1121.
-  - [ ] 10.3 Visually self-check against mockup 8, both in HomeView and SpotkaniaView, through the test DOM or a manual `run` if available.
-  - [ ] 10.4 Ensure the group's tests pass
+  - [x] 10.2 In `organizerTermCard` (`PanelDataContext.tsx`, 1075-1150), add the chip row after the needed-items row. It reads `term.attendee_count` and `term.child_count` from the existing `terms` state, so no new request is made. Reuse the pill shape from 1105-1121.
+  - [x] 10.3 Visually self-check against mockup 8, both in HomeView and SpotkaniaView, through the test DOM or a manual `run` if available.
+  - [x] 10.4 Ensure the group's tests pass
     - `npx vitest run src/test/PanelPage.test.tsx`
     - Re-run tsc and confirm no new errors compared with the baseline.
 
@@ -506,29 +506,29 @@ All paths below are relative to the repo root (`C:\Users\karas\Desktop\group-thi
 **Files to Modify:** src/backend/tests/test_term_attendees.py, src/backend/tests/test_families.py, src/backend/tests/test_lightweight_family_members.py, src/frontend/src/test/TermAttendeesPage.test.tsx, src/frontend/src/test/PanelPage.test.tsx (append-only, gap tests only)
 **Estimated Steps:** 7
 
-- [ ] 11.0 Review the tests and fill critical gaps
-  - [ ] 11.1 Review the tests from groups 1-10 (about 55) against the spec's "Testing Approach" list and the Success Criteria. Tick off each listed scenario.
-  - [ ] 11.2 Analyze gaps for THIS feature only. Likely candidates:
+- [x] 11.0 Review the tests and fill critical gaps
+  - [x] 11.1 Review the tests from groups 1-10 (about 55) against the spec's "Testing Approach" list and the Success Criteria. Tick off each listed scenario.
+  - [x] 11.2 Analyze gaps for THIS feature only. Likely candidates:
     - PATCH with `birth_year = date.today().year` accepted;
     - make-primary for a membership of another family still returning 404 after the guardian check;
     - `formatChildAges` with all unknown years rendered on the page;
     - the RodzinaView inline editor's Esc cancel and invalid-year disabled-submit;
     - `returnTo` surviving the CreateFamilyDialog open and close.
-  - [ ] 11.3 Write up to 10 additional strategic tests in the files listed above.
-  - [ ] 11.4 Run the feature-specific tests:
+  - [x] 11.3 Write up to 10 additional strategic tests in the files listed above.
+  - [x] 11.4 Run the feature-specific tests:
     - backend: `uv run pytest tests/test_user_profile_birth_year.py tests/test_lightweight_family_members.py tests/test_families.py tests/test_authorization_matrix.py tests/test_term_attendees.py tests/test_circles_router.py tests/test_group_privacy.py -q`;
     - frontend: `npx vitest run src/test/url.test.ts src/test/plural.test.ts src/test/age.test.ts src/test/PanelPage.test.tsx src/test/TermPage.test.tsx src/test/TermAttendeesPage.test.tsx src/test/RzeczyViewCategory.test.tsx`.
-  - [ ] 11.5 Final gates (required by the spec):
+  - [x] 11.5 Final gates (required by the spec):
     - backend: the full `uv run pytest` in `src/backend` is green;
     - migration: `set -a; . ./.env; set +a; uv run alembic upgrade head` is applied and `alembic current` is `0044 (head)`;
     - frontend: the full `npx vitest run` is green. Note any pre-existing unrelated failures separately; do not fix them.
     - tsc: `npx tsc -p tsconfig.app.json --noEmit`, diffed against the baseline from step 7.1, shows NO new errors.
-  - [ ] 11.6 Grep audits:
+  - [x] 11.6 Grep audits:
     - no `import dayjs from "dayjs"` in new code;
     - no `Number(`/`parseInt(`/`String(` on Term or Group ids;
     - routers import families only via `app.families.service`;
     - `memberships.py` does not import `app.families.service`.
-  - [ ] 11.7 Write `implementation/visual-coverage.md` status updates if any screen's acceptance was not met, and record them in the work log.
+  - [x] 11.7 Write `implementation/visual-coverage.md` status updates if any screen's acceptance was not met, and record them in the work log.
 
 **Acceptance Criteria:**
 - All feature tests pass, with no more than 10 additional tests added.

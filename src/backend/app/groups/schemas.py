@@ -138,6 +138,8 @@ class TermResponse(BaseModel):
     description: str | None
     created_at: datetime
     updated_at: datetime
+    attendee_count: int | None = None
+    child_count: int | None = None
 
 
 class CreateTermRequest(BaseModel):
@@ -335,13 +337,20 @@ class RsvpResponse(BaseModel):
 # Group.visibility (`POST /api/groups/{id}/terms/{id}/formalize`) -----------
 
 
+class TermAttendeeChildResponse(BaseModel):
+    """An active CHILD member of an attendee's family, age only — no name
+    or id is exposed to the organizer."""
+
+    birth_year: int | None
+
+
 class TermAttendeeResponse(BaseModel):
     """One RSVP'd party for a chosen Term, resolved for the organizer's
     "which attendees become standing members" picker. `family_id`/
     `family_name` are display-only, purely informational — a family-less
     attendee (e.g. an anonymous guest party) remains selectable for
     formalization; `None` should now only occur for legacy pre-existing
-    family-less parties."""
+    family-less parties. `children` is youngest first, unknown years last."""
 
     party_id: uuid.UUID
     display_name: str
@@ -349,6 +358,7 @@ class TermAttendeeResponse(BaseModel):
     family_id: uuid.UUID | None
     family_name: str | None
     already_member: bool
+    children: list[TermAttendeeChildResponse] = Field(default_factory=list)
 
 
 class FormalizeGroupFromTermRequest(BaseModel):

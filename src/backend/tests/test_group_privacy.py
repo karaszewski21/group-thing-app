@@ -305,3 +305,56 @@ async def test_createAdditionalMyCircle_calledTwice_createsTwoDistinctCircles(
     assert my_groups.status_code == 200
     group_ids = {g["id"] for g in my_groups.json()}
     assert {first.json()["id"], second.json()["id"]} <= group_ids
+
+
+_CHILD_DATA_KEYS = {"birth_year", "children", "attendee_count", "child_count"}
+
+
+def _all_keys(value: object) -> set[str]:
+    if isinstance(value, dict):
+        keys = set(value.keys())
+        for nested in value.values():
+            keys |= _all_keys(nested)
+        return keys
+    if isinstance(value, list):
+        return set().union(*(_all_keys(item) for item in value)) if value else set()
+    return set()
+
+
+async def test_publicTermViewAndAccess_familyWithAgedChildren_exposeNoChildData(
+    client: AsyncClient,
+) -> None:
+    org_token, _ = await _register(client, "ORGANIZER", "priv.childdata.org10@example.com")
+    group_id, term_id = await _create_circle_and_term(client, org_token, "priv10")
+    guardian_token, _ = await _register(client, "GUEST", "priv.childdata.guardian10@example.com")
+    members = await client.post(
+        "/api/families/mine/members",
+        json={
+            "members": [
+                {"name": "Ola", "role_type": "CHILD", "birth_year": date.today().year - 4},
+                {"name": "Jaś", "role_type": "CHILD", "birth_year": date.today().year - 7},
+            ]
+        },
+        headers=_auth(guardian_token),
+    )
+    assert members.status_code == 201
+    rsvp = await client.post(
+        f"/api/groups/public/{group_id}/rsvp",
+        json={"term_id": term_id, "guardian_name": "Opiekun", "child_count": 2},
+        headers=_auth(guardian_token),
+    )
+    assert rsvp.status_code == 201
+
+    view = await client.get(f"/api/groups/public/{group_id}", params={"term_id": term_id})
+    anonymous_access = await client.get(
+        f"/api/groups/public/{group_id}/access", params={"term_id": term_id}
+    )
+    guardian_access = await client.get(
+        f"/api/groups/public/{group_id}/access",
+        params={"term_id": term_id},
+        headers=_auth(guardian_token),
+    )
+
+    for response in (view, anonymous_access, guardian_access):
+        assert response.status_code == 200
+        assert _all_keys(response.json()) & _CHILD_DATA_KEYS == set()

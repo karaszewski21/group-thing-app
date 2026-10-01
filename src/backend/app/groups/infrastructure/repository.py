@@ -345,6 +345,26 @@ async def list_active_attendances_for_term(
     return list(result.scalars().all())
 
 
+async def count_active_attendances_by_term(
+    db: AsyncSession, term_ids: list[uuid.UUID]
+) -> dict[uuid.UUID, tuple[int, int]]:
+    """`{term_id: (attendee_count, child_count_sum)}` over non-withdrawn RSVPs
+    (same filter as `list_active_attendances_for_term`), in one grouped
+    query. Terms with no active RSVPs are absent from the result."""
+    if not term_ids:
+        return {}
+    result = await db.execute(
+        select(
+            TermAttendance.term_id,
+            func.count(),
+            func.coalesce(func.sum(TermAttendance.child_count), 0),
+        )
+        .where(TermAttendance.term_id.in_(term_ids), TermAttendance.withdrawn_at.is_(None))
+        .group_by(TermAttendance.term_id)
+    )
+    return {term_id: (int(count), int(children)) for term_id, count, children in result.all()}
+
+
 async def list_my_attendances_joined(
     db: AsyncSession, party_id: uuid.UUID
 ) -> list[Row[tuple[TermAttendance, Term, Group]]]:
