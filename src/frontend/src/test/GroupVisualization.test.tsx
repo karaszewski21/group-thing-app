@@ -3,9 +3,9 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { GroupVisualization, type GroupLayoutMode, type VisualizationFamily } from "../pages/krag/GroupVisualization";
 
 const FAMILIES: VisualizationFamily[] = [
-  { familyId: 1, name: "Rodzina Wiśniewskich" },
-  { familyId: 2, name: "Rodzina Kowalskich" },
-  { familyId: 3, name: "Rodzina Nowak" },
+  { familyId: "1", name: "Rodzina Wiśniewskich" },
+  { familyId: "2", name: "Rodzina Kowalskich" },
+  { familyId: "3", name: "Rodzina Nowak" },
 ];
 
 /** Every family avatar button (excludes the "+" invite slot). */
@@ -27,7 +27,7 @@ describe("GroupVisualization", () => {
         neededItemRows={[]}
         activeFamilyId={null}
         onSelectFamily={vi.fn()}
-        groupId={1}
+        groupId="1"
       />,
     );
     expect(familyButtons()).toHaveLength(FAMILIES.length);
@@ -42,7 +42,7 @@ describe("GroupVisualization", () => {
         neededItemRows={[]}
         activeFamilyId={null}
         onSelectFamily={vi.fn()}
-        groupId={1}
+        groupId="1"
       />,
     );
     expect(familyButtons()).toHaveLength(FAMILIES.length);
@@ -57,7 +57,7 @@ describe("GroupVisualization", () => {
         neededItemRows={[]}
         activeFamilyId={null}
         onSelectFamily={vi.fn()}
-        groupId={1}
+        groupId="1"
       />,
     );
     expect(familyButtons()).toHaveLength(FAMILIES.length);
@@ -73,11 +73,11 @@ describe("GroupVisualization", () => {
         neededItemRows={[]}
         activeFamilyId={null}
         onSelectFamily={onSelectFamily}
-        groupId={1}
+        groupId="1"
       />,
     );
     fireEvent.click(screen.getByLabelText("Rodzina Kowalskich"));
-    expect(onSelectFamily).toHaveBeenCalledWith(2);
+    expect(onSelectFamily).toHaveBeenCalledWith("2");
   });
 
   it("PITCH mode renders the organizer as 'trenerka' above the pitch", () => {
@@ -89,7 +89,7 @@ describe("GroupVisualization", () => {
         neededItemRows={[]}
         activeFamilyId={null}
         onSelectFamily={vi.fn()}
-        groupId={1}
+        groupId="1"
       />,
     );
     expect(screen.getByText("Kasia Wójcik")).toBeInTheDocument();
@@ -109,7 +109,7 @@ describe("GroupVisualization", () => {
         ]}
         activeFamilyId={null}
         onSelectFamily={onSelectFamily}
-        groupId={1}
+        groupId="1"
       />,
     );
     const chips = screen.getByTestId("table-chips");
@@ -129,9 +129,9 @@ describe("GroupVisualization", () => {
           organizerName="Kasia Wójcik"
           families={FAMILIES}
           neededItemRows={[]}
-          activeFamilyId={2}
+          activeFamilyId="2"
           onSelectFamily={vi.fn()}
-          groupId={1}
+          groupId="1"
         />,
       );
       expect(screen.getByLabelText("Rodzina Kowalskich")).toHaveAttribute("aria-pressed", "true");
@@ -150,7 +150,7 @@ describe("GroupVisualization", () => {
         neededItemRows={[]}
         activeFamilyId={null}
         onSelectFamily={vi.fn()}
-        groupId={1}
+        groupId="1"
       />,
     );
     expect(screen.getAllByTestId("exchange-legend")).toHaveLength(1);

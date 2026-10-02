@@ -1,12 +1,12 @@
 import { api } from "./client";
 
 export interface ProductResponse {
-  id: number;
+  id: string;
   name: string;
   description: string | null;
   photoUrl: string | null;
   sku: string;
-  category_id: number;
+  category_id: string;
   pluginData: Record<string, Record<string, unknown>> | null;
   createdAt: string;
   updatedAt: string;
@@ -17,7 +17,7 @@ export interface CreateProductRequest {
   description?: string;
   photoUrl?: string;
   sku: string;
-  category_id: number;
+  category_id: string;
 }
 
 export interface UpdateProductRequest {
@@ -25,11 +25,11 @@ export interface UpdateProductRequest {
   description?: string;
   photoUrl?: string;
   sku: string;
-  category_id: number;
+  category_id: string;
 }
 
 export interface ProductSearchParams {
-  category_id?: number;
+  category_id?: string;
   search?: string;
   sort?: string;
   pluginFilters?: string[];
@@ -81,7 +81,7 @@ export function getProducts(params?: ProductSearchParams): Promise<ProductRespon
   return api.get(`/products${query ? `?${query}` : ""}`);
 }
 
-export function getProduct(id: number): Promise<ProductResponse> {
+export function getProduct(id: string): Promise<ProductResponse> {
   return api.get(`/products/${id}`);
 }
 
@@ -89,11 +89,11 @@ export function createProduct(request: CreateProductRequest): Promise<ProductRes
   return api.post("/products", request);
 }
 
-export function updateProduct(id: number, request: UpdateProductRequest): Promise<ProductResponse> {
+export function updateProduct(id: string, request: UpdateProductRequest): Promise<ProductResponse> {
   return api.put(`/products/${id}`, request);
 }
 
-export function deleteProduct(id: number): Promise<void> {
+export function deleteProduct(id: string): Promise<void> {
   return api.delete(`/products/${id}`);
 }
 

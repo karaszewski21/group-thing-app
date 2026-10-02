@@ -24,8 +24,8 @@ export function RsvpDialogLoggedIn({
   onClose,
   onSubmitted,
 }: {
-  groupId: number;
-  termId: number;
+  groupId: string;
+  termId: string;
   displayName: string | null;
   onClose: () => void;
   onSubmitted: (rsvp: RsvpResponse) => void;

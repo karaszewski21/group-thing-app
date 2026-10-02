@@ -20,7 +20,7 @@ vi.mock("../api/moderation", () => ({
 
 const mockGroups: ModerationGroupResponse[] = [
   {
-    id: 1,
+    id: "1",
     name: "Krąg Sportowy",
     created_at: "2026-01-01T00:00:00Z",
     organizer_name: "Jan Kowalski",
@@ -29,7 +29,7 @@ const mockGroups: ModerationGroupResponse[] = [
     term_count: 2,
   },
   {
-    id: 2,
+    id: "2",
     name: "Krąg Bez Lidera",
     created_at: "2026-02-01T00:00:00Z",
     organizer_name: null,

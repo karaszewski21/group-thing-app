@@ -25,7 +25,7 @@ function ReturnToTermButton() {
   );
 }
 
-function roleLabel(g: GuardianResponse, selfPartyId: number): string {
+function roleLabel(g: GuardianResponse, selfPartyId: string): string {
   if (g.party_id === selfPartyId) return "(Ty)";
   return g.role_type === "CHILD" ? "(dziecko)" : "(opiekun)";
 }
@@ -56,7 +56,7 @@ export function RodzinaView() {
     saveChildBirthYear,
   } = usePanelData();
 
-  const [editingBirthYearFor, setEditingBirthYearFor] = useState<number | null>(null);
+  const [editingBirthYearFor, setEditingBirthYearFor] = useState<string | null>(null);
   const [birthYearDraft, setBirthYearDraft] = useState("");
   const [birthYearSaveError, setBirthYearSaveError] = useState<string | null>(null);
 

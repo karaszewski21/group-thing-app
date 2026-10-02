@@ -3,7 +3,7 @@ import { resolveTermAccess } from "../pages/krag/termAccess";
 import type { GroupAccessDetails, GroupAccessResponse, PublicCircleResponse } from "../api/groups";
 
 const group: PublicCircleResponse = {
-  id: 7,
+  id: "7",
   name: "Muzyczne Skrzaty",
   organizer_display_name: "Ania Kowalska",
   organizer_slug: "ania",
@@ -36,14 +36,14 @@ describe("resolveTermAccess", () => {
     ["logged in, no request", data({}), true, { kind: "gate", gate: { kind: "canRequest" } }],
     [
       "PENDING request",
-      data({ join_request: { id: 5, status: "PENDING" } }),
+      data({ join_request: { id: "5", status: "PENDING" } }),
       true,
-      { kind: "gate", gate: { kind: "pending", requestId: 5 } },
+      { kind: "gate", gate: { kind: "pending", requestId: "5" } },
     ],
-    ["REJECTED request", data({ join_request: { id: 5, status: "REJECTED" } }), true, { kind: "gate", gate: { kind: "rejected" } }],
+    ["REJECTED request", data({ join_request: { id: "5", status: "REJECTED" } }), true, { kind: "gate", gate: { kind: "rejected" } }],
     [
       "PENDING in data fetched without a token",
-      data({ join_request: { id: 5, status: "PENDING" } }),
+      data({ join_request: { id: "5", status: "PENDING" } }),
       false,
       { kind: "gate", gate: { kind: "loginRequired" } },
     ],

@@ -31,6 +31,6 @@ export interface ListingRowVM {
 
 /** DOM id of an attendee's list entry — the scroll/focus target when their
  * avatar is clicked in the group visualization. */
-export function attendeeElementId(partyId: number): string {
+export function attendeeElementId(partyId: string): string {
   return `attendee-${partyId}`;
 }

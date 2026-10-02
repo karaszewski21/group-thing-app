@@ -26,11 +26,11 @@ async function fetchMySwapItems(): Promise<AvailableItem[]> {
  * the first `take(itemId, "SWAP")` opens the swap picker (`swap`), and its
  * `confirm` submits. The viewer's swap items load lazily on the first swap
  * attempt. */
-export function useItemTake({ isLoggedIn, refetch, showToast, termId }: TermActionDeps & { termId: number | null }) {
+export function useItemTake({ isLoggedIn, refetch, showToast, termId }: TermActionDeps & { termId: string | null }) {
   const gate = useAccountGate(isLoggedIn);
-  const [busyItemId, setBusyItemId] = useState<number | null>(null);
-  const [swapItemId, setSwapItemId] = useState<number | null>(null);
-  const [offeredItemId, setOfferedItemId] = useState<number | null>(null);
+  const [busyItemId, setBusyItemId] = useState<string | null>(null);
+  const [swapItemId, setSwapItemId] = useState<string | null>(null);
+  const [offeredItemId, setOfferedItemId] = useState<string | null>(null);
   const [myAvailableItems, setMyAvailableItems] = useState<AvailableItem[] | null>(null);
 
   async function loadMyAvailableItems(): Promise<AvailableItem[]> {
@@ -45,7 +45,7 @@ export function useItemTake({ isLoggedIn, refetch, showToast, termId }: TermActi
     setOfferedItemId(null);
   }
 
-  async function performProposeSwap(itemId: number) {
+  async function performProposeSwap(itemId: string) {
     if (termId === null) return;
     if (swapItemId !== itemId) {
       const available = await loadMyAvailableItems();
@@ -70,7 +70,7 @@ export function useItemTake({ isLoggedIn, refetch, showToast, termId }: TermActi
     }
   }
 
-  async function performTake(itemId: number, reservationType: ReservationType) {
+  async function performTake(itemId: string, reservationType: ReservationType) {
     if (termId === null) return;
     if (reservationType === "SWAP") {
       await performProposeSwap(itemId);
@@ -100,7 +100,7 @@ export function useItemTake({ isLoggedIn, refetch, showToast, termId }: TermActi
       availableItems: myAvailableItems ?? [],
       offeredItemId,
       setOfferedItemId,
-      confirm: (itemId: number) => void performProposeSwap(itemId),
+      confirm: (itemId: string) => void performProposeSwap(itemId),
       cancel: closeSwapPicker,
     },
   };

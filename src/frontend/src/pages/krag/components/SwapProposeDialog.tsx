@@ -2,7 +2,7 @@ import { ModalSheet } from "../../../components/krag/ModalSheet";
 
 /** One of the viewer's own items that can be offered in a swap. */
 export interface AvailableItem {
-  id: number;
+  id: string;
   productName: string;
 }
 
@@ -21,8 +21,8 @@ export function SwapProposeDialog({
   busy,
 }: {
   availableItems: AvailableItem[];
-  offeredItemId: number | null;
-  onOfferedItemChange: (id: number) => void;
+  offeredItemId: string | null;
+  onOfferedItemChange: (id: string) => void;
   listingProductName: string;
   onConfirm: () => void;
   onCancel: () => void;
@@ -43,7 +43,7 @@ export function SwapProposeDialog({
               className="kg-select"
               aria-label="Twoja rzecz do zamiany"
               value={offeredItemId ?? ""}
-              onChange={(e) => onOfferedItemChange(Number(e.target.value))}
+              onChange={(e) => onOfferedItemChange(e.target.value)}
             >
               {availableItems.map((mi) => (
                 <option key={mi.id} value={mi.id}>

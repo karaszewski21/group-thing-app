@@ -10,7 +10,7 @@ export function buildAttendees(
   toRow: (listing: PublicItemListingResponse) => ListingRowVM,
 ): AttendeeVM[] {
   const listings = group.term?.item_listings ?? [];
-  const people = new Map<number, string>(group.guardians.map((g) => [g.party_id, g.display_name]));
+  const people = new Map<string, string>(group.guardians.map((g) => [g.party_id, g.display_name]));
   for (const listing of listings) {
     if (!people.has(listing.lister_party_id)) people.set(listing.lister_party_id, listing.lister_display_name);
   }

@@ -15,7 +15,7 @@ vi.mock("../api/notifications", () => ({
 vi.mock("../auth/AuthContext", () => ({ useAuth: () => ({ token: "tok", username: "ania" }) }));
 
 const notif = (over: Partial<NotificationResponse> = {}): NotificationResponse => ({
-  id: 1,
+  id: "1",
   kind: "PLEDGE_CREATED",
   message: "„Kasia\" zadeklarował(a) przyniesienie: Bębenek",
   link_path: "/ania/grupa/5/term/3",
@@ -43,7 +43,7 @@ beforeEach(() => {
 
 describe("NotificationBell", () => {
   it("shows an unread badge and lists messages in the dropdown", async () => {
-    vi.mocked(notificationsApi.getMyNotifications).mockResolvedValue([notif(), notif({ id: 2 })]);
+    vi.mocked(notificationsApi.getMyNotifications).mockResolvedValue([notif(), notif({ id: "2" })]);
     renderBell();
 
     fireEvent.click(await screen.findByRole("button", { name: "Powiadomienia (2 nieprzeczytane)" }));
@@ -59,7 +59,7 @@ describe("NotificationBell", () => {
     fireEvent.click(await screen.findByRole("button", { name: /Powiadomienia/ }));
     fireEvent.click(screen.getByRole("menuitem", { name: /zadeklarował\(a\)/ }));
 
-    await waitFor(() => expect(notificationsApi.markNotificationRead).toHaveBeenCalledWith(1));
+    await waitFor(() => expect(notificationsApi.markNotificationRead).toHaveBeenCalledWith("1"));
     expect(await screen.findByRole("heading", { name: "Strona terminu" })).toBeInTheDocument();
   });
 

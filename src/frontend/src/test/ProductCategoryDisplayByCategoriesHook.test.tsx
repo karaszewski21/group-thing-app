@@ -31,7 +31,7 @@ vi.mock("../plugins/PluginContext", () => ({
 
 const mockCategories: Category[] = [
   {
-    id: 42,
+    id: "42",
     name: "Elektronika",
     description: null,
     sortOrder: 0,
@@ -42,12 +42,12 @@ const mockCategories: Category[] = [
 ];
 
 const mockProduct: ProductResponse = {
-  id: 1,
+  id: "1",
   name: "Słuchawki",
   description: null,
   photoUrl: null,
   sku: "SKU-1",
-  category_id: 42,
+  category_id: "42",
   pluginData: null,
   createdAt: "2026-01-01T00:00:00Z",
   updatedAt: "2026-01-01T00:00:00Z",

@@ -120,7 +120,7 @@ export type PanelDataContextValue = ReturnType<typeof usePanelDataValue>;
  * `RzeczyView` lists every pending offer against the item together. */
 export interface PendingSwapAction {
   kind: "SWAP_PROPOSED";
-  notificationId: number;
+  notificationId: string;
   message: string;
   linkPath: string | null;
 }
@@ -133,7 +133,7 @@ export interface PendingSwapAction {
  * `resolvePendingReservationId`). */
 export interface PendingConfirmAction {
   kind: "TERM_CONFIRMATION_NEEDED";
-  notificationId: number;
+  notificationId: string;
   message: string;
   linkPath: string | null;
   termId: string | null;
@@ -145,7 +145,7 @@ export interface PendingConfirmAction {
  * decided even when its `GROUP_JOIN_REQUESTED` notification was read. */
 export interface PendingJoinRequestAction {
   kind: "GROUP_JOIN_REQUESTED";
-  joinRequestId: number;
+  joinRequestId: string;
   groupId: string;
   groupName: string;
   requesterName: string;
@@ -189,22 +189,17 @@ async function resolvePendingReservationId(
   termId: string,
   myPartyId: string,
 ): Promise<string | null> {
-  // `getMyTermItemListings`/`getMyTakenTermItemListings`/`getReservation`'s
-  // own param/field types still say `number` (pre-existing frontend debt —
-  // every id is a real UUID string at runtime now, see backend's
-  // BigInteger->UUID migration); cast at this boundary rather than widen
-  // those shared API types here.
   const [mine, taken] = await Promise.all([
-    getMyTermItemListings(termId as unknown as number),
-    getMyTakenTermItemListings(termId as unknown as number),
+    getMyTermItemListings(termId),
+    getMyTakenTermItemListings(termId),
   ]);
   const takenRow = taken.find(
-    (r) => (r.taken_by_party_id as unknown as string) === myPartyId && r.resolved_reservation_id != null,
+    (r) => r.taken_by_party_id === myPartyId && r.resolved_reservation_id != null,
   );
   if (takenRow?.resolved_reservation_id != null) {
     const reservation = await getReservation(takenRow.resolved_reservation_id);
     if (reservation.status !== "FULFILLED" && reservation.status !== "CANCELLED") {
-      return reservation.id as unknown as string;
+      return reservation.id;
     }
   }
 
@@ -215,14 +210,14 @@ async function resolvePendingReservationId(
       if (primary.paired_reservation_id == null) continue;
       const paired = await getReservation(primary.paired_reservation_id);
       if (paired.status !== "FULFILLED" && paired.status !== "CANCELLED") {
-        return paired.id as unknown as string;
+        return paired.id;
       }
     } else if (
       (primary.reservation_type === "GIFT" || primary.reservation_type === "LEND") &&
       primary.status !== "FULFILLED" &&
       primary.status !== "CANCELLED"
     ) {
-      return primary.id as unknown as string;
+      return primary.id;
     }
   }
   return null;
@@ -231,7 +226,7 @@ async function resolvePendingReservationId(
 /** The item's RETURN left half-done by an earlier "Oddaję" whose confirm or
  * fulfill failed. The item is no longer `LENT` then, so creating a new
  * RETURN would be rejected — the retry has to finish this one instead. */
-async function findUnfinishedReturn(itemId: number): Promise<ReservationResponse | null> {
+async function findUnfinishedReturn(itemId: string): Promise<ReservationResponse | null> {
   const balance = await getInventoryItemBalance(itemId);
   if (!ACTIVE_LOCK_BALANCE_STATUSES.includes(balance.status) || balance.reservation_id === null) {
     return null;
@@ -301,18 +296,18 @@ function usePanelDataValue() {
   // confirm, and ones whose confirm attempt came back "already resolved by
   // the other party" (409, `already_resolved: true`) — kept distinct from
   // a generic error toast per spec.md Requirement 3.
-  const [pendingActionBusyId, setPendingActionBusyId] = useState<number | null>(null);
-  const [alreadyResolvedIds, setAlreadyResolvedIds] = useState<ReadonlySet<number>>(new Set());
+  const [pendingActionBusyId, setPendingActionBusyId] = useState<string | null>(null);
+  const [alreadyResolvedIds, setAlreadyResolvedIds] = useState<ReadonlySet<string>>(new Set());
   // Organizer join-request actions, keyed by `joinRequestId`. The "Później"
   // hidden set is deliberately never cleared by `load()`: it lasts until the
   // provider remounts.
   const [pendingJoinRequests, setPendingJoinRequests] = useState<PendingJoinRequestResponse[]>([]);
-  const [hiddenJoinRequestIds, setHiddenJoinRequestIds] = useState<ReadonlySet<number>>(new Set());
+  const [hiddenJoinRequestIds, setHiddenJoinRequestIds] = useState<ReadonlySet<string>>(new Set());
   const [joinRequestBusy, setJoinRequestBusy] = useState<
-    { joinRequestId: number; decision: JoinRequestDecision } | null
+    { joinRequestId: string; decision: JoinRequestDecision } | null
   >(null);
-  const [resolvedJoinRequestIds, setResolvedJoinRequestIds] = useState<ReadonlySet<number>>(new Set());
-  const [joinRequestErrorId, setJoinRequestErrorId] = useState<number | null>(null);
+  const [resolvedJoinRequestIds, setResolvedJoinRequestIds] = useState<ReadonlySet<string>>(new Set());
+  const [joinRequestErrorId, setJoinRequestErrorId] = useState<string | null>(null);
   // Inline "Mój dom" family rename (D4 / TC4) — no dedicated modal.
   const [renamingFamily, setRenamingFamily] = useState(false);
   const [familyNameDraft, setFamilyNameDraft] = useState("");
@@ -407,7 +402,7 @@ function usePanelDataValue() {
   const [profileSaved, setProfileSaved] = useState(false);
   const [settings, setSettings] = useState({ emailNotifs: true, smsNotifs: false, publicProfile: true });
   const [groupExtras, setGroupExtras] = useState<Record<string, { location: string; freeSpots: number }>>({});
-  const [itemModes, setItemModes] = useState<Record<number, ItemMode | null>>({});
+  const [itemModes, setItemModes] = useState<Record<string, ItemMode | null>>({});
   const [borrowedItems, setBorrowedItems] = useState<BorrowedItem[]>([]);
   const [lentOutItems, setLentOutItems] = useState<LentOutItemResponse[]>([]);
 
@@ -476,7 +471,7 @@ function usePanelDataValue() {
               (it) =>
                 [it.id, it.listing_mode && RESERVATION_TYPE_TO_ITEM_MODE[it.listing_mode]] as const,
             )
-            .filter((entry): entry is [number, ItemMode] => entry[1] != null),
+            .filter((entry): entry is [string, ItemMode] => entry[1] != null),
         ),
       );
 
@@ -632,7 +627,7 @@ function usePanelDataValue() {
 
   /* ---------- zadeklarowane rzeczy / powiadomienia ---------- */
 
-  async function withdrawMyPledge(pledgeId: number) {
+  async function withdrawMyPledge(pledgeId: string) {
     setBusy(true);
     try {
       await withdrawPledge(pledgeId);
@@ -672,7 +667,7 @@ function usePanelDataValue() {
                 message: n.message,
                 linkPath: n.link_path,
                 termId: parseTermIdFromLinkPath(n.link_path),
-                reservationId: (n.reservation_id as unknown as string | null) ?? null,
+                reservationId: n.reservation_id ?? null,
               },
             ];
           }
@@ -698,7 +693,7 @@ function usePanelDataValue() {
    * `openNotification`) — the item then drops out of `pendingActions`
    * (derived from `notifications`) on the next render, without a separate
    * "dismissed" list to keep in sync. */
-  function dismissPendingAction(notificationId: number) {
+  function dismissPendingAction(notificationId: string) {
     setAlreadyResolvedIds((prev) => {
       if (!prev.has(notificationId)) return prev;
       const next = new Set(prev);
@@ -714,14 +709,14 @@ function usePanelDataValue() {
    * competing offer). This just dismisses the notification and sends the
    * caller to "Moje rzeczy", where every pending offer against the item is
    * visible together. */
-  function openSwapProposalsOnMyItems(notificationId: number) {
+  function openSwapProposalsOnMyItems(notificationId: string) {
     dismissPendingAction(notificationId);
     navigate("/panel");
     setView("rzeczy");
   }
 
   async function confirmPendingAction(
-    notificationId: number,
+    notificationId: string,
     termId: string | null,
     notificationReservationId: string | null,
   ) {
@@ -737,7 +732,7 @@ function usePanelDataValue() {
       const reservationId =
         notificationReservationId ??
         (termId !== null && profile
-          ? await resolvePendingReservationId(termId, profile.party_id as unknown as string)
+          ? await resolvePendingReservationId(termId, profile.party_id)
           : null);
       if (reservationId === null) {
         // resolvePendingReservationId only ever omits an ACTIVE reservation
@@ -751,7 +746,7 @@ function usePanelDataValue() {
         setAlreadyResolvedIds((prev) => new Set(prev).add(notificationId));
         return;
       }
-      await confirmTransaction(reservationId as unknown as number);
+      await confirmTransaction(reservationId);
       // Bug #3 (cache refresh): matches every sibling mutation handler's
       // convention (e.g. withdrawMyPledge) — without this, the panel's
       // pledges/items/notifications stayed stale until the next unrelated
@@ -777,7 +772,7 @@ function usePanelDataValue() {
   }
 
   /** "Później" / ✕ — session-only; no server call, no notification change. */
-  function hideJoinRequest(joinRequestId: number) {
+  function hideJoinRequest(joinRequestId: string) {
     setHiddenJoinRequestIds((prev) => new Set(prev).add(joinRequestId));
     setResolvedJoinRequestIds((prev) => {
       if (!prev.has(joinRequestId)) return prev;
@@ -788,7 +783,7 @@ function usePanelDataValue() {
     setJoinRequestErrorId((prev) => (prev === joinRequestId ? null : prev));
   }
 
-  function acknowledgeResolvedJoinRequest(joinRequestId: number) {
+  function acknowledgeResolvedJoinRequest(joinRequestId: string) {
     hideJoinRequest(joinRequestId);
     void load({ silent: true });
   }
@@ -872,7 +867,7 @@ function usePanelDataValue() {
       ...prev,
       { ...draftNeededItem, name: draftNeededItem.name.trim(), description: draftNeededItem.description.trim() },
     ]);
-    setDraftNeededItem(createEmptyNeededItemQuickAddValue(categoriesData[0]?.id ?? 0));
+    setDraftNeededItem(createEmptyNeededItemQuickAddValue(categoriesData[0]?.id ?? ""));
   }
 
   function removeDraftNeededItem(index: number) {
@@ -912,7 +907,7 @@ function usePanelDataValue() {
 
   /* ---------- rzeczy ---------- */
 
-  async function setItemMode(itemId: number, mode: ItemMode) {
+  async function setItemMode(itemId: string, mode: ItemMode) {
     // Defense-in-depth: `RzeczyView` already disables the toggle buttons
     // while an item is locked (Bug #1 fix), but re-check here too, since
     // the client-side disable is UX, not the sole guard.
@@ -1212,7 +1207,7 @@ function usePanelDataValue() {
 
   /* ---------- rzeczy: usuwanie ---------- */
 
-  async function handleDeleteItem(itemId: number) {
+  async function handleDeleteItem(itemId: string) {
     const index = items.findIndex((i) => i.id === itemId);
     if (index === -1) return;
     const removed = items[index];
@@ -1233,7 +1228,7 @@ function usePanelDataValue() {
 
   /* ---------- wypożyczone (oddawanie pożyczonej rzeczy) ---------- */
 
-  async function returnBorrowedItem(itemId: number) {
+  async function returnBorrowedItem(itemId: string) {
     setItemError(null);
     try {
       // The server derives the recipient (the item's home owner) itself. The

@@ -14,7 +14,7 @@ vi.mock("../api/categories", () => ({
 
 const mockCategories: Category[] = [
   {
-    id: 1,
+    id: "1",
     name: "Zabawki",
     description: null,
     sortOrder: 0,
@@ -23,7 +23,7 @@ const mockCategories: Category[] = [
     updatedAt: "2026-01-01T00:00:00Z",
   },
   {
-    id: 2,
+    id: "2",
     name: "Książki",
     description: null,
     sortOrder: 1,
@@ -63,7 +63,7 @@ describe("useCategories", () => {
     const { result } = renderHook(() => useCategories(), { wrapper: createQueryWrapper() });
     await waitFor(() => expect(result.current.loading).toBe(false));
 
-    await expect(result.current.remove(1)).rejects.toThrow(
+    await expect(result.current.remove("1")).rejects.toThrow(
       "Category with id 1 cannot be deleted because it has 3 associated product(s)",
     );
   });

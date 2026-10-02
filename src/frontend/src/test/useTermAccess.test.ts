@@ -26,7 +26,7 @@ function deferred<T>() {
 
 async function renderReady(initial: GroupAccessResponse) {
   vi.mocked(groupsApi.getGroupAccess).mockResolvedValueOnce(initial);
-  const hook = renderHook(() => useTermAccess(1, 2), { wrapper: createQueryWrapper() });
+  const hook = renderHook(() => useTermAccess("1", "2"), { wrapper: createQueryWrapper() });
   await waitFor(() => expect(hook.result.current.state.status).toBe("ready"));
   return hook;
 }
@@ -53,7 +53,7 @@ describe("useTermAccess", () => {
   it("firstLoad_error_givesErrorState", async () => {
     vi.mocked(groupsApi.getGroupAccess).mockRejectedValueOnce(new Error("404 Not Found"));
 
-    const { result } = renderHook(() => useTermAccess(1, 2), { wrapper: createQueryWrapper() });
+    const { result } = renderHook(() => useTermAccess("1", "2"), { wrapper: createQueryWrapper() });
 
     await waitFor(() => expect(result.current.state).toEqual({ status: "error", message: "404 Not Found" }));
   });
@@ -125,12 +125,12 @@ describe("useTermAccess", () => {
 
   it("paramsChange_showsLoadingNotPreviousTerm_untilNewResponse", async () => {
     vi.mocked(groupsApi.getGroupAccess).mockResolvedValueOnce(access("A"));
-    const hook = renderHook(({ termId }) => useTermAccess(1, termId), { initialProps: { termId: 2 }, wrapper: createQueryWrapper() });
+    const hook = renderHook(({ termId }) => useTermAccess("1", termId), { initialProps: { termId: "2" }, wrapper: createQueryWrapper() });
     await waitFor(() => expect(hook.result.current.state.status).toBe("ready"));
     const pending = deferred<GroupAccessResponse>();
     vi.mocked(groupsApi.getGroupAccess).mockReturnValueOnce(pending.promise);
 
-    hook.rerender({ termId: 3 });
+    hook.rerender({ termId: "3" });
 
     expect(hook.result.current.state).toEqual({ status: "loading" });
     await act(async () => {
@@ -143,11 +143,11 @@ describe("useTermAccess", () => {
 
   it("paramsChange_fetchFails_givesErrorState_notPreviousTerm", async () => {
     vi.mocked(groupsApi.getGroupAccess).mockResolvedValueOnce(access("A"));
-    const hook = renderHook(({ groupId }) => useTermAccess(groupId, 2), { initialProps: { groupId: 1 }, wrapper: createQueryWrapper() });
+    const hook = renderHook(({ groupId }) => useTermAccess(groupId, "2"), { initialProps: { groupId: "1" }, wrapper: createQueryWrapper() });
     await waitFor(() => expect(hook.result.current.state.status).toBe("ready"));
     vi.mocked(groupsApi.getGroupAccess).mockRejectedValueOnce(new Error("404 Not Found"));
 
-    hook.rerender({ groupId: 9 });
+    hook.rerender({ groupId: "9" });
 
     await waitFor(() => expect(hook.result.current.state).toEqual({ status: "error", message: "404 Not Found" }));
   });

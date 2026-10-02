@@ -110,7 +110,7 @@ function LoanRow({
   dueLabel,
   children,
 }: {
-  itemId: number;
+  itemId: string;
   productName: string;
   who: string;
   dueDate: string | null;

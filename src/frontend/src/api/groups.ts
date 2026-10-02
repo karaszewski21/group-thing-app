@@ -33,7 +33,7 @@ export interface CreateCircleRequest {
 /** `GET /api/groups/moderation` (ADMIN-only) row — every Circle with its
  * current organizer (if any) and aggregated member/term counts. */
 export interface ModerationGroupResponse {
-  id: number;
+  id: string;
   name: string;
   created_at: string;
   organizer_name: string | null;
@@ -45,27 +45,27 @@ export interface ModerationGroupResponse {
 /** `organizer_party_id` is denormalized by the backend — no second lookup
  * through `GroupRoleResponse` needed just to find out who this is. */
 export interface LeadershipResponse {
-  id: number;
-  from_role_id: number;
+  id: string;
+  from_role_id: string;
   to_group_id: string;
-  organizer_party_id: number;
+  organizer_party_id: string;
   valid_from: string;
   valid_to: string | null;
 }
 
 export interface AssignLeadershipRequest {
-  group_id: number;
-  organizer_party_id: number;
+  group_id: string;
+  organizer_party_id: string;
   valid_from: string;
 }
 
 /** `member_party_id` is denormalized the same way as
  * `LeadershipResponse.organizer_party_id`. */
 export interface MembershipResponse {
-  id: number;
-  from_role_id: number;
+  id: string;
+  from_role_id: string;
   to_group_id: string;
-  member_party_id: number;
+  member_party_id: string;
   valid_from: string;
   valid_to: string | null;
 }
@@ -134,7 +134,7 @@ export function assignLeadership(request: AssignLeadershipRequest): Promise<Lead
   return api.post("/leaderships", request);
 }
 
-export function endLeadership(leadershipId: number, validTo?: string): Promise<LeadershipResponse> {
+export function endLeadership(leadershipId: string, validTo?: string): Promise<LeadershipResponse> {
   const query = validTo ? `?valid_to=${validTo}` : "";
   return api.post(`/leaderships/${leadershipId}/end${query}`, undefined);
 }
@@ -143,7 +143,7 @@ export function getMembershipsForCircle(groupId: string): Promise<MembershipResp
   return api.get(`/groups/${groupId}/memberships`);
 }
 
-export function endMembership(membershipId: number, validTo?: string): Promise<MembershipResponse> {
+export function endMembership(membershipId: string, validTo?: string): Promise<MembershipResponse> {
   const query = validTo ? `?valid_to=${validTo}` : "";
   return api.post(`/memberships/${membershipId}/end${query}`, undefined);
 }
@@ -153,32 +153,32 @@ export function endMembership(membershipId: number, validTo?: string): Promise<M
 /* ------------------------------------------------------------------ */
 
 export interface PublicNeededItemResponse {
-  id: number;
-  product_id: number;
+  id: string;
+  product_id: string;
   product_name: string;
-  product_category_id: number;
+  product_category_id: string;
   product_category_name: string;
   description: string | null;
   /** Someone already declared they'll bring this (single-claim). */
   claimed: boolean;
   claimed_by_name: string | null;
-  claimed_by_party_id: number | null;
+  claimed_by_party_id: string | null;
 }
 
 /** A still-available exchange-mechanism offer — always AVAILABLE-only, so
  * no status/taken fields (see `app.groups.schemas.PublicItemListingResponse`). */
 export interface PublicItemListingResponse {
-  id: number;
-  item_id: number;
+  id: string;
+  item_id: string;
   product_name: string;
   condition: string;
   offered_types: string[];
-  lister_party_id: number;
+  lister_party_id: string;
   lister_display_name: string;
 }
 
 export interface PublicTermResponse {
-  id: number;
+  id: string;
   occurs_on: string;
   description: string | null;
   needed_items: PublicNeededItemResponse[];
@@ -186,7 +186,7 @@ export interface PublicTermResponse {
 }
 
 export interface PublicGuardianResponse {
-  party_id: number;
+  party_id: string;
   display_name: string;
 }
 
@@ -194,7 +194,7 @@ export interface PublicGuardianResponse {
  * For a `PRIVATE` group, `term`/`guardians` come back empty/null even
  * when Terms exist — see that endpoint's reduced-response docstring. */
 export interface PublicCircleResponse {
-  id: number;
+  id: string;
   name: string;
   organizer_display_name: string | null;
   organizer_slug: string | null;
@@ -205,23 +205,23 @@ export interface PublicCircleResponse {
 }
 
 export interface CreateRsvpRequest {
-  term_id: number;
+  term_id: string;
   guardian_name: string;
   child_count?: number;
 }
 
 export interface RsvpResponse {
-  id: number;
-  term_id: number;
-  user_profile_id: number;
+  id: string;
+  term_id: string;
+  user_profile_id: string;
   guardian_name: string;
   child_count: number;
   attached_to_account: boolean;
 }
 
 export function getPublicCircle(
-  groupId: number,
-  termId?: number,
+  groupId: string,
+  termId?: string,
 ): Promise<PublicCircleResponse> {
   const query = termId !== undefined ? `?term_id=${termId}` : "";
   return api.get(`/groups/public/${groupId}${query}`);
@@ -275,13 +275,13 @@ export function guestProfileIdKey(groupId: string, termId: string): string {
 const GUEST_PROFILE_TTL_MS = 60 * 60 * 1000;
 
 interface StoredGuestProfile {
-  userProfileId: number;
+  userProfileId: string;
   createdAt: number;
 }
 
 /** Writes an anonymous guest's `userProfileId` under `key`, stamped with
  * the current time so `readValidGuestProfile` can later expire it. */
-export function writeGuestProfile(key: string, userProfileId: number): void {
+export function writeGuestProfile(key: string, userProfileId: string): void {
   const stored: StoredGuestProfile = { userProfileId, createdAt: Date.now() };
   localStorage.setItem(key, JSON.stringify(stored));
 }
@@ -290,12 +290,12 @@ export function writeGuestProfile(key: string, userProfileId: number): void {
  * `null` if it's missing, malformed, or older than `GUEST_PROFILE_TTL_MS`.
  * Also tolerates the old bare-string shape (pre-TTL) by treating it as
  * expired rather than throwing. */
-export function readValidGuestProfile(key: string): number | null {
+export function readValidGuestProfile(key: string): string | null {
   const raw = localStorage.getItem(key);
   if (raw === null) return null;
   try {
     const parsed = JSON.parse(raw) as Partial<StoredGuestProfile>;
-    if (typeof parsed.userProfileId !== "number" || typeof parsed.createdAt !== "number") {
+    if (typeof parsed.userProfileId !== "string" || typeof parsed.createdAt !== "number") {
       return null;
     }
     if (Date.now() - parsed.createdAt > GUEST_PROFILE_TTL_MS) return null;
@@ -305,7 +305,7 @@ export function readValidGuestProfile(key: string): number | null {
   }
 }
 
-export function createRsvp(groupId: number, request: CreateRsvpRequest): Promise<RsvpResponse> {
+export function createRsvp(groupId: string, request: CreateRsvpRequest): Promise<RsvpResponse> {
   return api.post(`/groups/public/${groupId}/rsvp`, request);
 }
 
@@ -352,15 +352,15 @@ export type JoinRequestStatus = "PENDING" | "APPROVED" | "REJECTED" | "WITHDRAWN
 
 /** The `/access` view of the caller's own latest request. */
 export interface JoinRequestSummary {
-  id: number;
+  id: string;
   status: Extract<JoinRequestStatus, "PENDING" | "REJECTED">;
 }
 
 export interface JoinRequestResponse {
-  id: number;
-  group_id: number;
-  requester_party_id: number;
-  term_id: number | null;
+  id: string;
+  group_id: string;
+  requester_party_id: string;
+  term_id: string | null;
   status: JoinRequestStatus;
   created_at: string;
   updated_at: string;
@@ -369,11 +369,11 @@ export interface JoinRequestResponse {
 /** A PENDING request awaiting the organizer's decision, denormalized for
  * the panel's pending-actions list. */
 export interface PendingJoinRequestResponse {
-  id: number;
-  group_id: number;
+  id: string;
+  group_id: string;
   group_name: string;
-  term_id: number | null;
-  requester_party_id: number;
+  term_id: string | null;
+  requester_party_id: string;
   requester_display_name: string;
   created_at: string;
 }
@@ -383,7 +383,7 @@ export function createJoinRequest(groupId: string, termId?: string): Promise<Joi
   return api.post(`/groups/public/${groupId}/join-requests`, { term_id: termId ?? null });
 }
 
-export function withdrawJoinRequest(groupId: string, requestId: number): Promise<JoinRequestResponse> {
+export function withdrawJoinRequest(groupId: string, requestId: string): Promise<JoinRequestResponse> {
   return api.post(`/groups/public/${groupId}/join-requests/${requestId}/withdraw`, undefined);
 }
 
@@ -392,11 +392,11 @@ export function listMyPendingJoinRequests(): Promise<PendingJoinRequestResponse[
   return api.get("/groups/mine/join-requests");
 }
 
-export function approveJoinRequest(groupId: string, requestId: number): Promise<JoinRequestResponse> {
+export function approveJoinRequest(groupId: string, requestId: string): Promise<JoinRequestResponse> {
   return api.post(`/groups/${groupId}/join-requests/${requestId}/approve`, undefined);
 }
 
-export function rejectJoinRequest(groupId: string, requestId: number): Promise<JoinRequestResponse> {
+export function rejectJoinRequest(groupId: string, requestId: string): Promise<JoinRequestResponse> {
   return api.post(`/groups/${groupId}/join-requests/${requestId}/reject`, undefined);
 }
 
@@ -408,7 +408,7 @@ export function rejectJoinRequest(groupId: string, requestId: number): Promise<J
  * (date, circle name, organizer) and rebuild the public-term link
  * (`organizer_slug` + `group_id` + `term_id`) with no second request. */
 export interface MyAttendanceResponse {
-  attendance_id: number;
+  attendance_id: string;
   term_id: string;
   occurs_on: string;
   child_count: number;
@@ -427,14 +427,14 @@ export function getMyAttendances(): Promise<MyAttendanceResponse[]> {
  * withdrawal. Deliberately not `MyAttendanceResponse` (which never exposes
  * `withdrawn_at` by design — see that interface's docstring). */
 export interface WithdrawAttendanceResponse {
-  id: number;
-  term_id: number;
-  party_id: number;
+  id: string;
+  term_id: string;
+  party_id: string;
   child_count: number;
   withdrawn_at: string | null;
 }
 
-export function withdrawMyAttendance(attendanceId: number): Promise<WithdrawAttendanceResponse> {
+export function withdrawMyAttendance(attendanceId: string): Promise<WithdrawAttendanceResponse> {
   return api.post(`/groups/mine/attendances/${attendanceId}/withdraw`, undefined);
 }
 
@@ -443,14 +443,14 @@ export function withdrawMyAttendance(attendanceId: number): Promise<WithdrawAtte
 /* ------------------------------------------------------------------ */
 
 export interface MergeAnonymousProfileRequest {
-  user_profile_id: number;
+  user_profile_id: string;
   email: string;
   password: string;
 }
 
 export interface MergeAnonymousProfileResponse {
   token: string;
-  party_id: number;
+  party_id: string;
 }
 
 export function mergeAnonymousProfile(
@@ -468,7 +468,7 @@ export function mergeAnonymousProfile(
 /** One family's "udostępnia rzecz"/"przynosi na zajęcia" status marks for
  * the group's current Term — mirrors `app.groups.schemas.FamilyExchangeSummary`. */
 export interface FamilyExchangeSummary {
-  family_id: number;
+  family_id: string;
   shares_item: boolean;
   brings_item: boolean;
 }
@@ -477,7 +477,7 @@ export interface GroupExchangeSummaryResponse {
   families: FamilyExchangeSummary[];
 }
 
-export function getGroupExchangeSummary(groupId: number): Promise<GroupExchangeSummaryResponse> {
+export function getGroupExchangeSummary(groupId: string): Promise<GroupExchangeSummaryResponse> {
   return api.get(`/groups/${groupId}/exchange-summary`);
 }
 
@@ -486,21 +486,21 @@ export function getGroupExchangeSummary(groupId: number): Promise<GroupExchangeS
  * from `BrowseTermItemListingResponse`, mirroring
  * `app.groups.schemas.FamilyExchangeOffer`. */
 export interface FamilyExchangeOffer {
-  id: number;
-  item_id: number;
+  id: string;
+  item_id: string;
   product_name: string;
   condition: string;
   offered_types: string[];
 }
 
 export interface FamilyExchangeDetailResponse {
-  family_id: number;
+  family_id: string;
   offers: FamilyExchangeOffer[];
 }
 
 export function getFamilyExchangeOffers(
-  groupId: number,
-  familyId: number,
+  groupId: string,
+  familyId: string,
 ): Promise<FamilyExchangeDetailResponse> {
   return api.get(`/groups/${groupId}/families/${familyId}/exchange-offers`);
 }

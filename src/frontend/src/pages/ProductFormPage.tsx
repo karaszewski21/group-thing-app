@@ -31,7 +31,7 @@ export function ProductFormPage() {
 
   const [name, setName] = useState("");
   const [sku, setSku] = useState("");
-  const [categoryId, setCategoryId] = useState<number | "">("");
+  const [categoryId, setCategoryId] = useState<string>("");
   const [description, setDescription] = useState("");
   const [photoUrl, setPhotoUrl] = useState("");
   const [loading, setLoading] = useState(false);
@@ -43,7 +43,7 @@ export function ProductFormPage() {
     setLoadingData(true);
     try {
       if (id) {
-        const product = await getProduct(Number(id));
+        const product = await getProduct(id);
         setName(product.name);
         setSku(product.sku);
         setCategoryId(product.category_id);
@@ -75,7 +75,7 @@ export function ProductFormPage() {
     };
     try {
       if (isEdit && id) {
-        await updateProduct(Number(id), payload);
+        await updateProduct(id, payload);
       } else {
         await createProduct(payload);
       }
@@ -144,7 +144,7 @@ export function ProductFormPage() {
             <select
               id="product-category"
               value={categoryId}
-              onChange={(e) => setCategoryId(e.target.value ? Number(e.target.value) : "")}
+              onChange={(e) => setCategoryId(e.target.value)}
               required
               style={{
                 width: "100%",

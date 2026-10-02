@@ -11,8 +11,8 @@ vi.mock("../api/organizations", () => ({
 }));
 
 const mockOrganization: organizationsApi.OrganizationResponse = {
-  id: 7,
-  party_id: 3,
+  id: "7",
+  party_id: "3",
   name: "Muzyczne Skrzaty",
   slug: "muzyczne-skrzaty",
   primary_color: "#1b8168",
@@ -45,7 +45,7 @@ describe("OrganizationPage", () => {
     vi.mocked(organizationsApi.getMyOrganization).mockRejectedValue(new Error("404"));
     vi.mocked(organizationsApi.createMyOrganization).mockResolvedValue({
       ...mockOrganization,
-      id: 9,
+      id: "9",
       primary_color: null,
       accent_color: null,
     });
@@ -83,7 +83,7 @@ describe("OrganizationPage", () => {
     fireEvent.click(screen.getByRole("button", { name: /zapisz/i }));
 
     await waitFor(() => {
-      expect(organizationsApi.updateOrganization).toHaveBeenCalledWith(7, { name: "Muzyczne Skrzaty" });
+      expect(organizationsApi.updateOrganization).toHaveBeenCalledWith("7", { name: "Muzyczne Skrzaty" });
     });
   });
 

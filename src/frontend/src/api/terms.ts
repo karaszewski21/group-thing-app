@@ -21,11 +21,11 @@ export interface CreateTermRequest {
 }
 
 export interface NeededItemResponse {
-  id: number;
+  id: string;
   term_id: string;
-  product_id: number;
+  product_id: string;
   product_name: string;
-  product_category_id: number;
+  product_category_id: string;
   product_category_name: string;
   description: string | null;
   /** An active (non-withdrawn) pledge exists — "ktoś przyniesie". */
@@ -36,7 +36,7 @@ export interface NeededItemResponse {
 
 export interface CreateNeededItemRequest {
   term_id: string;
-  product_id: number;
+  product_id: string;
   description?: string;
 }
 
@@ -65,7 +65,7 @@ export function getNeededItems(termId: string): Promise<NeededItemResponse[]> {
   return api.get(`/needed-items?term_id=${termId}`);
 }
 
-export function getNeededItem(id: number): Promise<NeededItemResponse> {
+export function getNeededItem(id: string): Promise<NeededItemResponse> {
   return api.get(`/needed-items/${id}`);
 }
 
@@ -74,17 +74,17 @@ export function createNeededItem(request: CreateNeededItemRequest): Promise<Need
 }
 
 export interface UpdateNeededItemRequest {
-  product_id?: number;
+  product_id?: string;
   description?: string;
 }
 
 export function updateNeededItem(
-  id: number,
+  id: string,
   request: UpdateNeededItemRequest,
 ): Promise<NeededItemResponse> {
   return api.patch(`/needed-items/${id}`, request);
 }
 
-export function deleteNeededItem(id: number): Promise<void> {
+export function deleteNeededItem(id: string): Promise<void> {
   return api.delete(`/needed-items/${id}`);
 }

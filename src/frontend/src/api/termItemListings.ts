@@ -11,13 +11,13 @@ import type { ReservationType } from "./reservations";
  * `Reservation` history). `id` is the item's id — one derived listing per
  * item, not per creation event. */
 export interface BrowseTermItemListingResponse {
-  id: number;
-  term_id: number;
-  item_id: number;
-  lister_party_id: number;
+  id: string;
+  term_id: string;
+  item_id: string;
+  lister_party_id: string;
   offered_types: string[];
-  resolved_reservation_id: number | null;
-  taken_by_party_id: number | null;
+  resolved_reservation_id: string | null;
+  taken_by_party_id: string | null;
   product_name: string;
   condition: string;
   lister_display_name: string;
@@ -29,16 +29,16 @@ export interface BrowseTermItemListingResponse {
  * take. `term_id` is the Term context the take happens in (eligibility,
  * notification link) — the listing itself is Term-independent. */
 export interface TakeTermItemListingRequest {
-  term_id: number;
+  term_id: string;
   reservation_type: ReservationType;
-  offered_item_id?: number;
+  offered_item_id?: string;
 }
 
-export function getMyTermItemListings(termId: number): Promise<BrowseTermItemListingResponse[]> {
+export function getMyTermItemListings(termId: string): Promise<BrowseTermItemListingResponse[]> {
   return api.get(`/term-item-listings/mine?term_id=${termId}`);
 }
 
-export function getBrowseTermItemListings(termId: number): Promise<BrowseTermItemListingResponse[]> {
+export function getBrowseTermItemListings(termId: string): Promise<BrowseTermItemListingResponse[]> {
   return api.get(`/term-item-listings/browse?term_id=${termId}`);
 }
 
@@ -47,13 +47,13 @@ export function getBrowseTermItemListings(termId: number): Promise<BrowseTermIte
  * so it still resolves once the Term has occurred (the post-term-end
  * `confirm_transaction` flow). */
 export function getMyTakenTermItemListings(
-  termId: number,
+  termId: string,
 ): Promise<BrowseTermItemListingResponse[]> {
   return api.get(`/term-item-listings/mine-as-taker?term_id=${termId}`);
 }
 
 export function takeTermItemListing(
-  itemId: number,
+  itemId: string,
   request: TakeTermItemListingRequest,
 ): Promise<BrowseTermItemListingResponse> {
   return api.post(`/term-item-listings/${itemId}/take`, request);
@@ -68,16 +68,16 @@ export type SwapProposalStatus = "PROPOSED" | "ACCEPTED" | "REJECTED";
  * `TakeTermItemListingRequest.term_id`), `offered_item_id` is the
  * proposer's own single counter-offer item (V1 scope: exactly one). */
 export interface ProposeSwapRequest {
-  term_id: number;
-  offered_item_id: number;
+  term_id: string;
+  offered_item_id: string;
 }
 
 export interface SwapProposalResponse {
-  id: number;
-  proposer_party_id: number;
-  listing_item_id: number;
-  offered_item_id: number;
-  proposer_reservation_id: number;
+  id: string;
+  proposer_party_id: string;
+  listing_item_id: string;
+  offered_item_id: string;
+  proposer_reservation_id: string;
   status: SwapProposalStatus;
   created_at: string;
   updated_at: string;
@@ -87,17 +87,17 @@ export interface SwapProposalResponse {
  * it there) — a swap "take" is always a proposal the listing owner must
  * accept or reject. */
 export function proposeSwap(
-  itemId: number,
+  itemId: string,
   request: ProposeSwapRequest,
 ): Promise<SwapProposalResponse> {
   return api.post(`/term-item-listings/${itemId}/propose`, request);
 }
 
-export function acceptSwapProposal(proposalId: number): Promise<SwapProposalResponse> {
+export function acceptSwapProposal(proposalId: string): Promise<SwapProposalResponse> {
   return api.post(`/swap-proposals/${proposalId}/accept`, undefined);
 }
 
-export function rejectSwapProposal(proposalId: number): Promise<SwapProposalResponse> {
+export function rejectSwapProposal(proposalId: string): Promise<SwapProposalResponse> {
   return api.post(`/swap-proposals/${proposalId}/reject`, undefined);
 }
 
@@ -105,16 +105,16 @@ export function rejectSwapProposal(proposalId: number): Promise<SwapProposalResp
  * enough to render "X oferuje Y" on the `Moje rzeczy` tile and
  * `acceptSwapProposal` directly. */
 export interface SwapProposalOfferResponse {
-  id: number;
-  proposer_party_id: number;
+  id: string;
+  proposer_party_id: string;
   proposer_display_name: string;
-  offered_item_id: number;
+  offered_item_id: string;
   offered_product_name: string;
   created_at: string;
 }
 
 /** Every pending `SwapProposal` against `itemId`, for the item's own
  * owner — 403s for anyone else (see `service.list_swap_proposals_for_my_item`). */
-export function getSwapProposalsForItem(itemId: number): Promise<SwapProposalOfferResponse[]> {
+export function getSwapProposalsForItem(itemId: string): Promise<SwapProposalOfferResponse[]> {
   return api.get(`/term-item-listings/${itemId}/swap-proposals`);
 }

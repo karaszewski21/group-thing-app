@@ -10,11 +10,11 @@ vi.mock("../api/categories", () => ({
 }));
 
 const mockCategories: categoriesApi.Category[] = [
-  { id: 1, name: "Zabawka", description: null, sortOrder: 1, productCount: 0, createdAt: "", updatedAt: "" },
-  { id: 2, name: "Książka", description: null, sortOrder: 2, productCount: 0, createdAt: "", updatedAt: "" },
-  { id: 3, name: "Gra", description: null, sortOrder: 3, productCount: 0, createdAt: "", updatedAt: "" },
-  { id: 4, name: "Ubranie", description: null, sortOrder: 4, productCount: 0, createdAt: "", updatedAt: "" },
-  { id: 5, name: "Inne", description: null, sortOrder: 5, productCount: 0, createdAt: "", updatedAt: "" },
+  { id: "1", name: "Zabawka", description: null, sortOrder: 1, productCount: 0, createdAt: "", updatedAt: "" },
+  { id: "2", name: "Książka", description: null, sortOrder: 2, productCount: 0, createdAt: "", updatedAt: "" },
+  { id: "3", name: "Gra", description: null, sortOrder: 3, productCount: 0, createdAt: "", updatedAt: "" },
+  { id: "4", name: "Ubranie", description: null, sortOrder: 4, productCount: 0, createdAt: "", updatedAt: "" },
+  { id: "5", name: "Inne", description: null, sortOrder: 5, productCount: 0, createdAt: "", updatedAt: "" },
 ];
 
 describe("NeededItemQuickAddForm", () => {
@@ -54,7 +54,7 @@ describe("NeededItemQuickAddForm", () => {
       <NeededItemQuickAddForm value={createEmptyNeededItemQuickAddValue()} onChange={onChange} />, { wrapper: createQueryWrapper() },
     );
     fireEvent.change(screen.getByLabelText("Nazwa"), { target: { value: "Tamburyn" } });
-    expect(onChange).toHaveBeenCalledWith({ name: "Tamburyn", category_id: 0, description: "" });
+    expect(onChange).toHaveBeenCalledWith({ name: "Tamburyn", category_id: "", description: "" });
     await screen.findByText("Zabawka"); // wait for the async useCategories() fetch to settle
   });
 

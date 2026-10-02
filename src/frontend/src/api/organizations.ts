@@ -1,8 +1,8 @@
 import { api } from "./client";
 
 export interface OrganizationResponse {
-  id: number;
-  party_id: number;
+  id: string;
+  party_id: string;
   name: string;
   slug: string;
   primary_color: string | null;
@@ -39,7 +39,7 @@ export function createMyOrganization(
 }
 
 export function updateOrganization(
-  id: number,
+  id: string,
   request: UpdateOrganizationRequest,
 ): Promise<OrganizationResponse> {
   return api.patch(`/organizations/${id}`, request);

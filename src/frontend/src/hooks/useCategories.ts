@@ -13,8 +13,8 @@ interface UseCategoriesResult {
   loading: boolean;
   error: string | null;
   refetch: () => Promise<void>;
-  remove: (id: number) => Promise<void>;
-  move: (id: number, direction: MoveCategoryDirection) => Promise<void>;
+  remove: (id: string) => Promise<void>;
+  move: (id: string, direction: MoveCategoryDirection) => Promise<void>;
 }
 
 const CATEGORIES_KEY = ["categories"] as const;
@@ -46,7 +46,7 @@ export function useCategories(): UseCategoriesResult {
   // a generic string — e.g. a 409 "category still has N products" conflict
   // needs to reach the caller verbatim so it can be shown inline.
   const remove = useCallback(
-    async (id: number) => {
+    async (id: string) => {
       try {
         await apiDeleteCategory(id);
       } catch (err) {
@@ -58,7 +58,7 @@ export function useCategories(): UseCategoriesResult {
   );
 
   const move = useCallback(
-    async (id: number, direction: MoveCategoryDirection) => {
+    async (id: string, direction: MoveCategoryDirection) => {
       await apiMoveCategory(id, direction);
       await invalidate();
     },

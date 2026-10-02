@@ -8,10 +8,10 @@ import { useAccountGate, type TermActionDeps } from "./useAccountGate";
  * means someone else pledged it first, so the page refetches to show who. */
 export function useNeededItemPledge({ isLoggedIn, refetch, showToast }: TermActionDeps) {
   const gate = useAccountGate(isLoggedIn);
-  const [pledgedItemIds, setPledgedItemIds] = useState<number[]>([]);
-  const [pledgingItemId, setPledgingItemId] = useState<number | null>(null);
+  const [pledgedItemIds, setPledgedItemIds] = useState<string[]>([]);
+  const [pledgingItemId, setPledgingItemId] = useState<string | null>(null);
 
-  async function performPledge(neededItemId: number) {
+  async function performPledge(neededItemId: string) {
     setPledgingItemId(neededItemId);
     try {
       await createPledge(neededItemId);
@@ -33,6 +33,6 @@ export function useNeededItemPledge({ isLoggedIn, refetch, showToast }: TermActi
     pledge: gate.guard(performPledge),
     pledgingItemId,
     /** Pledged in this session, before the refetch reports it as claimed. */
-    isPledgedHere: (neededItemId: number) => pledgedItemIds.includes(neededItemId),
+    isPledgedHere: (neededItemId: string) => pledgedItemIds.includes(neededItemId),
   };
 }

@@ -18,12 +18,12 @@ interface UseProductsResult {
   error: string | null;
   refetch: () => Promise<void>;
   create: (request: CreateProductRequest) => Promise<ProductResponse>;
-  update: (id: number, request: UpdateProductRequest) => Promise<ProductResponse>;
-  remove: (id: number) => Promise<void>;
+  update: (id: string, request: UpdateProductRequest) => Promise<ProductResponse>;
+  remove: (id: string) => Promise<void>;
 }
 
 interface UseProductsParams {
-  category_id?: number;
+  category_id?: string;
   search?: string;
   sortField?: string;
   pluginFilters?: string[];
@@ -72,13 +72,13 @@ export function useProducts(params?: UseProductsParams): UseProductsResult {
     return created;
   }, [invalidate]);
 
-  const update = useCallback(async (id: number, request: UpdateProductRequest) => {
+  const update = useCallback(async (id: string, request: UpdateProductRequest) => {
     const updated = await apiUpdateProduct(id, request);
     await invalidate();
     return updated;
   }, [invalidate]);
 
-  const remove = useCallback(async (id: number) => {
+  const remove = useCallback(async (id: string) => {
     await apiDeleteProduct(id);
     await invalidate();
   }, [invalidate]);

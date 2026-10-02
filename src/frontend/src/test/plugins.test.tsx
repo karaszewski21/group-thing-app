@@ -134,7 +134,7 @@ describe("PluginFrame", () => {
         pluginName="Warehouse Management"
         pluginUrl="http://localhost:3001"
         contextType={PRODUCT_DETAIL_TABS}
-        contextData={{ productId: 42 }}
+        contextData={{ productId: "42" }}
         path="/stock"
       />,
     );
@@ -148,7 +148,7 @@ describe("PluginFrame", () => {
     const json = JSON.parse(name.substring(name.indexOf("{")));
     expect(json.pluginId).toBe("warehouse");
     expect(json.pluginName).toBe("Warehouse Management");
-    expect(json.productId).toBe(42);
+    expect(json.productId).toBe("42");
   });
 });
 

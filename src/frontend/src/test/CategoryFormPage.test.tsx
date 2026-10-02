@@ -13,7 +13,7 @@ vi.mock("../api/categories", () => ({
 }));
 
 const mockCategory: Category = {
-  id: 1,
+  id: "1",
   name: "Zabawka",
   description: "Toys",
   sortOrder: 0,
@@ -82,7 +82,7 @@ describe("CategoryFormPage", () => {
     });
 
     await waitFor(() =>
-      expect(categoriesApi.updateCategory).toHaveBeenCalledWith(1, {
+      expect(categoriesApi.updateCategory).toHaveBeenCalledWith("1", {
         name: "Zabawka",
         description: "Toys",
       }),

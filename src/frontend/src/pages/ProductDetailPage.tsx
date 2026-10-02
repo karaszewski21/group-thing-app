@@ -30,7 +30,7 @@ export function ProductDetailPage() {
     setLoading(true);
     setError(null);
     try {
-      const data = await getProduct(Number(id));
+      const data = await getProduct(id);
       setProduct(data);
     } catch {
       setError("Failed to load product.");

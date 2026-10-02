@@ -2,8 +2,8 @@ import type { MembershipResponse } from "./groups";
 import { api } from "./client";
 
 export interface FamilyOut {
-  id: number;
-  party_id: number;
+  id: string;
+  party_id: string;
   name: string;
   created_at: string;
   updated_at: string;
@@ -41,9 +41,9 @@ export interface CreateLightweightMemberRequest {
  * round trip needed to find out who a guardian is or whether they're the
  * family's primary contact. */
 export interface GuardianResponse {
-  family_membership_id: number;
-  party_id: number;
-  user_profile_id: number;
+  family_membership_id: string;
+  party_id: string;
+  user_profile_id: string;
   display_name: string;
   email: string | null;
   is_primary_contact: boolean;
@@ -72,11 +72,11 @@ export function getMyFamilies(): Promise<FamilyOut[]> {
 
 /** Same lookup as `getMyFamilies`, but for an arbitrary party (e.g.
  * resolving which Family a fellow Circle member belongs to). */
-export function getFamiliesForGuardianParty(partyId: number): Promise<FamilyOut[]> {
+export function getFamiliesForGuardianParty(partyId: string): Promise<FamilyOut[]> {
   return api.get(`/families/by-guardian-party/${partyId}`);
 }
 
-export function getFamily(familyId: number): Promise<FamilyResponse> {
+export function getFamily(familyId: string): Promise<FamilyResponse> {
   return api.get(`/families/${familyId}`);
 }
 
@@ -88,21 +88,21 @@ export function createOwnFamily(name: string): Promise<FamilyOut> {
 }
 
 /** Guardian-only in-place rename. */
-export function renameFamily(familyId: number, name: string): Promise<FamilyOut> {
+export function renameFamily(familyId: string, name: string): Promise<FamilyOut> {
   return api.patch(`/families/${familyId}`, { name });
 }
 
-export function addGuardian(familyId: number, request: AddGuardianRequest): Promise<GuardianResponse> {
+export function addGuardian(familyId: string, request: AddGuardianRequest): Promise<GuardianResponse> {
   return api.post(`/families/${familyId}/guardians`, request);
 }
 
-export function getGuardians(familyId: number): Promise<GuardianResponse[]> {
+export function getGuardians(familyId: string): Promise<GuardianResponse[]> {
   return api.get(`/families/${familyId}/guardians`);
 }
 
 export function makePrimaryContact(
-  familyId: number,
-  familyMembershipId: number,
+  familyId: string,
+  familyMembershipId: string,
 ): Promise<GuardianResponse[]> {
   return api.post(`/families/${familyId}/guardians/${familyMembershipId}/make-primary`, undefined);
 }
@@ -111,8 +111,8 @@ export function makePrimaryContact(
  * backend sets `valid_to`, so the member drops out of every family read).
  * Rejects with `ApiError` 403 (not a guardian) or 409 (last guardian). */
 export function removeFamilyMember(
-  familyId: number,
-  familyMembershipId: number,
+  familyId: string,
+  familyMembershipId: string,
 ): Promise<void> {
   return api.delete(`/families/${familyId}/guardians/${familyMembershipId}`);
 }
@@ -120,14 +120,14 @@ export function removeFamilyMember(
 /** Guardian-only birth-year edit of a CHILD member; `null` clears the year.
  * Callers reload the family instead of reading the response. */
 export function updateChildBirthYear(
-  familyId: number,
-  familyMembershipId: number,
+  familyId: string,
+  familyMembershipId: string,
   birthYear: number | null,
 ): Promise<void> {
   return api.patch(`/families/${familyId}/guardians/${familyMembershipId}`, { birth_year: birthYear });
 }
 
-export function getMembershipsForFamily(familyId: number): Promise<MembershipResponse[]> {
+export function getMembershipsForFamily(familyId: string): Promise<MembershipResponse[]> {
   return api.get(`/families/${familyId}/memberships`);
 }
 

@@ -33,7 +33,7 @@ function renderForm() {
   return render(
     <MemoryRouter>
       <AuthProvider>
-        <AccountMergeForm userProfileId={55} />
+        <AccountMergeForm userProfileId="55" />
       </AuthProvider>
     </MemoryRouter>,
   );
@@ -48,12 +48,12 @@ describe("account-merge -> real AuthContext.applyExternalToken -> authenticated 
   it("a successful merge stores the returned token under auth_token and triggers a getMyProfile() call using it", async () => {
     vi.mocked(groupsApi.mergeAnonymousProfile).mockResolvedValue({
       token: "merged-jwt-token",
-      party_id: 9,
+      party_id: "9",
     });
     vi.mocked(peopleApi.getMyProfile).mockResolvedValue({
-      id: 55,
-      party_id: 9,
-      account_user_id: 1,
+      id: "55",
+      party_id: "9",
+      account_user_id: "1",
       display_name: "Ania Kowalska",
       email: "ania@example.com",
       created_at: "2026-01-01T00:00:00Z",
@@ -84,7 +84,7 @@ describe("account-merge -> real AuthContext.applyExternalToken -> authenticated 
   it("when the subsequent getMyProfile() call fails, the merge itself is unaffected — token stays stored and the visitor stays on the page", async () => {
     vi.mocked(groupsApi.mergeAnonymousProfile).mockResolvedValue({
       token: "merged-jwt-token-2",
-      party_id: 10,
+      party_id: "10",
     });
     vi.mocked(peopleApi.getMyProfile).mockRejectedValue(new Error("network error"));
 

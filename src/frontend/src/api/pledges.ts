@@ -4,11 +4,11 @@ import type { ItemCondition } from "./inventories";
 export type PledgeStatus = "OPEN" | "CLAIMED" | "WITHDRAWN" | "FULFILLED";
 
 export interface PledgeResponse {
-  id: number;
-  needed_item_id: number;
-  pledged_by_party_id: number;
+  id: string;
+  needed_item_id: string;
+  pledged_by_party_id: string;
   status: PledgeStatus;
-  resolved_reservation_id: number | null;
+  resolved_reservation_id: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -18,17 +18,17 @@ export interface PledgeResponse {
  * - `{ condition, product_id? }` — register a fresh item; `product_id` defaults
  *   server-side to the product the NeededItem names. */
 export type FulfillPledgeRequest =
-  | { inventory_item_id: number }
-  | { condition: ItemCondition; product_id?: number };
+  | { inventory_item_id: string }
+  | { condition: ItemCondition; product_id?: string };
 
 /** One row of the caller's own "rzeczy, które obiecałem przynieść" list. */
 export interface MyPledgeResponse {
-  pledge_id: number;
+  pledge_id: string;
   status: PledgeStatus;
   product_name: string;
   item_description: string | null;
-  term_id: number;
-  group_id: number;
+  term_id: string;
+  group_id: string;
   group_name: string;
   occurs_on: string;
   organizer_slug: string;
@@ -36,7 +36,7 @@ export interface MyPledgeResponse {
   registered: boolean;
 }
 
-export function getPledges(neededItemId: number): Promise<PledgeResponse[]> {
+export function getPledges(neededItemId: string): Promise<PledgeResponse[]> {
   return api.get(`/pledges?needed_item_id=${neededItemId}`);
 }
 
@@ -44,22 +44,22 @@ export function getMyPledges(): Promise<MyPledgeResponse[]> {
   return api.get("/pledges/mine");
 }
 
-export function getPledge(id: number): Promise<PledgeResponse> {
+export function getPledge(id: string): Promise<PledgeResponse> {
   return api.get(`/pledges/${id}`);
 }
 
-export function createPledge(neededItemId: number): Promise<PledgeResponse> {
+export function createPledge(neededItemId: string): Promise<PledgeResponse> {
   return api.post("/pledges", { needed_item_id: neededItemId });
 }
 
-export function withdrawPledge(id: number): Promise<PledgeResponse> {
+export function withdrawPledge(id: string): Promise<PledgeResponse> {
   return api.post(`/pledges/${id}/withdraw`, undefined);
 }
 
-export function fulfillPledge(id: number, request: FulfillPledgeRequest): Promise<PledgeResponse> {
+export function fulfillPledge(id: string, request: FulfillPledgeRequest): Promise<PledgeResponse> {
   return api.post(`/pledges/${id}/fulfill`, request);
 }
 
-export function syncPledgeFulfillment(id: number): Promise<PledgeResponse> {
+export function syncPledgeFulfillment(id: string): Promise<PledgeResponse> {
   return api.post(`/pledges/${id}/sync`, undefined);
 }

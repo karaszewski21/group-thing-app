@@ -2,7 +2,7 @@ import { Avatar } from "../../../components/shared/Avatar";
 import { attendeeElementId, type ListingRowVM } from "./termSectionTypes";
 
 export interface AttendeeVM {
-  partyId: number;
+  partyId: string;
   name: string;
   /** Items this person offers to lend / swap / give away on this Term. */
   listings: ListingRowVM[];
@@ -44,7 +44,7 @@ export function AttendeeList({
   activePartyId,
 }: {
   attendees: AttendeeVM[];
-  activePartyId: number | null;
+  activePartyId: string | null;
 }) {
   return (
     <section className="kg-bring" aria-label="Zapisani na zajęcia">

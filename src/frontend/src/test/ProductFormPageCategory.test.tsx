@@ -23,7 +23,7 @@ vi.mock("../api/categories", () => ({
 
 const mockCategories: Category[] = [
   {
-    id: 5,
+    id: "5",
     name: "Zabawki",
     description: null,
     sortOrder: 0,
@@ -32,7 +32,7 @@ const mockCategories: Category[] = [
     updatedAt: "2026-01-01T00:00:00Z",
   },
   {
-    id: 7,
+    id: "7",
     name: "Książki",
     description: null,
     sortOrder: 1,
@@ -57,12 +57,12 @@ describe("ProductFormPage — category data source", () => {
     vi.resetAllMocks();
     vi.mocked(categoriesApi.getCategories).mockResolvedValue(mockCategories);
     vi.mocked(productsApi.createProduct).mockResolvedValue({
-      id: 1,
+      id: "1",
       name: "Rowerek",
       description: null,
       photoUrl: null,
       sku: "ABC",
-      category_id: 5,
+      category_id: "5",
       pluginData: null,
       createdAt: "2026-01-01T00:00:00Z",
       updatedAt: "2026-01-01T00:00:00Z",
@@ -89,7 +89,7 @@ describe("ProductFormPage — category data source", () => {
 
     await waitFor(() => {
       expect(productsApi.createProduct).toHaveBeenCalledWith(
-        expect.objectContaining({ category_id: 7 }),
+        expect.objectContaining({ category_id: "7" }),
       );
     });
     const payload = vi.mocked(productsApi.createProduct).mock.calls[0]![0];

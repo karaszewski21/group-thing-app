@@ -19,7 +19,7 @@ vi.mock("../api/products", () => ({
 
 const mockCategories: Category[] = [
   {
-    id: 3,
+    id: "3",
     name: "Zabawki",
     description: null,
     sortOrder: 0,
@@ -28,7 +28,7 @@ const mockCategories: Category[] = [
     updatedAt: "2026-01-01T00:00:00Z",
   },
   {
-    id: 9,
+    id: "9",
     name: "Ubrania",
     description: null,
     sortOrder: 1,
@@ -46,7 +46,7 @@ describe("ItemQuickAddForm — category_id rename", () => {
 
   it("renders the Typ select from useCategories()'s live data, keyed by category_id", async () => {
     render(
-      <ItemQuickAddForm value={createEmptyItemQuickAddValue(3)} onChange={vi.fn()} />, { wrapper: createQueryWrapper() },
+      <ItemQuickAddForm value={createEmptyItemQuickAddValue("3")} onChange={vi.fn()} />, { wrapper: createQueryWrapper() },
     );
 
     const select = (await screen.findByLabelText("Typ")) as HTMLSelectElement;
@@ -61,7 +61,7 @@ describe("ItemQuickAddForm — category_id rename", () => {
 
   it("selecting a category emits onChange with a numeric category_id, which the caller then resolves via resolveProduct({ name, category_id })", async () => {
     const onChange = vi.fn();
-    const value = createEmptyItemQuickAddValue(3);
+    const value = createEmptyItemQuickAddValue("3");
     render(<ItemQuickAddForm value={{ ...value, name: "Rowerek" }} onChange={onChange} />, { wrapper: createQueryWrapper() });
 
     const select = await screen.findByLabelText("Typ");
@@ -70,14 +70,14 @@ describe("ItemQuickAddForm — category_id rename", () => {
     fireEvent.change(select, { target: { value: "9" } });
 
     expect(onChange).toHaveBeenCalledWith(
-      expect.objectContaining({ category_id: 9, name: "Rowerek" }),
+      expect.objectContaining({ category_id: "9", name: "Rowerek" }),
     );
 
     // Simulate the caller (ItemCreatePage via useCreateItem) resolving the
     // Product with the emitted category_id.
-    const emitted = onChange.mock.calls[0]![0] as { name: string; category_id: number };
+    const emitted = onChange.mock.calls[0]![0] as { name: string; category_id: string };
     vi.mocked(resolveProduct).mockResolvedValue({
-      id: 1,
+      id: "1",
       name: emitted.name,
       description: null,
       photoUrl: null,
@@ -88,6 +88,6 @@ describe("ItemQuickAddForm — category_id rename", () => {
       updatedAt: "2026-01-01T00:00:00Z",
     });
     await resolveProduct({ name: emitted.name, category_id: emitted.category_id });
-    expect(resolveProduct).toHaveBeenCalledWith({ name: "Rowerek", category_id: 9 });
+    expect(resolveProduct).toHaveBeenCalledWith({ name: "Rowerek", category_id: "9" });
   });
 });

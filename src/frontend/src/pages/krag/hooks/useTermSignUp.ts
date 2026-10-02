@@ -17,7 +17,7 @@ export function useTermSignUp({
   groupId,
   termId,
   displayName,
-}: TermActionDeps & { groupId: number; termId: number | null; displayName: string | null }) {
+}: TermActionDeps & { groupId: string; termId: string | null; displayName: string | null }) {
   const gate = useAccountGate(isLoggedIn);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [signingUp, setSigningUp] = useState(false);

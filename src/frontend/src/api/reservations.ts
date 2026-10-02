@@ -4,10 +4,10 @@ export type ReservationType = "LEND" | "RETURN" | "SWAP" | "GIFT";
 export type ReservationStatus = "PENDING" | "CONFIRMED" | "CANCELLED" | "FULFILLED";
 
 export interface ReservationResponse {
-  id: number;
-  item_id: number;
+  id: string;
+  item_id: string;
   reservation_type: ReservationType;
-  reserved_by_user_id: number;
+  reserved_by_user_id: string;
   // Optional here (not on the actual backend response, which always sets
   // it — see `circulation/schemas.py`'s `ReservationResponse.term_id`)
   // purely so pre-existing mocked `ReservationResponse` object literals in
@@ -16,7 +16,7 @@ export interface ReservationResponse {
   // unrelated, out-of-scope rewrite. `RzeczyView.tsx`'s term-end
   // resolution (bug #4c) is the one real caller that reads it.
   term_id?: string;
-  paired_reservation_id: number | null;
+  paired_reservation_id: string | null;
   reserved_at: string;
   expires_at: string | null;
   status: ReservationStatus;
@@ -26,16 +26,16 @@ export interface ReservationResponse {
 /** The raw `POST /reservations` route only creates RETURNs; the server
  * derives the recipient (the item's home owner) from the item itself. */
 export interface CreateReturnReservationRequest {
-  item_id: number;
+  item_id: string;
   reservation_type?: "RETURN";
   notes?: string | null;
 }
 
-export function getReservations(itemId: number): Promise<ReservationResponse[]> {
+export function getReservations(itemId: string): Promise<ReservationResponse[]> {
   return api.get(`/reservations?item_id=${itemId}`);
 }
 
-export function getReservation(id: number): Promise<ReservationResponse> {
+export function getReservation(id: string): Promise<ReservationResponse> {
   return api.get(`/reservations/${id}`);
 }
 
@@ -45,11 +45,11 @@ export function createReservation(
   return api.post("/reservations", request);
 }
 
-export function confirmReservation(id: number): Promise<ReservationResponse> {
+export function confirmReservation(id: string): Promise<ReservationResponse> {
   return api.post(`/reservations/${id}/confirm`, undefined);
 }
 
-export function fulfillReservation(id: number): Promise<ReservationResponse> {
+export function fulfillReservation(id: string): Promise<ReservationResponse> {
   return api.post(`/reservations/${id}/fulfill`, undefined);
 }
 
@@ -59,14 +59,14 @@ export function fulfillReservation(id: number): Promise<ReservationResponse> {
  * response accompanies a 409 (see `api/client.ts`'s `ApiError`, whose
  * `body` carries this same shape on that status). */
 export interface ConfirmTransactionResponse {
-  reservation_id: number;
+  reservation_id: string;
   status: string;
   already_resolved: boolean;
 }
 
 /** The backend gates on the reservation's own Term (`reservation.term_id`
  * → `term.occurs_on`), so no request body is sent. */
-export function confirmTransaction(reservationId: number): Promise<ConfirmTransactionResponse> {
+export function confirmTransaction(reservationId: string): Promise<ConfirmTransactionResponse> {
   return api.post(`/reservations/${reservationId}/confirm-transaction`, undefined);
 }
 
@@ -75,6 +75,6 @@ export function confirmTransaction(reservationId: number): Promise<ConfirmTransa
  * `already_resolved`-discriminated 409 race-loss shape. */
 export type CancelTransactionResponse = ConfirmTransactionResponse;
 
-export function cancelTransaction(reservationId: number): Promise<CancelTransactionResponse> {
+export function cancelTransaction(reservationId: string): Promise<CancelTransactionResponse> {
   return api.post(`/reservations/${reservationId}/cancel-transaction`, undefined);
 }

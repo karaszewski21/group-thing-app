@@ -4,9 +4,6 @@ import type { ReactNode } from "react";
  * and an optional subtitle line (omitted entirely when `subtitle` is null). */
 export function GroupHeader({
   title,
-  subtitle,
-  eyebrow,
-  onBack,
 }: {
   title: string;
   subtitle?: ReactNode;

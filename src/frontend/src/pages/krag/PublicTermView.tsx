@@ -41,7 +41,7 @@ export function PublicTermView({
   const term = group.term;
   const termId = term?.id ?? null;
 
-  const [activePartyId, setActivePartyId] = useState<number | null>(null);
+  const [activePartyId, setActivePartyId] = useState<string | null>(null);
   const { toast, showToast } = useToast();
   const deps = { isLoggedIn, refetch, showToast };
   const guest = useGuestMerge({ groupId, termId, isLoggedIn, isAttendingOnServer });
@@ -49,7 +49,7 @@ export function PublicTermView({
   const pledge = useNeededItemPledge(deps);
   const itemTake = useItemTake({ ...deps, termId });
 
-  function handleSelectAttendee(partyId: number) {
+  function handleSelectAttendee(partyId: string) {
     setActivePartyId(partyId);
     const entry = document.getElementById(attendeeElementId(partyId));
     entry?.scrollIntoView({ behavior: "smooth", block: "start" });

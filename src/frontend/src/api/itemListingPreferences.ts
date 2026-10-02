@@ -2,9 +2,9 @@ import { api } from "./client";
 import type { ReservationType } from "./reservations";
 
 export interface ItemListingPreferenceResponse {
-  id: number;
-  item_id: number;
-  owner_party_id: number;
+  id: string;
+  item_id: string;
+  owner_party_id: string;
   mode: string;
   created_at: string;
   updated_at: string;
@@ -15,7 +15,7 @@ export interface ItemListingPreferenceResponse {
  * toggle. Independent of any Term: visibility for a given Term is derived
  * server-side from the owner's attendance/organizer status there. */
 export function setItemListingPreference(
-  itemId: number,
+  itemId: string,
   mode: ReservationType | null,
 ): Promise<ItemListingPreferenceResponse | null> {
   return api.put(`/item-listing-preferences/${itemId}`, { mode });

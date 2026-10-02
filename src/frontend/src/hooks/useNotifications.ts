@@ -15,7 +15,7 @@ interface UseNotificationsResult {
   loading: boolean;
   error: string | null;
   refetch: () => Promise<void>;
-  markRead: (id: number) => void;
+  markRead: (id: string) => void;
   markAllRead: () => Promise<void>;
 }
 
@@ -54,7 +54,7 @@ export function useNotifications(): UseNotificationsResult {
   // Optimistic and fire-and-forget: a failed mark-read only means the entry
   // shows as unread again after the next refetch.
   const markRead = useCallback(
-    (id: number) => {
+    (id: string) => {
       setReadLocally((n) => n.id === id);
       void markNotificationRead(id).catch(() => undefined);
     },

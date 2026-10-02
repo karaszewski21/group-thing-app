@@ -9,7 +9,7 @@ export interface RegisterPayload {
 }
 
 export interface RegisterResult {
-  partyId: number;
+  partyId: string;
   role: string;
 }
 

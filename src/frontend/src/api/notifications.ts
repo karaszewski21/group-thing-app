@@ -17,7 +17,7 @@ export type NotificationKind =
   | "GROUP_JOIN_REJECTED";
 
 export interface NotificationResponse {
-  id: number;
+  id: string;
   kind: NotificationKind;
   message: string;
   /** In-app route to open when the entry is clicked (or `null`). */
@@ -29,17 +29,17 @@ export interface NotificationResponse {
    * `SWAP_PROPOSED` — lets the global pending-actions modal call
    * `acceptSwapProposal`/`rejectSwapProposal` directly. `null`/absent for
    * every other kind. */
-  proposal_id?: number | null;
+  proposal_id?: string | null;
   /** Loose pointer at `GroupJoinRequest.id`, populated for the
    * `GROUP_JOIN_*` kinds — lets the pending-actions modal approve/reject a
    * `GROUP_JOIN_REQUESTED` request directly. `null`/absent for every other
    * kind. */
-  join_request_id?: number | null;
+  join_request_id?: string | null;
   /** Loose pointer at `Reservation.id`, populated for
    * `TERM_CONFIRMATION_NEEDED` raised from a GIFT/LEND reservation — lets
    * the pending-actions modal `confirmTransaction` on it directly. `null`
    * for every other kind (and for SWAP prompts). */
-  reservation_id: number | null;
+  reservation_id: string | null;
 }
 
 export function getMyNotifications(): Promise<NotificationResponse[]> {
@@ -50,7 +50,7 @@ export function getUnreadCount(): Promise<{ count: number }> {
   return api.get("/notifications/unread-count");
 }
 
-export function markNotificationRead(id: number): Promise<void> {
+export function markNotificationRead(id: string): Promise<void> {
   return api.post(`/notifications/${id}/read`, undefined);
 }
 

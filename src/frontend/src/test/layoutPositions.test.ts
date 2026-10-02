@@ -57,16 +57,16 @@ describe("layoutPositions", () => {
   });
 
   it("getStableSlotOrder is deterministic for the same groupId + familyIds pair", () => {
-    const familyIds = [101, 102, 103, 104, 105];
-    const first = getStableSlotOrder(42, familyIds);
-    const second = getStableSlotOrder(42, [...familyIds]);
+    const familyIds = ["101", "102", "103", "104", "105"];
+    const first = getStableSlotOrder("42", familyIds);
+    const second = getStableSlotOrder("42", [...familyIds]);
     expect(second).toEqual(first);
   });
 
   it("getStableSlotOrder differs across different groupIds for the same familyIds", () => {
-    const familyIds = [101, 102, 103, 104, 105];
-    const orderA = getStableSlotOrder(1, familyIds);
-    const orderB = getStableSlotOrder(2, familyIds);
+    const familyIds = ["101", "102", "103", "104", "105"];
+    const orderA = getStableSlotOrder("1", familyIds);
+    const orderB = getStableSlotOrder("2", familyIds);
     expect(orderB).not.toEqual(orderA);
   });
 });

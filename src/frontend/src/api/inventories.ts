@@ -7,8 +7,8 @@ export type ItemCondition = "NEW" | "LIKE_NEW" | "GOOD" | "FAIR" | "POOR";
 export type BalanceStatus = "AVAILABLE" | "RESERVED" | "IN_TRANSIT" | "LENT" | "RETURNED";
 
 export interface InventoryResponse {
-  id: number;
-  owner_user_id: number;
+  id: string;
+  owner_user_id: string;
   inventory_type: InventoryType;
   location: string | null;
   created_at: string;
@@ -21,10 +21,10 @@ export interface CreateInventoryRequest {
 }
 
 export interface InventoryItemResponse {
-  id: number;
-  inventory_id: number;
-  home_inventory_id: number | null;
-  product_id: number;
+  id: string;
+  inventory_id: string;
+  home_inventory_id: string | null;
+  product_id: string;
   product_name: string;
   condition: ItemCondition;
   added_at: string;
@@ -42,8 +42,8 @@ export interface MyInventoryItemResponse extends InventoryItemResponse {
 /** One of the caller's items currently lent out — sitting in the
  * borrower's VIRTUAL inventory — with the borrower and the return date. */
 export interface LentOutItemResponse {
-  id: number;
-  product_id: number;
+  id: string;
+  product_id: string;
   product_name: string;
   condition: ItemCondition;
   lent_to_display_name: string;
@@ -51,14 +51,14 @@ export interface LentOutItemResponse {
 }
 
 export interface CreateInventoryItemRequest {
-  inventory_id: number;
-  product_id: number;
+  inventory_id: string;
+  product_id: string;
   condition: ItemCondition;
 }
 
 export interface InventoryBalanceResponse {
-  id: number;
-  item_id: number;
+  id: string;
+  item_id: string;
   status: BalanceStatus;
   reserved_at: string | null;
   lent_at: string | null;
@@ -67,15 +67,15 @@ export interface InventoryBalanceResponse {
   // The item's in-flight Reservation id — set only for RESERVED/IN_TRANSIT
   // `status`, `null` otherwise. Backs RzeczyView's "Odebrał"/"Anuluj
   // wymianę" fallback buttons (bug #4c).
-  reservation_id: number | null;
+  reservation_id: string | null;
 }
 
-export function getInventories(ownerUserId?: number): Promise<InventoryResponse[]> {
+export function getInventories(ownerUserId?: string): Promise<InventoryResponse[]> {
   const query = ownerUserId ? `?owner_user_id=${ownerUserId}` : "";
   return api.get(`/inventories${query}`);
 }
 
-export function getInventory(id: number): Promise<InventoryResponse> {
+export function getInventory(id: string): Promise<InventoryResponse> {
   return api.get(`/inventories/${id}`);
 }
 
@@ -84,13 +84,13 @@ export function createInventory(request: CreateInventoryRequest): Promise<Invent
 }
 
 /** The user's PERSONAL inventory, created on first use. */
-export async function getOrCreatePersonalInventory(ownerUserId: number): Promise<InventoryResponse> {
+export async function getOrCreatePersonalInventory(ownerUserId: string): Promise<InventoryResponse> {
   const inventories = await getInventories(ownerUserId);
   const personal = inventories.find((i) => i.inventory_type === "PERSONAL");
   return personal ?? createInventory({ inventory_type: "PERSONAL" });
 }
 
-export function getInventoryItems(inventoryId: number): Promise<InventoryItemResponse[]> {
+export function getInventoryItems(inventoryId: string): Promise<InventoryItemResponse[]> {
   return api.get(`/inventory-items?inventory_id=${inventoryId}`);
 }
 
@@ -104,7 +104,7 @@ export function getMyLentOutItems(): Promise<LentOutItemResponse[]> {
   return api.get("/inventory-items/mine/lent-out");
 }
 
-export function getInventoryItem(id: number): Promise<InventoryItemResponse> {
+export function getInventoryItem(id: string): Promise<InventoryItemResponse> {
   return api.get(`/inventory-items/${id}`);
 }
 
@@ -114,7 +114,7 @@ export function registerInventoryItem(
   return api.post("/inventory-items", request);
 }
 
-export function getInventoryItemBalance(itemId: number): Promise<InventoryBalanceResponse> {
+export function getInventoryItemBalance(itemId: string): Promise<InventoryBalanceResponse> {
   return api.get(`/inventory-items/${itemId}/balance`);
 }
 
@@ -136,12 +136,12 @@ export const ACTIVE_LOCK_BALANCE_STATUSES: readonly BalanceStatus[] = ["RESERVED
  * component's own data-fetching. */
 export interface ItemBalanceSummary {
   status: BalanceStatus;
-  reservationId: number | null;
+  reservationId: string | null;
 }
 
 export async function getInventoryItemBalances(
-  itemIds: number[],
-): Promise<Record<number, ItemBalanceSummary>> {
+  itemIds: string[],
+): Promise<Record<string, ItemBalanceSummary>> {
   const balances = await Promise.all(itemIds.map((id) => getInventoryItemBalance(id)));
   return Object.fromEntries(
     balances.map((b) => [b.item_id, { status: b.status, reservationId: b.reservation_id }]),
@@ -160,6 +160,6 @@ export function updateInventoryItem(
   return api.patch(`/inventory-items/${id}`, request);
 }
 
-export function deleteInventoryItem(id: number): Promise<void> {
+export function deleteInventoryItem(id: string): Promise<void> {
   return api.delete(`/inventory-items/${id}`);
 }

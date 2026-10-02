@@ -27,13 +27,13 @@ export function ProductListPage() {
   const canEdit = permissions.includes("EDIT");
   const [searchInput, setSearchInput] = useState("");
   const [search, setSearch] = useState("");
-  const [categoryFilter, setCategoryFilter] = useState<number | undefined>(undefined);
+  const [categoryFilter, setCategoryFilter] = useState<string | undefined>(undefined);
   const [sortField, setSortField] = useState<string | undefined>(undefined);
   const [pluginFilters, setPluginFilters] = useState<string[]>([]);
   const debounceRef = useRef<ReturnType<typeof setTimeout>>(null);
   const { getProductListFilters } = usePluginContext();
   const { data: categories } = useCategories();
-  const categoryName = (categoryId: number): string =>
+  const categoryName = (categoryId: string): string =>
     categories.find((c) => c.id === categoryId)?.name ?? `#${categoryId}`;
 
   useEffect(() => {
@@ -57,7 +57,7 @@ export function ProductListPage() {
     pluginFilters: pluginFilters.length > 0 ? pluginFilters : undefined,
   });
 
-  const [deleteId, setDeleteId] = useState<number | null>(null);
+  const [deleteId, setDeleteId] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
 
   async function handleDelete() {
@@ -133,7 +133,7 @@ export function ProductListPage() {
           aria-label="Filter by category"
           value={categoryFilter ?? ""}
           onChange={(e) =>
-            setCategoryFilter(e.target.value ? Number(e.target.value) : undefined)
+            setCategoryFilter(e.target.value || undefined)
           }
           style={{
             padding: "8px 12px",

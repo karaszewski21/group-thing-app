@@ -25,7 +25,7 @@ import { createQueryWrapper } from "./queryClient";
 
 const mockCategories: Category[] = [
   {
-    id: 1,
+    id: "1",
     name: "Zabawka",
     description: null,
     sortOrder: 0,
@@ -34,7 +34,7 @@ const mockCategories: Category[] = [
     updatedAt: "2026-01-01T00:00:00Z",
   },
   {
-    id: 2,
+    id: "2",
     name: "Książka",
     description: null,
     sortOrder: 1,

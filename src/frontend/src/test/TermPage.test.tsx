@@ -38,22 +38,22 @@ const OTHER_TERM_ID = "7d8e9fa0-b1c2-4d3e-8f4a-0000000000c7";
 const PATH = `/zajecia/grupa/${GROUP_ID}/term/${TERM_ID}`;
 
 const circle: PublicCircleResponse = {
-  id: 7,
+  id: "7",
   name: "Muzyczne Skrzaty",
   organizer_display_name: "Ania Kowalska",
   organizer_slug: "ania",
   visibility: "PUBLIC",
   layout_mode: "CIRCLE",
   term: {
-    id: 101,
+    id: "101",
     occurs_on: "2026-10-01T17:00:00",
     description: "Zajęcia w parku",
     needed_items: [
       {
-        id: 11,
-        product_id: 1,
+        id: "11",
+        product_id: "1",
         product_name: "Bębenek",
-        product_category_id: 5,
+        product_category_id: "5",
         product_category_name: "Inne",
         description: null,
         claimed: false,
@@ -63,28 +63,28 @@ const circle: PublicCircleResponse = {
     ],
     item_listings: [
       {
-        id: 9,
-        item_id: 9,
+        id: "9",
+        item_id: "9",
         product_name: "Rowerek",
         condition: "GOOD",
         offered_types: ["LEND"],
-        lister_party_id: 21,
+        lister_party_id: "21",
         lister_display_name: "Ola Nowak",
       },
       {
-        id: 10,
-        item_id: 10,
+        id: "10",
+        item_id: "10",
         product_name: "Namiot",
         condition: "GOOD",
         offered_types: ["GIFT"],
-        lister_party_id: 99,
+        lister_party_id: "99",
         lister_display_name: "Ania Kowalska",
       },
     ],
   },
   guardians: [
-    { party_id: 21, display_name: "Ola Nowak" },
-    { party_id: 22, display_name: "Piotr Zieliński" },
+    { party_id: "21", display_name: "Ola Nowak" },
+    { party_id: "22", display_name: "Piotr Zieliński" },
   ],
 };
 
@@ -156,7 +156,7 @@ describe("TermPage — header and content", () => {
           layout_mode: "TABLE",
           term: {
             ...circle.term!,
-            needed_items: [{ ...circle.term!.needed_items[0], claimed: true, claimed_by_party_id: 22 }],
+            needed_items: [{ ...circle.term!.needed_items[0], claimed: true, claimed_by_party_id: "22" }],
           },
         },
       }),
@@ -238,7 +238,7 @@ describe("TermPage — sign-up footer", () => {
   it("logged-in RSVP banner links to family view with returnTo", async () => {
     mockAuth = { token: "tok", displayName: "Ala" };
     vi.mocked(familiesApi.getMyFamilies).mockResolvedValue([
-      { id: 3, party_id: 4, name: "Kowalscy", child_count: 0, created_at: "", updated_at: "" },
+      { id: "3", party_id: "4", name: "Kowalscy", child_count: 0, created_at: "", updated_at: "" },
     ]);
     renderPage();
 
@@ -262,7 +262,7 @@ describe("TermPage — sign-up footer", () => {
   });
 
   it("a guest who already RSVP'd sees no sign-up button and gets the account form instead of the gate", async () => {
-    groupsApi.writeGuestProfile(GUEST_KEY, 55);
+    groupsApi.writeGuestProfile(GUEST_KEY, "55");
     renderPage();
 
     await screen.findByRole("heading", { level: 1, name: "Muzyczne Skrzaty" });
@@ -292,7 +292,7 @@ describe("TermPage — item actions", () => {
 
     fireEvent.click(await screen.findByRole("button", { name: "Ja to przyniosę: Bębenek" }));
 
-    await waitFor(() => expect(pledgesApi.createPledge).toHaveBeenCalledWith(11));
+    await waitFor(() => expect(pledgesApi.createPledge).toHaveBeenCalledWith("11"));
     expect(await screen.findByText("Przynosi: Ty")).toBeInTheDocument();
   });
 
@@ -304,8 +304,8 @@ describe("TermPage — item actions", () => {
     fireEvent.click(await screen.findByRole("button", { name: "Pożycz: Rowerek" }));
 
     await waitFor(() =>
-      expect(termItemListingsApi.takeTermItemListing).toHaveBeenCalledWith(9, {
-        term_id: 101,
+      expect(termItemListingsApi.takeTermItemListing).toHaveBeenCalledWith("9", {
+        term_id: "101",
         reservation_type: "LEND",
       }),
     );
@@ -321,7 +321,7 @@ function privateAccess(
   });
 }
 
-const pendingAccess = privateAccess({ access: { join_request: { id: 5, status: "PENDING" } } });
+const pendingAccess = privateAccess({ access: { join_request: { id: "5", status: "PENDING" } } });
 
 describe("TermPage — access", () => {
   it("anonymous on a PRIVATE group sees only the gate with login links, no term content", async () => {
@@ -372,7 +372,7 @@ describe("TermPage — private group gate", () => {
 
   it("canRequest: 'Poproś o dostęp' → 'Wyślij' sends the request and shows the pending status", async () => {
     vi.mocked(groupsApi.getGroupAccess).mockResolvedValueOnce(privateAccess()).mockResolvedValueOnce(pendingAccess);
-    vi.mocked(groupsApi.createJoinRequest).mockResolvedValue({ id: 5 } as JoinRequestResponse);
+    vi.mocked(groupsApi.createJoinRequest).mockResolvedValue({ id: "5" } as JoinRequestResponse);
     renderPage();
 
     fireEvent.click(await screen.findByRole("button", { name: "Poproś o dostęp" }));
@@ -405,10 +405,10 @@ describe("TermPage — private group gate", () => {
   it("a failed withdraw alert does not come back after the gate moves on and returns to pending", async () => {
     vi.mocked(groupsApi.getGroupAccess)
       .mockResolvedValueOnce(pendingAccess)
-      .mockResolvedValueOnce(privateAccess({ access: { join_request: { id: 5, status: "REJECTED" } } }))
-      .mockResolvedValueOnce(privateAccess({ access: { join_request: { id: 6, status: "PENDING" } } }));
+      .mockResolvedValueOnce(privateAccess({ access: { join_request: { id: "5", status: "REJECTED" } } }))
+      .mockResolvedValueOnce(privateAccess({ access: { join_request: { id: "6", status: "PENDING" } } }));
     vi.mocked(groupsApi.withdrawJoinRequest).mockRejectedValue(new ApiError(500, "Server Error", null));
-    vi.mocked(groupsApi.createJoinRequest).mockResolvedValue({ id: 6 } as JoinRequestResponse);
+    vi.mocked(groupsApi.createJoinRequest).mockResolvedValue({ id: "6" } as JoinRequestResponse);
     renderPage();
 
     fireEvent.click(await screen.findByRole("button", { name: "Wycofaj prośbę" }));
@@ -423,18 +423,18 @@ describe("TermPage — private group gate", () => {
 
   it("pending: 'Wycofaj prośbę' withdraws and returns to canRequest", async () => {
     vi.mocked(groupsApi.getGroupAccess).mockResolvedValueOnce(pendingAccess).mockResolvedValueOnce(privateAccess());
-    vi.mocked(groupsApi.withdrawJoinRequest).mockResolvedValue({ id: 5 } as JoinRequestResponse);
+    vi.mocked(groupsApi.withdrawJoinRequest).mockResolvedValue({ id: "5" } as JoinRequestResponse);
     renderPage();
 
     fireEvent.click(await screen.findByRole("button", { name: "Wycofaj prośbę" }));
 
-    await waitFor(() => expect(groupsApi.withdrawJoinRequest).toHaveBeenCalledWith(GROUP_ID, 5));
+    await waitFor(() => expect(groupsApi.withdrawJoinRequest).toHaveBeenCalledWith(GROUP_ID, "5"));
     expect(await screen.findByRole("button", { name: "Poproś o dostęp" })).toBeInTheDocument();
   });
 
   it("rejected: offers 'Poproś ponownie'", async () => {
     vi.mocked(groupsApi.getGroupAccess).mockResolvedValue(
-      privateAccess({ access: { join_request: { id: 5, status: "REJECTED" } } }),
+      privateAccess({ access: { join_request: { id: "5", status: "REJECTED" } } }),
     );
     renderPage();
 
@@ -601,7 +601,7 @@ describe("TermPage — direct sign-up and server error messages", () => {
   it("logged in with children in the family: signs up straight away with that child count, no dialog", async () => {
     mockAuth = { token: "tok", displayName: "Ala" };
     vi.mocked(familiesApi.getMyFamilies).mockResolvedValue([
-      { id: 3, party_id: 4, name: "Kowalscy", child_count: 2, created_at: "", updated_at: "" },
+      { id: "3", party_id: "4", name: "Kowalscy", child_count: 2, created_at: "", updated_at: "" },
     ]);
     vi.mocked(groupsApi.createRsvp).mockResolvedValue({ attached_to_account: true } as never);
     renderPage();
@@ -609,7 +609,7 @@ describe("TermPage — direct sign-up and server error messages", () => {
     fireEvent.click(await screen.findByRole("button", { name: "＋ Zapisz się na zajęcia" }));
 
     await waitFor(() =>
-      expect(groupsApi.createRsvp).toHaveBeenCalledWith(7, { term_id: 101, guardian_name: "Ala", child_count: 2 }),
+      expect(groupsApi.createRsvp).toHaveBeenCalledWith("7", { term_id: "101", guardian_name: "Ala", child_count: 2 }),
     );
     expect(await screen.findByRole("status")).toHaveTextContent("Zapisano na zajęcia z 2 dziećmi");
     expect(screen.queryByRole("dialog", { name: "Zapisz się na zajęcia" })).not.toBeInTheDocument();
@@ -618,7 +618,7 @@ describe("TermPage — direct sign-up and server error messages", () => {
   it("direct sign-up rejected with 409 shows the server's message", async () => {
     mockAuth = { token: "tok", displayName: "Ala" };
     vi.mocked(familiesApi.getMyFamilies).mockResolvedValue([
-      { id: 3, party_id: 4, name: "Kowalscy", child_count: 1, created_at: "", updated_at: "" },
+      { id: "3", party_id: "4", name: "Kowalscy", child_count: 1, created_at: "", updated_at: "" },
     ]);
     vi.mocked(groupsApi.createRsvp).mockRejectedValue(
       new ApiError(409, "Conflict", { message: "Termin już się odbył" }),

@@ -13,7 +13,7 @@ export type GroupLayoutMode = "CIRCLE" | "PITCH" | "TABLE";
 
 /** One avatar in the visualization — a person signed up for the Term. */
 export interface VisualizationFamily {
-  familyId: number;
+  familyId: string;
   name: string;
   /** Renders the "udostępnia rzecz" (shares) marker on the avatar. */
   sharesItem?: boolean;
@@ -28,15 +28,15 @@ export interface GroupVisualizationProps {
   organizerName: string;
   families: VisualizationFamily[];
   neededItemRows: NeededItemRowVM[]
-  activeFamilyId: number | string | null;
-  onSelectFamily: (familyId: number) => void;
+  activeFamilyId: string | string | null;
+  onSelectFamily: (familyId: string) => void;
   /** Seeds the deterministic PITCH/TABLE family→slot shuffle
    * (`getStableSlotOrder`); unused by CIRCLE, which keeps `families`' natural
    * order. Still accepted uniformly so all 3 layouts share one prop contract. */
-  groupId: number | string;
+  groupId: string | string;
 }
 
-function isActive(activeFamilyId: number | string | null, familyId: number): boolean {
+function isActive(activeFamilyId: string | string | null, familyId: string): boolean {
   return activeFamilyId !== null && String(activeFamilyId) === String(familyId);
 }
 
@@ -44,7 +44,7 @@ interface FamilySlotProps {
   family: VisualizationFamily;
   active: boolean;
   style: CSSProperties;
-  onSelectFamily: (familyId: number) => void;
+  onSelectFamily: (familyId: string) => void;
 }
 
 /** One family's clickable avatar slot — shared markup across all 3 layouts. */
@@ -67,8 +67,8 @@ interface LayoutProps {
   families: VisualizationFamily[];
   neededItemRows: NeededItemRowVM[]
   organizerName: string;
-  activeFamilyId: number | string | null;
-  onSelectFamily: (familyId: number) => void;
+  activeFamilyId: string | string | null;
+  onSelectFamily: (familyId: string) => void;
 }
 
 /**
@@ -142,7 +142,7 @@ function PitchLayout({
   activeFamilyId,
   onSelectFamily,
   groupId,
-}: LayoutProps & { groupId: number | string }) {
+}: LayoutProps & { groupId: string | string }) {
   const slots = families.length;
   const order = getStableSlotOrder(groupId, families.map((f) => f.familyId));
   const byId = new Map(families.map((f) => [f.familyId, f]));
@@ -197,7 +197,7 @@ function TableLayout({
   neededItemRows,
   onSelectFamily,
   groupId,
-}: LayoutProps & { groupId: number | string }) {
+}: LayoutProps & { groupId: string | string }) {
   const slots = families.length;
   const order = getStableSlotOrder(groupId, families.map((f) => f.familyId));
   const byId = new Map(families.map((f) => [f.familyId, f]));

@@ -21,7 +21,7 @@ export function CategoryListPage() {
   const isAdmin = permissions.includes("ADMIN");
   const { data: categories, loading, error, remove, move } = useCategories();
 
-  const [deleteId, setDeleteId] = useState<number | null>(null);
+  const [deleteId, setDeleteId] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
 
@@ -47,7 +47,7 @@ export function CategoryListPage() {
     setDeleteError(null);
   }
 
-  async function handleMove(id: number, direction: "up" | "down") {
+  async function handleMove(id: string, direction: "up" | "down") {
     try {
       await move(id, direction);
     } catch {

@@ -47,29 +47,29 @@ vi.mock("../api/categories", () => ({
 }));
 
 const mockCategories: categoriesApi.Category[] = [
-  { id: 1, name: "Zabawka", description: null, sortOrder: 1, productCount: 0, createdAt: "", updatedAt: "" },
-  { id: 4, name: "Ubranie", description: null, sortOrder: 4, productCount: 0, createdAt: "", updatedAt: "" },
+  { id: "1", name: "Zabawka", description: null, sortOrder: 1, productCount: 0, createdAt: "", updatedAt: "" },
+  { id: "4", name: "Ubranie", description: null, sortOrder: 4, productCount: 0, createdAt: "", updatedAt: "" },
 ];
 
 const mockProducts: ProductResponse[] = [
   {
-    id: 1,
+    id: "1",
     name: "Wireless Headphones Pro",
     description: "Premium wireless headphones",
     photoUrl: "https://example.com/headphones.jpg",
     sku: "WHP-001",
-    category_id: 1,
+    category_id: "1",
     pluginData: null,
     createdAt: "2026-03-28T10:00:00Z",
     updatedAt: "2026-03-28T10:00:00Z",
   },
   {
-    id: 2,
+    id: "2",
     name: "Classic Watch",
     description: "Analog watch",
     photoUrl: null,
     sku: "CAW-042",
-    category_id: 4,
+    category_id: "4",
     pluginData: null,
     createdAt: "2026-03-27T10:00:00Z",
     updatedAt: "2026-03-27T10:00:00Z",

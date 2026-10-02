@@ -11,11 +11,11 @@ vi.mock("../api/categories", () => ({
 }));
 
 const mockCategories: categoriesApi.Category[] = [
-  { id: 1, name: "Zabawka", description: null, sortOrder: 1, productCount: 0, createdAt: "", updatedAt: "" },
-  { id: 2, name: "Książka", description: null, sortOrder: 2, productCount: 0, createdAt: "", updatedAt: "" },
-  { id: 3, name: "Gra", description: null, sortOrder: 3, productCount: 0, createdAt: "", updatedAt: "" },
-  { id: 4, name: "Ubranie", description: null, sortOrder: 4, productCount: 0, createdAt: "", updatedAt: "" },
-  { id: 5, name: "Inne", description: null, sortOrder: 5, productCount: 0, createdAt: "", updatedAt: "" },
+  { id: "1", name: "Zabawka", description: null, sortOrder: 1, productCount: 0, createdAt: "", updatedAt: "" },
+  { id: "2", name: "Książka", description: null, sortOrder: 2, productCount: 0, createdAt: "", updatedAt: "" },
+  { id: "3", name: "Gra", description: null, sortOrder: 3, productCount: 0, createdAt: "", updatedAt: "" },
+  { id: "4", name: "Ubranie", description: null, sortOrder: 4, productCount: 0, createdAt: "", updatedAt: "" },
+  { id: "5", name: "Inne", description: null, sortOrder: 5, productCount: 0, createdAt: "", updatedAt: "" },
 ];
 
 describe("ItemQuickAddForm", () => {
@@ -64,7 +64,7 @@ describe("ItemQuickAddForm", () => {
     expect(onChange).toHaveBeenCalledWith({
       name: "Rowerek",
       condition: "GOOD",
-      category_id: 0,
+      category_id: "",
     });
     await screen.findByText("Zabawka"); // wait for the async useCategories() fetch to settle
   });

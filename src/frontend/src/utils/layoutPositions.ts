@@ -127,7 +127,7 @@ function mulberry32(seed: number): () => number {
  * order, while different groups shuffle differently. CIRCLE keeps the
  * natural `families` order and does not use this function.
  */
-export function getStableSlotOrder(groupId: number | string, familyIds: number[]): number[] {
+export function getStableSlotOrder(groupId: string | string, familyIds: string[]): string[] {
   const rng = mulberry32(hashString(String(groupId)));
   const order = [...familyIds];
   for (let i = order.length - 1; i > 0; i--) {

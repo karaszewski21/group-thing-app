@@ -41,7 +41,7 @@ const mockUseAuth = vi.fn((): {
     role: "GUEST" | "ORGANIZER";
     email: string;
     password: string;
-  }) => Promise<{ partyId: number; role: string }>;
+  }) => Promise<{ partyId: string; role: string }>;
   logout: () => void;
 } => ({
   token: "test-token",
@@ -110,7 +110,7 @@ describe("API Client Auth", () => {
     mockFetch.mockResolvedValueOnce({
       ok: true,
       status: 200,
-      json: () => Promise.resolve({ id: 1 }),
+      json: () => Promise.resolve({ id: "1" }),
     });
 
     const { api } = await import("../api/client");
@@ -182,7 +182,7 @@ describe("LoginPage", () => {
 
 describe("RegisterPage", () => {
   it("posts register body as exactly {role, email, password}", async () => {
-    const mockRegister = vi.fn(async () => ({ partyId: 1, role: "GUEST" }));
+    const mockRegister = vi.fn(async () => ({ partyId: "1", role: "GUEST" }));
     mockUseAuth.mockReturnValue({
       token: null as string | null,
       username: null as string | null,
@@ -241,7 +241,7 @@ describe("RegisterPage", () => {
   });
 
   it("navigates to /onboarding on successful registration", async () => {
-    const mockRegister = vi.fn(async () => ({ partyId: 1, role: "GUEST" }));
+    const mockRegister = vi.fn(async () => ({ partyId: "1", role: "GUEST" }));
     mockUseAuth.mockReturnValue({
       token: null as string | null,
       username: null as string | null,

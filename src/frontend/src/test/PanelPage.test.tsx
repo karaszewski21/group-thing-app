@@ -175,10 +175,10 @@ function browseListing(
   overrides: Partial<BrowseTermItemListingResponse> = {},
 ): BrowseTermItemListingResponse {
   return {
-    id: 501,
-    term_id: 3,
-    item_id: 9,
-    lister_party_id: 7,
+    id: "501",
+    term_id: "3",
+    item_id: "9",
+    lister_party_id: "7",
     offered_types: ["SWAP"],
     resolved_reservation_id: null,
     taken_by_party_id: null,
@@ -192,9 +192,9 @@ function browseListing(
 }
 
 const mockProfile: peopleApi.UserProfileResponse = {
-  id: 1,
-  party_id: 1,
-  account_user_id: 1,
+  id: "1",
+  party_id: "1",
+  account_user_id: "1",
   display_name: "Jan Kowalski",
   email: null,
   created_at: "2026-01-01T00:00:00Z",
@@ -208,8 +208,8 @@ const mockOrganizerProfile: peopleApi.UserProfileResponse = {
 };
 
 const mockInventory: inventoriesApi.InventoryResponse = {
-  id: 1,
-  owner_user_id: 1,
+  id: "1",
+  owner_user_id: "1",
   inventory_type: "PERSONAL",
   location: null,
   created_at: "2026-01-01T00:00:00Z",
@@ -218,11 +218,11 @@ const mockInventory: inventoriesApi.InventoryResponse = {
 
 // Seeded category ids/names (migration 0025_category_reintroduction.py).
 const mockCategories: categoriesApi.Category[] = [
-  { id: 1, name: "Zabawka", description: null, sortOrder: 1, productCount: 0, createdAt: "", updatedAt: "" },
-  { id: 2, name: "Książka", description: null, sortOrder: 2, productCount: 0, createdAt: "", updatedAt: "" },
-  { id: 3, name: "Gra", description: null, sortOrder: 3, productCount: 0, createdAt: "", updatedAt: "" },
-  { id: 4, name: "Ubranie", description: null, sortOrder: 4, productCount: 0, createdAt: "", updatedAt: "" },
-  { id: 5, name: "Inne", description: null, sortOrder: 5, productCount: 0, createdAt: "", updatedAt: "" },
+  { id: "1", name: "Zabawka", description: null, sortOrder: 1, productCount: 0, createdAt: "", updatedAt: "" },
+  { id: "2", name: "Książka", description: null, sortOrder: 2, productCount: 0, createdAt: "", updatedAt: "" },
+  { id: "3", name: "Gra", description: null, sortOrder: 3, productCount: 0, createdAt: "", updatedAt: "" },
+  { id: "4", name: "Ubranie", description: null, sortOrder: 4, productCount: 0, createdAt: "", updatedAt: "" },
+  { id: "5", name: "Inne", description: null, sortOrder: 5, productCount: 0, createdAt: "", updatedAt: "" },
 ];
 
 // Term/Group ids are UUID strings end to end (spec R29) — never coerced.
@@ -261,8 +261,8 @@ const clipboardWriteText = vi.fn();
 Object.assign(navigator, { clipboard: { writeText: clipboardWriteText } });
 
 const mockFamily: familiesApi.FamilyOut = {
-  id: 10,
-  party_id: 99,
+  id: "10",
+  party_id: "99",
   name: "Kowalscy",
   child_count: 0,
   created_at: "2026-01-01T00:00:00Z",
@@ -271,7 +271,7 @@ const mockFamily: familiesApi.FamilyOut = {
 
 const mockAttendances: groupsApi.MyAttendanceResponse[] = [
   {
-    attendance_id: 1,
+    attendance_id: "1",
     term_id: ATTENDED_TERM_ID,
     occurs_on: "2026-02-15",
     child_count: 2,
@@ -281,7 +281,7 @@ const mockAttendances: groupsApi.MyAttendanceResponse[] = [
     organizer_slug: "ania-kowalska",
   },
   {
-    attendance_id: 2,
+    attendance_id: "2",
     term_id: OTHER_ATTENDED_TERM_ID,
     occurs_on: "2026-03-01",
     child_count: 1,
@@ -294,9 +294,9 @@ const mockAttendances: groupsApi.MyAttendanceResponse[] = [
 
 const mockGuardians: familiesApi.GuardianResponse[] = [
   {
-    family_membership_id: 1,
-    party_id: 1, // matches mockProfile.party_id — "(Ty)"
-    user_profile_id: 1,
+    family_membership_id: "1",
+    party_id: "1", // matches mockProfile.party_id — "(Ty)"
+    user_profile_id: "1",
     display_name: "Jan Kowalski",
     email: null,
     is_primary_contact: true,
@@ -306,9 +306,9 @@ const mockGuardians: familiesApi.GuardianResponse[] = [
     birth_year: null,
   },
   {
-    family_membership_id: 2,
-    party_id: 2,
-    user_profile_id: 2,
+    family_membership_id: "2",
+    party_id: "2",
+    user_profile_id: "2",
     display_name: "Marek Kowalski",
     email: null,
     is_primary_contact: false,
@@ -318,9 +318,9 @@ const mockGuardians: familiesApi.GuardianResponse[] = [
     birth_year: null,
   },
   {
-    family_membership_id: 3,
-    party_id: 3,
-    user_profile_id: 3,
+    family_membership_id: "3",
+    party_id: "3",
+    user_profile_id: "3",
     display_name: "Zosia Kowalska",
     email: null,
     is_primary_contact: false,
@@ -394,7 +394,7 @@ function mockOrganizerDefaults() {
   vi.mocked(categoriesApi.getCategories).mockResolvedValue(mockCategories);
   vi.mocked(peopleApi.getMyProfile).mockResolvedValue(mockOrganizerProfile);
   vi.mocked(peopleApi.getLeadershipsForPerson).mockResolvedValue([
-    { id: 1, from_role_id: 1, to_group_id: GROUP_ID, organizer_party_id: 1, valid_from: "2026-01-01", valid_to: null },
+    { id: "1", from_role_id: "1", to_group_id: GROUP_ID, organizer_party_id: "1", valid_from: "2026-01-01", valid_to: null },
   ]);
   vi.mocked(inventoriesApi.getInventories).mockResolvedValue([mockInventory]);
   vi.mocked(inventoriesApi.getMyInventoryItems).mockResolvedValue([]);
@@ -478,8 +478,8 @@ describe("PanelPage — hamburger promotion", () => {
   it('"Moja organizacja" links directly to the public organization page once one already exists', async () => {
     mockOrganizerDefaults();
     vi.mocked(organizationsApi.getMyOrganization).mockResolvedValue({
-      id: 1,
-      party_id: 1,
+      id: "1",
+      party_id: "1",
       name: "Muzyczne Skrzaty",
       slug: "muzyczne-skrzaty",
       primary_color: null,
@@ -517,7 +517,7 @@ describe("PanelPage — hamburger promotion", () => {
     // Step 1 -> step 2 immediately triggers a `load()` refresh (via
     // onCircleCreated) so a reopened menu already reflects the new circle.
     vi.mocked(peopleApi.getLeadershipsForPerson).mockResolvedValue([
-      { id: 1, from_role_id: 1, to_group_id: GROUP_ID, organizer_party_id: 1, valid_from: "2026-01-01", valid_to: null },
+      { id: "1", from_role_id: "1", to_group_id: GROUP_ID, organizer_party_id: "1", valid_from: "2026-01-01", valid_to: null },
     ]);
     vi.mocked(groupsApi.getGroup).mockResolvedValue(mockGroup);
     vi.mocked(groupsApi.getTermAttendeesForFormalization).mockResolvedValue([]);
@@ -636,7 +636,7 @@ describe("PanelPage — dismissible home hints", () => {
   it('GUEST "Możesz zostać organizatorem" opens a 3-step flow starting with the organization name, and dismisses on its own key', async () => {
     mockGuestDefaults();
     vi.mocked(organizationsApi.createMyOrganization).mockResolvedValue({
-      id: 1, party_id: 1, name: "Studio Nutka", slug: "studio-nutka",
+      id: "1", party_id: "1", name: "Studio Nutka", slug: "studio-nutka",
       primary_color: null, accent_color: null, created_at: "", updated_at: "",
     });
     renderPanel();
@@ -724,8 +724,8 @@ describe("PanelPage — dismissible home hints", () => {
   it("org-polish hint's CTA links directly to the public organization page once one already exists", async () => {
     mockOrganizerDefaults();
     vi.mocked(organizationsApi.getMyOrganization).mockResolvedValue({
-      id: 1,
-      party_id: 1,
+      id: "1",
+      party_id: "1",
       name: "Muzyczne Skrzaty",
       slug: "muzyczne-skrzaty",
       primary_color: null,
@@ -760,7 +760,7 @@ describe("PanelPage — dismissible home hints", () => {
     });
 
     vi.mocked(peopleApi.getLeadershipsForPerson).mockResolvedValue([
-      { id: 1, from_role_id: 1, to_group_id: GROUP_ID, organizer_party_id: 1, valid_from: "2026-01-01", valid_to: null },
+      { id: "1", from_role_id: "1", to_group_id: GROUP_ID, organizer_party_id: "1", valid_from: "2026-01-01", valid_to: null },
     ]);
     vi.mocked(groupsApi.getGroup).mockResolvedValue(mockGroup);
     vi.mocked(groupsApi.getTermAttendeesForFormalization).mockResolvedValue([]);
@@ -1095,7 +1095,7 @@ describe("PanelPage — Mój dom — inline family rename", () => {
     vi.mocked(familiesApi.getMyFamilies).mockResolvedValue([{ ...mockFamily, name: "Nowakowie" }]);
     fireEvent.click(screen.getByRole("button", { name: "Zapisz" }));
 
-    await waitFor(() => expect(familiesApi.renameFamily).toHaveBeenCalledWith(10, "Nowakowie"));
+    await waitFor(() => expect(familiesApi.renameFamily).toHaveBeenCalledWith("10", "Nowakowie"));
     expect(await screen.findByText("Nowakowie", { selector: "h3" })).toBeInTheDocument();
   });
 
@@ -1139,7 +1139,7 @@ describe("PanelPage — Mój dom — remove family member", () => {
     fireEvent.click(screen.getByRole("button", { name: "Usuń członka rodziny Marek Kowalski" }));
 
     await waitFor(() =>
-      expect(familiesApi.removeFamilyMember).toHaveBeenCalledWith(10, 2),
+      expect(familiesApi.removeFamilyMember).toHaveBeenCalledWith("10", "2"),
     );
     await waitFor(() =>
       expect(screen.queryByText("Marek Kowalski", { selector: "h3" })).not.toBeInTheDocument(),
@@ -1221,7 +1221,7 @@ describe("PanelPage — Mój dom — birth year, return to term, errors", () => 
     fireEvent.change(input, { target: { value: "2017" } });
     fireEvent.keyDown(input, { key: "Enter" });
 
-    await waitFor(() => expect(familiesApi.updateChildBirthYear).toHaveBeenCalledWith(10, 3, 2017));
+    await waitFor(() => expect(familiesApi.updateChildBirthYear).toHaveBeenCalledWith("10", "3", 2017));
     expect(await screen.findByText("Zapisano rok urodzenia")).toBeInTheDocument();
     expect(screen.queryByLabelText("Rok urodzenia: Zosia Kowalska")).not.toBeInTheDocument();
   });
@@ -1476,8 +1476,8 @@ describe("PanelPage — Term/Group ids stay UUID strings (R29)", () => {
     mockOrganizerDefaults();
     const otherGroup: groupsApi.GroupResponse = { ...mockGroup, id: OTHER_GROUP_ID, name: "Rytmika" };
     vi.mocked(peopleApi.getLeadershipsForPerson).mockResolvedValue([
-      { id: 1, from_role_id: 1, to_group_id: GROUP_ID, organizer_party_id: 1, valid_from: "2026-01-01", valid_to: null },
-      { id: 2, from_role_id: 1, to_group_id: OTHER_GROUP_ID, organizer_party_id: 1, valid_from: "2026-01-01", valid_to: null },
+      { id: "1", from_role_id: "1", to_group_id: GROUP_ID, organizer_party_id: "1", valid_from: "2026-01-01", valid_to: null },
+      { id: "2", from_role_id: "1", to_group_id: OTHER_GROUP_ID, organizer_party_id: "1", valid_from: "2026-01-01", valid_to: null },
     ]);
     vi.mocked(groupsApi.getGroup).mockImplementation(async (id) => (id === OTHER_GROUP_ID ? otherGroup : mockGroup));
     vi.mocked(termsApi.createTerm).mockResolvedValue({ ...term, circle_group_id: OTHER_GROUP_ID });
@@ -1801,12 +1801,12 @@ describe("PanelPage — per-term public links & copy-link button", () => {
     ]);
     vi.mocked(termsApi.getNeededItems).mockResolvedValue([
       {
-        id: 1, term_id: TERM_ID, product_id: 5, product_name: "Bębenek",
-        product_category_id: 5, product_category_name: "Inne", description: null, claimed: true, created_at: "", updated_at: "",
+        id: "1", term_id: TERM_ID, product_id: "5", product_name: "Bębenek",
+        product_category_id: "5", product_category_name: "Inne", description: null, claimed: true, created_at: "", updated_at: "",
       },
       {
-        id: 2, term_id: TERM_ID, product_id: 6, product_name: "Koc",
-        product_category_id: 5, product_category_name: "Inne", description: null, claimed: false, created_at: "", updated_at: "",
+        id: "2", term_id: TERM_ID, product_id: "6", product_name: "Koc",
+        product_category_id: "5", product_category_name: "Inne", description: null, claimed: false, created_at: "", updated_at: "",
       },
     ]);
     renderPanel();
@@ -1902,11 +1902,11 @@ describe("PanelPage — needed item sub-CRUD (in the term dialog)", () => {
     child_count: null,
   };
   const neededItem = {
-    id: 11,
+    id: "11",
     term_id: TERM_ID,
-    product_id: 5,
+    product_id: "5",
     product_name: "Bębenek",
-    product_category_id: 5,
+    product_category_id: "5",
     product_category_name: "Inne",
     description: "mały",
     claimed: false,
@@ -1930,11 +1930,11 @@ describe("PanelPage — needed item sub-CRUD (in the term dialog)", () => {
   it("adds a needed item via the dialog add row (resolveProduct then createNeededItem)", async () => {
     mockTermWithNeeded();
     vi.mocked(productsApi.resolveProduct).mockResolvedValue({
-      id: 42, name: "Mata", description: null, photoUrl: null, sku: "MATA-1",
-      category_id: 1, pluginData: null, createdAt: "", updatedAt: "",
+      id: "42", name: "Mata", description: null, photoUrl: null, sku: "MATA-1",
+      category_id: "1", pluginData: null, createdAt: "", updatedAt: "",
     });
     vi.mocked(termsApi.createNeededItem).mockResolvedValue({
-      id: 12, term_id: TERM_ID, product_id: 42, product_name: "Mata", product_category_id: 1, product_category_name: "Zabawka",
+      id: "12", term_id: TERM_ID, product_id: "42", product_name: "Mata", product_category_id: "1", product_category_name: "Zabawka",
       description: "Koc", claimed: false, created_at: "", updated_at: "",
     });
     const dialog = await openEditDialog();
@@ -1945,11 +1945,11 @@ describe("PanelPage — needed item sub-CRUD (in the term dialog)", () => {
     fireEvent.click(within(dialog).getByRole("button", { name: "Dodaj" }));
 
     await waitFor(() =>
-      expect(productsApi.resolveProduct).toHaveBeenCalledWith({ name: "Mata", category_id: 1 }),
+      expect(productsApi.resolveProduct).toHaveBeenCalledWith({ name: "Mata", category_id: "1" }),
     );
     await waitFor(() =>
       expect(termsApi.createNeededItem).toHaveBeenCalledWith({
-        term_id: TERM_ID, product_id: 42, description: "Koc",
+        term_id: TERM_ID, product_id: "42", description: "Koc",
       }),
     );
   });
@@ -1965,7 +1965,7 @@ describe("PanelPage — needed item sub-CRUD (in the term dialog)", () => {
     fireEvent.click(within(row).getByRole("button", { name: "Zapisz" }));
 
     await waitFor(() =>
-      expect(termsApi.updateNeededItem).toHaveBeenCalledWith(11, { description: "duży" }),
+      expect(termsApi.updateNeededItem).toHaveBeenCalledWith("11", { description: "duży" }),
     );
     expect(productsApi.resolveProduct).not.toHaveBeenCalled();
   });
@@ -1977,7 +1977,7 @@ describe("PanelPage — needed item sub-CRUD (in the term dialog)", () => {
 
     fireEvent.click(within(dialog).getByRole("button", { name: "Usuń potrzebną rzecz" }));
 
-    await waitFor(() => expect(termsApi.deleteNeededItem).toHaveBeenCalledWith(11));
+    await waitFor(() => expect(termsApi.deleteNeededItem).toHaveBeenCalledWith("11"));
   });
 
   it("keeps the row and shows an inline message when delete returns 409", async () => {
@@ -2000,10 +2000,10 @@ describe("PanelPage — inventory item edit/delete", () => {
   });
 
   const invItem = {
-    id: 21,
-    inventory_id: 1,
+    id: "21",
+    inventory_id: "1",
     home_inventory_id: null,
-    product_id: 7,
+    product_id: "7",
     product_name: "Rowerek",
     condition: "GOOD" as const,
     added_at: "",
@@ -2056,8 +2056,8 @@ describe("PanelPage — inventory item edit/delete", () => {
     mockGuestDefaults();
     vi.mocked(inventoriesApi.getMyLentOutItems).mockResolvedValue([
       {
-        id: 22,
-        product_id: 7,
+        id: "22",
+        product_id: "7",
         product_name: "Rowerek",
         condition: "GOOD",
         lent_to_display_name: "Marek",
@@ -2086,14 +2086,14 @@ describe("PanelPage — Wypożyczone: 'Oddaję'", () => {
     mockGuestDefaults();
     vi.mocked(inventoriesApi.getInventories).mockResolvedValue([
       mockInventory,
-      { ...mockInventory, id: 2, inventory_type: "VIRTUAL" },
+      { ...mockInventory, id: "2", inventory_type: "VIRTUAL" },
     ]);
     vi.mocked(inventoriesApi.getInventoryItems).mockResolvedValue([
       {
-        id: 40,
-        inventory_id: 2,
-        home_inventory_id: 50,
-        product_id: 8,
+        id: "40",
+        inventory_id: "2",
+        home_inventory_id: "50",
+        product_id: "8",
         product_name: "Wiertarka",
         condition: "GOOD",
         added_at: "",
@@ -2102,8 +2102,8 @@ describe("PanelPage — Wypożyczone: 'Oddaję'", () => {
       },
     ]);
     vi.mocked(inventoriesApi.getInventoryItemBalance).mockResolvedValue({
-      id: 1,
-      item_id: 40,
+      id: "1",
+      item_id: "40",
       status: "LENT",
       reserved_at: null,
       lent_at: null,
@@ -2111,18 +2111,18 @@ describe("PanelPage — Wypożyczone: 'Oddaję'", () => {
       due_date: null,
       reservation_id: null,
     });
-    vi.mocked(inventoriesApi.getInventory).mockResolvedValue({ ...mockInventory, id: 50, owner_user_id: 7 });
+    vi.mocked(inventoriesApi.getInventory).mockResolvedValue({ ...mockInventory, id: "50", owner_user_id: "7" });
     vi.mocked(peopleApi.getProfileByAccountUserId).mockResolvedValue({
       ...mockProfile,
-      id: 7,
-      account_user_id: 7,
+      id: "7",
+      account_user_id: "7",
       display_name: "Ola",
     });
     const reservation = {
-      id: 300,
-      item_id: 40,
+      id: "300",
+      item_id: "40",
       reservation_type: "RETURN" as const,
-      reserved_by_user_id: 7,
+      reserved_by_user_id: "7",
       paired_reservation_id: null,
       reserved_at: "",
       expires_at: null,
@@ -2139,12 +2139,12 @@ describe("PanelPage — Wypożyczone: 'Oddaję'", () => {
 
     await waitFor(() =>
       expect(reservationsApi.createReservation).toHaveBeenCalledWith({
-        item_id: 40,
+        item_id: "40",
         reservation_type: "RETURN",
       }),
     );
-    await waitFor(() => expect(reservationsApi.fulfillReservation).toHaveBeenCalledWith(300));
-    expect(reservationsApi.confirmReservation).toHaveBeenCalledWith(300);
+    await waitFor(() => expect(reservationsApi.fulfillReservation).toHaveBeenCalledWith("300"));
+    expect(reservationsApi.confirmReservation).toHaveBeenCalledWith("300");
     expect(reservationsApi.getReservation).not.toHaveBeenCalled();
   });
 
@@ -2152,14 +2152,14 @@ describe("PanelPage — Wypożyczone: 'Oddaję'", () => {
     mockGuestDefaults();
     vi.mocked(inventoriesApi.getInventories).mockResolvedValue([
       mockInventory,
-      { ...mockInventory, id: 2, inventory_type: "VIRTUAL" },
+      { ...mockInventory, id: "2", inventory_type: "VIRTUAL" },
     ]);
     vi.mocked(inventoriesApi.getInventoryItems).mockResolvedValue([
       {
-        id: 40,
-        inventory_id: 2,
-        home_inventory_id: 50,
-        product_id: 8,
+        id: "40",
+        inventory_id: "2",
+        home_inventory_id: "50",
+        product_id: "8",
         product_name: "Wiertarka",
         condition: "GOOD",
         added_at: "",
@@ -2168,31 +2168,31 @@ describe("PanelPage — Wypożyczone: 'Oddaję'", () => {
       },
     ]);
     // Server-side state the mocks share: the RETURN locks the balance until fulfilled.
-    let balance: { status: "LENT" | "IN_TRANSIT"; reservation_id: number | null } = {
+    let balance: { status: "LENT" | "IN_TRANSIT"; reservation_id: string | null } = {
       status: "LENT",
       reservation_id: null,
     };
     vi.mocked(inventoriesApi.getInventoryItemBalance).mockImplementation(async () => ({
-      id: 1,
-      item_id: 40,
+      id: "1",
+      item_id: "40",
       reserved_at: null,
       lent_at: null,
       returned_at: null,
       due_date: null,
       ...balance,
     }));
-    vi.mocked(inventoriesApi.getInventory).mockResolvedValue({ ...mockInventory, id: 50, owner_user_id: 7 });
+    vi.mocked(inventoriesApi.getInventory).mockResolvedValue({ ...mockInventory, id: "50", owner_user_id: "7" });
     vi.mocked(peopleApi.getProfileByAccountUserId).mockResolvedValue({
       ...mockProfile,
-      id: 7,
-      account_user_id: 7,
+      id: "7",
+      account_user_id: "7",
       display_name: "Ola",
     });
     const reservation = {
-      id: 300,
-      item_id: 40,
+      id: "300",
+      item_id: "40",
       reservation_type: "RETURN" as const,
-      reserved_by_user_id: 7,
+      reserved_by_user_id: "7",
       paired_reservation_id: null,
       reserved_at: "",
       expires_at: null,
@@ -2200,7 +2200,7 @@ describe("PanelPage — Wypożyczone: 'Oddaję'", () => {
       notes: null,
     };
     vi.mocked(reservationsApi.createReservation).mockImplementation(async () => {
-      balance = { status: "IN_TRANSIT", reservation_id: 300 };
+      balance = { status: "IN_TRANSIT", reservation_id: "300" };
       return reservation;
     });
     vi.mocked(reservationsApi.confirmReservation).mockResolvedValue({ ...reservation, status: "CONFIRMED" });
@@ -2222,8 +2222,8 @@ describe("PanelPage — Wypożyczone: 'Oddaję'", () => {
     );
     expect(reservationsApi.createReservation).toHaveBeenCalledTimes(1);
     expect(reservationsApi.confirmReservation).toHaveBeenCalledTimes(1);
-    expect(reservationsApi.getReservation).toHaveBeenCalledWith(300);
-    expect(reservationsApi.fulfillReservation).toHaveBeenLastCalledWith(300);
+    expect(reservationsApi.getReservation).toHaveBeenCalledWith("300");
+    expect(reservationsApi.fulfillReservation).toHaveBeenLastCalledWith("300");
   });
 });
 describe("PanelPage — Wypożyczone: tabs", () => {
@@ -2233,10 +2233,10 @@ describe("PanelPage — Wypożyczone: tabs", () => {
   });
 
   const ownItem = {
-    id: 60,
-    inventory_id: 1,
+    id: "60",
+    inventory_id: "1",
     home_inventory_id: null,
-    product_id: 9,
+    product_id: "9",
     product_name: "Hulajnoga",
     condition: "GOOD" as const,
     added_at: "",
@@ -2245,8 +2245,8 @@ describe("PanelPage — Wypożyczone: tabs", () => {
     listing_mode: null,
   };
   const lentOutItem = {
-    id: 61,
-    product_id: 9,
+    id: "61",
+    product_id: "9",
     product_name: "Rowerek",
     condition: "GOOD" as const,
     lent_to_display_name: "Marek",
@@ -2276,14 +2276,14 @@ describe("PanelPage — Wypożyczone: tabs", () => {
     mockGuestDefaults();
     vi.mocked(inventoriesApi.getInventories).mockResolvedValue([
       mockInventory,
-      { ...mockInventory, id: 2, inventory_type: "VIRTUAL" },
+      { ...mockInventory, id: "2", inventory_type: "VIRTUAL" },
     ]);
     vi.mocked(inventoriesApi.getInventoryItems).mockResolvedValue([
       {
-        id: 40,
-        inventory_id: 2,
-        home_inventory_id: 50,
-        product_id: 8,
+        id: "40",
+        inventory_id: "2",
+        home_inventory_id: "50",
+        product_id: "8",
         product_name: "Wiertarka",
         condition: "GOOD",
         added_at: "",
@@ -2292,8 +2292,8 @@ describe("PanelPage — Wypożyczone: tabs", () => {
       },
     ]);
     vi.mocked(inventoriesApi.getInventoryItemBalance).mockResolvedValue({
-      id: 1,
-      item_id: 40,
+      id: "1",
+      item_id: "40",
       status: "LENT",
       reserved_at: null,
       lent_at: null,
@@ -2301,11 +2301,11 @@ describe("PanelPage — Wypożyczone: tabs", () => {
       due_date: null,
       reservation_id: null,
     });
-    vi.mocked(inventoriesApi.getInventory).mockResolvedValue({ ...mockInventory, id: 50, owner_user_id: 7 });
+    vi.mocked(inventoriesApi.getInventory).mockResolvedValue({ ...mockInventory, id: "50", owner_user_id: "7" });
     vi.mocked(peopleApi.getProfileByAccountUserId).mockResolvedValue({
       ...mockProfile,
-      id: 7,
-      account_user_id: 7,
+      id: "7",
+      account_user_id: "7",
       display_name: "Ola",
     });
     vi.mocked(inventoriesApi.getMyLentOutItems).mockResolvedValue([lentOutItem]);
@@ -2352,11 +2352,11 @@ describe("PanelPage — needed item edit error path", () => {
     child_count: null,
   };
   const neededItem = {
-    id: 11,
+    id: "11",
     term_id: TERM_ID,
-    product_id: 5,
+    product_id: "5",
     product_name: "Bębenek",
-    product_category_id: 5,
+    product_category_id: "5",
     product_category_name: "Inne",
     description: "mały",
     claimed: false,
@@ -2394,12 +2394,12 @@ describe("PanelPage — Zadeklarowane rzeczy (my pledges)", () => {
   });
 
   const myPledge: pledgesApi.MyPledgeResponse = {
-    pledge_id: 7,
+    pledge_id: "7",
     status: "CLAIMED",
     product_name: "Bębenek",
     item_description: "mały",
-    term_id: 3,
-    group_id: 5,
+    term_id: "3",
+    group_id: "5",
     group_name: "Nutki",
     occurs_on: "2026-03-12T17:30:00",
     organizer_slug: "ania",
@@ -2410,9 +2410,9 @@ describe("PanelPage — Zadeklarowane rzeczy (my pledges)", () => {
     mockGuestDefaults();
     vi.mocked(pledgesApi.getMyPledges).mockResolvedValueOnce([myPledge]).mockResolvedValue([]);
     vi.mocked(pledgesApi.withdrawPledge).mockResolvedValue({
-      id: 7,
-      needed_item_id: 1,
-      pledged_by_party_id: 1,
+      id: "7",
+      needed_item_id: "1",
+      pledged_by_party_id: "1",
       status: "WITHDRAWN",
       resolved_reservation_id: null,
       created_at: "",
@@ -2425,7 +2425,7 @@ describe("PanelPage — Zadeklarowane rzeczy (my pledges)", () => {
     expect(screen.getByText(/Nutki/)).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "Rezygnuję" }));
-    await waitFor(() => expect(pledgesApi.withdrawPledge).toHaveBeenCalledWith(7));
+    await waitFor(() => expect(pledgesApi.withdrawPledge).toHaveBeenCalledWith("7"));
   });
 
   it("shows the empty state when there are no pledges", async () => {
@@ -2458,7 +2458,7 @@ describe("PanelPage — Group 7 global pending-actions modal", () => {
     over: Partial<notificationsApi.NotificationResponse> = {},
   ): notificationsApi.NotificationResponse {
     return {
-      id: 1,
+      id: "1",
       kind: "SWAP_PROPOSED",
       message: '„Marek" proponuje zamianę za: Rowerek',
       link_path: "/ania/grupa/5/term/3",
@@ -2487,7 +2487,7 @@ describe("PanelPage — Group 7 global pending-actions modal", () => {
 
     fireEvent.click(within(dialog).getByRole("button", { name: "Zobacz w Moje rzeczy" }));
 
-    await waitFor(() => expect(notificationsApi.markNotificationRead).toHaveBeenCalledWith(1));
+    await waitFor(() => expect(notificationsApi.markNotificationRead).toHaveBeenCalledWith("1"));
     await waitFor(() =>
       expect(screen.queryByRole("dialog", { name: "Propozycja zamiany" })).not.toBeInTheDocument(),
     );
@@ -2496,7 +2496,7 @@ describe("PanelPage — Group 7 global pending-actions modal", () => {
   it("a proposal_id on the notification changes nothing — still just info and the 'Moje rzeczy' link, no accept/reject", async () => {
     mockGuestDefaults();
     vi.mocked(notificationsApi.getMyNotifications).mockResolvedValue([
-      pendingNotif({ proposal_id: 42 }),
+      pendingNotif({ proposal_id: "42" }),
     ]);
     renderPanel();
 
@@ -2510,21 +2510,21 @@ describe("PanelPage — Group 7 global pending-actions modal", () => {
     mockGuestDefaults();
     vi.mocked(notificationsApi.getMyNotifications).mockResolvedValue([
       pendingNotif({
-        id: 2,
+        id: "2",
         kind: "TERM_CONFIRMATION_NEEDED",
         message: "Termin się odbył — potwierdź przekazanie rzeczy",
         link_path: "/ania/grupa/5/term/9",
       }),
     ]);
     vi.mocked(termItemListingsApi.getMyTakenTermItemListings).mockResolvedValue([
-      browseListing({ id: 9, taken_by_party_id: mockProfile.party_id, resolved_reservation_id: 77 }),
+      browseListing({ id: "9", taken_by_party_id: mockProfile.party_id, resolved_reservation_id: "77" }),
     ]);
     vi.mocked(termItemListingsApi.getMyTermItemListings).mockResolvedValue([]);
     vi.mocked(reservationsApi.getReservation).mockResolvedValue({
-      id: 77,
-      item_id: 9,
+      id: "77",
+      item_id: "9",
       reservation_type: "GIFT",
-      reserved_by_user_id: 1,
+      reserved_by_user_id: "1",
       paired_reservation_id: null,
       reserved_at: "",
       expires_at: null,
@@ -2532,7 +2532,7 @@ describe("PanelPage — Group 7 global pending-actions modal", () => {
       notes: null,
     });
     vi.mocked(reservationsApi.confirmTransaction).mockResolvedValue({
-      reservation_id: 77,
+      reservation_id: "77",
       status: "FULFILLED",
       already_resolved: false,
     });
@@ -2542,7 +2542,7 @@ describe("PanelPage — Group 7 global pending-actions modal", () => {
     fireEvent.click(within(dialog).getByRole("button", { name: "Potwierdź" }));
 
     await waitFor(() =>
-      expect(reservationsApi.confirmTransaction).toHaveBeenCalledWith(77),
+      expect(reservationsApi.confirmTransaction).toHaveBeenCalledWith("77"),
     );
     await waitFor(() =>
       expect(screen.queryByRole("dialog", { name: "Potwierdź transakcję" })).not.toBeInTheDocument(),
@@ -2553,16 +2553,16 @@ describe("PanelPage — Group 7 global pending-actions modal", () => {
     mockGuestDefaults();
     vi.mocked(notificationsApi.getMyNotifications).mockResolvedValue([
       pendingNotif({
-        id: 2,
+        id: "2",
         kind: "TERM_CONFIRMATION_NEEDED",
         message: "Termin się odbył — potwierdź przekazanie rzeczy",
         link_path: "/ania/grupa/5/term/9",
-        reservation_id: 501,
+        reservation_id: "501",
       }),
     ]);
     vi.mocked(notificationsApi.markNotificationRead).mockResolvedValue(undefined);
     vi.mocked(reservationsApi.confirmTransaction).mockResolvedValue({
-      reservation_id: 501,
+      reservation_id: "501",
       status: "CONFIRMED",
       already_resolved: false,
     });
@@ -2571,7 +2571,7 @@ describe("PanelPage — Group 7 global pending-actions modal", () => {
     const dialog = await screen.findByRole("dialog", { name: "Potwierdź transakcję" });
     fireEvent.click(within(dialog).getByRole("button", { name: "Potwierdź" }));
 
-    await waitFor(() => expect(reservationsApi.confirmTransaction).toHaveBeenCalledWith(501));
+    await waitFor(() => expect(reservationsApi.confirmTransaction).toHaveBeenCalledWith("501"));
     expect(termItemListingsApi.getMyTakenTermItemListings).not.toHaveBeenCalled();
     expect(termItemListingsApi.getMyTermItemListings).not.toHaveBeenCalled();
     expect(reservationsApi.getReservation).not.toHaveBeenCalled();
@@ -2582,16 +2582,16 @@ describe("PanelPage — Group 7 global pending-actions modal", () => {
     mockGuestDefaults();
     vi.mocked(notificationsApi.getMyNotifications).mockResolvedValue([
       pendingNotif({
-        id: 2,
+        id: "2",
         kind: "TERM_CONFIRMATION_NEEDED",
         message: "Termin się odbył — potwierdź przekazanie rzeczy",
         link_path: null,
-        reservation_id: 502,
+        reservation_id: "502",
       }),
     ]);
     vi.mocked(notificationsApi.markNotificationRead).mockResolvedValue(undefined);
     vi.mocked(reservationsApi.confirmTransaction).mockResolvedValue({
-      reservation_id: 502,
+      reservation_id: "502",
       status: "CONFIRMED",
       already_resolved: false,
     });
@@ -2600,7 +2600,7 @@ describe("PanelPage — Group 7 global pending-actions modal", () => {
     const dialog = await screen.findByRole("dialog", { name: "Potwierdź transakcję" });
     fireEvent.click(within(dialog).getByRole("button", { name: "Potwierdź" }));
 
-    await waitFor(() => expect(reservationsApi.confirmTransaction).toHaveBeenCalledWith(502));
+    await waitFor(() => expect(reservationsApi.confirmTransaction).toHaveBeenCalledWith("502"));
   });
 
   // Bug #3 (cache refresh, frontend-only): confirmPendingAction previously
@@ -2612,21 +2612,21 @@ describe("PanelPage — Group 7 global pending-actions modal", () => {
     mockGuestDefaults();
     vi.mocked(notificationsApi.getMyNotifications).mockResolvedValue([
       pendingNotif({
-        id: 2,
+        id: "2",
         kind: "TERM_CONFIRMATION_NEEDED",
         message: "Termin się odbył — potwierdź przekazanie rzeczy",
         link_path: "/ania/grupa/5/term/9",
       }),
     ]);
     vi.mocked(termItemListingsApi.getMyTakenTermItemListings).mockResolvedValue([
-      browseListing({ id: 9, taken_by_party_id: mockProfile.party_id, resolved_reservation_id: 77 }),
+      browseListing({ id: "9", taken_by_party_id: mockProfile.party_id, resolved_reservation_id: "77" }),
     ]);
     vi.mocked(termItemListingsApi.getMyTermItemListings).mockResolvedValue([]);
     vi.mocked(reservationsApi.getReservation).mockResolvedValue({
-      id: 77,
-      item_id: 9,
+      id: "77",
+      item_id: "9",
       reservation_type: "GIFT",
-      reserved_by_user_id: 1,
+      reserved_by_user_id: "1",
       paired_reservation_id: null,
       reserved_at: "",
       expires_at: null,
@@ -2634,7 +2634,7 @@ describe("PanelPage — Group 7 global pending-actions modal", () => {
       notes: null,
     });
     vi.mocked(reservationsApi.confirmTransaction).mockResolvedValue({
-      reservation_id: 77,
+      reservation_id: "77",
       status: "FULFILLED",
       already_resolved: false,
     });
@@ -2646,7 +2646,7 @@ describe("PanelPage — Group 7 global pending-actions modal", () => {
     fireEvent.click(within(dialog).getByRole("button", { name: "Potwierdź" }));
 
     await waitFor(() =>
-      expect(reservationsApi.confirmTransaction).toHaveBeenCalledWith(77),
+      expect(reservationsApi.confirmTransaction).toHaveBeenCalledWith("77"),
     );
     // A second `getMyInventoryItems` call is the signal that `load({ silent: true })`
     // re-ran after the confirm, not just `dismissPendingAction`.
@@ -2687,7 +2687,7 @@ describe("PanelPage — Group 7 global pending-actions modal", () => {
     mockGuestDefaults();
     vi.mocked(notificationsApi.getMyNotifications).mockResolvedValue([
       pendingNotif({
-        id: 2,
+        id: "2",
         kind: "TERM_CONFIRMATION_NEEDED",
         message: "Termin się odbył — potwierdź przekazanie rzeczy",
         link_path: "/ania/grupa/5/term/9",
@@ -2700,13 +2700,13 @@ describe("PanelPage — Group 7 global pending-actions modal", () => {
     // getMyTakenTermItemListings is availability-independent, so it still
     // returns the taken row after the term has occurred.
     vi.mocked(termItemListingsApi.getMyTakenTermItemListings).mockResolvedValue([
-      browseListing({ id: 9, taken_by_party_id: mockProfile.party_id, resolved_reservation_id: 77 }),
+      browseListing({ id: "9", taken_by_party_id: mockProfile.party_id, resolved_reservation_id: "77" }),
     ]);
     vi.mocked(reservationsApi.getReservation).mockResolvedValue({
-      id: 77,
-      item_id: 9,
+      id: "77",
+      item_id: "9",
       reservation_type: "GIFT",
-      reserved_by_user_id: 1,
+      reserved_by_user_id: "1",
       paired_reservation_id: null,
       reserved_at: "",
       expires_at: null,
@@ -2714,7 +2714,7 @@ describe("PanelPage — Group 7 global pending-actions modal", () => {
       notes: null,
     });
     vi.mocked(reservationsApi.confirmTransaction).mockResolvedValue({
-      reservation_id: 77,
+      reservation_id: "77",
       status: "FULFILLED",
       already_resolved: false,
     });
@@ -2724,7 +2724,7 @@ describe("PanelPage — Group 7 global pending-actions modal", () => {
     fireEvent.click(within(dialog).getByRole("button", { name: "Potwierdź" }));
 
     await waitFor(() =>
-      expect(reservationsApi.confirmTransaction).toHaveBeenCalledWith(77),
+      expect(reservationsApi.confirmTransaction).toHaveBeenCalledWith("77"),
     );
   });
 
@@ -2732,21 +2732,21 @@ describe("PanelPage — Group 7 global pending-actions modal", () => {
     mockGuestDefaults();
     vi.mocked(notificationsApi.getMyNotifications).mockResolvedValue([
       pendingNotif({
-        id: 2,
+        id: "2",
         kind: "TERM_CONFIRMATION_NEEDED",
         message: "Termin się odbył — potwierdź przekazanie rzeczy",
         link_path: "/ania/grupa/5/term/9",
       }),
     ]);
     vi.mocked(termItemListingsApi.getMyTakenTermItemListings).mockResolvedValue([
-      browseListing({ id: 9, taken_by_party_id: mockProfile.party_id, resolved_reservation_id: 77 }),
+      browseListing({ id: "9", taken_by_party_id: mockProfile.party_id, resolved_reservation_id: "77" }),
     ]);
     vi.mocked(termItemListingsApi.getMyTermItemListings).mockResolvedValue([]);
     vi.mocked(reservationsApi.getReservation).mockResolvedValue({
-      id: 77,
-      item_id: 9,
+      id: "77",
+      item_id: "9",
       reservation_type: "GIFT",
-      reserved_by_user_id: 1,
+      reserved_by_user_id: "1",
       paired_reservation_id: null,
       reserved_at: "",
       expires_at: null,
@@ -2754,7 +2754,7 @@ describe("PanelPage — Group 7 global pending-actions modal", () => {
       notes: null,
     });
     vi.mocked(reservationsApi.confirmTransaction).mockRejectedValue(
-      new ApiError(409, "Conflict", { reservation_id: 77, status: "ALREADY_RESOLVED", already_resolved: true }),
+      new ApiError(409, "Conflict", { reservation_id: "77", status: "ALREADY_RESOLVED", already_resolved: true }),
     );
     renderPanel();
 
@@ -2778,7 +2778,7 @@ describe("PanelPage — Group 7 global pending-actions modal", () => {
     mockGuestDefaults();
     vi.mocked(notificationsApi.getMyNotifications).mockResolvedValue([
       pendingNotif({
-        id: 2,
+        id: "2",
         kind: "TERM_CONFIRMATION_NEEDED",
         message: "Termin się odbył — potwierdź przekazanie rzeczy",
         link_path: "/ania/grupa/5/term/9",
@@ -2787,13 +2787,13 @@ describe("PanelPage — Group 7 global pending-actions modal", () => {
     // Taker side finds nothing — the caller is the lister here.
     vi.mocked(termItemListingsApi.getMyTakenTermItemListings).mockResolvedValue([]);
     vi.mocked(termItemListingsApi.getMyTermItemListings).mockResolvedValue([
-      browseListing({ id: 9, lister_party_id: mockProfile.party_id, resolved_reservation_id: 55 }),
+      browseListing({ id: "9", lister_party_id: mockProfile.party_id, resolved_reservation_id: "55" }),
     ]);
     vi.mocked(reservationsApi.getReservation).mockResolvedValue({
-      id: 55,
-      item_id: 9,
+      id: "55",
+      item_id: "9",
       reservation_type: "GIFT",
-      reserved_by_user_id: 2,
+      reserved_by_user_id: "2",
       paired_reservation_id: null,
       reserved_at: "",
       expires_at: null,
@@ -2801,7 +2801,7 @@ describe("PanelPage — Group 7 global pending-actions modal", () => {
       notes: null,
     });
     vi.mocked(reservationsApi.confirmTransaction).mockResolvedValue({
-      reservation_id: 55,
+      reservation_id: "55",
       status: "FULFILLED",
       already_resolved: false,
     });
@@ -2811,7 +2811,7 @@ describe("PanelPage — Group 7 global pending-actions modal", () => {
     fireEvent.click(within(dialog).getByRole("button", { name: "Potwierdź" }));
 
     await waitFor(() =>
-      expect(reservationsApi.confirmTransaction).toHaveBeenCalledWith(55),
+      expect(reservationsApi.confirmTransaction).toHaveBeenCalledWith("55"),
     );
   });
 
@@ -2822,7 +2822,7 @@ describe("PanelPage — Group 7 global pending-actions modal", () => {
     mockGuestDefaults();
     vi.mocked(notificationsApi.getMyNotifications).mockResolvedValue([
       pendingNotif({
-        id: 2,
+        id: "2",
         kind: "TERM_CONFIRMATION_NEEDED",
         message: "Termin się odbył — potwierdź przekazanie rzeczy",
         link_path: "/ania/grupa/5/term/9",
@@ -2830,16 +2830,16 @@ describe("PanelPage — Group 7 global pending-actions modal", () => {
     ]);
     vi.mocked(termItemListingsApi.getMyTakenTermItemListings).mockResolvedValue([]);
     vi.mocked(termItemListingsApi.getMyTermItemListings).mockResolvedValue([
-      browseListing({ id: 9, lister_party_id: mockProfile.party_id, resolved_reservation_id: 60 }),
+      browseListing({ id: "9", lister_party_id: mockProfile.party_id, resolved_reservation_id: "60" }),
     ]);
-    vi.mocked(reservationsApi.getReservation).mockImplementation(async (id: number) => {
-      if (id === 60) {
+    vi.mocked(reservationsApi.getReservation).mockImplementation(async (id: string) => {
+      if (id === "60") {
         return {
-          id: 60,
-          item_id: 9,
+          id: "60",
+          item_id: "9",
           reservation_type: "SWAP",
-          reserved_by_user_id: 2,
-          paired_reservation_id: 61,
+          reserved_by_user_id: "2",
+          paired_reservation_id: "61",
           reserved_at: "",
           expires_at: null,
           status: "PENDING",
@@ -2847,11 +2847,11 @@ describe("PanelPage — Group 7 global pending-actions modal", () => {
         };
       }
       return {
-        id: 61,
-        item_id: 12,
+        id: "61",
+        item_id: "12",
         reservation_type: "SWAP",
-        reserved_by_user_id: 1,
-        paired_reservation_id: 60,
+        reserved_by_user_id: "1",
+        paired_reservation_id: "60",
         reserved_at: "",
         expires_at: null,
         status: "PENDING",
@@ -2859,7 +2859,7 @@ describe("PanelPage — Group 7 global pending-actions modal", () => {
       };
     });
     vi.mocked(reservationsApi.confirmTransaction).mockResolvedValue({
-      reservation_id: 61,
+      reservation_id: "61",
       status: "FULFILLED",
       already_resolved: false,
     });
@@ -2869,7 +2869,7 @@ describe("PanelPage — Group 7 global pending-actions modal", () => {
     fireEvent.click(within(dialog).getByRole("button", { name: "Potwierdź" }));
 
     await waitFor(() =>
-      expect(reservationsApi.confirmTransaction).toHaveBeenCalledWith(61),
+      expect(reservationsApi.confirmTransaction).toHaveBeenCalledWith("61"),
     );
   });
 
@@ -2886,7 +2886,7 @@ describe("PanelPage — Group 7 global pending-actions modal", () => {
     mockGuestDefaults();
     vi.mocked(notificationsApi.getMyNotifications).mockResolvedValue([
       pendingNotif({
-        id: 2,
+        id: "2",
         kind: "TERM_CONFIRMATION_NEEDED",
         message: "Termin się odbył — potwierdź przekazanie rzeczy",
         link_path: "/ania/grupa/5/term/9",
@@ -2912,16 +2912,16 @@ describe("PanelPage — Group 7 global pending-actions modal", () => {
     // leaving it stuck so the modal reappears on every reload.
     fireEvent.click(within(dialog).getByRole("button", { name: "Rozumiem" }));
     await waitFor(() =>
-      expect(notificationsApi.markNotificationRead).toHaveBeenCalledWith(2),
+      expect(notificationsApi.markNotificationRead).toHaveBeenCalledWith("2"),
     );
   });
 
   it("read notifications never surface as pending actions — only the unread TERM_CONFIRMATION_NEEDED one renders", async () => {
     mockGuestDefaults();
     vi.mocked(notificationsApi.getMyNotifications).mockResolvedValue([
-      pendingNotif({ id: 1, read_at: "2026-03-01T11:00:00" }),
+      pendingNotif({ id: "1", read_at: "2026-03-01T11:00:00" }),
       pendingNotif({
-        id: 2,
+        id: "2",
         kind: "TERM_CONFIRMATION_NEEDED",
         message: "Termin się odbył — potwierdź przekazanie rzeczy",
         link_path: "/ania/grupa/5/term/9",
@@ -2954,10 +2954,10 @@ describe("PanelPage — RzeczyView post-term-end fallback buttons (Bug #4c, full
   });
 
   const lockedItem = {
-    id: 30,
-    inventory_id: 1,
+    id: "30",
+    inventory_id: "1",
     home_inventory_id: null,
-    product_id: 8,
+    product_id: "8",
     product_name: "Wiertarka",
     condition: "GOOD" as const,
     added_at: "",
@@ -2970,13 +2970,13 @@ describe("PanelPage — RzeczyView post-term-end fallback buttons (Bug #4c, full
     mockGuestDefaults();
     vi.mocked(inventoriesApi.getMyInventoryItems).mockResolvedValue([lockedItem]);
     vi.mocked(inventoriesApi.getInventoryItemBalances).mockResolvedValue({
-      [lockedItem.id]: { status: "IN_TRANSIT", reservationId: 88 },
+      [lockedItem.id]: { status: "IN_TRANSIT", reservationId: "88" },
     });
     vi.mocked(reservationsApi.getReservation).mockResolvedValue({
-      id: 88,
+      id: "88",
       item_id: lockedItem.id,
       reservation_type: "LEND",
-      reserved_by_user_id: 1,
+      reserved_by_user_id: "1",
       term_id: ENDED_TERM_ID,
       paired_reservation_id: null,
       reserved_at: "",
@@ -2999,7 +2999,7 @@ describe("PanelPage — RzeczyView post-term-end fallback buttons (Bug #4c, full
     // interfere with the independent, tile-local fallback below.
     vi.mocked(notificationsApi.getMyNotifications).mockResolvedValue([
       {
-        id: 1,
+        id: "1",
         kind: "TERM_CONFIRMATION_NEEDED",
         message: "Termin się odbył — potwierdź przekazanie rzeczy",
         link_path: "/ania/grupa/5/term/9",
@@ -3010,7 +3010,7 @@ describe("PanelPage — RzeczyView post-term-end fallback buttons (Bug #4c, full
     ]);
     vi.mocked(notificationsApi.markNotificationRead).mockResolvedValue(undefined);
     vi.mocked(reservationsApi.confirmTransaction).mockResolvedValue({
-      reservation_id: 88,
+      reservation_id: "88",
       status: "FULFILLED",
       already_resolved: false,
     });
@@ -3029,7 +3029,7 @@ describe("PanelPage — RzeczyView post-term-end fallback buttons (Bug #4c, full
     fireEvent.click(odebral);
 
     await waitFor(() =>
-      expect(reservationsApi.confirmTransaction).toHaveBeenCalledWith(88),
+      expect(reservationsApi.confirmTransaction).toHaveBeenCalledWith("88"),
     );
     // A second `getMyInventoryItems` call is the signal that `load({ silent:
     // true })` re-ran after the confirm (same convention as Bug #3's own
@@ -3048,11 +3048,11 @@ describe("PanelPage — organizer join-request pending action", () => {
     over: Partial<groupsApi.PendingJoinRequestResponse> = {},
   ): groupsApi.PendingJoinRequestResponse {
     return {
-      id: 11,
-      group_id: 5,
+      id: "11",
+      group_id: "5",
       group_name: "Poranne Maluchy",
-      term_id: 3,
-      requester_party_id: 42,
+      term_id: "3",
+      requester_party_id: "42",
       requester_display_name: "Kasia Nowak",
       created_at: "2026-09-24T10:00:00",
       ...over,
@@ -3063,23 +3063,23 @@ describe("PanelPage — organizer join-request pending action", () => {
     over: Partial<notificationsApi.NotificationResponse> = {},
   ): notificationsApi.NotificationResponse {
     return {
-      id: 70,
+      id: "70",
       kind: "GROUP_JOIN_REQUESTED",
       message: "Kasia Nowak prosi o dostęp do grupy „Poranne Maluchy”",
       link_path: "/ania/grupa/5/term/3",
       read_at: null,
       created_at: "2026-09-24T10:00:00",
-      join_request_id: 11,
+      join_request_id: "11",
       reservation_id: null,
       ...over,
     };
   }
 
   const decided = (status: groupsApi.JoinRequestStatus): groupsApi.JoinRequestResponse => ({
-    id: 11,
-    group_id: 5,
-    requester_party_id: 42,
-    term_id: 3,
+    id: "11",
+    group_id: "5",
+    requester_party_id: "42",
+    term_id: "3",
     status,
     created_at: "",
     updated_at: "",
@@ -3124,12 +3124,12 @@ describe("PanelPage — organizer join-request pending action", () => {
     expect(busyButton).toBeDisabled();
     expect(busyButton).toHaveAttribute("aria-busy", "true");
     expect(within(dialog).getByRole("button", { name: "Odrzuć" })).toBeDisabled();
-    expect(groupsApi.approveJoinRequest).toHaveBeenCalledWith(5, 11);
+    expect(groupsApi.approveJoinRequest).toHaveBeenCalledWith("5", "11");
 
     resolveApprove(decided("APPROVED"));
 
     expect(await screen.findByText("Prośba zatwierdzona")).toBeInTheDocument();
-    expect(notificationsApi.markNotificationRead).toHaveBeenCalledWith(70);
+    expect(notificationsApi.markNotificationRead).toHaveBeenCalledWith("70");
     expect(groupsApi.listMyPendingJoinRequests).toHaveBeenCalledTimes(2);
     expect(screen.queryByRole("dialog", { name: "Prośba o dostęp" })).not.toBeInTheDocument();
   });
@@ -3154,7 +3154,7 @@ describe("PanelPage — organizer join-request pending action", () => {
     fireEvent.click(within(dialog).getByRole("button", { name: "Odrzuć" }));
 
     expect(await screen.findByText("Prośba odrzucona")).toBeInTheDocument();
-    expect(groupsApi.rejectJoinRequest).toHaveBeenLastCalledWith(5, 11);
+    expect(groupsApi.rejectJoinRequest).toHaveBeenLastCalledWith("5", "11");
     expect(groupsApi.approveJoinRequest).not.toHaveBeenCalled();
     expect(screen.queryByRole("dialog", { name: "Prośba o dostęp" })).not.toBeInTheDocument();
   });
@@ -3189,7 +3189,7 @@ describe("PanelPage — organizer join-request pending action", () => {
     // The server lists pending requests oldest first; the panel keeps that order.
     vi.mocked(groupsApi.listMyPendingJoinRequests).mockResolvedValue([
       joinRequest(),
-      joinRequest({ id: 12, requester_display_name: "Ola Zielińska", created_at: "2026-09-24T12:00:00" }),
+      joinRequest({ id: "12", requester_display_name: "Ola Zielińska", created_at: "2026-09-24T12:00:00" }),
     ]);
     renderPanel();
 
@@ -3206,7 +3206,7 @@ describe("PanelPage — organizer join-request pending action", () => {
   it("an item hidden with Później stays hidden across a silent reload", async () => {
     mockOrganizerDefaults();
     const older = joinRequest();
-    const newer = joinRequest({ id: 12, requester_display_name: "Ola Zielińska", created_at: "2026-09-24T12:00:00" });
+    const newer = joinRequest({ id: "12", requester_display_name: "Ola Zielińska", created_at: "2026-09-24T12:00:00" });
     vi.mocked(groupsApi.listMyPendingJoinRequests)
       .mockResolvedValueOnce([older, newer])
       .mockResolvedValue([older]);
@@ -3221,7 +3221,7 @@ describe("PanelPage — organizer join-request pending action", () => {
     fireEvent.click(within(next).getByRole("button", { name: "Zatwierdź" }));
 
     expect(await screen.findByText("Prośba zatwierdzona")).toBeInTheDocument();
-    expect(groupsApi.approveJoinRequest).toHaveBeenCalledWith(5, 12);
+    expect(groupsApi.approveJoinRequest).toHaveBeenCalledWith("5", "12");
     expect(groupsApi.listMyPendingJoinRequests).toHaveBeenCalledTimes(2);
     expect(screen.queryByRole("dialog", { name: "Prośba o dostęp" })).not.toBeInTheDocument();
   });
@@ -3276,7 +3276,7 @@ describe("PanelPage — organizer join-request pending action", () => {
     fireEvent.click(screen.getByRole("button", { name: /Powiadomienia \(1 nieprzeczytane\)/ }));
     fireEvent.click(screen.getByRole("menuitem", { name: /Kasia Nowak prosi o dostęp do grupy/ }));
 
-    await waitFor(() => expect(notificationsApi.markNotificationRead).toHaveBeenCalledWith(70));
+    await waitFor(() => expect(notificationsApi.markNotificationRead).toHaveBeenCalledWith("70"));
     expect(screen.getByRole("dialog", { name: "Prośba o dostęp" })).toBeInTheDocument();
   });
 });

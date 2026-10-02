@@ -13,8 +13,8 @@ export function RsvpDialog({
   onClose,
   onSubmitted,
 }: {
-  groupId: number;
-  termId: number;
+  groupId: string;
+  termId: string;
   onClose: () => void;
   onSubmitted: (rsvp: RsvpResponse) => void;
 }) {

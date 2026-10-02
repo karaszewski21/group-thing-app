@@ -46,15 +46,15 @@ const rowIconBtn =
 
 interface NeededItemDraft {
   name: string;
-  category_id: number;
+  category_id: string;
   description: string;
 }
 
 /** No hardcoded category default — sourced from `useCategories()`'s live
- * data at each call site (falls back to `0` if categories haven't loaded
+ * data at each call site (falls back to `""` if categories haven't loaded
  * yet). */
 function makeEmptyDraft(categories: Category[]): NeededItemDraft {
-  return { name: "", category_id: categories[0]?.id ?? 0, description: "" };
+  return { name: "", category_id: categories[0]?.id ?? "", description: "" };
 }
 
 interface EditTermDialogProps {
@@ -93,7 +93,7 @@ function NeededItemFields({
       <select
         aria-label={`Typ ${namePrefix}`}
         value={value.category_id}
-        onChange={(e) => onChange({ ...value, category_id: Number(e.target.value) })}
+        onChange={(e) => onChange({ ...value, category_id: e.target.value })}
         className={selectClass}
       >
         {categories.map((c) => (
@@ -177,7 +177,7 @@ export function EditTermDialog({ term, neededItems, group, onChanged, onClose }:
     }
   }
 
-  const [editing, setEditing] = useState<({ id: number } & NeededItemDraft) | null>(null);
+  const [editing, setEditing] = useState<({ id: string } & NeededItemDraft) | null>(null);
   const [adding, setAdding] = useState(false);
   const [newDraft, setNewDraft] = useState<NeededItemDraft>(() => makeEmptyDraft(categories));
   const [itemsError, setItemsError] = useState<string | null>(null);
@@ -242,7 +242,7 @@ export function EditTermDialog({ term, neededItems, group, onChanged, onClose }:
     }
   }
 
-  async function removeItem(id: number) {
+  async function removeItem(id: string) {
     setBusy(true);
     setItemsError(null);
     try {

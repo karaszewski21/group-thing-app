@@ -3,8 +3,8 @@ import { guestProfileIdKey, readValidGuestProfile } from "../../../api/groups";
 import { AccountMergeForm } from "../../../components/krag/AccountMergeForm";
 
 interface UseGuestMergeParams {
-  groupId: number;
-  termId: number | null;
+  groupId: string;
+  termId: string | null;
   isLoggedIn: boolean;
   isAttendingOnServer: boolean;
 }

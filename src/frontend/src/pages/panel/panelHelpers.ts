@@ -38,7 +38,7 @@ export type ItemMode = "wypożyczę" | "oddam" | "zamienię";
  * or swapped-in items are full ownership and already appear in "Moje
  * rzeczy" instead (they land in the recipient's PERSONAL inventory). */
 export interface BorrowedItem {
-  itemId: number;
+  itemId: string;
   productName: string;
   lenderName: string;
   dueDate: string | null;

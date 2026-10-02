@@ -2,9 +2,9 @@ import type { LeadershipResponse } from "./groups";
 import { api } from "./client";
 
 export interface UserProfileResponse {
-  id: number;
-  party_id: number;
-  account_user_id: number | null;
+  id: string;
+  party_id: string;
+  account_user_id: string | null;
   display_name: string;
   email: string | null;
   created_at: string;
@@ -14,7 +14,7 @@ export interface UserProfileResponse {
   is_organizer: boolean;
 }
 
-export function getProfile(userProfileId: number): Promise<UserProfileResponse> {
+export function getProfile(userProfileId: string): Promise<UserProfileResponse> {
   return api.get(`/people/${userProfileId}`);
 }
 
@@ -22,14 +22,14 @@ export function getMyProfile(): Promise<UserProfileResponse> {
   return api.get("/people/me");
 }
 
-export function getProfileByParty(partyId: number): Promise<UserProfileResponse> {
+export function getProfileByParty(partyId: string): Promise<UserProfileResponse> {
   return api.get(`/people/by-party/${partyId}`);
 }
 
-export function getProfileByAccountUserId(accountUserId: number): Promise<UserProfileResponse> {
+export function getProfileByAccountUserId(accountUserId: string): Promise<UserProfileResponse> {
   return api.get(`/people/by-account-user-id/${accountUserId}`);
 }
 
-export function getLeadershipsForPerson(userProfileId: number): Promise<LeadershipResponse[]> {
+export function getLeadershipsForPerson(userProfileId: string): Promise<LeadershipResponse[]> {
   return api.get(`/people/${userProfileId}/leaderships`);
 }

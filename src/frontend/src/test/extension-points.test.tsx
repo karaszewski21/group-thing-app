@@ -86,12 +86,12 @@ const mockPlugins: PluginResponse[] = [
 ];
 
 const mockProduct: ProductResponse = {
-  id: 42,
+  id: "42",
   name: "Wireless Headphones Pro",
   description: "Premium wireless headphones with noise cancellation",
   photoUrl: "https://example.com/headphones.jpg",
   sku: "WHP-001",
-  category_id: 1,
+  category_id: "1",
   pluginData: null,
   createdAt: "2026-03-28T10:00:00Z",
   updatedAt: "2026-03-28T10:00:00Z",
@@ -100,7 +100,7 @@ const mockProduct: ProductResponse = {
 const mockProducts: ProductResponse[] = [mockProduct];
 
 const mockCategories: categoriesApi.Category[] = [
-  { id: 1, name: "Zabawka", description: null, sortOrder: 1, productCount: 0, createdAt: "", updatedAt: "" },
+  { id: "1", name: "Zabawka", description: null, sortOrder: 1, productCount: 0, createdAt: "", updatedAt: "" },
 ];
 
 function renderWithProviders(ui: React.ReactElement, initialRoute = "/") {

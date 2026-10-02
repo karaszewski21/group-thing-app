@@ -51,7 +51,7 @@ export function RzeczyView() {
   // `Promise.all` round-trip, not a per-item call inside the render loop —
   // see `api/inventories.ts`'s `getInventoryItemBalances`), not on every
   // render.
-  const [itemBalances, setItemBalances] = useState<Record<number, ItemBalanceSummary>>({});
+  const [itemBalances, setItemBalances] = useState<Record<string, ItemBalanceSummary>>({});
   useEffect(() => {
     if (items.length === 0) {
       setItemBalances({});
@@ -73,7 +73,7 @@ export function RzeczyView() {
   // reservations/terms among the currently-locked items, never per-row).
   // Also kept local to this view, same rationale as `itemBalances` above.
   const [reservationTermInfo, setReservationTermInfo] = useState<
-    Record<number, { hasEnded: boolean }>
+    Record<string, { hasEnded: boolean }>
   >({});
   useEffect(() => {
     const lockedReservationIds = Array.from(
@@ -81,7 +81,7 @@ export function RzeczyView() {
         Object.values(itemBalances)
           .filter((b) => ACTIVE_LOCK_BALANCE_STATUSES.includes(b.status))
           .map((b) => b.reservationId)
-          .filter((id): id is number => id !== null),
+          .filter((id): id is string => id !== null),
       ),
     );
     if (lockedReservationIds.length === 0) {
@@ -103,7 +103,7 @@ export function RzeczyView() {
       const terms = await Promise.all(termIds.map((id) => getTerm(id)));
       const termById = new Map(terms.map((t) => [t.id, t]));
       if (cancelled) return;
-      const next: Record<number, { hasEnded: boolean }> = {};
+      const next: Record<string, { hasEnded: boolean }> = {};
       for (const r of reservations) {
         if (r.term_id === undefined) continue;
         const term = termById.get(r.term_id);
@@ -118,15 +118,15 @@ export function RzeczyView() {
     };
   }, [itemBalances]);
 
-  const [actionBusyItemId, setActionBusyItemId] = useState<number | null>(null);
+  const [actionBusyItemId, setActionBusyItemId] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
 
   // Pending swap offers against each of the caller's own "zamienię"-tagged
   // items — fetched only for those (not every item), so a listing owner
   // sees every competing proposal on the tile itself and can pick one
   // (the rest auto-reject server-side, see `accept_swap_proposal`).
-  const [swapProposals, setSwapProposals] = useState<Record<number, SwapProposalOfferResponse[]>>({});
-  const [acceptBusyProposalId, setAcceptBusyProposalId] = useState<number | null>(null);
+  const [swapProposals, setSwapProposals] = useState<Record<string, SwapProposalOfferResponse[]>>({});
+  const [acceptBusyProposalId, setAcceptBusyProposalId] = useState<string | null>(null);
   const swapItemIds = items.filter((it) => itemModes[it.id] === "zamienię").map((it) => it.id);
   const swapItemIdsKey = swapItemIds.join(",");
 
@@ -138,7 +138,7 @@ export function RzeczyView() {
     let cancelled = false;
     void Promise.all(swapItemIds.map((id) => getSwapProposalsForItem(id))).then((results) => {
       if (cancelled) return;
-      const next: Record<number, SwapProposalOfferResponse[]> = {};
+      const next: Record<string, SwapProposalOfferResponse[]> = {};
       swapItemIds.forEach((id, i) => {
         next[id] = results[i];
       });
@@ -150,7 +150,7 @@ export function RzeczyView() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [swapItemIdsKey]);
 
-  async function handleAcceptSwapProposal(itemId: number, proposalId: number) {
+  async function handleAcceptSwapProposal(itemId: string, proposalId: string) {
     setActionError(null);
     setAcceptBusyProposalId(proposalId);
     try {
@@ -164,13 +164,13 @@ export function RzeczyView() {
     }
   }
 
-  function termHasEnded(itemId: number): boolean {
+  function termHasEnded(itemId: string): boolean {
     const reservationId = itemBalances[itemId]?.reservationId;
     if (reservationId == null) return false;
     return reservationTermInfo[reservationId]?.hasEnded === true;
   }
 
-  async function handleConfirmReceipt(itemId: number) {
+  async function handleConfirmReceipt(itemId: string) {
     const reservationId = itemBalances[itemId]?.reservationId;
     if (reservationId == null) return;
     setActionError(null);
@@ -185,7 +185,7 @@ export function RzeczyView() {
     }
   }
 
-  async function handleCancelTransaction(itemId: number) {
+  async function handleCancelTransaction(itemId: string) {
     const reservationId = itemBalances[itemId]?.reservationId;
     if (reservationId == null) return;
     setActionError(null);

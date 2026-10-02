@@ -19,9 +19,9 @@ vi.stubGlobal("fetch", mockFetch);
 
 vi.mock("../api/people", () => ({
   getMyProfile: vi.fn().mockResolvedValue({
-    id: 1,
-    party_id: 1,
-    account_user_id: 1,
+    id: "1",
+    party_id: "1",
+    account_user_id: "1",
     display_name: "Jan Kowalski",
     email: "jan.kowalski@example.com",
     created_at: "2026-01-01T00:00:00Z",
@@ -34,8 +34,8 @@ vi.mock("../api/groups", () => ({
 }));
 vi.mock("../api/organizations", () => ({
   createMyOrganization: vi.fn().mockResolvedValue({
-    id: 1,
-    party_id: 2,
+    id: "1",
+    party_id: "2",
     name: "Muzyczne Skrzaty",
     primary_color: null,
     accent_color: null,
@@ -77,7 +77,7 @@ describe("register -> onboarding -> panel handoff (crosses Group 4 / Group 7 bou
     mockFetch.mockResolvedValueOnce({
       ok: true,
       status: 201,
-      json: () => Promise.resolve({ token: fakeJwt("jan.kowalski"), party_id: 1, role: "GUEST" }),
+      json: () => Promise.resolve({ token: fakeJwt("jan.kowalski"), party_id: "1", role: "GUEST" }),
     });
 
     renderApp();
@@ -99,7 +99,7 @@ describe("register -> onboarding -> panel handoff (crosses Group 4 / Group 7 bou
     mockFetch.mockResolvedValueOnce({
       ok: true,
       status: 201,
-      json: () => Promise.resolve({ token: fakeJwt("jan.kowalski"), party_id: 1, role: "GUEST" }),
+      json: () => Promise.resolve({ token: fakeJwt("jan.kowalski"), party_id: "1", role: "GUEST" }),
     });
 
     renderApp(`/register?returnTo=${encodeURIComponent("/zajecia/grupa/7/term/9")}`);
@@ -120,7 +120,7 @@ describe("register -> onboarding -> panel handoff (crosses Group 4 / Group 7 bou
     mockFetch.mockResolvedValueOnce({
       ok: true,
       status: 201,
-      json: () => Promise.resolve({ token: fakeJwt("organizer.jan"), party_id: 2, role: "ORGANIZER" }),
+      json: () => Promise.resolve({ token: fakeJwt("organizer.jan"), party_id: "2", role: "ORGANIZER" }),
     });
 
     renderApp();

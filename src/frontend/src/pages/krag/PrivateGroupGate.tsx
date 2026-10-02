@@ -46,7 +46,7 @@ export function PrivateGroupGate({
   const [withdrawing, setWithdrawing] = useState(false);
   // The request id whose withdraw failed; the alert shows only while that
   // same request is still the pending one.
-  const [withdrawFailedFor, setWithdrawFailedFor] = useState<number | null>(null);
+  const [withdrawFailedFor, setWithdrawFailedFor] = useState<string | null>(null);
 
   const isPending = !stale && gate.kind === "pending";
   useEffect(() => {
@@ -75,7 +75,7 @@ export function PrivateGroupGate({
     }
   }
 
-  async function withdraw(requestId: number) {
+  async function withdraw(requestId: string) {
     setWithdrawing(true);
     setWithdrawFailedFor(null);
     try {

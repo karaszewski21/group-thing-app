@@ -34,7 +34,7 @@ export function CategoryFormPage() {
     setLoadingData(true);
     try {
       if (id) {
-        const category = await getCategory(Number(id));
+        const category = await getCategory(id);
         setName(category.name);
         setDescription(category.description ?? "");
       }
@@ -59,7 +59,7 @@ export function CategoryFormPage() {
     };
     try {
       if (isEdit && id) {
-        await updateCategory(Number(id), payload);
+        await updateCategory(id, payload);
       } else {
         await createCategory(payload);
       }

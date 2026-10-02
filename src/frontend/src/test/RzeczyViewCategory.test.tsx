@@ -41,9 +41,9 @@ vi.mock("../api/client", async () => {
 });
 
 function mockBalance(
-  itemId: number,
+  itemId: string,
   status: InventoryBalanceResponse["status"],
-  reservationId: number | null = null,
+  reservationId: string | null = null,
 ): InventoryBalanceResponse {
   return {
     id: itemId,
@@ -62,12 +62,12 @@ const GROUP_ID = "5f0c2a7e-3b1d-4e6a-9c8f-0000000000a5";
 const ENDED_TERM_ID = "9a0b1c2d-3e4f-4a5b-8c6d-0000000000c9";
 const FUTURE_TERM_ID = "0b1c2d3e-4f5a-4b6c-8d7e-0000000000ca";
 
-function mockReservation(id: number, termId: string): ReservationResponse {
+function mockReservation(id: string, termId: string): ReservationResponse {
   return {
     id,
     item_id: item.id,
     reservation_type: "LEND",
-    reserved_by_user_id: 1,
+    reserved_by_user_id: "1",
     term_id: termId,
     paired_reservation_id: null,
     reserved_at: "",
@@ -115,10 +115,10 @@ function mockApiGetRouter(fixtures: {
 }
 
 const item: MyInventoryItemResponse = {
-  id: 10,
-  inventory_id: 1,
+  id: "10",
+  inventory_id: "1",
   home_inventory_id: null,
-  product_id: 100,
+  product_id: "100",
   product_name: "Rowerek",
   condition: "GOOD",
   added_at: "2026-01-01T00:00:00Z",
@@ -321,8 +321,8 @@ describe("RzeczyView — post-term-end fallback buttons (Bug #4c)", () => {
 
   it("renders 'Odebrał' and 'Anuluj wymianę', full-word-labeled, immediately after the badge, when locked AND the term has ended", async () => {
     mockApiGetRouter({
-      balance: mockBalance(item.id, "IN_TRANSIT", 55),
-      reservation: mockReservation(55, ENDED_TERM_ID),
+      balance: mockBalance(item.id, "IN_TRANSIT", "55"),
+      reservation: mockReservation("55", ENDED_TERM_ID),
       term: mockTerm(ENDED_TERM_ID, "2020-01-01T10:00:00"), // long past
     });
     vi.mocked(panelDataStore.usePanelData).mockReturnValue(
@@ -357,8 +357,8 @@ describe("RzeczyView — post-term-end fallback buttons (Bug #4c)", () => {
 
   it("does not render the new buttons when locked but the term has NOT yet ended (Mockup 3)", async () => {
     mockApiGetRouter({
-      balance: mockBalance(item.id, "RESERVED", 56),
-      reservation: mockReservation(56, FUTURE_TERM_ID),
+      balance: mockBalance(item.id, "RESERVED", "56"),
+      reservation: mockReservation("56", FUTURE_TERM_ID),
       term: mockTerm(FUTURE_TERM_ID, "2999-01-01T10:00:00"), // far future
     });
     vi.mocked(panelDataStore.usePanelData).mockReturnValue(
@@ -389,12 +389,12 @@ describe("RzeczyView — post-term-end fallback buttons (Bug #4c)", () => {
   it("'Odebrał' calls confirmTransaction with the tile's reservation id only, then refreshes panel data", async () => {
     const load = vi.fn().mockResolvedValue(undefined);
     mockApiGetRouter({
-      balance: mockBalance(item.id, "IN_TRANSIT", 55),
-      reservation: mockReservation(55, ENDED_TERM_ID),
+      balance: mockBalance(item.id, "IN_TRANSIT", "55"),
+      reservation: mockReservation("55", ENDED_TERM_ID),
       term: mockTerm(ENDED_TERM_ID, "2020-01-01T10:00:00"),
     });
     vi.mocked(reservationsApi.confirmTransaction).mockResolvedValue({
-      reservation_id: 55,
+      reservation_id: "55",
       status: "FULFILLED",
       already_resolved: false,
     });
@@ -408,7 +408,7 @@ describe("RzeczyView — post-term-end fallback buttons (Bug #4c)", () => {
     fireEvent.click(odebral);
 
     await waitFor(() =>
-      expect(reservationsApi.confirmTransaction).toHaveBeenCalledWith(55),
+      expect(reservationsApi.confirmTransaction).toHaveBeenCalledWith("55"),
     );
     await waitFor(() => expect(load).toHaveBeenCalledWith({ silent: true }));
   });
@@ -416,12 +416,12 @@ describe("RzeczyView — post-term-end fallback buttons (Bug #4c)", () => {
   it("'Anuluj wymianę' calls cancelTransaction with the tile's reservation id only, then refreshes panel data", async () => {
     const load = vi.fn().mockResolvedValue(undefined);
     mockApiGetRouter({
-      balance: mockBalance(item.id, "IN_TRANSIT", 55),
-      reservation: mockReservation(55, ENDED_TERM_ID),
+      balance: mockBalance(item.id, "IN_TRANSIT", "55"),
+      reservation: mockReservation("55", ENDED_TERM_ID),
       term: mockTerm(ENDED_TERM_ID, "2020-01-01T10:00:00"),
     });
     vi.mocked(reservationsApi.cancelTransaction).mockResolvedValue({
-      reservation_id: 55,
+      reservation_id: "55",
       status: "CANCELLED",
       already_resolved: false,
     });
@@ -435,7 +435,7 @@ describe("RzeczyView — post-term-end fallback buttons (Bug #4c)", () => {
     fireEvent.click(anuluj);
 
     await waitFor(() =>
-      expect(reservationsApi.cancelTransaction).toHaveBeenCalledWith(55),
+      expect(reservationsApi.cancelTransaction).toHaveBeenCalledWith("55"),
     );
     await waitFor(() => expect(load).toHaveBeenCalledWith({ silent: true }));
   });

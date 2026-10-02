@@ -4,7 +4,7 @@ import type { GroupAccessResponse, PublicCircleResponse } from "../../api/groups
 export type PrivateGate =
   | { kind: "loginRequired" }
   | { kind: "canRequest" }
-  | { kind: "pending"; requestId: number }
+  | { kind: "pending"; requestId: string }
   | { kind: "rejected" };
 
 export type TermAccess =
