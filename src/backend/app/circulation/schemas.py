@@ -12,6 +12,7 @@ from datetime import datetime
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
+from app.moderation.status import ModerationStatus
 from app.product.schemas import ProductPhotoResponse
 
 from .domain.item_privacy import ItemStatusCode
@@ -188,6 +189,7 @@ class ItemDetailsResponse(BaseModel):
     category_name: str | None
     condition: ItemCondition
     description: str | None
+    text_status: ModerationStatus
     photos: list[ProductPhotoResponse]
     product_photo_url: str | None
     is_owner: bool

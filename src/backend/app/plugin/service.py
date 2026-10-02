@@ -8,15 +8,16 @@ below are spec.md's Java terminology, ported here as function groups.
 
 from __future__ import annotations
 
-import uuid
-
 import re
+import uuid
 from typing import Any
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.errors import EntityNotFoundException
+from app.moderation import rules
+from app.product import service as product_service
 from app.product.models import Product
 
 from . import query_service
@@ -124,7 +125,9 @@ async def _require_product(db: AsyncSession, product_id: uuid.UUID) -> Product:
     return product
 
 
-async def get_plugin_data(db: AsyncSession, plugin_id: str, product_id: uuid.UUID) -> dict[str, Any]:
+async def get_plugin_data(
+    db: AsyncSession, plugin_id: str, product_id: uuid.UUID
+) -> dict[str, Any]:
     await find_enabled_or_throw(db, plugin_id)
     product = await _require_product(db, product_id)
     plugin_data = product.plugin_data or {}
@@ -142,9 +145,15 @@ async def replace_plugin_data(
     tracking notices the mutation)."""
     await find_enabled_or_throw(db, plugin_id)
     product = await _require_product(db, product_id)
+    shares_description = plugin_id == product_service.SHARED_DESCRIPTION_PLUGIN_ID
+    if shares_description:
+        description = data.get(product_service.SHARED_DESCRIPTION_FIELD)
+        rules.ensure_no_contact_info(description if isinstance(description, str) else None)
     updated = dict(product.plugin_data or {})
     updated[plugin_id] = data
     product.plugin_data = updated
+    if shares_description:
+        await product_service.stage_text_moderation(db, product)
     await db.commit()
     return data
 
@@ -156,6 +165,8 @@ async def delete_plugin_data(db: AsyncSession, plugin_id: str, product_id: uuid.
         updated = dict(product.plugin_data)
         del updated[plugin_id]
         product.plugin_data = updated
+        if plugin_id == product_service.SHARED_DESCRIPTION_PLUGIN_ID:
+            await product_service.stage_text_moderation(db, product)
         await db.commit()
 
 

@@ -3,11 +3,13 @@ import { useEffect, useState } from "react";
 import { getGroupsForModeration } from "../api/groups";
 import type { ModerationGroupResponse } from "../api/groups";
 import { EmptyState } from "../components/shared/EmptyState";
+import { ContentModerationQueue } from "./ContentModerationQueue";
 import { extractProblemMessage } from "../api/problem";
 import { formatDate } from "../utils/format";
 
 /**
- * ADMIN-only, read-only overview of every Circle in the system — organizer,
+ * ADMIN-only: the content review queue (photos, product names and
+ * descriptions), then a read-only overview of every Circle in the system — organizer,
  * member count, term count, created date — for spotting empty or abandoned
  * Circles. No destructive actions; back-office equivalent of CategoryListPage.
  */
@@ -53,6 +55,8 @@ export function ModerationPage() {
           Every Circle in the system, at a glance
         </Text>
       </Box>
+
+      <ContentModerationQueue />
 
       {loading ? (
         <Text>Loading...</Text>

@@ -168,7 +168,7 @@ export function useItemEditing(itemId: string, details: ProductDetailsState) {
   );
 
   const addPhoto = useCallback(
-    (url: string) => mutatePhotos((id) => addProductPhoto(id, url.trim())),
+    (file: File) => mutatePhotos((id) => addProductPhoto(id, file)),
     [mutatePhotos],
   );
 

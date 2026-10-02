@@ -8,6 +8,7 @@ import { PanelNavBar } from "../panel/PanelNav";
 import { PencilIcon, TrashIcon } from "../panel/panelIcons";
 import { ItemBackButton } from "./ItemBackButton";
 import { ItemGallery } from "./ItemGallery";
+import { ModerationBadge } from "./ItemGalleryEditor";
 import { ItemLoadStates } from "./ItemLoadStates";
 import {
   FIELD_LABEL,
@@ -90,6 +91,14 @@ function ItemViewContent({ item, history }: { item: ItemDetailsResponse; history
       <p className="mt-0.5 text-[12.5px] text-ink-soft">
         {`${item.category_name ?? NO_CATEGORY_LABEL} · Stan: ${CONDITION_LABELS[item.condition]}`}
       </p>
+      {item.is_owner && item.text_status !== "APPROVED" && (
+        <p className="mt-2 flex flex-wrap items-center gap-1.5 text-[12.5px] text-ink-soft">
+          <ModerationBadge status={item.text_status} />
+          {item.text_status === "REJECTED"
+            ? "Nazwa lub opis zostały odrzucone przez moderację — popraw je w trybie edycji."
+            : "Nazwa i opis są sprawdzane — inni zobaczą opis, a rzecz da się udostępnić po weryfikacji."}
+        </p>
+      )}
       <section className="mt-4 rounded-[22px] border border-line bg-paper p-5" aria-labelledby="item-description-heading">
         <h3 id="item-description-heading" className={FIELD_LABEL}>
           Opis

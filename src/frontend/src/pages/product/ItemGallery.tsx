@@ -1,7 +1,8 @@
 import { useState } from "react";
-import type { ProductPhotoResponse } from "../../api/products";
+import type { ModerationStatus, ProductPhotoResponse } from "../../api/products";
 import { PhotoPlaceholder } from "../../components/shared/Icons";
 import { isValidImageUrl } from "../../utils/url";
+import { ModerationBadge } from "./ItemGalleryEditor";
 
 /** An image that swaps itself for the placeholder tile when it fails to load. */
 export function SafeImage({
@@ -43,11 +44,24 @@ interface ItemGalleryProps {
   showOwnerHint?: boolean;
 }
 
+interface GallerySlide {
+  url: string;
+  thumbUrl: string;
+  status: ModerationStatus;
+}
+
 /** View-mode gallery: the product's photos (shared by every item of the
  * product), else the catalog photo (no badge), else a placeholder. The
- * thumbnail strip scrolls on its own so the page never does. */
+ * thumbnail strip scrolls on its own so the page never does. Photos still
+ * in moderation (sent to owners only) carry a status badge. */
 export function ItemGallery({ name, photos, productPhotoUrl, faded, showOwnerHint }: ItemGalleryProps) {
-  const urls = photos.length > 0 ? photos.map((p) => p.url) : productPhotoUrl ? [productPhotoUrl] : [];
+  const slides: GallerySlide[] =
+    photos.length > 0
+      ? photos.map((p) => ({ url: p.url, thumbUrl: p.thumb_url, status: p.status }))
+      : productPhotoUrl
+        ? [{ url: productPhotoUrl, thumbUrl: productPhotoUrl, status: "APPROVED" }]
+        : [];
+  const urls = slides.map((slide) => slide.url);
   const [active, setActive] = useState(0);
   const current = Math.min(active, Math.max(urls.length - 1, 0));
 
@@ -65,6 +79,11 @@ export function ItemGallery({ name, photos, productPhotoUrl, faded, showOwnerHin
         ) : (
           <span className="flex aspect-[4/3] w-full items-center justify-center rounded-2xl bg-cream">
             <PhotoPlaceholder size={64} />
+          </span>
+        )}
+        {slides[current] && slides[current].status !== "APPROVED" && (
+          <span className="absolute left-2 top-2">
+            <ModerationBadge status={slides[current].status} />
           </span>
         )}
         {urls.length >= 2 && (
@@ -86,7 +105,7 @@ export function ItemGallery({ name, photos, productPhotoUrl, faded, showOwnerHin
                 i === current ? "ring-2 ring-mint" : "border border-line"
               }`}
             >
-              <SafeImage src={url} alt="" className="h-full w-full" placeholderSize={20} />
+              <SafeImage src={slides[i].thumbUrl} alt="" className="h-full w-full" placeholderSize={20} />
             </button>
           ))}
         </div>

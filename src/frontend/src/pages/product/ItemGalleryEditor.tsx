@@ -1,10 +1,27 @@
 import { ChevronDown, ChevronUp } from "lucide-react";
 import { useEffect, useRef, useState, type RefObject } from "react";
-import type { ProductPhotoResponse } from "../../api/products";
-import { isValidImageUrl } from "../../utils/url";
+import type { ModerationStatus, ProductPhotoResponse } from "../../api/products";
 import { TrashIcon } from "../panel/panelIcons";
 import { SafeImage } from "./ItemGallery";
-import { INVALID_PHOTO_URL_MESSAGE, MAX_PRODUCT_PHOTOS } from "./itemPageShared";
+import { ACCEPTED_PHOTO_TYPES, MAX_PRODUCT_PHOTOS, photoFileError } from "./itemPageShared";
+
+const STATUS_LABELS: Record<Exclude<ModerationStatus, "APPROVED">, string> = {
+  PENDING: "W moderacji",
+  NEEDS_REVIEW: "Do sprawdzenia",
+  REJECTED: "Odrzucone",
+};
+
+/** Owner-only marker on a photo (or text) others can't see yet. */
+export function ModerationBadge({ status }: { status: ModerationStatus }) {
+  if (status === "APPROVED") return null;
+  const tone = status === "REJECTED" ? "bg-danger-soft text-danger" : "bg-cream text-ink-soft";
+  return (
+    <span className={`rounded-full px-2 py-0.5 text-[10.5px] font-extrabold ${tone}`}>
+      {STATUS_LABELS[status]}
+    </span>
+  );
+}
+
 
 /** Idle edit-mode preview of the photo row. */
 export function ItemPhotoStrip({ photos }: { photos: ProductPhotoResponse[] }) {
@@ -16,7 +33,7 @@ export function ItemPhotoStrip({ photos }: { photos: ProductPhotoResponse[] }) {
       {photos.map((p) => (
         <SafeImage
           key={p.id}
-          src={p.url}
+          src={p.thumb_url}
           alt=""
           className="h-12 w-12 flex-none rounded-xl"
           placeholderSize={20}
@@ -29,7 +46,7 @@ export function ItemPhotoStrip({ photos }: { photos: ProductPhotoResponse[] }) {
 interface ItemGalleryEditorProps {
   photos: ProductPhotoResponse[];
   busy: boolean;
-  onAdd: (url: string) => Promise<void>;
+  onAdd: (file: File) => Promise<void>;
   onRemove: (photoId: string) => Promise<void>;
   onMove: (photoId: string, direction: "up" | "down") => Promise<void>;
   onClose: () => void;
@@ -39,12 +56,12 @@ interface ItemGalleryEditorProps {
  * call and its follow-up refetch are pending, so a reorder never works from
  * a stale order. */
 export function ItemGalleryEditor({ photos, busy, onAdd, onRemove, onMove, onClose }: ItemGalleryEditorProps) {
-  const [url, setUrl] = useState("");
   const [error, setError] = useState<string | null>(null);
   const focusAfterMove = useRef<{ id: string; dir: "up" | "down" } | null>(null);
   const moveButtons = useRef(new Map<string, HTMLButtonElement>());
   const inputRef = useRef<HTMLInputElement>(null);
-  const atLimit = photos.length >= MAX_PRODUCT_PHOTOS;
+  const activeCount = photos.filter((p) => p.status !== "REJECTED").length;
+  const atLimit = activeCount >= MAX_PRODUCT_PHOTOS;
 
   useEffect(() => {
     inputRef.current?.focus();
@@ -69,15 +86,16 @@ export function ItemGalleryEditor({ photos, busy, onAdd, onRemove, onMove, onClo
     }
   }
 
-  function handleAdd() {
-    const trimmed = url.trim();
-    if (!isValidImageUrl(trimmed)) {
-      setError(INVALID_PHOTO_URL_MESSAGE);
+  function handleFiles(files: File[]) {
+    const invalid = files.map(photoFileError).find((message) => message !== null);
+    if (invalid) {
+      setError(invalid);
       return;
     }
     void run(async () => {
-      await onAdd(trimmed);
-      setUrl("");
+      for (const file of files.slice(0, MAX_PRODUCT_PHOTOS - activeCount)) {
+        await onAdd(file);
+      }
     });
   }
 
@@ -99,9 +117,10 @@ export function ItemGalleryEditor({ photos, busy, onAdd, onRemove, onMove, onClo
             const n = i + 1;
             return (
               <li key={p.id} className="flex items-center gap-2 rounded-2xl border border-line bg-cream p-2">
-                <SafeImage src={p.url} alt="" className="h-12 w-12 flex-none rounded-xl" placeholderSize={20} />
-                <span className="min-w-0 flex-1 truncate text-[12.5px] text-ink" title={p.url}>
-                  {n}. {p.url}
+                <SafeImage src={p.thumb_url} alt="" className="h-12 w-12 flex-none rounded-xl" placeholderSize={20} />
+                <span className="flex min-w-0 flex-1 items-center gap-2 text-[12.5px] text-ink">
+                  Zdjęcie {n}
+                  <ModerationBadge status={p.status} />
                 </span>
                 <button
                   type="button"
@@ -143,17 +162,10 @@ export function ItemGalleryEditor({ photos, busy, onAdd, onRemove, onMove, onClo
           })}
         </ul>
       )}
-      <PhotoUrlField
-        inputRef={inputRef}
-        value={url}
-        disabled={busy || atLimit}
-        onChange={setUrl}
-        onAdd={handleAdd}
-        onEscape={onClose}
-      />
+      <PhotoFileField inputRef={inputRef} disabled={busy || atLimit} onFiles={handleFiles} onEscape={onClose} />
       {atLimit && <p className="mt-1.5 text-[12.5px] text-ink-soft">Osiągnięto limit {MAX_PRODUCT_PHOTOS} zdjęć.</p>}
       <p className="mt-1.5 text-[11.5px] text-ink-soft">
-        Zdjęcia są wspólne dla wszystkich rzeczy tego produktu.
+        Zdjęcia są wspólne dla wszystkich rzeczy tego produktu. Inni zobaczą je po sprawdzeniu.
       </p>
       {error && (
         <p role="alert" className="mt-1.5 text-[12.5px] font-semibold text-danger">
@@ -171,45 +183,40 @@ export function ItemGalleryEditor({ photos, busy, onAdd, onRemove, onMove, onClo
   );
 }
 
-interface PhotoUrlFieldProps {
-  value: string;
+interface PhotoFileFieldProps {
   disabled: boolean;
-  onChange: (value: string) => void;
-  onAdd: () => void;
+  onFiles: (files: File[]) => void;
   onEscape?: () => void;
   inputRef?: RefObject<HTMLInputElement | null>;
 }
 
-/** The "paste a photo link + Dodaj" row; Enter adds instead of submitting an
- * enclosing form. Validation stays with the caller. */
-export function PhotoUrlField({ value, disabled, onChange, onAdd, onEscape, inputRef }: PhotoUrlFieldProps) {
+/** "+ Dodaj zdjęcia" — picks one or more image files (on phones also the
+ * camera). Validation stays with the caller. */
+export function PhotoFileField({ disabled, onFiles, onEscape, inputRef }: PhotoFileFieldProps) {
   return (
-    <div className="mt-2 flex items-center gap-2">
+    <label
+      className={`mt-2 inline-flex cursor-pointer items-center rounded-[9px] bg-mint px-3 py-1.5 text-[11.5px] font-extrabold text-white focus-within:ring-2 focus-within:ring-mint/40 ${
+        disabled ? "pointer-events-none opacity-60" : ""
+      }`}
+    >
+      + Dodaj zdjęcia
       <input
         ref={inputRef}
-        type="url"
-        aria-label="Link do zdjęcia"
-        placeholder="Wklej link do zdjęcia (https://…)"
-        value={value}
+        type="file"
+        accept={ACCEPTED_PHOTO_TYPES}
+        multiple
+        aria-label="Dodaj zdjęcia"
         disabled={disabled}
-        onChange={(e) => onChange(e.target.value)}
+        onChange={(e) => {
+          const files = Array.from(e.target.files ?? []);
+          e.target.value = "";
+          if (files.length > 0) onFiles(files);
+        }}
         onKeyDown={(e) => {
-          if (e.key === "Enter") {
-            e.preventDefault();
-            onAdd();
-          }
           if (e.key === "Escape") onEscape?.();
         }}
-        className="min-w-0 flex-1 rounded-lg border-[1.5px] border-line bg-cream px-2 py-1.5 text-[13.5px] text-ink disabled:opacity-60"
+        className="sr-only"
       />
-      <button
-        type="button"
-        onClick={onAdd}
-        disabled={disabled}
-        className="flex-none rounded-[9px] bg-mint px-3 py-1.5 text-[11.5px] font-extrabold text-white disabled:opacity-60"
-      >
-        + Dodaj
-      </button>
-    </div>
+    </label>
   );
 }

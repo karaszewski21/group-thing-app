@@ -1,0 +1,29 @@
+orchestrator:
+  started_phase: phase-1
+  completed_phases: [phase-1, phase-2]
+  failed_phases: []
+  options:
+    brainstorming_enabled: false
+    design_enabled: true
+  created: 2026-10-01T00:00:00Z
+  updated: 2026-10-01T00:00:00Z
+  task_path: .maister/tasks/research/2026-10-01-photo-upload-spaces-ai-moderation
+
+task:
+  title: Photo uploads to DigitalOcean Spaces + Hugging Face AI moderation (separate microservice?)
+  status: in_progress
+
+research_context:
+  research_type: mixed
+  research_question: "How to upload gallery photos to DigitalOcean Spaces and moderate item name/description/photos with Hugging Face models; should moderation be a separate microservice?"
+  scope:
+    included: [codebase integration, DO Spaces S3 API, HF models and hosting, moderation workflow, architecture options]
+    excluded: [implementation, payments]
+    constraints: [FastAPI async backend, React frontend, pre-production, Polish content, minimal dependencies]
+  project_doc_paths: [.maister/docs/project/tech-stack.md, .maister/docs/project/architecture.md]
+  methodology: [codebase integration analysis, web documentation review, comparative decision matrices]
+  sources: [planning/sources.md]
+  confidence_level: medium-high
+  gathering_strategy: {categories: [codebase, spaces-upload, hf-models, hf-hosting, moderation-architecture], count: 5, source: planner}
+  phase_summaries:
+    phase-1: {summary: "No microservice now: app/moderation module + outbox, inference in a separate worker process (same codebase, ONNX CPU, DO FRA1/AMS3). Upload proxied via FastAPI (Pillow sanitize, WebP, private objects -> public on approval). Text: Bielik-Guard-0.1B + regex contact rules; images: Falconsai/Freepik/Marqo; no CSAM without hash matching. Dispatcher event_type filter required. 13 open decisions.", steps_completed: [init, plan, gather, synthesize]}

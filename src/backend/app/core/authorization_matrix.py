@@ -220,6 +220,8 @@ _RAW_MATRIX: tuple[_RawEntry, ...] = (
         r"^/api/reservations/[^/]+/confirm-transaction$",
         ("EDIT", "mcp:edit"),
     ),  # 62
+    # 63: app.moderation — the ADMIN review queue and decisions (every method).
+    (None, r"^/api/moderation(/.*)?$", ("ADMIN",)),  # 63
     (None, r"^.*$", "AUTHENTICATED"),  # 25 - catch-all
 )
 

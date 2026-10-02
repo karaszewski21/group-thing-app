@@ -4,7 +4,19 @@ export type HistoryState = ReturnType<typeof useItemHistory>;
 
 export const MAX_PRODUCT_PHOTOS = 10;
 
-export const INVALID_PHOTO_URL_MESSAGE = "Podaj poprawny link zaczynający się od http:// lub https://";
+/** Photo files the backend accepts (it re-encodes them to WebP). */
+export const ACCEPTED_PHOTO_TYPES = "image/jpeg,image/png,image/webp";
+export const MAX_PHOTO_BYTES = 15 * 1024 * 1024;
+
+/** Client-side pre-check so an obviously wrong file fails before upload;
+ * the backend validates again and re-encodes. */
+export function photoFileError(file: File): string | null {
+  if (!ACCEPTED_PHOTO_TYPES.split(",").includes(file.type)) {
+    return "Nieobsługiwany plik — dodaj zdjęcie JPG, PNG lub WebP";
+  }
+  if (file.size > MAX_PHOTO_BYTES) return "Zdjęcie jest za duże (maks. 15 MB)";
+  return null;
+}
 
 /** Navigation state `/product/new` hands the new item's page when some of
  * the photos could not be added. */

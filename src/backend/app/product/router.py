@@ -12,15 +12,16 @@ from __future__ import annotations
 import uuid
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, Query, status
+from fastapi import APIRouter, Depends, File, Query, UploadFile, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.auth_deps import Principal, require_any
 from app.db import get_db
+from app.storage.service import ObjectStorage, get_storage
 
 from . import service
+from .images import MAX_UPLOAD_BYTES
 from .schemas import (
-    AddProductPhotoRequest,
     CreateProductRequest,
     ProductDescriptionResponse,
     ProductPhotoResponse,
@@ -36,6 +37,7 @@ router = APIRouter(prefix="/api/products", tags=["products"])
 DbSession = Annotated[AsyncSession, Depends(get_db)]
 ReadPrincipal = Annotated[Principal, Depends(require_any("READ", "mcp:read"))]
 EditPrincipal = Annotated[Principal, Depends(require_any("EDIT", "mcp:edit"))]
+Storage = Annotated[ObjectStorage | None, Depends(get_storage)]
 
 
 @router.get("", response_model=list[ProductResponse])
@@ -92,9 +94,9 @@ async def delete_product(product_id: uuid.UUID, db: DbSession, principal: EditPr
 
 @router.get("/{product_id}/photos", response_model=list[ProductPhotoResponse])
 async def list_product_photos(
-    product_id: uuid.UUID, db: DbSession, principal: ReadPrincipal
+    product_id: uuid.UUID, db: DbSession, principal: ReadPrincipal, storage: Storage
 ) -> list[ProductPhotoResponse]:
-    photos = await service.list_product_photos(db, product_id)
+    photos = await service.list_product_photos(db, product_id, principal, storage)
     return [ProductPhotoResponse.model_validate(photo) for photo in photos]
 
 
@@ -104,9 +106,16 @@ async def list_product_photos(
     status_code=status.HTTP_201_CREATED,
 )
 async def add_product_photo(
-    product_id: uuid.UUID, body: AddProductPhotoRequest, db: DbSession, principal: EditPrincipal
+    product_id: uuid.UUID,
+    db: DbSession,
+    principal: EditPrincipal,
+    storage: Storage,
+    file: Annotated[UploadFile, File()],
 ) -> ProductPhotoResponse:
-    photo = await service.add_product_photo(db, product_id, body.url, principal)
+    """Multipart upload of one image (`file`). Reads at most one byte past
+    the limit, so an oversized upload is refused without buffering it all."""
+    data = await file.read(MAX_UPLOAD_BYTES + 1)
+    photo = await service.add_product_photo(db, product_id, data, principal, storage)
     return ProductPhotoResponse.model_validate(photo)
 
 
@@ -116,8 +125,11 @@ async def reorder_product_photos(
     body: ReorderProductPhotosRequest,
     db: DbSession,
     principal: EditPrincipal,
+    storage: Storage,
 ) -> list[ProductPhotoResponse]:
-    photos = await service.reorder_product_photos(db, product_id, body.photo_ids, principal)
+    photos = await service.reorder_product_photos(
+        db, product_id, body.photo_ids, principal, storage
+    )
     return [ProductPhotoResponse.model_validate(photo) for photo in photos]
 
 

@@ -40,10 +40,11 @@ const item: ItemDetailsResponse = {
   category_name: "Pojazdy",
   condition: "GOOD",
   description: null,
+  text_status: "APPROVED",
   photos: [
-    { id: PHOTO_A, url: "https://example.com/a.jpg", sort_order: 0 },
-    { id: PHOTO_B, url: "https://example.com/b.jpg", sort_order: 1 },
-    { id: PHOTO_C, url: "https://example.com/c.jpg", sort_order: 2 },
+    { id: PHOTO_A, url: "https://cdn.example/a/w1600.webp", thumb_url: "https://cdn.example/a/w400.webp", status: "APPROVED", sort_order: 0 },
+    { id: PHOTO_B, url: "https://cdn.example/b/w1600.webp", thumb_url: "https://cdn.example/b/w400.webp", status: "APPROVED", sort_order: 1 },
+    { id: PHOTO_C, url: "https://cdn.example/c/w1600.webp", thumb_url: "https://cdn.example/c/w400.webp", status: "APPROVED", sort_order: 2 },
   ],
   product_photo_url: null,
   is_owner: true,
@@ -241,7 +242,7 @@ describe("useItemEditing", () => {
       await expect(result.current.editing.saveDescription("Nowy opis")).rejects.toThrow(
         /Dane produktu są nieaktualne/,
       );
-      await expect(result.current.editing.addPhoto("https://example.com/d.jpg")).rejects.toThrow(
+      await expect(result.current.editing.addPhoto(new File(["d"], "d.jpg", { type: "image/jpeg" }))).rejects.toThrow(
         /Dane produktu są nieaktualne/,
       );
       await expect(result.current.editing.removePhoto(PHOTO_A)).rejects.toThrow(
@@ -276,7 +277,7 @@ describe("useItemEditing", () => {
       await expect(result.current.editing.saveDescription("Opis")).rejects.toThrow(
         ACCESS_DENIED_MESSAGE,
       );
-      await expect(result.current.editing.addPhoto("https://example.com/d.jpg")).rejects.toThrow(
+      await expect(result.current.editing.addPhoto(new File(["d"], "d.jpg", { type: "image/jpeg" }))).rejects.toThrow(
         ACCESS_DENIED_MESSAGE,
       );
     });

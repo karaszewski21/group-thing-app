@@ -53,9 +53,10 @@ function details(overrides: Partial<ItemDetailsResponse> = {}): ItemDetailsRespo
     category_name: "Wózki",
     condition: "GOOD",
     description: "Lekki, składany, z daszkiem i koszem.",
+    text_status: "APPROVED",
     photos: [
-      { id: PHOTO_1, url: "https://img.example/1.jpg", sort_order: 0 },
-      { id: PHOTO_2, url: "https://img.example/2.jpg", sort_order: 1 },
+      { id: PHOTO_1, url: "https://img.example/1.webp", thumb_url: "https://img.example/1-thumb.webp", status: "APPROVED", sort_order: 0 },
+      { id: PHOTO_2, url: "https://img.example/2.webp", thumb_url: "https://img.example/2-thumb.webp", status: "APPROVED", sort_order: 1 },
     ],
     product_photo_url: null,
     is_owner: true,
@@ -320,20 +321,20 @@ describe("ItemDetailPage", () => {
     expect(screen.getByLabelText("Opis rzeczy")).toBeInTheDocument();
   });
 
-  it("gallery editor validates URLs and disables controls while a move is pending", async () => {
+  it("gallery editor validates files and disables controls while a move is pending", async () => {
     const pending = deferred<productsApi.ProductPhotoResponse[]>();
     vi.mocked(productsApi.reorderProductPhotos).mockReturnValue(pending.promise);
     renderPage(`/product/${ITEM_ID}/edit`);
 
     fireEvent.click(await screen.findByRole("button", { name: "Edytuj zdjęcia" }));
     expect(
-      screen.getByText("Zdjęcia są wspólne dla wszystkich rzeczy tego produktu."),
+      screen.getByText(/Zdjęcia są wspólne dla wszystkich rzeczy tego produktu\./),
     ).toBeInTheDocument();
-    const input = screen.getByLabelText("Link do zdjęcia");
-    fireEvent.change(input, { target: { value: "ftp://zle.example/x.jpg" } });
-    fireEvent.click(screen.getByRole("button", { name: "+ Dodaj" }));
+    fireEvent.change(screen.getByLabelText("Dodaj zdjęcia"), {
+      target: { files: [new File(["x"], "x.gif", { type: "image/gif" })] },
+    });
     expect(
-      screen.getByText("Podaj poprawny link zaczynający się od http:// lub https://"),
+      screen.getByText("Nieobsługiwany plik — dodaj zdjęcie JPG, PNG lub WebP"),
     ).toBeInTheDocument();
     expect(productsApi.addProductPhoto).not.toHaveBeenCalled();
 
@@ -343,8 +344,7 @@ describe("ItemDetailPage", () => {
     );
     expect(screen.getByRole("button", { name: "Usuń zdjęcie 1" })).toBeDisabled();
     expect(screen.getByRole("button", { name: "Przesuń zdjęcie 2 w górę" })).toBeDisabled();
-    expect(screen.getByLabelText("Link do zdjęcia")).toBeDisabled();
-    expect(screen.getByRole("button", { name: "+ Dodaj" })).toBeDisabled();
+    expect(screen.getByLabelText("Dodaj zdjęcia")).toBeDisabled();
 
     pending.resolve([]);
     await waitFor(() =>

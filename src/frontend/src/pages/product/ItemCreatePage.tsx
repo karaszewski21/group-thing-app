@@ -1,32 +1,25 @@
-import { useState, type FormEvent } from "react";
+import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { useNavigate } from "react-router-dom";
 import { ItemQuickAddForm } from "../../components/shared/ItemQuickAddForm";
 import { PhoneFrame } from "../../components/shared/PhoneFrame";
 import { useCategories } from "../../hooks/useCategories";
 import { useCreateItem } from "../../hooks/useCreateItem";
 import { createEmptyItemQuickAddValue, type ItemQuickAddValue } from "../../utils/itemQuickAdd";
-import { isValidImageUrl } from "../../utils/url";
 import { PanelNavBar } from "../panel/PanelNav";
 import { TrashIcon } from "../panel/panelIcons";
 import { ItemBackButton } from "./ItemBackButton";
-import { SafeImage } from "./ItemGallery";
-import { PhotoUrlField } from "./ItemGalleryEditor";
-import {
-  FIELD_LABEL,
-  INVALID_PHOTO_URL_MESSAGE,
-  MAX_PRODUCT_PHOTOS,
-  type ItemCreatedState,
-} from "./itemPageShared";
+import { PhotoFileField } from "./ItemGalleryEditor";
+import { FIELD_LABEL, MAX_PRODUCT_PHOTOS, photoFileError, type ItemCreatedState } from "./itemPageShared";
 
 /** `/product/new`: adds an item to the caller's own inventory with optional
- * photo links, then replaces itself with the new item's page (handing it the
+ * photos, then replaces itself with the new item's page (handing it the
  * count of refused photos). Standalone, outside PanelDataProvider. */
 export function ItemCreatePage() {
   const navigate = useNavigate();
   const createItem = useCreateItem();
   const { data: categories } = useCategories();
   const [draft, setDraft] = useState<ItemQuickAddValue>(createEmptyItemQuickAddValue());
-  const [photoUrls, setPhotoUrls] = useState<string[]>([]);
+  const [photos, setPhotos] = useState<File[]>([]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -40,7 +33,7 @@ export function ItemCreatePage() {
     setBusy(true);
     setError(null);
     try {
-      const { item, failedPhotos } = await createItem(value, photoUrls);
+      const { item, failedPhotos } = await createItem(value, photos);
       const state: ItemCreatedState | undefined = failedPhotos > 0 ? { failedPhotos } : undefined;
       navigate(`/product/${item.id}`, { replace: true, state });
     } catch (err) {
@@ -56,7 +49,7 @@ export function ItemCreatePage() {
         <h2 className="text-[19px] font-semibold text-ink">Dodaj rzecz</h2>
         <form onSubmit={(e) => void handleSubmit(e)} className="mt-4 rounded-[22px] border border-line bg-paper p-5">
           <ItemQuickAddForm value={value} onChange={setDraft} disabled={busy} />
-          <NewPhotosField urls={photoUrls} onChange={setPhotoUrls} disabled={busy} />
+          <NewPhotosField files={photos} onChange={setPhotos} disabled={busy} />
           <p className="mt-3 text-xs text-ink-soft">
             Opis dodasz na stronie rzeczy, a sposób udostępnienia (wypożyczę / oddam / zamienię) ustawisz na
             liście „Moje rzeczy”.
@@ -81,50 +74,52 @@ export function ItemCreatePage() {
 }
 
 interface NewPhotosFieldProps {
-  urls: string[];
-  onChange: (urls: string[]) => void;
+  files: File[];
+  onChange: (files: File[]) => void;
   disabled: boolean;
 }
 
-/** Photo links kept locally until the item is created, in the order added. */
-function NewPhotosField({ urls, onChange, disabled }: NewPhotosFieldProps) {
-  const [url, setUrl] = useState("");
-  const [error, setError] = useState<string | null>(null);
-  const atLimit = urls.length >= MAX_PRODUCT_PHOTOS;
+/** Local previews of the picked files (object URLs, revoked when the list changes). */
+function usePreviewUrls(files: File[]): string[] {
+  const urls = useMemo(() => files.map((file) => URL.createObjectURL(file)), [files]);
+  useEffect(() => () => urls.forEach((url) => URL.revokeObjectURL(url)), [urls]);
+  return urls;
+}
 
-  function handleAdd() {
-    const trimmed = url.trim();
-    if (!isValidImageUrl(trimmed)) {
-      setError(INVALID_PHOTO_URL_MESSAGE);
-      return;
-    }
-    if (urls.includes(trimmed)) {
-      setError("To zdjęcie jest już na liście.");
+/** Photos kept locally until the item is created, in the order added. */
+function NewPhotosField({ files, onChange, disabled }: NewPhotosFieldProps) {
+  const [error, setError] = useState<string | null>(null);
+  const previews = usePreviewUrls(files);
+  const atLimit = files.length >= MAX_PRODUCT_PHOTOS;
+
+  function handleFiles(picked: File[]) {
+    const invalid = picked.map(photoFileError).find((message) => message !== null);
+    if (invalid) {
+      setError(invalid);
       return;
     }
     setError(null);
-    onChange([...urls, trimmed]);
-    setUrl("");
+    onChange([...files, ...picked].slice(0, MAX_PRODUCT_PHOTOS));
   }
 
   return (
     <section aria-labelledby="new-item-photos-heading" className="mt-4">
       <h3 id="new-item-photos-heading" className={FIELD_LABEL}>
-        Zdjęcia ({urls.length}/{MAX_PRODUCT_PHOTOS})
+        Zdjęcia ({files.length}/{MAX_PRODUCT_PHOTOS})
       </h3>
-      {urls.length > 0 && (
+      {files.length > 0 && (
         <ul className="mt-2 space-y-2">
-          {urls.map((u, i) => (
-            <li key={u} className="flex items-center gap-2 rounded-2xl border border-line bg-cream p-2">
-              <SafeImage src={u} alt="" className="h-12 w-12 flex-none rounded-xl" placeholderSize={20} />
-              <span className="min-w-0 flex-1 truncate text-[12.5px] text-ink" title={u}>
-                {i + 1}. {u}
+          {files.map((file, i) => (
+            <li key={previews[i]} className="flex items-center gap-2 rounded-2xl border border-line bg-cream p-2">
+              <img src={previews[i]} alt="" className="h-12 w-12 flex-none rounded-xl object-cover" />
+              <span className="min-w-0 flex-1 truncate text-[12.5px] text-ink" title={file.name}>
+                {i + 1}. {file.name}
               </span>
               <button
                 type="button"
                 aria-label={`Usuń zdjęcie ${i + 1}`}
                 disabled={disabled}
-                onClick={() => onChange(urls.filter((other) => other !== u))}
+                onClick={() => onChange(files.filter((other) => other !== file))}
                 className="flex h-[30px] w-[30px] flex-none items-center justify-center rounded-[10px] text-ink-soft hover:bg-paper hover:text-danger disabled:opacity-40"
               >
                 <TrashIcon />
@@ -133,9 +128,11 @@ function NewPhotosField({ urls, onChange, disabled }: NewPhotosFieldProps) {
           ))}
         </ul>
       )}
-      <PhotoUrlField value={url} disabled={disabled || atLimit} onChange={setUrl} onAdd={handleAdd} />
+      <PhotoFileField disabled={disabled || atLimit} onFiles={handleFiles} />
       {atLimit && <p className="mt-1.5 text-[12.5px] text-ink-soft">Osiągnięto limit {MAX_PRODUCT_PHOTOS} zdjęć.</p>}
-      <p className="mt-1.5 text-[11.5px] text-ink-soft">Zdjęcia są wspólne dla wszystkich rzeczy tego produktu.</p>
+      <p className="mt-1.5 text-[11.5px] text-ink-soft">
+        Zdjęcia są wspólne dla wszystkich rzeczy tego produktu. Inni zobaczą je po sprawdzeniu.
+      </p>
       {error && (
         <p role="alert" className="mt-1.5 text-[12.5px] font-semibold text-danger">
           {error}

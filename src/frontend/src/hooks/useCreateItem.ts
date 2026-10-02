@@ -13,20 +13,20 @@ const CREATE_FALLBACK = "Nie udało się dodać rzeczy. Spróbuj ponownie.";
 
 export interface CreateItemResult {
   item: InventoryItemResponse;
-  /** Photos the backend refused (e.g. a duplicate URL or the product's
+  /** Photos the backend refused (e.g. a duplicate file or the product's
    * photo limit when the product already had photos). */
   failedPhotos: number;
 }
 
 /** Adds an item to the caller's PERSONAL inventory: resolves the product by
- * name within its category, registers the item, then adds `photoUrls` to the
+ * name within its category, registers the item, then uploads `photos` to the
  * product in order (the owner check needs the item to exist first). Creation
  * errors are rethrown as Polish messages; a refused photo only counts towards
  * `failedPhotos`, since the item already exists by then. No query caches the
  * caller's item list ("Moje rzeczy" reloads on mount), so nothing is
  * invalidated. */
 export function useCreateItem() {
-  return useCallback(async (value: ItemQuickAddValue, photoUrls: string[]): Promise<CreateItemResult> => {
+  return useCallback(async (value: ItemQuickAddValue, photos: File[]): Promise<CreateItemResult> => {
     let productId: string;
     let item: InventoryItemResponse;
     try {
@@ -46,9 +46,9 @@ export function useCreateItem() {
     }
 
     let failedPhotos = 0;
-    for (const url of photoUrls) {
+    for (const photo of photos) {
       try {
-        await addProductPhoto(productId, url);
+        await addProductPhoto(productId, photo);
       } catch {
         failedPhotos += 1;
       }

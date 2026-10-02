@@ -14,6 +14,8 @@ from typing import Any
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 from pydantic_core import PydanticCustomError
 
+from app.moderation.status import ModerationStatus
+
 _PHOTO_URL_PATTERN = re.compile(r"^https?://.*")
 
 
@@ -46,6 +48,7 @@ class ProductResponse(BaseModel):
     plugin_data: dict[str, Any] | None
     created_at: datetime
     updated_at: datetime
+    text_status: ModerationStatus
 
 
 class CreateProductRequest(BaseModel):
@@ -84,29 +87,17 @@ class ResolveProductRequest(BaseModel):
     category_id: uuid.UUID
 
 
-_GALLERY_URL_MESSAGE = "Podaj poprawny link zaczynający się od http:// lub https://"
-# A whole http(s) URL with a host and no whitespace or control characters.
-_GALLERY_URL_PATTERN = re.compile(r"https?://[^\s/$.?#\x00-\x1f\x7f][^\s\x00-\x1f\x7f]*")
-
-
 class ProductPhotoResponse(BaseModel):
+    """`url` is the 1600 px WebP, `thumb_url` the 400 px one. Non-approved
+    photos (shown to item owners only) carry short-lived signed URLs."""
+
     model_config = ConfigDict(from_attributes=True)
 
     id: uuid.UUID
     url: str
+    thumb_url: str
+    status: ModerationStatus
     sort_order: int
-
-
-class AddProductPhotoRequest(BaseModel):
-    url: str = Field(max_length=500)
-
-    @field_validator("url")
-    @classmethod
-    def _check_url(cls, value: str) -> str:
-        trimmed = value.strip()
-        if not _GALLERY_URL_PATTERN.fullmatch(trimmed):
-            raise PydanticCustomError("value_error", _GALLERY_URL_MESSAGE)
-        return trimmed
 
 
 class ReorderProductPhotosRequest(BaseModel):

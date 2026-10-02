@@ -19,8 +19,9 @@ export interface RequestOpts {
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
   const url = `/api${path}`;
   const token = localStorage.getItem("auth_token");
+  // FormData bodies set their own multipart Content-Type (with the boundary).
   const headers: Record<string, string> = {
-    "Content-Type": "application/json",
+    ...(options?.body instanceof FormData ? {} : { "Content-Type": "application/json" }),
     ...(options?.headers as Record<string, string>),
   };
   if (token) {
@@ -94,6 +95,11 @@ export const api = {
       body: JSON.stringify(body),
       ...mergeHeaders(opts),
     });
+  },
+
+  /** Multipart POST (file uploads). */
+  upload<T>(path: string, body: FormData, opts?: RequestOpts): Promise<T> {
+    return request<T>(path, { method: "POST", body, ...mergeHeaders(opts) });
   },
 
   delete<T>(path: string, _body?: undefined, opts?: RequestOpts): Promise<T> {

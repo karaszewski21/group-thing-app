@@ -11,9 +11,12 @@ the now-removed `category/service.py` used for
 
 from __future__ import annotations
 
+import asyncio
+import hashlib
 import time
 import uuid
 from collections.abc import Mapping
+from dataclasses import dataclass
 from typing import Any, cast
 
 from sqlalchemy import DateTime, Select, column, delete, exists, func, select, table
@@ -22,14 +25,21 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.models import User
+from app.config import settings
 from app.core.auth_deps import Principal
 from app.core.errors import (
     AccessDeniedException,
     BusinessConflictException,
     EntityNotFoundException,
 )
+from app.moderation import rules
+from app.moderation.events import PHOTO_MODERATION_REQUESTED, TEXT_MODERATION_REQUESTED
+from app.moderation.status import ModerationStatus
+from app.outbox import service as outbox_service
+from app.storage.outbox_listener import OBJECTS_DELETE
+from app.storage.service import ObjectStorage
 
-from . import query_service
+from . import images, query_service
 from .models import Product, ProductPhoto
 from .schemas import CreateProductRequest, UpdateProductRequest
 
@@ -112,7 +122,44 @@ async def get_product(db: AsyncSession, product_id: uuid.UUID) -> Product:
     return product
 
 
+def text_hash(name: str, description: str | None) -> str:
+    """Hash of the moderated text (name + shared description), normalized
+    so whitespace-only edits don't trigger re-moderation."""
+    normalized = "\n".join(" ".join(part.split()) for part in (name, description or ""))
+    return hashlib.sha256(normalized.encode()).hexdigest()
+
+
+async def stage_text_moderation(db: AsyncSession, product: Product) -> None:
+    """Call after any change to the product's name or shared description,
+    before the caller's commit. Unchanged text keeps its status. Changed
+    text is moderated asynchronously by the worker (PENDING), approved at
+    once when moderation is off, and goes to a human if a human had
+    rejected the previous version — so edits can't be used to probe the
+    model."""
+    digest = text_hash(
+        product.name, get_shared_description(product.plugin_data, product.description)
+    )
+    if digest == product.text_moderated_hash:
+        return
+    product.text_moderated_hash = digest
+    if not settings.moderation_enabled:
+        product.text_status = ModerationStatus.APPROVED
+        return
+    if product.text_status == ModerationStatus.REJECTED:
+        product.text_status = ModerationStatus.NEEDS_REVIEW
+        return
+    product.text_status = ModerationStatus.PENDING
+    if product.id is None:
+        await db.flush()
+    await outbox_service.append(
+        db,
+        event_type=TEXT_MODERATION_REQUESTED,
+        payload={"product_id": product.id, "content_hash": digest},
+    )
+
+
 async def create_product(db: AsyncSession, data: CreateProductRequest) -> Product:
+    rules.ensure_no_contact_info(data.name, data.description)
     product = Product(
         name=data.name,
         description=data.description,
@@ -121,6 +168,7 @@ async def create_product(db: AsyncSession, data: CreateProductRequest) -> Produc
         category_id=data.category_id,
     )
     db.add(product)
+    await stage_text_moderation(db, product)
     await db.commit()
     return await get_product(db, cast(uuid.UUID, product.id))
 
@@ -128,12 +176,14 @@ async def create_product(db: AsyncSession, data: CreateProductRequest) -> Produc
 async def update_product(
     db: AsyncSession, product_id: uuid.UUID, data: UpdateProductRequest
 ) -> Product:
+    rules.ensure_no_contact_info(data.name, data.description)
     product = await get_product(db, product_id)
     product.name = data.name
     product.description = data.description
     product.photo_url = data.photo_url
     product.sku = data.sku
     product.category_id = data.category_id
+    await stage_text_moderation(db, product)
     await db.commit()
     return await get_product(db, product_id)
 
@@ -154,6 +204,7 @@ async def get_or_create_product_by_name(
     if product is not None:
         return product
 
+    rules.ensure_no_contact_info(name)
     product = Product(
         name=name,
         description=None,
@@ -162,6 +213,7 @@ async def get_or_create_product_by_name(
         category_id=category_id,
     )
     db.add(product)
+    await stage_text_moderation(db, product)
     await db.commit()
     return await get_product(db, cast(uuid.UUID, product.id))
 
@@ -170,7 +222,9 @@ async def delete_product(db: AsyncSession, product_id: uuid.UUID) -> None:
     """The gallery goes with the product; a remaining inventory-item
     reference still fails the delete (and rolls the photo delete back)."""
     product = await get_product(db, product_id)
+    photos = await product_photos(db, product_id)
     await db.execute(delete(ProductPhoto).where(ProductPhoto.product_id == product_id))
+    await _stage_photo_files_delete(db, photos)
     await db.delete(product)
     try:
         await db.flush()
@@ -178,6 +232,17 @@ async def delete_product(db: AsyncSession, product_id: uuid.UUID) -> None:
         await db.rollback()
         raise ProductHasInventoryItemsException(product_id) from exc
     await db.commit()
+
+
+async def _stage_photo_files_delete(db: AsyncSession, photos: list[ProductPhoto]) -> None:
+    """Stages deletion of the photos' files in the caller's commit; the
+    outbox deletes them once the rows are gone."""
+    if photos:
+        await outbox_service.append(
+            db,
+            event_type=OBJECTS_DELETE,
+            payload={"keys": [key for p in photos for key in (p.large_key, p.thumb_key)]},
+        )
 
 
 async def _lock_product(db: AsyncSession, product_id: uuid.UUID) -> Product:
@@ -190,32 +255,42 @@ async def _lock_product(db: AsyncSession, product_id: uuid.UUID) -> Product:
     return product
 
 
-async def _require_item_owner(
+async def _find_item_owner(
     db: AsyncSession, product_id: uuid.UUID, principal: Principal
-) -> None:
-    """Gallery and shared-description edits belong to owners of a
-    non-deleted item of the product. Ownership is the home inventory's
-    owner, so an owner keeps the right while the item is lent out."""
+) -> uuid.UUID | None:
+    """The caller's user id when they own a non-deleted item of the
+    product, else `None`. Ownership is the home inventory's owner, so an
+    owner keeps the right while the item is lent out."""
     user_id = (
         await db.execute(select(User.id).where(User.username == principal.username))
     ).scalar_one_or_none()
+    if user_id is None:
+        return None
     owning_inventory_id = func.coalesce(
         _inventory_items.c.home_inventory_id, _inventory_items.c.inventory_id
     )
-    owns_item = user_id is not None and bool(
-        await db.scalar(
-            select(
-                exists().where(
-                    _inventory_items.c.product_id == product_id,
-                    _inventory_items.c.deleted_at.is_(None),
-                    _inventories.c.id == owning_inventory_id,
-                    _inventories.c.owner_user_id == user_id,
-                )
+    owns_item = await db.scalar(
+        select(
+            exists().where(
+                _inventory_items.c.product_id == product_id,
+                _inventory_items.c.deleted_at.is_(None),
+                _inventories.c.id == owning_inventory_id,
+                _inventories.c.owner_user_id == user_id,
             )
         )
     )
-    if not owns_item:
+    return user_id if owns_item else None
+
+
+async def _require_item_owner(
+    db: AsyncSession, product_id: uuid.UUID, principal: Principal
+) -> uuid.UUID:
+    """Gallery and shared-description edits belong to owners of a
+    non-deleted item of the product; returns the owner's user id."""
+    user_id = await _find_item_owner(db, product_id, principal)
+    if user_id is None:
         raise AccessDeniedException(NOT_ITEM_OWNER_MESSAGE)
+    return user_id
 
 
 async def product_photos(db: AsyncSession, product_id: uuid.UUID) -> list[ProductPhoto]:
@@ -229,31 +304,112 @@ async def product_photos(db: AsyncSession, product_id: uuid.UUID) -> list[Produc
     return list(result.scalars().all())
 
 
+@dataclass(frozen=True)
+class PhotoView:
+    """A gallery photo as shown to one viewer. Approved files are public on
+    the CDN; others are private, so their URLs are short-lived signed links."""
+
+    id: uuid.UUID
+    url: str
+    thumb_url: str
+    status: ModerationStatus
+    sort_order: int
+
+
+def photo_view(photo: ProductPhoto, storage: ObjectStorage) -> PhotoView:
+    link = (
+        storage.public_url if photo.status == ModerationStatus.APPROVED else storage.presigned_url
+    )
+    return PhotoView(
+        id=cast(uuid.UUID, photo.id),
+        url=link(photo.large_key),
+        thumb_url=link(photo.thumb_key),
+        status=photo.status,
+        sort_order=photo.sort_order,
+    )
+
+
+def visible_photo_views(
+    photos: list[ProductPhoto], storage: ObjectStorage | None, *, is_owner: bool
+) -> list[PhotoView]:
+    """Owners see every photo with its moderation status; everyone else
+    only approved ones. Without configured storage there is no gallery."""
+    if storage is None:
+        return []
+    return [
+        photo_view(photo, storage)
+        for photo in photos
+        if is_owner or photo.status == ModerationStatus.APPROVED
+    ]
+
+
 def _renumber(photos: list[ProductPhoto]) -> None:
     for index, photo in enumerate(photos):
         if photo.sort_order != index:
             photo.sort_order = index
 
 
-async def list_product_photos(db: AsyncSession, product_id: uuid.UUID) -> list[ProductPhoto]:
+async def list_product_photos(
+    db: AsyncSession, product_id: uuid.UUID, principal: Principal, storage: ObjectStorage | None
+) -> list[PhotoView]:
     await get_product(db, product_id)
-    return await product_photos(db, product_id)
+    is_owner = await _find_item_owner(db, product_id, principal) is not None
+    return visible_photo_views(await product_photos(db, product_id), storage, is_owner=is_owner)
+
+
+PHOTO_UPLOAD_DISABLED_MESSAGE = "Dodawanie zdjęć jest chwilowo niedostępne"
 
 
 async def add_product_photo(
-    db: AsyncSession, product_id: uuid.UUID, url: str, principal: Principal
-) -> ProductPhoto:
+    db: AsyncSession,
+    product_id: uuid.UUID,
+    data: bytes,
+    principal: Principal,
+    storage: ObjectStorage | None,
+) -> PhotoView:
+    """Sanitizes the upload (outside the product lock, as it is CPU work),
+    stores both WebP sizes and records the photo. With moderation on, the
+    files stay private and the worker is asked to score the photo. A
+    rejected photo still counts as a duplicate, so it cannot be re-uploaded."""
+    if storage is None:
+        raise BusinessConflictException(PHOTO_UPLOAD_DISABLED_MESSAGE)
+    processed = await asyncio.to_thread(images.process_upload, data)
+
     await _lock_product(db, product_id)
-    await _require_item_owner(db, product_id, principal)
+    user_id = await _require_item_owner(db, product_id, principal)
     photos = await product_photos(db, product_id)
-    if any(photo.url == url for photo in photos):
+    if any(photo.content_sha256 == processed.sha256 for photo in photos):
         raise BusinessConflictException("To zdjęcie jest już w galerii")
-    if len(photos) >= MAX_PRODUCT_PHOTOS:
+    if sum(photo.status != ModerationStatus.REJECTED for photo in photos) >= MAX_PRODUCT_PHOTOS:
         raise BusinessConflictException(f"Osiągnięto limit {MAX_PRODUCT_PHOTOS} zdjęć")
-    photo = ProductPhoto(product_id=product_id, url=url, sort_order=len(photos))
+
+    photo_id = uuid.uuid4()
+    approved = not settings.moderation_enabled
+    photo = ProductPhoto(
+        id=photo_id,
+        product_id=product_id,
+        storage_key=f"products/{product_id}/{photo_id}",
+        width=processed.width,
+        height=processed.height,
+        size_bytes=len(processed.large),
+        content_sha256=processed.sha256,
+        status=ModerationStatus.APPROVED if approved else ModerationStatus.PENDING,
+        uploaded_by_user_id=user_id,
+        sort_order=len(photos),
+    )
+    await storage.put(photo.large_key, processed.large, "image/webp", public=approved)
+    await storage.put(photo.thumb_key, processed.thumb, "image/webp", public=approved)
     db.add(photo)
-    await db.commit()
-    return photo
+    if not approved:
+        await outbox_service.append(
+            db, event_type=PHOTO_MODERATION_REQUESTED, payload={"photo_id": photo_id}
+        )
+    try:
+        await db.commit()
+    except Exception:
+        await storage.delete([photo.large_key, photo.thumb_key])
+        raise
+    return photo_view(photo, storage)
 
 
 async def remove_product_photo(
@@ -268,12 +424,18 @@ async def remove_product_photo(
     await db.delete(photo)
     await db.flush()
     _renumber([p for p in photos if p is not photo])
+    await _stage_photo_files_delete(db, [photo])
     await db.commit()
 
 
 async def reorder_product_photos(
-    db: AsyncSession, product_id: uuid.UUID, photo_ids: list[uuid.UUID], principal: Principal
-) -> list[ProductPhoto]:
+    db: AsyncSession,
+    product_id: uuid.UUID,
+    photo_ids: list[uuid.UUID],
+    principal: Principal,
+    storage: ObjectStorage | None,
+) -> list[PhotoView]:
+    """`photo_ids` is the owner's full gallery (every status) in the new order."""
     await _lock_product(db, product_id)
     await _require_item_owner(db, product_id, principal)
     photos = await product_photos(db, product_id)
@@ -283,7 +445,7 @@ async def reorder_product_photos(
     ordered = [by_id[photo_id] for photo_id in photo_ids]
     _renumber(ordered)
     await db.commit()
-    return ordered
+    return visible_photo_views(ordered, storage, is_owner=True)
 
 
 async def set_shared_description(
@@ -296,11 +458,13 @@ async def set_shared_description(
     product = await get_product(db, product_id)
     await _require_item_owner(db, product_id, principal)
     value = (description or "").strip()
+    rules.ensure_no_contact_info(value)
     updated = dict(product.plugin_data or {})
     current = updated.get(SHARED_DESCRIPTION_PLUGIN_ID)
     shared = dict(current) if isinstance(current, Mapping) else {}
     shared[SHARED_DESCRIPTION_FIELD] = value
     updated[SHARED_DESCRIPTION_PLUGIN_ID] = shared
     product.plugin_data = updated
+    await stage_text_moderation(db, product)
     await db.commit()
     return value or None

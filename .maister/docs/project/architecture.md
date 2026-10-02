@@ -41,8 +41,25 @@ Client Request → FastAPI Router → Auth Dependency (require_any) → Service 
 
 Plugin iframes reach the same routers via the host's browser SDK, which attaches the same JWT the router-level auth dependency validates — there is no separate plugin-specific auth path on the server side (see `standards/backend/plugin-auth.md`).
 
+## Photo Upload and Content Moderation
+
+```
+POST /api/products/{id}/photos (multipart) → Pillow sanitize → Spaces (private) → product_photos(PENDING) + outbox
+                                                                                         ↓ moderation.photo_requested
+moderation worker (python -m app.moderation.worker, same codebase) → NSFW score → APPROVED (files public-read, CDN)
+                                                                                 | NEEDS_REVIEW → /api/moderation (ADMIN)
+                                                                                 | REJECTED (files stay private)
+```
+
+- `app/storage/` — `ObjectStorage` protocol + `SpacesStorage` (boto3); `get_storage()` returns `None` while the `SPACES_*` settings are unset (upload disabled). `storage.objects_delete` outbox events delete files after their rows are gone.
+- `app/moderation/` — `ModerationStatus` (PENDING/APPROVED/NEEDS_REVIEW/REJECTED) tracked per photo and per product text (name + shared description, `products.text_status` + `text_moderated_hash`); append-only `moderation_decisions` audit log; synchronous contact-info regex rules (400); ADMIN queue/decisions router; worker handlers with injected classifiers (`onnx_models.py`: Bielik-Guard-0.1B text, Falconsai NSFW image).
+- The outbox is split by event type: the API poller uses `exclude_event_types=WORKER_EVENT_TYPES`, the worker claims only those (5 s interval, batch of 5).
+- Non-owners see only APPROVED photos and an APPROVED description; a product whose text is not APPROVED cannot be given a listing preference (the choke point for public pages).
+- `MODERATION_ENABLED=false` (default, tests, local dev) approves new content immediately.
+
 ## External Integrations
 - **PostgreSQL 18**: Primary datastore, run via `docker-compose.yml`
+- **DigitalOcean Spaces** (S3 API) + CDN: user-uploaded product photos
 - No external API integrations exist. The footprint domain's `app/footprint/ports.py`/`stubs.py` define ports for an emission-factor/product-attribute adapter that remains stubbed (out of scope for this migration)
 
 ## Database Schema
@@ -102,7 +119,9 @@ Five spot-checked directories, confirmed 1:1 against the real tree above: `app/c
 - **Frontend service**: `src/frontend/Dockerfile` is a two-stage build (Node builds the Vite SPA to `dist/`, then an nginx:alpine image serves it) driven from the **repo root** as build context — not `src/frontend/` — because `src/frontend`'s test suite imports the sibling `plugins/server-sdk.ts` by relative path, so that file must be present in the build context too (see `.dockerignore` at the repo root, which scopes that context down to just `src/frontend/` + `plugins/server-sdk.ts`). nginx reverse-proxies `/api/*` and `/oauth2/*` to the `backend` service and falls back to `index.html` for all other paths (client-side routing)
 - `src/frontend/vite.config.ts`'s dev-proxy (`npm run dev`, port 5173) now proxies both `/api` and `/oauth2` to `localhost:8080` — the OAuth2 authorize page does a real browser form-POST to `/oauth2/authorize`, not just `fetch()` calls under `/api`
 - Individual plugin apps (`plugins/warehouse`, `plugins/box-size`, `plugins/ai-description`) are **not** part of `docker-compose.yml` — they remain standalone dev-server processes per `plugins/CLAUDE.md`'s documented workflow, registered with the host via `PUT /api/plugins/{pluginId}/manifest`
-- No CI/CD or hosting decision yet (unchanged from before the migration)
+- Opt-in `moderation-worker` service (`docker compose --profile moderation up`, needs `HF_TOKEN` as a build secret for the gated Bielik-Guard model): the backend image's `worker` target, running `python -m app.moderation.worker`
+- nginx allows request bodies up to 16 MB on `/api/` (photo uploads; the backend caps a photo at 15 MB)
+- No CI/CD yet
 
 ---
 *Based on the completed Java-to-Python migration (`.maister/tasks/migrations/2026-08-31-java-to-python-fastapi/`), 2026-09-01*

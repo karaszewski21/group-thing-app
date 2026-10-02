@@ -11,12 +11,24 @@ from __future__ import annotations
 import uuid
 from typing import Any
 
-from sqlalchemy import ForeignKey, Integer, String, UniqueConstraint
+from sqlalchemy import Enum, ForeignKey, Integer, String, UniqueConstraint
 from sqlalchemy.dialects import postgresql
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.core.base_model import BaseEntity
+from app.moderation.status import ModerationStatus
+
+
+def _status_column() -> Enum:
+    """String-backed (never ordinal, never a native PG enum) — see
+    `app/party/models.py`'s `_enum_column` for the rationale."""
+    return Enum(
+        ModerationStatus,
+        native_enum=False,
+        length=20,
+        values_callable=lambda cls: [member.value for member in cls],
+    )
 
 
 class Product(BaseEntity):
@@ -33,6 +45,15 @@ class Product(BaseEntity):
         postgresql.UUID(as_uuid=True), ForeignKey("categories.id"), nullable=False
     )
     plugin_data: Mapped[dict[str, Any] | None] = mapped_column(JSONB, nullable=True)
+    # Moderation of the name + shared description, and the hash of the text
+    # that status was decided for (re-moderated only when the text changes).
+    text_status: Mapped[ModerationStatus] = mapped_column(
+        _status_column(),
+        nullable=False,
+        default=ModerationStatus.APPROVED,
+        server_default=ModerationStatus.APPROVED.value,
+    )
+    text_moderated_hash: Mapped[str | None] = mapped_column(String(64), nullable=True)
 
     def __eq__(self, other: Any) -> bool:
         """Business-key equality on `sku` (never entity `id`) — per
@@ -47,14 +68,21 @@ class Product(BaseEntity):
 
 
 class ProductPhoto(BaseEntity):
-    """One gallery photo (an external URL) of a catalog `Product`, shared by
-    every inventory item of that product and shown in dense `sort_order`
-    (0..n-1). No cascade and no `relationship()`. The 10-photo limit and URL
-    format are enforced in the application layer, not by DB checks."""
+    """One uploaded gallery photo of a catalog `Product`, shared by every
+    inventory item of that product and shown in dense `sort_order` (0..n-1).
+    The files live in object storage under `storage_key` (`/w1600.webp` and
+    `/w400.webp`); they stay private until `status` is APPROVED. No cascade
+    and no `relationship()`. The 10-photo limit is enforced in the
+    application layer."""
 
     __tablename__ = "product_photos"
     __table_args__ = (
-        UniqueConstraint("product_id", "url", name="uq_product_photos_product_id_url"),
+        UniqueConstraint(
+            "product_id", "storage_key", name="uq_product_photos_product_id_storage_key"
+        ),
+        UniqueConstraint(
+            "product_id", "content_sha256", name="uq_product_photos_product_id_content_sha256"
+        ),
     )
 
     product_id: Mapped[uuid.UUID] = mapped_column(
@@ -62,14 +90,33 @@ class ProductPhoto(BaseEntity):
         ForeignKey("products.id", name="fk_product_photos_product_id_products"),
         nullable=False,
     )
-    url: Mapped[str] = mapped_column(String(500), nullable=False)
+    storage_key: Mapped[str] = mapped_column(String(200), nullable=False)
+    width: Mapped[int] = mapped_column(Integer, nullable=False)
+    height: Mapped[int] = mapped_column(Integer, nullable=False)
+    size_bytes: Mapped[int] = mapped_column(Integer, nullable=False)
+    # Hash of the original upload: rejects re-uploading the same file.
+    content_sha256: Mapped[str] = mapped_column(String(64), nullable=False)
+    status: Mapped[ModerationStatus] = mapped_column(_status_column(), nullable=False)
+    uploaded_by_user_id: Mapped[uuid.UUID] = mapped_column(
+        postgresql.UUID(as_uuid=True),
+        ForeignKey("users.id", name="fk_product_photos_uploaded_by_user_id_users"),
+        nullable=False,
+    )
     sort_order: Mapped[int] = mapped_column(Integer, nullable=False)
 
+    @property
+    def large_key(self) -> str:
+        return f"{self.storage_key}/w1600.webp"
+
+    @property
+    def thumb_key(self) -> str:
+        return f"{self.storage_key}/w400.webp"
+
     def __eq__(self, other: Any) -> bool:
-        """Business-key equality on `(product_id, url)`, never the surrogate id."""
+        """Business-key equality on `(product_id, storage_key)`, never the surrogate id."""
         if not isinstance(other, ProductPhoto):
             return NotImplemented
-        return (self.product_id, self.url) == (other.product_id, other.url)
+        return (self.product_id, self.storage_key) == (other.product_id, other.storage_key)
 
     def __hash__(self) -> int:
-        return hash((self.product_id, self.url))
+        return hash((self.product_id, self.storage_key))

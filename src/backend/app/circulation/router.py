@@ -33,6 +33,7 @@ from app.core.auth_deps import Principal, require_any
 from app.core.errors import AccessDeniedException
 from app.db import get_db
 from app.product import service as product_service
+from app.storage.service import ObjectStorage, get_storage
 
 from . import service
 from .models import CirculationTransaction, InventoryItem
@@ -176,10 +177,13 @@ async def delete_item(item_id: uuid.UUID, db: DbSession, principal: EditPrincipa
 
 @router.get("/api/inventory-items/{item_id}/details", response_model=ItemDetailsResponse)
 async def get_item_details(
-    item_id: uuid.UUID, db: DbSession, principal: ReadPrincipal
+    item_id: uuid.UUID,
+    db: DbSession,
+    principal: ReadPrincipal,
+    storage: Annotated[ObjectStorage | None, Depends(get_storage)],
 ) -> ItemDetailsResponse:
     """Item page read model; 200 for a soft-deleted item (status `DELETED`)."""
-    details = await service.get_item_details(db, item_id, principal)
+    details = await service.get_item_details(db, item_id, principal, storage)
     return ItemDetailsResponse.model_validate(details)
 
 

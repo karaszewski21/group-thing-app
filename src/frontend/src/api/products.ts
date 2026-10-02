@@ -35,16 +35,19 @@ export interface ProductSearchParams {
   pluginFilters?: string[];
 }
 
+/** Moderation state of a photo or of a product's name + description. Only
+ * owners ever see anything but `APPROVED`. */
+export type ModerationStatus = "PENDING" | "APPROVED" | "NEEDS_REVIEW" | "REJECTED";
+
 /** A gallery photo. Photos belong to the catalog product and are shared by
- * every item of it, like the description. */
+ * every item of it, like the description. `url` is the large (1600 px)
+ * image, `thumb_url` the 400 px one. */
 export interface ProductPhotoResponse {
   id: string;
   url: string;
+  thumb_url: string;
+  status: ModerationStatus;
   sort_order: number;
-}
-
-export interface AddProductPhotoRequest {
-  url: string;
 }
 
 export interface ReorderProductPhotosRequest {
@@ -103,9 +106,10 @@ export function resolveProduct(request: ResolveProductRequest): Promise<ProductR
   return api.post("/products/resolve", request);
 }
 
-export function addProductPhoto(productId: string, url: string): Promise<ProductPhotoResponse> {
-  const request: AddProductPhotoRequest = { url };
-  return api.post(`/products/${productId}/photos`, request);
+export function addProductPhoto(productId: string, file: File): Promise<ProductPhotoResponse> {
+  const body = new FormData();
+  body.append("file", file);
+  return api.upload(`/products/${productId}/photos`, body);
 }
 
 export function deleteProductPhoto(productId: string, photoId: string): Promise<void> {

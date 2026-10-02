@@ -5,6 +5,7 @@ loop that owns its own session per poll."""
 
 from __future__ import annotations
 
+from collections.abc import Collection
 from datetime import datetime
 
 from sqlalchemy import select
@@ -18,18 +19,32 @@ MAX_ATTEMPTS = 5
 __all__ = ["dispatch_pending", "MAX_ATTEMPTS"]
 
 
-async def _claim_batch(db: AsyncSession, batch_size: int) -> list[OutboxEntry]:
+async def _claim_batch(
+    db: AsyncSession,
+    batch_size: int,
+    event_types: Collection[str] | None,
+    exclude_event_types: Collection[str] | None,
+) -> list[OutboxEntry]:
+    stmt = select(OutboxEntry).where(OutboxEntry.status == OutboxStatus.PENDING)
+    if event_types is not None:
+        stmt = stmt.where(OutboxEntry.event_type.in_(list(event_types)))
+    if exclude_event_types:
+        stmt = stmt.where(OutboxEntry.event_type.not_in(list(exclude_event_types)))
     stmt = (
-        select(OutboxEntry)
-        .where(OutboxEntry.status == OutboxStatus.PENDING)
-        .order_by(OutboxEntry.created_at, OutboxEntry.id)
+        stmt.order_by(OutboxEntry.created_at, OutboxEntry.id)
         .limit(batch_size)
         .with_for_update(skip_locked=True)
     )
     return list((await db.execute(stmt)).scalars().all())
 
 
-async def dispatch_pending(db: AsyncSession, *, batch_size: int = 50) -> int:
+async def dispatch_pending(
+    db: AsyncSession,
+    *,
+    batch_size: int = 50,
+    event_types: Collection[str] | None = None,
+    exclude_event_types: Collection[str] | None = None,
+) -> int:
     """Claim up to `batch_size` PENDING entries and process each exactly
     once, committing after each so one failing entry doesn't roll back
     entries already processed in this call. `SELECT ... FOR UPDATE SKIP
@@ -39,8 +54,13 @@ async def dispatch_pending(db: AsyncSession, *, batch_size: int = 50) -> int:
     nothing wanted it, which isn't a failure. A handler raising increments
     `attempts`/`last_error` and leaves the entry PENDING for a later poll,
     until `MAX_ATTEMPTS` is reached and it's marked FAILED (never re-raises
-    into the caller — the poll loop must keep running)."""
-    entries = await _claim_batch(db, batch_size)
+    into the caller — the poll loop must keep running).
+
+    `event_types`/`exclude_event_types` split the outbox between pollers
+    in different processes: a poller must never claim an event whose
+    handlers are registered only in another process, or it would mark it
+    PROCESSED unhandled (the moderation worker owns `moderation.*`)."""
+    entries = await _claim_batch(db, batch_size, event_types, exclude_event_types)
     for entry in entries:
         try:
             for handler in registry.get_handlers(entry.event_type):

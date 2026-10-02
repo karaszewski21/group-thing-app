@@ -29,6 +29,8 @@ from sqlalchemy.ext.asyncio import (
 )
 from testcontainers.postgres import PostgresContainer
 
+from tests.fake_storage import FakeStorage
+
 BACKEND_ROOT = Path(__file__).resolve().parent.parent
 
 
@@ -83,17 +85,27 @@ async def db_session(engine: AsyncEngine) -> AsyncGenerator[AsyncSession, None]:
 
 
 @pytest.fixture
-async def client(db_session: AsyncSession) -> AsyncGenerator[AsyncClient, None]:
+def fake_storage() -> FakeStorage:
+    return FakeStorage()
+
+
+@pytest.fixture
+async def client(
+    db_session: AsyncSession, fake_storage: FakeStorage
+) -> AsyncGenerator[AsyncClient, None]:
     from app.db import get_db
     from app.main import app
+    from app.storage.service import get_storage
 
     async def _override_get_db() -> AsyncGenerator[AsyncSession, None]:
         yield db_session
 
     app.dependency_overrides[get_db] = _override_get_db
+    app.dependency_overrides[get_storage] = lambda: fake_storage
     try:
         transport = ASGITransport(app=app)
         async with AsyncClient(transport=transport, base_url="http://test") as async_client:
             yield async_client
     finally:
         app.dependency_overrides.pop(get_db, None)
+        app.dependency_overrides.pop(get_storage, None)

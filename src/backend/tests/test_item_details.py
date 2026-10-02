@@ -10,6 +10,7 @@ from httpx import AsyncClient
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.auth.models import User
 from app.circulation.domain.item_privacy import (
     OTHER_FAMILY_LABEL,
     ItemStatusCode,
@@ -20,6 +21,7 @@ from app.circulation.models import BalanceStatus, InventoryItem, ReservationType
 from app.groups import service as groups_service
 from app.groups.models import Term
 from app.groups.schemas import TakeTermItemListingRequest
+from app.moderation.status import ModerationStatus
 from app.product.models import Product, ProductPhoto
 from tests.test_circulation_ledger import (
     _confirm_and_fulfill,
@@ -69,10 +71,29 @@ async def test_getItemDetails_ownerAndNonOwner_returnsFieldsPhotosAndIsOwnerFlag
     }
     product.description = "Opis admina"
     product.photo_url = "https://example.com/catalog.jpg"
+    owner_username = _principal(owner_token).username
+    owner_user_id = (
+        await db_session.execute(select(User.id).where(User.username == owner_username))
+    ).scalar_one()
+
+    def photo(key: str, sort_order: int, status: ModerationStatus) -> ProductPhoto:
+        return ProductPhoto(
+            product_id=product.id,
+            storage_key=f"products/{product.id}/{key}",
+            width=10,
+            height=10,
+            size_bytes=100,
+            content_sha256=key * 64,
+            status=status,
+            uploaded_by_user_id=owner_user_id,
+            sort_order=sort_order,
+        )
+
     db_session.add_all(
         [
-            ProductPhoto(product_id=product.id, url="https://example.com/second.jpg", sort_order=1),
-            ProductPhoto(product_id=product.id, url="https://example.com/first.jpg", sort_order=0),
+            photo("b", 1, ModerationStatus.APPROVED),
+            photo("a", 0, ModerationStatus.APPROVED),
+            photo("c", 2, ModerationStatus.PENDING),
         ]
     )
     await db_session.commit()
@@ -86,10 +107,17 @@ async def test_getItemDetails_ownerAndNonOwner_returnsFieldsPhotosAndIsOwnerFlag
     assert owner_view["category_name"] == category["name"]
     assert owner_view["condition"] == "GOOD"
     assert owner_view["description"] == "Wspólny opis\nw dwóch liniach"
-    assert [(p["url"], p["sort_order"]) for p in owner_view["photos"]] == [
-        ("https://example.com/first.jpg", 0),
-        ("https://example.com/second.jpg", 1),
+    cdn = f"https://cdn.test/products/{product.id}"
+    assert [(p["url"], p["thumb_url"], p["status"]) for p in owner_view["photos"]] == [
+        (f"{cdn}/a/w1600.webp", f"{cdn}/a/w400.webp", "APPROVED"),
+        (f"{cdn}/b/w1600.webp", f"{cdn}/b/w400.webp", "APPROVED"),
+        (
+            f"https://origin.test/products/{product.id}/c/w1600.webp?signed",
+            f"https://origin.test/products/{product.id}/c/w400.webp?signed",
+            "PENDING",
+        ),
     ]
+    assert owner_view["text_status"] == "APPROVED"
     assert owner_view["product_photo_url"] == "https://example.com/catalog.jpg"
     assert owner_view["is_owner"] is True
     assert owner_view["deleted_at"] is None
@@ -103,6 +131,7 @@ async def test_getItemDetails_ownerAndNonOwner_returnsFieldsPhotosAndIsOwnerFlag
     other_view = await _details(client, item_id, _auth(other_token))
     assert other_view["is_owner"] is False
     assert other_view["name"] == "Rowerek biegowy"
+    assert [p["sort_order"] for p in other_view["photos"]] == [0, 1]
 
 
 async def test_getItemDetails_pluginDescriptionMissingOrBlank_fallsBackOrStaysCleared(

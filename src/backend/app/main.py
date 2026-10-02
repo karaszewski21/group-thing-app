@@ -29,6 +29,8 @@ from app.db import async_session_factory
 from app.families.router import router as families_router
 from app.groups.application.term_end_scan import scan_for_term_ended
 from app.groups.router import router as groups_router
+from app.moderation.events import WORKER_EVENT_TYPES
+from app.moderation.router import router as moderation_router
 from app.notifications import outbox_listener as notifications_outbox_listener
 from app.notifications.router import router as notifications_router
 from app.oauth2.metadata_router import router as oauth2_metadata_router
@@ -37,6 +39,7 @@ from app.organizations.router import router as organizations_router
 from app.outbox import scheduler as outbox_scheduler
 from app.plugin.router import router as plugin_router
 from app.product.router import router as product_router
+from app.storage import outbox_listener as storage_outbox_listener
 from app.system.router import router as system_router
 from app.users.router import router as users_router
 
@@ -64,7 +67,11 @@ async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
     `start`/`shutdown(wait=False)` API rather than a second sleep loop."""
     global _outbox_task, _term_end_scheduler
     notifications_outbox_listener.register()
-    _outbox_task = asyncio.create_task(outbox_scheduler.run_forever())
+    storage_outbox_listener.register()
+    # `moderation.*` events belong to the separate moderation worker process.
+    _outbox_task = asyncio.create_task(
+        outbox_scheduler.run_forever(exclude_event_types=WORKER_EVENT_TYPES)
+    )
 
     _term_end_scheduler = AsyncIOScheduler()
     _term_end_scheduler.add_job(
@@ -107,4 +114,5 @@ app.include_router(organizations_router)
 app.include_router(families_router)
 app.include_router(circulation_router)
 app.include_router(notifications_router)
+app.include_router(moderation_router)
 app.include_router(system_router)

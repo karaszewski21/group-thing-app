@@ -159,34 +159,38 @@ describe("ItemCreatePage", () => {
   });
 
   describe("photos", () => {
-    const PHOTO_A = "https://img.example/a.jpg";
-    const PHOTO_B = "https://img.example/b.jpg";
+    const PHOTO_A = new File(["a"], "a.jpg", { type: "image/jpeg" });
+    const PHOTO_B = new File(["b"], "b.png", { type: "image/png" });
 
-    function addPhoto(url: string) {
-      fireEvent.change(screen.getByLabelText("Link do zdjęcia"), { target: { value: url } });
-      fireEvent.click(screen.getByRole("button", { name: "+ Dodaj" }));
+    beforeEach(() => {
+      let preview = 0;
+      URL.createObjectURL = vi.fn(() => `blob:preview-${(preview += 1)}`);
+      URL.revokeObjectURL = vi.fn();
+    });
+
+    function addPhoto(file: File) {
+      fireEvent.change(screen.getByLabelText("Dodaj zdjęcia"), { target: { files: [file] } });
     }
 
-    it("adds a photo link to the list and removes it again", async () => {
+    it("adds a picked photo to the list and removes it again", async () => {
       await renderLoadedPage();
 
       addPhoto(PHOTO_A);
-      expect(screen.getByText(`1. ${PHOTO_A}`)).toBeInTheDocument();
+      expect(screen.getByText("1. a.jpg")).toBeInTheDocument();
       expect(screen.getByRole("heading", { name: "Zdjęcia (1/10)" })).toBeInTheDocument();
-      expect(screen.getByLabelText("Link do zdjęcia")).toHaveValue("");
 
       fireEvent.click(screen.getByRole("button", { name: "Usuń zdjęcie 1" }));
-      expect(screen.queryByText(`1. ${PHOTO_A}`)).not.toBeInTheDocument();
+      expect(screen.queryByText("1. a.jpg")).not.toBeInTheDocument();
       expect(screen.getByRole("heading", { name: "Zdjęcia (0/10)" })).toBeInTheDocument();
     });
 
-    it("rejects an invalid link with a message and keeps the list empty", async () => {
+    it("rejects an unsupported file with a message and keeps the list empty", async () => {
       await renderLoadedPage();
 
-      addPhoto("ftp://img.example/a.jpg");
+      addPhoto(new File(["gif"], "a.gif", { type: "image/gif" }));
 
       expect(screen.getByRole("alert")).toHaveTextContent(
-        "Podaj poprawny link zaczynający się od http:// lub https://",
+        "Nieobsługiwany plik — dodaj zdjęcie JPG, PNG lub WebP",
       );
       expect(screen.queryByRole("button", { name: "Usuń zdjęcie 1" })).not.toBeInTheDocument();
     });

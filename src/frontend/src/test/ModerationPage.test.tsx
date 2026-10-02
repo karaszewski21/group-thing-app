@@ -5,10 +5,17 @@ import { ChakraProvider } from "@chakra-ui/react";
 import { system } from "../theme";
 import type { ModerationGroupResponse } from "../api/groups";
 import * as groupsApi from "../api/groups";
+import * as moderationApi from "../api/moderation";
 import { ModerationPage } from "../pages/ModerationPage";
+import { createQueryWrapper } from "./queryClient";
 
 vi.mock("../api/groups", () => ({
   getGroupsForModeration: vi.fn(),
+}));
+
+vi.mock("../api/moderation", () => ({
+  getModerationQueue: vi.fn(),
+  decideModeration: vi.fn(),
 }));
 
 const mockGroups: ModerationGroupResponse[] = [
@@ -39,11 +46,13 @@ function renderWithProviders() {
         <ModerationPage />
       </MemoryRouter>
     </ChakraProvider>,
+    { wrapper: createQueryWrapper() },
   );
 }
 
 beforeEach(() => {
   vi.resetAllMocks();
+  vi.mocked(moderationApi.getModerationQueue).mockResolvedValue([]);
 });
 
 describe("ModerationPage", () => {

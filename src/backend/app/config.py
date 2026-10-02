@@ -26,10 +26,46 @@ class Settings(BaseSettings):
     jwt_expiration_ms: int = 3_600_000
     cors_allowed_origins: str = "http://localhost:5173"
 
+    # Photo storage (DigitalOcean Spaces or any S3-compatible store). Optional:
+    # photo upload is disabled until all of these are set, so tests and local
+    # runs work without a bucket.
+    spaces_endpoint_url: str | None = None
+    spaces_region: str | None = None
+    spaces_bucket: str | None = None
+    spaces_key: str | None = None
+    spaces_secret: str | None = None
+    # Public (CDN) base URL of the bucket, e.g. https://<bucket>.fra1.cdn.digitaloceanspaces.com
+    spaces_public_base_url: str | None = None
+
+    # Off: new product texts and photos are approved right away. On: they stay
+    # PENDING until the moderation worker (`python -m app.moderation.worker`)
+    # scores them, so production must run the worker.
+    moderation_enabled: bool = False
+    # Exported ONNX models read by the worker (`<dir>/text`, `<dir>/image`).
+    moderation_models_dir: str = "/models"
+    # Photo NSFW score: >= reject -> REJECTED, >= review -> NEEDS_REVIEW.
+    moderation_image_review_threshold: float = 0.5
+    moderation_image_reject_threshold: float = 0.97
+    # Any Bielik-Guard category score >= this -> NEEDS_REVIEW (never auto-reject).
+    moderation_text_review_threshold: float = 0.5
+
     @property
     def cors_allowed_origins_list(self) -> list[str]:
         """`CORS_ALLOWED_ORIGINS` as a parsed, trimmed list."""
         return [origin.strip() for origin in self.cors_allowed_origins.split(",") if origin.strip()]
+
+    @property
+    def photo_storage_configured(self) -> bool:
+        return all(
+            (
+                self.spaces_endpoint_url,
+                self.spaces_region,
+                self.spaces_bucket,
+                self.spaces_key,
+                self.spaces_secret,
+                self.spaces_public_base_url,
+            )
+        )
 
 
 settings = Settings()
