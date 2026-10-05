@@ -1,0 +1,53 @@
+- generic [ref=f4e2]:
+  - navigation "Menu konta" [ref=f4e3]:
+    - button "Powiadomienia" [ref=f4e5]
+    - button "Menu" [ref=f4e10]
+  - main [ref=f4e13]:
+    - generic [ref=f4e114]:
+      - generic [ref=f4e115]:
+        - link "Wróć do podglądu" [ref=f4e116] [cursor=pointer]:
+          - /url: /product/de44a5ab-5539-4bf8-a892-1cdfa89c2c5a
+        - generic [ref=f4e119]:
+          - heading "Edycja rzeczy" [level=2] [ref=f4e120]
+          - link "Gotowe" [ref=f4e121] [cursor=pointer]:
+            - /url: /product/de44a5ab-5539-4bf8-a892-1cdfa89c2c5a
+        - generic [ref=f4e123]:
+          - generic [ref=f4e124]:
+            - heading "Zdjęcia (0/10)" [level=3] [ref=f4e125]
+            - button "Edytuj zdjęcia" [ref=f4e126]
+          - paragraph [ref=f4e129]: Brak zdjęć
+        - generic [ref=f4e130]:
+          - generic [ref=f4e131]:
+            - generic [ref=f4e132]:
+              - heading "Nazwa i kategoria" [level=3] [ref=f4e133]
+              - button "Edytuj nazwę i kategorię" [ref=f4e134]
+            - paragraph [ref=f4e137]: Rowerek biegowy E2E
+            - paragraph [ref=f4e138]: Zabawka
+          - generic [ref=f4e139]:
+            - generic [ref=f4e140]:
+              - heading "Stan" [level=3] [ref=f4e141]
+              - button "Edytuj stan" [ref=f4e142]
+            - paragraph [ref=f4e145]: Dobry
+          - generic [ref=f4e146]:
+            - generic [ref=f4e147]:
+              - heading "Opis" [level=3] [ref=f4e148]
+              - button "Edytuj opis" [ref=f4e149]
+            - paragraph [ref=f4e152]: Brak opisu
+        - region [ref=f4e153]:
+          - heading "Aktualny status" [level=3] [ref=f4e154]
+          - status [ref=f4e156]: Dostępna
+        - region [ref=f4e158]:
+          - heading "Historia" [level=3] [ref=f4e159]
+          - list "Historia rzeczy" [ref=f4e160]:
+            - listitem [ref=f4e161]:
+              - time [ref=f4e162]:
+                - generic [ref=f4e163]: "5"
+                - generic [ref=f4e164]: paź
+              - generic [ref=f4e165]:
+                - paragraph [ref=f4e166]: Dodana
+                - paragraph [ref=f4e167]: "Dodana przez: Ty"
+      - navigation "Nawigacja panelu" [ref=f4e168]:
+        - button "Home" [ref=f4e169]
+        - button "Spotkania" [ref=f4e173]
+        - button "Moje rzeczy" [ref=f4e177]
+        - button "Wypożyczone" [ref=f4e181]

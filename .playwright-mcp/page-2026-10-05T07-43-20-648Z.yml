@@ -1,0 +1,93 @@
+- generic [ref=f2e2]:
+  - navigation "Menu konta" [ref=f2e3]:
+    - button "Powiadomienia" [ref=f2e5]
+    - button "Menu" [ref=f2e10]
+  - main [ref=f2e13]:
+    - generic [ref=f2e15]:
+      - generic [ref=f2e16]:
+        - generic [ref=f2e194]:
+          - generic [ref=f2e195]:
+            - generic [ref=f2e196]:
+              - heading "Grupy" [level=2] [ref=f2e197]
+              - generic [ref=f2e198]: 2 grupy
+            - button "+ Dodaj grupę" [ref=f2e199]
+          - generic [ref=f2e200]:
+            - generic [ref=f2e201]:
+              - generic [ref=f2e207]:
+                - heading "Grupa E2E zmieniona" [level=3] [ref=f2e300]
+                - button "Edytuj grupę Grupa E2E zmieniona" [ref=f2e301]
+              - button "Usuń grupę Grupa E2E zmieniona" [ref=f2e302]
+            - generic [ref=f2e215]:
+              - generic [ref=f2e221]:
+                - heading "Druga grupa E2E" [level=3] [ref=f2e222]
+                - button "Edytuj grupę Druga grupa E2E" [ref=f2e223]
+              - button "Usuń grupę Druga grupa E2E" [ref=f2e226]
+        - generic [ref=f2e229]:
+          - generic [ref=f2e230]:
+            - generic [ref=f2e231]:
+              - heading "Terminy" [level=2] [ref=f2e232]
+              - generic [ref=f2e233]: 1 termin
+            - button "+ Dodaj termin" [ref=f2e234]
+          - generic [ref=f2e238]:
+            - generic [ref=f2e239]:
+              - generic [ref=f2e240]: "20"
+              - generic [ref=f2e241]: lis
+            - generic [ref=f2e242]:
+              - link "Grupa E2E zmieniona" [ref=f2e303] [cursor=pointer]:
+                - /url: /testowa-organizacja-e2e/grupa/815d4faf-84b9-4967-a2b9-1c02db817d71/term/d2f9f39a-ff5a-4233-b40d-866d07766788
+              - paragraph [ref=f2e244]:
+                - generic [ref=f2e245]: godz. 17:00
+                - text: · Spotkanie w parku E2E
+              - 'link "Zapisani na termin: brak zapisów" [ref=f2e247] [cursor=pointer]':
+                - /url: /panel/terminy/d2f9f39a-ff5a-4233-b40d-866d07766788
+                - text: Brak zapisów
+                - generic [aria-hidden] [ref=f2e248]: ›
+            - generic [ref=f2e249]:
+              - button "Kopiuj link do terminu" [ref=f2e250]
+              - button "Edytuj termin" [ref=f2e254]
+      - navigation "Nawigacja panelu" [ref=f2e257]:
+        - button "Home" [ref=f2e258]
+        - button "Spotkania" [ref=f2e262]
+        - button "Moje rzeczy" [ref=f2e266]
+        - button "Wypożyczone" [ref=f2e270]
+      - dialog "Dodaj termin zajęć" [ref=f2e305]:
+        - generic [ref=f2e306]:
+          - heading "Dodaj termin zajęć" [level=3] [ref=f2e307]
+          - button "Zamknij" [ref=f2e308]
+        - generic [ref=f2e311]:
+          - generic [ref=f2e312]:
+            - generic [ref=f2e313]: Grupa
+            - combobox [ref=f2e314]:
+              - option "Wybierz grupę…" [disabled]
+              - option "Grupa E2E zmieniona" [selected]
+              - option "Druga grupa E2E"
+          - generic [ref=f2e315]:
+            - generic [ref=f2e316]: Data i godzina
+            - textbox [ref=f2e317]
+          - generic [ref=f2e318]:
+            - generic [ref=f2e319]: Opis (opcjonalnie)
+            - textbox "Park Sołacki · wstęp wolny" [ref=f2e320]
+          - generic [ref=f2e321]:
+            - generic [ref=f2e322]: Potrzebne rzeczy (opcjonalnie)
+            - generic [ref=f2e325]:
+              - generic [ref=f2e326]:
+                - generic [ref=f2e327]:
+                  - generic [ref=f2e328]: Nazwa
+                  - textbox "Nazwa" [ref=f2e329]:
+                    - /placeholder: np. Tamburyn
+                - generic [ref=f2e330]:
+                  - generic [ref=f2e331]: Typ
+                  - combobox "Typ" [ref=f2e332]:
+                    - option "Elektronika" [selected]
+                    - option "Meble"
+                    - option "Narzędzia"
+                    - option "Inne"
+                    - option "Zabawka"
+                - generic [ref=f2e333]:
+                  - generic [ref=f2e334]: Doprecyzowanie (opcjonalnie)
+                  - textbox "Doprecyzowanie (opcjonalnie)" [ref=f2e335]:
+                    - /placeholder: np. rozmiar 1/2
+              - generic [ref=f2e336]:
+                - button "Dodaj rzecz" [disabled] [ref=f2e337]
+                - button "Zwiń" [ref=f2e338]
+        - button "Dodaj termin" [disabled] [ref=f2e324]

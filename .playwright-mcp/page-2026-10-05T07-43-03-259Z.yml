@@ -1,0 +1,79 @@
+- generic [ref=f2e2]:
+  - navigation "Menu konta" [ref=f2e3]:
+    - button "Powiadomienia" [ref=f2e5]
+    - button "Menu" [ref=f2e10]
+  - main [ref=f2e13]:
+    - generic [ref=f2e15]:
+      - generic [ref=f2e16]:
+        - generic [ref=f2e194]:
+          - generic [ref=f2e195]:
+            - generic [ref=f2e196]:
+              - heading "Grupy" [level=2] [ref=f2e197]
+              - generic [ref=f2e198]: 2 grupy
+            - button "+ Dodaj grupę" [ref=f2e199]
+          - generic [ref=f2e200]:
+            - generic [ref=f2e201]:
+              - generic [ref=f2e207]:
+                - heading "Grupa E2E" [level=3] [ref=f2e208]
+                - button "Edytuj grupę Grupa E2E" [active] [ref=f2e209]
+              - button "Usuń grupę Grupa E2E" [ref=f2e212]
+            - generic [ref=f2e215]:
+              - generic [ref=f2e221]:
+                - heading "Druga grupa E2E" [level=3] [ref=f2e222]
+                - button "Edytuj grupę Druga grupa E2E" [ref=f2e223]
+              - button "Usuń grupę Druga grupa E2E" [ref=f2e226]
+        - generic [ref=f2e229]:
+          - generic [ref=f2e230]:
+            - generic [ref=f2e231]:
+              - heading "Terminy" [level=2] [ref=f2e232]
+              - generic [ref=f2e233]: 1 termin
+            - button "+ Dodaj termin" [ref=f2e234]
+          - generic [ref=f2e238]:
+            - generic [ref=f2e239]:
+              - generic [ref=f2e240]: "20"
+              - generic [ref=f2e241]: lis
+            - generic [ref=f2e242]:
+              - link "Grupa E2E" [ref=f2e243] [cursor=pointer]:
+                - /url: /testowa-organizacja-e2e/grupa/815d4faf-84b9-4967-a2b9-1c02db817d71/term/d2f9f39a-ff5a-4233-b40d-866d07766788
+              - paragraph [ref=f2e244]:
+                - generic [ref=f2e245]: godz. 17:00
+                - text: · Spotkanie w parku E2E
+              - 'link "Zapisani na termin: brak zapisów" [ref=f2e247] [cursor=pointer]':
+                - /url: /panel/terminy/d2f9f39a-ff5a-4233-b40d-866d07766788
+                - text: Brak zapisów
+                - generic [aria-hidden] [ref=f2e248]: ›
+            - generic [ref=f2e249]:
+              - button "Kopiuj link do terminu" [ref=f2e250]
+              - button "Edytuj termin" [ref=f2e254]
+      - navigation "Nawigacja panelu" [ref=f2e257]:
+        - button "Home" [ref=f2e258]
+        - button "Spotkania" [ref=f2e262]
+        - button "Moje rzeczy" [ref=f2e266]
+        - button "Wypożyczone" [ref=f2e270]
+      - dialog "Edytuj grupę" [ref=f2e276]:
+        - generic [ref=f2e277]:
+          - heading "Edytuj grupę" [level=3] [ref=f2e278]
+          - button "Zamknij" [ref=f2e279]
+        - generic [ref=f2e282]:
+          - generic [ref=f2e283]:
+            - generic [ref=f2e284]: Nazwa grupy
+            - textbox "Nazwa grupy" [ref=f2e285]: Grupa E2E
+          - generic [ref=f2e286]:
+            - generic [ref=f2e287]:
+              - generic [ref=f2e288]: Lokalizacja
+              - textbox "Sala nr 2" [ref=f2e289]
+            - generic [ref=f2e290]:
+              - generic [ref=f2e291]: Ile miejsc
+              - spinbutton "0" [ref=f2e292]
+          - generic [ref=f2e293]:
+            - generic [ref=f2e294]: Szablon wizualizacji
+            - combobox "Szablon wizualizacji" [ref=f2e295]:
+              - option "Koło" [selected]
+              - option "Boisko"
+              - option "Stół"
+          - generic [ref=f2e296]:
+            - generic [ref=f2e297]: Widoczność grupy
+            - combobox "Widoczność grupy" [ref=f2e298]:
+              - option "Publiczna — zapisy RSVP dla każdego" [selected]
+              - option "Prywatna — tylko stali członkowie (dostęp na prośbę)"
+        - button "Zapisz" [ref=f2e299]

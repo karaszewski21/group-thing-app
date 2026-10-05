@@ -1,0 +1,18 @@
+[   15347ms] [ERROR] Failed to load resource: the server responded with a status of 400 (Bad Request) @ http://localhost:5174/api/groups/mine/new:0
+[   38816ms] [ERROR] Failed to load resource: the server responded with a status of 400 (Bad Request) @ http://localhost:5174/api/groups/815d4faf-84b9-4967-a2b9-1c02db817d71:0
+[   39832ms] [ERROR] Failed to load resource: the server responded with a status of 503 (Service Unavailable) @ http://localhost:5174/api/groups/815d4faf-84b9-4967-a2b9-1c02db817d71:0
+[   58037ms] [ERROR] Failed to load resource: the server responded with a status of 400 (Bad Request) @ http://localhost:5174/api/products/resolve:0
+[   80369ms] [ERROR] Failed to load resource: the server responded with a status of 400 (Bad Request) @ http://localhost:5174/api/products/resolve:0
+[   91852ms] [ERROR] Failed to load resource: the server responded with a status of 400 (Bad Request) @ http://localhost:5174/api/terms:0
+[  116566ms] [ERROR] Failed to load resource: the server responded with a status of 400 (Bad Request) @ http://localhost:5174/api/terms/61f66aac-26f5-4e85-a244-7e53cc4c4e4e:0
+[  117581ms] [ERROR] Failed to load resource: the server responded with a status of 503 (Service Unavailable) @ http://localhost:5174/api/terms/61f66aac-26f5-4e85-a244-7e53cc4c4e4e:0
+[  131914ms] [ERROR] Failed to load resource: the server responded with a status of 400 (Bad Request) @ http://localhost:5174/api/products/resolve:0
+[  146695ms] [ERROR] Failed to load resource: the server responded with a status of 400 (Bad Request) @ http://localhost:5174/api/products/resolve:0
+[  161205ms] [VERBOSE] [DOM] Input elements should have autocomplete attributes (suggested: "current-password"): (More info: https://goo.gl/9p2vKq) %o @ http://localhost:5174/register:0
+[  172878ms] [ERROR] Failed to load resource: the server responded with a status of 400 (Bad Request) @ http://localhost:5174/api/terms:0
+[  173942ms] [ERROR] Failed to load resource: the server responded with a status of 503 (Service Unavailable) @ http://localhost:5174/api/terms:0
+[  199962ms] [ERROR] Failed to load resource: the server responded with a status of 400 (Bad Request) @ http://localhost:5174/api/products/resolve:0
+[  221561ms] [ERROR] Failed to load resource: the server responded with a status of 400 (Bad Request) @ http://localhost:5174/api/products/243990fb-e5d0-4413-bfaa-e27bfeba0c48/description:0
+[  222879ms] [ERROR] Failed to load resource: the server responded with a status of 503 (Service Unavailable) @ http://localhost:5174/api/products/243990fb-e5d0-4413-bfaa-e27bfeba0c48/description:0
+[  488669ms] [VERBOSE] [DOM] Input elements should have autocomplete attributes (suggested: "current-password"): (More info: https://goo.gl/9p2vKq) %o @ http://localhost:5174/login:0
+[  512263ms] [ERROR] Failed to load resource: the server responded with a status of 400 (Bad Request) @ http://localhost:5174/api/moderation/decisions:0

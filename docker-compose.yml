@@ -34,7 +34,10 @@ services:
     build:
       context: src/backend
       dockerfile: Dockerfile
-      target: runtime-dev
+      # `runtime` exports Bielik-Guard at build time and needs HF_TOKEN set.
+      target: runtime
+      secrets:
+        - hf_token
     # Bring the schema to head on every start (alembic upgrade is a no-op when
     # already current), then hand off to uvicorn as PID 1 so it gets signals.
     command: sh -c "alembic upgrade head && exec uvicorn app.main:app --host 0.0.0.0 --port 8080"
@@ -52,8 +55,7 @@ services:
       SPACES_KEY: ${SPACES_KEY:-}
       SPACES_SECRET: ${SPACES_SECRET:-}
       SPACES_PUBLIC_BASE_URL: ${SPACES_PUBLIC_BASE_URL:-}
-      # The dev image has no text model, so text moderation stays off here.
-      MODERATION_TEXT_ENABLED: "false"
+      MODERATION_TEXT_ENABLED: "true"
       MODERATION_IMAGE_ENABLED: ${MODERATION_IMAGE_ENABLED:-false}
     volumes:
       - frontend_index:/app/static
@@ -106,3 +108,7 @@ services:
 volumes:
   postgres_data:
   frontend_index:
+
+secrets:
+  hf_token:
+    environment: HF_TOKEN

@@ -1,0 +1,5 @@
+- generic [ref=f13e2]:
+  - navigation "Menu konta" [ref=f13e3]:
+    - button "Powiadomienia" [ref=f13e5]
+    - button "Menu" [ref=f13e10]
+  - main

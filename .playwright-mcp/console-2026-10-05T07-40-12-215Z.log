@@ -1,0 +1,5 @@
+[     490ms] [VERBOSE] [DOM] Input elements should have autocomplete attributes (suggested: "current-password"): (More info: https://goo.gl/9p2vKq) %o @ http://localhost:5174/register:0
+[   28016ms] [ERROR] Failed to load resource: the server responded with a status of 400 (Bad Request) @ http://localhost:5174/api/organizations/mine:0
+[   37204ms] [ERROR] Failed to load resource: the server responded with a status of 503 (Service Unavailable) @ http://localhost:5174/api/organizations/mine:0
+[   58297ms] [ERROR] Failed to load resource: the server responded with a status of 400 (Bad Request) @ http://localhost:5174/api/groups/mine:0
+[   68187ms] [ERROR] Failed to load resource: the server responded with a status of 400 (Bad Request) @ http://localhost:5174/api/terms:0

@@ -1,0 +1,4 @@
+[    9562ms] [ERROR] Failed to load resource: the server responded with a status of 400 (Bad Request) @ http://localhost:5174/api/products:0
+[   11219ms] [ERROR] Failed to load resource: the server responded with a status of 503 (Service Unavailable) @ http://localhost:5174/api/products:0
+[   12843ms] [ERROR] Failed to load resource: the server responded with a status of 400 (Bad Request) @ http://localhost:5174/api/products:0
+[   26625ms] [ERROR] Failed to load resource: the server responded with a status of 400 (Bad Request) @ http://localhost:5174/api/products/50cc7753-bf05-43ba-815f-418c8e9245b8:0

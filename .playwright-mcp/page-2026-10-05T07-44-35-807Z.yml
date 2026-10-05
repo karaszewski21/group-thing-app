@@ -1,0 +1,126 @@
+- generic [ref=f2e2]:
+  - navigation "Menu konta" [ref=f2e3]:
+    - button "Powiadomienia" [ref=f2e5]
+    - button "Menu" [ref=f2e10]
+  - main [ref=f2e13]:
+    - generic [ref=f2e15]:
+      - generic [ref=f2e16]:
+        - heading "Cześć, E2E!" [level=2] [ref=f2e363]
+        - generic [ref=f2e364]:
+          - generic [ref=f2e365]:
+            - heading "Dopracuj stronę organizacji" [level=3] [ref=f2e370]
+            - 'button "Zamknij: Dopracuj stronę organizacji" [ref=f2e371]'
+          - paragraph [ref=f2e374]: Dodaj opis, kolory i logo — zobaczą je odwiedzający.
+          - link "Przejdź →" [ref=f2e375] [cursor=pointer]:
+            - /url: /testowa-organizacja-e2e
+        - generic [ref=f2e376]:
+          - generic [ref=f2e377]:
+            - heading "Najbliższe terminy" [level=3] [ref=f2e378]
+            - button "Zobacz wszystkie" [ref=f2e379]
+          - generic [ref=f2e382]:
+            - generic [ref=f2e383]:
+              - generic [ref=f2e384]: "20"
+              - generic [ref=f2e385]: lis
+            - generic [ref=f2e386]:
+              - link "Grupa E2E zmieniona" [ref=f2e387] [cursor=pointer]:
+                - /url: /testowa-organizacja-e2e/grupa/815d4faf-84b9-4967-a2b9-1c02db817d71/term/d2f9f39a-ff5a-4233-b40d-866d07766788
+              - paragraph [ref=f2e388]:
+                - generic [ref=f2e389]: godz. 17:00
+                - text: · Spotkanie w parku E2E
+              - 'link "Zapisani na termin: brak zapisów" [ref=f2e391] [cursor=pointer]':
+                - /url: /panel/terminy/d2f9f39a-ff5a-4233-b40d-866d07766788
+                - text: Brak zapisów
+                - generic [aria-hidden] [ref=f2e392]: ›
+            - generic [ref=f2e393]:
+              - button "Kopiuj link do terminu" [ref=f2e394]
+              - button "Edytuj termin" [ref=f2e398]
+          - generic [ref=f2e403]:
+            - generic [ref=f2e404]:
+              - generic [ref=f2e405]: "1"
+              - generic [ref=f2e406]: gru
+            - generic [ref=f2e407]:
+              - link "Grupa E2E zmieniona" [ref=f2e408] [cursor=pointer]:
+                - /url: /testowa-organizacja-e2e/grupa/815d4faf-84b9-4967-a2b9-1c02db817d71/term/61f66aac-26f5-4e85-a244-7e53cc4c4e4e
+              - paragraph [ref=f2e409]:
+                - generic [ref=f2e410]: godz. 18:00
+                - text: · Termin z rzeczą E2E — nowy opis
+              - generic [ref=f2e411]: Tamburyn E2E
+              - 'link "Zapisani na termin: brak zapisów" [ref=f2e414] [cursor=pointer]':
+                - /url: /panel/terminy/61f66aac-26f5-4e85-a244-7e53cc4c4e4e
+                - text: Brak zapisów
+                - generic [aria-hidden] [ref=f2e415]: ›
+            - generic [ref=f2e416]:
+              - button "Kopiuj link do terminu" [ref=f2e417]
+              - button "Edytuj termin" [ref=f2e421]
+        - generic [ref=f2e424]:
+          - heading "Zapisane zajęcia" [level=3] [ref=f2e425]
+          - generic [ref=f2e426]: Nie zapisałeś się jeszcze na żadne zajęcia.
+        - generic [ref=f2e427]:
+          - heading "Zadeklarowane rzeczy" [level=3] [ref=f2e428]
+          - generic [ref=f2e429]: Nie zadeklarowałeś jeszcze przyniesienia żadnej rzeczy.
+        - generic [ref=f2e430]:
+          - generic [ref=f2e431]:
+            - generic [ref=f2e432]:
+              - heading "Twoje rzeczy" [level=3] [ref=f2e433]
+              - paragraph [ref=f2e434]: Rzeczy, które chcesz wypożyczyć, oddać lub zamienić
+            - button "Zobacz →" [ref=f2e435]
+          - generic [ref=f2e436]:
+            - generic [ref=f2e437]:
+              - generic [ref=f2e442]: "0"
+              - generic [ref=f2e443]: Wypożyczyć
+            - generic [ref=f2e444]:
+              - generic [ref=f2e449]: "0"
+              - generic [ref=f2e450]: Oddać
+            - generic [ref=f2e451]:
+              - generic [ref=f2e456]: "0"
+              - generic [ref=f2e457]: Zamienić
+        - generic [ref=f2e458]:
+          - generic [ref=f2e459]:
+            - generic [ref=f2e460]:
+              - heading "Rzeczy wypożyczone" [level=3] [ref=f2e461]
+              - paragraph [ref=f2e462]: Rzeczy, które wypożyczyłeś od innych
+            - button "Zobacz →" [ref=f2e463]
+          - generic [ref=f2e465]:
+            - generic [ref=f2e471]: "0"
+            - generic [ref=f2e472]: Wypożyczone
+      - navigation "Nawigacja panelu" [ref=f2e473]:
+        - button "Home" [ref=f2e474]
+        - button "Spotkania" [ref=f2e478]
+        - button "Moje rzeczy" [ref=f2e482]
+        - button "Wypożyczone" [ref=f2e486]
+      - dialog "Edytuj termin" [ref=f2e339]:
+        - generic [ref=f2e340]:
+          - heading "Edytuj termin" [level=3] [ref=f2e341]
+          - button "Zamknij" [ref=f2e342]
+        - generic [ref=f2e345]:
+          - generic [ref=f2e346]:
+            - generic [ref=f2e347]: Data i godzina
+            - textbox "Data i godzina" [ref=f2e348]: 2026-12-01T18:00
+          - generic [ref=f2e349]:
+            - generic [ref=f2e350]: Opis
+            - textbox "Opis" [ref=f2e351]:
+              - /placeholder: 17:00 · Park Sołacki · wstęp wolny
+              - text: Termin z rzeczą E2E — nowy opis
+        - paragraph [ref=f2e492]: Zapisano
+        - button "Zapisz" [ref=f2e352]
+        - heading "Potrzebne rzeczy" [level=4] [ref=f2e353]
+        - list [ref=f2e354]:
+          - listitem [ref=f2e355]:
+            - generic [ref=f2e493]:
+              - textbox "Nazwa rzeczy" [ref=f2e494]:
+                - /placeholder: np. Tamburyn
+                - text: Tamburyn E2E
+              - combobox "Typ rzeczy" [ref=f2e495]:
+                - option "Elektronika"
+                - option "Meble"
+                - option "Narzędzia"
+                - option "Inne" [selected]
+                - option "Zabawka"
+              - textbox "Doprecyzowanie rzeczy" [ref=f2e496]:
+                - /placeholder: Doprecyzowanie (opcjonalnie)
+              - generic [ref=f2e497]:
+                - button "Zapisz" [ref=f2e498]
+                - button "Anuluj" [ref=f2e499]
+        - button "Dodaj potrzebną rzecz" [ref=f2e359]: + Dodaj potrzebną rzecz
+        - heading "Formalizuj stałych członków" [level=4] [ref=f2e360]
+        - paragraph [ref=f2e361]: Nikt jeszcze nie zapisał się na ten termin.

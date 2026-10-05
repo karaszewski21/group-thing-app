@@ -1,0 +1,46 @@
+- generic [ref=f2e2]:
+  - navigation "Menu konta" [ref=f2e3]:
+    - button "Powiadomienia" [ref=f2e5]
+    - button "Menu" [ref=f2e10]
+  - main [ref=f2e13]:
+    - generic [ref=f2e15]:
+      - generic [ref=f2e16]:
+        - generic [ref=f2e123]:
+          - generic [ref=f2e124]:
+            - generic [ref=f2e125]:
+              - heading "Grupy" [level=2] [ref=f2e126]
+              - generic [ref=f2e127]: 1 grupa
+            - button "+ Dodaj grupę" [ref=f2e128]
+          - generic [ref=f2e130]:
+            - generic [ref=f2e136]:
+              - heading "Grupa E2E" [level=3] [ref=f2e137]
+              - button "Edytuj grupę Grupa E2E" [ref=f2e138]
+            - button "Usuń grupę Grupa E2E" [ref=f2e141]
+        - generic [ref=f2e144]:
+          - generic [ref=f2e145]:
+            - generic [ref=f2e146]:
+              - heading "Terminy" [level=2] [ref=f2e147]
+              - generic [ref=f2e148]: 1 termin
+            - button "+ Dodaj termin" [ref=f2e149]
+          - generic [ref=f2e153]:
+            - generic [ref=f2e154]:
+              - generic [ref=f2e155]: "20"
+              - generic [ref=f2e156]: lis
+            - generic [ref=f2e157]:
+              - link "Grupa E2E" [ref=f2e158] [cursor=pointer]:
+                - /url: /testowa-organizacja-e2e/grupa/815d4faf-84b9-4967-a2b9-1c02db817d71/term/d2f9f39a-ff5a-4233-b40d-866d07766788
+              - paragraph [ref=f2e159]:
+                - generic [ref=f2e160]: godz. 17:00
+                - text: · Spotkanie w parku E2E
+              - 'link "Zapisani na termin: brak zapisów" [ref=f2e162] [cursor=pointer]':
+                - /url: /panel/terminy/d2f9f39a-ff5a-4233-b40d-866d07766788
+                - text: Brak zapisów
+                - generic [aria-hidden] [ref=f2e163]: ›
+            - generic [ref=f2e164]:
+              - button "Kopiuj link do terminu" [ref=f2e165]
+              - button "Edytuj termin" [ref=f2e169]
+      - navigation "Nawigacja panelu" [ref=f2e105]:
+        - button "Home" [ref=f2e106]
+        - button "Spotkania" [active] [ref=f2e110]
+        - button "Moje rzeczy" [ref=f2e114]
+        - button "Wypożyczone" [ref=f2e118]

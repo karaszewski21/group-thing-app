@@ -1,0 +1,2 @@
+[   54336ms] [ERROR] Failed to load resource: the server responded with a status of 400 (Bad Request) @ http://localhost:5174/api/organizations/8bf9067e-6803-48e2-94be-6bef93974cfb:0
+[   55235ms] [ERROR] Failed to load resource: the server responded with a status of 503 (Service Unavailable) @ http://localhost:5174/api/organizations/8bf9067e-6803-48e2-94be-6bef93974cfb:0

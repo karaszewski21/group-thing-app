@@ -1,0 +1,60 @@
+- generic [ref=f11e3]:
+  - complementary [ref=f11e4]:
+    - paragraph [ref=f11e5]: GroupThing
+    - navigation "Main navigation" [ref=f11e6]:
+      - link "Products" [ref=f11e7] [cursor=pointer]:
+        - /url: /admin/products
+      - link "Categories" [ref=f11e12] [cursor=pointer]:
+        - /url: /admin/categories
+      - link "Moderation" [ref=f11e16] [cursor=pointer]:
+        - /url: /admin/moderation
+      - link "Plugins" [ref=f11e20] [cursor=pointer]:
+        - /url: /admin/plugins
+      - link "Panel" [ref=f11e23] [cursor=pointer]:
+        - /url: /panel
+  - generic [ref=f11e29]:
+    - banner [ref=f11e30]:
+      - navigation "Breadcrumb" [ref=f11e31]:
+        - paragraph [ref=f11e33]: Products
+        - generic [ref=f11e34]:
+          - paragraph [ref=f11e35]: /
+          - paragraph [ref=f11e36]: New Product
+      - button "Logout" [ref=f11e38] [cursor=pointer]
+    - main [ref=f11e39]:
+      - generic [ref=f11e40]:
+        - generic [ref=f11e41]:
+          - navigation "Breadcrumb" [ref=f11e42]:
+            - link "Products" [ref=f11e43] [cursor=pointer]:
+              - /url: /admin/products
+            - generic [ref=f11e44]: /
+            - generic [ref=f11e45]: Add New Product
+          - heading "Add New Product" [level=1] [ref=f11e46]
+        - generic [ref=f11e47]:
+          - generic [ref=f11e48]:
+            - generic [ref=f11e49]:
+              - generic [ref=f11e50]: Product Name *
+              - textbox "Product Name *" [ref=f11e51]:
+                - /placeholder: e.g. Wireless Headphones Pro
+            - generic [ref=f11e52]:
+              - generic [ref=f11e53]: SKU *
+              - textbox "SKU *" [ref=f11e54]:
+                - /placeholder: e.g. WHP-001
+              - paragraph [ref=f11e55]: Unique stock keeping unit identifier
+            - generic [ref=f11e56]:
+              - generic [ref=f11e57]: Category *
+              - combobox "Category *" [ref=f11e58]:
+                - option "Select a category..." [selected]
+            - generic [ref=f11e59]:
+              - generic [ref=f11e60]: Description
+              - textbox "Description" [ref=f11e61]:
+                - /placeholder: Describe your product...
+            - generic [ref=f11e62]:
+              - generic [ref=f11e63]: Photo URL
+              - textbox "Photo URL" [ref=f11e64]:
+                - /placeholder: https://example.com/image.jpg
+              - paragraph [ref=f11e65]: External URL to product image
+              - generic [ref=f11e66]: Image preview
+          - generic [ref=f11e73]:
+            - link "Cancel" [ref=f11e74] [cursor=pointer]:
+              - /url: /admin/products
+            - button "Save Product" [ref=f11e75] [cursor=pointer]

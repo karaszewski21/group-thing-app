@@ -19,3 +19,6 @@ dist/
 # Editor/OS
 .DS_Store
 Thumbs.db
+
+# Exported ML models (src/backend)
+src/backend/models/
