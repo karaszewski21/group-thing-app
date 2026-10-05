@@ -310,13 +310,37 @@ async def test_productPhotoMutations_ownerWhileItemLentOut_allowedBorrowerForbid
     assert by_borrower.status_code == 403
 
 
-async def test_addProductPhoto_moderationOn_privatePendingHiddenFromNonOwners(
+async def test_addPhoto_imageModerationDisabled_approvedPublic(
     client: AsyncClient,
     db_session: AsyncSession,
     fake_storage: FakeStorage,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    monkeypatch.setattr(settings, "moderation_enabled", True)
+    monkeypatch.setattr(settings, "moderation_image_enabled", False)
+    token, _ = await _register(client, "GUEST", "pph.off1@example.com")
+    await _register_personal_item(client, token, "Galeria bez moderacji")
+    product_id = await _resolve_product(client, token, "Galeria bez moderacji")
+
+    photo = await _add_photo(client, token, product_id, 1)
+
+    assert photo["status"] == "APPROVED"
+    key = f"products/{product_id}/{photo['id']}"
+    assert fake_storage.objects[f"{key}/w1600.webp"].public is True
+    events = (
+        await db_session.execute(
+            select(OutboxEntry).where(OutboxEntry.event_type == PHOTO_MODERATION_REQUESTED)
+        )
+    ).all()
+    assert events == []
+
+
+async def test_addPhoto_imageModerationEnabled_pendingPrivateAndOutboxEvent(
+    client: AsyncClient,
+    db_session: AsyncSession,
+    fake_storage: FakeStorage,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(settings, "moderation_image_enabled", True)
     owner_token, _ = await _register(client, "GUEST", "pph.mod1@example.com")
     other_token, _ = await _register(client, "GUEST", "pph.mod2@example.com")
     item_id = await _register_personal_item(client, owner_token, "Galeria moderowana")

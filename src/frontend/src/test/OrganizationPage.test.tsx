@@ -1,6 +1,7 @@
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import { MemoryRouter } from "react-router-dom";
+import { ApiError } from "../api/client";
 import * as organizationsApi from "../api/organizations";
 import { OrganizationPage } from "../pages/OrganizationPage";
 
@@ -94,5 +95,22 @@ describe("OrganizationPage", () => {
     await screen.findByDisplayValue("Muzyczne Skrzaty");
     expect(screen.queryByLabelText("Kolor główny")).not.toBeInTheDocument();
     expect(screen.queryByLabelText("Kolor dodatkowy")).not.toBeInTheDocument();
+  });
+
+  it("submit_serverRejectsName_showsServerMessageInAlert", async () => {
+    const rejection = "Nazwa organizacji narusza zasady społeczności. Zmień ją i spróbuj ponownie.";
+    vi.mocked(organizationsApi.getMyOrganization).mockResolvedValue(mockOrganization);
+    vi.mocked(organizationsApi.updateOrganization).mockRejectedValue(
+      new ApiError(400, "Bad Request", { message: rejection }),
+    );
+    renderPage();
+
+    await screen.findByDisplayValue("Muzyczne Skrzaty");
+    fireEvent.change(screen.getByLabelText("Nazwa organizacji"), { target: { value: "Zła nazwa" } });
+    fireEvent.click(screen.getByRole("button", { name: /zapisz/i }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(rejection);
+    expect(screen.queryByText(/400 Bad Request/)).not.toBeInTheDocument();
+    expect(screen.getByLabelText("Nazwa organizacji")).toHaveValue("Zła nazwa");
   });
 });

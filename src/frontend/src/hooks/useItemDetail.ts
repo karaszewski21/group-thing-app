@@ -22,6 +22,9 @@ const ITEM_HISTORY_KEY = "itemHistory";
 
 const NO_HISTORY: ItemHistoryEntryResponse[] = [];
 
+/** How often the owner's page re-reads details while a photo awaits the AI verdict. */
+const PENDING_PHOTO_POLL_MS = 10_000;
+
 const SAVE_FALLBACK = "Nie udało się zapisać zmian. Spróbuj ponownie.";
 const PHOTO_FALLBACK = "Nie udało się zaktualizować zdjęć. Spróbuj ponownie.";
 const PRODUCT_STALE =
@@ -38,11 +41,18 @@ interface UseItemDetailResult {
 }
 
 /** The item page's details. A 400 (malformed id in the URL; the backend
- * reports validation errors as 400) reads as "not found", like a 404. */
+ * reports validation errors as 400) reads as "not found", like a 404.
+ * While the owner has a PENDING photo it re-reads every 10 s so the
+ * moderation badges update by themselves; polling stops once no photo is
+ * PENDING, and (TanStack default) pauses in a background tab. */
 export function useItemDetail(itemId: string): UseItemDetailResult {
   const query = useQuery({
     queryKey: [ITEM_DETAILS_KEY, itemId],
     queryFn: () => getItemDetails(itemId),
+    refetchInterval: (q) => {
+      const data = q.state.data;
+      return data?.is_owner && data.photos.some((p) => p.status === "PENDING") ? PENDING_PHOTO_POLL_MS : false;
+    },
   });
   const { refetch: refetchQuery } = query;
   const refetch = useCallback(async () => {

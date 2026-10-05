@@ -53,7 +53,6 @@ function details(overrides: Partial<ItemDetailsResponse> = {}): ItemDetailsRespo
     category_name: "Wózki",
     condition: "GOOD",
     description: "Lekki, składany, z daszkiem i koszem.",
-    text_status: "APPROVED",
     photos: [
       { id: PHOTO_1, url: "https://img.example/1.webp", thumb_url: "https://img.example/1-thumb.webp", status: "APPROVED", sort_order: 0 },
       { id: PHOTO_2, url: "https://img.example/2.webp", thumb_url: "https://img.example/2-thumb.webp", status: "APPROVED", sort_order: 1 },
@@ -150,6 +149,15 @@ describe("ItemDetailPage", () => {
       `/product/${ITEM_ID}/edit`,
     );
     expect(itemsApi.getItemDetails).toHaveBeenCalledWith(ITEM_ID);
+  });
+
+  it("owner_noTextModerationBanner_descriptionVisible", async () => {
+    renderPage(`/product/${ITEM_ID}`);
+
+    expect(await screen.findByText("Lekki, składany, z daszkiem i koszem.")).toBeInTheDocument();
+    expect(screen.queryByText(/Nazwa i opis są sprawdzane/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/odrzucone przez moderację/)).not.toBeInTheDocument();
+    expect(screen.queryByText("W moderacji")).not.toBeInTheDocument();
   });
 
   it("not found for 404 and 400 (malformed id), error state retries", async () => {

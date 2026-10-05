@@ -32,7 +32,6 @@ from app.core.errors import (
     BusinessConflictException,
     EntityNotFoundException,
 )
-from app.moderation.status import ModerationStatus
 from app.users.service import (
     get_profile_by_account_user_id,
     get_profile_by_party,
@@ -53,10 +52,6 @@ from ..schemas import (
 from .attendance import _require_term_eligibility
 from .circles import _group_role_party_id, get_current_leadership
 from .terms import get_term
-
-PRODUCT_TEXT_NOT_APPROVED_MESSAGE = (
-    "Nazwa lub opis przedmiotu są w trakcie weryfikacji — spróbuj za chwilę"
-)
 
 _ACTIVE_RESERVATION_STATUSES = (
     circulation_bridge.ReservationStatus.PENDING,
@@ -122,10 +117,6 @@ async def set_item_listing_preference(
         raise AccessDeniedException
 
     existing = await repository.get_item_listing_preference(db, item_id)
-    if mode is not None:
-        product = await product_bridge.get_product(db, item.product_id)
-        if product.text_status != ModerationStatus.APPROVED:
-            raise BusinessConflictException(PRODUCT_TEXT_NOT_APPROVED_MESSAGE)
     if mode is None:
         if existing is not None:
             await db.delete(existing)

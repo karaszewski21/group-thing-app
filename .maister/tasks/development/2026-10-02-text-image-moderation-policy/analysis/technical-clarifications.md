@@ -1,0 +1,7 @@
+# Technical clarifications (Phase 5 Part A)
+
+1. **Text threshold:** a single `moderation_text_reject_threshold=0.8` (env-configurable) across all Bielik-Guard labels. `moderation_text_review_threshold` is removed.
+2. **Image thresholds:** per ShieldGemma category, and the worst category decides. sexual/violence/dangerous: review ≥ 0.5, reject ≥ 0.9. weapons: review ≥ 0.5, never auto-reject. These replace the NSFW threshold settings. ModerationDecision records the per-category thresholds plus the response `model`.
+3. **Config & worker:** `MODERATION_TEXT_ENABLED`, `MODERATION_IMAGE_ENABLED`, `MODERATION_AI_URL`, `MODERATION_AI_TOKEN`, `MODERATION_AI_TIMEOUT_SECONDS=120`. The worker stays but drops ONNX: async httpx (httpx moves to runtime deps), batch size 1, and startup fails if image moderation is on without a URL and token. The Falconsai NSFW classifier is removed. The `moderation_enabled` flag is replaced by the two flags.
+4. **API model files:** Bielik-Guard is baked into the API Docker image at build time (HF secret), together with the `ml` deps the API now needs (onnxruntime, tokenizers, numpy). Expect +0.6–0.8 GB RAM, intra_op_num_threads 1–2. Dev compose (builder target) runs with text moderation off.
+5. **Product text granularity:** name and description are scored separately, and only values that changed. Change detection uses trimmed, whitespace-normalised comparison against the stored value, which applies to all fields (org/group names are always resent by the FE).

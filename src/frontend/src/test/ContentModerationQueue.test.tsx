@@ -17,20 +17,19 @@ const PHOTO: ModerationQueueEntry = {
   subject_id: "photo-1",
   product_id: "product-1",
   product_name: "Body niemowlęce",
-  description: null,
   photo_url: "https://origin.example/p/w1600.webp?signed",
   status: "NEEDS_REVIEW",
-  model_id: "Falconsai/nsfw_image_detection",
-  scores: { normal: 0.3, nsfw: 0.7 },
+  model_id: "google/shieldgemma-2-4b-it",
+  scores: { sexual: 0.03, violence: 0.71, weapons: 0.4, dangerous: 0.12 },
   submitted_at: "2026-10-02T08:00:00",
 };
 
-const TEXT: ModerationQueueEntry = {
+/** VPS B failed after every retry: NEEDS_REVIEW with no AI decision. */
+const UNSCORED: ModerationQueueEntry = {
   ...PHOTO,
-  subject_type: "PRODUCT_TEXT",
-  subject_id: "product-1",
-  description: "Rozmiar 62",
-  photo_url: null,
+  subject_id: "photo-2",
+  product_name: "Rower 16\"",
+  photo_url: "https://origin.example/q/w1600.webp?signed",
   scores: null,
   model_id: null,
 };
@@ -49,15 +48,28 @@ describe("ContentModerationQueue", () => {
     vi.resetAllMocks();
   });
 
-  it("lists flagged photos and texts with their scores", async () => {
-    vi.mocked(moderationApi.getModerationQueue).mockResolvedValue([PHOTO, TEXT]);
+  it("queue_rendersPhotoEntriesOnly_withCategoryScores", async () => {
+    vi.mocked(moderationApi.getModerationQueue).mockResolvedValue([PHOTO]);
     renderQueue();
 
     expect(await screen.findByAltText("Photo of Body niemowlęce")).toHaveAttribute("src", PHOTO.photo_url);
-    expect(screen.getByText("Rozmiar 62")).toBeInTheDocument();
-    expect(screen.getByText(/nsfw 0\.70 · normal 0\.30/)).toBeInTheDocument();
-    expect(screen.getByText(/No model score/)).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Photo review" })).toBeInTheDocument();
+    expect(screen.getByText("Photo")).toBeInTheDocument();
+    expect(screen.queryByText("Name + description")).not.toBeInTheDocument();
+    expect(
+      screen.getByText(/violence 0\.71 · weapons 0\.40 · dangerous 0\.12 · sexual 0\.03 \(google\/shieldgemma-2-4b-it\)/),
+    ).toBeInTheDocument();
     expect(moderationApi.getModerationQueue).toHaveBeenCalledWith("NEEDS_REVIEW");
+  });
+
+  it("queue_nullScores_showsNoModelScore", async () => {
+    vi.mocked(moderationApi.getModerationQueue).mockResolvedValue([UNSCORED]);
+    renderQueue();
+
+    expect(await screen.findByAltText('Photo of Rower 16"')).toHaveAttribute("src", UNSCORED.photo_url);
+    expect(screen.getByText(/No model score · /)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Approve" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Reject" })).toBeInTheDocument();
   });
 
   it("approves an entry and reloads the queue", async () => {

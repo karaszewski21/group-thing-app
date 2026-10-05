@@ -20,6 +20,7 @@ from typing import cast
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.errors import AccessDeniedException, EntityNotFoundException
+from app.moderation.text_guard import TextField, check_text
 from app.party.models import PartyType
 from app.party.service import create_party
 
@@ -32,6 +33,7 @@ from .group_roles import get_or_create_active_group_role
 
 
 async def create_circle(db: AsyncSession, data: CreateCircleRequest) -> Group:
+    await check_text(TextField.GROUP_NAME, data.name)
     party = await create_party(db, PartyType.ORGANIZATION)
     group = Group(party_id=cast(uuid.UUID, party.id), name=data.name)
     db.add(group)
@@ -158,6 +160,7 @@ async def update_group(
     all."""
     group = await get_group(db, group_id)
     await _require_active_organizer(db, group_id, caller_party_id)
+    await check_text(TextField.GROUP_NAME, name, group.name)
     group.name = name
     if layout_mode is not None:
         group.layout_mode = layout_mode

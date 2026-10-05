@@ -1,0 +1,11 @@
+# Local secrets and the host's (e.g. Windows) virtualenv must never reach the
+# image: `COPY . .` would bake `.env` in as a settings fallback and clobber the
+# Linux `.venv` built by `uv sync`.
+.env
+.env.*
+.venv
+__pycache__
+*.pyc
+.mypy_cache
+.pytest_cache
+.ruff_cache

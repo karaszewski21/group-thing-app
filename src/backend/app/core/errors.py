@@ -55,6 +55,19 @@ class AccessDeniedException(Exception):
     "Access denied" (Group 4's authorization dependency raises this)."""
 
 
+class TextModerationRejected(ValueError):
+    """A text failed moderation; handled as a plain 400 by `value_error_handler`."""
+
+
+class ModerationUnavailable(Exception):
+    """Moderation is enabled but the classifier is missing or failed. 503."""
+
+    def __init__(
+        self, message: str = "Moderacja jest chwilowo niedostępna — spróbuj za chwilę."
+    ) -> None:
+        super().__init__(message)
+
+
 def _envelope(
     status_code: int,
     error: str,
@@ -109,6 +122,12 @@ async def access_denied_handler(request: Request, exc: AccessDeniedException) ->
     return _envelope(status.HTTP_403_FORBIDDEN, "Forbidden", "Access denied")
 
 
+async def moderation_unavailable_handler(
+    request: Request, exc: ModerationUnavailable
+) -> JSONResponse:
+    return _envelope(status.HTTP_503_SERVICE_UNAVAILABLE, "Service Unavailable", str(exc))
+
+
 async def value_error_handler(request: Request, exc: ValueError) -> JSONResponse:
     return _envelope(status.HTTP_400_BAD_REQUEST, "Bad Request", str(exc))
 
@@ -138,5 +157,6 @@ def register_exception_handlers(app: FastAPI) -> None:
     app.add_exception_handler(StaleDataError, stale_data_error_handler)  # type: ignore[arg-type]
     app.add_exception_handler(RequestValidationError, validation_error_handler)  # type: ignore[arg-type]
     app.add_exception_handler(AccessDeniedException, access_denied_handler)  # type: ignore[arg-type]
+    app.add_exception_handler(ModerationUnavailable, moderation_unavailable_handler)  # type: ignore[arg-type]
     app.add_exception_handler(ValueError, value_error_handler)  # type: ignore[arg-type]
     app.add_exception_handler(Exception, unhandled_exception_handler)

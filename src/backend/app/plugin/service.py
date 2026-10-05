@@ -17,6 +17,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.errors import EntityNotFoundException
 from app.moderation import rules
+from app.moderation.text_guard import TextField, check_text
 from app.product import service as product_service
 from app.product.models import Product
 
@@ -145,15 +146,18 @@ async def replace_plugin_data(
     tracking notices the mutation)."""
     await find_enabled_or_throw(db, plugin_id)
     product = await _require_product(db, product_id)
-    shares_description = plugin_id == product_service.SHARED_DESCRIPTION_PLUGIN_ID
-    if shares_description:
+    if plugin_id == product_service.SHARED_DESCRIPTION_PLUGIN_ID:
         description = data.get(product_service.SHARED_DESCRIPTION_FIELD)
-        rules.ensure_no_contact_info(description if isinstance(description, str) else None)
+        if isinstance(description, str):
+            rules.ensure_no_contact_info(description)
+            await check_text(
+                TextField.PRODUCT_DESCRIPTION,
+                description,
+                product_service.get_shared_description(product.plugin_data, product.description),
+            )
     updated = dict(product.plugin_data or {})
     updated[plugin_id] = data
     product.plugin_data = updated
-    if shares_description:
-        await product_service.stage_text_moderation(db, product)
     await db.commit()
     return data
 
@@ -165,8 +169,6 @@ async def delete_plugin_data(db: AsyncSession, plugin_id: str, product_id: uuid.
         updated = dict(product.plugin_data)
         del updated[plugin_id]
         product.plugin_data = updated
-        if plugin_id == product_service.SHARED_DESCRIPTION_PLUGIN_ID:
-            await product_service.stage_text_moderation(db, product)
         await db.commit()
 
 

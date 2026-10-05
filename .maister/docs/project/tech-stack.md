@@ -68,9 +68,10 @@ No automated pytest/TestContainers-python suite exists yet (deliberately deferre
 - Not yet configured
 
 ### Hosting
-- Two VPS (DE region, non-DO provider): VPS A runs nginx + FastAPI + the moderation worker (small CPU models) + Postgres; VPS B runs the heavy AI models as a separate service (its own repo, `group-thing-ai`)
+- Two VPS (DE region, non-DO provider): VPS A runs nginx + FastAPI (with the Bielik-Guard text model in-process) + the slim photo moderation worker + Postgres; VPS B runs the heavy AI models as a separate service (its own repo, `group-thing-ai`), including ShieldGemma-2 image moderation
 - DigitalOcean Spaces (FRA1) + its CDN for photo storage only
-- The `ml` uv dependency group is installed only in the worker image (`docker build --target worker`); models are exported to ONNX at image build time, so torch never enters a runtime image
+- External integration: the VPS B image moderation API (`POST /v1/moderate/image`, ShieldGemma-2), called over HTTPS with httpx by the photo worker (`MODERATION_AI_URL`/`MODERATION_AI_TOKEN`)
+- The `ml` uv dependency group is installed only in the production API image (the default `runtime` target, built with `docker build --secret id=hf_token,env=HF_TOKEN src/backend`); Bielik-Guard is exported to ONNX at image build time, so torch never enters a runtime image. The `worker` and `runtime-dev` targets have no `ml` group and no model
 
 ## Development Tools
 
@@ -99,12 +100,12 @@ Actual pinned versions from `src/backend/pyproject.toml` / `uv.lock`:
 | python-multipart | 0.0.32 | Form-body parsing (OAuth2 `_token`/form fallbacks, photo uploads) |
 | boto3 | 1.43.107 | DigitalOcean Spaces (S3 API) photo storage, `app/storage/` — plain boto3 in `asyncio.to_thread` (one dependency, no aioboto3) |
 | pillow | 12.3.0 | Upload sanitization: decode allowlisted JPEG/PNG/WebP, EXIF strip, WebP re-encode (`app/product/images.py`) |
-| onnxruntime (`ml` group) | 1.30.0 | Moderation worker only: CPU inference of Bielik-Guard + NSFW classifier |
-| tokenizers (`ml` group) | 0.23.2 | Moderation worker only: Bielik-Guard tokenizer |
-| numpy (`ml` group) | 2.5.3 | Moderation worker only: tensor pre/post-processing |
+| onnxruntime (`ml` group) | 1.30.0 | API `runtime` image only: CPU inference of Bielik-Guard (text moderation) |
+| tokenizers (`ml` group) | 0.23.2 | API `runtime` image only: Bielik-Guard tokenizer |
+| numpy (`ml` group) | 2.5.3 | API `runtime` image only: tensor pre/post-processing |
 | ruff (dev) | 0.16.5 | Lint + format |
 | mypy (dev) | 2.3.1 | Static typing (strict) |
-| httpx (dev) | 0.28.1 | Manual verification scripts (live HTTP calls against uvicorn) |
+| httpx | 0.28.1 | Runtime: the photo worker's VPS B client (`app/moderation/ai_client.py`); also used by tests and verification scripts |
 
 ## Version Management
 - `uv.lock` pins every transitive dependency; `uv sync --frozen` installs exactly what's locked

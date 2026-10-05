@@ -1,5 +1,7 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi, beforeEach } from "vitest";
+import { ApiError } from "../api/client";
+import * as organizationsApi from "../api/organizations";
 import { OnboardingWizard, type Step } from "../components/onboarding/OnboardingWizard";
 import { organizerSteps } from "../components/onboarding/steps/organizerSteps";
 import { createQueryWrapper } from "./queryClient";
@@ -97,5 +99,32 @@ describe("OnboardingWizard — ORGANIZER multi-step chrome", () => {
       expect(screen.getByText("Nazwa organizacji jest wymagana")).toBeInTheDocument();
     });
     expect(screen.getByLabelText("Krok 1 z 3")).toBeInTheDocument();
+  });
+});
+
+describe("OnboardingWizard — step error surfacing", () => {
+  it("orgStep_emptyName_showsLocalRequiredMessage", async () => {
+    render(<OnboardingWizard steps={organizerSteps} onSkip={vi.fn()} onComplete={vi.fn()} />, { wrapper: createQueryWrapper() });
+
+    fireEvent.click(screen.getByRole("button", { name: "Dalej →" }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("Nazwa organizacji jest wymagana");
+    expect(organizationsApi.createMyOrganization).not.toHaveBeenCalled();
+  });
+
+  it("orgStep_apiError400_showsServerMessageAndStaysOnStep", async () => {
+    const rejection = "Nazwa organizacji narusza zasady społeczności. Zmień ją i spróbuj ponownie.";
+    vi.mocked(organizationsApi.createMyOrganization).mockRejectedValue(
+      new ApiError(400, "Bad Request", { message: rejection }),
+    );
+    render(<OnboardingWizard steps={organizerSteps} onSkip={vi.fn()} onComplete={vi.fn()} />, { wrapper: createQueryWrapper() });
+
+    fireEvent.change(screen.getByLabelText("Nazwa organizacji"), { target: { value: "Zła nazwa" } });
+    fireEvent.click(screen.getByRole("button", { name: "Dalej →" }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(rejection);
+    expect(screen.queryByText(/400 Bad Request/)).not.toBeInTheDocument();
+    expect(screen.getByLabelText("Krok 1 z 3")).toBeInTheDocument();
+    expect(screen.getByLabelText("Nazwa organizacji")).toHaveValue("Zła nazwa");
   });
 });

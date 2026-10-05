@@ -8,8 +8,7 @@ import { extractProblemMessage } from "../api/problem";
 import { formatDate } from "../utils/format";
 
 /**
- * ADMIN-only: the content review queue (photos, product names and
- * descriptions), then a read-only overview of every Circle in the system — organizer,
+ * ADMIN-only: the content review queue (photos), then a read-only overview of every Circle in the system — organizer,
  * member count, term count, created date — for spotting empty or abandoned
  * Circles. No destructive actions; back-office equivalent of CategoryListPage.
  */

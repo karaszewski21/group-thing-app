@@ -56,14 +56,15 @@ export const ACCESS_DENIED_MESSAGE =
   "Nie masz uprawnień do tej akcji. Zaloguj się ponownie albo poproś organizatora o dostęp.";
 
 /** The server's own `message` for domain errors (400 without field errors,
- * 409), which the backend writes in Polish; a fixed Polish explanation for
+ * 409) and for 503 (e.g. content moderation unavailable), which the backend
+ * writes in Polish; a fixed Polish explanation for
  * 403 (its body is the generic "Access denied"); otherwise the Polish
  * fallback, so generic envelopes like "Validation failed" never reach the user. */
 export function serverMessageOr(err: unknown, fallback: string): string {
   if (err instanceof ApiError && err.status === 403) return ACCESS_DENIED_MESSAGE;
   if (
     err instanceof ApiError &&
-    (err.status === 400 || err.status === 409) &&
+    (err.status === 400 || err.status === 409 || err.status === 503) &&
     isLegacyErrorEnvelope(err.body) &&
     !err.body.fieldErrors &&
     err.body.message

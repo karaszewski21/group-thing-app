@@ -1,69 +1,84 @@
 """Moderation worker: `python -m app.moderation.worker`.
 
-A separate process from the same codebase (the API image stays free of
-ONNX Runtime): it loads the two small models once, registers handlers for
-the `moderation.*` outbox events only, and polls just those event types
-every few seconds with small batches — a claimed batch holds its row locks
-while the models run."""
+A separate process (single replica) from the same codebase, with no ML
+dependencies: it drains `moderation.photo_requested` events one at a time
+through `service.process_next`, which scores each photo on VPS B. With
+`MODERATION_IMAGE_ENABLED=false` the API approves photos on upload, so the
+worker has nothing to do and exits 0."""
 
 from __future__ import annotations
 
 import asyncio
+import ipaddress
 import logging
-import uuid
-from pathlib import Path
-from typing import Any
-
-from sqlalchemy.ext.asyncio import AsyncSession
+from urllib.parse import urlsplit
 
 from app.config import settings
-from app.outbox import registry
-from app.outbox import scheduler as outbox_scheduler
+from app.db import async_session_factory
 from app.storage.service import ObjectStorage, get_storage
 
 from . import service
-from .classifiers import ImageClassifier, TextClassifier
-from .events import PHOTO_MODERATION_REQUESTED, TEXT_MODERATION_REQUESTED, WORKER_EVENT_TYPES
+from .ai_client import HttpxImageModerationClient
 
 logger = logging.getLogger(__name__)
 
 POLL_INTERVAL_SECONDS = 5
-BATCH_SIZE = 5
 
 
-def register(
-    text_classifier: TextClassifier, image_classifier: ImageClassifier, storage: ObjectStorage
-) -> None:
-    async def handle_photo(db: AsyncSession, payload: dict[str, Any]) -> None:
-        await service.moderate_photo(db, uuid.UUID(payload["photo_id"]), image_classifier, storage)
+def _is_private_host(host: str | None) -> bool:
+    if host == "localhost":
+        return True
+    try:
+        address = ipaddress.ip_address(host or "")
+    except ValueError:
+        return False
+    return address.is_private or address.is_loopback
 
-    async def handle_text(db: AsyncSession, payload: dict[str, Any]) -> None:
-        await service.moderate_product_text(
-            db, uuid.UUID(payload["product_id"]), payload["content_hash"], text_classifier
+
+def _startup_check() -> tuple[HttpxImageModerationClient, ObjectStorage] | None:
+    """`None` when image moderation is disabled; raises when it is enabled
+    but not configured. The bearer token and unapproved photos travel to
+    VPS B, so plain HTTP is accepted only for a private-network address."""
+    if settings.legacy_moderation_enabled is not None:
+        logger.warning("MODERATION_ENABLED is no longer read; use MODERATION_IMAGE_ENABLED")
+    if not settings.moderation_image_enabled:
+        return None
+    if not settings.moderation_ai_url:
+        raise RuntimeError("MODERATION_AI_URL is required when MODERATION_IMAGE_ENABLED is true")
+    url = urlsplit(settings.moderation_ai_url)
+    if url.scheme != "https" and not (url.scheme == "http" and _is_private_host(url.hostname)):
+        raise RuntimeError(
+            "MODERATION_AI_URL must use https (plain http only for a private-network address)"
         )
-
-    registry.register_handler(PHOTO_MODERATION_REQUESTED, handle_photo)
-    registry.register_handler(TEXT_MODERATION_REQUESTED, handle_text)
+    if not settings.moderation_ai_token:
+        raise RuntimeError("MODERATION_AI_TOKEN is required when MODERATION_IMAGE_ENABLED is true")
+    storage = get_storage()
+    if storage is None:
+        raise RuntimeError("SPACES_* settings are required when MODERATION_IMAGE_ENABLED is true")
+    client = HttpxImageModerationClient(
+        settings.moderation_ai_url,
+        settings.moderation_ai_token,
+        settings.moderation_ai_timeout_seconds,
+    )
+    return client, storage
 
 
 async def main() -> None:
-    from .onnx_models import OnnxImageClassifier, OnnxTextClassifier
-
-    storage = get_storage()
-    if storage is None:
-        raise RuntimeError("SPACES_* settings are required by the moderation worker")
-    models_dir = Path(settings.moderation_models_dir)
-    text_classifier = OnnxTextClassifier(models_dir / "text")
-    image_classifier = OnnxImageClassifier(models_dir / "image")
-    logger.info(
-        "Moderation worker started (%s, %s)", text_classifier.model_id, image_classifier.model_id
-    )
-    register(text_classifier, image_classifier, storage)
-    await outbox_scheduler.run_forever(
-        interval_seconds=POLL_INTERVAL_SECONDS,
-        batch_size=BATCH_SIZE,
-        event_types=WORKER_EVENT_TYPES,
-    )
+    dependencies = _startup_check()
+    if dependencies is None:
+        logger.info("image moderation disabled")
+        return
+    client, storage = dependencies
+    logger.info("Moderation worker started")
+    while True:
+        try:
+            async with async_session_factory() as db:
+                claimed = await service.process_next(db, client, storage)
+        except Exception:  # one bad event must never stop the worker
+            logger.exception("Photo moderation routine failed")
+            claimed = False
+        if not claimed:
+            await asyncio.sleep(POLL_INTERVAL_SECONDS)
 
 
 if __name__ == "__main__":

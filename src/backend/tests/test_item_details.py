@@ -117,7 +117,7 @@ async def test_getItemDetails_ownerAndNonOwner_returnsFieldsPhotosAndIsOwnerFlag
             "PENDING",
         ),
     ]
-    assert owner_view["text_status"] == "APPROVED"
+    assert "text_status" not in owner_view
     assert owner_view["product_photo_url"] == "https://example.com/catalog.jpg"
     assert owner_view["is_owner"] is True
     assert owner_view["deleted_at"] is None
@@ -131,6 +131,9 @@ async def test_getItemDetails_ownerAndNonOwner_returnsFieldsPhotosAndIsOwnerFlag
     other_view = await _details(client, item_id, _auth(other_token))
     assert other_view["is_owner"] is False
     assert other_view["name"] == "Rowerek biegowy"
+    # No product-text gate any more: every viewer gets the description.
+    assert other_view["description"] == "Wspólny opis\nw dwóch liniach"
+    assert "text_status" not in other_view
     assert [p["sort_order"] for p in other_view["photos"]] == [0, 1]
 
 

@@ -6,6 +6,7 @@ import {
   updateOrganization,
   type OrganizationResponse,
 } from "../api/organizations";
+import { serverMessageOr } from "../api/problem";
 
 const inputClass =
   "w-full rounded-xl border-[1.5px] border-line bg-cream px-3.5 py-2.5 text-sm text-ink outline-none focus:border-mint focus:ring-[3px] focus:ring-mint-soft";
@@ -69,7 +70,7 @@ export function OrganizationPage() {
       }
       setSaved(true);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Nie udało się zapisać organizacji");
+      setError(serverMessageOr(err, "Nie udało się zapisać organizacji"));
     } finally {
       setSaving(false);
     }
@@ -128,7 +129,7 @@ export function OrganizationPage() {
           )}
 
           {error && (
-            <div className="mb-4 rounded-xl bg-danger-soft px-3 py-2.5 text-[13px] text-danger">
+            <div role="alert" className="mb-4 rounded-xl bg-danger-soft px-3 py-2.5 text-[13px] text-danger">
               {error}
             </div>
           )}

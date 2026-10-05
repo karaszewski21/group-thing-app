@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { createTerm } from "../../api/terms";
+import { serverMessageOr } from "../../api/problem";
 import { Field, ModalSheet } from "../../pages/panel/panelComponents";
 
 /* ------------------------------------------------------------------ */
@@ -40,8 +41,8 @@ export function FirstTermStepperOrganizer({ onClose, circleGroupId, organizerSlu
       const created = await createTerm({ circle_group_id: circleGroupId, occurs_on: occursOn, description: description || undefined });
       setCreatedTermId(created.id);
       setDone(true);
-    } catch {
-      setFormError("Nie udało się dodać terminu — spróbuj ponownie");
+    } catch (err) {
+      setFormError(serverMessageOr(err, "Nie udało się dodać terminu — spróbuj ponownie"));
     } finally {
       setBusy(false);
     }
@@ -93,7 +94,11 @@ export function FirstTermStepperOrganizer({ onClose, circleGroupId, organizerSlu
           />
         </Field>
       </div>
-      {formError && <p className="mt-2 text-[12.5px] font-semibold text-danger">{formError}</p>}
+      {formError && (
+        <p role="alert" className="mt-2 text-[12.5px] font-semibold text-danger">
+          {formError}
+        </p>
+      )}
       <button
         onClick={() => void handleSubmit()}
         disabled={busy || !occursOn || !circleGroupId}

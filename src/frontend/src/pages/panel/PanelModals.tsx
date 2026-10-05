@@ -20,6 +20,8 @@ export function PanelModals() {
     groupForm,
     editGroupForm,
     editGroupError,
+    addGroupError,
+    addTermError,
     termGroupId,
     termDate,
     termDescription,
@@ -182,6 +184,9 @@ export function PanelModals() {
               </select>
             </Field>
           </div>
+          {addGroupError && (
+            <p role="alert" className="mt-2 text-[12.5px] font-semibold text-danger">{addGroupError}</p>
+          )}
           <button
             onClick={() => void handleAddGroup()}
             disabled={busy || !groupForm.name.trim()}
@@ -261,7 +266,7 @@ export function PanelModals() {
             </Field>
           </div>
           {editGroupError && (
-            <p className="mt-2 text-[12.5px] font-semibold text-danger">{editGroupError}</p>
+            <p role="alert" className="mt-2 text-[12.5px] font-semibold text-danger">{editGroupError}</p>
           )}
           <button
             onClick={() => void saveEditGroup()}
@@ -355,6 +360,9 @@ export function PanelModals() {
               )}
             </Field>
           </div>
+          {addTermError && (
+            <p role="alert" className="mt-2 text-[12.5px] font-semibold text-danger">{addTermError}</p>
+          )}
           <button
             onClick={() => void handleAddTerm()}
             disabled={busy || !termDate || !termGroupId}

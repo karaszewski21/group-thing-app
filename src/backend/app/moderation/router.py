@@ -41,7 +41,6 @@ async def decide(
     await service.decide(
         db,
         principal,
-        subject_type=body.subject_type,
         subject_id=body.subject_id,
         outcome=body.outcome,
         note=body.note,

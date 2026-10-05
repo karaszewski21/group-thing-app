@@ -1,6 +1,6 @@
 import { api } from "./client";
 import type { ItemCondition } from "./inventories";
-import type { ModerationStatus, ProductPhotoResponse } from "./products";
+import type { ProductPhotoResponse } from "./products";
 
 export type ItemStatusCode =
   | "AVAILABLE"
@@ -31,9 +31,6 @@ export interface ItemDetailsResponse {
   category_name: string | null;
   condition: ItemCondition;
   description: string | null;
-  /** Moderation of the product's name + description; `description` is
-   * withheld from non-owners until it is `APPROVED`. */
-  text_status: ModerationStatus;
   photos: ProductPhotoResponse[];
   product_photo_url: string | null;
   is_owner: boolean;

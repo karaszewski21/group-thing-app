@@ -8,6 +8,7 @@ import * as categoriesApi from "../api/categories";
 import type { Category } from "../api/categories";
 import { ProductFormPage } from "../pages/ProductFormPage";
 import { createQueryWrapper } from "./queryClient";
+import { ApiError } from "../api/client";
 
 vi.mock("../api/products", () => ({
   getProduct: vi.fn(),
@@ -94,5 +95,30 @@ describe("ProductFormPage — category data source", () => {
     });
     const payload = vi.mocked(productsApi.createProduct).mock.calls[0]![0];
     expect(payload).not.toHaveProperty("category");
+  });
+});
+
+describe("ProductFormPage — server error message", () => {
+  beforeEach(() => {
+    vi.resetAllMocks();
+    vi.mocked(categoriesApi.getCategories).mockResolvedValue(mockCategories);
+  });
+
+  it("shows the server's 400 moderation message in role=alert and stays on the form", async () => {
+    const message = "Nazwa rzeczy narusza zasady społeczności. Zmień ją i spróbuj ponownie.";
+    vi.mocked(productsApi.createProduct).mockRejectedValue(
+      new ApiError(400, "Bad Request", { status: 400, error: "Bad Request", message }),
+    );
+    renderForm();
+
+    const select = (await screen.findByLabelText(/category/i)) as HTMLSelectElement;
+    await waitFor(() => expect(select.options.length).toBe(3));
+    fireEvent.change(screen.getByLabelText(/product name/i), { target: { value: "Rowerek" } });
+    fireEvent.change(screen.getByLabelText(/sku/i), { target: { value: "ABC" } });
+    fireEvent.change(select, { target: { value: "5" } });
+    fireEvent.click(screen.getByRole("button", { name: /save product/i }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(message);
+    expect(screen.getByLabelText(/product name/i)).toHaveValue("Rowerek");
   });
 });

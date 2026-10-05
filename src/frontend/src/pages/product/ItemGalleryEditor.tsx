@@ -11,7 +11,7 @@ const STATUS_LABELS: Record<Exclude<ModerationStatus, "APPROVED">, string> = {
   REJECTED: "Odrzucone",
 };
 
-/** Owner-only marker on a photo (or text) others can't see yet. */
+/** Owner-only marker on a photo others can't see yet. */
 export function ModerationBadge({ status }: { status: ModerationStatus }) {
   if (status === "APPROVED") return null;
   const tone = status === "REJECTED" ? "bg-danger-soft text-danger" : "bg-cream text-ink-soft";

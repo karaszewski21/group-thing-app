@@ -12,7 +12,6 @@ the now-removed `category/service.py` used for
 from __future__ import annotations
 
 import asyncio
-import hashlib
 import time
 import uuid
 from collections.abc import Mapping
@@ -33,8 +32,9 @@ from app.core.errors import (
     EntityNotFoundException,
 )
 from app.moderation import rules
-from app.moderation.events import PHOTO_MODERATION_REQUESTED, TEXT_MODERATION_REQUESTED
+from app.moderation.events import PHOTO_MODERATION_REQUESTED
 from app.moderation.status import ModerationStatus
+from app.moderation.text_guard import TextField, check_text
 from app.outbox import service as outbox_service
 from app.storage.outbox_listener import OBJECTS_DELETE
 from app.storage.service import ObjectStorage
@@ -122,44 +122,10 @@ async def get_product(db: AsyncSession, product_id: uuid.UUID) -> Product:
     return product
 
 
-def text_hash(name: str, description: str | None) -> str:
-    """Hash of the moderated text (name + shared description), normalized
-    so whitespace-only edits don't trigger re-moderation."""
-    normalized = "\n".join(" ".join(part.split()) for part in (name, description or ""))
-    return hashlib.sha256(normalized.encode()).hexdigest()
-
-
-async def stage_text_moderation(db: AsyncSession, product: Product) -> None:
-    """Call after any change to the product's name or shared description,
-    before the caller's commit. Unchanged text keeps its status. Changed
-    text is moderated asynchronously by the worker (PENDING), approved at
-    once when moderation is off, and goes to a human if a human had
-    rejected the previous version — so edits can't be used to probe the
-    model."""
-    digest = text_hash(
-        product.name, get_shared_description(product.plugin_data, product.description)
-    )
-    if digest == product.text_moderated_hash:
-        return
-    product.text_moderated_hash = digest
-    if not settings.moderation_enabled:
-        product.text_status = ModerationStatus.APPROVED
-        return
-    if product.text_status == ModerationStatus.REJECTED:
-        product.text_status = ModerationStatus.NEEDS_REVIEW
-        return
-    product.text_status = ModerationStatus.PENDING
-    if product.id is None:
-        await db.flush()
-    await outbox_service.append(
-        db,
-        event_type=TEXT_MODERATION_REQUESTED,
-        payload={"product_id": product.id, "content_hash": digest},
-    )
-
-
 async def create_product(db: AsyncSession, data: CreateProductRequest) -> Product:
     rules.ensure_no_contact_info(data.name, data.description)
+    await check_text(TextField.PRODUCT_NAME, data.name)
+    await check_text(TextField.PRODUCT_DESCRIPTION, data.description)
     product = Product(
         name=data.name,
         description=data.description,
@@ -168,7 +134,6 @@ async def create_product(db: AsyncSession, data: CreateProductRequest) -> Produc
         category_id=data.category_id,
     )
     db.add(product)
-    await stage_text_moderation(db, product)
     await db.commit()
     return await get_product(db, cast(uuid.UUID, product.id))
 
@@ -176,14 +141,15 @@ async def create_product(db: AsyncSession, data: CreateProductRequest) -> Produc
 async def update_product(
     db: AsyncSession, product_id: uuid.UUID, data: UpdateProductRequest
 ) -> Product:
-    rules.ensure_no_contact_info(data.name, data.description)
     product = await get_product(db, product_id)
+    rules.ensure_no_contact_info(data.name, data.description)
+    await check_text(TextField.PRODUCT_NAME, data.name, product.name)
+    await check_text(TextField.PRODUCT_DESCRIPTION, data.description, product.description)
     product.name = data.name
     product.description = data.description
     product.photo_url = data.photo_url
     product.sku = data.sku
     product.category_id = data.category_id
-    await stage_text_moderation(db, product)
     await db.commit()
     return await get_product(db, product_id)
 
@@ -205,6 +171,7 @@ async def get_or_create_product_by_name(
         return product
 
     rules.ensure_no_contact_info(name)
+    await check_text(TextField.PRODUCT_NAME, name)
     product = Product(
         name=name,
         description=None,
@@ -213,7 +180,6 @@ async def get_or_create_product_by_name(
         category_id=category_id,
     )
     db.add(product)
-    await stage_text_moderation(db, product)
     await db.commit()
     return await get_product(db, cast(uuid.UUID, product.id))
 
@@ -384,7 +350,7 @@ async def add_product_photo(
         raise BusinessConflictException(f"Osiągnięto limit {MAX_PRODUCT_PHOTOS} zdjęć")
 
     photo_id = uuid.uuid4()
-    approved = not settings.moderation_enabled
+    approved = not settings.moderation_image_enabled
     photo = ProductPhoto(
         id=photo_id,
         product_id=product_id,
@@ -459,12 +425,16 @@ async def set_shared_description(
     await _require_item_owner(db, product_id, principal)
     value = (description or "").strip()
     rules.ensure_no_contact_info(value)
+    await check_text(
+        TextField.PRODUCT_DESCRIPTION,
+        value,
+        get_shared_description(product.plugin_data, product.description),
+    )
     updated = dict(product.plugin_data or {})
     current = updated.get(SHARED_DESCRIPTION_PLUGIN_ID)
     shared = dict(current) if isinstance(current, Mapping) else {}
     shared[SHARED_DESCRIPTION_FIELD] = value
     updated[SHARED_DESCRIPTION_PLUGIN_ID] = shared
     product.plugin_data = updated
-    await stage_text_moderation(db, product)
     await db.commit()
     return value or None

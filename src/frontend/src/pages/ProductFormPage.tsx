@@ -11,6 +11,7 @@ import {
 import { useCallback, useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { getProduct, createProduct, updateProduct } from "../api/products";
+import { serverMessageOr } from "../api/problem";
 import { useCategories } from "../hooks/useCategories";
 import { PhotoPlaceholder } from "../components/shared/Icons";
 import { isValidImageUrl } from "../utils/url";
@@ -80,8 +81,8 @@ export function ProductFormPage() {
         await createProduct(payload);
       }
       navigate("/admin/products");
-    } catch {
-      setError("Failed to save product.");
+    } catch (err) {
+      setError(serverMessageOr(err, "Failed to save product."));
     } finally {
       setLoading(false);
     }
@@ -228,7 +229,7 @@ export function ProductFormPage() {
         </Grid>
 
         {error && (
-          <Box mt="16px" p="12px" bg="#FEE2E2" borderRadius="8px" fontSize="13px" color="#991B1B">
+          <Box role="alert" mt="16px" p="12px" bg="#FEE2E2" borderRadius="8px" fontSize="13px" color="#991B1B">
             {error}
           </Box>
         )}

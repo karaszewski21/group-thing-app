@@ -13,8 +13,8 @@ from .status import ModerationStatus
 
 
 class ModerationQueueEntryResponse(BaseModel):
-    """One photo or product text awaiting (or past) a decision. `scores`
-    are the latest model scores, `null` when no model has scored it."""
+    """One photo awaiting (or past) a decision. `scores` are the latest
+    model scores, `null` when no model has scored it."""
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -22,7 +22,6 @@ class ModerationQueueEntryResponse(BaseModel):
     subject_id: uuid.UUID
     product_id: uuid.UUID
     product_name: str
-    description: str | None
     photo_url: str | None
     status: ModerationStatus
     model_id: str | None
@@ -31,7 +30,10 @@ class ModerationQueueEntryResponse(BaseModel):
 
 
 class ModerationDecisionRequest(BaseModel):
-    subject_type: ModerationSubjectType
+    """Photos only: texts are checked synchronously on write, so a
+    `PRODUCT_TEXT` decision is a 400 validation error."""
+
+    subject_type: Literal[ModerationSubjectType.PHOTO]
     subject_id: uuid.UUID
     outcome: Literal[ModerationStatus.APPROVED, ModerationStatus.REJECTED]
     note: str | None = Field(default=None, max_length=1000)

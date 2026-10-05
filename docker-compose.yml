@@ -34,6 +34,7 @@ services:
     build:
       context: src/backend
       dockerfile: Dockerfile
+      target: runtime-dev
     # Bring the schema to head on every start (alembic upgrade is a no-op when
     # already current), then hand off to uvicorn as PID 1 so it gets signals.
     command: sh -c "alembic upgrade head && exec uvicorn app.main:app --host 0.0.0.0 --port 8080"
@@ -51,7 +52,9 @@ services:
       SPACES_KEY: ${SPACES_KEY:-}
       SPACES_SECRET: ${SPACES_SECRET:-}
       SPACES_PUBLIC_BASE_URL: ${SPACES_PUBLIC_BASE_URL:-}
-      MODERATION_ENABLED: ${MODERATION_ENABLED:-false}
+      # The dev image has no text model, so text moderation stays off here.
+      MODERATION_TEXT_ENABLED: "false"
+      MODERATION_IMAGE_ENABLED: ${MODERATION_IMAGE_ENABLED:-false}
     volumes:
       - frontend_index:/app/static
     depends_on:
@@ -60,17 +63,15 @@ services:
       frontend-build:
         condition: service_completed_successfully
 
-  # Moderation worker (Bielik-Guard + NSFW classifier on CPU). Opt-in:
-  # `HF_TOKEN=... docker compose --profile moderation up` with
-  # MODERATION_ENABLED=true; the image build downloads and exports the models.
+  # Photo moderation worker (scores photos via VPS B ShieldGemma-2). Opt-in:
+  # `docker compose --profile moderation up` with MODERATION_IMAGE_ENABLED=true
+  # and MODERATION_AI_URL / MODERATION_AI_TOKEN set; exits at once when disabled.
   moderation-worker:
     profiles: ["moderation"]
     build:
       context: src/backend
       dockerfile: Dockerfile
       target: worker
-      secrets:
-        - hf_token
     environment:
       DATABASE_URL: postgresql+asyncpg://aj:aj@postgres:5432/aj
       JWT_SECRET: ${JWT_SECRET}
@@ -80,7 +81,10 @@ services:
       SPACES_KEY: ${SPACES_KEY:-}
       SPACES_SECRET: ${SPACES_SECRET:-}
       SPACES_PUBLIC_BASE_URL: ${SPACES_PUBLIC_BASE_URL:-}
-      MODERATION_ENABLED: "true"
+      MODERATION_IMAGE_ENABLED: ${MODERATION_IMAGE_ENABLED:-false}
+      MODERATION_AI_URL: ${MODERATION_AI_URL:-}
+      MODERATION_AI_TOKEN: ${MODERATION_AI_TOKEN:-}
+      MODERATION_AI_TIMEOUT_SECONDS: ${MODERATION_AI_TIMEOUT_SECONDS:-120}
     depends_on:
       backend:
         condition: service_started
@@ -98,10 +102,6 @@ services:
         condition: service_started
       frontend-build:
         condition: service_completed_successfully
-
-secrets:
-  hf_token:
-    environment: HF_TOKEN
 
 volumes:
   postgres_data:

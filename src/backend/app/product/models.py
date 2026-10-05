@@ -45,15 +45,6 @@ class Product(BaseEntity):
         postgresql.UUID(as_uuid=True), ForeignKey("categories.id"), nullable=False
     )
     plugin_data: Mapped[dict[str, Any] | None] = mapped_column(JSONB, nullable=True)
-    # Moderation of the name + shared description, and the hash of the text
-    # that status was decided for (re-moderated only when the text changes).
-    text_status: Mapped[ModerationStatus] = mapped_column(
-        _status_column(),
-        nullable=False,
-        default=ModerationStatus.APPROVED,
-        server_default=ModerationStatus.APPROVED.value,
-    )
-    text_moderated_hash: Mapped[str | None] = mapped_column(String(64), nullable=True)
 
     def __eq__(self, other: Any) -> bool:
         """Business-key equality on `sku` (never entity `id`) — per

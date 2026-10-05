@@ -48,7 +48,6 @@ class ProductResponse(BaseModel):
     plugin_data: dict[str, Any] | None
     created_at: datetime
     updated_at: datetime
-    text_status: ModerationStatus
 
 
 class CreateProductRequest(BaseModel):

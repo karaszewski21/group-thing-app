@@ -19,7 +19,7 @@
 
 ### Configuration
 - **Location**: `src/backend/app/config.py`
-- **Purpose**: Environment-variable-backed settings (`pydantic_settings.BaseSettings`). `JWT_SECRET` and `DATABASE_URL` are required with no default (fail-loud `ValidationError` on startup if missing); the remaining vars (`JWT_EXPIRATION_MS`, `CORS_ALLOWED_ORIGINS`, `FOOTPRINT_PROBLEM_BASE_URI`, `FOOTPRINT_AUDIT_RETRY_*`) are operational tuning knobs with defaults matching `.env.example`/`docker-compose.yml`
+- **Purpose**: Environment-variable-backed settings (`pydantic_settings.BaseSettings`). `JWT_SECRET` and `DATABASE_URL` are required with no default (fail-loud `ValidationError` on startup if missing); the remaining vars (`JWT_EXPIRATION_MS`, `CORS_ALLOWED_ORIGINS`, `FOOTPRINT_PROBLEM_BASE_URI`, `FOOTPRINT_AUDIT_RETRY_*`, `SPACES_*`, `MODERATION_*`) are operational tuning knobs with defaults matching `.env.example`/`docker-compose.yml`
 - **Key Files**: `.env.example`, `docker-compose.yml`, `Dockerfile`
 
 ### Database Layer
@@ -46,21 +46,51 @@ Plugin iframes reach the same routers via the host's browser SDK, which attaches
 ```
 POST /api/products/{id}/photos (multipart) → Pillow sanitize → Spaces (private) → product_photos(PENDING) + outbox
                                                                                          ↓ moderation.photo_requested
-moderation worker (python -m app.moderation.worker, same codebase) → NSFW score → APPROVED (files public-read, CDN)
-                                                                                 | NEEDS_REVIEW → /api/moderation (ADMIN)
-                                                                                 | REJECTED (files stay private)
+moderation-worker (python -m app.moderation.worker) → VPS B POST /v1/moderate/image (ShieldGemma-2)
+      → per-category scores → APPROVED (files public-read, CDN)
+                             | NEEDS_REVIEW → /api/moderation (ADMIN)
+                             | REJECTED (files stay private)
 ```
 
+Two independent flags, both default `false`: `MODERATION_TEXT_ENABLED` (API) and `MODERATION_IMAGE_ENABLED` (API + worker). The API logs both at startup. The old `MODERATION_ENABLED` is ignored (unknown env vars are dropped), so a stale `.env` that still sets it gets photos approved on upload.
+
+**Text: synchronous and reject-only, in the API process.**
+- `app/moderation/text_guard.py` `check_text(field, new, current=None)` runs Bielik-Guard-0.1B (ONNX, 1 intra-op thread) via `asyncio.to_thread` before the write.
+- Checked fields: organization name, group name, term description, product name and the shared product description. This includes the resolve/create branch and the `plugin_data` PUT.
+- A value is scored only when it changes (normalised comparison with `current`), so untouched legacy text is never re-checked.
+- Any category score ≥ `MODERATION_TEXT_REJECT_THRESHOLD` (default 0.8) → 400 with a Polish message and no scores. Model unavailable → 503 (fail-closed).
+- With the flag on, the API lifespan loads the model from `MODERATION_MODELS_DIR` (`<dir>/text`), and startup fails if that is impossible.
+- No text status is stored and no text goes through the queue: products have no `text_status`/`text_moderated_hash` (migration 0047 marks leftover `moderation.text_requested` events PROCESSED and moves PENDING photos whose event already FAILED to NEEDS_REVIEW; 0048 drops the columns). Old `PRODUCT_TEXT` decisions remain only as audit rows.
+- The synchronous contact-info regex rules (`rules.py`, 400) are unchanged.
+
+**Photos: asynchronous, in the slim `moderation-worker`.**
+- The worker has no ONNX/ML code. `app/moderation/ai_client.py` posts each photo with httpx and a bearer token to VPS B `POST /v1/moderate/image` (ShieldGemma-2), with a `MODERATION_AI_TIMEOUT_SECONDS` (120) per-call timeout.
+- With `MODERATION_IMAGE_ENABLED=false`, uploads are APPROVED at once and the worker logs and exits 0. With it on, the worker fails at startup if `MODERATION_AI_URL`, `MODERATION_AI_TOKEN` or storage (`SPACES_*`) is missing.
+- `service.process_next(db, client, storage)` runs claim → score → finalize on one `moderation.photo_requested` outbox event. The worker loops on it and sleeps 5 s when nothing is eligible.
+  - The lease is the event's `attempts` counter: the claim increments it, and every finalize is guarded with `WHERE attempts = :claimed`, so a lost lease discards its result.
+  - Any exception after the claim counts as one failed attempt. The retry backoff is timeout + 30 s·2^(n-1), anchored at the end of each attempt.
+  - After 5 attempts the photo goes to NEEDS_REVIEW with a null-score decision (shown as "No model score" in the admin queue), about 25 min in the worst case.
+  - Run a **single worker replica**. The lease guard is a safety net, not a scaling mechanism.
+- Decisions are made per category: `sexual`/`violence`/`dangerous` score ≥ `MODERATION_IMAGE_REVIEW_THRESHOLD` (0.5) → NEEDS_REVIEW, ≥ `MODERATION_IMAGE_REJECT_THRESHOLD` (0.9) → REJECTED; `weapons` is review-only. The most severe outcome wins.
+- The outbox is split by event type: the API poller uses `exclude_event_types=WORKER_EVENT_TYPES` (photo events only), and the worker claims only those.
+
+**Shared pieces.**
 - `app/storage/` — `ObjectStorage` protocol + `SpacesStorage` (boto3); `get_storage()` returns `None` while the `SPACES_*` settings are unset (upload disabled). `storage.objects_delete` outbox events delete files after their rows are gone.
-- `app/moderation/` — `ModerationStatus` (PENDING/APPROVED/NEEDS_REVIEW/REJECTED) tracked per photo and per product text (name + shared description, `products.text_status` + `text_moderated_hash`); append-only `moderation_decisions` audit log; synchronous contact-info regex rules (400); ADMIN queue/decisions router; worker handlers with injected classifiers (`onnx_models.py`: Bielik-Guard-0.1B text, Falconsai NSFW image).
-- The outbox is split by event type: the API poller uses `exclude_event_types=WORKER_EVENT_TYPES`, the worker claims only those (5 s interval, batch of 5).
-- Non-owners see only APPROVED photos and an APPROVED description; a product whose text is not APPROVED cannot be given a listing preference (the choke point for public pages).
-- `MODERATION_ENABLED=false` (default, tests, local dev) approves new content immediately.
+- `app/moderation/` — `ModerationStatus` (PENDING/APPROVED/NEEDS_REVIEW/REJECTED) per photo; append-only `moderation_decisions` audit log; ADMIN queue/decisions router (photos only).
+- Non-owners see only APPROVED photos.
+
+**Images and deployment.**
+- The production API image is the default (last) Dockerfile stage `runtime`. It contains the `ml` uv group and Bielik-Guard, which is exported to ONNX at build time from the gated HF repo, so it needs the secret: `docker build --secret id=hf_token,env=HF_TOKEN src/backend`. Expect about +0.6–0.8 GB RSS per uvicorn process.
+- `runtime-dev` (used by compose) has no model and needs no secret, so text moderation is off in dev. `worker` has no `ml` group and no secret.
+- Deployment order for this change: stop the old worker → run migrations 0047/0048 → deploy the new worker → enable `MODERATION_IMAGE_ENABLED` on the API.
+- 0048 is not zero-downtime: any API or worker process from before it fails on every product query once the columns are dropped, so recreate all backend containers together (expect a few seconds of errors) and leave no old one running.
+- Rolling back past 0048: the old image's `alembic upgrade head` does not know revision 0048 and its model reads `text_status`. First run `alembic downgrade 0046` **with the new image** (restores the columns; 0047's data changes are not reverted), then deploy the old image.
 
 ## External Integrations
 - **PostgreSQL 18**: Primary datastore, run via `docker-compose.yml`
 - **DigitalOcean Spaces** (S3 API) + CDN: user-uploaded product photos
-- No external API integrations exist. The footprint domain's `app/footprint/ports.py`/`stubs.py` define ports for an emission-factor/product-attribute adapter that remains stubbed (out of scope for this migration)
+- **VPS B AI service** (`group-thing-ai`): `POST /v1/moderate/image` (ShieldGemma-2, bearer token), called only by the photo moderation worker
+- No other external API integrations exist. The footprint domain's `app/footprint/ports.py`/`stubs.py` define ports for an emission-factor/product-attribute adapter that remains stubbed (out of scope for this migration)
 
 ## Database Schema
 - **Migration tool**: Alembic
@@ -119,7 +149,7 @@ Five spot-checked directories, confirmed 1:1 against the real tree above: `app/c
 - **Frontend service**: `src/frontend/Dockerfile` is a two-stage build (Node builds the Vite SPA to `dist/`, then an nginx:alpine image serves it) driven from the **repo root** as build context — not `src/frontend/` — because `src/frontend`'s test suite imports the sibling `plugins/server-sdk.ts` by relative path, so that file must be present in the build context too (see `.dockerignore` at the repo root, which scopes that context down to just `src/frontend/` + `plugins/server-sdk.ts`). nginx reverse-proxies `/api/*` and `/oauth2/*` to the `backend` service and falls back to `index.html` for all other paths (client-side routing)
 - `src/frontend/vite.config.ts`'s dev-proxy (`npm run dev`, port 5173) now proxies both `/api` and `/oauth2` to `localhost:8080` — the OAuth2 authorize page does a real browser form-POST to `/oauth2/authorize`, not just `fetch()` calls under `/api`
 - Individual plugin apps (`plugins/warehouse`, `plugins/box-size`, `plugins/ai-description`) are **not** part of `docker-compose.yml` — they remain standalone dev-server processes per `plugins/CLAUDE.md`'s documented workflow, registered with the host via `PUT /api/plugins/{pluginId}/manifest`
-- Opt-in `moderation-worker` service (`docker compose --profile moderation up`, needs `HF_TOKEN` as a build secret for the gated Bielik-Guard model): the backend image's `worker` target, running `python -m app.moderation.worker`
+- `backend` builds the model-free `runtime-dev` target with `MODERATION_TEXT_ENABLED` fixed to `"false"`. The opt-in `moderation-worker` service (`docker compose --profile moderation up`, `target: worker`, no build secret) runs `python -m app.moderation.worker` and needs `MODERATION_IMAGE_ENABLED=true` plus `MODERATION_AI_URL`/`MODERATION_AI_TOKEN`; otherwise it exits at once
 - nginx allows request bodies up to 16 MB on `/api/` (photo uploads; the backend caps a photo at 15 MB)
 - No CI/CD yet
 

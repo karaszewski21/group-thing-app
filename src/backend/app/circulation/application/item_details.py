@@ -1,8 +1,8 @@
 """Item page read model for `app.circulation`: product fields, the shared
 description, the product's gallery, `is_owner` and the privacy-labelled
-current status. Deleted items are readable (status `DELETED`). Content not
-yet approved by moderation (photos, the description) is shown to the owner
-only."""
+current status. Deleted items are readable (status `DELETED`). Photos not
+yet approved by moderation are shown to the owner only; the description is
+checked synchronously on write, so every viewer gets it."""
 
 from __future__ import annotations
 
@@ -21,7 +21,6 @@ from app.circulation.infrastructure import repository
 from app.circulation.models import BalanceStatus, ItemCondition
 from app.core.auth_deps import Principal
 from app.core.errors import EntityNotFoundException
-from app.moderation.status import ModerationStatus
 from app.product import service as product_service
 from app.product.service import PhotoView
 from app.storage.service import ObjectStorage
@@ -36,7 +35,6 @@ class ItemDetails:
     category_name: str | None
     condition: ItemCondition
     description: str | None
-    text_status: ModerationStatus
     photos: list[PhotoView]
     product_photo_url: str | None
     is_owner: bool
@@ -93,7 +91,6 @@ async def get_item_details(
         display_names=display_names,
     )
     is_owner = viewer is not None and viewer == home_owner
-    text_status = ModerationStatus(row.product_text_status)
     description = product_service.get_shared_description(row.plugin_data, row.product_description)
     return ItemDetails(
         id=cast(uuid.UUID, item.id),
@@ -102,8 +99,7 @@ async def get_item_details(
         category_id=row.category_id,
         category_name=row.category_name,
         condition=item.condition,
-        description=(description if is_owner or text_status == ModerationStatus.APPROVED else None),
-        text_status=text_status,
+        description=description,
         photos=product_service.visible_photo_views(photos, storage, is_owner=is_owner),
         product_photo_url=row.product_photo_url,
         is_owner=is_owner,

@@ -9,6 +9,7 @@ import {
   type UpdateNeededItemRequest,
 } from "../../api/terms";
 import { resolveProduct } from "../../api/products";
+import { serverMessageOr } from "../../api/problem";
 import type { Category } from "../../api/categories";
 import { useCategories } from "../../hooks/useCategories";
 import { Field, ModalSheet } from "../../pages/panel/panelComponents";
@@ -196,8 +197,8 @@ export function EditTermDialog({ term, neededItems, group, onChanged, onClose }:
       await updateTerm(term.id, patch);
       setSaved(true);
       onChanged();
-    } catch {
-      setFormError("Nie udało się zapisać zmian terminu — spróbuj ponownie");
+    } catch (err) {
+      setFormError(serverMessageOr(err, "Nie udało się zapisać zmian terminu — spróbuj ponownie"));
     } finally {
       setBusy(false);
     }
@@ -234,9 +235,8 @@ export function EditTermDialog({ term, neededItems, group, onChanged, onClose }:
       await updateNeededItem(editing.id, patch);
       setEditing(null);
       onChanged();
-    } catch {
-      setEditing(null);
-      setItemsError("Nie udało się zapisać zmiany — spróbuj ponownie");
+    } catch (err) {
+      setItemsError(serverMessageOr(err, "Nie udało się zapisać zmiany — spróbuj ponownie"));
     } finally {
       setBusy(false);
     }
@@ -272,8 +272,8 @@ export function EditTermDialog({ term, neededItems, group, onChanged, onClose }:
       setAdding(false);
       setNewDraft(makeEmptyDraft(categories));
       onChanged();
-    } catch {
-      setItemsError("Nie udało się dodać rzeczy — spróbuj ponownie");
+    } catch (err) {
+      setItemsError(serverMessageOr(err, "Nie udało się dodać rzeczy — spróbuj ponownie"));
     } finally {
       setBusy(false);
     }
@@ -311,7 +311,11 @@ export function EditTermDialog({ term, neededItems, group, onChanged, onClose }:
           />
         </Field>
       </div>
-      {formError && <p className="mt-2 text-[12.5px] font-semibold text-danger">{formError}</p>}
+      {formError && (
+        <p role="alert" className="mt-2 text-[12.5px] font-semibold text-danger">
+          {formError}
+        </p>
+      )}
       {saved && !formError && <p className="mt-2 text-[12.5px] font-bold text-mint">Zapisano</p>}
       <button
         type="button"
@@ -418,7 +422,11 @@ export function EditTermDialog({ term, neededItems, group, onChanged, onClose }:
         </button>
       )}
 
-      {itemsError && <p className="mt-2 text-[12.5px] font-semibold text-danger">{itemsError}</p>}
+      {itemsError && (
+        <p role="alert" className="mt-2 text-[12.5px] font-semibold text-danger">
+          {itemsError}
+        </p>
+      )}
 
       {attendees !== null && (
         <>

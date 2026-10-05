@@ -1,17 +1,17 @@
 import { api } from "./client";
 import type { ModerationStatus } from "./products";
 
-export type ModerationSubjectType = "PHOTO" | "PRODUCT_TEXT";
+export type ModerationSubjectType = "PHOTO";
 
-/** `GET /api/moderation/queue` (ADMIN-only) row — a photo or a product's
- * name + description, with the latest model scores (`null` when no model
- * has scored it yet). `photo_url` is a short-lived signed link. */
+/** `GET /api/moderation/queue` (ADMIN-only) row — a product photo with the
+ * latest ShieldGemma category scores (`null` when no model has scored it,
+ * e.g. VPS B failed after every retry). `photo_url` is a short-lived signed
+ * link. */
 export interface ModerationQueueEntry {
   subject_type: ModerationSubjectType;
   subject_id: string;
   product_id: string;
   product_name: string;
-  description: string | null;
   photo_url: string | null;
   status: ModerationStatus;
   model_id: string | null;

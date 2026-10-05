@@ -1,5 +1,7 @@
 import { useRef, useState } from "react";
 import type { ReactNode } from "react";
+import { ApiError } from "../../api/client";
+import { serverMessageOr } from "../../api/problem";
 
 /**
  * Per-step imperative bridge into the wizard shell's "Dalej"/"Zakończ"
@@ -66,7 +68,15 @@ export function OnboardingWizard({ steps, onSkip, onComplete }: OnboardingWizard
         setStepIndex((i) => i + 1);
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Nie udało się zapisać kroku");
+      // Steps also throw plain `Error`s for local validation (e.g. a required
+      // name); only API failures go through the server-message mapping.
+      setError(
+        err instanceof ApiError
+          ? serverMessageOr(err, "Nie udało się zapisać kroku")
+          : err instanceof Error
+            ? err.message
+            : "Nie udało się zapisać kroku",
+      );
     } finally {
       setBusy(false);
     }
@@ -115,7 +125,9 @@ export function OnboardingWizard({ steps, onSkip, onComplete }: OnboardingWizard
         <div className="mb-6">{current.render({ setSubmit, busy })}</div>
 
         {error && (
-          <div className="mb-4 rounded-xl bg-danger-soft px-3 py-2.5 text-[13px] text-danger">{error}</div>
+          <div role="alert" className="mb-4 rounded-xl bg-danger-soft px-3 py-2.5 text-[13px] text-danger">
+            {error}
+          </div>
         )}
 
         <div className="flex items-center justify-between gap-3">

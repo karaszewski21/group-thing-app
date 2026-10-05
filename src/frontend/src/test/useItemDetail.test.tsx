@@ -7,7 +7,7 @@ import type { ItemDetailsResponse } from "../api/items";
 import { ACCESS_DENIED_MESSAGE } from "../api/problem";
 import * as productsApi from "../api/products";
 import { useItemDetail, useItemEditing, useItemHistory } from "../hooks/useItemDetail";
-import { createQueryWrapper } from "./queryClient";
+import { createQueryWrapper, createTestQueryClient } from "./queryClient";
 
 vi.mock("../api/items", () => ({
   getItemDetails: vi.fn(),
@@ -40,7 +40,6 @@ const item: ItemDetailsResponse = {
   category_name: "Pojazdy",
   condition: "GOOD",
   description: null,
-  text_status: "APPROVED",
   photos: [
     { id: PHOTO_A, url: "https://cdn.example/a/w1600.webp", thumb_url: "https://cdn.example/a/w400.webp", status: "APPROVED", sort_order: 0 },
     { id: PHOTO_B, url: "https://cdn.example/b/w1600.webp", thumb_url: "https://cdn.example/b/w400.webp", status: "APPROVED", sort_order: 1 },
@@ -134,6 +133,58 @@ describe("useItemDetail", () => {
     const fallback = result.current.history.data;
     rerender();
     expect(result.current.history.data).toBe(fallback);
+  });
+});
+
+describe("useItemDetail pending-photo polling", () => {
+  beforeEach(() => {
+    vi.resetAllMocks();
+  });
+
+  const pendingPhoto = { ...item.photos[0], status: "PENDING" as const };
+
+  /** The interval TanStack would use next, read from the live query's
+   * observer options (no 10 s wall-clock wait). */
+  function nextInterval(client: ReturnType<typeof createTestQueryClient>) {
+    const query = client.getQueryCache().find({ queryKey: ["itemDetails", ITEM_ID] });
+    const option = query?.observers[0]?.options.refetchInterval;
+    return typeof option === "function" ? option(query!) : option;
+  }
+
+  it("ownerWithPendingPhoto_refetchesEvery10s, and stops once no photo is PENDING", async () => {
+    vi.mocked(itemsApi.getItemDetails)
+      .mockResolvedValueOnce({ ...item, photos: [pendingPhoto, ...item.photos.slice(1)] })
+      .mockResolvedValue(item);
+    const client = createTestQueryClient();
+    const { result } = renderHook(() => useItemDetail(ITEM_ID), { wrapper: createQueryWrapper(client) });
+    await waitFor(() => expect(result.current.loading).toBe(false));
+
+    expect(nextInterval(client)).toBe(10_000);
+    const observer = client.getQueryCache().find({ queryKey: ["itemDetails", ITEM_ID] })?.observers[0];
+    expect(observer?.options.refetchIntervalInBackground).toBeFalsy();
+
+    await act(async () => {
+      await result.current.refetch();
+    });
+    expect(result.current.item?.photos.every((p) => p.status === "APPROVED")).toBe(true);
+    expect(nextInterval(client)).toBe(false);
+  });
+
+  it("nonOwnerOrNoPendingPhoto_doesNotPoll", async () => {
+    for (const details of [
+      { ...item, is_owner: false, photos: [pendingPhoto] },
+      { ...item, photos: [{ ...pendingPhoto, status: "NEEDS_REVIEW" as const }] },
+      item,
+    ]) {
+      vi.mocked(itemsApi.getItemDetails).mockResolvedValueOnce(details);
+      const client = createTestQueryClient();
+      const { result, unmount } = renderHook(() => useItemDetail(ITEM_ID), {
+        wrapper: createQueryWrapper(client),
+      });
+      await waitFor(() => expect(result.current.loading).toBe(false));
+      expect(nextInterval(client)).toBe(false);
+      unmount();
+    }
   });
 });
 

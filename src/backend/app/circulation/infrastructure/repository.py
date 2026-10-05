@@ -255,7 +255,6 @@ class ItemDetailsRow:
     product_photo_url: str | None
     product_description: str | None
     plugin_data: dict[str, Any] | None
-    product_text_status: str
 
 
 async def get_item_details_row(db: AsyncSession, item_id: uuid.UUID) -> ItemDetailsRow | None:
@@ -271,7 +270,6 @@ async def get_item_details_row(db: AsyncSession, item_id: uuid.UUID) -> ItemDeta
             Product.photo_url,
             Product.description,
             Product.plugin_data,
-            Product.text_status,
         )
         .join(Product, Product.id == InventoryItem.product_id)
         .outerjoin(_categories, _categories.c.id == Product.category_id)
@@ -288,7 +286,6 @@ async def get_item_details_row(db: AsyncSession, item_id: uuid.UUID) -> ItemDeta
         product_photo_url=row[4],
         product_description=row[5],
         plugin_data=row[6],
-        product_text_status=row[7],
     )
 
 

@@ -64,6 +64,7 @@ vi.mock("../api/families", () => ({
 
 vi.mock("../api/groups", () => ({
   createMyCircle: vi.fn(),
+  createAdditionalMyCircle: vi.fn(),
   endLeadership: vi.fn(),
   getGroup: vi.fn(),
   getMyAttendances: vi.fn(),
@@ -2364,7 +2365,7 @@ describe("PanelPage — needed item edit error path", () => {
     updated_at: "",
   };
 
-  it("shows an inline error and keeps the original needed item when the edit is rejected", async () => {
+  it("shows an inline error and keeps the row editor open with the typed values when the edit is rejected", async () => {
     mockOrganizerDefaults();
     vi.mocked(termsApi.getTerms).mockResolvedValue([term]);
     vi.mocked(termsApi.getNeededItems).mockResolvedValue([neededItem]);
@@ -2382,8 +2383,13 @@ describe("PanelPage — needed item edit error path", () => {
     const row = within(dialog).getByRole("listitem");
     fireEvent.click(within(row).getByRole("button", { name: "Zapisz" }));
 
-    expect(await within(dialog).findByText(/Nie udało się zapisać zmiany/)).toBeInTheDocument();
-    expect(within(dialog).getByText(/Bębenek/)).toBeInTheDocument();
+    // A non-problem error falls back to the generic message, shown as an alert.
+    const alert = await within(dialog).findByRole("alert");
+    expect(alert).toHaveTextContent(/Nie udało się zapisać zmiany/);
+    // The editor stays open and keeps what the user typed, so they can retry.
+    expect(within(dialog).getByLabelText("Nazwa rzeczy")).toHaveValue("Bębenek");
+    expect(within(dialog).getByLabelText("Doprecyzowanie rzeczy")).toHaveValue("Coś innego");
+    expect(within(row).getByRole("button", { name: "Zapisz" })).toBeInTheDocument();
   });
 });
 
@@ -3319,5 +3325,124 @@ describe("PanelPage — Mój dom — inline birth-year editor and returnTo (gap 
     expect(screen.queryByRole("dialog", { name: "Załóż rodzinę" })).not.toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Wróć do terminu" })).toHaveAttribute("href", RETURN_PATH);
     expect(familiesApi.createOwnFamily).not.toHaveBeenCalled();
+  });
+});
+
+describe("PanelPage — moderation errors inline in the add-group / add-term / edit-group modals", () => {
+  const GROUP_NAME_REJECTED = "Nazwa grupy narusza zasady społeczności. Zmień ją i spróbuj ponownie.";
+  const PRODUCT_NAME_REJECTED = "Nazwa rzeczy narusza zasady społeczności. Zmień ją i spróbuj ponownie.";
+
+  beforeEach(() => {
+    vi.resetAllMocks();
+    vi.mocked(groupsApi.listMyPendingJoinRequests).mockResolvedValue([]);
+    mockOrganizerDefaults();
+  });
+
+  async function openAddGroupDialog() {
+    fireEvent.click(await screen.findByRole("button", { name: "Spotkania" }));
+    fireEvent.click(await screen.findByRole("button", { name: "+ Dodaj grupę" }));
+    return screen.findByRole("dialog", { name: "Dodaj nową grupę" });
+  }
+
+  async function openAddTermDialogWithDraftItem(itemName: string) {
+    fireEvent.click(await screen.findByRole("button", { name: "Spotkania" }));
+    fireEvent.click(await screen.findByRole("button", { name: "+ Dodaj termin" }));
+    const dialog = await screen.findByRole("dialog", { name: "Dodaj termin zajęć" });
+    const dateInput = dialog.querySelector<HTMLInputElement>('input[type="datetime-local"]')!;
+    fireEvent.change(dateInput, { target: { value: "2026-02-01T17:00" } });
+    fireEvent.click(within(dialog).getByRole("button", { name: "+ Dodaj potrzebną rzecz" }));
+    fireEvent.change(within(dialog).getByLabelText("Nazwa"), { target: { value: itemName } });
+    fireEvent.click(within(dialog).getByRole("button", { name: "Dodaj rzecz" }));
+    return dialog;
+  }
+
+  it("add group: a server-rejected name shows an inline alert, no toast, and keeps the modal open with its input", async () => {
+    vi.mocked(groupsApi.createAdditionalMyCircle).mockRejectedValue(
+      new ApiError(400, "Bad Request", { message: GROUP_NAME_REJECTED }),
+    );
+    renderPanel();
+    const dialog = await openAddGroupDialog();
+
+    fireEvent.change(within(dialog).getByPlaceholderText("np. Nutki dla starszaków"), { target: { value: "Zła nazwa" } });
+    fireEvent.click(within(dialog).getByRole("button", { name: "Dodaj grupę" }));
+
+    expect(await within(dialog).findByRole("alert")).toHaveTextContent(GROUP_NAME_REJECTED);
+    expect(screen.queryByRole("status")).not.toBeInTheDocument();
+    expect(screen.getByRole("dialog", { name: "Dodaj nową grupę" })).toBeInTheDocument();
+    expect(within(dialog).getByPlaceholderText("np. Nutki dla starszaków")).toHaveValue("Zła nazwa");
+  });
+
+  it("add group: reopening the modal clears the previous inline error", async () => {
+    vi.mocked(groupsApi.createAdditionalMyCircle).mockRejectedValue(
+      new ApiError(400, "Bad Request", { message: GROUP_NAME_REJECTED }),
+    );
+    renderPanel();
+    let dialog = await openAddGroupDialog();
+    fireEvent.change(within(dialog).getByPlaceholderText("np. Nutki dla starszaków"), { target: { value: "Zła nazwa" } });
+    fireEvent.click(within(dialog).getByRole("button", { name: "Dodaj grupę" }));
+    await within(dialog).findByRole("alert");
+
+    fireEvent.click(within(dialog).getByRole("button", { name: "Zamknij" }));
+    await waitFor(() => expect(screen.queryByRole("dialog", { name: "Dodaj nową grupę" })).not.toBeInTheDocument());
+    fireEvent.click(screen.getByRole("button", { name: "+ Dodaj grupę" }));
+    dialog = await screen.findByRole("dialog", { name: "Dodaj nową grupę" });
+
+    expect(within(dialog).queryByRole("alert")).not.toBeInTheDocument();
+  });
+
+  it("add term: a rejected needed-item name never creates the term and shows an inline alert", async () => {
+    vi.mocked(productsApi.resolveProduct).mockRejectedValue(
+      new ApiError(400, "Bad Request", { message: PRODUCT_NAME_REJECTED }),
+    );
+    renderPanel();
+    const dialog = await openAddTermDialogWithDraftItem("Zła rzecz");
+
+    fireEvent.click(within(dialog).getByRole("button", { name: "Dodaj termin" }));
+
+    expect(await within(dialog).findByRole("alert")).toHaveTextContent(PRODUCT_NAME_REJECTED);
+    expect(termsApi.createTerm).not.toHaveBeenCalled();
+    expect(termsApi.createNeededItem).not.toHaveBeenCalled();
+    expect(screen.queryByRole("status")).not.toBeInTheDocument();
+    expect(screen.getByRole("dialog", { name: "Dodaj termin zajęć" })).toBeInTheDocument();
+  });
+
+  it("add term: resolves every needed item before createTerm, then creates the needed items", async () => {
+    const calls: string[] = [];
+    vi.mocked(productsApi.resolveProduct).mockImplementation(async () => {
+      calls.push("resolveProduct");
+      return { id: "p-1" } as Awaited<ReturnType<typeof productsApi.resolveProduct>>;
+    });
+    vi.mocked(termsApi.createTerm).mockImplementation(async () => {
+      calls.push("createTerm");
+      return {
+        id: TERM_ID, circle_group_id: GROUP_ID, occurs_on: "2026-02-01", description: null,
+        created_at: "", updated_at: "", attendee_count: null, child_count: null,
+      };
+    });
+    vi.mocked(termsApi.createNeededItem).mockImplementation(async () => {
+      calls.push("createNeededItem");
+      return {} as Awaited<ReturnType<typeof termsApi.createNeededItem>>;
+    });
+    renderPanel();
+    const dialog = await openAddTermDialogWithDraftItem("Mata");
+
+    fireEvent.click(within(dialog).getByRole("button", { name: "Dodaj termin" }));
+
+    await waitFor(() => expect(calls).toEqual(["resolveProduct", "createTerm", "createNeededItem"]));
+    expect(termsApi.createNeededItem).toHaveBeenCalledWith({ term_id: TERM_ID, product_id: "p-1", description: undefined });
+  });
+
+  it("edit group: a server-rejected name shows the server message in an alert", async () => {
+    vi.mocked(groupsApi.updateGroupLayoutMode).mockRejectedValue(
+      new ApiError(400, "Bad Request", { message: GROUP_NAME_REJECTED }),
+    );
+    renderPanel();
+    fireEvent.click(await screen.findByRole("button", { name: "Spotkania" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Edytuj grupę Nowa grupa" }));
+    const dialog = await screen.findByRole("dialog", { name: "Edytuj grupę" });
+
+    fireEvent.click(within(dialog).getByRole("button", { name: "Zapisz" }));
+
+    expect(await within(dialog).findByRole("alert")).toHaveTextContent(GROUP_NAME_REJECTED);
   });
 });

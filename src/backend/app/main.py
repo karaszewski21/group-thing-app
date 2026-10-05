@@ -12,8 +12,10 @@ from __future__ import annotations
 
 import asyncio
 import contextlib
+import logging
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
+from pathlib import Path
 
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from fastapi import FastAPI
@@ -29,6 +31,7 @@ from app.db import async_session_factory
 from app.families.router import router as families_router
 from app.groups.application.term_end_scan import scan_for_term_ended
 from app.groups.router import router as groups_router
+from app.moderation import text_guard
 from app.moderation.events import WORKER_EVENT_TYPES
 from app.moderation.router import router as moderation_router
 from app.notifications import outbox_listener as notifications_outbox_listener
@@ -42,6 +45,15 @@ from app.product.router import router as product_router
 from app.storage import outbox_listener as storage_outbox_listener
 from app.system.router import router as system_router
 from app.users.router import router as users_router
+
+logger = logging.getLogger(__name__)
+
+# Uvicorn configures only its own loggers, so without a handler here the
+# `app.*` INFO lines (e.g. the moderation flags at startup) are dropped.
+_app_log_handler = logging.StreamHandler()
+_app_log_handler.setFormatter(logging.Formatter("%(levelname)s:     %(name)s - %(message)s"))
+logging.getLogger("app").addHandler(_app_log_handler)
+logging.getLogger("app").setLevel(logging.INFO)
 
 _outbox_task: asyncio.Task[None] | None = None
 _term_end_scheduler: AsyncIOScheduler | None = None
@@ -66,6 +78,23 @@ async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
     shutdown" lifecycle shape as the outbox poller, using APScheduler's own
     `start`/`shutdown(wait=False)` API rather than a second sleep loop."""
     global _outbox_task, _term_end_scheduler
+    logger.info(
+        "MODERATION_TEXT_ENABLED=%s MODERATION_IMAGE_ENABLED=%s",
+        settings.moderation_text_enabled,
+        settings.moderation_image_enabled,
+    )
+    if settings.legacy_moderation_enabled is not None:
+        logger.warning(
+            "MODERATION_ENABLED is no longer read; use MODERATION_TEXT_ENABLED "
+            "and MODERATION_IMAGE_ENABLED"
+        )
+    if settings.moderation_text_enabled:
+        # Imported here so the `ml` dependency group is needed only when enabled;
+        # a load error propagates and aborts startup.
+        from app.moderation.onnx_models import OnnxTextClassifier
+
+        text_guard.set_classifier(OnnxTextClassifier(Path(settings.moderation_models_dir) / "text"))
+
     notifications_outbox_listener.register()
     storage_outbox_listener.register()
     # `moderation.*` events belong to the separate moderation worker process.
@@ -85,6 +114,7 @@ async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
     with contextlib.suppress(asyncio.CancelledError):
         await _outbox_task
     _term_end_scheduler.shutdown(wait=False)
+    text_guard.set_classifier(None)
 
 
 app = FastAPI(lifespan=lifespan)

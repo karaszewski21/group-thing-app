@@ -15,6 +15,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.errors import AccessDeniedException, EntityNotFoundException
+from app.moderation.text_guard import TextField, check_text
 from app.party.models import PartyType
 from app.party.service import create_party
 from app.users.models import UserRoleType
@@ -48,6 +49,7 @@ async def _generate_unique_slug(db: AsyncSession, name: str) -> str:
 
 
 async def create_organization(db: AsyncSession, name: str) -> Organization:
+    await check_text(TextField.ORGANIZATION_NAME, name)
     party = await create_party(db, PartyType.ORGANIZATION)
     slug = await _generate_unique_slug(db, name)
     organization = Organization(party_id=cast(uuid.UUID, party.id), name=name, slug=slug)
@@ -135,6 +137,7 @@ async def update_organization(
     if own is None or own.id != organization.id:
         raise AccessDeniedException("You do not own this Organization")
 
+    await check_text(TextField.ORGANIZATION_NAME, data.name, organization.name)
     if data.name is not None:
         organization.name = data.name
     if data.primary_color is not None:

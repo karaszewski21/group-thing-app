@@ -13,6 +13,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.auth_deps import Principal
 from app.core.errors import BusinessConflictException, EntityNotFoundException
+from app.moderation.text_guard import TextField, check_text
 from app.users.service import get_profile_by_principal
 
 from ..infrastructure import notifications_bridge, product_bridge, repository
@@ -30,6 +31,7 @@ async def create_term(db: AsyncSession, principal: Principal, data: CreateTermRe
     profile = await get_profile_by_principal(db, principal)
     await get_group(db, data.circle_group_id)
     await _require_active_organizer(db, data.circle_group_id, profile.party_id)
+    await check_text(TextField.TERM_DESCRIPTION, data.description)
 
     term = Term(
         circle_group_id=data.circle_group_id, occurs_on=data.occurs_on, description=data.description
@@ -76,6 +78,7 @@ async def update_term(
     organizer may edit — enforced here, not by the coarse matrix."""
     term = await get_term(db, term_id)
     await _require_active_organizer(db, term.circle_group_id, caller_party_id)
+    await check_text(TextField.TERM_DESCRIPTION, data.description, term.description)
 
     if data.occurs_on is not None:
         term.occurs_on = data.occurs_on

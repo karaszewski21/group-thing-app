@@ -360,6 +360,15 @@ function usePanelDataValue() {
     [navigate],
   );
   const [modal, setModal] = useState<ModalKind>(null);
+  // Inline (E2) server errors for the "Dodaj grupę" / "Dodaj termin" modals —
+  // cleared whenever the matching modal opens, so the many close paths don't
+  // each have to reset them.
+  const [addGroupError, setAddGroupError] = useState<string | null>(null);
+  const [addTermError, setAddTermError] = useState<string | null>(null);
+  useEffect(() => {
+    if (modal === "grupa") setAddGroupError(null);
+    if (modal === "termin") setAddTermError(null);
+  }, [modal]);
   // Which "pierwszy-termin" variant to render, captured at the moment the
   // hamburger item is clicked rather than read live from `isOrganizer` at
   // render time — the GUEST stepper's own step 1 flips `isOrganizer` via a
@@ -819,6 +828,7 @@ function usePanelDataValue() {
   async function handleAddGroup() {
     if (!groupForm.name.trim()) return;
     setBusy(true);
+    setAddGroupError(null);
     try {
       // Non-idempotent — an organizer who already leads a Circle still gets
       // a genuinely NEW one here (unlike `createMyCircle`, which is reserved
@@ -837,8 +847,8 @@ function usePanelDataValue() {
       setModal(null);
       showToast("Dodano grupę");
       await load();
-    } catch {
-      showToast("Nie udało się dodać grupy");
+    } catch (err) {
+      setAddGroupError(serverMessageOr(err, "Nie udało się dodać grupy"));
     } finally {
       setBusy(false);
     }
@@ -877,17 +887,25 @@ function usePanelDataValue() {
   async function handleAddTerm() {
     if (!termGroupId || !termDate) return;
     setBusy(true);
+    setAddTermError(null);
     try {
+      // Resolve (and so moderate) every product name BEFORE creating the
+      // term: a rejected name must not leave a created term behind, or a
+      // retry would duplicate it. Products resolved before a rejected term
+      // description stay as orphans; a retry reuses them by name.
+      const products = [];
+      for (const draft of neededDraft) {
+        products.push(await resolveProduct({ name: draft.name, category_id: draft.category_id }));
+      }
       const term = await createTerm({
         circle_group_id: termGroupId,
         occurs_on: termDate,
         description: termDescription || undefined,
       });
-      for (const draft of neededDraft) {
-        const product = await resolveProduct({ name: draft.name, category_id: draft.category_id });
+      for (const [i, draft] of neededDraft.entries()) {
         await createNeededItem({
           term_id: term.id,
-          product_id: product.id,
+          product_id: products[i].id,
           description: draft.description || undefined,
         });
       }
@@ -898,8 +916,8 @@ function usePanelDataValue() {
       setModal(null);
       showToast("Dodano termin");
       await load();
-    } catch {
-      showToast("Nie udało się dodać terminu");
+    } catch (err) {
+      setAddTermError(serverMessageOr(err, "Nie udało się dodać terminu"));
     } finally {
       setBusy(false);
     }
@@ -1198,8 +1216,8 @@ function usePanelDataValue() {
       setModal(null);
       showToast("Zapisano zmiany grupy");
       await load({ silent: true });
-    } catch {
-      setEditGroupError("Nie udało się zapisać zmian — spróbuj ponownie");
+    } catch (err) {
+      setEditGroupError(serverMessageOr(err, "Nie udało się zapisać zmian — spróbuj ponownie"));
     } finally {
       setBusy(false);
     }
@@ -1303,6 +1321,8 @@ function usePanelDataValue() {
     editingGroupId,
     editGroupForm,
     editGroupError,
+    addGroupError,
+    addTermError,
     itemError,
     organizationSlug,
     view,

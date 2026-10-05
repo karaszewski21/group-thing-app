@@ -12,6 +12,7 @@ tuning knobs (not secrets) and keep the same defaults documented in
 
 from __future__ import annotations
 
+from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -37,17 +38,25 @@ class Settings(BaseSettings):
     # Public (CDN) base URL of the bucket, e.g. https://<bucket>.fra1.cdn.digitaloceanspaces.com
     spaces_public_base_url: str | None = None
 
-    # Off: new product texts and photos are approved right away. On: they stay
-    # PENDING until the moderation worker (`python -m app.moderation.worker`)
-    # scores them, so production must run the worker.
-    moderation_enabled: bool = False
-    # Exported ONNX models read by the worker (`<dir>/text`, `<dir>/image`).
+    # Independent switches: text is checked synchronously in the API (Bielik-Guard
+    # loaded at startup); photos are scored asynchronously by the worker via VPS B.
+    moderation_text_enabled: bool = False
+    moderation_image_enabled: bool = False
+    # Exported ONNX models (`<dir>/text`).
     moderation_models_dir: str = "/models"
-    # Photo NSFW score: >= reject -> REJECTED, >= review -> NEEDS_REVIEW.
+    # Any Bielik-Guard category score >= this -> the write is rejected (400).
+    moderation_text_reject_threshold: float = 0.8
+    # Applied per ShieldGemma category: >= reject -> REJECTED, >= review -> NEEDS_REVIEW.
     moderation_image_review_threshold: float = 0.5
-    moderation_image_reject_threshold: float = 0.97
-    # Any Bielik-Guard category score >= this -> NEEDS_REVIEW (never auto-reject).
-    moderation_text_review_threshold: float = 0.5
+    moderation_image_reject_threshold: float = 0.9
+    # VPS B image moderation service (ShieldGemma-2), called by the worker.
+    moderation_ai_url: str | None = None
+    moderation_ai_token: str | None = None
+    moderation_ai_timeout_seconds: int = 120
+    # Removed `MODERATION_ENABLED`; read only so startup can warn that it is ignored.
+    legacy_moderation_enabled: str | None = Field(
+        default=None, validation_alias="MODERATION_ENABLED"
+    )
 
     @property
     def cors_allowed_origins_list(self) -> list[str]:
