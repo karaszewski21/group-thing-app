@@ -14,7 +14,7 @@ from __future__ import annotations
 import asyncio
 import time
 import uuid
-from collections.abc import Mapping
+from collections.abc import Awaitable, Callable, Collection, Mapping
 from dataclasses import dataclass
 from typing import Any, cast
 
@@ -32,7 +32,6 @@ from app.core.errors import (
     EntityNotFoundException,
 )
 from app.moderation import rules
-from app.moderation.events import PHOTO_MODERATION_REQUESTED
 from app.moderation.status import ModerationStatus
 from app.moderation.text_guard import TextField, check_text
 from app.outbox import service as outbox_service
@@ -270,6 +269,47 @@ async def product_photos(db: AsyncSession, product_id: uuid.UUID) -> list[Produc
     return list(result.scalars().all())
 
 
+# Photos still waiting for (or under) moderation: an item of their product
+# cannot be listed in a term until none is left.
+UNMODERATED_STATUSES = (ModerationStatus.PENDING, ModerationStatus.NEEDS_REVIEW)
+
+
+def _unmoderated_product_ids_select() -> Select[tuple[uuid.UUID]]:
+    return (
+        select(ProductPhoto.product_id)
+        .where(ProductPhoto.status.in_(UNMODERATED_STATUSES))
+        .distinct()
+    )
+
+
+async def product_ids_with_unmoderated_photos(
+    db: AsyncSession, product_ids: Collection[uuid.UUID]
+) -> set[uuid.UUID]:
+    """Which of `product_ids` have a PENDING or NEEDS_REVIEW photo, in one
+    query."""
+    if not product_ids:
+        return set()
+    result = await db.execute(
+        _unmoderated_product_ids_select().where(ProductPhoto.product_id.in_(product_ids))
+    )
+    return set(result.scalars().all())
+
+
+async def list_product_ids_with_unmoderated_photos(db: AsyncSession) -> list[uuid.UUID]:
+    """Every product with a PENDING or NEEDS_REVIEW photo, ordered by id."""
+    result = await db.execute(_unmoderated_product_ids_select().order_by(ProductPhoto.product_id))
+    return list(result.scalars().all())
+
+
+async def has_unmoderated_photos(db: AsyncSession, product_id: uuid.UUID) -> bool:
+    """Whether the product has a PENDING or NEEDS_REVIEW photo. Takes a
+    FOR SHARE lock on the product row first, so the check serializes with
+    `add_product_photo`'s FOR UPDATE: a concurrent upload is either seen or
+    runs (and withdraws) after the caller commits."""
+    await db.execute(select(Product.id).where(Product.id == product_id).with_for_update(read=True))
+    return product_id in await product_ids_with_unmoderated_photos(db, [product_id])
+
+
 @dataclass(frozen=True)
 class PhotoView:
     """A gallery photo as shown to one viewer. Approved files are public on
@@ -332,11 +372,17 @@ async def add_product_photo(
     data: bytes,
     principal: Principal,
     storage: ObjectStorage | None,
+    on_pending_photo: Callable[[AsyncSession, uuid.UUID], Awaitable[None]] | None = None,
 ) -> PhotoView:
     """Sanitizes the upload (outside the product lock, as it is CPU work),
     stores both WebP sizes and records the photo. With moderation on, the
-    files stay private and the worker is asked to score the photo. A
-    rejected photo still counts as a duplicate, so it cannot be re-uploaded."""
+    files stay private, VPS B's cron scores the photo, and
+    `on_pending_photo` (the router's groups withdraw — `app.product` must not
+    import `app.groups`) takes all items of the product out of terms in the
+    same transaction, under the product lock. Nothing in the hook commits:
+    on any failure the session is rolled back and both stored files are
+    deleted. A rejected photo still counts as a duplicate, so it cannot be
+    re-uploaded."""
     if storage is None:
         raise BusinessConflictException(PHOTO_UPLOAD_DISABLED_MESSAGE)
     processed = await asyncio.to_thread(images.process_upload, data)
@@ -365,14 +411,13 @@ async def add_product_photo(
     )
     await storage.put(photo.large_key, processed.large, "image/webp", public=approved)
     await storage.put(photo.thumb_key, processed.thumb, "image/webp", public=approved)
-    db.add(photo)
-    if not approved:
-        await outbox_service.append(
-            db, event_type=PHOTO_MODERATION_REQUESTED, payload={"photo_id": photo_id}
-        )
     try:
+        db.add(photo)
+        if not approved and on_pending_photo is not None:
+            await on_pending_photo(db, product_id)
         await db.commit()
     except Exception:
+        await db.rollback()
         await storage.delete([photo.large_key, photo.thumb_key])
         raise
     return photo_view(photo, storage)

@@ -165,7 +165,8 @@ export function ItemGalleryEditor({ photos, busy, onAdd, onRemove, onMove, onClo
       <PhotoFileField inputRef={inputRef} disabled={busy || atLimit} onFiles={handleFiles} onEscape={onClose} />
       {atLimit && <p className="mt-1.5 text-[12.5px] text-ink-soft">Osiągnięto limit {MAX_PRODUCT_PHOTOS} zdjęć.</p>}
       <p className="mt-1.5 text-[11.5px] text-ink-soft">
-        Zdjęcia są wspólne dla wszystkich rzeczy tego produktu. Inni zobaczą je po sprawdzeniu.
+        Zdjęcia są wspólne dla wszystkich rzeczy tego produktu. Inni zobaczą je po sprawdzeniu. Nowe zdjęcie
+        zdejmuje te rzeczy z terminów do czasu jego zatwierdzenia.
       </p>
       {error && (
         <p role="alert" className="mt-1.5 text-[12.5px] font-semibold text-danger">

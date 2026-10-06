@@ -500,3 +500,70 @@ describe("ItemDetailPage fallbacks", () => {
     expect(await screen.findByText("Panel rzeczy")).toBeInTheDocument();
   });
 });
+
+describe("ItemEditPage photo moderation notice", () => {
+  const NOTICE =
+    "Rzecz zdjęta z terminów do czasu zatwierdzenia zdjęć. Tryb wypożyczę/oddam/zamienię włączysz ponownie w „Moje rzeczy”.";
+
+  function withSecondPhoto(status: productsApi.ModerationStatus): ItemDetailsResponse {
+    const base = details();
+    return details({ photos: [base.photos[0], { ...base.photos[1], status }] });
+  }
+
+  beforeEach(() => {
+    vi.resetAllMocks();
+    vi.mocked(itemsApi.getItemHistory).mockResolvedValue(history);
+    vi.mocked(categoriesApi.getCategories).mockResolvedValue(categories);
+  });
+
+  it.each(["PENDING", "NEEDS_REVIEW"] as const)(
+    "edit page shows role=status notice with link to /panel/rzeczy when a photo is %s",
+    async (status) => {
+      vi.mocked(itemsApi.getItemDetails).mockResolvedValue(withSecondPhoto(status));
+      renderPage(`/product/${ITEM_ID}/edit`);
+
+      await screen.findByRole("heading", { name: "Edycja rzeczy" });
+      const notice = screen
+        .getAllByRole("status")
+        .find((el) => el.textContent?.includes("Rzecz zdjęta z terminów"));
+      if (!notice) throw new Error("moderation notice not rendered");
+      expect(notice).toHaveTextContent(NOTICE);
+      expect(within(notice).getByRole("link", { name: "Moje rzeczy →" })).toHaveAttribute(
+        "href",
+        "/panel/rzeczy",
+      );
+      // Placed before the photos card.
+      const photosHeading = screen.getByRole("heading", { name: /^Zdjęcia \(/ });
+      expect(
+        notice.compareDocumentPosition(photosHeading) & Node.DOCUMENT_POSITION_FOLLOWING,
+      ).toBeTruthy();
+    },
+  );
+
+  it("edit page hides the notice when all photos are APPROVED/REJECTED; the view never shows it", async () => {
+    vi.mocked(itemsApi.getItemDetails).mockResolvedValue(withSecondPhoto("REJECTED"));
+    const { unmount } = renderPage(`/product/${ITEM_ID}/edit`);
+
+    await screen.findByRole("heading", { name: "Edycja rzeczy" });
+    expect(screen.queryByText(/Rzecz zdjęta z terminów/)).not.toBeInTheDocument();
+    unmount();
+
+    vi.mocked(itemsApi.getItemDetails).mockResolvedValue(withSecondPhoto("PENDING"));
+    renderPage(`/product/${ITEM_ID}`);
+    await screen.findByRole("heading", { name: "Wózek spacerowy Baby Jogger" });
+    expect(screen.queryByText(/Rzecz zdjęta z terminów/)).not.toBeInTheDocument();
+  });
+
+  it("gallery helper text contains the appended sentence", async () => {
+    vi.mocked(itemsApi.getItemDetails).mockResolvedValue(details());
+    renderPage(`/product/${ITEM_ID}/edit`);
+
+    fireEvent.click(await screen.findByRole("button", { name: "Edytuj zdjęcia" }));
+    expect(
+      screen.getByText(
+        "Zdjęcia są wspólne dla wszystkich rzeczy tego produktu. Inni zobaczą je po sprawdzeniu. " +
+          "Nowe zdjęcie zdejmuje te rzeczy z terminów do czasu jego zatwierdzenia.",
+      ),
+    ).toBeInTheDocument();
+  });
+});

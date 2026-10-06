@@ -22,9 +22,11 @@ from app.circulation.application.inventory import (
     list_inventories,
 )
 from app.circulation.application.inventory_items import (
+    find_item_including_deleted,
     get_active_reservation_id_for_item,
     get_item,
     get_item_balance,
+    get_item_for_share,
     get_item_with_product_name,
     list_items,
     list_items_with_product_name,
@@ -42,6 +44,7 @@ from app.circulation.application.reservation_transitions import (
     confirm_reservation,
     fulfill_exchange,
     fulfill_reservation,
+    release_reservation,
 )
 from app.circulation.application.reservations import (
     create_lend_reservation,
@@ -53,6 +56,7 @@ from app.circulation.application.reservations import (
     list_reservations,
 )
 from app.circulation.domain.reservation_rules import require_raw_route_reservation_type
+from app.circulation.infrastructure.repository import list_item_ids_for_product
 
 __all__ = [
     "cancel_exchange",
@@ -63,6 +67,7 @@ __all__ = [
     "create_reservation",
     "create_return_reservation",
     "fulfill_exchange",
+    "find_item_including_deleted",
     "find_user_id_by_principal",
     "fulfill_reservation",
     "get_active_reservation_id_for_item",
@@ -70,6 +75,7 @@ __all__ = [
     "get_item",
     "get_item_balance",
     "get_item_details",
+    "get_item_for_share",
     "get_item_history",
     "get_item_with_product_name",
     "get_or_create_personal_inventory",
@@ -79,11 +85,13 @@ __all__ = [
     "list_active_hand_over_reservations_for_terms",
     "list_active_reservations_for_taker",
     "list_inventories",
+    "list_item_ids_for_product",
     "list_items",
     "list_items_with_product_name",
     "list_lent_out_items_with_product_name",
     "list_reservations",
     "register_item",
+    "release_reservation",
     "require_raw_route_reservation_type",
     "resolve_owning_inventory",
     "soft_delete_item",

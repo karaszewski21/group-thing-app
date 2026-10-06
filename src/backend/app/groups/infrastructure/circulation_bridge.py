@@ -7,7 +7,12 @@ and `application/attendance` drive the ItemListingPreference->Reservation
 bridge the same way, via the `create_reservation`/`list_reservations`
 pass-throughs and the re-exported `ReservationType`; a Term transaction is
 resolved in one circulation commit through `fulfill_exchange`/
-`cancel_exchange`."""
+`cancel_exchange`. The photo-moderation withdraw reaches every item of a
+product through `list_item_ids_for_product` and releases a rejected swap
+proposer's reservation through `release_reservation`, the flush-only
+cancel that stays inside the caller's transaction; the publish gate reads
+the item through `get_item_for_share`, so a concurrent re-point serializes
+against it."""
 
 from __future__ import annotations
 
@@ -41,19 +46,23 @@ __all__ = [
     "confirm_reservation",
     "create_lend_reservation",
     "create_reservation",
+    "find_item_including_deleted",
     "find_personal_inventory",
     "fulfill_exchange",
     "get_inventory",
     "get_item",
     "get_item_balance",
+    "get_item_for_share",
     "get_or_create_personal_inventory",
     "get_reservation",
     "list_active_hand_over_reservations_for_terms",
     "list_active_reservations_for_taker",
+    "list_item_ids_for_product",
     "list_items_with_product_name",
     "list_lent_out_items_with_product_name",
     "list_reservations",
     "register_item",
+    "release_reservation",
     "resolve_owning_inventory",
 ]
 
@@ -121,6 +130,19 @@ async def confirm_reservation(db: AsyncSession, reservation_id: uuid.UUID, actin
 async def cancel_reservation(db: AsyncSession, reservation_id: uuid.UUID, acting_user_id: uuid.UUID) -> Reservation:
     """Thin pass-through, same shape as `confirm_reservation` above."""
     return await circulation_service.cancel_reservation(db, reservation_id, acting_user_id)
+
+
+async def release_reservation(
+    db: AsyncSession, reservation_id: uuid.UUID, acting_user_id: uuid.UUID
+) -> Reservation:
+    """Same cancel as `cancel_reservation` but flush-only: used by the
+    photo-moderation withdraw, whose caller owns the single commit."""
+    return await circulation_service.release_reservation(db, reservation_id, acting_user_id)
+
+
+async def list_item_ids_for_product(db: AsyncSession, product_id: uuid.UUID) -> list[uuid.UUID]:
+    """Every item of the product, soft-deleted ones included."""
+    return await circulation_service.list_item_ids_for_product(db, product_id)
 
 
 async def fulfill_exchange(
@@ -191,6 +213,18 @@ async def list_lent_out_items_with_product_name(
 
 async def get_item(db: AsyncSession, item_id: uuid.UUID) -> InventoryItem:
     return await circulation_service.get_item(db, item_id)
+
+
+async def get_item_for_share(db: AsyncSession, item_id: uuid.UUID) -> InventoryItem:
+    """`get_item` under a FOR SHARE item row lock — see
+    `app.circulation.application.inventory_items.get_item_for_share`."""
+    return await circulation_service.get_item_for_share(db, item_id)
+
+
+async def find_item_including_deleted(db: AsyncSession, item_id: uuid.UUID) -> InventoryItem | None:
+    """Used by the photo-moderation withdraw, which also reaches soft-deleted
+    items."""
+    return await circulation_service.find_item_including_deleted(db, item_id)
 
 
 async def get_item_balance(db: AsyncSession, item_id: uuid.UUID) -> InventoryBalance:

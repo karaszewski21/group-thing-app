@@ -2,7 +2,7 @@
 
 # Production API image (default target, needs the gated Bielik-Guard model):
 #   docker build --secret id=hf_token,env=HF_TOKEN src/backend
-# Model-free targets (no secret needed): `--target runtime-dev`, `--target worker`.
+# Model-free target (no secret needed): `--target runtime-dev`.
 
 FROM python:3.12-slim AS builder
 
@@ -36,16 +36,6 @@ get('speakleash/Bielik-Guard-0.1B-v1.1', 'tokenizer.json', local_dir='/models/te
 
 FROM builder AS ml-builder
 RUN uv sync --frozen --no-dev --group ml
-
-# --- Photo moderation worker (calls VPS B; no ML deps, no models) ----------
-FROM python:3.12-slim AS worker
-
-WORKDIR /app
-
-COPY --from=builder /app /app
-ENV PATH="/app/.venv/bin:$PATH"
-
-CMD ["python", "-m", "app.moderation.worker"]
 
 # --- API without the text model (dev compose) -----------------------------
 FROM python:3.12-slim AS runtime-dev

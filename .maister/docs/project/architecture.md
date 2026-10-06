@@ -44,15 +44,21 @@ Plugin iframes reach the same routers via the host's browser SDK, which attaches
 ## Photo Upload and Content Moderation
 
 ```
-POST /api/products/{id}/photos (multipart) → Pillow sanitize → Spaces (private) → product_photos(PENDING) + outbox
-                                                                                         ↓ moderation.photo_requested
-moderation-worker (python -m app.moderation.worker) → VPS B POST /v1/moderate/image (ShieldGemma-2)
-      → per-category scores → APPROVED (files public-read, CDN)
-                             | NEEDS_REVIEW → /api/moderation (ADMIN)
-                             | REJECTED (files stay private)
+POST /api/products/{id}/photos (multipart) → Pillow sanitize → Spaces (private)
+      → one transaction under the product FOR UPDATE lock:
+          product_photos(PENDING) + withdraw all items of the product from terms → COMMIT
+                                   ↓ (shared Postgres, polled)
+VPS B moderation-cron (group-thing-ai, python -m app.moderation_cron, every 30 s)
+      → claim PENDING (FOR UPDATE SKIP LOCKED) → Spaces get → ShieldGemma-2 in-process
+      → APPROVED (files public-read, CDN)
+      | NEEDS_REVIEW → /api/moderation (ADMIN)   (files private)
+      | REJECTED                                 (files private)
+      + one moderation_decisions row (source AI, automated)
+
+PUT /api/item-listing-preferences/{item_id} (mode ≠ null) → 409 while the product has a PENDING/NEEDS_REVIEW photo
 ```
 
-Two independent flags, both default `false`: `MODERATION_TEXT_ENABLED` (API) and `MODERATION_IMAGE_ENABLED` (API + worker). The API logs both at startup. The old `MODERATION_ENABLED` is ignored (unknown env vars are dropped), so a stale `.env` that still sets it gets photos approved on upload.
+Two independent flags, both default `false`: `MODERATION_TEXT_ENABLED` (API) and `MODERATION_IMAGE_ENABLED` (API). The API logs both at startup. The old `MODERATION_ENABLED` is ignored (unknown env vars are dropped), so a stale `.env` that still sets it gets photos approved on upload. `MODERATION_IMAGE_ENABLED=true` must be paired with `MODERATION_CRON_ENABLED=true` on VPS B: with the app flag on and the cron off, photos stay PENDING and their items cannot be listed (an admin can still decide them in the queue); with the app flag off, uploads are APPROVED at once and the cron has nothing to do.
 
 **Text: synchronous and reject-only, in the API process.**
 - `app/moderation/text_guard.py` `check_text(field, new, current=None)` runs Bielik-Guard-0.1B (ONNX, 1 intra-op thread) via `asyncio.to_thread` before the write.
@@ -63,33 +69,64 @@ Two independent flags, both default `false`: `MODERATION_TEXT_ENABLED` (API) and
 - No text status is stored and no text goes through the queue: products have no `text_status`/`text_moderated_hash` (migration 0047 marks leftover `moderation.text_requested` events PROCESSED and moves PENDING photos whose event already FAILED to NEEDS_REVIEW; 0048 drops the columns). Old `PRODUCT_TEXT` decisions remain only as audit rows.
 - The synchronous contact-info regex rules (`rules.py`, 400) are unchanged.
 
-**Photos: asynchronous, in the slim `moderation-worker`.**
-- The worker has no ONNX/ML code. `app/moderation/ai_client.py` posts each photo with httpx and a bearer token to VPS B `POST /v1/moderate/image` (ShieldGemma-2), with a `MODERATION_AI_TIMEOUT_SECONDS` (120) per-call timeout.
-- With `MODERATION_IMAGE_ENABLED=false`, uploads are APPROVED at once and the worker logs and exits 0. With it on, the worker fails at startup if `MODERATION_AI_URL`, `MODERATION_AI_TOKEN` or storage (`SPACES_*`) is missing.
-- `service.process_next(db, client, storage)` runs claim → score → finalize on one `moderation.photo_requested` outbox event. The worker loops on it and sleeps 5 s when nothing is eligible.
-  - The lease is the event's `attempts` counter: the claim increments it, and every finalize is guarded with `WHERE attempts = :claimed`, so a lost lease discards its result.
-  - Any exception after the claim counts as one failed attempt. The retry backoff is timeout + 30 s·2^(n-1), anchored at the end of each attempt.
-  - After 5 attempts the photo goes to NEEDS_REVIEW with a null-score decision (shown as "No model score" in the admin queue), about 25 min in the worst case.
-  - Run a **single worker replica**. The lease guard is a safety net, not a scaling mechanism.
-- Decisions are made per category: `sexual`/`violence`/`dangerous` score ≥ `MODERATION_IMAGE_REVIEW_THRESHOLD` (0.5) → NEEDS_REVIEW, ≥ `MODERATION_IMAGE_REJECT_THRESHOLD` (0.9) → REJECTED; `weapons` is review-only. The most severe outcome wins.
-- The outbox is split by event type: the API poller uses `exclude_event_types=WORKER_EVENT_TYPES` (photo events only), and the worker claims only those.
+**Photos: asynchronous, decided by the cron on VPS B.**
+- The decision logic lives only in `group-thing-ai` (`app/photo_moderation.py`, `app/moderation_cron.py`; see its README "Photo moderation cron"). The `moderation-cron` compose service (profile `shield`, switched by `MODERATION_CRON_ENABLED`) reads PENDING `product_photos` straight from the shared Postgres and scores them with ShieldGemma-2 in-process. The app sends nothing to VPS B for moderation.
+- Every `MODERATION_CRON_INTERVAL_S` (30) it processes up to `MODERATION_CRON_BATCH` (5) photos, oldest first, one at a time. A tick is skipped while the shield is unhealthy, so an outage uses up no attempts.
+- Per category: `sexual`/`violence`/`dangerous` score ≥ `MODERATION_IMAGE_REVIEW_THRESHOLD` (0.5) → NEEDS_REVIEW, ≥ `MODERATION_IMAGE_REJECT_THRESHOLD` (0.9) → REJECTED; `weapons` is review-only. The most severe outcome wins. The cron reads these thresholds from its own `.env.cron`; the app has no image thresholds.
+- APPROVED makes both files (`w1600`, `w400`) public before the status write. Every other outcome makes both files private first, every time, because an earlier attempt may have left them public.
+- **Retry state** is on the photo row (migration 0049): `moderation_attempts` (INTEGER NOT NULL, default 0) and `moderation_retry_at` (naive UTC TIMESTAMP), plus the partial index `ix_product_photos_pending_created_at` on `(created_at, id) WHERE status = 'PENDING'`. Only VPS B writes them.
+  - The claim increments `moderation_attempts` and sets a lease in `moderation_retry_at`. The finalize is guarded with `WHERE status = 'PENDING' AND moderation_attempts = :claimed`, so an admin decision or a delete during scoring wins and the cron's result is discarded.
+  - A failed attempt is retried after timeout + 30 s·2^(n-1), measured from the failure. After 5 attempts the photo goes to NEEDS_REVIEW with the note "AI unavailable after 5 attempts" and a null-score decision (shown as "No model score" in the admin queue).
+  - Every B update sets `updated_at` explicitly, because it is the ORM's optimistic-lock token. A concurrent app update of the same photo (e.g. reorder) can rarely fail with the existing 409 `StaleDataError` response.
+- VPS A runs no photo worker: `add_product_photo` writes no outbox event for moderation, and the app has no VPS B client or `MODERATION_AI_*` settings. `MODERATION_IMAGE_ENABLED` is the app's only photo-moderation switch (true = uploads stay PENDING until the cron decides). Leftover `moderation.photo_requested` outbox rows from the old worker are marked PROCESSED by the API poller (no handler).
+
+**Publish gate and withdraw (`app/groups/application/term_item_listings.py`).**
+- A product with any PENDING or NEEDS_REVIEW photo cannot be listed. The rule is product-wide, so a co-owner's upload blocks every owner of that catalog product.
+- **Gate**: `PUT /api/item-listing-preferences/{item_id}` with a non-null mode raises `BusinessConflictException(PHOTOS_IN_MODERATION_MESSAGE)` → 409 (legacy envelope). `mode: null` is always allowed. `product_bridge.has_unmoderated_photos` takes `FOR SHARE` on the product row, which serializes it with an upload's `FOR UPDATE` lock.
+- **Withdraw on upload**: `app/product/router.py` passes `on_pending_photo=term_item_listings.withdraw_product_listings` to `add_product_photo`. When the new photo is PENDING, one `try` covers `db.add(photo)`, the hook and the single `db.commit()`, all under the product's FOR UPDATE lock. The hook deletes the `item_listing_preferences` of every inventory item of the product (all owners) and auto-rejects each PROPOSED swap where one of those items is the target or the counter-offer. If any step fails, the session is rolled back, both Spaces objects are deleted and the error is re-raised, so nothing is stored.
+- **Withdraw on re-point**: `app/circulation/router.py` passes `on_product_changed=term_item_listings.withdraw_item_listing_if_photos_pending` to `update_item`. When an item's `product_id` changes to a product with an unmoderated photo, the same withdraw runs for that one item in the same transaction as the re-point.
+- `_withdraw_items` only flushes. It releases each rejected proposer reservation with `circulation_bridge.release_reservation`, a flush-only wrapper of `_cancel` (the public `cancel_reservation` commits, so it must not be used here). It then sets the proposal to REJECTED and sends `SWAP_REJECTED` to the proposer only, with a message saying the photos are in moderation. The listing owner is not notified. Active (PENDING/CONFIRMED) reservations, ACCEPTED swaps and balances are untouched.
+- The hooks are router-injected callbacks because `app.product` and `app.circulation` must not import `app.groups` (groups already imports them through the bridges).
+- **Taken-list fallback**: when an active, non-RETURN reservation's preference was cleared, `list_my_active_taken_term_item_listings` builds a transient `ItemListingPreference` (never added to the session) from the reservation, so the taker still sees the item and can confirm it.
+- **UI flag**: `GET /api/inventory-items/mine` returns `photos_moderation_pending` per item (one batched `product_ids_with_unmoderated_photos` query). "Moje rzeczy" disables the mode toggles, shows the "Zdjęcia w moderacji" pill and re-reads the items every 10 s while any item is pending. The item edit page shows a notice while a photo is PENDING/NEEDS_REVIEW.
+- Withdrawn listings are not restored after approval; owners turn the mode back on.
+
+**One-time cleanup (run once at the cutover, step 4 below).** `src/backend/scripts/withdraw_unmoderated_listings.py` withdraws the listings of items whose product already has a PENDING/NEEDS_REVIEW photo. It uses one transaction per product with a `FOR SHARE` re-check, is idempotent, and is deliberately not an Alembic data migration: `docker compose exec backend python -m scripts.withdraw_unmoderated_listings`. A product that fails is rolled back and logged (product id and full traceback) and the run continues; the final log line gives the withdrawn and failed counts, and the script exits with status 1 if any product failed (0 otherwise). Re-run it after fixing a failure.
+
+**VPS B depends on these columns and privileges.** The least-privilege role `gt_moderation_cron` is created by `group-thing-ai/scripts/moderation_db_role.sql` (column-level grants only). The cron's startup self-check verifies the same list (`REQUIRED_PRIVILEGES` in `group-thing-ai/app/photo_store.py`) and exits non-zero if a column or grant is missing. A migration that renames, drops or retypes any of these columns needs a matching change in both files:
+- `product_photos` SELECT: `id, storage_key, content_sha256, status, moderation_attempts, moderation_retry_at, created_at, updated_at`
+- `product_photos` UPDATE: `status, moderation_attempts, moderation_retry_at, updated_at`
+- `moderation_decisions` INSERT: `id, subject_type, subject_id, content_hash, source, automated, model_id, scores, thresholds, outcome, note, created_at, updated_at`
+
+The cron connects over the VPC with `?ssl=require` (`pg_hba.conf`: `hostssl aj gt_moderation_cron <VPS_B_VPC_IP>/32 scram-sha-256`; the firewall allows 5432 only from VPS B). Its DB and Spaces credentials live only in `.env.cron` on VPS B, which the B `api` service does not load.
 
 **Shared pieces.**
 - `app/storage/` — `ObjectStorage` protocol + `SpacesStorage` (boto3); `get_storage()` returns `None` while the `SPACES_*` settings are unset (upload disabled). `storage.objects_delete` outbox events delete files after their rows are gone.
-- `app/moderation/` — `ModerationStatus` (PENDING/APPROVED/NEEDS_REVIEW/REJECTED) per photo; append-only `moderation_decisions` audit log; ADMIN queue/decisions router (photos only).
+- `app/moderation/` — `ModerationStatus` (PENDING/APPROVED/NEEDS_REVIEW/REJECTED) per photo; append-only `moderation_decisions` audit log (automated rows are written by VPS B); ADMIN queue/decisions router (photos only), which sets the file ACLs on every decision.
 - Non-owners see only APPROVED photos.
 
 **Images and deployment.**
 - The production API image is the default (last) Dockerfile stage `runtime`. It contains the `ml` uv group and Bielik-Guard, which is exported to ONNX at build time from the gated HF repo, so it needs the secret: `docker build --secret id=hf_token,env=HF_TOKEN src/backend`. Expect about +0.6–0.8 GB RSS per uvicorn process.
-- `runtime-dev` (used by compose) has no model and needs no secret, so text moderation is off in dev. `worker` has no `ml` group and no secret.
-- Deployment order for this change: stop the old worker → run migrations 0047/0048 → deploy the new worker → enable `MODERATION_IMAGE_ENABLED` on the API.
-- 0048 is not zero-downtime: any API or worker process from before it fails on every product query once the columns are dropped, so recreate all backend containers together (expect a few seconds of errors) and leave no old one running.
-- Rolling back past 0048: the old image's `alembic upgrade head` does not know revision 0048 and its model reads `text_status`. First run `alembic downgrade 0046` **with the new image** (restores the columns; 0047's data changes are not reverted), then deploy the old image.
+- `runtime-dev` (used by compose) has no model and needs no secret, so text moderation is off in dev.
+- 0048 is not zero-downtime: any API or worker process from before it fails on every product query once the columns are dropped. Rolling back past 0048: first run `alembic downgrade 0046` **with the new image** (restores the columns; 0047's data changes are not reverted), then deploy the old image.
+
+**Cutover to the VPS B cron.** The app ships as **one combined release**: migration 0049, the publish gate, withdraw on upload and on re-point, the taken-list fallback and the UI flag, together with the removal of the old `moderation-worker`. The `group-thing-ai` README ("Cutover") lists the same steps with the full smoke check.
+1. **Network and role prepared.** Add the `pg_hba` entry, the VPC listen address with TLS and the firewall rule, and have `moderation_db_role.sql` and a generated password ready. No SQL yet: the script grants columns that only exist after 0049.
+2. **VPS B, cron off.** Check that Docker Compose is 2.24 or newer (`docker compose version`); the compose file needs it. Put `.env.cron` in place with `MODERATION_CRON_ENABLED=false` and deploy; a disabled cron exits 0. Check that the B `api` container has no `DATABASE_URL`/`SPACES_*`.
+3. **VPS A, app release.** Keep `MODERATION_IMAGE_ENABLED=false` and deploy with `docker compose up -d --remove-orphans`. Migration 0049 runs and `--remove-orphans` removes the old `moderation-worker` container. `--remove-orphans` removes **every** running container that is not defined in the deployed compose file, so first make sure everything that must keep running on VPS A is in that file. **Then** run `moderation_db_role.sql` as the DB owner.
+4. **Cleanup.** Run the cleanup script (above). Re-running it is safe.
+5. **Enable the cron.** Set `MODERATION_CRON_ENABLED=true` and recreate `moderation-cron`. Its self-check (config, TLS, columns, per-column privileges) must pass.
+6. **Smoke test with real Spaces and ShieldGemma.** Re-queue a benign and a borderline test photo as PENDING. The benign one must end APPROVED with public files, the borderline one NEEDS_REVIEW/REJECTED with private files, and each must have one new `moderation_decisions` row.
+7. **Only then** set `MODERATION_IMAGE_ENABLED=true` on VPS A and recreate the backend.
+
+**Moderation gap.** From step 3 until step 7 nothing moderates photos: the worker is gone and the cron is either off or only being verified. This is deliberate and safe, because with `MODERATION_IMAGE_ENABLED=false` new uploads are auto-approved, the same as before the release. Keep the gap short.
+
+Rollback: set `MODERATION_IMAGE_ENABLED=false` on VPS A (uploads are auto-approved again) and/or `MODERATION_CRON_ENABLED=false` on VPS B. Migration 0049 is additive, so there is no need to downgrade it. Withdrawn listings are not restored. If you redeploy an older app image that still contains the old `moderation-worker`, **first** disable the cron (`MODERATION_CRON_ENABLED=false` and recreate, or stop `moderation-cron`) so the two never moderate photos at the same time.
 
 ## External Integrations
 - **PostgreSQL 18**: Primary datastore, run via `docker-compose.yml`
 - **DigitalOcean Spaces** (S3 API) + CDN: user-uploaded product photos
-- **VPS B AI service** (`group-thing-ai`): `POST /v1/moderate/image` (ShieldGemma-2, bearer token), called only by the photo moderation worker
+- **VPS B AI service** (`group-thing-ai`): its `moderation-cron` connects to this Postgres as `gt_moderation_cron` and to Spaces to moderate photos (see above). The app makes no calls to VPS B (its `POST /v1/moderate/image` endpoint stays there for dev/manual checks)
 - No other external API integrations exist. The footprint domain's `app/footprint/ports.py`/`stubs.py` define ports for an emission-factor/product-attribute adapter that remains stubbed (out of scope for this migration)
 
 ## Database Schema
@@ -149,7 +186,7 @@ Five spot-checked directories, confirmed 1:1 against the real tree above: `app/c
 - **Frontend service**: `src/frontend/Dockerfile` is a two-stage build (Node builds the Vite SPA to `dist/`, then an nginx:alpine image serves it) driven from the **repo root** as build context — not `src/frontend/` — because `src/frontend`'s test suite imports the sibling `plugins/server-sdk.ts` by relative path, so that file must be present in the build context too (see `.dockerignore` at the repo root, which scopes that context down to just `src/frontend/` + `plugins/server-sdk.ts`). nginx reverse-proxies `/api/*` and `/oauth2/*` to the `backend` service and falls back to `index.html` for all other paths (client-side routing)
 - `src/frontend/vite.config.ts`'s dev-proxy (`npm run dev`, port 5173) now proxies both `/api` and `/oauth2` to `localhost:8080` — the OAuth2 authorize page does a real browser form-POST to `/oauth2/authorize`, not just `fetch()` calls under `/api`
 - Individual plugin apps (`plugins/warehouse`, `plugins/box-size`, `plugins/ai-description`) are **not** part of `docker-compose.yml` — they remain standalone dev-server processes per `plugins/CLAUDE.md`'s documented workflow, registered with the host via `PUT /api/plugins/{pluginId}/manifest`
-- `backend` builds the model-free `runtime-dev` target with `MODERATION_TEXT_ENABLED` fixed to `"false"`. The opt-in `moderation-worker` service (`docker compose --profile moderation up`, `target: worker`, no build secret) runs `python -m app.moderation.worker` and needs `MODERATION_IMAGE_ENABLED=true` plus `MODERATION_AI_URL`/`MODERATION_AI_TOKEN`; otherwise it exits at once
+- `backend` builds the model-free `runtime-dev` target with `MODERATION_TEXT_ENABLED` fixed to `"false"`. There is no photo worker service: photo moderation runs only in VPS B's `moderation-cron`, so a local stack with `MODERATION_IMAGE_ENABLED=true` keeps photos PENDING unless that cron is running
 - nginx allows request bodies up to 16 MB on `/api/` (photo uploads; the backend caps a photo at 15 MB)
 - No CI/CD yet
 

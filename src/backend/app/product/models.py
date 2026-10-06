@@ -9,9 +9,10 @@ is a plain FK-id column into the standalone `app.category` module's
 from __future__ import annotations
 
 import uuid
+from datetime import datetime
 from typing import Any
 
-from sqlalchemy import Enum, ForeignKey, Integer, String, UniqueConstraint
+from sqlalchemy import DateTime, Enum, ForeignKey, Integer, String, UniqueConstraint
 from sqlalchemy.dialects import postgresql
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
@@ -94,6 +95,13 @@ class ProductPhoto(BaseEntity):
         nullable=False,
     )
     sort_order: Mapped[int] = mapped_column(Integer, nullable=False)
+    # Retry state (migration 0049), written only by VPS B's moderation cron.
+    # `moderation_retry_at` is naive UTC like every app timestamp. The claim
+    # index `ix_product_photos_pending_created_at` stays migration-only.
+    moderation_attempts: Mapped[int] = mapped_column(
+        Integer, nullable=False, default=0, server_default="0"
+    )
+    moderation_retry_at: Mapped[datetime | None] = mapped_column(DateTime(), nullable=True)
 
     @property
     def large_key(self) -> str:

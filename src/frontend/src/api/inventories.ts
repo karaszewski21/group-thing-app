@@ -37,6 +37,10 @@ export interface InventoryItemResponse {
  * items are listed by `getMyLentOutItems` instead. */
 export interface MyInventoryItemResponse extends InventoryItemResponse {
   listing_mode: ReservationType | null;
+  /** True while any photo of the item's product is still in moderation
+   * (PENDING or NEEDS_REVIEW). The server then rejects setting a mode
+   * with 409, so the panel disables the mode toggles. */
+  photos_moderation_pending: boolean;
 }
 
 /** One of the caller's items currently lent out — sitting in the

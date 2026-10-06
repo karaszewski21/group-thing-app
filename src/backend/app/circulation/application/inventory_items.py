@@ -5,6 +5,7 @@ guards, per `standards/backend/security.md`)."""
 from __future__ import annotations
 
 import uuid
+from collections.abc import Awaitable, Callable
 from datetime import datetime
 
 from sqlalchemy import column, func, select, table
@@ -77,6 +78,21 @@ async def get_item(db: AsyncSession, item_id: uuid.UUID) -> InventoryItem:
     if item.deleted_at is not None:
         raise EntityNotFoundException("InventoryItem", item_id)
     return item
+
+
+async def get_item_for_share(db: AsyncSession, item_id: uuid.UUID) -> InventoryItem:
+    """`get_item` under a FOR SHARE lock on the item row: serializes with a
+    concurrent re-point (`update_item`), so the caller reads the committed
+    `product_id`."""
+    item = await repository.get_item_for_share(db, item_id)
+    if item is None or item.deleted_at is not None:
+        raise EntityNotFoundException("InventoryItem", item_id)
+    return item
+
+
+async def find_item_including_deleted(db: AsyncSession, item_id: uuid.UUID) -> InventoryItem | None:
+    """The item even when soft-deleted; `None` only for an unknown id."""
+    return await repository.get_item(db, item_id)
 
 
 async def list_items(db: AsyncSession, inventory_id: uuid.UUID) -> list[InventoryItem]:
@@ -191,15 +207,26 @@ async def _require_item_owner(
 
 
 async def update_item(
-    db: AsyncSession, item_id: uuid.UUID, principal: Principal, data: UpdateInventoryItemRequest
+    db: AsyncSession,
+    item_id: uuid.UUID,
+    principal: Principal,
+    data: UpdateInventoryItemRequest,
+    on_product_changed: Callable[[AsyncSession, uuid.UUID, uuid.UUID], Awaitable[None]]
+    | None = None,
 ) -> InventoryItem:
-    """PATCH an item's `condition`. Allowed regardless of the item's
-    `InventoryBalance` status — a reserved or lent item can still have its
-    condition corrected."""
+    """PATCH an item's `condition` and/or re-point it to another `product_id`.
+    Allowed regardless of the item's `InventoryBalance` status — a reserved or
+    lent item can still be corrected. When `product_id` actually changes, the
+    flushed re-point is handed to `on_product_changed` (the router injects
+    `app.groups`' listing withdraw — circulation never imports groups) before
+    the single commit, so a failing hook leaves the re-point uncommitted too."""
     item = await _require_item_owner(db, item_id, principal)
     if data.product_id is not None and data.product_id != item.product_id:
         await product_service.get_product(db, data.product_id)
         item.product_id = data.product_id
+        if on_product_changed is not None:
+            await db.flush()
+            await on_product_changed(db, item_id, data.product_id)
     if data.condition is not None:
         item.condition = data.condition
     await db.commit()

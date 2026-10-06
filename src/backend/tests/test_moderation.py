@@ -1,7 +1,6 @@
-"""`app.moderation`: the photos-only ADMIN review queue and decisions,
-synchronous contact-info rules, and the outbox split between the API poller
-and the worker. The worker routine itself is covered in
-`test_moderation_worker`."""
+"""`app.moderation`: the photos-only ADMIN review queue and decisions and
+synchronous contact-info rules. Automated photo decisions are written by VPS
+B's `moderation-cron` (group-thing-ai), so tests here stage them directly."""
 
 from __future__ import annotations
 
@@ -11,22 +10,17 @@ import uuid
 import pytest
 from httpx import AsyncClient
 from PIL import Image
-from sqlalchemy import select, text
+from sqlalchemy import select, text, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
 from app.core.authorization_matrix import resolve_requirement
-from app.moderation import service as moderation_service
-from app.moderation.events import PHOTO_MODERATION_REQUESTED, WORKER_EVENT_TYPES
+from app.groups.application.term_item_listings import PHOTOS_IN_MODERATION_MESSAGE
 from app.moderation.models import ModerationDecision, ModerationSource, ModerationSubjectType
 from app.moderation.rules import CONTACT_INFO_MESSAGE, contains_contact_info
 from app.moderation.status import ModerationStatus
-from app.outbox import service as outbox_service
-from app.outbox.dispatcher import dispatch_pending
-from app.outbox.models import OutboxEntry, OutboxStatus
 from app.product.models import ProductPhoto
 from tests.fake_storage import FakeStorage
-from tests.test_moderation_worker import FakeModerationClient, _scores
 from tests.test_term_item_listings import (
     _auth,
     _register,
@@ -73,16 +67,31 @@ def moderation_on(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(settings, "moderation_image_enabled", True)
 
 
-async def test_setListingPreference_anyProduct_noTextGate_succeeds(
+async def test_setListingPreference_pendingPhotoThenApproved_409Then200(
     client: AsyncClient, db_session: AsyncSession, moderation_on: None
 ) -> None:
+    """No text gate on a product name; only a photo still in moderation
+    blocks listing, and approving it lifts the block."""
     token, _ = await _register(client, "GUEST", "mod.l1@example.com")
     item_id = await _register_personal_item(client, token, "Nowa nazwa bez bramki")
+    product_id = await _resolve_product(client, token, "Nowa nazwa bez bramki")
+    photo_id = await _pending_photo(client, token, product_id, 1)
 
+    blocked = await client.put(
+        f"/api/item-listing-preferences/{item_id}", json={"mode": "GIFT"}, headers=_auth(token)
+    )
+    await db_session.execute(
+        update(ProductPhoto)
+        .where(ProductPhoto.id == photo_id)
+        .values(status=ModerationStatus.APPROVED)
+    )
+    await db_session.commit()
     listed = await client.put(
         f"/api/item-listing-preferences/{item_id}", json={"mode": "GIFT"}, headers=_auth(token)
     )
 
+    assert blocked.status_code == 409
+    assert blocked.json()["message"] == PHOTOS_IN_MODERATION_MESSAGE
     assert listed.status_code == 200, listed.text
 
 
@@ -153,9 +162,24 @@ async def test_moderationQueue_admin_returnsPhotosOnly_nonAdmin403(
     await _register_personal_item(client, token, "Kolejka admina")
     product_id = await _resolve_product(client, token, "Kolejka admina")
     photo_id = await _pending_photo(client, token, product_id, 2)
-    await moderation_service.process_next(
-        db_session, FakeModerationClient(_scores(violence=0.7)), fake_storage
+    # What VPS B's cron writes for a score in the review band.
+    await db_session.execute(
+        update(ProductPhoto)
+        .where(ProductPhoto.id == photo_id)
+        .values(status=ModerationStatus.NEEDS_REVIEW)
     )
+    db_session.add(
+        ModerationDecision(
+            subject_type=ModerationSubjectType.PHOTO,
+            subject_id=photo_id,
+            source=ModerationSource.AI,
+            automated=True,
+            model_id="shieldgemma-2",
+            scores={"sexual": 0.0, "violence": 0.7, "dangerous": 0.0, "weapons": 0.0},
+            outcome=ModerationStatus.NEEDS_REVIEW,
+        )
+    )
+    await db_session.commit()
     admin = await _admin_headers(client, db_session, "mod.admin1@example.com")
 
     forbidden = await client.get("/api/moderation/queue", headers=_auth(token))
@@ -253,30 +277,3 @@ async def test_moderationDecision_productTextSubject_returns400(
 def test_resolveRequirement_moderationRoutes_resolveToAdmin() -> None:
     assert resolve_requirement("GET", "/api/moderation/queue") == ("ADMIN",)
     assert resolve_requirement("POST", "/api/moderation/decisions") == ("ADMIN",)
-
-
-async def test_dispatchPending_excludeWorkerEvents_leavesThemPendingForWorker(
-    db_session: AsyncSession,
-) -> None:
-    await outbox_service.append(
-        db_session,
-        event_type=PHOTO_MODERATION_REQUESTED,
-        payload={"photo_id": uuid.uuid4()},
-    )
-    await outbox_service.append(db_session, event_type="test.other", payload={})
-    await db_session.commit()
-
-    claimed = await dispatch_pending(db_session, exclude_event_types=WORKER_EVENT_TYPES)
-
-    assert claimed >= 1
-    rows = await db_session.execute(
-        select(OutboxEntry.event_type, OutboxEntry.status).where(
-            OutboxEntry.event_type.in_([PHOTO_MODERATION_REQUESTED, "test.other"])
-        )
-    )
-    statuses = {event_type: status for event_type, status in rows}
-    assert {"moderation.photo_requested"} == WORKER_EVENT_TYPES
-    assert statuses == {
-        PHOTO_MODERATION_REQUESTED: OutboxStatus.PENDING,
-        "test.other": OutboxStatus.PROCESSED,
-    }

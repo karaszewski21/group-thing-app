@@ -17,6 +17,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.auth_deps import Principal, require_any
 from app.db import get_db
+from app.groups.application import term_item_listings
 from app.storage.service import ObjectStorage, get_storage
 
 from . import service
@@ -113,9 +114,19 @@ async def add_product_photo(
     file: Annotated[UploadFile, File()],
 ) -> ProductPhotoResponse:
     """Multipart upload of one image (`file`). Reads at most one byte past
-    the limit, so an oversized upload is refused without buffering it all."""
+    the limit, so an oversized upload is refused without buffering it all.
+    A photo entering moderation withdraws the product's items from terms
+    via the groups hook, injected here because `app.product` must not
+    import `app.groups` (groups already imports product)."""
     data = await file.read(MAX_UPLOAD_BYTES + 1)
-    photo = await service.add_product_photo(db, product_id, data, principal, storage)
+    photo = await service.add_product_photo(
+        db,
+        product_id,
+        data,
+        principal,
+        storage,
+        on_pending_photo=term_item_listings.withdraw_product_listings,
+    )
     return ProductPhotoResponse.model_validate(photo)
 
 

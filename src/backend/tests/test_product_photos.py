@@ -20,10 +20,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.auth.models import User
 from app.circulation.models import InventoryItem, ReservationType
 from app.config import settings
-from app.moderation.events import PHOTO_MODERATION_REQUESTED
 from app.moderation.status import ModerationStatus
 from app.outbox.dispatcher import dispatch_pending
-from app.outbox.models import OutboxEntry, OutboxStatus
+from app.outbox.models import OutboxEntry
 from app.product.models import ProductPhoto
 from app.storage import outbox_listener as storage_outbox_listener
 from app.storage.outbox_listener import OBJECTS_DELETE
@@ -328,13 +327,13 @@ async def test_addPhoto_imageModerationDisabled_approvedPublic(
     assert fake_storage.objects[f"{key}/w1600.webp"].public is True
     events = (
         await db_session.execute(
-            select(OutboxEntry).where(OutboxEntry.event_type == PHOTO_MODERATION_REQUESTED)
+            select(OutboxEntry).where(OutboxEntry.event_type == "moderation.photo_requested")
         )
     ).all()
     assert events == []
 
 
-async def test_addPhoto_imageModerationEnabled_pendingPrivateAndOutboxEvent(
+async def test_addPhoto_imageModerationEnabled_pendingPrivateNoOutboxEvent(
     client: AsyncClient,
     db_session: AsyncSession,
     fake_storage: FakeStorage,
@@ -353,12 +352,13 @@ async def test_addPhoto_imageModerationEnabled_pendingPrivateAndOutboxEvent(
     assert photo["url"] == f"https://origin.test/{key}/w1600.webp?signed"
     assert fake_storage.objects[f"{key}/w1600.webp"].public is False
     assert fake_storage.objects[f"{key}/w400.webp"].public is False
-    event = (
+    # VPS B's cron reads PENDING photos straight from the table; no event.
+    events = (
         await db_session.execute(
-            select(OutboxEntry).where(OutboxEntry.event_type == PHOTO_MODERATION_REQUESTED)
+            select(OutboxEntry).where(OutboxEntry.event_type == "moderation.photo_requested")
         )
-    ).scalar_one()
-    assert (event.payload, event.status) == ({"photo_id": photo["id"]}, OutboxStatus.PENDING)
+    ).all()
+    assert events == []
 
     assert [p["id"] for p in await _list_photos(client, owner_token, product_id)] == [photo["id"]]
     assert await _list_photos(client, other_token, product_id) == []

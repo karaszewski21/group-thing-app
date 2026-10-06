@@ -11,11 +11,6 @@ _MODERATION_ENV_VARS = (
     "MODERATION_TEXT_ENABLED",
     "MODERATION_IMAGE_ENABLED",
     "MODERATION_TEXT_REJECT_THRESHOLD",
-    "MODERATION_IMAGE_REVIEW_THRESHOLD",
-    "MODERATION_IMAGE_REJECT_THRESHOLD",
-    "MODERATION_AI_URL",
-    "MODERATION_AI_TOKEN",
-    "MODERATION_AI_TIMEOUT_SECONDS",
 )
 
 
@@ -30,7 +25,7 @@ def _settings(monkeypatch: pytest.MonkeyPatch, **env: str) -> Settings:
     return Settings(_env_file=None)
 
 
-def test_settings_defaults_moderationFlagsOffAndThresholdsSet(
+def test_settings_defaults_moderationFlagsOffAndTextThresholdSet(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     settings = _settings(monkeypatch)
@@ -38,11 +33,6 @@ def test_settings_defaults_moderationFlagsOffAndThresholdsSet(
     assert settings.moderation_text_enabled is False
     assert settings.moderation_image_enabled is False
     assert settings.moderation_text_reject_threshold == 0.8
-    assert settings.moderation_image_review_threshold == 0.5
-    assert settings.moderation_image_reject_threshold == 0.9
-    assert settings.moderation_ai_url is None
-    assert settings.moderation_ai_token is None
-    assert settings.moderation_ai_timeout_seconds == 120
 
 
 def test_settings_envVars_parsedIntoModerationFields(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -50,16 +40,12 @@ def test_settings_envVars_parsedIntoModerationFields(monkeypatch: pytest.MonkeyP
         monkeypatch,
         MODERATION_TEXT_ENABLED="true",
         MODERATION_IMAGE_ENABLED="true",
-        MODERATION_AI_URL="https://vps-b.example/",
-        MODERATION_AI_TOKEN="token-123",
-        MODERATION_AI_TIMEOUT_SECONDS="45",
+        MODERATION_TEXT_REJECT_THRESHOLD="0.7",
     )
 
     assert settings.moderation_text_enabled is True
     assert settings.moderation_image_enabled is True
-    assert settings.moderation_ai_url == "https://vps-b.example/"
-    assert settings.moderation_ai_token == "token-123"
-    assert settings.moderation_ai_timeout_seconds == 45
+    assert settings.moderation_text_reject_threshold == 0.7
 
 
 def test_settings_legacyModerationEnabledEnv_ignored(monkeypatch: pytest.MonkeyPatch) -> None:

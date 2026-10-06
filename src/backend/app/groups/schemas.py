@@ -477,7 +477,9 @@ class MyInventoryItemResponse(BaseModel):
     the caller's PERSONAL inventory (a lent-out one is listed by
     `GET /api/inventory-items/mine/lent-out` instead) together with its
     standing `ItemListingPreference.mode` (`None` = not offered), so
-    `Moje rzeczy` only ever shows and seeds toggles for items at home."""
+    `Moje rzeczy` only ever shows and seeds toggles for items at home.
+    `photos_moderation_pending` is true while the item's product has a
+    PENDING/NEEDS_REVIEW photo — listing it is refused until then."""
 
     id: uuid.UUID
     inventory_id: uuid.UUID
@@ -489,6 +491,7 @@ class MyInventoryItemResponse(BaseModel):
     created_at: datetime
     updated_at: datetime
     listing_mode: ReservationType | None
+    photos_moderation_pending: bool
 
 
 class LentOutItemResponse(BaseModel):

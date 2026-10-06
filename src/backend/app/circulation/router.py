@@ -32,6 +32,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.auth_deps import Principal, require_any
 from app.core.errors import AccessDeniedException
 from app.db import get_db
+from app.groups.application import term_item_listings
 from app.product import service as product_service
 from app.storage.service import ObjectStorage, get_storage
 
@@ -164,7 +165,13 @@ async def get_item(item_id: uuid.UUID, db: DbSession, principal: ReadPrincipal) 
 async def update_item(
     item_id: uuid.UUID, body: UpdateInventoryItemRequest, db: DbSession, principal: EditPrincipal
 ) -> InventoryItemResponse:
-    item = await service.update_item(db, item_id, principal, body)
+    item = await service.update_item(
+        db,
+        item_id,
+        principal,
+        body,
+        on_product_changed=term_item_listings.withdraw_item_listing_if_photos_pending,
+    )
     product = await product_service.get_product(db, item.product_id)
     return _item_response(item, product.name)
 

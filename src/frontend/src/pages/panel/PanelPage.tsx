@@ -73,7 +73,14 @@ function PanelPageView() {
       <PanelModals />
 
       {toast && (
-        <div role="status" className="fixed bottom-[86px] left-1/2 z-[120] -translate-x-1/2 rounded-full bg-ink px-5 py-2.5 text-sm font-semibold text-[#EAF2E9] shadow-lg">
+        // Wraps within the 16 px gutter for long server messages; a pill
+        // only fits one line, so longer text gets a rounded box.
+        <div
+          role="status"
+          className={`fixed bottom-[86px] left-1/2 z-[120] w-max max-w-[calc(100%-32px)] -translate-x-1/2 bg-ink px-5 py-2.5 text-center text-sm font-semibold text-[#EAF2E9] shadow-lg ${
+            toast.length > 40 ? "rounded-2xl" : "rounded-full"
+          }`}
+        >
           {toast}
         </div>
       )}

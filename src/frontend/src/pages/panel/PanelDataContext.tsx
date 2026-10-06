@@ -263,6 +263,22 @@ function useDismissibleHint(storageKey: string): [boolean, () => void] {
   return [dismissed, dismiss];
 }
 
+/** Each item's standing mode keyed by item id, seeded from `listing_mode`
+ * (items without a mode are left out). */
+function itemModesFrom(items: MyInventoryItemResponse[]): Record<string, ItemMode> {
+  return Object.fromEntries(
+    items
+      .map(
+        (it) => [it.id, it.listing_mode && RESERVATION_TYPE_TO_ITEM_MODE[it.listing_mode]] as const,
+      )
+      .filter((entry): entry is [string, ItemMode] => entry[1] != null),
+  );
+}
+
+/** How often "Moje rzeczy" re-reads the items while some photos are still in
+ * moderation (same cadence as the item page's photo poll). */
+const PENDING_PHOTO_POLL_MS = 10_000;
+
 function usePanelDataValue() {
   const { logout, username } = useAuth();
   const navigate = useNavigate();
@@ -443,6 +459,12 @@ function usePanelDataValue() {
 
   const showToast = useCallback((msg: string) => setToast(msg), []);
 
+  // Sequences writes to `items`/`itemModes`: bumped by each items read
+  // (`load`, `refreshItems`) when it starts and by each mode save when it
+  // lands. A read applies its response only if nothing bumped it since it
+  // started, so a slow poll cannot flip a just-saved toggle back.
+  const itemsSeqRef = useRef(0);
+
   const load = useCallback(async (options?: { silent?: boolean }) => {
     // `silent` skips the full-page "Wczytywanie…" early-return branch — used
     // when a mid-flow modal (e.g. FirstTermStepperGuest's step 1 -> step 2
@@ -467,22 +489,16 @@ function usePanelDataValue() {
         getInventories(me.account_user_id),
       ]);
 
+      const itemsSeq = ++itemsSeqRef.current;
       const [myItems, myLentOutItems] = await Promise.all([
         getMyInventoryItems(),
         getMyLentOutItems(),
       ]);
-      setItems(myItems);
+      if (itemsSeq === itemsSeqRef.current) {
+        setItems(myItems);
+        setItemModes(itemModesFrom(myItems));
+      }
       setLentOutItems(myLentOutItems);
-      setItemModes(
-        Object.fromEntries(
-          myItems
-            .map(
-              (it) =>
-                [it.id, it.listing_mode && RESERVATION_TYPE_TO_ITEM_MODE[it.listing_mode]] as const,
-            )
-            .filter((entry): entry is [string, ItemMode] => entry[1] != null),
-        ),
-      );
 
       // "Wypożyczone" — items currently sitting in the caller's own VIRTUAL
       // inventory (borrowed from someone else). Given/swapped-in items are
@@ -628,9 +644,55 @@ function usePanelDataValue() {
     }
   }, [location.pathname, load]);
 
+  // Items-only re-read (not the full `load()`, which would also re-fetch
+  // groups, terms and notifications). A failure keeps the current list; the
+  // next poll tick or reload retries. A response overtaken by a newer read or
+  // a mode save (`itemsSeqRef`) is dropped; the next tick re-syncs.
+  const refreshItems = useCallback(async () => {
+    const seq = ++itemsSeqRef.current;
+    try {
+      const myItems = await getMyInventoryItems();
+      if (seq !== itemsSeqRef.current) return;
+      setItems(myItems);
+      setItemModes(itemModesFrom(myItems));
+    } catch {
+      // Stale data stays on screen until the next refresh.
+    }
+  }, []);
+
+  // While any item's photos are in moderation, re-read the items every 10 s
+  // so the card unblocks after approval. Runs only while the tab is visible;
+  // `visibilitychange` re-arms or pauses it.
+  const anyPhotosPending = items.some((it) => it.photos_moderation_pending);
+  useEffect(() => {
+    if (!anyPhotosPending) return;
+    let interval: ReturnType<typeof setInterval> | null = null;
+    const stop = () => {
+      if (interval !== null) clearInterval(interval);
+      interval = null;
+    };
+    const sync = () => {
+      if (document.visibilityState === "visible") {
+        if (interval === null) {
+          interval = setInterval(() => void refreshItems(), PENDING_PHOTO_POLL_MS);
+        }
+      } else {
+        stop();
+      }
+    };
+    sync();
+    document.addEventListener("visibilitychange", sync);
+    return () => {
+      document.removeEventListener("visibilitychange", sync);
+      stop();
+    };
+  }, [anyPhotosPending, refreshItems]);
+
   useEffect(() => {
     if (!toast) return;
-    const t = setTimeout(() => setToast(""), 2200);
+    // Long server messages (e.g. the 409 about photos in moderation) need
+    // more reading time than the short confirmations.
+    const t = setTimeout(() => setToast(""), Math.max(2200, toast.length * 45));
     return () => clearTimeout(t);
   }, [toast]);
 
@@ -938,9 +1000,15 @@ function usePanelDataValue() {
         itemId,
         next ? ITEM_MODE_TO_RESERVATION_TYPE[next] : null,
       );
+      // Reads started before this save may carry the old mode — drop them.
+      itemsSeqRef.current++;
       setItemModes((prev) => ({ ...prev, [itemId]: next }));
-    } catch {
-      setItemError("Nie udało się zapisać trybu — spróbuj ponownie");
+    } catch (err) {
+      // A toast, not `itemError`: that one renders below the whole list,
+      // off-screen on a phone. The refresh flips a card whose photos went
+      // into moderation meanwhile to its blocked state.
+      showToast(serverMessageOr(err, "Nie udało się zapisać trybu — spróbuj ponownie"));
+      void refreshItems();
     }
   }
 
@@ -1230,6 +1298,8 @@ function usePanelDataValue() {
     if (index === -1) return;
     const removed = items[index];
     setItemError(null);
+    // Drop any in-flight items refresh so it can't resurrect the removed item.
+    itemsSeqRef.current++;
     setItems((prev) => prev.filter((i) => i.id !== itemId));
     showToast("Usunięto");
     try {

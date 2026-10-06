@@ -9,9 +9,10 @@ Never commits or flushes; `EntityNotFoundException` raising stays in the
 from __future__ import annotations
 
 import uuid
+from collections.abc import Collection
 from datetime import datetime
 
-from sqlalchemy import Row, exists, func, select
+from sqlalchemy import Row, exists, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.category.models import Category
@@ -510,6 +511,28 @@ async def list_other_pending_swap_proposals_for_listing_item(
     hanging forever."""
     proposals = await list_pending_swap_proposals_for_listing_item(db, listing_item_id)
     return [p for p in proposals if p.id != exclude_proposal_id]
+
+
+async def list_pending_swap_proposals_involving_items(
+    db: AsyncSession, item_ids: Collection[uuid.UUID]
+) -> list[SwapProposal]:
+    """Every still-`PROPOSED` `SwapProposal` whose listing item or offered
+    (counter-offer) item is one of `item_ids`, oldest first — what the
+    photo-moderation withdraw rejects."""
+    if not item_ids:
+        return []
+    result = await db.execute(
+        select(SwapProposal)
+        .where(
+            SwapProposal.status == SwapProposalStatus.PROPOSED,
+            or_(
+                SwapProposal.listing_item_id.in_(item_ids),
+                SwapProposal.offered_item_id.in_(item_ids),
+            ),
+        )
+        .order_by(SwapProposal.created_at, SwapProposal.id)
+    )
+    return list(result.scalars().all())
 
 
 # --- GroupJoinRequest ----------------------------------------------------------

@@ -1,6 +1,6 @@
-import { render, screen, waitFor, within } from "@testing-library/react";
+import { act, render, screen, waitFor, within } from "@testing-library/react";
 import { fireEvent } from "@testing-library/react";
-import { describe, expect, it, vi, beforeEach } from "vitest";
+import { afterEach, describe, expect, it, vi, beforeEach } from "vitest";
 import { MemoryRouter, Route, Routes, useNavigate } from "react-router-dom";
 
 // TODO(Group 8): this unit suite can only exercise the hamburger-promotion
@@ -21,6 +21,7 @@ import * as notificationsApi from "../api/notifications";
 import * as categoriesApi from "../api/categories";
 import * as termItemListingsApi from "../api/termItemListings";
 import * as reservationsApi from "../api/reservations";
+import * as itemListingPreferencesApi from "../api/itemListingPreferences";
 import { PanelPage } from "../pages/panel/PanelPage";
 import { NotificationBell } from "../components/shared/NotificationBell";
 import { ApiError } from "../api/client";
@@ -2011,6 +2012,7 @@ describe("PanelPage — inventory item edit/delete", () => {
     created_at: "",
     updated_at: "",
     listing_mode: null,
+    photos_moderation_pending: false,
   };
 
   function mockItems() {
@@ -2074,6 +2076,209 @@ describe("PanelPage — inventory item edit/delete", () => {
     fireEvent.click(screen.getByRole("button", { name: "Wypożyczone" }));
     fireEvent.click(await screen.findByRole("tab", { name: "Wypożyczone innym" }));
     expect(within(screen.getByRole("tabpanel")).getByText("Rowerek")).toBeInTheDocument();
+  });
+});
+
+describe("PanelPage — mode toggle errors and photo-moderation poll", () => {
+  const MODERATION_409 =
+    "Nie można wystawić tej rzeczy — jej zdjęcia czekają na moderację. Tryb wypożyczę/oddam/zamienię włączysz po ich zatwierdzeniu.";
+
+  const modItem = {
+    id: "70",
+    inventory_id: "1",
+    home_inventory_id: null,
+    product_id: "11",
+    product_name: "Namiot",
+    condition: "GOOD" as const,
+    added_at: "",
+    created_at: "",
+    updated_at: "",
+    listing_mode: null,
+    photos_moderation_pending: false,
+  };
+
+  beforeEach(() => {
+    vi.resetAllMocks();
+    vi.mocked(groupsApi.listMyPendingJoinRequests).mockResolvedValue([]);
+    vi.mocked(inventoriesApi.getInventoryItemBalance).mockResolvedValue({
+      id: "1",
+      item_id: modItem.id,
+      status: "AVAILABLE",
+      reserved_at: null,
+      lent_at: null,
+      returned_at: null,
+      due_date: null,
+      reservation_id: null,
+    });
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+    // Drop the per-test `visibilityState` override (falls back to jsdom's).
+    Reflect.deleteProperty(document, "visibilityState");
+  });
+
+  it("409 on setItemMode → toast shows server message verbatim and getMyInventoryItems re-fetched", async () => {
+    mockGuestDefaults();
+    vi.mocked(inventoriesApi.getMyInventoryItems).mockResolvedValue([modItem]);
+    vi.mocked(itemListingPreferencesApi.setItemListingPreference).mockRejectedValue(
+      new ApiError(409, "Conflict", { message: MODERATION_409 }),
+    );
+    renderPanel("/panel/rzeczy");
+
+    fireEvent.click(await screen.findByRole("button", { name: "Oddam" }));
+
+    expect(await screen.findByRole("status")).toHaveTextContent(MODERATION_409);
+    await waitFor(() => expect(inventoriesApi.getMyInventoryItems).toHaveBeenCalledTimes(2));
+    expect(screen.getByRole("button", { name: "Oddam" })).toHaveAttribute("aria-pressed", "false");
+  });
+
+  it("network error → fallback toast text", async () => {
+    mockGuestDefaults();
+    vi.mocked(inventoriesApi.getMyInventoryItems).mockResolvedValue([modItem]);
+    vi.mocked(itemListingPreferencesApi.setItemListingPreference).mockRejectedValue(
+      new TypeError("Failed to fetch"),
+    );
+    renderPanel("/panel/rzeczy");
+
+    fireEvent.click(await screen.findByRole("button", { name: "Oddam" }));
+
+    expect(await screen.findByRole("status")).toHaveTextContent(
+      "Nie udało się zapisać trybu — spróbuj ponownie",
+    );
+  });
+
+  it("toast timeout scales with the message: the long 409 text outlives the 2.2 s default, then hides", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    mockGuestDefaults();
+    vi.mocked(inventoriesApi.getMyInventoryItems).mockResolvedValue([modItem]);
+    vi.mocked(itemListingPreferencesApi.setItemListingPreference).mockRejectedValue(
+      new ApiError(409, "Conflict", { message: MODERATION_409 }),
+    );
+    renderPanel("/panel/rzeczy");
+
+    fireEvent.click(await screen.findByRole("button", { name: "Oddam" }));
+    const toast = await screen.findByRole("status");
+    expect(toast).toHaveTextContent(MODERATION_409);
+    // Long text gets the multi-line box, not the one-line pill.
+    expect(toast).toHaveClass("rounded-2xl");
+
+    // Math.max(2200, length * 45) ≈ 5.7 s for this message.
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(4_000);
+    });
+    expect(screen.getByRole("status")).toHaveTextContent(MODERATION_409);
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(2_500);
+    });
+    expect(screen.queryByText(MODERATION_409)).not.toBeInTheDocument();
+  });
+
+  it("poll: getMyInventoryItems called every 10 s while pending and stops once the flag clears", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    mockGuestDefaults();
+    vi.mocked(inventoriesApi.getMyInventoryItems)
+      .mockResolvedValueOnce([{ ...modItem, photos_moderation_pending: true }])
+      .mockResolvedValueOnce([{ ...modItem, photos_moderation_pending: true }])
+      .mockResolvedValue([modItem]);
+    renderPanel("/panel/rzeczy");
+
+    expect(await screen.findByText("Zdjęcia w moderacji")).toBeInTheDocument();
+    expect(inventoriesApi.getMyInventoryItems).toHaveBeenCalledTimes(1);
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(10_000);
+    });
+    expect(inventoriesApi.getMyInventoryItems).toHaveBeenCalledTimes(2);
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(10_000);
+    });
+    expect(inventoriesApi.getMyInventoryItems).toHaveBeenCalledTimes(3);
+    await waitFor(() => expect(screen.queryByText("Zdjęcia w moderacji")).not.toBeInTheDocument());
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(30_000);
+    });
+    expect(inventoriesApi.getMyInventoryItems).toHaveBeenCalledTimes(3);
+  });
+
+  it("poll: not running while document is hidden", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    let visibility: DocumentVisibilityState = "hidden";
+    Object.defineProperty(document, "visibilityState", {
+      configurable: true,
+      get: () => visibility,
+    });
+    mockGuestDefaults();
+    vi.mocked(inventoriesApi.getMyInventoryItems).mockResolvedValue([
+      { ...modItem, photos_moderation_pending: true },
+    ]);
+    renderPanel("/panel/rzeczy");
+
+    expect(await screen.findByText("Zdjęcia w moderacji")).toBeInTheDocument();
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(30_000);
+    });
+    expect(inventoriesApi.getMyInventoryItems).toHaveBeenCalledTimes(1);
+
+    // Back to visible: the poll re-arms on `visibilitychange`.
+    visibility = "visible";
+    act(() => {
+      document.dispatchEvent(new Event("visibilitychange"));
+    });
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(10_000);
+    });
+    expect(inventoriesApi.getMyInventoryItems).toHaveBeenCalledTimes(2);
+  });
+
+  it("poll: a stale poll response landing after a successful mode save does not flip the toggle back", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    mockGuestDefaults();
+    // A second item with photos in moderation keeps the poll running; the
+    // first one (no mode yet) is the one toggled.
+    const pendingItem = {
+      ...modItem,
+      id: "71",
+      product_id: "12",
+      product_name: "Śpiwór",
+      photos_moderation_pending: true,
+    };
+    let resolvePoll: (value: (typeof modItem)[]) => void = () => {};
+    vi.mocked(inventoriesApi.getMyInventoryItems)
+      .mockResolvedValueOnce([modItem, pendingItem])
+      .mockImplementationOnce(
+        () =>
+          new Promise((resolve) => {
+            resolvePoll = resolve;
+          }),
+      )
+      .mockResolvedValue([{ ...modItem, listing_mode: "GIFT" }, pendingItem]);
+    vi.mocked(itemListingPreferencesApi.setItemListingPreference).mockResolvedValue(null);
+    renderPanel("/panel/rzeczy");
+
+    const oddam = (await screen.findAllByRole("button", { name: "Oddam" }))[0];
+    expect(oddam).toHaveAttribute("aria-pressed", "false");
+
+    // The poll GET starts (still unresolved) before the mode is saved.
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(10_000);
+    });
+    expect(inventoriesApi.getMyInventoryItems).toHaveBeenCalledTimes(2);
+
+    fireEvent.click(oddam);
+    await waitFor(() =>
+      expect(screen.getAllByRole("button", { name: "Oddam" })[0]).toHaveAttribute("aria-pressed", "true"),
+    );
+
+    // The poll response carries the pre-save mode (none) and lands late.
+    await act(async () => {
+      resolvePoll([modItem, pendingItem]);
+      await Promise.resolve();
+    });
+    expect(screen.getAllByRole("button", { name: "Oddam" })[0]).toHaveAttribute("aria-pressed", "true");
   });
 });
 
@@ -2244,6 +2449,7 @@ describe("PanelPage — Wypożyczone: tabs", () => {
     created_at: "",
     updated_at: "",
     listing_mode: null,
+    photos_moderation_pending: false,
   };
   const lentOutItem = {
     id: "61",
@@ -2970,6 +3176,7 @@ describe("PanelPage — RzeczyView post-term-end fallback buttons (Bug #4c, full
     created_at: "",
     updated_at: "",
     listing_mode: null,
+    photos_moderation_pending: false,
   };
 
   it("dismissing the global confirm prompt still leaves the tile's own 'Odebrał' fallback usable — clicking it confirms the transaction and silently refreshes the panel", async () => {

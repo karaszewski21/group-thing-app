@@ -77,6 +77,8 @@ function ItemEditContent({ item, history, details, onRefetch }: ItemEditContentP
   const productLocked = !editing.productEditable;
   const [openEditor, setOpenEditor] = useState<EditorKey | null>(null);
   const close = () => setOpenEditor(null);
+  // The publish gate withdraws the item while any photo awaits moderation.
+  const photosInModeration = item.photos.some((p) => p.status === "PENDING" || p.status === "NEEDS_REVIEW");
 
   const field = (
     key: EditorKey,
@@ -106,6 +108,15 @@ function ItemEditContent({ item, history, details, onRefetch }: ItemEditContentP
           Gotowe
         </Link>
       </div>
+      {photosInModeration && (
+        <div role="status" className="mt-3 rounded-[14px] border border-line bg-cream px-3.5 py-2.5 text-[12.5px] text-ink">
+          Rzecz zdjęta z terminów do czasu zatwierdzenia zdjęć. Tryb wypożyczę/oddam/zamienię włączysz ponownie w
+          „Moje rzeczy”.{" "}
+          <Link to="/panel/rzeczy" className="font-extrabold text-mint underline">
+            Moje rzeczy →
+          </Link>
+        </div>
+      )}
       {details.failed && !details.fetching && (
         <div role="alert" className="mt-3 rounded-[14px] border border-line bg-cream px-3.5 py-2.5 text-[12.5px] text-ink">
           Nie udało się wczytać aktualnych danych produktu — zdjęcia i opis są chwilowo zablokowane.{" "}

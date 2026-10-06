@@ -68,10 +68,10 @@ No automated pytest/TestContainers-python suite exists yet (deliberately deferre
 - Not yet configured
 
 ### Hosting
-- Two VPS (DE region, non-DO provider): VPS A runs nginx + FastAPI (with the Bielik-Guard text model in-process) + the slim photo moderation worker + Postgres; VPS B runs the heavy AI models as a separate service (its own repo, `group-thing-ai`), including ShieldGemma-2 image moderation
+- Two VPS (DE region, non-DO provider): VPS A runs nginx + FastAPI (with the Bielik-Guard text model in-process) + Postgres; VPS B runs the heavy AI models as a separate service (its own repo, `group-thing-ai`), including ShieldGemma-2 and the `moderation-cron` that decides product photos. VPS A runs no photo moderation worker
 - DigitalOcean Spaces (FRA1) + its CDN for photo storage only
-- External integration: the VPS B image moderation API (`POST /v1/moderate/image`, ShieldGemma-2), called over HTTPS with httpx by the photo worker (`MODERATION_AI_URL`/`MODERATION_AI_TOKEN`)
-- The `ml` uv dependency group is installed only in the production API image (the default `runtime` target, built with `docker build --secret id=hf_token,env=HF_TOKEN src/backend`); Bielik-Guard is exported to ONNX at image build time, so torch never enters a runtime image. The `worker` and `runtime-dev` targets have no `ml` group and no model
+- Photo moderation integration runs in the other direction: VPS B's `moderation-cron` connects to the VPS A Postgres over the VPC (least-privilege role `gt_moderation_cron`, column-level grants, `ssl=require`) and to Spaces (read + put-ACL), with those credentials only in its `.env.cron`. The app itself never calls VPS B for moderation
+- The `ml` uv dependency group is installed only in the production API image (the default `runtime` target, built with `docker build --secret id=hf_token,env=HF_TOKEN src/backend`); Bielik-Guard is exported to ONNX at image build time, so torch never enters a runtime image. The `runtime-dev` target has no `ml` group and no model
 
 ## Development Tools
 
@@ -105,7 +105,7 @@ Actual pinned versions from `src/backend/pyproject.toml` / `uv.lock`:
 | numpy (`ml` group) | 2.5.3 | API `runtime` image only: tensor pre/post-processing |
 | ruff (dev) | 0.16.5 | Lint + format |
 | mypy (dev) | 2.3.1 | Static typing (strict) |
-| httpx | 0.28.1 | Runtime: the photo worker's VPS B client (`app/moderation/ai_client.py`); also used by tests and verification scripts |
+| httpx | 0.28.1 | Used by tests (`AsyncClient`) and verification scripts; no runtime import in `app/` |
 
 ## Version Management
 - `uv.lock` pins every transitive dependency; `uv sync --frozen` installs exactly what's locked

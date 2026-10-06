@@ -65,32 +65,6 @@ services:
       frontend-build:
         condition: service_completed_successfully
 
-  # Photo moderation worker (scores photos via VPS B ShieldGemma-2). Opt-in:
-  # `docker compose --profile moderation up` with MODERATION_IMAGE_ENABLED=true
-  # and MODERATION_AI_URL / MODERATION_AI_TOKEN set; exits at once when disabled.
-  moderation-worker:
-    profiles: ["moderation"]
-    build:
-      context: src/backend
-      dockerfile: Dockerfile
-      target: worker
-    environment:
-      DATABASE_URL: postgresql+asyncpg://aj:aj@postgres:5432/aj
-      JWT_SECRET: ${JWT_SECRET}
-      SPACES_ENDPOINT_URL: ${SPACES_ENDPOINT_URL:-}
-      SPACES_REGION: ${SPACES_REGION:-}
-      SPACES_BUCKET: ${SPACES_BUCKET:-}
-      SPACES_KEY: ${SPACES_KEY:-}
-      SPACES_SECRET: ${SPACES_SECRET:-}
-      SPACES_PUBLIC_BASE_URL: ${SPACES_PUBLIC_BASE_URL:-}
-      MODERATION_IMAGE_ENABLED: ${MODERATION_IMAGE_ENABLED:-false}
-      MODERATION_AI_URL: ${MODERATION_AI_URL:-}
-      MODERATION_AI_TOKEN: ${MODERATION_AI_TOKEN:-}
-      MODERATION_AI_TIMEOUT_SECONDS: ${MODERATION_AI_TIMEOUT_SECONDS:-120}
-    depends_on:
-      backend:
-        condition: service_started
-
   frontend:
     build:
       # Repo root, not src/frontend/ — the frontend's test suite imports the
@@ -105,8 +79,97 @@ services:
       frontend-build:
         condition: service_completed_successfully
 
+  redis:
+    labels:
+      org.springframework.boot.ignore: "true"
+    image: redis:7
+    ports:
+      - '6379:6379'
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  presidio-analyzer:
+    labels:
+      org.springframework.boot.ignore: "true"
+    image: mcr.microsoft.com/presidio-analyzer:latest
+    ports:
+      - '5002:3000'
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:3000/health')\""]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 120s
+
+  presidio-anonymizer:
+    labels:
+      org.springframework.boot.ignore: "true"
+    image: mcr.microsoft.com/presidio-anonymizer:latest
+    ports:
+      - '5001:3000'
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:3000/health')\""]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 120s
+
+  litellm-db:
+    labels:
+      org.springframework.boot.ignore: "true"
+    image: 'postgres:18'
+    ports:
+      - '5434:5432'
+    environment:
+      POSTGRES_DB: litellm
+      POSTGRES_USER: litellm
+      POSTGRES_PASSWORD: litellm
+    volumes:
+      - litellm-db-data:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U litellm -d litellm"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  litellm:
+    labels:
+      org.springframework.boot.ignore: "true"
+    image: ghcr.io/berriai/litellm:main-stable
+    ports:
+      - '4000:4000'
+    volumes:
+      - ./litellm/config.yaml:/app/config.yaml
+      - ./litellm/presidio_recognizers.json:/app/presidio_recognizers.json
+    env_file:
+      - litellm/.env
+    environment:
+      DATABASE_URL: postgresql://litellm:litellm@litellm-db:5432/litellm
+    command: ["--config", "/app/config.yaml", "--port", "4000"]
+    depends_on:
+      litellm-db:
+        condition: service_healthy
+      # langfuse:
+      #   condition: service_started
+      presidio-analyzer:
+        condition: service_healthy
+      presidio-anonymizer:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:4000/health/liveliness')\""]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
 volumes:
   postgres_data:
+  litellm-db-data:
   frontend_index:
 
 secrets:

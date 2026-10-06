@@ -125,7 +125,10 @@ const item: MyInventoryItemResponse = {
   created_at: "2026-01-01T00:00:00Z",
   updated_at: "2026-01-01T00:00:00Z",
   listing_mode: null,
+  photos_moderation_pending: false,
 };
+
+const pendingItem: MyInventoryItemResponse = { ...item, photos_moderation_pending: true };
 
 function makeContextValue(
   overrides: Partial<PanelDataContextValue> = {},
@@ -438,6 +441,76 @@ describe("RzeczyView — post-term-end fallback buttons (Bug #4c)", () => {
       expect(reservationsApi.cancelTransaction).toHaveBeenCalledWith("55"),
     );
     await waitFor(() => expect(load).toHaveBeenCalledWith({ silent: true }));
+  });
+});
+
+describe("RzeczyView — mode toggles blocked while photos are in moderation", () => {
+  beforeEach(() => {
+    vi.mocked(api.get).mockReset();
+  });
+
+  function modeToggleButtons(): HTMLElement[] {
+    return ["Wypożyczę", "Oddam", "Zamienię"].map((name) => screen.getByRole("button", { name }));
+  }
+
+  it("pending → 3 toggles disabled + aria-disabled, pill and hint visible, aria-describedby wired, edit link to /product/{id}/edit", async () => {
+    vi.mocked(api.get).mockResolvedValue(mockBalance(item.id, "AVAILABLE"));
+    vi.mocked(panelDataStore.usePanelData).mockReturnValue(
+      makeContextValue({ items: [pendingItem] }),
+    );
+
+    renderView();
+
+    await waitFor(() => expect(api.get).toHaveBeenCalled());
+    const hint = screen.getByText("Tryb włączysz po zatwierdzeniu zdjęć.", { exact: false });
+    expect(hint).toHaveAttribute("id", `mode-hint-${item.id}`);
+    for (const button of modeToggleButtons()) {
+      expect(button).toBeDisabled();
+      expect(button).toHaveAttribute("aria-disabled", "true");
+      expect(button).toHaveAttribute("aria-describedby", `mode-hint-${item.id}`);
+    }
+    expect(screen.getByRole("status")).toHaveTextContent("Zdjęcia w moderacji");
+    const link = screen.getByRole("link", { name: "Zobacz zdjęcia →" });
+    expect(link).toHaveAttribute("href", `/product/${item.id}/edit`);
+    expect(link.className).toContain("text-mint");
+  });
+
+  it("locked + pending → both pills, lock pill first, Odebrał/Anuluj still visible", async () => {
+    mockApiGetRouter({
+      balance: mockBalance(item.id, "IN_TRANSIT", "55"),
+      reservation: mockReservation("55", ENDED_TERM_ID),
+      term: mockTerm(ENDED_TERM_ID, "2020-01-01T10:00:00"),
+    });
+    vi.mocked(panelDataStore.usePanelData).mockReturnValue(
+      makeContextValue({ items: [pendingItem] }),
+    );
+
+    renderView();
+
+    expect(await screen.findByRole("button", { name: "Odebrał" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Anuluj wymianę" })).toBeInTheDocument();
+    const pills = screen.getAllByRole("status").map((el) => el.textContent);
+    expect(pills).toEqual(["zablokowane", "Zdjęcia w moderacji"]);
+    for (const button of modeToggleButtons()) {
+      expect(button).toBeDisabled();
+      expect(button).toHaveAttribute("aria-describedby", `mode-hint-${item.id}`);
+    }
+  });
+
+  it("not pending → toggles enabled, no pill, no hint, no aria-describedby", async () => {
+    vi.mocked(api.get).mockResolvedValue(mockBalance(item.id, "AVAILABLE"));
+    vi.mocked(panelDataStore.usePanelData).mockReturnValue(makeContextValue());
+
+    renderView();
+
+    await waitFor(() => expect(api.get).toHaveBeenCalled());
+    for (const button of modeToggleButtons()) {
+      expect(button).not.toBeDisabled();
+      expect(button).not.toHaveAttribute("aria-describedby");
+    }
+    expect(screen.queryByText("Zdjęcia w moderacji")).not.toBeInTheDocument();
+    expect(screen.queryByText(/Tryb włączysz po zatwierdzeniu zdjęć/)).not.toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "Zobacz zdjęcia →" })).not.toBeInTheDocument();
   });
 });
 

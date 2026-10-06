@@ -32,7 +32,6 @@ from app.families.router import router as families_router
 from app.groups.application.term_end_scan import scan_for_term_ended
 from app.groups.router import router as groups_router
 from app.moderation import text_guard
-from app.moderation.events import WORKER_EVENT_TYPES
 from app.moderation.router import router as moderation_router
 from app.notifications import outbox_listener as notifications_outbox_listener
 from app.notifications.router import router as notifications_router
@@ -97,10 +96,7 @@ async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
 
     notifications_outbox_listener.register()
     storage_outbox_listener.register()
-    # `moderation.*` events belong to the separate moderation worker process.
-    _outbox_task = asyncio.create_task(
-        outbox_scheduler.run_forever(exclude_event_types=WORKER_EVENT_TYPES)
-    )
+    _outbox_task = asyncio.create_task(outbox_scheduler.run_forever())
 
     _term_end_scheduler = AsyncIOScheduler()
     _term_end_scheduler.add_job(

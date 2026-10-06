@@ -34,6 +34,21 @@ function lockBadgeLabel(status: BalanceStatus | undefined): string | null {
   return null;
 }
 
+/** Passive status pill next to the mode toggles. Text-carried label, not
+ * color-only, per `standards/frontend/accessibility.md` — the dot is
+ * `aria-hidden` decoration, never the sole signal. */
+function StatusPill({ label }: { label: string }) {
+  return (
+    <span
+      role="status"
+      className="inline-flex items-center gap-1.5 rounded-full border-[1.5px] border-line bg-cream px-3 py-1.5 text-[11.5px] font-extrabold text-ink-soft"
+    >
+      <span aria-hidden="true" className="h-1.5 w-1.5 rounded-full bg-ink-soft" />
+      {label}
+    </span>
+  );
+}
+
 export function RzeczyView() {
   const {
     items,
@@ -229,6 +244,10 @@ export function RzeczyView() {
             itemBalances[it.id]?.status ?? "AVAILABLE",
           );
           const badgeLabel = lockBadgeLabel(itemBalances[it.id]?.status);
+          // The server rejects a mode (409) while the product's photos are in
+          // moderation, so block the toggles too. Plain OR with `locked`.
+          const photosPending = it.photos_moderation_pending === true;
+          const modeHintId = `mode-hint-${it.id}`;
           return (
             <div key={it.id} className="mt-2.5 flex items-start gap-3.5 rounded-2xl border border-line bg-cream p-[15px] first:mt-0">
               <span
@@ -251,8 +270,9 @@ export function RzeczyView() {
                         key={m}
                         onClick={() => void setItemMode(it.id, m)}
                         aria-pressed={on}
-                        disabled={locked}
-                        aria-disabled={locked}
+                        disabled={locked || photosPending}
+                        aria-disabled={locked || photosPending}
+                        aria-describedby={photosPending ? modeHintId : undefined}
                         className="rounded-full border-[1.5px] border-line px-3 py-1.5 text-[11.5px] font-extrabold text-ink-soft transition-colors hover:border-sage disabled:opacity-60 disabled:cursor-not-allowed"
                         style={on ? { background: mStyle.bg, color: mStyle.c, borderColor: "transparent" } : undefined}
                       >
@@ -260,18 +280,10 @@ export function RzeczyView() {
                       </button>
                     );
                   })}
-                  {/* Text-carried label, not color-only, per
-                      `standards/frontend/accessibility.md` — the dot is
-                      `aria-hidden` decoration, never the sole signal. */}
-                  {badgeLabel && (
-                    <span
-                      role="status"
-                      className="inline-flex items-center gap-1.5 rounded-full border-[1.5px] border-line bg-cream px-3 py-1.5 text-[11.5px] font-extrabold text-ink-soft"
-                    >
-                      <span aria-hidden="true" className="h-1.5 w-1.5 rounded-full bg-ink-soft" />
-                      {badgeLabel}
-                    </span>
-                  )}
+                  {/* Lock pill first (an in-flight transaction the user may
+                      have to act on), moderation pill second. */}
+                  {badgeLabel && <StatusPill label={badgeLabel} />}
+                  {photosPending && <StatusPill label="Zdjęcia w moderacji" />}
                   {locked && termHasEnded(it.id) && (
                     <>
                       <button
@@ -293,6 +305,17 @@ export function RzeczyView() {
                     </>
                   )}
                 </div>
+                {photosPending && (
+                  <p id={modeHintId} className="mt-1 text-[11.5px] text-ink-soft">
+                    Tryb włączysz po zatwierdzeniu zdjęć.{" "}
+                    <Link
+                      to={`/product/${it.id}/edit`}
+                      className="font-extrabold text-mint underline py-1"
+                    >
+                      Zobacz zdjęcia →
+                    </Link>
+                  </p>
+                )}
                 {(swapProposals[it.id]?.length ?? 0) > 0 && (
                   <div className="mt-2.5 flex flex-col gap-1.5">
                     <small className="text-[11.5px] font-extrabold text-ink-soft">

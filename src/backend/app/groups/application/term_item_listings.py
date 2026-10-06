@@ -20,10 +20,11 @@ listing-owned status field, per `standards/global/minimal-implementation.md`."""
 from __future__ import annotations
 
 import uuid
-
+from collections.abc import Collection
 from datetime import datetime
 from typing import cast
 
+from sqlalchemy import delete
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.auth_deps import Principal
@@ -60,6 +61,11 @@ _ACTIVE_RESERVATION_STATUSES = (
 _OWNERSHIP_TRANSFER_TYPES = (
     circulation_bridge.ReservationType.GIFT,
     circulation_bridge.ReservationType.SWAP,
+)
+
+PHOTOS_IN_MODERATION_MESSAGE = (
+    "Nie można wystawić tej rzeczy — jej zdjęcia czekają na moderację. "
+    "Tryb wypożyczę/oddam/zamienię włączysz po ich zatwierdzeniu."
 )
 
 
@@ -106,9 +112,14 @@ async def set_item_listing_preference(
     """Sets, changes, or (when `mode` is `None`) clears the standing listing
     mode on one of the caller's own items. Ownership-only check (no
     availability requirement) — unlike taking a listing, expressing intent
-    to lend/gift/swap an item shouldn't be blocked by its current balance."""
+    to lend/gift/swap an item shouldn't be blocked by its current balance.
+    Setting a mode (never clearing one) is refused while the item's product
+    has a photo still in moderation (PENDING/NEEDS_REVIEW), since an
+    unmoderated photo would otherwise be shown to the Term. The item row is
+    read under FOR SHARE, so a concurrent re-point (`update_item`) commits
+    first and the gate checks the product the item really points to."""
     profile = await get_profile_by_principal(db, principal)
-    item = await circulation_bridge.get_item(db, item_id)
+    item = await circulation_bridge.get_item_for_share(db, item_id)
     inventory = await circulation_bridge.resolve_owning_inventory(db, item)
     if (
         inventory.owner_user_id != profile.account_user_id
@@ -122,6 +133,9 @@ async def set_item_listing_preference(
             await db.delete(existing)
             await db.commit()
         return None
+
+    if await product_bridge.has_unmoderated_photos(db, item.product_id):
+        raise BusinessConflictException(PHOTOS_IN_MODERATION_MESSAGE)
 
     if existing is not None:
         existing.mode = mode.value
@@ -143,7 +157,9 @@ async def list_my_inventory_items(
     """The caller's items physically in their PERSONAL inventory — never a
     lent-out one (see `list_my_lent_out_items`) nor one borrowed from
     someone else — with each item's standing listing mode, used by
-    `Moje rzeczy` to list items and seed each mode toggle on load."""
+    `Moje rzeczy` to list items and seed each mode toggle on load. Items
+    whose product has a photo in moderation are flagged (one batched query),
+    so their toggles can be shown as locked."""
     profile = await get_profile_by_principal(db, principal)
     inventory = await circulation_bridge.find_personal_inventory(
         db, cast(uuid.UUID, profile.account_user_id)
@@ -155,6 +171,9 @@ async def list_my_inventory_items(
         pref.item_id: pref.mode
         for pref in await repository.list_item_listing_preferences_for_party(db, profile.party_id)
     }
+    pending = await product_bridge.product_ids_with_unmoderated_photos(
+        db, {item.product_id for item, _ in rows}
+    )
     return [
         MyInventoryItemResponse(
             id=cast(uuid.UUID, item.id),
@@ -167,6 +186,7 @@ async def list_my_inventory_items(
             created_at=item.created_at,
             updated_at=item.updated_at,
             listing_mode=modes.get(cast(uuid.UUID, item.id)),
+            photos_moderation_pending=item.product_id in pending,
         )
         for item, product_name in rows
     ]
@@ -382,7 +402,19 @@ async def list_my_active_taken_term_item_listings(
         ):
             continue
         preference = await repository.get_item_listing_preference(db, reservation.item_id)
-        if preference is not None and preference.owner_party_id in eligible_lister_party_ids:
+        if preference is None:
+            # Withdrawn meanwhile (photos in moderation): the take is still
+            # live, so describe it from the reservation instead. Transient,
+            # never added to the session.
+            giver = await get_profile_by_account_user_id(db, reservation.giver_user_id)
+            preference = ItemListingPreference(
+                item_id=reservation.item_id,
+                owner_party_id=giver.party_id,
+                mode=reservation.reservation_type.value,
+                created_at=reservation.created_at,
+                updated_at=reservation.updated_at,
+            )
+        if preference.owner_party_id in eligible_lister_party_ids:
             preferences.append(preference)
 
     return await _build_listing_views(db, term_id, preferences)
@@ -755,6 +787,86 @@ async def reject_swap_proposal(
     await db.commit()
     await db.refresh(proposal)
     return proposal
+
+
+_UNKNOWN_ITEM_NAME = "rzecz"
+_WITHDRAWN_LISTING_MESSAGE = (
+    'Twoja propozycja zamiany za „{name}" została odrzucona — zdjęcia tej rzeczy '
+    "czekają na moderację i zniknęła ona z terminu"
+)
+_WITHDRAWN_OFFER_MESSAGE = (
+    'Twoja propozycja zamiany za „{name}" została odrzucona — zdjęcia rzeczy '
+    "zaproponowanej w zamian czekają na moderację. Możesz zaproponować ją ponownie "
+    "po ich zatwierdzeniu"
+)
+
+
+async def _withdraw_items(db: AsyncSession, item_ids: Collection[uuid.UUID]) -> None:
+    """Takes `item_ids` out of every Term: rejects the still-PROPOSED swaps
+    on them (as listing or counter-offer), releasing each proposer's locked
+    item and telling only the proposer why, then deletes their listing
+    preferences. Flush only — the caller owns the single commit, so a later
+    failure rolls all of it back. Active takes, ACCEPTED swaps and balances
+    are left alone. Tolerates stale state: a soft-deleted listing item and a
+    proposer reservation that is already CANCELLED/FULFILLED (nothing left to
+    release) still get the proposal rejected."""
+    if not item_ids:
+        return
+    withdrawn = set(item_ids)
+    for proposal in await repository.list_pending_swap_proposals_involving_items(db, withdrawn):
+        reservation = await circulation_bridge.get_reservation(db, proposal.proposer_reservation_id)
+        if reservation.status in _ACTIVE_RESERVATION_STATUSES:
+            proposer = await get_profile_by_party(db, proposal.proposer_party_id)
+            await circulation_bridge.release_reservation(
+                db,
+                proposal.proposer_reservation_id,
+                acting_user_id=cast(uuid.UUID, proposer.account_user_id),
+            )
+        proposal.status = SwapProposalStatus.REJECTED
+        name = await _listing_product_name(db, proposal.listing_item_id)
+        template = (
+            _WITHDRAWN_LISTING_MESSAGE
+            if proposal.listing_item_id in withdrawn
+            else _WITHDRAWN_OFFER_MESSAGE
+        )
+        await notifications_bridge.create_notification(
+            db,
+            party_id=proposal.proposer_party_id,
+            kind=NotificationKind.SWAP_REJECTED,
+            message=template.format(name=name),
+            link_path=f"/product/{proposal.listing_item_id}",
+        )
+    await db.execute(
+        delete(ItemListingPreference).where(ItemListingPreference.item_id.in_(withdrawn))
+    )
+    await db.flush()
+
+
+async def _listing_product_name(db: AsyncSession, item_id: uuid.UUID) -> str:
+    """The listed item's product name, soft-deleted item included; a generic
+    name only if the item is unknown."""
+    item = await circulation_bridge.find_item_including_deleted(db, item_id)
+    if item is None:
+        return _UNKNOWN_ITEM_NAME
+    return (await product_bridge.get_product(db, item.product_id)).name
+
+
+async def withdraw_product_listings(db: AsyncSession, product_id: uuid.UUID) -> None:
+    """`add_product_photo`'s hook for a photo entering moderation: withdraws
+    every item of the product (every owner's), inside the upload's
+    transaction — never commits."""
+    await _withdraw_items(db, await circulation_bridge.list_item_ids_for_product(db, product_id))
+
+
+async def withdraw_item_listing_if_photos_pending(
+    db: AsyncSession, item_id: uuid.UUID, product_id: uuid.UUID
+) -> None:
+    """`update_item`'s hook for an item re-pointed to `product_id`: withdraws
+    that one item when the new product has a photo in moderation (FOR SHARE,
+    serializing with a concurrent upload to it), inside the re-point's
+    transaction — never commits."""
+    if await product_bridge.has_unmoderated_photos(db, product_id):
+        await _withdraw_items(db, [item_id])
 
 
 async def _resolve_transaction_reservations_for_action(

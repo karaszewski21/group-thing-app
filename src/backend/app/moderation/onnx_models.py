@@ -9,7 +9,7 @@ trail), the Hugging Face `config.json` (labels) and `tokenizer.json`, so
 labels and tokenization follow the exported model instead of being
 hard-coded. Requires the `ml` dependency group; imported by the API only
 when text moderation is enabled. Photos are scored on VPS B instead
-(`ai_client`)."""
+(its `moderation-cron`)."""
 
 from __future__ import annotations
 
