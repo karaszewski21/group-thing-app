@@ -16,6 +16,7 @@ from fastapi import APIRouter, Depends, File, Query, UploadFile, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.auth_deps import Principal, require_any
+from app.core.pagination import Page, Pagination
 from app.db import get_db
 from app.groups.application import term_item_listings
 from app.storage.service import ObjectStorage, get_storage
@@ -54,6 +55,34 @@ async def list_products(
         db, category_id=category_id, search=search, sort=sort, plugin_filters=plugin_filter
     )
     return [ProductResponse.model_validate(product) for product in products]
+
+
+@router.get("/page", response_model=Page[ProductResponse])
+async def page_products(
+    db: DbSession,
+    principal: ReadPrincipal,
+    pagination: Pagination,
+    category_id: uuid.UUID | None = None,
+    search: str | None = None,
+    sort: str | None = None,
+    plugin_filter: Annotated[list[str] | None, Query(alias="pluginFilter")] = None,
+) -> Page[ProductResponse]:
+    """`GET ""` one page at a time, with the total. Registered ahead of
+    `get_product` so `page` isn't parsed as a `{product_id}`."""
+    products, total = await service.page_products(
+        db,
+        category_id=category_id,
+        search=search,
+        sort=sort,
+        plugin_filters=plugin_filter,
+        params=pagination,
+    )
+    return Page(
+        items=[ProductResponse.model_validate(product) for product in products],
+        total=total,
+        page=pagination.page,
+        size=pagination.size,
+    )
 
 
 @router.get("/{product_id}", response_model=ProductResponse)

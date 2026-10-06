@@ -14,7 +14,7 @@ import uuid
 from decimal import Decimal, InvalidOperation
 from typing import Any
 
-from sqlalchemy import Boolean, ColumnElement, Numeric, TextClause, cast, func, select, text
+from sqlalchemy import Boolean, ColumnElement, Numeric, Select, TextClause, cast, func, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.filter_dsl import ALLOWED_OPERATORS, IDENTIFIER_PATTERN
@@ -128,14 +128,9 @@ def _parse_plugin_filter(raw: str) -> ColumnElement[Any]:
     return boolean_path == (value.lower() == "true")
 
 
-async def list_products(
-    db: AsyncSession,
-    *,
-    category_id: uuid.UUID | None,
-    search: str | None,
-    sort: str | None,
-    plugin_filters: list[str] | None,
-) -> list[Product]:
+def _filtered_products(
+    category_id: uuid.UUID | None, search: str | None, plugin_filters: list[str] | None
+) -> Select[tuple[Product]]:
     stmt = select(Product)
 
     if category_id is not None:
@@ -147,7 +142,37 @@ async def list_products(
     for raw_filter in plugin_filters or []:
         stmt = stmt.where(_parse_plugin_filter(raw_filter))
 
-    stmt = stmt.order_by(_resolve_sort(sort))
+    return stmt
 
+
+async def list_products(
+    db: AsyncSession,
+    *,
+    category_id: uuid.UUID | None,
+    search: str | None,
+    sort: str | None,
+    plugin_filters: list[str] | None,
+) -> list[Product]:
+    stmt = _filtered_products(category_id, search, plugin_filters).order_by(_resolve_sort(sort))
     result = await db.execute(stmt)
     return list(result.scalars().all())
+
+
+async def page_products(
+    db: AsyncSession,
+    *,
+    category_id: uuid.UUID | None,
+    search: str | None,
+    sort: str | None,
+    plugin_filters: list[str] | None,
+    offset: int,
+    limit: int,
+) -> tuple[list[Product], int]:
+    """One page of `list_products`' result (id breaks sort ties so pages
+    don't overlap) plus the total number of matching products."""
+    stmt = _filtered_products(category_id, search, plugin_filters)
+    total = (await db.execute(select(func.count()).select_from(stmt.subquery()))).scalar_one()
+    result = await db.execute(
+        stmt.order_by(_resolve_sort(sort), Product.id).offset(offset).limit(limit)
+    )
+    return list(result.scalars().all()), total

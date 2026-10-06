@@ -1,6 +1,9 @@
 import { Box, Heading, Table, Text } from "@chakra-ui/react";
+import { useState } from "react";
+import { PAGE_SIZE } from "../api/pagination";
 import { AdminTable } from "../components/shared/AdminTable";
 import { EmptyState } from "../components/shared/EmptyState";
+import { Pagination } from "../components/shared/Pagination";
 import { useModerationGroups } from "../hooks/useModerationGroups";
 import dayjs from "../utils/dayjs";
 
@@ -8,7 +11,8 @@ import dayjs from "../utils/dayjs";
  * member count, term count, created date — for spotting empty or abandoned
  * Circles. */
 export function AdminGroupsPage() {
-  const { data: groups, loading, error } = useModerationGroups();
+  const [page, setPage] = useState(1);
+  const { data: groups, total, loading, error } = useModerationGroups(page);
 
   return (
     <Box>
@@ -29,7 +33,7 @@ export function AdminGroupsPage() {
       ) : (
         <AdminTable
           columns={["Name", "Organizer", "Members", "Terms", "Created"]}
-          footer={`Showing ${groups.length} ${groups.length === 1 ? "circle" : "circles"}`}
+          footer={`Showing ${groups.length} of ${total} ${total === 1 ? "circle" : "circles"}`}
         >
           {groups.map((group) => (
             <Table.Row key={group.id} _hover={{ bg: "#F8FAFC" }}>
@@ -61,6 +65,7 @@ export function AdminGroupsPage() {
           ))}
         </AdminTable>
       )}
+      <Pagination page={page} size={PAGE_SIZE} total={total} onPageChange={setPage} />
     </Box>
   );
 }

@@ -1,4 +1,5 @@
 import { api } from "./client";
+import { pageParams, type Page } from "./pagination";
 
 export interface ProductResponse {
   id: string;
@@ -67,8 +68,9 @@ export interface ResolveProductRequest {
   category_id: string;
 }
 
-export function getProducts(params?: ProductSearchParams): Promise<ProductResponse[]> {
-  const searchParams = new URLSearchParams();
+/** `GET /api/products/page` — one page of the filtered, sorted catalog. */
+export function getProductsPage(params: ProductSearchParams, page: number): Promise<Page<ProductResponse>> {
+  const searchParams = new URLSearchParams(pageParams(page));
   if (params?.category_id) searchParams.set("category_id", String(params.category_id));
   if (params?.search) searchParams.set("search", params.search);
   if (params?.sort) searchParams.set("sort", params.sort);
@@ -77,8 +79,7 @@ export function getProducts(params?: ProductSearchParams): Promise<ProductRespon
       searchParams.append("pluginFilter", filter);
     }
   }
-  const query = searchParams.toString();
-  return api.get(`/products${query ? `?${query}` : ""}`);
+  return api.get(`/products/page?${searchParams}`);
 }
 
 export function getProduct(id: string): Promise<ProductResponse> {

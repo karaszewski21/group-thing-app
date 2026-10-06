@@ -112,7 +112,7 @@ vi.mock("../api/itemListingPreferences", () => ({
 
 vi.mock("../api/products", () => ({
   createProduct: vi.fn(),
-  getProducts: vi.fn(),
+  getProductsPage: vi.fn(),
   resolveProduct: vi.fn(),
 }));
 

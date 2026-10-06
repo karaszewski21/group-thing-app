@@ -13,6 +13,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.auth_deps import Principal
 from app.core.errors import BusinessConflictException, EntityNotFoundException
+from app.core.pagination import PageParams
 from app.moderation.text_guard import TextField, check_text
 from app.users.service import get_profile_by_principal
 
@@ -72,13 +73,12 @@ async def list_terms_with_counts(
     return [(term, *counts.get(cast(uuid.UUID, term.id), (0, 0))) for term in terms]
 
 
-MODERATION_TERMS_LIMIT = 200
-
-
-async def list_terms_for_moderation(db: AsyncSession) -> list[ModerationTermResponse]:
-    """ADMIN overview: the latest Terms across every Circle with their
-    active signup counts, counted in one grouped query."""
-    rows = await repository.list_terms_for_moderation(db, MODERATION_TERMS_LIMIT)
+async def list_terms_for_moderation(
+    db: AsyncSession, params: PageParams
+) -> tuple[list[ModerationTermResponse], int]:
+    """ADMIN overview: one page of Terms across every Circle, latest first,
+    with their active signup counts (one grouped query), plus the total."""
+    rows = await repository.list_terms_for_moderation(db, params.offset, params.size)
     counts = await repository.count_active_attendances_by_term(
         db, [cast(uuid.UUID, term.id) for term, _ in rows]
     )
@@ -97,7 +97,7 @@ async def list_terms_for_moderation(db: AsyncSession) -> list[ModerationTermResp
                 child_count=child_count,
             )
         )
-    return responses
+    return responses, await repository.count_terms(db)
 
 
 async def update_term(

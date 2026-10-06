@@ -31,6 +31,7 @@ from app.core.errors import (
     BusinessConflictException,
     EntityNotFoundException,
 )
+from app.core.pagination import PageParams
 from app.moderation import rules
 from app.moderation.status import ModerationStatus
 from app.moderation.text_guard import TextField, check_text
@@ -110,6 +111,26 @@ async def list_products(
 ) -> list[Product]:
     return await query_service.list_products(
         db, category_id=category_id, search=search, sort=sort, plugin_filters=plugin_filters
+    )
+
+
+async def page_products(
+    db: AsyncSession,
+    *,
+    category_id: uuid.UUID | None,
+    search: str | None,
+    sort: str | None,
+    plugin_filters: list[str] | None,
+    params: PageParams,
+) -> tuple[list[Product], int]:
+    return await query_service.page_products(
+        db,
+        category_id=category_id,
+        search=search,
+        sort=sort,
+        plugin_filters=plugin_filters,
+        offset=params.offset,
+        limit=params.size,
     )
 
 

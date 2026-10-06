@@ -1,4 +1,5 @@
 import { api } from "./client";
+import { pageParams, type Page } from "./pagination";
 import type { ModerationStatus } from "./products";
 
 export type ModerationSubjectType = "PHOTO";
@@ -26,10 +27,15 @@ export interface ModerationDecisionRequest {
   note?: string;
 }
 
-/** `GET /api/moderation/photos` (ADMIN-only) — the newest uploaded photos in
- * every status, or only in `status` when given. */
-export function getModerationPhotos(status: ModerationStatus | null): Promise<ModerationQueueEntry[]> {
-  return api.get(status ? `/moderation/photos?status=${status}` : "/moderation/photos");
+/** `GET /api/moderation/photos` (ADMIN-only) — one page of uploaded photos,
+ * newest first, in every status or only in `status` when given. */
+export function getModerationPhotos(
+  status: ModerationStatus | null,
+  page: number,
+): Promise<Page<ModerationQueueEntry>> {
+  const query = new URLSearchParams(pageParams(page));
+  if (status) query.set("status", status);
+  return api.get(`/moderation/photos?${query}`);
 }
 
 /** `DELETE /api/moderation/photos/{id}` (ADMIN-only) — removes the photo

@@ -10,6 +10,7 @@ from fastapi import APIRouter, Depends, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.auth_deps import Principal, require_any
+from app.core.pagination import Page, Pagination
 from app.db import get_db
 from app.product import service as product_service
 from app.storage.service import ObjectStorage, get_storage
@@ -36,15 +37,21 @@ async def list_queue(
     return [ModerationQueueEntryResponse.model_validate(entry) for entry in entries]
 
 
-@router.get("/photos", response_model=list[ModerationQueueEntryResponse])
+@router.get("/photos", response_model=Page[ModerationQueueEntryResponse])
 async def list_photos(
     db: DbSession,
     principal: AdminPrincipal,
     storage: Storage,
+    pagination: Pagination,
     status: ModerationStatus | None = None,
-) -> list[ModerationQueueEntryResponse]:
-    entries = await service.list_photos(db, status, storage)
-    return [ModerationQueueEntryResponse.model_validate(entry) for entry in entries]
+) -> Page[ModerationQueueEntryResponse]:
+    entries, total = await service.list_photos(db, status, storage, pagination)
+    return Page(
+        items=[ModerationQueueEntryResponse.model_validate(entry) for entry in entries],
+        total=total,
+        page=pagination.page,
+        size=pagination.size,
+    )
 
 
 @router.delete("/photos/{photo_id}", status_code=status.HTTP_204_NO_CONTENT, response_model=None)

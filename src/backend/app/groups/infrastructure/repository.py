@@ -49,8 +49,12 @@ async def get_group(db: AsyncSession, group_id: uuid.UUID) -> Group | None:
     return await db.get(Group, group_id)
 
 
+async def count_groups(db: AsyncSession) -> int:
+    return (await db.execute(select(func.count()).select_from(Group))).scalar_one()
+
+
 async def list_groups_for_moderation(
-    db: AsyncSession,
+    db: AsyncSession, offset: int, limit: int
 ) -> list[Row[tuple[Group, str | None, str | None, int, int]]]:
     """One aggregated query — `LEFT JOIN`/`GROUP BY` subqueries for member
     and term counts plus the current organizer's `UserProfile`, per
@@ -89,7 +93,9 @@ async def list_groups_for_moderation(
         .outerjoin(member_counts, member_counts.c.to_group_id == Group.id)
         .outerjoin(term_counts, term_counts.c.circle_group_id == Group.id)
         .outerjoin(organizers, organizers.c.to_group_id == Group.id)
-        .order_by(Group.created_at.desc())
+        .order_by(Group.created_at.desc(), Group.id)
+        .offset(offset)
+        .limit(limit)
     )
     return list(result.all())
 
@@ -223,12 +229,19 @@ async def list_terms_for_group(db: AsyncSession, circle_group_id: uuid.UUID) -> 
     return list(result.scalars().all())
 
 
-async def list_terms_for_moderation(db: AsyncSession, limit: int) -> list[Row[tuple[Term, str]]]:
+async def count_terms(db: AsyncSession) -> int:
+    return (await db.execute(select(func.count()).select_from(Term))).scalar_one()
+
+
+async def list_terms_for_moderation(
+    db: AsyncSession, offset: int, limit: int
+) -> list[Row[tuple[Term, str]]]:
     """Every Circle's Terms with the Circle's name, latest occurrence first."""
     result = await db.execute(
         select(Term, Group.name)
         .join(Group, Group.id == Term.circle_group_id)
-        .order_by(Term.occurs_on.desc())
+        .order_by(Term.occurs_on.desc(), Term.id)
+        .offset(offset)
         .limit(limit)
     )
     return list(result.all())

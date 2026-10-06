@@ -19,12 +19,13 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import Any, cast
 
-from sqlalchemy import Row, select
+from sqlalchemy import Row, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.models import User
 from app.core.auth_deps import Principal
 from app.core.errors import EntityNotFoundException
+from app.core.pagination import PageParams
 from app.product import service as product_service
 from app.product.models import Product, ProductPhoto
 from app.storage.service import ObjectStorage
@@ -135,17 +136,28 @@ async def list_queue(
 
 
 async def list_photos(
-    db: AsyncSession, status: ModerationStatus | None, storage: ObjectStorage | None
-) -> list[QueueEntry]:
-    """The newest uploaded photos in any status (or only in `status`), for
-    browsing what users upload. Same entry shape as the review queue."""
+    db: AsyncSession,
+    status: ModerationStatus | None,
+    storage: ObjectStorage | None,
+    params: PageParams,
+) -> tuple[list[QueueEntry], int]:
+    """One page of uploaded photos in any status (or only in `status`),
+    newest first, plus the total, for browsing what users upload. Same entry
+    shape as the review queue."""
     query = select(ProductPhoto, Product.name).join(Product, Product.id == ProductPhoto.product_id)
+    total_query = select(func.count()).select_from(ProductPhoto)
     if status is not None:
         query = query.where(ProductPhoto.status == status)
+        total_query = total_query.where(ProductPhoto.status == status)
     photo_rows = (
-        await db.execute(query.order_by(ProductPhoto.created_at.desc()).limit(QUEUE_LIMIT))
+        await db.execute(
+            query.order_by(ProductPhoto.created_at.desc(), ProductPhoto.id)
+            .offset(params.offset)
+            .limit(params.size)
+        )
     ).all()
-    return await _queue_entries(db, photo_rows, storage)
+    total = (await db.execute(total_query)).scalar_one()
+    return await _queue_entries(db, photo_rows, storage), total
 
 
 async def _queue_entries(

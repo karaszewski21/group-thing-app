@@ -1,4 +1,4 @@
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { keepPreviousData, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useCallback } from "react";
 import {
   decideModeration,
@@ -15,6 +15,7 @@ const NO_ENTRIES: ModerationQueueEntry[] = [];
 
 interface UseModerationPhotosResult {
   data: ModerationQueueEntry[];
+  total: number;
   loading: boolean;
   error: string | null;
   refetch: () => Promise<void>;
@@ -22,14 +23,19 @@ interface UseModerationPhotosResult {
   remove: (photoId: string) => Promise<void>;
 }
 
-/** Every uploaded photo, newest first; `null` means all statuses. A
- * decision or deletion refreshes every status filter, since the photo
- * moves between (or leaves) them. */
-export function useModerationPhotos(status: ModerationStatus | null): UseModerationPhotosResult {
+/** One page of uploaded photos, newest first; `null` means all statuses.
+ * The previous page stays shown while the next one loads. A decision or
+ * deletion refreshes every status filter and page, since the photo moves
+ * between (or leaves) them. */
+export function useModerationPhotos(
+  status: ModerationStatus | null,
+  page: number,
+): UseModerationPhotosResult {
   const queryClient = useQueryClient();
   const query = useQuery({
-    queryKey: [MODERATION_PHOTOS_KEY, status],
-    queryFn: () => getModerationPhotos(status),
+    queryKey: [MODERATION_PHOTOS_KEY, status, page],
+    queryFn: () => getModerationPhotos(status, page),
+    placeholderData: keepPreviousData,
   });
   const { refetch: queryRefetch } = query;
 
@@ -62,7 +68,8 @@ export function useModerationPhotos(status: ModerationStatus | null): UseModerat
   );
 
   return {
-    data: query.data ?? NO_ENTRIES,
+    data: query.data?.items ?? NO_ENTRIES,
+    total: query.data?.total ?? 0,
     loading: query.isPending,
     error: query.error ? extractProblemMessage(query.error) : null,
     refetch,

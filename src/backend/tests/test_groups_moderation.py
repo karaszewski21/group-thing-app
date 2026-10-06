@@ -84,10 +84,10 @@ async def test_listGroupsForModeration_adminPrincipal_returnsOrganizerAndCounts(
         client, db_session, "modadmin1@example.com", "secret123"
     )
 
-    response = await client.get("/api/groups/moderation", headers=admin_headers)
+    response = await client.get("/api/groups/moderation?size=100", headers=admin_headers)
 
     assert response.status_code == 200
-    rows = {row["id"]: row for row in response.json()}
+    rows = {row["id"]: row for row in response.json()["items"]}
     assert circle_id in rows
     row = rows[circle_id]
     assert row["name"] == "Krąg Moderowany"
@@ -141,10 +141,10 @@ async def test_listTermsForModeration_adminPrincipal_returnsGroupNameAndSignupCo
         client, db_session, "modtermsadmin@example.com", "secret123"
     )
 
-    response = await client.get("/api/terms/moderation", headers=admin_headers)
+    response = await client.get("/api/terms/moderation?size=100", headers=admin_headers)
 
     assert response.status_code == 200, response.text
-    mine = [row for row in response.json() if row["circle_group_id"] == circle_id]
+    mine = [row for row in response.json()["items"] if row["circle_group_id"] == circle_id]
     assert [row["id"] for row in mine] == [later.json()["id"], earlier.json()["id"]]
     assert mine[0]["group_name"] == "Krąg Terminów"
     assert mine[0]["description"] == "Drugie spotkanie"
@@ -170,10 +170,10 @@ async def test_listGroupsForModeration_circleWithNoLeadership_organizerFieldsAre
         client, db_session, "modadmin2@example.com", "secret123"
     )
 
-    response = await client.get("/api/groups/moderation", headers=admin_headers)
+    response = await client.get("/api/groups/moderation?size=100", headers=admin_headers)
 
     assert response.status_code == 200
-    rows = {row["id"]: row for row in response.json()}
+    rows = {row["id"]: row for row in response.json()["items"]}
     assert circle_id in rows
     row = rows[circle_id]
     assert row["organizer_name"] is None

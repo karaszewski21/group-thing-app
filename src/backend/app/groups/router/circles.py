@@ -20,6 +20,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
 from app.core.auth_deps import OptionalPrincipal, Principal, require_any
+from app.core.pagination import Page, Pagination
 from app.core.security import encode_login_token
 from app.db import get_db
 from app.groups import service
@@ -244,15 +245,16 @@ async def withdraw_attendance(
     return WithdrawAttendanceResponse.model_validate(attendance)
 
 
-@router.get("/api/groups/moderation", response_model=list[ModerationGroupResponse])
+@router.get("/api/groups/moderation", response_model=Page[ModerationGroupResponse])
 async def list_groups_for_moderation(
-    db: DbSession, principal: ModerationPrincipal
-) -> list[ModerationGroupResponse]:
+    db: DbSession, principal: ModerationPrincipal, pagination: Pagination
+) -> Page[ModerationGroupResponse]:
     """ADMIN-only: every Circle in the system with its current organizer and
     member/term counts. Registered ahead of `get_group` below so the
     literal `moderation` segment isn't consumed by `{group_id}: int` path
     conversion — same reasoning as `list_my_attendances` above."""
-    return await service.list_groups_for_moderation(db)
+    groups, total = await service.list_groups_for_moderation(db, pagination)
+    return Page(items=groups, total=total, page=pagination.page, size=pagination.size)
 
 
 @router.patch("/api/groups/{group_id}", response_model=GroupResponse)

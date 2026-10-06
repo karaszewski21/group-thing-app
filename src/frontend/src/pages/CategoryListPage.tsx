@@ -2,9 +2,11 @@ import { Box, Button, Flex, Heading, Table, Text } from "@chakra-ui/react";
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { ChevronDown, ChevronUp } from "lucide-react";
+import { PAGE_SIZE } from "../api/pagination";
 import { useCategories } from "../hooks/useCategories";
 import { ConfirmDialog } from "../components/shared/ConfirmDialog";
 import { EmptyState } from "../components/shared/EmptyState";
+import { Pagination } from "../components/shared/Pagination";
 import { PrimaryButton } from "../components/shared/PrimaryButton";
 import { useAuth } from "../auth/AuthContext";
 import { extractProblemMessage } from "../api/problem";
@@ -20,6 +22,11 @@ export function CategoryListPage() {
   const { permissions } = useAuth();
   const isAdmin = permissions.includes("ADMIN");
   const { data: categories, loading, error, remove, move } = useCategories();
+  // Paged in the browser: the dictionary is small and `useCategories` already
+  // holds the whole ordered list for every category picker.
+  const [page, setPage] = useState(1);
+  const offset = (page - 1) * PAGE_SIZE;
+  const pageCategories = categories.slice(offset, offset + PAGE_SIZE);
 
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
@@ -134,69 +141,74 @@ export function CategoryListPage() {
               </Table.Row>
             </Table.Header>
             <Table.Body>
-              {categories.map((category, index) => (
-                <Table.Row key={category.id} _hover={{ bg: "#F8FAFC" }}>
-                  <Table.Cell fontWeight="500" color="#1E293B">
-                    {category.name}
-                  </Table.Cell>
-                  <Table.Cell color="#334155" fontSize="13px">
-                    {category.productCount}
-                  </Table.Cell>
-                  {isAdmin && (
-                    <Table.Cell>
-                      <Flex gap="8px" align="center">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          color="#334155"
-                          aria-label={`Move ${category.name} up`}
-                          disabled={index === 0}
-                          onClick={() => handleMove(category.id, "up")}
-                        >
-                          <ChevronUp size={16} />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          color="#334155"
-                          aria-label={`Move ${category.name} down`}
-                          disabled={index === categories.length - 1}
-                          onClick={() => handleMove(category.id, "down")}
-                        >
-                          <ChevronDown size={16} />
-                        </Button>
-                        <Button
-                          asChild
-                          variant="ghost"
-                          size="sm"
-                          color="#334155"
-                          fontWeight="500"
-                          aria-label={`Edit ${category.name}`}
-                        >
-                          <Link to={`/admin/categories/${category.id}/edit`}>Edit</Link>
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          color="#DC2626"
-                          fontWeight="500"
-                          aria-label={`Delete ${category.name}`}
-                          onClick={() => setDeleteId(category.id)}
-                        >
-                          Delete
-                        </Button>
-                      </Flex>
+              {pageCategories.map((category, pageIndex) => {
+                const index = offset + pageIndex;
+                return (
+                  <Table.Row key={category.id} _hover={{ bg: "#F8FAFC" }}>
+                    <Table.Cell fontWeight="500" color="#1E293B">
+                      {category.name}
                     </Table.Cell>
-                  )}
-                </Table.Row>
-              ))}
+                    <Table.Cell color="#334155" fontSize="13px">
+                      {category.productCount}
+                    </Table.Cell>
+                    {isAdmin && (
+                      <Table.Cell>
+                        <Flex gap="8px" align="center">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            color="#334155"
+                            aria-label={`Move ${category.name} up`}
+                            disabled={index === 0}
+                            onClick={() => handleMove(category.id, "up")}
+                          >
+                            <ChevronUp size={16} />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            color="#334155"
+                            aria-label={`Move ${category.name} down`}
+                            disabled={index === categories.length - 1}
+                            onClick={() => handleMove(category.id, "down")}
+                          >
+                            <ChevronDown size={16} />
+                          </Button>
+                          <Button
+                            asChild
+                            variant="ghost"
+                            size="sm"
+                            color="#334155"
+                            fontWeight="500"
+                            aria-label={`Edit ${category.name}`}
+                          >
+                            <Link to={`/admin/categories/${category.id}/edit`}>Edit</Link>
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            color="#DC2626"
+                            fontWeight="500"
+                            aria-label={`Delete ${category.name}`}
+                            onClick={() => setDeleteId(category.id)}
+                          >
+                            Delete
+                          </Button>
+                        </Flex>
+                      </Table.Cell>
+                    )}
+                  </Table.Row>
+                );
+              })}
             </Table.Body>
           </Table.Root>
           <Box px="16px" py="12px" fontSize="13px" color="#64748B">
-            Showing {categories.length} {categories.length === 1 ? "category" : "categories"}
+            Showing {pageCategories.length} of {categories.length}{" "}
+            {categories.length === 1 ? "category" : "categories"}
           </Box>
         </Box>
       )}
+      <Pagination page={page} size={PAGE_SIZE} total={categories.length} onPageChange={setPage} />
 
       <ConfirmDialog
         open={deleteId !== null}

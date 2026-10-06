@@ -1,4 +1,5 @@
 import { api } from "./client";
+import { pageParams, type Page } from "./pagination";
 
 /** The participant-visualization layout an organizer picks for their
  * Circle's `/krag/{id}` screen — mirrors `app.groups.models.GroupLayoutMode`.
@@ -74,8 +75,8 @@ export function getGroups(): Promise<GroupResponse[]> {
   return api.get("/groups");
 }
 
-export function getGroupsForModeration(): Promise<ModerationGroupResponse[]> {
-  return api.get("/groups/moderation");
+export function getGroupsForModeration(page: number): Promise<Page<ModerationGroupResponse>> {
+  return api.get(`/groups/moderation?${new URLSearchParams(pageParams(page))}`);
 }
 
 export function getGroup(id: string): Promise<GroupResponse> {

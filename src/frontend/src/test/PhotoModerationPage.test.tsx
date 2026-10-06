@@ -6,6 +6,7 @@ import * as moderationApi from "../api/moderation";
 import type { ModerationQueueEntry } from "../api/moderation";
 import { PhotoModerationPage } from "../pages/PhotoModerationPage";
 import { system } from "../theme";
+import { pageOf } from "./page";
 import { createQueryWrapper } from "./queryClient";
 
 vi.mock("../api/moderation", () => ({
@@ -41,29 +42,31 @@ describe("PhotoModerationPage", () => {
   });
 
   it("photos_defaultFilter_listsEveryStatusWithStatusLabel", async () => {
-    vi.mocked(moderationApi.getModerationPhotos).mockResolvedValue([APPROVED]);
+    vi.mocked(moderationApi.getModerationPhotos).mockResolvedValue(pageOf([APPROVED]));
     renderPage();
 
     expect(await screen.findByAltText("Photo of Wózek spacerowy")).toHaveAttribute("src", APPROVED.photo_url);
-    expect(moderationApi.getModerationPhotos).toHaveBeenCalledWith(null);
+    expect(moderationApi.getModerationPhotos).toHaveBeenCalledWith(null, 1);
     expect(screen.getByRole("button", { name: "All" })).toHaveAttribute("aria-pressed", "true");
     expect(screen.getByRole("button", { name: "Reject" })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Approve" })).not.toBeInTheDocument();
   });
 
-  it("photos_statusFilter_requestsThatStatus", async () => {
-    vi.mocked(moderationApi.getModerationPhotos).mockResolvedValue([]);
+  it("photos_statusFilter_requestsThatStatusFromPageOne", async () => {
+    vi.mocked(moderationApi.getModerationPhotos).mockResolvedValue(pageOf([APPROVED], 30));
     renderPage();
 
-    fireEvent.click(await screen.findByRole("button", { name: "Rejected" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Next" }));
+    await waitFor(() => expect(moderationApi.getModerationPhotos).toHaveBeenLastCalledWith(null, 2));
+    fireEvent.click(screen.getByRole("button", { name: "Rejected" }));
 
-    await waitFor(() => expect(moderationApi.getModerationPhotos).toHaveBeenCalledWith("REJECTED"));
+    await waitFor(() => expect(moderationApi.getModerationPhotos).toHaveBeenLastCalledWith("REJECTED", 1));
   });
 
   it("photos_rejectApproved_sendsDecisionAndReloads", async () => {
     vi.mocked(moderationApi.getModerationPhotos)
-      .mockResolvedValueOnce([APPROVED])
-      .mockResolvedValue([{ ...APPROVED, status: "REJECTED" }]);
+      .mockResolvedValueOnce(pageOf([APPROVED]))
+      .mockResolvedValue(pageOf([{ ...APPROVED, status: "REJECTED" }]));
     vi.mocked(moderationApi.decideModeration).mockResolvedValue(undefined);
     renderPage();
 
@@ -80,7 +83,7 @@ describe("PhotoModerationPage", () => {
   });
 
   it("photos_deleteConfirmed_deletesPhotoAndReloads", async () => {
-    vi.mocked(moderationApi.getModerationPhotos).mockResolvedValueOnce([APPROVED]).mockResolvedValue([]);
+    vi.mocked(moderationApi.getModerationPhotos).mockResolvedValueOnce(pageOf([APPROVED])).mockResolvedValue(pageOf([]));
     vi.mocked(moderationApi.deleteModerationPhoto).mockResolvedValue(undefined);
     renderPage();
 
@@ -94,7 +97,7 @@ describe("PhotoModerationPage", () => {
   });
 
   it("photos_deleteFails_showsErrorInDialog", async () => {
-    vi.mocked(moderationApi.getModerationPhotos).mockResolvedValue([APPROVED]);
+    vi.mocked(moderationApi.getModerationPhotos).mockResolvedValue(pageOf([APPROVED]));
     vi.mocked(moderationApi.deleteModerationPhoto).mockRejectedValue(
       new ApiError(404, "Not Found", { title: "Not Found", status: 404, detail: "Nie znaleziono zdjęcia" }),
     );
@@ -108,7 +111,7 @@ describe("PhotoModerationPage", () => {
   });
 
   it("photos_deleteCancelled_doesNotDelete", async () => {
-    vi.mocked(moderationApi.getModerationPhotos).mockResolvedValue([APPROVED]);
+    vi.mocked(moderationApi.getModerationPhotos).mockResolvedValue(pageOf([APPROVED]));
     renderPage();
 
     fireEvent.click(await screen.findByRole("button", { name: "Delete" }));

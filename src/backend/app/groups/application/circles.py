@@ -20,6 +20,7 @@ from typing import cast
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.errors import AccessDeniedException, EntityNotFoundException
+from app.core.pagination import PageParams
 from app.moderation.text_guard import TextField, check_text
 from app.party.models import PartyType
 from app.party.service import create_party
@@ -118,9 +119,12 @@ async def list_groups(db: AsyncSession) -> list[Group]:
     return await repository.list_groups(db)
 
 
-async def list_groups_for_moderation(db: AsyncSession) -> list[ModerationGroupResponse]:
-    rows = await repository.list_groups_for_moderation(db)
-    return [
+async def list_groups_for_moderation(
+    db: AsyncSession, params: PageParams
+) -> tuple[list[ModerationGroupResponse], int]:
+    """One page of Circles, newest first, plus the total number of Circles."""
+    rows = await repository.list_groups_for_moderation(db, params.offset, params.size)
+    groups = [
         ModerationGroupResponse(
             id=cast(uuid.UUID, group.id),
             name=group.name,
@@ -132,6 +136,7 @@ async def list_groups_for_moderation(db: AsyncSession) -> list[ModerationGroupRe
         )
         for group, organizer_name, organizer_email, member_count, term_count in rows
     ]
+    return groups, await repository.count_groups(db)
 
 
 async def get_group(db: AsyncSession, group_id: uuid.UUID) -> Group:

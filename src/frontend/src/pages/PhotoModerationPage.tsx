@@ -1,8 +1,10 @@
 import { Box, Button, Heading, HStack, Text } from "@chakra-ui/react";
 import { useState } from "react";
+import { PAGE_SIZE } from "../api/pagination";
 import type { ModerationStatus } from "../api/products";
 import { PhotoModerationCard } from "../components/moderation/PhotoModerationCard";
 import { EmptyState } from "../components/shared/EmptyState";
+import { Pagination } from "../components/shared/Pagination";
 import { useModerationPhotos } from "../hooks/useModerationPhotos";
 
 const STATUS_FILTERS: { status: ModerationStatus | null; label: string }[] = [
@@ -18,7 +20,8 @@ const STATUS_FILTERS: { status: ModerationStatus | null; label: string }[] = [
  * Delete to remove it from the database and storage. */
 export function PhotoModerationPage() {
   const [status, setStatus] = useState<ModerationStatus | null>(null);
-  const { data, loading, error, decide, remove } = useModerationPhotos(status);
+  const [page, setPage] = useState(1);
+  const { data, total, loading, error, decide, remove } = useModerationPhotos(status, page);
 
   return (
     <Box>
@@ -37,7 +40,10 @@ export function PhotoModerationPage() {
             size="sm"
             variant={filter.status === status ? "solid" : "outline"}
             aria-pressed={filter.status === status}
-            onClick={() => setStatus(filter.status)}
+            onClick={() => {
+              setStatus(filter.status);
+              setPage(1);
+            }}
           >
             {filter.label}
           </Button>
@@ -63,6 +69,7 @@ export function PhotoModerationPage() {
           ))}
         </Box>
       )}
+      <Pagination page={page} size={PAGE_SIZE} total={total} onPageChange={setPage} />
     </Box>
   );
 }

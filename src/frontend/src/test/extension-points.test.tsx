@@ -9,6 +9,7 @@ import { MENU_MAIN, PRODUCT_DETAIL_TABS, PRODUCT_LIST_FILTERS } from "../plugins
 import * as pluginsApi from "../api/plugins";
 import * as productsApi from "../api/products";
 import * as categoriesApi from "../api/categories";
+import { pageOf } from "./page";
 import { createQueryWrapper } from "./queryClient";
 
 vi.mock("../auth/AuthContext", async (importOriginal) => {
@@ -35,7 +36,7 @@ vi.mock("../api/plugins", () => ({
 }));
 
 vi.mock("../api/products", () => ({
-  getProducts: vi.fn(),
+  getProductsPage: vi.fn(),
   getProduct: vi.fn(),
   createProduct: vi.fn(),
   updateProduct: vi.fn(),
@@ -114,7 +115,7 @@ function renderWithProviders(ui: React.ReactElement, initialRoute = "/") {
 beforeEach(() => {
   vi.resetAllMocks();
   vi.mocked(pluginsApi.getPlugins).mockResolvedValue(mockPlugins);
-  vi.mocked(productsApi.getProducts).mockResolvedValue(mockProducts);
+  vi.mocked(productsApi.getProductsPage).mockResolvedValue(pageOf(mockProducts));
   vi.mocked(productsApi.getProduct).mockResolvedValue(mockProduct);
   vi.mocked(categoriesApi.getCategories).mockResolvedValue(mockCategories);
 });

@@ -1,4 +1,5 @@
 import { api } from "./client";
+import { pageParams, type Page } from "./pagination";
 
 export interface TermResponse {
   id: string;
@@ -102,6 +103,6 @@ export function deleteNeededItem(id: string): Promise<void> {
   return api.delete(`/needed-items/${id}`);
 }
 
-export function getTermsForModeration(): Promise<ModerationTermResponse[]> {
-  return api.get("/terms/moderation");
+export function getTermsForModeration(page: number): Promise<Page<ModerationTermResponse>> {
+  return api.get(`/terms/moderation?${new URLSearchParams(pageParams(page))}`);
 }

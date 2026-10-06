@@ -72,7 +72,7 @@ vi.mock("../api/plugins", () => ({
 }));
 
 vi.mock("../api/products", () => ({
-  getProducts: vi.fn().mockResolvedValue([]),
+  getProductsPage: vi.fn(),
   getProduct: vi.fn(),
   createProduct: vi.fn(),
   updateProduct: vi.fn(),

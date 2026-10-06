@@ -293,20 +293,23 @@ async def test_moderationPhotos_admin_listsEveryStatusNewestFirstAndFiltersBySta
     admin = await _admin_headers(client, db_session, "mod.photos.admin@example.com")
 
     forbidden = await client.get("/api/moderation/photos", headers=_auth(token))
-    every = await client.get("/api/moderation/photos", headers=admin)
-    approved = await client.get("/api/moderation/photos?status=APPROVED", headers=admin)
+    every = await client.get("/api/moderation/photos?size=100", headers=admin)
+    approved = await client.get(
+        "/api/moderation/photos?status=APPROVED&size=100", headers=admin
+    )
 
     assert forbidden.status_code == 403
     assert every.status_code == 200, every.text
-    mine = [e for e in every.json() if e["subject_id"] in {str(older), str(newer)}]
+    mine = [e for e in every.json()["items"] if e["subject_id"] in {str(older), str(newer)}]
     assert [(e["subject_id"], e["status"]) for e in mine] == [
         (str(newer), "PENDING"),
         (str(older), "APPROVED"),
     ]
     assert approved.status_code == 200, approved.text
-    approved_ids = {e["subject_id"] for e in approved.json()}
+    approved_ids = {e["subject_id"] for e in approved.json()["items"]}
     assert str(older) in approved_ids and str(newer) not in approved_ids
-    assert {e["status"] for e in approved.json()} == {"APPROVED"}
+    assert {e["status"] for e in approved.json()["items"]} == {"APPROVED"}
+    assert approved.json()["total"] >= 1
 
 
 async def test_moderationDeletePhoto_admin_deletesRowRenumbersAndStagesFiles_nonAdmin403(

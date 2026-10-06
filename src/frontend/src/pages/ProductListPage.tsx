@@ -9,12 +9,14 @@ import {
 } from "@chakra-ui/react";
 import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
+import { PAGE_SIZE } from "../api/pagination";
 import { useProducts } from "../hooks/useProducts";
 import { useCategories } from "../hooks/useCategories";
 import { usePluginContext } from "../plugins/PluginContext";
 import { PluginFilterBar } from "../plugins/PluginFilterBar";
 import { ConfirmDialog } from "../components/shared/ConfirmDialog";
 import { EmptyState } from "../components/shared/EmptyState";
+import { Pagination } from "../components/shared/Pagination";
 import { PrimaryButton } from "../components/shared/PrimaryButton";
 import { useAuth } from "../auth/AuthContext";
 import dayjs from "../utils/dayjs";
@@ -27,6 +29,7 @@ export function ProductListPage() {
   const [categoryFilter, setCategoryFilter] = useState<string | undefined>(undefined);
   const [sortField, setSortField] = useState<string | undefined>(undefined);
   const [pluginFilters, setPluginFilters] = useState<string[]>([]);
+  const [page, setPage] = useState(1);
   const debounceRef = useRef<ReturnType<typeof setTimeout>>(null);
   const { getProductListFilters } = usePluginContext();
   const { data: categories } = useCategories();
@@ -39,6 +42,7 @@ export function ProductListPage() {
     }
     debounceRef.current = setTimeout(() => {
       setSearch(searchInput);
+      setPage(1);
     }, 300);
     return () => {
       if (debounceRef.current) {
@@ -47,11 +51,12 @@ export function ProductListPage() {
     };
   }, [searchInput]);
 
-  const { data: products, loading, error, remove } = useProducts({
+  const { data: products, total, loading, error, remove } = useProducts({
     search: search || undefined,
     category_id: categoryFilter,
     sortField,
     pluginFilters: pluginFilters.length > 0 ? pluginFilters : undefined,
+    page,
   });
 
   const [deleteId, setDeleteId] = useState<string | null>(null);
@@ -72,6 +77,12 @@ export function ProductListPage() {
 
   function handleSort(field: string) {
     setSortField((prev) => (prev === field ? undefined : field));
+    setPage(1);
+  }
+
+  function handlePluginFilterChange(filters: string[]) {
+    setPluginFilters(filters);
+    setPage(1);
   }
 
   if (error) {
@@ -129,9 +140,10 @@ export function ProductListPage() {
           role="combobox"
           aria-label="Filter by category"
           value={categoryFilter ?? ""}
-          onChange={(e) =>
-            setCategoryFilter(e.target.value || undefined)
-          }
+          onChange={(e) => {
+            setCategoryFilter(e.target.value || undefined);
+            setPage(1);
+          }}
           style={{
             padding: "8px 12px",
             border: "1px solid #E2E8F0",
@@ -151,7 +163,7 @@ export function ProductListPage() {
         </select>
         <PluginFilterBar
           filters={getProductListFilters()}
-          onFilterChange={setPluginFilters}
+          onFilterChange={handlePluginFilterChange}
         />
       </Flex>
 
@@ -295,10 +307,11 @@ export function ProductListPage() {
             </Table.Body>
           </Table.Root>
           <Box px="16px" py="12px" fontSize="13px" color="#64748B">
-            Showing {products.length} {products.length === 1 ? "product" : "products"}
+            Showing {products.length} of {total} {total === 1 ? "product" : "products"}
           </Box>
         </Box>
       )}
+      <Pagination page={page} size={PAGE_SIZE} total={total} onPageChange={setPage} />
 
       <ConfirmDialog
         open={deleteId !== null}

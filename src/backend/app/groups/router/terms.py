@@ -10,6 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.auth_deps import Principal, require_any
 from app.core.errors import EntityNotFoundException
+from app.core.pagination import Page, Pagination
 from app.db import get_db
 from app.groups import service
 from app.groups.schemas import (
@@ -63,13 +64,14 @@ async def list_terms(
     return responses
 
 
-@router.get("/api/terms/moderation", response_model=list[ModerationTermResponse])
+@router.get("/api/terms/moderation", response_model=Page[ModerationTermResponse])
 async def list_terms_for_moderation(
-    db: DbSession, principal: ModerationPrincipal
-) -> list[ModerationTermResponse]:
+    db: DbSession, principal: ModerationPrincipal, pagination: Pagination
+) -> Page[ModerationTermResponse]:
     """ADMIN-only: the latest Terms of every Circle. Registered ahead of
     `get_term` so `moderation` isn't parsed as a `{term_id}`."""
-    return await service.list_terms_for_moderation(db)
+    terms, total = await service.list_terms_for_moderation(db, pagination)
+    return Page(items=terms, total=total, page=pagination.page, size=pagination.size)
 
 
 @router.get("/api/terms/{term_id}", response_model=TermResponse)

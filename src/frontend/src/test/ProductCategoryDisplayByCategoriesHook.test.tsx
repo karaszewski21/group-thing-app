@@ -12,7 +12,7 @@ import { createQueryWrapper } from "./queryClient";
 
 vi.mock("../api/products", () => ({
   getProduct: vi.fn(),
-  getProducts: vi.fn(),
+  getProductsPage: vi.fn(),
 }));
 
 vi.mock("../api/categories", () => ({

@@ -8,6 +8,7 @@ import * as productsApi from "../api/products";
 import { PluginProvider } from "../plugins/PluginContext";
 import * as pluginsApi from "../api/plugins";
 import * as categoriesApi from "../api/categories";
+import { pageOf } from "./page";
 import { createQueryWrapper } from "./queryClient";
 
 vi.mock("../auth/AuthContext", async (importOriginal) => {
@@ -27,7 +28,7 @@ vi.mock("../auth/AuthContext", async (importOriginal) => {
 
 // Mock the API modules
 vi.mock("../api/products", () => ({
-  getProducts: vi.fn(),
+  getProductsPage: vi.fn(),
   getProduct: vi.fn(),
   createProduct: vi.fn(),
   updateProduct: vi.fn(),
@@ -90,7 +91,7 @@ beforeEach(() => {
   vi.resetAllMocks();
   vi.mocked(pluginsApi.getPlugins).mockResolvedValue([]);
   vi.mocked(categoriesApi.getCategories).mockResolvedValue(mockCategories);
-  vi.mocked(productsApi.getProducts).mockResolvedValue(mockProducts);
+  vi.mocked(productsApi.getProductsPage).mockResolvedValue(pageOf(mockProducts));
   vi.mocked(productsApi.getProduct).mockResolvedValue(mockProducts[0]!);
 });
 
@@ -120,8 +121,9 @@ describe("ProductListPage", () => {
     });
 
     await waitFor(() =>
-      expect(productsApi.getProducts).toHaveBeenLastCalledWith(
+      expect(productsApi.getProductsPage).toHaveBeenLastCalledWith(
         expect.objectContaining({ category_id: "4" }),
+        1,
       ),
     );
   });

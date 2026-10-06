@@ -1,10 +1,11 @@
 import { ChakraProvider } from "@chakra-ui/react";
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { ModerationGroupResponse } from "../api/groups";
 import * as groupsApi from "../api/groups";
 import { AdminGroupsPage } from "../pages/AdminGroupsPage";
 import { system } from "../theme";
+import { pageOf } from "./page";
 import { createQueryWrapper } from "./queryClient";
 
 vi.mock("../api/groups", () => ({
@@ -47,7 +48,7 @@ describe("AdminGroupsPage", () => {
   });
 
   it("renders one row per circle with organizer, member count, and term count", async () => {
-    vi.mocked(groupsApi.getGroupsForModeration).mockResolvedValue(mockGroups);
+    vi.mocked(groupsApi.getGroupsForModeration).mockResolvedValue(pageOf(mockGroups));
 
     renderPage();
 
@@ -56,11 +57,25 @@ describe("AdminGroupsPage", () => {
     expect(screen.getByText("(jan@example.com)")).toBeInTheDocument();
     expect(screen.getByText("Krąg Bez Lidera")).toBeInTheDocument();
     expect(screen.getByText("No organizer")).toBeInTheDocument();
-    expect(screen.getByText("Showing 2 circles")).toBeInTheDocument();
+    expect(screen.getByText("Showing 2 of 2 circles")).toBeInTheDocument();
+    expect(groupsApi.getGroupsForModeration).toHaveBeenCalledWith(1);
+    expect(screen.queryByRole("navigation", { name: "Pagination" })).not.toBeInTheDocument();
+  });
+
+  it("pages through circles with Next", async () => {
+    vi.mocked(groupsApi.getGroupsForModeration).mockResolvedValue(pageOf(mockGroups, 45));
+
+    renderPage();
+
+    expect(await screen.findByText("Page 1 of 3 · 45 total")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Next" }));
+
+    await waitFor(() => expect(groupsApi.getGroupsForModeration).toHaveBeenLastCalledWith(2));
+    expect(await screen.findByText("Page 2 of 3 · 45 total")).toBeInTheDocument();
   });
 
   it("renders EmptyState when there are no circles", async () => {
-    vi.mocked(groupsApi.getGroupsForModeration).mockResolvedValue([]);
+    vi.mocked(groupsApi.getGroupsForModeration).mockResolvedValue(pageOf([]));
 
     renderPage();
 

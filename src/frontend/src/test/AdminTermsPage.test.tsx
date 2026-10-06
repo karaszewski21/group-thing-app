@@ -5,6 +5,7 @@ import type { ModerationTermResponse } from "../api/terms";
 import * as termsApi from "../api/terms";
 import { AdminTermsPage } from "../pages/AdminTermsPage";
 import { system } from "../theme";
+import { pageOf } from "./page";
 import { createQueryWrapper } from "./queryClient";
 
 vi.mock("../api/terms", () => ({
@@ -37,10 +38,10 @@ describe("AdminTermsPage", () => {
   });
 
   it("renders each term with its circle, date, description and signup counts", async () => {
-    vi.mocked(termsApi.getTermsForModeration).mockResolvedValue([
+    vi.mocked(termsApi.getTermsForModeration).mockResolvedValue(pageOf([
       TERM,
       { ...TERM, id: "term-2", description: null, attendee_count: 0, child_count: 0 },
-    ]);
+    ]));
 
     renderPage();
 
@@ -50,11 +51,12 @@ describe("AdminTermsPage", () => {
     expect(screen.getByText("No description")).toBeInTheDocument();
     expect(screen.getByText("3")).toBeInTheDocument();
     expect(screen.getByText("5")).toBeInTheDocument();
-    expect(screen.getByText("Showing 2 terms")).toBeInTheDocument();
+    expect(screen.getByText("Showing 2 of 2 terms")).toBeInTheDocument();
+    expect(termsApi.getTermsForModeration).toHaveBeenCalledWith(1);
   });
 
   it("renders EmptyState when there are no terms", async () => {
-    vi.mocked(termsApi.getTermsForModeration).mockResolvedValue([]);
+    vi.mocked(termsApi.getTermsForModeration).mockResolvedValue(pageOf([]));
 
     renderPage();
 

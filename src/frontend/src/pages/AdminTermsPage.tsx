@@ -1,13 +1,17 @@
 import { Box, Heading, Table, Text } from "@chakra-ui/react";
+import { useState } from "react";
+import { PAGE_SIZE } from "../api/pagination";
 import { AdminTable } from "../components/shared/AdminTable";
 import { EmptyState } from "../components/shared/EmptyState";
+import { Pagination } from "../components/shared/Pagination";
 import { useModerationTerms } from "../hooks/useModerationTerms";
 import dayjs from "../utils/dayjs";
 
 /** ADMIN-only, read-only overview of the latest Terms across every Circle,
  * latest first, with their active signups (guardians and children). */
 export function AdminTermsPage() {
-  const { data: terms, loading, error } = useModerationTerms();
+  const [page, setPage] = useState(1);
+  const { data: terms, total, loading, error } = useModerationTerms(page);
 
   return (
     <Box>
@@ -28,7 +32,7 @@ export function AdminTermsPage() {
       ) : (
         <AdminTable
           columns={["Date", "Circle", "Description", "Signups", "Children"]}
-          footer={`Showing ${terms.length} ${terms.length === 1 ? "term" : "terms"}`}
+          footer={`Showing ${terms.length} of ${total} ${total === 1 ? "term" : "terms"}`}
         >
           {terms.map((term) => (
             <Table.Row key={term.id} _hover={{ bg: "#F8FAFC" }}>
@@ -55,6 +59,7 @@ export function AdminTermsPage() {
           ))}
         </AdminTable>
       )}
+      <Pagination page={page} size={PAGE_SIZE} total={total} onPageChange={setPage} />
     </Box>
   );
 }
