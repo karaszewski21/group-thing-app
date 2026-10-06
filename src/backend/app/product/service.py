@@ -383,8 +383,8 @@ async def add_product_photo(
     import `app.groups`) takes all items of the product out of terms in the
     same transaction, under the product lock. Nothing in the hook commits:
     on any failure the session is rolled back and both stored files are
-    deleted. Until `purge_rejected_photos` removes it, a rejected photo
-    still counts as a duplicate."""
+    deleted. A rejected photo still counts as a duplicate, so it cannot be
+    re-uploaded."""
     if storage is None:
         raise BusinessConflictException(PHOTO_UPLOAD_DISABLED_MESSAGE)
     processed = await asyncio.to_thread(images.process_upload, data)
@@ -430,6 +430,24 @@ async def remove_product_photo(
 ) -> None:
     await _lock_product(db, product_id)
     await _require_item_owner(db, product_id, principal)
+    await _delete_photo(db, product_id, photo_id)
+
+
+async def delete_photo_as_admin(db: AsyncSession, photo_id: uuid.UUID) -> None:
+    """An admin's removal of any photo, whoever owns it: same row delete,
+    renumbering and outbox file deletion as the owner's own delete."""
+    product_id = (
+        await db.execute(select(ProductPhoto.product_id).where(ProductPhoto.id == photo_id))
+    ).scalar_one_or_none()
+    if product_id is None:
+        raise EntityNotFoundException("ProductPhoto", photo_id)
+    await _lock_product(db, product_id)
+    await _delete_photo(db, product_id, photo_id)
+
+
+async def _delete_photo(db: AsyncSession, product_id: uuid.UUID, photo_id: uuid.UUID) -> None:
+    """Deletes one photo of the (already locked) product and stages its
+    files' deletion, in one commit."""
     photos = await product_photos(db, product_id)
     photo = next((p for p in photos if p.id == photo_id), None)
     if photo is None:
@@ -439,50 +457,6 @@ async def remove_product_photo(
     _renumber([p for p in photos if p is not photo])
     await _stage_photo_files_delete(db, [photo])
     await db.commit()
-
-
-async def purge_rejected_photos(db: AsyncSession) -> int:
-    """Deletes every REJECTED photo (whoever rejected it: VPS B's cron or
-    an admin) so it no longer sits in its owner's gallery. One commit per
-    product, under the product lock like the owner's own delete; the files
-    go through the outbox. Returns how many photos were deleted."""
-    product_ids = (
-        (
-            await db.execute(
-                select(ProductPhoto.product_id)
-                .where(ProductPhoto.status == ModerationStatus.REJECTED)
-                .distinct()
-            )
-        )
-        .scalars()
-        .all()
-    )
-    deleted = 0
-    for product_id in product_ids:
-        await _lock_product(db, product_id)
-        rejected = list(
-            (
-                await db.execute(
-                    select(ProductPhoto)
-                    .where(
-                        ProductPhoto.product_id == product_id,
-                        ProductPhoto.status == ModerationStatus.REJECTED,
-                    )
-                    .with_for_update()
-                )
-            )
-            .scalars()
-            .all()
-        )
-        photos = await product_photos(db, product_id)
-        for photo in rejected:
-            await db.delete(photo)
-        await db.flush()
-        _renumber([p for p in photos if p not in rejected])
-        await _stage_photo_files_delete(db, rejected)
-        await db.commit()
-        deleted += len(rejected)
-    return deleted
 
 
 async def reorder_product_photos(

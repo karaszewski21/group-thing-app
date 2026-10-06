@@ -4,18 +4,18 @@ export interface ProductResponse {
   id: string;
   name: string;
   description: string | null;
-  photoUrl: string | null;
+  photo_url: string | null;
   sku: string;
   category_id: string;
-  pluginData: Record<string, Record<string, unknown>> | null;
-  createdAt: string;
-  updatedAt: string;
+  plugin_data: Record<string, Record<string, unknown>> | null;
+  created_at: string;
+  updated_at: string;
 }
 
 export interface CreateProductRequest {
   name: string;
   description?: string;
-  photoUrl?: string;
+  photo_url?: string;
   sku: string;
   category_id: string;
 }
@@ -23,7 +23,7 @@ export interface CreateProductRequest {
 export interface UpdateProductRequest {
   name: string;
   description?: string;
-  photoUrl?: string;
+  photo_url?: string;
   sku: string;
   category_id: string;
 }

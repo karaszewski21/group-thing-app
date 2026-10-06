@@ -5,7 +5,9 @@ import { ProductListPage } from "./pages/ProductListPage";
 import { ProductFormPage } from "./pages/ProductFormPage";
 import { CategoryListPage } from "./pages/CategoryListPage";
 import { CategoryFormPage } from "./pages/CategoryFormPage";
-import { ModerationPage } from "./pages/ModerationPage";
+import { AdminGroupsPage } from "./pages/AdminGroupsPage";
+import { AdminTermsPage } from "./pages/AdminTermsPage";
+import { PhotoModerationPage } from "./pages/PhotoModerationPage";
 import { ProductDetailPage } from "./pages/ProductDetailPage";
 import { PluginListPage } from "./pages/PluginListPage";
 import { PluginDetailPage } from "./pages/PluginDetailPage";
@@ -161,7 +163,9 @@ export const router = createBrowserRouter([
       { path: "categories", element: <CategoryListPage /> },
       { path: "categories/new", element: <CategoryFormPage /> },
       { path: "categories/:id/edit", element: <CategoryFormPage /> },
-      { path: "moderation", element: <ModerationPage /> },
+      { path: "groups", element: <AdminGroupsPage /> },
+      { path: "terms", element: <AdminTermsPage /> },
+      { path: "photos", element: <PhotoModerationPage /> },
       { path: "plugins", element: <PluginListPage /> },
       { path: "plugins/new", element: <PluginFormPage /> },
       { path: "plugins/:pluginId/detail", element: <PluginDetailPage /> },

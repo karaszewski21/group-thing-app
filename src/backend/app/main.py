@@ -41,7 +41,6 @@ from app.organizations.router import router as organizations_router
 from app.outbox import scheduler as outbox_scheduler
 from app.plugin.router import router as plugin_router
 from app.product.router import router as product_router
-from app.product.service import purge_rejected_photos
 from app.storage import outbox_listener as storage_outbox_listener
 from app.system.router import router as system_router
 from app.users.router import router as users_router
@@ -62,7 +61,6 @@ _term_end_scheduler: AsyncIOScheduler | None = None
 # configurable-interval settings system, per
 # `standards/global/minimal-implementation.md`.
 _TERM_END_SCAN_INTERVAL_MINUTES = 1
-_REJECTED_PHOTO_PURGE_INTERVAL_MINUTES = 1
 
 
 async def _run_term_end_scan() -> None:
@@ -70,20 +68,14 @@ async def _run_term_end_scan() -> None:
         await scan_for_term_ended(db)
 
 
-async def _run_rejected_photo_purge() -> None:
-    async with async_session_factory() as db:
-        await purge_rejected_photos(db)
-
-
 @asynccontextmanager
 async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
     """Starts the 30s outbox poller as a background task alongside the app
     process, after wiring every vertical's outbox event handlers. Also
-    starts the term-end scan and rejected-photo purge jobs on an
-    `AsyncIOScheduler` (APScheduler, interval-based) — the same "started on
-    startup, cancelled/shut down on shutdown" lifecycle shape as the outbox
-    poller, using APScheduler's own `start`/`shutdown(wait=False)` API rather
-    than a second sleep loop."""
+    starts the term-end scan job on an `AsyncIOScheduler` (APScheduler,
+    interval-based) — the same "started on startup, cancelled/shut down on
+    shutdown" lifecycle shape as the outbox poller, using APScheduler's own
+    `start`/`shutdown(wait=False)` API rather than a second sleep loop."""
     global _outbox_task, _term_end_scheduler
     logger.info(
         "MODERATION_TEXT_ENABLED=%s MODERATION_IMAGE_ENABLED=%s",
@@ -108,15 +100,12 @@ async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
 
     # APScheduler's default 1s misfire grace drops every run that starts even
     # slightly late (the event loop is often busy for a few seconds), so the
-    # jobs never ran. Run late jobs anyway, collapsing any backlog into one.
+    # job never ran. Run late jobs anyway, collapsing any backlog into one.
     _term_end_scheduler = AsyncIOScheduler(
         job_defaults={"misfire_grace_time": None, "coalesce": True}
     )
     _term_end_scheduler.add_job(
         _run_term_end_scan, "interval", minutes=_TERM_END_SCAN_INTERVAL_MINUTES
-    )
-    _term_end_scheduler.add_job(
-        _run_rejected_photo_purge, "interval", minutes=_REJECTED_PHOTO_PURGE_INTERVAL_MINUTES
     )
     _term_end_scheduler.start()
 

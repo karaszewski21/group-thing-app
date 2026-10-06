@@ -145,6 +145,9 @@ _RAW_MATRIX: tuple[_RawEntry, ...] = (
     # Fine-grained term / needed-item edit + soft-delete — ahead of the
     # blanket rows below (first-match-wins). Active-organizer checks live in
     # `app.groups.service`; the matrix only gates them to EDIT.
+    # ADMIN-only Term overview — ahead of the PATCH/GET /api/terms rows below,
+    # same reasoning as /api/groups/moderation.
+    (_methods("GET"), r"^/api/terms/moderation$", ("ADMIN",)),
     (_methods("PATCH"), r"^/api/terms/[^/]+$", ("EDIT", "mcp:edit")),
     (_methods("GET"), r"^/api/terms(/.*)?$", ("READ", "mcp:read")),  # 32
     (_methods("POST"), r"^/api/terms(/.*)?$", ("EDIT", "mcp:edit")),  # 33

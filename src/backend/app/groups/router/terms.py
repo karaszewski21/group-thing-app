@@ -15,6 +15,7 @@ from app.groups import service
 from app.groups.schemas import (
     CreateNeededItemRequest,
     CreateTermRequest,
+    ModerationTermResponse,
     NeededItemResponse,
     TermResponse,
     UpdateNeededItemRequest,
@@ -27,6 +28,7 @@ router = APIRouter(tags=["groups"])
 DbSession = Annotated[AsyncSession, Depends(get_db)]
 ReadPrincipal = Annotated[Principal, Depends(require_any("READ", "mcp:read"))]
 EditPrincipal = Annotated[Principal, Depends(require_any("EDIT", "mcp:edit"))]
+ModerationPrincipal = Annotated[Principal, Depends(require_any("ADMIN"))]
 
 
 # --- Term / NeededItem ----------------------------------------------------------
@@ -59,6 +61,15 @@ async def list_terms(
         response.child_count = child_count
         responses.append(response)
     return responses
+
+
+@router.get("/api/terms/moderation", response_model=list[ModerationTermResponse])
+async def list_terms_for_moderation(
+    db: DbSession, principal: ModerationPrincipal
+) -> list[ModerationTermResponse]:
+    """ADMIN-only: the latest Terms of every Circle. Registered ahead of
+    `get_term` so `moderation` isn't parsed as a `{term_id}`."""
+    return await service.list_terms_for_moderation(db)
 
 
 @router.get("/api/terms/{term_id}", response_model=TermResponse)

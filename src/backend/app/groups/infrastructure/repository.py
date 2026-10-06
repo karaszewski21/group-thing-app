@@ -223,6 +223,17 @@ async def list_terms_for_group(db: AsyncSession, circle_group_id: uuid.UUID) -> 
     return list(result.scalars().all())
 
 
+async def list_terms_for_moderation(db: AsyncSession, limit: int) -> list[Row[tuple[Term, str]]]:
+    """Every Circle's Terms with the Circle's name, latest occurrence first."""
+    result = await db.execute(
+        select(Term, Group.name)
+        .join(Group, Group.id == Term.circle_group_id)
+        .order_by(Term.occurs_on.desc())
+        .limit(limit)
+    )
+    return list(result.all())
+
+
 async def get_needed_item(db: AsyncSession, needed_item_id: uuid.UUID) -> NeededItem | None:
     return await db.get(NeededItem, needed_item_id)
 

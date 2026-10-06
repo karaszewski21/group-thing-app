@@ -11,7 +11,7 @@ import {
 } from "@chakra-ui/react";
 import { Link, useLocation } from "react-router-dom";
 import type { LucideIcon } from "lucide-react";
-import { ProductsIcon, PluginsIcon, KragIcon, CategoriesIcon, ModerationIcon } from "../shared/Icons";
+import { ProductsIcon, PluginsIcon, KragIcon, CategoriesIcon, GroupsIcon, TermsIcon, PhotosIcon } from "../shared/Icons";
 import { useAuth } from "../../auth/AuthContext";
 
 interface MobileDrawerProps {
@@ -90,7 +90,13 @@ export function MobileDrawer({ open, onClose }: MobileDrawerProps) {
                 <MobileNavItem to="/admin/plugins" label="Plugins" icon={PluginsIcon} onClick={onClose} />
               )}
               {isAdmin && (
-                <MobileNavItem to="/admin/moderation" label="Moderation" icon={ModerationIcon} onClick={onClose} />
+                <MobileNavItem to="/admin/groups" label="Groups" icon={GroupsIcon} onClick={onClose} />
+              )}
+              {isAdmin && (
+                <MobileNavItem to="/admin/terms" label="Terms" icon={TermsIcon} onClick={onClose} />
+              )}
+              {isAdmin && (
+                <MobileNavItem to="/admin/photos" label="Photos" icon={PhotosIcon} onClick={onClose} />
               )}
             </Flex>
           </DrawerBody>

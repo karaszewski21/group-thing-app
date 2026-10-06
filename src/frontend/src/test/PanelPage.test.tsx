@@ -1932,8 +1932,8 @@ describe("PanelPage — needed item sub-CRUD (in the term dialog)", () => {
   it("adds a needed item via the dialog add row (resolveProduct then createNeededItem)", async () => {
     mockTermWithNeeded();
     vi.mocked(productsApi.resolveProduct).mockResolvedValue({
-      id: "42", name: "Mata", description: null, photoUrl: null, sku: "MATA-1",
-      category_id: "1", pluginData: null, createdAt: "", updatedAt: "",
+      id: "42", name: "Mata", description: null, photo_url: null, sku: "MATA-1",
+      category_id: "1", plugin_data: null, created_at: "", updated_at: "",
     });
     vi.mocked(termsApi.createNeededItem).mockResolvedValue({
       id: "12", term_id: TERM_ID, product_id: "42", product_name: "Mata", product_category_id: "1", product_category_name: "Zabawka",

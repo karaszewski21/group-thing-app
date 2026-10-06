@@ -14,6 +14,19 @@ export interface TermResponse {
   child_count: number | null;
 }
 
+/** `GET /api/terms/moderation` (ADMIN-only) row — a Term of any Circle
+ * with the Circle's name and its non-withdrawn signup counts. */
+export interface ModerationTermResponse {
+  id: string;
+  circle_group_id: string;
+  group_name: string;
+  occurs_on: string;
+  description: string | null;
+  created_at: string;
+  attendee_count: number;
+  child_count: number;
+}
+
 export interface CreateTermRequest {
   circle_group_id: string;
   occurs_on: string;
@@ -87,4 +100,8 @@ export function updateNeededItem(
 
 export function deleteNeededItem(id: string): Promise<void> {
   return api.delete(`/needed-items/${id}`);
+}
+
+export function getTermsForModeration(): Promise<ModerationTermResponse[]> {
+  return api.get("/terms/moderation");
 }

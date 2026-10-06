@@ -19,7 +19,9 @@ from app.groups.application.term_item_listings import PHOTOS_IN_MODERATION_MESSA
 from app.moderation.models import ModerationDecision, ModerationSource, ModerationSubjectType
 from app.moderation.rules import CONTACT_INFO_MESSAGE, contains_contact_info
 from app.moderation.status import ModerationStatus
+from app.outbox.models import OutboxEntry
 from app.product.models import ProductPhoto
+from app.storage.outbox_listener import OBJECTS_DELETE
 from tests.fake_storage import FakeStorage
 from tests.test_term_item_listings import (
     _auth,
@@ -274,6 +276,83 @@ async def test_moderationDecision_productTextSubject_returns400(
     assert ModerationSubjectType("PRODUCT_TEXT") is ModerationSubjectType.PRODUCT_TEXT
 
 
+async def test_moderationPhotos_admin_listsEveryStatusNewestFirstAndFiltersByStatus(
+    client: AsyncClient, db_session: AsyncSession, fake_storage: FakeStorage, moderation_on: None
+) -> None:
+    token, _ = await _register(client, "GUEST", "mod.photos@example.com")
+    await _register_personal_item(client, token, "Wszystkie zdjecia")
+    product_id = await _resolve_product(client, token, "Wszystkie zdjecia")
+    older = await _pending_photo(client, token, product_id, 3)
+    newer = await _pending_photo(client, token, product_id, 4)
+    await db_session.execute(
+        update(ProductPhoto)
+        .where(ProductPhoto.id == older)
+        .values(status=ModerationStatus.APPROVED)
+    )
+    await db_session.commit()
+    admin = await _admin_headers(client, db_session, "mod.photos.admin@example.com")
+
+    forbidden = await client.get("/api/moderation/photos", headers=_auth(token))
+    every = await client.get("/api/moderation/photos", headers=admin)
+    approved = await client.get("/api/moderation/photos?status=APPROVED", headers=admin)
+
+    assert forbidden.status_code == 403
+    assert every.status_code == 200, every.text
+    mine = [e for e in every.json() if e["subject_id"] in {str(older), str(newer)}]
+    assert [(e["subject_id"], e["status"]) for e in mine] == [
+        (str(newer), "PENDING"),
+        (str(older), "APPROVED"),
+    ]
+    assert approved.status_code == 200, approved.text
+    approved_ids = {e["subject_id"] for e in approved.json()}
+    assert str(older) in approved_ids and str(newer) not in approved_ids
+    assert {e["status"] for e in approved.json()} == {"APPROVED"}
+
+
+async def test_moderationDeletePhoto_admin_deletesRowRenumbersAndStagesFiles_nonAdmin403(
+    client: AsyncClient, db_session: AsyncSession, fake_storage: FakeStorage, moderation_on: None
+) -> None:
+    token, _ = await _register(client, "GUEST", "mod.delete@example.com")
+    await _register_personal_item(client, token, "Usuwane zdjecie")
+    product_id = await _resolve_product(client, token, "Usuwane zdjecie")
+    first = await _pending_photo(client, token, product_id, 5)
+    removed = await _pending_photo(client, token, product_id, 6)
+    last = await _pending_photo(client, token, product_id, 8)
+    photo = await db_session.get(ProductPhoto, removed)
+    assert photo is not None
+    keys = [photo.large_key, photo.thumb_key]
+    admin = await _admin_headers(client, db_session, "mod.delete.admin@example.com")
+
+    forbidden = await client.delete(f"/api/moderation/photos/{removed}", headers=_auth(token))
+    deleted = await client.delete(f"/api/moderation/photos/{removed}", headers=admin)
+    missing = await client.delete(f"/api/moderation/photos/{removed}", headers=admin)
+
+    assert forbidden.status_code == 403
+    assert deleted.status_code == 204, deleted.text
+    assert missing.status_code == 404
+    db_session.expire_all()
+    gallery = (
+        await db_session.execute(
+            select(ProductPhoto.id, ProductPhoto.sort_order)
+            .where(ProductPhoto.product_id == uuid.UUID(product_id))
+            .order_by(ProductPhoto.sort_order)
+        )
+    ).all()
+    assert [(row.id, row.sort_order) for row in gallery] == [(first, 0), (last, 1)]
+    staged = (
+        (
+            await db_session.execute(
+                select(OutboxEntry.payload).where(OutboxEntry.event_type == OBJECTS_DELETE)
+            )
+        )
+        .scalars()
+        .all()
+    )
+    assert {"keys": keys} in staged
+
+
 def test_resolveRequirement_moderationRoutes_resolveToAdmin() -> None:
     assert resolve_requirement("GET", "/api/moderation/queue") == ("ADMIN",)
+    assert resolve_requirement("GET", "/api/moderation/photos") == ("ADMIN",)
+    assert resolve_requirement("DELETE", "/api/moderation/photos/some-id") == ("ADMIN",)
     assert resolve_requirement("POST", "/api/moderation/decisions") == ("ADMIN",)

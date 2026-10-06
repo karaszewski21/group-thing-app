@@ -89,12 +89,12 @@ const mockProduct: ProductResponse = {
   id: "42",
   name: "Wireless Headphones Pro",
   description: "Premium wireless headphones with noise cancellation",
-  photoUrl: "https://example.com/headphones.jpg",
+  photo_url: "https://example.com/headphones.jpg",
   sku: "WHP-001",
   category_id: "1",
-  pluginData: null,
-  createdAt: "2026-03-28T10:00:00Z",
-  updatedAt: "2026-03-28T10:00:00Z",
+  plugin_data: null,
+  created_at: "2026-03-28T10:00:00Z",
+  updated_at: "2026-03-28T10:00:00Z",
 };
 
 const mockProducts: ProductResponse[] = [mockProduct];

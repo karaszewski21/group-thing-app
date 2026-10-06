@@ -3,6 +3,7 @@ matrix row `^/api/moderation(/.*)?$` -> ADMIN)."""
 
 from __future__ import annotations
 
+import uuid
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, status
@@ -10,6 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.auth_deps import Principal, require_any
 from app.db import get_db
+from app.product import service as product_service
 from app.storage.service import ObjectStorage, get_storage
 
 from . import service
@@ -32,6 +34,24 @@ async def list_queue(
 ) -> list[ModerationQueueEntryResponse]:
     entries = await service.list_queue(db, status, storage)
     return [ModerationQueueEntryResponse.model_validate(entry) for entry in entries]
+
+
+@router.get("/photos", response_model=list[ModerationQueueEntryResponse])
+async def list_photos(
+    db: DbSession,
+    principal: AdminPrincipal,
+    storage: Storage,
+    status: ModerationStatus | None = None,
+) -> list[ModerationQueueEntryResponse]:
+    entries = await service.list_photos(db, status, storage)
+    return [ModerationQueueEntryResponse.model_validate(entry) for entry in entries]
+
+
+@router.delete("/photos/{photo_id}", status_code=status.HTTP_204_NO_CONTENT, response_model=None)
+async def delete_photo(photo_id: uuid.UUID, db: DbSession, principal: AdminPrincipal) -> None:
+    """Removes the photo from the database and, via the outbox, both of its
+    files from object storage."""
+    await product_service.delete_photo_as_admin(db, photo_id)
 
 
 @router.post("/decisions", status_code=status.HTTP_204_NO_CONTENT, response_model=None)

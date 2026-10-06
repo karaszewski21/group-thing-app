@@ -14,11 +14,12 @@ from __future__ import annotations
 
 import contextlib
 import uuid
+from collections.abc import Sequence
 from dataclasses import dataclass
 from datetime import datetime
 from typing import Any, cast
 
-from sqlalchemy import select
+from sqlalchemy import Row, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.models import User
@@ -130,6 +131,28 @@ async def list_queue(
             .limit(QUEUE_LIMIT)
         )
     ).all()
+    return await _queue_entries(db, photo_rows, storage)
+
+
+async def list_photos(
+    db: AsyncSession, status: ModerationStatus | None, storage: ObjectStorage | None
+) -> list[QueueEntry]:
+    """The newest uploaded photos in any status (or only in `status`), for
+    browsing what users upload. Same entry shape as the review queue."""
+    query = select(ProductPhoto, Product.name).join(Product, Product.id == ProductPhoto.product_id)
+    if status is not None:
+        query = query.where(ProductPhoto.status == status)
+    photo_rows = (
+        await db.execute(query.order_by(ProductPhoto.created_at.desc()).limit(QUEUE_LIMIT))
+    ).all()
+    return await _queue_entries(db, photo_rows, storage)
+
+
+async def _queue_entries(
+    db: AsyncSession,
+    photo_rows: Sequence[Row[tuple[ProductPhoto, str]]],
+    storage: ObjectStorage | None,
+) -> list[QueueEntry]:
     decisions = await _latest_ai_decisions(
         db, [cast(uuid.UUID, photo.id) for photo, _ in photo_rows]
     )

@@ -1,21 +1,14 @@
-import { render, screen } from "@testing-library/react";
-import { describe, expect, it, vi, beforeEach } from "vitest";
-import { MemoryRouter } from "react-router-dom";
 import { ChakraProvider } from "@chakra-ui/react";
-import { system } from "../theme";
+import { render, screen } from "@testing-library/react";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { ModerationGroupResponse } from "../api/groups";
 import * as groupsApi from "../api/groups";
-import * as moderationApi from "../api/moderation";
-import { ModerationPage } from "../pages/ModerationPage";
+import { AdminGroupsPage } from "../pages/AdminGroupsPage";
+import { system } from "../theme";
 import { createQueryWrapper } from "./queryClient";
 
 vi.mock("../api/groups", () => ({
   getGroupsForModeration: vi.fn(),
-}));
-
-vi.mock("../api/moderation", () => ({
-  getModerationQueue: vi.fn(),
-  decideModeration: vi.fn(),
 }));
 
 const mockGroups: ModerationGroupResponse[] = [
@@ -39,47 +32,45 @@ const mockGroups: ModerationGroupResponse[] = [
   },
 ];
 
-function renderWithProviders() {
+function renderPage() {
   return render(
     <ChakraProvider value={system}>
-      <MemoryRouter initialEntries={["/admin/moderation"]}>
-        <ModerationPage />
-      </MemoryRouter>
+      <AdminGroupsPage />
     </ChakraProvider>,
     { wrapper: createQueryWrapper() },
   );
 }
 
-beforeEach(() => {
-  vi.resetAllMocks();
-  vi.mocked(moderationApi.getModerationQueue).mockResolvedValue([]);
-});
+describe("AdminGroupsPage", () => {
+  beforeEach(() => {
+    vi.resetAllMocks();
+  });
 
-describe("ModerationPage", () => {
   it("renders one row per circle with organizer, member count, and term count", async () => {
     vi.mocked(groupsApi.getGroupsForModeration).mockResolvedValue(mockGroups);
 
-    renderWithProviders();
+    renderPage();
 
     expect(await screen.findByText("Krąg Sportowy")).toBeInTheDocument();
     expect(screen.getByText("Jan Kowalski")).toBeInTheDocument();
     expect(screen.getByText("(jan@example.com)")).toBeInTheDocument();
     expect(screen.getByText("Krąg Bez Lidera")).toBeInTheDocument();
     expect(screen.getByText("No organizer")).toBeInTheDocument();
+    expect(screen.getByText("Showing 2 circles")).toBeInTheDocument();
   });
 
   it("renders EmptyState when there are no circles", async () => {
     vi.mocked(groupsApi.getGroupsForModeration).mockResolvedValue([]);
 
-    renderWithProviders();
+    renderPage();
 
     expect(await screen.findByText("No circles found")).toBeInTheDocument();
   });
 
-  it("shows the backend error message when the request is forbidden", async () => {
+  it("shows the backend error message when the request fails", async () => {
     vi.mocked(groupsApi.getGroupsForModeration).mockRejectedValue(new Error("Network error — check connection"));
 
-    renderWithProviders();
+    renderPage();
 
     expect(await screen.findByText(/Network error/)).toBeInTheDocument();
   });

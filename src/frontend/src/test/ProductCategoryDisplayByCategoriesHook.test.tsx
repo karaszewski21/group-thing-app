@@ -45,12 +45,12 @@ const mockProduct: ProductResponse = {
   id: "1",
   name: "Słuchawki",
   description: null,
-  photoUrl: null,
+  photo_url: null,
   sku: "SKU-1",
   category_id: "42",
-  pluginData: null,
-  createdAt: "2026-01-01T00:00:00Z",
-  updatedAt: "2026-01-01T00:00:00Z",
+  plugin_data: null,
+  created_at: "2026-01-01T00:00:00Z",
+  updated_at: "2026-01-01T00:00:00Z",
 };
 
 describe("Category display resolves via useCategories(), not CATEGORY_LABELS", () => {

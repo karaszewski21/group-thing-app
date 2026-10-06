@@ -3,7 +3,6 @@ import {
   Button,
   Flex,
   Heading,
-  Image,
   Input,
   Table,
   Text,
@@ -16,11 +15,9 @@ import { usePluginContext } from "../plugins/PluginContext";
 import { PluginFilterBar } from "../plugins/PluginFilterBar";
 import { ConfirmDialog } from "../components/shared/ConfirmDialog";
 import { EmptyState } from "../components/shared/EmptyState";
-import { PhotoPlaceholder } from "../components/shared/Icons";
 import { PrimaryButton } from "../components/shared/PrimaryButton";
 import { useAuth } from "../auth/AuthContext";
-import { formatDate } from "../utils/format";
-import { isValidImageUrl } from "../utils/url";
+import dayjs from "../utils/dayjs";
 
 export function ProductListPage() {
   const { permissions } = useAuth();
@@ -183,16 +180,6 @@ export function ProductListPage() {
                   color="brand.500"
                   textTransform="uppercase"
                   letterSpacing="0.05em"
-                  width="60px"
-                >
-                  Photo
-                </Table.ColumnHeader>
-                <Table.ColumnHeader
-                  fontSize="12px"
-                  fontWeight="600"
-                  color="brand.500"
-                  textTransform="uppercase"
-                  letterSpacing="0.05em"
                   cursor="pointer"
                   onClick={() => handleSort("name")}
                 >
@@ -205,7 +192,7 @@ export function ProductListPage() {
                   textTransform="uppercase"
                   letterSpacing="0.05em"
                 >
-                  SKU
+                  Description
                 </Table.ColumnHeader>
                 <Table.ColumnHeader
                   fontSize="12px"
@@ -245,30 +232,6 @@ export function ProductListPage() {
               {products.map((product) => {
                 return (
                   <Table.Row key={product.id} _hover={{ bg: "#F8FAFC" }}>
-                    <Table.Cell>
-                      <Box
-                        w="40px"
-                        h="40px"
-                        borderRadius="8px"
-                        overflow="hidden"
-                        bg="#F1F5F9"
-                        display="flex"
-                        alignItems="center"
-                        justifyContent="center"
-                      >
-                        {isValidImageUrl(product.photoUrl) ? (
-                          <Image
-                            src={product.photoUrl!}
-                            alt={product.name}
-                            w="100%"
-                            h="100%"
-                            objectFit="cover"
-                          />
-                        ) : (
-                          <PhotoPlaceholder />
-                        )}
-                      </Box>
-                    </Table.Cell>
                     <Table.Cell fontWeight="500" color="#1E293B">
                       <Link
                         to={`/admin/products/${product.id}`}
@@ -278,8 +241,14 @@ export function ProductListPage() {
                         {product.name}
                       </Link>
                     </Table.Cell>
-                    <Table.Cell fontFamily="monospace" fontSize="13px" color="#64748B">
-                      {product.sku}
+                    <Table.Cell fontSize="13px" color="#334155" maxW="420px">
+                      {product.description ? (
+                        <Text lineClamp={2}>{product.description}</Text>
+                      ) : (
+                        <Text as="span" color="#94A3B8" fontStyle="italic">
+                          No description
+                        </Text>
+                      )}
                     </Table.Cell>
                     <Table.Cell>
                       <Text
@@ -291,8 +260,8 @@ export function ProductListPage() {
                         {categoryName(product.category_id)}
                       </Text>
                     </Table.Cell>
-                    <Table.Cell color="#64748B" fontSize="13px">
-                      {formatDate(product.createdAt)}
+                    <Table.Cell color="#64748B" fontSize="13px" whiteSpace="nowrap">
+                      {dayjs(product.created_at).format("D MMM YYYY")}
                     </Table.Cell>
                     {canEdit && (
                       <Table.Cell>

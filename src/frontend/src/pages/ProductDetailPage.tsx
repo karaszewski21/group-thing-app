@@ -125,9 +125,9 @@ export function ProductDetailPage() {
               justifyContent="center"
               flexShrink={0}
             >
-              {isValidImageUrl(product.photoUrl) ? (
+              {isValidImageUrl(product.photo_url) ? (
                 <Image
-                  src={product.photoUrl!}
+                  src={product.photo_url!}
                   alt={product.name}
                   w="100%"
                   h="100%"

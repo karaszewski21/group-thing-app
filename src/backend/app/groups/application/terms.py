@@ -21,6 +21,7 @@ from ..models import NeededItem, Pledge, PledgeStatus, Term
 from ..schemas import (
     CreateNeededItemRequest,
     CreateTermRequest,
+    ModerationTermResponse,
     UpdateNeededItemRequest,
     UpdateTermRequest,
 )
@@ -69,6 +70,34 @@ async def list_terms_with_counts(
         db, [cast(uuid.UUID, term.id) for term in terms]
     )
     return [(term, *counts.get(cast(uuid.UUID, term.id), (0, 0))) for term in terms]
+
+
+MODERATION_TERMS_LIMIT = 200
+
+
+async def list_terms_for_moderation(db: AsyncSession) -> list[ModerationTermResponse]:
+    """ADMIN overview: the latest Terms across every Circle with their
+    active signup counts, counted in one grouped query."""
+    rows = await repository.list_terms_for_moderation(db, MODERATION_TERMS_LIMIT)
+    counts = await repository.count_active_attendances_by_term(
+        db, [cast(uuid.UUID, term.id) for term, _ in rows]
+    )
+    responses = []
+    for term, group_name in rows:
+        attendee_count, child_count = counts.get(cast(uuid.UUID, term.id), (0, 0))
+        responses.append(
+            ModerationTermResponse(
+                id=cast(uuid.UUID, term.id),
+                circle_group_id=term.circle_group_id,
+                group_name=group_name,
+                occurs_on=term.occurs_on,
+                description=term.description,
+                created_at=term.created_at,
+                attendee_count=attendee_count,
+                child_count=child_count,
+            )
+        )
+    return responses
 
 
 async def update_term(

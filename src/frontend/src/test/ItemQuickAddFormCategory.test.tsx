@@ -80,12 +80,12 @@ describe("ItemQuickAddForm — category_id rename", () => {
       id: "1",
       name: emitted.name,
       description: null,
-      photoUrl: null,
+      photo_url: null,
       sku: "SKU",
       category_id: emitted.category_id,
-      pluginData: null,
-      createdAt: "2026-01-01T00:00:00Z",
-      updatedAt: "2026-01-01T00:00:00Z",
+      plugin_data: null,
+      created_at: "2026-01-01T00:00:00Z",
+      updated_at: "2026-01-01T00:00:00Z",
     });
     await resolveProduct({ name: emitted.name, category_id: emitted.category_id });
     expect(resolveProduct).toHaveBeenCalledWith({ name: "Rowerek", category_id: "9" });

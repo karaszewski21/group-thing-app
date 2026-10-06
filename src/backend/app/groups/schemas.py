@@ -129,6 +129,20 @@ class MembershipResponse(BaseModel):
     valid_to: date | None
 
 
+class ModerationTermResponse(BaseModel):
+    """`GET /api/terms/moderation` (ADMIN-only) row: a Term of any Circle
+    with the Circle's name and its active (non-withdrawn) signup counts."""
+
+    id: uuid.UUID
+    circle_group_id: uuid.UUID
+    group_name: str
+    occurs_on: datetime
+    description: str | None
+    created_at: datetime
+    attendee_count: int
+    child_count: int
+
+
 class TermResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 

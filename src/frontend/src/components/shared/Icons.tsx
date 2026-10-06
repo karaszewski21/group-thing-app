@@ -3,11 +3,13 @@ import {
   LayoutList,
   Leaf,
   Plug,
-  ShieldCheck,
+  CalendarDays,
+  UsersRound,
   Tag,
   Users,
   Warehouse,
   Image as ImageIcon,
+  Images,
   ArrowLeftRight,
   Backpack,
   type LucideIcon,
@@ -19,7 +21,9 @@ export const PluginsIcon = Plug;
 export const WarehouseIcon = Warehouse;
 export const KragIcon = Users;
 export const CategoriesIcon = Tag;
-export const ModerationIcon = ShieldCheck;
+export const GroupsIcon = UsersRound;
+export const TermsIcon = CalendarDays;
+export const PhotosIcon = Images;
 /** "Udostępnia" avatar-corner marker (Avatar's `showsSharesIcon`). */
 export const SharesIcon = ArrowLeftRight;
 /** "Przynosi" avatar-corner marker (Avatar's `showsBringsIcon`). */

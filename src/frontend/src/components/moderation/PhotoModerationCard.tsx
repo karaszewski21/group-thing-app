@@ -1,16 +1,16 @@
-import { Box, Button, Heading, HStack, Image, Text } from "@chakra-ui/react";
+import { Box, Button, HStack, Image, Text } from "@chakra-ui/react";
 import { useState } from "react";
-import type { ModerationQueueEntry } from "../api/moderation";
-import type { ModerationStatus } from "../api/products";
-import { EmptyState } from "../components/shared/EmptyState";
-import { useModerationQueue } from "../hooks/useModerationQueue";
-import dayjs from "../utils/dayjs";
+import type { ModerationQueueEntry } from "../../api/moderation";
+import type { ModerationStatus } from "../../api/products";
+import dayjs from "../../utils/dayjs";
+import { ConfirmDialog } from "../shared/ConfirmDialog";
 
-const STATUS_TABS: { status: ModerationStatus; label: string }[] = [
-  { status: "NEEDS_REVIEW", label: "Needs review" },
-  { status: "PENDING", label: "Pending (not scored yet)" },
-  { status: "REJECTED", label: "Rejected" },
-];
+const STATUS_LABELS: Record<ModerationStatus, string> = {
+  APPROVED: "Approved",
+  NEEDS_REVIEW: "Needs review",
+  PENDING: "Pending",
+  REJECTED: "Rejected",
+};
 
 function formatScores(scores: Record<string, number> | null): string {
   if (!scores) return "No model score";
@@ -20,15 +20,34 @@ function formatScores(scores: Record<string, number> | null): string {
     .join(" · ");
 }
 
-function QueueCard({
+/** One uploaded photo with its status, model scores and the admin's
+ * actions: Approve/Reject (each offered only when it changes the status)
+ * and a confirmed, irreversible Delete. */
+export function PhotoModerationCard({
   entry,
   onDecide,
+  onDelete,
 }: {
   entry: ModerationQueueEntry;
   onDecide: (outcome: "APPROVED" | "REJECTED") => Promise<void>;
+  onDelete: () => Promise<void>;
 }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [confirmingDelete, setConfirmingDelete] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+
+  async function confirmDelete() {
+    setDeleting(true);
+    setDeleteError(null);
+    try {
+      await onDelete();
+    } catch (err) {
+      setDeleteError(err instanceof Error ? err.message : String(err));
+      setDeleting(false);
+    }
+  }
 
   async function decide(outcome: "APPROVED" | "REJECTED") {
     setBusy(true);
@@ -49,7 +68,7 @@ function QueueCard({
         )}
         <Box flex="1" minW="0">
           <Text fontSize="12px" fontWeight="600" color="brand.500" textTransform="uppercase">
-            Photo
+            {STATUS_LABELS[entry.status]}
           </Text>
           <Text fontWeight="600" color="#0F172A">
             {entry.product_name}
@@ -75,56 +94,23 @@ function QueueCard({
               Reject
             </Button>
           )}
+          <Button size="sm" colorPalette="red" variant="ghost" disabled={busy} onClick={() => setConfirmingDelete(true)}>
+            Delete
+          </Button>
         </HStack>
       </HStack>
-    </Box>
-  );
-}
-
-/** ADMIN review of uploaded photos the moderation model flagged, has not
- * scored yet, or could not score ("No model score"). Approving a photo
- * publishes it; rejecting hides it from everyone but its owners. */
-export function ContentModerationQueue() {
-  const [status, setStatus] = useState<ModerationStatus>("NEEDS_REVIEW");
-  const { data, loading, error, decide } = useModerationQueue(status);
-
-  return (
-    <Box mb="32px">
-      <Heading as="h2" fontSize="18px" fontWeight="700" color="#0F172A">
-        Photo review
-      </Heading>
-      <HStack gap="8px" mt="12px" mb="16px" role="group" aria-label="Queue status">
-        {STATUS_TABS.map((tab) => (
-          <Button
-            key={tab.status}
-            size="sm"
-            variant={tab.status === status ? "solid" : "outline"}
-            aria-pressed={tab.status === status}
-            onClick={() => setStatus(tab.status)}
-          >
-            {tab.label}
-          </Button>
-        ))}
-      </HStack>
-      {error ? (
-        <Text color="red.500">Error: {error}</Text>
-      ) : loading ? (
-        <Text>Loading...</Text>
-      ) : data.length === 0 ? (
-        <EmptyState title="Nothing to review" />
-      ) : (
-        <Box as="ul" display="flex" flexDirection="column" gap="12px">
-          {data.map((entry) => (
-            <QueueCard
-              key={`${entry.subject_type}-${entry.subject_id}`}
-              entry={entry}
-              onDecide={(outcome) =>
-                decide({ subject_type: entry.subject_type, subject_id: entry.subject_id, outcome })
-              }
-            />
-          ))}
-        </Box>
-      )}
+      <ConfirmDialog
+        open={confirmingDelete}
+        onClose={() => {
+          setConfirmingDelete(false);
+          setDeleteError(null);
+        }}
+        onConfirm={() => void confirmDelete()}
+        title="Delete photo"
+        message={`Delete this photo of "${entry.product_name}"? It is removed from the database and storage. This action cannot be undone.`}
+        loading={deleting}
+        error={deleteError}
+      />
     </Box>
   );
 }

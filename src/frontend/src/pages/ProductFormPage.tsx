@@ -49,7 +49,7 @@ export function ProductFormPage() {
         setSku(product.sku);
         setCategoryId(product.category_id);
         setDescription(product.description ?? "");
-        setPhotoUrl(product.photoUrl ?? "");
+        setPhotoUrl(product.photo_url ?? "");
       }
     } catch {
       setError("Failed to load data.");
@@ -72,7 +72,7 @@ export function ProductFormPage() {
       sku,
       category_id: categoryId,
       description: description || undefined,
-      photoUrl: photoUrl || undefined,
+      photo_url: photoUrl || undefined,
     };
     try {
       if (isEdit && id) {

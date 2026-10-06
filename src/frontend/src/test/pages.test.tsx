@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import { MemoryRouter } from "react-router-dom";
 import { ChakraProvider } from "@chakra-ui/react";
@@ -56,23 +56,23 @@ const mockProducts: ProductResponse[] = [
     id: "1",
     name: "Wireless Headphones Pro",
     description: "Premium wireless headphones",
-    photoUrl: "https://example.com/headphones.jpg",
+    photo_url: "https://example.com/headphones.jpg",
     sku: "WHP-001",
     category_id: "1",
-    pluginData: null,
-    createdAt: "2026-03-28T10:00:00Z",
-    updatedAt: "2026-03-28T10:00:00Z",
+    plugin_data: null,
+    created_at: "2026-03-28T10:00:00Z",
+    updated_at: "2026-03-28T10:00:00Z",
   },
   {
     id: "2",
     name: "Classic Watch",
     description: "Analog watch",
-    photoUrl: null,
+    photo_url: null,
     sku: "CAW-042",
     category_id: "4",
-    pluginData: null,
-    createdAt: "2026-03-27T10:00:00Z",
-    updatedAt: "2026-03-27T10:00:00Z",
+    plugin_data: null,
+    created_at: "2026-03-27T10:00:00Z",
+    updated_at: "2026-03-27T10:00:00Z",
   },
 ];
 
@@ -95,15 +95,35 @@ beforeEach(() => {
 });
 
 describe("ProductListPage", () => {
-  it("renders table with product data and filter controls", async () => {
+  it("renders name, description, category and created date with filter controls", async () => {
     const { ProductListPage } = await import("../pages/ProductListPage");
     renderWithProviders(<ProductListPage />);
 
     expect(await screen.findByText("Wireless Headphones Pro")).toBeInTheDocument();
-    expect(screen.getByText("Classic Watch")).toBeInTheDocument();
-    expect(screen.getByText("WHP-001")).toBeInTheDocument();
+    expect(screen.getByText("Premium wireless headphones")).toBeInTheDocument();
+    expect(await screen.findByText("Zabawka", { selector: "td span" })).toBeInTheDocument();
+    expect(screen.getByText("28 mar 2026")).toBeInTheDocument();
+    expect(screen.queryByText("Invalid Date")).not.toBeInTheDocument();
+    expect(screen.queryByText("WHP-001")).not.toBeInTheDocument();
     expect(screen.getByPlaceholderText(/search/i)).toBeInTheDocument();
-    expect(screen.getByRole("combobox")).toBeInTheDocument();
+    expect(screen.getByRole("combobox", { name: "Filter by category" })).toBeInTheDocument();
+  });
+
+  it("filters products by the selected category", async () => {
+    const { ProductListPage } = await import("../pages/ProductListPage");
+    renderWithProviders(<ProductListPage />);
+    await screen.findByText("Wireless Headphones Pro");
+    await screen.findByRole("option", { name: "Ubranie" });
+
+    fireEvent.change(screen.getByRole("combobox", { name: "Filter by category" }), {
+      target: { value: "4" },
+    });
+
+    await waitFor(() =>
+      expect(productsApi.getProducts).toHaveBeenLastCalledWith(
+        expect.objectContaining({ category_id: "4" }),
+      ),
+    );
   });
 });
 

@@ -1,7 +1,7 @@
 import { Box, Flex, Text } from "@chakra-ui/react";
 import { Link, useLocation } from "react-router-dom";
 import type { LucideIcon } from "lucide-react";
-import { ProductsIcon, PluginsIcon, KragIcon, CategoriesIcon, ModerationIcon, resolveIcon } from "../shared/Icons";
+import { ProductsIcon, PluginsIcon, KragIcon, CategoriesIcon, GroupsIcon, TermsIcon, PhotosIcon, resolveIcon } from "../shared/Icons";
 import { usePluginContext } from "../../plugins/PluginContext";
 import { useAuth } from "../../auth/AuthContext";
 
@@ -91,7 +91,9 @@ export function Sidebar() {
       <Flex as="nav" direction="column" gap="2px" role="navigation" aria-label="Main navigation">
         <NavItem to="/admin/products" label="Products" icon={ProductsIcon} />
         {isAdmin && <NavItem to="/admin/categories" label="Categories" icon={CategoriesIcon} />}
-        {isAdmin && <NavItem to="/admin/moderation" label="Moderation" icon={ModerationIcon} />}
+        {isAdmin && <NavItem to="/admin/groups" label="Groups" icon={GroupsIcon} />}
+        {isAdmin && <NavItem to="/admin/terms" label="Terms" icon={TermsIcon} />}
+        {isAdmin && <NavItem to="/admin/photos" label="Photos" icon={PhotosIcon} />}
         {(hasPluginManagement || isAdmin) && <PluginMenuItems />}
         {(hasPluginManagement || isAdmin) && (
           <NavItem to="/admin/plugins" label="Plugins" icon={PluginsIcon} />
