@@ -16,8 +16,8 @@ import { RodzinaView } from "./views/RodzinaView";
 /*  pages/PanelGoscia.tsx, jeden ekran sterowany realną rolą:            */
 /*  obecność aktywnego Leadership = organizator, brak = gość).           */
 /*                                                                       */
-/*  Sekcje bez odpowiednika w modelu domenowym (profil poza imieniem/    */
-/*  emailem, ustawienia, tryb rzeczy wypożyczę/oddam/zamienię, podarki)  */
+/*  Sekcje bez odpowiednika w modelu domenowym (ustawienia, tryb rzeczy  */
+/*  wypożyczę/oddam/zamienię, podarki)                                   */
 /*  są — jak w mocku (pages/SPEC.md §0/§3.5) — czysto lokalnym stanem     */
 /*  (znikają po odświeżeniu, tak jak w prototypie).                      */
 /*                                                                       */

@@ -10,6 +10,8 @@ from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
+from app.moderation.status import ModerationStatus
+
 # Basic `local-part@domain.tld` shape check — not a full RFC 5322
 # validator, just enough to fail fast on obviously malformed input per
 # `standards/global/validation.md`'s "validate early" guidance.
@@ -27,6 +29,14 @@ def normalize_email(value: str) -> str:
     return value.strip().lower()
 
 
+class AvatarResponse(BaseModel):
+    """The caller's own avatar. `url` is the public CDN link once approved,
+    otherwise a short-lived signed link (the owner still sees it)."""
+
+    url: str
+    status: ModerationStatus
+
+
 class UserProfileResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
@@ -35,6 +45,7 @@ class UserProfileResponse(BaseModel):
     account_user_id: uuid.UUID | None
     display_name: str
     email: str | None
+    bio: str | None
     created_at: datetime
     updated_at: datetime
     # Not a `UserProfile` column — populated by the router from
@@ -42,6 +53,17 @@ class UserProfileResponse(BaseModel):
     # organizer status independent of Circle/Leadership ownership (a
     # freshly-registered ORGANIZER with no circle yet is still one).
     is_organizer: bool = False
+    # Filled only on the caller's own profile (`/api/people/me`).
+    avatar: AvatarResponse | None = None
+
+
+class UpdateMyProfileRequest(BaseModel):
+    """The caller's own editable profile fields. A blank `bio` clears it."""
+
+    model_config = ConfigDict(str_strip_whitespace=True)
+
+    display_name: str = Field(min_length=1, max_length=255)
+    bio: str | None = Field(default=None, max_length=1000)
 
 
 class UserRoleResponse(BaseModel):

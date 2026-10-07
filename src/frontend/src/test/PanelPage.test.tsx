@@ -50,6 +50,9 @@ vi.mock("../api/people", () => ({
   getProfileByParty: vi.fn(),
   getProfileByAccountUserId: vi.fn(),
   getLeadershipsForPerson: vi.fn(),
+  updateMyProfile: vi.fn(),
+  uploadMyAvatar: vi.fn(),
+  deleteMyAvatar: vi.fn(),
 }));
 
 vi.mock("../api/families", () => ({
@@ -202,6 +205,8 @@ const mockProfile: peopleApi.UserProfileResponse = {
   created_at: "2026-01-01T00:00:00Z",
   updated_at: "2026-01-01T00:00:00Z",
   is_organizer: false,
+  bio: null,
+  avatar: null,
 };
 
 const mockOrganizerProfile: peopleApi.UserProfileResponse = {
@@ -3651,5 +3656,74 @@ describe("PanelPage — moderation errors inline in the add-group / add-term / e
     fireEvent.click(within(dialog).getByRole("button", { name: "Zapisz" }));
 
     expect(await within(dialog).findByRole("alert")).toHaveTextContent(GROUP_NAME_REJECTED);
+  });
+});
+
+describe("PanelPage — profil", () => {
+  const PROFILE_NAME_REJECTED = "Imię i nazwisko narusza zasady społeczności. Zmień je i spróbuj ponownie.";
+
+  beforeEach(() => {
+    vi.resetAllMocks();
+    vi.mocked(groupsApi.listMyPendingJoinRequests).mockResolvedValue([]);
+  });
+
+  it("/panel/profil edits name and 'O mnie' (no location field) and saves them", async () => {
+    mockGuestDefaults();
+    vi.mocked(peopleApi.updateMyProfile).mockResolvedValue({
+      ...mockProfile,
+      display_name: "Jan Nowak",
+      bio: "Tata dwójki",
+    });
+    renderPanel("/panel/profil");
+
+    const name = await screen.findByLabelText("Imię i nazwisko");
+    expect(name).toHaveValue("Jan Kowalski");
+    expect(screen.queryByLabelText("Lokalizacja")).not.toBeInTheDocument();
+    fireEvent.change(name, { target: { value: "Jan Nowak" } });
+    fireEvent.change(screen.getByLabelText("O mnie"), { target: { value: "Tata dwójki" } });
+    fireEvent.click(screen.getByRole("button", { name: "Zapisz zmiany" }));
+
+    await waitFor(() =>
+      expect(peopleApi.updateMyProfile).toHaveBeenCalledWith({ display_name: "Jan Nowak", bio: "Tata dwójki" }),
+    );
+    expect(await screen.findByText("✓ Zapisano")).toBeInTheDocument();
+  });
+
+  it("shows the moderation message when the name is rejected", async () => {
+    mockGuestDefaults();
+    vi.mocked(peopleApi.updateMyProfile).mockRejectedValue(
+      new ApiError(400, "Bad Request", { message: PROFILE_NAME_REJECTED }),
+    );
+    renderPanel("/panel/profil");
+
+    fireEvent.change(await screen.findByLabelText("Imię i nazwisko"), { target: { value: "brzydko" } });
+    fireEvent.click(screen.getByRole("button", { name: "Zapisz zmiany" }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(PROFILE_NAME_REJECTED);
+  });
+
+  it("uploads an avatar, shows it with the pending note, and removes it", async () => {
+    mockGuestDefaults();
+    vi.mocked(peopleApi.uploadMyAvatar).mockResolvedValue({
+      url: "https://origin.test/avatars/1/a/w400.webp?signed",
+      status: "PENDING",
+    });
+    vi.mocked(peopleApi.deleteMyAvatar).mockResolvedValue(undefined);
+    renderPanel("/panel/profil");
+
+    const file = new File(["png"], "me.png", { type: "image/png" });
+    fireEvent.change(await screen.findByLabelText("Zdjęcie profilowe"), { target: { files: [file] } });
+
+    expect(await screen.findByAltText("Twoje zdjęcie profilowe")).toHaveAttribute(
+      "src",
+      "https://origin.test/avatars/1/a/w400.webp?signed",
+    );
+    expect(peopleApi.uploadMyAvatar).toHaveBeenCalledWith(file);
+    expect(screen.getByText(/Zdjęcie czeka na moderację —/)).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Usuń" }));
+
+    await waitFor(() => expect(screen.queryByAltText("Twoje zdjęcie profilowe")).not.toBeInTheDocument());
+    expect(peopleApi.deleteMyAvatar).toHaveBeenCalled();
   });
 });

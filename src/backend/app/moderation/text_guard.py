@@ -21,6 +21,8 @@ class TextField(StrEnum):
     TERM_DESCRIPTION = "TERM_DESCRIPTION"
     PRODUCT_NAME = "PRODUCT_NAME"
     PRODUCT_DESCRIPTION = "PRODUCT_DESCRIPTION"
+    PROFILE_NAME = "PROFILE_NAME"
+    PROFILE_BIO = "PROFILE_BIO"
 
 
 MESSAGES: dict[TextField, str] = {
@@ -36,6 +38,12 @@ MESSAGES: dict[TextField, str] = {
     ),
     TextField.PRODUCT_DESCRIPTION: (
         "Opis rzeczy narusza zasady społeczności. Zmień go i spróbuj ponownie."
+    ),
+    TextField.PROFILE_NAME: (
+        "Imię i nazwisko narusza zasady społeczności. Zmień je i spróbuj ponownie."
+    ),
+    TextField.PROFILE_BIO: (
+        "Opis „O mnie” narusza zasady społeczności. Zmień go i spróbuj ponownie."
     ),
 }
 

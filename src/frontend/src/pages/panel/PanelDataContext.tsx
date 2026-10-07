@@ -54,9 +54,12 @@ import {
 } from "../../api/reservations";
 import { getMyTakenTermItemListings, getMyTermItemListings } from "../../api/termItemListings";
 import {
+  deleteMyAvatar,
   getLeadershipsForPerson,
   getMyProfile,
   getProfileByAccountUserId,
+  updateMyProfile,
+  uploadMyAvatar,
   type UserProfileResponse,
 } from "../../api/people";
 import { getMyOrganization } from "../../api/organizations";
@@ -421,10 +424,15 @@ function usePanelDataValue() {
     hintKey("hint_org_polish_dismissed", username),
   );
 
-  // --- lokalne, niepersystentne pola (patrz komentarz na górze pliku) ---
-  const [localBio, setLocalBio] = useState("");
-  const [localLocation, setLocalLocation] = useState("");
+  // --- profil: formularz "Dane profilowe" i avatar ---
+  const [profileName, setProfileName] = useState("");
+  const [profileBio, setProfileBio] = useState("");
   const [profileSaved, setProfileSaved] = useState(false);
+  const [profileError, setProfileError] = useState<string | null>(null);
+  const [avatarBusy, setAvatarBusy] = useState(false);
+  const [avatarError, setAvatarError] = useState<string | null>(null);
+
+  // --- lokalne, niepersystentne pola (patrz komentarz na górze pliku) ---
   const [settings, setSettings] = useState({ emailNotifs: true, smsNotifs: false, publicProfile: true });
   const [groupExtras, setGroupExtras] = useState<Record<string, { location: string; freeSpots: number }>>({});
   const [itemModes, setItemModes] = useState<Record<string, ItemMode | null>>({});
@@ -475,6 +483,11 @@ function usePanelDataValue() {
     try {
       const me = await getMyProfile();
       setProfile(me);
+      // A silent refresh must not overwrite edits still being typed.
+      if (!options?.silent) {
+        setProfileName(me.display_name);
+        setProfileBio(me.bio ?? "");
+      }
 
       // The authenticated user's own profile always has a login-backed
       // `account_user_id` — only lightweight family members (who never
@@ -1338,12 +1351,52 @@ function usePanelDataValue() {
     }
   }
 
-  /* ---------- profil (lokalne) ---------- */
+  /* ---------- profil ---------- */
 
-  function saveProfile() {
-    setProfileSaved(true);
-    showToast("Zapisano dane profilowe");
-    setTimeout(() => setProfileSaved(false), 2200);
+  async function saveProfile() {
+    setProfileError(null);
+    try {
+      const updated = await updateMyProfile({
+        display_name: profileName,
+        bio: profileBio.trim() || null,
+      });
+      setProfile(updated);
+      setProfileName(updated.display_name);
+      setProfileBio(updated.bio ?? "");
+      setProfileSaved(true);
+      showToast("Zapisano dane profilowe");
+      setTimeout(() => setProfileSaved(false), 2200);
+    } catch (err) {
+      setProfileError(serverMessageOr(err, "Nie udało się zapisać profilu — spróbuj ponownie"));
+    }
+  }
+
+  async function changeAvatar(file: File) {
+    setAvatarBusy(true);
+    setAvatarError(null);
+    try {
+      const avatar = await uploadMyAvatar(file);
+      setProfile((current) => (current ? { ...current, avatar } : current));
+      showToast(avatar.status === "APPROVED" ? "Zapisano zdjęcie profilowe" : "Zdjęcie czeka na moderację");
+    } catch (err) {
+      setAvatarError(serverMessageOr(err, "Nie udało się wgrać zdjęcia — spróbuj ponownie"));
+    } finally {
+      setAvatarBusy(false);
+    }
+  }
+
+  async function removeAvatar() {
+    setAvatarBusy(true);
+    setAvatarError(null);
+    try {
+      await deleteMyAvatar();
+      setProfile((current) => (current ? { ...current, avatar: null } : current));
+      showToast("Usunięto zdjęcie profilowe");
+    } catch (err) {
+      setAvatarError(serverMessageOr(err, "Nie udało się usunąć zdjęcia — spróbuj ponownie"));
+    } finally {
+      setAvatarBusy(false);
+    }
   }
 
   const relevantGroupsForForm = isOrganizer ? myGroups : guestCircles;
@@ -1404,9 +1457,12 @@ function usePanelDataValue() {
     hintBecomeOrganizerDismissed,
     hintOrgFirstTermDismissed,
     hintOrgPolishDismissed,
-    localBio,
-    localLocation,
+    profileName,
+    profileBio,
     profileSaved,
+    profileError,
+    avatarBusy,
+    avatarError,
     settings,
     groupExtras,
     itemModes,
@@ -1427,8 +1483,8 @@ function usePanelDataValue() {
     setView,
     setModal,
     setFirstTermForOrganizer,
-    setLocalLocation,
-    setLocalBio,
+    setProfileName,
+    setProfileBio,
     setSettings,
     setGroupForm,
     setTermGroupId,
@@ -1473,6 +1529,8 @@ function usePanelDataValue() {
     saveEditGroup,
     handleDeleteItem,
     saveProfile,
+    changeAvatar,
+    removeAvatar,
   };
 }
 

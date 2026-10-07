@@ -12,7 +12,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.auth_deps import Principal, require_any
 from app.core.pagination import Page, Pagination
 from app.db import get_db
-from app.product import service as product_service
 from app.storage.service import ObjectStorage, get_storage
 
 from . import service
@@ -56,9 +55,9 @@ async def list_photos(
 
 @router.delete("/photos/{photo_id}", status_code=status.HTTP_204_NO_CONTENT, response_model=None)
 async def delete_photo(photo_id: uuid.UUID, db: DbSession, principal: AdminPrincipal) -> None:
-    """Removes the photo from the database and, via the outbox, both of its
-    files from object storage."""
-    await product_service.delete_photo_as_admin(db, photo_id)
+    """Removes a product photo or an avatar from the database and, via the
+    outbox, both of its files from object storage."""
+    await service.delete_upload(db, photo_id)
 
 
 @router.post("/decisions", status_code=status.HTTP_204_NO_CONTENT, response_model=None)
@@ -68,6 +67,7 @@ async def decide(
     await service.decide(
         db,
         principal,
+        subject_type=body.subject_type,
         subject_id=body.subject_id,
         outcome=body.outcome,
         note=body.note,

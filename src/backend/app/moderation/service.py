@@ -19,7 +19,8 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import Any, cast
 
-from sqlalchemy import Row, func, select
+from sqlalchemy import Row, Select, String, func, literal, null, select, union_all
+from sqlalchemy.dialects import postgresql
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.models import User
@@ -29,6 +30,8 @@ from app.core.pagination import PageParams
 from app.product import service as product_service
 from app.product.models import Product, ProductPhoto
 from app.storage.service import ObjectStorage
+from app.users import service as users_service
+from app.users.models import ProfileAvatar, UserProfile
 
 from .models import ModerationDecision, ModerationSource, ModerationSubjectType
 from .status import ModerationStatus
@@ -68,7 +71,7 @@ def _record(
 
 
 async def _set_photo_files_public(
-    photo: ProductPhoto, storage: ObjectStorage, public: bool
+    photo: ProductPhoto | ProfileAvatar, storage: ObjectStorage, public: bool
 ) -> None:
     await storage.set_public(photo.large_key, public)
     try:
@@ -89,7 +92,8 @@ async def _set_photo_files_public(
 class QueueEntry:
     subject_type: ModerationSubjectType
     subject_id: uuid.UUID
-    product_id: uuid.UUID
+    # `None` for an avatar; `product_name` then holds the profile's name.
+    product_id: uuid.UUID | None
     product_name: str
     photo_url: str | None
     status: ModerationStatus
@@ -141,23 +145,77 @@ async def list_photos(
     storage: ObjectStorage | None,
     params: PageParams,
 ) -> tuple[list[QueueEntry], int]:
-    """One page of uploaded photos in any status (or only in `status`),
-    newest first, plus the total, for browsing what users upload. Same entry
-    shape as the review queue."""
-    query = select(ProductPhoto, Product.name).join(Product, Product.id == ProductPhoto.product_id)
-    total_query = select(func.count()).select_from(ProductPhoto)
+    """One page of everything users upload - product photos and profile
+    avatars - in any status (or only in `status`), newest first, plus the
+    total. Same entry shape as the review queue."""
+    photos: Select[Any] = select(
+        ProductPhoto.id.label("id"),
+        literal(ModerationSubjectType.PHOTO.value, String).label("subject_type"),
+        ProductPhoto.product_id.label("product_id"),
+        Product.name.label("title"),
+        ProductPhoto.storage_key.label("storage_key"),
+        ProductPhoto.status.label("status"),
+        ProductPhoto.created_at.label("created_at"),
+    ).join(Product, Product.id == ProductPhoto.product_id)
+    avatars: Select[Any] = select(
+        ProfileAvatar.id,
+        literal(ModerationSubjectType.AVATAR.value, String),
+        null().cast(postgresql.UUID(as_uuid=True)),
+        UserProfile.display_name,
+        ProfileAvatar.storage_key,
+        ProfileAvatar.status,
+        ProfileAvatar.created_at,
+    ).join(UserProfile, UserProfile.id == ProfileAvatar.user_profile_id)
+    photo_count = select(func.count()).select_from(ProductPhoto)
+    avatar_count = select(func.count()).select_from(ProfileAvatar)
     if status is not None:
-        query = query.where(ProductPhoto.status == status)
-        total_query = total_query.where(ProductPhoto.status == status)
-    photo_rows = (
+        photos = photos.where(ProductPhoto.status == status)
+        avatars = avatars.where(ProfileAvatar.status == status)
+        photo_count = photo_count.where(ProductPhoto.status == status)
+        avatar_count = avatar_count.where(ProfileAvatar.status == status)
+    uploads = union_all(photos, avatars).subquery()
+    rows = (
         await db.execute(
-            query.order_by(ProductPhoto.created_at.desc(), ProductPhoto.id)
+            select(uploads)
+            .order_by(uploads.c.created_at.desc(), uploads.c.id)
             .offset(params.offset)
             .limit(params.size)
         )
     ).all()
-    total = (await db.execute(total_query)).scalar_one()
-    return await _queue_entries(db, photo_rows, storage), total
+    total = (await db.execute(photo_count)).scalar_one() + (
+        await db.execute(avatar_count)
+    ).scalar_one()
+
+    decisions = await _latest_ai_decisions(db, [row.id for row in rows])
+    entries = []
+    for row in rows:
+        decision = decisions.get(row.id)
+        row_status = ModerationStatus(row.status)
+        entries.append(
+            QueueEntry(
+                subject_type=ModerationSubjectType(row.subject_type),
+                subject_id=row.id,
+                product_id=row.product_id,
+                product_name=row.title,
+                photo_url=(
+                    _preview_url(storage, f"{row.storage_key}/w1600.webp", row_status)
+                    if storage is not None
+                    else None
+                ),
+                status=row_status,
+                model_id=decision.model_id if decision else None,
+                scores=decision.scores if decision else None,
+                submitted_at=row.created_at,
+            )
+        )
+    return entries, total
+
+
+def _preview_url(storage: ObjectStorage, key: str, status: ModerationStatus) -> str:
+    """Public CDN link once approved, else a short-lived signed one."""
+    if status == ModerationStatus.APPROVED:
+        return storage.public_url(key)
+    return storage.presigned_url(key)
 
 
 async def _queue_entries(
@@ -194,19 +252,24 @@ async def decide(
     db: AsyncSession,
     principal: Principal,
     *,
+    subject_type: ModerationSubjectType,
     subject_id: uuid.UUID,
     outcome: ModerationStatus,
     note: str | None,
     storage: ObjectStorage | None,
 ) -> None:
-    """An admin's APPROVED/REJECTED for a photo, whatever its current status
-    (review, a still-pending photo, or a takedown of approved content)."""
+    """An admin's APPROVED/REJECTED for a product photo or an avatar,
+    whatever its current status (review, still pending, or a takedown of
+    approved content)."""
     admin_id = (
         await db.execute(select(User.id).where(User.username == principal.username))
     ).scalar_one_or_none()
-    photo = await db.get(ProductPhoto, subject_id, with_for_update=True)
+    model = ProfileAvatar if subject_type == ModerationSubjectType.AVATAR else ProductPhoto
+    photo: ProductPhoto | ProfileAvatar | None = await db.get(
+        model, subject_id, with_for_update=True
+    )
     if photo is None:
-        raise EntityNotFoundException("ProductPhoto", subject_id)
+        raise EntityNotFoundException(model.__name__, subject_id)
     # Set unconditionally (idempotent): an earlier failed finalize may have
     # left the files public whatever the status says.
     if storage is not None:
@@ -214,7 +277,7 @@ async def decide(
     photo.status = outcome
     _record(
         db,
-        subject_type=ModerationSubjectType.PHOTO,
+        subject_type=subject_type,
         subject_id=subject_id,
         outcome=outcome,
         source=ModerationSource.ADMIN,
@@ -223,3 +286,12 @@ async def decide(
         note=note,
     )
     await db.commit()
+
+
+async def delete_upload(db: AsyncSession, upload_id: uuid.UUID) -> None:
+    """An admin's removal of a product photo or an avatar by id (ids are
+    unique across both), from the database and, via the outbox, storage."""
+    if await db.get(ProductPhoto, upload_id) is not None:
+        await product_service.delete_photo_as_admin(db, upload_id)
+    else:
+        await users_service.delete_avatar_as_admin(db, upload_id)

@@ -21,6 +21,7 @@ from .status import ModerationStatus
 
 class ModerationSubjectType(enum.StrEnum):
     PHOTO = "PHOTO"
+    AVATAR = "AVATAR"
     PRODUCT_TEXT = "PRODUCT_TEXT"
 
 

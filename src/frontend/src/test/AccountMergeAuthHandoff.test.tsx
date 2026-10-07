@@ -59,6 +59,8 @@ describe("account-merge -> real AuthContext.applyExternalToken -> authenticated 
       created_at: "2026-01-01T00:00:00Z",
       updated_at: "2026-01-01T00:00:00Z",
       is_organizer: false,
+      bio: null,
+      avatar: null,
     });
 
     renderForm();

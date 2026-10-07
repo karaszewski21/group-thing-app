@@ -20,7 +20,8 @@ class ModerationQueueEntryResponse(BaseModel):
 
     subject_type: ModerationSubjectType
     subject_id: uuid.UUID
-    product_id: uuid.UUID
+    # `None` for an avatar; `product_name` then holds the profile's name.
+    product_id: uuid.UUID | None
     product_name: str
     photo_url: str | None
     status: ModerationStatus
@@ -30,10 +31,10 @@ class ModerationQueueEntryResponse(BaseModel):
 
 
 class ModerationDecisionRequest(BaseModel):
-    """Photos only: texts are checked synchronously on write, so a
-    `PRODUCT_TEXT` decision is a 400 validation error."""
+    """Product photos and avatars only: texts are checked synchronously on
+    write, so a `PRODUCT_TEXT` decision is a 400 validation error."""
 
-    subject_type: Literal[ModerationSubjectType.PHOTO]
+    subject_type: Literal[ModerationSubjectType.PHOTO, ModerationSubjectType.AVATAR]
     subject_id: uuid.UUID
     outcome: Literal[ModerationStatus.APPROVED, ModerationStatus.REJECTED]
     note: str | None = Field(default=None, max_length=1000)

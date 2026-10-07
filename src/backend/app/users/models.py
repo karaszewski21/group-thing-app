@@ -11,13 +11,15 @@ from __future__ import annotations
 
 import enum
 import uuid
-from datetime import date
+from datetime import date, datetime
+from typing import Any
 
-from sqlalchemy import Date, Enum, ForeignKey, SmallInteger, String
+from sqlalchemy import Date, DateTime, Enum, ForeignKey, Integer, SmallInteger, String
 from sqlalchemy.dialects import postgresql
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.core.base_model import BaseEntity
+from app.moderation.status import ModerationStatus
 
 
 def _enum_column(enum_cls: type[enum.StrEnum], length: int) -> Enum:
@@ -62,6 +64,52 @@ class UserProfile(BaseEntity):
     email: Mapped[str | None] = mapped_column(String(255), nullable=True)
     birth_year: Mapped[int | None] = mapped_column(SmallInteger, nullable=True)
     """Set only for CHILD family members (`app.families.models.FamilyRoleType`)."""
+    bio: Mapped[str | None] = mapped_column(String(1000), nullable=True)
+    """The "O mnie" text the user writes on their own profile."""
+
+
+class ProfileAvatar(BaseEntity):
+    """A user's profile picture: at most one per profile, replaced on every
+    upload. Moderated exactly like a product photo — the files (under
+    `storage_key`: `/w1600.webp`, `/w400.webp`) stay private until `status`
+    is APPROVED, and VPS B's cron claims PENDING rows through the same
+    columns (migration 0051), logging its decisions as subject `AVATAR`."""
+
+    __tablename__ = "profile_avatars"
+
+    user_profile_id: Mapped[uuid.UUID] = mapped_column(
+        postgresql.UUID(as_uuid=True),
+        ForeignKey("user_profiles.id", name="fk_profile_avatars_user_profile_id_user_profiles"),
+        nullable=False,
+        unique=True,
+    )
+    storage_key: Mapped[str] = mapped_column(String(200), nullable=False)
+    size_bytes: Mapped[int] = mapped_column(Integer, nullable=False)
+    content_sha256: Mapped[str] = mapped_column(String(64), nullable=False)
+    status: Mapped[ModerationStatus] = mapped_column(
+        _enum_column(ModerationStatus, 20), nullable=False
+    )
+    moderation_attempts: Mapped[int] = mapped_column(
+        Integer, nullable=False, default=0, server_default="0"
+    )
+    moderation_retry_at: Mapped[datetime | None] = mapped_column(DateTime(), nullable=True)
+
+    @property
+    def large_key(self) -> str:
+        return f"{self.storage_key}/w1600.webp"
+
+    @property
+    def thumb_key(self) -> str:
+        return f"{self.storage_key}/w400.webp"
+
+    def __eq__(self, other: Any) -> bool:
+        """Business-key equality on `storage_key`, never the surrogate id."""
+        if not isinstance(other, ProfileAvatar):
+            return NotImplemented
+        return self.storage_key == other.storage_key
+
+    def __hash__(self) -> int:
+        return hash(self.storage_key)
 
 
 class UserRole(BaseEntity):

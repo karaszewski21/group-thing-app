@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import uuid
 
 import re
@@ -15,12 +16,19 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.auth.models import Permission, User, user_permissions
 from app.core.auth_deps import Principal
 from app.core.errors import BusinessConflictException, EntityNotFoundException
+from app.config import settings
 from app.core.security import hash_password
+from app.moderation.status import ModerationStatus
+from app.moderation.text_guard import TextField, check_text
 from app.party.models import Party, PartyType
+from app.outbox import service as outbox_service
 from app.party.service import create_party
+from app.product import images
+from app.storage.outbox_listener import OBJECTS_DELETE
+from app.storage.service import ObjectStorage
 
-from .models import UserProfile, UserRole, UserRoleType
-from .schemas import RegisterRequest
+from .models import ProfileAvatar, UserProfile, UserRole, UserRoleType
+from .schemas import AvatarResponse, RegisterRequest, UpdateMyProfileRequest
 
 _USERNAME_MAX_LENGTH = 50
 # Anything outside this set is stripped from the email local-part before
@@ -101,6 +109,111 @@ async def get_profile_by_principal(db: AsyncSession, principal: Principal) -> Us
     return profile
 
 
+async def update_my_profile(
+    db: AsyncSession, principal: Principal, data: UpdateMyProfileRequest
+) -> UserProfile:
+    """The caller's own name and "O mnie", both text-moderated like every
+    other user-written text."""
+    profile = await get_profile_by_principal(db, principal)
+    bio = data.bio or None
+    await check_text(TextField.PROFILE_NAME, data.display_name, profile.display_name)
+    await check_text(TextField.PROFILE_BIO, bio, profile.bio)
+    profile.display_name = data.display_name
+    profile.bio = bio
+    await db.commit()
+    await db.refresh(profile)
+    return profile
+
+
+AVATAR_UPLOAD_DISABLED_MESSAGE = "Dodawanie zdjęć jest chwilowo niedostępne"
+
+
+async def get_avatar(db: AsyncSession, user_profile_id: uuid.UUID) -> ProfileAvatar | None:
+    return (
+        await db.execute(
+            select(ProfileAvatar).where(ProfileAvatar.user_profile_id == user_profile_id)
+        )
+    ).scalar_one_or_none()
+
+
+def avatar_response(avatar: ProfileAvatar, storage: ObjectStorage) -> AvatarResponse:
+    link = (
+        storage.public_url if avatar.status == ModerationStatus.APPROVED else storage.presigned_url
+    )
+    return AvatarResponse(url=link(avatar.thumb_key), status=avatar.status)
+
+
+async def _stage_avatar_files_delete(db: AsyncSession, avatar: ProfileAvatar) -> None:
+    await outbox_service.append(
+        db, event_type=OBJECTS_DELETE, payload={"keys": [avatar.large_key, avatar.thumb_key]}
+    )
+
+
+async def set_my_avatar(
+    db: AsyncSession, principal: Principal, data: bytes, storage: ObjectStorage | None
+) -> ProfileAvatar:
+    """Sanitizes the upload like a product photo and replaces the caller's
+    avatar. With image moderation on, the new avatar is PENDING and private
+    until VPS B's cron approves it. The previous avatar's files are deleted
+    through the outbox; on any failure the new files are deleted instead."""
+    if storage is None:
+        raise BusinessConflictException(AVATAR_UPLOAD_DISABLED_MESSAGE)
+    processed = await asyncio.to_thread(images.process_upload, data)
+    profile = await get_profile_by_principal(db, principal)
+    previous = (
+        await db.execute(
+            select(ProfileAvatar)
+            .where(ProfileAvatar.user_profile_id == profile.id)
+            .with_for_update()
+        )
+    ).scalar_one_or_none()
+
+    avatar_id = uuid.uuid4()
+    approved = not settings.moderation_image_enabled
+    avatar = ProfileAvatar(
+        id=avatar_id,
+        user_profile_id=profile.id,
+        storage_key=f"avatars/{profile.id}/{avatar_id}",
+        size_bytes=len(processed.large),
+        content_sha256=processed.sha256,
+        status=ModerationStatus.APPROVED if approved else ModerationStatus.PENDING,
+    )
+    await storage.put(avatar.large_key, processed.large, "image/webp", public=approved)
+    await storage.put(avatar.thumb_key, processed.thumb, "image/webp", public=approved)
+    try:
+        if previous is not None:
+            await db.delete(previous)
+            # The one-avatar-per-profile constraint needs the delete first.
+            await db.flush()
+            await _stage_avatar_files_delete(db, previous)
+        db.add(avatar)
+        await db.commit()
+    except Exception:
+        await db.rollback()
+        await storage.delete([avatar.large_key, avatar.thumb_key])
+        raise
+    return avatar
+
+
+async def delete_avatar_as_admin(db: AsyncSession, avatar_id: uuid.UUID) -> None:
+    avatar = await db.get(ProfileAvatar, avatar_id, with_for_update=True)
+    if avatar is None:
+        raise EntityNotFoundException("ProfileAvatar", avatar_id)
+    await db.delete(avatar)
+    await _stage_avatar_files_delete(db, avatar)
+    await db.commit()
+
+
+async def remove_my_avatar(db: AsyncSession, principal: Principal) -> None:
+    profile = await get_profile_by_principal(db, principal)
+    avatar = await get_avatar(db, cast(uuid.UUID, profile.id))
+    if avatar is None:
+        raise EntityNotFoundException("ProfileAvatar", profile.id)
+    await db.delete(avatar)
+    await _stage_avatar_files_delete(db, avatar)
+    await db.commit()
+
+
 async def get_profile(db: AsyncSession, user_profile_id: uuid.UUID) -> UserProfile:
     profile = await db.get(UserProfile, user_profile_id)
     if profile is None:
@@ -117,7 +230,9 @@ async def get_profile_by_party(db: AsyncSession, party_id: uuid.UUID) -> UserPro
     return profile
 
 
-async def get_profile_by_account_user_id(db: AsyncSession, account_user_id: uuid.UUID) -> UserProfile:
+async def get_profile_by_account_user_id(
+    db: AsyncSession, account_user_id: uuid.UUID
+) -> UserProfile:
     """The inverse of `UserProfile.account_user_id` — used by
     `app.groups.application.term_item_listings` to map a `circulation.
     Reservation.reserved_by_user_id` (an account `users.id`) back to the
@@ -227,7 +342,9 @@ async def register(db: AsyncSession, data: RegisterRequest) -> tuple[User, uuid.
         db, username, data.password, display_name, data.email
     )
     if data.role == "ORGANIZER":
-        await get_or_create_active_user_role(db, cast(uuid.UUID, party.id), UserRoleType.ORGANIZATOR)
+        await get_or_create_active_user_role(
+            db, cast(uuid.UUID, party.id), UserRoleType.ORGANIZATOR
+        )
 
     # Deferred import: app.families.bootstrap imports create_account_and_profile
     # from this module at module load time, so a top-level import here would
