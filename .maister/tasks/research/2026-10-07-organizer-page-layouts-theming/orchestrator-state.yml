@@ -1,0 +1,73 @@
+orchestrator:
+  started_phase: phase-1
+  current_phase: phase-5
+  completed_phases: [phase-1, phase-2, phase-3, phase-4]
+  failed_phases: []
+  auto_fix_attempts:
+    phase-1: 0
+  created: 2026-10-07T00:00:00Z
+  updated: 2026-10-07T00:00:00Z
+  task_path: .maister/tasks/research/2026-10-07-organizer-page-layouts-theming
+task:
+  title: Organizer page layouts (5 presets) and color palette theming
+  description: >
+    Zaprojektować stronę organizatora z możliwością wyboru 1 z 5 układów (layoutów) oraz palety kolorów.
+    Paleta kolorów obowiązuje na stronie organizatora, stronie terminu i stronie produktu.
+    Strona terminu i produktu mają wspólny układ dla wszystkich organizatorów — zmienia się tylko kolorystyka.
+    Łatwa edycja kolorów i układu przez organizatora. Architektura musi pozwolić później sprzedawać płatne custom układy.
+  status: in_progress
+  tags: [frontend, theming, organizer, monetization]
+research_context:
+  research_type: mixed
+  research_question: >
+    Jak zaprojektować stronę organizatora z 5 wybieralnymi układami i paletą kolorów (propagowaną na stronę terminu i produktu),
+    z łatwym edytorem dla organizatora i architekturą gotową na płatne custom układy?
+  scope:
+    included:
+      - Publiczna strona organizatora (PublicOrganizationPage) i jej 5 presetów układu
+      - System palet kolorów (tokeny) stosowany na stronie organizatora, terminu (TermPage/PublicTermView) i produktu
+      - Edytor wyglądu w panelu organizatora (podgląd na żywo)
+      - Model danych/back-end przechowujący wybór układu i palety
+      - Rozszerzalność pod płatne custom układy (entitlements, rejestr layoutów)
+    excluded:
+      - Implementacja płatności/billing
+      - Zmiana układu strony terminu i produktu (tylko kolory)
+    constraints:
+      - Chakra UI theme w src/frontend/src/theme
+      - FastAPI + SQLAlchemy backend, Alembic
+      - Kontrast WCAG 4.5:1
+  project_doc_paths:
+    - .maister/docs/project/tech-stack.md
+    - .maister/docs/project/architecture.md
+  methodology: []
+  sources: []
+  confidence_level: medium-high
+  gathering_strategy:
+    categories: [codebase-frontend, codebase-backend, docs-ux, external-theming, external-saas]
+    count: 5
+    source: planner
+  phase_summaries:
+    phase-1:
+      summary: "Theming via scoped OrganizerThemeScope overriding Tailwind --color-* vars (not Chakra); storage = existing primary/accent_color + page_layout VARCHAR (JSONB deferred); theme embedded in PublicCircleResponse; product page via ?org= param; 5 layouts CLASSIC/SCHEDULE/CIRCLES/LINKS/EXCHANGE; inline owner editor; entitlements deferred to first paid layout."
+      steps_completed: [init, plan, gather, synthesize]
+    phase-3:
+      summary: "solution-exploration.md: 8 decision areas, 30 alternatives, 18 deferred ideas"
+    phase-4:
+      summary: "User converged on all 8 areas; deviation in area 6 (nested route /:slug/produkt/:id instead of ?org=); P2 declared intended behavior"
+      decision_areas:
+        - {area: "1a layout set", chosen_approach: "1a-A CLASSIC, SCHEDULE 'Plan zajec', CIRCLES 'Grupy' (+featured), LINKS 'Wizytowka', EXCHANGE item board"}
+        - {area: "1b layout construction", chosen_approach: "1b-A declarative block registry + LayoutRenderer, no Component/minData/tier fields until needed"}
+        - {area: "2 public directory privacy", chosen_approach: "2-A PUBLIC circles only, SQL caps 60d/10/12/30, paged /terms, family_count null <3"}
+        - {area: "3 editor", chosen_approach: "3-A inline /:slug?edit=1 bottom sheet Uklad/Kolory, explicit save, static SVG thumbnails + Polecany badge"}
+        - {area: "4 color system", chosen_approach: "4-B presets (8-12) + Wlasny with auto contrast correction; palette_preset column; backend hex-only; fix default palette contrast in A1; ink icon on teal; avatars fixed; chrome neutral; no dark mode"}
+        - {area: "5 content & media", chosen_approach: "5-A separate tasks after A: C text+links, D logo/cover (2 repos), D2 gallery/og; bio plain text; contact rule on tagline only; WWW+social links only; pending image keeps last approved; gallery 12"}
+        - {area: "6 product page context", chosen_approach: "USER CHOICE: nested route /:slug/produkt/:id from term page (public frame like term page, still login-required, organizer theme on whole page); /product/:id kept for panel/notifications with default palette; add 'produkt' to RESERVED_SLUGS; edit/back preserve prefix; ?term= deferred"}
+        - {area: "7a paid layouts now", chosen_approach: "7a-A seam only: page_layout VARCHAR(64) code allowlist, registry fallback CLASSIC, single server-side layout resolution; entitlements in task E"}
+        - {area: "7b sales model", chosen_approach: "Subscription 'Organizator Pro' ~19-29 PLN net/mo + bespoke layout service; downgrade -> CLASSIC in org palette, keep choice, never offline"}
+        - {area: "8 task split", chosen_approach: "8-B A1 theme -> A2 layout+editor (incl. P3 DELETE matrix fix) || B-backend -> B-frontend -> C -> D -> D2; E later"}
+      deferred_ideas: ["see outputs/solution-exploration.md section 8"]
+      notes:
+        - "P2 (any logged-in user reads any item by id) is INTENDED behavior per user, not a gap - drop from issues"
+options:
+  brainstorming_enabled: true
+  design_enabled: true
