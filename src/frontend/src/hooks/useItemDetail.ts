@@ -1,4 +1,4 @@
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { usePrefetchQuery, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useCallback, useState } from "react";
 import { updateInventoryItem, type ItemCondition } from "../api/inventories";
 import {
@@ -95,6 +95,13 @@ export function useItemHistory(itemId: string): UseItemHistoryResult {
     error: query.error ? extractProblemMessage(query.error) : null,
     refetch,
   };
+}
+
+/** Starts the details and history reads before the item page body mounts,
+ * so they run in parallel with whatever the page waits on first. */
+export function useItemPagePrefetch(itemId: string): void {
+  usePrefetchQuery({ queryKey: [ITEM_DETAILS_KEY, itemId], queryFn: () => getItemDetails(itemId) });
+  usePrefetchQuery({ queryKey: [ITEM_HISTORY_KEY, itemId], queryFn: () => getItemHistory(itemId) });
 }
 
 /** What product-scoped edits need from the details query. */

@@ -36,7 +36,7 @@ export function AuthGateLinks({ onGuest }: { onGuest?: () => void }) {
 
       <p className="text-center text-xs text-ink-soft">
         Nie masz konta?{" "}
-        <Link to={`/register${returnToQuery}`} className="font-bold text-mint">
+        <Link to={`/register${returnToQuery}`} className="font-bold text-primary-fg">
           Zarejestruj się
         </Link>
       </p>

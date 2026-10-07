@@ -1,7 +1,7 @@
 orchestrator:
   started_phase: phase-1
-  current_phase: phase-5
-  completed_phases: [phase-1, phase-2, phase-3, phase-4]
+  current_phase: done
+  completed_phases: [phase-1, phase-2, phase-3, phase-4, phase-5, phase-6]
   failed_phases: []
   auto_fix_attempts:
     phase-1: 0
@@ -15,7 +15,7 @@ task:
     Paleta kolorów obowiązuje na stronie organizatora, stronie terminu i stronie produktu.
     Strona terminu i produktu mają wspólny układ dla wszystkich organizatorów — zmienia się tylko kolorystyka.
     Łatwa edycja kolorów i układu przez organizatora. Architektura musi pozwolić później sprzedawać płatne custom układy.
-  status: in_progress
+  status: completed
   tags: [frontend, theming, organizer, monetization]
 research_context:
   research_type: mixed

@@ -48,9 +48,9 @@ export interface ItemHistoryEntryResponse {
 }
 
 export function getItemDetails(id: string): Promise<ItemDetailsResponse> {
-  return api.get(`/inventory-items/${id}/details`);
+  return api.get(`/inventory-items/${encodeURIComponent(id)}/details`);
 }
 
 export function getItemHistory(id: string): Promise<ItemHistoryEntryResponse[]> {
-  return api.get(`/inventory-items/${id}/history`);
+  return api.get(`/inventory-items/${encodeURIComponent(id)}/history`);
 }

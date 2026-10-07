@@ -1,5 +1,6 @@
 import { useParams } from "react-router-dom";
 import { useTermAccess } from "../../hooks/useTermAccess";
+import { OrganizerThemeScope } from "../../theme/OrganizerThemeScope";
 import { PrivateGroupGate } from "./PrivateGroupGate";
 import { PublicTermView } from "./PublicTermView";
 import { resolveTermAccess } from "./termAccess";
@@ -17,13 +18,16 @@ export function TermPage() {
   if (state.status === "error") return <>Nie znaleziono</>;
 
   const access = resolveTermAccess(state.data, state.forToken !== null);
+  const theme = state.data.group.organizer_theme;
   if (access.kind === "view") {
     return (
-      <PublicTermView
-        group={access.group}
-        isAttendingOnServer={access.isAttending}
-        refetch={refetch}
-      />
+      <OrganizerThemeScope theme={theme}>
+        <PublicTermView
+          group={access.group}
+          isAttendingOnServer={access.isAttending}
+          refetch={refetch}
+        />
+      </OrganizerThemeScope>
     );
   }
 
@@ -32,14 +36,16 @@ export function TermPage() {
   if (isStale && state.refreshError === null) return <>Wczytywanie...</>;
 
   return (
-    <PrivateGroupGate
-      groupId={params.groupId ?? ''}
-      termId={params.termId ?? ''}
-      group={access.group}
-      gate={access.gate}
-      refetch={refetch}
-      refreshError={state.refreshError}
-      stale={isStale}
-    />
+    <OrganizerThemeScope theme={theme}>
+      <PrivateGroupGate
+        groupId={params.groupId ?? ''}
+        termId={params.termId ?? ''}
+        group={access.group}
+        gate={access.gate}
+        refetch={refetch}
+        refreshError={state.refreshError}
+        stale={isStale}
+      />
+    </OrganizerThemeScope>
   );
 }

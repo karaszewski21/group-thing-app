@@ -4,6 +4,7 @@
 
 from __future__ import annotations
 
+import pytest
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -85,6 +86,23 @@ async def test_createMyOrganization_nameProduct_neverGetsReservedSlug(
     assert response.status_code == 201
     # "/product/:id" is the item detail page — the slug must not shadow it.
     assert response.json()["slug"] == "product-2"
+
+
+@pytest.mark.parametrize(
+    ("name", "expected_slug"), [("Produkt", "produkt-2"), ("Grupa", "grupa-2")]
+)
+async def test_createMyOrganization_nameMatchingOrganizerRouteSegment_neverGetsReservedSlug(
+    client: AsyncClient, db_session: AsyncSession, name: str, expected_slug: str
+) -> None:
+    token = await _register_organizer(client, f"org.owner.slug.{expected_slug}@example.com")
+
+    response = await client.post(
+        "/api/organizations/mine", json={"name": name}, headers=_auth_headers(token)
+    )
+
+    assert response.status_code == 201
+    # "/:slug/produkt/:id" and "/:slug/grupa/..." are organizer sub-routes.
+    assert response.json()["slug"] == expected_slug
 
 
 async def test_getPublicOrganization_byExistingSlug_returnsNameAndColors(

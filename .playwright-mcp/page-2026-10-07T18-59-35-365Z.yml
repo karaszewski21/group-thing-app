@@ -1,0 +1,35 @@
+- generic [ref=f7e2]:
+  - navigation "Menu konta" [ref=f7e19]:
+    - button "Powiadomienia" [ref=f7e21]
+    - button "Menu" [ref=f7e26]
+  - main [ref=f7e29]:
+    - generic [ref=f7e105]:
+      - generic [ref=f7e106]:
+        - button "Wróć" [ref=f7e107]
+        - paragraph [ref=f7e117]: Dodaj zdjęcia w trybie edycji
+        - generic [ref=f7e118]:
+          - heading "Gitara dla dzieci" [level=2] [ref=f7e119]
+          - link "Edytuj" [ref=f7e120] [cursor=pointer]:
+            - /url: /product/a6a67ed4-2a3e-407f-a0df-501b90562a86/edit
+        - paragraph [ref=f7e123]: "Inne · Stan: Dobry"
+        - region [ref=f7e124]:
+          - heading "Opis" [level=3] [ref=f7e125]
+          - paragraph [ref=f7e126]: Brak opisu
+        - region [ref=f7e127]:
+          - heading "Aktualny status" [level=3] [ref=f7e128]
+          - status [ref=f7e130]: Dostępna
+        - region [ref=f7e132]:
+          - heading "Historia" [level=3] [ref=f7e133]
+          - list "Historia rzeczy" [ref=f7e134]:
+            - listitem [ref=f7e135]:
+              - time [ref=f7e136]:
+                - generic [ref=f7e137]: "7"
+                - generic [ref=f7e138]: paź
+              - generic [ref=f7e139]:
+                - paragraph [ref=f7e140]: Dodana
+                - paragraph [ref=f7e141]: "Dodana przez: Ty"
+      - navigation "Nawigacja panelu" [ref=f7e142]:
+        - button "Home" [ref=f7e143]
+        - button "Spotkania" [ref=f7e147]
+        - button "Moje rzeczy" [ref=f7e151]
+        - button "Wypożyczone" [ref=f7e155]

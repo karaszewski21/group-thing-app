@@ -44,6 +44,7 @@ const circle: PublicCircleResponse = {
   organizer_slug: "ania",
   visibility: "PUBLIC",
   layout_mode: "CIRCLE",
+  organizer_theme: null,
   term: {
     id: "101",
     occurs_on: "2026-10-01T17:00:00",
@@ -200,13 +201,56 @@ describe("TermPage — header and content", () => {
 
     await screen.findByRole("region", { name: "Zapisani na zajęcia" });
     const ola = document.getElementById("attendee-21")!;
-    expect(within(ola).getByRole("link", { name: "Rowerek" })).toHaveAttribute("href", "/product/9");
+    expect(within(ola).getByRole("link", { name: "Rowerek" })).toHaveAttribute("href", "/ania/produkt/9");
     expect(within(document.getElementById("attendee-99")!).getByRole("link", { name: "Namiot" })).toHaveAttribute(
       "href",
-      "/product/10",
+      "/ania/produkt/10",
     );
     expect(screen.getAllByText("Bębenek").length).toBeGreaterThan(0);
     expect(screen.queryByRole("link", { name: /Bębenek/ })).toBeNull();
+  });
+
+  it("links items to the unprefixed item page when the group has no organizer slug", async () => {
+    vi.mocked(groupsApi.getGroupAccess).mockResolvedValue(access({ group: { organizer_slug: null } }));
+    renderPage();
+
+    await screen.findByRole("region", { name: "Zapisani na zajęcia" });
+    expect(
+      within(document.getElementById("attendee-21")!).getByRole("link", { name: "Rowerek" }),
+    ).toHaveAttribute("href", "/product/9");
+  });
+});
+
+const BORDO_THEME = { primary_color: "#7a2a4f", accent_color: null, palette_preset: null };
+
+describe("TermPage — organizer theme", () => {
+  it("renders the term view inside the organizer's color scope", async () => {
+    vi.mocked(groupsApi.getGroupAccess).mockResolvedValue(access({ group: { organizer_theme: BORDO_THEME } }));
+    renderPage();
+
+    const heading = await screen.findByRole("heading", { level: 1, name: "Muzyczne Skrzaty" });
+    const scope = heading.closest<HTMLElement>('[data-organizer-theme="custom"]');
+    expect(scope).not.toBeNull();
+    expect(scope!.style.getPropertyValue("--color-primary")).toBe("#7a2a4f");
+    expect(scope).toContainElement(screen.getByRole("region", { name: "Zapisani na zajęcia" }));
+  });
+
+  it("renders the private group gate inside the same scope", async () => {
+    vi.mocked(groupsApi.getGroupAccess).mockResolvedValue(privateAccess({ group: { organizer_theme: BORDO_THEME } }));
+    renderPage();
+
+    const gate = await screen.findByRole("heading", { level: 2, name: /Ta grupa jest prywatna/ });
+    const scope = gate.closest<HTMLElement>('[data-organizer-theme="custom"]');
+    expect(scope).not.toBeNull();
+    expect(scope!.style.getPropertyValue("--color-primary")).toBe("#7a2a4f");
+  });
+
+  it("keeps the not-found state outside any organizer scope", async () => {
+    vi.mocked(groupsApi.getGroupAccess).mockRejectedValue(new Error("404"));
+    const { container } = renderPage();
+
+    expect(await screen.findByText("Nie znaleziono")).toBeInTheDocument();
+    expect(container.querySelector("[data-organizer-theme]")).toBeNull();
   });
 });
 
@@ -652,5 +696,17 @@ describe("TermPage — direct sign-up and server error messages", () => {
     fireEvent.click(await screen.findByRole("button", { name: "Pożycz: Rowerek" }));
 
     expect(await screen.findByRole("status")).toHaveTextContent("Ta rzecz jest już zajęta");
+  });
+});
+
+describe("TermPage — organizer theme fallback", () => {
+  it("an accent-only organizer renders the term view in the default palette", async () => {
+    vi.mocked(groupsApi.getGroupAccess).mockResolvedValue(
+      access({ group: { organizer_theme: { primary_color: null, accent_color: "#f39c12", palette_preset: null } } }),
+    );
+    renderPage();
+
+    const heading = await screen.findByRole("heading", { level: 1, name: "Muzyczne Skrzaty" });
+    expect(heading.closest("[data-organizer-theme]")).toHaveAttribute("data-organizer-theme", "default");
   });
 });

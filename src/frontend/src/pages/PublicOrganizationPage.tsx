@@ -1,9 +1,6 @@
-import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
-import { getPublicOrganization, type PublicOrganizationResponse } from "../api/organizations";
-
-const DEFAULT_PRIMARY = "#1b8168"; // --color-mint
-const DEFAULT_ACCENT = "#a9c24f"; // --color-lime
+import { usePublicOrganization } from "../hooks/usePublicOrganization";
+import { OrganizerThemeScope } from "../theme/OrganizerThemeScope";
 
 /**
  * Public, unauthenticated organizer page at `domena.pl/<slug>` — this is
@@ -13,34 +10,8 @@ const DEFAULT_ACCENT = "#a9c24f"; // --color-lime
  * would otherwise permanently shadow it.
  */
 export function PublicOrganizationPage() {
-  const { organizationSlug } = useParams<{ organizationSlug: string }>();
-  const [organization, setOrganization] = useState<PublicOrganizationResponse | null>(null);
-  const [notFound, setNotFound] = useState(false);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    let cancelled = false;
-    if (!organizationSlug) {
-      setNotFound(true);
-      setLoading(false);
-      return;
-    }
-    setLoading(true);
-    setNotFound(false);
-    getPublicOrganization(organizationSlug)
-      .then((org) => {
-        if (!cancelled) setOrganization(org);
-      })
-      .catch(() => {
-        if (!cancelled) setNotFound(true);
-      })
-      .finally(() => {
-        if (!cancelled) setLoading(false);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [organizationSlug]);
+  const { organizationSlug = "" } = useParams<{ organizationSlug: string }>();
+  const { data: organization, loading } = usePublicOrganization(organizationSlug);
 
   if (loading) {
     return (
@@ -50,7 +21,7 @@ export function PublicOrganizationPage() {
     );
   }
 
-  if (notFound || !organization) {
+  if (!organization) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-cream px-4 text-center font-sans text-ink">
         <div>
@@ -61,26 +32,19 @@ export function PublicOrganizationPage() {
     );
   }
 
-  const primaryColor = organization.primary_color ?? DEFAULT_PRIMARY;
-  const accentColor = organization.accent_color ?? DEFAULT_ACCENT;
-
   return (
-    <div
-      className="flex min-h-screen items-center justify-center bg-cream px-4 py-10 font-sans text-ink"
-      style={{
-        ["--color-mint" as string]: primaryColor,
-        ["--color-lime" as string]: accentColor,
-      }}
-    >
-      <div className="w-full max-w-[440px] rounded-[22px] border border-line bg-paper p-10 text-center">
-        <span className="mb-4 inline-flex rounded-full bg-lime-soft px-3.5 py-1.5 text-xs font-extrabold text-[#56701F]">
-          Organizacja
-        </span>
-        <h1 className="mb-2 font-serif text-3xl font-semibold text-ink">
-          {organization.name}
-        </h1>
-        <p className="mt-6 text-sm text-ink-soft">domena.pl/{organization.slug}</p>
+    <OrganizerThemeScope theme={organization}>
+      <div className="flex min-h-screen items-center justify-center bg-cream px-4 py-10 font-sans text-ink">
+        <div className="w-full max-w-[440px] rounded-[22px] border border-line bg-paper p-10 text-center">
+          <span className="mb-4 inline-flex rounded-full bg-accent-soft px-3.5 py-1.5 text-xs font-extrabold text-accent-fg">
+            Organizacja
+          </span>
+          <h1 className="mb-2 font-serif text-3xl font-semibold text-ink">
+            {organization.name}
+          </h1>
+          <p className="mt-6 text-sm text-ink-soft">domena.pl/{organization.slug}</p>
+        </div>
       </div>
-    </div>
+    </OrganizerThemeScope>
   );
 }

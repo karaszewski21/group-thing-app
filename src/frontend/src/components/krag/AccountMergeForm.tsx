@@ -55,12 +55,12 @@ export function AccountMergeForm({ userProfileId }: { userProfileId: string }) {
       <p style={{ fontWeight: 700, fontSize: 13, marginBottom: 4 }}>
         Załóż konto, aby pożyczać i wypożyczać rzeczy
       </p>
-      <p style={{ fontSize: 12, color: "var(--ink-soft)", marginBottom: 10 }}>
+      <p style={{ fontSize: 12, color: "var(--color-ink-soft)", marginBottom: 10 }}>
         Twoje zapisanie na zajęcia zostanie zachowane.
       </p>
 
       <div style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: 10 }}>
-        <label htmlFor="merge-email" style={{ fontSize: 12, fontWeight: 800, color: "var(--ink-soft)" }}>
+        <label htmlFor="merge-email" style={{ fontSize: 12, fontWeight: 800, color: "var(--color-ink-soft)" }}>
           Email
         </label>
         <input
@@ -74,7 +74,7 @@ export function AccountMergeForm({ userProfileId }: { userProfileId: string }) {
       </div>
 
       <div style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: 10 }}>
-        <label htmlFor="merge-password" style={{ fontSize: 12, fontWeight: 800, color: "var(--ink-soft)" }}>
+        <label htmlFor="merge-password" style={{ fontSize: 12, fontWeight: 800, color: "var(--color-ink-soft)" }}>
           Hasło
         </label>
         <input
@@ -86,7 +86,7 @@ export function AccountMergeForm({ userProfileId }: { userProfileId: string }) {
         />
       </div>
 
-      {formError && <div style={{ color: "#B4443A", fontSize: 12, marginBottom: 10 }}>{formError}</div>}
+      {formError && <div style={{ color: "var(--color-danger)", fontSize: 12, marginBottom: 10 }}>{formError}</div>}
 
       <button className="kg-btn-primary" disabled={busy} onClick={() => void handleSubmit()}>
         Załóż konto

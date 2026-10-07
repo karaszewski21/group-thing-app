@@ -196,7 +196,7 @@ interface PhotoFileFieldProps {
 export function PhotoFileField({ disabled, onFiles, onEscape, inputRef }: PhotoFileFieldProps) {
   return (
     <label
-      className={`mt-2 inline-flex cursor-pointer items-center rounded-[9px] bg-mint px-3 py-1.5 text-[11.5px] font-extrabold text-white focus-within:ring-2 focus-within:ring-mint/40 ${
+      className={`mt-2 inline-flex cursor-pointer items-center rounded-[9px] bg-primary px-3 py-1.5 text-[11.5px] font-extrabold text-on-primary focus-within:ring-2 focus-within:ring-focus-ring/40 ${
         disabled ? "pointer-events-none opacity-60" : ""
       }`}
     >

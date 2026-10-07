@@ -98,7 +98,7 @@ function CircleLayout({ families, organizerName, activeFamilyId, onSelectFamily 
                     y1="50"
                     x2={x}
                     y2={y}
-                    stroke={on ? "#1B8168" : "#CBDAC7"}
+                    className={on ? "stroke-primary" : "stroke-line-strong"}
                     strokeWidth={on ? "1" : "0.45"}
                   />
                 );
@@ -150,13 +150,13 @@ function PitchLayout({
   return (
     <div className="px-[18px] pt-[16px]">
       <div className="text-center mb-3">
-        <div className="mx-auto w-[52px] h-[52px] rounded-full bg-[var(--ink)] text-white flex items-center justify-center text-lg shadow-[0_14px_28px_-14px_rgba(30,46,39,.85)]">
+        <div className="mx-auto w-[52px] h-[52px] rounded-full bg-ink text-on-ink flex items-center justify-center text-lg shadow-[0_14px_28px_-14px_rgba(30,46,39,.85)]">
           🎵
         </div>
-        <strong className="block mt-2.5 font-serif text-[15px] text-[var(--ink)]">
+        <strong className="block mt-2.5 font-serif text-[15px] text-ink">
           {organizerName || "Brak organizatora"}
         </strong>
-        <span className="block text-[12px] text-[var(--ink-soft)]">trenerka</span>
+        <span className="block text-[12px] text-ink-soft">trenerka</span>
       </div>
 
       <div
@@ -206,24 +206,24 @@ function TableLayout({
     <div className="px-[18px] pt-[16px]">
       <div className="relative w-full max-w-[360px] mx-auto aspect-square">
         <div className="absolute left-1/2 top-[8%] -translate-x-1/2 -translate-y-1/2 text-center w-[52%]">
-          <div className="mx-auto w-[52px] h-[52px] rounded-full bg-[var(--ink)] text-white flex items-center justify-center text-lg shadow-[0_14px_28px_-14px_rgba(30,46,39,.85)]">
+          <div className="mx-auto w-[52px] h-[52px] rounded-full bg-ink text-on-ink flex items-center justify-center text-lg shadow-[0_14px_28px_-14px_rgba(30,46,39,.85)]">
             🎵
           </div>
-          <strong className="block mt-2.5 font-serif text-[15px] text-[var(--ink)]">
+          <strong className="block mt-2.5 font-serif text-[15px] text-ink">
             {organizerName || "Brak organizatora"}
           </strong>
-          <span className="block text-[12px] text-[var(--ink-soft)]">prowadzi zajęcia</span>
+          <span className="block text-[12px] text-ink-soft">prowadzi zajęcia</span>
         </div>
 
         <div
           className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[64%] h-[46%] rounded-full flex flex-col items-center justify-center gap-2 p-2.5"
-          style={{ background: "#e7cfa8", border: "6px solid var(--ink)" }}
+          style={{ background: "#e7cfa8", border: "6px solid var(--color-ink)" }}
           data-testid="table-chips"
         >
           {neededItemRows.map((chip) => (
             <span
               key={chip.key}
-              className="bg-white rounded-2xl px-3.5 py-1.5 text-[12px] font-bold text-[var(--ink)] shadow-[0_4px_8px_rgba(0,0,0,0.12)] flex items-center gap-1.5"
+              className="bg-paper rounded-2xl px-3.5 py-1.5 text-[12px] font-bold text-ink shadow-[0_4px_8px_rgba(0,0,0,0.12)] flex items-center gap-1.5"
             >
               {chip.title}
             </span>
@@ -254,15 +254,15 @@ function TableLayout({
  * (Core Requirement 8 / `component:exchange-legend`). */
 function ExchangeLegend() {
   return (
-    <div className="flex gap-3.5 justify-center text-[11px] text-[var(--ink-soft)] mt-2.5 mx-5 mb-1" data-testid="exchange-legend">
+    <div className="flex gap-3.5 justify-center text-[11px] text-ink-soft mt-2.5 mx-5 mb-1" data-testid="exchange-legend">
       <span className="inline-flex items-center gap-1.5">
-        <span className="w-3 h-3 rounded-full bg-[var(--mint)] inline-flex items-center justify-center text-white">
+        <span className="w-3 h-3 rounded-full bg-primary inline-flex items-center justify-center text-on-primary">
           <SharesIcon size={8} strokeWidth={3} />
         </span>
         udostępnia rzecz
       </span>
       <span className="inline-flex items-center gap-1.5">
-        <span className="w-3 h-3 rounded-full bg-[var(--teal)] inline-flex items-center justify-center text-white">
+        <span className="w-3 h-3 rounded-full bg-teal inline-flex items-center justify-center text-ink">
           <BringsIcon size={8} strokeWidth={3} />
         </span>
         przynosi na zajęcia

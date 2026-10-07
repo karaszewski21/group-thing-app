@@ -42,9 +42,9 @@ export function updateOrganization(
   id: string,
   request: UpdateOrganizationRequest,
 ): Promise<OrganizationResponse> {
-  return api.patch(`/organizations/${id}`, request);
+  return api.patch(`/organizations/${encodeURIComponent(id)}`, request);
 }
 
 export function getPublicOrganization(slug: string): Promise<PublicOrganizationResponse> {
-  return api.get(`/organizations/public/${slug}`);
+  return api.get(`/organizations/public/${encodeURIComponent(slug)}`);
 }

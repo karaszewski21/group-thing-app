@@ -23,6 +23,7 @@ import { useGuestMerge } from "./hooks/useGuestMerge";
 import { useTermSignUp } from "./hooks/useTermSignUp";
 import { useNeededItemPledge } from "./hooks/useNeededItemPledge";
 import { useItemTake } from "./hooks/useItemTake";
+import { organizerItemPath } from "../product/useItemRoutes";
 
 /** The term page's content, for a caller allowed to see it. */
 export function PublicTermView({
@@ -65,8 +66,8 @@ export function PublicTermView({
       key: listing.item_id,
       title: (
         <Link
-          to={`/product/${listing.item_id}`}
-          className="text-inherit underline decoration-[1.5px] underline-offset-2 hover:text-mint"
+          to={organizerItemPath(group.organizer_slug, listing.item_id)}
+          className="text-inherit underline decoration-[1.5px] underline-offset-2 hover:text-primary-fg"
         >
           <strong>{listing.product_name}</strong>
           <span aria-hidden="true"> ›</span>
@@ -177,7 +178,7 @@ export function PublicTermView({
               ) : null;
             })()}
           {toast && (
-            <div className="fixed bottom-[90px] left-1/2 z-[120] -translate-x-1/2 rounded-full bg-[#1E2E27] px-5 py-[11px] text-sm font-semibold text-[#EAF2E9] shadow-[0_14px_30px_-14px_rgba(30,46,39,.9)]" role="status">
+            <div className="fixed bottom-[90px] left-1/2 z-[120] -translate-x-1/2 rounded-full bg-ink px-5 py-[11px] text-sm font-semibold text-on-ink shadow-[0_14px_30px_-14px_rgba(30,46,39,.9)]" role="status">
               {toast}
             </div>
           )}
@@ -206,10 +207,10 @@ export function PublicTermView({
         {term && <AttendeeList attendees={buildAttendees(group, toListingRow)} activePartyId={activePartyId} />}
 
         {signUp.accountSuggestion && (
-          <div className="mx-4.5 mb-6 mt-4.5  rounded-[22px] border border-[#E2EADF] bg-white p-4.25">
+          <div className="mx-4.5 mb-6 mt-4.5  rounded-[22px] border border-line bg-paper p-4.25">
             <h3 className="text-[15px]">Załóż konto, aby zachować dostęp</h3>
             <AccountMergeForm userProfileId={signUp.accountSuggestion.user_profile_id} />
-            <button className="mt-2 rounded-full border-[1.5px] border-[#E2EADF] bg-transparent px-[14px] py-[7px] text-xs font-bold text-[#5C7069]" style={{ marginTop: 8 }} onClick={signUp.dismissSuggestion}>
+            <button className="mt-2 rounded-full border-[1.5px] border-line bg-transparent px-[14px] py-[7px] text-xs font-bold text-ink-soft" style={{ marginTop: 8 }} onClick={signUp.dismissSuggestion}>
               Może później
             </button>
           </div>

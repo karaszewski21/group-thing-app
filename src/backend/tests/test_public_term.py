@@ -20,7 +20,7 @@ from httpx import AsyncClient
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.groups.models import NeededItem, Term
+from app.groups.models import Leadership, NeededItem, Term
 
 
 async def _register_organizer(client: AsyncClient, email: str) -> str:
@@ -178,6 +178,7 @@ async def test_getPublicCircle_noTermIdParam_returnsNearestTermUnchanged(
         "name",
         "organizer_display_name",
         "organizer_slug",
+        "organizer_theme",
         "visibility",
         "layout_mode",
         "term",
@@ -343,6 +344,132 @@ async def test_getPublicCircle_organizerSlug_isOrgSlugWhenOrgExists_elseStableHa
     assert re.fullmatch(r"k-[0-9a-f]{12}", slug)
     # Stable across calls.
     assert (await client.get(url)).json()["organizer_slug"] == slug
+
+
+async def _create_organization(
+    client: AsyncClient, token: str, name: str, colors: dict[str, str] | None = None
+) -> dict[str, object]:
+    created = await client.post(
+        "/api/organizations/mine", json={"name": name}, headers=_auth_headers(token)
+    )
+    assert created.status_code == 201
+    if colors is None:
+        return created.json()
+    patched = await client.patch(
+        f"/api/organizations/{created.json()['id']}", json=colors, headers=_auth_headers(token)
+    )
+    assert patched.status_code == 200
+    return patched.json()
+
+
+async def test_getPublicCircle_organizerTheme_carriesOrgColors_whenOrgHasColors(
+    client: AsyncClient,
+) -> None:
+    token = await _register_organizer(client, "pt.theme1@example.com")
+    group_id = await _create_circle(client, token, "Krąg bordo")
+    organization = await _create_organization(
+        client, token, "Bordowe Nutki", {"primary_color": "#7A2A4F", "accent_color": "#a9c24f"}
+    )
+
+    response = await client.get(f"/api/groups/public/{group_id}")
+
+    assert response.status_code == 200
+    assert response.json()["organizer_theme"] == {
+        "primary_color": organization["primary_color"],
+        "accent_color": organization["accent_color"],
+        "palette_preset": None,
+    }
+
+
+async def test_getPublicCircle_organizerTheme_isObjectWithNullColors_whenOrgHasNoColors(
+    client: AsyncClient,
+) -> None:
+    token = await _register_organizer(client, "pt.theme2@example.com")
+    group_id = await _create_circle(client, token, "Krąg bez kolorów")
+    await _create_organization(client, token, "Bezbarwne Nutki")
+
+    response = await client.get(f"/api/groups/public/{group_id}")
+
+    assert response.status_code == 200
+    assert response.json()["organizer_theme"] == {
+        "primary_color": None,
+        "accent_color": None,
+        "palette_preset": None,
+    }
+
+
+async def test_getPublicCircle_organizerTheme_isNull_whenOrganizerHasNoOrganization(
+    client: AsyncClient,
+) -> None:
+    token = await _register_organizer(client, "pt.theme3@example.com")
+    group_id = await _create_circle(client, token, "Krąg bez organizacji motywu")
+
+    response = await client.get(f"/api/groups/public/{group_id}")
+
+    assert response.status_code == 200
+    body = response.json()
+    assert "organizer_theme" in body
+    assert body["organizer_theme"] is None
+    assert re.fullmatch(r"k-[0-9a-f]{12}", body["organizer_slug"])
+
+
+async def test_getPublicCircle_organizerTheme_isNull_whenCircleHasNoActiveLeadership(
+    client: AsyncClient, db_session: AsyncSession
+) -> None:
+    token = await _register_organizer(client, "pt.theme4@example.com")
+    group_id = await _create_circle(client, token, "Krąg bez prowadzącego")
+    await _create_organization(
+        client, token, "Porzucone Nutki", {"primary_color": "#7A2A4F", "accent_color": "#a9c24f"}
+    )
+    leadership = (
+        await db_session.execute(
+            select(Leadership).where(Leadership.to_group_id == uuid.UUID(str(group_id)))
+        )
+    ).scalar_one()
+    leadership.valid_to = date.today()
+    await db_session.commit()
+
+    response = await client.get(f"/api/groups/public/{group_id}")
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["organizer_theme"] is None
+    assert body["organizer_display_name"] is None
+    assert re.fullmatch(r"k-[0-9a-f]{12}", body["organizer_slug"])
+
+
+async def test_getPublicCircle_privateReducedResponse_includesOrganizerTheme(
+    client: AsyncClient,
+) -> None:
+    token = await _register_organizer(client, "pt.theme5@example.com")
+    group_id = await _create_circle(client, token, "Krąg prywatny bordo")
+    await _create_term(client, token, group_id, date.today() + timedelta(days=7))
+    private = await client.patch(
+        f"/api/groups/{group_id}",
+        json={"name": "Krąg prywatny bordo", "layout_mode": "CIRCLE", "visibility": "PRIVATE"},
+        headers=_auth_headers(token),
+    )
+    assert private.status_code == 200
+    organization = await _create_organization(
+        client, token, "Prywatne Nutki", {"primary_color": "#7A2A4F", "accent_color": "#a9c24f"}
+    )
+    expected_theme = {
+        "primary_color": organization["primary_color"],
+        "accent_color": organization["accent_color"],
+        "palette_preset": None,
+    }
+
+    response = await client.get(f"/api/groups/public/{group_id}")
+    access = await client.get(f"/api/groups/public/{group_id}/access")
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["term"] is None
+    assert body["guardians"] == []
+    assert body["organizer_theme"] == expected_theme
+    assert access.status_code == 200
+    assert access.json()["access"]["can_view_content"] is False
+    assert access.json()["group"]["organizer_theme"] == expected_theme
 
 
 async def _register_personal_item(client: AsyncClient, token: str, product_name: str) -> int:

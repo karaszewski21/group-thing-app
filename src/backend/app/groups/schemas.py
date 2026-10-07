@@ -289,6 +289,16 @@ class PublicGuardianResponse(BaseModel):
     display_name: str
 
 
+class OrganizerTheme(BaseModel):
+    """The organizer's stored Organization colors, reported as-is; the
+    frontend decides how (and whether) to derive a palette from them.
+    `palette_preset` is always `None` until A2."""
+
+    primary_color: str | None
+    accent_color: str | None
+    palette_preset: str | None
+
+
 class PublicCircleResponse(BaseModel):
     """Never carries a per-child field — `guardians` exposes only the
     aggregate `child_count` each guardian RSVP'd with (see
@@ -298,6 +308,9 @@ class PublicCircleResponse(BaseModel):
     name: str
     organizer_display_name: str | None
     organizer_slug: str | None
+    # Object whenever the organizer owns an Organization (even with both
+    # colors null); null when there is none (a `k-…` slug or no leadership).
+    organizer_theme: OrganizerTheme | None
     visibility: GroupVisibility
     layout_mode: GroupLayoutMode
     term: PublicTermResponse | None

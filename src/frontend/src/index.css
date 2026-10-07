@@ -13,29 +13,48 @@
 @import "tailwindcss";
 
 /*
- * Shared visual tokens for the new Tailwind-based pages (Login, Register,
- * Panel, Inventory) — values ported 1:1 from pages/PanelGoscia.tsx and
- * pages/PanelOrganizatora.tsx's `:root` custom-property palette. The
- * existing Chakra-based admin dashboard (Products/Plugins) and
- * TermPage.tsx's own inline CSS are untouched by this file.
+ * Design tokens. `static` makes Tailwind emit every token on :root even when
+ * no utility uses it — KragStage CSS and inline styles read some of them only
+ * through var(), which Tailwind's usage scan cannot see.
+ *
+ * The first 13 colors are the themable roles: OrganizerThemeScope overrides
+ * them inline on organizer pages (keep in sync with DEFAULT_THEME_VARS in
+ * theme/orgPalette.ts). Only plain leaf values belong here — a derived
+ * expression (var(), color-mix) would resolve against :root, not the scope.
  */
-@theme {
+@theme static {
+  --color-primary: #1b8168;
+  --color-on-primary: #ffffff;
+  --color-primary-fg: #117b63;
+  --color-primary-soft: #dcf5ec;
+  --color-focus-ring: #1b8168;
+  --color-accent: #a9c24f;
+  --color-accent-soft: #eaf2ce;
+  --color-accent-fg: #56701f;
   --color-cream: #f4f8f0;
+  --color-stage: #edf1ea;
+  --color-stage-wide: #e7ede4;
+  --color-line: #e2eadf;
+  --color-line-strong: #cbdac7;
+
   --color-paper: #ffffff;
   --color-ink: #1e2e27;
   --color-ink-soft: #5c7069;
+  --color-on-ink: #eaf2e9;
+  --color-teal: #6fb6b8;
+  --color-teal-soft: #d9ecec;
+  --color-danger: #b23b3b;
+  --color-danger-soft: #f6e4e2;
+  --color-scrim: rgb(20 28 24 / 0.55);
+
+  /* Legacy palette used by the panel, onboarding, login and platform chrome. */
   --color-mint: #1b8168;
   --color-mint-bright: #3fb68f;
   --color-mint-soft: #d8f0e6;
-  --color-sage: #5d8a63;
-  --color-sage-soft: #dfebdc;
-  --color-teal: #6fb6b8;
-  --color-teal-soft: #d9ecec;
   --color-lime: #a9c24f;
   --color-lime-soft: #eaf2ce;
-  --color-line: #e2eadf;
-  --color-danger: #b23b3b;
-  --color-danger-soft: #f6e4e2;
+  --color-sage: #5d8a63;
+  --color-sage-soft: #dfebdc;
 
   --font-serif: "Fraunces", Georgia, serif;
   --font-sans: "Karla", "Segoe UI", system-ui, sans-serif;

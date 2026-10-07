@@ -9,7 +9,7 @@ import { GroupHeader } from "./components/GroupHeader";
 import type { PrivateGate } from "./termAccess";
 
 const BUTTON_STYLE = { padding: "10px 18px", fontSize: 13 } as const;
-const BODY_STYLE = { fontSize: 13.5, color: "var(--ink-soft)", marginTop: 10 } as const;
+const BODY_STYLE = { fontSize: 13.5, color: "var(--color-ink-soft)", marginTop: 10 } as const;
 const REFRESH_ERROR = "Nie udało się odświeżyć strony — spróbuj ponownie.";
 
 /**
@@ -166,7 +166,7 @@ export function PrivateGroupGate({
   } else if (gate.kind === "pending") {
     body = (
       <>
-        <p style={{ fontSize: 12, color: "var(--ink-soft)", marginTop: 4 }}>Strona odświeży się sama, gdy tu wrócisz.</p>
+        <p style={{ fontSize: 12, color: "var(--color-ink-soft)", marginTop: 4 }}>Strona odświeży się sama, gdy tu wrócisz.</p>
         <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginTop: 12 }}>
           {checkButton("Sprawdź ponownie")}
           <button

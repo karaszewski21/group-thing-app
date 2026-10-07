@@ -20,8 +20,9 @@ import { TermPage } from "./pages/krag/TermPage";
 import { PanelPage } from "./pages/panel/PanelPage";
 import { TermAttendeesPage } from "./pages/panel/TermAttendeesPage";
 import { ItemCreatePage } from "./pages/product/ItemCreatePage";
-import { ItemDetailPage } from "./pages/product/ItemDetailPage";
-import { ItemEditPage } from "./pages/product/ItemEditPage";
+import { ItemDetailBody, ItemDetailPage } from "./pages/product/ItemDetailPage";
+import { ItemEditBody, ItemEditPage } from "./pages/product/ItemEditPage";
+import { OrganizerItemLayout } from "./pages/product/OrganizerItemLayout";
 import { OnboardingPage } from "./pages/OnboardingPage";
 import { OrganizationPage } from "./pages/OrganizationPage";
 import { PublicOrganizationPage } from "./pages/PublicOrganizationPage";
@@ -120,6 +121,25 @@ export const router = createBrowserRouter([
         element: <AuthGuard><ItemEditPage /></AuthGuard>,
       },
       {
+        // The bare organizer product prefix has no page of its own: back to
+        // the organizer. A sibling, not a layout child, so the layout below
+        // only ever mounts with an item id.
+        path: "/:organizationSlug/produkt",
+        element: <Navigate to=".." relative="path" replace />,
+      },
+      {
+        // Item pages reached from an organizer's term page: the same bodies
+        // as /product/:id[/edit], in the organizer's palette and without the
+        // panel nav (see OrganizerItemLayout). "produkt" and "grupa" are in
+        // the backend's RESERVED_SLUGS.
+        path: "/:organizationSlug/produkt/:id",
+        element: <AuthGuard><OrganizerItemLayout /></AuthGuard>,
+        children: [
+          { index: true, element: <ItemDetailBody /> },
+          { path: "edit", element: <ItemEditBody /> },
+        ],
+      },
+      {
         // The SOLE group/circle screen route (former separate `/krag/:groupId`
         // + `/krag` entry-resolver were removed — this address now serves both
         // audiences). No `AuthGuard`: `TermPage` itself branches on auth
@@ -129,7 +149,8 @@ export const router = createBrowserRouter([
         // into redirect targets, never validated / never sent to the backend).
         // Multi-segment, so React Router route-ranking keeps it ahead of the
         // single-segment `/:organizationSlug` catch-all below regardless of
-        // declaration order — no RESERVED_SLUGS change needed.
+        // declaration order. "grupa" (like "produkt" above) is in the
+        // backend's RESERVED_SLUGS, so no organizer slug can equal it.
         path: "/:organizationSlug/grupa/:groupId/term/:termId",
         element: <TermPage />,
       },

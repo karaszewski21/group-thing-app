@@ -17,27 +17,34 @@ import {
   type ItemCreatedState,
 } from "./itemPageShared";
 import { DescriptionText, ReadOnlyCards } from "./ItemReadOnlyParts";
+import { useItemRoutes } from "./useItemRoutes";
 
-/** `/product/:id`. Standalone, outside PanelDataProvider: two parallel reads,
- * details and history. */
+/** `/product/:id`. Standalone, outside PanelDataProvider. */
 export function ItemDetailPage() {
+  return (
+    <PhoneFrame>
+      <ItemDetailBody />
+      <PanelNavBar />
+    </PhoneFrame>
+  );
+}
+
+/** The item view inside a frame: two parallel reads, details and history. */
+export function ItemDetailBody() {
   const { id = "" } = useParams();
   const { item, notFound, error, loading, refetch } = useItemDetail(id);
   const history = useItemHistory(id);
 
   return (
-    <PhoneFrame>
-      <div className="flex-1 overflow-y-auto px-[18px] pb-6 pt-[18px]">
-        <ItemBackButton />
-        <FailedPhotosNotice />
-        {item ? (
-          <ItemViewContent item={item} history={history} />
-        ) : (
-          <ItemLoadStates notFound={notFound} error={error} loading={loading} onRetry={() => void refetch()} />
-        )}
-      </div>
-      <PanelNavBar />
-    </PhoneFrame>
+    <div className="flex-1 overflow-y-auto px-[18px] pb-6 pt-[18px]">
+      <ItemBackButton />
+      <FailedPhotosNotice />
+      {item ? (
+        <ItemViewContent item={item} history={history} />
+      ) : (
+        <ItemLoadStates notFound={notFound} error={error} loading={loading} onRetry={() => void refetch()} />
+      )}
+    </div>
   );
 }
 
@@ -56,6 +63,7 @@ export function FailedPhotosNotice() {
 function ItemViewContent({ item, history }: { item: ItemDetailsResponse; history: HistoryState }) {
   const deleted = item.deleted_at !== null;
   const canEdit = item.is_owner && !deleted;
+  const routes = useItemRoutes();
 
   return (
     <>
@@ -80,7 +88,7 @@ function ItemViewContent({ item, history }: { item: ItemDetailsResponse; history
         <h2 className="min-w-0 break-words text-[19px] font-semibold text-ink">{item.name}</h2>
         {canEdit && (
           <Link
-            to={`/product/${item.id}/edit`}
+            to={routes.editPath(item.id)}
             className="inline-flex flex-none items-center gap-1.5 rounded-full border-[1.5px] border-line px-3 py-1.5 text-[11.5px] font-extrabold text-ink-soft hover:text-ink"
           >
             <PencilIcon /> Edytuj

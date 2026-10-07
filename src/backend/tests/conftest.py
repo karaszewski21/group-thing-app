@@ -33,6 +33,11 @@ from tests.fake_storage import FakeStorage
 
 BACKEND_ROOT = Path(__file__).resolve().parent.parent
 
+# Env vars beat `.env`, so a developer's local `MODERATION_TEXT_ENABLED=true`
+# cannot leak into the suite. Set before any test module imports `app.config`;
+# moderation tests opt in by monkeypatching `settings.moderation_text_enabled`.
+os.environ["MODERATION_TEXT_ENABLED"] = "false"
+
 
 def _to_asyncpg_url(sync_url: str) -> str:
     """`testcontainers` hands back a `psycopg2`-driver URL; both the app and

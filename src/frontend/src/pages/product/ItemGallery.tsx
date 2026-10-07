@@ -102,7 +102,7 @@ export function ItemGallery({ name, photos, productPhotoUrl, faded, showOwnerHin
               aria-label={`Zdjęcie ${i + 1} z ${urls.length}`}
               onClick={() => setActive(i)}
               className={`h-14 w-14 flex-none overflow-hidden rounded-xl ${
-                i === current ? "ring-2 ring-mint" : "border border-line"
+                i === current ? "ring-2 ring-focus-ring" : "border border-line"
               }`}
             >
               <SafeImage src={slides[i].thumbUrl} alt="" className="h-full w-full" placeholderSize={20} />

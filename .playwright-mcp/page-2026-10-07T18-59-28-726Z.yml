@@ -1,0 +1,47 @@
+- generic [ref=f7e2]:
+  - navigation "Menu konta" [ref=f7e19]:
+    - button "Powiadomienia" [ref=f7e21]
+    - button "Menu" [ref=f7e26]
+  - main [ref=f7e29]:
+    - generic [ref=f7e31]:
+      - generic [ref=f7e33]:
+        - generic [ref=f7e34]:
+          - generic [ref=f7e35]:
+            - heading "Moje rzeczy" [level=2] [ref=f7e36]
+            - generic [ref=f7e37]: 2 rzeczy
+          - link "+ Dodaj rzecz" [ref=f7e38] [cursor=pointer]:
+            - /url: /product/new
+        - generic [ref=f7e39]:
+          - generic [ref=f7e40]:
+            - generic [ref=f7e45]:
+              - heading "Rowerek biegowy" [level=3] [ref=f7e46]
+              - generic [ref=f7e47]: "Stan: Dobry"
+              - generic [ref=f7e48]:
+                - button "Wypożyczę" [pressed] [ref=f7e49]
+                - button "Oddam" [ref=f7e50]
+                - button "Zamienię" [ref=f7e51]
+            - generic [ref=f7e52]:
+              - link "Zobacz rzecz Rowerek biegowy" [ref=f7e53] [cursor=pointer]:
+                - /url: /product/3847ffb8-1121-4e5f-ae69-7a3a3e224c2c
+              - link "Edytuj rzecz Rowerek biegowy" [ref=f7e57] [cursor=pointer]:
+                - /url: /product/3847ffb8-1121-4e5f-ae69-7a3a3e224c2c/edit
+              - button "Usuń rzecz Rowerek biegowy" [ref=f7e60]
+          - generic [ref=f7e63]:
+            - generic [ref=f7e68]:
+              - heading "Gitara dla dzieci" [level=3] [ref=f7e69]
+              - generic [ref=f7e70]: "Stan: Dobry"
+              - generic [ref=f7e71]:
+                - button "Wypożyczę" [pressed] [ref=f7e72]
+                - button "Oddam" [ref=f7e73]
+                - button "Zamienię" [ref=f7e74]
+            - generic [ref=f7e75]:
+              - link "Zobacz rzecz Gitara dla dzieci" [ref=f7e76] [cursor=pointer]:
+                - /url: /product/a6a67ed4-2a3e-407f-a0df-501b90562a86
+              - link "Edytuj rzecz Gitara dla dzieci" [ref=f7e80] [cursor=pointer]:
+                - /url: /product/a6a67ed4-2a3e-407f-a0df-501b90562a86/edit
+              - button "Usuń rzecz Gitara dla dzieci" [ref=f7e83]
+      - navigation "Nawigacja panelu" [ref=f7e86]:
+        - button "Home" [ref=f7e87]
+        - button "Spotkania" [ref=f7e91]
+        - button "Moje rzeczy" [ref=f7e95]
+        - button "Wypożyczone" [ref=f7e99]

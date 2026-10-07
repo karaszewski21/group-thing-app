@@ -1,0 +1,7 @@
+[     384ms] [VERBOSE] [DOM] Input elements should have autocomplete attributes (suggested: "current-password"): (More info: https://goo.gl/9p2vKq) %o @ http://localhost:5174/login?returnTo=%2Fpracownia-pod-lipa%2Fprodukt%2Fa6a67ed4-2a3e-407f-a0df-501b90562a86:0
+[    5803ms] [ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://localhost:5174/api/organizations/mine:0
+[   56348ms] [VERBOSE] [DOM] Input elements should have autocomplete attributes (suggested: "current-password"): (More info: https://goo.gl/9p2vKq) %o @ http://localhost:5174/login?returnTo=%2Fpracownia-pod-lipa%2Fgrupa%2F45abbe6f-60b7-4ef4-ad10-cd51d2fae4ba%2Fterm%2F9cb05faf-0c07-4135-81f8-47173fb19334:0
+[   59419ms] [ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://localhost:5174/api/organizations/mine:0
+[   83071ms] [VERBOSE] [DOM] Input elements should have autocomplete attributes (suggested: "current-password"): (More info: https://goo.gl/9p2vKq) %o @ http://localhost:5174/login?returnTo=%2Fpanel%2Frzeczy:0
+[   87677ms] [ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://localhost:5174/api/organizations/mine:0
+[   87755ms] [ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://localhost:5174/api/organizations/mine:0

@@ -30,6 +30,11 @@ RESERVED_SLUGS: frozenset[str] = frozenset(
         "categories",
         "moderation",
         "plugins",
+        # Second-segment organizer routes (`/:slug/produkt/:id`,
+        # `/:slug/grupa/...`) — reserved so an organization slug never reads
+        # like one of those path segments.
+        "produkt",
+        "grupa",
         # Backend/static namespaces and other names that must never be
         # shadowed by a public organization page.
         "api",

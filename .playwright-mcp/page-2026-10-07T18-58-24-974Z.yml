@@ -1,0 +1,29 @@
+- generic [ref=f5e2]:
+  - navigation "Menu konta" [ref=f5e20]:
+    - button "Powiadomienia" [ref=f5e22]
+    - button "Menu" [ref=f5e27]
+  - main [ref=f5e30]:
+    - generic [ref=f5e131]:
+      - button "Wróć" [ref=f5e132]
+      - paragraph [ref=f5e142]: Dodaj zdjęcia w trybie edycji
+      - generic [ref=f5e143]:
+        - heading "Gitara dla dzieci" [level=2] [ref=f5e144]
+        - link "Edytuj" [ref=f5e145] [cursor=pointer]:
+          - /url: /pracownia-pod-lipa/produkt/a6a67ed4-2a3e-407f-a0df-501b90562a86/edit
+      - paragraph [ref=f5e148]: "Inne · Stan: Dobry"
+      - region [ref=f5e149]:
+        - heading "Opis" [level=3] [ref=f5e150]
+        - paragraph [ref=f5e151]: Brak opisu
+      - region [ref=f5e152]:
+        - heading "Aktualny status" [level=3] [ref=f5e153]
+        - status [ref=f5e155]: Dostępna
+      - region [ref=f5e157]:
+        - heading "Historia" [level=3] [ref=f5e158]
+        - list "Historia rzeczy" [ref=f5e159]:
+          - listitem [ref=f5e160]:
+            - time [ref=f5e161]:
+              - generic [ref=f5e162]: "7"
+              - generic [ref=f5e163]: paź
+            - generic [ref=f5e164]:
+              - paragraph [ref=f5e165]: Dodana
+              - paragraph [ref=f5e166]: "Dodana przez: Ty"

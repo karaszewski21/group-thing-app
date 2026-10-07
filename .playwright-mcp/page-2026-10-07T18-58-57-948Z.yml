@@ -1,0 +1,47 @@
+- generic [ref=f6e2]:
+  - navigation "Menu konta" [ref=f6e19]:
+    - button "Powiadomienia" [ref=f6e21]
+    - button "Menu" [ref=f6e26]
+  - main [ref=f6e29]:
+    - generic [ref=f6e31]:
+      - heading "Spotkania z muzyką" [level=1] [ref=f6e33]
+      - main [ref=f6e34]:
+        - generic [ref=f6e38]:
+          - button "Anna Nowak" [ref=f6e40]:
+            - generic [ref=f6e41]:
+              - text: AN
+              - generic "Udostępnia rzecz" [ref=f6e42]
+          - generic [ref=f6e46]:
+            - generic [ref=f6e47]: E
+            - strong [ref=f6e48]: Ewa Kowalska
+            - generic [ref=f6e49]: prowadzi zajęcia
+        - generic [ref=f6e50]:
+          - generic [ref=f6e51]: udostępnia rzecz
+          - generic [ref=f6e56]: przynosi na zajęcia
+        - generic [ref=f6e62]:
+          - generic [ref=f6e63]: Termin zajęć
+          - generic [ref=f6e64]:
+            - generic [ref=f6e65]: 14 października 2026
+            - generic [ref=f6e66]: 🕒 godz. 00:00
+        - region "Zapisani na zajęcia" [ref=f6e67]:
+          - list [ref=f6e68]:
+            - listitem [ref=f6e69]:
+              - generic [ref=f6e70]:
+                - generic [ref=f6e71]:
+                  - text: AN
+                  - generic "Udostępnia rzecz" [ref=f6e72]
+                - strong [ref=f6e76]: Anna Nowak
+              - generic [ref=f6e77]:
+                - generic [ref=f6e78]:
+                  - link [ref=f6e80] [cursor=pointer]:
+                    - /url: /pracownia-pod-lipa/produkt/a6a67ed4-2a3e-407f-a0df-501b90562a86
+                    - strong [ref=f6e81]: Gitara dla dzieci
+                    - text: ›
+                  - 'button "Pożycz: Gitara dla dzieci" [ref=f6e83]': Pożycz
+                - generic [ref=f6e84]:
+                  - link [ref=f6e86] [cursor=pointer]:
+                    - /url: /pracownia-pod-lipa/produkt/3847ffb8-1121-4e5f-ae69-7a3a3e224c2c
+                    - strong [ref=f6e87]: Rowerek biegowy
+                    - text: ›
+                  - 'button "Pożycz: Rowerek biegowy" [ref=f6e89]': Pożycz
+      - button "＋ Zapisz się na zajęcia" [ref=f6e91]

@@ -24,44 +24,53 @@ import {
   type HistoryState,
 } from "./itemPageShared";
 import { DescriptionText, ReadOnlyCards } from "./ItemReadOnlyParts";
+import { useItemRoutes } from "./useItemRoutes";
 
 type EditorKey = "photos" | "nameCategory" | "condition" | "description";
 
-/** `/product/:id/edit`, owner only: a non-owner or a deleted item goes back to
- * the view. Standalone, outside PanelDataProvider. */
+/** `/product/:id/edit`. Standalone, outside PanelDataProvider. */
 export function ItemEditPage() {
+  return (
+    <PhoneFrame>
+      <ItemEditBody />
+      <PanelNavBar />
+    </PhoneFrame>
+  );
+}
+
+/** The item editor inside a frame, owner only: a non-owner or a deleted
+ * item goes back to the view. */
+export function ItemEditBody() {
   const { id = "" } = useParams();
+  const routes = useItemRoutes();
   const { item, notFound, error, loading, fetching, refetch } = useItemDetail(id);
   const history = useItemHistory(id);
 
   if (item && (!item.is_owner || item.deleted_at)) {
-    return <Navigate to={`/product/${id}`} replace />;
+    return <Navigate to={routes.viewPath(id)} replace />;
   }
 
   return (
-    <PhoneFrame>
-      <div className="flex-1 overflow-y-auto px-[18px] pb-6 pt-[18px]">
-        {item ? (
-          <>
-            <Link to={`/product/${id}`} replace className={BACK_LINK}>
-              <BackIcon /> Wróć do podglądu
-            </Link>
-            <ItemEditContent
-              item={item}
-              history={history}
-              details={{ productId: item.product_id, fetching, failed: error !== null }}
-              onRefetch={() => void refetch()}
-            />
-          </>
-        ) : (
-          <>
-            <ItemBackButton />
-            <ItemLoadStates notFound={notFound} error={error} loading={loading} onRetry={() => void refetch()} />
-          </>
-        )}
-      </div>
-      <PanelNavBar />
-    </PhoneFrame>
+    <div className="flex-1 overflow-y-auto px-[18px] pb-6 pt-[18px]">
+      {item ? (
+        <>
+          <Link to={routes.viewPath(id)} replace className={BACK_LINK}>
+            <BackIcon /> Wróć do podglądu
+          </Link>
+          <ItemEditContent
+            item={item}
+            history={history}
+            details={{ productId: item.product_id, fetching, failed: error !== null }}
+            onRefetch={() => void refetch()}
+          />
+        </>
+      ) : (
+        <>
+          <ItemBackButton />
+          <ItemLoadStates notFound={notFound} error={error} loading={loading} onRetry={() => void refetch()} />
+        </>
+      )}
+    </div>
   );
 }
 
@@ -74,6 +83,7 @@ interface ItemEditContentProps {
 
 function ItemEditContent({ item, history, details, onRefetch }: ItemEditContentProps) {
   const editing = useItemEditing(item.id, details);
+  const routes = useItemRoutes();
   const productLocked = !editing.productEditable;
   const [openEditor, setOpenEditor] = useState<EditorKey | null>(null);
   const close = () => setOpenEditor(null);
@@ -104,7 +114,7 @@ function ItemEditContent({ item, history, details, onRefetch }: ItemEditContentP
     <>
       <div className="flex items-center justify-between gap-2.5">
         <h2 className="text-[19px] font-semibold text-ink">Edycja rzeczy</h2>
-        <Link to={`/product/${item.id}`} replace className={PRIMARY_BTN}>
+        <Link to={routes.viewPath(item.id)} replace className={PRIMARY_BTN}>
           Gotowe
         </Link>
       </div>
@@ -112,7 +122,7 @@ function ItemEditContent({ item, history, details, onRefetch }: ItemEditContentP
         <div role="status" className="mt-3 rounded-[14px] border border-line bg-cream px-3.5 py-2.5 text-[12.5px] text-ink">
           Rzecz zdjęta z terminów do czasu zatwierdzenia zdjęć. Tryb wypożyczę/oddam/zamienię włączysz ponownie w
           „Moje rzeczy”.{" "}
-          <Link to="/panel/rzeczy" className="font-extrabold text-mint underline">
+          <Link to="/panel/rzeczy" className="font-extrabold text-primary-fg underline">
             Moje rzeczy →
           </Link>
         </div>
@@ -120,7 +130,7 @@ function ItemEditContent({ item, history, details, onRefetch }: ItemEditContentP
       {details.failed && !details.fetching && (
         <div role="alert" className="mt-3 rounded-[14px] border border-line bg-cream px-3.5 py-2.5 text-[12.5px] text-ink">
           Nie udało się wczytać aktualnych danych produktu — zdjęcia i opis są chwilowo zablokowane.{" "}
-          <button type="button" onClick={onRefetch} className="font-extrabold text-mint underline">
+          <button type="button" onClick={onRefetch} className="font-extrabold text-primary-fg underline">
             Spróbuj ponownie
           </button>
         </div>

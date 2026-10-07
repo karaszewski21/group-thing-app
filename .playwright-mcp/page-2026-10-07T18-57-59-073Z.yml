@@ -1,0 +1,18 @@
+- generic [ref=f5e5]:
+  - generic [ref=f5e6]: KG
+  - heading "Krąg grupy" [level=1] [ref=f5e7]
+  - paragraph [ref=f5e8]: Zaloguj się do swojego konta
+  - generic [ref=f5e9]:
+    - generic [ref=f5e10]:
+      - generic [ref=f5e11]: Email
+      - textbox "Email" [ref=f5e12]:
+        - /placeholder: ty@przyklad.pl
+    - generic [ref=f5e13]:
+      - generic [ref=f5e14]: Hasło
+      - textbox "Hasło" [ref=f5e15]:
+        - /placeholder: Wpisz hasło
+    - button "Zaloguj się" [disabled] [ref=f5e16]
+  - paragraph [ref=f5e18]:
+    - text: Nie masz konta?
+    - link "Zarejestruj się" [ref=f5e19] [cursor=pointer]:
+      - /url: /register?returnTo=%2Fpracownia-pod-lipa%2Fprodukt%2Fa6a67ed4-2a3e-407f-a0df-501b90562a86

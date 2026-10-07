@@ -1,0 +1,95 @@
+orchestrator:
+  started_phase: phase-1
+  current_phase: done
+  completed_phases: [phase-1, phase-2, phase-3, phase-4, phase-5, phase-6, phase-7, phase-8, phase-9, phase-10, phase-11, phase-13, phase-14]
+  skipped_phases: [phase-12]
+  failed_phases: []
+  auto_fix_attempts: {}
+  options:
+    spec_audit_enabled: true
+    skip_test_suite: false
+    e2e_enabled: false
+    user_docs_enabled: true
+    code_review_enabled: true
+    pragmatic_review_enabled: true
+    reality_check_enabled: true
+    production_check_enabled: true
+    sequential: false
+  created: 2026-10-07T12:30:00Z
+  updated: 2026-10-07T12:30:00Z
+  task_path: .maister/tasks/development/2026-10-07-organizer-theme-a1
+task:
+  title: "A1 Motyw — scoped organizer color theme on term and product pages"
+  description: >
+    Task A1 from research 2026-10-07-organizer-page-layouts-theming. Introduce role color tokens (13 themable:
+    primary, on-primary, primary-fg, primary-soft, focus-ring, accent, accent-soft, accent-fg, cream, stage,
+    stage-wide, line, line-strong; fixed tokens via @theme static), migrate KragStage :root vars and dependent
+    components to role tokens (remove global :root leak and global box-sizing), tokenize ~14 hardcoded themable
+    colors, fix default palette contrast (X1), ink icon on teal, danger color unification (X5); add hand-written
+    src/frontend/src/theme/orgPalette.ts (OKLCH + WCAG auto-correct), resolveOrgTheme, OrganizerThemeScope
+    wrapper; backend: organizer_theme in PublicCircleResponse via organizations_acl; nested route
+    /:slug/produkt/:id[/edit] in public frame (login required) themed by organizer, /product/:id unchanged with
+    default palette; add "produkt" to RESERVED_SLUGS; usePublicOrganization TanStack hook. No DB migration.
+  status: completed
+  tags: [frontend, theming, backend]
+task_context:
+  risk_level: medium
+  clarifications_resolved: true
+  scope_expanded: false
+  tech_clarified: true
+  architecture_decision: "ADR-001 scoped wrapper with inline role tokens; ADR-002 orgPalette generator; ADR-007 theme in PublicCircleResponse; ADR-009 nested product route; ADR-014 theme boundaries"
+  tdd_red_passed: true
+  tdd_green_passed: true
+  task_characteristics:
+    has_reproducible_defect: true
+    modifies_existing_code: true
+    creates_new_entities: true
+    involves_data_operations: true
+    ui_heavy: true
+  research_reference:
+    path: .maister/tasks/research/2026-10-07-organizer-page-layouts-theming
+    research_question: "Organizer page with 5 selectable layouts + palette applied to organizer/term/product pages, easy editor, ready for paid custom layouts"
+    research_type: mixed
+    confidence_level: medium-high
+    scope_selected: A1
+  design_reference:
+    source: phase-4-ascii
+    product_design_path: null
+    mockup_count: 8
+    has_brief: false
+    index_path: analysis/design-context/INDEX.md
+  phase_summaries:
+    research:
+      summary: "Theme via OrganizerThemeScope setting all Tailwind --color-* role tokens inline (verified in Chromium; no portals). Term page gets organizer_theme from server payload, never URL slug. Product page nested route /:slug/produkt/:id public frame, login-required. Default palette contrast fixes in A1. Any logged-in user reading any item is intended behavior."
+      key_findings:
+        - "Public pages use Tailwind v4 + inline CSS vars, not Chakra"
+        - "KragStage.tsx:7-12 declares --mint/--ink on global :root (leaks); dependents GroupVisualization, PrivateGroupGate, RequestAccessDialog, AccountMergeForm read unprefixed vars"
+        - "Derived vars on :root freeze - compute all role vars in JS and set inline"
+        - "Unused @theme tokens not emitted - use @theme static"
+        - "Default palette fails contrast in 4 pairs"
+      recommended_approach: "See analysis/research-context/high-level-design.md §5, §12 (A1 row) and decision-log.md ADR-001/002/007/009/014"
+      decisions_made: ["see research orchestrator-state phase-4 decision_areas"]
+    design: {summary: "ASCII mockups for themed term page, private gate, organizer product page/edit/loading, panel product page, public org page, nav map; elements annotated with role tokens.", screen_count: 8, component_count: 7, index_path: analysis/design-context/INDEX.md}
+    codebase_analysis:
+      key_files: [src/frontend/src/index.css, src/frontend/src/pages/krag/components/KragStage.tsx, src/frontend/src/pages/PublicOrganizationPage.tsx, src/frontend/src/router.tsx, src/frontend/src/pages/krag/PublicTermView.tsx, src/frontend/src/pages/krag/GroupVisualization.tsx, src/frontend/src/pages/product/ItemDetailPage.tsx, src/frontend/src/pages/product/ItemEditPage.tsx, src/frontend/src/pages/product/ItemBackButton.tsx, src/backend/app/groups/application/public_view.py, src/backend/app/groups/schemas.py, src/backend/app/organizations/slugs.py]
+      primary_language: TypeScript (React 19, Tailwind v4) + Python (FastAPI)
+      summary: "45 files; complex/medium risk. Backend additive (Organization already loaded in _resolve_organizer; 2 return sites). Frontend: merge KragStage --mint and Tailwind --color-* namespaces, sweep hexes, make 7+ /product/ links prefix-aware, PublicOrganizationPage to TanStack. Breaking tests: test_public_term.py 176-185, TermPage.test 203-206 (+tsc fixtures), termAccess.test L5, PublicOrganizationPage.test (needs query wrapper)."
+
+    clarifications: ["Panel-page hexes out of scope", "Reserve both produkt and grupa slugs"]
+    gap_analysis:
+      integration_points: [public_view.get_public_circle_view inline organizer block, organizations_acl, PublicCircleResponse (BE+TS), router.tsx nested layout route, item pages, KragStage + var() consumers, index.css @theme]
+      summary: "A1 needs new theme layer, nested product route, additive BE field. Corrections: get_public_circle_view only gets slug (no Organization load) - use inline block; product page org query never prefetched. Theme dormant for organizers until A2 editor (no color input). Characteristics: defect(contrast/leak/danger drift), modifies, creates, data ops(read), ui_heavy." 
+    scope_clarifications: {scope_expanded: false, summary: "Accept dormant theme until A2; legacy tokens kept static, in-scope files use new role utilities; single ACL read in inline block; layout route + useItemRoutes; required OrganizerTheme|null; neutral loader; PhoneFrame w/o nav; palette_preset null; accent-only -> default; delete dead CSS; keep panel link."}
+    ui_mockups: {components_designed: [organizer-theme-scope, item-routes, organizer-item-layout, themed-primary-button, exchange-markers, item-status-pill, org-badge], summary: "8 screens/states + 7 components in design-context/ascii/ui-mockups.md"}
+    implementation: {summary: "8 groups / 4 waves done; 60/61 steps (8.7 manual pending). FE 515 pass, 17 fail all pre-existing on HEAD; BE 642/642; tsc clean; themeDefects 31/31; no new lint/type findings."}
+    specification: {summary: "spec.md: 13 requirements, 14 reusable, 7 new components; organizer_theme object when Organization exists else null; single ACL read; tokens in @theme static (primary-soft #dcf5ec, primary-fg #117b63, on-ink, scrim); sage legacy stays, kg labels -> ink-soft; generator with primary-soft lightening step (20k seeds pass); ItemDetailBody/ItemEditBody, OrganizerItemLayout, useItemPagePrefetch."}
+project_context:
+  project_doc_paths:
+    - .maister/docs/project/tech-stack.md
+    - .maister/docs/project/architecture.md
+verification_context:
+  last_status: passed_with_issues
+  issues_found: [W1 unencoded slug, manual browser check, prod slug check, test env moderation flag, slug rule x3, brittle KragStage test, kg-center-av white, multi-seed contrast, k- back fallback, loader no-op onRetry, item path helper]
+  fixes_applied: [encodeURIComponent slug+item ids (+updateOrganization id), conftest forces MODERATION_TEXT_ENABLED=false, derive_organizer_slug helper used x3 + ruff I001 fixed, KragStage test order-independent, kg-center-av on-ink, 504-seed contrast sweep (generator unchanged), k- exact-format back fallback /panel/rzeczy, ItemLoadStates onRetry optional, organizerItemPath helper]
+  decisions_made: [fix all fixable; manual browser check + prod slug SQL check left to user]
+  reverify_count: 0

@@ -1,0 +1,51 @@
+- generic [ref=f5e2]:
+  - navigation "Menu konta" [ref=f5e20]:
+    - button "Powiadomienia" [ref=f5e22]
+    - button "Menu" [ref=f5e27]
+  - main [ref=f5e30]:
+    - generic [ref=f5e70]:
+      - link "Wróć do podglądu" [ref=f5e71] [cursor=pointer]:
+        - /url: /pracownia-pod-lipa/produkt/a6a67ed4-2a3e-407f-a0df-501b90562a86
+      - generic [ref=f5e74]:
+        - heading "Edycja rzeczy" [level=2] [ref=f5e75]
+        - link "Gotowe" [ref=f5e76] [cursor=pointer]:
+          - /url: /pracownia-pod-lipa/produkt/a6a67ed4-2a3e-407f-a0df-501b90562a86
+      - generic [ref=f5e78]:
+        - generic [ref=f5e79]:
+          - heading "Zdjęcia (0/10)" [level=3] [ref=f5e80]
+          - button "Edytuj zdjęcia" [ref=f5e81]
+        - paragraph [ref=f5e84]: Brak zdjęć
+      - generic [ref=f5e85]:
+        - generic [ref=f5e86]:
+          - generic [ref=f5e87]:
+            - heading "Nazwa i kategoria" [level=3] [ref=f5e88]
+            - button "Edytuj nazwę i kategorię" [ref=f5e89]
+          - paragraph [ref=f5e92]: Gitara dla dzieci
+          - paragraph [ref=f5e93]: Inne
+        - generic [ref=f5e94]:
+          - generic [ref=f5e95]:
+            - heading "Stan" [level=3] [ref=f5e96]
+            - button "Edytuj stan" [ref=f5e97]
+          - paragraph [ref=f5e100]: Dobry
+        - generic [ref=f5e101]:
+          - heading "Opis" [level=3] [ref=f5e103]
+          - generic [ref=f5e124]:
+            - textbox "Opis rzeczy" [active] [ref=f5e125]
+            - paragraph [ref=f5e126]: 0 / 2000
+            - paragraph [ref=f5e127]: Opis jest wspólny dla wszystkich rzeczy tego produktu.
+            - generic [ref=f5e128]:
+              - button "Zapisz" [ref=f5e129]
+              - button "Anuluj" [ref=f5e130]
+      - region [ref=f5e108]:
+        - heading "Aktualny status" [level=3] [ref=f5e109]
+        - status [ref=f5e111]: Dostępna
+      - region [ref=f5e113]:
+        - heading "Historia" [level=3] [ref=f5e114]
+        - list "Historia rzeczy" [ref=f5e115]:
+          - listitem [ref=f5e116]:
+            - time [ref=f5e117]:
+              - generic [ref=f5e118]: "7"
+              - generic [ref=f5e119]: paź
+            - generic [ref=f5e120]:
+              - paragraph [ref=f5e121]: Dodana
+              - paragraph [ref=f5e122]: "Dodana przez: Ty"

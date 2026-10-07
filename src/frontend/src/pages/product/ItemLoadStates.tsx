@@ -2,7 +2,8 @@ interface ItemLoadStatesProps {
   notFound: boolean;
   error: string | null;
   loading: boolean;
-  onRetry: () => void;
+  /** Retry button in the error state; omitted where no read can fail. */
+  onRetry?: () => void;
 }
 
 /** The heading and the states before content: notFound → error → loading. */
@@ -26,13 +27,15 @@ function ItemLoadStateBody({ notFound, error, loading, onRetry }: ItemLoadStates
           Nie udało się wczytać rzeczy — spróbuj ponownie
         </p>
         <p className="mt-0.5 text-[11.5px] text-ink-soft">{error}</p>
-        <button
-          type="button"
-          onClick={onRetry}
-          className="mt-3 rounded-xl border border-line bg-paper px-4 py-2 text-[13px] font-semibold text-ink transition-colors hover:bg-cream"
-        >
-          Spróbuj ponownie
-        </button>
+        {onRetry && (
+          <button
+            type="button"
+            onClick={onRetry}
+            className="mt-3 rounded-xl border border-line bg-paper px-4 py-2 text-[13px] font-semibold text-ink transition-colors hover:bg-cream"
+          >
+            Spróbuj ponownie
+          </button>
+        )}
       </div>
     );
   }

@@ -83,7 +83,6 @@ export function RequestAccessDialog({
 
   return (
     <div
-      className="kg-modal-overlay"
       style={{
         position: "fixed",
         inset: 0,
@@ -91,7 +90,7 @@ export function RequestAccessDialog({
         display: "flex",
         alignItems: "flex-end",
         justifyContent: "center",
-        background: "rgba(20,28,24,0.55)",
+        background: "var(--color-scrim)",
       }}
       onClick={close}
     >
@@ -104,7 +103,7 @@ export function RequestAccessDialog({
         style={{
           width: "100%",
           maxWidth: 430,
-          background: "var(--paper)",
+          background: "var(--color-paper)",
           borderRadius: "24px 24px 0 0",
           padding: 20,
         }}
@@ -119,8 +118,8 @@ export function RequestAccessDialog({
             aria-label="Zamknij"
             style={{
               border: "none",
-              background: "var(--cream)",
-              color: "var(--ink-soft)",
+              background: "var(--color-cream)",
+              color: "var(--color-ink-soft)",
               borderRadius: "50%",
               width: 34,
               height: 34,
@@ -130,7 +129,7 @@ export function RequestAccessDialog({
           </button>
         </div>
 
-        <p style={{ fontSize: 13, color: "var(--ink-soft)", marginBottom: 16 }}>
+        <p style={{ fontSize: 13, color: "var(--color-ink-soft)", marginBottom: 16 }}>
           Wyślesz prośbę do organizatora grupy „<strong>{groupName}</strong>”. Zobaczy Twoje imię z konta i
           zdecyduje, czy dodać Cię do grupy.
         </p>

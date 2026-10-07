@@ -1,16 +1,18 @@
 """Public, unauthenticated circle-view use cases: the assembled public
 circle page, the caller's own attendances, and the public RSVP.
 
-D3: `get_public_circle_view`'s inline slug/organizer block is kept inline
-(not routed through `slug_resolver` or `_resolve_organizer`) and keeps its
+D3: `get_public_circle_view`'s inline organizer block is kept inline (not
+routed through `slug_resolver` or `_resolve_organizer`) and keeps its
 500-on-missing-profile behavior; `_resolve_organizer` keeps its
-`None`-on-missing-profile behavior. Not consolidated this pass.
+`None`-on-missing-profile behavior. All three share the slug rule via
+`domain.organizer_slug.derive_organizer_slug`. The inline block reads the
+organizer's organization once and derives both `organizer_slug` and
+`organizer_theme` from it.
 """
 
 from __future__ import annotations
 
 import uuid
-
 from datetime import date, datetime, time
 from typing import cast
 
@@ -24,9 +26,8 @@ from app.party.service import create_party
 from app.users.models import UserProfile
 from app.users.service import get_profile_by_party, get_profile_by_principal
 
-from ..domain.organizer_slug import _fallback_organizer_slug
+from ..domain.organizer_slug import derive_organizer_slug
 from ..infrastructure import organizations_acl, repository
-from ..infrastructure.slug_resolver import resolve_organizer_slug
 from ..models import GroupJoinRequestStatus, GroupVisibility, Term, TermAttendance
 from ..schemas import (
     GroupAccessDetails,
@@ -66,13 +67,13 @@ async def _resolve_organizer(db: AsyncSession, group_id: uuid.UUID) -> tuple[str
     organizer party has no `UserProfile` — a missing organizer profile must
     degrade gracefully, not 500 the whole attendances response (mirrors how
     `create_rsvp` catches `EntityNotFoundException` for
-    `get_profile_by_principal`). `slug` is never `None` (`_fallback_organizer_slug`).
+    `get_profile_by_principal`). `slug` is never `None` (`derive_organizer_slug`).
 
-    `resolve_organizer_slug` is kept as-is for its other callers; the slug
-    derivation here is deliberately identical."""
+    `resolve_organizer_slug` is kept as-is for its other callers; both use
+    `derive_organizer_slug`."""
     leadership = await get_current_leadership(db, group_id)
     if leadership is None:
-        return None, _fallback_organizer_slug(f"group:{group_id}")
+        return None, derive_organizer_slug(group_id, None, None)
 
     organizer_party_id = await _group_role_party_id(db, leadership.from_role_id)
 
@@ -84,10 +85,8 @@ async def _resolve_organizer(db: AsyncSession, group_id: uuid.UUID) -> tuple[str
         display_name = None
 
     organization = await organizations_acl.get_own_organization(db, organizer_party_id)
-    slug = (
-        organization.slug
-        if organization is not None
-        else _fallback_organizer_slug(f"party:{organizer_party_id}")
+    slug = derive_organizer_slug(
+        group_id, organizer_party_id, organization.slug if organization is not None else None
     )
     return display_name, slug
 
@@ -169,7 +168,7 @@ async def get_public_circle_view(
 ) -> PublicCircleResponse:
     """Unauthenticated read assembled server-side in one call: organizer
     name (via the active `Leadership`, `None` if the Circle currently has
-    no organizer), the organizer's Organization slug, one Term, its needed
+    no organizer), the organizer's organization slug, one Term, its needed
     items, and the RSVP'd guardians' display names. Never reads or returns
     anything about children beyond each guardian's own aggregate
     `child_count` — there is no per-attendee child data anywhere in the
@@ -188,13 +187,18 @@ async def get_public_circle_view(
     group = await get_group(db, group_id)
 
     organizer_display_name: str | None = None
+    organizer_party_id: uuid.UUID | None = None
+    organization = None
     leadership = await get_current_leadership(db, group_id)
     if leadership is not None:
         organizer_party_id = await _group_role_party_id(db, leadership.from_role_id)
         organizer_profile = await get_profile_by_party(db, organizer_party_id)
         organizer_display_name = organizer_profile.display_name
-
-    organizer_slug = await resolve_organizer_slug(db, group_id)
+        organization = await organizations_acl.get_own_organization(db, organizer_party_id)
+    organizer_slug = derive_organizer_slug(
+        group_id, organizer_party_id, organization.slug if organization is not None else None
+    )
+    organizer_theme = organizations_acl.organizer_theme(organization)
 
     if group.visibility == GroupVisibility.PRIVATE and not include_private_content:
         # Reduced response for a PRIVATE group: name + organizer only, no
@@ -206,6 +210,7 @@ async def get_public_circle_view(
             name=group.name,
             organizer_display_name=organizer_display_name,
             organizer_slug=organizer_slug,
+            organizer_theme=organizer_theme,
             visibility=group.visibility,
             layout_mode=group.layout_mode,
             term=None,
@@ -283,6 +288,7 @@ async def get_public_circle_view(
         name=group.name,
         organizer_display_name=organizer_display_name,
         organizer_slug=organizer_slug,
+        organizer_theme=organizer_theme,
         visibility=group.visibility,
         layout_mode=group.layout_mode,
         term=term_response,

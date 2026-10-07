@@ -21,7 +21,7 @@ export function ModalSheet({
 }) {
   return (
     <div
-      className="fixed inset-0 z-[60] flex items-end justify-center bg-[rgba(20,28,24,0.55)] min-[520px]:items-center"
+      className="fixed inset-0 z-[60] flex items-end justify-center bg-scrim min-[520px]:items-center"
       onClick={onClose}
     >
       <div

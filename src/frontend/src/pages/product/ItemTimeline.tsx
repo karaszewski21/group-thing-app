@@ -18,26 +18,26 @@ function statusLines(status: ItemStatusResponse): { title: string; detail: strin
   const forLabel = status.counterparty_label ? `Dla: ${status.counterparty_label}` : null;
   switch (status.code) {
     case "AVAILABLE":
-      return { title: "Dostępna", detail: null, pill: "bg-mint-soft text-[#12604D]" };
+      return { title: "Dostępna", detail: null, pill: "bg-primary-soft text-primary-fg" };
     case "RESERVED":
       return {
         title: term ? `Zarezerwowana — odbiór na terminie ${term}` : "Zarezerwowana",
         detail: forLabel,
-        pill: "bg-lime-soft text-ink",
+        pill: "bg-accent-soft text-ink",
       };
     case "IN_TRANSIT":
       return {
         title: term ? `W drodze — odbiór na terminie ${term}` : "W drodze",
         detail: forLabel,
-        pill: "bg-lime-soft text-ink",
+        pill: "bg-accent-soft text-ink",
       };
     case "RETURNING":
-      return { title: "W trakcie zwrotu", detail: forLabel, pill: "bg-lime-soft text-ink" };
+      return { title: "W trakcie zwrotu", detail: forLabel, pill: "bg-accent-soft text-ink" };
     case "PROPOSED_SWAP":
       return {
         title: "Zaproponowana do zamiany — czeka na decyzję",
         detail: forLabel,
-        pill: "bg-lime-soft text-ink",
+        pill: "bg-accent-soft text-ink",
       };
     case "LENT":
       return {
@@ -138,7 +138,7 @@ export function ItemHistoryList({ entries }: { entries: ItemHistoryEntryResponse
           >
             <time
               dateTime={e.occurred_at}
-              className="flex h-10 w-10 flex-none flex-col items-center justify-center rounded-xl bg-mint-soft leading-none"
+              className="flex h-10 w-10 flex-none flex-col items-center justify-center rounded-xl bg-primary-soft leading-none"
             >
               <b className="font-serif text-[15px] text-ink">{at.format("D")}</b>
               <small className="text-[9px] uppercase tracking-wide text-ink-soft">

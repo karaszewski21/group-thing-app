@@ -191,6 +191,14 @@ export interface PublicGuardianResponse {
   display_name: string;
 }
 
+/** Mirrors `app.groups.schemas.OrganizerTheme` — the organizer's stored colors.
+ * `null` on the circle when the organizer has no Organization. */
+export interface OrganizerTheme {
+  primary_color: string | null;
+  accent_color: string | null;
+  palette_preset: string | null;
+}
+
 /** Never carries a per-child field — see `app.groups.schemas.PublicCircleResponse`.
  * For a `PRIVATE` group, `term`/`guardians` come back empty/null even
  * when Terms exist — see that endpoint's reduced-response docstring. */
@@ -203,6 +211,7 @@ export interface PublicCircleResponse {
   layout_mode: GroupLayoutMode;
   term: PublicTermResponse | null;
   guardians: PublicGuardianResponse[];
+  organizer_theme: OrganizerTheme | null;
 }
 
 export interface CreateRsvpRequest {
