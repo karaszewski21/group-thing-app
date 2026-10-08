@@ -21,6 +21,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.groups.models import Leadership, NeededItem, Term
+from app.organizations.models import Organization
 
 
 async def _register_organizer(client: AsyncClient, email: str) -> str:
@@ -395,6 +396,27 @@ async def test_getPublicCircle_organizerTheme_isObjectWithNullColors_whenOrgHasN
         "primary_color": None,
         "accent_color": None,
         "palette_preset": None,
+    }
+
+
+async def test_getPublicCircle_organizerTheme_carriesPalettePreset_whenOrgHasPreset(
+    client: AsyncClient, db_session: AsyncSession
+) -> None:
+    token = await _register_organizer(client, "pt.theme6@example.com")
+    group_id = await _create_circle(client, token, "Krąg oceaniczny")
+    organization = await _create_organization(client, token, "Oceaniczne Nutki")
+    stored = await db_session.get(Organization, organization["id"])
+    assert stored is not None
+    stored.palette_preset = "OCEAN"
+    await db_session.commit()
+
+    response = await client.get(f"/api/groups/public/{group_id}")
+
+    assert response.status_code == 200
+    assert response.json()["organizer_theme"] == {
+        "primary_color": None,
+        "accent_color": None,
+        "palette_preset": "OCEAN",
     }
 
 

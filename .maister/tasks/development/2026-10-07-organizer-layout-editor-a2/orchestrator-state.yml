@@ -1,0 +1,89 @@
+orchestrator:
+  started_phase: phase-1
+  current_phase: phase-14
+  completed_phases: [phase-1, phase-2, phase-4, phase-5, phase-6, phase-7, phase-8, phase-10, phase-11, phase-13, phase-14]
+  failed_phases: []
+  auto_fix_attempts: {}
+  options:
+    spec_audit_enabled: true
+    skip_test_suite: false
+    e2e_enabled: false
+    user_docs_enabled: true
+    code_review_enabled: true
+    pragmatic_review_enabled: true
+    reality_check_enabled: true
+    production_check_enabled: true
+    sequential: false
+  created: 2026-10-07T18:00:00Z
+  updated: 2026-10-08T00:00:00Z
+  task_path: .maister/tasks/development/2026-10-07-organizer-layout-editor-a2
+task:
+  title: "A2 Układ i edytor — page_layout, palette presets, inline owner editor, CLASSIC + LINKS"
+  description: >
+    Task A2 from research 2026-10-07-organizer-page-layouts-theming, building on A1 (uncommitted in working tree).
+    Migration 0052: organizations.page_layout VARCHAR(64) NOT NULL DEFAULT 'CLASSIC' + palette_preset VARCHAR(40) NULL,
+    code allowlists (page_layouts.py with resolve_page_layout as single place, palettes.py), no DB enum/CHECK;
+    PATCH /api/organizations/{id} with model_fields_set (explicit null clears colors/preset; name/page_layout null -> 422;
+    unknown keys -> 422); extended public/owner responses; organizer_theme.palette_preset filled; DELETE matrix row (P3).
+    Frontend: 8-12 hand-tuned palette presets + "Własny" (custom primary, optional accent) with contrast correction shown;
+    declarative layout registry (PageLayoutDefinition without Component/minData/tier) + LayoutRenderer + blocks for
+    CLASSIC and LINKS (data available today: name, colors; ghost blocks for owner); EditorSheet inline on /:slug?edit=1
+    (bottom sheet tabs Układ/Kolory, static SVG thumbnails + Polecany badge, mini previews of term/product, draft in
+    React state, explicit Zapisz/Anuluj, "Przywróć domyślne"); entries from AccountMenu "Moja organizacja" and HomeView;
+    TanStack hooks (useMyOrganization, useUpdateOrganization). FE/BE key parity tests.
+  status: completed
+  tags: [frontend, backend, migration, editor, theming]
+task_context:
+  risk_level: medium
+  clarifications_resolved: true
+  scope_expanded: false
+  architecture_decision: "ADR-002 presets+Własny; ADR-003 storage page_layout/palette_preset; ADR-004 declarative block registry; ADR-005 layout set (A2 ships CLASSIC+LINKS); ADR-008 inline editor; ADR-010 paid seam only; ADR-011 PATCH model_fields_set; ADR-012 task split"
+  task_characteristics:
+    has_reproducible_defect: false
+    modifies_existing_code: true
+    creates_new_entities: true
+    involves_data_operations: true
+    ui_heavy: true
+  research_reference:
+    path: .maister/tasks/research/2026-10-07-organizer-page-layouts-theming
+    research_question: "Organizer page with 5 selectable layouts + palette applied to organizer/term/product pages, easy editor, ready for paid custom layouts"
+    research_type: mixed
+    confidence_level: medium-high
+    scope_selected: A2
+  dependency:
+    a1_task: .maister/tasks/development/2026-10-07-organizer-theme-a1
+    a1_status: completed, committed in 65e5068 on main
+  design_reference: {source: phase-4-ascii, mockup_count: 13, has_brief: false, index_path: analysis/design-context/INDEX.md}
+  phase_summaries:
+    research:
+      summary: "A2 = layout + editor. User decisions: 5 layouts CLASSIC/SCHEDULE/CIRCLES/LINKS/EXCHANGE (A2 ships CLASSIC + LINKS; others need B endpoint); declarative registry w/o Component/minData/tier; inline editor /:slug?edit=1 bottom sheet Układ/Kolory, static SVG thumbs + Polecany, explicit save, draft in React state; presets 8-12 + Własny, palette_preset column, backend hex-only validation; page_layout VARCHAR(64) code allowlist, unknown -> CLASSIC; paid seam only; PATCH model_fields_set + DELETE matrix row P3; content (bio/links/media) later in C/D."
+      key_findings:
+        - "A1 delivered orgPalette.ts, OrganizerThemeScope, usePublicOrganization, organizer_theme with palette_preset always null"
+        - "Organization has only name, slug, primary_color, accent_color today; latest migration 0051_profile_avatars"
+        - "OrganizationPage.test.tsx asserts no color pickers in /organization form (keep)"
+        - "AccountMenu 'Moja organizacja' and HomeView hint link to read-only /:slug"
+      recommended_approach: "analysis/research-context/high-level-design.md §6 (registry, blocks, ASCII layouts), §7 (editor), §8 (API contracts), §11 (migration 0052), §12 A2 row; decision-log ADR-002/003/004/005/008/010/011"
+    design: {summary: "ASCII mockups: public CLASSIC/LINKS, ghost block, owner pill, non-modal EditorSheet (Układ/Kolory), custom picker, preview cards, save error, unsaved confirm, entry flow, AccountMenu, HomeView hint. User accepted all agent UI choices; NO visitor empty-state card in A2 (HLD Example 3 wins over 6.1 rule).", screen_count: 4, component_count: 8, index_path: analysis/design-context/INDEX.md}
+    codebase_analysis:
+      key_files: [src/backend/app/organizations/schemas.py, src/backend/app/organizations/service.py, src/backend/app/organizations/models.py, src/backend/app/groups/infrastructure/organizations_acl.py, src/backend/app/core/authorization_matrix.py, src/frontend/src/pages/PublicOrganizationPage.tsx, src/frontend/src/theme/orgPalette.ts, src/frontend/src/theme/OrganizerThemeScope.tsx, src/frontend/src/api/organizations.ts, src/frontend/src/hooks/useMyOrganizationSlug.ts, src/frontend/src/components/shared/AccountMenu.tsx, src/frontend/src/pages/panel/views/HomeView.tsx]
+      primary_language: python+typescript
+      summary: "Backend small: PATCH /api/organizations/{id}, owner check, matrix row 50 and organizations_acl seam already exist; need migration 0052, allowlists, model_fields_set rewrite, ACL fill. Frontend carries most work: hooks, registry/renderer/blocks, presets, EditorSheet inside OrganizerThemeScope (Tailwind ModalSheet-style, no portal). Matrix lives in authorization_matrix.py."
+    clarifications:
+      - "Validation errors return 400 (+fieldErrors), not 422 — consistent with global handler"
+      - "/organization page unchanged (create+rename); editor only on /:slug?edit=1"
+    gap_analysis:
+      integration_points: [organizations schemas/service/models, organizations_acl, authorization_matrix row 50, PublicOrganizationPage, OrganizerThemeScope/orgPalette, api/organizations.ts, AccountMenu, HomeView, useMyOrganizationSlug]
+      summary: "Backend already has all hooks (PATCH, owner check, row 50, ACL); A2 adds 2 columns, 2 allowlists, model_fields_set semantics. Frontend is a new subsystem (presets, registry, renderer, blocks, editor sheet, hooks); open items are A2-only block content and FE details."
+    scope_clarifications: {scope_expanded: false, summary: "C-1 non-interactive owner ghosts; C-2 CLASSIC primary=about ghost, LINKS primary=link-stack(share); I-1 vitest parses .py allowlists; I-2 describeColorAdjustment helper; I-3 Mieta=default(null); I-4 guard X+useBlocker Tailwind dialog in scope; I-5 HomeView copy; I-6 trimmed registry types; I-7 strip whitespace name; I-8 open sheet after owner confirmed, export keys. See analysis/scope-clarifications.md"}
+    ui_mockups: {components_designed: [org-public-classic, org-public-links, org-edit-sheet-layout, org-edit-sheet-colors, ghost-block, edit-appearance-button, custom-color-picker, preview-cards, save-error, unsaved-confirm, account-menu-entry, home-hint, editor-entry-flow], summary: "13 mockups accepted; decisions: bottom-center bg-ink owner pill; non-modal sheet copying ModalSheet classes (no scrim, Esc not closing); 2 mini preview cards; ✓ Zapisano + Polish error copy; nav guard only on pathname change; Polecany always on LINKS in A2; shared share helper; no visitor empty-state in A2."}
+    specification: {summary: "spec.md: 16 reqs (6 BE, 10 FE), 9 presets + Mięta(default) + Własny, effective page_layout via field_validator in public schema, model_fields_set service w/ moderation first, serverMessageOr Polish errors, draft baseline from useMyOrganization, useBlocker inside EditorSheet, block registry Record<BlockId, Component|null>, share link origin+slug, 7 test groups."}
+project_context:
+  project_doc_paths:
+    - .maister/docs/project/tech-stack.md
+    - .maister/docs/project/architecture.md
+verification_context:
+  last_status: passed_with_issues
+  issues_found: [W1 save-race, W2 stale draft, W3 invalid-hex dead-end, W4 recommendWhen prop, W5 unread registry settings, W6 duplicated roving keys, W7 lock_timeout, W8 deploy together, W9 DELETE no route]
+  fixes_applied: [W1, W2, W3, W4, W5, W6, info:ShareButton shadow+live region, info:aria-controls, info:focus restore]
+  decisions_made: ["User: fix W1-W6 + cheap info; W7-W9 no code change"]
+  reverify_count: 0

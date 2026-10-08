@@ -292,7 +292,7 @@ class PublicGuardianResponse(BaseModel):
 class OrganizerTheme(BaseModel):
     """The organizer's stored Organization colors, reported as-is; the
     frontend decides how (and whether) to derive a palette from them.
-    `palette_preset` is always `None` until A2."""
+    `palette_preset` is the stored preset key, or `None`."""
 
     primary_color: str | None
     accent_color: str | None

@@ -491,6 +491,8 @@ describe("PanelPage — hamburger promotion", () => {
       slug: "muzyczne-skrzaty",
       primary_color: null,
       accent_color: null,
+      page_layout: "CLASSIC",
+      palette_preset: null,
       created_at: "",
       updated_at: "",
     });
@@ -499,7 +501,7 @@ describe("PanelPage — hamburger promotion", () => {
 
     const menu = screen.getByRole("menu");
     const link = within(menu).getByRole("menuitem", { name: /Moja organizacja/ });
-    expect(link).toHaveAttribute("href", "/muzyczne-skrzaty");
+    expect(link).toHaveAttribute("href", "/muzyczne-skrzaty?edit=1");
   });
 
   it("completing the GUEST 2-step flow calls createMyCircle then createTerm and flips isOrganizer to true after reload", async () => {
@@ -644,7 +646,8 @@ describe("PanelPage — dismissible home hints", () => {
     mockGuestDefaults();
     vi.mocked(organizationsApi.createMyOrganization).mockResolvedValue({
       id: "1", party_id: "1", name: "Studio Nutka", slug: "studio-nutka",
-      primary_color: null, accent_color: null, created_at: "", updated_at: "",
+      primary_color: null, accent_color: null, page_layout: "CLASSIC", palette_preset: null,
+      created_at: "", updated_at: "",
     });
     renderPanel();
 
@@ -737,13 +740,18 @@ describe("PanelPage — dismissible home hints", () => {
       slug: "muzyczne-skrzaty",
       primary_color: null,
       accent_color: null,
+      page_layout: "CLASSIC",
+      palette_preset: null,
       created_at: "",
       updated_at: "",
     });
     renderPanel();
 
     const link = await screen.findByRole("link", { name: "Przejdź →" });
-    expect(link).toHaveAttribute("href", "/muzyczne-skrzaty");
+    expect(link).toHaveAttribute("href", "/muzyczne-skrzaty?edit=1");
+    expect(
+      screen.getByText("Wybierz układ i kolory swojej strony — zobaczą je odwiedzający."),
+    ).toBeInTheDocument();
   });
 
   // --- Group 11 gap review: cross-group composition (Group 6 stepper + Group 7 hint) ---

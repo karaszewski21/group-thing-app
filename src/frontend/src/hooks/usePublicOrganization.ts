@@ -4,7 +4,7 @@ import { getPublicOrganization, type PublicOrganizationResponse } from "../api/o
 import { extractProblemMessage } from "../api/problem";
 import { hasStatus } from "./useTermAttendees";
 
-const PUBLIC_ORGANIZATION_KEY = "publicOrganization";
+export const PUBLIC_ORGANIZATION_KEY = "publicOrganization";
 
 interface UsePublicOrganizationResult {
   data: PublicOrganizationResponse | null;

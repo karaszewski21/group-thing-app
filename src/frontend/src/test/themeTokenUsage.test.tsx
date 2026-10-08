@@ -20,11 +20,32 @@ afterEach(() => {
 });
 
 describe("organizer-themed files use role tokens", () => {
+  const ORGANIZER_PAGE_FILES = [
+    "pages/organizer/layouts/types.ts",
+    "pages/organizer/layouts/registry.ts",
+    "pages/organizer/LayoutRenderer.tsx",
+    "pages/organizer/blocks/HeroBlock.tsx",
+    "pages/organizer/blocks/ShareButton.tsx",
+    "pages/organizer/blocks/ShareBlock.tsx",
+    "pages/organizer/blocks/LinkStackBlock.tsx",
+    "pages/organizer/blocks/FooterBlock.tsx",
+    "pages/organizer/blocks/GhostBlock.tsx",
+    "pages/organizer/PublicOrganizationPage.tsx",
+    "pages/organizer/editor/draft.ts",
+    "pages/organizer/editor/EditorSheet.tsx",
+    "pages/organizer/editor/LayoutTab.tsx",
+    "pages/organizer/editor/UnsavedChangesDialog.tsx",
+    "pages/organizer/editor/ColorsTab.tsx",
+    "pages/organizer/editor/CustomColorPicker.tsx",
+    "pages/organizer/editor/PreviewCards.tsx",
+  ];
+
   const NO_HEX_FILES = [
     "pages/product/itemPageShared.ts",
     "pages/product/ItemGallery.tsx",
     "pages/product/ItemGalleryEditor.tsx",
     "pages/product/ItemEditPage.tsx",
+    ...ORGANIZER_PAGE_FILES,
   ];
 
   const NO_LEGACY_UTILITY_FILES = [
@@ -43,6 +64,7 @@ describe("organizer-themed files use role tokens", () => {
     "pages/product/ItemGalleryEditor.tsx",
     "pages/product/ItemEditPage.tsx",
     "pages/product/ItemDetailPage.tsx",
+    ...ORGANIZER_PAGE_FILES,
   ];
 
   it.each(NO_HEX_FILES)("%s has no literal hex colors", (file) => {

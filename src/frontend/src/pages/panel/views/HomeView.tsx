@@ -78,9 +78,9 @@ export function HomeView() {
               <HintCard
                 icon={<BuildingIcon c="#1B8168" />}
                 title="Dopracuj stronę organizacji"
-                description="Dodaj opis, kolory i logo — zobaczą je odwiedzający."
+                description="Wybierz układ i kolory swojej strony — zobaczą je odwiedzający."
                 ctaLabel="Przejdź →"
-                ctaTo={organizationSlug ? `/${organizationSlug}` : "/organization"}
+                ctaTo={organizationSlug ? `/${organizationSlug}?edit=1` : "/organization"}
                 onDismiss={dismissOrgPolishHint}
               />
             )}

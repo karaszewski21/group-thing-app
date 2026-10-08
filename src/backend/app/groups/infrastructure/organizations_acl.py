@@ -27,5 +27,5 @@ def organizer_theme(organization: Organization | None) -> OrganizerTheme | None:
     return OrganizerTheme(
         primary_color=organization.primary_color,
         accent_color=organization.accent_color,
-        palette_preset=None,
+        palette_preset=organization.palette_preset,
     )

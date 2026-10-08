@@ -18,6 +18,8 @@ const mockOrganization: organizationsApi.OrganizationResponse = {
   slug: "muzyczne-skrzaty",
   primary_color: "#1b8168",
   accent_color: "#a9c24f",
+  page_layout: "CLASSIC",
+  palette_preset: null,
   created_at: "2026-01-01T00:00:00Z",
   updated_at: "2026-01-01T00:00:00Z",
 };

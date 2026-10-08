@@ -91,7 +91,22 @@ describe("in-scope public pages use theme tokens, not literal colors", () => {
     "components/krag/ModalSheet.tsx",
     "components/shared/PhoneFrame.tsx",
     "pages/product/ItemTimeline.tsx",
-    "pages/PublicOrganizationPage.tsx",
+    "pages/organizer/PublicOrganizationPage.tsx",
+    "pages/organizer/layouts/types.ts",
+    "pages/organizer/layouts/registry.ts",
+    "pages/organizer/LayoutRenderer.tsx",
+    "pages/organizer/blocks/HeroBlock.tsx",
+    "pages/organizer/blocks/ShareButton.tsx",
+    "pages/organizer/blocks/ShareBlock.tsx",
+    "pages/organizer/blocks/LinkStackBlock.tsx",
+    "pages/organizer/blocks/FooterBlock.tsx",
+    "pages/organizer/blocks/GhostBlock.tsx",
+    "pages/organizer/editor/EditorSheet.tsx",
+    "pages/organizer/editor/LayoutTab.tsx",
+    "pages/organizer/editor/UnsavedChangesDialog.tsx",
+    "pages/organizer/editor/ColorsTab.tsx",
+    "pages/organizer/editor/CustomColorPicker.tsx",
+    "pages/organizer/editor/PreviewCards.tsx",
   ];
   // Illustration colors that deliberately stay outside the theme (pitch grass, table wood).
   const FIXED_ILLUSTRATION_COLORS = new Set(["#4e9a5f", "#3e8a4e", "#e7cfa8"]);

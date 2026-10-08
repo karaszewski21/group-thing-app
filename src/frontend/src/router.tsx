@@ -25,7 +25,7 @@ import { ItemEditBody, ItemEditPage } from "./pages/product/ItemEditPage";
 import { OrganizerItemLayout } from "./pages/product/OrganizerItemLayout";
 import { OnboardingPage } from "./pages/OnboardingPage";
 import { OrganizationPage } from "./pages/OrganizationPage";
-import { PublicOrganizationPage } from "./pages/PublicOrganizationPage";
+import { PublicOrganizationPage } from "./pages/organizer/PublicOrganizationPage";
 import { AuthGuard } from "./auth/AuthGuard";
 import { useAuth } from "./auth/AuthContext";
 import { PluginProvider } from "./plugins/PluginContext";

@@ -181,7 +181,11 @@ _RAW_MATRIX: tuple[_RawEntry, ...] = (
     # blanket READ requirement so an unauthenticated visitor can load it.
     (_methods("GET"), r"^/api/organizations/public/[^/]+$", "PUBLIC"),  # 48
     (_methods("GET"), r"^/api/organizations(/.*)?$", ("READ", "mcp:read")),  # 49
-    (_methods("POST", "PATCH"), r"^/api/organizations(/.*)?$", ("EDIT", "mcp:edit")),  # 50
+    (  # 50
+        _methods("POST", "PATCH", "DELETE"),
+        r"^/api/organizations(/.*)?$",
+        ("EDIT", "mcp:edit"),
+    ),
     # 51-52: app.notifications — the caller's own in-app inbox. `/mine` +
     # `/unread-count` are GETs, `/{id}/read` + `/read-all` are POSTs, so the
     # two blanket rows cover every route; recipient-ownership ("only my own

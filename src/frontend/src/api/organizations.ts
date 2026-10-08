@@ -7,6 +7,8 @@ export interface OrganizationResponse {
   slug: string;
   primary_color: string | null;
   accent_color: string | null;
+  page_layout: string;
+  palette_preset: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -16,6 +18,8 @@ export interface PublicOrganizationResponse {
   name: string;
   primary_color: string | null;
   accent_color: string | null;
+  page_layout: string;
+  palette_preset: string | null;
 }
 
 export interface CreateOwnOrganizationRequest {
@@ -24,8 +28,10 @@ export interface CreateOwnOrganizationRequest {
 
 export interface UpdateOrganizationRequest {
   name?: string;
-  primary_color?: string;
-  accent_color?: string;
+  page_layout?: string;
+  palette_preset?: string | null;
+  primary_color?: string | null;
+  accent_color?: string | null;
 }
 
 export function getMyOrganization(): Promise<OrganizationResponse> {

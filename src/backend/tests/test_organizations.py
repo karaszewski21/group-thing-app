@@ -4,9 +4,13 @@
 
 from __future__ import annotations
 
+import uuid
+
 import pytest
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.organizations.models import Organization
 
 
 async def _register_organizer(client: AsyncClient, email: str) -> str:
@@ -203,3 +207,185 @@ async def test_updateOrganization_nonOwnerIsRejected(
     )
 
     assert response.status_code == 403
+
+
+async def _create_organization(
+    client: AsyncClient, email: str, name: str
+) -> tuple[dict[str, str], dict]:
+    headers = _auth_headers(await _register_organizer(client, email))
+    created = await client.post("/api/organizations/mine", json={"name": name}, headers=headers)
+    assert created.status_code == 201
+    return headers, created.json()
+
+
+async def test_getOrganization_newOrganization_returnsClassicLayoutAndNoPreset(
+    client: AsyncClient, db_session: AsyncSession
+) -> None:
+    headers, created = await _create_organization(
+        client, "org.layout1@example.com", "Nowy Układ"
+    )
+
+    mine = await client.get("/api/organizations/mine", headers=headers)
+    public = await client.get(f"/api/organizations/public/{created['slug']}")
+
+    assert mine.status_code == 200
+    assert public.status_code == 200
+    for body in (mine.json(), public.json()):
+        assert body["page_layout"] == "CLASSIC"
+        assert body["palette_preset"] is None
+
+
+async def test_updateOrganization_layoutPresetAndColors_persistsAndKeepsOmittedName(
+    client: AsyncClient, db_session: AsyncSession
+) -> None:
+    headers, created = await _create_organization(
+        client, "org.layout2@example.com", "Oceaniczna"
+    )
+
+    response = await client.patch(
+        f"/api/organizations/{created['id']}",
+        json={
+            "page_layout": "LINKS",
+            "palette_preset": "OCEAN",
+            "primary_color": "#0e7490",
+            "accent_color": "#f59e0b",
+        },
+        headers=headers,
+    )
+
+    assert response.status_code == 200
+    body = (await client.get("/api/organizations/mine", headers=headers)).json()
+    assert body["page_layout"] == "LINKS"
+    assert body["palette_preset"] == "OCEAN"
+    assert body["primary_color"] == "#0e7490"
+    assert body["accent_color"] == "#f59e0b"
+    assert body["name"] == "Oceaniczna"
+
+
+async def test_updateOrganization_explicitNulls_clearPresetAndColors(
+    client: AsyncClient, db_session: AsyncSession
+) -> None:
+    headers, created = await _create_organization(
+        client, "org.layout3@example.com", "Do Wyczyszczenia"
+    )
+    url = f"/api/organizations/{created['id']}"
+    seeded = await client.patch(
+        url,
+        json={"palette_preset": "PLUM", "primary_color": "#112233", "accent_color": "#445566"},
+        headers=headers,
+    )
+    assert seeded.status_code == 200
+
+    response = await client.patch(
+        url,
+        json={"palette_preset": None, "primary_color": None, "accent_color": None},
+        headers=headers,
+    )
+
+    assert response.status_code == 200
+    body = (await client.get("/api/organizations/mine", headers=headers)).json()
+    assert body["palette_preset"] is None
+    assert body["primary_color"] is None
+    assert body["accent_color"] is None
+    assert body["page_layout"] == "CLASSIC"
+
+
+@pytest.mark.parametrize(
+    ("payload", "field"),
+    [({"name": None}, "name"), ({"page_layout": None}, "page_layout"), ({"name": "   "}, "name")],
+)
+async def test_updateOrganization_nullOrBlankRequiredField_returns400WithFieldError(
+    client: AsyncClient, db_session: AsyncSession, payload: dict, field: str
+) -> None:
+    headers, created = await _create_organization(
+        client, "org.layout4@example.com", "Bez Nulli"
+    )
+
+    response = await client.patch(
+        f"/api/organizations/{created['id']}", json=payload, headers=headers
+    )
+
+    assert response.status_code == 400
+    assert response.json()["message"] == "Validation failed"
+    assert field in response.json()["fieldErrors"]
+
+
+@pytest.mark.parametrize(
+    "payload",
+    [{"slug": "przejety"}, {"page_layout": "GRID"}, {"palette_preset": "MINT"}],
+)
+async def test_updateOrganization_unknownKeyOrValueOutsideAllowlist_returns400(
+    client: AsyncClient, db_session: AsyncSession, payload: dict
+) -> None:
+    headers, created = await _create_organization(
+        client, "org.layout5@example.com", "Lista Dozwolonych"
+    )
+
+    response = await client.patch(
+        f"/api/organizations/{created['id']}", json=payload, headers=headers
+    )
+
+    assert response.status_code == 400
+    assert response.json()["message"] == "Validation failed"
+    organization = await db_session.get(Organization, uuid.UUID(created["id"]))
+    assert organization is not None
+    assert organization.slug == created["slug"]
+    assert organization.page_layout == "CLASSIC"
+    assert organization.palette_preset is None
+
+
+async def test_getOrganization_storedUnknownLayout_publicResolvesClassicMineReturnsStored(
+    client: AsyncClient, db_session: AsyncSession
+) -> None:
+    headers, created = await _create_organization(
+        client, "org.layout6@example.com", "Przyszły Układ"
+    )
+    organization = await db_session.get(Organization, uuid.UUID(created["id"]))
+    assert organization is not None
+    organization.page_layout = "custom:7f3c"
+    await db_session.commit()
+
+    public = await client.get(f"/api/organizations/public/{created['slug']}")
+    mine = await client.get("/api/organizations/mine", headers=headers)
+
+    assert public.json()["page_layout"] == "CLASSIC"
+    assert mine.json()["page_layout"] == "custom:7f3c"
+
+
+async def test_updateOrganization_nonOwnerSendsLayoutAndPreset_returns403AndWritesNothing(
+    client: AsyncClient, db_session: AsyncSession
+) -> None:
+    _, created = await _create_organization(client, "org.layout7@example.com", "Cudza Strona")
+    intruder = _auth_headers(await _register_organizer(client, "org.layout7.intruder@example.com"))
+
+    response = await client.patch(
+        f"/api/organizations/{created['id']}",
+        json={"page_layout": "LINKS", "palette_preset": "OCEAN"},
+        headers=intruder,
+    )
+
+    assert response.status_code == 403
+    organization = await db_session.get(Organization, uuid.UUID(created["id"]))
+    assert organization is not None
+    await db_session.refresh(organization)
+    assert organization.page_layout == "CLASSIC"
+    assert organization.palette_preset is None
+
+
+async def test_updateOrganization_emptyBody_returns200AndChangesNothing(
+    client: AsyncClient, db_session: AsyncSession
+) -> None:
+    headers, created = await _create_organization(client, "org.layout8@example.com", "Bez Zmian")
+    url = f"/api/organizations/{created['id']}"
+    seeded = await client.patch(
+        url, json={"page_layout": "LINKS", "palette_preset": "PLUM"}, headers=headers
+    )
+    assert seeded.status_code == 200
+
+    response = await client.patch(url, json={}, headers=headers)
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["name"] == "Bez Zmian"
+    assert body["page_layout"] == "LINKS"
+    assert body["palette_preset"] == "PLUM"

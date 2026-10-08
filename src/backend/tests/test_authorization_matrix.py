@@ -51,6 +51,11 @@ def test_resolveRequirement_patchFamilyGuardian_requiresEdit() -> None:
     assert resolve_requirement("PATCH", "/api/families/x/guardians/y") == EDIT
 
 
+@pytest.mark.parametrize("method", ["PATCH", "DELETE"])
+def test_resolveRequirement_organizationMutation_resolvesToEdit(method: str) -> None:
+    assert resolve_requirement(method, "/api/organizations/x") == EDIT
+
+
 def test_resolveRequirement_groupsMineAttendances_notRegressedByGroupsPatchRow() -> None:
     assert resolve_requirement("GET", "/api/groups/mine/attendances") == READ
 

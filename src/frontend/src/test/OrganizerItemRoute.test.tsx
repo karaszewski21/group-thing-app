@@ -30,7 +30,14 @@ vi.mock("../api/categories", () => ({
   getCategories: vi.fn().mockResolvedValue([]),
 }));
 
-const ORGANIZATION = { slug: "ania", name: "Studio Ania", primary_color: "#7a2a4f", accent_color: null };
+const ORGANIZATION = {
+  slug: "ania",
+  name: "Studio Ania",
+  primary_color: "#7a2a4f",
+  accent_color: null,
+  page_layout: "CLASSIC",
+  palette_preset: null,
+};
 
 function details(overrides: Partial<ItemDetailsResponse> = {}): ItemDetailsResponse {
   return {

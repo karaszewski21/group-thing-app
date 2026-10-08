@@ -72,7 +72,7 @@ describe("PublicLayout", () => {
 
     const menu = await openMenu();
     await waitFor(() =>
-      expect(within(menu).getByRole("menuitem", { name: /Moja organizacja/ })).toHaveAttribute("href", "/moja-org"),
+      expect(within(menu).getByRole("menuitem", { name: /Moja organizacja/ })).toHaveAttribute("href", "/moja-org?edit=1"),
     );
   });
 

@@ -63,7 +63,11 @@ class Organization(BaseEntity):
     generated once from `name` at creation time (see
     `service._generate_unique_slug`, `slugs.slugify`) and never
     regenerated on rename, so a shared link stays valid even after the
-    organizer changes their display name."""
+    organizer changes their display name.
+
+    `page_layout` (public page layout key) and `palette_preset` (color preset
+    key, NULL for the default palette or custom colors) are plain strings whose
+    allowlists live in `page_layouts.py` and `palettes.py`."""
 
     __tablename__ = "organizations"
 
@@ -76,6 +80,8 @@ class Organization(BaseEntity):
     slug: Mapped[str] = mapped_column(String(255), nullable=False, unique=True)
     primary_color: Mapped[str | None] = mapped_column(String(7), nullable=True)
     accent_color: Mapped[str | None] = mapped_column(String(7), nullable=True)
+    page_layout: Mapped[str] = mapped_column(String(64), nullable=False, server_default="CLASSIC")
+    palette_preset: Mapped[str | None] = mapped_column(String(40), nullable=True)
 
     __table_args__ = (
         CheckConstraint(

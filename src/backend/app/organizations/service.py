@@ -131,19 +131,20 @@ async def update_organization(
     db: AsyncSession, organization_id: uuid.UUID, owner_party_id: uuid.UUID, data: UpdateOrganizationRequest
 ) -> Organization:
     """Only the Organization's own OWNER may update it — enforced here,
-    not by the coarse matrix, per `standards/backend/security.md`."""
+    not by the coarse matrix, per `standards/backend/security.md`. Applies
+    only the fields the request carried (`model_fields_set`): omitted =
+    unchanged, explicit `null` = cleared (schema rejects `null` where a
+    field can't be cleared)."""
     organization = await get_organization(db, organization_id)
     own = await get_own_organization(db, owner_party_id)
     if own is None or own.id != organization.id:
         raise AccessDeniedException("You do not own this Organization")
 
-    await check_text(TextField.ORGANIZATION_NAME, data.name, organization.name)
-    if data.name is not None:
-        organization.name = data.name
-    if data.primary_color is not None:
-        organization.primary_color = data.primary_color
-    if data.accent_color is not None:
-        organization.accent_color = data.accent_color
+    # Moderate before any assignment so a rejected name leaves no partial write.
+    if "name" in data.model_fields_set:
+        await check_text(TextField.ORGANIZATION_NAME, data.name, organization.name)
+    for field in data.model_fields_set:
+        setattr(organization, field, getattr(data, field))
     await db.commit()
     await db.refresh(organization)
     return organization

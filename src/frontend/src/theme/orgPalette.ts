@@ -1,4 +1,5 @@
 import type { OrganizerTheme } from "../api/groups";
+import { findPreset } from "./palettePresets";
 
 /** The 13 themable color roles, in index.css token order. */
 export const THEME_ROLES = [
@@ -45,6 +46,8 @@ const WHITE = "#ffffff";
 const PAPER = "#ffffff";
 const INK_SOFT = "#5c7069";
 const HEX_COLOR = /^#[0-9a-f]{6}$/i;
+/** Seeds lighter than this OKLCH L are clamped to 0.75 before deriving roles. */
+const TOO_LIGHT_L = 0.9;
 
 type Oklch = [l: number, c: number, h: number];
 
@@ -136,7 +139,7 @@ function darkenUntil(L: number, C: number, H: number, passes: (hex: string) => b
  * accent) so every text pair reaches 4.5:1 and the focus ring 3:1. */
 export function buildOrgThemeVars(primary: string, accent?: string): ThemeVars {
   const [seedL, C, H] = hexToOklch(primary.toLowerCase());
-  const L = seedL > 0.9 ? 0.75 : seedL;
+  const L = seedL > TOO_LIGHT_L ? 0.75 : seedL;
   const seed = oklchToHex(L, C, H);
 
   let primaryColor: string;
@@ -194,11 +197,24 @@ export function buildOrgThemeVars(primary: string, accent?: string): ThemeVars {
   };
 }
 
-/** The organizer's generated palette when it has a valid primary color,
- * otherwise the defaults (no theme, accent-only, or malformed value). */
+/** How buildOrgThemeVars will change an organizer's primary, for the
+ * custom-color hint: `tooLight` means the seed was clamped darker. */
+export function describeColorAdjustment(primary: string): { primaryDarkened: boolean; tooLight: boolean } {
+  const lower = primary.toLowerCase();
+  return {
+    primaryDarkened: buildOrgThemeVars(lower)["--color-primary"] !== lower,
+    tooLight: hexToOklch(lower)[0] > TOO_LIGHT_L,
+  };
+}
+
+/** A known preset's hand-tuned vars; otherwise the generated palette when
+ * there is a valid primary color (this also covers an unknown or retired
+ * preset key); otherwise the defaults. */
 export function resolveOrgTheme(
-  theme: Pick<OrganizerTheme, "primary_color" | "accent_color"> | null | undefined,
+  theme: (Pick<OrganizerTheme, "primary_color" | "accent_color"> & { palette_preset?: string | null }) | null | undefined,
 ): ThemeVars {
+  const preset = findPreset(theme?.palette_preset);
+  if (preset) return preset.vars;
   const primary = theme?.primary_color;
   if (!primary || !HEX_COLOR.test(primary)) return DEFAULT_THEME_VARS;
   const accent = theme.accent_color && HEX_COLOR.test(theme.accent_color) ? theme.accent_color : undefined;

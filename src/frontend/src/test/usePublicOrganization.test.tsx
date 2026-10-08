@@ -14,6 +14,8 @@ const ORGANIZATION = {
   name: "Studio Ania",
   primary_color: "#7a1f3d",
   accent_color: null,
+  page_layout: "CLASSIC",
+  palette_preset: null,
 };
 
 beforeEach(() => {
