@@ -79,6 +79,13 @@ _RAW_MATRIX: tuple[_RawEntry, ...] = (
     # `mine/attendances` path matches here. Caller's party is derived from the
     # principal in the route — no ownership check beyond authentication + READ.
     (_methods("GET"), r"^/api/groups/mine/attendances$", ("READ", "mcp:read")),
+    # Public organizer directory (`GET /api/groups/public/organizers/{slug}`
+    # and its `/terms` page). First match wins: without this row,
+    # `/organizers/{slug}` would fall through to row 26's blanket READ row
+    # and `/organizers/access` would read like the `/public/{id}/access` row
+    # below, so it is declared ahead of both. GET only — any other method on
+    # this path still falls to the blanket rows.
+    (_methods("GET"), r"^/api/groups/public/organizers/[^/]+(/terms)?$", "PUBLIC"),
     # Public circle/term page (`/krag/:groupId/publiczny`) — declared ahead of
     # row 26's blanket /api/groups READ requirement so an anonymous visitor
     # can load it, RSVP, and merge into a real account. Mirrors row 48's

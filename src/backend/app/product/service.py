@@ -316,6 +316,26 @@ async def product_ids_with_unmoderated_photos(
     return set(result.scalars().all())
 
 
+async def first_approved_photo_by_product(
+    db: AsyncSession, product_ids: Collection[uuid.UUID]
+) -> dict[uuid.UUID, ProductPhoto]:
+    """The first APPROVED photo (lowest `sort_order`) of each of
+    `product_ids` that has one, in one query. Entities only: callers build
+    the public URL."""
+    if not product_ids:
+        return {}
+    result = await db.execute(
+        select(ProductPhoto)
+        .distinct(ProductPhoto.product_id)
+        .where(
+            ProductPhoto.product_id.in_(product_ids),
+            ProductPhoto.status == ModerationStatus.APPROVED,
+        )
+        .order_by(ProductPhoto.product_id, ProductPhoto.sort_order, ProductPhoto.id)
+    )
+    return {photo.product_id: photo for photo in result.scalars().all()}
+
+
 async def list_product_ids_with_unmoderated_photos(db: AsyncSession) -> list[uuid.UUID]:
     """Every product with a PENDING or NEEDS_REVIEW photo, ordered by id."""
     result = await db.execute(_unmoderated_product_ids_select().order_by(ProductPhoto.product_id))

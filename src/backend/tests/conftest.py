@@ -16,11 +16,14 @@ from __future__ import annotations
 import os
 import subprocess
 import sys
-from collections.abc import AsyncGenerator, Generator
+from collections.abc import AsyncGenerator, Generator, Iterator
+from contextlib import contextmanager
 from pathlib import Path
+from typing import Any
 
 import pytest
 from httpx import ASGITransport, AsyncClient
+from sqlalchemy import event
 from sqlalchemy.ext.asyncio import (
     AsyncEngine,
     AsyncSession,
@@ -68,6 +71,27 @@ def database_url(postgres_container: PostgresContainer) -> str:
 @pytest.fixture(scope="session")
 def engine(database_url: str) -> Generator[AsyncEngine, None, None]:
     yield create_async_engine(database_url, pool_pre_ping=True)
+
+
+_SAVEPOINT_PREFIXES = ("SAVEPOINT", "RELEASE", "ROLLBACK TO")
+
+
+@contextmanager
+def count_queries(engine: AsyncEngine) -> Iterator[list[str]]:
+    """Collects the SQL statements run on `engine` inside the block, skipping
+    the `db_session` fixture's own savepoint bookkeeping, so query-budget
+    tests count only what the code under test issues."""
+    statements: list[str] = []
+
+    def _collect(_conn: Any, _cursor: Any, statement: str, *_args: Any) -> None:
+        if not statement.lstrip().upper().startswith(_SAVEPOINT_PREFIXES):
+            statements.append(statement)
+
+    event.listen(engine.sync_engine, "before_cursor_execute", _collect)
+    try:
+        yield statements
+    finally:
+        event.remove(engine.sync_engine, "before_cursor_execute", _collect)
 
 
 @pytest.fixture

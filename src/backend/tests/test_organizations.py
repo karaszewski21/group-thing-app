@@ -11,6 +11,7 @@ from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.organizations.models import Organization
+from app.organizations.slugs import RESERVED_SLUGS
 
 
 async def _register_organizer(client: AsyncClient, email: str) -> str:
@@ -107,6 +108,13 @@ async def test_createMyOrganization_nameMatchingOrganizerRouteSegment_neverGetsR
     assert response.status_code == 201
     # "/:slug/produkt/:id" and "/:slug/grupa/..." are organizer sub-routes.
     assert response.json()["slug"] == expected_slug
+
+
+@pytest.mark.parametrize("slug", ["access", "terms", "terminy"])
+def test_reservedSlugs_organizerSubPaths_areReserved(slug: str) -> None:
+    # Sub-paths under `/api/groups/public/organizers/{slug}` and the
+    # frontend `/:slug/terminy` route must never be handed out as slugs.
+    assert slug in RESERVED_SLUGS
 
 
 async def test_getPublicOrganization_byExistingSlug_returnsNameAndColors(

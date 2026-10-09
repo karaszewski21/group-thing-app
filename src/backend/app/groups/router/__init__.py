@@ -16,13 +16,19 @@ from app.groups.router import (
     join_requests,
     leaderships,
     memberships,
+    organizer_page,
     pledges,
     term_item_listings,
     terms,
 )
 
 router = APIRouter()
-# Registration order is load-bearing: circles.py's routes register first so
+# organizer_page.py registers before everything else: its literal
+# `/api/groups/public/organizers/{slug}` must win over circles.py's
+# `/api/groups/public/{group_id}/access`, which would otherwise claim
+# `/public/organizers/access` (and fail it as a non-UUID group id).
+router.include_router(organizer_page.router)
+# Registration order is load-bearing: circles.py's routes register next so
 # /api/groups/mine/attendances and /api/groups/public/{id} and PATCH /api/groups/{id}
 # resolve before GET /api/groups/{group_id} (FastAPI matches in registration order).
 router.include_router(circles.router)

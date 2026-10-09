@@ -129,3 +129,23 @@ def test_resolveRequirement_joinRequestRoutes_resolveToExpectedRow(
     removed `/join` path falls to row 27; `/api/memberships/{id}/end` keeps
     row 31."""
     assert resolve_requirement(method, path) == expected
+
+
+@pytest.mark.parametrize(
+    "path", ["/api/groups/public/organizers/x", "/api/groups/public/organizers/x/terms"]
+)
+def test_resolveRequirement_getOrganizerPage_resolvesToPublic(path: str) -> None:
+    assert resolve_requirement("GET", path) == "PUBLIC"
+
+
+def test_resolveRequirement_postOrganizerPage_isNotPublic() -> None:
+    assert resolve_requirement("POST", "/api/groups/public/organizers/x") != "PUBLIC"
+
+
+@pytest.mark.parametrize("suffix", ["", "/access"])
+def test_resolveRequirement_publicCircleRoutes_notRegressedByOrganizerRow(suffix: str) -> None:
+    assert resolve_requirement("GET", f"/api/groups/public/{uuid.uuid4()}{suffix}") == "PUBLIC"
+
+
+def test_resolveRequirement_getGroupById_stillResolvesToRow26Read() -> None:
+    assert resolve_requirement("GET", f"/api/groups/{uuid.uuid4()}") == READ

@@ -54,6 +54,7 @@ from app.groups.application.memberships import (
     list_memberships_for_party,
     list_term_attendees_for_formalization,
 )
+from app.groups.application.organizer_page import get_organizer_page, list_organizer_terms
 from app.groups.application.pledge_fulfillment import fulfill_pledge, sync_pledge_fulfillment
 from app.groups.application.pledges import (
     create_pledge,
@@ -124,6 +125,7 @@ __all__ = [
     "get_group_access",
     "get_group_exchange_summary",
     "get_needed_item_view",
+    "get_organizer_page",
     "get_pledge",
     "get_public_circle_view",
     "get_term",
@@ -143,6 +145,7 @@ __all__ = [
     "list_my_pledges",
     "list_my_term_item_listings",
     "list_needed_item_views",
+    "list_organizer_terms",
     "list_pledges",
     "list_swap_proposals_for_my_item",
     "list_term_attendees_for_formalization",

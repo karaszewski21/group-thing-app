@@ -18,7 +18,7 @@ import enum
 import uuid
 from datetime import date, datetime
 
-from sqlalchemy import Date, DateTime, Enum, ForeignKey, Integer, String
+from sqlalchemy import Date, DateTime, Enum, ForeignKey, Index, Integer, String
 from sqlalchemy.dialects import postgresql
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -216,6 +216,9 @@ class Term(BaseEntity):
     """A concrete class/meeting occurrence for a Circle."""
 
     __tablename__ = "terms"
+    # Backs the upcoming-term lookups (`circle_group_id IN (...)` plus
+    # `occurs_on >= now`) on the public organizer page (migration 0053).
+    __table_args__ = (Index("ix_terms_circle_group_id_occurs_on", "circle_group_id", "occurs_on"),)
 
     circle_group_id: Mapped[uuid.UUID] = mapped_column(
         postgresql.UUID(as_uuid=True),

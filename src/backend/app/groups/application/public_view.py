@@ -23,11 +23,12 @@ from app.core.auth_deps import Principal
 from app.core.errors import AccessDeniedException, EntityNotFoundException
 from app.party.models import PartyType
 from app.party.service import create_party
+from app.storage.service import ObjectStorage
 from app.users.models import UserProfile
 from app.users.service import get_profile_by_party, get_profile_by_principal
 
 from ..domain.organizer_slug import derive_organizer_slug
-from ..infrastructure import organizations_acl, repository
+from ..infrastructure import circulation_bridge, organizations_acl, product_bridge, repository
 from ..models import GroupJoinRequestStatus, GroupVisibility, Term, TermAttendance
 from ..schemas import (
     GroupAccessDetails,
@@ -160,11 +161,30 @@ async def list_my_pledges(db: AsyncSession, party_id: uuid.UUID) -> list[MyPledg
     ]
 
 
+async def _listing_thumb_urls(
+    db: AsyncSession, item_ids: list[uuid.UUID], storage: ObjectStorage | None
+) -> dict[uuid.UUID, str]:
+    """Item id -> public URL of its product's first APPROVED photo, in two
+    batched statements regardless of the number of listings."""
+    if storage is None or not item_ids:
+        return {}
+    items = await circulation_bridge.list_available_items_with_product(db, item_ids)
+    photos = await product_bridge.first_approved_photo_by_product(
+        db, {item.product_id for item in items.values()}
+    )
+    return {
+        item_id: storage.public_url(photos[item.product_id].thumb_key)
+        for item_id, item in items.items()
+        if item.product_id in photos
+    }
+
+
 async def get_public_circle_view(
     db: AsyncSession,
     group_id: uuid.UUID,
     term_id: uuid.UUID | None = None,
     include_private_content: bool = False,
+    storage: ObjectStorage | None = None,
 ) -> PublicCircleResponse:
     """Unauthenticated read assembled server-side in one call: organizer
     name (via the active `Leadership`, `None` if the Circle currently has
@@ -183,7 +203,10 @@ async def get_public_circle_view(
     A `PRIVATE` Circle gets the reduced response (no Term, no guardians)
     unless `include_private_content` — set only from server-resolved
     member/organizer roles. The reduced branch skips `term_id` validation
-    so an outsider cannot probe which Terms exist."""
+    so an outsider cannot probe which Terms exist.
+
+    `storage` absent (the OG-preview callers): every listing's `thumb_url`
+    is `None`."""
     group = await get_group(db, group_id)
 
     organizer_display_name: str | None = None
@@ -237,6 +260,9 @@ async def get_public_circle_view(
         pledger_name_by_item = {item_id: name for item_id, name, _ in active_pledges}
         pledger_party_by_item = {item_id: party for item_id, _, party in active_pledges}
         item_listings = await list_public_term_item_listings(db, cast(uuid.UUID, term.id))
+        thumb_urls = await _listing_thumb_urls(
+            db, [listing.item_id for listing in item_listings], storage
+        )
         term_response = PublicTermResponse(
             id=cast(uuid.UUID, term.id),
             occurs_on=term.occurs_on,
@@ -264,6 +290,7 @@ async def get_public_circle_view(
                     offered_types=listing.offered_types,
                     lister_party_id=listing.lister_party_id,
                     lister_display_name=listing.lister_display_name,
+                    thumb_url=thumb_urls.get(listing.item_id),
                 )
                 for listing in item_listings
             ],
@@ -302,7 +329,11 @@ _GATE_JOIN_REQUEST_STATUSES = frozenset(
 
 
 async def get_group_access(
-    db: AsyncSession, group_id: uuid.UUID, term_id: uuid.UUID | None, principal: Principal | None
+    db: AsyncSession,
+    group_id: uuid.UUID,
+    term_id: uuid.UUID | None,
+    principal: Principal | None,
+    storage: ObjectStorage | None = None,
 ) -> GroupAccessResponse:
     """`group` is `get_public_circle_view`'s response, with the full `PRIVATE`
     content only for an active member or the organizer (roles resolved
@@ -332,7 +363,11 @@ async def get_group_access(
         is_member = is_organizer or await _is_active_member(db, group_id, profile.party_id)
 
     group_response = await get_public_circle_view(
-        db, group_id, term_id, include_private_content=is_member or is_organizer
+        db,
+        group_id,
+        term_id,
+        include_private_content=is_member or is_organizer,
+        storage=storage,
     )
     is_attending = profile is not None and any(
         guardian.party_id == profile.party_id for guardian in group_response.guardians

@@ -274,6 +274,9 @@ class PublicItemListingResponse(BaseModel):
     offered_types: list[str]
     lister_party_id: uuid.UUID
     lister_display_name: str
+    # Public CDN URL of the product's first APPROVED photo, `None` when there
+    # is none or storage is not configured.
+    thumb_url: str | None = None
 
 
 class PublicTermResponse(BaseModel):
@@ -343,6 +346,83 @@ class GroupAccessResponse(BaseModel):
 
     group: PublicCircleResponse
     access: GroupAccessDetails
+
+
+# --- Public organizer directory (`GET /api/groups/public/organizers/{slug}`) --
+# Anonymous read model: explicit allowlisted fields only, never a person's
+# name, party id or child data.
+
+ExchangeMode = Literal["GIFT", "SWAP", "LEND"]
+
+
+class OrganizerNextTermResponse(BaseModel):
+    id: uuid.UUID
+    occurs_on: datetime
+    attendee_count: int
+
+
+class OrganizerCircleResponse(BaseModel):
+    id: uuid.UUID
+    name: str
+    layout_mode: GroupLayoutMode
+    next_term: OrganizerNextTermResponse | None
+    # Terms in the 60-day window; `next_term` itself has no window.
+    upcoming_term_count: int
+
+
+class OrganizerTermResponse(BaseModel):
+    term_id: uuid.UUID
+    group_id: uuid.UUID
+    group_name: str
+    occurs_on: datetime
+    description: str | None
+    attendee_count: int
+
+
+class OrganizerExchangeCounts(BaseModel):
+    GIFT: int
+    SWAP: int
+    LEND: int
+
+
+class OrganizerExchangeItemResponse(BaseModel):
+    item_id: uuid.UUID
+    product_name: str
+    condition: str
+    mode: ExchangeMode
+    thumb_url: str | None
+    term_id: uuid.UUID
+    group_id: uuid.UUID
+    occurs_on: datetime
+
+
+class OrganizerExchangeResponse(BaseModel):
+    # Over every eligible item; `items` is capped, so it may hold fewer.
+    counts: OrganizerExchangeCounts
+    items: list[OrganizerExchangeItemResponse]
+
+
+class OrganizerNeededItemResponse(BaseModel):
+    id: uuid.UUID
+    term_id: uuid.UUID
+    group_id: uuid.UUID
+    product_name: str
+    claimed: bool
+
+
+class OrganizerStatsResponse(BaseModel):
+    circle_count: int
+    upcoming_term_count: int
+    # `None` below 3 families, so a small group's families stay unidentifiable.
+    family_count: int | None
+
+
+class OrganizerPageResponse(BaseModel):
+    circles: list[OrganizerCircleResponse]
+    upcoming_terms: list[OrganizerTermResponse]
+    exchange: OrganizerExchangeResponse
+    needed_items: list[OrganizerNeededItemResponse]
+    stats: OrganizerStatsResponse
 
 
 class CreateRsvpRequest(BaseModel):

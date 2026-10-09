@@ -45,6 +45,7 @@ from app.groups.schemas import (
     UpdateGroupRequest,
     WithdrawAttendanceResponse,
 )
+from app.storage.service import ObjectStorage, get_storage
 from app.users.service import get_profile_by_principal
 
 router = APIRouter(tags=["groups"])
@@ -53,6 +54,7 @@ DbSession = Annotated[AsyncSession, Depends(get_db)]
 ReadPrincipal = Annotated[Principal, Depends(require_any("READ", "mcp:read"))]
 EditPrincipal = Annotated[Principal, Depends(require_any("EDIT", "mcp:edit"))]
 ModerationPrincipal = Annotated[Principal, Depends(require_any("ADMIN"))]
+Storage = Annotated[ObjectStorage | None, Depends(get_storage)]
 
 
 # --- Groups (Circles) --------------------------------------------------------
@@ -111,7 +113,7 @@ async def list_groups(db: DbSession, principal: ReadPrincipal) -> list[GroupResp
 
 @router.get("/api/groups/public/{group_id}", response_model=PublicCircleResponse)
 async def get_public_circle(
-    group_id: uuid.UUID, db: DbSession, term_id: uuid.UUID | None = None
+    group_id: uuid.UUID, db: DbSession, storage: Storage, term_id: uuid.UUID | None = None
 ) -> PublicCircleResponse:
     """Unauthenticated — the page a shared `/<slug>/grupa/<groupId>/term/<termId>`
     (or term-less `/<slug>/grupa/<groupId>`) link resolves to. Still matched
@@ -126,12 +128,16 @@ async def get_public_circle(
     `term_id` given: that exact Term drives the view (404 if it does not
     exist or belongs to another Circle). `term_id` omitted: the nearest
     upcoming Term is picked (else the most recent past Term)."""
-    return await service.get_public_circle_view(db, group_id, term_id)
+    return await service.get_public_circle_view(db, group_id, term_id, storage=storage)
 
 
 @router.get("/api/groups/public/{group_id}/access", response_model=GroupAccessResponse)
 async def get_group_access(
-    group_id: uuid.UUID, db: DbSession, principal: OptionalPrincipal = None, term_id: uuid.UUID | None = None
+    group_id: uuid.UUID,
+    db: DbSession,
+    storage: Storage,
+    principal: OptionalPrincipal = None,
+    term_id: uuid.UUID | None = None,
 ) -> GroupAccessResponse:
     """Unauthenticated-friendly (mirrors `get_public_circle` above — same
     `PUBLIC` matrix row, `/access` is an extra path segment so it never
@@ -140,7 +146,7 @@ async def get_group_access(
     a missing/malformed/expired token degrades to both `False`, never a 401
     — replaces the frontend's previous "any auth token = member view"
     heuristic with a real, server-resolved relationship."""
-    return await service.get_group_access(db, group_id, term_id, principal)
+    return await service.get_group_access(db, group_id, term_id, principal, storage)
 
 
 @router.post(

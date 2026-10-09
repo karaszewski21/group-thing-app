@@ -28,6 +28,7 @@ from app.circulation.application.inventory_items import (
     get_item_balance,
     get_item_for_share,
     get_item_with_product_name,
+    list_available_items_with_product,
     list_items,
     list_items_with_product_name,
     list_lent_out_items_with_product_name,
@@ -56,9 +57,13 @@ from app.circulation.application.reservations import (
     list_reservations,
 )
 from app.circulation.domain.reservation_rules import require_raw_route_reservation_type
-from app.circulation.infrastructure.repository import list_item_ids_for_product
+from app.circulation.infrastructure.repository import (
+    AvailableItemView,
+    list_item_ids_for_product,
+)
 
 __all__ = [
+    "AvailableItemView",
     "cancel_exchange",
     "cancel_reservation",
     "confirm_reservation",
@@ -84,6 +89,7 @@ __all__ = [
     "get_user_id_by_principal",
     "list_active_hand_over_reservations_for_terms",
     "list_active_reservations_for_taker",
+    "list_available_items_with_product",
     "list_inventories",
     "list_item_ids_for_product",
     "list_items",

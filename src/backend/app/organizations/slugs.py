@@ -35,6 +35,13 @@ RESERVED_SLUGS: frozenset[str] = frozenset(
         # like one of those path segments.
         "produkt",
         "grupa",
+        # Frontend second-segment route `/:slug/terminy` (organizer terms list).
+        "terminy",
+        # Backend sub-paths under `/api/groups/public/organizers/{slug}`
+        # (`/terms`) and the sibling `/api/groups/public/{group_id}/access`
+        # route the organizer router must never be confused with.
+        "access",
+        "terms",
         # Backend/static namespaces and other names that must never be
         # shadowed by a public organization page.
         "api",

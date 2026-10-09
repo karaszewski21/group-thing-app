@@ -5,7 +5,7 @@ guards, per `standards/backend/security.md`)."""
 from __future__ import annotations
 
 import uuid
-from collections.abc import Awaitable, Callable
+from collections.abc import Awaitable, Callable, Collection
 from datetime import datetime
 
 from sqlalchemy import column, func, select, table
@@ -15,6 +15,7 @@ from app.circulation.application.identity import get_user_id_by_principal
 from app.circulation.application.inventory import get_inventory
 from app.circulation.infrastructure import repository
 from app.circulation.infrastructure.ledger import MovementLeg, post_movement
+from app.circulation.infrastructure.repository import AvailableItemView
 from app.circulation.models import (
     BalanceStatus,
     Inventory,
@@ -113,6 +114,13 @@ async def list_lent_out_items_with_product_name(
 ) -> list[tuple[InventoryItem, str]]:
     """Joined read backing `GET /api/inventory-items/mine/lent-out`."""
     return await repository.list_lent_out_items_with_product_name(db, home_inventory_id)
+
+
+async def list_available_items_with_product(
+    db: AsyncSession, item_ids: Collection[uuid.UUID]
+) -> dict[uuid.UUID, AvailableItemView]:
+    """Batched read backing the organizer page and the term page thumbnails."""
+    return await repository.list_available_items_with_product(db, item_ids)
 
 
 async def get_item_with_product_name(db: AsyncSession, item_id: uuid.UUID) -> tuple[InventoryItem, str]:

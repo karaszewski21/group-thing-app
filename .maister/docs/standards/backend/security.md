@@ -24,12 +24,15 @@ async def authorize(
 
 ### The Authorization Matrix Is Code, Not Scattered Route Decorators
 
-`AUTHORIZATION_MATRIX` in `app/core/auth_deps.py` reproduces the full permission table (25 entries in this codebase) verbatim, in exact evaluation order, as a single directly-testable source of truth (`resolve_requirement(method, path)` walks it, first match wins). Because FastAPI has no native path-pattern security-filter-chain to wire this table *centrally* the way Spring does, actual enforcement for the non-public rows still happens per-route via each router's own `require_any(...)` call — but that call must match what the matrix says for that route. When adding a new route:
+The matrix lives only in `app/core/authorization_matrix.py` (`AUTHORIZATION_MATRIX`). It is a reference table verified by tests (`resolve_requirement(method, path)` walks it, first match wins, and is used only in `tests/test_authorization_matrix.py`). Each route enforces its row through `Depends(require_any(...))`, or through no dependency for PUBLIC rows. FastAPI has no native path-pattern security filter chain, so nothing applies the table centrally at request time — the route's own dependency must match what the matrix says for that route. When adding a new route:
 
 1. Add its row to `AUTHORIZATION_MATRIX` first (in the correct evaluation-order position — first-match-wins means row order is significant, not just row content)
-2. Then declare the matching `Depends(require_any(...))` on the actual route
+2. Then declare the matching `Depends(require_any(...))` on the actual route (or no dependency for a PUBLIC row)
+3. Add a `resolve_requirement` case to `tests/test_authorization_matrix.py`, plus regression cases for any existing row the new one is placed ahead of
 
-Don't add a permission check directly on a route without also adding/updating its row in the matrix — the matrix is meant to stay the single readable reference for "what's protected and how," even though enforcement is technically distributed.
+Don't add a permission check directly on a route without also adding/updating its row in the matrix — the matrix is meant to stay the single readable reference for "what's protected and how," even though enforcement is distributed.
+
+**Example — public organizer directory.** `GET ^/api/groups/public/organizers/[^/]+(/terms)?$` resolves to `"PUBLIC"` and sits immediately before the generic `^/api/groups/public/[^/]+$` row, so also ahead of the `^/api/groups/public/[^/]+/access$` row and row 26's blanket `GET ^/api/groups(/.*)?$` READ row. Without that placement `/public/organizers/{slug}` (two segments) would fall to row 26 and demand READ. The row is GET-only, so any other method on the path still falls to the blanket rows. Tests assert both the new row and that `/public/<uuid>`, `/public/<uuid>/access` and row 26 resolve as before.
 
 ### Public Routes Need No Dependency At All
 

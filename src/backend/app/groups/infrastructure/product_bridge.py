@@ -8,7 +8,10 @@ pass-through so an unknown id fails fast as a clean 404 rather than an FK
 The photo-moderation reads (`has_unmoderated_photos`,
 `product_ids_with_unmoderated_photos`,
 `list_product_ids_with_unmoderated_photos`) back the publish gate, the
-"Moje rzeczy" pending flag and the one-time withdraw cleanup script."""
+"Moje rzeczy" pending flag and the one-time withdraw cleanup script.
+`first_approved_photo_by_product` backs the organizer page and term page
+thumbnails; it returns entities only, the public URL is built by the
+caller."""
 
 from __future__ import annotations
 
@@ -18,9 +21,10 @@ from collections.abc import Collection
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.product import service as product_service
-from app.product.models import Product
+from app.product.models import Product, ProductPhoto
 
 __all__ = [
+    "first_approved_photo_by_product",
     "get_product",
     "has_unmoderated_photos",
     "list_product_ids_with_unmoderated_photos",
@@ -42,6 +46,12 @@ async def product_ids_with_unmoderated_photos(
     db: AsyncSession, product_ids: Collection[uuid.UUID]
 ) -> set[uuid.UUID]:
     return await product_service.product_ids_with_unmoderated_photos(db, product_ids)
+
+
+async def first_approved_photo_by_product(
+    db: AsyncSession, product_ids: Collection[uuid.UUID]
+) -> dict[uuid.UUID, ProductPhoto]:
+    return await product_service.first_approved_photo_by_product(db, product_ids)
 
 
 async def list_product_ids_with_unmoderated_photos(db: AsyncSession) -> list[uuid.UUID]:

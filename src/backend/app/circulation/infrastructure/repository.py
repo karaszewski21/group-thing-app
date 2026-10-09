@@ -22,12 +22,14 @@ from sqlalchemy.orm import joinedload, selectinload
 from app.circulation.models import (
     Account,
     AccountType,
+    BalanceStatus,
     CirculationEntry,
     CirculationTransaction,
     Inventory,
     InventoryBalance,
     InventoryItem,
     InventoryType,
+    ItemCondition,
     MovementType,
     Reservation,
     ReservationStatus,
@@ -162,6 +164,38 @@ async def list_lent_out_items_with_product_name(
         )
     )
     return [(item, name) for item, name in result.all()]
+
+
+@dataclass(frozen=True)
+class AvailableItemView:
+    item_id: uuid.UUID
+    product_id: uuid.UUID
+    product_name: str
+    condition: ItemCondition
+
+
+async def list_available_items_with_product(
+    db: AsyncSession, item_ids: Collection[uuid.UUID]
+) -> dict[uuid.UUID, AvailableItemView]:
+    """Which of `item_ids` are live (not soft-deleted) and AVAILABLE, with
+    their product, in one join."""
+    if not item_ids:
+        return {}
+    result = await db.execute(
+        select(InventoryItem.id, InventoryItem.product_id, Product.name, InventoryItem.condition)
+        .join(InventoryBalance, InventoryBalance.item_id == InventoryItem.id)
+        .join(Product, Product.id == InventoryItem.product_id)
+        .where(
+            InventoryItem.id.in_(item_ids),
+            InventoryItem.deleted_at.is_(None),
+            InventoryBalance.status == BalanceStatus.AVAILABLE,
+        )
+        .order_by(InventoryItem.id)
+    )
+    return {
+        item_id: AvailableItemView(item_id, product_id, product_name, condition)
+        for item_id, product_id, product_name, condition in result.all()
+    }
 
 
 async def get_item_with_product_name(

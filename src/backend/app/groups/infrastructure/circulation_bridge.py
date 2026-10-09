@@ -12,12 +12,14 @@ product through `list_item_ids_for_product` and releases a rejected swap
 proposer's reservation through `release_reservation`, the flush-only
 cancel that stays inside the caller's transaction; the publish gate reads
 the item through `get_item_for_share`, so a concurrent re-point serializes
-against it."""
+against it. The organizer page and the term page thumbnails resolve
+listed items to their products in one batch through
+`list_available_items_with_product`."""
 
 from __future__ import annotations
 
 import uuid
-from collections.abc import Sequence
+from collections.abc import Collection, Sequence
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -33,8 +35,10 @@ from app.circulation.models import (
     ReservationType,
 )
 from app.circulation.schemas import CreateReservationRequest
+from app.circulation.service import AvailableItemView
 
 __all__ = [
+    "AvailableItemView",
     "BalanceStatus",
     "InventoryItem",
     "InventoryType",
@@ -57,6 +61,7 @@ __all__ = [
     "get_reservation",
     "list_active_hand_over_reservations_for_terms",
     "list_active_reservations_for_taker",
+    "list_available_items_with_product",
     "list_item_ids_for_product",
     "list_items_with_product_name",
     "list_lent_out_items_with_product_name",
@@ -143,6 +148,12 @@ async def release_reservation(
 async def list_item_ids_for_product(db: AsyncSession, product_id: uuid.UUID) -> list[uuid.UUID]:
     """Every item of the product, soft-deleted ones included."""
     return await circulation_service.list_item_ids_for_product(db, product_id)
+
+
+async def list_available_items_with_product(
+    db: AsyncSession, item_ids: Collection[uuid.UUID]
+) -> dict[uuid.UUID, AvailableItemView]:
+    return await circulation_service.list_available_items_with_product(db, item_ids)
 
 
 async def fulfill_exchange(

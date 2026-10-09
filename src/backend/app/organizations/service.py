@@ -94,6 +94,26 @@ async def get_own_organization(db: AsyncSession, owner_party_id: uuid.UUID) -> O
     return await get_organization(db, cast(uuid.UUID, membership.to_organization_id))
 
 
+async def get_owner_party_id(db: AsyncSession, organization_id: uuid.UUID) -> uuid.UUID | None:
+    """The reverse of `get_own_organization`: the party holding the active
+    OWNER membership of the Organization (not `Organization.party_id`, which
+    is the Organization's own party), or `None` when there is none."""
+    return (
+        await db.execute(
+            select(OrganizationRole.party_id)
+            .join(
+                OrganizationMembership,
+                OrganizationMembership.from_role_id == OrganizationRole.id,
+            )
+            .where(
+                OrganizationMembership.to_organization_id == organization_id,
+                OrganizationRole.role_type == OrganizationRoleType.OWNER,
+                OrganizationMembership.valid_to.is_(None),
+            )
+        )
+    ).scalar_one_or_none()
+
+
 async def create_own_organization(
     db: AsyncSession, owner_party_id: uuid.UUID, data: CreateOwnOrganizationRequest
 ) -> Organization:

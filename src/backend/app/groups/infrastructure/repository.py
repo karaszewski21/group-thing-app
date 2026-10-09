@@ -1,7 +1,9 @@
 """Read-side queries for `app.groups`: every `select()` / `db.get()` for
 `Group` / `GroupRole` / `Leadership` / `Membership` / `Term` /
 `NeededItem` / `Pledge` / `TermAttendance` / `GroupJoinRequest` and the public-view
-`UserProfile` join, relocated verbatim into named functions. Eager-loading
+`UserProfile` join, relocated verbatim into named functions, plus the batched
+organizer-directory reads (whose family count joins `app.families.models`,
+the `application/exchange_summary.py` precedent). Eager-loading
 and ordering options are preserved exactly per `standards/backend/queries.md`.
 Never commits or flushes; `EntityNotFoundException` raising stays in the
 `application/` getter wrappers."""
@@ -12,10 +14,11 @@ import uuid
 from collections.abc import Collection
 from datetime import datetime
 
-from sqlalchemy import Row, exists, func, or_, select
+from sqlalchemy import Row, Select, and_, exists, func, or_, select, true
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.category.models import Category
+from app.families.models import FamilyMembership, FamilyRole
 from app.product.models import Product
 from app.users.models import UserProfile
 
@@ -23,8 +26,10 @@ from ..models import (
     Group,
     GroupJoinRequest,
     GroupJoinRequestStatus,
+    GroupLayoutMode,
     GroupRole,
     GroupRoleType,
+    GroupVisibility,
     ItemListingPreference,
     Leadership,
     Membership,
@@ -633,5 +638,222 @@ async def list_pending_join_requests_for_groups(
         )
         .order_by(GroupJoinRequest.created_at, GroupJoinRequest.id)
         .limit(PENDING_JOIN_REQUESTS_LIMIT)
+    )
+    return list(result.all())
+
+
+# --- Public organizer directory ----------------------------------------------
+# Every query is batched over the organizer's circles or their terms, so the
+# page's statement count does not grow with the number of circles. `now` is
+# always a bound parameter (server-local naive time), never `func.now()`.
+
+
+async def list_owner_public_circles(
+    db: AsyncSession,
+    owner_party_id: uuid.UUID,
+    now: datetime,
+    window_end: datetime,
+    limit: int = 30,
+) -> list[Row[tuple[uuid.UUID, str, GroupLayoutMode, uuid.UUID | None, datetime | None, int]]]:
+    """`(group_id, name, layout_mode, next_term_id, next_occurs_on,
+    window_term_count)` for the PUBLIC circles the owner currently leads
+    (active `Leadership` from the owner's active ORGANIZATOR `GroupRole`).
+    The next term comes from a per-circle LATERAL lookup and the window count
+    from a correlated subquery, both served by `ix_terms_circle_group_id_occurs_on`."""
+    next_term = (
+        select(Term.id.label("term_id"), Term.occurs_on.label("occurs_on"))
+        .where(Term.circle_group_id == Group.id, Term.occurs_on >= now)
+        .order_by(Term.occurs_on, Term.id)
+        .limit(1)
+        .lateral("next_term")
+    )
+    window_term_count = (
+        select(func.count())
+        .select_from(Term)
+        .where(
+            Term.circle_group_id == Group.id,
+            Term.occurs_on >= now,
+            Term.occurs_on < window_end,
+        )
+        .scalar_subquery()
+    )
+    result = await db.execute(
+        select(
+            Group.id,
+            Group.name,
+            Group.layout_mode,
+            next_term.c.term_id,
+            next_term.c.occurs_on,
+            window_term_count,
+        )
+        .join(Leadership, and_(Leadership.to_group_id == Group.id, Leadership.valid_to.is_(None)))
+        .join(
+            GroupRole,
+            and_(
+                GroupRole.id == Leadership.from_role_id,
+                GroupRole.role_type == GroupRoleType.ORGANIZATOR,
+                GroupRole.party_id == owner_party_id,
+                GroupRole.valid_to.is_(None),
+            ),
+        )
+        .outerjoin(next_term, true())
+        .where(Group.visibility == GroupVisibility.PUBLIC)
+        .order_by(next_term.c.occurs_on.asc().nulls_last(), Group.name, Group.id)
+        .limit(limit)
+    )
+    return list(result.all())
+
+
+def _owner_public_terms_select(
+    owner_party_id: uuid.UUID, now: datetime, group_id: uuid.UUID | None
+) -> Select[tuple[uuid.UUID, uuid.UUID, str, datetime, str | None]]:
+    """`(term_id, group_id, group_name, occurs_on, description)` of every
+    upcoming term in the PUBLIC circles the owner currently leads (the same
+    qualification as `list_owner_public_circles`), optionally narrowed to
+    `group_id`. Unordered: the count and the page build on it."""
+    qualifying_circles = (
+        select(Group.id)
+        .join(Leadership, and_(Leadership.to_group_id == Group.id, Leadership.valid_to.is_(None)))
+        .join(
+            GroupRole,
+            and_(
+                GroupRole.id == Leadership.from_role_id,
+                GroupRole.role_type == GroupRoleType.ORGANIZATOR,
+                GroupRole.party_id == owner_party_id,
+                GroupRole.valid_to.is_(None),
+            ),
+        )
+        .where(Group.visibility == GroupVisibility.PUBLIC)
+    )
+    query = (
+        select(Term.id, Term.circle_group_id, Group.name, Term.occurs_on, Term.description)
+        .join(Group, Group.id == Term.circle_group_id)
+        .where(Term.circle_group_id.in_(qualifying_circles), Term.occurs_on >= now)
+    )
+    if group_id is not None:
+        query = query.where(Term.circle_group_id == group_id)
+    return query
+
+
+async def count_owner_public_terms(
+    db: AsyncSession, owner_party_id: uuid.UUID, now: datetime, group_id: uuid.UUID | None
+) -> int:
+    terms = _owner_public_terms_select(owner_party_id, now, group_id).subquery()
+    return (await db.execute(select(func.count()).select_from(terms))).scalar_one()
+
+
+async def list_owner_public_terms_page(
+    db: AsyncSession,
+    owner_party_id: uuid.UUID,
+    now: datetime,
+    group_id: uuid.UUID | None,
+    offset: int,
+    limit: int,
+) -> list[Row[tuple[uuid.UUID, uuid.UUID, str, datetime, str | None]]]:
+    """One page of `_owner_public_terms_select`, soonest first."""
+    result = await db.execute(
+        _owner_public_terms_select(owner_party_id, now, group_id)
+        .order_by(Term.occurs_on, Term.id)
+        .offset(offset)
+        .limit(limit)
+    )
+    return list(result.all())
+
+
+async def list_upcoming_terms_for_groups(
+    db: AsyncSession,
+    group_ids: list[uuid.UUID],
+    now: datetime,
+    window_end: datetime,
+    limit: int = 10,
+) -> list[Row[tuple[uuid.UUID, uuid.UUID, str, datetime, str | None]]]:
+    """`(term_id, group_id, group_name, occurs_on, description)` of the
+    window's terms, soonest first."""
+    result = await db.execute(
+        select(Term.id, Term.circle_group_id, Group.name, Term.occurs_on, Term.description)
+        .join(Group, Group.id == Term.circle_group_id)
+        .where(
+            Term.circle_group_id.in_(group_ids),
+            Term.occurs_on >= now,
+            Term.occurs_on < window_end,
+        )
+        .order_by(Term.occurs_on, Term.id)
+        .limit(limit)
+    )
+    return list(result.all())
+
+
+async def count_member_families_for_groups(
+    db: AsyncSession, group_ids: list[uuid.UUID], exclude_party_id: uuid.UUID
+) -> int:
+    """Distinct families (any family role) of the parties holding an active
+    `Membership` in `group_ids`, leaving out every family `exclude_party_id`
+    belongs to."""
+    excluded_families = (
+        select(FamilyMembership.to_family_id)
+        .join(FamilyRole, FamilyRole.id == FamilyMembership.from_role_id)
+        .where(
+            FamilyRole.party_id == exclude_party_id,
+            FamilyRole.valid_to.is_(None),
+            FamilyMembership.valid_to.is_(None),
+        )
+    )
+    count = await db.scalar(
+        select(func.count(func.distinct(FamilyMembership.to_family_id)))
+        .select_from(Membership)
+        .join(GroupRole, GroupRole.id == Membership.from_role_id)
+        .join(
+            FamilyRole,
+            and_(FamilyRole.party_id == GroupRole.party_id, FamilyRole.valid_to.is_(None)),
+        )
+        .join(
+            FamilyMembership,
+            and_(
+                FamilyMembership.from_role_id == FamilyRole.id,
+                FamilyMembership.valid_to.is_(None),
+            ),
+        )
+        .where(
+            Membership.to_group_id.in_(group_ids),
+            Membership.valid_to.is_(None),
+            FamilyMembership.to_family_id.not_in(excluded_families),
+        )
+    )
+    return int(count or 0)
+
+
+async def list_needed_items_with_product_for_terms(
+    db: AsyncSession, term_ids: list[uuid.UUID]
+) -> list[Row[tuple[uuid.UUID, uuid.UUID, uuid.UUID, str, bool]]]:
+    """`(needed_item_id, term_id, group_id, product_name, claimed)` for the
+    live needs of `term_ids`; `claimed` uses the same rule as the term page
+    (a pledge that is not WITHDRAWN). Never carries the pledger."""
+    claimed = exists().where(
+        Pledge.needed_item_id == NeededItem.id, Pledge.status != PledgeStatus.WITHDRAWN
+    )
+    result = await db.execute(
+        select(
+            NeededItem.id,
+            NeededItem.term_id,
+            Term.circle_group_id,
+            Product.name,
+            claimed.label("claimed"),
+        )
+        .join(Term, Term.id == NeededItem.term_id)
+        .join(Product, Product.id == NeededItem.product_id)
+        .where(NeededItem.term_id.in_(term_ids), NeededItem.deleted_at.is_(None))
+        .order_by(Term.occurs_on, Product.name, NeededItem.id)
+    )
+    return list(result.all())
+
+
+async def list_active_attendee_parties_for_terms(
+    db: AsyncSession, term_ids: list[uuid.UUID]
+) -> list[Row[tuple[uuid.UUID, uuid.UUID]]]:
+    """`(term_id, party_id)` for every non-withdrawn RSVP on `term_ids`."""
+    result = await db.execute(
+        select(TermAttendance.term_id, TermAttendance.party_id)
+        .where(TermAttendance.term_id.in_(term_ids), TermAttendance.withdrawn_at.is_(None))
+        .order_by(TermAttendance.term_id, TermAttendance.id)
     )
     return list(result.all())
