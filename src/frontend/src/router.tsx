@@ -25,6 +25,7 @@ import { ItemEditBody, ItemEditPage } from "./pages/product/ItemEditPage";
 import { OrganizerItemLayout } from "./pages/product/OrganizerItemLayout";
 import { OnboardingPage } from "./pages/OnboardingPage";
 import { OrganizationPage } from "./pages/OrganizationPage";
+import { OrganizerTermsPage } from "./pages/organizer/OrganizerTermsPage";
 import { PublicOrganizationPage } from "./pages/organizer/PublicOrganizationPage";
 import { AuthGuard } from "./auth/AuthGuard";
 import { useAuth } from "./auth/AuthContext";
@@ -153,6 +154,13 @@ export const router = createBrowserRouter([
         // backend's RESERVED_SLUGS, so no organizer slug can equal it.
         path: "/:organizationSlug/grupa/:groupId/term/:termId",
         element: <TermPage />,
+      },
+      {
+        // The organizer's full agenda — public, no AuthGuard. "terminy" is in
+        // the backend's RESERVED_SLUGS, so no organizer slug can equal it;
+        // declared before the `/:organizationSlug` catch-all below.
+        path: "/:organizationSlug/terminy",
+        element: <OrganizerTermsPage />,
       },
       {
         // Public organizer page (`domena.pl/<slug>`) — deliberately declared

@@ -1,7 +1,7 @@
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useParams, useSearchParams } from "react-router-dom";
-import { useAuth } from "../../auth/AuthContext";
 import { useMyOrganization } from "../../hooks/useMyOrganization";
+import { useOrganizerPage } from "../../hooks/useOrganizerPage";
 import { usePublicOrganization } from "../../hooks/usePublicOrganization";
 import { useUpdateOrganization } from "../../hooks/useUpdateOrganization";
 import { OrganizerThemeScope } from "../../theme/OrganizerThemeScope";
@@ -10,18 +10,8 @@ import { diffDraft, sameDraft, toDraft, type Draft } from "./editor/draft";
 import { EditorSheet } from "./editor/EditorSheet";
 import { LayoutRenderer } from "./LayoutRenderer";
 import { resolveLayout } from "./layouts/registry";
-
-// Height of the sticky account bar that `components/layout/PublicLayout.tsx`
-// shows to logged-in visitors: border-t (1px) + py-2 (16px) + h-10 controls
-// (40px). Update together with that bar's classes.
-const LOGGED_IN_MIN_HEIGHT = "min-h-[calc(100dvh-57px)]";
-const ANONYMOUS_MIN_HEIGHT = "min-h-dvh";
-
-function PageFrame({ className = "", children }: { className?: string; children: ReactNode }) {
-  const { token } = useAuth();
-  const minHeight = token ? LOGGED_IN_MIN_HEIGHT : ANONYMOUS_MIN_HEIGHT;
-  return <div className={`flex flex-col bg-cream ${minHeight} ${className}`}>{children}</div>;
-}
+import type { DirectoryStatus, OrganizerPageData } from "./layouts/types";
+import { NotFoundFrame, PageFrame } from "./PageFrame";
 
 /**
  * Public organizer page at `domena.pl/<slug>` — this is the mounted-last
@@ -38,6 +28,13 @@ export function PublicOrganizationPage() {
   const { organizationSlug = "" } = useParams<{ organizationSlug: string }>();
   const [searchParams, setSearchParams] = useSearchParams();
   const { data: organization, loading } = usePublicOrganization(organizationSlug);
+  // Fetched in parallel; the directory never holds back the first paint.
+  const directory = useOrganizerPage(organizationSlug);
+  const directoryStatus: DirectoryStatus = directory.loading
+    ? "loading"
+    : directory.notFound || directory.error !== null
+      ? "unavailable"
+      : "ready";
   const myOrganization = useMyOrganization();
   const { update } = useUpdateOrganization();
   // `null` = nothing edited since the sheet opened, was reset or saved.
@@ -89,23 +86,20 @@ export function PublicOrganizationPage() {
     );
   }
 
-  if (!organization) {
-    return (
-      <PageFrame className="items-center justify-center px-4 text-center font-sans text-ink">
-        <div>
-          <h1 className="mb-2 font-serif text-2xl font-semibold">Nie znaleziono strony</h1>
-          <p className="text-sm text-ink-soft">Ta organizacja nie istnieje.</p>
-        </div>
-      </PageFrame>
-    );
-  }
+  if (!organization) return <NotFoundFrame />;
+
+  const pageData: OrganizerPageData = {
+    organization,
+    directory: directoryStatus === "ready" ? directory.data : null,
+    directoryStatus,
+  };
 
   return (
     <OrganizerThemeScope theme={editing ? editing.current.theme : organization}>
       <PageFrame className={editing ? "pb-[60vh]" : pillVisible ? "pb-24" : ""}>
         <LayoutRenderer
           layout={resolveLayout(editing ? editing.current.pageLayout : organization.page_layout)}
-          data={{ organization }}
+          data={pageData}
           mode={isOwner ? "owner-edit" : "visitor"}
         />
       </PageFrame>
@@ -122,6 +116,7 @@ export function PublicOrganizationPage() {
       )}
       {editing && (
         <EditorSheet
+          pageData={pageData}
           draft={editing.current}
           dirty={dirty}
           onChange={setDraft}

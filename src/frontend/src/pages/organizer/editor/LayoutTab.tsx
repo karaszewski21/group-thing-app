@@ -1,16 +1,18 @@
 import { useRef, type KeyboardEvent } from "react";
-import { LAYOUT_REGISTRY } from "../layouts/registry";
+import { isRecommended, LAYOUT_REGISTRY } from "../layouts/registry";
+import type { OrganizerPageData } from "../layouts/types";
 import { nextIndex } from "./rovingIndex";
 
 const LAYOUTS = Object.values(LAYOUT_REGISTRY);
 
 interface LayoutTabProps {
   value: string;
+  data: OrganizerPageData;
   onSelect: (key: string) => void;
 }
 
 /** The layout cards, as a radio group in registry order. */
-export function LayoutTab({ value, onSelect }: LayoutTabProps) {
+export function LayoutTab({ value, data, onSelect }: LayoutTabProps) {
   const cardRefs = useRef<(HTMLButtonElement | null)[]>([]);
 
   function handleKeyDown(event: KeyboardEvent<HTMLButtonElement>, index: number) {
@@ -25,7 +27,7 @@ export function LayoutTab({ value, onSelect }: LayoutTabProps) {
     <div role="radiogroup" aria-label="Układ strony" className="grid grid-cols-2 gap-2.5">
       {LAYOUTS.map((layout, index) => {
         const selected = layout.key === value;
-        const recommended = layout.recommended ?? false;
+        const recommended = isRecommended(layout, data);
         const labelId = `editor-layout-${layout.key}-label`;
         const badgeId = `editor-layout-${layout.key}-badge`;
         const descriptionId = `editor-layout-${layout.key}-description`;

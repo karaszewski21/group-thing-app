@@ -27,6 +27,9 @@ export interface ListingRowVM {
   subtitle?: ReactNode;
   actions: TermActionVM[];
   extra?: ReactNode;
+  /** Public term page only: the item photo (null = placeholder tile). Left
+   * undefined on the private page, where no tile is rendered. */
+  thumbUrl?: string | null;
 }
 
 /** DOM id of an attendee's list entry — the scroll/focus target when their

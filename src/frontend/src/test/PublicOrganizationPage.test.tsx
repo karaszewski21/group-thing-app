@@ -1,6 +1,7 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { act, fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import { createMemoryRouter, RouterProvider, useLocation } from "react-router-dom";
+import * as groupsApi from "../api/groups";
 import * as organizationsApi from "../api/organizations";
 import { PublicOrganizationPage } from "../pages/organizer/PublicOrganizationPage";
 import { buildOrgThemeVars } from "../theme/orgPalette";
@@ -14,6 +15,10 @@ vi.mock("../api/organizations", () => ({
   getPublicOrganization: vi.fn(),
   getMyOrganization: vi.fn(),
   updateOrganization: vi.fn(),
+}));
+
+vi.mock("../api/groups", () => ({
+  getOrganizerPage: vi.fn(),
 }));
 
 function LocationProbe() {
@@ -68,9 +73,18 @@ const MY_ORGANIZATION = {
   updated_at: "2026-10-01T10:00:00Z",
 };
 
+const DIRECTORY: groupsApi.OrganizerPageResponse = {
+  circles: [],
+  upcoming_terms: [],
+  exchange: { counts: { GIFT: 0, SWAP: 0, LEND: 0 }, items: [] },
+  needed_items: [],
+  stats: { circle_count: 0, upcoming_term_count: 0, family_count: null },
+};
+
 beforeEach(() => {
   vi.resetAllMocks();
   mockAuth = { token: null };
+  vi.mocked(groupsApi.getOrganizerPage).mockResolvedValue(DIRECTORY);
 });
 
 describe("PublicOrganizationPage", () => {
@@ -142,7 +156,7 @@ describe("PublicOrganizationPage", () => {
     renderAt("/muzyczne-skrzaty");
 
     expect(await screen.findByRole("heading", { level: 1, name: "Muzyczne Skrzaty" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /Udostępnij/ })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Udostępnij" })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /Edytuj wygląd/ })).not.toBeInTheDocument();
     expect(screen.queryByText("Opis — wkrótce")).not.toBeInTheDocument();
     expect(organizationsApi.getMyOrganization).not.toHaveBeenCalled();
@@ -192,6 +206,31 @@ describe("PublicOrganizationPage", () => {
 
     expect(screen.getByTestId("location")).toHaveTextContent("/muzyczne-skrzaty?edit=1");
     expect(screen.queryByRole("button", { name: "Edytuj wygląd" })).not.toBeInTheDocument();
+  });
+
+  it("keeps the hero, share and footer when the directory request fails", async () => {
+    vi.mocked(organizationsApi.getPublicOrganization).mockResolvedValue(ORGANIZATION);
+    vi.mocked(groupsApi.getOrganizerPage).mockRejectedValue(new Error("500"));
+
+    renderAt("/muzyczne-skrzaty");
+
+    expect(await screen.findByRole("heading", { level: 1, name: "Muzyczne Skrzaty" })).toBeInTheDocument();
+    await vi.waitFor(() => expect(groupsApi.getOrganizerPage).toHaveBeenCalledWith("muzyczne-skrzaty"));
+    await act(async () => {});
+    expect(screen.getByRole("heading", { level: 1, name: "Muzyczne Skrzaty" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Udostępnij" })).toBeInTheDocument();
+    expect(screen.getByText("Strona utworzona w domena.pl")).toBeInTheDocument();
+  });
+
+  it("paints the page from the organization alone while the directory is pending", async () => {
+    vi.mocked(organizationsApi.getPublicOrganization).mockResolvedValue(ORGANIZATION);
+    vi.mocked(groupsApi.getOrganizerPage).mockReturnValue(new Promise(() => {}));
+
+    renderAt("/muzyczne-skrzaty");
+
+    expect(await screen.findByRole("heading", { level: 1, name: "Muzyczne Skrzaty" })).toBeInTheDocument();
+    expect(screen.getByText("Strona utworzona w domena.pl")).toBeInTheDocument();
+    expect(screen.queryByText("Wczytywanie…")).not.toBeInTheDocument();
   });
 
   it("applies a stored palette preset to the theme scope", async () => {

@@ -8,7 +8,9 @@ it a single `frozenset({...})` expression with double-quoted keys.
 
 from __future__ import annotations
 
-PAGE_LAYOUT_KEYS: frozenset[str] = frozenset({"CLASSIC", "LINKS"})
+PAGE_LAYOUT_KEYS: frozenset[str] = frozenset(
+    {"CLASSIC", "CIRCLES", "EXCHANGE", "LINKS", "SCHEDULE"}
+)
 
 FALLBACK_PAGE_LAYOUT = "CLASSIC"
 

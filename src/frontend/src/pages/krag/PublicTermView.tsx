@@ -83,6 +83,7 @@ export function PublicTermView({
             onClick: guest.orMerge(mergeKey, () => itemTake.take(listing.item_id, t)),
           })),
       extra: guest.mergeForm(mergeKey),
+      thumbUrl: listing.thumb_url,
     };
   }
 

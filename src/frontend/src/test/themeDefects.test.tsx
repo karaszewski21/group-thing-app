@@ -83,6 +83,7 @@ describe("in-scope public pages use theme tokens, not literal colors", () => {
   const IN_SCOPE_FILES = [
     "pages/krag/components/KragStage.tsx",
     "pages/krag/components/TermFooter.tsx",
+    "pages/krag/components/termLabels.ts",
     "pages/krag/PublicTermView.tsx",
     "pages/krag/PrivateGroupGate.tsx",
     "pages/krag/GroupVisualization.tsx",
@@ -107,6 +108,23 @@ describe("in-scope public pages use theme tokens, not literal colors", () => {
     "pages/organizer/editor/ColorsTab.tsx",
     "pages/organizer/editor/CustomColorPicker.tsx",
     "pages/organizer/editor/PreviewCards.tsx",
+    "pages/organizer/blocks/StatsBlock.tsx",
+    "pages/organizer/blocks/UpcomingTermsBlock.tsx",
+    "pages/organizer/blocks/NextTermCtaBlock.tsx",
+    "pages/organizer/blocks/AgendaBlock.tsx",
+    "pages/organizer/blocks/AgendaList.tsx",
+    "pages/organizer/blocks/CircleFilterChips.tsx",
+    "pages/organizer/blocks/CirclesGridBlock.tsx",
+    "pages/organizer/blocks/CircleVisualMini.tsx",
+    "pages/organizer/blocks/ExchangeCountsBlock.tsx",
+    "pages/organizer/blocks/ExchangeBoardBlock.tsx",
+    "pages/organizer/blocks/ExchangeItemCard.tsx",
+    "pages/organizer/blocks/NeededItemsBlock.tsx",
+    "pages/organizer/blocks/EmptyStateBlock.tsx",
+    "pages/organizer/blocks/BlockSkeleton.tsx",
+    "pages/organizer/blocks/nearestTerm.ts",
+    "pages/organizer/PageFrame.tsx",
+    "pages/organizer/OrganizerTermsPage.tsx",
   ];
   // Illustration colors that deliberately stay outside the theme (pitch grass, table wood).
   const FIXED_ILLUSTRATION_COLORS = new Set(["#4e9a5f", "#3e8a4e", "#e7cfa8"]);

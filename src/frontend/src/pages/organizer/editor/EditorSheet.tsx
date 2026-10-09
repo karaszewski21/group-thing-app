@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type KeyboardEvent } from "react";
 import { useBlocker } from "react-router-dom";
 import { CloseIcon } from "../../panel/panelIcons";
+import type { OrganizerPageData } from "../layouts/types";
 import { ColorsTab } from "./ColorsTab";
 import type { Draft } from "./draft";
 import { LayoutTab } from "./LayoutTab";
@@ -17,6 +18,8 @@ const TABS: { id: Tab; label: string }[] = [
 const SAVE_FALLBACK = "Nie udało się zapisać. Spróbuj ponownie.";
 
 interface EditorSheetProps {
+  /** The live page's data; drives the layout cards' "Polecany" badges. */
+  pageData: OrganizerPageData;
   draft: Draft;
   dirty: boolean;
   onChange: (next: Draft) => void;
@@ -30,7 +33,7 @@ interface EditorSheetProps {
  * Non-modal: no scrim, no focus trap, Esc does nothing, and the page above
  * stays usable and shows the draft live. Only closing explicitly (X) or
  * leaving for another page asks before an unsaved draft is dropped. */
-export function EditorSheet({ draft, dirty, onChange, onReset, onSave, onClose }: EditorSheetProps) {
+export function EditorSheet({ pageData, draft, dirty, onChange, onReset, onSave, onClose }: EditorSheetProps) {
   const [tab, setTab] = useState<Tab>("uklad");
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -165,7 +168,11 @@ export function EditorSheet({ draft, dirty, onChange, onReset, onSave, onClose }
           {/* Locked while saving, so nothing is edited on top of the draft being sent. */}
           <fieldset disabled={saving} className="m-0 min-w-0 border-0 p-0">
             {tab === "uklad" && (
-              <LayoutTab value={draft.pageLayout} onSelect={(pageLayout) => change({ ...draft, pageLayout })} />
+              <LayoutTab
+                value={draft.pageLayout}
+                data={pageData}
+                onSelect={(pageLayout) => change({ ...draft, pageLayout })}
+              />
             )}
             {tab === "kolory" && (
               <ColorsTab

@@ -71,6 +71,7 @@ const circle: PublicCircleResponse = {
         offered_types: ["LEND"],
         lister_party_id: "21",
         lister_display_name: "Ola Nowak",
+        thumb_url: null,
       },
       {
         id: "10",
@@ -80,6 +81,7 @@ const circle: PublicCircleResponse = {
         offered_types: ["GIFT"],
         lister_party_id: "99",
         lister_display_name: "Ania Kowalska",
+        thumb_url: null,
       },
     ],
   },

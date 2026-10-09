@@ -270,6 +270,24 @@ async def test_updateOrganization_layoutPresetAndColors_persistsAndKeepsOmittedN
     assert body["name"] == "Oceaniczna"
 
 
+async def test_updateOrganization_scheduleLayout_isAccepted(
+    client: AsyncClient, db_session: AsyncSession
+) -> None:
+    headers, created = await _create_organization(
+        client, "org.layout9@example.com", "Plan Zajec"
+    )
+
+    response = await client.patch(
+        f"/api/organizations/{created['id']}",
+        json={"page_layout": "SCHEDULE"},
+        headers=headers,
+    )
+
+    assert response.status_code == 200
+    public = await client.get(f"/api/organizations/public/{created['slug']}")
+    assert public.json()["page_layout"] == "SCHEDULE"
+
+
 async def test_updateOrganization_explicitNulls_clearPresetAndColors(
     client: AsyncClient, db_session: AsyncSession
 ) -> None:

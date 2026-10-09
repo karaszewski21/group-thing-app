@@ -2,11 +2,13 @@ import { act, fireEvent, render, screen, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { createMemoryRouter, RouterProvider, useLocation } from "react-router-dom";
 import { ApiError } from "../api/client";
+import * as groupsApi from "../api/groups";
 import { ACCESS_DENIED_MESSAGE } from "../api/problem";
 import * as organizationsApi from "../api/organizations";
 import { diffDraft, paletteSelection, sameDraft, type Draft } from "../pages/organizer/editor/draft";
 import { PublicOrganizationPage } from "../pages/organizer/PublicOrganizationPage";
 import { findPreset } from "../theme/palettePresets";
+import dayjs from "../utils/dayjs";
 import { createQueryWrapper } from "./queryClient";
 
 let mockAuth: { token: string | null };
@@ -16,6 +18,10 @@ vi.mock("../api/organizations", () => ({
   getPublicOrganization: vi.fn(),
   getMyOrganization: vi.fn(),
   updateOrganization: vi.fn(),
+}));
+
+vi.mock("../api/groups", () => ({
+  getOrganizerPage: vi.fn(),
 }));
 
 function LocationProbe() {
@@ -65,6 +71,51 @@ const MY_ORGANIZATION = {
   updated_at: "2026-10-01T10:00:00Z",
 };
 
+const DIRECTORY: groupsApi.OrganizerPageResponse = {
+  circles: [],
+  upcoming_terms: [],
+  exchange: { counts: { GIFT: 0, SWAP: 0, LEND: 0 }, items: [] },
+  needed_items: [],
+  stats: { circle_count: 0, upcoming_term_count: 0, family_count: null },
+};
+
+function circle(id: string, name: string): groupsApi.OrganizerCircle {
+  return { id, name, layout_mode: "CIRCLE", next_term: null, upcoming_term_count: 2 };
+}
+
+function termInDays(days: number, groupId: string): groupsApi.OrganizerTerm {
+  return {
+    term_id: `term-${groupId}-${days}`,
+    group_id: groupId,
+    group_name: groupId,
+    occurs_on: dayjs().add(days, "day").format("YYYY-MM-DD"),
+    description: null,
+    attendee_count: 0,
+  };
+}
+
+const BUSY_DIRECTORY: groupsApi.OrganizerPageResponse = {
+  ...DIRECTORY,
+  circles: [circle("c-1", "Maluchy"), circle("c-2", "Starszaki")],
+  upcoming_terms: [termInDays(1, "c-1"), termInDays(3, "c-2"), termInDays(8, "c-1"), termInDays(10, "c-2")],
+  stats: { circle_count: 2, upcoming_term_count: 4, family_count: null },
+};
+
+function textOfIds(ids: string | null) {
+  return (ids ?? "")
+    .split(" ")
+    .map((id) => document.getElementById(id)?.textContent ?? "")
+    .join(" ");
+}
+
+/** Names of the layout cards whose accessible description announces "Polecany", in card order. */
+function recommendedLayouts() {
+  return within(screen.getByRole("radiogroup", { name: "Układ strony" }))
+    .getAllByRole("radio")
+    .filter((card) => textOfIds(card.getAttribute("aria-describedby")).startsWith("Polecany"))
+    .map((card) => textOfIds(card.getAttribute("aria-labelledby")));
+}
+
 async function openEditor() {
   const router = renderAt("/muzyczne-skrzaty?edit=1");
   const sheet = await screen.findByRole("dialog", { name: "Wygląd strony" });
@@ -80,6 +131,7 @@ beforeEach(() => {
   mockAuth = { token: "owner-token" };
   vi.mocked(organizationsApi.getPublicOrganization).mockResolvedValue(ORGANIZATION);
   vi.mocked(organizationsApi.getMyOrganization).mockResolvedValue(MY_ORGANIZATION);
+  vi.mocked(groupsApi.getOrganizerPage).mockResolvedValue(DIRECTORY);
 });
 
 describe("Organizer editor sheet", () => {
@@ -238,11 +290,35 @@ describe("Organizer editor sheet", () => {
     expect(screen.getByTestId("location")).toHaveTextContent(/^\/muzyczne-skrzaty$/);
   });
 
-  it("marks only the Wizytówka layout as Polecany", async () => {
+  it("marks both Plan zajęć and Grupy as Polecany for two circles with four terms within 14 days", async () => {
+    vi.mocked(groupsApi.getOrganizerPage).mockResolvedValue(BUSY_DIRECTORY);
     await openEditor();
 
-    expect(screen.getByRole("radio", { name: "Wizytówka" })).toHaveAccessibleDescription(/^Polecany/);
-    expect(screen.getByRole("radio", { name: "Klasyczny" })).not.toHaveAccessibleDescription(/Polecany/);
+    await vi.waitFor(() => expect(recommendedLayouts()).toEqual(["Plan zajęć", "Grupy"]));
+    expect(within(screen.getByRole("radiogroup", { name: "Układ strony" })).getAllByRole("radio")).toHaveLength(5);
+  });
+
+  it("marks only the Wizytówka layout as Polecany for an organizer without circles", async () => {
+    await openEditor();
+
+    await vi.waitFor(() => expect(recommendedLayouts()).toEqual(["Wizytówka"]));
+  });
+
+  it("shows no Polecany badge while the directory is loading", async () => {
+    vi.mocked(groupsApi.getOrganizerPage).mockReturnValue(new Promise(() => {}));
+    await openEditor();
+
+    expect(recommendedLayouts()).toEqual([]);
+    expect(screen.queryByText("Polecany")).not.toBeInTheDocument();
+  });
+
+  it("marks only the Wizytówka layout as Polecany when the directory is unavailable", async () => {
+    vi.mocked(groupsApi.getOrganizerPage).mockRejectedValue(
+      new ApiError(500, "Server Error", { status: 500, message: "Server Error" }),
+    );
+    await openEditor();
+
+    await vi.waitFor(() => expect(recommendedLayouts()).toEqual(["Wizytówka"]));
   });
 
   it("shows ACCESS_DENIED_MESSAGE when the save is forbidden", async () => {

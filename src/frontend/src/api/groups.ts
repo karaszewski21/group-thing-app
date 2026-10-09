@@ -176,6 +176,8 @@ export interface PublicItemListingResponse {
   offered_types: string[];
   lister_party_id: string;
   lister_display_name: string;
+  /** Public CDN URL of the product's first approved photo. */
+  thumb_url: string | null;
 }
 
 export interface PublicTermResponse {
@@ -317,6 +319,89 @@ export function readValidGuestProfile(key: string): string | null {
 
 export function createRsvp(groupId: string, request: CreateRsvpRequest): Promise<RsvpResponse> {
   return api.post(`/groups/public/${groupId}/rsvp`, request);
+}
+
+/* ------------------------------------------------------------------ */
+/*  Public organizer directory (`/groups/public/organizers/{slug}`)    */
+/* ------------------------------------------------------------------ */
+
+export interface OrganizerNextTerm {
+  id: string;
+  occurs_on: string;
+  attendee_count: number;
+}
+
+export interface OrganizerCircle {
+  id: string;
+  name: string;
+  layout_mode: GroupLayoutMode;
+  next_term: OrganizerNextTerm | null;
+  /** Terms in the 60-day window; `next_term` itself has no window. */
+  upcoming_term_count: number;
+}
+
+export interface OrganizerTerm {
+  term_id: string;
+  group_id: string;
+  group_name: string;
+  occurs_on: string;
+  description: string | null;
+  attendee_count: number;
+}
+
+export type ExchangeMode = "GIFT" | "SWAP" | "LEND";
+
+export interface OrganizerExchangeItem {
+  item_id: string;
+  product_name: string;
+  condition: string;
+  mode: ExchangeMode;
+  thumb_url: string | null;
+  term_id: string;
+  group_id: string;
+  occurs_on: string;
+}
+
+export interface OrganizerNeededItem {
+  id: string;
+  term_id: string;
+  group_id: string;
+  product_name: string;
+  claimed: boolean;
+}
+
+export interface OrganizerStats {
+  circle_count: number;
+  upcoming_term_count: number;
+  /** `null` below 3 families. */
+  family_count: number | null;
+}
+
+/** Mirrors `app.groups.schemas.OrganizerPageResponse`. */
+export interface OrganizerPageResponse {
+  circles: OrganizerCircle[];
+  upcoming_terms: OrganizerTerm[];
+  exchange: {
+    /** Over every eligible item; `items` is capped, so it may hold fewer. */
+    counts: Record<ExchangeMode, number>;
+    items: OrganizerExchangeItem[];
+  };
+  needed_items: OrganizerNeededItem[];
+  stats: OrganizerStats;
+}
+
+export function getOrganizerPage(slug: string): Promise<OrganizerPageResponse> {
+  return api.get(`/groups/public/organizers/${encodeURIComponent(slug)}`);
+}
+
+export function getOrganizerTerms(
+  slug: string,
+  page: number,
+  groupId?: string,
+): Promise<Page<OrganizerTerm>> {
+  const params = new URLSearchParams(pageParams(page));
+  if (groupId !== undefined) params.set("group_id", groupId);
+  return api.get(`/groups/public/organizers/${encodeURIComponent(slug)}/terms?${params}`);
 }
 
 /* ------------------------------------------------------------------ */

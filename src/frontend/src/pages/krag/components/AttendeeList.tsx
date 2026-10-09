@@ -1,4 +1,6 @@
 import { Avatar } from "../../../components/shared/Avatar";
+import { PhotoPlaceholder } from "../../../components/shared/Icons";
+import { SafeImage } from "../../product/ItemGallery";
 import { attendeeElementId, type ListingRowVM } from "./termSectionTypes";
 
 export interface AttendeeVM {
@@ -10,7 +12,16 @@ export interface AttendeeVM {
 
 function ListingRow({ row }: { row: ListingRowVM }) {
   return (
-    <div className="kg-bring-item flex">
+    <div className={`kg-bring-item flex${row.thumbUrl !== undefined ? " gap-3" : ""}`}>
+      {row.thumbUrl !== undefined && (
+        <span className="flex size-12 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-cream">
+          {row.thumbUrl === null ? (
+            <PhotoPlaceholder size={20} />
+          ) : (
+            <SafeImage src={row.thumbUrl} alt="" className="size-full" placeholderSize={20} />
+          )}
+        </span>
+      )}
       <div className="kg-bring-body">
         {row.title}
         {row.subtitle != null && <small>{row.subtitle}</small>}
