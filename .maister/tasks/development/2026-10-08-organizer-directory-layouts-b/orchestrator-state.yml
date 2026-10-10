@@ -1,0 +1,101 @@
+orchestrator:
+  started_phase: phase-1
+  current_phase: phase-14
+  completed_phases: [phase-1, phase-2, phase-4, phase-5, phase-6, phase-7, phase-8, phase-10, phase-11, phase-12, phase-13, phase-14]
+  failed_phases: []
+  auto_fix_attempts: {}
+  options:
+    spec_audit_enabled: true
+    skip_test_suite: false
+    e2e_enabled: true
+    user_docs_enabled: true
+    code_review_enabled: true
+    pragmatic_review_enabled: true
+    reality_check_enabled: true
+    production_check_enabled: true
+    sequential: false
+  created: 2026-10-08T00:00:00Z
+  updated: 2026-10-10T00:00:00Z
+  task_path: .maister/tasks/development/2026-10-08-organizer-directory-layouts-b
+task:
+  title: "B: Publiczny model odczytu organizatora + układy SCHEDULE, CIRCLES, EXCHANGE"
+  description: >
+    Backend: GET /api/groups/public/organizers/{slug} (+ needed_items, + /terms z paginacją), funkcje ACL,
+    wiersz PUBLIC w macierzy uprawnień przed wierszem 26, funkcje wsadowe w bridge, test stałej liczby zapytań,
+    thumb_url na liście publicznej. Frontend: bloki agenda, circles-grid, circle-visual:mini, exchange-board,
+    needed-items, stats; układy SCHEDULE, CIRCLES, EXCHANGE w rejestrze z A2 (+ klucze w page_layouts.py,
+    test zgodności); reguła odznaki Polecany na podstawie danych katalogu (zastępuje statyczne recommended z A2).
+    Buduje na A2 (commit c026f28).
+  status: completed
+  tags: [backend, frontend, layouts, public-api]
+task_context:
+  risk_level: medium
+  clarifications_resolved: true
+  scope_expanded: true
+  tech_clarified: true
+  architecture_decision: "ADR-004 declarative block registry; ADR-005 layout set (B ships SCHEDULE, CIRCLES, EXCHANGE); ADR-012 task split (B-backend -> B-frontend)"
+  task_characteristics:
+    has_reproducible_defect: false
+    modifies_existing_code: true
+    creates_new_entities: true
+    involves_data_operations: true
+    ui_heavy: true
+  research_reference:
+    path: .maister/tasks/research/2026-10-07-organizer-page-layouts-theming
+    research_question: "Organizer page with 5 selectable layouts + palette applied to organizer/term/product pages, easy editor, ready for paid custom layouts"
+    research_type: mixed
+    confidence_level: medium-high
+    scope_selected: B
+  dependency:
+    a2_task: .maister/tasks/development/2026-10-07-organizer-layout-editor-a2
+    a2_status: completed, committed c026f28 on main
+  design_reference: {source: phase-4-ascii, product_design_path: null, mockup_count: 0, has_brief: false, index_path: analysis/design-context/INDEX.md}
+  phase_summaries:
+    research:
+      summary: "B = public organizer read model (directory endpoint + terms pagination + needed_items, ACL, PUBLIC matrix row, batch bridge fns, constant-query test, thumb_url) + data layouts SCHEDULE/CIRCLES/EXCHANGE with blocks agenda, circles-grid, circle-visual:mini, exchange-board, needed-items, stats; Polecany badge rule from directory data."
+      key_findings:
+        - "A2 delivered layout registry (CLASSIC, LINKS), LayoutRenderer, blocks, EditorSheet, static recommended flag on LINKS, page_layouts.py allowlist + FE/BE parity test"
+        - "Public organizer page today fetches only name/slug/colors/page_layout/palette_preset"
+      recommended_approach: "analysis/research-context/high-level-design.md (§6 registry/blocks, §8 API contracts for directory, §10 matrix, §12 B row); research-report.md B row l.855"
+    design: {summary: "ASCII mockups (Phase 4): 9 screens (5 layouts, owner/empty/loading/unavailable states, /:slug/terminy, editor LayoutTab badges, term-page listing thumb) + 19 components", screen_count: 9, component_count: 19, index_path: analysis/design-context/INDEX.md}
+    codebase_analysis:
+      key_files: [src/backend/app/core/authorization_matrix.py, src/backend/app/groups/router/circles.py, src/backend/app/groups/router/__init__.py, src/backend/app/groups/application/public_view.py, src/backend/app/groups/infrastructure/repository.py, src/backend/app/groups/infrastructure/organizations_acl.py, src/backend/app/groups/infrastructure/circulation_bridge.py, src/backend/app/groups/infrastructure/product_bridge.py, src/backend/app/groups/schemas.py, src/backend/app/organizations/page_layouts.py, src/frontend/src/pages/organizer/layouts/types.ts, src/frontend/src/pages/organizer/layouts/registry.ts, src/frontend/src/pages/organizer/LayoutRenderer.tsx, src/frontend/src/pages/organizer/PublicOrganizationPage.tsx, src/frontend/src/pages/organizer/editor/LayoutTab.tsx, src/frontend/src/api/groups.ts]
+      primary_language: python+typescript
+      summary: "All building blocks exist (public endpoint templates, pagination, ACL/bridge conventions, batched repo queries, storage thumbnails, A2 registry). Risks: route collision with /public/{group_id}/access, N+1 helpers in term_item_listings.py, missing get_owner_party_id, no query-count test infra, A2 FE contract much smaller than HLD (no when/isEmpty/recommendWhen/directory). Complexity complex, risk medium."
+    clarifications:
+      - "thumb_url on directory exchange.items AND term page PublicItemListingResponse"
+      - "Extra HLD blocks next-term-cta, exchange-counts, upcoming-terms:compact in scope"
+      - "Collision: organizer router first + 'access','terms' in RESERVED_SLUGS"
+      - "Agenda: 'Pokaż więcej' with useInfiniteQuery"
+    gap_analysis:
+      integration_points: [core/authorization_matrix.py, groups/router/__init__.py, organizations/slugs.py, organizations/service.py + organizations_acl.py, circulation_bridge + circulation service/repo, product_bridge + product/service.py, groups/infrastructure/repository.py, groups/application/organizer_page.py (new), groups/schemas.py, organizations/page_layouts.py, FE api/groups.ts + hooks + layouts/types/registry/LayoutRenderer + PublicOrganizationPage + EditorSheet/LayoutTab + blocks + svgs + term-page listing card]
+      summary: "Additive public read model (2 endpoints, batched, constant-query) + 9 blocks / 3 layouts; A2 FE contract must first be extended (directory/directoryStatus, when, isEmpty/mode, empty-state, recommendWhen). Critical: stats/upcoming-terms:list only placed in HLD CLASSIC. Occurs_on filters must use server-local datetime.now()." 
+    scope_clarifications: {scope_expanded: true, summary: "CLASSIC updated to HLD (stats, upcoming-terms:list primary, exchange-counts); NEW subpage /:slug/terminy + LINKS directory buttons; HLD empty states; strict role filter; family_count from members excl. owner, null<3; query-count tests (<=12, constant); no cache invalidation; multiple Polecany badges; agenda from /terms only; 60-day window; two commits BE/FE; migration 0053 index terms(circle_group_id, occurs_on); fix security.md. See analysis/scope-clarifications.md"}
+    ui_mockups: {components_designed: [StatsBlock, UpcomingTermsBlock, NextTermCtaBlock, AgendaBlock, AgendaList, CircleFilterChips, CirclesGridBlock, CircleVisualMiniBlock, ExchangeCountsBlock, ExchangeBoardBlock, ExchangeItemCard, NeededItemsBlock, EmptyStateBlock, BlockSkeleton, OrganizerTermsPage], summary: "Mockups in analysis/design-context/ascii/ui-mockups.md; shared EmptyState.tsx (Chakra/hex) and numbered Pagination not reused; exchange mode labels to termLabels.ts; EXCHANGE board shows <=12 items with client-side mode tabs"}
+    implementation: {summary: "15 groups / 92 steps done. Commits 1a72956 (B backend) and 60a7ec7 (B frontend). BE feature suite 105 passed; FE feature suite 314 passed + 5 pre-existing TermPage failures; full FE suite 762/779 with 17 failures all pre-existing at HEAD (TermPage 5, PanelPage 8, extension-points 2, foundation 1, auth 1). tsc clean, no new lint/ruff/mypy errors. User kept dayjs weekday 'Śr'. Pre-deploy slug SQL check pending."}
+    specification: {summary: "implementation/spec.md: 19 requirements (R1-R19). BE: 2 public endpoints (main <=11 queries, /terms <=5), ACL+bridge batch fns, matrix PUBLIC row, RESERVED_SLUGS, term-page thumb_url (+2 queries constant), migration 0053, count_queries helper, security.md fix. FE: A2 contract extension (directory/directoryStatus, when, mode, recommendWhen), renderer rule order, 8 new block ids + empty-state/skeleton, SCHEDULE/CIRCLES/EXCHANGE + CLASSIC(HLD) + LINKS buttons, /:slug/terminy, Polecany badges, term-page thumb. Simplifications: mode tabs inside exchange-board, circle visual inside featured card, hero:cover for CIRCLES, ghosts -> /panel/spotkania|/panel/rzeczy, SWAP=Zamienię, 12-item cap in Python. Two commits BE then FE."}
+project_context:
+  project_doc_paths:
+    - .maister/docs/project/tech-stack.md
+    - .maister/docs/project/architecture.md
+verification_context:
+  first_run: {status: passed_with_issues, critical: 0, warning: 9, report: verification/implementation-verification.md}
+  fixes_applied:
+    - "1 pagination MAX_PAGE=10000 (400 instead of 500)"
+    - "2 shared AgendaResults component"
+    - "3 _qualifying_owner_circles single rule"
+    - "4 get_owner_party_id ORDER BY created_at,id LIMIT 1"
+    - "5 migration 0053 CONCURRENTLY in autocommit_block"
+    - "6 exchange counting/ranking in SQL, needed_items LIMIT 12 (main endpoint 10 statements)"
+    - "7 Cache-Control public, max-age=60"
+    - "8 INDEX.md/architecture.md matrix location"
+    - "9 spec Known Limitations updated"
+    - "10 organizerTermPath/exchangeTotal helpers"
+    - "11 hasStatus moved to api/problem.ts"
+    - "12 OrganizerTermsPage keeps group_id on directory error"
+    - "13 a11y: alt, aria-label, skeleton sr-only, h2 day headings"
+    - "14 router.tsx comment"
+  fix_test_results: {backend: "223 passed", frontend_feature: "309 passed", frontend_full: "763 passed / 17 pre-existing failures", mypy: 32, tsc: clean}
+  reverify_count: 1
+  second_run: {status: passed_with_issues, critical: 0, warning: 2}
+  round2_fixes_applied: ["A migration transaction_per_migration + DROP IF EXISTS", "B Cache-Control max-age=0, s-maxage=60", "C spec sentences + budget test 10", "user feedback: settings icon top + close on save"]

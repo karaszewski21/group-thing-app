@@ -1,0 +1,63 @@
+orchestrator:
+  started_phase: phase-1
+  current_phase: phase-1
+  completed_phases: []
+  failed_phases: []
+  auto_fix_attempts: {}
+  options:
+    spec_audit_enabled: true
+    skip_test_suite: true
+    e2e_enabled: null
+    user_docs_enabled: null
+    code_review_enabled: true
+    pragmatic_review_enabled: true
+    reality_check_enabled: true
+    production_check_enabled: true
+    sequential: false
+  created: 2026-10-10T00:00:00Z
+  updated: 2026-10-10T00:00:00Z
+  task_path: .maister/tasks/development/2026-10-10-organization-media-d
+task:
+  title: "D: Zdjęcia organizacji (logo, okładka, galeria) na stronie organizatora"
+  description: >
+    Organizator może dodać zdjęcia do swojej publicznej strony. Zadanie D z researchu:
+    tabela organization_media (LOGO|COVER|GALLERY), trasy upload/delete/reorder, wiersz macierzy DELETE,
+    moderacja przez istniejący potok zdjęć (cron ShieldGemma w ../group-thing-ai: Subject, granty, test artefaktów),
+    hero z logo/okładką; blok gallery (D2 w researchu) do potwierdzenia zakresu.
+    Zgłoszenie użytkownika: "chce dodac u organizaotra zdjecia do jego storny".
+  status: in_progress
+  tags: [backend, frontend, media, moderation, two-repos]
+task_context:
+  risk_level: null
+  clarifications_resolved: null
+  scope_expanded: null
+  tech_clarified: null
+  architecture_decision: null
+  task_characteristics:
+    has_reproducible_defect: false
+    modifies_existing_code: false
+    creates_new_entities: false
+    involves_data_operations: false
+    ui_heavy: false
+  research_reference:
+    path: .maister/tasks/research/2026-10-07-organizer-page-layouts-theming
+    research_question: "Organizer page with 5 selectable layouts + palette applied to organizer/term/product pages, easy editor, ready for paid custom layouts"
+    research_type: mixed
+    confidence_level: medium-high
+    scope_selected: D (+ D2 gallery block TBC)
+  dependency:
+    completed: "A1, A2, B (commits 1a72956, 60a7ec7, 7b72730, 0e9b2ce)"
+    task_c: "not done — organization content (tagline/description); migration numbering must account for it"
+  design_reference: null
+  phase_summaries:
+    research:
+      summary: "D = organization_media table (same column set as profile_avatars 0051, cron contract), routes POST/DELETE/PATCH order under /api/organizations/{id}/media, new DELETE matrix row (P3), moderation union/decide/delete/admin label, group-thing-ai Subject + grants + deploy-artifacts test; deploy order migration → grants → cron; pending variant B (last approved stays public, owner sees 'W weryfikacji'). D2 = gallery block + og:image."
+      key_findings:
+        - "research-report.md §10.3 (l.587), task table l.857-858, P3 l.970"
+        - "Hero block already has cover variant falling back to color band"
+      recommended_approach: "analysis/research-context/research-report.md §10.3 + high-level-design.md"
+project_context:
+  project_doc_paths:
+    - .maister/docs/project/tech-stack.md
+    - .maister/docs/project/architecture.md
+security_note: "Never print env/secret values (CLAUDE.md Secrets). Repeat in subagent prompts touching config/storage."
