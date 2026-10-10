@@ -156,9 +156,10 @@ export const router = createBrowserRouter([
         element: <TermPage />,
       },
       {
-        // The organizer's full agenda — public, no AuthGuard. "terminy" is in
-        // the backend's RESERVED_SLUGS, so no organizer slug can equal it;
-        // declared before the `/:organizationSlug` catch-all below.
+        // The organizer's full agenda — public, no AuthGuard. Two segments, so
+        // the single-segment `/:organizationSlug` catch-all below never matches
+        // it. "terminy" is in the backend's RESERVED_SLUGS only so a slug never
+        // reads like this path segment (as with "grupa").
         path: "/:organizationSlug/terminy",
         element: <OrganizerTermsPage />,
       },

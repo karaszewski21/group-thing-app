@@ -1,6 +1,7 @@
 import { Link } from "react-router-dom";
 import dayjs from "../../../utils/dayjs";
 import type { BlockProps } from "../layouts/types";
+import { exchangeTotal, organizerTermPath } from "../organizerHelpers";
 import { nearestTerm } from "./nearestTerm";
 import { ShareButton } from "./ShareButton";
 
@@ -13,10 +14,6 @@ const SKELETON_BAR = "h-12 w-full rounded-2xl bg-line/60 animate-pulse motion-re
 interface DirectoryLink {
   label: string;
   to: string;
-}
-
-function termPath(slug: string, term: { group_id: string; term_id: string }): string {
-  return `/${slug}/grupa/${term.group_id}/term/${term.term_id}`;
 }
 
 /** LINKS button stack: the nearest term, the full agenda and the exchange,
@@ -32,16 +29,19 @@ export function LinkStackBlock({ data }: BlockProps) {
     if (nearest) {
       links.push({
         label: `Najbliższe zajęcia · ${dayjs(nearest.occurs_on).format("dd D.MM HH:mm")}`,
-        to: termPath(slug, nearest),
+        to: organizerTermPath(slug, nearest.group_id, nearest.term_id),
       });
     }
     const termCount = directory.stats.upcoming_term_count;
     if (termCount > 0) links.push({ label: `Wszystkie terminy (${termCount})`, to: `/${slug}/terminy` });
     const { counts, items } = directory.exchange;
-    const itemCount = counts.GIFT + counts.SWAP + counts.LEND;
+    const itemCount = exchangeTotal(counts);
     const exchangeTerm = items[0] ?? nearest;
     if (itemCount > 0 && exchangeTerm) {
-      links.push({ label: `Wymiana rzeczy (${itemCount})`, to: termPath(slug, exchangeTerm) });
+      links.push({
+        label: `Wymiana rzeczy (${itemCount})`,
+        to: organizerTermPath(slug, exchangeTerm.group_id, exchangeTerm.term_id),
+      });
     }
   }
 
@@ -49,6 +49,7 @@ export function LinkStackBlock({ data }: BlockProps) {
     <div className="flex flex-col gap-3 px-6">
       {data.directoryStatus === "loading" && (
         <div aria-busy="true" className="flex flex-col gap-3">
+          <span className="sr-only">Ładowanie…</span>
           <div aria-hidden="true" className={SKELETON_BAR} />
           <div aria-hidden="true" className={SKELETON_BAR} />
         </div>

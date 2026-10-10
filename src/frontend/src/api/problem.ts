@@ -33,6 +33,10 @@ function isLegacyErrorEnvelope(body: unknown): body is LegacyErrorEnvelope {
   return typeof c.message === "string";
 }
 
+export function hasStatus(err: unknown, status: number): boolean {
+  return err instanceof ApiError && err.status === status;
+}
+
 export function extractProblemMessage(err: unknown): string {
   if (err instanceof ApiError) {
     if (isProblemDetail(err.body)) {

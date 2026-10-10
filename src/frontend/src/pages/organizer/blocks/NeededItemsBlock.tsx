@@ -4,6 +4,7 @@ import type { OrganizerPageResponse } from "../../../api/groups";
 import { BringsIcon } from "../../../components/shared/Icons";
 import dayjs from "../../../utils/dayjs";
 import type { BlockProps, OrganizerPageData } from "../layouts/types";
+import { organizerTermPath } from "../organizerHelpers";
 
 // eslint-disable-next-line react-refresh/only-export-components -- the renderer reads each block's isEmpty next to it
 export function isNeededItemsEmpty(data: OrganizerPageData): boolean {
@@ -55,7 +56,7 @@ export function NeededItemsBlock({ data }: BlockProps) {
                 )}
               </span>
               <Link
-                to={`/${slug}/grupa/${item.group_id}/term/${item.term_id}`}
+                to={organizerTermPath(slug, item.group_id, item.term_id)}
                 aria-label={`Zobacz termin: ${item.product_name}`}
                 className="flex min-h-[44px] shrink-0 items-center text-[13px] font-extrabold text-primary-fg focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring"
               >

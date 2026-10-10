@@ -6,6 +6,7 @@ import dayjs from "../../../utils/dayjs";
 import { CONDITION_LABELS } from "../../../utils/productCategory";
 import { EXCHANGE_MODE_LABELS, EXCHANGE_MODE_TONE } from "../../krag/components/termLabels";
 import { SafeImage } from "../../product/ItemGallery";
+import { organizerTermPath } from "../organizerHelpers";
 
 interface ExchangeItemCardProps {
   slug: string;
@@ -18,13 +19,13 @@ export function ExchangeItemCard({ slug, item }: ExchangeItemCardProps) {
   const condition = CONDITION_LABELS[item.condition as ItemCondition] ?? item.condition;
   return (
     <Link
-      to={`/${slug}/grupa/${item.group_id}/term/${item.term_id}`}
+      to={organizerTermPath(slug, item.group_id, item.term_id)}
       className="flex h-full flex-col rounded-2xl border border-line bg-paper p-2.5 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring"
     >
       {item.thumb_url ? (
         <SafeImage
           src={item.thumb_url}
-          alt={item.product_name}
+          alt=""
           className="aspect-square w-full rounded-xl object-cover"
           placeholderSize={32}
         />

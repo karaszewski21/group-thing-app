@@ -1,13 +1,12 @@
 import { useQuery } from "@tanstack/react-query";
 import { useCallback } from "react";
-import { ApiError } from "../api/client";
 import {
   getGroup,
   getTermAttendeesForFormalization,
   type GroupResponse,
   type TermAttendeeResponse,
 } from "../api/groups";
-import { extractProblemMessage } from "../api/problem";
+import { extractProblemMessage, hasStatus } from "../api/problem";
 import { getTerm, type TermResponse } from "../api/terms";
 
 const TERM_KEY = "term";
@@ -25,10 +24,6 @@ interface UseTermAttendeesResult {
   error: string | null;
   loading: boolean;
   refetch: () => Promise<void>;
-}
-
-export function hasStatus(err: unknown, status: number): boolean {
-  return err instanceof ApiError && err.status === status;
 }
 
 /** The organizer attendees page's data: the term, then (once the term is

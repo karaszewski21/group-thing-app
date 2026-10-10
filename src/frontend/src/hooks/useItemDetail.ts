@@ -7,7 +7,7 @@ import {
   type ItemDetailsResponse,
   type ItemHistoryEntryResponse,
 } from "../api/items";
-import { extractProblemMessage, serverMessageOr } from "../api/problem";
+import { extractProblemMessage, hasStatus, serverMessageOr } from "../api/problem";
 import {
   addProductPhoto,
   deleteProductPhoto,
@@ -15,7 +15,6 @@ import {
   resolveProduct,
   updateProductDescription,
 } from "../api/products";
-import { hasStatus } from "./useTermAttendees";
 
 const ITEM_DETAILS_KEY = "itemDetails";
 const ITEM_HISTORY_KEY = "itemHistory";

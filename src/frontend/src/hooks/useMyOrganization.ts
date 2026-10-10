@@ -1,9 +1,8 @@
 import { useQuery } from "@tanstack/react-query";
 import { useCallback } from "react";
 import { getMyOrganization, type OrganizationResponse } from "../api/organizations";
-import { extractProblemMessage } from "../api/problem";
+import { extractProblemMessage, hasStatus } from "../api/problem";
 import { useAuth } from "../auth/AuthContext";
-import { hasStatus } from "./useTermAttendees";
 
 export const MY_ORGANIZATION_KEY = "myOrganization";
 

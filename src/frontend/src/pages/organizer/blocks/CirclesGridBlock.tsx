@@ -4,6 +4,7 @@ import { GroupsIcon } from "../../../components/shared/Icons";
 import dayjs from "../../../utils/dayjs";
 import { pluralPl } from "../../../utils/plural";
 import type { BlockProps, OrganizerPageData } from "../layouts/types";
+import { organizerTermPath } from "../organizerHelpers";
 import { CircleVisualMini } from "./CircleVisualMini";
 
 // eslint-disable-next-line react-refresh/only-export-components -- the renderer reads each block's isEmpty next to it
@@ -14,7 +15,7 @@ export function isCirclesGridEmpty(data: OrganizerPageData): boolean {
 /** The circle's next term page, else the terms list filtered to the circle. */
 function circleHref(slug: string, circle: OrganizerCircle): string {
   return circle.next_term
-    ? `/${slug}/grupa/${circle.id}/term/${circle.next_term.id}`
+    ? organizerTermPath(slug, circle.id, circle.next_term.id)
     : `/${slug}/terminy?group_id=${circle.id}`;
 }
 

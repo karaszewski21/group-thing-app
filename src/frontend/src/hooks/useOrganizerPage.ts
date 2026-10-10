@@ -1,8 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { useCallback } from "react";
 import { getOrganizerPage, type OrganizerPageResponse } from "../api/groups";
-import { extractProblemMessage } from "../api/problem";
-import { hasStatus } from "./useTermAttendees";
+import { extractProblemMessage, hasStatus } from "../api/problem";
 
 export const ORGANIZER_PAGE_KEY = "organizerPage";
 

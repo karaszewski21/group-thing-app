@@ -4,6 +4,7 @@ import exchangeThumbnail from "../../../assets/layouts/exchange.svg";
 import linksThumbnail from "../../../assets/layouts/links.svg";
 import scheduleThumbnail from "../../../assets/layouts/schedule.svg";
 import dayjs from "../../../utils/dayjs";
+import { exchangeTotal } from "../organizerHelpers";
 import type { OrganizerPageData, PageLayoutDefinition } from "./types";
 
 const SCHEDULE_MIN_TERMS = 4;
@@ -18,7 +19,7 @@ function termsWithinHorizon(data: OrganizerPageData): number {
 
 function exchangeItemCount(data: OrganizerPageData): number {
   const counts = data.directory?.exchange.counts;
-  return counts ? counts.GIFT + counts.SWAP + counts.LEND : 0;
+  return counts ? exchangeTotal(counts) : 0;
 }
 
 /** Public organization page layouts. Keys must stay in sync with

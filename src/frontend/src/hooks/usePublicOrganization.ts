@@ -1,8 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { useCallback } from "react";
 import { getPublicOrganization, type PublicOrganizationResponse } from "../api/organizations";
-import { extractProblemMessage } from "../api/problem";
-import { hasStatus } from "./useTermAttendees";
+import { extractProblemMessage, hasStatus } from "../api/problem";
 
 export const PUBLIC_ORGANIZATION_KEY = "publicOrganization";
 

@@ -3,6 +3,7 @@ import type { ExchangeMode } from "../../../api/groups";
 import { EXCHANGE_MODE_LABELS, EXCHANGE_MODE_TONE } from "../../krag/components/termLabels";
 import { nextIndex } from "../editor/rovingIndex";
 import type { BlockProps, OrganizerPageData } from "../layouts/types";
+import { exchangeTotal } from "../organizerHelpers";
 import { ExchangeItemCard } from "./ExchangeItemCard";
 
 type Filter = "ALL" | ExchangeMode;
@@ -25,7 +26,7 @@ export function ExchangeBoardBlock({ data }: BlockProps) {
 
   const { counts, items } = exchange;
   const tabs: { id: Filter; label: string; count: number; tone: string }[] = [
-    { id: "ALL", label: "Wszystko", count: counts.GIFT + counts.SWAP + counts.LEND, tone: "bg-cream text-ink" },
+    { id: "ALL", label: "Wszystko", count: exchangeTotal(counts), tone: "bg-cream text-ink" },
     ...MODES.map((mode) => ({
       id: mode,
       label: EXCHANGE_MODE_LABELS[mode],
@@ -49,7 +50,7 @@ export function ExchangeBoardBlock({ data }: BlockProps) {
 
   return (
     <section className="px-6 pt-5">
-      <div role="tablist" aria-label="Wymiana rzeczy" className="-mx-6 flex snap-x gap-1.5 overflow-x-auto px-6 pb-1">
+      <div role="tablist" aria-label="Wymiana rzeczy" className="-mx-6 flex snap-x scroll-px-6 gap-1.5 overflow-x-auto px-6 pb-1">
         {tabs.map((tab) => {
           const on = tab.id === filter;
           return (

@@ -2,13 +2,14 @@ import { Link } from "react-router-dom";
 import type { ExchangeMode } from "../../../api/groups";
 import { EXCHANGE_MODE_LABELS, EXCHANGE_MODE_TONE } from "../../krag/components/termLabels";
 import type { BlockProps, OrganizerPageData } from "../layouts/types";
+import { exchangeTotal, organizerTermPath } from "../organizerHelpers";
 
 const EXCHANGE_MODES = Object.keys(EXCHANGE_MODE_LABELS) as ExchangeMode[];
 
 // eslint-disable-next-line react-refresh/only-export-components -- the renderer reads each block's isEmpty next to it
 export function isExchangeCountsEmpty(data: OrganizerPageData): boolean {
   const counts = data.directory?.exchange.counts;
-  return !counts || counts.GIFT + counts.SWAP + counts.LEND === 0;
+  return !counts || exchangeTotal(counts) === 0;
 }
 
 /** `tiles3`: how many items are offered per mode, each tile leading to a term
@@ -35,7 +36,7 @@ export function ExchangeCountsBlock({ data }: BlockProps) {
           return first ? (
             <Link
               key={mode}
-              to={`/${slug}/grupa/${first.group_id}/term/${first.term_id}`}
+              to={organizerTermPath(slug, first.group_id, first.term_id)}
               className={`${className} focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring`}
             >
               {content}

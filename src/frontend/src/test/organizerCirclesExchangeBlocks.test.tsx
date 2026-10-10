@@ -165,7 +165,10 @@ describe("ExchangeItemCard", () => {
     );
     const link = screen.getByRole("link");
     expect(link).toHaveAttribute("href", `/${SLUG}/grupa/g1/term/term-1`);
-    expect(within(link).getByRole("img", { name: "Rzecz 1" })).toHaveAttribute("src", "https://cdn.example/1.jpg");
+    const thumb = link.querySelector("img");
+    expect(thumb).toHaveAttribute("src", "https://cdn.example/1.jpg");
+    expect(thumb).toHaveAttribute("alt", "");
+    expect(link).toHaveAccessibleName(/Rzecz 1/);
     expect(link).toHaveTextContent("Zamienię");
     expect(link).toHaveTextContent("Dobry");
     expect(link).toHaveTextContent("odbiór: Śr 14 paź");

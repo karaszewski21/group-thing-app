@@ -193,10 +193,10 @@ describe("AgendaBlock", () => {
     expect(wednesday).toHaveClass("uppercase");
     expect(screen.getByRole("heading", { level: 3, name: "piątek, 16 października" })).toBeInTheDocument();
     expect(screen.getByText("Turniej")).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: /Młodziki 2015, środa 14 października, 18:15, zapisanych 12/ })).toHaveAttribute(
-      "href",
-      `/${SLUG}/grupa/g2/term/t2`,
-    );
+    const row = screen.getByRole("link", { name: /Młodziki 2015/ });
+    expect(row).toHaveAttribute("href", `/${SLUG}/grupa/g2/term/t2`);
+    expect(row).toHaveTextContent("18:15");
+    expect(row).toHaveTextContent("zapisanych 12");
 
     fireEvent.click(screen.getByRole("button", { name: "Pokaż kolejne terminy" }));
 

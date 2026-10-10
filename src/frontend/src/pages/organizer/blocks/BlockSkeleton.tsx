@@ -5,6 +5,7 @@ const BAR = "rounded bg-line/60 animate-pulse motion-reduce:animate-none";
 export function BlockSkeleton({ shape }: { shape: "rows" | "grid" }) {
   return (
     <div aria-busy="true" className="px-6 pt-6">
+      <span className="sr-only">Ładowanie…</span>
       <div aria-hidden="true" className={`mb-3 h-4 w-1/3 ${BAR}`} />
       {shape === "grid" ? (
         <div className="grid grid-cols-2 gap-2.5">

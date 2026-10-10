@@ -134,6 +134,13 @@ beforeEach(() => {
   vi.mocked(groupsApi.getOrganizerPage).mockResolvedValue(DIRECTORY);
 });
 
+async function expectSheetClosedAfterSave() {
+  await vi.waitFor(() => expect(screen.queryByRole("dialog", { name: "Wygląd strony" })).not.toBeInTheDocument());
+  expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument();
+  expect(screen.getByTestId("location")).toHaveTextContent(/^\/muzyczne-skrzaty$/);
+  expect(screen.getByRole("button", { name: "Edytuj wygląd" })).toHaveFocus();
+}
+
 describe("Organizer editor sheet", () => {
   it("opens for the owner with ?edit=1 inside the theme scope and focuses its title", async () => {
     const { sheet } = await openEditor();
@@ -143,7 +150,7 @@ describe("Organizer editor sheet", () => {
     expect(screen.getByRole("heading", { name: "Wygląd strony" })).toHaveFocus();
     expect(screen.getByRole("tab", { name: "Układ" })).toHaveAttribute("aria-selected", "true");
     expect(screen.getByRole("radio", { name: "Klasyczny" })).toHaveAttribute("aria-checked", "true");
-    expect(screen.queryByRole("button", { name: "Edytuj wygląd" })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Edytuj wygląd" })).toHaveAttribute("aria-expanded", "true");
   });
 
   it("previews a chosen layout before saving, and Anuluj restores it with the sheet still open", async () => {
@@ -162,7 +169,7 @@ describe("Organizer editor sheet", () => {
     expect(screen.getByRole("button", { name: "Zapisz" })).toBeDisabled();
   });
 
-  it("saves only the changed layout and confirms with ✓ Zapisano", async () => {
+  it("saves only the changed layout and closes the sheet", async () => {
     vi.mocked(organizationsApi.updateOrganization).mockResolvedValue({ ...MY_ORGANIZATION, page_layout: "LINKS" });
     await openEditor();
     chooseLinks();
@@ -171,11 +178,10 @@ describe("Organizer editor sheet", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Zapisz" }));
 
-    expect(await screen.findByText("✓ Zapisano")).toBeInTheDocument();
+    await expectSheetClosedAfterSave();
     expect(organizationsApi.updateOrganization).toHaveBeenCalledTimes(1);
     expect(organizationsApi.updateOrganization).toHaveBeenCalledWith("org-1", { page_layout: "LINKS" });
     expect(screen.getByRole("button", { name: "Udostępnij stronę" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Zapisz" })).toBeDisabled();
   });
 
   it("asks before discarding a dirty draft on close, and Odrzuć closes the sheet", async () => {
@@ -213,7 +219,7 @@ describe("Organizer editor sheet", () => {
     expect(screen.getByRole("button", { name: "Zamknij" })).toHaveFocus();
   });
 
-  it("locks the tab panel while saving and keeps a change made meanwhile as unsaved", async () => {
+  it("locks the tab panel while saving and closes the sheet once saved", async () => {
     let finishSave!: () => void;
     vi.mocked(organizationsApi.updateOrganization).mockImplementation(
       () =>
@@ -226,19 +232,14 @@ describe("Organizer editor sheet", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Zapisz" }));
 
-    const classic = screen.getByRole("radio", { name: "Klasyczny" });
-    expect(classic).toBeDisabled();
-    // A change that still slips in during the request must not be swallowed by its success.
-    fireEvent.click(classic);
+    expect(screen.getByRole("radio", { name: "Klasyczny" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Zapisywanie…" })).toBeDisabled();
     vi.mocked(organizationsApi.getPublicOrganization).mockResolvedValue({ ...ORGANIZATION, page_layout: "LINKS" });
     vi.mocked(organizationsApi.getMyOrganization).mockResolvedValue({ ...MY_ORGANIZATION, page_layout: "LINKS" });
     await act(async () => finishSave());
 
     expect(organizationsApi.updateOrganization).toHaveBeenCalledWith("org-1", { page_layout: "LINKS" });
-    expect(await screen.findByRole("radio", { name: "Klasyczny" })).toBeEnabled();
-    expect(screen.getByRole("radio", { name: "Klasyczny" })).toHaveAttribute("aria-checked", "true");
-    expect(await screen.findByRole("button", { name: "Zapisz" })).toBeEnabled();
-    expect(screen.getByRole("button", { name: "Anuluj" })).toBeEnabled();
+    await expectSheetClosedAfterSave();
   });
 
   it("drops the draft when the sheet closes without Zamknij, and reopens clean", async () => {
@@ -376,7 +377,7 @@ describe("Organizer editor colors tab", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Zapisz" }));
 
-    expect(await screen.findByText("✓ Zapisano")).toBeInTheDocument();
+    await expectSheetClosedAfterSave();
     expect(organizationsApi.updateOrganization).toHaveBeenCalledWith("org-1", {
       palette_preset: "OCEAN",
       primary_color: OCEAN.vars["--color-primary"],
@@ -400,7 +401,7 @@ describe("Organizer editor colors tab", () => {
     else fireEvent.click(screen.getByRole("button", { name: "Przywróć domyślne" }));
     fireEvent.click(screen.getByRole("button", { name: "Zapisz" }));
 
-    expect(await screen.findByText("✓ Zapisano")).toBeInTheDocument();
+    await expectSheetClosedAfterSave();
     expect(organizationsApi.updateOrganization).toHaveBeenCalledWith("org-1", {
       palette_preset: null,
       primary_color: null,
@@ -439,7 +440,7 @@ describe("Organizer editor colors tab", () => {
     fireEvent.click(screen.getByRole("radio", { name: "Automatyczny" }));
     fireEvent.click(screen.getByRole("button", { name: "Zapisz" }));
 
-    expect(await screen.findByText("✓ Zapisano")).toBeInTheDocument();
+    await expectSheetClosedAfterSave();
     expect(organizationsApi.updateOrganization).toHaveBeenCalledWith("org-1", { accent_color: null });
   });
 

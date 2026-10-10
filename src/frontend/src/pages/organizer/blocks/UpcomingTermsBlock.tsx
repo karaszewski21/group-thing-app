@@ -1,7 +1,7 @@
 import { Link } from "react-router-dom";
-import type { OrganizerTerm } from "../../../api/groups";
 import dayjs from "../../../utils/dayjs";
 import type { BlockProps, OrganizerPageData } from "../layouts/types";
+import { organizerTermPath } from "../organizerHelpers";
 import { nearestTerm } from "./nearestTerm";
 
 const COMPACT_LIMIT = 3;
@@ -26,10 +26,6 @@ export function isUpcomingTermsEmpty(data: OrganizerPageData): boolean {
   return nearestTerm(data.directory) === null;
 }
 
-function termPath(slug: string, term: OrganizerTerm): string {
-  return `/${slug}/grupa/${term.group_id}/term/${term.term_id}`;
-}
-
 /** `list` (default): date-tile rows linking to each term, plus a link to the
  * full agenda. `compact`: up to three date chips. An empty 60-day window
  * falls back to the nearest term beyond it. */
@@ -49,7 +45,7 @@ export function UpcomingTermsBlock({ data, variant }: BlockProps) {
           {terms.slice(0, COMPACT_LIMIT).map((term) => (
             <li key={term.term_id} className="shrink-0">
               <Link
-                to={termPath(slug, term)}
+                to={organizerTermPath(slug, term.group_id, term.term_id)}
                 className={`flex min-h-[44px] items-center whitespace-nowrap rounded-full border border-line bg-paper px-4 text-[13px] font-bold text-ink ${FOCUS_RING}`}
               >
                 {dayjs(term.occurs_on).format("dd D MMM")}
@@ -80,7 +76,7 @@ export function UpcomingTermsBlock({ data, variant }: BlockProps) {
           return (
             <li key={term.term_id}>
               <Link
-                to={termPath(slug, term)}
+                to={organizerTermPath(slug, term.group_id, term.term_id)}
                 className={`flex min-h-14 items-center gap-3 rounded-2xl px-3 py-2.5 ${FOCUS_RING}`}
               >
                 <DateTile occursOn={term.occurs_on} />

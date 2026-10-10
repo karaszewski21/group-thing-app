@@ -1,14 +1,13 @@
 import { useInfiniteQuery } from "@tanstack/react-query";
 import { useCallback, useMemo } from "react";
 import { getOrganizerTerms, type OrganizerTerm } from "../api/groups";
-import { extractProblemMessage } from "../api/problem";
-import { hasStatus } from "./useTermAttendees";
+import { extractProblemMessage, hasStatus } from "../api/problem";
 
 export const ORGANIZER_TERMS_KEY = "organizerTerms";
 
 const NO_TERMS: OrganizerTerm[] = [];
 
-interface UseOrganizerTermsResult {
+export interface UseOrganizerTermsResult {
   terms: OrganizerTerm[];
   total: number;
   loading: boolean;

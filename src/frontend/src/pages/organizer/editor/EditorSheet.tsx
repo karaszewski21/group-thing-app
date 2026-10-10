@@ -31,12 +31,12 @@ interface EditorSheetProps {
 
 /** The owner's appearance editor, docked at the bottom of their public page.
  * Non-modal: no scrim, no focus trap, Esc does nothing, and the page above
- * stays usable and shows the draft live. Only closing explicitly (X) or
- * leaving for another page asks before an unsaved draft is dropped. */
+ * stays usable and shows the draft live. A successful save closes it; only
+ * closing explicitly (X) or leaving for another page asks before an unsaved
+ * draft is dropped. */
 export function EditorSheet({ pageData, draft, dirty, onChange, onReset, onSave, onClose }: EditorSheetProps) {
   const [tab, setTab] = useState<Tab>("uklad");
   const [saving, setSaving] = useState(false);
-  const [saved, setSaved] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [customInvalid, setCustomInvalid] = useState(false);
@@ -58,27 +58,24 @@ export function EditorSheet({ pageData, draft, dirty, onChange, onReset, onSave,
 
   function change(next: Draft) {
     setError(null);
-    setSaved(false);
     onChange(next);
   }
 
   async function save() {
     setSaving(true);
     setError(null);
-    setSaved(false);
     try {
       await onSave();
-      setSaved(true);
     } catch (err) {
       setError(err instanceof Error ? err.message : SAVE_FALLBACK);
-    } finally {
       setSaving(false);
+      return;
     }
+    onClose();
   }
 
   function reset() {
     setError(null);
-    setSaved(false);
     setResetCount((count) => count + 1);
     onReset();
   }
@@ -192,10 +189,7 @@ export function EditorSheet({ pageData, draft, dirty, onChange, onReset, onSave,
           </div>
         )}
 
-        <div className="mt-4 flex items-center gap-2.5 border-t border-line pt-4">
-          <span role="status" className="mr-auto text-sm font-bold text-primary-fg">
-            {saved ? "✓ Zapisano" : ""}
-          </span>
+        <div className="mt-4 flex items-center justify-end gap-2.5 border-t border-line pt-4">
           <button
             type="button"
             onClick={reset}

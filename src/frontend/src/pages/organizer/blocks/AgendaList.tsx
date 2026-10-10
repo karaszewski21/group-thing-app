@@ -1,6 +1,7 @@
 import { Link } from "react-router-dom";
 import type { OrganizerTerm } from "../../../api/groups";
 import dayjs from "../../../utils/dayjs";
+import { organizerTermPath } from "../organizerHelpers";
 
 interface AgendaDay {
   key: string;
@@ -24,30 +25,30 @@ function groupByDay(terms: OrganizerTerm[]): AgendaDay[] {
 interface AgendaListProps {
   slug: string;
   terms: OrganizerTerm[];
+  /** One level below the heading the list sits under. */
+  dayHeadingLevel: 2 | 3;
 }
 
 /** Terms grouped under day headers, each row one link to the term page.
  * Shared by the agenda block and the `/:slug/terminy` page. */
-export function AgendaList({ slug, terms }: AgendaListProps) {
+export function AgendaList({ slug, terms, dayHeadingLevel }: AgendaListProps) {
+  const DayHeading = dayHeadingLevel === 2 ? "h2" : "h3";
   return (
     <div className="flex flex-col gap-4">
       {groupByDay(terms).map((day) => (
         <section key={day.key}>
-          <h3 className="sticky top-0 z-[1] bg-cream py-1.5 text-[12px] font-extrabold uppercase tracking-wide text-ink-soft">
+          <DayHeading className="sticky top-0 z-[1] bg-cream py-1.5 text-[12px] font-extrabold uppercase tracking-wide text-ink-soft">
             {day.label}
-          </h3>
+          </DayHeading>
           <ol className="mt-1 divide-y divide-line rounded-2xl border border-line bg-paper">
             {day.terms.map((term) => {
               const date = dayjs(term.occurs_on);
               const time = date.format("HH:mm");
               const counted = term.attendee_count > 0;
-              const accessibleName = [term.group_name, date.format("dddd D MMMM"), time];
-              if (counted) accessibleName.push(`zapisanych ${term.attendee_count}`);
               return (
                 <li key={term.term_id}>
                   <Link
-                    to={`/${slug}/grupa/${term.group_id}/term/${term.term_id}`}
-                    aria-label={accessibleName.join(", ")}
+                    to={organizerTermPath(slug, term.group_id, term.term_id)}
                     className="flex min-h-[52px] items-center gap-3 rounded-2xl px-4 py-2.5 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring"
                   >
                     <span className="w-12 shrink-0 text-[14px] font-extrabold text-ink">{time}</span>

@@ -1,6 +1,7 @@
 import { Link } from "react-router-dom";
 import dayjs from "../../../utils/dayjs";
 import type { BlockProps, OrganizerPageData } from "../layouts/types";
+import { organizerTermPath } from "../organizerHelpers";
 import { nearestTerm } from "./nearestTerm";
 import { DateTile } from "./UpcomingTermsBlock";
 
@@ -27,7 +28,7 @@ export function NextTermCtaBlock({ data }: BlockProps) {
           </div>
         </div>
         <Link
-          to={`/${data.organization.slug}/grupa/${term.group_id}/term/${term.term_id}`}
+          to={organizerTermPath(data.organization.slug, term.group_id, term.term_id)}
           className="mt-3 flex min-h-11 items-center justify-center rounded-full bg-primary px-4 text-[14px] font-extrabold text-on-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring"
         >
           Zobacz i zapisz się →

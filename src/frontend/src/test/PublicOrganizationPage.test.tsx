@@ -190,22 +190,23 @@ describe("PublicOrganizationPage", () => {
     expect(screen.queryByText("Opis — wkrótce")).not.toBeInTheDocument();
   });
 
-  it("shows the owner the ghost and the Edytuj wygląd pill, which opens edit mode", async () => {
+  it("shows the owner the ghost and the Edytuj wygląd settings button, which opens edit mode", async () => {
     mockAuth = { token: "owner-token" };
     vi.mocked(organizationsApi.getPublicOrganization).mockResolvedValue(ORGANIZATION);
     vi.mocked(organizationsApi.getMyOrganization).mockResolvedValue(MY_ORGANIZATION);
 
     renderAt("/muzyczne-skrzaty");
 
-    const pill = await screen.findByRole("button", { name: "Edytuj wygląd" });
+    const settings = await screen.findByRole("button", { name: "Edytuj wygląd" });
     expect(screen.getByText("Opis — wkrótce")).toBeInTheDocument();
-    const scope = themeScope(pill);
+    const scope = themeScope(settings);
     expect(scope).toContainElement(screen.getByText("Opis — wkrótce"));
+    expect(settings).toHaveAttribute("aria-expanded", "false");
 
-    fireEvent.click(pill);
+    fireEvent.click(settings);
 
     expect(screen.getByTestId("location")).toHaveTextContent("/muzyczne-skrzaty?edit=1");
-    expect(screen.queryByRole("button", { name: "Edytuj wygląd" })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Edytuj wygląd" })).toHaveAttribute("aria-expanded", "true");
   });
 
   it("keeps the hero, share and footer when the directory request fails", async () => {

@@ -132,13 +132,13 @@ describe("OrganizerTermsPage", () => {
     expect(heading.closest("[data-organizer-theme]")).toHaveAttribute("data-organizer-theme", "custom");
     expect(
       await screen.findByRole("heading", {
-        level: 3,
+        level: 2,
         name: "środa, 14 października",
       }),
     ).toBeInTheDocument();
     expect(
       screen.getByRole("heading", {
-        level: 3,
+        level: 2,
         name: "piątek, 16 października",
       }),
     ).toBeInTheDocument();
@@ -189,6 +189,18 @@ describe("OrganizerTermsPage", () => {
     expect(groupsApi.getOrganizerTerms).not.toHaveBeenCalledWith(SLUG, 1, "not-a-circle");
   });
 
+  it("keeps group_id in the URL when the directory fails to load", async () => {
+    vi.mocked(groupsApi.getOrganizerPage).mockRejectedValue(new ApiError(503, "Service Unavailable", null));
+    vi.mocked(groupsApi.getOrganizerTerms).mockResolvedValue(termsPage([term("t1", "2026-10-14T17:00:00")], 1, 1));
+
+    renderAt(`/${SLUG}/terminy?group_id=g2`);
+
+    expect(await screen.findByRole("heading", { level: 2, name: "środa, 14 października" })).toBeInTheDocument();
+    expect(groupsApi.getOrganizerTerms).toHaveBeenCalledWith(SLUG, 1, undefined);
+    expect(groupsApi.getOrganizerTerms).not.toHaveBeenCalledWith(SLUG, 1, "g2");
+    expect(location()).toBe(`/${SLUG}/terminy?group_id=g2`);
+  });
+
   it("loads the next page on demand, announces the new terms and hides the button at the end", async () => {
     let resolveSecond: (value: Page<OrganizerTerm>) => void = () => {};
     vi.mocked(groupsApi.getOrganizerTerms).mockImplementation((_slug, page) =>
@@ -210,7 +222,7 @@ describe("OrganizerTermsPage", () => {
     expect(await screen.findByText("Wczytano 2 kolejne terminy")).toHaveAttribute("aria-live", "polite");
     expect(
       screen.getByRole("heading", {
-        level: 3,
+        level: 2,
         name: "niedziela, 18 października",
       }),
     ).toBeInTheDocument();
@@ -258,7 +270,7 @@ describe("OrganizerTermsPage", () => {
 
     expect(
       await screen.findByRole("heading", {
-        level: 3,
+        level: 2,
         name: "środa, 14 października",
       }),
     ).toBeInTheDocument();

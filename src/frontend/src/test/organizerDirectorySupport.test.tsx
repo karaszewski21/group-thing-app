@@ -138,6 +138,7 @@ describe("BlockSkeleton", () => {
 
     const busy = container.querySelector('[aria-busy="true"]');
     expect(busy).not.toBeNull();
+    expect(busy).toHaveTextContent("Ładowanie…");
     const bars = busy!.querySelectorAll(".animate-pulse");
     expect(bars.length).toBeGreaterThan(1);
     for (const bar of bars) {
