@@ -16,6 +16,9 @@ uv.lock.tmp
 node_modules/
 dist/
 
+# Playwright MCP artifacts (screenshots, page snapshots, console logs)
+.playwright-mcp/
+
 # Editor/OS
 .DS_Store
 Thumbs.db

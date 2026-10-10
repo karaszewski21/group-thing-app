@@ -19,3 +19,10 @@ When this happens, briefly suggest the standard to the user. If approved, invoke
 ## Maister Workflows
 
 This project uses the maister plugin for structured development workflows. When any `/maister:*` command is invoked, execute it via the Skill tool immediately — do not skip workflows for "straightforward" tasks. The user chose the workflow intentionally; complexity assessment is the workflow's job.
+
+## Secrets
+
+Never print secret values to tool output — they end up in session transcripts and model context.
+- Do not run `env`, `printenv`, `docker compose exec <svc> env`, `docker inspect` (Env section) or `cat .env` unfiltered. To check configuration, test presence only, e.g. `docker compose exec -T backend sh -c '[ -n "$SPACES_KEY" ] && echo set || echo missing'`.
+- Never write secret values into reports, task folders, screenshots or commits. `.env` stays git-ignored; only `.env.example` with placeholders is tracked.
+- Subagent prompts that touch configuration or infrastructure must repeat this rule.
