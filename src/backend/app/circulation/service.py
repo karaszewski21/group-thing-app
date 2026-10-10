@@ -59,11 +59,13 @@ from app.circulation.application.reservations import (
 from app.circulation.domain.reservation_rules import require_raw_route_reservation_type
 from app.circulation.infrastructure.repository import (
     AvailableItemView,
+    available_items_with_product_select,
     list_item_ids_for_product,
 )
 
 __all__ = [
     "AvailableItemView",
+    "available_items_with_product_select",
     "cancel_exchange",
     "cancel_reservation",
     "confirm_reservation",

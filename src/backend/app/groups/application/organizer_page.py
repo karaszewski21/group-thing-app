@@ -2,11 +2,12 @@
 circles, their upcoming terms, the exchange items and needed items of each
 circle's next term, and aggregate stats.
 
-Every read is batched over the circles or their next terms (at most 11
-statements however many circles there are), and assembly happens here in
-Python. Lister identity is used only to decide eligibility and never leaves
-this module. The per-item helpers of `term_item_listings.py` are not used,
-because they run several queries per item.
+Every read is batched over the circles or their next terms (at most 10
+statements however many circles there are), and every list is capped in
+SQL. Lister identity is used only to decide eligibility and never leaves
+the repository's exchange query. The per-item helpers of
+`term_item_listings.py` are not used, because they run several queries per
+item.
 
 `list_organizer_terms` backs the paginated `/terms` agenda (at most 5
 statements, constant)."""
@@ -14,7 +15,6 @@ statements, constant)."""
 from __future__ import annotations
 
 import uuid
-from collections import Counter
 from datetime import datetime, timedelta
 from typing import cast
 
@@ -40,6 +40,7 @@ from ..schemas import (
 
 UPCOMING_WINDOW = timedelta(days=60)
 EXCHANGE_ITEMS_LIMIT = 12
+NEEDED_ITEMS_LIMIT = 12
 # Below this, a family count could single out the families in a small group.
 MIN_REPORTED_FAMILY_COUNT = 3
 
@@ -86,10 +87,7 @@ async def get_organizer_page(
     if not circle_rows:
         return _empty_page()
     group_ids = [row[0] for row in circle_rows]
-    # (occurs_on, term_id, group_id) of every circle's next term; the tuple
-    # order makes `min` pick the nearest term, ties broken by term id.
-    next_terms = [(row[4], row[3], row[0]) for row in circle_rows if row[3] is not None]
-    next_term_ids = [term_id for _, term_id, _ in next_terms]
+    next_term_ids = [row[3] for row in circle_rows if row[3] is not None]
 
     term_rows = await repository.list_upcoming_terms_for_groups(db, group_ids, now, window_end)
     attendance = await repository.count_active_attendances_by_term(
@@ -130,7 +128,7 @@ async def get_organizer_page(
 
     needed_items: list[OrganizerNeededItemResponse] = []
     exchange = _empty_exchange()
-    if next_terms:
+    if next_term_ids:
         needed_items = [
             OrganizerNeededItemResponse(
                 id=needed_id,
@@ -140,10 +138,12 @@ async def get_organizer_page(
                 claimed=claimed,
             )
             for needed_id, term_id, group_id, product_name, claimed in (
-                await repository.list_needed_items_with_product_for_terms(db, next_term_ids)
+                await repository.list_needed_items_with_product_for_terms(
+                    db, next_term_ids, NEEDED_ITEMS_LIMIT
+                )
             )
         ]
-        exchange = await _build_exchange(db, owner_party_id, next_terms, storage)
+        exchange = await _build_exchange(db, owner_party_id, next_term_ids, storage)
 
     return OrganizerPageResponse(
         circles=circles,
@@ -191,49 +191,27 @@ async def list_organizer_terms(
 async def _build_exchange(
     db: AsyncSession,
     owner_party_id: uuid.UUID,
-    next_terms: list[tuple[datetime, uuid.UUID, uuid.UUID]],
+    next_term_ids: list[uuid.UUID],
     storage: ObjectStorage | None,
 ) -> OrganizerExchangeResponse:
     """Mirrors the public term listing: on each next term the eligible
     listers are its active attendees plus the circle's leader (the owner),
     and only live AVAILABLE items count. Each item is placed on the nearest
-    next term its lister is eligible for."""
-    terms_by_id = {term[1]: term for term in next_terms}
-    terms_by_party: dict[uuid.UUID, list[tuple[datetime, uuid.UUID, uuid.UUID]]] = {
-        owner_party_id: list(next_terms)
-    }
-    for term_id, party_id in await repository.list_active_attendee_parties_for_terms(
-        db, list(terms_by_id)
-    ):
-        terms_by_party.setdefault(party_id, []).append(terms_by_id[term_id])
-
-    preferences = await repository.list_item_listing_preferences_for_parties(
-        db, set(terms_by_party)
+    next term its lister is eligible for. Counting and ranking both run in
+    SQL, so only the top `EXCHANGE_ITEMS_LIMIT` rows are loaded."""
+    available_items = circulation_bridge.available_items_with_product_select()
+    counts = await repository.count_exchange_items_by_mode(
+        db, owner_party_id, next_term_ids, available_items
     )
-    available = await circulation_bridge.list_available_items_with_product(
-        db, [preference.item_id for preference in preferences]
+    if not counts:
+        return _empty_exchange()
+    ranked = await repository.list_nearest_exchange_items(
+        db, owner_party_id, next_term_ids, available_items, EXCHANGE_ITEMS_LIMIT
     )
-
-    candidates: dict[uuid.UUID, tuple[tuple[datetime, uuid.UUID, uuid.UUID], str]] = {}
-    for preference in preferences:
-        if preference.item_id not in available:
-            continue
-        nearest = min(terms_by_party[preference.owner_party_id])
-        current = candidates.get(preference.item_id)
-        if current is None or nearest < current[0]:
-            candidates[preference.item_id] = (nearest, preference.mode)
-
-    counts = Counter(mode for _, mode in candidates.values())
-    ranked = sorted(
-        candidates.items(),
-        key=lambda entry: (entry[1][0][0], available[entry[0]].product_name, entry[0]),
-    )[:EXCHANGE_ITEMS_LIMIT]
 
     photos = (
-        await product_bridge.first_approved_photo_by_product(
-            db, {available[item_id].product_id for item_id, _ in ranked}
-        )
-        if storage is not None and ranked
+        await product_bridge.first_approved_photo_by_product(db, {row.product_id for row in ranked})
+        if storage is not None
         else {}
     )
 
@@ -243,19 +221,28 @@ async def _build_exchange(
 
     return OrganizerExchangeResponse(
         counts=OrganizerExchangeCounts(
-            GIFT=counts["GIFT"], SWAP=counts["SWAP"], LEND=counts["LEND"]
+            GIFT=counts.get("GIFT", 0), SWAP=counts.get("SWAP", 0), LEND=counts.get("LEND", 0)
         ),
         items=[
             OrganizerExchangeItemResponse(
                 item_id=item_id,
-                product_name=available[item_id].product_name,
-                condition=available[item_id].condition,
+                product_name=product_name,
+                condition=condition,
                 mode=cast(ExchangeMode, mode),
-                thumb_url=thumb_url(available[item_id].product_id),
+                thumb_url=thumb_url(product_id),
                 term_id=term_id,
                 group_id=group_id,
                 occurs_on=occurs_on,
             )
-            for item_id, ((occurs_on, term_id, group_id), mode) in ranked
+            for (
+                item_id,
+                mode,
+                product_id,
+                product_name,
+                condition,
+                occurs_on,
+                term_id,
+                group_id,
+            ) in ranked
         ],
     )

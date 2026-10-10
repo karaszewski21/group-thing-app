@@ -16,6 +16,7 @@ from tests.test_term_item_listings import _register, _rsvp
 async def _terms(client: AsyncClient, slug: str, **params: Any) -> dict[str, Any]:
     response = await client.get(f"/api/groups/public/organizers/{slug}/terms", params=params)
     assert response.status_code == 200, response.text
+    assert response.headers["cache-control"] == "public, max-age=0, s-maxage=60"
     body: dict[str, Any] = response.json()
     return body
 
@@ -92,7 +93,7 @@ async def test_listOrganizerTerms_invalidQueryParams_return400(client: AsyncClie
     slug = await _organization_slug(client, owner_token, "Błędne Nutki")
     url = f"/api/groups/public/organizers/{slug}/terms"
 
-    for params in ({"group_id": "nie-uuid"}, {"size": 101}, {"page": 0}):
+    for params in ({"group_id": "nie-uuid"}, {"size": 101}, {"page": 0}, {"page": 10_001}):
         assert (await client.get(url, params=params)).status_code == 400, params
 
 
@@ -100,4 +101,5 @@ async def test_listOrganizerTerms_unknownSlug_returns404(client: AsyncClient) ->
     response = await client.get("/api/groups/public/organizers/nie-ma-takiej/terms")
 
     assert response.status_code == 404
+    assert "cache-control" not in response.headers
     assert "Organization" in response.json()["message"]

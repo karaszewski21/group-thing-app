@@ -115,6 +115,7 @@ async def _listed_items(
 async def _page(client: AsyncClient, slug: str) -> dict[str, Any]:
     response = await client.get(f"/api/groups/public/organizers/{slug}")
     assert response.status_code == 200, response.text
+    assert response.headers["cache-control"] == "public, max-age=0, s-maxage=60"
     body: dict[str, Any] = response.json()
     return body
 
@@ -236,7 +237,9 @@ async def test_getOrganizerPage_privateOrRevokedCircles_excludedFromEveryField(
 async def test_getOrganizerPage_unknownPseudoOwnerlessOrEmpty_returns404OrEmpty(
     client: AsyncClient, db_session: AsyncSession
 ) -> None:
-    assert (await client.get("/api/groups/public/organizers/nie-ma-takiej")).status_code == 404
+    missing = await client.get("/api/groups/public/organizers/nie-ma-takiej")
+    assert missing.status_code == 404
+    assert "cache-control" not in missing.headers
     assert (await client.get("/api/groups/public/organizers/k-0123456789ab")).status_code == 404
 
     access = await client.get("/api/groups/public/organizers/access")
@@ -519,3 +522,28 @@ async def test_getOrganizerPage_attendeeOnSeveralNextTerms_itemPlacedOnEarliestT
         str(tied_terms[earliest_term]),
         tied_day.isoformat(),
     )
+
+
+async def test_getOrganizerPage_manyItemsAndNeeds_cappedAt12InCodePointOrderWithFullCounts(
+    client: AsyncClient,
+) -> None:
+    owner_token, _ = await _register(client, "ORGANIZER", "op.cap.owner@example.com")
+    slug = await _organization_slug(client, owner_token, "Pełne Nutki")
+    group_id = await _circle(client, owner_token, "Pełny")
+    term_id = await _term(client, owner_token, group_id, _in_days(2))
+    names = [f"Op cap A{index:02d}" for index in range(11)] + ["Op cap Ćma", "Op cap Da"]
+    item_ids = await _listed_items(client, owner_token, *((name, "GIFT") for name in names))
+    for index in range(13):
+        await _needed_item(client, owner_token, term_id, f"Op cap potrzeba {index:02d}")
+
+    body = await _page(client, slug)
+
+    assert body["exchange"]["counts"] == {"GIFT": 13, "SWAP": 0, "LEND": 0}
+    by_name = dict(zip(names, item_ids, strict=True))
+    assert [i["item_id"] for i in body["exchange"]["items"]] == [
+        str(by_name[name]) for name in sorted(names)[:12]
+    ]
+    assert "Op cap Ćma" not in {i["product_name"] for i in body["exchange"]["items"]}
+    assert [n["product_name"] for n in body["needed_items"]] == [
+        f"Op cap potrzeba {index:02d}" for index in range(12)
+    ]

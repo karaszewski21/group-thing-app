@@ -13,8 +13,22 @@ from __future__ import annotations
 import uuid
 from collections.abc import Collection
 from datetime import datetime
+from typing import Any
 
-from sqlalchemy import Row, Select, and_, exists, func, or_, select, true
+from sqlalchemy import (
+    Row,
+    Select,
+    Subquery,
+    and_,
+    exists,
+    func,
+    literal,
+    or_,
+    select,
+    true,
+    union_all,
+)
+from sqlalchemy.dialects import postgresql
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.category.models import Category
@@ -648,6 +662,25 @@ async def list_pending_join_requests_for_groups(
 # always a bound parameter (server-local naive time), never `func.now()`.
 
 
+def _qualifying_owner_circles(owner_party_id: uuid.UUID) -> Select[tuple[uuid.UUID]]:
+    """Ids of the PUBLIC circles the owner currently leads: an active
+    `Leadership` from the owner's active ORGANIZATOR `GroupRole`."""
+    return (
+        select(Group.id)
+        .join(Leadership, and_(Leadership.to_group_id == Group.id, Leadership.valid_to.is_(None)))
+        .join(
+            GroupRole,
+            and_(
+                GroupRole.id == Leadership.from_role_id,
+                GroupRole.role_type == GroupRoleType.ORGANIZATOR,
+                GroupRole.party_id == owner_party_id,
+                GroupRole.valid_to.is_(None),
+            ),
+        )
+        .where(Group.visibility == GroupVisibility.PUBLIC)
+    )
+
+
 async def list_owner_public_circles(
     db: AsyncSession,
     owner_party_id: uuid.UUID,
@@ -656,8 +689,7 @@ async def list_owner_public_circles(
     limit: int = 30,
 ) -> list[Row[tuple[uuid.UUID, str, GroupLayoutMode, uuid.UUID | None, datetime | None, int]]]:
     """`(group_id, name, layout_mode, next_term_id, next_occurs_on,
-    window_term_count)` for the PUBLIC circles the owner currently leads
-    (active `Leadership` from the owner's active ORGANIZATOR `GroupRole`).
+    window_term_count)` for `_qualifying_owner_circles`.
     The next term comes from a per-circle LATERAL lookup and the window count
     from a correlated subquery, both served by `ix_terms_circle_group_id_occurs_on`."""
     next_term = (
@@ -686,18 +718,8 @@ async def list_owner_public_circles(
             next_term.c.occurs_on,
             window_term_count,
         )
-        .join(Leadership, and_(Leadership.to_group_id == Group.id, Leadership.valid_to.is_(None)))
-        .join(
-            GroupRole,
-            and_(
-                GroupRole.id == Leadership.from_role_id,
-                GroupRole.role_type == GroupRoleType.ORGANIZATOR,
-                GroupRole.party_id == owner_party_id,
-                GroupRole.valid_to.is_(None),
-            ),
-        )
         .outerjoin(next_term, true())
-        .where(Group.visibility == GroupVisibility.PUBLIC)
+        .where(Group.id.in_(_qualifying_owner_circles(owner_party_id)))
         .order_by(next_term.c.occurs_on.asc().nulls_last(), Group.name, Group.id)
         .limit(limit)
     )
@@ -708,27 +730,15 @@ def _owner_public_terms_select(
     owner_party_id: uuid.UUID, now: datetime, group_id: uuid.UUID | None
 ) -> Select[tuple[uuid.UUID, uuid.UUID, str, datetime, str | None]]:
     """`(term_id, group_id, group_name, occurs_on, description)` of every
-    upcoming term in the PUBLIC circles the owner currently leads (the same
-    qualification as `list_owner_public_circles`), optionally narrowed to
+    upcoming term in `_qualifying_owner_circles`, optionally narrowed to
     `group_id`. Unordered: the count and the page build on it."""
-    qualifying_circles = (
-        select(Group.id)
-        .join(Leadership, and_(Leadership.to_group_id == Group.id, Leadership.valid_to.is_(None)))
-        .join(
-            GroupRole,
-            and_(
-                GroupRole.id == Leadership.from_role_id,
-                GroupRole.role_type == GroupRoleType.ORGANIZATOR,
-                GroupRole.party_id == owner_party_id,
-                GroupRole.valid_to.is_(None),
-            ),
-        )
-        .where(Group.visibility == GroupVisibility.PUBLIC)
-    )
     query = (
         select(Term.id, Term.circle_group_id, Group.name, Term.occurs_on, Term.description)
         .join(Group, Group.id == Term.circle_group_id)
-        .where(Term.circle_group_id.in_(qualifying_circles), Term.occurs_on >= now)
+        .where(
+            Term.circle_group_id.in_(_qualifying_owner_circles(owner_party_id)),
+            Term.occurs_on >= now,
+        )
     )
     if group_id is not None:
         query = query.where(Term.circle_group_id == group_id)
@@ -823,11 +833,12 @@ async def count_member_families_for_groups(
 
 
 async def list_needed_items_with_product_for_terms(
-    db: AsyncSession, term_ids: list[uuid.UUID]
+    db: AsyncSession, term_ids: list[uuid.UUID], limit: int
 ) -> list[Row[tuple[uuid.UUID, uuid.UUID, uuid.UUID, str, bool]]]:
     """`(needed_item_id, term_id, group_id, product_name, claimed)` for the
-    live needs of `term_ids`; `claimed` uses the same rule as the term page
-    (a pledge that is not WITHDRAWN). Never carries the pledger."""
+    first `limit` live needs of `term_ids`, soonest term first; `claimed`
+    uses the same rule as the term page (a pledge that is not WITHDRAWN).
+    Never carries the pledger."""
     claimed = exists().where(
         Pledge.needed_item_id == NeededItem.id, Pledge.status != PledgeStatus.WITHDRAWN
     )
@@ -843,17 +854,85 @@ async def list_needed_items_with_product_for_terms(
         .join(Product, Product.id == NeededItem.product_id)
         .where(NeededItem.term_id.in_(term_ids), NeededItem.deleted_at.is_(None))
         .order_by(Term.occurs_on, Product.name, NeededItem.id)
+        .limit(limit)
     )
     return list(result.all())
 
 
-async def list_active_attendee_parties_for_terms(
-    db: AsyncSession, term_ids: list[uuid.UUID]
-) -> list[Row[tuple[uuid.UUID, uuid.UUID]]]:
-    """`(term_id, party_id)` for every non-withdrawn RSVP on `term_ids`."""
+def _exchange_candidates(
+    owner_party_id: uuid.UUID,
+    term_ids: list[uuid.UUID],
+    available_items: Select[tuple[uuid.UUID, uuid.UUID, str, Any]],
+) -> Subquery:
+    """`(item_id, mode, product_id, product_name, condition, occurs_on,
+    term_id, group_id)`: one row per item of `available_items` listed by a
+    party eligible on some term of `term_ids` (the owner on every one, an
+    attendee on those they hold a non-withdrawn RSVP for, as on the term
+    page), placed on that party's nearest such term, ties broken by term id."""
+    lister_terms = union_all(
+        select(
+            literal(owner_party_id, postgresql.UUID(as_uuid=True)).label("party_id"),
+            Term.id.label("term_id"),
+            Term.occurs_on.label("occurs_on"),
+            Term.circle_group_id.label("group_id"),
+        ).where(Term.id.in_(term_ids)),
+        select(TermAttendance.party_id, Term.id, Term.occurs_on, Term.circle_group_id)
+        .join(Term, Term.id == TermAttendance.term_id)
+        .where(TermAttendance.term_id.in_(term_ids), TermAttendance.withdrawn_at.is_(None)),
+    ).subquery("lister_terms")
+    nearest_term = (
+        select(lister_terms)
+        .distinct(lister_terms.c.party_id)
+        .order_by(lister_terms.c.party_id, lister_terms.c.occurs_on, lister_terms.c.term_id)
+        .subquery("nearest_term")
+    )
+    available = available_items.subquery("available_items")
+    return (
+        select(
+            ItemListingPreference.item_id,
+            ItemListingPreference.mode,
+            available.c.product_id,
+            available.c.product_name,
+            available.c.condition,
+            nearest_term.c.occurs_on,
+            nearest_term.c.term_id,
+            nearest_term.c.group_id,
+        )
+        .join(nearest_term, nearest_term.c.party_id == ItemListingPreference.owner_party_id)
+        .join(available, available.c.item_id == ItemListingPreference.item_id)
+        .subquery("exchange_candidates")
+    )
+
+
+async def count_exchange_items_by_mode(
+    db: AsyncSession,
+    owner_party_id: uuid.UUID,
+    term_ids: list[uuid.UUID],
+    available_items: Select[tuple[uuid.UUID, uuid.UUID, str, Any]],
+) -> dict[str, int]:
+    """Listing mode -> number of `_exchange_candidates`."""
+    candidates = _exchange_candidates(owner_party_id, term_ids, available_items)
+    result = await db.execute(select(candidates.c.mode, func.count()).group_by(candidates.c.mode))
+    return {mode: count for mode, count in result.all()}
+
+
+async def list_nearest_exchange_items(
+    db: AsyncSession,
+    owner_party_id: uuid.UUID,
+    term_ids: list[uuid.UUID],
+    available_items: Select[tuple[uuid.UUID, uuid.UUID, str, Any]],
+    limit: int,
+) -> list[Row[tuple[uuid.UUID, str, uuid.UUID, str, str, datetime, uuid.UUID, uuid.UUID]]]:
+    """The first `limit` `_exchange_candidates` by term date, then product
+    name in code-point order (`COLLATE "C"`), then item id."""
+    candidates = _exchange_candidates(owner_party_id, term_ids, available_items)
     result = await db.execute(
-        select(TermAttendance.term_id, TermAttendance.party_id)
-        .where(TermAttendance.term_id.in_(term_ids), TermAttendance.withdrawn_at.is_(None))
-        .order_by(TermAttendance.term_id, TermAttendance.id)
+        select(candidates)
+        .order_by(
+            candidates.c.occurs_on,
+            candidates.c.product_name.collate("C"),
+            candidates.c.item_id,
+        )
+        .limit(limit)
     )
     return list(result.all())

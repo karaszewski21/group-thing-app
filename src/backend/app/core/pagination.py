@@ -11,6 +11,8 @@ from pydantic import BaseModel
 
 DEFAULT_PAGE_SIZE = 20
 MAX_PAGE_SIZE = 100
+# Keeps OFFSET far inside bigint; deeper pages are a 400, not a 500.
+MAX_PAGE = 10_000
 
 
 @dataclass(frozen=True)
@@ -24,7 +26,7 @@ class PageParams:
 
 
 def _page_params(
-    page: Annotated[int, Query(ge=1)] = 1,
+    page: Annotated[int, Query(ge=1, le=MAX_PAGE)] = 1,
     size: Annotated[int, Query(ge=1, le=MAX_PAGE_SIZE)] = DEFAULT_PAGE_SIZE,
 ) -> PageParams:
     return PageParams(page=page, size=size)

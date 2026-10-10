@@ -119,7 +119,7 @@ async def list_lent_out_items_with_product_name(
 async def list_available_items_with_product(
     db: AsyncSession, item_ids: Collection[uuid.UUID]
 ) -> dict[uuid.UUID, AvailableItemView]:
-    """Batched read backing the organizer page and the term page thumbnails."""
+    """Batched read backing the term page thumbnails."""
     return await repository.list_available_items_with_product(db, item_ids)
 
 

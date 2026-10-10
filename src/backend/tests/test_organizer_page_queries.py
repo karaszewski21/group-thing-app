@@ -22,7 +22,7 @@ from tests.test_organizer_page import (
 )
 from tests.test_term_item_listings import _register, _rsvp
 
-MAIN_ENDPOINT_BUDGET = 12
+MAIN_ENDPOINT_BUDGET = 10
 TERMS_ENDPOINT_BUDGET = 5
 
 

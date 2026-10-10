@@ -14,7 +14,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import Any
 
-from sqlalchemy import ColumnElement, DateTime, String, column, or_, select, table
+from sqlalchemy import ColumnElement, DateTime, Select, String, column, or_, select, table
 from sqlalchemy.dialects import postgresql
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload, selectinload
@@ -174,22 +174,38 @@ class AvailableItemView:
     condition: ItemCondition
 
 
-async def list_available_items_with_product(
-    db: AsyncSession, item_ids: Collection[uuid.UUID]
-) -> dict[uuid.UUID, AvailableItemView]:
-    """Which of `item_ids` are live (not soft-deleted) and AVAILABLE, with
-    their product, in one join."""
-    if not item_ids:
-        return {}
-    result = await db.execute(
-        select(InventoryItem.id, InventoryItem.product_id, Product.name, InventoryItem.condition)
+def available_items_with_product_select() -> (
+    Select[tuple[uuid.UUID, uuid.UUID, str, ItemCondition]]
+):
+    """`(item_id, product_id, product_name, condition)` of every live (not
+    soft-deleted) AVAILABLE item. Unexecuted, so a caller can narrow it or
+    join it as a subquery instead of shipping item ids back as an IN-list."""
+    return (
+        select(
+            InventoryBalance.item_id.label("item_id"),
+            InventoryItem.product_id.label("product_id"),
+            Product.name.label("product_name"),
+            InventoryItem.condition.label("condition"),
+        )
         .join(InventoryBalance, InventoryBalance.item_id == InventoryItem.id)
         .join(Product, Product.id == InventoryItem.product_id)
         .where(
-            InventoryItem.id.in_(item_ids),
             InventoryItem.deleted_at.is_(None),
             InventoryBalance.status == BalanceStatus.AVAILABLE,
         )
+    )
+
+
+async def list_available_items_with_product(
+    db: AsyncSession, item_ids: Collection[uuid.UUID]
+) -> dict[uuid.UUID, AvailableItemView]:
+    """Which of `item_ids` are live and AVAILABLE, with their product, in
+    one join."""
+    if not item_ids:
+        return {}
+    result = await db.execute(
+        available_items_with_product_select()
+        .where(InventoryItem.id.in_(item_ids))
         .order_by(InventoryItem.id)
     )
     return {

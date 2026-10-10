@@ -17,7 +17,7 @@ from app.circulation.models import BalanceStatus, InventoryBalance, InventoryIte
 from app.groups.infrastructure import circulation_bridge, organizations_acl, product_bridge
 from app.moderation.status import ModerationStatus
 from app.organizations import service as organizations_service
-from app.organizations.models import OrganizationMembership
+from app.organizations.models import OrganizationMembership, OrganizationRoleType
 from app.organizations.schemas import CreateOwnOrganizationRequest
 from app.product.models import ProductPhoto
 from tests.conftest import count_queries
@@ -110,6 +110,30 @@ async def test_getOwnerPartyId_activeOwner_returnsPartyAndNoneOnceMembershipEnds
     await db_session.flush()
 
     assert await organizations_acl.get_owner_party_id(db_session, organization.id) is None
+
+
+async def test_getOwnerPartyId_twoActiveOwners_returnsEarliestMembershipOwner(
+    client: AsyncClient, db_session: AsyncSession
+) -> None:
+    _, owner_party_id = await _register(client, "ORGANIZER", "bridge-first-owner@example.com")
+    _, second_party_id = await _register(client, "ORGANIZER", "bridge-second-owner@example.com")
+    organization = await organizations_service.create_own_organization(
+        db_session, owner_party_id, CreateOwnOrganizationRequest(name="Dwóch Właścicieli")
+    )
+    second_role = await organizations_service.get_or_create_active_organization_role(
+        db_session, second_party_id, OrganizationRoleType.OWNER
+    )
+    db_session.add(
+        OrganizationMembership(
+            from_role_id=second_role.id,
+            to_organization_id=organization.id,
+            valid_from=date.today(),
+            valid_to=None,
+        )
+    )
+    await db_session.flush()
+
+    assert await organizations_acl.get_owner_party_id(db_session, organization.id) == owner_party_id
 
 
 async def test_listAvailableItemsWithProduct_onlyLiveAvailableItems_returnsViews(

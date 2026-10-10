@@ -35,9 +35,9 @@
 
 ```
 Client Request → FastAPI Router → Auth Dependency (require_any) → Service Layer → SQLAlchemy (ORM or Core) → PostgreSQL
-                                          ↓
-                              AUTHORIZATION_MATRIX (app/core/auth_deps.py)
 ```
+
+Each route enforces its own requirement through `Depends(require_any(...))` (no dependency for PUBLIC routes). `AUTHORIZATION_MATRIX` in `app/core/authorization_matrix.py` is a reference table of those requirements, verified by `tests/test_authorization_matrix.py`; nothing applies it centrally at request time (see `standards/backend/security.md`).
 
 Plugin iframes reach the same routers via the host's browser SDK, which attaches the same JWT the router-level auth dependency validates — there is no separate plugin-specific auth path on the server side (see `standards/backend/plugin-auth.md`).
 
@@ -152,7 +152,8 @@ app/
 │   ├── base_model.py            (Base, BaseEntity mapped-superclass mixin)
 │   ├── errors.py                (typed exceptions, legacy-envelope handlers)
 │   ├── security.py              (JWT encode/decode, password hashing)
-│   ├── auth_deps.py             (Principal, require_any(), AUTHORIZATION_MATRIX)
+│   ├── auth_deps.py             (Principal, require_any())
+│   ├── authorization_matrix.py  (AUTHORIZATION_MATRIX reference table, verified by tests)
 │   └── filter_dsl.py            (shared regex/operator-allowlist constants only —
 │                                  NOT a shared parser; see standards/backend/jooq.md)
 ├── auth/                        (login vertical: User model, POST /api/auth/login)
