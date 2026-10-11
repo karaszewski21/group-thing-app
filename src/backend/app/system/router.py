@@ -32,7 +32,7 @@ from __future__ import annotations
 
 import uuid
 from pathlib import Path
-from typing import Annotated
+from typing import Annotated, cast
 
 from fastapi import APIRouter, Depends
 from fastapi.encoders import jsonable_encoder
@@ -42,9 +42,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.errors import EntityNotFoundException, ErrorResponse
 from app.db import get_db
 from app.groups import service as groups_service
+from app.organizations import media as organizations_media
 from app.organizations import service as organizations_service
 from app.organizations.schemas import PublicOrganizationResponse
 from app.organizations.slugs import RESERVED_SLUGS
+from app.storage.service import ObjectStorage, get_storage
 
 from .public_preview import render_public_circle_meta, render_public_organization_meta
 
@@ -58,6 +60,7 @@ STATIC_DIR = Path(__file__).resolve().parent.parent.parent / "static"
 INDEX_HTML = STATIC_DIR / "index.html"
 
 DbSession = Annotated[AsyncSession, Depends(get_db)]
+Storage = Annotated[ObjectStorage | None, Depends(get_storage)]
 
 
 @router.get("/api/health")
@@ -109,7 +112,7 @@ async def public_circle_preview(
 
 @router.get("/{organization_slug}", response_model=None)
 async def public_organization_preview(
-    organization_slug: str, db: DbSession
+    organization_slug: str, db: DbSession, storage: Storage
 ) -> HTMLResponse | FileResponse | JSONResponse:
     """Reserved words (every fixed top-level frontend route, plus dotted
     filenames like `favicon.ico`) fall straight through to the plain
@@ -120,8 +123,17 @@ async def public_organization_preview(
     organization = await organizations_service.get_organization_by_slug(db, organization_slug)
     if organization is None:
         return _plain_index()
+    cover_url = (
+        await organizations_media.load_public_cover_url(
+            db, storage, cast(uuid.UUID, organization.id)
+        )
+        if storage is not None
+        else None
+    )
     return HTMLResponse(
-        render_public_organization_meta(PublicOrganizationResponse.model_validate(organization))
+        render_public_organization_meta(
+            PublicOrganizationResponse.model_validate(organization), cover_url
+        )
     )
 
 

@@ -117,3 +117,70 @@ Full Vitest run on a `git archive HEAD` export: 17 pre-existing failures — Pan
 **Files Modified**: editor/EditorSheet.tsx, PublicOrganizationPage.tsx, test/OrganizerEditor.test.tsx
 **Visual compliance**: editor-photos-tab ✓, ghost-gallery CTA-while-open ✓ (M5)
 **Notes**: tab derived from `tab` search param (no mirrored state); PhotosTab outside saving fieldset; closeEditor deletes edit+tab.
+
+## 2026-10-11 - Group 7 Complete (Wave 6)
+
+**Steps**: 7.1-7.7 completed
+**Standards Applied**: From plan: backend/queries, jooq, models, security, api, testing/backend-testing, global/minimal-implementation, error-handling, commenting. From INDEX: none extra. Discovered: none.
+**Tests**: test_organization_media_moderation (6 new) + full moderation/photo/avatar/org-media regression set: 160 passed; ruff clean; mypy 32
+**Files Modified**: app/moderation/models.py, schemas.py, service.py (_Subject descriptor + _SUBJECTS map, 4 dispatch points rewired), app/organizations/media.py (lock_media_parent, after_media_decide), tests/test_organization_media_moderation.py
+**Notes**: M1 StaleDataError hazard did not reproduce in installed SQLAlchemy (get with_for_update refreshes); Core scalar lookup kept per spec (also guarantees fresh previous_status). Suggested standard: new moderated upload type = one _SUBJECTS entry.
+
+## 2026-10-11 - Group 14 Complete (Wave 7)
+
+**Steps**: 14.1-14.4 completed
+**Standards Applied**: From plan: testing/backend-testing, global/minimal-implementation. From INDEX: backend/models, global/coding-style. Discovered: none.
+**Tests**: FULL backend suite 743 passed, 0 failed; mypy 32 (baseline); ruff + format clean on 21 changed files (66 pre-existing repo-wide findings, none in changed files)
+**Files Modified**: tests/test_organization_media_gates.py (new: no app.moderation.service import from app.organizations; H1 defaults on ORM model_validate)
+
+## 2026-10-11 - Group 15 Complete (Wave 8)
+
+**Steps**: 15.1-15.4 completed
+**Standards Applied**: From plan: testing/backend-testing, testing/frontend-testing, global/minimal-implementation. From INDEX: frontend/css (themeTokenUsage list extended). Discovered: none.
+**Tests added**: 4 backend (NEEDS_REVIEW replace, IntegrityError backstop 409 + cleanup, delete with storage None, admin delete of approved logo retires older) + 1 frontend (approved cover copy + uploading state) + GalleryBlock/PhotosTab added to themeTokenUsage. Feature backend set 128 passed; feature frontend set 194 passed.
+**Findings (not fixed, for verification phase)**:
+- reorder_gallery returns 409 when storage is None, spec R11 says reorder still works (response needs storage URLs).
+- Cover S1 copy "Brak okładki — na stronie widać kolorowe tło." invented (spec silent).
+- M1 race test cannot detect a regression to ORM preload (SQLAlchemy refreshes on get with_for_update).
+
+## 2026-10-11 - Implementation Complete
+
+**Total Steps**: 84 completed (0 unchecked)
+**Test Suite**:
+- Backend full: 743 passed (G14) + 4 tests added in G15 (pass in feature run); mypy 32 = baseline; ruff clean on changed files.
+- group-thing-ai: 51 passed.
+- Frontend full: 801 passed / 17 failed; the 17 equal the HEAD baseline (PanelPage 8, TermPage 5, extension-points 2, auth 1, foundation 1). One run of 4 showed an extra OrganizerEditor failure; 3 later full runs + 3 isolated runs green → flaky under load, watch in verification.
+
+## 2026-10-11 - Fix during verification: page crash on old backend response (I1)
+
+User hit "Cannot read properties of undefined (reading 'length')" in isGalleryEmpty on /rodzinny-grajdolek?edit=1 (local backend not yet on new code/0054, response without `gallery`). Made FE tolerant: GalleryBlock `gallery ?? []` / default `[]`, HeroBlock `cover != null`, useMyOrganization `media?.some`, PublicOrganizationPage `owner.media ?? []`. tsc + eslint clean; 77 tests passed (organizerMediaBlocks, LayoutRenderer, PublicOrganizationPage, useOrganizationHooks, OrganizerEditor).
+
+## 2026-10-11 - Verification fixes applied (Phase 11, iteration 1)
+
+Backend (141 tests passed, ruff clean, mypy 32):
+- W1 reorder_gallery works without storage (applies order, returns []).
+- W2 upload ends the read txn (rollback) after _require_owner, before processing/S3.
+- I2 cleanup failure logged, original exception re-raised. I3 both puts inside cleanup scope (still before lock).
+- I5 race test asserts no OrganizationMedia in identity map after lock_media_parent (verified it catches an ORM-preload regression).
+- I6 removed _Subject.count/_count/functools; delete_photo docstring updated.
+- Test helper _set_status now commits (simulates cron/admin commit).
+Frontend (190 tests passed, tsc + eslint clean):
+- I7a duplicate empty guard removed from GalleryBlock (LayoutRenderer guarantees). I7c PhotosTab reads media from useMyOrganization (NO_MEDIA fallback); media prop removed from EditorSheet/PublicOrganizationPage.
+- I8 cover logo ring uses border-on-ink over a cover image.
+- I7b kept (ModerationQueueEntry.media_kind not discriminated; follow-up).
+- W3 cover copy approved by user, recorded in spec R26.
+
+## 2026-10-11 - Re-verification (Phase 11, iteration 2)
+
+Full suites after fixes (verification/test-suite-results.md): backend 751/751; frontend 801/818 — the 17 failures equal the HEAD baseline, 0 regressions; group-thing-ai 147/147.
+Docs synced: spec R8 (reorder without storage → 200 []), R25a/R26/M5 row (PhotosTab reads media from useMyOrganization; no `media` prop), plan 12.3 annotated as superseded.
+
+## 2026-10-11 - User change recorded: cover in every layout
+
+E2E found HeroBlock/PhotosTab changed at 12:22–12:24 (outside agent work) to show the cover in all hero variants with note "Widoczna u góry strony w każdym układzie.". User confirmed it is intentional; spec R22, R26 note and the hero-media visual row updated.
+
+## 2026-10-11 - E2E (Phase 12)
+
+Local setup: DB migrated 0053→0054; stale uvicorn processes replaced by one backend with SPACES_* from root .env and AWS_CA_BUNDLE (scratchpad bundle: certifi + Windows store) to fix local TLS to Spaces.
+Iteration 1: 5 pass / 3 blocked (TLS). Iteration 2: uploads 201 → PENDING, limit 3, reorder, delete, dedup 409, logo replace, invalid file, polling only while tab open, cleanup to media: [] — all pass. Still blocked: approved media rendering in layouts (moderation on, local cron old, no admin login) and admin card. No bugs. Visual fidelity: 8 match, 0 drift, 8 blocked.
+Note: one tool output showed a presigned URL including the Spaces access key ID (not the secret); not in any report.

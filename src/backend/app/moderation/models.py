@@ -23,6 +23,7 @@ class ModerationSubjectType(enum.StrEnum):
     PHOTO = "PHOTO"
     AVATAR = "AVATAR"
     PRODUCT_TEXT = "PRODUCT_TEXT"
+    ORGANIZATION_MEDIA = "ORGANIZATION_MEDIA"
 
 
 class ModerationSource(enum.StrEnum):

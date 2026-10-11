@@ -17,13 +17,24 @@ from __future__ import annotations
 import enum
 import re
 import uuid
-from datetime import date
+from datetime import date, datetime
+from typing import Any
 
-from sqlalchemy import CheckConstraint, Date, Enum, ForeignKey, String
+from sqlalchemy import (
+    CheckConstraint,
+    Date,
+    DateTime,
+    Enum,
+    ForeignKey,
+    Integer,
+    String,
+    UniqueConstraint,
+)
 from sqlalchemy.dialects import postgresql
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.core.base_model import BaseEntity
+from app.moderation.status import ModerationStatus
 
 _HEX_COLOR_PATTERN = re.compile(r"^#[0-9a-fA-F]{6}$")
 
@@ -95,6 +106,78 @@ class Organization(BaseEntity):
     )
 
 
+class MediaKind(enum.StrEnum):
+    LOGO = "LOGO"
+    COVER = "COVER"
+    GALLERY = "GALLERY"
+
+
+class OrganizationMedia(BaseEntity):
+    """A moderated organization image: the logo, the cover or one of the
+    gallery photos. The files (under `storage_key`: `/w1600.webp`,
+    `/w400.webp`) stay private until `status` is APPROVED. VPS B's cron claims
+    PENDING rows through the same columns as `ProfileAvatar` (migration 0054)
+    and logs its decisions as subject `ORGANIZATION_MEDIA`.
+
+    LOGO and COVER are slots: the newest APPROVED row per slot is the public
+    one, and at most one unmoderated row per slot may exist. GALLERY rows are
+    shown in `sort_order`; the limit of 3 is enforced in the application
+    layer."""
+
+    __tablename__ = "organization_media"
+    # The claim index `ix_organization_media_pending_created_at` and the
+    # partial unique `uq_organization_media_one_pending_per_slot` stay
+    # migration-only.
+    __table_args__ = (
+        UniqueConstraint(
+            "organization_id",
+            "kind",
+            "content_sha256",
+            name="uq_organization_media_organization_id_kind_content_sha256",
+        ),
+    )
+
+    organization_id: Mapped[uuid.UUID] = mapped_column(
+        postgresql.UUID(as_uuid=True),
+        ForeignKey("organizations.id", name="fk_organization_media_organization_id_organizations"),
+        nullable=False,
+    )
+    kind: Mapped[MediaKind] = mapped_column(_enum_column(MediaKind, 10), nullable=False)
+    storage_key: Mapped[str] = mapped_column(String(200), nullable=False)
+    size_bytes: Mapped[int] = mapped_column(Integer, nullable=False)
+    content_sha256: Mapped[str] = mapped_column(String(64), nullable=False)
+    status: Mapped[ModerationStatus] = mapped_column(
+        _enum_column(ModerationStatus, 20), nullable=False
+    )
+    sort_order: Mapped[int] = mapped_column(Integer, nullable=False, default=0, server_default="0")
+    uploaded_by_user_id: Mapped[uuid.UUID] = mapped_column(
+        postgresql.UUID(as_uuid=True),
+        ForeignKey("users.id", name="fk_organization_media_uploaded_by_user_id_users"),
+        nullable=False,
+    )
+    moderation_attempts: Mapped[int] = mapped_column(
+        Integer, nullable=False, default=0, server_default="0"
+    )
+    moderation_retry_at: Mapped[datetime | None] = mapped_column(DateTime(), nullable=True)
+
+    @property
+    def large_key(self) -> str:
+        return f"{self.storage_key}/w1600.webp"
+
+    @property
+    def thumb_key(self) -> str:
+        return f"{self.storage_key}/w400.webp"
+
+    def __eq__(self, other: Any) -> bool:
+        """Business-key equality on `storage_key`, never the surrogate id."""
+        if not isinstance(other, OrganizationMedia):
+            return NotImplemented
+        return self.storage_key == other.storage_key
+
+    def __hash__(self) -> int:
+        return hash(self.storage_key)
+
+
 class OrganizationRole(BaseEntity):
     """A person's capacity toward the organizations BC. No scope column (no
     "which Organization") — the specific Organization binding lives on
@@ -126,7 +209,8 @@ class OrganizationMembership(BaseEntity):
     from_role_id: Mapped[uuid.UUID] = mapped_column(
         postgresql.UUID(as_uuid=True),
         ForeignKey(
-            "organization_roles.id", name="fk_organization_memberships_from_role_id_organization_roles"
+            "organization_roles.id",
+            name="fk_organization_memberships_from_role_id_organization_roles",
         ),
         nullable=False,
     )

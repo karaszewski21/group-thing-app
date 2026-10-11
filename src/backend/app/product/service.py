@@ -36,10 +36,11 @@ from app.moderation import rules
 from app.moderation.status import ModerationStatus
 from app.moderation.text_guard import TextField, check_text
 from app.outbox import service as outbox_service
+from app.storage import images
 from app.storage.outbox_listener import OBJECTS_DELETE
 from app.storage.service import ObjectStorage
 
-from . import images, query_service
+from . import query_service
 from .models import Product, ProductPhoto
 from .schemas import CreateProductRequest, UpdateProductRequest
 

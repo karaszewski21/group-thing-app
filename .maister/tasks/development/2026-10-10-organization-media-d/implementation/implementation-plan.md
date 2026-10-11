@@ -209,20 +209,20 @@ Commands:
 **Files to Modify:** `src/backend/app/moderation/service.py`, `src/backend/app/moderation/schemas.py`, `src/backend/app/moderation/models.py` (only if `ModerationSubjectType` lives there), `src/backend/app/moderation/router.py` (only if response mapping needs `media_kind`), `src/backend/app/organizations/media.py`, `src/backend/tests/test_organization_media_moderation.py` (new)
 **Estimated Steps:** 7
 
-- [ ] 7.0 Complete moderation integration
-  - [ ] 7.1 Write 6-7 focused tests in `tests/test_organization_media_moderation.py`
+- [x] 7.0 Complete moderation integration
+  - [x] 7.1 Write 6-7 focused tests in `tests/test_organization_media_moderation.py`
     - `listPhotos_includesOrgMedia_withOrgNameMediaKind_totalIncludesIt`
     - `decideApproved_orgMediaLogo_flipsAclRecordsDecision_retiresOlderApproved`
     - `decideRejected_currentApprovedLogo_takedown_publicLogoNull_olderGone_stillNullAfterSweep`
     - `decide_afterCronStyleCoreUpdateBumpedUpdatedAt_succeedsNo409_usesLockedStatus` (M1)
     - `decideApproved_galleryRow_noRetire`
     - `deleteUpload_orgMediaId_routesToOrgMediaDelete`; unknown id → 404
-  - [ ] 7.2 Add `ModerationSubjectType.ORGANIZATION_MEDIA`; `ModerationDecisionRequest.subject_type` Literal gains it (`PRODUCT_TEXT` still rejected); `QueueEntry` gains `media_kind: MediaKind | None = None` as the **last** field; `ModerationQueueEntryResponse` gains `media_kind`
-  - [ ] 7.3 Introduce a module-level frozen descriptor map in `moderation/service.py` (PHOTO, AVATAR, ORGANIZATION_MEDIA) with exactly: `model`, `admin_delete`, `list_branch`, `count`, optional `lock_parent`, optional `after_decide`; PHOTO/AVATAR leave the optionals `None`
-  - [ ] 7.4 Rewire `_set_photo_files_public` (type widened), `list_photos` (third `union_all` branch joined to `organizations`, title = org name, `product_id` NULL, `media_kind` column NULL for others, third count), `decide` (model by subject type; `lock_parent` before `db.get(..., with_for_update=True)`; `previous_status` from locked row; `after_decide` before commit), `delete_upload` (probe three tables in map order)
-  - [ ] 7.5 In `app/organizations/media.py`: `lock_media_parent(db, media_id)` (Core scalar `select(OrganizationMedia.organization_id)` then org `FOR UPDATE`; no ORM entity load; none → 404) and `after_media_decide(db, row, previous_status, outcome)` (LOGO/COVER: retire on APPROVED, or on REJECTED with previous APPROVED; GALLERY no-op). No import of `app.moderation.service` from `app.organizations`
-  - [ ] 7.6 Run mypy/ruff
-  - [ ] 7.7 Ensure moderation tests pass
+  - [x] 7.2 Add `ModerationSubjectType.ORGANIZATION_MEDIA`; `ModerationDecisionRequest.subject_type` Literal gains it (`PRODUCT_TEXT` still rejected); `QueueEntry` gains `media_kind: MediaKind | None = None` as the **last** field; `ModerationQueueEntryResponse` gains `media_kind`
+  - [x] 7.3 Introduce a module-level frozen descriptor map in `moderation/service.py` (PHOTO, AVATAR, ORGANIZATION_MEDIA) with exactly: `model`, `admin_delete`, `list_branch`, `count`, optional `lock_parent`, optional `after_decide`; PHOTO/AVATAR leave the optionals `None`
+  - [x] 7.4 Rewire `_set_photo_files_public` (type widened), `list_photos` (third `union_all` branch joined to `organizations`, title = org name, `product_id` NULL, `media_kind` column NULL for others, third count), `decide` (model by subject type; `lock_parent` before `db.get(..., with_for_update=True)`; `previous_status` from locked row; `after_decide` before commit), `delete_upload` (probe three tables in map order)
+  - [x] 7.5 In `app/organizations/media.py`: `lock_media_parent(db, media_id)` (Core scalar `select(OrganizationMedia.organization_id)` then org `FOR UPDATE`; no ORM entity load; none → 404) and `after_media_decide(db, row, previous_status, outcome)` (LOGO/COVER: retire on APPROVED, or on REJECTED with previous APPROVED; GALLERY no-op). No import of `app.moderation.service` from `app.organizations`
+  - [x] 7.6 Run mypy/ruff
+  - [x] 7.7 Ensure moderation tests pass
     - Run ONLY `tests/test_organization_media_moderation.py` plus the regression files `tests/test_moderation.py`, `tests/test_photo_moderation_queries.py`, `tests/test_photo_moderation_hardening.py` (PHOTO/AVATAR behaviour unchanged)
 
 **Acceptance Criteria:**
@@ -417,7 +417,7 @@ Commands:
     - Upload from the Zdjęcia tab calls the API and leaves Zapisz disabled (draft not dirty, no unsaved-changes dialog on close)
     - Arrow-key roving focus covers 3 pills
   - [x] 12.2 `EditorSheet.tsx`: `Tab` union + `TABS` entry + `tabRefs` key; sync with `useSearchParams` (`tab` param effect; pill click writes param with `replace`); new props `organizationId`, `media`; render `PhotosTab` outside the draft fieldset, passing the draft layout key
-  - [x] 12.3 `PublicOrganizationPage.tsx`: `closeEditor` deletes `tab` with `edit`; pass `organizationId={owner.id}` and `media={owner.media}`
+  - [x] 12.3 `PublicOrganizationPage.tsx`: `closeEditor` deletes `tab` with `edit`; pass `organizationId={owner.id}` and `media={owner.media}` (superseded in verification I7c: only `organizationId`; PhotosTab reads media from the hook)
   - [x] 12.4 Run `tsc --noEmit` and lint
   - [x] 12.5 Ensure editor tests pass
     - Run ONLY `OrganizerEditor.test.tsx`, `PublicOrganizationPage.test.tsx`, `OrganizationPage.test.tsx`
@@ -463,11 +463,11 @@ Commands:
 **Files to Modify:** `src/backend/app/organizations/*.py`, `src/backend/app/moderation/*.py`, `src/backend/app/main.py` (fix-ups only)
 **Estimated Steps:** 4
 
-- [ ] 14.0 Close backend gates
-  - [ ] 14.1 Write 2 focused tests: `organizationsModule_doesNotImportModerationService` (import-graph check via `importlib`/AST on `app/organizations/media.py`) and `publicOrganizationResponse_modelValidateOrm_defaultsMedia` (H1 schema default unit check)
-  - [ ] 14.2 Run `uv run python -m mypy app` and compare to baseline (~32); fix any new errors in files touched by Groups 1-7
-  - [ ] 14.3 Run `uv run ruff check app tests` and `ruff format --check`; fix
-  - [ ] 14.4 Ensure feature backend tests pass together
+- [x] 14.0 Close backend gates
+  - [x] 14.1 Write 2 focused tests: `organizationsModule_doesNotImportModerationService` (import-graph check via `importlib`/AST on `app/organizations/media.py`) and `publicOrganizationResponse_modelValidateOrm_defaultsMedia` (H1 schema default unit check)
+  - [x] 14.2 Run `uv run python -m mypy app` and compare to baseline (~32); fix any new errors in files touched by Groups 1-7
+  - [x] 14.3 Run `uv run ruff check app tests` and `ruff format --check`; fix
+  - [x] 14.4 Ensure feature backend tests pass together
     - Run ONLY the new/affected files: `test_organization_media_migration.py`, `test_organization_media_queries.py`, `test_organization_media.py`, `test_organization_media_sweep.py`, `test_organization_media_moderation.py`, `test_authorization_matrix.py`, `test_public_preview.py`, `test_moderation.py`, `test_product_photos.py`, `test_my_profile.py`, plus the 2 tests from 14.1
 
 **Acceptance Criteria:**
@@ -480,11 +480,11 @@ Commands:
 **Dependencies:** All previous groups (1-14)
 **Files to Modify:** `src/backend/tests/test_organization_media*.py`, `src/frontend/src/test/organizerMediaBlocks.test.tsx`, `src/frontend/src/test/OrganizerPhotosTab.test.tsx`, `src/frontend/src/test/OrganizerEditor.test.tsx`, `../group-thing-ai/tests/test_photo_store.py`
 
-- [ ] 15.0 Review and fill critical gaps
-  - [ ] 15.1 Review tests from Groups 1-14 (~70 tests) against spec Success Criteria 1-10 and Audit Resolutions H1-L11
-  - [ ] 15.2 Analyze gaps for THIS feature only — likely candidates: `NEEDS_REVIEW` treated like PENDING in slot replace and polling; upload `IntegrityError` race backstop → 409; reorder when storage is `None`; delete with storage `None` still stages outbox; cover-only S1-S6 copy ("okładkę"/"okładka"); hero `centered` logo error fallback; admin delete of APPROVED logo retires older rows
-  - [ ] 15.3 Write up to 10 additional strategic tests for the highest-risk gaps
-  - [ ] 15.4 Run feature-specific tests only (backend files from 14.4, frontend files from Groups 9-13, group-thing-ai files from Group 8); frontend `tsc --noEmit` and lint
+- [x] 15.0 Review and fill critical gaps
+  - [x] 15.1 Review tests from Groups 1-14 (~70 tests) against spec Success Criteria 1-10 and Audit Resolutions H1-L11
+  - [x] 15.2 Analyze gaps for THIS feature only — likely candidates: `NEEDS_REVIEW` treated like PENDING in slot replace and polling; upload `IntegrityError` race backstop → 409; reorder when storage is `None`; delete with storage `None` still stages outbox; cover-only S1-S6 copy ("okładkę"/"okładka"); hero `centered` logo error fallback; admin delete of APPROVED logo retires older rows
+  - [x] 15.3 Write up to 10 additional strategic tests for the highest-risk gaps
+  - [x] 15.4 Run feature-specific tests only (backend files from 14.4, frontend files from Groups 9-13, group-thing-ai files from Group 8); frontend `tsc --noEmit` and lint
 
 **Acceptance Criteria:**
 - All feature tests pass (~80-90 total across both repos)

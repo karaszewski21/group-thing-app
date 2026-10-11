@@ -58,6 +58,9 @@ const ORGANIZATION = {
   accent_color: null,
   page_layout: "CLASSIC",
   palette_preset: null,
+  logo: null,
+  cover: null,
+  gallery: [],
 };
 
 const MY_ORGANIZATION = {
@@ -71,6 +74,7 @@ const MY_ORGANIZATION = {
   palette_preset: null,
   created_at: "2026-10-01T10:00:00Z",
   updated_at: "2026-10-01T10:00:00Z",
+  media: [],
 };
 
 const DIRECTORY: groupsApi.OrganizerPageResponse = {
@@ -96,6 +100,9 @@ describe("PublicOrganizationPage", () => {
       accent_color: "#a9c24f",
       page_layout: "CLASSIC",
       palette_preset: null,
+      logo: null,
+      cover: null,
+      gallery: [],
     });
 
     renderAt("/muzyczne-skrzaty");
@@ -120,6 +127,9 @@ describe("PublicOrganizationPage", () => {
       accent_color: "#d4a017",
       page_layout: "CLASSIC",
       palette_preset: null,
+      logo: null,
+      cover: null,
+      gallery: [],
     });
 
     renderAt("/studio-ania");
@@ -142,6 +152,9 @@ describe("PublicOrganizationPage", () => {
       accent_color: "#d4a017",
       page_layout: "CLASSIC",
       palette_preset: null,
+      logo: null,
+      cover: null,
+      gallery: [],
     });
 
     renderAt("/tylko-akcent");
@@ -238,6 +251,9 @@ describe("PublicOrganizationPage", () => {
     vi.mocked(organizationsApi.getPublicOrganization).mockResolvedValue({
       ...ORGANIZATION,
       palette_preset: "OCEAN",
+      logo: null,
+      cover: null,
+      gallery: [],
     });
 
     renderAt("/muzyczne-skrzaty");

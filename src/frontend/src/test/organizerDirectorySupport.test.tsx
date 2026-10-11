@@ -19,6 +19,9 @@ const organization: PublicOrganizationResponse = {
   accent_color: null,
   page_layout: "CLASSIC",
   palette_preset: null,
+  logo: null,
+  cover: null,
+  gallery: [],
 };
 
 function circle(id: string, nextOccursOn: string | null): OrganizerCircle {

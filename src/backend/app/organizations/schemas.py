@@ -7,6 +7,9 @@ from datetime import datetime
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
+from app.moderation.status import ModerationStatus
+
+from .models import MediaKind
 from .page_layouts import PAGE_LAYOUT_KEYS, resolve_page_layout
 from .palettes import PALETTE_PRESET_KEYS
 
@@ -28,12 +31,40 @@ class OrganizationResponse(BaseModel):
     updated_at: datetime
 
 
+class PublicMediaResponse(BaseModel):
+    url: str
+    thumb_url: str
+
+
+class OwnerMediaResponse(BaseModel):
+    """APPROVED rows carry public CDN URLs, the rest presigned ones."""
+
+    id: uuid.UUID
+    kind: MediaKind
+    status: ModerationStatus
+    url: str
+    thumb_url: str
+    sort_order: int
+
+
+class MyOrganizationResponse(OrganizationResponse):
+    media: list[OwnerMediaResponse]
+
+
+class ReorderOrganizationMediaRequest(BaseModel):
+    media_ids: list[uuid.UUID]
+
+
 class PublicOrganizationResponse(BaseModel):
     """Served from the unauthenticated `/api/organizations/public/{slug}`
     endpoint — deliberately a narrower shape than `OrganizationResponse`:
     no `party_id`/timestamps, nothing beyond what the public page itself
     displays. `page_layout` is the effective layout (`resolve_page_layout`),
-    unlike the owner's `OrganizationResponse`, which carries the stored key."""
+    unlike the owner's `OrganizationResponse`, which carries the stored key.
+
+    The media fields default to empty because `model_validate` also runs on
+    the bare ORM `Organization` (the `/{slug}` meta preview in
+    `app.system.router`); only the API router fills them."""
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -43,6 +74,9 @@ class PublicOrganizationResponse(BaseModel):
     accent_color: str | None
     palette_preset: str | None
     page_layout: str
+    logo: PublicMediaResponse | None = None
+    cover: PublicMediaResponse | None = None
+    gallery: list[PublicMediaResponse] = []
 
     @field_validator("page_layout")
     @classmethod

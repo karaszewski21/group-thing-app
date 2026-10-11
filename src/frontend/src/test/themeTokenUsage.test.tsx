@@ -30,6 +30,8 @@ describe("organizer-themed files use role tokens", () => {
     "pages/organizer/blocks/LinkStackBlock.tsx",
     "pages/organizer/blocks/FooterBlock.tsx",
     "pages/organizer/blocks/GhostBlock.tsx",
+    "pages/organizer/blocks/GalleryBlock.tsx",
+    "pages/organizer/editor/PhotosTab.tsx",
     "pages/organizer/PublicOrganizationPage.tsx",
     "pages/organizer/editor/draft.ts",
     "pages/organizer/editor/EditorSheet.tsx",

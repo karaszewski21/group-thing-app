@@ -11,7 +11,7 @@ vi.mock("../api/organizations", () => ({
   updateOrganization: vi.fn(),
 }));
 
-const mockOrganization: organizationsApi.OrganizationResponse = {
+const mockOrganization: organizationsApi.MyOrganizationResponse = {
   id: "7",
   party_id: "3",
   name: "Muzyczne Skrzaty",
@@ -22,6 +22,7 @@ const mockOrganization: organizationsApi.OrganizationResponse = {
   palette_preset: null,
   created_at: "2026-01-01T00:00:00Z",
   updated_at: "2026-01-01T00:00:00Z",
+  media: [],
 };
 
 function renderPage() {

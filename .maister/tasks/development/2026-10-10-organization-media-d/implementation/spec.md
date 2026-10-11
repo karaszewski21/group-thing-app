@@ -110,7 +110,7 @@ Response: `201` with `OwnerMediaResponse` (R10).
 
 Response: `204`. No confirmation step exists in the UI (mockup decision).
 
-**R8 — Reorder.** `PATCH /api/organizations/{organization_id}/media/order`, EDIT principal, owner only.
+**R8 — Reorder.** `PATCH /api/organizations/{organization_id}/media/order`, EDIT principal, owner only. With storage None the order is still applied and the response is 200 `[]` (R11).
 - Body `ReorderOrganizationMediaRequest { media_ids: list[UUID] }` is the full list of the organization's non-REJECTED GALLERY ids in the new order.
 - Under the organization lock: if the list is not exactly that set (wrong length, duplicates, unknown or REJECTED id) → 409 `"Kolejność się zmieniła. Odśwież i spróbuj ponownie."`. Otherwise set `sort_order` = list index.
 - Response: `200` with `list[OwnerMediaResponse]`, the non-REJECTED gallery in the new order.
@@ -260,6 +260,8 @@ Also replace the stale "two subjects" wording outside the README (audit L5): the
 - Follows `standards/frontend/data-fetching.md`.
 
 **R22 — Hero.** `blocks/HeroBlock.tsx`:
+
+> **Change approved by the user during E2E (2026-10-11):** the cover photo is shown at the top of the page in **every** hero variant (`cover`, `compact`, `centered`), not only in `cover` (CLASSIC/CIRCLES). The same fixed light text/ring tokens apply over the photo. Statements below that limit the cover to the `cover` variant are superseded.
 - **Logo.** A small inner `HeroLogo` renders the logo `thumb_url` in place of the initials span in all three variants: `cover` h-16, `compact` h-14, `centered` h-20, all `rounded-full object-cover`, `alt=""`. On an image error it falls back to the initials.
 - **Cover.** In the `cover` variant only, the cover `url` is rendered as an absolute `object-cover` `<img alt="">` over the `bg-primary` header. On error the image is hidden and the band stays as it is.
 - **Cover text contrast (audit M2).** `text-on-primary` is palette-dependent (the SUN preset uses `#1e2e27`, and custom colors can resolve to ink), and `--color-scrim` is only 0.55 alpha, about 4.0:1 under white text over a white photo. Therefore, when a cover image is shown (and has not errored):
@@ -300,9 +302,11 @@ Also replace the stale "two subjects" wording outside the README (audit L5): the
 
 **R25a — PublicOrganizationPage** (`pages/organizer/PublicOrganizationPage.tsx`, audit M5):
 - `closeEditor` deletes `tab` together with `edit` (closing is implemented here, not in EditorSheet).
-- It passes `organizationId={owner.id}` and `media={owner.media}` to `EditorSheet` (`owner` is the `/mine` data, now `MyOrganizationResponse`).
+- It passes `organizationId={owner.id}` to `EditorSheet` (PhotosTab reads media itself, R26) (`owner` is the `/mine` data, now `MyOrganizationResponse`).
 
-**R26 — PhotosTab and logo/cover slots.** New `editor/PhotosTab.tsx` with props: organization id, owner `media` (from `useMyOrganization`, via EditorSheet), and the current draft layout key. While mounted it also calls `useMyOrganization({ pollPendingMedia: true })` (R21), so polling stops when the tab or sheet closes.
+**R26 — PhotosTab and logo/cover slots.** New `editor/PhotosTab.tsx` with props: organization id and the current draft layout key. It reads owner media from `useMyOrganization({ pollPendingMedia: true })` (R21), with a stable module-level empty fallback, so polling stops when the tab or sheet closes.
+
+Cover S1 (empty) copy, approved by the user during verification (2026-10-11): "Brak okładki — na stronie widać kolorowe tło."
 
 Layout:
 - intro line `"Zdjęcia zapisują się od razu."`;
@@ -322,7 +326,7 @@ The inner `PhotoSlot` (used for LOGO with a round 48px thumb, and COVER with a 1
 | S7 errors | `role="alert"` lines: client `photoFileError` messages before upload, server messages verbatim, and the fallbacks from R21 |
 
 Behaviour:
-- The Okładka section always shows `"Widoczna w układach Klasyczny i Grupy."`. When the draft layout's hero variant is not `cover`, it also shows `"W wybranym układzie ({label}) okładka nie jest widoczna."` (resolved from the registry, so it follows the Układ tab live).
+- The Okładka section shows `"Widoczna u góry strony w każdym układzie."` (approved change 2026-10-11; replaces the earlier CLASSIC/CIRCLES-only note and the per-layout "nie jest widoczna" line).
 - After a delete, focus moves to the slot's add/change button.
 - Every button is at least 44px tall and has a visible label.
 
@@ -380,7 +384,7 @@ Mockups in `analysis/design-context/` are **binding inputs**. The implementation
 
 | ID | Mockup anchor | Spec requirement | Key elements |
 |---|---|---|---|
-| `component:hero-media` | `#hero-media` | R22 | Logo replaces initials in `cover`/`compact`/`centered` (64/56/80px); cover with a strong (≥0.7 alpha) scrim and fixed light text in `cover` only; `bg-primary` fallback; `alt=""` |
+| `component:hero-media` | `#hero-media` | R22 | Logo replaces initials in `cover`/`compact`/`centered` (64/56/80px); cover with a strong (≥0.7 alpha) scrim and fixed light text in all variants (approved change 2026-10-11); `bg-primary` fallback; `alt=""` |
 | `component:gallery-block` | `#gallery-block` | R23 | `px-6 pt-6`, serif heading; grid of 3/2/1 columns (1 photo = 4:3); `SafeImage`; alt "{name} — zdjęcie N z M" |
 | `screen:layout-classic-media` | `#layout-classic` | R22, R23 | Cover + logo; gallery after `about`, above upcoming terms |
 | `screen:layout-circles-media` | `#layout-circles` | R22, R23 | Cover + logo; gallery after `about` (2-photo grid) |
@@ -603,7 +607,7 @@ Findings from `verification/spec-audit.md` (2026-10-10) and where they were appl
 | M2 | Cover with image: fixed `text-on-ink` regardless of palette and a ≥0.7-alpha solid scrim stop behind the text | R22, Visual Design (`component:hero-media`), Reusable Components, Testing FE-1, Commit Split 3 |
 | M3 | Deploy step 2 uses the current cron password (or rotate + immediate `.env.cron` update and cron restart); README warning | Deploy order, R19, Success Criteria 7 |
 | M4 | Poll results that change a media status invalidate `[PUBLIC_ORGANIZATION_KEY]` | R21, Data flow step 4, Testing FE-3 |
-| M5 | EditorSheet tab follows the `tab` search param (pills write it); `closeEditor` deletes `tab`; PublicOrganizationPage passes `owner.id`/`owner.media` | R25, new R25a, R26, Visual Design, Testing FE-2, Commit Split 3 |
+| M5 | EditorSheet tab follows the `tab` search param (pills write it); `closeEditor` deletes `tab`; PublicOrganizationPage passes `owner.id` (media read by PhotosTab, verification I7c) | R25, new R25a, R26, Visual Design, Testing FE-2, Commit Split 3 |
 | L1 | Sweep subquery `ORDER BY id … FOR UPDATE SKIP LOCKED` | R12, Concurrency |
 | L2 | Per-slot retire before dedup; "Superseded duplicate window" limitation removed | R5.0, R13 (e), Known Limitations, Testing BE-4 |
 | L3 | `media_kind: MediaKind \| None = None`, last field of frozen `QueueEntry` | R15 |

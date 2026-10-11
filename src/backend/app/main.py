@@ -37,6 +37,7 @@ from app.notifications import outbox_listener as notifications_outbox_listener
 from app.notifications.router import router as notifications_router
 from app.oauth2.metadata_router import router as oauth2_metadata_router
 from app.oauth2.router import router as oauth2_router
+from app.organizations.media import sweep_superseded_media
 from app.organizations.router import router as organizations_router
 from app.outbox import scheduler as outbox_scheduler
 from app.plugin.router import router as plugin_router
@@ -61,6 +62,7 @@ _term_end_scheduler: AsyncIOScheduler | None = None
 # configurable-interval settings system, per
 # `standards/global/minimal-implementation.md`.
 _TERM_END_SCAN_INTERVAL_MINUTES = 1
+_MEDIA_SWEEP_INTERVAL_MINUTES = 15
 
 
 async def _run_term_end_scan() -> None:
@@ -68,14 +70,20 @@ async def _run_term_end_scan() -> None:
         await scan_for_term_ended(db)
 
 
+async def _run_media_sweep() -> None:
+    async with async_session_factory() as db:
+        await sweep_superseded_media(db)
+
+
 @asynccontextmanager
 async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
     """Starts the 30s outbox poller as a background task alongside the app
     process, after wiring every vertical's outbox event handlers. Also
-    starts the term-end scan job on an `AsyncIOScheduler` (APScheduler,
-    interval-based) — the same "started on startup, cancelled/shut down on
-    shutdown" lifecycle shape as the outbox poller, using APScheduler's own
-    `start`/`shutdown(wait=False)` API rather than a second sleep loop."""
+    starts the term-end scan and superseded-media sweep jobs on an
+    `AsyncIOScheduler` (APScheduler, interval-based) — the same "started on
+    startup, cancelled/shut down on shutdown" lifecycle shape as the outbox
+    poller, using APScheduler's own `start`/`shutdown(wait=False)` API
+    rather than a second sleep loop."""
     global _outbox_task, _term_end_scheduler
     logger.info(
         "MODERATION_TEXT_ENABLED=%s MODERATION_IMAGE_ENABLED=%s",
@@ -107,6 +115,7 @@ async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
     _term_end_scheduler.add_job(
         _run_term_end_scan, "interval", minutes=_TERM_END_SCAN_INTERVAL_MINUTES
     )
+    _term_end_scheduler.add_job(_run_media_sweep, "interval", minutes=_MEDIA_SWEEP_INTERVAL_MINUTES)
     _term_end_scheduler.start()
 
     yield

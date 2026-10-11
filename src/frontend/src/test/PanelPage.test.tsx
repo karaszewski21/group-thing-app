@@ -495,6 +495,7 @@ describe("PanelPage — hamburger promotion", () => {
       palette_preset: null,
       created_at: "",
       updated_at: "",
+      media: [],
     });
     renderPanel();
     await openMenu();
@@ -744,6 +745,7 @@ describe("PanelPage — dismissible home hints", () => {
       palette_preset: null,
       created_at: "",
       updated_at: "",
+      media: [],
     });
     renderPanel();
 

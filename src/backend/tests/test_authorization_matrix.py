@@ -149,3 +149,19 @@ def test_resolveRequirement_publicCircleRoutes_notRegressedByOrganizerRow(suffix
 
 def test_resolveRequirement_getGroupById_stillResolvesToRow26Read() -> None:
     assert resolve_requirement("GET", f"/api/groups/{uuid.uuid4()}") == READ
+
+
+@pytest.mark.parametrize(
+    ("method", "path"),
+    [
+        ("POST", "/api/organizations/x/media"),
+        ("PATCH", "/api/organizations/x/media/order"),
+        ("DELETE", "/api/organizations/x/media/y"),
+    ],
+)
+def test_resolveRequirement_mediaPostPatchDelete_requireEdit(method: str, path: str) -> None:
+    assert resolve_requirement(method, path) == EDIT
+
+
+def test_resolveRequirement_publicOrganizationSlug_staysPublic() -> None:
+    assert resolve_requirement("GET", "/api/organizations/public/some-slug") == "PUBLIC"

@@ -4,9 +4,8 @@
 from __future__ import annotations
 
 import asyncio
-import uuid
-
 import re
+import uuid
 from datetime import date
 from typing import cast
 
@@ -14,16 +13,16 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.models import Permission, User, user_permissions
+from app.config import settings
 from app.core.auth_deps import Principal
 from app.core.errors import BusinessConflictException, EntityNotFoundException
-from app.config import settings
 from app.core.security import hash_password
 from app.moderation.status import ModerationStatus
 from app.moderation.text_guard import TextField, check_text
-from app.party.models import Party, PartyType
 from app.outbox import service as outbox_service
+from app.party.models import Party, PartyType
 from app.party.service import create_party
-from app.product import images
+from app.storage import images
 from app.storage.outbox_listener import OBJECTS_DELETE
 from app.storage.service import ObjectStorage
 

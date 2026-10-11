@@ -5,19 +5,27 @@ import { TrashIcon } from "../panel/panelIcons";
 import { SafeImage } from "./ItemGallery";
 import { ACCEPTED_PHOTO_TYPES, MAX_PRODUCT_PHOTOS, photoFileError } from "./itemPageShared";
 
-const STATUS_LABELS: Record<Exclude<ModerationStatus, "APPROVED">, string> = {
+export type ModerationLabels = Record<Exclude<ModerationStatus, "APPROVED">, string>;
+
+const STATUS_LABELS: ModerationLabels = {
   PENDING: "W moderacji",
   NEEDS_REVIEW: "Do sprawdzenia",
   REJECTED: "Odrzucone",
 };
 
 /** Owner-only marker on a photo others can't see yet. */
-export function ModerationBadge({ status }: { status: ModerationStatus }) {
+export function ModerationBadge({
+  status,
+  labels = STATUS_LABELS,
+}: {
+  status: ModerationStatus;
+  labels?: ModerationLabels;
+}) {
   if (status === "APPROVED") return null;
   const tone = status === "REJECTED" ? "bg-danger-soft text-danger" : "bg-cream text-ink-soft";
   return (
     <span className={`rounded-full px-2 py-0.5 text-[10.5px] font-extrabold ${tone}`}>
-      {STATUS_LABELS[status]}
+      {labels[status]}
     </span>
   );
 }
@@ -186,27 +194,39 @@ export function ItemGalleryEditor({ photos, busy, onAdd, onRemove, onMove, onClo
 
 interface PhotoFileFieldProps {
   disabled: boolean;
+  label?: string;
+  multiple?: boolean;
+  /** Extra classes on the button-like label, e.g. a 44px touch height. */
+  className?: string;
   onFiles: (files: File[]) => void;
   onEscape?: () => void;
   inputRef?: RefObject<HTMLInputElement | null>;
 }
 
-/** "+ Dodaj zdjęcia" — picks one or more image files (on phones also the
- * camera). Validation stays with the caller. */
-export function PhotoFileField({ disabled, onFiles, onEscape, inputRef }: PhotoFileFieldProps) {
+/** "+ Dodaj zdjęcia" by default — picks one or more image files (on phones
+ * also the camera). Validation stays with the caller. */
+export function PhotoFileField({
+  disabled,
+  label = "+ Dodaj zdjęcia",
+  multiple = true,
+  className = "",
+  onFiles,
+  onEscape,
+  inputRef,
+}: PhotoFileFieldProps) {
   return (
     <label
       className={`mt-2 inline-flex cursor-pointer items-center rounded-[9px] bg-primary px-3 py-1.5 text-[11.5px] font-extrabold text-on-primary focus-within:ring-2 focus-within:ring-focus-ring/40 ${
         disabled ? "pointer-events-none opacity-60" : ""
-      }`}
+      } ${className}`}
     >
-      + Dodaj zdjęcia
+      {label}
       <input
         ref={inputRef}
         type="file"
         accept={ACCEPTED_PHOTO_TYPES}
-        multiple
-        aria-label="Dodaj zdjęcia"
+        multiple={multiple}
+        aria-label={label.replace(/^\+\s*/, "")}
         disabled={disabled}
         onChange={(e) => {
           const files = Array.from(e.target.files ?? []);

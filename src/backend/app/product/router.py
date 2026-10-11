@@ -19,10 +19,10 @@ from app.core.auth_deps import Principal, require_any
 from app.core.pagination import Page, Pagination
 from app.db import get_db
 from app.groups.application import term_item_listings
+from app.storage.images import MAX_UPLOAD_BYTES
 from app.storage.service import ObjectStorage, get_storage
 
 from . import service
-from .images import MAX_UPLOAD_BYTES
 from .schemas import (
     CreateProductRequest,
     ProductDescriptionResponse,

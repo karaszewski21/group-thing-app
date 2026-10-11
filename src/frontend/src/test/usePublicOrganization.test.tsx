@@ -16,6 +16,9 @@ const ORGANIZATION = {
   accent_color: null,
   page_layout: "CLASSIC",
   palette_preset: null,
+  logo: null,
+  cover: null,
+  gallery: [],
 };
 
 beforeEach(() => {

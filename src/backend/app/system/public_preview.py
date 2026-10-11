@@ -27,16 +27,25 @@ _INDEX_HTML_PATH = _STATIC_DIR / "index.html"
 _TITLE_TAG_PATTERN = re.compile(r"<title>.*?</title>", re.IGNORECASE | re.DOTALL)
 
 
-def _inject(title: str, description: str) -> str:
+def _inject(title: str, description: str, image_url: str | None = None) -> str:
     """Reads `index.html` fresh on every call — it's a few KB, and this way
     a redeployed frontend build is picked up without a backend restart."""
     safe_title = html.escape(title)
     safe_description = html.escape(description)
+    image_tags = ""
+    if image_url is not None:
+        safe_image = html.escape(image_url)
+        image_tags = (
+            f'<meta property="og:image" content="{safe_image}">'
+            f'<meta name="twitter:image" content="{safe_image}">'
+        )
+    twitter_card = "summary_large_image" if image_url is not None else "summary"
     meta_tags = (
         f'<meta property="og:title" content="{safe_title}">'
         f'<meta property="og:description" content="{safe_description}">'
         '<meta property="og:type" content="website">'
-        '<meta name="twitter:card" content="summary">'
+        f"{image_tags}"
+        f'<meta name="twitter:card" content="{twitter_card}">'
         f'<meta name="twitter:title" content="{safe_title}">'
         f'<meta name="twitter:description" content="{safe_description}">'
     )
@@ -57,5 +66,7 @@ def render_public_circle_meta(circle: PublicCircleResponse) -> str:
     return _inject(circle.name, description)
 
 
-def render_public_organization_meta(organization: PublicOrganizationResponse) -> str:
-    return _inject(organization.name, f"Strona organizacji {organization.name}.")
+def render_public_organization_meta(
+    organization: PublicOrganizationResponse, cover_url: str | None = None
+) -> str:
+    return _inject(organization.name, f"Strona organizacji {organization.name}.", cover_url)

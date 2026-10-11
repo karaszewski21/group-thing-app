@@ -25,6 +25,9 @@ const organization: PublicOrganizationResponse = {
   accent_color: null,
   page_layout: "CIRCLES",
   palette_preset: null,
+  logo: null,
+  cover: null,
+  gallery: [],
 };
 
 function circle(id: string, overrides: Partial<OrganizerCircle> = {}): OrganizerCircle {

@@ -20,7 +20,7 @@ const TILES: Tile[] = [
   { key: "CUSTOM", label: "Własny" },
 ];
 
-const SECTION_LABEL = "text-xs font-extrabold tracking-wide text-ink-soft";
+export const SECTION_LABEL = "text-xs font-extrabold tracking-wide text-ink-soft";
 
 interface ColorsTabProps {
   theme: OrganizerTheme;

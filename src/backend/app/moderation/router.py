@@ -55,8 +55,8 @@ async def list_photos(
 
 @router.delete("/photos/{photo_id}", status_code=status.HTTP_204_NO_CONTENT, response_model=None)
 async def delete_photo(photo_id: uuid.UUID, db: DbSession, principal: AdminPrincipal) -> None:
-    """Removes a product photo or an avatar from the database and, via the
-    outbox, both of its files from object storage."""
+    """Removes a product photo, an avatar or an organization's media from the
+    database and, via the outbox, both of its files from object storage."""
     await service.delete_upload(db, photo_id)
 
 

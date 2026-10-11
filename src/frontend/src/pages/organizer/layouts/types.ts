@@ -5,6 +5,7 @@ export type BlockId =
   | "hero"
   | "share"
   | "about"
+  | "gallery"
   | "link-stack"
   | "footer"
   | "stats"

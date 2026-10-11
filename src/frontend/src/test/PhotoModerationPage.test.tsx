@@ -25,6 +25,27 @@ const APPROVED: ModerationQueueEntry = {
   model_id: "google/shieldgemma-2-4b-it",
   scores: { sexual: 0.01, violence: 0.02, weapons: 0.0, dangerous: 0.0 },
   submitted_at: "2026-10-06T08:00:00",
+  media_kind: null,
+};
+
+const AVATAR: ModerationQueueEntry = {
+  ...APPROVED,
+  subject_type: "AVATAR",
+  subject_id: "avatar-1",
+  product_id: null,
+  product_name: "Anna Nowak",
+  photo_url: "https://cdn.example/a/w400.webp",
+};
+
+const ORG_LOGO: ModerationQueueEntry = {
+  ...APPROVED,
+  subject_type: "ORGANIZATION_MEDIA",
+  subject_id: "media-1",
+  product_id: null,
+  product_name: "Rodzinny Grajdołek",
+  photo_url: "https://cdn.example/o/logo.webp",
+  status: "NEEDS_REVIEW",
+  media_kind: "LOGO",
 };
 
 function renderPage() {
@@ -120,5 +141,43 @@ describe("PhotoModerationPage", () => {
 
     await waitFor(() => expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument());
     expect(moderationApi.deleteModerationPhoto).not.toHaveBeenCalled();
+  });
+
+  it("photos_organizationMedia_titlesWithOrganizationAndKind", async () => {
+    vi.mocked(moderationApi.getModerationPhotos).mockResolvedValue(
+      pageOf([ORG_LOGO, { ...ORG_LOGO, subject_id: "media-2", media_kind: "GALLERY" }]),
+    );
+    renderPage();
+
+    expect(await screen.findByText("Organization · Rodzinny Grajdołek · Logo")).toBeInTheDocument();
+    expect(screen.getByText("Organization · Rodzinny Grajdołek · Gallery")).toBeInTheDocument();
+    expect(screen.getByAltText("Photo of Organization · Rodzinny Grajdołek · Logo")).toHaveAttribute(
+      "src",
+      ORG_LOGO.photo_url,
+    );
+  });
+
+  it("photos_decideOrganizationMedia_sendsOrganizationMediaSubject", async () => {
+    vi.mocked(moderationApi.getModerationPhotos).mockResolvedValue(pageOf([ORG_LOGO]));
+    vi.mocked(moderationApi.decideModeration).mockResolvedValue(undefined);
+    renderPage();
+
+    fireEvent.click(await screen.findByRole("button", { name: "Approve" }));
+
+    await waitFor(() =>
+      expect(moderationApi.decideModeration).toHaveBeenCalledWith({
+        subject_type: "ORGANIZATION_MEDIA",
+        subject_id: "media-1",
+        outcome: "APPROVED",
+      }),
+    );
+  });
+
+  it("photos_photoAndAvatar_keepExistingTitles", async () => {
+    vi.mocked(moderationApi.getModerationPhotos).mockResolvedValue(pageOf([APPROVED, AVATAR]));
+    renderPage();
+
+    expect(await screen.findByText("Wózek spacerowy")).toBeInTheDocument();
+    expect(screen.getByText("Avatar · Anna Nowak")).toBeInTheDocument();
   });
 });

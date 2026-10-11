@@ -8,6 +8,8 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from app.organizations.models import MediaKind
+
 from .models import ModerationSubjectType
 from .status import ModerationStatus
 
@@ -20,7 +22,8 @@ class ModerationQueueEntryResponse(BaseModel):
 
     subject_type: ModerationSubjectType
     subject_id: uuid.UUID
-    # `None` for an avatar; `product_name` then holds the profile's name.
+    # `None` for an avatar or organization media; `product_name` then holds
+    # the profile's or the organization's name.
     product_id: uuid.UUID | None
     product_name: str
     photo_url: str | None
@@ -28,13 +31,20 @@ class ModerationQueueEntryResponse(BaseModel):
     model_id: str | None
     scores: dict[str, Any] | None
     submitted_at: datetime
+    # Only for organization media.
+    media_kind: MediaKind | None = None
 
 
 class ModerationDecisionRequest(BaseModel):
-    """Product photos and avatars only: texts are checked synchronously on
-    write, so a `PRODUCT_TEXT` decision is a 400 validation error."""
+    """Uploaded images only (product photos, avatars, organization media):
+    texts are checked synchronously on write, so a `PRODUCT_TEXT` decision
+    is a 400 validation error."""
 
-    subject_type: Literal[ModerationSubjectType.PHOTO, ModerationSubjectType.AVATAR]
+    subject_type: Literal[
+        ModerationSubjectType.PHOTO,
+        ModerationSubjectType.AVATAR,
+        ModerationSubjectType.ORGANIZATION_MEDIA,
+    ]
     subject_id: uuid.UUID
     outcome: Literal[ModerationStatus.APPROVED, ModerationStatus.REJECTED]
     note: str | None = Field(default=None, max_length=1000)

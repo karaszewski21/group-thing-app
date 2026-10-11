@@ -6,6 +6,7 @@ import { EmptyStateBlock } from "./blocks/EmptyStateBlock";
 import { ExchangeBoardBlock, isExchangeBoardEmpty } from "./blocks/ExchangeBoardBlock";
 import { ExchangeCountsBlock, isExchangeCountsEmpty } from "./blocks/ExchangeCountsBlock";
 import { FooterBlock } from "./blocks/FooterBlock";
+import { GalleryBlock, isGalleryEmpty } from "./blocks/GalleryBlock";
 import { GhostBlock } from "./blocks/GhostBlock";
 import { HeroBlock } from "./blocks/HeroBlock";
 import { LinkStackBlock } from "./blocks/LinkStackBlock";
@@ -26,7 +27,8 @@ import type {
 /** `Component: null` = no content source yet: skipped for visitors, a ghost
  * for the owner. `directory` blocks read `data.directory`, so they get a
  * skeleton while it loads and are hidden (visitor) or a neutral ghost (owner)
- * when it is unavailable. `isEmpty` is only asked once the directory is ready. */
+ * when it is unavailable, so their `isEmpty` is only asked once it is ready;
+ * other blocks are asked right away. */
 interface BlockDefinition {
   Component: ComponentType<BlockProps> | null;
   directory?: true;
@@ -37,6 +39,7 @@ const BLOCKS: Record<BlockId, BlockDefinition> = {
   hero: { Component: HeroBlock },
   share: { Component: ShareBlock },
   about: { Component: null },
+  gallery: { Component: GalleryBlock, isEmpty: isGalleryEmpty },
   "link-stack": { Component: LinkStackBlock },
   footer: { Component: FooterBlock },
   stats: { Component: StatsBlock, directory: true, isEmpty: isStatsEmpty },
@@ -87,7 +90,7 @@ export function LayoutRenderer({ layout, data, mode }: LayoutRendererProps) {
     if (directory && data.directoryStatus === "unavailable") {
       return owner ? <GhostBlock key={key} block={slot.block} unavailable /> : emptyState(true);
     }
-    if (data.directoryStatus === "ready" && isEmpty?.(data)) {
+    if (isEmpty?.(data)) {
       return owner ? <GhostBlock key={key} block={slot.block} /> : emptyState(false);
     }
     if (Component) return <Component key={key} data={data} variant={slot.variant} mode={mode} />;

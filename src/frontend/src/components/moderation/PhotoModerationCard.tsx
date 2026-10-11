@@ -1,6 +1,6 @@
 import { Box, Button, HStack, Image, Text } from "@chakra-ui/react";
 import { useState } from "react";
-import type { ModerationQueueEntry } from "../../api/moderation";
+import type { ModerationQueueEntry, ModerationSubjectType } from "../../api/moderation";
 import type { ModerationStatus } from "../../api/products";
 import dayjs from "../../utils/dayjs";
 import { ConfirmDialog } from "../shared/ConfirmDialog";
@@ -10,6 +10,21 @@ const STATUS_LABELS: Record<ModerationStatus, string> = {
   NEEDS_REVIEW: "Needs review",
   PENDING: "Pending",
   REJECTED: "Rejected",
+};
+
+const MEDIA_KIND_LABELS: Record<NonNullable<ModerationQueueEntry["media_kind"]>, string> = {
+  LOGO: "Logo",
+  COVER: "Cover",
+  GALLERY: "Gallery",
+};
+
+const TITLES: Record<ModerationSubjectType, (entry: ModerationQueueEntry) => string> = {
+  PHOTO: (entry) => entry.product_name,
+  AVATAR: (entry) => `Avatar · ${entry.product_name}`,
+  ORGANIZATION_MEDIA: (entry) =>
+    entry.media_kind
+      ? `Organization · ${entry.product_name} · ${MEDIA_KIND_LABELS[entry.media_kind]}`
+      : `Organization · ${entry.product_name}`,
 };
 
 function formatScores(scores: Record<string, number> | null): string {
@@ -34,7 +49,7 @@ export function PhotoModerationCard({
 }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const title = entry.subject_type === "AVATAR" ? `Avatar · ${entry.product_name}` : entry.product_name;
+  const title = TITLES[entry.subject_type](entry);
   const [confirmingDelete, setConfirmingDelete] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);

@@ -14,7 +14,7 @@ from app.core.security import encode_login_token
 from app.db import get_db
 from app.groups.schemas import LeadershipResponse
 from app.groups.service import build_leadership_responses, list_active_leaderships_for_party
-from app.product.images import MAX_UPLOAD_BYTES
+from app.storage.images import MAX_UPLOAD_BYTES
 from app.storage.service import ObjectStorage, get_storage
 
 from . import service

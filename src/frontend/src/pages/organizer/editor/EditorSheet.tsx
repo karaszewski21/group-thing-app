@@ -1,23 +1,30 @@
 import { useEffect, useRef, useState, type KeyboardEvent } from "react";
-import { useBlocker } from "react-router-dom";
+import { useBlocker, useSearchParams } from "react-router-dom";
 import { CloseIcon } from "../../panel/panelIcons";
 import type { OrganizerPageData } from "../layouts/types";
 import { ColorsTab } from "./ColorsTab";
 import type { Draft } from "./draft";
 import { LayoutTab } from "./LayoutTab";
+import { PhotosTab } from "./PhotosTab";
 import { nextIndex } from "./rovingIndex";
 import { UnsavedChangesDialog } from "./UnsavedChangesDialog";
 
-type Tab = "uklad" | "kolory";
+type Tab = "uklad" | "kolory" | "zdjecia";
 
 const TABS: { id: Tab; label: string }[] = [
   { id: "uklad", label: "Układ" },
   { id: "kolory", label: "Kolory" },
+  { id: "zdjecia", label: "Zdjęcia" },
 ];
+
+function toTab(value: string | null): Tab {
+  return TABS.find((t) => t.id === value)?.id ?? "uklad";
+}
 
 const SAVE_FALLBACK = "Nie udało się zapisać. Spróbuj ponownie.";
 
 interface EditorSheetProps {
+  organizationId: string;
   /** The live page's data; drives the layout cards' "Polecany" badges. */
   pageData: OrganizerPageData;
   draft: Draft;
@@ -34,8 +41,20 @@ interface EditorSheetProps {
  * stays usable and shows the draft live. A successful save closes it; only
  * closing explicitly (X) or leaving for another page asks before an unsaved
  * draft is dropped. */
-export function EditorSheet({ pageData, draft, dirty, onChange, onReset, onSave, onClose }: EditorSheetProps) {
-  const [tab, setTab] = useState<Tab>("uklad");
+export function EditorSheet({
+  organizationId,
+  pageData,
+  draft,
+  dirty,
+  onChange,
+  onReset,
+  onSave,
+  onClose,
+}: EditorSheetProps) {
+  const [searchParams, setSearchParams] = useSearchParams();
+  // The `tab` param drives the visible tab, so a link to `?tab=zdjecia` (the
+  // gallery ghost) switches an already open sheet too.
+  const tab = toTab(searchParams.get("tab"));
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [confirmOpen, setConfirmOpen] = useState(false);
@@ -45,7 +64,7 @@ export function EditorSheet({ pageData, draft, dirty, onChange, onReset, onSave,
   const [resetCount, setResetCount] = useState(0);
   const titleRef = useRef<HTMLHeadingElement>(null);
   const closeRef = useRef<HTMLButtonElement>(null);
-  const tabRefs = useRef<Record<Tab, HTMLButtonElement | null>>({ uklad: null, kolory: null });
+  const tabRefs = useRef<Record<Tab, HTMLButtonElement | null>>({ uklad: null, kolory: null, zdjecia: null });
   // Changing only the query string (closing the sheet) is never blocked.
   const blocker = useBlocker(
     ({ currentLocation, nextLocation }) => dirty && currentLocation.pathname !== nextLocation.pathname,
@@ -55,6 +74,16 @@ export function EditorSheet({ pageData, draft, dirty, onChange, onReset, onSave,
   useEffect(() => {
     titleRef.current?.focus();
   }, []);
+
+  function selectTab(next: Tab) {
+    setSearchParams(
+      (params) => {
+        params.set("tab", next);
+        return params;
+      },
+      { replace: true },
+    );
+  }
 
   function change(next: Draft) {
     setError(null);
@@ -101,7 +130,7 @@ export function EditorSheet({ pageData, draft, dirty, onChange, onReset, onSave,
     if (index === null) return;
     event.preventDefault();
     const next = TABS[index].id;
-    setTab(next);
+    selectTab(next);
     tabRefs.current[next]?.focus();
   }
 
@@ -144,7 +173,7 @@ export function EditorSheet({ pageData, draft, dirty, onChange, onReset, onSave,
                 aria-selected={on}
                 aria-controls={on ? `editor-panel-${t.id}` : undefined}
                 tabIndex={on ? 0 : -1}
-                onClick={() => setTab(t.id)}
+                onClick={() => selectTab(t.id)}
                 onKeyDown={handleTabKeyDown}
                 className={`min-h-[44px] rounded-full border-[1.5px] px-4 py-2 text-[12px] font-extrabold transition-colors ${
                   on ? "border-transparent bg-ink text-on-ink" : "border-line text-ink-soft hover:border-line-strong"
@@ -180,6 +209,8 @@ export function EditorSheet({ pageData, draft, dirty, onChange, onReset, onSave,
               />
             )}
           </fieldset>
+          {/* Photos save on their own, so the draft lock and dirty state never touch them. */}
+          {tab === "zdjecia" && <PhotosTab organizationId={organizationId} />}
         </div>
 
         {error && (

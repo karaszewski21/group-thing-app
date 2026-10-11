@@ -2,7 +2,7 @@ import { api } from "./client";
 import { pageParams, type Page } from "./pagination";
 import type { ModerationStatus } from "./products";
 
-export type ModerationSubjectType = "PHOTO" | "AVATAR";
+export type ModerationSubjectType = "PHOTO" | "AVATAR" | "ORGANIZATION_MEDIA";
 
 /** `GET /api/moderation/photos` (ADMIN-only) row — a product photo with the
  * latest ShieldGemma category scores (`null` when no model has scored it,
@@ -11,7 +11,8 @@ export type ModerationSubjectType = "PHOTO" | "AVATAR";
 export interface ModerationQueueEntry {
   subject_type: ModerationSubjectType;
   subject_id: string;
-  /** `null` for an avatar; `product_name` then holds the profile's name. */
+  /** `null` for an avatar or organization media; `product_name` then holds
+   * the profile's or the organization's name. */
   product_id: string | null;
   product_name: string;
   photo_url: string | null;
@@ -19,6 +20,8 @@ export interface ModerationQueueEntry {
   model_id: string | null;
   scores: Record<string, number> | null;
   submitted_at: string;
+  /** Set only for `ORGANIZATION_MEDIA`. */
+  media_kind: "LOGO" | "COVER" | "GALLERY" | null;
 }
 
 export interface ModerationDecisionRequest {

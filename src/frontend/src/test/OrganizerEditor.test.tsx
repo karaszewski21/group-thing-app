@@ -18,6 +18,9 @@ vi.mock("../api/organizations", () => ({
   getPublicOrganization: vi.fn(),
   getMyOrganization: vi.fn(),
   updateOrganization: vi.fn(),
+  uploadOrganizationMedia: vi.fn(),
+  deleteOrganizationMedia: vi.fn(),
+  reorderOrganizationGallery: vi.fn(),
 }));
 
 vi.mock("../api/groups", () => ({
@@ -56,6 +59,9 @@ const ORGANIZATION = {
   accent_color: null,
   page_layout: "CLASSIC",
   palette_preset: null,
+  logo: null,
+  cover: null,
+  gallery: [],
 };
 
 const MY_ORGANIZATION = {
@@ -69,6 +75,7 @@ const MY_ORGANIZATION = {
   palette_preset: null,
   created_at: "2026-10-01T10:00:00Z",
   updated_at: "2026-10-01T10:00:00Z",
+  media: [],
 };
 
 const DIRECTORY: groupsApi.OrganizerPageResponse = {
@@ -461,6 +468,98 @@ describe("Organizer editor colors tab", () => {
     expect(screen.queryByText("Podaj kolor w formacie #RRGGBB")).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Anuluj" })).toBeDisabled();
     expect(screen.getByRole("button", { name: "Zapisz" })).toBeDisabled();
+  });
+});
+
+describe("Organizer editor photos tab", () => {
+  const JPEG = new File(["x"], "logo.jpg", { type: "image/jpeg" });
+
+  function tab(name: string) {
+    return screen.getByRole("tab", { name });
+  }
+
+  it("opens on Zdjęcia for ?tab=zdjecia with the draft footer untouched", async () => {
+    renderAt("/muzyczne-skrzaty?edit=1&tab=zdjecia");
+    await screen.findByRole("dialog", { name: "Wygląd strony" });
+
+    expect(tab("Zdjęcia")).toHaveAttribute("aria-selected", "true");
+    expect(screen.getByRole("tabpanel")).toHaveAccessibleName("Zdjęcia");
+    expect(screen.getByRole("region", { name: "Logo" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Zapisz" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Anuluj" })).toBeDisabled();
+  });
+
+  it("falls back to Układ for an unknown tab value", async () => {
+    renderAt("/muzyczne-skrzaty?edit=1&tab=nieznana");
+    await screen.findByRole("dialog", { name: "Wygląd strony" });
+
+    expect(tab("Układ")).toHaveAttribute("aria-selected", "true");
+    expect(screen.getByRole("radio", { name: "Klasyczny" })).toBeInTheDocument();
+  });
+
+  it("switches an open sheet to Zdjęcia from the gallery ghost CTA, and closing drops edit and tab", async () => {
+    await openEditor();
+    expect(tab("Układ")).toHaveAttribute("aria-selected", "true");
+
+    fireEvent.click(screen.getByRole("link", { name: "Dodaj zdjęcia →" }));
+
+    expect(await screen.findByRole("region", { name: "Logo" })).toBeInTheDocument();
+    expect(tab("Zdjęcia")).toHaveAttribute("aria-selected", "true");
+    expect(screen.getByTestId("location")).toHaveTextContent("/muzyczne-skrzaty?edit=1&tab=zdjecia");
+
+    fireEvent.click(tab("Kolory"));
+
+    expect(screen.getByTestId("location")).toHaveTextContent("/muzyczne-skrzaty?edit=1&tab=kolory");
+
+    fireEvent.click(screen.getByRole("link", { name: "Dodaj zdjęcia →" }));
+
+    expect(await screen.findByRole("region", { name: "Logo" })).toBeInTheDocument();
+    expect(tab("Zdjęcia")).toHaveAttribute("aria-selected", "true");
+
+    fireEvent.click(screen.getByRole("button", { name: "Zamknij" }));
+
+    expect(screen.queryByRole("dialog", { name: "Wygląd strony" })).not.toBeInTheDocument();
+    expect(screen.getByTestId("location")).toHaveTextContent(/^\/muzyczne-skrzaty$/);
+  });
+
+  it("uploads a photo right away without making the draft dirty", async () => {
+    vi.mocked(organizationsApi.uploadOrganizationMedia).mockResolvedValue({
+      id: "m-1",
+      kind: "LOGO",
+      status: "PENDING",
+      url: "https://cdn/m-1",
+      thumb_url: "https://cdn/m-1-t",
+      sort_order: 0,
+    });
+    renderAt("/muzyczne-skrzaty?edit=1&tab=zdjecia");
+    const logo = within(await screen.findByRole("region", { name: "Logo" }));
+
+    fireEvent.change(logo.getByLabelText("Dodaj logo"), { target: { files: [JPEG] } });
+
+    await vi.waitFor(() =>
+      expect(organizationsApi.uploadOrganizationMedia).toHaveBeenCalledWith("org-1", "LOGO", JPEG),
+    );
+    expect(screen.getByRole("button", { name: "Zapisz" })).toBeDisabled();
+
+    fireEvent.click(screen.getByRole("button", { name: "Zamknij" }));
+
+    expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument();
+    expect(screen.queryByRole("dialog", { name: "Wygląd strony" })).not.toBeInTheDocument();
+  });
+
+  it("moves roving focus across all three pills with the arrow keys", async () => {
+    await openEditor();
+
+    fireEvent.keyDown(tab("Układ"), { key: "ArrowRight" });
+    expect(tab("Kolory")).toHaveFocus();
+    fireEvent.keyDown(tab("Kolory"), { key: "ArrowRight" });
+    expect(tab("Zdjęcia")).toHaveFocus();
+    expect(tab("Zdjęcia")).toHaveAttribute("aria-selected", "true");
+    expect(tab("Zdjęcia")).toHaveAttribute("tabindex", "0");
+    fireEvent.keyDown(tab("Zdjęcia"), { key: "ArrowRight" });
+    expect(tab("Układ")).toHaveFocus();
+    fireEvent.keyDown(tab("Układ"), { key: "ArrowLeft" });
+    expect(tab("Zdjęcia")).toHaveFocus();
   });
 });
 

@@ -73,6 +73,7 @@ export function PublicOrganizationPage() {
     setSearchParams(
       (params) => {
         params.delete("edit");
+        params.delete("tab");
         return params;
       },
       { replace: true },
@@ -118,8 +119,9 @@ export function PublicOrganizationPage() {
           mode={isOwner ? "owner-edit" : "visitor"}
         />
       </PageFrame>
-      {editing && (
+      {editing && owner && (
         <EditorSheet
+          organizationId={owner.id}
           pageData={pageData}
           draft={editing.current}
           dirty={dirty}

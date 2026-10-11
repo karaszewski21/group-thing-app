@@ -24,6 +24,9 @@ const organization: PublicOrganizationResponse = {
   accent_color: null,
   page_layout: "CLASSIC",
   palette_preset: null,
+  logo: null,
+  cover: null,
+  gallery: [],
 };
 
 function pageData(overrides: Partial<OrganizerPageResponse> = {}): OrganizerPageData {
@@ -156,6 +159,7 @@ describe("LayoutRenderer", () => {
       "share",
       "stats",
       "about",
+      "gallery:grid",
       "upcoming-terms:list*",
       "exchange-counts:tiles3",
       "footer",
@@ -165,6 +169,7 @@ describe("LayoutRenderer", () => {
       "next-term-cta:card",
       "agenda:by-day*",
       "about",
+      "gallery:grid",
       "exchange-counts:tiles3",
       "footer",
     ]);
@@ -174,6 +179,7 @@ describe("LayoutRenderer", () => {
       "circles-grid:cards*",
       "circles-grid:featured*",
       "about",
+      "gallery:grid",
       "exchange-counts:tiles3",
       "footer",
     ]);
@@ -183,9 +189,10 @@ describe("LayoutRenderer", () => {
       "needed-items:list",
       "upcoming-terms:compact",
       "about",
+      "gallery:grid",
       "footer",
     ]);
-    expect(composition("LINKS")).toEqual(["hero:centered", "link-stack*", "about", "footer"]);
+    expect(composition("LINKS")).toEqual(["hero:centered", "link-stack*", "about", "gallery:grid", "footer"]);
   });
 
   it("keeps exactly one active primary slot for 0, 1 and 2 circles, with CIRCLES featured at 1 and cards at 2", () => {
@@ -230,11 +237,12 @@ describe("LayoutRenderer", () => {
     const ghosts = Array.from(owner.container.querySelectorAll("[data-ghost]"), (ghost) =>
       ghost.getAttribute("data-ghost"),
     );
-    expect(ghosts).toEqual(["next-term-cta", "agenda", "about", "exchange-counts"]);
+    expect(ghosts).toEqual(["next-term-cta", "agenda", "about", "gallery", "exchange-counts"]);
     expect(
       screen.getAllByText("Nie udało się wczytać danych. Odwiedzający nie widzą tej sekcji."),
     ).toHaveLength(3);
-    expect(screen.queryByRole("link", { name: /Dodaj/ })).not.toBeInTheDocument();
+    // Only the gallery ghost, which does not depend on the directory, keeps its CTA.
+    expect(screen.getAllByRole("link", { name: /Dodaj/ }).map((link) => link.textContent)).toEqual(["Dodaj zdjęcia →"]);
     expect(screen.queryByText("Brak informacji do pokazania")).not.toBeInTheDocument();
     expect(screen.getByRole("heading", { level: 1, name: "Rodzinny Grajdołek" })).toBeInTheDocument();
   });

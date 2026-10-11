@@ -4,7 +4,7 @@ import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { ApiError } from "../api/client";
 import * as notificationsApi from "../api/notifications";
 import * as organizationsApi from "../api/organizations";
-import type { OrganizationResponse } from "../api/organizations";
+import type { MyOrganizationResponse } from "../api/organizations";
 import { PublicLayout } from "../components/layout/PublicLayout";
 import { createQueryWrapper } from "./queryClient";
 
@@ -67,7 +67,7 @@ describe("PublicLayout", () => {
 
   it("logged in with an Organization: 'Moja organizacja' links to its public page", async () => {
     mockAuth = { token: "tok" };
-    vi.mocked(organizationsApi.getMyOrganization).mockResolvedValue({ slug: "moja-org" } as OrganizationResponse);
+    vi.mocked(organizationsApi.getMyOrganization).mockResolvedValue({ slug: "moja-org" } as MyOrganizationResponse);
     renderPublicPage();
 
     const menu = await openMenu();

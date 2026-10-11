@@ -29,6 +29,9 @@ const ORGANIZATION = {
   accent_color: "#d4a017",
   page_layout: "SCHEDULE",
   palette_preset: null,
+  logo: null,
+  cover: null,
+  gallery: [],
 };
 
 function term(id: string, occursOn: string, overrides: Partial<OrganizerTerm> = {}): OrganizerTerm {
