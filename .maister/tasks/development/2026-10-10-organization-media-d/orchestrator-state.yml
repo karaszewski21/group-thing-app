@@ -1,21 +1,21 @@
 orchestrator:
   started_phase: phase-1
-  current_phase: phase-1
-  completed_phases: []
+  current_phase: phase-8
+  completed_phases: [phase-1, phase-2, phase-4, phase-5, phase-6, phase-7]
   failed_phases: []
   auto_fix_attempts: {}
   options:
     spec_audit_enabled: true
     skip_test_suite: true
-    e2e_enabled: null
-    user_docs_enabled: null
+    e2e_enabled: true
+    user_docs_enabled: true
     code_review_enabled: true
     pragmatic_review_enabled: true
     reality_check_enabled: true
     production_check_enabled: true
     sequential: false
   created: 2026-10-10T00:00:00Z
-  updated: 2026-10-10T00:00:00Z
+  updated: 2026-10-11T00:00:00Z
   task_path: .maister/tasks/development/2026-10-10-organization-media-d
 task:
   title: "D: Zdjęcia organizacji (logo, okładka, galeria) na stronie organizatora"
@@ -28,17 +28,17 @@ task:
   status: in_progress
   tags: [backend, frontend, media, moderation, two-repos]
 task_context:
-  risk_level: null
-  clarifications_resolved: null
-  scope_expanded: null
-  tech_clarified: null
-  architecture_decision: null
+  risk_level: medium-high
+  clarifications_resolved: true
+  scope_expanded: false
+  tech_clarified: true
+  architecture_decision: "organization_media table (0051 cron contract) + read-time newest-APPROVED + retire helper + 15-min APScheduler sweep; moderation subject map; Core writes with org FOR UPDATE lock; media embedded in public response (2 stmts) and MyOrganizationResponse on /mine"
   task_characteristics:
     has_reproducible_defect: false
-    modifies_existing_code: false
-    creates_new_entities: false
-    involves_data_operations: false
-    ui_heavy: false
+    modifies_existing_code: true
+    creates_new_entities: true
+    involves_data_operations: true
+    ui_heavy: true
   research_reference:
     path: .maister/tasks/research/2026-10-07-organizer-page-layouts-theming
     research_question: "Organizer page with 5 selectable layouts + palette applied to organizer/term/product pages, easy editor, ready for paid custom layouts"
@@ -48,7 +48,7 @@ task_context:
   dependency:
     completed: "A1, A2, B (commits 1a72956, 60a7ec7, 7b72730, 0e9b2ce)"
     task_c: "not done — organization content (tagline/description); migration numbering must account for it"
-  design_reference: null
+  design_reference: {source: phase-4-ascii, product_design_path: null, mockup_count: 0, has_brief: false, index_path: analysis/design-context/INDEX.md}
   phase_summaries:
     research:
       summary: "D = organization_media table (same column set as profile_avatars 0051, cron contract), routes POST/DELETE/PATCH order under /api/organizations/{id}/media, new DELETE matrix row (P3), moderation union/decide/delete/admin label, group-thing-ai Subject + grants + deploy-artifacts test; deploy order migration → grants → cron; pending variant B (last approved stays public, owner sees 'W weryfikacji'). D2 = gallery block + og:image."
@@ -56,8 +56,25 @@ task_context:
         - "research-report.md §10.3 (l.587), task table l.857-858, P3 l.970"
         - "Hero block already has cover variant falling back to color band"
       recommended_approach: "analysis/research-context/research-report.md §10.3 + high-level-design.md"
+    codebase_analysis:
+      key_files: [src/backend/app/organizations/models.py, src/backend/app/organizations/service.py, src/backend/app/organizations/router.py, src/backend/app/organizations/schemas.py, src/backend/alembic/versions/0051_profile_avatars.py, src/backend/app/users/service.py, src/backend/app/product/service.py, src/backend/app/product/images.py, src/backend/app/storage/service.py, src/backend/app/moderation/service.py, src/backend/app/moderation/schemas.py, src/backend/app/core/authorization_matrix.py, src/backend/app/system/public_preview.py, ../group-thing-ai/app/photo_store.py, ../group-thing-ai/scripts/moderation_db_role.sql, src/frontend/src/pages/organizer/blocks/HeroBlock.tsx, src/frontend/src/pages/organizer/LayoutRenderer.tsx, src/frontend/src/pages/organizer/editor/EditorSheet.tsx, src/frontend/src/pages/product/ItemGalleryEditor.tsx, src/frontend/src/components/moderation/PhotoModerationCard.tsx]
+      primary_language: python+typescript
+      summary: "Complex/medium-high. Templates: ProfileAvatar (cron column contract, LOGO/COVER replace) + ProductPhoto (gallery sort/dedup/limit/reorder) + ItemGalleryEditor. Matrix row 50 already covers POST/PATCH/DELETE (P3 fixed; no PUT → reorder PATCH). Cron can't retire old approved logo → multiple rows per kind + read-time newest-APPROVED rule. Moderation has hard-coded 2-way dispatch (service l.73,151-187,267,291-297; FE product_id==null) → subject map. Embed media in PublicOrganizationResponse (single query). Avoid template anti-patterns: lock during S3 put, first-upload race, orphan/REJECTED files, 1y immutable cache w/o purge, 600s presign, cross-module images.py."
+    clarifications:
+      - "Scope: logo + cover + gallery block; og:image out of scope"
+      - "Owner manages photos in new 'Zdjęcia' tab of appearance editor sheet; immediate save, outside draft"
+      - "Migration: D = 0054, task C takes next free number (update B/HLD notes)"
+      - "Gallery max 3 photos; assumed: last approved logo/cover stays until new approved, one pending per slot, sha dedup, up/down reorder"
+    gap_analysis:
+      integration_points: [alembic 0054_organization_media, organizations models/schemas/service/router, moderation models/service/schemas subject map, images.py relocation, storage outbox, authorization_matrix tests, optional APScheduler sweep, group-thing-ai photo_store + moderation_db_role.sql + tests, FE api/organizations + hooks, layouts types/registry/LayoutRenderer/HeroBlock/GalleryBlock/GhostBlock/EditorSheet+PhotosTab, admin FE moderation type+label, docs C->0055]
+      summary: "Additive organizations feature + modificative moderation dispatch (delete_upload/decide misroute a 3rd subject). Owner page renders public data → pending/rejected only via /mine in Zdjęcia tab; public org endpoint needs own query-count test. Deploy: app+0054 → grants SQL → cron (cron before grants stops ALL image moderation)."
+    scope_clarifications: {scope_expanded: false, summary: "Gallery in all 5 layouts, cover only CLASSIC/CIRCLES; periodic APScheduler sweep of superseded logo/cover, takedown leaves empty slot; ORGANIZATION_MEDIA + subject map; REJECTED visible to owner with Usuń, not counted; images.py → app/storage; routes /{organization_id}/media + PATCH /order; dedup per kind; pending only in Zdjęcia tab; ghost CTA opens Zdjęcia tab. See analysis/scope-clarifications.md"}
+    design: {summary: "ASCII mockups (Phase 4): 8 screens (5 layouts with media, owner empty ghost, editor Zdjęcia tab, admin card) + 8 components (hero-media, gallery-block, ghost-gallery, photos-tab, photo-slot S1-S7, gallery-editor G1-G6, media-status-badge, moderation-card-org). Gallery after `about` in all layouts; ghost CTA ?edit=1&tab=zdjecia; tab note 'Zdjęcia zapisują się od razu.'; 10s polling while pending.", screen_count: 8, component_count: 8, index_path: analysis/design-context/INDEX.md}
+    ui_mockups: {components_designed: [HeroLogo, GalleryBlock, GhostBlock gallery CTA, PhotosTab, PhotoSlot, GalleryEditor rows, MediaStatusBadge labels, PhotoModerationCard title map], summary: "analysis/design-context/ascii/ui-mockups.md; planner notes: LayoutRenderer isEmpty for non-directory block, export SECTION_LABEL, PhotoFileField label/multiple props, ModerationBadge labels prop, 44px row buttons, admin needs kind field"}
+    specification: {summary: "implementation/spec.md: 30 requirements (R1-R14 backend app incl. images.py move, model, 0054, API, public/owner read, sweep, retire helper, Core writes; R15-16 moderation subject map; R17-19 group-thing-ai; R20-24 FE page/hero/gallery/renderer; R25-28 editor tab; R29 admin; R30 docs). Deviations from HLD: no width/height, dedup per kind, no extra (org,kind,status) index. 4 commits: images move, BE, FE, group-thing-ai."}
 project_context:
   project_doc_paths:
     - .maister/docs/project/tech-stack.md
     - .maister/docs/project/architecture.md
 security_note: "Never print env/secret values (CLAUDE.md Secrets). Repeat in subagent prompts touching config/storage."
+  followups: ["After task: /maister:standards-update models.md + migrations.md (UUID PKs since 0041, not explicit sequences)"]

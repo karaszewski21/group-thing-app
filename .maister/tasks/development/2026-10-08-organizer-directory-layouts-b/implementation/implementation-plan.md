@@ -745,5 +745,5 @@ Follow the standards in `.maister/docs/standards/`:
 - **Mark progress:** check off steps as they are completed.
 - **Reuse first:** `count_active_attendances_by_term`, `list_item_listing_preferences_for_parties`, `Pagination`/`Page`, `usePublicOrganization` shape, `hasStatus`, `nextIndex`, `SafeImage`, `PhotoPlaceholder`, `layoutPositions`, `CONDITION_LABELS`, `pluralPl`, `utils/dayjs.ts`, `OrganizerThemeScope`, `ShareButton`, `FooterBlock`.
 - **Commit split (I-10):** the backend groups (1–6) finish before any frontend group. `PAGE_LAYOUT_KEYS` changes only in Group 11, inside the frontend commit. The user makes both commits, and the executor only stops at the boundaries.
-- **Migration numbering:** this task takes 0053. Task C must use 0054 or later.
+- **Migration numbering:** this task takes 0053. D takes 0054 (`0054_organization_media.py`); task C takes the next free number (0055+).
 - **mypy baseline:** about 32 errors at HEAD. Invoke it as `uv run python -m mypy app`.

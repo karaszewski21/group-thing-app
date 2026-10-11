@@ -587,7 +587,7 @@ Neutral variant (`unavailable`): the block's title, body "Nie udało się wczyta
 - **The board can show fewer cards than a tab's count.** Board tabs filter at most 12 items, while the counts reflect the full set. There is no "Pokaż wszystkie" until a paged items endpoint exists.
 - **`stats.circle_count` is capped at 30**, because it is derived from the limited circle list.
 - **The "Wszystkie terminy (N)" label counts only the 60-day window**, while `/:slug/terminy` lists every future term.
-- **HLD's next migration number changes.** This task takes **0053**. Task C (organization content, listed as `0053_organization_content.py` in `analysis/research-context/high-level-design.md` §11) **must take the next free number after 0053** (0054 or later), and D shifts accordingly. Note this when C's spec is written.
+- **HLD's next migration number changes.** This task takes **0053**. Task C (organization content, listed as `0053_organization_content.py` in `analysis/research-context/high-level-design.md` §11) **must take the next free number after 0053** (0054 or later), and D shifts accordingly. Note this when C's spec is written. **Update (2026-10-11, task D):** D was specified first and takes **0054** (`0054_organization_media.py`); task C takes the **next free number (0055+)**.
 
 ## Revision 2026-10-09 (audit)
 Source: `verification/spec-audit.md` plus the user's binding decisions. Every finding was applied.

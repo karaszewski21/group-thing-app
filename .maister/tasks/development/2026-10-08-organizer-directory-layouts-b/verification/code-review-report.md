@@ -53,9 +53,10 @@ None.
 ## Warnings
 
 ### W1-R2. Migration 0053's `autocommit_block()` commits all preceding migrations in a multi-migration upgrade, and a failed or partial run leaves the index behind
+- **Status**: **Resolved.** `src/backend/alembic/env.py:33,45` sets `transaction_per_migration=True` in both offline and online mode (confirmed during task D, 2026-10-11).
 - **Location**: `src/backend/alembic/versions/0053_terms_circle_occurs_on_index.py:34` and `:45`, combined with `src/backend/alembic/env.py:39-41` (`context.configure(connection=…)` without `transaction_per_migration=True`, then a single `begin_transaction()` around `run_migrations()`)
 - **Description**: The env runs every pending migration in one transaction. Alembic's own docstring for `autocommit_block` warns that "the database transaction preceding the block is unconditionally committed", and recommends `transaction_per_migration=True` for environments that contain autocommit blocks. Concrete failure modes:
-  1. In an upgrade spanning, for example, 0052 → 0054 (task C will add 0054), 0052's DDL and stamp commit when 0053's block starts. 0053's index is created in autocommit. The 0053 version stamp is then written in a new transaction. If 0054 fails, that transaction rolls back: `alembic_version` is left at 0052 but `ix_terms_circle_group_id_occurs_on` exists. The retry fails with `relation "ix_terms_circle_group_id_occurs_on" already exists` until someone drops the index by hand.
+  1. In an upgrade spanning, for example, 0052 → 0054 (task D adds 0054; task C takes the next free number, 0055+), 0052's DDL and stamp commit when 0053's block starts. 0053's index is created in autocommit. The 0053 version stamp is then written in a new transaction. If 0054 fails, that transaction rolls back: `alembic_version` is left at 0052 but `ix_terms_circle_group_id_occurs_on` exists. The retry fails with `relation "ix_terms_circle_group_id_occurs_on" already exists` until someone drops the index by hand.
   2. If `CREATE INDEX CONCURRENTLY` itself fails (lock timeout, cancel, deadlock), Postgres leaves an INVALID index with that name, which gives the same retry failure.
 
   Today 0053 is head, so a plain `upgrade head` from 0052 is safe. The hazard appears with the next migration, or with any partial failure.
@@ -111,7 +112,7 @@ None.
 - PII exposure: none (party ids are confined to inner subqueries)
 
 ## Prioritized Recommendations
-1. **W1-R2**: set `transaction_per_migration=True` in `alembic/env.py` before task C adds migration 0054, and note the manual `DROP INDEX CONCURRENTLY IF EXISTS` recovery step.
+1. **W1-R2** (**resolved**: `alembic/env.py:33,45` sets `transaction_per_migration=True`): set `transaction_per_migration=True` in `alembic/env.py` before the next migration (D's 0054; C takes 0055+), and note the manual `DROP INDEX CONCURRENTLY IF EXISTS` recovery step.
 2. **I4-R2**: fix the stale acceptance criterion at spec.md:568.
 3. **I1-R2**: consider `max-age=0, s-maxage=60` if the staleness after users' own actions is noticed.
 4. Optional polish: I2-R2 (collation), I5-R2 (directory retry on `/terminy`). I3-R2 and I6-R2 need no action now.

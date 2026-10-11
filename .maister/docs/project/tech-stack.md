@@ -99,7 +99,7 @@ Actual pinned versions from `src/backend/pyproject.toml` / `uv.lock`:
 | tenacity | 9.1.4 | Retry/backoff (footprint audit pipeline) |
 | python-multipart | 0.0.32 | Form-body parsing (OAuth2 `_token`/form fallbacks, photo uploads) |
 | boto3 | 1.43.107 | DigitalOcean Spaces (S3 API) photo storage, `app/storage/` — plain boto3 in `asyncio.to_thread` (one dependency, no aioboto3) |
-| pillow | 12.3.0 | Upload sanitization: decode allowlisted JPEG/PNG/WebP, EXIF strip, WebP re-encode (`app/product/images.py`) |
+| pillow | 12.3.0 | Upload sanitization: decode allowlisted JPEG/PNG/WebP, EXIF strip, WebP re-encode (`app/storage/images.py`) |
 | onnxruntime (`ml` group) | 1.30.0 | API `runtime` image only: CPU inference of Bielik-Guard (text moderation) |
 | tokenizers (`ml` group) | 0.23.2 | API `runtime` image only: Bielik-Guard tokenizer |
 | numpy (`ml` group) | 2.5.3 | API `runtime` image only: tensor pre/post-processing |

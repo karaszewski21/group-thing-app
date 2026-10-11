@@ -21,4 +21,4 @@
 - Decisions: weekday casing "Śr"; term-page thumbnails only for AVAILABLE listings; drop redundant `ix_terms_circle_group_id` in a later migration.
 - 17 pre-existing FE test failures (TermPage, PanelPage, extension-points, foundation, auth).
 - Local test data created by E2E: account `e2e.b.owner@example.com`, org `organizacja-b-e2e`.
-- Next tasks: C (organization content: tagline/description, migration 0054+), D (organization media: logo/cover/gallery with moderation).
+- Next tasks: C (organization content: tagline/description, next free migration number 0055+), D (organization media: logo/cover/gallery with moderation, migration 0054).
