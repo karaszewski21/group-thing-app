@@ -30,7 +30,7 @@ export function OrganizerItemLayout() {
   return (
     <OrganizerThemeScope theme={organization.data}>
       <PhoneFrame>
-        <Outlet />
+        <Outlet context={organization.data} />
       </PhoneFrame>
     </OrganizerThemeScope>
   );

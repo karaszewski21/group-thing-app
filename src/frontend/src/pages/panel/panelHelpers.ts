@@ -52,6 +52,11 @@ export interface TermWithNeeded {
 
 export const ITEM_MODES: ItemMode[] = ["wypożyczę", "oddam", "zamienię"];
 
+/** How many items may be set to "oddam" at once. Enforced only in the UI. */
+export const MAX_GIFT_ITEMS = 10;
+
+export const GIFT_LIMIT_MESSAGE = `Możesz oddawać naraz najwyżej ${MAX_GIFT_ITEMS} rzeczy. Zdejmij „Oddam” z innej rzeczy, żeby dodać nową.`;
+
 /** `ItemMode` <-> backend `ReservationType` — the Panel's "Moje rzeczy"
  * mode toggle persists as a standing `ItemListingPreference.mode`
  * (`/api/item-listing-preferences`), one of `LEND`/`GIFT`/`SWAP`. */

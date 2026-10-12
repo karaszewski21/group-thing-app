@@ -503,7 +503,7 @@ describe("PanelPage — hamburger promotion", () => {
 
     const menu = screen.getByRole("menu");
     const link = within(menu).getByRole("menuitem", { name: /Moja organizacja/ });
-    expect(link).toHaveAttribute("href", "/muzyczne-skrzaty?edit=1");
+    expect(link).toHaveAttribute("href", "/muzyczne-skrzaty");
   });
 
   it("completing the GUEST 2-step flow calls createMyCircle then createTerm and flips isOrganizer to true after reload", async () => {

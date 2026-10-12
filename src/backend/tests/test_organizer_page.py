@@ -524,7 +524,7 @@ async def test_getOrganizerPage_attendeeOnSeveralNextTerms_itemPlacedOnEarliestT
     )
 
 
-async def test_getOrganizerPage_manyItemsAndNeeds_cappedAt12InCodePointOrderWithFullCounts(
+async def test_getOrganizerPage_manyItemsAndNeeds_itemsCappedAt12NeedsAt5InCodePointOrderWithFullCounts(
     client: AsyncClient,
 ) -> None:
     owner_token, _ = await _register(client, "ORGANIZER", "op.cap.owner@example.com")
@@ -533,7 +533,7 @@ async def test_getOrganizerPage_manyItemsAndNeeds_cappedAt12InCodePointOrderWith
     term_id = await _term(client, owner_token, group_id, _in_days(2))
     names = [f"Op cap A{index:02d}" for index in range(11)] + ["Op cap Ćma", "Op cap Da"]
     item_ids = await _listed_items(client, owner_token, *((name, "GIFT") for name in names))
-    for index in range(13):
+    for index in range(6):
         await _needed_item(client, owner_token, term_id, f"Op cap potrzeba {index:02d}")
 
     body = await _page(client, slug)
@@ -545,5 +545,5 @@ async def test_getOrganizerPage_manyItemsAndNeeds_cappedAt12InCodePointOrderWith
     ]
     assert "Op cap Ćma" not in {i["product_name"] for i in body["exchange"]["items"]}
     assert [n["product_name"] for n in body["needed_items"]] == [
-        f"Op cap potrzeba {index:02d}" for index in range(12)
+        f"Op cap potrzeba {index:02d}" for index in range(5)
     ]

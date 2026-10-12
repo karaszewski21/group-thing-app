@@ -86,7 +86,9 @@ import {
   dayMonth,
   termTime,
   termPublicPath,
+  GIFT_LIMIT_MESSAGE,
   ITEM_MODE_TO_RESERVATION_TYPE,
+  MAX_GIFT_ITEMS,
   RESERVATION_TYPE_TO_ITEM_MODE,
   type BorrowedItem,
   type ItemMode,
@@ -1007,6 +1009,10 @@ function usePanelDataValue() {
     const balance = await getInventoryItemBalance(itemId);
     if (ACTIVE_LOCK_BALANCE_STATUSES.includes(balance.status)) return;
     const next = itemModes[itemId] === mode ? null : mode;
+    if (next === "oddam" && items.filter((i) => itemModes[i.id] === "oddam").length >= MAX_GIFT_ITEMS) {
+      showToast(GIFT_LIMIT_MESSAGE);
+      return;
+    }
     setItemError(null);
     try {
       await setItemListingPreference(

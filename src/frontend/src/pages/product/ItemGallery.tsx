@@ -46,54 +46,48 @@ interface ItemGalleryProps {
 
 interface GallerySlide {
   url: string;
-  thumbUrl: string;
   status: ModerationStatus;
 }
 
-/** View-mode gallery: the product's photos (shared by every item of the
- * product), else the catalog photo (no badge), else a placeholder. The
- * thumbnail strip scrolls on its own so the page never does. Photos still
- * in moderation (sent to owners only) carry a status badge. */
+/** View-mode gallery, full-bleed at the top of the item page: the product's
+ * photos (shared by every item of the product), else the catalog photo (no
+ * badge), else a placeholder. Dots at the bottom switch photos; the bottom
+ * 24px is left for the content sheet that overlaps it. Photos still in
+ * moderation (sent to owners only) carry a status badge. */
 export function ItemGallery({ name, photos, productPhotoUrl, faded, showOwnerHint }: ItemGalleryProps) {
   const slides: GallerySlide[] =
     photos.length > 0
-      ? photos.map((p) => ({ url: p.url, thumbUrl: p.thumb_url, status: p.status }))
+      ? photos.map((p) => ({ url: p.url, status: p.status }))
       : productPhotoUrl
-        ? [{ url: productPhotoUrl, thumbUrl: productPhotoUrl, status: "APPROVED" }]
+        ? [{ url: productPhotoUrl, status: "APPROVED" }]
         : [];
   const urls = slides.map((slide) => slide.url);
   const [active, setActive] = useState(0);
   const current = Math.min(active, Math.max(urls.length - 1, 0));
 
   return (
-    <div className={`rounded-[22px] border border-line bg-paper p-2 ${faded ? "opacity-70" : ""}`}>
-      <div className="relative">
-        {urls.length > 0 ? (
-          <SafeImage
-            key={urls[current]}
-            src={urls[current]}
-            alt={`${name} — zdjęcie ${current + 1}`}
-            className="aspect-[4/3] w-full rounded-2xl"
-            placeholderSize={64}
-          />
-        ) : (
-          <span className="flex aspect-[4/3] w-full items-center justify-center rounded-2xl bg-cream">
-            <PhotoPlaceholder size={64} />
-          </span>
-        )}
-        {slides[current] && slides[current].status !== "APPROVED" && (
-          <span className="absolute left-2 top-2">
-            <ModerationBadge status={slides[current].status} />
-          </span>
-        )}
-        {urls.length >= 2 && (
-          <span className="absolute bottom-2 right-2 rounded-full bg-ink/70 px-2.5 py-0.5 text-[10.5px] font-extrabold text-white">
-            {current + 1} / {urls.length}
-          </span>
-        )}
-      </div>
+    <div className={`relative bg-primary-soft ${faded ? "opacity-70" : ""}`}>
+      {urls.length > 0 ? (
+        <SafeImage
+          key={urls[current]}
+          src={urls[current]}
+          alt={`${name} — zdjęcie ${current + 1}`}
+          className="aspect-4/3 w-full"
+          placeholderSize={64}
+        />
+      ) : (
+        <span className="flex aspect-4/3 w-full flex-col items-center justify-center gap-2 pb-6 text-primary-fg">
+          <PhotoPlaceholder size={64} />
+          {showOwnerHint && <span className="text-[13px] font-bold">Dodaj zdjęcia w trybie edycji</span>}
+        </span>
+      )}
+      {slides[current] && slides[current].status !== "APPROVED" && (
+        <span className="absolute bottom-10 left-4">
+          <ModerationBadge status={slides[current].status} />
+        </span>
+      )}
       {urls.length >= 2 && (
-        <div className="mt-2 flex gap-2 overflow-x-auto pb-1">
+        <div className="absolute inset-x-0 bottom-8 flex justify-center gap-1">
           {urls.map((url, i) => (
             <button
               key={url}
@@ -101,17 +95,15 @@ export function ItemGallery({ name, photos, productPhotoUrl, faded, showOwnerHin
               aria-pressed={i === current}
               aria-label={`Zdjęcie ${i + 1} z ${urls.length}`}
               onClick={() => setActive(i)}
-              className={`h-14 w-14 flex-none overflow-hidden rounded-xl ${
-                i === current ? "ring-2 ring-focus-ring" : "border border-line"
-              }`}
+              className="flex h-6 min-w-6 items-center justify-center rounded-full focus-visible:outline-2 focus-visible:outline-focus-ring"
             >
-              <SafeImage src={slides[i].thumbUrl} alt="" className="h-full w-full" placeholderSize={20} />
+              <span
+                aria-hidden="true"
+                className={`block h-2 rounded-full shadow-sm transition-all ${i === current ? "w-6 bg-primary" : "w-2 bg-paper"}`}
+              />
             </button>
           ))}
         </div>
-      )}
-      {urls.length === 0 && showOwnerHint && (
-        <p className="px-1 pt-2 text-[12.5px] text-ink-soft">Dodaj zdjęcia w trybie edycji</p>
       )}
     </div>
   );

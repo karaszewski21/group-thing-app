@@ -40,7 +40,7 @@ from ..schemas import (
 
 UPCOMING_WINDOW = timedelta(days=60)
 EXCHANGE_ITEMS_LIMIT = 12
-NEEDED_ITEMS_LIMIT = 12
+NEEDED_ITEMS_LIMIT = 5
 # Below this, a family count could single out the families in a small group.
 MIN_REPORTED_FAMILY_COUNT = 3
 

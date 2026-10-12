@@ -10,7 +10,7 @@ const MOVEMENT_LABELS: Record<MovementType, string> = {
   REMOVE: "Usunięta",
 };
 
-const CARD = "mt-4 rounded-[22px] border border-line bg-paper p-5";
+const CARD = "mt-4 rounded-3xl border border-line bg-paper p-5";
 const CARD_LABEL = "text-[11.5px] font-extrabold uppercase tracking-wide text-ink-soft";
 
 function statusLines(status: ItemStatusResponse): { title: string; detail: string | null; pill: string } {
@@ -52,24 +52,27 @@ function statusLines(status: ItemStatusResponse): { title: string; detail: strin
   }
 }
 
-/** "Aktualny status": the status is carried by its text, the pill colour only
- * reinforces it. Labels come from the server (privacy rule). */
+/** "Aktualny status": a card in the status tone with a clock badge. The
+ * status is carried by its text, the colour only reinforces it. Labels come
+ * from the server (privacy rule). */
 export function ItemStatusCard({ status }: { status: ItemStatusResponse }) {
   const { title, detail, pill } = statusLines(status);
   return (
-    <section className={CARD} aria-labelledby="item-status-heading">
-      <h3 id="item-status-heading" className={CARD_LABEL}>
-        Aktualny status
-      </h3>
-      <div className="mt-2.5 rounded-2xl border border-line bg-cream p-[15px]">
-        <span
-          role="status"
-          className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[12px] font-extrabold ${pill}`}
-        >
-          <span aria-hidden="true" className="h-1.5 w-1.5 flex-none rounded-full bg-current" />
+    <section className={`mt-5 flex items-start gap-3 rounded-[22px] p-4 ${pill}`} aria-labelledby="item-status-heading">
+      <span aria-hidden="true" className="flex h-9 w-9 flex-none items-center justify-center rounded-full bg-paper/70">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+          <circle cx="12" cy="12" r="9" />
+          <path d="M12 7v5l3 2" />
+        </svg>
+      </span>
+      <div className="min-w-0">
+        <h3 id="item-status-heading" className="sr-only">
+          Aktualny status
+        </h3>
+        <p role="status" className="text-[15px] font-extrabold wrap-break-word">
           {title}
-        </span>
-        {detail && <p className="mt-1.5 text-[12.5px] text-ink-soft">{detail}</p>}
+        </p>
+        {detail && <p className="mt-0.5 text-sm">{detail}</p>}
       </div>
     </section>
   );
@@ -126,35 +129,29 @@ function ItemHistoryBody({ entries, loading, error, onRetry }: ItemHistoryCardPr
   return <ItemHistoryList entries={entries} />;
 }
 
+/** A vertical timeline, newest first: a dot per movement joined by a line. */
 export function ItemHistoryList({ entries }: { entries: ItemHistoryEntryResponse[] }) {
   return (
-    <ol aria-label="Historia rzeczy" className="mt-2.5">
+    <ol aria-label="Historia rzeczy" className="mt-3">
       {entries.map((e, i) => {
-        const at = dayjs(e.occurred_at);
+        const last = i === entries.length - 1;
         return (
-          <li
-            key={`${e.occurred_at}-${e.movement_type}-${i}`}
-            className="mt-2.5 flex items-start gap-3 rounded-2xl border border-line bg-cream p-3 first:mt-0"
-          >
-            <time
-              dateTime={e.occurred_at}
-              className="flex h-10 w-10 flex-none flex-col items-center justify-center rounded-xl bg-primary-soft leading-none"
-            >
-              <b className="font-serif text-[15px] text-ink">{at.format("D")}</b>
-              <small className="text-[9px] uppercase tracking-wide text-ink-soft">
-                {at.format("MMM")}
-              </small>
-            </time>
-            <div className="min-w-0 flex-1">
-              <p className="text-[13.5px] font-semibold text-ink">
-                {MOVEMENT_LABELS[e.movement_type]}
-              </p>
-              <p className="break-words text-[12.5px] text-ink-soft">{e.description}</p>
+          <li key={`${e.occurred_at}-${e.movement_type}-${i}`} className="flex gap-3.5">
+            <span aria-hidden="true" className="flex w-3.5 flex-none flex-col items-center">
+              <span className={`mt-1 h-3.5 w-3.5 flex-none rounded-full ${i === 0 ? "bg-primary" : "bg-line-strong"}`} />
+              {!last && <span className="w-0.5 flex-1 bg-line" />}
+            </span>
+            <div className={`min-w-0 flex-1 ${last ? "" : "pb-4"}`}>
+              <p className="text-[15px] font-bold text-ink">{MOVEMENT_LABELS[e.movement_type]}</p>
+              <p className="text-[13px] wrap-break-word text-ink-soft">{e.description}</p>
               {e.term_occurs_on && (
-                <p className="text-[12.5px] text-ink-soft">
+                <p className="text-[13px] text-ink-soft">
                   na terminie {dayjs(e.term_occurs_on).format("DD.MM.YYYY")}
                 </p>
               )}
+              <time dateTime={e.occurred_at} className="text-xs text-ink-soft">
+                {dayjs(e.occurred_at).format("D MMM YYYY")}
+              </time>
             </div>
           </li>
         );

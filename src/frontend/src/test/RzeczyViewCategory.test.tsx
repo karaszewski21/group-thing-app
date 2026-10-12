@@ -533,3 +533,48 @@ describe("NotificationKind — frontend union matches backend enum", () => {
     expect(new Set(allKinds).size).toBe(11);
   });
 });
+
+describe("RzeczyView — gift limit", () => {
+  const items = Array.from({ length: 11 }, (_, index) => ({
+    ...item,
+    id: String(index + 1),
+    product_name: `Rzecz ${index + 1}`,
+  }));
+
+  beforeEach(() => {
+    vi.mocked(api.get).mockReset();
+    vi.mocked(api.get).mockImplementation((path: unknown) =>
+      Promise.resolve(mockBalance(String(path).split("/")[3] ?? "", "AVAILABLE")),
+    );
+  });
+
+  it("shows the count and allows Oddam while under the limit", async () => {
+    vi.mocked(panelDataStore.usePanelData).mockReturnValue(
+      makeContextValue({ items, itemModes: { "1": "oddam" } }),
+    );
+
+    renderView();
+
+    expect(screen.getByText("Do oddania: 1/10")).toBeInTheDocument();
+    for (const button of screen.getAllByRole("button", { name: "Oddam" })) {
+      expect(button).toBeEnabled();
+    }
+    await waitFor(() => expect(api.get).toHaveBeenCalled());
+  });
+
+  it("at 10 gift items disables Oddam on the others with an explanation, keeping un-gifting and other modes", async () => {
+    const itemModes = Object.fromEntries(items.slice(0, 10).map((i) => [i.id, "oddam" as const]));
+    vi.mocked(panelDataStore.usePanelData).mockReturnValue(makeContextValue({ items, itemModes }));
+
+    renderView();
+
+    const hint = screen.getByText(/Do oddania: 10\/10/);
+    expect(hint).toHaveTextContent("Możesz oddawać naraz najwyżej 10 rzeczy.");
+    const giftButtons = screen.getAllByRole("button", { name: "Oddam" });
+    expect(giftButtons.slice(0, 10).every((button) => !(button as HTMLButtonElement).disabled)).toBe(true);
+    expect(giftButtons[10]).toBeDisabled();
+    expect(giftButtons[10]).toHaveAccessibleDescription(hint.textContent!);
+    expect(screen.getAllByRole("button", { name: "Wypożyczę" })[10]).toBeEnabled();
+    await waitFor(() => expect(api.get).toHaveBeenCalled());
+  });
+});

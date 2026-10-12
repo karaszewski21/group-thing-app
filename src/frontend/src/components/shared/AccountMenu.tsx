@@ -62,7 +62,7 @@ export function AccountMenu({
                 an Organization without ever running a Circle. */}
             <Link
               role="menuitem"
-              to={organizationSlug ? `/${organizationSlug}?edit=1` : "/organization"}
+              to={organizationSlug ? `/${organizationSlug}` : "/organization"}
               onClick={close}
               className={ACCOUNT_MENU_ITEM_CLASS}
             >

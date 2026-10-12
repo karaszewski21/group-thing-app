@@ -15,7 +15,7 @@ import {
 } from "../../../api/termItemListings";
 import { CONDITION_LABELS } from "../../../utils/productCategory";
 import { BoxIcon, EyeIcon, PencilIcon, TrashIcon } from "../panelIcons";
-import { capitalize, ITEM_MODE_STYLE, ITEM_MODES } from "../panelHelpers";
+import { capitalize, GIFT_LIMIT_MESSAGE, ITEM_MODE_STYLE, ITEM_MODES, MAX_GIFT_ITEMS } from "../panelHelpers";
 import { usePanelData } from "../panelDataStore";
 
 /** Passive "moje rzeczy" status badge label for an item's current
@@ -215,6 +215,9 @@ export function RzeczyView() {
     }
   }
 
+  const giftCount = items.filter((i) => itemModes[i.id] === "oddam").length;
+  const giftLimitReached = giftCount >= MAX_GIFT_ITEMS;
+
   return (
     <div>
       <div className="mb-3.5 flex items-start justify-between gap-2.5">
@@ -231,6 +234,13 @@ export function RzeczyView() {
           + Dodaj rzecz
         </Link>
       </div>
+      <p
+        id="gift-limit-hint"
+        className={`mb-2.5 text-[12.5px] ${giftLimitReached ? "font-bold text-ink" : "text-ink-soft"}`}
+      >
+        Do oddania: {giftCount}/{MAX_GIFT_ITEMS}
+        {giftLimitReached && <> — {GIFT_LIMIT_MESSAGE}</>}
+      </p>
       <div className="rounded-[22px] border border-line bg-paper p-2">
         {items.length === 0 && (
           <div className="rounded-2xl border-[1.5px] border-dashed border-line py-[26px] text-center text-[13.5px] text-ink-soft">
@@ -265,14 +275,16 @@ export function RzeczyView() {
                   {ITEM_MODES.map((m) => {
                     const on = mode === m;
                     const mStyle = ITEM_MODE_STYLE[m];
+                    const overGiftLimit = m === "oddam" && !on && giftLimitReached;
+                    const disabled = locked || photosPending || overGiftLimit;
                     return (
                       <button
                         key={m}
                         onClick={() => void setItemMode(it.id, m)}
                         aria-pressed={on}
-                        disabled={locked || photosPending}
-                        aria-disabled={locked || photosPending}
-                        aria-describedby={photosPending ? modeHintId : undefined}
+                        disabled={disabled}
+                        aria-disabled={disabled}
+                        aria-describedby={photosPending ? modeHintId : overGiftLimit ? "gift-limit-hint" : undefined}
                         className="rounded-full border-[1.5px] border-line px-3 py-1.5 text-[11.5px] font-extrabold text-ink-soft transition-colors hover:border-sage disabled:opacity-60 disabled:cursor-not-allowed"
                         style={on ? { background: mStyle.bg, color: mStyle.c, borderColor: "transparent" } : undefined}
                       >
