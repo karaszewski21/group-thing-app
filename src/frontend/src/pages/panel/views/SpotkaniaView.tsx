@@ -2,6 +2,7 @@ import { useMemo, useState, type ReactNode } from "react";
 import { Link } from "react-router-dom";
 import dayjs from "../../../utils/dayjs";
 import { pluralPl } from "../../../utils/plural";
+import { FloatingAddButton } from "../panelComponents";
 import { LayoutModeIcon, PencilIcon, TrashIcon } from "../panelIcons";
 import { dayMonth, termPublicPath, termTime, type TermWithNeeded } from "../panelHelpers";
 import { usePanelData } from "../panelDataStore";
@@ -219,20 +220,13 @@ export function SpotkaniaView() {
           )}
         </section>
 
-        {/* Always floats just above the bottom tab bar, whatever the scroll position. */}
-        <div className="pointer-events-none fixed inset-x-0 bottom-[86px] z-30 mx-auto flex max-w-[1200px] justify-end px-4">
-          <button
-            onClick={() => {
-              setTermGroupId(myGroups[0]?.id ?? null);
-              setModal("termin");
-            }}
-            className="pointer-events-auto flex min-h-14 items-center rounded-full bg-primary px-5.5 text-base font-extrabold text-on-primary shadow-[0_12px_24px_-12px_var(--color-primary)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring"
-          >
-            + Dodaj termin
-          </button>
-        </div>
-        {/* Room under the floating button, so at the end of the list it never covers the last row. */}
-        <div aria-hidden="true" className="h-20" />
+        <FloatingAddButton
+          label="Dodaj termin"
+          onClick={() => {
+            setTermGroupId(myGroups[0]?.id ?? null);
+            setModal("termin");
+          }}
+        />
       </>
     );
   }

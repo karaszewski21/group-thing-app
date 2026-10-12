@@ -1,8 +1,70 @@
-import type { ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { Link } from "react-router-dom";
 import { CloseIcon } from "./panelIcons";
 
 /* ---------------- małe komponenty pomocnicze (wydzielone z PanelPage.tsx) ---------------- */
+
+/** Scroll distance after which the floating add button shows its label. */
+const FAB_EXPAND_SCROLL = 100;
+
+const FAB_CLASS =
+  "pointer-events-auto flex h-14 min-w-14 items-center justify-center rounded-full bg-primary text-base font-extrabold text-on-primary shadow-[0_12px_24px_-12px_var(--color-primary)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring motion-safe:transition-[padding] motion-safe:duration-200";
+
+/** The round "+" floating just above the bottom tab bar. At the top of the
+ * page it is the "+" alone; once the page is scrolled it widens to show its
+ * label. The label stays in the DOM while collapsed, so the accessible name
+ * ("+ Dodaj termin") never changes. Renders its own spacer, so at the end of
+ * a list it never covers the last row. */
+export function FloatingAddButton({
+  label,
+  to,
+  onClick,
+}: {
+  label: string;
+  to?: string;
+  onClick?: () => void;
+}) {
+  const [expanded, setExpanded] = useState(() => window.scrollY > FAB_EXPAND_SCROLL);
+
+  useEffect(() => {
+    const update = () => setExpanded(window.scrollY > FAB_EXPAND_SCROLL);
+    window.addEventListener("scroll", update, { passive: true });
+    return () => window.removeEventListener("scroll", update);
+  }, []);
+
+  const content = (
+    <>
+      <span className="text-[24px] leading-none">
+        +
+      </span>{" "}
+      <span
+        className={`overflow-hidden whitespace-nowrap motion-safe:transition-all motion-safe:duration-200 ${
+          expanded ? "ml-1.5 max-w-48 opacity-100" : "max-w-0 opacity-0"
+        }`}
+      >
+        {label}
+      </span>
+    </>
+  );
+  const className = `${FAB_CLASS} ${expanded ? "px-5.5" : "px-0"}`;
+
+  return (
+    <>
+      <div className="pointer-events-none fixed inset-x-0 bottom-[86px] z-30 mx-auto flex max-w-[1200px] justify-end px-4">
+        {to ? (
+          <Link to={to} className={className}>
+            {content}
+          </Link>
+        ) : (
+          <button type="button" onClick={onClick} className={className}>
+            {content}
+          </button>
+        )}
+      </div>
+      <div aria-hidden="true" className="h-20" />
+    </>
+  );
+}
 
 export function ToggleRow({
   label,

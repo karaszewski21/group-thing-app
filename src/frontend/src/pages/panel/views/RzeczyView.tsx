@@ -16,6 +16,7 @@ import {
 import { CONDITION_LABELS } from "../../../utils/productCategory";
 import { BoxIcon, PencilIcon, TrashIcon } from "../panelIcons";
 import { capitalize, GIFT_LIMIT_MESSAGE, ITEM_MODES, MAX_GIFT_ITEMS, type ItemMode } from "../panelHelpers";
+import { FloatingAddButton } from "../panelComponents";
 import { usePanelData } from "../panelDataStore";
 import { SafeImage } from "../../product/ItemGallery";
 
@@ -420,17 +421,7 @@ export function RzeczyView() {
         {itemError && <p className="mt-2 text-[13px] font-semibold text-danger">{itemError}</p>}
       </div>
 
-      {/* Always floats just above the bottom tab bar, like "+ Dodaj termin" on Spotkania. */}
-      <div className="pointer-events-none fixed inset-x-0 bottom-[86px] z-30 mx-auto flex max-w-[1200px] justify-end px-4">
-        <Link
-          to="/product/new"
-          className="pointer-events-auto flex min-h-14 items-center rounded-full bg-primary px-5.5 text-base font-extrabold text-on-primary shadow-[0_12px_24px_-12px_var(--color-primary)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring"
-        >
-          + Dodaj rzecz
-        </Link>
-      </div>
-      {/* Room under the floating button, so it never covers the last card. */}
-      <div aria-hidden="true" className="h-20" />
+      <FloatingAddButton label="Dodaj rzecz" to="/product/new" />
     </div>
   );
 }
