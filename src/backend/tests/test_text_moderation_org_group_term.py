@@ -22,6 +22,9 @@ from app.party.models import Party
 
 OFFENSIVE = "ZAKAZANE"
 ORG_MESSAGE = "Nazwa organizacji narusza zasady społeczności. Zmień ją i spróbuj ponownie."
+ORG_DESCRIPTION_MESSAGE = (
+    "Opis organizacji narusza zasady społeczności. Zmień go i spróbuj ponownie."
+)
 GROUP_MESSAGE = "Nazwa grupy narusza zasady społeczności. Zmień ją i spróbuj ponownie."
 TERM_MESSAGE = "Opis terminu narusza zasady społeczności. Zmień go i spróbuj ponownie."
 UNAVAILABLE_MESSAGE = "Moderacja jest chwilowo niedostępna — spróbuj za chwilę."
@@ -119,6 +122,28 @@ async def test_updateOrganization_sameNameNotScored_offendingNameReturns400(
     assert organization is not None
     await db_session.refresh(organization)
     assert organization.primary_color == "#112233"
+
+
+async def test_updateOrganization_offendingDescription_returns400AndKeepsPrevious(
+    client: AsyncClient, db_session: AsyncSession, classifier: FakeTextClassifier
+) -> None:
+    headers = await _register_organizer(client, "tm.org.description@example.com")
+    created = await client.post(
+        "/api/organizations/mine", json={"name": "Opisowe Skrzaty"}, headers=headers
+    )
+    assert created.status_code == 201
+    url = f"/api/organizations/{created.json()['id']}"
+    seeded = await client.patch(url, json={"description": "Śpiewamy razem."}, headers=headers)
+    assert seeded.status_code == 200
+
+    offending = await client.patch(
+        url, json={"description": f"Śpiewamy {OFFENSIVE}."}, headers=headers
+    )
+
+    assert offending.status_code == 400
+    assert offending.json()["message"] == ORG_DESCRIPTION_MESSAGE
+    mine = await client.get("/api/organizations/mine", headers=headers)
+    assert mine.json()["description"] == "Śpiewamy razem."
 
 
 @pytest.mark.parametrize("path", ["/api/groups/mine", "/api/groups/mine/new"])

@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, type KeyboardEvent } from "react";
 import { useBlocker, useSearchParams } from "react-router-dom";
 import { CloseIcon } from "../../panel/panelIcons";
 import type { OrganizerPageData } from "../layouts/types";
+import { AboutTab } from "./AboutTab";
 import { ColorsTab } from "./ColorsTab";
 import type { Draft } from "./draft";
 import { LayoutTab } from "./LayoutTab";
@@ -9,12 +10,13 @@ import { PhotosTab } from "./PhotosTab";
 import { nextIndex } from "./rovingIndex";
 import { UnsavedChangesDialog } from "./UnsavedChangesDialog";
 
-type Tab = "uklad" | "kolory" | "zdjecia";
+type Tab = "uklad" | "kolory" | "zdjecia" | "opis";
 
 const TABS: { id: Tab; label: string }[] = [
   { id: "uklad", label: "Układ" },
   { id: "kolory", label: "Kolory" },
   { id: "zdjecia", label: "Zdjęcia" },
+  { id: "opis", label: "Opis" },
 ];
 
 function toTab(value: string | null): Tab {
@@ -64,7 +66,7 @@ export function EditorSheet({
   const [resetCount, setResetCount] = useState(0);
   const titleRef = useRef<HTMLHeadingElement>(null);
   const closeRef = useRef<HTMLButtonElement>(null);
-  const tabRefs = useRef<Record<Tab, HTMLButtonElement | null>>({ uklad: null, kolory: null, zdjecia: null });
+  const tabRefs = useRef<Record<Tab, HTMLButtonElement | null>>({ uklad: null, kolory: null, zdjecia: null, opis: null });
   // Changing only the query string (closing the sheet) is never blocked.
   const blocker = useBlocker(
     ({ currentLocation, nextLocation }) => dirty && currentLocation.pathname !== nextLocation.pathname,
@@ -207,6 +209,9 @@ export function EditorSheet({
                 onChange={(theme) => change({ ...draft, theme })}
                 onCustomInvalidChange={setCustomInvalid}
               />
+            )}
+            {tab === "opis" && (
+              <AboutTab value={draft.description} onChange={(description) => change({ ...draft, description })} />
             )}
           </fieldset>
           {/* Photos save on their own, so the draft lock and dirty state never touch them. */}

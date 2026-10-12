@@ -24,6 +24,7 @@ const organization: PublicOrganizationResponse = {
   accent_color: null,
   page_layout: "CLASSIC",
   palette_preset: null,
+  description: null,
   logo: null,
   cover: null,
   gallery: [],
@@ -104,19 +105,31 @@ describe("LayoutRenderer", () => {
     expect(screen.getByRole("heading", { level: 1, name: "Rodzinny Grajdołek" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Udostępnij" })).toBeInTheDocument();
     expect(screen.getByText("Strona utworzona w Krąg grupy")).toBeInTheDocument();
-    expect(screen.queryByText("Opis — wkrótce")).not.toBeInTheDocument();
+    expect(screen.queryByText("Napisz kilka zdań o sobie i swoich zajęciach — odwiedzający zobaczą je tutaj. Widzisz to tylko Ty.")).not.toBeInTheDocument();
+    expect(screen.queryByRole("region", { name: "O nas" })).not.toBeInTheDocument();
   });
 
-  it("renders a non-interactive ghost for the owner", () => {
+  it("renders the about ghost for the owner, whose only focusable part opens the Opis tab", () => {
     renderLayout("CLASSIC", data, "owner-edit");
 
-    const title = screen.getByText("Opis — wkrótce");
-    expect(screen.getByText("Tu pojawi się opis Twojej organizacji. Widzisz to tylko Ty.")).toBeInTheDocument();
-    const ghost = title.closest("[data-ghost]");
-    expect(ghost).not.toBeNull();
+    const ghost = screen.getByText("Napisz kilka zdań o sobie i swoich zajęciach — odwiedzający zobaczą je tutaj. Widzisz to tylko Ty.").closest("[data-ghost]") as HTMLElement;
+    expect(ghost).toHaveAttribute("data-ghost", "about");
     expect(ghost).not.toHaveAttribute("tabindex");
     expect(ghost).not.toHaveAttribute("role");
-    expect(ghost!.querySelector("button, a, [tabindex]")).toBeNull();
+    expect(within(ghost).getByRole("link", { name: "Dodaj opis →" })).toHaveAttribute("href", "/?edit=1&tab=opis");
+    expect(ghost.querySelectorAll("button, a, [tabindex]")).toHaveLength(1);
+  });
+
+  it("shows the description with its line breaks to visitors and the owner instead of the ghost", () => {
+    const described = { ...data, organization: { ...organization, description: "Śpiewamy.\nTańczymy." } };
+    for (const mode of ["visitor", "owner-edit"] as const) {
+      const { container } = renderLayout("CLASSIC", described, mode);
+      const about = screen.getByRole("region", { name: "O nas" });
+      expect(about).toHaveTextContent("Śpiewamy. Tańczymy.");
+      expect(within(about).getByText(/Śpiewamy/)).toHaveClass("whitespace-pre-line");
+      expect(container.querySelector('[data-ghost="about"]')).toBeNull();
+      cleanup();
+    }
   });
 
   it("renders LINKS with the full-width share button in the primary-colored centered frame", () => {
@@ -195,7 +208,7 @@ describe("LayoutRenderer", () => {
     expect(composition("LINKS")).toEqual([
       "hero:centered",
       "link-stack*",
-      "about",
+      "about:on-primary",
       "gallery:on-primary",
       "footer:on-primary",
     ]);
@@ -247,8 +260,8 @@ describe("LayoutRenderer", () => {
     expect(
       screen.getAllByText("Nie udało się wczytać danych. Odwiedzający nie widzą tej sekcji."),
     ).toHaveLength(3);
-    // Only the gallery ghost, which does not depend on the directory, keeps its CTA.
-    expect(screen.getAllByRole("link", { name: /Dodaj/ }).map((link) => link.textContent)).toEqual(["Dodaj zdjęcia →"]);
+    // Only the about and gallery ghosts, which do not depend on the directory, keep their CTAs.
+    expect(screen.getAllByRole("link", { name: /Dodaj/ }).map((link) => link.textContent)).toEqual(["Dodaj opis →", "Dodaj zdjęcia →"]);
     expect(screen.queryByText("Brak informacji do pokazania")).not.toBeInTheDocument();
     expect(screen.getByRole("heading", { level: 1, name: "Rodzinny Grajdołek" })).toBeInTheDocument();
   });

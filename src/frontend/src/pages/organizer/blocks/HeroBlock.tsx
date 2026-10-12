@@ -100,7 +100,8 @@ export function HeroBlock({ data, variant, heroAction }: BlockProps) {
             slug={slug}
             name={name}
             label="Udostępnij"
-            className="inline-flex min-h-[44px] shrink-0 items-center gap-1.5 rounded-full bg-primary-soft px-4 text-sm font-extrabold text-primary-fg focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring"
+            iconOnly
+            className="flex min-h-[44px] w-11 shrink-0 items-center justify-center rounded-full bg-primary-soft text-primary-fg focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring"
           />
         </header>
       </div>

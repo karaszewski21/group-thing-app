@@ -25,6 +25,7 @@ const organization: PublicOrganizationResponse = {
   accent_color: null,
   page_layout: "CIRCLES",
   palette_preset: null,
+  description: null,
   logo: null,
   cover: null,
   gallery: [],
@@ -169,36 +170,42 @@ describe("ExchangeBoardBlock", () => {
     expect(all).toHaveAttribute("aria-selected", "true");
     const board = screen.getByRole("tabpanel");
     expect(all).toHaveAttribute("aria-controls", board.id);
-    expect(within(board).getAllByRole("link")).toHaveLength(3);
+    expect(within(board).getAllByRole("article")).toHaveLength(3);
     expect(within(tablist).getByRole("tab", { name: /Wypożyczę\s*0/ })).toBeDisabled();
 
     fireEvent.click(within(tablist).getByRole("tab", { name: /Zamienię\s*2/ }));
     const filtered = screen.getByRole("tabpanel");
-    expect(within(filtered).getAllByRole("link")).toHaveLength(2);
+    expect(within(filtered).getAllByRole("article")).toHaveLength(2);
     expect(within(filtered).queryByText("Rzecz 1")).not.toBeInTheDocument();
   });
 });
 
 describe("ExchangeItemCard", () => {
+  it("opens the item page from the tile and the nearest term from the mode button", () => {
+    renderWithRouter(<ExchangeItemCard slug={SLUG} item={item("1", "SWAP")} />);
+
+    expect(screen.getByRole("link", { name: "Rzecz 1" })).toHaveAttribute("href", `/${SLUG}/produkt/1`);
+    const mode = screen.getByRole("link", { name: "Zamienię: Rzecz 1, odbiór Śr 14 paź" });
+    expect(mode).toHaveAttribute("href", `/${SLUG}/grupa/g1/term/term-1`);
+    expect(mode).toHaveTextContent(/^ZamienięŚr 14 paź$/);
+  });
+
   it("renders the thumbnail or a placeholder and never a lister", () => {
     const { unmount } = renderWithRouter(
       <ExchangeItemCard slug={SLUG} item={item("1", "SWAP", { thumb_url: "https://cdn.example/1.jpg" })} />,
     );
-    const link = screen.getByRole("link");
-    expect(link).toHaveAttribute("href", `/${SLUG}/grupa/g1/term/term-1`);
-    const thumb = link.querySelector("img");
+    const card = screen.getByRole("article");
+    const thumb = card.querySelector("img");
     expect(thumb).toHaveAttribute("src", "https://cdn.example/1.jpg");
     expect(thumb).toHaveAttribute("alt", "");
-    expect(link).toHaveAccessibleName(/Rzecz 1/);
-    expect(link).toHaveTextContent("Zamienię");
-    expect(link).toHaveTextContent("Dobry");
-    expect(link).toHaveTextContent("odbiór: Śr 14 paź");
-    expect(link).not.toHaveTextContent(/wystawi|dodał|dodała/i);
+    expect(card).toHaveTextContent("Zamienię");
+    expect(card).toHaveTextContent("Dobry");
+    expect(card).not.toHaveTextContent(/wystawi|dodał|dodała/i);
     unmount();
 
     renderWithRouter(<ExchangeItemCard slug={SLUG} item={item("2", "GIFT")} />);
     expect(screen.queryByRole("img", { name: "Rzecz 2" })).not.toBeInTheDocument();
-    expect(screen.getByRole("link").querySelector("svg")).not.toBeNull();
+    expect(screen.getByRole("article").querySelector("svg")).not.toBeNull();
   });
 });
 

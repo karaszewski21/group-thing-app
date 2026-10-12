@@ -104,7 +104,7 @@ export const LAYOUT_REGISTRY: Record<string, PageLayoutDefinition> = {
     blocks: [
       { block: "hero", variant: "centered" },
       { block: "link-stack", primary: true },
-      { block: "about" },
+      { block: "about", variant: "on-primary" },
       { block: "gallery", variant: "on-primary" },
       { block: "footer", variant: "on-primary" },
     ],

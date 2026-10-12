@@ -493,6 +493,7 @@ describe("PanelPage — hamburger promotion", () => {
       accent_color: null,
       page_layout: "CLASSIC",
       palette_preset: null,
+      description: null,
       created_at: "",
       updated_at: "",
       media: [],
@@ -647,7 +648,7 @@ describe("PanelPage — dismissible home hints", () => {
     mockGuestDefaults();
     vi.mocked(organizationsApi.createMyOrganization).mockResolvedValue({
       id: "1", party_id: "1", name: "Studio Nutka", slug: "studio-nutka",
-      primary_color: null, accent_color: null, page_layout: "CLASSIC", palette_preset: null,
+      primary_color: null, accent_color: null, page_layout: "CLASSIC", palette_preset: null, description: null,
       created_at: "", updated_at: "",
     });
     renderPanel();
@@ -743,6 +744,7 @@ describe("PanelPage — dismissible home hints", () => {
       accent_color: null,
       page_layout: "CLASSIC",
       palette_preset: null,
+      description: null,
       created_at: "",
       updated_at: "",
       media: [],

@@ -27,6 +27,7 @@ class OrganizationResponse(BaseModel):
     accent_color: str | None
     palette_preset: str | None
     page_layout: str
+    description: str | None
     created_at: datetime
     updated_at: datetime
 
@@ -74,6 +75,7 @@ class PublicOrganizationResponse(BaseModel):
     accent_color: str | None
     palette_preset: str | None
     page_layout: str
+    description: str | None
     logo: PublicMediaResponse | None = None
     cover: PublicMediaResponse | None = None
     gallery: list[PublicMediaResponse] = []
@@ -90,8 +92,9 @@ class CreateOwnOrganizationRequest(BaseModel):
 
 class UpdateOrganizationRequest(BaseModel):
     """A `PATCH`: an omitted field stays unchanged, an explicit `null`
-    clears `palette_preset` / `primary_color` / `accent_color`. `name` and
-    `page_layout` cannot be cleared, so `null` for them is rejected (400).
+    clears `palette_preset` / `primary_color` / `accent_color` / `description`
+    (a blank `description` clears it too). `name` and `page_layout` cannot be
+    cleared, so `null` for them is rejected (400).
     Unknown keys are rejected too. The service applies exactly the fields
     present in `model_fields_set`."""
 
@@ -102,6 +105,7 @@ class UpdateOrganizationRequest(BaseModel):
     palette_preset: str | None = None
     primary_color: str | None = Field(default=None, pattern=_HEX_COLOR_REGEX)
     accent_color: str | None = Field(default=None, pattern=_HEX_COLOR_REGEX)
+    description: str | None = Field(default=None, max_length=1000)
 
     @field_validator("name", "page_layout")
     @classmethod
@@ -116,6 +120,11 @@ class UpdateOrganizationRequest(BaseModel):
         if value not in PAGE_LAYOUT_KEYS:
             raise ValueError("unknown page layout")
         return value
+
+    @field_validator("description")
+    @classmethod
+    def _blank_description_clears(cls, value: str | None) -> str | None:
+        return value or None
 
     @field_validator("palette_preset")
     @classmethod

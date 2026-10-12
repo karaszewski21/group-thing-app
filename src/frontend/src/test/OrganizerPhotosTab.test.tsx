@@ -30,6 +30,7 @@ function organization(media: OwnerMedia[]): MyOrganizationResponse {
     accent_color: null,
     page_layout: "CLASSIC",
     palette_preset: null,
+    description: null,
     created_at: "2026-10-01T10:00:00Z",
     updated_at: "2026-10-01T10:00:00Z",
     media,

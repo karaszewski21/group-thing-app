@@ -26,6 +26,7 @@ const organization: PublicOrganizationResponse = {
   accent_color: null,
   page_layout: "SCHEDULE",
   palette_preset: null,
+  description: null,
   logo: null,
   cover: null,
   gallery: [],

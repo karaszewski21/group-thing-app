@@ -10,6 +10,7 @@ export interface OrganizationResponse {
   accent_color: string | null;
   page_layout: string;
   palette_preset: string | null;
+  description: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -41,6 +42,7 @@ export interface PublicOrganizationResponse {
   accent_color: string | null;
   page_layout: string;
   palette_preset: string | null;
+  description: string | null;
   logo: PublicMedia | null;
   cover: PublicMedia | null;
   gallery: PublicMedia[];
@@ -56,6 +58,8 @@ export interface UpdateOrganizationRequest {
   palette_preset?: string | null;
   primary_color?: string | null;
   accent_color?: string | null;
+  /** A blank value clears it, like `null`. */
+  description?: string | null;
 }
 
 export function getMyOrganization(): Promise<MyOrganizationResponse> {

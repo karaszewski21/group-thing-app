@@ -32,6 +32,7 @@ function pageData(overrides: Partial<PublicOrganizationResponse> = {}): Organize
       page_layout: "CLASSIC",
       // SUN resolves `on-primary` to ink: the cover text must not depend on it.
       palette_preset: "SUN",
+      description: null,
       logo: null,
       cover: null,
       gallery: [],

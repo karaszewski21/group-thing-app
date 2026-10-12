@@ -89,7 +89,8 @@ export function PublicOrganizationPage() {
   if (!organization) return <NotFoundFrame />;
 
   const pageData: OrganizerPageData = {
-    organization,
+    // The draft description is previewed live, like the layout and colors.
+    organization: editing ? { ...organization, description: editing.current.description.trim() || null } : organization,
     directory: directoryStatus === "ready" ? directory.data : null,
     directoryStatus,
   };

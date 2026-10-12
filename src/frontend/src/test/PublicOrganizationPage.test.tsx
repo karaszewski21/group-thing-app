@@ -58,6 +58,7 @@ const ORGANIZATION = {
   accent_color: null,
   page_layout: "CLASSIC",
   palette_preset: null,
+  description: null,
   logo: null,
   cover: null,
   gallery: [],
@@ -72,6 +73,7 @@ const MY_ORGANIZATION = {
   accent_color: null,
   page_layout: "CLASSIC",
   palette_preset: null,
+  description: null,
   created_at: "2026-10-01T10:00:00Z",
   updated_at: "2026-10-01T10:00:00Z",
   media: [],
@@ -100,6 +102,7 @@ describe("PublicOrganizationPage", () => {
       accent_color: "#a9c24f",
       page_layout: "CLASSIC",
       palette_preset: null,
+      description: null,
       logo: null,
       cover: null,
       gallery: [],
@@ -127,6 +130,7 @@ describe("PublicOrganizationPage", () => {
       accent_color: "#d4a017",
       page_layout: "CLASSIC",
       palette_preset: null,
+      description: null,
       logo: null,
       cover: null,
       gallery: [],
@@ -152,6 +156,7 @@ describe("PublicOrganizationPage", () => {
       accent_color: "#d4a017",
       page_layout: "CLASSIC",
       palette_preset: null,
+      description: null,
       logo: null,
       cover: null,
       gallery: [],
@@ -171,7 +176,7 @@ describe("PublicOrganizationPage", () => {
     expect(await screen.findByRole("heading", { level: 1, name: "Muzyczne Skrzaty" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Udostępnij" })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /Edytuj wygląd/ })).not.toBeInTheDocument();
-    expect(screen.queryByText("Opis — wkrótce")).not.toBeInTheDocument();
+    expect(screen.queryByText("Napisz kilka zdań o sobie i swoich zajęciach — odwiedzający zobaczą je tutaj. Widzisz to tylko Ty.")).not.toBeInTheDocument();
     expect(organizationsApi.getMyOrganization).not.toHaveBeenCalled();
   });
 
@@ -186,7 +191,7 @@ describe("PublicOrganizationPage", () => {
     await vi.waitFor(() => expect(organizationsApi.getMyOrganization).toHaveBeenCalled());
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /Edytuj wygląd/ })).not.toBeInTheDocument();
-    expect(screen.queryByText("Opis — wkrótce")).not.toBeInTheDocument();
+    expect(screen.queryByText("Napisz kilka zdań o sobie i swoich zajęciach — odwiedzający zobaczą je tutaj. Widzisz to tylko Ty.")).not.toBeInTheDocument();
   });
 
   it("shows the plain visitor page with ?edit=1 when the owner check fails", async () => {
@@ -200,7 +205,7 @@ describe("PublicOrganizationPage", () => {
     await vi.waitFor(() => expect(organizationsApi.getMyOrganization).toHaveBeenCalled());
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /Edytuj wygląd/ })).not.toBeInTheDocument();
-    expect(screen.queryByText("Opis — wkrótce")).not.toBeInTheDocument();
+    expect(screen.queryByText("Napisz kilka zdań o sobie i swoich zajęciach — odwiedzający zobaczą je tutaj. Widzisz to tylko Ty.")).not.toBeInTheDocument();
   });
 
   it("shows the owner the ghost and the Edytuj wygląd settings button, which opens edit mode", async () => {
@@ -211,9 +216,9 @@ describe("PublicOrganizationPage", () => {
     renderAt("/muzyczne-skrzaty");
 
     const settings = await screen.findByRole("button", { name: "Edytuj wygląd" });
-    expect(screen.getByText("Opis — wkrótce")).toBeInTheDocument();
+    expect(screen.getByText("Napisz kilka zdań o sobie i swoich zajęciach — odwiedzający zobaczą je tutaj. Widzisz to tylko Ty.")).toBeInTheDocument();
     const scope = themeScope(settings);
-    expect(scope).toContainElement(screen.getByText("Opis — wkrótce"));
+    expect(scope).toContainElement(screen.getByText("Napisz kilka zdań o sobie i swoich zajęciach — odwiedzający zobaczą je tutaj. Widzisz to tylko Ty."));
     expect(settings).toHaveAttribute("aria-expanded", "false");
 
     fireEvent.click(settings);
@@ -251,6 +256,7 @@ describe("PublicOrganizationPage", () => {
     vi.mocked(organizationsApi.getPublicOrganization).mockResolvedValue({
       ...ORGANIZATION,
       palette_preset: "OCEAN",
+      description: null,
       logo: null,
       cover: null,
       gallery: [],

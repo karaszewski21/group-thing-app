@@ -59,6 +59,7 @@ const ORGANIZATION = {
   accent_color: null,
   page_layout: "CLASSIC",
   palette_preset: null,
+  description: null,
   logo: null,
   cover: null,
   gallery: [],
@@ -73,6 +74,7 @@ const MY_ORGANIZATION = {
   accent_color: null,
   page_layout: "CLASSIC",
   palette_preset: null,
+  description: null,
   created_at: "2026-10-01T10:00:00Z",
   updated_at: "2026-10-01T10:00:00Z",
   media: [],
@@ -547,7 +549,7 @@ describe("Organizer editor photos tab", () => {
     expect(screen.queryByRole("dialog", { name: "Wygląd strony" })).not.toBeInTheDocument();
   });
 
-  it("moves roving focus across all three pills with the arrow keys", async () => {
+  it("moves roving focus across all four pills with the arrow keys", async () => {
     await openEditor();
 
     fireEvent.keyDown(tab("Układ"), { key: "ArrowRight" });
@@ -557,9 +559,36 @@ describe("Organizer editor photos tab", () => {
     expect(tab("Zdjęcia")).toHaveAttribute("aria-selected", "true");
     expect(tab("Zdjęcia")).toHaveAttribute("tabindex", "0");
     fireEvent.keyDown(tab("Zdjęcia"), { key: "ArrowRight" });
+    expect(tab("Opis")).toHaveFocus();
+    fireEvent.keyDown(tab("Opis"), { key: "ArrowRight" });
     expect(tab("Układ")).toHaveFocus();
     fireEvent.keyDown(tab("Układ"), { key: "ArrowLeft" });
-    expect(tab("Zdjęcia")).toHaveFocus();
+    expect(tab("Opis")).toHaveFocus();
+  });
+});
+
+describe("Organizer editor description tab", () => {
+  it("opens Opis from the about ghost, previews the typed description live and saves it trimmed", async () => {
+    vi.mocked(organizationsApi.updateOrganization).mockResolvedValue({ ...MY_ORGANIZATION, description: "Śpiewamy." });
+    await openEditor();
+
+    fireEvent.click(screen.getByRole("link", { name: "Dodaj opis →" }));
+    const textarea = await screen.findByRole("textbox", { name: "O nas" });
+    expect(screen.getByRole("tab", { name: "Opis" })).toHaveAttribute("aria-selected", "true");
+
+    fireEvent.change(textarea, { target: { value: "  Śpiewamy.  " } });
+
+    expect(screen.getByRole("region", { name: "O nas" })).toHaveTextContent("Śpiewamy.");
+    expect(screen.queryByRole("link", { name: "Dodaj opis →" })).not.toBeInTheDocument();
+    expect(screen.getByText("13/1000")).toBeInTheDocument();
+
+    vi.mocked(organizationsApi.getPublicOrganization).mockResolvedValue({ ...ORGANIZATION, description: "Śpiewamy." });
+    vi.mocked(organizationsApi.getMyOrganization).mockResolvedValue({ ...MY_ORGANIZATION, description: "Śpiewamy." });
+    fireEvent.click(screen.getByRole("button", { name: "Zapisz" }));
+
+    await expectSheetClosedAfterSave();
+    expect(organizationsApi.updateOrganization).toHaveBeenCalledWith("org-1", { description: "Śpiewamy." });
+    expect(screen.getByRole("region", { name: "O nas" })).toHaveTextContent("Śpiewamy.");
   });
 });
 
@@ -567,6 +596,7 @@ describe("editor draft helpers", () => {
   const baseline: Draft = {
     pageLayout: "CLASSIC",
     theme: { palette_preset: null, primary_color: "#7A2A4F", accent_color: null },
+    description: "Śpiewamy razem.",
   };
 
   it("compares colors case-insensitively and sends nothing for a case-only change", () => {
@@ -580,9 +610,16 @@ describe("editor draft helpers", () => {
     const current: Draft = {
       pageLayout: "CLASSIC",
       theme: { palette_preset: null, primary_color: null, accent_color: null },
+      description: "Śpiewamy razem.",
     };
 
     expect(diffDraft(current, baseline)).toEqual({ primary_color: null });
+  });
+
+  it("sends the trimmed description, a blank one as null, and nothing for a whitespace-only change", () => {
+    expect(diffDraft({ ...baseline, description: "  Śpiewamy razem. \n" }, baseline)).toEqual({});
+    expect(diffDraft({ ...baseline, description: " Tańczymy. " }, baseline)).toEqual({ description: "Tańczymy." });
+    expect(diffDraft({ ...baseline, description: "   " }, baseline)).toEqual({ description: null });
   });
 
   it("derives the palette selection from the theme", () => {

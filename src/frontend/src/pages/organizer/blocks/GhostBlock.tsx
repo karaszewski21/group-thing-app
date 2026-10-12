@@ -14,13 +14,14 @@ const ADD_EXCHANGE_ITEM = { label: "Dodaj rzecz do wymiany →", to: "/panel/rze
 
 const GHOST_COPY: Partial<Record<BlockId, GhostCopy>> = {
   about: {
-    title: "Opis — wkrótce",
-    body: "Tu pojawi się opis Twojej organizacji. Widzisz to tylko Ty.",
+    title: "O nas",
+    body: "Napisz kilka zdań o sobie i swoich zajęciach — odwiedzający zobaczą je tutaj. Widzisz to tylko Ty.",
+    // Opens the editor on this page, like the gear button: no history entry.
+    cta: { label: "Dodaj opis →", to: "?edit=1&tab=opis", replace: true },
   },
   gallery: {
     title: "Galeria",
     body: "Dodaj do 3 zdjęć — odwiedzający zobaczą je po sprawdzeniu. Widzisz to tylko Ty.",
-    // Opens the editor on this page, like the gear button: no history entry.
     cta: { label: "Dodaj zdjęcia →", to: "?edit=1&tab=zdjecia", replace: true },
   },
   stats: {

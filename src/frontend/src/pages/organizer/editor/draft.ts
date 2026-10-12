@@ -3,18 +3,22 @@ import type { OrganizationResponse, UpdateOrganizationRequest } from "../../../a
 import { findPreset } from "../../../theme/palettePresets";
 import { resolveLayout } from "../layouts/registry";
 
-/** What the owner is choosing in the editor: the effective layout key and
- * the three stored theme fields. */
+/** What the owner is choosing in the editor: the effective layout key, the
+ * three stored theme fields and the description as typed ("" for none). */
 export interface Draft {
   pageLayout: string;
   theme: OrganizerTheme;
+  description: string;
 }
 
 /** "Mięta (domyślna)": no preset and no colors. */
 export const DEFAULT_THEME: OrganizerTheme = { palette_preset: null, primary_color: null, accent_color: null };
 
 export function toDraft(
-  organization: Pick<OrganizationResponse, "page_layout" | "palette_preset" | "primary_color" | "accent_color">,
+  organization: Pick<
+    OrganizationResponse,
+    "page_layout" | "palette_preset" | "primary_color" | "accent_color" | "description"
+  >,
 ): Draft {
   return {
     pageLayout: resolveLayout(organization.page_layout).key,
@@ -23,6 +27,7 @@ export function toDraft(
       primary_color: organization.primary_color,
       accent_color: organization.accent_color,
     },
+    description: organization.description ?? "",
   };
 }
 
@@ -44,6 +49,10 @@ export function diffDraft(current: Draft, baseline: Draft): UpdateOrganizationRe
   }
   if (!sameHex(current.theme.accent_color, baseline.theme.accent_color)) {
     request.accent_color = current.theme.accent_color;
+  }
+  // The server trims it, so surrounding whitespace alone is no change.
+  if (current.description.trim() !== baseline.description.trim()) {
+    request.description = current.description.trim() || null;
   }
   return request;
 }

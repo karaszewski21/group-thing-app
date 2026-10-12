@@ -162,9 +162,13 @@ async def update_organization(
     if own is None or own.id != organization.id:
         raise AccessDeniedException("You do not own this Organization")
 
-    # Moderate before any assignment so a rejected name leaves no partial write.
+    # Moderate before any assignment so a rejected text leaves no partial write.
     if "name" in data.model_fields_set:
         await check_text(TextField.ORGANIZATION_NAME, data.name, organization.name)
+    if "description" in data.model_fields_set:
+        await check_text(
+            TextField.ORGANIZATION_DESCRIPTION, data.description, organization.description
+        )
     for field in data.model_fields_set:
         setattr(organization, field, getattr(data, field))
     await db.commit()

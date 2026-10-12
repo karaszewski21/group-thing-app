@@ -19,6 +19,7 @@ const organization: PublicOrganizationResponse = {
   accent_color: null,
   page_layout: "CLASSIC",
   palette_preset: null,
+  description: null,
   logo: null,
   cover: null,
   gallery: [],

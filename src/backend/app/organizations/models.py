@@ -78,7 +78,9 @@ class Organization(BaseEntity):
 
     `page_layout` (public page layout key) and `palette_preset` (color preset
     key, NULL for the default palette or custom colors) are plain strings whose
-    allowlists live in `page_layouts.py` and `palettes.py`."""
+    allowlists live in `page_layouts.py` and `palettes.py`.
+
+    `description` is the page's free-text "O nas", NULL when there is none."""
 
     __tablename__ = "organizations"
 
@@ -93,6 +95,7 @@ class Organization(BaseEntity):
     accent_color: Mapped[str | None] = mapped_column(String(7), nullable=True)
     page_layout: Mapped[str] = mapped_column(String(64), nullable=False, server_default="CLASSIC")
     palette_preset: Mapped[str | None] = mapped_column(String(40), nullable=True)
+    description: Mapped[str | None] = mapped_column(String(1000), nullable=True)
 
     __table_args__ = (
         CheckConstraint(

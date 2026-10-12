@@ -29,6 +29,7 @@ const ORGANIZATION = {
   accent_color: "#d4a017",
   page_layout: "SCHEDULE",
   palette_preset: null,
+  description: null,
   logo: null,
   cover: null,
   gallery: [],

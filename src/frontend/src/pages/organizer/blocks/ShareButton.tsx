@@ -6,11 +6,13 @@ interface ShareButtonProps {
   name: string;
   label: string;
   className: string;
+  /** Shows only the icon; `label` stays the accessible name and tooltip. */
+  iconOnly?: boolean;
 }
 
 /** Shares the public page address. The URL is built from the origin and slug,
  * never from `location.href`, so the owner's `?edit=1` never leaks. */
-export function ShareButton({ slug, name, label, className }: ShareButtonProps) {
+export function ShareButton({ slug, name, label, className, iconOnly = false }: ShareButtonProps) {
   const { toast, showToast } = useToast();
 
   async function share() {
@@ -34,9 +36,15 @@ export function ShareButton({ slug, name, label, className }: ShareButtonProps) 
 
   return (
     <>
-      <button type="button" onClick={() => void share()} className={className}>
-        <ArrowUpRight aria-hidden="true" className="h-4 w-4" />
-        {label}
+      <button
+        type="button"
+        onClick={() => void share()}
+        className={className}
+        aria-label={iconOnly ? label : undefined}
+        title={iconOnly ? label : undefined}
+      >
+        <ArrowUpRight aria-hidden="true" className={iconOnly ? "h-5 w-5" : "h-4 w-4"} />
+        {!iconOnly && label}
       </button>
       <div role="status" className="fixed bottom-[90px] left-1/2 z-[120] -translate-x-1/2">
         {toast && (

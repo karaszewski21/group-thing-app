@@ -415,3 +415,38 @@ async def test_updateOrganization_emptyBody_returns200AndChangesNothing(
     assert body["name"] == "Bez Zmian"
     assert body["page_layout"] == "LINKS"
     assert body["palette_preset"] == "PLUM"
+
+
+async def test_updateOrganization_description_isPublicAndBlankClearsIt(
+    client: AsyncClient, db_session: AsyncSession
+) -> None:
+    headers, created = await _create_organization(client, "org.about1@example.com", "Z Opisem")
+    url = f"/api/organizations/{created['id']}"
+    assert created["description"] is None
+
+    response = await client.patch(
+        url, json={"description": "  Zajęcia muzyczne dla maluchów.  "}, headers=headers
+    )
+
+    assert response.status_code == 200
+    assert response.json()["description"] == "Zajęcia muzyczne dla maluchów."
+    public = await client.get(f"/api/organizations/public/{created['slug']}")
+    assert public.json()["description"] == "Zajęcia muzyczne dla maluchów."
+
+    cleared = await client.patch(url, json={"description": "   "}, headers=headers)
+
+    assert cleared.status_code == 200
+    assert cleared.json()["description"] is None
+
+
+async def test_updateOrganization_descriptionOver1000Chars_returns400WithFieldError(
+    client: AsyncClient, db_session: AsyncSession
+) -> None:
+    headers, created = await _create_organization(client, "org.about2@example.com", "Za Długi")
+
+    response = await client.patch(
+        f"/api/organizations/{created['id']}", json={"description": "a" * 1001}, headers=headers
+    )
+
+    assert response.status_code == 400
+    assert "description" in response.json()["fieldErrors"]

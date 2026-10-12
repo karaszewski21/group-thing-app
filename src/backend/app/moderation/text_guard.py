@@ -17,6 +17,7 @@ logger = logging.getLogger(__name__)
 
 class TextField(StrEnum):
     ORGANIZATION_NAME = "ORGANIZATION_NAME"
+    ORGANIZATION_DESCRIPTION = "ORGANIZATION_DESCRIPTION"
     GROUP_NAME = "GROUP_NAME"
     TERM_DESCRIPTION = "TERM_DESCRIPTION"
     PRODUCT_NAME = "PRODUCT_NAME"
@@ -28,6 +29,9 @@ class TextField(StrEnum):
 MESSAGES: dict[TextField, str] = {
     TextField.ORGANIZATION_NAME: (
         "Nazwa organizacji narusza zasady społeczności. Zmień ją i spróbuj ponownie."
+    ),
+    TextField.ORGANIZATION_DESCRIPTION: (
+        "Opis organizacji narusza zasady społeczności. Zmień go i spróbuj ponownie."
     ),
     TextField.GROUP_NAME: "Nazwa grupy narusza zasady społeczności. Zmień ją i spróbuj ponownie.",
     TextField.TERM_DESCRIPTION: (

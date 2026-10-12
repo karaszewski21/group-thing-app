@@ -1,4 +1,5 @@
 import type { ComponentType, ReactNode } from "react";
+import { AboutBlock, isAboutEmpty } from "./blocks/AboutBlock";
 import { AgendaBlock, isAgendaEmpty } from "./blocks/AgendaBlock";
 import { BlockSkeleton } from "./blocks/BlockSkeleton";
 import { CirclesGridBlock, isCirclesGridEmpty } from "./blocks/CirclesGridBlock";
@@ -38,7 +39,7 @@ interface BlockDefinition {
 const BLOCKS: Record<BlockId, BlockDefinition> = {
   hero: { Component: HeroBlock },
   share: { Component: ShareBlock },
-  about: { Component: null },
+  about: { Component: AboutBlock, isEmpty: isAboutEmpty },
   gallery: { Component: GalleryBlock, isEmpty: isGalleryEmpty },
   "link-stack": { Component: LinkStackBlock },
   footer: { Component: FooterBlock },

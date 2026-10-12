@@ -56,6 +56,10 @@ def _text_moderation_on(monkeypatch: pytest.MonkeyPatch) -> Generator[None, None
             "Nazwa organizacji narusza zasady społeczności. Zmień ją i spróbuj ponownie.",
         ),
         (
+            TextField.ORGANIZATION_DESCRIPTION,
+            "Opis organizacji narusza zasady społeczności. Zmień go i spróbuj ponownie.",
+        ),
+        (
             TextField.GROUP_NAME,
             "Nazwa grupy narusza zasady społeczności. Zmień ją i spróbuj ponownie.",
         ),
