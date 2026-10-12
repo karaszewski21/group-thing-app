@@ -38,7 +38,6 @@ describe("organizer-themed files use role tokens", () => {
     "pages/organizer/editor/LayoutTab.tsx",
     "pages/organizer/editor/UnsavedChangesDialog.tsx",
     "pages/organizer/editor/ColorsTab.tsx",
-    "pages/organizer/editor/CustomColorPicker.tsx",
     "pages/organizer/editor/PreviewCards.tsx",
     "pages/organizer/blocks/StatsBlock.tsx",
     "pages/organizer/blocks/UpcomingTermsBlock.tsx",

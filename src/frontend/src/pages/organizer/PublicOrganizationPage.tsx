@@ -19,7 +19,7 @@ import { NotFoundFrame, PageFrame } from "./PageFrame";
  * why `slugs.RESERVED_SLUGS` on the backend must never hand out a slug
  * matching one of those fixed paths: this route would otherwise permanently
  * shadow it. The owner sees the same page plus ghosts and a settings button
- * ("Edytuj wygląd") in the hero; `?edit=1` only means something once the owner
+ * ("Ustawienia") in the hero; `?edit=1` only means something once the owner
  * check has passed, and then opens the editor sheet, which closes on save. The page owns the editor's draft: it is
  * previewed live here and diffed against the owner's stored organization
  * (the baseline, which refreshes on every refetch) when saved.
@@ -101,9 +101,9 @@ export function PublicOrganizationPage() {
       ref={settingsRef}
       type="button"
       onClick={() => setSearchParams({ edit: "1" }, { replace: true })}
-      aria-label="Edytuj wygląd"
+      aria-label="Ustawienia"
       aria-expanded={sheetOpen}
-      title="Edytuj wygląd"
+      title="Ustawienia"
       className="flex h-11 w-11 items-center justify-center rounded-full bg-paper/90 text-ink shadow-md hover:bg-paper focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring"
     >
       <SettingsIcon c="currentColor" />

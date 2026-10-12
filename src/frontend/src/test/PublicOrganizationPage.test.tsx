@@ -175,7 +175,7 @@ describe("PublicOrganizationPage", () => {
 
     expect(await screen.findByRole("heading", { level: 1, name: "Muzyczne Skrzaty" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Udostępnij" })).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: /Edytuj wygląd/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Ustawienia" })).not.toBeInTheDocument();
     expect(screen.queryByText("Napisz kilka zdań o sobie i swoich zajęciach — odwiedzający zobaczą je tutaj. Widzisz to tylko Ty.")).not.toBeInTheDocument();
     expect(organizationsApi.getMyOrganization).not.toHaveBeenCalled();
   });
@@ -190,7 +190,7 @@ describe("PublicOrganizationPage", () => {
     expect(await screen.findByRole("heading", { level: 1, name: "Muzyczne Skrzaty" })).toBeInTheDocument();
     await vi.waitFor(() => expect(organizationsApi.getMyOrganization).toHaveBeenCalled());
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: /Edytuj wygląd/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Ustawienia" })).not.toBeInTheDocument();
     expect(screen.queryByText("Napisz kilka zdań o sobie i swoich zajęciach — odwiedzający zobaczą je tutaj. Widzisz to tylko Ty.")).not.toBeInTheDocument();
   });
 
@@ -204,18 +204,18 @@ describe("PublicOrganizationPage", () => {
     expect(await screen.findByRole("heading", { level: 1, name: "Muzyczne Skrzaty" })).toBeInTheDocument();
     await vi.waitFor(() => expect(organizationsApi.getMyOrganization).toHaveBeenCalled());
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: /Edytuj wygląd/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Ustawienia" })).not.toBeInTheDocument();
     expect(screen.queryByText("Napisz kilka zdań o sobie i swoich zajęciach — odwiedzający zobaczą je tutaj. Widzisz to tylko Ty.")).not.toBeInTheDocument();
   });
 
-  it("shows the owner the ghost and the Edytuj wygląd settings button, which opens edit mode", async () => {
+  it("shows the owner the ghost and the Ustawienia settings button, which opens edit mode", async () => {
     mockAuth = { token: "owner-token" };
     vi.mocked(organizationsApi.getPublicOrganization).mockResolvedValue(ORGANIZATION);
     vi.mocked(organizationsApi.getMyOrganization).mockResolvedValue(MY_ORGANIZATION);
 
     renderAt("/muzyczne-skrzaty");
 
-    const settings = await screen.findByRole("button", { name: "Edytuj wygląd" });
+    const settings = await screen.findByRole("button", { name: "Ustawienia" });
     expect(screen.getByText("Napisz kilka zdań o sobie i swoich zajęciach — odwiedzający zobaczą je tutaj. Widzisz to tylko Ty.")).toBeInTheDocument();
     const scope = themeScope(settings);
     expect(scope).toContainElement(screen.getByText("Napisz kilka zdań o sobie i swoich zajęciach — odwiedzający zobaczą je tutaj. Widzisz to tylko Ty."));
@@ -224,7 +224,7 @@ describe("PublicOrganizationPage", () => {
     fireEvent.click(settings);
 
     expect(screen.getByTestId("location")).toHaveTextContent("/muzyczne-skrzaty?edit=1");
-    expect(screen.getByRole("button", { name: "Edytuj wygląd" })).toHaveAttribute("aria-expanded", "true");
+    expect(screen.getByRole("button", { name: "Ustawienia" })).toHaveAttribute("aria-expanded", "true");
   });
 
   it("keeps the hero, share and footer when the directory request fails", async () => {

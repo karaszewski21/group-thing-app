@@ -1,20 +1,31 @@
 import { Link } from "react-router-dom";
-import { BoxIcon, BuildingIcon, CalendarPlusIcon, GiftIcon } from "../panelIcons";
+import dayjs from "../../../utils/dayjs";
+import { BuildingIcon, CalendarPlusIcon, GiftIcon } from "../panelIcons";
 import { HintCard } from "../panelComponents";
-import {
-  dayMonth,
-  ITEM_MODE_STYLE,
-  ITEM_MODES,
-  termPublicPath,
-  termTime,
-} from "../panelHelpers";
-
-const ITEM_MODE_INFINITIVE_LABEL: Record<(typeof ITEM_MODES)[number], string> = {
-  "wypożyczę": "Wypożyczyć",
-  "oddam": "Oddać",
-  "zamienię": "Zamienić",
-};
+import { capitalize, dayMonth, ITEM_MODES, termPublicPath, termTime, type ItemMode } from "../panelHelpers";
 import { usePanelData } from "../panelDataStore";
+
+/** Soft tile + readable text per item mode, matching the exchange tones. */
+const ITEM_MODE_TILE: Record<ItemMode, string> = {
+  "wypożyczę": "bg-teal-soft text-ink",
+  "oddam": "bg-primary-soft text-primary-fg",
+  "zamienię": "bg-accent-soft text-accent-fg",
+};
+
+const SECTION_TITLE = "font-serif text-[21px] font-bold text-ink";
+const SECTION_LINK = "text-sm font-extrabold text-primary-fg hover:underline";
+const CARD = "rounded-[22px] border border-line bg-paper";
+const EMPTY = "text-[13px] leading-snug text-ink-soft";
+
+function DateBadge({ iso, tone = "bg-primary-soft text-primary-fg" }: { iso: string; tone?: string }) {
+  const { day, month } = dayMonth(iso);
+  return (
+    <div className={`flex h-14.5 w-13 flex-none flex-col items-center justify-center rounded-2xl leading-none ${tone}`}>
+      <b className="font-serif text-[22px] font-extrabold text-ink">{day}</b>
+      <small className="mt-0.5 text-[10px] font-extrabold tracking-wide uppercase">{month}</small>
+    </div>
+  );
+}
 
 export function HomeView() {
   const {
@@ -44,182 +55,177 @@ export function HomeView() {
 
   if (!profile) return null;
 
+  // "Najbliższe" means from today on; past terms stay on Spotkania.
+  const today = dayjs().startOf("day");
+  const upcoming = terms.filter(({ term }) => !dayjs(term.occurs_on).isBefore(today));
+  const bothEmpty = myAttendances.length === 0 && myPledges.length === 0;
+
   return (
     <>
-            <div className="mb-[18px]">
-              <h2 className="font-serif text-xl font-semibold text-ink">
-                Cześć, {profile.display_name.split(" ")[0]}!
-              </h2>
-            </div>
+      <div className="mb-5">
+        <h2 className="font-serif text-[32px] leading-tight font-extrabold tracking-tight text-ink">
+          Cześć, {profile.display_name.split(" ")[0]}!
+        </h2>
+      </div>
 
-            {!isOrganizer && !hintFirstTermDismissed && (
-              <HintCard
-                icon={<CalendarPlusIcon c="#1B8168" />}
-                title="Dodaj swój pierwszy termin"
-                description="Załóż grupę i ustal pierwsze zajęcia — to pierwszy krok."
-                ctaLabel="Zacznijmy →"
-                onCtaClick={() => { setFirstTermForOrganizer(false); setModal("pierwszy-termin"); }}
-                onDismiss={dismissFirstTermHint}
-              />
-            )}
+      {!isOrganizer && !hintFirstTermDismissed && (
+        <HintCard
+          icon={<CalendarPlusIcon c="currentColor" />}
+          title="Dodaj swój pierwszy termin"
+          description="Załóż grupę i ustal pierwsze zajęcia — to pierwszy krok."
+          ctaLabel="Zacznijmy →"
+          onCtaClick={() => {
+            setFirstTermForOrganizer(false);
+            setModal("pierwszy-termin");
+          }}
+          onDismiss={dismissFirstTermHint}
+        />
+      )}
 
-            {!isOrganizer && !hintBecomeOrganizerDismissed && (
-              <HintCard
-                icon={<BuildingIcon c="#1B8168" />}
-                title="Możesz zostać organizatorem"
-                description="Załóż własną stronę, zapraszaj rodziny i planuj zajęcia — bez zakładania nowego konta."
-                ctaLabel="Zacznijmy →"
-                onCtaClick={() => setModal("zostan-organizatorem")}
-                onDismiss={dismissBecomeOrganizerHint}
-              />
-            )}
+      {!isOrganizer && !hintBecomeOrganizerDismissed && (
+        <HintCard
+          icon={<BuildingIcon c="currentColor" />}
+          title="Możesz zostać organizatorem"
+          description="Załóż własną stronę, zapraszaj rodziny i planuj zajęcia — bez zakładania nowego konta."
+          ctaLabel="Zacznijmy →"
+          onCtaClick={() => setModal("zostan-organizatorem")}
+          onDismiss={dismissBecomeOrganizerHint}
+        />
+      )}
 
-            {isOrganizer && !hintOrgPolishDismissed && (
-              <HintCard
-                icon={<BuildingIcon c="#1B8168" />}
-                title="Dopracuj stronę organizacji"
-                description="Wybierz układ i kolory swojej strony — zobaczą je odwiedzający."
-                ctaLabel="Przejdź →"
-                ctaTo={organizationSlug ? `/${organizationSlug}?edit=1` : "/organization"}
-                onDismiss={dismissOrgPolishHint}
-              />
-            )}
+      {isOrganizer && !hintOrgPolishDismissed && (
+        <HintCard
+          icon={<BuildingIcon c="currentColor" />}
+          title="Dopracuj stronę organizacji"
+          description="Wybierz układ i kolory swojej strony — zobaczą je odwiedzający."
+          ctaLabel="Przejdź →"
+          ctaTo={organizationSlug ? `/${organizationSlug}?edit=1` : "/organization"}
+          onDismiss={dismissOrgPolishHint}
+        />
+      )}
 
-            {isOrganizer && terms.length === 0 && !hintOrgFirstTermDismissed && (
-              <HintCard
-                icon={<CalendarPlusIcon c="#1B8168" />}
-                title="Dodaj swój pierwszy termin"
-                description="Ustal pierwsze spotkanie w swojej grupie."
-                ctaLabel="Dodaj termin →"
-                onCtaClick={() => {
-                  setFirstTermForOrganizer(myGroups.length > 0);
-                  setModal("pierwszy-termin");
-                }}
-                onDismiss={dismissOrgFirstTermHint}
-              />
-            )}
+      {isOrganizer && terms.length === 0 && !hintOrgFirstTermDismissed && (
+        <HintCard
+          icon={<CalendarPlusIcon c="currentColor" />}
+          title="Dodaj swój pierwszy termin"
+          description="Ustal pierwsze spotkanie w swojej grupie."
+          ctaLabel="Dodaj termin →"
+          onCtaClick={() => {
+            setFirstTermForOrganizer(myGroups.length > 0);
+            setModal("pierwszy-termin");
+          }}
+          onDismiss={dismissOrgFirstTermHint}
+        />
+      )}
 
-            <div className="rounded-[22px] border border-line bg-paper p-5">
-              <div className="mb-3.5 flex items-center justify-between gap-2.5">
-                <h3 className="text-base font-semibold text-ink">Najbliższe terminy</h3>
-                <button onClick={() => setView("spotkania")} className="text-xs font-extrabold text-mint hover:underline">
-                  Zobacz wszystkie
-                </button>
-              </div>
-              {terms.length === 0 && (
-                <div className="rounded-2xl border-[1.5px] border-dashed border-line py-[26px] text-center text-[13.5px] text-ink-soft">
-                  Brak zaplanowanych terminów.
+      <section className="mt-6">
+        <div className="mb-2.5 flex items-baseline justify-between gap-2.5">
+          <h3 className={SECTION_TITLE}>Najbliższe terminy</h3>
+          <button onClick={() => setView("spotkania")} className={SECTION_LINK}>
+            Zobacz wszystkie
+          </button>
+        </div>
+        {upcoming.length === 0 && (
+          <div className={`${CARD} border-dashed p-5 text-center ${EMPTY}`}>Brak zaplanowanych terminów.</div>
+        )}
+        <div className="flex flex-col gap-2.5">
+          {upcoming.slice(0, 3).map(({ term, group, neededItems }) => {
+            if (isOrganizer) return <div key={term.id}>{organizerTermCard(term, group, neededItems)}</div>;
+            const time = termTime(term.occurs_on);
+            return (
+              <Link
+                key={term.id}
+                to={termPublicPath(group, term.id)}
+                className={`${CARD} flex items-start gap-3 p-3.5 transition-colors hover:border-line-strong`}
+              >
+                <DateBadge iso={term.occurs_on} />
+                <div className="min-w-0 flex-1">
+                  <h4 className="text-base font-bold text-ink">{group.name}</h4>
+                  <small className="mt-0.5 block text-sm text-ink-soft">
+                    {time && <span className="font-bold text-ink">godz. {time}</span>}
+                    {time && (term.description ? " · " : "")}
+                    {term.description || (time ? "" : "Bez opisu")}
+                  </small>
+                  {neededItems.length > 0 && (
+                    <div className="mt-2 flex flex-wrap gap-1.5">
+                      {neededItems.map((ni) => (
+                        <span
+                          key={ni.id}
+                          className="rounded-full border-[1.5px] border-dashed border-accent px-2.5 py-0.5 text-xs font-extrabold text-accent-fg"
+                        >
+                          {ni.product_name}
+                        </span>
+                      ))}
+                    </div>
+                  )}
                 </div>
-              )}
-              {terms.slice(0, 3).map(({ term, group, neededItems }) => {
-                if (isOrganizer) {
-                  return (
-                    <div key={term.id} className="mt-2.5 first:mt-0">
-                      {organizerTermCard(term, group, neededItems)}
-                    </div>
-                  );
-                }
-                const { day, month } = dayMonth(term.occurs_on);
-                const time = termTime(term.occurs_on);
-                return (
-                  <div key={term.id} className="mt-2.5 first:mt-0">
+              </Link>
+            );
+          })}
+        </div>
+      </section>
+
+      {bothEmpty ? (
+        <div className="mt-6 grid grid-cols-2 gap-2.5">
+          <section className={`${CARD} p-4`}>
+            <h3 className="text-[15px] font-extrabold text-ink">Zapisane zajęcia</h3>
+            <p className={`mt-1 ${EMPTY}`}>Nie masz jeszcze zapisów na zajęcia.</p>
+          </section>
+          <section className={`${CARD} p-4`}>
+            <h3 className="text-[15px] font-extrabold text-ink">Zadeklarowane rzeczy</h3>
+            <p className={`mt-1 ${EMPTY}`}>Brak deklaracji przyniesienia rzeczy.</p>
+          </section>
+        </div>
+      ) : (
+        <>
+          <section className="mt-6">
+            <h3 className={`mb-2.5 ${SECTION_TITLE}`}>Zapisane zajęcia</h3>
+            {myAttendances.length === 0 ? (
+              <div className={`${CARD} border-dashed p-5 text-center ${EMPTY}`}>Nie masz jeszcze zapisów na zajęcia.</div>
+            ) : (
+              <div className="flex flex-col gap-2.5">
+                {myAttendances.map((a) => (
                   <Link
-                    to={termPublicPath(group, term.id)}
-                    className="flex items-start gap-3.5 rounded-2xl border border-line bg-cream p-[15px] transition-colors hover:border-mint"
+                    key={a.attendance_id}
+                    to={`/${a.organizer_slug}/grupa/${a.group_id}/term/${a.term_id}`}
+                    className={`${CARD} flex items-start gap-3 p-3.5 transition-colors hover:border-line-strong`}
                   >
-                    <div className="flex h-[46px] w-[46px] flex-none flex-col items-center justify-center rounded-[13px] bg-mint-soft leading-none">
-                      <b className="font-serif text-base text-ink">{day}</b>
-                      <small className="text-[9.5px] uppercase tracking-wide text-ink-soft">{month}</small>
-                    </div>
+                    <DateBadge iso={a.occurs_on} />
                     <div className="min-w-0 flex-1">
-                      <h3 className="text-[15.5px] font-semibold text-ink">{group.name}</h3>
-                      <small className="mt-0.5 block text-[12.5px] text-ink-soft">
-                        {time && <span className="font-bold text-ink">godz. {time}</span>}
-                        {time && (term.description ? " · " : "")}
-                        {term.description || (time ? "" : "Bez opisu")}
+                      <h4 className="text-base font-bold text-ink">{a.group_name}</h4>
+                      <small className="mt-0.5 block text-sm text-ink-soft">
+                        {termTime(a.occurs_on) && (
+                          <span className="font-bold text-ink">godz. {termTime(a.occurs_on)}</span>
+                        )}
+                        {termTime(a.occurs_on) && a.organizer_display_name ? " · " : ""}
+                        {a.organizer_display_name ?? ""}
                       </small>
-                      {neededItems.length > 0 && (
-                        <div className="mt-1.5 flex flex-wrap gap-1.5">
-                          {neededItems.map((ni) => (
-                            <span key={ni.id} className="rounded-full bg-lime-soft px-2.5 py-0.5 text-[10.5px] font-extrabold text-[#56701F]">
-                              {ni.product_name}
-                            </span>
-                          ))}
-                        </div>
-                      )}
                     </div>
                   </Link>
-                  </div>
-                );
-              })}
-            </div>
+                ))}
+              </div>
+            )}
+          </section>
 
-            <div className="mt-3.5 rounded-[22px] border border-line bg-paper p-5">
-              <h3 className="mb-3.5 text-base font-semibold text-ink">Zapisane zajęcia</h3>
-              {myAttendances.length === 0 ? (
-                <div className="rounded-2xl border-[1.5px] border-dashed border-line py-[26px] text-center text-[13.5px] text-ink-soft">
-                  Nie zapisałeś się jeszcze na żadne zajęcia.
-                </div>
-              ) : (
-                myAttendances.map((a) => {
-                  const { day, month } = dayMonth(a.occurs_on);
-                  return (
-                    <Link
-                      key={a.attendance_id}
-                      to={`/${a.organizer_slug}/grupa/${a.group_id}/term/${a.term_id}`}
-                      className="mt-2.5 flex items-start gap-3.5 rounded-2xl border border-line bg-cream p-[15px] transition-colors first:mt-0 hover:border-mint"
-                    >
-                      <div className="flex h-[46px] w-[46px] flex-none flex-col items-center justify-center rounded-[13px] bg-mint-soft leading-none">
-                        <b className="font-serif text-base text-ink">{day}</b>
-                        <small className="text-[9.5px] uppercase tracking-wide text-ink-soft">{month}</small>
-                      </div>
-                      <div className="min-w-0 flex-1">
-                        <h3 className="text-[15.5px] font-semibold text-ink">{a.group_name}</h3>
-                        <small className="mt-0.5 block text-[12.5px] text-ink-soft">
-                          {termTime(a.occurs_on) && (
-                            <span className="font-bold text-ink">godz. {termTime(a.occurs_on)}</span>
-                          )}
-                          {termTime(a.occurs_on) && a.organizer_display_name ? " · " : ""}
-                          {a.organizer_display_name ?? ""}
-                        </small>
-                      </div>
-                    </Link>
-                  );
-                })
-              )}
-            </div>
-
-            <div className="mt-3.5 rounded-[22px] border border-line bg-paper p-5">
-              <h3 className="mb-3.5 text-base font-semibold text-ink">Zadeklarowane rzeczy</h3>
-              {myPledges.length === 0 ? (
-                <div className="rounded-2xl border-[1.5px] border-dashed border-line py-[26px] text-center text-[13.5px] text-ink-soft">
-                  Nie zadeklarowałeś jeszcze przyniesienia żadnej rzeczy.
-                </div>
-              ) : (
-                myPledges.map((p) => {
-                  const { day, month } = dayMonth(p.occurs_on);
+          <section className="mt-6">
+            <h3 className={`mb-2.5 ${SECTION_TITLE}`}>Zadeklarowane rzeczy</h3>
+            {myPledges.length === 0 ? (
+              <div className={`${CARD} border-dashed p-5 text-center ${EMPTY}`}>Brak deklaracji przyniesienia rzeczy.</div>
+            ) : (
+              <div className="flex flex-col gap-2.5">
+                {myPledges.map((p) => {
                   const time = termTime(p.occurs_on);
                   const statusLabel =
-                    p.status === "FULFILLED"
-                      ? "Zrealizowane ✓"
-                      : p.registered
-                        ? "Zarejestrowane"
-                        : "Zadeklarowane";
+                    p.status === "FULFILLED" ? "Zrealizowane ✓" : p.registered ? "Zarejestrowane" : "Zadeklarowane";
                   return (
-                    <div
-                      key={p.pledge_id}
-                      className="mt-2.5 flex items-start gap-3.5 rounded-2xl border border-line bg-cream p-[15px] first:mt-0"
-                    >
-                      <div className="flex h-[46px] w-[46px] flex-none flex-col items-center justify-center rounded-[13px] bg-lime-soft leading-none">
-                        <b className="font-serif text-base text-ink">{day}</b>
-                        <small className="text-[9.5px] uppercase tracking-wide text-ink-soft">{month}</small>
-                      </div>
+                    <div key={p.pledge_id} className={`${CARD} flex items-start gap-3 p-3.5`}>
+                      <DateBadge iso={p.occurs_on} tone="bg-accent-soft text-accent-fg" />
                       <div className="min-w-0 flex-1">
-                        <h4 className="text-[14.5px] font-semibold text-ink">
+                        <h4 className="text-[15px] font-bold wrap-break-word text-ink">
                           {p.product_name}
                           {p.item_description ? ` — ${p.item_description}` : ""}
                         </h4>
-                        <small className="mt-0.5 block text-[12.5px] text-ink-soft">
+                        <small className="mt-0.5 block text-sm text-ink-soft">
                           {p.group_name}
                           {time ? ` · godz. ${time}` : ""} · {statusLabel}
                         </small>
@@ -227,65 +233,58 @@ export function HomeView() {
                       {p.status === "CLAIMED" && !p.registered && (
                         <button
                           onClick={() => void withdrawMyPledge(p.pledge_id)}
-                          className="flex-none rounded-full border border-line px-3 py-1.5 text-xs font-bold text-danger hover:bg-paper"
+                          className="min-h-9 flex-none rounded-full border-[1.5px] border-line px-3 text-xs font-bold text-danger hover:bg-cream"
                         >
                           Rezygnuję
                         </button>
                       )}
                     </div>
                   );
-                })
-              )}
-            </div>
-
-            <div className="mt-3.5 flex flex-col gap-3.5 rounded-[22px] border border-line bg-paper p-5">
-              <div className="flex items-start justify-between gap-2.5">
-                <div>
-                  <h3 className="text-base font-semibold text-ink">Twoje rzeczy</h3>
-                  <p className="mt-0.5 text-[12.5px] text-ink-soft">
-                    Rzeczy, które chcesz wypożyczyć, oddać lub zamienić
-                  </p>
-                </div>
-                <button onClick={() => setView("rzeczy")} className="flex-none text-xs font-extrabold text-mint hover:underline">
-                  Zobacz →
-                </button>
-              </div>
-              <div className="flex gap-2.5">
-                {ITEM_MODES.map((m) => {
-                  const style = ITEM_MODE_STYLE[m];
-                  return (
-                    <div key={m} className="flex min-w-0 flex-1 flex-col items-start gap-1.5 rounded-2xl p-3.5" style={{ background: style.bg }}>
-                      <span className="flex h-[30px] w-[30px] items-center justify-center rounded-[10px] bg-white/60">
-                        <BoxIcon c={style.c} />
-                      </span>
-                      <b className="font-serif text-[27px] leading-none" style={{ color: style.c }}>{itemCounts[m]}</b>
-                      <small className="text-[11.5px] font-extrabold" style={{ color: style.c }}>{ITEM_MODE_INFINITIVE_LABEL[m]}</small>
-                    </div>
-                  );
                 })}
               </div>
-            </div>
+            )}
+          </section>
+        </>
+      )}
 
-            <div className="mt-3.5 flex flex-col gap-3.5 rounded-[22px] border border-line bg-paper p-5">
-              <div className="flex items-start justify-between gap-2.5">
-                <div>
-                  <h3 className="text-base font-semibold text-ink">Rzeczy wypożyczone</h3>
-                  <p className="mt-0.5 text-[12.5px] text-ink-soft">Rzeczy, które wypożyczyłeś od innych</p>
-                </div>
-                <button onClick={() => setView("podarki")} className="flex-none text-xs font-extrabold text-mint hover:underline">
-                  Zobacz →
-                </button>
-              </div>
-              <div className="flex gap-2.5">
-                <div className="flex min-w-0 flex-1 flex-col items-start gap-1.5 rounded-2xl p-3.5" style={{ background: "var(--color-teal-soft)" }}>
-                  <span className="flex h-[30px] w-[30px] items-center justify-center rounded-[10px] bg-white/60">
-                    <GiftIcon c="#245F61" />
-                  </span>
-                  <b className="font-serif text-[27px] leading-none" style={{ color: "#245F61" }}>{borrowedItems.length}</b>
-                  <small className="text-[11.5px] font-extrabold" style={{ color: "#245F61" }}>Wypożyczone</small>
-                </div>
-              </div>
-            </div>
+      <section className="mt-6">
+        <div className="mb-2.5 flex items-baseline justify-between gap-2.5">
+          <h3 className={SECTION_TITLE}>Twoje rzeczy</h3>
+          <button onClick={() => setView("rzeczy")} className={SECTION_LINK}>
+            Zobacz →
+          </button>
+        </div>
+        <div className="grid grid-cols-3 gap-2.5">
+          {ITEM_MODES.map((m) => (
+            <button
+              key={m}
+              type="button"
+              onClick={() => setView("rzeczy")}
+              className={`flex flex-col items-start rounded-[20px] p-3.5 text-left focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring ${ITEM_MODE_TILE[m]}`}
+            >
+              <b className="font-serif text-[30px] leading-none font-extrabold">{itemCounts[m]}</b>
+              <small className="mt-1 text-[13px] font-extrabold">{capitalize(m)}</small>
+            </button>
+          ))}
+        </div>
+      </section>
+
+      <button
+        type="button"
+        onClick={() => setView("podarki")}
+        className={`${CARD} mt-3.5 flex w-full items-center gap-3.5 p-4 text-left transition-colors hover:border-line-strong`}
+      >
+        <span className="flex h-12 w-12 flex-none items-center justify-center rounded-2xl bg-cream text-ink">
+          <GiftIcon c="currentColor" />
+        </span>
+        <span className="min-w-0 flex-1">
+          <span className="block text-[15px] font-extrabold text-ink">Rzeczy wypożyczone</span>
+          <span className="block text-[13px] text-ink-soft">
+            {borrowedItems.length === 0 ? "Teraz nic nie pożyczasz od innych." : "Rzeczy pożyczone od innych"}
+          </span>
+        </span>
+        <span className="font-serif text-[26px] font-extrabold text-ink-soft">{borrowedItems.length}</span>
+      </button>
     </>
   );
 }

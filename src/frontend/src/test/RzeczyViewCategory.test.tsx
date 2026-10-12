@@ -341,8 +341,8 @@ describe("RzeczyView — post-term-end fallback buttons (Bug #4c)", () => {
     // Full-word labels, no icon-only buttons.
     expect(odebral).toHaveTextContent("Odebrał");
     expect(anuluj).toHaveTextContent("Anuluj wymianę");
-    // Primary (bg-mint) pill, same visual weight as "Zapisz".
-    expect(odebral.className).toContain("bg-mint");
+    // Primary (bg-primary) pill, same visual weight as "Zapisz".
+    expect(odebral.className).toContain("bg-primary");
     // Tertiary text-danger pill — NOT the bare ghost "Anuluj" classes
     // (border border-line text-ink-soft) used by the edit-cancel buttons.
     expect(anuluj.className).toContain("text-danger");
@@ -472,7 +472,7 @@ describe("RzeczyView — mode toggles blocked while photos are in moderation", (
     expect(screen.getByRole("status")).toHaveTextContent("Zdjęcia w moderacji");
     const link = screen.getByRole("link", { name: "Zobacz zdjęcia →" });
     expect(link).toHaveAttribute("href", `/product/${item.id}/edit`);
-    expect(link.className).toContain("text-mint");
+    expect(link.className).toContain("text-primary-fg");
   });
 
   it("locked + pending → both pills, lock pill first, Odebrał/Anuluj still visible", async () => {

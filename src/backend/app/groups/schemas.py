@@ -586,7 +586,9 @@ class MyInventoryItemResponse(BaseModel):
     standing `ItemListingPreference.mode` (`None` = not offered), so
     `Moje rzeczy` only ever shows and seeds toggles for items at home.
     `photos_moderation_pending` is true while the item's product has a
-    PENDING/NEEDS_REVIEW photo — listing it is refused until then."""
+    PENDING/NEEDS_REVIEW photo — listing it is refused until then.
+    `thumb_url` is the product's first APPROVED photo (400 px), `None`
+    without one or without object storage."""
 
     id: uuid.UUID
     inventory_id: uuid.UUID
@@ -599,6 +601,7 @@ class MyInventoryItemResponse(BaseModel):
     updated_at: datetime
     listing_mode: ReservationType | None
     photos_moderation_pending: bool
+    thumb_url: str | None = None
 
 
 class LentOutItemResponse(BaseModel):

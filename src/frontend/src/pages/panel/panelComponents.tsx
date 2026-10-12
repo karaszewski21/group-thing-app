@@ -60,31 +60,34 @@ export function HintCard({
   onCtaClick?: () => void;
   onDismiss: () => void;
 }) {
+  const cta = "mt-2 inline-block text-sm font-extrabold text-accent-fg hover:underline";
   return (
-    <div className="mb-3.5 rounded-[22px] border border-mint bg-mint-soft p-5">
-      <div className="mb-1.5 flex items-start justify-between gap-2.5">
-        <div className="flex items-center gap-2">
-          {icon}
-          <h3 className="text-base font-semibold text-ink">{title}</h3>
+    <div className="mb-3.5 flex gap-3.5 rounded-3xl bg-accent-soft p-4.5">
+      <span className="flex h-11 w-11 flex-none items-center justify-center rounded-2xl bg-accent text-ink">
+        {icon}
+      </span>
+      <div className="min-w-0 flex-1">
+        <div className="flex items-start justify-between gap-2">
+          <h3 className="pt-0.5 text-base font-extrabold text-ink">{title}</h3>
+          <button
+            onClick={onDismiss}
+            aria-label={`Zamknij: ${title}`}
+            className="-mt-1 -mr-1 flex h-9 w-9 flex-none items-center justify-center rounded-full text-ink-soft hover:bg-paper/60 hover:text-ink"
+          >
+            <CloseIcon />
+          </button>
         </div>
-        <button
-          onClick={onDismiss}
-          aria-label={`Zamknij: ${title}`}
-          className="flex h-[34px] w-[34px] flex-none items-center justify-center rounded-full bg-cream text-ink-soft hover:bg-danger-soft hover:text-danger"
-        >
-          <CloseIcon />
-        </button>
+        <p className="mt-0.5 text-sm text-ink">{description}</p>
+        {ctaTo ? (
+          <Link to={ctaTo} className={cta}>
+            {ctaLabel}
+          </Link>
+        ) : (
+          <button onClick={onCtaClick} className={cta}>
+            {ctaLabel}
+          </button>
+        )}
       </div>
-      <p className="text-[13.5px] text-ink-soft">{description}</p>
-      {ctaTo ? (
-        <Link to={ctaTo} className="mt-3 inline-block text-[13px] font-extrabold text-mint hover:underline">
-          {ctaLabel}
-        </Link>
-      ) : (
-        <button onClick={onCtaClick} className="mt-3 text-[13px] font-extrabold text-mint hover:underline">
-          {ctaLabel}
-        </button>
-      )}
     </div>
   );
 }

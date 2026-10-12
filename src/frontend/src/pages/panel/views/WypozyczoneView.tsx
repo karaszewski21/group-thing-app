@@ -17,15 +17,13 @@ export function WypozyczoneView() {
 
   return (
     <div>
-      <div className="mb-3.5">
-        <h2 className="text-[19px] font-semibold text-ink">Wypożyczone</h2>
-        <small className="text-[12.5px] text-ink-soft">
-          {tab === "od-innych"
-            ? "rzeczy od innych, które masz teraz u siebie"
-            : "twoje rzeczy, które są teraz u innych"}
+      <div className="mb-4">
+        <h1 className="font-serif text-[32px] leading-tight font-extrabold tracking-tight text-ink">Wypożyczone</h1>
+        <small className="text-sm text-ink-soft">
+          {tab === "od-innych" ? "rzeczy od innych, które masz teraz u siebie" : "twoje rzeczy, które są teraz u innych"}
         </small>
       </div>
-      <div role="tablist" aria-label="Wypożyczone" className="mb-3 flex flex-wrap gap-1.5">
+      <div role="tablist" aria-label="Wypożyczone" className="mb-4 flex flex-wrap gap-2">
         {TABS.map((t) => {
           const on = tab === t.id;
           return (
@@ -37,8 +35,8 @@ export function WypozyczoneView() {
               aria-selected={on}
               aria-controls={`wypozyczone-panel-${t.id}`}
               onClick={() => setTab(t.id)}
-              className={`rounded-full border-[1.5px] px-3.5 py-2 text-[12px] font-extrabold transition-colors ${
-                on ? "border-transparent bg-ink text-[#EAF2E9]" : "border-line text-ink-soft hover:border-sage"
+              className={`min-h-10 rounded-full px-4 text-sm font-extrabold transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring ${
+                on ? "bg-ink text-on-ink" : "border-[1.5px] border-line bg-paper text-ink-soft hover:text-ink"
               }`}
             >
               {t.label}
@@ -50,7 +48,7 @@ export function WypozyczoneView() {
         role="tabpanel"
         id={`wypozyczone-panel-${tab}`}
         aria-labelledby={`wypozyczone-tab-${tab}`}
-        className="rounded-[22px] border border-line bg-paper p-5"
+        className="flex flex-col gap-3"
       >
         {tab === "od-innych" ? (
           <>
@@ -67,7 +65,7 @@ export function WypozyczoneView() {
                 <button
                   onClick={() => void returnBorrowedItem(b.itemId)}
                   aria-label={`Oddaję ${b.productName}`}
-                  className="flex-none rounded-full border-[1.5px] border-line px-3 py-1.5 text-[11.5px] font-extrabold text-ink-soft transition-colors hover:border-sage"
+                  className="min-h-10 rounded-full bg-primary px-4 text-sm font-extrabold text-on-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring"
                 >
                   Oddaję
                 </button>
@@ -96,12 +94,16 @@ export function WypozyczoneView() {
 
 function EmptyState({ text }: { text: string }) {
   return (
-    <div className="rounded-2xl border-[1.5px] border-dashed border-line py-[26px] text-center text-[13.5px] text-ink-soft">
+    <div className="flex flex-col items-center gap-2 rounded-[22px] border border-dashed border-line bg-paper px-5 py-8 text-center text-sm text-ink-soft">
+      <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-cream text-ink-soft">
+        <GiftIcon c="currentColor" />
+      </span>
       {text}
     </div>
   );
 }
 
+/** One loan: the item, who has it or lent it, the due date, and the actions. */
 function LoanRow({
   itemId,
   productName,
@@ -118,27 +120,35 @@ function LoanRow({
   children?: ReactNode;
 }) {
   return (
-    <div className="mt-2.5 flex items-start gap-3.5 rounded-2xl border border-line bg-cream p-[15px] first:mt-0">
-      <span className="flex h-[38px] w-[38px] flex-none items-center justify-center rounded-xl" style={{ background: "var(--color-teal-soft)" }}>
-        <GiftIcon c="#245F61" />
-      </span>
-      <div className="min-w-0 flex-1">
-        <h3 className="text-[15.5px] font-semibold text-ink">{productName}</h3>
-        <small className="mt-0.5 block text-[12.5px] text-ink-soft">{who}</small>
-        {dueDate && (
-          <small className="mt-0.5 block text-[12.5px] text-ink-soft">
-            {dueLabel}: {dayjs(dueDate).format("DD.MM.YYYY")}
-          </small>
-        )}
+    <div className="rounded-[22px] border border-line bg-paper p-3.5">
+      <div className="flex items-start gap-3">
+        <span className="flex h-14 w-14 flex-none items-center justify-center rounded-2xl bg-teal-soft text-ink">
+          <GiftIcon c="currentColor" />
+        </span>
+        <div className="min-w-0 flex-1">
+          <h3 title={productName} className="line-clamp-2 text-base leading-snug font-bold wrap-break-word text-ink">{productName}</h3>
+          <small className="mt-0.5 block text-[13px] text-ink-soft">{who}</small>
+        </div>
+        <Link
+          to={`/product/${itemId}`}
+          aria-label={`Zobacz rzecz ${productName}`}
+          className="flex h-9 w-9 flex-none items-center justify-center rounded-full border-[1.5px] border-line text-ink-soft transition-colors hover:text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring"
+        >
+          <EyeIcon />
+        </Link>
       </div>
-      <Link
-        to={`/product/${itemId}`}
-        aria-label={`Zobacz rzecz ${productName}`}
-        className="flex h-[30px] w-[30px] flex-none items-center justify-center rounded-[10px] text-ink-soft transition-colors hover:bg-paper hover:text-ink"
-      >
-        <EyeIcon />
-      </Link>
-      {children}
+      {(dueDate || children) && (
+        <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
+          {dueDate ? (
+            <small className="rounded-full bg-accent-soft px-3 py-1 text-[13px] font-extrabold text-accent-fg">
+              {dueLabel}: {dayjs(dueDate).format("DD.MM.YYYY")}
+            </small>
+          ) : (
+            <span />
+          )}
+          {children}
+        </div>
+      )}
     </div>
   );
 }

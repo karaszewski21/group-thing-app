@@ -31,11 +31,13 @@ from app.groups.schemas import (
     SwapProposalResponse,
     TakeTermItemListingRequest,
 )
+from app.storage.service import ObjectStorage, get_storage
 from app.users.service import get_profile_by_principal
 
 router = APIRouter(tags=["groups"])
 
 DbSession = Annotated[AsyncSession, Depends(get_db)]
+Storage = Annotated[ObjectStorage | None, Depends(get_storage)]
 ReadPrincipal = Annotated[Principal, Depends(require_any("READ", "mcp:read"))]
 EditPrincipal = Annotated[Principal, Depends(require_any("EDIT", "mcp:edit"))]
 
@@ -56,9 +58,9 @@ async def set_item_listing_preference(
 # could try to parse it as an `int`.
 @router.get("/api/inventory-items/mine", response_model=list[MyInventoryItemResponse])
 async def list_my_inventory_items(
-    db: DbSession, principal: ReadPrincipal
+    db: DbSession, principal: ReadPrincipal, storage: Storage
 ) -> list[MyInventoryItemResponse]:
-    return await service.list_my_inventory_items(db, principal)
+    return await service.list_my_inventory_items(db, principal, storage)
 
 
 @router.get("/api/inventory-items/mine/lent-out", response_model=list[LentOutItemResponse])

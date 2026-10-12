@@ -1141,13 +1141,13 @@ function usePanelDataValue() {
     const childrenText = `${children} ${pluralPl(children, "dziecko", "dzieci", "dzieci")}`;
 
     return (
-      <div className="mt-1.5">
+      <div className="mt-2">
         <Link
           to={`/panel/terminy/${term.id}`}
           aria-label={`Zapisani na termin: ${
             hasAttendees ? `${attendeesText}, ${childrenText}` : "brak zapisów"
           }`}
-          className="inline-flex items-center gap-1 rounded-full border border-line bg-paper px-2.5 py-0.5 text-[10.5px] font-extrabold text-ink transition-colors hover:border-mint"
+          className="inline-flex min-h-8 items-center gap-1 rounded-full bg-cream px-3 text-[13px] font-bold text-ink transition-colors hover:bg-line"
         >
           {hasAttendees && (
             <span aria-hidden="true" className="flex [&>svg]:h-3.5 [&>svg]:w-3.5">
@@ -1173,37 +1173,37 @@ function usePanelDataValue() {
     const { day, month } = dayMonth(term.occurs_on);
     const time = termTime(term.occurs_on);
     const iconBtnClass =
-      "flex h-7 w-7 flex-none items-center justify-center rounded-[8px] text-ink-soft transition-colors hover:bg-paper hover:text-ink";
+      "flex h-10 w-10 flex-none items-center justify-center rounded-full border-[1.5px] border-line bg-paper text-ink transition-colors hover:border-line-strong focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring";
 
     return (
-      <div className="rounded-2xl border border-line bg-cream p-[15px]">
-        <div className="flex items-start gap-3.5">
-          <div className="flex h-[46px] w-[46px] flex-none flex-col items-center justify-center rounded-[13px] bg-mint-soft leading-none">
-            <b className="font-serif text-base text-ink">{day}</b>
-            <small className="text-[9.5px] uppercase tracking-wide text-ink-soft">{month}</small>
+      <div className="rounded-[22px] border border-line bg-paper p-3.5">
+        <div className="flex items-start gap-3">
+          <div className="flex h-14.5 w-13 flex-none flex-col items-center justify-center rounded-2xl bg-primary-soft leading-none">
+            <b className="font-serif text-[22px] font-extrabold text-ink">{day}</b>
+            <small className="mt-0.5 text-[10px] font-extrabold tracking-wide text-primary-fg uppercase">{month}</small>
           </div>
           <div className="min-w-0 flex-1">
             <Link
               to={termPublicPath(group, term.id)}
-              className="text-[15.5px] font-semibold text-ink hover:underline"
+              className="text-base font-bold text-ink hover:underline"
             >
               {group.name}
             </Link>
-            <p className="mt-0.5 text-[12.5px] text-ink-soft">
+            <p className="mt-0.5 text-sm text-ink-soft">
               {time && <span className="font-bold text-ink">godz. {time}</span>}
               {time && (term.description ? " · " : "")}
               {term.description || (time ? "" : "Bez opisu")}
             </p>
             {neededItems.length > 0 && (
-              <div className="mt-1.5 flex flex-wrap gap-1.5">
+              <div className="mt-2 flex flex-wrap gap-1.5">
                 {neededItems.map((ni) => (
                   <span
                     key={ni.id}
                     title={ni.claimed ? "Ktoś zadeklarował, że to przyniesie" : undefined}
-                    className={`rounded-full px-2.5 py-0.5 text-[10.5px] font-extrabold ${
+                    className={`rounded-full px-2.5 py-0.5 text-xs font-extrabold ${
                       ni.claimed
-                        ? "bg-mint-soft text-[#12604D]"
-                        : "bg-lime-soft text-[#56701F]"
+                        ? "bg-primary-soft text-primary-fg"
+                        : "border-[1.5px] border-dashed border-accent text-accent-fg"
                     }`}
                   >
                     {ni.claimed ? "✓ " : ""}

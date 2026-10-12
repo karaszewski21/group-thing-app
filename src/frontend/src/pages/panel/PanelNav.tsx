@@ -17,21 +17,31 @@ export function PanelNavBar({ active }: { active?: View }) {
   const navigate = useNavigate();
 
   return (
-    <nav aria-label="Nawigacja panelu" className="sticky bottom-0 z-20 flex border-t border-line bg-paper px-2.5 py-2 shadow-[0_-10px_30px_-22px_rgba(30,46,39,0.7)]">
-      {NAV_ITEMS.map(({ key, label, Icon }) => (
-        <button
-          key={key}
-          type="button"
-          onClick={() => navigate(viewPath(key))}
-          aria-current={active === key}
-          className={`flex flex-1 flex-col items-center gap-1 rounded-[14px]  text-[11.5px] font-bold transition-colors hover:bg-cream ${
-            active === key ? "text-mint" : "text-ink-soft"
-          }`}
-        >
-          <Icon c={active === key ? "#1B8168" : "#5C7069"} />
-          {label}
-        </button>
-      ))}
+    <nav
+      aria-label="Nawigacja panelu"
+      className="sticky bottom-0 z-20 flex border-t border-line bg-paper px-2 pt-2 pb-3"
+    >
+      {NAV_ITEMS.map(({ key, label, Icon }) => {
+        const on = active === key;
+        return (
+          <button
+            key={key}
+            type="button"
+            onClick={() => navigate(viewPath(key))}
+            aria-current={on}
+            className={`flex min-h-12 flex-1 flex-col items-center gap-1 rounded-[14px] text-xs transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring ${
+              on ? "font-extrabold text-primary-fg" : "font-bold text-ink-soft hover:text-ink"
+            }`}
+          >
+            <span
+              className={`flex h-7.5 w-13.5 items-center justify-center rounded-full ${on ? "bg-primary-soft" : ""}`}
+            >
+              <Icon c="currentColor" />
+            </span>
+            {label}
+          </button>
+        );
+      })}
     </nav>
   );
 }

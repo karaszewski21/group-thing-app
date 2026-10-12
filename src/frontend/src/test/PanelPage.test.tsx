@@ -1644,7 +1644,7 @@ describe("PanelPage — Zapisane zajęcia", () => {
     renderPanel();
 
     await screen.findByRole("heading", { name: "Zapisane zajęcia" });
-    expect(screen.getByText("Nie zapisałeś się jeszcze na żadne zajęcia.")).toBeInTheDocument();
+    expect(screen.getByText("Nie masz jeszcze zapisów na zajęcia.")).toBeInTheDocument();
     expect(screen.queryByText(/Nie udało się/)).not.toBeInTheDocument();
   });
 
@@ -1655,7 +1655,7 @@ describe("PanelPage — Zapisane zajęcia", () => {
 
     await screen.findByRole("heading", { name: /Cześć/ });
     expect(await screen.findByRole("heading", { name: "Zapisane zajęcia" })).toBeInTheDocument();
-    expect(screen.getByText("Nie zapisałeś się jeszcze na żadne zajęcia.")).toBeInTheDocument();
+    expect(screen.getByText("Nie masz jeszcze zapisów na zajęcia.")).toBeInTheDocument();
     expect(screen.queryByText(/Nie udało się/)).not.toBeInTheDocument();
   });
 
@@ -1729,6 +1729,15 @@ describe("PanelPage — Spotkania list links to the public circle page", () => {
 
 describe("PanelPage — organizer term card signup chip", () => {
   const chipName = /^Zapisani na termin:/;
+
+  // Home lists only upcoming terms: "today" is pinned before the 2026-02-01
+  // fixture. Only `Date` is faked; timers stay real.
+  beforeEach(() => {
+    vi.useFakeTimers({ toFake: ["Date"], now: new Date("2026-01-15T08:00:00") });
+  });
+  afterEach(() => {
+    vi.useRealTimers();
+  });
 
   function mockOrganizerTerm(attendeeCount: number | null, childCount: number | null) {
     mockOrganizerDefaults();
@@ -2662,7 +2671,7 @@ describe("PanelPage — Zadeklarowane rzeczy (my pledges)", () => {
     renderPanel();
 
     expect(
-      await screen.findByText("Nie zadeklarowałeś jeszcze przyniesienia żadnej rzeczy."),
+      await screen.findByText("Brak deklaracji przyniesienia rzeczy."),
     ).toBeInTheDocument();
   });
 

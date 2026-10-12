@@ -135,3 +135,35 @@ export const LogoutIcon = () => (
     />
   </svg>
 );
+/** A group's seating layout, drawn small: families around the organizer
+ * (CIRCLE), a pitch with its halfway line (PITCH), or a table with seats (TABLE). */
+export const LayoutModeIcon = ({ mode, c = "currentColor" }: { mode: "CIRCLE" | "PITCH" | "TABLE"; c?: string }) => (
+  <svg viewBox="0 0 24 24" fill="none" aria-hidden="true" className="h-[22px] w-[22px]">
+    {mode === "CIRCLE" && (
+      <>
+        <circle cx="12" cy="12" r="2.6" fill={c} />
+        <circle cx="12" cy="4" r="1.9" stroke={c} strokeWidth="1.8" />
+        <circle cx="19" cy="9" r="1.9" stroke={c} strokeWidth="1.8" />
+        <circle cx="16.5" cy="18" r="1.9" stroke={c} strokeWidth="1.8" />
+        <circle cx="7.5" cy="18" r="1.9" stroke={c} strokeWidth="1.8" />
+        <circle cx="5" cy="9" r="1.9" stroke={c} strokeWidth="1.8" />
+      </>
+    )}
+    {mode === "PITCH" && (
+      <>
+        <rect x="3" y="4.5" width="18" height="15" rx="2" stroke={c} strokeWidth="2" />
+        <path d="M12 4.5v15" stroke={c} strokeWidth="1.8" />
+        <circle cx="12" cy="12" r="2.8" stroke={c} strokeWidth="1.8" />
+      </>
+    )}
+    {mode === "TABLE" && (
+      <>
+        <ellipse cx="12" cy="12" rx="6" ry="4" stroke={c} strokeWidth="2" />
+        <circle cx="12" cy="3.8" r="1.6" fill={c} />
+        <circle cx="12" cy="20.2" r="1.6" fill={c} />
+        <circle cx="3.3" cy="12" r="1.6" fill={c} />
+        <circle cx="20.7" cy="12" r="1.6" fill={c} />
+      </>
+    )}
+  </svg>
+);

@@ -33,6 +33,7 @@ from app.core.errors import (
     BusinessConflictException,
     EntityNotFoundException,
 )
+from app.storage.service import ObjectStorage
 from app.users.service import (
     get_profile_by_account_user_id,
     get_profile_by_party,
@@ -152,14 +153,16 @@ async def set_item_listing_preference(
 
 
 async def list_my_inventory_items(
-    db: AsyncSession, principal: Principal
+    db: AsyncSession, principal: Principal, storage: ObjectStorage | None = None
 ) -> list[MyInventoryItemResponse]:
     """The caller's items physically in their PERSONAL inventory — never a
     lent-out one (see `list_my_lent_out_items`) nor one borrowed from
     someone else — with each item's standing listing mode, used by
     `Moje rzeczy` to list items and seed each mode toggle on load. Items
     whose product has a photo in moderation are flagged (one batched query),
-    so their toggles can be shown as locked."""
+    so their toggles can be shown as locked. With `storage`, each item
+    carries its product's first approved photo as `thumb_url` (one more
+    batched query)."""
     profile = await get_profile_by_principal(db, principal)
     inventory = await circulation_bridge.find_personal_inventory(
         db, cast(uuid.UUID, profile.account_user_id)
@@ -171,8 +174,12 @@ async def list_my_inventory_items(
         pref.item_id: pref.mode
         for pref in await repository.list_item_listing_preferences_for_party(db, profile.party_id)
     }
-    pending = await product_bridge.product_ids_with_unmoderated_photos(
-        db, {item.product_id for item, _ in rows}
+    product_ids = {item.product_id for item, _ in rows}
+    pending = await product_bridge.product_ids_with_unmoderated_photos(db, product_ids)
+    photos = (
+        await product_bridge.first_approved_photo_by_product(db, product_ids)
+        if storage is not None and product_ids
+        else {}
     )
     return [
         MyInventoryItemResponse(
@@ -187,6 +194,11 @@ async def list_my_inventory_items(
             updated_at=item.updated_at,
             listing_mode=modes.get(cast(uuid.UUID, item.id)),
             photos_moderation_pending=item.product_id in pending,
+            thumb_url=(
+                storage.public_url(photos[item.product_id].thumb_key)
+                if storage is not None and item.product_id in photos
+                else None
+            ),
         )
         for item, product_name in rows
     ]

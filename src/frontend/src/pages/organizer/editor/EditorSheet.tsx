@@ -3,24 +3,26 @@ import { useBlocker, useSearchParams } from "react-router-dom";
 import { CloseIcon } from "../../panel/panelIcons";
 import type { OrganizerPageData } from "../layouts/types";
 import { AboutTab } from "./AboutTab";
-import { ColorsTab } from "./ColorsTab";
+import { ColorsTab, SECTION_LABEL } from "./ColorsTab";
 import type { Draft } from "./draft";
 import { LayoutTab } from "./LayoutTab";
 import { PhotosTab } from "./PhotosTab";
 import { nextIndex } from "./rovingIndex";
 import { UnsavedChangesDialog } from "./UnsavedChangesDialog";
 
-type Tab = "uklad" | "kolory" | "zdjecia" | "opis";
+type Tab = "zdjecia" | "uklad";
 
 const TABS: { id: Tab; label: string }[] = [
-  { id: "uklad", label: "Układ" },
-  { id: "kolory", label: "Kolory" },
-  { id: "zdjecia", label: "Zdjęcia" },
-  { id: "opis", label: "Opis" },
+  { id: "zdjecia", label: "Zdjęcia i opis" },
+  { id: "uklad", label: "Układ i kolor" },
 ];
 
+/** The former single-topic tab ids, still used by links such as the ghost CTAs. */
+const TAB_ALIASES: Record<string, Tab> = { opis: "zdjecia", kolory: "uklad" };
+
 function toTab(value: string | null): Tab {
-  return TABS.find((t) => t.id === value)?.id ?? "uklad";
+  if (value !== null && value in TAB_ALIASES) return TAB_ALIASES[value];
+  return TABS.find((t) => t.id === value)?.id ?? "zdjecia";
 }
 
 const SAVE_FALLBACK = "Nie udało się zapisać. Spróbuj ponownie.";
@@ -60,13 +62,9 @@ export function EditorSheet({
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [confirmOpen, setConfirmOpen] = useState(false);
-  const [customInvalid, setCustomInvalid] = useState(false);
-  // Bumped by Anuluj to remount the colors tab, which drops hex text that
-  // never reached the draft.
-  const [resetCount, setResetCount] = useState(0);
   const titleRef = useRef<HTMLHeadingElement>(null);
   const closeRef = useRef<HTMLButtonElement>(null);
-  const tabRefs = useRef<Record<Tab, HTMLButtonElement | null>>({ uklad: null, kolory: null, zdjecia: null, opis: null });
+  const tabRefs = useRef<Record<Tab, HTMLButtonElement | null>>({ zdjecia: null, uklad: null });
   // Changing only the query string (closing the sheet) is never blocked.
   const blocker = useBlocker(
     ({ currentLocation, nextLocation }) => dirty && currentLocation.pathname !== nextLocation.pathname,
@@ -107,7 +105,6 @@ export function EditorSheet({
 
   function reset() {
     setError(null);
-    setResetCount((count) => count + 1);
     onReset();
   }
 
@@ -147,7 +144,7 @@ export function EditorSheet({
       >
         <div className="mb-3 flex items-center justify-between">
           <h2 id="editor-title" ref={titleRef} tabIndex={-1} className="font-serif text-lg font-semibold text-ink outline-none">
-            Wygląd strony
+            Ustawienia
           </h2>
           <button
             ref={closeRef}
@@ -160,7 +157,7 @@ export function EditorSheet({
           </button>
         </div>
 
-        <div role="tablist" aria-label="Wygląd strony" className="mb-3 flex gap-1.5">
+        <div role="tablist" aria-label="Ustawienia strony" className="mb-3 flex gap-1.5">
           {TABS.map((t) => {
             const on = tab === t.id;
             return (
@@ -193,29 +190,29 @@ export function EditorSheet({
           aria-labelledby={`editor-tab-${tab}`}
           className="max-h-[55vh] overflow-y-auto"
         >
-          {/* Locked while saving, so nothing is edited on top of the draft being sent. */}
-          <fieldset disabled={saving} className="m-0 min-w-0 border-0 p-0">
-            {tab === "uklad" && (
-              <LayoutTab
-                value={draft.pageLayout}
-                data={pageData}
-                onSelect={(pageLayout) => change({ ...draft, pageLayout })}
-              />
-            )}
-            {tab === "kolory" && (
-              <ColorsTab
-                key={resetCount}
-                theme={draft.theme}
-                onChange={(theme) => change({ ...draft, theme })}
-                onCustomInvalidChange={setCustomInvalid}
-              />
-            )}
-            {tab === "opis" && (
-              <AboutTab value={draft.description} onChange={(description) => change({ ...draft, description })} />
-            )}
-          </fieldset>
           {/* Photos save on their own, so the draft lock and dirty state never touch them. */}
           {tab === "zdjecia" && <PhotosTab organizationId={organizationId} />}
+          {/* Locked while saving, so nothing is edited on top of the draft being sent. */}
+          <fieldset disabled={saving} className="m-0 min-w-0 border-0 p-0">
+            {tab === "zdjecia" && (
+              <div className="mt-5 border-t border-line pt-4">
+                <AboutTab value={draft.description} onChange={(description) => change({ ...draft, description })} />
+              </div>
+            )}
+            {tab === "uklad" && (
+              <>
+                <p className={`${SECTION_LABEL} mb-2`}>Układ strony</p>
+                <LayoutTab
+                  value={draft.pageLayout}
+                  data={pageData}
+                  onSelect={(pageLayout) => change({ ...draft, pageLayout })}
+                />
+                <div className="mt-5 border-t border-line pt-4">
+                  <ColorsTab theme={draft.theme} onChange={(theme) => change({ ...draft, theme })} />
+                </div>
+              </>
+            )}
+          </fieldset>
         </div>
 
         {error && (
@@ -229,7 +226,7 @@ export function EditorSheet({
           <button
             type="button"
             onClick={reset}
-            disabled={!(dirty || customInvalid) || saving}
+            disabled={!dirty || saving}
             className="min-h-[44px] rounded-full border-[1.5px] border-line bg-cream px-5 py-2.5 text-sm font-extrabold text-ink disabled:cursor-not-allowed disabled:opacity-50"
           >
             Anuluj
@@ -237,7 +234,7 @@ export function EditorSheet({
           <button
             type="button"
             onClick={() => void save()}
-            disabled={!dirty || saving || customInvalid}
+            disabled={!dirty || saving}
             className="min-h-[44px] rounded-full bg-primary px-5 py-2.5 text-sm font-extrabold text-on-primary disabled:cursor-not-allowed disabled:opacity-50"
           >
             {saving ? "Zapisywanie…" : "Zapisz"}

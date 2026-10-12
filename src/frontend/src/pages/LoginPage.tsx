@@ -1,10 +1,8 @@
 import { useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "../auth/AuthContext";
-
-const inputClass =
-  "w-full rounded-xl border-[1.5px] border-line bg-cream px-3.5 py-2.5 text-sm text-ink outline-none focus:border-mint focus:ring-[3px] focus:ring-mint-soft";
-const labelClass = "mb-1.5 block text-xs font-extrabold tracking-wide text-ink-soft";
+import { AuthLayout } from "../components/layout/AuthLayout";
+import { AUTH_INPUT, AUTH_LABEL, AUTH_LINK, AUTH_SUBMIT } from "../components/layout/authStyles";
 
 export function LoginPage() {
   const [email, setEmail] = useState("");
@@ -31,75 +29,55 @@ export function LoginPage() {
   }
 
   return (
-    <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-cream px-4 font-sans text-ink">
-      <div className="pointer-events-none absolute -left-24 -top-24 h-72 w-72 rounded-full bg-mint-soft/70 blur-3xl" />
-      <div className="pointer-events-none absolute -bottom-28 -right-16 h-80 w-80 rounded-full bg-lime-soft/60 blur-3xl" />
-
-      <div className="relative w-full max-w-[400px] rounded-[22px] border border-line bg-paper p-10 shadow-[0_30px_60px_-30px_rgba(30,46,39,0.28)]">
-        <div className="mx-auto mb-5 flex h-14 w-14 items-center justify-center rounded-full border-2 border-mint-soft bg-mint-soft font-serif text-xl font-semibold text-mint">
-          KG
+    <AuthLayout title="Witaj w kręgu" subtitle="Zaloguj się do swojego konta">
+      <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+        <div>
+          <label htmlFor="email" className={AUTH_LABEL}>
+            Email
+          </label>
+          <input
+            id="email"
+            type="email"
+            autoComplete="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            placeholder="ty@przyklad.pl"
+            className={AUTH_INPUT}
+          />
         </div>
-        <h1 className="mb-2 text-center font-serif text-2xl font-semibold text-ink">
-          Krąg <span className="text-mint">grupy</span>
-        </h1>
-        <p className="mb-8 text-center text-sm text-ink-soft">Zaloguj się do swojego konta</p>
 
-        <form onSubmit={handleSubmit}>
-          <div className="mb-4">
-            <label htmlFor="email" className={labelClass}>
-              Email
-            </label>
-            <input
-              id="email"
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="ty@przyklad.pl"
-              className={inputClass}
-            />
+        <div>
+          <label htmlFor="password" className={AUTH_LABEL}>
+            Hasło
+          </label>
+          <input
+            id="password"
+            type="password"
+            autoComplete="current-password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            placeholder="Wpisz hasło"
+            className={AUTH_INPUT}
+          />
+        </div>
+
+        {error && (
+          <div role="alert" className="rounded-2xl bg-danger-soft px-3.5 py-2.5 text-sm text-danger">
+            {error}
           </div>
+        )}
 
-          <div className="mb-6">
-            <label htmlFor="password" className={labelClass}>
-              Hasło
-            </label>
-            <input
-              id="password"
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder="Wpisz hasło"
-              className={inputClass}
-            />
-          </div>
+        <button type="submit" disabled={loading || !email || !password} className={`mt-1 ${AUTH_SUBMIT}`}>
+          {loading ? "Logowanie…" : "Zaloguj się"}
+        </button>
+      </form>
 
-          {error && (
-            <div className="mb-4 rounded-xl bg-danger-soft px-3 py-2.5 text-[13px] text-danger">
-              {error}
-            </div>
-          )}
-
-          <button
-            type="submit"
-            disabled={loading || !email || !password}
-            className="w-full rounded-[13px] bg-mint px-4 py-3 text-[13.5px] font-extrabold text-white shadow-[0_8px_18px_-10px_rgba(27,129,104,0.85)] transition-transform hover:-translate-y-0.5 disabled:opacity-60 disabled:hover:translate-y-0"
-          >
-            {loading ? "Logowanie…" : "Zaloguj się"}
-          </button>
-        </form>
-
-        <div className="mx-auto mt-7 h-px w-full bg-line" />
-
-        <p className="mt-5 text-center text-[13px] text-ink-soft">
-          Nie masz konta?{" "}
-          <Link
-            to={returnTo ? `/register?returnTo=${encodeURIComponent(returnTo)}` : "/register"}
-            className="font-semibold text-mint hover:underline"
-          >
-            Zarejestruj się
-          </Link>
-        </p>
-      </div>
-    </div>
+      <p className="mt-6 text-center text-[15px] text-ink-soft">
+        Nie masz konta?{" "}
+        <Link to={returnTo ? `/register?returnTo=${encodeURIComponent(returnTo)}` : "/register"} className={AUTH_LINK}>
+          Zarejestruj się
+        </Link>
+      </p>
+    </AuthLayout>
   );
 }

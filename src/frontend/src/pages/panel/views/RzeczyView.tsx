@@ -14,9 +14,20 @@ import {
   type SwapProposalOfferResponse,
 } from "../../../api/termItemListings";
 import { CONDITION_LABELS } from "../../../utils/productCategory";
-import { BoxIcon, EyeIcon, PencilIcon, TrashIcon } from "../panelIcons";
-import { capitalize, GIFT_LIMIT_MESSAGE, ITEM_MODE_STYLE, ITEM_MODES, MAX_GIFT_ITEMS } from "../panelHelpers";
+import { BoxIcon, PencilIcon, TrashIcon } from "../panelIcons";
+import { capitalize, GIFT_LIMIT_MESSAGE, ITEM_MODES, MAX_GIFT_ITEMS, type ItemMode } from "../panelHelpers";
 import { usePanelData } from "../panelDataStore";
+import { SafeImage } from "../../product/ItemGallery";
+
+/** Soft tile + readable text per item mode, matching the exchange tones. */
+const MODE_TONE: Record<ItemMode, string> = {
+  "wypożyczę": "bg-teal-soft text-ink",
+  "oddam": "bg-primary-soft text-primary-fg",
+  "zamienię": "bg-accent-soft text-accent-fg",
+};
+
+const ICON_BUTTON =
+  "flex h-9 w-9 items-center justify-center rounded-full border-[1.5px] border-line text-ink-soft transition-colors hover:text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring";
 
 /** Passive "moje rzeczy" status badge label for an item's current
  * `BalanceStatus` — `null` means no badge (the item is free). Only the two
@@ -41,7 +52,7 @@ function StatusPill({ label }: { label: string }) {
   return (
     <span
       role="status"
-      className="inline-flex items-center gap-1.5 rounded-full border-[1.5px] border-line bg-cream px-3 py-1.5 text-[11.5px] font-extrabold text-ink-soft"
+      className="inline-flex items-center gap-1.5 rounded-full bg-paper px-3 py-1 text-xs font-extrabold text-ink-soft"
     >
       <span aria-hidden="true" className="h-1.5 w-1.5 rounded-full bg-ink-soft" />
       {label}
@@ -133,6 +144,7 @@ export function RzeczyView() {
     };
   }, [itemBalances]);
 
+  const [filter, setFilter] = useState<ItemMode | null>(null);
   const [actionBusyItemId, setActionBusyItemId] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
 
@@ -217,92 +229,116 @@ export function RzeczyView() {
 
   const giftCount = items.filter((i) => itemModes[i.id] === "oddam").length;
   const giftLimitReached = giftCount >= MAX_GIFT_ITEMS;
+  const shownItems = filter ? items.filter((it) => itemModes[it.id] === filter) : items;
+  const filterChip = (on: boolean, tone: string) =>
+    `min-h-10 rounded-full px-3.5 text-sm font-bold transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring ${
+      on ? "bg-ink text-on-ink" : tone
+    }`;
 
   return (
     <div>
-      <div className="mb-3.5 flex items-start justify-between gap-2.5">
+      <div className="mb-4">
         <div>
-          <h2 className="text-[19px] font-semibold text-ink">Moje rzeczy</h2>
-          <small className="text-[12.5px] text-ink-soft">
+          <h1 className="font-serif text-[32px] leading-tight font-extrabold tracking-tight text-ink">Moje rzeczy</h1>
+          <small className="text-sm text-ink-soft">
             {items.length} {items.length === 1 ? "rzecz" : "rzeczy"}
           </small>
         </div>
-        <Link
-          to="/product/new"
-          className="inline-flex flex-none items-center gap-1.5 rounded-full bg-ink px-[15px] py-2.5 text-[12.5px] font-extrabold text-[#EAF2E9] transition-transform hover:-translate-y-0.5"
-        >
-          + Dodaj rzecz
-        </Link>
       </div>
+
+      {items.length > 0 && (
+        <div role="group" aria-label="Filtruj rzeczy" className="mb-3 flex flex-wrap gap-2">
+          <button type="button" aria-pressed={filter === null} onClick={() => setFilter(null)} className={filterChip(filter === null, "bg-paper text-ink border-[1.5px] border-line")}>
+            Wszystkie {items.length}
+          </button>
+          {ITEM_MODES.map((m) => {
+            const count = items.filter((it) => itemModes[it.id] === m).length;
+            return (
+              <button
+                key={m}
+                type="button"
+                aria-pressed={filter === m}
+                onClick={() => setFilter(filter === m ? null : m)}
+                className={filterChip(filter === m, MODE_TONE[m])}
+              >
+                {capitalize(m)} {count}
+              </button>
+            );
+          })}
+        </div>
+      )}
+
       <p
         id="gift-limit-hint"
-        className={`mb-2.5 text-[12.5px] ${giftLimitReached ? "font-bold text-ink" : "text-ink-soft"}`}
+        className={`mb-3 text-[13px] ${giftLimitReached ? "font-bold text-ink" : "text-ink-soft"}`}
       >
         Do oddania: {giftCount}/{MAX_GIFT_ITEMS}
         {giftLimitReached && <> — {GIFT_LIMIT_MESSAGE}</>}
       </p>
-      <div className="rounded-[22px] border border-line bg-paper p-2">
+
+      <div className="flex flex-col gap-3">
         {items.length === 0 && (
-          <div className="rounded-2xl border-[1.5px] border-dashed border-line py-[26px] text-center text-[13.5px] text-ink-soft">
+          <div className="rounded-[22px] border border-dashed border-line bg-paper p-6 text-center text-sm text-ink-soft">
             Nie masz jeszcze żadnej rzeczy.
           </div>
         )}
-        {items.map((it) => {
+        {shownItems.map((it) => {
           const mode = itemModes[it.id] ?? null;
-          const style = mode ? ITEM_MODE_STYLE[mode] : null;
-          const locked = ACTIVE_LOCK_BALANCE_STATUSES.includes(
-            itemBalances[it.id]?.status ?? "AVAILABLE",
-          );
+          const locked = ACTIVE_LOCK_BALANCE_STATUSES.includes(itemBalances[it.id]?.status ?? "AVAILABLE");
           const badgeLabel = lockBadgeLabel(itemBalances[it.id]?.status);
           // The server rejects a mode (409) while the product's photos are in
           // moderation, so block the toggles too. Plain OR with `locked`.
           const photosPending = it.photos_moderation_pending === true;
           const modeHintId = `mode-hint-${it.id}`;
           return (
-            <div key={it.id} className="mt-2.5 flex items-start gap-3.5 rounded-2xl border border-line bg-cream p-[15px] first:mt-0">
-              <span
-                className="flex h-[38px] w-[38px] flex-none items-center justify-center rounded-xl"
-                style={{ background: style ? style.bg : "var(--color-line)" }}
-              >
-                <BoxIcon c={style ? style.c : "#5C7069"} />
-              </span>
-              <div className="min-w-0 flex-1">
-                <h3 className="text-[15.5px] font-semibold text-ink">{it.product_name}</h3>
-                <small className="mt-0.5 block text-[12.5px] text-ink-soft">
-                  Stan: {CONDITION_LABELS[it.condition]}
-                </small>
-                <div className="mt-2 flex flex-wrap gap-1.5">
-                  {ITEM_MODES.map((m) => {
-                    const on = mode === m;
-                    const mStyle = ITEM_MODE_STYLE[m];
-                    const overGiftLimit = m === "oddam" && !on && giftLimitReached;
-                    const disabled = locked || photosPending || overGiftLimit;
-                    return (
-                      <button
-                        key={m}
-                        onClick={() => void setItemMode(it.id, m)}
-                        aria-pressed={on}
-                        disabled={disabled}
-                        aria-disabled={disabled}
-                        aria-describedby={photosPending ? modeHintId : overGiftLimit ? "gift-limit-hint" : undefined}
-                        className="rounded-full border-[1.5px] border-line px-3 py-1.5 text-[11.5px] font-extrabold text-ink-soft transition-colors hover:border-sage disabled:opacity-60 disabled:cursor-not-allowed"
-                        style={on ? { background: mStyle.bg, color: mStyle.c, borderColor: "transparent" } : undefined}
-                      >
-                        {capitalize(m)}
-                      </button>
-                    );
-                  })}
-                  {/* Lock pill first (an in-flight transaction the user may
-                      have to act on), moderation pill second. */}
+            <div
+              key={it.id}
+              className={`relative rounded-[22px] border bg-paper p-3.5 transition-shadow hover:shadow-md ${photosPending ? "border-dashed border-line-strong" : "border-line"}`}
+            >
+              <div className="flex items-start gap-3">
+                {/* Stretched link: the whole card opens the item; the controls
+                    below sit on `relative z-10` above its overlay. */}
+                <Link
+                  to={`/product/${it.id}`}
+                  aria-label={`Zobacz rzecz ${it.product_name}`}
+                  className={`flex h-16 w-16 flex-none items-center justify-center overflow-hidden rounded-2xl after:absolute after:inset-0 after:rounded-[22px] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring ${mode ? MODE_TONE[mode] : "bg-cream text-ink-soft"}`}
+                >
+                  {it.thumb_url ? (
+                    <SafeImage src={it.thumb_url} alt="" className="size-full" placeholderSize={22} />
+                  ) : (
+                    <BoxIcon c="currentColor" />
+                  )}
+                </Link>
+                <div className="min-w-0 flex-1">
+                  <h3 title={it.product_name} className="line-clamp-2 text-base leading-snug font-bold wrap-break-word text-ink">{it.product_name}</h3>
+                  <small className="mt-0.5 block text-[13px] text-ink-soft">Stan: {CONDITION_LABELS[it.condition]}</small>
+                </div>
+                <div className="relative z-10 flex flex-none gap-1">
+                  <Link to={`/product/${it.id}/edit`} aria-label={`Edytuj rzecz ${it.product_name}`} className={ICON_BUTTON}>
+                    <PencilIcon />
+                  </Link>
+                  <button
+                    onClick={() => void handleDeleteItem(it.id)}
+                    aria-label={`Usuń rzecz ${it.product_name}`}
+                    className={`${ICON_BUTTON} hover:border-danger hover:text-danger`}
+                  >
+                    <TrashIcon />
+                  </button>
+                </div>
+              </div>
+
+              {/* Lock pill and its actions first (an in-flight transaction the
+                  user may have to act on), the moderation notice second. */}
+              {(badgeLabel || (locked && termHasEnded(it.id))) && (
+                <div className="relative z-10 mt-3 flex flex-wrap items-center gap-1.5">
                   {badgeLabel && <StatusPill label={badgeLabel} />}
-                  {photosPending && <StatusPill label="Zdjęcia w moderacji" />}
                   {locked && termHasEnded(it.id) && (
                     <>
                       <button
                         type="button"
                         onClick={() => void handleConfirmReceipt(it.id)}
                         disabled={actionBusyItemId === it.id}
-                        className="flex-none rounded-[9px] bg-mint px-3 py-1.5 text-[11.5px] font-extrabold text-white disabled:opacity-60"
+                        className="min-h-9 rounded-full bg-primary px-3.5 text-[13px] font-extrabold text-on-primary disabled:opacity-60"
                       >
                         Odebrał
                       </button>
@@ -310,84 +346,91 @@ export function RzeczyView() {
                         type="button"
                         onClick={() => void handleCancelTransaction(it.id)}
                         disabled={actionBusyItemId === it.id}
-                        className="flex-none rounded-[9px] px-3 py-1.5 text-[11.5px] font-extrabold text-danger transition-colors hover:bg-danger-soft disabled:opacity-60"
+                        className="min-h-9 rounded-full px-3.5 text-[13px] font-extrabold text-danger transition-colors hover:bg-danger-soft disabled:opacity-60"
                       >
                         Anuluj wymianę
                       </button>
                     </>
                   )}
                 </div>
-                {photosPending && (
-                  <p id={modeHintId} className="mt-1 text-[11.5px] text-ink-soft">
+              )}
+
+              {photosPending ? (
+                <div className="relative z-10 mt-3 rounded-2xl bg-cream px-3.5 py-2.5 text-[13px] leading-snug text-ink">
+                  <StatusPill label="Zdjęcia w moderacji" />
+                  <p id={modeHintId} className="mt-1.5">
                     Tryb włączysz po zatwierdzeniu zdjęć.{" "}
-                    <Link
-                      to={`/product/${it.id}/edit`}
-                      className="font-extrabold text-mint underline py-1"
-                    >
+                    <Link to={`/product/${it.id}/edit`} className="font-extrabold text-primary-fg underline">
                       Zobacz zdjęcia →
                     </Link>
                   </p>
-                )}
-                {(swapProposals[it.id]?.length ?? 0) > 0 && (
-                  <div className="mt-2.5 flex flex-col gap-1.5">
-                    <small className="text-[11.5px] font-extrabold text-ink-soft">
-                      Propozycje zamiany ({swapProposals[it.id]!.length})
-                    </small>
-                    {swapProposals[it.id]!.map((p) => (
-                      <div
-                        key={p.id}
-                        className="flex items-center justify-between gap-2 rounded-xl border border-line bg-paper px-2.5 py-2"
+                </div>
+              ) : null}
+
+              <div className="relative z-10 mt-3 flex gap-1.5">
+                {ITEM_MODES.map((m) => {
+                  const on = mode === m;
+                  const overGiftLimit = m === "oddam" && !on && giftLimitReached;
+                  const disabled = locked || photosPending || overGiftLimit;
+                  return (
+                    <button
+                      key={m}
+                      onClick={() => void setItemMode(it.id, m)}
+                      aria-pressed={on}
+                      disabled={disabled}
+                      aria-disabled={disabled}
+                      aria-describedby={photosPending ? modeHintId : overGiftLimit ? "gift-limit-hint" : undefined}
+                      className={`min-h-9 flex-1 rounded-full px-2 text-[13px] font-extrabold transition-colors disabled:cursor-not-allowed disabled:opacity-60 ${
+                        on ? MODE_TONE[m] : "border-[1.5px] border-dashed border-line-strong text-ink-soft hover:text-ink"
+                      }`}
+                    >
+                      {on && <span aria-hidden="true">✓ </span>}
+                      {capitalize(m)}
+                    </button>
+                  );
+                })}
+              </div>
+
+              {(swapProposals[it.id]?.length ?? 0) > 0 && (
+                <div className="relative z-10 mt-3 flex flex-col gap-1.5">
+                  <small className="text-xs font-extrabold text-ink-soft">
+                    Propozycje zamiany ({swapProposals[it.id]!.length})
+                  </small>
+                  {swapProposals[it.id]!.map((p) => (
+                    <div key={p.id} className="flex items-center justify-between gap-2 rounded-2xl bg-accent-soft px-3 py-2">
+                      <span className="min-w-0 flex-1 text-[13px] text-ink">
+                        <strong>{p.proposer_display_name}</strong> oferuje <strong>{p.offered_product_name}</strong>
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => void handleAcceptSwapProposal(it.id, p.id)}
+                        disabled={acceptBusyProposalId !== null}
+                        className="min-h-9 flex-none rounded-full bg-primary px-3.5 text-[13px] font-extrabold text-on-primary disabled:opacity-60"
                       >
-                        <span className="min-w-0 flex-1 text-[12.5px] text-ink">
-                          <strong>{p.proposer_display_name}</strong> oferuje{" "}
-                          <strong>{p.offered_product_name}</strong>
-                        </span>
-                        <button
-                          type="button"
-                          onClick={() => void handleAcceptSwapProposal(it.id, p.id)}
-                          disabled={acceptBusyProposalId !== null}
-                          className="flex-none rounded-[9px] bg-mint px-2.5 py-1.5 text-[11.5px] font-extrabold text-white disabled:opacity-60"
-                        >
-                          Wybierz
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                )}
-                {actionError && (
-                  <p className="mt-1.5 text-[12.5px] font-semibold text-danger">{actionError}</p>
-                )}
-              </div>
-              <div className="flex flex-none flex-col gap-1">
-                <Link
-                  to={`/product/${it.id}`}
-                  aria-label={`Zobacz rzecz ${it.product_name}`}
-                  className="flex h-[30px] w-[30px] items-center justify-center rounded-[10px] text-ink-soft transition-colors hover:bg-paper hover:text-ink"
-                >
-                  <EyeIcon />
-                </Link>
-                <Link
-                  to={`/product/${it.id}/edit`}
-                  aria-label={`Edytuj rzecz ${it.product_name}`}
-                  className="flex h-[30px] w-[30px] items-center justify-center rounded-[10px] text-ink-soft transition-colors hover:bg-paper hover:text-ink"
-                >
-                  <PencilIcon />
-                </Link>
-                <button
-                  onClick={() => void handleDeleteItem(it.id)}
-                  aria-label={`Usuń rzecz ${it.product_name}`}
-                  className="flex h-[30px] w-[30px] items-center justify-center rounded-[10px] text-ink-soft hover:bg-danger-soft hover:text-danger"
-                >
-                  <TrashIcon />
-                </button>
-              </div>
+                        Wybierz
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+              {actionError && <p className="mt-1.5 text-[13px] font-semibold text-danger">{actionError}</p>}
             </div>
           );
         })}
-        {itemError && (
-          <p className="mt-2 text-[12.5px] font-semibold text-danger">{itemError}</p>
-        )}
+        {itemError && <p className="mt-2 text-[13px] font-semibold text-danger">{itemError}</p>}
       </div>
+
+      {/* Always floats just above the bottom tab bar, like "+ Dodaj termin" on Spotkania. */}
+      <div className="pointer-events-none fixed inset-x-0 bottom-[86px] z-30 mx-auto flex max-w-[1200px] justify-end px-4">
+        <Link
+          to="/product/new"
+          className="pointer-events-auto flex min-h-14 items-center rounded-full bg-primary px-5.5 text-base font-extrabold text-on-primary shadow-[0_12px_24px_-12px_var(--color-primary)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring"
+        >
+          + Dodaj rzecz
+        </Link>
+      </div>
+      {/* Room under the floating button, so it never covers the last card. */}
+      <div aria-hidden="true" className="h-20" />
     </div>
   );
 }
