@@ -7,6 +7,7 @@ import { RsvpDialog } from "../../components/krag/RsvpDialog";
 import { RsvpDialogLoggedIn } from "../../components/krag/RsvpDialogLoggedIn";
 import { AuthGateSheet } from "../../components/krag/AuthGateSheet";
 import { AccountMergeForm } from "../../components/krag/AccountMergeForm";
+import { BTN_GHOST, BTN_SM, CARD } from "../../components/krag/kragStyles";
 import { GroupVisualization } from "./GroupVisualization";
 import { KragStage } from "./components/KragStage";
 import { GroupHeader } from "./components/GroupHeader";
@@ -67,10 +68,10 @@ export function PublicTermView({
       title: (
         <Link
           to={organizerItemPath(group.organizer_slug, listing.item_id)}
-          className="text-inherit underline decoration-[1.5px] underline-offset-2 hover:text-primary-fg"
+          className="rounded text-inherit no-underline decoration-[1.5px] underline-offset-2 hover:text-primary-fg hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring"
         >
           <strong>{listing.product_name}</strong>
-          <span aria-hidden="true"> ›</span>
+          <span aria-hidden="true">{" ›"}</span>
         </Link>
       ),
       actions: guest.isMerging(mergeKey)
@@ -186,20 +187,28 @@ export function PublicTermView({
         </>
       }
     >
-      <GroupHeader title={group.name} subtitle={term?.description ?? null} onBack={() => navigate(-1)} />
+      <GroupHeader
+        title={group.name}
+        subtitle={term?.description ?? null}
+        onBack={() => navigate(-1)}
+        organizerName={group.organizer_display_name}
+        organizerSlug={group.organizer_slug}
+      />
 
-      <main className="kg-main">
-        <GroupVisualization
-          layoutMode={group.layout_mode}
-          organizerName={group.organizer_display_name ?? ""}
-          families={buildVisualizationFamilies(group)}
-          activeFamilyId={activePartyId}
-          neededItemRows={neededItemRows}
-          onSelectFamily={handleSelectAttendee}
-          groupId={groupId}
-        />
+      <main className="flex-1">
+        <section aria-label="Krąg zajęć" className="mx-5 rounded-[30px] bg-primary-soft pb-4">
+          <GroupVisualization
+            layoutMode={group.layout_mode}
+            organizerName={group.organizer_display_name ?? ""}
+            families={buildVisualizationFamilies(group)}
+            activeFamilyId={activePartyId}
+            neededItemRows={neededItemRows}
+            onSelectFamily={handleSelectAttendee}
+            groupId={groupId}
+          />
+        </section>
 
-        <TermCard date={term?.occurs_on ?? ''} />
+        <TermCard date={term?.occurs_on ?? ""} />
 
         {neededItemRows.length > 0 && (
             <NeededItemsSection rows={neededItemRows}/>
@@ -208,10 +217,10 @@ export function PublicTermView({
         {term && <AttendeeList attendees={buildAttendees(group, toListingRow)} activePartyId={activePartyId} />}
 
         {signUp.accountSuggestion && (
-          <div className="mx-4.5 mb-6 mt-4.5  rounded-[22px] border border-line bg-paper p-4.25">
-            <h3 className="text-[15px]">Załóż konto, aby zachować dostęp</h3>
+          <div className={`${CARD} mx-5 mt-6`}>
+            <h3 className="text-[15px] font-bold">Załóż konto, aby zachować dostęp</h3>
             <AccountMergeForm userProfileId={signUp.accountSuggestion.user_profile_id} />
-            <button className="mt-2 rounded-full border-[1.5px] border-line bg-transparent px-[14px] py-[7px] text-xs font-bold text-ink-soft" style={{ marginTop: 8 }} onClick={signUp.dismissSuggestion}>
+            <button type="button" className={`${BTN_GHOST} ${BTN_SM} mt-2`} onClick={signUp.dismissSuggestion}>
               Może później
             </button>
           </div>

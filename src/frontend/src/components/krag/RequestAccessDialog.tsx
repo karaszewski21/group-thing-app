@@ -2,6 +2,7 @@ import { useEffect, useId, useRef, useState } from "react";
 import { ApiError } from "../../api/client";
 import { createJoinRequest } from "../../api/groups";
 import { serverMessageOr } from "../../api/problem";
+import { BTN_GHOST, BTN_PRIMARY, BTN_SM, ERROR_TEXT } from "./kragStyles";
 
 /** Keeps Tab/Shift+Tab focus cycling inside `container`. */
 function trapFocus(e: KeyboardEvent, container: HTMLElement | null) {
@@ -109,7 +110,7 @@ export function RequestAccessDialog({
         }}
       >
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
-          <h3 id={titleId} style={{ fontFamily: "Fraunces,Georgia,serif", fontSize: 18, fontWeight: 600 }}>
+          <h3 id={titleId} style={{ fontFamily: "'Bricolage Grotesque', system-ui, sans-serif", fontSize: 18, fontWeight: 600 }}>
             Poprosić o dostęp?
           </h3>
           <button
@@ -135,14 +136,14 @@ export function RequestAccessDialog({
         </p>
 
         {flow.status === "failed" && (
-          <div className="kg-error" role="alert">
+          <div className={`${ERROR_TEXT}`} role="alert">
             {flow.message}
           </div>
         )}
 
         <button
           ref={submitRef}
-          className="kg-btn-primary"
+          className={`${BTN_PRIMARY} ${BTN_SM}`}
           style={{ width: "100%", padding: "10px 14px", fontSize: 13 }}
           disabled={busy}
           aria-busy={busy}
@@ -151,7 +152,7 @@ export function RequestAccessDialog({
           {busy ? "Wysyłanie…" : "Wyślij"}
         </button>
         <button
-          className="kg-btn-ghost"
+          className={`${BTN_GHOST} ${BTN_SM}`}
           style={{ width: "100%", padding: "10px 14px", fontSize: 13, marginTop: 8 }}
           disabled={busy}
           onClick={close}

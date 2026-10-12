@@ -2,6 +2,7 @@ import { useState } from "react";
 import { ApiError } from "../../api/client";
 import { mergeAnonymousProfile } from "../../api/groups";
 import { useAuth } from "../../auth/AuthContext";
+import { BTN_PRIMARY, BTN_SM, FIELD, SUB_FORM } from "./kragStyles";
 
 const DEFAULT_ERROR_MESSAGE = "Nie udało się założyć konta — spróbuj ponownie";
 
@@ -51,7 +52,7 @@ export function AccountMergeForm({ userProfileId }: { userProfileId: string }) {
   }
 
   return (
-    <div className="kg-fulfill" role="form" aria-label="Załóż konto, aby pożyczać i wypożyczać rzeczy">
+    <div className={`${SUB_FORM}`} role="form" aria-label="Załóż konto, aby pożyczać i wypożyczać rzeczy">
       <p style={{ fontWeight: 700, fontSize: 13, marginBottom: 4 }}>
         Załóż konto, aby pożyczać i wypożyczać rzeczy
       </p>
@@ -65,7 +66,7 @@ export function AccountMergeForm({ userProfileId }: { userProfileId: string }) {
         </label>
         <input
           id="merge-email"
-          className="kg-input"
+          className={`${FIELD}`}
           type="email"
           placeholder="ania@example.com"
           value={email}
@@ -79,7 +80,7 @@ export function AccountMergeForm({ userProfileId }: { userProfileId: string }) {
         </label>
         <input
           id="merge-password"
-          className="kg-input"
+          className={`${FIELD}`}
           type="password"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
@@ -88,7 +89,7 @@ export function AccountMergeForm({ userProfileId }: { userProfileId: string }) {
 
       {formError && <div style={{ color: "var(--color-danger)", fontSize: 12, marginBottom: 10 }}>{formError}</div>}
 
-      <button className="kg-btn-primary" disabled={busy} onClick={() => void handleSubmit()}>
+      <button className={`${BTN_PRIMARY} ${BTN_SM}`} disabled={busy} onClick={() => void handleSubmit()}>
         Załóż konto
       </button>
     </div>

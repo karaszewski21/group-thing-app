@@ -58,8 +58,8 @@
   --color-sage: #5d8a63;
   --color-sage-soft: #dfebdc;
 
-  --font-serif: "Fraunces", Georgia, serif;
-  --font-sans: "Karla", "Segoe UI", system-ui, sans-serif;
+  --font-serif: "Bricolage Grotesque", "Segoe UI", system-ui, sans-serif;
+  --font-sans: "Figtree", "Segoe UI", system-ui, sans-serif;
 }
 #root {
   width: 100%;

@@ -4,18 +4,18 @@ const config = defineConfig({
   globalCss: {
     body: {
       bg: "#f4f8f0",
-      fontFamily: "'Karla', 'Segoe UI', system-ui, sans-serif",
+      fontFamily: "'Figtree', 'Segoe UI', system-ui, sans-serif",
       color: "#1e2e27",
     },
     "h1, h2, h3, h4, h5, h6": {
-      fontFamily: "'Fraunces', Georgia, serif",
+      fontFamily: "'Bricolage Grotesque', 'Segoe UI', system-ui, sans-serif",
     },
   },
   theme: {
     tokens: {
       fonts: {
-        heading: { value: "'Fraunces', Georgia, serif" },
-        body: { value: "'Karla', 'Segoe UI', system-ui, sans-serif" },
+        heading: { value: "'Bricolage Grotesque', 'Segoe UI', system-ui, sans-serif" },
+        body: { value: "'Figtree', 'Segoe UI', system-ui, sans-serif" },
       },
       colors: {
         // Mint — ported 1:1 from the Tailwind palette in index.css so the

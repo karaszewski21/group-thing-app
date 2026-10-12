@@ -82,7 +82,7 @@ export function GhostBlock({ block, unavailable = false }: GhostBlockProps) {
 
   return (
     <div className="px-6 pt-5">
-      <div data-ghost={block} className="rounded-2xl border-[1.5px] border-dashed border-line px-4 py-5 text-ink-soft">
+      <div data-ghost={block} className="rounded-2xl border-[1.5px] border-dashed border-line bg-paper/85 px-4 py-5 text-ink-soft">
         <div className="flex items-start justify-between gap-3">
           <p className="text-[13.5px] font-bold">{copy.title}</p>
           <EyeIcon c="currentColor" />

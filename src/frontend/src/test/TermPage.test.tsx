@@ -149,7 +149,7 @@ describe("TermPage — header and content", () => {
     const { container } = renderPage();
 
     await screen.findByRole("heading", { level: 1, name: "Muzyczne Skrzaty" });
-    expect(container.querySelector(".kg-head-sub")).toBeNull();
+    expect(container.querySelector("header h1 + p")).toBeNull();
   });
 
   it("draws signed-up people in the group's layout, with the shares/brings markers", async () => {
@@ -183,7 +183,7 @@ describe("TermPage — header and content", () => {
     const entry = document.getElementById("attendee-21")!;
     expect(entry.scrollIntoView).toHaveBeenCalledWith({ behavior: "smooth", block: "start" });
     expect(entry).toHaveFocus();
-    expect(entry).toHaveClass("is-on");
+    expect(entry).toHaveAttribute("data-active", "true");
   });
 
   it("lists every attendee with their own offered items, plus non-attending listers", async () => {

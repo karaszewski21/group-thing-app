@@ -82,14 +82,32 @@ describe("CirclesGridBlock", () => {
     renderWithRouter(<CirclesGridBlock data={data} variant="cards" mode="visitor" />);
 
     expect(screen.getByRole("heading", { name: "Nasze grupy" })).toBeInTheDocument();
-    const withTerm = screen.getByRole("link", { name: /Maluchy 0-2/ });
+    const withTerm = screen.getByRole("link", { name: "Zobacz grupę Maluchy 0-2" });
     expect(withTerm).toHaveAttribute("href", `/${SLUG}/grupa/a/term/term-a`);
-    expect(withTerm).toHaveTextContent("zapisanych: 7 · 4 terminy");
-    expect(withTerm).toHaveTextContent("nast.: Cz 15 paź, 09:30");
+    const withTermCard = withTerm.closest("li")!;
+    expect(withTermCard).toHaveTextContent("zapisanych: 7 · 4 terminy");
+    expect(withTermCard).toHaveTextContent("nast.: Cz 15 paź, 09:30");
+    expect(within(withTermCard).getByRole("img", { name: "Zapisanych 7 rodzin" })).toBeInTheDocument();
 
-    const withoutTerm = screen.getByRole("link", { name: /Rytmika/ });
+    const withoutTerm = screen.getByRole("link", { name: "Zobacz grupę Rytmika" });
     expect(withoutTerm).toHaveAttribute("href", `/${SLUG}/terminy?group_id=b`);
-    expect(withoutTerm).toHaveTextContent("brak zaplanowanych terminów");
+    expect(withoutTerm.closest("li")).toHaveTextContent("brak zaplanowanych terminów");
+  });
+
+  it("labels each card with its group layout: circle, pitch or table", () => {
+    const data = pageData({
+      circles: [
+        circle("a", { layout_mode: "CIRCLE" }),
+        circle("b", { layout_mode: "PITCH" }),
+        circle("c", { layout_mode: "TABLE" }),
+      ],
+    });
+    renderWithRouter(<CirclesGridBlock data={data} variant="cards" mode="visitor" />);
+
+    const cards = screen.getAllByRole("listitem");
+    ["Krąg", "Boisko", "Stół"].forEach((label, index) => {
+      expect(within(cards[index]).getByText(label)).toBeInTheDocument();
+    });
   });
 
   it("featured renders an anonymous circle visual capped at 16 seats, and none at 0 attendees", () => {

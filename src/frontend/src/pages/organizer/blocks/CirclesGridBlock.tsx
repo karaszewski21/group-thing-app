@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom";
-import type { OrganizerCircle } from "../../../api/groups";
+import type { GroupLayoutMode, OrganizerCircle } from "../../../api/groups";
 import { GroupsIcon } from "../../../components/shared/Icons";
 import dayjs from "../../../utils/dayjs";
 import { pluralPl } from "../../../utils/plural";
@@ -11,6 +11,8 @@ import { CircleVisualMini } from "./CircleVisualMini";
 export function isCirclesGridEmpty(data: OrganizerPageData): boolean {
   return (data.directory?.circles.length ?? 0) === 0;
 }
+
+const LAYOUT_LABEL: Record<GroupLayoutMode, string> = { CIRCLE: "Krąg", PITCH: "Boisko", TABLE: "Stół" };
 
 /** The circle's next term page, else the terms list filtered to the circle. */
 function circleHref(slug: string, circle: OrganizerCircle): string {
@@ -35,7 +37,8 @@ function CircleFacts({ circle }: { circle: OrganizerCircle }) {
   );
 }
 
-/** CIRCLES primary: `cards` lists every circle, `featured` spotlights the only one. */
+/** CIRCLES primary: `cards` gives every circle a card with its seat map
+ * (circle, pitch or table), `featured` spotlights the only one. */
 export function CirclesGridBlock({ data, variant }: BlockProps) {
   const circles = data.directory?.circles ?? [];
   const slug = data.organization.slug;
@@ -67,23 +70,37 @@ export function CirclesGridBlock({ data, variant }: BlockProps) {
 
   return (
     <section className="px-6 pt-6">
-      <h2 className="mb-3 font-serif text-xl font-semibold text-ink">Nasze grupy</h2>
-      <ul className="flex flex-col gap-2.5">
-        {circles.map((circle) => (
-          <li key={circle.id}>
-            <Link
-              to={circleHref(slug, circle)}
-              className="flex min-h-[44px] items-center gap-3 rounded-2xl border border-line bg-paper p-4 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring"
-            >
-              <GroupsIcon aria-hidden="true" className="h-5 w-5 shrink-0 text-primary-fg" />
-              <span className="min-w-0 flex-1">
-                <span className="block text-[15px] font-extrabold text-ink">{circle.name}</span>
-                <CircleFacts circle={circle} />
+      <h2 className="mb-3 font-serif text-2xl font-bold text-ink">Nasze grupy</h2>
+      <ul className="flex flex-col gap-4">
+        {circles.map((circle, index) => (
+          <li key={circle.id} className="overflow-hidden rounded-[28px] border border-line bg-paper">
+            <div className={`relative p-3 ${index % 2 === 0 ? "bg-primary-soft" : "bg-accent-soft"}`}>
+              {circle.next_term && circle.next_term.attendee_count > 0 ? (
+                <CircleVisualMini
+                  layoutMode={circle.layout_mode}
+                  attendeeCount={circle.next_term.attendee_count}
+                  className="bg-transparent"
+                />
+              ) : (
+                <div className="flex h-28 items-center justify-center">
+                  <GroupsIcon aria-hidden="true" className="h-10 w-10 text-primary-fg" />
+                </div>
+              )}
+              <span className="absolute top-3 left-3 rounded-full bg-paper px-3 py-1 text-xs font-extrabold text-ink">
+                {LAYOUT_LABEL[circle.layout_mode]}
               </span>
-              <span aria-hidden="true" className="text-ink-soft">
-                ›
-              </span>
-            </Link>
+            </div>
+            <div className="p-4">
+              <h3 className="font-serif text-xl font-bold text-ink">{circle.name}</h3>
+              <CircleFacts circle={circle} />
+              <Link
+                to={circleHref(slug, circle)}
+                aria-label={`Zobacz grupę ${circle.name}`}
+                className="mt-4 flex min-h-12 w-full items-center justify-center rounded-full bg-primary px-5 text-[15px] font-extrabold text-on-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring"
+              >
+                Zobacz grupę
+              </Link>
+            </div>
           </li>
         ))}
       </ul>

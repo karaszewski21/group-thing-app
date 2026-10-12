@@ -11,7 +11,7 @@ function injectedCss(): string {
 }
 
 describe("organizer theme after client-side navigation", () => {
-  it("leaves no organizer vars or KragStage rules behind once the user moves on to /panel", () => {
+  it("leaves no organizer vars or term-page rules behind once the user moves on to /panel", () => {
     render(
       <MemoryRouter initialEntries={["/ania/grupa/g/term/t"]}>
         <Routes>
@@ -30,7 +30,6 @@ describe("organizer theme after client-side navigation", () => {
       </MemoryRouter>,
     );
     expect(document.querySelector('[data-organizer-theme="custom"]')).not.toBeNull();
-    expect(injectedCss()).toContain(".kg-");
 
     fireEvent.click(screen.getByRole("link", { name: "Panel" }));
 

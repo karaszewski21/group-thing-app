@@ -1,20 +1,36 @@
 import dayjs from "../../../utils/dayjs";
-/** "Termin zajęć" card — the Term's date and wall-clock time, or an
- * empty-state message when the Circle has no Term yet. `date`/`time` are
- * already formatted by the caller. The Term's description lives in the
- * page header, not here. */
+
+/** "Termin zajęć" card: a date badge with the Term's full date and time, or
+ * an empty-state message when the Circle has no Term yet. The Term's
+ * description lives in the page header, not here. */
 export function TermCard({ date }: { date: string }) {
   return (
-    <div className="kg-term">
-      <div className="kg-term-eyebrow">Termin zajęć</div>
+    <section aria-label="Termin zajęć" className="mx-5 mt-6 flex items-center gap-3.5 rounded-3xl border border-line bg-paper p-4">
       {date ? (
-        <div className="flex justify-between items-center">
-          <div className="kg-term-date">{dayjs(date).format('DD MMMM YYYY')}</div>
-          <div className="kg-term-time">🕒 godz. {dayjs(date).format('HH:mm')}</div>
-        </div>
+        <>
+          <span
+            aria-hidden="true"
+            className="flex h-16 w-14 shrink-0 flex-col items-center justify-center rounded-[18px] bg-accent-soft"
+          >
+            <span className="text-[11px] font-extrabold tracking-widest text-accent-fg uppercase">
+              {dayjs(date).format("dd")}
+            </span>
+            <span className="font-serif text-[26px] leading-none font-extrabold text-ink">{dayjs(date).format("D")}</span>
+          </span>
+          <div className="min-w-0">
+            <p className="text-xs font-extrabold tracking-[.12em] text-ink-soft uppercase">Termin zajęć</p>
+            <p className="text-base font-bold text-ink first-letter:uppercase">
+              {dayjs(date).format("dddd, D MMMM YYYY")}
+            </p>
+            <p className="text-sm text-ink-soft">godz. {dayjs(date).format("HH:mm")}</p>
+          </div>
+        </>
       ) : (
-        <p className="kg-term-empty">Organizator nie dodał jeszcze żadnych zajęć.</p>
+        <div>
+          <p className="text-xs font-extrabold tracking-[.12em] text-ink-soft uppercase">Termin zajęć</p>
+          <p className="text-sm text-ink-soft">Organizator nie dodał jeszcze żadnych zajęć.</p>
+        </div>
       )}
-    </div>
+    </section>
   );
 }

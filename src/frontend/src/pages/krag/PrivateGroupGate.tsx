@@ -7,6 +7,7 @@ import { RequestAccessDialog } from "../../components/krag/RequestAccessDialog";
 import { KragStage } from "./components/KragStage";
 import { GroupHeader } from "./components/GroupHeader";
 import type { PrivateGate } from "./termAccess";
+import { BTN_GHOST, BTN_PRIMARY, BTN_SM, CARD, ERROR_TEXT, STATUS_LINE } from "../../components/krag/kragStyles";
 
 const BUTTON_STYLE = { padding: "10px 18px", fontSize: 13 } as const;
 const BODY_STYLE = { fontSize: 13.5, color: "var(--color-ink-soft)", marginTop: 10 } as const;
@@ -103,7 +104,7 @@ export function PrivateGroupGate({
     return (
       <button
         ref={requestTriggerRef}
-        className="kg-btn-primary"
+        className={`${BTN_PRIMARY} ${BTN_SM}`}
         style={{ ...BUTTON_STYLE, marginTop: 12 }}
         onClick={openDialog}
       >
@@ -115,7 +116,7 @@ export function PrivateGroupGate({
   function checkButton(label: string) {
     return (
       <button
-        className="kg-btn-primary"
+        className={`${BTN_PRIMARY} ${BTN_SM}`}
         style={BUTTON_STYLE}
         disabled={checking}
         aria-busy={checking}
@@ -130,7 +131,7 @@ export function PrivateGroupGate({
   if (stale) {
     body = (
       <div style={{ marginTop: 12 }}>
-        <div className="kg-error" role="alert">
+        <div className={`${ERROR_TEXT}`} role="alert">
           {REFRESH_ERROR}
         </div>
         {checkButton("Spróbuj ponownie")}
@@ -157,7 +158,7 @@ export function PrivateGroupGate({
         </p>
         {requestButton("Poproś o dostęp")}
         {createConflict && !group.organizer_display_name && (
-          <div className="kg-error" role="alert" style={{ marginTop: 10 }}>
+          <div className={`${ERROR_TEXT}`} role="alert" style={{ marginTop: 10 }}>
             Ta grupa nie ma teraz organizatora — nie można wysłać prośby.
           </div>
         )}
@@ -170,7 +171,7 @@ export function PrivateGroupGate({
         <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginTop: 12 }}>
           {checkButton("Sprawdź ponownie")}
           <button
-            className="kg-btn-ghost"
+            className={`${BTN_GHOST} ${BTN_SM}`}
             style={BUTTON_STYLE}
             disabled={withdrawing}
             aria-busy={withdrawing}
@@ -180,7 +181,7 @@ export function PrivateGroupGate({
           </button>
         </div>
         {withdrawFailedFor === gate.requestId && (
-          <div className="kg-error" role="alert" style={{ marginTop: 10 }}>
+          <div className={`${ERROR_TEXT}`} role="alert" style={{ marginTop: 10 }}>
             Nie udało się wycofać prośby — spróbuj ponownie
           </div>
         )}
@@ -232,20 +233,20 @@ export function PrivateGroupGate({
         subtitle={group.organizer_display_name ? `Prowadzi: ${group.organizer_display_name}` : "Brak organizatora"}
       />
 
-      <div className="kg-card">
+      <div className={`${CARD} mx-4.5 mt-4.5 mb-6`}>
         <h2 ref={headingRef} tabIndex={-1} style={{ fontSize: 17 }}>
           <span aria-hidden="true">🔒 </span>Ta grupa jest prywatna
         </h2>
         <div role="status" aria-live="polite">
           {isPending && (
-            <div className="kg-status-line">
+            <div className={`${STATUS_LINE}`}>
               <span aria-hidden="true">⏳ </span>Prośba wysłana — czeka na akceptację organizatora
             </div>
           )}
         </div>
         {body}
         {!stale && refreshError !== null && (
-          <div className="kg-error" role="alert" style={{ marginTop: 10, marginBottom: 0 }}>
+          <div className={`${ERROR_TEXT}`} role="alert" style={{ marginTop: 10, marginBottom: 0 }}>
             {REFRESH_ERROR}
           </div>
         )}

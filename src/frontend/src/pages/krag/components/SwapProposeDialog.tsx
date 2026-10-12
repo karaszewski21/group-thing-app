@@ -1,4 +1,5 @@
 import { ModalSheet } from "../../../components/krag/ModalSheet";
+import { BTN_GHOST, BTN_PRIMARY, BTN_SM, FIELD } from "../../../components/krag/kragStyles";
 
 /** One of the viewer's own items that can be offered in a swap. */
 export interface AvailableItem {
@@ -40,7 +41,7 @@ export function SwapProposeDialog({
         <>
           <div className="mb-3.5">
             <select
-              className="kg-select"
+              className={`${FIELD}`}
               aria-label="Twoja rzecz do zamiany"
               value={offeredItemId ?? ""}
               onChange={(e) => onOfferedItemChange(e.target.value)}
@@ -63,13 +64,13 @@ export function SwapProposeDialog({
       <div className="mt-3.5 flex gap-2">
         <button
           type="button"
-          className="kg-btn-primary flex-1"
+          className={`${BTN_PRIMARY} ${BTN_SM} flex-1`}
           disabled={busy || offeredItemId === null}
           onClick={onConfirm}
         >
           Zaproponuj zamianę
         </button>
-        <button type="button" className="kg-btn-ghost flex-1" onClick={onCancel}>
+        <button type="button" className={`${BTN_GHOST} ${BTN_SM} flex-1`} onClick={onCancel}>
           Anuluj
         </button>
       </div>

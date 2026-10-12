@@ -4,6 +4,7 @@ import { getMyFamilies, type FamilyOut } from "../../api/families";
 import { createRsvp, type RsvpResponse } from "../../api/groups";
 import { Field } from "../../pages/panel/panelComponents";
 import { ModalSheet } from "./ModalSheet";
+import { BTN_GHOST, BTN_PRIMARY, BTN_SM, ERROR_TEXT, FIELD, SUB_FORM } from "./kragStyles";
 
 /**
  * Logged-in variant of `RsvpDialog` (Thread 3 / R7). Separate component per
@@ -11,7 +12,7 @@ import { ModalSheet } from "./ModalSheet";
  * (the profile `display_name` is authoritative) and never writes the
  * `guest_profile_id` localStorage key (the logged-in "already signed up"
  * state is server-derived — D5). `ModalSheet`/`Field` (Tailwind) shared with
- * `RsvpDialog`; `kg-input`/`kg-btn-*`/`kg-fulfill`/`kg-error` for form
+ * `RsvpDialog`; `kragStyles` classes for form
  * controls to match the rest of the term page.
  * Submit stays disabled until `displayName` has loaded: the RSVP endpoint
  * falls back to an anonymous signup when the token doesn't resolve, so a
@@ -96,7 +97,7 @@ export function RsvpDialogLoggedIn({
           <Field label="Liczba dzieci">
             <input
               id="rsvp-li-children"
-              className="kg-input"
+              className={`${FIELD}`}
               type="number"
               min={0}
               value={childCount}
@@ -105,7 +106,7 @@ export function RsvpDialogLoggedIn({
           </Field>
         </div>
       ) : (
-        <div className="kg-fulfill mb-3.5">
+        <div className={`${SUB_FORM} mb-3.5`}>
           <p className="mb-1 text-[13px] font-bold">Dodaj rodzinę, aby uzupełnić liczbę dzieci</p>
           <p className="mb-2.5 text-xs text-ink-soft">
             Liczbę dzieci uzupełnimy automatycznie z Twojego domu.
@@ -113,21 +114,21 @@ export function RsvpDialogLoggedIn({
           <div className="flex items-center gap-2">
             <Link
               to={`/panel/rodzina?returnTo=${encodeURIComponent(pathname)}`}
-              className="kg-btn-primary inline-block no-underline"
+              className={`${BTN_PRIMARY} ${BTN_SM} inline-block no-underline`}
             >
               Przejdź do „Mój dom”
             </Link>
-            <button className="kg-btn-ghost" type="button" onClick={() => setSkipBanner(true)}>
+            <button className={`${BTN_GHOST} ${BTN_SM}`} type="button" onClick={() => setSkipBanner(true)}>
               Pomiń
             </button>
           </div>
         </div>
       )}
 
-      {formError && <div className="kg-error">{formError}</div>}
+      {formError && <div className={`${ERROR_TEXT}`}>{formError}</div>}
 
       <button
-        className="kg-btn-primary w-full px-3.5 py-2.5 text-[13px]"
+        className={`${BTN_PRIMARY} w-full px-3.5 py-2.5 text-[13px]`}
         disabled={busy || displayName === null}
         onClick={() => void handleSubmit()}
       >

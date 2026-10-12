@@ -146,7 +146,7 @@ describe("OrganizerTermsPage", () => {
       }),
     ).toBeInTheDocument();
     expect(screen.getByText("3 zaplanowane")).toBeInTheDocument();
-    expect(screen.getByText("Strona utworzona w domena.pl")).toBeInTheDocument();
+    expect(screen.getByText("Strona utworzona w Krąg grupy")).toBeInTheDocument();
     expect(groupsApi.getOrganizerTerms).toHaveBeenCalledWith(SLUG, 1, undefined);
   });
 

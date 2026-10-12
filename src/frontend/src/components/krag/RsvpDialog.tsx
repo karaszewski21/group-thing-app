@@ -3,9 +3,10 @@ import { createRsvp, guestProfileIdKey, writeGuestProfile, type RsvpResponse } f
 import { serverMessageOr } from "../../api/problem";
 import { Field } from "../../pages/panel/panelComponents";
 import { ModalSheet } from "./ModalSheet";
+import { BTN_PRIMARY, FIELD } from "./kragStyles";
 
 /** Bottom-sheet RSVP form for an anonymous visitor — `ModalSheet`/`Field`
- * shared with `pages/panel` (Tailwind), `kg-input`/`kg-btn-primary` for the
+ * shared with `pages/panel` (Tailwind), `kragStyles` fields and buttons for the
  * form controls to match the rest of the term page's inputs/buttons. */
 export function RsvpDialog({
   groupId,
@@ -51,7 +52,7 @@ export function RsvpDialog({
         <Field label="Imię">
           <input
             id="rsvp-name"
-            className="kg-input"
+            className={`${FIELD}`}
             placeholder="np. Ania Kowalska"
             value={guardianName}
             onChange={(e) => setGuardianName(e.target.value)}
@@ -63,7 +64,7 @@ export function RsvpDialog({
         <Field label="Liczba dzieci">
           <input
             id="rsvp-children"
-            className="kg-input"
+            className={`${FIELD}`}
             type="number"
             min={0}
             value={childCount}
@@ -75,7 +76,7 @@ export function RsvpDialog({
       {formError && <div className="mb-2.5 text-xs text-danger">{formError}</div>}
 
       <button
-        className="kg-btn-primary w-full px-3.5 py-2.5 text-[13px]"
+        className={`${BTN_PRIMARY} w-full px-3.5 py-2.5 text-[13px]`}
         disabled={busy}
         onClick={() => void handleSubmit()}
       >

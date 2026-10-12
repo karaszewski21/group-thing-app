@@ -124,11 +124,11 @@ describe("GroupVisualization exchange colors", () => {
     for (const line of spokes) expect(line.hasAttribute("stroke")).toBe(false);
   });
 
-  it("legend 'udostępnia' chip is primary and 'przynosi' chip is teal with ink icon", () => {
+  it("legend 'udostępnia' chip is accent and 'przynosi' chip is teal with ink icon", () => {
     renderCircle();
     const legend = screen.getByTestId("exchange-legend");
     const [shares, brings] = Array.from(legend.querySelectorAll(":scope > span > span"));
-    expect(shares).toHaveClass("bg-primary", "text-on-primary");
+    expect(shares).toHaveClass("bg-accent", "text-ink");
     expect(brings).toHaveClass("bg-teal", "text-ink");
     expect(brings).not.toHaveClass("text-white");
   });

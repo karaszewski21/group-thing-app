@@ -6,7 +6,7 @@ import { CloseIcon } from "../../pages/panel/panelIcons";
  * `RsvpDialog`, `RsvpDialogLoggedIn`, `SwapProposeDialog`) — dim overlay
  * (click to close), a rounded-top card that stops the close-click from
  * bubbling, and a title row with a ✕ button. Mirrors `pages/panel/
- * panelComponents.tsx`'s `ModalSheet` (Tailwind, not `.kg-*`/inline styles).
+ * panelComponents.tsx`'s `ModalSheet` (Tailwind, no inline styles).
  */
 export function ModalSheet({
   title,

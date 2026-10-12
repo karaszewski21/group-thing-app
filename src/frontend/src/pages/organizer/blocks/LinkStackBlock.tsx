@@ -5,11 +5,13 @@ import { exchangeTotal, organizerTermPath } from "../organizerHelpers";
 import { nearestTerm } from "./nearestTerm";
 import { ShareButton } from "./ShareButton";
 
+// The stack sits on the primary-colored LINKS page: the first action is a
+// white card, the rest are see-through pills in the on-primary color.
 const BUTTON =
-  "flex min-h-12 w-full items-center justify-center gap-2 rounded-2xl px-5 text-[15px] font-extrabold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring";
-const FILLED = "bg-primary text-on-primary";
-const OUTLINED = "border border-line-strong bg-paper text-ink";
-const SKELETON_BAR = "h-12 w-full rounded-2xl bg-line/60 animate-pulse motion-reduce:animate-none";
+  "flex w-full items-center justify-center gap-2 px-5 text-[15px] font-extrabold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-on-primary";
+const FILLED = "min-h-16 rounded-[22px] bg-paper text-ink shadow-md";
+const OUTLINED = "min-h-14 rounded-full border-[1.5px] border-on-primary/30 bg-on-primary/10 text-on-primary";
+const SKELETON_BAR = "h-14 w-full rounded-full bg-on-primary/20 animate-pulse motion-reduce:animate-none";
 
 interface DirectoryLink {
   label: string;

@@ -103,7 +103,7 @@ describe("LayoutRenderer", () => {
 
     expect(screen.getByRole("heading", { level: 1, name: "Rodzinny Grajdołek" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Udostępnij" })).toBeInTheDocument();
-    expect(screen.getByText("Strona utworzona w domena.pl")).toBeInTheDocument();
+    expect(screen.getByText("Strona utworzona w Krąg grupy")).toBeInTheDocument();
     expect(screen.queryByText("Opis — wkrótce")).not.toBeInTheDocument();
   });
 
@@ -119,12 +119,12 @@ describe("LayoutRenderer", () => {
     expect(ghost!.querySelector("button, a, [tabindex]")).toBeNull();
   });
 
-  it("renders LINKS with the full-width share button in the centered frame", () => {
+  it("renders LINKS with the full-width share button in the primary-colored centered frame", () => {
     const { container } = renderLayout("LINKS", data);
 
     expect(screen.getByRole("button", { name: "Udostępnij stronę" })).toBeInTheDocument();
     expect(container.firstElementChild).toHaveAttribute("data-frame", "centered");
-    expect(container.firstElementChild).toHaveClass("flex-1", "justify-center");
+    expect(container.firstElementChild).toHaveClass("flex-1", "bg-primary", "text-on-primary");
   });
 
   it("falls back to CLASSIC for unknown or missing keys", () => {
@@ -192,7 +192,13 @@ describe("LayoutRenderer", () => {
       "gallery:grid",
       "footer",
     ]);
-    expect(composition("LINKS")).toEqual(["hero:centered", "link-stack*", "about", "gallery:grid", "footer"]);
+    expect(composition("LINKS")).toEqual([
+      "hero:centered",
+      "link-stack*",
+      "about",
+      "gallery:on-primary",
+      "footer:on-primary",
+    ]);
   });
 
   it("keeps exactly one active primary slot for 0, 1 and 2 circles, with CIRCLES featured at 1 and cards at 2", () => {
@@ -219,7 +225,7 @@ describe("LayoutRenderer", () => {
     // circles-grid (one for both `when` variants) and exchange-counts.
     expect(container.querySelectorAll('[aria-busy="true"]')).toHaveLength(2);
     expect(screen.getByRole("heading", { level: 1, name: "Rodzinny Grajdołek" })).toBeInTheDocument();
-    expect(screen.getByText("Strona utworzona w domena.pl")).toBeInTheDocument();
+    expect(screen.getByText("Strona utworzona w Krąg grupy")).toBeInTheDocument();
   });
 
   it("hides directory slots from visitors and shows neutral ghosts to the owner when unavailable", () => {
@@ -230,7 +236,7 @@ describe("LayoutRenderer", () => {
     expect(screen.queryByText("NAJBLIŻSZE ZAJĘCIA")).not.toBeInTheDocument();
     expect(container.querySelector("[data-ghost], [aria-busy]")).toBeNull();
     expect(screen.getByRole("heading", { level: 1, name: "Rodzinny Grajdołek" })).toBeInTheDocument();
-    expect(screen.getByText("Strona utworzona w domena.pl")).toBeInTheDocument();
+    expect(screen.getByText("Strona utworzona w Krąg grupy")).toBeInTheDocument();
     cleanup();
 
     const owner = renderLayout("SCHEDULE", unavailable, "owner-edit");
@@ -327,10 +333,10 @@ describe("LayoutRenderer", () => {
       "Udostępnij stronę",
     ]);
     expect(actions[0]).toHaveAttribute("href", `/${SLUG}/grupa/g1/term/t1`);
-    expect(actions[0]).toHaveClass("bg-primary");
+    expect(actions[0]).toHaveClass("bg-paper");
     expect(actions[1]).toHaveAttribute("href", `/${SLUG}/terminy`);
     expect(actions[2]).toHaveAttribute("href", `/${SLUG}/grupa/g2/term/t9`);
-    expect(actions[3]).not.toHaveClass("bg-primary");
+    expect(actions[3]).not.toHaveClass("bg-paper");
     cleanup();
 
     const whileLoading = renderLayout("LINKS", loading);
@@ -341,7 +347,7 @@ describe("LayoutRenderer", () => {
 
     renderLayout("LINKS", unavailable);
     expect(screen.queryAllByRole("link")).toHaveLength(0);
-    expect(screen.getByRole("button", { name: "Udostępnij stronę" })).toHaveClass("bg-primary");
+    expect(screen.getByRole("button", { name: "Udostępnij stronę" })).toHaveClass("bg-paper");
     cleanup();
 
     renderLayout("SCHEDULE", ready);

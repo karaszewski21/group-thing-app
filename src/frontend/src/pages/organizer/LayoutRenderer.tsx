@@ -1,4 +1,4 @@
-import type { ComponentType } from "react";
+import type { ComponentType, ReactNode } from "react";
 import { AgendaBlock, isAgendaEmpty } from "./blocks/AgendaBlock";
 import { BlockSkeleton } from "./blocks/BlockSkeleton";
 import { CirclesGridBlock, isCirclesGridEmpty } from "./blocks/CirclesGridBlock";
@@ -68,12 +68,13 @@ interface LayoutRendererProps {
   layout: PageLayoutDefinition;
   data: OrganizerPageData;
   mode: RenderMode;
+  heroAction?: ReactNode;
 }
 
 /** Renders a layout's blocks in order inside its frame. The root is `flex-1`
  * so it fills the page wrapper, which owns the viewport-height rule. The owner
  * never sees an empty state and visitors never see ghosts. */
-export function LayoutRenderer({ layout, data, mode }: LayoutRendererProps) {
+export function LayoutRenderer({ layout, data, mode, heroAction }: LayoutRendererProps) {
   const centered = layout.frame === "centered";
   const owner = mode === "owner-edit";
 
@@ -93,16 +94,17 @@ export function LayoutRenderer({ layout, data, mode }: LayoutRendererProps) {
     if (isEmpty?.(data)) {
       return owner ? <GhostBlock key={key} block={slot.block} /> : emptyState(false);
     }
-    if (Component) return <Component key={key} data={data} variant={slot.variant} mode={mode} />;
+    if (Component) {
+      const action = slot.block === "hero" ? heroAction : undefined;
+      return <Component key={key} data={data} variant={slot.variant} mode={mode} heroAction={action} />;
+    }
     return owner ? <GhostBlock key={key} block={slot.block} /> : null;
   }
 
   return (
     <div
       data-frame={layout.frame}
-      className={`flex flex-1 flex-col bg-cream font-sans text-ink ${
-        centered ? "justify-center bg-gradient-to-b from-primary-soft to-cream to-40% py-8" : ""
-      }`}
+      className={`flex flex-1 flex-col font-sans ${centered ? "bg-primary pb-8 text-on-primary" : "bg-cream text-ink"}`}
     >
       <div className="mx-auto w-full max-w-[430px]">
         {layout.blocks.map((slot, index) =>

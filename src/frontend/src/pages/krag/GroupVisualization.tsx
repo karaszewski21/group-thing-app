@@ -24,7 +24,7 @@ export interface VisualizationFamily {
 export interface GroupVisualizationProps {
   layoutMode: GroupLayoutMode;
   /** Organizer/leader display name — rendered as the CIRCLE center node, the
-   * "trenerka" above the PITCH, and the top node above the TABLE. */
+   * name above the PITCH, and the top node above the TABLE. */
   organizerName: string;
   families: VisualizationFamily[];
   neededItemRows: NeededItemRowVM[]
@@ -52,7 +52,7 @@ function FamilySlot({ family, active, style, onSelectFamily }: FamilySlotProps) 
   return (
     <button
       type="button"
-      className={`kg-fam ${active ? "is-on" : ""}`}
+      className={`absolute -translate-x-1/2 -translate-y-1/2 rounded-full transition-transform duration-200 hover:scale-110 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring ${active ? "scale-110 ring-4 ring-primary" : ""}`}
       style={style}
       onClick={() => onSelectFamily(family.familyId)}
       aria-pressed={active}
@@ -83,11 +83,11 @@ function CircleLayout({ families, organizerName, activeFamilyId, onSelectFamily 
   };
 
   return (
-    <div className="kg-circle-wrap">
-      <div className="kg-stagebox">
-        <div className="kg-square">
-          <div className="kg-inner">
-            <svg className="kg-svg" viewBox="0 0 100 100" aria-hidden="true">
+    <div className="px-4.5 pt-5 pb-1.5">
+      <div className="relative mx-auto aspect-square w-full max-w-90">
+        <div className="absolute inset-0">
+            <svg className="absolute inset-0 h-full w-full overflow-visible" viewBox="0 0 100 100" aria-hidden="true">
+              <circle cx="50" cy="50" r="38" fill="none" className="stroke-primary/35" strokeWidth="0.6" strokeDasharray="2 2" />
               {families.map((f, i) => {
                 const { x, y } = getCirclePosition(i, slots);
                 const on = isActive(activeFamilyId, f.familyId);
@@ -115,14 +115,25 @@ function CircleLayout({ families, organizerName, activeFamilyId, onSelectFamily 
               />
             ))}
 
-            <div className="kg-center">
-              <div className="kg-center-av">{organizerName ? organizerName.slice(0, 1) : "?"}</div>
-              <strong>{organizerName || "Brak organizatora"}</strong>
-              <span>prowadzi zajęcia</span>
+            <div className="absolute top-1/2 left-1/2 w-[48%] -translate-x-1/2 -translate-y-1/2 text-center">
+              <OrganizerAvatar name={organizerName} />
+              <strong className="mt-2.5 block font-serif text-[15px] font-bold">
+                {organizerName || "Brak organizatora"}
+              </strong>
             </div>
-          </div>
         </div>
       </div>
+    </div>
+  );
+}
+
+/** The organizer's initial in a primary disc, ringed like the mockup's center. */
+function OrganizerAvatar({ name, small = false }: { name: string; small?: boolean }) {
+  return (
+    <div
+      className={`mx-auto flex items-center justify-center rounded-full bg-primary font-serif font-extrabold text-on-primary shadow-[0_0_0_5px_var(--color-primary-soft),0_0_0_7px_var(--color-primary)] ${small ? "h-13 w-13 text-xl" : "h-20 w-20 text-3xl"}`}
+    >
+      {name ? name.slice(0, 1).toUpperCase() : "?"}
     </div>
   );
 }
@@ -133,7 +144,7 @@ function CircleLayout({ families, organizerName, activeFamilyId, onSelectFamily 
  * without avatar overlap, deterministic slot shuffle via
  * `getStableSlotOrder` (seeded by `groupId`, per mockup's "rozkład rodzin na
  * boisku jest losowy — bez znaczenia taktycznego"). The organizer renders
- * above the pitch as "trenerka", separate from the family grid — per
+ * above the pitch, separate from the family grid — per
  * `wizualizacja-grupy-boisko.html`.
  */
 function PitchLayout({
@@ -148,19 +159,16 @@ function PitchLayout({
   const byId = new Map(families.map((f) => [f.familyId, f]));
 
   return (
-    <div className="px-[18px] pt-[16px]">
-      <div className="text-center mb-3">
-        <div className="mx-auto w-[52px] h-[52px] rounded-full bg-ink text-on-ink flex items-center justify-center text-lg shadow-[0_14px_28px_-14px_rgba(30,46,39,.85)]">
-          🎵
-        </div>
-        <strong className="block mt-2.5 font-serif text-[15px] text-ink">
+    <div className="px-4.5 pt-5 pb-1.5">
+      <div className="mb-3 text-center">
+        <OrganizerAvatar name={organizerName} small />
+        <strong className="mt-2.5 block font-serif text-[15px] font-bold text-ink">
           {organizerName || "Brak organizatora"}
         </strong>
-        <span className="block text-[12px] text-ink-soft">trenerka</span>
       </div>
 
       <div
-        className="relative w-full max-w-[360px] mx-auto aspect-square rounded-[18px] border-2 border-white/50 overflow-hidden"
+        className="relative mx-auto aspect-square w-full max-w-90 overflow-hidden rounded-[18px] border-2 border-white/50"
         style={{ background: "linear-gradient(160deg,#4E9A5F,#3E8A4E)" }}
         data-testid="pitch-field"
       >
@@ -203,17 +211,14 @@ function TableLayout({
   const byId = new Map(families.map((f) => [f.familyId, f]));
 
   return (
-    <div className="px-[18px] pt-[16px]">
-      <div className="relative w-full max-w-[360px] mx-auto aspect-square">
-        <div className="absolute left-1/2 top-[8%] -translate-x-1/2 -translate-y-1/2 text-center w-[52%]">
-          <div className="mx-auto w-[52px] h-[52px] rounded-full bg-ink text-on-ink flex items-center justify-center text-lg shadow-[0_14px_28px_-14px_rgba(30,46,39,.85)]">
-            🎵
-          </div>
-          <strong className="block mt-2.5 font-serif text-[15px] text-ink">
-            {organizerName || "Brak organizatora"}
-          </strong>
-          <span className="block text-[12px] text-ink-soft">prowadzi zajęcia</span>
-        </div>
+    <div className="px-4.5 pt-5 pb-1.5">
+      <div className="mb-1 text-center">
+        <OrganizerAvatar name={organizerName} small />
+        <strong className="mt-2.5 block font-serif text-[15px] font-bold text-ink">
+          {organizerName || "Brak organizatora"}
+        </strong>
+      </div>
+      <div className="relative mx-auto aspect-square w-full max-w-90">
 
         <div
           className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[64%] h-[46%] rounded-full flex flex-col items-center justify-center gap-2 p-2.5"
@@ -256,7 +261,7 @@ function ExchangeLegend() {
   return (
     <div className="flex gap-3.5 justify-center text-[11px] text-ink-soft mt-2.5 mx-5 mb-1" data-testid="exchange-legend">
       <span className="inline-flex items-center gap-1.5">
-        <span className="w-3 h-3 rounded-full bg-primary inline-flex items-center justify-center text-on-primary">
+        <span className="inline-flex h-3 w-3 items-center justify-center rounded-full bg-accent text-ink">
           <SharesIcon size={8} strokeWidth={3} />
         </span>
         udostępnia rzecz

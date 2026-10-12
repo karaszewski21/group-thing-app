@@ -82,9 +82,9 @@ afterEach(cleanup);
 
 describe("HeroBlock media", () => {
   it.each([
-    ["cover", "h-16"],
+    ["cover", "h-20"],
     ["compact", "h-14"],
-    ["centered", "h-20"],
+    ["centered", "h-24"],
   ])("shows the logo thumb in the %s variant and falls back to initials on error", (variant, size) => {
     const { container } = render(
       <MemoryRouter>
@@ -107,7 +107,7 @@ describe("HeroBlock media", () => {
     for (const [variant, placement] of [
       ["cover", "absolute"],
       ["centered", "absolute"],
-      ["compact", "h-24"],
+      ["compact", "h-30"],
     ]) {
       const { container } = render(
         <MemoryRouter>
@@ -133,7 +133,7 @@ describe("HeroBlock media", () => {
     expect(screen.getByRole("heading", { level: 1, name: NAME })).toHaveClass("text-ink");
   });
 
-  it("puts the centered hero over the cover in the fixed light token, and back on the page after it fails", () => {
+  it("puts the centered hero over the cover in the fixed light token, and in on-primary after it fails", () => {
     const { container } = render(
       <MemoryRouter>
         <HeroBlock data={pageData({ cover: media(2) })} variant="centered" mode="visitor" />
@@ -143,14 +143,13 @@ describe("HeroBlock media", () => {
     const address = screen.getByText(`domena.pl/${SLUG}`);
     for (const text of [name, address]) expect(text).toHaveClass("text-on-ink");
     expect(screen.getByText("RG")).toHaveClass("border-on-ink");
-    expect(container.querySelector(".bg-scrim-strong")).not.toBeNull();
+    expect(container.querySelector(".via-scrim-strong")).not.toBeNull();
 
     fireEvent.error(container.querySelector(`img[src="${media(2).url}"]`)!);
     expect(container.querySelector("img")).toBeNull();
-    expect(name).toHaveClass("text-ink");
-    expect(address).toHaveClass("text-ink-soft");
-    expect(screen.getByText("RG")).not.toHaveClass("border-on-ink");
-    expect(container.querySelector(".bg-scrim-strong")).toBeNull();
+    for (const text of [name, address]) expect(text).toHaveClass("text-on-primary");
+    expect(screen.getByText("RG")).toHaveClass("border-on-primary");
+    expect(container.querySelector(".via-scrim-strong")).toBeNull();
   });
 
   it("keeps the name, address and logo ring in the fixed light token over a cover, and on-primary after it fails", () => {
@@ -168,7 +167,7 @@ describe("HeroBlock media", () => {
     }
     expect(ring).toHaveClass("border-on-ink");
     expect(ring).not.toHaveClass("border-on-primary");
-    expect(container.querySelector(".bg-scrim-strong")).not.toBeNull();
+    expect(container.querySelector(".to-scrim-strong")).not.toBeNull();
 
     fireEvent.error(container.querySelector(`img[src="${media(2).url}"]`)!);
     expect(container.querySelector("img")).toBeNull();
@@ -177,7 +176,7 @@ describe("HeroBlock media", () => {
       expect(text).not.toHaveClass("text-on-ink");
     }
     expect(screen.getByText("RG")).toHaveClass("border-on-primary");
-    expect(container.querySelector(".bg-scrim-strong, .from-scrim-strong")).toBeNull();
+    expect(container.querySelector(".to-scrim-strong")).toBeNull();
   });
 });
 
@@ -210,7 +209,9 @@ describe("LayoutRenderer gallery slot", () => {
       const blocks = layout.blocks.map((slot) => slot.block);
       const about = blocks.indexOf("about");
       expect(about, layout.key).toBeGreaterThan(-1);
-      expect(layout.blocks[about + 1], layout.key).toEqual({ block: "gallery", variant: "grid" });
+      // LINKS draws its gallery heading on the primary-colored page.
+      const variant = layout.key === "LINKS" ? "on-primary" : "grid";
+      expect(layout.blocks[about + 1], layout.key).toEqual({ block: "gallery", variant });
     }
   });
 

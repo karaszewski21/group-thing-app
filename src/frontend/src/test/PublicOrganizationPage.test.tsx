@@ -233,7 +233,7 @@ describe("PublicOrganizationPage", () => {
     await act(async () => {});
     expect(screen.getByRole("heading", { level: 1, name: "Muzyczne Skrzaty" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Udostępnij" })).toBeInTheDocument();
-    expect(screen.getByText("Strona utworzona w domena.pl")).toBeInTheDocument();
+    expect(screen.getByText("Strona utworzona w Krąg grupy")).toBeInTheDocument();
   });
 
   it("paints the page from the organization alone while the directory is pending", async () => {
@@ -243,7 +243,7 @@ describe("PublicOrganizationPage", () => {
     renderAt("/muzyczne-skrzaty");
 
     expect(await screen.findByRole("heading", { level: 1, name: "Muzyczne Skrzaty" })).toBeInTheDocument();
-    expect(screen.getByText("Strona utworzona w domena.pl")).toBeInTheDocument();
+    expect(screen.getByText("Strona utworzona w Krąg grupy")).toBeInTheDocument();
     expect(screen.queryByText("Wczytywanie…")).not.toBeInTheDocument();
   });
 

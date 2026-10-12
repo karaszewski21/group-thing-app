@@ -80,7 +80,7 @@ describe("GroupVisualization", () => {
     expect(onSelectFamily).toHaveBeenCalledWith("2");
   });
 
-  it("PITCH mode renders the organizer as 'trenerka' above the pitch", () => {
+  it("PITCH mode renders the organizer's name above the pitch, without a role label", () => {
     render(
       <GroupVisualization
         layoutMode="PITCH"
@@ -93,7 +93,8 @@ describe("GroupVisualization", () => {
       />,
     );
     expect(screen.getByText("Kasia Wójcik")).toBeInTheDocument();
-    expect(screen.getByText("trenerka")).toBeInTheDocument();
+    expect(screen.queryByText("trenerka")).not.toBeInTheDocument();
+    expect(screen.queryByText("prowadzi zajęcia")).not.toBeInTheDocument();
   });
 
   it("TABLE mode renders the needed items as non-interactive chips that don't trigger onSelectFamily", () => {

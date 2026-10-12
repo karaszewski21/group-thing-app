@@ -9,14 +9,16 @@ export function isGalleryEmpty(data: OrganizerPageData): boolean {
 }
 
 /** The organization's approved photos as non-interactive tiles: up to three
- * square thumbnails in a row, or one full-width 4:3 photo. */
-export function GalleryBlock({ data }: BlockProps) {
+ * square thumbnails in a row, or one full-width 4:3 photo. `on-primary` is for
+ * the primary-colored LINKS page. */
+export function GalleryBlock({ data, variant }: BlockProps) {
   const { name, gallery = [] } = data.organization;
   const single = gallery.length === 1;
+  const heading = variant === "on-primary" ? "text-center text-on-primary" : "text-ink";
 
   return (
     <section aria-label="Galeria" className="px-6 pt-6">
-      <h2 className="mb-3 font-serif text-lg font-semibold text-ink">Galeria</h2>
+      <h2 className={`mb-3 font-serif text-xl font-bold ${heading}`}>Galeria</h2>
       <ul className={`grid gap-2 ${COLUMNS[gallery.length] ?? "grid-cols-3"}`}>
         {gallery.map((photo, index) => (
           <li key={photo.url}>

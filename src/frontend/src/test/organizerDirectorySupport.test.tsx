@@ -197,7 +197,7 @@ describe("LayoutRenderer directory rules", () => {
     expect(container.querySelector('[aria-busy="true"]')).toBeNull();
     expect(screen.getAllByRole("heading", { name: "Brak informacji do pokazania" })).toHaveLength(1);
     expect(container.querySelector("[data-ghost]")).toBeNull();
-    expect(screen.getByText("Strona utworzona w domena.pl")).toBeInTheDocument();
+    expect(screen.getByText("Strona utworzona w Krąg grupy")).toBeInTheDocument();
 
     rerender(
       <MemoryRouter>

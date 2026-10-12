@@ -19,7 +19,7 @@ import { NotFoundFrame, PageFrame } from "./PageFrame";
  * why `slugs.RESERVED_SLUGS` on the backend must never hand out a slug
  * matching one of those fixed paths: this route would otherwise permanently
  * shadow it. The owner sees the same page plus ghosts and a settings button
- * ("Edytuj wygląd") at the top; `?edit=1` only means something once the owner
+ * ("Edytuj wygląd") in the hero; `?edit=1` only means something once the owner
  * check has passed, and then opens the editor sheet, which closes on save. The page owns the editor's draft: it is
  * previewed live here and diffed against the owner's stored organization
  * (the baseline, which refreshes on every refetch) when saved.
@@ -94,29 +94,30 @@ export function PublicOrganizationPage() {
     directoryStatus,
   };
 
+  // Placed by the hero, so it floats over the cover photo or color band.
+  const settingsButton = isOwner ? (
+    <button
+      ref={settingsRef}
+      type="button"
+      onClick={() => setSearchParams({ edit: "1" }, { replace: true })}
+      aria-label="Edytuj wygląd"
+      aria-expanded={sheetOpen}
+      title="Edytuj wygląd"
+      className="flex h-11 w-11 items-center justify-center rounded-full bg-paper/90 text-ink shadow-md hover:bg-paper focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring"
+    >
+      <SettingsIcon c="currentColor" />
+    </button>
+  ) : undefined;
+
   return (
     <OrganizerThemeScope theme={editing ? editing.current.theme : organization}>
       <title>{organization.name}</title>
       <PageFrame className={editing ? "pb-[60vh]" : ""}>
-        {isOwner && (
-          <div className="flex justify-end bg-paper px-4 pt-3">
-            <button
-              ref={settingsRef}
-              type="button"
-              onClick={() => setSearchParams({ edit: "1" }, { replace: true })}
-              aria-label="Edytuj wygląd"
-              aria-expanded={sheetOpen}
-              title="Edytuj wygląd"
-              className="flex h-11 w-11 items-center justify-center rounded-full bg-cream text-ink hover:bg-primary-soft focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring"
-            >
-              <SettingsIcon c="currentColor" />
-            </button>
-          </div>
-        )}
         <LayoutRenderer
           layout={resolveLayout(editing ? editing.current.pageLayout : organization.page_layout)}
           data={pageData}
           mode={isOwner ? "owner-edit" : "visitor"}
+          heroAction={settingsButton}
         />
       </PageFrame>
       {editing && owner && (

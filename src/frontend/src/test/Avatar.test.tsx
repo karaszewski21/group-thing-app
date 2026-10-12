@@ -1,6 +1,6 @@
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
-import { Avatar } from "../components/shared/Avatar";
+import { Avatar, familyTone } from "../components/shared/Avatar";
 
 describe("Avatar", () => {
   it("renders 2-letter initials from a family name, stripping the 'Rodzina' prefix", () => {
@@ -8,13 +8,13 @@ describe("Avatar", () => {
     expect(screen.getByText("WI")).toBeInTheDocument();
   });
 
-  it("renders a deterministic color for the same name across renders", () => {
+  it("renders a deterministic palette tone for the same name across renders", () => {
     const { container: first } = render(<Avatar name="Rodzina Kowalskich" />);
     const { container: second } = render(<Avatar name="Rodzina Kowalskich" />);
-    const firstBg = (first.firstChild as HTMLElement).style.background;
-    const secondBg = (second.firstChild as HTMLElement).style.background;
-    expect(firstBg).toBe(secondBg);
-    expect(firstBg).not.toBe("");
+    const tone = familyTone("Rodzina Kowalskich");
+    expect(tone).toMatch(/var\(--color-(primary|accent)\)/);
+    expect(first.firstChild).toHaveClass(tone);
+    expect(second.firstChild).toHaveClass(tone);
   });
 
   it("does not render the shares marker when showsSharesIcon is false or omitted", () => {

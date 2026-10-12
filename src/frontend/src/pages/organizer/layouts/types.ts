@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import type { OrganizerPageResponse } from "../../../api/groups";
 import type { PublicOrganizationResponse } from "../../../api/organizations";
 
@@ -50,8 +51,10 @@ export interface PageLayoutDefinition {
 
 export type RenderMode = "visitor" | "owner-edit";
 
+/** `heroAction` is the owner's settings button, which only the hero places. */
 export interface BlockProps {
   data: OrganizerPageData;
   variant?: string;
   mode: RenderMode;
+  heroAction?: ReactNode;
 }

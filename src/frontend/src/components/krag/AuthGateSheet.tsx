@@ -1,5 +1,6 @@
 import { Link, useLocation } from "react-router-dom";
 import { ModalSheet } from "./ModalSheet";
+import { BTN_GHOST, BTN_PRIMARY } from "./kragStyles";
 
 /** `?returnTo=` query for the current page, so both logging in and
  * registering (via onboarding) bring the visitor back here. */
@@ -20,14 +21,14 @@ export function AuthGateLinks({ onGuest }: { onGuest?: () => void }) {
     <>
       <Link
         to={`/login${returnToQuery}`}
-        className="kg-btn-primary mb-2.5 block w-full px-3.5 py-2.5 text-center text-[13px]"
+        className={`${BTN_PRIMARY} mb-2.5 block w-full px-3.5 py-2.5 text-center text-[13px]`}
       >
         Zaloguj się
       </Link>
 
       {onGuest && (
         <button
-          className="kg-btn-ghost mb-3.5 w-full px-3.5 py-2.5 text-[13px]"
+          className={`${BTN_GHOST} mb-3.5 w-full px-3.5 py-2.5 text-[13px]`}
           onClick={onGuest}
         >
           Zapisz się jako gość
@@ -48,8 +49,8 @@ export function AuthGateLinks({ onGuest }: { onGuest?: () => void }) {
  * Bottom sheet shown when an ANONYMOUS visitor on a term page attempts an
  * action that needs (or offers) an account — RSVP, "Ja to przyniosę",
  * "Pożycz"/"Zamień"/"Weź na stałe". `onGuest` adds the "as a guest" path,
- * which only the RSVP flow has. Tailwind for layout/spacing, `.kg-btn-*`
- * shared button classes to match the rest of the term page.
+ * which only the RSVP flow has. Tailwind for layout/spacing and the
+ * shared `kragStyles` buttons, to match the rest of the term page.
  */
 export function AuthGateSheet({
   title,
