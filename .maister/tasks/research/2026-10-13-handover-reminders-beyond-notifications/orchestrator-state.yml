@@ -1,0 +1,59 @@
+orchestrator:
+  started_phase: phase-1
+  completed_phases: [phase-1, phase-2, phase-3, phase-4, phase-5, phase-6]
+  failed_phases: []
+  auto_fix_attempts: {}
+  options:
+    brainstorming_enabled: true
+    design_enabled: true
+  created: 2026-10-13T00:00:00Z
+  updated: 2026-10-13T00:00:00Z
+  task_path: .maister/tasks/research/2026-10-13-handover-reminders-beyond-notifications
+
+task:
+  title: Handover reminders beyond notifications
+  description: >
+    Users agree to take/give/lend/exchange items only via in-app notifications; research how to make sure
+    they don't forget to bring or pick up the item.
+  status: completed
+  tags: [notifications, handover, ux, reminders]
+
+research_context:
+  research_type: mixed
+  research_question: >
+    How should the take/give/lend/exchange flow evolve so neither party forgets to bring or pick up the
+    item, given notifications alone may be insufficient?
+  scope:
+    included: [current handover lifecycle, notification infra & channels, scheduling capability, external UX patterns, fit/effort]
+    excluded: [implementation, native mobile apps, payments]
+    constraints: [small team, low-infra first, never print secrets]
+  project_doc_paths:
+    - .maister/docs/project/tech-stack.md
+    - .maister/docs/project/architecture.md
+  methodology: []
+  sources: []
+  confidence_level: high
+  gathering_strategy: null
+  phase_summaries:
+    phase-1:
+      summary: >
+        Root cause: handover is a one-shot notification event, not a persistent task. Term anchor + term_end_scan
+        pattern reusable. Recommended 4 layers: persistent agenda, 2 pre-term reminders with commitment, off-app
+        channels (.ics -> email -> push), post-term confirmation hardening. TZ risk must be verified first.
+      steps_completed: [initialize, plan, gather, synthesize]
+    phase-3:
+      summary: "solution-exploration.md: 6 decision areas (A-F), 29 alternatives, recommended A5+B1+C1+D1->D3+E1+F3"
+    phase-4:
+      summary: "User accepted all recommendations."
+      decision_areas:
+        - {area: "A persistent bring/pick-up list", alternatives_count: 5, chosen_approach: "A5 shared read model: Home widget + Term block + full list + badge"}
+        - {area: "B reminder timing", alternatives_count: 5, chosen_approach: "B1 evening-before + morning-of, batched, cap 2; B4 suppression later; notify on reschedule/withdrawal"}
+        - {area: "C commitment & pre-Term cancel", alternatives_count: 5, chosen_approach: "C1 Przyniosę/Odbiorę + symmetric Nie dam rady releasing reservation, no sanctions"}
+        - {area: "D off-app channels", alternatives_count: 5, chosen_approach: "D1 add-to-calendar now -> D3 email (approved to leave in-app only) -> D2/D4 later"}
+        - {area: "E post-Term confirmation", alternatives_count: 5, chosen_approach: "E1 state-derived to-do both roles, real snooze, app-wide modal, grace delay, first-confirm-wins; E4 stretch"}
+        - {area: "F timezone", alternatives_count: 4, chosen_approach: "F3 local_now() Europe/Warsaw helper; verify prod TZ first; F2 optional"}
+      deferred_ideas: [place on Group/Term, ADR-005 loan reminders, RETURN notifies lender, pledge fulfilment UI, stale swap expiry, soft social signal, push/PWA, configurable timing, handover metrics, multi-TZ]
+    phase-5:
+      summary: "HLD with 4 phases (0 quick wins/clock, 1 agenda read model + post-Term to-do, 2 reminder scan + commitment/pre-Term cancel, 3 email); 10 ADRs"
+      architecture_style: "modular monolith; state-derived read model + scan/UNIQUE marker/outbox"
+      decisions_count: 10
