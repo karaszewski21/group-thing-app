@@ -1,6 +1,6 @@
 orchestrator:
   started_phase: phase-1
-  completed_phases: [phase-1, phase-2, phase-3, phase-4, phase-5]
+  completed_phases: [phase-1, phase-2, phase-3, phase-4, phase-5, phase-6, phase-7]
   failed_phases: []
   auto_fix_attempts: {}
   options:
@@ -12,7 +12,7 @@ orchestrator:
     pragmatic_review_enabled: true
     reality_check_enabled: true
     production_check_enabled: true
-    sequential: null
+    sequential: false
   created: 2026-10-13T00:00:00Z
   updated: 2026-10-13T00:00:00Z
   task_path: .maister/tasks/development/2026-10-13-handover-quick-wins-phase0
@@ -119,6 +119,6 @@ tdd_red_passed: true
 verification_context:
   last_status: null
   issues_found: []
-  fixes_applied: []
-  decisions_made: []
+  fixes_applied: ["spec audit M1-M5, L1-L15 applied to spec.md"]
+  decisions_made: ["take sheet CTA 'Zobacz rzecz' -> /product/{id}", "useRegisterOpenSheet for ModalSheets + RequestAccessDialog + UnsavedChangesDialog", "no notification polling in Phase 0"]
   reverify_count: 0

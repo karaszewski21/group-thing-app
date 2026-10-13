@@ -36,6 +36,9 @@ This document describes the technology choices and rationale for **aj** — a pl
 #### tenacity (9.1.4)
 - **Purpose**: Retry/backoff for the footprint audit pipeline's async persistence task. Note: `wait_exponential`'s signature is `(multiplier=<base wait>, exp_base=<growth factor>, min=...)` — the inverse of what its parameter names might suggest if read too quickly (documented at length in `app/footprint/audit/task.py`).
 
+#### tzdata (2026.4)
+- **Purpose**: IANA zone database for `zoneinfo`. Explicit runtime dependency because `python:3.12-slim` ships no zone files; `app/core/clock.py` needs `Europe/Warsaw` and startup fails fast without it.
+
 #### uvicorn (0.52.4, `[standard]` extras)
 - **Purpose**: ASGI server
 
@@ -97,6 +100,7 @@ Actual pinned versions from `src/backend/pyproject.toml` / `uv.lock`:
 | pydantic | 2.13.5 | Request/response validation |
 | pydantic-settings | 2.15.0 | Environment-based settings |
 | tenacity | 9.1.4 | Retry/backoff (footprint audit pipeline) |
+| tzdata | 2026.4 | Zone database for `zoneinfo` (`Europe/Warsaw` domain clock, `app/core/clock.py`) |
 | python-multipart | 0.0.32 | Form-body parsing (OAuth2 `_token`/form fallbacks, photo uploads) |
 | boto3 | 1.43.107 | DigitalOcean Spaces (S3 API) photo storage, `app/storage/` — plain boto3 in `asyncio.to_thread` (one dependency, no aioboto3) |
 | pillow | 12.3.0 | Upload sanitization: decode allowlisted JPEG/PNG/WebP, EXIF strip, WebP re-encode (`app/storage/images.py`) |

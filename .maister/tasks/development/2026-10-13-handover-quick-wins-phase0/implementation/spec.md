@@ -23,6 +23,7 @@ Make sure both parties to an in-app handover know when and where it happens and 
    - `utc_to_local(naive_utc)`: converts a naive UTC audit timestamp to naive Warsaw time. `local_now()` is built on it, and it is the unit under test for DST.
    - `check_timezone()`: the startup check, described in item 4.
    - The Polish short formatters, described in R4.
+   - A shared notification-length cap, described in R4.4. It lives in `app/core` because both `groups` and `notifications` use it.
 2. `local_now()` must not depend on the host `TZ` or the container clock zone. It derives Warsaw time from the current UTC instant through `zoneinfo`.
 3. `tzdata` becomes an explicit runtime dependency in `src/backend/pyproject.toml` `[project].dependencies`, and `uv.lock` is regenerated. Today it is only win32-transitive, and `python:3.12-slim` ships no zone database.
 4. Fail-fast startup check: `BE/main.py` `lifespan` calls `clock.check_timezone()` before it starts the outbox task and the APScheduler.
@@ -33,12 +34,13 @@ Make sure both parties to an in-app handover know when and where it happens and 
 
 ### R2. All Term-time comparisons on the domain clock (FR2, clarification #4, I8)
 1. Every naive `datetime.now()` or `date.today()` in `BE/groups/application` is replaced by `clock.local_now()`, or by `clock.local_now().date()` where a date is needed. Call sites import the module (`from app.core import clock`) and call `clock.local_now()`, so the one test seam in R10 reaches all of them. The Term comparison sites are:
-   - `term_item_listings.py`: `list_browsable` (:440), `take_item_listing` (:479), `propose_swap` (:592), and `_resolve_transaction_reservations_for_action` (:944, shared by confirm and cancel). Update the docstring at :907-917.
-   - `term_end_scan.py:67`
+   - `term_item_listings.py`: `list_browsable_term_item_listings` (:440), `take_item_listing` (:479), `propose_swap` (:592), and `_resolve_transaction_reservations_for_action` (:944, shared by confirm and cancel). Rewrite the docstring at :907-917 so it no longer contains the literal `datetime.now()`.
+   - `term_end_scan.py:67`. Rewrite the comment at `:62-66`, which contains the literal `` `datetime.now()` ``, so it refers to `clock.local_now()`. Otherwise the grep guard (R10.4) trips on it.
    - `organizer_page.py:83` and `:167`
    - `public_view.py:251` (`midnight_today` is built from the local date).
 2. The non-Term `valid_from=date.today()` sites must also move to `clock.local_now().date()` so the grep guard (R10.4) can apply to the whole package: `circles.py:78` and `:109`, `group_roles.py:27`, `memberships.py:33`.
    - This means `valid_from` becomes the Warsaw calendar date.
+   - The router `valid_to` defaults also move to `clock.local_now().date()`: `groups/router/memberships.py:31` and `groups/router/leaderships.py:43`. This keeps `valid_from` and `valid_to` on the same calendar.
    - Audit `datetime.utcnow()` sites stay unchanged.
 3. New gate in `accept_swap_proposal`: load the Term through `proposer_reservation.term_id` (`get_term`). If `term.occurs_on < clock.local_now()`, raise `BusinessConflictException("Termin już się odbył")` before any reservation is created or paired.
 4. Fix the misleading `occurs_on` comment in `BE/groups/models.py:228-231`. It should say that this is a naive Europe/Warsaw wall clock, unlike the UTC audit columns.
@@ -47,7 +49,7 @@ Make sure both parties to an in-app handover know when and where it happens and 
 ### R3. Term-end scan: 2 h grace, own-Term swap scoping, richer payload (FR3, ADR-007, clarification #2, I5, I6)
 1. Add a module constant `TERM_END_GRACE = timedelta(hours=2)`. The window becomes `local_now() - GRACE - DEFAULT_WINDOW <= occurs_on <= local_now() - GRACE` (24 h lookback, bounded). Export the constant in `__all__`.
 2. Swap branch scoping: an ACCEPTED, not-yet-notified `SwapProposal` is emitted only when its `proposer_reservation.term_id` equals the ended Term's id.
-   - Load the proposer reservations' term ids in one bounded query, through a new `circulation_bridge` pass-through and a circulation repository read. The scan keeps reading circulation only through the bridge, as its module docstring requires.
+   - Load the proposer reservations' term ids in one bounded query. The call chain follows the existing bridge convention: a new `circulation/infrastructure/repository.py` read (`id`, `term_id` for a list of reservation ids), then a thin `circulation/application/reservations.py` function re-exported from `circulation/service.py`, then a `circulation_bridge` pass-through that calls `circulation_service.*`. The scan keeps reading circulation only through the bridge, as its module docstring requires.
    - Change the signature so `_scan_swaps` receives the Term, not just the `link_path`.
 3. Payload enrichment is additive. Values must be JSON-safe: the outbox `_json_default` only handles UUID, so `occurs_on` goes as an ISO string.
    - Giveaway events gain `item_name` (product name of `reservation.item_id`), `occurs_on` and `group_name`.
@@ -55,7 +57,9 @@ Make sure both parties to an in-app handover know when and where it happens and 
    - Load the group name once per ended Term.
 4. Listener copy in `BE/notifications/outbox_listener.py`:
    - Giveaway: `Czy przekazanie „{item_name}” doszło do skutku? ({ddd DD.MM}, {group_name})`. Keep the `reservation_id`.
-   - Swap: `Czy zamiana „{listing_item_name}” ↔ „{offered_item_name}” doszła do skutku? ({ddd DD.MM}, {group_name})`. Also pass `proposal_id=payload["proposal_id"]` to `create_notification`, so the frontend can tell a swap prompt from a giveaway prompt (R7.6).
+   - Swap: `Czy zamiana „{listing_item_name}” ↔ „{offered_item_name}” doszła do skutku? ({ddd DD.MM}, {group_name})`. Also pass `proposal_id=payload["proposal_id"]` to `create_notification`, so the frontend can tell a swap prompt from a giveaway prompt (R8.6).
+   - Update the `create_notification` docstring (`notifications/service.py:44-52`). It currently says `proposal_id` is only meaningful for `SWAP_PROPOSED`; it is now also set on swap `TERM_CONFIRMATION_NEEDED`.
+   - Both questions go through the message cap (R4.4).
    - Fallback: if any new key is missing (an event that was already in the outbox at deploy), use generic question copy. Giveaway: `Czy przekazanie rzeczy doszło do skutku?`. Swap: `Czy zamiana doszła do skutku?`. Read payloads with `.get()`.
    - The listener formats the date through the `BE/core` formatter. `notifications` still never imports `groups`.
 5. The marker semantics (`GiveawayTermEndMarker`, `SwapProposal.term_ended_notified_at`) and the single commit are unchanged.
@@ -68,37 +72,49 @@ Make sure both parties to an in-app handover know when and where it happens and 
    - Giver, `TERM_ITEM_LISTING_TAKEN`: `„{taker}” weźmie „{item}” — przynieś w {when} — {group}`.
    - Taker, `ITEM_RESERVED_FOR_PICKUP`: `Zarezerwowano „{item}” — odbierz w {when} — {group}`.
 3. Swap accepted, `SWAP_ACCEPTED` to the proposer: `Twoja propozycja zamiany za „{item}” została zaakceptowana — wymiana w {when} — {group}`.
-4. Messages must fit `Notification.message` `String(500)`. If needed, truncate the group name portion. Product and group names are both ≤255.
+4. Message cap:
+   - `Notification.message` is `String(500)`, but product, group and display names are each up to `String(255)`, so the worst cases reach about 555 characters.
+   - Add one helper in `app/core` (for example `fit_notification_message(message, limit=500)`). Messages at or under the limit pass through unchanged. Longer ones are cut to `limit - 1` characters followed by "…".
+   - Every new or changed message passes through it: take giver and taker (R4.2), `SWAP_ACCEPTED` (R4.3), and both listener questions plus their fallbacks (R3.4).
+   - Test: names of 255 characters give a message of exactly 500 characters ending in "…", and the notification is persisted.
 5. No new `NotificationKind` is added.
 
 ### R5. Additive API fields (FR5, C1)
 1. **Swap accept**:
    - `POST /api/swap-proposals/{id}/accept` returns a new `AcceptedSwapProposalResponse`. It extends `SwapProposalResponse` with `term_id`, `term_occurs_on`, `group_id` and `group_name` (all non-null on success).
    - `accept_swap_proposal` builds and returns it. It keeps `status`, `proposer_reservation_id` and the other fields, so existing tests that use `accepted.status` and `accepted.proposer_reservation_id` keep working.
+   - The route in `groups/router/term_item_listings.py:129-134` changes its `response_model` and return type to `AcceptedSwapProposalResponse` and returns the use-case result directly. Today it calls `SwapProposalResponse.model_validate`, which would drop the new fields.
    - Propose and reject keep `SwapProposalResponse`.
 2. **Item page**:
    - `ItemStatusResponse` (`BE/circulation/schemas.py`) and the `ItemStatus` dataclass (`BE/circulation/domain/item_privacy.py`) gain `term_id`, `group_id` and `group_name`.
-   - These are non-null only when `viewer ∈ {reservation.reserved_by_user_id, reservation.giver_user_id}` and the status is RESERVED or IN_TRANSIT with a Term. They are null for every other viewer.
+   - They are set only in the final branch of `derive_status`, the one that returns `ItemStatus(balance_code, term_occurs_on=…)` (RESERVED or IN_TRANSIT with a paired or non-swap reservation), and only when `viewer ∈ {reservation.reserved_by_user_id, reservation.giver_user_id}`. Every earlier branch, including `PROPOSED_SWAP`, `RETURNING` and `LENT`, and every non-party viewer gets null.
    - `term_occurs_on` keeps its current visibility.
 3. **Item page data source**: replace `circulation/infrastructure/repository.find_term_occurs_on` with a single-row read of the term's `occurs_on` and `circle_group_id`, plus the group `name`. Use ad-hoc Core `table()` references to `terms` and `groups`, the same cross-module pattern as the existing `_terms`, `_categories` and `_user_profiles`. Its only caller is `item_details.py:75`.
 4. **Take**: no API change. `PublicTermView` already has `group.name`, `group.id`, `group.organizer_slug` and `term.occurs_on`/`term.id`, and `takeTermItemListing` already returns `product_name`.
 5. **Frontend types**: mirror the changes in `FE/api/termItemListings.ts` (new `AcceptedSwapProposalResponse` as the return type of `acceptSwapProposal`) and `FE/api/items.ts` (`ItemStatusResponse` + 3 nullable fields).
 
 ### R6. Calendar export (FR7, ADR-008, I7)
-1. New pure `FE/utils/calendar.ts`. Every input is a plain value: `uid`, `title`, the naive `occursOn` string, `groupName` and an absolute `url`. Its outputs:
+1. New pure `FE/utils/calendar.ts`. Every input is a plain value: `uid`, `title`, the naive `occursOn` string, `groupName`, an absolute `url`, and for the `.ics` builder an explicit `now: Date` used only for `DTSTAMP`. The component passes `new Date()`, and tests pass a fixed date, so the output is deterministic. Its outputs:
    - **Google Calendar URL**: `https://calendar.google.com/calendar/render?action=TEMPLATE`. `text` is the title. `dates` is `YYYYMMDDTHHmmss/YYYYMMDDTHHmmss` in local time with no `Z`, ending 1 h after the start. `ctz=Europe/Warsaw`. `location` is the group name. `details` is the group name plus the link. Every parameter is URL-encoded.
    - **`.ics` text** (VCALENDAR):
      - Header: `VERSION:2.0` and a `PRODID`.
-     - A hard-coded Europe/Warsaw `VTIMEZONE` (STANDARD/DAYLIGHT with EU last-Sunday RRULEs).
+     - A hard-coded Europe/Warsaw `VTIMEZONE`, exactly these properties in this order:
+       - `BEGIN:VTIMEZONE`, `TZID:Europe/Warsaw`
+       - `BEGIN:DAYLIGHT`, `DTSTART:19700329T020000`, `RRULE:FREQ=YEARLY;BYMONTH=3;BYDAY=-1SU`, `TZOFFSETFROM:+0100`, `TZOFFSETTO:+0200`, `TZNAME:CEST`, `END:DAYLIGHT`
+       - `BEGIN:STANDARD`, `DTSTART:19701025T030000`, `RRULE:FREQ=YEARLY;BYMONTH=10;BYDAY=-1SU`, `TZOFFSETFROM:+0200`, `TZOFFSETTO:+0100`, `TZNAME:CET`, `END:STANDARD`
+       - `END:VTIMEZONE`
      - One VEVENT with:
        - `UID` per (term_id, item_id), for example `{termId}-{itemId}@krag-grupy`.
-       - `DTSTAMP` in UTC.
+       - `DTSTAMP` in UTC (`YYYYMMDDTHHmmssZ`) from the `now` parameter.
        - `DTSTART;TZID=Europe/Warsaw` and `DTEND;TZID=Europe/Warsaw`, 1 h apart.
        - `SUMMARY`, `LOCATION` (group) and `DESCRIPTION` (group + link).
-       - Two `VALARM`s (`TRIGGER:-P1D` and `TRIGGER:-PT2H`, `ACTION:DISPLAY`).
-     - Formatting: CRLF line endings, RFC 5545 text escaping (`\\`, `;`, `,`, newline) and line folding at 75 octets.
-   - **Download helper**: turns the `.ics` text into a Blob URL and a filename. The filename is an ASCII-safe slug of the title plus `DD-MM`, with the `.ics` extension, for example `odbior-pucio-15-10.ics`.
-2. Timestamps come from the naive `occurs_on` string, not from a `Date` round-trip, so output does not depend on the browser or test-machine TZ. The 1 h end time may use `utils/dayjs` arithmetic on the naive string.
+       - Two `VALARM`s, each with `ACTION:DISPLAY`, `TRIGGER:-P1D` or `TRIGGER:-PT2H`, and `DESCRIPTION:{escaped SUMMARY}`. RFC 5545 §3.6.6 requires `DESCRIPTION` on a DISPLAY alarm, and strict importers such as Outlook drop alarms without it.
+     - Formatting:
+       - CRLF line endings.
+       - RFC 5545 text escaping (`\\`, `;`, `,`, newline).
+       - Line folding at 75 octets counted in **UTF-8 bytes** (via `TextEncoder`). A multi-byte character is never split; Polish diacritics are 2 bytes each. Continuation lines begin with one space.
+   - **Download helper**: turns the `.ics` text into a `Blob` of type `text/calendar;charset=utf-8`, an object URL and a filename. The object URL is revoked after the click. The filename is an ASCII-safe slug of the title plus `DD-MM`, with the `.ics` extension, for example `odbior-pucio-15-10.ics`.
+2. Timestamps come from the naive `occurs_on` string, not from a `Date` round-trip, so output does not depend on the browser or test-machine TZ. Compute the 1 h end time either with plain string/number math on the parsed fields or with `dayjs.utc(occursOn).add(1, "hour")` (the utc plugin is already loaded in `utils/dayjs.ts`), formatted without a zone. It must never use browser-local `dayjs(occursOn)` arithmetic, which can shift across that zone's DST change. A 23:30 start rolls over to the next day.
 3. Event titles:
    - `Odbiór: {item}` for the taker.
    - `Przekazanie: {item}` for the giver.
@@ -109,9 +125,10 @@ Make sure both parties to an in-app handover know when and where it happens and 
    - `role="menu"` popover with two `role="menuitem"` entries:
      - "Kalendarz Google": a real `<a target="_blank" rel="noopener noreferrer">`.
      - "Apple / Outlook (.ics)": a `<button>` that downloads the file.
-   - Keyboard: Arrow keys move between the items, Esc closes and returns focus, Tab closes.
+   - Keyboard: Arrow keys move between the items, Tab closes, and Esc closes the menu and returns focus to the trigger.
+   - Esc handling: while the menu is open, the Esc handler calls `event.stopPropagation()` (and `preventDefault()`), so one Esc closes only the menu and never the surrounding sheet (see R8.10).
    - Props: the event data, a `size` (`lg` in sheets, `sm` on the item page) and the popover direction (up inside sheets, down on the item page).
-   - Styling: reuse `CalendarIcon`, `ACCOUNT_MENU_ITEM_CLASS`, `BTN_GHOST`, `BTN_LG` and `BTN_SM`.
+   - Styling: reuse `CalendarIcon`, `ACCOUNT_MENU_ITEM_CLASS`, `BTN_GHOST`, `BTN_LG` and `BTN_SM`. Pass `c="currentColor"` to `CalendarIcon`; its default is the hex `#1E2E27`, and new files must contain no literal hex colours (R10.6).
 
 ### R7. Success sheets and item page (FR6)
 1. **Take success sheet** (Mockup 2):
@@ -121,7 +138,9 @@ Make sure both parties to an in-app handover know when and where it happens and 
      - Title: `Wzięte!`.
      - `ariaLabel`: the full sentence.
      - Body: `Odbierz „{item}” w {ddd DD.MM [o] HH:mm} — {group}` and the hint `Rzecz czeka na Ciebie na tym terminie. Dodaj go do kalendarza, żeby nie zapomnieć.`
-     - Actions: `AddToCalendarButton` (taker title), then `Zobacz w panelu` (`BTN_PRIMARY BTN_LG` Link to `/panel/rzeczy`), then the `Zamknij` text button on mobile.
+     - Actions: `AddToCalendarButton` (taker title), then `Zobacz rzecz` (`BTN_PRIMARY BTN_LG` Link to `/product/{itemId}`), then the `Zamknij` text button on mobile.
+     - Why `Zobacz rzecz` (user decision M2, which deviates from Mockup 2's "Zobacz w panelu" → `/panel/rzeczy`): "Moje rzeczy" lists only the caller's own inventory, so it would not show the item the taker just took. The item page shows the taker the hour, the group and the calendar button (R7.3).
+     - Focus on close returns to the element that opened the sheet if it is still in the DOM. Usually it is not, because `refetch()` removes the take button, so the fallback in R8.10 applies.
 2. **Swap-accept success sheet** (Mockup 3):
    - `RzeczyView.handleAcceptSwapProposal` keeps the response and sets `acceptedSwap = { myItemName, offeredName, occursOn, groupName, groupId, termId, itemId, hadOtherOffers }`. It is set before `load({silent:true})`.
    - The sheet uses the panel `ModalSheet` (`pages/panel/panelComponents.tsx`):
@@ -159,6 +178,7 @@ Make sure both parties to an in-app handover know when and where it happens and 
 5. **Queue**: actions are the unread `SWAP_PROPOSED` and `TERM_CONFIRMATION_NEEDED` notifications, followed by pending join requests. Snoozed ones are filtered out, and the first remaining action is shown, one at a time (as today).
 6. **Copy**:
    - `TERM_CONFIRMATION_NEEDED` title: `Potwierdź zamianę` when `proposal_id != null`, otherwise `Potwierdź przekazanie`. This replaces `Potwierdź transakcję`.
+   - Legacy swap prompts: swap prompts created before the deploy have `proposal_id = null` and `reservation_id = null`, and their message is the old "Termin się odbył — potwierdź zamianę". Such a prompt (no `reservation_id`, no `proposal_id`, message containing `zamian`) also gets the `Potwierdź zamianę` title. This is a temporary compatibility rule: it is a single check, commented as "legacy, remove after old prompts are resolved", and is not used for any other decision.
    - The body is `action.message`, rendered verbatim (the question copy from R3).
    - Buttons stay `Potwierdź` / `Później`. There is no cancel or "Nie doszło" button in Phase 0.
    - The `SWAP_PROPOSED` and join-request layouts are unchanged.
@@ -167,19 +187,30 @@ Make sure both parties to an in-app handover know when and where it happens and 
    - `nextLocal0800`, in browser-local time via `utils/dayjs`: today at 08:00 if now is before 08:00, otherwise tomorrow at 08:00.
    - Storage: per account in localStorage under `pendingActionSnooze:{username}` as a JSON map, following the `hintKey` per-account pattern. Every access is wrapped in try/catch, with an in-memory fallback map when storage throws or is empty. Expired entries are pruned on read.
    - When a snooze expires while the app is open, the prompt reappears: one timer is scheduled for the earliest expiry.
+   - The snooze module exports a test-only reset of its in-memory fallback map (for example `resetSnoozeStoreForTests()`), so the fallback does not persist across tests in one file (R10 FE tests).
    - Below the buttons, a hint reads `Przypomnimy jutro o 8:00.`, or `Przypomnimy dziś o 8:00.` between 00:00 and 08:00. It has an `id` referenced by `aria-describedby` on "Później".
    - "Zobacz w Moje rzeczy" (marks read, then navigates to `/panel/rzeczy`) and "Rozumiem" (marks read) keep their current semantics. Approve and reject still mark the linked `GROUP_JOIN_REQUESTED` notification read.
 8. **Panel refresh** (I3): after a successful confirm or join decision, the host awaits `invalidateQueries` on `NOTIFICATIONS_KEY` and `PENDING_JOIN_REQUESTS_KEY`, shows its own toast (`Potwierdzono` / `Prośba zatwierdzona` / `Prośba odrzucona`), and emits a "pending action resolved" signal. `PanelDataProvider` subscribes on mount and calls `load({ silent: true })`. The signal is one tiny module next to the host (subscribe/emit, with unsubscribe on unmount). The toast reuses `pages/krag/hooks/useToast` and the same pill classes as `PublicTermView`.
-9. **Waiting for page sheets**: the host renders nothing while any page-level sheet is open, so two sheets never show at once.
-   - Both `ModalSheet` implementations (`components/krag/ModalSheet.tsx` and `pages/panel/panelComponents.tsx`) register themselves while mounted in a small shared open-sheet registry.
-   - The host's own sheet opts out of counting through a prop.
-   - The host reads the registry with `useSyncExternalStore`, so the queue resumes as soon as the page sheet closes.
+9. **Waiting for page dialogs** (user decision M3): the host renders nothing while any page-level blocking dialog is open, so two dialogs never show at once.
+   - A small shared module (for example `FE/components/shared/openSheets.ts`) holds an open-dialog counter. It exports:
+     - `useRegisterOpenSheet(open: boolean)`: increments the counter while `open` is true and the component is mounted, and decrements it on close or unmount.
+     - A subscribe/snapshot pair that the host reads with `useSyncExternalStore`, so the queue resumes as soon as the last page dialog closes.
+   - `useRegisterOpenSheet` is called by:
+     - `components/krag/ModalSheet.tsx`
+     - `pages/panel/panelComponents.tsx` `ModalSheet`
+     - `components/krag/RequestAccessDialog.tsx`, which has its own `role="dialog"`
+     - `pages/organizer/editor/UnsavedChangesDialog.tsx`, which wraps the Chakra `ConfirmDialog`
+   - These components are rendered only while open, so they call `useRegisterOpenSheet(true)`.
+   - The host's own sheet passes an opt-out prop to the krag `ModalSheet` (for example `registerAsPageSheet={false}`), so it never blocks itself.
+   - `EditorSheet` (`aria-modal="false"`, non-blocking) is intentionally not registered.
 10. **Accessibility** (Mockup 5 + standard), added to the shared krag `ModalSheet` and so applied to every dialog that uses it:
-    - Esc calls `onClose`.
-    - Focus moves into the dialog on open and returns to the previously focused element on close.
+    - **Esc**: calls `onClose`. The `keydown` listener is attached to the dialog element (`onKeyDown` on the `role="dialog"` node), not to `document`, and ignores events where `defaultPrevented` is true. Together with the calendar menu's `stopPropagation` (R6.5), one Esc in an open menu closes only the menu.
+    - **Focus on open**: moves into the dialog.
+    - **Focus on close**: returns to the element that was focused before opening, if it is still connected. Otherwise it falls back to the page's `main` element, which gets `tabIndex={-1}` for this purpose. The Term page's take button usually disappears after `refetch()`, so the fallback is needed there.
     - `role="dialog"` and `aria-modal` are kept.
-    - Touch targets are ≥36 px.
+    - Touch targets are ≥36 px. The krag ✕ is 34 px today and grows to `h-9 w-9`.
     - The host switches from the panel `ModalSheet` to the shared krag one.
+    - The host uses the krag button classes (`BTN_PRIMARY`, `BTN_GHOST`), not the panel's `bg-mint` pills, so it passes the legacy-utility theme scan (R10.6).
 11. Already-resolved (409 `already_resolved`), the swap-proposal flow and the join-request 409 handling behave exactly as today.
 
 ### R9. Settings (FR9, I10)
@@ -191,12 +222,27 @@ Make sure both parties to an in-app handover know when and where it happens and 
 
 ### R10. Guards and tests (FR10, I11, RED gate)
 1. A single pytest fixture in `BT/conftest.py` (for example `freeze_local_now`) monkeypatches `app.core.clock.local_now` to return a given naive Warsaw datetime. Because call sites use module attribute access (R2.1), one patch reaches all of them.
-2. Migrate the test helpers that build "past/future" Terms from `datetime.utcnow()`, `datetime.now()` or `date.today()` deltas to `clock.local_now()`-relative values. Gap analysis counts about 40 tests: about 20 in `test_term_item_listings.py`, plus `test_term_end_scan.py:119`, `test_lend_step0_fixes.py:106/378`, `test_organizer_page.py:132/276/440/454` and `test_term_item_listings_router.py:41/537/634`. Scan tests push Terms more than 2 h into the past.
-3. Replace the source-inspection guard `test_swapReservedByUserId_notInverted_andTermEndGate_usesLocalNow` (`test_term_item_listings.py:~2052-2074`). Keep its `reserved_by_user_id` assertion and swap the `inspect.getsource` part for a behavioral frozen-clock assertion.
-4. New grep-style test: no file under `BE/groups/application` may contain `datetime.now(` or `date.today(`.
+   - The fixture is **opt-in, not `autouse`**. Tests request it explicitly. The RED file `test_term_clock_regressions.py` and most existing tests run on the real clock.
+2. Migrate the test helpers that build "past/future" Terms, or that assert host-date values, from `datetime.utcnow()`, `datetime.now()` or `date.today()` deltas to `clock.local_now()`-relative values (or `clock.local_now().date()`). Scan tests push Terms more than 2 h into the past. Gap analysis counts about 40 tests, in these files:
+   - About 20 in `test_term_item_listings.py`.
+   - `test_term_end_scan.py:119`.
+   - `test_lend_step0_fixes.py:106/378`.
+   - `test_organizer_page.py:132/276/440/454`.
+   - `test_term_item_listings_router.py:41/537/634`.
+   - `test_add_active_membership.py:58` (`valid_from == date.today()`).
+   - `test_public_term.py`: the `date.today()`-based Terms that are read against `midnight_today`.
+   - Copy assertion: `test_term_item_listings.py:2323` asserts the old `ITEM_RESERVED_FOR_PICKUP` text. Update it to the R4.2 copy.
+3. Replace the source-inspection guard `test_swapReservedByUserId_notInverted_andTermEndGate_usesLocalNow` (`test_term_item_listings.py:2002`, `inspect.getsource` at about :2070). Keep its `reserved_by_user_id` assertion and swap the `inspect.getsource` part for a behavioral frozen-clock assertion.
+4. New grep-style test: no `*.py` file under `BE/groups/application` or `BE/groups/router` may contain `datetime.now(` or `date.today(`.
+   - It scans only `*.py` files, so `__pycache__` is skipped.
+   - The rewritten comments and docstrings (R2.1) must not contain these strings.
 5. The RED tests must turn green:
    - `BT/test_term_clock_regressions.py` (6 tests, unchanged).
-   - The FE test "'Później' on a TERM_CONFIRMATION_NEEDED prompt snoozes it without marking the notification read". It moves with the modal into the host's test file, keeps its assertion, and is updated for the new dialog title.
+   - The FE test "'Później' on a TERM_CONFIRMATION_NEEDED prompt snoozes it without marking the notification read". It moves with the modal into the host's test file, keeps its assertion, and is updated for the new dialog title (`Potwierdź przekazanie`, because the fixture has no `proposal_id`).
+6. Theme scans do not pick up new files automatically, so register them explicitly:
+   - Add the new FE files to `FT/themeTokenUsage.test.tsx` `NO_HEX_FILES` and `NO_LEGACY_UTILITY_FILES`: `AddToCalendarButton.tsx`, `PendingActionsHost.tsx`, the success-sheet component(s) and `openSheets.ts` if it has markup.
+   - The new files use token classes only. They contain no literal hex colours and no `mint`/`lime` utilities.
+7. FE test isolation: the host, snooze and calendar test files call `localStorage.clear()` and the snooze module's test reset in `beforeEach`. The open-sheet counter returns to 0 on unmount, so nothing else needs resetting.
 
 ## Visual Design
 The mockups in `analysis/design-context/` are **binding inputs**. The implementation planner will attach `Visual References` to the UI task groups. Source: `analysis/design-context/ascii/ui-mockups.md`. Fidelity: ASCII structure. The layout, copy (verbatim Polish), element order, ARIA and responsive behavior are binding. The exact pixels follow the existing tokens and classes.
@@ -204,13 +250,18 @@ The mockups in `analysis/design-context/` are **binding inputs**. The implementa
 | ID | Mockup | Key elements |
 |---|---|---|
 | `component:add-to-calendar` | `#add-to-calendar` | Trigger with `CalendarIcon` and a ▾/▴ indicator; `role="menu"` popover (`rounded-2xl border-line bg-paper p-1.5 shadow`); 2 menu items; opens upward in sheets and downward on the item page |
-| `screen:take-success-sheet` | `#take-success-sheet` | `ModalSheet` "Wzięte!"; check badge `bg-primary-soft`; headline `text-[15px] font-extrabold`; `text-sm text-ink-soft` hint; calendar, primary "Zobacz w panelu" and "Zamknij"; desktop card ≥520 px with actions in a row |
+| `screen:take-success-sheet` | `#take-success-sheet` | `ModalSheet` "Wzięte!"; check badge `bg-primary-soft`; headline `text-[15px] font-extrabold`; `text-sm text-ink-soft` hint; calendar, primary "Zobacz rzecz" (deviation, see below) and "Zamknij"; desktop card ≥520 px with actions in a row |
 | `screen:swap-accept-success` | `#swap-accept-success` | Panel `ModalSheet` "Zamiana zaakceptowana"; "„A” ↔ „B”" plus date and group lines; "other offers rejected" line; calendar and "Gotowe"; degraded no-term variant |
 | `screen:item-page-reservation` | `#item-page-reservation` | Party view: hour and group in the `role="status"` line, `BTN_SM` calendar on `bg-paper/70` outside the status `<p>`; non-party view unchanged |
 | `screen:pending-actions-modal-app-wide` | `#pending-actions-modal-app-wide` | 5a handover question / 5b swap question / 5c swap proposal / 5d join request / 5e already-resolved; snooze hint `text-xs text-ink-soft` linked by `aria-describedby`; interaction flow diagram |
 | `screen:settings` | `#settings` | Powiadomienia card removed; Prywatność first; Konto kept; optional in-app line below the cards |
 
-Responsive: below 520 px the sheets are bottom sheets with stacked full-width actions (calendar first, then primary). At 520 px and up they are centered `max-w-[430px]` cards with the actions in one row. New files must pass the `themeDefects` and `themeTokenUsage` scans, so they use design tokens only.
+Responsive: below 520 px the sheets are bottom sheets with stacked full-width actions (calendar first, then primary). At 520 px and up they are centered `max-w-[430px]` cards with the actions in one row. New files use design tokens only and are registered in the theme scans (R10.6).
+
+**Deviations from the mockups** (user decisions after the spec audit):
+- `screen:take-success-sheet`: the primary action is `Zobacz rzecz` → `/product/{itemId}` instead of Mockup 2's `Zobacz w panelu` → `/panel/rzeczy` (M2, see R7.1).
+- `screen:pending-actions-modal-app-wide`: besides the `ModalSheet` dialogs that Mockup 5 mentions, the host also waits for `RequestAccessDialog` and `UnsavedChangesDialog` (M3, see R8.9).
+- `component:add-to-calendar` and `screen:take-success-sheet`: the mockup note that dayjs `dd` gives `śr` is corrected to `ddd` (R7.4).
 
 ## Reusable Components
 
@@ -250,7 +301,8 @@ Responsive: below 520 px the sheets are bottom sheets with stacked full-width ac
 | `TakeSuccessSheet` / swap-accept sheet content | The success UI does not exist (a toast today, nothing for accept). Both use the existing `ModalSheet` chrome. A shared body component is acceptable only if both actually use it. |
 | `FE/components/pending/PendingActionsHost.tsx` (+ helpers, resolved signal, snooze store) | The existing modal is bound to panel context (`load`, `profile`, `setView`, panel toast) and cannot mount in `PublicLayout`. |
 | `FE/hooks/usePendingJoinRequests.ts` | The join requests are loaded only inside the panel's `load()`. The data-fetching standard requires a hook. |
-| Open-sheet registry (tiny module used by both `ModalSheet`s) | Needed for the user decision "modal waits while a page sheet is open". Nothing tracks open dialogs today. |
+| `useRegisterOpenSheet` + open-dialog counter (`openSheets.ts`), used by both `ModalSheet`s, `RequestAccessDialog` and `UnsavedChangesDialog` | Needed for the user decisions "the modal waits while a page dialog is open" and M3. Nothing tracks open dialogs today. |
+| `fit_notification_message` in `app/core` | Messages can exceed `String(500)` (M1). Both `groups` and `notifications` need the cap, so it lives in `core`. |
 
 ## Technical Approach
 - **Clock flow**: `datetime.now(UTC)` → `utc_to_local` (zoneinfo Europe/Warsaw) → naive wall clock → compared with the naive `occurs_on`. Repository functions that take a `now` parameter (`list_owner_public_circles`, etc.) are unchanged. Their callers pass `clock.local_now()`.
@@ -268,15 +320,26 @@ Responsive: below 520 px the sheets are bottom sheets with stacked full-width ac
 - **Backend clock** (unit): `utc_to_local` across both DST transitions, 2026-03-29 (01:00 UTC → 03:00 local) and 2026-10-25 (01:00 UTC → 02:00 CET); the UTC-host scenario of HLD Example 4 (covered by the RED tests); `format_term_day` and `format_term_when` for every weekday; `check_timezone` success, and the failure path with zoneinfo patched to raise.
 - **Backend gates**: the RED file `test_term_clock_regressions.py` goes green. Add an accept-gate test, the behavioral replacement of the source-inspection guard, and the grep guard.
 - **Backend scan and listener**: within grace → nothing. Past grace → event with the new payload keys. Swap for a later Term → not prompted. Listener renders the question copy with date and group, and sets `proposal_id` on swap notifications. An old payload gets the fallback copy.
+- **Backend message cap**: 255-character item, taker and group names give a persisted message of exactly 500 characters ending in "…", in the take path and in the listener.
 - **Backend copy and API**: take notifications contain `o HH:mm` and the group. `SWAP_ACCEPTED` contains the Term. The accept response has `term_id`, `term_occurs_on`, `group_id` and `group_name`. The item details party sees `group_name`/`term_id` and a non-party sees null (privacy, C1).
-- **Frontend calendar util** (pure): Google URL params incl. `ctz`; ICS has CRLF, `TZID`, `VTIMEZONE`, both VALARMs, stable UID, escaping, folding; output is independent of the process TZ.
-- **Frontend components**: `AddToCalendarButton` (menu opens, keyboard navigation, Esc returns focus, Google link attributes, `.ics` download is triggered). Take success sheet replaces the toast. Swap-accept sheet, including the degraded variant. `ItemStatusCard` party and non-party variants.
+- **Frontend calendar util** (pure, fixed `now`):
+  - Google URL params incl. `ctz`.
+  - ICS: CRLF, `TZID`, the exact `VTIMEZONE` block, both VALARMs each with `DESCRIPTION`, a stable UID and `DTSTAMP` taken from `now`.
+  - Escaping, and UTF-8 byte folding that never splits a Polish diacritic.
+  - The end time rolls over midnight correctly.
+  - Output is independent of the process TZ.
+- **Frontend components**: `AddToCalendarButton`:
+  - Menu opens, keyboard navigation works, and Esc returns focus to the trigger.
+  - **Esc with the menu open inside a `ModalSheet` closes only the menu, and the sheet stays open.**
+  - Google link attributes are correct, and the `.ics` download is triggered with a `text/calendar;charset=utf-8` Blob. Take success sheet replaces the toast. Swap-accept sheet, including the degraded variant. `ItemStatusCard` party and non-party variants.
 - **Frontend host** (new `FT/PendingActionsHost.test.tsx`, which receives the modal tests moved from `PanelPage.test.tsx:2689-3210` and `3302+`):
   - "Później" and ✕ snooze without `markNotificationRead` (the RED test).
   - The prompt reappears at 08:00 under fake timers, and the 07:59 → 08:00 boundary is correct.
   - The localStorage-throws fallback works.
   - Titles: przekazanie vs zamiana.
-  - The host waits while a page sheet is open.
+  - The host waits while a page dialog is open (a `ModalSheet`, and a component registered through `useRegisterOpenSheet`), and resumes when it closes.
+  - A legacy swap prompt (no ids, old message) gets the `Potwierdź zamianę` title.
+  - Every file resets `localStorage` and the snooze store in `beforeEach` (R10.7).
   - The resolved signal is emitted.
   - Join request snooze.
 - **Moved test adjustments**: the `PanelPage.test.tsx` "RzeczyView post-term-end fallback" test (~3210-3300) drops its modal "Później" preamble, because the modal is no longer mounted by `PanelPage`. `PublicLayout.test.tsx` gets a mock for the join-requests API and confirms that the host mounts only when logged in. Settings gets a small test that the e-mail and SMS toggles are absent.
@@ -310,14 +373,16 @@ Responsive: below 520 px the sheets are bottom sheets with stacked full-width ac
 3. DST unit tests pass for both 2026 transitions. The backend refuses to start without `tzdata` and logs only `Europe/Warsaw (<abbr>)`.
 4. The grep guard finds no `datetime.now(` / `date.today(` in `BE/groups/application`.
 5. Take and SWAP_ACCEPTED notifications read like `… w śr 15.10 o 16:30 — Muzyczne Maluchy`. Term-end notifications are the binding questions, and old payloads fall back to the generic question.
-6. Taking an item opens the "Wzięte!" sheet with date, hour, group and a working calendar control. Accepting a swap opens "Zamiana zaakceptowana" (degraded without term data). Only reservation parties see the hour, group and calendar on the item page.
+6. Taking an item opens the "Wzięte!" sheet with date, hour, group, a working calendar control and "Zobacz rzecz" → `/product/{itemId}`. Accepting a swap opens "Zamiana zaakceptowana" (degraded without term data). Only reservation parties see the hour, group and calendar on the item page.
 7. Generated `.ics` imports with `TZID=Europe/Warsaw`, a 1 h duration, two alarms and a stable UID. The Google link opens with `ctz=Europe/Warsaw`.
-8. The pending-actions modal appears on every `PublicLayout` page for logged-in users, exactly once on `/panel`, and never on top of a page sheet. "Później" or ✕ hides a prompt until the next local 08:00 without marking it read.
+8. The pending-actions modal appears on every `PublicLayout` page for logged-in users, exactly once on `/panel`, and never on top of a page dialog (`ModalSheet`, `RequestAccessDialog`, `UnsavedChangesDialog`). "Później" or ✕ hides a prompt until the next local 08:00 without marking it read.
 9. Settings no longer shows e-mail or SMS toggles.
 10. The full backend and frontend suites are green, including `themeDefects` and `themeTokenUsage`. Backend mypy and ruff report no new errors over the HEAD baseline. Run them with `uv run python -m mypy|ruff`.
 
 ## Known Limitations
 - C2 taker gap: a bell click or mark-all still removes a confirm prompt for good until Phase 1.
+- Prompt delivery latency (user decision L7): `useNotifications` gets no `refetchInterval`, and no polling is added. A new prompt reaches an open page only on window focus, page reload, a bell refetch, or a panel `load()`. Navigating between `PublicLayout` routes does not refetch, because the host stays mounted.
+- Legacy swap prompts created before the deploy are recognised by a temporary message heuristic (R8.6). Any other legacy prompt shows the generic `Potwierdź przekazanie` title.
 - Snooze is per device and per browser profile.
 - The Term link in the swap-accept and item-page calendar descriptions uses the cosmetic `krag` slug segment. It works because `TermPage` ignores the slug.
 - On the item page, the calendar title is derived from `is_owner`, which marks the home owner as the giver. That holds for every RESERVED/IN_TRANSIT handover, because an item cannot be reserved while it is lent out.

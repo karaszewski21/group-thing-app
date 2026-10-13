@@ -41,6 +41,12 @@ Each route enforces its own requirement through `Depends(require_any(...))` (no 
 
 Plugin iframes reach the same routers via the host's browser SDK, which attaches the same JWT the router-level auth dependency validates — there is no separate plugin-specific auth path on the server side (see `standards/backend/plugin-auth.md`).
 
+## Domain clock (Europe/Warsaw)
+
+`Term.occurs_on` is a naive Europe/Warsaw wall clock (unlike the naive-UTC audit columns such as `created_at`). `app/core/clock.py` is the only definition of "now" for Term logic: `clock.local_now()` converts the current UTC instant to Warsaw time through `zoneinfo`, so it never depends on the host or container `TZ`. Call sites use `clock.local_now()` (module attribute access) so the opt-in `freeze_local_now` test fixture reaches all of them. The same module holds the Polish short date formatters and the notification-length cap.
+
+Ops: the `lifespan` startup calls `clock.check_timezone()` before the outbox poller and APScheduler start. It fails with an "install tzdata" error if the zone cannot load, and otherwise logs one line, `Europe/Warsaw (CET|CEST)`. Setting `TZ=Europe/Warsaw` in compose is optional and no code relies on it.
+
 ## Photo Upload and Content Moderation
 
 ```
