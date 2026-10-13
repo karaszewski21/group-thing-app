@@ -1,0 +1,124 @@
+orchestrator:
+  started_phase: phase-1
+  completed_phases: [phase-1, phase-2, phase-3, phase-4, phase-5]
+  failed_phases: []
+  auto_fix_attempts: {}
+  options:
+    spec_audit_enabled: true
+    skip_test_suite: true
+    e2e_enabled: true
+    user_docs_enabled: true
+    code_review_enabled: true
+    pragmatic_review_enabled: true
+    reality_check_enabled: true
+    production_check_enabled: true
+    sequential: null
+  created: 2026-10-13T00:00:00Z
+  updated: 2026-10-13T00:00:00Z
+  task_path: .maister/tasks/development/2026-10-13-handover-quick-wins-phase0
+  task_ids: {}
+
+task:
+  title: Handover quick wins (research Phase 0)
+  description: >
+    Implement Phase 0 ("Quick wins", no schema change) of the handover-reminders research HLD:
+    (1) verify production TZ (presence/format check only); (2) Europe/Warsaw domain clock local_now()/utc_to_local()
+    replacing naive datetime.now() in every occurs_on comparison, declare tzdata, frozen-clock tests incl. DST;
+    (3) take/accept notifications and success sheet include weekday, date, hour and group name; swap accept copy includes the Term;
+    (4) term-end scan fires at occurs_on + 2h grace with question copy;
+    (5) pending-actions modal mounted app-wide, "Później" = real snooze until next local 08:00 (does not mark read);
+    (6) client-side "Dodaj do kalendarza" (Google link + .ics) on take/accept success sheet and item page;
+    (7) remove fake e-mail/SMS toggles from Settings.
+  status: in_progress
+  tags: [notifications, handover, timezone, ux]
+  priority: high
+
+task_context:
+  risk_level: medium-high
+  clarifications_resolved: true
+  scope_expanded: false
+  architecture_decision: "Fixed by research ADR-002/007/008 + user decisions"
+  tech_clarified: true
+  task_characteristics:
+    has_reproducible_defect: true
+    modifies_existing_code: true
+    creates_new_entities: true
+    involves_data_operations: true
+    ui_heavy: true
+  research_reference:
+    path: .maister/tasks/research/2026-10-13-handover-reminders-beyond-notifications
+    research_question: >
+      How should the take/give/lend/exchange flow evolve so neither party forgets to bring or pick up the item,
+      given notifications alone may be insufficient?
+    research_type: mixed
+    confidence_level: high
+    scope_selected: "Phase 0 only (user choice at intake)"
+  design_reference:
+    source: phase-4-ascii
+    product_design_path: null
+    mockup_count: 6
+    has_brief: false
+    index_path: analysis/design-context/INDEX.md
+  project_context:
+    project_doc_paths:
+      - .maister/docs/project/tech-stack.md
+      - .maister/docs/project/architecture.md
+  phase_summaries:
+    research:
+      summary: >
+        Handover is a one-shot notification event, not a persistent task. HLD slices into Phases 0-3; this task implements
+        Phase 0 quick wins (no schema change). ADR-002 domain clock, ADR-007 post-Term hardening (grace 2h, client snooze,
+        app-wide modal), ADR-008 client-side add-to-calendar.
+      key_findings:
+        - "Naive datetime.now() compared with naive-Warsaw Term.occurs_on (term_end_scan.py:67, term_item_listings.py:440,479,592,944, organizer_page.py:83,167)"
+        - "Take/swap notification copy lacks date/hour/group (term_item_listings.py:529-535, 727-733)"
+        - "'Później' marks notification read -> prompt lost (PanelDataContext.tsx:782-790); modal only mounted in PanelPage"
+        - "Settings has fake e-mail/SMS toggles (UstawieniaView.tsx:11-23)"
+      recommended_approach: "A5+B1+C1+D1->D3+E1+F3; Phase 0 = F3 clock, copy, E1 grace/snooze/app-wide, D1 calendar"
+    design: {summary: "ASCII mockups for take success sheet, swap-accept success, add-to-calendar menu, item-page reservation (parties only), app-wide pending modal with snooze hint, settings before/after", screen_count: 5, component_count: 1, index_path: analysis/design-context/INDEX.md}
+    codebase_analysis:
+      key_files:
+        - src/backend/app/groups/application/term_item_listings.py
+        - src/backend/app/groups/application/term_end_scan.py
+        - src/backend/app/groups/application/organizer_page.py
+        - src/backend/app/groups/application/public_view.py
+        - src/backend/app/notifications/outbox_listener.py
+        - src/backend/pyproject.toml
+        - src/frontend/src/pages/panel/PanelDataContext.tsx
+        - src/frontend/src/components/layout/PublicLayout.tsx
+        - src/frontend/src/pages/krag/hooks/useItemTake.ts
+        - src/frontend/src/pages/krag/PublicTermView.tsx
+        - src/frontend/src/pages/panel/views/RzeczyView.tsx
+        - src/frontend/src/pages/product/ItemTimeline.tsx
+        - src/frontend/src/pages/panel/views/UstawieniaView.tsx
+      primary_language: python+typescript
+      summary: >
+        Prod bug confirmed: naive datetime.now() (UTC in containers, no TZ, no tzdata on slim) vs naive-Warsaw occurs_on -> all gates 1-2h off.
+        Needs core clock + runtime tzdata, ~20+ utcnow-based test helpers and an inspect.getsource guard test updated; extra site public_view.py:251.
+        Modal coupled to PanelDataContext, must be extracted to PublicLayout; Później marks read. Swap term-end scan not scoped by own term (bug).
+    clarifications:
+      - "Scope: Phase 0 only"
+      - "Test clock: monkeypatch local_now() helper, no new dep"
+      - "Fix swap term-end scan term-scoping now"
+      - "Backend enrichment for term hour/group on item status + swap-accept"
+      - "public_view.py included in clock migration"
+    gap_analysis:
+      integration_points: [app/core/clock.py, term_end_scan, outbox_listener, accept_swap_proposal, item_details/item_privacy, PublicLayout modal host, PanelDataProvider, UstawieniaView]
+      summary: >
+        All 8 Term gates compare naive-Warsaw occurs_on with UTC now in prod; swap term-end scan unscoped; Później marks read.
+        Bulk = clock seam + ~40 BE tests migration and extracting the modal from 1717-line PanelDataContext into a PublicLayout host.
+    scope_clarifications:
+      scope_expanded: false
+      summary: "All 13 gap decisions = recommended (see analysis/scope-clarifications.md): item group/term only for parties; taker gap deferred to P1; join requests app-wide; per-action snooze browser 08:00; onResolved panel refresh; short date formatter; swap question names items; ICS 1h, -P1D/-PT2H; accept-swap gate; startup ZoneInfo check; remove notifications card keep profile toggle; behavioral + grep clock guard."
+    ui_mockups: {components_designed: [component:add-to-calendar, screen:take-success-sheet, screen:swap-accept-success, screen:item-page-reservation, screen:pending-actions-modal-app-wide, screen:settings], summary: "6 ASCII mockups; notes: hold app-wide modal while page sheet open; remove PanelDataContext mount; use krag ModalSheet; new AddToCalendarButton + utils/calendar.ts"}
+    specification: {summary: "spec.md: R1-R10 (~45 sub-reqs): core clock + formatters, 8 sites + accept gate, scan grace/swap scoping/payload, dated copy, AcceptedSwapProposalResponse + party-only ItemStatus fields, calendar util/button, success sheets, PendingActionsHost in PublicLayout w/ snooze+open-sheet registry, settings cleanup, freeze fixture + grep guard. 6 assumptions."}
+    architecture_decision: {decision: null, summary: null}
+
+tdd_red_passed: true
+
+verification_context:
+  last_status: null
+  issues_found: []
+  fixes_applied: []
+  decisions_made: []
+  reverify_count: 0

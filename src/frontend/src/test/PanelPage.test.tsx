@@ -2744,6 +2744,28 @@ describe("PanelPage — Group 7 global pending-actions modal", () => {
     expect(within(dialog).queryByRole("button", { name: "Odrzuć" })).not.toBeInTheDocument();
   });
 
+  it("'Później' on a TERM_CONFIRMATION_NEEDED prompt snoozes it without marking the notification read", async () => {
+    mockGuestDefaults();
+    vi.mocked(notificationsApi.getMyNotifications).mockResolvedValue([
+      pendingNotif({
+        id: "5",
+        kind: "TERM_CONFIRMATION_NEEDED",
+        message: "Czy przekazanie doszło do skutku?",
+        link_path: "/ania/grupa/5/term/9",
+      }),
+    ]);
+    vi.mocked(notificationsApi.markNotificationRead).mockResolvedValue(undefined);
+    renderPanel();
+
+    const dialog = await screen.findByRole("dialog", { name: "Potwierdź transakcję" });
+    fireEvent.click(within(dialog).getByRole("button", { name: "Później" }));
+
+    await waitFor(() =>
+      expect(screen.queryByRole("dialog", { name: "Potwierdź transakcję" })).not.toBeInTheDocument(),
+    );
+    expect(notificationsApi.markNotificationRead).not.toHaveBeenCalled();
+  });
+
   it("renders a post-term-end confirm prompt for TERM_CONFIRMATION_NEEDED; without reservation_id, confirming falls back to resolving the reservation id from the term's listings then calls confirmTransaction", async () => {
     mockGuestDefaults();
     vi.mocked(notificationsApi.getMyNotifications).mockResolvedValue([
