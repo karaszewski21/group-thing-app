@@ -2,7 +2,7 @@
 
 ### Vitest as Test Runner
 
-Use Vitest with `globals: true` (describe/it/expect available without imports). Use jsdom as the test environment for browser-like DOM APIs.
+Use Vitest with `globals: true`; test files still import Vitest APIs explicitly (see Explicit Vitest Imports). Use jsdom as the test environment for browser-like DOM APIs.
 
 ```typescript
 // vitest.config.ts
@@ -14,6 +14,14 @@ export default defineConfig({
     setupFiles: ["./src/test/setup.ts"],
   },
 });
+```
+
+### Explicit Vitest Imports
+
+Test files under `src/test` import `describe`/`it`/`expect`/`vi` (and `beforeEach`/`afterEach`) explicitly from `"vitest"` even though `globals: true` is set, because `tsc -p tsconfig.app.json` type-checks `src/test` without Vitest global types.
+
+```typescript
+import { describe, expect, it, vi } from "vitest";
 ```
 
 ### Testing Library for Components
@@ -65,6 +73,18 @@ beforeEach(() => {
   vi.resetAllMocks();
   vi.mocked(categoriesApi.getCategories).mockResolvedValue(mockCategories);
 });
+```
+
+### Pin the Clock for Date-Dependent UI
+
+Tests whose output depends on "now" (upcoming vs past Terms, weekday labels, snooze expiry) call `vi.useFakeTimers({ toFake: ["Date"] })` plus `vi.setSystemTime(...)` and restore with `vi.useRealTimers()` in `afterEach`. Faking only `Date` keeps `findBy*` polling working. Use fixture dates whose weekday matches the assertion.
+
+```typescript
+beforeEach(() => {
+  vi.useFakeTimers({ toFake: ["Date"] });
+  vi.setSystemTime(new Date("2026-10-13T12:00:00"));
+});
+afterEach(() => vi.useRealTimers());
 ```
 
 ### Test Organization
