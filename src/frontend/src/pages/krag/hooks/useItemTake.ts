@@ -32,6 +32,7 @@ export function useItemTake({ isLoggedIn, refetch, showToast, termId }: TermActi
   const [swapItemId, setSwapItemId] = useState<string | null>(null);
   const [offeredItemId, setOfferedItemId] = useState<string | null>(null);
   const [myAvailableItems, setMyAvailableItems] = useState<AvailableItem[] | null>(null);
+  const [takeSuccess, setTakeSuccess] = useState<{ itemId: string; itemName: string } | null>(null);
 
   async function loadMyAvailableItems(): Promise<AvailableItem[]> {
     if (myAvailableItems !== null) return myAvailableItems;
@@ -78,9 +79,9 @@ export function useItemTake({ isLoggedIn, refetch, showToast, termId }: TermActi
     }
     setBusyItemId(itemId);
     try {
-      await takeTermItemListing(itemId, { term_id: termId, reservation_type: reservationType });
+      const taken = await takeTermItemListing(itemId, { term_id: termId, reservation_type: reservationType });
       closeSwapPicker();
-      showToast("Wzięto! Szczegóły w Twoim panelu");
+      setTakeSuccess({ itemId: taken.item_id, itemName: taken.product_name });
       await refetch();
     } catch (err) {
       showToast(serverMessageOr(err, "Nie udało się wziąć tej rzeczy"));
@@ -94,6 +95,8 @@ export function useItemTake({ isLoggedIn, refetch, showToast, termId }: TermActi
     closeGate: gate.close,
     take: gate.guard(performTake),
     busyItemId,
+    takeSuccess,
+    closeTakeSuccess: () => setTakeSuccess(null),
     swap: {
       /** The listing whose swap picker is open, if any. */
       itemId: swapItemId,

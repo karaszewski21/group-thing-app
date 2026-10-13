@@ -6,6 +6,7 @@ import {
   type BalanceStatus,
   type ItemBalanceSummary,
 } from "../../../api/inventories";
+import { serverMessageOr } from "../../../api/problem";
 import { cancelTransaction, confirmTransaction, getReservation } from "../../../api/reservations";
 import { getTerm } from "../../../api/terms";
 import {
@@ -19,6 +20,7 @@ import { capitalize, GIFT_LIMIT_MESSAGE, ITEM_MODES, MAX_GIFT_ITEMS, type ItemMo
 import { FloatingAddButton } from "../panelComponents";
 import { usePanelData } from "../panelDataStore";
 import { SafeImage } from "../../product/ItemGallery";
+import { SwapAcceptSuccessSheet, type AcceptedSwap } from "./SwapAcceptSuccessSheet";
 
 /** Soft tile + readable text per item mode, matching the exchange tones. */
 const MODE_TONE: Record<ItemMode, string> = {
@@ -155,6 +157,7 @@ export function RzeczyView() {
   // (the rest auto-reject server-side, see `accept_swap_proposal`).
   const [swapProposals, setSwapProposals] = useState<Record<string, SwapProposalOfferResponse[]>>({});
   const [acceptBusyProposalId, setAcceptBusyProposalId] = useState<string | null>(null);
+  const [acceptedSwap, setAcceptedSwap] = useState<AcceptedSwap | null>(null);
   const swapItemIds = items.filter((it) => itemModes[it.id] === "zamienię").map((it) => it.id);
   const swapItemIdsKey = swapItemIds.join(",");
 
@@ -178,15 +181,25 @@ export function RzeczyView() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [swapItemIdsKey]);
 
-  async function handleAcceptSwapProposal(itemId: string, proposalId: string) {
+  async function handleAcceptSwapProposal(itemId: string, proposal: SwapProposalOfferResponse) {
     setActionError(null);
-    setAcceptBusyProposalId(proposalId);
+    setAcceptBusyProposalId(proposal.id);
     try {
-      await acceptSwapProposal(proposalId);
+      const accepted = await acceptSwapProposal(proposal.id);
+      setAcceptedSwap({
+        myItemName: items.find((it) => it.id === itemId)?.product_name ?? "",
+        offeredName: proposal.offered_product_name,
+        occursOn: accepted.term_occurs_on,
+        groupName: accepted.group_name,
+        groupId: accepted.group_id,
+        termId: accepted.term_id,
+        itemId,
+        hadOtherOffers: (swapProposals[itemId]?.length ?? 0) > 1,
+      });
       setSwapProposals((s) => ({ ...s, [itemId]: [] }));
       await load({ silent: true });
-    } catch {
-      setActionError("Nie udało się zaakceptować propozycji — spróbuj ponownie");
+    } catch (err) {
+      setActionError(serverMessageOr(err, "Nie udało się zaakceptować propozycji — spróbuj ponownie"));
     } finally {
       setAcceptBusyProposalId(null);
     }
@@ -404,7 +417,7 @@ export function RzeczyView() {
                       </span>
                       <button
                         type="button"
-                        onClick={() => void handleAcceptSwapProposal(it.id, p.id)}
+                        onClick={() => void handleAcceptSwapProposal(it.id, p)}
                         disabled={acceptBusyProposalId !== null}
                         className="min-h-9 flex-none rounded-full bg-primary px-3.5 text-[13px] font-extrabold text-on-primary disabled:opacity-60"
                       >
@@ -422,6 +435,7 @@ export function RzeczyView() {
       </div>
 
       <FloatingAddButton label="Dodaj rzecz" to="/product/new" />
+      {acceptedSwap && <SwapAcceptSuccessSheet swap={acceptedSwap} onClose={() => setAcceptedSwap(null)} />}
     </div>
   );
 }

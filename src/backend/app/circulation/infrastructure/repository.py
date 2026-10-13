@@ -19,6 +19,7 @@ from sqlalchemy.dialects import postgresql
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload, selectinload
 
+from app.circulation.domain.item_privacy import ReservationTerm
 from app.circulation.models import (
     Account,
     AccountType,
@@ -56,6 +57,12 @@ _terms = table(
     "terms",
     column("id", postgresql.UUID(as_uuid=True)),
     column("occurs_on", DateTime),
+    column("circle_group_id", postgresql.UUID(as_uuid=True)),
+)
+_groups = table(
+    "groups",
+    column("id", postgresql.UUID(as_uuid=True)),
+    column("name", String),
 )
 
 
@@ -214,6 +221,21 @@ async def list_available_items_with_product(
     }
 
 
+async def list_product_names_for_items(
+    db: AsyncSession, item_ids: Collection[uuid.UUID]
+) -> dict[uuid.UUID, str]:
+    """Product name of each given item, soft-deleted items included, in one
+    join."""
+    if not item_ids:
+        return {}
+    result = await db.execute(
+        select(InventoryItem.id, Product.name)
+        .join(Product, Product.id == InventoryItem.product_id)
+        .where(InventoryItem.id.in_(item_ids))
+    )
+    return {item_id: name for item_id, name in result.all()}
+
+
 async def get_item_with_product_name(
     db: AsyncSession, item_id: uuid.UUID
 ) -> tuple[InventoryItem, str] | None:
@@ -320,6 +342,12 @@ async def list_active_hand_over_reservations_for_terms(
     return list(result.scalars().all())
 
 
+def reservation_ids_for_term_select(term_id: uuid.UUID) -> Select[tuple[uuid.UUID]]:
+    """Ids of every reservation made for `term_id`, unexecuted, for a caller
+    to use as an IN-subquery."""
+    return select(Reservation.id).where(Reservation.term_id == term_id)
+
+
 @dataclass(frozen=True)
 class ItemDetailsRow:
     item: InventoryItem
@@ -423,7 +451,11 @@ async def find_display_names(
     return {user_id: name for user_id, name in result.all()}
 
 
-async def find_term_occurs_on(db: AsyncSession, term_id: uuid.UUID) -> datetime | None:
-    result = await db.execute(select(_terms.c.occurs_on).where(_terms.c.id == term_id))
-    occurs_on: datetime | None = result.scalar_one_or_none()
-    return occurs_on
+async def find_reservation_term(db: AsyncSession, term_id: uuid.UUID) -> ReservationTerm | None:
+    result = await db.execute(
+        select(_terms.c.occurs_on, _terms.c.circle_group_id, _groups.c.name)
+        .join(_groups, _groups.c.id == _terms.c.circle_group_id)
+        .where(_terms.c.id == term_id)
+    )
+    row = result.one_or_none()
+    return ReservationTerm(*row) if row is not None else None

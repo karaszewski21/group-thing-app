@@ -16,10 +16,10 @@ header — it attaches the RSVP to the caller's own account party
 
 from __future__ import annotations
 
-import inspect
 import uuid
+from collections.abc import Callable
 from dataclasses import dataclass
-from datetime import date, datetime, timedelta
+from datetime import datetime, timedelta
 from typing import cast
 
 import pytest
@@ -42,6 +42,7 @@ from app.circulation.models import (
     ReservationType,
 )
 from app.config import settings
+from app.core import clock
 from app.core.auth_deps import Principal
 from app.core.errors import AccessDeniedException, BusinessConflictException
 from app.core.security import decode_token
@@ -84,7 +85,7 @@ async def _create_circle_and_term(
         "/api/terms",
         json={
             "circle_group_id": circle.json()["id"],
-            "occurs_on": (date.today() + timedelta(days=7)).isoformat(),
+            "occurs_on": (clock.local_now().date() + timedelta(days=7)).isoformat(),
         },
         headers=_auth(org_token),
     )
@@ -97,7 +98,7 @@ async def _add_term(client: AsyncClient, org_token: str, group_id: uuid.UUID) ->
         "/api/terms",
         json={
             "circle_group_id": str(group_id),
-            "occurs_on": (date.today() + timedelta(days=7)).isoformat(),
+            "occurs_on": (clock.local_now().date() + timedelta(days=7)).isoformat(),
         },
         headers=_auth(org_token),
     )
@@ -521,7 +522,7 @@ async def test_confirmTransaction_afterTermEnd_fulfillsReservation(
     )
 
     term = (await db_session.execute(select(Term).where(Term.id == term_id))).scalar_one()
-    term.occurs_on = datetime.utcnow() - timedelta(days=1)
+    term.occurs_on = clock.local_now() - timedelta(days=1)
     await db_session.commit()
 
     fulfilled = await service.confirm_transaction(
@@ -561,7 +562,7 @@ async def test_confirmTransaction_secondCaller_getsAlreadyResolvedOutcomeAndNoti
     )
 
     term = (await db_session.execute(select(Term).where(Term.id == term_id))).scalar_one()
-    term.occurs_on = datetime.utcnow() - timedelta(days=1)
+    term.occurs_on = clock.local_now() - timedelta(days=1)
     await db_session.commit()
 
     await service.confirm_transaction(
@@ -604,7 +605,7 @@ async def test_confirmTransaction_nonParty_raisesAccessDenied(
     )
 
     term = (await db_session.execute(select(Term).where(Term.id == term_id))).scalar_one()
-    term.occurs_on = datetime.utcnow() - timedelta(days=1)
+    term.occurs_on = clock.local_now() - timedelta(days=1)
     await db_session.commit()
 
     outsider_token, _ = await _register(client, "GUEST", "til.outsider18@example.com")
@@ -652,7 +653,7 @@ async def test_confirmTransaction_swapCounterpartyConfirmsViaPairedLegId_succeed
     await service.accept_swap_proposal(db_session, _principal(lister_token), proposal.id)
 
     term = (await db_session.execute(select(Term).where(Term.id == term_id))).scalar_one()
-    term.occurs_on = datetime.utcnow() - timedelta(days=1)
+    term.occurs_on = clock.local_now() - timedelta(days=1)
     await db_session.commit()
 
     proposer_leg = await client.get(
@@ -760,7 +761,7 @@ async def test_cancelTransaction_singleLendReservation_releasedToAvailable(
     )
 
     term = (await db_session.execute(select(Term).where(Term.id == term_id))).scalar_one()
-    term.occurs_on = datetime.utcnow() - timedelta(days=1)
+    term.occurs_on = clock.local_now() - timedelta(days=1)
     await db_session.commit()
 
     cancelled = await service.cancel_transaction(
@@ -801,7 +802,7 @@ async def test_cancelTransaction_swapPairedLegs_bothReleasedTogether(
     await service.accept_swap_proposal(db_session, _principal(lister_token), proposal.id)
 
     term = (await db_session.execute(select(Term).where(Term.id == term_id))).scalar_one()
-    term.occurs_on = datetime.utcnow() - timedelta(days=1)
+    term.occurs_on = clock.local_now() - timedelta(days=1)
     await db_session.commit()
 
     proposer_leg = await client.get(
@@ -856,7 +857,7 @@ async def test_cancelTransaction_secondCaller_getsAlreadyResolvedOutcomeAndNotif
     )
 
     term = (await db_session.execute(select(Term).where(Term.id == term_id))).scalar_one()
-    term.occurs_on = datetime.utcnow() - timedelta(days=1)
+    term.occurs_on = clock.local_now() - timedelta(days=1)
     await db_session.commit()
 
     await service.cancel_transaction(
@@ -900,7 +901,7 @@ async def test_cancelTransaction_nonParty_raisesAccessDenied(
     )
 
     term = (await db_session.execute(select(Term).where(Term.id == term_id))).scalar_one()
-    term.occurs_on = datetime.utcnow() - timedelta(days=1)
+    term.occurs_on = clock.local_now() - timedelta(days=1)
     await db_session.commit()
 
     outsider_token, _ = await _register(client, "GUEST", "til.outsider24@example.com")
@@ -940,7 +941,7 @@ async def test_setPreference_afterGiftFulfillment_reassignsOwnerToNewHolder(
     )
 
     term = (await db_session.execute(select(Term).where(Term.id == term_id))).scalar_one()
-    term.occurs_on = datetime.utcnow() - timedelta(days=1)
+    term.occurs_on = clock.local_now() - timedelta(days=1)
     await db_session.commit()
 
     await service.confirm_transaction(
@@ -1001,7 +1002,7 @@ async def test_setPreference_afterSwapFulfillment_reassignsOwnerForReceivedItem(
     await service.accept_swap_proposal(db_session, _principal(lister_token), proposal.id)
 
     term = (await db_session.execute(select(Term).where(Term.id == term_id))).scalar_one()
-    term.occurs_on = datetime.utcnow() - timedelta(days=1)
+    term.occurs_on = clock.local_now() - timedelta(days=1)
     await db_session.commit()
 
     await service.confirm_transaction(
@@ -1045,7 +1046,7 @@ async def test_confirmTransaction_organizerGift_clearsPreference_notReofferedOnN
     )
 
     term = (await db_session.execute(select(Term).where(Term.id == term_id))).scalar_one()
-    term.occurs_on = datetime.utcnow() - timedelta(days=1)
+    term.occurs_on = clock.local_now() - timedelta(days=1)
     await db_session.commit()
 
     await service.confirm_transaction(
@@ -1098,7 +1099,7 @@ async def test_confirmTransaction_swap_clearsBothPreferences(
     await service.accept_swap_proposal(db_session, _principal(lister_token), proposal.id)
 
     term = (await db_session.execute(select(Term).where(Term.id == term_id))).scalar_one()
-    term.occurs_on = datetime.utcnow() - timedelta(days=1)
+    term.occurs_on = clock.local_now() - timedelta(days=1)
     await db_session.commit()
 
     await service.confirm_transaction(
@@ -1138,7 +1139,7 @@ async def test_cancelTransaction_gift_keepsPreference(
     )
 
     term = (await db_session.execute(select(Term).where(Term.id == term_id))).scalar_one()
-    term.occurs_on = datetime.utcnow() - timedelta(days=1)
+    term.occurs_on = clock.local_now() - timedelta(days=1)
     await db_session.commit()
 
     await service.cancel_transaction(
@@ -1204,7 +1205,7 @@ async def test_setPreference_whileItemLentOut_stillSucceeds(
         TakeTermItemListingRequest(term_id=term_id, reservation_type="LEND"),
     )
     term = (await db_session.execute(select(Term).where(Term.id == term_id))).scalar_one()
-    term.occurs_on = datetime.utcnow() - timedelta(days=1)
+    term.occurs_on = clock.local_now() - timedelta(days=1)
     await db_session.commit()
     await service.confirm_transaction(
         db_session, _principal(borrower_token), taken.resolved_reservation_id
@@ -1235,7 +1236,7 @@ async def test_browseListing_termOccursOnInPast_becomesUnbrowsable(
 ) -> None:
     """Distinct from `test_attendance_withdrawal.py`'s withdrawal-based
     disappearance: here nobody withdraws — the Term itself simply passes
-    (`Term.occurs_on < utcnow()`), which `list_browsable_term_item_listings`
+    (`Term.occurs_on < clock.local_now()`), which `list_browsable_term_item_listings`
     checks directly and short-circuits to `[]` before even querying rows."""
     org_token, _ = await _register(client, "ORGANIZER", "til.org8@example.com")
     group_id, term_id = await _create_circle_and_term(client, org_token, "til8")
@@ -1256,7 +1257,7 @@ async def test_browseListing_termOccursOnInPast_becomesUnbrowsable(
     assert len(visible_before) == 1
 
     term = (await db_session.execute(select(Term).where(Term.id == term_id))).scalar_one()
-    term.occurs_on = datetime.utcnow() - timedelta(days=1)
+    term.occurs_on = clock.local_now() - timedelta(days=1)
     await db_session.commit()
 
     visible_after = await service.list_browsable_term_item_listings(
@@ -1477,7 +1478,7 @@ async def test_listMyActiveTakenTermItemListings_afterTermEnd_stillResolves(
     )
 
     term = (await db_session.execute(select(Term).where(Term.id == term_id))).scalar_one()
-    term.occurs_on = datetime.utcnow() - timedelta(days=1)
+    term.occurs_on = clock.local_now() - timedelta(days=1)
     await db_session.commit()
 
     # The existing browse path structurally cannot serve this anymore.
@@ -1721,7 +1722,7 @@ async def _accepted_swap_after_term(
     )
 
     term = (await db_session.execute(select(Term).where(Term.id == term_id))).scalar_one()
-    term.occurs_on = datetime.utcnow() - timedelta(days=1)
+    term.occurs_on = clock.local_now() - timedelta(days=1)
     await db_session.commit()
 
     return _AcceptedSwap(
@@ -1760,7 +1761,7 @@ async def test_confirmTransaction_giftFulfillment_postsGiftTransactionBetweenPer
     )
 
     term = (await db_session.execute(select(Term).where(Term.id == term_id))).scalar_one()
-    term.occurs_on = datetime.utcnow() - timedelta(days=1)
+    term.occurs_on = clock.local_now() - timedelta(days=1)
     await db_session.commit()
 
     lister_inventory_id = (await _fresh_item(db_session, item_id)).inventory_id
@@ -2000,7 +2001,9 @@ async def test_cancelExchange_nonPartyActor_raisesAccessDeniedWithoutStateChange
 
 
 async def test_swapReservedByUserId_notInverted_andTermEndGate_usesLocalNow(
-    client: AsyncClient, db_session: AsyncSession
+    client: AsyncClient,
+    db_session: AsyncSession,
+    freeze_local_now: Callable[[datetime], None],
 ) -> None:
     """Regression guard for the two already-fixed, currently-uncommitted
     bugs (do not modify the guarded lines beyond what's incidentally
@@ -2009,11 +2012,9 @@ async def test_swapReservedByUserId_notInverted_andTermEndGate_usesLocalNow(
     (1) `reserved_by_user_id` on each swap leg names the party GAINING that
     leg's item, not the party creating the reservation — inverted, it made
     `fulfill_reservation`'s inventory-transfer step a no-op.
-    (2) `confirm_transaction`'s term-end gate compares against server-local
-    `datetime.now()`, not `datetime.utcnow()` — asserted here by reading the
-    function's own source, since `Term.occurs_on` is itself a naive local
-    value and the two clocks only diverge test-detectably by the server's
-    UTC offset."""
+    (2) `confirm_transaction`'s term-end gate compares `Term.occurs_on` (a
+    naive Warsaw wall clock) against `clock.local_now()`: refused one minute
+    before the Term, allowed one minute after."""
     org_token, _ = await _register(client, "ORGANIZER", "til.org33@example.com")
     group_id, term_id = await _create_circle_and_term(client, org_token, "til33")
 
@@ -2060,17 +2061,20 @@ async def test_swapReservedByUserId_notInverted_andTermEndGate_usesLocalNow(
     listing_leg = await client.get(f"/api/reservations/{paired_id}", headers=_auth(lister_token))
     assert listing_leg.json()["reserved_by_user_id"] == proposer_account_user_id
 
-    from app.groups.application import term_item_listings
+    term = (await db_session.execute(select(Term).where(Term.id == term_id))).scalar_one()
+    occurs_on = term.occurs_on
 
-    # The docstring itself discusses the historical `datetime.utcnow()` bug
-    # by name — only the executable body (after the docstring) matters here.
-    # The term-end gate itself now lives in the shared gating helper both
-    # `confirm_transaction` and `cancel_transaction` call (Bug #4b's
-    # extraction), not inline in `confirm_transaction` anymore.
-    source = inspect.getsource(term_item_listings._resolve_transaction_reservations_for_action)
-    body = source.split('"""', 2)[-1]
-    assert "term.occurs_on > datetime.now()" in body
-    assert "datetime.utcnow()" not in body
+    freeze_local_now(occurs_on - timedelta(minutes=1))
+    with pytest.raises(BusinessConflictException, match="Termin jeszcze się nie odbył"):
+        await service.confirm_transaction(
+            db_session, _principal(lister_token), accepted.proposer_reservation_id
+        )
+
+    freeze_local_now(occurs_on + timedelta(minutes=1))
+    fulfilled = await service.confirm_transaction(
+        db_session, _principal(lister_token), accepted.proposer_reservation_id
+    )
+    assert fulfilled.status == "FULFILLED"
 
 
 # --- Bug #4c: InventoryBalanceResponse.reservation_id ------------------
@@ -2249,7 +2253,7 @@ async def test_getItemBalance_afterCancelTransaction_reservationIdClearedToNull(
     )
 
     term = (await db_session.execute(select(Term).where(Term.id == term_id))).scalar_one()
-    term.occurs_on = datetime.utcnow() - timedelta(days=1)
+    term.occurs_on = clock.local_now() - timedelta(days=1)
     await db_session.commit()
 
     await service.cancel_transaction(
@@ -2320,7 +2324,8 @@ async def test_takeItemListing_taker_receivesItemReservedForPickupWithProductLin
     term = (await db_session.execute(select(Term).where(Term.id == term_id))).scalar_one()
     [reserved] = await _notifications(client, taker_token, "ITEM_RESERVED_FOR_PICKUP")
     assert reserved["message"] == (
-        f"Zarezerwowano „Hulajnoga link1” — odbierz na terminie {term.occurs_on:%d.%m}"
+        f"Zarezerwowano „Hulajnoga link1” — odbierz w {clock.format_term_when(term.occurs_on)}"
+        " — Krąg tillink1"
     )
     assert reserved["link_path"] == f"/product/{item_id}"
 
@@ -2409,7 +2414,7 @@ async def test_resolveTransactionReservations_alreadyResolved_notificationLinksT
     )
 
     term = (await db_session.execute(select(Term).where(Term.id == term_id))).scalar_one()
-    term.occurs_on = datetime.utcnow() - timedelta(days=1)
+    term.occurs_on = clock.local_now() - timedelta(days=1)
     await db_session.commit()
 
     await service.confirm_transaction(

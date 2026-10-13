@@ -2,24 +2,9 @@ import { useEffect, useId, useRef, useState } from "react";
 import { ApiError } from "../../api/client";
 import { createJoinRequest } from "../../api/groups";
 import { serverMessageOr } from "../../api/problem";
+import { useRegisterOpenSheet } from "../shared/openSheets";
 import { BTN_GHOST, BTN_PRIMARY, BTN_SM, ERROR_TEXT } from "./kragStyles";
-
-/** Keeps Tab/Shift+Tab focus cycling inside `container`. */
-function trapFocus(e: KeyboardEvent, container: HTMLElement | null) {
-  if (!container) return;
-  const focusable = container.querySelectorAll<HTMLElement>("button:not(:disabled), a[href]");
-  if (focusable.length === 0) return;
-  const first = focusable[0];
-  const last = focusable[focusable.length - 1];
-  const inside = container.contains(document.activeElement);
-  if (e.shiftKey && (!inside || document.activeElement === first)) {
-    e.preventDefault();
-    last.focus();
-  } else if (!e.shiftKey && (!inside || document.activeElement === last)) {
-    e.preventDefault();
-    first.focus();
-  }
-}
+import { trapFocus } from "./trapFocus";
 
 type RequestFlow = { status: "idle" } | { status: "submitting" } | { status: "failed"; message: string };
 
@@ -50,6 +35,7 @@ export function RequestAccessDialog({
   const submitRef = useRef<HTMLButtonElement>(null);
   const [flow, setFlow] = useState<RequestFlow>({ status: "idle" });
   const busy = flow.status === "submitting";
+  useRegisterOpenSheet(true);
 
   useEffect(() => {
     submitRef.current?.focus();

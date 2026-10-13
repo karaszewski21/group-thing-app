@@ -68,6 +68,15 @@ async def get_group(db: AsyncSession, group_id: uuid.UUID) -> Group | None:
     return await db.get(Group, group_id)
 
 
+async def list_group_names(
+    db: AsyncSession, group_ids: Collection[uuid.UUID]
+) -> dict[uuid.UUID, str]:
+    if not group_ids:
+        return {}
+    result = await db.execute(select(Group.id, Group.name).where(Group.id.in_(group_ids)))
+    return {group_id: name for group_id, name in result.all()}
+
+
 async def count_groups(db: AsyncSession) -> int:
     return (await db.execute(select(func.count()).select_from(Group))).scalar_one()
 

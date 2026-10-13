@@ -7,13 +7,14 @@ take -> Term ends -> `confirm-transaction`), never through the raw
 
 from __future__ import annotations
 
-from datetime import date, datetime, timedelta
+from datetime import timedelta
 
 from httpx import AsyncClient
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.groups.application.term_end_scan import scan_for_term_ended
+from app.core import clock
+from app.groups.application.term_end_scan import TERM_END_GRACE, scan_for_term_ended
 from app.groups.domain import swap_events
 from app.groups.models import Term
 from app.notifications.models import Notification, NotificationKind
@@ -51,7 +52,7 @@ async def _create_circle_and_term(
         "/api/terms",
         json={
             "circle_group_id": circle.json()["id"],
-            "occurs_on": (date.today() + timedelta(days=7)).isoformat(),
+            "occurs_on": (clock.local_now().date() + timedelta(days=7)).isoformat(),
         },
         headers=_auth(org_token),
     )
@@ -103,7 +104,7 @@ async def _register_personal_item(client: AsyncClient, token: str, product_name:
 async def _end_term(client: AsyncClient, org_token: str, term_id: int) -> None:
     patch = await client.patch(
         f"/api/terms/{term_id}",
-        json={"occurs_on": (date.today() - timedelta(days=1)).isoformat()},
+        json={"occurs_on": (clock.local_now().date() - timedelta(days=1)).isoformat()},
         headers=_auth(org_token),
     )
     assert patch.status_code == 200
@@ -295,7 +296,7 @@ async def test_confirmTransaction_otherPastTermId_whileOwnTermUpcoming_returns40
         "/api/terms",
         json={
             "circle_group_id": group_id,
-            "occurs_on": (date.today() + timedelta(days=3)).isoformat(),
+            "occurs_on": (clock.local_now().date() + timedelta(days=3)).isoformat(),
         },
         headers=_auth(org_token),
     )
@@ -375,7 +376,7 @@ async def test_listMyLentOutItems_nothingLent_isEmpty(client: AsyncClient) -> No
 
 async def _push_term_into_past(db_session: AsyncSession, term_id: int) -> None:
     term = (await db_session.execute(select(Term).where(Term.id == term_id))).scalar_one()
-    term.occurs_on = datetime.now() - timedelta(hours=1)
+    term.occurs_on = clock.local_now() - TERM_END_GRACE - timedelta(hours=1)
     await db_session.commit()
 
 
@@ -428,7 +429,7 @@ async def test_scan_confirmedPledgeLend_promptsWithReservationId(
         "/api/terms",
         json={
             "circle_group_id": circle.json()["id"],
-            "occurs_on": (date.today() + timedelta(days=1)).isoformat(),
+            "occurs_on": (clock.local_now().date() + timedelta(days=1)).isoformat(),
         },
         headers=_auth(org_token),
     )

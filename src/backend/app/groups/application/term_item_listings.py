@@ -21,12 +21,12 @@ from __future__ import annotations
 
 import uuid
 from collections.abc import Collection
-from datetime import datetime
 from typing import cast
 
 from sqlalchemy import delete
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core import clock
 from app.core.auth_deps import Principal
 from app.core.errors import (
     AccessDeniedException,
@@ -45,14 +45,16 @@ from ..infrastructure import circulation_bridge, notifications_bridge, product_b
 from ..infrastructure.notifications_bridge import NotificationKind
 from ..models import ItemListingPreference, SwapProposal, SwapProposalStatus, Term
 from ..schemas import (
+    AcceptedSwapProposalResponse,
     BrowseTermItemListingResponse,
     LentOutItemResponse,
     MyInventoryItemResponse,
     SwapProposalOfferResponse,
+    SwapProposalResponse,
     TakeTermItemListingRequest,
 )
 from .attendance import _require_term_eligibility
-from .circles import _group_role_party_id, get_current_leadership
+from .circles import _group_role_party_id, get_current_leadership, get_group
 from .terms import get_term
 
 _ACTIVE_RESERVATION_STATUSES = (
@@ -437,7 +439,7 @@ async def list_browsable_term_item_listings(
 ) -> list[BrowseTermItemListingResponse]:
     term = await get_term(db, term_id)
     await _require_term_eligibility(db, term_id, term.circle_group_id, viewer_party_id)
-    if term.occurs_on < datetime.now():
+    if term.occurs_on < clock.local_now():
         return []
 
     eligible_party_ids = await _list_eligible_lister_party_ids(db, term, viewer_party_id)
@@ -476,7 +478,7 @@ async def take_item_listing(
 ) -> BrowseTermItemListingResponse:
     taker_profile = await get_profile_by_principal(db, principal)
     term = await get_term(db, data.term_id)
-    if term.occurs_on < datetime.now():
+    if term.occurs_on < clock.local_now():
         raise BusinessConflictException("Termin już się odbył")
 
     await _require_term_eligibility(db, data.term_id, term.circle_group_id, taker_profile.party_id)
@@ -526,18 +528,25 @@ async def take_item_listing(
     )
 
     product = await product_bridge.get_product(db, listed_item.product_id)
+    group = await get_group(db, term.circle_group_id)
+    when = clock.format_term_when(term.occurs_on)
     await notifications_bridge.create_notification(
         db,
         party_id=preference.owner_party_id,
         kind=NotificationKind.TERM_ITEM_LISTING_TAKEN,
-        message=f'„{taker_profile.display_name}" chce wziąć Twoją rzecz: {product.name}',
+        message=clock.fit_notification_message(
+            f"„{taker_profile.display_name}” weźmie „{product.name}”"
+            f" — przynieś w {when} — {group.name}"
+        ),
         link_path=f"/product/{item_id}",
     )
     await notifications_bridge.create_notification(
         db,
         party_id=taker_profile.party_id,
         kind=NotificationKind.ITEM_RESERVED_FOR_PICKUP,
-        message=f"Zarezerwowano „{product.name}” — odbierz na terminie {term.occurs_on:%d.%m}",
+        message=clock.fit_notification_message(
+            f"Zarezerwowano „{product.name}” — odbierz w {when} — {group.name}"
+        ),
         link_path=f"/product/{item_id}",
     )
     await db.commit()
@@ -589,7 +598,7 @@ async def propose_swap(
     `accept_swap_proposal`s or `reject_swap_proposal`s it."""
     proposer_profile = await get_profile_by_principal(db, principal)
     term = await get_term(db, term_id)
-    if term.occurs_on < datetime.now():
+    if term.occurs_on < clock.local_now():
         raise BusinessConflictException("Termin już się odbył")
     await _require_term_eligibility(db, term_id, term.circle_group_id, proposer_profile.party_id)
 
@@ -671,7 +680,7 @@ async def propose_swap(
 
 async def accept_swap_proposal(
     db: AsyncSession, principal: Principal, proposal_id: uuid.UUID
-) -> SwapProposal:
+) -> AcceptedSwapProposalResponse:
     """Creates the listing owner's own leg (auto-confirmed on their own
     behalf, same reasoning as `propose_swap`'s proposer leg) and pairs it
     with the proposer's already-locked leg by directly wiring
@@ -697,13 +706,15 @@ async def accept_swap_proposal(
     # party — here, the proposer, who will receive the listing owner's item
     # once fulfilled — not the listing owner themself.
     proposer_profile_for_reservation = await get_profile_by_party(db, proposal.proposer_party_id)
-    # Fetched ahead of the owner's own leg (rather than after, as before)
-    # purely to reuse its already-resolved `term_id` — both legs of one
-    # swap always share the same Term, and this proposer leg had it
-    # resolved back when `propose_swap` created it.
+    # Fetched ahead of the owner's own leg to reuse its already-resolved
+    # `term_id` — both legs of one swap always share the same Term — and to
+    # reject a late accept before any reservation is written.
     proposer_reservation = await circulation_bridge.get_reservation(
         db, proposal.proposer_reservation_id
     )
+    term = await get_term(db, proposer_reservation.term_id)
+    if term.occurs_on < clock.local_now():
+        raise BusinessConflictException("Termin już się odbył")
     owner_reservation = await circulation_bridge.create_reservation(
         db,
         item_id=proposal.listing_item_id,
@@ -724,11 +735,15 @@ async def accept_swap_proposal(
 
     listed_item = await circulation_bridge.get_item(db, proposal.listing_item_id)
     product = await product_bridge.get_product(db, listed_item.product_id)
+    group = await get_group(db, term.circle_group_id)
     await notifications_bridge.create_notification(
         db,
         party_id=proposal.proposer_party_id,
         kind=NotificationKind.SWAP_ACCEPTED,
-        message=f"Twoja propozycja zamiany za „{product.name}\" została zaakceptowana",
+        message=clock.fit_notification_message(
+            f"Twoja propozycja zamiany za „{product.name}” została zaakceptowana"
+            f" — wymiana w {clock.format_term_when(term.occurs_on)} — {group.name}"
+        ),
         link_path=f"/product/{proposal.listing_item_id}",
     )
 
@@ -757,7 +772,13 @@ async def accept_swap_proposal(
 
     await db.commit()
     await db.refresh(proposal)
-    return proposal
+    return AcceptedSwapProposalResponse(
+        **SwapProposalResponse.model_validate(proposal).model_dump(),
+        term_id=term.id,
+        term_occurs_on=term.occurs_on,
+        group_id=group.id,
+        group_name=group.name,
+    )
 
 
 async def reject_swap_proposal(
@@ -908,12 +929,10 @@ async def _resolve_transaction_reservations_for_action(
     caller-supplied one, which would let a party resolve an exchange early
     by naming some other, already-ended Term. It deliberately does NOT
     share a helper with `take_item_listing`'s own, differently-timed
-    `occurs_on < datetime.now()` check (see spec.md Technical Approach step
-    3). Both compare against server-local `datetime.now()`, not
-    `datetime.utcnow()` — `occurs_on` is itself a naive LOCAL wall-clock
-    value (see `TermResponse.occurs_on`'s docstring), so comparing it
-    against true UTC "now" was throwing every check off by the server's
-    UTC offset (e.g. ~2h during CEST)."""
+    `occurs_on < clock.local_now()` check (see spec.md Technical Approach
+    step 3). Both compare against `clock.local_now()`: `occurs_on` is a
+    naive Europe/Warsaw wall-clock value, so neither the host clock nor UTC
+    "now" can be compared with it directly."""
     profile = await get_profile_by_principal(db, principal)
     reservation = await circulation_bridge.get_reservation(db, reservation_id)
     # `giver_user_id` (captured at reservation creation), not the item's
@@ -941,7 +960,7 @@ async def _resolve_transaction_reservations_for_action(
         raise BusinessConflictException("Zamiana nie została zaakceptowana")
 
     term = await get_term(db, reservation.term_id)
-    if term.occurs_on > datetime.now():
+    if term.occurs_on > clock.local_now():
         raise BusinessConflictException("Termin jeszcze się nie odbył")
 
     if reservation.status not in _ACTIVE_RESERVATION_STATUSES:

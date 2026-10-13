@@ -16,10 +16,12 @@ notification text or `NotificationKind`."""
 from __future__ import annotations
 
 import uuid
+from datetime import datetime
 from typing import Any
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core import clock
 from app.outbox import registry
 
 from . import service
@@ -72,6 +74,17 @@ async def _handle_pledge_withdrawn(db: AsyncSession, payload: dict[str, Any]) ->
     )
 
 
+def _term_suffix(payload: dict[str, Any]) -> str | None:
+    """`(śr 15.10, Grupa)`, or `None` for an event staged before the payload
+    carried the Term details."""
+    occurs_on = payload.get("occurs_on")
+    group_name = payload.get("group_name")
+    if not occurs_on or not group_name:
+        return None
+    day = clock.format_term_day(datetime.fromisoformat(occurs_on))
+    return f"({day}, {group_name})"
+
+
 async def _handle_term_ended_giveaway(db: AsyncSession, payload: dict[str, Any]) -> None:
     """One `Notification` per party (the giver and the taker) of a GIFT or
     LEND `Reservation` whose Term just ended — same payload-driven, fully
@@ -79,12 +92,18 @@ async def _handle_term_ended_giveaway(db: AsyncSession, payload: dict[str, Any])
     `reservation_id` so the client can confirm that reservation directly."""
     link_path = payload["link_path"]
     reservation_id = uuid.UUID(payload["reservation_id"])
+    item_name = payload.get("item_name")
+    suffix = _term_suffix(payload)
+    if item_name and suffix:
+        message = f"Czy przekazanie „{item_name}” doszło do skutku? {suffix}"
+    else:
+        message = "Czy przekazanie rzeczy doszło do skutku?"
     for party_id in (payload["owner_party_id"], payload["taker_party_id"]):
         await service.create_notification(
             db,
             party_id=uuid.UUID(party_id),
             kind=NotificationKind.TERM_CONFIRMATION_NEEDED,
-            message="Termin się odbył — potwierdź przekazanie rzeczy",
+            message=clock.fit_notification_message(message),
             link_path=link_path,
             reservation_id=reservation_id,
         )
@@ -92,13 +111,26 @@ async def _handle_term_ended_giveaway(db: AsyncSession, payload: dict[str, Any])
 
 async def _handle_term_ended_swap(db: AsyncSession, payload: dict[str, Any]) -> None:
     """One `Notification` per party (the proposer and the listing owner) of
-    an `ACCEPTED` `SwapProposal` whose Term just ended."""
+    an `ACCEPTED` `SwapProposal` whose Term just ended. Both carry
+    `proposal_id`, which tells the client a swap prompt from a giveaway one."""
     link_path = payload["link_path"]
+    proposal_id = uuid.UUID(payload["proposal_id"])
+    listing_item_name = payload.get("listing_item_name")
+    offered_item_name = payload.get("offered_item_name")
+    suffix = _term_suffix(payload)
+    if listing_item_name and offered_item_name and suffix:
+        message = (
+            f"Czy zamiana „{listing_item_name}” ↔ „{offered_item_name}” "
+            f"doszła do skutku? {suffix}"
+        )
+    else:
+        message = "Czy zamiana doszła do skutku?"
     for party_id in (payload["proposer_party_id"], payload["owner_party_id"]):
         await service.create_notification(
             db,
             party_id=uuid.UUID(party_id),
             kind=NotificationKind.TERM_CONFIRMATION_NEEDED,
-            message="Termin się odbył — potwierdź zamianę",
+            message=clock.fit_notification_message(message),
             link_path=link_path,
+            proposal_id=proposal_id,
         )

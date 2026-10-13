@@ -14,6 +14,8 @@ from datetime import date, timedelta
 
 from httpx import AsyncClient
 
+from app.core import clock
+
 
 def _auth(token: str) -> dict[str, str]:
     return {"Authorization": f"Bearer {token}"}
@@ -38,7 +40,7 @@ async def _create_circle_and_term(
         "/api/terms",
         json={
             "circle_group_id": circle.json()["id"],
-            "occurs_on": (occurs_on or (date.today() + timedelta(days=7))).isoformat(),
+            "occurs_on": (occurs_on or (clock.local_now().date() + timedelta(days=7))).isoformat(),
         },
         headers=_auth(org_token),
     )
@@ -534,7 +536,7 @@ async def _end_term(client: AsyncClient, org_token: str, term_id: int) -> None:
     Term to still be upcoming (see `_take_lend_listing`)."""
     patch = await client.patch(
         f"/api/terms/{term_id}",
-        json={"occurs_on": (date.today() - timedelta(days=1)).isoformat()},
+        json={"occurs_on": (clock.local_now().date() - timedelta(days=1)).isoformat()},
         headers=_auth(org_token),
     )
     assert patch.status_code == 200
@@ -668,7 +670,7 @@ async def test_cancelTransaction_reservationTermUpcoming_returns409(client: Asyn
         "/api/terms",
         json={
             "circle_group_id": group_id,
-            "occurs_on": (date.today() + timedelta(days=3)).isoformat(),
+            "occurs_on": (clock.local_now().date() + timedelta(days=3)).isoformat(),
         },
         headers=_auth(org_token),
     )
@@ -899,7 +901,7 @@ async def test_listMineAsTaker_ownerWithBorrowersPendingReturn_showsOnlyOwnTakes
         "/api/terms",
         json={
             "circle_group_id": group_id,
-            "occurs_on": (date.today() + timedelta(days=14)).isoformat(),
+            "occurs_on": (clock.local_now().date() + timedelta(days=14)).isoformat(),
         },
         headers=_auth(org_token),
     )

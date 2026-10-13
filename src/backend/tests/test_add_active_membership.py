@@ -5,11 +5,12 @@ test seeding. Flat `tests/` placement, same convention as
 
 from __future__ import annotations
 
-from datetime import date, timedelta
+from datetime import timedelta
 
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core import clock
 from app.groups import service
 
 
@@ -36,7 +37,7 @@ async def _create_circle_and_term(
         "/api/terms",
         json={
             "circle_group_id": circle.json()["id"],
-            "occurs_on": (date.today() + timedelta(days=7)).isoformat(),
+            "occurs_on": (clock.local_now().date() + timedelta(days=7)).isoformat(),
         },
         headers=_auth(org_token),
     )
@@ -55,7 +56,7 @@ async def test_addActiveMembership_newParty_createsActiveMemberRoleAndMembership
 
     assert membership.id is not None
     assert membership.to_group_id == group_id
-    assert membership.valid_from == date.today()
+    assert membership.valid_from == clock.local_now().date()
     assert membership.valid_to is None
     memberships = await service.list_memberships_for_party(db_session, party_id)
     assert [(m.id, m.to_group_id) for m in memberships] == [(membership.id, group_id)]

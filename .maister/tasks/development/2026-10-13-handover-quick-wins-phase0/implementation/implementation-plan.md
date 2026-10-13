@@ -164,15 +164,15 @@ Secrets rule: this group touches startup config and dependencies. Never print se
 **Files to Modify:** `src/backend/tests/test_term_item_listings.py`, `src/backend/tests/test_term_end_scan.py`, `src/backend/tests/test_lend_step0_fixes.py`, `src/backend/tests/test_organizer_page.py`, `src/backend/tests/test_term_item_listings_router.py`, `src/backend/tests/test_add_active_membership.py`, `src/backend/tests/test_public_term.py`
 **Estimated Steps:** 6
 
-- [ ] 5.0 Complete the test migration (R10.2, R10.3)
-  - [ ] 5.1 Write 2-3 focused tests
+- [x] 5.0 Complete the test migration (R10.2, R10.3)
+  - [x] 5.1 Write 2-3 focused tests
     - Replace `test_swapReservedByUserId_notInverted_andTermEndGate_usesLocalNow` (`test_term_item_listings.py:2002`): keep the `reserved_by_user_id` assertion; replace the `inspect.getsource` part (~:2070) with a behavioral assertion using `freeze_local_now` (e.g. confirm refused 1 minute before `occurs_on`, allowed 1 minute after)
     - One scan test in `test_term_end_scan.py` using `freeze_local_now` that pins the 2 h boundary (`occurs_on + 2h` emits, `occurs_on + 2h - 1min` does not)
-  - [ ] 5.2 Migrate past/future Term builders and host-date assertions in `test_term_item_listings.py` (~20 sites) from `datetime.utcnow()`/`datetime.now()`/`date.today()` deltas to `clock.local_now()`-relative values
-  - [ ] 5.3 Migrate `test_term_end_scan.py:119` (push Terms more than 2 h into the past), `test_lend_step0_fixes.py:106/378`, `test_organizer_page.py:132/276/440/454`, `test_term_item_listings_router.py:41/537/634`
-  - [ ] 5.4 Migrate `test_add_active_membership.py:58` (`valid_from == clock.local_now().date()`) and the `date.today()`-based Terms in `test_public_term.py` read against `midnight_today`
-  - [ ] 5.5 Run `uv run python -m ruff check tests`
-  - [ ] 5.6 Ensure the migrated files pass
+  - [x] 5.2 Migrate past/future Term builders and host-date assertions in `test_term_item_listings.py` (~20 sites) from `datetime.utcnow()`/`datetime.now()`/`date.today()` deltas to `clock.local_now()`-relative values
+  - [x] 5.3 Migrate `test_term_end_scan.py:119` (push Terms more than 2 h into the past), `test_lend_step0_fixes.py:106/378`, `test_organizer_page.py:132/276/440/454`, `test_term_item_listings_router.py:41/537/634`
+  - [x] 5.4 Migrate `test_add_active_membership.py:58` (`valid_from == clock.local_now().date()`) and the `date.today()`-based Terms in `test_public_term.py` read against `midnight_today`
+  - [x] 5.5 Run `uv run python -m ruff check tests`
+  - [x] 5.6 Ensure the migrated files pass
     - Run ONLY `cd src/backend && uv run python -m pytest tests/test_term_item_listings.py tests/test_term_end_scan.py tests/test_lend_step0_fixes.py tests/test_organizer_page.py tests/test_term_item_listings_router.py tests/test_add_active_membership.py tests/test_public_term.py`
 
 **Acceptance Criteria:**
@@ -387,14 +387,14 @@ Secrets rule: this group touches startup config and dependencies. Never print se
 
 Secrets rule: the full-suite runs may touch Docker/TestContainers and config. Never print secret values (no `env`, `printenv`, `cat .env`, `docker inspect` env); presence checks only.
 
-- [ ] 12.0 Review and fill critical gaps
-  - [ ] 12.1 Review the tests from Groups 1-11 (about 55-71) against the spec's Testing Approach and Success Criteria 1-10
-  - [ ] 12.2 Analyze gaps for THIS feature only (e.g. HLD Example 4 end-to-end on a UTC host, listener cap in the swap branch, host Esc snooze, item page IN_TRANSIT variant)
-  - [ ] 12.3 Write up to 10 additional strategic tests in the files listed above
-  - [ ] 12.4 RED gate: run `cd src/backend && uv run python -m pytest tests/test_term_clock_regressions.py` (expect 6 passed) and `cd src/frontend && npx vitest run src/test/PendingActionsHost.test.tsx -t "snoozes it without marking"` (expect 1 passed)
-  - [ ] 12.5 Full suites: `cd src/backend && uv run python -m pytest` and `cd src/frontend && npx vitest run` (including `themeDefects` and `themeTokenUsage`)
-  - [ ] 12.6 Static checks: `uv run python -m ruff check app tests`, `uv run python -m mypy app` (no new errors over the ~32 HEAD baseline), `npx tsc -p tsconfig.app.json --noEmit`, `npx eslint .`
-  - [ ] 12.7 Re-check the grep guard and `visual-coverage.md`: every design id is implemented as declared
+- [x] 12.0 Review and fill critical gaps
+  - [x] 12.1 Review the tests from Groups 1-11 (about 55-71) against the spec's Testing Approach and Success Criteria 1-10
+  - [x] 12.2 Analyze gaps for THIS feature only (e.g. HLD Example 4 end-to-end on a UTC host, listener cap in the swap branch, host Esc snooze, item page IN_TRANSIT variant)
+  - [x] 12.3 Write up to 10 additional strategic tests in the files listed above
+  - [x] 12.4 RED gate: run `cd src/backend && uv run python -m pytest tests/test_term_clock_regressions.py` (expect 6 passed) and `cd src/frontend && npx vitest run src/test/PendingActionsHost.test.tsx -t "snoozes it without marking"` (expect 1 passed)
+  - [x] 12.5 Full suites: `cd src/backend && uv run python -m pytest` and `cd src/frontend && npx vitest run` (including `themeDefects` and `themeTokenUsage`)
+  - [x] 12.6 Static checks: `uv run python -m ruff check app tests`, `uv run python -m mypy app` (no new errors over the ~32 HEAD baseline), `npx tsc -p tsconfig.app.json --noEmit`, `npx eslint .`
+  - [x] 12.7 Re-check the grep guard and `visual-coverage.md`: every design id is implemented as declared
 
 **Acceptance Criteria:**
 - All feature tests pass; no more than 10 tests added in this group

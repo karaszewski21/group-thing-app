@@ -43,8 +43,8 @@ async def create_notification(
     """Stage a notification on the session — no commit/flush. The producing
     use case's own trailing `db.commit()` persists it atomically with the
     action that triggered it. `proposal_id` is the loose
-    `app.groups.models.SwapProposal.id` pointer, only meaningful for
-    `SWAP_PROPOSED`; `join_request_id` is the loose
+    `app.groups.models.SwapProposal.id` pointer, set on `SWAP_PROPOSED`
+    and on a swap `TERM_CONFIRMATION_NEEDED`; `join_request_id` is the loose
     `app.groups.models.GroupJoinRequest.id` pointer, only meaningful for
     the `GROUP_JOIN_*` kinds; `reservation_id` is the loose
     `app.circulation.models.Reservation.id` pointer, only meaningful for a

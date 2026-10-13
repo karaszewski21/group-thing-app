@@ -65,14 +65,14 @@ async def get_item_details(
     balance_status = balance.status if balance is not None else None
 
     reservation = None
-    term_occurs_on = None
+    term = None
     in_flight = balance_status in (BalanceStatus.RESERVED, BalanceStatus.IN_TRANSIT)
     if item.deleted_at is None and in_flight:
         reservation = newest_reservation(
             await repository.list_active_reservations_for_item(db, item_id)
         )
         if reservation is not None:
-            term_occurs_on = await repository.find_term_occurs_on(db, reservation.term_id)
+            term = await repository.find_reservation_term(db, reservation.term_id)
 
     display_names: dict[uuid.UUID, str] = {}
     if reservation is not None:
@@ -84,7 +84,7 @@ async def get_item_details(
         balance_status=balance_status,
         due_date=balance.due_date if balance is not None else None,
         reservation=reservation,
-        term_occurs_on=term_occurs_on,
+        term=term,
         viewer=viewer,
         holder_user_id=holder,
         home_owner_user_id=home_owner,

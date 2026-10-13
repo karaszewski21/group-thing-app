@@ -173,6 +173,9 @@ class ItemStatusResponse(BaseModel):
     term_occurs_on: datetime | None
     due_date: datetime | None
     counterparty_label: str | None
+    term_id: uuid.UUID | None = None
+    group_id: uuid.UUID | None = None
+    group_name: str | None = None
 
 
 class ItemDetailsResponse(BaseModel):

@@ -16,6 +16,7 @@ import { NeededItemsSection } from "./components/NeededItemsSection";
 import { AttendeeList } from "./components/AttendeeList";
 import { TermFooter } from "./components/TermFooter";
 import { SwapProposeDialog } from "./components/SwapProposeDialog";
+import { TakeSuccessSheet } from "./TakeSuccessSheet";
 import { LISTABLE_RESERVATION_TYPES, TAKE_ACTION_LABELS } from "./components/termLabels";
 import { attendeeElementId, type ListingRowVM, type NeededItemRowVM } from "./components/termSectionTypes";
 import { buildAttendees, buildVisualizationFamilies } from "./termViewModel";
@@ -179,6 +180,18 @@ export function PublicTermView({
                 />
               ) : null;
             })()}
+          {itemTake.takeSuccess && term && (
+            <TakeSuccessSheet
+              itemId={itemTake.takeSuccess.itemId}
+              itemName={itemTake.takeSuccess.itemName}
+              occursOn={term.occurs_on}
+              groupName={group.name}
+              groupId={groupId}
+              termId={term.id}
+              organizerSlug={group.organizer_slug ?? "krag"}
+              onClose={itemTake.closeTakeSuccess}
+            />
+          )}
           {toast && (
             <div className="fixed bottom-[90px] left-1/2 z-[120] -translate-x-1/2 rounded-full bg-ink px-5 py-[11px] text-sm font-semibold text-on-ink shadow-[0_14px_30px_-14px_rgba(30,46,39,.9)]" role="status">
               {toast}
@@ -195,7 +208,7 @@ export function PublicTermView({
         organizerSlug={group.organizer_slug}
       />
 
-      <main className="flex-1">
+      <main tabIndex={-1} className="flex-1 outline-none">
         <section aria-label="Krąg zajęć" className="mx-5 rounded-[30px] bg-primary-soft pb-4">
           <GroupVisualization
             layoutMode={group.layout_mode}

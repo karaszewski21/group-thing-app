@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, type KeyboardEvent } from "react";
 import { useBlocker, useSearchParams } from "react-router-dom";
+import { useRegisterOpenSheet } from "../../../components/shared/openSheets";
 import { CloseIcon } from "../../panel/panelIcons";
 import type { OrganizerPageData } from "../layouts/types";
 import { AboutTab } from "./AboutTab";
@@ -70,6 +71,8 @@ export function EditorSheet({
     ({ currentLocation, nextLocation }) => dirty && currentLocation.pathname !== nextLocation.pathname,
   );
   const blocked = blocker.state === "blocked";
+  // Mounted only while open; app-wide prompts wait until it closes.
+  useRegisterOpenSheet(true);
 
   useEffect(() => {
     titleRef.current?.focus();

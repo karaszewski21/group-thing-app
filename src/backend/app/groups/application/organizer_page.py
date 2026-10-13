@@ -15,11 +15,12 @@ statements, constant)."""
 from __future__ import annotations
 
 import uuid
-from datetime import datetime, timedelta
+from datetime import timedelta
 from typing import cast
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core import clock
 from app.core.errors import EntityNotFoundException
 from app.core.pagination import Page, PageParams
 from app.storage.service import ObjectStorage
@@ -79,8 +80,8 @@ async def get_organizer_page(
     db: AsyncSession, slug: str, storage: ObjectStorage | None
 ) -> OrganizerPageResponse:
     owner_party_id = await _resolve_owner(db, slug)
-    # Server-local naive time, the same clock the naive `occurs_on` values use.
-    now = datetime.now()
+    # Warsaw wall clock, the same clock the naive `occurs_on` values use.
+    now = clock.local_now()
     window_end = now + UPCOMING_WINDOW
 
     circle_rows = await repository.list_owner_public_circles(db, owner_party_id, now, window_end)
@@ -164,7 +165,7 @@ async def list_organizer_terms(
     """Every upcoming term of the owner's qualifying PUBLIC circles, with no
     window. A `group_id` outside those circles gives an empty page, not a 404."""
     owner_party_id = await _resolve_owner(db, slug)
-    now = datetime.now()
+    now = clock.local_now()
     total = await repository.count_owner_public_terms(db, owner_party_id, now, group_id)
     rows = await repository.list_owner_public_terms_page(
         db, owner_party_id, now, group_id, params.offset, params.size

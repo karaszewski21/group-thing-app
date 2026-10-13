@@ -9,6 +9,7 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core import clock
 from app.core.auth_deps import Principal, require_any
 from app.db import get_db
 from app.groups import service
@@ -40,6 +41,8 @@ async def assign_leadership(
 async def remove_leadership(
     leadership_id: uuid.UUID, db: DbSession, principal: EditPrincipal, valid_to: date | None = None
 ) -> LeadershipResponse:
-    leadership = await service.remove_leadership(db, leadership_id, valid_to or date.today())
+    leadership = await service.remove_leadership(
+        db, leadership_id, valid_to or clock.local_now().date()
+    )
     rows = await service.build_leadership_responses(db, [leadership])
     return LeadershipResponse(**rows[0])

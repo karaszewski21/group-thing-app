@@ -13,12 +13,13 @@ organizer's organization once and derives both `organizer_slug` and
 from __future__ import annotations
 
 import uuid
-from datetime import date, datetime, time
+from datetime import datetime, time
 from typing import cast
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core import clock
 from app.core.auth_deps import Principal
 from app.core.errors import AccessDeniedException, EntityNotFoundException
 from app.party.models import PartyType
@@ -248,7 +249,7 @@ async def get_public_circle_view(
     else:
         terms = await list_terms(db, group_id)
         if terms:
-            midnight_today = datetime.combine(date.today(), time.min)
+            midnight_today = datetime.combine(clock.local_now().date(), time.min)
             upcoming = [t for t in terms if t.occurs_on >= midnight_today]
             term = min(upcoming, key=lambda t: t.occurs_on) if upcoming else terms[0]
 

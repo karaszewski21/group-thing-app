@@ -142,7 +142,7 @@ function ItemViewContent({ item, history }: { item: ItemDetailsResponse; history
             </Link>
           )}
         </div>
-        <ItemStatusCard status={item.status} />
+        <ItemStatusCard status={item.status} itemId={item.id} itemName={item.name} isOwner={item.is_owner} />
         <section className="mt-4 rounded-3xl border border-line bg-paper p-5" aria-labelledby="item-description-heading">
           <h3 id="item-description-heading" className={FIELD_LABEL}>
             Opis

@@ -19,6 +19,7 @@ from typing import cast
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core import clock
 from app.core.errors import AccessDeniedException, EntityNotFoundException
 from app.core.pagination import PageParams
 from app.moderation.text_guard import TextField, check_text
@@ -75,7 +76,7 @@ async def create_own_circle(db: AsyncSession, organizer_party_id: uuid.UUID, cir
     leadership = Leadership(
         from_role_id=cast(uuid.UUID, role.id),
         to_group_id=cast(uuid.UUID, circle.id),
-        valid_from=date.today(),
+        valid_from=clock.local_now().date(),
         valid_to=None,
     )
     db.add(leadership)
@@ -106,7 +107,7 @@ async def create_additional_circle(
     leadership = Leadership(
         from_role_id=cast(uuid.UUID, role.id),
         to_group_id=cast(uuid.UUID, circle.id),
-        valid_from=date.today(),
+        valid_from=clock.local_now().date(),
         valid_to=None,
     )
     db.add(leadership)

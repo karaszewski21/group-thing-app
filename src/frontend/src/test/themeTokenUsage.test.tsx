@@ -63,6 +63,10 @@ describe("organizer-themed files use role tokens", () => {
     "pages/product/ItemGallery.tsx",
     "pages/product/ItemGalleryEditor.tsx",
     "pages/product/ItemEditPage.tsx",
+    "components/shared/AddToCalendarButton.tsx",
+    "components/pending/PendingActionsHost.tsx",
+    "pages/krag/TakeSuccessSheet.tsx",
+    "pages/panel/views/SwapAcceptSuccessSheet.tsx",
     ...ORGANIZER_PAGE_FILES,
   ];
 
@@ -77,6 +81,10 @@ describe("organizer-themed files use role tokens", () => {
     "components/krag/ModalSheet.tsx",
     "components/krag/AuthGateSheet.tsx",
     "components/shared/PhoneFrame.tsx",
+    "components/shared/AddToCalendarButton.tsx",
+    "components/pending/PendingActionsHost.tsx",
+    "pages/krag/TakeSuccessSheet.tsx",
+    "pages/panel/views/SwapAcceptSuccessSheet.tsx",
     "pages/product/ItemTimeline.tsx",
     "pages/product/itemPageShared.ts",
     "pages/product/ItemGallery.tsx",

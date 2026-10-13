@@ -16,8 +16,9 @@ from __future__ import annotations
 import os
 import subprocess
 import sys
-from collections.abc import AsyncGenerator, Generator, Iterator
+from collections.abc import AsyncGenerator, Callable, Generator, Iterator
 from contextlib import contextmanager
+from datetime import datetime
 from pathlib import Path
 from typing import Any
 
@@ -111,6 +112,18 @@ async def db_session(engine: AsyncEngine) -> AsyncGenerator[AsyncSession, None]:
         await session.close()
         await outer_transaction.rollback()
         await connection.close()
+
+
+@pytest.fixture
+def freeze_local_now(monkeypatch: pytest.MonkeyPatch) -> Callable[[datetime], None]:
+    """Opt-in: `freeze(dt)` makes `clock.local_now()` return the naive
+    Warsaw datetime `dt` for every call site that uses `clock.local_now()`."""
+    from app.core import clock
+
+    def _freeze(dt: datetime) -> None:
+        monkeypatch.setattr(clock, "local_now", lambda: dt)
+
+    return _freeze
 
 
 @pytest.fixture

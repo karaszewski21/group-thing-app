@@ -126,6 +126,9 @@ async def test_getItemDetails_ownerAndNonOwner_returnsFieldsPhotosAndIsOwnerFlag
         "term_occurs_on": None,
         "due_date": None,
         "counterparty_label": None,
+        "term_id": None,
+        "group_id": None,
+        "group_name": None,
     }
 
     other_view = await _details(client, item_id, _auth(other_token))
@@ -174,6 +177,9 @@ async def test_getItemDetails_deletedOrMissingItem_returns200DeletedOr404(
         "term_occurs_on": None,
         "due_date": None,
         "counterparty_label": None,
+        "term_id": None,
+        "group_id": None,
+        "group_name": None,
     }
     missing = await client.get(
         f"/api/inventory-items/{uuid.uuid4()}/details", headers=_auth(owner_token)
@@ -206,14 +212,18 @@ async def test_getItemDetails_afterTake_reservedStatusWithTermDateAndPerViewerLa
     taker_name = await _display_name(client, _auth(taker_token))
 
     labels = {}
+    places = {}
     for viewer, token in (("taker", taker_token), ("owner", lister_token), ("third", third_token)):
         status = (await _details(client, item_id, _auth(token)))["status"]
         assert status["code"] == "RESERVED"
         assert status["term_occurs_on"] == term.occurs_on.isoformat()
         assert status["due_date"] is None
         labels[viewer] = status["counterparty_label"]
+        places[viewer] = (status["term_id"], status["group_id"], status["group_name"])
 
     assert labels == {"taker": "Ty", "owner": taker_name, "third": "inna rodzina"}
+    party_place = (str(term_id), str(group_id), "Krąg itd4")
+    assert places == {"taker": party_place, "owner": party_place, "third": (None, None, None)}
 
 
 async def test_getItemDetails_offeredItemInPendingSwap_returnsProposedSwapThenInTransitAfterAccept(
@@ -245,6 +255,9 @@ async def test_getItemDetails_offeredItemInPendingSwap_returnsProposedSwapThenIn
         "term_occurs_on": None,
         "due_date": None,
         "counterparty_label": lister_name,
+        "term_id": None,
+        "group_id": None,
+        "group_name": None,
     }
     lister_view = (await _details(client, offered_item_id, _auth(lister_token)))["status"]
     assert lister_view["code"] == "PROPOSED_SWAP"
@@ -346,7 +359,7 @@ def test_label_viewerWithoutUserOrMissingDisplayName_isOtherFamily() -> None:
         balance_status=BalanceStatus.LENT,
         due_date=None,
         reservation=None,
-        term_occurs_on=None,
+        term=None,
         viewer=None,
         holder_user_id=borrower,
         home_owner_user_id=owner,

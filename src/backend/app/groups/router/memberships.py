@@ -9,6 +9,7 @@ from typing import Annotated
 from fastapi import APIRouter, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core import clock
 from app.core.auth_deps import Principal, require_any
 from app.db import get_db
 from app.groups import service
@@ -28,7 +29,7 @@ async def end_membership(
     membership_id: uuid.UUID, db: DbSession, principal: EditPrincipal, valid_to: date | None = None
 ) -> MembershipResponse:
     membership = await service.end_membership(
-        db, principal, membership_id, valid_to or date.today()
+        db, principal, membership_id, valid_to or clock.local_now().date()
     )
     rows = await service.build_membership_responses(db, [membership])
     return MembershipResponse(**rows[0])

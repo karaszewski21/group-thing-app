@@ -34,11 +34,23 @@ class ItemStatusCode(enum.StrEnum):
 
 
 @dataclass(frozen=True)
+class ReservationTerm:
+    """The reservation's Term and the group it belongs to."""
+
+    occurs_on: datetime
+    group_id: uuid.UUID
+    group_name: str
+
+
+@dataclass(frozen=True)
 class ItemStatus:
     code: ItemStatusCode
     term_occurs_on: datetime | None = None
     due_date: datetime | None = None
     counterparty_label: str | None = None
+    term_id: uuid.UUID | None = None
+    group_id: uuid.UUID | None = None
+    group_name: str | None = None
 
 
 def label(
@@ -85,16 +97,17 @@ def derive_status(
     balance_status: BalanceStatus | None,
     due_date: datetime | None,
     reservation: Reservation | None,
-    term_occurs_on: datetime | None,
+    term: ReservationTerm | None,
     viewer: uuid.UUID | None,
     holder_user_id: uuid.UUID,
     home_owner_user_id: uuid.UUID,
     display_names: Mapping[uuid.UUID, str],
 ) -> ItemStatus:
     """The "Aktualny status" block. `reservation` is the newest active
-    reservation (see `newest_reservation`) and `term_occurs_on` its term
-    date; `holder_user_id` owns the item's current inventory (the borrower
-    while lent) and `home_owner_user_id` its permanent one."""
+    reservation (see `newest_reservation`) and `term` its Term, whose id and
+    group are shown only to the reservation's two parties; `holder_user_id`
+    owns the item's current inventory (the borrower while lent) and
+    `home_owner_user_id` its permanent one."""
     if deleted:
         return ItemStatus(ItemStatusCode.DELETED)
     if balance_status in (None, BalanceStatus.AVAILABLE, BalanceStatus.RETURNED):
@@ -127,4 +140,17 @@ def derive_status(
         and reservation.paired_reservation_id is None
     ):
         return ItemStatus(ItemStatusCode.PROPOSED_SWAP, counterparty_label=counterparty)
-    return ItemStatus(balance_code, term_occurs_on=term_occurs_on, counterparty_label=counterparty)
+    if term is None:
+        return ItemStatus(balance_code, counterparty_label=counterparty)
+    if viewer not in {recipient, reservation.giver_user_id}:
+        return ItemStatus(
+            balance_code, term_occurs_on=term.occurs_on, counterparty_label=counterparty
+        )
+    return ItemStatus(
+        balance_code,
+        term_occurs_on=term.occurs_on,
+        counterparty_label=counterparty,
+        term_id=reservation.term_id,
+        group_id=term.group_id,
+        group_name=term.group_name,
+    )

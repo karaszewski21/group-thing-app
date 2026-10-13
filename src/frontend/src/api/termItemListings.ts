@@ -83,6 +83,16 @@ export interface SwapProposalResponse {
   updated_at: string;
 }
 
+/** The accept response also names the Term and Circle the swap happens at
+ * (always set by the backend on success; typed nullable so the success sheet
+ * degrades instead of crashing if they are ever missing). */
+export interface AcceptedSwapProposalResponse extends SwapProposalResponse {
+  term_id: string | null;
+  term_occurs_on: string | null;
+  group_id: string | null;
+  group_name: string | null;
+}
+
 /** SWAP no longer goes through `takeTermItemListing` (the backend rejects
  * it there) — a swap "take" is always a proposal the listing owner must
  * accept or reject. */
@@ -93,7 +103,7 @@ export function proposeSwap(
   return api.post(`/term-item-listings/${itemId}/propose`, request);
 }
 
-export function acceptSwapProposal(proposalId: string): Promise<SwapProposalResponse> {
+export function acceptSwapProposal(proposalId: string): Promise<AcceptedSwapProposalResponse> {
   return api.post(`/swap-proposals/${proposalId}/accept`, undefined);
 }
 

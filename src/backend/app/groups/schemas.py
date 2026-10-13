@@ -720,6 +720,15 @@ class SwapProposalResponse(BaseModel):
     updated_at: datetime
 
 
+class AcceptedSwapProposalResponse(SwapProposalResponse):
+    """Accept response: the proposal plus where and when the swap happens."""
+
+    term_id: uuid.UUID
+    term_occurs_on: datetime
+    group_id: uuid.UUID
+    group_name: str
+
+
 class SwapProposalOfferResponse(BaseModel):
     """One pending offer against one of the caller's own SWAP-listed items
     (`GET /api/term-item-listings/{item_id}/swap-proposals`) — enough to

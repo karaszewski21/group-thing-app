@@ -4,6 +4,7 @@ import { createMemoryRouter, RouterProvider, useLocation } from "react-router-do
 import { ApiError } from "../api/client";
 import * as groupsApi from "../api/groups";
 import { ACCESS_DENIED_MESSAGE } from "../api/problem";
+import { getOpenSheetCount } from "../components/shared/openSheets";
 import * as organizationsApi from "../api/organizations";
 import { diffDraft, paletteSelection, sameDraft, type Draft } from "../pages/organizer/editor/draft";
 import { PublicOrganizationPage } from "../pages/organizer/PublicOrganizationPage";
@@ -289,6 +290,16 @@ describe("Organizer editor sheet", () => {
     fireEvent.click(screen.getByRole("radio", { name: "Klasyczny" }));
 
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+  });
+
+  it("counts as an open sheet while shown, so app-wide prompts wait for it", async () => {
+    await openEditor();
+    expect(getOpenSheetCount()).toBe(1);
+
+    fireEvent.click(screen.getByRole("button", { name: "Zamknij" }));
+
+    expect(screen.queryByRole("dialog", { name: "Ustawienia" })).not.toBeInTheDocument();
+    expect(getOpenSheetCount()).toBe(0);
   });
 
   it("closes a clean sheet with Zamknij without asking", async () => {

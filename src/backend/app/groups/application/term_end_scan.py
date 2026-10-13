@@ -29,6 +29,7 @@ from typing import cast
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core import clock
 from app.core.errors import EntityNotFoundException
 from app.outbox import service as outbox_service
 from app.users.service import get_profile_by_account_user_id
@@ -51,27 +52,33 @@ from .term_item_listings import _list_eligible_lister_party_ids
 # from "now" the scan still considers a Term "just ended" (bounds the batch
 # query below rather than scanning every Term ever created).
 DEFAULT_WINDOW = timedelta(hours=24)
+# A Term is only "ended" this long after `occurs_on`: the hand-over happens
+# during the meeting, so prompting right at its start would be premature.
+TERM_END_GRACE = timedelta(hours=2)
 
-__all__ = ["scan_for_term_ended", "DEFAULT_WINDOW"]
+__all__ = ["scan_for_term_ended", "DEFAULT_WINDOW", "TERM_END_GRACE"]
 
 logger = logging.getLogger(__name__)
 
 
 async def _find_terms_just_ended(db: AsyncSession, *, window: timedelta) -> list[Term]:
-    """One bounded query — `occurs_on` in `[now - window, now]` — never a
-    per-Term or unbounded scan, per `standards/backend/queries.md`."""
-    # `Term.occurs_on` is a naive LOCAL wall-clock value (see
-    # `TermResponse.occurs_on`'s docstring) — compared against server-local
-    # `datetime.now()`, matching every other `occurs_on` comparison in
-    # `term_item_listings.py`, not `datetime.utcnow()`.
-    now = datetime.now()
+    """One bounded query — `occurs_on` in `[ended_by - window, ended_by]`,
+    where `ended_by` is now minus `TERM_END_GRACE` — never a per-Term or
+    unbounded scan, per `standards/backend/queries.md`."""
+    # `Term.occurs_on` is a naive Europe/Warsaw wall-clock value, so "now"
+    # comes from `clock.local_now()`, never the host clock or UTC.
+    ended_by = clock.local_now() - TERM_END_GRACE
     result = await db.execute(
-        select(Term).where(Term.occurs_on >= now - window, Term.occurs_on <= now)
+        select(Term).where(Term.occurs_on >= ended_by - window, Term.occurs_on <= ended_by)
     )
     return list(result.scalars().all())
 
 
-async def _scan_hand_over_reservations(db: AsyncSession, link_paths: dict[uuid.UUID, str]) -> int:
+async def _scan_hand_over_reservations(
+    db: AsyncSession,
+    link_paths: dict[uuid.UUID, str],
+    details_by_term: dict[uuid.UUID, dict[str, object]],
+) -> int:
     """One bridge query for every just-ended Term's still-open GIFT/LEND
     reservations, minus those already carrying a `GiveawayTermEndMarker`.
     Deliberately independent of eligibility and `ItemListingPreference` — a
@@ -96,11 +103,14 @@ async def _scan_hand_over_reservations(db: AsyncSession, link_paths: dict[uuid.U
         .all()
     )
 
+    pending = [r for r in candidates if r.id not in already_marked]
+    item_names = await circulation_bridge.list_product_names_for_items(
+        db, {r.item_id for r in pending}
+    )
+
     emitted = 0
-    for reservation in candidates:
+    for reservation in pending:
         reservation_id = cast(uuid.UUID, reservation.id)
-        if reservation_id in already_marked:
-            continue
         # Skipped (not raised): the scan commits once, so one party without a
         # profile would otherwise roll back every other Term's events, every run.
         try:
@@ -122,6 +132,8 @@ async def _scan_hand_over_reservations(db: AsyncSession, link_paths: dict[uuid.U
                 "taker_party_id": taker_profile.party_id,
                 "reservation_id": reservation_id,
                 "link_path": link_paths[reservation.term_id],
+                "item_name": item_names.get(reservation.item_id),
+                **details_by_term[reservation.term_id],
             },
         )
         db.add(GiveawayTermEndMarker(reservation_id=reservation_id, notified_at=datetime.utcnow()))
@@ -130,8 +142,16 @@ async def _scan_hand_over_reservations(db: AsyncSession, link_paths: dict[uuid.U
 
 
 async def _scan_swaps(
-    db: AsyncSession, preferences: list[ItemListingPreference], link_path: str
+    db: AsyncSession,
+    preferences: list[ItemListingPreference],
+    term: Term,
+    link_path: str,
+    details: dict[str, object],
 ) -> int:
+    """Emits each ACCEPTED, not-yet-notified proposal whose proposer
+    reservation belongs to `term` — a swap agreed for a later Term of the
+    same circle waits for that Term to end. The Term scoping is part of the
+    query, so a proposal that can never match this Term is not re-read."""
     swap_item_ids = [
         pref.item_id
         for pref in preferences
@@ -145,31 +165,35 @@ async def _scan_swaps(
             SwapProposal.listing_item_id.in_(swap_item_ids),
             SwapProposal.status == SwapProposalStatus.ACCEPTED,
             SwapProposal.term_ended_notified_at.is_(None),
+            SwapProposal.proposer_reservation_id.in_(
+                circulation_bridge.reservation_ids_for_term_select(cast(uuid.UUID, term.id))
+            ),
         )
     )
     proposals = list(result.scalars().all())
     if not proposals:
         return 0
+    item_names = await circulation_bridge.list_product_names_for_items(
+        db, {p.listing_item_id for p in proposals} | {p.offered_item_id for p in proposals}
+    )
 
-    emitted = 0
     preferences_by_item = {pref.item_id: pref for pref in preferences}
     for proposal in proposals:
-        preference = preferences_by_item.get(proposal.listing_item_id)
-        if preference is None:
-            continue
         await outbox_service.append(
             db,
             event_type=swap_events.TERM_ENDED_SWAP,
             payload={
                 "proposer_party_id": proposal.proposer_party_id,
-                "owner_party_id": preference.owner_party_id,
+                "owner_party_id": preferences_by_item[proposal.listing_item_id].owner_party_id,
                 "proposal_id": proposal.id,
                 "link_path": link_path,
+                "listing_item_name": item_names.get(proposal.listing_item_id),
+                "offered_item_name": item_names.get(proposal.offered_item_id),
+                **details,
             },
         )
         proposal.term_ended_notified_at = datetime.utcnow()
-        emitted += 1
-    return emitted
+    return len(proposals)
 
 
 async def scan_for_term_ended(db: AsyncSession, *, window: timedelta = DEFAULT_WINDOW) -> None:
@@ -179,10 +203,20 @@ async def scan_for_term_ended(db: AsyncSession, *, window: timedelta = DEFAULT_W
     atomic transaction."""
     terms = await _find_terms_just_ended(db, window=window)
     link_paths: dict[uuid.UUID, str] = {}
+    details_by_term: dict[uuid.UUID, dict[str, object]] = {}
+    group_names = await repository.list_group_names(db, {t.circle_group_id for t in terms})
     for term in terms:
+        term_id = cast(uuid.UUID, term.id)
         slug = await resolve_organizer_slug(db, term.circle_group_id)
-        link_paths[cast(uuid.UUID, term.id)] = f"/{slug}/grupa/{term.circle_group_id}/term/{term.id}"
-    hand_over_events = await _scan_hand_over_reservations(db, link_paths) if link_paths else 0
+        link_paths[term_id] = f"/{slug}/grupa/{term.circle_group_id}/term/{term.id}"
+        # JSON-safe for the outbox: `occurs_on` travels as an ISO string.
+        details_by_term[term_id] = {
+            "occurs_on": term.occurs_on.isoformat(),
+            "group_name": group_names.get(term.circle_group_id),
+        }
+    hand_over_events = (
+        await _scan_hand_over_reservations(db, link_paths, details_by_term) if link_paths else 0
+    )
     swap_events_emitted = 0
 
     for term in terms:
@@ -194,7 +228,10 @@ async def scan_for_term_ended(db: AsyncSession, *, window: timedelta = DEFAULT_W
         )
         if not preferences:
             continue
-        swap_events_emitted += await _scan_swaps(db, preferences, link_paths[cast(uuid.UUID, term.id)])
+        term_id = cast(uuid.UUID, term.id)
+        swap_events_emitted += await _scan_swaps(
+            db, preferences, term, link_paths[term_id], details_by_term[term_id]
+        )
     await db.commit()
 
     # The job runs every minute; INFO only when it actually emitted something.

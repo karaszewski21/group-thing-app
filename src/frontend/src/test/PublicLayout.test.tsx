@@ -3,10 +3,12 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { ApiError } from "../api/client";
 import * as notificationsApi from "../api/notifications";
+import * as groupsApi from "../api/groups";
 import * as organizationsApi from "../api/organizations";
 import type { MyOrganizationResponse } from "../api/organizations";
 import { PublicLayout } from "../components/layout/PublicLayout";
 import { createQueryWrapper } from "./queryClient";
+import { resetSnoozeStoreForTests } from "../components/pending/snoozeStore";
 
 vi.mock("../api/organizations", () => ({ getMyOrganization: vi.fn() }));
 vi.mock("../api/notifications", () => ({
@@ -15,7 +17,13 @@ vi.mock("../api/notifications", () => ({
   markAllNotificationsRead: vi.fn(),
 }));
 
-let mockAuth: { token: string | null };
+vi.mock("../api/groups", () => ({
+  listMyPendingJoinRequests: vi.fn(),
+  approveJoinRequest: vi.fn(),
+  rejectJoinRequest: vi.fn(),
+}));
+
+let mockAuth: { token: string | null; username?: string };
 vi.mock("../auth/AuthContext", () => ({ useAuth: () => mockAuth }));
 
 function renderPublicPage() {
@@ -38,7 +46,10 @@ async function openMenu() {
 
 beforeEach(() => {
   vi.resetAllMocks();
+  localStorage.clear();
+  resetSnoozeStoreForTests();
   mockAuth = { token: null };
+  vi.mocked(groupsApi.listMyPendingJoinRequests).mockResolvedValue([]);
   vi.mocked(organizationsApi.getMyOrganization).mockRejectedValue(new ApiError(404, "Not Found", null));
   vi.mocked(notificationsApi.getMyNotifications).mockResolvedValue([]);
 });
@@ -92,5 +103,32 @@ describe("PublicLayout", () => {
     fireEvent.click(within(menu).getByRole("menuitem", { name: /Profil/ }));
 
     expect(screen.queryByRole("menu")).not.toBeInTheDocument();
+  });
+
+  it("logged in: mounts the pending-actions host once, over the page", async () => {
+    mockAuth = { token: "tok", username: "guest" };
+    vi.mocked(notificationsApi.getMyNotifications).mockResolvedValue([
+      {
+        id: "5",
+        kind: "TERM_CONFIRMATION_NEEDED",
+        message: "Czy przekazanie „Pucio” doszło do skutku?",
+        link_path: "/ania/grupa/5/term/9",
+        read_at: null,
+        created_at: "2026-03-01T10:00:00",
+        reservation_id: null,
+      },
+    ]);
+    renderPublicPage();
+
+    expect(await screen.findAllByRole("dialog", { name: "Potwierdź przekazanie" })).toHaveLength(1);
+    expect(screen.getByRole("heading", { name: "Strona publiczna" })).toBeInTheDocument();
+    expect(groupsApi.listMyPendingJoinRequests).toHaveBeenCalledTimes(1);
+  });
+
+  it("anonymous: no pending-actions host and no join-request fetch", () => {
+    renderPublicPage();
+
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    expect(groupsApi.listMyPendingJoinRequests).not.toHaveBeenCalled();
   });
 });

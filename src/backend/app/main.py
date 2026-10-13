@@ -25,6 +25,7 @@ from app.auth.router import router as auth_router
 from app.category.router import router as category_router
 from app.circulation.router import router as circulation_router
 from app.config import settings
+from app.core import clock
 from app.core.auth_deps import register_auth_exception_handlers
 from app.core.errors import register_exception_handlers
 from app.db import async_session_factory
@@ -85,6 +86,7 @@ async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
     poller, using APScheduler's own `start`/`shutdown(wait=False)` API
     rather than a second sleep loop."""
     global _outbox_task, _term_end_scheduler
+    clock.check_timezone()
     logger.info(
         "MODERATION_TEXT_ENABLED=%s MODERATION_IMAGE_ENABLED=%s",
         settings.moderation_text_enabled,

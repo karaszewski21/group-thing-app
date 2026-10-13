@@ -127,3 +127,55 @@
 **Notes**: derive_status takes term: ReservationTerm|None; party-only fields gated by viewer in final branch.
 
 ## Wave 3 Complete — groups 4, 11
+
+## 2026-10-13 - Group 5 Complete (W4)
+
+**Steps**: 5.1-5.6 completed
+**Standards Applied**:
+- From plan: testing/backend-testing.md; global/minimal-implementation.md, commenting.md
+- From INDEX.md: global/coding-style.md
+- Discovered: none
+**Tests**: 151 passed / 0 failed across 7 migrated files (2m03s). Source-inspection test replaced by frozen-clock behavioral test; new 2h grace boundary test.
+**Files Modified**: tests/test_term_item_listings.py, test_term_end_scan.py, test_lend_step0_fixes.py, test_organizer_page.py, test_term_item_listings_router.py, test_add_active_membership.py, test_public_term.py
+**Notes**: audit timestamps (withdrawn_at, deleted_at) intentionally left on UTC.
+
+## Wave 4 Complete — group 5
+
+## 2026-10-13 - Group 12 Complete (W5)
+
+**Steps**: 12.1-12.7 completed
+**Standards Applied**: testing/backend-testing.md, testing/frontend-testing.md, global/minimal-implementation.md
+**Gaps filled**: 7 tests (SWAP_ACCEPTED cap, swap listener cap, IN_TRANSIT party fields, host queue, stored/expired snooze, calendar DST days ×2)
+**RED gate**: backend 6/6 pass; frontend "snoozes it without marking" pass → GREEN
+**Full suites**: backend 794 passed / 0 failed (+3 new run separately = 797); frontend 865 passed / 13 failed — all non-regressions: 7 known pre-existing, 4 also failing on clean HEAD (auth.test.tsx AuthContext token; extension-points ×2; foundation AppShell), 2 OrganizerEditor focus flakes under load (pass in isolation)
+**Static**: ruff 66 vs 69 at HEAD (0 new); mypy 32 (baseline); tsc clean; eslint clean on 36 changed files (16 pre-existing problems in untouched files)
+**Files Modified**: tests/test_handover_copy_api.py, tests/test_term_end_scan.py, FE test/PendingActionsHost.test.tsx, test/calendar.test.ts
+
+## Wave 5 Complete — group 12
+
+## 2026-10-13 - Implementation Complete
+
+**Total Steps**: 87 completed (12 groups, 5 waves; groups 4 and 11 retried once after a stream stall)
+**Standards**: global ×6, backend ×4, frontend ×6, testing ×2 applied across groups
+**Test Suite**: backend 797/797 green; frontend green except 13 pre-existing/flaky (none caused by this task)
+**Known pre-existing FE failures (fail on HEAD dfacf08)**: PanelPage hamburger promotion ×6, TermPage "Imię" ×1, auth.test.tsx ×1, extension-points ×2, foundation ×1; flaky: OrganizerEditor focus ×2
+
+## 2026-10-13 - Verification fixes (Phase 11, iteration 1)
+
+**Trigger**: verification/implementation-verification.md (12 warnings); user chose fixes #2–#8.
+**Fixes**:
+- V#2 `utils/calendar.ts` downloadIcs: revokeObjectURL delayed via setTimeout(1000) (Safari/iOS) — tests: calendar.test.ts, AddToCalendarButton.test.tsx
+- V#3 `components/pending/snoozeStore.ts`: `toSnoozeMap` shape validation (non-object/null/array → in-memory fallback; finite numbers only) — tests: PendingActionsHost.test.tsx "corrupt stored snoozes" (5 cases)
+- V#4 `pages/panel/views/RzeczyView.tsx`: accept-swap shows server 409 message via serverMessageOr — test: PanelPage.test.tsx
+- V#5 `pages/organizer/editor/EditorSheet.tsx`: useRegisterOpenSheet(true) — test: OrganizerEditor.test.tsx; spec.md R8.9 line updated
+- V#6 `term_end_scan.py`: batched item/product names (`list_product_names_for_items`) and group names (`repository.list_group_names`); `_product_name` removed
+- V#7 `term_end_scan.py`: swap Term scoping via SQL subquery `circulation_bridge.reservation_ids_for_term_select`; `list_reservation_term_ids` chain removed — test: test_term_end_scan.py query-budget test
+- V#8 `components/krag/ModalSheet.tsx`: focus trap via new shared `components/krag/trapFocus.ts` (also used by RequestAccessDialog) — tests: ModalSheet.test.tsx ×2
+**Re-run**: full suites — backend 798/798; frontend 875/887, all 12 failures pre-existing on HEAD or the known flaky OrganizerEditor focus assertion (verification/test-suite-results.md). mypy 32 (baseline).
+
+## 2026-10-13 - E2E minor fixes (after Phase 12)
+
+- M-1 `components/shared/AddToCalendarButton.tsx`: focus returns to trigger after either menu item and on Tab close
+- C-1 `pages/krag/TakeSuccessSheet.tsx` Link `inline-flex items-center justify-center`; trigger `whitespace-nowrap`
+- C-2 `pages/product/ItemTimeline.tsx`: calendar button only while Term upcoming; ItemDetailPage party tests now pin the clock (would have broken after 2026-10-14)
+**Tests**: full FE 879 passed / 11 failed (all pre-existing on HEAD); tsc + eslint clean.

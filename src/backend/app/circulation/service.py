@@ -32,6 +32,7 @@ from app.circulation.application.inventory_items import (
     list_items,
     list_items_with_product_name,
     list_lent_out_items_with_product_name,
+    list_product_names_for_items,
     register_item,
     resolve_owning_inventory,
     soft_delete_item,
@@ -61,6 +62,7 @@ from app.circulation.infrastructure.repository import (
     AvailableItemView,
     available_items_with_product_select,
     list_item_ids_for_product,
+    reservation_ids_for_term_select,
 )
 
 __all__ = [
@@ -97,10 +99,12 @@ __all__ = [
     "list_items",
     "list_items_with_product_name",
     "list_lent_out_items_with_product_name",
+    "list_product_names_for_items",
     "list_reservations",
     "register_item",
     "release_reservation",
     "require_raw_route_reservation_type",
+    "reservation_ids_for_term_select",
     "resolve_owning_inventory",
     "soft_delete_item",
     "update_item",

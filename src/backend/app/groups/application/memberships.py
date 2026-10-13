@@ -10,6 +10,7 @@ from typing import cast
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core import clock
 from app.core.auth_deps import Principal
 from app.core.errors import AccessDeniedException, EntityNotFoundException
 from app.families.models import Family, FamilyMembership, FamilyRole, FamilyRoleType
@@ -30,7 +31,7 @@ async def add_active_membership(db: AsyncSession, group_id: uuid.UUID, party_id:
     membership = Membership(
         from_role_id=cast(uuid.UUID, role.id),
         to_group_id=group_id,
-        valid_from=date.today(),
+        valid_from=clock.local_now().date(),
         valid_to=None,
     )
     db.add(membership)

@@ -11,7 +11,6 @@ import { MemoryRouter, Route, Routes, useNavigate } from "react-router-dom";
 import * as peopleApi from "../api/people";
 import * as familiesApi from "../api/families";
 import * as groupsApi from "../api/groups";
-import type { BrowseTermItemListingResponse } from "../api/termItemListings";
 import * as inventoriesApi from "../api/inventories";
 import * as productsApi from "../api/products";
 import * as termsApi from "../api/terms";
@@ -19,11 +18,11 @@ import * as organizationsApi from "../api/organizations";
 import * as pledgesApi from "../api/pledges";
 import * as notificationsApi from "../api/notifications";
 import * as categoriesApi from "../api/categories";
-import * as termItemListingsApi from "../api/termItemListings";
 import * as reservationsApi from "../api/reservations";
 import * as itemListingPreferencesApi from "../api/itemListingPreferences";
+import * as termItemListingsApi from "../api/termItemListings";
 import { PanelPage } from "../pages/panel/PanelPage";
-import { NotificationBell } from "../components/shared/NotificationBell";
+import { emitPendingActionResolved } from "../components/pending/pendingActionResolved";
 import { ApiError } from "../api/client";
 import { createQueryWrapper } from "./queryClient";
 import { approxAge, formatApproxAge } from "../utils/age";
@@ -80,12 +79,6 @@ vi.mock("../api/groups", () => ({
   // other default below).
   getTermAttendeesForFormalization: vi.fn(),
   formalizeGroupFromTerm: vi.fn(),
-  // The panel's `load()` fetches the organizer's pending join requests on
-  // every (silent) reload — each `beforeEach` re-seeds it with `[]` right
-  // after `vi.resetAllMocks()`.
-  listMyPendingJoinRequests: vi.fn(),
-  approveJoinRequest: vi.fn(),
-  rejectJoinRequest: vi.fn(),
 }));
 
 vi.mock("../api/inventories", () => ({
@@ -150,11 +143,7 @@ vi.mock("../api/categories", () => ({
   getCategories: vi.fn(),
 }));
 
-// Group 7: the global pending-actions modal (PanelDataContext) resolves the
-// confirm-race Reservation id purely from these two term-item-listing
-// endpoints (see resolvePendingReservationId's docstring) — mocked so the
-// resolution/confirm-transaction flow is fully controllable per test, with
-// no real network call.
+// RzeczyView's swap-offer actions — mocked so no real network call happens.
 vi.mock("../api/termItemListings", () => ({
   getMyTermItemListings: vi.fn(),
   getBrowseTermItemListings: vi.fn(),
@@ -163,6 +152,7 @@ vi.mock("../api/termItemListings", () => ({
   proposeSwap: vi.fn(),
   acceptSwapProposal: vi.fn(),
   rejectSwapProposal: vi.fn(),
+  getSwapProposalsForItem: vi.fn(),
 }));
 
 vi.mock("../api/reservations", () => ({
@@ -175,26 +165,6 @@ vi.mock("../api/reservations", () => ({
   cancelTransaction: vi.fn(),
 }));
 
-
-function browseListing(
-  overrides: Partial<BrowseTermItemListingResponse> = {},
-): BrowseTermItemListingResponse {
-  return {
-    id: "501",
-    term_id: "3",
-    item_id: "9",
-    lister_party_id: "7",
-    offered_types: ["SWAP"],
-    resolved_reservation_id: null,
-    taken_by_party_id: null,
-    product_name: "Rowerek",
-    condition: "GOOD",
-    lister_display_name: "Ola",
-    created_at: "",
-    updated_at: "",
-    ...overrides,
-  };
-}
 
 const mockProfile: peopleApi.UserProfileResponse = {
   id: "1",
@@ -427,7 +397,6 @@ async function openMenu() {
 describe("PanelPage — hamburger promotion", () => {
   beforeEach(() => {
     vi.resetAllMocks();
-    vi.mocked(groupsApi.listMyPendingJoinRequests).mockResolvedValue([]);
   });
 
   it('shows "Dodaj pierwszy termin" (not "Chcę dodać krąg") for a GUEST-without-circle session and opens FirstTermStepperGuest', async () => {
@@ -605,7 +574,6 @@ describe("PanelPage — hamburger promotion", () => {
 describe("PanelPage — item add entry point", () => {
   beforeEach(() => {
     vi.resetAllMocks();
-    vi.mocked(groupsApi.listMyPendingJoinRequests).mockResolvedValue([]);
   });
 
   it('"+ Dodaj rzecz" links to the /product/new page instead of opening a modal', async () => {
@@ -623,7 +591,6 @@ describe("PanelPage — item add entry point", () => {
 describe("PanelPage — dismissible home hints", () => {
   beforeEach(() => {
     vi.resetAllMocks();
-    vi.mocked(groupsApi.listMyPendingJoinRequests).mockResolvedValue([]);
     localStorage.clear();
   });
 
@@ -843,7 +810,6 @@ describe("PanelPage — dismissible home hints", () => {
 describe("PanelPage — Rodzina section", () => {
   beforeEach(() => {
     vi.resetAllMocks();
-    vi.mocked(groupsApi.listMyPendingJoinRequests).mockResolvedValue([]);
   });
 
   it("/panel/rodzina renders the family list with role labels (Ty / opiekun / dziecko, no avatars)", async () => {
@@ -903,7 +869,6 @@ describe("PanelPage — Rodzina section", () => {
 describe("PanelPage — Mój dom — no family", () => {
   beforeEach(() => {
     vi.resetAllMocks();
-    vi.mocked(groupsApi.listMyPendingJoinRequests).mockResolvedValue([]);
   });
 
   // The "Mój dom" entry lives in the header AccountMenu (outside PanelPage),
@@ -1092,7 +1057,6 @@ describe("PanelPage — Mój dom — no family", () => {
 describe("PanelPage — Mój dom — inline family rename", () => {
   beforeEach(() => {
     vi.resetAllMocks();
-    vi.mocked(groupsApi.listMyPendingJoinRequests).mockResolvedValue([]);
   });
 
   async function openMojDom() {
@@ -1137,7 +1101,6 @@ describe("PanelPage — Mój dom — inline family rename", () => {
 describe("PanelPage — Mój dom — remove family member", () => {
   beforeEach(() => {
     vi.resetAllMocks();
-    vi.mocked(groupsApi.listMyPendingJoinRequests).mockResolvedValue([]);
   });
 
   async function openMojDom() {
@@ -1188,7 +1151,6 @@ describe("PanelPage — Mój dom — birth year, return to term, errors", () => 
 
   beforeEach(() => {
     vi.resetAllMocks();
-    vi.mocked(groupsApi.listMyPendingJoinRequests).mockResolvedValue([]);
   });
 
   async function openFamily(initialEntry = "/panel/rodzina") {
@@ -1316,7 +1278,6 @@ describe("PanelPage — Mój dom — birth year, return to term, errors", () => 
 describe("PanelPage — term edit dialog", () => {
   beforeEach(() => {
     vi.resetAllMocks();
-    vi.mocked(groupsApi.listMyPendingJoinRequests).mockResolvedValue([]);
   });
 
   const term = {
@@ -1477,7 +1438,6 @@ describe("PanelPage — term edit dialog", () => {
 describe("PanelPage — Term/Group ids stay UUID strings (R29)", () => {
   beforeEach(() => {
     vi.resetAllMocks();
-    vi.mocked(groupsApi.listMyPendingJoinRequests).mockResolvedValue([]);
   });
 
   const term: termsApi.TermResponse = {
@@ -1562,7 +1522,6 @@ describe("PanelPage — Term/Group ids stay UUID strings (R29)", () => {
 describe("PanelPage — edit group dialog (name/location/spots/layout, replaces old inline rename + layout pills)", () => {
   beforeEach(() => {
     vi.resetAllMocks();
-    vi.mocked(groupsApi.listMyPendingJoinRequests).mockResolvedValue([]);
   });
 
   async function openEditDialog() {
@@ -1623,7 +1582,6 @@ describe("PanelPage — edit group dialog (name/location/spots/layout, replaces 
 describe("PanelPage — Zapisane zajęcia", () => {
   beforeEach(() => {
     vi.resetAllMocks();
-    vi.mocked(groupsApi.listMyPendingJoinRequests).mockResolvedValue([]);
   });
 
   it("renders one tile per attendance with a public-term link (GUEST)", async () => {
@@ -1672,7 +1630,6 @@ describe("PanelPage — Zapisane zajęcia", () => {
 describe("PanelPage — Spotkania list links to the public circle page", () => {
   beforeEach(() => {
     vi.resetAllMocks();
-    vi.mocked(groupsApi.listMyPendingJoinRequests).mockResolvedValue([]);
   });
 
   it("each term row in the Spotkania list is a link (the whole tile) to the per-term public page, not the authenticated one", async () => {
@@ -1752,7 +1709,6 @@ describe("PanelPage — organizer term card signup chip", () => {
 
   beforeEach(() => {
     vi.resetAllMocks();
-    vi.mocked(groupsApi.listMyPendingJoinRequests).mockResolvedValue([]);
   });
 
   it("organizer card shows signup chip linking to attendees page", async () => {
@@ -1803,7 +1759,6 @@ describe("PanelPage — organizer term card signup chip", () => {
 describe("PanelPage — per-term public links & copy-link button", () => {
   beforeEach(() => {
     vi.resetAllMocks();
-    vi.mocked(groupsApi.listMyPendingJoinRequests).mockResolvedValue([]);
   });
 
   it("organizer with no Organization — 'Terminy' row still links to the per-term public page via the hash slug", async () => {
@@ -1916,7 +1871,6 @@ describe("PanelPage — per-term public links & copy-link button", () => {
 describe("PanelPage — needed item sub-CRUD (in the term dialog)", () => {
   beforeEach(() => {
     vi.resetAllMocks();
-    vi.mocked(groupsApi.listMyPendingJoinRequests).mockResolvedValue([]);
   });
 
   const term = {
@@ -2024,7 +1978,6 @@ describe("PanelPage — needed item sub-CRUD (in the term dialog)", () => {
 describe("PanelPage — inventory item edit/delete", () => {
   beforeEach(() => {
     vi.resetAllMocks();
-    vi.mocked(groupsApi.listMyPendingJoinRequests).mockResolvedValue([]);
   });
 
   const invItem = {
@@ -2125,7 +2078,6 @@ describe("PanelPage — mode toggle errors and photo-moderation poll", () => {
 
   beforeEach(() => {
     vi.resetAllMocks();
-    vi.mocked(groupsApi.listMyPendingJoinRequests).mockResolvedValue([]);
     vi.mocked(inventoriesApi.getInventoryItemBalance).mockResolvedValue({
       id: "1",
       item_id: modItem.id,
@@ -2311,7 +2263,6 @@ describe("PanelPage — mode toggle errors and photo-moderation poll", () => {
 describe("PanelPage — Wypożyczone: 'Oddaję'", () => {
   beforeEach(() => {
     vi.resetAllMocks();
-    vi.mocked(groupsApi.listMyPendingJoinRequests).mockResolvedValue([]);
   });
 
   it("sends a RETURN reservation with only item_id and reservation_type — no reserved_by_user_id", async () => {
@@ -2461,7 +2412,6 @@ describe("PanelPage — Wypożyczone: 'Oddaję'", () => {
 describe("PanelPage — Wypożyczone: tabs", () => {
   beforeEach(() => {
     vi.resetAllMocks();
-    vi.mocked(groupsApi.listMyPendingJoinRequests).mockResolvedValue([]);
   });
 
   const ownItem = {
@@ -2571,7 +2521,6 @@ describe("PanelPage — Wypożyczone: tabs", () => {
 describe("PanelPage — needed item edit error path", () => {
   beforeEach(() => {
     vi.resetAllMocks();
-    vi.mocked(groupsApi.listMyPendingJoinRequests).mockResolvedValue([]);
   });
 
   const term = {
@@ -2628,7 +2577,6 @@ describe("PanelPage — needed item edit error path", () => {
 describe("PanelPage — Zadeklarowane rzeczy (my pledges)", () => {
   beforeEach(() => {
     vi.resetAllMocks();
-    vi.mocked(groupsApi.listMyPendingJoinRequests).mockResolvedValue([]);
   });
 
   const myPledge: pledgesApi.MyPledgeResponse = {
@@ -2686,231 +2634,9 @@ describe("PanelPage — Zadeklarowane rzeczy (my pledges)", () => {
   });
 });
 
-describe("PanelPage — Group 7 global pending-actions modal", () => {
+describe("PanelPage — silent reloads", () => {
   beforeEach(() => {
     vi.resetAllMocks();
-    vi.mocked(groupsApi.listMyPendingJoinRequests).mockResolvedValue([]);
-  });
-
-  function pendingNotif(
-    over: Partial<notificationsApi.NotificationResponse> = {},
-  ): notificationsApi.NotificationResponse {
-    return {
-      id: "1",
-      kind: "SWAP_PROPOSED",
-      message: '„Marek" proponuje zamianę za: Rowerek',
-      link_path: "/ania/grupa/5/term/3",
-      read_at: null,
-      created_at: "2026-03-01T10:00:00",
-      reservation_id: null,
-      ...over,
-    };
-  }
-
-  // Accept/reject no longer happen from this global, one-at-a-time modal —
-  // it can only ever surface the FIRST pending proposal, which would
-  // pre-empt an actual choice among possibly several competing offers (see
-  // `RzeczyView`'s per-item list of every offer). It only links to "Moje
-  // rzeczy", where every pending offer against the item is shown together.
-  it("renders an incoming swap prompt fed from pendingActions; 'Zobacz w Moje rzeczy' marks it read, switches to the rzeczy view and clears it from the modal", async () => {
-    mockGuestDefaults();
-    vi.mocked(notificationsApi.getMyNotifications).mockResolvedValue([pendingNotif()]);
-    vi.mocked(notificationsApi.markNotificationRead).mockResolvedValue(undefined);
-    renderPanel();
-
-    const dialog = await screen.findByRole("dialog", { name: "Propozycja zamiany" });
-    expect(within(dialog).getByText(/proponuje zamianę/)).toBeInTheDocument();
-    expect(within(dialog).queryByRole("button", { name: "Akceptuj" })).not.toBeInTheDocument();
-    expect(within(dialog).queryByRole("button", { name: "Odrzuć" })).not.toBeInTheDocument();
-
-    fireEvent.click(within(dialog).getByRole("button", { name: "Zobacz w Moje rzeczy" }));
-
-    await waitFor(() => expect(notificationsApi.markNotificationRead).toHaveBeenCalledWith("1"));
-    await waitFor(() =>
-      expect(screen.queryByRole("dialog", { name: "Propozycja zamiany" })).not.toBeInTheDocument(),
-    );
-  });
-
-  it("a proposal_id on the notification changes nothing — still just info and the 'Moje rzeczy' link, no accept/reject", async () => {
-    mockGuestDefaults();
-    vi.mocked(notificationsApi.getMyNotifications).mockResolvedValue([
-      pendingNotif({ proposal_id: "42" }),
-    ]);
-    renderPanel();
-
-    const dialog = await screen.findByRole("dialog", { name: "Propozycja zamiany" });
-    expect(within(dialog).getByRole("button", { name: "Zobacz w Moje rzeczy" })).toBeInTheDocument();
-    expect(within(dialog).queryByRole("button", { name: "Akceptuj" })).not.toBeInTheDocument();
-    expect(within(dialog).queryByRole("button", { name: "Odrzuć" })).not.toBeInTheDocument();
-  });
-
-  it("'Później' on a TERM_CONFIRMATION_NEEDED prompt snoozes it without marking the notification read", async () => {
-    mockGuestDefaults();
-    vi.mocked(notificationsApi.getMyNotifications).mockResolvedValue([
-      pendingNotif({
-        id: "5",
-        kind: "TERM_CONFIRMATION_NEEDED",
-        message: "Czy przekazanie doszło do skutku?",
-        link_path: "/ania/grupa/5/term/9",
-      }),
-    ]);
-    vi.mocked(notificationsApi.markNotificationRead).mockResolvedValue(undefined);
-    renderPanel();
-
-    const dialog = await screen.findByRole("dialog", { name: "Potwierdź transakcję" });
-    fireEvent.click(within(dialog).getByRole("button", { name: "Później" }));
-
-    await waitFor(() =>
-      expect(screen.queryByRole("dialog", { name: "Potwierdź transakcję" })).not.toBeInTheDocument(),
-    );
-    expect(notificationsApi.markNotificationRead).not.toHaveBeenCalled();
-  });
-
-  it("renders a post-term-end confirm prompt for TERM_CONFIRMATION_NEEDED; without reservation_id, confirming falls back to resolving the reservation id from the term's listings then calls confirmTransaction", async () => {
-    mockGuestDefaults();
-    vi.mocked(notificationsApi.getMyNotifications).mockResolvedValue([
-      pendingNotif({
-        id: "2",
-        kind: "TERM_CONFIRMATION_NEEDED",
-        message: "Termin się odbył — potwierdź przekazanie rzeczy",
-        link_path: "/ania/grupa/5/term/9",
-      }),
-    ]);
-    vi.mocked(termItemListingsApi.getMyTakenTermItemListings).mockResolvedValue([
-      browseListing({ id: "9", taken_by_party_id: mockProfile.party_id, resolved_reservation_id: "77" }),
-    ]);
-    vi.mocked(termItemListingsApi.getMyTermItemListings).mockResolvedValue([]);
-    vi.mocked(reservationsApi.getReservation).mockResolvedValue({
-      id: "77",
-      item_id: "9",
-      reservation_type: "GIFT",
-      reserved_by_user_id: "1",
-      paired_reservation_id: null,
-      reserved_at: "",
-      expires_at: null,
-      status: "PENDING",
-      notes: null,
-    });
-    vi.mocked(reservationsApi.confirmTransaction).mockResolvedValue({
-      reservation_id: "77",
-      status: "FULFILLED",
-      already_resolved: false,
-    });
-    renderPanel();
-
-    const dialog = await screen.findByRole("dialog", { name: "Potwierdź transakcję" });
-    fireEvent.click(within(dialog).getByRole("button", { name: "Potwierdź" }));
-
-    await waitFor(() =>
-      expect(reservationsApi.confirmTransaction).toHaveBeenCalledWith("77"),
-    );
-    await waitFor(() =>
-      expect(screen.queryByRole("dialog", { name: "Potwierdź transakcję" })).not.toBeInTheDocument(),
-    );
-  });
-
-  it("confirms a TERM_CONFIRMATION_NEEDED action carrying reservation_id (Pledge-LEND) directly via confirmTransaction, without the resolver", async () => {
-    mockGuestDefaults();
-    vi.mocked(notificationsApi.getMyNotifications).mockResolvedValue([
-      pendingNotif({
-        id: "2",
-        kind: "TERM_CONFIRMATION_NEEDED",
-        message: "Termin się odbył — potwierdź przekazanie rzeczy",
-        link_path: "/ania/grupa/5/term/9",
-        reservation_id: "501",
-      }),
-    ]);
-    vi.mocked(notificationsApi.markNotificationRead).mockResolvedValue(undefined);
-    vi.mocked(reservationsApi.confirmTransaction).mockResolvedValue({
-      reservation_id: "501",
-      status: "CONFIRMED",
-      already_resolved: false,
-    });
-    renderPanel();
-
-    const dialog = await screen.findByRole("dialog", { name: "Potwierdź transakcję" });
-    fireEvent.click(within(dialog).getByRole("button", { name: "Potwierdź" }));
-
-    await waitFor(() => expect(reservationsApi.confirmTransaction).toHaveBeenCalledWith("501"));
-    expect(termItemListingsApi.getMyTakenTermItemListings).not.toHaveBeenCalled();
-    expect(termItemListingsApi.getMyTermItemListings).not.toHaveBeenCalled();
-    expect(reservationsApi.getReservation).not.toHaveBeenCalled();
-    await waitFor(() => expect(screen.getByRole("status")).toHaveTextContent("Potwierdzono"));
-  });
-
-  it("confirms via reservation_id even when the notification's link carries no term id", async () => {
-    mockGuestDefaults();
-    vi.mocked(notificationsApi.getMyNotifications).mockResolvedValue([
-      pendingNotif({
-        id: "2",
-        kind: "TERM_CONFIRMATION_NEEDED",
-        message: "Termin się odbył — potwierdź przekazanie rzeczy",
-        link_path: null,
-        reservation_id: "502",
-      }),
-    ]);
-    vi.mocked(notificationsApi.markNotificationRead).mockResolvedValue(undefined);
-    vi.mocked(reservationsApi.confirmTransaction).mockResolvedValue({
-      reservation_id: "502",
-      status: "CONFIRMED",
-      already_resolved: false,
-    });
-    renderPanel();
-
-    const dialog = await screen.findByRole("dialog", { name: "Potwierdź transakcję" });
-    fireEvent.click(within(dialog).getByRole("button", { name: "Potwierdź" }));
-
-    await waitFor(() => expect(reservationsApi.confirmTransaction).toHaveBeenCalledWith("502"));
-  });
-
-  // Bug #3 (cache refresh, frontend-only): confirmPendingAction previously
-  // dismissed the notification without re-fetching panel data, so a stale
-  // "Moje rzeczy"/pledges view could linger after a confirm. Matches every
-  // other mutation handler's `await load({ silent: true })` convention
-  // (e.g. withdrawMyPledge).
-  it("confirming a pending TERM_CONFIRMATION_NEEDED action triggers a silent panel data refresh after confirmTransaction succeeds", async () => {
-    mockGuestDefaults();
-    vi.mocked(notificationsApi.getMyNotifications).mockResolvedValue([
-      pendingNotif({
-        id: "2",
-        kind: "TERM_CONFIRMATION_NEEDED",
-        message: "Termin się odbył — potwierdź przekazanie rzeczy",
-        link_path: "/ania/grupa/5/term/9",
-      }),
-    ]);
-    vi.mocked(termItemListingsApi.getMyTakenTermItemListings).mockResolvedValue([
-      browseListing({ id: "9", taken_by_party_id: mockProfile.party_id, resolved_reservation_id: "77" }),
-    ]);
-    vi.mocked(termItemListingsApi.getMyTermItemListings).mockResolvedValue([]);
-    vi.mocked(reservationsApi.getReservation).mockResolvedValue({
-      id: "77",
-      item_id: "9",
-      reservation_type: "GIFT",
-      reserved_by_user_id: "1",
-      paired_reservation_id: null,
-      reserved_at: "",
-      expires_at: null,
-      status: "PENDING",
-      notes: null,
-    });
-    vi.mocked(reservationsApi.confirmTransaction).mockResolvedValue({
-      reservation_id: "77",
-      status: "FULFILLED",
-      already_resolved: false,
-    });
-    renderPanel();
-
-    const dialog = await screen.findByRole("dialog", { name: "Potwierdź transakcję" });
-    await waitFor(() => expect(inventoriesApi.getMyInventoryItems).toHaveBeenCalledTimes(1));
-
-    fireEvent.click(within(dialog).getByRole("button", { name: "Potwierdź" }));
-
-    await waitFor(() =>
-      expect(reservationsApi.confirmTransaction).toHaveBeenCalledWith("77"),
-    );
-    // A second `getMyInventoryItems` call is the signal that `load({ silent: true })`
-    // re-ran after the confirm, not just `dismissPendingAction`.
-    await waitFor(() => expect(inventoriesApi.getMyInventoryItems).toHaveBeenCalledTimes(2));
   });
 
   // Bug #3 (cache refresh, structural fix): PanelDataContext gains a
@@ -2934,283 +2660,21 @@ describe("PanelPage — Group 7 global pending-actions modal", () => {
     );
   });
 
-  // TDD red gate (2026-09-17-fix-giveaway-exchange), now fixed: this test
-  // reproduces the realistic post-term-end backend contract —
-  // list_browsable_term_item_listings short-circuits to `[]` once
-  // `term.occurs_on < now()` (see backend
-  // test_browseListing_termOccursOnInPast_becomesUnbrowsable), which is
-  // exactly the moment TERM_CONFIRMATION_NEEDED fires — while
-  // resolvePendingReservationId's taker-side lookup now resolves the
-  // reservation id via getMyTakenTermItemListings instead, which is not
-  // availability-filtered and so still works post-term-end.
-  it("resolves a GIFT reservation id for the taker even when the term has already ended (realistic empty browse response)", async () => {
+  it("silently reloads panel data when the app-wide host signals a resolved pending action", async () => {
     mockGuestDefaults();
-    vi.mocked(notificationsApi.getMyNotifications).mockResolvedValue([
-      pendingNotif({
-        id: "2",
-        kind: "TERM_CONFIRMATION_NEEDED",
-        message: "Termin się odbył — potwierdź przekazanie rzeczy",
-        link_path: "/ania/grupa/5/term/9",
-      }),
-    ]);
-    // Realistic post-term-end backend response: browse listings are empty
-    // once the term has occurred, per list_browsable_term_item_listings.
-    vi.mocked(termItemListingsApi.getBrowseTermItemListings).mockResolvedValue([]);
-    vi.mocked(termItemListingsApi.getMyTermItemListings).mockResolvedValue([]);
-    // getMyTakenTermItemListings is availability-independent, so it still
-    // returns the taken row after the term has occurred.
-    vi.mocked(termItemListingsApi.getMyTakenTermItemListings).mockResolvedValue([
-      browseListing({ id: "9", taken_by_party_id: mockProfile.party_id, resolved_reservation_id: "77" }),
-    ]);
-    vi.mocked(reservationsApi.getReservation).mockResolvedValue({
-      id: "77",
-      item_id: "9",
-      reservation_type: "GIFT",
-      reserved_by_user_id: "1",
-      paired_reservation_id: null,
-      reserved_at: "",
-      expires_at: null,
-      status: "PENDING",
-      notes: null,
-    });
-    vi.mocked(reservationsApi.confirmTransaction).mockResolvedValue({
-      reservation_id: "77",
-      status: "FULFILLED",
-      already_resolved: false,
-    });
     renderPanel();
 
-    const dialog = await screen.findByRole("dialog", { name: "Potwierdź transakcję" });
-    fireEvent.click(within(dialog).getByRole("button", { name: "Potwierdź" }));
+    await waitFor(() => expect(inventoriesApi.getMyInventoryItems).toHaveBeenCalledTimes(1));
+    act(() => emitPendingActionResolved());
 
-    await waitFor(() =>
-      expect(reservationsApi.confirmTransaction).toHaveBeenCalledWith("77"),
-    );
-  });
-
-  it("confirming a race after losing it shows the distinct 'already resolved' message instead of a generic error", async () => {
-    mockGuestDefaults();
-    vi.mocked(notificationsApi.getMyNotifications).mockResolvedValue([
-      pendingNotif({
-        id: "2",
-        kind: "TERM_CONFIRMATION_NEEDED",
-        message: "Termin się odbył — potwierdź przekazanie rzeczy",
-        link_path: "/ania/grupa/5/term/9",
-      }),
-    ]);
-    vi.mocked(termItemListingsApi.getMyTakenTermItemListings).mockResolvedValue([
-      browseListing({ id: "9", taken_by_party_id: mockProfile.party_id, resolved_reservation_id: "77" }),
-    ]);
-    vi.mocked(termItemListingsApi.getMyTermItemListings).mockResolvedValue([]);
-    vi.mocked(reservationsApi.getReservation).mockResolvedValue({
-      id: "77",
-      item_id: "9",
-      reservation_type: "GIFT",
-      reserved_by_user_id: "1",
-      paired_reservation_id: null,
-      reserved_at: "",
-      expires_at: null,
-      status: "PENDING",
-      notes: null,
-    });
-    vi.mocked(reservationsApi.confirmTransaction).mockRejectedValue(
-      new ApiError(409, "Conflict", { reservation_id: "77", status: "ALREADY_RESOLVED", already_resolved: true }),
-    );
-    renderPanel();
-
-    const dialog = await screen.findByRole("dialog", { name: "Potwierdź transakcję" });
-    fireEvent.click(within(dialog).getByRole("button", { name: "Potwierdź" }));
-
-    expect(
-      await within(dialog).findByText("Transakcja została już rozstrzygnięta przez drugą stronę."),
-    ).toBeInTheDocument();
-    // distinct from a generic error toast — the dialog itself stays open,
-    // now offering only "Zamknij" instead of "Potwierdź" again.
-    expect(within(dialog).queryByRole("button", { name: "Potwierdź" })).not.toBeInTheDocument();
-    expect(within(dialog).getByRole("button", { name: "Rozumiem" })).toBeInTheDocument();
-  });
-
-  // Group 4 (2026-09-17-fix-giveaway-exchange): the GIFT/LEND owner/lister
-  // side is symmetric to the existing SWAP paired-leg branch below —
-  // resolvePendingReservationId resolves the caller's own reservation id
-  // directly (no paired leg to look up) when the caller listed the item.
-  it("resolves a GIFT reservation id for the owner/lister side directly, post-term-end", async () => {
-    mockGuestDefaults();
-    vi.mocked(notificationsApi.getMyNotifications).mockResolvedValue([
-      pendingNotif({
-        id: "2",
-        kind: "TERM_CONFIRMATION_NEEDED",
-        message: "Termin się odbył — potwierdź przekazanie rzeczy",
-        link_path: "/ania/grupa/5/term/9",
-      }),
-    ]);
-    // Taker side finds nothing — the caller is the lister here.
-    vi.mocked(termItemListingsApi.getMyTakenTermItemListings).mockResolvedValue([]);
-    vi.mocked(termItemListingsApi.getMyTermItemListings).mockResolvedValue([
-      browseListing({ id: "9", lister_party_id: mockProfile.party_id, resolved_reservation_id: "55" }),
-    ]);
-    vi.mocked(reservationsApi.getReservation).mockResolvedValue({
-      id: "55",
-      item_id: "9",
-      reservation_type: "GIFT",
-      reserved_by_user_id: "2",
-      paired_reservation_id: null,
-      reserved_at: "",
-      expires_at: null,
-      status: "PENDING",
-      notes: null,
-    });
-    vi.mocked(reservationsApi.confirmTransaction).mockResolvedValue({
-      reservation_id: "55",
-      status: "FULFILLED",
-      already_resolved: false,
-    });
-    renderPanel();
-
-    const dialog = await screen.findByRole("dialog", { name: "Potwierdź transakcję" });
-    fireEvent.click(within(dialog).getByRole("button", { name: "Potwierdź" }));
-
-    await waitFor(() =>
-      expect(reservationsApi.confirmTransaction).toHaveBeenCalledWith("55"),
-    );
-  });
-
-  // Regression: the pre-existing SWAP paired-leg resolution branch (owner
-  // side of an accepted SWAP resolves via the paired leg, not primary.id
-  // directly) must remain unchanged by the GIFT/LEND addition above.
-  it("still resolves the SWAP paired-leg reservation id for the owner side, unchanged", async () => {
-    mockGuestDefaults();
-    vi.mocked(notificationsApi.getMyNotifications).mockResolvedValue([
-      pendingNotif({
-        id: "2",
-        kind: "TERM_CONFIRMATION_NEEDED",
-        message: "Termin się odbył — potwierdź przekazanie rzeczy",
-        link_path: "/ania/grupa/5/term/9",
-      }),
-    ]);
-    vi.mocked(termItemListingsApi.getMyTakenTermItemListings).mockResolvedValue([]);
-    vi.mocked(termItemListingsApi.getMyTermItemListings).mockResolvedValue([
-      browseListing({ id: "9", lister_party_id: mockProfile.party_id, resolved_reservation_id: "60" }),
-    ]);
-    vi.mocked(reservationsApi.getReservation).mockImplementation(async (id: string) => {
-      if (id === "60") {
-        return {
-          id: "60",
-          item_id: "9",
-          reservation_type: "SWAP",
-          reserved_by_user_id: "2",
-          paired_reservation_id: "61",
-          reserved_at: "",
-          expires_at: null,
-          status: "PENDING",
-          notes: null,
-        };
-      }
-      return {
-        id: "61",
-        item_id: "12",
-        reservation_type: "SWAP",
-        reserved_by_user_id: "1",
-        paired_reservation_id: "60",
-        reserved_at: "",
-        expires_at: null,
-        status: "PENDING",
-        notes: null,
-      };
-    });
-    vi.mocked(reservationsApi.confirmTransaction).mockResolvedValue({
-      reservation_id: "61",
-      status: "FULFILLED",
-      already_resolved: false,
-    });
-    renderPanel();
-
-    const dialog = await screen.findByRole("dialog", { name: "Potwierdź transakcję" });
-    fireEvent.click(within(dialog).getByRole("button", { name: "Potwierdź" }));
-
-    await waitFor(() =>
-      expect(reservationsApi.confirmTransaction).toHaveBeenCalledWith("61"),
-    );
-  });
-
-  // Neither the taker side nor the owner/lister side resolves an ACTIVE
-  // reservation for this caller — resolvePendingReservationId returns null.
-  // Since this party only ever gets a TERM_CONFIRMATION_NEEDED notification
-  // for a reservation that WAS active at notification-creation time, null
-  // here means the other party already confirmed it in the meantime, not
-  // "nothing to confirm" — the modal must show the same "already resolved"
-  // state as a 409 from the backend (bug: it used to show an unhelpful
-  // "not found" toast and leave the notification stuck, un-dismissed, so it
-  // kept reappearing).
-  it("treats a null reservation id as already-resolved-by-the-other-party, not 'not found'", async () => {
-    mockGuestDefaults();
-    vi.mocked(notificationsApi.getMyNotifications).mockResolvedValue([
-      pendingNotif({
-        id: "2",
-        kind: "TERM_CONFIRMATION_NEEDED",
-        message: "Termin się odbył — potwierdź przekazanie rzeczy",
-        link_path: "/ania/grupa/5/term/9",
-      }),
-    ]);
-    vi.mocked(termItemListingsApi.getMyTakenTermItemListings).mockResolvedValue([]);
-    vi.mocked(termItemListingsApi.getMyTermItemListings).mockResolvedValue([]);
-    vi.mocked(notificationsApi.markNotificationRead).mockResolvedValue(undefined);
-    renderPanel();
-
-    const dialog = await screen.findByRole("dialog", { name: "Potwierdź transakcję" });
-    fireEvent.click(within(dialog).getByRole("button", { name: "Potwierdź" }));
-
-    expect(
-      await within(dialog).findByText("Transakcja została już rozstrzygnięta przez drugą stronę."),
-    ).toBeInTheDocument();
-    expect(within(dialog).queryByRole("button", { name: "Potwierdź" })).not.toBeInTheDocument();
-    expect(within(dialog).getByRole("button", { name: "Rozumiem" })).toBeInTheDocument();
-    expect(reservationsApi.confirmTransaction).not.toHaveBeenCalled();
-    expect(reservationsApi.getReservation).not.toHaveBeenCalled();
-
-    // "Rozumiem" dismisses the notification (marks it read) instead of
-    // leaving it stuck so the modal reappears on every reload.
-    fireEvent.click(within(dialog).getByRole("button", { name: "Rozumiem" }));
-    await waitFor(() =>
-      expect(notificationsApi.markNotificationRead).toHaveBeenCalledWith("2"),
-    );
-  });
-
-  it("read notifications never surface as pending actions — only the unread TERM_CONFIRMATION_NEEDED one renders", async () => {
-    mockGuestDefaults();
-    vi.mocked(notificationsApi.getMyNotifications).mockResolvedValue([
-      pendingNotif({ id: "1", read_at: "2026-03-01T11:00:00" }),
-      pendingNotif({
-        id: "2",
-        kind: "TERM_CONFIRMATION_NEEDED",
-        message: "Termin się odbył — potwierdź przekazanie rzeczy",
-        link_path: "/ania/grupa/5/term/9",
-      }),
-    ]);
-    renderPanel();
-
-    expect(await screen.findByRole("dialog", { name: "Potwierdź transakcję" })).toBeInTheDocument();
-    expect(screen.queryByRole("dialog", { name: "Propozycja zamiany" })).not.toBeInTheDocument();
-  });
-
-  it("the modal renders regardless of the currently active Panel section (home vs. rzeczy)", async () => {
-    mockGuestDefaults();
-    vi.mocked(notificationsApi.getMyNotifications).mockResolvedValue([pendingNotif()]);
-    renderPanel();
-
-    await screen.findByRole("dialog", { name: "Propozycja zamiany" });
-
-    fireEvent.click(await screen.findByRole("button", { name: "Moje rzeczy" }));
-    await screen.findByRole("heading", { name: "Moje rzeczy" });
-
-    expect(screen.getByRole("dialog", { name: "Propozycja zamiany" })).toBeInTheDocument();
+    await waitFor(() => expect(inventoriesApi.getMyInventoryItems).toHaveBeenCalledTimes(2));
+    expect(screen.queryByText("Wczytywanie…")).not.toBeInTheDocument();
   });
 });
 
 describe("PanelPage — RzeczyView post-term-end fallback buttons (Bug #4c, full flow)", () => {
   beforeEach(() => {
     vi.resetAllMocks();
-    vi.mocked(groupsApi.listMyPendingJoinRequests).mockResolvedValue([]);
   });
 
   const lockedItem = {
@@ -3227,7 +2691,7 @@ describe("PanelPage — RzeczyView post-term-end fallback buttons (Bug #4c, full
     photos_moderation_pending: false,
   };
 
-  it("dismissing the global confirm prompt still leaves the tile's own 'Odebrał' fallback usable — clicking it confirms the transaction and silently refreshes the panel", async () => {
+  it("the tile's own 'Odebrał' fallback confirms the transaction and silently refreshes the panel", async () => {
     mockGuestDefaults();
     vi.mocked(inventoriesApi.getMyInventoryItems).mockResolvedValue([lockedItem]);
     vi.mocked(inventoriesApi.getInventoryItemBalances).mockResolvedValue({
@@ -3255,33 +2719,12 @@ describe("PanelPage — RzeczyView post-term-end fallback buttons (Bug #4c, full
       attendee_count: null,
       child_count: null,
     });
-    // A TERM_CONFIRMATION_NEEDED prompt also happens to be pending (e.g.
-    // for a different reservation) — dismissing it via "Później" must not
-    // interfere with the independent, tile-local fallback below.
-    vi.mocked(notificationsApi.getMyNotifications).mockResolvedValue([
-      {
-        id: "1",
-        kind: "TERM_CONFIRMATION_NEEDED",
-        message: "Termin się odbył — potwierdź przekazanie rzeczy",
-        link_path: "/ania/grupa/5/term/9",
-        read_at: null,
-        created_at: "2026-03-01T10:00:00",
-        reservation_id: null,
-      },
-    ]);
-    vi.mocked(notificationsApi.markNotificationRead).mockResolvedValue(undefined);
     vi.mocked(reservationsApi.confirmTransaction).mockResolvedValue({
       reservation_id: "88",
       status: "FULFILLED",
       already_resolved: false,
     });
     renderPanel();
-
-    const dialog = await screen.findByRole("dialog", { name: "Potwierdź transakcję" });
-    fireEvent.click(within(dialog).getByRole("button", { name: "Później" }));
-    await waitFor(() =>
-      expect(screen.queryByRole("dialog", { name: "Potwierdź transakcję" })).not.toBeInTheDocument(),
-    );
 
     fireEvent.click(await screen.findByRole("button", { name: "Moje rzeczy" }));
     await waitFor(() => expect(inventoriesApi.getMyInventoryItems).toHaveBeenCalledTimes(1));
@@ -3299,246 +2742,109 @@ describe("PanelPage — RzeczyView post-term-end fallback buttons (Bug #4c, full
   });
 });
 
-describe("PanelPage — organizer join-request pending action", () => {
+describe("PanelPage — RzeczyView swap accept success sheet", () => {
   beforeEach(() => {
     vi.resetAllMocks();
-    vi.mocked(groupsApi.listMyPendingJoinRequests).mockResolvedValue([]);
   });
 
-  function joinRequest(
-    over: Partial<groupsApi.PendingJoinRequestResponse> = {},
-  ): groupsApi.PendingJoinRequestResponse {
-    return {
-      id: "11",
-      group_id: "5",
-      group_name: "Poranne Maluchy",
-      term_id: "3",
-      requester_party_id: "42",
-      requester_display_name: "Kasia Nowak",
-      created_at: "2026-09-24T10:00:00",
-      ...over,
-    };
-  }
-
-  function joinNotif(
-    over: Partial<notificationsApi.NotificationResponse> = {},
-  ): notificationsApi.NotificationResponse {
-    return {
-      id: "70",
-      kind: "GROUP_JOIN_REQUESTED",
-      message: "Kasia Nowak prosi o dostęp do grupy „Poranne Maluchy”",
-      link_path: "/ania/grupa/5/term/3",
-      read_at: null,
-      created_at: "2026-09-24T10:00:00",
-      join_request_id: "11",
-      reservation_id: null,
-      ...over,
-    };
-  }
-
-  const decided = (status: groupsApi.JoinRequestStatus): groupsApi.JoinRequestResponse => ({
-    id: "11",
-    group_id: "5",
-    requester_party_id: "42",
-    term_id: "3",
-    status,
+  const swapItem = {
+    id: "40",
+    inventory_id: "1",
+    home_inventory_id: null,
+    product_id: "9",
+    product_name: "Kask",
+    condition: "GOOD" as const,
+    added_at: "",
     created_at: "",
     updated_at: "",
+    listing_mode: "SWAP" as const,
+    photos_moderation_pending: false,
+  };
+
+  const offer = (id: string, name: string): termItemListingsApi.SwapProposalOfferResponse => ({
+    id,
+    proposer_party_id: `p-${id}`,
+    proposer_display_name: `Osoba ${id}`,
+    offered_item_id: `i-${id}`,
+    offered_product_name: name,
+    created_at: "",
   });
 
-  it("shows the server-listed request even when its notification is already read", async () => {
-    mockOrganizerDefaults();
-    vi.mocked(notificationsApi.getMyNotifications).mockResolvedValue([
-      joinNotif({ read_at: "2026-09-24T11:00:00" }),
-    ]);
-    vi.mocked(groupsApi.listMyPendingJoinRequests).mockResolvedValue([joinRequest()]);
+  const accepted: termItemListingsApi.AcceptedSwapProposalResponse = {
+    id: "p1",
+    proposer_party_id: "p-p1",
+    listing_item_id: swapItem.id,
+    offered_item_id: "i-p1",
+    proposer_reservation_id: "r1",
+    status: "ACCEPTED",
+    created_at: "",
+    updated_at: "",
+    // 14.10.2026 is a Wednesday ("śr").
+    term_id: TERM_ID,
+    term_occurs_on: "2026-10-14T17:00:00",
+    group_id: GROUP_ID,
+    group_name: "Muzyczne Maluchy",
+  };
+
+  async function acceptFirstOffer(offers: termItemListingsApi.SwapProposalOfferResponse[]) {
+    mockGuestDefaults();
+    vi.mocked(inventoriesApi.getMyInventoryItems).mockResolvedValue([swapItem]);
+    vi.mocked(termItemListingsApi.getSwapProposalsForItem).mockResolvedValue(offers);
     renderPanel();
+    fireEvent.click(await screen.findByRole("button", { name: "Moje rzeczy" }));
+    fireEvent.click((await screen.findAllByRole("button", { name: "Wybierz" }))[0]);
+  }
 
-    const dialog = await screen.findByRole("dialog", { name: "Prośba o dostęp" });
-    expect(within(dialog).getByText(/Kasia Nowak prosi o dostęp do grupy/)).toBeInTheDocument();
-    expect(within(dialog).getByText("„Poranne Maluchy”")).toBeInTheDocument();
-    expect(within(dialog).getByText("Wysłano 24 września")).toBeInTheDocument();
-    expect(within(dialog).getByRole("button", { name: "Zatwierdź" })).toBeInTheDocument();
-    expect(within(dialog).getByRole("button", { name: "Odrzuć" })).toBeInTheDocument();
-    expect(within(dialog).getByRole("button", { name: "Później" })).toBeInTheDocument();
+  it("opens 'Zamiana zaakceptowana' with the pair, date, group and the other-offers line", async () => {
+    vi.mocked(termItemListingsApi.acceptSwapProposal).mockResolvedValue(accepted);
+    await acceptFirstOffer([offer("p1", "Rowerek"), offer("p2", "Hulajnoga")]);
+
+    const dialog = await screen.findByRole("dialog", { name: "Zamiana zaakceptowana" });
+    expect(termItemListingsApi.acceptSwapProposal).toHaveBeenCalledWith("p1");
+    expect(dialog).toHaveTextContent("„Kask” ↔ „Rowerek”");
+    expect(dialog).toHaveTextContent("śr 14.10 o 17:00");
+    expect(dialog).toHaveTextContent("— Muzyczne Maluchy");
+    expect(dialog).toHaveTextContent("Przynieś „Kask” i odbierz „Rowerek” na tym terminie.");
+    expect(dialog).toHaveTextContent("Pozostałe propozycje zostały odrzucone.");
+    expect(within(dialog).getByRole("button", { name: /Dodaj do kalendarza/ })).toBeInTheDocument();
+
+    fireEvent.click(within(dialog).getByRole("button", { name: "Gotowe" }));
+    expect(screen.queryByRole("dialog", { name: "Zamiana zaakceptowana" })).not.toBeInTheDocument();
   });
 
-  it("Zatwierdź shows a busy state, approves, marks the linked notification read, reloads and toasts", async () => {
-    mockOrganizerDefaults();
-    vi.mocked(notificationsApi.getMyNotifications).mockResolvedValue([joinNotif()]);
-    vi.mocked(notificationsApi.markNotificationRead).mockResolvedValue(undefined);
-    vi.mocked(groupsApi.listMyPendingJoinRequests)
-      .mockResolvedValueOnce([joinRequest()])
-      .mockResolvedValue([]);
-    let resolveApprove: (value: groupsApi.JoinRequestResponse) => void = () => undefined;
-    vi.mocked(groupsApi.approveJoinRequest).mockReturnValue(
-      new Promise((resolve) => {
-        resolveApprove = resolve;
-      }),
+  it("with a single offer and no term data hides the other-offers line, the date and the calendar", async () => {
+    vi.mocked(termItemListingsApi.acceptSwapProposal).mockResolvedValue({
+      ...accepted,
+      term_id: null,
+      term_occurs_on: null,
+      group_id: null,
+      group_name: null,
+    });
+    await acceptFirstOffer([offer("p1", "Rowerek")]);
+
+    const dialog = await screen.findByRole("dialog", { name: "Zamiana zaakceptowana" });
+    expect(dialog).toHaveTextContent("„Kask” ↔ „Rowerek”");
+    expect(dialog).not.toHaveTextContent(/ o \d{2}:\d{2}/);
+    expect(dialog).not.toHaveTextContent("Pozostałe propozycje");
+    expect(within(dialog).queryByRole("button", { name: /Dodaj do kalendarza/ })).not.toBeInTheDocument();
+  });
+
+  it("a failed accept keeps the inline error and opens no sheet", async () => {
+    vi.mocked(termItemListingsApi.acceptSwapProposal).mockRejectedValue(new Error("500"));
+    await acceptFirstOffer([offer("p1", "Rowerek")]);
+
+    expect(await screen.findByText("Nie udało się zaakceptować propozycji — spróbuj ponownie")).toBeInTheDocument();
+    expect(screen.queryByRole("dialog", { name: "Zamiana zaakceptowana" })).not.toBeInTheDocument();
+  });
+
+  it("a 409 accept shows the server's message instead of the generic retry text", async () => {
+    vi.mocked(termItemListingsApi.acceptSwapProposal).mockRejectedValue(
+      new ApiError(409, "Conflict", { message: "Termin już się odbył" }),
     );
-    renderPanel();
+    await acceptFirstOffer([offer("p1", "Rowerek")]);
 
-    const dialog = await screen.findByRole("dialog", { name: "Prośba o dostęp" });
-    fireEvent.click(within(dialog).getByRole("button", { name: "Zatwierdź" }));
-
-    const busyButton = await within(dialog).findByRole("button", { name: "Zatwierdzanie…" });
-    expect(busyButton).toBeDisabled();
-    expect(busyButton).toHaveAttribute("aria-busy", "true");
-    expect(within(dialog).getByRole("button", { name: "Odrzuć" })).toBeDisabled();
-    expect(groupsApi.approveJoinRequest).toHaveBeenCalledWith("5", "11");
-
-    resolveApprove(decided("APPROVED"));
-
-    expect(await screen.findByText("Prośba zatwierdzona")).toBeInTheDocument();
-    expect(notificationsApi.markNotificationRead).toHaveBeenCalledWith("70");
-    expect(groupsApi.listMyPendingJoinRequests).toHaveBeenCalledTimes(2);
-    expect(screen.queryByRole("dialog", { name: "Prośba o dostęp" })).not.toBeInTheDocument();
-  });
-
-  it("Odrzuć rejects without extra confirmation; a non-409 failure shows a retryable alert first", async () => {
-    mockOrganizerDefaults();
-    vi.mocked(groupsApi.listMyPendingJoinRequests)
-      .mockResolvedValueOnce([joinRequest()])
-      .mockResolvedValue([]);
-    vi.mocked(groupsApi.rejectJoinRequest)
-      .mockRejectedValueOnce(new ApiError(500, "Server Error", null))
-      .mockResolvedValueOnce(decided("REJECTED"));
-    renderPanel();
-
-    const dialog = await screen.findByRole("dialog", { name: "Prośba o dostęp" });
-    fireEvent.click(within(dialog).getByRole("button", { name: "Odrzuć" }));
-
-    expect(await within(dialog).findByRole("alert")).toHaveTextContent(
-      "Nie udało się zapisać decyzji — spróbuj ponownie",
-    );
-
-    fireEvent.click(within(dialog).getByRole("button", { name: "Odrzuć" }));
-
-    expect(await screen.findByText("Prośba odrzucona")).toBeInTheDocument();
-    expect(groupsApi.rejectJoinRequest).toHaveBeenLastCalledWith("5", "11");
-    expect(groupsApi.approveJoinRequest).not.toHaveBeenCalled();
-    expect(screen.queryByRole("dialog", { name: "Prośba o dostęp" })).not.toBeInTheDocument();
-  });
-
-  it("any 409 shows the already-resolved state; Rozumiem dismisses and reloads", async () => {
-    mockOrganizerDefaults();
-    vi.mocked(groupsApi.listMyPendingJoinRequests).mockResolvedValue([joinRequest()]);
-    vi.mocked(groupsApi.approveJoinRequest).mockRejectedValue(
-      new ApiError(409, "Conflict", { detail: "Join request is no longer pending" }),
-    );
-    renderPanel();
-
-    const dialog = await screen.findByRole("dialog", { name: "Prośba o dostęp" });
-    fireEvent.click(within(dialog).getByRole("button", { name: "Zatwierdź" }));
-
-    expect(await within(dialog).findByRole("alert")).toHaveTextContent(
-      "Prośba została już rozstrzygnięta.",
-    );
-    expect(within(dialog).queryByRole("button", { name: "Zatwierdź" })).not.toBeInTheDocument();
-
-    fireEvent.click(within(dialog).getByRole("button", { name: "Rozumiem" }));
-
-    await waitFor(() =>
-      expect(screen.queryByRole("dialog", { name: "Prośba o dostęp" })).not.toBeInTheDocument(),
-    );
-    await waitFor(() => expect(groupsApi.listMyPendingJoinRequests).toHaveBeenCalledTimes(2));
-  });
-
-  it("Później hides the item without touching notifications and reveals the next one", async () => {
-    mockOrganizerDefaults();
-    vi.mocked(notificationsApi.getMyNotifications).mockResolvedValue([joinNotif()]);
-    // The server lists pending requests oldest first; the panel keeps that order.
-    vi.mocked(groupsApi.listMyPendingJoinRequests).mockResolvedValue([
-      joinRequest(),
-      joinRequest({ id: "12", requester_display_name: "Ola Zielińska", created_at: "2026-09-24T12:00:00" }),
-    ]);
-    renderPanel();
-
-    const dialog = await screen.findByRole("dialog", { name: "Prośba o dostęp" });
-    expect(within(dialog).getByText(/Kasia Nowak prosi/)).toBeInTheDocument();
-    fireEvent.click(within(dialog).getByRole("button", { name: "Później" }));
-
-    expect(
-      await within(screen.getByRole("dialog", { name: "Prośba o dostęp" })).findByText(/Ola Zielińska prosi/),
-    ).toBeInTheDocument();
-    expect(notificationsApi.markNotificationRead).not.toHaveBeenCalled();
-  });
-
-  it("an item hidden with Później stays hidden across a silent reload", async () => {
-    mockOrganizerDefaults();
-    const older = joinRequest();
-    const newer = joinRequest({ id: "12", requester_display_name: "Ola Zielińska", created_at: "2026-09-24T12:00:00" });
-    vi.mocked(groupsApi.listMyPendingJoinRequests)
-      .mockResolvedValueOnce([older, newer])
-      .mockResolvedValue([older]);
-    vi.mocked(groupsApi.approveJoinRequest).mockResolvedValue(decided("APPROVED"));
-    renderPanel();
-
-    const dialog = await screen.findByRole("dialog", { name: "Prośba o dostęp" });
-    fireEvent.click(within(dialog).getByRole("button", { name: "Później" }));
-
-    const next = screen.getByRole("dialog", { name: "Prośba o dostęp" });
-    expect(within(next).getByText(/Ola Zielińska prosi/)).toBeInTheDocument();
-    fireEvent.click(within(next).getByRole("button", { name: "Zatwierdź" }));
-
-    expect(await screen.findByText("Prośba zatwierdzona")).toBeInTheDocument();
-    expect(groupsApi.approveJoinRequest).toHaveBeenCalledWith("5", "12");
-    expect(groupsApi.listMyPendingJoinRequests).toHaveBeenCalledTimes(2);
-    expect(screen.queryByRole("dialog", { name: "Prośba o dostęp" })).not.toBeInTheDocument();
-  });
-
-  it("an undefined pending-requests result still renders the panel with no item", async () => {
-    mockOrganizerDefaults();
-    vi.mocked(groupsApi.listMyPendingJoinRequests).mockResolvedValue(
-      undefined as unknown as groupsApi.PendingJoinRequestResponse[],
-    );
-    renderPanel();
-
-    expect(await screen.findByRole("button", { name: "Powiadomienia" })).toBeInTheDocument();
-    expect(screen.queryByRole("dialog", { name: "Prośba o dostęp" })).not.toBeInTheDocument();
-    expect(screen.queryByText("Nie udało się wczytać panelu")).not.toBeInTheDocument();
-  });
-
-  it("a failed pending-requests fetch is logged and the panel still renders", async () => {
-    mockOrganizerDefaults();
-    const failure = new Error("500");
-    vi.mocked(groupsApi.listMyPendingJoinRequests).mockRejectedValue(failure);
-    const consoleError = vi.spyOn(console, "error").mockImplementation(() => {});
-    try {
-      renderPanel();
-
-      expect(await screen.findByRole("button", { name: "Powiadomienia" })).toBeInTheDocument();
-      expect(screen.queryByText("Nie udało się wczytać panelu")).not.toBeInTheDocument();
-      expect(screen.queryByRole("dialog", { name: "Prośba o dostęp" })).not.toBeInTheDocument();
-      expect(consoleError).toHaveBeenCalledWith(expect.any(String), failure);
-    } finally {
-      consoleError.mockRestore();
-    }
-  });
-
-  it("a GROUP_JOIN_REQUESTED row in the header bell renders its message, marks it read on open and keeps the pending action", async () => {
-    mockOrganizerDefaults();
-    vi.mocked(notificationsApi.getMyNotifications).mockResolvedValue([joinNotif({ link_path: "/panel" })]);
-    vi.mocked(notificationsApi.markNotificationRead).mockResolvedValue(undefined);
-    vi.mocked(groupsApi.listMyPendingJoinRequests).mockResolvedValue([joinRequest()]);
-    // The bell lives in the top account bar (PublicLayout), above the Panel;
-    // both read the same notifications query.
-    render(
-      <MemoryRouter initialEntries={["/panel"]}>
-        <NotificationBell />
-        <Routes>
-          <Route path="/panel" element={<PanelPage />} />
-        </Routes>
-      </MemoryRouter>,
-      { wrapper: createQueryWrapper() },
-    );
-
-    await screen.findByRole("dialog", { name: "Prośba o dostęp" });
-    fireEvent.click(screen.getByRole("button", { name: /Powiadomienia \(1 nieprzeczytane\)/ }));
-    fireEvent.click(screen.getByRole("menuitem", { name: /Kasia Nowak prosi o dostęp do grupy/ }));
-
-    await waitFor(() => expect(notificationsApi.markNotificationRead).toHaveBeenCalledWith("70"));
-    expect(screen.getByRole("dialog", { name: "Prośba o dostęp" })).toBeInTheDocument();
+    expect(await screen.findByText("Termin już się odbył")).toBeInTheDocument();
+    expect(screen.queryByText("Nie udało się zaakceptować propozycji — spróbuj ponownie")).not.toBeInTheDocument();
   });
 });
 
@@ -3547,7 +2853,6 @@ describe("PanelPage — Mój dom — inline birth-year editor and returnTo (gap 
 
   beforeEach(() => {
     vi.resetAllMocks();
-    vi.mocked(groupsApi.listMyPendingJoinRequests).mockResolvedValue([]);
   });
 
   it("Esc cancels the inline edit without saving; an out-of-range year disables Zapisz", async () => {
@@ -3589,7 +2894,6 @@ describe("PanelPage — moderation errors inline in the add-group / add-term / e
 
   beforeEach(() => {
     vi.resetAllMocks();
-    vi.mocked(groupsApi.listMyPendingJoinRequests).mockResolvedValue([]);
     mockOrganizerDefaults();
   });
 
@@ -3707,7 +3011,6 @@ describe("PanelPage — profil", () => {
 
   beforeEach(() => {
     vi.resetAllMocks();
-    vi.mocked(groupsApi.listMyPendingJoinRequests).mockResolvedValue([]);
   });
 
   it("/panel/profil edits name and 'O mnie' (no location field) and saves them", async () => {

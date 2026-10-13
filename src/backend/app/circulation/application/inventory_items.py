@@ -96,6 +96,14 @@ async def find_item_including_deleted(db: AsyncSession, item_id: uuid.UUID) -> I
     return await repository.get_item(db, item_id)
 
 
+async def list_product_names_for_items(
+    db: AsyncSession, item_ids: Collection[uuid.UUID]
+) -> dict[uuid.UUID, str]:
+    """Batched read backing the term-end prompt's item names; reaches
+    soft-deleted items like `find_item_including_deleted`."""
+    return await repository.list_product_names_for_items(db, item_ids)
+
+
 async def list_items(db: AsyncSession, inventory_id: uuid.UUID) -> list[InventoryItem]:
     return await repository.list_items_for_inventory(db, inventory_id)
 

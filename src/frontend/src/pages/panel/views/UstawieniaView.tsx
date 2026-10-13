@@ -8,21 +8,6 @@ export function UstawieniaView() {
   return (
     <>
       <div className="rounded-[22px] border border-line bg-paper p-5">
-        <h3 className="mb-1 text-base font-semibold text-ink">Powiadomienia</h3>
-        <ToggleRow
-          label="Powiadomienia e-mail"
-          hint="Nowe zgłoszenia i wiadomości"
-          checked={settings.emailNotifs}
-          onChange={() => setSettings((s) => ({ ...s, emailNotifs: !s.emailNotifs }))}
-        />
-        <ToggleRow
-          label="Powiadomienia SMS"
-          hint="Przypomnienia o nadchodzących zajęciach"
-          checked={settings.smsNotifs}
-          onChange={() => setSettings((s) => ({ ...s, smsNotifs: !s.smsNotifs }))}
-        />
-      </div>
-      <div className="mt-3.5 rounded-[22px] border border-line bg-paper p-5">
         <h3 className="mb-1 text-base font-semibold text-ink">Prywatność</h3>
         <ToggleRow
           label="Widoczny profil publiczny"
@@ -40,6 +25,9 @@ export function UstawieniaView() {
           <LogoutIcon /> Wyloguj się
         </button>
       </div>
+      <p className="mt-3.5 px-1 text-xs text-ink-soft">
+        Powiadomienia dostajesz w aplikacji (dzwonek u góry ekranu).
+      </p>
     </>
   );
 }

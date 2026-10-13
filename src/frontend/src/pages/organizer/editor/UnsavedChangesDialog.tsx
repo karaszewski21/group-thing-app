@@ -1,4 +1,5 @@
 import { useEffect, useRef, type KeyboardEvent } from "react";
+import { useRegisterOpenSheet } from "../../../components/shared/openSheets";
 
 interface UnsavedChangesDialogProps {
   onDiscard: () => void;
@@ -11,6 +12,7 @@ interface UnsavedChangesDialogProps {
 export function UnsavedChangesDialog({ onDiscard, onKeepEditing }: UnsavedChangesDialogProps) {
   const keepRef = useRef<HTMLButtonElement>(null);
   const discardRef = useRef<HTMLButtonElement>(null);
+  useRegisterOpenSheet(true);
 
   useEffect(() => {
     keepRef.current?.focus();

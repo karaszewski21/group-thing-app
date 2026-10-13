@@ -20,6 +20,7 @@ from httpx import AsyncClient
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core import clock
 from app.groups.models import Leadership, NeededItem, Term
 from app.organizations.models import Organization
 
@@ -106,10 +107,10 @@ async def test_getPublicCircle_withTermIdParam_returnsThatTermsItemsAndGuardians
     token = await _register_organizer(client, "pt.owner1@example.com")
     group_id = await _create_circle(client, token, "Nutki dla starszaków")
     nearest_term_id = await _create_term(
-        client, token, group_id, date.today() + timedelta(days=7), "Najbliższy"
+        client, token, group_id, clock.local_now().date() + timedelta(days=7), "Najbliższy"
     )
     far_term_id = await _create_term(
-        client, token, group_id, date.today() + timedelta(days=30), "17:00 Park Sołacki"
+        client, token, group_id, clock.local_now().date() + timedelta(days=30), "17:00 Park Sołacki"
     )
 
     await _create_needed_item(client, token, far_term_id, "Grzechotka", "5 grzechotek")
@@ -141,7 +142,7 @@ async def test_getPublicCircle_termIdFromAnotherGroup_returns404(client: AsyncCl
 
     token_b = await _register_organizer(client, "pt.owner2b@example.com")
     group_b = await _create_circle(client, token_b, "Krąg B")
-    term_b = await _create_term(client, token_b, group_b, date.today())
+    term_b = await _create_term(client, token_b, group_b, clock.local_now().date())
 
     response = await client.get(f"/api/groups/public/{group_a}?term_id={term_b}")
 
@@ -151,7 +152,7 @@ async def test_getPublicCircle_termIdFromAnotherGroup_returns404(client: AsyncCl
 async def test_getPublicCircle_nonexistentTermId_returns404(client: AsyncClient) -> None:
     token = await _register_organizer(client, "pt.owner3@example.com")
     group_id = await _create_circle(client, token, "Krąg C")
-    await _create_term(client, token, group_id, date.today())
+    await _create_term(client, token, group_id, clock.local_now().date())
 
     response = await client.get(f"/api/groups/public/{group_id}?term_id={uuid.uuid4()}")
 
@@ -164,9 +165,11 @@ async def test_getPublicCircle_noTermIdParam_returnsNearestTermUnchanged(
     token = await _register_organizer(client, "pt.owner4@example.com")
     group_id = await _create_circle(client, token, "Krąg D")
     nearer_term_id = await _create_term(
-        client, token, group_id, date.today() + timedelta(days=3), "Bliżej"
+        client, token, group_id, clock.local_now().date() + timedelta(days=3), "Bliżej"
     )
-    await _create_term(client, token, group_id, date.today() + timedelta(days=20), "Dalej")
+    await _create_term(
+        client, token, group_id, clock.local_now().date() + timedelta(days=20), "Dalej"
+    )
 
     response = await client.get(f"/api/groups/public/{group_id}")
 
@@ -198,7 +201,7 @@ async def test_getPublicCircle_noTermIdParam_returnsNearestTermUnchanged(
 async def test_getPublicCircle_neededItems_orderedById(client: AsyncClient) -> None:
     token = await _register_organizer(client, "pt.owner5@example.com")
     group_id = await _create_circle(client, token, "Krąg E")
-    term_id = await _create_term(client, token, group_id, date.today())
+    term_id = await _create_term(client, token, group_id, clock.local_now().date())
     id_1 = await _create_needed_item(client, token, term_id, "INSTRUMENT", "bębenek")
     id_2 = await _create_needed_item(client, token, term_id, "ART_SUPPLIES", "farby")
     id_3 = await _create_needed_item(client, token, term_id, "OTHER", "koc")
@@ -219,7 +222,9 @@ async def test_getPublicCircle_afterLoggedInRsvp_stillExposesOnlyGuardianDisplay
     child count) and `term` keeps its unchanged 4-key shape."""
     token = await _register_organizer(client, "pt.loggedin.owner@example.com")
     group_id = await _create_circle(client, token, "Krąg z zalogowanym rodzicem")
-    term_id = await _create_term(client, token, group_id, date.today() + timedelta(days=7))
+    term_id = await _create_term(
+        client, token, group_id, clock.local_now().date() + timedelta(days=7)
+    )
 
     guest_token, guest_party_id = await _register_guest(client, "pt.loggedin.parent@example.com")
     rsvp = await client.post(
@@ -251,7 +256,7 @@ async def test_getPublicCircle_softDeletedNeededItem_notReturned(
 ) -> None:
     token = await _register_organizer(client, "pt.softdel1@example.com")
     group_id = await _create_circle(client, token, "Krąg soft-delete")
-    term_id = await _create_term(client, token, group_id, date.today())
+    term_id = await _create_term(client, token, group_id, clock.local_now().date())
     kept_id = await _create_needed_item(client, token, term_id, "INSTRUMENT", "bębenek")
     removed_id = await _create_needed_item(client, token, term_id, "ART_SUPPLIES", "kredki")
 
@@ -272,7 +277,7 @@ async def test_getPublicCircle_termWithNeededItems_unaffectedAfterSiblingDelete(
 ) -> None:
     token = await _register_organizer(client, "pt.softdel2@example.com")
     group_id = await _create_circle(client, token, "Krąg sibling")
-    term_id = await _create_term(client, token, group_id, date.today())
+    term_id = await _create_term(client, token, group_id, clock.local_now().date())
     sibling_id = await _create_needed_item(client, token, term_id, "INSTRUMENT", "grzechotka")
     removed_id = await _create_needed_item(client, token, term_id, "OTHER", "koc")
 
@@ -292,7 +297,7 @@ async def test_getPublicCircle_termWithNeededItems_unaffectedAfterSiblingDelete(
 async def test_getPublicCircle_neededItem_reflectsPledgeClaim(client: AsyncClient) -> None:
     token = await _register_organizer(client, "pt.claim@example.com")
     group_id = await _create_circle(client, token, "Krąg zgłoszeń")
-    term_id = await _create_term(client, token, group_id, date.today())
+    term_id = await _create_term(client, token, group_id, clock.local_now().date())
     needed_item_id = await _create_needed_item(client, token, term_id, "Bębenek", "mały")
 
     before = await client.get(f"/api/groups/public/{group_id}?term_id={term_id}")
@@ -320,7 +325,7 @@ async def test_getPublicCircle_organizerSlug_isOrgSlugWhenOrgExists_elseStableHa
     # Organizer who owns an Organization -> `organizer_slug` is that org's slug.
     token_with = await _register_organizer(client, "pt.owner6a@example.com")
     group_with = await _create_circle(client, token_with, "Krąg z organizacją")
-    await _create_term(client, token_with, group_with, date.today())
+    await _create_term(client, token_with, group_with, clock.local_now().date())
     org = await client.post(
         "/api/organizations/mine",
         json={"name": "Muzyczne Skrzaty"},
@@ -337,7 +342,7 @@ async def test_getPublicCircle_organizerSlug_isOrgSlugWhenOrgExists_elseStableHa
     # never null, so per-term links still work without an Organization.
     token_without = await _register_organizer(client, "pt.owner6b@example.com")
     group_without = await _create_circle(client, token_without, "Krąg bez organizacji")
-    await _create_term(client, token_without, group_without, date.today())
+    await _create_term(client, token_without, group_without, clock.local_now().date())
 
     url = f"/api/groups/public/{group_without}"
     slug = (await client.get(url)).json()["organizer_slug"]
@@ -448,7 +453,7 @@ async def test_getPublicCircle_organizerTheme_isNull_whenCircleHasNoActiveLeader
             select(Leadership).where(Leadership.to_group_id == uuid.UUID(str(group_id)))
         )
     ).scalar_one()
-    leadership.valid_to = date.today()
+    leadership.valid_to = clock.local_now().date()
     await db_session.commit()
 
     response = await client.get(f"/api/groups/public/{group_id}")
@@ -465,7 +470,7 @@ async def test_getPublicCircle_privateReducedResponse_includesOrganizerTheme(
 ) -> None:
     token = await _register_organizer(client, "pt.theme5@example.com")
     group_id = await _create_circle(client, token, "Krąg prywatny bordo")
-    await _create_term(client, token, group_id, date.today() + timedelta(days=7))
+    await _create_term(client, token, group_id, clock.local_now().date() + timedelta(days=7))
     private = await client.patch(
         f"/api/groups/{group_id}",
         json={"name": "Krąg prywatny bordo", "layout_mode": "CIRCLE", "visibility": "PRIVATE"},
@@ -538,7 +543,9 @@ async def test_getPublicCircle_organizerAndAttendeeListings_visibleAnonymously(
     attendee's both show up, unauthenticated."""
     org_token = await _register_organizer(client, "pt.exchange.org@example.com")
     group_id = await _create_circle(client, org_token, "Krąg wymiany")
-    term_id = await _create_term(client, org_token, group_id, date.today() + timedelta(days=7))
+    term_id = await _create_term(
+        client, org_token, group_id, clock.local_now().date() + timedelta(days=7)
+    )
     org_item_id = await _register_personal_item(client, org_token, "Namiot")
     await _set_preference(client, org_token, org_item_id, "LEND")
 
@@ -571,7 +578,9 @@ async def test_getPublicCircle_organizerAndAttendeeListings_visibleAnonymously(
 async def test_getPublicCircle_takenItem_disappearsFromPublicListings(client: AsyncClient) -> None:
     org_token = await _register_organizer(client, "pt.exchange.taken@example.com")
     group_id = await _create_circle(client, org_token, "Krąg wzięty")
-    term_id = await _create_term(client, org_token, group_id, date.today() + timedelta(days=7))
+    term_id = await _create_term(
+        client, org_token, group_id, clock.local_now().date() + timedelta(days=7)
+    )
     item_id = await _register_personal_item(client, org_token, "Deskorolka")
     await _set_preference(client, org_token, item_id, "LEND")
 
@@ -605,12 +614,14 @@ async def test_getPublicCircle_termOccursOnInPast_listingsStillVisible(
     an already-visited public page silently go blank."""
     org_token = await _register_organizer(client, "pt.exchange.past@example.com")
     group_id = await _create_circle(client, org_token, "Krąg miniony")
-    term_id = await _create_term(client, org_token, group_id, date.today() + timedelta(days=7))
+    term_id = await _create_term(
+        client, org_token, group_id, clock.local_now().date() + timedelta(days=7)
+    )
     item_id = await _register_personal_item(client, org_token, "Rower")
     await _set_preference(client, org_token, item_id, "LEND")
 
     term = (await db_session.execute(select(Term).where(Term.id == term_id))).scalar_one()
-    term.occurs_on = datetime.utcnow() - timedelta(days=1)
+    term.occurs_on = clock.local_now() - timedelta(days=1)
     await db_session.commit()
 
     response = await client.get(f"/api/groups/public/{group_id}?term_id={term_id}")
@@ -623,7 +634,9 @@ async def test_getPublicCircle_termOccursOnInPast_listingsStillVisible(
 async def test_getPublicCircle_pledgedNeededItem_exposesPledgerPartyId(client: AsyncClient) -> None:
     token = await _register_organizer(client, "pt.pledger.owner@example.com")
     group_id = await _create_circle(client, token, "Krąg z deklaracją")
-    term_id = await _create_term(client, token, group_id, date.today() + timedelta(days=7))
+    term_id = await _create_term(
+        client, token, group_id, clock.local_now().date() + timedelta(days=7)
+    )
     needed_item_id = await _create_needed_item(client, token, term_id, "Bębenek", "bębenek")
     guest_token, guest_party_id = await _register_guest(client, "pt.pledger.guest@example.com")
     pledge = await client.post(

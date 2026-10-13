@@ -18,6 +18,11 @@ export interface ItemStatusResponse {
   term_occurs_on: string | null;
   due_date: string | null;
   counterparty_label: string | null;
+  /** Set only for a reservation party (taker or giver) of a RESERVED or
+   * IN_TRANSIT item; null for everyone else. */
+  term_id?: string | null;
+  group_id?: string | null;
+  group_name?: string | null;
 }
 
 /** The item page's read model. `description` and `photos` belong to the

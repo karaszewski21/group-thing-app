@@ -226,8 +226,9 @@ class Term(BaseEntity):
         nullable=False,
     )
     # Date *and* wall-clock start time of the class (the time matters to
-    # guardians — "which hour do we show up?"). Naive local datetime, same
-    # convention as `created_at`/`updated_at`.
+    # guardians — "which hour do we show up?"). Naive Europe/Warsaw wall
+    # clock, unlike the naive UTC `created_at`/`updated_at` audit columns;
+    # compare it only against `app.core.clock.local_now()`.
     occurs_on: Mapped[datetime] = mapped_column(DateTime(), nullable=False)
     description: Mapped[str | None] = mapped_column(String(2000), nullable=True)
 

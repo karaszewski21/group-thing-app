@@ -3,7 +3,8 @@ import type { ReactNode } from "react";
 import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
 import { useAuth } from "../../auth/AuthContext";
 import { useQueryClient } from "@tanstack/react-query";
-import { NOTIFICATIONS_KEY, useNotifications } from "../../hooks/useNotifications";
+import { NOTIFICATIONS_KEY } from "../../hooks/useNotifications";
+import { subscribePendingActionResolved } from "../../components/pending/pendingActionResolved";
 import { getMyPledges, withdrawPledge, type MyPledgeResponse } from "../../api/pledges";
 import {
   createLightweightMembers,
@@ -17,20 +18,16 @@ import {
   type GuardianResponse,
 } from "../../api/families";
 import {
-  approveJoinRequest,
   createAdditionalMyCircle,
   endLeadership,
   getGroup,
   getMyAttendances,
-  listMyPendingJoinRequests,
-  rejectJoinRequest,
   updateGroupLayoutMode,
   type GroupLayoutMode,
   type GroupResponse,
   type GroupVisibility,
   type LeadershipResponse,
   type MyAttendanceResponse,
-  type PendingJoinRequestResponse,
 } from "../../api/groups";
 import {
   ACTIVE_LOCK_BALANCE_STATUSES,
@@ -46,13 +43,11 @@ import {
 } from "../../api/inventories";
 import {
   confirmReservation,
-  confirmTransaction,
   createReservation,
   fulfillReservation,
   getReservation,
   type ReservationResponse,
 } from "../../api/reservations";
-import { getMyTakenTermItemListings, getMyTermItemListings } from "../../api/termItemListings";
 import {
   deleteMyAvatar,
   getLeadershipsForPerson,
@@ -77,7 +72,6 @@ import {
   createEmptyNeededItemQuickAddValue,
   type NeededItemQuickAddValue,
 } from "../../utils/neededItemQuickAdd";
-import { ApiError } from "../../api/client";
 import { serverMessageOr } from "../../api/problem";
 import { setItemListingPreference } from "../../api/itemListingPreferences";
 import { pluralPl } from "../../utils/plural";
@@ -98,7 +92,6 @@ import {
   viewPath,
 } from "./panelHelpers";
 import { PanelDataContext } from "./panelDataStore";
-import { ModalSheet } from "./panelComponents";
 
 /* ------------------------------------------------------------------ */
 /*  Panel — warstwa stanu (state/effects/handlers/derived) wydzielona  */
@@ -108,125 +101,6 @@ import { ModalSheet } from "./panelComponents";
 /* ------------------------------------------------------------------ */
 
 export type PanelDataContextValue = ReturnType<typeof usePanelDataValue>;
-
-/** One actionable item surfaced by Group 7's global pending-actions modal
- * (spec.md Requirement 10-11 / the "GLOBALNYM dialogiem" quote) — derived
- * client-side from `notifications`' `kind`/`link_path` rather than a new
- * backend endpoint, per the plan's [RESOLVED] note. Only
- * `TERM_CONFIRMATION_NEEDED` carries a term-shaped `link_path`, and its
- * `termId` is parsed out of it, since that's the only structured data the
- * feed carries. Item-related kinds, `SWAP_PROPOSED` included, link to
- * `/product/<itemId>`, so `PendingSwapAction.linkPath` is not a term link.
- *
- * `SWAP_PROPOSED` carries no `proposalId`/accept-reject affordance here —
- * this modal can only ever surface the FIRST pending notification
- * (`pendingActions[0]`), which would pre-empt the actual choice among
- * possibly several competing offers. It only links to "Moje rzeczy", where
- * `RzeczyView` lists every pending offer against the item together. */
-export interface PendingSwapAction {
-  kind: "SWAP_PROPOSED";
-  notificationId: string;
-  message: string;
-  linkPath: string | null;
-}
-
-/** The post-term-end confirm-race prompt — fully wired to
- * `confirmTransaction`. `reservationId` is `Notification.reservation_id`
- * (set for GIFT/LEND prompts, incl. Pledge-LEND); when it is `null` (SWAP,
- * older notifications) the reservation is resolved client-side from the
- * term's `getMyTermItemListings`/`getMyTakenTermItemListings` (see
- * `resolvePendingReservationId`). */
-export interface PendingConfirmAction {
-  kind: "TERM_CONFIRMATION_NEEDED";
-  notificationId: string;
-  message: string;
-  linkPath: string | null;
-  termId: string | null;
-  reservationId: string | null;
-}
-
-/** A PENDING request to join a group the caller organizes. Sourced from the
- * server's pending list rather than from notifications, so it stays until
- * decided even when its `GROUP_JOIN_REQUESTED` notification was read. */
-export interface PendingJoinRequestAction {
-  kind: "GROUP_JOIN_REQUESTED";
-  joinRequestId: string;
-  groupId: string;
-  groupName: string;
-  requesterName: string;
-  createdAt: string;
-}
-
-export type PendingAction = PendingSwapAction | PendingConfirmAction | PendingJoinRequestAction;
-
-export type JoinRequestDecision = "approve" | "reject";
-
-const TERM_LINK_PATH_RE = /\/term\/([^/]+)$/;
-
-function parseTermIdFromLinkPath(linkPath: string | null): string | null {
-  if (!linkPath) return null;
-  const match = TERM_LINK_PATH_RE.exec(linkPath);
-  return match ? match[1] : null;
-}
-
-/** Resolves the `Reservation.id` the caller (`myPartyId`) needs to
- * `confirmTransaction` on `termId`, purely from existing term-item-listing
- * endpoints (no new backend surface) — mirrors `TermPage.tsx`'s own
- * `confirmActionFor`, generalized to run without that page's local
- * `reservationsById` cache since the global modal can render on any route.
- *
- * Checks the taker side first, via `getMyTakenTermItemListings` — unlike
- * `getBrowseTermItemListings` (which excludes RESERVED/taken items and
- * short-circuits to `[]` entirely once the Term has occurred, per
- * `list_browsable_term_item_listings`), this endpoint resolves the caller's
- * own active taken reservations independent of availability status, so it
- * still works for the post-term-end `TERM_CONFIRMATION_NEEDED` prompt.
- *
- * Then checks the lister/owner side of the caller's own listings: an
- * accepted SWAP resolves via its paired leg, while GIFT/LEND resolve
- * directly to the caller's own reservation id (symmetric to the SWAP
- * branch — the owner IS the party who must confirm handoff for those
- * types, there's no separate paired reservation to look up).
- *
- * `null` when neither side applies (nothing left to confirm, or it
- * doesn't belong to this caller). */
-async function resolvePendingReservationId(
-  termId: string,
-  myPartyId: string,
-): Promise<string | null> {
-  const [mine, taken] = await Promise.all([
-    getMyTermItemListings(termId),
-    getMyTakenTermItemListings(termId),
-  ]);
-  const takenRow = taken.find(
-    (r) => r.taken_by_party_id === myPartyId && r.resolved_reservation_id != null,
-  );
-  if (takenRow?.resolved_reservation_id != null) {
-    const reservation = await getReservation(takenRow.resolved_reservation_id);
-    if (reservation.status !== "FULFILLED" && reservation.status !== "CANCELLED") {
-      return reservation.id;
-    }
-  }
-
-  for (const row of mine) {
-    if (row.resolved_reservation_id == null) continue;
-    const primary = await getReservation(row.resolved_reservation_id);
-    if (primary.reservation_type === "SWAP") {
-      if (primary.paired_reservation_id == null) continue;
-      const paired = await getReservation(primary.paired_reservation_id);
-      if (paired.status !== "FULFILLED" && paired.status !== "CANCELLED") {
-        return paired.id;
-      }
-    } else if (
-      (primary.reservation_type === "GIFT" || primary.reservation_type === "LEND") &&
-      primary.status !== "FULFILLED" &&
-      primary.status !== "CANCELLED"
-    ) {
-      return primary.id;
-    }
-  }
-  return null;
-}
 
 /** The item's RETURN left half-done by an earlier "Oddaję" whose confirm or
  * fulfill failed. The item is no longer `LENT` then, so creating a new
@@ -308,27 +182,7 @@ function usePanelDataValue() {
   const [myAttendances, setMyAttendances] = useState<MyAttendanceResponse[]>([]);
   // "Zadeklarowane rzeczy" (HomeView) — the caller's own non-withdrawn pledges.
   const [myPledges, setMyPledges] = useState<MyPledgeResponse[]>([]);
-  // Shared with the header bell (`NotificationBell`) — pending actions below
-  // are derived from the unread entries.
   const queryClient = useQueryClient();
-  const { data: notifications, markRead: markNotificationRead } = useNotifications();
-  // Group 7's global pending-actions modal (swap accept/reject prompt +
-  // post-term-end confirm-race prompt) — `notificationId`s currently mid-
-  // confirm, and ones whose confirm attempt came back "already resolved by
-  // the other party" (409, `already_resolved: true`) — kept distinct from
-  // a generic error toast per spec.md Requirement 3.
-  const [pendingActionBusyId, setPendingActionBusyId] = useState<string | null>(null);
-  const [alreadyResolvedIds, setAlreadyResolvedIds] = useState<ReadonlySet<string>>(new Set());
-  // Organizer join-request actions, keyed by `joinRequestId`. The "Później"
-  // hidden set is deliberately never cleared by `load()`: it lasts until the
-  // provider remounts.
-  const [pendingJoinRequests, setPendingJoinRequests] = useState<PendingJoinRequestResponse[]>([]);
-  const [hiddenJoinRequestIds, setHiddenJoinRequestIds] = useState<ReadonlySet<string>>(new Set());
-  const [joinRequestBusy, setJoinRequestBusy] = useState<
-    { joinRequestId: string; decision: JoinRequestDecision } | null
-  >(null);
-  const [resolvedJoinRequestIds, setResolvedJoinRequestIds] = useState<ReadonlySet<string>>(new Set());
-  const [joinRequestErrorId, setJoinRequestErrorId] = useState<string | null>(null);
   // Inline "Mój dom" family rename (D4 / TC4) — no dedicated modal.
   const [renamingFamily, setRenamingFamily] = useState(false);
   const [familyNameDraft, setFamilyNameDraft] = useState("");
@@ -435,7 +289,7 @@ function usePanelDataValue() {
   const [avatarError, setAvatarError] = useState<string | null>(null);
 
   // --- lokalne, niepersystentne pola (patrz komentarz na górze pliku) ---
-  const [settings, setSettings] = useState({ emailNotifs: true, smsNotifs: false, publicProfile: true });
+  const [settings, setSettings] = useState({ publicProfile: true });
   const [groupExtras, setGroupExtras] = useState<Record<string, { location: string; freeSpots: number }>>({});
   const [itemModes, setItemModes] = useState<Record<string, ItemMode | null>>({});
   const [borrowedItems, setBorrowedItems] = useState<BorrowedItem[]>([]);
@@ -582,14 +436,6 @@ function usePanelDataValue() {
         setMyPledges([]);
       }
       await queryClient.invalidateQueries({ queryKey: NOTIFICATIONS_KEY });
-      try {
-        const pendingRequests = await listMyPendingJoinRequests();
-        setPendingJoinRequests(Array.isArray(pendingRequests) ? pendingRequests : []);
-      } catch (err) {
-        // Non-blocking: the panel still works, only the pending-request cards are missing.
-        console.error("Nie udało się wczytać próśb o dostęp", err);
-        setPendingJoinRequests([]);
-      }
 
       let relevantGroups: GroupResponse[];
       if (activeLeaderships.length > 0) {
@@ -632,6 +478,9 @@ function usePanelDataValue() {
   useEffect(() => {
     void load();
   }, [load]);
+
+  // The app-wide pending-actions host resolved something this panel shows.
+  useEffect(() => subscribePendingActionResolved(() => void load({ silent: true })), [load]);
 
   // Bug #3 (cache refresh, structural fix): a term-page confirmation
   // (TermPage) doesn't otherwise refresh this provider's data, so the
@@ -723,180 +572,6 @@ function usePanelDataValue() {
       showToast("Nie udało się wycofać zgłoszenia");
     } finally {
       setBusy(false);
-    }
-  }
-
-  /* ---------- global pending-actions modal (Group 7) ---------- */
-
-  // Swap/confirm actions are derived from unread notifications; join-request
-  // actions come from the server's pending list and follow them, oldest first.
-  const pendingActions: PendingAction[] = useMemo(
-    () => [
-      ...notifications
-        .filter((n) => n.read_at === null)
-        .flatMap((n): PendingAction[] => {
-          if (n.kind === "SWAP_PROPOSED") {
-            return [
-              {
-                kind: "SWAP_PROPOSED",
-                notificationId: n.id,
-                message: n.message,
-                linkPath: n.link_path,
-              },
-            ];
-          }
-          if (n.kind === "TERM_CONFIRMATION_NEEDED") {
-            return [
-              {
-                kind: "TERM_CONFIRMATION_NEEDED",
-                notificationId: n.id,
-                message: n.message,
-                linkPath: n.link_path,
-                termId: parseTermIdFromLinkPath(n.link_path),
-                reservationId: n.reservation_id ?? null,
-              },
-            ];
-          }
-          return [];
-        }),
-      ...pendingJoinRequests
-        .filter((r) => !hiddenJoinRequestIds.has(r.id))
-        .map(
-          (r): PendingJoinRequestAction => ({
-            kind: "GROUP_JOIN_REQUESTED",
-            joinRequestId: r.id,
-            groupId: r.group_id,
-            groupName: r.group_name,
-            requesterName: r.requester_display_name,
-            createdAt: r.created_at,
-          }),
-        ),
-    ],
-    [notifications, pendingJoinRequests, hiddenJoinRequestIds],
-  );
-
-  /** Marks the underlying notification read (optimistic, same pattern as
-   * `openNotification`) — the item then drops out of `pendingActions`
-   * (derived from `notifications`) on the next render, without a separate
-   * "dismissed" list to keep in sync. */
-  function dismissPendingAction(notificationId: string) {
-    setAlreadyResolvedIds((prev) => {
-      if (!prev.has(notificationId)) return prev;
-      const next = new Set(prev);
-      next.delete(notificationId);
-      return next;
-    });
-    markNotificationRead(notificationId);
-  }
-
-  /** `SWAP_PROPOSED` no longer accepts/rejects from this global, one-at-a-
-   * time modal (it can only ever show the FIRST pending proposal, which
-   * pre-empts the actual choice — see `RzeczyView`'s per-item list of every
-   * competing offer). This just dismisses the notification and sends the
-   * caller to "Moje rzeczy", where every pending offer against the item is
-   * visible together. */
-  function openSwapProposalsOnMyItems(notificationId: string) {
-    dismissPendingAction(notificationId);
-    navigate("/panel");
-    setView("rzeczy");
-  }
-
-  async function confirmPendingAction(
-    notificationId: string,
-    termId: string | null,
-    notificationReservationId: string | null,
-  ) {
-    if (
-      notificationReservationId === null &&
-      (termId === null || profile?.account_user_id == null)
-    ) {
-      showToast("Nie udało się potwierdzić — spróbuj ponownie");
-      return;
-    }
-    setPendingActionBusyId(notificationId);
-    try {
-      const reservationId =
-        notificationReservationId ??
-        (termId !== null && profile
-          ? await resolvePendingReservationId(termId, profile.party_id)
-          : null);
-      if (reservationId === null) {
-        // resolvePendingReservationId only ever omits an ACTIVE reservation
-        // (it explicitly skips FULFILLED/CANCELLED ones) — since this party
-        // received a TERM_CONFIRMATION_NEEDED notification for an active
-        // reservation in the first place, null here means the other party
-        // already confirmed/resolved it in the meantime, not "nothing to
-        // confirm". Treat it the same as the backend's own already-resolved
-        // 409, instead of a generic toast that left the notification stuck
-        // (never dismissed) so the modal kept reappearing.
-        setAlreadyResolvedIds((prev) => new Set(prev).add(notificationId));
-        return;
-      }
-      await confirmTransaction(reservationId);
-      // Bug #3 (cache refresh): matches every sibling mutation handler's
-      // convention (e.g. withdrawMyPledge) — without this, the panel's
-      // pledges/items/notifications stayed stale until the next unrelated
-      // reload.
-      await load({ silent: true });
-      dismissPendingAction(notificationId);
-      showToast("Potwierdzono");
-    } catch (err) {
-      if (
-        err instanceof ApiError &&
-        err.status === 409 &&
-        err.body &&
-        typeof err.body === "object" &&
-        (err.body as { already_resolved?: unknown }).already_resolved === true
-      ) {
-        setAlreadyResolvedIds((prev) => new Set(prev).add(notificationId));
-      } else {
-        showToast("Nie udało się potwierdzić — spróbuj ponownie");
-      }
-    } finally {
-      setPendingActionBusyId(null);
-    }
-  }
-
-  /** "Później" / ✕ — session-only; no server call, no notification change. */
-  function hideJoinRequest(joinRequestId: string) {
-    setHiddenJoinRequestIds((prev) => new Set(prev).add(joinRequestId));
-    setResolvedJoinRequestIds((prev) => {
-      if (!prev.has(joinRequestId)) return prev;
-      const next = new Set(prev);
-      next.delete(joinRequestId);
-      return next;
-    });
-    setJoinRequestErrorId((prev) => (prev === joinRequestId ? null : prev));
-  }
-
-  function acknowledgeResolvedJoinRequest(joinRequestId: string) {
-    hideJoinRequest(joinRequestId);
-    void load({ silent: true });
-  }
-
-  async function decideJoinRequest(action: PendingJoinRequestAction, decision: JoinRequestDecision) {
-    const { joinRequestId, groupId } = action;
-    setJoinRequestBusy({ joinRequestId, decision });
-    setJoinRequestErrorId(null);
-    try {
-      if (decision === "approve") await approveJoinRequest(groupId, joinRequestId);
-      else await rejectJoinRequest(groupId, joinRequestId);
-      const linked = notifications.find(
-        (n) => n.kind === "GROUP_JOIN_REQUESTED" && n.join_request_id === joinRequestId && n.read_at === null,
-      );
-      if (linked) markNotificationRead(linked.id);
-      await load({ silent: true });
-      showToast(decision === "approve" ? "Prośba zatwierdzona" : "Prośba odrzucona");
-    } catch (err) {
-      // Any 409 means someone (the requester, another organizer, another tab)
-      // already moved the request out of PENDING.
-      if (err instanceof ApiError && err.status === 409) {
-        setResolvedJoinRequestIds((prev) => new Set(prev).add(joinRequestId));
-      } else {
-        setJoinRequestErrorId(joinRequestId);
-      }
-    } finally {
-      setJoinRequestBusy(null);
     }
   }
 
@@ -1430,18 +1105,6 @@ function usePanelDataValue() {
     myAttendances,
     myPledges,
     withdrawMyPledge,
-    pendingActions,
-    pendingActionBusyId,
-    alreadyResolvedIds,
-    dismissPendingAction,
-    openSwapProposalsOnMyItems,
-    confirmPendingAction,
-    joinRequestBusy,
-    resolvedJoinRequestIds,
-    joinRequestErrorId,
-    hideJoinRequest,
-    acknowledgeResolvedJoinRequest,
-    decideJoinRequest,
     renamingFamily,
     familyNameDraft,
     renameError,
@@ -1540,178 +1203,11 @@ function usePanelDataValue() {
   };
 }
 
-/** Group 7's global pending-actions modal — rendered from this same top-
- * level provider (alongside the notification-bell state it's derived
- * from), so it appears on top of whichever `/panel/*` section is mounted,
- * not just the term page. Shows at most one prompt at a time (oldest
- * first, via `pendingActions[0]`); accepting/dismissing one immediately
- * reveals the next on the next render. */
-function GlobalPendingActionsModal({ value }: { value: PanelDataContextValue }) {
-  const {
-    pendingActions,
-    pendingActionBusyId,
-    alreadyResolvedIds,
-    dismissPendingAction,
-    openSwapProposalsOnMyItems,
-    confirmPendingAction,
-  } = value;
-  const action = pendingActions[0];
-  if (!action) return null;
-  if (action.kind === "GROUP_JOIN_REQUESTED") return <JoinRequestActionSheet action={action} value={value} />;
-
-  const busy = pendingActionBusyId === action.notificationId;
-  const alreadyResolved = alreadyResolvedIds.has(action.notificationId);
-  const title = action.kind === "SWAP_PROPOSED" ? "Propozycja zamiany" : "Potwierdź transakcję";
-
-  return (
-    <ModalSheet title={title} onClose={() => dismissPendingAction(action.notificationId)}>
-      <p className="text-sm text-ink">{action.message}</p>
-
-      {alreadyResolved ? (
-        <>
-          <p className="mt-3 text-sm font-semibold text-danger" role="alert">
-            Transakcja została już rozstrzygnięta przez drugą stronę.
-          </p>
-          <button
-            type="button"
-            className="mt-3 rounded-full border border-line px-4 py-2 text-sm font-semibold text-ink-soft"
-            onClick={() => dismissPendingAction(action.notificationId)}
-          >
-            Rozumiem
-          </button>
-        </>
-      ) : action.kind === "TERM_CONFIRMATION_NEEDED" ? (
-        <div className="mt-3 flex gap-2">
-          <button
-            type="button"
-            className="rounded-full bg-mint px-4 py-2 text-sm font-bold text-white disabled:opacity-60"
-            disabled={busy}
-            onClick={() =>
-              void confirmPendingAction(action.notificationId, action.termId, action.reservationId)
-            }
-          >
-            Potwierdź
-          </button>
-          <button
-            type="button"
-            className="rounded-full border border-line px-4 py-2 text-sm font-semibold text-ink-soft"
-            onClick={() => dismissPendingAction(action.notificationId)}
-          >
-            Później
-          </button>
-        </div>
-      ) : (
-        // Info only, no Accept/Reject here — this modal can only ever show
-        // the FIRST pending proposal (`pendingActions[0]`), which would
-        // pre-empt the actual choice among competing offers. Sends the
-        // caller to "Moje rzeczy" instead, where every pending offer
-        // against the item is listed together (see `RzeczyView`).
-        <div className="mt-3 flex gap-2">
-          <button
-            type="button"
-            className="rounded-full bg-mint px-4 py-2 text-sm font-bold text-white"
-            onClick={() => openSwapProposalsOnMyItems(action.notificationId)}
-          >
-            Zobacz w Moje rzeczy
-          </button>
-          <button
-            type="button"
-            className="rounded-full border border-line px-4 py-2 text-sm font-semibold text-ink-soft"
-            onClick={() => dismissPendingAction(action.notificationId)}
-          >
-            Później
-          </button>
-        </div>
-      )}
-    </ModalSheet>
-  );
-}
-
-function JoinRequestActionSheet({
-  action,
-  value,
-}: {
-  action: PendingJoinRequestAction;
-  value: PanelDataContextValue;
-}) {
-  const {
-    joinRequestBusy,
-    resolvedJoinRequestIds,
-    joinRequestErrorId,
-    hideJoinRequest,
-    acknowledgeResolvedJoinRequest,
-    decideJoinRequest,
-  } = value;
-  const { joinRequestId } = action;
-  const busyDecision = joinRequestBusy?.joinRequestId === joinRequestId ? joinRequestBusy.decision : null;
-  const sentOn = new Date(action.createdAt).toLocaleDateString("pl-PL", { day: "numeric", month: "long" });
-
-  return (
-    <ModalSheet title="Prośba o dostęp" onClose={() => hideJoinRequest(joinRequestId)}>
-      <p className="text-sm text-ink">
-        {action.requesterName} prosi o dostęp do grupy <strong>„{action.groupName}”</strong>.
-      </p>
-      <p className="mt-1 text-xs text-ink-soft">Wysłano {sentOn}</p>
-
-      {resolvedJoinRequestIds.has(joinRequestId) ? (
-        <>
-          <p className="mt-3 text-sm font-semibold text-danger" role="alert">
-            Prośba została już rozstrzygnięta.
-          </p>
-          <button
-            type="button"
-            className="mt-3 rounded-full border border-line px-4 py-2 text-sm font-semibold text-ink-soft"
-            onClick={() => acknowledgeResolvedJoinRequest(joinRequestId)}
-          >
-            Rozumiem
-          </button>
-        </>
-      ) : (
-        <>
-          {joinRequestErrorId === joinRequestId && (
-            <p className="mt-3 text-sm font-semibold text-danger" role="alert">
-              Nie udało się zapisać decyzji — spróbuj ponownie
-            </p>
-          )}
-          <div className="mt-3 flex flex-wrap gap-2">
-            <button
-              type="button"
-              className="rounded-full bg-mint px-4 py-2 text-sm font-bold text-white disabled:opacity-60"
-              disabled={busyDecision !== null}
-              aria-busy={busyDecision !== null}
-              onClick={() => void decideJoinRequest(action, "approve")}
-            >
-              {busyDecision === "approve" ? "Zatwierdzanie…" : "Zatwierdź"}
-            </button>
-            <button
-              type="button"
-              className="rounded-full border border-line px-4 py-2 text-sm font-semibold text-ink-soft disabled:opacity-60"
-              disabled={busyDecision !== null}
-              aria-busy={busyDecision !== null}
-              onClick={() => void decideJoinRequest(action, "reject")}
-            >
-              {busyDecision === "reject" ? "Odrzucanie…" : "Odrzuć"}
-            </button>
-            <button
-              type="button"
-              className="rounded-full border border-line px-4 py-2 text-sm font-semibold text-ink-soft"
-              onClick={() => hideJoinRequest(joinRequestId)}
-            >
-              Później
-            </button>
-          </div>
-        </>
-      )}
-    </ModalSheet>
-  );
-}
-
 export function PanelDataProvider({ children }: { children: ReactNode }) {
   const value = usePanelDataValue();
   return (
     <PanelDataContext value={value}>
       {children}
-      <GlobalPendingActionsModal value={value} />
     </PanelDataContext>
   );
 }

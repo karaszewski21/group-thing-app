@@ -69,9 +69,11 @@ __all__ = [
     "list_item_ids_for_product",
     "list_items_with_product_name",
     "list_lent_out_items_with_product_name",
+    "list_product_names_for_items",
     "list_reservations",
     "register_item",
     "release_reservation",
+    "reservation_ids_for_term_select",
     "resolve_owning_inventory",
 ]
 
@@ -207,6 +209,20 @@ async def list_active_hand_over_reservations_for_terms(
     """Used by `application/term_end_scan.py`: the still-open GIFT/LEND
     reservations of the just-ended Terms, in one query."""
     return await circulation_service.list_active_hand_over_reservations_for_terms(db, term_ids)
+
+
+def reservation_ids_for_term_select(term_id: uuid.UUID) -> Select[tuple[uuid.UUID]]:
+    """Used by `application/term_end_scan.py` to scope swap proposals to the
+    Term their proposer reservation belongs to, as an SQL subquery."""
+    return circulation_service.reservation_ids_for_term_select(term_id)
+
+
+async def list_product_names_for_items(
+    db: AsyncSession, item_ids: Collection[uuid.UUID]
+) -> dict[uuid.UUID, str]:
+    """Used by `application/term_end_scan.py` to name every prompted item in
+    one read, soft-deleted items included."""
+    return await circulation_service.list_product_names_for_items(db, item_ids)
 
 
 async def find_personal_inventory(db: AsyncSession, owner_user_id: uuid.UUID) -> Inventory | None:

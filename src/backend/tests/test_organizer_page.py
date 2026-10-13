@@ -10,7 +10,7 @@ Data is built over HTTP plus direct `db_session` writes, following
 from __future__ import annotations
 
 import uuid
-from datetime import date, datetime, time, timedelta
+from datetime import datetime, time, timedelta
 from typing import Any
 
 from httpx import AsyncClient
@@ -18,6 +18,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.circulation.models import BalanceStatus
+from app.core import clock
 from app.groups import service
 from app.groups.models import GroupRole, GroupRoleType, Leadership, TermAttendance
 from app.moderation.status import ModerationStatus
@@ -129,7 +130,7 @@ def _keys(value: Any) -> set[str]:
 
 
 def _in_days(days: int) -> datetime:
-    return (datetime.now() + timedelta(days=days)).replace(microsecond=0)
+    return (clock.local_now() + timedelta(days=days)).replace(microsecond=0)
 
 
 async def test_getOrganizerPage_populatedDirectory_matchesContractWithoutIdentityKeys(
@@ -201,7 +202,7 @@ async def test_getOrganizerPage_privateOrRevokedCircles_excludedFromEveryField(
     leadership = (
         await db_session.execute(select(Leadership).where(Leadership.to_group_id == revoked_id))
     ).scalar_one()
-    leadership.valid_to = date.today()
+    leadership.valid_to = clock.local_now().date()
     await db_session.flush()
 
     body = await _page(client, slug)
@@ -225,7 +226,7 @@ async def test_getOrganizerPage_privateOrRevokedCircles_excludedFromEveryField(
             )
         )
     ).scalar_one()
-    role.valid_to = date.today()
+    role.valid_to = clock.local_now().date()
     await db_session.flush()
 
     other_body = await _page(client, other_slug)
@@ -255,7 +256,7 @@ async def test_getOrganizerPage_unknownPseudoOwnerlessOrEmpty_returns404OrEmpty(
             .where(Organization.slug == ownerless_slug)
         )
     ).scalar_one()
-    membership.valid_to = date.today()
+    membership.valid_to = clock.local_now().date()
     await db_session.flush()
     assert (
         await client.get(f"/api/groups/public/organizers/{ownerless_slug}")
@@ -451,7 +452,7 @@ async def test_getOrganizerPage_circleOrder_nextTermThenNameNullsLastAndEarlierT
     later = _in_days(5)
     later_b_term = await _term(client, owner_token, later_b_id, later)
     later_a_term = await _term(client, owner_token, later_a_id, later)
-    await _term(client, owner_token, today_id, datetime.combine(date.today(), time.min))
+    await _term(client, owner_token, today_id, datetime.combine(clock.local_now().date(), time.min))
 
     body = await _page(client, slug)
 

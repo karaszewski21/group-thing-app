@@ -6,7 +6,7 @@ import { ItemHistoryCard, ItemStatusCard } from "./ItemTimeline";
 export function ReadOnlyCards({ item, history }: { item: ItemDetailsResponse; history: HistoryState }) {
   return (
     <>
-      <ItemStatusCard status={item.status} />
+      <ItemStatusCard status={item.status} itemId={item.id} itemName={item.name} isOwner={item.is_owner} />
       <ItemHistoryCard
         entries={history.data}
         loading={history.loading}

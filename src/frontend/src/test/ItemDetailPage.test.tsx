@@ -1,6 +1,6 @@
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { Link, MemoryRouter, Route, Routes } from "react-router-dom";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ItemDetailPage } from "../pages/product/ItemDetailPage";
 import { ItemEditPage } from "../pages/product/ItemEditPage";
 import * as itemsApi from "../api/items";
@@ -498,6 +498,100 @@ describe("ItemDetailPage fallbacks", () => {
 
     fireEvent.click(rzeczy);
     expect(await screen.findByText("Panel rzeczy")).toBeInTheDocument();
+  });
+});
+
+describe("ItemDetailPage reservation party view", () => {
+  const TERM_ID = "c4e56a87-9102-43b4-9fc5-3a4b5c6d7e8f";
+  const GROUP_ID = "d5f67b98-a213-44c5-8ad6-4b5c6d7e8f90";
+  const partyStatus = (code: "RESERVED" | "IN_TRANSIT") => ({
+    code,
+    term_occurs_on: "2026-10-14T16:30:00",
+    due_date: null,
+    counterparty_label: "Anna K.",
+    term_id: TERM_ID,
+    group_id: GROUP_ID,
+    group_name: "Muzyczne Maluchy",
+  });
+
+  beforeEach(() => {
+    vi.resetAllMocks();
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date(2026, 9, 13, 12, 0));
+    vi.mocked(itemsApi.getItemHistory).mockResolvedValue(history);
+    vi.mocked(categoriesApi.getCategories).mockResolvedValue(categories);
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  async function openCalendarMenu() {
+    fireEvent.click(await screen.findByRole("button", { name: /Dodaj do kalendarza/ }));
+    const google = screen.getByRole("menuitem", { name: /Kalendarz Google/ });
+    return new URL(google.getAttribute("href") ?? "");
+  }
+
+  it("party RESERVED shows hour and group, with the calendar trigger outside the status line", async () => {
+    vi.mocked(itemsApi.getItemDetails).mockResolvedValue(details({ status: partyStatus("RESERVED") }));
+    renderPage(`/product/${ITEM_ID}`);
+
+    const line = await screen.findByText("Zarezerwowana — odbiór w śr 14.10 o 16:30 · Muzyczne Maluchy");
+    expect(line).toHaveAttribute("role", "status");
+    expect(screen.getByText("Dla: Anna K.")).toBeInTheDocument();
+    const trigger = screen.getByRole("button", { name: /Dodaj do kalendarza/ });
+    expect(line).not.toContainElement(trigger);
+    expect(trigger).toHaveAttribute("aria-haspopup", "menu");
+  });
+
+  it("owner gets a Przekazanie title with the Term link in the details", async () => {
+    vi.mocked(itemsApi.getItemDetails).mockResolvedValue(
+      details({ is_owner: true, status: partyStatus("RESERVED") }),
+    );
+    renderPage(`/product/${ITEM_ID}`);
+
+    const url = await openCalendarMenu();
+    expect(url.searchParams.get("text")).toBe("Przekazanie: Wózek spacerowy Baby Jogger");
+    expect(url.searchParams.get("details")).toContain(
+      `${window.location.origin}/krag/grupa/${GROUP_ID}/term/${TERM_ID}`,
+    );
+  });
+
+  it("non-owner party in transit gets an Odbiór title and the W drodze line", async () => {
+    vi.mocked(itemsApi.getItemDetails).mockResolvedValue(
+      details({ is_owner: false, status: partyStatus("IN_TRANSIT") }),
+    );
+    renderPage(`/product/${ITEM_ID}`);
+
+    expect(
+      await screen.findByText("W drodze — odbiór w śr 14.10 o 16:30 · Muzyczne Maluchy"),
+    ).toBeInTheDocument();
+    const url = await openCalendarMenu();
+    expect(url.searchParams.get("text")).toBe("Odbiór: Wózek spacerowy Baby Jogger");
+  });
+
+  it("party view hides the calendar trigger once the Term has passed but keeps the dated line", async () => {
+    vi.setSystemTime(new Date(2026, 9, 14, 17, 0));
+    vi.mocked(itemsApi.getItemDetails).mockResolvedValue(details({ status: partyStatus("RESERVED") }));
+    renderPage(`/product/${ITEM_ID}`);
+
+    expect(
+      await screen.findByText("Zarezerwowana — odbiór w śr 14.10 o 16:30 · Muzyczne Maluchy"),
+    ).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Dodaj do kalendarza/ })).not.toBeInTheDocument();
+  });
+
+  it("non-party viewer keeps the DD.MM text and gets no calendar trigger", async () => {
+    vi.mocked(itemsApi.getItemDetails).mockResolvedValue(
+      details({
+        is_owner: false,
+        status: { ...partyStatus("RESERVED"), term_id: null, group_id: null, group_name: null },
+      }),
+    );
+    renderPage(`/product/${ITEM_ID}`);
+
+    expect(await screen.findByText("Zarezerwowana — odbiór na terminie 14.10")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Dodaj do kalendarza/ })).not.toBeInTheDocument();
   });
 });
 

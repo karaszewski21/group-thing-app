@@ -202,7 +202,7 @@ Make sure both parties to an in-app handover know when and where it happens and 
      - `pages/organizer/editor/UnsavedChangesDialog.tsx`, which wraps the Chakra `ConfirmDialog`
    - These components are rendered only while open, so they call `useRegisterOpenSheet(true)`.
    - The host's own sheet passes an opt-out prop to the krag `ModalSheet` (for example `registerAsPageSheet={false}`), so it never blocks itself.
-   - `EditorSheet` (`aria-modal="false"`, non-blocking) is intentionally not registered.
+   - `EditorSheet` is also registered (`useRegisterOpenSheet(true)`, verification fix V#5): the app-wide prompt must not open over the organizer editor.
 10. **Accessibility** (Mockup 5 + standard), added to the shared krag `ModalSheet` and so applied to every dialog that uses it:
     - **Esc**: calls `onClose`. The `keydown` listener is attached to the dialog element (`onKeyDown` on the `role="dialog"` node), not to `document`, and ignores events where `defaultPrevented` is true. Together with the calendar menu's `stopPropagation` (R6.5), one Esc in an open menu closes only the menu.
     - **Focus on open**: moves into the dialog.

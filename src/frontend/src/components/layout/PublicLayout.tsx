@@ -3,11 +3,12 @@ import { useAuth } from "../../auth/AuthContext";
 import { useMyOrganizationSlug } from "../../hooks/useMyOrganizationSlug";
 import { AccountMenu } from "../shared/AccountMenu";
 import { NotificationBell } from "../shared/NotificationBell";
+import { PendingActionsHost } from "../pending/PendingActionsHost";
 
 /** Layout route for the panel and the public pages (term page, public
  * organization page): a logged-in visitor gets a slim bar with the Krąg grupy
- * mark (back to the panel) and their notifications and account menu.
- * Anonymous visitors see the page alone. */
+ * mark (back to the panel) and their notifications and account menu, plus the
+ * app-wide pending-actions prompt. Anonymous visitors see the page alone. */
 export function PublicLayout() {
   const { token } = useAuth();
   const organizationSlug = useMyOrganizationSlug();
@@ -35,9 +36,10 @@ export function PublicLayout() {
           <AccountMenu organizationSlug={organizationSlug} showPanelHome />
         </nav>
       )}
-      <main>
+      <main tabIndex={-1} className="outline-none">
         <Outlet />
       </main>
+      {token && <PendingActionsHost />}
     </>
   );
 }

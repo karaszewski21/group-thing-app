@@ -6,6 +6,7 @@ import * as groupsApi from "../api/groups";
 import * as familiesApi from "../api/families";
 import * as pledgesApi from "../api/pledges";
 import * as termItemListingsApi from "../api/termItemListings";
+import * as inventoriesApi from "../api/inventories";
 import { ApiError } from "../api/client";
 import type { GroupAccessResponse, JoinRequestResponse, PublicCircleResponse } from "../api/groups";
 import { createQueryWrapper } from "./queryClient";
@@ -24,6 +25,11 @@ vi.mock("../api/groups", async (importOriginal) => {
 vi.mock("../api/pledges", () => ({ createPledge: vi.fn() }));
 vi.mock("../api/families", () => ({ getMyFamilies: vi.fn() }));
 vi.mock("../api/termItemListings", () => ({ takeTermItemListing: vi.fn(), proposeSwap: vi.fn() }));
+vi.mock("../api/inventories", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("../api/inventories")>()),
+  getMyInventoryItems: vi.fn(),
+  getInventoryItemBalance: vi.fn(),
+}));
 
 let mockAuth: { token: string | null; displayName: string | null };
 
@@ -344,7 +350,7 @@ describe("TermPage — item actions", () => {
 
   it("logged in 'Pożycz' takes the item for the shown term", async () => {
     mockAuth = { token: "tok", displayName: "Ala" };
-    vi.mocked(termItemListingsApi.takeTermItemListing).mockResolvedValue({} as never);
+    vi.mocked(termItemListingsApi.takeTermItemListing).mockResolvedValue({ item_id: "9", product_name: "Rowerek" } as never);
     renderPage();
 
     fireEvent.click(await screen.findByRole("button", { name: "Pożycz: Rowerek" }));
@@ -355,6 +361,96 @@ describe("TermPage — item actions", () => {
         reservation_type: "LEND",
       }),
     );
+  });
+});
+
+describe("TermPage — take success sheet", () => {
+  // 14.10.2026 is a Wednesday ("śr").
+  const datedTerm = { ...circle.term!, occurs_on: "2026-10-14T16:30:00" };
+  const SENTENCE = "Odbierz „Rowerek” w śr 14.10 o 16:30 — Muzyczne Skrzaty";
+
+  beforeEach(() => {
+    mockAuth = { token: "tok", displayName: "Ala" };
+    vi.mocked(groupsApi.getGroupAccess).mockResolvedValue(access({ group: { term: datedTerm } }));
+    vi.mocked(termItemListingsApi.takeTermItemListing).mockResolvedValue({
+      item_id: "9",
+      product_name: "Rowerek",
+    } as never);
+  });
+
+  async function takeRowerek() {
+    renderPage();
+    fireEvent.click(await screen.findByRole("button", { name: "Pożycz: Rowerek" }));
+    return screen.findByRole("dialog", { name: SENTENCE });
+  }
+
+  it("after 'Pożycz' shows 'Wzięte!' with the item, date and group, links to the item page and shows no toast", async () => {
+    const dialog = await takeRowerek();
+
+    expect(within(dialog).getByRole("heading", { name: "Wzięte!" })).toBeInTheDocument();
+    expect(dialog).toHaveTextContent(SENTENCE);
+    const itemLink = within(dialog).getByRole("link", { name: "Zobacz rzecz" });
+    expect(itemLink).toHaveAttribute("href", "/product/9");
+    expect(itemLink).toHaveClass("inline-flex", "items-center", "justify-center");
+    expect(within(dialog).getByRole("button", { name: /Dodaj do kalendarza/ })).toHaveClass("whitespace-nowrap");
+    expect(screen.queryByText(/Wzięto!/)).not.toBeInTheDocument();
+  });
+
+  it("Esc with the calendar menu open closes only the menu; a second Esc closes the sheet", async () => {
+    const dialog = await takeRowerek();
+    fireEvent.click(within(dialog).getByRole("button", { name: /Dodaj do kalendarza/ }));
+    const menuItem = within(dialog).getByRole("menuitem", { name: /Kalendarz Google/ });
+
+    fireEvent.keyDown(menuItem, { key: "Escape" });
+
+    expect(screen.queryByRole("menu")).not.toBeInTheDocument();
+    expect(screen.getByRole("dialog", { name: SENTENCE })).toBeInTheDocument();
+
+    fireEvent.keyDown(within(dialog).getByRole("button", { name: /Dodaj do kalendarza/ }), { key: "Escape" });
+
+    expect(screen.queryByRole("dialog", { name: SENTENCE })).not.toBeInTheDocument();
+  });
+
+  it("closing the sheet focuses main when the take button is gone after the refetch", async () => {
+    vi.mocked(groupsApi.getGroupAccess)
+      .mockResolvedValueOnce(access({ group: { term: datedTerm } }))
+      .mockResolvedValue(
+        access({
+          group: { term: { ...datedTerm, item_listings: datedTerm.item_listings.filter((l) => l.item_id !== "9") } },
+        }),
+      );
+    const dialog = await takeRowerek();
+    await waitFor(() => expect(screen.queryByRole("button", { name: "Pożycz: Rowerek" })).not.toBeInTheDocument());
+
+    fireEvent.click(within(dialog).getAllByRole("button", { name: "Zamknij" })[0]);
+
+    expect(screen.queryByRole("dialog", { name: SENTENCE })).not.toBeInTheDocument();
+    expect(screen.getByRole("main")).toHaveFocus();
+  });
+
+  it("a swap proposal keeps its toast and opens no sheet", async () => {
+    vi.mocked(groupsApi.getGroupAccess).mockResolvedValue(
+      access({
+        group: {
+          term: {
+            ...datedTerm,
+            item_listings: [{ ...datedTerm.item_listings[0], offered_types: ["SWAP"] }],
+          },
+        },
+      }),
+    );
+    vi.mocked(inventoriesApi.getMyInventoryItems).mockResolvedValue([
+      { id: "50", product_name: "Kask", listing_mode: "SWAP" } as never,
+    ]);
+    vi.mocked(inventoriesApi.getInventoryItemBalance).mockResolvedValue({ status: "AVAILABLE" } as never);
+    vi.mocked(termItemListingsApi.proposeSwap).mockResolvedValue({} as never);
+    renderPage();
+
+    fireEvent.click(await screen.findByRole("button", { name: "Zamień: Rowerek" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Zaproponuj zamianę" }));
+
+    expect(await screen.findByRole("status")).toHaveTextContent("Zaproponowano zamianę! Szczegóły w Twoim panelu");
+    expect(screen.queryByRole("dialog", { name: /Odbierz/ })).not.toBeInTheDocument();
   });
 });
 

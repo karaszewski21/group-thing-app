@@ -1,6 +1,6 @@
 orchestrator:
   started_phase: phase-1
-  completed_phases: [phase-1, phase-2, phase-3, phase-4, phase-5, phase-6, phase-7]
+  completed_phases: [phase-1, phase-2, phase-3, phase-4, phase-5, phase-6, phase-7, phase-8, phase-9, phase-10, phase-11, phase-12, phase-13, phase-14]
   failed_phases: []
   auto_fix_attempts: {}
   options:
@@ -29,7 +29,7 @@ task:
     (5) pending-actions modal mounted app-wide, "Później" = real snooze until next local 08:00 (does not mark read);
     (6) client-side "Dodaj do kalendarza" (Google link + .ics) on take/accept success sheet and item page;
     (7) remove fake e-mail/SMS toggles from Settings.
-  status: in_progress
+  status: completed
   tags: [notifications, handover, timezone, ux]
   priority: high
 
@@ -113,12 +113,14 @@ task_context:
     ui_mockups: {components_designed: [component:add-to-calendar, screen:take-success-sheet, screen:swap-accept-success, screen:item-page-reservation, screen:pending-actions-modal-app-wide, screen:settings], summary: "6 ASCII mockups; notes: hold app-wide modal while page sheet open; remove PanelDataContext mount; use krag ModalSheet; new AddToCalendarButton + utils/calendar.ts"}
     specification: {summary: "spec.md: R1-R10 (~45 sub-reqs): core clock + formatters, 8 sites + accept gate, scan grace/swap scoping/payload, dated copy, AcceptedSwapProposalResponse + party-only ItemStatus fields, calendar util/button, success sheets, PendingActionsHost in PublicLayout w/ snooze+open-sheet registry, settings cleanup, freeze fixture + grep guard. 6 assumptions."}
     architecture_decision: {decision: null, summary: null}
+    implementation: {summary: "12 groups/87 steps in 5 waves done (G4/G11 retried once after stream stall). BE 797/797 green incl. RED 6/6; FE RED green, 13 FE failures all pre-existing on HEAD or flaky. ruff 0 new, mypy 32 baseline, tsc+eslint clean on changed files."}
 
 tdd_red_passed: true
+tdd_green_passed: true
 
 verification_context:
-  last_status: null
+  last_status: passed_with_issues
   issues_found: []
-  fixes_applied: ["spec audit M1-M5, L1-L15 applied to spec.md"]
+  fixes_applied: ["spec audit M1-M5, L1-L15 applied to spec.md", "V#2 ics revoke delayed (setTimeout 1s)", "V#3 snoozeStore shape validation", "V#4 RzeczyView shows 409 server message", "V#5 EditorSheet registers open sheet", "V#6 term_end_scan batched item/product/group names", "V#7 swap Term scoping in SQL subquery", "V#8 ModalSheet focus trap (shared trapFocus.ts)"]
   decisions_made: ["take sheet CTA 'Zobacz rzecz' -> /product/{id}", "useRegisterOpenSheet for ModalSheets + RequestAccessDialog + UnsavedChangesDialog", "no notification polling in Phase 0"]
-  reverify_count: 0
+  reverify_count: 1

@@ -19,6 +19,7 @@ from app.db import get_db
 from app.groups import service
 from app.groups.application.term_item_listings import TermAlreadyResolvedException
 from app.groups.schemas import (
+    AcceptedSwapProposalResponse,
     BrowseTermItemListingResponse,
     CancelTransactionResponse,
     ConfirmTransactionResponse,
@@ -126,12 +127,13 @@ async def list_swap_proposals_for_my_item(
     return await service.list_swap_proposals_for_my_item(db, principal, item_id)
 
 
-@router.post("/api/swap-proposals/{proposal_id}/accept", response_model=SwapProposalResponse)
+@router.post(
+    "/api/swap-proposals/{proposal_id}/accept", response_model=AcceptedSwapProposalResponse
+)
 async def accept_swap_proposal(
     proposal_id: uuid.UUID, db: DbSession, principal: EditPrincipal
-) -> SwapProposalResponse:
-    proposal = await service.accept_swap_proposal(db, principal, proposal_id)
-    return SwapProposalResponse.model_validate(proposal)
+) -> AcceptedSwapProposalResponse:
+    return await service.accept_swap_proposal(db, principal, proposal_id)
 
 
 @router.post("/api/swap-proposals/{proposal_id}/reject", response_model=SwapProposalResponse)
