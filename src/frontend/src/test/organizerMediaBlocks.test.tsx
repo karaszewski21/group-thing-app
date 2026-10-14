@@ -200,7 +200,20 @@ describe("GalleryBlock", () => {
     expect(images.map((img) => img.getAttribute("src"))).toEqual(gallery.map((photo) => photo[rendition]));
     for (const img of images) expect(img).toHaveClass(aspect);
     expect(within(section).queryByRole("link")).toBeNull();
-    expect(within(section).queryByRole("button")).toBeNull();
+    expect(within(section).getAllByRole("button").map((b) => b.getAttribute("aria-label"))).toEqual(
+      gallery.map((_, i) => `Powiększ zdjęcie ${i + 1} z ${count}`),
+    );
+  });
+
+  it("opens the full-size photo in the viewer from a tile", () => {
+    const gallery = [media(1), media(2), media(3)];
+    render(<GalleryBlock data={pageData({ gallery })} variant="grid" mode="visitor" />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Powiększ zdjęcie 2 z 3" }));
+
+    const viewer = screen.getByRole("dialog", { name: `${NAME} — galeria` });
+    expect(within(viewer).getByRole("img")).toHaveAttribute("src", gallery[1].url);
+    expect(within(viewer).getByText("2 / 3")).toBeInTheDocument();
   });
 });
 

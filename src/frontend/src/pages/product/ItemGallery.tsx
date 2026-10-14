@@ -1,6 +1,7 @@
 import { useState } from "react";
 import type { ModerationStatus, ProductPhotoResponse } from "../../api/products";
 import { PhotoPlaceholder } from "../../components/shared/Icons";
+import { PhotoViewer } from "../../components/shared/PhotoViewer";
 import { isValidImageUrl } from "../../utils/url";
 import { ModerationBadge } from "./ItemGalleryEditor";
 
@@ -10,11 +11,13 @@ export function SafeImage({
   alt,
   className,
   placeholderSize,
+  fit = "cover",
 }: {
   src: string;
   alt: string;
   className: string;
   placeholderSize: number;
+  fit?: "cover" | "contain";
 }) {
   const [failedSrc, setFailedSrc] = useState<string | null>(null);
   if (failedSrc === src || !isValidImageUrl(src)) {
@@ -31,7 +34,7 @@ export function SafeImage({
       loading="lazy"
       referrerPolicy="no-referrer"
       onError={() => setFailedSrc(src)}
-      className={`object-cover ${className}`}
+      className={`${fit === "contain" ? "object-contain" : "object-cover"} ${className}`}
     />
   );
 }
@@ -52,8 +55,9 @@ interface GallerySlide {
 /** View-mode gallery, full-bleed at the top of the item page: the product's
  * photos (shared by every item of the product), else the catalog photo (no
  * badge), else a placeholder. Dots at the bottom switch photos; the bottom
- * 24px is left for the content sheet that overlaps it. Photos still in
- * moderation (sent to owners only) carry a status badge. */
+ * 24px is left for the content sheet that overlaps it. Tapping the photo opens
+ * the fullscreen viewer at it. Photos still in moderation (sent to owners only)
+ * carry a status badge. */
 export function ItemGallery({ name, photos, productPhotoUrl, faded, showOwnerHint }: ItemGalleryProps) {
   const slides: GallerySlide[] =
     photos.length > 0
@@ -63,18 +67,26 @@ export function ItemGallery({ name, photos, productPhotoUrl, faded, showOwnerHin
         : [];
   const urls = slides.map((slide) => slide.url);
   const [active, setActive] = useState(0);
+  const [viewerOpen, setViewerOpen] = useState(false);
   const current = Math.min(active, Math.max(urls.length - 1, 0));
 
   return (
     <div className={`relative bg-primary-soft ${faded ? "opacity-70" : ""}`}>
       {urls.length > 0 ? (
-        <SafeImage
-          key={urls[current]}
-          src={urls[current]}
-          alt={`${name} — zdjęcie ${current + 1}`}
-          className="aspect-4/3 w-full"
-          placeholderSize={64}
-        />
+        <button
+          type="button"
+          onClick={() => setViewerOpen(true)}
+          aria-label={`Powiększ zdjęcie ${current + 1} z ${urls.length}`}
+          className="block w-full focus-visible:outline-2 focus-visible:-outline-offset-4 focus-visible:outline-focus-ring"
+        >
+          <SafeImage
+            key={urls[current]}
+            src={urls[current]}
+            alt={`${name} — zdjęcie ${current + 1}`}
+            className="aspect-4/3 w-full"
+            placeholderSize={64}
+          />
+        </button>
       ) : (
         <span className="flex aspect-4/3 w-full flex-col items-center justify-center gap-2 pb-6 text-primary-fg">
           <PhotoPlaceholder size={64} />
@@ -104,6 +116,14 @@ export function ItemGallery({ name, photos, productPhotoUrl, faded, showOwnerHin
             </button>
           ))}
         </div>
+      )}
+      {viewerOpen && (
+        <PhotoViewer
+          name={name}
+          urls={urls}
+          startIndex={current}
+          onClose={() => setViewerOpen(false)}
+        />
       )}
     </div>
   );
