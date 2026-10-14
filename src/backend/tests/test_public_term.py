@@ -182,7 +182,7 @@ async def test_getPublicCircle_noTermIdParam_returnsNearestTermUnchanged(
         "name",
         "organizer_display_name",
         "organizer_slug",
-        "organizer_theme",
+        "organization",
         "visibility",
         "layout_mode",
         "term",
@@ -368,7 +368,7 @@ async def _create_organization(
     return patched.json()
 
 
-async def test_getPublicCircle_organizerTheme_carriesOrgColors_whenOrgHasColors(
+async def test_getPublicCircle_organization_carriesOrgColors_whenOrgHasColors(
     client: AsyncClient,
 ) -> None:
     token = await _register_organizer(client, "pt.theme1@example.com")
@@ -380,14 +380,15 @@ async def test_getPublicCircle_organizerTheme_carriesOrgColors_whenOrgHasColors(
     response = await client.get(f"/api/groups/public/{group_id}")
 
     assert response.status_code == 200
-    assert response.json()["organizer_theme"] == {
+    assert response.json()["organization"] == {
+        "name": "Bordowe Nutki",
         "primary_color": organization["primary_color"],
         "accent_color": organization["accent_color"],
         "palette_preset": None,
     }
 
 
-async def test_getPublicCircle_organizerTheme_isObjectWithNullColors_whenOrgHasNoColors(
+async def test_getPublicCircle_organization_isObjectWithNullColors_whenOrgHasNoColors(
     client: AsyncClient,
 ) -> None:
     token = await _register_organizer(client, "pt.theme2@example.com")
@@ -397,14 +398,15 @@ async def test_getPublicCircle_organizerTheme_isObjectWithNullColors_whenOrgHasN
     response = await client.get(f"/api/groups/public/{group_id}")
 
     assert response.status_code == 200
-    assert response.json()["organizer_theme"] == {
+    assert response.json()["organization"] == {
+        "name": "Bezbarwne Nutki",
         "primary_color": None,
         "accent_color": None,
         "palette_preset": None,
     }
 
 
-async def test_getPublicCircle_organizerTheme_carriesPalettePreset_whenOrgHasPreset(
+async def test_getPublicCircle_organization_carriesPalettePreset_whenOrgHasPreset(
     client: AsyncClient, db_session: AsyncSession
 ) -> None:
     token = await _register_organizer(client, "pt.theme6@example.com")
@@ -418,14 +420,15 @@ async def test_getPublicCircle_organizerTheme_carriesPalettePreset_whenOrgHasPre
     response = await client.get(f"/api/groups/public/{group_id}")
 
     assert response.status_code == 200
-    assert response.json()["organizer_theme"] == {
+    assert response.json()["organization"] == {
+        "name": "Oceaniczne Nutki",
         "primary_color": None,
         "accent_color": None,
         "palette_preset": "OCEAN",
     }
 
 
-async def test_getPublicCircle_organizerTheme_isNull_whenOrganizerHasNoOrganization(
+async def test_getPublicCircle_organization_isNull_whenOrganizerHasNoOrganization(
     client: AsyncClient,
 ) -> None:
     token = await _register_organizer(client, "pt.theme3@example.com")
@@ -435,12 +438,12 @@ async def test_getPublicCircle_organizerTheme_isNull_whenOrganizerHasNoOrganizat
 
     assert response.status_code == 200
     body = response.json()
-    assert "organizer_theme" in body
-    assert body["organizer_theme"] is None
+    assert "organization" in body
+    assert body["organization"] is None
     assert re.fullmatch(r"k-[0-9a-f]{12}", body["organizer_slug"])
 
 
-async def test_getPublicCircle_organizerTheme_isNull_whenCircleHasNoActiveLeadership(
+async def test_getPublicCircle_organization_isNull_whenCircleHasNoActiveLeadership(
     client: AsyncClient, db_session: AsyncSession
 ) -> None:
     token = await _register_organizer(client, "pt.theme4@example.com")
@@ -460,12 +463,12 @@ async def test_getPublicCircle_organizerTheme_isNull_whenCircleHasNoActiveLeader
 
     assert response.status_code == 200
     body = response.json()
-    assert body["organizer_theme"] is None
+    assert body["organization"] is None
     assert body["organizer_display_name"] is None
     assert re.fullmatch(r"k-[0-9a-f]{12}", body["organizer_slug"])
 
 
-async def test_getPublicCircle_privateReducedResponse_includesOrganizerTheme(
+async def test_getPublicCircle_privateReducedResponse_includesOrganization(
     client: AsyncClient,
 ) -> None:
     token = await _register_organizer(client, "pt.theme5@example.com")
@@ -480,7 +483,8 @@ async def test_getPublicCircle_privateReducedResponse_includesOrganizerTheme(
     organization = await _create_organization(
         client, token, "Prywatne Nutki", {"primary_color": "#7A2A4F", "accent_color": "#a9c24f"}
     )
-    expected_theme = {
+    expected_organization = {
+        "name": "Prywatne Nutki",
         "primary_color": organization["primary_color"],
         "accent_color": organization["accent_color"],
         "palette_preset": None,
@@ -493,10 +497,10 @@ async def test_getPublicCircle_privateReducedResponse_includesOrganizerTheme(
     body = response.json()
     assert body["term"] is None
     assert body["guardians"] == []
-    assert body["organizer_theme"] == expected_theme
+    assert body["organization"] == expected_organization
     assert access.status_code == 200
     assert access.json()["access"]["can_view_content"] is False
-    assert access.json()["group"]["organizer_theme"] == expected_theme
+    assert access.json()["group"]["organization"] == expected_organization
 
 
 async def _register_personal_item(client: AsyncClient, token: str, product_name: str) -> int:

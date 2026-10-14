@@ -18,7 +18,7 @@ export function TermPage() {
   if (state.status === "error") return <>Nie znaleziono</>;
 
   const access = resolveTermAccess(state.data, state.forToken !== null);
-  const theme = state.data.group.organizer_theme;
+  const theme = state.data.group.organization;
   if (access.kind === "view") {
     return (
       <OrganizerThemeScope theme={theme}>

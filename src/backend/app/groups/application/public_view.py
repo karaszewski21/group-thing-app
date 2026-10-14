@@ -7,7 +7,7 @@ routed through `slug_resolver` or `_resolve_organizer`) and keeps its
 `None`-on-missing-profile behavior. All three share the slug rule via
 `domain.organizer_slug.derive_organizer_slug`. The inline block reads the
 organizer's organization once and derives both `organizer_slug` and
-`organizer_theme` from it.
+`organization` from it.
 """
 
 from __future__ import annotations
@@ -222,7 +222,7 @@ async def get_public_circle_view(
     organizer_slug = derive_organizer_slug(
         group_id, organizer_party_id, organization.slug if organization is not None else None
     )
-    organizer_theme = organizations_acl.organizer_theme(organization)
+    public_organization = organizations_acl.public_organization(organization)
 
     if group.visibility == GroupVisibility.PRIVATE and not include_private_content:
         # Reduced response for a PRIVATE group: name + organizer only, no
@@ -234,7 +234,7 @@ async def get_public_circle_view(
             name=group.name,
             organizer_display_name=organizer_display_name,
             organizer_slug=organizer_slug,
-            organizer_theme=organizer_theme,
+            organization=public_organization,
             visibility=group.visibility,
             layout_mode=group.layout_mode,
             term=None,
@@ -316,7 +316,7 @@ async def get_public_circle_view(
         name=group.name,
         organizer_display_name=organizer_display_name,
         organizer_slug=organizer_slug,
-        organizer_theme=organizer_theme,
+        organization=public_organization,
         visibility=group.visibility,
         layout_mode=group.layout_mode,
         term=term_response,

@@ -9,7 +9,7 @@ const group: PublicCircleResponse = {
   organizer_slug: "ania",
   visibility: "PRIVATE",
   layout_mode: "CIRCLE",
-  organizer_theme: null,
+  organization: null,
   term: null,
   guardians: [],
 };

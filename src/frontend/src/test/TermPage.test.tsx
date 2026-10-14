@@ -50,7 +50,7 @@ const circle: PublicCircleResponse = {
   organizer_slug: "ania",
   visibility: "PUBLIC",
   layout_mode: "CIRCLE",
-  organizer_theme: null,
+  organization: null,
   term: {
     id: "101",
     occurs_on: "2026-10-01T17:00:00",
@@ -229,11 +229,11 @@ describe("TermPage — header and content", () => {
   });
 });
 
-const BORDO_THEME = { primary_color: "#7a2a4f", accent_color: null, palette_preset: null };
+const BORDO_ORGANIZATION = { name: "Bordowe Nutki", primary_color: "#7a2a4f", accent_color: null, palette_preset: null };
 
 describe("TermPage — organizer theme", () => {
   it("renders the term view inside the organizer's color scope", async () => {
-    vi.mocked(groupsApi.getGroupAccess).mockResolvedValue(access({ group: { organizer_theme: BORDO_THEME } }));
+    vi.mocked(groupsApi.getGroupAccess).mockResolvedValue(access({ group: { organization: BORDO_ORGANIZATION } }));
     renderPage();
 
     const heading = await screen.findByRole("heading", { level: 1, name: "Muzyczne Skrzaty" });
@@ -244,7 +244,7 @@ describe("TermPage — organizer theme", () => {
   });
 
   it("renders the private group gate inside the same scope", async () => {
-    vi.mocked(groupsApi.getGroupAccess).mockResolvedValue(privateAccess({ group: { organizer_theme: BORDO_THEME } }));
+    vi.mocked(groupsApi.getGroupAccess).mockResolvedValue(privateAccess({ group: { organization: BORDO_ORGANIZATION } }));
     renderPage();
 
     const gate = await screen.findByRole("heading", { level: 2, name: /Ta grupa jest prywatna/ });
@@ -800,7 +800,7 @@ describe("TermPage — direct sign-up and server error messages", () => {
 describe("TermPage — organizer theme fallback", () => {
   it("an accent-only organizer renders the term view in the default palette", async () => {
     vi.mocked(groupsApi.getGroupAccess).mockResolvedValue(
-      access({ group: { organizer_theme: { primary_color: null, accent_color: "#f39c12", palette_preset: null } } }),
+      access({ group: { organization: { name: "Pomaranczowe Nutki", primary_color: null, accent_color: "#f39c12", palette_preset: null } } }),
     );
     renderPage();
 

@@ -193,12 +193,17 @@ export interface PublicGuardianResponse {
   display_name: string;
 }
 
-/** Mirrors `app.groups.schemas.OrganizerTheme` — the organizer's stored colors.
- * `null` on the circle when the organizer has no Organization. */
+/** The organizer's stored Organization colors. */
 export interface OrganizerTheme {
   primary_color: string | null;
   accent_color: string | null;
   palette_preset: string | null;
+}
+
+/** Mirrors `app.groups.schemas.PublicCircleOrganization` — the organizer's
+ * own Organization; `null` on the circle when there is none. */
+export interface PublicCircleOrganization extends OrganizerTheme {
+  name: string;
 }
 
 /** Never carries a per-child field — see `app.groups.schemas.PublicCircleResponse`.
@@ -213,7 +218,7 @@ export interface PublicCircleResponse {
   layout_mode: GroupLayoutMode;
   term: PublicTermResponse | null;
   guardians: PublicGuardianResponse[];
-  organizer_theme: OrganizerTheme | null;
+  organization: PublicCircleOrganization | null;
 }
 
 export interface CreateRsvpRequest {

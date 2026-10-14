@@ -14,13 +14,13 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.organizations import service as organizations_service
 from app.organizations.models import Organization
 
-from ..schemas import OrganizerTheme
+from ..schemas import PublicCircleOrganization
 
 __all__ = [
     "get_organization_by_slug",
     "get_own_organization",
     "get_owner_party_id",
-    "organizer_theme",
+    "public_organization",
 ]
 
 
@@ -36,10 +36,11 @@ async def get_owner_party_id(db: AsyncSession, organization_id: uuid.UUID) -> uu
     return await organizations_service.get_owner_party_id(db, organization_id)
 
 
-def organizer_theme(organization: Organization | None) -> OrganizerTheme | None:
+def public_organization(organization: Organization | None) -> PublicCircleOrganization | None:
     if organization is None:
         return None
-    return OrganizerTheme(
+    return PublicCircleOrganization(
+        name=organization.name,
         primary_color=organization.primary_color,
         accent_color=organization.accent_color,
         palette_preset=organization.palette_preset,

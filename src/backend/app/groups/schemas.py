@@ -292,11 +292,12 @@ class PublicGuardianResponse(BaseModel):
     display_name: str
 
 
-class OrganizerTheme(BaseModel):
-    """The organizer's stored Organization colors, reported as-is; the
-    frontend decides how (and whether) to derive a palette from them.
-    `palette_preset` is the stored preset key, or `None`."""
+class PublicCircleOrganization(BaseModel):
+    """The organizer's own Organization: its name and stored colors, reported
+    as-is; the frontend decides how (and whether) to derive a palette from
+    them. `palette_preset` is the stored preset key, or `None`."""
 
+    name: str
     primary_color: str | None
     accent_color: str | None
     palette_preset: str | None
@@ -311,9 +312,9 @@ class PublicCircleResponse(BaseModel):
     name: str
     organizer_display_name: str | None
     organizer_slug: str | None
-    # Object whenever the organizer owns an Organization (even with both
+    # Object whenever the organizer owns an Organization (even with all
     # colors null); null when there is none (a `k-…` slug or no leadership).
-    organizer_theme: OrganizerTheme | None
+    organization: PublicCircleOrganization | None
     visibility: GroupVisibility
     layout_mode: GroupLayoutMode
     term: PublicTermResponse | None
