@@ -12,6 +12,7 @@ import { LayoutRenderer } from "./LayoutRenderer";
 import { resolveLayout } from "./layouts/registry";
 import type { DirectoryStatus, OrganizerPageData } from "./layouts/types";
 import { NotFoundFrame, PageFrame } from "./PageFrame";
+import { OrganizerPageSkeleton } from "./OrganizerPageSkeleton";
 
 /**
  * Public organizer page at `domena.pl/<slug>` — this is the mounted-last
@@ -80,11 +81,7 @@ export function PublicOrganizationPage() {
     );
   }
 
-  if (loading) {
-    return (
-      <PageFrame className="items-center justify-center text-ink-soft">Wczytywanie…</PageFrame>
-    );
-  }
+  if (loading) return <OrganizerPageSkeleton />;
 
   if (!organization) return <NotFoundFrame />;
 

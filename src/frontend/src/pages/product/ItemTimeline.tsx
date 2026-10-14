@@ -179,7 +179,7 @@ function ItemHistoryBody({ entries, loading, error, onRetry }: ItemHistoryCardPr
   if (entries.length === 0) {
     return (
       <p className="mt-2.5 rounded-2xl border border-dashed border-line p-[15px] text-[12.5px] text-ink-soft">
-        Brak zdarzeń w historii tej rzeczy.
+        Tu pojawią się wypożyczenia i wymiany tej rzeczy.
       </p>
     );
   }

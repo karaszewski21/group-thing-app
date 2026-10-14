@@ -34,17 +34,24 @@ function NeededItemRow({ row }: { row: NeededItemRowVM }) {
 }
 
 /** "Potrzebne rzeczy" card — the Term's needed items and who brings each;
- * row data and click handlers come entirely from the caller. */
+ * row data and click handlers come entirely from the caller. With no items
+ * it says so instead of disappearing. */
 export function NeededItemsSection({ rows }: { rows: NeededItemRowVM[] }) {
   return (
     <section className="mx-5 mt-6" aria-label="Potrzebne rzeczy">
       <h2 className="font-serif text-[22px] font-bold text-ink">Potrzebne rzeczy</h2>
-      <p className="mt-1 text-[15px] text-ink-soft">Zgłoś się, jeśli możesz coś przynieść na te zajęcia.</p>
-      <div className="mt-3 divide-y divide-line rounded-3xl border border-line bg-paper px-4">
-        {rows.map((row) => (
-          <NeededItemRow key={row.key} row={row} />
-        ))}
-      </div>
+      {rows.length === 0 ? (
+        <p className="mt-3 rounded-[20px] border-2 border-dashed border-line-strong px-4 py-3.5 text-[15px] leading-snug text-ink-soft">Organizator nie prosi o przyniesienie niczego.</p>
+      ) : (
+        <>
+          <p className="mt-1 text-[15px] text-ink-soft">Zgłoś się, jeśli możesz coś przynieść na te zajęcia.</p>
+          <div className="mt-3 divide-y divide-line rounded-3xl border border-line bg-paper px-4">
+            {rows.map((row) => (
+              <NeededItemRow key={row.key} row={row} />
+            ))}
+          </div>
+        </>
+      )}
     </section>
   );
 }

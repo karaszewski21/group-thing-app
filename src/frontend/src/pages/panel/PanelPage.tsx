@@ -1,7 +1,8 @@
 import { PhoneFrame } from "../../components/shared/PhoneFrame";
 import { PanelDataProvider } from "./PanelDataContext";
 import { usePanelData } from "./panelDataStore";
-import { PanelNav } from "./PanelNav";
+import { PanelNav, PanelNavBar } from "./PanelNav";
+import { PanelSkeleton } from "./PanelSkeleton";
 import { PanelModals } from "./PanelModals";
 import { HomeView } from "./views/HomeView";
 import { SpotkaniaView } from "./views/SpotkaniaView";
@@ -42,7 +43,13 @@ function PanelPageView() {
   if (loading) {
     return (
       <PhoneFrame>
-        <div className="flex flex-1 items-center justify-center text-ink-soft">Wczytywanie…</div>
+        <div className="flex-1 overflow-y-auto px-[18px] pb-6 pt-[18px]">
+          <PanelSkeleton />
+        </div>
+        {/* The tab bar's shape only — not usable until the panel has loaded. */}
+        <div inert aria-hidden="true" className="sticky bottom-0 z-20">
+          <PanelNavBar />
+        </div>
       </PhoneFrame>
     );
   }

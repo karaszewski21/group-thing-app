@@ -158,4 +158,60 @@ describe("GroupVisualization", () => {
     expect(screen.getByText("udostępnia rzecz")).toBeInTheDocument();
     expect(screen.getByText("przynosi na zajęcia")).toBeInTheDocument();
   });
+
+  it.each([
+    ["CIRCLE", 8],
+    ["PITCH", 6],
+    ["TABLE", 8],
+  ] as const)("%s with nobody signed up draws %i dashed seats and says so", (layoutMode, seats) => {
+    const { container } = render(
+      <GroupVisualization
+        layoutMode={layoutMode}
+        organizerName="Kasia Wójcik"
+        families={[]}
+        neededItemRows={[]}
+        activeFamilyId={null}
+        onSelectFamily={vi.fn()}
+        groupId="1"
+      />,
+    );
+    expect(container.querySelectorAll("[data-ghost-seat]")).toHaveLength(seats);
+    expect(screen.queryAllByRole("button")).toHaveLength(0);
+    expect(screen.getByText("Nikt się jeszcze nie zapisał")).toBeInTheDocument();
+  });
+
+  it("draws no dashed seats and no empty caption once someone signed up", () => {
+    const { container } = render(
+      <GroupVisualization
+        layoutMode="CIRCLE"
+        organizerName="Kasia Wójcik"
+        families={FAMILIES}
+        neededItemRows={[]}
+        activeFamilyId={null}
+        onSelectFamily={vi.fn()}
+        groupId="1"
+      />,
+    );
+    expect(container.querySelectorAll("[data-ghost-seat]")).toHaveLength(0);
+    expect(screen.queryByText("Nikt się jeszcze nie zapisał")).not.toBeInTheDocument();
+  });
+
+  it("TABLE seats the organizer at the head of the table, in the same scene as the families", () => {
+    render(
+      <GroupVisualization
+        layoutMode="TABLE"
+        organizerName="Kasia Wójcik"
+        families={FAMILIES}
+        neededItemRows={[]}
+        activeFamilyId={null}
+        onSelectFamily={vi.fn()}
+        groupId="1"
+      />,
+    );
+    const head = screen.getByText("Kasia Wójcik").parentElement!;
+    const scene = screen.getByTestId("table-chips").parentElement!;
+    expect(scene).toContainElement(head);
+    expect(head.style.left).toBe("50%");
+    expect(screen.getByTestId("table-chips")).toHaveTextContent("Tu pojawią się potrzebne rzeczy");
+  });
 });

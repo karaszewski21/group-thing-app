@@ -100,10 +100,10 @@ export function AttendeeList({
   return (
     <section className="mx-5 mt-6" aria-label="Zapisani na zajęcia">
       <h2 className="font-serif text-[22px] font-bold text-ink">Zapisani i ich rzeczy</h2>
-      <ul className="mt-3 divide-y divide-line rounded-3xl border border-line bg-paper px-3.5">
-        {attendees.length === 0 && (
-          <li className="py-4 text-center text-[13px] text-ink-soft">Nikt jeszcze się nie zapisał.</li>
-        )}
+      {attendees.length === 0 && (
+        <p className="mt-3 rounded-[20px] border-2 border-dashed border-line-strong px-4 py-3.5 text-[15px] leading-snug text-ink-soft">Tu zobaczysz rodziny i rzeczy, które przyniosą do wymiany.</p>
+      )}
+      <ul className="mt-3 divide-y divide-line rounded-3xl border border-line bg-paper px-3.5 empty:hidden">
         {attendees.map((attendee) => {
           const active = attendee.partyId === activePartyId;
           return (

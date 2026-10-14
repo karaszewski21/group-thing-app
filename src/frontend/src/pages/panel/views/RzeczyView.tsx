@@ -292,9 +292,36 @@ export function RzeczyView() {
 
       <div className="flex flex-col gap-3">
         {items.length === 0 && (
-          <div className="rounded-[22px] border border-dashed border-line bg-paper p-6 text-center text-sm text-ink-soft">
-            Nie masz jeszcze żadnej rzeczy.
-          </div>
+          <section className="flex flex-col items-center gap-2.5 rounded-[26px] border-2 border-dashed border-line-strong bg-paper px-5.5 py-7 text-center">
+            <svg aria-hidden="true" width="112" height="112" viewBox="0 0 112 112">
+              <circle cx="56" cy="56" r="44" className="fill-primary-soft" />
+              <circle cx="56" cy="56" r="52" fill="none" className="stroke-primary/30" strokeWidth="2" strokeDasharray="5 8" />
+              <g transform="translate(32 32)" fill="none" className="stroke-primary-fg" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M45 15 24 4 3 15v18l21 11 21-11z" />
+                <path d="m3 15 21 11 21-11M24 26v18" />
+              </g>
+              <circle cx="96" cy="22" r="9" className="fill-accent" />
+              <path d="M96 18v8M92 22h8" className="stroke-ink" strokeWidth="2.4" strokeLinecap="round" />
+            </svg>
+            <h2 className="font-serif text-[21px] font-extrabold text-ink">Nie masz jeszcze żadnej rzeczy</h2>
+            <p className="max-w-70 text-[15px] leading-normal text-ink-soft">
+              Dodaj wózek, książeczki albo kurtkę, z której dziecko wyrosło — i zdecyduj, czy ją wypożyczysz, oddasz czy
+              zamienisz.
+            </p>
+            <div className="mt-1 flex flex-wrap justify-center gap-1.5" aria-hidden="true">
+              {ITEM_MODES.map((m) => (
+                <span key={m} className={`rounded-full px-3 py-1 text-[13px] font-extrabold ${MODE_TONE[m]}`}>
+                  {capitalize(m)}
+                </span>
+              ))}
+            </div>
+            <Link
+              to="/product/new"
+              className="mt-2 flex min-h-12.5 items-center rounded-full bg-primary px-5.5 text-base font-extrabold text-on-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring"
+            >
+              + Dodaj pierwszą rzecz
+            </Link>
+          </section>
         )}
         {shownItems.map((it) => {
           const mode = itemModes[it.id] ?? null;

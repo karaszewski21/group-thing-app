@@ -88,9 +88,19 @@ export function ItemGallery({ name, photos, productPhotoUrl, faded, showOwnerHin
           />
         </button>
       ) : (
-        <span className="flex aspect-4/3 w-full flex-col items-center justify-center gap-2 pb-6 text-primary-fg">
-          <PhotoPlaceholder size={64} />
-          {showOwnerHint && <span className="text-[13px] font-bold">Dodaj zdjęcia w trybie edycji</span>}
+        <span className="relative flex aspect-4/3 w-full flex-col items-center justify-center gap-3 overflow-hidden pb-6 text-primary-fg">
+          {/* Stand-in in the organizer's palette: a dashed ring around the item icon. */}
+          <svg aria-hidden="true" viewBox="0 0 390 292" className="absolute inset-0 h-full w-full" preserveAspectRatio="xMidYMid slice">
+            <circle cx="195" cy="132" r="96" fill="none" className="stroke-primary/25" strokeWidth="2" strokeDasharray="6 9" />
+            <circle cx="105" cy="62" r="9" className="fill-accent" />
+            <circle cx="292" cy="202" r="9" className="fill-primary/35" />
+          </svg>
+          <span className="relative flex h-29 w-29 items-center justify-center rounded-full bg-paper/70">
+            <PhotoPlaceholder size={48} />
+          </span>
+          <span className="relative text-sm font-bold">
+            {showOwnerHint ? "Dodaj zdjęcia w trybie edycji" : "Właściciel nie dodał jeszcze zdjęć"}
+          </span>
         </span>
       )}
       {slides[current] && slides[current].status !== "APPROVED" && (

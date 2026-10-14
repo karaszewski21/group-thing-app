@@ -2049,7 +2049,7 @@ describe("PanelPage — inventory item edit/delete", () => {
     renderPanel();
 
     fireEvent.click(await screen.findByRole("button", { name: "Moje rzeczy" }));
-    expect(await screen.findByText("Nie masz jeszcze żadnej rzeczy.")).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "Nie masz jeszcze żadnej rzeczy" })).toBeInTheDocument();
     expect(screen.queryByText("Rowerek")).not.toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "Wypożyczone" }));

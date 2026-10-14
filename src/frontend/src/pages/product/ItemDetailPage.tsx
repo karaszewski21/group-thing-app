@@ -9,6 +9,7 @@ import { PencilIcon, TrashIcon } from "../panel/panelIcons";
 import { ItemBackButton } from "./ItemBackButton";
 import { ItemGallery } from "./ItemGallery";
 import { ItemLoadStates } from "./ItemLoadStates";
+import { ItemPageSkeleton } from "./ItemPageSkeleton";
 import {
   FIELD_LABEL,
   MAX_PRODUCT_PHOTOS,
@@ -42,6 +43,13 @@ export function ItemDetailBody() {
     return (
       <div className="flex-1 overflow-y-auto pb-6">
         <ItemViewContent item={item} history={history} />
+      </div>
+    );
+  }
+  if (loading && !notFound && !error) {
+    return (
+      <div className="flex-1 overflow-y-auto pb-6">
+        <ItemPageSkeleton />
       </div>
     );
   }

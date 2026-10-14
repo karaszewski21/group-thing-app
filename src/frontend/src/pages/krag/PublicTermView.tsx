@@ -223,9 +223,7 @@ export function PublicTermView({
 
         <TermCard date={term?.occurs_on ?? ""} />
 
-        {neededItemRows.length > 0 && (
-            <NeededItemsSection rows={neededItemRows}/>
-        )}
+        {term && <NeededItemsSection rows={neededItemRows} />}
 
         {term && <AttendeeList attendees={buildAttendees(group, toListingRow)} activePartyId={activePartyId} />}
 

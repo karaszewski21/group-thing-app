@@ -24,7 +24,7 @@ export interface VisualizationFamily {
 export interface GroupVisualizationProps {
   layoutMode: GroupLayoutMode;
   /** Organizer/leader display name — rendered as the CIRCLE center node, the
-   * name above the PITCH, and the top node above the TABLE. */
+   * name above the PITCH, and the seat at the head of the TABLE. */
   organizerName: string;
   families: VisualizationFamily[];
   neededItemRows: NeededItemRowVM[]
@@ -60,6 +60,22 @@ function FamilySlot({ family, active, style, onSelectFamily }: FamilySlotProps) 
     >
       <Avatar name={family.name} showsSharesIcon={family.sharesItem} showsBringsIcon={family.bringsItem} />
     </button>
+  );
+}
+
+/** Seats drawn while nobody has signed up yet — dashed, decorative only. */
+const GHOST_SEATS = { CIRCLE: 8, PITCH: 6, TABLE: 8 } as const;
+
+function GhostSeat({ style, onPitch = false }: { style: CSSProperties; onPitch?: boolean }) {
+  return (
+    <span
+      aria-hidden="true"
+      data-ghost-seat
+      className={`absolute h-12 w-12 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-dashed ${
+        onPitch ? "border-white/75 bg-white/10" : "border-primary/45 bg-paper"
+      }`}
+      style={style}
+    />
   );
 }
 
@@ -114,6 +130,11 @@ function CircleLayout({ families, organizerName, activeFamilyId, onSelectFamily 
                 onSelectFamily={onSelectFamily}
               />
             ))}
+            {slots === 0 &&
+              Array.from({ length: GHOST_SEATS.CIRCLE }, (_, i) => {
+                const { x, y } = getCirclePosition(i, GHOST_SEATS.CIRCLE);
+                return <GhostSeat key={i} style={{ left: `${x}%`, top: `${y}%` }} />;
+              })}
 
             <div className="absolute top-1/2 left-1/2 w-[48%] -translate-x-1/2 -translate-y-1/2 text-center">
               <OrganizerAvatar name={organizerName} />
@@ -186,6 +207,11 @@ function PitchLayout({
             />
           );
         })}
+        {slots === 0 &&
+          Array.from({ length: GHOST_SEATS.PITCH }, (_, i) => {
+            const { x, y } = getPitchPosition(i, GHOST_SEATS.PITCH);
+            return <GhostSeat key={i} onPitch style={{ left: `${x}%`, top: `${y}%` }} />;
+          })}
       </div>
     </div>
   );
@@ -194,9 +220,10 @@ function PitchLayout({
 /**
  * TABLE layout (new) — families distributed around an ellipse's perimeter
  * (`getTablePosition`), any family count without avatar overlap, same
- * deterministic slot shuffle as PITCH. The term's needed items sit as
- * "chips" in the center of the table and are never interactive (no
- * `onClick`, not `<button>` elements).
+ * deterministic slot shuffle as PITCH. The organizer sits at the head of the
+ * table (the first seat of `slots + 1`); families take the seats after it.
+ * The term's needed items sit as "chips" in the center of the table and are
+ * never interactive (no `onClick`, not `<button>` elements).
  */
 function TableLayout({
   families,
@@ -210,21 +237,31 @@ function TableLayout({
   const order = getStableSlotOrder(groupId, families.map((f) => f.familyId));
   const byId = new Map(families.map((f) => [f.familyId, f]));
 
+  const seats = (slots === 0 ? GHOST_SEATS.TABLE : slots) + 1;
+  const head = getTablePosition(0, seats);
+
   return (
-    <div className="px-4.5 pt-5 pb-1.5">
-      <div className="mb-1 text-center">
-        <OrganizerAvatar name={organizerName} small />
-        <strong className="mt-2.5 block font-serif text-[15px] font-bold text-ink">
-          {organizerName || "Brak organizatora"}
-        </strong>
-      </div>
+    <div className="px-4.5 pt-12 pb-1.5">
       <div className="relative mx-auto aspect-square w-full max-w-90">
+        {/* Avatar centered on the head seat, the name above it. */}
+        <div
+          className="absolute flex -translate-x-1/2 -translate-y-[calc(100%-26px)] flex-col items-center gap-2"
+          style={{ left: `${head.x}%`, top: `${head.y}%` }}
+        >
+          <strong className="rounded-full bg-paper px-3 py-1 font-serif text-[14px] font-bold whitespace-nowrap text-ink">
+            {organizerName || "Brak organizatora"}
+          </strong>
+          <OrganizerAvatar name={organizerName} small />
+        </div>
 
         <div
           className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[64%] h-[46%] rounded-full flex flex-col items-center justify-center gap-2 p-2.5"
           style={{ background: "#e7cfa8", border: "6px solid var(--color-ink)" }}
           data-testid="table-chips"
         >
+          {neededItemRows.length === 0 && (
+            <span className="px-3 text-center text-[12.5px] leading-snug text-ink/70">Tu pojawią się potrzebne rzeczy</span>
+          )}
           {neededItemRows.map((chip) => (
             <span
               key={chip.key}
@@ -238,7 +275,7 @@ function TableLayout({
         {order.map((familyId, i) => {
           const family = byId.get(familyId);
           if (!family) return null;
-          const { x, y } = getTablePosition(i, slots);
+          const { x, y } = getTablePosition(i + 1, seats);
           return (
             <FamilySlot
               key={family.familyId}
@@ -249,6 +286,11 @@ function TableLayout({
             />
           );
         })}
+        {slots === 0 &&
+          Array.from({ length: GHOST_SEATS.TABLE }, (_, i) => {
+            const { x, y } = getTablePosition(i + 1, seats);
+            return <GhostSeat key={i} style={{ left: `${x}%`, top: `${y}%` }} />;
+          })}
       </div>
     </div>
   );
@@ -321,6 +363,11 @@ export function GroupVisualization({
           onSelectFamily={onSelectFamily}
           groupId={groupId}
         />
+      )}
+      {families.length === 0 && (
+        <p className="mx-auto mt-1 w-max rounded-full bg-paper px-3.5 py-1.5 text-[13px] font-bold text-primary-fg">
+          Nikt się jeszcze nie zapisał
+        </p>
       )}
       <ExchangeLegend />
     </>
