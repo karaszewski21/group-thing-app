@@ -115,15 +115,17 @@ _RAW_MATRIX: tuple[_RawEntry, ...] = (
         r"^/api/groups/public/[^/]+/join-requests(/[^/]+/withdraw)?$",
         "AUTHENTICATED",
     ),
-    # Fine-grained circle rename — declared ahead of row 26's blanket
-    # /api/groups READ row and after the /mine + /public rows above, so
-    # first-match evaluation reaches it. The active-organizer check lives in
-    # `app.groups.service.update_group`; the matrix only gates it to EDIT.
-    (_methods("PATCH"), r"^/api/groups/[^/]+$", ("EDIT", "mcp:edit")),
-    # ADMIN-only Circle moderation list — declared ahead of row 26's blanket
-    # /api/groups READ row so the literal `moderation` segment doesn't fall
-    # through to the READ-only rule below.
+    # Fine-grained circle rename and soft delete — declared ahead of row 26's
+    # blanket /api/groups READ row and after the /mine + /public rows above,
+    # so first-match evaluation reaches it. The active-organizer-or-ADMIN
+    # checks live in `app.groups.service.update_group` / `soft_delete_group`;
+    # the matrix only gates them to EDIT (an ADMIN login token carries EDIT).
+    (_methods("PATCH", "DELETE"), r"^/api/groups/[^/]+$", ("EDIT", "mcp:edit")),
+    # ADMIN-only Circle moderation list and restore — declared ahead of rows
+    # 26-27's blanket /api/groups READ/EDIT rows so these paths don't fall
+    # through to the weaker rules below.
     (_methods("GET"), r"^/api/groups/moderation$", ("ADMIN",)),
+    (_methods("POST"), r"^/api/groups/[^/]+/restore$", ("ADMIN",)),
     # 26-47: app.party / app.circulation — added beyond spec.md's original 25
     # rows for the Organizer/Circle/Family + Wypożyczalnia domain. Ownership
     # checks the matrix itself can't express (active organizer, own-family
@@ -147,6 +149,10 @@ _RAW_MATRIX: tuple[_RawEntry, ...] = (
     (_methods("PATCH", "DELETE"), r"^/api/families/[^/]+/guardians/[^/]+$", ("EDIT", "mcp:edit")),
     (_methods("GET"), r"^/api/families(/.*)?$", ("READ", "mcp:read")),  # 28
     (_methods("POST"), r"^/api/families(/.*)?$", ("EDIT", "mcp:edit")),  # 29
+    # Assigning a Leadership hands over a Circle, so it is ADMIN-only; ending
+    # one stays EDIT on row 30 with the organizer-or-ADMIN check in
+    # `app.groups.service.remove_leadership`.
+    (_methods("POST"), r"^/api/leaderships$", ("ADMIN",)),
     (_methods("POST"), r"^/api/leaderships(/.*)?$", ("EDIT", "mcp:edit")),  # 30
     (_methods("POST"), r"^/api/memberships(/.*)?$", ("EDIT", "mcp:edit")),  # 31
     # Fine-grained term / needed-item edit + soft-delete — ahead of the

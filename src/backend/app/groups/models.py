@@ -115,6 +115,12 @@ class Group(BaseEntity):
         nullable=False,
         server_default="PUBLIC",
     )
+    deleted_at: Mapped[datetime | None] = mapped_column(DateTime(), nullable=True)
+    deleted_by_party_id: Mapped[uuid.UUID | None] = mapped_column(
+        postgresql.UUID(as_uuid=True),
+        ForeignKey("parties.id", name="fk_groups_deleted_by_party_id_parties"),
+        nullable=True,
+    )
 
 
 class GroupRole(BaseEntity):

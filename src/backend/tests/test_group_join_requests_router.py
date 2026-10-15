@@ -344,12 +344,14 @@ async def test_withdrawJoinRequest_owner_setsWithdrawnWithoutNotification(
 async def test_createJoinRequest_noActiveOrganizer_returns409WithoutRequest(
     client: AsyncClient, db_session: AsyncSession
 ) -> None:
-    org_token, _ = await _register(client, "ORGANIZER", "jr.noorg.org@example.com")
+    org_token, org_party_id = await _register(client, "ORGANIZER", "jr.noorg.org@example.com")
     group_id, _term_id = await _create_circle_and_term(client, org_token, "jr-noorg")
     guest_token, _ = await _register(client, "GUEST", "jr.noorg.guest@example.com")
     leadership = await service.get_current_leadership(db_session, group_id)
     assert leadership is not None
-    await service.remove_leadership(db_session, leadership.id, date.today())
+    await service.remove_leadership(
+        db_session, leadership.id, date.today(), uuid.UUID(str(org_party_id)), is_admin=False
+    )
 
     response = await client.post(
         f"/api/groups/public/{group_id}/join-requests", json={}, headers=_auth(guest_token)

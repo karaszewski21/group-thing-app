@@ -169,6 +169,11 @@ async def get_reservation(db: AsyncSession, reservation_id: uuid.UUID) -> Reserv
     return reservation
 
 
+async def find_reservation_term_occurs_on(db: AsyncSession, term_id: uuid.UUID) -> datetime | None:
+    term = await repository.find_reservation_term(db, term_id)
+    return term.occurs_on if term is not None else None
+
+
 async def list_reservations(db: AsyncSession, item_id: uuid.UUID) -> list[Reservation]:
     return await repository.list_reservations_for_item(db, item_id)
 

@@ -8,7 +8,6 @@ import {
 } from "../../../api/inventories";
 import { serverMessageOr } from "../../../api/problem";
 import { cancelTransaction, confirmTransaction, getReservation } from "../../../api/reservations";
-import { getTerm } from "../../../api/terms";
 import {
   acceptSwapProposal,
   getSwapProposalsForItem,
@@ -97,10 +96,10 @@ export function RzeczyView() {
 
   // Bug #4c: whether the active reservation's Term has already occurred,
   // keyed by `reservationId` — mirrors `TermPage.tsx`'s
-  // `currentTermHasOccurred()`, resolved the same bounded way
-  // `itemBalances` itself is (one batched round-trip over the distinct
-  // reservations/terms among the currently-locked items, never per-row).
-  // Also kept local to this view, same rationale as `itemBalances` above.
+  // `currentTermHasOccurred()`. The date comes with the reservation itself
+  // (`term_occurs_on`), which still resolves when the Term's group is
+  // soft-deleted, unlike `GET /terms/{id}`. Settled per reservation so one
+  // failing fetch never hides the buttons of the other locked items.
   const [reservationTermInfo, setReservationTermInfo] = useState<
     Record<string, { hasEnded: boolean }>
   >({});
@@ -118,30 +117,18 @@ export function RzeczyView() {
       return;
     }
     let cancelled = false;
-    void (async () => {
-      const reservations = await Promise.all(
-        lockedReservationIds.map((id) => getReservation(id)),
-      );
-      const termIds = Array.from(
-        new Set(
-          reservations
-            .map((r) => r.term_id)
-            .filter((id): id is string => id !== undefined),
-        ),
-      );
-      const terms = await Promise.all(termIds.map((id) => getTerm(id)));
-      const termById = new Map(terms.map((t) => [t.id, t]));
+    void Promise.allSettled(lockedReservationIds.map((id) => getReservation(id))).then((results) => {
       if (cancelled) return;
       const next: Record<string, { hasEnded: boolean }> = {};
-      for (const r of reservations) {
-        if (r.term_id === undefined) continue;
-        const term = termById.get(r.term_id);
-        next[r.id] = {
-          hasEnded: term ? new Date(term.occurs_on).getTime() <= Date.now() : false,
+      for (const result of results) {
+        if (result.status !== "fulfilled") continue;
+        const { id, term_occurs_on } = result.value;
+        next[id] = {
+          hasEnded: term_occurs_on != null && new Date(term_occurs_on).getTime() <= Date.now(),
         };
       }
       setReservationTermInfo(next);
-    })();
+    });
     return () => {
       cancelled = true;
     };

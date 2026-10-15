@@ -20,6 +20,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
 from app.core.auth_deps import OptionalPrincipal, Principal, require_any
+from app.core.errors import EntityNotFoundException
 from app.core.pagination import Page, Pagination
 from app.core.security import encode_login_token
 from app.db import get_db
@@ -253,14 +254,21 @@ async def withdraw_attendance(
 
 @router.get("/api/groups/moderation", response_model=Page[ModerationGroupResponse])
 async def list_groups_for_moderation(
-    db: DbSession, principal: ModerationPrincipal, pagination: Pagination
+    db: DbSession, principal: ModerationPrincipal, pagination: Pagination, deleted: bool = False
 ) -> Page[ModerationGroupResponse]:
-    """ADMIN-only: every Circle in the system with its current organizer and
-    member/term counts. Registered ahead of `get_group` below so the
-    literal `moderation` segment isn't consumed by `{group_id}: int` path
-    conversion — same reasoning as `list_my_attendances` above."""
-    groups, total = await service.list_groups_for_moderation(db, pagination)
+    """ADMIN-only: every live Circle (or, with `deleted=true`, every
+    soft-deleted one) with its current organizer and member/term counts.
+    Registered ahead of `get_group` below so the literal `moderation`
+    segment isn't consumed by `{group_id}` path conversion — same reasoning
+    as `list_my_attendances` above."""
+    groups, total = await service.list_groups_for_moderation(db, pagination, deleted)
     return Page(items=groups, total=total, page=pagination.page, size=pagination.size)
+
+
+@router.post("/api/groups/{group_id}/restore", status_code=status.HTTP_204_NO_CONTENT)
+async def restore_group(group_id: uuid.UUID, db: DbSession, principal: ModerationPrincipal) -> None:
+    await service.restore_group(db, group_id)
+    return None
 
 
 @router.patch("/api/groups/{group_id}", response_model=GroupResponse)
@@ -274,6 +282,19 @@ async def update_group(
     response = GroupResponse.model_validate(group)
     response.organizer_slug = await service.resolve_organizer_slug(db, group_id)
     return response
+
+
+@router.delete("/api/groups/{group_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_group(group_id: uuid.UUID, db: DbSession, principal: EditPrincipal) -> None:
+    """Soft delete by the active organizer or an ADMIN. An ADMIN without a
+    `UserProfile` may still delete; the actor is then recorded as unknown."""
+    try:
+        actor_party_id: uuid.UUID | None = (await get_profile_by_principal(db, principal)).party_id
+    except EntityNotFoundException:
+        actor_party_id = None
+    is_admin = "PERMISSION_ADMIN" in principal.authorities
+    await service.soft_delete_group(db, group_id, actor_party_id, is_admin)
+    return None
 
 
 @router.get("/api/groups/{group_id}", response_model=GroupResponse)
@@ -320,6 +341,7 @@ async def get_family_exchange_offers(
 async def get_current_leadership(
     group_id: uuid.UUID, db: DbSession, principal: ReadPrincipal
 ) -> LeadershipResponse | None:
+    await service.get_group(db, group_id)
     leadership = await service.get_current_leadership(db, group_id)
     if leadership is None:
         return None
@@ -331,6 +353,7 @@ async def get_current_leadership(
 async def list_leaderships(
     group_id: uuid.UUID, db: DbSession, principal: ReadPrincipal
 ) -> list[LeadershipResponse]:
+    await service.get_group(db, group_id)
     leaderships = await service.list_leaderships(db, group_id)
     rows = await service.build_leadership_responses(db, leaderships)
     return [LeadershipResponse(**row) for row in rows]
@@ -340,6 +363,7 @@ async def list_leaderships(
 async def list_memberships_for_circle(
     group_id: uuid.UUID, db: DbSession, principal: ReadPrincipal
 ) -> list[MembershipResponse]:
+    await service.get_group(db, group_id)
     memberships = await service.list_memberships_for_circle(db, group_id)
     rows = await service.build_membership_responses(db, memberships)
     return [MembershipResponse(**row) for row in rows]

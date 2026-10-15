@@ -55,7 +55,7 @@ from ..schemas import (
 )
 from .attendance import _require_term_eligibility
 from .circles import _group_role_party_id, get_current_leadership, get_group
-from .terms import get_term
+from .terms import get_term, get_term_any
 
 _ACTIVE_RESERVATION_STATUSES = (
     circulation_bridge.ReservationStatus.PENDING,
@@ -382,7 +382,7 @@ async def _list_eligible_lister_party_ids(
 async def list_my_term_item_listings(
     db: AsyncSession, term_id: uuid.UUID, party_id: uuid.UUID
 ) -> list[BrowseTermItemListingResponse]:
-    term = await get_term(db, term_id)
+    term = await get_term_any(db, term_id)
     await _require_term_eligibility(db, term_id, term.circle_group_id, party_id)
     preferences = await repository.list_item_listing_preferences_for_party(db, party_id)
     return await _build_listing_views(db, term_id, preferences)
@@ -397,7 +397,7 @@ async def list_my_active_taken_term_item_listings(
     this still resolves after `term.occurs_on` has passed, which is exactly
     the post-term-end window `confirm_transaction` needs a reservation id
     for."""
-    term = await get_term(db, term_id)
+    term = await get_term_any(db, term_id)
     await _require_term_eligibility(db, term_id, term.circle_group_id, party_id)
 
     profile = await get_profile_by_party(db, party_id)
@@ -959,7 +959,7 @@ async def _resolve_transaction_reservations_for_action(
     ):
         raise BusinessConflictException("Zamiana nie została zaakceptowana")
 
-    term = await get_term(db, reservation.term_id)
+    term = await get_term_any(db, reservation.term_id)
     if term.occurs_on > clock.local_now():
         raise BusinessConflictException("Termin jeszcze się nie odbył")
 

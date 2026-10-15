@@ -12,15 +12,19 @@ raising `AccessDeniedException` — per `standards/backend/security.md`.
 
 from __future__ import annotations
 
+import logging
 import uuid
-
-from datetime import date
+from datetime import date, datetime
 from typing import cast
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core import clock
-from app.core.errors import AccessDeniedException, EntityNotFoundException
+from app.core.errors import (
+    AccessDeniedException,
+    BusinessConflictException,
+    EntityNotFoundException,
+)
 from app.core.pagination import PageParams
 from app.moderation.text_guard import TextField, check_text
 from app.party.models import PartyType
@@ -30,6 +34,8 @@ from ..infrastructure import repository
 from ..models import Group, GroupLayoutMode, GroupRoleType, GroupVisibility, Leadership
 from ..schemas import CreateCircleRequest, ModerationGroupResponse
 from .group_roles import get_or_create_active_group_role
+
+logger = logging.getLogger(__name__)
 
 # --- Groups (Circles) ---------------------------------------------------------
 
@@ -121,10 +127,11 @@ async def list_groups(db: AsyncSession) -> list[Group]:
 
 
 async def list_groups_for_moderation(
-    db: AsyncSession, params: PageParams
+    db: AsyncSession, params: PageParams, deleted: bool = False
 ) -> tuple[list[ModerationGroupResponse], int]:
-    """One page of Circles, newest first, plus the total number of Circles."""
-    rows = await repository.list_groups_for_moderation(db, params.offset, params.size)
+    """One page of live (or, with `deleted`, soft-deleted) Circles plus their
+    total under the same predicate."""
+    rows = await repository.list_groups_for_moderation(db, params.offset, params.size, deleted)
     groups = [
         ModerationGroupResponse(
             id=cast(uuid.UUID, group.id),
@@ -134,10 +141,19 @@ async def list_groups_for_moderation(
             organizer_email=organizer_email,
             member_count=member_count,
             term_count=term_count,
+            deleted_at=group.deleted_at,
+            deleted_by_name=deleted_by_name,
         )
-        for group, organizer_name, organizer_email, member_count, term_count in rows
+        for (
+            group,
+            organizer_name,
+            organizer_email,
+            member_count,
+            term_count,
+            deleted_by_name,
+        ) in rows
     ]
-    return groups, await repository.count_groups(db)
+    return groups, await repository.count_groups(db, deleted)
 
 
 async def get_group(db: AsyncSession, group_id: uuid.UUID) -> Group:
@@ -145,6 +161,60 @@ async def get_group(db: AsyncSession, group_id: uuid.UUID) -> Group:
     if group is None:
         raise EntityNotFoundException("Group", group_id)
     return group
+
+
+async def get_group_including_deleted(db: AsyncSession, group_id: uuid.UUID) -> Group:
+    group = await repository.get_group_including_deleted(db, group_id)
+    if group is None:
+        raise EntityNotFoundException("Group", group_id)
+    return group
+
+
+async def soft_delete_group(
+    db: AsyncSession, group_id: uuid.UUID, actor_party_id: uuid.UUID | None, is_admin: bool
+) -> None:
+    """Hide the Circle everywhere (`get_group` 404s from now on). Only its
+    active organizer or an ADMIN may delete it, and never while an upcoming
+    Term still has active RSVPs. The Leadership is kept so restore brings the
+    Circle back with its organizer."""
+    group = await get_group(db, group_id)
+    if not is_admin and (
+        actor_party_id is None or not await _is_active_organizer(db, group_id, actor_party_id)
+    ):
+        raise AccessDeniedException
+
+    occurs_on = await repository.find_nearest_blocking_term_date(db, group_id, clock.local_now())
+    if occurs_on is not None:
+        raise BusinessConflictException(
+            f"Grupy nie można usunąć — na termin {clock.format_term_day(occurs_on)} są zapisy. "
+            "Spróbuj po tym terminie albo gdy uczestnicy się wypiszą."
+        )
+
+    group.deleted_at = datetime.utcnow()
+    group.deleted_by_party_id = actor_party_id
+    await db.commit()
+    logger.info(
+        "Group soft-deleted group_id=%s actor_party_id=%s is_admin=%s",
+        group_id,
+        actor_party_id,
+        is_admin,
+    )
+
+
+async def restore_group(db: AsyncSession, group_id: uuid.UUID) -> None:
+    group = await get_group_including_deleted(db, group_id)
+    if group.deleted_at is None:
+        raise BusinessConflictException("Grupa nie jest usunięta")
+    deleted_at, deleted_by_party_id = group.deleted_at, group.deleted_by_party_id
+    group.deleted_at = None
+    group.deleted_by_party_id = None
+    await db.commit()
+    logger.info(
+        "Group restored group_id=%s deleted_by_party_id=%s deleted_at=%s",
+        group_id,
+        deleted_by_party_id,
+        deleted_at,
+    )
 
 
 async def update_group(
@@ -206,10 +276,24 @@ async def assign_leadership(
     return leadership
 
 
-async def remove_leadership(db: AsyncSession, leadership_id: uuid.UUID, valid_to: date) -> Leadership:
+async def remove_leadership(
+    db: AsyncSession,
+    leadership_id: uuid.UUID,
+    valid_to: date,
+    caller_party_id: uuid.UUID | None,
+    is_admin: bool,
+) -> Leadership:
+    """Only an ADMIN or the Circle's active organizer may end a Leadership.
+    Deliberately ignores the Circle's `deleted_at`: ending a Leadership on a
+    soft-deleted Circle stays allowed."""
     leadership = await repository.get_leadership(db, leadership_id)
     if leadership is None:
         raise EntityNotFoundException("Leadership", leadership_id)
+    if not is_admin and (
+        caller_party_id is None
+        or not await _is_active_organizer(db, leadership.to_group_id, caller_party_id)
+    ):
+        raise AccessDeniedException
     leadership.valid_to = valid_to
     await db.commit()
     await db.refresh(leadership)

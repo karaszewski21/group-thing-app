@@ -31,6 +31,8 @@ from app.groups.application.circles import (
     list_groups_for_moderation,
     list_leaderships,
     remove_leadership,
+    restore_group,
+    soft_delete_group,
     update_group,
 )
 from app.groups.application.exchange_summary import (
@@ -158,7 +160,9 @@ __all__ = [
     "reject_swap_proposal",
     "remove_leadership",
     "resolve_organizer_slug",
+    "restore_group",
     "set_item_listing_preference",
+    "soft_delete_group",
     "soft_delete_needed_item",
     "sync_pledge_fulfillment",
     "take_item_listing",

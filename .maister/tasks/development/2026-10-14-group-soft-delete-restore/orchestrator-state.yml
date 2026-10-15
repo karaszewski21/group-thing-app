@@ -1,0 +1,78 @@
+orchestrator:
+  tdd_red_passed: true
+  tdd_green_passed: true
+  started_phase: phase-1
+  completed_phases: [phase-1, phase-2, phase-3, phase-4, phase-5, phase-6, phase-7, phase-8, phase-9, phase-10, phase-11]
+  failed_phases: []
+  auto_fix_attempts: {phase-1: 0, phase-2: 0}
+  options:
+    spec_audit_enabled: true
+    skip_test_suite: false
+    e2e_enabled: true
+    user_docs_enabled: true
+    code_review_enabled: true
+    pragmatic_review_enabled: true
+    reality_check_enabled: true
+    production_check_enabled: true
+    sequential: null
+  created: 2026-10-14T11:00:00
+  updated: 2026-10-14T11:00:00
+  task_path: .maister/tasks/development/2026-10-14-group-soft-delete-restore
+  task_ids: {}  # TaskCreate not available in this session
+  task_context:
+    risk_level: medium-high
+    clarifications_resolved: true
+    scope_expanded: false
+    architecture_decision: central get_group/get_term 404 on deleted + get_group_including_deleted/get_term_any escape hatches + explicit per-query predicates
+    task_characteristics:
+      has_reproducible_defect: true
+      modifies_existing_code: true
+      creates_new_entities: true
+      involves_data_operations: true
+      ui_heavy: true
+    research_reference: {path: null, research_question: null, research_type: null, confidence_level: null}
+    design_reference: {source: phase-4-ascii, product_design_path: null, mockup_count: 8, has_brief: false, index_path: analysis/design-context/INDEX.md}
+    project_context:
+      project_doc_paths:
+        - .maister/docs/project/tech-stack.md
+        - .maister/docs/project/architecture.md
+    phase_summaries:
+      research: {summary: null}
+      design: {summary: "ASCII mockups in analysis/design-context/ascii/ui-mockups.md; admin copy English, panel copy Polish", screen_count: 4, component_count: 5, index_path: analysis/design-context/INDEX.md}
+      codebase_analysis:
+        key_files: [src/backend/app/groups/infrastructure/repository.py, src/backend/app/groups/application/circles.py, src/backend/app/groups/router/circles.py, src/backend/app/groups/models.py, src/backend/app/core/authorization_matrix.py, src/backend/app/groups/application/terms.py, src/backend/app/groups/application/term_item_listings.py, src/frontend/src/pages/panel/PanelDataContext.tsx, src/frontend/src/pages/panel/views/SpotkaniaView.tsx, src/frontend/src/pages/AdminGroupsPage.tsx, src/frontend/src/hooks/useModerationGroups.ts, src/frontend/src/api/groups.ts]
+        primary_language: python+typescript
+        summary: "Write side small (column, migration 0056, soft_delete/restore, DELETE + POST restore, matrix rows); read side broad - no central group filter; leadership/membership role-id listings must filter deleted groups or panel and POST /api/groups/mine break; get_term must be deleted-aware except transaction confirm/cancel." 
+      clarifications: [block delete with upcoming RSVP terms (409), record deleted_by_party_id, fix remove_leadership ownership hole, reservations confirm/cancel allowed, withdrawals allowed, restore live group 409, term_end_scan keeps processing]
+      gap_analysis:
+        integration_points: [repository leadership/membership listings, get_group/get_term split, auth matrix rows, AdminGroupsPage toggle, panel trash confirm]
+        summary: "Delete/admin-list/restore all missing; safe only with filtered leadership+membership listings, get_term split (confirm/cancel + term_end_scan keep-live), ownership checks on leadership assign/end. Two critical decisions: leadership-assign takeover hole and unactionable 409 copy (terms cannot be cancelled)." 
+      scope_clarifications:
+        scope_expanded: false
+        summary: "Leadership assign ADMIN-only; 409 reworded with nearest blocking date; admin Active/Deleted toggle via ?deleted=true; deleted = 404 for all; organizer OR ADMIN can delete; end leadership allowed on deleted; panel tolerates 404; Tailwind confirm from trash; no notifications/data migration." 
+      ui_mockups:
+        components_designed: [component:delete-group-trigger, component:delete-group-dialog, component:delete-group-dialog-busy, component:delete-group-dialog-error, screen:panel-spotkania-after-delete, screen:admin-groups, screen:admin-groups-deleted, component:admin-group-restore-button, screen:admin-groups-deleted-empty]
+        summary: "Panel: Tailwind DeleteGroupDialog (clone of UnsavedChangesDialog) from trash, inline 409/generic error, toast on success. Admin (English copy, user-confirmed): Active/Deleted toggle, Deleted view with Deleted at/Deleted by/Restore per row (DeletedGroupRow with busy/error)." 
+      implementation: {summary: "10 groups/70 steps done; ~25 files; backend full suite 846 green, frontend 909 pass + 11 pre-existing fails; mypy/ruff/tsc at baseline; red tests green unchanged; 5 standards suggestions logged."}
+      specification: {summary: "implementation/spec.md: 20 core reqs; migration 0056 (deleted_at, deleted_by_party_id); DELETE 204/403/404/409, restore ADMIN 204/404/409, moderation ?deleted=true; leadership assign ADMIN-only, end organizer|ADMIN; Table A 17 hide paths, Table B 8 keep-live; panel DeleteGroupDialog; admin toggle+Restore (EN)."}
+      architecture_decision: {decision: central-getter-plus-predicates, summary: "get_group/get_term deleted-aware; including_deleted/any variants for restore and keep-live paths; no global ORM filter"}
+verification_context:
+  last_status: passed
+  issues_found: [H1 RzeczyView getTerm 404, W1 admin toggle placeholder, W2 non-silent load, UTC display, no delete/restore logs, duplicate tests/unused exports, restore two-groups (accepted)]
+  fixes_applied: [H1, W1, W2, UTC, logs, cleanups, rollback notes]
+  decisions_made: [restore two live groups accepted]
+  reverify_count: 1
+task:
+  title: Group soft delete with admin restore
+  description: >
+    Miękkie usuwanie grupy (Circle) z przywracaniem przez admina. Obecny kosz "Usuń grupę"
+    (SpotkaniaView.tsx ~181, handleRemoveGroup PanelDataContext.tsx:609) bez potwierdzenia kończy
+    tylko Leadership (POST /api/leaderships/{id}/end), grupa zostaje osierocona. Cel: Group.deleted_at
+    (+deleted_by_party_id?) + migracja; DELETE /api/groups/{id} (aktywny organizator, nie kończy Leadership);
+    usunięta grupa = nieistniejąca (public view, /access 404, my groups, organizer directory, my attendances,
+    blokada RSVP/terminów) przez centralny filtr; admin AdminGroupsPage pokazuje usunięte + "Przywróć"
+    (POST /api/groups/{id}/restore, ADMIN); ConfirmDialog w panelu. Otwarte: nadchodzące terminy z zapisami.
+    Retencja: brak. Poza zakresem: przekazanie/sprzedaż grupy.
+  status: in_progress
+  tags: [groups, soft-delete, admin]
+  priority: medium

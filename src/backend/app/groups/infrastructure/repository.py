@@ -60,11 +60,22 @@ from ..models import (
 
 
 async def list_groups(db: AsyncSession) -> list[Group]:
-    result = await db.execute(select(Group).order_by(Group.created_at.desc()))
+    result = await db.execute(
+        select(Group).where(Group.deleted_at.is_(None)).order_by(Group.created_at.desc())
+    )
     return list(result.scalars().all())
 
 
 async def get_group(db: AsyncSession, group_id: uuid.UUID) -> Group | None:
+    """`None` for a soft-deleted Circle, which is nonexistent to every caller
+    except restore (`get_group_including_deleted`)."""
+    group = await db.get(Group, group_id)
+    if group is None or group.deleted_at is not None:
+        return None
+    return group
+
+
+async def get_group_including_deleted(db: AsyncSession, group_id: uuid.UUID) -> Group | None:
     return await db.get(Group, group_id)
 
 
@@ -77,17 +88,28 @@ async def list_group_names(
     return {group_id: name for group_id, name in result.all()}
 
 
-async def count_groups(db: AsyncSession) -> int:
-    return (await db.execute(select(func.count()).select_from(Group))).scalar_one()
+def _moderation_deleted_predicate(deleted: bool) -> Any:
+    return Group.deleted_at.is_not(None) if deleted else Group.deleted_at.is_(None)
+
+
+async def count_groups(db: AsyncSession, deleted: bool = False) -> int:
+    return (
+        await db.execute(
+            select(func.count()).select_from(Group).where(_moderation_deleted_predicate(deleted))
+        )
+    ).scalar_one()
 
 
 async def list_groups_for_moderation(
-    db: AsyncSession, offset: int, limit: int
-) -> list[Row[tuple[Group, str | None, str | None, int, int]]]:
+    db: AsyncSession, offset: int, limit: int, deleted: bool = False
+) -> list[Row[tuple[Group, str | None, str | None, int, int, str | None]]]:
     """One aggregated query — `LEFT JOIN`/`GROUP BY` subqueries for member
     and term counts plus the current organizer's `UserProfile`, per
     `standards/backend/queries.md` (mirrors `app.category.service.
-    list_categories`'s product-count pattern). Never one query per Circle."""
+    list_categories`'s product-count pattern). Never one query per Circle.
+    `deleted` selects live or soft-deleted Circles (same predicate as
+    `count_groups`); deleted ones come newest-deleted first with the
+    deleting party's display name (`None` without a profile)."""
     member_counts = (
         select(Membership.to_group_id, func.count().label("member_count"))
         .where(Membership.valid_to.is_(None))
@@ -110,6 +132,9 @@ async def list_groups_for_moderation(
         .where(Leadership.valid_to.is_(None))
         .subquery()
     )
+    order_by = (
+        (Group.deleted_at.desc(), Group.id) if deleted else (Group.created_at.desc(), Group.id)
+    )
     result = await db.execute(
         select(
             Group,
@@ -117,11 +142,14 @@ async def list_groups_for_moderation(
             organizers.c.email,
             func.coalesce(member_counts.c.member_count, 0),
             func.coalesce(term_counts.c.term_count, 0),
+            UserProfile.display_name,
         )
         .outerjoin(member_counts, member_counts.c.to_group_id == Group.id)
         .outerjoin(term_counts, term_counts.c.circle_group_id == Group.id)
         .outerjoin(organizers, organizers.c.to_group_id == Group.id)
-        .order_by(Group.created_at.desc(), Group.id)
+        .outerjoin(UserProfile, UserProfile.party_id == Group.deleted_by_party_id)
+        .where(_moderation_deleted_predicate(deleted))
+        .order_by(*order_by)
         .offset(offset)
         .limit(limit)
     )
@@ -193,8 +221,12 @@ async def list_active_leaderships_for_role_ids(
     db: AsyncSession, role_ids: list[uuid.UUID]
 ) -> list[Leadership]:
     result = await db.execute(
-        select(Leadership).where(
-            Leadership.from_role_id.in_(role_ids), Leadership.valid_to.is_(None)
+        select(Leadership)
+        .join(Group, Group.id == Leadership.to_group_id)
+        .where(
+            Leadership.from_role_id.in_(role_ids),
+            Leadership.valid_to.is_(None),
+            Group.deleted_at.is_(None),
         )
     )
     return list(result.scalars().all())
@@ -236,8 +268,12 @@ async def list_active_memberships_for_role_ids(
     db: AsyncSession, role_ids: list[uuid.UUID]
 ) -> list[Membership]:
     result = await db.execute(
-        select(Membership).where(
-            Membership.from_role_id.in_(role_ids), Membership.valid_to.is_(None)
+        select(Membership)
+        .join(Group, Group.id == Membership.to_group_id)
+        .where(
+            Membership.from_role_id.in_(role_ids),
+            Membership.valid_to.is_(None),
+            Group.deleted_at.is_(None),
         )
     )
     return list(result.scalars().all())
@@ -247,7 +283,36 @@ async def list_active_memberships_for_role_ids(
 
 
 async def get_term(db: AsyncSession, term_id: uuid.UUID) -> Term | None:
+    """`None` when the Term's Circle is soft-deleted; `get_term_any` is the
+    keep-live escape hatch."""
+    return (
+        await db.execute(
+            select(Term)
+            .join(Group, Group.id == Term.circle_group_id)
+            .where(Term.id == term_id, Group.deleted_at.is_(None))
+        )
+    ).scalar_one_or_none()
+
+
+async def get_term_any(db: AsyncSession, term_id: uuid.UUID) -> Term | None:
     return await db.get(Term, term_id)
+
+
+async def find_nearest_blocking_term_date(
+    db: AsyncSession, group_id: uuid.UUID, now: datetime
+) -> datetime | None:
+    """Earliest upcoming (`occurs_on >= now`) Term of the Circle that still
+    has a non-withdrawn RSVP, in one `MIN` query."""
+    active_rsvp = exists().where(
+        TermAttendance.term_id == Term.id, TermAttendance.withdrawn_at.is_(None)
+    )
+    return (
+        await db.execute(
+            select(func.min(Term.occurs_on)).where(
+                Term.circle_group_id == group_id, Term.occurs_on >= now, active_rsvp
+            )
+        )
+    ).scalar_one()
 
 
 async def list_terms_for_group(db: AsyncSession, circle_group_id: uuid.UUID) -> list[Term]:
@@ -258,7 +323,14 @@ async def list_terms_for_group(db: AsyncSession, circle_group_id: uuid.UUID) -> 
 
 
 async def count_terms(db: AsyncSession) -> int:
-    return (await db.execute(select(func.count()).select_from(Term))).scalar_one()
+    return (
+        await db.execute(
+            select(func.count())
+            .select_from(Term)
+            .join(Group, Group.id == Term.circle_group_id)
+            .where(Group.deleted_at.is_(None))
+        )
+    ).scalar_one()
 
 
 async def list_terms_for_moderation(
@@ -268,6 +340,7 @@ async def list_terms_for_moderation(
     result = await db.execute(
         select(Term, Group.name)
         .join(Group, Group.id == Term.circle_group_id)
+        .where(Group.deleted_at.is_(None))
         .order_by(Term.occurs_on.desc(), Term.id)
         .offset(offset)
         .limit(limit)
@@ -366,6 +439,7 @@ async def list_my_pledges_joined(
             Pledge.pledged_by_party_id == party_id,
             Pledge.status != PledgeStatus.WITHDRAWN,
             NeededItem.deleted_at.is_(None),
+            Group.deleted_at.is_(None),
         )
         .order_by(Term.occurs_on.asc(), Pledge.id.asc())
     )
@@ -431,7 +505,11 @@ async def list_my_attendances_joined(
         select(TermAttendance, Term, Group)
         .join(Term, TermAttendance.term_id == Term.id)
         .join(Group, Term.circle_group_id == Group.id)
-        .where(TermAttendance.party_id == party_id, TermAttendance.withdrawn_at.is_(None))
+        .where(
+            TermAttendance.party_id == party_id,
+            TermAttendance.withdrawn_at.is_(None),
+            Group.deleted_at.is_(None),
+        )
         .order_by(Term.occurs_on.asc(), TermAttendance.id.asc())
     )
     return list(result.all())
@@ -686,7 +764,7 @@ def _qualifying_owner_circles(owner_party_id: uuid.UUID) -> Select[tuple[uuid.UU
                 GroupRole.valid_to.is_(None),
             ),
         )
-        .where(Group.visibility == GroupVisibility.PUBLIC)
+        .where(Group.visibility == GroupVisibility.PUBLIC, Group.deleted_at.is_(None))
     )
 
 

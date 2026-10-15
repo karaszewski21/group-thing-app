@@ -49,6 +49,7 @@ from .schemas import (
     InventoryResponse,
     ItemDetailsResponse,
     ItemHistoryEntryResponse,
+    ReservationDetailResponse,
     ReservationResponse,
     UpdateInventoryItemRequest,
 )
@@ -246,12 +247,16 @@ async def list_reservations(
     return [ReservationResponse.model_validate(reservation) for reservation in reservations]
 
 
-@router.get("/api/reservations/{reservation_id}", response_model=ReservationResponse)
+@router.get("/api/reservations/{reservation_id}", response_model=ReservationDetailResponse)
 async def get_reservation(
     reservation_id: uuid.UUID, db: DbSession, principal: ReadPrincipal
-) -> ReservationResponse:
+) -> ReservationDetailResponse:
     reservation = await service.get_reservation(db, reservation_id)
-    return ReservationResponse.model_validate(reservation)
+    term_occurs_on = await service.find_reservation_term_occurs_on(db, reservation.term_id)
+    return ReservationDetailResponse(
+        **ReservationResponse.model_validate(reservation).model_dump(),
+        term_occurs_on=term_occurs_on,
+    )
 
 
 @router.post("/api/reservations/{reservation_id}/confirm", response_model=ReservationResponse)

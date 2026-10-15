@@ -106,6 +106,14 @@ class ReservationResponse(BaseModel):
     notes: str | None
 
 
+class ReservationDetailResponse(ReservationResponse):
+    """`GET /api/reservations/{id}` — adds the Term's date, read through the
+    keep-live `find_reservation_term` so it still resolves once the Term's
+    group is soft-deleted (`GET /api/terms/{id}` then answers 404)."""
+
+    term_occurs_on: datetime | None
+
+
 class CreateReservationRequest(BaseModel):
     item_id: uuid.UUID
     reservation_type: ReservationType

@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
-from datetime import date
 import uuid
+from datetime import date
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, status
@@ -11,14 +11,17 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core import clock
 from app.core.auth_deps import Principal, require_any
+from app.core.errors import EntityNotFoundException
 from app.db import get_db
 from app.groups import service
 from app.groups.schemas import AssignLeadershipRequest, LeadershipResponse
+from app.users.service import get_profile_by_principal
 
 router = APIRouter(tags=["groups"])
 
 DbSession = Annotated[AsyncSession, Depends(get_db)]
 EditPrincipal = Annotated[Principal, Depends(require_any("EDIT", "mcp:edit"))]
+AdminPrincipal = Annotated[Principal, Depends(require_any("ADMIN"))]
 
 
 # --- Leadership ---------------------------------------------------------------
@@ -28,7 +31,7 @@ EditPrincipal = Annotated[Principal, Depends(require_any("EDIT", "mcp:edit"))]
     "/api/leaderships", response_model=LeadershipResponse, status_code=status.HTTP_201_CREATED
 )
 async def assign_leadership(
-    body: AssignLeadershipRequest, db: DbSession, principal: EditPrincipal
+    body: AssignLeadershipRequest, db: DbSession, principal: AdminPrincipal
 ) -> LeadershipResponse:
     leadership = await service.assign_leadership(
         db, body.group_id, body.organizer_party_id, body.valid_from
@@ -41,8 +44,16 @@ async def assign_leadership(
 async def remove_leadership(
     leadership_id: uuid.UUID, db: DbSession, principal: EditPrincipal, valid_to: date | None = None
 ) -> LeadershipResponse:
+    try:
+        caller_party_id: uuid.UUID | None = (await get_profile_by_principal(db, principal)).party_id
+    except EntityNotFoundException:
+        caller_party_id = None
     leadership = await service.remove_leadership(
-        db, leadership_id, valid_to or clock.local_now().date()
+        db,
+        leadership_id,
+        valid_to or clock.local_now().date(),
+        caller_party_id,
+        "PERMISSION_ADMIN" in principal.authorities,
     )
     rows = await service.build_leadership_responses(db, [leadership])
     return LeadershipResponse(**rows[0])

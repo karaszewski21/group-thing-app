@@ -1,18 +1,30 @@
-import { Box, Heading, Table, Text } from "@chakra-ui/react";
-import { useState } from "react";
+import { Box, Button, HStack, Heading, Table, Text } from "@chakra-ui/react";
+import { useRef, useState } from "react";
 import { PAGE_SIZE } from "../api/pagination";
+import { DeletedGroupRow } from "../components/moderation/DeletedGroupRow";
 import { AdminTable } from "../components/shared/AdminTable";
 import { EmptyState } from "../components/shared/EmptyState";
 import { Pagination } from "../components/shared/Pagination";
 import { useModerationGroups } from "../hooks/useModerationGroups";
 import dayjs from "../utils/dayjs";
 
-/** ADMIN-only, read-only overview of every Circle in the system — organizer,
- * member count, term count, created date — for spotting empty or abandoned
- * Circles. */
+const STATUS_FILTERS: { deleted: boolean; label: string }[] = [
+  { deleted: false, label: "Active" },
+  { deleted: true, label: "Deleted" },
+];
+
+const ACTIVE_COLUMNS = ["Name", "Organizer", "Members", "Terms", "Created"];
+const DELETED_COLUMNS = [...ACTIVE_COLUMNS, "Deleted at", "Deleted by", "Actions"];
+
+/** ADMIN-only overview of every Circle in the system — organizer, member
+ * count, term count, created date — for spotting empty or abandoned Circles.
+ * The Deleted view lists soft-deleted Circles with who deleted them and a
+ * Restore action. */
 export function AdminGroupsPage() {
+  const [deleted, setDeleted] = useState(false);
   const [page, setPage] = useState(1);
-  const { data: groups, total, loading, error } = useModerationGroups(page);
+  const deletedFilterRef = useRef<HTMLButtonElement>(null);
+  const { data: groups, total, loading, error, restore } = useModerationGroups(page, deleted);
 
   return (
     <Box>
@@ -24,16 +36,33 @@ export function AdminGroupsPage() {
           Every Circle in the system, at a glance
         </Text>
       </Box>
+      <HStack gap="8px" mb="16px" flexWrap="wrap" role="group" aria-label="Group status">
+        {STATUS_FILTERS.map((filter) => (
+          <Button
+            key={filter.label}
+            ref={filter.deleted ? deletedFilterRef : undefined}
+            size="sm"
+            variant={filter.deleted === deleted ? "solid" : "outline"}
+            aria-pressed={filter.deleted === deleted}
+            onClick={() => {
+              setDeleted(filter.deleted);
+              setPage(1);
+            }}
+          >
+            {filter.label}
+          </Button>
+        ))}
+      </HStack>
       {error ? (
         <Text color="red.500">Error: {error}</Text>
       ) : loading ? (
         <Text>Loading...</Text>
       ) : groups.length === 0 ? (
-        <EmptyState title="No circles found" />
+        <EmptyState title={deleted ? "No deleted circles" : "No circles found"} />
       ) : (
         <AdminTable
-          columns={["Name", "Organizer", "Members", "Terms", "Created"]}
-          footer={`Showing ${groups.length} of ${total} ${total === 1 ? "circle" : "circles"}`}
+          columns={deleted ? DELETED_COLUMNS : ACTIVE_COLUMNS}
+          footer={`Showing ${groups.length} of ${total} ${deleted ? "deleted " : ""}${total === 1 ? "circle" : "circles"}`}
         >
           {groups.map((group) => (
             <Table.Row key={group.id} _hover={{ bg: "#F8FAFC" }}>
@@ -61,6 +90,13 @@ export function AdminGroupsPage() {
               <Table.Cell color="#64748B" fontSize="13px">
                 {dayjs(group.created_at).format("D MMM YYYY")}
               </Table.Cell>
+              {deleted && (
+                <DeletedGroupRow
+                  group={group}
+                  onRestore={() => restore(group.id)}
+                  onRestored={() => deletedFilterRef.current?.focus()}
+                />
+              )}
             </Table.Row>
           ))}
         </AdminTable>

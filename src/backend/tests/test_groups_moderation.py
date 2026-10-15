@@ -180,3 +180,69 @@ async def test_listGroupsForModeration_circleWithNoLeadership_organizerFieldsAre
     assert row["organizer_email"] is None
     assert row["member_count"] == 0
     assert row["term_count"] == 0
+
+
+async def test_listModeration_deletedTrue_listsOnlyDeletedSortedWithActorAndTotal(
+    client: AsyncClient, db_session: AsyncSession
+) -> None:
+    org_headers = await _authed_headers(client, "moddeleted.org@example.com", role="ORGANIZER")
+    names = ["Krąg Pierwszy", "Krąg Drugi", "Krąg Żywy"]
+    ids = []
+    for name in names:
+        circle = await client.post("/api/groups/mine/new", json={"name": name}, headers=org_headers)
+        assert circle.status_code == 201
+        ids.append(circle.json()["id"])
+    first_id, second_id, live_id = ids
+    for group_id in (first_id, second_id):
+        deleted = await client.delete(f"/api/groups/{group_id}", headers=org_headers)
+        assert deleted.status_code == 204
+    await _authed_headers(client, "moddeleted.admin@example.com")
+    admin_headers = await _grant_admin_and_relogin(
+        client, db_session, "moddeleted.admin@example.com", "secret123"
+    )
+
+    response = await client.get(
+        "/api/groups/moderation?deleted=true&size=100", headers=admin_headers
+    )
+
+    assert response.status_code == 200, response.text
+    body = response.json()
+    assert [row["id"] for row in body["items"]] == [second_id, first_id]
+    assert body["total"] == 2
+    assert all(row["deleted_at"] is not None for row in body["items"])
+    assert all(row["deleted_by_name"] == "Moddeleted Org" for row in body["items"])
+    live = await client.get("/api/groups/moderation?size=100", headers=admin_headers)
+    live_ids = {row["id"] for row in live.json()["items"]}
+    assert live_id in live_ids
+    assert first_id not in live_ids and second_id not in live_ids
+    assert live.json()["total"] == len(live_ids)
+
+
+async def test_restoreGroup_admin_returns204AndGroupReadableAgain(
+    client: AsyncClient, db_session: AsyncSession
+) -> None:
+    org_headers = await _authed_headers(client, "modrestore.org@example.com", role="ORGANIZER")
+    circle = await client.post(
+        "/api/groups/mine", json={"name": "Krąg do przywrócenia"}, headers=org_headers
+    )
+    circle_id = circle.json()["id"]
+    assert (await client.delete(f"/api/groups/{circle_id}", headers=org_headers)).status_code == 204
+    await _authed_headers(client, "modrestore.admin@example.com")
+    admin_headers = await _grant_admin_and_relogin(
+        client, db_session, "modrestore.admin@example.com", "secret123"
+    )
+
+    non_admin = await client.post(f"/api/groups/{circle_id}/restore", headers=org_headers)
+    response = await client.post(f"/api/groups/{circle_id}/restore", headers=admin_headers)
+
+    assert non_admin.status_code == 403
+    assert response.status_code == 204
+    assert (await client.get(f"/api/groups/{circle_id}", headers=org_headers)).status_code == 200
+    assert (await client.get(f"/api/groups/public/{circle_id}")).status_code == 200
+    live = await client.post(f"/api/groups/{circle_id}/restore", headers=admin_headers)
+    assert live.status_code == 409
+    assert live.json()["message"] == "Grupa nie jest usunięta"
+    unknown = await client.post(
+        "/api/groups/00000000-0000-0000-0000-000000000000/restore", headers=admin_headers
+    )
+    assert unknown.status_code == 404

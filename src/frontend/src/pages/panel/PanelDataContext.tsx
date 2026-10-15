@@ -19,7 +19,7 @@ import {
 } from "../../api/families";
 import {
   createAdditionalMyCircle,
-  endLeadership,
+  deleteGroup,
   getGroup,
   getMyAttendances,
   updateGroupLayoutMode,
@@ -72,7 +72,7 @@ import {
   createEmptyNeededItemQuickAddValue,
   type NeededItemQuickAddValue,
 } from "../../utils/neededItemQuickAdd";
-import { serverMessageOr } from "../../api/problem";
+import { hasStatus, serverMessageOr } from "../../api/problem";
 import { setItemListingPreference } from "../../api/itemListingPreferences";
 import { pluralPl } from "../../utils/plural";
 import { CopyIcon, FamilyIcon, PencilIcon } from "./panelIcons";
@@ -437,9 +437,24 @@ function usePanelDataValue() {
       }
       await queryClient.invalidateQueries({ queryKey: NOTIFICATIONS_KEY });
 
+      // A group deleted between the leadership/membership read and these
+      // fetches answers 404; skip it instead of failing the whole panel.
+      async function unlessGone<T>(request: Promise<T>): Promise<T | null> {
+        try {
+          return await request;
+        } catch (err) {
+          if (hasStatus(err, 404)) return null;
+          throw err;
+        }
+      }
+      const getGroups = async (groupIds: string[]) =>
+        (await Promise.all(groupIds.map((id) => unlessGone(getGroup(id))))).filter(
+          (group): group is GroupResponse => group !== null,
+        );
+
       let relevantGroups: GroupResponse[];
       if (activeLeaderships.length > 0) {
-        relevantGroups = await Promise.all(activeLeaderships.map((l) => getGroup(l.to_group_id)));
+        relevantGroups = await getGroups(activeLeaderships.map((l) => l.to_group_id));
         setMyGroups(relevantGroups);
         setGuestCircles([]);
       } else {
@@ -447,24 +462,21 @@ function usePanelDataValue() {
         if (myFamily) {
           const memberships = await getMembershipsForFamily(myFamily.id);
           const active = memberships.filter((m) => m.valid_to === null);
-          relevantGroups = await Promise.all(active.map((m) => getGroup(m.to_group_id)));
+          relevantGroups = await getGroups(active.map((m) => m.to_group_id));
         } else {
           relevantGroups = [];
         }
         setGuestCircles(relevantGroups);
       }
 
+      async function getGroupTerms(group: GroupResponse) {
+        const list = await getTerms(group.id);
+        return Promise.all(
+          list.map(async (term) => ({ term, group, neededItems: await getNeededItems(term.id) })),
+        );
+      }
       const termsByGroup = await Promise.all(
-        relevantGroups.map(async (group) => {
-          const groupTerms = await getTerms(group.id);
-          return Promise.all(
-            groupTerms.map(async (term) => ({
-              term,
-              group,
-              neededItems: await getNeededItems(term.id),
-            })),
-          );
-        }),
+        relevantGroups.map(async (group) => (await unlessGone(getGroupTerms(group))) ?? []),
       );
       const flattened = termsByGroup.flat().sort((a, b) => a.term.occurs_on.localeCompare(b.term.occurs_on));
       setTerms(flattened);
@@ -606,19 +618,15 @@ function usePanelDataValue() {
     }
   }
 
-  async function handleRemoveGroup(groupId: string) {
-    const leadership = myLeaderships.find((l) => l.to_group_id === groupId);
-    if (!leadership) return;
-    setBusy(true);
+  /** Rejects with the message `DeleteGroupDialog` shows inline. */
+  async function handleRemoveGroup(groupId: string): Promise<void> {
     try {
-      await endLeadership(leadership.id);
-      showToast("Usunięto grupę");
-      await load();
-    } catch {
-      showToast("Nie udało się usunąć grupy");
-    } finally {
-      setBusy(false);
+      await deleteGroup(groupId);
+    } catch (err) {
+      throw new Error(serverMessageOr(err, "Nie udało się usunąć grupy. Spróbuj ponownie."));
     }
+    showToast("Usunięto grupę");
+    await load({ silent: true });
   }
 
   /* ---------- terminy ---------- */

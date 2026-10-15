@@ -51,6 +51,15 @@ async def get_term(db: AsyncSession, term_id: uuid.UUID) -> Term:
     return term
 
 
+async def get_term_any(db: AsyncSession, term_id: uuid.UUID) -> Term:
+    """Keep-live twin of `get_term`: also returns Terms of a soft-deleted
+    Circle (404 only when the row is missing)."""
+    term = await repository.get_term_any(db, term_id)
+    if term is None:
+        raise EntityNotFoundException("Term", term_id)
+    return term
+
+
 async def list_terms(db: AsyncSession, circle_group_id: uuid.UUID) -> list[Term]:
     return await repository.list_terms_for_group(db, circle_group_id)
 
@@ -61,6 +70,7 @@ async def list_terms_with_counts(
     """Terms of a Circle with organizer-only signup counts: `(attendee_count,
     child_count)` over non-withdrawn RSVPs for the active organizer, `(None,
     None)` for everyone else (including callers without a profile)."""
+    await get_group(db, circle_group_id)
     terms = await repository.list_terms_for_group(db, circle_group_id)
     if caller_party_id is None or not await _is_active_organizer(
         db, circle_group_id, caller_party_id
@@ -159,12 +169,14 @@ async def create_needed_item(
 
 async def get_needed_item(db: AsyncSession, needed_item_id: uuid.UUID) -> NeededItem:
     """ORM getter — kept as the dependency of `pledges` / `pledge_fulfillment`
-    / `_require_needed_item_organizer`. A soft-deleted row is a 404."""
+    / `_require_needed_item_organizer`. A soft-deleted row, or one whose
+    Circle is soft-deleted, is a 404."""
     needed_item = await repository.get_needed_item(db, needed_item_id)
     if needed_item is None:
         raise EntityNotFoundException("NeededItem", needed_item_id)
     if needed_item.deleted_at is not None:
         raise EntityNotFoundException("NeededItem", needed_item_id)
+    await get_term(db, needed_item.term_id)
     return needed_item
 
 
@@ -172,12 +184,14 @@ async def get_needed_item_view(db: AsyncSession, needed_item_id: uuid.UUID) -> d
     row = await repository.get_needed_item_with_product(db, needed_item_id)
     if row is None or row[0].deleted_at is not None:
         raise EntityNotFoundException("NeededItem", needed_item_id)
+    await get_term(db, row[0].term_id)
     pledges = await repository.list_pledges_for_needed_item(db, needed_item_id)
     claimed = any(pledge.status != PledgeStatus.WITHDRAWN for pledge in pledges)
     return _needed_item_view(row, claimed=claimed)
 
 
 async def list_needed_item_views(db: AsyncSession, term_id: uuid.UUID) -> list[dict[str, Any]]:
+    await get_term(db, term_id)
     claimed_ids = {
         needed_item_id
         for needed_item_id, _name, _party_id in await repository.list_active_pledges_for_term(

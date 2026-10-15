@@ -11,7 +11,11 @@ from __future__ import annotations
 
 import uuid
 
+import jwt
 import pytest
+from httpx import AsyncClient
+from sqlalchemy import text
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.authorization_matrix import resolve_requirement
 
@@ -165,3 +169,48 @@ def test_resolveRequirement_mediaPostPatchDelete_requireEdit(method: str, path: 
 
 def test_resolveRequirement_publicOrganizationSlug_staysPublic() -> None:
     assert resolve_requirement("GET", "/api/organizations/public/some-slug") == "PUBLIC"
+
+
+@pytest.mark.parametrize(
+    ("method", "path", "expected"),
+    [
+        ("DELETE", "/api/groups/x", EDIT),
+        ("PATCH", "/api/groups/x", EDIT),
+        ("POST", "/api/groups/x/restore", ("ADMIN",)),
+        ("POST", "/api/leaderships", ("ADMIN",)),
+        ("POST", "/api/leaderships/x/end", EDIT),
+        ("GET", "/api/groups/x", READ),
+        ("GET", "/api/groups/mine/attendances", READ),
+        ("GET", "/api/groups/public/x", "PUBLIC"),
+        ("POST", "/api/groups/public/x/rsvp", "PUBLIC"),
+        ("POST", "/api/groups/x/terms/y/formalize", EDIT),
+    ],
+)
+def test_resolveRequirement_groupSoftDeleteAndLeadershipRows_resolveToExpectedRow(
+    method: str, path: str, expected: object
+) -> None:
+    assert resolve_requirement(method, path) == expected
+
+
+async def test_adminLoginToken_carriesEdit(client: AsyncClient, db_session: AsyncSession) -> None:
+    """An ADMIN deletes any Circle through the EDIT-gated DELETE route, so
+    the ADMIN login token must also carry EDIT."""
+    email = "matrix.admin@example.com"
+    registered = await client.post(
+        "/api/auth/register", json={"role": "GUEST", "email": email, "password": "secret123"}
+    )
+    assert registered.status_code == 201
+    await db_session.execute(
+        text(
+            "INSERT INTO user_permissions (user_id, permission) "
+            "SELECT u.id, 'ADMIN' FROM users u "
+            "JOIN user_profiles p ON p.account_user_id = u.id WHERE p.email = :email"
+        ),
+        {"email": email},
+    )
+    await db_session.commit()
+
+    login = await client.post("/api/auth/login", json={"email": email, "password": "secret123"})
+
+    claims = jwt.decode(login.json()["token"], options={"verify_signature": False})
+    assert {"ADMIN", "EDIT"} <= set(claims["permissions"])

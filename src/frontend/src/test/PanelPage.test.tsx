@@ -68,7 +68,7 @@ vi.mock("../api/families", () => ({
 vi.mock("../api/groups", () => ({
   createMyCircle: vi.fn(),
   createAdditionalMyCircle: vi.fn(),
-  endLeadership: vi.fn(),
+  deleteGroup: vi.fn(),
   getGroup: vi.fn(),
   getMyAttendances: vi.fn(),
   updateGroupLayoutMode: vi.fn(),
@@ -2708,16 +2708,7 @@ describe("PanelPage — RzeczyView post-term-end fallback buttons (Bug #4c, full
       expires_at: null,
       status: "CONFIRMED",
       notes: null,
-    });
-    vi.mocked(termsApi.getTerm).mockResolvedValue({
-      id: ENDED_TERM_ID,
-      circle_group_id: GROUP_ID,
-      occurs_on: "2020-01-01T10:00:00", // long past — term has ended
-      description: null,
-      created_at: "",
-      updated_at: "",
-      attendee_count: null,
-      child_count: null,
+      term_occurs_on: "2020-01-01T10:00:00", // long past — term has ended
     });
     vi.mocked(reservationsApi.confirmTransaction).mockResolvedValue({
       reservation_id: "88",
@@ -3071,5 +3062,143 @@ describe("PanelPage — profil", () => {
 
     await waitFor(() => expect(screen.queryByAltText("Twoje zdjęcie profilowe")).not.toBeInTheDocument());
     expect(peopleApi.deleteMyAvatar).toHaveBeenCalled();
+  });
+});
+
+describe("PanelPage — delete group (soft delete)", () => {
+  const otherGroup: groupsApi.GroupResponse = { ...mockGroup, id: OTHER_GROUP_ID, name: "Rytmika" };
+  const leadership = (id: string, groupId: string): groupsApi.LeadershipResponse => ({
+    id,
+    from_role_id: "1",
+    to_group_id: groupId,
+    organizer_party_id: "1",
+    valid_from: "2026-01-01",
+    valid_to: null,
+  });
+  const RSVP_BLOCK = "Grupy nie można usunąć — na termin 21.10 są zapisy.";
+
+  beforeEach(() => {
+    vi.resetAllMocks();
+    mockOrganizerDefaults();
+    vi.mocked(peopleApi.getLeadershipsForPerson).mockResolvedValue([
+      leadership("1", GROUP_ID),
+      leadership("2", OTHER_GROUP_ID),
+    ]);
+    vi.mocked(groupsApi.getGroup).mockImplementation(async (id) => (id === OTHER_GROUP_ID ? otherGroup : mockGroup));
+  });
+
+  async function openDeleteDialog() {
+    renderPanel();
+    fireEvent.click(await screen.findByRole("button", { name: "Spotkania" }));
+    const trash = await screen.findByRole("button", { name: "Usuń grupę Rytmika" });
+    fireEvent.click(trash);
+    const dialog = await screen.findByRole("alertdialog", { name: "Usunąć grupę „Rytmika”?" });
+    return { trash, dialog };
+  }
+
+  it("trash opens the delete dialog", async () => {
+    const { trash } = await openDeleteDialog();
+
+    expect(trash).toHaveAttribute("aria-haspopup", "dialog");
+    expect(groupsApi.deleteGroup).not.toHaveBeenCalled();
+  });
+
+  it("confirm calls deleteGroup and shows Usunięto grupę", async () => {
+    vi.mocked(groupsApi.deleteGroup).mockResolvedValue(undefined);
+    const { dialog } = await openDeleteDialog();
+    vi.mocked(peopleApi.getLeadershipsForPerson).mockResolvedValue([leadership("1", GROUP_ID)]);
+
+    fireEvent.click(within(dialog).getByRole("button", { name: "Usuń grupę" }));
+
+    expect(await screen.findByRole("status")).toHaveTextContent("Usunięto grupę");
+    expect(groupsApi.deleteGroup).toHaveBeenCalledWith(OTHER_GROUP_ID);
+    await waitFor(() => expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument());
+    await waitFor(() => expect(screen.queryByRole("button", { name: "Usuń grupę Rytmika" })).not.toBeInTheDocument());
+    expect(screen.getByText("· 1")).toBeInTheDocument();
+  });
+
+  it("confirm refreshes silently, keeping the busy dialog mounted until the reload settles", async () => {
+    vi.mocked(groupsApi.deleteGroup).mockResolvedValue(undefined);
+    const { dialog } = await openDeleteDialog();
+    let finishReload: (value: Awaited<ReturnType<typeof peopleApi.getLeadershipsForPerson>>) => void = () => {};
+    vi.mocked(peopleApi.getLeadershipsForPerson).mockReturnValue(
+      new Promise((resolve) => {
+        finishReload = resolve;
+      }),
+    );
+
+    fireEvent.click(within(dialog).getByRole("button", { name: "Usuń grupę" }));
+
+    expect(await screen.findByRole("status")).toHaveTextContent("Usunięto grupę");
+    expect(screen.queryByText("Wczytywanie…")).not.toBeInTheDocument();
+    expect(screen.getByRole("alertdialog")).toBeInTheDocument();
+
+    finishReload([leadership("1", GROUP_ID)]);
+
+    await waitFor(() => expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument());
+    expect(screen.queryByText("Wczytywanie…")).not.toBeInTheDocument();
+  });
+
+  it("cancel calls nothing", async () => {
+    const { trash, dialog } = await openDeleteDialog();
+    const loadsBefore = vi.mocked(peopleApi.getLeadershipsForPerson).mock.calls.length;
+
+    fireEvent.click(within(dialog).getByRole("button", { name: "Anuluj" }));
+
+    expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument();
+    expect(groupsApi.deleteGroup).not.toHaveBeenCalled();
+    expect(peopleApi.getLeadershipsForPerson).toHaveBeenCalledTimes(loadsBefore);
+    expect(trash).toHaveFocus();
+  });
+
+  it("409 message is shown inline in the dialog", async () => {
+    vi.mocked(groupsApi.deleteGroup).mockRejectedValue(new ApiError(409, "Conflict", { message: RSVP_BLOCK }));
+    const { dialog } = await openDeleteDialog();
+
+    fireEvent.click(within(dialog).getByRole("button", { name: "Usuń grupę" }));
+
+    expect(await within(dialog).findByRole("alert")).toHaveTextContent(RSVP_BLOCK);
+    expect(screen.queryByRole("status")).not.toBeInTheDocument();
+
+    const loadsBefore = vi.mocked(peopleApi.getLeadershipsForPerson).mock.calls.length;
+    const trash = screen.getByRole("button", { name: /^Usuń grupę / });
+    fireEvent.click(within(dialog).getByRole("button", { name: "Anuluj" }));
+    await waitFor(() => expect(peopleApi.getLeadershipsForPerson).toHaveBeenCalledTimes(loadsBefore + 1));
+    // The re-read is silent: no skeleton, so the trash button survives and gets focus back.
+    expect(screen.queryByText("Wczytywanie…")).not.toBeInTheDocument();
+    await waitFor(() => expect(trash).toHaveFocus());
+  });
+
+  it("load survives a 404 from getGroup (and from getTerms/getNeededItems) for one group", async () => {
+    const THIRD_GROUP_ID = "7b2e4d9a-5d3f-4a8c-9e0b-0000000000a7";
+    const gone = () => new ApiError(404, "Not Found", { message: "Group not found" });
+    vi.mocked(peopleApi.getLeadershipsForPerson).mockResolvedValue([
+      leadership("1", GROUP_ID),
+      leadership("2", OTHER_GROUP_ID),
+      leadership("3", THIRD_GROUP_ID),
+    ]);
+    vi.mocked(groupsApi.getGroup).mockImplementation(async (id) => {
+      if (id === THIRD_GROUP_ID) throw gone();
+      return id === OTHER_GROUP_ID ? otherGroup : mockGroup;
+    });
+    vi.mocked(termsApi.getTerms).mockImplementation(async (groupId) => {
+      if (groupId === OTHER_GROUP_ID) throw gone();
+      return [
+        { id: TERM_ID, circle_group_id: GROUP_ID, occurs_on: "2026-02-01", description: null, created_at: "", updated_at: "", attendee_count: null, child_count: null },
+        { id: LATER_TERM_ID, circle_group_id: GROUP_ID, occurs_on: "2026-02-08", description: null, created_at: "", updated_at: "", attendee_count: null, child_count: null },
+      ];
+    });
+    vi.mocked(termsApi.getNeededItems).mockImplementation(async (termId) => {
+      if (termId === LATER_TERM_ID) throw gone();
+      return [];
+    });
+    renderPanel();
+
+    fireEvent.click(await screen.findByRole("button", { name: "Spotkania" }));
+
+    expect(await screen.findByRole("button", { name: "Usuń grupę Nowa grupa" })).toBeInTheDocument();
+    expect(screen.getByText("· 2")).toBeInTheDocument();
+    expect(groupsApi.getGroup).toHaveBeenCalledWith(THIRD_GROUP_ID);
+    expect(termsApi.getTerms).not.toHaveBeenCalledWith(THIRD_GROUP_ID);
   });
 });

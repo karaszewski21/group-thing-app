@@ -32,7 +32,8 @@ export interface CreateCircleRequest {
 }
 
 /** `GET /api/groups/moderation` (ADMIN-only) row — every Circle with its
- * current organizer (if any) and aggregated member/term counts. */
+ * current organizer (if any) and aggregated member/term counts. The
+ * `deleted_*` fields are set only in the `deleted=true` listing. */
 export interface ModerationGroupResponse {
   id: string;
   name: string;
@@ -41,6 +42,8 @@ export interface ModerationGroupResponse {
   organizer_email: string | null;
   member_count: number;
   term_count: number;
+  deleted_at: string | null;
+  deleted_by_name: string | null;
 }
 
 /** `organizer_party_id` is denormalized by the backend — no second lookup
@@ -52,12 +55,6 @@ export interface LeadershipResponse {
   organizer_party_id: string;
   valid_from: string;
   valid_to: string | null;
-}
-
-export interface AssignLeadershipRequest {
-  group_id: string;
-  organizer_party_id: string;
-  valid_from: string;
 }
 
 /** `member_party_id` is denormalized the same way as
@@ -75,12 +72,28 @@ export function getGroups(): Promise<GroupResponse[]> {
   return api.get("/groups");
 }
 
-export function getGroupsForModeration(page: number): Promise<Page<ModerationGroupResponse>> {
-  return api.get(`/groups/moderation?${new URLSearchParams(pageParams(page))}`);
+/** Active Circles by default; `deleted` lists the soft-deleted ones instead. */
+export function getGroupsForModeration(
+  page: number,
+  deleted = false,
+): Promise<Page<ModerationGroupResponse>> {
+  const params = new URLSearchParams(pageParams(page));
+  if (deleted) params.set("deleted", "true");
+  return api.get(`/groups/moderation?${params}`);
 }
 
 export function getGroup(id: string): Promise<GroupResponse> {
   return api.get(`/groups/${id}`);
+}
+
+/** Soft-deletes a Circle (organizer of it, or ADMIN). */
+export function deleteGroup(id: string): Promise<void> {
+  return api.delete(`/groups/${id}`);
+}
+
+/** ADMIN-only: brings a soft-deleted Circle back. */
+export function restoreGroup(id: string): Promise<void> {
+  return api.post(`/groups/${id}/restore`, undefined);
 }
 
 export function createCircle(request: CreateCircleRequest): Promise<GroupResponse> {
@@ -129,15 +142,6 @@ export function getCurrentLeadership(groupId: string): Promise<LeadershipRespons
 
 export function getLeadershipHistory(groupId: string): Promise<LeadershipResponse[]> {
   return api.get(`/groups/${groupId}/leaderships`);
-}
-
-export function assignLeadership(request: AssignLeadershipRequest): Promise<LeadershipResponse> {
-  return api.post("/leaderships", request);
-}
-
-export function endLeadership(leadershipId: string, validTo?: string): Promise<LeadershipResponse> {
-  const query = validTo ? `?valid_to=${validTo}` : "";
-  return api.post(`/leaderships/${leadershipId}/end${query}`, undefined);
 }
 
 export function getMembershipsForCircle(groupId: string): Promise<MembershipResponse[]> {

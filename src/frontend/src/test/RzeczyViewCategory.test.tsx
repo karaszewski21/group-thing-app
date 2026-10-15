@@ -5,10 +5,9 @@ import { RzeczyView } from "../pages/panel/views/RzeczyView";
 import * as panelDataStore from "../pages/panel/panelDataStore";
 import type { PanelDataContextValue } from "../pages/panel/PanelDataContext";
 import type { InventoryBalanceResponse, MyInventoryItemResponse } from "../api/inventories";
-import type { ReservationResponse } from "../api/reservations";
-import type { TermResponse } from "../api/terms";
+import type { ReservationDetailResponse } from "../api/reservations";
 import type { NotificationKind } from "../api/notifications";
-import { api } from "../api/client";
+import { api, ApiError } from "../api/client";
 import * as reservationsApi from "../api/reservations";
 
 // `confirmTransaction`/`cancelTransaction` (Bug #4c's "Odebrał"/"Anuluj
@@ -58,14 +57,18 @@ function mockBalance(
 }
 
 // Term/Group ids are UUID strings (spec R29).
-const GROUP_ID = "5f0c2a7e-3b1d-4e6a-9c8f-0000000000a5";
 const ENDED_TERM_ID = "9a0b1c2d-3e4f-4a5b-8c6d-0000000000c9";
 const FUTURE_TERM_ID = "0b1c2d3e-4f5a-4b6c-8d7e-0000000000ca";
 
-function mockReservation(id: string, termId: string): ReservationResponse {
+function mockReservation(
+  id: string,
+  termId: string,
+  termOccursOn: string,
+  itemId: string = item.id,
+): ReservationDetailResponse {
   return {
     id,
-    item_id: item.id,
+    item_id: itemId,
     reservation_type: "LEND",
     reserved_by_user_id: "1",
     term_id: termId,
@@ -74,41 +77,36 @@ function mockReservation(id: string, termId: string): ReservationResponse {
     expires_at: null,
     status: "CONFIRMED",
     notes: null,
-  };
-}
-
-function mockTerm(id: string, occursOn: string): TermResponse {
-  return {
-    id,
-    circle_group_id: GROUP_ID,
-    occurs_on: occursOn,
-    description: null,
-    created_at: "",
-    updated_at: "",
-    attendee_count: null,
-    child_count: null,
+    term_occurs_on: termOccursOn,
   };
 }
 
 /** Routes `api.get` (the shared cross-module mock boundary — see the
  * comment above `vi.mock("../api/client", ...)`) to the balance/
- * reservation/term fixtures by URL substring, so the Bug #4c term-end
- * resolution effect (`getInventoryItemBalances` -> `getReservation` ->
- * `getTerm`) each land on the right fixture instead of all resolving to
- * the same value. */
+ * reservation fixtures by URL substring, so the Bug #4c term-end
+ * resolution effect (`getInventoryItemBalances` -> `getReservation`) each
+ * land on the right fixture. A reservation id mapped to `null` fails its
+ * fetch. `GET /terms/{id}` always answers 404, as it does for a
+ * soft-deleted group's Term — the view must not depend on it. */
 function mockApiGetRouter(fixtures: {
-  balance: InventoryBalanceResponse;
-  reservation?: ReservationResponse;
-  term?: TermResponse;
+  balances: InventoryBalanceResponse[];
+  reservations?: Record<string, ReservationDetailResponse | null>;
 }) {
   vi.mocked(api.get).mockImplementation((path: unknown) => {
     const p = String(path);
-    if (p.includes("/balance")) return Promise.resolve(fixtures.balance);
-    if (p.includes("/reservations/") && fixtures.reservation) {
-      return Promise.resolve(fixtures.reservation);
+    if (p.includes("/balance")) {
+      const balance = fixtures.balances.find((b) => p.includes(`/${b.item_id}/`));
+      if (balance) return Promise.resolve(balance);
     }
-    if (p.includes("/terms/") && fixtures.term) {
-      return Promise.resolve(fixtures.term);
+    const reservationId = p.match(/\/reservations\/([^/?]+)$/)?.[1];
+    if (reservationId && fixtures.reservations && reservationId in fixtures.reservations) {
+      const reservation = fixtures.reservations[reservationId];
+      return reservation
+        ? Promise.resolve(reservation)
+        : Promise.reject(new ApiError(500, "Internal Server Error", null));
+    }
+    if (p.includes("/terms/")) {
+      return Promise.reject(new ApiError(404, "Not Found", null));
     }
     return Promise.reject(new Error(`unexpected api.get(${p}) in test`));
   });
@@ -324,9 +322,8 @@ describe("RzeczyView — post-term-end fallback buttons (Bug #4c)", () => {
 
   it("renders 'Odebrał' and 'Anuluj wymianę', full-word-labeled, immediately after the badge, when locked AND the term has ended", async () => {
     mockApiGetRouter({
-      balance: mockBalance(item.id, "IN_TRANSIT", "55"),
-      reservation: mockReservation("55", ENDED_TERM_ID),
-      term: mockTerm(ENDED_TERM_ID, "2020-01-01T10:00:00"), // long past
+      balances: [mockBalance(item.id, "IN_TRANSIT", "55")],
+      reservations: { "55": mockReservation("55", ENDED_TERM_ID, "2020-01-01T10:00:00") }, // long past
     });
     vi.mocked(panelDataStore.usePanelData).mockReturnValue(
       makeContextValue(),
@@ -360,9 +357,8 @@ describe("RzeczyView — post-term-end fallback buttons (Bug #4c)", () => {
 
   it("does not render the new buttons when locked but the term has NOT yet ended (Mockup 3)", async () => {
     mockApiGetRouter({
-      balance: mockBalance(item.id, "RESERVED", "56"),
-      reservation: mockReservation("56", FUTURE_TERM_ID),
-      term: mockTerm(FUTURE_TERM_ID, "2999-01-01T10:00:00"), // far future
+      balances: [mockBalance(item.id, "RESERVED", "56")],
+      reservations: { "56": mockReservation("56", FUTURE_TERM_ID, "2999-01-01T10:00:00") }, // far future
     });
     vi.mocked(panelDataStore.usePanelData).mockReturnValue(
       makeContextValue(),
@@ -376,8 +372,36 @@ describe("RzeczyView — post-term-end fallback buttons (Bug #4c)", () => {
     expect(screen.queryByRole("button", { name: "Anuluj wymianę" })).not.toBeInTheDocument();
   });
 
+  it("keeps 'Odebrał'/'Anuluj wymianę' for a soft-deleted group's term and for the other locked items when one reservation fetch fails", async () => {
+    const deletedGroupItem = { ...item, id: "11", product_name: "Hulajnoga" };
+    const failingItem = { ...item, id: "12", product_name: "Fotelik" };
+    mockApiGetRouter({
+      balances: [
+        mockBalance(item.id, "IN_TRANSIT", "55"),
+        mockBalance(deletedGroupItem.id, "IN_TRANSIT", "57"),
+        mockBalance(failingItem.id, "IN_TRANSIT", "58"),
+      ],
+      reservations: {
+        "55": mockReservation("55", ENDED_TERM_ID, "2020-01-01T10:00:00"),
+        // Its Term's group is soft-deleted: `GET /terms/{id}` answers 404,
+        // the reservation still carries the date.
+        "57": mockReservation("57", FUTURE_TERM_ID, "2020-02-01T10:00:00", deletedGroupItem.id),
+        "58": null,
+      },
+    });
+    vi.mocked(panelDataStore.usePanelData).mockReturnValue(
+      makeContextValue({ items: [item, deletedGroupItem, failingItem] }),
+    );
+
+    renderView();
+
+    await waitFor(() => expect(screen.getAllByRole("button", { name: "Odebrał" })).toHaveLength(2));
+    expect(screen.getAllByRole("button", { name: "Anuluj wymianę" })).toHaveLength(2);
+    expect(api.get).not.toHaveBeenCalledWith(expect.stringContaining("/terms/"));
+  });
+
   it("does not render the new buttons for an AVAILABLE item (no active reservation)", async () => {
-    mockApiGetRouter({ balance: mockBalance(item.id, "AVAILABLE", null) });
+    mockApiGetRouter({ balances: [mockBalance(item.id, "AVAILABLE", null)] });
     vi.mocked(panelDataStore.usePanelData).mockReturnValue(
       makeContextValue(),
     );
@@ -392,9 +416,8 @@ describe("RzeczyView — post-term-end fallback buttons (Bug #4c)", () => {
   it("'Odebrał' calls confirmTransaction with the tile's reservation id only, then refreshes panel data", async () => {
     const load = vi.fn().mockResolvedValue(undefined);
     mockApiGetRouter({
-      balance: mockBalance(item.id, "IN_TRANSIT", "55"),
-      reservation: mockReservation("55", ENDED_TERM_ID),
-      term: mockTerm(ENDED_TERM_ID, "2020-01-01T10:00:00"),
+      balances: [mockBalance(item.id, "IN_TRANSIT", "55")],
+      reservations: { "55": mockReservation("55", ENDED_TERM_ID, "2020-01-01T10:00:00") },
     });
     vi.mocked(reservationsApi.confirmTransaction).mockResolvedValue({
       reservation_id: "55",
@@ -419,9 +442,8 @@ describe("RzeczyView — post-term-end fallback buttons (Bug #4c)", () => {
   it("'Anuluj wymianę' calls cancelTransaction with the tile's reservation id only, then refreshes panel data", async () => {
     const load = vi.fn().mockResolvedValue(undefined);
     mockApiGetRouter({
-      balance: mockBalance(item.id, "IN_TRANSIT", "55"),
-      reservation: mockReservation("55", ENDED_TERM_ID),
-      term: mockTerm(ENDED_TERM_ID, "2020-01-01T10:00:00"),
+      balances: [mockBalance(item.id, "IN_TRANSIT", "55")],
+      reservations: { "55": mockReservation("55", ENDED_TERM_ID, "2020-01-01T10:00:00") },
     });
     vi.mocked(reservationsApi.cancelTransaction).mockResolvedValue({
       reservation_id: "55",
@@ -477,9 +499,8 @@ describe("RzeczyView — mode toggles blocked while photos are in moderation", (
 
   it("locked + pending → both pills, lock pill first, Odebrał/Anuluj still visible", async () => {
     mockApiGetRouter({
-      balance: mockBalance(item.id, "IN_TRANSIT", "55"),
-      reservation: mockReservation("55", ENDED_TERM_ID),
-      term: mockTerm(ENDED_TERM_ID, "2020-01-01T10:00:00"),
+      balances: [mockBalance(item.id, "IN_TRANSIT", "55")],
+      reservations: { "55": mockReservation("55", ENDED_TERM_ID, "2020-01-01T10:00:00") },
     });
     vi.mocked(panelDataStore.usePanelData).mockReturnValue(
       makeContextValue({ items: [pendingItem] }),

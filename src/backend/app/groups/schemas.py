@@ -54,6 +54,8 @@ class ModerationGroupResponse(BaseModel):
     organizer_email: str | None
     member_count: int
     term_count: int
+    deleted_at: datetime | None = None
+    deleted_by_name: str | None = None
 
 
 def _reject_blank_name(value: str) -> str:

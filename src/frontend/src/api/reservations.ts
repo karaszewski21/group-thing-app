@@ -13,8 +13,7 @@ export interface ReservationResponse {
   // purely so pre-existing mocked `ReservationResponse` object literals in
   // `TermPage.test.tsx`/`PanelPage.test.tsx` (written before this
   // field existed on the frontend type) keep compiling without an
-  // unrelated, out-of-scope rewrite. `RzeczyView.tsx`'s term-end
-  // resolution (bug #4c) is the one real caller that reads it.
+  // unrelated, out-of-scope rewrite.
   term_id?: string;
   paired_reservation_id: string | null;
   reserved_at: string;
@@ -35,7 +34,14 @@ export function getReservations(itemId: string): Promise<ReservationResponse[]> 
   return api.get(`/reservations?item_id=${itemId}`);
 }
 
-export function getReservation(id: string): Promise<ReservationResponse> {
+/** `GET /reservations/{id}` adds the Term's date, resolved server-side even
+ * when the Term's group is soft-deleted (`GET /terms/{id}` is then 404).
+ * Optional for the same pre-existing-mock reason as `term_id` above. */
+export interface ReservationDetailResponse extends ReservationResponse {
+  term_occurs_on?: string | null;
+}
+
+export function getReservation(id: string): Promise<ReservationDetailResponse> {
   return api.get(`/reservations/${id}`);
 }
 

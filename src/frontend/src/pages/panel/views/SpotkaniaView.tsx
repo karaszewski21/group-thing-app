@@ -1,7 +1,9 @@
-import { useMemo, useState, type ReactNode } from "react";
+import { useMemo, useRef, useState, type ReactNode } from "react";
 import { Link } from "react-router-dom";
+import type { GroupResponse } from "../../../api/groups";
 import dayjs from "../../../utils/dayjs";
 import { pluralPl } from "../../../utils/plural";
+import { DeleteGroupDialog } from "../DeleteGroupDialog";
 import { FloatingAddButton } from "../panelComponents";
 import { LayoutModeIcon, PencilIcon, TrashIcon } from "../panelIcons";
 import { dayMonth, termPublicPath, termTime, type TermWithNeeded } from "../panelHelpers";
@@ -85,8 +87,31 @@ export function SpotkaniaView() {
     setTermGroupId,
     startEditGroup,
     handleRemoveGroup,
+    load,
     organizerTermCard,
   } = usePanelData();
+  const [pendingDeleteGroup, setPendingDeleteGroup] = useState<GroupResponse | null>(null);
+  const deleteFailedRef = useRef(false);
+
+  async function confirmDeleteGroup(groupId: string) {
+    try {
+      await handleRemoveGroup(groupId);
+    } catch (err) {
+      deleteFailedRef.current = true;
+      throw err;
+    }
+    deleteFailedRef.current = false;
+    setPendingDeleteGroup(null);
+  }
+
+  /** After a failed attempt the group may already be gone (404/403), so re-read. */
+  function closeDeleteDialog() {
+    setPendingDeleteGroup(null);
+    if (deleteFailedRef.current) {
+      deleteFailedRef.current = false;
+      void load({ silent: true });
+    }
+  }
 
   // GUEST only: an RSVP on the public term page never creates a `Membership`
   // row, so `terms` (built from Circle-membership in PanelDataContext) alone
@@ -177,8 +202,15 @@ export function SpotkaniaView() {
                           <PencilIcon />
                         </button>
                         <button
-                          onClick={() => void handleRemoveGroup(g.id)}
+                          type="button"
+                          onClick={(event) => {
+                            // Safari does not focus a clicked button; the dialog
+                            // captures the focused element as its opener.
+                            event.currentTarget.focus();
+                            setPendingDeleteGroup(g);
+                          }}
                           aria-label={`Usuń grupę ${g.name}`}
+                          aria-haspopup="dialog"
                           className={`${TILE_BUTTON} hover:text-danger`}
                         >
                           <TrashIcon />
@@ -219,6 +251,14 @@ export function SpotkaniaView() {
             />
           )}
         </section>
+
+        {pendingDeleteGroup && (
+          <DeleteGroupDialog
+            group={pendingDeleteGroup}
+            onConfirm={() => confirmDeleteGroup(pendingDeleteGroup.id)}
+            onClose={closeDeleteDialog}
+          />
+        )}
 
         <FloatingAddButton
           label="Dodaj termin"
