@@ -32,8 +32,9 @@ from .circles import _is_active_organizer, _require_active_organizer, get_group
 async def create_term(db: AsyncSession, principal: Principal, data: CreateTermRequest) -> Term:
     """Omitted `location_id`/`capacity` copy the Circle's current defaults by
     value (later default changes never propagate); an explicit `null` keeps
-    the field empty. Only a caller-supplied place is ownership-checked — an
-    inherited one is the Circle's own and may even be soft-deleted."""
+    the field empty. Only a caller-supplied place other than the Circle's
+    default is ownership-checked — the default (inherited or re-sent) is the
+    Circle's own and may even be soft-deleted."""
     profile = await get_profile_by_principal(db, principal)
     group = await get_group(db, data.circle_group_id)
     await _require_active_organizer(db, data.circle_group_id, profile.party_id)
@@ -41,7 +42,7 @@ async def create_term(db: AsyncSession, principal: Principal, data: CreateTermRe
 
     if "location_id" in data.model_fields_set:
         location_id = data.location_id
-        if location_id is not None:
+        if location_id is not None and location_id != group.default_location_id:
             await locations_acl.get_owned_location(db, location_id, profile.party_id)
     else:
         location_id = group.default_location_id
@@ -138,7 +139,8 @@ async def update_term(
     db: AsyncSession, term_id: uuid.UUID, caller_party_id: uuid.UUID, data: UpdateTermRequest
 ) -> Term:
     """Partial in-place term edit. Only the parent Circle's currently active
-    organizer may edit — enforced here, not by the coarse matrix."""
+    organizer may edit — enforced here, not by the coarse matrix. A newly
+    assigned place is ownership-checked; re-sending the current one is not."""
     term = await get_term(db, term_id)
     await _require_active_organizer(db, term.circle_group_id, caller_party_id)
     await check_text(TextField.TERM_DESCRIPTION, data.description, term.description)
@@ -148,7 +150,7 @@ async def update_term(
     if data.description is not None:
         term.description = data.description
     if "location_id" in data.model_fields_set:
-        if data.location_id is not None:
+        if data.location_id is not None and data.location_id != term.location_id:
             await locations_acl.get_owned_location(db, data.location_id, caller_party_id)
         term.location_id = data.location_id
     if "capacity" in data.model_fields_set:

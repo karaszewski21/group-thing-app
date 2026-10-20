@@ -314,9 +314,7 @@ async def get_public_circle_view(
                 )
                 for listing in item_listings
             ],
-            location=locations_acl.public_location_response(
-                locations.get(term.location_id) if term.location_id is not None else None
-            ),
+            location=locations_acl.public_location_response(location),
             capacity=term.capacity,
             attendee_count=counts.get(cast(uuid.UUID, term.id), (0, 0))[0],
         )

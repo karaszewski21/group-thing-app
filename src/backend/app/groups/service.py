@@ -51,10 +51,9 @@ from app.groups.application.memberships import (
     add_active_membership,
     build_membership_responses,
     end_membership,
-    formalize_group_from_term,
     list_memberships_for_circle,
     list_memberships_for_party,
-    list_term_attendees_for_formalization,
+    list_term_attendees,
 )
 from app.groups.application.organizer_page import get_organizer_page, list_organizer_terms
 from app.groups.application.pledge_fulfillment import fulfill_pledge, sync_pledge_fulfillment
@@ -124,7 +123,6 @@ __all__ = [
     "create_rsvp",
     "create_term",
     "end_membership",
-    "formalize_group_from_term",
     "fulfill_pledge",
     "get_current_leadership",
     "get_family_exchange_offers",
@@ -157,7 +155,7 @@ __all__ = [
     "list_organizer_terms",
     "list_pledges",
     "list_swap_proposals_for_my_item",
-    "list_term_attendees_for_formalization",
+    "list_term_attendees",
     "list_terms",
     "list_terms_for_moderation",
     "list_terms_with_counts",

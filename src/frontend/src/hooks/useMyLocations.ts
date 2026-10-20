@@ -93,7 +93,7 @@ export function useMyLocations(): UseMyLocationsResult {
 
   return {
     data: locations,
-    loading: query.isPending,
+    loading: query.isPending && token !== null,
     error: query.error ? extractProblemMessage(query.error) : null,
     refetch,
     create,

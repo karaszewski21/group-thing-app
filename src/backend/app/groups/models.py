@@ -87,8 +87,7 @@ class GroupVisibility(enum.StrEnum):
     `GroupJoinRequest`, and only the organizer approving it creates the
     `Membership` — never anonymous per-term RSVP. Visibility changes only
     via `PATCH /groups/{id}` (`update_group`); it is fully independent of
-    standing-`Membership` creation (`formalize_group_from_term` never reads
-    or writes it)."""
+    standing-`Membership` creation."""
 
     PUBLIC = "PUBLIC"
     PRIVATE = "PRIVATE"

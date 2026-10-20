@@ -10,6 +10,7 @@
  */
 
 const SCRIPT_URL = "https://maps.googleapis.com/maps/api/js";
+const SCRIPT_ID = "google-maps-js";
 const LOAD_TIMEOUT_MS = 10_000;
 
 export interface PlacesApi {
@@ -82,16 +83,21 @@ async function importPlacesLibrary(key: string): Promise<PlacesApi> {
   };
 }
 
+/** A retry after a timeout waits on the tag still loading instead of adding a
+ * second one (Google rejects a page that includes the API twice). */
 function injectScript(key: string): Promise<void> {
   return new Promise((resolve, reject) => {
-    const script = document.createElement("script");
-    script.async = true;
-    script.src = `${SCRIPT_URL}?key=${encodeURIComponent(key)}&v=weekly&loading=async`;
+    const pending = document.getElementById(SCRIPT_ID);
+    const script = pending instanceof HTMLScriptElement ? pending : document.createElement("script");
     script.addEventListener("load", () => resolve());
     script.addEventListener("error", () => {
       script.remove();
       reject(new Error("Google Maps script failed to load"));
     });
+    if (script === pending) return;
+    script.id = SCRIPT_ID;
+    script.async = true;
+    script.src = `${SCRIPT_URL}?key=${encodeURIComponent(key)}&v=weekly&loading=async`;
     document.head.appendChild(script);
   });
 }

@@ -1,9 +1,10 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
-import type { LocationResponse } from "../../api/locations";
+import type { LocationRefResponse } from "../../api/locations";
 import { createTerm, type CreateTermRequest } from "../../api/terms";
 import { serverMessageOr } from "../../api/problem";
-import { Field, ModalSheet } from "../../pages/panel/panelComponents";
+import { CapacityField, Field, INPUT_CLASS, ModalSheet } from "../../pages/panel/panelComponents";
+import { capacityText, parseCapacity } from "../../pages/panel/panelHelpers";
 import { LocationPicker } from "../shared/LocationPicker";
 
 /* ------------------------------------------------------------------ */
@@ -16,8 +17,6 @@ import { LocationPicker } from "../shared/LocationPicker";
 /*  skipped step).                                                       */
 /* ------------------------------------------------------------------ */
 
-const inputClass = "rounded-xl border-[1.5px] border-line bg-cream px-3.5 py-2.5 text-ink";
-
 interface FirstTermStepperOrganizerProps {
   onClose: () => void;
   circleGroupId: string | null;
@@ -26,15 +25,9 @@ interface FirstTermStepperOrganizerProps {
   organizerSlug?: string | null;
   onDone: () => void;
   /** The group's default place and capacity, prefilled into the form. */
-  defaultLocation?: LocationResponse | null;
+  defaultLocation?: LocationRefResponse | null;
   defaultCapacity?: number | null;
 }
-
-const parseCapacity = (raw: string): number | null => {
-  if (raw.trim() === "") return null;
-  const parsed = Number(raw);
-  return Number.isFinite(parsed) ? parsed : null;
-};
 
 export function FirstTermStepperOrganizer({
   onClose,
@@ -47,14 +40,15 @@ export function FirstTermStepperOrganizer({
   const [occursOn, setOccursOn] = useState("");
   const [description, setDescription] = useState("");
   const [locationId, setLocationId] = useState<string | null>(defaultLocation?.id ?? null);
-  const [capacity, setCapacity] = useState<number | null>(defaultCapacity);
+  const [capacityInput, setCapacityInput] = useState(capacityText(defaultCapacity));
+  const capacity = parseCapacity(capacityInput);
   const [busy, setBusy] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
   const [done, setDone] = useState(false);
   const [createdTermId, setCreatedTermId] = useState<string | null>(null);
 
   async function handleSubmit() {
-    if (!occursOn || !circleGroupId) return;
+    if (!occursOn || !circleGroupId || capacity === undefined) return;
     setBusy(true);
     setFormError(null);
     try {
@@ -109,7 +103,7 @@ export function FirstTermStepperOrganizer({
             aria-label="Data i godzina"
             value={occursOn}
             onChange={(e) => setOccursOn(e.target.value)}
-            className={inputClass}
+            className={INPUT_CLASS}
           />
         </Field>
         <Field label="Opis (opcjonalnie)">
@@ -118,7 +112,7 @@ export function FirstTermStepperOrganizer({
             value={description}
             onChange={(e) => setDescription(e.target.value)}
             placeholder="17:00 · Park Sołacki · wstęp wolny"
-            className={inputClass}
+            className={INPUT_CLASS}
           />
         </Field>
         <Field label="Miejsce">
@@ -132,18 +126,7 @@ export function FirstTermStepperOrganizer({
             helperText={defaultLocation ? "Domyślne miejsce grupy — możesz zmienić" : undefined}
           />
         </Field>
-        <Field label="Ile miejsc">
-          <input
-            type="number"
-            min={1}
-            inputMode="numeric"
-            aria-label="Ile miejsc"
-            value={capacity ?? ""}
-            onChange={(e) => setCapacity(parseCapacity(e.target.value))}
-            placeholder="np. 12"
-            className={`${inputClass} w-28`}
-          />
-        </Field>
+        <CapacityField label="Ile miejsc" value={capacityInput} onChange={setCapacityInput} />
       </div>
       {formError && (
         <p role="alert" className="mt-2 text-[12.5px] font-semibold text-danger">
@@ -152,7 +135,7 @@ export function FirstTermStepperOrganizer({
       )}
       <button
         onClick={() => void handleSubmit()}
-        disabled={busy || !occursOn || !circleGroupId}
+        disabled={busy || !occursOn || !circleGroupId || capacity === undefined}
         className="mt-4 w-full rounded-[13px] bg-mint px-5 py-3 text-[13.5px] font-extrabold text-white disabled:opacity-60"
       >
         Dodaj termin

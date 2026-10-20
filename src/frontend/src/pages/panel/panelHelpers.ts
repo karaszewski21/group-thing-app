@@ -107,6 +107,24 @@ export const ITEM_MODE_STYLE: Record<ItemMode, { bg: string; c: string }> = {
   "zamienię": { bg: "var(--color-lime-soft)", c: "#56701F" },
 };
 
+const MAX_CAPACITY = 10_000;
+
+export const CAPACITY_ERROR = "Podaj liczbę od 1 do 10000";
+
+/** The raw text of an "Ile miejsc" input: blank is `null` (no limit), an
+ * integer 1–10000 is that number, anything else is `undefined` (invalid —
+ * the form shows `CAPACITY_ERROR` and blocks submit). */
+export function parseCapacity(raw: string): number | null | undefined {
+  if (raw.trim() === "") return null;
+  const parsed = Number(raw);
+  return Number.isInteger(parsed) && parsed >= 1 && parsed <= MAX_CAPACITY ? parsed : undefined;
+}
+
+/** The input text for a stored capacity. */
+export function capacityText(capacity: number | null | undefined): string {
+  return capacity == null ? "" : String(capacity);
+}
+
 export const capitalize = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
 
 /** `occurs_on` is an ISO datetime (`2026-03-12T17:30:00`); older callers may

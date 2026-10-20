@@ -1,5 +1,5 @@
 import { api } from "./client";
-import type { LocationResponse, PublicLocationResponse } from "./locations";
+import type { LocationRefResponse, PublicLocationResponse } from "./locations";
 import { pageParams, type Page } from "./pagination";
 
 export interface TermResponse {
@@ -14,7 +14,7 @@ export interface TermResponse {
   attendee_count: number | null;
   /** Sum of those RSVPs' `child_count` — `null` alongside `attendee_count`. */
   child_count: number | null;
-  location?: LocationResponse | null;
+  location?: LocationRefResponse | null;
   capacity?: number | null;
 }
 

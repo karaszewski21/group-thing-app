@@ -1,4 +1,4 @@
-import { useEffect, useId, useRef, useState, type KeyboardEvent } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { LocationResponse, UpdateLocationRequest } from "../../../api/locations";
 import {
   LOCATION_CANCEL_BTN_CLASS,
@@ -8,8 +8,7 @@ import {
   LOCATION_SAVE_BTN_CLASS,
   LocationAddForm,
 } from "../../../components/shared/LocationAddForm";
-import { trapFocus } from "../../../components/krag/trapFocus";
-import { useRegisterOpenSheet } from "../../../components/shared/openSheets";
+import { ConfirmDeleteDialog } from "../../../components/shared/ConfirmDeleteDialog";
 import { useMyLocations } from "../../../hooks/useMyLocations";
 
 /* ------------------------------------------------------------------ */
@@ -20,7 +19,9 @@ import { useMyLocations } from "../../../hooks/useMyLocations";
 const rowBtn =
   "flex-none rounded-[9px] px-2.5 py-1.5 text-[11.5px] font-extrabold text-ink-soft transition-colors";
 
-export function MiejscaView() {
+/** `onPlacesChanged` lets the panel refresh the group tiles and term cards
+ * that show a place's name and address. */
+export function MiejscaView({ onPlacesChanged }: { onPlacesChanged: () => void }) {
   const { data: locations, loading, error, create, update, remove } = useMyLocations();
   const [adding, setAdding] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -50,6 +51,7 @@ export function MiejscaView() {
   function handleCreated(location: LocationResponse) {
     pendingFocus.current = `edit:${location.id}`;
     setAdding(false);
+    onPlacesChanged();
   }
 
   function closeEdit(id: string) {
@@ -60,6 +62,7 @@ export function MiejscaView() {
   async function saveEdit(id: string, request: UpdateLocationRequest) {
     await update(id, request);
     closeEdit(id);
+    onPlacesChanged();
   }
 
   async function confirmDelete(location: LocationResponse) {
@@ -68,6 +71,7 @@ export function MiejscaView() {
     const next = locations[index + 1] ?? locations[index - 1];
     pendingFocus.current = next ? `edit:${next.id}` : "add";
     setDeleting(null);
+    onPlacesChanged();
   }
 
   return (
@@ -260,7 +264,7 @@ function EditLocationRow({
   );
 }
 
-/* ---------------- delete confirmation (pattern DeleteGroupDialog) ---------------- */
+/* ---------------- delete confirmation ---------------- */
 
 function DeleteLocationDialog({
   location,
@@ -271,94 +275,14 @@ function DeleteLocationDialog({
   onConfirm: () => Promise<void>;
   onClose: () => void;
 }) {
-  const titleId = useId();
-  const bodyId = useId();
-  const dialogRef = useRef<HTMLDivElement>(null);
-  const cancelRef = useRef<HTMLButtonElement>(null);
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  useRegisterOpenSheet(true);
-
-  useEffect(() => {
-    cancelRef.current?.focus();
-  }, []);
-
-  async function handleConfirm() {
-    dialogRef.current?.focus();
-    setError(null);
-    setBusy(true);
-    try {
-      await onConfirm();
-    } catch (err) {
-      setBusy(false);
-      setError(err instanceof Error && err.message ? err.message : "Nie udało się usunąć miejsca.");
-      cancelRef.current?.focus();
-    }
-  }
-
-  function handleKeyDown(event: KeyboardEvent<HTMLDivElement>) {
-    if (event.key === "Tab") {
-      if (busy) event.preventDefault();
-      else trapFocus(event, dialogRef.current);
-      return;
-    }
-    if (event.key !== "Escape" || event.defaultPrevented || busy) return;
-    event.preventDefault();
-    event.stopPropagation();
-    onClose();
-  }
-
   return (
-    <div
-      className="fixed inset-0 z-[70] flex items-center justify-center bg-scrim px-4"
-      onClick={(event) => {
-        event.stopPropagation();
-        if (!busy) onClose();
-      }}
-    >
-      <div
-        ref={dialogRef}
-        role="alertdialog"
-        aria-modal="true"
-        aria-labelledby={titleId}
-        aria-describedby={bodyId}
-        tabIndex={-1}
-        onClick={(event) => event.stopPropagation()}
-        onKeyDown={handleKeyDown}
-        className="w-full max-w-[340px] rounded-[24px] bg-paper p-5 font-sans outline-none"
-      >
-        <h2 id={titleId} className="font-serif text-lg font-semibold text-ink">
-          Usunąć miejsce „{location.name}”?
-        </h2>
-        <p id={bodyId} className="mt-2 text-sm text-ink-soft">
-          Zniknie z Twojej listy miejsc. Grupy i terminy, które już je mają, nadal je pokażą.
-        </p>
-        {error && (
-          <p role="alert" className="mt-3 text-sm font-semibold text-danger">
-            {error}
-          </p>
-        )}
-        <div className="mt-5 flex gap-2.5">
-          <button
-            ref={cancelRef}
-            type="button"
-            onClick={onClose}
-            disabled={busy}
-            className="min-h-[44px] flex-1 rounded-full border-[1.5px] border-line bg-cream px-4 py-2.5 text-sm font-extrabold text-ink disabled:opacity-60"
-          >
-            Anuluj
-          </button>
-          <button
-            type="button"
-            onClick={() => void handleConfirm()}
-            disabled={busy}
-            aria-busy={busy || undefined}
-            className="min-h-[44px] flex-1 rounded-full bg-danger px-4 py-2.5 text-sm font-extrabold text-paper disabled:opacity-60"
-          >
-            {busy ? "Usuwanie…" : "Usuń miejsce"}
-          </button>
-        </div>
-      </div>
-    </div>
+    <ConfirmDeleteDialog
+      title={`Usunąć miejsce „${location.name}”?`}
+      body="Zniknie z Twojej listy miejsc. Grupy i terminy, które już je mają, nadal je pokażą."
+      confirmLabel="Usuń miejsce"
+      fallbackError="Nie udało się usunąć miejsca."
+      onConfirm={onConfirm}
+      onClose={onClose}
+    />
   );
 }

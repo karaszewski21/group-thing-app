@@ -20,7 +20,7 @@ from app.users.service import get_profile_by_principal
 from ..infrastructure import repository
 from ..models import Group, GroupRoleType, Membership
 from ..schemas import TermAttendeeChildResponse, TermAttendeeResponse
-from .circles import _group_role_party_id, _require_active_organizer, get_group
+from .circles import _group_role_party_id, _require_active_organizer
 from .group_roles import get_or_create_active_group_role
 
 
@@ -69,7 +69,7 @@ async def _resolve_party_families(
     """Batched `party_id -> (family_id, family_name)` lookup — mirrors
     `application/exchange_summary.py`'s `_resolve_family_guardians` query
     shape, but flat/per-party rather than grouped-by-family, since callers
-    here (formalization candidate listing) need one row per attendee, not
+    here (the term attendee list) need one row per attendee, not
     per family. Imports `app.families.models` directly, never
     `app.families.repository`/`.service` — those already import
     `app.groups.service`, so importing them back here would create a
@@ -118,21 +118,19 @@ async def _resolve_family_child_birth_years(
 
 async def _require_term_in_group(db: AsyncSession, group_id: uuid.UUID, term_id: uuid.UUID) -> None:
     """404 unless `term_id` exists and belongs to `group_id` — keeps an
-    organizer of one group from reading or promoting another group's
-    attendees."""
+    organizer of one group from reading another group's attendees."""
     term = await repository.get_term(db, term_id)
     if term is None or term.circle_group_id != group_id:
         raise EntityNotFoundException("Term", term_id)
 
 
-async def list_term_attendees_for_formalization(
+async def list_term_attendees(
     db: AsyncSession, principal: Principal, group_id: uuid.UUID, term_id: uuid.UUID
 ) -> list[TermAttendeeResponse]:
-    """Candidate list for the "formalize standing members" picker — active
-    (non-withdrawn) RSVPs on `term_id`, annotated with the attendee's
-    resolved family (if any) and whether they're already a standing member
-    of `group_id`. Organizer-only, same gate as `formalize_group_from_term`
-    itself."""
+    """The organizer's attendee list for a term — active (non-withdrawn)
+    RSVPs on `term_id`, annotated with the attendee's resolved family (if
+    any) and whether they're already a standing member of `group_id`.
+    Organizer-only."""
     profile = await get_profile_by_principal(db, principal)
     await _require_active_organizer(db, group_id, profile.party_id)
     await _require_term_in_group(db, group_id, term_id)
@@ -169,39 +167,6 @@ async def list_term_attendees_for_formalization(
         )
         for attendance in attendances
     ]
-
-
-async def formalize_group_from_term(
-    db: AsyncSession, principal: Principal, group_id: uuid.UUID, term_id: uuid.UUID, party_ids: list[uuid.UUID]
-) -> Group:
-    """Turns the selected, still-attending `party_id`s from a term's RSVP
-    list into standing `Membership`s. Independent of `Group.visibility` —
-    never reads or mutates it; a `PUBLIC` group stays `PUBLIC`. Idempotent
-    per selected attendee: only those with an active `TermAttendance` on
-    `term_id` and not already an active member become members, regardless
-    of family resolution; the rest are silently skipped rather than
-    erroring, so a stale/partial selection (including a re-submit of an
-    already-promoted attendee) from the UI never aborts the whole batch
-    or creates a duplicate `Membership`."""
-    profile = await get_profile_by_principal(db, principal)
-    group = await get_group(db, group_id)
-    await _require_active_organizer(db, group_id, profile.party_id)
-    await _require_term_in_group(db, group_id, term_id)
-
-    attendances = await repository.list_active_attendances_for_term(db, term_id)
-    eligible_party_ids = {a.party_id for a in attendances if a.term_id == term_id}
-    active_memberships = await repository.list_active_memberships_for_group(db, group_id)
-    already_member_party_ids = {
-        await _group_role_party_id(db, m.from_role_id) for m in active_memberships
-    }
-    selected_party_ids = (eligible_party_ids & set(party_ids)) - already_member_party_ids
-
-    for party_id in selected_party_ids:
-        await add_active_membership(db, group_id, party_id)
-
-    await db.commit()
-    await db.refresh(group)
-    return group
 
 
 async def list_memberships_for_circle(db: AsyncSession, circle_group_id: uuid.UUID) -> list[Membership]:

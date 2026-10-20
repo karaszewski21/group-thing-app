@@ -2,7 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useCallback } from "react";
 import {
   getGroup,
-  getTermAttendeesForFormalization,
+  getTermAttendees,
   type GroupResponse,
   type TermAttendeeResponse,
 } from "../api/groups";
@@ -46,7 +46,7 @@ export function useTermAttendees(termId: string): UseTermAttendeesResult {
   });
   const attendeesQ = useQuery({
     queryKey: [TERM_ATTENDEES_KEY, groupId, termId],
-    queryFn: () => getTermAttendeesForFormalization(groupId as string, termId),
+    queryFn: () => getTermAttendees(groupId as string, termId),
     enabled: dependentsEnabled,
   });
 

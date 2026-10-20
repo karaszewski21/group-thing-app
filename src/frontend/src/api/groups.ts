@@ -1,5 +1,5 @@
 import { api } from "./client";
-import type { LocationResponse, PublicLocationResponse } from "./locations";
+import type { LocationRefResponse, PublicLocationResponse } from "./locations";
 import { pageParams, type Page } from "./pagination";
 
 /** The participant-visualization layout an organizer picks for their
@@ -25,7 +25,7 @@ export interface GroupResponse {
   visibility: GroupVisibility;
   created_at: string;
   updated_at: string;
-  default_location?: LocationResponse | null;
+  default_location?: LocationRefResponse | null;
   default_capacity?: number | null;
 }
 
@@ -132,27 +132,6 @@ export function createMyCircle(request: CreateCircleRequest): Promise<GroupRespo
  * whose idempotency would silently no-op a repeat organizer's click. */
 export function createAdditionalMyCircle(request: CreateAdditionalCircleRequest): Promise<GroupResponse> {
   return api.post("/groups/mine/new", request);
-}
-
-/** `PATCH /groups/{id}` with `layout_mode` (and, optionally, `visibility`)
- * set — `name` is a required field on `UpdateGroupRequest` ("required
- * value, not partial-apply", per that schema's docstring), so the caller's
- * current group name must be supplied alongside the new layout mode.
- * `visibility` is omitted from the request body entirely when not passed,
- * leaving the group's current visibility untouched (mirrors the backend's
- * `is not None`-only-apply semantics) — existing callers that only ever
- * change `layout_mode` are unaffected. */
-export function updateGroupLayoutMode(
-  id: string,
-  name: string,
-  layoutMode: GroupLayoutMode,
-  visibility?: GroupVisibility,
-): Promise<GroupResponse> {
-  return api.patch(`/groups/${id}`, {
-    name,
-    layout_mode: layoutMode,
-    ...(visibility !== undefined ? { visibility } : {}),
-  });
 }
 
 export function updateGroup(id: string, request: UpdateGroupRequest): Promise<GroupResponse> {
@@ -441,13 +420,11 @@ export function getOrganizerTerms(
 }
 
 /* ------------------------------------------------------------------ */
-/*  Formalize a PUBLIC group's past term into standing membership      */
-/*  (authenticated organizer action)                                   */
+/*  A term's attendee list (authenticated organizer read)               */
 /* ------------------------------------------------------------------ */
 
-/** One RSVP'd Term attendee, resolved for the organizer's "which attendees
- * become standing members" picker — `family_id`/`family_name` are `null`
- * for an attendee with no real Family (still selectable for formalization).
+/** One RSVP'd Term attendee, resolved for the organizer's attendee list —
+ * `family_id`/`family_name` are `null` for an attendee with no real Family.
  * `children` holds only the birth years of that family's active children. */
 export interface TermAttendeeResponse {
   party_id: string;
@@ -459,19 +436,11 @@ export interface TermAttendeeResponse {
   already_member: boolean;
 }
 
-export function getTermAttendeesForFormalization(
+export function getTermAttendees(
   groupId: string,
   termId: string,
 ): Promise<TermAttendeeResponse[]> {
   return api.get(`/groups/${groupId}/terms/${termId}/attendees`);
-}
-
-export function formalizeGroupFromTerm(
-  groupId: string,
-  termId: string,
-  partyIds: string[],
-): Promise<GroupResponse> {
-  return api.post(`/groups/${groupId}/terms/${termId}/formalize`, { party_ids: partyIds });
 }
 
 /* ------------------------------------------------------------------ */

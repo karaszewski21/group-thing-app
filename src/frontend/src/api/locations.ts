@@ -3,8 +3,7 @@ import { api } from "./client";
 /** Mirrors `app.locations.models.LocationSource`. */
 export type LocationSource = "GOOGLE" | "MANUAL";
 
-/** Owner view (`GET /api/locations/mine` and the nested group/term defaults).
- * `deleted_at` lets a picker label a soft-deleted, still-referenced place. */
+/** Owner view (`GET /api/locations/mine` and the other `/api/locations` routes). */
 export interface LocationResponse {
   id: string;
   owner_party_id: string;
@@ -17,6 +16,18 @@ export interface LocationResponse {
   source: LocationSource;
   created_at: string;
   updated_at: string;
+  deleted_at: string | null;
+}
+
+/** The place nested in a group or term (`default_location`, `location`): no
+ * owner, no coordinates. `deleted_at` lets a picker label a soft-deleted,
+ * still-referenced place. */
+export interface LocationRefResponse {
+  id: string;
+  name: string;
+  formatted_address: string;
+  google_place_id: string | null;
+  notes: string | null;
   deleted_at: string | null;
 }
 

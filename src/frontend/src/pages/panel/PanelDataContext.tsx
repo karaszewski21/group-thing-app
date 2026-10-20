@@ -91,6 +91,8 @@ import {
   type ModalKind,
   type TermWithNeeded,
   type View,
+  capacityText,
+  parseCapacity,
   viewPath,
 } from "./panelHelpers";
 import { PanelDataContext } from "./panelDataStore";
@@ -207,7 +209,7 @@ function usePanelDataValue() {
     layoutMode: "CIRCLE",
     visibility: "PUBLIC",
     defaultLocationId: null,
-    defaultCapacity: null,
+    defaultCapacity: "",
   });
   const [editGroupError, setEditGroupError] = useState<string | null>(null);
   // Optimistic item delete in the "Moje rzeczy" view.
@@ -291,7 +293,7 @@ function usePanelDataValue() {
     name: "",
     visibility: defaultVisibility(organizationSlug),
     defaultLocationId: null,
-    defaultCapacity: null,
+    defaultCapacity: "",
   });
   const [groupForm, setGroupForm] = useState<GroupFormValue>(emptyGroupForm);
 
@@ -300,7 +302,8 @@ function usePanelDataValue() {
   const [termDate, setTermDate] = useState("");
   const [termDescription, setTermDescription] = useState("");
   const [termLocationId, setTermLocationId] = useState<string | null>(null);
-  const [termCapacity, setTermCapacity] = useState<number | null>(null);
+  // Raw input text; `parseCapacity` turns it into the request value.
+  const [termCapacity, setTermCapacity] = useState("");
   const [neededDraft, setNeededDraft] = useState<NeededItemQuickAddValue[]>([]);
   const [draftNeededItem, setDraftNeededItem] = useState<NeededItemQuickAddValue>(
     createEmptyNeededItemQuickAddValue(),
@@ -576,7 +579,8 @@ function usePanelDataValue() {
   /* ---------- grupy ---------- */
 
   async function handleAddGroup() {
-    if (!groupForm.name.trim()) return;
+    const defaultCapacity = parseCapacity(groupForm.defaultCapacity);
+    if (!groupForm.name.trim() || defaultCapacity === undefined) return;
     setBusy(true);
     setAddGroupError(null);
     try {
@@ -587,7 +591,7 @@ function usePanelDataValue() {
         name: groupForm.name.trim(),
         visibility: groupForm.visibility,
         default_location_id: groupForm.defaultLocationId,
-        default_capacity: groupForm.defaultCapacity,
+        default_capacity: defaultCapacity,
       });
       setGroupForm(emptyGroupForm());
       setModal(null);
@@ -627,7 +631,7 @@ function usePanelDataValue() {
     const group = myGroups.find((g) => g.id === groupId);
     setTermGroupId(groupId);
     setTermLocationId(group?.default_location?.id ?? null);
-    setTermCapacity(group?.default_capacity ?? null);
+    setTermCapacity(capacityText(group?.default_capacity));
   }
 
   function removeDraftNeededItem(index: number) {
@@ -635,7 +639,8 @@ function usePanelDataValue() {
   }
 
   async function handleAddTerm() {
-    if (!termGroupId || !termDate) return;
+    const capacity = parseCapacity(termCapacity);
+    if (!termGroupId || !termDate || capacity === undefined) return;
     setBusy(true);
     setAddTermError(null);
     try {
@@ -652,7 +657,7 @@ function usePanelDataValue() {
         occurs_on: termDate,
         description: termDescription || undefined,
         location_id: termLocationId,
-        capacity: termCapacity,
+        capacity,
       });
       for (const [i, draft] of neededDraft.entries()) {
         await createNeededItem({
@@ -934,7 +939,7 @@ function usePanelDataValue() {
       layoutMode: group.layout_mode,
       visibility: group.visibility,
       defaultLocationId: group.default_location?.id ?? null,
-      defaultCapacity: group.default_capacity ?? null,
+      defaultCapacity: capacityText(group.default_capacity),
     });
     setEditGroupError(null);
     setModal("edit-grupa");
@@ -950,7 +955,8 @@ function usePanelDataValue() {
     const group = myGroups.find((g) => g.id === editingGroupId);
     if (!group) return;
     const name = editGroupForm.name.trim();
-    if (!name) return;
+    const defaultCapacity = parseCapacity(editGroupForm.defaultCapacity);
+    if (!name || defaultCapacity === undefined) return;
     setBusy(true);
     setEditGroupError(null);
     try {
@@ -960,7 +966,7 @@ function usePanelDataValue() {
         layout_mode: editGroupForm.layoutMode,
         visibility: editGroupForm.visibility,
         default_location_id: editGroupForm.defaultLocationId,
-        default_capacity: editGroupForm.defaultCapacity,
+        default_capacity: defaultCapacity,
       });
       setEditingGroupId(null);
       setModal(null);

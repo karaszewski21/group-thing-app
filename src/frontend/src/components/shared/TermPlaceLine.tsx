@@ -1,5 +1,5 @@
 import { buildMapsUrl } from "../../lib/googleMaps";
-import { MapPinIcon } from "../../pages/panel/panelIcons";
+import { MapPinIcon } from "./MapPinIcon";
 
 interface TermPlaceLineProps {
   location: {

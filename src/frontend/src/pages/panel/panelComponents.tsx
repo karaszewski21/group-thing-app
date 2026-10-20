@@ -1,6 +1,7 @@
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useId, useState, type ReactNode } from "react";
 import { Link } from "react-router-dom";
 import { useRegisterOpenSheet } from "../../components/shared/openSheets";
+import { CAPACITY_ERROR, parseCapacity } from "./panelHelpers";
 import { CloseIcon } from "./panelIcons";
 
 /* ---------------- małe komponenty pomocnicze (wydzielone z PanelPage.tsx) ---------------- */
@@ -161,6 +162,48 @@ export function Field({ label, children }: { label: string; children: ReactNode 
       <label className="text-xs font-extrabold tracking-wide text-ink-soft">{label}</label>
       {children}
     </div>
+  );
+}
+
+export const INPUT_CLASS = "rounded-xl border-[1.5px] border-line bg-cream px-3.5 py-2.5 text-ink";
+
+/** The "Ile miejsc" field: `value` is the raw input text (see `parseCapacity`);
+ * an invalid value shows an inline error, and the host blocks submit. */
+export function CapacityField({
+  label,
+  value,
+  onChange,
+  inputClassName = `${INPUT_CLASS} w-28`,
+}: {
+  label: string;
+  value: string;
+  onChange: (raw: string) => void;
+  inputClassName?: string;
+}) {
+  const errorId = useId();
+  const invalid = parseCapacity(value) === undefined;
+  return (
+    <Field label={label}>
+      <input
+        type="number"
+        min={1}
+        max={10000}
+        step={1}
+        inputMode="numeric"
+        aria-label={label}
+        aria-invalid={invalid || undefined}
+        aria-describedby={invalid ? errorId : undefined}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder="np. 12"
+        className={inputClassName}
+      />
+      {invalid && (
+        <p id={errorId} role="alert" className="text-[12.5px] font-semibold text-danger">
+          {CAPACITY_ERROR}
+        </p>
+      )}
+    </Field>
   );
 }
 

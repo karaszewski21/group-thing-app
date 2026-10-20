@@ -101,11 +101,11 @@ async def create_additional_circle(
     """Non-idempotent twin of `create_own_circle` — always creates a brand
     new Circle and a brand new `Leadership` for `organizer_party_id`, never
     short-circuiting to an existing one. `create_own_circle`'s "return the
-    existing Circle" behavior is correct for its own callers (the one-time
-    "become an Organizer" self-service flows: `CreateGroupStepper`,
-    onboarding), but is wrong for the Panel's "+ Dodaj grupę" button, whose
-    whole point is letting an organizer who already leads one or more
-    Circles add another — that action must never be a silent no-op.
+    existing Circle" behavior is correct for its own caller (the one-time
+    "become an Organizer" onboarding flow), but is wrong for the Panel's
+    "+ Dodaj grupę" button, whose whole point is letting an organizer who
+    already leads one or more Circles add another — that action must never
+    be a silent no-op.
     `visibility` lets the organizer pick Public/Private at creation time
     instead of always starting `PUBLIC` and editing afterward. A
     `default_location_id` must be one of the organizer's own (PERSON party)
@@ -238,14 +238,18 @@ async def update_group(
     value untouched. Switching visibility in either direction here is
     intentionally unrestricted (the organizer's own call); `visibility`
     change and standing-`Membership` creation are two fully independent
-    actions — `formalize_group_from_term` no longer touches visibility at
-    all. `default_location_id`/`default_capacity` apply only when present in
-    `model_fields_set` (`null` clears); a non-null location must be one of
-    the caller's own live places."""
+    actions. `default_location_id`/`default_capacity` apply only when present in
+    `model_fields_set` (`null` clears); a newly assigned location must be one
+    of the caller's own live places — re-sending the current id is not
+    re-checked, so a soft-deleted or handed-over default survives a save."""
     group = await get_group(db, group_id)
     await _require_active_organizer(db, group_id, caller_party_id)
     await check_text(TextField.GROUP_NAME, data.name, group.name)
-    if "default_location_id" in data.model_fields_set and data.default_location_id is not None:
+    if (
+        "default_location_id" in data.model_fields_set
+        and data.default_location_id is not None
+        and data.default_location_id != group.default_location_id
+    ):
         await locations_acl.get_owned_location(db, data.default_location_id, caller_party_id)
     group.name = data.name
     if data.layout_mode is not None:

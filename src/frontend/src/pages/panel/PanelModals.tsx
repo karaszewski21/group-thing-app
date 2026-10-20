@@ -6,7 +6,8 @@ import { CreateGroupStepper } from "../../components/panel/CreateGroupStepper";
 import { FirstTermStepperOrganizer } from "../../components/panel/FirstTermStepperOrganizer";
 import { GroupFormFields } from "../../components/panel/GroupFormFields";
 import { LocationPicker } from "../../components/shared/LocationPicker";
-import { Field, ModalSheet } from "./panelComponents";
+import { CapacityField, Field, INPUT_CLASS, ModalSheet } from "./panelComponents";
+import { parseCapacity } from "./panelHelpers";
 import { usePanelData } from "./panelDataStore";
 
 /** The Panel's modal layer — one `{modal === "..." && ...}` block per modal
@@ -112,13 +113,11 @@ export function PanelModals() {
       {modal === "edit-termin" &&
         editTermEntry &&
         (() => {
-          const group = myGroups.find((g) => g.id === editTermEntry.term.circle_group_id);
-          if (!group) return null;
+          if (!myGroups.some((g) => g.id === editTermEntry.term.circle_group_id)) return null;
           return (
             <EditTermDialog
               term={editTermEntry.term}
               neededItems={editTermEntry.neededItems}
-              group={group}
               onChanged={() => void load({ silent: true })}
               onClose={() => {
                 setModal(null);
@@ -137,7 +136,7 @@ export function PanelModals() {
           )}
           <button
             onClick={() => void handleAddGroup()}
-            disabled={busy || !groupForm.name.trim()}
+            disabled={busy || !groupForm.name.trim() || parseCapacity(groupForm.defaultCapacity) === undefined}
             className="mt-4 w-full rounded-[13px] bg-mint px-5 py-3 text-[13.5px] font-extrabold text-white disabled:opacity-60"
           >
             Dodaj grupę
@@ -160,7 +159,7 @@ export function PanelModals() {
           )}
           <button
             onClick={() => void saveEditGroup()}
-            disabled={busy || !editGroupForm.name.trim()}
+            disabled={busy || !editGroupForm.name.trim() || parseCapacity(editGroupForm.defaultCapacity) === undefined}
             className="mt-4 w-full rounded-[13px] bg-mint px-5 py-3 text-[13.5px] font-extrabold text-white disabled:opacity-60"
           >
             Zapisz
@@ -180,9 +179,10 @@ export function PanelModals() {
           <div className="grid grid-cols-1 gap-3">
             <Field label="Grupa">
               <select
+                aria-label="Grupa"
                 value={termGroupId ?? ""}
                 onChange={(e) => selectTermGroup(e.target.value || null)}
-                className="rounded-xl border-[1.5px] border-line bg-cream px-3.5 py-2.5 text-ink"
+                className={INPUT_CLASS}
               >
                 <option value="" disabled>Wybierz grupę…</option>
                 {myGroups.map((g) => (
@@ -195,7 +195,7 @@ export function PanelModals() {
                 type="datetime-local"
                 value={termDate}
                 onChange={(e) => setTermDate(e.target.value)}
-                className="rounded-xl border-[1.5px] border-line bg-cream px-3.5 py-2.5 text-ink"
+                className={INPUT_CLASS}
               />
             </Field>
             <Field label="Opis (opcjonalnie)">
@@ -203,7 +203,7 @@ export function PanelModals() {
                 value={termDescription}
                 onChange={(e) => setTermDescription(e.target.value)}
                 placeholder="Park Sołacki · wstęp wolny"
-                className="rounded-xl border-[1.5px] border-line bg-cream px-3.5 py-2.5 text-ink"
+                className={INPUT_CLASS}
               />
             </Field>
             <Field label="Miejsce">
@@ -221,18 +221,7 @@ export function PanelModals() {
                 }
               />
             </Field>
-            <Field label="Ile miejsc">
-              <input
-                type="number"
-                min={1}
-                inputMode="numeric"
-                aria-label="Ile miejsc"
-                value={termCapacity ?? ""}
-                onChange={(e) => setTermCapacity(e.target.value.trim() === "" ? null : Number(e.target.value))}
-                placeholder="np. 12"
-                className="w-28 rounded-xl border-[1.5px] border-line bg-cream px-3.5 py-2.5 text-ink"
-              />
-            </Field>
+            <CapacityField label="Ile miejsc" value={termCapacity} onChange={setTermCapacity} />
             <Field label="Potrzebne rzeczy (opcjonalnie)">
               {neededDraft.map((item, index) => (
                 <div key={index} className="mb-1.5 flex items-center gap-2 text-[13px]">
@@ -282,7 +271,7 @@ export function PanelModals() {
           )}
           <button
             onClick={() => void handleAddTerm()}
-            disabled={busy || !termDate || !termGroupId}
+            disabled={busy || !termDate || !termGroupId || parseCapacity(termCapacity) === undefined}
             className="mt-4 w-full rounded-[13px] bg-mint px-5 py-3 text-[13.5px] font-extrabold text-white disabled:opacity-60"
           >
             Dodaj termin

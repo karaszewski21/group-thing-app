@@ -472,8 +472,8 @@ class RsvpResponse(BaseModel):
     attached_to_account: bool
 
 
-# --- Formalize a Term's attendees into standing Memberships, independent of
-# Group.visibility (`POST /api/groups/{id}/terms/{id}/formalize`) -----------
+# --- A Term's attendee list for its organizer
+# (`GET /api/groups/{id}/terms/{id}/attendees`) -------------------------------
 
 
 class TermAttendeeChildResponse(BaseModel):
@@ -485,11 +485,9 @@ class TermAttendeeChildResponse(BaseModel):
 
 class TermAttendeeResponse(BaseModel):
     """One RSVP'd party for a chosen Term, resolved for the organizer's
-    "which attendees become standing members" picker. `family_id`/
-    `family_name` are display-only, purely informational — a family-less
-    attendee (e.g. an anonymous guest party) remains selectable for
-    formalization; `None` should now only occur for legacy pre-existing
-    family-less parties. `children` is youngest first, unknown years last."""
+    attendee list. `family_id`/`family_name` are display-only — `None` for a
+    family-less attendee (e.g. an anonymous guest party). `children` is
+    youngest first, unknown years last."""
 
     party_id: uuid.UUID
     display_name: str
@@ -498,10 +496,6 @@ class TermAttendeeResponse(BaseModel):
     family_name: str | None
     already_member: bool
     children: list[TermAttendeeChildResponse] = Field(default_factory=list)
-
-
-class FormalizeGroupFromTermRequest(BaseModel):
-    party_ids: list[uuid.UUID] = Field(min_length=1)
 
 
 # --- My attendances (authenticated, `GET /api/groups/mine/attendances`) --------

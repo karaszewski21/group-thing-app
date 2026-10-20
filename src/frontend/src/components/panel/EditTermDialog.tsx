@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import {
   createNeededItem,
   deleteNeededItem,
@@ -13,14 +13,9 @@ import { resolveProduct } from "../../api/products";
 import { serverMessageOr } from "../../api/problem";
 import type { Category } from "../../api/categories";
 import { useCategories } from "../../hooks/useCategories";
-import { Field, ModalSheet } from "../../pages/panel/panelComponents";
+import { CapacityField, Field, ModalSheet } from "../../pages/panel/panelComponents";
+import { capacityText, parseCapacity } from "../../pages/panel/panelHelpers";
 import { LocationPicker } from "../shared/LocationPicker";
-import {
-  formalizeGroupFromTerm,
-  getTermAttendeesForFormalization,
-  type GroupResponse,
-  type TermAttendeeResponse,
-} from "../../api/groups";
 
 /* ------------------------------------------------------------------ */
 /*  "Edytuj termin" — single Panel dialog replacing the inline per-    */
@@ -63,11 +58,6 @@ function makeEmptyDraft(categories: Category[]): NeededItemDraft {
 interface EditTermDialogProps {
   term: TermResponse;
   neededItems: NeededItemResponse[];
-  /** The term's Circle — used to scope the "Formalizuj stałych członków"
-   * section's fetch/submit calls. That section is independent of the
-   * group's visibility: it always fetches this term's attendees and shows
-   * whichever state (loading/error/empty/populated) applies. */
-  group: GroupResponse;
   /** `() => void load({ silent: true })` on the host — refreshes the props. */
   onChanged: () => void;
   onClose: () => void;
@@ -121,72 +111,16 @@ function NeededItemFields({
 const toLocalInput = (iso: string): string =>
   iso.length >= 16 ? iso.slice(0, 16) : `${iso.slice(0, 10)}T00:00`;
 
-const parseCapacity = (raw: string): number | null => {
-  if (raw.trim() === "") return null;
-  const parsed = Number(raw);
-  return Number.isFinite(parsed) ? parsed : null;
-};
-
-export function EditTermDialog({ term, neededItems, group, onChanged, onClose }: EditTermDialogProps) {
+export function EditTermDialog({ term, neededItems, onChanged, onClose }: EditTermDialogProps) {
   const { data: categories } = useCategories();
   const [occursOn, setOccursOn] = useState(toLocalInput(term.occurs_on));
   const [description, setDescription] = useState(term.description ?? "");
   const [locationId, setLocationId] = useState<string | null>(term.location?.id ?? null);
-  const [capacity, setCapacity] = useState<number | null>(term.capacity ?? null);
+  const [capacityInput, setCapacityInput] = useState(capacityText(term.capacity));
+  const capacity = parseCapacity(capacityInput);
   const [busy, setBusy] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
-
-  // --- "Formalizuj stałych członków" (family-/visibility-independent) ----
-  const [attendees, setAttendees] = useState<TermAttendeeResponse[] | null>(null);
-  const [attendeesError, setAttendeesError] = useState<string | null>(null);
-  const [selectedPartyIds, setSelectedPartyIds] = useState<Set<string>>(new Set());
-  const [formalizing, setFormalizing] = useState(false);
-  const [formalizeError, setFormalizeError] = useState<string | null>(null);
-  const [formalized, setFormalized] = useState(false);
-  const [formalizedCount, setFormalizedCount] = useState(0);
-
-  useEffect(() => {
-    let cancelled = false;
-    getTermAttendeesForFormalization(group.id, term.id)
-      .then((rows) => {
-        if (cancelled) return;
-        setAttendees(rows);
-        setSelectedPartyIds(new Set(rows.filter((r) => !r.already_member).map((r) => r.party_id)));
-      })
-      .catch(() => {
-        if (!cancelled) setAttendeesError("Nie udało się wczytać listy zapisanych");
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [group.id, term.id]);
-
-  function toggleAttendee(partyId: string) {
-    setSelectedPartyIds((prev) => {
-      const next = new Set(prev);
-      if (next.has(partyId)) next.delete(partyId);
-      else next.add(partyId);
-      return next;
-    });
-  }
-
-  async function formalize() {
-    if (selectedPartyIds.size === 0) return;
-    setFormalizing(true);
-    setFormalizeError(null);
-    try {
-      const partyIds = Array.from(selectedPartyIds);
-      await formalizeGroupFromTerm(group.id, term.id, partyIds);
-      setFormalizedCount(partyIds.length);
-      setFormalized(true);
-      onChanged();
-    } catch {
-      setFormalizeError("Nie udało się ustalić stałych członków — spróbuj ponownie");
-    } finally {
-      setFormalizing(false);
-    }
-  }
 
   const [editing, setEditing] = useState<({ id: string } & NeededItemDraft) | null>(null);
   const [adding, setAdding] = useState(false);
@@ -194,6 +128,7 @@ export function EditTermDialog({ term, neededItems, group, onChanged, onClose }:
   const [itemsError, setItemsError] = useState<string | null>(null);
 
   async function saveTermFields() {
+    if (capacity === undefined) return;
     const patch: UpdateTermRequest = {};
     if (occursOn && occursOn !== toLocalInput(term.occurs_on)) patch.occurs_on = occursOn;
     if (description !== (term.description ?? "")) patch.description = description;
@@ -335,21 +270,15 @@ export function EditTermDialog({ term, neededItems, group, onChanged, onClose }:
             fallbackLocation={term.location}
           />
         </Field>
-        <Field label="Ile miejsc">
-          <input
-            aria-label="Ile miejsc"
-            type="number"
-            min={1}
-            inputMode="numeric"
-            value={capacity ?? ""}
-            onChange={(e) => {
-              setCapacity(parseCapacity(e.target.value));
-              setSaved(false);
-            }}
-            placeholder="np. 12"
-            className={`${inputClass} w-28`}
-          />
-        </Field>
+        <CapacityField
+          label="Ile miejsc"
+          value={capacityInput}
+          onChange={(raw) => {
+            setCapacityInput(raw);
+            setSaved(false);
+          }}
+          inputClassName={`${inputClass} w-28`}
+        />
       </div>
       {formError && (
         <p role="alert" className="mt-2 text-[12.5px] font-semibold text-danger">
@@ -360,7 +289,7 @@ export function EditTermDialog({ term, neededItems, group, onChanged, onClose }:
       <button
         type="button"
         onClick={() => void saveTermFields()}
-        disabled={busy}
+        disabled={busy || capacity === undefined}
         className="mt-3 w-full rounded-[13px] bg-mint px-5 py-3 text-[13.5px] font-extrabold text-white disabled:opacity-60"
       >
         Zapisz
@@ -468,64 +397,6 @@ export function EditTermDialog({ term, neededItems, group, onChanged, onClose }:
         </p>
       )}
 
-      {attendees !== null && (
-        <>
-          <h4 className="mb-1.5 mt-6 text-sm font-semibold text-ink">Formalizuj stałych członków</h4>
-          {formalized ? (
-            <p className="text-[12.5px] font-bold text-mint">
-              Dodano {formalizedCount} {formalizedCount === 1 ? "osobę" : "osób"} jako stałych
-              członków grupy.
-            </p>
-          ) : attendeesError ? (
-            <p className="text-[12.5px] font-semibold text-danger">{attendeesError}</p>
-          ) : attendees === null ? (
-            <p className="text-[12.5px] text-ink-soft">Wczytywanie zapisanych…</p>
-          ) : attendees.length === 0 ? (
-            <p className="text-[12.5px] text-ink-soft">Nikt jeszcze nie zapisał się na ten termin.</p>
-          ) : (
-            <>
-              <p className="mb-1.5 text-[12.5px] text-ink-soft">
-                Zaznacz, kto ma zostać stałym członkiem grupy.
-              </p>
-              <ul className="flex flex-col">
-                {attendees.map((a) => (
-                  <li
-                    key={a.party_id}
-                    className="flex items-center gap-2 border-t border-line/60 py-2 text-[12.5px] first:border-t-0"
-                  >
-                    <input
-                      type="checkbox"
-                      aria-label={`Ustal ${a.display_name} jako stałego członka`}
-                      checked={selectedPartyIds.has(a.party_id)}
-                      disabled={a.already_member}
-                      onChange={() => toggleAttendee(a.party_id)}
-                    />
-                    <span className="min-w-0 flex-1 text-ink-soft">
-                      {a.display_name}
-                      {a.already_member
-                        ? " — już jest stałym członkiem"
-                        : a.family_name
-                          ? ` — ${a.family_name}`
-                          : ""}
-                    </span>
-                  </li>
-                ))}
-              </ul>
-              {formalizeError && (
-                <p className="mt-2 text-[12.5px] font-semibold text-danger">{formalizeError}</p>
-              )}
-              <button
-                type="button"
-                onClick={() => void formalize()}
-                disabled={formalizing || selectedPartyIds.size === 0}
-                className="mt-3 w-full rounded-[13px] bg-mint px-5 py-3 text-[13.5px] font-extrabold text-white disabled:opacity-60"
-              >
-                Ustal stałych członków
-              </button>
-            </>
-          )}
-        </>
-      )}
     </ModalSheet>
   );
 }

@@ -1,8 +1,6 @@
 import type { GroupLayoutMode, GroupVisibility } from "../../api/groups";
-import { Field } from "../../pages/panel/panelComponents";
+import { CapacityField, Field, INPUT_CLASS } from "../../pages/panel/panelComponents";
 import { LocationPicker, type FallbackLocation } from "../shared/LocationPicker";
-
-const inputClass = "rounded-xl border-[1.5px] border-line bg-cream px-3.5 py-2.5 text-ink";
 
 const LAYOUT_OPTIONS: { mode: GroupLayoutMode; label: string }[] = [
   { mode: "CIRCLE", label: "Koło" },
@@ -18,7 +16,8 @@ export interface GroupFormValue {
   visibility: GroupVisibility;
   layoutMode?: GroupLayoutMode;
   defaultLocationId: string | null;
-  defaultCapacity: number | null;
+  /** Raw input text; `parseCapacity` turns it into the request value. */
+  defaultCapacity: string;
 }
 
 interface GroupFormFieldsProps {
@@ -37,12 +36,6 @@ export function GroupFormFields({ value, onChange, showLayoutMode = false, idPre
     onChange({ ...value, ...patch });
   }
 
-  function parseCapacity(raw: string): number | null {
-    if (raw.trim() === "") return null;
-    const parsed = Number(raw);
-    return Number.isFinite(parsed) ? parsed : null;
-  }
-
   return (
     <div className="grid grid-cols-1 gap-3">
       <Field label="Nazwa grupy">
@@ -51,7 +44,7 @@ export function GroupFormFields({ value, onChange, showLayoutMode = false, idPre
           value={value.name}
           onChange={(e) => set({ name: e.target.value })}
           placeholder="np. Nutki dla starszaków"
-          className={inputClass}
+          className={INPUT_CLASS}
         />
       </Field>
       {showLayoutMode && (
@@ -60,7 +53,7 @@ export function GroupFormFields({ value, onChange, showLayoutMode = false, idPre
             aria-label="Szablon wizualizacji"
             value={value.layoutMode ?? "CIRCLE"}
             onChange={(e) => set({ layoutMode: e.target.value as GroupLayoutMode })}
-            className={inputClass}
+            className={INPUT_CLASS}
           >
             {LAYOUT_OPTIONS.map(({ mode, label }) => (
               <option key={mode} value={mode}>
@@ -75,7 +68,7 @@ export function GroupFormFields({ value, onChange, showLayoutMode = false, idPre
           aria-label="Widoczność grupy"
           value={value.visibility}
           onChange={(e) => set({ visibility: e.target.value as GroupVisibility })}
-          className={inputClass}
+          className={INPUT_CLASS}
         >
           <option value="PUBLIC">Publiczna</option>
           <option value="PRIVATE">Prywatna — (dostęp na prośbę)</option>
@@ -91,18 +84,11 @@ export function GroupFormFields({ value, onChange, showLayoutMode = false, idPre
           fallbackLocation={fallbackLocation}
         />
       </Field>
-      <Field label={CAPACITY_LABEL}>
-        <input
-          aria-label={CAPACITY_LABEL}
-          type="number"
-          min={1}
-          inputMode="numeric"
-          value={value.defaultCapacity ?? ""}
-          onChange={(e) => set({ defaultCapacity: parseCapacity(e.target.value) })}
-          placeholder="np. 12"
-          className={`${inputClass} w-28`}
-        />
-      </Field>
+      <CapacityField
+        label={CAPACITY_LABEL}
+        value={value.defaultCapacity}
+        onChange={(defaultCapacity) => set({ defaultCapacity })}
+      />
     </div>
   );
 }

@@ -41,7 +41,7 @@ export function PanelPage() {
 }
 
 function PanelPageView() {
-  const { loading, error, profile, view, toast, setModal } = usePanelData();
+  const { loading, error, profile, view, toast, setModal, load } = usePanelData();
   const [searchParams, setSearchParams] = useSearchParams();
   const createGroupRequested = searchParams.get("nowa") === "grupa";
 
@@ -92,7 +92,7 @@ function PanelPageView() {
         {view === "podarki" && <WypozyczoneView />}
         {view === "profil" && <ProfilView />}
         {view === "ustawienia" && <UstawieniaView />}
-        {view === "miejsca" && <MiejscaView />}
+        {view === "miejsca" && <MiejscaView onPlacesChanged={() => void load({ silent: true })} />}
         {view === "rodzina" && <RodzinaView />}
       </div>
 

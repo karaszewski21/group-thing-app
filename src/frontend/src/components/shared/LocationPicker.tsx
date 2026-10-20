@@ -9,13 +9,14 @@ import { LOCATION_ERROR_CLASS, LOCATION_INPUT_CLASS, LocationAddForm } from "./L
 /*  (edit, delete) lives in the "Moje miejsca" panel view.             */
 /* ------------------------------------------------------------------ */
 
-/** The stored place of a group or term, shown as "(usunięte)" when it is no
- * longer among the caller's active places. */
+/** The stored place of a group or term, kept as an extra option when it is not
+ * among the caller's active places (soft-deleted, or another organizer's). */
 export interface FallbackLocation {
   id: string;
   name: string;
   formatted_address: string;
   notes: string | null;
+  deleted_at: string | null;
 }
 
 interface LocationPickerProps {
@@ -48,11 +49,11 @@ export function LocationPicker({
     return <p className="text-[12.5px] text-ink-soft">Ładowanie miejsc…</p>;
   }
 
-  const deleted =
+  const fallback =
     value !== null && fallbackLocation?.id === value && !locations.some((l) => l.id === value)
       ? fallbackLocation
       : null;
-  const selected: FallbackLocation | undefined = locations.find((l) => l.id === value) ?? deleted ?? undefined;
+  const selected: FallbackLocation | undefined = locations.find((l) => l.id === value) ?? fallback ?? undefined;
 
   function handleSaved(location: LocationResponse) {
     setAdding(false);
@@ -82,7 +83,11 @@ export function LocationPicker({
               {l.name}
             </option>
           ))}
-          {deleted && <option value={deleted.id}>{`${deleted.name} (usunięte)`}</option>}
+          {fallback && (
+            <option value={fallback.id}>
+              {fallback.deleted_at === null ? fallback.name : `${fallback.name} (usunięte)`}
+            </option>
+          )}
         </select>
         <button
           ref={addButtonRef}

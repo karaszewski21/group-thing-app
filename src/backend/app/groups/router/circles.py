@@ -31,7 +31,6 @@ from app.groups.schemas import (
     CreateOwnCircleRequest,
     CreateRsvpRequest,
     FamilyExchangeDetailResponse,
-    FormalizeGroupFromTermRequest,
     GroupAccessResponse,
     GroupExchangeSummaryResponse,
     GroupResponse,
@@ -86,8 +85,8 @@ async def create_my_circle(
 ) -> GroupResponse:
     """Idempotent 'become an Organizer' — a caller who already leads a
     Circle gets that same Circle back. Used by the one-time first-circle
-    flows (`CreateGroupStepper`, onboarding); NOT for the Panel's
-    "+ Dodaj grupę" (see `create_additional_my_circle` below)."""
+    onboarding flow; NOT for the Panel's "+ Dodaj grupę" (see
+    `create_additional_my_circle` below)."""
     profile = await get_profile_by_principal(db, principal)
     circle = await service.create_own_circle(db, profile.party_id, body.name)
     return await _group_response(db, circle)
@@ -198,32 +197,10 @@ async def create_rsvp(
 async def list_term_attendees(
     group_id: uuid.UUID, term_id: uuid.UUID, db: DbSession, principal: EditPrincipal
 ) -> list[TermAttendeeResponse]:
-    """Candidate list for the organizer's "formalize standing members"
-    picker — covered by row 27's blanket `GET ^/api/groups(/.*)?$` READ/EDIT
-    rows, no new matrix row needed. Organizer-only check happens inside
-    `service.list_term_attendees_for_formalization`."""
-    return await service.list_term_attendees_for_formalization(db, principal, group_id, term_id)
-
-
-@router.post(
-    "/api/groups/{group_id}/terms/{term_id}/formalize",
-    response_model=GroupResponse,
-)
-async def formalize_group_from_term(
-    group_id: uuid.UUID,
-    term_id: uuid.UUID,
-    body: FormalizeGroupFromTermRequest,
-    db: DbSession,
-    principal: EditPrincipal,
-) -> GroupResponse:
-    """Turns the selected term attendees into standing `Membership`s —
-    covered by row 27's blanket `POST ^/api/groups(/.*)?$` EDIT row, no new
-    matrix row needed. Organizer-ownership check happens inside
-    `service.formalize_group_from_term`; no visibility involvement."""
-    group = await service.formalize_group_from_term(
-        db, principal, group_id, term_id, body.party_ids
-    )
-    return await _group_response(db, group)
+    """The organizer's attendee list for a term — covered by row 27's blanket
+    `GET ^/api/groups(/.*)?$` READ/EDIT rows, no new matrix row needed.
+    Organizer-only check happens inside `service.list_term_attendees`."""
+    return await service.list_term_attendees(db, principal, group_id, term_id)
 
 
 @router.post("/api/groups/public/merge", response_model=MergeAnonymousProfileResponse)

@@ -65,8 +65,16 @@ export function LocationAddForm({
   const [active, setActive] = useState(-1);
   const searchRef = useRef<HTMLInputElement>(null);
   const focusSearch = useRef(false);
+  const mounted = useRef(true);
   const listboxId = `${idPrefix}-place-listbox`;
   const optionId = (index: number) => `${idPrefix}-place-opt-${index}`;
+
+  useEffect(() => {
+    mounted.current = true;
+    return () => {
+      mounted.current = false;
+    };
+  }, []);
 
   useEffect(() => {
     if (!focusSearch.current) return;
@@ -88,9 +96,12 @@ export function LocationAddForm({
           setActive(-1);
         })
         .catch(() => {
+          // A rejected key, a disabled Places API or billing: searching cannot work.
           if (cancelled) return;
           setSuggestions([]);
           setOpen(false);
+          setUnavailable(true);
+          setMode("manual");
         });
     }, SEARCH_DEBOUNCE_MS);
     return () => {
@@ -130,11 +141,12 @@ export function LocationAddForm({
     setActive(-1);
     try {
       const place = await resolve(suggestion);
+      if (!mounted.current) return;
       setPicked(place);
       setName(place.name);
       setError(null);
     } catch {
-      setError("Nie udało się pobrać adresu. Spróbuj ponownie.");
+      if (mounted.current) setError("Nie udało się pobrać adresu. Spróbuj ponownie.");
     } finally {
       // The resolved selection closes the billing session; start a new one.
       if (api) tokenRef.current = newSessionToken(api);
@@ -230,7 +242,7 @@ export function LocationAddForm({
             aria-label="Szukaj adresu lub nazwy miejsca"
             aria-autocomplete="list"
             aria-expanded={open}
-            aria-controls={listboxId}
+            aria-controls={open ? listboxId : undefined}
             aria-activedescendant={open && active >= 0 ? optionId(active) : undefined}
             aria-busy={loadingApi || undefined}
             placeholder={loadingApi ? "Ładowanie wyszukiwarki…" : "Szukaj adresu lub nazwy miejsca…"}
