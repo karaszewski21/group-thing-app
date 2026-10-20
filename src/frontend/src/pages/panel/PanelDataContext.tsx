@@ -22,10 +22,8 @@ import {
   deleteGroup,
   getGroup,
   getMyAttendances,
-  updateGroupLayoutMode,
-  type GroupLayoutMode,
+  updateGroup,
   type GroupResponse,
-  type GroupVisibility,
   type LeadershipResponse,
   type MyAttendanceResponse,
 } from "../../api/groups";
@@ -75,9 +73,12 @@ import {
 import { hasStatus, serverMessageOr } from "../../api/problem";
 import { setItemListingPreference } from "../../api/itemListingPreferences";
 import { pluralPl } from "../../utils/plural";
+import type { GroupFormValue } from "../../components/panel/GroupFormFields";
+import { TermPlaceLine } from "../../components/shared/TermPlaceLine";
 import { CopyIcon, FamilyIcon, PencilIcon } from "./panelIcons";
 import {
   dayMonth,
+  defaultVisibility,
   termTime,
   termPublicPath,
   GIFT_LIMIT_MESSAGE,
@@ -85,6 +86,7 @@ import {
   MAX_GIFT_ITEMS,
   RESERVATION_TYPE_TO_ITEM_MODE,
   type BorrowedItem,
+  type GuestTermCard,
   type ItemMode,
   type ModalKind,
   type TermWithNeeded,
@@ -121,6 +123,7 @@ const VIEW_VALUES: readonly View[] = [
   "podarki",
   "profil",
   "ustawienia",
+  "miejsca",
   "rodzina",
 ];
 
@@ -176,7 +179,9 @@ function usePanelDataValue() {
   const [myLeaderships, setMyLeaderships] = useState<LeadershipResponse[]>([]);
   const [myGroups, setMyGroups] = useState<GroupResponse[]>([]);
   const [guestCircles, setGuestCircles] = useState<GroupResponse[]>([]);
+  // Terms of the groups I lead (`terms`) and of my family's member circles (`guestTerms`), kept apart.
   const [terms, setTerms] = useState<TermWithNeeded[]>([]);
+  const [guestTerms, setGuestTerms] = useState<TermWithNeeded[]>([]);
   const [family, setFamily] = useState<FamilyOut | null>(null);
   const [guardians, setGuardians] = useState<GuardianResponse[]>([]);
   const [myAttendances, setMyAttendances] = useState<MyAttendanceResponse[]>([]);
@@ -194,18 +199,16 @@ function usePanelDataValue() {
   // entry at render time so the open dialog always sees fresh props after a
   // `load({ silent: true })` refresh.
   const [editTermId, setEditTermId] = useState<string | null>(null);
-  // "Edytuj grupę" dialog (name, location, capacity, layout template) next
-  // to each led circle in the "Grupy" section — consolidates what used to be
-  // an inline pencil-rename plus a separate always-visible layout pill
-  // picker into one dialog (`modal === "edit-grupa"`).
+  // "Edytuj grupę" dialog (name, layout template, visibility, default place
+  // and capacity) next to each led group (`modal === "edit-grupa"`).
   const [editingGroupId, setEditingGroupId] = useState<string | null>(null);
-  const [editGroupForm, setEditGroupForm] = useState<{
-    name: string;
-    location: string;
-    freeSpots: string;
-    layoutMode: GroupLayoutMode;
-    visibility: GroupVisibility;
-  }>({ name: "", location: "", freeSpots: "", layoutMode: "CIRCLE", visibility: "PUBLIC" });
+  const [editGroupForm, setEditGroupForm] = useState<GroupFormValue>({
+    name: "",
+    layoutMode: "CIRCLE",
+    visibility: "PUBLIC",
+    defaultLocationId: null,
+    defaultCapacity: null,
+  });
   const [editGroupError, setEditGroupError] = useState<string | null>(null);
   // Optimistic item delete in the "Moje rzeczy" view.
   const [itemError, setItemError] = useState<string | null>(null);
@@ -213,21 +216,6 @@ function usePanelDataValue() {
   // org-polish hint then link to the /organization create form; once an
   // Organization exists, both link straight to its public page instead.
   const [organizationSlug, setOrganizationSlug] = useState<string | null>(null);
-
-  // Either signal makes someone an organizer, independently:
-  // - `profile.is_organizer`: the users-BC UserRole(ORGANIZATOR) grant —
-  //   set at ORGANIZER registration. Covers a freshly-registered organizer
-  //   who hasn't created a circle yet (e.g. skipped onboarding).
-  // - `myGroups.length > 0`: actually leading >=1 Circle. Covers the
-  //   "Chcę dodać krąg" GUEST->organizer promotion, which grants a
-  //   groups-BC GroupRole(ORGANIZATOR) via `create_own_circle` but
-  //   deliberately does NOT touch the users-BC UserRole — promotion via
-  //   that path was never meant to imply a global "may found
-  //   Organizations" declaration, just "leads this one Circle now".
-  // A plain `??` here would be wrong: `profile.is_organizer === false` is
-  // itself meaningful (not "unknown"), so it must not suppress the
-  // Circle-ownership check.
-  const isOrganizer = profile?.is_organizer === true || myGroups.length > 0;
 
   const view: View = isView(viewParam) ? viewParam : "home";
   const setView = useCallback(
@@ -241,17 +229,17 @@ function usePanelDataValue() {
   const [addGroupError, setAddGroupError] = useState<string | null>(null);
   const [addTermError, setAddTermError] = useState<string | null>(null);
   useEffect(() => {
-    if (modal === "grupa") setAddGroupError(null);
+    if (modal === "grupa") {
+      setAddGroupError(null);
+      setGroupForm((form) => ({ ...form, visibility: defaultVisibility(organizationSlug) }));
+    }
     if (modal === "termin") setAddTermError(null);
-  }, [modal]);
-  // Which "pierwszy-termin" variant to render, captured at the moment the
-  // hamburger item is clicked rather than read live from `isOrganizer` at
-  // render time — the GUEST stepper's own step 1 flips `isOrganizer` via a
-  // silent `load()` mid-flow (spec.md §2), and re-deriving the branch from
-  // the live value on every render would swap the mounted component out
-  // from under the user (losing the just-created circle / step-2 progress)
-  // the instant that happens. The picking decision itself still lives only
-  // in the host, per spec.md §2 — this just freezes *when* it is read.
+  }, [modal, organizationSlug]);
+  // Which "pierwszy-termin" variant to render, captured when its hint is
+  // clicked rather than derived live from `myGroups` — the "Załóż grupę"
+  // stepper's own step 1 grows `myGroups` via a silent `load()` mid-flow,
+  // and re-deriving the branch on every render would swap the mounted
+  // stepper out from under the user (losing the step-2 progress).
   const [firstTermForOrganizer, setFirstTermForOrganizer] = useState(false);
   const [toast, setToast] = useState("");
   const [busy, setBusy] = useState(false);
@@ -261,17 +249,15 @@ function usePanelDataValue() {
   // dismiss-click. Keys are per account (`hintKey`), so a browser shared by
   // several accounts never hides a new account's hints because another
   // account dismissed them. Independent flags:
-  //  - `hint_first_term_dismissed`  — GUEST "add your first term" nudge (!isOrganizer)
-  //  - `hint_become_organizer_dismissed` — GUEST "you can become an organizer" nudge (!isOrganizer)
-  //  - `hint_org_first_term_dismissed` — ORGANIZER-with-zero-terms nudge; a SEPARATE
-  //    key from the guest one so a guest who dismissed the pre-promotion card
-  //    still sees this one after creating their circle.
-  //  - `hint_org_polish_dismissed`  — ORGANIZER-only "polish your org page" nudge
-  const [hintFirstTermDismissed, dismissFirstTermHint] = useDismissibleHint(
-    hintKey("hint_first_term_dismissed", username),
+  //  - `hint_create_group_dismissed` — "Załóż grupę", no led group yet
+  //  - `hint_create_org_dismissed` — "Stwórz wizytówkę", groups but no Organization
+  //  - `hint_org_polish_dismissed` — "Dopracuj stronę organizacji", groups and an Organization
+  //  - `hint_org_first_term_dismissed` — "Dodaj swój pierwszy termin", groups but no term
+  const [hintCreateGroupDismissed, dismissCreateGroupHint] = useDismissibleHint(
+    hintKey("hint_create_group_dismissed", username),
   );
-  const [hintBecomeOrganizerDismissed, dismissBecomeOrganizerHint] = useDismissibleHint(
-    hintKey("hint_become_organizer_dismissed", username),
+  const [hintCreateOrgDismissed, dismissCreateOrgHint] = useDismissibleHint(
+    hintKey("hint_create_org_dismissed", username),
   );
   const [hintOrgFirstTermDismissed, dismissOrgFirstTermHint] = useDismissibleHint(
     hintKey("hint_org_first_term_dismissed", username),
@@ -290,7 +276,6 @@ function usePanelDataValue() {
 
   // --- lokalne, niepersystentne pola (patrz komentarz na górze pliku) ---
   const [settings, setSettings] = useState({ publicProfile: true });
-  const [groupExtras, setGroupExtras] = useState<Record<string, { location: string; freeSpots: number }>>({});
   const [itemModes, setItemModes] = useState<Record<string, ItemMode | null>>({});
   const [borrowedItems, setBorrowedItems] = useState<BorrowedItem[]>([]);
   const [lentOutItems, setLentOutItems] = useState<LentOutItemResponse[]>([]);
@@ -302,17 +287,20 @@ function usePanelDataValue() {
   const [memberBirthYear, setMemberBirthYear] = useState("");
 
   // --- formularz: dodaj grupę ---
-  const [groupForm, setGroupForm] = useState<{
-    name: string;
-    location: string;
-    freeSpots: string;
-    visibility: GroupVisibility;
-  }>({ name: "", location: "", freeSpots: "", visibility: "PUBLIC" });
+  const emptyGroupForm = (): GroupFormValue => ({
+    name: "",
+    visibility: defaultVisibility(organizationSlug),
+    defaultLocationId: null,
+    defaultCapacity: null,
+  });
+  const [groupForm, setGroupForm] = useState<GroupFormValue>(emptyGroupForm);
 
   // --- formularz: dodaj termin ---
   const [termGroupId, setTermGroupId] = useState<string | null>(null);
   const [termDate, setTermDate] = useState("");
   const [termDescription, setTermDescription] = useState("");
+  const [termLocationId, setTermLocationId] = useState<string | null>(null);
+  const [termCapacity, setTermCapacity] = useState<number | null>(null);
   const [neededDraft, setNeededDraft] = useState<NeededItemQuickAddValue[]>([]);
   const [draftNeededItem, setDraftNeededItem] = useState<NeededItemQuickAddValue>(
     createEmptyNeededItemQuickAddValue(),
@@ -331,9 +319,9 @@ function usePanelDataValue() {
 
   const load = useCallback(async (options?: { silent?: boolean }) => {
     // `silent` skips the full-page "Wczytywanie…" early-return branch — used
-    // when a mid-flow modal (e.g. FirstTermStepperGuest's step 1 -> step 2
-    // transition) needs `myGroups`/`isOrganizer` refreshed in the background
-    // without unmounting the still-open modal underneath it.
+    // when a mid-flow modal (e.g. CreateGroupStepper's step 1 -> step 2
+    // transition) needs `myGroups` refreshed in the background without
+    // unmounting the still-open modal underneath it.
     if (!options?.silent) setLoading(true);
     setError(null);
     try {
@@ -404,10 +392,8 @@ function usePanelDataValue() {
       const activeLeaderships = leaderships.filter((l) => l.valid_to === null);
       setMyLeaderships(activeLeaderships);
 
-      // "Rodzina" section (§7): family membership is independent of
-      // organizer status, so this runs for both GUEST and ORGANIZER —
-      // fetched once here and reused below for the guest-circles branch
-      // instead of a second `getMyFamilies()` round trip.
+      // "Rodzina" section (§7): fetched once here and reused below for the
+      // family's member circles instead of a second `getMyFamilies()` round trip.
       const myFamilies = await getMyFamilies();
       const myFamily = myFamilies[0] ?? null;
       setFamily(myFamily);
@@ -452,22 +438,18 @@ function usePanelDataValue() {
           (group): group is GroupResponse => group !== null,
         );
 
-      let relevantGroups: GroupResponse[];
-      if (activeLeaderships.length > 0) {
-        relevantGroups = await getGroups(activeLeaderships.map((l) => l.to_group_id));
-        setMyGroups(relevantGroups);
-        setGuestCircles([]);
-      } else {
-        setMyGroups([]);
-        if (myFamily) {
-          const memberships = await getMembershipsForFamily(myFamily.id);
-          const active = memberships.filter((m) => m.valid_to === null);
-          relevantGroups = await getGroups(active.map((m) => m.to_group_id));
-        } else {
-          relevantGroups = [];
-        }
-        setGuestCircles(relevantGroups);
+      // Led groups and the family's member circles load independently:
+      // leading a group never hides the circles the family belongs to.
+      const ledGroups = await getGroups(activeLeaderships.map((l) => l.to_group_id));
+      setMyGroups(ledGroups);
+      let memberGroups: GroupResponse[] = [];
+      if (myFamily) {
+        const ledIds = new Set(ledGroups.map((g) => g.id));
+        const memberships = await getMembershipsForFamily(myFamily.id);
+        const active = memberships.filter((m) => m.valid_to === null && !ledIds.has(m.to_group_id));
+        memberGroups = await getGroups(active.map((m) => m.to_group_id));
       }
+      setGuestCircles(memberGroups);
 
       async function getGroupTerms(group: GroupResponse) {
         const list = await getTerms(group.id);
@@ -475,11 +457,15 @@ function usePanelDataValue() {
           list.map(async (term) => ({ term, group, neededItems: await getNeededItems(term.id) })),
         );
       }
-      const termsByGroup = await Promise.all(
-        relevantGroups.map(async (group) => (await unlessGone(getGroupTerms(group))) ?? []),
-      );
-      const flattened = termsByGroup.flat().sort((a, b) => a.term.occurs_on.localeCompare(b.term.occurs_on));
-      setTerms(flattened);
+      async function getTermsOf(groups: GroupResponse[]) {
+        const termsByGroup = await Promise.all(
+          groups.map(async (group) => (await unlessGone(getGroupTerms(group))) ?? []),
+        );
+        return termsByGroup.flat().sort((a, b) => a.term.occurs_on.localeCompare(b.term.occurs_on));
+      }
+      const [ledTerms, memberTerms] = await Promise.all([getTermsOf(ledGroups), getTermsOf(memberGroups)]);
+      setTerms(ledTerms);
+      setGuestTerms(memberTerms);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Nie udało się wczytać panelu");
     } finally {
@@ -597,17 +583,13 @@ function usePanelDataValue() {
       // Non-idempotent — an organizer who already leads a Circle still gets
       // a genuinely NEW one here (unlike `createMyCircle`, which is reserved
       // for the one-time "become an Organizer" flows).
-      const group = await createAdditionalMyCircle({
+      await createAdditionalMyCircle({
         name: groupForm.name.trim(),
         visibility: groupForm.visibility,
+        default_location_id: groupForm.defaultLocationId,
+        default_capacity: groupForm.defaultCapacity,
       });
-      if (groupForm.location.trim() || groupForm.freeSpots.trim()) {
-        setGroupExtras((prev) => ({
-          ...prev,
-          [group.id]: { location: groupForm.location.trim(), freeSpots: Number(groupForm.freeSpots) || 0 },
-        }));
-      }
-      setGroupForm({ name: "", location: "", freeSpots: "", visibility: "PUBLIC" });
+      setGroupForm(emptyGroupForm());
       setModal(null);
       showToast("Dodano grupę");
       await load();
@@ -640,6 +622,14 @@ function usePanelDataValue() {
     setDraftNeededItem(createEmptyNeededItemQuickAddValue(categoriesData[0]?.id ?? ""));
   }
 
+  /** Picks the group of the "Dodaj termin" form and prefills its default place and capacity. */
+  function selectTermGroup(groupId: string | null) {
+    const group = myGroups.find((g) => g.id === groupId);
+    setTermGroupId(groupId);
+    setTermLocationId(group?.default_location?.id ?? null);
+    setTermCapacity(group?.default_capacity ?? null);
+  }
+
   function removeDraftNeededItem(index: number) {
     setNeededDraft((prev) => prev.filter((_, i) => i !== index));
   }
@@ -661,6 +651,8 @@ function usePanelDataValue() {
         circle_group_id: termGroupId,
         occurs_on: termDate,
         description: termDescription || undefined,
+        location_id: termLocationId,
+        capacity: termCapacity,
       });
       for (const [i, draft] of neededDraft.entries()) {
         await createNeededItem({
@@ -669,7 +661,7 @@ function usePanelDataValue() {
           description: draft.description || undefined,
         });
       }
-      setTermGroupId(null);
+      selectTermGroup(null);
       setTermDate("");
       setTermDescription("");
       setNeededDraft([]);
@@ -822,6 +814,8 @@ function usePanelDataValue() {
     const hasAttendees = attendees > 0;
     const attendeesText = `${attendees} ${pluralPl(attendees, "zapis", "zapisy", "zapisów")}`;
     const childrenText = `${children} ${pluralPl(children, "dziecko", "dzieci", "dzieci")}`;
+    const capacity = term.capacity ?? null;
+    const capacityText = capacity === null ? "" : `${attendees}/${capacity} miejsc`;
 
     return (
       <div className="mt-2">
@@ -829,7 +823,7 @@ function usePanelDataValue() {
           to={`/panel/terminy/${term.id}`}
           aria-label={`Zapisani na termin: ${
             hasAttendees ? `${attendeesText}, ${childrenText}` : "brak zapisów"
-          }`}
+          }${capacityText && `, ${capacityText}`}`}
           className="inline-flex min-h-8 items-center gap-1 rounded-full bg-cream px-3 text-[13px] font-bold text-ink transition-colors hover:bg-line"
         >
           {hasAttendees && (
@@ -838,6 +832,7 @@ function usePanelDataValue() {
             </span>
           )}
           {hasAttendees ? `${attendeesText} · ${childrenText}` : "Brak zapisów"}
+          {capacityText && ` · ${capacityText}`}
           <span aria-hidden="true">›</span>
         </Link>
       </div>
@@ -847,7 +842,7 @@ function usePanelDataValue() {
   /** Organizer term tile — a read-only compact card. The circle name links to
    * the public per-term page; a copy-link button and an edit pencil (opening
    * `EditTermDialog`) are the only controls. Date, description and needed-items
-   * editing all live in that dialog. Guest views keep their own `<Link>` card. */
+   * editing all live in that dialog. Guest terms use `guestTermCard`. */
   function organizerTermCard(
     term: TermResponse,
     group: GroupResponse,
@@ -877,6 +872,7 @@ function usePanelDataValue() {
               {time && (term.description ? " · " : "")}
               {term.description || (time ? "" : "Bez opisu")}
             </p>
+            <TermPlaceLine location={term.location ?? null} capacity={null} withMapLink className="mt-1.5" />
             {neededItems.length > 0 && (
               <div className="mt-2 flex flex-wrap gap-1.5">
                 {neededItems.map((ni) => (
@@ -929,17 +925,16 @@ function usePanelDataValue() {
     );
   }
 
-  /* ---------- krąg: dialog "Edytuj grupę" (nazwa, lokalizacja, miejsca, layout) ---------- */
+  /* ---------- dialog "Edytuj grupę" (nazwa, layout, widoczność, stałe miejsce, ile miejsc) ---------- */
 
   function startEditGroup(group: GroupResponse) {
-    const extra = groupExtras[group.id];
     setEditingGroupId(group.id);
     setEditGroupForm({
       name: group.name,
-      location: extra?.location ?? "",
-      freeSpots: extra ? String(extra.freeSpots) : "",
       layoutMode: group.layout_mode,
       visibility: group.visibility,
+      defaultLocationId: group.default_location?.id ?? null,
+      defaultCapacity: group.default_capacity ?? null,
     });
     setEditGroupError(null);
     setModal("edit-grupa");
@@ -959,29 +954,14 @@ function usePanelDataValue() {
     setBusy(true);
     setEditGroupError(null);
     try {
-      // `layout_mode`/`visibility` are always sent alongside `name` —
-      // `UpdateGroupRequest.name` is a required field (not partial-apply), so
-      // this single PATCH covers the rename, the layout-template change, and
-      // the public/private toggle in one request.
-      await updateGroupLayoutMode(group.id, name, editGroupForm.layoutMode, editGroupForm.visibility);
-      // Location/"ile miejsc" stay client-local only (no backend field yet —
-      // same as the "Dodaj grupę" creation form's `groupForm.location`/
-      // `freeSpots`), mirroring `handleAddGroup`'s pattern.
-      if (editGroupForm.location.trim() || editGroupForm.freeSpots.trim()) {
-        setGroupExtras((prev) => ({
-          ...prev,
-          [group.id]: {
-            location: editGroupForm.location.trim(),
-            freeSpots: Number(editGroupForm.freeSpots) || 0,
-          },
-        }));
-      } else {
-        setGroupExtras((prev) => {
-          const rest = { ...prev };
-          delete rest[group.id];
-          return rest;
-        });
-      }
+      // One PATCH with every field: `name` is required, and a `null` place or capacity clears it.
+      await updateGroup(group.id, {
+        name,
+        layout_mode: editGroupForm.layoutMode,
+        visibility: editGroupForm.visibility,
+        default_location_id: editGroupForm.defaultLocationId,
+        default_capacity: editGroupForm.defaultCapacity,
+      });
       setEditingGroupId(null);
       setModal(null);
       showToast("Zapisano zmiany grupy");
@@ -1088,7 +1068,84 @@ function usePanelDataValue() {
     }
   }
 
-  const relevantGroupsForForm = isOrganizer ? myGroups : guestCircles;
+  // The "Zapisane" cards: my RSVPs, then my family circles' other terms. A
+  // term shows once (led > attended > membership-only), sorted by date.
+  const ledTermIds = new Set(terms.map((t) => t.term.id));
+  const guestTermById = new Map(guestTerms.map((t) => [t.term.id, t]));
+  const attendedCards: GuestTermCard[] = myAttendances
+    .filter((a) => !ledTermIds.has(a.term_id))
+    .map((a) => ({
+      termId: a.term_id,
+      occursOn: a.occurs_on,
+      groupName: a.group_name,
+      description: guestTermById.get(a.term_id)?.term.description ?? null,
+      href: `/${a.organizer_slug}/grupa/${a.group_id}/term/${a.term_id}`,
+      location: a.location,
+      capacity: a.capacity,
+      attendeeCount: a.attendee_count,
+      neededItems: guestTermById.get(a.term_id)?.neededItems ?? [],
+    }));
+  const attendedIds = new Set(attendedCards.map((c) => c.termId));
+  const memberCards: GuestTermCard[] = guestTerms
+    .filter(({ term }) => !ledTermIds.has(term.id) && !attendedIds.has(term.id))
+    .map(({ term, group, neededItems }) => ({
+      termId: term.id,
+      occursOn: term.occurs_on,
+      groupName: group.name,
+      description: term.description,
+      href: termPublicPath(group, term.id),
+      location: term.location ?? null,
+      capacity: term.capacity ?? null,
+      attendeeCount: null,
+      neededItems,
+    }));
+  const savedCards = [...attendedCards, ...memberCards].sort((a, b) => a.occursOn.localeCompare(b.occursOn));
+
+  /** Guest term card — the whole card links to the public term page, so the
+   * place line carries no Maps link of its own (no nested anchors). */
+  function guestTermCard(card: GuestTermCard) {
+    const { day, month } = dayMonth(card.occursOn);
+    const time = termTime(card.occursOn);
+    return (
+      <Link
+        to={card.href}
+        className="flex items-start gap-3 rounded-[22px] border border-line bg-paper p-3.5 transition-colors hover:border-line-strong"
+      >
+        <div className="flex h-14.5 w-13 flex-none flex-col items-center justify-center rounded-2xl bg-primary-soft leading-none">
+          <b className="font-serif text-[22px] font-extrabold text-ink">{day}</b>
+          <small className="mt-0.5 text-[10px] font-extrabold tracking-wide text-primary-fg uppercase">{month}</small>
+        </div>
+        <div className="min-w-0 flex-1">
+          <h4 className="text-base font-bold text-ink">{card.groupName}</h4>
+          <small className="mt-0.5 block text-sm text-ink-soft">
+            {time && <span className="font-bold text-ink">godz. {time}</span>}
+            {time && (card.description ? " · " : "")}
+            {card.description || (time ? "" : "Bez opisu")}
+          </small>
+          <TermPlaceLine
+            location={card.location}
+            capacity={card.capacity}
+            attendeeCount={card.attendeeCount}
+            withMapLink={false}
+            className="mt-1.5"
+          />
+          {card.neededItems.length > 0 && (
+            <div className="mt-2 flex flex-wrap gap-1.5">
+              {card.neededItems.map((ni) => (
+                <span
+                  key={ni.id}
+                  className="rounded-full border-[1.5px] border-dashed border-accent px-2.5 py-0.5 text-xs font-extrabold text-accent-fg"
+                >
+                  {ni.product_name}
+                </span>
+              ))}
+            </div>
+          )}
+        </div>
+      </Link>
+    );
+  }
+
   // Resolved from live `terms` at render time so the open EditTermDialog keeps
   // getting fresh props after each `load({ silent: true })` refresh.
   const editTermEntry =
@@ -1108,6 +1165,8 @@ function usePanelDataValue() {
     myGroups,
     guestCircles,
     terms,
+    guestTerms,
+    savedCards,
     family,
     guardians,
     myAttendances,
@@ -1130,8 +1189,8 @@ function usePanelDataValue() {
     firstTermForOrganizer,
     toast,
     busy,
-    hintFirstTermDismissed,
-    hintBecomeOrganizerDismissed,
+    hintCreateGroupDismissed,
+    hintCreateOrgDismissed,
     hintOrgFirstTermDismissed,
     hintOrgPolishDismissed,
     profileName,
@@ -1141,7 +1200,6 @@ function usePanelDataValue() {
     avatarBusy,
     avatarError,
     settings,
-    groupExtras,
     itemModes,
     borrowedItems,
     lentOutItems,
@@ -1152,6 +1210,8 @@ function usePanelDataValue() {
     termGroupId,
     termDate,
     termDescription,
+    termLocationId,
+    termCapacity,
     neededDraft,
     draftNeededItem,
     items,
@@ -1164,9 +1224,11 @@ function usePanelDataValue() {
     setProfileBio,
     setSettings,
     setGroupForm,
-    setTermGroupId,
+    selectTermGroup,
     setTermDate,
     setTermDescription,
+    setTermLocationId,
+    setTermCapacity,
     setDraftNeededItem,
     setEditTermId,
     setMemberName,
@@ -1175,18 +1237,17 @@ function usePanelDataValue() {
     setEditGroupForm,
     setFamilyNameDraft,
     // --- derived ---
-    isOrganizer,
     showToast,
     load,
     itemCounts,
     returnBorrowedItem,
-    relevantGroupsForForm,
     editTermEntry,
     isTopLevel,
     organizerTermCard,
+    guestTermCard,
     // --- handlers ---
-    dismissFirstTermHint,
-    dismissBecomeOrganizerHint,
+    dismissCreateGroupHint,
+    dismissCreateOrgHint,
     dismissOrgFirstTermHint,
     dismissOrgPolishHint,
     handleAddGroup,

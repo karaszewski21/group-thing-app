@@ -1,8 +1,10 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { ApiError } from "../api/client";
 import * as categoriesApi from "../api/categories";
 import * as groupsApi from "../api/groups";
+import * as locationsApi from "../api/locations";
+import type { LocationResponse } from "../api/locations";
 import * as productsApi from "../api/products";
 import * as termsApi from "../api/terms";
 import { EditTermDialog } from "../components/panel/EditTermDialog";
@@ -24,6 +26,30 @@ vi.mock("../api/groups", () => ({
   formalizeGroupFromTerm: vi.fn(),
   getTermAttendeesForFormalization: vi.fn(),
 }));
+vi.mock("../api/locations", () => ({
+  getMyLocations: vi.fn(),
+  createLocation: vi.fn(),
+  updateLocation: vi.fn(),
+  deleteLocation: vi.fn(),
+}));
+vi.mock("../auth/AuthContext", () => ({ useAuth: () => ({ token: "tok" }) }));
+
+const salaNr2: LocationResponse = {
+  id: "loc-2",
+  owner_party_id: "party-1",
+  name: "Sala nr 2",
+  formatted_address: "ul. Szkolna 2, Poznań",
+  google_place_id: null,
+  lat: null,
+  lng: null,
+  notes: null,
+  source: "MANUAL",
+  created_at: "2026-01-01T00:00:00Z",
+  updated_at: "2026-01-01T00:00:00Z",
+  deleted_at: null,
+};
+
+const groupDefault: LocationResponse = { ...salaNr2, id: "loc-9", name: "Świetlica na Polnej" };
 
 const term: termsApi.TermResponse = {
   id: "t1",
@@ -34,6 +60,8 @@ const term: termsApi.TermResponse = {
   updated_at: "2026-01-01T00:00:00Z",
   attendee_count: 0,
   child_count: 0,
+  location: salaNr2,
+  capacity: 10,
 };
 
 const group: groupsApi.GroupResponse = {
@@ -43,6 +71,8 @@ const group: groupsApi.GroupResponse = {
   organizer_slug: null,
   layout_mode: "CIRCLE",
   visibility: "PUBLIC",
+  default_location: groupDefault,
+  default_capacity: 20,
   created_at: "2026-01-01T00:00:00Z",
   updated_at: "2026-01-01T00:00:00Z",
 };
@@ -87,6 +117,7 @@ beforeEach(() => {
     },
   ]);
   vi.mocked(groupsApi.getTermAttendeesForFormalization).mockResolvedValue([]);
+  vi.mocked(locationsApi.getMyLocations).mockResolvedValue([salaNr2, groupDefault]);
 });
 
 describe("EditTermDialog — server error surfacing", () => {
@@ -131,5 +162,49 @@ describe("EditTermDialog — server error surfacing", () => {
     fireEvent.click(screen.getAllByRole("button", { name: "Zapisz" })[0]);
 
     expect(await screen.findByRole("alert")).toHaveTextContent(unavailable);
+  });
+});
+
+describe("EditTermDialog — place and capacity", () => {
+  it("initialState_showsTermValuesNotGroupDefaults", async () => {
+    renderDialog();
+
+    const select = await screen.findByRole("combobox", { name: "Miejsce" });
+    expect(select).toHaveValue("loc-2");
+    expect(select).toHaveDisplayValue("Sala nr 2");
+    expect(within(select).getByRole("option", { name: "Świetlica na Polnej" })).toBeInTheDocument();
+    expect(screen.getByLabelText("Ile miejsc")).toHaveValue(10);
+  });
+
+  it("saveTermFields_clearedPlace_sendsOnlyLocationIdNull", async () => {
+    vi.mocked(termsApi.updateTerm).mockResolvedValue(term);
+    renderDialog();
+
+    fireEvent.change(await screen.findByRole("combobox", { name: "Miejsce" }), { target: { value: "" } });
+    fireEvent.click(screen.getAllByRole("button", { name: "Zapisz" })[0]);
+
+    expect(await screen.findByText("Zapisano")).toBeInTheDocument();
+    expect(termsApi.updateTerm).toHaveBeenCalledWith("t1", { location_id: null });
+  });
+
+  it("saveTermFields_changedCapacity_sendsOnlyCapacity", async () => {
+    vi.mocked(termsApi.updateTerm).mockResolvedValue(term);
+    renderDialog();
+
+    expect(await screen.findByRole("combobox", { name: "Miejsce" })).toHaveValue("loc-2");
+    fireEvent.change(screen.getByLabelText("Ile miejsc"), { target: { value: "8" } });
+    fireEvent.click(screen.getAllByRole("button", { name: "Zapisz" })[0]);
+
+    expect(await screen.findByText("Zapisano")).toBeInTheDocument();
+    expect(termsApi.updateTerm).toHaveBeenCalledWith("t1", { capacity: 8 });
+  });
+
+  it("deletedTermLocation_rendersUsunieteRow", async () => {
+    vi.mocked(locationsApi.getMyLocations).mockResolvedValue([groupDefault]);
+    renderDialog();
+
+    const select = await screen.findByRole("combobox", { name: "Miejsce" });
+    expect(select).toHaveValue("loc-2");
+    expect(select).toHaveDisplayValue("Sala nr 2 (usunięte)");
   });
 });

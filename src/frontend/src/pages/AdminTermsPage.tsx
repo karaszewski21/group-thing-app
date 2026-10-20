@@ -7,8 +7,17 @@ import { Pagination } from "../components/shared/Pagination";
 import { useModerationTerms } from "../hooks/useModerationTerms";
 import dayjs from "../utils/dayjs";
 
+function EmptyCell() {
+  return (
+    <Text as="span" color="#94A3B8" fontStyle="italic">
+      —
+    </Text>
+  );
+}
+
 /** ADMIN-only, read-only overview of the latest Terms across every Circle,
- * latest first, with their active signups (guardians and children). */
+ * latest first, with their place, active signups (guardians and children)
+ * and taken/total places. */
 export function AdminTermsPage() {
   const [page, setPage] = useState(1);
   const { data: terms, total, loading, error } = useModerationTerms(page);
@@ -31,7 +40,7 @@ export function AdminTermsPage() {
         <EmptyState title="No terms found" />
       ) : (
         <AdminTable
-          columns={["Date", "Circle", "Description", "Signups", "Children"]}
+          columns={["Date", "Circle", "Description", "Miejsce", "Signups", "Children", "Miejsca"]}
           footer={`Showing ${terms.length} of ${total} ${total === 1 ? "term" : "terms"}`}
         >
           {terms.map((term) => (
@@ -50,10 +59,25 @@ export function AdminTermsPage() {
                 )}
               </Table.Cell>
               <Table.Cell color="#334155" fontSize="13px">
+                {term.location ? (
+                  <>
+                    <Text fontWeight="500">{term.location.name}</Text>
+                    <Text fontSize="12px" color="#64748B">
+                      {term.location.formatted_address}
+                    </Text>
+                  </>
+                ) : (
+                  <EmptyCell />
+                )}
+              </Table.Cell>
+              <Table.Cell color="#334155" fontSize="13px">
                 {term.attendee_count}
               </Table.Cell>
               <Table.Cell color="#334155" fontSize="13px">
                 {term.child_count}
+              </Table.Cell>
+              <Table.Cell color="#334155" fontSize="13px" whiteSpace="nowrap">
+                {term.capacity != null ? `${term.attendee_count} / ${term.capacity}` : <EmptyCell />}
               </Table.Cell>
             </Table.Row>
           ))}

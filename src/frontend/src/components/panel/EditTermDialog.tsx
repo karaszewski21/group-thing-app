@@ -7,12 +7,14 @@ import {
   type NeededItemResponse,
   type TermResponse,
   type UpdateNeededItemRequest,
+  type UpdateTermRequest,
 } from "../../api/terms";
 import { resolveProduct } from "../../api/products";
 import { serverMessageOr } from "../../api/problem";
 import type { Category } from "../../api/categories";
 import { useCategories } from "../../hooks/useCategories";
 import { Field, ModalSheet } from "../../pages/panel/panelComponents";
+import { LocationPicker } from "../shared/LocationPicker";
 import {
   formalizeGroupFromTerm,
   getTermAttendeesForFormalization,
@@ -119,10 +121,18 @@ function NeededItemFields({
 const toLocalInput = (iso: string): string =>
   iso.length >= 16 ? iso.slice(0, 16) : `${iso.slice(0, 10)}T00:00`;
 
+const parseCapacity = (raw: string): number | null => {
+  if (raw.trim() === "") return null;
+  const parsed = Number(raw);
+  return Number.isFinite(parsed) ? parsed : null;
+};
+
 export function EditTermDialog({ term, neededItems, group, onChanged, onClose }: EditTermDialogProps) {
   const { data: categories } = useCategories();
   const [occursOn, setOccursOn] = useState(toLocalInput(term.occurs_on));
   const [description, setDescription] = useState(term.description ?? "");
+  const [locationId, setLocationId] = useState<string | null>(term.location?.id ?? null);
+  const [capacity, setCapacity] = useState<number | null>(term.capacity ?? null);
   const [busy, setBusy] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
@@ -184,9 +194,11 @@ export function EditTermDialog({ term, neededItems, group, onChanged, onClose }:
   const [itemsError, setItemsError] = useState<string | null>(null);
 
   async function saveTermFields() {
-    const patch: { occurs_on?: string; description?: string } = {};
+    const patch: UpdateTermRequest = {};
     if (occursOn && occursOn !== toLocalInput(term.occurs_on)) patch.occurs_on = occursOn;
     if (description !== (term.description ?? "")) patch.description = description;
+    if (locationId !== (term.location?.id ?? null)) patch.location_id = locationId;
+    if (capacity !== (term.capacity ?? null)) patch.capacity = capacity;
     if (Object.keys(patch).length === 0) {
       onClose();
       return;
@@ -308,6 +320,34 @@ export function EditTermDialog({ term, neededItems, group, onChanged, onClose }:
             }}
             placeholder="17:00 · Park Sołacki · wstęp wolny"
             className={inputClass}
+          />
+        </Field>
+        <Field label="Miejsce">
+          <LocationPicker
+            value={locationId}
+            onChange={(id) => {
+              setLocationId(id);
+              setSaved(false);
+            }}
+            label="Miejsce"
+            noneLabel="Brak miejsca"
+            idPrefix={`edit-term-${term.id}-place`}
+            fallbackLocation={term.location}
+          />
+        </Field>
+        <Field label="Ile miejsc">
+          <input
+            aria-label="Ile miejsc"
+            type="number"
+            min={1}
+            inputMode="numeric"
+            value={capacity ?? ""}
+            onChange={(e) => {
+              setCapacity(parseCapacity(e.target.value));
+              setSaved(false);
+            }}
+            placeholder="np. 12"
+            className={`${inputClass} w-28`}
           />
         </Field>
       </div>

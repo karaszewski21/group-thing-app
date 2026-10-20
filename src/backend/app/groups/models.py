@@ -121,6 +121,13 @@ class Group(BaseEntity):
         ForeignKey("parties.id", name="fk_groups_deleted_by_party_id_parties"),
         nullable=True,
     )
+    # The Circle's defaults, copied by value into each new Term (migration 0058).
+    default_location_id: Mapped[uuid.UUID | None] = mapped_column(
+        postgresql.UUID(as_uuid=True),
+        ForeignKey("locations.id", name="fk_groups_default_location_id_locations"),
+        nullable=True,
+    )
+    default_capacity: Mapped[int | None] = mapped_column(Integer, nullable=True)
 
 
 class GroupRole(BaseEntity):
@@ -237,6 +244,12 @@ class Term(BaseEntity):
     # compare it only against `app.core.clock.local_now()`.
     occurs_on: Mapped[datetime] = mapped_column(DateTime(), nullable=False)
     description: Mapped[str | None] = mapped_column(String(2000), nullable=True)
+    location_id: Mapped[uuid.UUID | None] = mapped_column(
+        postgresql.UUID(as_uuid=True),
+        ForeignKey("locations.id", name="fk_terms_location_id_locations"),
+        nullable=True,
+    )
+    capacity: Mapped[int | None] = mapped_column(Integer, nullable=True)
 
 
 class NeededItem(BaseEntity):

@@ -221,7 +221,12 @@ export function PublicTermView({
           />
         </section>
 
-        <TermCard date={term?.occurs_on ?? ""} />
+        <TermCard
+          date={term?.occurs_on ?? ""}
+          location={term?.location ?? null}
+          capacity={term?.capacity ?? null}
+          attendeeCount={term?.attendee_count}
+        />
 
         {term && <NeededItemsSection rows={neededItemRows} />}
 

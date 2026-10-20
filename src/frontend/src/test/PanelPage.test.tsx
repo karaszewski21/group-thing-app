@@ -1,12 +1,7 @@
 import { act, render, screen, waitFor, within } from "@testing-library/react";
 import { fireEvent } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi, beforeEach } from "vitest";
-import { MemoryRouter, Route, Routes, useNavigate } from "react-router-dom";
-
-// TODO(Group 8): this unit suite can only exercise the hamburger-promotion
-// click-through and item-dialog rework at the component level — if the
-// project wires up Playwright, add an end-to-end pass over the full GUEST
-// "Chcę dodać krąg" → submit → organizer-view flow there.
+import { MemoryRouter, Route, Routes, useLocation, useNavigate } from "react-router-dom";
 
 import * as peopleApi from "../api/people";
 import * as familiesApi from "../api/families";
@@ -21,6 +16,7 @@ import * as categoriesApi from "../api/categories";
 import * as reservationsApi from "../api/reservations";
 import * as itemListingPreferencesApi from "../api/itemListingPreferences";
 import * as termItemListingsApi from "../api/termItemListings";
+import * as locationsApi from "../api/locations";
 import { PanelPage } from "../pages/panel/PanelPage";
 import { emitPendingActionResolved } from "../components/pending/pendingActionResolved";
 import { ApiError } from "../api/client";
@@ -71,7 +67,7 @@ vi.mock("../api/groups", () => ({
   deleteGroup: vi.fn(),
   getGroup: vi.fn(),
   getMyAttendances: vi.fn(),
-  updateGroupLayoutMode: vi.fn(),
+  updateGroup: vi.fn(),
   // `EditTermDialog`'s "Formalizuj stałych członków" section calls these on
   // mount whenever the term's group is still PUBLIC — default resolution set
   // per-test in `mockOrganizerDefaults()` (a bare mock here would go stale
@@ -121,6 +117,14 @@ vi.mock("../api/terms", () => ({
   updateTerm: vi.fn(),
   updateNeededItem: vi.fn(),
   deleteNeededItem: vi.fn(),
+}));
+
+// Every group/term form mounts a LocationPicker (`useMyLocations`).
+vi.mock("../api/locations", () => ({
+  getMyLocations: vi.fn(),
+  createLocation: vi.fn(),
+  updateLocation: vi.fn(),
+  deleteLocation: vi.fn(),
 }));
 
 vi.mock("../api/organizations", () => ({
@@ -223,6 +227,8 @@ const mockGroup: groupsApi.GroupResponse = {
   visibility: "PUBLIC",
   created_at: "2026-01-01T00:00:00Z",
   updated_at: "2026-01-01T00:00:00Z",
+  default_location: null,
+  default_capacity: null,
 };
 
 // Organizer/circle whose organizer owns no Organization — the backend still
@@ -256,6 +262,9 @@ const mockAttendances: groupsApi.MyAttendanceResponse[] = [
     group_name: "Nutki dla starszaków",
     organizer_display_name: "Ania Kowalska",
     organizer_slug: "ania-kowalska",
+    location: null,
+    capacity: null,
+    attendee_count: 1,
   },
   {
     attendance_id: "2",
@@ -266,6 +275,9 @@ const mockAttendances: groupsApi.MyAttendanceResponse[] = [
     group_name: "Rytmika",
     organizer_display_name: "Basia Nowak",
     organizer_slug: "basia-nowak",
+    location: null,
+    capacity: null,
+    attendee_count: 1,
   },
 ];
 
@@ -365,6 +377,7 @@ function mockGuestDefaults() {
   vi.mocked(organizationsApi.getMyOrganization).mockRejectedValue(new Error("404"));
   vi.mocked(pledgesApi.getMyPledges).mockResolvedValue([]);
   vi.mocked(notificationsApi.getMyNotifications).mockResolvedValue([]);
+  vi.mocked(locationsApi.getMyLocations).mockResolvedValue([]);
 }
 
 function mockOrganizerDefaults() {
@@ -382,192 +395,135 @@ function mockOrganizerDefaults() {
   vi.mocked(termsApi.getTerms).mockResolvedValue([]);
   vi.mocked(termsApi.getNeededItems).mockResolvedValue([]);
   vi.mocked(familiesApi.getMyFamilies).mockResolvedValue([]);
+  vi.mocked(familiesApi.getMembershipsForFamily).mockResolvedValue([]);
   vi.mocked(familiesApi.getGuardians).mockResolvedValue([]);
   vi.mocked(groupsApi.getMyAttendances).mockResolvedValue([]);
   vi.mocked(organizationsApi.getMyOrganization).mockRejectedValue(new Error("404"));
   vi.mocked(pledgesApi.getMyPledges).mockResolvedValue([]);
   vi.mocked(notificationsApi.getMyNotifications).mockResolvedValue([]);
+  vi.mocked(locationsApi.getMyLocations).mockResolvedValue([]);
 }
 
-async function openMenu() {
-  const menuButton = await screen.findByRole("button", { name: "Menu" });
-  fireEvent.click(menuButton);
+const TERM_FIXTURE: termsApi.TermResponse = {
+  id: TERM_ID, circle_group_id: GROUP_ID, occurs_on: "2026-02-01", description: null, created_at: "", updated_at: "",
+  attendee_count: null, child_count: null, location: null, capacity: null,
+};
+
+/** Walks the "Załóż grupę" stepper opened from the Home hint: a new group "Nutki", then a first term. */
+async function completeCreateGroupStepper() {
+  fireEvent.click(await screen.findByRole("button", { name: "Zacznijmy →" }));
+  const dialog = await screen.findByRole("dialog", { name: "Załóż grupę" });
+  fireEvent.change(within(dialog).getByLabelText("Nazwa grupy"), { target: { value: "Nutki" } });
+  await within(dialog).findByRole("combobox", { name: "Stałe miejsce spotkań (opcjonalnie)" });
+
+  // Step 1 -> step 2 immediately triggers a silent `load()` (onCircleCreated).
+  vi.mocked(peopleApi.getLeadershipsForPerson).mockResolvedValue([
+    { id: "1", from_role_id: "1", to_group_id: GROUP_ID, organizer_party_id: "1", valid_from: "2026-01-01", valid_to: null },
+  ]);
+  vi.mocked(groupsApi.getGroup).mockResolvedValue(mockGroup);
+  vi.mocked(groupsApi.getTermAttendeesForFormalization).mockResolvedValue([]);
+  vi.mocked(termsApi.getTerms).mockResolvedValue([]);
+
+  fireEvent.click(within(dialog).getByRole("button", { name: "Dalej →" }));
+  await waitFor(() =>
+    expect(groupsApi.createAdditionalMyCircle).toHaveBeenCalledWith({
+      name: "Nutki",
+      visibility: "PRIVATE",
+      default_location_id: null,
+      default_capacity: null,
+    }),
+  );
+
+  fireEvent.change(await within(dialog).findByLabelText("Data i godzina"), { target: { value: "2026-02-01T17:00" } });
+  vi.mocked(termsApi.getTerms).mockResolvedValue([TERM_FIXTURE]);
+  vi.mocked(termsApi.getNeededItems).mockResolvedValue([]);
+  fireEvent.click(within(dialog).getByRole("button", { name: "Dodaj" }));
+  await waitFor(() =>
+    expect(termsApi.createTerm).toHaveBeenCalledWith({
+      circle_group_id: mockGroup.id,
+      occurs_on: "2026-02-01T17:00",
+      description: undefined,
+      location_id: null,
+      capacity: null,
+    }),
+  );
+  return dialog;
 }
 
-describe("PanelPage — hamburger promotion", () => {
+describe("PanelPage — Załóż grupę stepper", () => {
   beforeEach(() => {
     vi.resetAllMocks();
+    localStorage.clear();
   });
 
-  it('shows "Dodaj pierwszy termin" (not "Chcę dodać krąg") for a GUEST-without-circle session and opens FirstTermStepperGuest', async () => {
+  it("the home hint opens the 2-step stepper; completing it creates the group and term and lands on the public link", async () => {
     mockGuestDefaults();
-    renderPanel();
-    await openMenu();
-
-    const menu = screen.getByRole("menu");
-    expect(within(menu).getByRole("menuitem", { name: /Dodaj pierwszy termin/ })).toBeInTheDocument();
-    expect(within(menu).queryByRole("menuitem", { name: /Chcę dodać krąg/ })).not.toBeInTheDocument();
-
-    fireEvent.click(within(menu).getByRole("menuitem", { name: /Dodaj pierwszy termin/ }));
-
-    const dialog = await screen.findByRole("dialog", { name: "Dodaj pierwszy termin" });
-    // GUEST variant: 2-step, starts on "Nazwa kręgu"
-    expect(within(dialog).getByPlaceholderText("np. Nutki dla starszaków")).toBeInTheDocument();
-    expect(within(dialog).getByRole("button", { name: "Dalej →" })).toBeInTheDocument();
-  });
-
-  it('the ORGANIZER-with-zero-terms home hint opens the 1-step FirstTermStepperOrganizer', async () => {
-    mockOrganizerDefaults();
+    // A group whose founder has no Organization gets a stable `k-<hash>` pseudo-slug.
+    vi.mocked(groupsApi.createAdditionalMyCircle).mockResolvedValue(mockGroupHashSlug);
+    vi.mocked(termsApi.createTerm).mockResolvedValue(TERM_FIXTURE);
     renderPanel();
 
-    // The hamburger item is gone (commented out); the home HintCard is the path.
-    fireEvent.click(await screen.findByRole("button", { name: "Dodaj termin →" }));
+    const dialog = await completeCreateGroupStepper();
 
-    const dialog = await screen.findByRole("dialog", { name: "Dodaj pierwszy termin" });
-    // ORGANIZER variant: 1-step, term fields only, no circle-name field
-    expect(within(dialog).queryByPlaceholderText("np. Nutki dla starszaków")).not.toBeInTheDocument();
-    expect(within(dialog).getByRole("button", { name: "Dodaj termin" })).toBeInTheDocument();
-  });
-
-  it('shows neither hamburger item for an ORGANIZER who already has terms', async () => {
-    mockOrganizerDefaults();
-    vi.mocked(termsApi.getTerms).mockResolvedValue([
-      { id: TERM_ID, circle_group_id: GROUP_ID, occurs_on: "2026-02-01", description: null, created_at: "", updated_at: "", attendee_count: null, child_count: null },
-    ]);
-    renderPanel();
-    await openMenu();
-
-    const menu = screen.getByRole("menu");
-    expect(within(menu).queryByRole("menuitem", { name: /Dodaj pierwszy termin/ })).not.toBeInTheDocument();
-  });
-
-  it('shows "Moja organizacja" (linking to /organization) for an organizer session with no Organization yet', async () => {
-    mockOrganizerDefaults();
-    renderPanel();
-    await openMenu();
-
-    const menu = screen.getByRole("menu");
-    const link = within(menu).getByRole("menuitem", { name: /Moja organizacja/ });
-    expect(link).toHaveAttribute("href", "/organization");
-  });
-
-  it('"Moja organizacja" links directly to the public organization page once one already exists', async () => {
-    mockOrganizerDefaults();
-    vi.mocked(organizationsApi.getMyOrganization).mockResolvedValue({
-      id: "1",
-      party_id: "1",
-      name: "Muzyczne Skrzaty",
-      slug: "muzyczne-skrzaty",
-      primary_color: null,
-      accent_color: null,
-      page_layout: "CLASSIC",
-      palette_preset: null,
-      description: null,
-      created_at: "",
-      updated_at: "",
-      media: [],
-    });
-    renderPanel();
-    await openMenu();
-
-    const menu = screen.getByRole("menu");
-    const link = within(menu).getByRole("menuitem", { name: /Moja organizacja/ });
-    expect(link).toHaveAttribute("href", "/muzyczne-skrzaty");
-  });
-
-  it("completing the GUEST 2-step flow calls createMyCircle then createTerm and flips isOrganizer to true after reload", async () => {
-    mockGuestDefaults();
-    // A brand-new guest circle has no Organization → the backend returns a
-    // stable `k-<hash>` pseudo-slug so the done-screen CTA still deep-links
-    // to the just-created term.
-    vi.mocked(groupsApi.createMyCircle).mockResolvedValue(mockGroupHashSlug);
-    vi.mocked(termsApi.createTerm).mockResolvedValue({
-      id: TERM_ID, circle_group_id: GROUP_ID, occurs_on: "2026-02-01", description: null, created_at: "", updated_at: "",
-      attendee_count: null, child_count: null,
-    });
-    renderPanel();
-    await openMenu();
-    fireEvent.click(screen.getByRole("menuitem", { name: /Dodaj pierwszy termin/ }));
-
-    const dialog = await screen.findByRole("dialog", { name: "Dodaj pierwszy termin" });
-    fireEvent.change(within(dialog).getByPlaceholderText("np. Nutki dla starszaków"), {
-      target: { value: "Nutki" },
-    });
-
-    // Step 1 -> step 2 immediately triggers a `load()` refresh (via
-    // onCircleCreated) so a reopened menu already reflects the new circle.
-    vi.mocked(peopleApi.getLeadershipsForPerson).mockResolvedValue([
-      { id: "1", from_role_id: "1", to_group_id: GROUP_ID, organizer_party_id: "1", valid_from: "2026-01-01", valid_to: null },
-    ]);
-    vi.mocked(groupsApi.getGroup).mockResolvedValue(mockGroup);
-    vi.mocked(groupsApi.getTermAttendeesForFormalization).mockResolvedValue([]);
-    vi.mocked(termsApi.getTerms).mockResolvedValue([]);
-
-    fireEvent.click(within(dialog).getByRole("button", { name: "Dalej →" }));
-    await waitFor(() => expect(groupsApi.createMyCircle).toHaveBeenCalledWith({ name: "Nutki" }));
-
-    const dateInput = await within(dialog).findByLabelText("Data i godzina");
-    fireEvent.change(dateInput, { target: { value: "2026-02-01T17:00" } });
-
-    // After the term is created, the final (non-silent) `load()` re-fetches
-    // terms — reflect that a term now exists so the hamburger item's
-    // `terms.length === 0` gate correctly hides it below.
-    vi.mocked(termsApi.getTerms).mockResolvedValue([
-      { id: TERM_ID, circle_group_id: GROUP_ID, occurs_on: "2026-02-01", description: null, created_at: "", updated_at: "", attendee_count: null, child_count: null },
-    ]);
-    vi.mocked(termsApi.getNeededItems).mockResolvedValue([]);
-    fireEvent.click(within(dialog).getByRole("button", { name: "Dodaj" }));
-
-    await waitFor(() =>
-      expect(termsApi.createTerm).toHaveBeenCalledWith({
-        circle_group_id: mockGroup.id,
-        occurs_on: "2026-02-01T17:00",
-        description: undefined,
-      }),
-    );
-
-    // Dialog stays open, offering a switch to the public circle page,
-    // instead of closing immediately — deep-linked to the created term via
-    // the circle's (hash) slug.
-    const publicLink = await within(dialog).findByRole("link", {
-      name: /Przejdź do publicznej strony/,
-    });
+    const publicLink = await within(dialog).findByRole("link", { name: /Przejdź do publicznej strony/ });
     expect(publicLink).toHaveAttribute(
       "href",
       `/${mockGroupHashSlug.organizer_slug}/grupa/${mockGroupHashSlug.id}/term/${TERM_ID}`,
     );
+    expect(within(dialog).queryByLabelText("Nazwa organizacji")).not.toBeInTheDocument();
 
     fireEvent.click(within(dialog).getByRole("button", { name: "Gotowe" }));
     await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
-
-    await openMenu();
-    const menu = screen.getByRole("menu");
-    await waitFor(() =>
-      expect(within(menu).queryByRole("menuitem", { name: /Dodaj pierwszy termin/ })).not.toBeInTheDocument(),
-    );
+    expect(await screen.findByText("Grupa założona — dodano pierwszy termin")).toBeInTheDocument();
   });
 
-  it("shows an inline error (not a silent failure) when createMyCircle rejects in the GUEST stepper", async () => {
-    // Regression test for a code-review finding: FirstTermStepperGuest's
-    // handleStep1 had no catch block, so a failed createMyCircle call
-    // became an unhandled promise rejection with no user-facing feedback.
+  it("shows an inline error (not a silent failure) when creating the group rejects", async () => {
     mockGuestDefaults();
-    vi.mocked(groupsApi.createMyCircle).mockRejectedValue(new Error("network error"));
+    vi.mocked(groupsApi.createAdditionalMyCircle).mockRejectedValue(new Error("network error"));
     renderPanel();
-    await openMenu();
-    fireEvent.click(screen.getByRole("menuitem", { name: /Dodaj pierwszy termin/ }));
+    fireEvent.click(await screen.findByRole("button", { name: "Zacznijmy →" }));
 
-    const dialog = await screen.findByRole("dialog", { name: "Dodaj pierwszy termin" });
-    fireEvent.change(within(dialog).getByPlaceholderText("np. Nutki dla starszaków"), {
-      target: { value: "Nutki" },
-    });
+    const dialog = await screen.findByRole("dialog", { name: "Załóż grupę" });
+    fireEvent.change(within(dialog).getByLabelText("Nazwa grupy"), { target: { value: "Nutki" } });
     fireEvent.click(within(dialog).getByRole("button", { name: "Dalej →" }));
 
-    expect(
-      await within(dialog).findByText("Nie udało się utworzyć kręgu — spróbuj ponownie"),
-    ).toBeInTheDocument();
-    // Dialog stays open on failure — no silent close/no-op.
-    expect(screen.getByRole("dialog", { name: "Dodaj pierwszy termin" })).toBeInTheDocument();
+    expect(await within(dialog).findByRole("alert")).toHaveTextContent("Nie udało się zapisać grupy — spróbuj ponownie");
+    expect(screen.getByRole("dialog", { name: "Załóż grupę" })).toBeInTheDocument();
+  });
+
+  it("the leader-with-zero-terms home hint opens the 1-step FirstTermStepperOrganizer", async () => {
+    mockOrganizerDefaults();
+    renderPanel();
+
+    fireEvent.click(await screen.findByRole("button", { name: "Dodaj termin →" }));
+
+    const dialog = await screen.findByRole("dialog", { name: "Dodaj pierwszy termin" });
+    // 1-step: term fields only, no group-name field
+    expect(within(dialog).queryByLabelText("Nazwa grupy")).not.toBeInTheDocument();
+    expect(within(dialog).getByRole("button", { name: "Dodaj termin" })).toBeInTheDocument();
+  });
+
+  it("/panel/spotkania?nowa=grupa opens the stepper once and drops the param from the URL", async () => {
+    mockGuestDefaults();
+    function SearchProbe() {
+      return <output data-testid="search">{useLocation().search}</output>;
+    }
+    render(
+      <MemoryRouter initialEntries={["/panel/spotkania?nowa=grupa"]}>
+        <SearchProbe />
+        <Routes>
+          <Route path="/panel/:view" element={<PanelPage />} />
+        </Routes>
+      </MemoryRouter>,
+      { wrapper: createQueryWrapper() },
+    );
+
+    expect(await screen.findByRole("dialog", { name: "Załóż grupę" })).toBeInTheDocument();
+    await waitFor(() => expect(screen.getByTestId("search")).toBeEmptyDOMElement());
+    expect(screen.getByRole("heading", { name: "Spotkania" })).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Zamknij" }));
+    await waitFor(() => expect(screen.queryByRole("dialog", { name: "Załóż grupę" })).not.toBeInTheDocument());
   });
 });
 
@@ -594,86 +550,50 @@ describe("PanelPage — dismissible home hints", () => {
     localStorage.clear();
   });
 
-  it("GUEST hint renders on Panel home and dismiss persists across a re-mount via localStorage", async () => {
+  it('"Załóż grupę" renders for a user without groups and its dismiss persists across a re-mount', async () => {
     mockGuestDefaults();
     const { unmount } = renderPanel();
 
-    expect(await screen.findByText("Dodaj swój pierwszy termin")).toBeInTheDocument();
+    expect(await screen.findByText("Załóż grupę")).toBeInTheDocument();
+    expect(
+      screen.getByText("Zbierz znajomych lub rodziny i ustal pierwsze spotkanie — bez zakładania organizacji."),
+    ).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole("button", { name: "Zamknij: Dodaj swój pierwszy termin" }));
-    expect(screen.queryByText("Dodaj swój pierwszy termin")).not.toBeInTheDocument();
-    expect(localStorage.getItem("hint_first_term_dismissed:guest")).toBe("1");
+    fireEvent.click(screen.getByRole("button", { name: "Zamknij: Załóż grupę" }));
+    expect(screen.queryByText("Załóż grupę")).not.toBeInTheDocument();
+    expect(localStorage.getItem("hint_create_group_dismissed:guest")).toBe("1");
 
     unmount();
     mockGuestDefaults();
     renderPanel();
     await screen.findByRole("heading", { name: /Cześć/ });
-    expect(screen.queryByText("Dodaj swój pierwszy termin")).not.toBeInTheDocument();
-  });
-
-  it('GUEST "Możesz zostać organizatorem" opens a 3-step flow starting with the organization name, and dismisses on its own key', async () => {
-    mockGuestDefaults();
-    vi.mocked(organizationsApi.createMyOrganization).mockResolvedValue({
-      id: "1", party_id: "1", name: "Studio Nutka", slug: "studio-nutka",
-      primary_color: null, accent_color: null, page_layout: "CLASSIC", palette_preset: null, description: null,
-      created_at: "", updated_at: "",
-    });
-    renderPanel();
-
-    expect(await screen.findByText("Możesz zostać organizatorem")).toBeInTheDocument();
-
-    // the second "Zacznijmy →" belongs to the become-organizer card
-    fireEvent.click(screen.getAllByRole("button", { name: "Zacznijmy →" })[1]);
-    const dialog = await screen.findByRole("dialog", { name: "Zostań organizatorem" });
-    fireEvent.change(within(dialog).getByLabelText("Nazwa organizacji"), { target: { value: "Studio Nutka" } });
-    fireEvent.click(within(dialog).getByRole("button", { name: "Dalej →" }));
-
-    await waitFor(() =>
-      expect(organizationsApi.createMyOrganization).toHaveBeenCalledWith({ name: "Studio Nutka" }),
-    );
-    // step 2 is the circle name, step 3 the term
-    expect(await within(dialog).findByPlaceholderText("np. Nutki dla starszaków")).toBeInTheDocument();
-    fireEvent.click(within(dialog).getByRole("button", { name: "Zamknij" }));
-
-    fireEvent.click(screen.getByRole("button", { name: "Zamknij: Możesz zostać organizatorem" }));
-    expect(screen.queryByText("Możesz zostać organizatorem")).not.toBeInTheDocument();
-    expect(localStorage.getItem("hint_become_organizer_dismissed:guest")).toBe("1");
-    // the other guest card is independent
-    expect(screen.getByText("Dodaj swój pierwszy termin")).toBeInTheDocument();
+    expect(screen.queryByText("Załóż grupę")).not.toBeInTheDocument();
   });
 
   it("a hint dismissed by another account in the same browser is still shown to this account", async () => {
-    localStorage.setItem("hint_first_term_dismissed:someone-else", "1");
-    localStorage.setItem("hint_become_organizer_dismissed:someone-else", "1");
+    localStorage.setItem("hint_create_group_dismissed:someone-else", "1");
     mockGuestDefaults();
     renderPanel();
 
-    expect(await screen.findByText("Dodaj swój pierwszy termin")).toBeInTheDocument();
-    expect(screen.getByText("Możesz zostać organizatorem")).toBeInTheDocument();
+    expect(await screen.findByText("Załóż grupę")).toBeInTheDocument();
   });
 
-  it("a GUEST who dismissed the pre-promotion first-term card still sees the organizer first-term card after getting a circle", async () => {
-    localStorage.setItem("hint_first_term_dismissed:guest", "1");
-    mockOrganizerDefaults(); // organizer-by-circle, zero terms
-    renderPanel();
-
-    expect(await screen.findByText("Ustal pierwsze spotkanie w swojej grupie.")).toBeInTheDocument();
-  });
-
-  it("both ORGANIZER hints render stacked (org-polish first, first-term second) and dismiss independently via their own localStorage keys", async () => {
+  it('a leader without an Organization and without terms sees "Stwórz wizytówkę" then "Dodaj swój pierwszy termin", dismissed on their own keys', async () => {
     mockOrganizerDefaults();
     renderPanel();
 
-    await screen.findByText("Dopracuj stronę organizacji");
-    const html = document.body.innerHTML;
-    expect(html.indexOf("Dopracuj stronę organizacji")).toBeLessThan(
-      html.indexOf("Dodaj swój pierwszy termin"),
-    );
-
-    fireEvent.click(screen.getByRole("button", { name: "Zamknij: Dopracuj stronę organizacji" }));
+    await screen.findByText("Stwórz wizytówkę");
+    expect(screen.getByText("Publiczna strona z własnym adresem dla Twoich grup.")).toBeInTheDocument();
+    expect(screen.queryByText("Załóż grupę")).not.toBeInTheDocument();
     expect(screen.queryByText("Dopracuj stronę organizacji")).not.toBeInTheDocument();
+    const html = document.body.innerHTML;
+    expect(html.indexOf("Stwórz wizytówkę")).toBeLessThan(html.indexOf("Dodaj swój pierwszy termin"));
+    expect(screen.getByRole("link", { name: "Przejdź →" })).toHaveAttribute("href", "/organization");
+
+    fireEvent.click(screen.getByRole("button", { name: "Zamknij: Stwórz wizytówkę" }));
+    expect(screen.queryByText("Stwórz wizytówkę")).not.toBeInTheDocument();
     expect(screen.getByText("Dodaj swój pierwszy termin")).toBeInTheDocument();
-    expect(localStorage.getItem("hint_org_polish_dismissed:guest")).toBe("1");
+    expect(localStorage.getItem("hint_create_org_dismissed:guest")).toBe("1");
     expect(localStorage.getItem("hint_org_first_term_dismissed:guest")).toBeNull();
 
     fireEvent.click(screen.getByRole("button", { name: "Zamknij: Dodaj swój pierwszy termin" }));
@@ -681,26 +601,16 @@ describe("PanelPage — dismissible home hints", () => {
     expect(localStorage.getItem("hint_org_first_term_dismissed:guest")).toBe("1");
   });
 
-  it("ORGANIZER first-term hint auto-hides once terms.length > 0, with no manual dismiss needed", async () => {
+  it("the first-term hint auto-hides once the leader has a term, with no manual dismiss needed", async () => {
     mockOrganizerDefaults();
-    vi.mocked(termsApi.getTerms).mockResolvedValue([
-      { id: TERM_ID, circle_group_id: GROUP_ID, occurs_on: "2026-02-01", description: null, created_at: "", updated_at: "", attendee_count: null, child_count: null },
-    ]);
+    vi.mocked(termsApi.getTerms).mockResolvedValue([TERM_FIXTURE]);
     renderPanel();
 
-    await screen.findByText("Dopracuj stronę organizacji");
+    await screen.findByText("Stwórz wizytówkę");
     expect(screen.queryByText("Ustal pierwsze spotkanie w swojej grupie.")).not.toBeInTheDocument();
   });
 
-  it('org-polish hint\'s CTA links to "/organization" when no Organization exists yet', async () => {
-    mockOrganizerDefaults();
-    renderPanel();
-
-    const link = await screen.findByRole("link", { name: "Przejdź →" });
-    expect(link).toHaveAttribute("href", "/organization");
-  });
-
-  it("org-polish hint's CTA links directly to the public organization page once one already exists", async () => {
+  it("with an Organization the leader sees \"Dopracuj stronę organizacji\" linking to its public page instead", async () => {
     mockOrganizerDefaults();
     vi.mocked(organizationsApi.getMyOrganization).mockResolvedValue({
       id: "1",
@@ -723,63 +633,26 @@ describe("PanelPage — dismissible home hints", () => {
     expect(
       screen.getByText("Wybierz układ i kolory swojej strony — zobaczą je odwiedzający."),
     ).toBeInTheDocument();
+    expect(screen.queryByText("Stwórz wizytówkę")).not.toBeInTheDocument();
   });
 
-  // --- Group 11 gap review: cross-group composition (Group 6 stepper + Group 7 hint) ---
-
-  it("GUEST hint auto-disappears after completing the real 2-step first-term stepper (isOrganizer flip, not a manual dismiss)", async () => {
+  it('"Załóż grupę" auto-disappears after completing the stepper (a group now exists, not a manual dismiss)', async () => {
     mockGuestDefaults();
-    vi.mocked(groupsApi.createMyCircle).mockResolvedValue(mockGroup);
-    vi.mocked(termsApi.createTerm).mockResolvedValue({
-      id: TERM_ID, circle_group_id: GROUP_ID, occurs_on: "2026-02-01", description: null, created_at: "", updated_at: "",
-      attendee_count: null, child_count: null,
-    });
+    vi.mocked(groupsApi.createAdditionalMyCircle).mockResolvedValue(mockGroup);
+    vi.mocked(termsApi.createTerm).mockResolvedValue(TERM_FIXTURE);
     renderPanel();
 
-    expect(await screen.findByText("Dodaj swój pierwszy termin")).toBeInTheDocument();
-    // two guest hints share the CTA label — the first is "Dodaj swój pierwszy termin"
-    fireEvent.click(screen.getAllByRole("button", { name: "Zacznijmy →" })[0]);
-
-    const dialog = await screen.findByRole("dialog", { name: "Dodaj pierwszy termin" });
-    fireEvent.change(within(dialog).getByPlaceholderText("np. Nutki dla starszaków"), {
-      target: { value: "Nutki" },
-    });
-
-    vi.mocked(peopleApi.getLeadershipsForPerson).mockResolvedValue([
-      { id: "1", from_role_id: "1", to_group_id: GROUP_ID, organizer_party_id: "1", valid_from: "2026-01-01", valid_to: null },
-    ]);
-    vi.mocked(groupsApi.getGroup).mockResolvedValue(mockGroup);
-    vi.mocked(groupsApi.getTermAttendeesForFormalization).mockResolvedValue([]);
-    vi.mocked(termsApi.getTerms).mockResolvedValue([]);
-
-    fireEvent.click(within(dialog).getByRole("button", { name: "Dalej →" }));
-    await waitFor(() => expect(groupsApi.createMyCircle).toHaveBeenCalled());
-
-    const dateInput = await within(dialog).findByLabelText("Data i godzina");
-    fireEvent.change(dateInput, { target: { value: "2026-02-01T17:00" } });
-
-    vi.mocked(termsApi.getTerms).mockResolvedValue([
-      { id: TERM_ID, circle_group_id: GROUP_ID, occurs_on: "2026-02-01", description: null, created_at: "", updated_at: "", attendee_count: null, child_count: null },
-    ]);
-    vi.mocked(termsApi.getNeededItems).mockResolvedValue([]);
-    fireEvent.click(within(dialog).getByRole("button", { name: "Dodaj" }));
-
-    await waitFor(() => expect(termsApi.createTerm).toHaveBeenCalled());
+    const dialog = await completeCreateGroupStepper();
     fireEvent.click(await within(dialog).findByRole("button", { name: "Gotowe" }));
     await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
 
-    // Hint disappears purely because `!isOrganizer` flips false — it was
-    // never dismissed via its own "Zamknij" button in this test.
-    await waitFor(() => expect(screen.queryByText("Dodaj swój pierwszy termin")).not.toBeInTheDocument());
-    expect(localStorage.getItem("hint_first_term_dismissed:guest")).toBeNull();
+    await waitFor(() => expect(screen.queryByText("Zacznijmy →")).not.toBeInTheDocument());
+    expect(localStorage.getItem("hint_create_group_dismissed:guest")).toBeNull();
   });
 
-  it("ORGANIZER first-term hint auto-hides after a term is added via the real ORGANIZER 1-step stepper (not just terms mocked directly)", async () => {
+  it("the first-term hint auto-hides after a term is added via the real 1-step stepper (not just terms mocked directly)", async () => {
     mockOrganizerDefaults();
-    vi.mocked(termsApi.createTerm).mockResolvedValue({
-      id: TERM_ID, circle_group_id: GROUP_ID, occurs_on: "2026-02-01", description: null, created_at: "", updated_at: "",
-      attendee_count: null, child_count: null,
-    });
+    vi.mocked(termsApi.createTerm).mockResolvedValue(TERM_FIXTURE);
     renderPanel();
 
     expect(await screen.findByText("Ustal pierwsze spotkanie w swojej grupie.")).toBeInTheDocument();
@@ -789,9 +662,7 @@ describe("PanelPage — dismissible home hints", () => {
     const dateInput = await within(dialog).findByLabelText("Data i godzina");
     fireEvent.change(dateInput, { target: { value: "2026-02-01T17:00" } });
 
-    vi.mocked(termsApi.getTerms).mockResolvedValue([
-      { id: TERM_ID, circle_group_id: GROUP_ID, occurs_on: "2026-02-01", description: null, created_at: "", updated_at: "", attendee_count: null, child_count: null },
-    ]);
+    vi.mocked(termsApi.getTerms).mockResolvedValue([TERM_FIXTURE]);
     vi.mocked(termsApi.getNeededItems).mockResolvedValue([]);
     fireEvent.click(within(dialog).getByRole("button", { name: "Dodaj termin" }));
 
@@ -802,8 +673,23 @@ describe("PanelPage — dismissible home hints", () => {
     await waitFor(() =>
       expect(screen.queryByText("Ustal pierwsze spotkanie w swojej grupie.")).not.toBeInTheDocument(),
     );
-    // org-polish hint is a separate, still-undismissed card — unaffected.
-    expect(screen.getByText("Dopracuj stronę organizacji")).toBeInTheDocument();
+    // the "Stwórz wizytówkę" hint is a separate, still-undismissed card — unaffected.
+    expect(screen.getByText("Stwórz wizytówkę")).toBeInTheDocument();
+  });
+});
+
+describe("PanelPage — Moje miejsca section", () => {
+  beforeEach(() => {
+    vi.resetAllMocks();
+  });
+
+  it("/panel/miejsca renders the saved-places view", async () => {
+    mockGuestDefaults();
+    vi.mocked(locationsApi.getMyLocations).mockResolvedValue([]);
+    renderPanel("/panel/miejsca");
+
+    expect(await screen.findByRole("heading", { name: "Moje miejsca", level: 1 })).toBeInTheDocument();
+    expect(await screen.findByText("Nie masz jeszcze zapisanych miejsc.")).toBeInTheDocument();
   });
 });
 
@@ -1466,7 +1352,9 @@ describe("PanelPage — Term/Group ids stay UUID strings (R29)", () => {
     fireEvent.click(await screen.findByRole("button", { name: "+ Dodaj termin" }));
     const dialog = await screen.findByRole("dialog", { name: "Dodaj termin zajęć" });
 
-    fireEvent.change(within(dialog).getByRole("combobox"), { target: { value: OTHER_GROUP_ID } });
+    // The "Grupa" select has no accessible name (unassociated `Field` label); the place select sits beside it.
+    const groupSelect = within(dialog).getByRole("option", { name: "Rytmika" }).closest("select")!;
+    fireEvent.change(groupSelect, { target: { value: OTHER_GROUP_ID } });
     // This modal's `Field` label isn't associated with its input.
     const dateInput = dialog.querySelector<HTMLInputElement>('input[type="datetime-local"]')!;
     fireEvent.change(dateInput, { target: { value: "2026-02-01T17:00" } });
@@ -1477,6 +1365,8 @@ describe("PanelPage — Term/Group ids stay UUID strings (R29)", () => {
         circle_group_id: OTHER_GROUP_ID,
         occurs_on: "2026-02-01T17:00",
         description: undefined,
+        location_id: null,
+        capacity: null,
       }),
     );
   });
@@ -1519,14 +1409,14 @@ describe("PanelPage — Term/Group ids stay UUID strings (R29)", () => {
   });
 });
 
-describe("PanelPage — edit group dialog (name/location/spots/layout, replaces old inline rename + layout pills)", () => {
+describe("PanelPage — edit group dialog (name/layout/visibility/default place and capacity)", () => {
   beforeEach(() => {
     vi.resetAllMocks();
   });
 
   async function openEditDialog() {
     fireEvent.click(await screen.findByRole("button", { name: "Spotkania" }));
-    await screen.findByRole("heading", { name: "Grupy" });
+    await screen.findByRole("heading", { name: "Prowadzę" });
     fireEvent.click(await screen.findByRole("button", { name: "Edytuj grupę Nowa grupa" }));
     await screen.findByRole("dialog", { name: "Edytuj grupę" });
   }
@@ -1538,11 +1428,55 @@ describe("PanelPage — edit group dialog (name/location/spots/layout, replaces 
 
     expect(screen.getByLabelText("Nazwa grupy")).toHaveValue("Nowa grupa");
     expect(screen.getByLabelText("Szablon wizualizacji")).toHaveValue("CIRCLE");
+    expect(screen.queryByText("Lokalizacja")).not.toBeInTheDocument();
   });
 
-  it("saves name + layout in one updateGroupLayoutMode call and closes on success", async () => {
+  it("pre-fills the default place and capacity and sends null for both once cleared", async () => {
+    const place: locationsApi.LocationResponse = {
+      id: "loc-1",
+      owner_party_id: "1",
+      name: "Świetlica na Polnej",
+      formatted_address: "ul. Polna 12, Poznań",
+      google_place_id: null,
+      lat: null,
+      lng: null,
+      notes: null,
+      source: "MANUAL",
+      created_at: "",
+      updated_at: "",
+      deleted_at: null,
+    };
     mockOrganizerDefaults();
-    vi.mocked(groupsApi.updateGroupLayoutMode).mockResolvedValue({
+    vi.mocked(locationsApi.getMyLocations).mockResolvedValue([place]);
+    vi.mocked(groupsApi.getGroup).mockResolvedValue({ ...mockGroup, default_location: place, default_capacity: 12 });
+    vi.mocked(groupsApi.updateGroup).mockResolvedValue(mockGroup);
+    renderPanel();
+    await openEditDialog();
+
+    const dialog = screen.getByRole("dialog", { name: "Edytuj grupę" });
+    const placeSelect = await within(dialog).findByRole("combobox", { name: "Stałe miejsce spotkań (opcjonalnie)" });
+    expect(placeSelect).toHaveDisplayValue("Świetlica na Polnej");
+    expect(within(dialog).getByLabelText("Ile miejsc (opcjonalnie)")).toHaveValue(12);
+
+    fireEvent.change(placeSelect, { target: { value: "" } });
+    expect(placeSelect).toHaveDisplayValue("Brak stałego miejsca");
+    fireEvent.change(within(dialog).getByLabelText("Ile miejsc (opcjonalnie)"), { target: { value: "" } });
+    fireEvent.click(within(dialog).getByRole("button", { name: "Zapisz" }));
+
+    await waitFor(() =>
+      expect(groupsApi.updateGroup).toHaveBeenCalledWith(GROUP_ID, {
+        name: "Nowa grupa",
+        layout_mode: "CIRCLE",
+        visibility: "PUBLIC",
+        default_location_id: null,
+        default_capacity: null,
+      }),
+    );
+  });
+
+  it("saves every field in one updateGroup call and closes on success", async () => {
+    mockOrganizerDefaults();
+    vi.mocked(groupsApi.updateGroup).mockResolvedValue({
       ...mockGroup,
       name: "Nutki",
       layout_mode: "PITCH",
@@ -1560,7 +1494,13 @@ describe("PanelPage — edit group dialog (name/location/spots/layout, replaces 
     fireEvent.click(screen.getByRole("button", { name: "Zapisz" }));
 
     await waitFor(() =>
-      expect(groupsApi.updateGroupLayoutMode).toHaveBeenCalledWith(GROUP_ID, "Nutki", "PITCH", "PUBLIC"),
+      expect(groupsApi.updateGroup).toHaveBeenCalledWith(GROUP_ID, {
+        name: "Nutki",
+        layout_mode: "PITCH",
+        visibility: "PUBLIC",
+        default_location_id: null,
+        default_capacity: null,
+      }),
     );
     expect(await screen.findByText("Nutki", { selector: "h3" })).toBeInTheDocument();
     expect(screen.queryByRole("dialog", { name: "Edytuj grupę" })).not.toBeInTheDocument();
@@ -1568,7 +1508,7 @@ describe("PanelPage — edit group dialog (name/location/spots/layout, replaces 
 
   it("shows an inline error and keeps the dialog open on a rejected save", async () => {
     mockOrganizerDefaults();
-    vi.mocked(groupsApi.updateGroupLayoutMode).mockRejectedValue(new Error("500"));
+    vi.mocked(groupsApi.updateGroup).mockRejectedValue(new Error("500"));
     renderPanel();
     await openEditDialog();
 
@@ -1664,11 +1604,7 @@ describe("PanelPage — Spotkania list links to the public circle page", () => {
     expect(second).toHaveAttribute("href", `/basia-nowak/grupa/${OTHER_GROUP_ID}/term/${OTHER_ATTENDED_TERM_ID}`);
   });
 
-  it("ORGANIZER's own personal RSVP to someone else's Circle is not mixed into their 'Grupy'/'Terminy' management lists", async () => {
-    // The merge above is GUEST-only by design: an ORGANIZER's `terms` here
-    // is the single-purpose "Circles I organize" list (rename/delete-circle
-    // actions read it) — their own RSVP elsewhere already has its own home
-    // on Home's "Zapisane zajęcia" and must not duplicate into this view.
+  it("a leader's own RSVP to someone else's group shows under \"Zapisane\", not in the \"Prowadzę\"/\"Terminy\" lists", async () => {
     mockOrganizerDefaults();
     vi.mocked(groupsApi.getMyAttendances).mockResolvedValue(mockAttendances);
     vi.mocked(termsApi.getTerms).mockResolvedValue([]);
@@ -1676,11 +1612,156 @@ describe("PanelPage — Spotkania list links to the public circle page", () => {
 
     fireEvent.click(await screen.findByRole("button", { name: "Spotkania" }));
 
-    // The organizer's own Circle ("Nowa grupa", from `mockGroup`) still
-    // renders normally; the attendance-only Circle ("Nutki dla starszaków")
-    // must not leak into this list.
     await screen.findByText("Nowa grupa", { selector: "h3" });
-    expect(screen.queryByText(/Nutki dla starszaków/)).not.toBeInTheDocument();
+    const led = screen.getByRole("heading", { name: "Prowadzę" }).closest("section")!;
+    expect(within(led).queryByText(/Nutki dla starszaków/)).not.toBeInTheDocument();
+    const saved = screen.getByRole("heading", { name: "Zapisane" }).closest("section")!;
+    expect(within(saved).getByText("· 2")).toBeInTheDocument();
+    expect(within(saved).getByRole("link", { name: /Nutki dla starszaków/ })).toHaveAttribute(
+      "href",
+      `/ania-kowalska/grupa/${GROUP_ID}/term/${ATTENDED_TERM_ID}`,
+    );
+  });
+
+  it('a user without groups sees "+ Załóż grupę" opening the stepper, the empty copy and no floating add button', async () => {
+    mockGuestDefaults();
+    renderPanel("/panel/spotkania");
+
+    expect(
+      await screen.findByText("Nie masz jeszcze żadnej grupy. Załóż pierwszą, żeby dodać termin."),
+    ).toBeInTheDocument();
+    expect(screen.getByText("Nie masz jeszcze zapisów na zajęcia.")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "+ Dodaj termin" })).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "+ Załóż grupę" }));
+    expect(await screen.findByRole("dialog", { name: "Załóż grupę" })).toBeInTheDocument();
+  });
+
+  it("the attended card shows the place and \"8/10 miejsc\" inside its link, with no nested anchor", async () => {
+    mockGuestDefaults();
+    vi.mocked(groupsApi.getMyAttendances).mockResolvedValue([
+      {
+        ...mockAttendances[0],
+        location: {
+          name: "Dom Kultury",
+          formatted_address: "ul. Długa 3, Poznań",
+          google_place_id: "place-1",
+          lat: 52.4,
+          lng: 16.9,
+          notes: null,
+        },
+        capacity: 10,
+        attendee_count: 8,
+      },
+    ]);
+    renderPanel("/panel/spotkania");
+
+    const card = await screen.findByRole("link", { name: /Nutki dla starszaków/ });
+    expect(within(card).getByText("Dom Kultury")).toBeInTheDocument();
+    expect(within(card).getByText("ul. Długa 3, Poznań")).toBeInTheDocument();
+    expect(within(card).getByText("8/10 miejsc")).toBeInTheDocument();
+    expect(card.querySelector("a")).toBeNull();
+  });
+});
+
+describe("PanelPage — family member circles (both contexts)", () => {
+  const MEMBER_TERM_ID = "4f5a6b7c-8d9e-4f0a-8b1c-0000000000c4";
+  const memberGroup: groupsApi.GroupResponse = { ...mockGroup, id: OTHER_GROUP_ID, name: "Rowerki", organizer_slug: "basia-nowak" };
+  const membership = {
+    id: "m-1",
+    from_role_id: "1",
+    to_group_id: OTHER_GROUP_ID,
+    member_party_id: "99",
+    valid_from: "2026-01-01",
+    valid_to: null,
+  };
+  const memberTerm = (id: string, occursOn: string): termsApi.TermResponse => ({
+    ...TERM_FIXTURE,
+    id,
+    circle_group_id: OTHER_GROUP_ID,
+    occurs_on: occursOn,
+    capacity: 10,
+  });
+
+  // Home lists only upcoming terms: "today" is pinned before the fixtures.
+  beforeEach(() => {
+    vi.resetAllMocks();
+    vi.useFakeTimers({ toFake: ["Date"], now: new Date("2026-01-15T08:00:00") });
+    localStorage.clear();
+  });
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  function mockMemberCircle(terms: termsApi.TermResponse[]) {
+    vi.mocked(familiesApi.getMyFamilies).mockResolvedValue([mockFamily]);
+    vi.mocked(familiesApi.getMembershipsForFamily).mockResolvedValue([membership]);
+    vi.mocked(groupsApi.getGroup).mockImplementation(async (id) => (id === OTHER_GROUP_ID ? memberGroup : mockGroup));
+    vi.mocked(termsApi.getTerms).mockImplementation(async (groupId) => (groupId === OTHER_GROUP_ID ? terms : []));
+    vi.mocked(termsApi.getNeededItems).mockResolvedValue([]);
+  }
+
+  it("a membership-only term (no RSVP) shows under \"Zapisane\" and in Home's top-3 with its \"10 miejsc\" pill", async () => {
+    mockGuestDefaults();
+    mockMemberCircle([memberTerm(MEMBER_TERM_ID, "2026-02-10T10:00:00")]);
+    renderPanel();
+
+    const homeCard = await screen.findByRole("link", { name: /Rowerki/ });
+    expect(homeCard).toHaveAttribute("href", `/basia-nowak/grupa/${OTHER_GROUP_ID}/term/${MEMBER_TERM_ID}`);
+    expect(within(homeCard).getByText("10 miejsc")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Spotkania" }));
+    const saved = (await screen.findByRole("heading", { name: "Zapisane" })).closest("section")!;
+    expect(within(saved).getByRole("link", { name: /Rowerki/ })).toBeInTheDocument();
+    expect(within(saved).getByText("· 1")).toBeInTheDocument();
+  });
+
+  it("a term both RSVPed and membership-visible renders once, as the attended card", async () => {
+    mockGuestDefaults();
+    mockMemberCircle([memberTerm(MEMBER_TERM_ID, "2026-02-10T10:00:00")]);
+    vi.mocked(groupsApi.getMyAttendances).mockResolvedValue([
+      {
+        ...mockAttendances[1],
+        term_id: MEMBER_TERM_ID,
+        occurs_on: "2026-02-10T10:00:00",
+        group_name: "Rowerki",
+        capacity: 10,
+        attendee_count: 4,
+      },
+    ]);
+    renderPanel("/panel/spotkania");
+
+    const saved = (await screen.findByRole("heading", { name: "Zapisane" })).closest("section")!;
+    await within(saved).findByText("4/10 miejsc");
+    expect(within(saved).getAllByRole("link", { name: /Rowerki/ })).toHaveLength(1);
+    expect(within(saved).queryByText("10 miejsc")).not.toBeInTheDocument();
+  });
+
+  it('a leader whose family also belongs to a circle sees both "Prowadzę" and that circle\'s term under "Zapisane"', async () => {
+    mockOrganizerDefaults();
+    mockMemberCircle([memberTerm(MEMBER_TERM_ID, "2026-02-10T10:00:00")]);
+    renderPanel("/panel/spotkania");
+
+    expect(await screen.findByText("Nowa grupa", { selector: "h3" })).toBeInTheDocument();
+    const saved = screen.getByRole("heading", { name: "Zapisane" }).closest("section")!;
+    expect(await within(saved).findByRole("link", { name: /Rowerki/ })).toBeInTheDocument();
+    expect(termsApi.getTerms).toHaveBeenCalledWith(OTHER_GROUP_ID);
+  });
+
+  it('an attendance shown in Home\'s "Najbliższe terminy" is not repeated under "Zapisane zajęcia"', async () => {
+    mockGuestDefaults();
+    vi.mocked(groupsApi.getMyAttendances).mockResolvedValue([
+      { ...mockAttendances[0], occurs_on: "2026-02-15T17:00:00" },
+      { ...mockAttendances[1], occurs_on: "2025-12-01T17:00:00" },
+    ]);
+    renderPanel();
+
+    const upcoming = (await screen.findByRole("heading", { name: "Najbliższe terminy" })).closest("section")!;
+    expect(await within(upcoming).findByRole("link", { name: /Nutki dla starszaków/ })).toBeInTheDocument();
+    const saved = screen.getByRole("heading", { name: "Zapisane zajęcia" }).closest("section")!;
+    expect(within(saved).queryByRole("link", { name: /Nutki dla starszaków/ })).not.toBeInTheDocument();
+    expect(within(saved).getByRole("link", { name: /Rytmika/ })).toBeInTheDocument();
+    expect(screen.getAllByRole("link", { name: /Nutki dla starszaków/ })).toHaveLength(1);
   });
 });
 
@@ -2913,6 +2994,8 @@ describe("PanelPage — moderation errors inline in the add-group / add-term / e
     renderPanel();
     const dialog = await openAddGroupDialog();
 
+    expect(within(dialog).getByText("Stałe miejsce spotkań (opcjonalnie)")).toBeInTheDocument();
+    expect(within(dialog).queryByText("Lokalizacja")).not.toBeInTheDocument();
     fireEvent.change(within(dialog).getByPlaceholderText("np. Nutki dla starszaków"), { target: { value: "Zła nazwa" } });
     fireEvent.click(within(dialog).getByRole("button", { name: "Dodaj grupę" }));
 
@@ -2983,7 +3066,7 @@ describe("PanelPage — moderation errors inline in the add-group / add-term / e
   });
 
   it("edit group: a server-rejected name shows the server message in an alert", async () => {
-    vi.mocked(groupsApi.updateGroupLayoutMode).mockRejectedValue(
+    vi.mocked(groupsApi.updateGroup).mockRejectedValue(
       new ApiError(400, "Bad Request", { message: GROUP_NAME_REJECTED }),
     );
     renderPanel();

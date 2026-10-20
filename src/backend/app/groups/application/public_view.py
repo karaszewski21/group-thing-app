@@ -29,7 +29,13 @@ from app.users.models import UserProfile
 from app.users.service import get_profile_by_party, get_profile_by_principal
 
 from ..domain.organizer_slug import derive_organizer_slug
-from ..infrastructure import circulation_bridge, organizations_acl, product_bridge, repository
+from ..infrastructure import (
+    circulation_bridge,
+    locations_acl,
+    organizations_acl,
+    product_bridge,
+    repository,
+)
 from ..models import GroupJoinRequestStatus, GroupVisibility, Term, TermAttendance
 from ..schemas import (
     GroupAccessDetails,
@@ -114,6 +120,12 @@ async def list_my_attendances(db: AsyncSession, party_id: uuid.UUID) -> list[MyA
     organizer_info: dict[int, tuple[str | None, str]] = {
         group_id: await _resolve_organizer(db, group_id) for group_id in distinct_group_ids
     }
+    locations = await locations_acl.get_locations_by_ids(
+        db, {term.location_id for _attendance, term, _group in rows if term.location_id is not None}
+    )
+    counts = await repository.count_active_attendances_by_term(
+        db, [cast(uuid.UUID, term.id) for _attendance, term, _group in rows]
+    )
 
     responses: list[MyAttendanceResponse] = []
     for attendance, term, group in rows:
@@ -128,6 +140,11 @@ async def list_my_attendances(db: AsyncSession, party_id: uuid.UUID) -> list[MyA
                 group_name=group.name,
                 organizer_display_name=display_name,
                 organizer_slug=slug,
+                location=locations_acl.public_location_response(
+                    locations.get(term.location_id) if term.location_id is not None else None
+                ),
+                capacity=term.capacity,
+                attendee_count=counts.get(cast(uuid.UUID, term.id), (0, 0))[0],
             )
         )
     return responses
@@ -264,6 +281,8 @@ async def get_public_circle_view(
         thumb_urls = await _listing_thumb_urls(
             db, [listing.item_id for listing in item_listings], storage
         )
+        location = await locations_acl.get_location(db, term.location_id)
+        counts = await repository.count_active_attendances_by_term(db, [cast(uuid.UUID, term.id)])
         term_response = PublicTermResponse(
             id=cast(uuid.UUID, term.id),
             occurs_on=term.occurs_on,
@@ -295,6 +314,11 @@ async def get_public_circle_view(
                 )
                 for listing in item_listings
             ],
+            location=locations_acl.public_location_response(
+                locations.get(term.location_id) if term.location_id is not None else None
+            ),
+            capacity=term.capacity,
+            attendee_count=counts.get(cast(uuid.UUID, term.id), (0, 0))[0],
         )
 
         attendances = await list_attendances_for_term(db, cast(uuid.UUID, term.id))

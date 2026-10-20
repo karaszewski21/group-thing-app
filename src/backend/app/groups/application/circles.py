@@ -30,9 +30,9 @@ from app.moderation.text_guard import TextField, check_text
 from app.party.models import PartyType
 from app.party.service import create_party
 
-from ..infrastructure import repository
-from ..models import Group, GroupLayoutMode, GroupRoleType, GroupVisibility, Leadership
-from ..schemas import CreateCircleRequest, ModerationGroupResponse
+from ..infrastructure import locations_acl, repository
+from ..models import Group, GroupRoleType, GroupVisibility, Leadership
+from ..schemas import CreateCircleRequest, ModerationGroupResponse, UpdateGroupRequest
 from .group_roles import get_or_create_active_group_role
 
 logger = logging.getLogger(__name__)
@@ -95,20 +95,28 @@ async def create_additional_circle(
     organizer_party_id: uuid.UUID,
     circle_name: str,
     visibility: GroupVisibility | None = None,
+    default_location_id: uuid.UUID | None = None,
+    default_capacity: int | None = None,
 ) -> Group:
     """Non-idempotent twin of `create_own_circle` — always creates a brand
     new Circle and a brand new `Leadership` for `organizer_party_id`, never
     short-circuiting to an existing one. `create_own_circle`'s "return the
     existing Circle" behavior is correct for its own callers (the one-time
-    "become an Organizer" self-service flows: `FirstTermStepperGuest`,
+    "become an Organizer" self-service flows: `CreateGroupStepper`,
     onboarding), but is wrong for the Panel's "+ Dodaj grupę" button, whose
     whole point is letting an organizer who already leads one or more
     Circles add another — that action must never be a silent no-op.
     `visibility` lets the organizer pick Public/Private at creation time
-    instead of always starting `PUBLIC` and editing afterward."""
+    instead of always starting `PUBLIC` and editing afterward. A
+    `default_location_id` must be one of the organizer's own (PERSON party)
+    live places — not the Circle's ORGANIZATION party."""
+    if default_location_id is not None:
+        await locations_acl.get_owned_location(db, default_location_id, organizer_party_id)
     circle = await create_circle(db, CreateCircleRequest(name=circle_name))
     if visibility is not None:
         circle.visibility = visibility
+    circle.default_location_id = default_location_id
+    circle.default_capacity = default_capacity
     role = await get_or_create_active_group_role(db, organizer_party_id, GroupRoleType.ORGANIZATOR)
     leadership = Leadership(
         from_role_id=cast(uuid.UUID, role.id),
@@ -221,9 +229,7 @@ async def update_group(
     db: AsyncSession,
     group_id: uuid.UUID,
     caller_party_id: uuid.UUID,
-    name: str,
-    layout_mode: GroupLayoutMode | None = None,
-    visibility: GroupVisibility | None = None,
+    data: UpdateGroupRequest,
 ) -> Group:
     """In-place circle rename (plus optional `layout_mode`/`visibility`
     change). Only the Circle's currently active organizer may update it —
@@ -233,15 +239,23 @@ async def update_group(
     intentionally unrestricted (the organizer's own call); `visibility`
     change and standing-`Membership` creation are two fully independent
     actions — `formalize_group_from_term` no longer touches visibility at
-    all."""
+    all. `default_location_id`/`default_capacity` apply only when present in
+    `model_fields_set` (`null` clears); a non-null location must be one of
+    the caller's own live places."""
     group = await get_group(db, group_id)
     await _require_active_organizer(db, group_id, caller_party_id)
-    await check_text(TextField.GROUP_NAME, name, group.name)
-    group.name = name
-    if layout_mode is not None:
-        group.layout_mode = layout_mode
-    if visibility is not None:
-        group.visibility = visibility
+    await check_text(TextField.GROUP_NAME, data.name, group.name)
+    if "default_location_id" in data.model_fields_set and data.default_location_id is not None:
+        await locations_acl.get_owned_location(db, data.default_location_id, caller_party_id)
+    group.name = data.name
+    if data.layout_mode is not None:
+        group.layout_mode = data.layout_mode
+    if data.visibility is not None:
+        group.visibility = data.visibility
+    if "default_location_id" in data.model_fields_set:
+        group.default_location_id = data.default_location_id
+    if "default_capacity" in data.model_fields_set:
+        group.default_capacity = data.default_capacity
     await db.commit()
     await db.refresh(group)
     return group

@@ -2,7 +2,7 @@ import { Link } from "react-router-dom";
 import dayjs from "../../../utils/dayjs";
 import { BuildingIcon, CalendarPlusIcon, GiftIcon } from "../panelIcons";
 import { HintCard } from "../panelComponents";
-import { capitalize, dayMonth, ITEM_MODES, termPublicPath, termTime, type ItemMode } from "../panelHelpers";
+import { capitalize, dayMonth, ITEM_MODES, termTime, type ItemMode } from "../panelHelpers";
 import { usePanelData } from "../panelDataStore";
 
 /** Soft tile + readable text per item mode, matching the exchange tones. */
@@ -30,15 +30,15 @@ function DateBadge({ iso, tone = "bg-primary-soft text-primary-fg" }: { iso: str
 export function HomeView() {
   const {
     profile,
-    isOrganizer,
-    hintFirstTermDismissed,
-    hintBecomeOrganizerDismissed,
+    hintCreateGroupDismissed,
+    hintCreateOrgDismissed,
     hintOrgPolishDismissed,
     hintOrgFirstTermDismissed,
     organizationSlug,
     terms,
     myGroups,
     myAttendances,
+    savedCards,
     myPledges,
     withdrawMyPledge,
     itemCounts,
@@ -47,8 +47,9 @@ export function HomeView() {
     setModal,
     setFirstTermForOrganizer,
     organizerTermCard,
-    dismissFirstTermHint,
-    dismissBecomeOrganizerHint,
+    guestTermCard,
+    dismissCreateGroupHint,
+    dismissCreateOrgHint,
     dismissOrgFirstTermHint,
     dismissOrgPolishHint,
   } = usePanelData();
@@ -57,8 +58,23 @@ export function HomeView() {
 
   // "Najbliższe" means from today on; past terms stay on Spotkania.
   const today = dayjs().startOf("day");
-  const upcoming = terms.filter(({ term }) => !dayjs(term.occurs_on).isBefore(today));
+  const isUpcoming = (iso: string) => !dayjs(iso).isBefore(today);
+  // Led terms first, then the guest cards (already deduped against them), so
+  // the stable sort keeps a led card ahead of a same-time guest one.
+  const upcoming = [
+    ...terms
+      .filter(({ term }) => isUpcoming(term.occurs_on))
+      .map((entry) => ({ termId: entry.term.id, occursOn: entry.term.occurs_on, led: entry, guest: null })),
+    ...savedCards
+      .filter((card) => isUpcoming(card.occursOn))
+      .map((card) => ({ termId: card.termId, occursOn: card.occursOn, led: null, guest: card })),
+  ].sort((a, b) => a.occursOn.localeCompare(b.occursOn));
+  const topTerms = upcoming.slice(0, 3);
+  const shownTermIds = new Set(topTerms.map((t) => t.termId));
+  // An attendance already shown in "Najbliższe terminy" is not repeated below.
+  const restAttendances = myAttendances.filter((a) => !shownTermIds.has(a.term_id));
   const bothEmpty = myAttendances.length === 0 && myPledges.length === 0;
+  const hasGroups = myGroups.length > 0;
 
   return (
     <>
@@ -68,50 +84,47 @@ export function HomeView() {
         </h2>
       </div>
 
-      {!isOrganizer && !hintFirstTermDismissed && (
+      {!hasGroups && !hintCreateGroupDismissed && (
         <HintCard
           icon={<CalendarPlusIcon c="currentColor" />}
-          title="Dodaj swój pierwszy termin"
-          description="Załóż grupę i ustal pierwsze zajęcia — to pierwszy krok."
+          title="Załóż grupę"
+          description="Zbierz znajomych lub rodziny i ustal pierwsze spotkanie — bez zakładania organizacji."
           ctaLabel="Zacznijmy →"
-          onCtaClick={() => {
-            setFirstTermForOrganizer(false);
-            setModal("pierwszy-termin");
-          }}
-          onDismiss={dismissFirstTermHint}
+          onCtaClick={() => setModal("zaloz-grupe")}
+          onDismiss={dismissCreateGroupHint}
         />
       )}
 
-      {!isOrganizer && !hintBecomeOrganizerDismissed && (
+      {hasGroups && organizationSlug === null && !hintCreateOrgDismissed && (
         <HintCard
           icon={<BuildingIcon c="currentColor" />}
-          title="Możesz zostać organizatorem"
-          description="Załóż własną stronę, zapraszaj rodziny i planuj zajęcia — bez zakładania nowego konta."
-          ctaLabel="Zacznijmy →"
-          onCtaClick={() => setModal("zostan-organizatorem")}
-          onDismiss={dismissBecomeOrganizerHint}
+          title="Stwórz wizytówkę"
+          description="Publiczna strona z własnym adresem dla Twoich grup."
+          ctaLabel="Przejdź →"
+          ctaTo="/organization"
+          onDismiss={dismissCreateOrgHint}
         />
       )}
 
-      {isOrganizer && !hintOrgPolishDismissed && (
+      {hasGroups && organizationSlug !== null && !hintOrgPolishDismissed && (
         <HintCard
           icon={<BuildingIcon c="currentColor" />}
           title="Dopracuj stronę organizacji"
           description="Wybierz układ i kolory swojej strony — zobaczą je odwiedzający."
           ctaLabel="Przejdź →"
-          ctaTo={organizationSlug ? `/${organizationSlug}?edit=1` : "/organization"}
+          ctaTo={`/${organizationSlug}?edit=1`}
           onDismiss={dismissOrgPolishHint}
         />
       )}
 
-      {isOrganizer && terms.length === 0 && !hintOrgFirstTermDismissed && (
+      {hasGroups && terms.length === 0 && !hintOrgFirstTermDismissed && (
         <HintCard
           icon={<CalendarPlusIcon c="currentColor" />}
           title="Dodaj swój pierwszy termin"
           description="Ustal pierwsze spotkanie w swojej grupie."
           ctaLabel="Dodaj termin →"
           onCtaClick={() => {
-            setFirstTermForOrganizer(myGroups.length > 0);
+            setFirstTermForOrganizer(true);
             setModal("pierwszy-termin");
           }}
           onDismiss={dismissOrgFirstTermHint}
@@ -129,39 +142,11 @@ export function HomeView() {
           <div className={`${CARD} border-dashed p-5 text-center ${EMPTY}`}>Brak zaplanowanych terminów.</div>
         )}
         <div className="flex flex-col gap-2.5">
-          {upcoming.slice(0, 3).map(({ term, group, neededItems }) => {
-            if (isOrganizer) return <div key={term.id}>{organizerTermCard(term, group, neededItems)}</div>;
-            const time = termTime(term.occurs_on);
-            return (
-              <Link
-                key={term.id}
-                to={termPublicPath(group, term.id)}
-                className={`${CARD} flex items-start gap-3 p-3.5 transition-colors hover:border-line-strong`}
-              >
-                <DateBadge iso={term.occurs_on} />
-                <div className="min-w-0 flex-1">
-                  <h4 className="text-base font-bold text-ink">{group.name}</h4>
-                  <small className="mt-0.5 block text-sm text-ink-soft">
-                    {time && <span className="font-bold text-ink">godz. {time}</span>}
-                    {time && (term.description ? " · " : "")}
-                    {term.description || (time ? "" : "Bez opisu")}
-                  </small>
-                  {neededItems.length > 0 && (
-                    <div className="mt-2 flex flex-wrap gap-1.5">
-                      {neededItems.map((ni) => (
-                        <span
-                          key={ni.id}
-                          className="rounded-full border-[1.5px] border-dashed border-accent px-2.5 py-0.5 text-xs font-extrabold text-accent-fg"
-                        >
-                          {ni.product_name}
-                        </span>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              </Link>
-            );
-          })}
+          {topTerms.map(({ termId, led, guest }) => (
+            <div key={termId}>
+              {led ? organizerTermCard(led.term, led.group, led.neededItems) : guest && guestTermCard(guest)}
+            </div>
+          ))}
         </div>
       </section>
 
@@ -178,34 +163,36 @@ export function HomeView() {
         </div>
       ) : (
         <>
-          <section className="mt-6">
-            <h3 className={`mb-2.5 ${SECTION_TITLE}`}>Zapisane zajęcia</h3>
-            {myAttendances.length === 0 ? (
-              <div className={`${CARD} border-dashed p-5 text-center ${EMPTY}`}>Nie masz jeszcze zapisów na zajęcia.</div>
-            ) : (
-              <div className="flex flex-col gap-2.5">
-                {myAttendances.map((a) => (
-                  <Link
-                    key={a.attendance_id}
-                    to={`/${a.organizer_slug}/grupa/${a.group_id}/term/${a.term_id}`}
-                    className={`${CARD} flex items-start gap-3 p-3.5 transition-colors hover:border-line-strong`}
-                  >
-                    <DateBadge iso={a.occurs_on} />
-                    <div className="min-w-0 flex-1">
-                      <h4 className="text-base font-bold text-ink">{a.group_name}</h4>
-                      <small className="mt-0.5 block text-sm text-ink-soft">
-                        {termTime(a.occurs_on) && (
-                          <span className="font-bold text-ink">godz. {termTime(a.occurs_on)}</span>
-                        )}
-                        {termTime(a.occurs_on) && a.organizer_display_name ? " · " : ""}
-                        {a.organizer_display_name ?? ""}
-                      </small>
-                    </div>
-                  </Link>
-                ))}
-              </div>
-            )}
-          </section>
+          {(myAttendances.length === 0 || restAttendances.length > 0) && (
+            <section className="mt-6">
+              <h3 className={`mb-2.5 ${SECTION_TITLE}`}>Zapisane zajęcia</h3>
+              {myAttendances.length === 0 ? (
+                <div className={`${CARD} border-dashed p-5 text-center ${EMPTY}`}>Nie masz jeszcze zapisów na zajęcia.</div>
+              ) : (
+                <div className="flex flex-col gap-2.5">
+                  {restAttendances.map((a) => (
+                    <Link
+                      key={a.attendance_id}
+                      to={`/${a.organizer_slug}/grupa/${a.group_id}/term/${a.term_id}`}
+                      className={`${CARD} flex items-start gap-3 p-3.5 transition-colors hover:border-line-strong`}
+                    >
+                      <DateBadge iso={a.occurs_on} />
+                      <div className="min-w-0 flex-1">
+                        <h4 className="text-base font-bold text-ink">{a.group_name}</h4>
+                        <small className="mt-0.5 block text-sm text-ink-soft">
+                          {termTime(a.occurs_on) && (
+                            <span className="font-bold text-ink">godz. {termTime(a.occurs_on)}</span>
+                          )}
+                          {termTime(a.occurs_on) && a.organizer_display_name ? " · " : ""}
+                          {a.organizer_display_name ?? ""}
+                        </small>
+                      </div>
+                    </Link>
+                  ))}
+                </div>
+              )}
+            </section>
+          )}
 
           <section className="mt-6">
             <h3 className={`mb-2.5 ${SECTION_TITLE}`}>Zadeklarowane rzeczy</h3>

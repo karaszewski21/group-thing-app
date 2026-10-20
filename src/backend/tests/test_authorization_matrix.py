@@ -192,6 +192,23 @@ def test_resolveRequirement_groupSoftDeleteAndLeadershipRows_resolveToExpectedRo
     assert resolve_requirement(method, path) == expected
 
 
+@pytest.mark.parametrize(
+    ("method", "path", "expected"),
+    [
+        ("GET", "/api/locations/mine", READ),
+        ("POST", "/api/locations", EDIT),
+        ("PATCH", "/api/locations/x", EDIT),
+        ("DELETE", "/api/locations/x", EDIT),
+    ],
+)
+def test_resolveRequirement_locationRows_resolveToExpectedRowNotCatchAll(
+    method: str, path: str, expected: object
+) -> None:
+    requirement = resolve_requirement(method, path)
+    assert requirement == expected
+    assert requirement != "AUTHENTICATED"
+
+
 async def test_adminLoginToken_carriesEdit(client: AsyncClient, db_session: AsyncSession) -> None:
     """An ADMIN deletes any Circle through the EDIT-gated DELETE route, so
     the ADMIN login token must also carry EDIT."""

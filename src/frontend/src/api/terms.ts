@@ -1,4 +1,5 @@
 import { api } from "./client";
+import type { LocationResponse, PublicLocationResponse } from "./locations";
 import { pageParams, type Page } from "./pagination";
 
 export interface TermResponse {
@@ -13,6 +14,8 @@ export interface TermResponse {
   attendee_count: number | null;
   /** Sum of those RSVPs' `child_count` — `null` alongside `attendee_count`. */
   child_count: number | null;
+  location?: LocationResponse | null;
+  capacity?: number | null;
 }
 
 /** `GET /api/terms/moderation` (ADMIN-only) row — a Term of any Circle
@@ -26,12 +29,18 @@ export interface ModerationTermResponse {
   created_at: string;
   attendee_count: number;
   child_count: number;
+  location?: PublicLocationResponse | null;
+  capacity?: number | null;
 }
 
+/** Omitted `location_id`/`capacity` inherit the group's defaults by value;
+ * an explicit `null` suppresses that. */
 export interface CreateTermRequest {
   circle_group_id: string;
   occurs_on: string;
   description?: string;
+  location_id?: string | null;
+  capacity?: number | null;
 }
 
 export interface NeededItemResponse {
@@ -66,9 +75,12 @@ export function createTerm(request: CreateTermRequest): Promise<TermResponse> {
   return api.post("/terms", request);
 }
 
+/** Omitted fields keep their value; `null` clears `location_id`/`capacity`. */
 export interface UpdateTermRequest {
   occurs_on?: string;
   description?: string;
+  location_id?: string | null;
+  capacity?: number | null;
 }
 
 export function updateTerm(id: string, request: UpdateTermRequest): Promise<TermResponse> {

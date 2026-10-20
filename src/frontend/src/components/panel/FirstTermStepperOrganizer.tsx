@@ -1,8 +1,10 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
-import { createTerm } from "../../api/terms";
+import type { LocationResponse } from "../../api/locations";
+import { createTerm, type CreateTermRequest } from "../../api/terms";
 import { serverMessageOr } from "../../api/problem";
 import { Field, ModalSheet } from "../../pages/panel/panelComponents";
+import { LocationPicker } from "../shared/LocationPicker";
 
 /* ------------------------------------------------------------------ */
 /*  ORGANIZER "first term" stepper — 1 step (term only), for an          */
@@ -23,11 +25,29 @@ interface FirstTermStepperOrganizerProps {
    * Organization yet — drives the done-screen CTA. */
   organizerSlug?: string | null;
   onDone: () => void;
+  /** The group's default place and capacity, prefilled into the form. */
+  defaultLocation?: LocationResponse | null;
+  defaultCapacity?: number | null;
 }
 
-export function FirstTermStepperOrganizer({ onClose, circleGroupId, organizerSlug, onDone }: FirstTermStepperOrganizerProps) {
+const parseCapacity = (raw: string): number | null => {
+  if (raw.trim() === "") return null;
+  const parsed = Number(raw);
+  return Number.isFinite(parsed) ? parsed : null;
+};
+
+export function FirstTermStepperOrganizer({
+  onClose,
+  circleGroupId,
+  organizerSlug,
+  onDone,
+  defaultLocation = null,
+  defaultCapacity = null,
+}: FirstTermStepperOrganizerProps) {
   const [occursOn, setOccursOn] = useState("");
   const [description, setDescription] = useState("");
+  const [locationId, setLocationId] = useState<string | null>(defaultLocation?.id ?? null);
+  const [capacity, setCapacity] = useState<number | null>(defaultCapacity);
   const [busy, setBusy] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
   const [done, setDone] = useState(false);
@@ -38,7 +58,15 @@ export function FirstTermStepperOrganizer({ onClose, circleGroupId, organizerSlu
     setBusy(true);
     setFormError(null);
     try {
-      const created = await createTerm({ circle_group_id: circleGroupId, occurs_on: occursOn, description: description || undefined });
+      const request: CreateTermRequest = {
+        circle_group_id: circleGroupId,
+        occurs_on: occursOn,
+        description: description || undefined,
+      };
+      // An omitted field inherits the group default; a cleared prefill must be an explicit null.
+      if (locationId !== null || defaultLocation !== null) request.location_id = locationId;
+      if (capacity !== null || defaultCapacity !== null) request.capacity = capacity;
+      const created = await createTerm(request);
       setCreatedTermId(created.id);
       setDone(true);
     } catch (err) {
@@ -91,6 +119,29 @@ export function FirstTermStepperOrganizer({ onClose, circleGroupId, organizerSlu
             onChange={(e) => setDescription(e.target.value)}
             placeholder="17:00 · Park Sołacki · wstęp wolny"
             className={inputClass}
+          />
+        </Field>
+        <Field label="Miejsce">
+          <LocationPicker
+            value={locationId}
+            onChange={setLocationId}
+            label="Miejsce"
+            noneLabel="Brak miejsca"
+            idPrefix="first-term-place"
+            fallbackLocation={defaultLocation}
+            helperText={defaultLocation ? "Domyślne miejsce grupy — możesz zmienić" : undefined}
+          />
+        </Field>
+        <Field label="Ile miejsc">
+          <input
+            type="number"
+            min={1}
+            inputMode="numeric"
+            aria-label="Ile miejsc"
+            value={capacity ?? ""}
+            onChange={(e) => setCapacity(parseCapacity(e.target.value))}
+            placeholder="np. 12"
+            className={`${inputClass} w-28`}
           />
         </Field>
       </div>

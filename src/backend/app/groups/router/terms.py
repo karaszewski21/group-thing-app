@@ -13,6 +13,7 @@ from app.core.errors import EntityNotFoundException
 from app.core.pagination import Page, Pagination
 from app.db import get_db
 from app.groups import service
+from app.groups.models import Term
 from app.groups.schemas import (
     CreateNeededItemRequest,
     CreateTermRequest,
@@ -35,12 +36,21 @@ ModerationPrincipal = Annotated[Principal, Depends(require_any("ADMIN"))]
 # --- Term / NeededItem ----------------------------------------------------------
 
 
+async def _term_response(db: AsyncSession, term: Term) -> TermResponse:
+    """A single `TermResponse` with its place (soft-deleted rows included)."""
+    response = TermResponse.model_validate(term)
+    response.location = service.location_ref_response(
+        await service.get_location(db, term.location_id)
+    )
+    return response
+
+
 @router.post("/api/terms", response_model=TermResponse, status_code=status.HTTP_201_CREATED)
 async def create_term(
     body: CreateTermRequest, db: DbSession, principal: EditPrincipal
 ) -> TermResponse:
     term = await service.create_term(db, principal, body)
-    return TermResponse.model_validate(term)
+    return await _term_response(db, term)
 
 
 @router.get("/api/terms", response_model=list[TermResponse])
@@ -55,11 +65,16 @@ async def list_terms(
         caller_party_id = None
 
     rows = await service.list_terms_with_counts(db, circle_group_id, caller_party_id)
+    locations = await service.get_locations_by_ids(
+        db, {term.location_id for term, _, _ in rows if term.location_id is not None}
+    )
     responses = []
     for term, attendee_count, child_count in rows:
         response = TermResponse.model_validate(term)
         response.attendee_count = attendee_count
         response.child_count = child_count
+        if term.location_id is not None:
+            response.location = service.location_ref_response(locations.get(term.location_id))
         responses.append(response)
     return responses
 
@@ -77,7 +92,7 @@ async def list_terms_for_moderation(
 @router.get("/api/terms/{term_id}", response_model=TermResponse)
 async def get_term(term_id: uuid.UUID, db: DbSession, principal: ReadPrincipal) -> TermResponse:
     term = await service.get_term(db, term_id)
-    return TermResponse.model_validate(term)
+    return await _term_response(db, term)
 
 
 @router.patch("/api/terms/{term_id}", response_model=TermResponse)
@@ -86,7 +101,7 @@ async def update_term(
 ) -> TermResponse:
     profile = await get_profile_by_principal(db, principal)
     term = await service.update_term(db, term_id, profile.party_id, body)
-    return TermResponse.model_validate(term)
+    return await _term_response(db, term)
 
 
 @router.post(

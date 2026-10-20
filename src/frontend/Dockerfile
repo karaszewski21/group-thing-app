@@ -13,6 +13,9 @@ RUN cd src/frontend && npm ci
 
 COPY src/frontend ./src/frontend
 COPY plugins/server-sdk.ts ./plugins/server-sdk.ts
+# Referrer-restricted browser key, baked into the bundle; empty = manual mode.
+ARG VITE_GOOGLE_MAPS_API_KEY=
+ENV VITE_GOOGLE_MAPS_API_KEY=$VITE_GOOGLE_MAPS_API_KEY
 RUN cd src/frontend && npm run build
 
 FROM nginx:1.27-alpine AS runtime

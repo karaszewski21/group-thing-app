@@ -72,8 +72,22 @@ describe("PublicLayout", () => {
     expect(within(menu).getByRole("menuitem", { name: /Mój panel/ })).toHaveAttribute("href", "/panel");
     expect(within(menu).getByRole("menuitem", { name: /Profil/ })).toHaveAttribute("href", "/panel/profil");
     expect(within(menu).getByRole("menuitem", { name: /Ustawienia/ })).toHaveAttribute("href", "/panel/ustawienia");
+    expect(within(menu).getByRole("menuitem", { name: /Moje miejsca/ })).toHaveAttribute("href", "/panel/miejsca");
     expect(within(menu).getByRole("menuitem", { name: /Mój dom/ })).toHaveAttribute("href", "/panel/rodzina");
     expect(within(menu).getByRole("menuitem", { name: /Moja organizacja/ })).toHaveAttribute("href", "/organization");
+    expect(within(menu).getByRole("menuitem", { name: /Załóż grupę/ })).toHaveAttribute(
+      "href",
+      "/panel/spotkania?nowa=grupa",
+    );
+    expect(within(menu).getAllByRole("menuitem").map((item) => item.textContent?.trim())).toEqual([
+      "Mój panel",
+      "Profil",
+      "Ustawienia",
+      "Moje miejsca",
+      "Załóż grupę",
+      "Moja organizacja",
+      "Mój dom",
+    ]);
   });
 
   it("logged in with an Organization: 'Moja organizacja' links to its public page", async () => {

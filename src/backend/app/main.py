@@ -32,6 +32,7 @@ from app.db import async_session_factory
 from app.families.router import router as families_router
 from app.groups.application.term_end_scan import scan_for_term_ended
 from app.groups.router import router as groups_router
+from app.locations.router import router as locations_router
 from app.moderation import text_guard
 from app.moderation.router import router as moderation_router
 from app.notifications import outbox_listener as notifications_outbox_listener
@@ -153,6 +154,7 @@ app.include_router(plugin_router)
 app.include_router(users_router)
 app.include_router(groups_router)
 app.include_router(organizations_router)
+app.include_router(locations_router)
 app.include_router(families_router)
 app.include_router(circulation_router)
 app.include_router(notifications_router)

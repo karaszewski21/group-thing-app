@@ -25,6 +25,7 @@ from app.core.pagination import Page, Pagination
 from app.core.security import encode_login_token
 from app.db import get_db
 from app.groups import service
+from app.groups.models import Group
 from app.groups.schemas import (
     CreateCircleRequest,
     CreateOwnCircleRequest,
@@ -61,14 +62,22 @@ Storage = Annotated[ObjectStorage | None, Depends(get_storage)]
 # --- Groups (Circles) --------------------------------------------------------
 
 
+async def _group_response(db: AsyncSession, group: Group) -> GroupResponse:
+    """A single `GroupResponse` with its organizer slug and default location."""
+    response = GroupResponse.model_validate(group)
+    response.organizer_slug = await service.resolve_organizer_slug(db, cast(uuid.UUID, group.id))
+    response.default_location = service.location_ref_response(
+        await service.get_location(db, group.default_location_id)
+    )
+    return response
+
+
 @router.post("/api/groups", response_model=GroupResponse, status_code=status.HTTP_201_CREATED)
 async def create_circle(
     body: CreateCircleRequest, db: DbSession, principal: EditPrincipal
 ) -> GroupResponse:
     group = await service.create_circle(db, body)
-    response = GroupResponse.model_validate(group)
-    response.organizer_slug = await service.resolve_organizer_slug(db, cast(uuid.UUID, group.id))
-    return response
+    return await _group_response(db, group)
 
 
 @router.post("/api/groups/mine", response_model=GroupResponse, status_code=status.HTTP_201_CREATED)
@@ -77,13 +86,11 @@ async def create_my_circle(
 ) -> GroupResponse:
     """Idempotent 'become an Organizer' — a caller who already leads a
     Circle gets that same Circle back. Used by the one-time first-circle
-    flows (`FirstTermStepperGuest`, onboarding); NOT for the Panel's
+    flows (`CreateGroupStepper`, onboarding); NOT for the Panel's
     "+ Dodaj grupę" (see `create_additional_my_circle` below)."""
     profile = await get_profile_by_principal(db, principal)
     circle = await service.create_own_circle(db, profile.party_id, body.name)
-    response = GroupResponse.model_validate(circle)
-    response.organizer_slug = await service.resolve_organizer_slug(db, cast(uuid.UUID, circle.id))
-    return response
+    return await _group_response(db, circle)
 
 
 @router.post(
@@ -99,17 +106,31 @@ async def create_additional_my_circle(
     silent no-op for a repeat organizer."""
     profile = await get_profile_by_principal(db, principal)
     circle = await service.create_additional_circle(
-        db, profile.party_id, body.name, body.visibility
+        db,
+        profile.party_id,
+        body.name,
+        body.visibility,
+        body.default_location_id,
+        body.default_capacity,
     )
-    response = GroupResponse.model_validate(circle)
-    response.organizer_slug = await service.resolve_organizer_slug(db, cast(uuid.UUID, circle.id))
-    return response
+    return await _group_response(db, circle)
 
 
 @router.get("/api/groups", response_model=list[GroupResponse])
 async def list_groups(db: DbSession, principal: ReadPrincipal) -> list[GroupResponse]:
     groups = await service.list_groups(db)
-    return [GroupResponse.model_validate(group) for group in groups]
+    locations = await service.get_locations_by_ids(
+        db, {group.default_location_id for group in groups if group.default_location_id}
+    )
+    responses = []
+    for group in groups:
+        response = GroupResponse.model_validate(group)
+        if group.default_location_id is not None:
+            response.default_location = service.location_ref_response(
+                locations.get(group.default_location_id)
+            )
+        responses.append(response)
+    return responses
 
 
 @router.get("/api/groups/public/{group_id}", response_model=PublicCircleResponse)
@@ -202,9 +223,7 @@ async def formalize_group_from_term(
     group = await service.formalize_group_from_term(
         db, principal, group_id, term_id, body.party_ids
     )
-    response = GroupResponse.model_validate(group)
-    response.organizer_slug = await service.resolve_organizer_slug(db, group_id)
-    return response
+    return await _group_response(db, group)
 
 
 @router.post("/api/groups/public/merge", response_model=MergeAnonymousProfileResponse)
@@ -276,12 +295,8 @@ async def update_group(
     group_id: uuid.UUID, body: UpdateGroupRequest, db: DbSession, principal: EditPrincipal
 ) -> GroupResponse:
     profile = await get_profile_by_principal(db, principal)
-    group = await service.update_group(
-        db, group_id, profile.party_id, body.name, body.layout_mode, body.visibility
-    )
-    response = GroupResponse.model_validate(group)
-    response.organizer_slug = await service.resolve_organizer_slug(db, group_id)
-    return response
+    group = await service.update_group(db, group_id, profile.party_id, body)
+    return await _group_response(db, group)
 
 
 @router.delete("/api/groups/{group_id}", status_code=status.HTTP_204_NO_CONTENT)
@@ -300,9 +315,7 @@ async def delete_group(group_id: uuid.UUID, db: DbSession, principal: EditPrinci
 @router.get("/api/groups/{group_id}", response_model=GroupResponse)
 async def get_group(group_id: uuid.UUID, db: DbSession, principal: ReadPrincipal) -> GroupResponse:
     group = await service.get_group(db, group_id)
-    response = GroupResponse.model_validate(group)
-    response.organizer_slug = await service.resolve_organizer_slug(db, group_id)
-    return response
+    return await _group_response(db, group)
 
 
 @router.get(

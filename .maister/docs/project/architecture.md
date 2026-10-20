@@ -129,11 +129,20 @@ The cron connects over the VPC with `?ssl=require` (`pg_hba.conf`: `hostssl aj g
 
 Rollback: set `MODERATION_IMAGE_ENABLED=false` on VPS A (uploads are auto-approved again) and/or `MODERATION_CRON_ENABLED=false` on VPS B. Migration 0049 is additive, so there is no need to downgrade it. Withdrawn listings are not restored. If you redeploy an older app image that still contains the old `moderation-worker`, **first** disable the cron (`MODERATION_CRON_ENABLED=false` and recreate, or stop `moderation-cron`) so the two never moderate photos at the same time.
 
+## Locations (`app/locations/`)
+
+`app/locations/` is its own bounded context: a person's saved meeting places (`Location`), owned by their PERSON party (`profile.party_id`), reused across the groups (Circles) and Terms they lead. Routes: `GET /api/locations/mine`, `POST /api/locations` (idempotent: an existing active row with the same `google_place_id` returns 200 with that row), `PATCH`/`DELETE /api/locations/{id}` (owner only, soft delete). Migration `0057_locations`; `0058_group_term_location_capacity` adds `location_id`/`capacity` to groups and terms.
+
+- **Boundary**: `app/groups/infrastructure/locations_acl.py` is the only `app.groups` module that imports `app.locations`. It validates newly assigned ids against the caller's own active places and batch-loads referenced rows (one `IN` query, soft-deleted rows included so old groups and terms still render). It must not import `app.groups.schemas` (import cycle). Groups and terms store only a plain `location_id` FK.
+- **Inheritance**: `create_term` copies the group's default place and capacity **by value**; later changes to the group default never touch existing terms.
+- **Google Places caching**: the backend never calls Google. The browser looks places up via Places API (New) (`importLibrary("places")`, session tokens, `src/frontend/src/lib/googleMaps.ts`) and posts the result. `google_place_id` may be stored indefinitely; `formatted_address`, `lat` and `lng` are cached Google data subject to Google's caching limits, and refreshing them is out of scope (`updated_at` is the cache timestamp). Without `VITE_GOOGLE_MAPS_API_KEY` (a frontend build arg, never committed) the picker falls back to MANUAL places typed by hand.
+
 ## External Integrations
 - **PostgreSQL 18**: Primary datastore, run via `docker-compose.yml`
+- **Google Maps JavaScript API / Places API (New)**: browser-only, loaded on demand by the location picker when `VITE_GOOGLE_MAPS_API_KEY` is set at build time; see "Locations" above
 - **DigitalOcean Spaces** (S3 API) + CDN: user-uploaded product photos
 - **VPS B AI service** (`group-thing-ai`): its `moderation-cron` connects to this Postgres as `gt_moderation_cron` and to Spaces to moderate photos (see above). The app makes no calls to VPS B (its `POST /v1/moderate/image` endpoint stays there for dev/manual checks)
-- No other external API integrations exist. The footprint domain's `app/footprint/ports.py`/`stubs.py` define ports for an emission-factor/product-attribute adapter that remains stubbed (out of scope for this migration)
+- No other external API integrations exist (the backend itself calls neither Google nor VPS B). The footprint domain's `app/footprint/ports.py`/`stubs.py` define ports for an emission-factor/product-attribute adapter that remains stubbed (out of scope for this migration)
 
 ## Database Schema
 - **Migration tool**: Alembic
@@ -172,6 +181,9 @@ app/
 │                                  query_service.py)
 ├── plugin/                      (plugin descriptor/data/object vertical, incl. its own
 │                                  3-part filter-DSL query_service.py)
+├── locations/                   (saved meeting places BC: models, schemas, service, router;
+│                                 reached from app.groups only via
+│                                 groups/infrastructure/locations_acl.py)
 ├── footprint/                   (emissions-footprint domain — the largest vertical)
 │   ├── archetype/                (calculator/component/validity/applicability model)
 │   ├── domain/                   (breakdown, enums, exceptions — discriminated unions)

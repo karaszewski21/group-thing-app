@@ -17,7 +17,7 @@ from app.core.pagination import PageParams
 from app.moderation.text_guard import TextField, check_text
 from app.users.service import get_profile_by_principal
 
-from ..infrastructure import notifications_bridge, product_bridge, repository
+from ..infrastructure import locations_acl, notifications_bridge, product_bridge, repository
 from ..models import NeededItem, Pledge, PledgeStatus, Term
 from ..schemas import (
     CreateNeededItemRequest,
@@ -30,13 +30,29 @@ from .circles import _is_active_organizer, _require_active_organizer, get_group
 
 
 async def create_term(db: AsyncSession, principal: Principal, data: CreateTermRequest) -> Term:
+    """Omitted `location_id`/`capacity` copy the Circle's current defaults by
+    value (later default changes never propagate); an explicit `null` keeps
+    the field empty. Only a caller-supplied place is ownership-checked — an
+    inherited one is the Circle's own and may even be soft-deleted."""
     profile = await get_profile_by_principal(db, principal)
-    await get_group(db, data.circle_group_id)
+    group = await get_group(db, data.circle_group_id)
     await _require_active_organizer(db, data.circle_group_id, profile.party_id)
     await check_text(TextField.TERM_DESCRIPTION, data.description)
 
+    if "location_id" in data.model_fields_set:
+        location_id = data.location_id
+        if location_id is not None:
+            await locations_acl.get_owned_location(db, location_id, profile.party_id)
+    else:
+        location_id = group.default_location_id
+    capacity = data.capacity if "capacity" in data.model_fields_set else group.default_capacity
+
     term = Term(
-        circle_group_id=data.circle_group_id, occurs_on=data.occurs_on, description=data.description
+        circle_group_id=data.circle_group_id,
+        occurs_on=data.occurs_on,
+        description=data.description,
+        location_id=location_id,
+        capacity=capacity,
     )
     db.add(term)
     await db.commit()
@@ -87,10 +103,14 @@ async def list_terms_for_moderation(
     db: AsyncSession, params: PageParams
 ) -> tuple[list[ModerationTermResponse], int]:
     """ADMIN overview: one page of Terms across every Circle, latest first,
-    with their active signup counts (one grouped query), plus the total."""
+    with their active signup counts (one grouped query), their places (one
+    batched lookup, without the owner's party id), plus the total."""
     rows = await repository.list_terms_for_moderation(db, params.offset, params.size)
     counts = await repository.count_active_attendances_by_term(
         db, [cast(uuid.UUID, term.id) for term, _ in rows]
+    )
+    locations = await locations_acl.get_locations_by_ids(
+        db, {term.location_id for term, _ in rows if term.location_id is not None}
     )
     responses = []
     for term, group_name in rows:
@@ -105,6 +125,10 @@ async def list_terms_for_moderation(
                 created_at=term.created_at,
                 attendee_count=attendee_count,
                 child_count=child_count,
+                location=locations_acl.public_location_response(
+                    locations.get(term.location_id) if term.location_id is not None else None
+                ),
+                capacity=term.capacity,
             )
         )
     return responses, await repository.count_terms(db)
@@ -123,6 +147,12 @@ async def update_term(
         term.occurs_on = data.occurs_on
     if data.description is not None:
         term.description = data.description
+    if "location_id" in data.model_fields_set:
+        if data.location_id is not None:
+            await locations_acl.get_owned_location(db, data.location_id, caller_party_id)
+        term.location_id = data.location_id
+    if "capacity" in data.model_fields_set:
+        term.capacity = data.capacity
 
     await db.commit()
     await db.refresh(term)

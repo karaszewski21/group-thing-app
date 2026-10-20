@@ -120,6 +120,9 @@ async def test_getMyAttendances_returnsOnlyCallersAttendancesWithTermAndCircleAn
         "group_name",
         "organizer_display_name",
         "organizer_slug",
+        "location",
+        "capacity",
+        "attendee_count",
     }
 
     assert by_term[term_b1]["attendance_id"] == att_b1["id"]

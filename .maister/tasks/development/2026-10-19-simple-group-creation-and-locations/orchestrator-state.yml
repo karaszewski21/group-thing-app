@@ -1,12 +1,12 @@
 orchestrator:
   started_phase: phase-8
   resumed_at: phase-8
-  completed_phases: [phase-1, phase-2, phase-4, phase-5, phase-6, phase-7]
+  completed_phases: [phase-1, phase-2, phase-4, phase-5, phase-6, phase-7, phase-8, phase-10]
   failed_phases: []
   auto_fix_attempts: {}
   options:
     spec_audit_enabled: true
-    skip_test_suite: true
+    skip_test_suite: false
     e2e_enabled: true
     user_docs_enabled: true
     code_review_enabled: true

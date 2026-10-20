@@ -195,6 +195,9 @@ async def test_getPublicCircle_noTermIdParam_returnsNearestTermUnchanged(
         "description",
         "needed_items",
         "item_listings",
+        "location",
+        "capacity",
+        "attendee_count",
     }
 
 
@@ -219,7 +222,7 @@ async def test_getPublicCircle_afterLoggedInRsvp_stillExposesOnlyGuardianDisplay
     """After the R5 logged-in attach path lands, the public view must still
     leak nothing per-child: `guardians` carries only the account profile's
     `display_name` (never the request's `guardian_name`, never a per-attendee
-    child count) and `term` keeps its unchanged 4-key shape."""
+    child count) and `term` keeps its exact key set."""
     token = await _register_organizer(client, "pt.loggedin.owner@example.com")
     group_id = await _create_circle(client, token, "Krąg z zalogowanym rodzicem")
     term_id = await _create_term(
@@ -246,6 +249,9 @@ async def test_getPublicCircle_afterLoggedInRsvp_stillExposesOnlyGuardianDisplay
         "description",
         "needed_items",
         "item_listings",
+        "location",
+        "capacity",
+        "attendee_count",
     }
     assert "child_count" not in body
     assert "children" not in body

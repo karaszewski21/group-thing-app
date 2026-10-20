@@ -199,6 +199,11 @@ _RAW_MATRIX: tuple[_RawEntry, ...] = (
         r"^/api/organizations(/.*)?$",
         ("EDIT", "mcp:edit"),
     ),
+    # app.locations — the caller's saved places. Ownership (only the owning
+    # party may edit/delete) lives in `app.locations.service`.
+    (_methods("PATCH", "DELETE"), r"^/api/locations/[^/]+$", ("EDIT", "mcp:edit")),
+    (_methods("GET"), r"^/api/locations(/.*)?$", ("READ", "mcp:read")),
+    (_methods("POST"), r"^/api/locations(/.*)?$", ("EDIT", "mcp:edit")),
     # 51-52: app.notifications — the caller's own in-app inbox. `/mine` +
     # `/unread-count` are GETs, `/{id}/read` + `/read-all` are POSTs, so the
     # two blanket rows cover every route; recipient-ownership ("only my own

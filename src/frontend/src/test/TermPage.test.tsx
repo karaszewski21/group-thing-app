@@ -55,6 +55,16 @@ const circle: PublicCircleResponse = {
     id: "101",
     occurs_on: "2026-10-01T17:00:00",
     description: "Zajęcia w parku",
+    location: {
+      name: "Świetlica na Polnej",
+      formatted_address: "ul. Polna 12, 60-595 Poznań",
+      google_place_id: "ChIJ-polna",
+      lat: 52.4,
+      lng: 16.9,
+      notes: "wejście od podwórza",
+    },
+    capacity: 12,
+    attendee_count: 3,
     needed_items: [
       {
         id: "11",
@@ -226,6 +236,55 @@ describe("TermPage — header and content", () => {
     expect(
       within(document.getElementById("attendee-21")!).getByRole("link", { name: "Rowerek" }),
     ).toHaveAttribute("href", "/product/9");
+  });
+});
+
+describe("TermPage — place and capacity", () => {
+  it("shows the place with notes and a Google Maps link in the term card", async () => {
+    renderPage();
+
+    const card = await screen.findByRole("region", { name: "Termin zajęć" });
+    expect(within(card).getByText("Miejsce")).toBeInTheDocument();
+    expect(within(card).getByText("Świetlica na Polnej")).toBeInTheDocument();
+    expect(within(card).getByText("ul. Polna 12, 60-595 Poznań")).toBeInTheDocument();
+    expect(within(card).getByText("wejście od podwórza")).toBeInTheDocument();
+    const link = within(card).getByRole("link", { name: "Otwórz w Google Maps (nowa karta)" });
+    expect(link).toHaveAttribute("href", expect.stringContaining("query_place_id=ChIJ-polna"));
+    expect(link).toHaveAttribute("target", "_blank");
+    expect(link).toHaveAttribute("rel", "noopener noreferrer");
+  });
+
+  it("omits the place block and the capacity line when neither is set", async () => {
+    vi.mocked(groupsApi.getGroupAccess).mockResolvedValue(
+      access({ group: { term: { ...circle.term!, location: null, capacity: null } } }),
+    );
+    renderPage();
+
+    const card = await screen.findByRole("region", { name: "Termin zajęć" });
+    expect(within(card).queryByText("Miejsce")).not.toBeInTheDocument();
+    expect(within(card).queryByRole("link")).not.toBeInTheDocument();
+    expect(within(card).queryByText(/Zapisanych/)).not.toBeInTheDocument();
+  });
+
+  it("shows how many places are taken without a full notice while places remain", async () => {
+    renderPage();
+
+    const card = await screen.findByRole("region", { name: "Termin zajęć" });
+    expect(within(card).getByText("Zapisanych 3 z 12")).toBeInTheDocument();
+    expect(within(card).queryByText("Brak wolnych miejsc")).not.toBeInTheDocument();
+  });
+
+  it("a full term shows 'Brak wolnych miejsc' as a status and keeps the sign-up button enabled", async () => {
+    mockAuth = { token: "tok", displayName: "Ala" };
+    vi.mocked(groupsApi.getGroupAccess).mockResolvedValue(
+      access({ group: { term: { ...circle.term!, capacity: 12, attendee_count: 12 } } }),
+    );
+    renderPage();
+
+    const card = await screen.findByRole("region", { name: "Termin zajęć" });
+    expect(within(card).getByText("Zapisanych 12 z 12")).toBeInTheDocument();
+    expect(within(card).getByRole("status")).toHaveTextContent("Brak wolnych miejsc");
+    expect(screen.getByRole("button", { name: "＋ Zapisz się na zajęcia" })).toBeEnabled();
   });
 });
 

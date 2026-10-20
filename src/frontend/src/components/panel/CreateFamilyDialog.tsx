@@ -8,7 +8,7 @@ import { serverMessageOr } from "../../api/problem";
 
 /* ------------------------------------------------------------------ */
 /*  "Załóż rodzinę" — 2-step Panel dialog (family name -> optional     */
-/*  members), mirroring FirstTermStepperGuest.tsx: local `useState`    */
+/*  members), mirroring CreateGroupStepper.tsx: local `useState`       */
 /*  for cross-step data (deliberately not module scope — the modal can */
 /*  be opened/closed/reopened in one page session), ModalSheet/Field   */
 /*  primitives from PanelPage, inline error on catch. The host wires   */

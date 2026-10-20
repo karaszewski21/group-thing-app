@@ -12,6 +12,7 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator, model_valida
 from app.circulation.models import ItemCondition, ReservationType
 from app.users.schemas import EMAIL_PATTERN, normalize_email
 
+from .infrastructure.locations_acl import LocationRefResponse, PublicLocationResponse
 from .models import (
     GroupJoinRequestStatus,
     GroupLayoutMode,
@@ -37,6 +38,8 @@ class GroupResponse(BaseModel):
     organizer_slug: str | None = None
     layout_mode: GroupLayoutMode
     visibility: GroupVisibility
+    default_location: LocationRefResponse | None = None
+    default_capacity: int | None = None
     created_at: datetime
     updated_at: datetime
 
@@ -70,13 +73,16 @@ class CreateCircleRequest(BaseModel):
 
 
 class UpdateGroupRequest(BaseModel):
-    """In-place circle rename — the active-organizer check lives in
-    `service.update_group`, not the matrix. `name` is the only editable
-    Group field, so this is a required value, not partial-apply."""
+    """In-place circle update — the active-organizer check lives in
+    `service.update_group`, not the matrix. `name` is required;
+    `layout_mode`/`visibility` apply only when non-null; the defaults apply
+    only when present in `model_fields_set` (omitted = keep, `null` = clear)."""
 
     name: str = Field(min_length=1, max_length=255)
     layout_mode: GroupLayoutMode | None = None
     visibility: GroupVisibility | None = None
+    default_location_id: uuid.UUID | None = None
+    default_capacity: int | None = Field(default=None, ge=1, le=10000)
 
     _strip_name = field_validator("name")(_reject_blank_name)
 
@@ -86,8 +92,13 @@ UpdateCircleRequest = UpdateGroupRequest
 
 
 class CreateOwnCircleRequest(BaseModel):
+    """`visibility` and the defaults are honoured by `/mine/new` only;
+    `/mine` ignores them."""
+
     name: str = Field(min_length=1, max_length=255)
     visibility: GroupVisibility | None = None
+    default_location_id: uuid.UUID | None = None
+    default_capacity: int | None = Field(default=None, ge=1, le=10000)
 
 
 class GroupRoleResponse(BaseModel):
@@ -143,6 +154,8 @@ class ModerationTermResponse(BaseModel):
     created_at: datetime
     attendee_count: int
     child_count: int
+    location: PublicLocationResponse | None
+    capacity: int | None
 
 
 class TermResponse(BaseModel):
@@ -156,17 +169,29 @@ class TermResponse(BaseModel):
     updated_at: datetime
     attendee_count: int | None = None
     child_count: int | None = None
+    location: LocationRefResponse | None = None
+    capacity: int | None = None
 
 
 class CreateTermRequest(BaseModel):
+    """`location_id`/`capacity` omitted -> copied from the Circle's defaults;
+    an explicit `null` suppresses that copy (told apart via `model_fields_set`)."""
+
     circle_group_id: uuid.UUID
     occurs_on: datetime
     description: str | None = Field(default=None, max_length=2000)
+    location_id: uuid.UUID | None = None
+    capacity: int | None = Field(default=None, ge=1, le=10000)
 
 
 class UpdateTermRequest(BaseModel):
+    """`occurs_on`/`description` apply only when non-null; `location_id`/
+    `capacity` apply when present in `model_fields_set` (`null` clears)."""
+
     occurs_on: datetime | None = None
     description: str | None = Field(default=None, max_length=2000)
+    location_id: uuid.UUID | None = None
+    capacity: int | None = Field(default=None, ge=1, le=10000)
 
 
 class NeededItemResponse(BaseModel):
@@ -287,6 +312,10 @@ class PublicTermResponse(BaseModel):
     description: str | None
     needed_items: list[PublicNeededItemResponse]
     item_listings: list[PublicItemListingResponse]
+    location: PublicLocationResponse | None
+    capacity: int | None
+    # Active (non-withdrawn) signups, compared against `capacity`.
+    attendee_count: int
 
 
 class PublicGuardianResponse(BaseModel):
@@ -513,6 +542,9 @@ class MyAttendanceResponse(BaseModel):
     group_name: str
     organizer_display_name: str | None
     organizer_slug: str
+    location: PublicLocationResponse | None
+    capacity: int | None
+    attendee_count: int
 
 
 class WithdrawAttendanceResponse(BaseModel):

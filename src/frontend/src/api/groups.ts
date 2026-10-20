@@ -1,4 +1,5 @@
 import { api } from "./client";
+import type { LocationResponse, PublicLocationResponse } from "./locations";
 import { pageParams, type Page } from "./pagination";
 
 /** The participant-visualization layout an organizer picks for their
@@ -24,11 +25,29 @@ export interface GroupResponse {
   visibility: GroupVisibility;
   created_at: string;
   updated_at: string;
+  default_location?: LocationResponse | null;
+  default_capacity?: number | null;
 }
 
 export interface CreateCircleRequest {
   name: string;
   visibility?: GroupVisibility;
+}
+
+/** `POST /groups/mine/new` only — `/mine` ignores the defaults. */
+export interface CreateAdditionalCircleRequest extends CreateCircleRequest {
+  default_location_id?: string | null;
+  default_capacity?: number | null;
+}
+
+/** `PATCH /groups/{id}`: `name` is required; omitted `layout_mode`/`visibility`
+ * keep their value, and the two defaults are kept when omitted and cleared by `null`. */
+export interface UpdateGroupRequest {
+  name: string;
+  layout_mode?: GroupLayoutMode;
+  visibility?: GroupVisibility;
+  default_location_id?: string | null;
+  default_capacity?: number | null;
 }
 
 /** `GET /api/groups/moderation` (ADMIN-only) row — every Circle with its
@@ -102,7 +121,7 @@ export function createCircle(request: CreateCircleRequest): Promise<GroupRespons
 
 /** Idempotent "become an Organizer" — a caller who already leads a Circle
  * gets that same Circle back. Only for the one-time first-circle flows
- * (`FirstTermStepperGuest`, onboarding) — NOT for "add another group"
+ * (onboarding) — NOT for "add another group"
  * (see `createAdditionalMyCircle`). */
 export function createMyCircle(request: CreateCircleRequest): Promise<GroupResponse> {
   return api.post("/groups/mine", request);
@@ -111,7 +130,7 @@ export function createMyCircle(request: CreateCircleRequest): Promise<GroupRespo
 /** Non-idempotent — always creates a brand new Circle led by the caller.
  * The Panel's "+ Dodaj grupę" button targets this, never `createMyCircle`,
  * whose idempotency would silently no-op a repeat organizer's click. */
-export function createAdditionalMyCircle(request: CreateCircleRequest): Promise<GroupResponse> {
+export function createAdditionalMyCircle(request: CreateAdditionalCircleRequest): Promise<GroupResponse> {
   return api.post("/groups/mine/new", request);
 }
 
@@ -134,6 +153,10 @@ export function updateGroupLayoutMode(
     layout_mode: layoutMode,
     ...(visibility !== undefined ? { visibility } : {}),
   });
+}
+
+export function updateGroup(id: string, request: UpdateGroupRequest): Promise<GroupResponse> {
+  return api.patch(`/groups/${encodeURIComponent(id)}`, request);
 }
 
 export function getCurrentLeadership(groupId: string): Promise<LeadershipResponse | null> {
@@ -190,6 +213,10 @@ export interface PublicTermResponse {
   description: string | null;
   needed_items: PublicNeededItemResponse[];
   item_listings: PublicItemListingResponse[];
+  location?: PublicLocationResponse | null;
+  capacity?: number | null;
+  /** Non-withdrawn signups. */
+  attendee_count?: number;
 }
 
 export interface PublicGuardianResponse {
@@ -520,6 +547,10 @@ export interface MyAttendanceResponse {
   group_name: string;
   organizer_display_name: string | null;
   organizer_slug: string;
+  location: PublicLocationResponse | null;
+  capacity: number | null;
+  /** Non-withdrawn signups for the term, the caller's own included. */
+  attendee_count: number;
 }
 
 export function getMyAttendances(): Promise<MyAttendanceResponse[]> {

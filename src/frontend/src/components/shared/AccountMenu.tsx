@@ -1,12 +1,21 @@
 import { useState, type ReactNode } from "react";
 import { Link } from "react-router-dom";
-import { BuildingIcon, FamilyIcon, HomeIcon, MenuIcon, SettingsIcon, UserIcon } from "../../pages/panel/panelIcons";
+import {
+  BuildingIcon,
+  CalendarPlusIcon,
+  FamilyIcon,
+  HomeIcon,
+  MapPinIcon,
+  MenuIcon,
+  SettingsIcon,
+  UserIcon,
+} from "../../pages/panel/panelIcons";
 
 export const ACCOUNT_MENU_ITEM_CLASS =
   "flex w-full items-center gap-2.5 rounded-[11px] px-3 py-2.5 text-left text-sm font-bold text-ink hover:bg-cream";
 
-/** The logged-in user's hamburger menu (Profil / Ustawienia / Moja
- * organizacja / Mój dom), shared by the Panel header and pages outside the
+/** The logged-in user's hamburger menu (Profil / Ustawienia / Moje
+ * miejsca / Moja organizacja / Mój dom), shared by the Panel header and pages outside the
  * Panel. Every item is a link to its Panel section's URL. `showPanelHome`
  * adds a "Mój panel" link for pages outside the Panel; `extraItems` renders
  * host-specific items after the standard ones (`close` closes the menu). */
@@ -53,6 +62,12 @@ export function AccountMenu({
             </Link>
             <Link role="menuitem" to="/panel/ustawienia" onClick={close} className={ACCOUNT_MENU_ITEM_CLASS}>
               <SettingsIcon /> Ustawienia
+            </Link>
+            <Link role="menuitem" to="/panel/miejsca" onClick={close} className={ACCOUNT_MENU_ITEM_CLASS}>
+              <MapPinIcon /> Moje miejsca
+            </Link>
+            <Link role="menuitem" to="/panel/spotkania?nowa=grupa" onClick={close} className={ACCOUNT_MENU_ITEM_CLASS}>
+              <CalendarPlusIcon /> Załóż grupę
             </Link>
             {/* Unconditional — creating an Organization is deliberately
                 independent of "Chcę dodać krąg"/isOrganizer (a Circle-

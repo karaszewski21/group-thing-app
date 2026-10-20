@@ -1,4 +1,4 @@
-import type { GroupResponse } from "../../api/groups";
+import type { GroupResponse, GroupVisibility } from "../../api/groups";
 import type { ReservationType } from "../../api/reservations";
 import type { NeededItemResponse, TermResponse } from "../../api/terms";
 
@@ -14,6 +14,7 @@ export type View =
   | "podarki"
   | "profil"
   | "ustawienia"
+  | "miejsca"
   | "rodzina";
 
 /** The URL of a panel view: `/panel` for home, `/panel/<view>` otherwise. */
@@ -21,12 +22,18 @@ export function viewPath(view: View): string {
   return view === "home" ? "/panel" : `/panel/${view}`;
 }
 
+/** A new group starts PRIVATE until its founder has an Organization page to
+ * show it on, PUBLIC afterwards. */
+export function defaultVisibility(organizationSlug: string | null): GroupVisibility {
+  return organizationSlug === null ? "PRIVATE" : "PUBLIC";
+}
+
 export type ModalKind =
   | "grupa"
   | "edit-grupa"
   | "termin"
   | "pierwszy-termin"
-  | "zostan-organizatorem"
+  | "zaloz-grupe"
   | "rodzina-nowa"
   | "edit-termin"
   | null;
@@ -48,6 +55,28 @@ export interface TermWithNeeded {
   term: TermResponse;
   group: GroupResponse;
   neededItems: NeededItemResponse[];
+}
+
+/** A term the caller takes part in without leading it — their own RSVP
+ * ("attended") or a term of a circle their family belongs to ("member"). */
+export interface GuestTermCard {
+  termId: string;
+  occursOn: string;
+  groupName: string;
+  description: string | null;
+  href: string;
+  location: TermPlaceLocation | null;
+  capacity: number | null;
+  /** Known only for an RSVP; a membership-only card shows the capacity alone. */
+  attendeeCount: number | null;
+  neededItems: NeededItemResponse[];
+}
+
+export interface TermPlaceLocation {
+  name: string;
+  formatted_address: string;
+  google_place_id: string | null;
+  notes: string | null;
 }
 
 export const ITEM_MODES: ItemMode[] = ["wypożyczę", "oddam", "zamienię"];

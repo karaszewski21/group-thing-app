@@ -2,8 +2,10 @@ import { useState } from "react";
 import { NeededItemQuickAddForm } from "../../components/shared/NeededItemQuickAddForm";
 import { CreateFamilyDialog } from "../../components/panel/CreateFamilyDialog";
 import { EditTermDialog } from "../../components/panel/EditTermDialog";
-import { FirstTermStepperGuest } from "../../components/panel/FirstTermStepperGuest";
+import { CreateGroupStepper } from "../../components/panel/CreateGroupStepper";
 import { FirstTermStepperOrganizer } from "../../components/panel/FirstTermStepperOrganizer";
+import { GroupFormFields } from "../../components/panel/GroupFormFields";
+import { LocationPicker } from "../../components/shared/LocationPicker";
 import { Field, ModalSheet } from "./panelComponents";
 import { usePanelData } from "./panelDataStore";
 
@@ -17,6 +19,7 @@ export function PanelModals() {
     myGroups,
     organizationSlug,
     editTermEntry,
+    editingGroupId,
     groupForm,
     editGroupForm,
     editGroupError,
@@ -25,17 +28,20 @@ export function PanelModals() {
     termGroupId,
     termDate,
     termDescription,
+    termLocationId,
+    termCapacity,
     neededDraft,
     draftNeededItem,
     busy,
-    relevantGroupsForForm,
     setModal,
     setEditTermId,
     setGroupForm,
     setEditGroupForm,
-    setTermGroupId,
+    selectTermGroup,
     setTermDate,
     setTermDescription,
+    setTermLocationId,
+    setTermCapacity,
     setDraftNeededItem,
     showToast,
     load,
@@ -47,28 +53,38 @@ export function PanelModals() {
     removeDraftNeededItem,
   } = usePanelData();
 
-  const LAYOUT_OPTIONS = [
-    { mode: "CIRCLE", label: "Koło" },
-    { mode: "PITCH", label: "Boisko" },
-    { mode: "TABLE", label: "Stół" },
-  ] as const;
-
   // "Potrzebne rzeczy" is optional — collapsed behind a small button until
   // the organizer actually wants to add one (same pattern as EditTermDialog).
   const [addingNeeded, setAddingNeeded] = useState(false);
 
+  const createGroupStepper = (
+    <CreateGroupStepper
+      organizationSlug={organizationSlug}
+      onClose={() => setModal(null)}
+      onCircleCreated={() => void load({ silent: true })}
+      onDone={() => {
+        setModal(null);
+        showToast("Grupa założona — dodano pierwszy termin");
+        void load();
+      }}
+    />
+  );
+  const editingGroup = myGroups.find((g) => g.id === editingGroupId) ?? null;
+  const termGroup = myGroups.find((g) => g.id === termGroupId) ?? null;
+
   return (
     <>
-      {/* ---------- modal: dodaj pierwszy termin (GUEST 2-step / ORGANIZER 1-step) ---------- */}
-      {modal === "pierwszy-termin" && (
-        // The 1-step organizer stepper only works when a circle already exists;
-        // an organizer with zero circles (or a guest) needs the 2-step guest
-        // stepper whose step 1 creates the circle — that step IS the "add a
-        // group" shortcut.
-        firstTermForOrganizer && myGroups.length > 0 ? (
+      {/* ---------- modal: załóż grupę (group -> first term) ---------- */}
+      {modal === "zaloz-grupe" && createGroupStepper}
+
+      {/* ---------- modal: dodaj pierwszy termin (led group without terms) ---------- */}
+      {modal === "pierwszy-termin" &&
+        (firstTermForOrganizer && myGroups.length > 0 ? (
           <FirstTermStepperOrganizer
             circleGroupId={myGroups[0]?.id ?? null}
             organizerSlug={myGroups[0]?.organizer_slug ?? null}
+            defaultLocation={myGroups[0]?.default_location ?? null}
+            defaultCapacity={myGroups[0]?.default_capacity ?? null}
             onClose={() => setModal(null)}
             onDone={() => {
               setModal(null);
@@ -77,31 +93,8 @@ export function PanelModals() {
             }}
           />
         ) : (
-          <FirstTermStepperGuest
-            onClose={() => setModal(null)}
-            onCircleCreated={() => void load({ silent: true })}
-            onDone={() => {
-              setModal(null);
-              showToast("Dodano pierwszy termin");
-              void load();
-            }}
-          />
-        )
-      )}
-
-      {/* ---------- modal: zostań organizatorem (organization -> circle -> term) ---------- */}
-      {modal === "zostan-organizatorem" && (
-        <FirstTermStepperGuest
-          withOrganizationStep={organizationSlug === null}
-          onClose={() => setModal(null)}
-          onCircleCreated={() => void load({ silent: true })}
-          onDone={() => {
-            setModal(null);
-            showToast("Jesteś organizatorem — dodano pierwszy termin");
-            void load();
-          }}
-        />
-      )}
+          createGroupStepper
+        ))}
 
       {/* ---------- modal: załóż rodzinę ---------- */}
       {modal === "rodzina-nowa" && (
@@ -138,52 +131,7 @@ export function PanelModals() {
       {/* ---------- modal: dodaj grupę ---------- */}
       {modal === "grupa" && (
         <ModalSheet title="Dodaj nową grupę" onClose={() => setModal(null)}>
-          <div className="grid grid-cols-1 gap-3">
-            <Field label="Nazwa grupy">
-              <input
-                value={groupForm.name}
-                onChange={(e) => setGroupForm({ ...groupForm, name: e.target.value })}
-                placeholder="np. Nutki dla starszaków"
-                className="rounded-xl border-[1.5px] border-line bg-cream px-3.5 py-2.5 text-ink"
-              />
-            </Field>
-            <div className="grid grid-cols-2 gap-3">
-              <Field label="Lokalizacja">
-                <input
-                  value={groupForm.location}
-                  onChange={(e) => setGroupForm({ ...groupForm, location: e.target.value })}
-                  placeholder="Sala nr 2"
-                  className="rounded-xl border-[1.5px] border-line bg-cream px-3.5 py-2.5 text-ink"
-                />
-              </Field>
-              <Field label="Ile miejsc">
-                <input
-                  type="number"
-                  min={0}
-                  value={groupForm.freeSpots}
-                  onChange={(e) => setGroupForm({ ...groupForm, freeSpots: e.target.value })}
-                  placeholder="0"
-                  className="rounded-xl border-[1.5px] border-line bg-cream px-3.5 py-2.5 text-ink"
-                />
-              </Field>
-            </div>
-            <Field label="Widoczność grupy">
-              <select
-                aria-label="Widoczność grupy"
-                value={groupForm.visibility}
-                onChange={(e) =>
-                  setGroupForm({
-                    ...groupForm,
-                    visibility: e.target.value as typeof groupForm.visibility,
-                  })
-                }
-                className="rounded-xl border-[1.5px] border-line bg-cream px-3.5 py-2.5 text-ink"
-              >
-                <option value="PUBLIC">Publiczna</option>
-                <option value="PRIVATE">Prywatna — (dostęp na prośbę)</option>
-              </select>
-            </Field>
-          </div>
+          <GroupFormFields value={groupForm} onChange={setGroupForm} idPrefix="add-group" />
           {addGroupError && (
             <p role="alert" className="mt-2 text-[12.5px] font-semibold text-danger">{addGroupError}</p>
           )}
@@ -197,74 +145,16 @@ export function PanelModals() {
         </ModalSheet>
       )}
 
-      {/* ---------- modal: edytuj grupę (nazwa, lokalizacja, miejsca, layout) ---------- */}
+      {/* ---------- modal: edytuj grupę (nazwa, layout, widoczność, stałe miejsce, ile miejsc) ---------- */}
       {modal === "edit-grupa" && (
         <ModalSheet title="Edytuj grupę" onClose={cancelEditGroup}>
-          <div className="grid grid-cols-1 gap-3">
-            <Field label="Nazwa grupy">
-              <input
-                aria-label="Nazwa grupy"
-                value={editGroupForm.name}
-                onChange={(e) => setEditGroupForm({ ...editGroupForm, name: e.target.value })}
-                className="rounded-xl border-[1.5px] border-line bg-cream px-3.5 py-2.5 text-ink"
-              />
-            </Field>
-            <div className="grid grid-cols-2 gap-3">
-              <Field label="Lokalizacja">
-                <input
-                  value={editGroupForm.location}
-                  onChange={(e) => setEditGroupForm({ ...editGroupForm, location: e.target.value })}
-                  placeholder="Sala nr 2"
-                  className="rounded-xl border-[1.5px] border-line bg-cream px-3.5 py-2.5 text-ink"
-                />
-              </Field>
-              <Field label="Ile miejsc">
-                <input
-                  type="number"
-                  min={0}
-                  value={editGroupForm.freeSpots}
-                  onChange={(e) => setEditGroupForm({ ...editGroupForm, freeSpots: e.target.value })}
-                  placeholder="0"
-                  className="rounded-xl border-[1.5px] border-line bg-cream px-3.5 py-2.5 text-ink"
-                />
-              </Field>
-            </div>
-            <Field label="Szablon wizualizacji">
-              <select
-                aria-label="Szablon wizualizacji"
-                value={editGroupForm.layoutMode}
-                onChange={(e) =>
-                  setEditGroupForm({
-                    ...editGroupForm,
-                    layoutMode: e.target.value as typeof editGroupForm.layoutMode,
-                  })
-                }
-                className="rounded-xl border-[1.5px] border-line bg-cream px-3.5 py-2.5 text-ink"
-              >
-                {LAYOUT_OPTIONS.map(({ mode, label }) => (
-                  <option key={mode} value={mode}>
-                    {label}
-                  </option>
-                ))}
-              </select>
-            </Field>
-            <Field label="Widoczność grupy">
-              <select
-                aria-label="Widoczność grupy"
-                value={editGroupForm.visibility}
-                onChange={(e) =>
-                  setEditGroupForm({
-                    ...editGroupForm,
-                    visibility: e.target.value as typeof editGroupForm.visibility,
-                  })
-                }
-                className="rounded-xl border-[1.5px] border-line bg-cream px-3.5 py-2.5 text-ink"
-              >
-                <option value="PUBLIC">Publiczna — zapisy RSVP dla każdego</option>
-                <option value="PRIVATE">Prywatna — tylko stali członkowie (dostęp na prośbę)</option>
-              </select>
-            </Field>
-          </div>
+          <GroupFormFields
+            value={editGroupForm}
+            onChange={setEditGroupForm}
+            showLayoutMode
+            idPrefix="edit-group"
+            fallbackLocation={editingGroup?.default_location ?? null}
+          />
           {editGroupError && (
             <p role="alert" className="mt-2 text-[12.5px] font-semibold text-danger">{editGroupError}</p>
           )}
@@ -291,11 +181,11 @@ export function PanelModals() {
             <Field label="Grupa">
               <select
                 value={termGroupId ?? ""}
-                onChange={(e) => setTermGroupId(e.target.value || null)}
+                onChange={(e) => selectTermGroup(e.target.value || null)}
                 className="rounded-xl border-[1.5px] border-line bg-cream px-3.5 py-2.5 text-ink"
               >
                 <option value="" disabled>Wybierz grupę…</option>
-                {relevantGroupsForForm.map((g) => (
+                {myGroups.map((g) => (
                   <option key={g.id} value={g.id}>{g.name}</option>
                 ))}
               </select>
@@ -314,6 +204,33 @@ export function PanelModals() {
                 onChange={(e) => setTermDescription(e.target.value)}
                 placeholder="Park Sołacki · wstęp wolny"
                 className="rounded-xl border-[1.5px] border-line bg-cream px-3.5 py-2.5 text-ink"
+              />
+            </Field>
+            <Field label="Miejsce">
+              <LocationPicker
+                value={termLocationId}
+                onChange={setTermLocationId}
+                label="Miejsce"
+                noneLabel="Brak miejsca"
+                idPrefix="add-term-place"
+                fallbackLocation={termGroup?.default_location ?? null}
+                helperText={
+                  termGroup?.default_location && termLocationId === termGroup.default_location.id
+                    ? "Domyślne miejsce grupy — możesz zmienić"
+                    : undefined
+                }
+              />
+            </Field>
+            <Field label="Ile miejsc">
+              <input
+                type="number"
+                min={1}
+                inputMode="numeric"
+                aria-label="Ile miejsc"
+                value={termCapacity ?? ""}
+                onChange={(e) => setTermCapacity(e.target.value.trim() === "" ? null : Number(e.target.value))}
+                placeholder="np. 12"
+                className="w-28 rounded-xl border-[1.5px] border-line bg-cream px-3.5 py-2.5 text-ink"
               />
             </Field>
             <Field label="Potrzebne rzeczy (opcjonalnie)">

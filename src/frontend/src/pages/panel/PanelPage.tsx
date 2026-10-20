@@ -1,3 +1,5 @@
+import { useEffect } from "react";
+import { useSearchParams } from "react-router-dom";
 import { PhoneFrame } from "../../components/shared/PhoneFrame";
 import { PanelDataProvider } from "./PanelDataContext";
 import { usePanelData } from "./panelDataStore";
@@ -11,6 +13,7 @@ import { WypozyczoneView } from "./views/WypozyczoneView";
 import { ProfilView } from "./views/ProfilView";
 import { UstawieniaView } from "./views/UstawieniaView";
 import { RodzinaView } from "./views/RodzinaView";
+import { MiejscaView } from "./views/MiejscaView";
 
 /* ------------------------------------------------------------------ */
 /*  Panel — organizator/gość (port z pages/PanelOrganizatora.tsx +      */
@@ -38,7 +41,23 @@ export function PanelPage() {
 }
 
 function PanelPageView() {
-  const { loading, error, profile, view, toast } = usePanelData();
+  const { loading, error, profile, view, toast, setModal } = usePanelData();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const createGroupRequested = searchParams.get("nowa") === "grupa";
+
+  // `?nowa=grupa` (the public pages' "Załóż grupę" link) opens the stepper
+  // once; the param is stripped so a refresh or back step doesn't reopen it.
+  useEffect(() => {
+    if (!createGroupRequested) return;
+    setModal("zaloz-grupe");
+    setSearchParams(
+      (params) => {
+        params.delete("nowa");
+        return params;
+      },
+      { replace: true },
+    );
+  }, [createGroupRequested, setModal, setSearchParams]);
 
   if (loading) {
     return (
@@ -73,6 +92,7 @@ function PanelPageView() {
         {view === "podarki" && <WypozyczoneView />}
         {view === "profil" && <ProfilView />}
         {view === "ustawienia" && <UstawieniaView />}
+        {view === "miejsca" && <MiejscaView />}
         {view === "rodzina" && <RodzinaView />}
       </div>
 

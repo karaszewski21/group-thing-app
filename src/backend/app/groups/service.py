@@ -99,6 +99,11 @@ from app.groups.application.terms import (
     update_needed_item,
     update_term,
 )
+from app.groups.infrastructure.locations_acl import (
+    get_location,
+    get_locations_by_ids,
+    location_ref_response,
+)
 from app.groups.infrastructure.slug_resolver import resolve_organizer_slug
 
 __all__ = [
@@ -126,6 +131,8 @@ __all__ = [
     "get_group",
     "get_group_access",
     "get_group_exchange_summary",
+    "get_location",
+    "get_locations_by_ids",
     "get_needed_item_view",
     "get_organizer_page",
     "get_pledge",
@@ -154,6 +161,7 @@ __all__ = [
     "list_terms",
     "list_terms_for_moderation",
     "list_terms_with_counts",
+    "location_ref_response",
     "merge_anonymous_profile",
     "propose_swap",
     "reject_join_request",

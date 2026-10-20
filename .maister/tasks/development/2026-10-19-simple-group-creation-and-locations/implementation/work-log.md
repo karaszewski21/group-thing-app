@@ -48,3 +48,124 @@ No task group was dispatched; no application code was modified (only `.maister/t
 - TermPage currently 1 failing (baseline ≤5).
 
 ## 2026-10-20 - Wave 2 dispatched: Groups 2, 5 in parallel
+
+## 2026-10-20 - Group 2 Complete (wave 2)
+
+**Steps**: 2.1 through 2.8 completed
+**Standards Applied**:
+- From plan: backend/models.md, migrations.md, queries.md, api.md, security.md, time.md; global/error-handling, validation, minimal-implementation, commenting
+- From INDEX.md: tests/conftest.py patterns (backend-testing.md stale)
+- Discovered: routers import only `app.groups.service` facade → ACL re-exports added there
+**Tests**: 7 new (red first, then green); 96 passed across plan set + extra migration-downgrade/privacy/layout tests; final 2.8 re-run 51 passed; mypy 32 → 32; ruff clean on touched files (29 pre-existing findings in untouched lines of app/groups)
+**Files Modified**: alembic/versions/0058_group_term_location_capacity.py (new), app/groups/infrastructure/locations_acl.py (new), app/groups/models.py, schemas.py, application/circles.py, router/circles.py (`_group_response` helper at 6 sites), service.py (re-exports get_locations_by_ids, location_response), tests/test_locations_migration.py (new), tests/test_group_location_defaults.py (new)
+**Notes for Group 3**: ACL `get_owned_location`, `get_locations_by_ids` (includes soft-deleted), `location_response`, `public_location_response`; `PublicLocationResponse` import to be added to schemas.py by Group 3; `update_group(db, group_id, caller_party_id, data: UpdateGroupRequest)`.
+
+## 2026-10-20 - Group 5 Complete (wave 2)
+
+**Steps**: 5.1 through 5.7 completed
+**Standards Applied**:
+- From plan: frontend/accessibility.md, components.md, css.md, responsive.md, data-fetching.md; testing/frontend-testing.md; global/minimal-implementation, coding-style, commenting
+- From INDEX.md: none additional
+- Discovered: `ConfirmDialog.tsx` unsuitable (Chakra, English labels, no useRegisterOpenSheet) → local `DeleteLocationDialog` per DeleteGroupDialog pattern; reused `pages/organizer/editor/rovingIndex.ts` `nextIndex`
+**Tests**: 12 passed (LocationPicker 8, TermPlaceLine 4); tsc green; eslint clean on 7 touched files; themeTokenUsage/themeDefects 198 passed
+**Files Modified**: components/shared/LocationPicker.tsx (new), components/panel/GroupFormFields.tsx (new), components/shared/TermPlaceLine.tsx (new), pages/panel/panelIcons.tsx (MapPinIcon), pages/panel/panelHelpers.ts (defaultVisibility), test/LocationPicker.test.tsx, test/TermPlaceLine.test.tsx (new)
+**Visual deviations (⚠, minor)**: search input aria-label "Szukaj adresu lub nazwy miejsca" without 🔍 glyph; manual-form visible labels "Nazwa miejsca"/"Adres"/"Notatka" (aria = visible label rule) vs mockup "NAZWA (ETYKIETA)"; GroupFormFields aria-labels include "(opcjonalnie)"; visibility option copy uses add-modal copy in both modes.
+**Notes**: Host tests must mock `../api/locations`. LAYOUT_OPTIONS duplicated in PanelModals + GroupFormFields — Group 7 to drop PanelModals copy. Standards candidate: inline combobox in sheet Esc rule.
+
+## 2026-10-20 - Wave 3 dispatched: Groups 3, 6, 8 in parallel
+
+## 2026-10-20 - Group 8 Complete (wave 3)
+
+**Steps**: 8.1 through 8.5 completed
+**Standards Applied**:
+- From plan: frontend/accessibility.md, css.md, components.md, responsive.md; testing/frontend-testing.md; global/minimal-implementation, coding-style, commenting
+- From INDEX.md: frontend/data-fetching.md (no new fetching)
+- Discovered: none
+**Tests**: 249 passed / 1 failed (TermPage + AdminTermsPage + themeTokenUsage + themeDefects); the failure is pre-existing "TermPage — sign-up footer > anonymous: 'Zaloguj się…'" (TermPage baseline 1 before, 1 after). New: 4 TermPage cases, AdminTermsPage assertions (red first). tsc clean; eslint clean on 5 touched files
+**Files Modified**: pages/krag/components/TermCard.tsx, pages/krag/PublicTermView.tsx, pages/AdminTermsPage.tsx, test/TermPage.test.tsx, test/AdminTermsPage.test.tsx
+**Notes**: TermPlaceLine not reused (doesn't fit krag eyebrow layout) — inline markup + buildMapsUrl. Minor ⚠: capacity line has own border-t divider. Standards candidate: sr-only text in accessible name — put `{" "}` outside the span (jsdom drops leading space).
+
+## 2026-10-20 - Group 6 Complete (wave 3)
+
+**Steps**: 6.1 through 6.6 completed
+**Standards Applied**:
+- From plan: frontend/accessibility.md, components.md, css.md, data-fetching.md; testing/frontend-testing.md; global/minimal-implementation, coding-style, commenting
+- From INDEX.md: none additional
+- Discovered: none
+**Tests**: 24 passed (FirstTermStepperOrganizer +2, EditTermDialog +4, PublicLayout updated; red first — 7 failed); tsc clean; eslint clean on 6 touched files
+**Files Modified**: components/panel/FirstTermStepperOrganizer.tsx (optional defaultLocation/defaultCapacity), components/panel/EditTermDialog.tsx, components/shared/AccountMenu.tsx ("Załóż grupę" → /panel/spotkania?nowa=grupa), test/FirstTermStepperOrganizer.test.tsx, test/EditTermDialog.test.tsx, test/PublicLayout.test.tsx
+**Knock-on for Group 7**: PanelPage.test.tsx "needed item edit error path" now fails (picker's load-error alert) until `vi.mock("../api/locations")` with `getMyLocations` resolving `[]` after resetAllMocks. Wire `defaultLocation`/`defaultCapacity` of `myGroups[0]` into FirstTermStepperOrganizer in PanelModals. FirstTermStepperOrganizer omits location_id/capacity when no default and nothing chosen.
+
+## 2026-10-20 - Group 3 Complete (wave 3)
+
+**Steps**: 3.1 through 3.8 completed
+**Standards Applied**:
+- From plan: backend/queries.md, models.md, security.md, time.md, api.md; global/validation, minimal-implementation, commenting
+- From INDEX.md: tests/conftest.py patterns
+- Discovered: none (service facade already sufficient; service.py/repository.py unchanged)
+**Tests**: 8 new red → green; group set 34 passed; verify-unchanged + extra set 102 passed; mypy 32 → 32; ruff: 3 findings in touched app files all pre-existing at HEAD
+**Files Modified**: app/groups/schemas.py, application/terms.py, application/public_view.py, router/terms.py (`_term_response` helper), tests/test_term_location_capacity.py (new), tests/test_public_term.py, tests/test_my_attendances.py (exact-key sets extended)
+**Notes**: 2 plan-mandated test names >100 chars carry `# noqa: E501`. Public payloads verified to have no owner_party_id; soft-deleted locations still render.
+
+## 2026-10-20 - Wave 4 dispatched: Group 7
+
+## 2026-10-20 - Group 7 Complete (wave 4)
+
+**Steps**: 7.1 through 7.10 completed
+**Standards Applied**:
+- From plan: frontend/accessibility.md, components.md, css.md, data-fetching.md (load() minimal change, no hook migration); testing/frontend-testing.md; global/minimal-implementation, commenting
+- From INDEX.md: frontend/responsive.md, global/coding-style.md
+- Discovered: eslint `react-hooks/globals` (test probe rewritten to render into <output>)
+**Tests**: CreateGroupStepper 8/8 (red first); PanelPage 113/114 (before: 8 failing). Remaining failure = baseline "delete group 409 inline" (ambiguous /^Usuń grupę / in the test itself, fails at HEAD, not loosened). tsc clean; eslint clean on touched files.
+**Full frontend suite (one run)**: 958 passed, 6 failed — 409 test + TermPage ×1 (baseline) + 4 in auth.test.tsx / foundation.test.tsx / extension-points.test.tsx (fail alone, e.g. `getByText("Tomorrow")` foundation.test.tsx:57; no panel imports; suspected date-dependent) → Group 9 to confirm vs HEAD.
+**Files Modified**: components/panel/CreateGroupStepper.tsx (new), FirstTermStepperGuest.tsx (git rm), pages/panel/PanelModals.tsx, PanelDataContext.tsx, panelHelpers.ts, PanelPage.tsx, views/HomeView.tsx, views/SpotkaniaView.tsx, test/CreateGroupStepper.test.tsx (new), test/PanelPage.test.tsx; comment-only: api/groups.ts, components/panel/CreateFamilyDialog.tsx
+**Grep**: zero hits for all 7 removed strings + FirstTermStepperGuest.
+**Deviations (⚠)**: term modal helper text shown only while place equals group default; "Prowadzę" h2 with "· N" in sibling span. Stepper step 2 / handleAddTerm always send location_id/capacity (explicit values).
+
+## 2026-10-20 - Wave 5 dispatched: Group 9
+
+## 2026-10-20 - Group 9 Complete (wave 5)
+
+**Steps**: 9.1 through 9.6 completed
+**Coverage**: all 12 spec §11 criteria mapped to tests; 0 additional tests needed
+**Backend full suite**: 872 passed + 1 regression fixed (`test_group_privacy.py::test_publicTermViewAndAccess_familyWithAgedChildren_exposeNoChildData` — `attendee_count` removed from `_CHILD_DATA_KEYS`, since spec B11 makes it public; child-level data still asserted absent) → 12/12 privacy tests pass. ruff delta 0, mypy 32 (delta 0).
+**Frontend full suite**: 958 passed, 6 failed — ALL baseline, proven by running the same files on a `git archive HEAD` export: auth/foundation/extension-points ×4, TermPage anonymous footer ×1, PanelPage 409 inline ×1. tsc green; lint 16 problems = baseline (delta 0).
+**Secrets sweep**: 0 hits (AIza, non-empty VITE_GOOGLE_MAPS_API_KEY, key-shaped strings); .env untracked/ignored.
+**Docs**: .maister/docs/project/architecture.md — Locations BC section, Google caching statement, integration entry, package tree.
+**Local dev**: migrations 0057/0058 applied to local dev DB (now 0058 head); stale uvicorn on :8080 (pre-dated app/locations) caused 405 on POST /api/locations — user to restart.
+**Pending decision**: public `attendee_count` (B11) reverses older organizer-only count guard — confirm with user (alt: boolean `is_full`).
+**Temp**: C:\wt9 HEAD export left behind (hook blocked deletion) — user to delete manually.
+
+### Follow-ups
+1. /maister:standards-update: models.md (UUID PKs, soft delete, no relationships in groups BC), migrations.md, testing/backend-testing.md (pytest+testcontainers), security.md test note
+2. Notifications: place in term notification text (fit_notification_message) + exact-text tests
+3. Organizer public pages (OrganizerTermsPage, UpcomingTermsBlock, NextTermCtaBlock): place + capacity
+4. Consider deleting FirstTermStepperOrganizer
+5. CSP for maps.googleapis.com if a CSP is introduced
+6. Fix baseline frontend failures separately (×6)
+7. Standards candidates: inline-combobox Esc rule in sheets; sr-only `{" "}` outside span
+8. Untested by design: concurrent IntegrityError path in POST /api/locations
+
+## 2026-10-20 - SCOPE ADDITION approved by user: Group 10 (locations management view)
+User decision: move location management to a separate panel view "Miejsca"; forms keep only a select + "+" (inline add form, no nested sheet). Edit/delete only in the view. Backend unchanged.
+
+## 2026-10-20 - Group 10 Complete (wave 6, scope addition)
+
+**Steps**: 10.1 through 10.7 completed
+**Standards Applied**:
+- From plan: frontend/accessibility.md, components.md, css.md, responsive.md, data-fetching.md; testing/frontend-testing.md; global/minimal-implementation, coding-style, commenting
+- From INDEX.md: none additional
+- Discovered: a second `useMyLocations` subscriber with staleTime 0 refetches on mount → `LocationAddForm` takes `create` as a prop (standards candidate for data-fetching.md)
+**Tests**: group + host 41 passed (red first); full suite 965 passed / 7 failed = 6 baseline + OrganizerEditor flaky (passes on re-run 32/32); tsc green; lint 16 = baseline (delta 0)
+**Files Modified**: components/shared/LocationAddForm.tsx (new), LocationPicker.tsx (rewritten ~810 → ~115 lines: native select + "+" inline add), pages/panel/views/MiejscaView.tsx (new), panelHelpers.ts, PanelDataContext.tsx (VIEW_VALUES), PanelPage.tsx, components/shared/AccountMenu.tsx ("Moje miejsca"), tests: LocationPicker (rewritten), MiejscaView (new), PublicLayout, EditTermDialog, FirstTermStepperOrganizer, CreateGroupStepper, PanelPage
+**Notes**: options show name only, address under the select; picker has no empty-state text. Follow-up: term sheet "Grupa" select lacks accessible name (PanelModals Field label not associated).
+
+## 2026-10-20 - Implementation Complete
+
+**Total Steps**: 78 completed (71 planned + 7 in scope-addition Group 10)
+**Task Groups**: 10/10
+**Test Suite**: backend full green (873 incl. fixed privacy test); frontend 965 passed, only documented baseline failures (6) + 1 known flaky
+**Types/Lint**: mypy 32 (Δ0), ruff Δ0, tsc green, eslint Δ0
+
+## 2026-10-20 - Phase 11 Verification (iteration 1)
+Status: passed_with_issues (0 critical). Reports in verification/. User decisions: public attendee_count confirmed (B11) — closes the pending decision above; READ-level group/term location → narrow `LocationRefResponse` {id, name, formatted_address, google_place_id, notes, deleted_at}; fix all fixable issues. Fix agents dispatched in parallel (backend + spec rev 3; frontend). skip_test_suite reset to false.

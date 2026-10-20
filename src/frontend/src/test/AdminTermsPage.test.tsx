@@ -21,6 +21,15 @@ const TERM: ModerationTermResponse = {
   created_at: "2026-10-01T08:00:00",
   attendee_count: 3,
   child_count: 5,
+  location: {
+    name: "Świetlica na Polnej",
+    formatted_address: "ul. Polna 12, Poznań",
+    google_place_id: null,
+    lat: null,
+    lng: null,
+    notes: null,
+  },
+  capacity: 10,
 };
 
 function renderPage() {
@@ -40,7 +49,7 @@ describe("AdminTermsPage", () => {
   it("renders each term with its circle, date, description and signup counts", async () => {
     vi.mocked(termsApi.getTermsForModeration).mockResolvedValue(pageOf([
       TERM,
-      { ...TERM, id: "term-2", description: null, attendee_count: 0, child_count: 0 },
+      { ...TERM, id: "term-2", description: null, attendee_count: 0, child_count: 0, location: null, capacity: null },
     ]));
 
     renderPage();
@@ -51,6 +60,12 @@ describe("AdminTermsPage", () => {
     expect(screen.getByText("No description")).toBeInTheDocument();
     expect(screen.getByText("3")).toBeInTheDocument();
     expect(screen.getByText("5")).toBeInTheDocument();
+    expect(screen.getByText("Świetlica na Polnej")).toBeInTheDocument();
+    expect(screen.getByText("ul. Polna 12, Poznań")).toBeInTheDocument();
+    expect(screen.getByText("3 / 10")).toBeInTheDocument();
+    expect(screen.getAllByText("—")).toHaveLength(2);
+    expect(screen.getByRole("columnheader", { name: "Miejsce" })).toBeInTheDocument();
+    expect(screen.getByRole("columnheader", { name: "Miejsca" })).toBeInTheDocument();
     expect(screen.getByText("Showing 2 of 2 terms")).toBeInTheDocument();
     expect(termsApi.getTermsForModeration).toHaveBeenCalledWith(1);
   });

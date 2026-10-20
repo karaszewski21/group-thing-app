@@ -307,7 +307,10 @@ async def test_createAdditionalMyCircle_calledTwice_createsTwoDistinctCircles(
     assert {first.json()["id"], second.json()["id"]} <= group_ids
 
 
-_CHILD_DATA_KEYS = {"birth_year", "children", "attendee_count", "child_count"}
+# `attendee_count` (a family-level signup count) is public by design: the term
+# page compares it with `capacity` to show "Brak wolnych miejsc". Child-level
+# data stays organizer-only.
+_CHILD_DATA_KEYS = {"birth_year", "children", "child_count"}
 
 
 def _all_keys(value: object) -> set[str]:
