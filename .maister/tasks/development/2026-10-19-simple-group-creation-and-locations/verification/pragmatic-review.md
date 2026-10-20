@@ -1,149 +1,122 @@
-# Pragmatic Review: simple group creation + Locations
+# Pragmatic Review: simple group creation + Locations (iteration 2)
 
-**Scope**: uncommitted working tree vs HEAD + untracked files (44 modified, ~29 new files; ~+1.9k / -1.3k tracked lines plus ~4.1k new lines, about half of them tests).
-**Project scale**: early-stage product (single team, small user base), with a deliberately layered backend (bounded contexts + ACL files) that is an established architecture rule, not something this task introduced.
+**Scope**: the full task, now committed as `9c30834` (implementation), `bda560a` (fix tests) and `42a92a0` (fix code + removal of "Formalizuj stałych członków"). The working tree has no other source changes. The re-review concentrates on `9c30834..HEAD` (32 source files, +572 / -716 lines), checked against the iteration-1 findings.
+**Project scale**: early-stage product, one team. The layered backend (bounded contexts + ACL) is an existing architecture rule.
 
 ## 1. Executive Summary
 
-**Status: Appropriate (minor duplication to tidy up)**
+**Status: Appropriate**
 
-The change matches the size of the problem. Several decisions actively *reduced* complexity:
-- `LocationPicker` was cut from ~810 lines (radiogroup + inline edit/delete) to ~115 lines (native `<select>` + "+"). Management moved to one `MiejscaView` (user decision, work-log l.150).
-- `groupExtras` / client-only `location` / `freeSpots` state and the `isOrganizer` dual-signal logic were removed from `PanelDataContext`. The `FirstTermStepperGuest` branch (227 lines) was deleted.
-- The backend has no `relationship()`, no server-side geocoding, no caching layer and no generic autocomplete abstraction. All location lookups are batched (one `IN` query per list).
-- The Google loader has no runtime npm dependency (`@types/google.maps` dev only).
-
-No Critical or High findings. The findings below are copy-paste duplication and small redundancies, all cheap to fix.
+The fix round removed more code than it added (net about -144 lines in source). The formalize removal deleted a whole endpoint, a service function, a request schema and a UI section. None of the fixes adds a new abstraction layer. The three things the caller asked about are all proportional:
+- **ConfirmDeleteDialog** (129 LOC) has 6 props. Both delete dialogs are now thin wrappers (21 and 15 LOC). Focus return to the opener is implemented once.
+- **CapacityField + parseCapacity** give one validation rule (blank, or 1-10000 integer) and one input. Seven call sites use them the same way.
+- **Raw-string capacity state** (`defaultCapacity: string`, `termCapacity: string`) is the standard controlled-number-input pattern. It is what lets an invalid value stay visible with an inline error. It costs one `parseCapacity(...) === undefined` guard per submit and per disabled button. That cost is acceptable.
 
 | Severity | Count |
 |---|---|
 | Critical | 0 |
 | High | 0 |
-| Medium | 3 |
-| Low | 8 |
+| Medium | 0 |
+| Low | 6 |
 
-## 2. Complexity Assessment
+## 2. Iteration-1 findings: status
 
-| Area | Size | Verdict |
+| # | Finding | Status |
 |---|---|---|
-| `app/locations/` (models/schemas/service/router) | ~360 LOC | Proportional. Mirrors the `app/organizations` template; 4 endpoints. |
-| `groups/infrastructure/locations_acl.py` | 60 LOC | Required by the BC import rule. Thin. One duplicated function (L1). |
-| Migrations 0057/0058 | 133 LOC | Minimal, schema only. |
-| `lib/googleMaps.ts` | 153 LOC | Lean: memoized promise, 10 s timeout, retry on failure. Justified because the spec forbids a runtime Google package. |
-| `LocationAddForm.tsx` | 354 LOC | The heaviest new piece: a hand-rolled ARIA combobox, debounce and session tokens. The spec mandated it, but see M3. |
-| `MiejscaView.tsx` | 364 LOC | ~100 LOC is a copy of `DeleteGroupDialog` (M1). |
-| `CreateGroupStepper.tsx` / `GroupFormFields.tsx` | 239 / 108 LOC | Appropriate. `GroupFormFields` removes duplication across 3 forms. |
-| `PanelDataContext.tsx` | 1221 -> 1282 LOC | Net growth is small despite new features. It is still a god-context with JSX render helpers (`organizerTermCard`, now `guestTermCard`). That pattern predates this task. |
+| M1 | `DeleteLocationDialog` copy of `DeleteGroupDialog` | **Resolved.** `components/shared/ConfirmDeleteDialog.tsx`; both dialogs are wrappers. |
+| M2 | `parseCapacity` x4 + inline variant | **Resolved.** `panelHelpers.ts:117` plus `CapacityField` (`panelComponents.tsx:172`); no local copies remain. |
+| M3 | Hand-rolled Places combobox | **Accepted / unchanged** (spec decision). A suggest failure now falls back to manual mode (`LocationAddForm.tsx:98-104`), and a `mounted` ref was added. That is small, justified growth (+12 LOC). |
+| L1 | ACL duplicates ownership check | **Resolved.** `locations_acl.py:20` re-exports `get_own_location as get_owned_location`. |
+| L2 | Single-location attach boilerplate | **Mostly resolved.** `get_location(db, id \| None)` is used in both routers and in `public_view`. Two list sites keep the `if ... is not None else None` form (see N3). |
+| L3 | Client-side Google-place dedupe pre-check | **Open** (optional; spec-requested). `hooks/useMyLocations.ts:51-55`. |
+| L4 | Style constants exported from a form; input class redeclared | **Partially resolved.** `INPUT_CLASS` now lives in `panelComponents.tsx:168` and is used by 5 files. The `LOCATION_*_CLASS` exports and `EditTermDialog`'s local `inputClass` remain (see N2). |
+| L5 | `components/shared` imports `pages/panel` icon | **Resolved.** `components/shared/MapPinIcon.tsx`. |
+| L6 | MiejscaView focus registry | **Open, now partly redundant** (see N1). |
+| L7 | `PanelDataContext` as render-helper host | **Open** (pre-existing pattern; 1288 LOC). Do it later. |
+| L8 | Dead `updateGroupLayoutMode` | **Resolved** (removed). |
 
-## 3. Key Issues
-
-### Medium
-
-**M1. `DeleteLocationDialog` is a near-copy of `DeleteGroupDialog`**
-- Evidence: `src/frontend/src/pages/panel/views/MiejscaView.tsx:265-364` vs `src/frontend/src/pages/panel/DeleteGroupDialog.tsx:1-116`. Both have the same alertdialog markup, `trapFocus`, the Esc/`defaultPrevented` rule, `useRegisterOpenSheet(true)`, busy/error handling and button classes. The two versions have already drifted. `DeleteGroupDialog` returns focus to the opener and falls back to `main` on unmount. The copy relies on MiejscaView's `pendingFocus` machinery instead.
-- Impact: two a11y-critical dialogs to keep in sync. The next fix (for example Esc handling) will land in only one of them.
-- Fixable: yes (~1 h).
-- Suggestion: generalize to `components/shared/ConfirmDeleteDialog({ title, body, confirmLabel, busyLabel, fallbackError, onConfirm, onClose })` (Tailwind; the existing `components/shared/ConfirmDialog.tsx` is Chakra/admin-only). Make `DeleteGroupDialog` a 10-line wrapper. Net about -90 LOC.
-
-**M2. `parseCapacity` copy-pasted 4 times (plus a 5th inline variant)**
-- Evidence: `components/panel/CreateGroupStepper.tsx:38`, `components/panel/GroupFormFields.tsx:40` (re-created inside the component on every render), `components/panel/EditTermDialog.tsx:124`, `components/panel/FirstTermStepperOrganizer.tsx:33`. An inline variant without the `isFinite` guard is at `pages/panel/PanelModals.tsx:231`.
-- Impact: the same validation rule for "Ile miejsc" lives in 5 places, and one of them already differs.
-- Fixable: yes (~15 min).
-- Suggestion: export `parseCapacity` from `pages/panel/panelHelpers.ts` and use it everywhere. A tiny shared `CapacityInput` would also fold in the five identical `type=number min=1 inputMode=numeric w-28` inputs.
-
-**M3. Hand-rolled Places combobox (~200 LOC) where Google ships a widget**
-- Evidence: `components/shared/LocationAddForm.tsx:58-167, 225-277`: debounce effect, cancellation flags, session-token lifecycle, ArrowUp/Down/Enter/Esc handling, ARIA listbox.
-- Context: the spec (B12/B13) explicitly chose "own combobox/listbox", mainly to control Esc inside sheets and to keep Tailwind styling. Places API (New) offers `PlaceAutocompleteElement`, which handles suggestions, sessions and billing tokens itself. It would remove most of this state machine, at the cost of shadow-DOM styling and less control over keyboard handling.
-- Impact: the most intricate new client code; future changes to Google billing or sessions land here.
-- Fixable: not without reopening a spec decision. Effort ~0.5 day plus a11y re-verification.
-- Suggestion: keep it for now (it is tested and works). Record the alternative as a follow-up if the combobox causes maintenance pain.
+## 3. Key Issues (iteration 2)
 
 ### Low
 
-**L1. ACL `get_owned_location` duplicates `locations.service.get_own_location`**
-- Evidence: `src/backend/app/groups/infrastructure/locations_acl.py:31-41` vs `src/backend/app/locations/service.py` (`get_own_location`). They implement the same 404-then-403 logic.
-- Fixable: yes (5 min). The ACL can delegate: `return await locations_service.get_own_location(db, location_id, caller_party_id)`. The ACL is allowed to import `app.locations`.
+**N1. Two focus-return mechanisms for the location delete dialog**
+- Evidence: `pages/panel/views/MiejscaView.tsx:169-172` sets `pendingFocus = "delete:<id>"` on cancel. `ConfirmDeleteDialog.tsx:36-45` already returns focus to the opener (the same delete button) on unmount. After a confirmed delete, the dialog first focuses `main` (the opener is gone), and then the MiejscaView effect moves focus to the next row. This works because of React's effect ordering, not because of an explicit design.
+- Impact: two owners of one focus move. A later change to either could cause focus to jump twice or end up on `main`.
+- Fixable: yes (~10 min). Drop the `pendingFocus` line in the cancel handler and the `delete:` ref registration (line 122). Keep `pendingFocus` only for after-delete, add and edit. Re-run `MiejscaView.test.tsx`.
 
-**L2. Repeated "single location attach" boilerplate**
-- Evidence: `router/circles.py` `_group_response`, `router/terms.py` `_term_response`, `application/public_view.py` (single-term branch), plus the list variants in `list_groups`, `list_terms`, `list_terms_for_moderation` and `list_my_attendances`. Each repeats `get_locations_by_ids(db, [id] if id else [])` followed by `x_response(locations.get(id) if id is not None else None)`.
-- Fixable: yes (~20 min). Add `locations_acl.get_location(db, id | None) -> Location | None`, and let `location_response` / `public_location_response` accept `(locations, id)`. This removes the `if ... is not None else None` noise in about 7 places.
+**N2. Two parallel sets of input/button class constants**
+- Evidence: `panelComponents.tsx:168` `INPUT_CLASS` (no `w-full`); `components/shared/LocationAddForm.tsx:21-29` exports `LOCATION_INPUT_CLASS` (same string plus `w-full`) and 4 more constants, which `LocationPicker.tsx:4` and `MiejscaView.tsx:4-8` import. `EditTermDialog.tsx:33` still has a local `inputClass` (also `INPUT_CLASS + w-full`).
+- Impact: cosmetic drift risk only.
+- Fixable: yes (~15 min). Use `` `${INPUT_CLASS} w-full` `` in `LocationAddForm`/`EditTermDialog`, or leave it. This is not worth a dedicated change.
 
-**L3. Triple de-duplication of Google places on create**
-- Evidence: `hooks/useMyLocations.ts:49-55` (client pre-check against the cached list), `app/locations/service.py` `create_location` (lookup -> 200), and the SAVEPOINT + `IntegrityError` re-fetch.
-- The server path alone is enough. The client pre-check saves one request in a rare case, puts `locations` in the `useCallback` deps (a new `create` identity on every list change), and adds a test surface. The spec asked for it, so this is a cleanup suggestion, not a defect.
-- Fixable: yes (5 min). Drop the client pre-check.
+**N3. Two remaining `locations.get(id) if id is not None else None` sites**
+- Evidence: `backend/app/groups/application/public_view.py:143-145`, `backend/app/groups/application/terms.py:129-131`.
+- Fixable: yes (5 min). Optional; a tiny `location_from(locations, id)` helper, or leave it as it is. The guard exists for mypy's key type.
 
-**L4. Style constants exported from a form component**
-- Evidence: `components/shared/LocationAddForm.tsx:21-29` exports `LOCATION_INPUT_CLASS`, `LOCATION_LABEL_CLASS`, `LOCATION_SAVE_BTN_CLASS`, `LOCATION_CANCEL_BTN_CLASS` and `LOCATION_ERROR_CLASS`, which `LocationPicker.tsx` and `MiejscaView.tsx` import. Separately, the same input class string is redeclared locally in `CreateGroupStepper.tsx:19`, `GroupFormFields.tsx:5`, `FirstTermStepperOrganizer.tsx:19`, `EditTermDialog.tsx:38` and `CreateFamilyDialog.tsx:19`.
-- `panelComponents.tsx` already has `inputClass` and button classes (spec 5.1 lists them for reuse).
-- Fixable: yes (~20 min). Import from `panelComponents.tsx` (or move the classes there) instead of creating a parallel set.
+**N4. `already_member` left over from the removed formalize feature, computed with a per-membership query**
+- Evidence: `backend/app/groups/schemas.py:497` and `backend/app/groups/application/memberships.py:153-156,165`: `{await _group_role_party_id(db, m.from_role_id) for m in active_memberships}` runs one query per active membership. `frontend/src/api/groups.ts:436` declares the field, but no production component reads it. Only the `TermAttendeesPage.test.tsx` fixture mentions it. Its purpose was to mark candidates already promoted in the formalize picker.
+- Impact: dead response field, plus N+1 work on every attendee-list load. It is also context loss: the docstring still says it serves the list "and whether they're already a standing member".
+- Fixable: yes (~15 min). Remove the field from the schema, from `TermAttendeeResponse` in `api/groups.ts` and from the test fixture, and drop the membership lookup. If the attendee page should show a "member" badge, keep the field but batch the role lookup.
 
-**L5. `components/shared` depends on `pages/panel`**
-- Evidence: `components/shared/TermPlaceLine.tsx:2` imports `MapPinIcon` from `pages/panel/panelIcons`. `components/panel/*` also import `pages/panel/panelComponents` / `panelHelpers`. The direction is inverted (shared -> page).
-- Fixable: yes (5 min) for the icon: move `MapPinIcon` next to `TermPlaceLine`, or into a shared icons file. The other imports are a pre-existing pattern.
+**N5. Local `capacityText` shadows the imported `capacityText()` helper**
+- Evidence: `pages/panel/PanelDataContext.tsx:823` (`const capacityText = ...` inside `signupSummaryChip`), while `capacityText` is imported at line 94 and used at lines 634 and 942.
+- Impact: readability only; the shadowing is harmless at runtime.
+- Fixable: yes (1 min). Rename the local to `capacityLabel`.
 
-**L6. MiejscaView focus registry runs an effect on every render**
-- Evidence: `pages/panel/views/MiejscaView.tsx:28-48`: a `Map` of focusable refs plus a dependency-less `useEffect`. It works and serves the a11y standard (focus after add, edit, delete). It is a bit more machinery than the 2-3 focus targets need.
-- Fixable: optional. If M1 is done, the delete dialog's own opener-restore covers one case; the rest could use two plain refs. Keep it if it is tested (`MiejscaView.test.tsx`).
-
-**L7. `PanelDataContext` keeps growing as a render-helper host**
-- Evidence: `pages/panel/PanelDataContext.tsx:1068-1147`: new `savedCards` derivation and the `guestTermCard` JSX in the data context, next to the existing `organizerTermCard`. The merge/dedupe logic (led > attended > membership-only) is also partly repeated in `views/HomeView.tsx:~60-71`.
-- It is consistent with the existing pattern, so not a regression. The task did shrink other parts of the file.
-- Fixable: later. When the file is next touched, move `guestTermCard` / `organizerTermCard` into `components/panel/TermCards.tsx`, and keep the derivation as one pure function (`buildSavedCards(terms, guestTerms, myAttendances)`) that both Home and Spotkania use.
+**N6. `onPlacesChanged` reloads the whole panel after every place edit**
+- Evidence: `pages/panel/PanelPage.tsx:95` `onPlacesChanged={() => void load({ silent: true })}`, called from 3 places in `MiejscaView.tsx`.
+- This is a pragmatic choice: the panel is still `load()`-based, not TanStack Query, so there is no narrower invalidation to call. It is noted only so nobody "optimizes" it before the panel migrates to query hooks. No action needed.
 
 ## 4. Developer Experience
 
-- Positive: works with no Google key (manual mode). Tests and CI need no secret. `isGoogleMapsConfigured()` reads the env at call time, so `vi.stubEnv` works. `.env.example` files hold empty placeholders and compose passes the build arg.
-- Positive: the backend layout matches `app/organizations`, so the new BC is instantly familiar. Docstrings explain the 200/201 idempotency and the soft-delete rules.
-- Friction: an a11y fix currently has to be made in two dialogs (M1). A change to capacity rules has to be made in five places (M2).
-- No intrusive automation, no new infrastructure, no feature flags.
+- Better than iteration 1: an a11y fix for delete confirmation now lands in one file. A capacity rule change lands in one function, and the error text in one constant.
+- `parseCapacity` returns `number | null | undefined`, a three-state value (blank / valid / invalid). It is documented in a docstring, and every consumer uses the same `=== undefined` guard. A tagged result would be over-engineering at this size.
+- `CapacityField` sets `aria-label` because `Field`'s `<label>` is not associated with its input. That is a pre-existing `Field` limitation, and this is a consistent workaround.
+- `googleMaps.ts` script reuse (`SCRIPT_ID`) adds 6 lines and prevents a real Google "included twice" error on retry. Justified.
 
 ## 5. Requirements Alignment
 
-- Implementation matches spec scope A1-A7 and B8-B17. There is no feature creep: notifications and organizer public responses were left untouched, as the spec decided.
-- Deliberate, documented deviations, all toward simplicity:
-  - The picker is a native select; edit/delete moved to the "Moje miejsca" view (user decision).
-  - `resolve()` takes no session token, because `fetchFields` attaches it implicitly (commented in `lib/googleMaps.ts:125-127`).
-- The new `/panel/miejsca` view and the "Moje miejsca" account-menu item go beyond the original spec, but they are the consequence of the user's decision, not speculative.
-- Open item (already in the work-log, l.136): public `attendee_count` reverses an older organizer-only count guard and needs user confirmation. This is a product/privacy decision, not complexity.
+- The formalize removal (user request) is clean. No `formaliz*` identifiers remain in `app/` or `src/`, apart from a regression test asserting the section is absent. The endpoint, schema, service export and authorization-matrix test were removed together. The attendee list survives as `list_term_attendees` / `getTermAttendees`. N4 is the only leftover.
+- `LocationRefResponse` (narrow nested place) and "do not re-validate an unchanged location id" (`circles.py:248-253`, `terms.py:45,153`) are user-decided fixes. They are minimal (one comparison each) and documented in the docstrings.
+- No feature creep in the fix round.
 
 ## 6. Context Consistency
 
-- **Dead code (counted as L8)**: `updateGroupLayoutMode` (`src/frontend/src/api/groups.ts:145`) now has zero callers. Its only caller in `PanelDataContext` was replaced by `updateGroup`. Delete it (2 min, fixable).
-- No other dead code found in the new modules.
-- Inconsistency: the capacity parsing variants (M2) and the duplicated input/button class constants (L4).
-- Two mechanisms set the default visibility for the "Dodaj grupę" form: `emptyGroupForm()` at init and an effect on modal open (`PanelDataContext.tsx:231-235`). This is justified because `organizationSlug` loads asynchronously, but a one-line comment would help.
+- Dead code: N4 (`already_member`). No other orphan after the removal: `list_active_attendances_for_term`, `_group_role_party_id` and `list_active_memberships_for_group` all still have callers.
+- Docstrings were updated for the removed flow (`circles.py`, `models.py`, `memberships.py`, `router/circles.py`, `schemas.py`). One stale phrase is in `memberships.py:130-133` (see N4).
+- Duplicated mechanisms: N1 (focus) and N2 (class constants).
 
 ## 7. Recommended Simplifications (top 3)
 
-1. **Shared confirm-delete dialog (M1)**: about -90 LOC and one a11y implementation.
+1. **Drop `already_member` (N4)**: removes a dead field and a per-membership query loop (~10 LOC backend, 1 line frontend type).
+   ```python
+   # before (memberships.py)
+   active_memberships = await repository.list_active_memberships_for_group(db, group_id)
+   member_party_ids = {await _group_role_party_id(db, m.from_role_id) for m in active_memberships}
+   ... already_member=attendance.party_id in member_party_ids,
+   # after: both lines and the field removed
+   ```
+2. **One focus owner in MiejscaView (N1)**: let `ConfirmDeleteDialog` handle cancel.
    ```tsx
-   // before: MiejscaView.tsx defines DeleteLocationDialog (100 lines)
-   // after:
-   <ConfirmDeleteDialog
-     title={`Usunąć miejsce „${deleting.name}”?`}
-     body="Zniknie z Twojej listy miejsc. Grupy i terminy, które już je mają, nadal je pokażą."
-     confirmLabel="Usuń miejsce" busyLabel="Usuwanie…"
-     onConfirm={() => confirmDelete(deleting)} onClose={...} />
+   // before
+   onClose={() => { pendingFocus.current = `delete:${deleting.id}`; setDeleting(null); }}
+   // after
+   onClose={() => setDeleting(null)}
    ```
-2. **One `parseCapacity` (+ optional `CapacityInput`) (M2)**: about -30 LOC and one validation rule.
-   ```ts
-   // panelHelpers.ts
-   export const parseCapacity = (raw: string): number | null =>
-     raw.trim() === "" || !Number.isFinite(Number(raw)) ? null : Number(raw);
-   ```
-3. **Backend ACL tidy-up (L1 + L2)**: delegate `get_owned_location` to `locations.service.get_own_location`, and add `get_location(db, id)` / map-aware response helpers. About -25 LOC and less `if ... else None` noise across 7 call sites.
+3. **Rename the shadowing local (N5)** and optionally fold `LOCATION_INPUT_CLASS` / `EditTermDialog.inputClass` into `INPUT_CLASS` (N2).
 
 ## 8. Summary Statistics
 
-| Metric | Current | After top-3 |
+| Metric | Iteration 1 | Now |
 |---|---|---|
-| Alertdialog implementations in panel | 2 | 1 |
-| `parseCapacity` copies | 4 (+1 inline) | 1 |
-| Ownership-check implementations for Location | 2 | 1 |
-| Estimated LOC removed | — | ~145 |
+| Alertdialog implementations | 2 | 1 |
+| `parseCapacity` copies | 4 + 1 inline | 1 |
+| Capacity input implementations | 5 | 1 (`CapacityField`) |
+| Location ownership-check implementations | 2 | 1 |
+| Dead functions/fields found | 1 (`updateGroupLayoutMode`) | 1 (`already_member`) |
+| Net source LOC in fix round | — | about -144 |
 | New runtime dependencies | 0 | 0 |
 
 ## 9. Conclusion
 
-The implementation is pragmatic and proportional to an early-stage product. The biggest complexity risk, an 800-line picker, was already removed during implementation. The remaining work is housekeeping: M1, M2, L1 and L2 together take about 2 hours. M3 is a possible future simplification that would require revisiting a spec decision. None of the findings block the merge.
+All iteration-1 Medium findings are resolved (M3 is accepted as a spec decision). L1, L5 and L8 are resolved, L2 mostly. The fixes did not add disproportionate complexity: ConfirmDeleteDialog, CapacityField and the raw-string capacity state are each the simplest form that meets the a11y and validation requirements. The six remaining Low items take about 45 minutes in total. N4 is the most worthwhile of them. None blocks the merge.

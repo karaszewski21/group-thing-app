@@ -192,6 +192,8 @@ describe("MiejscaView", () => {
     renderView();
 
     const deleteButton = await screen.findByRole("button", { name: "Usuń miejsce Świetlica na Polnej" });
+    // A real click focuses the button; `ConfirmDeleteDialog` returns focus to that opener.
+    deleteButton.focus();
     fireEvent.click(deleteButton);
     fireEvent.keyDown(screen.getByRole("alertdialog"), { key: "Escape" });
     expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument();

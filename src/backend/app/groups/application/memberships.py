@@ -18,7 +18,7 @@ from app.users.models import UserProfile
 from app.users.service import get_profile_by_principal
 
 from ..infrastructure import repository
-from ..models import Group, GroupRoleType, Membership
+from ..models import GroupRoleType, Membership
 from ..schemas import TermAttendeeChildResponse, TermAttendeeResponse
 from .circles import _group_role_party_id, _require_active_organizer
 from .group_roles import get_or_create_active_group_role
@@ -129,8 +129,7 @@ async def list_term_attendees(
 ) -> list[TermAttendeeResponse]:
     """The organizer's attendee list for a term — active (non-withdrawn)
     RSVPs on `term_id`, annotated with the attendee's resolved family (if
-    any) and whether they're already a standing member of `group_id`.
-    Organizer-only."""
+    any). Organizer-only."""
     profile = await get_profile_by_principal(db, principal)
     await _require_active_organizer(db, group_id, profile.party_id)
     await _require_term_in_group(db, group_id, term_id)
@@ -150,10 +149,6 @@ async def list_term_attendees(
     }
     profile_rows = await repository.list_profile_names_by_party_ids(db, party_ids)
     names = {row.party_id: row.display_name for row in profile_rows}
-    active_memberships = await repository.list_active_memberships_for_group(db, group_id)
-    member_party_ids = {
-        await _group_role_party_id(db, m.from_role_id) for m in active_memberships
-    }
 
     return [
         TermAttendeeResponse(
@@ -162,7 +157,6 @@ async def list_term_attendees(
             child_count=attendance.child_count,
             family_id=families.get(attendance.party_id, (None, None))[0],
             family_name=families.get(attendance.party_id, (None, None))[1],
-            already_member=attendance.party_id in member_party_ids,
             children=children_by_party.get(attendance.party_id, []),
         )
         for attendance in attendances

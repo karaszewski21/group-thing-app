@@ -91,10 +91,13 @@ export function CreateGroupStepper({ organizationSlug, onClose, onCircleCreated,
         default_capacity: groupCapacity,
       };
       const saved = group ? await updateGroup(group.id, request) : await createAdditionalMyCircle(request);
+      // A re-save keeps the user's step-2 choices unless the group default they came from changed.
+      if (group?.default_location?.id !== saved.default_location?.id) {
+        setLocationId(saved.default_location?.id ?? null);
+      }
+      if (group?.default_capacity !== saved.default_capacity) setCapacity(capacityText(saved.default_capacity));
       setGroup(saved);
       setSavedForm(form);
-      setLocationId(saved.default_location?.id ?? null);
-      setCapacity(capacityText(saved.default_capacity));
       setStep(2);
       onCircleCreated();
     } catch (err) {

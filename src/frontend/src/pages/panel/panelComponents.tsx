@@ -168,7 +168,9 @@ export function Field({ label, children }: { label: string; children: ReactNode 
 export const INPUT_CLASS = "rounded-xl border-[1.5px] border-line bg-cream px-3.5 py-2.5 text-ink";
 
 /** The "Ile miejsc" field: `value` is the raw input text (see `parseCapacity`);
- * an invalid value shows an inline error, and the host blocks submit. */
+ * an invalid value shows an inline error, and the host blocks submit. A text
+ * input, not `type="number"`: that one reports `""` for input like "-" or "e",
+ * which would silently save as "no limit". */
 export function CapacityField({
   label,
   value,
@@ -185,11 +187,9 @@ export function CapacityField({
   return (
     <Field label={label}>
       <input
-        type="number"
-        min={1}
-        max={10000}
-        step={1}
+        type="text"
         inputMode="numeric"
+        pattern="[0-9]*"
         aria-label={label}
         aria-invalid={invalid || undefined}
         aria-describedby={invalid ? errorId : undefined}

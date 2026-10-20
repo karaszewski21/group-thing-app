@@ -1,76 +1,82 @@
-# Reality Check: Simple group creation + Locations
+# Reality Check: Simple group creation + Locations (iteration 2)
 
 **Date**: 2026-10-20
-**Assessor**: reality-assessor (read-only)
-**Status**: ⚠️ Issues Found. Conditional GO: fix R1 first (small backend change).
+**Assessor**: reality-assessor (read-only, re-verification)
+**Status**: ✅ Ready. GO, with Google Places held behind the R3 manual smoke test.
 
 ## 1. Summary
 
-The feature does what the brief asks, for the most part. The evidence below is independent of the work log:
+All iteration-1 must-fix and agreed items are resolved. I confirmed this live against the **current** code. The term "Formalizuj stałych członków" feature is removed end to end.
 
-- **Targeted test re-run (this session)**:
-  - Backend: 8 files (locations, locations migration, group defaults, term location/capacity, public term, my attendances, group privacy, authorization matrix) gave **112 passed**.
-  - Frontend: 12 files gave **218 passed, 2 failed**. The 2 failures are the documented baseline ones: TermPage anonymous footer, and PanelPage "409 inline".
-- **Live API run against the restarted local backend on :8080**: `POST /api/locations` now returns 401 without auth (previously 405), so the stale process is gone. With a throwaway account, all of these worked end to end:
-  - a MANUAL place was created (201)
-  - `/mine` listed it
-  - `POST /api/groups/mine/new` took the defaults and returned a PRIVATE group with the nested `default_location` and `default_capacity`
-  - a term created without the fields inherited place and capacity by value
-  - the anonymous public view of a PUBLIC group returned `term.location` (no `owner_party_id`), `capacity` and `attendee_count`
-  - after a soft delete, the place disappeared from `/mine` while the existing term still rendered it with `deleted_at`
-  - `capacity: 0` was rejected with 400
-- **Code read of stepper, picker, add form, Moje miejsca view, Google loader, ACL and use cases**: the 2-step flow has no organization step. The status-level "organizator" copy is gone (grep: zero hits). `groupExtras` is gone. The `?nowa=grupa` deep link works. `/panel` sits under `PublicLayout`, so the hamburger with "Załóż grupę" and "Moje miejsca" is reachable from inside the panel too.
+Evidence:
+- **Test results** (read from `verification/test-suite-results.md`, not re-run, per `skip_test_execution: true`):
+  - backend: 869/869
+  - frontend: 979/985, and the 6 failures match the baseline list proven at HEAD
+  - tsc: green
+  - mypy: 32 (baseline)
+  - lint: 16 (baseline)
+- **The local :8080 backend is stale.** It still serves `/api/groups/{group_id}/terms/{term_id}/formalize` in `openapi.json`, and its `LocationRefResponse` is missing. That process predates the latest commits, so it was **not** used for verification. I started a separate, non-reload uvicorn with the committed code (HEAD `42a92a0`) on 127.0.0.1:8093 against the same dev DB, ran the scenario, and stopped the server. Port 8093 is free again.
+- **Code read** of the fixed paths: `application/circles.py:249-253`, `application/terms.py:43-46,152-155`, `app/locations/schemas.py` (`LocationRefResponse`), `LocationPicker.tsx:52-88`, `PanelPage.tsx:95` / `MiejscaView.tsx`, `panelHelpers.parseCapacity`, `panelComponents.CapacityField`.
 
-There is one real functional gap: re-sending a soft-deleted default place, which the frontend always does. Live testing confirmed it. It breaks acceptance criterion 8 in a normal user flow, and the new "Moje miejsca" view makes deleting a place prominent. Beyond that, there is one privacy question and one unverified path (a real Google key).
+## 2. Live scenario (current code, :8093)
 
-## 2. Reality vs claims
-
-| Claim (work-log) | Reality | Evidence |
+| Step | Expected | Actual |
 |---|---|---|
-| Backend 873 green | Plausible; the subset I re-ran is green | 112/112 on the 8 relevant files |
-| Frontend 965 pass, 6 baseline failures | Consistent | 218/220; the 2 failures are the documented baseline ones |
-| Deleting a place does not break groups/terms (spec §11.8) | **Partly false** | Live: soft-delete the place, then `PATCH /api/groups/{id}` with the unchanged `default_location_id` → **404** "Location with id … not found". `POST /api/terms` with the prefilled default → **404**. Only an omitted field inherits (201) |
-| Public payloads never include `owner_party_id` | True for public, attendance and moderation payloads; **not** for authenticated READ endpoints | Live: a *second, unrelated* account calling `GET /api/terms?circle_group_id=<PRIVATE group>` sees `formatted_address`, `notes` and `owner_party_id` |
-| Google Places (New) path works | **Unverified at runtime**. Only mocked tests cover it | No key configured locally; the loader relies on `loading=async` + `importLibrary` |
-| Local runtime blocked by a stale uvicorn | Resolved | `/api/locations` routes are live (401 without auth) |
+| Owner creates MANUAL place → PRIVATE group with that default + capacity 8 | 201 | 201; `default_location` keys = `deleted_at, formatted_address, google_place_id, id, name, notes` |
+| Term with that place | 201 | 201 |
+| Soft-delete the place | 204 | 204 |
+| **R1a** PATCH group (rename), re-sending the same `default_location_id` | 200 | **200**; the default stays attached and shows its `deleted_at` |
+| **R1b** POST term with the prefilled (deleted) default id | 201 | **201** |
+| **R1c** PATCH term, unchanged (deleted) `location_id` | 200 | **200** |
+| ACL: owner assigns another account's place | 403 | 403 (the ownership check is still enforced for *changed* ids) |
+| **R2** second, unrelated account: `GET /api/groups/{id}`, `GET /api/groups`, `GET /api/terms?circle_group_id=` | no `owner_party_id`/`lat`/`lng` | All three return only `id, name, formatted_address, google_place_id, notes, deleted_at` |
+| `POST /api/groups/{g}/terms/{t}/formalize` | 404/405 | 405 (route gone from OpenAPI) |
+| `default_capacity: 0` | 400 | 400 |
 
-## 3. Critical gaps
+Throwaway accounts created: `reality2-owner-1792500357@example.test` and `reality2-other-1792500357@example.test`. Their group and both places are soft-deleted.
 
-None that block every use. R1 is classed High, but it should be fixed before release because it is cheap and it hits the main new flow.
+## 3. Status of iteration-1 findings
 
-## 4. Issues
+| ID | Iter-1 | Now | Evidence |
+|---|---|---|---|
+| R1 unchanged location 404/403 | High | **Resolved** | Code skips the ACL when the id equals the current value (`!= group.default_location_id` / `!= term.location_id`). Live R1a/b/c gave 200/201/200. Work log reports 3 regression tests |
+| R2 full location exposure | High | **Resolved as decided** | `LocationRefResponse` without owner/coordinates on `GroupResponse.default_location` and `TermResponse.location`; confirmed live for a second account. Address and notes stay visible to any logged-in user, by the user's choice |
+| R3 Google path only mocked | Medium | **Open (manual)** | Still no key locally. The fixes added suggest-failure → manual fallback and script reuse on retry, so the damage stays limited |
+| R4 public `attendee_count` | Decision | **Closed** | User confirmed it stays public (work log, Phase 11) |
+| R5 stale panel after Moje miejsca | Low | **Resolved** | `PanelPage.tsx:95` passes `onPlacesChanged={() => load({ silent: true })}`; MiejscaView calls it after add/edit/delete; MiejscaView tests assert one call per mutation |
+| R6 "(usunięte)" label | Low | **Resolved** | `LocationPicker.tsx:88` labels by `fallback.deleted_at === null`, not by list membership; test at `LocationPicker.test.tsx:150` |
+| R7 capacity client validation | Low | **Resolved** | `parseCapacity` accepts only an integer from 1 to 10000. `CapacityField` shows an inline `role="alert"` error with `aria-invalid`/`aria-describedby`, and the host blocks submit |
+| R8 notifications / organizer pages | Info | Unchanged (deferred by spec) | Work-log follow-ups 2, 3 |
+| Formalize removal | (user request) | **Done** | No `formalize` in `app/`/`tests/`. Frontend has only the negative regression test (`EditTermDialog.test.tsx:158`). Endpoint returns 405 |
+
+## 4. Critical gaps
+
+None.
+
+## 5. Remaining issues
 
 | ID | Severity | Location | Description | Fixable | Suggestion |
 |---|---|---|---|---|---|
-| R1 | **High** | `src/backend/app/groups/application/circles.py` `update_group`; `application/terms.py` `create_term` / `update_term`; triggered by `src/frontend/src/pages/panel/PanelDataContext.tsx` `saveEditGroup` / `handleAddTerm`, `CreateGroupStepper.tsx`, `FirstTermStepperOrganizer.tsx:67` | Once the group's default place is soft-deleted (for example from "Moje miejsca"), every group save fails with 404, even a plain rename. Every new term from the term modal or `FirstTermStepperOrganizer` also fails with 404 until the user manually changes the place select. The cause: the frontend always sends the prefilled id, and the backend ownership check (`get_owned_location`) treats an *unchanged* id as a new assignment. The same path gives 403 after a leadership handover, when the new leader re-sends the previous leader's place. Confirmed live. No test covers it. Same finding as code-review W1 | Yes, ~30 min | Skip the ACL check when the id is unchanged: `data.default_location_id != group.default_location_id` (update_group), `data.location_id != term.location_id` (update_term), and `location_id != group.default_location_id` (create_term). Add 3 regression tests: delete the place, then (a) PATCH the group name with the same id gives 200, (b) POST a term with the prefilled id gives 201, (c) PATCH the term with the unchanged id gives 200 |
-| R2 | High (privacy, product decision) | `src/backend/app/groups/router/circles.py` `list_groups`, `get_group`; `router/terms.py` `list_terms`, `get_term`; `schemas.py` `GroupResponse.default_location`, `TermResponse.location` | Any logged-in account can read the full owner view of the place (address, notes such as entrance hints, coordinates, `owner_party_id`) for **every** group and term, PRIVATE circles included. Confirmed live with a second account. Groups and terms being readable by any logged-in user is not new, but a physical meeting address is a new, more sensitive kind of data, and it contradicts the PRIVATE intent. Code-review W2 and production-readiness Concern 4 report the same thing | Yes, 1–2 h | Embed a narrow `LocationRefResponse` (`id`, `name`, `formatted_address`, `notes`, `google_place_id`, `deleted_at`) and drop `owner_party_id`. Or attach the place only when the caller is the active organizer, as `attendee_count` already is. Get the user's decision |
-| R3 | Medium | `src/frontend/src/lib/googleMaps.ts` | The Google path has never run against the real Maps JS API: the script is injected with `loading=async` and no `callback`, `importLibrary("places")` comes next, and `fetchFields` has no explicit session token. Typings and mocks pass, but a wrong assumption only shows up with a key. The manual fallback limits the damage: a null result switches to manual mode with an alert | Yes | Before release, test by hand with a referrer-restricted key that has "Maps JavaScript API" + "Places API (New)" enabled. Search, pick and save, check the 200 on a duplicate place_id, and check that the Network tab shows one session per pick |
-| R4 | Medium (pending decision) | `app/groups/application/public_view.py` (`PublicTermResponse.attendee_count`) | The public, unauthenticated `attendee_count` reverses the older rule that only organizers see the count (Group 9 relaxed the privacy test `_CHILD_DATA_KEYS`). The work log lists this as a pending user decision | Yes | Confirm with the user. The alternative is a boolean `is_full` plus a "Zapisanych X z Y" line only for organizers |
-| R5 | Low | `PanelDataContext.tsx` (`myGroups` loaded imperatively) vs `MiejscaView` (`useMyLocations`) | Renaming or deleting a place in "Moje miejsca" leaves the old name or address on the group tiles and term cards until the panel reloads. The data is stored correctly; only the display is stale | Yes | Call `load({ silent: true })` when the view is entered, or after location mutations |
-| R6 | Low | `components/shared/LocationPicker.tsx` (deleted check) | Any `fallbackLocation` that is not in the caller's own list gets the label "(usunięte)". After a leadership handover, the previous leader's *active* place is wrongly labelled deleted | Yes | Base the label on `fallbackLocation.deleted_at` |
-| R7 | Low | `CreateGroupStepper.tsx` `parseCapacity`, `GroupFormFields`, term modal | Capacity 0, negative or fractional values are only rejected by the server (400), so the user sees the backend message (likely English or generic) | Yes | Validate on the client: an integer ≥ 1, with a Polish inline error |
-| R8 | Info (deferred by spec) | notifications, `OrganizerTermsPage` / `UpcomingTermsBlock` | The brief listed "place in notifications" as acceptance; the spec deliberately deferred it, along with the organizer public pages. Groups that have an Organization show no place on their organizer pages | n/a | Keep these as the documented follow-ups (work-log 2, 3) |
-| R9 | Info | local dev DB | This assessment created 3 throwaway accounts in the local DB (`reality-check-*@example.test`, `oreality-check-*@example.test`, `reality-pub-*@example.test`). Their groups and places are soft-deleted | n/a | Remove them if you want a clean dev DB |
+| N1 | Medium (ops) | local dev process on :8080 (PID 13604 at check time) | The running local backend is stale: it still exposes `formalize` and returns the old full location shape. A manual or E2E check against :8080 would give misleading results | Yes | Kill every uvicorn listener and its `spawn_main` children on 8080, then restart from `src/backend` |
+| R3 | Medium | `src/frontend/src/lib/googleMaps.ts` | The real Places (New) path has never run with a key | Yes (manual, ~30 min) | Before enabling the production key, smoke test with a referrer-restricted key: search, pick, save, re-pick the same place_id (200), and check that the Network tab shows one session per pick |
+| N2 | Low (product) | `application/terms.py:43-48` | New terms can be created pointing at a soft-deleted place: the prefilled default, or inheritance when the field is omitted. The public view (`PublicLocationResponse`, no `deleted_at`) shows that place to guests as a normal address. This follows from "unchanged id is not re-validated" plus inherit-by-value, and is arguably intended. The organizer sees "(usunięte)" in the picker | Yes | Optionally hint "domyślne miejsce zostało usunięte" in the group form, or stop inheriting a deleted default. Not blocking |
+| N3 | Low | `application/terms.py:152-154` | After a leadership handover, a new leader changing a term's place **to** the group default (still the previous leader's place) gets 403. Only `create_term` exempts the group default | Yes | Also accept `data.location_id == group.default_location_id` in `update_term`. Rare edge, not blocking |
+| N4 | Info | `src/backend/app/groups/application/memberships.py:21` | New unused import `Group` (F401); ruff count unchanged | Yes | `ruff check --fix` |
+| R8 | Info | notifications, organizer public pages | Deferred by spec | n/a | Keep as follow-ups |
+| N5 | Info | local dev DB | Throwaway accounts from both iterations: `reality-check-*`, `oreality-check-*`, `reality-pub-*`, `reality2-*@example.test` (data soft-deleted) | n/a | Remove if you want a clean DB |
 
-## 5. Functional completeness
+## 6. Functional completeness
 
 | Area | Estimate | Notes |
 |---|---|---|
-| A: 2-step "Załóż grupę" for anyone, default visibility, optional org CTA, `/krag` fallback, both contexts | ~95% | Works; per-group role wording kept |
-| B: Location entity + CRUD + ownership + soft delete | ~95% | Correct, except that an unchanged id is re-validated (R1) |
-| B: group defaults, inherit by value, override, clear | ~85% | Inheritance works only when the field is *omitted*, but the frontend never omits it (R1) |
-| B: display (public page, panel cards, admin, capacity pill) | ~95% | Covered by tests; public payload confirmed live |
-| B: Google Places | Unknown at runtime | Mocked tests only (R3) |
-| Scope addition: "Moje miejsca" + select with "+" | ~95% | Reachable via the hamburger (panel is under `PublicLayout`); add/edit/delete covered by MiejscaView tests |
-
-## 6. Action plan
-
-1. **R1 (High, ~30 min)**: skip the backend check for unchanged ids, plus 3 regression tests. Done when the soft-delete → rename and soft-delete → add-term flows return 200/201, both via the API and in the UI.
-2. **R2 (High, decision + 1–2 h)**: ask the user. If the answer is "hide", switch to a narrow ref response without `owner_party_id`, or restrict it to organizers, and adjust the exact-key tests.
-3. **R4 (decision)**: confirm whether the public `attendee_count` stays.
-4. **R3 (Medium, ~30 min manual)**: smoke test with a real key before enabling the key in production.
-5. R5–R7 (Low): optional polish.
+| A: 2-step "Załóż grupę" for anyone, both contexts | ~95% | Unchanged from iter 1; capacity is now validated on the client |
+| B: Location entity + CRUD + ownership + soft delete | ~98% | R1 fixed; ACL still enforced for changed ids |
+| B: group defaults, inherit by value, override | ~95% | Prefilled re-send now works; edges N2/N3 only |
+| B: display + privacy | ~95% | Narrow ref for READ, public payload without owner; panel refreshes after place changes |
+| B: Google Places | Unknown at runtime | R3 |
+| Moje miejsca view + select with "+" | ~97% | R5/R6 fixed |
+| Formalize removal | 100% | Backend, frontend and tests |
 
 ## 7. Deployment decision
 
-**Conditional GO.** Without a Google key (manual mode), the main flows work end to end on the live backend. Ship after R1 is fixed and R2/R4 are decided. Turn on the Google key only after the R3 smoke test.
+**GO** for manual-mode places (no Google key). Turn the Google key on only after the R3 smoke test. Restart the stale :8080 dev backend (N1) before any further manual or E2E checks. N2 to N4 are optional polish.

@@ -162,7 +162,7 @@ User decision: move location management to a separate panel view "Miejsca"; form
 
 ## 2026-10-20 - Implementation Complete
 
-**Total Steps**: 78 completed (71 planned + 7 in scope-addition Group 10)
+**Total Steps**: 73 sub-steps completed (66 planned + 7 in Group 10)
 **Task Groups**: 10/10
 **Test Suite**: backend full green (873 incl. fixed privacy test); frontend 965 passed, only documented baseline failures (6) + 1 known flaky
 **Types/Lint**: mypy 32 (Δ0), ruff Δ0, tsc green, eslint Δ0
@@ -179,3 +179,7 @@ User: the mechanism doesn't work out; remove UI + `POST /api/groups/{id}/terms/{
 - Backend: removed `formalize_group_from_term`, `FormalizeGroupFromTermRequest`, router endpoint, service exports; formalize tests removed from test_group_privacy / test_term_attendees / test_add_active_membership / test_authorization_matrix; one RSVP test now seeds membership via `service.add_active_membership`. Docstrings updated.
 - Frontend: section + state removed from EditTermDialog (prop `group` dropped; PanelModals keeps the led-group guard); `formalizeGroupFromTerm` removed from api/groups.ts; tests updated; regression test `render_noStandingMembersSection`.
 - Results: frontend full 978 passed / 7 failed = 6 baseline + OrganizerEditor flaky; backend full 868 passed / 1 failed (`test_lend_step0_fixes::test_listMyLentOutItems_…` — untouched circulation code, passes in isolation; run took 1h52 under load → flaky); mypy 32; tsc green; eslint clean on touched files; ruff Δ0.
+
+## 2026-10-20 - Verification iteration 2: passed; minor fixes applied
+- Backend agent: unused `Group` import (F401) removed from `memberships.py`; `already_member` dropped from `TermAttendeeResponse` and from `list_term_attendees` (no more per-membership party lookups), and `test_term_attendees` now asserts the exact attendee key set; `update_term` skips the ownership check when the new `location_id` is the group's `default_location_id` (mirrors `create_term`), with a regression test (switching to the group's soft-deleted default → 200, a new foreign id → 403). Plan overview/execution order corrected (10 groups, 73 steps / 83 checkboxes, spec rev 3); architecture.md Locations: `LocationRefResponse` read shape + CSP note. Full backend 870 passed; mypy 32; ruff Δ−1 on touched files.
+- Frontend agent: CreateGroupStepper re-prefills only when the defaults change; CapacityField handles `badInput`; the Maps loader handles stale script tags; MiejscaView focus cleanup; CSS/naming cleanups; `console.warn` on Places failures; `already_member` removed from `api/groups.ts` and fixtures.

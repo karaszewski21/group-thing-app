@@ -166,7 +166,7 @@ describe("EditTermDialog — place and capacity", () => {
     expect(select).toHaveValue("loc-2");
     expect(select).toHaveDisplayValue("Sala nr 2");
     expect(within(select).getByRole("option", { name: "Świetlica na Polnej" })).toBeInTheDocument();
-    expect(screen.getByLabelText("Ile miejsc")).toHaveValue(10);
+    expect(screen.getByLabelText("Ile miejsc")).toHaveValue("10");
   });
 
   it("saveTermFields_clearedPlace_sendsOnlyLocationIdNull", async () => {

@@ -13,7 +13,7 @@ import { resolveProduct } from "../../api/products";
 import { serverMessageOr } from "../../api/problem";
 import type { Category } from "../../api/categories";
 import { useCategories } from "../../hooks/useCategories";
-import { CapacityField, Field, ModalSheet } from "../../pages/panel/panelComponents";
+import { CapacityField, Field, INPUT_CLASS, ModalSheet } from "../../pages/panel/panelComponents";
 import { capacityText, parseCapacity } from "../../pages/panel/panelHelpers";
 import { LocationPicker } from "../shared/LocationPicker";
 
@@ -30,7 +30,7 @@ import { LocationPicker } from "../shared/LocationPicker";
 /*  needed item names a real `Product` (resolved by name + category).  */
 /* ------------------------------------------------------------------ */
 
-const inputClass = "w-full rounded-xl border-[1.5px] border-line bg-cream px-3.5 py-2.5 text-ink";
+const inputClass = `${INPUT_CLASS} w-full`;
 const rowInputClass =
   "w-full min-w-0 rounded-lg border-[1.5px] border-line bg-cream px-2.5 py-2 text-[12.5px] text-ink";
 const selectClass =

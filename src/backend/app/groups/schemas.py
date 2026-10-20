@@ -494,7 +494,6 @@ class TermAttendeeResponse(BaseModel):
     child_count: int
     family_id: uuid.UUID | None
     family_name: str | None
-    already_member: bool
     children: list[TermAttendeeChildResponse] = Field(default_factory=list)
 
 

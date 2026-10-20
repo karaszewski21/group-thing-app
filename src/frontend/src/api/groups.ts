@@ -433,7 +433,6 @@ export interface TermAttendeeResponse {
   family_id: string | null;
   family_name: string | null;
   children: { birth_year: number | null }[];
-  already_member: boolean;
 }
 
 export function getTermAttendees(

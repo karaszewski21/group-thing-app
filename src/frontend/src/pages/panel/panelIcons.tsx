@@ -167,4 +167,3 @@ export const LayoutModeIcon = ({ mode, c = "currentColor" }: { mode: "CIRCLE" | 
     )}
   </svg>
 );
-export { MapPinIcon } from "../../components/shared/MapPinIcon";

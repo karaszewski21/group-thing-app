@@ -1,7 +1,7 @@
 orchestrator:
   started_phase: phase-8
   resumed_at: phase-8
-  completed_phases: [phase-1, phase-2, phase-4, phase-5, phase-6, phase-7, phase-8, phase-10]
+  completed_phases: [phase-1, phase-2, phase-4, phase-5, phase-6, phase-7, phase-8, phase-10, phase-11]
   failed_phases: []
   auto_fix_attempts: {}
   options:
@@ -100,8 +100,8 @@ task_context:
     architecture_decision: {decision: null, summary: null}
 
 verification_context:
-  last_status: passed_with_issues
+  last_status: passed
   issues_found: [see verification/implementation-verification.md (iteration 1)]
   fixes_applied: [unchanged-location-id no revalidation, LocationRefResponse narrow READ embed, stepper focus, capacity validation, suggest-failure fallback, maps script reuse, ConfirmDeleteDialog, usuniete label via deleted_at, MiejscaView panel reload, a11y/async fixes, cleanups, spec rev 3]
   decisions_made: [public attendee_count kept (B11), narrow location ref for all READ users, out-of-band removal of term formalization (UI + endpoint)]
-  reverify_count: 1
+  reverify_count: 2

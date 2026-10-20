@@ -820,7 +820,7 @@ function usePanelDataValue() {
     const attendeesText = `${attendees} ${pluralPl(attendees, "zapis", "zapisy", "zapisów")}`;
     const childrenText = `${children} ${pluralPl(children, "dziecko", "dzieci", "dzieci")}`;
     const capacity = term.capacity ?? null;
-    const capacityText = capacity === null ? "" : `${attendees}/${capacity} miejsc`;
+    const capacityLabel = capacity === null ? "" : `${attendees}/${capacity} miejsc`;
 
     return (
       <div className="mt-2">
@@ -828,7 +828,7 @@ function usePanelDataValue() {
           to={`/panel/terminy/${term.id}`}
           aria-label={`Zapisani na termin: ${
             hasAttendees ? `${attendeesText}, ${childrenText}` : "brak zapisów"
-          }${capacityText && `, ${capacityText}`}`}
+          }${capacityLabel && `, ${capacityLabel}`}`}
           className="inline-flex min-h-8 items-center gap-1 rounded-full bg-cream px-3 text-[13px] font-bold text-ink transition-colors hover:bg-line"
         >
           {hasAttendees && (
@@ -837,7 +837,7 @@ function usePanelDataValue() {
             </span>
           )}
           {hasAttendees ? `${attendeesText} · ${childrenText}` : "Brak zapisów"}
-          {capacityText && ` · ${capacityText}`}
+          {capacityLabel && ` · ${capacityLabel}`}
           <span aria-hidden="true">›</span>
         </Link>
       </div>

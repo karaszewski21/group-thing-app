@@ -154,7 +154,7 @@ describe("CreateGroupStepper", () => {
 
     await screen.findByText("Pierwszy termin w grupie „Nutki”");
     expect(await screen.findByRole("combobox", { name: "Miejsce" })).toHaveDisplayValue("Świetlica na Polnej");
-    expect(screen.getByLabelText("Ile miejsc")).toHaveValue(12);
+    expect(screen.getByLabelText("Ile miejsc")).toHaveValue("12");
 
     await submitStep2();
     await waitFor(() =>
@@ -215,6 +215,38 @@ describe("CreateGroupStepper", () => {
     expect(await screen.findByText("Pierwszy termin w grupie „Nutki II”")).toBeInTheDocument();
   });
 
+  it("a step-1 re-save keeps the step-2 place and capacity unless the group defaults changed", async () => {
+    vi.mocked(groupsApi.createAdditionalMyCircle).mockResolvedValue({
+      ...GROUP,
+      default_location: SWIETLICA_REF,
+      default_capacity: 12,
+    });
+    vi.mocked(groupsApi.updateGroup)
+      .mockResolvedValueOnce({ ...GROUP, name: "Nutki II", default_location: SWIETLICA_REF, default_capacity: 12 })
+      .mockResolvedValueOnce({ ...GROUP, name: "Nutki II", default_location: SWIETLICA_REF, default_capacity: 20 });
+    renderStepper();
+    await submitStep1();
+
+    fireEvent.change(await screen.findByRole("combobox", { name: "Miejsce" }), { target: { value: "" } });
+    fireEvent.change(screen.getByLabelText("Ile miejsc"), { target: { value: "8" } });
+    fireEvent.click(screen.getByRole("button", { name: "← Wstecz" }));
+    fireEvent.change(screen.getByLabelText("Nazwa grupy"), { target: { value: "Nutki II" } });
+    fireEvent.click(screen.getByRole("button", { name: "Dalej →" }));
+
+    await screen.findByText("Pierwszy termin w grupie „Nutki II”");
+    expect(groupsApi.updateGroup).toHaveBeenCalledTimes(1);
+    expect(screen.getByRole("combobox", { name: "Miejsce" })).toHaveValue("");
+    expect(screen.getByLabelText("Ile miejsc")).toHaveValue("8");
+
+    fireEvent.click(screen.getByRole("button", { name: "← Wstecz" }));
+    fireEvent.change(screen.getByLabelText("Ile miejsc (opcjonalnie)"), { target: { value: "20" } });
+    fireEvent.click(screen.getByRole("button", { name: "Dalej →" }));
+
+    await waitFor(() => expect(groupsApi.updateGroup).toHaveBeenCalledTimes(2));
+    expect(await screen.findByLabelText("Ile miejsc")).toHaveValue("20");
+    expect(screen.getByRole("combobox", { name: "Miejsce" })).toHaveValue("");
+  });
+
   it("the done screen links to the term's public page and Gotowe finishes", async () => {
     const { onDone } = renderStepper();
     await submitStep1();
@@ -251,7 +283,7 @@ describe("CreateGroupStepper", () => {
     );
   });
 
-  it.each(["0", "-1", "2.5", "10001"])("rejects capacity %s inline and blocks both steps", async (raw) => {
+  it.each(["0", "-1", "2.5", "10001", "-", "e", "1e3"])("rejects capacity %s inline and blocks both steps", async (raw) => {
     renderStepper();
     fireEvent.change(await screen.findByLabelText("Nazwa grupy"), { target: { value: "Nutki" } });
     await screen.findByRole("combobox", { name: "Stałe miejsce spotkań (opcjonalnie)" });

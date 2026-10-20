@@ -140,7 +140,8 @@ async def update_term(
 ) -> Term:
     """Partial in-place term edit. Only the parent Circle's currently active
     organizer may edit — enforced here, not by the coarse matrix. A newly
-    assigned place is ownership-checked; re-sending the current one is not."""
+    assigned place is ownership-checked; re-sending the current one or the
+    Circle's default (mirrors `create_term`) is not."""
     term = await get_term(db, term_id)
     await _require_active_organizer(db, term.circle_group_id, caller_party_id)
     await check_text(TextField.TERM_DESCRIPTION, data.description, term.description)
@@ -151,7 +152,9 @@ async def update_term(
         term.description = data.description
     if "location_id" in data.model_fields_set:
         if data.location_id is not None and data.location_id != term.location_id:
-            await locations_acl.get_owned_location(db, data.location_id, caller_party_id)
+            group = await get_group(db, term.circle_group_id)
+            if data.location_id != group.default_location_id:
+                await locations_acl.get_owned_location(db, data.location_id, caller_party_id)
         term.location_id = data.location_id
     if "capacity" in data.model_fields_set:
         term.capacity = data.capacity

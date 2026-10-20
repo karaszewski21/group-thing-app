@@ -54,7 +54,6 @@ function attendee(overrides: Partial<TermAttendeeResponse>): TermAttendeeRespons
     family_id: null,
     family_name: null,
     children: [],
-    already_member: false,
     ...overrides,
   };
 }

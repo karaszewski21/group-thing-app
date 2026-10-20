@@ -100,7 +100,7 @@ describe("FirstTermStepperOrganizer — place and capacity", () => {
     renderStepper(vi.fn(), { defaultLocation: SWIETLICA_REF, defaultCapacity: 12 });
 
     expect(await screen.findByRole("combobox", { name: "Miejsce" })).toHaveDisplayValue("Świetlica na Polnej");
-    expect(screen.getByLabelText("Ile miejsc")).toHaveValue(12);
+    expect(screen.getByLabelText("Ile miejsc")).toHaveValue("12");
     fillAndSubmit("opis");
 
     expect(await screen.findByRole("button", { name: "Gotowe" })).toBeInTheDocument();

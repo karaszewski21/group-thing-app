@@ -5,11 +5,11 @@ import {
   CalendarPlusIcon,
   FamilyIcon,
   HomeIcon,
-  MapPinIcon,
   MenuIcon,
   SettingsIcon,
   UserIcon,
 } from "../../pages/panel/panelIcons";
+import { MapPinIcon } from "./MapPinIcon";
 
 export const ACCOUNT_MENU_ITEM_CLASS =
   "flex w-full items-center gap-2.5 rounded-[11px] px-3 py-2.5 text-left text-sm font-bold text-ink hover:bg-cream";

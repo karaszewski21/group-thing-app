@@ -1,7 +1,7 @@
 # Implementation Plan: Simple group creation for any logged-in user + Location entity (Google Places / manual)
 
 **Task path**: `.maister/tasks/development/2026-10-19-simple-group-creation-and-locations`
-**Spec**: `implementation/spec.md` (rev 2, binding). **Design context**: `analysis/design-context/INDEX.md` (25 ids, binding) + `ascii/ui-mockups.md`. **Coverage matrix**: `implementation/visual-coverage.md`.
+**Spec**: `implementation/spec.md` (rev 3, binding). **Design context**: `analysis/design-context/INDEX.md` (25 ids, binding) + `ascii/ui-mockups.md`. **Coverage matrix**: `implementation/visual-coverage.md`.
 Paths are relative to the repo root `C:\Users\karas\Desktop\swaptime\group-thing-app`; backend `src/backend/app`, frontend `src/frontend/src`. Mockup line numbers refer to `analysis/design-context/ascii/ui-mockups.md`.
 
 ## Preamble (read before any group)
@@ -20,8 +20,8 @@ Paths are relative to the repo root `C:\Users\karas\Desktop\swaptime\group-thing
 
 ## Overview
 
-- Task Groups: 9 (3 backend, 5 frontend, 1 integration)
-- Total Steps: 71 (parent steps X.0 excluded)
+- Task Groups: 10 (3 backend, 5 frontend, 1 integration, plus scope-addition Group 10 — Moje miejsca view + compact picker)
+- Total Steps: 73 (parent steps X.0 excluded; 83 checkboxes)
 - Expected Tests: 40–52 new/rewritten (2–8 per group) plus the listed existing-test updates; the final group runs the full suites once
 - Parallelism: Groups 1→2→3 (backend chain) and Group 4→5→{6,8}→7 (frontend chain) are independent until Group 9. Group 4 may start at the same time as Group 1. Group 6 and Group 8 can run concurrently (disjoint files). Group 7 waits for 5 and 6.
 
@@ -394,6 +394,7 @@ Paths are relative to the repo root `C:\Users\karas\Desktop\swaptime\group-thing
 7. Group 8 — Public term page + AdminTermsPage (5 steps, depends on 5)
 8. Group 7 — Panel restructure + stepper (10 steps, depends on 5, 6)
 9. Group 9 — Final integration (6 steps, depends on all)
+10. Group 10 — Moje miejsca view + compact picker (7 steps, scope addition)
 
 Shared-file serialization: Groups 2 and 3 both edit `app/groups/schemas.py` (serialized by the chain). Groups 4, 5 and 7 touch `panelHelpers.ts`/`SpotkaniaView.tsx` in disjoint regions but are chained anyway. Groups 6 and 8 share no files.
 

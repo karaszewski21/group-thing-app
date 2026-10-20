@@ -1339,7 +1339,7 @@ describe("PanelPage — edit group dialog (name/layout/visibility/default place 
     const dialog = screen.getByRole("dialog", { name: "Edytuj grupę" });
     const placeSelect = await within(dialog).findByRole("combobox", { name: "Stałe miejsce spotkań (opcjonalnie)" });
     expect(placeSelect).toHaveDisplayValue("Świetlica na Polnej");
-    expect(within(dialog).getByLabelText("Ile miejsc (opcjonalnie)")).toHaveValue(12);
+    expect(within(dialog).getByLabelText("Ile miejsc (opcjonalnie)")).toHaveValue("12");
 
     fireEvent.change(placeSelect, { target: { value: "" } });
     expect(placeSelect).toHaveDisplayValue("Brak stałego miejsca");

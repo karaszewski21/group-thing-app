@@ -84,12 +84,20 @@ async function importPlacesLibrary(key: string): Promise<PlacesApi> {
 }
 
 /** A retry after a timeout waits on the tag still loading instead of adding a
- * second one (Google rejects a page that includes the API twice). */
+ * second one (Google rejects a page that includes the API twice). A tag that
+ * already loaded yet left no `importLibrary` is stale and gets replaced. */
 function injectScript(key: string): Promise<void> {
   return new Promise((resolve, reject) => {
-    const pending = document.getElementById(SCRIPT_ID);
+    let pending = document.getElementById(SCRIPT_ID);
+    if (pending?.dataset.loaded) {
+      pending.remove();
+      pending = null;
+    }
     const script = pending instanceof HTMLScriptElement ? pending : document.createElement("script");
-    script.addEventListener("load", () => resolve());
+    script.addEventListener("load", () => {
+      script.dataset.loaded = "true";
+      resolve();
+    });
     script.addEventListener("error", () => {
       script.remove();
       reject(new Error("Google Maps script failed to load"));

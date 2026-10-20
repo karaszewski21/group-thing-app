@@ -101,6 +101,14 @@ async def test_listAttendees_familyWithChildren_returnsChildBirthYearsOnly(
         {"birth_year": None},
     ]
     assert all(set(child) == {"birth_year"} for child in attendee["children"])
+    assert set(attendee) == {
+        "party_id",
+        "display_name",
+        "child_count",
+        "family_id",
+        "family_name",
+        "children",
+    }
 
 
 async def test_listAttendees_attendeeWithoutFamilyOrChildren_returnsEmptyChildren(

@@ -112,6 +112,31 @@ describe("googleMaps loader", () => {
     }
   });
 
+  it("replaces a script that loaded without defining importLibrary instead of reusing it", async () => {
+    vi.stubEnv("VITE_GOOGLE_MAPS_API_KEY", "test-key");
+    const { fakePlaces } = makeFakePlaces();
+    const importLibrary = vi.fn(async (name: string) => (name === "places" ? fakePlaces : {}));
+    const maps = await loadModule();
+
+    const broken = maps.loadPlaces();
+    const [stale] = injectedScripts();
+    stale.dispatchEvent(new Event("load"));
+    await expect(broken).resolves.toBeNull();
+    expect(injectedScripts()).toEqual([stale]);
+
+    const retry = maps.loadPlaces();
+    const [fresh] = injectedScripts();
+    expect(injectedScripts()).toHaveLength(1);
+    expect(fresh).not.toBe(stale);
+    expect(stale.isConnected).toBe(false);
+    vi.stubGlobal("google", { maps: { importLibrary } });
+    fresh.dispatchEvent(new Event("load"));
+
+    const api = await retry;
+    expect(api?.AutocompleteSuggestion).toBe(fakePlaces.AutocompleteSuggestion);
+    expect(importLibrary).toHaveBeenCalledTimes(1);
+  });
+
   it("imports the places library once across calls", async () => {
     vi.stubEnv("VITE_GOOGLE_MAPS_API_KEY", "test-key");
     const { fakePlaces } = makeFakePlaces();

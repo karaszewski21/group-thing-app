@@ -11,6 +11,7 @@ import {
   type SessionToken,
   type Suggestion,
 } from "../../lib/googleMaps";
+import { INPUT_CLASS } from "../../pages/panel/panelComponents";
 
 /* ------------------------------------------------------------------ */
 /*  Form adding one saved place: Google search (mockup 2c) or manual   */
@@ -18,7 +19,7 @@ import {
 /*  the "Moje miejsca" panel view.                                     */
 /* ------------------------------------------------------------------ */
 
-export const LOCATION_INPUT_CLASS = "w-full rounded-xl border-[1.5px] border-line bg-cream px-3.5 py-2.5 text-ink";
+export const LOCATION_INPUT_CLASS = `${INPUT_CLASS} w-full`;
 export const LOCATION_LABEL_CLASS = "text-[11px] font-extrabold tracking-wide text-ink-soft";
 export const LOCATION_SAVE_BTN_CLASS =
   "flex-none rounded-[9px] bg-mint px-3 py-1.5 text-[11.5px] font-extrabold text-white disabled:opacity-60";
@@ -95,8 +96,9 @@ export function LocationAddForm({
           setOpen(result.length > 0);
           setActive(-1);
         })
-        .catch(() => {
+        .catch((err: unknown) => {
           // A rejected key, a disabled Places API or billing: searching cannot work.
+          console.warn("Google Places unavailable", err);
           if (cancelled) return;
           setSuggestions([]);
           setOpen(false);
@@ -145,7 +147,8 @@ export function LocationAddForm({
       setPicked(place);
       setName(place.name);
       setError(null);
-    } catch {
+    } catch (err) {
+      console.warn("Google Places details unavailable", err);
       if (mounted.current) setError("Nie udało się pobrać adresu. Spróbuj ponownie.");
     } finally {
       // The resolved selection closes the billing session; start a new one.

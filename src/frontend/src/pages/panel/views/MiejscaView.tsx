@@ -30,8 +30,9 @@ export function MiejscaView({ onPlacesChanged }: { onPlacesChanged: () => void }
   const pendingFocus = useRef<string | null>(null);
   const addFormId = "miejsca-add-location";
 
-  // Focus moves (after add, edit, cancel, delete) wait for the re-render
-  // that mounts their target.
+  // Focus moves (after add, edit, cancel, confirmed delete) wait for the
+  // re-render that mounts their target; a cancelled delete is left to
+  // `ConfirmDeleteDialog`, which returns focus to its opener.
   useEffect(() => {
     const key = pendingFocus.current;
     if (!key) return;
@@ -119,7 +120,6 @@ export function MiejscaView({ onPlacesChanged }: { onPlacesChanged: () => void }
                   Edytuj
                 </button>
                 <button
-                  ref={focusRef(`delete:${location.id}`)}
                   type="button"
                   onClick={() => setDeleting(location)}
                   aria-label={`Usuń miejsce ${location.name}`}
@@ -166,10 +166,7 @@ export function MiejscaView({ onPlacesChanged }: { onPlacesChanged: () => void }
         <DeleteLocationDialog
           location={deleting}
           onConfirm={() => confirmDelete(deleting)}
-          onClose={() => {
-            pendingFocus.current = `delete:${deleting.id}`;
-            setDeleting(null);
-          }}
+          onClose={() => setDeleting(null)}
         />
       )}
     </>

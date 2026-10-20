@@ -234,6 +234,32 @@ async def test_updateTerm_resendingUnchangedSoftDeletedLocationId_200_butNewDele
     assert new_foreign.status_code == 403
 
 
+async def test_updateTerm_switchingToGroupsSoftDeletedDefaultLocationId_200_butNewForeign403(
+    client: AsyncClient, db_session: AsyncSession
+) -> None:
+    token = await _register(client, "tlc.default.update@example.com")
+    other_token = await _register(client, "tlc.default.update.other@example.com")
+    default = await _create_location(client, token, "ChIJ-tlc-default-update")
+    own = await _create_location(client, token, "ChIJ-tlc-default-update-own")
+    foreign = await _create_location(client, other_token, "ChIJ-tlc-default-update-foreign")
+    group = await _create_circle(client, token, default_location_id=default["id"])
+    term = await _create_term(client, token, group["id"], location_id=own["id"])
+    deleted = await client.delete(f"/api/locations/{default['id']}", headers=_auth(token))
+    assert deleted.status_code == 204
+
+    switched = await client.patch(
+        f"/api/terms/{term['id']}", json={"location_id": default["id"]}, headers=_auth(token)
+    )
+
+    assert switched.status_code == 200, switched.text
+    assert switched.json()["location"]["id"] == default["id"]
+    assert switched.json()["location"]["deleted_at"] is not None
+    new_foreign = await client.patch(
+        f"/api/terms/{term['id']}", json={"location_id": foreign["id"]}, headers=_auth(token)
+    )
+    assert new_foreign.status_code == 403
+
+
 async def test_listTerms_attachesLocation_withQueryCountNotGrowingWithTermCount(
     client: AsyncClient, engine: AsyncEngine, db_session: AsyncSession
 ) -> None:
