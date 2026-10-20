@@ -1,4 +1,5 @@
 import { useRef, useState, type ReactNode } from "react";
+import { Link } from "react-router-dom";
 import type { GroupResponse } from "../../../api/groups";
 import dayjs from "../../../utils/dayjs";
 import { pluralPl } from "../../../utils/plural";
@@ -187,6 +188,12 @@ export function SpotkaniaView() {
                     {g.default_location && (
                       <small className="block truncate text-xs text-ink-soft">{g.default_location.formatted_address}</small>
                     )}
+                    <Link
+                      to={`/panel/grupy/${g.id}`}
+                      className="mt-1.5 inline-block rounded text-[13px] font-bold text-ink hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring"
+                    >
+                      Szczegóły<span className="sr-only"> grupy {g.name}</span> ›
+                    </Link>
                   </div>
                 </div>
               );

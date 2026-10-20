@@ -12,7 +12,6 @@ Prefer plain columns (string, enum) over separate mapped classes when possible. 
 # GOOD: enum column, no separate entity
 class Category(BaseEntity):
     __tablename__ = "categories"
-    __sequence_name__ = "category_seq"
 
     name: Mapped[str] = mapped_column(String(100))
 ```
@@ -59,56 +58,36 @@ Use SQLAlchemy 2.0's typed declarative style throughout: `Mapped[T]` type annota
 
 #### BaseEntity Pattern
 
-Every entity that shares the common id/`created_at`/`updated_at` shape extends the shared `BaseEntity` mapped-superclass mixin (`app/core/base_model.py`):
+Every entity that shares the common id/`created_at`/`updated_at` shape extends the shared `BaseEntity` mapped-superclass mixin (`app/core/base_model.py`). `id` is a UUID primary key: Python-side `default=uuid.uuid4`, plus `server_default=gen_random_uuid()` as a DB-side fallback for inserts that bypass the ORM. UUIDs are deliberately non-sequential/non-enumerable; they replaced the legacy `BigInteger` + per-class Postgres `Sequence`, which no model uses any more (no `__sequence_name__`).
 
 ```python
-class Base(DeclarativeBase):
-    pass
-
-
-def _initial_timestamp() -> datetime:
-    return datetime.utcnow()
-
-
-def _version_timestamp(_current_version: datetime | None) -> datetime:
-    return datetime.utcnow()
-
-
 class BaseEntity(Base):
     __abstract__ = True
-    __sequence_name__: ClassVar[str]
 
     @declared_attr.directive
-    def id(cls) -> Mapped[int]:
-        return mapped_column(BigInteger, Sequence(cls.__sequence_name__), primary_key=True)
+    def id(cls) -> Mapped[uuid.UUID]:
+        return mapped_column(postgresql.UUID(as_uuid=True), primary_key=True,
+                             default=uuid.uuid4, server_default=sa.text("gen_random_uuid()"))
 
     created_at: Mapped[datetime] = mapped_column(DateTime(), nullable=False, default=_initial_timestamp)
     updated_at: Mapped[datetime] = mapped_column(DateTime(), nullable=False)
-
-    @declared_attr.directive
-    def __mapper_args__(cls) -> dict[str, Any]:
-        return {
-            "version_id_col": cls.__table__.c.updated_at,
-            "version_id_generator": _version_timestamp,
-        }
+    # __mapper_args__: version_id_col=updated_at, version_id_generator=_version_timestamp
 ```
 
-Each concrete subclass sets `__tablename__` and `__sequence_name__` (the Postgres sequence Alembic created for that table's `id` column — `category_seq`, `product_seq`, `plugin_object_seq`, `footprint_audit_log_id_seq`, `user_seq`), mirroring the old per-class `@SequenceGenerator`.
+Each concrete subclass sets only `__tablename__` and its own columns. FK columns pointing at `BaseEntity` tables are typed `Mapped[uuid.UUID]` with `postgresql.UUID(as_uuid=True)`.
 
-**`updated_at` doubles as the optimistic-lock token.** This is a deliberately preserved quirk from the Java source's `@Version LocalDateTime updatedAt` field: `updated_at` is registered as SQLAlchemy's `version_id_col`, with a custom `version_id_generator` (`_version_timestamp`) that returns a fresh `datetime.utcnow()` on every INSERT and UPDATE regardless of the previous value. One column serves as both the audit timestamp and the optimistic-lock version — it is NOT split into a separate integer version column. A concurrent stale write raises SQLAlchemy's `StaleDataError`, the same optimistic-locking failure mode Hibernate's `@Version` produced.
+**`updated_at` doubles as the optimistic-lock token.** `updated_at` is registered as SQLAlchemy's `version_id_col`, with a custom `version_id_generator` (`_version_timestamp`) that returns a fresh `datetime.utcnow()` on every INSERT and UPDATE regardless of the previous value. One column serves as both the audit timestamp and the optimistic-lock version — it is NOT split into a separate integer version column. A concurrent stale write raises SQLAlchemy's `StaleDataError`.
 
-**Not every entity uses this mixin.** `PluginDescriptor` (`plugins` table) and `RegisteredClient` (`oauth2_registered_client` table) do NOT extend `BaseEntity` — they have different PK strategies (a plugin-supplied string slug, and a UUID respectively, neither backed by a Postgres `Sequence`) and are modeled as standalone mapped classes. Don't force every table onto the shared mixin if its PK strategy genuinely differs.
+**Not every entity uses this mixin.** `PluginDescriptor` (`plugins` table, `app/plugin/models.py`) and `RegisteredClient` (`oauth2_registered_client` table, `app/oauth2/models.py`) extend plain `Base`, not `BaseEntity`: the first has a plugin-supplied string slug PK (and duplicates the `updated_at` version generator locally), the second a UUID PK with only a Python-side `uuid.uuid4` default. Don't force a table onto the shared mixin if its PK strategy genuinely differs.
 
 - Don't manage `updated_at` manually in application code — the `version_id_generator` handles it on every flush
-- Don't give a table both a `BaseEntity`-style sequence PK and a different natural key without checking whether it actually needs the shared mixin at all — `PluginDescriptor`/`RegisteredClient` are the precedent for opting out
+- Don't add new `BigInteger`/`Sequence`/`IDENTITY` PKs — new tables use `BaseEntity`'s UUID id
 
 ---
 
 ### Primary Keys
 
-Use an explicit Postgres `Sequence` (via `BaseEntity`), never `IDENTITY`/`SERIAL` — this preserves the JPA-era `GenerationType.SEQUENCE`, `allocationSize=1` schema shape. The sequence itself is created by the Alembic migration (`op.execute("CREATE SEQUENCE ...")`), not inferred from the model.
-
-Carve-outs with a different strategy: `PluginDescriptor` (business-supplied string PK), `RegisteredClient` (UUID PK, `uuid.uuid4()` generated in application code at insert time — see `app/oauth2/router.py`'s DCR handler).
+Default: UUID via `BaseEntity` (`uuid.uuid4` in Python, `gen_random_uuid()` server default; the migration declares the same server default and names the constraint `pk_<table>` — see `standards/backend/migrations.md`). Carve-outs: `PluginDescriptor` (business-supplied string PK), `RegisteredClient` (UUID PK, app-generated only, no server default).
 
 ---
 
@@ -139,17 +118,44 @@ Use `set[...]`-typed Python attributes paired with SQLAlchemy `Mapped[set[...]]`
 
 ### Cross-Module References
 
-When referencing entities from other bounded contexts (modules), pass the raw ID (typed as its own value, e.g. `category_id: int`) rather than a SQLAlchemy relationship crossing module boundaries — this preserves the DDD bounded-context principle the Java source followed with type-safe ID wrapper types.
+When referencing entities from other bounded contexts (modules), store the raw FK id column rather than a SQLAlchemy `relationship()` crossing module boundaries (DDD bounded-context principle).
 
 ```python
 # DON'T: cross-module relationship() reaching into another vertical's table
 category: Mapped["Category"] = relationship()
 
 # DO: just the FK column
-category_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("categories.id"))
+category_id: Mapped[uuid.UUID] = mapped_column(postgresql.UUID(as_uuid=True), ForeignKey("categories.id"))
 ```
 
-When cross-module data actually needs to be loaded for a read (e.g. nested `category` object in a product listing response), do it explicitly at the query-service/service layer with an explicit join or eager-load option scoped to that one query — never as an always-loaded relationship on the model itself.
+When cross-module data actually needs to be loaded for a read (e.g. nested `category` object in a product listing response), do it explicitly at the query-service/service layer with an explicit join, eager-load option or batched lookup scoped to that one query — never as an always-loaded relationship on the model itself.
+
+### Groups Bounded Context Has No relationship()
+
+`app/groups/models.py` declares no `relationship()` at all, not even between its own tables: every cross-row reference (`group_id`, `party_id`, `location_id`, `default_location_id`, ...) is a plain FK id column, and related rows are loaded with batched `IN` lookups returning `dict[id, row]` (e.g. `repository.list_group_names`, `locations_acl.get_locations_by_ids`) — never one query per row. The query count of a list endpoint must not grow with row count (asserted with `count_queries`, see `standards/testing/backend-testing.md`).
+
+### Coordinates as Numeric, Floats on the Wire
+
+Store geographic coordinates as `Numeric(9, 6)` (`Location.lat`/`lng`, typed `Mapped[Decimal | None]`), never `Float`. Pydantic response models declare them `float | None` so JSON carries numbers, not decimal strings; request models bound them with `Field(ge=-90, le=90)` / `Field(ge=-180, le=180)`. Reference: `app/locations/models.py`, `app/locations/schemas.py`.
+
+### Cross-Context Access Through an ACL Module
+
+When one bounded context needs another (e.g. `app.groups` → `app.locations`), a single `app/<bc>/infrastructure/<other>_acl.py` is the only module of the consuming BC that imports the other BC, and the other BC imports nothing back. The ACL must not import its own BC's `..schemas`: the schemas import the response types the ACL re-exports, so importing back is a cycle.
+
+- Validation re-uses the owning BC's ownership check (`get_owned_location` = `app.locations.service.get_own_location`: 404 for missing or soft-deleted before 403 for a foreign owner).
+- Loading exposes `get_<x>(db, id)` and batched `get_<x>s_by_ids(db, ids)` (one `IN` query, soft-deleted rows included) plus narrow response mappers (`location_ref_response`, `public_location_response`).
+- READ-level embeds (endpoints any logged-in user may call) use a narrow reference shape — `LocationRefResponse`: `id`, `name`, `formatted_address`, `google_place_id`, `notes`, `deleted_at`; no owner party id, no coordinates. Public pages use `PublicLocationResponse` (no ids, no timestamps). The full `LocationResponse` is returned only by the owner's own `/api/locations` endpoints.
+- Re-sending an unchanged reference id (or, for a Term, the Circle's own `default_location_id`) is not re-validated, so a soft-deleted or handed-over reference survives an unrelated save; only a newly assigned id goes through the ownership check.
+
+Reference: `app/groups/infrastructure/locations_acl.py`, `app/locations/schemas.py`, `app/groups/application/circles.py` (`update_group`), `app/groups/application/terms.py`.
+```python
+if (
+    "default_location_id" in data.model_fields_set
+    and data.default_location_id is not None
+    and data.default_location_id != group.default_location_id
+):
+    await locations_acl.get_owned_location(db, data.default_location_id, caller_party_id)
+```
 
 ---
 
@@ -167,7 +173,13 @@ Use a business key (natural ID) for `__eq__`/`__hash__` when a mapped class has 
 No direct equivalent needed — Python dataclasses/SQLAlchemy declarative classes don't require boilerplate `@Getter`/`@Setter` generation. Use plain attribute access; add `__repr__`/`__eq__` only where genuinely useful (see Entity Identity above).
 
 #### Soft Delete Pattern
-Not currently used anywhere in this codebase — no entity implements soft delete. If a future feature needs it, the equivalent of JPA's `@Where(clause = "deleted_at IS NULL")` is a `deleted_at: Mapped[datetime | None]` column plus an explicit `.where(Model.deleted_at.is_(None))` filter added at every query site (SQLAlchemy has no query-time global filter equivalent to `@Where` — don't assume one exists).
+Soft-deletable tables (`groups` — migration `0056_group_soft_delete.py`; `locations` — `0057_locations.py`; also `needed_items`) carry a nullable `deleted_at: Mapped[datetime | None]` (`DateTime()`, naive UTC set via `datetime.utcnow()`; `groups` also records `deleted_by_party_id`). SQLAlchemy has no global `@Where` filter, so every list query adds `.where(Model.deleted_at.is_(None))` explicitly.
+
+Uniqueness among live rows uses a partial unique index with `deleted_at IS NULL` in its `WHERE` (e.g. `uq_locations_owner_party_id_google_place_id`), so a deleted row can be re-added as a new row.
+
+By-id behaviour depends on the row's role:
+- A soft-deleted Circle is nonexistent to every caller: `repository.get_group` returns `None` (404); only restore uses `get_group_including_deleted`.
+- A referenced row (a Location attached to a Circle/Term) is still returned by reference lookups (`db.get`, `get_locations_by_ids`) so existing references keep rendering — the response carries `deleted_at` and the UI shows the name with "(usunięte)" (`components/shared/LocationPicker.tsx`). The owner's own by-id endpoints still 404 a soft-deleted row.
 
 ---
 
@@ -191,10 +203,10 @@ Not currently used anywhere in this codebase — no entity implements soft delet
 
 | Strategy | Pros | Cons | Use? |
 |----------|------|------|------|
-| **Explicit `Sequence` (via `BaseEntity`)** | Fast, matches Postgres-native sequence semantics | Requires a sequence per table (created by Alembic) | Yes — default |
-| Business-supplied string key | Simple, no sequence needed | Only valid when the domain has a real natural key | Yes, for `PluginDescriptor` only |
-| UUID (app-generated) | No sequence, globally unique | Larger index, no natural ordering | Yes, for `RegisteredClient` only |
-| Postgres `IDENTITY`/`SERIAL` | Simple | Bypasses the explicit-sequence convention this codebase standardized on | No |
+| **UUID via `BaseEntity`** (`uuid4` + `gen_random_uuid()` default) | Non-enumerable, no sequence to manage, DB-side fallback | Larger index, no natural ordering | Yes — default |
+| Business-supplied string key | Simple | Only valid when the domain has a real natural key | Yes, for `PluginDescriptor` only |
+| UUID, app-generated only | Globally unique | No DB-side default | Yes, for `RegisteredClient` only |
+| `BigInteger` + explicit `Sequence` / `IDENTITY` / `SERIAL` | Ordered, compact | Enumerable ids; legacy shape replaced by UUIDs | No |
 
 ---
 
@@ -202,4 +214,6 @@ Not currently used anywhere in this codebase — no entity implements soft delet
 
 This document previously described JPA `@MappedSuperclass`/`@Version`/`@SequenceGenerator` conventions for the Java/Spring Boot backend. The backend was migrated to Python/FastAPI + SQLAlchemy 2.0 (see `.maister/tasks/migrations/2026-08-31-java-to-python-fastapi/`); the content above describes the current SQLAlchemy-based patterns actually implemented in `app/core/base_model.py` and the per-vertical `models.py` files.
 
-*Last Updated*: 2026-09-01
+The PK guidance was later updated for the move from per-table `Sequence` ids to UUID ids, and soft-delete, coordinate and ACL sections were added for the groups and locations verticals.
+
+*Last Updated*: 2026-10-20

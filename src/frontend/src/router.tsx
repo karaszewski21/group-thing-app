@@ -19,6 +19,7 @@ import { OAuth2AuthorizePage } from "./pages/OAuth2AuthorizePage";
 import { TermPage } from "./pages/krag/TermPage";
 import { PanelPage } from "./pages/panel/PanelPage";
 import { TermAttendeesPage } from "./pages/panel/TermAttendeesPage";
+import { GroupDetailsPage } from "./pages/panel/GroupDetailsPage";
 import { ItemCreatePage } from "./pages/product/ItemCreatePage";
 import { ItemDetailBody, ItemDetailPage } from "./pages/product/ItemDetailPage";
 import { ItemEditBody, ItemEditPage } from "./pages/product/ItemEditPage";
@@ -107,6 +108,12 @@ export const router = createBrowserRouter([
         // (no PanelDataProvider): the page resolves the group from the term.
         path: "/panel/terminy/:termId",
         element: <AuthGuard><TermAttendeesPage /></AuthGuard>,
+      },
+      {
+        // Group details + standing member list, reached from the "Prowadzę"
+        // tiles. Explicit for the same single-segment reason as above.
+        path: "/panel/grupy/:groupId",
+        element: <AuthGuard><GroupDetailsPage /></AuthGuard>,
       },
       {
         // Item pages; "product" is in the backend's RESERVED_SLUGS.

@@ -1476,7 +1476,7 @@ describe("PanelPage — Spotkania list links to the public circle page", () => {
 
     fireEvent.click(await screen.findByRole("button", { name: "Spotkania" }));
 
-    const link = await screen.findByRole("link", { name: new RegExp(mockGroup.name) });
+    const link = await screen.findByRole("link", { name: new RegExp(`^${mockGroup.name}$`) });
     expect(link).toHaveAttribute("href", `/${mockGroup.organizer_slug}/grupa/${mockGroup.id}/term/${TERM_ID}`);
   });
 
@@ -1726,7 +1726,7 @@ describe("PanelPage — organizer term card signup chip", () => {
     renderPanel();
 
     fireEvent.click(await screen.findByRole("button", { name: "Spotkania" }));
-    await screen.findByRole("link", { name: new RegExp(mockGroup.name) });
+    await screen.findByRole("link", { name: new RegExp(`^${mockGroup.name}$`) });
     expect(screen.queryByRole("link", { name: chipName })).not.toBeInTheDocument();
     expect(screen.queryByText("Brak zapisów")).not.toBeInTheDocument();
   });
@@ -1748,7 +1748,7 @@ describe("PanelPage — per-term public links & copy-link button", () => {
 
     fireEvent.click(await screen.findByRole("button", { name: "Spotkania" }));
 
-    const link = await screen.findByRole("link", { name: new RegExp(mockGroup.name) });
+    const link = await screen.findByRole("link", { name: new RegExp(`^${mockGroup.name}$`) });
     expect(link).toHaveAttribute("href", `/${mockGroupHashSlug.organizer_slug}/grupa/${mockGroup.id}/term/${TERM_ID}`);
   });
 

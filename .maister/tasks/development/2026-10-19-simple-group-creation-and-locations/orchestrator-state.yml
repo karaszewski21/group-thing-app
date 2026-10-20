@@ -1,7 +1,7 @@
 orchestrator:
   started_phase: phase-8
   resumed_at: phase-8
-  completed_phases: [phase-1, phase-2, phase-4, phase-5, phase-6, phase-7, phase-8, phase-10, phase-11, phase-12]
+  completed_phases: [phase-1, phase-2, phase-4, phase-5, phase-6, phase-7, phase-8, phase-10, phase-11, phase-12, phase-13, phase-14]
   failed_phases: []
   auto_fix_attempts: {}
   options:
@@ -31,7 +31,7 @@ task:
        (copied from group defaults at term creation), public LocationResponse without owner, shared LocationPicker with
        Google Places Autocomplete (VITE_GOOGLE_MAPS_API_KEY, session tokens, manual fallback), display on public pages/panel/admin/notifications,
        informational capacity ("Brak wolnych miejsc", RSVP not blocked). Full original description in task-description.md.
-  status: in_progress
+  status: completed
   tags: [groups, terms, locations, google-places, frontend, backend, migration]
   priority: high
 

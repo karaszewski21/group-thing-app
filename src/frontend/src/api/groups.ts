@@ -442,6 +442,20 @@ export function getTermAttendees(
   return api.get(`/groups/${groupId}/terms/${termId}/attendees`);
 }
 
+/** One standing member of a group (`GET /groups/{id}/members`) — visible to
+ * the group's organizer and its members. `family_name` is `null` for a
+ * member without a Family; `member_since` is an ISO date. */
+export interface GroupMemberResponse {
+  party_id: string;
+  display_name: string;
+  family_name: string | null;
+  member_since: string;
+}
+
+export function getGroupMembers(groupId: string): Promise<GroupMemberResponse[]> {
+  return api.get(`/groups/${groupId}/members`);
+}
+
 /* ------------------------------------------------------------------ */
 /*  PRIVATE-group access requests (requester: `/groups/public/{id}/    */
 /*  join-requests`; organizer: `/groups/{id}/join-requests/{rid}/…`)   */

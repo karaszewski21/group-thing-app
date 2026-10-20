@@ -497,6 +497,20 @@ class TermAttendeeResponse(BaseModel):
     children: list[TermAttendeeChildResponse] = Field(default_factory=list)
 
 
+# --- A Group's standing member list (`GET /api/groups/{id}/members`) ----------
+
+
+class GroupMemberResponse(BaseModel):
+    """One party holding an active `Membership` in a Group, resolved for the
+    group details page. `family_name` is display-only — `None` for a member
+    with no Family. `member_since` is the Membership's `valid_from`."""
+
+    party_id: uuid.UUID
+    display_name: str
+    family_name: str | None
+    member_since: date
+
+
 # --- My attendances (authenticated, `GET /api/groups/mine/attendances`) --------
 
 

@@ -33,6 +33,7 @@ from app.groups.schemas import (
     FamilyExchangeDetailResponse,
     GroupAccessResponse,
     GroupExchangeSummaryResponse,
+    GroupMemberResponse,
     GroupResponse,
     LeadershipResponse,
     MembershipResponse,
@@ -201,6 +202,16 @@ async def list_term_attendees(
     `GET ^/api/groups(/.*)?$` READ/EDIT rows, no new matrix row needed.
     Organizer-only check happens inside `service.list_term_attendees`."""
     return await service.list_term_attendees(db, principal, group_id, term_id)
+
+
+@router.get("/api/groups/{group_id}/members", response_model=list[GroupMemberResponse])
+async def list_group_members(
+    group_id: uuid.UUID, db: DbSession, principal: ReadPrincipal
+) -> list[GroupMemberResponse]:
+    """The group details page's standing member list — covered by row 26's
+    blanket `GET ^/api/groups(/.*)?$` READ row, no new matrix row needed.
+    Organizer-or-member check happens inside `service.list_group_members`."""
+    return await service.list_group_members(db, principal, group_id)
 
 
 @router.post("/api/groups/public/merge", response_model=MergeAnonymousProfileResponse)

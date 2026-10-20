@@ -18,9 +18,10 @@ from app.users.models import UserProfile
 from app.users.service import get_profile_by_principal
 
 from ..infrastructure import repository
-from ..models import GroupRoleType, Membership
-from ..schemas import TermAttendeeChildResponse, TermAttendeeResponse
-from .circles import _group_role_party_id, _require_active_organizer
+from ..models import GroupRole, GroupRoleType, Membership
+from ..schemas import GroupMemberResponse, TermAttendeeChildResponse, TermAttendeeResponse
+from .circles import _group_role_party_id, _require_active_organizer, get_group
+from .exchange_summary import _require_group_member_or_leader
 from .group_roles import get_or_create_active_group_role
 
 
@@ -160,6 +161,52 @@ async def list_term_attendees(
             children=children_by_party.get(attendance.party_id, []),
         )
         for attendance in attendances
+    ]
+
+
+async def list_group_members(
+    db: AsyncSession, principal: Principal, group_id: uuid.UUID
+) -> list[GroupMemberResponse]:
+    """Every party with an active `Membership` in `group_id` (newest first,
+    per `repository.list_active_memberships_for_group`), with the display
+    name and resolved family — for the group details page. Visible to the
+    group's active organizer and to its standing members (same gate as the
+    exchange summary); one batched `GroupRole` lookup, no per-row query."""
+    profile = await get_profile_by_principal(db, principal)
+    await get_group(db, group_id)
+
+    memberships = await repository.list_active_memberships_for_group(db, group_id)
+    role_ids = [m.from_role_id for m in memberships]
+    role_to_party: dict[uuid.UUID, uuid.UUID] = {}
+    if role_ids:
+        rows = await db.execute(
+            select(GroupRole.id, GroupRole.party_id).where(GroupRole.id.in_(role_ids))
+        )
+        role_to_party = {role_id: party_id for role_id, party_id in rows.all()}
+
+    seen: set[uuid.UUID] = set()
+    members: list[tuple[uuid.UUID, Membership]] = []
+    for membership in memberships:
+        party_id = role_to_party.get(membership.from_role_id)
+        if party_id is None or party_id in seen:
+            continue
+        seen.add(party_id)
+        members.append((party_id, membership))
+    party_ids = [party_id for party_id, _membership in members]
+
+    await _require_group_member_or_leader(db, group_id, profile.party_id, party_ids)
+
+    families = await _resolve_party_families(db, party_ids)
+    profile_rows = await repository.list_profile_names_by_party_ids(db, party_ids)
+    names = {row.party_id: row.display_name for row in profile_rows}
+    return [
+        GroupMemberResponse(
+            party_id=party_id,
+            display_name=names.get(party_id, ""),
+            family_name=families.get(party_id, (None, None))[1],
+            member_since=membership.valid_from,
+        )
+        for party_id, membership in members
     ]
 
 

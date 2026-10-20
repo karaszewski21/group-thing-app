@@ -188,3 +188,8 @@ User: the mechanism doesn't work out; remove UI + `POST /api/groups/{id}/terms/{
 E2E (manual mode, no Google key): 7/8 scenarios passed, admin columns blocked (no ADMIN account). Report: verification/e2e-verification-report.md, visual-fidelity.md (12 match / 4 minor / 0 drift), 33 screenshots. Accounts: e2e-1792501311689@example.test, e2e-b-1792501712728@example.test.
 Fixes (user-approved): done-screen copy depends on visibility (PRIVATE variant); panel ModalSheet focuses first field on open + returns focus to opener on close; aria-labels "Data i godzina"/"Opis (opcjonalnie)" in add-term modal. Full frontend 986/993 (7 = 6 baseline + OrganizerEditor flaky); tsc green; lint Δ0. Not fixed (follow-up): panel ModalSheet lacks Tab trap + Esc-to-close (accessibility.md); "0/1 miejsc" wording.
 Local: stale :8080 killed; fresh uvicorn --reload started by the agent session (no AWS_CA_BUNDLE).
+
+## 2026-10-20 - Phase 13 user docs + Phase 14 finalization
+User guide (Polish): documentation/user-guide.md, 19 screenshots (1 new). Extra demo data: private group "Joga w parku" on e2e-1792501311689@example.test.
+Task status: completed.
+Open follow-ups: panel ModalSheet Tab trap + Esc (accessibility.md); "0/1 miejsc" wording; Google key restriction/quota + prod build-arg + real-key smoke test; notifications/organizer pages place display; /maister:standards-update candidates (models.md, migrations.md, backend-testing.md, security.md; inline-combobox Esc rule; sr-only spacing; mutation callbacks as props; integer inputs as type=text inputMode=numeric); baseline frontend failures ×6; local dev DB throwaway accounts (reality*, e2e-*).
