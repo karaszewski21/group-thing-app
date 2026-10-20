@@ -528,3 +528,13 @@ Frontend — existing tests to update (reason)
 - Consider deleting `FirstTermStepperOrganizer` in favour of the general term modal with the group preselected.
 - Standards update via `/maister:standards-update`: `models.md` (UUID PKs, soft delete exists, groups BC has no relationships), `migrations.md` (UUID/`gen_random_uuid()`), `testing/backend-testing.md` (pytest + testcontainers), `security.md` test-suite note.
 - Optional: CSP allowing `maps.googleapis.com` if a CSP is ever introduced.
+
+## Revision 3 (2026-10-20, user-approved)
+
+Supersedes the conflicting parts of B9/B10/B13, section 4 (`component:location-picker-list`, `component:location-picker-edit` rows), section 6.4 and section 7.4.
+
+- **Group 10 — location management moved to `/panel/miejsca`** ("Moje miejsca", `MiejscaView`), reachable from `AccountMenu` right after "Ustawienia". Renaming, editing notes/address and deleting saved places happen only there.
+- **Forms use a native `<select>` + "+" button** that expands an inline `LocationAddForm` (Google autocomplete or manual entry, never a nested sheet). The picker has no per-row "Edytuj"/"Usuń" and no radiogroup; this supersedes B13's inline edit/delete, the picker-list/-edit rows in section 4 and the radiogroup contract in section 7.4. A soft-deleted current selection still shows with "(usunięte)".
+- **Public `attendee_count` confirmed** (B11): it stays on `PublicTermResponse`.
+- **READ-level location shape narrowed**: `GroupResponse.default_location` and `TermResponse.location` (served by `GET /api/groups`, `/api/groups/{id}`, `/api/terms`, `/api/terms/{id}` and the create/update responses) use `LocationRefResponse` = `{id, name, formatted_address, google_place_id, notes, deleted_at}` — no `owner_party_id`, no `lat`/`lng`, no `source`/timestamps. The full `LocationResponse` is returned only by `/api/locations/*`; public, attendance and moderation payloads keep `PublicLocationResponse`.
+- **Unchanged location ids are not re-validated**: `PATCH /api/groups/{id}` checks ownership only when `default_location_id` is present, non-null and differs from the stored value; `PATCH /api/terms/{id}` only when `location_id` is non-null and differs from the term's current place; `POST /api/terms` skips the check when the supplied `location_id` equals the Circle's `default_location_id` (treated as inherited, so a soft-deleted default is accepted). A newly assigned soft-deleted id is still 404 and another party's id still 403.

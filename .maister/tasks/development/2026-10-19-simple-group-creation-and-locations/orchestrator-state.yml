@@ -100,8 +100,8 @@ task_context:
     architecture_decision: {decision: null, summary: null}
 
 verification_context:
-  last_status: null
-  issues_found: []
-  fixes_applied: []
-  decisions_made: []
-  reverify_count: 0
+  last_status: passed_with_issues
+  issues_found: [see verification/implementation-verification.md (iteration 1)]
+  fixes_applied: [unchanged-location-id no revalidation, LocationRefResponse narrow READ embed, stepper focus, capacity validation, suggest-failure fallback, maps script reuse, ConfirmDeleteDialog, usuniete label via deleted_at, MiejscaView panel reload, a11y/async fixes, cleanups, spec rev 3]
+  decisions_made: [public attendee_count kept (B11), narrow location ref for all READ users, out-of-band removal of term formalization (UI + endpoint)]
+  reverify_count: 1

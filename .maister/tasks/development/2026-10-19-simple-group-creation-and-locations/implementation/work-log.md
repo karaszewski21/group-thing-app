@@ -169,3 +169,13 @@ User decision: move location management to a separate panel view "Miejsca"; form
 
 ## 2026-10-20 - Phase 11 Verification (iteration 1)
 Status: passed_with_issues (0 critical). Reports in verification/. User decisions: public attendee_count confirmed (B11) — closes the pending decision above; READ-level group/term location → narrow `LocationRefResponse` {id, name, formatted_address, google_place_id, notes, deleted_at}; fix all fixable issues. Fix agents dispatched in parallel (backend + spec rev 3; frontend). skip_test_suite reset to false.
+
+## 2026-10-20 - Verification fixes applied (iteration 1)
+- Backend agent: unchanged location ids no longer re-validated (+3 regression tests); `LocationRefResponse` {id,name,formatted_address,google_place_id,notes,deleted_at} on GroupResponse.default_location / TermResponse.location; ACL reuses service 404→403; `get_location` helper; spec.md Revision 3. Full backend 876 passed; mypy 32.
+- Frontend agent: CreateGroupStepper focus per step; shared `parseCapacity`/`CapacityField` (1–10000, inline alert); suggest failure → manual fallback; Maps script reuse on retry; shared `ConfirmDeleteDialog`; "(usunięte)" from deleted_at; MiejscaView `onPlacesChanged` → silent panel reload; a11y/async fixes; dead `updateGroupLayoutMode` removed; `MapPinIcon` → components/shared; `aria-label="Grupa"`. Full frontend 982 passed / 6 baseline.
+
+## 2026-10-20 - Out-of-band user request (/maister:quick-dev): remove "Formalizuj stałych członków"
+User: the mechanism doesn't work out; remove UI + `POST /api/groups/{id}/terms/{id}/formalize`. Attendee list endpoint kept (TermAttendeesPage), renamed `list_term_attendees` / `getTermAttendees`.
+- Backend: removed `formalize_group_from_term`, `FormalizeGroupFromTermRequest`, router endpoint, service exports; formalize tests removed from test_group_privacy / test_term_attendees / test_add_active_membership / test_authorization_matrix; one RSVP test now seeds membership via `service.add_active_membership`. Docstrings updated.
+- Frontend: section + state removed from EditTermDialog (prop `group` dropped; PanelModals keeps the led-group guard); `formalizeGroupFromTerm` removed from api/groups.ts; tests updated; regression test `render_noStandingMembersSection`.
+- Results: frontend full 978 passed / 7 failed = 6 baseline + OrganizerEditor flaky; backend full 868 passed / 1 failed (`test_lend_step0_fixes::test_listMyLentOutItems_…` — untouched circulation code, passes in isolation; run took 1h52 under load → flaky); mypy 32; tsc green; eslint clean on touched files; ruff Δ0.

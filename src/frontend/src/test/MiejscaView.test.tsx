@@ -66,8 +66,10 @@ const SUGGESTION: Suggestion = {
   raw: {} as Suggestion["raw"],
 };
 
+const onPlacesChanged = vi.fn();
+
 function renderView() {
-  return render(<MiejscaView />, { wrapper: createQueryWrapper() });
+  return render(<MiejscaView onPlacesChanged={onPlacesChanged} />, { wrapper: createQueryWrapper() });
 }
 
 beforeEach(() => {
@@ -136,6 +138,7 @@ describe("MiejscaView", () => {
     expect(screen.queryByLabelText("Nazwa miejsca")).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: "+ Dodaj miejsce" })).toHaveAttribute("aria-expanded", "false");
     await waitFor(() => expect(within(row).getByRole("button", { name: "Edytuj miejsce Sala nr 2" })).toHaveFocus());
+    expect(onPlacesChanged).toHaveBeenCalledTimes(1);
   });
 
   it("edit: Google address is read-only '(z Google)', MANUAL address editable; save PATCHes and refocuses Edytuj", async () => {
@@ -157,6 +160,7 @@ describe("MiejscaView", () => {
     await waitFor(() =>
       expect(screen.getByRole("button", { name: "Edytuj miejsce Świetlica na Polnej" })).toHaveFocus(),
     );
+    expect(onPlacesChanged).toHaveBeenCalledTimes(1);
 
     fireEvent.click(screen.getByRole("button", { name: "Edytuj miejsce Park Sołacki" }));
     expect(screen.getByLabelText("Adres")).toHaveValue("Park Sołacki, Poznań");
@@ -180,6 +184,7 @@ describe("MiejscaView", () => {
     await waitFor(() => expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument());
     expect(screen.queryByText("Świetlica na Polnej")).not.toBeInTheDocument();
     await waitFor(() => expect(screen.getByRole("button", { name: "Edytuj miejsce Park Sołacki" })).toHaveFocus());
+    expect(onPlacesChanged).toHaveBeenCalledTimes(1);
   });
 
   it("delete dialog: Esc cancels without deleting and returns focus to Usuń", async () => {
@@ -192,6 +197,7 @@ describe("MiejscaView", () => {
     expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument();
     expect(locationsApi.deleteLocation).not.toHaveBeenCalled();
     await waitFor(() => expect(deleteButton).toHaveFocus());
+    expect(onPlacesChanged).not.toHaveBeenCalled();
   });
 
   it("Google mode: adds a picked suggestion as a GOOGLE place", async () => {

@@ -1,7 +1,6 @@
 """`add_active_membership` — the shared "make this party an active member of
-this group" helper used by join-request approval, term formalization and
-test seeding. Flat `tests/` placement, same convention as
-`test_group_privacy.py`."""
+this group" helper used by join-request approval and test seeding. Flat
+`tests/` placement, same convention as `test_group_privacy.py`."""
 
 from __future__ import annotations
 
@@ -73,28 +72,3 @@ async def test_addActiveMembership_callerRollsBack_membershipNotPersisted(
     await db_session.rollback()
 
     assert await service.list_memberships_for_party(db_session, party_id) == []
-
-
-async def test_formalizeGroupFromTerm_afterRefactor_createsMemberships(
-    client: AsyncClient,
-) -> None:
-    org_token, _ = await _register(client, "ORGANIZER", "aam.org3@example.com")
-    group_id, term_id = await _create_circle_and_term(client, org_token, "aam3")
-    guest_token, party_id = await _register(client, "GUEST", "aam.guest3@example.com")
-    rsvp = await client.post(
-        f"/api/groups/public/{group_id}/rsvp",
-        json={"term_id": term_id, "guardian_name": "Gość AAM", "child_count": 1},
-        headers=_auth(guest_token),
-    )
-    assert rsvp.status_code == 201
-
-    response = await client.post(
-        f"/api/groups/{group_id}/terms/{term_id}/formalize",
-        json={"party_ids": [party_id]},
-        headers=_auth(org_token),
-    )
-
-    assert response.status_code == 200
-    memberships = await client.get(f"/api/groups/{group_id}/memberships", headers=_auth(org_token))
-    assert memberships.status_code == 200
-    assert [m["member_party_id"] for m in memberships.json()] == [party_id]

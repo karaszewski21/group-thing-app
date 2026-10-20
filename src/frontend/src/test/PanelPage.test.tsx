@@ -68,13 +68,6 @@ vi.mock("../api/groups", () => ({
   getGroup: vi.fn(),
   getMyAttendances: vi.fn(),
   updateGroup: vi.fn(),
-  // `EditTermDialog`'s "Formalizuj stałych członków" section calls these on
-  // mount whenever the term's group is still PUBLIC — default resolution set
-  // per-test in `mockOrganizerDefaults()` (a bare mock here would go stale
-  // after each `beforeEach`'s `vi.resetAllMocks()`, same reasoning as every
-  // other default below).
-  getTermAttendeesForFormalization: vi.fn(),
-  formalizeGroupFromTerm: vi.fn(),
 }));
 
 vi.mock("../api/inventories", () => ({
@@ -212,8 +205,6 @@ const OTHER_GROUP_ID = "6a1d3b8f-4c2e-4f7b-8d9a-0000000000a6";
 const GROUP_PARTY_ID = "2b7e4c1a-9d3f-4a6b-8e5c-0000000000b2";
 const TERM_ID = "1c2d3e4f-5a6b-4c7d-8e9f-0000000000c1";
 const LATER_TERM_ID = "7d8e9fa0-b1c2-4d3e-8f4a-0000000000c7";
-const ATTENDEE_PARTY_ID = "a0b1c2d3-e4f5-4a6b-8c7d-0000000000d0";
-const OTHER_ATTENDEE_PARTY_ID = "a1b2c3d4-e5f6-4a7b-8c8d-0000000000d1";
 const ATTENDED_TERM_ID = "3e4f5a6b-7c8d-4e9f-8a0b-0000000000c3";
 const OTHER_ATTENDED_TERM_ID = "8f9a0b1c-2d3e-4f4a-8b5c-0000000000c8";
 const ENDED_TERM_ID = "9a0b1c2d-3e4f-4a5b-8c6d-0000000000c9";
@@ -391,7 +382,6 @@ function mockOrganizerDefaults() {
   vi.mocked(inventoriesApi.getMyLentOutItems).mockResolvedValue([]);
   vi.mocked(inventoriesApi.getInventoryItemBalances).mockResolvedValue({});
   vi.mocked(groupsApi.getGroup).mockResolvedValue(mockGroup);
-  vi.mocked(groupsApi.getTermAttendeesForFormalization).mockResolvedValue([]);
   vi.mocked(termsApi.getTerms).mockResolvedValue([]);
   vi.mocked(termsApi.getNeededItems).mockResolvedValue([]);
   vi.mocked(familiesApi.getMyFamilies).mockResolvedValue([]);
@@ -421,7 +411,6 @@ async function completeCreateGroupStepper() {
     { id: "1", from_role_id: "1", to_group_id: GROUP_ID, organizer_party_id: "1", valid_from: "2026-01-01", valid_to: null },
   ]);
   vi.mocked(groupsApi.getGroup).mockResolvedValue(mockGroup);
-  vi.mocked(groupsApi.getTermAttendeesForFormalization).mockResolvedValue([]);
   vi.mocked(termsApi.getTerms).mockResolvedValue([]);
 
   fireEvent.click(within(dialog).getByRole("button", { name: "Dalej →" }));
@@ -1232,93 +1221,6 @@ describe("PanelPage — term edit dialog", () => {
       expect(screen.queryByRole("dialog", { name: "Edytuj termin" })).not.toBeInTheDocument(),
     );
   });
-
-  // Group 4 (promote-term-attendees-to-members): the "Formalizuj stałych
-  // członków" section no longer gates on family resolution or group
-  // visibility — every non-member attendee is selectable and pre-selected,
-  // regardless of `family_id`.
-  const mockAttendees: groupsApi.TermAttendeeResponse[] = [
-    {
-      party_id: ATTENDEE_PARTY_ID,
-      display_name: "Zosia Nowak",
-      child_count: 0,
-      family_id: "f0e1d2c3-b4a5-4968-8776-0000000000e0",
-      family_name: "Nowakowie",
-      children: [],
-      already_member: false,
-    },
-    {
-      party_id: OTHER_ATTENDEE_PARTY_ID,
-      display_name: "Tomek Wiśniewski",
-      child_count: 0,
-      family_id: null,
-      family_name: null,
-      children: [],
-      already_member: false,
-    },
-  ];
-
-  it("submits the pre-selected attendees' party_ids and shows the shared success copy", async () => {
-    mockOrganizerDefaults();
-    vi.mocked(termsApi.getTerms).mockResolvedValue([term]);
-    vi.mocked(termsApi.getNeededItems).mockResolvedValue([]);
-    vi.mocked(groupsApi.getTermAttendeesForFormalization).mockResolvedValue(mockAttendees);
-    vi.mocked(groupsApi.formalizeGroupFromTerm).mockResolvedValue(mockGroup);
-    renderPanel();
-    const dialog = await openEditDialog();
-
-    // Both attendees are pre-selected (neither is already_member); deselect
-    // one so the asserted party_ids call exercises real selection state
-    // rather than just "everything returned by the fetch".
-    fireEvent.click(
-      await within(dialog).findByLabelText("Ustal Tomek Wiśniewski jako stałego członka"),
-    );
-    fireEvent.click(within(dialog).getByRole("button", { name: "Ustal stałych członków" }));
-
-    await waitFor(() =>
-      expect(groupsApi.formalizeGroupFromTerm).toHaveBeenCalledWith(GROUP_ID, TERM_ID, [ATTENDEE_PARTY_ID]),
-    );
-    expect(
-      await within(dialog).findByText("Dodano 1 osobę jako stałych członków grupy."),
-    ).toBeInTheDocument();
-  });
-
-  it("leaves a family-less attendee's row selectable and pre-selected", async () => {
-    mockOrganizerDefaults();
-    vi.mocked(termsApi.getTerms).mockResolvedValue([term]);
-    vi.mocked(termsApi.getNeededItems).mockResolvedValue([]);
-    vi.mocked(groupsApi.getTermAttendeesForFormalization).mockResolvedValue(mockAttendees);
-    renderPanel();
-    const dialog = await openEditDialog();
-
-    const checkbox = await within(dialog).findByLabelText(
-      "Ustal Tomek Wiśniewski jako stałego członka",
-    );
-    expect(checkbox).not.toBeDisabled();
-    expect(checkbox).toBeChecked();
-  });
-
-  it("shows an inline error and stays open when formalizeGroupFromTerm fails", async () => {
-    // Group 7 gap analysis: the success path is covered above, but the
-    // error/retry path on this surface was never exercised at the /panel
-    // surface.
-    mockOrganizerDefaults();
-    vi.mocked(termsApi.getTerms).mockResolvedValue([term]);
-    vi.mocked(termsApi.getNeededItems).mockResolvedValue([]);
-    vi.mocked(groupsApi.getTermAttendeesForFormalization).mockResolvedValue(mockAttendees);
-    vi.mocked(groupsApi.formalizeGroupFromTerm).mockRejectedValue(new Error("boom"));
-    renderPanel();
-    const dialog = await openEditDialog();
-
-    fireEvent.click(within(dialog).getByRole("button", { name: "Ustal stałych członków" }));
-
-    expect(
-      await within(dialog).findByText(
-        "Nie udało się ustalić stałych członków — spróbuj ponownie",
-      ),
-    ).toBeInTheDocument();
-    expect(screen.getByRole("dialog", { name: "Edytuj termin" })).toBeInTheDocument();
-  });
 });
 
 describe("PanelPage — Term/Group ids stay UUID strings (R29)", () => {
@@ -1352,8 +1254,7 @@ describe("PanelPage — Term/Group ids stay UUID strings (R29)", () => {
     fireEvent.click(await screen.findByRole("button", { name: "+ Dodaj termin" }));
     const dialog = await screen.findByRole("dialog", { name: "Dodaj termin zajęć" });
 
-    // The "Grupa" select has no accessible name (unassociated `Field` label); the place select sits beside it.
-    const groupSelect = within(dialog).getByRole("option", { name: "Rytmika" }).closest("select")!;
+    const groupSelect = within(dialog).getByRole("combobox", { name: "Grupa" });
     fireEvent.change(groupSelect, { target: { value: OTHER_GROUP_ID } });
     // This modal's `Field` label isn't associated with its input.
     const dateInput = dialog.querySelector<HTMLInputElement>('input[type="datetime-local"]')!;
@@ -1369,35 +1270,6 @@ describe("PanelPage — Term/Group ids stay UUID strings (R29)", () => {
         capacity: null,
       }),
     );
-  });
-
-  it("formalize picker sends string party ids", async () => {
-    mockOrganizerDefaults();
-    vi.mocked(termsApi.getTerms).mockResolvedValue([term]);
-    vi.mocked(groupsApi.getTermAttendeesForFormalization).mockResolvedValue([
-      {
-        party_id: ATTENDEE_PARTY_ID,
-        display_name: "Zosia Nowak",
-        child_count: 1,
-        family_id: "f0e1d2c3-b4a5-4968-8776-0000000000e0",
-        family_name: "Nowakowie",
-        children: [],
-        already_member: false,
-      },
-    ]);
-    vi.mocked(groupsApi.formalizeGroupFromTerm).mockResolvedValue(mockGroup);
-    renderPanel();
-
-    fireEvent.click(await screen.findByRole("button", { name: "Spotkania" }));
-    fireEvent.click((await screen.findAllByRole("button", { name: "Edytuj termin" }))[0]);
-    const dialog = await screen.findByRole("dialog", { name: "Edytuj termin" });
-    await within(dialog).findByLabelText("Ustal Zosia Nowak jako stałego członka");
-    fireEvent.click(within(dialog).getByRole("button", { name: "Ustal stałych członków" }));
-
-    await waitFor(() =>
-      expect(groupsApi.formalizeGroupFromTerm).toHaveBeenCalledWith(GROUP_ID, TERM_ID, [ATTENDEE_PARTY_ID]),
-    );
-    expect(groupsApi.getTermAttendeesForFormalization).toHaveBeenCalledWith(GROUP_ID, TERM_ID);
   });
 
   it("getTerms is called with the group's UUID string", async () => {
@@ -1448,7 +1320,18 @@ describe("PanelPage — edit group dialog (name/layout/visibility/default place 
     };
     mockOrganizerDefaults();
     vi.mocked(locationsApi.getMyLocations).mockResolvedValue([place]);
-    vi.mocked(groupsApi.getGroup).mockResolvedValue({ ...mockGroup, default_location: place, default_capacity: 12 });
+    vi.mocked(groupsApi.getGroup).mockResolvedValue({
+      ...mockGroup,
+      default_location: {
+        id: place.id,
+        name: place.name,
+        formatted_address: place.formatted_address,
+        google_place_id: null,
+        notes: null,
+        deleted_at: null,
+      },
+      default_capacity: 12,
+    });
     vi.mocked(groupsApi.updateGroup).mockResolvedValue(mockGroup);
     renderPanel();
     await openEditDialog();
@@ -1490,7 +1373,6 @@ describe("PanelPage — edit group dialog (name/layout/visibility/default place 
     // switch its resolved value to the updated name/layout NOW, after the
     // dialog already opened against the original "Nowa grupa" fixture.
     vi.mocked(groupsApi.getGroup).mockResolvedValue({ ...mockGroup, name: "Nutki", layout_mode: "PITCH" });
-    vi.mocked(groupsApi.getTermAttendeesForFormalization).mockResolvedValue([]);
     fireEvent.click(screen.getByRole("button", { name: "Zapisz" }));
 
     await waitFor(() =>
@@ -1845,7 +1727,6 @@ describe("PanelPage — per-term public links & copy-link button", () => {
   it("organizer with no Organization — 'Terminy' row still links to the per-term public page via the hash slug", async () => {
     mockOrganizerDefaults();
     vi.mocked(groupsApi.getGroup).mockResolvedValue(mockGroupHashSlug);
-    vi.mocked(groupsApi.getTermAttendeesForFormalization).mockResolvedValue([]);
     vi.mocked(termsApi.getTerms).mockResolvedValue([
       { id: TERM_ID, circle_group_id: GROUP_ID, occurs_on: "2026-02-01", description: null, created_at: "", updated_at: "", attendee_count: null, child_count: null },
     ]);

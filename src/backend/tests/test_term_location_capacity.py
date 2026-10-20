@@ -186,6 +186,54 @@ async def test_updateTerm_nullClears_omittedKeeps(
     assert cleared.json()["capacity"] is None
 
 
+async def test_createTerm_resendingGroupsSoftDeletedDefaultLocationId_201(
+    client: AsyncClient, db_session: AsyncSession
+) -> None:
+    token = await _register(client, "tlc.resend.create@example.com")
+    location = await _create_location(client, token, "ChIJ-tlc-resend-create")
+    group = await _create_circle(client, token, default_location_id=location["id"])
+    deleted = await client.delete(f"/api/locations/{location['id']}", headers=_auth(token))
+    assert deleted.status_code == 204
+
+    term = await _create_term(client, token, group["id"], location_id=location["id"])
+
+    assert term["location"]["id"] == location["id"]
+    assert term["location"]["deleted_at"] is not None
+
+
+async def test_updateTerm_resendingUnchangedSoftDeletedLocationId_200_butNewDeletedOrForeign404Or403(  # noqa: E501
+    client: AsyncClient, db_session: AsyncSession
+) -> None:
+    token = await _register(client, "tlc.resend.update@example.com")
+    other_token = await _register(client, "tlc.resend.update.other@example.com")
+    location = await _create_location(client, token, "ChIJ-tlc-resend-update")
+    other_deleted = await _create_location(client, token, "ChIJ-tlc-resend-update-deleted")
+    foreign = await _create_location(client, other_token, "ChIJ-tlc-resend-update-foreign")
+    group = await _create_circle(client, token)
+    term = await _create_term(client, token, group["id"], location_id=location["id"])
+    for location_id in (location["id"], other_deleted["id"]):
+        deleted = await client.delete(f"/api/locations/{location_id}", headers=_auth(token))
+        assert deleted.status_code == 204
+
+    resent = await client.patch(
+        f"/api/terms/{term['id']}",
+        json={"description": "Gramy", "location_id": location["id"]},
+        headers=_auth(token),
+    )
+
+    assert resent.status_code == 200, resent.text
+    assert resent.json()["description"] == "Gramy"
+    assert resent.json()["location"]["id"] == location["id"]
+    new_deleted = await client.patch(
+        f"/api/terms/{term['id']}", json={"location_id": other_deleted["id"]}, headers=_auth(token)
+    )
+    assert new_deleted.status_code == 404
+    new_foreign = await client.patch(
+        f"/api/terms/{term['id']}", json={"location_id": foreign["id"]}, headers=_auth(token)
+    )
+    assert new_foreign.status_code == 403
+
+
 async def test_listTerms_attachesLocation_withQueryCountNotGrowingWithTermCount(
     client: AsyncClient, engine: AsyncEngine, db_session: AsyncSession
 ) -> None:
@@ -202,6 +250,8 @@ async def test_listTerms_attachesLocation_withQueryCountNotGrowingWithTermCount(
         )
     assert response.status_code == 200
     assert response.json()[0]["location"]["id"] == location["id"]
+    for hidden in ("owner_party_id", "lat", "lng"):
+        assert hidden not in response.json()[0]["location"]
 
     for index in (2, 3):
         location = await _create_location(client, token, f"ChIJ-tlc-list-{index}")

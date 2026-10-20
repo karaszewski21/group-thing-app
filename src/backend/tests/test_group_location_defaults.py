@@ -66,9 +66,16 @@ async def test_createAdditionalCircle_withDefaults_returnsNestedDefaultLocationA
     assert group["visibility"] == "PRIVATE"
     assert group["default_capacity"] == 12
     assert group["default_location"]["id"] == location["id"]
+    assert set(group["default_location"]) == {
+        "id",
+        "name",
+        "formatted_address",
+        "google_place_id",
+        "notes",
+        "deleted_at",
+    }
     assert group["default_location"]["name"] == location["name"]
-    assert isinstance(group["default_location"]["lat"], float)
-    assert isinstance(group["default_location"]["lng"], float)
+    assert group["default_location"]["google_place_id"] == "ChIJ-defaults-create"
 
     fetched = await client.get(f"/api/groups/{group['id']}", headers=_auth(token))
     assert fetched.json()["default_location"]["id"] == location["id"]
@@ -134,6 +141,43 @@ async def test_updateGroup_nullClearsDefaults_omittedKeepsThem(
     assert cleared.json()["default_capacity"] is None
 
 
+async def test_updateGroup_resendingSoftDeletedDefaultLocationId_200_butNewDeletedOrForeign404Or403(
+    client: AsyncClient, db_session: AsyncSession
+) -> None:
+    token = await _register(client, "defaults.resend@example.com")
+    other_token = await _register(client, "defaults.resend.other@example.com")
+    location = await _create_location(client, token, "ChIJ-defaults-resend")
+    other_deleted = await _create_location(client, token, "ChIJ-defaults-resend-deleted")
+    foreign = await _create_location(client, other_token, "ChIJ-defaults-resend-foreign")
+    group = (await _create_circle(client, token, default_location_id=location["id"])).json()
+    for location_id in (location["id"], other_deleted["id"]):
+        deleted = await client.delete(f"/api/locations/{location_id}", headers=_auth(token))
+        assert deleted.status_code == 204
+
+    renamed = await client.patch(
+        f"/api/groups/{group['id']}",
+        json={"name": "Nutki nowe", "default_location_id": location["id"]},
+        headers=_auth(token),
+    )
+
+    assert renamed.status_code == 200, renamed.text
+    assert renamed.json()["name"] == "Nutki nowe"
+    assert renamed.json()["default_location"]["id"] == location["id"]
+    assert renamed.json()["default_location"]["deleted_at"] is not None
+    new_deleted = await client.patch(
+        f"/api/groups/{group['id']}",
+        json={"name": "Nutki nowe", "default_location_id": other_deleted["id"]},
+        headers=_auth(token),
+    )
+    assert new_deleted.status_code == 404
+    new_foreign = await client.patch(
+        f"/api/groups/{group['id']}",
+        json={"name": "Nutki nowe", "default_location_id": foreign["id"]},
+        headers=_auth(token),
+    )
+    assert new_foreign.status_code == 403
+
+
 async def test_listGroups_rowsCarryDefaultLocation_withOneBatchedQuery(
     client: AsyncClient, engine: AsyncEngine, db_session: AsyncSession
 ) -> None:
@@ -146,6 +190,8 @@ async def test_listGroups_rowsCarryDefaultLocation_withOneBatchedQuery(
     assert response.status_code == 200
     rows = {row["id"]: row for row in response.json()}
     assert rows[first_group["id"]]["default_location"]["id"] == first["id"]
+    for hidden in ("owner_party_id", "lat", "lng"):
+        assert hidden not in rows[first_group["id"]]["default_location"]
 
     expected = {first_group["id"]: first["id"]}
     for index in (2, 3):

@@ -1,6 +1,6 @@
 """Organizer attendees listing (`GET /api/groups/{id}/terms/{id}/attendees`)
-— per-attendee child birth years, the term<->group consistency check (shared
-with `formalize`), and deterministic (oldest-wins) family resolution.
+— per-attendee child birth years, the term<->group consistency check, and
+deterministic (oldest-wins) family resolution.
 
 Flat `tests/` placement, same convention as `test_group_privacy.py`."""
 
@@ -197,28 +197,6 @@ async def test_listAttendees_partyInTwoFamilies_resolvesOldestFamily(
         assert attendee["family_id"] == str(older.id)
         assert attendee["family_name"] == "Rodzina Najstarsza"
         assert attendee["children"] == [{"birth_year": 2020}]
-
-
-async def test_formalize_termOfOtherGroup_returns404AndCreatesNoMembership(
-    client: AsyncClient,
-) -> None:
-    org_token, _ = await _register(client, "ORGANIZER", "att.formalize.org1@example.com")
-    group_id, _own_term_id = await _create_circle_and_term(client, org_token, "att7a")
-    other_org_token, _ = await _register(client, "ORGANIZER", "att.formalize.org2@example.com")
-    other_group_id, other_term_id = await _create_circle_and_term(client, other_org_token, "att7b")
-    guest_token, party_id = await _register(client, "GUEST", "att.formalize.guest@example.com")
-    await _rsvp(client, guest_token, other_group_id, other_term_id)
-
-    response = await client.post(
-        f"/api/groups/{group_id}/terms/{other_term_id}/formalize",
-        json={"party_ids": [party_id]},
-        headers=_auth(org_token),
-    )
-
-    assert response.status_code == 404
-    memberships = await client.get(f"/api/groups/{group_id}/memberships", headers=_auth(org_token))
-    assert memberships.status_code == 200
-    assert all(m["member_party_id"] != party_id for m in memberships.json())
 
 
 async def test_listAttendees_patchedYearShownAndRemovedChildExcluded(client: AsyncClient) -> None:

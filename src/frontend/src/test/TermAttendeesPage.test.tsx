@@ -16,7 +16,7 @@ vi.mock("../api/terms", () => ({
 
 vi.mock("../api/groups", () => ({
   getGroup: vi.fn(),
-  getTermAttendeesForFormalization: vi.fn(),
+  getTermAttendees: vi.fn(),
 }));
 
 const TERM_ID = "3f2b8c1e-7a4d-4e9b-9c1a-2d5e6f7a8b9c";
@@ -98,7 +98,7 @@ describe("TermAttendeesPage", () => {
     vi.resetAllMocks();
     vi.mocked(termsApi.getTerm).mockResolvedValue(term);
     vi.mocked(groupsApi.getGroup).mockResolvedValue(group);
-    vi.mocked(groupsApi.getTermAttendeesForFormalization).mockResolvedValue(attendees);
+    vi.mocked(groupsApi.getTermAttendees).mockResolvedValue(attendees);
   });
 
   it("rows render name, family, pill wording and ages", async () => {
@@ -130,7 +130,7 @@ describe("TermAttendeesPage", () => {
     expect(await screen.findByText("3 zapisy · 3 dzieci")).toBeInTheDocument();
     unmount();
 
-    vi.mocked(groupsApi.getTermAttendeesForFormalization).mockResolvedValue([]);
+    vi.mocked(groupsApi.getTermAttendees).mockResolvedValue([]);
     renderPage();
     expect(await screen.findByText("Brak zapisów")).toBeInTheDocument();
     expect(screen.getByText("Nikt jeszcze nie zapisał się na ten termin.")).toBeInTheDocument();
@@ -143,11 +143,11 @@ describe("TermAttendeesPage", () => {
 
     expect(termsApi.getTerm).toHaveBeenCalledWith(TERM_ID);
     expect(groupsApi.getGroup).toHaveBeenCalledWith(GROUP_ID);
-    expect(groupsApi.getTermAttendeesForFormalization).toHaveBeenCalledWith(GROUP_ID, TERM_ID);
+    expect(groupsApi.getTermAttendees).toHaveBeenCalledWith(GROUP_ID, TERM_ID);
   });
 
   it("attendees 403 shows denied", async () => {
-    vi.mocked(groupsApi.getTermAttendeesForFormalization).mockRejectedValue(
+    vi.mocked(groupsApi.getTermAttendees).mockRejectedValue(
       new ApiError(403, "Forbidden", null),
     );
     renderPage();
@@ -165,7 +165,7 @@ describe("TermAttendeesPage", () => {
     expect(screen.queryByText("Wczytywanie zapisanych…")).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Spróbuj ponownie" })).not.toBeInTheDocument();
     expect(groupsApi.getGroup).not.toHaveBeenCalled();
-    expect(groupsApi.getTermAttendeesForFormalization).not.toHaveBeenCalled();
+    expect(groupsApi.getTermAttendees).not.toHaveBeenCalled();
   });
 
   it("getGroup 500 shows error with retry and minimal header", async () => {
@@ -184,7 +184,7 @@ describe("TermAttendeesPage", () => {
   });
 
   it("generic attendees error retry refetches", async () => {
-    vi.mocked(groupsApi.getTermAttendeesForFormalization)
+    vi.mocked(groupsApi.getTermAttendees)
       .mockRejectedValueOnce(new ApiError(500, "Internal Server Error", null))
       .mockResolvedValue(attendees);
     renderPage();
@@ -192,14 +192,14 @@ describe("TermAttendeesPage", () => {
     fireEvent.click(await screen.findByRole("button", { name: "Spróbuj ponownie" }));
 
     await waitFor(() =>
-      expect(groupsApi.getTermAttendeesForFormalization).toHaveBeenCalledTimes(2),
+      expect(groupsApi.getTermAttendees).toHaveBeenCalledTimes(2),
     );
     expect(await screen.findByText("Anna Nowak")).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Spróbuj ponownie" })).not.toBeInTheDocument();
   });
 
   it("a family whose children all lack a birth year shows only 'wiek nieznany'", async () => {
-    vi.mocked(groupsApi.getTermAttendeesForFormalization).mockResolvedValue([
+    vi.mocked(groupsApi.getTermAttendees).mockResolvedValue([
       attendee({
         display_name: "Ewa Lis",
         family_name: "Rodzina Lisów",

@@ -94,6 +94,9 @@ async def test_createLocation_google_returns201_andDuplicateActivePlaceIdReturns
 
     mine = await client.get("/api/locations/mine", headers=_auth(token))
     assert len(mine.json()) == 1
+    assert mine.json()[0]["owner_party_id"] == body["owner_party_id"]
+    assert isinstance(mine.json()[0]["lat"], float)
+    assert isinstance(mine.json()[0]["lng"], float)
 
 
 async def test_createLocation_validation_googleWithoutPlaceIdOrCoords_manualWithPlaceId_blankAddress_return400(  # noqa: E501

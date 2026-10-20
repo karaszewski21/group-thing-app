@@ -4,7 +4,7 @@ import { MemoryRouter } from "react-router-dom";
 import * as groupsApi from "../api/groups";
 import type { GroupResponse } from "../api/groups";
 import * as locationsApi from "../api/locations";
-import type { LocationResponse } from "../api/locations";
+import type { LocationRefResponse, LocationResponse } from "../api/locations";
 import * as termsApi from "../api/terms";
 import type { TermResponse } from "../api/terms";
 import { CreateGroupStepper } from "../components/panel/CreateGroupStepper";
@@ -34,6 +34,15 @@ const SWIETLICA: LocationResponse = {
   created_at: "2026-10-01T10:00:00",
   updated_at: "2026-10-01T10:00:00",
   deleted_at: null,
+};
+
+const SWIETLICA_REF: LocationRefResponse = {
+  id: SWIETLICA.id,
+  name: SWIETLICA.name,
+  formatted_address: SWIETLICA.formatted_address,
+  google_place_id: SWIETLICA.google_place_id,
+  notes: SWIETLICA.notes,
+  deleted_at: SWIETLICA.deleted_at,
 };
 
 const GROUP: GroupResponse = {
@@ -137,7 +146,7 @@ describe("CreateGroupStepper", () => {
   it("prefills step 2 from the created group's default place and capacity", async () => {
     vi.mocked(groupsApi.createAdditionalMyCircle).mockResolvedValue({
       ...GROUP,
-      default_location: SWIETLICA,
+      default_location: SWIETLICA_REF,
       default_capacity: 12,
     });
     renderStepper();
@@ -162,7 +171,7 @@ describe("CreateGroupStepper", () => {
   it("sends explicit nulls when the prefilled place and capacity are cleared", async () => {
     vi.mocked(groupsApi.createAdditionalMyCircle).mockResolvedValue({
       ...GROUP,
-      default_location: SWIETLICA,
+      default_location: SWIETLICA_REF,
       default_capacity: 12,
     });
     renderStepper();
@@ -222,6 +231,46 @@ describe("CreateGroupStepper", () => {
     );
     fireEvent.click(screen.getByRole("button", { name: "Gotowe" }));
     expect(onDone).toHaveBeenCalled();
+  });
+
+  it("moves focus into the sheet on every step change", async () => {
+    renderStepper();
+    await submitStep1();
+
+    await waitFor(() => expect(screen.getByLabelText("Data i godzina")).toHaveFocus());
+    fireEvent.click(screen.getByRole("button", { name: "← Wstecz" }));
+    await waitFor(() => expect(screen.getByLabelText("Nazwa grupy")).toHaveFocus());
+
+    fireEvent.click(screen.getByRole("button", { name: "Dalej →" }));
+    await waitFor(() => expect(screen.getByLabelText("Data i godzina")).toHaveFocus());
+    await submitStep2();
+    await waitFor(() =>
+      expect(
+        screen.getByText("Grupa założona, termin dodany! Tę stronę zobaczy każdy, kto dostanie link — bez logowania."),
+      ).toHaveFocus(),
+    );
+  });
+
+  it.each(["0", "-1", "2.5", "10001"])("rejects capacity %s inline and blocks both steps", async (raw) => {
+    renderStepper();
+    fireEvent.change(await screen.findByLabelText("Nazwa grupy"), { target: { value: "Nutki" } });
+    await screen.findByRole("combobox", { name: "Stałe miejsce spotkań (opcjonalnie)" });
+
+    const groupCapacity = screen.getByLabelText("Ile miejsc (opcjonalnie)");
+    fireEvent.change(groupCapacity, { target: { value: raw } });
+    expect(screen.getByRole("alert")).toHaveTextContent("Podaj liczbę od 1 do 10000");
+    expect(groupCapacity).toHaveAttribute("aria-invalid", "true");
+    expect(screen.getByRole("button", { name: "Dalej →" })).toBeDisabled();
+
+    fireEvent.change(groupCapacity, { target: { value: "" } });
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Dalej →" }));
+
+    fireEvent.change(await screen.findByLabelText("Data i godzina"), { target: { value: "2026-10-24T17:00" } });
+    fireEvent.change(screen.getByLabelText("Ile miejsc"), { target: { value: raw } });
+    expect(screen.getByRole("alert")).toHaveTextContent("Podaj liczbę od 1 do 10000");
+    expect(screen.getByRole("button", { name: "Dodaj" })).toBeDisabled();
+    expect(termsApi.createTerm).not.toHaveBeenCalled();
   });
 
   it("offers the /organization CTA on the done screen only to a user without an Organization", async () => {

@@ -86,6 +86,32 @@ describe("googleMaps loader", () => {
     expect(injectedScripts()).toHaveLength(1);
   });
 
+  it("a retry after the load timeout reuses the still-loading script instead of adding a second one", async () => {
+    vi.stubEnv("VITE_GOOGLE_MAPS_API_KEY", "test-key");
+    vi.useFakeTimers();
+    try {
+      const { fakePlaces } = makeFakePlaces();
+      const importLibrary = vi.fn(async (name: string) => (name === "places" ? fakePlaces : {}));
+      const maps = await loadModule();
+
+      const timedOut = maps.loadPlaces();
+      await vi.advanceTimersByTimeAsync(10_000);
+      await expect(timedOut).resolves.toBeNull();
+      expect(injectedScripts()).toHaveLength(1);
+
+      const retry = maps.loadPlaces();
+      expect(injectedScripts()).toHaveLength(1);
+      vi.stubGlobal("google", { maps: { importLibrary } });
+      injectedScripts()[0].dispatchEvent(new Event("load"));
+
+      const api = await retry;
+      expect(api?.AutocompleteSuggestion).toBe(fakePlaces.AutocompleteSuggestion);
+      expect(injectedScripts()).toHaveLength(1);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it("imports the places library once across calls", async () => {
     vi.stubEnv("VITE_GOOGLE_MAPS_API_KEY", "test-key");
     const { fakePlaces } = makeFakePlaces();

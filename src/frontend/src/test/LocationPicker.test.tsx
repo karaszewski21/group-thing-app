@@ -152,12 +152,41 @@ describe("LocationPicker", () => {
     renderPicker({
       initial: "loc-gone",
       onChange: vi.fn(),
-      fallbackLocation: { id: "loc-gone", name: "Sala nr 2", formatted_address: "ul. Stara 1, Poznań", notes: null },
+      fallbackLocation: {
+        id: "loc-gone",
+        name: "Sala nr 2",
+        formatted_address: "ul. Stara 1, Poznań",
+        notes: null,
+        deleted_at: "2026-10-10T10:00:00",
+      },
     });
 
     const select = await screen.findByRole("combobox", { name: "Miejsce" });
     expect(select).toHaveValue("loc-gone");
     expect(within(select).getByRole("option", { name: "Sala nr 2 (usunięte)" })).toBeInTheDocument();
+  });
+
+  it("lists an active fallback place owned by someone else under its plain name", async () => {
+    vi.mocked(locationsApi.getMyLocations).mockResolvedValue([PARK]);
+    renderPicker({
+      initial: "loc-other",
+      onChange: vi.fn(),
+      fallbackLocation: {
+        id: "loc-other",
+        name: "Sala nr 2",
+        formatted_address: "ul. Stara 1, Poznań",
+        notes: null,
+        deleted_at: null,
+      },
+    });
+
+    const select = await screen.findByRole("combobox", { name: "Miejsce" });
+    expect(select).toHaveValue("loc-other");
+    expect(within(select).getAllByRole("option").map((o) => o.textContent)).toEqual([
+      "Brak miejsca",
+      "Park Sołacki",
+      "Sala nr 2",
+    ]);
   });
 
   it("'+' expands the inline add form; manual save selects the new place, collapses and refocuses the select", async () => {
@@ -240,7 +269,26 @@ describe("LocationPicker", () => {
     expect(outer).not.toHaveBeenCalled();
     expect(screen.queryByRole("listbox")).not.toBeInTheDocument();
     expect(input).toHaveAttribute("aria-expanded", "false");
+    expect(input).not.toHaveAttribute("aria-controls");
     expect(input).toBeInTheDocument();
+  });
+
+  it("Google mode: a rejected suggest request switches to manual entry with the unavailable alert", async () => {
+    stubGoogle();
+    vi.mocked(googleMaps.suggest).mockRejectedValue(new Error("REQUEST_DENIED"));
+    vi.mocked(locationsApi.getMyLocations).mockResolvedValue([]);
+    renderPicker({ onChange: vi.fn() });
+
+    fireEvent.click(await screen.findByRole("button", { name: "Dodaj nowe miejsce" }));
+    const input = screen.getByRole("combobox", { name: "Szukaj adresu lub nazwy miejsca" });
+    fireEvent.focus(input);
+    await waitFor(() => expect(googleMaps.loadPlaces).toHaveBeenCalledTimes(1));
+    fireEvent.change(input, { target: { value: "pol" } });
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("Wyszukiwarka niedostępna — wpisz adres ręcznie");
+    expect(googleMaps.suggest).toHaveBeenCalledWith(fakePlaces, "pol", expect.any(fakePlaces.AutocompleteSessionToken));
+    expect(screen.queryByRole("combobox", { name: "Szukaj adresu lub nazwy miejsca" })).not.toBeInTheDocument();
+    expect(screen.getByLabelText("Adres")).toBeInTheDocument();
   });
 
   it("Google mode: picking prefills the name and saves a GOOGLE row; a duplicate place_id selects the existing row", async () => {

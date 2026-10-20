@@ -183,7 +183,6 @@ def test_resolveRequirement_publicOrganizationSlug_staysPublic() -> None:
         ("GET", "/api/groups/mine/attendances", READ),
         ("GET", "/api/groups/public/x", "PUBLIC"),
         ("POST", "/api/groups/public/x/rsvp", "PUBLIC"),
-        ("POST", "/api/groups/x/terms/y/formalize", EDIT),
     ],
 )
 def test_resolveRequirement_groupSoftDeleteAndLeadershipRows_resolveToExpectedRow(

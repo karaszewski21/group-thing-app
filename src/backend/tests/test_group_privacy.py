@@ -1,5 +1,4 @@
-"""`Group.visibility` (PUBLIC/PRIVATE) and `formalize_group_from_term` —
-integration tests for the approved plan
+"""`Group.visibility` (PUBLIC/PRIVATE) — integration tests for the approved plan
 `crystalline-drifting-koala.md`'s Backend sections 1-4.
 
 Flat `tests/` placement, same convention as `test_circles_router.py`."""
@@ -10,6 +9,9 @@ import uuid
 from datetime import date, timedelta
 
 from httpx import AsyncClient
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.groups import service
 
 
 def _auth(token: str) -> dict[str, str]:
@@ -46,9 +48,9 @@ async def _create_circle_and_term(
 async def _rsvp_with_family(
     client: AsyncClient, group_id: int, term_id: int, guardian_email: str, family_name: str
 ) -> tuple[str, int]:
-    """Registers a real GUEST account, gives it a Family (so it's eligible
-    for formalization), then RSVPs to `term_id` as that logged-in principal
-    (attaches to the existing party rather than minting an anonymous one)."""
+    """Registers a real GUEST account, gives it a Family, then RSVPs to
+    `term_id` as that logged-in principal (attaches to the existing party
+    rather than minting an anonymous one)."""
     guardian_token, party_id = await _register(client, "GUEST", guardian_email)
     family = await client.post(
         "/api/families/mine", json={"name": family_name}, headers=_auth(guardian_token)
@@ -114,77 +116,17 @@ async def test_createRsvp_publicGroupAnonymous_stillWorks(client: AsyncClient) -
     assert response.json()["attached_to_account"] is False
 
 
-async def test_formalizeGroupFromTerm_organizer_createsMembershipStaysPublic(
-    client: AsyncClient,
-) -> None:
-    org_token, _ = await _register(client, "ORGANIZER", "priv.formalize.org4@example.com")
-    group_id, term_id = await _create_circle_and_term(client, org_token, "priv4")
-    _guardian_token, party_id = await _rsvp_with_family(
-        client, group_id, term_id, "priv.formalize.guardian4@example.com", "Rodzina F4"
-    )
-
-    response = await client.post(
-        f"/api/groups/{group_id}/terms/{term_id}/formalize",
-        json={"party_ids": [party_id]},
-        headers=_auth(org_token),
-    )
-
-    assert response.status_code == 200
-    assert response.json()["visibility"] == "PUBLIC"
-
-    memberships = await client.get(f"/api/groups/{group_id}/memberships", headers=_auth(org_token))
-    assert memberships.status_code == 200
-    assert any(m["member_party_id"] == party_id for m in memberships.json())
-
-
-async def test_formalizeGroupFromTerm_familyLessAttendee_createsMembership(
-    client: AsyncClient,
-) -> None:
-    org_token, _ = await _register(client, "ORGANIZER", "priv.formalize.org4b@example.com")
-    group_id, term_id = await _create_circle_and_term(client, org_token, "priv4b")
-
-    rsvp = await client.post(
-        f"/api/groups/public/{group_id}/rsvp",
-        json={"term_id": term_id, "guardian_name": "Gość Bezrodzinny", "child_count": 0},
-    )
-    assert rsvp.status_code == 201
-
-    attendees = await client.get(
-        f"/api/groups/{group_id}/terms/{term_id}/attendees", headers=_auth(org_token)
-    )
-    assert attendees.status_code == 200
-    attendee = next(a for a in attendees.json() if a["display_name"] == "Gość Bezrodzinny")
-    party_id = attendee["party_id"]
-
-    response = await client.post(
-        f"/api/groups/{group_id}/terms/{term_id}/formalize",
-        json={"party_ids": [party_id]},
-        headers=_auth(org_token),
-    )
-
-    assert response.status_code == 200
-
-    memberships = await client.get(f"/api/groups/{group_id}/memberships", headers=_auth(org_token))
-    assert memberships.status_code == 200
-    assert any(m["member_party_id"] == party_id for m in memberships.json())
-
-
 async def test_createRsvp_publicGroupWithExistingMembers_stillAcceptsAnonymousRsvp(
-    client: AsyncClient,
+    client: AsyncClient, db_session: AsyncSession
 ) -> None:
-    org_token, _ = await _register(client, "ORGANIZER", "priv.formalize.org4c@example.com")
+    org_token, _ = await _register(client, "ORGANIZER", "priv.members.org4c@example.com")
     group_id, term_id = await _create_circle_and_term(client, org_token, "priv4c")
     _guardian_token, party_id = await _rsvp_with_family(
-        client, group_id, term_id, "priv.formalize.guardian4c@example.com", "Rodzina F4c"
+        client, group_id, term_id, "priv.members.guardian4c@example.com", "Rodzina F4c"
     )
 
-    formalize = await client.post(
-        f"/api/groups/{group_id}/terms/{term_id}/formalize",
-        json={"party_ids": [party_id]},
-        headers=_auth(org_token),
-    )
-    assert formalize.status_code == 200
-    assert formalize.json()["visibility"] == "PUBLIC"
+    await service.add_active_membership(db_session, group_id, uuid.UUID(party_id))
+    await db_session.commit()
 
     response = await client.post(
         f"/api/groups/public/{group_id}/rsvp",
@@ -192,54 +134,6 @@ async def test_createRsvp_publicGroupWithExistingMembers_stillAcceptsAnonymousRs
     )
 
     assert response.status_code == 201
-
-
-async def test_formalizeGroupFromTerm_nonOrganizer_returns403(client: AsyncClient) -> None:
-    org_token, _ = await _register(client, "ORGANIZER", "priv.formalize.org5@example.com")
-    group_id, term_id = await _create_circle_and_term(client, org_token, "priv5")
-    outsider_token, _ = await _register(client, "GUEST", "priv.formalize.outsider5@example.com")
-
-    response = await client.post(
-        f"/api/groups/{group_id}/terms/{term_id}/formalize",
-        json={"party_ids": [str(uuid.uuid4())]},
-        headers=_auth(outsider_token),
-    )
-
-    assert response.status_code == 403
-
-
-async def test_formalizeGroupFromTerm_idempotent_skipsStaleSelection(
-    client: AsyncClient,
-) -> None:
-    """Calling `formalize` twice with the same still-eligible `party_id`
-    must not create a second `Membership` row (verification-phase fix for
-    the gap Group 7 flagged: `formalize_group_from_term` previously only
-    excluded stale-attendance `party_id`s, never already-active-member
-    `party_id`s, so a retry/double-submit duplicated the row)."""
-    org_token, _ = await _register(client, "ORGANIZER", "priv.formalize.org7@example.com")
-    group_id, term_id = await _create_circle_and_term(client, org_token, "priv7")
-    _guardian_token, party_id = await _rsvp_with_family(
-        client, group_id, term_id, "priv.formalize.guardian7@example.com", "Rodzina F7"
-    )
-
-    first = await client.post(
-        f"/api/groups/{group_id}/terms/{term_id}/formalize",
-        json={"party_ids": [party_id]},
-        headers=_auth(org_token),
-    )
-    assert first.status_code == 200
-
-    second = await client.post(
-        f"/api/groups/{group_id}/terms/{term_id}/formalize",
-        json={"party_ids": [party_id]},
-        headers=_auth(org_token),
-    )
-    assert second.status_code == 200
-
-    memberships = await client.get(f"/api/groups/{group_id}/memberships", headers=_auth(org_token))
-    assert memberships.status_code == 200
-    matching = [m for m in memberships.json() if m["member_party_id"] == party_id]
-    assert len(matching) == 1
 
 
 async def test_updateGroup_visibilityChange_doesNotCreateMemberships(

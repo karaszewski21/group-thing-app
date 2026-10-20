@@ -2,7 +2,7 @@ import { fireEvent, render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { MemoryRouter } from "react-router-dom";
 import * as locationsApi from "../api/locations";
-import type { LocationResponse } from "../api/locations";
+import type { LocationRefResponse, LocationResponse } from "../api/locations";
 import * as termsApi from "../api/terms";
 import { ApiError } from "../api/client";
 import { FirstTermStepperOrganizer } from "../components/panel/FirstTermStepperOrganizer";
@@ -32,9 +32,18 @@ const SWIETLICA: LocationResponse = {
   deleted_at: null,
 };
 
+const SWIETLICA_REF: LocationRefResponse = {
+  id: SWIETLICA.id,
+  name: SWIETLICA.name,
+  formatted_address: SWIETLICA.formatted_address,
+  google_place_id: SWIETLICA.google_place_id,
+  notes: SWIETLICA.notes,
+  deleted_at: SWIETLICA.deleted_at,
+};
+
 function renderStepper(
   onDone = vi.fn(),
-  defaults: { defaultLocation?: LocationResponse | null; defaultCapacity?: number | null } = {},
+  defaults: { defaultLocation?: LocationRefResponse | null; defaultCapacity?: number | null } = {},
 ) {
   render(
     <MemoryRouter>
@@ -88,7 +97,7 @@ describe("FirstTermStepperOrganizer — server error message", () => {
 describe("FirstTermStepperOrganizer — place and capacity", () => {
   it("createTerm_prefilledGroupDefaults_sendsLocationAndCapacity", async () => {
     vi.mocked(termsApi.createTerm).mockResolvedValue({ id: "t-1" } as termsApi.TermResponse);
-    renderStepper(vi.fn(), { defaultLocation: SWIETLICA, defaultCapacity: 12 });
+    renderStepper(vi.fn(), { defaultLocation: SWIETLICA_REF, defaultCapacity: 12 });
 
     expect(await screen.findByRole("combobox", { name: "Miejsce" })).toHaveDisplayValue("Świetlica na Polnej");
     expect(screen.getByLabelText("Ile miejsc")).toHaveValue(12);
@@ -106,7 +115,7 @@ describe("FirstTermStepperOrganizer — place and capacity", () => {
 
   it("createTerm_clearedPrefilledCapacity_sendsExplicitNull", async () => {
     vi.mocked(termsApi.createTerm).mockResolvedValue({ id: "t-1" } as termsApi.TermResponse);
-    renderStepper(vi.fn(), { defaultLocation: SWIETLICA, defaultCapacity: 12 });
+    renderStepper(vi.fn(), { defaultLocation: SWIETLICA_REF, defaultCapacity: 12 });
 
     const select = await screen.findByRole("combobox", { name: "Miejsce" });
     expect(select).toHaveDisplayValue("Świetlica na Polnej");
@@ -122,5 +131,17 @@ describe("FirstTermStepperOrganizer — place and capacity", () => {
       location_id: null,
       capacity: null,
     });
+  });
+
+  it.each(["0", "-1", "2.5", "10001"])("createTerm_invalidCapacity_%s_showsInlineErrorAndBlocksSubmit", async (raw) => {
+    renderStepper();
+
+    await screen.findByRole("combobox", { name: "Miejsce" });
+    fireEvent.change(screen.getByLabelText("Ile miejsc"), { target: { value: raw } });
+    fillAndSubmit("opis");
+
+    expect(screen.getByRole("alert")).toHaveTextContent("Podaj liczbę od 1 do 10000");
+    expect(screen.getByRole("button", { name: "Dodaj termin" })).toBeDisabled();
+    expect(termsApi.createTerm).not.toHaveBeenCalled();
   });
 });

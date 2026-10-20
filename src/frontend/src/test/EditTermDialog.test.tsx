@@ -2,9 +2,8 @@ import { fireEvent, render, screen, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { ApiError } from "../api/client";
 import * as categoriesApi from "../api/categories";
-import * as groupsApi from "../api/groups";
 import * as locationsApi from "../api/locations";
-import type { LocationResponse } from "../api/locations";
+import type { LocationRefResponse, LocationResponse } from "../api/locations";
 import * as productsApi from "../api/products";
 import * as termsApi from "../api/terms";
 import { EditTermDialog } from "../components/panel/EditTermDialog";
@@ -21,10 +20,6 @@ vi.mock("../api/terms", () => ({
   deleteNeededItem: vi.fn(),
   updateNeededItem: vi.fn(),
   updateTerm: vi.fn(),
-}));
-vi.mock("../api/groups", () => ({
-  formalizeGroupFromTerm: vi.fn(),
-  getTermAttendeesForFormalization: vi.fn(),
 }));
 vi.mock("../api/locations", () => ({
   getMyLocations: vi.fn(),
@@ -51,6 +46,11 @@ const salaNr2: LocationResponse = {
 
 const groupDefault: LocationResponse = { ...salaNr2, id: "loc-9", name: "Świetlica na Polnej" };
 
+/** The nested group/term view of a saved place. */
+function locationRef({ id, name, formatted_address, google_place_id, notes, deleted_at }: LocationResponse): LocationRefResponse {
+  return { id, name, formatted_address, google_place_id, notes, deleted_at };
+}
+
 const term: termsApi.TermResponse = {
   id: "t1",
   circle_group_id: "g1",
@@ -60,21 +60,8 @@ const term: termsApi.TermResponse = {
   updated_at: "2026-01-01T00:00:00Z",
   attendee_count: 0,
   child_count: 0,
-  location: salaNr2,
+  location: locationRef(salaNr2),
   capacity: 10,
-};
-
-const group: groupsApi.GroupResponse = {
-  id: "g1",
-  party_id: "p1",
-  name: "Nutki",
-  organizer_slug: null,
-  layout_mode: "CIRCLE",
-  visibility: "PUBLIC",
-  default_location: groupDefault,
-  default_capacity: 20,
-  created_at: "2026-01-01T00:00:00Z",
-  updated_at: "2026-01-01T00:00:00Z",
 };
 
 const neededItem: termsApi.NeededItemResponse = {
@@ -90,12 +77,11 @@ const neededItem: termsApi.NeededItemResponse = {
   updated_at: "2026-01-01T00:00:00Z",
 };
 
-function renderDialog() {
+function renderDialog(shownTerm: termsApi.TermResponse = term) {
   return render(
     <EditTermDialog
-      term={term}
+      term={shownTerm}
       neededItems={[neededItem]}
-      group={group}
       onChanged={vi.fn()}
       onClose={vi.fn()}
     />,
@@ -116,7 +102,6 @@ beforeEach(() => {
       updatedAt: "2026-01-01T00:00:00Z",
     },
   ]);
-  vi.mocked(groupsApi.getTermAttendeesForFormalization).mockResolvedValue([]);
   vi.mocked(locationsApi.getMyLocations).mockResolvedValue([salaNr2, groupDefault]);
 });
 
@@ -166,6 +151,14 @@ describe("EditTermDialog — server error surfacing", () => {
 });
 
 describe("EditTermDialog — place and capacity", () => {
+  it("render_noStandingMembersSection", async () => {
+    renderDialog();
+
+    expect(await screen.findByLabelText("Miejsce")).toBeInTheDocument();
+    expect(screen.queryByText("Formalizuj stałych członków")).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Ustal stałych członków" })).not.toBeInTheDocument();
+  });
+
   it("initialState_showsTermValuesNotGroupDefaults", async () => {
     renderDialog();
 
@@ -199,9 +192,22 @@ describe("EditTermDialog — place and capacity", () => {
     expect(termsApi.updateTerm).toHaveBeenCalledWith("t1", { capacity: 8 });
   });
 
+  it.each(["0", "-1", "2.5", "10001"])("saveTermFields_invalidCapacity_%s_showsInlineErrorAndBlocksSave", async (raw) => {
+    renderDialog();
+
+    await screen.findByRole("combobox", { name: "Miejsce" });
+    fireEvent.change(screen.getByLabelText("Ile miejsc"), { target: { value: raw } });
+
+    expect(screen.getByRole("alert")).toHaveTextContent("Podaj liczbę od 1 do 10000");
+    const save = screen.getAllByRole("button", { name: "Zapisz" })[0];
+    expect(save).toBeDisabled();
+    fireEvent.click(save);
+    expect(termsApi.updateTerm).not.toHaveBeenCalled();
+  });
+
   it("deletedTermLocation_rendersUsunieteRow", async () => {
     vi.mocked(locationsApi.getMyLocations).mockResolvedValue([groupDefault]);
-    renderDialog();
+    renderDialog({ ...term, location: { ...locationRef(salaNr2), deleted_at: "2026-10-10T10:00:00Z" } });
 
     const select = await screen.findByRole("combobox", { name: "Miejsce" });
     expect(select).toHaveValue("loc-2");
