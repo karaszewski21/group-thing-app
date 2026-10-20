@@ -1,4 +1,4 @@
-import { useEffect, useId, useState, type ReactNode } from "react";
+import { useEffect, useId, useRef, useState, type ReactNode } from "react";
 import { Link } from "react-router-dom";
 import { useRegisterOpenSheet } from "../../components/shared/openSheets";
 import { CAPACITY_ERROR, parseCapacity } from "./panelHelpers";
@@ -207,6 +207,9 @@ export function CapacityField({
   );
 }
 
+const SHEET_FIRST_FIELD =
+  "input:not([type='hidden']):not(:disabled), select:not(:disabled), textarea:not(:disabled)";
+
 export function ModalSheet({
   title,
   onClose,
@@ -216,18 +219,38 @@ export function ModalSheet({
   onClose: () => void;
   children: ReactNode;
 }) {
+  const dialogRef = useRef<HTMLDivElement>(null);
+  const [opener] = useState(() => document.activeElement);
   useRegisterOpenSheet(true);
+
+  // On open, focus the first form field unless a child (autoFocus, its own effect) already took focus.
+  useEffect(() => {
+    const dialog = dialogRef.current;
+    if (dialog && !dialog.contains(document.activeElement)) {
+      (dialog.querySelector<HTMLElement>(SHEET_FIRST_FIELD) ?? dialog).focus();
+    }
+    return () => {
+      if (opener instanceof HTMLElement && opener.isConnected && opener !== document.body) {
+        opener.focus();
+      } else {
+        document.querySelector<HTMLElement>("main")?.focus();
+      }
+    };
+  }, [opener]);
+
   return (
     <div
       className="fixed inset-0 z-[60] flex items-end justify-center bg-[rgba(20,28,24,0.55)] min-[520px]:items-center"
       onClick={onClose}
     >
       <div
+        ref={dialogRef}
         role="dialog"
         aria-modal="true"
         aria-label={title}
+        tabIndex={-1}
         onClick={(e) => e.stopPropagation()}
-        className="max-h-[88vh] w-full max-w-[430px] overflow-y-auto rounded-t-[24px] bg-paper p-5 min-[520px]:max-h-[80vh] min-[520px]:rounded-[24px]"
+        className="max-h-[88vh] w-full max-w-[430px] overflow-y-auto rounded-t-[24px] bg-paper p-5 outline-none min-[520px]:max-h-[80vh] min-[520px]:rounded-[24px]"
       >
         <div className="mb-4 flex items-center justify-between">
           <h3 className="text-lg font-semibold text-ink">{title}</h3>

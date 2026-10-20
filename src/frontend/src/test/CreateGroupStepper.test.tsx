@@ -69,6 +69,10 @@ const TERM: TermResponse = {
   child_count: null,
 };
 
+const PUBLIC_DONE = "Grupa założona, termin dodany! Tę stronę zobaczy każdy, kto dostanie link — bez logowania.";
+const PRIVATE_DONE =
+  "Grupa założona, termin dodany! Grupa jest prywatna — osoby z linkiem poproszą o dołączenie, a Ty je zaakceptujesz.";
+
 function renderStepper(organizationSlug: string | null = null) {
   const props = { onClose: vi.fn(), onCircleCreated: vi.fn(), onDone: vi.fn() };
   const view = render(
@@ -252,17 +256,30 @@ describe("CreateGroupStepper", () => {
     await submitStep1();
     await submitStep2();
 
-    expect(
-      await screen.findByText(
-        "Grupa założona, termin dodany! Tę stronę zobaczy każdy, kto dostanie link — bez logowania.",
-      ),
-    ).toBeInTheDocument();
+    expect(await screen.findByText(PRIVATE_DONE)).toBeInTheDocument();
+    expect(screen.queryByText(PUBLIC_DONE)).not.toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Przejdź do publicznej strony →" })).toHaveAttribute(
       "href",
       termPublicPath(GROUP, TERM.id),
     );
     fireEvent.click(screen.getByRole("button", { name: "Gotowe" }));
     expect(onDone).toHaveBeenCalled();
+  });
+
+  it("the done screen of a PUBLIC group says anyone with the link sees the page", async () => {
+    vi.mocked(groupsApi.createAdditionalMyCircle).mockResolvedValue({ ...GROUP, visibility: "PUBLIC" });
+    renderStepper("studio-nutka");
+    await submitStep1();
+    await submitStep2();
+
+    expect(await screen.findByText(PUBLIC_DONE)).toBeInTheDocument();
+    expect(screen.queryByText(PRIVATE_DONE)).not.toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Przejdź do publicznej strony →" })).toBeInTheDocument();
+  });
+
+  it("focuses the group name when the sheet opens", async () => {
+    renderStepper();
+    await waitFor(() => expect(screen.getByLabelText("Nazwa grupy")).toHaveFocus());
   });
 
   it("moves focus into the sheet on every step change", async () => {
@@ -276,11 +293,7 @@ describe("CreateGroupStepper", () => {
     fireEvent.click(screen.getByRole("button", { name: "Dalej →" }));
     await waitFor(() => expect(screen.getByLabelText("Data i godzina")).toHaveFocus());
     await submitStep2();
-    await waitFor(() =>
-      expect(
-        screen.getByText("Grupa założona, termin dodany! Tę stronę zobaczy każdy, kto dostanie link — bez logowania."),
-      ).toHaveFocus(),
-    );
+    await waitFor(() => expect(screen.getByText(PRIVATE_DONE)).toHaveFocus());
   });
 
   it.each(["0", "-1", "2.5", "10001", "-", "e", "1e3"])("rejects capacity %s inline and blocks both steps", async (raw) => {

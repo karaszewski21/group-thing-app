@@ -140,7 +140,9 @@ export function CreateGroupStepper({ organizationSlug, onClose, onCircleCreated,
       <ModalSheet title={TITLE} onClose={onDone}>
         <div ref={bodyRef}>
           <p tabIndex={-1} className="text-[13.5px] text-ink-soft outline-none">
-            Grupa założona, termin dodany! Tę stronę zobaczy każdy, kto dostanie link — bez logowania.
+            {group.visibility === "PUBLIC"
+              ? "Grupa założona, termin dodany! Tę stronę zobaczy każdy, kto dostanie link — bez logowania."
+              : "Grupa założona, termin dodany! Grupa jest prywatna — osoby z linkiem poproszą o dołączenie, a Ty je zaakceptujesz."}
           </p>
           <Link to={termPublicPath(group, createdTermId)} className={`mt-4 block w-full text-center ${primaryClass}`}>
             Przejdź do publicznej strony →

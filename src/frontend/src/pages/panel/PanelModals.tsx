@@ -193,6 +193,7 @@ export function PanelModals() {
             <Field label="Data i godzina">
               <input
                 type="datetime-local"
+                aria-label="Data i godzina"
                 value={termDate}
                 onChange={(e) => setTermDate(e.target.value)}
                 className={INPUT_CLASS}
@@ -200,6 +201,7 @@ export function PanelModals() {
             </Field>
             <Field label="Opis (opcjonalnie)">
               <input
+                aria-label="Opis (opcjonalnie)"
                 value={termDescription}
                 onChange={(e) => setTermDescription(e.target.value)}
                 placeholder="Park Sołacki · wstęp wolny"

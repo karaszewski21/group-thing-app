@@ -1256,9 +1256,7 @@ describe("PanelPage — Term/Group ids stay UUID strings (R29)", () => {
 
     const groupSelect = within(dialog).getByRole("combobox", { name: "Grupa" });
     fireEvent.change(groupSelect, { target: { value: OTHER_GROUP_ID } });
-    // This modal's `Field` label isn't associated with its input.
-    const dateInput = dialog.querySelector<HTMLInputElement>('input[type="datetime-local"]')!;
-    fireEvent.change(dateInput, { target: { value: "2026-02-01T17:00" } });
+    fireEvent.change(within(dialog).getByLabelText("Data i godzina"), { target: { value: "2026-02-01T17:00" } });
     fireEvent.click(within(dialog).getByRole("button", { name: "Dodaj termin" }));
 
     await waitFor(() =>
@@ -1292,6 +1290,20 @@ describe("PanelPage — edit group dialog (name/layout/visibility/default place 
     fireEvent.click(await screen.findByRole("button", { name: "Edytuj grupę Nowa grupa" }));
     await screen.findByRole("dialog", { name: "Edytuj grupę" });
   }
+
+  it("focuses the first field on open and returns focus to the opener on close", async () => {
+    mockOrganizerDefaults();
+    renderPanel();
+    fireEvent.click(await screen.findByRole("button", { name: "Spotkania" }));
+    const opener = await screen.findByRole("button", { name: "Edytuj grupę Nowa grupa" });
+    opener.focus();
+    fireEvent.click(opener);
+
+    const dialog = await screen.findByRole("dialog", { name: "Edytuj grupę" });
+    await waitFor(() => expect(within(dialog).getByLabelText("Nazwa grupy")).toHaveFocus());
+    fireEvent.click(within(dialog).getByRole("button", { name: "Zamknij" }));
+    await waitFor(() => expect(opener).toHaveFocus());
+  });
 
   it("pre-fills the form from the group's current name and layout_mode", async () => {
     mockOrganizerDefaults();
@@ -1516,7 +1528,8 @@ describe("PanelPage — Spotkania list links to the public circle page", () => {
     expect(screen.queryByRole("button", { name: "+ Dodaj termin" })).not.toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "+ Załóż grupę" }));
-    expect(await screen.findByRole("dialog", { name: "Załóż grupę" })).toBeInTheDocument();
+    const dialog = await screen.findByRole("dialog", { name: "Załóż grupę" });
+    await waitFor(() => expect(within(dialog).getByLabelText("Nazwa grupy")).toHaveFocus());
   });
 
   it("the attended card shows the place and \"8/10 miejsc\" inside its link, with no nested anchor", async () => {
@@ -2860,8 +2873,7 @@ describe("PanelPage — moderation errors inline in the add-group / add-term / e
     fireEvent.click(await screen.findByRole("button", { name: "Spotkania" }));
     fireEvent.click(await screen.findByRole("button", { name: "+ Dodaj termin" }));
     const dialog = await screen.findByRole("dialog", { name: "Dodaj termin zajęć" });
-    const dateInput = dialog.querySelector<HTMLInputElement>('input[type="datetime-local"]')!;
-    fireEvent.change(dateInput, { target: { value: "2026-02-01T17:00" } });
+    fireEvent.change(within(dialog).getByLabelText("Data i godzina"), { target: { value: "2026-02-01T17:00" } });
     fireEvent.click(within(dialog).getByRole("button", { name: "+ Dodaj potrzebną rzecz" }));
     fireEvent.change(within(dialog).getByLabelText("Nazwa"), { target: { value: itemName } });
     fireEvent.click(within(dialog).getByRole("button", { name: "Dodaj rzecz" }));
