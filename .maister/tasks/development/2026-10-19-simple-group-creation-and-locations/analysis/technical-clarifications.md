@@ -1,0 +1,4 @@
+# Phase 5 Technical Clarifications
+
+1. **Panel data layer**: minimal change inside the existing imperative `load()` in `PanelDataContext.tsx`. In one pass fetch led groups (leaderships) AND attended terms (`getMyAttendances`) so both contexts coexist; `guestCircles` is no longer zeroed when leaderships exist. Read `default_location` / `default_capacity` from `GroupResponse`; delete `groupExtras`. Only the new saved-locations list uses a TanStack hook (`useMyLocations`). No migration of group/term loading to hooks in this iteration.
+2. **Architecture decision (carried)**: new bounded context `app/locations/` + `app/groups/infrastructure/locations_acl.py`; two migrations (0057 locations table, 0058 group/term columns); term inherits group defaults by value in `create_term`; responses attach nested location after `model_validate` with batched `IN` lookups; `model_fields_set` for the 4 new PATCH fields; hand-written lazy Maps JS loader.

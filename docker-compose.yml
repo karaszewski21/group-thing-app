@@ -26,6 +26,8 @@ services:
       context: .
       dockerfile: src/frontend/Dockerfile
       target: builder
+      args:
+        VITE_GOOGLE_MAPS_API_KEY: ${VITE_GOOGLE_MAPS_API_KEY:-}
     volumes:
       - frontend_index:/output
     command: sh -c "cp /app/src/frontend/dist/index.html /output/index.html"
@@ -71,6 +73,8 @@ services:
       # sibling plugins/server-sdk.ts module, so it must be in the build context.
       context: .
       dockerfile: src/frontend/Dockerfile
+      args:
+        VITE_GOOGLE_MAPS_API_KEY: ${VITE_GOOGLE_MAPS_API_KEY:-}
     ports:
       - "5174:80"
     depends_on:

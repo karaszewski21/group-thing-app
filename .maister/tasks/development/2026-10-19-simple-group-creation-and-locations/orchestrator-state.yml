@@ -1,0 +1,107 @@
+orchestrator:
+  started_phase: phase-8
+  resumed_at: phase-8
+  completed_phases: [phase-1, phase-2, phase-4, phase-5, phase-6, phase-7]
+  failed_phases: []
+  auto_fix_attempts: {}
+  options:
+    spec_audit_enabled: true
+    skip_test_suite: true
+    e2e_enabled: true
+    user_docs_enabled: true
+    code_review_enabled: true
+    pragmatic_review_enabled: true
+    reality_check_enabled: true
+    production_check_enabled: true
+    sequential: false
+  created: "2026-10-19T00:00:00"
+  updated: "2026-10-20T00:00:00"
+  task_path: .maister/tasks/development/2026-10-19-simple-group-creation-and-locations
+  task_ids: {}
+
+task:
+  title: "Simplified group creation for any user + Location entity (Google Places) on group and term"
+  description: |
+    A. Any logged-in user creates a group in a 2-step stepper (group name + optional default location/capacity -> first term),
+       no organization step, no "organizer" wording; organization/slug becomes an optional follow-up.
+       Default visibility PRIVATE without organization, PUBLIC with. Links fall back to /krag/... when organizer_slug is null.
+       Panel shows both "groups I lead" and "groups I attend"; home hints updated.
+    B. New Location entity (owner_party_id, name, formatted_address, google_place_id, lat, lng, notes, source GOOGLE|MANUAL, soft delete),
+       endpoints /api/locations (mine, POST, PATCH, DELETE), Group.default_location_id/default_capacity, Term.location_id/capacity
+       (copied from group defaults at term creation), public LocationResponse without owner, shared LocationPicker with
+       Google Places Autocomplete (VITE_GOOGLE_MAPS_API_KEY, session tokens, manual fallback), display on public pages/panel/admin/notifications,
+       informational capacity ("Brak wolnych miejsc", RSVP not blocked). Full original description in task-description.md.
+  status: in_progress
+  tags: [groups, terms, locations, google-places, frontend, backend, migration]
+  priority: high
+
+project_context:
+  project_doc_paths:
+    - .maister/docs/INDEX.md
+    - .maister/docs/project/tech-stack.md
+    - .maister/docs/project/architecture.md
+
+task_context:
+  implementation_plan:
+    path: implementation/implementation-plan.md
+    visual_coverage: implementation/visual-coverage.md
+    task_groups: 9
+    steps: 71
+    chains: "backend 1->2->3; frontend 4->5->{6,8}->7; final 9"
+  risk_level: medium-high
+  clarifications_resolved: true
+  scope_expanded: false
+  architecture_decision: "Own BC app/locations + groups/infrastructure/locations_acl.py; migrations 0057/0058; term inherits group defaults by value in create_term; nested location attached after model_validate with batched IN lookups; model_fields_set for 4 new PATCH fields; minimal change in PanelDataContext.load(); hand-written lazy Maps loader"
+  tech_clarified: true
+  task_characteristics:   # from gap-analyzer
+    has_reproducible_defect: false
+    modifies_existing_code: true
+    creates_new_entities: true
+    involves_data_operations: true
+    ui_heavy: true
+  research_reference:
+    path: null
+  design_reference:
+    source: ascii-phase4
+    mockup_count: 25
+    has_brief: false
+    index_path: analysis/design-context/INDEX.md
+  phase_summaries:
+    research: {summary: null}
+    design:
+      summary: "Phase 4 ASCII mockups (25 ids in design-context/INDEX.md): 2-step stepper + done screen, LocationPicker states (empty/list/add-google/manual/edit), shared GroupFormFields in add/edit group modals, term forms with Miejsce + Ile miejsc, HomeView hint matrix + merged top-3 with TermPlaceLine, SpotkaniaView two sections, AccountMenu 'Załóż grupę', public term page location block + 'Brak wolnych miejsc' status pill, AdminTermsPage columns Miejsce / Miejsca ('3 / 10' strings). Admin headers: Polish (user decision)."
+      screen_count: 14
+      component_count: 11
+      index_path: analysis/design-context/INDEX.md
+    codebase_analysis:
+      primary_language: "Python (FastAPI) + TypeScript (React)"
+      complexity: complex
+      key_files: [src/backend/app/groups/schemas.py, src/backend/app/groups/models.py, src/backend/app/groups/application/terms.py, src/backend/app/groups/application/circles.py, src/backend/app/groups/router/circles.py, src/backend/app/groups/application/public_view.py, src/backend/app/groups/infrastructure/organizations_acl.py, src/backend/app/organizations/, src/backend/alembic/versions/0054_organization_media.py, src/frontend/src/pages/panel/PanelDataContext.tsx, src/frontend/src/components/panel/FirstTermStepperGuest.tsx, src/frontend/src/pages/panel/PanelModals.tsx, src/frontend/src/pages/panel/views/HomeView.tsx, src/frontend/src/pages/panel/views/SpotkaniaView.tsx, src/frontend/src/components/panel/EditTermDialog.tsx, src/frontend/src/pages/krag/PublicTermView.tsx, src/frontend/src/api/groups.ts, src/frontend/src/api/terms.ts]
+      summary: "All building blocks exist (idempotent /groups/mine, /mine/new with visibility, k-<hash> slug fallback, groupExtras placeholder, soft-delete + partial-unique precedents, organizations_acl mapper, hook/api templates) but no Google/VITE plumbing and no backend location/capacity. 13 contradictions between brief/standards and code: UUID PKs not sequences, organizer_slug never null, panel contexts mutually exclusive, notifications text-only, no attendee_count on public term, backend PUBLIC default relied on by tests, no VITE env/Docker build args, FirstTermStepperOrganizer test lacks QueryClientProvider, exact-key-set assertions in test_public_term.py, query-budget tests, no relationship() in groups models." 
+    clarifications:
+      - "Keep k-<hash> organizer slugs; /krag criterion = public link works without an organization"
+      - "Stepper uses POST /groups/mine/new; frontend sends visibility (PRIVATE no org / PUBLIC with org); backend default stays PUBLIC"
+      - "Notifications unchanged this iteration (follow-up)"
+      - "Own module app/locations + groups/infrastructure/locations_acl.py; no text moderation for location name/notes"
+      - "Hand-written lazy Maps JS loader, @types/google.maps dev dep, manual mode without key" 
+    gap_analysis:
+      integration_points: ["app/main.py + authorization_matrix rows", "groups/infrastructure/locations_acl.py", "circles.py/terms.py/public_view.py + routers attach location after model_validate, batched IN lookups", "frontend api/locations.ts, hooks/useMyLocations.ts, components/shared/LocationPicker.tsx, Maps lazy loader, vite-env.d.ts, .env.example, Dockerfile ARG", "PanelDataContext both-contexts restructure, groupExtras removal, PanelModals, HomeView, SpotkaniaView, AccountMenu, steppers, EditTermDialog, krag TermCard, AdminTermsPage"]
+      summary: "Scope A is a modificative restructuring of the panel (either/or load(), steppers, hints, wording) with backend pieces present; Scope B is a new app/locations BC plus nullable group/term columns, first external script integration with manual fallback, ~20 test files break by design. No critical decisions; nine important defaults to confirm." 
+    scope_clarifications:
+      scope_expanded: false
+      summary: "All nine defaults confirmed: model_fields_set for the 4 new fields only (name required); CreateTermRequest omitted=inherit/null=none; attendee_count added to PublicTermResponse; manual address required; partial unique index also WHERE deleted_at IS NULL with idempotent POST (200 existing/201 created); done CTA links to /organization; Home merged top-3 + Spotkania two sections; shared GroupFormFields; keep FirstTermStepperOrganizer extended; hamburger via /panel/spotkania?nowa=grupa." 
+    ui_mockups:
+      components_designed: [LocationPicker, GroupFormFields, TermPlaceLine, StepperZalozGrupe, AccountMenu item, PublicTermView location block, AdminTermsPage columns]
+      summary: "See design summary; new files suggested: components/panel/GroupFormFields.tsx, components/shared/LocationPicker.tsx, components/shared/TermPlaceLine.tsx, lib/googleMaps.ts, api/locations.ts, hooks/useMyLocations.ts; ModalKind 'zostan-organizatorem' -> 'zaloz-grupe'." 
+    specification:
+      path: implementation/spec.md
+      audit: "verification/spec-audit.md: pass-with-concerns (0 critical, 3 major, 11 minor) — all resolved in spec revision 2 (guest membership terms kept in Zapisane; hamburger on public pages deep-linking ?nowa=grupa; Places API (New) mandated)"
+      summary: "486-line spec: Scope A 2-step 'Załóż grupę' stepper via /groups/mine/new with frontend-chosen visibility, both panel contexts, status-level 'organizator' copy removed; Scope B app/locations BC + locations_acl, migrations 0057/0058, term inherits group defaults by value (omitted=inherit/null=none via model_fields_set), PublicLocationResponse + attendee_count on PublicTermResponse and MyAttendanceResponse, idempotent POST 200/201, LocationPicker/GroupFormFields/TermPlaceLine, lazy Maps loader with manual fallback, env/Docker plumbing; 25 mockup ids mapped; test plan lists new tests and every existing test to update." 
+    architecture_decision: {decision: null, summary: null}
+
+verification_context:
+  last_status: null
+  issues_found: []
+  fixes_applied: []
+  decisions_made: []
+  reverify_count: 0
