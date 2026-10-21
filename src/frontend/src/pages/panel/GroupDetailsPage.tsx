@@ -4,14 +4,16 @@ import { PhoneFrame } from "../../components/shared/PhoneFrame";
 import { useGroupDetails } from "../../hooks/useGroupDetails";
 import dayjs from "../../utils/dayjs";
 import { pluralPl } from "../../utils/plural";
+import { PanelNavBar } from "./PanelNav";
 import { BackIcon } from "./panelIcons";
 
 const LAYOUT_LABEL = { CIRCLE: "Krąg", PITCH: "Boisko", TABLE: "Stół" } as const;
 const VISIBILITY_LABEL = { PUBLIC: "Publiczna", PRIVATE: "Prywatna (dostęp na prośbę)" } as const;
 
-/** Group details plus its standing member list (`/panel/grupy/:groupId`).
- * A standalone route outside PanelDataProvider, like TermAttendeesPage; the
- * backend lets the group's organizer and its members in. */
+/** Group details plus everyone who signed up for its terms (`/panel/grupy/:groupId`).
+ * A standalone route outside PanelDataProvider, like TermAttendeesPage, but
+ * with the panel's bottom tab bar (no tab highlighted, like the item pages:
+ * this page is not one of the panel's views). The backend lets the group's organizer and its members in. */
 export function GroupDetailsPage() {
   const { groupId = "" } = useParams();
   const { group, members, denied, notFound, error, loading, refetch } = useGroupDetails(groupId);
@@ -36,6 +38,7 @@ export function GroupDetailsPage() {
           onRetry={() => void refetch()}
         />
       </div>
+      <PanelNavBar />
     </PhoneFrame>
   );
 }
@@ -90,14 +93,14 @@ function GroupDetailsBody({
     <>
       <p className="mt-0.5 text-[12.5px] text-ink-soft">
         {members.length === 0
-          ? "Brak członków"
-          : `${members.length} ${pluralPl(members.length, "członek", "członków", "członków")}`}
+          ? "Brak uczestników"
+          : `${members.length} ${pluralPl(members.length, "uczestnik", "uczestników", "uczestników")}`}
       </p>
       <GroupDetailsCard group={group} />
-      <h3 className="mt-6 font-serif text-[17px] font-bold text-ink">Członkowie</h3>
+      <h3 className="mt-6 font-serif text-[17px] font-bold text-ink">Uczestnicy terminów</h3>
       {members.length === 0 ? (
         <p className="mt-2.5 rounded-2xl border border-dashed border-line p-[15px] text-[12.5px] text-ink-soft">
-          Nikt jeszcze nie dołączył do tej grupy na stałe.
+          Nikt jeszcze nie zapisał się na żaden termin tej grupy.
         </p>
       ) : (
         <div className="mt-2.5 rounded-[22px] border border-line bg-paper p-5">
@@ -152,12 +155,20 @@ function GroupDetailsCard({ group }: { group: GroupResponse }) {
 }
 
 function GroupMemberRow({ member }: { member: GroupMemberResponse }) {
+  const n = member.terms_attended;
   return (
     <li className="mt-2.5 rounded-2xl border border-line bg-cream p-[15px] first:mt-0">
-      <p className="text-[15.5px] font-semibold text-ink">{member.display_name || "Bez nazwy"}</p>
-      {member.family_name && <p className="text-[12.5px] text-ink-soft">{member.family_name}</p>}
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <p className="text-[15.5px] font-semibold text-ink">{member.display_name || "Bez nazwy"}</p>
+          {member.family_name && <p className="text-[12.5px] text-ink-soft">{member.family_name}</p>}
+        </div>
+        <span className="flex-none rounded-full bg-mint-soft px-2.5 py-0.5 text-[10.5px] font-extrabold text-[#12604D]">
+          {n} {pluralPl(n, "termin", "terminy", "terminów")}
+        </span>
+      </div>
       <p className="mt-1.5 text-[12.5px] text-ink-soft">
-        w grupie od {dayjs(member.member_since).format("D MMMM YYYY")}
+        ostatnio: {dayjs(member.last_term_on).format("D MMMM YYYY")}
       </p>
     </li>
   );

@@ -501,14 +501,17 @@ class TermAttendeeResponse(BaseModel):
 
 
 class GroupMemberResponse(BaseModel):
-    """One party holding an active `Membership` in a Group, resolved for the
-    group details page. `family_name` is display-only — `None` for a member
-    with no Family. `member_since` is the Membership's `valid_from`."""
+    """One party who RSVP'd (and did not withdraw) to at least one Term of
+    a Group, resolved for the group details page — `terms_attended` is how
+    many of the group's Terms they signed up for, `last_term_on` the most
+    recent of those (Warsaw wall-clock, like `TermResponse.occurs_on`).
+    `family_name` is display-only, `None` for a family-less party."""
 
     party_id: uuid.UUID
     display_name: str
     family_name: str | None
-    member_since: date
+    terms_attended: int
+    last_term_on: datetime
 
 
 # --- My attendances (authenticated, `GET /api/groups/mine/attendances`) --------

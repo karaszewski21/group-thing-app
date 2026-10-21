@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { GroupDetailsPage } from "../pages/panel/GroupDetailsPage";
@@ -39,13 +39,15 @@ const members: GroupMemberResponse[] = [
     party_id: "11111111-1111-4111-8111-111111111111",
     display_name: "Anna Nowak",
     family_name: "Rodzina Nowak",
-    member_since: "2026-09-10",
+    terms_attended: 3,
+    last_term_on: "2026-09-10T17:00:00",
   },
   {
     party_id: "22222222-2222-4222-8222-222222222222",
     display_name: "Marek Wiśniewski",
     family_name: null,
-    member_since: "2026-10-01",
+    terms_attended: 1,
+    last_term_on: "2026-10-01T10:00:00",
   },
 ];
 
@@ -71,7 +73,7 @@ describe("GroupDetailsPage", () => {
     renderPage();
 
     expect(await screen.findByRole("heading", { name: "Krąg Maluchy" })).toBeInTheDocument();
-    expect(screen.getByText("2 członków")).toBeInTheDocument();
+    expect(screen.getByText("2 uczestników")).toBeInTheDocument();
     expect(screen.getByText("Prywatna (dostęp na prośbę)")).toBeInTheDocument();
     expect(screen.getByText("Boisko")).toBeInTheDocument();
     expect(screen.getByText("Dom kultury · ul. Długa 1, Warszawa")).toBeInTheDocument();
@@ -84,13 +86,26 @@ describe("GroupDetailsPage", () => {
 
     expect(screen.getByText("Anna Nowak")).toBeInTheDocument();
     expect(screen.getByText("Rodzina Nowak")).toBeInTheDocument();
-    expect(screen.getByText("w grupie od 10 września 2026")).toBeInTheDocument();
+    expect(screen.getByText("3 terminy")).toBeInTheDocument();
+    expect(screen.getByText("ostatnio: 10 września 2026")).toBeInTheDocument();
     expect(screen.getByText("Marek Wiśniewski")).toBeInTheDocument();
-    expect(screen.getByText("w grupie od 1 października 2026")).toBeInTheDocument();
+    expect(screen.getByText("1 termin")).toBeInTheDocument();
+    expect(screen.getByText("ostatnio: 1 października 2026")).toBeInTheDocument();
     expect(screen.getAllByRole("listitem")).toHaveLength(2);
 
     expect(groupsApi.getGroup).toHaveBeenCalledWith(GROUP_ID);
     expect(groupsApi.getGroupMembers).toHaveBeenCalledWith(GROUP_ID);
+  });
+
+  it("shows the panel bottom nav with no tab highlighted", async () => {
+    renderPage();
+    await screen.findByText("Anna Nowak");
+
+    const nav = screen.getByRole("navigation", { name: "Nawigacja panelu" });
+    expect(within(nav).getAllByRole("button")).toHaveLength(4);
+    for (const tab of within(nav).getAllByRole("button")) {
+      expect(tab).not.toHaveAttribute("aria-current", "true");
+    }
   });
 
   it("shows the fallbacks for a bare group and an empty member list", async () => {
@@ -103,10 +118,10 @@ describe("GroupDetailsPage", () => {
     vi.mocked(groupsApi.getGroupMembers).mockResolvedValue([]);
     renderPage();
 
-    expect(await screen.findByText("Brak członków")).toBeInTheDocument();
+    expect(await screen.findByText("Brak uczestników")).toBeInTheDocument();
     expect(screen.getByText("Nie ustawiono")).toBeInTheDocument();
     expect(screen.getByText("Bez limitu")).toBeInTheDocument();
-    expect(screen.getByText("Nikt jeszcze nie dołączył do tej grupy na stałe.")).toBeInTheDocument();
+    expect(screen.getByText("Nikt jeszcze nie zapisał się na żaden termin tej grupy.")).toBeInTheDocument();
     expect(screen.queryByRole("link", { name: /Zobacz stronę organizatora/ })).not.toBeInTheDocument();
     expect(screen.queryByRole("listitem")).not.toBeInTheDocument();
   });

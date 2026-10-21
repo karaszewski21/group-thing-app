@@ -458,6 +458,24 @@ async def list_attendances_for_term(db: AsyncSession, term_id: uuid.UUID) -> lis
     return list(result.scalars().all())
 
 
+async def aggregate_active_attendances_for_group(
+    db: AsyncSession, circle_group_id: uuid.UUID
+) -> list[Row[tuple[uuid.UUID, int, datetime]]]:
+    """`(party_id, terms_attended, last_term_on)` for every party with at
+    least one non-withdrawn RSVP on any Term of `circle_group_id` — one
+    GROUP BY, most recent attendee first."""
+    terms_attended = func.count(func.distinct(TermAttendance.term_id)).label("terms_attended")
+    last_term_on = func.max(Term.occurs_on).label("last_term_on")
+    result = await db.execute(
+        select(TermAttendance.party_id, terms_attended, last_term_on)
+        .join(Term, Term.id == TermAttendance.term_id)
+        .where(Term.circle_group_id == circle_group_id, TermAttendance.withdrawn_at.is_(None))
+        .group_by(TermAttendance.party_id)
+        .order_by(last_term_on.desc(), TermAttendance.party_id)
+    )
+    return list(result.all())
+
+
 async def list_active_attendances_for_term(
     db: AsyncSession, term_id: uuid.UUID
 ) -> list[TermAttendance]:

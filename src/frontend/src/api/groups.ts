@@ -442,14 +442,16 @@ export function getTermAttendees(
   return api.get(`/groups/${groupId}/terms/${termId}/attendees`);
 }
 
-/** One standing member of a group (`GET /groups/{id}/members`) — visible to
- * the group's organizer and its members. `family_name` is `null` for a
- * member without a Family; `member_since` is an ISO date. */
+/** One person who RSVP'd to at least one term of a group
+ * (`GET /groups/{id}/members`) — visible to the group's organizer and its
+ * standing members. `terms_attended` counts the group's terms they signed up
+ * for; `last_term_on` is the most recent one (naive Warsaw wall-clock). */
 export interface GroupMemberResponse {
   party_id: string;
   display_name: string;
   family_name: string | null;
-  member_since: string;
+  terms_attended: number;
+  last_term_on: string;
 }
 
 export function getGroupMembers(groupId: string): Promise<GroupMemberResponse[]> {
