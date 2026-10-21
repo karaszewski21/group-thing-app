@@ -4,6 +4,7 @@ orchestrator:
   - phase-1
   - phase-2
   - phase-4
+  - phase-5
   failed_phases: []
   auto_fix_attempts: {}
   options:
@@ -19,7 +20,7 @@ orchestrator:
     reality_check_enabled: true
     production_check_enabled: true
   created: '2026-10-21T09:24:47Z'
-  updated: '2026-10-21T11:42:31Z'
+  updated: '2026-10-21T12:38:48Z'
   task_path: .maister/tasks/development/2026-10-21-private-group-join-by-code
   task_ids: {}
 task:
@@ -37,7 +38,7 @@ task_context:
   risk_level: medium
   clarifications_resolved: true
   scope_expanded: false
-  architecture_decision: null
+  architecture_decision: Research ADR-001..008 (modular monolith in groups BC; in-process limiter; plaintext join_code)
   task_characteristics:
     has_reproducible_defect: false
     modifies_existing_code: true
@@ -158,6 +159,35 @@ task_context:
       screen_count: 6
       component_count: 2
       index_path: analysis/design-context/INDEX.md
+    specification:
+      summary: '31 requirements (R1-R31): column + 0059/0060, 3 endpoints, new AUTHENTICATED matrix row, 429 + Retry-After, dual in-process limiter, full join-request removal; frontend canEnterCode gate,
+        JoinByCodeSheet, ?code=, JoinCodeCard on 2 hosts, useGroupTerms, ConfirmDeleteDialog tone/busyLabel.'
+      decisions: []
+      risks:
+      - 'ACCEPTED: code-joined members invisible to organizer until RSVP and not removable'
+      - Residual brute force ~26%/year; regenerate does not reset it
+      - Accepted DoS of a group's 30/h budget
+      - Single-process limiter
+      - Duplicate memberships mitigated, not prevented
+      artifacts:
+      - path: implementation/spec.md
+        label: Specification
+        html: implementation/spec.html
+      - path: analysis/requirements.md
+        label: Requirements
+        html: null
+    spec_audit:
+      summary: pass-with-concerns (0 critical/high, 9 medium, 12 low); all 21 findings + 6 user decisions folded into spec rev 2 (32 requirements, Audit resolution table).
+      decisions: []
+      risks:
+      - M1 lazy GET re-read may see null code / PUBLIC group after concurrent write
+      - M2 ?code= sheet ownership split TermPage vs PrivateGroupGate
+      - M6 theme test lists wrong file
+      - M9 ConfirmDeleteDialog shows raw err.message
+      artifacts:
+      - path: verification/spec-audit.md
+        label: Spec audit
+        html: null
   design_resources:
     ran: true
     found_any: true
@@ -171,3 +201,4 @@ task_context:
     - components/shared/ConfirmDeleteDialog.tsx
     - pages/panel/panelComponents.tsx
     skill_hints: []
+  tech_clarified: true

@@ -1,0 +1,367 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Specification — Private group join by code</title>
+<style>
+:root {
+  --bg:#f6f7f9; --surface:#fff; --border:#e2e5ea; --text:#1a1d23; --dim:#6b7280;
+  --accent:#4f46e5; --accent-soft:#eef2ff; --ok:#16a34a; --ok-soft:#ecfdf3;
+  --warn:#d97706; --warn-soft:#fffbeb; --crit:#dc2626; --crit-soft:#fef2f2;
+  --info:#2563eb; --info-soft:#eff6ff; --radius:10px;
+}
+@media (prefers-color-scheme: dark) {
+  :root { --bg:#111418; --surface:#1a1f26; --border:#2e3640; --text:#e6e9ee; --dim:#9aa4b2;
+    --accent:#818cf8; --accent-soft:#26294a; --ok:#4ade80; --ok-soft:#11291a;
+    --warn:#fbbf24; --warn-soft:#2e2410; --crit:#f87171; --crit-soft:#321616;
+    --info:#60a5fa; --info-soft:#15233a; }
+}
+* { box-sizing:border-box; }
+body { margin:0 auto; max-width:1100px; padding:24px 20px 64px; background:var(--bg);
+  color:var(--text); font:14px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif; }
+a { color:var(--accent); text-decoration:none; } a:hover { text-decoration:underline; }
+h1 { font-size:22px; letter-spacing:-.01em; } h2 { font-size:16px; margin-top:28px; }
+.card { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius);
+  padding:16px 18px; margin:14px 0; }
+.badge { display:inline-block; font-size:11px; font-weight:600; text-transform:uppercase;
+  letter-spacing:.04em; padding:2px 8px; border-radius:99px; background:var(--accent-soft); color:var(--accent); }
+.sev { display:inline-block; font-size:10.5px; font-weight:700; text-transform:uppercase;
+  padding:1.5px 7px; border-radius:99px; margin-right:6px; }
+.sev.critical { background:var(--crit-soft); color:var(--crit); }
+.sev.warning  { background:var(--warn-soft); color:var(--warn); }
+.sev.info     { background:var(--info-soft); color:var(--info); }
+.pass { color:var(--ok); font-weight:600; } .fail { color:var(--crit); font-weight:600; }
+table { width:100%; border-collapse:collapse; }
+th, td { text-align:left; padding:7px 10px; border-bottom:1px solid var(--border); vertical-align:top; }
+th { font-size:11.5px; text-transform:uppercase; letter-spacing:.04em; color:var(--dim); }
+code { font-family:ui-monospace,SFMono-Regular,Menlo,monospace; font-size:12.5px;
+  background:var(--accent-soft); padding:1px 5px; border-radius:4px; }
+img.shot { max-width:100%; border:1px solid var(--border); border-radius:var(--radius); }
+details > summary { cursor:pointer; font-weight:600; }
+.crumbs { display:flex; gap:14px; font-size:13px; margin-bottom:18px; flex-wrap:wrap; }
+.crumbs a.md { margin-left:auto; color:var(--dim); }
+.crumbs .here { font-weight:650; color:var(--text); }
+.tiles { display:flex; gap:10px; flex-wrap:wrap; margin:14px 0; }
+.tile { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius);
+  padding:10px 16px; text-align:center; min-width:90px; }
+.tile b { display:block; font-size:20px; letter-spacing:-.01em; }
+.tile span { font-size:10.5px; text-transform:uppercase; letter-spacing:.05em; color:var(--dim); }
+.two { display:grid; grid-template-columns:1fr 1fr; gap:14px; }
+@media (max-width:720px) { .two { grid-template-columns:1fr; } }
+.stories { display:grid; grid-template-columns:repeat(auto-fill,minmax(240px,1fr)); gap:10px; }
+.stories .card { margin:0; }
+.tldr { border-left:4px solid var(--accent); }
+.toc { font-size:13px; color:var(--dim); }
+td.id { white-space:nowrap; font-weight:650; }
+</style>
+</head>
+<body>
+<nav class="crumbs">
+  <a href="../dashboard.html">← Dashboard</a>
+  <span class="here">Spec</span>
+  <a href="implementation-plan.html">Plan</a>
+  <a href="../verification/implementation-verification.html">Verification</a>
+  <a href="spec.md" target="_blank" rel="noopener" class="md">md twin ↗</a>
+</nav>
+<header>
+  <span class="badge">Specification · revision 2</span>
+  <h1>Join a PRIVATE group with a 6-digit access code (replacing GroupJoinRequest)</h1>
+  <div style="color:var(--dim);font-size:12.5px">Revised 2026-10-21 to resolve <a href="../verification/spec-audit.md" target="_blank" rel="noopener">spec-audit.md</a> (M1–M9, L1–L12) · Task 2026-10-21-private-group-join-by-code · <a href="spec.md" target="_blank" rel="noopener">spec.md</a></div>
+</header>
+
+<div class="tiles">
+  <div class="tile"><b>32</b><span>requirements</span></div>
+  <div class="tile"><b>23</b><span>reused pieces</span></div>
+  <div class="tile"><b>9</b><span>new components</span></div>
+  <div class="tile"><b>8</b><span>design refs</span></div>
+  <div class="tile"><b>21/21</b><span>audit findings resolved</span></div>
+  <div class="tile"><b>Medium</b><span>risk</span></div>
+</div>
+
+<section class="card tldr">
+  <h2 style="margin-top:0">TL;DR</h2>
+  <p>Every PRIVATE group gets one 6-digit code, stored in plaintext in <code>groups.join_code</code>. The code is created lazily on the organizer's first GET (with one bounded retry after a concurrent write), and only "Wygeneruj nowy kod" rotates it.</p>
+  <p>Organizers see the code in a presentational <code>JoinCodeCard</code>, fed by its host page (GroupDetailsPage, stepper done screen). Visitors enter it in a <code>JoinByCodeSheet</code> (<code>&lt;form noValidate&gt;</code>). TermPage owns <code>?code=</code> and the sheet state, and auto-submits a valid <code>?code=</code> once. On success the visitor becomes an active member through the unchanged <code>add_active_membership</code>.</p>
+  <p>Redeem follows 401 → 404 → 429 → 409 → 200 <code>{created}</code>, behind an in-process limiter with two keys: 10 failed attempts per 15 min per (party, group), and 30 per hour per group. Any correct-code 200 clears that user's key.</p>
+  <p>The "poproś o dostęp" mechanism is deleted end to end: backend, frontend, notifications, tests, the table (migrations 0059 and 0060) and two <code>.maister</code> prose items.</p>
+  <details><summary>Key Decisions (14)</summary>
+  <ul>
+    <li>6-digit numeric code bounded by a per-group failure budget rather than by entropy — the user chose 6 digits; at 30 failures per hour per group, expected guessing time is about 1.9 years (ADR-001).</li>
+    <li>Plaintext nullable <code>groups.join_code</code> VARCHAR(6), no index, exposed only through the organizer endpoints — organizers must be able to read and copy it, and hashing 10^6 values adds no protection (ADR-002).</li>
+    <li>In-process sliding-window limiter at <code>app/groups/application/join_code_limiter.py</code> with an injectable clock and <code>reset()</code> — single uvicorn process, no new dependency, no DB writes; single consumer, so it lives in the groups BC (ADR-003, scope decision 8).</li>
+    <li>Lazy get-or-create GET plus an explicit regenerate; no expiry, no backfill. On <code>StaleDataError</code> the GET rolls back, re-reads and re-decides once: PUBLIC → 409, code present → return it, still null → generate one more time; a second failure goes to the existing 409 handler. Never <code>None</code> or 500 (ADR-004, clarification 2, audit M1).</li>
+    <li><code>JoinByCodeSheet</code> is built on the krag <code>ModalSheet</code> as a <code>&lt;form noValidate&gt;</code>: Enter submits, and a pasted <code>482 913</code>/<code>482-913</code> is accepted and normalized by <code>parseJoinCode</code> (ADR-005, audit M3).</li>
+    <li>TermPage owns <code>?code=</code>, the one-shot guard, the sheet's open state and the join callback; <code>PrivateGroupGate</code> only renders from props. A malformed <code>?code=</code> is stripped at once and opens the sheet empty (audit M2).</li>
+    <li>The host page calls <code>useJoinCode</code> (and, on GroupDetailsPage, <code>useGroupTerms</code>) and passes <code>code</code>, <code>status</code>, <code>regenerate</code>, <code>onRetry</code>, <code>termId</code> to a presentational <code>JoinCodeCard</code> — one subscriber per query (audit M4).</li>
+    <li>"Kopiuj kod" copies the raw 6 digits (<code>482913</code>); the card displays <code>formatJoinCode</code> (<code>482 913</code>) (audit M3).</li>
+    <li>Join requests are deleted in full, with no data migration — the app has no production data (ADR-006, clarification 3).</li>
+    <li>Redeem returns one 409 message for "wrong code" and "no code yet", and idempotent 200 <code>{created:false}</code> to members and organizers (ADR-007, scope decision 6). That path also clears the caller's (party, group) key; the group key is never cleared (user decision 5).</li>
+    <li><code>JoinCodeCard</code> only for PRIVATE groups; 403 → nothing, loading → skeleton, other errors → inline retry — <code>GroupResponse</code> stays free of the code (ADR-008, audit M5).</li>
+    <li>Frontend writes use <code>useCallback</code> + api call + <code>await invalidateQueries</code>, not <code>useMutation</code>; errors rethrown as <code>new Error(serverMessageOr(err, fallback))</code>, so no dialog shows <code>409 Conflict</code> (audit M9).</li>
+    <li>The regenerate confirm reuses <code>ConfirmDeleteDialog</code> with optional <code>tone</code> and <code>busyLabel</code> props — additive, keeps z-70, trapFocus, Esc and the registry.</li>
+    <li>"Kopiuj link z kodem" targets the nearest term from the start of today via a new <code>useGroupTerms</code>; with none, only "Kopiuj kod" (clarification 1, scope decision 7). <code>AuthGateLinks</code> is unchanged; the mockup's "Załóż konto" was an approximation (audit L10).</li>
+  </ul></details>
+  <h3 style="font-size:14px">Open Questions / Risks</h3>
+  <ul>
+    <li><span class="sev warning">accepted</span><b>Accepted consequence:</b> a member who joins by code is invisible to the organizer until they RSVP, because <code>list_group_members</code> lists RSVP attendees only. Nobody can remove them: <code>POST /api/memberships/{id}/end</code> is self-only and has no UI. Regenerating only blocks new joins. Follow-ups: active-member list, member removal, "dołączył(a) kodem" notification.</li>
+    <li><span class="sev warning">accepted</span><b>Residual brute force:</b> about 2.2% success per 30 days and about 26% per year under sustained attack. Regenerating does not reset this risk.</li>
+    <li><span class="sev warning">accepted</span><b>Accepted DoS:</b> any account can use up a group's 30-per-hour budget and block every visitor for up to 1 h (about 45 min for one account). Regenerating does not lift the block.</li>
+    <li><span class="sev info">info</span><b>Single process only:</b> limiter state is lost on restart and weakens with more than one worker. Docstring caveat required; a DB-backed limiter is a follow-up.</li>
+    <li><span class="sev info">info</span><b>Duplicate memberships:</b> concurrent redeems can still insert two active memberships (no unique index). Mitigated by the in-request re-check, the busy-disabled submit and the one-shot <code>?code=</code> ref.</li>
+    <li><span class="sev info">info</span><b>Code not on the panel link:</b> "Kopiuj link do terminu" (<code>PanelDataContext.tsx:905-911</code>) carries no code. Follow-up.</li>
+    <li><span class="sev info">info</span><b>Focus after an auto-opened sheet:</b> no opener button, so closing returns focus to the <code>main[tabindex=-1]</code> fallback (<code>ModalSheet.tsx:37-41</code>). On success the gate unmounts anyway.</li>
+    <li><span class="sev info">info</span><b>Deviation from the HLD:</b> <code>TooManyAttemptsException(message, retry_after_seconds)</code> vs the HLD's <code>retry_after</code> — same shape, clearer unit.</li>
+  </ul>
+</section>
+
+<nav class="toc">Contents: <a href="#audit">Audit resolution</a> · <a href="#scope">Scope</a> · <a href="#stories">User Stories</a> · <a href="#requirements">Requirements</a> · <a href="#contracts">Interface contracts</a> · <a href="#visual">Visual Design</a> · <a href="#reuse">Reusable vs New</a> · <a href="#technical">Technical Approach</a> · <a href="#testing">Testing &amp; Standards</a> · <a href="#success">Success Criteria</a></nav>
+
+<main>
+<h2 id="audit">Audit resolution</h2>
+<div class="card"><table>
+<tr><th>Finding</th><th>Change made</th><th>Where</th></tr>
+<tr><td class="id"><span class="sev warning">M1</span></td><td>Rollback, re-read, re-decide (PUBLIC → 409, code → return, null → one more generate; second failure → global 409); never <code>None</code>/500. Two-variant test; SC8.</td><td>R7</td></tr>
+<tr><td class="id"><span class="sev warning">M2</span></td><td>Gate prop contract; sheet props + auto-submit; TermPage owns <code>?code=</code>, sheet state, ref keyed by <code>groupId:code</code>; malformed → strip + open empty; strip on settle; only <code>code</code> removed; <code>main</code> focus fallback.</td><td>R22–R24</td></tr>
+<tr><td class="id"><span class="sev warning">M3</span></td><td><code>&lt;form noValidate&gt;</code>, Enter submits, spaced/hyphenated paste accepted; "Kopiuj kod" copies raw <code>482913</code>.</td><td>R23, R25</td></tr>
+<tr><td class="id"><span class="sev warning">M4</span></td><td>One subscriber: host-owned <code>useJoinCode</code> (+ <code>useGroupTerms</code>); presentational card props.</td><td>R18, R25, R27, R28</td></tr>
+<tr><td class="id"><span class="sev warning">M5</span></td><td>403 → nothing, loading → skeleton, other errors → inline error + "Spróbuj ponownie", PUBLIC → hook disabled, no card.</td><td>R25</td></tr>
+<tr><td class="id"><span class="sev warning">M6</span></td><td><code>NO_LEGACY_UTILITY_FILES</code> edits moved to <code>themeTokenUsage.test.tsx</code> (l.81 → JoinByCodeSheet, describe retargeted); <code>themeDefects.test.tsx:91</code> swapped in <code>IN_SCOPE_FILES</code>.</td><td>R30</td></tr>
+<tr><td class="id"><span class="sev warning">M7</span></td><td>GroupDetailsPage tests: l.10 factory extended (403 default), <code>../api/terms</code> mocked, l.77 label updated.</td><td>R30</td></tr>
+<tr><td class="id"><span class="sev warning">M8</span></td><td>TermPage token-change test with a pending <code>getGroupAccess</code>.</td><td>Testing</td></tr>
+<tr><td class="id"><span class="sev warning">M9</span></td><td><code>regenerate</code> rethrows <code>new Error(serverMessageOr(err, …))</code>; <code>fallbackError</code>; close + toast on success.</td><td>R18, R26</td></tr>
+<tr><td class="id"><span class="sev info">L1</span></td><td>Ported helper returns only <code>party_id: uuid.UUID</code>.</td><td>R6</td></tr>
+<tr><td class="id"><span class="sev info">L2</span></td><td><code>&gt;=</code> threshold, <code>ts[len - limit]</code> wait, <code>max(1, ceil)</code> header, <code>ceil(s/60)</code> minutes, empty keys deleted, synchronous; "11th attempt".</td><td>R4</td></tr>
+<tr><td class="id"><span class="sev info">L3</span></td><td><code>TooManyAttemptsException(message, retry_after_seconds)</code>, subclasses <code>Exception</code>; message built in the groups limiter.</td><td>R3, R4</td></tr>
+<tr><td class="id"><span class="sev info">L4</span></td><td>Post-0041 UUID types, reverse order, no sequence.</td><td>R12</td></tr>
+<tr><td class="id"><span class="sev info">L5</span></td><td>StaleDataError test technique restated, with the M1 variant.</td><td>Testing</td></tr>
+<tr><td class="id"><span class="sev info">L6</span></td><td>Copied helpers use <code>clock.local_now()</code> and <code>uuid.UUID</code>.</td><td>R13</td></tr>
+<tr><td class="id"><span class="sev info">L7</span></td><td>l.94 comment edited, not removed; l.124/125 cases moved; row-27 regression test.</td><td>R10, R14</td></tr>
+<tr><td class="id"><span class="sev info">L8</span></td><td><code>test_group_access.py</code> l.2/68/86/107/91/112/123; soft-delete redeem sends <code>{"code": "123456"}</code>; B14 prose.</td><td>R14</td></tr>
+<tr><td class="id"><span class="sev info">L9</span></td><td><code>ModalSheet.test.tsx</code> l.5/l.10, count stays 3; <code>PendingActionsHost.test.tsx:399</code>; <code>PublicLayout.test.tsx:142</code> test deleted.</td><td>R30</td></tr>
+<tr><td class="id"><span class="sev info">L10</span></td><td>Existing <code>AuthGateLinks</code> copy wins; "Załóż konto" was an approximation.</td><td>Visual Design</td></tr>
+<tr><td class="id"><span class="sev info">L11</span></td><td>Empty/invalid/busy/server-error states with <code>aria-invalid</code>, Enter submits; fallback string and <code>serverMessageOr</code> scope.</td><td>R20, R23</td></tr>
+<tr><td class="id"><span class="sev info">L12</span></td><td>Case-insensitive regex with added identifiers; SC5 aligned; user-guide l.214 and DEV22 prose restored.</td><td>R31, R32, SC5</td></tr>
+<tr><td class="id"><span class="badge">User 5</span></td><td><code>{created:false}</code> clears the user key; the group key never.</td><td>R9</td></tr>
+</table></div>
+
+<h2 id="scope">Goal &amp; scope</h2>
+<p class="card">Let a logged-in visitor who holds the organizer's 6-digit code become a member of a PRIVATE group in one sitting, with no organizer action. Remove the request/approve mechanism completely.</p>
+<div class="two">
+  <div class="card"><b class="pass">In scope</b>
+    <ul>
+      <li><code>groups.join_code</code> + migrations 0059/0060</li>
+      <li>GET / regenerate / redeem endpoints + matrix row</li>
+      <li>Dual in-process limiter, 429 + integer Retry-After</li>
+      <li>PrivateGroupGate <code>loginRequired | canEnterCode</code>, JoinByCodeSheet, TermPage-owned <code>?code=</code></li>
+      <li>Presentational JoinCodeCard on GroupDetailsPage + stepper done screen</li>
+      <li>ConfirmDeleteDialog <code>tone</code>/<code>busyLabel</code>, useJoinCode, useGroupTerms</li>
+      <li>Copy changes ("dostęp z kodem", ACCESS_DENIED_MESSAGE)</li>
+      <li>Full removal of GroupJoinRequest across both stacks, tests and two <code>.maister</code> prose items</li>
+    </ul></div>
+  <div class="card"><b class="fail">Out of scope</b>
+    <ul>
+      <li>Organizer list of all active members, and removal of members (accepted consequence above)</li>
+      <li>"Joined by code" notification</li>
+      <li><code>?code=</code> on the panel "Kopiuj link do terminu" (<code>PanelDataContext.tsx:905-911</code>), and "copy link with code" from the public term page or <code>ShareButton</code></li>
+      <li>Partial unique index on active memberships</li>
+      <li><code>returnTo</code> same-origin validation</li>
+      <li>nginx <code>limit_req</code>, and a DB-backed or multi-worker limiter</li>
+      <li><code>is_organizer</code> in <code>GroupResponse</code> (which would remove the 403 probe)</li>
+      <li>Esc and focus trap on the panel <code>ModalSheet</code></li>
+      <li>Changing the <code>AuthGateLinks</code> copy</li>
+      <li>Rotation timestamp on the card; code expiry or max uses; per-invite codes; e-mail invites; SSO; changes to PUBLIC groups</li>
+      <li>Privacy gaps outside <code>/access</code> (<code>/api/terms</code>, pledges, needed items, membership list)</li>
+      <li>Backfilling codes; a pre-deploy count of PENDING requests; edits to applied migrations 0037/0038/0041</li>
+    </ul></div>
+</div>
+
+<h2 id="stories">User Stories</h2>
+<div class="stories">
+  <div class="card"><span class="badge">Organizer</span><p>As an <b>organizer</b> of a PRIVATE group, I want to see, copy and share my group's access code (or a term link that carries it), so that the people I invite can join without waiting for my approval.</p></div>
+  <div class="card"><span class="badge">Organizer</span><p>As an <b>organizer</b>, I want to generate a new code after a leak, so that the old code stops working while existing members stay in.</p></div>
+  <div class="card"><span class="badge">Visitor</span><p>As a <b>logged-in visitor</b> on a private term page, I want to type the code I was given and see the term right away, so that I can RSVP in the same sitting.</p></div>
+  <div class="card"><span class="badge">Anonymous</span><p>As an <b>anonymous visitor</b> following a <code>?code=</code> link, I want the code to survive login and be applied automatically, so that I don't have to retype it.</p></div>
+  <div class="card"><span class="badge">Member</span><p>As a <b>member</b> opening an old <code>?code=</code> link, I want to land on the term directly, without errors.</p></div>
+</div>
+
+<h2 id="requirements">Core Requirements</h2>
+<p style="color:var(--dim);font-size:12.5px">Summary view. Full wording, including the removal line lists for R12–R14 and R30, is in <a href="spec.md" target="_blank" rel="noopener">spec.md</a>. Rows changed in revision 2 are marked <span class="badge">rev 2</span>.</p>
+<div class="card"><table>
+<tr><th>ID</th><th>Area</th><th>Requirement</th></tr>
+<tr><td class="id">R1</td><td>Backend data</td><td><code>Group.join_code</code> String(6) nullable; never in GroupResponse, PublicCircleResponse, ModerationGroupResponse, <code>/access</code>, notifications or logs</td></tr>
+<tr><td class="id">R2</td><td>Migration</td><td>0059 adds <code>groups.join_code VARCHAR(6) NULL</code>, no backfill, no index; downgrade drops it</td></tr>
+<tr><td class="id">R3 <span class="badge">rev 2</span></td><td>Errors</td><td><code>TooManyAttemptsException(message, retry_after_seconds)</code> subclassing <code>Exception</code>; <code>_envelope(headers=)</code>; 429 handler adds only <code>Retry-After</code>; registered before the ValueError/Exception handlers</td></tr>
+<tr><td class="id">R4 <span class="badge">rev 2</span></td><td>Limiter</td><td>(party, group) 10/15 min; group 30/1 h, never cleared; exceeded when <code>len &gt;= limit</code>; wait <code>ts[len − limit] + window − now</code>; header <code>max(1, ceil(wait))</code>; message minutes <code>ceil(s/60)</code>, built here; empty keys deleted; synchronous; <code>reset()</code>; single-process caveat</td></tr>
+<tr><td class="id">R5 <span class="badge">rev 2</span></td><td>Tests infra</td><td>Autouse limiter-reset fixture in <code>tests/conftest.py</code>, importing the limiter inside the fixture body</td></tr>
+<tr><td class="id">R6 <span class="badge">rev 2</span></td><td>Use cases</td><td><code>join_code.py</code> ports <code>_get_private_group</code> and <code>_get_caller_party_id</code> (returns only <code>party_id: uuid.UUID</code>); <code>secrets</code> generation, <code>compare_digest</code></td></tr>
+<tr><td class="id">R7 <span class="badge">rev 2</span></td><td>API</td><td>GET <code>/api/groups/{id}/join-code</code>: 404 → 403 → 409 PUBLIC → 200; lazy commit; on StaleDataError: rollback, re-read (404 if deleted), PUBLIC → 409, code → return, null → one more generate, second failure → global 409; never <code>None</code>/500; row 26 READ</td></tr>
+<tr><td class="id">R8</td><td>API</td><td>POST <code>…/join-code/regenerate</code>: same checks; new code; a race gives 409; limiter untouched; row 27 EDIT</td></tr>
+<tr><td class="id">R9 <span class="badge">rev 2</span></td><td>API</td><td>POST <code>/api/groups/public/{id}/join-code</code>: 400 pattern; 401 → 404 → 429 (check before compare) → 409 one message → organizer/member: clear user key + <code>{created:false}</code> → grant <code>{created:true}</code> + clear</td></tr>
+<tr><td class="id">R10 <span class="badge">rev 2</span></td><td>Matrix</td><td>Remove the join-requests row; edit (keep) the l.94-99 comment; AUTHENTICATED redeem row before row 27; <code>require_any()</code></td></tr>
+<tr><td class="id">R11</td><td>Wiring</td><td>3 schemas, service re-exports, <code>router/join_code.py</code> (<code>/public/</code> path first), registered in <code>__init__</code></td></tr>
+<tr><td class="id">R12 <span class="badge">rev 2</span></td><td>Migration</td><td>0060: DELETE <code>GROUP_JOIN_%</code> notifications → drop <code>join_request_id</code> → drop table; no sequence; downgrade recreates post-0041 UUID types (PK, 3 FK columns, <code>join_request_id UUID NULL</code>) in reverse order</td></tr>
+<tr><td class="id">R13 <span class="badge">rev 2</span></td><td>Removal</td><td>Delete 2 app modules and 3 test files; copied helpers use <code>clock.local_now()</code> and <code>uuid.UUID</code></td></tr>
+<tr><td class="id">R14 <span class="badge">rev 2</span></td><td>Removal</td><td>Backend edits as before, plus tests: <code>test_group_access.py</code> l.2/68/86/107, renames at l.91/112, l.123 deleted; matrix l.124/125 moved + row-27 regression; soft-delete redeem with <code>"123456"</code>; B14 prose rewritten</td></tr>
+<tr><td class="id">R15</td><td>FE API</td><td><code>api/groups.ts</code> removal + <code>getJoinCode</code>/<code>regenerateJoinCode</code>/<code>redeemJoinCode</code>; <code>api/notifications.ts</code> cleanup</td></tr>
+<tr><td class="id">R16</td><td>FE errors</td><td><code>serverMessageOr</code> passes 429 through; new <code>ACCESS_DENIED_MESSAGE</code> text</td></tr>
+<tr><td class="id">R17</td><td>FE util</td><td><code>parseJoinCode</code> (null / string / undefined, strips spaces and hyphens; also validates <code>?code=</code>), <code>formatJoinCode</code> → "482 913"</td></tr>
+<tr><td class="id">R18 <span class="badge">rev 2</span></td><td>FE hook</td><td><code>useJoinCode</code> returns <code>code</code>, <code>status</code> (loading/ready/denied/error), <code>error</code>, <code>refetch</code>, <code>regenerate</code>; regenerate rethrows <code>new Error(serverMessageOr(err, "Nie udało się wygenerować kodu — spróbuj ponownie"))</code>; host is the only subscriber</td></tr>
+<tr><td class="id">R19</td><td>FE hook</td><td><code>useGroupTerms(groupId,{enabled})</code> over <code>getTerms</code>; nearest term from <code>dayjs().startOf("day")</code></td></tr>
+<tr><td class="id">R20 <span class="badge">rev 2</span></td><td>FE hook</td><td><code>joinWithCode</code>: redeem → await invalidate <code>["groupAccess", groupId]</code>; rethrow with fallback "Nie udało się dołączyć — spróbuj ponownie"</td></tr>
+<tr><td class="id">R21</td><td>Visitor</td><td><code>PrivateGate</code> = <code>loginRequired | canEnterCode</code></td></tr>
+<tr><td class="id">R22 <span class="badge">rev 2</span></td><td>Visitor</td><td>Gate keeps shell; no sheet/<code>?code=</code> state; new props from TermPage; renders JoinByCodeSheet when <code>sheetOpen</code></td></tr>
+<tr><td class="id">R23 <span class="badge">rev 2</span></td><td>Visitor</td><td>JoinByCodeSheet: <code>&lt;form noValidate&gt;</code>, Enter submits, spaced paste accepted; empty/invalid/busy/server-error states with <code>aria-invalid</code>; no close while busy; one-shot auto-submit on mount</td></tr>
+<tr><td class="id">R24 <span class="badge">rev 2</span></td><td>Visitor</td><td>TermPage owns <code>?code=</code> + sheet state; evaluates only when ready and not stale; view → strip; loginRequired → keep; canEnterCode → malformed: strip + open empty, valid: open + auto-submit, strip on settle; only <code>code</code> removed; toast</td></tr>
+<tr><td class="id">R25 <span class="badge">rev 2</span></td><td>Organizer</td><td>Presentational JoinCodeCard: denied → nothing, loading → skeleton, error → "Nie udało się wczytać kodu dostępu." + "Spróbuj ponownie"; Kopiuj kod copies raw digits; link only with <code>termId</code></td></tr>
+<tr><td class="id">R26 <span class="badge">rev 2</span></td><td>Organizer</td><td>ConfirmDeleteDialog optional <code>tone</code> + <code>busyLabel</code>; regenerate <code>fallbackError</code>; card unmounts dialog and toasts on success, dialog shows the message on failure</td></tr>
+<tr><td class="id">R27 <span class="badge">rev 2</span></td><td>Organizer</td><td>GroupDetailsPage calls <code>useJoinCode</code> + <code>useGroupTerms</code> (enabled when <code>status === "ready"</code>), derives <code>termId</code> or null, passes props to the card; label "Prywatna (dostęp z kodem)"</td></tr>
+<tr><td class="id">R28 <span class="badge">rev 2</span></td><td>Organizer</td><td>Stepper calls <code>useJoinCode</code> on the PRIVATE done screen and passes <code>termId={createdTermId}</code>; PUBLIC: no card, no fetch</td></tr>
+<tr><td class="id">R29</td><td>Organizer</td><td>GroupFormFields option "Prywatna — (dostęp z kodem)"</td></tr>
+<tr><td class="id">R30 <span class="badge">rev 2</span></td><td>FE removal</td><td>Deletes + test sites, now incl. GroupDetailsPage mocks/label, ModalSheet l.5/l.10 (count stays 3), PendingActionsHost l.399, PublicLayout l.142 test deleted, corrected theme lists</td></tr>
+<tr><td class="id">R31 <span class="badge">rev 2</span></td><td>Gate</td><td><code>rg -i "join.?request|GROUP_JOIN_|RequestAccessDialog|PENDING_JOIN_REQUESTS_KEY|join-requests|request_?access" src/ -g '!src/backend/alembic/versions/**'</code> returns nothing</td></tr>
+<tr><td class="id">R32 <span class="badge">rev 2</span></td><td>Prose</td><td>2026-10-19 user guide l.214 reworded for the code; DEV22 (<code>2026-09-22-private-group-join-requests</code>) state marked superseded</td></tr>
+</table></div>
+
+<h2 id="contracts">Interface contracts (M2, M4)</h2>
+<div class="two">
+<div class="card"><b>TermPage → PrivateGroupGate → JoinByCodeSheet</b>
+<table>
+<tr><th>Prop</th><th>Meaning</th></tr>
+<tr><td><code>hasCodeParam: boolean</code></td><td>Selects the <code>loginRequired</code> "Masz kod?" copy</td></tr>
+<tr><td><code>sheetOpen: boolean</code></td><td>Gate renders the sheet when true</td></tr>
+<tr><td><code>onOpenSheet()</code> / <code>onCloseSheet()</code></td><td>"Mam kod dostępu" / sheet <code>onClose</code></td></tr>
+<tr><td><code>initialCode: string</code></td><td>Normalized <code>?code=</code>, or <code>""</code></td></tr>
+<tr><td><code>autoSubmit: boolean</code></td><td>Sheet submits once on mount if the code parses</td></tr>
+<tr><td><code>onJoin(code): Promise&lt;void&gt;</code></td><td>TermPage wrapper over <code>joinWithCode</code>; sheet's <code>onSubmit</code></td></tr>
+</table></div>
+<div class="card"><b>Host → JoinCodeCard</b>
+<table>
+<tr><th>Prop</th><th>Meaning</th></tr>
+<tr><td><code>group</code></td><td>For <code>termPublicPath</code></td></tr>
+<tr><td><code>code: string | null</code></td><td>From <code>useJoinCode</code></td></tr>
+<tr><td><code>status</code></td><td><code>loading</code> → skeleton · <code>ready</code> → card · <code>denied</code> → nothing · <code>error</code> → inline retry</td></tr>
+<tr><td><code>onRetry()</code></td><td><code>refetch</code></td></tr>
+<tr><td><code>regenerate()</code></td><td>Rethrows a readable <code>Error</code></td></tr>
+<tr><td><code>termId: string | null</code></td><td>Link button only when non-null</td></tr>
+</table></div>
+</div>
+
+<h2 id="visual">Visual Design</h2>
+<p>The mockups in <code>analysis/design-context/</code> are <b>binding inputs</b>: layout, copy, field order and states. The implementation-planner will attach Visual References to UI task groups.</p>
+<p><span class="sev info">exception</span>The mockup's "Załóż konto" label was an approximation; the unchanged <code>AuthGateLinks</code> copy ("Zaloguj się" + "Nie masz konta? Zarejestruj się", <code>AuthGateSheet.tsx:22-43</code>) wins. <span class="sev info">exception</span>Card skeleton and error states come from R25, not the mockups.</p>
+<div class="card"><table>
+<tr><th>ID</th><th>Mockup</th><th>Components</th><th>Req.</th></tr>
+<tr><td><code>screen:private-gate-logged-in</code></td><td><a href="../analysis/design-context/mockups/brama-grupy-prywatnej-zalogowany.html">brama-grupy-prywatnej-zalogowany</a></td><td>PrivateGroupGate (canEnterCode); focus back to "Mam kod dostępu", or <code>main</code> for an auto-opened sheet</td><td>R22, R24</td></tr>
+<tr><td><code>screen:private-gate-anonymous</code></td><td><a href="../analysis/design-context/mockups/brama-grupy-prywatnej-anonim.html">brama-grupy-prywatnej-anonim</a></td><td>PrivateGroupGate (loginRequired), unchanged AuthGateLinks</td><td>R22, R24</td></tr>
+<tr><td><code>screen:join-by-code-sheet</code> / <code>component:join-by-code-sheet</code></td><td><a href="../analysis/design-context/mockups/wpisz-kod-dost-pu-joinbycodesheet.html">wpisz-kod-dost-pu-joinbycodesheet</a></td><td>JoinByCodeSheet on krag ModalSheet, <code>&lt;form noValidate&gt;</code> (6 states; "482 913" is valid)</td><td>R23</td></tr>
+<tr><td><code>screen:group-details-join-code-card</code> / <code>component:join-code-card</code></td><td><a href="../analysis/design-context/mockups/szczeg-y-grupy-z-kart-kodu-organizator.html">szczeg-y-grupy-z-kart-kodu-organizator</a></td><td>GroupDetailsPage, JoinCodeCard, toast (+ skeleton/error from R25)</td><td>R25, R27</td></tr>
+<tr><td><code>screen:regenerate-confirm</code></td><td><a href="../analysis/design-context/mockups/potwierdzenie-wygeneruj-nowy-kod.html">potwierdzenie-wygeneruj-nowy-kod</a></td><td>ConfirmDeleteDialog tone=primary</td><td>R26</td></tr>
+<tr><td><code>screen:stepper-done-private</code></td><td><a href="../analysis/design-context/mockups/kreator-ekran-ko-cowy-grupa-prywatna.html">kreator-ekran-ko-cowy-grupa-prywatna</a></td><td>CreateGroupStepper done, JoinCodeCard</td><td>R28</td></tr>
+</table></div>
+
+<h2 id="reuse">Reusable vs New</h2>
+<div class="two">
+<div class="card"><b class="pass">Reuse (23)</b>
+<table>
+<tr><td><code>_get_caller_party_id</code>, <code>_get_private_group</code></td><td>application/join_requests.py:52-75 (port)</td></tr>
+<tr><td><code>get_group</code>, <code>_is_active_organizer</code>, <code>_require_active_organizer</code></td><td>application/circles.py:167, 356, 364</td></tr>
+<tr><td><code>add_active_membership</code>, <code>_is_active_member</code></td><td>application/memberships.py:28, 59</td></tr>
+<tr><td><code>get_profile_by_principal</code></td><td>app/users/service.py:97</td></tr>
+<tr><td><code>AuthenticationRequiredException</code>, <code>require_any</code></td><td>app/core/auth_deps, _auth/dependencies.py</td></tr>
+<tr><td><code>_envelope</code>, typed exceptions, StaleDataError handler</td><td>app/core/errors.py</td></tr>
+<tr><td>In-process store pattern</td><td>app/oauth2/stores.py</td></tr>
+<tr><td>Delete-by-kind migration precedent</td><td>alembic/versions/0042:48-51</td></tr>
+<tr><td>Migration test precedent</td><td>test_locations_migration.py, test_group_soft_delete_migration.py</td></tr>
+<tr><td>Test helpers <code>_register</code>, <code>_create_circle_and_term</code></td><td>test_group_join_requests_router.py:24-58 (with clock/UUID fixes)</td></tr>
+<tr><td>StaleDataError test technique</td><td>test_group_join_requests_decisions.py:312-350 (restated)</td></tr>
+<tr><td>Krag <code>ModalSheet</code></td><td>components/krag/ModalSheet.tsx</td></tr>
+<tr><td><code>ConfirmDeleteDialog</code></td><td>components/shared/ConfirmDeleteDialog.tsx</td></tr>
+<tr><td><code>CapacityField</code> / <code>parseCapacity</code></td><td>pages/panel/panelComponents.tsx, panelHelpers.ts</td></tr>
+<tr><td>Clipboard + pill</td><td>pages/organizer/blocks/ShareButton.tsx</td></tr>
+<tr><td><code>useToast</code></td><td>pages/krag/hooks/useToast.ts</td></tr>
+<tr><td><code>termPublicPath</code></td><td>pages/panel/panelHelpers.ts:158</td></tr>
+<tr><td><code>getTerms</code></td><td>api/terms.ts:66</td></tr>
+<tr><td>Write pattern + readable rethrow</td><td>hooks/useCategories.ts:40-60</td></tr>
+<tr><td><code>useTermAccess</code> (<code>isStale</code> gate)</td><td>hooks/useTermAccess.ts</td></tr>
+<tr><td><code>serverMessageOr</code>, <code>extractProblemMessage</code></td><td>api/problem.ts:67-79</td></tr>
+<tr><td><code>setSearchParams(…, {replace})</code></td><td>pages/organizer/PublicOrganizationPage.tsx:74,100</td></tr>
+<tr><td>Upcoming-from-start-of-day rule</td><td>pages/panel/views/HomeView.tsx:60-66</td></tr>
+</table></div>
+<div class="card"><b>New (9)</b>
+<table>
+<tr><td><code>application/join_code.py</code></td><td>Code lifecycle; replaces join_requests.py</td></tr>
+<tr><td><code>application/join_code_limiter.py</code></td><td>No rate limiting exists anywhere</td></tr>
+<tr><td><code>router/join_code.py</code></td><td>3 new routes; old router deleted</td></tr>
+<tr><td><code>TooManyAttemptsException</code> + 429</td><td>No error sets headers or uses 429 today</td></tr>
+<tr><td>Alembic 0059, 0060</td><td>Schema change and removal</td></tr>
+<tr><td><code>utils/joinCode.ts</code></td><td>Code is a zero-padded string, shared by both sides</td></tr>
+<tr><td><code>useJoinCode</code>, <code>useGroupTerms</code></td><td>No ad hoc useQuery; useOrganizerTerms needs a slug and is paginated</td></tr>
+<tr><td><code>JoinByCodeSheet</code></td><td>RequestAccessDialog is deleted</td></tr>
+<tr><td><code>JoinCodeCard</code></td><td>No organizer surface; one presentational card serves two hosts</td></tr>
+</table></div>
+</div>
+
+<h2 id="technical">Technical Approach</h2>
+<details class="card"><summary>Layering, lazy write, limiter flow, matrix</summary>
+<ul>
+<li><b>Layering:</b> router → application use case → repository, inside the groups BC. Use cases take <code>(db, principal, group_id, …)</code> and are re-exported from <code>service.py</code>. Membership creation goes only through <code>add_active_membership</code>, so <code>/access</code> and the RSVP PRIVATE guard work without logic changes.</li>
+<li><b>Lazy write:</b> the GET commits the code, bumping <code>updated_at</code> (the <code>version_id_col</code>). <code>StaleDataError</code> is caught only in the GET, only once: rollback, re-read via <code>get_group</code>, re-decide (PUBLIC → 409, code → return, null → one more generate-and-commit, whose failure goes to the global 409 handler). Never read the pre-rollback instance (<code>MissingGreenlet</code>). Regenerate lets the global 409 handler respond.</li>
+<li><b>Limiter flow in redeem:</b> <code>check</code> after 404, before reading or comparing. Both 409 paths call <code>record_failure</code>; both 200 paths call <code>clear</code> (user key only). In-flight overshoot is accepted; the R4 wait formula still reports the true wait. The submitted code is never logged.</li>
+<li><b>Matrix:</b> the redeem row must precede row 27 (asserted by the regression test). GET and regenerate fall through to rows 26 and 27.</li>
+</ul></details>
+<details class="card"><summary>Frontend data and <code>?code=</code> lifecycle</summary>
+<ul>
+<li>One subscriber per query: hosts call <code>useJoinCode</code>/<code>useGroupTerms</code> and hand the results to the presentational card.</li>
+<li><code>useJoinCode</code> is enabled for PRIVATE groups only; 4xx is not retried, so a member's 403 costs one request; 5xx/network are retried twice before <code>status: "error"</code>.</li>
+<li><code>useGroupTerms</code> is enabled only when <code>status === "ready"</code>.</li>
+<li>Writes <code>await</code> invalidation of their prefix and rethrow <code>new Error(serverMessageOr(err, fallback))</code>. Retry-After is invisible to the client; the minutes come from the server message.</li>
+<li><code>?code=</code>: kept through login via <code>returnTo</code>; evaluated only when <code>/access</code> is ready and not stale (<code>useTermAccess.ts:72</code>, <code>TermPage.tsx:37</code>); one-shot ref keyed by <code>groupId:code</code>; stripped (only <code>code</code>, <code>replace: true</code>) at once for <code>view</code> or a malformed code, or when the auto-submit's <code>onJoin</code> settles.</li>
+</ul></details>
+<details class="card"><summary>Migration safety</summary>
+<p>0060 deletes the notification rows before dropping the column, because <code>NotificationKind</code> is string-backed. The downgrade rebuilds the post-0041 UUID shape (R12 types, <code>gen_random_uuid()</code> PK, <code>pk_</code>/<code>fk_</code>/<code>ix_</code>/<code>uq_</code> names, partial unique index on PENDING, no sequence) and re-adds <code>join_request_id UUID NULL</code>, in the reverse of the upgrade order.</p></details>
+
+<h2 id="testing">Testing &amp; Standards</h2>
+<div class="card">
+<p>2-8 focused tests per implementation step group. Test verification runs only the new and changed tests, not the entire suite, until the final full run.</p>
+<table>
+<tr><th>Suite</th><th>Tests</th></tr>
+<tr><td><code>tests/test_group_join_code.py</code></td><td>~8 tests: lazy create, same code on a second GET · member 403 / unknown 404 / PUBLIC 409 · redeem → <code>/access</code> → RSVP 201 · same 409 for wrong and no-code-yet; PUBLIC/soft-deleted 404; anonymous 401 · member/organizer <code>{created:false}</code>, count unchanged, user key cleared · regenerate invalidates the old code · after 10 failures the 11th attempt → 429 with integer <code>Retry-After</code>, correct code still 429 · <code>join_code</code> absent from other responses · lazy-GET <code>StaleDataError</code>, two variants (code set / not set)</td></tr>
+<tr><td>StaleDataError technique</td><td>Monkeypatch the group getter by the exact name <code>join_code.py</code> resolves; the patch runs a behind-the-ORM <code>UPDATE … updated_at = updated_at + interval '1 second'</code> (plus <code>join_code = '123456'</code> in variant 1) and commits; <code>db_session.rollback()</code> before final assertions</td></tr>
+<tr><td><code>tests/test_join_code_limiter.py</code></td><td>5 unit tests, fake clock: blocks on the 11th check, window slides · group key at 30 · <code>clear</code> user-only · longest wait, ceil, ≥1, <code>ts[len − limit]</code> under overshoot · empty keys deleted</td></tr>
+<tr><td><code>tests/test_group_join_code_migrations.py</code></td><td>2 tests: downgrade 0058 → head · downgrade 0059 → head (UUID types round-trip)</td></tr>
+<tr><td>Updated backend tests</td><td><code>test_authorization_matrix.py</code> (incl. row-27 regression), <code>test_group_access.py</code>, <code>test_group_soft_delete_reads.py</code>, <code>test_private_group_access_defects.py</code>, per R14</td></tr>
+<tr><td><code>TermPage.test.tsx</code></td><td>~8 tests: button shown · trap/Esc/focus · invalid → disabled + alert · pasted "482 913" + Enter → one redeem with <code>482913</code> · 409 inline · 200 → content + toast · <code>?code=</code> one redeem, only <code>code</code> removed; malformed → no redeem, removed, empty sheet · anonymous <code>returnTo</code> keeps code · <b>token change (M8)</b>: pending <code>getGroupAccess</code> → no redeem, resolved → exactly one · rewritten l.710 test</td></tr>
+<tr><td><code>GroupDetailsPage.test.tsx</code></td><td>~5 new: card for PRIVATE organizer · hidden on 403 · skeleton and error + retry · copy → clipboard <code>482913</code> + toast · regenerate confirm, new code; failed regenerate shows server text, not <code>409 Conflict</code> · no-upcoming-term variant · existing tests: mock/label updates</td></tr>
+<tr><td><code>CreateGroupStepper.test.tsx</code></td><td>PRIVATE done screen shows the code and both copy buttons; PUBLIC shows none</td></tr>
+<tr><td>Other frontend</td><td><code>termAccess.test.ts</code>, <code>parseJoinCode</code>/<code>formatJoinCode</code>, <code>serverMessageOr</code> (429), <code>useTermAccess</code>/<code>useJoinCode</code> (status mapping, regenerate rethrow), <code>ConfirmDeleteDialog</code> tone/busyLabel, R30 list/count updates</td></tr>
+</table>
+<details><summary>Standards Compliance</summary>
+<ul>
+<li><b>backend/models.md:</b> nullable column on <code>Group</code>; string-backed enums removed in code and data together; the code stays out of general DTOs.</li>
+<li><b>backend/migrations.md:</b> two focused revisions; reversible downgrades in reverse order with explicit post-0041 UUID types; explicit names; one downgrade→upgrade test per migration; the 0060 DELETE follows the 0042 precedent.</li>
+<li><b>backend/security.md:</b> <code>Depends(require_any())</code> + matrix row placed for first-match order, verified incl. the regression case.</li>
+<li><b>backend/time.md:</b> <code>time.monotonic</code> allowed; <code>clock.local_now()</code> in memberships and copied test helpers; no <code>datetime.now()</code> in guarded packages.</li>
+<li><b>global/error-handling.md:</b> typed <code>TooManyAttemptsException</code>, message built by its owner, centralized handler, Polish messages; no raw status text in the UI.</li>
+<li><b>global/validation.md:</b> server <code>^[0-9]{6}$</code>; <code>type="text" inputMode="numeric" pattern="[0-9]*"</code>, raw string, shared parser, inline <code>role="alert"</code> with <code>aria-invalid</code>/<code>aria-describedby</code>, submit disabled while invalid; <code>noValidate</code> keeps native validation from overriding it.</li>
+<li><b>global/minimal-implementation.md:</b> limiter in the groups BC; no <code>useMutation</code>, no shared toast host, no new confirm component.</li>
+<li><b>frontend/data-fetching.md:</b> hooks over <code>src/api</code>; one subscriber per query; prefix keys; <code>await invalidateQueries</code>; app-shaped returns; <code>dayjs</code> from <code>src/utils/dayjs.ts</code>.</li>
+<li><b>frontend/accessibility.md:</b> krag <code>ModalSheet</code> (trap, Esc, focus return with <code>main</code> fallback, registry); z-70 alertdialog; <code>role="status"</code> toasts; sr-only full code with the <code>{" "}</code> rule.</li>
+<li><b>frontend/css.md:</b> krag tokens only in <code>JoinByCodeSheet</code>; panel styling in <code>JoinCodeCard</code>.</li>
+<li><b>testing:</b> <code>uv run python -m pytest|mypy|ruff</code> from <code>src/backend</code> (mypy ≤ ~32 baseline); <code>npm test</code>, <code>npm run lint</code>, <code>npx tsc -b</code> from <code>src/frontend</code>.</li>
+</ul></details>
+</div>
+
+<h2 id="success">Success Criteria</h2>
+<div class="card"><ol>
+<li>A logged-in non-member holding a valid code reaches the term content and a successful RSVP with one code submission and no organizer action, including the anonymous <code>?code=</code> → login → auto-submit path (manual two-account check).</li>
+<li>No API response other than the two organizer endpoints contains <code>join_code</code> (exact key-set tests).</li>
+<li>At most 30 failed redemptions per group per rolling hour and 10 per (user, group) per 15 minutes; a correct code while locked out returns 429 with an integer <code>Retry-After</code>.</li>
+<li>A wrong code and "no code yet" are indistinguishable: same status, same message.</li>
+<li>The R31 <code>rg -i …</code> command returns nothing and the R32 prose items are updated; <code>alembic downgrade 0058 &amp;&amp; alembic upgrade head</code> and <code>alembic downgrade 0059 &amp;&amp; alembic upgrade head</code> succeed.</li>
+<li>Full suites are green: <code>uv run python -m pytest</code>, <code>mypy</code> (no worse than baseline) and <code>ruff</code> from <code>src/backend</code>; <code>npm test</code>, <code>npm run lint</code> and <code>npx tsc -b</code> from <code>src/frontend</code>.</li>
+<li>The six mockup screens match, except the two documented exceptions; the card is absent for PUBLIC groups and non-organizers (403); no dialog or card shows raw HTTP status text.</li>
+<li>The lazy GET never answers 500 or a null code, including after a concurrent write.</li>
+</ol></div>
+</main>
+</body>
+</html>

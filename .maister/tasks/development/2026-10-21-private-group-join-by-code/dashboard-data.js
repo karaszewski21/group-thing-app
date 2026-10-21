@@ -1,12 +1,12 @@
 window.MAISTER_DATA = {
- "generated": "2026-10-21T11:42:31Z",
+ "generated": "2026-10-21T12:38:48Z",
  "task": {
   "title": "Dołączanie do grupy prywatnej przez kod (zastąpienie 'poproś o dostęp')",
   "type": "development",
   "status": "in_progress",
   "description": "Join PRIVATE groups with a 6-digit organizer code; remove GroupJoinRequest entirely.",
   "path": ".maister/tasks/development/2026-10-21-private-group-join-by-code",
-  "current_activity": "Gathering requirements & creating specification"
+  "current_activity": "Auditing specification"
  },
  "characteristics": {
   "has_reproducible_defect": false,
@@ -184,29 +184,99 @@ window.MAISTER_DATA = {
    "id": "phase-5",
    "name": "Gather requirements & create specification",
    "icon_hint": "spec",
-   "status": "in_progress",
+   "status": "completed",
    "started": "2026-10-21T11:42:31Z",
-   "completed": null,
+   "completed": "2026-10-21T11:55:54Z",
    "skip_reason": null,
-   "summary": null,
-   "decisions": [],
-   "risks": [],
-   "artifacts": [],
-   "gate": null,
+   "summary": "Spec with 31 requirements; 22 reusable components, 9 new; architecture from research ADRs.",
+   "decisions": [
+    {
+     "decision": "TermPage owns the 'Dołączono do grupy' success toast",
+     "rationale": "gate/sheet unmount when membership appears (spec assumption)"
+    },
+    {
+     "decision": "Mockup copy wins over HLD table (card subtitle, confirm title, busyLabel 'Generowanie…')",
+     "rationale": "mockups binding"
+    }
+   ],
+   "risks": [
+    "ACCEPTED: code-joined members invisible to organizer until RSVP and not removable",
+    "Residual brute force ~26%/year; regenerate does not reset it",
+    "Accepted DoS of a group's 30/h budget",
+    "Single-process limiter",
+    "Duplicate memberships mitigated, not prevented"
+   ],
+   "artifacts": [
+    {
+     "path": "implementation/spec.md",
+     "label": "Specification",
+     "html": "implementation/spec.html"
+    },
+    {
+     "path": "analysis/requirements.md",
+     "label": "Requirements",
+     "html": null
+    }
+   ],
+   "gate": {
+    "question": "Continue to specification audit?",
+    "answer": "Continue"
+   },
    "progress": null
   },
   {
    "id": "phase-6",
    "name": "Audit specification",
    "icon_hint": "verify",
-   "status": "pending",
-   "started": null,
+   "status": "in_progress",
+   "started": "2026-10-21T11:55:54Z",
    "completed": null,
    "skip_reason": null,
-   "summary": null,
-   "decisions": [],
-   "risks": [],
-   "artifacts": [],
+   "summary": "Audit pass-with-concerns; 21/21 findings resolved in spec rev 2 (R1-R32) with the 6 user decisions.",
+   "decisions": [
+    {
+     "decision": "M1: lazy GET re-reads, retries generation once, else global 409",
+     "rationale": "user decision"
+    },
+    {
+     "decision": "M2: TermPage owns ?code= and the sheet",
+     "rationale": "user decision"
+    },
+    {
+     "decision": "M3: Kopiuj kod copies raw digits; form noValidate",
+     "rationale": "user decision"
+    },
+    {
+     "decision": "M4: host owns useJoinCode/useGroupTerms; JoinCodeCard presentational",
+     "rationale": "user decision"
+    },
+    {
+     "decision": "created:false also clears the user limiter key",
+     "rationale": "user decision"
+    },
+    {
+     "decision": "AuthGateLinks copy 'Zarejestruj się' wins over mockup",
+     "rationale": "user decision"
+    }
+   ],
+   "risks": [
+    "M1 lazy GET re-read may see null code / PUBLIC group after concurrent write",
+    "M2 ?code= sheet ownership split TermPage vs PrivateGroupGate",
+    "M6 theme test lists wrong file",
+    "M9 ConfirmDeleteDialog shows raw err.message"
+   ],
+   "artifacts": [
+    {
+     "path": "verification/spec-audit.md",
+     "label": "Spec audit",
+     "html": null
+    },
+    {
+     "path": "implementation/spec.md",
+     "label": "Specification (rev 2)",
+     "html": "implementation/spec.html"
+    }
+   ],
    "gate": null,
    "progress": null
   },
