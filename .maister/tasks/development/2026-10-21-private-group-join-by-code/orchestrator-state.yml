@@ -5,12 +5,14 @@ orchestrator:
   - phase-2
   - phase-4
   - phase-5
+  - phase-6
+  - phase-7
   failed_phases: []
   auto_fix_attempts: {}
   options:
     html_output: true
     mockup_format: html
-    sequential: null
+    sequential: false
     spec_audit_enabled: true
     skip_test_suite: false
     e2e_enabled: true
@@ -20,7 +22,7 @@ orchestrator:
     reality_check_enabled: true
     production_check_enabled: true
   created: '2026-10-21T09:24:47Z'
-  updated: '2026-10-21T12:38:48Z'
+  updated: '2026-10-21T12:53:48Z'
   task_path: .maister/tasks/development/2026-10-21-private-group-join-by-code
   task_ids: {}
 task:
@@ -187,6 +189,24 @@ task_context:
       artifacts:
       - path: verification/spec-audit.md
         label: Spec audit
+        html: null
+    planning:
+      summary: '9 task groups, 62 steps, ~48-58 tests; 4 waves: [1,2,5] → [3,6,7] → [4,8] → [9].'
+      decisions:
+      - decision: Migration 0060 ships in group 4, not group 1
+        rationale: /access and the Notification model read the old schema until group 4
+      - decision: Group 3 adds join code alongside old code; group 4 removes old code
+        rationale: keeps shared backend files sequential
+      - decision: Frontend groups do not wait for backend
+        rationale: API mocked; spec is the contract
+      risks:
+      - Test count (~48-58) above the generic guide; set by the spec
+      artifacts:
+      - path: implementation/implementation-plan.md
+        label: Implementation plan
+        html: implementation/implementation-plan.html
+      - path: implementation/visual-coverage.md
+        label: Visual coverage
         html: null
   design_resources:
     ran: true
