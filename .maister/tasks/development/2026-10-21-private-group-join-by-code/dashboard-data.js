@@ -1,12 +1,12 @@
 window.MAISTER_DATA = {
- "generated": "2026-10-21T10:31:31Z",
+ "generated": "2026-10-21T11:42:31Z",
  "task": {
   "title": "Dołączanie do grupy prywatnej przez kod (zastąpienie 'poproś o dostęp')",
   "type": "development",
   "status": "in_progress",
   "description": "Join PRIVATE groups with a 6-digit organizer code; remove GroupJoinRequest entirely.",
   "path": ".maister/tasks/development/2026-10-21-private-group-join-by-code",
-  "current_activity": "Analyzing gaps & clarifying scope"
+  "current_activity": "Gathering requirements & creating specification"
  },
  "characteristics": {
   "has_reproducible_defect": false,
@@ -63,12 +63,53 @@ window.MAISTER_DATA = {
    "id": "phase-2",
    "name": "Analyze gaps & clarify scope",
    "icon_hint": "analysis",
-   "status": "in_progress",
+   "status": "completed",
    "started": "2026-10-21T10:27:22Z",
-   "completed": null,
+   "completed": "2026-10-21T11:39:16Z",
    "skip_reason": null,
    "summary": "Modificative, medium risk, ui_heavy; 1 critical decision (members who joined by code are invisible to the organizer and cannot be removed) + 9 important decisions with defaults.",
-   "decisions": [],
+   "decisions": [
+    {
+     "decision": "Accept invisible/unremovable code-joined members; follow-up",
+     "rationale": "design defers removal; no prod data"
+    },
+    {
+     "decision": "ConfirmDeleteDialog + busyLabel/tone props for regenerate",
+     "rationale": "additive, keeps z-70 trap"
+    },
+    {
+     "decision": "Panel ModalSheet unchanged",
+     "rationale": "pre-existing gap"
+    },
+    {
+     "decision": "Toast owned by JoinCodeCard",
+     "rationale": "works on both surfaces"
+    },
+    {
+     "decision": "useCallback + invalidateQueries, no useMutation",
+     "rationale": "data-fetching.md"
+    },
+    {
+     "decision": "Double submit: membership re-check + UI busy + one-shot ref",
+     "rationale": "matches design"
+    },
+    {
+     "decision": "Organizer redeem → 200 created:false",
+     "rationale": "consistent with /access"
+    },
+    {
+     "decision": "useGroupTerms; upcoming = from start of today",
+     "rationale": "HomeView convention"
+    },
+    {
+     "decision": "Limiter in app/groups/application/join_code_limiter.py",
+     "rationale": "single consumer"
+    },
+    {
+     "decision": "Panel term copy-link unchanged",
+     "rationale": "ADR-008 scope"
+    }
+   ],
    "risks": [
     "Membership CREATE via code has no organizer READ/DELETE touchpoint (completeness 50%)"
    ],
@@ -77,19 +118,27 @@ window.MAISTER_DATA = {
      "path": "analysis/gap-analysis.md",
      "label": "Gap analysis",
      "html": null
+    },
+    {
+     "path": "analysis/scope-clarifications.md",
+     "label": "Scope clarifications",
+     "html": null
     }
    ],
-   "gate": null,
+   "gate": {
+    "question": "Continue to Phase 4: UI mockup generation?",
+    "answer": "Continue to Phase 4"
+   },
    "progress": null
   },
   {
    "id": "phase-3",
    "name": "Write failing test (TDD Red)",
    "icon_hint": "verify",
-   "status": "pending",
+   "status": "skipped",
    "started": null,
    "completed": null,
-   "skip_reason": null,
+   "skip_reason": "No reproducible defect (feature work)",
    "summary": null,
    "decisions": [],
    "risks": [],
@@ -101,23 +150,42 @@ window.MAISTER_DATA = {
    "id": "phase-4",
    "name": "Generate UI mockups",
    "icon_hint": "spec",
-   "status": "pending",
-   "started": null,
-   "completed": null,
+   "status": "completed",
+   "started": "2026-10-21T11:39:16Z",
+   "completed": "2026-10-21T11:42:31Z",
    "skip_reason": null,
-   "summary": null,
+   "summary": "6 HTML mockups (gallery http://localhost:3847) bound to the app tokens and krag/panel components.",
    "decisions": [],
    "risks": [],
-   "artifacts": [],
-   "gate": null,
+   "artifacts": [
+    {
+     "path": "analysis/design-context/INDEX.md",
+     "label": "Design index",
+     "html": null
+    },
+    {
+     "path": "analysis/design-context/mockups/szczeg-y-grupy-z-kart-kodu-organizator.html",
+     "label": "Mockup: GroupDetails + JoinCodeCard",
+     "html": null
+    },
+    {
+     "path": "analysis/design-context/mockups/wpisz-kod-dost-pu-joinbycodesheet.html",
+     "label": "Mockup: JoinByCodeSheet",
+     "html": null
+    }
+   ],
+   "gate": {
+    "question": "UI mockups complete. Continue to Phase 5?",
+    "answer": "Continue to Phase 5"
+   },
    "progress": null
   },
   {
    "id": "phase-5",
    "name": "Gather requirements & create specification",
    "icon_hint": "spec",
-   "status": "pending",
-   "started": null,
+   "status": "in_progress",
+   "started": "2026-10-21T11:42:31Z",
    "completed": null,
    "skip_reason": null,
    "summary": null,

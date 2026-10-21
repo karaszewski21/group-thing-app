@@ -2,6 +2,8 @@ orchestrator:
   started_phase: phase-1
   completed_phases:
   - phase-1
+  - phase-2
+  - phase-4
   failed_phases: []
   auto_fix_attempts: {}
   options:
@@ -10,14 +12,14 @@ orchestrator:
     sequential: null
     spec_audit_enabled: true
     skip_test_suite: false
-    e2e_enabled: null
-    user_docs_enabled: null
+    e2e_enabled: true
+    user_docs_enabled: true
     code_review_enabled: true
     pragmatic_review_enabled: true
     reality_check_enabled: true
     production_check_enabled: true
   created: '2026-10-21T09:24:47Z'
-  updated: '2026-10-21T10:31:31Z'
+  updated: '2026-10-21T11:42:31Z'
   task_path: .maister/tasks/development/2026-10-21-private-group-join-by-code
   task_ids: {}
 task:
@@ -34,7 +36,7 @@ task:
 task_context:
   risk_level: medium
   clarifications_resolved: true
-  scope_expanded: null
+  scope_expanded: false
   architecture_decision: null
   task_characteristics:
     has_reproducible_defect: false
@@ -48,11 +50,11 @@ task_context:
     research_type: mixed
     confidence_level: high
   design_reference:
-    source: null
+    source: phase-4-generation
     product_design_path: null
-    mockup_count: 0
+    mockup_count: 6
     has_brief: false
-    index_path: null
+    index_path: analysis/design-context/INDEX.md
   project_context:
     project_doc_paths:
     - .maister/docs/project/tech-stack.md
@@ -113,3 +115,59 @@ task_context:
       rationale: user choice
     - decision: Drop all join-request data without migration
       rationale: no production data (confirmed)
+    gap_analysis:
+      summary: Modificative change, medium risk, ui_heavy. No scope expansion; 1 critical + 9 important decisions resolved with the recommended defaults (upcoming term = from start of today).
+      integration_points:
+      - authorization_matrix AUTHENTICATED row for redeem before row 27
+      - errors.py headers param + 429 handler
+      - router/__init__.py join_code router replaces join_requests
+      - PrivateGroupGate/TermPage ?code=, GroupDetailsPage + CreateGroupStepper JoinCodeCard
+      decisions: []
+      risks:
+      - Membership CREATE via code has no organizer READ/DELETE touchpoint (accepted, follow-up)
+      artifacts:
+      - path: analysis/gap-analysis.md
+        label: Gap analysis
+        html: null
+      - path: analysis/scope-clarifications.md
+        label: Scope clarifications
+        html: null
+    scope_clarifications:
+      scope_expanded: false
+      summary: Accept invisible code-joined members as a follow-up; ConfirmDeleteDialog busyLabel/tone props; local toast in JoinCodeCard; useCallback+invalidate; re-check membership; organizer redeem 200
+        created:false; useGroupTerms from start of today; limiter in groups BC; panel copy-link unchanged.
+    ui_mockups:
+      summary: '6 HTML mockups bound to real tokens: private gate (logged-in/anon), JoinByCodeSheet + states, GroupDetailsPage JoinCodeCard, regenerate confirm, stepper done screen.'
+      format_used: html
+      components_designed:
+      - JoinByCodeSheet
+      - JoinCodeCard
+      - PrivateGroupGate canEnterCode
+      - ConfirmDeleteDialog tone/busyLabel
+      decisions: []
+      risks: []
+      artifacts:
+      - path: analysis/design-context/INDEX.md
+        label: Design index
+        html: null
+      - path: analysis/design-context/design-resources.md
+        label: Design resources
+        html: null
+    design:
+      summary: 6 screens indexed in analysis/design-context/INDEX.md
+      screen_count: 6
+      component_count: 2
+      index_path: analysis/design-context/INDEX.md
+  design_resources:
+    ran: true
+    found_any: true
+    standards:
+    - standards/frontend/*
+    - standards/global/validation.md
+    design_system:
+    - src/frontend/src/index.css tokens
+    - components/krag/kragStyles.ts
+    - components/krag/ModalSheet.tsx
+    - components/shared/ConfirmDeleteDialog.tsx
+    - pages/panel/panelComponents.tsx
+    skill_hints: []
