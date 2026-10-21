@@ -1,0 +1,591 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>High-Level Design — Private group join by code</title>
+<style>
+:root {
+  --bg:#f6f7f9; --surface:#fff; --border:#e2e5ea; --text:#1a1d23; --dim:#6b7280;
+  --accent:#4f46e5; --accent-soft:#eef2ff; --ok:#16a34a; --ok-soft:#ecfdf3;
+  --warn:#d97706; --warn-soft:#fffbeb; --crit:#dc2626; --crit-soft:#fef2f2;
+  --info:#2563eb; --info-soft:#eff6ff; --radius:10px;
+}
+@media (prefers-color-scheme: dark) {
+  :root { --bg:#111418; --surface:#1a1f26; --border:#2e3640; --text:#e6e9ee; --dim:#9aa4b2;
+    --accent:#818cf8; --accent-soft:#26294a; --ok:#4ade80; --ok-soft:#11291a;
+    --warn:#fbbf24; --warn-soft:#2e2410; --crit:#f87171; --crit-soft:#321616;
+    --info:#60a5fa; --info-soft:#15233a; }
+}
+* { box-sizing:border-box; }
+body { margin:0 auto; max-width:1100px; padding:24px 20px 64px; background:var(--bg);
+  color:var(--text); font:14px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif; }
+a { color:var(--accent); text-decoration:none; } a:hover { text-decoration:underline; }
+h1 { font-size:22px; letter-spacing:-.01em; } h2 { font-size:16px; margin-top:28px; }
+.card { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius);
+  padding:16px 18px; margin:14px 0; }
+.badge { display:inline-block; font-size:11px; font-weight:600; text-transform:uppercase;
+  letter-spacing:.04em; padding:2px 8px; border-radius:99px; background:var(--accent-soft); color:var(--accent); }
+.sev { display:inline-block; font-size:10.5px; font-weight:700; text-transform:uppercase;
+  padding:1.5px 7px; border-radius:99px; margin-right:6px; }
+.sev.critical { background:var(--crit-soft); color:var(--crit); }
+.sev.warning  { background:var(--warn-soft); color:var(--warn); }
+.sev.info     { background:var(--info-soft); color:var(--info); }
+.pass { color:var(--ok); font-weight:600; } .fail { color:var(--crit); font-weight:600; }
+table { width:100%; border-collapse:collapse; }
+th, td { text-align:left; padding:7px 10px; border-bottom:1px solid var(--border); vertical-align:top; }
+th { font-size:11.5px; text-transform:uppercase; letter-spacing:.04em; color:var(--dim); }
+code { font-family:ui-monospace,SFMono-Regular,Menlo,monospace; font-size:12.5px;
+  background:var(--accent-soft); padding:1px 5px; border-radius:4px; }
+img.shot { max-width:100%; border:1px solid var(--border); border-radius:var(--radius); }
+details > summary { cursor:pointer; font-weight:600; }
+
+.crumbs { display:flex; gap:14px; font-size:13px; margin-bottom:18px; flex-wrap:wrap; }
+.crumbs a.md { margin-left:auto; color:var(--dim); }
+.crumbs .here { font-weight:650; color:var(--text); }
+.tiles { display:flex; gap:10px; flex-wrap:wrap; margin:14px 0; }
+.tile { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius);
+  padding:10px 16px; text-align:center; min-width:90px; }
+.tile b { display:block; font-size:20px; letter-spacing:-.01em; }
+.tile span { font-size:10.5px; text-transform:uppercase; letter-spacing:.05em; color:var(--dim); }
+
+header .meta { color:var(--dim); font-size:13px; }
+header h1 { margin:6px 0 4px; }
+.tldr { border-left:4px solid var(--accent); }
+.tldr h3 { font-size:13px; text-transform:uppercase; letter-spacing:.05em; color:var(--dim); margin:16px 0 6px; }
+.tldr h3:first-child { margin-top:0; }
+.tldr ul { margin:0; padding-left:20px; } .tldr li { margin:4px 0; }
+.toc { font-size:13px; color:var(--dim); margin:10px 0 4px; line-height:1.9; }
+pre { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius);
+  padding:12px 14px; overflow-x:auto; font:12px/1.4 ui-monospace,SFMono-Regular,Menlo,monospace; margin:10px 0; }
+.scroll { overflow-x:auto; }
+.chips { display:flex; flex-wrap:wrap; gap:6px; margin:6px 0 10px; }
+.chip { font-family:ui-monospace,SFMono-Regular,Menlo,monospace; font-size:12px; padding:2px 8px;
+  border-radius:6px; border:1px solid var(--border); background:var(--surface); overflow-wrap:anywhere; }
+.chip.new { background:var(--ok-soft); color:var(--ok); border-color:transparent; }
+.chip.del { background:var(--crit-soft); color:var(--crit); border-color:transparent; text-decoration:line-through; }
+.inv { display:grid; grid-template-columns:repeat(auto-fit,minmax(min(300px,100%),1fr)); gap:14px; margin:14px 0; }
+.inv .card { margin:0; }
+.inv h3, .card h3.inv-h { font-size:13px; margin:0 0 8px; }
+.card ul.flat { margin:0; padding-left:18px; } .card ul.flat li { margin:4px 0; }
+.badge.lbl-new { background:var(--ok-soft); color:var(--ok); }
+.badge.lbl-chg { background:var(--warn-soft); color:var(--warn); }
+.badge.lbl-del { background:var(--crit-soft); color:var(--crit); }
+.examples, .grid2 { display:grid; grid-template-columns:repeat(auto-fit,minmax(min(320px,100%),1fr)); gap:14px; margin:14px 0; }
+.examples .card, .grid2 .card { margin:0; }
+.examples h3 { font-size:14px; margin:0 0 8px; }
+.gwt p { margin:6px 0; } .gwt p > b:first-child { color:var(--accent); }
+ol.crit li { margin:6px 0; }
+td ul, td ol { margin:0; padding-left:16px; }
+.resp span { display:block; margin:2px 0; }
+h3.sub { font-size:14px; margin:20px 0 6px; }
+.note { color:var(--dim); font-size:13px; }
+</style>
+</head>
+<body>
+
+<nav class="crumbs">
+  <a href="../dashboard.html">← Dashboard</a>
+  <a href="research-report.html">Report</a>
+  <a href="solution-exploration.html">Exploration</a>
+  <span class="here">Design</span>
+  <a href="decision-log.html">Decision Log</a>
+  <a href="high-level-design.md" target="_blank" rel="noopener" class="md">md twin ↗</a>
+</nav>
+
+<header>
+  <span class="badge">High-Level Design</span>
+  <h1>Join a PRIVATE group by a 6-digit access code</h1>
+  <div class="meta">Research task 2026-10-21-private-group-join-by-code · source: <a href="high-level-design.md" target="_blank" rel="noopener">high-level-design.md</a></div>
+</header>
+
+<div class="tiles">
+  <div class="tile"><b>10</b><span>components</span></div>
+  <div class="tile"><b>8</b><span>decisions</span></div>
+  <div class="tile"><b>Modular monolith</b><span>architecture style</span></div>
+  <div class="tile"><b>3</b><span>endpoints</span></div>
+  <div class="tile"><b>2</b><span>migrations (0059, 0060)</span></div>
+</div>
+
+<section class="card tldr" id="tldr">
+  <h3>TL;DR</h3>
+  <p style="margin:0 0 6px">A PRIVATE group gets one organizer-controlled <b>6-digit numeric code</b> stored in plaintext on <code>groups.join_code</code>, created lazily on the organizer's first view and rotated only by an explicit "Wygeneruj nowy kod".</p>
+  <p style="margin:0 0 6px">A logged-in visitor on the term page enters the code (or arrives via a <code>?code=</code> link that auto-submits once), the backend verifies it <b>per group</b> with <code>secrets.compare_digest</code> behind a <b>two-key in-process limiter</b> (10 failures/15 min per user+group, 30 failures/1 h per group → 429), and calls the unchanged <code>add_active_membership</code> — after which <code>/access</code> and RSVP work exactly as they do today.</p>
+  <p style="margin:0">The whole "poproś o dostęp" tree (backend, frontend, notifications, tests, table) is deleted in the same change; migration 0059 adds the column, 0060 drops the request schema.</p>
+
+  <h3>Key Decisions</h3>
+  <ul>
+    <li>6-digit numeric code + dual in-process limiter (variant 6B) — user corrected the reference from 9 to 6 digits; the per-group key bounds guessing at ~1.9 years expected regardless of how many accounts attack (<a href="decision-log.html#adr-001">ADR-001</a>).</li>
+    <li>Plaintext nullable <code>groups.join_code</code> String(6), no index, never in public/general DTOs — organizer must re-read and copy it; a hash of 10^6 values is trivially reversible anyway (<a href="decision-log.html#adr-002">ADR-002</a>).</li>
+    <li>Limiter as a module-level sliding-window store on <code>time.monotonic</code> with an injectable clock, new <code>TooManyAttemptsException</code> → 429 + <code>Retry-After</code> — single uvicorn process (docker-compose.yml:45, Dockerfile:50), no dependency, no DB writes on failures (<a href="decision-log.html#adr-003">ADR-003</a>).</li>
+    <li>Lazy get-or-create on organizer <code>GET /api/groups/{id}/join-code</code>, explicit regenerate with confirm, no expiry, no backfill (<a href="decision-log.html#adr-004">ADR-004</a>).</li>
+    <li><code>JoinByCodeSheet</code> on the shared <code>ModalSheet</code>, opened from a new <code>canEnterCode</code> gate branch; <code>?code=</code> prefill + one-shot auto-submit, then strip (<a href="decision-log.html#adr-005">ADR-005</a>).</li>
+    <li>Full removal of join requests (app is not in production): code tree, <code>GROUP_JOIN_*</code> kinds, <code>notifications.join_request_id</code>, <code>group_join_requests</code> in revision 0060; no pre-deploy count check (<a href="decision-log.html#adr-006">ADR-006</a>).</li>
+    <li>Redeem error order 401 → 404 → 429 → 409 (one generic Polish message) → 200 idempotent <code>{created}</code> (<a href="decision-log.html#adr-007">ADR-007</a>).</li>
+    <li><code>JoinCodeCard</code> on <code>GroupDetailsPage</code> and on the <code>CreateGroupStepper</code> done screen, hidden when the GET returns 403 (<a href="decision-log.html#adr-008">ADR-008</a>).</li>
+  </ul>
+
+  <h3>Open Questions / Risks</h3>
+  <ul>
+    <li><span class="sev warning">warning</span><b>Brute-force residual risk is real, not negligible</b>: with the group capped at 30 guesses/h, an attacker who sustains the attack succeeds with ≈2.2 % probability per 30 days and ≈26 % per year (systematic enumeration: 30 × 24 × 365 = 262 800 of 10^6 values). Expected time ≈1.9 years. Accepted by the user; regeneration does not reset this risk, it only revokes a leaked code.</li>
+    <li><span class="sev warning">warning</span><b>Accepted DoS</b>: anyone with an account can deliberately exhaust a group's 30-failure budget and block legitimate visitors (including ones holding the right code) for up to 1 h; a single account can do it alone in ~45 min (10 per 15-min window). Organizer regeneration does not lift the block — it lapses on its own.</li>
+    <li><span class="sev warning">warning</span>Limiter state is lost on restart and would weaken linearly if uvicorn ever runs with <code>--workers &gt; 1</code> (must be revisited before scaling — see <a href="#out-of-scope">Out of scope</a>).</li>
+    <li><span class="sev info">info</span><b>Which term does "Kopiuj link z kodem" target on <code>GroupDetailsPage</code>?</b> The page loads no terms today (it shows group details + attendees only). Assumption: the card receives an optional <code>termId</code>; the stepper passes <code>createdTermId</code>, the group page passes the group's nearest upcoming term if the spec finds a cheap existing source, otherwise only "Kopiuj kod" is shown there. To be settled in the specification.</li>
+    <li><span class="sev info">info</span>No uniqueness on active memberships (OQ-8): a double submit can create two active <code>Membership</code> rows; mitigated only by the <code>_is_active_member</code> guard and the busy-disabled submit.</li>
+    <li><span class="sev info">info</span><code>returnTo</code> is not validated as a same-origin path (OQ-10); <code>?code=</code> links will traverse login more often. Out of scope here.</li>
+  </ul>
+</section>
+
+<nav class="toc">Contents:
+  <a href="#overview">Design Overview</a> ·
+  <a href="#architecture">Architecture</a> ·
+  <a href="#flow">Visitor flow</a> ·
+  <a href="#components">Key Components</a> ·
+  <a href="#inventory">Change inventory</a> ·
+  <a href="#data-flow">Data Flow</a> ·
+  <a href="#integration">Integration Points</a> ·
+  <a href="#api">API contract</a> ·
+  <a href="#limiter">Limiter contract</a> ·
+  <a href="#copy">Polish UI copy</a> ·
+  <a href="#decisions">Design Decisions</a> ·
+  <a href="#examples">Examples</a> ·
+  <a href="#tests">Test Plan</a> ·
+  <a href="#out-of-scope">Out of Scope</a> ·
+  <a href="#success">Success Criteria</a>
+</nav>
+
+<main>
+
+<h2 id="overview">Design Overview</h2>
+<div class="grid2">
+  <div class="card"><b>Business context.</b> Signing up for a term in a PRIVATE group is painful today: a visitor must "poprosić o dostęp", wait for the organizer to approve, and come back — the organizer's decision loop sits between the link and the RSVP. Organizers already share term links in chats; the reference product the user knows lets the organizer share a <b>short numeric code</b> instead. Visitors benefit (link tap → member → RSVP in one sitting) and organizers keep control (only people they give the code to get in).</div>
+  <div class="card"><b>Chosen approach.</b> A <b>shared group secret</b> replaces the <b>request/approve workflow</b>. The code lives as a single <b>plaintext column</b> on <code>groups</code>, is created <b>lazily</b> when the organizer first looks at it, and is verified <b>per group</b> (the group id is already in every term link) using constant-time comparison behind a <b>two-key in-process attempt limiter</b>. Redeeming a valid code calls the existing membership primitive <code>add_active_membership</code>, so the <b><code>/access</code> resolver, the RSVP guard and the gate shell stay unchanged</b>. On the frontend, the private gate swaps its request branch for a <b>"Mam kod dostępu" sheet</b> built on the shared <code>ModalSheet</code>, and organizers get a <b><code>JoinCodeCard</code></b> with copy/regenerate actions. The architectural style stays a <b>modular monolith</b> (the groups bounded context inside the FastAPI microkernel) with a thin router → application use case → repository layering.</div>
+</div>
+<div class="card">
+  <b>Key decisions:</b>
+  <ul class="flat" style="margin-top:6px">
+    <li>6 digits (user correction from 9) made safe by a per-group failure budget, not by entropy (<a href="decision-log.html#adr-001">ADR-001</a>).</li>
+    <li>Plaintext column, no index, verified by group id — organizer can always view/copy (<a href="decision-log.html#adr-002">ADR-002</a>).</li>
+    <li>In-process limiter + new 429 handler — single process, zero dependencies (<a href="decision-log.html#adr-003">ADR-003</a>).</li>
+    <li>Lazy generation + explicit regenerate — no backfill, no new side effects in create/update (<a href="decision-log.html#adr-004">ADR-004</a>).</li>
+    <li>Sheet + <code>?code=</code> one-shot auto-submit — the shortest link-to-RSVP path (<a href="decision-log.html#adr-005">ADR-005</a>).</li>
+    <li>Delete the join-request mechanism entirely in one change (<a href="decision-log.html#adr-006">ADR-006</a>).</li>
+    <li>No-oracle error order with idempotent success (<a href="decision-log.html#adr-007">ADR-007</a>).</li>
+    <li>Organizer card on group page + stepper done screen (<a href="decision-log.html#adr-008">ADR-008</a>).</li>
+  </ul>
+</div>
+
+<h2 id="architecture">Architecture</h2>
+<h3 class="sub">System Context (C4 Level 1)</h3>
+<pre>  +---------------------+        term link (+ ?code=123456)        +----------------------+
+  |  Organizer          |  ---- shares via chat / verbally ------&gt; |  Visitor             |
+  |  (logged-in user,   |                                          |  (anonymous or       |
+  |   active organizer) |                                          |   logged-in user)    |
+  +----------+----------+                                          +----------+-----------+
+             |  HTTPS (browser SPA)                                           |  HTTPS (browser SPA)
+             |  view / copy / regenerate code                                 |  login, enter code, RSVP
+             v                                                                v
+  +-------------------------------------------------------------------------------------------+
+  |                         aj platform (group-thing-app)                                     |
+  |   React SPA + FastAPI backend; groups bounded context owns PRIVATE gating and join codes  |
+  +---------------------------------------------+---------------------------------------------+
+                                                |  SQL (asyncpg)
+                                                v
+                                   +---------------------------+
+                                   |  PostgreSQL               |
+                                   |  groups.join_code (new)   |
+                                   +---------------------------+</pre>
+<div class="card">The only external interaction that matters is <b>human-to-human</b>: the organizer passes the code or the code-carrying term link to visitors out of band (chat, voice, paper). No e-mail, SSO or third-party service is involved, and no notification is sent on join.</div>
+
+<h3 class="sub">Container Overview (C4 Level 2)</h3>
+<pre>+--------------------------------------------------------------------------------------------------+
+| Browser: React SPA (Vite, TanStack Query v5)                                                     |
+|                                                                                                  |
+|  Visitor side                                   Organizer side                                   |
+|  +------------------------------+               +---------------------------------+              |
+|  | TermPage (route, no guard)   |               | GroupDetailsPage                |              |
+|  |  - reads/strips ?code=       |               |  + JoinCodeCard (PRIVATE only,  |              |
+|  |  - useTermAccess (+joinWith- |               |    hidden on 403)               |              |
+|  |    Code mutation)            |               | CreateGroupStepper done screen  |              |
+|  |  PrivateGroupGate            |               |  + JoinCodeCard                 |              |
+|  |   loginRequired | canEnter-  |               | useJoinCode (query + regenerate)|              |
+|  |   Code -&gt; JoinByCodeSheet    |               +----------------+----------------+              |
+|  +--------------+---------------+                                |                               |
+|                 |  api/groups.ts: redeemJoinCode / getJoinCode / regenerateJoinCode              |
++-----------------+------------------------------------------------+-------------------------------+
+                  | JSON/HTTPS  POST /api/groups/public/{id}/join-code
+                  |             GET  /api/groups/{id}/join-code
+                  |             POST /api/groups/{id}/join-code/regenerate
+                  v
++--------------------------------------------------------------------------------------------------+
+| FastAPI backend (single uvicorn process)                                                         |
+|                                                                                                  |
+|  core: authorization_matrix (first-match rows)  core: errors (+TooManyAttemptsException -&gt; 429)  |
+|                                                                                                  |
+|  groups BC:                                                                                      |
+|   router/join_code.py --&gt; application/join_code.py --(check/record/clear)--&gt; join-code limiter   |
+|        |                     |  get_or_create / regenerate / redeem          (in-memory dict,    |
+|        |                     |                                                 time.monotonic)   |
+|        |                     +--&gt; add_active_membership (unchanged)                              |
+|        |                     +--&gt; repository.get_group (404 incl. soft-deleted)                  |
+|   router/public (/access, /rsvp) --&gt; public_view.py (join_request branch removed)                |
+|                                                                                                  |
+|  notifications BC: GROUP_JOIN_* kinds and join_request_id removed                                |
++-----------------------------------------------+--------------------------------------------------+
+                                                | SQLAlchemy 2.0 async / asyncpg
+                                                v
++--------------------------------------------------------------------------------------------------+
+| PostgreSQL 18: groups(+join_code VARCHAR(6) NULL), group_roles, memberships, notifications       |
+|               (-join_request_id); group_join_requests DROPPED (Alembic 0059 -&gt; 0060)             |
++--------------------------------------------------------------------------------------------------+</pre>
+<div class="card scroll"><table>
+  <tr><th>Container</th><th>Responsibility</th></tr>
+  <tr><td><b>React SPA</b></td><td>Renders the private gate and code sheet for visitors, the code card for organizers; owns <code>?code=</code> handling and copy-to-clipboard.</td></tr>
+  <tr><td><b>FastAPI backend</b></td><td>Authorizes (matrix + service ownership checks), generates/rotates/verifies codes, throttles failures, creates memberships.</td></tr>
+  <tr><td><b>In-process limiter</b></td><td>Holds recent failure timestamps per (party, group) and per group; lives and dies with the uvicorn process.</td></tr>
+  <tr><td><b>PostgreSQL</b></td><td>Persists the code on <code>groups</code>; memberships via the existing <code>group_roles</code>/<code>memberships</code> tables.</td></tr>
+</table></div>
+
+<h3 class="sub" id="flow">End-to-end visitor flow (term link → RSVP)</h3>
+<p class="note" style="margin:0">Mermaid sequence diagram, shown as source.</p>
+<pre>sequenceDiagram
+    autonumber
+    actor O as Organizer
+    actor V as Visitor
+    participant SPA as React SPA (TermPage / PrivateGroupGate)
+    participant API as FastAPI groups BC
+    participant L as Join-code limiter (in-process)
+    participant DB as PostgreSQL
+
+    O-&gt;&gt;SPA: Open GroupDetailsPage / stepper done screen
+    SPA-&gt;&gt;API: GET /api/groups/{id}/join-code
+    API-&gt;&gt;DB: get_group, require active organizer, join_code IS NULL? generate + commit
+    API--&gt;&gt;SPA: 200 {code:"482913"}
+    O--&gt;&gt;V: shares /:slug/grupa/{id}/term/{termId}?code=482913
+
+    V-&gt;&gt;SPA: open link
+    SPA-&gt;&gt;API: GET /api/groups/public/{id}/access
+    alt anonymous
+        API--&gt;&gt;SPA: reduced payload (all flags false)
+        SPA--&gt;&gt;V: gate loginRequired -&gt; /login?returnTo=&lt;path + ?code=&gt;
+        V-&gt;&gt;SPA: login/register, returns to same URL with ?code=
+        SPA-&gt;&gt;API: GET /access (now with token)
+    end
+    API--&gt;&gt;SPA: can_view_content=false (PRIVATE, not member)
+    SPA-&gt;&gt;SPA: gate canEnterCode; open JoinByCodeSheet prefilled; auto-submit once
+    SPA-&gt;&gt;API: POST /api/groups/public/{id}/join-code {code}
+    API-&gt;&gt;API: caller party (401) -&gt; group PRIVATE &amp; not deleted (404)
+    API-&gt;&gt;L: check(party, group)
+    alt budget exhausted
+        L--&gt;&gt;API: retry_after
+        API--&gt;&gt;SPA: 429 + Retry-After + Polish message
+    else allowed
+        API-&gt;&gt;DB: read groups.join_code
+        alt null or mismatch (compare_digest)
+            API-&gt;&gt;L: record_failure(party, group) on both keys
+            API--&gt;&gt;SPA: 409 "Nieprawidłowy kod dostępu — sprawdź i spróbuj ponownie"
+        else match
+            API-&gt;&gt;DB: if not active member: add_active_membership + commit
+            API-&gt;&gt;L: clear(party, group)
+            API--&gt;&gt;SPA: 200 {created: true|false}
+        end
+    end
+    SPA-&gt;&gt;SPA: strip ?code= (replace:true); invalidate groupAccess
+    SPA-&gt;&gt;API: GET /access
+    API--&gt;&gt;SPA: full payload, can_view_content=true
+    SPA--&gt;&gt;V: PublicTermView
+    V-&gt;&gt;SPA: "Zapisz się"
+    SPA-&gt;&gt;API: POST /api/groups/public/{id}/rsvp (unchanged PRIVATE guard: active member)
+    API--&gt;&gt;SPA: 201</pre>
+
+<h2 id="components">Key Components</h2>
+<div class="card scroll"><table>
+  <tr><th>Component</th><th>Purpose</th><th>Responsibilities</th><th>Key Interfaces</th><th>Dependencies</th></tr>
+  <tr><td><b>Join-code use cases</b> <span class="badge lbl-new">new</span><br><code>app/groups/application/join_code.py</code></td><td>Own the code lifecycle and redemption rules.</td><td><ul><li><code>get_or_create_join_code</code> (organizer, PRIVATE, lazy generate + commit)</li><li><code>regenerate_join_code</code> (organizer, overwrite + commit)</li><li><code>redeem_join_code</code> (error order, limiter, membership)</li><li>generation via <code>secrets.choice("0123456789")</code> × 6</li></ul></td><td>re-exported from <code>app/groups/service.py</code></td><td>repository (<code>get_group</code>), <code>_require_active_organizer</code>, <code>add_active_membership</code>, <code>_is_active_member</code>, limiter, <code>errors</code></td></tr>
+  <tr><td><b>Join-code limiter</b> <span class="badge lbl-new">new</span><br><code>app/groups/application/join_code_limiter.py</code></td><td>Bound guessing per user and per group.</td><td><ul><li><code>check(party_id, group_id)</code> raises <code>TooManyAttemptsException(retry_after)</code></li><li><code>record_failure</code> appends to both keys</li><li><code>clear(party_id, group_id)</code> drops the user key on success</li><li>prunes expired timestamps of touched keys</li></ul></td><td>module-level instance; constructor takes <code>clock: Callable[[], float] = time.monotonic</code></td><td>none (stdlib)</td></tr>
+  <tr><td><b>Join-code router</b> <span class="badge lbl-new">new</span><br><code>app/groups/router/join_code.py</code>; replaces <code>router/join_requests.py</code></td><td>HTTP surface for the three endpoints.</td><td><ul><li>binds schemas, principal dependency</li><li>no business logic</li></ul></td><td>registered in <code>router/__init__.py</code> in the old router's slot</td><td>use cases, <code>require_any()</code></td></tr>
+  <tr><td><b>429 error type</b> <span class="badge lbl-chg">changed</span><br><code>app/core/errors.py</code></td><td>Typed throttling failure.</td><td><ul><li><code>TooManyAttemptsException(message, retry_after)</code></li><li>handler: standard envelope, status 429, <code>Retry-After</code> header</li></ul></td><td><code>register_exception_handlers</code> (errors.py:144-162), registered before the generic <code>Exception</code> handler</td><td>—</td></tr>
+  <tr><td><b>Authorization matrix</b> <span class="badge lbl-chg">changed</span><br><code>app/core/authorization_matrix.py</code></td><td>Coarse route gating.</td><td><ul><li>remove <code>POST …/join-requests(/…/withdraw)?</code> row (l.107-117)</li><li>add <code>POST ^/api/groups/public/[^/]+/join-code$ → AUTHENTICATED</code> in the same slot (before row 27)</li></ul></td><td>first-match table</td><td>—</td></tr>
+  <tr><td><b>Public access resolver</b> <span class="badge lbl-chg">changed</span><br><code>public_view.py</code></td><td>Unchanged behavior; join-request branch removed.</td><td><ul><li>PRIVATE: <code>can_view_content = is_member or is_organizer</code></li><li><code>GroupAccessDetails.join_request</code> field removed</li></ul></td><td><code>GET /api/groups/public/{id}/access</code>, <code>POST …/rsvp</code></td><td>—</td></tr>
+  <tr><td><b>PrivateGroupGate + JoinByCodeSheet</b> <span class="badge lbl-chg">changed</span> <span class="badge lbl-new">new</span><br>frontend</td><td>Visitor entry point.</td><td><ul><li>gate union <code>loginRequired | canEnterCode</code></li><li>sheet: one field, shared parser, inline <code>role="alert"</code>, busy state, server message passthrough</li></ul></td><td>props: <code>join(code)</code> from host page, <code>initialCode</code>, <code>autoSubmit</code></td><td><code>ModalSheet</code>, <code>useTermAccess</code>, <code>utils/joinCode</code></td></tr>
+  <tr><td><b>TermPage <code>?code=</code> handling</b> <span class="badge lbl-chg">changed</span><br>frontend</td><td>Deep-link convenience.</td><td><ul><li>read once <code>/access</code> loaded and not stale</li><li><code>view</code> → strip; <code>loginRequired</code> → keep; <code>canEnterCode</code> → open + auto-submit once, then strip</li></ul></td><td><code>useSearchParams</code>, <code>replace: true</code></td><td>gate, <code>useTermAccess</code></td></tr>
+  <tr><td><b>JoinCodeCard + useJoinCode</b> <span class="badge lbl-new">new</span><br>frontend</td><td>Organizer view/copy/rotate.</td><td><ul><li>shows <code>123 456</code> (mono, sr-only full value)</li><li>"Kopiuj kod", "Kopiuj link z kodem" (when a term is known), "Wygeneruj nowy kod" (confirm sheet)</li><li>hidden on 403</li></ul></td><td><code>useJoinCode(groupId, enabled)</code> → <code>{data, loading, error, refetch, regenerate}</code></td><td><code>api/groups.ts</code>, <code>queryClient</code>, toast, <code>termPublicPath</code></td></tr>
+  <tr><td><b>Alembic 0059 / 0060</b> <span class="badge lbl-new">new</span></td><td>Schema change and removal.</td><td><ul><li>0059 add <code>groups.join_code</code></li><li>0060 delete <code>GROUP_JOIN_%</code> notifications, drop <code>notifications.join_request_id</code>, drop <code>group_join_requests</code></li></ul></td><td><code>alembic upgrade head</code> before uvicorn (docker-compose.yml:45)</td><td>0058 head</td></tr>
+</table></div>
+
+<h3 class="sub" id="inventory">Change inventory (new / changed / deleted)</h3>
+<div class="inv">
+  <div class="card">
+    <h3><span class="badge lbl-new">new</span> Backend</h3>
+    <div class="chips">
+      <span class="chip new">app/groups/application/join_code.py</span>
+      <span class="chip new">app/groups/application/join_code_limiter.py</span>
+      <span class="chip new">app/groups/router/join_code.py</span>
+      <span class="chip new">alembic/versions/0059_group_join_code.py</span>
+      <span class="chip new">alembic/versions/0060_drop_group_join_requests.py</span>
+      <span class="chip new">tests/test_group_join_code.py</span>
+      <span class="chip new">tests/test_join_code_limiter.py</span>
+      <span class="chip new">tests/test_group_join_code_migrations.py</span>
+    </div>
+  </div>
+  <div class="card">
+    <h3><span class="badge lbl-del">deleted</span> Backend</h3>
+    <div class="chips">
+      <span class="chip del">app/groups/application/join_requests.py</span>
+      <span class="chip del">app/groups/router/join_requests.py</span>
+      <span class="chip del">tests/test_group_join_requests_router.py</span>
+      <span class="chip del">tests/test_group_join_requests_decisions.py</span>
+      <span class="chip del">tests/test_group_join_request_model.py</span>
+    </div>
+    <p class="note" style="margin:6px 0 0">Migrations 0037/0038/0041 stay untouched as history.</p>
+  </div>
+</div>
+<div class="card">
+  <h3 class="inv-h"><span class="badge lbl-chg">changed</span> Backend</h3>
+  <ul class="flat">
+    <li><code>app/groups/models.py</code> — add <code>Group.join_code: Mapped[str | None] = String(6)</code>; delete <code>GroupJoinRequestStatus</code> (l.63-67) and <code>GroupJoinRequest</code> (l.195-223); rewrite <code>GroupVisibility</code> docstring (l.84-90) to "join with organizer's access code".</li>
+    <li><code>app/groups/schemas.py</code> — delete 4 join-request schemas (l.718-752) and <code>GroupAccessDetails.join_request</code> (l.368); add <code>JoinCodeResponse</code>, <code>RedeemJoinCodeRequest</code>, <code>RedeemJoinCodeResponse</code>.</li>
+    <li><code>app/groups/service.py</code> — drop 6 re-exports (l.42-48, <code>__all__</code>), add 3.</li>
+    <li><code>app/groups/router/__init__.py</code> — swap import/registration (l.16, l.35) and docstring.</li>
+    <li><code>app/groups/application/public_view.py</code> — remove <code>_GATE_JOIN_REQUEST_STATUSES</code> (l.349-351), block l.399-407, <code>join_request=</code> l.417, imports l.39/43, docstrings l.370-374/455-457.</li>
+    <li><code>app/groups/infrastructure/repository.py</code> — delete <code>GroupJoinRequest</code> section (l.686-761) and imports.</li>
+    <li><code>app/groups/infrastructure/notifications_bridge.py</code> — drop <code>join_request_id</code> kwarg (l.28, 37).</li>
+    <li><code>app/notifications/models.py</code> (3 kinds l.63-65, column l.94-96), <code>schemas.py</code> (l.23), <code>service.py</code> (l.40-59).</li>
+    <li><code>app/core/authorization_matrix.py</code>, <code>app/core/errors.py</code> — as in the component table.</li>
+    <li>Tests: <code>test_group_access.py</code> (drop <code>_request_access</code>, rewrite l.316/344/366/393 to code flow, key-sets l.53/73/91/112), <code>test_authorization_matrix.py</code> (l.128-148), <code>test_group_soft_delete_reads.py</code> (replace l.192-209 with "redeem on soft-deleted group → 404").</li>
+  </ul>
+</div>
+<div class="inv">
+  <div class="card">
+    <h3><span class="badge lbl-new">new</span> Frontend</h3>
+    <div class="chips">
+      <span class="chip new">components/krag/JoinByCodeSheet.tsx</span>
+      <span class="chip new">components/panel/JoinCodeCard.tsx</span>
+      <span class="chip new">hooks/useJoinCode.ts</span>
+      <span class="chip new">utils/joinCode.ts</span>
+    </div>
+    <p class="note" style="margin:6px 0 0"><code>utils/joinCode.ts</code>: <code>parseJoinCode</code> → <code>null | string | undefined</code>, <code>formatJoinCode</code> → <code>"123 456"</code>; shared by visitor and organizer sides, so not in <code>pages/panel/panelHelpers.ts</code>.</p>
+  </div>
+  <div class="card">
+    <h3><span class="badge lbl-del">deleted</span> Frontend</h3>
+    <div class="chips">
+      <span class="chip del">components/krag/RequestAccessDialog.tsx</span>
+      <span class="chip del">hooks/usePendingJoinRequests.ts</span>
+    </div>
+  </div>
+</div>
+<div class="card">
+  <h3 class="inv-h"><span class="badge lbl-chg">changed</span> Frontend</h3>
+  <ul class="flat">
+    <li><code>pages/krag/PrivateGroupGate.tsx</code> (keep shell; remove request/pending/rejected/withdraw + focus polling)</li>
+    <li><code>pages/krag/termAccess.ts</code> (union <code>loginRequired | canEnterCode</code>)</li>
+    <li><code>pages/krag/TermPage.tsx</code> (<code>?code=</code>)</li>
+    <li><code>hooks/useTermAccess.ts</code> (add <code>joinWithCode</code>)</li>
+    <li><code>api/groups.ts</code> (remove l.461-516 + <code>join_request</code> l.268-271; add 3 functions/types; docstring l.13-16)</li>
+    <li><code>api/notifications.ts</code> (kinds l.15-17, field l.33-37)</li>
+    <li><code>api/problem.ts</code> (pass 429 through <code>serverMessageOr</code>; new <code>ACCESS_DENIED_MESSAGE</code> text)</li>
+    <li><code>components/pending/PendingActionsHost.tsx</code> and <code>pendingActions.ts</code> (cut join-request branch, <code>jr:</code> key, 2nd parameter)</li>
+    <li><code>pages/panel/GroupDetailsPage.tsx</code> (label l.11 + card)</li>
+    <li><code>components/panel/GroupFormFields.tsx</code> (option l.74)</li>
+    <li><code>components/panel/CreateGroupStepper.tsx</code> (done screen l.138-170)</li>
+    <li>Tests: <code>TermPage.test.tsx</code>, <code>termAccess.test.ts</code>, <code>PendingActionsHost.test.tsx</code>, <code>PublicLayout.test.tsx</code>, <code>ModalSheet.test.tsx</code> (swap <code>RequestAccessDialog</code> → <code>JoinByCodeSheet</code>), <code>themeTokenUsage.test.tsx</code> / <code>themeDefects.test.tsx</code> (file lists), <code>GroupDetailsPage.test.tsx</code>, <code>CreateGroupStepper.test.tsx</code>.</li>
+  </ul>
+</div>
+<div class="card">
+  <h3 class="inv-h"><span class="badge">prose</span></h3>
+  <div class="chips">
+    <span class="chip">snoozeStore.ts:3-4</span>
+    <span class="chip">AuthGateSheet.tsx:15</span>
+    <span class="chip">TermPage.tsx:9-11</span>
+    <span class="chip">test_add_active_membership.py:1-2</span>
+    <span class="chip">user guide l.214 of the 2026-10-19 task</span>
+    <span class="chip">DEV22 state marked superseded</span>
+  </div>
+</div>
+
+<h2 id="data-flow">Data Flow</h2>
+<div class="card scroll"><table>
+  <tr><th>#</th><th>Step</th><th>Detail</th></tr>
+  <tr><td>1</td><td><b>Code creation (organizer)</b></td><td><code>GET /api/groups/{id}/join-code</code> → load group (404 if missing/soft-deleted) → active organizer check (403) → PRIVATE check (409) → if <code>join_code IS NULL</code>, generate 6 digits with <code>secrets.choice</code>, assign, commit (bumps <code>updated_at</code>, the optimistic-lock column) → return <code>{code}</code>.</td></tr>
+  <tr><td>2</td><td><b>Rotation (organizer)</b></td><td><code>POST …/join-code/regenerate</code> → same checks → overwrite → commit → <code>{code}</code>. The old code stops working immediately; existing memberships are untouched (the code is never re-checked after joining). Limiter counters are not reset.</td></tr>
+  <tr><td>3</td><td><b>Distribution</b></td><td>Out of band. The SPA builds the share link from <code>window.location.origin + termPublicPath(group, termId) + "?code=" + code</code> (never from <code>location.href</code>).</td></tr>
+  <tr><td>4</td><td><b>Redemption (visitor)</b></td><td>Body <code>{code}</code> validated by Pydantic <code>^[0-9]{6}$</code> (400 on violation; the client normalizes spaces/hyphens first). Use case runs the 401 → 404 → 429 → 409 → 200 sequence; success inserts MEMBER <code>GroupRole</code> + <code>Membership(valid_from = clock.local_now().date())</code> through <code>add_active_membership</code> and commits once.</td></tr>
+  <tr><td>5</td><td><b>Limiter state</b></td><td>Two maps of failure timestamps in process memory: key <code>(party_id, group_id)</code> keeps ≤10 entries for 15 min, key <code>group_id</code> keeps ≤30 entries for 1 h. Never persisted; never logged with the submitted code.</td></tr>
+  <tr><td>6</td><td><b>Exit</b></td><td>The SPA invalidates the <code>groupAccess</code> query prefix, <code>/access</code> now returns full content, <code>PublicTermView</code> renders and RSVP goes through the unchanged PRIVATE guard in <code>create_rsvp</code>.</td></tr>
+</table></div>
+<div class="card"><span class="sev info">info</span><b>What is never exposed:</b> the code is absent from <code>GroupResponse</code> (<code>GET /api/groups/{id}</code> is READ without an organizer check, <code>router/circles.py:303-307</code>), <code>PublicCircleResponse</code>, <code>/access</code>, notifications and logs.</div>
+
+<h2 id="integration">Integration Points</h2>
+<div class="card scroll"><table>
+  <tr><th>Existing piece</th><th>Interaction</th><th>Change</th></tr>
+  <tr><td><code>add_active_membership</code> (groups BC)</td><td>Called by redeem to create MEMBER role + membership (flush, caller commits)</td><td>none</td></tr>
+  <tr><td><code>get_group_access</code> / <code>create_rsvp</code> (<code>public_view.py</code>)</td><td>Consumes the resulting membership</td><td>only the <code>join_request</code> branch/field removed</td></tr>
+  <tr><td><code>_require_active_organizer</code>, <code>_get_caller_party_id</code> patterns</td><td>Reused for organizer endpoints and the 401 step (ported from <code>join_requests.py</code> l.52-59, l.71-75)</td><td>moved into the new module</td></tr>
+  <tr><td>Authorization matrix</td><td>New AUTHENTICATED row for redeem; GET uses row 26 (READ), regenerate row 27 (EDIT)</td><td>1 row removed, 1 added</td></tr>
+  <tr><td><code>errors.py</code> handler registry</td><td>New 429 handler</td><td>additive</td></tr>
+  <tr><td>Notifications BC</td><td>Loses 3 kinds + <code>join_request_id</code></td><td>removal; bell renders by <code>message</code>/<code>link_path</code>, unaffected</td></tr>
+  <tr><td>Alembic chain</td><td>0058 → 0059 → 0060</td><td>additive then destructive</td></tr>
+  <tr><td><code>ModalSheet</code>, <code>useRegisterOpenSheet</code>, <code>trapFocus</code></td><td>Host the visitor sheet and the regenerate confirm</td><td>none</td></tr>
+  <tr><td>Auth redirect (<code>AuthGateLinks</code>, <code>LoginPage</code>, onboarding)</td><td>Carries <code>?code=</code> through <code>returnTo = pathname + search</code></td><td>none</td></tr>
+  <tr><td><code>queryClient</code> (no retry on 4xx), <code>extractProblemMessage</code>, <code>serverMessageOr</code></td><td>Error surfacing</td><td><code>serverMessageOr</code> passes 429</td></tr>
+  <tr><td><code>PendingActionsHost</code></td><td>Loses join-request prompts; swap/confirm prompts stay</td><td>removal</td></tr>
+</table></div>
+
+<h3 class="sub" id="api">API contract</h3>
+<div class="card scroll"><table>
+  <tr><th>Endpoint</th><th>Matrix row / dependency</th><th>Request</th><th>Responses (in evaluation order)</th></tr>
+  <tr><td><code>GET /api/groups/{group_id}/join-code</code></td><td>row 26 READ (no new row); <code>require_any(...)</code> as existing READ routes</td><td>—</td><td class="resp"><span><b>404</b> group unknown or soft-deleted</span><span><b>403</b> caller is not an active organizer (<code>AccessDeniedException</code>)</span><span><b>409</b> group is PUBLIC: <code>Grupa jest publiczna — kod dostępu nie jest potrzebny</code></span><span class="pass">200 <code>{"code": "482913"}</code> (generated + committed on first call)</span></td></tr>
+  <tr><td><code>POST /api/groups/{group_id}/join-code/regenerate</code></td><td>row 27 EDIT (no new row)</td><td>empty body</td><td class="resp"><span><b>404</b> · <b>403</b> · <b>409</b> (as above)</span><span class="pass">200 <code>{"code": "&lt;new&gt;"}</code></span></td></tr>
+  <tr><td><code>POST /api/groups/public/{group_id}/join-code</code></td><td><span class="badge lbl-new">new</span> <code>POST ^/api/groups/public/[^/]+/join-code$ → AUTHENTICATED</code>, placed where the join-requests row was (before row 27); <code>Depends(require_any())</code></td><td><code>{"code": "482913"}</code> — <code>Field(pattern=r"^[0-9]{6}$")</code></td><td class="resp"><span><b>400</b> pattern violation (standard validation envelope)</span><span><b>401</b> no principal or principal without party profile</span><span><b>404</b> unknown / soft-deleted / PUBLIC group</span><span><b>429</b> limiter (<code>Retry-After: &lt;s&gt;</code> header, message <code>Za dużo prób wpisania kodu — spróbuj ponownie za {n} min</code>)</span><span><b>409</b> wrong code <b>or</b> group has no code yet — one message <code>Nieprawidłowy kod dostępu — sprawdź i spróbuj ponownie</code></span><span class="pass">200 <code>{"created": true}</code> new member / <code>{"created": false}</code> already an active member</span></td></tr>
+</table></div>
+<p class="note">All error bodies use the existing envelope from <code>errors.py</code>; 409 text reaches the user verbatim via <code>serverMessageOr</code>.</p>
+
+<h3 class="sub" id="limiter">Limiter contract</h3>
+<div class="card scroll"><table>
+  <tr><th>Key</th><th>Budget</th><th>Window</th><th>Purpose</th></tr>
+  <tr><td><code>(party_id, group_id)</code></td><td><b>10</b> failures</td><td>15 min sliding</td><td>Short, personal lockout for a mistyping user; caps one account's burst. Cleared on that user's success.</td></tr>
+  <tr><td><code>group_id</code></td><td><b>30</b> failures</td><td>1 h sliding</td><td>Security bound independent of the number of accounts: 5·10^5 expected guesses / 30 per h ≈ 1.9 years. Never cleared by success.</td></tr>
+</table></div>
+<div class="card"><code>check</code> runs <b>before</b> the code comparison (so a locked-out caller learns nothing, even with the right code); a failure is recorded on <b>both</b> keys; <code>Retry-After</code> is the longest remaining wait among exceeded keys. Concurrent requests may overshoot a budget by at most the number of in-flight requests (check and record are separated by DB awaits) — accepted.</div>
+
+<h3 class="sub" id="copy">Polish UI copy (6-digit version)</h3>
+<div class="card scroll"><table>
+  <tr><th>Place</th><th>Text</th></tr>
+  <tr><td>Gate heading</td><td><code>Ta grupa jest prywatna</code> (unchanged)</td></tr>
+  <tr><td>Gate, logged in</td><td><code>Zajęcia i lista uczestników są widoczne tylko dla członków. Wpisz kod dostępu od organizatora, aby dołączyć.</code></td></tr>
+  <tr><td>Gate, anonymous</td><td><code>Zajęcia i lista uczestników są widoczne tylko dla członków. Zaloguj się, aby wpisać kod dostępu.</code> · with <code>?code=</code>: <code>Masz kod? Zaloguj się, żeby go użyć.</code></td></tr>
+  <tr><td>Gate button</td><td><code>Mam kod dostępu</code></td></tr>
+  <tr><td>Sheet</td><td>title <code>Wpisz kod dostępu</code>; label <code>Kod dostępu</code>; hint <code>6 cyfr, np. 123 456</code>; submit <code>Dołącz</code> / <code>Dołączanie…</code>; <code>Anuluj</code>; close <code>Zamknij</code></td></tr>
+  <tr><td>Local validation</td><td><code>Kod ma 6 cyfr</code></td></tr>
+  <tr><td>409</td><td><code>Nieprawidłowy kod dostępu — sprawdź i spróbuj ponownie</code></td></tr>
+  <tr><td>429</td><td><code>Za dużo prób wpisania kodu — spróbuj ponownie za {n} min</code></td></tr>
+  <tr><td>Other error</td><td><code>Nie udało się dołączyć — spróbuj ponownie</code></td></tr>
+  <tr><td>Success toast</td><td><code>Dołączono do grupy</code></td></tr>
+  <tr><td>Card</td><td>title <code>Kod dostępu</code>; <code>Kopiuj kod</code>, <code>Kopiuj link z kodem</code>, <code>Wygeneruj nowy kod</code>; toasts <code>Skopiowano kod</code>, <code>Skopiowano link</code>, <code>Wygenerowano nowy kod</code>; error <code>Nie udało się skopiować kodu</code></td></tr>
+  <tr><td>Regenerate confirm</td><td><code>Stary kod przestanie działać. Osoby, które już dołączyły, zostają w grupie.</code> — buttons <code>Wygeneruj nowy kod</code> / <code>Anuluj</code></td></tr>
+  <tr><td>Visibility labels</td><td>form option <code>Prywatna — (dostęp z kodem)</code>; details <code>Prywatna (dostęp z kodem)</code></td></tr>
+  <tr><td>Stepper done (PRIVATE)</td><td><code>Grupa założona, termin dodany! Grupa jest prywatna — dołączą tylko osoby, którym podasz kod dostępu.</code></td></tr>
+  <tr><td><code>ACCESS_DENIED_MESSAGE</code></td><td><code>Nie masz uprawnień do tej akcji. Zaloguj się ponownie albo poproś organizatora o kod dostępu.</code></td></tr>
+</table></div>
+<div class="card"><b>Input contract</b> (per <code>validation.md</code>): <code>type="text" inputMode="numeric" pattern="[0-9]*" autoComplete="one-time-code"</code>, raw string in state, <code>aria-invalid</code>/<code>aria-describedby</code> on the inline <code>role="alert"</code>, submit disabled while invalid or busy (<code>aria-busy</code>).</div>
+
+<h2 id="decisions">Design Decisions</h2>
+<div class="card scroll"><table>
+  <tr><th>#</th><th>Decision</th><th>Chosen</th><th>Rejected alternatives</th><th>ADR</th></tr>
+  <tr><td>1</td><td>Code format &amp; brute-force protection</td><td>6 digits + per-(user, group) 10/15 min + per-group 30/1 h limiter</td><td>9 digits + per-user limiter (1A), Crockford-8 (1B), 10–12 digits (1C), link token (1D)</td><td><a href="decision-log.html#adr-001">ADR-001</a></td></tr>
+  <tr><td>2</td><td>Where the code lives</td><td>plaintext <code>groups.join_code</code> String(6)</td><td>codes table (2B), hash (2C), HMAC-derived (2D)</td><td><a href="decision-log.html#adr-002">ADR-002</a></td></tr>
+  <tr><td>3</td><td>Limiter placement</td><td>in-process sliding window, injectable clock, 429 handler</td><td>DB counter (3B), none (3C), nginx only (3D)</td><td><a href="decision-log.html#adr-003">ADR-003</a></td></tr>
+  <tr><td>4</td><td>Generation &amp; rotation</td><td>lazy get-or-create + explicit regenerate</td><td>eager + backfill (4B), explicit generate (4C), auto-expiry (4D)</td><td><a href="decision-log.html#adr-004">ADR-004</a></td></tr>
+  <tr><td>5</td><td>Visitor UX</td><td><code>JoinByCodeSheet</code> + <code>?code=</code> one-shot auto-submit</td><td>inline field (5B), prefill only (5C), dedicated route (5D)</td><td><a href="decision-log.html#adr-005">ADR-005</a></td></tr>
+  <tr><td>6</td><td>Removal of join requests</td><td>delete everything in 0060, no pre-deploy check</td><td>auto-approve script (6B), read-only release (6C), notify once (6D)</td><td><a href="decision-log.html#adr-006">ADR-006</a></td></tr>
+  <tr><td>7</td><td>Redeem response semantics</td><td>401→404→429→409 generic→200 <code>{created}</code></td><td>distinct statuses (7B), always-200 enum (7C)</td><td><a href="decision-log.html#adr-007">ADR-007</a></td></tr>
+  <tr><td>8</td><td>Organizer surface</td><td><code>JoinCodeCard</code> on group page + stepper, hidden on 403</td><td>page only (8B), code in <code>GroupResponse</code> (8C), public-page share (8D)</td><td><a href="decision-log.html#adr-008">ADR-008</a></td></tr>
+</table></div>
+
+<h2 id="examples">Concrete Examples</h2>
+<div class="examples">
+  <div class="card gwt">
+    <h3>Example 1 — Link tap to RSVP (anonymous visitor)</h3>
+    <p><b>Given</b> a PRIVATE group "Joga w parku" whose organizer copied <code>https://…/joga/grupa/{g}/term/{t}?code=482913</code> from the stepper done screen, and Ania has no session,</p>
+    <p><b>when</b> Ania opens the link, logs in from the gate and lands back on the same URL with <code>?code=482913</code>,</p>
+    <p><b>then</b> the sheet opens prefilled and submits once, the backend answers <code>200 {created:true}</code>, the <code>?code</code> parameter is removed from the address bar with <code>replace</code>, the page shows the term with its participant list, and Ania's "Zapisz się" returns 201.</p>
+  </div>
+  <div class="card gwt">
+    <h3>Example 2 — Mistyped code, then lockout</h3>
+    <p><b>Given</b> Bartek is logged in and not a member,</p>
+    <p><b>when</b> he types <code>48291</code> the submit stays disabled with <code>Kod ma 6 cyfr</code>; when he submits <code>482910</code> he gets 409 <code>Nieprawidłowy kod dostępu — sprawdź i spróbuj ponownie</code> and the sheet stays open with his input,</p>
+    <p><b>and</b> after his 10th failure within 15 minutes the 11th attempt — even with the correct <code>482913</code> — returns 429 with <code>Retry-After</code> and <code>Za dużo prób wpisania kodu — spróbuj ponownie za 15 min</code>. Failures from other accounts against the same group count toward its 30/h budget; once that is exhausted every visitor sees 429 until the oldest failure is an hour old.</p>
+  </div>
+  <div class="card gwt">
+    <h3>Example 3 — Rotation after a leak; members unaffected</h3>
+    <p><b>Given</b> the code <code>482913</code> was posted in a public channel and Ania already joined with it,</p>
+    <p><b>when</b> the organizer presses <code>Wygeneruj nowy kod</code> and confirms,</p>
+    <p><b>then</b> <code>GET</code> now returns e.g. <code>705166</code>, redeeming <code>482913</code> returns 409, redeeming <code>705166</code> returns 200, Ania still sees the content and can RSVP, and a member who re-opens an old <code>?code=482913</code> link is shown the term directly (the client resolves <code>view</code> before any redeem and strips the parameter).</p>
+  </div>
+  <div class="card gwt">
+    <h3>Example 4 — Member card visibility</h3>
+    <p><b>Given</b> Celina is a plain member of the group and opens <code>/panel/grupy/{g}</code>,</p>
+    <p><b>when</b> <code>useJoinCode</code> calls <code>GET /api/groups/{g}/join-code</code>,</p>
+    <p><b>then</b> the backend returns 403, the query does not retry (4xx), and the page renders without <code>JoinCodeCard</code>.</p>
+  </div>
+</div>
+
+<h2 id="tests">Test Plan Outline</h2>
+<p class="note">Aligned to <code>backend-testing.md</code> (real PostgreSQL via testcontainers, <code>client</code>/<code>db_session</code> fixtures, exact key-set assertions, <code>test_&lt;operation&gt;_&lt;scenario&gt;_&lt;expected&gt;</code> names, 2–8 tests per feature) and <code>frontend-testing.md</code> (Vitest + Testing Library, <code>createQueryWrapper</code>, <code>vi.mock</code> API modules, explicit vitest imports).</p>
+
+<h3 class="sub">Backend</h3>
+<div class="card scroll"><table>
+  <tr><th>File</th><th>Tests</th></tr>
+  <tr><td><code>tests/test_group_join_code.py</code> <span class="badge">8</span></td><td><ol>
+    <li>organizer GET creates a 6-digit code, second GET returns the same</li>
+    <li>member GET → 403, unknown group → 404, PUBLIC group → 409</li>
+    <li>redeem correct → 200 <code>{created:true}</code> → <code>/access</code> <code>can_view_content</code> → RSVP 201 (replaces <code>test_group_access.py:366</code>)</li>
+    <li>wrong code and no-code-yet → 409 with identical message, PUBLIC/soft-deleted → 404, anonymous → 401</li>
+    <li>member redeem → 200 <code>{created:false}</code> and membership count unchanged</li>
+    <li>regenerate invalidates old code (old 409, new 200)</li>
+    <li>11th failure for one user → 429 with <code>Retry-After</code>, then correct code still 429 (check-before-compare)</li>
+    <li><code>join_code</code> absent from <code>GET /api/groups/{id}</code>, <code>GET /api/groups/public/{id}</code> and <code>/access</code> bodies (exact key-sets)</li>
+  </ol></td></tr>
+  <tr><td><code>tests/test_join_code_limiter.py</code> <span class="badge">4–5</span><br><span class="note">pure unit with injected fake clock</span></td><td><ul><li>user key blocks at 10 within 15 min and unblocks after the window slides</li><li>group key blocks at 30 across distinct parties within 1 h</li><li><code>clear</code> resets only the user key</li><li><code>retry_after</code> equals the longest remaining wait</li><li>touched keys are pruned</li></ul></td></tr>
+  <tr><td><code>tests/test_group_join_code_migrations.py</code> <span class="badge">2</span></td><td><ul><li>downgrade to 0058 → upgrade head (column round-trip)</li><li>downgrade to 0059 → upgrade head (table, column, FKs/indexes re-created in post-0041 shape and dropped again)</li></ul></td></tr>
+  <tr><td><code>tests/test_authorization_matrix.py</code> <span class="badge lbl-chg">changed</span></td><td><code>POST /api/groups/public/42/join-code</code> → AUTHENTICATED; regression that without the row it would fall to row 27 EDIT; join-request paths removed.</td></tr>
+  <tr><td><code>tests/test_group_access.py</code>, <code>test_group_soft_delete_reads.py</code> <span class="badge lbl-chg">changed</span></td><td>key-sets without <code>join_request</code>; join via code instead of approve; redeem on soft-deleted group → 404.</td></tr>
+</table></div>
+<div class="card"><span class="sev warning">warning</span>The module-level limiter must be reset between tests (autouse fixture calling a reset on the shared instance) so failures in one test never leak into another.</div>
+
+<h3 class="sub">Frontend</h3>
+<div class="card scroll"><table>
+  <tr><th>File</th><th>Tests</th></tr>
+  <tr><td><code>TermPage.test.tsx</code> <span class="badge">7</span></td><td><ul><li>logged-in non-member sees <code>Mam kod dostępu</code> (no <code>Poproś o dostęp</code>)</li><li>sheet traps Tab, Esc closes, focus returns to opener</li><li>invalid format → submit disabled + <code>role="alert"</code></li><li>409 → inline message, sheet stays open</li><li>200 → content view</li><li><code>?code=482913</code> → exactly one redeem call and parameter removed</li><li>anonymous with <code>?code=</code> → login link <code>returnTo</code> contains the code</li></ul></td></tr>
+  <tr><td><code>termAccess.test.ts</code></td><td><code>canEnterCode</code> derivation; removed <code>pending/rejected</code> cases.</td></tr>
+  <tr><td><code>GroupDetailsPage.test.tsx</code> <span class="badge">4</span></td><td><ul><li>card shown for PRIVATE organizer</li><li>hidden on 403</li><li>copy code → clipboard + toast</li><li>regenerate requires confirmation then shows the new code</li></ul></td></tr>
+  <tr><td><code>CreateGroupStepper.test.tsx</code></td><td>PRIVATE done screen shows code and both copy actions; PUBLIC shows none.</td></tr>
+  <tr><td><code>ModalSheet.test.tsx</code>, <code>themeTokenUsage.test.tsx</code>, <code>themeDefects.test.tsx</code></td><td>retarget from <code>RequestAccessDialog</code> to <code>JoinByCodeSheet</code>; add new files to no-hex/no-legacy lists.</td></tr>
+  <tr><td><code>PendingActionsHost.test.tsx</code>, <code>PublicLayout.test.tsx</code></td><td>delete the join-request describe block (8 tests) and pending-join-request assertions.</td></tr>
+</table></div>
+<div class="card"><b>Manual E2E (verification phase):</b> two accounts — organizer copies the link from the stepper, second account opens it logged out, logs in, lands as member, RSVPs.</div>
+
+<h2 id="out-of-scope">Out of Scope</h2>
+<div class="grid2">
+  <div class="card">
+    <b>Deferred follow-ups</b> <span class="note">(captured, not designed here)</span>
+    <ul class="flat" style="margin-top:6px">
+      <li>Partial unique index on active memberships <code>(from_role_id, to_group_id) WHERE valid_to IS NULL</code> (OQ-8).</li>
+      <li><code>returnTo</code> same-origin validation (<code>startsWith("/")</code>) in <code>LoginPage</code>/<code>AuthGuard</code> (OQ-10).</li>
+      <li>Organizer notification "X dołączył(a) kodem" (would need a new kind ≤30 chars).</li>
+      <li>nginx <code>limit_req</code> as defence in depth.</li>
+      <li>DB-backed limiter — required before running more than one uvicorn worker or instance.</li>
+      <li><code>is_organizer</code> flag in <code>GroupResponse</code> (would remove the 403 probe).</li>
+      <li>"Kopiuj link z kodem" from the public term page / <code>ShareButton</code> (8D).</li>
+      <li>Member-removal UI combined with regeneration.</li>
+      <li>Privacy gaps outside <code>/access</code> (<code>/api/terms</code>, <code>/api/pledges</code>, <code>/api/needed-items</code>, membership list — OQ-9).</li>
+      <li>"Wygenerowano …" rotation timestamp on the card.</li>
+      <li>Hybrid with organizer approval, per-invite code tables with expiry/max-uses, e-mail invites, SSO, changes to PUBLIC groups.</li>
+    </ul>
+  </div>
+  <div class="card">
+    <b>Explicitly not done</b>
+    <ul class="flat" style="margin-top:6px">
+      <li>no pre-deploy PENDING count check</li>
+      <li>no auto-approve script</li>
+      <li>no backfill of codes</li>
+      <li>no code expiry</li>
+      <li>no edits to applied migrations 0037/0038/0041</li>
+    </ul>
+  </div>
+</div>
+
+<h2 id="success">Success Criteria</h2>
+<div class="card">
+<ol class="crit" style="margin:0;padding-left:20px">
+  <li>A logged-in non-member holding a valid code reaches the term content and a successful RSVP with <b>one</b> code submission and no organizer action (Example 1 passes end-to-end, manual two-account check).</li>
+  <li>No API response other than the two organizer endpoints ever contains <code>join_code</code> (key-set tests).</li>
+  <li>Guessing is bounded: no single group accepts more than 30 failed redemptions per rolling hour and no (user, group) pair more than 10 per 15 minutes; a correct code submitted while locked returns 429.</li>
+  <li>Wrong code and "no code yet" are indistinguishable to the visitor (same status, same message).</li>
+  <li>After the change, <code>grep</code> over <code>src/</code> finds no <code>join_request</code>, <code>JoinRequest</code> or <code>GROUP_JOIN_</code> identifiers outside migration history, and <code>alembic downgrade 0058 &amp;&amp; alembic upgrade head</code> succeeds.</li>
+  <li>Full suites green: <code>uv run python -m pytest|mypy|ruff</code> (from <code>src/backend</code>, mypy not worse than baseline) and <code>vitest run</code> / <code>tsc -b</code> / eslint.</li>
+</ol>
+</div>
+
+</main>
+</body>
+</html>

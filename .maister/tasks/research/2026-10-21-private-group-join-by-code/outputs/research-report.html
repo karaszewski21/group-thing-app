@@ -1,0 +1,344 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Research Report — private-group-join-by-code</title>
+<style>
+:root {
+  --bg:#f6f7f9; --surface:#fff; --border:#e2e5ea; --text:#1a1d23; --dim:#6b7280;
+  --accent:#4f46e5; --accent-soft:#eef2ff; --ok:#16a34a; --ok-soft:#ecfdf3;
+  --warn:#d97706; --warn-soft:#fffbeb; --crit:#dc2626; --crit-soft:#fef2f2;
+  --info:#2563eb; --info-soft:#eff6ff; --radius:10px;
+}
+@media (prefers-color-scheme: dark) {
+  :root { --bg:#111418; --surface:#1a1f26; --border:#2e3640; --text:#e6e9ee; --dim:#9aa4b2;
+    --accent:#818cf8; --accent-soft:#26294a; --ok:#4ade80; --ok-soft:#11291a;
+    --warn:#fbbf24; --warn-soft:#2e2410; --crit:#f87171; --crit-soft:#321616;
+    --info:#60a5fa; --info-soft:#15233a; }
+}
+* { box-sizing:border-box; }
+body { margin:0 auto; max-width:1100px; padding:24px 20px 64px; background:var(--bg);
+  color:var(--text); font:14px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif; }
+a { color:var(--accent); text-decoration:none; } a:hover { text-decoration:underline; }
+h1 { font-size:22px; letter-spacing:-.01em; } h2 { font-size:16px; margin-top:28px; }
+h3 { font-size:14px; margin:18px 0 6px; }
+.card { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius);
+  padding:16px 18px; margin:14px 0; }
+.badge { display:inline-block; font-size:11px; font-weight:600; text-transform:uppercase;
+  letter-spacing:.04em; padding:2px 8px; border-radius:99px; background:var(--accent-soft); color:var(--accent); }
+.sev { display:inline-block; font-size:10.5px; font-weight:700; text-transform:uppercase;
+  padding:1.5px 7px; border-radius:99px; margin-right:6px; }
+.sev.critical { background:var(--crit-soft); color:var(--crit); }
+.sev.warning  { background:var(--warn-soft); color:var(--warn); }
+.sev.info     { background:var(--info-soft); color:var(--info); }
+.pass { color:var(--ok); font-weight:600; } .fail { color:var(--crit); font-weight:600; }
+table { width:100%; border-collapse:collapse; }
+th, td { text-align:left; padding:7px 10px; border-bottom:1px solid var(--border); vertical-align:top; }
+th { font-size:11.5px; text-transform:uppercase; letter-spacing:.04em; color:var(--dim); }
+code { font-family:ui-monospace,SFMono-Regular,Menlo,monospace; font-size:12.5px;
+  background:var(--accent-soft); padding:1px 5px; border-radius:4px; }
+pre { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); padding:12px 14px; overflow:auto; font-size:12px; line-height:1.45; }
+img.shot { max-width:100%; border:1px solid var(--border); border-radius:var(--radius); }
+details > summary { cursor:pointer; font-weight:600; }
+details { margin:10px 0; }
+.crumbs { display:flex; gap:14px; font-size:13px; margin-bottom:18px; flex-wrap:wrap; }
+.crumbs a.md { margin-left:auto; color:var(--dim); }
+.crumbs .here { font-weight:650; color:var(--text); }
+.tiles { display:flex; gap:10px; flex-wrap:wrap; margin:14px 0; }
+.tile { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius);
+  padding:10px 16px; text-align:center; min-width:90px; }
+.tile b { display:block; font-size:20px; letter-spacing:-.01em; }
+.tile span { font-size:10.5px; text-transform:uppercase; letter-spacing:.05em; color:var(--dim); }
+header { display:flex; flex-wrap:wrap; align-items:baseline; gap:10px 16px; }
+header .meta { color:var(--dim); font-size:12.5px; }
+.tldr { background:var(--surface); border:1px solid var(--border); border-left:4px solid var(--accent); border-radius:var(--radius); padding:16px 18px; margin:14px 0; }
+.tldr h2 { margin-top:0; }
+.tldr ul { margin:6px 0 0; padding-left:18px; }
+.toc { font-size:13px; color:var(--dim); margin:10px 0 18px; }
+.conf { display:inline-block; font-size:10.5px; font-weight:700; text-transform:uppercase; padding:1.5px 7px; border-radius:99px; }
+.conf.high { background:var(--ok-soft); color:var(--ok); }
+.conf.medium { background:var(--warn-soft); color:var(--warn); }
+.conf.low { background:var(--crit-soft); color:var(--crit); }
+.act { font-weight:700; font-size:11px; text-transform:uppercase; }
+.act.del { color:var(--crit); } .act.chg { color:var(--warn); } .act.keep { color:var(--ok); } .act.add { color:var(--info); }
+.grid2 { display:grid; grid-template-columns:repeat(auto-fit,minmax(260px,1fr)); gap:12px; }
+.grid2 .card { margin:0; }
+.swot { display:grid; grid-template-columns:repeat(auto-fit,minmax(240px,1fr)); gap:12px; }
+.swot .card { margin:0; }
+.swot .card.s { border-top:3px solid var(--ok); } .swot .card.w { border-top:3px solid var(--crit); }
+.swot .card.o { border-top:3px solid var(--info); } .swot .card.t { border-top:3px solid var(--warn); }
+.insight { border-left:4px solid var(--info); }
+.flow { display:flex; flex-wrap:wrap; gap:8px; align-items:stretch; }
+.flow .step { flex:1 1 150px; background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); padding:8px 10px; font-size:12.5px; }
+.flow .step b { display:block; font-size:11px; text-transform:uppercase; color:var(--dim); letter-spacing:.04em; }
+.flow .step.new { border-color:var(--info); background:var(--info-soft); }
+.decision td:first-child { white-space:nowrap; }
+.muted { color:var(--dim); }
+@media (max-width:640px) { th, td { padding:6px 6px; font-size:12.5px; } }
+</style>
+</head>
+<body>
+<nav class="crumbs">
+  <a href="../dashboard.html">← Dashboard</a>
+  <span class="here">Report</span>
+  <a href="solution-exploration.html">Exploration</a>
+  <a href="high-level-design.html">Design</a>
+  <a href="decision-log.html">Decision Log</a>
+  <a href="research-report.md" target="_blank" rel="noopener" class="md">md twin ↗</a>
+</nav>
+
+<header>
+  <h1>Dołączanie do grupy prywatnej przez kod dostępu</h1>
+  <span class="badge">research report</span>
+  <span class="meta">mieszane (techniczne + wymagania + literatura) · 2026-10-21 · <a href="research-report.md" target="_blank" rel="noopener">research-report.md</a> · <a href="../analysis/synthesis.md" target="_blank" rel="noopener">synthesis.md</a></span>
+</header>
+
+<div class="tiles">
+  <div class="tile"><b>12</b><span>ustaleń</span></div>
+  <div class="tile"><b>11</b><span>plików findings</span></div>
+  <div class="tile"><b>8</b><span>źródeł zewn.</span></div>
+  <div class="tile"><b>37</b><span>plików do usunięcia/zmiany</span></div>
+  <div class="tile"><b class="pass">wysoka</b><span>pewność (inwentarz)</span></div>
+  <div class="tile"><b style="color:var(--warn)">średnia</b><span>pewność (decyzje)</span></div>
+</div>
+
+<section class="tldr">
+  <h2>TL;DR</h2>
+  <ul>
+    <li>Mechanizm "poproś o dostęp" jest zamkniętym drzewem (13 modułów backendu, 23 pliki frontendu, 7 plików testów backendu, 3 migracje jako historia) — nic poza nim od niego nie zależy; <code>add_active_membership</code>, resolver <code>/access</code>, strażnik RSVP i szkielet bramki zostają bez zmian.</li>
+    <li>Rekomendacja: kod jako zwykła kolumna <code>groups.join_code</code> (plaintext, bez wygaśnięcia), weryfikowany <b>per grupa</b> przez <code>secrets.compare_digest</code>, generowany leniwie przy pierwszym odczycie organizatora, rotowany tylko przez organizatora.</li>
+    <li>9-cyfrowy kod numeryczny (29,9 bita) wystarcza dla tej aplikacji <b>pod warunkiem</b> weryfikacji per grupa i limitu nieudanych prób per użytkownik (dziś brak limitera i 429); bez limitera — 8 znaków Crockford Base32 (40 bitów).</li>
+    <li>Ścieżka "link do terminu → grupa prywatna → kod → członek → zapis na termin" wymaga tylko jednego nowego POST i jednej gałęzi bramki — RSVP działa bez zmian.</li>
+  </ul>
+  <h3>Key Decisions</h3>
+  <ul>
+    <li>Weryfikacja per grupa (<code>POST /api/groups/public/{id}/join-code</code>) — cel ataku to jeden kod; brak globalnego indeksu unikalnego.</li>
+    <li>Plaintext na <code>groups</code> — organizator musi podejrzeć/skopiować; sekret niskiej wartości, odwoływalny.</li>
+    <li>Leniwe get-or-create przy <code>GET /api/groups/{id}/join-code</code> — brak backfillu i efektów ubocznych przy tworzeniu/przełączaniu widoczności.</li>
+    <li>Limiter w procesie + nowy wyjątek/handler 429 — spójne z jednoinstancyjnymi magazynami OAuth2; licznik w DB walczyłby z blokadą optymistyczną <code>updated_at</code>.</li>
+    <li>Kolejność błędów: 401 → 404 (nieznana/usunięta/PUBLIC) → 429 → 409 (zły kod, jeden komunikat) → 200 (idempotentne, także dla członka).</li>
+    <li>Migracje: 0059 (dodanie <code>groups.join_code</code>) przed 0060 (drop <code>group_join_requests</code> + <code>notifications.join_request_id</code> + kasowanie wierszy <code>GROUP_JOIN_%</code>).</li>
+  </ul>
+  <h3>Open Questions / Risks</h3>
+  <ul>
+    <li>Wiersze PENDING przepadają przy dropie; jedyna alternatywa to skrypt zatwierdzający przez stare <code>approve_join_request</code> przed wdrożeniem.</li>
+    <li>Brak unikalności aktywnych <code>Membership</code> (OQ-8) — podwójne wysłanie może utworzyć dwa wiersze.</li>
+    <li><code>returnTo</code> bez walidacji same-origin (OQ-10) — link <code>?code=</code> przez logowanie dziedziczy ryzyko open redirect.</li>
+    <li>Luki prywatności poza <code>/access</code> (OQ-9) pozostają nietknięte.</li>
+    <li>9 cyfr vs 8 Crockford to decyzja produktowa; <code>external-product-patterns.md</code> nie powstał — odniesienia do Google Classroom/Slack są z drugiej ręki.</li>
+  </ul>
+</section>
+
+<nav class="toc">Spis: <a href="#findings">Ustalenia</a> · <a href="#removal">Mapa usunięcia</a> · <a href="#model">Model i API</a> · <a href="#format">9 cyfr?</a> · <a href="#ux">UX</a> · <a href="#flow">Przepływ E2E</a> · <a href="#risks">Ryzyka i decyzje</a> · <a href="#insights">Wnioski</a> · <a href="#swot">SWOT</a> · <a href="#readiness">Gotowość</a> · <a href="#gaps">Luki</a></nav>
+
+<main>
+
+<h2 id="findings">Ustalenia</h2>
+<div class="card">
+<table>
+<thead><tr><th>#</th><th>Ustalenie</th><th>Kategoria</th><th>Pewność</th><th>Źródła</th></tr></thead>
+<tbody>
+<tr><td>U1</td><td>Mechanizm próśb jest zamkniętym drzewem; inwentarz kompletny (grep repo)</td><td>techniczne</td><td><span class="conf high">wysoka</span></td><td>2</td></tr>
+<tr><td>U2</td><td><code>add_active_membership</code> + <code>_is_active_member</code> + commit to cały backend dołączenia</td><td>techniczne</td><td><span class="conf high">wysoka</span></td><td>3</td></tr>
+<tr><td>U3</td><td><code>/access</code> i <code>create_rsvp</code> nie wymagają zmian zachowania</td><td>techniczne</td><td><span class="conf high">wysoka</span></td><td>3</td></tr>
+<tr><td>U4</td><td>Brak limitera / 429 / Redis / ustawień w aplikacji</td><td>techniczne</td><td><span class="conf high">wysoka</span></td><td>4</td></tr>
+<tr><td>U5</td><td>Kody &lt; 64 bitów wymagają limitera (NIST); per IP nie wystarcza (Firezone, Zealynx)</td><td>literatura</td><td><span class="conf high">wysoka</span></td><td>4</td></tr>
+<tr><td>U6</td><td>9 cyfr = 29,9 bita; wystarczające z weryfikacją per grupa + limiterem</td><td>literatura + analiza</td><td><span class="conf medium">średnia-wysoka</span></td><td>2</td></tr>
+<tr><td>U7</td><td><code>?code=</code> przeżywa logowanie/rejestrację bez nowego kodu (<code>returnTo = pathname + search</code>)</td><td>techniczne</td><td><span class="conf high">wysoka</span></td><td>2</td></tr>
+<tr><td>U8</td><td>PRIVATE jest domyślną widocznością dla założyciela bez Organizacji — kod to główna ścieżka onboardingu</td><td>wymagania</td><td><span class="conf high">wysoka</span></td><td>2</td></tr>
+<tr><td>U9</td><td>Usunięcie kindów <code>GROUP_JOIN_*</code> wymaga kasowania wierszy powiadomień (enum string-backed)</td><td>techniczne</td><td><span class="conf high">wysoka</span></td><td>3</td></tr>
+<tr><td>U10</td><td>Kolejność migracji: addytywna przed destrukcyjną; downgrade odtwarza kształt po 0041</td><td>standardy</td><td><span class="conf high">wysoka</span></td><td>2</td></tr>
+<tr><td>U11</td><td><code>ModalSheet</code> + wzorzec <code>CapacityField</code> pokrywają a11y arkusza kodu</td><td>standardy</td><td><span class="conf high">wysoka</span></td><td>2</td></tr>
+<tr><td>U12</td><td>Wierszy PENDING nie da się przenieść w SQL migracji (potrzebny <code>GroupRole</code> MEMBER)</td><td>techniczne</td><td><span class="conf high">wysoka</span></td><td>1</td></tr>
+</tbody></table>
+</div>
+
+<h2 id="removal">Kryterium 1 — Mapa usunięcia/zmian</h2>
+<p class="muted">Pełne tabele z numerami linii: <a href="research-report.md" target="_blank" rel="noopener">research-report.md §4</a>. Poniżej skrót; szczegóły w rozwijanych sekcjach.</p>
+<div class="grid2">
+  <div class="card"><b>Backend</b><br>13 modułów (2 <span class="act del">usuń</span>, 10 <span class="act chg">zmień</span>, 1 <span class="act add">dodaj</span>); 3 migracje jako historia; 7 plików testów (3 usuń, 3 zmień, 1 proza); 41 testów do usunięcia.</div>
+  <div class="card"><b>Frontend</b><br>23 pliki (2 <span class="act del">usuń</span>, 11 <span class="act chg">zmień</span>, 10 <span class="act keep">zostaw</span>); 21 testów do usunięcia, ~10 do przepisania; 12 plików potwierdzonych bez odniesień.</div>
+</div>
+
+<details><summary>Backend — kod aplikacji (B1–B14)</summary>
+<table><thead><tr><th>#</th><th>Ścieżka</th><th>Akcja</th><th>Dowód</th></tr></thead><tbody>
+<tr><td>B1</td><td><code>app/groups/application/join_requests.py</code></td><td><span class="act del">usuń</span> — przenieś wzorce <code>_get_caller_party_id</code>, <code>_get_private_group</code>, idiom l.207-208</td><td>l.1-279</td></tr>
+<tr><td>B2</td><td><code>app/groups/router/join_requests.py</code></td><td><span class="act del">usuń</span> — alias <code>AuthenticatedPrincipal</code> l.24 do nowego routera</td><td>l.1-91</td></tr>
+<tr><td>B3</td><td><code>app/groups/router/__init__.py</code></td><td><span class="act chg">zmień</span> — podmień import/rejestrację</td><td>l.1,16,35</td></tr>
+<tr><td>B4</td><td><code>app/groups/service.py</code></td><td><span class="act chg">zmień</span> — usuń 6 reeksportów, dodaj 3</td><td>l.42-48,112-181</td></tr>
+<tr><td>B5</td><td><code>app/groups/models.py</code></td><td><span class="act del">usuń</span> enum + encję; <span class="act chg">zmień</span> docstring; <span class="act add">dodaj</span> <code>Group.join_code</code></td><td>l.63-67,83-93,195-223</td></tr>
+<tr><td>B6</td><td><code>app/groups/schemas.py</code></td><td><span class="act del">usuń</span> 4 schematy + pole <code>join_request</code>; <span class="act add">dodaj</span> schematy kodu</td><td>l.17,355-370,718-752</td></tr>
+<tr><td>B7</td><td><code>app/groups/infrastructure/repository.py</code></td><td><span class="act del">usuń</span> sekcję l.686-761</td><td>l.3,41-42,686-761</td></tr>
+<tr><td>B8</td><td><code>app/groups/application/public_view.py</code></td><td><span class="act chg">zmień</span> — gałąź PRIVATE → <code>can_view_content = is_member or is_organizer</code></td><td>l.39,43,349-351,370-374,399-417,455-457</td></tr>
+<tr><td>B9</td><td><code>app/groups/infrastructure/notifications_bridge.py</code></td><td><span class="act chg">zmień</span> — kwarg <code>join_request_id</code></td><td>l.20-38</td></tr>
+<tr><td>B10</td><td><code>app/notifications/models.py</code></td><td><span class="act del">usuń</span> 3 kindy + kolumnę</td><td>l.48-96</td></tr>
+<tr><td>B11</td><td><code>app/notifications/schemas.py</code></td><td><span class="act del">usuń</span> pole l.23</td><td>l.23</td></tr>
+<tr><td>B12</td><td><code>app/notifications/service.py</code></td><td><span class="act chg">zmień</span></td><td>l.32-62</td></tr>
+<tr><td>B13</td><td><code>app/core/authorization_matrix.py</code></td><td><span class="act chg">zmień</span> — wiersz <code>/join-code</code> AUTHENTICATED w slocie l.107-117</td><td>l.94-117,134-135</td></tr>
+<tr><td>B14</td><td><code>app/core/errors.py</code></td><td><span class="act add">dodaj</span> <code>TooManyAttemptsException</code> + handler 429</td><td>l.144-162</td></tr>
+</tbody></table>
+</details>
+
+<details><summary>Backend — Alembic i testy</summary>
+<table><thead><tr><th>Plik</th><th>Akcja</th></tr></thead><tbody>
+<tr><td><code>0036</code>, <code>0037</code>, <code>0038</code>, <code>0041</code></td><td><span class="act keep">zostaw</span> jako historię; 0041 nieodwracalne — downgrade 0060 odtwarza kształt UUID</td></tr>
+<tr><td><code>tests/test_group_join_requests_router.py</code> (15), <code>…_decisions.py</code> (11), <code>…_model.py</code> (5)</td><td><span class="act del">usuń</span> — przenieś kształty scenariuszy (401/404/409, brak duplikatu, strażnik 30 znaków kind)</td></tr>
+<tr><td><code>tests/test_group_access.py</code></td><td><span class="act chg">zmień</span> — l.316,344,366,393 przepisz; key-set l.53,73,91,112</td></tr>
+<tr><td><code>tests/test_authorization_matrix.py</code></td><td><span class="act chg">zmień</span> — l.128-148 nowa ścieżka + regresja wiersza 27</td></tr>
+<tr><td><code>tests/test_group_soft_delete_reads.py</code></td><td><span class="act del">usuń</span> l.192-209 lub przepisz na "kod dla grupy usuniętej → 404"</td></tr>
+<tr><td><code>test_add_active_membership.py</code>, <code>test_group_privacy.py</code>, <code>test_organizer_page.py</code></td><td><span class="act keep">zostaw</span> (powierzchnia regresji)</td></tr>
+</tbody></table>
+</details>
+
+<details><summary>Frontend (F1–F23)</summary>
+<table><thead><tr><th>#</th><th>Ścieżka</th><th>Akcja</th><th>Testy</th></tr></thead><tbody>
+<tr><td>F1</td><td><code>components/krag/RequestAccessDialog.tsx</code></td><td><span class="act del">usuń</span> → nowy <code>JoinByCodeSheet.tsx</code> na <code>ModalSheet</code></td><td>TermPage, ModalSheet, themeTokenUsage, themeDefects</td></tr>
+<tr><td>F2</td><td><code>pages/krag/PrivateGroupGate.tsx</code></td><td><span class="act chg">zmień</span> — zostaw szkielet, usuń gałęzie request/pending/rejected i polling</td><td>TermPage l.305-313,528-540,569-731,777-790</td></tr>
+<tr><td>F3</td><td><code>pages/krag/termAccess.ts</code></td><td><span class="act chg">zmień</span> — unia → <code>loginRequired | canEnterCode</code></td><td>termAccess l.25,37-50</td></tr>
+<tr><td>F4/F5</td><td><code>hooks/useTermAccess.ts</code>, <code>pages/krag/TermPage.tsx</code></td><td><span class="act keep">zostaw</span></td><td>—</td></tr>
+<tr><td>F6</td><td><code>hooks/usePendingJoinRequests.ts</code></td><td><span class="act del">usuń</span></td><td>PendingActionsHost, PublicLayout</td></tr>
+<tr><td>F7/F8</td><td><code>components/pending/PendingActionsHost.tsx</code>, <code>pendingActions.ts</code></td><td><span class="act chg">zmień</span> — wytnij gałąź join-request (swap/confirm zostają)</td><td>PendingActionsHost l.544-733 (8 usuń), PublicLayout l.122-147</td></tr>
+<tr><td>F9/F10</td><td><code>snoozeStore.ts</code>, <code>pendingActionResolved.ts</code></td><td><span class="act keep">zostaw</span></td><td>—</td></tr>
+<tr><td>F11</td><td><code>api/groups.ts</code></td><td><span class="act chg">zmień</span> — usuń l.461-516 i pole; dodaj <code>getJoinCode</code>/<code>regenerateJoinCode</code>/<code>redeemJoinCode</code></td><td>wszystkie mockujące</td></tr>
+<tr><td>F12</td><td><code>api/notifications.ts</code></td><td><span class="act chg">zmień</span> — 3 kindy + <code>join_request_id</code></td><td>PendingActionsHost l.562-574</td></tr>
+<tr><td>F13/F14</td><td><code>PublicLayout.tsx</code>, <code>AuthGateSheet.tsx</code></td><td><span class="act keep">zostaw</span></td><td>PublicLayout 2 asercje</td></tr>
+<tr><td>F15</td><td><code>pages/panel/GroupDetailsPage.tsx</code></td><td><span class="act chg">zmień</span> etykieta; <span class="act add">dodaj</span> <code>JoinCodeCard</code></td><td>GroupDetailsPage l.77, mock l.10-13</td></tr>
+<tr><td>F16/F17</td><td><code>GroupFormFields.tsx</code>, <code>CreateGroupStepper.tsx</code></td><td><span class="act chg">zmień</span> teksty; stepper pokazuje kod</td><td>CreateGroupStepper l.73-74,259,276,296</td></tr>
+<tr><td>F18/F19/F21</td><td><code>PanelDataContext.tsx</code>, <code>panelHelpers.ts</code>, <code>router.tsx</code></td><td><span class="act keep">zostaw</span> (+ <code>parseJoinCode</code>, <code>joinCodeLink</code> w helpers)</td><td>—</td></tr>
+<tr><td>F20</td><td><code>api/problem.ts</code></td><td><span class="act chg">zmień</span> — tekst 403, przepuść 429</td><td>—</td></tr>
+<tr><td>F22/F23</td><td><code>test/themeDefects.test.tsx</code>, <code>test/themeTokenUsage.test.tsx</code></td><td><span class="act chg">zmień</span> listy plików (ENOENT po usunięciu)</td><td>same</td></tr>
+</tbody></table>
+</details>
+
+<h2 id="model">Kryterium 2 — Model danych i API</h2>
+<div class="grid2">
+  <div class="card"><b>Storage</b><br><code>Group.join_code: String(9) | None</code>, bez indeksu, bez unikalności, bez wygaśnięcia, plaintext; lookup po <code>group_id</code> → <code>compare_digest</code>; nigdy w <code>GroupResponse</code>/<code>PublicCircleResponse</code>. Leniwe get-or-create przy GET organizatora. PRIVATE→PUBLIC nie czyści kodu (redeem i tak 404 dla PUBLIC).</div>
+  <div class="card"><b>Generowanie</b><br><code>"".join(secrets.choice("0123456789") for _ in range(9))</code>; regenerate nadpisuje (bump <code>updated_at</code> → 409 dla równoległego PATCH — istniejący handler). Nigdy z id (<code>organizer_slug</code> to jawnie "nie sekret").</div>
+  <div class="card"><b>Limiter</b><br>W procesie, klucz <code>(party_id, group_id)</code>, 10 nieudanych / 15 min, <code>time.monotonic()</code> → <code>TooManyAttemptsException</code> → 429 + <code>Retry-After</code>; precedens: magazyny OAuth2 w pamięci. Odrzucone: liczniki na <code>groups</code> (version col), osobna tabela, slowapi, nginx.</div>
+  <div class="card"><b>Migracje</b><br><code>0059_group_join_code</code> (addytywna) → <code>0060_drop_group_join_requests</code>: DELETE <code>GROUP_JOIN_%</code> → drop <code>notifications.join_request_id</code> → drop table; downgrade odtwarza kształt po 0041. Jeden test: downgrade 0058 → head.</div>
+</div>
+<div class="card">
+<table><thead><tr><th>Endpoint</th><th>Macierz</th><th>Service</th><th>Odpowiedzi</th></tr></thead><tbody>
+<tr><td><code>POST /api/groups/public/{id}/join-code</code> <code>{"code"}</code></td><td>nowy wiersz AUTHENTICATED (slot l.107-117, przed blanket EDIT l.135)</td><td>401 profil → 404 <code>get_group</code>/PUBLIC → 429 limiter → 409 <code>compare_digest</code> (ten sam komunikat dla "brak kodu") → <code>add_active_membership</code> jeśli nie członek → commit</td><td><code>200 {group_id, is_member, created}</code>; 400 tylko pattern</td></tr>
+<tr><td><code>GET /api/groups/{id}/join-code</code></td><td>wiersz 26 READ (bez zmian)</td><td>404 → <code>_require_active_organizer</code> 403 → PUBLIC 409 → get-or-create</td><td><code>200 {code}</code></td></tr>
+<tr><td><code>POST /api/groups/{id}/join-code/regenerate</code></td><td>wiersz 27 EDIT (bez zmian)</td><td>jw. + nadpisanie + commit</td><td><code>200 {code}</code></td></tr>
+</tbody></table>
+</div>
+
+<h2 id="format">Czy 9 cyfr wystarczy?</h2>
+<div class="card">
+<table><thead><tr><th>Format</th><th>Bity</th><th>Przestrzeń</th><th>Czas @10/min (per grupa)</th><th>Czas @10 prób/15 min</th></tr></thead><tbody>
+<tr><td><b>9 cyfr</b> (odniesienie użytkownika)</td><td>29,9</td><td>1,0e9</td><td>~95 lat</td><td>~1 400 lat</td></tr>
+<tr><td>6 cyfr (OTP)</td><td>19,9</td><td>1,0e6</td><td>~35 dni</td><td>~1,4 roku</td></tr>
+<tr><td>6 znaków Crockford</td><td>30,0</td><td>1,07e9</td><td>~102 lata</td><td>~1 500 lat</td></tr>
+<tr><td>8 znaków Crockford</td><td>40,0</td><td>1,10e12</td><td>~105 000 lat</td><td>—</td></tr>
+<tr><td>10 cyfr</td><td>33,2</td><td>1,0e10</td><td>~950 lat</td><td>~14 000 lat</td></tr>
+</tbody></table>
+<p><b>Werdykt:</b> <span class="pass">tak, warunkowo</span>. 9 cyfr = 6 znaków Crockford, 1000× więcej niż 6-cyfrowy OTP. Warunki: (1) weryfikacja <b>per grupa</b> — przy globalnym lookupie i 1 000 kodów koszt spada do ~35 dni; (2) <b>limiter per użytkownik</b> z 429 (NIST 5.1.2.2; per IP nie wystarcza — Firezone, Zealynx). Plusy UX: wzorzec <code>CapacityField</code> (<code>inputMode="numeric"</code>), klawiatura numeryczna, nawyk BLIK/PIN, brak normalizacji O/0. <b>Alternatywa:</b> 8 znaków Crockford (40 bitów) — jeśli zespół nie chce limitera w pierwszej iteracji. 9 cyfr bez limitera: <span class="fail">nie wdrażać</span>.</p>
+</div>
+
+<h2 id="ux">Kryterium 3 — UX</h2>
+<div class="grid2">
+  <div class="card"><b>Bramka (odwiedzający)</b><br>Szkielet <code>PrivateGroupGate</code> zostaje (nagłówek "Ta grupa jest prywatna" — testy kluczują). <code>loginRequired</code> bez zmian. <code>canEnterCode</code> → przycisk "Mam kod dostępu" → <code>JoinByCodeSheet</code> na <code>ModalSheet</code>: jedno pole <code>type="text" inputMode="numeric" pattern="[0-9]*" autoComplete="one-time-code"</code>, <code>parseJoinCode</code>, błąd <code>role="alert"</code> + <code>aria-invalid</code>, submit disabled gdy nieprawidłowy/busy. 409/429 inline, arkusz otwarty. Sukces: <code>await refetch()</code> → <code>view</code>, fokus na nagłówek, toast "Dołączono do grupy". Bez pollingu.</div>
+  <div class="card"><b>Link <code>?code=</code></b><br>Czytaj po załadowaniu <code>/access</code>; <code>view</code> → usuń param (<code>replace: true</code>); <code>loginRequired</code> → zostaw (wędruje w <code>returnTo</code>); <code>canEnterCode</code> → wypełnij i wyślij raz, potem usuń param. Link budowany z <code>origin + termPublicPath + ?code=</code>, nigdy z <code>location.href</code>.</div>
+  <div class="card"><b>Panel organizatora</b><br><code>JoinCodeCard</code> pod <code>GroupDetailsCard</code> (tylko PRIVATE, ukryj przy 403); hook <code>useJoinCode</code> klucz <code>["groupJoinCode", groupId, username]</code>, <code>regenerate()</code> z invalidacją; kod <code>123 456 789</code> w mono; "Kopiuj kod" / "Kopiuj link z kodem" / "Wygeneruj nowy kod" (arkusz potwierdzenia). Stepper (PRIVATE domyślne!) pokazuje kod na ekranie końcowym.</div>
+  <div class="card"><b>Teksty PL</b><br>"Wpisz kod dostępu od organizatora, aby dołączyć." · "Mam kod dostępu" · "Kod dostępu" / "Dołącz" / "Dołączanie…" · "Nieprawidłowy kod dostępu — sprawdź i spróbuj ponownie" · "Za dużo prób — spróbuj ponownie za kilkanaście minut" · "Prywatna — (dostęp z kodem)" · "Grupa jest prywatna — dołączą tylko osoby, którym podasz kod dostępu." Pełna lista: md §6.4.</div>
+</div>
+
+<h2 id="flow">Przepływ odwiedzającego: link → kod → członek → RSVP</h2>
+<div class="flow">
+  <div class="step new"><b>1 · nowe</b>Organizator kopiuje link z <code>?code=</code> (karta / stepper)</div>
+  <div class="step"><b>2</b><code>TermPage</code> → <code>GET /access</code> → odpowiedź zredukowana</div>
+  <div class="step"><b>3</b>Anonim → <code>/login?returnTo=…?code=</code> → powrót z kodem</div>
+  <div class="step new"><b>4 · zmiana</b><code>canEnterCode</code>; <code>?code=</code> wypełnia i wysyła raz</div>
+  <div class="step new"><b>5 · nowe</b><code>POST …/join-code</code> → <code>add_active_membership</code> → 200</div>
+  <div class="step"><b>6</b><code>refetch()</code> → <code>/access</code> pełny → <code>PublicTermView</code></div>
+  <div class="step"><b>7</b><code>POST /rsvp</code> → strażnik PRIVATE: członek → 201</div>
+  <div class="step"><b>8</b>Członkostwo trwałe; kolejne wizyty bez kodu</div>
+</div>
+<p class="muted">Każdy krok poza 1/4/5 istnieje i jest testowany dziś (<code>test_group_access.py:366-391</code> dowodzi approve → RSVP 201). Brzegowe: wygasły token → 401 → <code>returnTo</code> z kodem; grupa soft-deleted → 404 wszędzie; regeneracja nie usuwa członków.</p>
+
+<h2 id="risks">Kryterium 4 — Ryzyka i decyzje</h2>
+<div class="card">
+<table><thead><tr><th>#</th><th>Ryzyko</th><th>Waga</th><th>Mitigacja</th></tr></thead><tbody>
+<tr><td>R1</td><td>PENDING przepadają przy 0060</td><td><span class="sev warning">warning</span></td><td>skrypt auto-approve przed wdrożeniem lub świadome porzucenie (pre-prod); nie da się w SQL migracji</td></tr>
+<tr><td>R2</td><td>Zgadywanie kodu (brak limitera dziś)</td><td><span class="sev critical">critical</span> bez limitera</td><td>limiter + 429 obowiązkowe dla 9 cyfr; alternatywnie 8 Crockford</td></tr>
+<tr><td>R3</td><td>Wyciek <code>?code=</code> (historia, referrer, notatki)</td><td><span class="sev info">info</span></td><td>strip <code>replace: true</code>; regeneracja jednym kliknięciem</td></tr>
+<tr><td>R4</td><td>Podwójne wysłanie → 2 aktywne Membership (OQ-8)</td><td><span class="sev info">info</span></td><td><code>disabled={busy}</code>; guard; opcjonalny partial unique index osobną rewizją</td></tr>
+<tr><td>R5</td><td>Regenerate bumpuje <code>updated_at</code> → 409 równoległego PATCH</td><td><span class="sev info">info</span></td><td>istniejący handler + komunikat</td></tr>
+<tr><td>R6</td><td><code>returnTo</code> open redirect (OQ-10)</td><td><span class="sev warning">warning</span></td><td>walidacja <code>startsWith("/")</code></td></tr>
+<tr><td>R7</td><td>Luki prywatności API poza <code>/access</code> (OQ-9)</td><td><span class="sev warning">warning</span></td><td>osobne zadanie (nigdy nie założone)</td></tr>
+<tr><td>R8</td><td>Reset limitera po restarcie</td><td><span class="sev info">info</span></td><td>pomijalne wobec 10^9</td></tr>
+<tr><td>R9/R10</td><td>Dryf prozy / rollback 0060 bez danych</td><td><span class="sev info">info</span></td><td>lista w md §4.5; docstring rewizji</td></tr>
+</tbody></table>
+</div>
+<div class="card">
+<h3>Decyzje operatora (D1–D8)</h3>
+<table class="decision"><thead><tr><th>#</th><th>Decyzja</th><th>Rekomendacja</th><th>Alternatywa</th></tr></thead><tbody>
+<tr><td>D1</td><td>Format kodu</td><td><b>9 cyfr</b> + limiter</td><td>8 znaków Crockford (40 bitów)</td></tr>
+<tr><td>D2</td><td>Limiter w 1. iteracji</td><td><b>tak</b>, in-process 10/15 min</td><td>odłożyć → D1 = Crockford 8 lub ≥10 cyfr</td></tr>
+<tr><td>D3</td><td>Wiersze PENDING</td><td><b>porzucić</b> (pre-prod) z informacją</td><td>skrypt auto-approve</td></tr>
+<tr><td>D4</td><td>Powiadomienie "X dołączył(a)"</td><td><b>nie</b></td><td>nowy kind ≤30 znaków</td></tr>
+<tr><td>D5</td><td>Pierwsze wygenerowanie</td><td><b>leniwie</b> przy GET</td><td>eagerly + backfill 0061</td></tr>
+<tr><td>D6</td><td><code>?code=</code></td><td><b>auto-submit raz</b></td><td>tylko prefill</td></tr>
+<tr><td>D7</td><td>Unikalność członkostw (OQ-8)</td><td>poza zakresem</td><td>dołożyć teraz</td></tr>
+<tr><td>D8</td><td>Przechowywanie</td><td><b>plaintext</b></td><td>sha256 + pokazanie raz</td></tr>
+</tbody></table>
+</div>
+
+<h2 id="insights">Kluczowe wnioski</h2>
+<div class="grid2">
+  <div class="card insight"><b>Zmiana to głównie usuwanie</b><br>Nowy backend: 1 use-case, 1 router, 1 kolumna, 1 wyjątek, 1 wiersz macierzy, 6–8 testów. Usunięcie: ~280 linii use-case'ów, 91 routera, 76 repo, 41 testów. <span class="conf high">wysoka</span></div>
+  <div class="card insight"><b>9 cyfr wystarcza warunkowo</b><br>29,9 bita = 6 Crockford; z weryfikacją per grupa i limiterem ~1 400 lat na konto. Bez limitera — Crockford 8. <span class="conf medium">średnia-wysoka</span></div>
+  <div class="card insight"><b>E2E istnieje poza jednym krokiem</b><br>Link → bramka → login z <code>?code=</code> → … → RSVP 201 działa dziś; brakuje tylko "kod → Membership". <span class="conf high">wysoka</span></div>
+  <div class="card insight"><b>Nowe UI żyje po stronie organizatora</b><br><code>GroupDetailsPage</code> (ukryj przy 403) i ekran końcowy steppera — PRIVATE jest domyślne, więc większość organizatorów spotka kod właśnie tam. <span class="conf high">wysoka</span></div>
+  <div class="card insight"><b>Brute force zastępuje spam powiadomień</b><br>Jedyna kontrola DEV24 (cooldown 24 h) znika; limiter + 429 to kontrola kompensująca entropię, nie opcja. <span class="conf high">wysoka</span></div>
+  <div class="card insight"><b>Migracja niskiego ryzyka</b><br>Brak FK z <code>notifications</code>; tylko 0037/0038/0041 dotykają tabeli; jedyne ryzyko danych to PENDING. <span class="conf high">wysoka</span></div>
+</div>
+
+<h2 id="swot">SWOT</h2>
+<div class="swot">
+  <div class="card s"><b>Mocne strony</b><ul><li>zero zmian w RSVP / <code>/access</code> / stronie organizatora</li><li>brak nowych zależności</li><li>wszystkie szkielety UI istnieją</li><li>wynik synchroniczny — bez pollingu i powiadomień</li></ul></div>
+  <div class="card w"><b>Słabe strony</b><ul><li>sekret współdzielony — odwołanie tylko przez regenerację dla wszystkich</li><li>plaintext w DB</li><li>limiter w pamięci resetuje się z procesem</li></ul></div>
+  <div class="card o"><b>Szanse</b><ul><li>zamknąć OQ-8 (unikalność członkostw)</li><li>walidacja <code>returnTo</code></li><li>pierwszy E2E na dwóch kontach</li></ul></div>
+  <div class="card t"><b>Zagrożenia</b><ul><li>wdrożenie 9 cyfr bez limitera</li><li>PENDING porzucone bez komunikacji</li><li>luki prywatności API (OQ-9) dają fałszywe poczucie prywatności</li></ul></div>
+</div>
+
+<h2 id="readiness">Kryterium 5 — Gotowość do /maister:development</h2>
+<div class="card">
+<p><span class="pass">Gotowe</span> — specyfikacja może powstać bez kolejnej analizy. Kolejność grup zadań:</p>
+<ol>
+<li>Backend — model + migracja 0059 + test migracji</li>
+<li>Backend — <code>application/join_code.py</code> (3 use case'y + limiter), router, wiersz macierzy, 429, <code>tests/test_group_join_code.py</code></li>
+<li>Backend — usunięcie B1–B12, migracja 0060, testy, proza</li>
+<li>Frontend — odwiedzający (<code>api/groups.ts</code>, <code>termAccess.ts</code>, bramka, <code>JoinByCodeSheet</code>, <code>?code=</code>, <code>problem.ts</code>)</li>
+<li>Frontend — organizator (<code>useJoinCode</code>, <code>JoinCodeCard</code>, stepper, etykiety)</li>
+<li>Frontend — usunięcie (dialog, hook, gałąź pending, kindy, listy theme, przepisane testy)</li>
+<li>Weryfikacja — pełne suity + E2E na dwóch kontach (nigdy nie wykonany dla poprzedniego mechanizmu)</li>
+</ol>
+<details><summary>Standardy do dotknięcia w specyfikacji</summary>
+<p><code>models.md</code> A1/A3/A4/A6 · <code>migrations.md</code> B1–B8 · <code>security.md</code> C1–C3 · <code>error-handling.md</code> D6 · <code>time.md</code> E2 (brak <code>datetime.now</code>; limiter na <code>time.monotonic</code>) · <code>validation.md</code> F1–F5 · <code>data-fetching.md</code> G1–G6 · <code>accessibility.md</code> H1–H5 · <code>backend-testing.md</code>/<code>frontend-testing.md</code> I1–I10 · <code>minimal-implementation.md</code> J1 (bez stubów na expiry / max-uses / per-invite).</p>
+</details>
+</div>
+
+<h2 id="gaps">Luki i niepewności</h2>
+<div class="card">
+<table><thead><tr><th>Luka</th><th>Wpływ</th></tr></thead><tbody>
+<tr><td><code>external-product-patterns.md</code> nie powstał — Google Classroom / Slack z drugiej ręki</td><td>niski; rekomendacja na arytmetyce i standardach</td></tr>
+<tr><td>Wpływ na testy wywnioskowany z mocków, nie uruchomiony</td><td>średni; development uruchamia suity przed usuwaniem</td></tr>
+<tr><td>nginx (<code>limit_req</code>?) nie badany</td><td>niski; limiter aplikacyjny i tak konieczny</td></tr>
+<tr><td>Czy GUEST przechodzi <code>require_any()</code> bez argumentów</td><td>niski; identyczna zależność jak stare <code>create</code></td></tr>
+<tr><td>Tempo prób w tabelach to założenia</td><td>średni dla D1/D2; arytmetyka deterministyczna</td></tr>
+<tr><td>Status PG20 vs istniejący <code>GroupDetailsPage.tsx</code></td><td>niski; strona istnieje w kodzie</td></tr>
+</tbody></table>
+</div>
+
+<details><summary>Źródła i cytowania</summary>
+<p><b>Findings:</b> <code>analysis/findings/codebase-backend-removal-inventory.md</code>, <code>codebase-backend-membership-and-gating.md</code>, <code>codebase-backend-reusable-and-migrations.md</code>, <code>codebase-frontend-removal-inventory.md</code>, <code>codebase-frontend-reusable-patterns.md</code>, <code>codebase-frontend-polish-copy.md</code>, <code>docs-standards-design-checklist.md</code>, <code>docs-standards-config-inventory.md</code>, <code>prior-research-decisions.md</code>, <code>prior-research-timeline.md</code>, <code>external-code-format-entropy.md</code>; synteza: <a href="../analysis/synthesis.md" target="_blank" rel="noopener">analysis/synthesis.md</a>.</p>
+<p><b>Zewnętrzne:</b> docs.python.org/3/library/secrets.html · crockford.com/base32.html · NIST SP 800-63B §5.1.2/§5.2.2 · oauth.com device-flow security considerations · Firezone FZ-2026-007 · CVE-2025-47781 · Zealynx F-2026-0007 · misskey#11156.</p>
+<p><b>Wcześniejsze prace:</b> RR23 (2026-09-23), DEV22, DEV24, QW13, SD14, PG20, PROMO22 — 26 decyzji KEEP/CHANGE/DROP, 12 pytań otwartych (OQ-1…12).</p>
+</details>
+
+</main>
+</body>
+</html>

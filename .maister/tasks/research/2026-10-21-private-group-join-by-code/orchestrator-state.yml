@@ -1,0 +1,297 @@
+orchestrator:
+  started_phase: phase-6
+  completed_phases:
+  - phase-1
+  - phase-2
+  - phase-3
+  - phase-4
+  - phase-5
+  - phase-6
+  failed_phases: []
+  auto_fix_attempts:
+    phase-1: 0
+    phase-2: 0
+    phase-3: 0
+    phase-4: 0
+    phase-5: 0
+    phase-6: 0
+  options:
+    html_output: true
+    brainstorming_enabled: true
+    design_enabled: true
+  created: '2026-10-21T06:38:36Z'
+  updated: '2026-10-21T08:55:08Z'
+  task_path: .maister/tasks/research/2026-10-21-private-group-join-by-code
+  task_ids: {}
+task:
+  title: Dołączanie do grupy prywatnej przez kod (zastąpienie 'poproś o dostęp')
+  description: 'Poprawić zapisywanie się na termin do grupy prywatnej: dostęp przez kod (wzorzec z innej aplikacji: 9-cyfrowy kod wygenerowany/udostępniony przez organizatora) zamiast obecnego ''wyślij
+    prośbę o dostęp'' (GroupJoinRequest).'
+  status: completed
+  tags:
+  - groups
+  - private
+  - join-code
+  - join-requests-removal
+  priority: null
+research_context:
+  research_type: mixed
+  research_question: Jak dobrze zaimplementować dołączanie do grupy prywatnej przez kod dostępu, rezygnując z mechanizmu 'poproś o dostęp' (GroupJoinRequest)?
+  scope:
+    included:
+    - join-requests current impl (backend/frontend/tests/migrations/notifications)
+    - membership model
+    - private gating
+    - prior research 2026-09-23
+    - invite-code best practices
+    - removal plan
+    excluded:
+    - per-user invites
+    - email invites
+    - SSO
+    - public groups changes
+    - implementation
+    constraints:
+    - project standards in .maister/docs/standards
+    - no secrets in output
+    - 'user-observed reference pattern: 9-digit numeric code generated/shared by the organizer (evaluate, not mandate)'
+  project_doc_paths:
+  - .maister/docs/project/tech-stack.md
+  - .maister/docs/project/architecture.md
+  methodology:
+  - codebase-analysis (iterative deepening)
+  - documentation-synthesis
+  - prior-decision review (KEEP/CHANGE/DROP)
+  - literature-review
+  sources:
+  - codebase-backend
+  - codebase-frontend
+  - docs-standards
+  - prior-research
+  - external
+  confidence_level: high
+  gathering_strategy:
+    categories:
+    - codebase-backend
+    - codebase-frontend
+    - docs-standards
+    - prior-research
+    - external
+    count: 5
+    source: planner
+  phase_summaries:
+    phase-1:
+      summary: 'Removal map of ''poproś o dostęp'' (13 backend modules, 23 frontend files, 7 backend test files) and a join-by-code design: plaintext groups.join_code verified per group, lazy generation,
+        organizer-only rotation, in-process attempt limiter with 429; 9 digits adequate only with the limiter, else 8-char Crockford Base32.'
+      steps_completed:
+      - init
+      - plan
+      - gather
+      - synthesize
+      decisions:
+      - decision: Weryfikacja kodu per grupa (POST /api/groups/public/{id}/join-code)
+        rationale: cel ataku to jeden kod, pełna przestrzeń 10^9; brak potrzeby globalnego indeksu unikalnego
+      - decision: Kod w plaintext na groups
+        rationale: organizator musi go podejrzeć i skopiować; hash wyklucza ten UX, a sekret ma niską wartość i jest odwoływalny przez regenerację
+      - decision: Leniwe get-or-create przy GET /api/groups/{id}/join-code
+        rationale: brak backfillu i brak nowego efektu ubocznego przy tworzeniu/przełączaniu widoczności
+      - decision: Limiter prób w procesie + nowy wyjątek/handler 429
+        rationale: spójne z jednoinstancyjnymi magazynami OAuth2 w pamięci; licznik w DB walczyłby z blokadą optymistyczną updated_at na groups
+      - decision: 'Kolejność błędów: 401 → 404 (grupa nieznana/usunięta/PUBLIC) → 429 → 409 (zły kod, jeden komunikat PL) → 200 (idempotentne, także dla członka)'
+        rationale: spójna polityka 404-przed-403 i idempotencja
+      - decision: 'Migracje: 0059 (dodanie groups.join_code) przed 0060 (drop group_join_requests + notifications.join_request_id + usunięcie wierszy GROUP_JOIN_%)'
+        rationale: kolejność zależności FK i rozdzielenie zmian addytywnych od destrukcyjnych
+      risks:
+      - Istniejące wiersze PENDING w group_join_requests przepadają przy dropie; jedyna alternatywa to skrypt zatwierdzający je przez stare approve_join_request przed wdrożeniem.
+      - Brak ograniczenia unikalności aktywnych Membership (OQ-8) — podwójne wysłanie kodu może utworzyć dwa aktywne wiersze; jedyna ochrona to _is_active_member + blokada przycisku w trakcie żądania.
+      - returnTo nie jest walidowane jako ścieżka same-origin (OQ-10) — link ?code= przechodzący przez logowanie dziedziczy ryzyko open redirect.
+      - Luki prywatności poza /access (/api/terms, /api/pledges, /api/needed-items, lista członkostw — OQ-9) pozostają nietknięte.
+      - 'Wybór 9 cyfr vs 8 znaków Crockford jest decyzją produktową: 9 cyfr tylko z limiterem; external-product-patterns.md nie powstał, więc odniesienia do Google Classroom/Slack są z drugiej ręki.'
+      artifacts:
+      - path: outputs/research-report.md
+        label: Research report
+        html: outputs/research-report.html
+      - path: analysis/synthesis.md
+        label: Synthesis (reasoning log)
+        html: null
+      - path: planning/research-brief.md
+        label: Research brief
+        html: null
+      - path: planning/research-plan.md
+        label: Research plan
+        html: null
+      - path: planning/sources.md
+        label: Sources manifest
+        html: null
+      - path: analysis/findings/codebase-backend-removal-inventory.md
+        label: Backend removal inventory
+        html: null
+      - path: analysis/findings/codebase-backend-membership-and-gating.md
+        label: Backend membership & gating
+        html: null
+      - path: analysis/findings/codebase-backend-reusable-and-migrations.md
+        label: Backend reusable precedents & migrations
+        html: null
+      - path: analysis/findings/codebase-frontend-removal-inventory.md
+        label: Frontend removal inventory
+        html: null
+      - path: analysis/findings/codebase-frontend-reusable-patterns.md
+        label: Frontend reusable patterns
+        html: null
+      - path: analysis/findings/codebase-frontend-polish-copy.md
+        label: Frontend Polish copy
+        html: null
+      - path: analysis/findings/docs-standards-design-checklist.md
+        label: Standards design checklist
+        html: null
+      - path: analysis/findings/docs-standards-config-inventory.md
+        label: Config inventory
+        html: null
+      - path: analysis/findings/prior-research-decisions.md
+        label: Prior decisions KEEP/CHANGE/DROP
+        html: null
+      - path: analysis/findings/prior-research-timeline.md
+        label: Prior research timeline
+        html: null
+      - path: analysis/findings/external-code-format-entropy.md
+        label: 'External: code format & entropy'
+        html: null
+      gate:
+        question: Research foundation complete. Continue to brainstorming evaluation?
+        answer: Continue
+    phase-2:
+      summary: 'Both optional phases enabled by the user: brainstorming (competing trade-offs on code format/limiter/storage) and high-level design (feeds /maister:development).'
+      decisions:
+      - decision: brainstorming_enabled=true
+        rationale: user chose to explore alternatives
+      - decision: design_enabled=true
+        rationale: user chose to generate design + ADR log
+      risks: []
+      artifacts: []
+    phase-3:
+      summary: 8 decision areas, 31 alternatives; recommended 1A+2A+3A+4A+5A+6A+7A+8A (9 digits + in-process limiter, plaintext groups.join_code, lazy generation, JoinByCodeSheet, abandon PENDING, idempotent
+        200, JoinCodeCard).
+      decisions: []
+      risks: []
+      artifacts:
+      - path: outputs/solution-exploration.md
+        label: Solution exploration
+        html: outputs/solution-exploration.html
+    phase-4:
+      summary: 'User converged on all 8 areas: 6-digit code (user correction from 9) + per-(user,group) and per-group in-process limiter (429), plaintext groups.join_code, lazy generation + organizer regenerate,
+        JoinByCodeSheet with ?code= auto-submit, full removal of join requests in 0060 (not in production), 401→404→429→409→200 idempotent, JoinCodeCard on group page + stepper.'
+      decisions:
+      - decision: Kod 6-cyfrowy z limiterem per (user, group) i per grupa (6B)
+        rationale: użytkownik wskazał 6 cyfr jako wzorzec; per-grupowy limit niezależny od liczby kont
+      - decision: Kod jako jawna kolumna groups.join_code (2A)
+        rationale: organizer musi móc podejrzeć/skopiować; hash 6 cyfr i tak trywialny do odwrócenia
+      - decision: Limiter w pamięci procesu (3A)
+        rationale: jeden proces uvicorn, precedens OAuth2 stores, brak migracji
+      - decision: Leniwe generowanie + regeneracja przez organizatora (4A)
+        rationale: brak migracji danych i nowych efektów ubocznych w tworzeniu/edycji grupy
+      - decision: Arkusz JoinByCodeSheet + ?code= auto-submit (5A)
+        rationale: najkrótsza ścieżka link → członek → zapis na termin; reużycie ModalSheet (a11y)
+      - decision: Usunąć wszystko związane z prośbami o dostęp w 0060 (6A)
+        rationale: aplikacja nie jest na produkcji; użytkownik chce pełnego usunięcia
+      - decision: 401→404→429→409 ogólny→200 idempotentne (7A)
+        rationale: brak wyroczni o kodzie, polski komunikat przez serverMessageOr, link z kodem bez błędu dla członków
+      - decision: JoinCodeCard na stronie grupy i w kreatorze (8A)
+        rationale: kod dostępny przy pierwszym kontakcie i przy powrocie; sekret poza ogólnym DTO
+      risks:
+      - 6 cyfr (~20 bitów) — bezpieczeństwo w całości zależy od limitera per grupa; celowe wyczerpanie limitu grupy blokuje prawdziwych gości do 1 h.
+      - Limiter w pamięci zeruje się przy restarcie i osłabnie, jeśli kiedyś pojawi się >1 worker uvicorn.
+      - Brak unikalności aktywnych Membership (OQ-8) — podwójne wysłanie może utworzyć dwa wiersze.
+      - returnTo nie jest walidowane same-origin (OQ-10).
+      artifacts: []
+      decision_areas:
+      - area: 1. Code format & brute-force protection
+        alternatives_count: 4
+        chosen_approach: '6 cyfr (korekta użytkownika: wzorzec z aplikacji to 6, nie 9 cyfr) + limiter per (user, group) 10 błędów/15 min + limiter per grupa 30 błędów/h (wariant 6B); ~1,9 roku średnio
+          niezależnie od liczby kont; ryzyko: celowe wyczerpanie limitu grupy blokuje wejście do 1 h'
+      - area: 2. Where the code lives
+        alternatives_count: 4
+        chosen_approach: '2A: plaintext nullable groups.join_code String(6), bez indeksu, weryfikacja po group_id + compare_digest, nie eksponowany w publicznych odpowiedziach'
+      - area: 3. Attempt limiter placement
+        alternatives_count: 4
+        chosen_approach: '3A: in-process dict, sliding window (time.monotonic), dwa klucze: (party_id, group_id) 10/15 min i group_id 30/h; check przed porównaniem kodu; 429 + Retry-After; backend potwierdzony
+          jako jeden proces uvicorn (docker-compose.yml:45, Dockerfile:50)'
+      - area: 4. Generation & rotation semantics
+        alternatives_count: 4
+        chosen_approach: '4A: leniwe get-or-create przy GET /api/groups/{id}/join-code (organizator), regeneracja tylko jawną akcją organizatora z potwierdzeniem; bez wygasania, bez backfillu'
+      - area: 5. Visitor UX for code entry on the TermPage gate
+        alternatives_count: 4
+        chosen_approach: '5A: JoinByCodeSheet na ModalSheet otwierany przyciskiem "Mam kod dostępu"; jedno pole 6 cyfr (inputMode numeric, autoComplete one-time-code); ?code= prefill + jednorazowy auto-submit,
+          potem strip z URL (replace); niezalogowany przechodzi logowanie z returnTo zachowującym ?code='
+      - area: 6. Migration/cutover of existing PENDING join requests
+        alternatives_count: 4
+        chosen_approach: '6A bez sprawdzania przed wdrożeniem i bez skryptu awaryjnego: aplikacja nie jest na produkcji (potwierdzone przez użytkownika); 0060 usuwa wszystko związane z prośbami (powiadomienia
+          GROUP_JOIN_*, notifications.join_request_id, tabela group_join_requests) + całe drzewo kodu backend/frontend/testy'
+      - area: 7. Response semantics for redeem
+        alternatives_count: 3
+        chosen_approach: '7A: 401 → 404 (grupa nieznana/usunięta/PUBLIC) → 429 (limiter) → 409 jeden polski komunikat (zły kod / brak kodu) → 200 idempotentne {created: true|false}'
+      - area: 8. Organizer surface placement and gating
+        alternatives_count: 4
+        chosen_approach: '8A: JoinCodeCard na GroupDetailsPage + ekran końcowy CreateGroupStepper (Kopiuj kod / Kopiuj link z kodem / Wygeneruj nowy kod z potwierdzeniem); karta ukryta przy 403; kod nigdy
+          w GroupResponse'
+      deferred_ideas:
+      - Hybryda z akceptacją organizatora (poza zakresem)
+      - Tabela kodów per zaproszenie z wygasaniem/max-uses
+      - Powiadomienie organizatora "X dołączył(a) kodem"
+      - Partial unique index na aktywnych membership (OQ-8)
+      - Walidacja returnTo startsWith("/") (OQ-10)
+      - nginx limit_req jako dodatkowa warstwa
+      - Limiter w DB przy skalowaniu na wiele procesów
+      - is_organizer w GroupResponse
+      - '"Kopiuj link z kodem" na publicznej stronie terminu (8D)'
+      - UI usuwania członka + regeneracja kodu
+      - Luki prywatności poza /access (OQ-9)
+      - Znacznik "wygenerowano …" na karcie
+      gate:
+        question: Brainstorming complete. Continue to high-level design?
+        answer: Continue
+    phase-5:
+      summary: 'Modular monolith design in the groups BC: 6-digit plaintext groups.join_code, dual in-process limiter (429), lazy organizer GET + regenerate, JoinByCodeSheet with ?code= auto-submit, JoinCodeCard,
+        migrations 0059/0060 removing join requests entirely; 8 ADRs.'
+      architecture_style: modular monolith (groups BC, router/use case/repository) + React SPA
+      decisions_count: 8
+      decisions:
+      - decision: 6-digit numeric code + dual in-process limiter (variant 6B)
+        rationale: user corrected the reference from 9 to 6 digits; the per-group key bounds guessing at ~1.9 years expected regardless of how many accounts attack (ADR-001)
+      - decision: Plaintext nullable groups.join_code String(6), no index, never in public/general DTOs
+        rationale: organizer must re-read and copy it; a hash of 10^6 values is trivially reversible anyway (ADR-002)
+      - decision: Limiter as a module-level sliding-window store on time.monotonic with an injectable clock, new TooManyAttemptsException → 429 + Retry-After
+        rationale: single uvicorn process, no dependency, no DB writes on failures (ADR-003)
+      - decision: Lazy get-or-create on organizer GET /api/groups/{id}/join-code, explicit regenerate with confirm, no expiry, no backfill
+        rationale: ADR-004
+      - decision: JoinByCodeSheet on the shared ModalSheet, opened from a new canEnterCode gate branch; ?code= prefill + one-shot auto-submit, then strip
+        rationale: ADR-005
+      - decision: 'Full removal of join requests (app is not in production): code tree, GROUP_JOIN_* kinds, notifications.join_request_id, group_join_requests in revision 0060; no pre-deploy count check'
+        rationale: ADR-006
+      - decision: Redeem error order 401 → 404 → 429 → 409 (one generic Polish message) → 200 idempotent {created}
+        rationale: ADR-007
+      - decision: JoinCodeCard on GroupDetailsPage and on the CreateGroupStepper done screen, hidden when the GET returns 403
+        rationale: ADR-008
+      risks:
+      - 'Brute-force residual risk is real, not negligible: with the group capped at 30 guesses/h, an attacker who sustains the attack succeeds with ≈2.2 % probability per 30 days and ≈26 % per year. Expected
+        time ≈1.9 years. Accepted by the user; regeneration does not reset this risk, it only revokes a leaked code.'
+      - 'Accepted DoS: anyone with an account can deliberately exhaust a group''s 30-failure budget and block legitimate visitors (including ones holding the right code) for up to 1 h; a single account
+        can do it alone in ~45 min. Organizer regeneration does not lift the block — it lapses on its own.'
+      - Limiter state is lost on restart and would weaken linearly if uvicorn ever runs with --workers > 1.
+      - Which term does "Kopiuj link z kodem" target on GroupDetailsPage? The page loads no terms today. To be settled in the specification.
+      - 'No uniqueness on active memberships (OQ-8): a double submit can create two active Membership rows.'
+      - returnTo is not validated as a same-origin path (OQ-10).
+      artifacts:
+      - path: outputs/high-level-design.md
+        label: High-level design
+        html: outputs/high-level-design.html
+      - path: outputs/decision-log.md
+        label: Decision log (8 ADRs)
+        html: outputs/decision-log.html
+      gate:
+        question: Design complete. Continue to output generation?
+        answer: Continue
+    phase-6:
+      summary: Research completed; all artifacts reconciled against disk.
+      decisions: []
+      risks: []
+      artifacts: []

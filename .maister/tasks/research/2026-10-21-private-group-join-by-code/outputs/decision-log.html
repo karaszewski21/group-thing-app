@@ -1,0 +1,531 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Decision Log — Join a PRIVATE group by access code</title>
+<style>
+:root {
+  --bg:#f6f7f9; --surface:#fff; --border:#e2e5ea; --text:#1a1d23; --dim:#6b7280;
+  --accent:#4f46e5; --accent-soft:#eef2ff; --ok:#16a34a; --ok-soft:#ecfdf3;
+  --warn:#d97706; --warn-soft:#fffbeb; --crit:#dc2626; --crit-soft:#fef2f2;
+  --info:#2563eb; --info-soft:#eff6ff; --radius:10px;
+}
+@media (prefers-color-scheme: dark) {
+  :root { --bg:#111418; --surface:#1a1f26; --border:#2e3640; --text:#e6e9ee; --dim:#9aa4b2;
+    --accent:#818cf8; --accent-soft:#26294a; --ok:#4ade80; --ok-soft:#11291a;
+    --warn:#fbbf24; --warn-soft:#2e2410; --crit:#f87171; --crit-soft:#321616;
+    --info:#60a5fa; --info-soft:#15233a; }
+}
+* { box-sizing:border-box; }
+body { margin:0 auto; max-width:1100px; padding:24px 20px 64px; background:var(--bg);
+  color:var(--text); font:14px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif; }
+a { color:var(--accent); text-decoration:none; } a:hover { text-decoration:underline; }
+h1 { font-size:22px; letter-spacing:-.01em; } h2 { font-size:16px; margin-top:28px; }
+.card { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius);
+  padding:16px 18px; margin:14px 0; }
+.badge { display:inline-block; font-size:11px; font-weight:600; text-transform:uppercase;
+  letter-spacing:.04em; padding:2px 8px; border-radius:99px; background:var(--accent-soft); color:var(--accent); }
+.sev { display:inline-block; font-size:10.5px; font-weight:700; text-transform:uppercase;
+  padding:1.5px 7px; border-radius:99px; margin-right:6px; }
+.sev.critical { background:var(--crit-soft); color:var(--crit); }
+.sev.warning  { background:var(--warn-soft); color:var(--warn); }
+.sev.info     { background:var(--info-soft); color:var(--info); }
+.pass { color:var(--ok); font-weight:600; } .fail { color:var(--crit); font-weight:600; }
+table { width:100%; border-collapse:collapse; }
+th, td { text-align:left; padding:7px 10px; border-bottom:1px solid var(--border); vertical-align:top; }
+th { font-size:11.5px; text-transform:uppercase; letter-spacing:.04em; color:var(--dim); }
+code { font-family:ui-monospace,SFMono-Regular,Menlo,monospace; font-size:12.5px;
+  background:var(--accent-soft); padding:1px 5px; border-radius:4px; }
+img.shot { max-width:100%; border:1px solid var(--border); border-radius:var(--radius); }
+details > summary { cursor:pointer; font-weight:600; }
+
+.crumbs { display:flex; gap:14px; font-size:13px; margin-bottom:18px; flex-wrap:wrap; }
+.crumbs a.md { margin-left:auto; color:var(--dim); }
+.crumbs .here { font-weight:650; color:var(--text); }
+.tiles { display:flex; gap:10px; flex-wrap:wrap; margin:14px 0; }
+.tile { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius);
+  padding:10px 16px; text-align:center; min-width:90px; }
+.tile b { display:block; font-size:20px; letter-spacing:-.01em; }
+.tile span { font-size:10.5px; text-transform:uppercase; letter-spacing:.05em; color:var(--dim); }
+
+header h1 { margin:0 0 6px; }
+header .meta { font-size:13px; color:var(--dim); display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
+.tldr h2 { margin-top:0; }
+.tldr h3 { font-size:13px; text-transform:uppercase; letter-spacing:.05em; color:var(--dim); margin:16px 0 6px; }
+.tldr ul { margin:0; padding-left:20px; }
+.tldr li { margin:4px 0; }
+.tldr .risks { list-style:none; padding-left:0; }
+.toc { font-size:13px; color:var(--dim); margin:10px 0 4px; line-height:1.9; }
+.badge.accepted { background:var(--ok-soft); color:var(--ok); }
+.adr { scroll-margin-top:16px; }
+.adr-head { display:flex; justify-content:space-between; align-items:flex-start; gap:12px; flex-wrap:wrap; }
+.adr-head h2 { margin:0; font-size:16px; }
+.adr-head .num { color:var(--dim); font-weight:600; margin-right:6px; }
+.adr h3 { font-size:12px; text-transform:uppercase; letter-spacing:.05em; color:var(--dim); margin:16px 0 6px; }
+.adr p { margin:6px 0; }
+.adr ul { margin:4px 0; padding-left:22px; }
+.adr li { margin:3px 0; }
+ol.options { list-style:none; padding-left:0; margin:4px 0; counter-reset:opt; }
+ol.options li { counter-increment:opt; padding:6px 10px 6px 34px; border:1px solid var(--border);
+  border-radius:8px; margin:5px 0; position:relative; color:var(--dim); }
+ol.options li::before { content:counter(opt); position:absolute; left:12px; top:6px; font-weight:700; }
+ol.options li.chosen { color:var(--text); border-color:var(--accent); background:var(--accent-soft);
+  font-weight:600; padding-right:80px; }
+ol.options li.chosen::after { content:"chosen"; position:absolute; right:10px; top:7px; font-size:10px;
+  font-weight:700; text-transform:uppercase; letter-spacing:.05em; color:var(--accent); }
+.outcome { border-left:3px solid var(--accent); padding:4px 0 4px 12px; }
+.outcome table { margin:8px 0; }
+.conseq { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+@media (max-width:720px) { .conseq { grid-template-columns:1fr; } }
+.conseq > div { border-radius:8px; padding:10px 12px; }
+.conseq .good { background:var(--ok-soft); }
+.conseq .bad { background:var(--crit-soft); }
+.conseq h4 { margin:0 0 4px; font-size:12px; text-transform:uppercase; letter-spacing:.05em; }
+.conseq .good h4 { color:var(--ok); } .conseq .bad h4 { color:var(--crit); }
+.adr.flagged { border-color:var(--warn); border-left-width:4px; }
+.callout { background:var(--warn-soft); border:1px solid var(--warn); border-radius:8px; padding:10px 12px; margin:12px 0; }
+.callout p { margin:4px 0; }
+.callout .shift { font-weight:700; font-size:15px; color:var(--warn); }
+.callout .shift s { color:var(--dim); font-weight:600; }
+.conseq li.warnline { background:var(--warn-soft); border-left:3px solid var(--warn); padding:4px 8px;
+  border-radius:4px; list-style:none; margin-left:-22px; }
+</style>
+</head>
+<body>
+
+<nav class="crumbs">
+  <a href="../dashboard.html">← Dashboard</a>
+  <a href="research-report.html">Report</a>
+  <a href="solution-exploration.html">Exploration</a>
+  <a href="high-level-design.html">Design</a>
+  <span class="here">Decision Log</span>
+  <a href="decision-log.md" target="_blank" rel="noopener" class="md">md twin ↗</a>
+</nav>
+
+<header>
+  <h1>Decision Log — Join a PRIVATE group by access code</h1>
+  <div class="meta"><span class="badge">Decision Log</span><a href="decision-log.md" target="_blank" rel="noopener">decision-log.md ↗</a></div>
+</header>
+
+<div class="tiles">
+  <div class="tile"><b>8</b><span>ADRs</span></div>
+  <div class="tile"><b class="pass">8</b><span>accepted</span></div>
+  <div class="tile"><b>0</b><span>superseded</span></div>
+  <div class="tile"><b>8</b><span>decision areas</span></div>
+</div>
+
+<section class="card tldr">
+  <h2>TL;DR</h2>
+  <p>Eight ADRs, all <strong>Accepted</strong>, one per decision area converged by the user in Phase 4.</p>
+  <p>The most consequential: <a href="#adr-001">ADR-001</a> (6 digits, a user correction from the researched 9, made safe only by a per-group failure budget, with a deliberately accepted 1-hour DoS window), <a href="#adr-003">ADR-003</a> (in-process limiter that assumes one uvicorn process) and <a href="#adr-006">ADR-006</a> (complete removal of the join-request mechanism, including dropping its table, because the app is not in production).</p>
+  <p>The other ADRs keep the existing access resolver and RSVP path untouched and add a single new public endpoint.</p>
+
+  <h3>Key Decisions</h3>
+  <ul>
+    <li><a href="#adr-001">ADR-001</a>: 6-digit code + dual-key limiter (10/15 min per user+group, 30/1 h per group) — matches the user's reference; the per-group key bounds guessing independently of the number of accounts.</li>
+    <li><a href="#adr-003">ADR-003</a>: in-process sliding-window limiter + typed 429 — single process verified, zero dependencies, no optimistic-lock collisions.</li>
+    <li><a href="#adr-006">ADR-006</a>: delete everything related to join requests in one change (revision 0060) — not in production, so no data to preserve.</li>
+  </ul>
+
+  <h3>Open Questions / Risks</h3>
+  <ul class="risks">
+    <li><span class="sev warning">warning</span><a href="#adr-001">ADR-001</a> residual risk: a sustained attacker succeeds with ≈26 % probability per year against one group (30 guesses/h × 8 760 h of 10^6 values); expected ≈1.9 years. Accepted.</li>
+    <li><span class="sev warning">warning</span><a href="#adr-001">ADR-001</a>/<a href="#adr-003">003</a> accepted DoS: exhausting a group's budget blocks legitimate visitors for up to 1 h; regeneration does not lift it.</li>
+    <li><span class="sev warning">warning</span><a href="#adr-003">ADR-003</a> assumes one uvicorn process; adding workers or instances invalidates the guarantee and must trigger a DB-backed limiter.</li>
+  </ul>
+</section>
+
+<nav class="toc">Contents:
+  <a href="#adr-001">ADR-001 6-digit code + limiter</a> ·
+  <a href="#adr-002">ADR-002 Plaintext column</a> ·
+  <a href="#adr-003">ADR-003 In-process limiter + 429</a> ·
+  <a href="#adr-004">ADR-004 Lazy generation</a> ·
+  <a href="#adr-005">ADR-005 JoinByCodeSheet</a> ·
+  <a href="#adr-006">ADR-006 Remove join requests</a> ·
+  <a href="#adr-007">ADR-007 Redeem error order</a> ·
+  <a href="#adr-008">ADR-008 JoinCodeCard</a>
+</nav>
+
+<main>
+
+<section class="card adr flagged" id="adr-001">
+  <div class="adr-head">
+    <h2><span class="num">ADR-001</span>6-digit numeric code protected by a dual-key failure limiter</h2>
+    <span class="badge accepted">accepted</span>
+  </div>
+
+  <div class="callout">
+    <p><span class="sev warning">warning</span><span class="shift">User correction: <s>9 digits</s> → 6 digits</span></p>
+    <p>Research and exploration assumed a <strong>9-digit</strong> code (29.9 bits); in Phase 4 the user <strong>corrected the reference to 6 digits</strong> (10^6 values, ≈19.9 bits).</p>
+    <p><span class="sev warning">warning</span><strong>Accepted DoS (user-acknowledged):</strong> anyone with an account can deliberately burn a group's 30-failure budget and lock out legitimate visitors for up to 1 h. Regenerating the code does not lift the block.</p>
+  </div>
+
+  <h3>Context</h3>
+  <p>The user wants the organizer to share a short code, modelled on another app they use. Research and exploration assumed that reference was a <strong>9-digit</strong> code (29.9 bits) and recommended 9 digits + a per-user limiter (alternative 1A) with Crockford-8 as fallback. In Phase 4 the user <strong>corrected the reference to 6 digits</strong> (10^6 values, ≈19.9 bits). At 6 digits a per-user limiter alone is insufficient: multiple accounts multiply the guessing rate, and NIST SP 800-63B requires throttling for any secret below 64 bits.</p>
+
+  <h3>Decision Drivers</h3>
+  <ul>
+    <li>Match the user's reference product (6 digits, numeric keypad, read-aloud friendly <code>123 456</code>).</li>
+    <li>Bound the guessing rate per group regardless of how many accounts an attacker controls.</li>
+    <li>Reuse the existing numeric input contract (<code>validation.md</code>: <code>type="text" inputMode="numeric" pattern="[0-9]*"</code>).</li>
+    <li>No new dependencies.</li>
+  </ul>
+
+  <h3>Considered Options</h3>
+  <ol class="options">
+    <li>9 digits + per-(user, group) limiter (exploration 1A).</li>
+    <li>8-char Crockford Base32, limiter optional (1B).</li>
+    <li>10–12 digits, no limiter (1C).</li>
+    <li>Link-only opaque token (1D).</li>
+    <li class="chosen">6 digits + per-(user, group) 10 failures/15 min + per-group 30 failures/1 h ("6B").</li>
+  </ol>
+
+  <h3>Decision Outcome</h3>
+  <div class="outcome">
+    <p>Chosen option: 5, because it is the format the user actually expects and the per-group budget makes the expected brute-force time ≈ 5·10^5 / 30 per h ≈ 16 700 h ≈ <strong>1.9 years</strong>, independent of the number of attacker accounts.</p>
+    <p>Generation: <code>"".join(secrets.choice("0123456789") for _ in range(6))</code>; verification: <code>secrets.compare_digest</code>; request validation <code>^[0-9]{6}$</code>; display <code>123 456</code>.</p>
+    <p>The limiter is checked <strong>before</strong> comparing the code and every failure is recorded on <strong>both</strong> keys; success clears only the per-(user, group) key.</p>
+  </div>
+
+  <h3>Consequences</h3>
+  <div class="conseq">
+    <div class="good"><h4>Good</h4><ul>
+      <li>Familiar UX (numeric keypad, <code>autoComplete="one-time-code"</code>, no O/0 or I/1 confusion).</li>
+      <li>Security does not degrade with more attacker accounts.</li>
+      <li>One shared parser and input pattern on both visitor and organizer sides.</li>
+    </ul></div>
+    <div class="bad"><h4>Bad</h4><ul>
+      <li class="warnline"><span class="sev warning">warning</span><strong>Accepted DoS (user-acknowledged):</strong> anyone with an account can deliberately burn a group's 30-failure budget and lock out legitimate visitors, including ones with the correct code, for up to 1 h; one account can do it alone in ~45 min. Regenerating the code does not lift the block.</li>
+      <li>Residual success probability is not negligible for a determined, patient attacker (≈2.2 % per 30 days, ≈26 % per year of continuous attack). The prize is membership of a small social group, and the attack is noisy (continuous 429s).</li>
+      <li>Security relies entirely on the limiter being correct and on the single-process deployment (<a href="#adr-003">ADR-003</a>).</li>
+    </ul></div>
+  </div>
+</section>
+
+<section class="card adr" id="adr-002">
+  <div class="adr-head">
+    <h2><span class="num">ADR-002</span>Store the code as a plaintext nullable column on <code>groups</code></h2>
+    <span class="badge accepted">accepted</span>
+  </div>
+
+  <h3>Context</h3>
+  <p>The organizer must be able to view and copy the code at any time (group page, stepper). A group has exactly one code; rotation replaces it. Codes are verified per group id, never looked up by value.</p>
+
+  <h3>Decision Drivers</h3>
+  <ul>
+    <li>Organizer can re-read and copy the code (product requirement).</li>
+    <li><code>models.md</code>: prefer plain columns; don't over-index.</li>
+    <li>Minimal implementation: no history, expiry or per-invite features were requested.</li>
+  </ul>
+
+  <h3>Considered Options</h3>
+  <ol class="options">
+    <li class="chosen">Plaintext nullable <code>groups.join_code</code> String(6), no index, no uniqueness (2A).</li>
+    <li>Separate <code>group_join_codes</code> table with expiry/max-uses/revocation (2B).</li>
+    <li>sha256 hash with show-once semantics (2C).</li>
+    <li>HMAC-derived code, nothing stored (2D).</li>
+  </ol>
+
+  <h3>Decision Outcome</h3>
+  <div class="outcome">
+    <p>Chosen option: 1, because it supports view/copy/regenerate with one additive column, and hashing a 10^6-value space gives no real protection (any hash is reversible by enumerating one million candidates).</p>
+    <p>The column is never included in <code>GroupResponse</code>, <code>PublicCircleResponse</code>, <code>/access</code> or notifications; it is read only by the two organizer endpoints and by redeem (via <code>get_group</code>, which already 404s soft-deleted groups).</p>
+  </div>
+
+  <h3>Consequences</h3>
+  <div class="conseq">
+    <div class="good"><h4>Good</h4><ul>
+      <li>One additive revision (0059), no index, no backfill.</li>
+      <li>Code shares the group's lifecycle and soft-delete semantics for free.</li>
+      <li>PRIVATE → PUBLIC → PRIVATE keeps the code; redeem 404s for PUBLIC anyway, so no clearing branch is needed.</li>
+    </ul></div>
+    <div class="bad"><h4>Bad</h4><ul>
+      <li>Plaintext at rest: anyone with DB read access sees codes (they would also see all member data).</li>
+      <li>Writing the code bumps <code>groups.updated_at</code> (optimistic-lock column), so an organizer's concurrent stale PATCH gets the existing 409 — rare and already handled.</li>
+      <li>No audit trail of rotations.</li>
+    </ul></div>
+  </div>
+</section>
+
+<section class="card adr" id="adr-003">
+  <div class="adr-head">
+    <h2><span class="num">ADR-003</span>In-process sliding-window limiter with a typed 429</h2>
+    <span class="badge accepted">accepted</span>
+  </div>
+
+  <h3>Context</h3>
+  <p>The application has no rate limiting, no Redis, no 429 handler. <a href="#adr-001">ADR-001</a> depends on a correct limiter. The backend runs a single uvicorn process (<code>docker-compose.yml:45</code> and <code>src/backend/Dockerfile:50</code> start uvicorn without <code>--workers</code>), and the OAuth2 stores already accept in-memory, single-instance state (<code>security.md</code>).</p>
+
+  <h3>Decision Drivers</h3>
+  <ul>
+    <li>Correctness of ADR-001's two budgets.</li>
+    <li>No new dependency, no schema for counters.</li>
+    <li>Failures must count even though the request's DB transaction raises/rolls back.</li>
+    <li>Testability without real waiting; <code>time.md</code> forbids wall-clock reads for domain time.</li>
+  </ul>
+
+  <h3>Considered Options</h3>
+  <ol class="options">
+    <li class="chosen">Module-level dict of failure timestamps, sliding window on <code>time.monotonic</code> with an injectable clock (3A).</li>
+    <li>DB-backed counter table or Core <code>UPDATE</code> (3B).</li>
+    <li>No limiter, rely on entropy (3C) — incompatible with 6 digits.</li>
+    <li>nginx <code>limit_req</code> only (3D) — per-IP, cannot key on user or group.</li>
+  </ol>
+
+  <h3>Decision Outcome</h3>
+  <div class="outcome">
+    <p>Chosen option: 1, because a single process makes in-memory state authoritative, it records failures independently of transaction rollback, and it avoids bumping <code>groups.updated_at</code>.</p>
+    <p>Shape: a small limiter object (<code>check</code>, <code>record_failure</code>, <code>clear</code>, test-only reset) with rules <code>(party_id, group_id)</code> 10/900 s and <code>group_id</code> 30/3600 s; expired timestamps of touched keys are pruned on <code>check</code>.</p>
+    <p>A new <code>TooManyAttemptsException(message, retry_after)</code> in <code>app/core/errors.py</code> maps to 429 with the standard envelope, a <code>Retry-After</code> header and a Polish message; the frontend's <code>serverMessageOr</code> passes 429 through.</p>
+  </div>
+
+  <h3>Consequences</h3>
+  <div class="conseq">
+    <div class="good"><h4>Good</h4><ul>
+      <li>~One small module, pure-unit testable with a fake clock.</li>
+      <li>No writes on the failure path; no lock interaction with organizer edits.</li>
+      <li>First 429 handling in the app, reusable later.</li>
+    </ul></div>
+    <div class="bad"><h4>Bad</h4><ul>
+      <li>State resets on restart (an attacker gains at most one fresh budget per restart).</li>
+      <li>Breaks silently if the app ever runs more than one worker/instance — must be replaced by a DB-backed limiter first (recorded as a follow-up).</li>
+      <li>Small overshoot possible under concurrent requests (check and record are separated by DB awaits).</li>
+      <li>Tests must reset the shared instance between cases.</li>
+    </ul></div>
+  </div>
+</section>
+
+<section class="card adr" id="adr-004">
+  <div class="adr-head">
+    <h2><span class="num">ADR-004</span>Lazy generation on the organizer's first read; explicit regeneration only</h2>
+    <span class="badge accepted">accepted</span>
+  </div>
+
+  <h3>Context</h3>
+  <p>Existing PRIVATE groups have no code. PRIVATE is the default visibility for organizers without an Organization (<code>panelHelpers.ts:25-29</code>), and <code>test_group_privacy.py:139-162</code> asserts that flipping visibility has no side effects.</p>
+
+  <h3>Decision Drivers</h3>
+  <ul>
+    <li>No data migration (Python <code>secrets</code> cannot run in SQL migrations cleanly).</li>
+    <li>No new side effects in group creation/update.</li>
+    <li>Code must simply "be there" when the organizer looks.</li>
+  </ul>
+
+  <h3>Considered Options</h3>
+  <ol class="options">
+    <li class="chosen">Lazy get-or-create on <code>GET /api/groups/{id}/join-code</code> + <code>POST …/regenerate</code> (4A).</li>
+    <li>Eager generation on create/PRIVATE switch + backfill (4B).</li>
+    <li>Explicit "Wygeneruj kod" action with a "no code" state (4C).</li>
+    <li>Lazy + automatic periodic rotation/expiry (4D).</li>
+  </ol>
+
+  <h3>Decision Outcome</h3>
+  <div class="outcome">
+    <p>Chosen option: 1, because both organizer surfaces (<a href="#adr-008">ADR-008</a>) call the GET whenever they show a PRIVATE group, so "no code yet" is unreachable in practice, and it needs neither backfill nor changes to existing use cases.</p>
+    <p>Order: 404 (missing/soft-deleted) → 403 (not an active organizer) → 409 (PUBLIC) → generate if null + commit. Regeneration overwrites and commits after a UI confirmation; no expiry.</p>
+  </div>
+
+  <h3>Consequences</h3>
+  <div class="conseq">
+    <div class="good"><h4>Good</h4><ul>
+      <li>Zero changes to group creation/update and their tests.</li>
+      <li>Pre-existing PRIVATE groups get a code on first view.</li>
+    </ul></div>
+    <div class="bad"><h4>Bad</h4><ul>
+      <li>A GET with a write (precedent: <code>get_or_create_active_group_role</code>).</li>
+      <li>A visitor redeeming before the organizer ever opened the card gets the generic 409 (correct, since nobody could have shared a code).</li>
+      <li>A leaked code stays valid until the organizer acts.</li>
+    </ul></div>
+  </div>
+</section>
+
+<section class="card adr" id="adr-005">
+  <div class="adr-head">
+    <h2><span class="num">ADR-005</span><code>JoinByCodeSheet</code> on <code>ModalSheet</code> with <code>?code=</code> prefill and one-shot auto-submit</h2>
+    <span class="badge accepted">accepted</span>
+  </div>
+
+  <h3>Context</h3>
+  <p>The user's goal is a smoother sign-up for a term in a private group. The term link is the shared artefact; the route has no <code>AuthGuard</code>, and <code>returnTo = pathname + search</code> already survives login and registration, so a <code>?code=</code> parameter reaches the page after login with no new plumbing. The existing <code>RequestAccessDialog</code> has hand-rolled modal chrome; the shared <code>ModalSheet</code> provides focus trap, Esc, scrim, focus return and <code>useRegisterOpenSheet</code>.</p>
+
+  <h3>Decision Drivers</h3>
+  <ul>
+    <li>Fewest steps from link to RSVP.</li>
+    <li>Accessibility standard for blocking dialogs.</li>
+    <li>Keep the tested gate shell; add one branch instead of rewriting.</li>
+  </ul>
+
+  <h3>Considered Options</h3>
+  <ol class="options">
+    <li class="chosen">Sheet opened by "Mam kod dostępu"; <code>?code=</code> prefill + one-shot guarded auto-submit, then strip (5A).</li>
+    <li>Inline field in the gate card (5B).</li>
+    <li>Sheet with prefill only, manual "Dołącz" (5C).</li>
+    <li>Dedicated <code>/join/:groupId</code> route (5D).</li>
+  </ol>
+
+  <h3>Decision Outcome</h3>
+  <div class="outcome">
+    <p>Chosen option: 1, because a code-carrying link becomes "tap → (login) → member → RSVP" without typing, while the typed path is two taps.</p>
+    <p><code>TermPage</code> acts on <code>?code=</code> only once <code>/access</code> is loaded and not stale:</p>
+    <table>
+      <tr><th>/access result</th><th>Action</th></tr>
+      <tr><td><code>view</code></td><td>strip</td></tr>
+      <tr><td><code>loginRequired</code></td><td>keep it (it rides <code>returnTo</code>)</td></tr>
+      <tr><td><code>canEnterCode</code></td><td>open the sheet prefilled and submit once (ref guard), then strip with <code>replace: true</code> whatever the outcome</td></tr>
+    </table>
+    <p>The mutation lives in the host hook (<code>useTermAccess.joinWithCode</code>) and is passed to the sheet as a prop; success awaits invalidation of the <code>groupAccess</code> prefix.</p>
+  </div>
+
+  <h3>Consequences</h3>
+  <div class="conseq">
+    <div class="good"><h4>Good</h4><ul>
+      <li>Reuses <code>ModalSheet</code> accessibility guarantees; deletes hand-rolled dialog code.</li>
+      <li>No polling (nothing is pending server-side any more).</li>
+      <li>Members opening a code link see the content directly and the parameter is cleaned up.</li>
+    </ul></div>
+    <div class="bad"><h4>Bad</h4><ul>
+      <li>A bad code in a link spends one limiter attempt automatically.</li>
+      <li>Guarded effect + strip logic add test cases.</li>
+      <li>The code briefly appears in the URL/history before stripping (revocable secret).</li>
+    </ul></div>
+  </div>
+</section>
+
+<section class="card adr" id="adr-006">
+  <div class="adr-head">
+    <h2><span class="num">ADR-006</span>Remove the join-request mechanism completely in one change</h2>
+    <span class="badge accepted">accepted</span>
+  </div>
+
+  <h3>Context</h3>
+  <p>"Poproś o dostęp" is a closed tree: 13 backend modules touched, 23 frontend files, 7 backend test files, migrations 0037/0038 (+0041 reshaping). Nothing outside it depends on it. The user confirmed the <strong>app is not in production</strong>, so PENDING rows carry no real users. <code>NotificationKind</code> is string-backed, so rows with removed kinds would fail to load.</p>
+
+  <h3>Decision Drivers</h3>
+  <ul>
+    <li>No dead code or orphaned schema (<code>minimal-implementation.md</code>).</li>
+    <li>Reversible, ordered migrations with a downgrade→upgrade test (<code>migrations.md</code>).</li>
+    <li>Additive change before destructive change.</li>
+  </ul>
+
+  <h3>Considered Options</h3>
+  <ol class="options">
+    <li class="chosen">Abandon PENDING rows; delete the whole tree; 0060 removes the schema — no pre-deploy count check, no script (6A, simplified).</li>
+    <li>Auto-approve script with the old image before deploy (6B).</li>
+    <li>Keep the table read-only for a release, drop later (6C).</li>
+    <li>Notify requesters once with the organizer's code (6D).</li>
+  </ol>
+
+  <h3>Decision Outcome</h3>
+  <div class="outcome">
+    <p>Chosen option: 1, because there is no production data to protect.</p>
+    <table>
+      <tr><th>Revision</th><th>Down</th><th>Does</th></tr>
+      <tr><td><strong>0059</strong></td><td>0058</td><td>adds <code>groups.join_code</code></td></tr>
+      <tr><td><strong>0060</strong></td><td>0059</td><td>deletes <code>notifications</code> rows with <code>kind LIKE 'GROUP_JOIN_%'</code>, drops <code>notifications.join_request_id</code>, then drops <code>group_join_requests</code></td></tr>
+    </table>
+    <p>Its downgrade re-creates the table in the post-0041 UUID shape (<code>pk_group_join_requests</code>, 3× <code>fk_group_join_requests_*</code>, <code>ix_group_join_requests_group_id</code>, partial <code>uq_group_join_requests_pending_requester_group</code>) and then the column; deleted rows are not restored (documented in the docstring, precedent 0041/0048). Applied migrations 0037/0038/0041 are not edited. Code, schemas, auth-matrix row, notification kinds, frontend pieces and tests are deleted in the same change.</p>
+  </div>
+
+  <h3>Consequences</h3>
+  <div class="conseq">
+    <div class="good"><h4>Good</h4><ul>
+      <li>One coherent cutover; no compatibility shims.</li>
+      <li>Notification enum, DTOs and frontend types shrink.</li>
+    </ul></div>
+    <div class="bad"><h4>Bad</h4><ul>
+      <li>Downgrade cannot restore data.</li>
+      <li>Many test files change at once (larger review).</li>
+      <li>If the production assumption were wrong, pending requesters would be silently dropped.</li>
+    </ul></div>
+  </div>
+</section>
+
+<section class="card adr" id="adr-007">
+  <div class="adr-head">
+    <h2><span class="num">ADR-007</span>Redeem error order 401 → 404 → 429 → 409 → 200 idempotent</h2>
+    <span class="badge accepted">accepted</span>
+  </div>
+
+  <h3>Context</h3>
+  <p>The visitor must not learn whether a group has a code or what state it is in. The frontend replaces any 403 with a global "Nie masz uprawnień…" message, while 409 messages pass through verbatim. Members may open code-carrying links.</p>
+
+  <h3>Decision Drivers</h3>
+  <ul>
+    <li>No existence/state oracle (prior decisions A4/L9); 401 before 404/403 (L8).</li>
+    <li>Polish server messages reach the user unchanged.</li>
+    <li>Idempotency for members.</li>
+  </ul>
+
+  <h3>Considered Options</h3>
+  <ol class="options">
+    <li class="chosen">401 → 404 (unknown/deleted/PUBLIC) → 429 → 409 one generic message (wrong code or no code) → 200 <code>{created}</code> (7A).</li>
+    <li>Distinct statuses: 403 wrong code, 409 already member, 404 no code (7B).</li>
+    <li>Always 200 with a result enum (7C).</li>
+  </ol>
+
+  <h3>Decision Outcome</h3>
+  <div class="outcome">
+    <p>Chosen option: 1, because it leaks nothing, fits the existing exception/handler set (<code>BusinessConflictException</code>, <code>EntityNotFoundException</code>) plus the new 429, and keeps the frontend to one error branch. Existing members with a correct code get <code>200 {"created": false}</code> and no duplicate membership.</p>
+  </div>
+
+  <h3>Consequences</h3>
+  <div class="conseq">
+    <div class="good"><h4>Good</h4><ul>
+      <li>Same 404 surface as other PRIVATE endpoints; no oracle.</li>
+      <li>Members' deep links never error.</li>
+    </ul></div>
+    <div class="bad"><h4>Bad</h4><ul>
+      <li>A member submitting a wrong code gets 409 (unreachable from the UI, which resolves <code>view</code> first).</li>
+      <li>A locked-out caller with the correct code still gets 429 (by design of check-before-compare).</li>
+    </ul></div>
+  </div>
+</section>
+
+<section class="card adr" id="adr-008">
+  <div class="adr-head">
+    <h2><span class="num">ADR-008</span><code>JoinCodeCard</code> on <code>GroupDetailsPage</code> and the <code>CreateGroupStepper</code> done screen</h2>
+    <span class="badge accepted">accepted</span>
+  </div>
+
+  <h3>Context</h3>
+  <p>Organizers meet a new PRIVATE group first on the stepper's done screen (PRIVATE is the default for Organization-less founders) and later on <code>/panel/grupy/:groupId</code>, which members can also open. <code>GroupResponse</code> has no <code>is_organizer</code> flag, and the code must not be added to it.</p>
+
+  <h3>Decision Drivers</h3>
+  <ul>
+    <li>Code available at first contact and on return.</li>
+    <li>Keep the secret out of general DTOs.</li>
+    <li>Follow <code>data-fetching.md</code> hook conventions.</li>
+  </ul>
+
+  <h3>Considered Options</h3>
+  <ol class="options">
+    <li class="chosen">Card on group page + stepper; visibility decided by the GET (hidden on 403) (8A).</li>
+    <li>Group page only (8B).</li>
+    <li>Code in <code>GroupResponse</code> + <code>is_organizer</code> (8C).</li>
+    <li>Share sheet on the public term page (8D).</li>
+  </ol>
+
+  <h3>Decision Outcome</h3>
+  <div class="outcome">
+    <p>Chosen option: 1, because it covers both moments with one hook and one component.</p>
+    <p><code>useJoinCode(groupId, enabled)</code> (query key prefixed <code>groupJoinCode</code>, enabled only for PRIVATE, no retry on 4xx) returns <code>{data, loading, error, refetch, regenerate}</code>; <code>regenerate</code> awaits invalidation of the prefix and surfaces <code>extractProblemMessage</code> text.</p>
+    <p>The card shows the code as <code>123 456</code> with actions "Kopiuj kod", "Kopiuj link z kodem" (link = <code>origin + termPublicPath(group, termId) + "?code="</code>), and "Wygeneruj nowy kod" behind a confirm sheet.</p>
+  </div>
+
+  <h3>Consequences</h3>
+  <div class="conseq">
+    <div class="good"><h4>Good</h4><ul>
+      <li>One component reused on two surfaces; no DTO changes.</li>
+      <li>Members never see the card.</li>
+    </ul></div>
+    <div class="bad"><h4>Bad</h4><ul>
+      <li>Members trigger one extra (403) request per page view.</li>
+      <li>"Kopiuj link z kodem" needs a term id; the stepper has one, <code>GroupDetailsPage</code> currently loads no terms — the spec must pick the target term or show only "Kopiuj kod" there.</li>
+      <li>Two surfaces to keep in copy-sync.</li>
+    </ul></div>
+  </div>
+</section>
+
+</main>
+</body>
+</html>
