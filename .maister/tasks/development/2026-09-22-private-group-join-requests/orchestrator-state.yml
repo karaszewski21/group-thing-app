@@ -46,7 +46,9 @@ task:
        state — exact scope to be determined via codebase analysis + gap
        analysis (current state vs. what "done" looks like), not assumed.
 
-  status: in_progress
+  status: superseded
+  superseded_by: .maister/tasks/development/2026-10-21-private-group-join-by-code
+  superseded_note: "Replaced by joining PRIVATE groups with the organizer's 6-digit access code; the join-request flow and its table were removed (migration 0060)."
   tags: [development, groups, membership, frontend, backend]
   priority: high
 

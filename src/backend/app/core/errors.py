@@ -68,11 +68,21 @@ class ModerationUnavailable(Exception):
         super().__init__(message)
 
 
+class TooManyAttemptsException(Exception):
+    """Too many attempts; the caller builds the message. 429 with `Retry-After`."""
+
+    def __init__(self, message: str, retry_after_seconds: int) -> None:
+        self.message = message
+        self.retry_after_seconds = retry_after_seconds
+        super().__init__(message)
+
+
 def _envelope(
     status_code: int,
     error: str,
     message: str,
     field_errors: dict[str, str] | None = None,
+    headers: dict[str, str] | None = None,
 ) -> JSONResponse:
     body = ErrorResponse(
         status=status_code, error=error, message=message, field_errors=field_errors
@@ -80,6 +90,7 @@ def _envelope(
     return JSONResponse(
         status_code=status_code,
         content=jsonable_encoder(body.model_dump(by_alias=True)),
+        headers=headers,
     )
 
 
@@ -128,6 +139,17 @@ async def moderation_unavailable_handler(
     return _envelope(status.HTTP_503_SERVICE_UNAVAILABLE, "Service Unavailable", str(exc))
 
 
+async def too_many_attempts_handler(
+    request: Request, exc: TooManyAttemptsException
+) -> JSONResponse:
+    return _envelope(
+        status.HTTP_429_TOO_MANY_REQUESTS,
+        "Too Many Requests",
+        exc.message,
+        headers={"Retry-After": str(exc.retry_after_seconds)},
+    )
+
+
 async def value_error_handler(request: Request, exc: ValueError) -> JSONResponse:
     return _envelope(status.HTTP_400_BAD_REQUEST, "Bad Request", str(exc))
 
@@ -158,5 +180,6 @@ def register_exception_handlers(app: FastAPI) -> None:
     app.add_exception_handler(RequestValidationError, validation_error_handler)  # type: ignore[arg-type]
     app.add_exception_handler(AccessDeniedException, access_denied_handler)  # type: ignore[arg-type]
     app.add_exception_handler(ModerationUnavailable, moderation_unavailable_handler)  # type: ignore[arg-type]
+    app.add_exception_handler(TooManyAttemptsException, too_many_attempts_handler)  # type: ignore[arg-type]
     app.add_exception_handler(ValueError, value_error_handler)  # type: ignore[arg-type]
     app.add_exception_handler(Exception, unhandled_exception_handler)

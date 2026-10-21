@@ -23,4 +23,17 @@ describe("serverMessageOr", () => {
     });
     expect(serverMessageOr(err, FALLBACK)).toBe("Moderacja jest chwilowo niedostępna — spróbuj za chwilę.");
   });
+
+  it("serverMessageOr_429WithMessage_returnsServerMessage", () => {
+    const err = new ApiError(429, "Too Many Requests", {
+      message: "Zbyt wiele prób. Spróbuj ponownie za 15 min.",
+    });
+    expect(serverMessageOr(err, FALLBACK)).toBe("Zbyt wiele prób. Spróbuj ponownie za 15 min.");
+  });
+
+  it("accessDeniedMessage_pointsToAccessCode", () => {
+    expect(ACCESS_DENIED_MESSAGE).toBe(
+      "Nie masz uprawnień do tej akcji. Zaloguj się ponownie albo poproś organizatora o kod dostępu.",
+    );
+  });
 });

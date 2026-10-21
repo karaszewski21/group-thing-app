@@ -102,94 +102,94 @@ ul.steps li { margin:3px 0; }
 <div class="lane"><span class="lbl"></span><span class="node"><b>G5</b> Frontend Data Layer</span> <span class="arrow">&rarr;</span> <span class="node"><b>G7</b> Frontend Organizer UI</span> <span class="arrow">&rarr;</span> <span class="node"><b>G9</b> Test Review &amp; Gap Analysis</span></div>
 <p class="meta">Arrows follow each group's <code>Dependencies</code> field. Groups 6 and 7 share no file. Frontend tests mock the API, so the frontend chain does not wait for the backend.</p></div>
 <h2 id="groups">Task groups</h2>
-<section data-group="1" class="group todo">
+<section data-group="1" class="group done">
 <h3>Group 1: Database Layer — <code>groups.join_code</code> column (migration 0059)<span class="g-badge"></span></h3>
 <div class="meta">Depends on: None · 4 steps</div>
 <div class="chips"><code>src/backend/app/groups/models.py</code><code>src/backend/alembic/versions/0059_group_join_code.py</code><code>src/backend/tests/test_group_join_code_migrations.py</code></div>
 <ul class="steps">
-<li data-step="1.1" class="step todo"><b>1.1</b> Write 2 focused migration tests in <code>tests/test_group_join_code_migrations.py</code>, following <code>tests/test_group_soft_delete_migration.py</code>:</li>
-<li data-step="1.2" class="step todo"><b>1.2</b> Add <code>join_code: Mapped[str | None] = mapped_column(String(6), nullable=True)</code> after <code>default_capacity</code> on <code>Group</code> in <code>app/groups/models.py</code>. Do not expose it in any schema.</li>
-<li data-step="1.3" class="step todo"><b>1.3</b> Create <code>alembic/versions/0059_group_join_code.py</code> with <code>revision = "0059"</code> and <code>down_revision = "0058"</code>. <code>upgrade()</code> runs <code>op.add_column("groups", sa.Column("join_code", sa.String(6), nullable=True))</code>, with no backfill and no index. <code>downgrade()</code> drops the column.</li>
-<li data-step="1.4" class="step todo"><b>1.4</b> Run ONLY the 2 new tests: <code>uv run python -m pytest tests/test_group_join_code_migrations.py</code>, plus <code>uv run python -m ruff check</code> on the touched files.</li>
+<li data-step="1.1" class="step done"><b>1.1</b> Write 2 focused migration tests in <code>tests/test_group_join_code_migrations.py</code>, following <code>tests/test_group_soft_delete_migration.py</code>:</li>
+<li data-step="1.2" class="step done"><b>1.2</b> Add <code>join_code: Mapped[str | None] = mapped_column(String(6), nullable=True)</code> after <code>default_capacity</code> on <code>Group</code> in <code>app/groups/models.py</code>. Do not expose it in any schema.</li>
+<li data-step="1.3" class="step done"><b>1.3</b> Create <code>alembic/versions/0059_group_join_code.py</code> with <code>revision = "0059"</code> and <code>down_revision = "0058"</code>. <code>upgrade()</code> runs <code>op.add_column("groups", sa.Column("join_code", sa.String(6), nullable=True))</code>, with no backfill and no index. <code>downgrade()</code> drops the column.</li>
+<li data-step="1.4" class="step done"><b>1.4</b> Run ONLY the 2 new tests: <code>uv run python -m pytest tests/test_group_join_code_migrations.py</code>, plus <code>uv run python -m ruff check</code> on the touched files.</li>
 </ul><details><summary>Acceptance criteria</summary><ul>
 <li>The 2 tests pass.</li>
 <li><code>alembic downgrade 0058 &amp;&amp; alembic upgrade head</code> succeeds.</li>
 <li>The column is nullable <code>VARCHAR(6)</code> with no index, placed after <code>default_capacity</code> in the model.</li>
 </ul></details></section>
-<section data-group="2" class="group todo">
+<section data-group="2" class="group done">
 <h3>Group 2: Backend Core — 429 exception/handler and join-code limiter<span class="g-badge"></span></h3>
 <div class="meta">Depends on: None · 5 steps</div>
 <div class="chips"><code>src/backend/app/core/errors.py</code><code>src/backend/app/groups/application/join_code_limiter.py</code><code>src/backend/tests/test_join_code_limiter.py</code><code>src/backend/tests/conftest.py</code></div>
 <ul class="steps">
-<li data-step="2.1" class="step todo"><b>2.1</b> Write 6 focused tests in <code>tests/test_join_code_limiter.py</code>. Five are pure unit tests on a <code>JoinCodeLimiter(clock=fake)</code>:</li>
-<li data-step="2.2" class="step todo"><b>2.2</b> <code>app/core/errors.py</code>:</li>
-<li data-step="2.3" class="step todo"><b>2.3</b> Create <code>app/groups/application/join_code_limiter.py</code>:</li>
-<li data-step="2.4" class="step todo"><b>2.4</b> <code>tests/conftest.py</code>: add an autouse fixture that imports <code>app.groups.application.join_code_limiter</code> inside the fixture body (as <code>freeze_local_now</code> does at l.122-126) and calls <code>limiter.reset()</code> before and after each test.</li>
-<li data-step="2.5" class="step todo"><b>2.5</b> Run ONLY <code>tests/test_join_code_limiter.py</code>, plus <code>uv run python -m mypy app/core/errors.py app/groups/application/join_code_limiter.py</code> and ruff on the touched files.</li>
+<li data-step="2.1" class="step done"><b>2.1</b> Write 6 focused tests in <code>tests/test_join_code_limiter.py</code>. Five are pure unit tests on a <code>JoinCodeLimiter(clock=fake)</code>:</li>
+<li data-step="2.2" class="step done"><b>2.2</b> <code>app/core/errors.py</code>:</li>
+<li data-step="2.3" class="step done"><b>2.3</b> Create <code>app/groups/application/join_code_limiter.py</code>:</li>
+<li data-step="2.4" class="step done"><b>2.4</b> <code>tests/conftest.py</code>: add an autouse fixture that imports <code>app.groups.application.join_code_limiter</code> inside the fixture body (as <code>freeze_local_now</code> does at l.122-126) and calls <code>limiter.reset()</code> before and after each test.</li>
+<li data-step="2.5" class="step done"><b>2.5</b> Run ONLY <code>tests/test_join_code_limiter.py</code>, plus <code>uv run python -m mypy app/core/errors.py app/groups/application/join_code_limiter.py</code> and ruff on the touched files.</li>
 </ul><details><summary>Acceptance criteria</summary><ul>
 <li>The 6 tests pass.</li>
 <li>The 429 response carries the standard envelope and an integer <code>Retry-After</code>. No existing error handler's behavior changes.</li>
 <li>The limiter has no I/O, no lock and no new dependency. <code>time.monotonic</code> is used (allowed by <code>time.md</code>), and <code>tests/test_domain_clock_guard.py</code> stays green.</li>
 </ul></details></section>
-<section data-group="3" class="group todo">
+<section data-group="3" class="group done">
 <h3>Group 3: Backend API — join-code use cases, router, schemas, matrix row<span class="g-badge"></span></h3>
 <div class="meta">Depends on: 1, 2 · 10 steps</div>
 <div class="chips"><code>src/backend/app/groups/application/join_code.py</code><code>src/backend/app/groups/router/join_code.py</code><code>src/backend/app/groups/router/__init__.py</code><code>src/backend/app/groups/schemas.py</code><code>src/backend/app/groups/service.py</code><code>src/backend/app/core/authorization_matrix.py</code><code>src/backend/tests/test_group_join_code.py</code><code>src/backend/tests/test_authorization_matrix.py</code></div>
 <ul class="steps">
-<li data-step="3.1" class="step todo"><b>3.1</b> Create <code>tests/test_group_join_code.py</code> by copying the helpers from <code>tests/test_group_join_requests_router.py:24-58</code> (<code>_register</code>, <code>_auth</code>, <code>_create_circle_and_term(private=True)</code>), with two fixes: build Term dates from <code>clock.local_now()</code> instead of <code>date.today()</code> (l.42), and annotate <code>_register</code> as <code>-&gt; tuple[str, uuid.UUID]</code>.</li>
-<li data-step="3.2" class="step todo"><b>3.2</b> Write 7 focused integration tests in <code>tests/test_group_join_code.py</code>:</li>
-<li data-step="3.3" class="step todo"><b>3.3</b> In <code>tests/test_authorization_matrix.py</code>, add a join-code parametrize: <code>POST /api/groups/public/42/join-code</code> → AUTHENTICATED, <code>GET /api/groups/42/join-code</code> → row 26 READ, <code>POST /api/groups/42/join-code/regenerate</code> → row 27 EDIT. Add 1 regression test: evaluating the matrix with the join-code row removed resolves the redeem path to row 27 EDIT. Leave the join-request parametrize (l.115-135) for Group 4.</li>
-<li data-step="3.4" class="step todo"><b>3.4</b> <code>app/groups/schemas.py</code>: add <code>JoinCodeResponse{code: str}</code>, <code>RedeemJoinCodeRequest{code: str = Field(pattern=r"^[0-9]{6}$")}</code> and <code>RedeemJoinCodeResponse{created: bool}</code>. Do not add <code>join_code</code> to any other schema.</li>
-<li data-step="3.5" class="step todo"><b>3.5</b> Create <code>app/groups/application/join_code.py</code>:</li>
-<li data-step="3.6" class="step todo"><b>3.6</b> <code>app/groups/service.py</code>: import and re-export <code>get_join_code</code>, <code>regenerate_join_code</code> and <code>redeem_join_code</code> (add them to <code>__all__</code>).</li>
-<li data-step="3.7" class="step todo"><b>3.7</b> Create <code>app/groups/router/join_code.py</code>. Declare <code>POST /public/{group_id}/join-code</code> with <code>Depends(require_any())</code> first, then <code>GET /{group_id}/join-code</code> and <code>POST /{group_id}/join-code/regenerate</code>, using the same principal dependencies as the other organizer group routes under rows 26/27.</li>
-<li data-step="3.8" class="step todo"><b>3.8</b> <code>app/groups/router/__init__.py</code>: include the new router right next to the join-requests router (Group 4 removes the old one, leaving the new router in its slot).</li>
-<li data-step="3.9" class="step todo"><b>3.9</b> <code>app/core/authorization_matrix.py</code>: add <code>(_methods("POST"), r"^/api/groups/public/[^/]+/join-code$", "AUTHENTICATED")</code> with a comment explaining why it precedes row 27. Place it directly after the join-request row (l.107-117), still ahead of row 27. Do not remove the join-request row yet.</li>
-<li data-step="3.10" class="step todo"><b>3.10</b> Run ONLY <code>tests/test_group_join_code.py</code>, <code>tests/test_authorization_matrix.py</code> and <code>tests/test_domain_clock_guard.py</code>, plus mypy and ruff on the touched paths.</li>
+<li data-step="3.1" class="step done"><b>3.1</b> Create <code>tests/test_group_join_code.py</code> by copying the helpers from <code>tests/test_group_join_requests_router.py:24-58</code> (<code>_register</code>, <code>_auth</code>, <code>_create_circle_and_term(private=True)</code>), with two fixes: build Term dates from <code>clock.local_now()</code> instead of <code>date.today()</code> (l.42), and annotate <code>_register</code> as <code>-&gt; tuple[str, uuid.UUID]</code>.</li>
+<li data-step="3.2" class="step done"><b>3.2</b> Write 7 focused integration tests in <code>tests/test_group_join_code.py</code>:</li>
+<li data-step="3.3" class="step done"><b>3.3</b> In <code>tests/test_authorization_matrix.py</code>, add a join-code parametrize: <code>POST /api/groups/public/42/join-code</code> → AUTHENTICATED, <code>GET /api/groups/42/join-code</code> → row 26 READ, <code>POST /api/groups/42/join-code/regenerate</code> → row 27 EDIT. Add 1 regression test: evaluating the matrix with the join-code row removed resolves the redeem path to row 27 EDIT. Leave the join-request parametrize (l.115-135) for Group 4.</li>
+<li data-step="3.4" class="step done"><b>3.4</b> <code>app/groups/schemas.py</code>: add <code>JoinCodeResponse{code: str}</code>, <code>RedeemJoinCodeRequest{code: str = Field(pattern=r"^[0-9]{6}$")}</code> and <code>RedeemJoinCodeResponse{created: bool}</code>. Do not add <code>join_code</code> to any other schema.</li>
+<li data-step="3.5" class="step done"><b>3.5</b> Create <code>app/groups/application/join_code.py</code>:</li>
+<li data-step="3.6" class="step done"><b>3.6</b> <code>app/groups/service.py</code>: import and re-export <code>get_join_code</code>, <code>regenerate_join_code</code> and <code>redeem_join_code</code> (add them to <code>__all__</code>).</li>
+<li data-step="3.7" class="step done"><b>3.7</b> Create <code>app/groups/router/join_code.py</code>. Declare <code>POST /public/{group_id}/join-code</code> with <code>Depends(require_any())</code> first, then <code>GET /{group_id}/join-code</code> and <code>POST /{group_id}/join-code/regenerate</code>, using the same principal dependencies as the other organizer group routes under rows 26/27.</li>
+<li data-step="3.8" class="step done"><b>3.8</b> <code>app/groups/router/__init__.py</code>: include the new router right next to the join-requests router (Group 4 removes the old one, leaving the new router in its slot).</li>
+<li data-step="3.9" class="step done"><b>3.9</b> <code>app/core/authorization_matrix.py</code>: add <code>(_methods("POST"), r"^/api/groups/public/[^/]+/join-code$", "AUTHENTICATED")</code> with a comment explaining why it precedes row 27. Place it directly after the join-request row (l.107-117), still ahead of row 27. Do not remove the join-request row yet.</li>
+<li data-step="3.10" class="step done"><b>3.10</b> Run ONLY <code>tests/test_group_join_code.py</code>, <code>tests/test_authorization_matrix.py</code> and <code>tests/test_domain_clock_guard.py</code>, plus mypy and ruff on the touched paths.</li>
 </ul><details><summary>Acceptance criteria</summary><ul>
 <li>The 7 integration tests, the regression test and the new matrix cases pass.</li>
 <li>The redeem order is 401 → 404 → 429 → 409 → 200. Wrong and missing codes give identical 409s, and both 200 paths clear only the user key.</li>
 <li>The lazy GET never returns <code>None</code> and never a 500 after a concurrent write (SC8).</li>
 <li><code>join_code</code> appears only in <code>JoinCodeResponse</code>.</li>
 </ul></details></section>
-<section data-group="4" class="group todo">
+<section data-group="4" class="group done">
 <h3>Group 4: Backend Removal — GroupJoinRequest end to end (migration 0060)<span class="g-badge"></span></h3>
 <div class="meta">Depends on: 3 · 8 steps</div>
 <div class="chips"><code>src/backend/alembic/versions/0060_drop_group_join_requests.py</code><code>src/backend/tests/test_group_join_code_migrations.py</code><code>src/backend/app/groups/models.py</code><code>src/backend/app/groups/schemas.py</code><code>src/backend/app/groups/service.py</code><code>src/backend/app/groups/router/__init__.py</code><code>src/backend/app/groups/application/join_requests.py (delete)</code><code>src/backend/app/groups/router/join_requests.py (delete)</code><code>src/backend/app/groups/application/public_view.py</code><code>src/backend/app/groups/infrastructure/repository.py</code><code>src/backend/app/groups/infrastructure/notifications_bridge.py</code><code>src/backend/app/notifications/models.py</code><code>src/backend/app/notifications/schemas.py</code><code>src/backend/app/notifications/service.py</code><code>src/backend/app/core/authorization_matrix.py</code><code>src/backend/tests/test_authorization_matrix.py</code><code>src/backend/tests/test_group_access.py</code><code>src/backend/tests/test_group_soft_delete_reads.py</code><code>src/backend/tests/test_private_group_access_defects.py</code><code>src/backend/tests/test_add_active_membership.py</code><code>src/backend/tests/test_group_join_request_model.py (delete)</code><code>src/backend/tests/test_group_join_requests_router.py (delete)</code><code>src/backend/tests/test_group_join_requests_decisions.py (delete)</code></div>
 <ul class="steps">
-<li data-step="4.1" class="step todo"><b>4.1</b> Write or update 6 focused tests:</li>
-<li data-step="4.2" class="step todo"><b>4.2</b> Create <code>alembic/versions/0060_drop_group_join_requests.py</code> (<code>down_revision = "0059"</code>).</li>
-<li data-step="4.3" class="step todo"><b>4.3</b> Delete <code>app/groups/application/join_requests.py</code>, <code>app/groups/router/join_requests.py</code>, <code>tests/test_group_join_request_model.py</code>, <code>tests/test_group_join_requests_router.py</code> and <code>tests/test_group_join_requests_decisions.py</code>. First confirm that Group 3's copied helpers in <code>tests/test_group_join_code.py</code> are self-contained.</li>
-<li data-step="4.4" class="step todo"><b>4.4</b> Edit the groups BC per R14:</li>
-<li data-step="4.5" class="step todo"><b>4.5</b> Edit the notifications BC: in <code>notifications/models.py</code> remove the docstring at l.48-50, the kinds at l.63-65 and the column at l.91-96; in <code>notifications/schemas.py</code> remove l.23; in <code>notifications/service.py</code> remove l.40, 47-49 and 59.</li>
-<li data-step="4.6" class="step todo"><b>4.6</b> <code>app/core/authorization_matrix.py</code>: remove the join-request row (l.107-117), and edit the l.94-99 comment to drop only the <code>/join_request</code> mention.</li>
-<li data-step="4.7" class="step todo"><b>4.7</b> Update the prose only in <code>tests/test_private_group_access_defects.py</code> (l.1-7, B14 becomes "only with the organizer's access code") and <code>tests/test_add_active_membership.py:1-2</code>.</li>
-<li data-step="4.8" class="step todo"><b>4.8</b> Run ONLY the changed and new test files (<code>test_group_join_code_migrations.py</code>, <code>test_group_access.py</code>, <code>test_group_soft_delete_reads.py</code>, <code>test_authorization_matrix.py</code>, <code>test_private_group_access_defects.py</code>, <code>test_add_active_membership.py</code>, <code>test_group_join_code.py</code>), mypy and ruff on <code>app/groups app/notifications app/core</code>, and <code>rg -i "join.?request|GROUP_JOIN_|join-requests|request_?access" src/backend -g '!src/backend/alembic/versions/**'</code> (expect no output).</li>
+<li data-step="4.1" class="step done"><b>4.1</b> Write or update 6 focused tests:</li>
+<li data-step="4.2" class="step done"><b>4.2</b> Create <code>alembic/versions/0060_drop_group_join_requests.py</code> (<code>down_revision = "0059"</code>).</li>
+<li data-step="4.3" class="step done"><b>4.3</b> Delete <code>app/groups/application/join_requests.py</code>, <code>app/groups/router/join_requests.py</code>, <code>tests/test_group_join_request_model.py</code>, <code>tests/test_group_join_requests_router.py</code> and <code>tests/test_group_join_requests_decisions.py</code>. First confirm that Group 3's copied helpers in <code>tests/test_group_join_code.py</code> are self-contained.</li>
+<li data-step="4.4" class="step done"><b>4.4</b> Edit the groups BC per R14:</li>
+<li data-step="4.5" class="step done"><b>4.5</b> Edit the notifications BC: in <code>notifications/models.py</code> remove the docstring at l.48-50, the kinds at l.63-65 and the column at l.91-96; in <code>notifications/schemas.py</code> remove l.23; in <code>notifications/service.py</code> remove l.40, 47-49 and 59.</li>
+<li data-step="4.6" class="step done"><b>4.6</b> <code>app/core/authorization_matrix.py</code>: remove the join-request row (l.107-117), and edit the l.94-99 comment to drop only the <code>/join_request</code> mention.</li>
+<li data-step="4.7" class="step done"><b>4.7</b> Update the prose only in <code>tests/test_private_group_access_defects.py</code> (l.1-7, B14 becomes "only with the organizer's access code") and <code>tests/test_add_active_membership.py:1-2</code>.</li>
+<li data-step="4.8" class="step done"><b>4.8</b> Run ONLY the changed and new test files (<code>test_group_join_code_migrations.py</code>, <code>test_group_access.py</code>, <code>test_group_soft_delete_reads.py</code>, <code>test_authorization_matrix.py</code>, <code>test_private_group_access_defects.py</code>, <code>test_add_active_membership.py</code>, <code>test_group_join_code.py</code>), mypy and ruff on <code>app/groups app/notifications app/core</code>, and <code>rg -i "join.?request|GROUP_JOIN_|join-requests|request_?access" src/backend -g '!src/backend/alembic/versions/**'</code> (expect no output).</li>
 </ul><details><summary>Acceptance criteria</summary><ul>
 <li>The 6 new or updated tests pass, and so do the existing tests in the touched files.</li>
 <li><code>alembic downgrade 0059 &amp;&amp; alembic upgrade head</code> succeeds, and the downgrade rebuilds the post-0041 UUID shape.</li>
 <li>No backend identifier outside <code>alembic/versions</code> matches the R31 pattern.</li>
 <li><code>/access</code> and the group DTOs have their final exact key sets, without <code>join_request</code> or <code>join_code</code>.</li>
 </ul></details></section>
-<section data-group="5" class="group todo">
+<section data-group="5" class="group done">
 <h3>Group 5: Frontend Data Layer — joinCode utils, API, hooks, 429 messages<span class="g-badge"></span></h3>
 <div class="meta">Depends on: None · 8 steps</div>
 <div class="chips"><code>src/frontend/src/utils/joinCode.ts</code><code>src/frontend/src/api/groups.ts</code><code>src/frontend/src/api/problem.ts</code><code>src/frontend/src/hooks/useJoinCode.ts</code><code>src/frontend/src/hooks/useGroupTerms.ts</code><code>src/frontend/src/hooks/useTermAccess.ts</code><code>src/frontend/src/test/joinCode.test.ts</code><code>src/frontend/src/test/serverMessageOr.test.ts</code><code>src/frontend/src/test/useJoinCode.test.tsx</code><code>src/frontend/src/test/useGroupTerms.test.tsx</code><code>src/frontend/src/test/useTermAccess.test.ts</code></div>
 <ul class="steps">
-<li data-step="5.1" class="step todo"><b>5.1</b> Write 8 focused tests, with explicit <code>vitest</code> imports, <code>createQueryWrapper()</code> and <code>vi.mock("../api/groups")</code>:</li>
-<li data-step="5.2" class="step todo"><b>5.2</b> Create <code>utils/joinCode.ts</code> with <code>parseJoinCode(raw): string | null | undefined</code>, which strips spaces and hyphens and follows the <code>parseCapacity</code> model (<code>panelHelpers.ts:117-123</code>), and <code>formatJoinCode(code): string</code>.</li>
-<li data-step="5.3" class="step todo"><b>5.3</b> <code>api/groups.ts</code>: add <code>JoinCodeResponse</code>, <code>RedeemJoinCodeResponse</code>, <code>getJoinCode(groupId)</code> (<code>GET /api/groups/{id}/join-code</code>), <code>regenerateJoinCode(groupId)</code> (<code>POST …/join-code/regenerate</code>) and <code>redeemJoinCode(groupId, code)</code> (<code>POST /api/groups/public/{id}/join-code</code>, body <code>{code}</code>). Add only; the join-request removal happens in Group 8.</li>
-<li data-step="5.4" class="step todo"><b>5.4</b> <code>api/problem.ts</code>: <code>serverMessageOr</code> passes 429 server messages through, and <code>ACCESS_DENIED_MESSAGE</code> becomes <code>Nie masz uprawnień do tej akcji. Zaloguj się ponownie albo poproś organizatora o kod dostępu.</code></li>
-<li data-step="5.5" class="step todo"><b>5.5</b> Create <code>hooks/useJoinCode.ts</code>:</li>
-<li data-step="5.6" class="step todo"><b>5.6</b> Create <code>hooks/useGroupTerms.ts</code> (<code>groupId</code>, <code>{enabled}</code>), wrapping <code>getTerms</code> from <code>api/terms.ts:66</code>, with a stable empty fallback.</li>
-<li data-step="5.7" class="step todo"><b>5.7</b> <code>hooks/useTermAccess.ts</code>: add <code>joinWithCode(code)</code> per R20 and add it to the result type.</li>
-<li data-step="5.8" class="step todo"><b>5.8</b> Run ONLY the 5 test files above, plus <code>npx tsc -b</code> and <code>npm run lint</code> from <code>src/frontend</code>.</li>
+<li data-step="5.1" class="step done"><b>5.1</b> Write 8 focused tests, with explicit <code>vitest</code> imports, <code>createQueryWrapper()</code> and <code>vi.mock("../api/groups")</code>:</li>
+<li data-step="5.2" class="step done"><b>5.2</b> Create <code>utils/joinCode.ts</code> with <code>parseJoinCode(raw): string | null | undefined</code>, which strips spaces and hyphens and follows the <code>parseCapacity</code> model (<code>panelHelpers.ts:117-123</code>), and <code>formatJoinCode(code): string</code>.</li>
+<li data-step="5.3" class="step done"><b>5.3</b> <code>api/groups.ts</code>: add <code>JoinCodeResponse</code>, <code>RedeemJoinCodeResponse</code>, <code>getJoinCode(groupId)</code> (<code>GET /api/groups/{id}/join-code</code>), <code>regenerateJoinCode(groupId)</code> (<code>POST …/join-code/regenerate</code>) and <code>redeemJoinCode(groupId, code)</code> (<code>POST /api/groups/public/{id}/join-code</code>, body <code>{code}</code>). Add only; the join-request removal happens in Group 8.</li>
+<li data-step="5.4" class="step done"><b>5.4</b> <code>api/problem.ts</code>: <code>serverMessageOr</code> passes 429 server messages through, and <code>ACCESS_DENIED_MESSAGE</code> becomes <code>Nie masz uprawnień do tej akcji. Zaloguj się ponownie albo poproś organizatora o kod dostępu.</code></li>
+<li data-step="5.5" class="step done"><b>5.5</b> Create <code>hooks/useJoinCode.ts</code>:</li>
+<li data-step="5.6" class="step done"><b>5.6</b> Create <code>hooks/useGroupTerms.ts</code> (<code>groupId</code>, <code>{enabled}</code>), wrapping <code>getTerms</code> from <code>api/terms.ts:66</code>, with a stable empty fallback.</li>
+<li data-step="5.7" class="step done"><b>5.7</b> <code>hooks/useTermAccess.ts</code>: add <code>joinWithCode(code)</code> per R20 and add it to the result type.</li>
+<li data-step="5.8" class="step done"><b>5.8</b> Run ONLY the 5 test files above, plus <code>npx tsc -b</code> and <code>npm run lint</code> from <code>src/frontend</code>.</li>
 </ul><details><summary>Acceptance criteria</summary><ul>
 <li>The 8 tests pass, and <code>tsc -b</code> and lint are clean.</li>
 <li>Each query has exactly one key prefix constant, and writes <code>await</code> their invalidation.</li>
 <li>No error path surfaces raw HTTP status text, and 409/429/400/503 messages pass through verbatim.</li>
 </ul></details></section>
-<section data-group="6" class="group todo">
+<section data-group="6" class="group done">
 <h3>Group 6: Frontend Visitor UI — PrivateGroupGate, JoinByCodeSheet, TermPage <code>?code=</code><span class="g-badge"></span></h3>
 <div class="meta">Depends on: 5 · 8 steps</div>
 <div class="chips"><code>src/frontend/src/pages/krag/termAccess.ts</code><code>src/frontend/src/pages/krag/PrivateGroupGate.tsx</code><code>src/frontend/src/components/krag/JoinByCodeSheet.tsx</code><code>src/frontend/src/components/krag/RequestAccessDialog.tsx (delete)</code><code>src/frontend/src/pages/krag/TermPage.tsx</code><code>src/frontend/src/components/krag/AuthGateSheet.tsx</code><code>src/frontend/src/test/TermPage.test.tsx</code><code>src/frontend/src/test/termAccess.test.ts</code><code>src/frontend/src/test/ModalSheet.test.tsx</code><code>src/frontend/src/test/themeTokenUsage.test.tsx</code><code>src/frontend/src/test/themeDefects.test.tsx</code></div>
@@ -200,20 +200,20 @@ ul.steps li { margin:3px 0; }
 <div class="vref"><span class="el">component:join-by-code-sheet</span> · <a href="../analysis/design-context/mockups/wpisz-kod-dost-pu-joinbycodesheet.html">wpisz-kod-dost-pu-joinbycodesheet.html</a><div class="meta">line 265, any <code>.sheet</code> block: <code>.sheet-h</code> → <code>label.lbl</code> → <code>input.field</code> → <code>p.hint</code> → <code>p.err[role=alert]</code> → <code>.actions</code></div>Field order is label "Kod dostępu" → input (<code>type=text inputMode=numeric pattern=[0-9]* autoComplete=one-time-code</code>) → hint "6 cyfr, np. 123 456" → <code>role=alert</code> slot (linked by <code>aria-describedby</code>) → <code>BTN_GHOST</code> "Anuluj" + <code>BTN_PRIMARY</code> "Dołącz". It is wrapped in <code>&lt;form noValidate&gt;</code>, so Enter submits, and a spaced "482 913" counts as valid. It uses krag tokens only, with no legacy utilities.</div>
 </details>
 <ul class="steps">
-<li data-step="6.1" class="step todo"><b>6.1</b> Write 8 focused tests in <code>TermPage.test.tsx</code>, replacing the private-gate describe at l.569-731 and updating l.11, 21-22, 123, 516-540 and 788. Use <code>mockAuth</code> + <code>rerender</code> and <code>vi.mock("../api/groups")</code> with <code>redeemJoinCode</code>:</li>
-<li data-step="6.2" class="step todo"><b>6.2</b> <code>pages/krag/termAccess.ts</code>: change <code>PrivateGate</code> to <code>loginRequired | canEnterCode</code>, and remove the pending/rejected derivation.</li>
-<li data-step="6.3" class="step todo"><b>6.3</b> Create <code>components/krag/JoinByCodeSheet.tsx</code> per R23:</li>
-<li data-step="6.4" class="step todo"><b>6.4</b> <code>pages/krag/PrivateGroupGate.tsx</code>: keep the shell. Remove canRequest/pending/rejected/withdraw, <code>showDialog</code>, <code>createConflict</code> and the polling at l.52-67. Add the props <code>hasCodeParam</code>, <code>sheetOpen</code>, <code>onOpenSheet</code>, <code>onCloseSheet</code>, <code>initialCode</code>, <code>autoSubmit</code> and <code>onJoin</code>. Render the <code>loginRequired</code> and <code>canEnterCode</code> bodies, and render <code>JoinByCodeSheet</code> as the <code>KragStage</code> overlay while <code>sheetOpen</code>.</li>
-<li data-step="6.5" class="step todo"><b>6.5</b> <code>pages/krag/TermPage.tsx</code>, per R24:</li>
-<li data-step="6.6" class="step todo"><b>6.6</b> Delete <code>components/krag/RequestAccessDialog.tsx</code>, and update the <code>AuthGateSheet.tsx:15</code> prose.</li>
-<li data-step="6.7" class="step todo"><b>6.7</b> Swap the test lists:</li>
-<li data-step="6.8" class="step todo"><b>6.8</b> Run ONLY <code>TermPage.test.tsx</code>, <code>termAccess.test.ts</code>, <code>ModalSheet.test.tsx</code>, <code>themeTokenUsage.test.tsx</code> and <code>themeDefects.test.tsx</code>, plus <code>npx tsc -b</code> and <code>npm run lint</code>.</li>
+<li data-step="6.1" class="step done"><b>6.1</b> Write 8 focused tests in <code>TermPage.test.tsx</code>, replacing the private-gate describe at l.569-731 and updating l.11, 21-22, 123, 516-540 and 788. Use <code>mockAuth</code> + <code>rerender</code> and <code>vi.mock("../api/groups")</code> with <code>redeemJoinCode</code>:</li>
+<li data-step="6.2" class="step done"><b>6.2</b> <code>pages/krag/termAccess.ts</code>: change <code>PrivateGate</code> to <code>loginRequired | canEnterCode</code>, and remove the pending/rejected derivation.</li>
+<li data-step="6.3" class="step done"><b>6.3</b> Create <code>components/krag/JoinByCodeSheet.tsx</code> per R23:</li>
+<li data-step="6.4" class="step done"><b>6.4</b> <code>pages/krag/PrivateGroupGate.tsx</code>: keep the shell. Remove canRequest/pending/rejected/withdraw, <code>showDialog</code>, <code>createConflict</code> and the polling at l.52-67. Add the props <code>hasCodeParam</code>, <code>sheetOpen</code>, <code>onOpenSheet</code>, <code>onCloseSheet</code>, <code>initialCode</code>, <code>autoSubmit</code> and <code>onJoin</code>. Render the <code>loginRequired</code> and <code>canEnterCode</code> bodies, and render <code>JoinByCodeSheet</code> as the <code>KragStage</code> overlay while <code>sheetOpen</code>.</li>
+<li data-step="6.5" class="step done"><b>6.5</b> <code>pages/krag/TermPage.tsx</code>, per R24:</li>
+<li data-step="6.6" class="step done"><b>6.6</b> Delete <code>components/krag/RequestAccessDialog.tsx</code>, and update the <code>AuthGateSheet.tsx:15</code> prose.</li>
+<li data-step="6.7" class="step done"><b>6.7</b> Swap the test lists:</li>
+<li data-step="6.8" class="step done"><b>6.8</b> Run ONLY <code>TermPage.test.tsx</code>, <code>termAccess.test.ts</code>, <code>ModalSheet.test.tsx</code>, <code>themeTokenUsage.test.tsx</code> and <code>themeDefects.test.tsx</code>, plus <code>npx tsc -b</code> and <code>npm run lint</code>.</li>
 </ul><details><summary>Acceptance criteria</summary><ul>
 <li>The 8 TermPage tests and the updated list tests pass, and <code>tsc -b</code> and lint are clean.</li>
 <li><code>?code=</code> is redeemed at most once per <code>groupId:code</code>, never while <code>isStale</code>, and only <code>code</code> is stripped from the URL.</li>
 <li>The implementation matches each <code>acceptance</code> criterion in the Visual References above, with the <code>AuthGateLinks</code> copy exception.</li>
 </ul></details></section>
-<section data-group="7" class="group todo">
+<section data-group="7" class="group done">
 <h3>Group 7: Frontend Organizer UI — JoinCodeCard, regenerate confirm, GroupDetailsPage, stepper<span class="g-badge"></span></h3>
 <div class="meta">Depends on: 5 · 8 steps</div>
 <div class="chips"><code>src/frontend/src/components/panel/JoinCodeCard.tsx</code><code>src/frontend/src/components/shared/ConfirmDeleteDialog.tsx</code><code>src/frontend/src/pages/panel/GroupDetailsPage.tsx</code><code>src/frontend/src/components/panel/CreateGroupStepper.tsx</code><code>src/frontend/src/components/panel/GroupFormFields.tsx</code><code>src/frontend/src/test/GroupDetailsPage.test.tsx</code><code>src/frontend/src/test/CreateGroupStepper.test.tsx</code><code>src/frontend/src/test/ConfirmDeleteDialog.test.tsx</code></div>
@@ -224,46 +224,46 @@ ul.steps li { margin:3px 0; }
 <div class="vref"><span class="el">screen:stepper-done-private</span> · <a href="../analysis/design-context/mockups/kreator-ekran-ko-cowy-grupa-prywatna.html">kreator-ekran-ko-cowy-grupa-prywatna.html</a><div class="meta">line 265, <code>.panel-sheet</code> → <code>p.body</code> → <code>section.jcc</code> → "Przejdź do publicznej strony →" → "Gotowe" → <code>.cta</code></div>The PRIVATE done copy reads "Grupa założona, termin dodany! Grupa jest prywatna — dołączą tylko osoby, którym podasz kod dostępu." It is followed by <code>JoinCodeCard</code> with both copy buttons (<code>termId=createdTermId</code>), and then the existing CTA, "Gotowe" and public-profile link, unchanged. The PUBLIC done screen shows no card and fetches no code. The panel <code>ModalSheet</code> is unchanged.</div>
 </details>
 <ul class="steps">
-<li data-step="7.1" class="step todo"><b>7.1</b> Write 8 focused tests (clipboard stub via <code>Object.assign(navigator, {clipboard})</code>, Date pinned with <code>vi.useFakeTimers({toFake: ["Date"]})</code> for the nearest-term logic):</li>
-<li data-step="7.2" class="step todo"><b>7.2</b> <code>components/shared/ConfirmDeleteDialog.tsx</code>: add the optional <code>tone: "danger" | "primary"</code> (default <code>danger</code>) and <code>busyLabel</code> (default <code>Usuwanie…</code>) props. Existing callers (<code>DeleteGroupDialog</code>, <code>MiejscaView</code>) are unchanged.</li>
-<li data-step="7.3" class="step todo"><b>7.3</b> Create <code>components/panel/JoinCodeCard.tsx</code>:</li>
-<li data-step="7.4" class="step todo"><b>7.4</b> <code>pages/panel/GroupDetailsPage.tsx</code>:</li>
-<li data-step="7.5" class="step todo"><b>7.5</b> <code>components/panel/CreateGroupStepper.tsx</code>: add the PRIVATE done copy, call <code>useJoinCode(createdGroupId, {enabled: done &amp;&amp; PRIVATE})</code>, and render <code>JoinCodeCard</code> with <code>termId={createdTermId}</code> above the existing CTAs. Use no <code>useGroupTerms</code> here.</li>
-<li data-step="7.6" class="step todo"><b>7.6</b> <code>components/panel/GroupFormFields.tsx:74</code>: change the option text to "Prywatna — (dostęp z kodem)".</li>
-<li data-step="7.7" class="step todo"><b>7.7</b> Check the card against the 4 Visual References (order, copy, button variants, sr-only spacing), and against the absence rules for PUBLIC groups and 403.</li>
-<li data-step="7.8" class="step todo"><b>7.8</b> Run ONLY <code>GroupDetailsPage.test.tsx</code>, <code>CreateGroupStepper.test.tsx</code>, <code>ConfirmDeleteDialog.test.tsx</code>, <code>DeleteGroupDialog.test.tsx</code> and <code>MiejscaView.test.tsx</code> (the existing confirm callers), plus <code>npx tsc -b</code> and <code>npm run lint</code>.</li>
+<li data-step="7.1" class="step done"><b>7.1</b> Write 8 focused tests (clipboard stub via <code>Object.assign(navigator, {clipboard})</code>, Date pinned with <code>vi.useFakeTimers({toFake: ["Date"]})</code> for the nearest-term logic):</li>
+<li data-step="7.2" class="step done"><b>7.2</b> <code>components/shared/ConfirmDeleteDialog.tsx</code>: add the optional <code>tone: "danger" | "primary"</code> (default <code>danger</code>) and <code>busyLabel</code> (default <code>Usuwanie…</code>) props. Existing callers (<code>DeleteGroupDialog</code>, <code>MiejscaView</code>) are unchanged.</li>
+<li data-step="7.3" class="step done"><b>7.3</b> Create <code>components/panel/JoinCodeCard.tsx</code>:</li>
+<li data-step="7.4" class="step done"><b>7.4</b> <code>pages/panel/GroupDetailsPage.tsx</code>:</li>
+<li data-step="7.5" class="step done"><b>7.5</b> <code>components/panel/CreateGroupStepper.tsx</code>: add the PRIVATE done copy, call <code>useJoinCode(createdGroupId, {enabled: done &amp;&amp; PRIVATE})</code>, and render <code>JoinCodeCard</code> with <code>termId={createdTermId}</code> above the existing CTAs. Use no <code>useGroupTerms</code> here.</li>
+<li data-step="7.6" class="step done"><b>7.6</b> <code>components/panel/GroupFormFields.tsx:74</code>: change the option text to "Prywatna — (dostęp z kodem)".</li>
+<li data-step="7.7" class="step done"><b>7.7</b> Check the card against the 4 Visual References (order, copy, button variants, sr-only spacing), and against the absence rules for PUBLIC groups and 403.</li>
+<li data-step="7.8" class="step done"><b>7.8</b> Run ONLY <code>GroupDetailsPage.test.tsx</code>, <code>CreateGroupStepper.test.tsx</code>, <code>ConfirmDeleteDialog.test.tsx</code>, <code>DeleteGroupDialog.test.tsx</code> and <code>MiejscaView.test.tsx</code> (the existing confirm callers), plus <code>npx tsc -b</code> and <code>npm run lint</code>.</li>
 </ul><details><summary>Acceptance criteria</summary><ul>
 <li>The 8 tests pass, and the existing <code>ConfirmDeleteDialog</code> callers' tests still pass.</li>
 <li>Each query has exactly one subscriber: the host pages own <code>useJoinCode</code>/<code>useGroupTerms</code>, and <code>JoinCodeCard</code> calls no data hook.</li>
 <li>No raw HTTP status text appears in the card or the dialog.</li>
 <li>The implementation matches each <code>acceptance</code> criterion in the Visual References above, with the skeleton/error-state exception from R25.</li>
 </ul></details></section>
-<section data-group="8" class="group todo">
+<section data-group="8" class="group done">
 <h3>Group 8: Frontend Removal — pending join requests, API types, notification kinds<span class="g-badge"></span></h3>
 <div class="meta">Depends on: 5, 6 · 5 steps</div>
 <div class="chips"><code>src/frontend/src/hooks/usePendingJoinRequests.ts (delete)</code><code>src/frontend/src/components/pending/pendingActions.ts</code><code>src/frontend/src/components/pending/PendingActionsHost.tsx</code><code>src/frontend/src/components/pending/snoozeStore.ts</code><code>src/frontend/src/api/groups.ts</code><code>src/frontend/src/api/notifications.ts</code><code>src/frontend/src/test/PendingActionsHost.test.tsx</code><code>src/frontend/src/test/PublicLayout.test.tsx</code></div>
 <ul class="steps">
-<li data-step="8.1" class="step todo"><b>8.1</b> Update 2 focused tests:</li>
-<li data-step="8.2" class="step todo"><b>8.2</b> Delete <code>hooks/usePendingJoinRequests.ts</code>. In <code>components/pending/pendingActions.ts</code>, return <code>derivePendingActions</code> to one parameter with <code>n:</code> keys only.</li>
-<li data-step="8.3" class="step todo"><b>8.3</b> <code>components/pending/PendingActionsHost.tsx</code>: remove every join-request block, including <code>joinRequestId</code>/<code>joinRequestBusy</code> (l.54-59) and <code>JoinRequestActionSheet</code> (l.306-377). In <code>snoozeStore.ts</code>, edit the prose at l.3-4 only.</li>
-<li data-step="8.4" class="step todo"><b>8.4</b> In <code>api/groups.ts</code>, remove the docstring at l.13-16, <code>GroupAccessDetails.join_request</code> (l.268-271) and the join-request section (l.461-516). In <code>api/notifications.ts</code>, remove the kinds at l.15-17 and <code>join_request_id</code> (l.33-37).</li>
-<li data-step="8.5" class="step todo"><b>8.5</b> Run ONLY <code>PendingActionsHost.test.tsx</code>, <code>PublicLayout.test.tsx</code> and <code>NotificationBell.test.tsx</code>, plus <code>npx tsc -b</code>, <code>npm run lint</code> and <code>rg -i "join.?request|GROUP_JOIN_|RequestAccessDialog|PENDING_JOIN_REQUESTS_KEY|join-requests|request_?access" src/frontend/src</code> (expect no output).</li>
+<li data-step="8.1" class="step done"><b>8.1</b> Update 2 focused tests:</li>
+<li data-step="8.2" class="step done"><b>8.2</b> Delete <code>hooks/usePendingJoinRequests.ts</code>. In <code>components/pending/pendingActions.ts</code>, return <code>derivePendingActions</code> to one parameter with <code>n:</code> keys only.</li>
+<li data-step="8.3" class="step done"><b>8.3</b> <code>components/pending/PendingActionsHost.tsx</code>: remove every join-request block, including <code>joinRequestId</code>/<code>joinRequestBusy</code> (l.54-59) and <code>JoinRequestActionSheet</code> (l.306-377). In <code>snoozeStore.ts</code>, edit the prose at l.3-4 only.</li>
+<li data-step="8.4" class="step done"><b>8.4</b> In <code>api/groups.ts</code>, remove the docstring at l.13-16, <code>GroupAccessDetails.join_request</code> (l.268-271) and the join-request section (l.461-516). In <code>api/notifications.ts</code>, remove the kinds at l.15-17 and <code>join_request_id</code> (l.33-37).</li>
+<li data-step="8.5" class="step done"><b>8.5</b> Run ONLY <code>PendingActionsHost.test.tsx</code>, <code>PublicLayout.test.tsx</code> and <code>NotificationBell.test.tsx</code>, plus <code>npx tsc -b</code>, <code>npm run lint</code> and <code>rg -i "join.?request|GROUP_JOIN_|RequestAccessDialog|PENDING_JOIN_REQUESTS_KEY|join-requests|request_?access" src/frontend/src</code> (expect no output).</li>
 </ul><details><summary>Acceptance criteria</summary><ul>
 <li>The updated tests pass, and <code>tsc -b</code> and lint are clean.</li>
 <li>No frontend file matches the R31 pattern.</li>
 <li><code>PendingActionsHost</code> still renders the remaining notification-driven actions.</li>
 </ul></details></section>
-<section data-group="9" class="group todo">
+<section data-group="9" class="group done">
 <h3>Group 9: Test Review &amp; Gap Analysis — removal gate and prose<span class="g-badge"></span></h3>
 <div class="meta">Depends on: 1, 2, 3, 4, 5, 6, 7, 8 · 6 steps</div>
 <div class="chips"><code>src/backend/tests/test_group_join_code.py</code><code>src/frontend/src/test/TermPage.test.tsx</code><code>src/frontend/src/test/GroupDetailsPage.test.tsx</code><code>.maister/tasks/development/2026-10-19-simple-group-creation-and-locations/documentation/user-guide.md</code><code>.maister/tasks/development/2026-09-22-private-group-join-requests/orchestrator-state.yml</code></div>
 <ul class="steps">
-<li data-step="9.1" class="step todo"><b>9.1</b> Review the tests from Groups 1–8 (about 48), comparing them with the spec's Testing Approach and Success Criteria 1–8.</li>
-<li data-step="9.2" class="step todo"><b>9.2</b> Analyze the gaps for THIS feature only. Likely candidates: the <code>JoinByCodeSheet</code> busy state blocking Esc; the group-key limiter blocking a second user over HTTP; the <code>GroupDetailsPage</code> nearest-term choice with past and future terms; a <code>?code=</code> link opened by an existing member (<code>view</code> → stripped, no redeem).</li>
-<li data-step="9.3" class="step todo"><b>9.3</b> Write up to 10 additional strategic tests in the existing feature test files listed above. Add no new test files unless a gap cannot fit an existing one.</li>
-<li data-step="9.4" class="step todo"><b>9.4</b> Run the R31 removal gate from the repo root: <code>rg -i "join.?request|GROUP_JOIN_|RequestAccessDialog|PENDING_JOIN_REQUESTS_KEY|join-requests|request_?access" src/ -g '!src/backend/alembic/versions/**'</code> must return nothing. Fix any hit in the owning file.</li>
-<li data-step="9.5" class="step todo"><b>9.5</b> Apply the R32 prose:</li>
-<li data-step="9.6" class="step todo"><b>9.6</b> Run the feature tests: backend <code>tests/test_group_join_code*.py</code>, <code>tests/test_join_code_limiter.py</code>, <code>tests/test_group_access.py</code>, <code>tests/test_authorization_matrix.py</code> and <code>tests/test_group_soft_delete_reads.py</code>; frontend the Group 5–8 test files. Then run the static checks: <code>uv run python -m mypy</code> (no worse than the ~32 baseline), <code>uv run python -m ruff check</code>, <code>npm run lint</code> and <code>npx tsc -b</code>. Because the removal touches shared modules, also run the full <code>uv run python -m pytest</code> and <code>npm test</code> once (SC6).</li>
+<li data-step="9.1" class="step done"><b>9.1</b> Review the tests from Groups 1–8 (about 48), comparing them with the spec's Testing Approach and Success Criteria 1–8.</li>
+<li data-step="9.2" class="step done"><b>9.2</b> Analyze the gaps for THIS feature only. Likely candidates: the <code>JoinByCodeSheet</code> busy state blocking Esc; the group-key limiter blocking a second user over HTTP; the <code>GroupDetailsPage</code> nearest-term choice with past and future terms; a <code>?code=</code> link opened by an existing member (<code>view</code> → stripped, no redeem).</li>
+<li data-step="9.3" class="step done"><b>9.3</b> Write up to 10 additional strategic tests in the existing feature test files listed above. Add no new test files unless a gap cannot fit an existing one.</li>
+<li data-step="9.4" class="step done"><b>9.4</b> Run the R31 removal gate from the repo root: <code>rg -i "join.?request|GROUP_JOIN_|RequestAccessDialog|PENDING_JOIN_REQUESTS_KEY|join-requests|request_?access" src/ -g '!src/backend/alembic/versions/**'</code> must return nothing. Fix any hit in the owning file.</li>
+<li data-step="9.5" class="step done"><b>9.5</b> Apply the R32 prose:</li>
+<li data-step="9.6" class="step done"><b>9.6</b> Run the feature tests: backend <code>tests/test_group_join_code*.py</code>, <code>tests/test_join_code_limiter.py</code>, <code>tests/test_group_access.py</code>, <code>tests/test_authorization_matrix.py</code> and <code>tests/test_group_soft_delete_reads.py</code>; frontend the Group 5–8 test files. Then run the static checks: <code>uv run python -m mypy</code> (no worse than the ~32 baseline), <code>uv run python -m ruff check</code>, <code>npm run lint</code> and <code>npx tsc -b</code>. Because the removal touches shared modules, also run the full <code>uv run python -m pytest</code> and <code>npm test</code> once (SC6).</li>
 </ul><details><summary>Acceptance criteria</summary><ul>
 <li>All feature tests pass (about 48–58 in total), with at most 10 tests added in this group.</li>
 <li>The R31 command returns nothing, and the R32 prose is updated.</li>

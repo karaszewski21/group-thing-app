@@ -3,7 +3,6 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { ApiError } from "../api/client";
 import * as notificationsApi from "../api/notifications";
-import * as groupsApi from "../api/groups";
 import * as organizationsApi from "../api/organizations";
 import type { MyOrganizationResponse } from "../api/organizations";
 import { PublicLayout } from "../components/layout/PublicLayout";
@@ -15,12 +14,6 @@ vi.mock("../api/notifications", () => ({
   getMyNotifications: vi.fn(),
   markNotificationRead: vi.fn(),
   markAllNotificationsRead: vi.fn(),
-}));
-
-vi.mock("../api/groups", () => ({
-  listMyPendingJoinRequests: vi.fn(),
-  approveJoinRequest: vi.fn(),
-  rejectJoinRequest: vi.fn(),
 }));
 
 let mockAuth: { token: string | null; username?: string };
@@ -49,7 +42,6 @@ beforeEach(() => {
   localStorage.clear();
   resetSnoozeStoreForTests();
   mockAuth = { token: null };
-  vi.mocked(groupsApi.listMyPendingJoinRequests).mockResolvedValue([]);
   vi.mocked(organizationsApi.getMyOrganization).mockRejectedValue(new ApiError(404, "Not Found", null));
   vi.mocked(notificationsApi.getMyNotifications).mockResolvedValue([]);
 });
@@ -136,13 +128,5 @@ describe("PublicLayout", () => {
 
     expect(await screen.findAllByRole("dialog", { name: "Potwierdź przekazanie" })).toHaveLength(1);
     expect(screen.getByRole("heading", { name: "Strona publiczna" })).toBeInTheDocument();
-    expect(groupsApi.listMyPendingJoinRequests).toHaveBeenCalledTimes(1);
-  });
-
-  it("anonymous: no pending-actions host and no join-request fetch", () => {
-    renderPublicPage();
-
-    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
-    expect(groupsApi.listMyPendingJoinRequests).not.toHaveBeenCalled();
   });
 });

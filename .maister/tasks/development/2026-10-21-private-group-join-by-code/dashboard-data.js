@@ -1,12 +1,12 @@
 window.MAISTER_DATA = {
- "generated": "2026-10-21T12:53:48Z",
+ "generated": "2026-10-21T17:51:53Z",
  "task": {
   "title": "Dołączanie do grupy prywatnej przez kod (zastąpienie 'poproś o dostęp')",
   "type": "development",
-  "status": "in_progress",
+  "status": "completed",
   "description": "Join PRIVATE groups with a 6-digit organizer code; remove GroupJoinRequest entirely.",
   "path": ".maister/tasks/development/2026-10-21-private-group-join-by-code",
-  "current_activity": "Executing implementation"
+  "current_activity": null
  },
  "characteristics": {
   "has_reproducible_defect": false,
@@ -331,25 +331,49 @@ window.MAISTER_DATA = {
    "id": "phase-8",
    "name": "Execute implementation",
    "icon_hint": "code",
-   "status": "in_progress",
+   "status": "completed",
    "started": "2026-10-21T12:53:48Z",
-   "completed": null,
+   "completed": "2026-10-21T14:41:42Z",
    "skip_reason": null,
-   "summary": null,
+   "summary": "9/9 groups, 62 steps. Backend 858/0; frontend 1008 passed + 6 pre-existing failures; tsc clean; mypy 23 (< 32); removal gate empty.",
    "decisions": [],
-   "risks": [],
-   "artifacts": [],
-   "gate": null,
-   "progress": null
+   "risks": [
+    "6 pre-existing frontend test failures and whole-project lint/ruff debt (not caused by this task)",
+    "user-guide.md l.58/l.240 still describe the request flow",
+    "Full backend suite takes ~74 min"
+   ],
+   "artifacts": [
+    {
+     "path": "implementation/work-log.md",
+     "label": "Work log",
+     "html": null
+    },
+    {
+     "path": "implementation/implementation-plan.md",
+     "label": "Implementation plan",
+     "html": "implementation/implementation-plan.html"
+    }
+   ],
+   "gate": {
+    "question": "Continue to verification?",
+    "answer": "Continue"
+   },
+   "progress": {
+    "groups_done": 9,
+    "groups_total": 9,
+    "current_wave": null,
+    "skipped": [],
+    "reverted": []
+   }
   },
   {
    "id": "phase-9",
    "name": "Verify test passes (TDD Green)",
    "icon_hint": "verify",
-   "status": "pending",
+   "status": "skipped",
    "started": null,
    "completed": null,
-   "skip_reason": null,
+   "skip_reason": "Phase 3 (TDD red) not executed",
    "summary": null,
    "decisions": [],
    "risks": [],
@@ -361,71 +385,143 @@ window.MAISTER_DATA = {
    "id": "phase-10",
    "name": "Prompt verification options",
    "icon_hint": "verify",
-   "status": "pending",
-   "started": null,
-   "completed": null,
+   "status": "completed",
+   "started": "2026-10-21T14:41:42Z",
+   "completed": "2026-10-21T14:42:31Z",
    "skip_reason": null,
-   "summary": null,
+   "summary": "All 4 recommended reviews + E2E + user docs enabled; test suite runs.",
    "decisions": [],
    "risks": [],
    "artifacts": [],
-   "gate": null,
+   "gate": {
+    "question": "Which verifications to run?",
+    "answer": "All recommended; E2E yes; user docs yes"
+   },
    "progress": null
   },
   {
    "id": "phase-11",
    "name": "Verify implementation & resolve issues",
    "icon_hint": "verify",
-   "status": "pending",
-   "started": null,
-   "completed": null,
+   "status": "completed",
+   "started": "2026-10-21T14:42:31Z",
+   "completed": "2026-10-21T17:05:09Z",
    "skip_reason": null,
-   "summary": null,
+   "summary": "Final (cycle 3/3): Passed with issues. Production GO 94%; remaining W1 (accepted) + info I19/I20 edge cases; SC1/SC7 runtime evidence → Phase 12.",
    "decisions": [],
    "risks": [],
-   "artifacts": [],
-   "gate": null,
+   "artifacts": [
+    {
+     "path": "verification/implementation-verification.md",
+     "label": "Implementation verification",
+     "html": "verification/implementation-verification.html"
+    },
+    {
+     "path": "verification/production-readiness-report.md",
+     "label": "Production readiness",
+     "html": null
+    },
+    {
+     "path": "verification/code-review-report.md",
+     "label": "Code review",
+     "html": null
+    },
+    {
+     "path": "verification/pragmatic-review.md",
+     "label": "Pragmatic review",
+     "html": null
+    },
+    {
+     "path": "verification/reality-check.md",
+     "label": "Reality check",
+     "html": null
+    },
+    {
+     "path": "verification/completeness-report.md",
+     "label": "Completeness",
+     "html": null
+    },
+    {
+     "path": "verification/test-suite-results.md",
+     "label": "Test suite",
+     "html": null
+    }
+   ],
+   "gate": {
+    "question": "Max 3 fix cycles reached — proceed with known issues?",
+    "answer": "Proceed to E2E"
+   },
    "progress": null
   },
   {
    "id": "phase-12",
    "name": "Run E2E tests",
    "icon_hint": "verify",
-   "status": "pending",
-   "started": null,
-   "completed": null,
+   "status": "completed",
+   "started": "2026-10-21T17:05:09Z",
+   "completed": "2026-10-21T17:45:16Z",
    "skip_reason": null,
-   "summary": null,
+   "summary": "12/12 scenarios pass (i, l with caveats); visual fidelity 3 match / 3 minor / 0 drift.",
    "decisions": [],
-   "risks": [],
-   "artifacts": [],
-   "gate": null,
+   "risks": [
+    "Minor 5.3-1: code lost if the token is already stale when the #code= link opens",
+    "uvicorn access log not verified (no code in 279 request URLs)",
+    "Not exercised: busy/other-error states, PUBLIC/403 card hiding, no-upcoming-term"
+   ],
+   "artifacts": [
+    {
+     "path": "verification/e2e-verification-report.md",
+     "label": "E2E report",
+     "html": "verification/e2e-verification-report.html"
+    },
+    {
+     "path": "verification/visual-fidelity.md",
+     "label": "Visual fidelity",
+     "html": "verification/visual-fidelity.html"
+    }
+   ],
+   "gate": {
+    "question": "E2E complete. Continue to Phase 13?",
+    "answer": "Continue to Phase 13"
+   },
    "progress": null
   },
   {
    "id": "phase-13",
    "name": "Generate user documentation",
    "icon_hint": "docs",
-   "status": "pending",
-   "started": null,
-   "completed": null,
+   "status": "completed",
+   "started": "2026-10-21T17:45:16Z",
+   "completed": "2026-10-21T17:51:53Z",
    "skip_reason": null,
-   "summary": null,
+   "summary": "Polish user guide with 15 screenshots (13 reused from E2E).",
    "decisions": [],
-   "risks": [],
-   "artifacts": [],
-   "gate": null,
+   "risks": [
+    "Stepper defaults to PUBLIC when the organizer has an organization page",
+    "Two screenshots don't show the toasts"
+   ],
+   "artifacts": [
+    {
+     "path": "documentation/user-guide.md",
+     "label": "User guide (PL)",
+     "html": null
+    }
+   ],
+   "gate": {
+    "question": "Documentation complete. Continue to Phase 14?",
+    "answer": "Continue to Phase 14"
+   },
    "progress": null
   },
   {
    "id": "phase-14",
    "name": "Finalize workflow",
    "icon_hint": "done",
-   "status": "pending",
-   "started": null,
-   "completed": null,
+   "status": "completed",
+   "started": "2026-10-21T17:51:53Z",
+   "completed": "2026-10-21T17:51:53Z",
    "skip_reason": null,
-   "summary": null,
+   "summary": "All artifacts reconciled (none missing). 51 src files changed (+1092/−2676). Verdict Passed with Issues; production GO 94%; E2E 12/12.",
    "decisions": [],
    "risks": [],
    "artifacts": [],
@@ -434,9 +530,97 @@ window.MAISTER_DATA = {
   }
  ],
  "verification": {
-  "status": null,
-  "issues": [],
-  "fixes": [],
-  "reverify_count": 0
+  "status": "passed_with_issues",
+  "issues": [
+   {
+    "severity": "critical",
+    "category": "production",
+    "description": "Join code reached access logs via ?code= and returnTo",
+    "fixable": true,
+    "fixed": true
+   },
+   {
+    "severity": "warning",
+    "category": "code_review",
+    "description": "Duplicate active memberships on concurrent redeem (accepted, OQ-8)",
+    "fixable": false,
+    "fixed": false
+   },
+   {
+    "severity": "warning",
+    "category": "test_suite",
+    "description": "Flaky stale-link assertion TermPage.test.tsx:768",
+    "fixable": true,
+    "fixed": true
+   },
+   {
+    "severity": "warning",
+    "category": "code_review",
+    "description": "Validation alert / useJoinCode shape / regenerate GET",
+    "fixable": true,
+    "fixed": true
+   },
+   {
+    "severity": "warning",
+    "category": "pragmatic",
+    "description": "?code= triple guard / gate props / migration test importlib",
+    "fixable": true,
+    "fixed": true
+   },
+   {
+    "severity": "warning",
+    "category": "production",
+    "description": "Rollback doc + audit logging; DTO key sets + user guide",
+    "fixable": true,
+    "fixed": true
+   },
+   {
+    "severity": "info",
+    "category": "code_review",
+    "description": "I13/I14/I15/I16/I17 401 restore, tests, TTL, ADR notes, write-before-redeem",
+    "fixable": true,
+    "fixed": true
+   },
+   {
+    "severity": "info",
+    "category": "reality",
+    "description": "G2 sheet key; G4/G5 spec amendments",
+    "fixable": true,
+    "fixed": true
+   },
+   {
+    "severity": "info",
+    "category": "code_review",
+    "description": "I19 redeemStarted not scoped to groupId",
+    "fixable": true,
+    "fixed": false
+   },
+   {
+    "severity": "info",
+    "category": "code_review",
+    "description": "I20 overlapping redeems share one storage key",
+    "fixable": true,
+    "fixed": false
+   },
+   {
+    "severity": "info",
+    "category": "code_review",
+    "description": "I18 profile-less account re-redeems after each login (accepted)",
+    "fixable": false,
+    "fixed": false
+   }
+  ],
+  "fixes": [
+   "B1 #code= fragment + sessionStorage across login",
+   "W3 alert after blur/submit",
+   "W4 useJoinCode idle",
+   "W5 regenerate setQueryData",
+   "W6 immediate hash strip",
+   "W7 gate codeSheet prop",
+   "W8 migration test literals",
+   "W9 rollback note + audit logging",
+   "W10 exact key sets + user guide"
+  ],
+  "reverify_count": 3
  }
 };

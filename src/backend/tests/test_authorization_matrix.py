@@ -17,7 +17,7 @@ from httpx import AsyncClient
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.authorization_matrix import resolve_requirement
+from app.core.authorization_matrix import AUTHORIZATION_MATRIX, resolve_requirement
 
 EDIT = ("EDIT", "mcp:edit")
 READ = ("READ", "mcp:read")
@@ -115,24 +115,37 @@ def test_resolveRequirement_productPhotoAndDescriptionRoutes_resolveToEditOrRead
 @pytest.mark.parametrize(
     ("method", "path", "expected"),
     [
-        ("POST", "/api/groups/public/42/join-requests", "AUTHENTICATED"),
-        ("POST", "/api/groups/public/42/join-requests/7/withdraw", "AUTHENTICATED"),
-        ("GET", "/api/groups/mine/join-requests", READ),
-        ("GET", "/api/groups/42/join-requests", READ),
-        ("POST", "/api/groups/42/join-requests/7/approve", EDIT),
-        ("POST", "/api/groups/42/join-requests/7/reject", EDIT),
+        ("POST", "/api/groups/public/42/join-code", "AUTHENTICATED"),
+        ("GET", "/api/groups/42/join-code", READ),
+        ("POST", "/api/groups/42/join-code/regenerate", EDIT),
         ("POST", "/api/groups/public/42/join", EDIT),
         ("POST", "/api/memberships/42/end", EDIT),
     ],
 )
-def test_resolveRequirement_joinRequestRoutes_resolveToExpectedRow(
+def test_resolveRequirement_joinCodeRoutes_resolveToExpectedRow(
     method: str, path: str, expected: object
 ) -> None:
-    """The create/withdraw row precedes blanket row 27 (which would demand
-    EDIT); the organizer list/decision routes fall to blanket rows 26/27; the
-    removed `/join` path falls to row 27; `/api/memberships/{id}/end` keeps
-    row 31."""
+    """Redeem has its own AUTHENTICATED row; the organizer read and
+    regenerate fall to blanket rows 26/27; the removed `/join` path falls to
+    row 27; `/api/memberships/{id}/end` keeps row 31."""
     assert resolve_requirement(method, path) == expected
+
+
+def test_resolveRequirement_withoutJoinCodeRow_redeemFallsToRow27Edit() -> None:
+    """Guards the row's placement: without it the redeem path would demand
+    EDIT (row 27), stricter than the route's `require_any()` dependency."""
+    path = "/api/groups/public/42/join-code"
+    remaining = [
+        entry for entry in AUTHORIZATION_MATRIX if "join-code" not in entry.pattern.pattern
+    ]
+    assert len(remaining) == len(AUTHORIZATION_MATRIX) - 1
+    first_match = next(
+        entry
+        for entry in remaining
+        if (entry.methods is None or "POST" in entry.methods) and entry.pattern.match(path)
+    )
+    assert first_match.pattern.pattern == r"^/api/groups(/.*)?$"
+    assert first_match.requirement == EDIT
 
 
 @pytest.mark.parametrize(

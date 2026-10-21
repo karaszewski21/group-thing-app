@@ -189,24 +189,19 @@ async def test_groupLeadershipLeadershipsMemberships_return404(client: AsyncClie
         assert response.status_code == 404, suffix
 
 
-async def test_pendingJoinRequestsInbox_excludesDeletedGroup(client: AsyncClient) -> None:
-    org_token, _ = await _register(client, "ORGANIZER", "sdr.inbox.org@example.com")
-    kept = await _circle(client, org_token, "Prywatny A", visibility="PRIVATE")
-    deleted = await _circle(client, org_token, "Prywatny B", visibility="PRIVATE")
-    guest_token, _ = await _register(client, "GUEST", "sdr.inbox.guest@example.com")
-    request_ids = {}
-    for group_id in (kept, deleted):
-        created = await client.post(
-            f"/api/groups/public/{group_id}/join-requests", json={}, headers=_auth(guest_token)
-        )
-        assert created.status_code == 201, created.text
-        request_ids[group_id] = created.json()["id"]
+async def test_redeemJoinCode_onDeletedPrivateGroup_returns404(client: AsyncClient) -> None:
+    org_token, _ = await _register(client, "ORGANIZER", "sdr.redeem.org@example.com")
+    group_id = await _circle(client, org_token, "Prywatny usunięty", visibility="PRIVATE")
+    guest_token, _ = await _register(client, "GUEST", "sdr.redeem.guest@example.com")
 
-    await _delete(client, org_token, deleted)
+    await _delete(client, org_token, group_id)
 
-    inbox = await client.get("/api/groups/mine/join-requests", headers=_auth(org_token))
-    assert inbox.status_code == 200
-    assert [row["id"] for row in inbox.json()] == [request_ids[kept]]
+    response = await client.post(
+        f"/api/groups/public/{group_id}/join-code",
+        json={"code": "123456"},
+        headers=_auth(guest_token),
+    )
+    assert response.status_code == 404, response.text
 
 
 async def test_mutationsOnDeletedGroup_return404(client: AsyncClient) -> None:
@@ -240,8 +235,10 @@ async def test_mutationsOnDeletedGroup_return404(client: AsyncClient) -> None:
             f"/api/groups/public/{group_id}/rsvp",
             json={"term_id": str(term_id), "guardian_name": "Ola", "child_count": 1},
         ),
-        "join request": await client.post(
-            f"/api/groups/public/{group_id}/join-requests", json={}, headers=_auth(guest_token)
+        "redeem join code": await client.post(
+            f"/api/groups/public/{group_id}/join-code",
+            json={"code": "123456"},
+            headers=_auth(guest_token),
         ),
     }
     assert {name: r.status_code for name, r in responses.items()} == dict.fromkeys(responses, 404)

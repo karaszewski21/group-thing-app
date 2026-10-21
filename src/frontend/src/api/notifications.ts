@@ -11,10 +11,7 @@ export type NotificationKind =
   | "SWAP_REJECTED"
   | "TERM_CONFIRMATION_NEEDED"
   | "TERM_ALREADY_RESOLVED"
-  | "ITEM_RESERVED_FOR_PICKUP"
-  | "GROUP_JOIN_REQUESTED"
-  | "GROUP_JOIN_APPROVED"
-  | "GROUP_JOIN_REJECTED";
+  | "ITEM_RESERVED_FOR_PICKUP";
 
 export interface NotificationResponse {
   id: string;
@@ -30,11 +27,6 @@ export interface NotificationResponse {
    * `acceptSwapProposal`/`rejectSwapProposal` directly. `null`/absent for
    * every other kind. */
   proposal_id?: string | null;
-  /** Loose pointer at `GroupJoinRequest.id`, populated for the
-   * `GROUP_JOIN_*` kinds — lets the pending-actions modal approve/reject a
-   * `GROUP_JOIN_REQUESTED` request directly. `null`/absent for every other
-   * kind. */
-  join_request_id?: string | null;
   /** Loose pointer at `Reservation.id`, populated for
    * `TERM_CONFIRMATION_NEEDED` raised from a GIFT/LEND reservation — lets
    * the pending-actions modal `confirmTransaction` on it directly. `null`

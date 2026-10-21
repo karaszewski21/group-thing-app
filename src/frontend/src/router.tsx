@@ -16,7 +16,7 @@ import { PluginPageRoute } from "./pages/PluginPageRoute";
 import { LoginPage } from "./pages/LoginPage";
 import { RegisterPage } from "./pages/RegisterPage";
 import { OAuth2AuthorizePage } from "./pages/OAuth2AuthorizePage";
-import { TermPage } from "./pages/krag/TermPage";
+import { TermPage } from "./pages/term/TermPage";
 import { PanelPage } from "./pages/panel/PanelPage";
 import { TermAttendeesPage } from "./pages/panel/TermAttendeesPage";
 import { GroupDetailsPage } from "./pages/panel/GroupDetailsPage";

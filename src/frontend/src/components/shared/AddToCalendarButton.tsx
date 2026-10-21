@@ -1,5 +1,5 @@
 import { useEffect, useId, useRef, useState, type KeyboardEvent } from "react";
-import { BTN_GHOST, BTN_LG, BTN_SM } from "../krag/kragStyles";
+import { BTN_GHOST, BTN_LG, BTN_SM } from "./uiStyles";
 import { CalendarIcon } from "../../pages/panel/panelIcons";
 import { buildGoogleCalendarUrl, downloadIcs, type CalendarEvent } from "../../utils/calendar";
 import { ACCOUNT_MENU_ITEM_CLASS } from "./AccountMenu";

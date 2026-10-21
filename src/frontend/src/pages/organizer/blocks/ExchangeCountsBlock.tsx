@@ -1,6 +1,6 @@
 import { Link } from "react-router-dom";
 import type { ExchangeMode } from "../../../api/groups";
-import { EXCHANGE_MODE_LABELS, EXCHANGE_MODE_TONE } from "../../krag/components/termLabels";
+import { EXCHANGE_MODE_LABELS, EXCHANGE_MODE_TONE } from "../../term/components/termLabels";
 import type { BlockProps, OrganizerPageData } from "../layouts/types";
 import { exchangeTotal, organizerTermPath } from "../organizerHelpers";
 

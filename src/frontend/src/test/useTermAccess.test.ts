@@ -3,9 +3,10 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import * as groupsApi from "../api/groups";
 import type { GroupAccessResponse } from "../api/groups";
 import { useTermAccess } from "../hooks/useTermAccess";
-import { createQueryWrapper } from "./queryClient";
+import { ApiError } from "../api/client";
+import { createQueryWrapper, createTestQueryClient } from "./queryClient";
 
-vi.mock("../api/groups", () => ({ getGroupAccess: vi.fn() }));
+vi.mock("../api/groups", () => ({ getGroupAccess: vi.fn(), redeemJoinCode: vi.fn() }));
 
 const mockAuth: { token: string | null } = { token: null };
 vi.mock("../auth/AuthContext", () => ({ useAuth: () => mockAuth }));
@@ -150,5 +151,30 @@ describe("useTermAccess", () => {
     hook.rerender({ groupId: "9" });
 
     await waitFor(() => expect(hook.result.current.state).toEqual({ status: "error", message: "404 Not Found" }));
+  });
+
+  it("joinWithCode_redeemsAwaitsGroupAccessInvalidation_andRethrowsServerMessage", async () => {
+    vi.mocked(groupsApi.getGroupAccess).mockResolvedValue(access("A"));
+    const client = createTestQueryClient();
+    const invalidate = vi.spyOn(client, "invalidateQueries");
+    const { result } = renderHook(() => useTermAccess("1", "2"), { wrapper: createQueryWrapper(client) });
+    await waitFor(() => expect(result.current.state.status).toBe("ready"));
+    vi.mocked(groupsApi.getGroupAccess).mockClear();
+    vi.mocked(groupsApi.redeemJoinCode).mockResolvedValueOnce({ created: true });
+
+    await act(() => result.current.joinWithCode("482913"));
+
+    expect(groupsApi.redeemJoinCode).toHaveBeenCalledWith("1", "482913");
+    expect(invalidate).toHaveBeenCalledWith({ queryKey: ["groupAccess", "1"] });
+    expect(groupsApi.getGroupAccess).toHaveBeenCalledTimes(1);
+
+    vi.mocked(groupsApi.redeemJoinCode).mockRejectedValueOnce(
+      new ApiError(409, "Conflict", { message: "Nieprawidłowy kod dostępu — sprawdź i spróbuj ponownie" }),
+    );
+    await expect(result.current.joinWithCode("000000")).rejects.toThrow(
+      "Nieprawidłowy kod dostępu — sprawdź i spróbuj ponownie",
+    );
+    vi.mocked(groupsApi.redeemJoinCode).mockRejectedValueOnce(new ApiError(500, "Server Error", null));
+    await expect(result.current.joinWithCode("000000")).rejects.toThrow("Nie udało się dołączyć — spróbuj ponownie");
   });
 });

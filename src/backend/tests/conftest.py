@@ -126,6 +126,16 @@ def freeze_local_now(monkeypatch: pytest.MonkeyPatch) -> Callable[[datetime], No
     return _freeze
 
 
+@pytest.fixture(autouse=True)
+def reset_join_code_limiter() -> Iterator[None]:
+    """The join-code limiter is a module-level singleton; isolate each test."""
+    from app.groups.application.join_code_limiter import limiter
+
+    limiter.reset()
+    yield
+    limiter.reset()
+
+
 @pytest.fixture
 def fake_storage() -> FakeStorage:
     return FakeStorage()

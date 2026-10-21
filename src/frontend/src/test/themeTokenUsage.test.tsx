@@ -2,12 +2,8 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { cleanup, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { GroupVisualization } from "../pages/krag/GroupVisualization";
-import { RequestAccessDialog } from "../components/krag/RequestAccessDialog";
-
-vi.mock("../api/groups", () => ({
-  createJoinRequest: vi.fn(),
-}));
+import { GroupVisualization } from "../pages/term/components/GroupVisualization";
+import { JoinByCodeSheet } from "../pages/term/modals/JoinByCodeSheet";
 
 const SRC = resolve(process.cwd(), "src");
 
@@ -66,26 +62,27 @@ describe("organizer-themed files use role tokens", () => {
     "components/shared/AddToCalendarButton.tsx",
     "components/shared/PhotoViewer.tsx",
     "components/pending/PendingActionsHost.tsx",
-    "pages/krag/TakeSuccessSheet.tsx",
+    "pages/term/modals/TakeSuccessSheet.tsx",
     "pages/panel/views/SwapAcceptSuccessSheet.tsx",
     ...ORGANIZER_PAGE_FILES,
   ];
 
   const NO_LEGACY_UTILITY_FILES = [
-    "pages/krag/GroupVisualization.tsx",
-    "pages/krag/PrivateGroupGate.tsx",
-    "pages/krag/PublicTermView.tsx",
-    "pages/krag/components/TermFooter.tsx",
-    "pages/krag/components/termLabels.ts",
-    "components/krag/AccountMergeForm.tsx",
-    "components/krag/RequestAccessDialog.tsx",
-    "components/krag/ModalSheet.tsx",
-    "components/krag/AuthGateSheet.tsx",
+    "pages/term/components/GroupVisualization.tsx",
+    "pages/term/views/PrivateTermView.tsx",
+    "pages/term/views/PublicTermView.tsx",
+    "pages/term/components/TermFooter.tsx",
+    "pages/term/components/termLabels.ts",
+    "pages/term/modals/AccountMergeForm.tsx",
+    "pages/term/modals/JoinByCodeSheet.tsx",
+    "pages/term/components/CodeDigitsInput.tsx",
+    "components/shared/ModalSheet.tsx",
+    "pages/term/modals/AuthGateSheet.tsx",
     "components/shared/PhoneFrame.tsx",
     "components/shared/AddToCalendarButton.tsx",
     "components/shared/PhotoViewer.tsx",
     "components/pending/PendingActionsHost.tsx",
-    "pages/krag/TakeSuccessSheet.tsx",
+    "pages/term/modals/TakeSuccessSheet.tsx",
     "pages/panel/views/SwapAcceptSuccessSheet.tsx",
     "pages/product/ItemTimeline.tsx",
     "pages/product/itemPageShared.ts",
@@ -143,16 +140,10 @@ describe("GroupVisualization exchange colors", () => {
   });
 });
 
-describe("RequestAccessDialog", () => {
+describe("JoinByCodeSheet", () => {
   it("renders without the dead kg-modal-overlay class", () => {
     const { container } = render(
-      <RequestAccessDialog
-        groupId="1"
-        groupName="Taniec dla maluchów"
-        onClose={vi.fn()}
-        onSubmitted={vi.fn()}
-        onConflict={vi.fn()}
-      />,
+      <JoinByCodeSheet initialCode="" autoSubmit={false} onSubmit={vi.fn()} onClose={vi.fn()} />,
     );
     expect(screen.getByRole("dialog")).toBeInTheDocument();
     expect(container.querySelector(".kg-modal-overlay")).toBeNull();

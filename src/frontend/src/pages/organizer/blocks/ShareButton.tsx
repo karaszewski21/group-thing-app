@@ -1,5 +1,5 @@
 import { ArrowUpRight } from "lucide-react";
-import { useToast } from "../../krag/hooks/useToast";
+import { useToast } from "../../../components/shared/useToast";
 
 interface ShareButtonProps {
   slug: string;

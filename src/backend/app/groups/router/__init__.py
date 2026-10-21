@@ -1,4 +1,4 @@
-"""`/api/groups` (including `.../join-requests`), `/api/leaderships`,
+"""`/api/groups` (including `.../join-code`), `/api/leaderships`,
 `/api/memberships`, `/api/terms`, `/api/needed-items` and `/api/pledges`
 routes.
 
@@ -13,7 +13,7 @@ from fastapi import APIRouter
 
 from app.groups.router import (
     circles,
-    join_requests,
+    join_code,
     leaderships,
     memberships,
     organizer_page,
@@ -32,7 +32,7 @@ router.include_router(organizer_page.router)
 # /api/groups/mine/attendances and /api/groups/public/{id} and PATCH /api/groups/{id}
 # resolve before GET /api/groups/{group_id} (FastAPI matches in registration order).
 router.include_router(circles.router)
-router.include_router(join_requests.router)
+router.include_router(join_code.router)
 router.include_router(leaderships.router)
 router.include_router(memberships.router)
 router.include_router(terms.router)

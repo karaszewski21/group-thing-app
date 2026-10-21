@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>E2E Verification Report — 2026-10-21-private-group-join-by-code</title>
+<style>
+:root {
+  --bg:#f6f7f9; --surface:#fff; --border:#e2e5ea; --text:#1a1d23; --dim:#6b7280;
+  --accent:#4f46e5; --accent-soft:#eef2ff; --ok:#16a34a; --ok-soft:#ecfdf3;
+  --warn:#d97706; --warn-soft:#fffbeb; --crit:#dc2626; --crit-soft:#fef2f2;
+  --info:#2563eb; --info-soft:#eff6ff; --radius:10px;
+}
+@media (prefers-color-scheme: dark) {
+  :root { --bg:#111418; --surface:#1a1f26; --border:#2e3640; --text:#e6e9ee; --dim:#9aa4b2;
+    --accent:#818cf8; --accent-soft:#26294a; --ok:#4ade80; --ok-soft:#11291a;
+    --warn:#fbbf24; --warn-soft:#2e2410; --crit:#f87171; --crit-soft:#321616;
+    --info:#60a5fa; --info-soft:#15233a; }
+}
+* { box-sizing:border-box; }
+body { margin:0 auto; max-width:1100px; padding:24px 20px 64px; background:var(--bg);
+  color:var(--text); font:14px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif; }
+a { color:var(--accent); text-decoration:none; } a:hover { text-decoration:underline; }
+h1 { font-size:22px; letter-spacing:-.01em; } h2 { font-size:16px; margin-top:28px; }
+.card { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius);
+  padding:16px 18px; margin:14px 0; }
+.badge { display:inline-block; font-size:11px; font-weight:600; text-transform:uppercase;
+  letter-spacing:.04em; padding:2px 8px; border-radius:99px; background:var(--accent-soft); color:var(--accent); }
+.sev { display:inline-block; font-size:10.5px; font-weight:700; text-transform:uppercase;
+  padding:1.5px 7px; border-radius:99px; margin-right:6px; }
+.sev.critical { background:var(--crit-soft); color:var(--crit); }
+.sev.warning  { background:var(--warn-soft); color:var(--warn); }
+.sev.info     { background:var(--info-soft); color:var(--info); }
+.pass { color:var(--ok); font-weight:600; } .fail { color:var(--crit); font-weight:600; }
+table { width:100%; border-collapse:collapse; }
+th, td { text-align:left; padding:7px 10px; border-bottom:1px solid var(--border); vertical-align:top; }
+th { font-size:11.5px; text-transform:uppercase; letter-spacing:.04em; color:var(--dim); }
+code { font-family:ui-monospace,SFMono-Regular,Menlo,monospace; font-size:12.5px;
+  background:var(--accent-soft); padding:1px 5px; border-radius:4px; }
+img.shot { max-width:100%; border:1px solid var(--border); border-radius:var(--radius); }
+details > summary { cursor:pointer; font-weight:600; }
+.crumbs { display:flex; gap:14px; font-size:13px; margin-bottom:18px; flex-wrap:wrap; }
+.crumbs a.md { margin-left:auto; color:var(--dim); }
+.crumbs .here { font-weight:650; color:var(--text); }
+.tiles { display:flex; gap:10px; flex-wrap:wrap; margin:14px 0; }
+.tile { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius);
+  padding:10px 16px; text-align:center; min-width:90px; }
+.tile b { display:block; font-size:20px; letter-spacing:-.01em; }
+.tile span { font-size:10.5px; text-transform:uppercase; letter-spacing:.05em; color:var(--dim); }
+.verdict { border-left:5px solid var(--warn); background:var(--warn-soft); }
+.verdict b { color:var(--warn); }
+.scen { border-left:4px solid var(--ok); }
+.scen.warn { border-left-color:var(--warn); }
+.scen h3 { margin:0 0 6px; font-size:15px; }
+.shots { display:grid; grid-template-columns:repeat(auto-fit,minmax(280px,1fr)); gap:10px; margin-top:10px; }
+.shots figure { margin:0; } .shots figcaption { font-size:11.5px; color:var(--dim); }
+.meta { color:var(--dim); font-size:12.5px; }
+@media (max-width:600px){ th,td{padding:6px;} table{font-size:12.5px;} }
+</style>
+</head>
+<body>
+<nav class="crumbs">
+  <a href="../dashboard.html">← Dashboard</a>
+  <a href="../implementation/spec.html">Spec</a>
+  <a href="../implementation/implementation-plan.html">Plan</a>
+  <a href="implementation-verification.html">Verification</a>
+  <span class="here">E2E</span>
+  <a href="visual-fidelity.html">Visual fidelity</a>
+  <a href="e2e-verification-report.md" target="_blank" rel="noopener" class="md">md twin ↗</a>
+</nav>
+
+<header>
+  <span class="badge">e2e verification</span>
+  <h1>E2E Verification Report — private group join by code</h1>
+  <div class="meta">2026-10-21 · git c6b1be8 (main, uncommitted feature tree) · Chromium via Playwright MCP · base URL http://localhost:5173</div>
+</header>
+
+<div class="tiles">
+  <div class="tile"><b>⚠️ GO WITH CAVEATS</b><span>verdict</span></div>
+  <div class="tile"><b class="pass">12 / 12</b><span>scenarios passed</span></div>
+  <div class="tile"><b>0</b><span>failed / blocked</span></div>
+  <div class="tile"><b>0 · 0 · 1 · 2</b><span>crit · major · minor · cosm.</span></div>
+  <div class="tile"><b>0 / 279</b><span>URLs leaking code</span></div>
+</div>
+
+<section class="tldr card verdict">
+  <h2 style="margin-top:0">TL;DR</h2>
+  <p><b>GO WITH CAVEATS.</b> All 12 requested scenarios (a–l) passed live; two passed with notes. The code flow works end to end: the organizer card and <code>#code=</code> link, the anonymous gate, register → auto-redeem → toast → RSVP, the 409, the 429 on the 11th attempt (<code>Retry-After: 887</code>), the second link over a 409 sheet, the 401 → re-login → single redeem, and regeneration. No request URL in the session carried a code.</p>
+  <h3>Open Questions / Risks</h3>
+  <ul>
+    <li><span class="sev warning">minor</span>If the token is already stale when a <code>#code=</code> link opens, the global 401 redirect from <code>/api/people/me</code> fires before <code>/access</code> settles. No <code>pendingJoinCode</code> entry is written, so the code is lost and must be retyped.</li>
+    <li><span class="sev info">info</span>The uvicorn access log was not accessible; only the browser-side URL check was done.</li>
+    <li><span class="sev info">info</span>Not exercised live: the sheet busy and "other error" states, the card hidden for PUBLIC groups and 403 non-organizers, and the details page with no upcoming term.</li>
+  </ul>
+</section>
+
+<p class="meta">Contents: <a href="#env">Environment</a> · <a href="#scenarios">Scenarios</a> · <a href="#disc">Discrepancies</a> · <a href="#console">Console</a> · <a href="#align">Spec alignment</a> · <a href="#exit">Exit criteria</a> · <a href="#reco">Recommendations</a></p>
+
+<main>
+<h2 id="env">Test environment</h2>
+<div class="card">
+<table>
+<tr><th>Base URL</th><td>http://localhost:5173 (Vite; <code>/api</code> → uvicorn 127.0.0.1:8080, DB at 0060)</td></tr>
+<tr><th>Browser / viewport</th><td>Chromium (Playwright MCP), ~1536×674 CSS px</td></tr>
+<tr><th>Accounts</th><td>7 fresh UI-registered accounts: organizer <code>e2e-org-1761067838@example.com</code>, visitor <code>e2e-vis-…</code>, and <code>e2e-third-…</code> through <code>e2e-seventh-…</code></td></tr>
+<tr><th>Data</th><td>PRIVATE group "E2E Prywatna Grupa Kod" (<code>5856323e-…</code>), one term on 2026-10-28 18:00 (cap 12); code 201550 regenerated to 190273</td></tr>
+</table>
+</div>
+
+<h2 id="scenarios">Scenarios</h2>
+
+<div class="card scen">
+<h3>✅ (a) Organizer creates a PRIVATE group via the stepper</h3>
+<table><tr><th>#</th><th>Action</th><th>Actual</th><th>Status</th></tr>
+<tr><td>1</td><td>Name + "Prywatna — (dostęp z kodem)" → term 2026-10-28 18:00, 12 seats → Dodaj</td><td>Done screen with the "Kod dostępu" card showing <b>201 550</b></td><td>✅</td></tr>
+<tr><td>2</td><td>Kopiuj kod</td><td>Clipboard <code>201550</code></td><td>✅</td></tr>
+<tr><td>3</td><td>Kopiuj link z kodem</td><td><code>…/term/7c51b369-…#code=201550</code> (fragment, no <code>?code=</code>)</td><td>✅</td></tr>
+</table>
+<div class="shots"><figure><img class="shot" src="screenshots/01-stepper-done-private.png" alt="Stepper done screen with code card"><figcaption>01-stepper-done-private</figcaption></figure><figure><img class="shot" src="screenshots/02-stepper-link-copied.png" alt="Link copied status"><figcaption>02-stepper-link-copied</figcaption></figure></div>
+</div>
+
+<div class="card scen">
+<h3>✅ (b) Organizer opens GroupDetailsPage</h3>
+<table><tr><th>#</th><th>Action</th><th>Actual</th><th>Status</th></tr>
+<tr><td>1</td><td>Open /panel/grupy/{id}</td><td>Widoczność "Prywatna (dostęp z kodem)"; card shows 201 550</td><td>✅</td></tr>
+<tr><td>2</td><td>Wygeneruj nowy kod</td><td>Labelled alertdialog "Wygenerować nowy kod?"</td><td>✅</td></tr>
+<tr><td>3</td><td>Anuluj</td><td>Closed, code unchanged, focus returned to the trigger</td><td>✅</td></tr>
+</table>
+<div class="shots"><figure><img class="shot" src="screenshots/03-group-details-code-card.png" alt="Group details with code card"><figcaption>03-group-details-code-card</figcaption></figure><figure><img class="shot" src="screenshots/04-regenerate-confirm.png" alt="Regenerate confirm dialog"><figcaption>04-regenerate-confirm</figcaption></figure></div>
+</div>
+
+<div class="card scen">
+<h3>✅ (c) Logged-out visitor opens the link</h3>
+<table><tr><th>#</th><th>Check</th><th>Actual</th><th>Status</th></tr>
+<tr><td>1</td><td>Gate copy</td><td>"Ta grupa jest prywatna" + "Masz kod? Zaloguj się, żeby go użyć."</td><td>✅</td></tr>
+<tr><td>2</td><td>Login/register <code>returnTo</code></td><td><code>/login?returnTo=%2Fe2e-org-kod%2Fgrupa%2F…%2Fterm%2F…</code>, no code</td><td>✅</td></tr>
+<tr><td>3</td><td>sessionStorage</td><td><code>pendingJoinCode:5856323e-…</code> = <code>{code, savedAt}</code></td><td>✅</td></tr>
+</table>
+<div class="shots"><figure><img class="shot" src="screenshots/05-gate-anonymous-with-code.png" alt="Anonymous gate with code copy"><figcaption>05-gate-anonymous-with-code</figcaption></figure><figure><img class="shot" src="screenshots/19-gate-anonymous-no-code.png" alt="Anonymous gate without code"><figcaption>19-gate-anonymous-no-code</figcaption></figure></div>
+</div>
+
+<div class="card scen">
+<h3>✅ (d) Visitor registers through the gate and is auto-joined</h3>
+<table><tr><th>#</th><th>Check</th><th>Actual</th><th>Status</th></tr>
+<tr><td>1</td><td>URL after return</td><td>No <code>#code=</code></td><td>✅</td></tr>
+<tr><td>2</td><td>Auto-submit</td><td>Exactly one <code>POST …/join-code</code> → 200</td><td>✅</td></tr>
+<tr><td>3</td><td>Toast and content</td><td>"Dołączono do grupy"; term content visible; storage cleared</td><td>✅</td></tr>
+</table>
+<div class="shots"><figure><img class="shot" src="screenshots/06-visitor-joined-toast.png" alt="Joined with toast"><figcaption>06-visitor-joined-toast</figcaption></figure></div>
+</div>
+
+<div class="card scen">
+<h3>✅ (e) Visitor RSVPs</h3>
+<p><code>POST …/rsvp</code> → 201; "Zapisanych 1 z 12"; visitor listed under "Zapisani i ich rzeczy".</p>
+<div class="shots"><figure><img class="shot" src="screenshots/07-visitor-rsvp-done.png" alt="RSVP done"><figcaption>07-visitor-rsvp-done</figcaption></figure></div>
+</div>
+
+<div class="card scen">
+<h3>✅ (f) Wrong code</h3>
+<p><code>#code=000000</code> → 409. The alert reads "Nieprawidłowy kod dostępu — sprawdź i spróbuj ponownie" and the sheet stays open with <code>aria-invalid</code>; the hash and storage are cleared.</p>
+<div class="shots"><figure><img class="shot" src="screenshots/09-wrong-code-409.png" alt="409 sheet"><figcaption>09-wrong-code-409</figcaption></figure></div>
+</div>
+
+<div class="card scen">
+<h3>✅ (g) Rate limit on the 11th attempt</h3>
+<table><tr><th>Attempts</th><th>Result</th><th>Status</th></tr>
+<tr><td>1–10 (wrong)</td><td>10 × 409</td><td>✅</td></tr>
+<tr><td>11 (wrong)</td><td>429, <code>Retry-After: 887</code>, "Za dużo prób wpisania kodu — spróbuj ponownie za 15 min"</td><td>✅</td></tr>
+<tr><td>12 (correct, pasted "201 550")</td><td>Normalized to <code>201550</code>; still 429 (<code>Retry-After: 880</code>)</td><td>✅</td></tr>
+</table>
+<div class="shots"><figure><img class="shot" src="screenshots/10-rate-limit-429.png" alt="429 sheet"><figcaption>10-rate-limit-429</figcaption></figure></div>
+</div>
+
+<div class="card scen">
+<h3>✅ (h) Member reopens the code link</h3>
+<p>No sheet, hash stripped, content shown, no <code>join-code</code> request.</p>
+<div class="shots"><figure><img class="shot" src="screenshots/08-member-reopens-link.png" alt="Member reopens link"><figcaption>08-member-reopens-link</figcaption></figure></div>
+</div>
+
+<div class="card scen warn">
+<h3>⚠️ (i) 401 during redeem: passed with issues</h3>
+<table><tr><th>Variant</th><th>Actual</th><th>Status</th></tr>
+<tr><td>A: token corrupted, then full load of the <code>#code=</code> link</td><td><code>/api/people/me</code> 401 redirects to /login <b>before</b> <code>/access</code>; no <code>pendingJoinCode</code>; after login the plain gate shows and the code must be retyped</td><td>⚠️</td></tr>
+<tr><td>B: token corrupted on the settled gate, then in-app <code>#code=</code></td><td>Redeem 401 → /login; <code>pendingJoinCode</code> kept; after login exactly one redeem → 200, joined</td><td>✅</td></tr>
+</table>
+<div class="shots"><figure><img class="shot" src="screenshots/12-stale-token-redirect-login.png" alt="Stale token redirect"><figcaption>12-stale-token-redirect-login</figcaption></figure><figure><img class="shot" src="screenshots/13-redeem-401-login-pending.png" alt="Login after 401 with pending entry"><figcaption>13-redeem-401-login-pending</figcaption></figure><figure><img class="shot" src="screenshots/14-redeem-after-relogin-joined.png" alt="Joined after re-login"><figcaption>14-redeem-after-relogin-joined</figcaption></figure></div>
+</div>
+
+<div class="card scen">
+<h3>✅ (j) Second link over a 409 sheet</h3>
+<p>With the <code>#code=111111</code> 409 sheet open, an in-app hash change to <code>#code=201550</code> sends one redeem → 200 <code>{"created":true}</code>. The sheet closes and the toast "Dołączono do grupy" appears.</p>
+<div class="shots"><figure><img class="shot" src="screenshots/11-second-link-joined.png" alt="Joined via second link"><figcaption>11-second-link-joined</figcaption></figure></div>
+</div>
+
+<div class="card scen">
+<h3>✅ (k) Organizer regenerates the code</h3>
+<table><tr><th>#</th><th>Check</th><th>Actual</th><th>Status</th></tr>
+<tr><td>1</td><td>Confirm regenerate</td><td>200; card shows <b>190 273</b>; "Wygenerowano nowy kod"; no follow-up GET</td><td>✅</td></tr>
+<tr><td>2</td><td>Old code, new account</td><td>409 with the wrong-code message</td><td>✅</td></tr>
+<tr><td>3</td><td>Visitor from (d)</td><td>Still a member (content shown)</td><td>✅</td></tr>
+<tr><td>4</td><td>New code, same new account</td><td>200 <code>{"created":true}</code></td><td>✅</td></tr>
+</table>
+<div class="shots"><figure><img class="shot" src="screenshots/15-regenerated-code.png" alt="Regenerated code"><figcaption>15-regenerated-code</figcaption></figure><figure><img class="shot" src="screenshots/16-old-code-409-after-regen.png" alt="Old code 409"><figcaption>16-old-code-409-after-regen</figcaption></figure><figure><img class="shot" src="screenshots/18-visitor-still-member.png" alt="Visitor still member"><figcaption>18-visitor-still-member</figcaption></figure></div>
+</div>
+
+<div class="card scen warn">
+<h3>⚠️ (l) Logs / code never in a URL: passed with issues</h3>
+<p>Of 279 captured request URLs, 0 contained <code>201550</code> or <code>190273</code>; the code travels only in the POST body. The uvicorn console log was <b>not verified</b> because it was not accessible.</p>
+</div>
+
+<h2 id="disc">Discrepancies</h2>
+<div class="card">
+<p><span class="sev critical">critical</span> None. <span class="sev critical">major</span> None.</p>
+<details open><summary><span class="sev warning">minor</span> 5.3-1 Code lost when the token is already stale at page load</summary>
+<table>
+<tr><th>Spec</th><td>User story 4; amendment: <code>TermPage</code> writes <code>pendingJoinCode</code> while <code>loginRequired</code></td></tr>
+<tr><th>Actual</th><td>The app-shell 401 redirect pre-empts <code>/access</code>, so no entry is written and the code is lost after login</td></tr>
+<tr><th>Impact</th><td>The user must retype 6 digits; membership and security are unaffected</td></tr>
+<tr><th>Fix</th><td>Persist <code>pendingJoinCode</code> as soon as a valid <code>#code=</code> is parsed (existing TTL and <code>redeemStarted</code> guards)</td></tr>
+<tr><th>Workaround</th><td>"Mam kod dostępu" → type the code</td></tr>
+</table></details>
+<details><summary><span class="sev info">cosmetic</span> 5.4-1 Copy buttons lack the mockup's "⧉" glyph</summary><p>Text-only "Kopiuj kod" / "Kopiuj link z kodem". Add an <code>aria-hidden</code> icon, or accept the simplification.</p></details>
+<details><summary><span class="sev info">cosmetic</span> 5.4-2 Nested <code>&lt;main&gt;</code> on the member term page (pre-existing)</summary><p>Two <code>main[tabindex=-1]</code> landmarks. This is outside the feature; track as a follow-up.</p></details>
+</div>
+
+<h2 id="console">Console &amp; network</h2>
+<div class="card">
+<table><tr><th>Source</th><th>Message</th><th>Severity</th><th>Impact</th></tr>
+<tr><td><code>GET /api/organizations/mine</code></td><td>404 for guest accounts</td><td>Cosmetic</td><td>Pre-existing, unrelated</td></tr>
+<tr><td><code>POST …/join-code</code></td><td>409 / 429 "Failed to load resource"</td><td>Cosmetic</td><td>Expected; the UI shows Polish messages</td></tr>
+<tr><td><code>/people/me</code>, <code>…/join-code</code></td><td>401</td><td>Cosmetic</td><td>Only in the deliberate stale-token runs</td></tr>
+</table>
+<p class="meta">No uncaught exceptions or React warnings.</p>
+</div>
+
+<h2 id="align">Spec alignment</h2>
+<div class="card">
+<p><b class="pass">Fully implemented:</b> R7/R8 organizer GET and regenerate; R9 redeem order; R4 limiter numerics; R23 sheet a11y/validation/paste normalization/Esc; amended R24/R26 (<code>#code=</code>, immediate strip, sessionStorage handoff, 401 keeps entry, G2 remount); R25 card on the stepper and the details page; the three gate copy variants.</p>
+<p><b style="color:var(--warn)">Partially:</b> "code survives login" with an already-stale token (5.3-1).</p>
+<p><b>Not implemented:</b> none observed. <b>Extra:</b> the inline card status line serves as the "toast lokalny".</p>
+</div>
+
+<h2 id="exit">Exit criteria</h2>
+<div class="card">
+<table><tr><th>Criterion</th><th>Status</th><th>Evidence</th></tr>
+<tr><td>SC1 join + RSVP in one sitting, anon <code>#code=</code> path</td><td>✅</td><td>(d), (e)</td></tr>
+<tr><td>SC2 code only in organizer endpoints</td><td>✅</td><td>No code seen outside organizer responses or in URLs; key-set tests cover the rest</td></tr>
+<tr><td>SC3 limits + integer Retry-After, correct code locked → 429</td><td>✅</td><td>(g)</td></tr>
+<tr><td>SC4 wrong vs no-code indistinguishable</td><td>✅</td><td>Single message observed; "no code" is unreachable in the UI</td></tr>
+<tr><td>SC5 removal + migrations</td><td>✅</td><td>Outside E2E scope; DB at 0060, no "Poproś o dostęp" UI</td></tr>
+<tr><td>SC6 suites green</td><td>✅</td><td>Outside E2E scope (test-suite-results.md)</td></tr>
+<tr><td>SC7 mockup fidelity, no raw HTTP text</td><td>⚠️</td><td><a href="visual-fidelity.html">3 match · 3 minor · 0 drift</a></td></tr>
+<tr><td>SC8 lazy GET never 500 or null</td><td>✅</td><td>The card always showed a code</td></tr>
+</table>
+</div>
+
+<h2 id="reco">Recommendations</h2>
+<div class="card">
+<ul>
+<li><b>Must fix before merge:</b> none.</li>
+<li><b>Should fix soon:</b> 5.3-1.</li>
+<li><b>Nice-to-have:</b> 5.4-1, 5.4-2.</li>
+</ul>
+<p><b>Conclusion:</b> GO WITH CAVEATS. Merge, and track 5.3-1 as a follow-up (or fix it first if the stale-session flow matters for launch). 21 screenshots are in <code>verification/screenshots/</code>.</p>
+</div>
+</main>
+</body>
+</html>

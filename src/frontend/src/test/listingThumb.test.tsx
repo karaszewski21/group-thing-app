@@ -1,8 +1,8 @@
 import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 import { Link, MemoryRouter } from "react-router-dom";
-import { AttendeeList } from "../pages/krag/components/AttendeeList";
-import type { ListingRowVM } from "../pages/krag/components/termSectionTypes";
+import { AttendeeList } from "../pages/term/components/AttendeeList";
+import type { ListingRowVM } from "../pages/term/components/termSectionTypes";
 
 function renderRow(thumbUrl?: string | null) {
   const row: ListingRowVM = {

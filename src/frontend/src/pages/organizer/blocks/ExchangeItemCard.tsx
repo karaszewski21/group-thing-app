@@ -4,7 +4,7 @@ import type { ItemCondition } from "../../../api/inventories";
 import { PhotoPlaceholder } from "../../../components/shared/Icons";
 import dayjs from "../../../utils/dayjs";
 import { CONDITION_LABELS } from "../../../utils/productCategory";
-import { EXCHANGE_MODE_LABELS, EXCHANGE_MODE_TONE } from "../../krag/components/termLabels";
+import { EXCHANGE_MODE_LABELS, EXCHANGE_MODE_TONE } from "../../term/components/termLabels";
 import { SafeImage } from "../../product/ItemGallery";
 import { organizerItemPath } from "../../product/useItemRoutes";
 import { organizerTermPath } from "../organizerHelpers";

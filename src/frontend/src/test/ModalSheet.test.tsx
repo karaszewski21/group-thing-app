@@ -1,13 +1,11 @@
 import { act, fireEvent, render, renderHook, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { useState } from "react";
-import { ModalSheet } from "../components/krag/ModalSheet";
-import { RequestAccessDialog } from "../components/krag/RequestAccessDialog";
+import { ModalSheet } from "../components/shared/ModalSheet";
+import { JoinByCodeSheet } from "../pages/term/modals/JoinByCodeSheet";
 import { getOpenSheetCount, subscribeOpenSheets, useRegisterOpenSheet } from "../components/shared/openSheets";
 import { UnsavedChangesDialog } from "../pages/organizer/editor/UnsavedChangesDialog";
 import { ModalSheet as PanelModalSheet } from "../pages/panel/panelComponents";
-
-vi.mock("../api/groups", () => ({ createJoinRequest: vi.fn() }));
 
 function Opener({ removeOpenerOnOpen = false }: { removeOpenerOnOpen?: boolean }) {
   const [open, setOpen] = useState(false);
@@ -177,13 +175,7 @@ describe("openSheets registry", () => {
         <PanelModalSheet title="Panel" onClose={() => {}}>
           <p>Treść</p>
         </PanelModalSheet>
-        <RequestAccessDialog
-          groupId="g1"
-          groupName="Grupa"
-          onClose={() => {}}
-          onSubmitted={() => {}}
-          onConflict={() => {}}
-        />
+        <JoinByCodeSheet initialCode="" autoSubmit={false} onSubmit={async () => {}} onClose={() => {}} />
         <UnsavedChangesDialog onDiscard={() => {}} onKeepEditing={() => {}} />
       </>,
     );

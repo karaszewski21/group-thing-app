@@ -1,5 +1,5 @@
 import { useEffect, useId, useRef, useState, type KeyboardEvent } from "react";
-import { trapFocus } from "../krag/trapFocus";
+import { trapFocus } from "./trapFocus";
 import { useRegisterOpenSheet } from "./openSheets";
 
 interface ConfirmDeleteDialogProps {
@@ -8,11 +8,17 @@ interface ConfirmDeleteDialogProps {
   confirmLabel: string;
   /** Shown when `onConfirm` rejects without a message. */
   fallbackError: string;
+  /** `primary` for a confirm that is not destructive (default `danger`). */
+  tone?: "danger" | "primary";
+  /** The confirm label while `onConfirm` runs. */
+  busyLabel?: string;
   onConfirm: () => Promise<void>;
   onClose: () => void;
 }
 
-/** Confirms a delete. Tailwind-only and rendered in place, so it stays inside
+const CONFIRM_TONE = { danger: "bg-danger text-paper", primary: "bg-primary text-on-primary" } as const;
+
+/** Confirms a delete (or, with `tone="primary"`, another irreversible action). Tailwind-only and rendered in place, so it stays inside
  * the host's theme scope. Only a resolved `onConfirm` ends it (the parent
  * unmounts it); a rejection is shown inline and the dialog stays open. On
  * unmount focus returns to the element that opened it. */
@@ -21,6 +27,8 @@ export function ConfirmDeleteDialog({
   body,
   confirmLabel,
   fallbackError,
+  tone = "danger",
+  busyLabel = "Usuwanie…",
   onConfirm,
   onClose,
 }: ConfirmDeleteDialogProps) {
@@ -118,9 +126,9 @@ export function ConfirmDeleteDialog({
             onClick={() => void handleConfirm()}
             disabled={busy}
             aria-busy={busy || undefined}
-            className="min-h-[44px] flex-1 rounded-full bg-danger px-4 py-2.5 text-sm font-extrabold text-paper disabled:opacity-60"
+            className={`min-h-[44px] flex-1 rounded-full px-4 py-2.5 text-sm font-extrabold disabled:opacity-60 ${CONFIRM_TONE[tone]}`}
           >
-            {busy ? "Usuwanie…" : confirmLabel}
+            {busy ? busyLabel : confirmLabel}
           </button>
         </div>
       </div>

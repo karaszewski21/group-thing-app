@@ -7,6 +7,12 @@ orchestrator:
   - phase-5
   - phase-6
   - phase-7
+  - phase-8
+  - phase-10
+  - phase-11
+  - phase-12
+  - phase-13
+  - phase-14
   failed_phases: []
   auto_fix_attempts: {}
   options:
@@ -22,14 +28,14 @@ orchestrator:
     reality_check_enabled: true
     production_check_enabled: true
   created: '2026-10-21T09:24:47Z'
-  updated: '2026-10-21T12:53:48Z'
+  updated: '2026-10-21T17:51:53Z'
   task_path: .maister/tasks/development/2026-10-21-private-group-join-by-code
   task_ids: {}
 task:
   title: Dołączanie do grupy prywatnej przez kod (zastąpienie 'poproś o dostęp')
   description: Implement joining a PRIVATE group with a 6-digit organizer access code (plaintext groups.join_code, lazy get-or-create, regenerate, redeem with dual in-process limiter → 429), replacing and
     fully removing the GroupJoinRequest ("poproś o dostęp") mechanism, per research 2026-10-21-private-group-join-by-code.
-  status: in_progress
+  status: completed
   tags:
   - groups
   - private
@@ -208,6 +214,49 @@ task_context:
       - path: implementation/visual-coverage.md
         label: Visual coverage
         html: null
+    implementation:
+      summary: All 9 groups / 62 steps done in 4 waves. Backend full suite 858/0; frontend full suite 1008 passed / 6 pre-existing failures (reproduced on HEAD); tsc clean; mypy 23 (< baseline 32); removal
+        gate empty.
+      decisions:
+      - decision: Migration test reads dropped names from the 0060 module constants
+        rationale: case-insensitive R31 gate matched literal table/column names
+      - decision: PrivateGroupGate drops unused groupId/termId props
+        rationale: minimal-implementation
+      risks:
+      - 6 pre-existing frontend test failures and whole-project lint/ruff debt (not caused by this task)
+      - user-guide.md l.58/l.240 still describe the request flow
+      - Full backend suite takes ~74 min
+      artifacts:
+      - path: implementation/work-log.md
+        label: Work log
+        html: null
+      - path: implementation/implementation-plan.md
+        label: Implementation plan (all checked)
+        html: implementation/implementation-plan.html
+    e2e:
+      summary: 12/12 scenarios pass (i, l with caveats); visual fidelity 3 match / 3 minor / 0 drift.
+      decisions: []
+      risks:
+      - 'Minor 5.3-1: code lost if the token is already stale when the #code= link opens (401 from /api/people/me before /access)'
+      - uvicorn access log not verified (no code in 279 request URLs)
+      - 'Not exercised: busy/other-error sheet states, PUBLIC/403 card hiding, no-upcoming-term'
+      artifacts:
+      - path: verification/e2e-verification-report.md
+        label: E2E report
+        html: verification/e2e-verification-report.html
+      - path: verification/visual-fidelity.md
+        label: Visual fidelity
+        html: verification/visual-fidelity.html
+    user_docs:
+      summary: Polish user guide (organizer + participant, messages, FAQ, limitations) with 15 screenshots (13 reused from E2E).
+      decisions: []
+      risks:
+      - Stepper defaults to PUBLIC when the organizer has an organization page; the guide tells organizers to check visibility
+      - Two screenshots don't show the toasts; the text names them
+      artifacts:
+      - path: documentation/user-guide.md
+        label: User guide (PL)
+        html: null
   design_resources:
     ran: true
     found_any: true
@@ -222,3 +271,33 @@ task_context:
     - pages/panel/panelComponents.tsx
     skill_hints: []
   tech_clarified: true
+verification_context:
+  last_status: passed_with_issues
+  issues_found:
+  - W1 duplicate memberships (accepted, OQ-8)
+  - I19 redeemStarted not scoped to groupId
+  - I20 overlapping redeems share storage key
+  - I18/G5 accepted by design
+  fixes_applied:
+  - 'B1 #code= fragment + sessionStorage across login'
+  - W3 alert after blur/submit
+  - W4 useJoinCode idle, no error field
+  - W5 regenerate setQueryData
+  - W6 immediate hash strip
+  - W7 gate codeSheet prop
+  - W8 migration test literals + gate exclusion
+  - W9 rollback note + audit logging
+  - W10 exact key sets + user guide
+  - T1 waitFor on hash assertions
+  - I13 code restored on 401 (useTermAccess cause)
+  - I15 pending code 1h TTL
+  - I14 blocked-storage + StrictMode tests
+  - I16 ADR superseded notes + spec SC1/SC6 wording
+  - G2 JoinByCodeSheet key
+  - I17 write pending code before redeem
+  - G4/G5 spec amendment bullet + plan pointer
+  decisions_made:
+  - 'B1 fixed via #code= fragment'
+  - Duplicate memberships left as follow-up (OQ-8)
+  - Max 3 cycles reached; proceed with W1 (accepted) + I19/I20 info
+  reverify_count: 3

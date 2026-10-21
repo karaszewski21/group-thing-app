@@ -1,8 +1,7 @@
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
-import { cleanup, render } from "@testing-library/react";
+import { cleanup } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
-import { KragStage } from "../pages/krag/components/KragStage";
 
 const SRC = resolve(process.cwd(), "src");
 
@@ -61,35 +60,17 @@ describe("default organizer palette contrast (WCAG AA)", () => {
   });
 });
 
-describe("KragStage stylesheet", () => {
-  function injectedCss(): string {
-    return Array.from(document.querySelectorAll("style"))
-      .map((style) => style.textContent ?? "")
-      .join("\n");
-  }
-
-  it("does not declare variables on the global :root", () => {
-    render(<KragStage>term</KragStage>);
-    expect(injectedCss()).not.toMatch(/:root\s*\{/);
-  });
-
-  it("does not inject a global universal-selector rule", () => {
-    render(<KragStage>term</KragStage>);
-    expect(injectedCss()).not.toMatch(/(^|\})\s*\*\s*[,{]/m);
-  });
-});
-
 describe("in-scope public pages use theme tokens, not literal colors", () => {
   const IN_SCOPE_FILES = [
-    "pages/krag/components/KragStage.tsx",
-    "pages/krag/components/TermFooter.tsx",
-    "pages/krag/components/termLabels.ts",
-    "pages/krag/PublicTermView.tsx",
-    "pages/krag/PrivateGroupGate.tsx",
-    "pages/krag/GroupVisualization.tsx",
-    "components/krag/AccountMergeForm.tsx",
-    "components/krag/RequestAccessDialog.tsx",
-    "components/krag/ModalSheet.tsx",
+    "pages/term/components/TermFooter.tsx",
+    "pages/term/components/termLabels.ts",
+    "pages/term/views/PublicTermView.tsx",
+    "pages/term/views/PrivateTermView.tsx",
+    "pages/term/components/GroupVisualization.tsx",
+    "pages/term/modals/AccountMergeForm.tsx",
+    "pages/term/modals/JoinByCodeSheet.tsx",
+    "pages/term/components/CodeDigitsInput.tsx",
+    "components/shared/ModalSheet.tsx",
     "components/shared/PhoneFrame.tsx",
     "pages/product/ItemTimeline.tsx",
     "pages/organizer/PublicOrganizationPage.tsx",
@@ -135,7 +116,7 @@ describe("in-scope public pages use theme tokens, not literal colors", () => {
     expect(literals).toEqual([]);
   });
 
-  it.each(IN_SCOPE_FILES)("%s reads no unprefixed KragStage variables", (file) => {
+  it.each(IN_SCOPE_FILES)("%s reads no unprefixed theme variables", (file) => {
     expect(readSource(file)).not.toMatch(/var\(--(cream|paper|ink|ink-soft|mint|mint-soft|sage|sage-soft|teal|teal-soft|lime|line|danger)\)/);
   });
 });

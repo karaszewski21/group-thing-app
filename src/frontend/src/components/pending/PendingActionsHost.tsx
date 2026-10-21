@@ -2,16 +2,15 @@ import { useEffect, useId, useMemo, useState, useSyncExternalStore } from "react
 import { useNavigate } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
 import { ApiError } from "../../api/client";
-import { approveJoinRequest, rejectJoinRequest } from "../../api/groups";
 import { getMyProfile } from "../../api/people";
 import { confirmTransaction } from "../../api/reservations";
 import { useAuth } from "../../auth/AuthContext";
 import { NOTIFICATIONS_KEY, useNotifications } from "../../hooks/useNotifications";
-import { PENDING_JOIN_REQUESTS_KEY, usePendingJoinRequests } from "../../hooks/usePendingJoinRequests";
-import { useToast } from "../../pages/krag/hooks/useToast";
+import { ToastPill } from "../shared/ToastPill";
+import { useToast } from "../shared/useToast";
 import dayjs from "../../utils/dayjs";
-import { BTN_GHOST, BTN_LG, BTN_PRIMARY } from "../krag/kragStyles";
-import { ModalSheet } from "../krag/ModalSheet";
+import { BTN_GHOST, BTN_LG, BTN_PRIMARY } from "../shared/uiStyles";
+import { ModalSheet } from "../shared/ModalSheet";
 import { getOpenSheetCount, subscribeOpenSheets } from "../shared/openSheets";
 import { emitPendingActionResolved } from "./pendingActionResolved";
 import {
@@ -19,10 +18,8 @@ import {
   derivePendingActions,
   pendingActionKey,
   resolvePendingReservationId,
-  type JoinRequestDecision,
   type PendingAction,
   type PendingConfirmAction,
-  type PendingJoinRequestAction,
   type PendingSwapAction,
 } from "./pendingActions";
 import { earliestExpiry, getSnoozed, nextLocal0800, snooze } from "./snoozeStore";
@@ -31,17 +28,15 @@ const CONFIRM_FAILED = "Nie udało się potwierdzić — spróbuj ponownie";
 const PRIMARY_BUTTON = `${BTN_PRIMARY} ${BTN_LG}`;
 const GHOST_BUTTON = `${BTN_GHOST} ${BTN_LG}`;
 
-/** App-wide pending-actions prompt (swap proposals, post-term-end confirms,
- * organizer join requests), mounted once by `PublicLayout` for logged-in
- * users. Shows one prompt at a time, oldest first. "Później", ✕, scrim and
- * Esc snooze a prompt until the next local 08:00 without marking it read.
+/** App-wide pending-actions prompt (swap proposals, post-term-end confirms),
+ * mounted once by `PublicLayout` for logged-in users. Shows one prompt at a
+ * time, oldest first. "Później", ✕, scrim and Esc snooze a prompt until the next local 08:00 without marking it read.
  * Renders no prompt while a page-level dialog is open. */
 export function PendingActionsHost() {
   const { username } = useAuth();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { data: notifications, markRead } = useNotifications();
-  const { data: joinRequests } = usePendingJoinRequests();
   const openSheetCount = useSyncExternalStore(subscribeOpenSheets, getOpenSheetCount);
   const { toast, showToast } = useToast();
 
@@ -50,13 +45,6 @@ export function PendingActionsHost() {
   // "already resolved by the other party" (409 `already_resolved: true`).
   const [pendingActionBusyId, setPendingActionBusyId] = useState<string | null>(null);
   const [alreadyResolvedIds, setAlreadyResolvedIds] = useState<ReadonlySet<string>>(new Set());
-  // Join requests acknowledged as already resolved stay hidden until the host remounts.
-  const [hiddenJoinRequestIds, setHiddenJoinRequestIds] = useState<ReadonlySet<string>>(new Set());
-  const [joinRequestBusy, setJoinRequestBusy] = useState<
-    { joinRequestId: string; decision: JoinRequestDecision } | null
-  >(null);
-  const [resolvedJoinRequestIds, setResolvedJoinRequestIds] = useState<ReadonlySet<string>>(new Set());
-  const [joinRequestErrorId, setJoinRequestErrorId] = useState<string | null>(null);
 
   // One timer for the earliest snooze expiry brings that prompt back.
   const nextExpiry = earliestExpiry(snoozed);
@@ -67,28 +55,17 @@ export function PendingActionsHost() {
   }, [nextExpiry, username]);
 
   const pendingActions = useMemo(
-    () =>
-      derivePendingActions(notifications, joinRequests).filter(
-        (a) =>
-          !(pendingActionKey(a) in snoozed) &&
-          !(a.kind === "GROUP_JOIN_REQUESTED" && hiddenJoinRequestIds.has(a.joinRequestId)),
-      ),
-    [notifications, joinRequests, snoozed, hiddenJoinRequestIds],
+    () => derivePendingActions(notifications).filter((a) => !(pendingActionKey(a) in snoozed)),
+    [notifications, snoozed],
   );
 
   function forgetResolvedState(action: PendingAction) {
-    const drop = <T,>(prev: ReadonlySet<T>, id: T) => {
-      if (!prev.has(id)) return prev;
+    setAlreadyResolvedIds((prev) => {
+      if (!prev.has(action.notificationId)) return prev;
       const next = new Set(prev);
-      next.delete(id);
+      next.delete(action.notificationId);
       return next;
-    };
-    if (action.kind === "GROUP_JOIN_REQUESTED") {
-      setResolvedJoinRequestIds((prev) => drop(prev, action.joinRequestId));
-      setJoinRequestErrorId((prev) => (prev === action.joinRequestId ? null : prev));
-    } else {
-      setAlreadyResolvedIds((prev) => drop(prev, action.notificationId));
-    }
+    });
   }
 
   function snoozeAction(action: PendingAction) {
@@ -101,18 +78,6 @@ export function PendingActionsHost() {
   function dismissPendingAction(action: PendingSwapAction | PendingConfirmAction) {
     forgetResolvedState(action);
     markRead(action.notificationId);
-  }
-
-  async function invalidatePendingQueries() {
-    await Promise.all([
-      queryClient.invalidateQueries({ queryKey: NOTIFICATIONS_KEY }),
-      queryClient.invalidateQueries({ queryKey: [PENDING_JOIN_REQUESTS_KEY] }),
-    ]);
-  }
-
-  function announceResolved(message: string) {
-    showToast(message);
-    emitPendingActionResolved();
   }
 
   function openSwapProposalsOnMyItems(action: PendingSwapAction) {
@@ -141,9 +106,10 @@ export function PendingActionsHost() {
       await confirmTransaction(reservationId);
       // Invalidate before marking read, so the refetch cannot bring the
       // prompt back before the server has stored the read.
-      await invalidatePendingQueries();
+      await queryClient.invalidateQueries({ queryKey: NOTIFICATIONS_KEY });
       dismissPendingAction(action);
-      announceResolved("Potwierdzono");
+      showToast("Potwierdzono");
+      emitPendingActionResolved();
     } catch (err) {
       if (
         err instanceof ApiError &&
@@ -161,54 +127,11 @@ export function PendingActionsHost() {
     }
   }
 
-  function acknowledgeResolvedJoinRequest(action: PendingJoinRequestAction) {
-    forgetResolvedState(action);
-    setHiddenJoinRequestIds((prev) => new Set(prev).add(action.joinRequestId));
-    void queryClient.invalidateQueries({ queryKey: [PENDING_JOIN_REQUESTS_KEY] });
-    emitPendingActionResolved();
-  }
-
-  async function decideJoinRequest(action: PendingJoinRequestAction, decision: JoinRequestDecision) {
-    const { joinRequestId, groupId } = action;
-    setJoinRequestBusy({ joinRequestId, decision });
-    setJoinRequestErrorId(null);
-    try {
-      if (decision === "approve") await approveJoinRequest(groupId, joinRequestId);
-      else await rejectJoinRequest(groupId, joinRequestId);
-      const linked = notifications.find(
-        (n) => n.kind === "GROUP_JOIN_REQUESTED" && n.join_request_id === joinRequestId && n.read_at === null,
-      );
-      await invalidatePendingQueries();
-      if (linked) markRead(linked.id);
-      announceResolved(decision === "approve" ? "Prośba zatwierdzona" : "Prośba odrzucona");
-    } catch (err) {
-      // Any 409 means someone (the requester, another organizer, another tab)
-      // already moved the request out of PENDING.
-      if (err instanceof ApiError && err.status === 409) {
-        setResolvedJoinRequestIds((prev) => new Set(prev).add(joinRequestId));
-      } else {
-        setJoinRequestErrorId(joinRequestId);
-      }
-    } finally {
-      setJoinRequestBusy(null);
-    }
-  }
-
   const action = openSheetCount > 0 ? undefined : pendingActions[0];
 
   return (
     <>
-      {action?.kind === "GROUP_JOIN_REQUESTED" ? (
-        <JoinRequestActionSheet
-          action={action}
-          busyDecision={joinRequestBusy?.joinRequestId === action.joinRequestId ? joinRequestBusy.decision : null}
-          resolved={resolvedJoinRequestIds.has(action.joinRequestId)}
-          failed={joinRequestErrorId === action.joinRequestId}
-          onSnooze={() => snoozeAction(action)}
-          onAcknowledge={() => acknowledgeResolvedJoinRequest(action)}
-          onDecide={(decision) => void decideJoinRequest(action, decision)}
-        />
-      ) : action ? (
+      {action ? (
         <NotificationActionSheet
           action={action}
           busy={pendingActionBusyId === action.notificationId}
@@ -219,14 +142,7 @@ export function PendingActionsHost() {
           onOpenMyItems={(swapAction) => openSwapProposalsOnMyItems(swapAction)}
         />
       ) : null}
-      {toast && (
-        <div
-          className="fixed bottom-[90px] left-1/2 z-[120] -translate-x-1/2 rounded-full bg-ink px-5 py-[11px] text-sm font-semibold text-on-ink shadow-[0_14px_30px_-14px_rgba(30,46,39,.9)]"
-          role="status"
-        >
-          {toast}
-        </div>
-      )}
+      <ToastPill message={toast} />
     </>
   );
 }
@@ -292,79 +208,6 @@ function NotificationActionSheet({
                 Zobacz w Moje rzeczy
               </button>
             )}
-            <button type="button" className={GHOST_BUTTON} aria-describedby={hintId} onClick={onSnooze}>
-              Później
-            </button>
-          </div>
-          <SnoozeHint id={hintId} />
-        </>
-      )}
-    </ModalSheet>
-  );
-}
-
-function JoinRequestActionSheet({
-  action,
-  busyDecision,
-  resolved,
-  failed,
-  onSnooze,
-  onAcknowledge,
-  onDecide,
-}: {
-  action: PendingJoinRequestAction;
-  busyDecision: JoinRequestDecision | null;
-  resolved: boolean;
-  failed: boolean;
-  onSnooze: () => void;
-  onAcknowledge: () => void;
-  onDecide: (decision: JoinRequestDecision) => void;
-}) {
-  const hintId = useId();
-  const sentOn = new Date(action.createdAt).toLocaleDateString("pl-PL", { day: "numeric", month: "long" });
-
-  return (
-    <ModalSheet title="Prośba o dostęp" onClose={onSnooze} registerAsPageSheet={false}>
-      <p className="text-sm text-ink">
-        {action.requesterName} prosi o dostęp do grupy <strong>„{action.groupName}”</strong>.
-      </p>
-      <p className="mt-1 text-xs text-ink-soft">Wysłano {sentOn}</p>
-
-      {resolved ? (
-        <>
-          <p className="mt-3 text-sm font-semibold text-danger" role="alert">
-            Prośba została już rozstrzygnięta.
-          </p>
-          <button type="button" className={`mt-3 ${GHOST_BUTTON}`} onClick={onAcknowledge}>
-            Rozumiem
-          </button>
-        </>
-      ) : (
-        <>
-          {failed && (
-            <p className="mt-3 text-sm font-semibold text-danger" role="alert">
-              Nie udało się zapisać decyzji — spróbuj ponownie
-            </p>
-          )}
-          <div className="mt-3 flex flex-wrap gap-2">
-            <button
-              type="button"
-              className={PRIMARY_BUTTON}
-              disabled={busyDecision !== null}
-              aria-busy={busyDecision !== null}
-              onClick={() => onDecide("approve")}
-            >
-              {busyDecision === "approve" ? "Zatwierdzanie…" : "Zatwierdź"}
-            </button>
-            <button
-              type="button"
-              className={`${GHOST_BUTTON} disabled:opacity-60`}
-              disabled={busyDecision !== null}
-              aria-busy={busyDecision !== null}
-              onClick={() => onDecide("reject")}
-            >
-              {busyDecision === "reject" ? "Odrzucanie…" : "Odrzuć"}
-            </button>
             <button type="button" className={GHOST_BUTTON} aria-describedby={hintId} onClick={onSnooze}>
               Później
             </button>

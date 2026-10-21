@@ -156,7 +156,7 @@ Let a logged-in visitor who holds the organizer's 6-digit code become a member o
 - **R17** New `utils/joinCode.ts`:
   - `parseJoinCode(raw)` returns `null` for empty input, the 6-digit string when valid, and `undefined` when invalid. It strips spaces and hyphens first, following the `parseCapacity` model. TermPage also uses it to validate `?code=`.
   - `formatJoinCode(code)` returns `"482 913"`.
-- **R18** New `hooks/useJoinCode(groupId, {enabled})`:
+- **R18** (see Post-verification amendments) New `hooks/useJoinCode(groupId, {enabled})`:
   - A query keyed by a `JOIN_CODE_KEY` prefix plus `groupId`.
   - Returns `code: string | null`, `status: "loading" | "ready" | "denied" | "error"` (`denied` = `ApiError` 403; `error` = any other failure), `error: string | null`, `refetch(): Promise<void>` and `regenerate()`.
   - `regenerate()` uses `useCallback` + `regenerateJoinCode` + `await invalidateQueries([JOIN_CODE_KEY])`. On failure it rethrows `new Error(serverMessageOr(err, "Nie udało się wygenerować kodu — spróbuj ponownie"))`, so `ConfirmDeleteDialog` never shows a raw `409 Conflict`.
@@ -166,7 +166,7 @@ Let a logged-in visitor who holds the organizer's 6-digit code become a member o
 
 ### Frontend: visitor
 - **R21** `pages/krag/termAccess.ts`: `PrivateGate` becomes `loginRequired | canEnterCode`. The pending/rejected derivation is removed.
-- **R22** `PrivateGroupGate.tsx` keeps its shell (`KragStage`, `GroupHeader`, `CARD`, heading `Ta grupa jest prywatna`) and its existing props. Remove canRequest/pending/rejected/withdraw, `showDialog`, `createConflict` and the focus/visibilitychange polling (l.52-67). It owns no sheet or `?code=` state.
+- **R22** (see Post-verification amendments) `PrivateGroupGate.tsx` keeps its shell (`KragStage`, `GroupHeader`, `CARD`, heading `Ta grupa jest prywatna`) and its existing props. Remove canRequest/pending/rejected/withdraw, `showDialog`, `createConflict` and the focus/visibilitychange polling (l.52-67). It owns no sheet or `?code=` state.
   - New props, all supplied by TermPage (R24):
     - `hasCodeParam: boolean` — selects the `loginRequired` copy.
     - `sheetOpen: boolean`
@@ -190,7 +190,7 @@ Let a logged-in visitor who holds the organizer's 6-digit code become a member o
     - Server error: the message from `onSubmit`'s rejection (409 and 429 verbatim, otherwise the R20 fallback) in the same alert slot, with `aria-invalid="true"`. The sheet stays open with the input kept. Editing the input clears the server error.
   - Auto-submit: when `autoSubmit` is true and `initialCode` parses to a code, the sheet submits once on mount (a sheet-local ref, safe under StrictMode).
   - Buttons `Anuluj` / `Dołącz`.
-- **R24** `TermPage.tsx` owns `?code=` and the sheet state. It holds `sheetOpen`, `sheetInitialCode`, `sheetAutoSubmit`, a one-shot ref keyed by `` `${groupId}:${rawCode}` `` (so a second code link in the same mount still runs), and the `onJoin` wrapper. It reads `code` via `useSearchParams` only once `/access` is ready and not stale (`isStale` false), then:
+- **R24** (see Post-verification amendments) `TermPage.tsx` owns `?code=` and the sheet state. It holds `sheetOpen`, `sheetInitialCode`, `sheetAutoSubmit`, a one-shot ref keyed by `` `${groupId}:${rawCode}` `` (so a second code link in the same mount still runs), and the `onJoin` wrapper. It reads `code` via `useSearchParams` only once `/access` is ready and not stale (`isStale` false), then:
   - `view` → strip the parameter at once.
   - `loginRequired` → keep it, and pass `hasCodeParam`.
   - `canEnterCode`, ref key not yet consumed → mark it consumed, then:
@@ -215,7 +215,7 @@ Let a logged-in visitor who holds the organizer's 6-digit code become a member o
     - `Kopiuj link z kodem`, only when `termId` is non-null. The link is `window.location.origin + termPublicPath(group, termId) + "?code=" + code`, never built from `location.href`.
     - `Wygeneruj nowy kod`, which opens the confirm (R26).
   - Owns `useToast` and a `role="status"` pill. Toasts: `Skopiowano kod`, `Skopiowano link`, `Wygenerowano nowy kod`, `Nie udało się skopiować kodu`.
-- **R26** `ConfirmDeleteDialog` gains two optional props, with the current defaults so existing callers are unchanged:
+- **R26** (see Post-verification amendments) `ConfirmDeleteDialog` gains two optional props, with the current defaults so existing callers are unchanged:
   - `tone: "danger" | "primary"` (default `danger`)
   - `busyLabel` (default `Usuwanie…`)
 
@@ -256,7 +256,7 @@ Let a logged-in visitor who holds the organizer's 6-digit code become a member o
 ### Cross-cutting
 - **R31** Removal gate: this command returns nothing.
 
-  `rg -i "join.?request|GROUP_JOIN_|RequestAccessDialog|PENDING_JOIN_REQUESTS_KEY|join-requests|request_?access" src/ -g '!src/backend/alembic/versions/**'`
+  `rg -i "join.?request|GROUP_JOIN_|RequestAccessDialog|PENDING_JOIN_REQUESTS_KEY|join-requests|request_?access" src/ -g '!src/backend/alembic/versions/**' -g '!src/backend/tests/test_group_join_code_migrations.py'` (the migration test hard-codes the dropped names on purpose)
 
   Case-insensitive, so it also catches `joinRequestId`, `joinRequestBusy`, `join-requests` URL strings and `_request_access`. Alembic history (0037-0042 and the 0060 drop/downgrade) is excluded.
 - **R32** Prose outside `src/` (restored from the HLD inventory):
@@ -405,14 +405,15 @@ Two exceptions to the mockups:
 - Backfilling codes; a pre-deploy count of PENDING requests; edits to applied migrations 0037/0038/0041
 
 ## Success Criteria
-1. A logged-in non-member holding a valid code reaches the term content and a successful RSVP with one code submission and no organizer action. This includes the anonymous `?code=` → login → auto-submit path, verified by a manual two-account check.
+1. A logged-in non-member holding a valid code reaches the term content and a successful RSVP with one code submission and no organizer action. This includes the anonymous `#code=` → login → auto-submit path, verified by a manual two-account check.
 2. No API response other than the two organizer endpoints contains `join_code`, as shown by the exact key-set tests.
 3. Guessing is bounded: at most 30 failed redemptions per group per rolling hour, and at most 10 per (user, group) per 15 minutes. A correct code submitted while locked out returns 429 with an integer `Retry-After`.
 4. A wrong code and "no code yet" are indistinguishable: same status, same message.
-5. The R31 command, `rg -i "join.?request|GROUP_JOIN_|RequestAccessDialog|PENDING_JOIN_REQUESTS_KEY|join-requests|request_?access" src/ -g '!src/backend/alembic/versions/**'`, returns nothing, and the R32 prose items are updated. Both `alembic downgrade 0058 && alembic upgrade head` and `alembic downgrade 0059 && alembic upgrade head` succeed.
+5. The R31 command, `rg -i "join.?request|GROUP_JOIN_|RequestAccessDialog|PENDING_JOIN_REQUESTS_KEY|join-requests|request_?access" src/ -g '!src/backend/alembic/versions/**' -g '!src/backend/tests/test_group_join_code_migrations.py'` (the migration test hard-codes the dropped names on purpose), returns nothing, and the R32 prose items are updated. Both `alembic downgrade 0058 && alembic upgrade head` and `alembic downgrade 0059 && alembic upgrade head` succeed.
 6. Full suites are green:
-   - `uv run python -m pytest`, `mypy` (no worse than baseline) and `ruff` from `src/backend`.
-   - `npm test`, `npm run lint` and `npx tsc -b` from `src/frontend`.
+   - `uv run python -m pytest` and `mypy` (no worse than baseline) from `src/backend`.
+   - `npm test` and `npx tsc -b` from `src/frontend`.
+   - `ruff` / `npm run lint`: no new lint/ruff errors; files touched by this task are clean (whole-project lint/ruff debt pre-exists).
 7. The six mockup screens match in layout, copy, field order and states, except the two documented exceptions (`AuthGateLinks` copy, and card skeleton/error states). The card is absent for PUBLIC groups and for non-organizers (403). No dialog or card shows a raw HTTP status text.
 8. The lazy GET never answers 500 or a null code, including after a concurrent write.
 
@@ -441,3 +442,19 @@ Two exceptions to the mockups:
 | L11 sheet details | R23 empty/invalid/busy/server-error states with `aria-invalid`, Enter submits; R20 fallback string and `serverMessageOr` scope. |
 | L12 removal gate | R31 case-insensitive regex with the added identifiers; SC5 aligned; R32 restores the user-guide l.214 and DEV22 prose items. |
 | User decision 5 | R9 step 5 clears the user key on `{created:false}`; the group key is never cleared. |
+
+## Post-verification amendments (2026-10-21)
+
+- **Fragment, not query (R24, R26, ADR-005; production-readiness B1).** The shared link is `…/term/<id>#code=NNNNNN`. "Kopiuj link z kodem" builds it, and `TermPage` reads `location.hash`. Browsers never send the fragment, so the code stays out of nginx and uvicorn access logs. Read every `?code=` above as `#code=`.
+- **Login keeps the code in sessionStorage, not in `returnTo`.** `returnTo` stays `pathname + search`, because a fragment inside the login URL's query would reach the server. While the gate is `loginRequired`, `TermPage` writes the code to `sessionStorage["pendingJoinCode:{groupId}"]` and keeps the hash. After login or onboarding the visitor comes back without the hash, and `TermPage` reads the code from storage. LoginPage, OnboardingPage, AuthGuard and the 401 redirect are unchanged.
+  - The entry is `{code, savedAt}` and is ignored after 1h, so an abandoned link does not join a later login.
+  - `onJoin` writes the code before calling `joinWithCode` and removes it on success or on any error other than a 401 (409, 429, …). On a 401 it stays, so it survives the `api/client` login redirect regardless of ordering. While the sheet holds a valid code, the settle step leaves storage to `onJoin`.
+  - Guard (`redeemStarted`, formerly `signedOut`): once a redeem starts, `TermPage` stops reading storage, so its own pre-written entry never reopens or re-submits the sheet.
+  - By design (G5): a kept code is redeemed by whichever account logs in next in that tab within the hour. A profile-less account (backend 401) gets it re-sent after each manual login (I18, accepted).
+  - `JoinByCodeSheet` is keyed on `initialCode` (G2), so a new `#code=` arriving while the sheet is open remounts it with that code and auto-submits once.
+- **Immediate strip (replaces the one-shot ref and strip-on-settle).** Nothing happens while access is unsettled or stale. Once it settles:
+  - `view` clears the hash and storage.
+  - `canEnterCode` clears the hash (`navigate(pathname + search, {replace: true})`) at once, and storage too unless the code is valid (then `onJoin` clears it, see above). It opens the sheet with the code and `autoSubmit`, or opens it empty when the code is malformed.
+- **`useJoinCode` (R18).** A disabled query reports `status: "idle"`, and `JoinCodeCard` renders nothing for it. The `error` field is removed. `regenerate` writes the returned code with `setQueryData([JOIN_CODE_KEY, groupId], res)`, so no follow-up GET runs.
+- **Gate props (R22).** `PrivateGroupGate` takes one `codeSheet: {initialCode, autoSubmit} | null` and `hasPendingCode`, replacing `sheetOpen`/`initialCode`/`autoSubmit`/`hasCodeParam`. Its own focus-return effect is removed, because `ModalSheet` already returns focus to "Mam kod dostępu".
+- **Sheet validation (R23).** "Kod ma 6 cyfr", `aria-invalid` and the danger border appear only after blur or a submit attempt. Non-digit or too-long input shows them at once.

@@ -4,7 +4,7 @@ import { MemoryRouter } from "react-router-dom";
 import * as groupsApi from "../api/groups";
 import * as peopleApi from "../api/people";
 import { AuthProvider } from "../auth/AuthContext";
-import { AccountMergeForm } from "../components/krag/AccountMergeForm";
+import { AccountMergeForm } from "../pages/term/modals/AccountMergeForm";
 
 // Group 11 gap review (candidate gap #3): no existing test exercises the
 // specific handoff "account-merge succeeds -> applyExternalToken stores the

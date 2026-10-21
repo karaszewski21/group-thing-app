@@ -1,4 +1,3 @@
-import type { PendingJoinRequestResponse } from "../../api/groups";
 import type { NotificationResponse } from "../../api/notifications";
 import { getReservation } from "../../api/reservations";
 import { getMyTakenTermItemListings, getMyTermItemListings } from "../../api/termItemListings";
@@ -39,21 +38,7 @@ export interface PendingConfirmAction {
   proposalId: string | null;
 }
 
-/** A PENDING request to join a group the caller organizes. Sourced from the
- * server's pending list rather than from notifications, so it stays until
- * decided even when its `GROUP_JOIN_REQUESTED` notification was read. */
-export interface PendingJoinRequestAction {
-  kind: "GROUP_JOIN_REQUESTED";
-  joinRequestId: string;
-  groupId: string;
-  groupName: string;
-  requesterName: string;
-  createdAt: string;
-}
-
-export type PendingAction = PendingSwapAction | PendingConfirmAction | PendingJoinRequestAction;
-
-export type JoinRequestDecision = "approve" | "reject";
+export type PendingAction = PendingSwapAction | PendingConfirmAction;
 
 const TERM_LINK_PATH_RE = /\/term\/([^/]+)$/;
 
@@ -63,50 +48,34 @@ export function parseTermIdFromLinkPath(linkPath: string | null): string | null 
   return match ? match[1] : null;
 }
 
-/** Swap/confirm actions are derived from unread notifications; join-request
- * actions come from the server's pending list and follow them, oldest first. */
-export function derivePendingActions(
-  notifications: NotificationResponse[],
-  joinRequests: PendingJoinRequestResponse[],
-): PendingAction[] {
-  return [
-    ...notifications
-      .filter((n) => n.read_at === null)
-      .flatMap((n): PendingAction[] => {
-        if (n.kind === "SWAP_PROPOSED") {
-          return [{ kind: "SWAP_PROPOSED", notificationId: n.id, message: n.message, linkPath: n.link_path }];
-        }
-        if (n.kind === "TERM_CONFIRMATION_NEEDED") {
-          return [
-            {
-              kind: "TERM_CONFIRMATION_NEEDED",
-              notificationId: n.id,
-              message: n.message,
-              linkPath: n.link_path,
-              termId: parseTermIdFromLinkPath(n.link_path),
-              reservationId: n.reservation_id ?? null,
-              proposalId: n.proposal_id ?? null,
-            },
-          ];
-        }
-        return [];
-      }),
-    ...joinRequests.map(
-      (r): PendingJoinRequestAction => ({
-        kind: "GROUP_JOIN_REQUESTED",
-        joinRequestId: r.id,
-        groupId: r.group_id,
-        groupName: r.group_name,
-        requesterName: r.requester_display_name,
-        createdAt: r.created_at,
-      }),
-    ),
-  ];
+/** Swap/confirm actions, derived from unread notifications. */
+export function derivePendingActions(notifications: NotificationResponse[]): PendingAction[] {
+  return notifications
+    .filter((n) => n.read_at === null)
+    .flatMap((n): PendingAction[] => {
+      if (n.kind === "SWAP_PROPOSED") {
+        return [{ kind: "SWAP_PROPOSED", notificationId: n.id, message: n.message, linkPath: n.link_path }];
+      }
+      if (n.kind === "TERM_CONFIRMATION_NEEDED") {
+        return [
+          {
+            kind: "TERM_CONFIRMATION_NEEDED",
+            notificationId: n.id,
+            message: n.message,
+            linkPath: n.link_path,
+            termId: parseTermIdFromLinkPath(n.link_path),
+            reservationId: n.reservation_id ?? null,
+            proposalId: n.proposal_id ?? null,
+          },
+        ];
+      }
+      return [];
+    });
 }
 
 /** The snooze key of an action. */
 export function pendingActionKey(action: PendingAction): string {
-  return action.kind === "GROUP_JOIN_REQUESTED" ? `jr:${action.joinRequestId}` : `n:${action.notificationId}`;
+  return `n:${action.notificationId}`;
 }
 
 export function confirmActionTitle(action: PendingConfirmAction): string {

@@ -1,10 +1,10 @@
-"""Regression tests for PRIVATE-group access defects fixed alongside the
-join-request flow:
+"""Regression tests for PRIVATE-group access defects:
 
 - B13: an organizer (or member) of a PRIVATE group must get the full term
   content from `/access`, and a foreign/unknown `term_id` must 404 for them.
-- B14: no endpoint may grant membership of a group without the organizer's
-  approval (`POST /api/memberships`, `POST /api/groups/public/{id}/join`).
+- B14: membership of a PRIVATE group is granted only with the organizer's
+  access code; no other endpoint may grant it (`POST /api/memberships`,
+  `POST /api/groups/public/{id}/join`).
 
 Naming follows `action_condition_expectedResult`
 (`standards/testing/backend-testing.md`).

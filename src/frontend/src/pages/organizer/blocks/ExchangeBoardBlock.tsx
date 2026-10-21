@@ -1,6 +1,6 @@
 import { useId, useRef, useState, type KeyboardEvent } from "react";
 import type { ExchangeMode } from "../../../api/groups";
-import { EXCHANGE_MODE_LABELS, EXCHANGE_MODE_TONE } from "../../krag/components/termLabels";
+import { EXCHANGE_MODE_LABELS, EXCHANGE_MODE_TONE } from "../../term/components/termLabels";
 import { nextIndex } from "../editor/rovingIndex";
 import type { BlockProps, OrganizerPageData } from "../layouts/types";
 import { exchangeTotal } from "../organizerHelpers";

@@ -71,7 +71,7 @@ export function GroupFormFields({ value, onChange, showLayoutMode = false, idPre
           className={INPUT_CLASS}
         >
           <option value="PUBLIC">Publiczna</option>
-          <option value="PRIVATE">Prywatna — (dostęp na prośbę)</option>
+          <option value="PRIVATE">Prywatna — (dostęp z kodem)</option>
         </select>
       </Field>
       <Field label={PLACE_LABEL}>

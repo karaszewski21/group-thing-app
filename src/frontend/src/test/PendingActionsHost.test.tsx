@@ -3,7 +3,6 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { useState, type ReactNode } from "react";
 import { MemoryRouter, Route, Routes, useLocation } from "react-router-dom";
 import * as notificationsApi from "../api/notifications";
-import * as groupsApi from "../api/groups";
 import * as peopleApi from "../api/people";
 import * as termItemListingsApi from "../api/termItemListings";
 import type { BrowseTermItemListingResponse } from "../api/termItemListings";
@@ -12,11 +11,10 @@ import { ApiError } from "../api/client";
 import { PendingActionsHost } from "../components/pending/PendingActionsHost";
 import { resetSnoozeStoreForTests, nextLocal0800 } from "../components/pending/snoozeStore";
 import { subscribePendingActionResolved } from "../components/pending/pendingActionResolved";
-import { ModalSheet } from "../components/krag/ModalSheet";
+import { derivePendingActions, pendingActionKey } from "../components/pending/pendingActions";
+import { ModalSheet } from "../components/shared/ModalSheet";
 import { useRegisterOpenSheet } from "../components/shared/openSheets";
-import { NotificationBell } from "../components/shared/NotificationBell";
 import { NOTIFICATIONS_KEY } from "../hooks/useNotifications";
-import { PENDING_JOIN_REQUESTS_KEY } from "../hooks/usePendingJoinRequests";
 import { createQueryWrapper, createTestQueryClient } from "./queryClient";
 
 vi.mock("../auth/AuthContext", () => ({ useAuth: () => ({ token: "tok", username: "guest" }) }));
@@ -24,11 +22,6 @@ vi.mock("../api/notifications", () => ({
   getMyNotifications: vi.fn(),
   markNotificationRead: vi.fn(),
   markAllNotificationsRead: vi.fn(),
-}));
-vi.mock("../api/groups", () => ({
-  listMyPendingJoinRequests: vi.fn(),
-  approveJoinRequest: vi.fn(),
-  rejectJoinRequest: vi.fn(),
 }));
 vi.mock("../api/people", () => ({ getMyProfile: vi.fn() }));
 vi.mock("../api/termItemListings", () => ({
@@ -130,7 +123,6 @@ beforeEach(() => {
   resetSnoozeStoreForTests();
   vi.mocked(notificationsApi.getMyNotifications).mockResolvedValue([]);
   vi.mocked(notificationsApi.markNotificationRead).mockResolvedValue(undefined);
-  vi.mocked(groupsApi.listMyPendingJoinRequests).mockResolvedValue([]);
   vi.mocked(peopleApi.getMyProfile).mockResolvedValue(mockProfile);
 });
 
@@ -397,8 +389,7 @@ describe("PendingActionsHost — confirm flow", () => {
       expect(termItemListingsApi.getMyTakenTermItemListings).not.toHaveBeenCalled();
       expect(peopleApi.getMyProfile).not.toHaveBeenCalled();
       expect(invalidate).toHaveBeenCalledWith({ queryKey: NOTIFICATIONS_KEY });
-      expect(invalidate).toHaveBeenCalledWith({ queryKey: [PENDING_JOIN_REQUESTS_KEY] });
-      expect(invalidationsAtEmit).toEqual([2]);
+      expect(invalidationsAtEmit).toEqual([1]);
       expect(notificationsApi.markNotificationRead).toHaveBeenCalledWith("2");
       expect(screen.queryByRole("dialog", { name: "Potwierdź przekazanie" })).not.toBeInTheDocument();
     } finally {
@@ -541,194 +532,16 @@ describe("PendingActionsHost — confirm flow", () => {
   });
 });
 
-describe("PendingActionsHost — organizer join requests", () => {
-  function joinRequest(
-    over: Partial<groupsApi.PendingJoinRequestResponse> = {},
-  ): groupsApi.PendingJoinRequestResponse {
-    return {
-      id: "11",
-      group_id: "5",
-      group_name: "Poranne Maluchy",
-      term_id: "3",
-      requester_party_id: "42",
-      requester_display_name: "Kasia Nowak",
-      created_at: "2026-09-24T10:00:00",
-      ...over,
-    };
-  }
-
-  function joinNotif(
-    over: Partial<notificationsApi.NotificationResponse> = {},
-  ): notificationsApi.NotificationResponse {
-    return {
-      id: "70",
-      kind: "GROUP_JOIN_REQUESTED",
-      message: "Kasia Nowak prosi o dostęp do grupy „Poranne Maluchy”",
-      link_path: "/ania/grupa/5/term/3",
-      read_at: null,
-      created_at: "2026-09-24T10:00:00",
-      join_request_id: "11",
-      reservation_id: null,
-      ...over,
-    };
-  }
-
-  const decided = (status: groupsApi.JoinRequestStatus): groupsApi.JoinRequestResponse => ({
-    id: "11",
-    group_id: "5",
-    requester_party_id: "42",
-    term_id: "3",
-    status,
-    created_at: "",
-    updated_at: "",
-  });
-
-  it("shows the server-listed request even when its notification is already read", async () => {
-    vi.mocked(notificationsApi.getMyNotifications).mockResolvedValue([joinNotif({ read_at: "2026-09-24T11:00:00" })]);
-    vi.mocked(groupsApi.listMyPendingJoinRequests).mockResolvedValue([joinRequest()]);
-    renderHost();
-
-    const dialog = await screen.findByRole("dialog", { name: "Prośba o dostęp" });
-    expect(within(dialog).getByText(/Kasia Nowak prosi o dostęp do grupy/)).toBeInTheDocument();
-    expect(within(dialog).getByText("„Poranne Maluchy”")).toBeInTheDocument();
-    expect(within(dialog).getByText("Wysłano 24 września")).toBeInTheDocument();
-    expect(within(dialog).getByRole("button", { name: "Zatwierdź" })).toBeInTheDocument();
-    expect(within(dialog).getByRole("button", { name: "Odrzuć" })).toBeInTheDocument();
-    expect(within(dialog).getByRole("button", { name: "Później" })).toBeInTheDocument();
-    expect(within(dialog).getByText(/Przypomnimy (dziś|jutro) o 8:00\./)).toBeInTheDocument();
-  });
-
-  it("Zatwierdź shows a busy state, approves, marks the linked notification read, refetches and toasts", async () => {
-    vi.mocked(notificationsApi.getMyNotifications).mockResolvedValue([joinNotif()]);
-    vi.mocked(groupsApi.listMyPendingJoinRequests).mockResolvedValueOnce([joinRequest()]).mockResolvedValue([]);
-    let resolveApprove: (value: groupsApi.JoinRequestResponse) => void = () => undefined;
-    vi.mocked(groupsApi.approveJoinRequest).mockReturnValue(
-      new Promise((resolve) => {
-        resolveApprove = resolve;
-      }),
-    );
-    renderHost();
-
-    const dialog = await screen.findByRole("dialog", { name: "Prośba o dostęp" });
-    fireEvent.click(within(dialog).getByRole("button", { name: "Zatwierdź" }));
-
-    const busyButton = await within(dialog).findByRole("button", { name: "Zatwierdzanie…" });
-    expect(busyButton).toBeDisabled();
-    expect(busyButton).toHaveAttribute("aria-busy", "true");
-    expect(within(dialog).getByRole("button", { name: "Odrzuć" })).toBeDisabled();
-    expect(groupsApi.approveJoinRequest).toHaveBeenCalledWith("5", "11");
-
-    resolveApprove(decided("APPROVED"));
-
-    expect(await screen.findByText("Prośba zatwierdzona")).toBeInTheDocument();
-    expect(notificationsApi.markNotificationRead).toHaveBeenCalledWith("70");
-    expect(groupsApi.listMyPendingJoinRequests).toHaveBeenCalledTimes(2);
-    expect(screen.queryByRole("dialog", { name: "Prośba o dostęp" })).not.toBeInTheDocument();
-  });
-
-  it("Odrzuć rejects without extra confirmation; a non-409 failure shows a retryable alert first", async () => {
-    vi.mocked(groupsApi.listMyPendingJoinRequests).mockResolvedValueOnce([joinRequest()]).mockResolvedValue([]);
-    vi.mocked(groupsApi.rejectJoinRequest)
-      .mockRejectedValueOnce(new ApiError(500, "Server Error", null))
-      .mockResolvedValueOnce(decided("REJECTED"));
-    renderHost();
-
-    const dialog = await screen.findByRole("dialog", { name: "Prośba o dostęp" });
-    fireEvent.click(within(dialog).getByRole("button", { name: "Odrzuć" }));
-
-    expect(await within(dialog).findByRole("alert")).toHaveTextContent(
-      "Nie udało się zapisać decyzji — spróbuj ponownie",
-    );
-
-    fireEvent.click(within(dialog).getByRole("button", { name: "Odrzuć" }));
-
-    expect(await screen.findByText("Prośba odrzucona")).toBeInTheDocument();
-    expect(groupsApi.rejectJoinRequest).toHaveBeenLastCalledWith("5", "11");
-    expect(groupsApi.approveJoinRequest).not.toHaveBeenCalled();
-    expect(screen.queryByRole("dialog", { name: "Prośba o dostęp" })).not.toBeInTheDocument();
-  });
-
-  it("any 409 shows the already-resolved state; Rozumiem dismisses and refetches", async () => {
-    vi.mocked(groupsApi.listMyPendingJoinRequests).mockResolvedValue([joinRequest()]);
-    vi.mocked(groupsApi.approveJoinRequest).mockRejectedValue(
-      new ApiError(409, "Conflict", { detail: "Join request is no longer pending" }),
-    );
-    renderHost();
-
-    const dialog = await screen.findByRole("dialog", { name: "Prośba o dostęp" });
-    fireEvent.click(within(dialog).getByRole("button", { name: "Zatwierdź" }));
-
-    expect(await within(dialog).findByRole("alert")).toHaveTextContent("Prośba została już rozstrzygnięta.");
-    expect(within(dialog).queryByRole("button", { name: "Zatwierdź" })).not.toBeInTheDocument();
-
-    fireEvent.click(within(dialog).getByRole("button", { name: "Rozumiem" }));
-
-    await waitFor(() =>
-      expect(screen.queryByRole("dialog", { name: "Prośba o dostęp" })).not.toBeInTheDocument(),
-    );
-    await waitFor(() => expect(groupsApi.listMyPendingJoinRequests).toHaveBeenCalledTimes(2));
-  });
-
-  it("Później snoozes the request under jr:{id} without touching notifications and reveals the next one", async () => {
-    vi.mocked(notificationsApi.getMyNotifications).mockResolvedValue([joinNotif()]);
-    vi.mocked(groupsApi.listMyPendingJoinRequests).mockResolvedValue([
-      joinRequest(),
-      joinRequest({ id: "12", requester_display_name: "Ola Zielińska", created_at: "2026-09-24T12:00:00" }),
+describe("derivePendingActions", () => {
+  it("derives actions from unread notifications alone, keyed by notification id", () => {
+    const actions = derivePendingActions([
+      pendingNotif({ id: "1" }),
+      confirmNotif({ id: "2" }),
+      confirmNotif({ id: "3", read_at: "2026-03-02T10:00:00" }),
     ]);
-    renderHost();
 
-    const dialog = await screen.findByRole("dialog", { name: "Prośba o dostęp" });
-    expect(within(dialog).getByText(/Kasia Nowak prosi/)).toBeInTheDocument();
-    fireEvent.click(within(dialog).getByRole("button", { name: "Później" }));
-
-    expect(
-      await within(screen.getByRole("dialog", { name: "Prośba o dostęp" })).findByText(/Ola Zielińska prosi/),
-    ).toBeInTheDocument();
-    expect(notificationsApi.markNotificationRead).not.toHaveBeenCalled();
-    expect(JSON.parse(localStorage.getItem("pendingActionSnooze:guest") ?? "{}")).toHaveProperty("jr:11");
-  });
-
-  it("a request snoozed with Później stays hidden after the list is refetched", async () => {
-    const older = joinRequest();
-    const newer = joinRequest({ id: "12", requester_display_name: "Ola Zielińska", created_at: "2026-09-24T12:00:00" });
-    vi.mocked(groupsApi.listMyPendingJoinRequests).mockResolvedValueOnce([older, newer]).mockResolvedValue([older]);
-    vi.mocked(groupsApi.approveJoinRequest).mockResolvedValue(decided("APPROVED"));
-    renderHost();
-
-    fireEvent.click(
-      within(await screen.findByRole("dialog", { name: "Prośba o dostęp" })).getByRole("button", { name: "Później" }),
-    );
-
-    const next = screen.getByRole("dialog", { name: "Prośba o dostęp" });
-    expect(within(next).getByText(/Ola Zielińska prosi/)).toBeInTheDocument();
-    fireEvent.click(within(next).getByRole("button", { name: "Zatwierdź" }));
-
-    expect(await screen.findByText("Prośba zatwierdzona")).toBeInTheDocument();
-    expect(groupsApi.approveJoinRequest).toHaveBeenCalledWith("5", "12");
-    expect(groupsApi.listMyPendingJoinRequests).toHaveBeenCalledTimes(2);
-    expect(screen.queryByRole("dialog", { name: "Prośba o dostęp" })).not.toBeInTheDocument();
-  });
-
-  it("a failed pending-requests fetch is non-blocking: notification prompts still show", async () => {
-    vi.mocked(groupsApi.listMyPendingJoinRequests).mockRejectedValue(new Error("500"));
-    vi.mocked(notificationsApi.getMyNotifications).mockResolvedValue([confirmNotif()]);
-    renderHost();
-
-    expect(await screen.findByRole("dialog", { name: "Potwierdź przekazanie" })).toBeInTheDocument();
-    expect(screen.queryByRole("dialog", { name: "Prośba o dostęp" })).not.toBeInTheDocument();
-  });
-
-  it("a GROUP_JOIN_REQUESTED row in the header bell marks it read on open and keeps the pending action", async () => {
-    vi.mocked(notificationsApi.getMyNotifications).mockResolvedValue([joinNotif({ link_path: "/panel" })]);
-    vi.mocked(groupsApi.listMyPendingJoinRequests).mockResolvedValue([joinRequest()]);
-    renderHost(<NotificationBell />);
-
-    await screen.findByRole("dialog", { name: "Prośba o dostęp" });
-    fireEvent.click(screen.getByRole("button", { name: /Powiadomienia \(1 nieprzeczytane\)/ }));
-    fireEvent.click(screen.getByRole("menuitem", { name: /Kasia Nowak prosi o dostęp do grupy/ }));
-
-    await waitFor(() => expect(notificationsApi.markNotificationRead).toHaveBeenCalledWith("70"));
-    expect(screen.getByRole("dialog", { name: "Prośba o dostęp" })).toBeInTheDocument();
+    expect(derivePendingActions).toHaveLength(1);
+    expect(actions.map(pendingActionKey)).toEqual(["n:1", "n:2"]);
   });
 });
 

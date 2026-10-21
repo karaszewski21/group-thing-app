@@ -1,6 +1,7 @@
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useCallback, useEffect, useRef } from "react";
-import { getGroupAccess, type GroupAccessResponse } from "../api/groups";
+import { getGroupAccess, redeemJoinCode, type GroupAccessResponse } from "../api/groups";
+import { serverMessageOr } from "../api/problem";
 import { useAuth } from "../auth/AuthContext";
 
 export type TermAccessState =
@@ -21,6 +22,9 @@ interface UseTermAccessResult {
    * right after an in-page login), and no newer response has arrived. */
   isStale: boolean;
   refetch: () => Promise<void>;
+  /** Joins the PRIVATE group with the organizer's code, then reloads the
+   * access view. Rejects with a user-facing message. */
+  joinWithCode: (code: string) => Promise<void>;
 }
 
 function errorMessage(err: unknown): string {
@@ -39,6 +43,7 @@ function errorMessage(err: unknown): string {
  * when a new one starts, so the latest request always wins. */
 export function useTermAccess(groupId: string, termId: string): UseTermAccessResult {
   const { token } = useAuth();
+  const queryClient = useQueryClient();
   const query = useQuery({
     queryKey: ["groupAccess", groupId, termId ?? null],
     queryFn: async () => ({ data: await getGroupAccess(groupId, termId), forToken: token }),
@@ -48,6 +53,18 @@ export function useTermAccess(groupId: string, termId: string): UseTermAccessRes
   const refetch = useCallback(async () => {
     await queryRefetch();
   }, [queryRefetch]);
+
+  const joinWithCode = useCallback(
+    async (code: string) => {
+      try {
+        await redeemJoinCode(groupId, code);
+      } catch (err) {
+        throw new Error(serverMessageOr(err, "Nie udało się dołączyć — spróbuj ponownie"), { cause: err });
+      }
+      await queryClient.invalidateQueries({ queryKey: ["groupAccess", groupId] });
+    },
+    [groupId, queryClient],
+  );
 
   const lastToken = useRef(token);
   useEffect(() => {
@@ -70,5 +87,5 @@ export function useTermAccess(groupId: string, termId: string): UseTermAccessRes
     state = { status: "loading" };
   }
   const isStale = state.status === "ready" && state.forToken !== token;
-  return { state, isStale, refetch };
+  return { state, isStale, refetch, joinWithCode };
 }

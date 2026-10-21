@@ -174,6 +174,7 @@ Chosen option: 1, because both organizer surfaces (ADR-008) call the GET wheneve
 ### Status
 Accepted
 
+> **Superseded (2026-10-21)** in part by `implementation/spec.md` "Post-verification amendments". The link carries the code in a `#code=` fragment and keeps it across login in sessionStorage (`pendingJoinCode:{groupId}`), not in `?code=` and `returnTo`.
 ### Context
 The user's goal is a smoother sign-up for a term in a private group. The term link is the shared artefact; the route has no `AuthGuard`, and `returnTo = pathname + search` already survives login and registration, so a `?code=` parameter reaches the page after login with no new plumbing. The existing `RequestAccessDialog` has hand-rolled modal chrome; the shared `ModalSheet` provides focus trap, Esc, scrim, focus return and `useRegisterOpenSheet`.
 
@@ -281,6 +282,7 @@ Chosen option: 1, because it leaks nothing, fits the existing exception/handler 
 ### Status
 Accepted
 
+> **Superseded (2026-10-21)** in part by `implementation/spec.md` "Post-verification amendments". The card's link uses `#code=`, not `?code=`. The hook is `useJoinCode`, keyed `joinCode`, and returns `{code, status: idle|loading|ready|denied|error, refetch, regenerate}`.
 ### Context
 Organizers meet a new PRIVATE group first on the stepper's done screen (PRIVATE is the default for Organization-less founders) and later on `/panel/grupy/:groupId`, which members can also open. `GroupResponse` has no `is_organizer` flag, and the code must not be added to it.
 

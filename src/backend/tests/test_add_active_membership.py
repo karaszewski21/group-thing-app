@@ -1,5 +1,5 @@
 """`add_active_membership` — the shared "make this party an active member of
-this group" helper used by join-request approval and test seeding. Flat
+this group" helper used by join-code redemption and test seeding. Flat
 `tests/` placement, same convention as `test_group_privacy.py`."""
 
 from __future__ import annotations

@@ -14,7 +14,6 @@ from app.users.schemas import EMAIL_PATTERN, normalize_email
 
 from .infrastructure.locations_acl import LocationRefResponse, PublicLocationResponse
 from .models import (
-    GroupJoinRequestStatus,
     GroupLayoutMode,
     GroupRoleType,
     GroupVisibility,
@@ -354,18 +353,14 @@ class PublicCircleResponse(BaseModel):
 
 class GroupAccessDetails(BaseModel):
     """The caller's relationship to a Circle, resolved server-side so the
-    frontend never has to infer "can I see this / can I request access" from
+    frontend never has to infer "can I see this / do I need a code" from
     raw auth-token presence — the previous `token ? private-view :
     public-view` frontend branching treated ANY logged-in principal as if
-    they belonged to every Circle, which is wrong (see `GroupAccessResponse`).
-
-    `join_request` is only ever the caller's own latest request, and only
-    when it is PENDING or REJECTED; `None` otherwise."""
+    they belonged to every Circle, which is wrong (see `GroupAccessResponse`)."""
 
     is_member: bool
     is_organizer: bool
     can_view_content: bool
-    join_request: JoinRequestSummary | None
     # The caller has a `TermAttendance` on the response's `term`.
     is_attending: bool
 
@@ -715,41 +710,21 @@ class ProposeSwapRequest(BaseModel):
     offered_item_id: uuid.UUID
 
 
-class CreateJoinRequestRequest(BaseModel):
-    """`term_id` is only the link context the requester came from; it must
-    belong to the group."""
+class JoinCodeResponse(BaseModel):
+    """The only schema that carries a Circle's join code — organizer-only."""
 
-    term_id: uuid.UUID | None = None
-
-
-class JoinRequestResponse(BaseModel):
-    model_config = ConfigDict(from_attributes=True)
-
-    id: uuid.UUID
-    group_id: uuid.UUID
-    requester_party_id: uuid.UUID
-    term_id: uuid.UUID | None
-    status: GroupJoinRequestStatus
-    created_at: datetime
-    updated_at: datetime
+    code: str
 
 
-class PendingJoinRequestResponse(BaseModel):
-    id: uuid.UUID
-    group_id: uuid.UUID
-    group_name: str
-    term_id: uuid.UUID | None
-    requester_party_id: uuid.UUID
-    requester_display_name: str
-    created_at: datetime
+class RedeemJoinCodeRequest(BaseModel):
+    code: str = Field(pattern=r"^[0-9]{6}$")
 
 
-class JoinRequestSummary(BaseModel):
-    """The caller's latest request for a PRIVATE group, as surfaced by
-    `/access` — only PENDING or REJECTED are ever reported."""
+class RedeemJoinCodeResponse(BaseModel):
+    """`created` is false when the caller already had access (organizer or
+    active member) — nothing was inserted."""
 
-    id: uuid.UUID
-    status: Literal["PENDING", "REJECTED"]
+    created: bool
 
 
 class SwapProposalResponse(BaseModel):

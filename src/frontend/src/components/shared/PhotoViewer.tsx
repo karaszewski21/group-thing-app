@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, type KeyboardEvent, type TouchEvent } from "react";
 import { ChevronLeft, ChevronRight, X } from "lucide-react";
 import { SafeImage } from "../../pages/product/ItemGallery";
-import { trapFocus } from "../krag/trapFocus";
+import { trapFocus } from "./trapFocus";
 import { useRegisterOpenSheet } from "./openSheets";
 
 const SWIPE_THRESHOLD_PX = 40;

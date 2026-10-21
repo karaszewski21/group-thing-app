@@ -55,7 +55,7 @@ Masz trzy sposoby:
 
 1. **Nazwa grupy** — wpisz nazwę, po której goście rozpoznają zajęcia, np. „Joga w parku”.
 2. **Widoczność grupy** — wybierz jedną z opcji:
-   - **Prywatna — (dostęp na prośbę)** — to ustawienie domyślne. Osoby z linkiem muszą się zalogować i poprosić o dołączenie, a Ty decydujesz, kogo przyjmujesz.
+   - **Prywatna — (dostęp z kodem)** — to ustawienie domyślne. Osoby z linkiem muszą się zalogować i wpisać kod dostępu, który od Ciebie dostaną.
    - **Publiczna** — każdy, kto dostanie link, zobaczy szczegóły terminu bez logowania.
 
 💡 **Wskazówka:** Widoczność możesz zmienić w każdej chwili w oknie **„Edytuj grupę”**.
@@ -96,7 +96,7 @@ Masz trzy sposoby:
 
 ![Ekran końcowy po założeniu prywatnej grupy](screenshots/34-stepper-done-private.png)
 
-✅ **Co powinieneś zobaczyć:** komunikat „Grupa założona, termin dodany!”. Dla grupy prywatnej znajdziesz w nim też informację: „Grupa jest prywatna — osoby z linkiem poproszą o dołączenie, a Ty je zaakceptujesz.” Dla grupy publicznej przeczytasz: „Tę stronę zobaczy każdy, kto dostanie link — bez logowania.”
+✅ **Co powinieneś zobaczyć:** komunikat „Grupa założona, termin dodany!”. Dla grupy prywatnej znajdziesz w nim też informację: „Grupa jest prywatna — dołączą tylko osoby, którym podasz kod dostępu.” Dla grupy publicznej przeczytasz: „Tę stronę zobaczy każdy, kto dostanie link — bez logowania.”
 
 Na tym ekranie możesz:
 
@@ -211,7 +211,7 @@ Gdy wszystkie miejsca są zajęte, pojawia się komunikat **„Brak wolnych miej
 
 ### Grupa prywatna
 
-Jeśli grupa jest **prywatna**, osoba niezalogowana nie zobaczy szczegółów terminu ani miejsca — tylko informację, że grupa jest prywatna, i zaproszenie do zalogowania się. Po zalogowaniu może poprosić o dołączenie.
+Jeśli grupa jest **prywatna**, osoba niezalogowana nie zobaczy szczegółów terminu ani miejsca — tylko informację, że grupa jest prywatna, i zaproszenie do zalogowania się. Po zalogowaniu może dołączyć, wpisując kod dostępu od organizatora.
 
 ![Widok grupy prywatnej dla osoby niezalogowanej](screenshots/23-public-term-anon-private-group.png)
 
@@ -237,7 +237,7 @@ Wpisz nazwę grupy. Sprawdź też, czy w polu „Ile miejsc” jest liczba od 1 
 Adres jest wymagany. Wpisz przynajmniej ulicę i miasto.
 
 **Znajomy otworzył link i widzi „Ta grupa jest prywatna”.**
-To normalne dla grupy prywatnej. Znajomy może się zalogować i poprosić o dołączenie albo możesz zmienić grupę na publiczną w oknie „Edytuj grupę”.
+To normalne dla grupy prywatnej. Podaj znajomemu kod dostępu — po zalogowaniu wpisze go i dołączy do grupy. Możesz też zmienić grupę na publiczną w oknie „Edytuj grupę”.
 
 **Usunąłem miejsce, a nadal widzę je przy terminach.**
 Tak ma być. Usunięcie miejsca nie zmienia istniejących terminów — goście nadal wiedzą, dokąd przyjść.

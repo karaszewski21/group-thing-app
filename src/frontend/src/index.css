@@ -14,7 +14,7 @@
 
 /*
  * Design tokens. `static` makes Tailwind emit every token on :root even when
- * no utility uses it — KragStage CSS and inline styles read some of them only
+ * no utility uses it — inline styles read some of them only
  * through var(), which Tailwind's usage scan cannot see.
  *
  * The first 13 colors are the themable roles: OrganizerThemeScope overrides

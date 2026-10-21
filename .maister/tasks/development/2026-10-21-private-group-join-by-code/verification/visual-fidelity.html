@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Visual Fidelity Report — 2026-10-21-private-group-join-by-code</title>
+<style>
+:root {
+  --bg:#f6f7f9; --surface:#fff; --border:#e2e5ea; --text:#1a1d23; --dim:#6b7280;
+  --accent:#4f46e5; --accent-soft:#eef2ff; --ok:#16a34a; --ok-soft:#ecfdf3;
+  --warn:#d97706; --warn-soft:#fffbeb; --crit:#dc2626; --crit-soft:#fef2f2;
+  --info:#2563eb; --info-soft:#eff6ff; --radius:10px;
+}
+@media (prefers-color-scheme: dark) {
+  :root { --bg:#111418; --surface:#1a1f26; --border:#2e3640; --text:#e6e9ee; --dim:#9aa4b2;
+    --accent:#818cf8; --accent-soft:#26294a; --ok:#4ade80; --ok-soft:#11291a;
+    --warn:#fbbf24; --warn-soft:#2e2410; --crit:#f87171; --crit-soft:#321616;
+    --info:#60a5fa; --info-soft:#15233a; }
+}
+* { box-sizing:border-box; }
+body { margin:0 auto; max-width:1100px; padding:24px 20px 64px; background:var(--bg);
+  color:var(--text); font:14px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif; }
+a { color:var(--accent); text-decoration:none; } a:hover { text-decoration:underline; }
+h1 { font-size:22px; letter-spacing:-.01em; } h2 { font-size:16px; margin-top:28px; }
+.card { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius);
+  padding:16px 18px; margin:14px 0; }
+.badge { display:inline-block; font-size:11px; font-weight:600; text-transform:uppercase;
+  letter-spacing:.04em; padding:2px 8px; border-radius:99px; background:var(--accent-soft); color:var(--accent); }
+.sev { display:inline-block; font-size:10.5px; font-weight:700; text-transform:uppercase;
+  padding:1.5px 7px; border-radius:99px; margin-right:6px; }
+.sev.critical { background:var(--crit-soft); color:var(--crit); }
+.sev.warning  { background:var(--warn-soft); color:var(--warn); }
+.sev.info     { background:var(--info-soft); color:var(--info); }
+.pass { color:var(--ok); font-weight:600; } .fail { color:var(--crit); font-weight:600; }
+table { width:100%; border-collapse:collapse; }
+th, td { text-align:left; padding:7px 10px; border-bottom:1px solid var(--border); vertical-align:top; }
+th { font-size:11.5px; text-transform:uppercase; letter-spacing:.04em; color:var(--dim); }
+code { font-family:ui-monospace,SFMono-Regular,Menlo,monospace; font-size:12.5px;
+  background:var(--accent-soft); padding:1px 5px; border-radius:4px; }
+img.shot { max-width:100%; border:1px solid var(--border); border-radius:var(--radius); }
+details > summary { cursor:pointer; font-weight:600; }
+.crumbs { display:flex; gap:14px; font-size:13px; margin-bottom:18px; flex-wrap:wrap; }
+.crumbs a.md { margin-left:auto; color:var(--dim); }
+.crumbs .here { font-weight:650; color:var(--text); }
+.tiles { display:flex; gap:10px; flex-wrap:wrap; margin:14px 0; }
+.tile { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius);
+  padding:10px 16px; text-align:center; min-width:90px; }
+.tile b { display:block; font-size:20px; letter-spacing:-.01em; }
+.tile span { font-size:10.5px; text-transform:uppercase; letter-spacing:.05em; color:var(--dim); }
+.verdict { border-left:5px solid var(--warn); background:var(--warn-soft); }
+.verdict b { color:var(--warn); }
+.scen { border-left:4px solid var(--ok); }
+.scen.warn { border-left-color:var(--warn); }
+.scen h3 { margin:0 0 6px; font-size:15px; }
+.shots { display:grid; grid-template-columns:repeat(auto-fit,minmax(280px,1fr)); gap:10px; margin-top:10px; }
+.shots figure { margin:0; } .shots figcaption { font-size:11.5px; color:var(--dim); }
+.meta { color:var(--dim); font-size:12.5px; }
+@media (max-width:600px){ th,td{padding:6px;} table{font-size:12.5px;} }
+
+.warnc{color:var(--warn);font-weight:600;}
+.pair{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:8px;}
+.pair iframe{width:100%;height:420px;border:1px solid var(--border);border-radius:var(--radius);background:#fff;}
+@media (max-width:760px){.pair{grid-template-columns:1fr;}}
+</style>
+</head>
+<body>
+<nav class="crumbs">
+  <a href="../dashboard.html">← Dashboard</a>
+  <a href="../implementation/spec.html">Spec</a>
+  <a href="../implementation/implementation-plan.html">Plan</a>
+  <a href="implementation-verification.html">Verification</a>
+  <a href="e2e-verification-report.html">E2E</a>
+  <span class="here">Visual fidelity</span>
+  <a href="visual-fidelity.md" target="_blank" rel="noopener" class="md">md twin ↗</a>
+</nav>
+<header>
+  <span class="badge">visual fidelity · report-only</span>
+  <h1>Visual Fidelity Report: private group join by code</h1>
+  <div class="meta">LLM-judged structural match (not pixel diff) · Source: <a href="../analysis/design-context/INDEX.md" target="_blank" rel="noopener">design-context/INDEX.md</a> · 2026-10-21</div>
+</header>
+<div class="tiles">
+  <div class="tile"><b>6</b><span>screens compared</span></div>
+  <div class="tile"><b class="pass">3</b><span>match ✓</span></div>
+  <div class="tile"><b class="warnc">3</b><span>minor deviation ⚠</span></div>
+  <div class="tile"><b>0</b><span>drift ✗</span></div>
+</div>
+<section class="tldr card">
+  <h2 style="margin-top:0">TL;DR</h2>
+  <p>Fidelity is high: all six mockup screens are present, with matching layout, field order, primary actions and Polish copy. The deviations are the documented <code>AuthGateLinks</code> copy ("Zarejestruj się" instead of "Załóż konto"), a missing "⧉" glyph on the copy buttons, and the stepper CTA, which is conditional and absent for an organizer who already has an organization. This report does not gate completion.</p>
+  <h3>Open Questions / Risks</h3>
+  <p>None. There is no substantive drift; the design owner may accept the missing glyph or ask for it to be restored.</p>
+</section>
+<main>
+<h2>Per-screen comparison</h2>
+<div class="card scen "><h3><span class="pass">✓ Match</span> · <code>screen:private-gate-logged-in</code></h3>
+<div class="pair"><div><div class="meta">Mockup: <a href="../analysis/design-context/mockups/brama-grupy-prywatnej-zalogowany.html" target="_blank" rel="noopener">brama-grupy-prywatnej-zalogowany.html</a></div><iframe src="../analysis/design-context/mockups/brama-grupy-prywatnej-zalogowany.html" loading="lazy" title="Mockup screen:private-gate-logged-in"></iframe></div><div><div class="meta">Implementation</div><div class="shots"><figure><img class="shot" src="screenshots/20-gate-logged-in.png" alt="20-gate-logged-in.png"><figcaption>20-gate-logged-in.png</figcaption></figure></div></div></div>
+<ul><li>Layout: back button, "KRĄG" eyebrow, title, "Prowadzi: …", single gate card. Matches.</li><li>Copy "Wpisz kod dostępu od organizatora, aby dołączyć." Matches verbatim.</li><li>Primary action "Mam kod dostępu" replaces "Poproś o dostęp".</li></ul></div><div class="card scen warn"><h3><span class="warnc">⚠ Minor deviation</span> · <code>screen:private-gate-anonymous</code></h3>
+<div class="pair"><div><div class="meta">Mockup: <a href="../analysis/design-context/mockups/brama-grupy-prywatnej-anonim.html" target="_blank" rel="noopener">brama-grupy-prywatnej-anonim.html</a></div><iframe src="../analysis/design-context/mockups/brama-grupy-prywatnej-anonim.html" loading="lazy" title="Mockup screen:private-gate-anonymous"></iframe></div><div><div class="meta">Implementation</div><div class="shots"><figure><img class="shot" src="screenshots/19-gate-anonymous-no-code.png" alt="19-gate-anonymous-no-code.png"><figcaption>19-gate-anonymous-no-code.png</figcaption></figure><figure><img class="shot" src="screenshots/05-gate-anonymous-with-code.png" alt="05-gate-anonymous-with-code.png"><figcaption>05-gate-anonymous-with-code.png</figcaption></figure></div></div></div>
+<ul><li>Layout and both copy variants match ("Zaloguj się, aby wpisać kod dostępu." / "Masz kod? Zaloguj się, żeby go użyć.").</li><li>Deviation: "Nie masz konta? Zarejestruj się" instead of "Załóż konto". This is the documented exception (audit L10); no action.</li></ul></div><div class="card scen "><h3><span class="pass">✓ Match</span> · <code>screen:join-by-code-sheet</code></h3>
+<div class="pair"><div><div class="meta">Mockup: <a href="../analysis/design-context/mockups/wpisz-kod-dost-pu-joinbycodesheet.html" target="_blank" rel="noopener">wpisz-kod-dost-pu-joinbycodesheet.html</a></div><iframe src="../analysis/design-context/mockups/wpisz-kod-dost-pu-joinbycodesheet.html" loading="lazy" title="Mockup screen:join-by-code-sheet"></iframe></div><div><div class="meta">Implementation</div><div class="shots"><figure><img class="shot" src="screenshots/21-sheet-empty.png" alt="21-sheet-empty.png"><figcaption>21-sheet-empty.png</figcaption></figure><figure><img class="shot" src="screenshots/17-sheet-invalid-input.png" alt="17-sheet-invalid-input.png"><figcaption>17-sheet-invalid-input.png</figcaption></figure><figure><img class="shot" src="screenshots/09-wrong-code-409.png" alt="09-wrong-code-409.png"><figcaption>09-wrong-code-409.png</figcaption></figure><figure><img class="shot" src="screenshots/10-rate-limit-429.png" alt="10-rate-limit-429.png"><figcaption>10-rate-limit-429.png</figcaption></figure></div></div></div>
+<ul><li>ModalSheet "Wpisz kod dostępu" + ✕; label → monospace input → hint "6 cyfr, np. 123 456" → alert → Anuluj / Dołącz. Matches.</li><li>States verified: empty (Dołącz disabled), invalid "Kod ma 6 cyfr", 409, 429. Busy ("Dołączanie…") and "Inny błąd" not captured.</li></ul></div><div class="card scen warn"><h3><span class="warnc">⚠ Minor deviation</span> · <code>screen:group-details-join-code-card</code></h3>
+<div class="pair"><div><div class="meta">Mockup: <a href="../analysis/design-context/mockups/szczeg-y-grupy-z-kart-kodu-organizator.html" target="_blank" rel="noopener">szczeg-y-grupy-z-kart-kodu-organizator.html</a></div><iframe src="../analysis/design-context/mockups/szczeg-y-grupy-z-kart-kodu-organizator.html" loading="lazy" title="Mockup screen:group-details-join-code-card"></iframe></div><div><div class="meta">Implementation</div><div class="shots"><figure><img class="shot" src="screenshots/03-group-details-code-card.png" alt="03-group-details-code-card.png"><figcaption>03-group-details-code-card.png</figcaption></figure><figure><img class="shot" src="screenshots/15-regenerated-code.png" alt="15-regenerated-code.png"><figcaption>15-regenerated-code.png</figcaption></figure></div></div></div>
+<ul><li>Details card → JoinCodeCard → "Uczestnicy terminów"; card content and button hierarchy match.</li><li>Deviation: copy buttons lack the "⧉" glyph. The inline role=status line serves as the local toast. Cosmetic.</li><li>Not captured: the "no upcoming term" variant.</li></ul></div><div class="card scen "><h3><span class="pass">✓ Match</span> · <code>screen:regenerate-confirm</code></h3>
+<div class="pair"><div><div class="meta">Mockup: <a href="../analysis/design-context/mockups/potwierdzenie-wygeneruj-nowy-kod.html" target="_blank" rel="noopener">potwierdzenie-wygeneruj-nowy-kod.html</a></div><iframe src="../analysis/design-context/mockups/potwierdzenie-wygeneruj-nowy-kod.html" loading="lazy" title="Mockup screen:regenerate-confirm"></iframe></div><div><div class="meta">Implementation</div><div class="shots"><figure><img class="shot" src="screenshots/04-regenerate-confirm.png" alt="04-regenerate-confirm.png"><figcaption>04-regenerate-confirm.png</figcaption></figure></div></div></div>
+<ul><li>Centered alertdialog; "Wygenerować nowy kod?" + body copy verbatim; Anuluj / Wygeneruj nowy kod side by side. Matches.</li></ul></div><div class="card scen warn"><h3><span class="warnc">⚠ Minor deviation</span> · <code>screen:stepper-done-private</code></h3>
+<div class="pair"><div><div class="meta">Mockup: <a href="../analysis/design-context/mockups/kreator-ekran-ko-cowy-grupa-prywatna.html" target="_blank" rel="noopener">kreator-ekran-ko-cowy-grupa-prywatna.html</a></div><iframe src="../analysis/design-context/mockups/kreator-ekran-ko-cowy-grupa-prywatna.html" loading="lazy" title="Mockup screen:stepper-done-private"></iframe></div><div><div class="meta">Implementation</div><div class="shots"><figure><img class="shot" src="screenshots/01-stepper-done-private.png" alt="01-stepper-done-private.png"><figcaption>01-stepper-done-private.png</figcaption></figure></div></div></div>
+<ul><li>Success copy, JoinCodeCard, "Przejdź do publicznej strony →", "Gotowe". Order and copy match.</li><li>Deviations: no "⧉" glyph; the "Stwórz publiczną wizytówkę" CTA is absent because the test organizer already had an organization (the CTA is conditional in CreateGroupStepper.tsx).</li></ul></div>
+</main>
+</body>
+</html>

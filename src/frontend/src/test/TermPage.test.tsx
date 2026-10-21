@@ -1,14 +1,15 @@
+import { StrictMode } from "react";
 import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { Link, MemoryRouter, Route, Routes } from "react-router-dom";
-import { TermPage } from "../pages/krag/TermPage";
+import { Link, MemoryRouter, Route, Routes, useLocation } from "react-router-dom";
+import { TermPage } from "../pages/term/TermPage";
 import * as groupsApi from "../api/groups";
 import * as familiesApi from "../api/families";
 import * as pledgesApi from "../api/pledges";
 import * as termItemListingsApi from "../api/termItemListings";
 import * as inventoriesApi from "../api/inventories";
 import { ApiError } from "../api/client";
-import type { GroupAccessResponse, JoinRequestResponse, PublicCircleResponse } from "../api/groups";
+import type { GroupAccessResponse, PublicCircleResponse } from "../api/groups";
 import { createQueryWrapper } from "./queryClient";
 
 vi.mock("../api/groups", async (importOriginal) => {
@@ -18,8 +19,7 @@ vi.mock("../api/groups", async (importOriginal) => {
     getGroupAccess: vi.fn(),
     createRsvp: vi.fn(),
     mergeAnonymousProfile: vi.fn(),
-    createJoinRequest: vi.fn(),
-    withdrawJoinRequest: vi.fn(),
+    redeemJoinCode: vi.fn(),
   };
 });
 vi.mock("../api/pledges", () => ({ createPledge: vi.fn() }));
@@ -120,29 +120,40 @@ function access(
       is_organizer: false,
       can_view_content: true,
       is_attending: false,
-      join_request: null,
       ...overrides.access,
     },
   };
 }
 
-function page() {
+function SearchProbe() {
+  const { search, hash } = useLocation();
   return (
-    <MemoryRouter initialEntries={[PATH]}>
+    <>
+      <span data-testid="search">{search}</span>
+      <span data-testid="hash">{hash}</span>
+    </>
+  );
+}
+
+function page(entry = PATH) {
+  return (
+    <MemoryRouter initialEntries={[entry]}>
       <Routes>
         <Route path="/:organizationSlug/grupa/:groupId/term/:termId" element={<TermPage />} />
       </Routes>
+      <SearchProbe />
     </MemoryRouter>
   );
 }
 
-function renderPage() {
-  return render(page(), { wrapper: createQueryWrapper() });
+function renderPage(entry = PATH) {
+  return render(page(entry), { wrapper: createQueryWrapper() });
 }
 
 beforeEach(() => {
   vi.resetAllMocks();
   localStorage.clear();
+  sessionStorage.clear();
   mockAuth = { token: null, displayName: null };
   Element.prototype.scrollIntoView = vi.fn();
   vi.mocked(groupsApi.getGroupAccess).mockResolvedValue(access());
@@ -522,21 +533,19 @@ function privateAccess(
   });
 }
 
-const pendingAccess = privateAccess({ access: { join_request: { id: "5", status: "PENDING" } } });
-
 describe("TermPage — access", () => {
   it("anonymous on a PRIVATE group sees only the gate with login links, no term content", async () => {
     vi.mocked(groupsApi.getGroupAccess).mockResolvedValue(privateAccess());
     renderPage();
 
     expect(await screen.findByRole("heading", { level: 2, name: /Ta grupa jest prywatna/ })).toBeInTheDocument();
-    expect(screen.getByText(/Zaloguj się, aby poprosić organizatora o dostęp\./)).toBeInTheDocument();
+    expect(screen.getByText(/Zaloguj się, aby wpisać kod dostępu\./)).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Zaloguj się" })).toHaveAttribute(
       "href",
       `/login?returnTo=${encodeURIComponent(PATH)}`,
     );
     expect(screen.queryByRole("region", { name: "Zapisani na zajęcia" })).not.toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Poproś o dostęp" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Mam kod dostępu" })).not.toBeInTheDocument();
   });
 
   it("an unknown group or term shows 'Nie znaleziono'", async () => {
@@ -566,145 +575,398 @@ describe("TermPage — access", () => {
   });
 });
 
-describe("TermPage — private group gate", () => {
+describe("TermPage — join a private group by code", () => {
+  const WRONG_CODE = "Nieprawidłowy kod dostępu — sprawdź i spróbuj ponownie";
+  const memberAccess = access({ group: { visibility: "PRIVATE" }, access: { is_member: true } });
+
   beforeEach(() => {
     mockAuth = { token: "tok", displayName: "Ala" };
   });
 
-  it("canRequest: 'Poproś o dostęp' → 'Wyślij' sends the request and shows the pending status", async () => {
-    vi.mocked(groupsApi.getGroupAccess).mockResolvedValueOnce(privateAccess()).mockResolvedValueOnce(pendingAccess);
-    vi.mocked(groupsApi.createJoinRequest).mockResolvedValue({ id: "5" } as JoinRequestResponse);
-    renderPage();
+  /** The code typed into the sheet's six digit boxes. */
+  function codeValue(dialog: HTMLElement) {
+    const group = within(dialog).getByRole("group", { name: "Kod dostępu" });
+    return within(group)
+      .getAllByRole("textbox")
+      .map((box) => (box as HTMLInputElement).value)
+      .join("");
+  }
 
-    fireEvent.click(await screen.findByRole("button", { name: "Poproś o dostęp" }));
-    const dialog = screen.getByRole("dialog", { name: "Poprosić o dostęp?" });
-    expect(within(dialog).getByRole("button", { name: "Wyślij" })).toHaveFocus();
-    fireEvent.click(within(dialog).getByRole("button", { name: "Wyślij" }));
+  async function openSheet() {
+    const trigger = await screen.findByRole("button", { name: "Mam kod dostępu" });
+    trigger.focus();
+    fireEvent.click(trigger);
+    const dialog = screen.getByRole("dialog", { name: "Wpisz kod dostępu" });
+    return { trigger, dialog, input: within(dialog).getByRole("textbox", { name: "Cyfra 1 z 6" }) };
+  }
 
-    await waitFor(() => expect(groupsApi.createJoinRequest).toHaveBeenCalledWith(GROUP_ID, TERM_ID));
-    expect(await within(screen.getByRole("status")).findByText(/Prośba wysłana/)).toBeInTheDocument();
-    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
-    expect(screen.getByRole("heading", { level: 2, name: /Ta grupa jest prywatna/ })).toHaveFocus();
-  });
-
-  it("Tab and Shift+Tab stay inside the request dialog", async () => {
+  it("a logged-in non-member is offered 'Mam kod dostępu', not a request", async () => {
     vi.mocked(groupsApi.getGroupAccess).mockResolvedValue(privateAccess());
     renderPage();
-    fireEvent.click(await screen.findByRole("button", { name: "Poproś o dostęp" }));
-    const dialog = screen.getByRole("dialog", { name: "Poprosić o dostęp?" });
+
+    expect(await screen.findByRole("button", { name: "Mam kod dostępu" })).toBeInTheDocument();
+    expect(screen.getByText(/Wpisz kod dostępu od organizatora, aby dołączyć\./)).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Poproś o dostęp" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+  });
+
+  it("the sheet keeps Tab inside, closes on Esc and returns focus to 'Mam kod dostępu'", async () => {
+    vi.mocked(groupsApi.getGroupAccess).mockResolvedValue(privateAccess());
+    renderPage();
+    const { trigger, dialog } = await openSheet();
     const close = within(dialog).getByRole("button", { name: "Zamknij" });
     const cancel = within(dialog).getByRole("button", { name: "Anuluj" });
 
     cancel.focus();
-    fireEvent.keyDown(document, { key: "Tab" });
+    fireEvent.keyDown(cancel, { key: "Tab" });
     expect(close).toHaveFocus();
-
-    fireEvent.keyDown(document, { key: "Tab", shiftKey: true });
+    fireEvent.keyDown(close, { key: "Tab", shiftKey: true });
     expect(cancel).toHaveFocus();
+
+    fireEvent.keyDown(cancel, { key: "Escape" });
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    expect(trigger).toHaveFocus();
   });
 
-  it("a failed withdraw alert does not come back after the gate moves on and returns to pending", async () => {
+  it("a partial code disables 'Dołącz' without an alert until focus leaves the boxes; non-digits are ignored", async () => {
+    vi.mocked(groupsApi.getGroupAccess).mockResolvedValue(privateAccess());
+    renderPage();
+    const { dialog, input } = await openSheet();
+    const submit = within(dialog).getByRole("button", { name: "Dołącz" });
+    const boxes = within(dialog).getAllByRole("textbox");
+    expect(boxes).toHaveLength(6);
+    expect(input).toHaveFocus();
+    expect(submit).toBeDisabled();
+
+    fireEvent.change(input, { target: { value: "4" } });
+    expect(codeValue(dialog)).toBe("4");
+    expect(boxes[1]).toHaveFocus();
+    fireEvent.change(boxes[1], { target: { value: "a" } });
+    expect(codeValue(dialog)).toBe("4");
+    fireEvent.change(boxes[1], { target: { value: "8291" } });
+    expect(codeValue(dialog)).toBe("48291");
+    expect(boxes[5]).toHaveFocus();
+    expect(submit).toBeDisabled();
+    expect(within(dialog).queryByRole("alert")).not.toBeInTheDocument();
+
+    fireEvent.blur(boxes[5], { relatedTarget: boxes[4] });
+    expect(within(dialog).queryByRole("alert")).not.toBeInTheDocument();
+    fireEvent.blur(boxes[5]);
+
+    const alert = within(dialog).getByRole("alert");
+    expect(alert).toHaveTextContent("Kod ma 6 cyfr");
+    expect(input).toHaveAttribute("aria-invalid", "true");
+    expect(input.getAttribute("aria-describedby")).toContain(alert.id);
+    expect(submit).toBeDisabled();
+    fireEvent.submit(input);
+    expect(groupsApi.redeemJoinCode).not.toHaveBeenCalled();
+  });
+
+  it("Backspace on an empty box clears and focuses the previous one", async () => {
+    vi.mocked(groupsApi.getGroupAccess).mockResolvedValue(privateAccess());
+    renderPage();
+    const { dialog, input } = await openSheet();
+    const boxes = within(dialog).getAllByRole("textbox");
+
+    fireEvent.change(input, { target: { value: "48" } });
+    expect(boxes[2]).toHaveFocus();
+    fireEvent.keyDown(boxes[2], { key: "Backspace" });
+
+    expect(codeValue(dialog)).toBe("4");
+    expect(boxes[1]).toHaveFocus();
+  });
+
+  it("a submit attempt with a partial code shows the alert", async () => {
+    vi.mocked(groupsApi.getGroupAccess).mockResolvedValue(privateAccess());
+    renderPage();
+    const { dialog, input } = await openSheet();
+
+    fireEvent.change(input, { target: { value: "482" } });
+    expect(within(dialog).queryByRole("alert")).not.toBeInTheDocument();
+    fireEvent.submit(input);
+
+    expect(within(dialog).getByRole("alert")).toHaveTextContent("Kod ma 6 cyfr");
+    expect(input).toHaveAttribute("aria-invalid", "true");
+    expect(groupsApi.redeemJoinCode).not.toHaveBeenCalled();
+  });
+
+  it("while a join is in flight Esc, the overlay and the close button do not close the sheet", async () => {
+    vi.mocked(groupsApi.getGroupAccess).mockResolvedValue(privateAccess());
+    vi.mocked(groupsApi.redeemJoinCode).mockReturnValue(new Promise(() => {}));
+    renderPage();
+    const { dialog, input } = await openSheet();
+
+    fireEvent.change(input, { target: { value: "482913" } });
+    fireEvent.submit(input);
+    await within(dialog).findByRole("button", { name: "Dołączanie…" });
+
+    fireEvent.keyDown(input, { key: "Escape" });
+    fireEvent.click(within(dialog).getByRole("button", { name: "Zamknij" }));
+    fireEvent.click(dialog.parentElement!);
+
+    expect(screen.getByRole("dialog", { name: "Wpisz kod dostępu" })).toBeInTheDocument();
+  });
+
+  it("a pasted spaced code submitted with Enter redeems the digits exactly once", async () => {
+    vi.mocked(groupsApi.getGroupAccess).mockResolvedValue(privateAccess());
+    vi.mocked(groupsApi.redeemJoinCode).mockReturnValue(new Promise(() => {}));
+    renderPage();
+    const { dialog, input } = await openSheet();
+
+    fireEvent.change(input, { target: { value: "482 913" } });
+    fireEvent.submit(input);
+    fireEvent.submit(input);
+
+    const busy = await within(dialog).findByRole("button", { name: "Dołączanie…" });
+    expect(busy).toBeDisabled();
+    expect(busy).toHaveAttribute("aria-busy", "true");
+    expect(within(dialog).getByRole("button", { name: "Anuluj" })).toBeDisabled();
+    fireEvent.keyDown(input, { key: "Escape" });
+    expect(screen.getByRole("dialog", { name: "Wpisz kod dostępu" })).toBeInTheDocument();
+    expect(groupsApi.redeemJoinCode).toHaveBeenCalledTimes(1);
+    expect(groupsApi.redeemJoinCode).toHaveBeenCalledWith(GROUP_ID, "482913");
+  });
+
+  it("a 409 shows the server's message inline and keeps the sheet open with the input", async () => {
+    vi.mocked(groupsApi.getGroupAccess).mockResolvedValue(privateAccess());
+    vi.mocked(groupsApi.redeemJoinCode).mockRejectedValue(new ApiError(409, "Conflict", { message: WRONG_CODE }));
+    renderPage();
+    const { dialog, input } = await openSheet();
+
+    fireEvent.change(input, { target: { value: "482910" } });
+    fireEvent.click(within(dialog).getByRole("button", { name: "Dołącz" }));
+
+    expect(await within(dialog).findByRole("alert")).toHaveTextContent(WRONG_CODE);
+    expect(codeValue(dialog)).toBe("482910");
+    expect(input).toHaveAttribute("aria-invalid", "true");
+    expect(within(dialog).getByRole("button", { name: "Dołącz" })).toBeEnabled();
+
+    fireEvent.change(input, { target: { value: "482913" } });
+    expect(within(dialog).queryByRole("alert")).not.toBeInTheDocument();
+  });
+
+  it("a successful join shows the term content and the 'Dołączono do grupy' toast", async () => {
+    vi.mocked(groupsApi.getGroupAccess).mockResolvedValueOnce(privateAccess()).mockResolvedValue(memberAccess);
+    vi.mocked(groupsApi.redeemJoinCode).mockResolvedValue({ created: true });
+    renderPage();
+    const { dialog, input } = await openSheet();
+
+    fireEvent.change(input, { target: { value: "482913" } });
+    fireEvent.click(within(dialog).getByRole("button", { name: "Dołącz" }));
+
+    expect(await screen.findByText("Zajęcia w parku")).toBeInTheDocument();
+    expect(screen.getByRole("status")).toHaveTextContent("Dołączono do grupy");
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    expect(screen.queryByText(/Ta grupa jest prywatna/)).not.toBeInTheDocument();
+  });
+
+  it("#code= redeems once and strips the fragment; a malformed one is stripped and opens the sheet empty", async () => {
+    vi.mocked(groupsApi.getGroupAccess).mockResolvedValueOnce(privateAccess()).mockResolvedValue(memberAccess);
+    vi.mocked(groupsApi.redeemJoinCode).mockResolvedValue({ created: true });
+    const valid = renderPage(`${PATH}?x=1#code=482913`);
+
+    expect(await screen.findByText("Zajęcia w parku")).toBeInTheDocument();
+    await waitFor(() => expect(screen.getByTestId("hash")).toBeEmptyDOMElement());
+    expect(screen.getByTestId("search")).toHaveTextContent(/^\?x=1$/);
+    expect(groupsApi.redeemJoinCode).toHaveBeenCalledTimes(1);
+    expect(groupsApi.redeemJoinCode).toHaveBeenCalledWith(GROUP_ID, "482913");
+    valid.unmount();
+
+    vi.mocked(groupsApi.getGroupAccess).mockReset().mockResolvedValue(privateAccess());
+    vi.mocked(groupsApi.redeemJoinCode).mockClear();
+    renderPage(`${PATH}#code=12ab`);
+
+    const dialog = await screen.findByRole("dialog", { name: "Wpisz kod dostępu" });
+    expect(codeValue(dialog)).toBe("");
+    await waitFor(() => expect(screen.getByTestId("hash")).toBeEmptyDOMElement());
+    expect(groupsApi.redeemJoinCode).not.toHaveBeenCalled();
+  });
+
+  it("#code= from a stale link strips the fragment at once and keeps the sheet open with the server's message", async () => {
+    vi.mocked(groupsApi.getGroupAccess).mockResolvedValue(privateAccess());
+    let rejectRedeem: (err: unknown) => void = () => {};
+    vi.mocked(groupsApi.redeemJoinCode).mockReturnValue(
+      new Promise((_, reject) => {
+        rejectRedeem = reject;
+      }),
+    );
+    renderPage(`${PATH}#code=482913`);
+
+    const dialog = await screen.findByRole("dialog", { name: "Wpisz kod dostępu" });
+    await within(dialog).findByRole("button", { name: "Dołączanie…" });
+    await waitFor(() => expect(screen.getByTestId("hash")).toBeEmptyDOMElement());
+
+    await act(async () => rejectRedeem(new ApiError(409, "Conflict", { message: WRONG_CODE })));
+
+    expect(await within(dialog).findByRole("alert")).toHaveTextContent(WRONG_CODE);
+    expect(codeValue(dialog)).toBe("482913");
+    expect(groupsApi.redeemJoinCode).toHaveBeenCalledTimes(1);
+    expect(sessionStorage.getItem(`pendingJoinCode:${GROUP_ID}`)).toBeNull();
+  });
+
+  it("a new #code= while a 409 sheet is open shows the new code and redeems it once", async () => {
+    vi.mocked(groupsApi.getGroupAccess).mockResolvedValue(privateAccess());
+    vi.mocked(groupsApi.redeemJoinCode)
+      .mockRejectedValueOnce(new ApiError(409, "Conflict", { message: WRONG_CODE }))
+      .mockReturnValue(new Promise(() => {}));
+    render(
+      <MemoryRouter initialEntries={[`${PATH}#code=482910`]}>
+        <Link to={{ pathname: PATH, hash: "#code=582913" }}>Drugi link</Link>
+        <Routes>
+          <Route path="/:organizationSlug/grupa/:groupId/term/:termId" element={<TermPage />} />
+        </Routes>
+        <SearchProbe />
+      </MemoryRouter>,
+      { wrapper: createQueryWrapper() },
+    );
+    const first = await screen.findByRole("dialog", { name: "Wpisz kod dostępu" });
+    expect(await within(first).findByRole("alert")).toHaveTextContent(WRONG_CODE);
+    await waitFor(() => expect(screen.getByTestId("hash")).toBeEmptyDOMElement());
+
+    fireEvent.click(screen.getByRole("link", { name: "Drugi link" }));
+
+    await waitFor(() => expect(groupsApi.redeemJoinCode).toHaveBeenCalledTimes(2));
+    expect(groupsApi.redeemJoinCode).toHaveBeenLastCalledWith(GROUP_ID, "582913");
+    const dialog = screen.getByRole("dialog", { name: "Wpisz kod dostępu" });
+    expect(codeValue(dialog)).toBe("582913");
+    expect(within(dialog).queryByRole("alert")).not.toBeInTheDocument();
+    await waitFor(() => expect(screen.getByTestId("hash")).toBeEmptyDOMElement());
+    expect(groupsApi.redeemJoinCode).toHaveBeenCalledTimes(2);
+  });
+
+  it("#code= opened by an existing member strips the fragment without redeeming", async () => {
+    vi.mocked(groupsApi.getGroupAccess).mockResolvedValue(memberAccess);
+    renderPage(`${PATH}?x=1#code=482913`);
+
+    expect(await screen.findByText("Zajęcia w parku")).toBeInTheDocument();
+    await waitFor(() => expect(screen.getByTestId("hash")).toBeEmptyDOMElement());
+    expect(screen.getByTestId("search")).toHaveTextContent(/^\?x=1$/);
+    expect(groupsApi.redeemJoinCode).not.toHaveBeenCalled();
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+  });
+
+  it("#code= survives the login round trip without entering any URL query, then redeems once", async () => {
+    mockAuth = { token: null, displayName: null };
+    vi.mocked(groupsApi.getGroupAccess).mockResolvedValue(privateAccess());
+    vi.mocked(groupsApi.redeemJoinCode).mockResolvedValue({ created: true });
+    const anonymous = renderPage(`${PATH}#code=482913`);
+
+    expect(await screen.findByText(/Masz kod\? Zaloguj się, żeby go użyć\./)).toBeInTheDocument();
+    expect(screen.getByTestId("hash")).toHaveTextContent("#code=482913");
+    expect(screen.getByRole("link", { name: "Zaloguj się" })).toHaveAttribute(
+      "href",
+      `/login?returnTo=${encodeURIComponent(PATH)}`,
+    );
+    expect(screen.getByRole("link", { name: "Zarejestruj się" })).toHaveAttribute(
+      "href",
+      `/register?returnTo=${encodeURIComponent(PATH)}`,
+    );
+    anonymous.unmount();
+
+    // LoginPage navigates back to `returnTo`, which carries no fragment.
+    mockAuth = { token: "tok", displayName: "Ala" };
+    renderPage(PATH);
+
+    const dialog = await screen.findByRole("dialog", { name: "Wpisz kod dostępu" });
+    expect(codeValue(dialog)).toBe("482913");
+    await waitFor(() => expect(groupsApi.redeemJoinCode).toHaveBeenCalledTimes(1));
+    expect(groupsApi.redeemJoinCode).toHaveBeenCalledWith(GROUP_ID, "482913");
+    expect(sessionStorage.getItem(`pendingJoinCode:${GROUP_ID}`)).toBeNull();
+  });
+
+  it("#code= waits through a token change: no redeem while the new token's access is pending, then exactly one", async () => {
+    mockAuth = { token: null, displayName: null };
+    let resolveAccess: (value: GroupAccessResponse) => void = () => {};
     vi.mocked(groupsApi.getGroupAccess)
-      .mockResolvedValueOnce(pendingAccess)
-      .mockResolvedValueOnce(privateAccess({ access: { join_request: { id: "5", status: "REJECTED" } } }))
-      .mockResolvedValueOnce(privateAccess({ access: { join_request: { id: "6", status: "PENDING" } } }));
-    vi.mocked(groupsApi.withdrawJoinRequest).mockRejectedValue(new ApiError(500, "Server Error", null));
-    vi.mocked(groupsApi.createJoinRequest).mockResolvedValue({ id: "6" } as JoinRequestResponse);
-    renderPage();
+      .mockResolvedValueOnce(privateAccess())
+      .mockReturnValueOnce(
+        new Promise((resolve) => {
+          resolveAccess = resolve;
+        }),
+      )
+      .mockResolvedValue(memberAccess);
+    vi.mocked(groupsApi.redeemJoinCode).mockResolvedValue({ created: true });
+    const view = renderPage(`${PATH}#code=482913`);
 
-    fireEvent.click(await screen.findByRole("button", { name: "Wycofaj prośbę" }));
-    expect(await screen.findByText(/Nie udało się wycofać prośby/)).toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: "Sprawdź ponownie" }));
-    fireEvent.click(await screen.findByRole("button", { name: "Poproś ponownie" }));
-    fireEvent.click(screen.getByRole("button", { name: "Wyślij" }));
+    expect(await screen.findByText(/Masz kod\? Zaloguj się, żeby go użyć\./)).toBeInTheDocument();
 
-    expect(await screen.findByRole("button", { name: "Wycofaj prośbę" })).toBeInTheDocument();
-    expect(screen.queryByText(/Nie udało się wycofać prośby/)).not.toBeInTheDocument();
+    mockAuth = { token: "tok", displayName: "Ala" };
+    view.rerender(page(`${PATH}#code=482913`));
+    await waitFor(() => expect(groupsApi.getGroupAccess).toHaveBeenCalledTimes(2));
+    expect(groupsApi.redeemJoinCode).not.toHaveBeenCalled();
+    expect(screen.getByTestId("hash")).toHaveTextContent("#code=482913");
+
+    await act(async () => resolveAccess(privateAccess()));
+
+    expect(await screen.findByText("Zajęcia w parku")).toBeInTheDocument();
+    expect(groupsApi.redeemJoinCode).toHaveBeenCalledTimes(1);
+    expect(groupsApi.redeemJoinCode).toHaveBeenCalledWith(GROUP_ID, "482913");
+    await waitFor(() => expect(screen.getByTestId("hash")).toBeEmptyDOMElement());
   });
 
-  it("pending: 'Wycofaj prośbę' withdraws and returns to canRequest", async () => {
-    vi.mocked(groupsApi.getGroupAccess).mockResolvedValueOnce(pendingAccess).mockResolvedValueOnce(privateAccess());
-    vi.mocked(groupsApi.withdrawJoinRequest).mockResolvedValue({ id: "5" } as JoinRequestResponse);
-    renderPage();
+  it("#code= is in sessionStorage while its redeem runs and stays there after a 401", async () => {
+    vi.mocked(groupsApi.getGroupAccess).mockResolvedValue(privateAccess());
+    let rejectRedeem: (err: unknown) => void = () => {};
+    vi.mocked(groupsApi.redeemJoinCode).mockReturnValue(
+      new Promise((_, reject) => {
+        rejectRedeem = reject;
+      }),
+    );
+    renderPage(`${PATH}#code=482913`);
+    const saved = () => JSON.parse(sessionStorage.getItem(`pendingJoinCode:${GROUP_ID}`) ?? "null");
 
-    fireEvent.click(await screen.findByRole("button", { name: "Wycofaj prośbę" }));
+    const dialog = await screen.findByRole("dialog", { name: "Wpisz kod dostępu" });
+    await waitFor(() => expect(screen.getByTestId("hash")).toBeEmptyDOMElement());
+    expect(saved()).toMatchObject({ code: "482913" });
 
-    await waitFor(() => expect(groupsApi.withdrawJoinRequest).toHaveBeenCalledWith(GROUP_ID, "5"));
-    expect(await screen.findByRole("button", { name: "Poproś o dostęp" })).toBeInTheDocument();
+    await act(async () => rejectRedeem(new ApiError(401, "Unauthorized", {})));
+
+    await within(dialog).findByRole("alert");
+    expect(saved()).toMatchObject({ code: "482913" });
+    expect(groupsApi.redeemJoinCode).toHaveBeenCalledTimes(1);
   });
 
-  it("rejected: offers 'Poproś ponownie'", async () => {
-    vi.mocked(groupsApi.getGroupAccess).mockResolvedValue(
-      privateAccess({ access: { join_request: { id: "5", status: "REJECTED" } } }),
+  it("a pending code older than an hour is ignored", async () => {
+    vi.mocked(groupsApi.getGroupAccess).mockResolvedValue(privateAccess());
+    sessionStorage.setItem(
+      `pendingJoinCode:${GROUP_ID}`,
+      JSON.stringify({ code: "482913", savedAt: Date.now() - 2 * 60 * 60 * 1000 }),
     );
     renderPage();
 
-    expect(await screen.findByText(/nie zatwierdził tym razem Twojej prośby/)).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Poproś ponownie" })).toBeInTheDocument();
-  });
-
-  it("a 409 on create refetches and shows the no-organizer line from the fresh data", async () => {
-    vi.mocked(groupsApi.getGroupAccess)
-      .mockResolvedValueOnce(privateAccess())
-      .mockResolvedValueOnce(privateAccess({ group: { organizer_display_name: null } }));
-    vi.mocked(groupsApi.createJoinRequest).mockRejectedValue(new ApiError(409, "Conflict", null));
-    renderPage();
-
-    fireEvent.click(await screen.findByRole("button", { name: "Poproś o dostęp" }));
-    fireEvent.click(screen.getByRole("button", { name: "Wyślij" }));
-
-    expect(
-      await screen.findByText("Ta grupa nie ma teraz organizatora — nie można wysłać prośby."),
-    ).toBeInTheDocument();
-    expect(groupsApi.getGroupAccess).toHaveBeenCalledTimes(2);
+    expect(await screen.findByRole("button", { name: "Mam kod dostępu" })).toBeInTheDocument();
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
-    expect(screen.getByRole("heading", { level: 2, name: /Ta grupa jest prywatna/ })).toHaveFocus();
+    expect(groupsApi.redeemJoinCode).not.toHaveBeenCalled();
   });
 
-  it("Esc closes the request dialog and returns focus to 'Poproś o dostęp'; an overlay click closes it too", async () => {
-    vi.mocked(groupsApi.getGroupAccess).mockResolvedValue(privateAccess());
-    renderPage();
-    const trigger = await screen.findByRole("button", { name: "Poproś o dostęp" });
+  it("#code= with blocked sessionStorage still redeems exactly once", async () => {
+    const blocked = () => {
+      throw new DOMException("blocked", "SecurityError");
+    };
+    vi.stubGlobal("sessionStorage", { getItem: blocked, setItem: blocked, removeItem: blocked });
+    try {
+      vi.mocked(groupsApi.getGroupAccess).mockResolvedValueOnce(privateAccess()).mockResolvedValue(memberAccess);
+      vi.mocked(groupsApi.redeemJoinCode).mockResolvedValue({ created: true });
+      renderPage(`${PATH}#code=482913`);
 
-    fireEvent.click(trigger);
-    fireEvent.keyDown(document, { key: "Escape" });
-    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
-    expect(trigger).toHaveFocus();
-
-    fireEvent.click(trigger);
-    fireEvent.click(screen.getByRole("dialog", { name: "Poprosić o dostęp?" }).parentElement!);
-    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
-    expect(groupsApi.createJoinRequest).not.toHaveBeenCalled();
+      expect(await screen.findByText("Zajęcia w parku")).toBeInTheDocument();
+      await waitFor(() => expect(screen.getByTestId("hash")).toBeEmptyDOMElement());
+      expect(groupsApi.redeemJoinCode).toHaveBeenCalledTimes(1);
+      expect(groupsApi.redeemJoinCode).toHaveBeenCalledWith(GROUP_ID, "482913");
+    } finally {
+      vi.unstubAllGlobals();
+    }
   });
 
-  it("a non-409 create error keeps the dialog open with an alert and does not refetch", async () => {
-    vi.mocked(groupsApi.getGroupAccess).mockResolvedValue(privateAccess());
-    vi.mocked(groupsApi.createJoinRequest).mockRejectedValue(new ApiError(500, "Server Error", null));
-    renderPage();
-
-    fireEvent.click(await screen.findByRole("button", { name: "Poproś o dostęp" }));
-    const dialog = screen.getByRole("dialog", { name: "Poprosić o dostęp?" });
-    fireEvent.click(within(dialog).getByRole("button", { name: "Wyślij" }));
-
-    expect(await within(dialog).findByRole("alert")).toHaveTextContent("Nie udało się wysłać prośby");
-    expect(within(dialog).getByRole("button", { name: "Wyślij" })).toBeEnabled();
-    expect(groupsApi.getGroupAccess).toHaveBeenCalledTimes(1);
-  });
-
-  it("pending: returning to the tab refetches and an approval shows the term content", async () => {
-    vi.mocked(groupsApi.getGroupAccess)
-      .mockResolvedValueOnce(pendingAccess)
-      .mockResolvedValueOnce(access({ access: { is_member: true } }));
-    renderPage();
-    await screen.findByRole("button", { name: "Sprawdź ponownie" });
-
-    act(() => {
-      document.dispatchEvent(new Event("visibilitychange"));
-    });
+  it("#code= under StrictMode redeems exactly once", async () => {
+    vi.mocked(groupsApi.getGroupAccess).mockResolvedValueOnce(privateAccess()).mockResolvedValue(memberAccess);
+    vi.mocked(groupsApi.redeemJoinCode).mockResolvedValue({ created: true });
+    render(<StrictMode>{page(`${PATH}#code=482913`)}</StrictMode>, { wrapper: createQueryWrapper() });
 
     expect(await screen.findByText("Zajęcia w parku")).toBeInTheDocument();
-    expect(groupsApi.getGroupAccess).toHaveBeenCalledTimes(2);
-    expect(screen.queryByText(/Ta grupa jest prywatna/)).not.toBeInTheDocument();
+    await waitFor(() => expect(screen.getByTestId("hash")).toBeEmptyDOMElement());
+    expect(groupsApi.redeemJoinCode).toHaveBeenCalledTimes(1);
+    expect(groupsApi.redeemJoinCode).toHaveBeenCalledWith(GROUP_ID, "482913");
   });
 
   it("a failed fetch after a token change shows the retry line instead of a loader; a retry resolves it", async () => {
@@ -712,7 +974,7 @@ describe("TermPage — private group gate", () => {
     vi.mocked(groupsApi.getGroupAccess)
       .mockResolvedValueOnce(privateAccess())
       .mockRejectedValueOnce(new Error("500"))
-      .mockResolvedValueOnce(pendingAccess);
+      .mockResolvedValueOnce(privateAccess());
     const view = renderPage();
     await screen.findByRole("link", { name: "Zaloguj się" });
 
@@ -722,10 +984,11 @@ describe("TermPage — private group gate", () => {
     expect(await screen.findByRole("alert")).toHaveTextContent("Nie udało się odświeżyć strony — spróbuj ponownie.");
     expect(screen.queryByText("Wczytywanie...")).not.toBeInTheDocument();
     expect(screen.queryByRole("link", { name: "Zaloguj się" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Mam kod dostępu" })).not.toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "Spróbuj ponownie" }));
 
-    expect(await within(screen.getByRole("status")).findByText(/Prośba wysłana/)).toBeInTheDocument();
+    expect(await screen.findByRole("button", { name: "Mam kod dostępu" })).toBeInTheDocument();
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
   });
 });
@@ -785,7 +1048,7 @@ describe("TermPage — view fixes", () => {
     expect(screen.getByRole("region", { name: "Zapisani na zajęcia" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "＋ Zapisz się na zajęcia" })).toBeInTheDocument();
     expect(screen.queryByText(/Ta grupa jest prywatna/)).not.toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Poproś o dostęp" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Mam kod dostępu" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Zaloguj się, żeby się zapisać" })).not.toBeInTheDocument();
   });
 

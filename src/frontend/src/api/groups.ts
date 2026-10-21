@@ -10,10 +10,10 @@ import { pageParams, type Page } from "./pagination";
  * docstring for the same decoupling rationale. */
 export type GroupLayoutMode = "CIRCLE" | "PITCH" | "TABLE";
 
-/** Mirrors `app.groups.models.GroupVisibility` — `PUBLIC` (today's only
- * behavior: anyone RSVPs per-term, optionally without an account) vs
- * `PRIVATE` (only standing members/organizer may RSVP; new members join
- * only via the group's join link, which creates standing membership). */
+/** Mirrors `app.groups.models.GroupVisibility` — `PUBLIC` (anyone RSVPs
+ * per-term, optionally without an account) vs `PRIVATE` (only standing
+ * members/organizer may RSVP; new members join by entering the organizer's
+ * access code, which creates standing membership). */
 export type GroupVisibility = "PUBLIC" | "PRIVATE";
 
 export interface GroupResponse {
@@ -265,10 +265,6 @@ export interface GroupAccessDetails {
   can_view_content: boolean;
   /** The caller has a `TermAttendance` on `group.term`. */
   is_attending: boolean;
-  /** The caller's latest access request for a PRIVATE group they don't
-   * belong to, when it is PENDING or REJECTED; `null` otherwise (anonymous
-   * caller, PUBLIC group, member/organizer, or a withdrawn/approved one). */
-  join_request: JoinRequestSummary | null;
 }
 
 /** Mirrors `app.groups.schemas.GroupAccessResponse` — `GET
@@ -459,60 +455,34 @@ export function getGroupMembers(groupId: string): Promise<GroupMemberResponse[]>
 }
 
 /* ------------------------------------------------------------------ */
-/*  PRIVATE-group access requests (requester: `/groups/public/{id}/    */
-/*  join-requests`; organizer: `/groups/{id}/join-requests/{rid}/…`)   */
+/*  PRIVATE-group access code (organizer: `/groups/{id}/join-code`;    */
+/*  visitor: `/groups/public/{id}/join-code`)                          */
 /* ------------------------------------------------------------------ */
 
-export type JoinRequestStatus = "PENDING" | "APPROVED" | "REJECTED" | "WITHDRAWN";
-
-/** The `/access` view of the caller's own latest request. */
-export interface JoinRequestSummary {
-  id: string;
-  status: Extract<JoinRequestStatus, "PENDING" | "REJECTED">;
+export interface JoinCodeResponse {
+  /** 6 digits, may start with a zero. */
+  code: string;
 }
 
-export interface JoinRequestResponse {
-  id: string;
-  group_id: string;
-  requester_party_id: string;
-  term_id: string | null;
-  status: JoinRequestStatus;
-  created_at: string;
-  updated_at: string;
+export interface RedeemJoinCodeResponse {
+  /** `false` when the caller already was a member or the organizer. */
+  created: boolean;
 }
 
-/** A PENDING request awaiting the organizer's decision, denormalized for
- * the panel's pending-actions list. */
-export interface PendingJoinRequestResponse {
-  id: string;
-  group_id: string;
-  group_name: string;
-  term_id: string | null;
-  requester_party_id: string;
-  requester_display_name: string;
-  created_at: string;
+/** Organizer only; the code is created on the first read. */
+export function getJoinCode(groupId: string): Promise<JoinCodeResponse> {
+  return api.get(`/groups/${groupId}/join-code`);
 }
 
-/** Idempotent: an existing PENDING request is returned instead of a new one. */
-export function createJoinRequest(groupId: string, termId?: string): Promise<JoinRequestResponse> {
-  return api.post(`/groups/public/${groupId}/join-requests`, { term_id: termId ?? null });
+/** Organizer only; the old code stops working. */
+export function regenerateJoinCode(groupId: string): Promise<JoinCodeResponse> {
+  return api.post(`/groups/${groupId}/join-code/regenerate`, undefined);
 }
 
-export function withdrawJoinRequest(groupId: string, requestId: string): Promise<JoinRequestResponse> {
-  return api.post(`/groups/public/${groupId}/join-requests/${requestId}/withdraw`, undefined);
-}
-
-/** PENDING requests across every group the caller organizes. */
-export function listMyPendingJoinRequests(): Promise<PendingJoinRequestResponse[]> {
-  return api.get("/groups/mine/join-requests");
-}
-
-export function approveJoinRequest(groupId: string, requestId: string): Promise<JoinRequestResponse> {
-  return api.post(`/groups/${groupId}/join-requests/${requestId}/approve`, undefined);
-}
-
-export function rejectJoinRequest(groupId: string, requestId: string): Promise<JoinRequestResponse> {
-  return api.post(`/groups/${groupId}/join-requests/${requestId}/reject`, undefined);
+/** Joins the PRIVATE group as a standing member; 409 on a wrong code, 429
+ * after too many attempts. */
+export function redeemJoinCode(groupId: string, code: string): Promise<RedeemJoinCodeResponse> {
+  return api.post(`/groups/public/${groupId}/join-code`, { code });
 }
 
 /* ------------------------------------------------------------------ */

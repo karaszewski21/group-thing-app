@@ -3,10 +3,12 @@ import { Link } from "react-router-dom";
 import { createAdditionalMyCircle, updateGroup, type GroupResponse } from "../../api/groups";
 import { serverMessageOr } from "../../api/problem";
 import { createTerm } from "../../api/terms";
+import { useJoinCode } from "../../hooks/useJoinCode";
 import { CapacityField, Field, INPUT_CLASS, ModalSheet } from "../../pages/panel/panelComponents";
 import { capacityText, defaultVisibility, parseCapacity, termPublicPath } from "../../pages/panel/panelHelpers";
 import { LocationPicker } from "../shared/LocationPicker";
 import { GroupFormFields, type GroupFormValue } from "./GroupFormFields";
+import { JoinCodeCard } from "./JoinCodeCard";
 
 /* ------------------------------------------------------------------ */
 /*  "Załóż grupę" — 2 steps (group -> first term) for any logged-in     */
@@ -65,6 +67,7 @@ export function CreateGroupStepper({ organizationSlug, onClose, onCircleCreated,
   const shownStep = useRef(step);
   const groupCapacity = parseCapacity(form.defaultCapacity);
   const termCapacity = parseCapacity(capacity);
+  const joinCode = useJoinCode(group?.id ?? "", { enabled: step === "done" && group?.visibility === "PRIVATE" });
 
   // The button that changed the step unmounts with it; move focus to the new
   // step's first field (or the done message) so it stays inside the sheet.
@@ -142,8 +145,18 @@ export function CreateGroupStepper({ organizationSlug, onClose, onCircleCreated,
           <p tabIndex={-1} className="text-[13.5px] text-ink-soft outline-none">
             {group.visibility === "PUBLIC"
               ? "Grupa założona, termin dodany! Tę stronę zobaczy każdy, kto dostanie link — bez logowania."
-              : "Grupa założona, termin dodany! Grupa jest prywatna — osoby z linkiem poproszą o dołączenie, a Ty je zaakceptujesz."}
+              : "Grupa założona, termin dodany! Grupa jest prywatna — dołączą tylko osoby, którym podasz kod dostępu."}
           </p>
+          {group.visibility === "PRIVATE" && (
+            <JoinCodeCard
+              group={group}
+              code={joinCode.code}
+              status={joinCode.status}
+              onRetry={joinCode.refetch}
+              regenerate={joinCode.regenerate}
+              termId={createdTermId}
+            />
+          )}
           <Link to={termPublicPath(group, createdTermId)} className={`mt-4 block w-full text-center ${primaryClass}`}>
             Przejdź do publicznej strony →
           </Link>

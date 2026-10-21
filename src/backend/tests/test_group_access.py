@@ -1,5 +1,5 @@
 """`GET /api/groups/public/{group_id}/access` — server-resolved caller
-relationship to a Circle (is_member/is_organizer/can_view_content/join_request),
+relationship to a Circle (is_member/is_organizer/can_view_content/is_attending),
 replacing the frontend's previous "any auth token = member view" heuristic.
 
 Isolation via the `conftest.py` TestContainers + savepoint-rollback fixtures;
@@ -65,7 +65,6 @@ async def test_getGroupAccess_publicGroupUnauthenticated_canViewNoMembership(
         "is_member": False,
         "is_organizer": False,
         "can_view_content": True,
-        "join_request": None,
         "is_attending": False,
     }
 
@@ -83,12 +82,11 @@ async def test_getGroupAccess_organizerOwnGroup_reportsOrganizerAndMember(
         "is_member": True,
         "is_organizer": True,
         "can_view_content": True,
-        "join_request": None,
         "is_attending": False,
     }
 
 
-async def test_getGroupAccess_privateGroupUnrelatedLoggedInVisitor_cannotViewNoJoinRequest(
+async def test_getGroupAccess_privateGroupUnrelatedLoggedInVisitor_cannotView(
     client: AsyncClient,
 ) -> None:
     org_token = await _register(client, "ORGANIZER", "access.org3@example.com")
@@ -104,12 +102,11 @@ async def test_getGroupAccess_privateGroupUnrelatedLoggedInVisitor_cannotViewNoJ
         "is_member": False,
         "is_organizer": False,
         "can_view_content": False,
-        "join_request": None,
         "is_attending": False,
     }
 
 
-async def test_getGroupAccess_privateGroupUnauthenticated_cannotViewNoJoinRequest(
+async def test_getGroupAccess_privateGroupUnauthenticated_cannotView(
     client: AsyncClient,
 ) -> None:
     org_token = await _register(client, "ORGANIZER", "access.org4@example.com")
@@ -120,7 +117,6 @@ async def test_getGroupAccess_privateGroupUnauthenticated_cannotViewNoJoinReques
     assert response.status_code == 200
     body = response.json()
     assert body["access"]["can_view_content"] is False
-    assert body["access"]["join_request"] is None
     assert body["group"]["term"] is None
     assert body["group"]["guardians"] == []
 
@@ -295,16 +291,6 @@ async def _private_circle_with_outsider(
     return group_id, term_id, org_token, outsider_token
 
 
-async def _request_access(client: AsyncClient, token: str, group_id: int, term_id: int) -> int:
-    r = await client.post(
-        f"/api/groups/public/{group_id}/join-requests",
-        json={"term_id": term_id},
-        headers=_auth(token),
-    )
-    assert r.status_code == 201
-    return r.json()["id"]
-
-
 async def _access(client: AsyncClient, token: str, group_id: int, term_id: int) -> dict:
     r = await client.get(
         f"/api/groups/public/{group_id}/access?term_id={term_id}", headers=_auth(token)
@@ -313,94 +299,72 @@ async def _access(client: AsyncClient, token: str, group_id: int, term_id: int) 
     return r.json()
 
 
-async def test_getGroupAccess_requestLifecycle_joinRequestPendingThenRejectedThenNullAfterWithdraw(
+async def test_groupReads_privateGroupWithCode_neverExposeJoinCode(
     client: AsyncClient,
 ) -> None:
     group_id, term_id, org_token, outsider_token = await _private_circle_with_outsider(
-        client, "jr1"
+        client, "jc1"
     )
+    code = await client.get(f"/api/groups/{group_id}/join-code", headers=_auth(org_token))
+    assert code.status_code == 200
 
-    first_id = await _request_access(client, outsider_token, group_id, term_id)
-    pending = await _access(client, outsider_token, group_id, term_id)
-    reject = await client.post(
-        f"/api/groups/{group_id}/join-requests/{first_id}/reject", headers=_auth(org_token)
-    )
-    assert reject.status_code == 200
-    rejected = await _access(client, outsider_token, group_id, term_id)
-    second_id = await _request_access(client, outsider_token, group_id, term_id)
-    withdraw = await client.post(
-        f"/api/groups/public/{group_id}/join-requests/{second_id}/withdraw",
-        headers=_auth(outsider_token),
-    )
-    assert withdraw.status_code == 200
-    withdrawn = await _access(client, outsider_token, group_id, term_id)
+    own = await client.get(f"/api/groups/{group_id}", headers=_auth(org_token))
+    public = await client.get(f"/api/groups/public/{group_id}", headers=_auth(org_token))
+    organizer_access = await _access(client, org_token, group_id, term_id)
+    outsider_access = await _access(client, outsider_token, group_id, term_id)
 
-    assert pending["access"]["join_request"] == {"id": first_id, "status": "PENDING"}
-    assert rejected["access"]["join_request"] == {"id": first_id, "status": "REJECTED"}
-    assert withdrawn["access"]["join_request"] is None
-    assert withdrawn["access"]["can_view_content"] is False
-
-
-async def test_getGroupAccess_pendingOrRejectedCaller_termIsNone(
-    client: AsyncClient,
-) -> None:
-    group_id, term_id, org_token, outsider_token = await _private_circle_with_outsider(
-        client, "jr2"
-    )
-
-    request_id = await _request_access(client, outsider_token, group_id, term_id)
-    pending = await _access(client, outsider_token, group_id, term_id)
-    reject = await client.post(
-        f"/api/groups/{group_id}/join-requests/{request_id}/reject", headers=_auth(org_token)
-    )
-    assert reject.status_code == 200
-    rejected = await _access(client, outsider_token, group_id, term_id)
-
-    for body in (pending, rejected):
-        assert body["group"]["term"] is None
-        assert body["group"]["guardians"] == []
-        assert body["access"]["can_view_content"] is False
-        assert body["access"]["is_member"] is False
-
-
-async def test_getGroupAccess_approvedMember_fullContentAndRsvpReturns201(
-    client: AsyncClient,
-) -> None:
-    group_id, term_id, org_token, outsider_token = await _private_circle_with_outsider(
-        client, "jr3"
-    )
-    request_id = await _request_access(client, outsider_token, group_id, term_id)
-    approve = await client.post(
-        f"/api/groups/{group_id}/join-requests/{request_id}/approve", headers=_auth(org_token)
-    )
-    assert approve.status_code == 200
-
-    rsvp = await client.post(
-        f"/api/groups/public/{group_id}/rsvp",
-        json={"term_id": term_id, "guardian_name": "ignored"},
-        headers=_auth(outsider_token),
-    )
-    body = await _access(client, outsider_token, group_id, term_id)
-
-    assert rsvp.status_code == 201
-    assert body["group"]["term"]["id"] == term_id
-    assert body["access"]["is_member"] is True
-    assert body["access"]["can_view_content"] is True
-    assert body["access"]["is_attending"] is True
-    assert body["access"]["join_request"] is None
+    assert own.status_code == 200
+    assert public.status_code == 200
+    assert set(own.json()) == {
+        "id",
+        "party_id",
+        "name",
+        "organizer_slug",
+        "layout_mode",
+        "visibility",
+        "default_location",
+        "default_capacity",
+        "created_at",
+        "updated_at",
+    }
+    public_keys = {
+        "id",
+        "name",
+        "organizer_display_name",
+        "organizer_slug",
+        "organization",
+        "visibility",
+        "layout_mode",
+        "term",
+        "guardians",
+    }
+    for group in (public.json(), organizer_access["group"], outsider_access["group"]):
+        assert set(group) == public_keys
+    for body in (organizer_access, outsider_access):
+        assert set(body) == {"group", "access"}
+        assert set(body["access"]) == {
+            "is_member",
+            "is_organizer",
+            "can_view_content",
+            "is_attending",
+        }
 
 
-async def test_getGroupAccess_exMemberLatestApproved_joinRequestNull(
+async def test_getGroupAccess_exMemberAfterRedeem_reducedView(
     client: AsyncClient, db_session: AsyncSession
 ) -> None:
     group_id, term_id, org_token, outsider_token = await _private_circle_with_outsider(
-        client, "jr4"
+        client, "jc2"
     )
-    request_id = await _request_access(client, outsider_token, group_id, term_id)
-    approve = await client.post(
-        f"/api/groups/{group_id}/join-requests/{request_id}/approve", headers=_auth(org_token)
+    code = await client.get(f"/api/groups/{group_id}/join-code", headers=_auth(org_token))
+    assert code.status_code == 200
+    redeem = await client.post(
+        f"/api/groups/public/{group_id}/join-code",
+        json={"code": code.json()["code"]},
+        headers=_auth(outsider_token),
     )
-    assert approve.status_code == 200
+    assert redeem.status_code == 200
+    member = await _access(client, outsider_token, group_id, term_id)
     username = decode_token(outsider_token, settings.jwt_secret)["sub"]
     profile = await get_profile_by_principal(
         db_session, Principal(username=username, authorities=frozenset())
@@ -413,7 +377,8 @@ async def test_getGroupAccess_exMemberLatestApproved_joinRequestNull(
 
     body = await _access(client, outsider_token, group_id, term_id)
 
+    assert member["access"]["is_member"] is True
+    assert member["access"]["can_view_content"] is True
     assert body["access"]["is_member"] is False
     assert body["access"]["can_view_content"] is False
-    assert body["access"]["join_request"] is None
     assert body["group"]["term"] is None

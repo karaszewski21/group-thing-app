@@ -1,14 +1,18 @@
+import type { ReactNode } from "react";
 import { Link, useParams } from "react-router-dom";
 import type { GroupMemberResponse, GroupResponse } from "../../api/groups";
+import { JoinCodeCard } from "../../components/panel/JoinCodeCard";
 import { PhoneFrame } from "../../components/shared/PhoneFrame";
 import { useGroupDetails } from "../../hooks/useGroupDetails";
+import { useGroupTerms } from "../../hooks/useGroupTerms";
+import { useJoinCode } from "../../hooks/useJoinCode";
 import dayjs from "../../utils/dayjs";
 import { pluralPl } from "../../utils/plural";
 import { PanelNavBar } from "./PanelNav";
 import { BackIcon } from "./panelIcons";
 
 const LAYOUT_LABEL = { CIRCLE: "Krąg", PITCH: "Boisko", TABLE: "Stół" } as const;
-const VISIBILITY_LABEL = { PUBLIC: "Publiczna", PRIVATE: "Prywatna (dostęp na prośbę)" } as const;
+const VISIBILITY_LABEL = { PUBLIC: "Publiczna", PRIVATE: "Prywatna (dostęp z kodem)" } as const;
 
 /** Group details plus everyone who signed up for its terms (`/panel/grupy/:groupId`).
  * A standalone route outside PanelDataProvider, like TermAttendeesPage, but
@@ -17,6 +21,14 @@ const VISIBILITY_LABEL = { PUBLIC: "Publiczna", PRIVATE: "Prywatna (dostęp na p
 export function GroupDetailsPage() {
   const { groupId = "" } = useParams();
   const { group, members, denied, notFound, error, loading, refetch } = useGroupDetails(groupId);
+  const isPrivate = group?.visibility === "PRIVATE";
+  const joinCode = useJoinCode(groupId, { enabled: isPrivate });
+  // Only the organizer (code loaded) needs a term to link to.
+  const { data: terms } = useGroupTerms(groupId, { enabled: joinCode.status === "ready" });
+  const today = dayjs().startOf("day");
+  const nearestTerm = terms
+    .filter((t) => !dayjs(t.occurs_on).isBefore(today))
+    .sort((a, b) => a.occurs_on.localeCompare(b.occurs_on))[0];
 
   return (
     <PhoneFrame>
@@ -36,6 +48,19 @@ export function GroupDetailsPage() {
           error={error}
           loading={loading}
           onRetry={() => void refetch()}
+          joinCodeCard={
+            group &&
+            isPrivate && (
+              <JoinCodeCard
+                group={group}
+                code={joinCode.code}
+                status={joinCode.status}
+                onRetry={joinCode.refetch}
+                regenerate={joinCode.regenerate}
+                termId={nearestTerm?.id ?? null}
+              />
+            )
+          }
         />
       </div>
       <PanelNavBar />
@@ -51,6 +76,8 @@ interface GroupDetailsBodyProps {
   error: string | null;
   loading: boolean;
   onRetry: () => void;
+  /** Shown under the details card (PRIVATE groups only). */
+  joinCodeCard: ReactNode;
 }
 
 function GroupDetailsBody({
@@ -61,6 +88,7 @@ function GroupDetailsBody({
   error,
   loading,
   onRetry,
+  joinCodeCard,
 }: GroupDetailsBodyProps) {
   if (denied) {
     return <p className="mt-3 text-[12.5px] text-ink-soft">Nie masz dostępu do tej grupy.</p>;
@@ -97,6 +125,7 @@ function GroupDetailsBody({
           : `${members.length} ${pluralPl(members.length, "uczestnik", "uczestników", "uczestników")}`}
       </p>
       <GroupDetailsCard group={group} />
+      {joinCodeCard}
       <h3 className="mt-6 font-serif text-[17px] font-bold text-ink">Uczestnicy terminów</h3>
       {members.length === 0 ? (
         <p className="mt-2.5 rounded-2xl border border-dashed border-line p-[15px] text-[12.5px] text-ink-soft">

@@ -9,7 +9,6 @@ recipient-facing reads/marks are used only by `app.notifications.router`.
 from __future__ import annotations
 
 import uuid
-
 from datetime import datetime
 
 from sqlalchemy import update
@@ -37,16 +36,13 @@ async def create_notification(
     message: str,
     link_path: str | None = None,
     proposal_id: uuid.UUID | None = None,
-    join_request_id: uuid.UUID | None = None,
     reservation_id: uuid.UUID | None = None,
 ) -> None:
     """Stage a notification on the session — no commit/flush. The producing
     use case's own trailing `db.commit()` persists it atomically with the
     action that triggered it. `proposal_id` is the loose
     `app.groups.models.SwapProposal.id` pointer, set on `SWAP_PROPOSED`
-    and on a swap `TERM_CONFIRMATION_NEEDED`; `join_request_id` is the loose
-    `app.groups.models.GroupJoinRequest.id` pointer, only meaningful for
-    the `GROUP_JOIN_*` kinds; `reservation_id` is the loose
+    and on a swap `TERM_CONFIRMATION_NEEDED`; `reservation_id` is the loose
     `app.circulation.models.Reservation.id` pointer, only meaningful for a
     GIFT/LEND `TERM_CONFIRMATION_NEEDED`."""
     db.add(
@@ -56,7 +52,6 @@ async def create_notification(
             message=message,
             link_path=link_path,
             proposal_id=proposal_id,
-            join_request_id=join_request_id,
             reservation_id=reservation_id,
         )
     )

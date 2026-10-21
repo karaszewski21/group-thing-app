@@ -44,10 +44,7 @@ class NotificationKind(enum.StrEnum):
     `TERM_CONFIRMATION_NEEDED` goes to both parties of an `ACCEPTED` swap
     or of a still-open GIFT/LEND reservation once its Term ends, and
     `TERM_ALREADY_RESOLVED` goes to the other party in a swap/giveaway when
-    they act after the first party already resolved the same transaction.
-    `GROUP_JOIN_REQUESTED` goes to a
-    private Circle's active organizer, and `GROUP_JOIN_APPROVED`/
-    `GROUP_JOIN_REJECTED` go back to the request's requester."""
+    they act after the first party already resolved the same transaction."""
 
     PLEDGE_CREATED = "PLEDGE_CREATED"
     PLEDGE_WITHDRAWN = "PLEDGE_WITHDRAWN"
@@ -60,9 +57,6 @@ class NotificationKind(enum.StrEnum):
     SWAP_REJECTED = "SWAP_REJECTED"
     TERM_CONFIRMATION_NEEDED = "TERM_CONFIRMATION_NEEDED"
     TERM_ALREADY_RESOLVED = "TERM_ALREADY_RESOLVED"
-    GROUP_JOIN_REQUESTED = "GROUP_JOIN_REQUESTED"
-    GROUP_JOIN_APPROVED = "GROUP_JOIN_APPROVED"
-    GROUP_JOIN_REJECTED = "GROUP_JOIN_REJECTED"
 
 
 class Notification(BaseEntity):
@@ -87,11 +81,7 @@ class Notification(BaseEntity):
     # so the frontend's global pending-actions modal can call
     # `acceptSwapProposal`/`rejectSwapProposal` directly instead of
     # deep-linking to the term page. `None` for every other kind.
-    proposal_id: Mapped[uuid.UUID | None] = mapped_column(postgresql.UUID(as_uuid=True), nullable=True)
-    # Loose cross-BC pointer (no FK, same convention as `proposal_id`) at
-    # `app.groups.models.GroupJoinRequest.id`. Populated only for the
-    # `GROUP_JOIN_*` kinds; `None` for every other kind.
-    join_request_id: Mapped[uuid.UUID | None] = mapped_column(
+    proposal_id: Mapped[uuid.UUID | None] = mapped_column(
         postgresql.UUID(as_uuid=True), nullable=True
     )
     # Loose cross-BC pointer (no FK, same convention as `proposal_id`) at

@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Implementation Verification — private-group-join-by-code</title>
+<style>
+:root {
+  --bg:#f6f7f9; --surface:#fff; --border:#e2e5ea; --text:#1a1d23; --dim:#6b7280;
+  --accent:#4f46e5; --accent-soft:#eef2ff; --ok:#16a34a; --ok-soft:#ecfdf3;
+  --warn:#d97706; --warn-soft:#fffbeb; --crit:#dc2626; --crit-soft:#fef2f2;
+  --info:#2563eb; --info-soft:#eff6ff; --radius:10px;
+}
+@media (prefers-color-scheme: dark) {
+  :root { --bg:#111418; --surface:#1a1f26; --border:#2e3640; --text:#e6e9ee; --dim:#9aa4b2;
+    --accent:#818cf8; --accent-soft:#26294a; --ok:#4ade80; --ok-soft:#11291a;
+    --warn:#fbbf24; --warn-soft:#2e2410; --crit:#f87171; --crit-soft:#321616;
+    --info:#60a5fa; --info-soft:#15233a; }
+}
+* { box-sizing:border-box; }
+body { margin:0 auto; max-width:1100px; padding:24px 20px 64px; background:var(--bg);
+  color:var(--text); font:14px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif; }
+a { color:var(--accent); text-decoration:none; } a:hover { text-decoration:underline; }
+h1 { font-size:22px; letter-spacing:-.01em; } h2 { font-size:16px; margin-top:28px; }
+.card { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius);
+  padding:16px 18px; margin:14px 0; }
+.badge { display:inline-block; font-size:11px; font-weight:600; text-transform:uppercase;
+  letter-spacing:.04em; padding:2px 8px; border-radius:99px; background:var(--accent-soft); color:var(--accent); }
+.sev { display:inline-block; font-size:10.5px; font-weight:700; text-transform:uppercase;
+  padding:1.5px 7px; border-radius:99px; margin-right:6px; }
+.sev.critical { background:var(--crit-soft); color:var(--crit); }
+.sev.warning  { background:var(--warn-soft); color:var(--warn); }
+.sev.info     { background:var(--info-soft); color:var(--info); }
+.pass { color:var(--ok); font-weight:600; } .fail { color:var(--crit); font-weight:600; }
+table { width:100%; border-collapse:collapse; }
+th, td { text-align:left; padding:7px 10px; border-bottom:1px solid var(--border); vertical-align:top; }
+th { font-size:11.5px; text-transform:uppercase; letter-spacing:.04em; color:var(--dim); }
+code { font-family:ui-monospace,SFMono-Regular,Menlo,monospace; font-size:12.5px;
+  background:var(--accent-soft); padding:1px 5px; border-radius:4px; }
+details > summary { cursor:pointer; font-weight:600; }
+.crumbs { display:flex; gap:14px; font-size:13px; margin-bottom:18px; flex-wrap:wrap; }
+.crumbs a.md { margin-left:auto; color:var(--dim); }
+.crumbs .here { font-weight:650; color:var(--text); }
+.tiles { display:flex; gap:10px; flex-wrap:wrap; margin:14px 0; }
+.tile { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius);
+  padding:10px 16px; text-align:center; min-width:90px; }
+.tile b { display:block; font-size:20px; letter-spacing:-.01em; }
+.tile span { font-size:10.5px; text-transform:uppercase; letter-spacing:.05em; color:var(--dim); }
+.verdict { border-left:5px solid var(--crit); background:var(--crit-soft); }
+</style>
+</head>
+<body>
+<nav class="crumbs">
+  <a href="../dashboard.html">← Dashboard</a>
+  <a href="../implementation/spec.html">Spec</a> <a href="../implementation/implementation-plan.html">Plan</a>
+  <span class="here">Verification</span>
+  <a href="implementation-verification.md" target="_blank" rel="noopener" class="md">md twin ↗</a>
+</nav>
+<header>
+  <h1>Implementation Verification — join a PRIVATE group by access code</h1>
+  <span class="badge">verification</span> <span class="badge">2026-10-21</span>
+</header>
+<div class="tiles">
+  <div class="tile"><b style="color:var(--warn)">⚠️ Passed with issues</b><span>verdict (cycle 3, final)</span></div>
+  <div class="tile"><b>0</b><span>critical</span></div>
+  <div class="tile"><b>1</b><span>warning (accepted)</span></div>
+  <div class="tile"><b>~13</b><span>info</span></div>
+  <div class="tile"><b>860/860</b><span>backend tests</span></div>
+  <div class="tile"><b class="pass">GO 94%</b><span>production</span></div>
+</div>
+
+<section class="card tldr" style="border-left:5px solid var(--warn);background:var(--warn-soft)">
+  <h2 style="margin-top:0">TL;DR</h2>
+  <p><b>Final verdict: ⚠️ Passed with Issues</b> (cycle 3 of 3). The first verdict was ❌ Failed because of B1. Fix cycles 1–3 resolved everything that was selected.</p>
+  <ul>
+    <li><b>What remains:</b> W1, duplicate memberships under concurrent redeems (accepted, follow-up OQ-8), plus info items. The new ones, I19 and I20, are narrow edge cases.</li>
+    <li><b>Production:</b> GO (94%). The code never appears in a URL or a log, and it is saved before the redeem, so it survives a 401.</li>
+    <li><b>Tests:</b> backend 860/860; frontend has no regressions.</li>
+  </ul>
+  <h3>Open Questions / Risks</h3>
+  <ul>
+    <li><b>W1:</b> accepted (OQ-8).</li>
+    <li><b>SC1/SC7:</b> no runtime evidence yet. Phase 12 E2E will run steps (a)–(j).</li>
+    <li><b>I19:</b> <code>redeemStarted</code> is not scoped to the group.</li>
+    <li><b>I20:</b> two redeems running at once share the same storage key.</li>
+    <li><b>I18 and G5:</b> accepted by design (see the spec).</li>
+    <li><b>Pre-existing:</b> 6 frontend failures and lint/ruff debt.</li>
+  </ul>
+</section>
+
+<h2>Per-check status (cycle 3)</h2>
+<div class="card"><table>
+<tr><th>Check</th><th>Status</th><th>Critical</th><th>Warning</th><th>Info</th><th>Report</th></tr>
+<tr><td>Completeness</td><td class="pass">passed with issues (100% of the plan, R31 gate empty)</td><td>0</td><td>0</td><td>4</td><td><a href="completeness-report.md" target="_blank" rel="noopener">md ↗</a></td></tr>
+<tr><td>Test suite</td><td class="pass">0 regressions (backend 860/860; frontend 1015/1022)</td><td>0</td><td>1 (flaky test outside this task)</td><td>1</td><td><a href="test-suite-results.md" target="_blank" rel="noopener">md ↗</a></td></tr>
+<tr><td>Code review</td><td>issues found</td><td>0</td><td>1 (W1, accepted)</td><td>2 new</td><td><a href="code-review-report.md" target="_blank" rel="noopener">md ↗</a></td></tr>
+<tr><td>Pragmatic review</td><td class="pass">✅ appropriate</td><td>0</td><td>0</td><td>4</td><td><a href="pragmatic-review.md" target="_blank" rel="noopener">md ↗</a></td></tr>
+<tr><td>Production readiness</td><td class="pass">✅ GO with mitigations (94%)</td><td>0</td><td>0</td><td>3</td><td><a href="production-readiness-report.md" target="_blank" rel="noopener">md ↗</a></td></tr>
+<tr><td>Reality check</td><td>⚠️ gaps, none blocking</td><td>0</td><td>1 (SC1 → Phase 12)</td><td>6</td><td><a href="reality-check.md" target="_blank" rel="noopener">md ↗</a></td></tr>
+</table></div>
+
+<h2>Remaining findings</h2>
+<div class="card"><table>
+<tr><th>Severity</th><th>Source</th><th>Finding</th><th>Location</th><th>Fixable</th></tr>
+<tr><td><span class="sev warning">warning</span></td><td>code review</td><td>Duplicate memberships on concurrent redeem (accepted, OQ-8)</td><td><code>join_code.py:150-158</code></td><td>design</td></tr>
+<tr><td><span class="sev info">info</span></td><td>reality</td><td>G2: the sheet has no <code>key</code>, so a second link shows the old code</td><td><code>PrivateGroupGate.tsx:113-118</code></td><td>yes</td></tr>
+<tr><td><span class="sev info">info</span></td><td>reality / completeness</td><td>G4/G5: the spec amendments do not describe the 401 restore, <code>signedOut</code>, the TTL, or the "next login" behaviour</td><td><code>spec.md</code></td><td>yes</td></tr>
+<tr><td><span class="sev info">info</span></td><td>code review</td><td>I17: the code is written back after the redirect starts</td><td><code>TermPage.tsx:94-99</code></td><td>yes</td></tr>
+<tr><td><span class="sev info">info</span></td><td>code review</td><td>I18: an account without a profile re-sends the code after every login</td><td><code>join_code.py:36-45</code></td><td>record only</td></tr>
+</table>
+<details><summary>Other info items</summary><ul>
+<li><code>readPendingCode</code> could be simplified.</li>
+<li>The <code>signedOut</code> guard is only tested indirectly.</li>
+<li>The plan text for Groups 6/7 is stale.</li>
+<li>An <code>mcp:read</code> token can read the code.</li>
+<li>The limiter has no sweep.</li>
+<li>Switching a group PUBLIC → PRIVATE revives the old code.</li>
+<li>The ToastPill markup is duplicated.</li>
+<li>R1/R3/R4 are optional simplifications.</li>
+</ul></details></div>
+
+<h2>Fix &amp; Re-Verification History</h2>
+<div class="card"><table>
+<tr><th>Cycle</th><th>Issue</th><th>Fix</th><th>Re-check</th></tr>
+<tr><td>1</td><td><span class="sev critical">critical</span> B1: the code showed up in access logs</td><td><code>#code=</code> fragment plus sessionStorage</td><td class="pass">✓ resolved, GO</td></tr>
+<tr><td>1</td><td>8 warnings: validation, <code>useJoinCode</code>, regenerate, triple guard, gate props, migration test, rollback/audit log, key sets/guide</td><td>Fixed per the md report</td><td class="pass">✓ resolved</td></tr>
+<tr><td>1</td><td>W1: duplicate memberships</td><td>Not fixed (user decision)</td><td>residual (OQ-8)</td></tr>
+<tr><td>2</td><td>T1: flaky test</td><td><code>waitFor</code> ×3</td><td class="pass">✓ 3/3 stable</td></tr>
+<tr><td>2</td><td>I13: code lost on 401</td><td>Write-back on 401, <code>{cause}</code>, <code>signedOut</code></td><td class="pass">✓ resolved</td></tr>
+<tr><td>2</td><td>I15: code lived for the whole tab</td><td>1h TTL</td><td class="pass">✓ resolved</td></tr>
+<tr><td>2</td><td>I14: missing tests</td><td>Storage + StrictMode tests</td><td class="pass">✓ resolved</td></tr>
+<tr><td>2</td><td>I16 + SC1/SC6</td><td>ADR notes, spec wording</td><td class="pass">✓ resolved</td></tr>
+<tr><td>3</td><td>G2: second link showed the old code</td><td>sheet <code>key</code> + a test</td><td class="pass">✓ resolved</td></tr>
+<tr><td>3</td><td>I17: write-back raced the redirect</td><td>code written before the redeem; <code>redeemStarted</code> flag</td><td class="pass">✓ resolved</td></tr>
+<tr><td>3</td><td>G4/G5: spec amendments</td><td>amendment bullet + plan pointer</td><td class="pass">✓ resolved</td></tr>
+</table></div>
+
+<h2>Recommendations</h2>
+<div class="card"><ol>
+<li>Optional: I19 (scope the flag to <code>groupId</code>) and I20 (compare the stored code before removing it).</li>
+<li>Phase 12 E2E, steps (a)–(j), including a real 401 → login → exactly one redeem and a second link opened while a 409 sheet is showing. Check that the logs contain no code.</li>
+<li>Follow-ups: OQ-8, clear the code on PUBLIC, put the code in the panel copy-link, ToastPill, the flaky OrganizerEditor test, the <code>Imię</code> test.</li>
+</ol></div>
+</body>
+</html>

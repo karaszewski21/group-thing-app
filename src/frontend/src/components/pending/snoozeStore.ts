@@ -1,7 +1,6 @@
 import dayjs from "../../utils/dayjs";
 
-/** Snooze expiry (epoch ms) per pending-action key (`n:{notificationId}` or
- * `jr:{joinRequestId}`). */
+/** Snooze expiry (epoch ms) per pending-action key (`n:{notificationId}`). */
 export type SnoozeMap = Record<string, number>;
 
 /** Used when localStorage throws or holds nothing, so a snooze still lasts

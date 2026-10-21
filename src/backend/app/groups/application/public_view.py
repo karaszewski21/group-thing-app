@@ -36,11 +36,10 @@ from ..infrastructure import (
     product_bridge,
     repository,
 )
-from ..models import GroupJoinRequestStatus, GroupVisibility, Term, TermAttendance
+from ..models import GroupVisibility, Term, TermAttendance
 from ..schemas import (
     GroupAccessDetails,
     GroupAccessResponse,
-    JoinRequestSummary,
     MyAttendanceResponse,
     MyPledgeResponse,
     PublicCircleResponse,
@@ -346,11 +345,6 @@ async def get_public_circle_view(
     )
 
 
-_GATE_JOIN_REQUEST_STATUSES = frozenset(
-    {GroupJoinRequestStatus.PENDING, GroupJoinRequestStatus.REJECTED}
-)
-
-
 async def get_group_access(
     db: AsyncSession,
     group_id: uuid.UUID,
@@ -366,12 +360,7 @@ async def get_group_access(
     relationship.
 
     `can_view_content`: `True` for any `PUBLIC` group (unauthenticated
-    included); for `PRIVATE`, only when `is_member` or `is_organizer`.
-    `join_request`: the caller's latest (highest-id) request, only for a
-    `PRIVATE` group the caller is identified in but does not belong to, and
-    only when that request is PENDING or REJECTED — an APPROVED (e.g. an
-    ex-member) or WITHDRAWN latest request, an anonymous caller and any
-    `PUBLIC` group all give `None`."""
+    included); for `PRIVATE`, only when `is_member` or `is_organizer`."""
     profile: UserProfile | None = None
     if principal is not None:
         try:
@@ -396,17 +385,7 @@ async def get_group_access(
         guardian.party_id == profile.party_id for guardian in group_response.guardians
     )
 
-    join_request: JoinRequestSummary | None = None
-    if group_response.visibility == GroupVisibility.PRIVATE:
-        can_view_content = is_member or is_organizer
-        if profile is not None and not can_view_content:
-            latest = await repository.find_latest_join_request(db, profile.party_id, group_id)
-            if latest is not None and latest.status in _GATE_JOIN_REQUEST_STATUSES:
-                join_request = JoinRequestSummary(
-                    id=cast(uuid.UUID, latest.id), status=latest.status.value
-                )
-    else:
-        can_view_content = True
+    can_view_content = group_response.visibility != GroupVisibility.PRIVATE or is_member
 
     return GroupAccessResponse(
         group=group_response,
@@ -414,7 +393,6 @@ async def get_group_access(
             is_member=is_member,
             is_organizer=is_organizer,
             can_view_content=can_view_content,
-            join_request=join_request,
             is_attending=is_attending,
         ),
     )
@@ -453,8 +431,8 @@ async def create_rsvp(
 
     if group.visibility == GroupVisibility.PRIVATE:
         # PRIVATE groups only accept RSVP from an already-standing member or
-        # the organizer — membership itself is only ever granted by the
-        # organizer, never by the caller.
+        # the organizer — membership itself is only ever granted through the
+        # organizer's access code, never by this route.
         if profile is None or profile.account_user_id is None:
             raise AccessDeniedException
         if not (
@@ -516,7 +494,9 @@ async def create_rsvp(
     await create_solo_family_for_party(db, cast(uuid.UUID, party.id), guardian_name)
 
     attendance = TermAttendance(
-        term_id=cast(uuid.UUID, term.id), party_id=cast(uuid.UUID, party.id), child_count=child_count
+        term_id=cast(uuid.UUID, term.id),
+        party_id=cast(uuid.UUID, party.id),
+        child_count=child_count,
     )
     db.add(attendance)
     await db.commit()

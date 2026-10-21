@@ -1,6 +1,6 @@
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { GroupVisualization, type GroupLayoutMode, type VisualizationFamily } from "../pages/krag/GroupVisualization";
+import { GroupVisualization, type GroupLayoutMode, type VisualizationFamily } from "../pages/term/components/GroupVisualization";
 
 const FAMILIES: VisualizationFamily[] = [
   { familyId: "1", name: "Rodzina Wiśniewskich" },

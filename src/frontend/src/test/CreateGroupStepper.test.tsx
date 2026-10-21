@@ -11,7 +11,12 @@ import { CreateGroupStepper } from "../components/panel/CreateGroupStepper";
 import { termPublicPath } from "../pages/panel/panelHelpers";
 import { createQueryWrapper } from "./queryClient";
 
-vi.mock("../api/groups", () => ({ createAdditionalMyCircle: vi.fn(), updateGroup: vi.fn() }));
+vi.mock("../api/groups", () => ({
+  createAdditionalMyCircle: vi.fn(),
+  updateGroup: vi.fn(),
+  getJoinCode: vi.fn(),
+  regenerateJoinCode: vi.fn(),
+}));
 vi.mock("../api/terms", () => ({ createTerm: vi.fn() }));
 vi.mock("../api/locations", () => ({
   getMyLocations: vi.fn(),
@@ -71,7 +76,7 @@ const TERM: TermResponse = {
 
 const PUBLIC_DONE = "Grupa założona, termin dodany! Tę stronę zobaczy każdy, kto dostanie link — bez logowania.";
 const PRIVATE_DONE =
-  "Grupa założona, termin dodany! Grupa jest prywatna — osoby z linkiem poproszą o dołączenie, a Ty je zaakceptujesz.";
+  "Grupa założona, termin dodany! Grupa jest prywatna — dołączą tylko osoby, którym podasz kod dostępu.";
 
 function renderStepper(organizationSlug: string | null = null) {
   const props = { onClose: vi.fn(), onCircleCreated: vi.fn(), onDone: vi.fn() };
@@ -100,6 +105,7 @@ beforeEach(() => {
   vi.mocked(locationsApi.getMyLocations).mockResolvedValue([SWIETLICA]);
   vi.mocked(groupsApi.createAdditionalMyCircle).mockResolvedValue(GROUP);
   vi.mocked(termsApi.createTerm).mockResolvedValue(TERM);
+  vi.mocked(groupsApi.getJoinCode).mockResolvedValue({ code: "482913" });
 });
 
 describe("CreateGroupStepper", () => {
@@ -275,6 +281,32 @@ describe("CreateGroupStepper", () => {
     expect(await screen.findByText(PUBLIC_DONE)).toBeInTheDocument();
     expect(screen.queryByText(PRIVATE_DONE)).not.toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Przejdź do publicznej strony →" })).toBeInTheDocument();
+  });
+
+  it("the PRIVATE done screen shows the access code with both copy buttons", async () => {
+    renderStepper();
+    await submitStep1();
+    await submitStep2();
+
+    const card = await screen.findByRole("region", { name: "Kod dostępu" });
+    expect(await within(card).findByText("482 913")).toBeInTheDocument();
+    expect(groupsApi.getJoinCode).toHaveBeenCalledWith("g-1");
+    expect(within(card).getByRole("button", { name: "Kopiuj kod" })).toBeInTheDocument();
+    expect(within(card).getByRole("button", { name: "Kopiuj link z kodem" })).toBeInTheDocument();
+    expect(within(card).getByRole("button", { name: "Wygeneruj nowy kod" })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Przejdź do publicznej strony →" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Gotowe" })).toBeInTheDocument();
+  });
+
+  it("the PUBLIC done screen shows no access code and never fetches one", async () => {
+    vi.mocked(groupsApi.createAdditionalMyCircle).mockResolvedValue({ ...GROUP, visibility: "PUBLIC" });
+    renderStepper("studio-nutka");
+    await submitStep1();
+    await submitStep2();
+
+    expect(await screen.findByText(PUBLIC_DONE)).toBeInTheDocument();
+    expect(screen.queryByRole("region", { name: "Kod dostępu" })).not.toBeInTheDocument();
+    expect(groupsApi.getJoinCode).not.toHaveBeenCalled();
   });
 
   it("focuses the group name when the sheet opens", async () => {

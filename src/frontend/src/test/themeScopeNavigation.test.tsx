@@ -1,7 +1,6 @@
 import { fireEvent, render, screen } from "@testing-library/react";
 import { Link, MemoryRouter, Route, Routes } from "react-router-dom";
 import { describe, expect, it } from "vitest";
-import { KragStage } from "../pages/krag/components/KragStage";
 import { OrganizerThemeScope } from "../theme/OrganizerThemeScope";
 
 function injectedCss(): string {
@@ -19,9 +18,9 @@ describe("organizer theme after client-side navigation", () => {
             path="/:organizationSlug/grupa/:groupId/term/:termId"
             element={
               <OrganizerThemeScope theme={{ primary_color: "#7a2a4f", accent_color: null }}>
-                <KragStage>
+                <div>
                   <Link to="/panel">Panel</Link>
-                </KragStage>
+                </div>
               </OrganizerThemeScope>
             }
           />

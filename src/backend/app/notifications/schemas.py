@@ -20,7 +20,6 @@ class NotificationResponse(BaseModel):
     read_at: datetime | None
     created_at: datetime
     proposal_id: uuid.UUID | None = None
-    join_request_id: uuid.UUID | None = None
     reservation_id: uuid.UUID | None = None
 
 

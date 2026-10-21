@@ -91,7 +91,7 @@ _RAW_MATRIX: tuple[_RawEntry, ...] = (
     # can load it, RSVP, and merge into a real account. Mirrors row 48's
     # placement.
     (_methods("GET"), r"^/api/groups/public/[^/]+$", "PUBLIC"),
-    # The caller's resolved is_member/is_organizer/can_view_content/join_request
+    # The caller's resolved is_member/is_organizer/can_view_content/is_attending
     # for a Circle — unauthenticated-friendly like the row above (an
     # unauthenticated caller just gets all-False access flags, never a
     # 401/403), declared ahead of row 26's blanket READ row for the same
@@ -104,17 +104,12 @@ _RAW_MATRIX: tuple[_RawEntry, ...] = (
     # the anonymous path — never a 401.
     (_methods("POST"), r"^/api/groups/public/[^/]+/rsvp$", "PUBLIC"),
     (_methods("POST"), r"^/api/groups/public/merge$", "PUBLIC"),
-    # Creating / withdrawing one's own PRIVATE-group join request needs only an
-    # account-backed principal (`require_any()` with no arguments on the
-    # routes). Declared ahead of row 27's blanket `POST ^/api/groups(/.*)?$`
-    # EDIT row, which would otherwise swallow these paths and demand EDIT —
-    # stricter than the routes' actual dependency. Requester ownership is
-    # checked in `app.groups.service`.
-    (
-        _methods("POST"),
-        r"^/api/groups/public/[^/]+/join-requests(/[^/]+/withdraw)?$",
-        "AUTHENTICATED",
-    ),
+    # Redeeming a PRIVATE Circle's join code needs only an account-backed
+    # principal (`require_any()` on the route). Declared ahead of row 27's
+    # blanket `POST ^/api/groups(/.*)?$` EDIT row, which would otherwise
+    # swallow this path and demand EDIT. The organizer's GET and regenerate
+    # routes fall to rows 26/27.
+    (_methods("POST"), r"^/api/groups/public/[^/]+/join-code$", "AUTHENTICATED"),
     # Fine-grained circle rename and soft delete — declared ahead of row 26's
     # blanket /api/groups READ row and after the /mine + /public rows above,
     # so first-match evaluation reaches it. The active-organizer-or-ADMIN
