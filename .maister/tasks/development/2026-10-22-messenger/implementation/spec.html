@@ -1,0 +1,353 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Specification — Messenger</title>
+<style>
+:root {
+  --bg:#f6f7f9; --surface:#fff; --border:#e2e5ea; --text:#1a1d23; --dim:#6b7280;
+  --accent:#4f46e5; --accent-soft:#eef2ff; --ok:#16a34a; --ok-soft:#ecfdf3;
+  --warn:#d97706; --warn-soft:#fffbeb; --crit:#dc2626; --crit-soft:#fef2f2;
+  --info:#2563eb; --info-soft:#eff6ff; --radius:10px;
+}
+@media (prefers-color-scheme: dark) {
+  :root { --bg:#111418; --surface:#1a1f26; --border:#2e3640; --text:#e6e9ee; --dim:#9aa4b2;
+    --accent:#818cf8; --accent-soft:#26294a; --ok:#4ade80; --ok-soft:#11291a;
+    --warn:#fbbf24; --warn-soft:#2e2410; --crit:#f87171; --crit-soft:#321616;
+    --info:#60a5fa; --info-soft:#15233a; }
+}
+* { box-sizing:border-box; }
+body { margin:0 auto; max-width:1100px; padding:24px 20px 64px; background:var(--bg);
+  color:var(--text); font:14px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif; }
+a { color:var(--accent); text-decoration:none; } a:hover { text-decoration:underline; }
+h1 { font-size:22px; letter-spacing:-.01em; } h2 { font-size:16px; margin-top:28px; }
+.card { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius);
+  padding:16px 18px; margin:14px 0; }
+.badge { display:inline-block; font-size:11px; font-weight:600; text-transform:uppercase;
+  letter-spacing:.04em; padding:2px 8px; border-radius:99px; background:var(--accent-soft); color:var(--accent); }
+.sev { display:inline-block; font-size:10.5px; font-weight:700; text-transform:uppercase;
+  padding:1.5px 7px; border-radius:99px; margin-right:6px; }
+.sev.critical { background:var(--crit-soft); color:var(--crit); }
+.sev.warning  { background:var(--warn-soft); color:var(--warn); }
+.sev.info     { background:var(--info-soft); color:var(--info); }
+.pass { color:var(--ok); font-weight:600; } .fail { color:var(--crit); font-weight:600; }
+table { width:100%; border-collapse:collapse; }
+th, td { text-align:left; padding:7px 10px; border-bottom:1px solid var(--border); vertical-align:top; }
+th { font-size:11.5px; text-transform:uppercase; letter-spacing:.04em; color:var(--dim); }
+code { font-family:ui-monospace,SFMono-Regular,Menlo,monospace; font-size:12.5px;
+  background:var(--accent-soft); padding:1px 5px; border-radius:4px; }
+details > summary { cursor:pointer; font-weight:600; }
+.crumbs { display:flex; gap:14px; font-size:13px; margin-bottom:18px; flex-wrap:wrap; }
+.crumbs a.md { margin-left:auto; color:var(--dim); }
+.crumbs .here { font-weight:650; color:var(--text); }
+.tiles { display:flex; gap:10px; flex-wrap:wrap; margin:14px 0; }
+.tile { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius);
+  padding:10px 16px; text-align:center; min-width:90px; }
+.tile b { display:block; font-size:20px; letter-spacing:-.01em; }
+.tile span { font-size:10.5px; text-transform:uppercase; letter-spacing:.05em; color:var(--dim); }
+.grid2 { display:grid; grid-template-columns:1fr 1fr; gap:14px; }
+.grid3 { display:grid; grid-template-columns:repeat(auto-fill,minmax(300px,1fr)); gap:12px; }
+@media (max-width:720px){ .grid2 { grid-template-columns:1fr; } }
+.story { border-left:3px solid var(--accent); }
+ul { padding-left:20px; margin:6px 0; } li { margin:3px 0; }
+.toc { font-size:13px; color:var(--dim); margin:10px 0; }
+.wrap { overflow-x:auto; }
+</style>
+
+<style>
+.changed { background:var(--warn-soft); }
+.tag { font-size:10.5px; font-weight:700; color:var(--warn); text-transform:uppercase; margin-left:4px; }
+</style>
+</head>
+<body>
+<nav class="crumbs">
+  <a href="../dashboard.html">← Dashboard</a>
+  <span class="here">Spec</span>
+  <a href="implementation-plan.html">Plan</a>
+  <a href="../verification/implementation-verification.html">Verification</a>
+  <a href="../verification/spec-audit.md" target="_blank" rel="noopener">Spec audit ↗</a>
+  <a href="spec.md" target="_blank" rel="noopener" class="md">md twin ↗</a>
+</nav>
+
+<header>
+  <span class="badge">Specification</span> <span class="badge">Revised after spec audit</span>
+  <h1>Messenger: item questions, group chat, term chat</h1>
+  <div style="color:var(--dim);font-size:12.5px">Revised 2026-10-22 · task <code>2026-10-22-messenger</code> · <a href="spec.md" target="_blank" rel="noopener">spec.md</a> · rows marked <span class="tag">changed</span> were added or reworked in the revision</div>
+</header>
+
+<div class="tiles">
+  <div class="tile"><b>42</b><span>requirements</span></div>
+  <div class="tile"><b>15</b><span>reused areas</span></div>
+  <div class="tile"><b>8</b><span>new component groups</span></div>
+  <div class="tile"><b>25</b><span>audit items resolved</span></div>
+  <div class="tile"><b>Medium</b><span>risk</span></div>
+</div>
+
+<section class="tldr card">
+  <h2 style="margin-top:0">TL;DR</h2>
+  <ul>
+    <li>A new <code>app/messaging</code> context with three tables (migration 0061): <code>conversations</code> (ITEM / GROUP / TERM), <code>messages</code> and <code>conversation_reads</code>. There is no participant table; access is computed per request, and soft-deleted groups count for both the access checks and the inbox.</li>
+    <li>9 endpoints under <code>/api/conversations</code>, with the literal routes declared before <code>/{id}</code>. ITEM threads are unique per (item, asker, current owner). A GROUP chat goes read-only when its group is deleted or switched to PUBLIC. Sends are moderated, rate-limited, serialized per conversation and never notify the bell.</li>
+    <li>A 💬 badge (20 s poll), <code>InboxPage</code>, and <code>ThreadPage</code> (one <code>["thread", …]</code> query polling <code>after=</code> every 5 s and merging into the cache). Audit times are parsed with <code>dayjs.utc(x).local()</code>, Polish error copy comes through <code>serverMessageOr</code>, and the 7 binding mockups use theme tokens only.</li>
+  </ul>
+  <div class="grid2">
+    <div>
+      <h2>Key Decisions</h2>
+      <ul>
+        <li><b>No participant table.</b> Access is computed from current data.</li>
+        <li><b>ITEM uniqueness is <code>(item, asker, owner)</code></b> (user decision). After a GIVE or SWAP, a new thread opens with the new owner; the old thread stays writable for its two parties.</li>
+        <li><b>A PUBLIC group's chat is read-only</b> (user decision). Writing reopens if the group goes back to PRIVATE. Get-or-create returns an existing chat, or <b>409</b> when there is none.</li>
+        <li><b><code>read_only_reason</code></b> is <code>null | GROUP_DELETED | GROUP_PUBLIC</code>, and a deleted group takes precedence.</li>
+        <li><b>Membership and audience checks include soft-deleted groups</b> through new repository queries. Existing helpers are untouched.</li>
+        <li><b>Send takes a <code>FOR UPDATE</code> lock and stamps a strictly increasing <code>created_at</code>,</b> so commit order equals cursor order. <code>after=</code> polling never skips a message, and GREATEST cannot mark an unseen one read.</li>
+        <li><b>Real FKs</b> for <code>item_id</code>, <code>group_id</code> and <code>term_id</code>, following <code>models.md</code>.</li>
+        <li><b>The server builds <code>title</code>; the client formats every time.</b> <code>subtitle</code> is dropped.</li>
+        <li><b>Item imagery is a fixed 📦 placeholder</b>, with no <code>thumb_url</code>.</li>
+        <li><b>"Czat terminu" is gated on the new <code>access.is_active_attendee</code></b>; <code>is_attending</code> is unchanged.</li>
+        <li>Initials-only avatars; the inbox shows chats with messages (newest 100); the badge counts messages; mark-read takes a <code>message_id</code>; asking about your own item returns 409.</li>
+      </ul>
+    </div>
+    <div>
+      <h2>Open Questions / Risks</h2>
+      <ul>
+        <li><span class="sev info">info</span>Late joiners start with the whole history unread ("9+"). Accepted.</li>
+        <li><span class="sev info">info</span>A new organizer gains the history; the previous one loses it. Accepted.</li>
+        <li><span class="sev info">info</span>Names on public terms are already shown through <code>guardians</code>; the new exposure is message content.</li>
+        <li><span class="sev info">info</span>After an owner change, an asker can hold two threads about the same item. Accepted.</li>
+        <li><span class="sev info">info</span>An old chat of a PUBLIC group is reachable only from the inbox or a deep link.</li>
+        <li><span class="sev warning">warning</span>Rate limits live in memory per worker, and a restart resets them.</li>
+        <li><span class="sev warning">warning</span>Concurrent sends queue on the row lock. Moderation runs before the lock.</li>
+        <li><span class="sev warning">warning</span>Bielik adds latency and can return 503; the composer keeps the text.</li>
+        <li><span class="sev info">info</span>Guests cannot chat and are not counted in <code>participant_count</code>.</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<p class="toc">Contents: <a href="#audit">Audit resolution</a> · <a href="#scope">Scope</a> · <a href="#stories">User Stories</a> · <a href="#requirements">Requirements</a> · <a href="#visual">Visual Design</a> · <a href="#reuse">Reusable vs New</a> · <a href="#tech">Technical Approach</a> · <a href="#testing">Testing</a> · <a href="#success">Success Criteria</a></p>
+
+<main>
+<h2 id="audit">Audit resolution</h2>
+<div class="card wrap">
+<table>
+<tr><th>Finding</th><th>Resolution</th></tr>
+<tr><td><span class="sev critical">user</span>Decision 1: owner change</td><td>The unique index is on <code>(item_id, asker_party_id, owner_party_id)</code>. Requirements 1, 6 and 12 cover the current-owner lookup and the new thread; tested; Success Criterion 2</td></tr>
+<tr><td><span class="sev critical">user</span>Decision 2: PUBLIC toggle</td><td>Requirements 7 and 9 add <code>GROUP_PUBLIC</code> read-only. Requirement 13 returns 409 when no chat exists and returns an existing chat otherwise. Requirements 14 and 32 keep it listed in the inbox. Requirement 33 sets the header and banner; requirement 35 keeps the button PRIVATE-only</td></tr>
+<tr><td><span class="sev critical">high</span>H1: soft-deleted membership</td><td>Requirement 24b adds <code>has_active_membership</code> with no Group join. Requirement 24e adds three new audience statements and does not reuse the role-id helpers. Tested; Success Criterion 4</td></tr>
+<tr><td><span class="sev critical">high</span>H2: naive-UTC parsing</td><td>Requirement 40 adds <code>messageTime.ts</code>: <code>dayjs.utc(x).local()</code>, <code>term_occurs_on</code> never converted, and pinned formats. Fake-timer test; Success Criterion 13</td></tr>
+<tr><td><span class="sev warning">medium</span>M1: count_queries</td><td>Compares one of each kind (3) with three of each kind (9) for the same caller</td></tr>
+<tr><td><span class="sev warning">medium</span>M2: <code>list_item_refs</code></td><td>One <code>InventoryItem ⨝ Product</code> join modelled on <code>list_product_names_for_items</code></td></tr>
+<tr><td><span class="sev warning">medium</span>M3: route order</td><td>Literal routes are declared before <code>/{id}</code>; tested; Success Criterion 10</td></tr>
+<tr><td><span class="sev warning">medium</span>M4: withdrawn gating</td><td>New <code>access.is_active_attendee</code> (requirement 39). The button uses the server flags plus <code>isLoggedIn</code>, never <code>guest.isAttending</code></td></tr>
+<tr><td><span class="sev warning">medium</span>M5: English errors</td><td>A <code>ValueError</code> with Polish text gives 400. <code>chatErrorMessage</code> provides Polish 403 and 404 copy and wraps <code>serverMessageOr</code> (requirement 41)</td></tr>
+<tr><td><span class="sev warning">medium</span>M6: ITEM order</td><td>404 → 409 → existing 200 → deleted 404 → limiter → insert → record</td></tr>
+<tr><td><span class="sev warning">medium</span>M7: <code>useThread</code></td><td>One <code>useQuery</code>; its <code>queryFn</code> merges <code>after=</code> results; <code>setQueryData</code> for older pages and sends; handles an empty thread</td></tr>
+<tr><td><span class="sev warning">medium</span>M8: out-of-order commits</td><td>A row lock plus a strictly increasing <code>created_at</code>; the overlap window was rejected</td></tr>
+<tr><td><span class="sev warning">medium</span>M9: theme tokens</td><td>The new files go in <code>NO_HEX_FILES</code>; no mint in <code>PublicTermView</code> or <code>ItemDetailPage</code>; <code>#12604D</code> maps to <code>text-primary-fg</code></td></tr>
+<tr><td><span class="sev warning">medium</span>M10: thumb</td><td>A fixed 📦 placeholder and no <code>thumb_url</code>, because a thumbnail needs the product BC plus storage</td></tr>
+<tr><td><span class="sev info">low</span>L1–L11</td><td>L1: cite <code>app.core.auth_deps</code>. L2: real FKs. L3: risk reworded. L4: account-backed count. L5: "Grupa usunięta" / "Grupa publiczna" header. L6: server titles plus pinned formats. L7: GREATEST, <code>coalesce</code> and explicit <code>updated_at</code>. L8: uncapped sum with no LIMIT. L9: PublicLayout mock. L10: superseded by decision 2. L11: <code>is_active_group_organizer</code></td></tr>
+</table>
+</div>
+
+<h2 id="scope">Scope</h2>
+<p><b>Goal:</b> let a logged-in user ask an item's owner about the item, and let PRIVATE-group members and term attendees talk with their organizer in Messenger-style threads. Unread state shows as a polled badge on the inbox button.</p>
+<div class="grid2">
+  <div class="card"><b class="pass">In scope</b>
+    <ul>
+      <li>ITEM 1:1 threads (asker ↔ current permanent owner; a new thread after an owner change)</li>
+      <li>GROUP chat (created for PRIVATE groups only; read-only while the group is PUBLIC or deleted)</li>
+      <li>TERM chat (organizer and active attendees; stays open after the term)</li>
+      <li>Inbox, unread badge, polling (20 s / 5 s)</li>
+      <li>Moderation, rate limits (30 messages/min, 20 new item conversations/h)</li>
+      <li>Four entry points</li>
+    </ul>
+  </div>
+  <div class="card"><b class="fail">Out of scope</b>
+    <ul>
+      <li>Attachments, editing or deleting messages, typing indicators, read receipts, reactions, search</li>
+      <li>Block and report, email and push, bell notifications</li>
+      <li>New chats for PUBLIC groups, a "Moje grupy" list, leaving or muting a conversation, merging ITEM threads across owners</li>
+      <li>Profile photos and item thumbnails, profile links, inbox paging beyond 100, WebSocket or SSE</li>
+    </ul>
+  </div>
+</div>
+
+<h2 id="stories">User Stories</h2>
+<div class="grid3">
+  <div class="card story">As a <b>visitor</b> on someone else's item page, I want to tap "Zapytaj o rzecz" so that I can ask the owner without exchanging contact details first.</div>
+  <div class="card story">As an <b>item owner</b>, I want to see questions about my items in an inbox with an unread badge so that I can reply.</div>
+  <div class="card story">As a <b>PRIVATE-group member</b>, I want "Czat grupy" on a term page so that I can talk with the organizer and the other members.</div>
+  <div class="card story">As a <b>term attendee</b>, I want "Czat terminu" so that I can coordinate with the organizer and the other attendees.</div>
+  <div class="card story">As an <b>organizer</b>, I want "Czat grupy" on the group details page and "Napisz do uczestników" on the attendee list so that I can reach my people.</div>
+  <div class="card story">As any <b>participant</b>, I want new messages to appear without reloading, and to know when a chat has become read-only, so that I don't miss or lose anything.</div>
+</div>
+
+<h2 id="requirements">Requirements</h2>
+<div class="card wrap">
+<table>
+<tr><th>#</th><th>Area</th><th>Requirement</th><th>Priority</th></tr>
+<tr class="changed"><td>1</td><td>Data</td><td><code>conversations</code>: kind; FK <code>item_id</code> / <code>group_id</code> / <code>term_id</code>; asker and owner party for ITEM; TERM rows also store <code>group_id</code>; partial unique indexes on group, on term and on <b>(item, asker, owner)</b> <span class="tag">changed</span></td><td>must</td></tr>
+<tr><td>2–4</td><td>Data</td><td><code>messages</code> (index on <code>(conversation_id, created_at, id)</code>), <code>conversation_reads</code> (unique on conversation and party), reverse-order downgrade with a round-trip test</td><td>must</td></tr>
+<tr class="changed"><td>5</td><td>Data</td><td>Core hot-row statements: <code>last_message_at = GREATEST(coalesce(...))</code> plus <code>updated_at</code>; the read upsert sets <code>created_at</code> and <code>updated_at</code>, with GREATEST on conflict <span class="tag">changed</span></td><td>must</td></tr>
+<tr class="changed"><td>6–8</td><td>Access</td><td>ITEM: that row's asker or owner. GROUP: organizer or member (deleted groups included, visibility does not gate reading). TERM: organizer or non-withdrawn attendee <span class="tag">changed</span></td><td>must</td></tr>
+<tr class="changed"><td>9</td><td>Access</td><td><code>read_only_reason</code>: <code>GROUP_DELETED</code> (GROUP and TERM) &gt; <code>GROUP_PUBLIC</code> (GROUP only); send returns 409 with the matching Polish text <span class="tag">changed</span></td><td>must</td></tr>
+<tr><td>10–11</td><td>Access</td><td>A deleted item's thread stays writable. A missing profile returns 401, as in <code>application/join_code.py:36-44</code></td><td>must</td></tr>
+<tr class="changed"><td>12</td><td>API</td><td><code>POST /item</code>: 404 unknown → 409 own → 200 existing (item, me, current owner) → 404 deleted → limiter → insert → record → 201 <span class="tag">changed</span></td><td>must</td></tr>
+<tr class="changed"><td>13</td><td>API</td><td><code>POST /group</code> and <code>/term</code>: 404 → 403 → 200 existing → 404 deleted → 409 PUBLIC (GROUP) → 201 <span class="tag">changed</span></td><td>must</td></tr>
+<tr class="changed"><td>14–15</td><td>API</td><td>Inbox (newest 100 with messages; server-built <code>title</code>, TERM title from <code>clock.format_term_day</code>) and an exact, uncapped unread sum with no LIMIT; fixed query counts <span class="tag">changed</span></td><td>must</td></tr>
+<tr class="changed"><td>16</td><td>API</td><td><code>GET /{id}</code>: <code>participant_count</code> counts account-backed parties only <span class="tag">changed</span></td><td>must</td></tr>
+<tr><td>17</td><td>API</td><td><code>before</code> / <code>after</code> keyset cursors, 50 per page, <code>has_more</code></td><td>must</td></tr>
+<tr class="changed"><td>18</td><td>API</td><td>Send: access → read-only → <code>ValueError</code> validation (Polish, 400) → limiter → moderation → <code>FOR UPDATE</code> → strictly increasing <code>created_at</code> → insert, update, read marker → commit <span class="tag">changed</span></td><td>must</td></tr>
+<tr><td>19</td><td>API</td><td>Mark read with a <code>message_id</code> (GREATEST), 204</td><td>must</td></tr>
+<tr class="changed"><td>20–21</td><td>API</td><td>Matrix rows; <code>app.core.auth_deps</code>; router before <code>system_router</code>; <b>literal paths declared before <code>/{id}</code></b> <span class="tag">changed</span></td><td>must</td></tr>
+<tr><td>22–23</td><td>Safety</td><td><code>TextField.MESSAGE_BODY</code>; <code>send_limiter</code> with separate check and record calls</td><td>must</td></tr>
+<tr class="changed"><td>24</td><td>Cross-BC</td><td><code>is_active_group_organizer</code>, <code>is_active_group_member</code> (new <code>has_active_membership</code>), three new audience statements without a <code>deleted_at</code> filter, batched ref lookups <span class="tag">changed</span></td><td>must</td></tr>
+<tr class="changed"><td>25–27</td><td>Cross-BC</td><td><code>list_item_refs</code> as one join; <code>list_chat_profiles_by_party_ids</code> returning <code>(name, has_account)</code>; ACL modules only <span class="tag">changed</span></td><td>must</td></tr>
+<tr class="changed"><td>28–29</td><td>Frontend</td><td><code>api/conversations.ts</code>; <code>useThread</code> with one query, a cache-merging <code>after=</code> poll, and <code>setQueryData</code> for <code>loadOlder</code> and <code>send</code> <span class="tag">changed</span></td><td>must</td></tr>
+<tr><td>30–31</td><td>Frontend</td><td><code>MessagesButton</code> ("9+" is display-only); routes inside <code>AuthGuard</code></td><td>must</td></tr>
+<tr class="changed"><td>32–33</td><td>Frontend</td><td>InboxPage and ThreadPage: 📦 placeholder, read-only header line and two banners, Polish notFound and denied copy, times from <code>messageTime.ts</code> <span class="tag">changed</span></td><td>must</td></tr>
+<tr class="changed"><td>34–37</td><td>Frontend</td><td>Entry points; term buttons use <code>isLoggedIn</code> plus the server flags <code>isActiveAttendee</code>, <code>isOrganizer</code> and <code>isMember</code> <span class="tag">changed</span></td><td>must</td></tr>
+<tr><td>38</td><td>Frontend</td><td>No bell rows</td><td>must</td></tr>
+<tr class="changed"><td>39</td><td>Backend</td><td><code>GroupAccessDetails.is_active_attendee</code>; <code>is_attending</code> is unchanged <span class="tag">new</span></td><td>must</td></tr>
+<tr class="changed"><td>40</td><td>Frontend</td><td><code>messageTime.ts</code>: <code>parseAuditTime</code>, <code>formatBubbleTime</code> (HH:mm), <code>formatInboxTime</code>, <code>formatDaySeparator</code> <span class="tag">new</span></td><td>must</td></tr>
+<tr class="changed"><td>41</td><td>Frontend</td><td><code>chatErrorMessage</code>: Polish 403 and 404 copy, otherwise <code>serverMessageOr</code> with Polish fallbacks <span class="tag">new</span></td><td>must</td></tr>
+<tr class="changed"><td>42</td><td>Frontend</td><td>Theme tokens: new files in <code>NO_HEX_FILES</code>, no mint in two existing files, <code>#12604D</code> maps to <code>text-primary-fg</code> <span class="tag">new</span></td><td>must</td></tr>
+</table>
+</div>
+
+<details class="card"><summary>Pinned time formats (requirement 40)</summary>
+<table>
+<tr><th>Helper</th><th>Rule</th></tr>
+<tr><td><code>parseAuditTime</code></td><td><code>dayjs.utc(x).local()</code> for <code>created_at</code> and <code>last_message_at</code>; <code>term_occurs_on</code> is never converted</td></tr>
+<tr><td><code>formatBubbleTime</code></td><td><code>HH:mm</code></td></tr>
+<tr><td><code>formatInboxTime</code></td><td>today <code>HH:mm</code> · "wczoraj" · 2–6 days ago <code>ddd</code> ("pon") · same year <code>DD.MM</code> · otherwise <code>DD.MM.YYYY</code></td></tr>
+<tr><td><code>formatDaySeparator</code></td><td>"dzisiaj" · "wczoraj" · <code>dddd, D MMMM</code> · otherwise <code>dddd, D MMMM YYYY</code></td></tr>
+<tr><td>TERM title (server)</td><td><code>"Termin: " + format_term_day(occurs_on) + " HH:MM"</code>, for example "Termin: śr 29.10 17:00"</td></tr>
+</table>
+</details>
+
+<h2 id="visual">Visual Design</h2>
+<p>The mockups in <code>analysis/design-context/</code> are binding inputs. The implementation-planner will attach <code>Visual References</code> to the UI task groups. Fidelity: high. <code>#12604D</code> maps to <code>text-primary-fg</code>. The PUBLIC read-only state reuses the deleted-group variant.</p>
+<div class="card wrap">
+<table>
+<tr><th>ID</th><th>Mockup</th><th>Key elements</th></tr>
+<tr><td><code>screen:topbar-inbox-icon</code></td><td><a href="../analysis/design-context/mockups/ikona-wiadomo-ci-w-g-rnym-pasku.html">ikona-wiadomo-ci-w-g-rnym-pasku.html</a></td><td>💬 before the bell; mint badge, "9+", hidden at 0</td></tr>
+<tr><td><code>screen:inbox</code></td><td><a href="../analysis/design-context/mockups/skrzynka-wiadomo-ci.html">skrzynka-wiadomo-ci.html</a></td><td>Kind chips, titles, sender prefix, times "12:41 / wczoraj / pon / 12.10", unread bold and count, empty state, skeleton; item emoji become 📦</td></tr>
+<tr><td><code>screen:thread-item</code></td><td><a href="../analysis/design-context/mockups/rozmowa-o-rzeczy.html">rozmowa-o-rzeczy.html</a></td><td>Header with a 📦 tile and "Rozmowa z: … · zobacz rzecz"; day pills; sticky composer; error variant</td></tr>
+<tr><td><code>screen:thread-group</code></td><td><a href="../analysis/design-context/mockups/czat-grupy-i-terminu.html">czat-grupy-i-terminu.html</a></td><td>"{group} · czat grupy", "12 uczestników" or "Grupa usunięta"; "Organizator" chip; read-only banner</td></tr>
+<tr><td><code>screen:item-ask-button</code></td><td><a href="../analysis/design-context/mockups/zapytaj-o-rzecz-na-stronie-rzeczy.html">zapytaj-o-rzecz-na-stronie-rzeczy.html</a></td><td>"💬 Zapytaj o rzecz" pill; hidden for the owner</td></tr>
+<tr><td><code>screen:term-chat-buttons</code></td><td><a href="../analysis/design-context/mockups/przyciski-czatu-na-stronie-terminu.html">przyciski-czatu-na-stronie-terminu.html</a></td><td>"💬 Czat terminu" plus "👥 Czat grupy" (PRIVATE only)</td></tr>
+<tr><td><code>screen:organizer-entry</code></td><td><a href="../analysis/design-context/mockups/wej-cia-organizatora.html">wej-cia-organizatora.html</a></td><td>GroupDetailsPage card; TermHeadCard button</td></tr>
+<tr><td><code>component:message-bubble</code></td><td><a href="../analysis/design-context/mockups/rozmowa-o-rzeczy.html">rozmowa-o-rzeczy.html</a></td><td>Mine: <code>bg-primary text-on-primary</code>, right. Theirs: <code>bg-paper border-line</code>, left. 80 % max width, radius 18</td></tr>
+<tr><td><code>component:message-composer</code></td><td><a href="../analysis/design-context/mockups/rozmowa-o-rzeczy.html">rozmowa-o-rzeczy.html</a></td><td>Textarea, "Wyślij", "Enter — nowa linia", "n / 1000", <code>role="alert"</code></td></tr>
+<tr><td><code>component:inbox-badge</code></td><td><a href="../analysis/design-context/mockups/ikona-wiadomo-ci-w-g-rnym-pasku.html">ikona-wiadomo-ci-w-g-rnym-pasku.html</a></td><td>NotificationBell badge classes</td></tr>
+</table>
+</div>
+
+<h2 id="reuse">Reusable vs New</h2>
+<div class="grid2">
+  <div class="card"><b class="pass">Reuse</b>
+    <ul>
+      <li><code>app/groups</code> layering and the ACL pattern; <code>base_model.py</code>; <code>errors.py</code> (429, <code>ValueError</code> → 400)</li>
+      <li><code>app.core.auth_deps</code>; <code>application/join_code.py:36-44</code> (401)</li>
+      <li><code>circles._is_active_organizer</code>, <code>_ordered_group_member_party_ids</code>, <code>list_active_attendances_for_term</code>, <code>get_group_including_deleted</code>, <code>get_term_any</code></li>
+      <li><code>get_group_access</code> / <code>GroupAccessDetails</code>; <code>clock.format_term_day</code></li>
+      <li><code>find_item_including_deleted</code>, <code>resolve_owning_inventory</code>; <code>list_product_names_for_items</code> as the model</li>
+      <li><code>join_code_limiter</code>, <code>text_guard</code>, migration and test patterns, <code>count_queries</code></li>
+      <li><code>NotificationBell</code>, <code>useNotifications</code>, <code>useItemDetail</code> (+ its test), <code>serverMessageOr</code>, <code>DeletedGroupRow.tsx:36</code>, <code>utils/dayjs.ts</code></li>
+      <li>Avatar, PhoneFrame, JoinCodeCard, PanelNavBar, ItemFieldEditors, <code>termViewState</code>, <code>themeTokenUsage.test.tsx</code></li>
+    </ul>
+  </div>
+  <div class="card"><b class="fail">New (and why)</b>
+    <ul>
+      <li><code>app/messaging</code>: nothing stores threads today</li>
+      <li>Migration 0061 and its test: new tables</li>
+      <li>Groups queries without a deleted filter: the existing ones filter soft-deleted groups out, or are private</li>
+      <li><code>list_item_refs</code>, <code>list_chat_profiles_by_party_ids</code>: no batched lookup exists</li>
+      <li><code>is_active_attendee</code>: <code>is_attending</code> counts withdrawn attendees</li>
+      <li><code>send_limiter</code>: the join-code limiter is keyed for codes</li>
+      <li>API module and hooks, <code>chatErrorMessage</code>: new resource</li>
+      <li>MessagesButton, InboxPage, ThreadPage, <code>threadViewState</code>, <code>messageTime</code>, Bubble, Composer: new screens</li>
+    </ul>
+  </div>
+</div>
+
+<h2 id="tech">Technical Approach</h2>
+<details class="card"><summary>Layering and access</summary>
+<ul>
+<li>The router resolves the profile and calls the application layer, which commits. Repositories only read, except for the Core hot-row statements.</li>
+<li><code>access.resolve_access</code> returns <code>{read_only_reason, organizer_party_id}</code> or raises 404 / 403.</li>
+</ul></details>
+<details class="card"><summary>Inbox and unread in fixed queries</summary>
+<ul>
+<li>Profile → three audience statements → one conversations query (ITEM by party; GROUP by led ∪ member; TERM by attended or led; <code>last_message_at</code> not null) joined to my read row and an unread count → <code>DISTINCT ON</code> last message restricted to ≤100 ids → batched labels.</li>
+<li>Unread-count is the same query as one SUM, with no LIMIT. Read-only rows are listed and counted.</li>
+</ul></details>
+<details class="card"><summary>Cursors and the ordering guarantee</summary>
+<ul>
+<li><code>before</code>: <code>&lt; anchor DESC LIMIT 51</code>, reversed. <code>after</code>: <code>&gt; anchor ASC LIMIT 51</code>. The 51st row sets <code>has_more</code>.</li>
+<li>Send locks the conversation row (<code>FOR UPDATE</code>) and stamps <code>created_at = max(utcnow, last_message_at + 1 µs)</code>, so commit order equals cursor order. Any poll that sees M sees every earlier message.</li>
+<li>The client marks only the newest message it holds, so GREATEST never covers an unseen message. A first visit to a long-unread thread marks everything read once the newest 50 are shown. Accepted.</li>
+</ul></details>
+<details class="card"><summary>Get-or-create race and time</summary>
+<ul>
+<li>Insert inside <code>begin_nested()</code>. On <code>IntegrityError</code>, re-select. This works under the test <code>db_session</code>.</li>
+<li>Audit timestamps are naive UTC. <code>occurs_on</code> is used only for the server-built TERM title. No business rule compares against the current time.</li>
+</ul></details>
+<details class="card"><summary><code>useThread</code> under TanStack Query</summary>
+<ul>
+<li>One <code>useQuery</code> with key <code>["thread", username, id]</code>, <code>refetchInterval</code> 5000 and no background polling.</li>
+<li><code>queryFn</code>: with an empty or missing cache, fetch the newest page; otherwise fetch <code>after=&lt;last id&gt;</code>, then re-read the cache and merge (dedupe by id, sort by <code>(created_at, id)</code>).</li>
+<li><code>loadOlder</code> and <code>send</code> are callbacks that call <code>setQueryData</code>. <code>markRead</code> invalidates the unread and inbox queries. There is no effect-based fetching and no <code>useInfiniteQuery</code>.</li>
+</ul></details>
+
+<h2 id="testing">Testing</h2>
+<div class="card">
+<p>2–8 focused tests per step group; only new tests run during verification.</p>
+<div class="grid2">
+<div><b>Backend</b>
+<ul>
+<li>Migration round trip (indexes and FKs)</li>
+<li>ITEM: 201/200, 409, 404, lent-out item, deleted item, <b>a new thread after an owner change</b>, <b>a re-open at the limit returns 200</b></li>
+<li>GROUP/TERM: roles, withdrawn attendee, <b>deleted group (member and organizer)</b>, <b>PUBLIC toggle in both directions</b></li>
+<li>Messages: Polish 400, paging, flags, moderation, 429, strictly increasing <code>created_at</code>, <code>/unread-count</code> routed correctly</li>
+<li>Inbox: unread math (uncapped), GREATEST, <b>count_queries 3 vs 9</b>, guests excluded from <code>participant_count</code></li>
+<li><code>is_active_attendee</code> vs <code>is_attending</code>; matrix cases</li>
+</ul></div>
+<div><b>Frontend</b>
+<ul>
+<li>Polling intervals (20 000 / 5 000), with no background polling</li>
+<li><code>useThread</code> merge: append, dedupe, prepend</li>
+<li><code>messageTime</code> with fake timers (UTC to local)</li>
+<li><code>threadViewState</code> table (both read-only reasons)</li>
+<li>Badge, composer error copy, entry-point matrix (withdrawn attendee and anonymous visitor)</li>
+<li>Routing; <b><code>PublicLayout.test</code> mocks <code>api/conversations</code></b>; <code>themeTokenUsage</code></li>
+</ul></div>
+</div>
+</div>
+
+<h2 id="success">Success Criteria</h2>
+<div class="card">
+<ol>
+<li>The migration round trip passes, with the indexes and FKs present.</li>
+<li>ITEM: 201 then 200; owner 409; permanent owner; a new id after a GIVE while the old thread still works.</li>
+<li>Access per kind; 404 comes before 403.</li>
+<li>Read-only: a deleted group (members and organizer) gives <code>GROUP_DELETED</code>; a PUBLIC toggle gives <code>GROUP_PUBLIC</code> and is reversible; a deleted item stays writable.</li>
+<li>Validation and moderation: Polish 400 with no <code>fieldErrors</code>; nothing written on rejection.</li>
+<li>Rate limits: the 31st send and the 21st new conversation return 429; a re-open returns 200.</li>
+<li>Read markers: the count is exact and uncapped; GREATEST; own messages never count.</li>
+<li>Query budget: equal counts for 3 vs 9 conversations, for both the inbox and unread-count.</li>
+<li>Paging and ordering: 50 per page with <code>has_more</code>; strictly increasing <code>created_at</code>.</li>
+<li><code>/unread-count</code> returns 200, not 400.</li>
+<li>No bell rows.</li>
+<li>Polling uses one thread query whose <code>after=</code> poll merges into the cache.</li>
+<li>Time display: naive UTC 10:00 renders as 12:00 in Warsaw (CEST); the pinned formats hold.</li>
+<li>The view-state table is complete.</li>
+<li>The entry-point matrix holds, including the withdrawn attendee and the anonymous visitor.</li>
+<li>Mockup fidelity, including the read-only header line and the banners.</li>
+<li>Quality gates pass: ruff, mypy, tsc, eslint, the new tests, <code>themeTokenUsage</code> and <code>PublicLayout.test</code>.</li>
+</ol>
+</div>
+</main>
+</body>
+</html>

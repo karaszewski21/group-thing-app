@@ -1,0 +1,190 @@
+orchestrator:
+  started_phase: phase-1
+  completed_phases:
+  - phase-1
+  - phase-2
+  - phase-4
+  - phase-5
+  - phase-6
+  - phase-7
+  failed_phases: []
+  auto_fix_attempts: {}
+  options:
+    html_output: true
+    mockup_format: html
+    sequential: false
+    spec_audit_enabled: true
+    skip_test_suite: false
+    e2e_enabled: true
+    user_docs_enabled: true
+    code_review_enabled: true
+    pragmatic_review_enabled: true
+    reality_check_enabled: true
+    production_check_enabled: true
+  created: '2026-10-22T07:47:21Z'
+  updated: '2026-10-22T11:38:48Z'
+  task_path: .maister/tasks/development/2026-10-22-messenger
+  task_ids: {}
+task:
+  title: Komunikator (messenger) — pytania o produkt, wiadomości organizatora do grupy i terminu
+  description: 'Implement a Messenger-like communicator: a user can message from a product (item) page to ask for more information; an organizer can message their group and their term (participants).'
+  status: in_progress
+  tags:
+  - messaging
+  - chat
+  priority: null
+task_context:
+  risk_level: medium
+  clarifications_resolved: true
+  scope_expanded: true
+  architecture_decision: New app/messaging BC; computed access + conversation_reads; keyset cursor 50; polling; no bell notifications
+  task_characteristics:
+    has_reproducible_defect: false
+    modifies_existing_code: true
+    creates_new_entities: true
+    involves_data_operations: true
+    ui_heavy: true
+  research_reference:
+    path: null
+    research_question: null
+    research_type: null
+    confidence_level: null
+  design_reference:
+    source: phase-4-generation
+    product_design_path: null
+    mockup_count: 7
+    has_brief: false
+    index_path: analysis/design-context/INDEX.md
+  project_context:
+    project_doc_paths:
+    - .maister/docs/project/tech-stack.md
+    - .maister/docs/project/architecture.md
+  phase_summaries:
+    codebase_analysis:
+      summary: No messaging/realtime code exists; build a new layered app/messaging BC keyed by party_id under /api/conversations, owner resolved server-side, polling unread counts, direct notifications
+        sync and broadcast fan-out via outbox.
+      primary_language: Python + TypeScript
+      decisions: []
+      risks:
+      - groups service exposes no public organizer/audience/attendee functions
+      - item page carries no owner identity
+      - frontend has no shared party_id or organizer flag
+      - N+1 in conversation list; optimistic lock on hot rows
+      artifacts:
+      - path: analysis/codebase-analysis.md
+        label: Codebase analysis
+        html: null
+      - path: analysis/clarifications.md
+        label: Clarifications
+        html: null
+    clarifications:
+    - decision: Group/term = group chat (everyone writes, everyone sees)
+      rationale: user
+    - decision: Group chat = members; term chat = term attendees (+ organizer)
+      rationale: user
+    - decision: Polling delivery
+      rationale: user
+    - decision: Bielik moderation only
+      rationale: user
+    - decision: Full history; dynamic participants
+      rationale: user
+    gap_analysis:
+      summary: Additive new messaging BC + small insertions in existing pages; medium risk, ui_heavy. 3 critical + 12 important decisions resolved (all recommended except message length 1000).
+      decisions: []
+      risks:
+      - Dynamic-audience unread aggregate query cost
+      - Organizer change transfers history
+      - Public-term attendees see each other's names
+      - Per-worker limiter; moderation latency
+      artifacts:
+      - path: analysis/gap-analysis.md
+        label: Gap analysis
+        html: null
+      - path: analysis/scope-clarifications.md
+        label: Scope clarifications
+        html: null
+    scope_clarifications:
+      scope_expanded: true
+      summary: Group chat PRIVATE only; term-page chat buttons; inbox badge only (no bell); inbox icon beside bell; owner name in thread; no block/report; permanent owner; deleted item thread stays open;
+        text-only 1000 chars; 30/min + 20 new item convs/h; lazy create by any participant; roles via /access; term chat open after end, deleted group read-only; polling 20s/5s.
+    ui_mockups:
+      summary: '7 HTML mockups: top-bar inbox icon, inbox, item thread, group/term chat (+read-only), item ask button, term chat buttons, organizer entry points.'
+      format_used: html
+      decisions: []
+      risks: []
+      artifacts:
+      - path: analysis/design-context/INDEX.md
+        label: Design index
+        html: null
+      - path: analysis/design-context/design-resources.md
+        label: Design resources
+        html: null
+    design:
+      summary: 7 screens + 3 components indexed
+      screen_count: 7
+      component_count: 3
+      index_path: analysis/design-context/INDEX.md
+    specification:
+      summary: '38 requirements: app/messaging BC (3 tables, 9 endpoints incl. GET /{id}), matrix rows, MESSAGE_BODY moderation, send limiter; frontend api+4 hooks, MessagesButton, InboxPage, ThreadPage
+        (view state), 4 entry points.'
+      decisions:
+      - decision: No participant table; access computed per request
+        rationale: decision (e)
+      - decision: Inbox lists only conversations with ≥1 message, newest 100
+        rationale: empty threads don't reach the owner
+      - decision: Badge counts unread messages; mark-read by message_id with GREATEST
+        rationale: no swallowed messages
+      - decision: Initials avatars only
+        rationale: no exposed photos of other users
+      - decision: Own item ask → 409
+        rationale: one code
+      risks:
+      - Late joiners start with full history unread
+      - Organizer change transfers history
+      - Public term attendees see names
+      - Per-worker limiter; moderation latency
+      - /panel/wiadomosci must win over /panel/:view
+      artifacts:
+      - path: implementation/spec.md
+        label: Specification
+        html: implementation/spec.html
+      - path: analysis/requirements.md
+        label: Requirements
+        html: null
+      - path: analysis/technical-clarifications.md
+        label: Technical clarifications
+        html: null
+    spec_audit:
+      summary: pass-with-concerns (0C/2H/10M/11L); all findings + 2 user decisions folded into spec rev 2 (42 requirements, Audit resolution table).
+      decisions: []
+      risks:
+      - H1 soft-deleted group members get 403 (member query filters deleted groups)
+      - H2 naive-UTC timestamps not parsed as UTC → times off by 1–2 h
+      - M8 after= polling can miss out-of-order commits
+      - Owner change after GIVE/SWAP routes re-ask to old owner thread
+      - PRIVATE→PUBLIC toggle hides group chat for everyone
+      artifacts:
+      - path: verification/spec-audit.md
+        label: Spec audit
+        html: null
+    planning:
+      summary: 10 groups, 73 steps, ~50-74 tests; waves [1,2,6] → [3,7,9] → [4,8] → [5] → [10].
+      decisions:
+      - decision: Backend API split into groups 4 (conversations) and 5 (messages/inbox)
+        rationale: 2-8 tests per group
+      - decision: Thread page before inbox
+        rationale: group 8 registers both routes in one edit
+      - decision: Frontend builds against the spec contract with mocked API
+        rationale: parallel waves; group 10 checks drift
+      risks:
+      - ~50-74 tests above guideline
+      - FE/BE contract drift
+      - mypy baseline 23 around on_conflict_do_update/func.greatest
+      artifacts:
+      - path: implementation/implementation-plan.md
+        label: Implementation plan
+        html: implementation/implementation-plan.html
+      - path: implementation/visual-coverage.md
+        label: Visual coverage
+        html: null
+  tech_clarified: true
