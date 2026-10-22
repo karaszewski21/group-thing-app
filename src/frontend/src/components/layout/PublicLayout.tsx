@@ -2,12 +2,13 @@ import { Link, Outlet } from "react-router-dom";
 import { useAuth } from "../../auth/AuthContext";
 import { useMyOrganizationSlug } from "../../hooks/useMyOrganizationSlug";
 import { AccountMenu } from "../shared/AccountMenu";
+import { MessagesButton } from "../shared/MessagesButton";
 import { NotificationBell } from "../shared/NotificationBell";
 import { PendingActionsHost } from "../pending/PendingActionsHost";
 
 /** Layout route for the panel and the public pages (term page, public
  * organization page): a logged-in visitor gets a slim bar with the Krąg grupy
- * mark (back to the panel) and their notifications and account menu, plus the
+ * mark (back to the panel), their messages, notifications and account menu, plus the
  * app-wide pending-actions prompt. Anonymous visitors see the page alone. */
 export function PublicLayout() {
   const { token } = useAuth();
@@ -22,16 +23,19 @@ export function PublicLayout() {
         >
           <Link
             to="/panel"
-            className="mr-auto flex min-h-10 items-center gap-2 rounded-xl pr-2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring"
+            className="mr-auto flex min-h-10 min-w-0 items-center gap-2 rounded-xl pr-2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring"
           >
             <span
               aria-hidden="true"
-              className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary font-serif text-[15px] font-extrabold text-on-primary"
+              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-primary font-serif text-[15px] font-extrabold text-on-primary"
             >
               KG
             </span>
-            <span className="font-serif text-[17px] font-extrabold tracking-tight text-ink">Krąg grupy</span>
+            <span className="min-w-0 truncate font-serif text-[17px] font-extrabold tracking-tight text-ink">
+              Krąg grupy
+            </span>
           </Link>
+          <MessagesButton />
           <NotificationBell />
           <AccountMenu organizationSlug={organizationSlug} showPanelHome />
         </nav>

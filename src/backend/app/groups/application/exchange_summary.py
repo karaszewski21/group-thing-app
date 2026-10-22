@@ -53,7 +53,7 @@ async def _get_current_term(db: AsyncSession, group_id: uuid.UUID) -> Term | Non
     return result.scalars().first()
 
 
-async def _ordered_group_member_party_ids(db: AsyncSession, group_id: uuid.UUID) -> list[uuid.UUID]:
+async def list_group_member_party_ids(db: AsyncSession, group_id: uuid.UUID) -> list[uuid.UUID]:
     """Every party currently holding an active `Membership` in `group_id`,
     in `Membership` order (`valid_from DESC`, per
     `repository.list_active_memberships_for_group`), deduplicated keeping
@@ -84,7 +84,7 @@ async def _require_group_member_or_leader(
     """Membership/leadership check that can't live in the coarse
     `AUTHORIZATION_MATRIX` — per `standards/backend/security.md`. Takes the
     caller's already-resolved `member_party_ids` (from
-    `_ordered_group_member_party_ids`) so this reuses that query instead of
+    `list_group_member_party_ids`) so this reuses that query instead of
     running it twice."""
     if viewer_party_id in member_party_ids:
         return
@@ -203,7 +203,7 @@ async def get_group_exchange_summary(
     `AccessDeniedException` unless `viewer_party_id` is a member or the
     active leader of `group_id`."""
     await get_group(db, group_id)
-    member_party_ids = await _ordered_group_member_party_ids(db, group_id)
+    member_party_ids = await list_group_member_party_ids(db, group_id)
     await _require_group_member_or_leader(db, group_id, viewer_party_id, member_party_ids)
 
     family_order, family_guardians = await _resolve_family_guardians(db, member_party_ids)
@@ -235,7 +235,7 @@ async def get_family_exchange_offers(
     family from another Circle, or a family currently with no active
     guardian at all, is a 404, not a silently-empty list."""
     await get_group(db, group_id)
-    member_party_ids = set(await _ordered_group_member_party_ids(db, group_id))
+    member_party_ids = set(await list_group_member_party_ids(db, group_id))
     await _require_group_member_or_leader(db, group_id, viewer_party_id, list(member_party_ids))
 
     guardian_party_ids = await _guardian_party_ids_for_family(db, family_id)

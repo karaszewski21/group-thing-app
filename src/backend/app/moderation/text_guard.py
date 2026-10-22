@@ -14,6 +14,11 @@ from app.moderation.classifiers import TextClassifier
 
 logger = logging.getLogger(__name__)
 
+INFERENCE_TIMEOUT_SECONDS = 5.0
+"""Upper bound on one classifier call, well under nginx's 60 s proxy timeout.
+A timed-out call keeps running in its worker thread; only the request stops
+waiting for it."""
+
 
 class TextField(StrEnum):
     ORGANIZATION_NAME = "ORGANIZATION_NAME"
@@ -24,6 +29,7 @@ class TextField(StrEnum):
     PRODUCT_DESCRIPTION = "PRODUCT_DESCRIPTION"
     PROFILE_NAME = "PROFILE_NAME"
     PROFILE_BIO = "PROFILE_BIO"
+    MESSAGE_BODY = "MESSAGE_BODY"
 
 
 MESSAGES: dict[TextField, str] = {
@@ -49,6 +55,7 @@ MESSAGES: dict[TextField, str] = {
     TextField.PROFILE_BIO: (
         "Opis „O mnie” narusza zasady społeczności. Zmień go i spróbuj ponownie."
     ),
+    TextField.MESSAGE_BODY: "Wiadomość narusza zasady społeczności. Zmień ją i spróbuj ponownie.",
 }
 
 _classifier: TextClassifier | None = None
@@ -70,8 +77,8 @@ def _normalize(value: str) -> str:
 async def check_text(field: TextField, new: str | None, current: str | None = None) -> None:
     """Raises `TextModerationRejected` (400) when any label score reaches the
     reject threshold, `ModerationUnavailable` (503) when the classifier is
-    missing or fails. Blank values and values unchanged after whitespace
-    normalisation are not scored."""
+    missing, fails or exceeds `INFERENCE_TIMEOUT_SECONDS`. Blank values and
+    values unchanged after whitespace normalisation are not scored."""
     if not settings.moderation_text_enabled or new is None:
         return
     normalized = _normalize(new)
@@ -80,9 +87,19 @@ async def check_text(field: TextField, new: str | None, current: str | None = No
 
     classifier = _classifier
     if classifier is None:
+        logger.warning("Text moderation unavailable field=%s reason=missing", field)
         raise ModerationUnavailable()
     try:
-        scores = await asyncio.to_thread(classifier.scores, normalized)
+        scores = await asyncio.wait_for(
+            asyncio.to_thread(classifier.scores, normalized), INFERENCE_TIMEOUT_SECONDS
+        )
+    except TimeoutError as exc:
+        logger.warning(
+            "Text moderation unavailable field=%s reason=timeout timeout_seconds=%s",
+            field,
+            INFERENCE_TIMEOUT_SECONDS,
+        )
+        raise ModerationUnavailable() from exc
     except Exception as exc:
         logger.error("Text moderation failed for field %s", field, exc_info=True)
         raise ModerationUnavailable() from exc

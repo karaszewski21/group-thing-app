@@ -8,7 +8,9 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_asyn
 
 from app.config import settings
 
-engine = create_async_engine(settings.database_url, pool_pre_ping=True)
+# `hide_parameters` keeps bound values (such as message bodies) out of
+# DBAPIError strings, and so out of the unhandled-exception log.
+engine = create_async_engine(settings.database_url, pool_pre_ping=True, hide_parameters=True)
 
 async_session_factory = async_sessionmaker(engine, expire_on_commit=False)
 

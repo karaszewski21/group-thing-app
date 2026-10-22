@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import { useId, type ReactNode } from "react";
 import { Link, useParams } from "react-router-dom";
 import type { GroupMemberResponse, GroupResponse } from "../../api/groups";
 import { JoinCodeCard } from "../../components/panel/JoinCodeCard";
@@ -6,6 +6,7 @@ import { PhoneFrame } from "../../components/shared/PhoneFrame";
 import { useGroupDetails } from "../../hooks/useGroupDetails";
 import { useGroupTerms } from "../../hooks/useGroupTerms";
 import { useJoinCode } from "../../hooks/useJoinCode";
+import { useOpenAndNavigate } from "../../hooks/useOpenAndNavigate";
 import dayjs from "../../utils/dayjs";
 import { pluralPl } from "../../utils/plural";
 import { PanelNavBar } from "./PanelNav";
@@ -23,6 +24,10 @@ export function GroupDetailsPage() {
   const { group, members, denied, notFound, error, loading, refetch } = useGroupDetails(groupId);
   const isPrivate = group?.visibility === "PRIVATE";
   const joinCode = useJoinCode(groupId, { enabled: isPrivate });
+  // GroupResponse carries no organizer flag; the join-code endpoint is the
+  // page's only organizer check, and only its 403 means "not the organizer".
+  // A failed fetch must not hide the chat (the backend gates the chat itself).
+  const mayBeOrganizer = joinCode.status === "ready" || joinCode.status === "error";
   // Only the organizer (code loaded) needs a term to link to.
   const { data: terms } = useGroupTerms(groupId, { enabled: joinCode.status === "ready" });
   const today = dayjs().startOf("day");
@@ -48,6 +53,7 @@ export function GroupDetailsPage() {
           error={error}
           loading={loading}
           onRetry={() => void refetch()}
+          messageGroupCard={group && isPrivate && mayBeOrganizer && <GroupChatCard groupId={groupId} />}
           joinCodeCard={
             group &&
             isPrivate && (
@@ -76,6 +82,8 @@ interface GroupDetailsBodyProps {
   error: string | null;
   loading: boolean;
   onRetry: () => void;
+  /** Shown above the join-code card (PRIVATE groups, organizer only). */
+  messageGroupCard: ReactNode;
   /** Shown under the details card (PRIVATE groups only). */
   joinCodeCard: ReactNode;
 }
@@ -88,6 +96,7 @@ function GroupDetailsBody({
   error,
   loading,
   onRetry,
+  messageGroupCard,
   joinCodeCard,
 }: GroupDetailsBodyProps) {
   if (denied) {
@@ -125,6 +134,7 @@ function GroupDetailsBody({
           : `${members.length} ${pluralPl(members.length, "uczestnik", "uczestników", "uczestników")}`}
       </p>
       <GroupDetailsCard group={group} />
+      {messageGroupCard}
       {joinCodeCard}
       <h3 className="mt-6 font-serif text-[17px] font-bold text-ink">Uczestnicy terminów</h3>
       {members.length === 0 ? (
@@ -141,6 +151,34 @@ function GroupDetailsBody({
         </div>
       )}
     </>
+  );
+}
+
+/** The organizer's way into the group chat, styled like JoinCodeCard. */
+function GroupChatCard({ groupId }: { groupId: string }) {
+  const titleId = useId();
+  const { open, busy, error } = useOpenAndNavigate();
+
+  return (
+    <section aria-labelledby={titleId} className="mt-4 rounded-2xl border border-line bg-paper p-[15px]">
+      <h3 id={titleId} className="font-serif text-[15px] font-bold text-ink">
+        Czat grupy
+      </h3>
+      <p className="mb-2.5 mt-[3px] text-xs text-ink-soft">Napisz do wszystkich członków grupy.</p>
+      <button
+        type="button"
+        disabled={busy}
+        onClick={() => void open({ kind: "GROUP", id: groupId })}
+        className="min-h-[44px] w-full rounded-[13px] bg-mint px-4 py-[11px] text-[13.5px] font-extrabold text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring disabled:opacity-60"
+      >
+        <span aria-hidden="true">💬</span> Otwórz czat grupy
+      </button>
+      {error && (
+        <p role="alert" className="mt-1.5 text-xs font-semibold text-danger">
+          {error}
+        </p>
+      )}
+    </section>
   );
 }
 

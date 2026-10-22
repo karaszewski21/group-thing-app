@@ -17,6 +17,9 @@ vi.mock("../api/groups", () => ({
   regenerateJoinCode: vi.fn(),
 }));
 vi.mock("../api/terms", () => ({ getTerms: vi.fn() }));
+const conversationHook = vi.hoisted(() => ({ openConversation: vi.fn() }));
+vi.mock("../hooks/useOpenConversation", () => ({ useOpenConversation: () => conversationHook }));
+
 
 // jsdom has no navigator.clipboard; call history is wiped by vi.resetAllMocks().
 const clipboardWriteText = vi.fn();
@@ -66,6 +69,7 @@ function renderPage() {
     <MemoryRouter initialEntries={[`/panel/grupy/${GROUP_ID}`]}>
       <Routes>
         <Route path="/panel/grupy/:groupId" element={<GroupDetailsPage />} />
+        <Route path="/panel/wiadomosci/:id" element={<p>Wątek rozmowy</p>} />
       </Routes>
     </MemoryRouter>,
     { wrapper: createQueryWrapper() },
@@ -166,6 +170,44 @@ describe("GroupDetailsPage", () => {
     await waitFor(() => expect(groupsApi.getGroupMembers).toHaveBeenCalledTimes(2));
     expect(await screen.findByText("Anna Nowak")).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Spróbuj ponownie" })).not.toBeInTheDocument();
+  });
+
+  describe("group chat card", () => {
+    it("is shown above the code card to the organizer of a PRIVATE group and opens the group chat", async () => {
+      vi.mocked(groupsApi.getJoinCode).mockResolvedValue({ code: "482913" });
+      conversationHook.openConversation.mockResolvedValue("conv-3");
+      renderPage();
+
+      const card = await screen.findByRole("region", { name: "Czat grupy" });
+      expect(within(card).getByText("Napisz do wszystkich członków grupy.")).toBeInTheDocument();
+      const codeCard = await screen.findByRole("region", { name: "Kod dostępu" });
+      expect(card.compareDocumentPosition(codeCard) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+
+      fireEvent.click(within(card).getByRole("button", { name: "Otwórz czat grupy" }));
+
+      expect(await screen.findByText("Wątek rozmowy")).toBeInTheDocument();
+      expect(conversationHook.openConversation).toHaveBeenCalledWith({ kind: "GROUP", id: GROUP_ID });
+    });
+
+    it("stays shown when the join-code fetch fails with something other than 403", async () => {
+      vi.mocked(groupsApi.getJoinCode).mockRejectedValue(new ApiError(500, "Server Error", null));
+      renderPage();
+
+      expect(await screen.findByRole("region", { name: "Czat grupy" })).toBeInTheDocument();
+    });
+
+    it("is absent for a member (code 403) and for a PUBLIC group", async () => {
+      const { unmount } = renderPage();
+      await screen.findByText("Anna Nowak");
+      await waitFor(() => expect(groupsApi.getJoinCode).toHaveBeenCalled());
+      expect(screen.queryByRole("region", { name: "Czat grupy" })).not.toBeInTheDocument();
+      unmount();
+
+      vi.mocked(groupsApi.getGroup).mockResolvedValue({ ...group, visibility: "PUBLIC" });
+      renderPage();
+      await screen.findByText("Anna Nowak");
+      expect(screen.queryByRole("region", { name: "Czat grupy" })).not.toBeInTheDocument();
+    });
   });
 
   describe("join code card", () => {

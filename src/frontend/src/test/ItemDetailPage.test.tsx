@@ -36,6 +36,10 @@ vi.mock("../api/categories", () => ({
   getCategories: vi.fn(),
 }));
 
+const conversationHook = vi.hoisted(() => ({ openConversation: vi.fn() }));
+vi.mock("../hooks/useOpenConversation", () => ({ useOpenConversation: () => conversationHook }));
+
+
 const ITEM_ID = "5d7e9f10-2a3b-4c4d-8e5f-6a7b8c9d0e1f";
 const PRODUCT_ID = "6e8f0a21-3b4c-4d5e-9f60-7b8c9d0e1f2a";
 const REPOINTED_PRODUCT_ID = "b3d45f76-8091-42a3-8eb5-2a3b4c5d6e7f";
@@ -96,6 +100,7 @@ function renderPage(path: string) {
       <Routes>
         <Route path="/product/:id" element={<ItemDetailPage />} />
         <Route path="/product/:id/edit" element={<ItemEditPage />} />
+        <Route path="/panel/wiadomosci/:id" element={<p>Wątek rozmowy</p>} />
       </Routes>
     </MemoryRouter>,
     { wrapper: createQueryWrapper() },
@@ -384,6 +389,57 @@ describe("ItemDetailPage", () => {
     ).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Wózek spacerowy Baby Jogger" })).toBeInTheDocument();
     expect(screen.queryByRole("list", { name: "Historia rzeczy" })).not.toBeInTheDocument();
+  });
+});
+
+describe("ItemDetailPage ask about the item", () => {
+  const ASK = "Zapytaj o rzecz";
+
+  beforeEach(() => {
+    vi.resetAllMocks();
+    vi.mocked(itemsApi.getItemHistory).mockResolvedValue(history);
+  });
+
+  it("is shown to a non-owner and hidden for the owner and for a deleted item", async () => {
+    vi.mocked(itemsApi.getItemDetails).mockResolvedValue(details({ is_owner: false }));
+    const { unmount } = renderPage(`/product/${ITEM_ID}`);
+    expect(await screen.findByRole("button", { name: ASK })).toBeInTheDocument();
+    unmount();
+
+    vi.mocked(itemsApi.getItemDetails).mockResolvedValue(details({ is_owner: true }));
+    const owner = renderPage(`/product/${ITEM_ID}`);
+    await screen.findByRole("heading", { name: "Wózek spacerowy Baby Jogger" });
+    expect(screen.queryByRole("button", { name: ASK })).not.toBeInTheDocument();
+    owner.unmount();
+
+    vi.mocked(itemsApi.getItemDetails).mockResolvedValue(
+      details({ is_owner: false, deleted_at: "2026-10-01T10:00:00" }),
+    );
+    renderPage(`/product/${ITEM_ID}`);
+    await screen.findByText("Rzecz usunięta");
+    expect(screen.queryByRole("button", { name: ASK })).not.toBeInTheDocument();
+  });
+
+  it("opens the item conversation and navigates to the thread", async () => {
+    vi.mocked(itemsApi.getItemDetails).mockResolvedValue(details({ is_owner: false }));
+    conversationHook.openConversation.mockResolvedValue("conv-9");
+    renderPage(`/product/${ITEM_ID}`);
+
+    fireEvent.click(await screen.findByRole("button", { name: ASK }));
+
+    expect(await screen.findByText("Wątek rozmowy")).toBeInTheDocument();
+    expect(conversationHook.openConversation).toHaveBeenCalledWith({ kind: "ITEM", id: ITEM_ID });
+  });
+
+  it("shows the error inline under the button and stays on the item", async () => {
+    vi.mocked(itemsApi.getItemDetails).mockResolvedValue(details({ is_owner: false }));
+    conversationHook.openConversation.mockRejectedValue(new Error("Za dużo nowych rozmów — spróbuj później"));
+    renderPage(`/product/${ITEM_ID}`);
+
+    fireEvent.click(await screen.findByRole("button", { name: ASK }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("Za dużo nowych rozmów — spróbuj później");
+    expect(screen.getByRole("button", { name: ASK })).toBeEnabled();
   });
 });
 

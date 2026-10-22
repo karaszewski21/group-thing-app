@@ -66,6 +66,7 @@ async def test_getGroupAccess_publicGroupUnauthenticated_canViewNoMembership(
         "is_organizer": False,
         "can_view_content": True,
         "is_attending": False,
+        "is_active_attendee": False,
     }
 
 
@@ -83,6 +84,7 @@ async def test_getGroupAccess_organizerOwnGroup_reportsOrganizerAndMember(
         "is_organizer": True,
         "can_view_content": True,
         "is_attending": False,
+        "is_active_attendee": False,
     }
 
 
@@ -103,6 +105,7 @@ async def test_getGroupAccess_privateGroupUnrelatedLoggedInVisitor_cannotView(
         "is_organizer": False,
         "can_view_content": False,
         "is_attending": False,
+        "is_active_attendee": False,
     }
 
 
@@ -154,6 +157,36 @@ async def test_getGroupAccess_loggedInAttendeeOfShownTerm_reportsAttending(
 
     assert attendee.json()["access"]["is_attending"] is True
     assert bystander.json()["access"]["is_attending"] is False
+
+
+async def test_getGroupAccess_withdrawnAttendee_isAttendingButNotActiveAttendee(
+    client: AsyncClient,
+) -> None:
+    org_token = await _register(client, "ORGANIZER", "access.org6@example.com")
+    group_id = await _create_circle(client, org_token, "Access Withdrawn Circle")
+    term_id = await _create_term(client, org_token, group_id)
+    attendee_token = await _register(client, "GUEST", "access.attendee6@example.com")
+    rsvp = await client.post(
+        f"/api/groups/public/{group_id}/rsvp",
+        json={"term_id": term_id, "guardian_name": "ignored"},
+        headers=_auth(attendee_token),
+    )
+    assert rsvp.status_code == 201
+    active = await _access(client, attendee_token, group_id, term_id)
+    withdraw = await client.post(
+        f"/api/groups/mine/attendances/{rsvp.json()['id']}/withdraw",
+        headers=_auth(attendee_token),
+    )
+    assert withdraw.status_code == 200, withdraw.text
+
+    withdrawn = await _access(client, attendee_token, group_id, term_id)
+    anonymous = await client.get(f"/api/groups/public/{group_id}/access?term_id={term_id}")
+
+    assert active["access"]["is_attending"] is True
+    assert active["access"]["is_active_attendee"] is True
+    assert withdrawn["access"]["is_attending"] is True
+    assert withdrawn["access"]["is_active_attendee"] is False
+    assert anonymous.json()["access"]["is_active_attendee"] is False
 
 
 async def _create_term(client: AsyncClient, org_token: str, group_id: int) -> int:
@@ -347,6 +380,7 @@ async def test_groupReads_privateGroupWithCode_neverExposeJoinCode(
             "is_organizer",
             "can_view_content",
             "is_attending",
+            "is_active_attendee",
         }
 
 

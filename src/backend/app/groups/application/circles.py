@@ -187,7 +187,7 @@ async def soft_delete_group(
     Circle back with its organizer."""
     group = await get_group(db, group_id)
     if not is_admin and (
-        actor_party_id is None or not await _is_active_organizer(db, group_id, actor_party_id)
+        actor_party_id is None or not await is_active_group_organizer(db, group_id, actor_party_id)
     ):
         raise AccessDeniedException
 
@@ -309,7 +309,7 @@ async def remove_leadership(
         raise EntityNotFoundException("Leadership", leadership_id)
     if not is_admin and (
         caller_party_id is None
-        or not await _is_active_organizer(db, leadership.to_group_id, caller_party_id)
+        or not await is_active_group_organizer(db, leadership.to_group_id, caller_party_id)
     ):
         raise AccessDeniedException
     leadership.valid_to = valid_to
@@ -353,7 +353,9 @@ async def list_active_leaderships_for_party(db: AsyncSession, party_id: uuid.UUI
     return await repository.list_active_leaderships_for_role_ids(db, role_ids)
 
 
-async def _is_active_organizer(db: AsyncSession, group_id: uuid.UUID, party_id: uuid.UUID) -> bool:
+async def is_active_group_organizer(
+    db: AsyncSession, group_id: uuid.UUID, party_id: uuid.UUID
+) -> bool:
     """Non-raising twin of `_require_active_organizer` — for call sites that
     need to compose this check with another (e.g. "organizer OR standing
     member") rather than gate on it alone."""
@@ -362,5 +364,5 @@ async def _is_active_organizer(db: AsyncSession, group_id: uuid.UUID, party_id: 
 
 
 async def _require_active_organizer(db: AsyncSession, group_id: uuid.UUID, party_id: uuid.UUID) -> None:
-    if not await _is_active_organizer(db, group_id, party_id):
+    if not await is_active_group_organizer(db, group_id, party_id):
         raise AccessDeniedException

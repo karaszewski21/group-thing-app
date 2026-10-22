@@ -31,6 +31,9 @@ vi.mock("../api/inventories", async (importOriginal) => ({
   getInventoryItemBalance: vi.fn(),
 }));
 
+const conversationHook = vi.hoisted(() => ({ openConversation: vi.fn() }));
+vi.mock("../hooks/useOpenConversation", () => ({ useOpenConversation: () => conversationHook }));
+
 let mockAuth: { token: string | null; displayName: string | null };
 
 vi.mock("../auth/AuthContext", () => ({
@@ -120,6 +123,7 @@ function access(
       is_organizer: false,
       can_view_content: true,
       is_attending: false,
+      is_active_attendee: false,
       ...overrides.access,
     },
   };
@@ -140,6 +144,7 @@ function page(entry = PATH) {
     <MemoryRouter initialEntries={[entry]}>
       <Routes>
         <Route path="/:organizationSlug/grupa/:groupId/term/:termId" element={<TermPage />} />
+        <Route path="/panel/wiadomosci/:id" element={<p>Wątek rozmowy</p>} />
       </Routes>
       <SearchProbe />
     </MemoryRouter>
@@ -394,6 +399,55 @@ describe("TermPage — sign-up footer", () => {
 
     expect(screen.getByRole("form", { name: /Załóż konto/ })).toBeInTheDocument();
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+  });
+});
+
+describe("TermPage — chat entry points", () => {
+  const TERM_CHAT = "Czat terminu";
+  const GROUP_CHAT = "Czat grupy";
+
+  it.each([
+    ["a PRIVATE member attendee sees both", "tok", "PRIVATE", { is_member: true, is_active_attendee: true }, [TERM_CHAT, GROUP_CHAT]],
+    ["a PUBLIC attendee sees only the term chat", "tok", "PUBLIC", { is_active_attendee: true }, [TERM_CHAT]],
+    ["a withdrawn non-member attendee sees neither", "tok", "PUBLIC", { is_attending: true }, []],
+    ["the organizer of a PRIVATE group sees both", "tok", "PRIVATE", { is_organizer: true }, [TERM_CHAT, GROUP_CHAT]],
+    ["an anonymous guest who RSVP'd sees none", null, "PUBLIC", { is_attending: true }, []],
+  ] as const)("%s", async (_label, token, visibility, flags, expected) => {
+    mockAuth = { token, displayName: token ? "Ala" : null };
+    if (token === null) groupsApi.writeGuestProfile(GUEST_KEY, "55");
+    vi.mocked(groupsApi.getGroupAccess).mockResolvedValue(access({ group: { visibility }, access: flags }));
+    renderPage();
+
+    await screen.findByText("Zajęcia w parku");
+    const shown = [TERM_CHAT, GROUP_CHAT].filter((name) => screen.queryByRole("button", { name }) !== null);
+    expect(shown).toEqual(expected);
+  });
+
+  it("'Czat terminu' opens the term conversation and navigates to the thread", async () => {
+    mockAuth = { token: "tok", displayName: "Ala" };
+    conversationHook.openConversation.mockResolvedValue("conv-1");
+    vi.mocked(groupsApi.getGroupAccess).mockResolvedValue(access({ access: { is_active_attendee: true } }));
+    renderPage();
+
+    fireEvent.click(await screen.findByRole("button", { name: TERM_CHAT }));
+
+    expect(await screen.findByText("Wątek rozmowy")).toBeInTheDocument();
+    expect(conversationHook.openConversation).toHaveBeenCalledWith({ kind: "TERM", id: circle.term!.id });
+  });
+
+  it("'Czat grupy' shows the server's message inline when opening fails", async () => {
+    mockAuth = { token: "tok", displayName: "Ala" };
+    conversationHook.openConversation.mockRejectedValue(new Error("Zbyt wiele prób — spróbuj później"));
+    vi.mocked(groupsApi.getGroupAccess).mockResolvedValue(
+      access({ group: { visibility: "PRIVATE" }, access: { is_member: true } }),
+    );
+    renderPage();
+
+    fireEvent.click(await screen.findByRole("button", { name: GROUP_CHAT }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("Zbyt wiele prób — spróbuj później");
+    expect(conversationHook.openConversation).toHaveBeenCalledWith({ kind: "GROUP", id: circle.id });
+    expect(screen.queryByText("Wątek rozmowy")).not.toBeInTheDocument();
   });
 });
 

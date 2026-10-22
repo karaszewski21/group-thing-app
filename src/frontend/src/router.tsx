@@ -1,4 +1,4 @@
-import { createBrowserRouter, Navigate, Outlet } from "react-router-dom";
+import { createBrowserRouter, Navigate, Outlet, type RouteObject } from "react-router-dom";
 import { AppShell } from "./components/layout/AppShell";
 import { PublicLayout } from "./components/layout/PublicLayout";
 import { ProductListPage } from "./pages/ProductListPage";
@@ -20,6 +20,8 @@ import { TermPage } from "./pages/term/TermPage";
 import { PanelPage } from "./pages/panel/PanelPage";
 import { TermAttendeesPage } from "./pages/panel/TermAttendeesPage";
 import { GroupDetailsPage } from "./pages/panel/GroupDetailsPage";
+import { InboxPage } from "./pages/messages/InboxPage";
+import { ThreadPage } from "./pages/messages/ThreadPage";
 import { ItemCreatePage } from "./pages/product/ItemCreatePage";
 import { ItemDetailBody, ItemDetailPage } from "./pages/product/ItemDetailPage";
 import { ItemEditBody, ItemEditPage } from "./pages/product/ItemEditPage";
@@ -52,7 +54,7 @@ function HomeRedirect() {
   return <Navigate to={isBackOffice ? "/admin/products" : "/panel"} replace />;
 }
 
-export const router = createBrowserRouter([
+export const routes: RouteObject[] = [
   {
     path: "/login",
     element: <AuthGuard requireAuth={false}><LoginPage /></AuthGuard>,
@@ -114,6 +116,16 @@ export const router = createBrowserRouter([
         // tiles. Explicit for the same single-segment reason as above.
         path: "/panel/grupy/:groupId",
         element: <AuthGuard><GroupDetailsPage /></AuthGuard>,
+      },
+      {
+        // Messages inbox and one thread. "wiadomosci" is a static segment, so
+        // React Router ranks it above `/panel/:view`.
+        path: "/panel/wiadomosci",
+        element: <AuthGuard><InboxPage /></AuthGuard>,
+      },
+      {
+        path: "/panel/wiadomosci/:conversationId",
+        element: <AuthGuard><ThreadPage /></AuthGuard>,
       },
       {
         // Item pages; "product" is in the backend's RESERVED_SLUGS.
@@ -210,4 +222,6 @@ export const router = createBrowserRouter([
       { path: "plugins/:pluginId/*", element: <PluginPageRoute /> },
     ],
   },
-]);
+];
+
+export const router = createBrowserRouter(routes);

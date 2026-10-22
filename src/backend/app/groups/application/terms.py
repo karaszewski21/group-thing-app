@@ -4,7 +4,6 @@ co-located with the mutations it guards (per `standards/backend/security.md`).""
 from __future__ import annotations
 
 import uuid
-
 from datetime import datetime
 from typing import Any, cast
 
@@ -26,7 +25,7 @@ from ..schemas import (
     UpdateNeededItemRequest,
     UpdateTermRequest,
 )
-from .circles import _is_active_organizer, _require_active_organizer, get_group
+from .circles import _require_active_organizer, get_group, is_active_group_organizer
 
 
 async def create_term(db: AsyncSession, principal: Principal, data: CreateTermRequest) -> Term:
@@ -89,7 +88,7 @@ async def list_terms_with_counts(
     None)` for everyone else (including callers without a profile)."""
     await get_group(db, circle_group_id)
     terms = await repository.list_terms_for_group(db, circle_group_id)
-    if caller_party_id is None or not await _is_active_organizer(
+    if caller_party_id is None or not await is_active_group_organizer(
         db, circle_group_id, caller_party_id
     ):
         return [(term, None, None) for term in terms]

@@ -33,6 +33,7 @@ from app.families.router import router as families_router
 from app.groups.application.term_end_scan import scan_for_term_ended
 from app.groups.router import router as groups_router
 from app.locations.router import router as locations_router
+from app.messaging.router import router as messaging_router
 from app.moderation import text_guard
 from app.moderation.router import router as moderation_router
 from app.notifications import outbox_listener as notifications_outbox_listener
@@ -158,5 +159,6 @@ app.include_router(locations_router)
 app.include_router(families_router)
 app.include_router(circulation_router)
 app.include_router(notifications_router)
+app.include_router(messaging_router)
 app.include_router(moderation_router)
 app.include_router(system_router)

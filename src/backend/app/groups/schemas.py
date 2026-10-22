@@ -363,6 +363,8 @@ class GroupAccessDetails(BaseModel):
     can_view_content: bool
     # The caller has a `TermAttendance` on the response's `term`.
     is_attending: bool
+    # ... and that attendance is not withdrawn.
+    is_active_attendee: bool
 
 
 class GroupAccessResponse(BaseModel):

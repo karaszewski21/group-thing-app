@@ -37,7 +37,12 @@ export function TermPage() {
     case "content":
       return (
         <OrganizerThemeScope theme={view.group.organization}>
-          <PublicTermView group={view.group} isAttendingOnServer={view.isAttending} refetch={refetch} />
+          <PublicTermView
+            group={view.group}
+            isAttendingOnServer={view.isAttending}
+            chatAccess={view}
+            refetch={refetch}
+          />
           <ToastPill message={toast} />
         </OrganizerThemeScope>
       );

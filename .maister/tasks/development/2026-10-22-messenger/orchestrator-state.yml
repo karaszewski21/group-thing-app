@@ -7,6 +7,10 @@ orchestrator:
   - phase-5
   - phase-6
   - phase-7
+  - phase-8
+  - phase-10
+  - phase-11
+  - phase-12
   failed_phases: []
   auto_fix_attempts: {}
   options:
@@ -22,9 +26,10 @@ orchestrator:
     reality_check_enabled: true
     production_check_enabled: true
   created: '2026-10-22T07:47:21Z'
-  updated: '2026-10-22T11:38:48Z'
+  updated: '2026-10-22T17:10:00Z'
   task_path: .maister/tasks/development/2026-10-22-messenger
   task_ids: {}
+  current_phase: phase-13
 task:
   title: Komunikator (messenger) — pytania o produkt, wiadomości organizatora do grupy i terminu
   description: 'Implement a Messenger-like communicator: a user can message from a product (item) page to ask for more information; an organizer can message their group and their term (participants).'
@@ -187,4 +192,50 @@ task_context:
       - path: implementation/visual-coverage.md
         label: Visual coverage
         html: null
+    implementation:
+      summary: 10/10 groups, 73 steps, 5 waves. Backend 900/0; frontend 1094 passed + 7 failures (6 pre-existing + 1 flaky); tsc clean; mypy 23; BE/FE contract matches.
+      decisions:
+      - decision: 'Send: rate limit (429) checked before moderation'
+        rationale: spec req 18
+      - decision: Inbox body states as one if-chain (no separate inboxViewState)
+        rationale: simple page; flagged
+      risks:
+      - Read-only rule + term title duplicated (access/conversations vs inbox)
+      - Open-and-navigate flow duplicated in 4 entry points
+      - Avatar tints use familyTone instead of fixed mint (deviation)
+      artifacts:
+      - path: implementation/work-log.md
+        label: Work log
+        html: null
+      - path: implementation/implementation-plan.md
+        label: Implementation plan
+        html: implementation/implementation-plan.html
   tech_clarified: true
+verification_context:
+  last_status: passed
+  issues_found: []
+  fixes_applied:
+  - 'H1: crossing message lost (useThread after= cursor)'
+  - useThread no-cursor branch overwrites cache
+  - Moderation in open tx, no timeout, rejected sends not limited
+  - hide_parameters missing (message body in logs)
+  - 'Duplication: read-only/title, open-and-navigate, chat_audience wrappers'
+  - Inbox not refreshed; composer focus
+  - DISTINCT ON inbox; unbounded unread
+  - architecture.md lacks messaging section
+  decisions_made: []
+  reverify_count: 1
+  report_path: verification/implementation-verification.md
+  fix_cycle: 1
+  user_decisions:
+  - 'Owner-name enumeration via POST /item: accepted (no change)'
+  - 'OAuth mcp:* scopes: removed from /api/conversations (READ/EDIT only)'
+  - 'Fix cycle 1: H1+cache race, send resilience, UX (inbox poll, focus, rings), dedupe refactor'
+phase_summaries:
+  e2e:
+    summary: 'GO: 13/13 PASS after fixes (M1 scroll leak, M2 older-button jump, m1 error polling, m2 narrow header). Visual 7 ok / 0 minor / 0 drift.'
+    artifacts:
+    - path: verification/e2e-verification-report.md
+      html: verification/e2e-verification-report.html
+    - path: verification/visual-fidelity.md
+      html: verification/visual-fidelity.html

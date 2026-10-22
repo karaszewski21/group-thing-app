@@ -41,13 +41,13 @@ All backend paths are relative to `src/backend/` and all frontend paths to `src/
 **Files to Modify:** `app/messaging/__init__.py`, `app/messaging/models.py`, `alembic/versions/0061_messaging.py`, `tests/test_messaging_migration.py`
 **Estimated Steps:** 6
 
-- [ ] 1.0 Complete the messaging database layer
-  - [ ] 1.1 Write 2-3 focused tests in `tests/test_messaging_migration.py`. Model them on `tests/test_locations_migration.py` and `tests/test_group_soft_delete_migration.py`.
+- [x] 1.0 Complete the messaging database layer
+  - [x] 1.1 Write 2-3 focused tests in `tests/test_messaging_migration.py`. Model them on `tests/test_locations_migration.py` and `tests/test_group_soft_delete_migration.py`.
     - Downgrade to `0060`, then upgrade to head.
     - Assert that the tables `conversations`, `messages` and `conversation_reads` exist.
     - Assert that the partial unique indexes `uq_conversations_group_id`, `uq_conversations_term_id` and `uq_conversations_item_id_asker_party_id_owner_party_id` exist, together with their `WHERE kind = ...` predicates.
     - Assert `uq_conversation_reads_conversation_id_party_id` and the named FKs (`fk_conversations_item_id_inventory_items`, `fk_conversations_group_id_groups`, `fk_conversations_term_id_terms`, `fk_messages_conversation_id_conversations`).
-  - [ ] 1.2 Create `app/messaging/models.py` with a `ConversationKind` StrEnum (`ITEM`, `GROUP`, `TERM`) and three `BaseEntity` models with no `relationship()`.
+  - [x] 1.2 Create `app/messaging/models.py` with a `ConversationKind` StrEnum (`ITEM`, `GROUP`, `TERM`) and three `BaseEntity` models with no `relationship()`.
     - `Conversation`:
       - `kind` is `String(10)`;
       - `item_id`, `group_id` and `term_id` are nullable FK ids;
@@ -61,14 +61,14 @@ All backend paths are relative to `src/backend/` and all frontend paths to `src/
       - `conversation_id` and `party_id` are FKs;
       - `last_read_at` is not null.
     - Reuse: `app/core/base_model.py` `BaseEntity`. Use string-backed enums, following `standards/backend/models.md`.
-  - [ ] 1.3 Write `alembic/versions/0061_messaging.py` `upgrade()` with `down_revision = "0060"`. Model it on `0057_locations.py`.
+  - [x] 1.3 Write `alembic/versions/0061_messaging.py` `upgrade()` with `down_revision = "0060"`. Model it on `0057_locations.py`.
     - UUID PKs use `server_default=gen_random_uuid()` and are named `pk_<table>`.
     - FK, index and unique names are explicit (`fk_`/`ix_`/`uq_`).
     - The partial unique indexes use `postgresql_where`.
     - Add `ix_conversations_asker_party_id`, `ix_conversations_owner_party_id`, `ix_conversations_group_id` and `ix_messages_conversation_id_created_at_id` on `(conversation_id, created_at, id)`.
-  - [ ] 1.4 Write `downgrade()` in reverse dependency order: `conversation_reads`, then `messages`, then `conversations`. Drop indexes and FKs before each table (spec requirement 4).
-  - [ ] 1.5 Add `app/messaging/__init__.py`. Check that the models import cleanly and that a `Conversation` row can be inserted. A quick assert can go inside the round-trip test.
-  - [ ] 1.6 Ensure the database layer tests pass.
+  - [x] 1.4 Write `downgrade()` in reverse dependency order: `conversation_reads`, then `messages`, then `conversations`. Drop indexes and FKs before each table (spec requirement 4).
+  - [x] 1.5 Add `app/messaging/__init__.py`. Check that the models import cleanly and that a `Conversation` row can be inserted. A quick assert can go inside the round-trip test.
+  - [x] 1.6 Ensure the database layer tests pass.
     - Run only `uv run python -m pytest tests/test_messaging_migration.py`.
     - Do NOT run the entire test suite.
 
@@ -82,22 +82,22 @@ All backend paths are relative to `src/backend/` and all frontend paths to `src/
 **Files to Modify:** `app/groups/infrastructure/repository.py`, `app/groups/application/chat_audience.py` (new), `app/groups/application/public_view.py`, `app/groups/schemas.py`, `app/groups/service.py`, `app/circulation/infrastructure/repository.py`, `app/circulation/service.py`, `app/users/service.py`, `tests/test_messaging_cross_context.py` (new), `tests/test_group_access.py`
 **Estimated Steps:** 8
 
-- [ ] 2.0 Complete the cross-context public functions
-  - [ ] 2.1 Write 5-7 focused tests. Most go in `tests/test_messaging_cross_context.py`; the attendee flag test goes in `tests/test_group_access.py`.
+- [x] 2.0 Complete the cross-context public functions
+  - [x] 2.1 Write 5-7 focused tests. Most go in `tests/test_messaging_cross_context.py`; the attendee flag test goes in `tests/test_group_access.py`.
     - `is_active_group_member` and `is_active_group_organizer` are both true for a **soft-deleted** group, and false for an ended Membership.
     - `get_chat_audience_for_party` returns led groups, member groups and attended terms, including soft-deleted and PUBLIC groups, and excludes a withdrawn attendance.
     - `list_chat_group_refs`, `list_chat_term_refs` and `list_current_organizer_party_ids` return the documented tuple shapes, and run zero queries for empty input (use `count_queries`).
     - `circulation.list_item_refs` returns `(name, deleted_at)`, including soft-deleted items. Its query count is the same for 1 item and 3 items, and it runs no query for `[]`.
     - `users.list_chat_profiles_by_party_ids` returns `(display_name, has_account)`, with `has_account=False` for a guest profile.
     - `test_group_access.py`: for a withdrawn attendee, `access.is_active_attendee` is false while `is_attending` stays true. For an active attendee it is true. Update any exact key-set assertion on `access` to include the new key; do not loosen it.
-  - [ ] 2.2 Add new groups repository statements to `app/groups/infrastructure/repository.py`. None of them joins `Group` or filters on `deleted_at`, and none reuses `list_active_*_for_role_ids` (spec requirements 24b and 24e):
+  - [x] 2.2 Add new groups repository statements to `app/groups/infrastructure/repository.py`. None of them joins `Group` or filters on `deleted_at`, and none reuses `list_active_*_for_role_ids` (spec requirements 24b and 24e):
     - `has_active_membership(db, group_id, party_id)`: `Membership` ⨝ `GroupRole` (`MEMBER`, `valid_to IS NULL`);
     - `list_led_group_ids_for_party`, `list_member_group_ids_for_party` and `list_attended_term_ids_for_party` (`withdrawn_at IS NULL`);
     - batched lookups:
       - `list_chat_group_refs(ids) → {id: (name, visibility, deleted_at)}`, modelled on `list_group_names` (:80);
       - `list_chat_term_refs(ids) → {id: (group_id, occurs_on)}`;
       - `list_current_organizer_party_ids(group_ids) → {group_id: party_id}`.
-  - [ ] 2.3 Create `app/groups/application/chat_audience.py` with public functions (spec requirements 24a–24f):
+  - [x] 2.3 Create `app/groups/application/chat_audience.py` with public functions (spec requirements 24a–24f):
     - `is_active_group_organizer`: wraps `circles._is_active_organizer`;
     - `is_active_group_member`: over `has_active_membership`;
     - `list_group_member_party_ids`: from `exchange_summary._ordered_group_member_party_ids`;
@@ -105,18 +105,18 @@ All backend paths are relative to `src/backend/` and all frontend paths to `src/
     - `get_chat_audience_for_party`: returns three id sets;
     - the three batched ref lookups.
     - Do not change `memberships._is_active_member` or its callers (`join_code.py:137`, `public_view.py:375,439`).
-  - [ ] 2.4 Re-export the new functions from `app/groups/service.py` (flat `__all__`). Also export `get_group_including_deleted` and `get_term_any` if they are not exported yet.
-  - [ ] 2.5 Add `is_active_attendee: bool` to `GroupAccessDetails` (`app/groups/schemas.py:354`). Compute it in `public_view.get_group_access` (:355-400):
+  - [x] 2.4 Re-export the new functions from `app/groups/service.py` (flat `__all__`). Also export `get_group_including_deleted` and `get_term_any` if they are not exported yet.
+  - [x] 2.5 Add `is_active_attendee: bool` to `GroupAccessDetails` (`app/groups/schemas.py:354`). Compute it in `public_view.get_group_access` (:355-400):
     - it is true when `profile is not None` and the shown term has a non-withdrawn attendance by the caller;
     - it takes one query via `list_active_attendances_for_term`, or is `False` when there is no term;
     - `is_attending` is unchanged (spec requirement 39).
-  - [ ] 2.6 Add `list_item_refs(db, item_ids) -> dict[UUID, tuple[str, datetime | None]]` to `app/circulation/service.py`.
+  - [x] 2.6 Add `list_item_refs(db, item_ids) -> dict[UUID, tuple[str, datetime | None]]` to `app/circulation/service.py`.
     - It calls a new repository function: one `InventoryItem` ⨝ `Product` select with `InventoryItem.deleted_at`, modelled on `list_product_names_for_items` (`repository.py:224-236`).
     - It returns `{}` without a query for empty input and loads no row per item (M2).
     - Also make sure `find_item_including_deleted` and `resolve_owning_inventory` are exported from `service.py`.
-  - [ ] 2.7 Add `list_chat_profiles_by_party_ids(db, party_ids) -> dict[UUID, tuple[str, bool]]` to `app/users/service.py`.
+  - [x] 2.7 Add `list_chat_profiles_by_party_ids(db, party_ids) -> dict[UUID, tuple[str, bool]]` to `app/users/service.py`.
     - It is one batched statement over `UserProfile` with `has_account = account_user_id IS NOT NULL`, and returns `{}` for empty input.
-  - [ ] 2.8 Ensure the cross-context tests pass.
+  - [x] 2.8 Ensure the cross-context tests pass.
     - Run only `tests/test_messaging_cross_context.py tests/test_group_access.py`.
     - Run `uv run python -m mypy app/groups app/circulation app/users`; there must be no new errors.
 
@@ -130,8 +130,8 @@ All backend paths are relative to `src/backend/` and all frontend paths to `src/
 **Files to Modify:** `app/moderation/text_guard.py`, `app/messaging/application/__init__.py`, `app/messaging/application/send_limiter.py`, `app/messaging/infrastructure/__init__.py`, `app/messaging/infrastructure/groups_acl.py`, `app/messaging/infrastructure/circulation_acl.py`, `app/messaging/infrastructure/users_acl.py`, `app/messaging/infrastructure/repository.py`, `tests/conftest.py`, `tests/test_message_send_limiter.py` (new), `tests/test_messaging_repository.py` (new)
 **Estimated Steps:** 8
 
-- [ ] 3.0 Complete the messaging core
-  - [ ] 3.1 Write 6-8 focused tests.
+- [x] 3.0 Complete the messaging core
+  - [x] 3.1 Write 6-8 focused tests.
     - `test_message_send_limiter.py`, modelled on `tests/test_join_code_limiter.py`:
       - the 31st message within 60 s raises `TooManyAttemptsException` with "Za dużo wiadomości — spróbuj ponownie za chwilę." and a Retry-After value;
       - the 21st new conversation within an hour raises "Za dużo nowych rozmów — spróbuj ponownie za {n} min";
@@ -142,24 +142,24 @@ All backend paths are relative to `src/backend/` and all frontend paths to `src/
       - `bump_last_message_at` keeps GREATEST and `upsert_read_marker` never moves `last_read_at` backwards;
       - the unread aggregate excludes the caller's own messages and respects `last_read_at`;
       - the inbox/unread selection includes ITEM rows for asker and owner, GROUP rows in led ∪ member, TERM rows in attended ∪ led-group, and excludes `last_message_at IS NULL`.
-  - [ ] 3.2 Add `TextField.MESSAGE_BODY` to `app/moderation/text_guard.py`, with the `MESSAGES` entry "Wiadomość narusza zasady społeczności. Zmień ją i spróbuj ponownie." Do not apply the contact-info rule (spec requirement 22).
-  - [ ] 3.3 Create `app/messaging/application/send_limiter.py` as an in-memory sliding window modelled on `join_code_limiter.py`:
+  - [x] 3.2 Add `TextField.MESSAGE_BODY` to `app/moderation/text_guard.py`, with the `MESSAGES` entry "Wiadomość narusza zasady społeczności. Zmień ją i spróbuj ponownie." Do not apply the contact-info rule (spec requirement 22).
+  - [x] 3.3 Create `app/messaging/application/send_limiter.py` as an in-memory sliding window modelled on `join_code_limiter.py`:
     - `check_message` / `record_message`: 30 per 60 s per party;
     - `check_new_conversation` / `record_new_conversation`: 20 per hour per party;
     - plus `reset()`.
-  - [ ] 3.4 In `tests/conftest.py`, add an autouse `reset_message_limiter` fixture next to `reset_join_code_limiter` (:130).
-  - [ ] 3.5 Create the ACL modules. They are the only places messaging imports other BCs, and they import only public `service.py` names and no `..schemas` (spec requirement 27):
+  - [x] 3.4 In `tests/conftest.py`, add an autouse `reset_message_limiter` fixture next to `reset_join_code_limiter` (:130).
+  - [x] 3.5 Create the ACL modules. They are the only places messaging imports other BCs, and they import only public `service.py` names and no `..schemas` (spec requirement 27):
     - `groups_acl.py`: group and term loading (including deleted), the organizer and member checks, the audience, the batched refs, the organizer map, member and attendee party ids;
     - `circulation_acl.py`: `find_item_including_deleted`, the owner party resolution (`resolve_owning_inventory` → `Inventory.owner_user_id` → users profile → `party_id`), and `list_item_refs`;
     - `users_acl.py`: profile by principal (a missing profile raises `AuthenticationRequiredException`, mapped as in `join_code.py:36-44`), and `list_chat_profiles_by_party_ids`.
-  - [ ] 3.6 Create the reads and the cursor queries in `app/messaging/infrastructure/repository.py`:
+  - [x] 3.6 Create the reads and the cursor queries in `app/messaging/infrastructure/repository.py`:
     - the conversation lookups: by id, by `(item, asker, owner)`, by group, by term;
     - `get_message_anchor(conversation_id, message_id)`;
     - `list_messages_page(conversation_id, before|after|None)`:
       - `before` reads 51 rows `DESC` and reverses them;
       - `after` reads 51 rows ascending;
       - with no cursor it reads the newest 51 and reverses them.
-  - [ ] 3.7 Add the hot-row Core statements and the aggregates to the repository:
+  - [x] 3.7 Add the hot-row Core statements and the aggregates to the repository:
     - `lock_conversation_for_send`: `SELECT last_message_at … FOR UPDATE`;
     - `insert_message`;
     - `bump_last_message_at` (5a: `GREATEST(coalesce(last_message_at, :t), :t)` and `updated_at = :t`);
@@ -168,7 +168,7 @@ All backend paths are relative to `src/backend/` and all frontend paths to `src/
     - `sum_unread(...)`: the same filter with no LIMIT;
     - `last_messages_for(conversation_ids)`: `DISTINCT ON (conversation_id)`.
     - All values are bound parameters with explicit ordering, following `standards/backend/queries.md` and `jooq.md`.
-  - [ ] 3.8 Ensure the core tests pass.
+  - [x] 3.8 Ensure the core tests pass.
     - Run only `tests/test_message_send_limiter.py tests/test_messaging_repository.py tests/test_join_code_limiter.py`.
     - Then run mypy and ruff on `app/messaging app/moderation`.
 
@@ -183,8 +183,8 @@ All backend paths are relative to `src/backend/` and all frontend paths to `src/
 **Files to Modify:** `app/messaging/schemas.py`, `app/messaging/service.py`, `app/messaging/application/access.py`, `app/messaging/application/conversations.py`, `app/messaging/router.py`, `app/main.py`, `app/core/authorization_matrix.py`, `tests/test_authorization_matrix.py`, `tests/test_item_conversations.py` (new), `tests/test_group_term_conversations.py` (new)
 **Estimated Steps:** 8
 
-- [ ] 4.0 Complete the conversation API
-  - [ ] 4.1 Write 7-8 focused integration tests through `client`, with per-file `_register`/`_auth` helpers and exact key sets.
+- [x] 4.0 Complete the conversation API
+  - [x] 4.1 Write 7-8 focused integration tests through `client`, with per-file `_register`/`_auth` helpers and exact key sets.
     - `test_item_conversations.py`:
       - (a) 201, then 200 with the same id; own item 409 "Nie możesz zapytać o własną rzecz"; unknown item 404;
       - (b) a lent-out item resolves to the permanent owner's party;
@@ -196,29 +196,29 @@ All backend paths are relative to `src/backend/` and all frontend paths to `src/
       - (g) GROUP: member and organizer get 201/200, a non-member 403, a missing group 404, and a PUBLIC group with no chat 409 "Czat grupy jest dostępny tylko w grupach prywatnych";
       - TERM: an active attendee and the organizer pass, a withdrawn attendee gets 403, and a term after its date can still be opened.
     - `test_authorization_matrix.py`: cases for `GET /api/conversations`, `GET /api/conversations/unread-count`, `POST /api/conversations/item` and `POST /api/conversations/{id}/read`.
-  - [ ] 4.2 Create `app/messaging/schemas.py`:
+  - [x] 4.2 Create `app/messaging/schemas.py`:
     - `ConversationResponse`: `id`, `kind`, `title`, `item {id, name, deleted}`, `counterpart_name`, `group_name`, `term_occurs_on`, `unread_count`, `read_only_reason`, `participant_count`;
     - request bodies `{item_id}`, `{group_id}` and `{term_id}`.
     - Use exactly the fields of spec requirements 14 and 16. Do not add `subtitle` or a thumbnail.
-  - [ ] 4.3 Create `app/messaging/application/access.py` `resolve_access(db, conversation, party_id)`. It returns `{read_only_reason, organizer_party_id}` or raises 404/403 (spec requirements 6–9):
+  - [x] 4.3 Create `app/messaging/application/access.py` `resolve_access(db, conversation, party_id)`. It returns `{read_only_reason, organizer_party_id}` or raises 404/403 (spec requirements 6–9):
     - ITEM: the caller must be the asker or the owner;
     - GROUP: `get_group_including_deleted`, then the organizer or member check;
     - TERM: `get_term_any`, then the organizer or non-withdrawn attendance check;
     - `read_only_reason` is `GROUP_DELETED`, then `GROUP_PUBLIC` (GROUP only), then `None`.
-  - [ ] 4.4 Create `app/messaging/application/conversations.py`:
+  - [x] 4.4 Create `app/messaging/application/conversations.py`:
     - `open_item_conversation` in the exact order of spec requirement 12: 404 → own 409 → existing 200 → deleted 404 → `check_new_conversation` → insert in `begin_nested()` → `record_new_conversation` → 201. On `IntegrityError` the race loser re-selects and returns 200 without recording.
     - `open_group_conversation` / `open_term_conversation` in the order of spec requirement 13. They are not rate-limited.
     - `get_conversation` builds the server `title` (ITEM: product name; GROUP: group name; TERM: `"Termin: " + clock.format_term_day(occurs_on) + " HH:MM"`).
     - `participant_count` counts distinct account-backed parties among the organizer plus the members or non-withdrawn attendees.
     - Each function returns a `(response, created)` flag so the router can choose 201 or 200.
-  - [ ] 4.5 Create `app/messaging/router.py` with prefix `/api/conversations` and `ReadPrincipal`/`EditPrincipal` aliases, as in `app/groups/router/join_code.py:21-22`.
+  - [x] 4.5 Create `app/messaging/router.py` with prefix `/api/conversations` and `ReadPrincipal`/`EditPrincipal` aliases, as in `app/groups/router/join_code.py:21-22`.
     - Declare the literal `POST /item`, `POST /group` and `POST /term` **before** `GET /{id}`, with the ordering comment as in `join_code.py:24`.
     - Each route uses `Depends(require_any(...))`.
-  - [ ] 4.6 Create `app/messaging/service.py` (flat `__all__` facade). Register the router in `app/main.py` after `notifications_router` and before `system_router`, which stays last.
-  - [ ] 4.7 Add the matrix rows to `app/core/authorization_matrix.py` next to the notifications rows (:206-207), before the catch-all "# 25":
+  - [x] 4.6 Create `app/messaging/service.py` (flat `__all__` facade). Register the router in `app/main.py` after `notifications_router` and before `system_router`, which stays last.
+  - [x] 4.7 Add the matrix rows to `app/core/authorization_matrix.py` next to the notifications rows (:206-207), before the catch-all "# 25":
     - `GET ^/api/conversations(/.*)?$ → ("READ","mcp:read")`;
     - `POST ^/api/conversations(/.*)?$ → ("EDIT","mcp:edit")`.
-  - [ ] 4.8 Ensure the conversation API tests pass.
+  - [x] 4.8 Ensure the conversation API tests pass.
     - Run only `tests/test_item_conversations.py tests/test_group_term_conversations.py tests/test_authorization_matrix.py`.
     - Then run mypy on `app/messaging app/core/authorization_matrix.py`.
 
@@ -233,8 +233,8 @@ All backend paths are relative to `src/backend/` and all frontend paths to `src/
 **Files to Modify:** `app/messaging/schemas.py`, `app/messaging/service.py`, `app/messaging/application/messages.py`, `app/messaging/application/read_markers.py`, `app/messaging/application/inbox.py`, `app/messaging/router.py`, `tests/test_conversation_messages.py` (new), `tests/test_conversation_inbox.py` (new), `tests/test_group_term_conversations.py`
 **Estimated Steps:** 8
 
-- [ ] 5.0 Complete the messaging, read-marker and inbox endpoints
-  - [ ] 5.1 Write 8 focused integration tests.
+- [x] 5.0 Complete the messaging, read-marker and inbox endpoints
+  - [x] 5.1 Write 8 focused integration tests.
     - `test_conversation_messages.py`:
       - (a) whitespace-only and 1001-character bodies return 400 "Wiadomość musi mieć od 1 do 1000 znaków" with no `fieldErrors`;
       - (b) with 60 messages, the default page is the newest 50 with `has_more: true`, `before=<first>` returns 10 with `has_more: false`, `after=<last>` returns only newer messages, both cursors at once return 400, and a foreign cursor returns 400;
@@ -248,14 +248,14 @@ All backend paths are relative to `src/backend/` and all frontend paths to `src/
       - (h) for a soft-deleted group, the member **and** the organizer get GET 200, messages 200 and read 204, send returns 409 "Grupa usunięta — czat jest tylko do odczytu", and the row stays in both inboxes;
       - after a PRIVATE→PUBLIC toggle, `read_only_reason` is `GROUP_PUBLIC`, send returns 409, and get-or-create returns 200; after toggling back, send returns 201;
       - a soft-deleted item's thread still accepts sends (201), and after an ownership change the old ITEM thread accepts sends from both original parties.
-  - [ ] 5.2 Extend `app/messaging/schemas.py`:
+  - [x] 5.2 Extend `app/messaging/schemas.py`:
     - `MessageResponse` (`id`, `body`, `created_at`, `is_mine`, `sender_name`, `sender_is_organizer`);
     - `MessagePage {items, has_more}`;
     - `InboxRowResponse` (the `ConversationResponse` fields without `participant_count`, plus `last_message`);
     - `UnreadCountResponse {count}`;
     - `SendMessageRequest {body: str}` with no Pydantic length constraints;
     - `MarkReadRequest {message_id}`.
-  - [ ] 5.3 Create `app/messaging/application/messages.py`:
+  - [x] 5.3 Create `app/messaging/application/messages.py`:
     - `list_messages`: access, then the cursor validation (400), then the repository page plus batched sender names and the organizer map.
     - `send_message` in the order of spec requirement 18:
       1. access;
@@ -270,22 +270,22 @@ All backend paths are relative to `src/backend/` and all frontend paths to `src/
       10. upsert the sender's read marker (5b);
       11. `record_message`, then commit.
     - No notification and no outbox event.
-  - [ ] 5.4 Create `app/messaging/application/read_markers.py` `mark_read`:
+  - [x] 5.4 Create `app/messaging/application/read_markers.py` `mark_read`:
     - it checks access, which is allowed when read-only;
     - a `message_id` from another conversation returns 400;
     - it upserts GREATEST to `message.created_at` and commits.
-  - [ ] 5.5 Create `app/messaging/application/inbox.py` with `list_inbox` and `count_unread` in fixed queries:
+  - [x] 5.5 Create `app/messaging/application/inbox.py` with `list_inbox` and `count_unread` in fixed queries:
     1. profile;
     2. audience (3 statements);
     3. one conversations/unread statement (LIMIT 100 for the inbox; SUM with no LIMIT for unread);
     4. `DISTINCT ON` last messages;
     5. batched labels: item refs, group refs, term refs, organizers, profiles.
     - Read-only rows are listed and counted. Titles follow spec requirement 14.
-  - [ ] 5.6 Add the routes to `app/messaging/router.py`:
+  - [x] 5.6 Add the routes to `app/messaging/router.py`:
     - put `GET /` and `GET /unread-count` **above** `GET /{id}`, next to the literal POSTs from group 4;
     - add `GET /{id}/messages` (`before`/`after` query params), `POST /{id}/messages` (201) and `POST /{id}/read` (204), each with `Depends(require_any(...))`.
-  - [ ] 5.7 Export the new use cases from `app/messaging/service.py`. Check that `ValueError` maps to 400 through the existing handler at `app/core/errors.py:153`, with no `fieldErrors`.
-  - [ ] 5.8 Ensure the message, read and inbox tests pass.
+  - [x] 5.7 Export the new use cases from `app/messaging/service.py`. Check that `ValueError` maps to 400 through the existing handler at `app/core/errors.py:153`, with no `fieldErrors`.
+  - [x] 5.8 Ensure the message, read and inbox tests pass.
     - Run only `tests/test_conversation_messages.py tests/test_conversation_inbox.py tests/test_group_term_conversations.py tests/test_item_conversations.py`.
     - Then run `uv run python -m mypy app/messaging` and `uv run python -m ruff check app/messaging tests/test_conversation_*.py`.
 
@@ -300,8 +300,8 @@ All backend paths are relative to `src/backend/` and all frontend paths to `src/
 **Files to Modify:** `api/conversations.ts` (new), `hooks/useUnreadMessages.ts` (new), `hooks/useConversations.ts` (new), `hooks/useConversation.ts` (new), `hooks/useThread.ts` (new), `hooks/useOpenConversation.ts` (new), `pages/messages/messageTime.ts` (new), `test/messageTime.test.ts` (new), `test/chatErrorMessage.test.ts` (new), `test/useUnreadMessages.test.tsx` (new), `test/useThread.test.tsx` (new)
 **Estimated Steps:** 7
 
-- [ ] 6.0 Complete the frontend messaging data layer
-  - [ ] 6.1 Write 6-8 focused tests. Use explicit `import { describe, expect, it, vi } from "vitest"`, `createQueryWrapper()` and `vi.mock("../api/conversations", …)`.
+- [x] 6.0 Complete the frontend messaging data layer
+  - [x] 6.1 Write 6-8 focused tests. Use explicit `import { describe, expect, it, vi } from "vitest"`, `createQueryWrapper()` and `vi.mock("../api/conversations", …)`.
     - `messageTime.test.ts`, with `vi.useFakeTimers({ toFake: ["Date"] })` and `vi.setSystemTime`:
       - `"2026-10-22T10:00:00"` renders "12:00" (Europe/Warsaw, CEST);
       - `formatInboxTime`: today `HH:mm`, "wczoraj", `ddd` for 2–6 days, `DD.MM` earlier in the same year, `DD.MM.YYYY` in an earlier year;
@@ -314,29 +314,29 @@ All backend paths are relative to `src/backend/` and all frontend paths to `src/
       - a poll calls `after=<last id>` and appends, and a duplicate id is dropped;
       - `loadOlder` prepends and updates `hasOlder`;
       - `send` appends the returned message.
-  - [ ] 6.2 Create `api/conversations.ts` with:
+  - [x] 6.2 Create `api/conversations.ts` with:
     - the snake_case types: `ConversationKind`, `ConversationResponse`, `InboxRow`, `MessageResponse`, `MessagePage`, and `read_only_reason: "GROUP_DELETED" | "GROUP_PUBLIC" | null`;
     - functions for all 9 endpoints;
     - `chatErrorMessage(err, fallback)`: 403/404 Polish copy via `hasStatus`, otherwise `serverMessageOr(err, fallback)`. Do not use `extractProblemMessage` (spec requirement 41).
-  - [ ] 6.3 Create `pages/messages/messageTime.ts`. It imports `dayjs` only from `utils/dayjs.ts` and exports `parseAuditTime` (`dayjs.utc(x).local()`), `formatBubbleTime`, `formatInboxTime`, `formatDaySeparator` and a local-day key helper for grouping (spec requirement 40).
-  - [ ] 6.4 Create `hooks/useUnreadMessages.ts`:
+  - [x] 6.3 Create `pages/messages/messageTime.ts`. It imports `dayjs` only from `utils/dayjs.ts` and exports `parseAuditTime` (`dayjs.utc(x).local()`), `formatBubbleTime`, `formatInboxTime`, `formatDaySeparator` and a local-day key helper for grouping (spec requirement 40).
+  - [x] 6.4 Create `hooks/useUnreadMessages.ts`:
     - key `["unreadMessages", username]`;
     - `enabled: token !== null`;
     - `refetchInterval: 20_000`, `refetchIntervalInBackground: false`.
     - Also create `hooks/useConversations.ts` (key `["conversations", username]`) and `hooks/useConversation.ts`, which returns the app shape plus `notFound` (404/400) and `denied` (403).
     - Use stable module-level empty fallbacks, following `standards/frontend/data-fetching.md`.
-  - [ ] 6.5 Create `hooks/useThread.ts` (M7):
+  - [x] 6.5 Create `hooks/useThread.ts` (M7):
     - exactly one `useQuery` with key `["thread", username, id]`, `refetchInterval: 5_000` and `refetchIntervalInBackground: false`;
     - a `queryFn` that does the first load (or empty cache) with no cursor, and otherwise fetches `after=<last id>`, then reads the cache again after the await and merges (dedupe by id, sort by `(created_at, id)`, keep `hasOlder`);
     - a `loadOlder` `useCallback` with a `loadingOlder` state;
     - `send`, which appends and awaits `invalidateQueries(["conversations"])`;
     - `markRead`, which awaits invalidation of `["unreadMessages"]` and `["conversations"]`;
     - no `useInfiniteQuery` and no effect-based fetching.
-  - [ ] 6.6 Create `hooks/useOpenConversation.ts`. It exports the `openItemConversation`, `openGroupConversation` and `openTermConversation` `useCallback`s:
+  - [x] 6.6 Create `hooks/useOpenConversation.ts`. It exports the `openItemConversation`, `openGroupConversation` and `openTermConversation` `useCallback`s:
     - each awaits `invalidateQueries(["conversations"])` and returns the conversation id;
     - errors are mapped with `chatErrorMessage(err, "Nie udało się otworzyć rozmowy — spróbuj ponownie")`;
     - they do not use `useMutation`.
-  - [ ] 6.7 Ensure the data layer tests pass.
+  - [x] 6.7 Ensure the data layer tests pass.
     - Run only `npm test -- src/test/messageTime.test.ts src/test/chatErrorMessage.test.ts src/test/useUnreadMessages.test.tsx src/test/useThread.test.tsx`.
     - Then run `npx tsc -b` and `npx eslint` on the new files.
 
@@ -368,8 +368,8 @@ All backend paths are relative to `src/backend/` and all frontend paths to `src/
   acceptance: "GROUP/TERM header: initials Avatar, then '{group_name} · czat grupy' or '{group_name} · czat terminu'. Second line: 'Grupa usunięta' (GROUP_DELETED), 'Grupa publiczna' (GROUP_PUBLIC) or `plural(participant_count)` 'N uczestników'. Others' messages show the sender name above the bubble, a small initials Avatar, and an 'Organizator' mint-soft chip with `text-primary-fg` when `sender_is_organizer`. Read-only replaces the composer with a `role=\"status\"` stage-colored banner: 'Grupa usunięta — czat jest tylko do odczytu' or 'Grupa jest publiczna — czat jest tylko do odczytu'."
 **Estimated Steps:** 7
 
-- [ ] 7.0 Complete the thread page
-  - [ ] 7.1 Write 5-7 focused tests.
+- [x] 7.0 Complete the thread page
+  - [x] 7.1 Write 5-7 focused tests.
     - `threadViewState.test.ts`: an `it.each` table covering loading, notFound (404 and 400), denied (403), error, readOnly `GROUP_DELETED`, readOnly `GROUP_PUBLIC`, and ready.
     - `MessageComposer.test.tsx`:
       - the "n / 1000" counter;
@@ -382,16 +382,16 @@ All backend paths are relative to `src/backend/` and all frontend paths to `src/
       - readOnly shows the banner and no textarea;
       - notFound shows "Nie znaleziono rozmowy." and denied shows "Nie masz dostępu do tej rozmowy.", each with a link to `/panel/wiadomosci`;
       - the read marker is called with the newest held id.
-  - [ ] 7.2 Create `pages/messages/threadViewState.ts`.
+  - [x] 7.2 Create `pages/messages/threadViewState.ts`.
     - `resolveThreadView({ conversation, thread })` returns `loading | notFound | denied | error | readOnly{reason} | ready`.
     - `ThreadPage` only `switch`es over `view.kind` (spec requirement 33, `standards/frontend/components.md`).
     - Model it on `pages/term/termViewState.ts`.
-  - [ ] 7.3 Create `pages/messages/MessageBubble.tsx` per `component:message-bubble`.
+  - [x] 7.3 Create `pages/messages/MessageBubble.tsx` per `component:message-bubble`.
     - It takes props for mine/theirs, body, time, and optionally sender name, initials and organizer flag. Use theme tokens only (no hex).
-  - [ ] 7.4 Create `pages/messages/MessageComposer.tsx` per `component:message-composer`.
+  - [x] 7.4 Create `pages/messages/MessageComposer.tsx` per `component:message-composer`.
     - It receives `send` as a prop (the page owns the hooks), keeps the text on error, and clears it only on success.
     - Model the textarea, counter and `role=alert` on `pages/product/ItemFieldEditors.tsx:171-211`, with `aria-describedby` on the error.
-  - [ ] 7.5 Create `pages/messages/ThreadPage.tsx`:
+  - [x] 7.5 Create `pages/messages/ThreadPage.tsx`:
     - `useParams` conversation id, `useConversation` and `useThread`;
     - the header per kind; the message list with day separators (`formatDaySeparator`, grouped by the local day key);
     - stick to the bottom when new messages arrive;
@@ -399,8 +399,8 @@ All backend paths are relative to `src/backend/` and all frontend paths to `src/
     - the composer, or the read-only banner;
     - notFound and denied states;
     - `plural` from `utils/plural.ts` for "uczestników".
-  - [ ] 7.6 Create `pages/messages/useThreadReadMarker.ts`. In the `ready` and `readOnly` views it calls `markRead(lastId)` whenever the newest held message id changes. It is the only side-effect hook.
-  - [ ] 7.7 Ensure the thread tests pass.
+  - [x] 7.6 Create `pages/messages/useThreadReadMarker.ts`. In the `ready` and `readOnly` views it calls `markRead(lastId)` whenever the newest held message id changes. It is the only side-effect hook.
+  - [x] 7.7 Ensure the thread tests pass.
     - Run only `npm test -- src/test/threadViewState.test.ts src/test/MessageComposer.test.tsx src/test/ThreadPage.test.tsx`.
     - Then run `npx tsc -b` and `npx eslint src/pages/messages`.
 
@@ -428,8 +428,8 @@ All backend paths are relative to `src/backend/` and all frontend paths to `src/
   acceptance: "PhoneFrame with PanelNavBar and no active tab, and the heading 'Wiadomości'. Each row, newest first: the leading visual (ITEM 📦 placeholder on accent-soft, GROUP initials Avatar on mint-soft, TERM 📅); the kind chip 'Rzecz' (accent-soft), 'Grupa' (mint-soft with `text-primary-fg`) or 'Termin' (teal-soft) before the server `title`; the time from `formatInboxTime` on the right; a one-line ellipsized preview prefixed 'Ty:', 'Organizator:' or '{sender_name}:'. Unread rows are bold with a mint count pill. Read-only chats stay listed. Empty state: a dashed card reading 'Nie masz jeszcze rozmów. Zapytaj o rzecz na jej stronie albo napisz na czacie swojej grupy lub terminu.' Loading: a skeleton row. Error: an inline error with a retry. Rows link to `/panel/wiadomosci/:id`."
 **Estimated Steps:** 7
 
-- [ ] 8.0 Complete the inbox, the top-bar button and the routes
-  - [ ] 8.1 Write 5-7 focused tests.
+- [x] 8.0 Complete the inbox, the top-bar button and the routes
+  - [x] 8.1 Write 5-7 focused tests.
     - `MessagesButton.test.tsx`: it shows a badge for 3, "9+" for 12, and no badge at 0; the `aria-label` text in each case; it links to `/panel/wiadomosci`.
     - `InboxPage.test.tsx`:
       - rows render the chip, the title, the "Ty:" / "Organizator:" / name preview prefixes and bold unread with a count;
@@ -438,17 +438,17 @@ All backend paths are relative to `src/backend/` and all frontend paths to `src/
       - the error with a retry.
     - A routing test: `/panel/wiadomosci` renders InboxPage, not PanelPage, and `/panel/wiadomosci/:id` renders ThreadPage.
     - `test/PublicLayout.test.tsx`: add `vi.mock("../api/conversations", …)` (L9) and assert the 💬 link renders before the bell.
-  - [ ] 8.2 Create `components/shared/MessagesButton.tsx`.
+  - [x] 8.2 Create `components/shared/MessagesButton.tsx`.
     - It uses `useUnreadMessages` and copies the badge classes from `NotificationBell.tsx`.
     - It renders a router `Link` with the `aria-label` rules, and only when logged in, matching NotificationBell's gating.
-  - [ ] 8.3 Insert `<MessagesButton />` before `NotificationBell` in `components/layout/PublicLayout.tsx` (:35,42).
-  - [ ] 8.4 Create `pages/messages/InboxPage.tsx`:
+  - [x] 8.3 Insert `<MessagesButton />` before `NotificationBell` in `components/layout/PublicLayout.tsx` (:35,42).
+  - [x] 8.4 Create `pages/messages/InboxPage.tsx`:
     - `PhoneFrame` + `PanelNavBar` (no active tab), a back link and the "Wiadomości" heading;
     - rows from `useConversations` per `screen:inbox`, with `formatInboxTime` and `Avatar` initials for GROUP;
     - the skeleton, empty and error states. Errors use `chatErrorMessage(err, "Nie udało się wczytać wiadomości")`.
-  - [ ] 8.5 Register `/panel/wiadomosci` (InboxPage) and `/panel/wiadomosci/:conversationId` (ThreadPage) in `router.tsx`, under `PublicLayout` inside `AuthGuard` next to `/panel/terminy/:termId`. They must sit before any `/panel/*` catch-all.
-  - [ ] 8.6 Add `components/shared/MessagesButton.tsx`, `pages/messages/InboxPage.tsx`, `ThreadPage.tsx`, `MessageBubble.tsx` and `MessageComposer.tsx` to `NO_HEX_FILES` in `test/themeTokenUsage.test.tsx` (:57). Do not extend `themeDefects.test.tsx` `IN_SCOPE_FILES` (spec requirement 42).
-  - [ ] 8.7 Ensure the inbox and top-bar tests pass.
+  - [x] 8.5 Register `/panel/wiadomosci` (InboxPage) and `/panel/wiadomosci/:conversationId` (ThreadPage) in `router.tsx`, under `PublicLayout` inside `AuthGuard` next to `/panel/terminy/:termId`. They must sit before any `/panel/*` catch-all.
+  - [x] 8.6 Add `components/shared/MessagesButton.tsx`, `pages/messages/InboxPage.tsx`, `ThreadPage.tsx`, `MessageBubble.tsx` and `MessageComposer.tsx` to `NO_HEX_FILES` in `test/themeTokenUsage.test.tsx` (:57). Do not extend `themeDefects.test.tsx` `IN_SCOPE_FILES` (spec requirement 42).
+  - [x] 8.7 Ensure the inbox and top-bar tests pass.
     - Run only `npm test -- src/test/MessagesButton.test.tsx src/test/InboxPage.test.tsx src/test/PublicLayout.test.tsx src/test/themeTokenUsage.test.tsx`.
     - Then run `npx tsc -b` and `npx eslint` on the touched files.
 
@@ -476,8 +476,8 @@ All backend paths are relative to `src/backend/` and all frontend paths to `src/
   acceptance: "GroupDetailsPage: a JoinCodeCard-style card with the serif heading 'Czat grupy', the lead 'Napisz do wszystkich członków grupy.' and a full-width primary button '💬 Otwórz czat grupy', placed above the join-code card. It shows when `isPrivate && joinCode.status === 'ready'`. TermAttendeesPage: inside TermHeadCard, under the date line, a full-width primary button '💬 Napisz do uczestników' that opens the term chat. Errors appear inline."
 **Estimated Steps:** 8
 
-- [ ] 9.0 Complete the chat entry points
-  - [ ] 9.1 Write 6-8 focused tests.
+- [x] 9.0 Complete the chat entry points
+  - [x] 9.1 Write 6-8 focused tests.
     - `ItemDetailPage.test.tsx`: "Zapytaj o rzecz" is shown for a non-owner and hidden for the owner and for a deleted item; clicking it calls `openItemConversation` and navigates.
     - `termViewState.test.ts`: `content` carries `isOrganizer`, `isMember` and `isActiveAttendee` from `access`, never from `guest.isAttending`.
     - `TermPage.test.tsx`, as a matrix:
@@ -489,18 +489,18 @@ All backend paths are relative to `src/backend/` and all frontend paths to `src/
     - `GroupDetailsPage.test.tsx`: the "Czat grupy" card is shown for the organizer of a PRIVATE group with `joinCode.status === "ready"` and absent otherwise.
     - `TermAttendeesPage.test.tsx`: "💬 Napisz do uczestników" calls `openTermConversation` with the term id.
     - Update the `access` fixtures in `useTermAccess.test.ts`, `TermPage.test.tsx` and `termViewState.test.ts` to include `is_active_attendee`.
-  - [ ] 9.2 Add `is_active_attendee: boolean` to `GroupAccessDetails` in `api/groups.ts` (:263-267). It mirrors the backend field from group 2.
-  - [ ] 9.3 Extend `pages/term/termViewState.ts`: `content` gains `isOrganizer`, `isMember` and `isActiveAttendee`, read from `access.is_organizer`, `access.is_member` and `access.is_active_attendee`. Keep `isAttending` unchanged for `TermFooter`.
-  - [ ] 9.4 Render the chat row in `pages/term/views/PublicTermView.tsx`, gated as in spec requirement 35.
+  - [x] 9.2 Add `is_active_attendee: boolean` to `GroupAccessDetails` in `api/groups.ts` (:263-267). It mirrors the backend field from group 2.
+  - [x] 9.3 Extend `pages/term/termViewState.ts`: `content` gains `isOrganizer`, `isMember` and `isActiveAttendee`, read from `access.is_organizer`, `access.is_member` and `access.is_active_attendee`. Keep `isAttending` unchanged for `TermFooter`.
+  - [x] 9.4 Render the chat row in `pages/term/views/PublicTermView.tsx`, gated as in spec requirement 35.
     - The buttons call `openTermConversation` / `openGroupConversation` and navigate.
     - Thread `isLoggedIn` and the callbacks from `pages/term/TermPage.tsx` as props (the page owns the hooks).
     - Use only `paper`/`line` tokens; no `mint`/`lime`.
-  - [ ] 9.5 Add the "💬 Zapytaj o rzecz" pill under `ItemStatusCard` (:153) in `ItemViewContent` (`pages/product/ItemDetailPage.tsx`) with an inline error. Use no `mint`/`lime` utilities.
-  - [ ] 9.6 Add a `messageGroupCard` slot to `pages/panel/GroupDetailsPage.tsx`.
+  - [x] 9.5 Add the "💬 Zapytaj o rzecz" pill under `ItemStatusCard` (:153) in `ItemViewContent` (`pages/product/ItemDetailPage.tsx`) with an inline error. Use no `mint`/`lime` utilities.
+  - [x] 9.6 Add a `messageGroupCard` slot to `pages/panel/GroupDetailsPage.tsx`.
     - It is a JoinCodeCard-style card that reads "Czat grupy / Napisz do wszystkich członków grupy. / 💬 Otwórz czat grupy".
     - It sits above the join-code card and shows when `isPrivate && joinCode.status === "ready"`.
-  - [ ] 9.7 Add a "💬 Napisz do uczestników" button to `TermHeadCard` (`pages/panel/TermAttendeesPage.tsx:127`). It calls `openTermConversation` and navigates, with an inline error.
-  - [ ] 9.8 Ensure the entry-point tests pass.
+  - [x] 9.7 Add a "💬 Napisz do uczestników" button to `TermHeadCard` (`pages/panel/TermAttendeesPage.tsx:127`). It calls `openTermConversation` and navigates, with an inline error.
+  - [x] 9.8 Ensure the entry-point tests pass.
     - Run only `npm test -- src/test/ItemDetailPage.test.tsx src/test/termViewState.test.ts src/test/TermPage.test.tsx src/test/GroupDetailsPage.test.tsx src/test/TermAttendeesPage.test.tsx src/test/useTermAccess.test.ts src/test/themeTokenUsage.test.tsx`.
     - The known TermPage sign-up-footer failure is pre-existing; ignore it.
     - Then run `npx tsc -b` and `npx eslint` on the touched files.
@@ -516,20 +516,20 @@ All backend paths are relative to `src/backend/` and all frontend paths to `src/
 **Files to Modify:** `tests/test_conversation_messages.py`, `tests/test_conversation_inbox.py`, `tests/test_group_term_conversations.py`, `tests/test_item_conversations.py`, `test/useThread.test.tsx`, `test/ThreadPage.test.tsx`, `test/InboxPage.test.tsx` (append-only; add a new file only if a gap has no natural home)
 **Estimated Steps:** 6
 
-- [ ] 10.0 Review the tests and fill critical gaps
-  - [ ] 10.1 Review the tests from groups 1–9 (about 50–64) against Success Criteria 1–17 and the Testing Approach in spec.md. List any criterion that has no test.
-  - [ ] 10.2 Check the contract: compare the `api/conversations.ts` types and field names with `app/messaging/schemas.py` (inbox row, conversation, message, page, unread count, `read_only_reason` values). Fix any mismatch at its source.
-  - [ ] 10.3 Analyze the gaps for this feature only. Likely candidates:
+- [x] 10.0 Review the tests and fill critical gaps
+  - [x] 10.1 Review the tests from groups 1–9 (about 50–64) against Success Criteria 1–17 and the Testing Approach in spec.md. List any criterion that has no test.
+  - [x] 10.2 Check the contract: compare the `api/conversations.ts` types and field names with `app/messaging/schemas.py` (inbox row, conversation, message, page, unread count, `read_only_reason` values). Fix any mismatch at its source.
+  - [x] 10.3 Analyze the gaps for this feature only. Likely candidates:
     - the get-or-create race loser (a forced `IntegrityError` path);
     - a TERM title format ("Termin: śr 29.10 17:00");
     - a `useThread` poll running concurrently with `loadOlder`;
     - an InboxPage read-only row still listed;
     - a ThreadPage "Grupa publiczna" header line.
-  - [ ] 10.4 Write up to 10 additional strategic tests for the gaps found.
-  - [ ] 10.5 Run all the feature tests:
+  - [x] 10.4 Write up to 10 additional strategic tests for the gaps found.
+  - [x] 10.5 Run all the feature tests:
     - backend, from `src/backend`: `uv run python -m pytest tests/test_messaging_migration.py tests/test_messaging_cross_context.py tests/test_group_access.py tests/test_message_send_limiter.py tests/test_messaging_repository.py tests/test_item_conversations.py tests/test_group_term_conversations.py tests/test_conversation_messages.py tests/test_conversation_inbox.py tests/test_authorization_matrix.py`;
     - frontend: every new or touched test file from groups 6–9.
-  - [ ] 10.6 Run the static checks on the touched code:
+  - [x] 10.6 Run the static checks on the touched code:
     - `uv run python -m mypy app` (must stay at or below the 23-error baseline);
     - `uv run python -m ruff check` on the new and changed backend files;
     - `npx tsc -b`;

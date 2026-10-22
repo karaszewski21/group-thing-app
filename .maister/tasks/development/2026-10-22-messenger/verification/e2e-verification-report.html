@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>E2E Verification — 2026-10-22-messenger</title>
+<style>
+:root {
+  --bg:#f6f7f9; --surface:#fff; --border:#e2e5ea; --text:#1a1d23; --dim:#6b7280;
+  --accent:#4f46e5; --accent-soft:#eef2ff; --ok:#16a34a; --ok-soft:#ecfdf3;
+  --warn:#d97706; --warn-soft:#fffbeb; --crit:#dc2626; --crit-soft:#fef2f2;
+  --info:#2563eb; --info-soft:#eff6ff; --radius:10px;
+}
+@media (prefers-color-scheme: dark) {
+  :root { --bg:#111418; --surface:#1a1f26; --border:#2e3640; --text:#e6e9ee; --dim:#9aa4b2;
+    --accent:#818cf8; --accent-soft:#26294a; --ok:#4ade80; --ok-soft:#11291a;
+    --warn:#fbbf24; --warn-soft:#2e2410; --crit:#f87171; --crit-soft:#321616;
+    --info:#60a5fa; --info-soft:#15233a; }
+}
+* { box-sizing:border-box; }
+body { margin:0 auto; max-width:1100px; padding:24px 20px 64px; background:var(--bg);
+  color:var(--text); font:14px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif; }
+a { color:var(--accent); text-decoration:none; } a:hover { text-decoration:underline; }
+h1 { font-size:22px; letter-spacing:-.01em; } h2 { font-size:16px; margin-top:28px; }
+.card { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius);
+  padding:16px 18px; margin:14px 0; }
+.badge { display:inline-block; font-size:11px; font-weight:600; text-transform:uppercase;
+  letter-spacing:.04em; padding:2px 8px; border-radius:99px; background:var(--accent-soft); color:var(--accent); }
+.sev { display:inline-block; font-size:10.5px; font-weight:700; text-transform:uppercase;
+  padding:1.5px 7px; border-radius:99px; margin-right:6px; }
+.sev.critical { background:var(--crit-soft); color:var(--crit); }
+.sev.warning  { background:var(--warn-soft); color:var(--warn); }
+.sev.info     { background:var(--info-soft); color:var(--info); }
+.pass { color:var(--ok); font-weight:600; } .fail { color:var(--crit); font-weight:600; }
+table { width:100%; border-collapse:collapse; }
+th, td { text-align:left; padding:7px 10px; border-bottom:1px solid var(--border); vertical-align:top; }
+th { font-size:11.5px; text-transform:uppercase; letter-spacing:.04em; color:var(--dim); }
+code { font-family:ui-monospace,SFMono-Regular,Menlo,monospace; font-size:12.5px;
+  background:var(--accent-soft); padding:1px 5px; border-radius:4px; }
+img.shot { max-width:100%; border:1px solid var(--border); border-radius:var(--radius); }
+details > summary { cursor:pointer; font-weight:600; }
+.crumbs { display:flex; gap:14px; font-size:13px; margin-bottom:18px; flex-wrap:wrap; }
+.crumbs a.md { margin-left:auto; color:var(--dim); }
+.crumbs .here { font-weight:650; color:var(--text); }
+.tiles { display:flex; gap:10px; flex-wrap:wrap; margin:14px 0; }
+.tile { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius);
+  padding:10px 16px; text-align:center; min-width:90px; }
+.tile b { display:block; font-size:20px; letter-spacing:-.01em; }
+.tile span { font-size:10.5px; text-transform:uppercase; letter-spacing:.05em; color:var(--dim); }
+.verdict { border-left:5px solid var(--warn); background:var(--warn-soft); }
+.shots { display:grid; grid-template-columns:repeat(auto-fill,minmax(180px,1fr)); gap:10px; margin-top:10px; }
+.shots figure { margin:0; } .shots figcaption { font-size:11px; color:var(--dim); }
+.scen h3 { margin:0 0 6px; font-size:15px; }
+</style>
+</head>
+<body>
+<nav class="crumbs">
+  <a href="../dashboard.html">← Dashboard</a>
+  <a href="../implementation/spec.html">Spec</a> <a href="../implementation/implementation-plan.html">Plan</a>
+  <a href="implementation-verification.html">Verification</a>
+  <span class="here">E2E</span>
+  <a href="visual-fidelity.html">Visual fidelity</a>
+  <a href="e2e-verification-report.md" target="_blank" rel="noopener" class="md">md twin ↗</a>
+</nav>
+<header>
+  <span class="badge">e2e verification</span>
+  <h1>E2E Verification: Messenger</h1>
+  <div style="color:var(--dim)">2026-10-22 · 94b90b5 on feat/private-group-join-by-code · Chromium 155 via Playwright MCP · Europe/Warsaw</div>
+</header>
+<div class="tiles">
+  <div class="tile"><b>✅ GO</b><span>verdict after re-check (first pass: GO WITH CAVEATS)</span></div>
+  <div class="tile"><b class="pass">11</b><span>passed</span></div>
+  <div class="tile"><b class="fail">2</b><span>failed</span></div>
+  <div class="tile"><b>0 / 2 / 2 / 0</b><span>crit / major / minor / cosm.</span></div>
+  <div class="tile"><b>5 ✓ 2 ⚠ 0 ✗</b><span>visual fidelity</span></div>
+</div>
+
+<section class="tldr card verdict">
+  <h2 style="margin-top:0">TL;DR</h2>
+  <ul>
+    <li><b>Verdict: ⚠️ GO WITH CAVEATS.</b> 11 of 13 scenarios passed, 2 failed. No Critical issues, 2 Major, 2 Minor.</li>
+    <li>Messaging works end to end: item questions, badge, inbox, ITEM/GROUP/TERM threads, the H1 crossing-messages regression, read-only states, deep links, composer errors, local times and entry-point gating.</li>
+    <li><b>Major 1:</b> the thread page leaks a document-level scroll in long threads. The <code>sr-only</code> spans are absolutely positioned inside a non-positioned scroller, so the page grows to about 3,100 px.</li>
+    <li><b>Major 2:</b> clicking "Wcześniejsze wiadomości" when not at <code>scrollTop 0</code> jumps the view by one loaded page (double scroll compensation).</li>
+  </ul>
+  <h2>Open Questions / Risks</h2>
+  <ul>
+    <li><span class="sev warning">major</span>Document scroll leak on ThreadPage (M1)</li>
+    <li><span class="sev warning">major</span>"Wcześniejsze wiadomości" button jump (M2)</li>
+    <li><span class="sev info">info</span>Not verified live: multi-day separators, the 20/h ITEM limit, moderation rejection</li>
+  </ul>
+</section>
+<p>Contents: <a href="#scenarios">Scenarios</a> · <a href="#discrepancies">Discrepancies</a> · <a href="#console">Console</a> · <a href="#exit">Exit criteria</a> · <a href="#recs">Recommendations</a></p>
+
+<main>
+<h2 id="scenarios">Scenarios</h2>
+<table class="card">
+<tr><th>#</th><th>Scenario</th><th>Status</th><th>Headline</th></tr>
+<tr><td>4.1</td><td>Item question</td><td class="pass">✅ Passed</td><td>Badge after 18–23 s (one 20 s tick), bold "Rzecz" row, badge clears on open, reply seen after 5.2 s</td></tr>
+<tr><td>4.2</td><td>Crossing messages (H1)</td><td class="pass">✅ Passed</td><td>A-1, B-1, A-2 converge to the server order in both browsers within 8 s, and again after re-entering</td></tr>
+<tr><td>4.3</td><td>Item button states</td><td class="pass">✅ Passed</td><td>Hidden for the owner and on deleted items; deleted thread shows "(usunięte)" and stays writable</td></tr>
+<tr><td>4.4</td><td>Term page buttons</td><td class="pass">✅ Passed</td><td>All 10 role/visibility combinations match the spec matrix</td></tr>
+<tr><td>4.5</td><td>Organizer entry points</td><td class="pass">✅ Passed</td><td>"Czat grupy" card (PRIVATE only) and "Napisz do uczestników"</td></tr>
+<tr><td>4.6</td><td>Group chat, 3 users</td><td class="pass">✅ Passed</td><td>Sender names, "Organizator" chip, "3 uczestników", "dzisiaj" separator</td></tr>
+<tr><td>4.7</td><td>Read-only states</td><td class="pass">✅ Passed</td><td>"Grupa publiczna" banner, send 409; deleted takes precedence with "Grupa usunięta"</td></tr>
+<tr><td>4.8</td><td>Deep links</td><td>⚠️ Passed with issues</td><td>Login redirect and return, not found, denied all correct; denied view keeps polling (m1)</td></tr>
+<tr><td>4.9</td><td>Composer</td><td class="pass">✅ Passed</td><td>Enter = newline, counter, disabled when empty, focus kept, 429 and fallback errors keep the text</td></tr>
+<tr><td>4.10</td><td>Scrolling</td><td class="fail">❌ Failed</td><td>Opens at the bottom and auto-load keeps position, but the button click jumps about 576 px (M2)</td></tr>
+<tr><td>4.11</td><td>Layout 320 / 360</td><td class="fail">❌ Failed</td><td>Document scroll leak (M1); brand wraps at 320, link truncated (m2)</td></tr>
+<tr><td>4.12</td><td>Local times</td><td class="pass">✅ Passed</td><td>14:38 UTC → "16:38"; TERM title "Termin: pt 30.10 18:00"</td></tr>
+<tr><td>4.13</td><td>SC16 mockups</td><td class="pass">✅ Passed</td><td>5 ✓ 2 ⚠ 0 ✗, see <a href="visual-fidelity.html">visual fidelity</a></td></tr>
+</table>
+
+<div class="card scen"><h3>4.1 Item question ✅</h3>
+<div class="shots">
+<figure><img class="shot" src="e2e-screenshots/01-item-page-visitor-ask-button.png" alt="Zapytaj o rzecz"><figcaption>B: "Zapytaj o rzecz"</figcaption></figure>
+<figure><img class="shot" src="e2e-screenshots/03-A-topbar-badge.png" alt="badge"><figcaption>A: badge "1"</figcaption></figure>
+<figure><img class="shot" src="e2e-screenshots/04-A-inbox-unread-row.png" alt="inbox"><figcaption>A: bold row with the "Rzecz" chip</figcaption></figure>
+<figure><img class="shot" src="e2e-screenshots/06-B-sees-reply.png" alt="reply"><figcaption>B sees the reply</figcaption></figure>
+</div></div>
+
+<div class="card scen"><h3>4.2 Crossing messages (H1) ✅</h3>
+<div class="shots">
+<figure><img class="shot" src="e2e-screenshots/07-H1-B-converged.png" alt="B converged"><figcaption>B converged</figcaption></figure>
+<figure><img class="shot" src="e2e-screenshots/08-H1-A-converged.png" alt="A converged"><figcaption>A converged</figcaption></figure>
+</div></div>
+
+<div class="card scen"><h3>4.3–4.7 Gating and read-only ✅</h3>
+<div class="shots">
+<figure><img class="shot" src="e2e-screenshots/10-deleted-item-thread.png" alt=""><figcaption>Deleted item "(usunięte)"</figcaption></figure>
+<figure><img class="shot" src="e2e-screenshots/13-term-private-member-attendee-A.png" alt=""><figcaption>PRIVATE: both buttons</figcaption></figure>
+<figure><img class="shot" src="e2e-screenshots/18-term-public-attendee-B.png" alt=""><figcaption>PUBLIC: only "Czat terminu"</figcaption></figure>
+<figure><img class="shot" src="e2e-screenshots/20-group-details-private-chat-card.png" alt=""><figcaption>"Czat grupy" card</figcaption></figure>
+<figure><img class="shot" src="e2e-screenshots/24-group-chat-B-view.png" alt=""><figcaption>Group chat, 3 users</figcaption></figure>
+<figure><img class="shot" src="e2e-screenshots/28-group-chat-deleted-readonly-B.png" alt=""><figcaption>"Grupa usunięta" banner</figcaption></figure>
+</div></div>
+
+<div class="card scen"><h3>4.8–4.9 Deep links and composer</h3>
+<div class="shots">
+<figure><img class="shot" src="e2e-screenshots/33-deeplink-unknown-id.png" alt=""><figcaption>Unknown id</figcaption></figure>
+<figure><img class="shot" src="e2e-screenshots/34-deeplink-other-users-thread-C.png" alt=""><figcaption>Denied</figcaption></figure>
+<figure><img class="shot" src="e2e-screenshots/36-composer-429-error.png" alt=""><figcaption>429 alert, text kept</figcaption></figure>
+</div></div>
+
+<div class="card scen"><h3>4.10–4.11 Scrolling and layout ❌</h3>
+<div class="shots">
+<figure><img class="shot" src="e2e-screenshots/40-older-button-before-click.png" alt=""><figcaption>Before the button click</figcaption></figure>
+<figure><img class="shot" src="e2e-screenshots/41-older-button-after-click-jumped.png" alt=""><figcaption>After: jumped about 576 px</figcaption></figure>
+<figure><img class="shot" src="e2e-screenshots/42-layout-320-thread-item.png" alt=""><figcaption>320 px: brand wraps, document scrollbar</figcaption></figure>
+<figure><img class="shot" src="e2e-screenshots/43-document-scroll-leak-360.png" alt=""><figcaption>Window scrolled to a blank page</figcaption></figure>
+</div></div>
+
+<h2 id="discrepancies">Discrepancies</h2>
+<div class="card">
+<p><span class="sev warning">major</span><b>M1: ThreadPage document scroll leak.</b> 50 <code>.sr-only</code> spans (<code>position:absolute</code>) in a static <code>role="log"</code> scroller extend the document to 3098 px; the window can scroll to a blank page with no top bar or composer. <b>Fix:</b> add <code>relative</code> to the log container (or the bubble).</p>
+<p><span class="sev warning">major</span><b>M2: "Wcześniejsze wiadomości" button jumps.</b> <code>scrollTop</code> 20 → 1171, anchor y 185 → −391. Chromium scroll anchoring and the manual <code>scrollHeight</code> delta both compensate. The auto-load at <code>scrollTop 0</code> is correct. <b>Fix:</b> <code>overflow-anchor: none</code> on the log.</p>
+<p><span class="sev info">minor</span><b>m1: Denied or not-found thread keeps polling.</b> <code>GET …/messages</code> returns 403 every 5 s; <code>useThread</code> has no error gating on <code>refetchInterval</code>.</p>
+<p><span class="sev info">minor</span><b>m2: 320 px top bar wraps / "zobacz rzecz" clipped.</b> Bar 68 px instead of 57 px; the link is truncated at 360 px and hidden at 320 px.</p>
+</div>
+
+<h2 id="console">Console &amp; Network</h2>
+<table class="card">
+<tr><th>Source</th><th>Message</th><th>Impact</th></tr>
+<tr><td><code>GET /api/organizations/mine</code></td><td>404</td><td>Pre-existing, unrelated</td></tr>
+<tr><td><code>GET …/messages</code> poll</td><td>403/404/400 every 5 s on denied/notFound</td><td>m1</td></tr>
+<tr><td><code>POST …/messages</code></td><td>409 / 429</td><td>Expected (provoked by the tests)</td></tr>
+</table>
+<p>No uncaught JS exceptions.</p>
+
+<h2 id="exit">Exit criteria</h2>
+<table class="card">
+<tr><th>Criterion</th><th>Status</th></tr>
+<tr><td>SC2 Item conversations</td><td class="pass">✅</td></tr>
+<tr><td>SC3 Access per kind</td><td class="pass">✅</td></tr>
+<tr><td>SC4 Read-only</td><td class="pass">✅</td></tr>
+<tr><td>SC6 Rate limit 429</td><td class="pass">✅</td></tr>
+<tr><td>SC7 Read markers / uncapped count</td><td class="pass">✅</td></tr>
+<tr><td>SC9 Paging and ordering</td><td>⚠️ (M2)</td></tr>
+<tr><td>SC10 unread-count routed</td><td class="pass">✅</td></tr>
+<tr><td>SC12 Polling 20 s / 5 s</td><td class="pass">✅</td></tr>
+<tr><td>SC13 Local time</td><td class="pass">✅</td></tr>
+<tr><td>SC14 View states</td><td class="pass">✅</td></tr>
+<tr><td>SC15 Entry points</td><td class="pass">✅</td></tr>
+<tr><td>SC16 Mockup fidelity</td><td class="pass">✅ (5 ✓ 2 ⚠)</td></tr>
+</table>
+
+<h2 id="recheck">Re-check after fixes</h2>
+<table class="card"><tr><th>Item</th><th>Result</th><th>Evidence</th></tr>
+<tr><td>M1 scroll leak</td><td class="pass">✅ PASS: docH 640 = viewport at 320/360; window scrollY stays 0</td><td><a href="e2e-screenshots/recheck-360-after-wheel-down.png">shot</a></td></tr>
+<tr><td>M2 button jump</td><td class="pass">✅ PASS: anchor y 185 → 185; auto-load at top y 205 → 205</td><td><a href="e2e-screenshots/recheck-older-button-after.png">shot</a></td></tr>
+<tr><td>m1 polling</td><td class="pass">✅ PASS: denied/notFound make one /messages call, then none for 13 s; healthy thread still polls (2.6 s)</td><td><a href="e2e-screenshots/recheck-denied-no-polling.png">shot</a></td></tr>
+<tr><td>m2 narrow header</td><td class="pass">✅ PASS: top bar 57 px at 320; "zobacz rzecz" fully visible at 320/360</td><td><a href="e2e-screenshots/recheck-320-thread-item-top.png">shot</a></td></tr>
+</table>
+<div class="shots"><figure><img class="shot" src="e2e-screenshots/recheck-320-thread-item-top.png" alt=""><figcaption>320 px after fixes</figcaption></figure><figure><img class="shot" src="e2e-screenshots/recheck-older-button-after.png" alt=""><figcaption>After the button click: no jump</figcaption></figure></div>
+<p><b>Updated verdict: ✅ GO</b>, with 13/13 scenarios passing.</p>
+<h2 id="recs">Recommendations</h2>
+<div class="card">
+<p><b>Must fix before merge:</b> M1, M2. <b>Should fix soon:</b> m1, m2. <b>Nice-to-have:</b> a regression check that the document height equals the viewport on a 50+ message thread.</p>
+<p><b>Next step:</b> fix, then merge. Re-check scenario 4.10 step 4 and scenario 4.11 step 4.</p>
+</div>
+</main>
+</body>
+</html>

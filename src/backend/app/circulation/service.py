@@ -63,6 +63,7 @@ from app.circulation.infrastructure.repository import (
     AvailableItemView,
     available_items_with_product_select,
     list_item_ids_for_product,
+    list_item_refs,
     reservation_ids_for_term_select,
 )
 
@@ -98,6 +99,7 @@ __all__ = [
     "list_available_items_with_product",
     "list_inventories",
     "list_item_ids_for_product",
+    "list_item_refs",
     "list_items",
     "list_items_with_product_name",
     "list_lent_out_items_with_product_name",

@@ -136,6 +136,16 @@ def reset_join_code_limiter() -> Iterator[None]:
     limiter.reset()
 
 
+@pytest.fixture(autouse=True)
+def reset_message_limiter() -> Iterator[None]:
+    """The messaging limiter is a module-level singleton; isolate each test."""
+    from app.messaging.application.send_limiter import limiter
+
+    limiter.reset()
+    yield
+    limiter.reset()
+
+
 @pytest.fixture
 def fake_storage() -> FakeStorage:
     return FakeStorage()

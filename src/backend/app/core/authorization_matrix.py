@@ -205,46 +205,53 @@ _RAW_MATRIX: tuple[_RawEntry, ...] = (
     # notifications") is enforced in `app.notifications.service.mark_read`.
     (_methods("GET"), r"^/api/notifications(/.*)?$", ("READ", "mcp:read")),  # 51
     (_methods("POST"), r"^/api/notifications(/.*)?$", ("EDIT", "mcp:edit")),  # 52
-    # 53-54: app.category — reintroduced standalone Category reference
+    # 53-54: app.messaging — conversations. Literal paths (`/unread-count`,
+    # `/item`, `/group`, `/term`) and `/{id}` routes share the two blanket
+    # rows; who may read or write a conversation is computed in
+    # `application/access.py`. Private chats are for logged-in users only, so
+    # unlike rows 51-52 the OAuth `mcp:read`/`mcp:edit` scopes are not accepted.
+    (_methods("GET"), r"^/api/conversations(/.*)?$", ("READ",)),  # 53
+    (_methods("POST"), r"^/api/conversations(/.*)?$", ("EDIT",)),  # 54
+    # 55-56: app.category — reintroduced standalone Category reference
     # table (implementation/spec.md). GETs stay READ-gated (never ADMIN):
     # the seeded `editor` account's product-creation category dropdown
     # depends on this. All mutations (create/update/delete/reorder) are
     # ADMIN-only, unlike app.product's EDIT-gated mutations.
-    (_methods("GET"), r"^/api/categories(/.*)?$", ("READ", "mcp:read")),  # 53
-    (_methods("POST", "PUT", "DELETE", "PATCH"), r"^/api/categories(/.*)?$", ("ADMIN",)),  # 54
-    # 55-58: app.groups' exchange mechanism (`/api/term-item-listings`,
+    (_methods("GET"), r"^/api/categories(/.*)?$", ("READ", "mcp:read")),  # 55
+    (_methods("POST", "PUT", "DELETE", "PATCH"), r"^/api/categories(/.*)?$", ("ADMIN",)),  # 56
+    # 57-60: app.groups' exchange mechanism (`/api/term-item-listings`,
     # `/api/item-listing-preferences`, implementation/spec.md's
     # lending-exchange task). `/mine` and `/browse` need no separate
     # literal-segment row the way `pledges.py`'s `/mine` needed none
     # either here. `POST /api/groups/mine/attendances/{id}/withdraw`
     # likewise needs no new row: it already falls under row 27's blanket
     # `POST ^/api/groups(/.*)?$`.
-    (_methods("GET"), r"^/api/term-item-listings(/.*)?$", ("READ", "mcp:read")),  # 55
-    (_methods("POST"), r"^/api/term-item-listings(/.*)?$", ("EDIT", "mcp:edit")),  # 56
-    (_methods("GET"), r"^/api/item-listing-preferences(/.*)?$", ("READ", "mcp:read")),  # 57
-    (_methods("PUT"), r"^/api/item-listing-preferences(/.*)?$", ("EDIT", "mcp:edit")),  # 58
-    # 59-62: the SWAP propose/accept/reject flow and post-Term confirmation
+    (_methods("GET"), r"^/api/term-item-listings(/.*)?$", ("READ", "mcp:read")),  # 57
+    (_methods("POST"), r"^/api/term-item-listings(/.*)?$", ("EDIT", "mcp:edit")),  # 58
+    (_methods("GET"), r"^/api/item-listing-preferences(/.*)?$", ("READ", "mcp:read")),  # 59
+    (_methods("PUT"), r"^/api/item-listing-preferences(/.*)?$", ("EDIT", "mcp:edit")),  # 60
+    # 61-64: the SWAP propose/accept/reject flow and post-Term confirmation
     # (implementation/spec.md's giveaway/exchange rework, Task Group 5) —
     # each an explicit, self-documenting row matching `take_item_listing`'s
-    # (row 56's) permission requirement exactly, declared right after it in
+    # (row 58's) permission requirement exactly, declared right after it in
     # evaluation order. `propose` (POST .../term-item-listings/{id}/propose)
     # and `confirm-transaction` (POST .../reservations/{id}/confirm-
-    # transaction) are already reachable via row 56's and row 43's blanket
+    # transaction) are already reachable via row 58's and row 43's blanket
     # POST rules respectively — these two rows change no actual routing
     # decision, they only make the exchange-mechanism's full route set
     # explicit here rather than relying on a reader to trace it through the
     # blanket rows. `/api/swap-proposals` (accept/reject) has no existing
     # blanket row, so those two rows are load-bearing.
-    (_methods("POST"), r"^/api/term-item-listings/[^/]+/propose$", ("EDIT", "mcp:edit")),  # 59
-    (_methods("POST"), r"^/api/swap-proposals/[^/]+/accept$", ("EDIT", "mcp:edit")),  # 60
-    (_methods("POST"), r"^/api/swap-proposals/[^/]+/reject$", ("EDIT", "mcp:edit")),  # 61
+    (_methods("POST"), r"^/api/term-item-listings/[^/]+/propose$", ("EDIT", "mcp:edit")),  # 61
+    (_methods("POST"), r"^/api/swap-proposals/[^/]+/accept$", ("EDIT", "mcp:edit")),  # 62
+    (_methods("POST"), r"^/api/swap-proposals/[^/]+/reject$", ("EDIT", "mcp:edit")),  # 63
     (
         _methods("POST"),
         r"^/api/reservations/[^/]+/confirm-transaction$",
         ("EDIT", "mcp:edit"),
-    ),  # 62
-    # 63: app.moderation — the ADMIN review queue and decisions (every method).
-    (None, r"^/api/moderation(/.*)?$", ("ADMIN",)),  # 63
+    ),  # 64
+    # 65: app.moderation — the ADMIN review queue and decisions (every method).
+    (None, r"^/api/moderation(/.*)?$", ("ADMIN",)),  # 65
     (None, r"^.*$", "AUTHENTICATED"),  # 25 - catch-all
 )
 

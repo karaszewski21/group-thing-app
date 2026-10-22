@@ -6,6 +6,7 @@ from __future__ import annotations
 import asyncio
 import re
 import uuid
+from collections.abc import Collection
 from datetime import date
 from typing import cast
 
@@ -227,6 +228,26 @@ async def get_profile_by_party(db: AsyncSession, party_id: uuid.UUID) -> UserPro
     if profile is None:
         raise EntityNotFoundException("UserProfile", party_id)
     return profile
+
+
+async def list_chat_profiles_by_party_ids(
+    db: AsyncSession, party_ids: Collection[uuid.UUID]
+) -> dict[uuid.UUID, tuple[str, bool]]:
+    """`{party_id: (display_name, has_account)}`; `has_account` is False for
+    an anonymous guest profile."""
+    if not party_ids:
+        return {}
+    result = await db.execute(
+        select(
+            UserProfile.party_id,
+            UserProfile.display_name,
+            UserProfile.account_user_id.is_not(None),
+        ).where(UserProfile.party_id.in_(party_ids))
+    )
+    return {
+        party_id: (display_name, has_account)
+        for party_id, display_name, has_account in result.all()
+    }
 
 
 async def get_profile_by_account_user_id(

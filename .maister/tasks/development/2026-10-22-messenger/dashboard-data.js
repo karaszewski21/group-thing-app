@@ -1,12 +1,12 @@
 window.MAISTER_DATA = {
- "generated": "2026-10-22T11:38:48Z",
+ "generated": "2026-10-22T17:10:00Z",
  "task": {
   "title": "Komunikator (messenger)",
   "type": "development",
   "status": "in_progress",
   "description": "Messenger-like chat: questions from product pages; organizer messages to group and term.",
   "path": ".maister/tasks/development/2026-10-22-messenger",
-  "current_activity": "Executing implementation"
+  "current_activity": "Generating user documentation"
  },
  "characteristics": {
   "has_reproducible_defect": false,
@@ -334,19 +334,37 @@ window.MAISTER_DATA = {
    "id": "phase-8",
    "name": "Execute implementation",
    "icon_hint": "code",
-   "status": "in_progress",
+   "status": "completed",
    "started": "2026-10-22T11:38:48Z",
-   "completed": null,
+   "completed": "2026-10-22T13:15:24Z",
    "skip_reason": null,
-   "summary": null,
+   "summary": "10/10 groups, 73 steps. Backend 900/0; frontend 1094 passed, only pre-existing/flaky failures; contract matches.",
    "decisions": [],
-   "risks": [],
-   "artifacts": [],
-   "gate": null,
+   "risks": [
+    "Read-only rule + term title duplicated",
+    "Open-and-navigate flow duplicated in 4 entry points",
+    "Avatar tint deviation from mockup"
+   ],
+   "artifacts": [
+    {
+     "path": "implementation/work-log.md",
+     "label": "Work log",
+     "html": null
+    },
+    {
+     "path": "implementation/implementation-plan.md",
+     "label": "Implementation plan",
+     "html": "implementation/implementation-plan.html"
+    }
+   ],
+   "gate": {
+    "question": "Continue to verification?",
+    "answer": "Continue"
+   },
    "progress": {
-    "groups_done": 0,
+    "groups_done": 10,
     "groups_total": 10,
-    "current_wave": 1,
+    "current_wave": null,
     "skipped": [],
     "reverted": []
    }
@@ -355,10 +373,10 @@ window.MAISTER_DATA = {
    "id": "phase-9",
    "name": "Verify test passes (TDD Green)",
    "icon_hint": "verify",
-   "status": "pending",
+   "status": "skipped",
    "started": null,
    "completed": null,
-   "skip_reason": null,
+   "skip_reason": "Phase 3 not executed",
    "summary": null,
    "decisions": [],
    "risks": [],
@@ -370,53 +388,97 @@ window.MAISTER_DATA = {
    "id": "phase-10",
    "name": "Prompt verification options",
    "icon_hint": "verify",
-   "status": "pending",
-   "started": null,
-   "completed": null,
+   "status": "completed",
+   "started": "2026-10-22T13:15:24Z",
+   "completed": "2026-10-22T13:35:33Z",
    "skip_reason": null,
-   "summary": null,
+   "summary": "All 4 reviews + E2E + user docs enabled; test suite runs.",
    "decisions": [],
    "risks": [],
    "artifacts": [],
-   "gate": null,
+   "gate": {
+    "question": "Which verifications to run?",
+    "answer": "All recommended; E2E yes; docs yes"
+   },
    "progress": null
   },
   {
    "id": "phase-11",
    "name": "Verify implementation & resolve issues",
    "icon_hint": "verify",
-   "status": "pending",
-   "started": null,
-   "completed": null,
+   "status": "completed",
+   "started": "2026-10-22T13:35:33Z",
+   "completed": "2026-10-22T15:10:00Z",
    "skip_reason": null,
-   "summary": null,
+   "summary": "Passed after fix cycle 1: all 11 areas re-verified; 0 critical, 1 low warning, ~6 info. BE 904/904, FE 1114/1120 (6 pre-existing).",
    "decisions": [],
    "risks": [],
-   "artifacts": [],
-   "gate": null,
+   "artifacts": [
+    {
+     "path": "verification/implementation-verification.md",
+     "html": "verification/implementation-verification.html"
+    },
+    {
+     "path": "verification/code-review-reverify.md"
+    },
+    {
+     "path": "verification/code-review-report.md"
+    },
+    {
+     "path": "verification/pragmatic-review.md"
+    },
+    {
+     "path": "verification/production-readiness-report.md"
+    },
+    {
+     "path": "verification/reality-check.md"
+    },
+    {
+     "path": "verification/completeness-report.md"
+    },
+    {
+     "path": "verification/test-suite-results.md"
+    }
+   ],
+   "gate": {
+    "question": "Continue to E2E?",
+    "answer": "Yes, migrate + E2E"
+   },
    "progress": null
   },
   {
    "id": "phase-12",
    "name": "Run E2E tests",
    "icon_hint": "verify",
-   "status": "pending",
-   "started": null,
-   "completed": null,
+   "status": "completed",
+   "started": "2026-10-22T15:10:00Z",
+   "completed": "2026-10-22T17:10:00Z",
    "skip_reason": null,
-   "summary": null,
+   "summary": "GO: 13/13 PASS after fixing M1, M2, m1, m2; visual 7/7 ok",
    "decisions": [],
    "risks": [],
-   "artifacts": [],
-   "gate": null,
+   "artifacts": [
+    {
+     "path": "verification/e2e-verification-report.md",
+     "html": "verification/e2e-verification-report.html"
+    },
+    {
+     "path": "verification/visual-fidelity.md",
+     "html": "verification/visual-fidelity.html"
+    }
+   ],
+   "gate": {
+    "question": "Continue to user docs?",
+    "answer": "Yes"
+   },
    "progress": null
   },
   {
    "id": "phase-13",
    "name": "Generate user documentation",
    "icon_hint": "docs",
-   "status": "pending",
-   "started": null,
+   "status": "in_progress",
+   "started": "2026-10-22T17:10:00Z",
    "completed": null,
    "skip_reason": null,
    "summary": null,
@@ -443,9 +505,73 @@ window.MAISTER_DATA = {
   }
  ],
  "verification": {
-  "status": null,
-  "issues": [],
-  "fixes": [],
-  "reverify_count": 0
+  "status": "passed",
+  "issues": [
+   {
+    "severity": "critical",
+    "source": "reality",
+    "description": "H1: crossing message lost (useThread after= cursor)",
+    "fixed": true
+   },
+   {
+    "severity": "warning",
+    "source": "code_review",
+    "description": "useThread no-cursor branch overwrites cache",
+    "fixed": true
+   },
+   {
+    "severity": "warning",
+    "source": "production",
+    "description": "Moderation in open tx, no timeout, rejected sends not limited",
+    "fixed": true
+   },
+   {
+    "severity": "warning",
+    "source": "production",
+    "description": "hide_parameters missing (message body in logs)",
+    "fixed": true
+   },
+   {
+    "severity": "warning",
+    "source": "pragmatic",
+    "description": "Duplication: read-only/title, open-and-navigate, chat_audience wrappers",
+    "fixed": true
+   },
+   {
+    "severity": "warning",
+    "source": "reality",
+    "description": "Inbox not refreshed; composer focus",
+    "fixed": true
+   },
+   {
+    "severity": "warning",
+    "source": "code_review",
+    "description": "DISTINCT ON inbox; unbounded unread",
+    "fixed": true
+   },
+   {
+    "severity": "warning",
+    "source": "completeness",
+    "description": "architecture.md lacks messaging section",
+    "fixed": true
+   },
+   {
+    "severity": "warning",
+    "source": "code_review",
+    "description": "N2: timed-out moderation threads stay in default pool",
+    "fixed": false
+   }
+  ],
+  "fixes": [
+   "H1: crossing message lost (useThread after= cursor)",
+   "useThread no-cursor branch overwrites cache",
+   "Moderation in open tx, no timeout, rejected sends not limited",
+   "hide_parameters missing (message body in logs)",
+   "Duplication: read-only/title, open-and-navigate, chat_audience wrappers",
+   "Inbox not refreshed; composer focus",
+   "DISTINCT ON inbox; unbounded unread",
+   "architecture.md lacks messaging section"
+  ],
+  "reverify_count": 1
  }
 };

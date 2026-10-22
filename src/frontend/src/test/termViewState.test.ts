@@ -29,7 +29,14 @@ function ready(
     refreshError,
     data: {
       group: { ...group, visibility },
-      access: { is_member: false, is_organizer: false, can_view_content: false, is_attending: false, ...access },
+      access: {
+        is_member: false,
+        is_organizer: false,
+        can_view_content: false,
+        is_attending: false,
+        is_active_attendee: false,
+        ...access,
+      },
     },
   };
 }
@@ -39,8 +46,24 @@ describe("resolveTermView", () => {
     ["first load", { status: "loading" } as TermAccessState, false, { kind: "loading" }],
     ["404", { status: "error", message: "x" } as TermAccessState, false, { kind: "notFound" }],
     ["PUBLIC group, anonymous", ready({ can_view_content: true }, { forToken: null, visibility: "PUBLIC" }), false, { kind: "content", isAttending: false }],
-    ["PRIVATE member", ready({ is_member: true, can_view_content: true, is_attending: true }), false, { kind: "content", isAttending: true }],
-    ["PRIVATE organizer", ready({ is_organizer: true, can_view_content: true }), false, { kind: "content" }],
+    [
+      "PRIVATE member",
+      ready({ is_member: true, can_view_content: true, is_attending: true, is_active_attendee: true }),
+      false,
+      { kind: "content", isAttending: true, isMember: true, isOrganizer: false, isActiveAttendee: true },
+    ],
+    [
+      "PRIVATE organizer",
+      ready({ is_organizer: true, can_view_content: true }),
+      false,
+      { kind: "content", isOrganizer: true, isMember: false, isActiveAttendee: false },
+    ],
+    [
+      "withdrawn attendee: isAttending stays for the footer, the chat flag comes from is_active_attendee",
+      ready({ can_view_content: true, is_attending: true, is_active_attendee: false }, { visibility: "PUBLIC" }),
+      false,
+      { kind: "content", isAttending: true, isActiveAttendee: false, isMember: false, isOrganizer: false },
+    ],
     ["content stays shown while stale", ready({ can_view_content: true }), true, { kind: "content" }],
     ["anonymous", ready({}, { forToken: null }), false, { kind: "loginRequired", refreshError: null }],
     ["logged-in non-member", ready({}), false, { kind: "enterCode", refreshError: null }],

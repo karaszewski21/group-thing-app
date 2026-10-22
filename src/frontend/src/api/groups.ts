@@ -265,6 +265,8 @@ export interface GroupAccessDetails {
   can_view_content: boolean;
   /** The caller has a `TermAttendance` on `group.term`. */
   is_attending: boolean;
+  /** Like `is_attending`, but ignores withdrawn attendances (gates "Czat terminu"). */
+  is_active_attendee: boolean;
 }
 
 /** Mirrors `app.groups.schemas.GroupAccessResponse` — `GET

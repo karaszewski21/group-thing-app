@@ -18,6 +18,11 @@ from __future__ import annotations
 
 from app.groups.application.account_merge import merge_anonymous_profile
 from app.groups.application.attendance import withdraw_attendance
+from app.groups.application.chat_audience import (
+    ChatAudience,
+    get_chat_audience_for_party,
+    list_active_attendee_party_ids,
+)
 from app.groups.application.circles import (
     assign_leadership,
     build_leadership_responses,
@@ -26,6 +31,8 @@ from app.groups.application.circles import (
     create_own_circle,
     get_current_leadership,
     get_group,
+    get_group_including_deleted,
+    is_active_group_organizer,
     list_active_leaderships_for_party,
     list_groups,
     list_groups_for_moderation,
@@ -38,6 +45,7 @@ from app.groups.application.circles import (
 from app.groups.application.exchange_summary import (
     get_family_exchange_offers,
     get_group_exchange_summary,
+    list_group_member_party_ids,
 )
 from app.groups.application.join_code import (
     get_join_code,
@@ -88,6 +96,7 @@ from app.groups.application.terms import (
     create_term,
     get_needed_item_view,
     get_term,
+    get_term_any,
     list_needed_item_views,
     list_terms,
     list_terms_for_moderation,
@@ -101,9 +110,17 @@ from app.groups.infrastructure.locations_acl import (
     get_locations_by_ids,
     location_ref_response,
 )
+from app.groups.infrastructure.repository import (
+    has_active_attendance,
+    has_active_membership,
+    list_chat_group_refs,
+    list_chat_term_refs,
+    list_current_organizer_party_ids,
+)
 from app.groups.infrastructure.slug_resolver import resolve_organizer_slug
 
 __all__ = [
+    "ChatAudience",
     "accept_swap_proposal",
     "add_active_membership",
     "assign_leadership",
@@ -120,11 +137,13 @@ __all__ = [
     "create_term",
     "end_membership",
     "fulfill_pledge",
+    "get_chat_audience_for_party",
     "get_current_leadership",
     "get_family_exchange_offers",
     "get_group",
     "get_group_access",
     "get_group_exchange_summary",
+    "get_group_including_deleted",
     "get_join_code",
     "get_location",
     "get_locations_by_ids",
@@ -133,8 +152,17 @@ __all__ = [
     "get_pledge",
     "get_public_circle_view",
     "get_term",
+    "get_term_any",
+    "has_active_attendance",
+    "has_active_membership",
+    "is_active_group_organizer",
+    "list_active_attendee_party_ids",
     "list_active_leaderships_for_party",
     "list_browsable_term_item_listings",
+    "list_chat_group_refs",
+    "list_chat_term_refs",
+    "list_current_organizer_party_ids",
+    "list_group_member_party_ids",
     "list_group_members",
     "list_groups",
     "list_groups_for_moderation",

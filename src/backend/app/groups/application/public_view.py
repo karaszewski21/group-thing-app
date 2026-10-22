@@ -49,7 +49,12 @@ from ..schemas import (
     PublicTermResponse,
     RsvpResponse,
 )
-from .circles import _group_role_party_id, _is_active_organizer, get_current_leadership, get_group
+from .circles import (
+    _group_role_party_id,
+    get_current_leadership,
+    get_group,
+    is_active_group_organizer,
+)
 from .memberships import _is_active_member
 from .term_item_listings import list_public_term_item_listings
 from .terms import get_term, list_needed_item_views, list_terms
@@ -371,7 +376,7 @@ async def get_group_access(
     is_member = False
     is_organizer = False
     if profile is not None:
-        is_organizer = await _is_active_organizer(db, group_id, profile.party_id)
+        is_organizer = await is_active_group_organizer(db, group_id, profile.party_id)
         is_member = is_organizer or await _is_active_member(db, group_id, profile.party_id)
 
     group_response = await get_public_circle_view(
@@ -384,6 +389,11 @@ async def get_group_access(
     is_attending = profile is not None and any(
         guardian.party_id == profile.party_id for guardian in group_response.guardians
     )
+    is_active_attendee = (
+        profile is not None
+        and group_response.term is not None
+        and await repository.has_active_attendance(db, group_response.term.id, profile.party_id)
+    )
 
     can_view_content = group_response.visibility != GroupVisibility.PRIVATE or is_member
 
@@ -394,6 +404,7 @@ async def get_group_access(
             is_organizer=is_organizer,
             can_view_content=can_view_content,
             is_attending=is_attending,
+            is_active_attendee=is_active_attendee,
         ),
     )
 
@@ -436,7 +447,7 @@ async def create_rsvp(
         if profile is None or profile.account_user_id is None:
             raise AccessDeniedException
         if not (
-            await _is_active_organizer(db, group_id, profile.party_id)
+            await is_active_group_organizer(db, group_id, profile.party_id)
             or await _is_active_member(db, group_id, profile.party_id)
         ):
             raise AccessDeniedException

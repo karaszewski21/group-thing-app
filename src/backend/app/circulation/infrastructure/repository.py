@@ -236,6 +236,21 @@ async def list_product_names_for_items(
     return {item_id: name for item_id, name in result.all()}
 
 
+async def list_item_refs(
+    db: AsyncSession, item_ids: Collection[uuid.UUID]
+) -> dict[uuid.UUID, tuple[str, datetime | None]]:
+    """`{item_id: (product_name, deleted_at)}`, soft-deleted items included,
+    in one join."""
+    if not item_ids:
+        return {}
+    result = await db.execute(
+        select(InventoryItem.id, Product.name, InventoryItem.deleted_at)
+        .join(Product, Product.id == InventoryItem.product_id)
+        .where(InventoryItem.id.in_(item_ids))
+    )
+    return {item_id: (name, deleted_at) for item_id, name, deleted_at in result.all()}
+
+
 async def get_item_with_product_name(
     db: AsyncSession, item_id: uuid.UUID
 ) -> tuple[InventoryItem, str] | None:

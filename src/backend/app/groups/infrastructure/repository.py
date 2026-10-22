@@ -277,6 +277,120 @@ async def list_active_memberships_for_role_ids(
     return list(result.scalars().all())
 
 
+# --- Chat audience ----------------------------------------------------------------
+# Messaging keeps a soft-deleted Circle's chat readable, so none of these joins
+# `Group` or filters `deleted_at` (unlike the `list_active_*_for_role_ids` reads).
+
+
+async def has_active_membership(db: AsyncSession, group_id: uuid.UUID, party_id: uuid.UUID) -> bool:
+    return bool(
+        (
+            await db.execute(
+                select(
+                    exists().where(
+                        Membership.to_group_id == group_id,
+                        Membership.valid_to.is_(None),
+                        GroupRole.id == Membership.from_role_id,
+                        GroupRole.party_id == party_id,
+                        GroupRole.role_type == GroupRoleType.MEMBER,
+                    )
+                )
+            )
+        ).scalar_one()
+    )
+
+
+async def has_active_attendance(db: AsyncSession, term_id: uuid.UUID, party_id: uuid.UUID) -> bool:
+    return bool(
+        (
+            await db.execute(
+                select(
+                    exists().where(
+                        TermAttendance.term_id == term_id,
+                        TermAttendance.party_id == party_id,
+                        TermAttendance.withdrawn_at.is_(None),
+                    )
+                )
+            )
+        ).scalar_one()
+    )
+
+
+async def list_led_group_ids_for_party(db: AsyncSession, party_id: uuid.UUID) -> set[uuid.UUID]:
+    result = await db.execute(
+        select(Leadership.to_group_id)
+        .join(GroupRole, GroupRole.id == Leadership.from_role_id)
+        .where(
+            GroupRole.party_id == party_id,
+            GroupRole.role_type == GroupRoleType.ORGANIZATOR,
+            Leadership.valid_to.is_(None),
+        )
+    )
+    return set(result.scalars().all())
+
+
+async def list_member_group_ids_for_party(db: AsyncSession, party_id: uuid.UUID) -> set[uuid.UUID]:
+    result = await db.execute(
+        select(Membership.to_group_id)
+        .join(GroupRole, GroupRole.id == Membership.from_role_id)
+        .where(
+            GroupRole.party_id == party_id,
+            GroupRole.role_type == GroupRoleType.MEMBER,
+            Membership.valid_to.is_(None),
+        )
+    )
+    return set(result.scalars().all())
+
+
+async def list_attended_term_ids_for_party(db: AsyncSession, party_id: uuid.UUID) -> set[uuid.UUID]:
+    result = await db.execute(
+        select(TermAttendance.term_id).where(
+            TermAttendance.party_id == party_id, TermAttendance.withdrawn_at.is_(None)
+        )
+    )
+    return set(result.scalars().all())
+
+
+async def list_chat_group_refs(
+    db: AsyncSession, group_ids: Collection[uuid.UUID]
+) -> dict[uuid.UUID, tuple[str, GroupVisibility, datetime | None]]:
+    if not group_ids:
+        return {}
+    result = await db.execute(
+        select(Group.id, Group.name, Group.visibility, Group.deleted_at).where(
+            Group.id.in_(group_ids)
+        )
+    )
+    return {
+        group_id: (name, visibility, deleted_at)
+        for group_id, name, visibility, deleted_at in result.all()
+    }
+
+
+async def list_chat_term_refs(
+    db: AsyncSession, term_ids: Collection[uuid.UUID]
+) -> dict[uuid.UUID, tuple[uuid.UUID, datetime]]:
+    if not term_ids:
+        return {}
+    result = await db.execute(
+        select(Term.id, Term.circle_group_id, Term.occurs_on).where(Term.id.in_(term_ids))
+    )
+    return {term_id: (group_id, occurs_on) for term_id, group_id, occurs_on in result.all()}
+
+
+async def list_current_organizer_party_ids(
+    db: AsyncSession, group_ids: Collection[uuid.UUID]
+) -> dict[uuid.UUID, uuid.UUID]:
+    if not group_ids:
+        return {}
+    result = await db.execute(
+        select(Leadership.to_group_id, GroupRole.party_id)
+        .join(GroupRole, GroupRole.id == Leadership.from_role_id)
+        .where(Leadership.to_group_id.in_(group_ids), Leadership.valid_to.is_(None))
+    )
+    return {group_id: party_id for group_id, party_id in result.all()}
+
+
 # --- Term / NeededItem ----------------------------------------------------------
 
 

@@ -64,6 +64,11 @@ describe("organizer-themed files use role tokens", () => {
     "components/pending/PendingActionsHost.tsx",
     "pages/term/modals/TakeSuccessSheet.tsx",
     "pages/panel/views/SwapAcceptSuccessSheet.tsx",
+    "components/shared/MessagesButton.tsx",
+    "pages/messages/InboxPage.tsx",
+    "pages/messages/ThreadPage.tsx",
+    "pages/messages/MessageBubble.tsx",
+    "pages/messages/MessageComposer.tsx",
     ...ORGANIZER_PAGE_FILES,
   ];
 

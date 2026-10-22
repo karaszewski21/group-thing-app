@@ -2,6 +2,7 @@ import { Link, useLocation, useOutletContext, useParams } from "react-router-dom
 import type { ItemDetailsResponse } from "../../api/items";
 import { PhoneFrame } from "../../components/shared/PhoneFrame";
 import { useItemDetail, useItemHistory } from "../../hooks/useItemDetail";
+import { useOpenAndNavigate } from "../../hooks/useOpenAndNavigate";
 import dayjs from "../../utils/dayjs";
 import { CONDITION_LABELS } from "../../utils/productCategory";
 import { PanelNavBar } from "../panel/PanelNav";
@@ -151,6 +152,7 @@ function ItemViewContent({ item, history }: { item: ItemDetailsResponse; history
           )}
         </div>
         <ItemStatusCard status={item.status} itemId={item.id} itemName={item.name} isOwner={item.is_owner} />
+        {!item.is_owner && !deleted && <AskAboutItemButton itemId={item.id} />}
         <section className="mt-4 rounded-3xl border border-line bg-paper p-5" aria-labelledby="item-description-heading">
           <h3 id="item-description-heading" className={FIELD_LABEL}>
             Opis
@@ -165,5 +167,30 @@ function ItemViewContent({ item, history }: { item: ItemDetailsResponse; history
         />
       </div>
     </>
+  );
+}
+
+/** "Zapytaj o rzecz": opens (or creates) the chat with the item's current
+ * owner and goes to its thread; a refusal (e.g. 429) shows inline. Both item
+ * routes are behind AuthGuard, so the visitor is always logged in. */
+function AskAboutItemButton({ itemId }: { itemId: string }) {
+  const { open, busy, error } = useOpenAndNavigate();
+
+  return (
+    <div className="mt-3">
+      <button
+        type="button"
+        disabled={busy}
+        onClick={() => void open({ kind: "ITEM", id: itemId })}
+        className="inline-flex min-h-10 items-center gap-1.5 rounded-full border-[1.5px] border-line bg-paper px-3.5 text-[13px] font-extrabold text-ink hover:border-line-strong focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring disabled:opacity-60"
+      >
+        <span aria-hidden="true">💬</span> Zapytaj o rzecz
+      </button>
+      {error && (
+        <p role="alert" className="mt-1.5 text-xs font-semibold text-danger">
+          {error}
+        </p>
+      )}
+    </div>
   );
 }

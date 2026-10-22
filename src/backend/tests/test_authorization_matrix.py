@@ -9,6 +9,7 @@ to their own requirements despite the new `PATCH /api/groups/{id}` row.
 
 from __future__ import annotations
 
+import time
 import uuid
 
 import jwt
@@ -17,7 +18,9 @@ from httpx import AsyncClient
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.config import settings
 from app.core.authorization_matrix import AUTHORIZATION_MATRIX, resolve_requirement
+from app.core.security import decode_base64_hmac_key
 
 EDIT = ("EDIT", "mcp:edit")
 READ = ("READ", "mcp:read")
@@ -74,6 +77,62 @@ def test_resolveRequirement_notificationsMine_resolvesToRead() -> None:
 
 def test_resolveRequirement_notificationsMarkRead_resolvesToEdit() -> None:
     assert resolve_requirement("POST", "/api/notifications/42/read") == EDIT
+
+
+@pytest.mark.parametrize(
+    ("method", "path", "expected"),
+    [
+        ("GET", "/api/conversations", ("READ",)),
+        ("GET", "/api/conversations/unread-count", ("READ",)),
+        ("POST", "/api/conversations/item", ("EDIT",)),
+        ("POST", "/api/conversations/42/read", ("EDIT",)),
+    ],
+)
+def test_resolveRequirement_conversationRoutes_resolveToReadOrEditWithoutMcpScopes(
+    method: str, path: str, expected: tuple[str, ...]
+) -> None:
+    assert resolve_requirement(method, path) == expected
+
+
+def _oauth_token(username: str, scopes: list[str]) -> str:
+    """An OAuth2-shaped token: `scopes` instead of `permissions` (no `aud`,
+    which `decode_token` does not accept)."""
+    issued_at = int(time.time())
+    claims = {
+        "iss": "http://localhost",
+        "sub": username,
+        "scopes": scopes,
+        "iat": issued_at,
+        "exp": issued_at + 300,
+    }
+    return jwt.encode(claims, key=decode_base64_hmac_key(settings.jwt_secret), algorithm="HS256")
+
+
+async def test_conversationRoutes_mcpScopeToken_returns403_loginTokenReaches200(
+    client: AsyncClient,
+) -> None:
+    registered = await client.post(
+        "/api/auth/register",
+        json={"role": "GUEST", "email": "matrix.mcp@example.com", "password": "secret123"},
+    )
+    assert registered.status_code == 201, registered.text
+    login_token = registered.json()["token"]
+    username = jwt.decode(login_token, options={"verify_signature": False})["sub"]
+    mcp = {"Authorization": f"Bearer {_oauth_token(username, ['mcp:read', 'mcp:edit'])}"}
+
+    inbox = await client.get("/api/conversations", headers=mcp)
+    unread = await client.get("/api/conversations/unread-count", headers=mcp)
+    send = await client.post(
+        f"/api/conversations/{uuid.uuid4()}/messages", json={"body": "Cześć"}, headers=mcp
+    )
+    allowed = await client.get(
+        "/api/conversations", headers={"Authorization": f"Bearer {login_token}"}
+    )
+
+    assert inbox.status_code == 403, inbox.text
+    assert unread.status_code == 403, unread.text
+    assert send.status_code == 403, send.text
+    assert allowed.status_code == 200, allowed.text
 
 
 def test_resolveRequirement_publicGroup_notRegressedByGroupsPatchRow() -> None:

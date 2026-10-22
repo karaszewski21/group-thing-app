@@ -2,6 +2,7 @@ import { Link, useParams } from "react-router-dom";
 import type { GroupResponse, TermAttendeeResponse } from "../../api/groups";
 import type { TermResponse } from "../../api/terms";
 import { PhoneFrame } from "../../components/shared/PhoneFrame";
+import { useOpenAndNavigate } from "../../hooks/useOpenAndNavigate";
 import { useTermAttendees } from "../../hooks/useTermAttendees";
 import { formatChildAges } from "../../utils/age";
 import { pluralPl } from "../../utils/plural";
@@ -127,6 +128,7 @@ function TermAttendeesBody({
 function TermHeadCard({ term, group }: { term: TermResponse; group: GroupResponse }) {
   const { day, month } = dayMonth(term.occurs_on);
   const time = termTime(term.occurs_on);
+  const { open, busy, error } = useOpenAndNavigate();
 
   return (
     <div className="mt-4 rounded-2xl border border-line bg-cream p-[15px]">
@@ -150,6 +152,19 @@ function TermHeadCard({ term, group }: { term: TermResponse; group: GroupRespons
           </Link>
         </div>
       </div>
+      <button
+        type="button"
+        disabled={busy}
+        onClick={() => void open({ kind: "TERM", id: term.id })}
+        className="mt-3 min-h-[44px] w-full rounded-[13px] bg-mint px-4 py-[11px] text-[13.5px] font-extrabold text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring disabled:opacity-60"
+      >
+        <span aria-hidden="true">💬</span> Napisz do uczestników
+      </button>
+      {error && (
+        <p role="alert" className="mt-1.5 text-xs font-semibold text-danger">
+          {error}
+        </p>
+      )}
     </div>
   );
 }

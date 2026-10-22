@@ -1,0 +1,24 @@
+<!doctype html><html lang="pl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Implementation Verification — Messenger</title>
+<style>body{font-family:system-ui,sans-serif;max-width:960px;margin:2rem auto;padding:0 1rem;color:#1d2433;background:#fff;line-height:1.5}h1{font-size:1.5rem}h2{font-size:1.15rem;margin-top:2rem;border-bottom:1px solid #e3e6ec;padding-bottom:.3rem}.banner{padding:1rem 1.2rem;border-radius:10px;background:#fff6e0;border:1px solid #f0c060;font-weight:600}table{border-collapse:collapse;width:100%;font-size:.9rem}td,th{border:1px solid #e3e6ec;padding:.4rem .6rem;text-align:left;vertical-align:top}th{background:#f5f7fa}.b{display:inline-block;padding:0 .5rem;border-radius:999px;font-size:.75rem;font-weight:600}.high{background:#fde2e1;color:#9b1c1c}.warn{background:#fff1cc;color:#7a5200}.ok{background:#dff5e6;color:#17663a}a{color:#2456c7}</style></head><body>
+<p><a href="implementation-verification.md">implementation-verification.md</a></p>
+<h1>Implementation Verification — Messenger</h1>
+<div class="banner" style="background:#dff5e6;border-color:#5cb87a">✅ Passed after fix cycle 1 — 0 critical · 1 low warning (moderation thread pool) · ~6 info · all 11 fixed areas re-verified</div><h2>Fix cycle 1</h2><p>Fixed: H1 cursor race, no-cursor merge, moderation outside the transaction plus a 5 s timeout, atomic limiter counting rejected sends, hide_parameters, OAuth mcp:* removed, backend and frontend deduplication, inbox polling, composer focus, focus rings, architecture.md. Backend 904/904 · frontend 1114/1120 (6 pre-existing failures) · tsc clean · mypy 23.</p><h2>Pre-fix findings</h2>
+<h2>Checks</h2><table><tr><th>Check</th><th>Result</th></tr>
+<tr><td>Plan</td><td><span class="b ok">73/73</span></td></tr>
+<tr><td>Backend tests</td><td><span class="b ok">900/900</span></td></tr>
+<tr><td>Frontend tests</td><td><span class="b ok">1094/1101</span> 6 failures already on HEAD + 1 flaky</td></tr>
+<tr><td>Standards</td><td><span class="b ok">20/20</span></td></tr>
+<tr><td>Code review</td><td>0 critical / 7 warning / 14 info</td></tr>
+<tr><td>Pragmatic</td><td>appropriate; 3 medium (duplication)</td></tr>
+<tr><td>Production</td><td>GO with mitigations (78%)</td></tr>
+<tr><td>Reality</td><td>~90%; H1 high, 2 medium</td></tr></table>
+<h2>Key findings</h2><table><tr><th>Severity</th><th>Problem</th><th>Location</th></tr>
+<tr><td><span class="b high">high</span></td><td>A message that crosses mine disappears (the <code>after=</code> cursor jumps past it after my send)</td><td>useThread.ts</td></tr>
+<tr><td><span class="b warn">warn</span></td><td>The no-cursor branch overwrites the cache</td><td>useThread.ts:64</td></tr>
+<tr><td><span class="b warn">warn</span></td><td>Moderation runs inside an open transaction, with no timeout and no limit on rejected sends</td><td>messages.py, text_guard.py</td></tr>
+<tr><td><span class="b warn">warn</span></td><td>Message bodies can reach logs (hide_parameters not set)</td><td>app/db.py</td></tr>
+<tr><td><span class="b warn">warn</span></td><td>Duplicated read-only rule/title and open-and-navigate flow; chat_audience is mostly pass-through wrappers</td><td>access/inbox, 4 pages</td></tr>
+<tr><td><span class="b warn">warn</span></td><td>Inbox does not refresh; composer is not focused</td><td>useConversations, pages/messages</td></tr>
+<tr><td><span class="b warn">warn</span></td><td>Inbox query performance: DISTINCT ON; unread counts unbounded</td><td>repository.py</td></tr>
+<tr><td><span class="b warn">decision</span></td><td>Owner-name enumeration; mcp:* scopes; message retention</td><td>—</td></tr></table>
+</body></html>

@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Visual Fidelity — 2026-10-22-messenger</title>
+<style>
+:root {
+  --bg:#f6f7f9; --surface:#fff; --border:#e2e5ea; --text:#1a1d23; --dim:#6b7280;
+  --accent:#4f46e5; --accent-soft:#eef2ff; --ok:#16a34a; --ok-soft:#ecfdf3;
+  --warn:#d97706; --warn-soft:#fffbeb; --crit:#dc2626; --crit-soft:#fef2f2;
+  --info:#2563eb; --info-soft:#eff6ff; --radius:10px;
+}
+@media (prefers-color-scheme: dark) {
+  :root { --bg:#111418; --surface:#1a1f26; --border:#2e3640; --text:#e6e9ee; --dim:#9aa4b2;
+    --accent:#818cf8; --accent-soft:#26294a; --ok:#4ade80; --ok-soft:#11291a;
+    --warn:#fbbf24; --warn-soft:#2e2410; --crit:#f87171; --crit-soft:#321616;
+    --info:#60a5fa; --info-soft:#15233a; }
+}
+* { box-sizing:border-box; }
+body { margin:0 auto; max-width:1100px; padding:24px 20px 64px; background:var(--bg);
+  color:var(--text); font:14px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif; }
+a { color:var(--accent); text-decoration:none; } a:hover { text-decoration:underline; }
+h1 { font-size:22px; letter-spacing:-.01em; } h2 { font-size:16px; margin-top:28px; }
+.card { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius);
+  padding:16px 18px; margin:14px 0; }
+.badge { display:inline-block; font-size:11px; font-weight:600; text-transform:uppercase;
+  letter-spacing:.04em; padding:2px 8px; border-radius:99px; background:var(--accent-soft); color:var(--accent); }
+.sev { display:inline-block; font-size:10.5px; font-weight:700; text-transform:uppercase;
+  padding:1.5px 7px; border-radius:99px; margin-right:6px; }
+.sev.critical { background:var(--crit-soft); color:var(--crit); }
+.sev.warning  { background:var(--warn-soft); color:var(--warn); }
+.sev.info     { background:var(--info-soft); color:var(--info); }
+.pass { color:var(--ok); font-weight:600; } .fail { color:var(--crit); font-weight:600; }
+table { width:100%; border-collapse:collapse; }
+th, td { text-align:left; padding:7px 10px; border-bottom:1px solid var(--border); vertical-align:top; }
+th { font-size:11.5px; text-transform:uppercase; letter-spacing:.04em; color:var(--dim); }
+code { font-family:ui-monospace,SFMono-Regular,Menlo,monospace; font-size:12.5px;
+  background:var(--accent-soft); padding:1px 5px; border-radius:4px; }
+img.shot { max-width:100%; border:1px solid var(--border); border-radius:var(--radius); }
+details > summary { cursor:pointer; font-weight:600; }
+.crumbs { display:flex; gap:14px; font-size:13px; margin-bottom:18px; flex-wrap:wrap; }
+.crumbs a.md { margin-left:auto; color:var(--dim); }
+.crumbs .here { font-weight:650; color:var(--text); }
+.tiles { display:flex; gap:10px; flex-wrap:wrap; margin:14px 0; }
+.tile { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius);
+  padding:10px 16px; text-align:center; min-width:90px; }
+.tile b { display:block; font-size:20px; letter-spacing:-.01em; }
+.tile span { font-size:10.5px; text-transform:uppercase; letter-spacing:.05em; color:var(--dim); }
+.verdict { border-left:5px solid var(--warn); background:var(--warn-soft); }
+.shots { display:grid; grid-template-columns:repeat(auto-fill,minmax(180px,1fr)); gap:10px; margin-top:10px; }
+.shots figure { margin:0; } .shots figcaption { font-size:11px; color:var(--dim); }
+.scen h3 { margin:0 0 6px; font-size:15px; }
+.pair{display:grid;grid-template-columns:1.3fr 1fr;gap:14px}.lbl{font-size:11.5px;text-transform:uppercase;letter-spacing:.04em;color:var(--dim);margin-bottom:6px}@media(max-width:700px){.pair{grid-template-columns:1fr}}</style>
+</head><body>
+<nav class="crumbs"><a href="../dashboard.html">← Dashboard</a> <a href="../implementation/spec.html">Spec</a> <a href="../implementation/implementation-plan.html">Plan</a> <a href="implementation-verification.html">Verification</a> <a href="e2e-verification-report.html">E2E</a> <span class="here">Visual fidelity</span> <a href="visual-fidelity.md" target="_blank" rel="noopener" class="md">md twin ↗</a></nav>
+<header><span class="badge">visual fidelity · report-only</span><h1>Visual Fidelity: Messenger (SC16)</h1><div style="color:var(--dim)">LLM-judged structural match, not pixel diff · 2026-10-22</div></header>
+<div class="tiles"><div class="tile"><b>7</b><span>screens</span></div><div class="tile"><b class="pass">7</b><span>✓ match (re-check)</span></div><div class="tile"><b>0</b><span>⚠ minor (first pass 2)</span></div><div class="tile"><b>0</b><span>✗ drift</span></div></div>
+<section class="tldr card"><h2 style="margin-top:0">TL;DR</h2><ul>
+<li>7 screens: <b>5 ✓, 2 ⚠, 0 ✗</b>. Layout, Polish copy, chip colors, bubble and composer styling and the required states all match.</li>
+<li>Both ⚠ are narrow-viewport issues: the brand wraps in the 320 px top bar, and "zobacz rzecz" is truncated at ≤360 px.</li>
+<li>Accepted, not counted: familyTone avatar tint and the cream TermHeadCard.</li></ul>
+<h2>Open Questions / Risks</h2><p>No substantive drift. The ThreadPage scroll defects are covered in the <a href="e2e-verification-report.html">E2E report</a>.</p></section>
+<main><div class="card" style="border-left:5px solid var(--warn)"><h3 style="margin:0 0 6px">screen:topbar-inbox-icon <span style="color:var(--warn)">⚠ Minor deviation</span></h3>
+<p style="margin:4px 0 10px">💬 before the bell, mint badge, "9+" at 12 unread, hidden at 0, aria-label correct. <b>Deviation:</b> at 320 px "Krąg grupy" wraps (bar 68 px).</p>
+<div class="pair"><div><div class="lbl">Mockup (<a href="../analysis/design-context/mockups/ikona-wiadomo-ci-w-g-rnym-pasku.html">ikona-wiadomo-ci-w-g-rnym-pasku.html</a>)</div><img class="shot" src="e2e-screenshots/m1-mockup-ikona-wiadomo-ci-w-g-rnym-pasku.png" alt="mockup"></div>
+<div><div class="lbl">Implementation</div><div class="shots"><figure><img class="shot" src="e2e-screenshots/47-A-badge-9plus.png" alt="47-A-badge-9plus.png"><figcaption>47-A-badge-9plus.png</figcaption></figure><figure><img class="shot" src="e2e-screenshots/42-layout-320-thread-item.png" alt="42-layout-320-thread-item.png"><figcaption>42-layout-320-thread-item.png</figcaption></figure></div></div></div></div><div class="card" style="border-left:5px solid var(--ok)"><h3 style="margin:0 0 6px">screen:inbox <span style="color:var(--ok)">✓ Match</span></h3>
+<p style="margin:4px 0 10px">Rows with chip (Rzecz accent-soft / Grupa mint-soft / Termin teal-soft), title, prefixed preview, time, bold unread + count; empty card verbatim; skeleton. 📦 placeholder accepted (M10).</p>
+<div class="pair"><div><div class="lbl">Mockup (<a href="../analysis/design-context/mockups/skrzynka-wiadomo-ci.html">skrzynka-wiadomo-ci.html</a>)</div><img class="shot" src="e2e-screenshots/m2-mockup-skrzynka-wiadomo-ci.png" alt="mockup"></div>
+<div><div class="lbl">Implementation</div><div class="shots"><figure><img class="shot" src="e2e-screenshots/45-B-inbox-term-row-organizer-prefix.png" alt="45-B-inbox-term-row-organizer-prefix.png"><figcaption>45-B-inbox-term-row-organizer-prefix.png</figcaption></figure><figure><img class="shot" src="e2e-screenshots/46-C-inbox-empty.png" alt="46-C-inbox-empty.png"><figcaption>46-C-inbox-empty.png</figcaption></figure><figure><img class="shot" src="e2e-screenshots/49-inbox-skeleton.png" alt="49-inbox-skeleton.png"><figcaption>49-inbox-skeleton.png</figcaption></figure></div></div></div></div><div class="card" style="border-left:5px solid var(--warn)"><h3 style="margin:0 0 6px">screen:thread-item <span style="color:var(--warn)">⚠ Minor deviation</span></h3>
+<p style="margin:4px 0 10px">Header, bubbles, day pill, composer, error under the composer all match. <b>Deviation:</b> "zobacz rzecz" truncated at ≤360 px.</p>
+<div class="pair"><div><div class="lbl">Mockup (<a href="../analysis/design-context/mockups/rozmowa-o-rzeczy.html">rozmowa-o-rzeczy.html</a>)</div><img class="shot" src="e2e-screenshots/m3-mockup-rozmowa-o-rzeczy.png" alt="mockup"></div>
+<div><div class="lbl">Implementation</div><div class="shots"><figure><img class="shot" src="e2e-screenshots/07-H1-B-converged.png" alt="07-H1-B-converged.png"><figcaption>07-H1-B-converged.png</figcaption></figure><figure><img class="shot" src="e2e-screenshots/36-composer-429-error.png" alt="36-composer-429-error.png"><figcaption>36-composer-429-error.png</figcaption></figure><figure><img class="shot" src="e2e-screenshots/42-layout-360-thread-item.png" alt="42-layout-360-thread-item.png"><figcaption>42-layout-360-thread-item.png</figcaption></figure></div></div></div></div><div class="card" style="border-left:5px solid var(--ok)"><h3 style="margin:0 0 6px">screen:thread-group <span style="color:var(--ok)">✓ Match</span></h3>
+<p style="margin:4px 0 10px">Initials + "· czat grupy", "3 uczestników", sender names, Organizator chip, read-only header line + banner. familyTone avatar tint accepted.</p>
+<div class="pair"><div><div class="lbl">Mockup (<a href="../analysis/design-context/mockups/czat-grupy-i-terminu.html">czat-grupy-i-terminu.html</a>)</div><img class="shot" src="e2e-screenshots/m4-mockup-czat-grupy-i-terminu.png" alt="mockup"></div>
+<div><div class="lbl">Implementation</div><div class="shots"><figure><img class="shot" src="e2e-screenshots/24-group-chat-B-view.png" alt="24-group-chat-B-view.png"><figcaption>24-group-chat-B-view.png</figcaption></figure><figure><img class="shot" src="e2e-screenshots/28-group-chat-deleted-readonly-B.png" alt="28-group-chat-deleted-readonly-B.png"><figcaption>28-group-chat-deleted-readonly-B.png</figcaption></figure></div></div></div></div><div class="card" style="border-left:5px solid var(--ok)"><h3 style="margin:0 0 6px">screen:item-ask-button <span style="color:var(--ok)">✓ Match</span></h3>
+<p style="margin:4px 0 10px">Pill under the status card; hidden for the owner and on deleted items.</p>
+<div class="pair"><div><div class="lbl">Mockup (<a href="../analysis/design-context/mockups/zapytaj-o-rzecz-na-stronie-rzeczy.html">zapytaj-o-rzecz-na-stronie-rzeczy.html</a>)</div><img class="shot" src="e2e-screenshots/m5-mockup-zapytaj-o-rzecz-na-stronie-rzeczy.png" alt="mockup"></div>
+<div><div class="lbl">Implementation</div><div class="shots"><figure><img class="shot" src="e2e-screenshots/01-item-page-visitor-ask-button.png" alt="01-item-page-visitor-ask-button.png"><figcaption>01-item-page-visitor-ask-button.png</figcaption></figure><figure><img class="shot" src="e2e-screenshots/09-owner-item-page-no-ask.png" alt="09-owner-item-page-no-ask.png"><figcaption>09-owner-item-page-no-ask.png</figcaption></figure></div></div></div></div><div class="card" style="border-left:5px solid var(--ok)"><h3 style="margin:0 0 6px">screen:term-chat-buttons <span style="color:var(--ok)">✓ Match</span></h3>
+<p style="margin:4px 0 10px">Two pills (PRIVATE), single full-width "Czat terminu" (PUBLIC).</p>
+<div class="pair"><div><div class="lbl">Mockup (<a href="../analysis/design-context/mockups/przyciski-czatu-na-stronie-terminu.html">przyciski-czatu-na-stronie-terminu.html</a>)</div><img class="shot" src="e2e-screenshots/m6-mockup-przyciski-czatu-na-stronie-terminu.png" alt="mockup"></div>
+<div><div class="lbl">Implementation</div><div class="shots"><figure><img class="shot" src="e2e-screenshots/13-term-private-member-attendee-A.png" alt="13-term-private-member-attendee-A.png"><figcaption>13-term-private-member-attendee-A.png</figcaption></figure><figure><img class="shot" src="e2e-screenshots/18-term-public-attendee-B.png" alt="18-term-public-attendee-B.png"><figcaption>18-term-public-attendee-B.png</figcaption></figure></div></div></div></div><div class="card" style="border-left:5px solid var(--ok)"><h3 style="margin:0 0 6px">screen:organizer-entry <span style="color:var(--ok)">✓ Match</span></h3>
+<p style="margin:4px 0 10px">"Czat grupy" card above "Kod dostępu"; "Napisz do uczestników" in TermHeadCard. Cream TermHeadCard accepted.</p>
+<div class="pair"><div><div class="lbl">Mockup (<a href="../analysis/design-context/mockups/wej-cia-organizatora.html">wej-cia-organizatora.html</a>)</div><img class="shot" src="e2e-screenshots/m7-mockup-wej-cia-organizatora.png" alt="mockup"></div>
+<div><div class="lbl">Implementation</div><div class="shots"><figure><img class="shot" src="e2e-screenshots/20-group-details-private-chat-card.png" alt="20-group-details-private-chat-card.png"><figcaption>20-group-details-private-chat-card.png</figcaption></figure><figure><img class="shot" src="e2e-screenshots/22-term-attendees-write-button.png" alt="22-term-attendees-write-button.png"><figcaption>22-term-attendees-write-button.png</figcaption></figure></div></div></div></div></main></body></html>

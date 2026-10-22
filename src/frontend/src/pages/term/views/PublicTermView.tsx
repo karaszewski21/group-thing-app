@@ -26,15 +26,25 @@ import { useTermSignUp } from "../hooks/useTermSignUp";
 import { useNeededItemPledge } from "../hooks/useNeededItemPledge";
 import { useItemTake } from "../hooks/useItemTake";
 import { organizerItemPath } from "../../product/useItemRoutes";
+import { useOpenAndNavigate } from "../../../hooks/useOpenAndNavigate";
+
+/** The server's chat-relevant relationship to the group and the shown term. */
+interface ChatAccess {
+  isOrganizer: boolean;
+  isMember: boolean;
+  isActiveAttendee: boolean;
+}
 
 /** The term page's content, for a caller allowed to see it. */
 export function PublicTermView({
   group,
   isAttendingOnServer,
+  chatAccess,
   refetch,
 }: {
   group: PublicCircleResponse;
   isAttendingOnServer: boolean;
+  chatAccess: ChatAccess;
   refetch: () => Promise<void>;
 }) {
   const navigate = useNavigate();
@@ -149,6 +159,15 @@ export function PublicTermView({
           attendeeCount={term?.attendee_count}
         />
 
+        <ChatRow
+          showTermChat={termId !== null && isLoggedIn && (chatAccess.isActiveAttendee || chatAccess.isOrganizer)}
+          showGroupChat={
+            isLoggedIn && group.visibility === "PRIVATE" && (chatAccess.isMember || chatAccess.isOrganizer)
+          }
+          termId={termId}
+          groupId={groupId}
+        />
+
         {term && <NeededItemsSection rows={neededItemRows} />}
 
         {term && <AttendeeList attendees={buildAttendees(group, toListingRow)} activePartyId={activePartyId} />}
@@ -242,6 +261,59 @@ export function PublicTermView({
         />
       )}
       <ToastPill message={toast} />
+    </div>
+  );
+}
+
+const CHAT_BUTTON =
+  "flex min-h-11 flex-1 items-center justify-center gap-1.5 rounded-full border-[1.5px] border-line bg-paper px-3 text-[13px] font-extrabold text-ink hover:border-line-strong focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring disabled:opacity-60";
+
+/** "Czat terminu" / "Czat grupy" between the term card and the lists. Gated
+ * by the caller on server flags only; opens (or creates) the chat and goes to
+ * its thread, or shows the error inline. */
+function ChatRow({
+  showTermChat,
+  showGroupChat,
+  termId,
+  groupId,
+}: {
+  showTermChat: boolean;
+  showGroupChat: boolean;
+  termId: string | null;
+  groupId: string;
+}) {
+  const { open, busy, error } = useOpenAndNavigate();
+  if (!showTermChat && !showGroupChat) return null;
+
+  return (
+    <div className="mx-5 mt-3">
+      <div className="flex gap-2">
+        {showTermChat && (
+          <button
+            type="button"
+            className={CHAT_BUTTON}
+            disabled={busy}
+            onClick={() => void open({ kind: "TERM", id: termId ?? "" })}
+          >
+            <span aria-hidden="true">💬</span> Czat terminu
+          </button>
+        )}
+        {showGroupChat && (
+          <button
+            type="button"
+            className={CHAT_BUTTON}
+            disabled={busy}
+            onClick={() => void open({ kind: "GROUP", id: groupId })}
+          >
+            <span aria-hidden="true">👥</span> Czat grupy
+          </button>
+        )}
+      </div>
+      {error && (
+        <p role="alert" className="mt-1.5 text-xs font-semibold text-danger">
+          {error}
+        </p>
+      )}
     </div>
   );
 }

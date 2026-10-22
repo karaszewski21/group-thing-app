@@ -25,7 +25,7 @@ from app.core.errors import (
 from app.users.service import get_profile_by_principal
 
 from ..models import Group, GroupVisibility
-from .circles import _is_active_organizer, _require_active_organizer, get_group
+from .circles import _require_active_organizer, get_group, is_active_group_organizer
 from .join_code_limiter import limiter
 from .memberships import _is_active_member, add_active_membership
 
@@ -134,7 +134,7 @@ async def redeem_join_code(
         limiter.record_failure(party_id, group_id)
         raise BusinessConflictException(_WRONG_CODE_MESSAGE)
 
-    if await _is_active_organizer(db, group_id, party_id) or await _is_active_member(
+    if await is_active_group_organizer(db, group_id, party_id) or await _is_active_member(
         db, group_id, party_id
     ):
         limiter.clear(party_id, group_id)

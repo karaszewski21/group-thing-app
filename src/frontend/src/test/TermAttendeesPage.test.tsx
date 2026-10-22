@@ -19,6 +19,9 @@ vi.mock("../api/groups", () => ({
   getTermAttendees: vi.fn(),
 }));
 
+const conversationHook = vi.hoisted(() => ({ openConversation: vi.fn() }));
+vi.mock("../hooks/useOpenConversation", () => ({ useOpenConversation: () => conversationHook }));
+
 const TERM_ID = "3f2b8c1e-7a4d-4e9b-9c1a-2d5e6f7a8b9c";
 const GROUP_ID = "a1b2c3d4-e5f6-4a7b-8c9d-0e1f2a3b4c5d";
 
@@ -86,6 +89,7 @@ function renderPage() {
     <MemoryRouter initialEntries={[`/panel/terminy/${TERM_ID}`]}>
       <Routes>
         <Route path="/panel/terminy/:termId" element={<TermAttendeesPage />} />
+        <Route path="/panel/wiadomosci/:id" element={<p>Wątek rozmowy</p>} />
       </Routes>
     </MemoryRouter>,
     { wrapper: createQueryWrapper() },
@@ -211,5 +215,19 @@ describe("TermAttendeesPage", () => {
     expect(await screen.findByText("Ewa Lis")).toBeInTheDocument();
     expect(screen.getByText("dzieci w rodzinie: wiek nieznany")).toBeInTheDocument();
     expect(screen.queryByText(/brak dzieci w profilu rodziny/)).not.toBeInTheDocument();
+  });
+  it("'Napisz do uczestników' opens the term conversation; a failure shows inline", async () => {
+    conversationHook.openConversation
+      .mockRejectedValueOnce(new Error("Nie udało się otworzyć rozmowy — spróbuj ponownie"))
+      .mockResolvedValue("conv-5");
+    renderPage();
+
+    const button = await screen.findByRole("button", { name: "Napisz do uczestników" });
+    fireEvent.click(button);
+    expect(await screen.findByRole("alert")).toHaveTextContent("Nie udało się otworzyć rozmowy — spróbuj ponownie");
+
+    fireEvent.click(button);
+    expect(await screen.findByText("Wątek rozmowy")).toBeInTheDocument();
+    expect(conversationHook.openConversation).toHaveBeenCalledWith({ kind: "TERM", id: TERM_ID });
   });
 });

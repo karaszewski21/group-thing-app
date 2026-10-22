@@ -2,6 +2,7 @@ import { fireEvent, render, screen, waitFor, within } from "@testing-library/rea
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { ApiError } from "../api/client";
+import * as conversationsApi from "../api/conversations";
 import * as notificationsApi from "../api/notifications";
 import * as organizationsApi from "../api/organizations";
 import type { MyOrganizationResponse } from "../api/organizations";
@@ -10,6 +11,7 @@ import { createQueryWrapper } from "./queryClient";
 import { resetSnoozeStoreForTests } from "../components/pending/snoozeStore";
 
 vi.mock("../api/organizations", () => ({ getMyOrganization: vi.fn() }));
+vi.mock("../api/conversations", () => ({ getUnreadMessageCount: vi.fn(), chatErrorMessage: vi.fn() }));
 vi.mock("../api/notifications", () => ({
   getMyNotifications: vi.fn(),
   markNotificationRead: vi.fn(),
@@ -44,6 +46,7 @@ beforeEach(() => {
   mockAuth = { token: null };
   vi.mocked(organizationsApi.getMyOrganization).mockRejectedValue(new ApiError(404, "Not Found", null));
   vi.mocked(notificationsApi.getMyNotifications).mockResolvedValue([]);
+  vi.mocked(conversationsApi.getUnreadMessageCount).mockResolvedValue({ count: 0 });
 });
 
 describe("PublicLayout", () => {
@@ -99,6 +102,26 @@ describe("PublicLayout", () => {
 
     expect(await screen.findByRole("button", { name: "Powiadomienia" })).toBeInTheDocument();
     expect(notificationsApi.getMyNotifications).toHaveBeenCalled();
+  });
+
+  it("logged in: the messages link sits right before the notification bell", async () => {
+    mockAuth = { token: "tok", username: "ania" };
+    vi.mocked(conversationsApi.getUnreadMessageCount).mockResolvedValue({ count: 4 });
+    renderPublicPage();
+
+    const messages = await screen.findByRole("link", { name: "Wiadomości (4 nieprzeczytane)" });
+    const bell = screen.getByRole("button", { name: "Powiadomienia" });
+    expect(messages).toHaveAttribute("href", "/panel/wiadomosci");
+    expect(messages.nextElementSibling).toBe(bell.parentElement);
+  });
+
+  it("logged in: the brand label truncates instead of wrapping the bar on narrow screens", async () => {
+    mockAuth = { token: "tok", username: "ania" };
+    renderPublicPage();
+
+    const brand = await screen.findByText("Krąg grupy");
+    expect(brand).toHaveClass("min-w-0", "truncate");
+    expect(brand.closest("a")).toHaveClass("min-w-0");
   });
 
   it("picking a menu item closes the menu", async () => {

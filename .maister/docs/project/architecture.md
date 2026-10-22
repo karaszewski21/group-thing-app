@@ -139,6 +139,23 @@ Rollback: set `MODERATION_IMAGE_ENABLED=false` on VPS A (uploads are auto-approv
 - **Inheritance**: `create_term` copies the group's default place and capacity **by value**; later changes to the group default never touch existing terms.
 - **Google Places caching**: the backend never calls Google. The browser looks places up via Places API (New) (`importLibrary("places")`, session tokens, `src/frontend/src/lib/googleMaps.ts`) and posts the result. `google_place_id` may be stored indefinitely; `formatted_address`, `lat` and `lng` are cached Google data subject to Google's caching limits, and refreshing them is out of scope (`updated_at` is the cache timestamp). Without `VITE_GOOGLE_MAPS_API_KEY` (a frontend build arg, never committed) the picker falls back to MANUAL places typed by hand.
 
+## Messaging (`app/messaging/`)
+
+`app/messaging/` is its own bounded context: private text chats between logged-in users. Tables `conversations`, `messages` and `conversation_reads` (migration `0061_messaging`). Routes live under `/api/conversations`: the inbox (`GET ""`), `GET /unread-count`, get-or-create `POST /item`, `/group` and `/term`, `GET /{id}`, `GET`/`POST /{id}/messages` and `POST /{id}/read`. Authorization matrix rows 53-54 accept only the login `READ`/`EDIT` permissions, not the OAuth `mcp:read`/`mcp:edit` scopes.
+
+- **Kinds**:
+  - `ITEM` is a 1:1 chat between someone asking about an item and its current owner. Asking about your own item returns 409.
+  - `GROUP` is for the organizer and the active members of a PRIVATE group. It is read-only while the group is PUBLIC.
+  - `TERM` is for the organizer and the non-withdrawn attendees of a term.
+  - GROUP and TERM chats are read-only once their group is soft-deleted.
+- **Access computed per request**: no participant table is stored. Every call resolves the caller's right to read or write from current group, term and item state, in `application/access.py`. The inbox uses the same audience, and the `/{id}` routes return 404 before 403. Foreign contexts are reached only through `infrastructure/{groups,circulation,users}_acl.py`.
+- **Read markers**: `conversation_reads` holds one `last_read_at` per party and conversation. `POST /{id}/read` takes a `message_id` and only moves the marker forward. Sending upserts the sender's own marker, and read-only chats can still be marked read. The unread badge counts messages, not conversations.
+- **Send ordering**: moderation runs first, outside the lock. The send then takes `SELECT … FOR UPDATE` on the conversation row and stamps `created_at = max(utcnow, last_message_at + 1 µs)`, so commit order equals cursor order. An `after=` poll from the last server-fetched id never skips a row. Sending moves the sender's own marker to their message, so a message that crossed it is shown in the open thread but never counted as unread.
+- **Keyset cursor**: `GET /{id}/messages` pages by message id on `(created_at, id)`, 50 per page with `has_more`. `before=` loads older history and `after=` polls for new messages. Both cursors at once, or a cursor from another conversation, return 400.
+- **Polling, no push**: the frontend polls. The 💬 badge (`useUnreadMessages`) and the inbox (`useConversations`) poll every 20 s, and an open thread (`useThread`) polls `after=` every 5 s into one cached query. None of them polls in the background.
+- **Moderation**: each body goes through `app/moderation/text_guard.check_text(TextField.MESSAGE_BODY, …)`. A rejection returns 400 and writes no row. If the guard is unavailable the send returns 503, and the composer keeps the text.
+- **Rate limits**: `application/send_limiter.py` is an in-memory sliding window, like `join_code_limiter`. It allows 30 messages per minute and 20 new ITEM conversations per hour per party, and returns 429 with `Retry-After` when exceeded. Its state is **per uvicorn worker** and resets on restart, so the limits multiply if the app ever runs several workers.
+
 ## External Integrations
 - **PostgreSQL 18**: Primary datastore, run via `docker-compose.yml`
 - **Google Maps JavaScript API / Places API (New)**: browser-only, loaded on demand by the location picker when `VITE_GOOGLE_MAPS_API_KEY` is set at build time; see "Locations" above
