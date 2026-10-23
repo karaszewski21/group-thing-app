@@ -57,7 +57,7 @@ async function renderSidebarWithRealAuth() {
   return render(
     <ChakraProvider value={system}>
       <AuthProvider>
-        <MemoryRouter initialEntries={["/panel"]}>
+        <MemoryRouter initialEntries={["/"]}>
           <Sidebar />
         </MemoryRouter>
       </AuthProvider>

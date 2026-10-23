@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { MemoryRouter, Route, Routes, useParams } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { ItemCreatePage } from "../pages/product/ItemCreatePage";
@@ -60,7 +60,7 @@ function renderPage() {
       <Routes>
         <Route path="/product/new" element={<ItemCreatePage />} />
         <Route path="/product/:id" element={<NewItemProbe />} />
-        <Route path="/panel/rzeczy" element={<p>PANEL RZECZY</p>} />
+        <Route path="/rzeczy" element={<p>PANEL RZECZY</p>} />
       </Routes>
     </MemoryRouter>,
     { wrapper: createQueryWrapper() },
@@ -234,15 +234,4 @@ describe("ItemCreatePage", () => {
     });
   });
 
-  it("shows the panel bottom nav with no tab active; Moje rzeczy leads to /panel/rzeczy", async () => {
-    await renderLoadedPage();
-
-    const nav = screen.getByRole("navigation", { name: "Nawigacja panelu" });
-    const rzeczy = within(nav).getByRole("button", { name: "Moje rzeczy" });
-    expect(rzeczy).toHaveAttribute("aria-current", "false");
-    expect(within(nav).getByRole("button", { name: "Home" })).toHaveAttribute("aria-current", "false");
-
-    fireEvent.click(rzeczy);
-    expect(await screen.findByText("PANEL RZECZY")).toBeInTheDocument();
-  });
 });

@@ -13,8 +13,8 @@ import { resolveProduct } from "../../api/products";
 import { serverMessageOr } from "../../api/problem";
 import type { Category } from "../../api/categories";
 import { useCategories } from "../../hooks/useCategories";
-import { CapacityField, Field, INPUT_CLASS, ModalSheet } from "../../pages/panel/panelComponents";
-import { capacityText, parseCapacity } from "../../pages/panel/panelHelpers";
+import { CapacityField, Field, INPUT_CLASS, ModalSheet } from "../shared/appComponents";
+import { capacityText, parseCapacity } from "../../utils/appHelpers";
 import { LocationPicker } from "../shared/LocationPicker";
 
 /* ------------------------------------------------------------------ */

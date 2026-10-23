@@ -45,7 +45,7 @@ function renderAt(path: string) {
           </>
         ),
       },
-      { path: "/panel/home", element: <p>Panel</p> },
+      { path: "/home", element: <p>Panel</p> },
     ],
     { initialEntries: [path] },
   );
@@ -217,7 +217,7 @@ describe("Organizer editor sheet", () => {
     const { router } = await openEditor();
     chooseLinks();
 
-    await act(() => router.navigate("/panel/home"));
+    await act(() => router.navigate("/home"));
 
     expect(screen.getByRole("alertdialog", { name: "Odrzucić zmiany?" })).toBeInTheDocument();
 

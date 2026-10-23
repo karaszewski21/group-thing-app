@@ -122,14 +122,13 @@ describe("Organizer product route", () => {
     expect(screen.queryByText("Rowerek biegowy")).not.toBeInTheDocument();
   });
 
-  it("renders the item in the organizer palette without the panel nav", async () => {
-    const { container } = renderAt("/ania/produkt/9");
+  it("renders the item in the organizer palette", async () => {
+    renderAt("/ania/produkt/9");
 
     const heading = await screen.findByRole("heading", { name: "Rowerek biegowy" });
     const scope = scopeOf(heading);
     expect(scope).toHaveAttribute("data-organizer-theme", "custom");
     expect(scope.style.getPropertyValue("--color-primary")).toBe("#7a2a4f");
-    expect(container.querySelector('nav[aria-label="Nawigacja panelu"]')).toBeNull();
     expect(screen.getByRole("link", { name: /Edytuj/ })).toHaveAttribute("href", "/ania/produkt/9/edit");
   });
 
@@ -172,7 +171,7 @@ describe("Organizer product route", () => {
 
     await screen.findByRole("heading", { name: "Rowerek biegowy" });
     fireEvent.click(screen.getByRole("button", { name: /Wróć/ }));
-    expect(screen.getByTestId("where")).toHaveTextContent(/^\/panel\/rzeczy$/);
+    expect(screen.getByTestId("where")).toHaveTextContent(/^\/rzeczy$/);
   });
 
   it("bare /:slug/produkt redirects to the organizer page without fetching an item", () => {

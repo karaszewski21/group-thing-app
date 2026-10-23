@@ -6,7 +6,7 @@ import { system } from "../theme";
 import * as productsApi from "../api/products";
 import * as categoriesApi from "../api/categories";
 import type { Category } from "../api/categories";
-import { ProductFormPage } from "../pages/ProductFormPage";
+import { ProductFormPage } from "../pages/admin/ProductFormPage";
 import { createQueryWrapper } from "./queryClient";
 import { ApiError } from "../api/client";
 

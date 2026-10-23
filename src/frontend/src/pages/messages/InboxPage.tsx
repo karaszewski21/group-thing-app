@@ -5,8 +5,7 @@ import { Avatar } from "../../components/shared/Avatar";
 import { PhoneFrame } from "../../components/shared/PhoneFrame";
 import { useConversations } from "../../hooks/useConversations";
 import { threadPath } from "../../utils/messagesPaths";
-import { PanelNavBar } from "../panel/PanelNav";
-import { BackIcon } from "../panel/panelIcons";
+import { BackIcon } from "../../components/shared/appIcons";
 import { formatInboxTime } from "./messageTime";
 
 const FOCUS_RING = "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring";
@@ -17,9 +16,8 @@ const KIND_CHIP: Record<ConversationKind, { label: string; className: string }> 
   TERM: { label: "Termin", className: "bg-teal-soft text-ink" },
 };
 
-/** The messages inbox (`/panel/wiadomosci`): every conversation with a
- * message, newest first, read-only chats included. A standalone route with
- * the panel's tab bar and no tab highlighted, like GroupDetailsPage. */
+/** The messages inbox (`/wiadomosci`): every conversation with a
+ * message, newest first, read-only chats included. */
 export function InboxPage() {
   const { data, loading, error, refetch } = useConversations();
 
@@ -41,13 +39,12 @@ export function InboxPage() {
   return (
     <PhoneFrame>
       <div className="flex-1 overflow-y-auto px-[18px] pb-6 pt-[18px]">
-        <Link to="/panel" className={`inline-flex items-center gap-1.5 text-xs font-bold text-ink-soft ${FOCUS_RING}`}>
+        <Link to="/" className={`inline-flex items-center gap-1.5 text-xs font-bold text-ink-soft ${FOCUS_RING}`}>
           <BackIcon /> Wróć
         </Link>
         <h1 className="mt-2 text-[19px] font-semibold text-ink">Wiadomości</h1>
         {body}
       </div>
-      <PanelNavBar />
     </PhoneFrame>
   );
 }

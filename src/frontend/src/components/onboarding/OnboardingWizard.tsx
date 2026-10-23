@@ -33,7 +33,7 @@ interface OnboardingWizardProps {
  * Generic, prop-configured onboarding shell (`standards/frontend/components.md`):
  * the flow is defined entirely by the `Step[]` passed in (currently only the
  * ORGANIZER flow; a GUEST skips onboarding).
- * Reuses the `RegisterPage`/`LoginPage` card shell verbatim.
+ * Reuses the `LoginPage` card shell verbatim.
  */
 export function OnboardingWizard({ steps, onSkip, onComplete }: OnboardingWizardProps) {
   const [stepIndex, setStepIndex] = useState(0);

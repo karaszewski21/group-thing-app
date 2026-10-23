@@ -11,7 +11,7 @@ import {
   type SessionToken,
   type Suggestion,
 } from "../../lib/googleMaps";
-import { INPUT_CLASS } from "../../pages/panel/panelComponents";
+import { INPUT_CLASS } from "./appComponents";
 
 /* ------------------------------------------------------------------ */
 /*  Form adding one saved place: Google search (mockup 2c) or manual   */

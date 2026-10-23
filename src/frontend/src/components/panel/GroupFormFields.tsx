@@ -1,5 +1,5 @@
 import type { GroupLayoutMode, GroupVisibility } from "../../api/groups";
-import { CapacityField, Field, INPUT_CLASS } from "../../pages/panel/panelComponents";
+import { CapacityField, Field, INPUT_CLASS } from "../shared/appComponents";
 import { LocationPicker, type FallbackLocation } from "../shared/LocationPicker";
 
 const LAYOUT_OPTIONS: { mode: GroupLayoutMode; label: string }[] = [

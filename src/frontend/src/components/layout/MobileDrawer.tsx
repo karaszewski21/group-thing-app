@@ -82,7 +82,7 @@ export function MobileDrawer({ open, onClose }: MobileDrawerProps) {
           <DrawerBody px="0" pt="16px">
             <Flex as="nav" direction="column" gap="2px" role="navigation" aria-label="Mobile navigation">
               <MobileNavItem to="/admin/products" label="Products" icon={ProductsIcon} onClick={onClose} />
-              <MobileNavItem to="/panel" label="Krąg grupy" icon={KragIcon} onClick={onClose} />
+              <MobileNavItem to="/" label="Krąg grupy" icon={KragIcon} onClick={onClose} />
               {isAdmin && (
                 <MobileNavItem to="/admin/categories" label="Categories" icon={CategoriesIcon} onClick={onClose} />
               )}

@@ -1,11 +1,13 @@
 import { useEffect, useId, useRef, useState, type KeyboardEvent } from "react";
 import { BTN_GHOST, BTN_LG, BTN_SM } from "./uiStyles";
-import { CalendarIcon } from "../../pages/panel/panelIcons";
+import { CalendarIcon } from "./appIcons";
 import { buildGoogleCalendarUrl, downloadIcs, type CalendarEvent } from "../../utils/calendar";
-import { ACCOUNT_MENU_ITEM_CLASS } from "./AccountMenu";
 
-/** "Dodaj do kalendarza" trigger with a two-item menu (Google Calendar link
- * and `.ics` download), following the `AccountMenu` popover pattern. Inside
+const MENU_ITEM_CLASS =
+  "flex w-full items-center gap-2.5 rounded-[11px] px-3 py-2.5 text-left text-sm font-bold text-ink hover:bg-cream";
+
+/** "Dodaj do kalendarza" trigger with a two-item popover menu (Google
+ * Calendar link and `.ics` download). Inside
  * a sheet it opens upward so the sheet's scroll area does not clip it. */
 export function AddToCalendarButton({
   event,
@@ -95,7 +97,7 @@ export function AddToCalendarButton({
             target="_blank"
             rel="noopener noreferrer"
             onClick={closeToTrigger}
-            className={ACCOUNT_MENU_ITEM_CLASS}
+            className={MENU_ITEM_CLASS}
           >
             Kalendarz Google
             <span aria-hidden="true" className="ml-auto">↗</span>
@@ -107,7 +109,7 @@ export function AddToCalendarButton({
               downloadIcs(event, new Date());
               closeToTrigger();
             }}
-            className={ACCOUNT_MENU_ITEM_CLASS}
+            className={MENU_ITEM_CLASS}
           >
             Apple / Outlook (.ics)
             <span aria-hidden="true" className="ml-auto">⬇</span>

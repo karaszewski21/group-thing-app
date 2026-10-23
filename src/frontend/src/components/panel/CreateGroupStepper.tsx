@@ -4,8 +4,8 @@ import { createAdditionalMyCircle, updateGroup, type GroupResponse } from "../..
 import { serverMessageOr } from "../../api/problem";
 import { createTerm } from "../../api/terms";
 import { useJoinCode } from "../../hooks/useJoinCode";
-import { CapacityField, Field, INPUT_CLASS, ModalSheet } from "../../pages/panel/panelComponents";
-import { capacityText, defaultVisibility, parseCapacity, termPublicPath } from "../../pages/panel/panelHelpers";
+import { CapacityField, Field, INPUT_CLASS, ModalSheet } from "../shared/appComponents";
+import { capacityText, defaultVisibility, parseCapacity, termPublicPath } from "../../utils/appHelpers";
 import { LocationPicker } from "../shared/LocationPicker";
 import { GroupFormFields, type GroupFormValue } from "./GroupFormFields";
 import { JoinCodeCard } from "./JoinCodeCard";

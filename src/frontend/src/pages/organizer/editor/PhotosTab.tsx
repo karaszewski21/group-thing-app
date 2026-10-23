@@ -4,7 +4,7 @@ import type { MediaKind, OwnerMedia } from "../../../api/organizations";
 import { familyInitials } from "../../../components/shared/Avatar";
 import { useMyOrganization } from "../../../hooks/useMyOrganization";
 import { useOrganizationMedia } from "../../../hooks/useOrganizationMedia";
-import { TrashIcon } from "../../panel/panelIcons";
+import { TrashIcon } from "../../../components/shared/appIcons";
 import { SafeImage } from "../../product/ItemGallery";
 import { ModerationBadge, PhotoFileField, type ModerationLabels } from "../../product/ItemGalleryEditor";
 import { photoFileError } from "../../product/itemPageShared";

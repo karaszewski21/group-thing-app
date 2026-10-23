@@ -307,7 +307,7 @@ async def soft_delete_needed_item(
                 message=(
                     f"Organizator usunął z listy rzecz, którą miałeś przynieść: {product.name}"
                 ),
-                link_path="/panel",
+                link_path="/",
             )
 
     await db.commit()

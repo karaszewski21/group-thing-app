@@ -52,7 +52,7 @@ dayjs(iso).format("D MMMM YYYY");
 ```
 
 ### Pass Mutation Callbacks Down Instead of Re-subscribing
-A child component rendered under a host that already uses a TanStack Query hook (e.g. `useMyLocations`) takes the hook's mutation callbacks (`create`, `update`, `remove`) as props instead of calling the hook again. A second subscriber mounting with the default `staleTime: 0` triggers a background refetch every time it mounts (e.g. each time an inline add form opens), which can race with optimistic or pre-check logic. Reference: `components/shared/LocationAddForm.tsx` (`create: (request) => Promise<LocationResponse>` prop), passed from `components/shared/LocationPicker.tsx` and `pages/panel/views/MiejscaView.tsx`.
+A child component rendered under a host that already uses a TanStack Query hook (e.g. `useMyLocations`) takes the hook's mutation callbacks (`create`, `update`, `remove`) as props instead of calling the hook again. A second subscriber mounting with the default `staleTime: 0` triggers a background refetch every time it mounts (e.g. each time an inline add form opens), which can race with optimistic or pre-check logic. Reference: `components/shared/LocationAddForm.tsx` (`create: (request) => Promise<LocationResponse>` prop), passed from `components/shared/LocationPicker.tsx` and `pages/places/PlacesView.tsx`.
 ```tsx
 const { data: locations, create } = useMyLocations();   // host: the only subscriber
 <LocationAddForm create={create} onSaved={...} />

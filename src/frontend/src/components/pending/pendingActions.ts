@@ -13,7 +13,7 @@ import { getMyTakenTermItemListings, getMyTermItemListings } from "../../api/ter
  * `SWAP_PROPOSED` carries no `proposalId`/accept-reject affordance here —
  * the host can only ever surface the FIRST pending action, which would
  * pre-empt the actual choice among possibly several competing offers. It
- * only links to "Moje rzeczy", where `RzeczyView` lists every pending offer
+ * only links to "Moje rzeczy", where `MyItemsView` lists every pending offer
  * against the item together. */
 export interface PendingSwapAction {
   kind: "SWAP_PROPOSED";

@@ -5,8 +5,7 @@ import { useItemDetail, useItemHistory } from "../../hooks/useItemDetail";
 import { useOpenAndNavigate } from "../../hooks/useOpenAndNavigate";
 import dayjs from "../../utils/dayjs";
 import { CONDITION_LABELS } from "../../utils/productCategory";
-import { PanelNavBar } from "../panel/PanelNav";
-import { PencilIcon, TrashIcon } from "../panel/panelIcons";
+import { PencilIcon, TrashIcon } from "../../components/shared/appIcons";
 import { ItemBackButton } from "./ItemBackButton";
 import { ItemGallery } from "./ItemGallery";
 import { ItemLoadStates } from "./ItemLoadStates";
@@ -24,12 +23,11 @@ import { useItemRoutes } from "./useItemRoutes";
 import { familyInitials } from "../../components/shared/Avatar";
 import type { PublicOrganizationResponse } from "../../api/organizations";
 
-/** `/product/:id`. Standalone, outside PanelDataProvider. */
+/** `/product/:id`. Standalone, outside AppDataProvider. */
 export function ItemDetailPage() {
   return (
     <PhoneFrame>
       <ItemDetailBody />
-      <PanelNavBar />
     </PhoneFrame>
   );
 }

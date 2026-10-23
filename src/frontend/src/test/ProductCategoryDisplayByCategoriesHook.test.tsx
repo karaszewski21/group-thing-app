@@ -7,7 +7,7 @@ import * as productsApi from "../api/products";
 import type { ProductResponse } from "../api/products";
 import * as categoriesApi from "../api/categories";
 import type { Category } from "../api/categories";
-import { ProductDetailPage } from "../pages/ProductDetailPage";
+import { ProductDetailPage } from "../pages/admin/ProductDetailPage";
 import { createQueryWrapper } from "./queryClient";
 
 vi.mock("../api/products", () => ({

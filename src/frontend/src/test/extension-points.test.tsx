@@ -148,7 +148,7 @@ describe("Sidebar with plugin menu items", () => {
 describe("ProductDetailPage", () => {
   it("renders product info in Details tab and plugin tabs", async () => {
     const { PluginProvider } = await import("../plugins/PluginContext");
-    const { ProductDetailPage } = await import("../pages/ProductDetailPage");
+    const { ProductDetailPage } = await import("../pages/admin/ProductDetailPage");
 
     render(
       <ChakraProvider value={system}>
@@ -180,7 +180,7 @@ describe("ProductDetailPage", () => {
 describe("ProductListPage with plugin filters", () => {
   it("renders plugin filter iframes in filter bar", async () => {
     const { PluginProvider } = await import("../plugins/PluginContext");
-    const { ProductListPage } = await import("../pages/ProductListPage");
+    const { ProductListPage } = await import("../pages/admin/ProductListPage");
 
     renderWithProviders(
       <PluginProvider>
@@ -205,7 +205,7 @@ describe("ProductListPage with plugin filters", () => {
 describe("Plugin page route", () => {
   it("renders full-page PluginFrame for /plugins/:pluginId/*", async () => {
     const { PluginProvider } = await import("../plugins/PluginContext");
-    const { PluginPageRoute } = await import("../pages/PluginPageRoute");
+    const { PluginPageRoute } = await import("../pages/admin/PluginPageRoute");
 
     render(
       <ChakraProvider value={system}>
@@ -235,7 +235,7 @@ describe("ProductDetailPage with no plugins", () => {
     vi.mocked(pluginsApi.getPlugins).mockResolvedValue([]);
 
     const { PluginProvider } = await import("../plugins/PluginContext");
-    const { ProductDetailPage } = await import("../pages/ProductDetailPage");
+    const { ProductDetailPage } = await import("../pages/admin/ProductDetailPage");
 
     render(
       <ChakraProvider value={system}>
@@ -266,7 +266,7 @@ describe("ProductDetailPage with no plugins", () => {
 describe("PluginListPage", () => {
   it("renders table of plugins with name, version, URL, enabled columns", async () => {
     const { PluginProvider } = await import("../plugins/PluginContext");
-    const { PluginListPage } = await import("../pages/PluginListPage");
+    const { PluginListPage } = await import("../pages/admin/PluginListPage");
 
     renderWithProviders(
       <PluginProvider>

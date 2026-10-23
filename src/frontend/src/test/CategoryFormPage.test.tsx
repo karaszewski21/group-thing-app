@@ -43,7 +43,7 @@ beforeEach(() => {
 describe("CategoryFormPage", () => {
   it("renders single-column name (required) / description (optional) fields and creates via createCategory when adding", async () => {
     vi.mocked(categoriesApi.createCategory).mockResolvedValue(mockCategory);
-    const { CategoryFormPage } = await import("../pages/CategoryFormPage");
+    const { CategoryFormPage } = await import("../pages/admin/CategoryFormPage");
 
     renderWithProviders(<CategoryFormPage />, "/admin/categories/new");
 
@@ -72,7 +72,7 @@ describe("CategoryFormPage", () => {
   it("loads existing category data and submits via updateCategory when editing", async () => {
     vi.mocked(categoriesApi.getCategory).mockResolvedValue(mockCategory);
     vi.mocked(categoriesApi.updateCategory).mockResolvedValue(mockCategory);
-    const { CategoryFormPage } = await import("../pages/CategoryFormPage");
+    const { CategoryFormPage } = await import("../pages/admin/CategoryFormPage");
 
     renderWithProviders(<CategoryFormPage />, "/admin/categories/1/edit");
 
@@ -93,7 +93,7 @@ describe("CategoryFormPage", () => {
   });
 
   it("blocks submission via native required-field validation when name is left empty", async () => {
-    const { CategoryFormPage } = await import("../pages/CategoryFormPage");
+    const { CategoryFormPage } = await import("../pages/admin/CategoryFormPage");
 
     renderWithProviders(<CategoryFormPage />, "/admin/categories/new");
 

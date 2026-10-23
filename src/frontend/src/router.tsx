@@ -1,38 +1,54 @@
-import { createBrowserRouter, Navigate, Outlet, type RouteObject } from "react-router-dom";
+import { createBrowserRouter, Navigate, Outlet, useLocation, type RouteObject } from "react-router-dom";
 import { AppShell } from "./components/layout/AppShell";
 import { PublicLayout } from "./components/layout/PublicLayout";
-import { ProductListPage } from "./pages/ProductListPage";
-import { ProductFormPage } from "./pages/ProductFormPage";
-import { CategoryListPage } from "./pages/CategoryListPage";
-import { CategoryFormPage } from "./pages/CategoryFormPage";
-import { AdminGroupsPage } from "./pages/AdminGroupsPage";
-import { AdminTermsPage } from "./pages/AdminTermsPage";
-import { PhotoModerationPage } from "./pages/PhotoModerationPage";
-import { ProductDetailPage } from "./pages/ProductDetailPage";
-import { PluginListPage } from "./pages/PluginListPage";
-import { PluginDetailPage } from "./pages/PluginDetailPage";
-import { PluginFormPage } from "./pages/PluginFormPage";
-import { PluginPageRoute } from "./pages/PluginPageRoute";
-import { LoginPage } from "./pages/LoginPage";
-import { RegisterPage } from "./pages/RegisterPage";
-import { OAuth2AuthorizePage } from "./pages/OAuth2AuthorizePage";
+import { ProductListPage } from "./pages/admin/ProductListPage";
+import { ProductFormPage } from "./pages/admin/ProductFormPage";
+import { CategoryListPage } from "./pages/admin/CategoryListPage";
+import { CategoryFormPage } from "./pages/admin/CategoryFormPage";
+import { AdminGroupsPage } from "./pages/admin/AdminGroupsPage";
+import { AdminTermsPage } from "./pages/admin/AdminTermsPage";
+import { PhotoModerationPage } from "./pages/admin/PhotoModerationPage";
+import { ProductDetailPage } from "./pages/admin/ProductDetailPage";
+import { PluginListPage } from "./pages/admin/PluginListPage";
+import { PluginDetailPage } from "./pages/admin/PluginDetailPage";
+import { PluginFormPage } from "./pages/admin/PluginFormPage";
+import { PluginPageRoute } from "./pages/admin/PluginPageRoute";
+import { LoginPage } from "./pages/auth/LoginPage";
+import { OAuth2AuthorizePage } from "./pages/auth/OAuth2AuthorizePage";
 import { TermPage } from "./pages/term/TermPage";
-import { PanelPage } from "./pages/panel/PanelPage";
-import { TermAttendeesPage } from "./pages/panel/TermAttendeesPage";
-import { GroupDetailsPage } from "./pages/panel/GroupDetailsPage";
+import { AppPage } from "./pages/home/AppPage";
+import { TermAttendeesPage } from "./pages/meetings/TermAttendeesPage";
+import { GroupDetailsPage } from "./pages/meetings/GroupDetailsPage";
 import { InboxPage } from "./pages/messages/InboxPage";
 import { ThreadPage } from "./pages/messages/ThreadPage";
 import { ItemCreatePage } from "./pages/product/ItemCreatePage";
 import { ItemDetailBody, ItemDetailPage } from "./pages/product/ItemDetailPage";
 import { ItemEditBody, ItemEditPage } from "./pages/product/ItemEditPage";
 import { OrganizerItemLayout } from "./pages/product/OrganizerItemLayout";
-import { OnboardingPage } from "./pages/OnboardingPage";
-import { OrganizationPage } from "./pages/OrganizationPage";
+import { OnboardingPage } from "./pages/auth/OnboardingPage";
+import { LandingPage } from "./pages/home/LandingPage";
+import { OrganizationPage } from "./pages/organizer/OrganizationPage";
 import { OrganizerTermsPage } from "./pages/organizer/OrganizerTermsPage";
 import { PublicOrganizationPage } from "./pages/organizer/PublicOrganizationPage";
 import { AuthGuard } from "./auth/AuthGuard";
 import { useAuth } from "./auth/AuthContext";
 import { PluginProvider } from "./plugins/PluginContext";
+import { viewPath, type View } from "./utils/appHelpers";
+import { INBOX_PATH } from "./utils/messagesPaths";
+
+const PANEL_VIEWS: readonly Exclude<View, "home">[] = [
+  "spotkania",
+  "rzeczy",
+  "podarki",
+  "profil",
+  "ustawienia",
+  "miejsca",
+  "rodzina",
+  "konto",
+  "szukaj",
+  "szukam",
+  "dodaj",
+];
 
 function Layout() {
   return (
@@ -44,33 +60,25 @@ function Layout() {
   );
 }
 
-/** "/" — the post-login landing (LoginPage navigates to "/" when there is no
- * `?returnTo=`): sends back-office roles (ADMIN / PLUGIN_MANAGEMENT — the
- * permissions gating the Categories/Plugins Sidebar links) straight to
- * `/admin/products`, everyone else to the Guest/Organizer `/panel`. */
-function HomeRedirect() {
-  const { permissions } = useAuth();
-  const isBackOffice = permissions.includes("ADMIN") || permissions.includes("PLUGIN_MANAGEMENT");
-  return <Navigate to={isBackOffice ? "/admin/products" : "/panel"} replace />;
+/** Every panel section, "/" included: one element type for all of them, so
+ * switching sections keeps AppPage (and its loaded data) mounted. An
+ * anonymous visitor gets the LandingPage at "/" and the login page elsewhere. */
+function AppRoute() {
+  const { token } = useAuth();
+  const { pathname } = useLocation();
+  if (!token && pathname === "/") return <LandingPage />;
+  return <AuthGuard><AppPage /></AuthGuard>;
 }
 
 export const routes: RouteObject[] = [
-  {
-    path: "/login",
-    element: <AuthGuard requireAuth={false}><LoginPage /></AuthGuard>,
-  },
-  {
-    path: "/register",
-    element: <AuthGuard requireAuth={false} authenticatedRedirect="/onboarding" forwardReturnTo><RegisterPage /></AuthGuard>,
-  },
   {
     path: "/oauth2/authorize",
     element: <AuthGuard><OAuth2AuthorizePage /></AuthGuard>,
   },
   {
     // Skippable post-registration wizard, entered right after
-    // RegisterPage's success handler — standalone chrome (own card, not
-    // PhoneFrame), same pattern as /login/register above.
+    // RegisterForm's success handler — standalone chrome (own card, not
+    // PhoneFrame).
     path: "/onboarding",
     element: <AuthGuard><OnboardingPage /></AuthGuard>,
   },
@@ -82,49 +90,47 @@ export const routes: RouteObject[] = [
     element: <AuthGuard><OrganizationPage /></AuthGuard>,
   },
   {
-    // Pathless layout route for the public pages below: a logged-in
-    // visitor gets the account menu bar above them (see PublicLayout).
+    // Pathless layout route for every page below: the global top bar and
+    // bottom tab bar (see PublicLayout).
     element: <PublicLayout />,
     children: [
       {
         path: "/",
-        element: <AuthGuard><HomeRedirect /></AuthGuard>,
+        element: <AppRoute />,
       },
       {
-        // Role-aware landing for Guest/Organizer accounts — same standalone,
-        // Tailwind phone-frame pattern as /krag above. `/panel/:view` is a
-        // second, identical route (not a child route) so each Panel section
-        // (spotkania/rzeczy/podarki/profil/ustawienia/rodzina) has its own real
-        // URL and survives a refresh instead of always resetting to "home" —
-        // see PanelDataContext.tsx, which derives `view` from this param.
-        path: "/panel",
-        element: <AuthGuard><PanelPage /></AuthGuard>,
+        // Logging in and registering, as two tabs of one page; LoginPage
+        // wraps itself in the right `requireAuth={false}` AuthGuard per tab.
+        path: "/login",
+        element: <LoginPage />,
       },
+      // The panel's sections, one top-level URL each (`/rzeczy`, `/konto`, …)
+      // so a refresh or a shared link lands on the same section — see
+      // AppDataContext.tsx, which derives `view` from the pathname. Static
+      // segments, so they rank above the `/:organizationSlug` catch-all; every
+      // one is in the backend's RESERVED_SLUGS.
+      ...PANEL_VIEWS.map((view) => ({
+        path: viewPath(view),
+        element: <AppRoute />,
+      })),
       {
-        path: "/panel/:view",
-        element: <AuthGuard><PanelPage /></AuthGuard>,
-      },
-      {
-        // Organizer-only attendee list for one term — an explicit route,
-        // since `/panel/:view` matches a single segment only. Standalone
-        // (no PanelDataProvider): the page resolves the group from the term.
-        path: "/panel/terminy/:termId",
+        // Organizer-only attendee list for one term. Standalone (no
+        // AppDataProvider): the page resolves the group from the term.
+        path: "/terminy/:termId",
         element: <AuthGuard><TermAttendeesPage /></AuthGuard>,
       },
       {
         // Group details + standing member list, reached from the "Prowadzę"
-        // tiles. Explicit for the same single-segment reason as above.
-        path: "/panel/grupy/:groupId",
+        // tiles.
+        path: "/grupy/:groupId",
         element: <AuthGuard><GroupDetailsPage /></AuthGuard>,
       },
       {
-        // Messages inbox and one thread. "wiadomosci" is a static segment, so
-        // React Router ranks it above `/panel/:view`.
-        path: "/panel/wiadomosci",
+        path: INBOX_PATH,
         element: <AuthGuard><InboxPage /></AuthGuard>,
       },
       {
-        path: "/panel/wiadomosci/:conversationId",
+        path: `${INBOX_PATH}/:conversationId`,
         element: <AuthGuard><ThreadPage /></AuthGuard>,
       },
       {
@@ -160,17 +166,6 @@ export const routes: RouteObject[] = [
         ],
       },
       {
-        // The SOLE group/circle screen route (former separate `/krag/:groupId`
-        // + `/krag` entry-resolver were removed — this address now serves both
-        // audiences). No `AuthGuard`: `TermPage` itself branches on auth
-        // presence, rendering the full private member experience for a logged-in
-        // visitor and the anonymous-safe public view otherwise (see that
-        // component's own doc comment). `:organizationSlug` is cosmetic (echoed
-        // into redirect targets, never validated / never sent to the backend).
-        // Multi-segment, so React Router route-ranking keeps it ahead of the
-        // single-segment `/:organizationSlug` catch-all below regardless of
-        // declaration order. "grupa" (like "produkt" above) is in the
-        // backend's RESERVED_SLUGS, so no organizer slug can equal it.
         path: "/:organizationSlug/grupa/:groupId/term/:termId",
         element: <TermPage />,
       },
@@ -183,12 +178,6 @@ export const routes: RouteObject[] = [
         element: <OrganizerTermsPage />,
       },
       {
-        // Public organizer page (`domena.pl/<slug>`) — deliberately declared
-        // LAST as a single-segment catch-all, and deliberately unauthenticated
-        // (no AuthGuard). The backend's reserved-slug whitelist
-        // (app/organizations/slugs.py's RESERVED_SLUGS) guarantees a slug can
-        // never collide with any of the fixed paths above, so this can never
-        // shadow a real route.
         path: "/:organizationSlug",
         element: <PublicOrganizationPage />,
       },

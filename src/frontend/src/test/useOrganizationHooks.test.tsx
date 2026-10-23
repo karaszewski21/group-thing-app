@@ -4,7 +4,6 @@ import { ApiError } from "../api/client";
 import * as organizationsApi from "../api/organizations";
 import type { MyOrganizationResponse, OwnerMedia } from "../api/organizations";
 import { MY_ORGANIZATION_KEY, useMyOrganization } from "../hooks/useMyOrganization";
-import { useMyOrganizationSlug } from "../hooks/useMyOrganizationSlug";
 import { useOrganizationMedia } from "../hooks/useOrganizationMedia";
 import { PUBLIC_ORGANIZATION_KEY } from "../hooks/usePublicOrganization";
 import { useUpdateOrganization } from "../hooks/useUpdateOrganization";
@@ -79,22 +78,6 @@ describe("useMyOrganization", () => {
     await waitFor(() => expect(missing.result.current.loading).toBe(false));
     expect(missing.result.current.data).toBeNull();
     expect(missing.result.current.error).toBeNull();
-  });
-});
-
-describe("useMyOrganizationSlug", () => {
-  it("reads the slug through the shared myOrganization key", async () => {
-    vi.mocked(organizationsApi.getMyOrganization).mockResolvedValue(ORGANIZATION);
-    const client = createTestQueryClient();
-
-    const { result } = renderHook(() => ({ slug: useMyOrganizationSlug(), org: useMyOrganization() }), {
-      wrapper: createQueryWrapper(client),
-    });
-
-    await waitFor(() => expect(result.current.slug).toBe("muzyczne-skrzaty"));
-    expect(result.current.org.data).toEqual(ORGANIZATION);
-    expect(organizationsApi.getMyOrganization).toHaveBeenCalledTimes(1);
-    expect(client.getQueryData([MY_ORGANIZATION_KEY, "token-a"])).toEqual(ORGANIZATION);
   });
 });
 

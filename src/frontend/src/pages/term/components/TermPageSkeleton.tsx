@@ -5,7 +5,7 @@ import { Skeleton } from "../../../components/shared/Skeleton";
  * neutral box and everything stays in the app's own colors. */
 export function TermPageSkeleton() {
   return (
-    <div aria-busy="true" className="flex min-h-dvh flex-col bg-cream font-sans">
+    <div aria-busy="true" className="flex flex-1 flex-col bg-cream font-sans">
       <span className="sr-only">Wczytywanie...</span>
       <div className="flex flex-col gap-3.5 px-5 pt-4">
         <div className="flex items-center justify-between">

@@ -2,7 +2,8 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import type { NotificationResponse } from "../../api/notifications";
 import { useNotifications } from "../../hooks/useNotifications";
-import { BellIcon } from "../../pages/panel/panelIcons";
+import { BellIcon } from "./appIcons";
+import { HEADER_BADGE, HEADER_BUTTON } from "./headerButton";
 
 /** The logged-in user's notification bell with its dropdown — opening an
  * entry marks it read and follows its `link_path`. Rendered in the top
@@ -25,11 +26,11 @@ export function NotificationBell() {
         onClick={() => setOpen((o) => !o)}
         aria-label={unreadCount > 0 ? `Powiadomienia (${unreadCount} nieprzeczytane)` : "Powiadomienia"}
         aria-expanded={open}
-        className="relative flex h-10 w-10 items-center justify-center rounded-[14px] border border-line bg-cream transition-colors hover:bg-mint-soft"
+        className={HEADER_BUTTON}
       >
-        <BellIcon />
+        <BellIcon c="currentColor" />
         {unreadCount > 0 && (
-          <span className="absolute -right-1 -top-1 flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-mint px-1 text-[10.5px] font-extrabold text-white">
+          <span className={HEADER_BADGE}>
             {unreadCount > 9 ? "9+" : unreadCount}
           </span>
         )}

@@ -71,7 +71,7 @@ export interface InventoryBalanceResponse {
   returned_at: string | null;
   due_date: string | null;
   // The item's in-flight Reservation id — set only for RESERVED/IN_TRANSIT
-  // `status`, `null` otherwise. Backs RzeczyView's "Odebrał"/"Anuluj
+  // `status`, `null` otherwise. Backs MyItemsView's "Odebrał"/"Anuluj
   // wymianę" fallback buttons (bug #4c).
   reservation_id: string | null;
 }
@@ -127,7 +127,7 @@ export function getInventoryItemBalance(itemId: string): Promise<InventoryBalanc
 /** `BalanceStatus` values that mean "this item currently has an active
  * lock" — a `Reservation` is in flight (or just resulted from an accepted
  * swap proposal) and the item isn't free for a new action. Used by
- * `RzeczyView` to render a passive status badge; see that file for the
+ * `MyItemsView` to render a passive status badge; see that file for the
  * per-status label mapping. Deliberately excludes `LENT`/`RETURNED` — an
  * already-lent item isn't "pending", it's a settled state with its own
  * "Wypożyczone" view. */

@@ -98,7 +98,7 @@ export function Sidebar() {
         {(hasPluginManagement || isAdmin) && (
           <NavItem to="/admin/plugins" label="Plugins" icon={PluginsIcon} />
         )}
-        <NavItem to="/panel" label="Panel" icon={KragIcon} />
+        <NavItem to="/" label="Panel" icon={KragIcon} />
       </Flex>
     </Box>
   );

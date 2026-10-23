@@ -74,7 +74,7 @@ describe("CategoryListPage", () => {
   it("renders the table with NAME / PRODUCTS IN USE / ACTIONS columns from useCategories() data", async () => {
     mockAuth(["ADMIN"]);
     vi.mocked(categoriesApi.getCategories).mockResolvedValue(mockCategories);
-    const { CategoryListPage } = await import("../pages/CategoryListPage");
+    const { CategoryListPage } = await import("../pages/admin/CategoryListPage");
 
     renderWithProviders(<CategoryListPage />);
 
@@ -87,7 +87,7 @@ describe("CategoryListPage", () => {
 
   it("gates + Add Category and per-row Edit/Delete on permissions.includes(\"ADMIN\")", async () => {
     vi.mocked(categoriesApi.getCategories).mockResolvedValue(mockCategories);
-    const { CategoryListPage } = await import("../pages/CategoryListPage");
+    const { CategoryListPage } = await import("../pages/admin/CategoryListPage");
 
     mockAuth([]);
     const nonAdmin = renderWithProviders(<CategoryListPage />);
@@ -106,7 +106,7 @@ describe("CategoryListPage", () => {
 
   it("renders EmptyState with an action gated on isAdmin when useCategories() returns zero rows", async () => {
     vi.mocked(categoriesApi.getCategories).mockResolvedValue([]);
-    const { CategoryListPage } = await import("../pages/CategoryListPage");
+    const { CategoryListPage } = await import("../pages/admin/CategoryListPage");
 
     mockAuth([]);
     const nonAdmin = renderWithProviders(<CategoryListPage />);

@@ -38,7 +38,7 @@ function row(over: Partial<InboxRow> = {}): InboxRow {
 
 function renderInbox() {
   return render(
-    <MemoryRouter initialEntries={["/panel/wiadomosci"]}>
+    <MemoryRouter initialEntries={["/wiadomosci"]}>
       <InboxPage />
     </MemoryRouter>,
     { wrapper: createQueryWrapper() },
@@ -84,9 +84,9 @@ describe("InboxPage", () => {
     expect(screen.getByRole("heading", { name: "Wiadomości" })).toBeInTheDocument();
     const links = await screen.findAllByRole("link", { name: /Rzecz|Grupa|Termin/ });
     expect(links.map((l) => l.getAttribute("href"))).toEqual([
-      "/panel/wiadomosci/c1",
-      "/panel/wiadomosci/c2",
-      "/panel/wiadomosci/c3",
+      "/wiadomosci/c1",
+      "/wiadomosci/c2",
+      "/wiadomosci/c3",
     ]);
 
     const [item, group, term] = links;

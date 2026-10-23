@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, type KeyboardEvent } from "react";
 import { useBlocker, useSearchParams } from "react-router-dom";
 import { useRegisterOpenSheet } from "../../../components/shared/openSheets";
-import { CloseIcon } from "../../panel/panelIcons";
+import { CloseIcon } from "../../../components/shared/appIcons";
 import type { OrganizerPageData } from "../layouts/types";
 import { AboutTab } from "./AboutTab";
 import { ColorsTab, SECTION_LABEL } from "./ColorsTab";

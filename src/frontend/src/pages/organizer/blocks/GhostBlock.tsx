@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom";
-import { EyeIcon } from "../../panel/panelIcons";
+import { EyeIcon } from "../../../components/shared/appIcons";
 import type { BlockId } from "../layouts/types";
 
 interface GhostCopy {
@@ -9,8 +9,8 @@ interface GhostCopy {
   cta?: { label: string; to: string; replace?: true };
 }
 
-const ADD_TERM = { label: "Dodaj termin →", to: "/panel/spotkania" };
-const ADD_EXCHANGE_ITEM = { label: "Dodaj rzecz do wymiany →", to: "/panel/rzeczy" };
+const ADD_TERM = { label: "Dodaj termin →", to: "/spotkania" };
+const ADD_EXCHANGE_ITEM = { label: "Dodaj rzecz do wymiany →", to: "/rzeczy" };
 
 const GHOST_COPY: Partial<Record<BlockId, GhostCopy>> = {
   about: {
@@ -47,7 +47,7 @@ const GHOST_COPY: Partial<Record<BlockId, GhostCopy>> = {
   "circles-grid": {
     title: "Nasze grupy",
     body: "Tu pokażemy Twoje publiczne grupy z najbliższymi terminami. Widzisz to tylko Ty.",
-    cta: { label: "Dodaj grupę →", to: "/panel/spotkania" },
+    cta: { label: "Dodaj grupę →", to: "/spotkania" },
   },
   "exchange-counts": {
     title: "Wymiana rzeczy",
@@ -62,7 +62,7 @@ const GHOST_COPY: Partial<Record<BlockId, GhostCopy>> = {
   "needed-items": {
     title: "Potrzebne rzeczy",
     body: "Gdy dodasz do terminu potrzebne rzeczy, rodzice zobaczą tu, co jeszcze trzeba przynieść. Widzisz to tylko Ty.",
-    cta: { label: "Dodaj potrzebną rzecz →", to: "/panel/spotkania" },
+    cta: { label: "Dodaj potrzebną rzecz →", to: "/spotkania" },
   },
 };
 

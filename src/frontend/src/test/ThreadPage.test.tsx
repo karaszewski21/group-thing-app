@@ -92,9 +92,9 @@ function mockThread(items: MessageResponse[] = messages) {
 
 function renderPage(id = "c1") {
   return render(
-    <MemoryRouter initialEntries={[`/panel/wiadomosci/${id}`]}>
+    <MemoryRouter initialEntries={[`/wiadomosci/${id}`]}>
       <Routes>
-        <Route path="/panel/wiadomosci/:conversationId" element={<ThreadPage />} />
+        <Route path="/wiadomosci/:conversationId" element={<ThreadPage />} />
       </Routes>
     </MemoryRouter>,
   );
@@ -193,7 +193,7 @@ describe("ThreadPage", () => {
     renderPage();
 
     expect(screen.getByText(copy)).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Wróć do wiadomości" })).toHaveAttribute("href", "/panel/wiadomosci");
+    expect(screen.getByRole("link", { name: "Wróć do wiadomości" })).toHaveAttribute("href", "/wiadomosci");
     expect(markRead).not.toHaveBeenCalled();
   });
 
@@ -210,9 +210,9 @@ describe("ThreadPage", () => {
       { ...messages[1], id: "m4", body: "Nowa", created_at: "2026-10-21T17:40:00" },
     ]);
     rerender(
-      <MemoryRouter initialEntries={["/panel/wiadomosci/c2"]}>
+      <MemoryRouter initialEntries={["/wiadomosci/c2"]}>
         <Routes>
-          <Route path="/panel/wiadomosci/:conversationId" element={<ThreadPage />} />
+          <Route path="/wiadomosci/:conversationId" element={<ThreadPage />} />
         </Routes>
       </MemoryRouter>,
     );

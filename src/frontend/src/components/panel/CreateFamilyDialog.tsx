@@ -1,7 +1,7 @@
 import { useRef, useState } from "react";
 import { ApiError } from "../../api/client";
 import { createLightweightMembers, createOwnFamily, type FamilyOut } from "../../api/families";
-import { Field, ModalSheet } from "../../pages/panel/panelComponents";
+import { Field, ModalSheet } from "../shared/appComponents";
 import dayjs from "../../utils/dayjs";
 import { approxAge, birthYearError, formatApproxAge, MIN_BIRTH_YEAR } from "../../utils/age";
 import { serverMessageOr } from "../../api/problem";
@@ -11,7 +11,7 @@ import { serverMessageOr } from "../../api/problem";
 /*  members), mirroring CreateGroupStepper.tsx: local `useState`       */
 /*  for cross-step data (deliberately not module scope — the modal can */
 /*  be opened/closed/reopened in one page session), ModalSheet/Field   */
-/*  primitives from PanelPage, inline error on catch. The host wires   */
+/*  primitives from AppPage, inline error on catch. The host wires   */
 /*  `onCreated` to a `load({ silent: true })` refresh so the open      */
 /*  modal is never unmounted mid-flow.                                 */
 /* ------------------------------------------------------------------ */

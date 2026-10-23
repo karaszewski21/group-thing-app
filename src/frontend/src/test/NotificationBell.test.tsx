@@ -27,9 +27,9 @@ const notif = (over: Partial<NotificationResponse> = {}): NotificationResponse =
 
 function renderBell() {
   return render(
-    <MemoryRouter initialEntries={["/panel"]}>
+    <MemoryRouter initialEntries={["/"]}>
       <Routes>
-        <Route path="/panel" element={<NotificationBell />} />
+        <Route path="/" element={<NotificationBell />} />
         <Route path="/ania/grupa/5/term/3" element={<h1>Strona terminu</h1>} />
       </Routes>
     </MemoryRouter>,

@@ -97,7 +97,7 @@ beforeEach(() => {
 
 describe("ProductListPage", () => {
   it("renders name, description, category and created date with filter controls", async () => {
-    const { ProductListPage } = await import("../pages/ProductListPage");
+    const { ProductListPage } = await import("../pages/admin/ProductListPage");
     renderWithProviders(<ProductListPage />);
 
     expect(await screen.findByText("Wireless Headphones Pro")).toBeInTheDocument();
@@ -111,7 +111,7 @@ describe("ProductListPage", () => {
   });
 
   it("filters products by the selected category", async () => {
-    const { ProductListPage } = await import("../pages/ProductListPage");
+    const { ProductListPage } = await import("../pages/admin/ProductListPage");
     renderWithProviders(<ProductListPage />);
     await screen.findByText("Wireless Headphones Pro");
     await screen.findByRole("option", { name: "Ubranie" });
@@ -131,7 +131,7 @@ describe("ProductListPage", () => {
 
 describe("ProductFormPage", () => {
   it("renders form fields for product creation", async () => {
-    const { ProductFormPage } = await import("../pages/ProductFormPage");
+    const { ProductFormPage } = await import("../pages/admin/ProductFormPage");
     renderWithProviders(<ProductFormPage />, "/admin/products/new");
 
     expect(await screen.findByLabelText(/product name/i)).toBeInTheDocument();

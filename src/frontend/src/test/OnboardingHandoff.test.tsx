@@ -2,15 +2,15 @@ import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import { MemoryRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "../auth/AuthContext";
-import { RegisterPage } from "../pages/RegisterPage";
-import { OnboardingPage } from "../pages/OnboardingPage";
+import { LoginPage } from "../pages/auth/LoginPage";
+import { OnboardingPage } from "../pages/auth/OnboardingPage";
 import { createQueryWrapper } from "./queryClient";
 
 // Group 8 gap fill (implementation-plan.md 8.2(a)): Groups 1-7 each tested
 // their own surface in isolation (Group 4: register() posts the right body
 // and navigates to /onboarding; Group 7: OnboardingWizard picks the right
 // Step[] and Skip/X exit identically) but nothing exercised the actual
-// register -> /onboarding -> /panel handoff as one flow using the REAL
+// register -> /onboarding ->  / handoff as one flow using the REAL
 // AuthProvider (not a mocked useAuth), so this file deliberately does not
 // mock "../auth/AuthContext".
 
@@ -52,14 +52,14 @@ function fakeJwt(sub: string): string {
   return `eyJhbGciOiJIUzI1NiJ9.${payload}.signature`;
 }
 
-function renderApp(initialRoute = "/register") {
+function renderApp(initialRoute = "/login?tryb=rejestracja") {
   return render(
     <AuthProvider>
       <MemoryRouter initialEntries={[initialRoute]}>
         <Routes>
-          <Route path="/register" element={<RegisterPage />} />
+          <Route path="/login" element={<LoginPage />} />
           <Route path="/onboarding" element={<OnboardingPage />} />
-          <Route path="/panel" element={<div>PANEL</div>} />
+          <Route path="/" element={<div>PANEL</div>} />
           <Route path="/zajecia/grupa/7/term/9" element={<div>TERM PAGE</div>} />
         </Routes>
       </MemoryRouter>
@@ -102,12 +102,9 @@ describe("register -> onboarding -> panel handoff (crosses Group 4 / Group 7 bou
       json: () => Promise.resolve({ token: fakeJwt("jan.kowalski"), party_id: "1", role: "GUEST" }),
     });
 
-    renderApp(`/register?returnTo=${encodeURIComponent("/zajecia/grupa/7/term/9")}`);
+    renderApp(`/login?tryb=rejestracja&returnTo=${encodeURIComponent("/zajecia/grupa/7/term/9")}`);
 
-    expect(screen.getByRole("link", { name: "Zaloguj się" })).toHaveAttribute(
-      "href",
-      `/login?returnTo=${encodeURIComponent("/zajecia/grupa/7/term/9")}`,
-    );
+    expect(screen.getByRole("tab", { name: "Załóż konto" })).toHaveAttribute("aria-selected", "true");
 
     fireEvent.change(screen.getByLabelText(/^email$/i), { target: { value: "jan.kowalski@example.com" } });
     fireEvent.change(screen.getByLabelText(/hasło/i), { target: { value: "secret123" } });
@@ -147,7 +144,7 @@ describe("register -> onboarding -> panel handoff (crosses Group 4 / Group 7 bou
     expect(await screen.findByText("PANEL")).toBeInTheDocument();
   });
 
-  it("duplicate-email registration does not navigate away from /register", async () => {
+  it("duplicate-email registration stays on the Załóż konto tab", async () => {
     mockFetch.mockResolvedValueOnce({
       ok: false,
       status: 409,

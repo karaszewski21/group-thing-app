@@ -4,7 +4,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { ApiError } from "../api/client";
 import * as moderationApi from "../api/moderation";
 import type { ModerationQueueEntry } from "../api/moderation";
-import { PhotoModerationPage } from "../pages/PhotoModerationPage";
+import { PhotoModerationPage } from "../pages/admin/PhotoModerationPage";
 import { system } from "../theme";
 import { pageOf } from "./page";
 import { createQueryWrapper } from "./queryClient";

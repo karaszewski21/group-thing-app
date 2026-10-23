@@ -19,12 +19,12 @@ describe("organizer theme after client-side navigation", () => {
             element={
               <OrganizerThemeScope theme={{ primary_color: "#7a2a4f", accent_color: null }}>
                 <div>
-                  <Link to="/panel">Panel</Link>
+                  <Link to="/">Panel</Link>
                 </div>
               </OrganizerThemeScope>
             }
           />
-          <Route path="/panel" element={<h1>Panel</h1>} />
+          <Route path="/" element={<h1>Panel</h1>} />
         </Routes>
       </MemoryRouter>,
     );

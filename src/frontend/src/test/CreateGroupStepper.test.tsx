@@ -8,7 +8,7 @@ import type { LocationRefResponse, LocationResponse } from "../api/locations";
 import * as termsApi from "../api/terms";
 import type { TermResponse } from "../api/terms";
 import { CreateGroupStepper } from "../components/panel/CreateGroupStepper";
-import { termPublicPath } from "../pages/panel/panelHelpers";
+import { termPublicPath } from "../utils/appHelpers";
 import { createQueryWrapper } from "./queryClient";
 
 vi.mock("../api/groups", () => ({

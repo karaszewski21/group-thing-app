@@ -1,13 +1,13 @@
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { GroupDetailsPage } from "../pages/panel/GroupDetailsPage";
+import { GroupDetailsPage } from "../pages/meetings/GroupDetailsPage";
 import * as groupsApi from "../api/groups";
 import * as termsApi from "../api/terms";
 import { ApiError } from "../api/client";
 import type { GroupMemberResponse, GroupResponse } from "../api/groups";
 import type { TermResponse } from "../api/terms";
-import { termPublicPath } from "../pages/panel/panelHelpers";
+import { termPublicPath } from "../utils/appHelpers";
 import { createQueryWrapper } from "./queryClient";
 
 vi.mock("../api/groups", () => ({
@@ -66,10 +66,10 @@ const members: GroupMemberResponse[] = [
 
 function renderPage() {
   return render(
-    <MemoryRouter initialEntries={[`/panel/grupy/${GROUP_ID}`]}>
+    <MemoryRouter initialEntries={[`/grupy/${GROUP_ID}`]}>
       <Routes>
-        <Route path="/panel/grupy/:groupId" element={<GroupDetailsPage />} />
-        <Route path="/panel/wiadomosci/:id" element={<p>Wątek rozmowy</p>} />
+        <Route path="/grupy/:groupId" element={<GroupDetailsPage />} />
+        <Route path="/wiadomosci/:id" element={<p>Wątek rozmowy</p>} />
       </Routes>
     </MemoryRouter>,
     { wrapper: createQueryWrapper() },
@@ -114,17 +114,6 @@ describe("GroupDetailsPage", () => {
     expect(groupsApi.getGroupMembers).toHaveBeenCalledWith(GROUP_ID);
   });
 
-  it("shows the panel bottom nav with no tab highlighted", async () => {
-    renderPage();
-    await screen.findByText("Anna Nowak");
-
-    const nav = screen.getByRole("navigation", { name: "Nawigacja panelu" });
-    expect(within(nav).getAllByRole("button")).toHaveLength(4);
-    for (const tab of within(nav).getAllByRole("button")) {
-      expect(tab).not.toHaveAttribute("aria-current", "true");
-    }
-  });
-
   it("shows the fallbacks for a bare group and an empty member list", async () => {
     vi.mocked(groupsApi.getGroup).mockResolvedValue({
       ...group,
@@ -156,7 +145,7 @@ describe("GroupDetailsPage", () => {
     renderPage();
 
     expect(await screen.findByText("Nie znaleziono tej grupy.")).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: /Wróć/ })).toHaveAttribute("href", "/panel/spotkania");
+    expect(screen.getByRole("link", { name: /Wróć/ })).toHaveAttribute("href", "/spotkania");
   });
 
   it("generic error retry refetches", async () => {

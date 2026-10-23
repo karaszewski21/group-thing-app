@@ -134,7 +134,7 @@ describe("PendingActionsHost — swap proposal prompt", () => {
   // Accept/reject never happen from this one-at-a-time modal: it could only
   // surface the first of possibly several competing offers. It links to
   // "Moje rzeczy", where every offer against the item is listed together.
-  it("'Zobacz w Moje rzeczy' marks it read, navigates to /panel/rzeczy and clears the prompt", async () => {
+  it("'Zobacz w Moje rzeczy' marks it read, navigates to /rzeczy and clears the prompt", async () => {
     vi.mocked(notificationsApi.getMyNotifications).mockResolvedValue([pendingNotif()]);
     renderHost();
 
@@ -145,7 +145,7 @@ describe("PendingActionsHost — swap proposal prompt", () => {
     fireEvent.click(within(dialog).getByRole("button", { name: "Zobacz w Moje rzeczy" }));
 
     await waitFor(() => expect(notificationsApi.markNotificationRead).toHaveBeenCalledWith("1"));
-    expect(screen.getByTestId("location")).toHaveTextContent("/panel/rzeczy");
+    expect(screen.getByTestId("location")).toHaveTextContent("/rzeczy");
     expect(screen.queryByRole("dialog", { name: "Propozycja zamiany" })).not.toBeInTheDocument();
   });
 

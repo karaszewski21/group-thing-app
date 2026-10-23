@@ -100,7 +100,7 @@ function renderPage(path: string) {
       <Routes>
         <Route path="/product/:id" element={<ItemDetailPage />} />
         <Route path="/product/:id/edit" element={<ItemEditPage />} />
-        <Route path="/panel/wiadomosci/:id" element={<p>Wątek rozmowy</p>} />
+        <Route path="/wiadomosci/:id" element={<p>Wątek rozmowy</p>} />
       </Routes>
     </MemoryRouter>,
     { wrapper: createQueryWrapper() },
@@ -461,13 +461,13 @@ describe("ItemDetailPage fallbacks", () => {
     expect(screen.queryByRole("button", { name: /^Zdjęcie \d z/ })).not.toBeInTheDocument();
   });
 
-  it("Wróć on a directly opened page falls back to /panel/rzeczy", async () => {
+  it("Wróć on a directly opened page falls back to /rzeczy", async () => {
     vi.mocked(itemsApi.getItemDetails).mockResolvedValue(details());
     render(
       <MemoryRouter initialEntries={[`/product/${ITEM_ID}`]}>
         <Routes>
           <Route path="/product/:id" element={<ItemDetailPage />} />
-          <Route path="/panel/rzeczy" element={<p>Panel rzeczy</p>} />
+          <Route path="/rzeczy" element={<p>Panel rzeczy</p>} />
         </Routes>
       </MemoryRouter>,
       { wrapper: createQueryWrapper() },
@@ -489,10 +489,10 @@ describe("ItemDetailPage fallbacks", () => {
   it("Moje rzeczy → edit → Gotowe → Wróć returns to Moje rzeczy; Edytuj → Gotowe never leaves the editor in history", async () => {
     vi.mocked(itemsApi.getItemDetails).mockResolvedValue(details());
     render(
-      <MemoryRouter initialEntries={["/panel/rzeczy"]}>
+      <MemoryRouter initialEntries={["/rzeczy"]}>
         <Routes>
           <Route
-            path="/panel/rzeczy"
+            path="/rzeczy"
             element={
               <>
                 <Link to={`/product/${ITEM_ID}`}>Otwórz rzecz</Link>
@@ -530,31 +530,6 @@ describe("ItemDetailPage fallbacks", () => {
     expect(screen.getByRole("link", { name: /Edytuj/ })).toBeInTheDocument();
   });
 
-  it.each([
-    ["view", `/product/${ITEM_ID}`, "Wózek spacerowy Baby Jogger"],
-    ["edit", `/product/${ITEM_ID}/edit`, "Edycja rzeczy"],
-  ])("%s page shows the panel bottom nav with no tab active; Moje rzeczy leads to /panel/rzeczy", async (_, path, heading) => {
-    vi.mocked(itemsApi.getItemDetails).mockResolvedValue(details());
-    render(
-      <MemoryRouter initialEntries={[path]}>
-        <Routes>
-          <Route path="/product/:id" element={<ItemDetailPage />} />
-          <Route path="/product/:id/edit" element={<ItemEditPage />} />
-          <Route path="/panel/rzeczy" element={<p>Panel rzeczy</p>} />
-        </Routes>
-      </MemoryRouter>,
-      { wrapper: createQueryWrapper() },
-    );
-    await screen.findByRole("heading", { name: heading });
-
-    const nav = screen.getByRole("navigation", { name: "Nawigacja panelu" });
-    const rzeczy = within(nav).getByRole("button", { name: "Moje rzeczy" });
-    expect(rzeczy).toHaveAttribute("aria-current", "false");
-    expect(within(nav).getByRole("button", { name: "Spotkania" })).toHaveAttribute("aria-current", "false");
-
-    fireEvent.click(rzeczy);
-    expect(await screen.findByText("Panel rzeczy")).toBeInTheDocument();
-  });
 });
 
 describe("ItemDetailPage reservation party view", () => {
@@ -667,7 +642,7 @@ describe("ItemEditPage photo moderation notice", () => {
   });
 
   it.each(["PENDING", "NEEDS_REVIEW"] as const)(
-    "edit page shows role=status notice with link to /panel/rzeczy when a photo is %s",
+    "edit page shows role=status notice with link to /rzeczy when a photo is %s",
     async (status) => {
       vi.mocked(itemsApi.getItemDetails).mockResolvedValue(withSecondPhoto(status));
       renderPage(`/product/${ITEM_ID}/edit`);
@@ -680,7 +655,7 @@ describe("ItemEditPage photo moderation notice", () => {
       expect(notice).toHaveTextContent(NOTICE);
       expect(within(notice).getByRole("link", { name: "Moje rzeczy →" })).toHaveAttribute(
         "href",
-        "/panel/rzeczy",
+        "/rzeczy",
       );
       // Placed before the photos card.
       const photosHeading = screen.getByRole("heading", { name: /^Zdjęcia \(/ });

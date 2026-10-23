@@ -60,7 +60,7 @@ function mockPlugins(menuItems: Array<{ pluginId: string; pluginName: string; pa
 function renderSidebar() {
   return render(
     <ChakraProvider value={system}>
-      <MemoryRouter initialEntries={["/panel"]}>
+      <MemoryRouter initialEntries={["/"]}>
         <Sidebar />
       </MemoryRouter>
     </ChakraProvider>,

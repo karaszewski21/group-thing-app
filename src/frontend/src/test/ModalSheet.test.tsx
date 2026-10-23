@@ -5,7 +5,7 @@ import { ModalSheet } from "../components/shared/ModalSheet";
 import { JoinByCodeSheet } from "../pages/term/modals/JoinByCodeSheet";
 import { getOpenSheetCount, subscribeOpenSheets, useRegisterOpenSheet } from "../components/shared/openSheets";
 import { UnsavedChangesDialog } from "../pages/organizer/editor/UnsavedChangesDialog";
-import { ModalSheet as PanelModalSheet } from "../pages/panel/panelComponents";
+import { ModalSheet as AppModalSheet } from "../components/shared/appComponents";
 
 function Opener({ removeOpenerOnOpen = false }: { removeOpenerOnOpen?: boolean }) {
   const [open, setOpen] = useState(false);
@@ -172,9 +172,9 @@ describe("openSheets registry", () => {
 
     const others = render(
       <>
-        <PanelModalSheet title="Panel" onClose={() => {}}>
+        <AppModalSheet title="Panel" onClose={() => {}}>
           <p>Treść</p>
-        </PanelModalSheet>
+        </AppModalSheet>
         <JoinByCodeSheet initialCode="" autoSubmit={false} onSubmit={async () => {}} onClose={() => {}} />
         <UnsavedChangesDialog onDiscard={() => {}} onKeepEditing={() => {}} />
       </>,

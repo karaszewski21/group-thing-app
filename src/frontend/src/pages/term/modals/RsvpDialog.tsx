@@ -1,12 +1,12 @@
 import { useState } from "react";
 import { createRsvp, guestProfileIdKey, writeGuestProfile, type RsvpResponse } from "../../../api/groups";
 import { serverMessageOr } from "../../../api/problem";
-import { Field } from "../../panel/panelComponents";
+import { Field } from "../../../components/shared/appComponents";
 import { ModalSheet } from "../../../components/shared/ModalSheet";
 import { BTN_PRIMARY, FIELD } from "../../../components/shared/uiStyles";
 
 /** Bottom-sheet RSVP form for an anonymous visitor — `ModalSheet`/`Field`
- * shared with `pages/panel` (Tailwind), `uiStyles` fields and buttons for the
+ * shared with the app sections (Tailwind), `uiStyles` fields and buttons for the
  * form controls to match the rest of the term page's inputs/buttons. */
 export function RsvpDialog({
   groupId,

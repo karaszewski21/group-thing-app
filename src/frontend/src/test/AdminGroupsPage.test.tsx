@@ -4,7 +4,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { ApiError } from "../api/client";
 import type { ModerationGroupResponse } from "../api/groups";
 import * as groupsApi from "../api/groups";
-import { AdminGroupsPage } from "../pages/AdminGroupsPage";
+import { AdminGroupsPage } from "../pages/admin/AdminGroupsPage";
 import { system } from "../theme";
 import { pageOf } from "./page";
 import { createQueryWrapper } from "./queryClient";

@@ -3,7 +3,7 @@ import { describe, expect, it, vi, beforeEach } from "vitest";
 import { MemoryRouter } from "react-router-dom";
 import { ApiError } from "../api/client";
 import * as organizationsApi from "../api/organizations";
-import { OrganizationPage } from "../pages/OrganizationPage";
+import { OrganizationPage } from "../pages/organizer/OrganizationPage";
 
 vi.mock("../api/organizations", () => ({
   getMyOrganization: vi.fn(),

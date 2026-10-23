@@ -1,9 +1,9 @@
 import { useLocation, useNavigate } from "react-router-dom";
-import { BackIcon } from "../panel/panelIcons";
+import { BackIcon } from "../../components/shared/appIcons";
 import { BACK_LINK } from "./itemPageShared";
 import { useItemRoutes } from "./useItemRoutes";
 
-/** "Wróć": history back, or the route's fallback (`/panel/rzeczy`, or the
+/** "Wróć": history back, or the route's fallback (`/rzeczy`, or the
  * organizer page on `/:organizationSlug/produkt/...`) when opened directly.
  * `overlay` is the round white button laid over the item photo. */
 export function ItemBackButton({ overlay = false }: { overlay?: boolean }) {

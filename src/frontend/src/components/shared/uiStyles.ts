@@ -3,7 +3,7 @@
  * its own without two padding utilities competing. */
 
 /** The page behind the term views, in the (organizer-themed) tokens. */
-export const PAGE_SHELL = "flex min-h-dvh flex-col bg-cream font-sans text-ink";
+export const PAGE_SHELL = "flex flex-1 flex-col bg-cream font-sans text-ink";
 
 export const BTN_PRIMARY =
   "rounded-full border-0 bg-primary font-extrabold text-on-primary disabled:opacity-60 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring";

@@ -1,0 +1,395 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Wiadomości — przewodnik dla użytkownika — 2026-10-22-messenger</title>
+<style>
+:root {
+  --bg:#f6f7f9; --surface:#fff; --border:#e2e5ea; --text:#1a1d23; --dim:#6b7280;
+  --accent:#4f46e5; --accent-soft:#eef2ff; --ok:#16a34a; --ok-soft:#ecfdf3;
+  --warn:#d97706; --warn-soft:#fffbeb; --crit:#dc2626; --crit-soft:#fef2f2;
+  --info:#2563eb; --info-soft:#eff6ff; --radius:10px;
+}
+@media (prefers-color-scheme: dark) {
+  :root { --bg:#111418; --surface:#1a1f26; --border:#2e3640; --text:#e6e9ee; --dim:#9aa4b2;
+    --accent:#818cf8; --accent-soft:#26294a; --ok:#4ade80; --ok-soft:#11291a;
+    --warn:#fbbf24; --warn-soft:#2e2410; --crit:#f87171; --crit-soft:#321616;
+    --info:#60a5fa; --info-soft:#15233a; }
+}
+* { box-sizing:border-box; }
+body { margin:0 auto; max-width:1100px; padding:24px 20px 64px; background:var(--bg);
+  color:var(--text); font:14px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif; }
+a { color:var(--accent); text-decoration:none; } a:hover { text-decoration:underline; }
+h1 { font-size:22px; letter-spacing:-.01em; } h2 { font-size:16px; margin-top:28px; }
+.card { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius);
+  padding:16px 18px; margin:14px 0; }
+.badge { display:inline-block; font-size:11px; font-weight:600; text-transform:uppercase;
+  letter-spacing:.04em; padding:2px 8px; border-radius:99px; background:var(--accent-soft); color:var(--accent); }
+.sev { display:inline-block; font-size:10.5px; font-weight:700; text-transform:uppercase;
+  padding:1.5px 7px; border-radius:99px; margin-right:6px; }
+.sev.critical { background:var(--crit-soft); color:var(--crit); }
+.sev.warning  { background:var(--warn-soft); color:var(--warn); }
+.sev.info     { background:var(--info-soft); color:var(--info); }
+.pass { color:var(--ok); font-weight:600; } .fail { color:var(--crit); font-weight:600; }
+table { width:100%; border-collapse:collapse; }
+th, td { text-align:left; padding:7px 10px; border-bottom:1px solid var(--border); vertical-align:top; }
+th { font-size:11.5px; text-transform:uppercase; letter-spacing:.04em; color:var(--dim); }
+code { font-family:ui-monospace,SFMono-Regular,Menlo,monospace; font-size:12.5px;
+  background:var(--accent-soft); padding:1px 5px; border-radius:4px; }
+img.shot { max-width:100%; border:1px solid var(--border); border-radius:var(--radius); }
+details > summary { cursor:pointer; font-weight:600; }
+
+.crumbs { display:flex; gap:14px; font-size:13px; margin-bottom:18px; flex-wrap:wrap; }
+.crumbs a.md { margin-left:auto; color:var(--dim); }
+.crumbs .here { font-weight:650; color:var(--text); }
+.tiles { display:flex; gap:10px; flex-wrap:wrap; margin:14px 0; }
+.tile { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius);
+  padding:10px 16px; text-align:center; min-width:90px; }
+.tile b { display:block; font-size:20px; letter-spacing:-.01em; }
+.tile span { font-size:10.5px; text-transform:uppercase; letter-spacing:.05em; color:var(--dim); }
+header .meta { color:var(--dim); font-size:13px; }
+.tldr { border-left:4px solid var(--accent); }
+.tldr ul { margin:6px 0 0; padding-left:20px; }
+.toc { font-size:13px; color:var(--dim); margin:10px 0 4px; }
+.row { display:grid; grid-template-columns:1fr 280px; gap:20px; align-items:start; }
+.row + .row { margin-top:18px; padding-top:18px; border-top:1px dashed var(--border); }
+.row figure { margin:0; }
+.row figcaption, .shots figcaption { font-size:12px; color:var(--dim); margin-top:4px; }
+.shots { display:grid; grid-template-columns:repeat(auto-fill,minmax(220px,1fr)); gap:16px; margin-top:12px; }
+.shots figure { margin:0; }
+.note { padding:8px 12px; border-radius:8px; margin:10px 0; font-size:13.5px; }
+.note.tip { background:var(--info-soft); }
+.note.ok { background:var(--ok-soft); }
+.note.warn { background:var(--warn-soft); }
+.msg { font-weight:600; }
+.chip { display:inline-block; font-size:11.5px; font-weight:700; padding:1px 8px; border-radius:99px; background:var(--accent-soft); color:var(--accent); }
+ol.steps > li { margin-bottom:10px; }
+.faq dt { font-weight:650; margin-top:12px; }
+.faq dd { margin:4px 0 0; }
+@media (max-width:700px) { .row { grid-template-columns:1fr; } .row figure { max-width:300px; } }
+</style>
+</head>
+<body>
+
+<nav class="crumbs">
+  <a href="../dashboard.html">← Dashboard</a>
+  <a href="../implementation/spec.html">Spec</a>
+  <a href="../implementation/implementation-plan.html">Plan</a>
+  <a href="../verification/implementation-verification.html">Verification</a>
+  <a href="../verification/e2e-verification-report.html">E2E</a>
+  <span class="here">Przewodnik użytkownika</span>
+  <a href="user-guide.md" target="_blank" rel="noopener" class="md">md twin ↗</a>
+</nav>
+
+<header>
+  <span class="badge">Przewodnik użytkownika</span>
+  <h1>Wiadomości — przewodnik dla użytkownika</h1>
+  <div class="meta">Ostatnia aktualizacja: 22 października 2026</div>
+</header>
+
+<div class="tiles">
+  <div class="tile"><b>3</b><span>rodzaje rozmów</span></div>
+  <div class="tile"><b>1000</b><span>znaków w wiadomości</span></div>
+  <div class="tile"><b>kilka s</b><span>nowe wiadomości</span></div>
+  <div class="tile"><b>~20 s</b><span>odświeżanie licznika 💬</span></div>
+  <div class="tile"><b>20</b><span>zrzutów ekranu</span></div>
+</div>
+
+<section class="card tldr" id="w-skrocie">
+  <h2 style="margin-top:0">W skrócie</h2>
+  <ul>
+    <li><b>Wiadomości</b> pozwalają rozmawiać w aplikacji bez wymieniania się telefonem czy e-mailem.</li>
+    <li>Są trzy rodzaje rozmów:
+      <ul>
+        <li><span class="chip">Rzecz</span>: zapytaj właściciela o rzecz, która Cię interesuje.</li>
+        <li><span class="chip">Grupa</span>: wspólny czat organizatora i członków <b>prywatnej</b> grupy.</li>
+        <li><span class="chip">Termin</span>: czat organizatora i osób zapisanych na konkretne spotkanie.</li>
+      </ul>
+    </li>
+    <li>Wszystkie rozmowy znajdziesz pod ikoną <b>💬</b> w górnym pasku, obok dzwonka. Zielona liczba na ikonie mówi, ile masz nieprzeczytanych wiadomości.</li>
+    <li>Wiadomość ma najwyżej <b>1000 znaków</b>. <b>Enter</b> dodaje nową linię, a wysyłasz przyciskiem <b>„Wyślij”</b>.</li>
+    <li>Nowe wiadomości pojawiają się same, w ciągu kilku sekund. Nie musisz odświeżać strony.</li>
+    <li>Wiadomości nie da się edytować ani usunąć. Nie dostaniesz też e-maila o nowej wiadomości, zobaczysz tylko licznik przy 💬.</li>
+  </ul>
+  <div class="note tip">📝 <b>Czego potrzebujesz</b>: konta w aplikacji i zalogowania się. Osoby zapisane na spotkanie bez konta (goście) nie mogą korzystać z wiadomości.</div>
+</section>
+
+<nav class="toc">Spis treści:
+  <a href="#s1">1. Gdzie są wiadomości</a> ·
+  <a href="#s2">2. Jak zapytać o rzecz</a> ·
+  <a href="#s3">3. Czat grupy</a> ·
+  <a href="#s4">4. Czat terminu</a> ·
+  <a href="#s5">5. Pisanie wiadomości</a> ·
+  <a href="#s6">6. Tylko do odczytu</a> ·
+  <a href="#s7">7. Komunikaty o błędach</a> ·
+  <a href="#s8">8. FAQ</a>
+</nav>
+
+<main>
+
+<!-- 1 -->
+<section class="card" id="s1">
+  <h2 style="margin-top:0">1. Gdzie są wiadomości</h2>
+  <div class="row">
+    <div>
+      <h3>Ikona 💬 w górnym pasku</h3>
+      <p>W górnym pasku, tuż obok dzwonka z powiadomieniami, jest ikona <b>💬</b>. To Twoja skrzynka wiadomości.</p>
+      <ul>
+        <li><b>Zielona liczba</b> na ikonie pokazuje, ile wiadomości od innych osób jeszcze nie przeczytałeś.</li>
+        <li>Gdy nieprzeczytanych jest więcej niż 9, zobaczysz <b>„9+”</b>.</li>
+        <li>Gdy wszystko jest przeczytane, liczby nie ma.</li>
+        <li>Licznik odświeża się sam mniej więcej co 20 sekund.</li>
+      </ul>
+      <div class="note tip">💡 Wiadomości nie trafiają do dzwonka 🔔. Dzwonek zostaje dla innych powiadomień, a rozmowy są tylko pod 💬.</div>
+    </div>
+    <figure><img class="shot" src="screenshots/01-ikona-wiadomosci-licznik.png" alt="Ikona wiadomości z licznikiem obok dzwonka"><figcaption>Ikona 💬 z licznikiem obok dzwonka</figcaption></figure>
+  </div>
+  <div class="row">
+    <div>
+      <h3>Skrzynka „Wiadomości”</h3>
+      <p>Dotknij ikony <b>💬</b>. Otworzy się strona <b>„Wiadomości”</b>, czyli lista wszystkich Twoich rozmów. Na górze są te, w których ostatnio coś się działo.</p>
+      <table>
+        <tr><th>Etykieta</th><th>Co to za rozmowa</th><th>Ikonka</th></tr>
+        <tr><td><span class="chip">Rzecz</span></td><td>Pytanie o konkretną rzecz</td><td>📦</td></tr>
+        <tr><td><span class="chip">Grupa</span></td><td>Czat całej prywatnej grupy</td><td>Inicjały grupy</td></tr>
+        <tr><td><span class="chip">Termin</span></td><td>Czat jednego spotkania, np. „Termin: pt 30.10 18:00”</td><td>📅</td></tr>
+      </table>
+      <p>Pod nazwą rozmowy widać początek ostatniej wiadomości i to, kto ją napisał:</p>
+      <ul>
+        <li><b>„Ty:”</b> to Twoja wiadomość;</li>
+        <li><b>„Organizator:”</b> to wiadomość od organizatora grupy;</li>
+        <li>w innych przypadkach widać imię lub nazwę nadawcy.</li>
+      </ul>
+      <p>Po prawej jest godzina albo dzień ostatniej wiadomości, np. „12:41”, „wczoraj”, „pon” albo „12.10”.</p>
+      <div class="note ok">✅ <b>Rozmowa z nieprzeczytanymi wiadomościami</b> ma <b>pogrubioną</b> nazwę i zielone kółko z ich liczbą. Gdy ją otworzysz, licznik zniknie.</div>
+      <div class="note tip">💡 Rozmowa pojawia się w skrzynce dopiero wtedy, gdy ktoś napisze w niej pierwszą wiadomość.</div>
+      <p><b>Pusta skrzynka?</b> Zobaczysz napis: „Nie masz jeszcze rozmów. Zapytaj o rzecz na jej stronie albo napisz na czacie swojej grupy lub terminu.” Kolejne rozdziały pokazują, jak zacząć rozmowę.</p>
+    </div>
+    <figure><img class="shot" src="screenshots/02-skrzynka-wiadomosci.png" alt="Skrzynka wiadomości z rozmowami trzech rodzajów"><figcaption>Skrzynka z rozmowami „Termin”, „Rzecz” i „Grupa”</figcaption></figure>
+  </div>
+</section>
+
+<!-- 2 -->
+<section class="card" id="s2">
+  <h2 style="margin-top:0">2. Jak zapytać o rzecz</h2>
+  <p>Gdy widzisz u kogoś rzecz, która Cię interesuje, możesz napisać do jej właściciela. Zapytasz na przykład, czy jest jeszcze dostępna, w jakim jest stanie albo kiedy można ją odebrać.</p>
+  <div class="row">
+    <ol class="steps">
+      <li><b>Otwórz stronę rzeczy.</b> Wejdź na stronę rzeczy innej osoby. Pod kartą ze statusem (np. „Dostępna”) zobaczysz przycisk <b>„💬 Zapytaj o rzecz”</b>.</li>
+      <li><b>Dotknij „Zapytaj o rzecz”.</b> Otworzy się rozmowa z właścicielem. Na górze widać:
+        <ul>
+          <li>nazwę rzeczy;</li>
+          <li>linię „Rozmowa z: <i>imię właściciela</i>”;</li>
+          <li>link <b>„zobacz rzecz”</b>, który zabiera z powrotem na stronę rzeczy.</li>
+        </ul>
+      </li>
+      <li><b>Napisz pytanie i dotknij „Wyślij”.</b> Np. „Dzień dobry, czy rower jest jeszcze dostępny?”. Twoja wiadomość pojawi się po prawej stronie, na zielonym tle. Odpowiedzi właściciela pojawiają się po lewej.</li>
+    </ol>
+    <figure><img class="shot" src="screenshots/03-rzecz-zapytaj-o-rzecz.png" alt="Przycisk „Zapytaj o rzecz” na stronie cudzej rzeczy"><figcaption>Przycisk „Zapytaj o rzecz” pod statusem</figcaption></figure>
+  </div>
+  <div class="shots">
+    <figure><img class="shot" src="screenshots/04-rozmowa-o-rzeczy.png" alt="Rozmowa o rzeczy: pytanie i odpowiedź właściciela"><figcaption>Rozmowa o rzeczy: pytanie i odpowiedź</figcaption></figure>
+    <figure><img class="shot" src="screenshots/05-wlasciciel-skrzynka-nowe-pytanie.png" alt="Skrzynka właściciela: nowe pytanie o jego rzecz"><figcaption>Właściciel: nowe pytanie w skrzynce</figcaption></figure>
+    <figure><img class="shot" src="screenshots/06-wlasna-rzecz-bez-przycisku.png" alt="Własna rzecz: brak przycisku „Zapytaj o rzecz”"><figcaption>Własna rzecz: przycisku nie ma</figcaption></figure>
+    <figure><img class="shot" src="screenshots/07-rzecz-usunieta.png" alt="Rozmowa o rzeczy, która została usunięta"><figcaption>Rzecz usunięta: dopisek „(usunięte)”</figcaption></figure>
+  </div>
+  <div class="note ok">✅ <b>Co dzieje się u właściciela</b>: przy jego ikonie 💬 pojawia się licznik, a w skrzynce widzi pogrubiony wiersz z etykietą <b>„Rzecz”</b> i Twoim pytaniem. Może odpowiedzieć od razu.</div>
+  <div class="note tip">💡 Gdy zapytasz o tę samą rzecz drugi raz, wrócisz do tej samej rozmowy. Nowa się nie tworzy.</div>
+  <h3>Na swoich rzeczach nie ma przycisku</h3>
+  <p>Na stronie <b>własnej</b> rzeczy przycisk „Zapytaj o rzecz” się nie pokazuje. Nie da się zapytać samego siebie. Zamiast niego widzisz przycisk „Edytuj”.</p>
+  <h3>Co, jeśli rzecz została usunięta?</h3>
+  <ul>
+    <li><b>Rozmowa już trwa:</b> zostaje w skrzynce. Przy nazwie rzeczy pojawia się dopisek <b>„(usunięte)”</b>, a link „zobacz rzecz” znika, bo strony rzeczy już nie ma. Nadal możecie do siebie pisać.</li>
+    <li><b>Rozmowy jeszcze nie było:</b> na stronie usuniętej rzeczy nie ma przycisku „Zapytaj o rzecz”, więc nowej rozmowy nie zaczniesz.</li>
+  </ul>
+  <h3>Co, jeśli rzecz zmieniła właściciela?</h3>
+  <p>Jeśli rzecz została komuś oddana lub wymieniona, „Zapytaj o rzecz” otworzy <b>nową</b> rozmowę z jej nowym właścicielem. Stara rozmowa z poprzednim właścicielem zostaje w Twojej skrzynce i nadal działa. W skrzynce zobaczysz wtedy dwie rozmowy o tej samej nazwie.</p>
+  <div class="note tip">💡 <b>Rzecz jest akurat pożyczona?</b> Twoje pytanie i tak trafi do jej stałego właściciela, a nie do osoby, która ją pożyczyła.</div>
+</section>
+
+<!-- 3 -->
+<section class="card" id="s3">
+  <h2 style="margin-top:0">3. Czat grupy (prywatne grupy)</h2>
+  <p>Czat grupy to wspólna rozmowa całej <b>prywatnej</b> grupy, np. „W sobotę zbiórka o 10:00”. Każdy, kto w nim pisze, trafia do wszystkich naraz.</p>
+  <h3>Kto widzi czat grupy?</h3>
+  <ul>
+    <li><b>organizator</b> grupy;</li>
+    <li>wszyscy <b>członkowie</b> grupy.</li>
+  </ul>
+  <p>Nikt spoza grupy go nie widzi. Gdy ktoś dołączy później, zobaczy też wcześniejsze wiadomości. Gdy ktoś odejdzie z grupy, traci dostęp do czatu.</p>
+  <div class="note warn">⚠️ Czat grupy jest tylko w grupach <b>prywatnych</b>, czyli takich, do których dołącza się kodem. Publiczne grupy nie mają czatu grupy, ale mają czaty terminów (rozdział 4).</div>
+  <h3>Gdzie go znaleźć?</h3>
+  <ul>
+    <li><b>Na stronie terminu (członkowie i organizator):</b> otwórz stronę dowolnego spotkania swojej prywatnej grupy. Pod kartą z datą jest przycisk <b>„👥 Czat grupy”</b>.</li>
+    <li><b>W szczegółach grupy (organizator):</b> nad kartą „Kod dostępu” jest karta <b>„Czat grupy”</b> z opisem „Napisz do wszystkich członków grupy.” i przyciskiem <b>„💬 Otwórz czat grupy”</b>.</li>
+  </ul>
+  <h3>Jak wygląda czat grupy?</h3>
+  <ul>
+    <li>Na górze jest nazwa grupy z dopiskiem <b>„· czat grupy”</b> i liczba uczestników, np. „3 uczestników”.</li>
+    <li>Nad wiadomościami innych osób widać ich imię i inicjały.</li>
+    <li>Wiadomości organizatora mają zieloną etykietę <b>„Organizator”</b>, więc łatwo je odróżnić.</li>
+    <li>Twoje wiadomości są po prawej, bez podpisu.</li>
+  </ul>
+  <div class="shots">
+    <figure><img class="shot" src="screenshots/08-termin-przyciski-czatu.png" alt="Strona terminu z przyciskami „Czat terminu” i „Czat grupy”"><figcaption>Strona terminu: „Czat terminu” i „Czat grupy”</figcaption></figure>
+    <figure><img class="shot" src="screenshots/09-szczegoly-grupy-czat-grupy.png" alt="Karta „Czat grupy” w szczegółach grupy organizatora"><figcaption>Organizator: karta „Czat grupy”</figcaption></figure>
+    <figure><img class="shot" src="screenshots/10-czat-grupy.png" alt="Czat grupy z wiadomością organizatora i członków"><figcaption>Czat grupy z etykietą „Organizator”</figcaption></figure>
+  </div>
+</section>
+
+<!-- 4 -->
+<section class="card" id="s4">
+  <h2 style="margin-top:0">4. Czat terminu</h2>
+  <p>Czat terminu dotyczy <b>jednego konkretnego spotkania</b>. Przydaje się, żeby ustalić szczegóły, np. kto co przynosi, albo dać znać o spóźnieniu.</p>
+  <h3>Kto widzi czat terminu?</h3>
+  <ul>
+    <li><b>organizator</b> grupy;</li>
+    <li>osoby <b>zapisane</b> na ten termin.</li>
+  </ul>
+  <p>Jeśli wypiszesz się z terminu, stracisz dostęp do jego czatu. Czat terminu działa w grupach prywatnych i publicznych. Zostaje otwarty także po spotkaniu.</p>
+  <h3>Gdzie go znaleźć?</h3>
+  <p><b>Na stronie terminu:</b> gdy jesteś zapisany na spotkanie albo je organizujesz, zobaczysz przycisk <b>„💬 Czat terminu”</b> (zobacz zrzut ekranu w rozdziale 3).</p>
+  <table>
+    <tr><th>Kim jesteś</th><th>Co widzisz na stronie terminu</th></tr>
+    <tr><td>Organizator, grupa prywatna</td><td>„Czat terminu” i „Czat grupy”</td></tr>
+    <tr><td>Członek zapisany na termin, grupa prywatna</td><td>„Czat terminu” i „Czat grupy”</td></tr>
+    <tr><td>Członek niezapisany na termin, grupa prywatna</td><td>Tylko „Czat grupy”</td></tr>
+    <tr><td>Organizator lub osoba zapisana, grupa publiczna</td><td>Tylko „Czat terminu”</td></tr>
+    <tr><td>Osoba, która się wypisała, ktoś spoza grupy, niezalogowany gość</td><td>Żadnego przycisku</td></tr>
+  </table>
+  <p><b>Na liście zapisanych (organizator):</b> na karcie terminu na liście „Zapisani” jest przycisk <b>„💬 Napisz do uczestników”</b>, który otwiera czat tego terminu.</p>
+  <div class="note ok">✅ <b>Co zobaczysz</b>: rozmowę z nazwą grupy i dopiskiem <b>„· czat terminu”</b> oraz liczbą uczestników. W skrzynce taki czat ma etykietę <span class="chip">Termin</span> i nazwę z datą, np. „Termin: pt 30.10 18:00”.</div>
+  <div class="shots">
+    <figure><img class="shot" src="screenshots/11-zapisani-napisz-do-uczestnikow.png" alt="Przycisk „Napisz do uczestników” na liście zapisanych"><figcaption>Organizator: „Napisz do uczestników”</figcaption></figure>
+    <figure><img class="shot" src="screenshots/12-czat-terminu.png" alt="Czat terminu, jeszcze bez wiadomości"><figcaption>Czat terminu, jeszcze bez wiadomości</figcaption></figure>
+  </div>
+</section>
+
+<!-- 5 -->
+<section class="card" id="s5">
+  <h2 style="margin-top:0">5. Pisanie wiadomości</h2>
+  <p>Pole do pisania wygląda tak samo we wszystkich rozmowach: o rzecz, w grupie i w terminie. Jest zawsze na dole ekranu.</p>
+  <div class="row">
+    <div>
+      <h3>Limit 1000 znaków</h3>
+      <ul>
+        <li>Pod polem, po prawej, jest <b>licznik</b>, np. „48 / 1000”. Pokazuje, ile znaków już wpisałeś.</li>
+        <li>Jedna wiadomość może mieć najwyżej <b>1000 znaków</b>. Po dojściu do limitu pole nie przyjmie więcej tekstu.</li>
+        <li>Dłuższą myśl podziel na dwie wiadomości.</li>
+      </ul>
+      <h3>Enter to nowa linia, a wysyłasz przyciskiem „Wyślij”</h3>
+      <ul>
+        <li><b>Enter</b> przenosi do nowej linii. Podpowiedź „Enter — nowa linia” jest pod polem.</li>
+        <li>Wiadomość wysyłasz, dotykając zielonego przycisku <b>„Wyślij”</b>.</li>
+        <li>Przycisk jest wyszarzony, gdy pole jest puste albo zawiera same spacje.</li>
+      </ul>
+      <div class="note ok">✅ <b>Po wysłaniu</b>: wiadomość pojawia się po prawej stronie z godziną, a pole jest znowu puste i gotowe na kolejną.</div>
+    </div>
+    <figure><img class="shot" src="screenshots/13-pisanie-wiadomosci.png" alt="Pole wiadomości z wpisanym tekstem w dwóch liniach i licznikiem znaków"><figcaption>Tekst w dwóch liniach, licznik „48 / 1000”</figcaption></figure>
+  </div>
+  <div class="row">
+    <div>
+      <h3>Nowe wiadomości pojawiają się same</h3>
+      <p>Nie musisz odświeżać strony. Odpowiedzi innych osób pojawiają się w otwartej rozmowie same, zwykle <b>w ciągu kilku sekund</b>. Gdy otworzysz rozmowę, jej wiadomości liczą się jako przeczytane, a licznik przy 💬 maleje.</p>
+      <div class="note tip">💡 Nad wiadomościami z danego dnia jest znacznik dnia, np. „dzisiaj”, „wczoraj” albo „poniedziałek, 20 października”. Pod każdą wiadomością jest godzina wysłania.</div>
+    </div>
+    <figure><img class="shot" src="screenshots/14-wiadomosc-wyslana.png" alt="Wysłana wiadomość w czacie grupy"><figcaption>Wysłana wiadomość, pole znowu puste</figcaption></figure>
+  </div>
+  <div class="row">
+    <div>
+      <h3>Starsze wiadomości: „Wcześniejsze wiadomości”</h3>
+      <p>Po otwarciu długiej rozmowy widzisz najnowsze wiadomości. Aby zobaczyć starsze:</p>
+      <ol>
+        <li>Przewiń rozmowę do góry.</li>
+        <li>Dotknij przycisku <b>„Wcześniejsze wiadomości”</b>. Gdy dojdziesz do samej góry, starsze wiadomości mogą też wczytać się same.</li>
+      </ol>
+      <p>Starsze wiadomości dopiszą się nad tymi, które czytasz. Ekran nie przeskoczy w inne miejsce.</p>
+    </div>
+    <figure><img class="shot" src="screenshots/15-wczesniejsze-wiadomosci.png" alt="Przycisk „Wcześniejsze wiadomości” na górze długiej rozmowy"><figcaption>„Wcześniejsze wiadomości” na górze rozmowy</figcaption></figure>
+  </div>
+</section>
+
+<!-- 6 -->
+<section class="card" id="s6">
+  <h2 style="margin-top:0">6. Kiedy czat jest tylko do odczytu</h2>
+  <p>Czasem czat grupy albo terminu przestaje przyjmować nowe wiadomości. Wtedy <b>nadal możesz czytać</b> całą rozmowę, ale na dole zamiast pola do pisania jest szary pasek z wyjaśnieniem. Rozmowa zostaje też w skrzynce.</p>
+  <table>
+    <tr><th>Sytuacja</th><th>Pod nazwą czatu</th><th>Pasek na dole</th><th>Czego dotyczy</th></tr>
+    <tr><td>Grupa została usunięta</td><td class="msg">Grupa usunięta</td><td class="msg">Grupa usunięta — czat jest tylko do odczytu</td><td>Czat grupy i czaty wszystkich jej terminów</td></tr>
+    <tr><td>Grupa stała się publiczna</td><td class="msg">Grupa publiczna</td><td class="msg">Grupa jest publiczna — czat jest tylko do odczytu</td><td>Tylko czat grupy. Czaty terminów działają dalej normalnie</td></tr>
+  </table>
+  <ul>
+    <li>Gdy grupa stanie się publiczna, przycisk „Czat grupy” znika ze strony terminu i ze szczegółów grupy. Starą rozmowę otworzysz ze skrzynki 💬.</li>
+    <li>Jeśli organizator zmieni grupę z powrotem na <b>prywatną</b>, znowu można pisać.</li>
+  </ul>
+  <div class="note tip">💡 Gdy grupa jest jednocześnie usunięta i publiczna, zobaczysz komunikat o usunięciu.</div>
+  <div class="shots">
+    <figure><img class="shot" src="screenshots/16-tylko-odczyt-grupa-usunieta.png" alt="Czat usuniętej grupy, tylko do odczytu"><figcaption>Grupa usunięta: tylko do odczytu</figcaption></figure>
+    <figure><img class="shot" src="screenshots/17-tylko-odczyt-grupa-publiczna.png" alt="Czat grupy, która stała się publiczna, tylko do odczytu"><figcaption>Grupa publiczna: tylko do odczytu</figcaption></figure>
+  </div>
+</section>
+
+<!-- 7 -->
+<section class="card" id="s7">
+  <h2 style="margin-top:0">7. Komunikaty o błędach</h2>
+  <p>Gdy wiadomość nie da się wysłać, pod polem pojawia się czerwony komunikat. <b>Twój tekst zostaje w polu</b>, więc możesz go poprawić albo wysłać ponownie, bez przepisywania.</p>
+  <table>
+    <tr><th>Komunikat</th><th>Co oznacza</th><th>Co zrobić</th></tr>
+    <tr><td class="msg">Za dużo wiadomości — spróbuj ponownie za chwilę.</td><td>Wysłałeś bardzo dużo wiadomości w krótkim czasie, ponad 30 w ciągu minuty. To zabezpieczenie przed spamem.</td><td>Odczekaj minutę i dotknij „Wyślij” jeszcze raz.</td></tr>
+    <tr><td class="msg">Za dużo nowych rozmów — spróbuj ponownie za … min</td><td>W ciągu godziny zacząłeś bardzo wiele nowych rozmów o rzeczach (ponad 20)</td><td>Poczekaj. Do rozmów, które już masz, możesz w tym czasie normalnie wracać.</td></tr>
+    <tr><td class="msg">Wiadomość narusza zasady społeczności. Zmień ją i spróbuj ponownie.</td><td>Automatyczna moderacja odrzuciła wiadomość, np. z powodu obraźliwych słów. Odrzucona wiadomość nie trafia do rozmowy, więc nikt jej nie zobaczy.</td><td>Zmień treść wiadomości i wyślij ją ponownie.</td></tr>
+    <tr><td class="msg">Nie masz dostępu do tej rozmowy.</td><td>Otwierasz rozmowę, w której nie uczestniczysz: ktoś przesłał Ci link do cudzej rozmowy, wypisałeś się z terminu albo nie należysz już do grupy.</td><td>Dotknij „Wróć do wiadomości”.</td></tr>
+    <tr><td class="msg">Nie znaleziono rozmowy.</td><td>Link jest błędny albo rozmowa nie istnieje</td><td>Wróć do skrzynki przyciskiem „Wróć do wiadomości”</td></tr>
+    <tr><td class="msg">Nie udało się wysłać — spróbuj ponownie</td><td>Chwilowy problem z połączeniem</td><td>Sprawdź internet i dotknij „Wyślij” jeszcze raz</td></tr>
+    <tr><td class="msg">Nie udało się otworzyć rozmowy — spróbuj ponownie</td><td>Rozmowy nie udało się otworzyć</td><td>Spróbuj jeszcze raz za chwilę</td></tr>
+    <tr><td class="msg">Nie udało się wczytać wiadomości</td><td>Lista się nie wczytała</td><td>Dotknij „Spróbuj ponownie”</td></tr>
+    <tr><td class="msg">Grupa usunięta / Grupa jest publiczna — czat jest tylko do odczytu</td><td>Czat jest zablokowany do pisania</td><td>Zobacz <a href="#s6">rozdział 6</a></td></tr>
+  </table>
+  <div class="shots">
+    <figure><img class="shot" src="screenshots/18-blad-za-duzo-wiadomosci.png" alt="Komunikat „Za dużo wiadomości — spróbuj ponownie za chwilę.”"><figcaption>„Za dużo wiadomości…”: tekst zostaje w polu</figcaption></figure>
+    <figure><img class="shot" src="screenshots/19-blad-moderacja.png" alt="Komunikat o wiadomości odrzuconej przez moderację"><figcaption>Wiadomość odrzucona przez moderację</figcaption></figure>
+    <figure><img class="shot" src="screenshots/20-brak-dostepu.png" alt="Komunikat „Nie masz dostępu do tej rozmowy.”"><figcaption>„Nie masz dostępu do tej rozmowy.”</figcaption></figure>
+  </div>
+</section>
+
+<!-- 8 -->
+<section class="card" id="s8">
+  <h2 style="margin-top:0">8. Najczęstsze pytania (FAQ)</h2>
+  <dl class="faq">
+    <dt>Kto widzi moje wiadomości?</dt>
+    <dd>Tylko osoby, które biorą udział w danej rozmowie:
+      <ul>
+        <li><b>rozmowa o rzeczy:</b> tylko Ty i właściciel rzeczy;</li>
+        <li><b>czat grupy:</b> organizator i wszyscy obecni członkowie prywatnej grupy, także ci, którzy dołączą później;</li>
+        <li><b>czat terminu:</b> organizator i wszystkie osoby zapisane na ten termin.</li>
+      </ul>
+      Osoby spoza rozmowy, w tym niezalogowani goście, nie widzą wiadomości.</dd>
+    <dt>Czy mogę usunąć lub poprawić wysłaną wiadomość?</dt>
+    <dd>Nie, ta funkcja nie jest dostępna. Wysłanej wiadomości nie da się edytować ani usunąć, więc przeczytaj ją przed dotknięciem „Wyślij”.</dd>
+    <dt>Czy dostanę e-mail o nowej wiadomości?</dt>
+    <dd>Nie. Aplikacja nie wysyła e-maili ani powiadomień push o wiadomościach. Nowe wiadomości zobaczysz tylko jako licznik przy ikonie 💬 w górnym pasku.</dd>
+    <dt>Dlaczego nowa wiadomość nie trafiła do dzwonka 🔔?</dt>
+    <dd>Tak ma być. Wiadomości mają swoją ikonę 💬, a dzwonek zostaje dla innych powiadomień.</dd>
+    <dt>Dołączyłem do grupy i licznik pokazuje „9+”. Co się stało?</dt>
+    <dd>Jako nowy członek widzisz całą wcześniejszą historię czatu grupy, więc wszystkie stare wiadomości liczą się jako nieprzeczytane. Otwórz czat grupy, a licznik się wyzeruje.</dd>
+    <dt>Nie widzę przycisku „Czat grupy”.</dt>
+    <dd>Sprawdź, czy:
+      <ul>
+        <li>jesteś zalogowany;</li>
+        <li>należysz do grupy;</li>
+        <li>grupa jest <b>prywatna</b>. Grupy publiczne nie mają czatu grupy.</li>
+      </ul></dd>
+    <dt>Nie widzę przycisku „Czat terminu”.</dt>
+    <dd>Przycisk widzą tylko organizator i osoby zapisane na termin. Jeśli się wypisałeś, przycisk znika.</dd>
+    <dt>Czy mogę wysłać zdjęcie lub plik?</dt>
+    <dd>Nie, w wiadomościach można wysyłać tylko tekst.</dd>
+    <dt>Czy druga osoba wie, że przeczytałem jej wiadomość?</dt>
+    <dd>Nie. Aplikacja nie pokazuje innym, czy przeczytałeś ich wiadomość.</dd>
+    <dt>Czy mogę wyciszyć rozmowę albo z niej wyjść?</dt>
+    <dd>Nie. Rozmowa grupy lub terminu znika z Twojej skrzynki dopiero wtedy, gdy przestajesz należeć do grupy albo wypisujesz się z terminu.</dd>
+  </dl>
+</section>
+
+</main>
+</body>
+</html>

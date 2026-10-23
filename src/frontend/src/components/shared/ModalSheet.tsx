@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type KeyboardEvent, type ReactNode } from "react";
-import { CloseIcon } from "../../pages/panel/panelIcons";
+import { CloseIcon } from "./appIcons";
 import { useRegisterOpenSheet } from "./openSheets";
 import { trapFocus } from "./trapFocus";
 

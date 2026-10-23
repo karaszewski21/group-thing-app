@@ -34,7 +34,7 @@ Located in `.maister/docs/standards/global/`
 Clear user messages, fail-fast validation, typed exceptions, centralized handling, and graceful degradation.
 
 #### Validation (`standards/global/validation.md`)
-Server-side validation, client-side feedback, early input checking, specific error messages, allowlists over blocklists, and integer inputs as `type="text" inputMode="numeric" pattern="[0-9]*"` (never `type=number`) with the raw string in state, one shared parser returning `null`/number/`undefined` (`parseCapacity` in `pages/panel/panelHelpers.ts`), an inline Polish `role="alert"` error with `aria-invalid`/`aria-describedby`, submit disabled while invalid, and server-side `ge`/`le` still enforced.
+Server-side validation, client-side feedback, early input checking, specific error messages, allowlists over blocklists, and integer inputs as `type="text" inputMode="numeric" pattern="[0-9]*"` (never `type=number`) with the raw string in state, one shared parser returning `null`/number/`undefined` (`parseCapacity` in `utils/appHelpers.ts`), an inline Polish `role="alert"` error with `aria-invalid`/`aria-describedby`, submit disabled while invalid, and server-side `ge`/`le` still enforced.
 
 #### Development Conventions (`standards/global/conventions.md`)
 Predictable file structure, up-to-date documentation, clean version control, environment variables, and minimal dependencies.

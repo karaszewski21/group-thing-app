@@ -164,7 +164,7 @@ describe("LoginPage", () => {
       logout: vi.fn(),
     });
 
-    const { LoginPage } = await import("../pages/LoginPage");
+    const { LoginPage } = await import("../pages/auth/LoginPage");
     renderWithProviders(<LoginPage />);
 
     expect(screen.getByLabelText(/^email$/i)).toBeInTheDocument();
@@ -178,9 +178,33 @@ describe("LoginPage", () => {
       expect(mockLogin).toHaveBeenCalledWith("admin@example.com", "pass123");
     });
   });
+  it("is one page with 'Zaloguj się' / 'Załóż konto' tabs kept in ?tryb=", async () => {
+    mockUseAuth.mockReturnValue({
+      token: null as string | null,
+      username: null as string | null,
+      displayName: null as string | null,
+      permissions: [],
+      login: vi.fn(),
+      register: vi.fn(),
+      logout: vi.fn(),
+    });
+
+    const { LoginPage } = await import("../pages/auth/LoginPage");
+    renderWithProviders(<LoginPage />, "/login?tryb=rejestracja&returnTo=%2Fkonto");
+
+    const registerTab = screen.getByRole("tab", { name: "Załóż konto" });
+    expect(registerTab).toHaveAttribute("aria-selected", "true");
+    expect(screen.getByRole("button", { name: "Organizator" })).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("tab", { name: "Zaloguj się" }));
+
+    expect(screen.getByRole("tab", { name: "Zaloguj się" })).toHaveAttribute("aria-selected", "true");
+    expect(screen.queryByRole("button", { name: "Organizator" })).not.toBeInTheDocument();
+    expect(screen.getByRole("tabpanel")).toContainElement(screen.getByLabelText(/hasło/i));
+  });
 });
 
-describe("RegisterPage", () => {
+describe("RegisterForm", () => {
   it("posts register body as exactly {role, email, password}", async () => {
     const mockRegister = vi.fn(async () => ({ partyId: "1", role: "GUEST" }));
     mockUseAuth.mockReturnValue({
@@ -193,8 +217,8 @@ describe("RegisterPage", () => {
       logout: vi.fn(),
     });
 
-    const { RegisterPage } = await import("../pages/RegisterPage");
-    renderWithProviders(<RegisterPage />);
+    const { RegisterForm } = await import("../pages/auth/RegisterForm");
+    renderWithProviders(<RegisterForm />);
 
     fireEvent.change(screen.getByLabelText(/^email$/i), { target: { value: "new@example.com" } });
     fireEvent.change(screen.getByLabelText(/hasło/i), { target: { value: "pass123" } });
@@ -226,8 +250,8 @@ describe("RegisterPage", () => {
       logout: vi.fn(),
     });
 
-    const { RegisterPage } = await import("../pages/RegisterPage");
-    renderWithProviders(<RegisterPage />);
+    const { RegisterForm } = await import("../pages/auth/RegisterForm");
+    renderWithProviders(<RegisterForm />);
 
     fireEvent.change(screen.getByLabelText(/^email$/i), { target: { value: "dup@example.com" } });
     fireEvent.change(screen.getByLabelText(/hasło/i), { target: { value: "pass123" } });
@@ -252,8 +276,8 @@ describe("RegisterPage", () => {
       logout: vi.fn(),
     });
 
-    const { RegisterPage } = await import("../pages/RegisterPage");
-    renderWithProviders(<RegisterPage />);
+    const { RegisterForm } = await import("../pages/auth/RegisterForm");
+    renderWithProviders(<RegisterForm />);
 
     fireEvent.change(screen.getByLabelText(/^email$/i), { target: { value: "new@example.com" } });
     fireEvent.change(screen.getByLabelText(/hasło/i), { target: { value: "pass123" } });
@@ -320,7 +344,7 @@ describe("Permission-based UI visibility", () => {
     });
 
     const { PluginProvider } = await import("../plugins/PluginContext");
-    const { ProductListPage } = await import("../pages/ProductListPage");
+    const { ProductListPage } = await import("../pages/admin/ProductListPage");
 
     render(
       <ChakraProvider value={system}>

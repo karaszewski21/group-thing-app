@@ -1,7 +1,7 @@
 import { ChevronDown, ChevronUp } from "lucide-react";
 import { useEffect, useRef, useState, type RefObject } from "react";
 import type { ModerationStatus, ProductPhotoResponse } from "../../api/products";
-import { TrashIcon } from "../panel/panelIcons";
+import { TrashIcon } from "../../components/shared/appIcons";
 import { SafeImage } from "./ItemGallery";
 import { ACCEPTED_PHOTO_TYPES, MAX_PRODUCT_PHOTOS, photoFileError } from "./itemPageShared";
 

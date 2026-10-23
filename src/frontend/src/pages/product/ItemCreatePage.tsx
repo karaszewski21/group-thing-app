@@ -5,15 +5,14 @@ import { PhoneFrame } from "../../components/shared/PhoneFrame";
 import { useCategories } from "../../hooks/useCategories";
 import { useCreateItem } from "../../hooks/useCreateItem";
 import { createEmptyItemQuickAddValue, type ItemQuickAddValue } from "../../utils/itemQuickAdd";
-import { PanelNavBar } from "../panel/PanelNav";
-import { TrashIcon } from "../panel/panelIcons";
+import { TrashIcon } from "../../components/shared/appIcons";
 import { ItemBackButton } from "./ItemBackButton";
 import { PhotoFileField } from "./ItemGalleryEditor";
 import { FIELD_LABEL, MAX_PRODUCT_PHOTOS, photoFileError, type ItemCreatedState } from "./itemPageShared";
 
 /** `/product/new`: adds an item to the caller's own inventory with optional
  * photos, then replaces itself with the new item's page (handing it the
- * count of refused photos). Standalone, outside PanelDataProvider. */
+ * count of refused photos). Standalone, outside AppDataProvider. */
 export function ItemCreatePage() {
   const navigate = useNavigate();
   const createItem = useCreateItem();
@@ -68,7 +67,6 @@ export function ItemCreatePage() {
           </button>
         </form>
       </div>
-      <PanelNavBar />
     </PhoneFrame>
   );
 }

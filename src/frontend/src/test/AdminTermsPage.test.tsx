@@ -3,7 +3,7 @@ import { render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { ModerationTermResponse } from "../api/terms";
 import * as termsApi from "../api/terms";
-import { AdminTermsPage } from "../pages/AdminTermsPage";
+import { AdminTermsPage } from "../pages/admin/AdminTermsPage";
 import { system } from "../theme";
 import { pageOf } from "./page";
 import { createQueryWrapper } from "./queryClient";

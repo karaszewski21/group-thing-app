@@ -5,7 +5,7 @@ import { useOrganizerPage } from "../../hooks/useOrganizerPage";
 import { usePublicOrganization } from "../../hooks/usePublicOrganization";
 import { useUpdateOrganization } from "../../hooks/useUpdateOrganization";
 import { OrganizerThemeScope } from "../../theme/OrganizerThemeScope";
-import { SettingsIcon } from "../panel/panelIcons";
+import { SettingsIcon } from "../../components/shared/appIcons";
 import { diffDraft, sameDraft, toDraft, type Draft } from "./editor/draft";
 import { EditorSheet } from "./editor/EditorSheet";
 import { LayoutRenderer } from "./LayoutRenderer";

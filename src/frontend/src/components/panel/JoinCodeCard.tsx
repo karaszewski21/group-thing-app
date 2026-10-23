@@ -2,7 +2,7 @@ import { useId, useState, type ReactNode } from "react";
 import type { GroupResponse } from "../../api/groups";
 import type { JoinCodeStatus } from "../../hooks/useJoinCode";
 import { useToast } from "../shared/useToast";
-import { termPublicPath } from "../../pages/panel/panelHelpers";
+import { termPublicPath } from "../../utils/appHelpers";
 import { formatJoinCode } from "../../utils/joinCode";
 import { ConfirmDeleteDialog } from "../shared/ConfirmDeleteDialog";
 import { Skeleton } from "../shared/Skeleton";

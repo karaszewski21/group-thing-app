@@ -117,6 +117,19 @@ def test_reservedSlugs_organizerSubPaths_areReserved(slug: str) -> None:
     assert slug in RESERVED_SLUGS
 
 
+@pytest.mark.parametrize(
+    "slug",
+    [
+        "spotkania", "rzeczy", "podarki", "profil", "ustawienia", "miejsca",
+        "rodzina", "konto", "szukaj", "szukam", "dodaj", "wiadomosci", "grupy",
+    ],
+)
+def test_reservedSlugs_topLevelPanelRoutes_areReserved(slug: str) -> None:
+    # The panel sections and logged-in pages live at the top level
+    # (`/rzeczy`, `/wiadomosci`, …) next to the `/:slug` catch-all.
+    assert slug in RESERVED_SLUGS
+
+
 async def test_getPublicOrganization_byExistingSlug_returnsNameAndColors(
     client: AsyncClient, db_session: AsyncSession
 ) -> None:

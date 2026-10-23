@@ -1,14 +1,15 @@
 import { Link, useLocation } from "react-router-dom";
 import { ModalSheet } from "../../../components/shared/ModalSheet";
+import { authPath } from "../../../auth/authPaths";
 import { BTN_GHOST, BTN_PRIMARY } from "../../../components/shared/uiStyles";
 
-/** `?returnTo=` query for the current page, so both logging in and
- * registering (via onboarding) bring the visitor back here. The fragment is
- * left out on purpose: inside the query it would reach the server, so a
- * `#code=` survives login through sessionStorage instead (`TermPage`). */
-function useReturnToQuery(): string {
+/** The current page as a `returnTo`, so both logging in and registering
+ * (via onboarding) bring the visitor back here. The fragment is left out on
+ * purpose: inside the query it would reach the server, so a `#code=`
+ * survives login through sessionStorage instead (`TermPage`). */
+function useReturnTo(): string {
   const location = useLocation();
-  return `?returnTo=${encodeURIComponent(location.pathname + location.search)}`;
+  return location.pathname + location.search;
 }
 
 /**
@@ -18,11 +19,11 @@ function useReturnToQuery(): string {
  * `AuthGateSheet`'s bottom sheet.
  */
 export function AuthGateLinks({ onGuest }: { onGuest?: () => void }) {
-  const returnToQuery = useReturnToQuery();
+  const returnTo = useReturnTo();
   return (
     <>
       <Link
-        to={`/login${returnToQuery}`}
+        to={authPath("login", returnTo)}
         className={`${BTN_PRIMARY} mb-2.5 block w-full px-3.5 py-2.5 text-center text-[13px]`}
       >
         Zaloguj się
@@ -39,7 +40,7 @@ export function AuthGateLinks({ onGuest }: { onGuest?: () => void }) {
 
       <p className="text-center text-xs text-ink-soft">
         Nie masz konta?{" "}
-        <Link to={`/register${returnToQuery}`} className="font-bold text-primary-fg">
+        <Link to={authPath("register", returnTo)} className="font-bold text-primary-fg">
           Zarejestruj się
         </Link>
       </p>

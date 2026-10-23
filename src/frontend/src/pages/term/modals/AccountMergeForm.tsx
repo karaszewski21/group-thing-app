@@ -8,7 +8,7 @@ const DEFAULT_ERROR_MESSAGE = "Nie udało się założyć konta — spróbuj pon
 
 /**
  * Mockup 10 (`account-merge-trigger`): a two-field (email + password)
- * inline mini-form — deliberately NOT the full `RegisterPage.tsx` (no
+ * inline mini-form — deliberately NOT the full `RegisterForm.tsx` (no
  * GUEST/ORGANIZER role toggle, since this merges an already-anonymous
  * GUEST profile into a real account rather than choosing a fresh role).
  * Rendered by `TermPage.tsx` in place of a needed item's "Zgłoś się"

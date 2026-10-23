@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { getMyFamilies, type FamilyOut } from "../../../api/families";
 import { createRsvp, type RsvpResponse } from "../../../api/groups";
-import { Field } from "../../panel/panelComponents";
+import { Field } from "../../../components/shared/appComponents";
 import { ModalSheet } from "../../../components/shared/ModalSheet";
 import { BTN_GHOST, BTN_PRIMARY, BTN_SM, ERROR_TEXT, FIELD, SUB_FORM } from "../../../components/shared/uiStyles";
 
@@ -113,7 +113,7 @@ export function RsvpDialogLoggedIn({
           </p>
           <div className="flex items-center gap-2">
             <Link
-              to={`/panel/rodzina?returnTo=${encodeURIComponent(pathname)}`}
+              to={`/rodzina?returnTo=${encodeURIComponent(pathname)}`}
               className={`${BTN_PRIMARY} ${BTN_SM} inline-block no-underline`}
             >
               Przejdź do „Mój dom”

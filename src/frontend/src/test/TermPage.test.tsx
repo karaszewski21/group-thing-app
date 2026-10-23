@@ -144,7 +144,7 @@ function page(entry = PATH) {
     <MemoryRouter initialEntries={[entry]}>
       <Routes>
         <Route path="/:organizationSlug/grupa/:groupId/term/:termId" element={<TermPage />} />
-        <Route path="/panel/wiadomosci/:id" element={<p>Wątek rozmowy</p>} />
+        <Route path="/wiadomosci/:id" element={<p>Wątek rozmowy</p>} />
       </Routes>
       <SearchProbe />
     </MemoryRouter>
@@ -375,7 +375,7 @@ describe("TermPage — sign-up footer", () => {
     await waitFor(() => expect(familiesApi.getMyFamilies).toHaveBeenCalled());
     expect(within(dialog).getByRole("link", { name: "Przejdź do „Mój dom”" })).toHaveAttribute(
       "href",
-      `/panel/rodzina?returnTo=${encodeURIComponent(PATH)}`,
+      `/rodzina?returnTo=${encodeURIComponent(PATH)}`,
     );
   });
 
@@ -913,7 +913,7 @@ describe("TermPage — join a private group by code", () => {
     );
     expect(screen.getByRole("link", { name: "Zarejestruj się" })).toHaveAttribute(
       "href",
-      `/register?returnTo=${encodeURIComponent(PATH)}`,
+      `/login?tryb=rejestracja&returnTo=${encodeURIComponent(PATH)}`,
     );
     anonymous.unmount();
 

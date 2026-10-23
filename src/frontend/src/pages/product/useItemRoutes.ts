@@ -25,6 +25,6 @@ export function useItemRoutes(): ItemRoutes {
   return {
     viewPath: (id) => organizerItemPath(organizationSlug, id),
     editPath: (id) => `${organizerItemPath(organizationSlug, id)}/edit`,
-    backFallback: hasOrganizerPage ? `/${organizationSlug}` : "/panel/rzeczy",
+    backFallback: hasOrganizerPage ? `/${organizationSlug}` : "/rzeczy",
   };
 }

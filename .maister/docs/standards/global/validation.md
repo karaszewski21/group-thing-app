@@ -28,7 +28,7 @@ Validate business logic (sufficient balance, valid dates) at the appropriate lay
 Apply validation uniformly across all entry points (forms, APIs, background jobs).
 
 ### Integer Inputs
-For bounded integer fields (e.g. capacity 1–10000) use `type="text" inputMode="numeric" pattern="[0-9]*"`, not `type="number"`: a controlled `type=number` reports unparseable input ("-", "e", "1e3") as `""`, silently turning bad input into "empty". Keep the raw string in state and parse it with one shared helper returning `null` (blank), a number (valid) or `undefined` (invalid). While invalid, show an inline Polish `role="alert"` error ("Podaj liczbę od 1 do 10000") wired with `aria-invalid`/`aria-describedby`, and disable submit. The server still validates (`Field(ge=1, le=10000)`). Reference: `pages/panel/panelHelpers.ts` (`parseCapacity`, `capacityText`, `CAPACITY_ERROR`), `pages/panel/panelComponents.tsx` (`CapacityField`).
+For bounded integer fields (e.g. capacity 1–10000) use `type="text" inputMode="numeric" pattern="[0-9]*"`, not `type="number"`: a controlled `type=number` reports unparseable input ("-", "e", "1e3") as `""`, silently turning bad input into "empty". Keep the raw string in state and parse it with one shared helper returning `null` (blank), a number (valid) or `undefined` (invalid). While invalid, show an inline Polish `role="alert"` error ("Podaj liczbę od 1 do 10000") wired with `aria-invalid`/`aria-describedby`, and disable submit. The server still validates (`Field(ge=1, le=10000)`). Reference: `utils/appHelpers.ts` (`parseCapacity`, `capacityText`, `CAPACITY_ERROR`), `components/shared/appComponents.tsx` (`CapacityField`).
 ```ts
 export function parseCapacity(raw: string): number | null | undefined {
   const trimmed = raw.trim();

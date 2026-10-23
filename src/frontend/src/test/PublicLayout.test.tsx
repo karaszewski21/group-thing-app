@@ -1,16 +1,13 @@
-import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { fireEvent, render, screen, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { MemoryRouter, Route, Routes } from "react-router-dom";
-import { ApiError } from "../api/client";
+import { MemoryRouter, Route, Routes, useLocation } from "react-router-dom";
+import { AuthGuard } from "../auth/AuthGuard";
 import * as conversationsApi from "../api/conversations";
 import * as notificationsApi from "../api/notifications";
-import * as organizationsApi from "../api/organizations";
-import type { MyOrganizationResponse } from "../api/organizations";
 import { PublicLayout } from "../components/layout/PublicLayout";
 import { createQueryWrapper } from "./queryClient";
 import { resetSnoozeStoreForTests } from "../components/pending/snoozeStore";
 
-vi.mock("../api/organizations", () => ({ getMyOrganization: vi.fn() }));
 vi.mock("../api/conversations", () => ({ getUnreadMessageCount: vi.fn(), chatErrorMessage: vi.fn() }));
 vi.mock("../api/notifications", () => ({
   getMyNotifications: vi.fn(),
@@ -21,22 +18,28 @@ vi.mock("../api/notifications", () => ({
 let mockAuth: { token: string | null; username?: string };
 vi.mock("../auth/AuthContext", () => ({ useAuth: () => mockAuth }));
 
-function renderPublicPage() {
+function LocationProbe() {
+  const { pathname, search } = useLocation();
+  return <output data-testid="where">{pathname + search}</output>;
+}
+
+function renderPublicPage(initialEntry = "/skrzaty") {
   return render(
-    <MemoryRouter initialEntries={["/skrzaty"]}>
+    <MemoryRouter initialEntries={[initialEntry]}>
+      <LocationProbe />
       <Routes>
         <Route element={<PublicLayout />}>
+          <Route path="/" element={<h1>Start</h1>} />
+          <Route path="/konto" element={<AuthGuard><h1>Konto</h1></AuthGuard>} />
+          <Route path="/profil" element={<h1>Profil</h1>} />
+          <Route path="/wiadomosci/:conversationId" element={<h1>Wątek</h1>} />
           <Route path="/:organizationSlug" element={<h1>Strona publiczna</h1>} />
         </Route>
+        <Route path="/login" element={<h1>Logowanie</h1>} />
       </Routes>
     </MemoryRouter>,
     { wrapper: createQueryWrapper() },
   );
-}
-
-async function openMenu() {
-  fireEvent.click(await screen.findByRole("button", { name: "Menu" }));
-  return screen.getByRole("menu");
 }
 
 beforeEach(() => {
@@ -44,94 +47,109 @@ beforeEach(() => {
   localStorage.clear();
   resetSnoozeStoreForTests();
   mockAuth = { token: null };
-  vi.mocked(organizationsApi.getMyOrganization).mockRejectedValue(new ApiError(404, "Not Found", null));
   vi.mocked(notificationsApi.getMyNotifications).mockResolvedValue([]);
   vi.mocked(conversationsApi.getUnreadMessageCount).mockResolvedValue({ count: 0 });
 });
 
 describe("PublicLayout", () => {
-  it("anonymous: renders the page with no account bar", () => {
+  it("anonymous: the top bar's bell goes to /login and back to the page, no 'Zaloguj się'", () => {
     renderPublicPage();
 
     expect(screen.getByRole("heading", { name: "Strona publiczna" })).toBeInTheDocument();
-    expect(screen.queryByRole("navigation", { name: "Menu konta" })).not.toBeInTheDocument();
-    expect(organizationsApi.getMyOrganization).not.toHaveBeenCalled();
-  });
-
-  it("logged in: the bar's menu links back to the Panel sections, organization falls back to the create form", async () => {
-    mockAuth = { token: "tok" };
-    renderPublicPage();
-
-    expect(screen.getByRole("heading", { name: "Strona publiczna" })).toBeInTheDocument();
-    const menu = await openMenu();
-    expect(within(menu).getByRole("menuitem", { name: /Mój panel/ })).toHaveAttribute("href", "/panel");
-    expect(within(menu).getByRole("menuitem", { name: /Profil/ })).toHaveAttribute("href", "/panel/profil");
-    expect(within(menu).getByRole("menuitem", { name: /Ustawienia/ })).toHaveAttribute("href", "/panel/ustawienia");
-    expect(within(menu).getByRole("menuitem", { name: /Moje miejsca/ })).toHaveAttribute("href", "/panel/miejsca");
-    expect(within(menu).getByRole("menuitem", { name: /Mój dom/ })).toHaveAttribute("href", "/panel/rodzina");
-    expect(within(menu).getByRole("menuitem", { name: /Moja organizacja/ })).toHaveAttribute("href", "/organization");
-    expect(within(menu).getByRole("menuitem", { name: /Załóż grupę/ })).toHaveAttribute(
+    const bar = screen.getByRole("navigation", { name: "Menu konta" });
+    expect(within(bar).getByRole("link", { name: "Powiadomienia" })).toHaveAttribute(
       "href",
-      "/panel/spotkania?nowa=grupa",
+      "/login?returnTo=%2Fskrzaty",
     );
-    expect(within(menu).getAllByRole("menuitem").map((item) => item.textContent?.trim())).toEqual([
-      "Mój panel",
-      "Profil",
-      "Ustawienia",
-      "Moje miejsca",
-      "Załóż grupę",
-      "Moja organizacja",
-      "Mój dom",
-    ]);
+    expect(within(bar).getByRole("link", { name: "Spotkania" })).toHaveAttribute("href", "/spotkania");
+    expect(within(bar).queryByRole("link", { name: "Zaloguj się" })).not.toBeInTheDocument();
+    expect(notificationsApi.getMyNotifications).not.toHaveBeenCalled();
   });
 
-  it("logged in with an Organization: 'Moja organizacja' links to its public page", async () => {
-    mockAuth = { token: "tok" };
-    vi.mocked(organizationsApi.getMyOrganization).mockResolvedValue({ slug: "moja-org" } as MyOrganizationResponse);
-    renderPublicPage();
+  it("anonymous on Start: the bell goes to plain /login", () => {
+    renderPublicPage("/");
 
-    const menu = await openMenu();
-    await waitFor(() =>
-      expect(within(menu).getByRole("menuitem", { name: /Moja organizacja/ })).toHaveAttribute("href", "/moja-org"),
-    );
+    const bar = screen.getByRole("navigation", { name: "Menu konta" });
+    expect(within(bar).getByRole("link", { name: "Powiadomienia" })).toHaveAttribute("href", "/login");
   });
 
-  it("logged in: the bar shows the notification bell next to the menu", async () => {
-    mockAuth = { token: "tok" };
+  it("anonymous: the bottom nav is shown and a logged-in-only tab goes to /login and back", () => {
     renderPublicPage();
 
-    expect(await screen.findByRole("button", { name: "Powiadomienia" })).toBeInTheDocument();
+    const nav = screen.getByRole("navigation", { name: "Nawigacja główna" });
+    fireEvent.click(within(nav).getByRole("button", { name: "Konto" }));
+
+    expect(screen.getByTestId("where")).toHaveTextContent("/login?returnTo=%2Fkonto");
+  });
+
+  it.each([
+    ["/", "Start"],
+    ["/konto", "Konto"],
+    ["/profil", "Konto"],
+  ])("logged in at %s: the bottom nav highlights %s", (path, tab) => {
+    mockAuth = { token: "tok" };
+    renderPublicPage(path);
+
+    const nav = screen.getByRole("navigation", { name: "Nawigacja główna" });
+    expect(within(nav).getByRole("button", { name: tab })).toHaveAttribute("aria-current", "true");
+  });
+
+  it("a page outside the panel sections highlights no tab", () => {
+    renderPublicPage();
+
+    const nav = screen.getByRole("navigation", { name: "Nawigacja główna" });
+    for (const tab of within(nav).getAllByRole("button")) {
+      expect(tab).not.toHaveAttribute("aria-current", "true");
+    }
+  });
+
+  it("a chat thread keeps the top bar but drops the search field and the bottom nav", () => {
+    mockAuth = { token: "tok" };
+    renderPublicPage("/wiadomosci/7");
+
+    expect(screen.getByRole("navigation", { name: "Menu konta" })).toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "Szukaj rzeczy i spotkań" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("navigation", { name: "Nawigacja główna" })).not.toBeInTheDocument();
+  });
+
+  it("/login sits inside the layout with both global bars", () => {
+    render(
+      <MemoryRouter initialEntries={["/login"]}>
+        <Routes>
+          <Route element={<PublicLayout />}>
+            <Route path="/login" element={<h1>Logowanie</h1>} />
+          </Route>
+        </Routes>
+      </MemoryRouter>,
+      { wrapper: createQueryWrapper() },
+    );
+
+    expect(screen.getByRole("navigation", { name: "Menu konta" })).toBeInTheDocument();
+    expect(screen.getByRole("navigation", { name: "Nawigacja główna" })).toBeInTheDocument();
+  });
+
+  it("the top bar's search field leads to /szukaj on every page", () => {
+    renderPublicPage();
+
+    expect(screen.getByRole("link", { name: "Szukaj rzeczy i spotkań" })).toHaveAttribute("href", "/szukaj");
+  });
+
+  it("logged in: the top bar holds only the brand, Spotkania and the notification bell", async () => {
+    mockAuth = { token: "tok", username: "ania" };
+    renderPublicPage();
+
+    const bar = screen.getByRole("navigation", { name: "Menu konta" });
+    expect(await within(bar).findByRole("button", { name: "Powiadomienia" })).toBeInTheDocument();
+    expect(within(bar).getAllByRole("link").map((l) => l.getAttribute("href"))).toEqual(["/", "/spotkania"]);
+    expect(within(bar).getAllByRole("button")).toHaveLength(1);
     expect(notificationsApi.getMyNotifications).toHaveBeenCalled();
   });
 
-  it("logged in: the messages link sits right before the notification bell", async () => {
-    mockAuth = { token: "tok", username: "ania" };
-    vi.mocked(conversationsApi.getUnreadMessageCount).mockResolvedValue({ count: 4 });
+  it("the logo is a named link to Start", () => {
     renderPublicPage();
 
-    const messages = await screen.findByRole("link", { name: "Wiadomości (4 nieprzeczytane)" });
-    const bell = screen.getByRole("button", { name: "Powiadomienia" });
-    expect(messages).toHaveAttribute("href", "/panel/wiadomosci");
-    expect(messages.nextElementSibling).toBe(bell.parentElement);
-  });
-
-  it("logged in: the brand label truncates instead of wrapping the bar on narrow screens", async () => {
-    mockAuth = { token: "tok", username: "ania" };
-    renderPublicPage();
-
-    const brand = await screen.findByText("Krąg grupy");
-    expect(brand).toHaveClass("min-w-0", "truncate");
-    expect(brand.closest("a")).toHaveClass("min-w-0");
-  });
-
-  it("picking a menu item closes the menu", async () => {
-    mockAuth = { token: "tok" };
-    renderPublicPage();
-
-    const menu = await openMenu();
-    fireEvent.click(within(menu).getByRole("menuitem", { name: /Profil/ }));
-
-    expect(screen.queryByRole("menu")).not.toBeInTheDocument();
+    const bar = screen.getByRole("navigation", { name: "Menu konta" });
+    expect(within(bar).getByRole("link", { name: "Krąg grupy — Start" })).toHaveAttribute("href", "/");
   });
 
   it("logged in: mounts the pending-actions host once, over the page", async () => {

@@ -9,8 +9,7 @@ import {
   type ProductDetailsState,
 } from "../../hooks/useItemDetail";
 import { CONDITION_LABELS } from "../../utils/productCategory";
-import { PanelNavBar } from "../panel/PanelNav";
-import { BackIcon, PencilIcon } from "../panel/panelIcons";
+import { BackIcon, PencilIcon } from "../../components/shared/appIcons";
 import { ItemBackButton } from "./ItemBackButton";
 import { ConditionEditor, DescriptionEditor, NameCategoryEditor } from "./ItemFieldEditors";
 import { ItemGalleryEditor, ItemPhotoStrip } from "./ItemGalleryEditor";
@@ -28,12 +27,11 @@ import { useItemRoutes } from "./useItemRoutes";
 
 type EditorKey = "photos" | "nameCategory" | "condition" | "description";
 
-/** `/product/:id/edit`. Standalone, outside PanelDataProvider. */
+/** `/product/:id/edit`. Standalone, outside AppDataProvider. */
 export function ItemEditPage() {
   return (
     <PhoneFrame>
       <ItemEditBody />
-      <PanelNavBar />
     </PhoneFrame>
   );
 }
@@ -122,7 +120,7 @@ function ItemEditContent({ item, history, details, onRefetch }: ItemEditContentP
         <div role="status" className="mt-3 rounded-[14px] border border-line bg-cream px-3.5 py-2.5 text-[12.5px] text-ink">
           Rzecz zdjęta z terminów do czasu zatwierdzenia zdjęć. Tryb wypożyczę/oddam/zamienię włączysz ponownie w
           „Moje rzeczy”.{" "}
-          <Link to="/panel/rzeczy" className="font-extrabold text-primary-fg underline">
+          <Link to="/rzeczy" className="font-extrabold text-primary-fg underline">
             Moje rzeczy →
           </Link>
         </div>

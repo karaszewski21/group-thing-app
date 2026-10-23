@@ -6,7 +6,7 @@ import { useConversation } from "../../hooks/useConversation";
 import { useThread } from "../../hooks/useThread";
 import { INBOX_PATH } from "../../utils/messagesPaths";
 import { pluralPl } from "../../utils/plural";
-import { BackIcon } from "../panel/panelIcons";
+import { BackIcon } from "../../components/shared/appIcons";
 import { MessageBubble } from "./MessageBubble";
 import { MessageComposer } from "./MessageComposer";
 import { formatDaySeparator, localDayKey } from "./messageTime";
@@ -78,7 +78,7 @@ export function ThreadPage() {
 }
 
 function ThreadShell({ children }: { children: ReactNode }) {
-  return <div className="flex h-[calc(100dvh-57px)] flex-col bg-paper font-sans text-ink">{children}</div>;
+  return <div className="flex min-h-0 flex-1 flex-col bg-paper font-sans text-ink">{children}</div>;
 }
 
 function BackButton() {

@@ -72,7 +72,7 @@ class Notification(BaseEntity):
     )
     message: Mapped[str] = mapped_column(String(500), nullable=False)
     # In-app route the bell entry links to (e.g. a public term page, or
-    # "/panel"). `None` = no navigation target.
+    # "/", the panel's Start). `None` = no navigation target.
     link_path: Mapped[str | None] = mapped_column(String(255), nullable=True)
     read_at: Mapped[datetime | None] = mapped_column(DateTime(), nullable=True)
     # Loose cross-BC pointer (no FK, per `standards/backend/models.md`'s

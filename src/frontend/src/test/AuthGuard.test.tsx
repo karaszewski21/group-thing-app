@@ -2,6 +2,7 @@ import { render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { MemoryRouter, Route, Routes, useLocation } from "react-router-dom";
 import { AuthGuard } from "../auth/AuthGuard";
+import { homePath } from "../auth/homePath";
 
 vi.mock("../auth/AuthContext", () => ({
   useAuth: () => ({ token: "valid.jwt.token" }),
@@ -41,5 +42,16 @@ describe("AuthGuard forwardReturnTo", () => {
   it("without returnTo goes to the plain authenticatedRedirect", () => {
     renderAt("/register");
     expect(screen.getByTestId("where")).toHaveTextContent(/^\/onboarding$/);
+  });
+});
+
+describe("homePath", () => {
+  it.each([
+    [["ADMIN"], "/admin/products"],
+    [["EDIT", "PLUGIN_MANAGEMENT"], "/admin/products"],
+    [["EDIT"], "/"],
+    [[], "/"],
+  ])("permissions %j land on %s", (permissions, expected) => {
+    expect(homePath(permissions)).toBe(expected);
   });
 });

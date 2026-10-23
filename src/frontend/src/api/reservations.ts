@@ -11,7 +11,7 @@ export interface ReservationResponse {
   // Optional here (not on the actual backend response, which always sets
   // it — see `circulation/schemas.py`'s `ReservationResponse.term_id`)
   // purely so pre-existing mocked `ReservationResponse` object literals in
-  // `TermPage.test.tsx`/`PanelPage.test.tsx` (written before this
+  // `TermPage.test.tsx`/`AppPage.test.tsx` (written before this
   // field existed on the frontend type) keep compiling without an
   // unrelated, out-of-scope rewrite.
   term_id?: string;
