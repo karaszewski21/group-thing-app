@@ -38,26 +38,24 @@ async def list_inventories(db: AsyncSession, owner_user_id: uuid.UUID | None) ->
     return await repository.list_inventories(db, owner_user_id)
 
 
-async def _get_or_create_inventory(
-    db: AsyncSession, owner_user_id: uuid.UUID, inventory_type: InventoryType
-) -> Inventory:
-    """Shared body for `get_or_create_personal_inventory`/
-    `get_or_create_virtual_inventory`. The check-then-insert below has a
-    window where two near-simultaneous callers for the same
-    `(owner_user_id, inventory_type)` can both see "none exists" and both
-    insert — migration `0033` adds a partial unique index on exactly this
-    pair (for PERSONAL/VIRTUAL) so the loser's insert raises
-    `IntegrityError` instead of silently creating a duplicate; caught here
-    via a `SAVEPOINT` (`begin_nested`) so only this insert rolls back, not
-    the caller's wider transaction, then re-fetched to return the winner's
-    row. The inventory's ledger account is inserted in the same `SAVEPOINT`,
-    so a lost race rolls back both and the winner's row already has its
-    account."""
-    find = repository.find_personal_inventory if inventory_type == InventoryType.PERSONAL else repository.find_virtual_inventory
-    inventory = await find(db, owner_user_id)
+async def get_or_create_personal_inventory(db: AsyncSession, owner_user_id: uuid.UUID) -> Inventory:
+    """The user's PERSONAL inventory, created on first use (a recipient's
+    first GIFT/SWAP needs no manually created Inventory). The
+    check-then-insert below has a window where two near-simultaneous callers
+    for the same user can both see "none exists" and both insert — migration
+    `0033` adds a partial unique index on `(owner_user_id, inventory_type)`
+    so the loser's insert raises `IntegrityError` instead of silently
+    creating a duplicate; caught here via a `SAVEPOINT` (`begin_nested`) so
+    only this insert rolls back, not the caller's wider transaction, then
+    re-fetched to return the winner's row. The inventory's ledger account is
+    inserted in the same `SAVEPOINT`, so a lost race rolls back both and the
+    winner's row already has its account."""
+    inventory = await repository.find_personal_inventory(db, owner_user_id)
     if inventory is not None:
         return inventory
-    inventory = Inventory(owner_user_id=owner_user_id, inventory_type=inventory_type, location=None)
+    inventory = Inventory(
+        owner_user_id=owner_user_id, inventory_type=InventoryType.PERSONAL, location=None
+    )
     try:
         async with db.begin_nested():
             db.add(inventory)
@@ -65,21 +63,7 @@ async def _get_or_create_inventory(
             db.add(Account(account_type=AccountType.INVENTORY, inventory_id=inventory.id))
             await db.flush()
     except IntegrityError:
-        inventory = await find(db, owner_user_id)
+        inventory = await repository.find_personal_inventory(db, owner_user_id)
         if inventory is None:
             raise
     return inventory
-
-
-async def get_or_create_personal_inventory(db: AsyncSession, owner_user_id: uuid.UUID) -> Inventory:
-    """Used by `app.party`'s Pledge->Reservation bridge — a guardian
-    registering their first item doesn't need to have manually created an
-    Inventory beforehand."""
-    return await _get_or_create_inventory(db, owner_user_id, InventoryType.PERSONAL)
-
-
-async def get_or_create_virtual_inventory(db: AsyncSession, owner_user_id: uuid.UUID) -> Inventory:
-    """A borrower's holding place for items lent to them — auto-provisioned
-    on first loan, mirroring `get_or_create_personal_inventory`. Used by
-    `application/reservation_transitions.py`'s LEND fulfillment branch."""
-    return await _get_or_create_inventory(db, owner_user_id, InventoryType.VIRTUAL)

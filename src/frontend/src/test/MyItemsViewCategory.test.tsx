@@ -69,7 +69,7 @@ function mockReservation(
   return {
     id,
     item_id: itemId,
-    reservation_type: "LEND",
+    reservation_type: "GIFT",
     reserved_by_user_id: "1",
     term_id: termId,
     paired_reservation_id: null,
@@ -246,10 +246,10 @@ describe("MyItemsView — mode toggle buttons locked while a reservation is acti
   });
 
   function modeToggleButtons(): HTMLElement[] {
-    return ["Wypożyczę", "Oddam", "Zamienię"].map((name) => screen.getByRole("button", { name }));
+    return ["Oddam", "Zamienię"].map((name) => screen.getByRole("button", { name }));
   }
 
-  it("disables the three mode toggle buttons (native + aria-disabled) for a RESERVED item", async () => {
+  it("disables the two mode toggle buttons (native + aria-disabled) for a RESERVED item", async () => {
     vi.mocked(api.get).mockResolvedValue(mockBalance(item.id, "RESERVED"));
     vi.mocked(appDataStore.useAppData).mockReturnValue(
       makeContextValue(),
@@ -264,7 +264,7 @@ describe("MyItemsView — mode toggle buttons locked while a reservation is acti
     }
   });
 
-  it("disables the three mode toggle buttons (native + aria-disabled) for an IN_TRANSIT item", async () => {
+  it("disables the two mode toggle buttons (native + aria-disabled) for an IN_TRANSIT item", async () => {
     vi.mocked(api.get).mockResolvedValue(mockBalance(item.id, "IN_TRANSIT"));
     vi.mocked(appDataStore.useAppData).mockReturnValue(
       makeContextValue(),
@@ -279,7 +279,7 @@ describe("MyItemsView — mode toggle buttons locked while a reservation is acti
     }
   });
 
-  it("leaves the three mode toggle buttons enabled for an AVAILABLE item", async () => {
+  it("leaves the two mode toggle buttons enabled for an AVAILABLE item", async () => {
     vi.mocked(api.get).mockResolvedValue(mockBalance(item.id, "AVAILABLE"));
     vi.mocked(appDataStore.useAppData).mockReturnValue(
       makeContextValue(),
@@ -294,7 +294,7 @@ describe("MyItemsView — mode toggle buttons locked while a reservation is acti
     }
   });
 
-  it("leaves the three mode toggle buttons enabled when the item has no balance entry yet (undefined)", () => {
+  it("leaves the two mode toggle buttons enabled when the item has no balance entry yet (undefined)", () => {
     // Balance fetch left pending (never resolved) — `itemBalances` stays
     // `{}`, so `itemBalances[it.id]` is `undefined` for the whole test,
     // matching the "no balance entry yet" state without needing to await
@@ -472,10 +472,10 @@ describe("MyItemsView — mode toggles blocked while photos are in moderation", 
   });
 
   function modeToggleButtons(): HTMLElement[] {
-    return ["Wypożyczę", "Oddam", "Zamienię"].map((name) => screen.getByRole("button", { name }));
+    return ["Oddam", "Zamienię"].map((name) => screen.getByRole("button", { name }));
   }
 
-  it("pending → 3 toggles disabled + aria-disabled, pill and hint visible, aria-describedby wired, edit link to /product/{id}/edit", async () => {
+  it("pending → 2 toggles disabled + aria-disabled, pill and hint visible, aria-describedby wired, edit link to /product/{id}/edit", async () => {
     vi.mocked(api.get).mockResolvedValue(mockBalance(item.id, "AVAILABLE"));
     vi.mocked(appDataStore.useAppData).mockReturnValue(
       makeContextValue({ items: [pendingItem] }),
@@ -595,7 +595,7 @@ describe("MyItemsView — gift limit", () => {
     expect(giftButtons.slice(0, 10).every((button) => !(button as HTMLButtonElement).disabled)).toBe(true);
     expect(giftButtons[10]).toBeDisabled();
     expect(giftButtons[10]).toHaveAccessibleDescription(hint.textContent!);
-    expect(screen.getAllByRole("button", { name: "Wypożyczę" })[10]).toBeEnabled();
+    expect(screen.getAllByRole("button", { name: "Zamienię" })[10]).toBeEnabled();
     await waitFor(() => expect(api.get).toHaveBeenCalled());
   });
 });

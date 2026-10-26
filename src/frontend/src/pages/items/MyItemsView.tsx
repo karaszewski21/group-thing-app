@@ -23,7 +23,6 @@ import { SwapAcceptSuccessSheet, type AcceptedSwap } from "./SwapAcceptSuccessSh
 
 /** Soft tile + readable text per item mode, matching the exchange tones. */
 const MODE_TONE: Record<ItemMode, string> = {
-  "wypożyczę": "bg-teal-soft text-ink",
   "oddam": "bg-primary-soft text-primary-fg",
   "zamienię": "bg-accent-soft text-accent-fg",
 };
@@ -38,8 +37,8 @@ const ICON_BUTTON =
  * confirmed yet — including the proposer's own auto-locked leg of a SWAP
  * proposal still awaiting the listing owner's accept/reject) and
  * `IN_TRANSIT` (already confirmed and moving — including an accepted
- * swap). `LENT`/`RETURNED`/`AVAILABLE` are settled states, not "pending",
- * so they render no badge here. This view is purely informational per
+ * swap). Any other status is settled, not "pending", so it renders no
+ * badge here. This view is purely informational per
  * spec.md Requirement 12-13 — no action button is ever added next to it. */
 function lockBadgeLabel(status: BalanceStatus | undefined): string | null {
   if (status === "RESERVED") return "czeka na potwierdzenie";
@@ -292,7 +291,7 @@ export function MyItemsView() {
             </svg>
             <h2 className="font-serif text-[21px] font-extrabold text-ink">Nie masz jeszcze żadnej rzeczy</h2>
             <p className="max-w-70 text-[15px] leading-normal text-ink-soft">
-              Dodaj wózek, książeczki albo kurtkę, z której dziecko wyrosło — i zdecyduj, czy ją wypożyczysz, oddasz czy
+              Dodaj wózek, książeczki albo kurtkę, z której dziecko wyrosło — i zdecyduj, czy ją oddasz, czy
               zamienisz.
             </p>
             <div className="mt-1 flex flex-wrap justify-center gap-1.5" aria-hidden="true">

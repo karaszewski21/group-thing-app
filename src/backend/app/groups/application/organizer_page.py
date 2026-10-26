@@ -61,9 +61,7 @@ async def _resolve_owner(db: AsyncSession, slug: str) -> uuid.UUID:
 
 
 def _empty_exchange() -> OrganizerExchangeResponse:
-    return OrganizerExchangeResponse(
-        counts=OrganizerExchangeCounts(GIFT=0, SWAP=0, LEND=0), items=[]
-    )
+    return OrganizerExchangeResponse(counts=OrganizerExchangeCounts(GIFT=0, SWAP=0), items=[])
 
 
 def _empty_page() -> OrganizerPageResponse:
@@ -221,9 +219,7 @@ async def _build_exchange(
         return None if photo is None or storage is None else storage.public_url(photo.thumb_key)
 
     return OrganizerExchangeResponse(
-        counts=OrganizerExchangeCounts(
-            GIFT=counts.get("GIFT", 0), SWAP=counts.get("SWAP", 0), LEND=counts.get("LEND", 0)
-        ),
+        counts=OrganizerExchangeCounts(GIFT=counts.get("GIFT", 0), SWAP=counts.get("SWAP", 0)),
         items=[
             OrganizerExchangeItemResponse(
                 item_id=item_id,

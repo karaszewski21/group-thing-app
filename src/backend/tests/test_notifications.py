@@ -1,7 +1,7 @@
 """`/api/notifications` — the recipient's own in-app inbox.
 
 Notifications are produced as a side effect of the pledge cycle (see
-`app.groups.application.pledges` / `pledge_fulfillment` / `terms`), so each
+`app.groups.application.pledges` / `terms`), so each
 test drives a real pledge to generate one, then asserts the inbox routes.
 
 `create_pledge`/`withdraw_pledge` now go through the outbox pattern (stage an

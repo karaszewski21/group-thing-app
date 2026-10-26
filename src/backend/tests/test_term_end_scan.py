@@ -31,6 +31,7 @@ from app.groups import service
 from app.groups.application import term_end_scan
 from app.groups.application.term_end_scan import scan_for_term_ended
 from app.groups.domain import swap_events
+from app.groups.infrastructure import circulation_bridge
 from app.groups.models import GiveawayTermEndMarker, SwapProposal, SwapProposalStatus, Term
 from app.groups.schemas import TakeTermItemListingRequest
 from app.notifications.models import Notification, NotificationKind
@@ -437,88 +438,62 @@ async def test_scan_giftReservationOfOtherTerm_isNotPrompted(
     assert len(markers) == 0
 
 
-async def test_scan_termWithoutEligibleListersOrPreferences_stillPromptsReservation(
+async def _taken_gift(
+    client: AsyncClient, db_session: AsyncSession, prefix: str
+) -> tuple[str, int, int, int, uuid.UUID]:
+    """A PENDING GIFT take of a fresh listing. Returns `(lister_token,
+    lister_party_id, taker_party_id, term_id, reservation_id)`."""
+    org_token, _ = await _register(client, "ORGANIZER", f"tes.org{prefix}@example.com")
+    group_id, term_id = await _create_circle_and_term(client, org_token, f"tes{prefix}")
+    lister_token, lister_party_id = await _register(
+        client, "GUEST", f"tes.lister{prefix}@example.com"
+    )
+    await _rsvp(client, lister_token, group_id, term_id)
+    item_id = await _register_personal_item(client, lister_token, f"Skrzypce{prefix}")
+    await service.set_item_listing_preference(
+        db_session, _principal(lister_token), item_id, ReservationType.GIFT
+    )
+    taker_token, taker_party_id = await _register(client, "GUEST", f"tes.taker{prefix}@example.com")
+    await _rsvp(client, taker_token, group_id, term_id)
+    taken = await service.take_item_listing(
+        db_session,
+        _principal(taker_token),
+        item_id,
+        TakeTermItemListingRequest(term_id=term_id, reservation_type="GIFT"),
+    )
+    assert taken.resolved_reservation_id is not None
+    return lister_token, lister_party_id, taker_party_id, term_id, taken.resolved_reservation_id
+
+
+async def test_scan_giftTakeWithClearedPreference_stillPromptsReservation(
     client: AsyncClient, db_session: AsyncSession
 ) -> None:
-    """A Pledge-LEND lives on a Term with no `ItemListingPreference` at all —
-    the reservation path must not be gated by the SWAP path's preference
-    lookup. Parties come from the reservation: owner = giver (the pledger),
-    taker = `reserved_by` (the organizer)."""
-    org_token, org_party_id = await _register(client, "ORGANIZER", "tes.org6@example.com")
-    circle = await client.post(
-        "/api/groups/mine", json={"name": "Krąg tes6"}, headers=_auth(org_token)
+    """The giver cleared the listing after the take, so the Term has no
+    `ItemListingPreference` at all — the reservation path must not be gated
+    by the SWAP path's preference lookup. Parties come from the reservation:
+    owner = giver, taker = `reserved_by`."""
+    lister_token, lister_party_id, taker_party_id, term_id, reservation_id = await _taken_gift(
+        client, db_session, "6"
     )
-    term = await client.post(
-        "/api/terms",
-        json={
-            "circle_group_id": circle.json()["id"],
-            "occurs_on": (clock.local_now().date() + timedelta(days=1)).isoformat(),
-        },
-        headers=_auth(org_token),
-    )
-    term_id = term.json()["id"]
-    product_id = await _resolve_product(client, org_token, "Skrzypce6")
-    needed = await client.post(
-        "/api/needed-items",
-        json={"term_id": term_id, "product_id": product_id, "description": None},
-        headers=_auth(org_token),
-    )
-    guest_token, guest_party_id = await _register(client, "GUEST", "tes.guest6@example.com")
-    pledge = await client.post(
-        "/api/pledges", json={"needed_item_id": needed.json()["id"]}, headers=_auth(guest_token)
-    )
-    fulfilled = await client.post(
-        f"/api/pledges/{pledge.json()['id']}/fulfill",
-        json={"condition": "GOOD"},
-        headers=_auth(guest_token),
-    )
-    assert fulfilled.status_code == 200
-    reservation_id = fulfilled.json()["resolved_reservation_id"]
-
+    item_id = (await circulation_bridge.get_reservation(db_session, reservation_id)).item_id
+    await service.set_item_listing_preference(db_session, _principal(lister_token), item_id, None)
     await _push_term_into_past(db_session, term_id)
 
     await scan_for_term_ended(db_session)
 
     payloads = await _outbox_payloads(db_session, swap_events.TERM_ENDED_GIVEAWAY)
     assert len(payloads) == 1
-    assert payloads[0]["reservation_id"] == reservation_id
-    assert payloads[0]["owner_party_id"] == guest_party_id
-    assert payloads[0]["taker_party_id"] == org_party_id
+    assert payloads[0]["reservation_id"] == str(reservation_id)
+    assert payloads[0]["owner_party_id"] == lister_party_id
+    assert payloads[0]["taker_party_id"] == taker_party_id
 
 
-async def test_scan_confirmedPledgeLend_secondRun_oneEventAndTwoNotificationsWithReservationId(
+async def test_scan_pendingGift_secondRun_oneEventAndTwoNotificationsWithReservationId(
     client: AsyncClient, db_session: AsyncSession
 ) -> None:
-    org_token, org_party_id = await _register(client, "ORGANIZER", "tes.org7@example.com")
-    circle = await client.post(
-        "/api/groups/mine", json={"name": "Krąg tes7"}, headers=_auth(org_token)
+    _lister_token, lister_party_id, taker_party_id, term_id, reservation_id = await _taken_gift(
+        client, db_session, "7"
     )
-    term = await client.post(
-        "/api/terms",
-        json={
-            "circle_group_id": circle.json()["id"],
-            "occurs_on": (clock.local_now().date() + timedelta(days=1)).isoformat(),
-        },
-        headers=_auth(org_token),
-    )
-    term_id = term.json()["id"]
-    product_id = await _resolve_product(client, org_token, "Skrzypce7")
-    needed = await client.post(
-        "/api/needed-items",
-        json={"term_id": term_id, "product_id": product_id, "description": None},
-        headers=_auth(org_token),
-    )
-    guest_token, guest_party_id = await _register(client, "GUEST", "tes.guest7@example.com")
-    pledge = await client.post(
-        "/api/pledges", json={"needed_item_id": needed.json()["id"]}, headers=_auth(guest_token)
-    )
-    fulfilled = await client.post(
-        f"/api/pledges/{pledge.json()['id']}/fulfill",
-        json={"condition": "GOOD"},
-        headers=_auth(guest_token),
-    )
-    assert fulfilled.status_code == 200
-    reservation_id = fulfilled.json()["resolved_reservation_id"]
     await _push_term_into_past(db_session, term_id)
 
     await scan_for_term_ended(db_session)
@@ -540,9 +515,9 @@ async def test_scan_confirmedPledgeLend_secondRun_oneEventAndTwoNotificationsWit
         .scalars()
         .all()
     )
-    assert {str(n.party_id) for n in notifications} == {guest_party_id, org_party_id}
+    assert {str(n.party_id) for n in notifications} == {lister_party_id, taker_party_id}
     assert len(notifications) == 2
-    assert {str(n.reservation_id) for n in notifications} == {reservation_id}
+    assert {n.reservation_id for n in notifications} == {reservation_id}
 
 
 async def test_scan_candidateWithMissingGiverProfile_isSkippedWhileOthersStillPrompted(

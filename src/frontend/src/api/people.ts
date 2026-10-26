@@ -58,10 +58,6 @@ export function getProfileByParty(partyId: string): Promise<UserProfileResponse>
   return api.get(`/people/by-party/${partyId}`);
 }
 
-export function getProfileByAccountUserId(accountUserId: string): Promise<UserProfileResponse> {
-  return api.get(`/people/by-account-user-id/${accountUserId}`);
-}
-
 export function getLeadershipsForPerson(userProfileId: string): Promise<LeadershipResponse[]> {
   return api.get(`/people/${userProfileId}/leaderships`);
 }

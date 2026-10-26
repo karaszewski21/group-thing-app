@@ -51,7 +51,7 @@ const GHOST_COPY: Partial<Record<BlockId, GhostCopy>> = {
   },
   "exchange-counts": {
     title: "Wymiana rzeczy",
-    body: "Gdy rodzice z Twoich grup wystawią rzeczy do oddania, wymiany lub wypożyczenia, pokażemy tu ich liczbę. Widzisz to tylko Ty.",
+    body: "Gdy rodzice z Twoich grup wystawią rzeczy do oddania lub wymiany, pokażemy tu ich liczbę. Widzisz to tylko Ty.",
     cta: ADD_EXCHANGE_ITEM,
   },
   "exchange-board": {

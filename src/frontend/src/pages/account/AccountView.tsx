@@ -11,9 +11,8 @@ import { ProfileView } from "../profile/ProfileView";
 const SECTION_LABEL = "mb-2.5 text-[13px] font-extrabold tracking-[.12em] text-ink-soft uppercase";
 
 export function AccountView() {
-  const { organizationSlug, items, borrowedItems, lentOutItems, logout } = useAppData();
+  const { organizationSlug, items, logout } = useAppData();
   const { data: organization } = useMyOrganization();
-  const lentCount = borrowedItems.length + lentOutItems.length;
 
   return (
     <>
@@ -92,7 +91,6 @@ export function AccountView() {
         <ListCard
           rows={[
             { label: "Moje rzeczy", meta: items.length > 0 ? String(items.length) : "brak", to: viewPath("rzeczy") },
-            { label: "Wypożyczone", meta: lentCount > 0 ? String(lentCount) : "brak", to: viewPath("podarki") },
             {
               label: "Szukam",
               meta: `${MOCK_WANTS.length} ${pluralPl(MOCK_WANTS.length, "rzecz", "rzeczy", "rzeczy")}`,

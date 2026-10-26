@@ -260,12 +260,10 @@ async def test_deleteNeededItem_fulfilledPledgeExists_returns409(
     needed_item_id = await _create_needed_item(client, token, term_id)
 
     _guest_token, guest_party_id = await _register_guest(client, "del.ni2.guest@example.com")
-    resolved_reservation_id = uuid.uuid4()
     fulfilled = Pledge(
         needed_item_id=needed_item_id,
         pledged_by_party_id=guest_party_id,
         status=PledgeStatus.FULFILLED,
-        resolved_reservation_id=resolved_reservation_id,
     )
     db_session.add(fulfilled)
     await db_session.commit()
@@ -282,7 +280,6 @@ async def test_deleteNeededItem_fulfilledPledgeExists_returns409(
     assert item_row is not None and item_row.deleted_at is None
     assert pledge_row is not None
     assert pledge_row.status == PledgeStatus.FULFILLED
-    assert pledge_row.resolved_reservation_id == resolved_reservation_id
 
     still_there = await client.get(
         f"/api/needed-items/{needed_item_id}", headers=_auth_headers(token)
@@ -694,7 +691,7 @@ async def test_getMyPledges_returnsCallersNonWithdrawnPledges(client: AsyncClien
     rows = mine.json()
     assert len(rows) == 1
     assert rows[0]["status"] == "CLAIMED"
-    assert rows[0]["registered"] is False
+    assert "registered" not in rows[0]
     assert rows[0]["product_name"] == "Instrument"
     assert rows[0]["term_id"] == term_id
 
@@ -706,6 +703,34 @@ async def test_getMyPledges_returnsCallersNonWithdrawnPledges(client: AsyncClien
     )
     assert withdrawn.status_code == 200
     assert (await client.get("/api/pledges/mine", headers=_auth_headers(guest_token))).json() == []
+
+
+async def test_withdrawPledge_fulfilledPledge_returns200Withdrawn(
+    client: AsyncClient, db_session: AsyncSession
+) -> None:
+    """A pledge is a pure declaration, so "Rezygnuję" works for an existing
+    FULFILLED row too."""
+    org_token = await _register_organizer(client, "withdraw.fulfilled.org@example.com")
+    _circle_id, term_id = await _create_circle_with_term(client, org_token, "Krąg rezygnacji")
+    needed_item_id = await _create_needed_item(client, org_token, term_id)
+    guest_token, guest_party_id = await _register_guest(
+        client, "withdraw.fulfilled.guest@example.com"
+    )
+    fulfilled = Pledge(
+        needed_item_id=uuid.UUID(needed_item_id),
+        pledged_by_party_id=uuid.UUID(guest_party_id),
+        status=PledgeStatus.FULFILLED,
+    )
+    db_session.add(fulfilled)
+    await db_session.commit()
+
+    withdrawn = await client.post(
+        f"/api/pledges/{fulfilled.id}/withdraw", headers=_auth_headers(guest_token)
+    )
+
+    assert withdrawn.status_code == 200
+    assert withdrawn.json()["status"] == "WITHDRAWN"
+    assert "resolved_reservation_id" not in withdrawn.json()
 
 
 async def test_listNeededItems_claimedFlag_reflectsActivePledge(client: AsyncClient) -> None:

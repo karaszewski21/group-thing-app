@@ -87,7 +87,7 @@ const circle: PublicCircleResponse = {
         item_id: "9",
         product_name: "Rowerek",
         condition: "GOOD",
-        offered_types: ["LEND"],
+        offered_types: ["GIFT"],
         lister_party_id: "21",
         lister_display_name: "Ola Nowak",
         thumb_url: null,
@@ -224,7 +224,7 @@ describe("TermPage — header and content", () => {
     const list = await screen.findByRole("region", { name: "Zapisani na zajęcia" });
     const ola = document.getElementById("attendee-21")!;
     expect(within(ola).getByText("Rowerek")).toBeInTheDocument();
-    expect(within(ola).getByRole("button", { name: "Pożycz: Rowerek" })).toBeInTheDocument();
+    expect(within(ola).getByRole("button", { name: "Weź na stałe: Rowerek" })).toBeInTheDocument();
     expect(within(document.getElementById("attendee-22")!).queryAllByRole("button")).toHaveLength(0);
     expect(within(list).getByText("Ania Kowalska")).toBeInTheDocument();
     expect(within(document.getElementById("attendee-99")!).getByText("Namiot")).toBeInTheDocument();
@@ -472,17 +472,17 @@ describe("TermPage — item actions", () => {
     expect(await screen.findByText("Przynosi: Ty")).toBeInTheDocument();
   });
 
-  it("logged in 'Pożycz' takes the item for the shown term", async () => {
+  it("logged in 'Weź na stałe' takes the item for the shown term", async () => {
     mockAuth = { token: "tok", displayName: "Ala" };
     vi.mocked(termItemListingsApi.takeTermItemListing).mockResolvedValue({ item_id: "9", product_name: "Rowerek" } as never);
     renderPage();
 
-    fireEvent.click(await screen.findByRole("button", { name: "Pożycz: Rowerek" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Weź na stałe: Rowerek" }));
 
     await waitFor(() =>
       expect(termItemListingsApi.takeTermItemListing).toHaveBeenCalledWith("9", {
         term_id: "101",
-        reservation_type: "LEND",
+        reservation_type: "GIFT",
       }),
     );
   });
@@ -504,11 +504,11 @@ describe("TermPage — take success sheet", () => {
 
   async function takeRowerek() {
     renderPage();
-    fireEvent.click(await screen.findByRole("button", { name: "Pożycz: Rowerek" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Weź na stałe: Rowerek" }));
     return screen.findByRole("dialog", { name: SENTENCE });
   }
 
-  it("after 'Pożycz' shows 'Wzięte!' with the item, date and group, links to the item page and shows no toast", async () => {
+  it("after 'Weź na stałe' shows 'Wzięte!' with the item, date and group, links to the item page and shows no toast", async () => {
     const dialog = await takeRowerek();
 
     expect(within(dialog).getByRole("heading", { name: "Wzięte!" })).toBeInTheDocument();
@@ -544,7 +544,7 @@ describe("TermPage — take success sheet", () => {
         }),
       );
     const dialog = await takeRowerek();
-    await waitFor(() => expect(screen.queryByRole("button", { name: "Pożycz: Rowerek" })).not.toBeInTheDocument());
+    await waitFor(() => expect(screen.queryByRole("button", { name: "Weź na stałe: Rowerek" })).not.toBeInTheDocument());
 
     fireEvent.click(within(dialog).getAllByRole("button", { name: "Zamknij" })[0]);
 
@@ -1160,14 +1160,14 @@ describe("TermPage — direct sign-up and server error messages", () => {
     expect(await screen.findByRole("status")).toHaveTextContent("Nie masz uprawnień do tej akcji");
   });
 
-  it("a 409 on 'Pożycz' shows the server's reason", async () => {
+  it("a 409 on 'Weź na stałe' shows the server's reason", async () => {
     mockAuth = { token: "tok", displayName: "Ala" };
     vi.mocked(termItemListingsApi.takeTermItemListing).mockRejectedValue(
       new ApiError(409, "Conflict", { message: "Ta rzecz jest już zajęta" }),
     );
     renderPage();
 
-    fireEvent.click(await screen.findByRole("button", { name: "Pożycz: Rowerek" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Weź na stałe: Rowerek" }));
 
     expect(await screen.findByRole("status")).toHaveTextContent("Ta rzecz jest już zajęta");
   });

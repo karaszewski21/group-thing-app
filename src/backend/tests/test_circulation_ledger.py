@@ -2,7 +2,7 @@
 (one INVENTORY account per inventory, a single EXTERNAL account), the state
 left by migration 0042 (run by `conftest`'s `alembic upgrade head`), and the
 removed points API, `post_movement`'s validation, entries and projection,
-and the posting points (REGISTER, REMOVE and the LEND/RETURN/GIFT fulfill)."""
+and the posting points (REGISTER, REMOVE and the GIFT fulfill)."""
 
 from __future__ import annotations
 
@@ -28,6 +28,7 @@ from app.circulation.models import (
     CirculationTransaction,
     Inventory,
     InventoryItem,
+    InventoryType,
     ItemCondition,
     MovementType,
     ReservationType,
@@ -35,7 +36,6 @@ from app.circulation.models import (
 from app.circulation.schemas import CreateReservationRequest
 from app.core.base_model import BaseEntity
 from app.core.errors import BusinessConflictException
-from app.groups.models import Pledge, PledgeStatus
 from app.product.models import Product
 from tests.ledger_assertions import assert_ledger_matches_projection, movements_for_item
 
@@ -173,6 +173,17 @@ async def _personal_inventories(db: AsyncSession, count: int) -> list[Inventory]
     ]
 
 
+async def _virtual_inventory(db: AsyncSession, owner_user_id: uuid.UUID) -> Inventory:
+    inventory = Inventory(
+        owner_user_id=owner_user_id, inventory_type=InventoryType.VIRTUAL, location=None
+    )
+    db.add(inventory)
+    await db.flush()
+    db.add(Account(account_type=AccountType.INVENTORY, inventory_id=inventory.id))
+    await db.flush()
+    return inventory
+
+
 async def _ledger_row_counts(db: AsyncSession) -> tuple[int, int]:
     transactions = (await db.execute(select(func.count(CirculationTransaction.id)))).scalar_one()
     entries = (await db.execute(select(func.count(CirculationEntry.id)))).scalar_one()
@@ -205,12 +216,9 @@ async def test_getOrCreatePersonalInventory_createsAccountOnce(db_session: Async
 
     first = await inventory_service.get_or_create_personal_inventory(db_session, user_id)
     second = await inventory_service.get_or_create_personal_inventory(db_session, user_id)
-    virtual = await inventory_service.get_or_create_virtual_inventory(db_session, user_id)
-    await inventory_service.get_or_create_virtual_inventory(db_session, user_id)
 
     assert _id(first) == _id(second)
     assert len(await _inventory_accounts(db_session, _id(first))) == 1
-    assert len(await _inventory_accounts(db_session, _id(virtual))) == 1
 
 
 async def test_postMovement_fromNotMatchingProjection_raisesConflictWithoutEntries(
@@ -222,18 +230,15 @@ async def test_postMovement_fromNotMatchingProjection_raisesConflictWithoutEntri
     borrower_personal = await inventory_service.get_or_create_personal_inventory(
         db_session, borrower_id
     )
-    borrower_virtual = await inventory_service.get_or_create_virtual_inventory(
-        db_session, borrower_id
-    )
     item = await _create_item(db_session, product_id, _id(owner))
     counts_before = await _ledger_row_counts(db_session)
 
     with pytest.raises(BusinessConflictException):
         await post_movement(
             db_session,
-            movement_type=MovementType.LEND,
-            legs=[MovementLeg(item, _id(borrower_personal), _id(borrower_virtual), None)],
-            description="LEND: Klocki Duplo",
+            movement_type=MovementType.GIFT,
+            legs=[MovementLeg(item, _id(borrower_personal), _id(owner), None)],
+            description="GIFT: Klocki Duplo",
             occurred_at=datetime.utcnow(),
         )
 
@@ -285,9 +290,7 @@ async def test_postMovement_swapSameItemInBothLegs_raisesConflict(
 async def test_postMovement_swapWithVirtualSide_raisesConflict(db_session: AsyncSession) -> None:
     product_id = await _create_product(db_session)
     (a,) = await _personal_inventories(db_session, 1)
-    b_virtual = await inventory_service.get_or_create_virtual_inventory(
-        db_session, await _create_user(db_session)
-    )
+    b_virtual = await _virtual_inventory(db_session, await _create_user(db_session))
     x = await _create_item(db_session, product_id, _id(a))
     y = await _create_item(db_session, product_id, _id(b_virtual))
     counts_before = await _ledger_row_counts(db_session)
@@ -422,23 +425,7 @@ async def _confirm_and_fulfill(
     db: AsyncSession, reservation_id: uuid.UUID, holder_user_id: uuid.UUID
 ) -> None:
     await circulation_service.confirm_reservation(db, reservation_id, holder_user_id)
-    await circulation_service.fulfill_reservation(db, reservation_id, holder_user_id)
-
-
-async def _return_via_raw_routes(
-    client: AsyncClient, borrower_headers: dict[str, str], item_id: uuid.UUID
-) -> uuid.UUID:
-    created = await client.post(
-        "/api/reservations", json={"item_id": str(item_id)}, headers=borrower_headers
-    )
-    assert created.status_code == 201
-    return_id = created.json()["id"]
-    for action in ("confirm", "fulfill"):
-        response = await client.post(
-            f"/api/reservations/{return_id}/{action}", headers=borrower_headers
-        )
-        assert response.status_code == 200
-    return uuid.UUID(return_id)
+    await circulation_service.fulfill_exchange(db, [reservation_id], holder_user_id)
 
 
 def _entry_lines(
@@ -479,48 +466,6 @@ async def test_registerItem_viaApi_postsRegisterFromExternal(
     await assert_ledger_matches_projection(db_session, [item_id])
 
 
-async def test_fulfillPledge_registersItem_postsRegister(
-    client: AsyncClient, db_session: AsyncSession
-) -> None:
-    organizer_headers, _ = await _register_user(client, "ledger-pledge-org@example.com")
-    term_id = await _create_term(client, organizer_headers)
-    product_id = await _create_product(db_session)
-    needed = await client.post(
-        "/api/needed-items",
-        json={"term_id": str(term_id), "product_id": str(product_id), "description": None},
-        headers=organizer_headers,
-    )
-    assert needed.status_code == 201
-    guest = await client.post(
-        "/api/auth/register",
-        json={"role": "GUEST", "email": "ledger-pledge-guest@example.com", "password": "secret123"},
-    )
-    assert guest.status_code == 201
-    guest_headers = {"Authorization": f"Bearer {guest.json()['token']}"}
-    # Built directly: `POST /api/pledges` is not needed to exercise the
-    # REGISTER posted by `fulfill_pledge`.
-    pledge = Pledge(
-        needed_item_id=uuid.UUID(needed.json()["id"]),
-        pledged_by_party_id=uuid.UUID(guest.json()["party_id"]),
-        status=PledgeStatus.CLAIMED,
-    )
-    db_session.add(pledge)
-    await db_session.flush()
-
-    response = await client.post(
-        f"/api/pledges/{pledge.id}/fulfill", json={"condition": "GOOD"}, headers=guest_headers
-    )
-
-    assert response.status_code == 200
-    reservation = await circulation_service.get_reservation(
-        db_session, uuid.UUID(response.json()["resolved_reservation_id"])
-    )
-    (transaction,) = await movements_for_item(db_session, reservation.item_id)
-    assert transaction.movement_type == MovementType.REGISTER
-    assert [line[1] for line in _entry_lines(transaction)] == [-1, 1]
-    await assert_ledger_matches_projection(db_session, [reservation.item_id])
-
-
 async def test_deleteItem_postsRemoveToExternalAndSetsDeletedAt(
     client: AsyncClient, db_session: AsyncSession
 ) -> None:
@@ -540,21 +485,20 @@ async def test_deleteItem_postsRemoveToExternalAndSetsDeletedAt(
     await assert_ledger_matches_projection(db_session, [item_id])
 
 
-async def test_deleteItem_lentItem_returns409WithoutNewTransaction(
+async def test_deleteItem_reservedItem_returns409WithoutNewTransaction(
     client: AsyncClient, db_session: AsyncSession
 ) -> None:
-    owner_headers, owner_id = await _register_user(client, "ledger-remove-lent-owner@example.com")
-    _, borrower_id = await _register_user(client, "ledger-remove-lent-borrower@example.com")
+    owner_headers, _ = await _register_user(client, "ledger-remove-reserved-owner@example.com")
+    _, taker_id = await _register_user(client, "ledger-remove-reserved-taker@example.com")
     _, item_id = await _register_item_via_api(client, db_session, owner_headers)
-    lend_id = await _reserve(
+    await _reserve(
         client,
         db_session,
         headers=owner_headers,
         item_id=item_id,
-        reservation_type=ReservationType.LEND,
-        reserved_by_user_id=borrower_id,
+        reservation_type=ReservationType.GIFT,
+        reserved_by_user_id=taker_id,
     )
-    await _confirm_and_fulfill(db_session, lend_id, owner_id)
     movements_before = await movements_for_item(db_session, item_id)
 
     response = await client.delete(f"/api/inventory-items/{item_id}", headers=owner_headers)
@@ -562,35 +506,6 @@ async def test_deleteItem_lentItem_returns409WithoutNewTransaction(
     assert response.status_code == 409
     assert len(await movements_for_item(db_session, item_id)) == len(movements_before)
     assert (await _item(db_session, item_id)).deleted_at is None
-
-
-async def test_fulfillReturn_postsVirtualToHomeAndClearsHome(
-    client: AsyncClient, db_session: AsyncSession
-) -> None:
-    owner_headers, owner_id = await _register_user(client, "ledger-return-owner@example.com")
-    borrower_headers, borrower_id = await _register_user(
-        client, "ledger-return-borrower@example.com"
-    )
-    home_id, item_id = await _register_item_via_api(client, db_session, owner_headers)
-    lend_id = await _reserve(
-        client,
-        db_session,
-        headers=owner_headers,
-        item_id=item_id,
-        reservation_type=ReservationType.LEND,
-        reserved_by_user_id=borrower_id,
-    )
-    await _confirm_and_fulfill(db_session, lend_id, owner_id)
-    virtual_id = (await _item(db_session, item_id)).inventory_id
-
-    return_id = await _return_via_raw_routes(client, borrower_headers, item_id)
-
-    transaction = (await movements_for_item(db_session, item_id))[-1]
-    assert transaction.movement_type == MovementType.RETURN
-    assert _entry_lines(transaction) == [(virtual_id, -1, return_id), (home_id, 1, return_id)]
-    item = await _item(db_session, item_id)
-    assert (item.inventory_id, item.home_inventory_id) == (home_id, None)
-    await assert_ledger_matches_projection(db_session, [item_id])
 
 
 async def test_pendingTransitions_createConfirmCancelAndPatch_postNoEntries(
@@ -602,16 +517,16 @@ async def test_pendingTransitions_createConfirmCancelAndPatch_postNoEntries(
     other_product_id = await _create_product(db_session)
     counts_before = await _ledger_row_counts(db_session)
 
-    lend_id = await _reserve(
+    gift_id = await _reserve(
         client,
         db_session,
         headers=owner_headers,
         item_id=item_id,
-        reservation_type=ReservationType.LEND,
+        reservation_type=ReservationType.GIFT,
         reserved_by_user_id=borrower_id,
     )
-    await circulation_service.confirm_reservation(db_session, lend_id, owner_id)
-    await circulation_service.cancel_reservation(db_session, lend_id, owner_id)
+    await circulation_service.confirm_reservation(db_session, gift_id, owner_id)
+    await circulation_service.cancel_reservation(db_session, gift_id, owner_id)
     patch = await client.patch(
         f"/api/inventory-items/{item_id}",
         json={"condition": "POOR", "product_id": str(other_product_id)},
@@ -622,31 +537,34 @@ async def test_pendingTransitions_createConfirmCancelAndPatch_postNoEntries(
     assert await _ledger_row_counts(db_session) == counts_before
 
 
-async def test_fulfillReservation_swapType_raisesConflict(
-    client: AsyncClient, db_session: AsyncSession
+@pytest.mark.parametrize("reservation_type", [ReservationType.SWAP, ReservationType.LEND])
+async def test_fulfillExchange_singleNonGiftLeg_raisesConflict(
+    client: AsyncClient, db_session: AsyncSession, reservation_type: ReservationType
 ) -> None:
-    owner_headers, owner_id = await _register_user(client, "ledger-swap-owner@example.com")
-    _, taker_id = await _register_user(client, "ledger-swap-taker@example.com")
+    """An unpaired SWAP leg, or a legacy LEND, is never a valid exchange."""
+    suffix = reservation_type.value.lower()
+    owner_headers, owner_id = await _register_user(client, f"ledger-{suffix}-owner@example.com")
+    _, taker_id = await _register_user(client, f"ledger-{suffix}-taker@example.com")
     home_id, item_id = await _register_item_via_api(client, db_session, owner_headers)
-    swap_id = await _reserve(
+    reservation_id = await _reserve(
         client,
         db_session,
         headers=owner_headers,
         item_id=item_id,
-        reservation_type=ReservationType.SWAP,
+        reservation_type=reservation_type,
         reserved_by_user_id=taker_id,
     )
-    await circulation_service.confirm_reservation(db_session, swap_id, owner_id)
+    await circulation_service.confirm_reservation(db_session, reservation_id, owner_id)
     counts_before = await _ledger_row_counts(db_session)
 
     with pytest.raises(BusinessConflictException):
-        await circulation_service.fulfill_reservation(db_session, swap_id, owner_id)
+        await circulation_service.fulfill_exchange(db_session, [reservation_id], owner_id)
 
     assert await _ledger_row_counts(db_session) == counts_before
     assert (await _item(db_session, item_id)).inventory_id == home_id
 
 
-async def test_itemLifecycle_registerLendReturnGiftRemove_ledgerMatchesProjectionAtEachStep(
+async def test_itemLifecycle_registerGiftRemove_ledgerMatchesProjectionAtEachStep(
     client: AsyncClient, db_session: AsyncSession
 ) -> None:
     owner_headers, owner_id = await _register_user(client, "ledger-cycle-owner@example.com")
@@ -654,20 +572,6 @@ async def test_itemLifecycle_registerLendReturnGiftRemove_ledgerMatchesProjectio
         client, "ledger-cycle-borrower@example.com"
     )
     _, item_id = await _register_item_via_api(client, db_session, owner_headers)
-    await assert_ledger_matches_projection(db_session, [item_id])
-
-    lend_id = await _reserve(
-        client,
-        db_session,
-        headers=owner_headers,
-        item_id=item_id,
-        reservation_type=ReservationType.LEND,
-        reserved_by_user_id=borrower_id,
-    )
-    await _confirm_and_fulfill(db_session, lend_id, owner_id)
-    await assert_ledger_matches_projection(db_session, [item_id])
-
-    await _return_via_raw_routes(client, borrower_headers, item_id)
     await assert_ledger_matches_projection(db_session, [item_id])
 
     gift_id = await _reserve(
@@ -688,13 +592,11 @@ async def test_itemLifecycle_registerLendReturnGiftRemove_ledgerMatchesProjectio
     movements = await movements_for_item(db_session, item_id)
     assert [transaction.movement_type for transaction in movements] == [
         MovementType.REGISTER,
-        MovementType.LEND,
-        MovementType.RETURN,
         MovementType.GIFT,
         MovementType.REMOVE,
     ]
     borrower_personal = await inventory_service.get_or_create_personal_inventory(
         db_session, borrower_id
     )
-    assert movements[3].description == "GIFT: Klocki Duplo"
-    assert _entry_lines(movements[3])[1] == (_id(borrower_personal), 1, gift_id)
+    assert movements[1].description == "GIFT: Klocki Duplo"
+    assert _entry_lines(movements[1])[1] == (_id(borrower_personal), 1, gift_id)

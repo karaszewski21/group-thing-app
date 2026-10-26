@@ -44,7 +44,7 @@ async def create_notification(
     `app.groups.models.SwapProposal.id` pointer, set on `SWAP_PROPOSED`
     and on a swap `TERM_CONFIRMATION_NEEDED`; `reservation_id` is the loose
     `app.circulation.models.Reservation.id` pointer, only meaningful for a
-    GIFT/LEND `TERM_CONFIRMATION_NEEDED`."""
+    GIFT `TERM_CONFIRMATION_NEEDED`."""
     db.add(
         Notification(
             party_id=party_id,

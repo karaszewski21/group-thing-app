@@ -8,7 +8,6 @@ import { AppModals } from "../../app/AppModals";
 import { HomeView } from "./HomeView";
 import { MeetingsView } from "../meetings/MeetingsView";
 import { MyItemsView } from "../items/MyItemsView";
-import { BorrowedView } from "../items/BorrowedView";
 import { ProfileView } from "../profile/ProfileView";
 import { SettingsView } from "../account/SettingsView";
 import { FamilyView } from "../family/FamilyView";
@@ -26,7 +25,7 @@ import { KONTO_SUBVIEWS, viewPath } from "../../utils/appHelpers";
 /*  obecność aktywnego Leadership = organizator, brak = gość).           */
 /*                                                                       */
 /*  Sekcje bez odpowiednika w modelu domenowym (widoczność profilu,      */
-/*  tryb rzeczy wypożyczę/oddam/zamienię, podarki)                       */
+/*  tryb rzeczy oddam/zamienię)                                         */
 /*  są — jak w mocku (pages/SPEC.md §0/§3.5) — czysto lokalnym stanem     */
 /*  (znikają po odświeżeniu, tak jak w prototypie).                      */
 /*                                                                       */
@@ -91,7 +90,6 @@ function AppPageView() {
         {view === "home" && <HomeView />}
         {view === "spotkania" && <MeetingsView />}
         {view === "rzeczy" && <MyItemsView />}
-        {view === "podarki" && <BorrowedView />}
         {view === "profil" && <ProfileView />}
         {view === "ustawienia" && <SettingsView />}
         {view === "miejsca" && <PlacesView onPlacesChanged={() => void load({ silent: true })} />}

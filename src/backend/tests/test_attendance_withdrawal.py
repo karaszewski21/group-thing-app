@@ -4,7 +4,7 @@
 (a listing whose lister withdrew must stop being browsable — Core
 Requirement 6b). No router exists for these yet (a later task group), so
 the use cases under test are called directly against `db_session`; setup
-goes through the real HTTP API, mirroring `test_pledge_fulfillment.py`.
+goes through the real HTTP API.
 """
 
 from __future__ import annotations

@@ -44,7 +44,6 @@ vi.mock("../api/people", () => ({
   getMyProfile: vi.fn(),
   getProfile: vi.fn(),
   getProfileByParty: vi.fn(),
-  getProfileByAccountUserId: vi.fn(),
   getLeadershipsForPerson: vi.fn(),
   updateMyProfile: vi.fn(),
   uploadMyAvatar: vi.fn(),
@@ -73,11 +72,8 @@ vi.mock("../api/groups", () => ({
 
 vi.mock("../api/inventories", () => ({
   getInventories: vi.fn(),
-  getInventory: vi.fn(),
-  getInventoryItems: vi.fn(),
   getInventoryItemBalance: vi.fn(),
   getMyInventoryItems: vi.fn(),
-  getMyLentOutItems: vi.fn(),
   updateInventoryItem: vi.fn(),
   deleteInventoryItem: vi.fn(),
   // Added alongside Group 7's own additions below: MyItemsView.tsx (Group 8)
@@ -155,9 +151,6 @@ vi.mock("../api/termItemListings", () => ({
 
 vi.mock("../api/reservations", () => ({
   getReservation: vi.fn(),
-  confirmReservation: vi.fn(),
-  createReservation: vi.fn(),
-  fulfillReservation: vi.fn(),
   confirmTransaction: vi.fn(),
   // Bug #4c: MyItemsView's "Anuluj wymianę" tile fallback button.
   cancelTransaction: vi.fn(),
@@ -368,7 +361,6 @@ function mockGuestDefaults() {
   vi.mocked(peopleApi.getLeadershipsForPerson).mockResolvedValue([]);
   vi.mocked(inventoriesApi.getInventories).mockResolvedValue([mockInventory]);
   vi.mocked(inventoriesApi.getMyInventoryItems).mockResolvedValue([]);
-  vi.mocked(inventoriesApi.getMyLentOutItems).mockResolvedValue([]);
   vi.mocked(inventoriesApi.getInventoryItemBalances).mockResolvedValue({});
   vi.mocked(familiesApi.getMyFamilies).mockResolvedValue([]);
   vi.mocked(familiesApi.getMembershipsForFamily).mockResolvedValue([]);
@@ -388,7 +380,6 @@ function mockOrganizerDefaults() {
   ]);
   vi.mocked(inventoriesApi.getInventories).mockResolvedValue([mockInventory]);
   vi.mocked(inventoriesApi.getMyInventoryItems).mockResolvedValue([]);
-  vi.mocked(inventoriesApi.getMyLentOutItems).mockResolvedValue([]);
   vi.mocked(inventoriesApi.getInventoryItemBalances).mockResolvedValue({});
   vi.mocked(groupsApi.getGroup).mockResolvedValue(mockGroup);
   vi.mocked(termsApi.getTerms).mockResolvedValue([]);
@@ -1980,7 +1971,7 @@ describe("AppPage — inventory item edit/delete", () => {
       "aria-pressed",
       "true",
     );
-    expect(screen.getByRole("button", { name: "Wypożyczę" })).toHaveAttribute(
+    expect(screen.getByRole("button", { name: "Zamienię" })).toHaveAttribute(
       "aria-pressed",
       "false",
     );
@@ -2001,35 +1992,11 @@ describe("AppPage — inventory item edit/delete", () => {
     expect(await screen.findByText(/Nie udało się usunąć/)).toBeInTheDocument();
     expect(screen.getByText("Rowerek")).toBeInTheDocument();
   });
-
-  it("shows a lent-out item under 'Wypożyczone innym', not in 'Moje rzeczy'", async () => {
-    mockGuestDefaults();
-    vi.mocked(inventoriesApi.getMyLentOutItems).mockResolvedValue([
-      {
-        id: "22",
-        product_id: "7",
-        product_name: "Rowerek",
-        condition: "GOOD",
-        lent_to_display_name: "Marek",
-        lent_due_date: "2026-10-15T00:00:00Z",
-      },
-    ]);
-    renderPanel();
-
-    fireEvent.click(await screen.findByRole("button", { name: "Moje rzeczy" }));
-    expect(await screen.findByRole("heading", { name: "Nie masz jeszcze żadnej rzeczy" })).toBeInTheDocument();
-    expect(screen.queryByText("Rowerek")).not.toBeInTheDocument();
-
-    fireEvent.click(screen.getByRole("button", { name: "Start" }));
-    fireEvent.click(await screen.findByRole("button", { name: /^Wypożyczone/ }));
-    fireEvent.click(await screen.findByRole("tab", { name: "Wypożyczone innym" }));
-    expect(within(screen.getByRole("tabpanel")).getByText("Rowerek")).toBeInTheDocument();
-  });
 });
 
 describe("AppPage — mode toggle errors and photo-moderation poll", () => {
   const MODERATION_409 =
-    "Nie można wystawić tej rzeczy — jej zdjęcia czekają na moderację. Tryb wypożyczę/oddam/zamienię włączysz po ich zatwierdzeniu.";
+    "Nie można wystawić tej rzeczy — jej zdjęcia czekają na moderację. Tryb oddam/zamienię włączysz po ich zatwierdzeniu.";
 
   const modItem = {
     id: "70",
@@ -2229,264 +2196,6 @@ describe("AppPage — mode toggle errors and photo-moderation poll", () => {
   });
 });
 
-describe("AppPage — Wypożyczone: 'Oddaję'", () => {
-  beforeEach(() => {
-    vi.resetAllMocks();
-  });
-
-  it("sends a RETURN reservation with only item_id and reservation_type — no reserved_by_user_id", async () => {
-    mockGuestDefaults();
-    vi.mocked(inventoriesApi.getInventories).mockResolvedValue([
-      mockInventory,
-      { ...mockInventory, id: "2", inventory_type: "VIRTUAL" },
-    ]);
-    vi.mocked(inventoriesApi.getInventoryItems).mockResolvedValue([
-      {
-        id: "40",
-        inventory_id: "2",
-        home_inventory_id: "50",
-        product_id: "8",
-        product_name: "Wiertarka",
-        condition: "GOOD",
-        added_at: "",
-        created_at: "",
-        updated_at: "",
-      },
-    ]);
-    vi.mocked(inventoriesApi.getInventoryItemBalance).mockResolvedValue({
-      id: "1",
-      item_id: "40",
-      status: "LENT",
-      reserved_at: null,
-      lent_at: null,
-      returned_at: null,
-      due_date: null,
-      reservation_id: null,
-    });
-    vi.mocked(inventoriesApi.getInventory).mockResolvedValue({ ...mockInventory, id: "50", owner_user_id: "7" });
-    vi.mocked(peopleApi.getProfileByAccountUserId).mockResolvedValue({
-      ...mockProfile,
-      id: "7",
-      account_user_id: "7",
-      display_name: "Ola",
-    });
-    const reservation = {
-      id: "300",
-      item_id: "40",
-      reservation_type: "RETURN" as const,
-      reserved_by_user_id: "7",
-      paired_reservation_id: null,
-      reserved_at: "",
-      expires_at: null,
-      status: "PENDING" as const,
-      notes: null,
-    };
-    vi.mocked(reservationsApi.createReservation).mockResolvedValue(reservation);
-    vi.mocked(reservationsApi.confirmReservation).mockResolvedValue({ ...reservation, status: "CONFIRMED" });
-    vi.mocked(reservationsApi.fulfillReservation).mockResolvedValue({ ...reservation, status: "FULFILLED" });
-    renderPanel();
-
-    fireEvent.click(await screen.findByRole("button", { name: /^Wypożyczone/ }));
-    fireEvent.click(await screen.findByRole("button", { name: "Oddaję Wiertarka" }));
-
-    await waitFor(() =>
-      expect(reservationsApi.createReservation).toHaveBeenCalledWith({
-        item_id: "40",
-        reservation_type: "RETURN",
-      }),
-    );
-    await waitFor(() => expect(reservationsApi.fulfillReservation).toHaveBeenCalledWith("300"));
-    expect(reservationsApi.confirmReservation).toHaveBeenCalledWith("300");
-    expect(reservationsApi.getReservation).not.toHaveBeenCalled();
-  });
-
-  it("retrying after a failed fulfill finishes the existing RETURN instead of creating a new one", async () => {
-    mockGuestDefaults();
-    vi.mocked(inventoriesApi.getInventories).mockResolvedValue([
-      mockInventory,
-      { ...mockInventory, id: "2", inventory_type: "VIRTUAL" },
-    ]);
-    vi.mocked(inventoriesApi.getInventoryItems).mockResolvedValue([
-      {
-        id: "40",
-        inventory_id: "2",
-        home_inventory_id: "50",
-        product_id: "8",
-        product_name: "Wiertarka",
-        condition: "GOOD",
-        added_at: "",
-        created_at: "",
-        updated_at: "",
-      },
-    ]);
-    // Server-side state the mocks share: the RETURN locks the balance until fulfilled.
-    let balance: { status: "LENT" | "IN_TRANSIT"; reservation_id: string | null } = {
-      status: "LENT",
-      reservation_id: null,
-    };
-    vi.mocked(inventoriesApi.getInventoryItemBalance).mockImplementation(async () => ({
-      id: "1",
-      item_id: "40",
-      reserved_at: null,
-      lent_at: null,
-      returned_at: null,
-      due_date: null,
-      ...balance,
-    }));
-    vi.mocked(inventoriesApi.getInventory).mockResolvedValue({ ...mockInventory, id: "50", owner_user_id: "7" });
-    vi.mocked(peopleApi.getProfileByAccountUserId).mockResolvedValue({
-      ...mockProfile,
-      id: "7",
-      account_user_id: "7",
-      display_name: "Ola",
-    });
-    const reservation = {
-      id: "300",
-      item_id: "40",
-      reservation_type: "RETURN" as const,
-      reserved_by_user_id: "7",
-      paired_reservation_id: null,
-      reserved_at: "",
-      expires_at: null,
-      status: "PENDING" as const,
-      notes: null,
-    };
-    vi.mocked(reservationsApi.createReservation).mockImplementation(async () => {
-      balance = { status: "IN_TRANSIT", reservation_id: "300" };
-      return reservation;
-    });
-    vi.mocked(reservationsApi.confirmReservation).mockResolvedValue({ ...reservation, status: "CONFIRMED" });
-    vi.mocked(reservationsApi.getReservation).mockResolvedValue({ ...reservation, status: "CONFIRMED" });
-    vi.mocked(reservationsApi.fulfillReservation)
-      .mockRejectedValueOnce(new Error("500"))
-      .mockResolvedValueOnce({ ...reservation, status: "FULFILLED" });
-    renderPanel();
-
-    fireEvent.click(await screen.findByRole("button", { name: /^Wypożyczone/ }));
-    fireEvent.click(await screen.findByRole("button", { name: "Oddaję Wiertarka" }));
-    await waitFor(() => expect(reservationsApi.fulfillReservation).toHaveBeenCalledTimes(1));
-
-    fireEvent.click(screen.getByRole("button", { name: "Oddaję Wiertarka" }));
-
-    await waitFor(() => expect(reservationsApi.fulfillReservation).toHaveBeenCalledTimes(2));
-    await waitFor(() =>
-      expect(screen.queryByRole("button", { name: "Oddaję Wiertarka" })).not.toBeInTheDocument(),
-    );
-    expect(reservationsApi.createReservation).toHaveBeenCalledTimes(1);
-    expect(reservationsApi.confirmReservation).toHaveBeenCalledTimes(1);
-    expect(reservationsApi.getReservation).toHaveBeenCalledWith("300");
-    expect(reservationsApi.fulfillReservation).toHaveBeenLastCalledWith("300");
-  });
-});
-describe("AppPage — Wypożyczone: tabs", () => {
-  beforeEach(() => {
-    vi.resetAllMocks();
-  });
-
-  const ownItem = {
-    id: "60",
-    inventory_id: "1",
-    home_inventory_id: null,
-    product_id: "9",
-    product_name: "Hulajnoga",
-    condition: "GOOD" as const,
-    added_at: "",
-    created_at: "",
-    updated_at: "",
-    listing_mode: null,
-    photos_moderation_pending: false,
-  };
-  const lentOutItem = {
-    id: "61",
-    product_id: "9",
-    product_name: "Rowerek",
-    condition: "GOOD" as const,
-    lent_to_display_name: "Marek",
-    lent_due_date: "2026-10-15T00:00:00Z",
-  };
-
-  it("'Wypożyczone innym' lists the lent-out items with borrower and due date", async () => {
-    mockGuestDefaults();
-    vi.mocked(inventoriesApi.getMyInventoryItems).mockResolvedValue([ownItem]);
-    vi.mocked(inventoriesApi.getMyLentOutItems).mockResolvedValue([lentOutItem]);
-    renderPanel();
-
-    fireEvent.click(await screen.findByRole("button", { name: /^Wypożyczone/ }));
-    expect(await screen.findByRole("tab", { name: "Wypożyczone od innych" })).toHaveAttribute("aria-selected", "true");
-    expect(screen.getByText("Nie masz teraz nic pożyczonego.")).toBeInTheDocument();
-
-    fireEvent.click(screen.getByRole("tab", { name: "Wypożyczone innym" }));
-
-    const panel = screen.getByRole("tabpanel");
-    expect(within(panel).getByText("Rowerek")).toBeInTheDocument();
-    expect(within(panel).getByText("U: Marek")).toBeInTheDocument();
-    expect(within(panel).getByText("Zwrot do: 15.10.2026")).toBeInTheDocument();
-    expect(within(panel).queryByText("Hulajnoga")).not.toBeInTheDocument();
-  });
-
-  it("shows a 'Zobacz rzecz' link to /product/:itemId on both tabs", async () => {
-    mockGuestDefaults();
-    vi.mocked(inventoriesApi.getInventories).mockResolvedValue([
-      mockInventory,
-      { ...mockInventory, id: "2", inventory_type: "VIRTUAL" },
-    ]);
-    vi.mocked(inventoriesApi.getInventoryItems).mockResolvedValue([
-      {
-        id: "40",
-        inventory_id: "2",
-        home_inventory_id: "50",
-        product_id: "8",
-        product_name: "Wiertarka",
-        condition: "GOOD",
-        added_at: "",
-        created_at: "",
-        updated_at: "",
-      },
-    ]);
-    vi.mocked(inventoriesApi.getInventoryItemBalance).mockResolvedValue({
-      id: "1",
-      item_id: "40",
-      status: "LENT",
-      reserved_at: null,
-      lent_at: null,
-      returned_at: null,
-      due_date: null,
-      reservation_id: null,
-    });
-    vi.mocked(inventoriesApi.getInventory).mockResolvedValue({ ...mockInventory, id: "50", owner_user_id: "7" });
-    vi.mocked(peopleApi.getProfileByAccountUserId).mockResolvedValue({
-      ...mockProfile,
-      id: "7",
-      account_user_id: "7",
-      display_name: "Ola",
-    });
-    vi.mocked(inventoriesApi.getMyLentOutItems).mockResolvedValue([lentOutItem]);
-    renderPanel();
-
-    fireEvent.click(await screen.findByRole("button", { name: /^Wypożyczone/ }));
-    expect(await screen.findByRole("link", { name: "Zobacz rzecz Wiertarka" })).toHaveAttribute(
-      "href",
-      "/product/40",
-    );
-
-    fireEvent.click(screen.getByRole("tab", { name: "Wypożyczone innym" }));
-    expect(
-      within(screen.getByRole("tabpanel")).getByRole("link", { name: "Zobacz rzecz Rowerek" }),
-    ).toHaveAttribute("href", "/product/61");
-  });
-
-  it("'Wypożyczone innym' shows an empty state when nothing is lent out", async () => {
-    mockGuestDefaults();
-    vi.mocked(inventoriesApi.getMyInventoryItems).mockResolvedValue([ownItem]);
-    renderPanel();
-
-    fireEvent.click(await screen.findByRole("button", { name: /^Wypożyczone/ }));
-    fireEvent.click(await screen.findByRole("tab", { name: "Wypożyczone innym" }));
-
-    expect(screen.getByText("Nikt nie ma teraz twoich rzeczy.")).toBeInTheDocument();
-  });
-});
-
 describe("AppPage — needed item edit error path", () => {
   beforeEach(() => {
     vi.resetAllMocks();
@@ -2558,7 +2267,6 @@ describe("AppPage — Zadeklarowane rzeczy (my pledges)", () => {
     group_name: "Nutki",
     occurs_on: "2026-03-12T17:30:00",
     organizer_slug: "ania",
-    registered: false,
   };
 
   it("renders a declared item and 'Rezygnuję' calls withdrawPledge then reloads", async () => {
@@ -2569,7 +2277,6 @@ describe("AppPage — Zadeklarowane rzeczy (my pledges)", () => {
       needed_item_id: "1",
       pledged_by_party_id: "1",
       status: "WITHDRAWN",
-      resolved_reservation_id: null,
       created_at: "",
       updated_at: "",
     });
@@ -2594,15 +2301,14 @@ describe("AppPage — Zadeklarowane rzeczy (my pledges)", () => {
     ).toBeInTheDocument();
   });
 
-  it("hides 'Rezygnuję' once the item is registered", async () => {
+  it("still offers 'Rezygnuję' on a pledge left FULFILLED by the old registration flow", async () => {
     mockGuestDefaults();
-    vi.mocked(pledgesApi.getMyPledges).mockResolvedValue([{ ...myPledge, registered: true }]);
+    vi.mocked(pledgesApi.getMyPledges).mockResolvedValue([{ ...myPledge, status: "FULFILLED" }]);
     renderPanel("/spotkania");
     fireEvent.click(await screen.findByRole("tab", { name: "Biorę udział" }));
 
     expect(await screen.findByText(/Bębenek/)).toBeInTheDocument();
-    expect(screen.getByText(/Zarejestrowane/)).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Rezygnuję" })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Rezygnuję" })).toBeInTheDocument();
   });
 });
 
@@ -2672,7 +2378,7 @@ describe("AppPage — MyItemsView post-term-end fallback buttons (Bug #4c, full 
     vi.mocked(reservationsApi.getReservation).mockResolvedValue({
       id: "88",
       item_id: lockedItem.id,
-      reservation_type: "LEND",
+      reservation_type: "GIFT",
       reserved_by_user_id: "1",
       term_id: ENDED_TERM_ID,
       paired_reservation_id: null,
@@ -3206,7 +2912,6 @@ describe("AppPage — redesigned navigation and pages", () => {
     expect(await screen.findByText("Nie masz jeszcze organizacji")).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Załóż organizację" })).toHaveAttribute("href", "/organization");
     expect(screen.getByRole("link", { name: /^Moje rzeczy/ })).toHaveAttribute("href", "/rzeczy");
-    expect(screen.getByRole("link", { name: /^Wypożyczone/ })).toHaveAttribute("href", "/podarki");
     expect(screen.getByRole("link", { name: /^Szukam/ })).toHaveAttribute("href", "/szukam");
   });
 

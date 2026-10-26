@@ -61,7 +61,7 @@ function directory(circles: OrganizerCircle[]): OrganizerPageResponse {
   return {
     circles,
     upcoming_terms: [],
-    exchange: { counts: { GIFT: 0, SWAP: 0, LEND: 0 }, items: [] },
+    exchange: { counts: { GIFT: 0, SWAP: 0 }, items: [] },
     needed_items: [],
     stats: {
       circle_count: circles.length,

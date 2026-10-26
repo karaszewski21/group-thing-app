@@ -242,27 +242,3 @@ async def test_mutationsOnDeletedGroup_return404(client: AsyncClient) -> None:
         ),
     }
     assert {name: r.status_code for name, r in responses.items()} == dict.fromkeys(responses, 404)
-
-
-async def test_fulfillPledge_onDeletedGroup_returns404(
-    client: AsyncClient, db_session: AsyncSession
-) -> None:
-    org_token, _ = await _register(client, "ORGANIZER", "sdr.fulfill.org@example.com")
-    group_id = await _circle(client, org_token, "Krąg z obietnicą")
-    term_id = await _term(client, org_token, group_id, _in_days(3))
-    need_id = await _needed_item(client, org_token, term_id, "Sdr flet")
-    guest_token, _ = await _register(client, "GUEST", "sdr.fulfill.guest@example.com")
-    await _rsvp(client, guest_token, group_id, term_id)
-    pledge = await client.post(
-        "/api/pledges", json={"needed_item_id": str(need_id)}, headers=_auth(guest_token)
-    )
-    assert pledge.status_code == 201, pledge.text
-
-    await _soft_delete_row(db_session, group_id)
-
-    response = await client.post(
-        f"/api/pledges/{pledge.json()['id']}/fulfill",
-        json={"condition": "GOOD"},
-        headers=_auth(guest_token),
-    )
-    assert response.status_code == 404, response.text

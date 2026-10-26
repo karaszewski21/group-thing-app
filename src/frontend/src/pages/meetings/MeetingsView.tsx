@@ -291,8 +291,6 @@ export function MeetingsView() {
               <div className="flex flex-col gap-2.5">
                 {myPledges.map((p) => {
                   const time = termTime(p.occurs_on);
-                  const statusLabel =
-                    p.status === "FULFILLED" ? "Zrealizowane ✓" : p.registered ? "Zarejestrowane" : "Zadeklarowane";
                   return (
                     <div key={p.pledge_id} className="flex items-start gap-3 rounded-[22px] border border-line bg-paper p-3.5">
                       <div className="min-w-0 flex-1">
@@ -302,10 +300,10 @@ export function MeetingsView() {
                         </h3>
                         <small className="mt-0.5 block text-sm text-ink-soft">
                           {p.group_name} · {dayjs(p.occurs_on).format("D MMM")}
-                          {time ? `, godz. ${time}` : ""} · {statusLabel}
+                          {time ? `, godz. ${time}` : ""}
                         </small>
                       </div>
-                      {p.status === "CLAIMED" && !p.registered && (
+                      {p.status !== "WITHDRAWN" && (
                         <button
                           onClick={() => void withdrawMyPledge(p.pledge_id)}
                           className="min-h-9 flex-none rounded-full border-[1.5px] border-line px-3 text-xs font-bold text-danger hover:bg-cream"

@@ -13,7 +13,6 @@ from app.db import get_db
 from app.groups import service
 from app.groups.schemas import (
     CreatePledgeRequest,
-    FulfillPledgeRequest,
     MyPledgeResponse,
     PledgeResponse,
 )
@@ -66,20 +65,4 @@ async def withdraw_pledge(
     pledge_id: uuid.UUID, db: DbSession, principal: EditPrincipal
 ) -> PledgeResponse:
     pledge = await service.withdraw_pledge(db, principal, pledge_id)
-    return PledgeResponse.model_validate(pledge)
-
-
-@router.post("/api/pledges/{pledge_id}/fulfill", response_model=PledgeResponse)
-async def fulfill_pledge(
-    pledge_id: uuid.UUID, body: FulfillPledgeRequest, db: DbSession, principal: EditPrincipal
-) -> PledgeResponse:
-    pledge = await service.fulfill_pledge(db, principal, pledge_id, body)
-    return PledgeResponse.model_validate(pledge)
-
-
-@router.post("/api/pledges/{pledge_id}/sync", response_model=PledgeResponse)
-async def sync_pledge_fulfillment(
-    pledge_id: uuid.UUID, db: DbSession, principal: EditPrincipal
-) -> PledgeResponse:
-    pledge = await service.sync_pledge_fulfillment(db, pledge_id)
     return PledgeResponse.model_validate(pledge)

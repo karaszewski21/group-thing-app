@@ -60,7 +60,7 @@ function directory(overrides: Partial<OrganizerPageResponse> = {}): OrganizerPag
   return {
     circles: [],
     upcoming_terms: [],
-    exchange: { counts: { GIFT: 0, SWAP: 0, LEND: 0 }, items: [] },
+    exchange: { counts: { GIFT: 0, SWAP: 0 }, items: [] },
     needed_items: [],
     stats: { circle_count: 0, upcoming_term_count: 0, family_count: null },
     ...overrides,
@@ -140,26 +140,22 @@ describe("CirclesGridBlock", () => {
 describe("ExchangeCountsBlock", () => {
   it("shows a tile per mode, linking only the tiles with items", () => {
     const data = pageData({
-      exchange: { counts: { GIFT: 3, SWAP: 0, LEND: 1 }, items: [item("1", "LEND"), item("2", "GIFT")] },
+      exchange: { counts: { GIFT: 3, SWAP: 0 }, items: [item("2", "GIFT")] },
     });
     renderWithRouter(<ExchangeCountsBlock data={data} variant="tiles3" mode="visitor" />);
 
     expect(screen.getByRole("heading", { name: "Wymiana rzeczy" })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /Oddam\s*3/ })).toHaveAttribute("href", `/${SLUG}/grupa/g1/term/term-2`);
-    expect(screen.getByRole("link", { name: /Wypożyczę\s*1/ })).toHaveAttribute(
-      "href",
-      `/${SLUG}/grupa/g1/term/term-1`,
-    );
     expect(screen.queryByRole("link", { name: /Zamienię/ })).not.toBeInTheDocument();
     expect(screen.getByText("Zamienię")).toBeInTheDocument();
   });
 });
 
 describe("ExchangeBoardBlock", () => {
-  it("filters the board by mode tab and disables empty tabs", () => {
+  it("filters the board by mode tab", () => {
     const data = pageData({
       exchange: {
-        counts: { GIFT: 1, SWAP: 2, LEND: 0 },
+        counts: { GIFT: 1, SWAP: 2 },
         items: [item("1", "GIFT"), item("2", "SWAP"), item("3", "SWAP")],
       },
     });
@@ -171,12 +167,22 @@ describe("ExchangeBoardBlock", () => {
     const board = screen.getByRole("tabpanel");
     expect(all).toHaveAttribute("aria-controls", board.id);
     expect(within(board).getAllByRole("article")).toHaveLength(3);
-    expect(within(tablist).getByRole("tab", { name: /Wypożyczę\s*0/ })).toBeDisabled();
 
     fireEvent.click(within(tablist).getByRole("tab", { name: /Zamienię\s*2/ }));
     const filtered = screen.getByRole("tabpanel");
     expect(within(filtered).getAllByRole("article")).toHaveLength(2);
     expect(within(filtered).queryByText("Rzecz 1")).not.toBeInTheDocument();
+  });
+
+  it("disables the tab of a mode with no items", () => {
+    const data = pageData({
+      exchange: { counts: { GIFT: 0, SWAP: 2 }, items: [item("1", "SWAP"), item("2", "SWAP")] },
+    });
+    renderWithRouter(<ExchangeBoardBlock data={data} variant="grid2" mode="visitor" />);
+
+    const tablist = screen.getByRole("tablist");
+    expect(within(tablist).getByRole("tab", { name: /Oddam\s*0/ })).toBeDisabled();
+    expect(within(tablist).getByRole("tab", { name: /Zamienię\s*2/ })).toBeEnabled();
   });
 });
 
@@ -235,15 +241,15 @@ describe("circle and exchange isEmpty predicates", () => {
     expect(isCirclesGridEmpty(pageData({ circles: [circle("a")] }))).toBe(false);
 
     expect(isExchangeCountsEmpty(pageData())).toBe(true);
-    expect(isExchangeCountsEmpty(pageData({ exchange: { counts: { GIFT: 0, SWAP: 0, LEND: 1 }, items: [] } }))).toBe(
+    expect(isExchangeCountsEmpty(pageData({ exchange: { counts: { GIFT: 0, SWAP: 1 }, items: [] } }))).toBe(
       false,
     );
 
-    expect(isExchangeBoardEmpty(pageData({ exchange: { counts: { GIFT: 2, SWAP: 0, LEND: 0 }, items: [] } }))).toBe(
+    expect(isExchangeBoardEmpty(pageData({ exchange: { counts: { GIFT: 2, SWAP: 0 }, items: [] } }))).toBe(
       true,
     );
     expect(
-      isExchangeBoardEmpty(pageData({ exchange: { counts: { GIFT: 1, SWAP: 0, LEND: 0 }, items: [item("1", "GIFT")] } })),
+      isExchangeBoardEmpty(pageData({ exchange: { counts: { GIFT: 1, SWAP: 0 }, items: [item("1", "GIFT")] } })),
     ).toBe(false);
 
     expect(isNeededItemsEmpty(pageData())).toBe(true);

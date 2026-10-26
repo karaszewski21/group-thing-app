@@ -67,7 +67,7 @@ async def test_setListingPreference_pendingPhoto_returns409WithExactMessage(
     assert body is not None and body["message"] == PHOTOS_IN_MODERATION_MESSAGE
     assert PHOTOS_IN_MODERATION_MESSAGE == (
         "Nie można wystawić tej rzeczy — jej zdjęcia czekają na moderację. "
-        "Tryb wypożyczę/oddam/zamienię włączysz po ich zatwierdzeniu."
+        "Tryb oddam/zamienię włączysz po ich zatwierdzeniu."
     )
 
 
@@ -80,7 +80,7 @@ async def test_setListingPreference_needsReviewPhoto_returns409(
     photo_id = await _upload_photo(client, token, product_id, 2)
     await _set_status(db_session, photo_id, ModerationStatus.NEEDS_REVIEW)
 
-    status, body = await _put_mode(client, token, item_id, "LEND")
+    status, body = await _put_mode(client, token, item_id, "SWAP")
 
     assert status == 409
     assert body is not None and body["message"] == PHOTOS_IN_MODERATION_MESSAGE
@@ -192,7 +192,7 @@ async def test_setListingPreference_existingModeWhilePending_changeBlockedNullCl
         response = await client.get("/api/inventory-items/mine", headers=_auth(token))
         return next(r["listing_mode"] for r in response.json() if r["id"] == str(item_id))
 
-    status, body = await _put_mode(client, token, item_id, "LEND")
+    status, body = await _put_mode(client, token, item_id, "SWAP")
 
     assert status == 409
     assert body is not None and body["message"] == PHOTOS_IN_MODERATION_MESSAGE

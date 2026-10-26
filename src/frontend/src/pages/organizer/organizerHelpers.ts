@@ -7,5 +7,5 @@ export function organizerTermPath(slug: string, groupId: string, termId: string)
 
 /** Items offered across every exchange mode. */
 export function exchangeTotal(counts: Record<ExchangeMode, number>): number {
-  return counts.GIFT + counts.SWAP + counts.LEND;
+  return counts.GIFT + counts.SWAP;
 }

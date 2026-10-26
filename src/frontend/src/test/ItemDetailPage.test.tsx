@@ -628,7 +628,7 @@ describe("ItemDetailPage reservation party view", () => {
 
 describe("ItemEditPage photo moderation notice", () => {
   const NOTICE =
-    "Rzecz zdjęta z terminów do czasu zatwierdzenia zdjęć. Tryb wypożyczę/oddam/zamienię włączysz ponownie w „Moje rzeczy”.";
+    "Rzecz zdjęta z terminów do czasu zatwierdzenia zdjęć. Tryb oddam/zamienię włączysz ponownie w „Moje rzeczy”.";
 
   function withSecondPhoto(status: productsApi.ModerationStatus): ItemDetailsResponse {
     const base = details();

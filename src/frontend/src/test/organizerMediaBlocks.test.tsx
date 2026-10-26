@@ -41,7 +41,7 @@ function pageData(overrides: Partial<PublicOrganizationResponse> = {}): Organize
     directory: {
       circles: [],
       upcoming_terms: [],
-      exchange: { counts: { GIFT: 0, SWAP: 0, LEND: 0 }, items: [] },
+      exchange: { counts: { GIFT: 0, SWAP: 0 }, items: [] },
       needed_items: [],
       stats: { circle_count: 0, upcoming_term_count: 0, family_count: null },
     },

@@ -139,7 +139,7 @@ async def test_patchItem_repointToNeedsReviewOnlyProduct_preferenceGone(
 ) -> None:
     token, _ = await _register(client, "GUEST", "rp.n1@example.com")
     item_id = await _register_personal_item(client, token, "Źródłowy rp.n1")
-    await _set_mode(db_session, token, item_id, ReservationType.LEND)
+    await _set_mode(db_session, token, item_id, ReservationType.GIFT)
     await _add_item(client, token, "Docelowy rp.n1")
     target_product = await _resolve_product(client, token, "Docelowy rp.n1")
     photo_id = await _upload_photo(client, token, target_product, 13)

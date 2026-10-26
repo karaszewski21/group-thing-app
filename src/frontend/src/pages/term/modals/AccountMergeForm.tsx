@@ -52,9 +52,9 @@ export function AccountMergeForm({ userProfileId }: { userProfileId: string }) {
   }
 
   return (
-    <div className={`${SUB_FORM}`} role="form" aria-label="Załóż konto, aby pożyczać i wypożyczać rzeczy">
+    <div className={`${SUB_FORM}`} role="form" aria-label="Załóż konto, aby oddawać i zamieniać rzeczy">
       <p style={{ fontWeight: 700, fontSize: 13, marginBottom: 4 }}>
-        Załóż konto, aby pożyczać i wypożyczać rzeczy
+        Załóż konto, aby oddawać i zamieniać rzeczy
       </p>
       <p style={{ fontSize: 12, color: "var(--color-ink-soft)", marginBottom: 10 }}>
         Twoje zapisanie na zajęcia zostanie zachowane.

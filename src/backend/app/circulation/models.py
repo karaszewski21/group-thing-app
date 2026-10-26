@@ -13,9 +13,7 @@ shared product catalog.
 
 Cross-module references (`users.id`, `products.id`, `terms.id`) are plain
 FK-id columns, never a `relationship()` crossing the module boundary, per
-`standards/backend/models.md`. `app.party` never appears here; the only
-link back is the loose `Pledge.resolved_reservation_id` id column on the
-*party* side (see `app/party/models.py`).
+`standards/backend/models.md`.
 """
 
 from __future__ import annotations
@@ -61,8 +59,9 @@ class AccountType(enum.StrEnum):
 
 
 class MovementType(enum.StrEnum):
-    """LEND/RETURN/GIFT/SWAP share their values with `ReservationType`, so
-    a fulfilled reservation maps to `MovementType(reservation_type.value)`."""
+    """GIFT/SWAP share their values with `ReservationType`, so a fulfilled
+    reservation maps to `MovementType(reservation_type.value)`. LEND/RETURN
+    are no longer posted but stay loadable for existing item history."""
 
     REGISTER = "REGISTER"
     REMOVE = "REMOVE"
@@ -87,6 +86,9 @@ class ItemCondition(enum.StrEnum):
 
 
 class BalanceStatus(enum.StrEnum):
+    """`LENT`/`RETURNED` are no longer set but stay loadable for existing
+    rows."""
+
     AVAILABLE = "AVAILABLE"
     RESERVED = "RESERVED"
     IN_TRANSIT = "IN_TRANSIT"
@@ -95,6 +97,9 @@ class BalanceStatus(enum.StrEnum):
 
 
 class ReservationType(enum.StrEnum):
+    """Only `SWAP`/`GIFT` reservations are created; `LEND`/`RETURN` stay
+    loadable for existing rows."""
+
     LEND = "LEND"
     RETURN = "RETURN"
     SWAP = "SWAP"
@@ -191,11 +196,10 @@ class InventoryItem(BaseEntity):
     )
     added_at: Mapped[datetime] = mapped_column(DateTime(), nullable=False)
     deleted_at: Mapped[datetime | None] = mapped_column(DateTime(), nullable=True)
-    # Set only while the item is temporarily elsewhere (lent out — see
-    # `application/reservation_transitions.py`'s LEND/RETURN branches):
-    # records the item's permanent inventory so a RETURN knows where to put
-    # it back, since `inventory_id` itself points at the borrower's VIRTUAL
-    # inventory for the loan's duration.
+    # Set only while the item is temporarily away from its permanent
+    # inventory (`inventory_id` then points at another user's VIRTUAL
+    # inventory); maintained by the ledger's projection in
+    # `infrastructure/ledger.py`.
     home_inventory_id: Mapped[uuid.UUID | None] = mapped_column(
         postgresql.UUID(as_uuid=True),
         ForeignKey("inventories.id", name="fk_inventory_items_home_inventory_id_inventories"),
@@ -254,12 +258,8 @@ class Reservation(BaseEntity):
     # Plain FK-id column, no ORM relationship — `Term` lives in the `groups`
     # module, and `circulation` must not take an ORM-level dependency on it,
     # per `standards/backend/models.md`'s cross-module-reference convention.
-    # Required for every creation site: caller-supplied for LEND/SWAP/GIFT
-    # (the creating use case has already resolved a `Term` by then), derived
-    # server-side for RETURN (see `create_reservation`'s RETURN branch) since
-    # a RETURN call site (e.g. `PanelDataContext.tsx::returnBorrowedItem`)
-    # has no Term context of its own — a RETURN reverses a specific prior
-    # LEND, so it just reuses that LEND leg's own `term_id`.
+    # Always caller-supplied: the creating use case has already resolved a
+    # `Term` by then.
     term_id: Mapped[uuid.UUID] = mapped_column(
         postgresql.UUID(as_uuid=True),
         ForeignKey("terms.id", name="fk_reservations_term_id_terms"),

@@ -33,8 +33,7 @@ export interface InventoryItemResponse {
 }
 
 /** One of the caller's items physically in their PERSONAL inventory with
- * its standing lend/gift/swap mode — `null` when not offered. Lent-out
- * items are listed by `getMyLentOutItems` instead. */
+ * its standing gift/swap mode — `null` when not offered. */
 export interface MyInventoryItemResponse extends InventoryItemResponse {
   listing_mode: ReservationType | null;
   /** True while any photo of the item's product is still in moderation
@@ -43,17 +42,6 @@ export interface MyInventoryItemResponse extends InventoryItemResponse {
   photos_moderation_pending: boolean;
   /** The product's first approved photo (thumbnail), or null without one. */
   thumb_url?: string | null;
-}
-
-/** One of the caller's items currently lent out — sitting in the
- * borrower's VIRTUAL inventory — with the borrower and the return date. */
-export interface LentOutItemResponse {
-  id: string;
-  product_id: string;
-  product_name: string;
-  condition: ItemCondition;
-  lent_to_display_name: string;
-  lent_due_date: string | null;
 }
 
 export interface CreateInventoryItemRequest {
@@ -81,10 +69,6 @@ export function getInventories(ownerUserId?: string): Promise<InventoryResponse[
   return api.get(`/inventories${query}`);
 }
 
-export function getInventory(id: string): Promise<InventoryResponse> {
-  return api.get(`/inventories/${id}`);
-}
-
 export function createInventory(request: CreateInventoryRequest): Promise<InventoryResponse> {
   return api.post("/inventories", request);
 }
@@ -96,18 +80,10 @@ export async function getOrCreatePersonalInventory(ownerUserId: string): Promise
   return personal ?? createInventory({ inventory_type: "PERSONAL" });
 }
 
-export function getInventoryItems(inventoryId: string): Promise<InventoryItemResponse[]> {
-  return api.get(`/inventory-items?inventory_id=${inventoryId}`);
-}
-
 /** "Moje rzeczy": only items the logged-in user currently owns — an item
  * given or swapped away drops out, one received shows up with no mode. */
 export function getMyInventoryItems(): Promise<MyInventoryItemResponse[]> {
   return api.get("/inventory-items/mine");
-}
-
-export function getMyLentOutItems(): Promise<LentOutItemResponse[]> {
-  return api.get("/inventory-items/mine/lent-out");
 }
 
 export function getInventoryItem(id: string): Promise<InventoryItemResponse> {
@@ -128,9 +104,7 @@ export function getInventoryItemBalance(itemId: string): Promise<InventoryBalanc
  * lock" — a `Reservation` is in flight (or just resulted from an accepted
  * swap proposal) and the item isn't free for a new action. Used by
  * `MyItemsView` to render a passive status badge; see that file for the
- * per-status label mapping. Deliberately excludes `LENT`/`RETURNED` — an
- * already-lent item isn't "pending", it's a settled state with its own
- * "Wypożyczone" view. */
+ * per-status label mapping. */
 export const ACTIVE_LOCK_BALANCE_STATUSES: readonly BalanceStatus[] = ["RESERVED", "IN_TRANSIT"];
 
 /** One bounded fan-out over the existing single-item balance endpoint,

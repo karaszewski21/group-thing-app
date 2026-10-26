@@ -28,7 +28,7 @@ export interface NotificationResponse {
    * every other kind. */
   proposal_id?: string | null;
   /** Loose pointer at `Reservation.id`, populated for
-   * `TERM_CONFIRMATION_NEEDED` raised from a GIFT/LEND reservation — lets
+   * `TERM_CONFIRMATION_NEEDED` raised from a GIFT reservation — lets
    * the pending-actions modal `confirmTransaction` on it directly. `null`
    * for every other kind (and for SWAP prompts). */
   reservation_id: string | null;

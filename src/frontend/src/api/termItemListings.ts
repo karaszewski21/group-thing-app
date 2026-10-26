@@ -1,5 +1,5 @@
 import { api } from "./client";
-import type { ReservationType } from "./reservations";
+import type { ListingMode } from "./itemListingPreferences";
 
 /** One row of "Twoje wystawione rzeczy" (`getMyTermItemListings`) or
  * "Rzeczy od innych" (`getBrowseTermItemListings`) — derived server-side
@@ -30,7 +30,7 @@ export interface BrowseTermItemListingResponse {
  * notification link) — the listing itself is Term-independent. */
 export interface TakeTermItemListingRequest {
   term_id: string;
-  reservation_type: ReservationType;
+  reservation_type: ListingMode;
   offered_item_id?: string;
 }
 

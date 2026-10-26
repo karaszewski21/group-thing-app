@@ -6,7 +6,7 @@ test exists for the preference-set endpoint here (see
 `test_term_item_listings_router.py`); the use cases under test are called
 directly against `db_session`; setup (users, circle, term, products,
 inventory items, `TermAttendance` rows) goes through the real HTTP API,
-mirroring `test_pledge_fulfillment.py`'s style.
+as in the router tests.
 
 `TermAttendance` rows are created via the existing, optional-auth
 `POST /api/groups/public/{group_id}/rsvp` endpoint with an `Authorization`
@@ -163,16 +163,16 @@ async def test_setPreference_activeAttendee_thenVisibleInMyListings(
     item_id = await _register_personal_item(client, lister_token, "Rowerek")
 
     preference = await service.set_item_listing_preference(
-        db_session, _principal(lister_token), item_id, ReservationType.LEND
+        db_session, _principal(lister_token), item_id, ReservationType.GIFT
     )
     assert preference is not None
     assert preference.item_id == item_id
-    assert preference.mode == "LEND"
+    assert preference.mode == "GIFT"
 
     mine = await service.list_my_term_item_listings(db_session, term_id, lister_party_id)
     assert len(mine) == 1
     assert mine[0].item_id == item_id
-    assert mine[0].offered_types == ["LEND"]
+    assert mine[0].offered_types == ["GIFT"]
 
 
 async def test_setPreference_none_clearsIt(client: AsyncClient, db_session: AsyncSession) -> None:
@@ -206,7 +206,7 @@ async def test_browseListing_visibleOnlyToSameTermAttendee(
     await _rsvp(client, lister_token, group_id, term_id)
     item_id = await _register_personal_item(client, lister_token, "Sanki")
     await service.set_item_listing_preference(
-        db_session, _principal(lister_token), item_id, ReservationType.LEND
+        db_session, _principal(lister_token), item_id, ReservationType.GIFT
     )
 
     same_term_token, same_term_party_id = await _register(client, "GUEST", "til.same3@example.com")
@@ -242,7 +242,7 @@ async def test_browseListing_organizerItem_visibleWithoutOrganizerAttendance(
     group_id, term_id = await _create_circle_and_term(client, org_token, "til4")
     item_id = await _register_personal_item(client, org_token, "Namiot")
     await service.set_item_listing_preference(
-        db_session, _principal(org_token), item_id, ReservationType.LEND
+        db_session, _principal(org_token), item_id, ReservationType.GIFT
     )
 
     attendee_token, attendee_party_id = await _register(client, "GUEST", "til.att4@example.com")
@@ -262,10 +262,10 @@ async def test_browseListing_organizerItem_visibleWithoutOrganizerAttendance(
     assert mine[0].item_id == item_id
 
 
-async def test_takeListing_lendType_leavesReservationPendingAndNotifiesLister(
+async def test_takeListing_giftType_leavesReservationPendingAndNotifiesLister(
     client: AsyncClient, db_session: AsyncSession
 ) -> None:
-    """(a) No more unilateral auto-confirm: a GIFT/LEND take leaves the
+    """(a) No more unilateral auto-confirm: a GIFT take leaves the
     `Reservation` `PENDING` — the lister must resolve it later via
     `confirm_transaction` — and the lister is notified of the take."""
     org_token, _ = await _register(client, "ORGANIZER", "til.org5@example.com")
@@ -275,7 +275,7 @@ async def test_takeListing_lendType_leavesReservationPendingAndNotifiesLister(
     await _rsvp(client, lister_token, group_id, term_id)
     item_id = await _register_personal_item(client, lister_token, "Wozek")
     await service.set_item_listing_preference(
-        db_session, _principal(lister_token), item_id, ReservationType.LEND
+        db_session, _principal(lister_token), item_id, ReservationType.GIFT
     )
 
     taker_token, taker_party_id = await _register(client, "GUEST", "til.taker5@example.com")
@@ -285,7 +285,7 @@ async def test_takeListing_lendType_leavesReservationPendingAndNotifiesLister(
         db_session,
         _principal(taker_token),
         item_id,
-        TakeTermItemListingRequest(term_id=term_id, reservation_type="LEND"),
+        TakeTermItemListingRequest(term_id=term_id, reservation_type="GIFT"),
     )
 
     assert taken.resolved_reservation_id is not None
@@ -295,7 +295,7 @@ async def test_takeListing_lendType_leavesReservationPendingAndNotifiesLister(
         f"/api/reservations/{taken.resolved_reservation_id}", headers=_auth(taker_token)
     )
     assert reservation.status_code == 200
-    assert reservation.json()["reservation_type"] == "LEND"
+    assert reservation.json()["reservation_type"] == "GIFT"
     assert reservation.json()["item_id"] == str(item_id)
     assert reservation.json()["status"] == "PENDING"
 
@@ -734,10 +734,10 @@ async def test_cancelTransaction_beforeTermEnd_raisesBusinessConflict(
         )
 
 
-async def test_cancelTransaction_singleLendReservation_releasedToAvailable(
+async def test_cancelTransaction_singleGiftReservation_releasedToAvailable(
     client: AsyncClient, db_session: AsyncSession
 ) -> None:
-    """Happy path: a single LEND/GIFT-style reservation is CANCELLED and
+    """Happy path: a single GIFT reservation is CANCELLED and
     the item's balance goes back to AVAILABLE — the non-SWAP counterpart of
     `confirm_transaction`'s fulfill step."""
     org_token, _ = await _register(client, "ORGANIZER", "til.org21@example.com")
@@ -952,7 +952,7 @@ async def test_setPreference_afterGiftFulfillment_reassignsOwnerToNewHolder(
     # preference was cleared at fulfillment, so listing it creates a fresh
     # `ItemListingPreference` row owned by the taker.
     relisted = await service.set_item_listing_preference(
-        db_session, _principal(taker_token), item_id, ReservationType.LEND
+        db_session, _principal(taker_token), item_id, ReservationType.GIFT
     )
     assert relisted is not None
     assert relisted.owner_party_id == taker_party_id
@@ -1161,7 +1161,7 @@ async def test_takeListing_unofferedReservationType_raisesBusinessConflict(
     await _rsvp(client, lister_token, group_id, term_id)
     item_id = await _register_personal_item(client, lister_token, "Hulajnoga")
     await service.set_item_listing_preference(
-        db_session, _principal(lister_token), item_id, ReservationType.LEND
+        db_session, _principal(lister_token), item_id, ReservationType.SWAP
     )
 
     taker_token, _ = await _register(client, "GUEST", "til.taker7@example.com")
@@ -1174,51 +1174,6 @@ async def test_takeListing_unofferedReservationType_raisesBusinessConflict(
             item_id,
             TakeTermItemListingRequest(term_id=term_id, reservation_type="GIFT"),
         )
-
-
-async def test_setPreference_whileItemLentOut_stillSucceeds(
-    client: AsyncClient, db_session: AsyncSession
-) -> None:
-    """Regression guard: while an item is on loan, `item.inventory_id`
-    temporarily points at the borrower's VIRTUAL inventory (see
-    `app.circulation`'s LEND fulfillment). `set_item_listing_preference`'s
-    ownership check must resolve the item's *permanent* owner
-    (`resolve_owning_inventory`), not its current physical location — the
-    true owner must still be able to manage their own item's listing
-    preference during the loan."""
-    org_token, _ = await _register(client, "ORGANIZER", "til.org8@example.com")
-    group_id, term_id = await _create_circle_and_term(client, org_token, "til8")
-
-    lister_token, _ = await _register(client, "GUEST", "til.lister8@example.com")
-    await _rsvp(client, lister_token, group_id, term_id)
-    item_id = await _register_personal_item(client, lister_token, "Sanki")
-    await service.set_item_listing_preference(
-        db_session, _principal(lister_token), item_id, ReservationType.LEND
-    )
-
-    borrower_token, _ = await _register(client, "GUEST", "til.borrower8@example.com")
-    await _rsvp(client, borrower_token, group_id, term_id)
-    taken = await service.take_item_listing(
-        db_session,
-        _principal(borrower_token),
-        item_id,
-        TakeTermItemListingRequest(term_id=term_id, reservation_type="LEND"),
-    )
-    term = (await db_session.execute(select(Term).where(Term.id == term_id))).scalar_one()
-    term.occurs_on = clock.local_now() - timedelta(days=1)
-    await db_session.commit()
-    await service.confirm_transaction(
-        db_session, _principal(borrower_token), taken.resolved_reservation_id
-    )
-
-    item = await client.get(f"/api/inventory-items/{item_id}", headers=_auth(lister_token))
-    assert item.json()["home_inventory_id"] is not None
-
-    preference = await service.set_item_listing_preference(
-        db_session, _principal(lister_token), item_id, ReservationType.SWAP
-    )
-    assert preference is not None
-    assert preference.mode == "SWAP"
 
 
 # --- Gap-analysis coverage carried over from the original design -----------
@@ -1245,7 +1200,7 @@ async def test_browseListing_termOccursOnInPast_becomesUnbrowsable(
     await _rsvp(client, lister_token, group_id, term_id)
     item_id = await _register_personal_item(client, lister_token, "Latawiec")
     await service.set_item_listing_preference(
-        db_session, _principal(lister_token), item_id, ReservationType.LEND
+        db_session, _principal(lister_token), item_id, ReservationType.GIFT
     )
 
     viewer_token, viewer_party_id = await _register(client, "GUEST", "til.viewer8@example.com")
@@ -1276,7 +1231,7 @@ async def test_takeListing_ownListing_raisesBusinessConflict(
     await _rsvp(client, lister_token, group_id, term_id)
     item_id = await _register_personal_item(client, lister_token, "Skakanka")
     await service.set_item_listing_preference(
-        db_session, _principal(lister_token), item_id, ReservationType.LEND
+        db_session, _principal(lister_token), item_id, ReservationType.GIFT
     )
 
     with pytest.raises(BusinessConflictException):
@@ -1284,7 +1239,7 @@ async def test_takeListing_ownListing_raisesBusinessConflict(
             db_session,
             _principal(lister_token),
             item_id,
-            TakeTermItemListingRequest(term_id=term_id, reservation_type="LEND"),
+            TakeTermItemListingRequest(term_id=term_id, reservation_type="GIFT"),
         )
 
 
@@ -1302,7 +1257,7 @@ async def test_takeListing_listerAttendanceLapsedSinceListing_raisesAccessDenied
     lister_attendance_id = await _rsvp(client, lister_token, group_id, term_id)
     item_id = await _register_personal_item(client, lister_token, "Deskorolka")
     await service.set_item_listing_preference(
-        db_session, _principal(lister_token), item_id, ReservationType.LEND
+        db_session, _principal(lister_token), item_id, ReservationType.GIFT
     )
 
     taker_token, _ = await _register(client, "GUEST", "til.taker10@example.com")
@@ -1315,7 +1270,7 @@ async def test_takeListing_listerAttendanceLapsedSinceListing_raisesAccessDenied
             db_session,
             _principal(taker_token),
             item_id,
-            TakeTermItemListingRequest(term_id=term_id, reservation_type="LEND"),
+            TakeTermItemListingRequest(term_id=term_id, reservation_type="GIFT"),
         )
 
 
@@ -1349,7 +1304,7 @@ async def test_takeListing_swapOfferedItemNotOwnedByTaker_raisesAccessDenied(
 async def test_listMyActiveTakenTermItemListings_pendingGiftTaken_returnsIt(
     client: AsyncClient, db_session: AsyncSession
 ) -> None:
-    """The taker sees their own PENDING GIFT/LEND take via the new
+    """The taker sees their own PENDING GIFT take via the new
     availability-independent query."""
     org_token, _ = await _register(client, "ORGANIZER", "til.org23@example.com")
     group_id, term_id = await _create_circle_and_term(client, org_token, "til23")
@@ -2101,7 +2056,7 @@ async def test_getItemBalance_availableItem_reservationIdIsNull(
 async def test_getItemBalance_reservedStatus_includesReservationId(
     client: AsyncClient, db_session: AsyncSession
 ) -> None:
-    """Taking a LEND listing leaves the item `RESERVED` (Reservation still
+    """Taking a GIFT listing leaves the item `RESERVED` (Reservation still
     `PENDING`) — the balance's `reservation_id` must resolve to exactly that
     reservation, so the frontend tile can drive its "Odebrał"/"Anuluj
     wymianę" fallback buttons off it (bug #4c)."""
@@ -2112,7 +2067,7 @@ async def test_getItemBalance_reservedStatus_includesReservationId(
     await _rsvp(client, lister_token, group_id, term_id)
     item_id = await _register_personal_item(client, lister_token, "Wozek34")
     await service.set_item_listing_preference(
-        db_session, _principal(lister_token), item_id, ReservationType.LEND
+        db_session, _principal(lister_token), item_id, ReservationType.GIFT
     )
 
     taker_token, _ = await _register(client, "GUEST", "til.taker34@example.com")
@@ -2121,7 +2076,7 @@ async def test_getItemBalance_reservedStatus_includesReservationId(
         db_session,
         _principal(taker_token),
         item_id,
-        TakeTermItemListingRequest(term_id=term_id, reservation_type="LEND"),
+        TakeTermItemListingRequest(term_id=term_id, reservation_type="GIFT"),
     )
 
     balance = await client.get(
@@ -2145,7 +2100,7 @@ async def test_getItemBalance_inTransitStatus_stillReportsSameReservationId(
     await _rsvp(client, lister_token, group_id, term_id)
     item_id = await _register_personal_item(client, lister_token, "Wozek35")
     await service.set_item_listing_preference(
-        db_session, _principal(lister_token), item_id, ReservationType.LEND
+        db_session, _principal(lister_token), item_id, ReservationType.GIFT
     )
 
     taker_token, _ = await _register(client, "GUEST", "til.taker35@example.com")
@@ -2154,7 +2109,7 @@ async def test_getItemBalance_inTransitStatus_stillReportsSameReservationId(
         db_session,
         _principal(taker_token),
         item_id,
-        TakeTermItemListingRequest(term_id=term_id, reservation_type="LEND"),
+        TakeTermItemListingRequest(term_id=term_id, reservation_type="GIFT"),
     )
 
     # The item's owner (still the holder before fulfillment) confirms.
@@ -2308,7 +2263,7 @@ async def test_takeItemListing_taker_receivesItemReservedForPickupWithProductLin
     await _rsvp(client, lister_token, group_id, term_id)
     item_id = await _register_personal_item(client, lister_token, "Hulajnoga link1")
     await service.set_item_listing_preference(
-        db_session, _principal(lister_token), item_id, ReservationType.LEND
+        db_session, _principal(lister_token), item_id, ReservationType.GIFT
     )
 
     taker_token, _ = await _register(client, "GUEST", "til.link1.taker@example.com")
@@ -2318,7 +2273,7 @@ async def test_takeItemListing_taker_receivesItemReservedForPickupWithProductLin
         db_session,
         _principal(taker_token),
         item_id,
-        TakeTermItemListingRequest(term_id=term_id, reservation_type="LEND"),
+        TakeTermItemListingRequest(term_id=term_id, reservation_type="GIFT"),
     )
 
     term = (await db_session.execute(select(Term).where(Term.id == term_id))).scalar_one()

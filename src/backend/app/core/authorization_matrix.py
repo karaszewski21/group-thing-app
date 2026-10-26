@@ -174,7 +174,6 @@ _RAW_MATRIX: tuple[_RawEntry, ...] = (
     (_methods("GET"), r"^/api/inventory-items(/.*)?$", ("READ", "mcp:read")),  # 40
     (_methods("POST"), r"^/api/inventory-items(/.*)?$", ("EDIT", "mcp:edit")),  # 41
     (_methods("GET"), r"^/api/reservations(/.*)?$", ("READ", "mcp:read")),  # 42
-    (_methods("POST"), r"^/api/reservations(/.*)?$", ("EDIT", "mcp:edit")),  # 43
     (_methods("GET"), r"^/api/circulation-transactions/[^/]+$", ("READ", "mcp:read")),  # 45
     (_methods("GET"), r"^/api/people(/.*)?$", ("READ", "mcp:read")),  # 46
     # The caller's own profile edit and avatar; ownership is the principal itself.
@@ -235,19 +234,18 @@ _RAW_MATRIX: tuple[_RawEntry, ...] = (
     # each an explicit, self-documenting row matching `take_item_listing`'s
     # (row 58's) permission requirement exactly, declared right after it in
     # evaluation order. `propose` (POST .../term-item-listings/{id}/propose)
-    # and `confirm-transaction` (POST .../reservations/{id}/confirm-
-    # transaction) are already reachable via row 58's and row 43's blanket
-    # POST rules respectively — these two rows change no actual routing
-    # decision, they only make the exchange-mechanism's full route set
-    # explicit here rather than relying on a reader to trace it through the
-    # blanket rows. `/api/swap-proposals` (accept/reject) has no existing
-    # blanket row, so those two rows are load-bearing.
+    # is already reachable via row 58's blanket POST rule — that row changes
+    # no actual routing decision, it only makes the exchange-mechanism's full
+    # route set explicit. `/api/swap-proposals` (accept/reject) and
+    # `/api/reservations/{id}/confirm-transaction`/`cancel-transaction` have
+    # no blanket POST row (`/api/reservations` is otherwise read-only), so
+    # those rows are load-bearing.
     (_methods("POST"), r"^/api/term-item-listings/[^/]+/propose$", ("EDIT", "mcp:edit")),  # 61
     (_methods("POST"), r"^/api/swap-proposals/[^/]+/accept$", ("EDIT", "mcp:edit")),  # 62
     (_methods("POST"), r"^/api/swap-proposals/[^/]+/reject$", ("EDIT", "mcp:edit")),  # 63
     (
         _methods("POST"),
-        r"^/api/reservations/[^/]+/confirm-transaction$",
+        r"^/api/reservations/[^/]+/(confirm|cancel)-transaction$",
         ("EDIT", "mcp:edit"),
     ),  # 64
     # 65: app.moderation — the ADMIN review queue and decisions (every method).

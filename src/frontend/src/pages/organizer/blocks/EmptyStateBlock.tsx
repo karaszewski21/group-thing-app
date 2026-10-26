@@ -36,7 +36,7 @@ export function EmptyStateBlock({ layoutKey, organization, unavailable = false }
               Jak to działa?
             </summary>
             <p className="mt-1">
-              Rodzice z grup organizatora wystawiają tu rzeczy do oddania, zamiany lub wypożyczenia na najbliższe
+              Rodzice z grup organizatora wystawiają tu rzeczy do oddania lub zamiany na najbliższe
               zajęcia. Zapisz się na termin, a rzeczy zarezerwujesz na jego stronie.
             </p>
           </details>

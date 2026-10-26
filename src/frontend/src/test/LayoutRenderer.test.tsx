@@ -37,7 +37,7 @@ function pageData(overrides: Partial<OrganizerPageResponse> = {}): OrganizerPage
     directory: {
       circles: [],
       upcoming_terms: [],
-      exchange: { counts: { GIFT: 0, SWAP: 0, LEND: 0 }, items: [] },
+      exchange: { counts: { GIFT: 0, SWAP: 0 }, items: [] },
       needed_items: [],
       stats: { circle_count: 0, upcoming_term_count: 0, family_count: null },
       ...overrides,
@@ -296,7 +296,7 @@ describe("LayoutRenderer", () => {
     const busy = pageData({
       circles: [circle("g1", "Orliki 2017"), circle("g2", "Młodziki 2015")],
       upcoming_terms: soon,
-      exchange: { counts: { GIFT: 1, SWAP: 2, LEND: 1 }, items: [] },
+      exchange: { counts: { GIFT: 2, SWAP: 2 }, items: [] },
     });
 
     expect(recommended(data)).toEqual(["LINKS"]);
@@ -308,7 +308,7 @@ describe("LayoutRenderer", () => {
         pageData({
           circles: [circle("g1", "Orliki 2017")],
           upcoming_terms: [...soon.slice(0, 3), term("late", inDays(20))],
-          exchange: { counts: { GIFT: 1, SWAP: 1, LEND: 1 }, items: [] },
+          exchange: { counts: { GIFT: 2, SWAP: 1 }, items: [] },
         }),
       ),
     ).toEqual([]);
@@ -320,7 +320,7 @@ describe("LayoutRenderer", () => {
       circles: [circle("g1", "Orliki 2017")],
       upcoming_terms: [nearest],
       exchange: {
-        counts: { GIFT: 3, SWAP: 4, LEND: 1 },
+        counts: { GIFT: 4, SWAP: 4 },
         items: [
           {
             item_id: "i1",
@@ -388,7 +388,7 @@ describe("LayoutRenderer", () => {
       circles: [circle("g1", "Orliki 2017"), circle("g2", "Młodziki 2015")],
       upcoming_terms: [{ ...term("t1", inDays(2)), ...identity } as OrganizerTerm],
       exchange: {
-        counts: { GIFT: 1, SWAP: 0, LEND: 0 },
+        counts: { GIFT: 1, SWAP: 0 },
         items: [
           {
             item_id: "i1",

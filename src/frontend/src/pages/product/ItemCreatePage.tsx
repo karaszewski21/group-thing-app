@@ -50,7 +50,7 @@ export function ItemCreatePage() {
           <ItemQuickAddForm value={value} onChange={setDraft} disabled={busy} />
           <NewPhotosField files={photos} onChange={setPhotos} disabled={busy} />
           <p className="mt-3 text-xs text-ink-soft">
-            Opis dodasz na stronie rzeczy, a sposób udostępnienia (wypożyczę / oddam / zamienię) ustawisz na
+            Opis dodasz na stronie rzeczy, a sposób udostępnienia (oddam / zamienię) ustawisz na
             liście „Moje rzeczy”.
           </p>
           {error && (

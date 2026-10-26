@@ -1,16 +1,15 @@
 """Periodic background scan for `Term`s whose `occurs_on` has just passed,
-emitting an idempotent outbox event for each still-open GIFT or LEND
+emitting an idempotent outbox event for each still-open GIFT
 `Reservation` and each `ACCEPTED` `SwapProposal` it affects — the trigger
 `app.notifications.outbox_listener` listens for to prompt both parties to
 call `confirm_transaction`.
 
 Reads circulation state ONLY through `circulation_bridge` — this module
-never imports `app.circulation` directly. GIFT/LEND candidates come from
-`Reservation.term_id` (statuses `PENDING`/`CONFIRMED`; RETURN and SWAP
-excluded), so Take-LEND, Pledge-LEND and GIFT are covered regardless of
-listing preferences. SWAP candidates are still derived from the standing
-`ItemListingPreference` of every party eligible for the Term (active
-attendee, or its organizer) — see
+never imports `app.circulation` directly. GIFT candidates come from
+`Reservation.term_id` (statuses `PENDING`/`CONFIRMED`; SWAP excluded), so
+they are covered regardless of listing preferences. SWAP candidates are
+still derived from the standing `ItemListingPreference` of every party
+eligible for the Term (active attendee, or its organizer) — see
 `term_item_listings._list_eligible_lister_party_ids`.
 
 The outbox-append and the idempotency marker (`GiveawayTermEndMarker` row,
@@ -79,11 +78,11 @@ async def _scan_hand_over_reservations(
     link_paths: dict[uuid.UUID, str],
     details_by_term: dict[uuid.UUID, dict[str, object]],
 ) -> int:
-    """One bridge query for every just-ended Term's still-open GIFT/LEND
+    """One bridge query for every just-ended Term's still-open GIFT
     reservations, minus those already carrying a `GiveawayTermEndMarker`.
-    Deliberately independent of eligibility and `ItemListingPreference` — a
-    Pledge-LEND has no listing preference behind it. Returns how many events
-    it emitted."""
+    Deliberately independent of eligibility and `ItemListingPreference` — the
+    giver may have cleared the listing after the take. Returns how many
+    events it emitted."""
     candidates = await circulation_bridge.list_active_hand_over_reservations_for_terms(
         db, list(link_paths)
     )

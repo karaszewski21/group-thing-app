@@ -18,7 +18,6 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.models import User
-from app.circulation.models import InventoryItem, ReservationType
 from app.config import settings
 from app.moderation.status import ModerationStatus
 from app.outbox.dispatcher import dispatch_pending
@@ -27,12 +26,6 @@ from app.product.models import ProductPhoto
 from app.storage import outbox_listener as storage_outbox_listener
 from app.storage.outbox_listener import OBJECTS_DELETE
 from tests.fake_storage import FakeStorage
-from tests.test_circulation_ledger import (
-    _confirm_and_fulfill,
-    _register_item_via_api,
-    _register_user,
-    _reserve,
-)
 from tests.test_term_item_listings import (
     _auth,
     _register,
@@ -276,37 +269,6 @@ async def test_productPhotoMutations_editTokenWithoutOwnedItem_returns403(
     assert [p["id"] for p in await _list_photos(client, outsider_token, product_id)] == [
         photo["id"]
     ]
-
-
-async def test_productPhotoMutations_ownerWhileItemLentOut_allowedBorrowerForbidden(
-    client: AsyncClient, db_session: AsyncSession
-) -> None:
-    owner_headers, owner_id = await _register_user(client, "pph.owner7@example.com")
-    borrower_headers, borrower_id = await _register_user(client, "pph.borrower7@example.com")
-    _, item_id = await _register_item_via_api(client, db_session, owner_headers)
-    lend_id = await _reserve(
-        client,
-        db_session,
-        headers=owner_headers,
-        item_id=item_id,
-        reservation_type=ReservationType.LEND,
-        reserved_by_user_id=borrower_id,
-    )
-    await _confirm_and_fulfill(db_session, lend_id, owner_id)
-    item = (
-        await db_session.execute(select(InventoryItem).where(InventoryItem.id == item_id))
-    ).scalar_one()
-    assert item.home_inventory_id is not None
-    url = _photos_url(item.product_id)
-
-    def files() -> dict[str, tuple[str, bytes, str]]:
-        return {"file": ("lent.png", _image(5), "image/png")}
-
-    by_owner = await client.post(url, files=files(), headers=owner_headers)
-    by_borrower = await client.post(url, files=files(), headers=borrower_headers)
-
-    assert by_owner.status_code == 201, by_owner.text
-    assert by_borrower.status_code == 403
 
 
 async def test_addPhoto_imageModerationDisabled_approvedPublic(

@@ -30,27 +30,14 @@ import {
 import {
   ACTIVE_LOCK_BALANCE_STATUSES,
   deleteInventoryItem,
-  getInventories,
-  getInventory,
   getInventoryItemBalance,
-  getInventoryItems,
   getMyInventoryItems,
-  getMyLentOutItems,
-  type LentOutItemResponse,
   type MyInventoryItemResponse,
 } from "../api/inventories";
-import {
-  confirmReservation,
-  createReservation,
-  fulfillReservation,
-  getReservation,
-  type ReservationResponse,
-} from "../api/reservations";
 import {
   deleteMyAvatar,
   getLeadershipsForPerson,
   getMyProfile,
-  getProfileByAccountUserId,
   updateMyProfile,
   uploadMyAvatar,
   type UserProfileResponse,
@@ -85,7 +72,6 @@ import {
   ITEM_MODE_TO_RESERVATION_TYPE,
   MAX_GIFT_ITEMS,
   RESERVATION_TYPE_TO_ITEM_MODE,
-  type BorrowedItem,
   type GuestTermCard,
   type ItemMode,
   type ModalKind,
@@ -106,18 +92,6 @@ import { AppDataContext } from "./appDataStore";
 /* ------------------------------------------------------------------ */
 
 export type AppDataContextValue = ReturnType<typeof useAppDataValue>;
-
-/** The item's RETURN left half-done by an earlier "Oddaję" whose confirm or
- * fulfill failed. The item is no longer `LENT` then, so creating a new
- * RETURN would be rejected — the retry has to finish this one instead. */
-async function findUnfinishedReturn(itemId: string): Promise<ReservationResponse | null> {
-  const balance = await getInventoryItemBalance(itemId);
-  if (!ACTIVE_LOCK_BALANCE_STATUSES.includes(balance.status) || balance.reservation_id === null) {
-    return null;
-  }
-  const reservation = await getReservation(balance.reservation_id);
-  return reservation.reservation_type === "RETURN" ? reservation : null;
-}
 
 /** The `localStorage` key of a home hint's "dismissed" flag for one account. */
 function hintKey(flag: string, username: string | null): string {
@@ -265,8 +239,6 @@ function useAppDataValue() {
   // --- lokalne, niepersystentne pola (patrz komentarz na górze pliku) ---
   const [settings, setSettings] = useState({ publicProfile: true });
   const [itemModes, setItemModes] = useState<Record<string, ItemMode | null>>({});
-  const [borrowedItems, setBorrowedItems] = useState<BorrowedItem[]>([]);
-  const [lentOutItems, setLentOutItems] = useState<LentOutItemResponse[]>([]);
 
   // --- formularz: dodaj członka rodziny ("Rodzina" section, inline form) ---
   const [memberName, setMemberName] = useState("");
@@ -322,60 +294,13 @@ function useAppDataValue() {
         setProfileBio(me.bio ?? "");
       }
 
-      // The authenticated user's own profile always has a login-backed
-      // `account_user_id` — only lightweight family members (who never
-      // log in) can have a null one, so this fail-fast guard should never
-      // actually trigger for `me` (`standards/global/error-handling.md`).
-      if (me.account_user_id == null) {
-        throw new Error("Zalogowany profil nie ma powiązanego konta użytkownika");
-      }
-
-      const [leaderships, inventories] = await Promise.all([
-        getLeadershipsForPerson(me.id),
-        getInventories(me.account_user_id),
-      ]);
+      const leaderships = await getLeadershipsForPerson(me.id);
 
       const itemsSeq = ++itemsSeqRef.current;
-      const [myItems, myLentOutItems] = await Promise.all([
-        getMyInventoryItems(),
-        getMyLentOutItems(),
-      ]);
+      const myItems = await getMyInventoryItems();
       if (itemsSeq === itemsSeqRef.current) {
         setItems(myItems);
         setItemModes(itemModesFrom(myItems));
-      }
-      setLentOutItems(myLentOutItems);
-
-      // "Wypożyczone" — items currently sitting in the caller's own VIRTUAL
-      // inventory (borrowed from someone else). Given/swapped-in items are
-      // full ownership and already show up in "Moje rzeczy" instead, so no
-      // VIRTUAL inventory means nothing is currently on loan.
-      const virtualInventory = inventories.find((i) => i.inventory_type === "VIRTUAL") ?? null;
-      if (virtualInventory) {
-        const virtualItems = await getInventoryItems(virtualInventory.id);
-        setBorrowedItems(
-          await Promise.all(
-            virtualItems.map(async (item) => {
-              const [balance, lenderInventory] = await Promise.all([
-                getInventoryItemBalance(item.id),
-                item.home_inventory_id !== null
-                  ? getInventory(item.home_inventory_id)
-                  : Promise.resolve(null),
-              ]);
-              const lenderProfile = lenderInventory
-                ? await getProfileByAccountUserId(lenderInventory.owner_user_id)
-                : null;
-              return {
-                itemId: item.id,
-                productName: item.product_name,
-                lenderName: lenderProfile?.display_name ?? "nieznana osoba",
-                dueDate: balance.due_date,
-              };
-            }),
-          ),
-        );
-      } else {
-        setBorrowedItems([]);
       }
 
       const activeLeaderships = leaderships.filter((l) => l.valid_to === null);
@@ -698,7 +623,6 @@ function useAppDataValue() {
 
   const itemCounts = useMemo(
     () => ({
-      "wypożyczę": items.filter((i) => itemModes[i.id] === "wypożyczę").length,
       "oddam": items.filter((i) => itemModes[i.id] === "oddam").length,
       "zamienię": items.filter((i) => itemModes[i.id] === "zamienię").length,
     }),
@@ -987,30 +911,6 @@ function useAppDataValue() {
     }
   }
 
-  /* ---------- wypożyczone (oddawanie pożyczonej rzeczy) ---------- */
-
-  async function returnBorrowedItem(itemId: string) {
-    setItemError(null);
-    try {
-      // The server derives the recipient (the item's home owner) itself. The
-      // caller (the borrower) is still the item's current holder, so per the
-      // confirm-authorization rule they may confirm and fulfill their own
-      // proposal in one go — no separate approval from the lender is
-      // needed to hand it back.
-      const reservation =
-        (await findUnfinishedReturn(itemId)) ??
-        (await createReservation({ item_id: itemId, reservation_type: "RETURN" }));
-      if (reservation.status === "PENDING") {
-        await confirmReservation(reservation.id);
-      }
-      await fulfillReservation(reservation.id);
-      setBorrowedItems((prev) => prev.filter((b) => b.itemId !== itemId));
-      showToast("Oddano");
-    } catch {
-      setItemError("Nie udało się oddać rzeczy — spróbuj ponownie");
-    }
-  }
-
   /* ---------- profil ---------- */
 
   async function saveProfile() {
@@ -1189,8 +1089,6 @@ function useAppDataValue() {
     avatarError,
     settings,
     itemModes,
-    borrowedItems,
-    lentOutItems,
     memberName,
     memberRole,
     memberBirthYear,
@@ -1228,7 +1126,6 @@ function useAppDataValue() {
     showToast,
     load,
     itemCounts,
-    returnBorrowedItem,
     editTermEntry,
     organizerTermCard,
     guestTermCard,

@@ -118,7 +118,7 @@ function ItemEditContent({ item, history, details, onRefetch }: ItemEditContentP
       </div>
       {photosInModeration && (
         <div role="status" className="mt-3 rounded-[14px] border border-line bg-cream px-3.5 py-2.5 text-[12.5px] text-ink">
-          Rzecz zdjęta z terminów do czasu zatwierdzenia zdjęć. Tryb wypożyczę/oddam/zamienię włączysz ponownie w
+          Rzecz zdjęta z terminów do czasu zatwierdzenia zdjęć. Tryb oddam/zamienię włączysz ponownie w
           „Moje rzeczy”.{" "}
           <Link to="/rzeczy" className="font-extrabold text-primary-fg underline">
             Moje rzeczy →

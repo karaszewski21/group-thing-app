@@ -557,7 +557,7 @@ async def test_getPublicCircle_organizerAndAttendeeListings_visibleAnonymously(
         client, org_token, group_id, clock.local_now().date() + timedelta(days=7)
     )
     org_item_id = await _register_personal_item(client, org_token, "Namiot")
-    await _set_preference(client, org_token, org_item_id, "LEND")
+    await _set_preference(client, org_token, org_item_id, "SWAP")
 
     attendee_token, attendee_party_id = await _register_guest(
         client, "pt.exchange.attendee@example.com"
@@ -576,7 +576,7 @@ async def test_getPublicCircle_organizerAndAttendeeListings_visibleAnonymously(
     assert response.status_code == 200
     listings = response.json()["term"]["item_listings"]
     assert {(row["item_id"], row["offered_types"][0]) for row in listings} == {
-        (org_item_id, "LEND"),
+        (org_item_id, "SWAP"),
         (attendee_item_id, "GIFT"),
     }
     lister_names = {row["lister_display_name"] for row in listings}
@@ -592,7 +592,7 @@ async def test_getPublicCircle_takenItem_disappearsFromPublicListings(client: As
         client, org_token, group_id, clock.local_now().date() + timedelta(days=7)
     )
     item_id = await _register_personal_item(client, org_token, "Deskorolka")
-    await _set_preference(client, org_token, item_id, "LEND")
+    await _set_preference(client, org_token, item_id, "GIFT")
 
     taker_token, _ = await _register_guest(client, "pt.exchange.taker@example.com")
     await client.post(
@@ -602,7 +602,7 @@ async def test_getPublicCircle_takenItem_disappearsFromPublicListings(client: As
     )
     take = await client.post(
         f"/api/term-item-listings/{item_id}/take",
-        json={"term_id": term_id, "reservation_type": "LEND"},
+        json={"term_id": term_id, "reservation_type": "GIFT"},
         headers=_auth_headers(taker_token),
     )
     assert take.status_code == 200
@@ -628,7 +628,7 @@ async def test_getPublicCircle_termOccursOnInPast_listingsStillVisible(
         client, org_token, group_id, clock.local_now().date() + timedelta(days=7)
     )
     item_id = await _register_personal_item(client, org_token, "Rower")
-    await _set_preference(client, org_token, item_id, "LEND")
+    await _set_preference(client, org_token, item_id, "GIFT")
 
     term = (await db_session.execute(select(Term).where(Term.id == term_id))).scalar_one()
     term.occurs_on = clock.local_now() - timedelta(days=1)
@@ -638,7 +638,7 @@ async def test_getPublicCircle_termOccursOnInPast_listingsStillVisible(
 
     assert response.status_code == 200
     listings = response.json()["term"]["item_listings"]
-    assert {(row["item_id"], row["offered_types"][0]) for row in listings} == {(item_id, "LEND")}
+    assert {(row["item_id"], row["offered_types"][0]) for row in listings} == {(item_id, "GIFT")}
 
 
 async def test_getPublicCircle_pledgedNeededItem_exposesPledgerPartyId(client: AsyncClient) -> None:

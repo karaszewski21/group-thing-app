@@ -1,4 +1,5 @@
 import type { GroupResponse, GroupVisibility } from "../api/groups";
+import type { ListingMode } from "../api/itemListingPreferences";
 import type { ReservationType } from "../api/reservations";
 import type { NeededItemResponse, TermResponse } from "../api/terms";
 
@@ -11,7 +12,6 @@ export type View =
   | "home"
   | "spotkania"
   | "rzeczy"
-  | "podarki"
   | "profil"
   | "ustawienia"
   | "miejsca"
@@ -25,7 +25,6 @@ const VIEW_VALUES: readonly View[] = [
   "home",
   "spotkania",
   "rzeczy",
-  "podarki",
   "profil",
   "ustawienia",
   "miejsca",
@@ -41,7 +40,7 @@ function isView(value: string | undefined): value is View {
 }
 
 /** Sub-pages of "Konto": they show a back link to it. */
-export const KONTO_SUBVIEWS: readonly View[] = ["profil", "ustawienia", "miejsca", "rodzina", "podarki", "szukam"];
+export const KONTO_SUBVIEWS: readonly View[] = ["profil", "ustawienia", "miejsca", "rodzina", "szukam"];
 
 /** The URL of a panel view: `/` for home, `/<view>` otherwise. */
 export function viewPath(view: View): string {
@@ -71,18 +70,7 @@ export type ModalKind =
   | "edit-termin"
   | null;
 
-export type ItemMode = "wypożyczę" | "oddam" | "zamienię";
-
-/** One row of the "Wypożyczone" view — an item currently sitting in the
- * caller's own VIRTUAL inventory (borrowed from someone else). Given-away
- * or swapped-in items are full ownership and already appear in "Moje
- * rzeczy" instead (they land in the recipient's PERSONAL inventory). */
-export interface BorrowedItem {
-  itemId: string;
-  productName: string;
-  lenderName: string;
-  dueDate: string | null;
-}
+export type ItemMode = "oddam" | "zamienię";
 
 export interface TermWithNeeded {
   term: TermResponse;
@@ -112,15 +100,13 @@ export interface TermPlaceLocation {
   notes: string | null;
 }
 
-export const ITEM_MODES: ItemMode[] = ["wypożyczę", "oddam", "zamienię"];
+export const ITEM_MODES: ItemMode[] = ["oddam", "zamienię"];
 
 /** Soft tile + readable text per item mode, matching the exchange tones. */
 export const ITEM_MODE_TONE: Record<ItemMode, string> = {
-  "wypożyczę": "bg-teal-soft text-ink",
   "oddam": "bg-primary-soft text-primary-fg",
   "zamienię": "bg-accent-soft text-accent-fg",
 };
-
 
 /** How many items may be set to "oddam" at once. Enforced only in the UI. */
 export const MAX_GIFT_ITEMS = 10;
@@ -129,21 +115,18 @@ export const GIFT_LIMIT_MESSAGE = `Możesz oddawać naraz najwyżej ${MAX_GIFT_I
 
 /** `ItemMode` <-> backend `ReservationType` — the Panel's "Moje rzeczy"
  * mode toggle persists as a standing `ItemListingPreference.mode`
- * (`/api/item-listing-preferences`), one of `LEND`/`GIFT`/`SWAP`. */
-export const ITEM_MODE_TO_RESERVATION_TYPE: Record<ItemMode, ReservationType> = {
-  "wypożyczę": "LEND",
+ * (`/api/item-listing-preferences`), `GIFT` or `SWAP`. */
+export const ITEM_MODE_TO_RESERVATION_TYPE: Record<ItemMode, ListingMode> = {
   "oddam": "GIFT",
   "zamienię": "SWAP",
 };
 
 export const RESERVATION_TYPE_TO_ITEM_MODE: Partial<Record<ReservationType, ItemMode>> = {
-  LEND: "wypożyczę",
   GIFT: "oddam",
   SWAP: "zamienię",
 };
 
 export const ITEM_MODE_STYLE: Record<ItemMode, { bg: string; c: string }> = {
-  "wypożyczę": { bg: "var(--color-teal-soft)", c: "#245F61" },
   "oddam": { bg: "var(--color-mint-soft)", c: "#12604D" },
   "zamienię": { bg: "var(--color-lime-soft)", c: "#56701F" },
 };

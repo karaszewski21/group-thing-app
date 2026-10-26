@@ -1,7 +1,5 @@
 """`app.families` business logic: Family bootstrapping, guardian
-management, and the `is_primary_contact` lifecycle — the identity bridge
-`app.groups.service.fulfill_pledge` ultimately resolves through
-`app.users.service.get_profile_by_party`.
+management, and the `is_primary_contact` lifecycle.
 
 Ownership checks the coarse `AUTHORIZATION_MATRIX` can't express (only a
 family's own guardians may add another guardian) live here.

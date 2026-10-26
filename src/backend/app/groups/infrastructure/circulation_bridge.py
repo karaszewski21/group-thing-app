@@ -1,11 +1,9 @@
 """Anti-corruption layer over `app.circulation`: the ONLY `app.groups`
-module that imports the circulation vertical. `application/pledge_fulfillment`
-drives the Pledge->Reservation bridge exclusively through these thin
-pass-throughs, and reads `ReservationStatus` from here rather than
-importing circulation models directly. `application/term_item_listings`
+module that imports the circulation vertical. `application/term_item_listings`
 and `application/attendance` drive the ItemListingPreference->Reservation
-bridge the same way, via the `create_reservation`/`list_reservations`
-pass-throughs and the re-exported `ReservationType`; a Term transaction is
+bridge exclusively through these thin pass-throughs (`create_reservation`/
+`list_reservations` and the re-exported `ReservationType`/
+`ReservationStatus`), never importing circulation models directly; a Term transaction is
 resolved in one circulation commit through `fulfill_exchange`/
 `cancel_exchange`. The photo-moderation withdraw reaches every item of a
 product through `list_item_ids_for_product` and releases a rejected swap
@@ -52,48 +50,25 @@ __all__ = [
     "cancel_exchange",
     "cancel_reservation",
     "confirm_reservation",
-    "create_lend_reservation",
     "create_reservation",
     "find_item_including_deleted",
     "find_personal_inventory",
     "fulfill_exchange",
-    "get_inventory",
     "get_item",
     "get_item_balance",
     "get_item_for_share",
-    "get_or_create_personal_inventory",
     "get_reservation",
     "list_active_hand_over_reservations_for_terms",
     "list_active_reservations_for_taker",
     "list_available_items_with_product",
     "list_item_ids_for_product",
     "list_items_with_product_name",
-    "list_lent_out_items_with_product_name",
     "list_product_names_for_items",
     "list_reservations",
-    "register_item",
     "release_reservation",
     "reservation_ids_for_term_select",
     "resolve_owning_inventory",
 ]
-
-
-async def get_or_create_personal_inventory(db: AsyncSession, owner_user_id: uuid.UUID) -> Inventory:
-    return await circulation_service.get_or_create_personal_inventory(db, owner_user_id)
-
-
-async def register_item(
-    db: AsyncSession, inventory_id: uuid.UUID, product_id: uuid.UUID, condition: str
-) -> InventoryItem:
-    return await circulation_service.register_item(db, inventory_id, product_id, condition)
-
-
-async def create_lend_reservation(
-    db: AsyncSession, *, item_id: uuid.UUID, reserved_by_user_id: uuid.UUID, term_id: uuid.UUID
-) -> Reservation:
-    return await circulation_service.create_lend_reservation(
-        db, item_id=item_id, reserved_by_user_id=reserved_by_user_id, term_id=term_id
-    )
 
 
 async def create_reservation(
@@ -102,16 +77,10 @@ async def create_reservation(
     item_id: uuid.UUID,
     reservation_type: ReservationType,
     reserved_by_user_id: uuid.UUID,
-    term_id: uuid.UUID | None = None,
+    term_id: uuid.UUID,
 ) -> Reservation:
-    """Generic reservation creation (`LEND`/`GIFT`/`SWAP` for the exchange
-    mechanism — `create_lend_reservation` above stays as the narrower
-    Pledge-only helper). Used by `app.groups.application.term_item_listings`.
-
-    `term_id` is required for every `reservation_type` except `RETURN`
-    (`CreateReservationRequest`'s own validator enforces this) — no caller
-    in this module creates a bare RETURN through here today, but the
-    parameter stays optional to mirror the schema it wraps."""
+    """`GIFT`/`SWAP` reservation creation for the exchange mechanism. Used
+    by `app.groups.application.term_item_listings`."""
     return await circulation_service.create_reservation(
         db,
         CreateReservationRequest(
@@ -128,13 +97,10 @@ async def get_reservation(db: AsyncSession, reservation_id: uuid.UUID) -> Reserv
 
 
 async def confirm_reservation(db: AsyncSession, reservation_id: uuid.UUID, acting_user_id: uuid.UUID) -> Reservation:
-    """Used by `pledge_fulfillment`/`term_item_listings` to auto-confirm a
-    just-created reservation on behalf of the item's current holder, whose
-    consent already exists — a published `ItemListingPreference`, or the
-    guardian's own act of registering/offering the item for a Pledge —
-    before circulation's own `confirm_reservation` was tightened to require
-    exactly that party (see `standards/backend/security.md`'s "only a
-    reservation's holder/recipient" note)."""
+    """Used by `term_item_listings` to auto-confirm a just-created swap leg
+    on behalf of the item's current holder, whose consent already exists (a
+    published `ItemListingPreference`, or the proposer's own offer) —
+    circulation's `confirm_reservation` requires exactly that party."""
     return await circulation_service.confirm_reservation(db, reservation_id, acting_user_id)
 
 
@@ -206,7 +172,7 @@ async def list_active_reservations_for_taker(
 async def list_active_hand_over_reservations_for_terms(
     db: AsyncSession, term_ids: list[uuid.UUID]
 ) -> list[Reservation]:
-    """Used by `application/term_end_scan.py`: the still-open GIFT/LEND
+    """Used by `application/term_end_scan.py`: the still-open GIFT
     reservations of the just-ended Terms, in one query."""
     return await circulation_service.list_active_hand_over_reservations_for_terms(db, term_ids)
 
@@ -227,7 +193,7 @@ async def list_product_names_for_items(
 
 async def find_personal_inventory(db: AsyncSession, owner_user_id: uuid.UUID) -> Inventory | None:
     """The user's PERSONAL inventory, or `None` if they have never created
-    one — read-only, unlike `get_or_create_personal_inventory`."""
+    one."""
     inventories = await circulation_service.list_inventories(db, owner_user_id)
     return next(
         (inv for inv in inventories if inv.inventory_type == InventoryType.PERSONAL), None
@@ -239,15 +205,6 @@ async def list_items_with_product_name(
 ) -> list[tuple[InventoryItem, str]]:
     """Used by `list_my_inventory_items`: items physically in `inventory_id`."""
     return await circulation_service.list_items_with_product_name(db, inventory_id)
-
-
-async def list_lent_out_items_with_product_name(
-    db: AsyncSession, home_inventory_id: uuid.UUID
-) -> list[tuple[InventoryItem, str]]:
-    """Used by `list_my_lent_out_items`: items lent out of `home_inventory_id`."""
-    return await circulation_service.list_lent_out_items_with_product_name(
-        db, home_inventory_id
-    )
 
 
 async def get_item(db: AsyncSession, item_id: uuid.UUID) -> InventoryItem:
@@ -270,12 +227,7 @@ async def get_item_balance(db: AsyncSession, item_id: uuid.UUID) -> InventoryBal
     return await circulation_service.get_item_balance(db, item_id)
 
 
-async def get_inventory(db: AsyncSession, inventory_id: uuid.UUID) -> Inventory:
-    return await circulation_service.get_inventory(db, inventory_id)
-
-
 async def resolve_owning_inventory(db: AsyncSession, item: InventoryItem) -> Inventory:
-    """The item's permanent owning inventory — not its current physical
-    location, which may be a borrower's VIRTUAL inventory during a loan.
-    See `app.circulation.application.inventory_items.resolve_owning_inventory`."""
+    """The item's permanent owning inventory — see
+    `app.circulation.application.inventory_items.resolve_owning_inventory`."""
     return await circulation_service.resolve_owning_inventory(db, item)

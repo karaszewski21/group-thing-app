@@ -39,7 +39,6 @@ import { INBOX_PATH } from "./utils/messagesPaths";
 const PANEL_VIEWS: readonly Exclude<View, "home">[] = [
   "spotkania",
   "rzeczy",
-  "podarki",
   "profil",
   "ustawienia",
   "miejsca",

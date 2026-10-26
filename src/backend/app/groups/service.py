@@ -1,7 +1,7 @@
 """`app.groups` business logic: Circle CRUD, leadership transfer (strictly
 1:N), membership join/leave (N:N, per individual `GroupRole`), Term/
-NeededItem/Pledge, and the Pledge->Reservation bridge into
-`app.circulation` (one-directional dependency only).
+NeededItem/Pledge, and the item-exchange bridge into `app.circulation`
+(one-directional dependency only).
 
 This module is a flat re-export facade over the `domain/`, `application/`
 and `infrastructure/` layers; `app.groups.router` and the cross-slice
@@ -10,7 +10,7 @@ from here.
 
 Ownership checks the coarse `AUTHORIZATION_MATRIX` can't express (only the
 active organizer of a Circle may create its Terms, only the pledging party
-may withdraw/fulfill their own Pledge, ...) live in `application/`, raising
+may withdraw their own Pledge, ...) live in `application/`, raising
 `AccessDeniedException` — per `standards/backend/security.md`'s guidance.
 """
 
@@ -62,7 +62,6 @@ from app.groups.application.memberships import (
     list_term_attendees,
 )
 from app.groups.application.organizer_page import get_organizer_page, list_organizer_terms
-from app.groups.application.pledge_fulfillment import fulfill_pledge, sync_pledge_fulfillment
 from app.groups.application.pledges import (
     create_pledge,
     get_pledge,
@@ -83,7 +82,6 @@ from app.groups.application.term_item_listings import (
     list_browsable_term_item_listings,
     list_my_active_taken_term_item_listings,
     list_my_inventory_items,
-    list_my_lent_out_items,
     list_my_term_item_listings,
     list_swap_proposals_for_my_item,
     propose_swap,
@@ -136,7 +134,6 @@ __all__ = [
     "create_rsvp",
     "create_term",
     "end_membership",
-    "fulfill_pledge",
     "get_chat_audience_for_party",
     "get_current_leadership",
     "get_family_exchange_offers",
@@ -172,7 +169,6 @@ __all__ = [
     "list_my_active_taken_term_item_listings",
     "list_my_attendances",
     "list_my_inventory_items",
-    "list_my_lent_out_items",
     "list_my_pledges",
     "list_my_term_item_listings",
     "list_needed_item_views",
@@ -195,7 +191,6 @@ __all__ = [
     "set_item_listing_preference",
     "soft_delete_group",
     "soft_delete_needed_item",
-    "sync_pledge_fulfillment",
     "take_item_listing",
     "update_group",
     "update_needed_item",

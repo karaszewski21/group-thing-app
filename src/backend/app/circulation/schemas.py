@@ -10,7 +10,7 @@ from __future__ import annotations
 import uuid
 from datetime import datetime
 
-from pydantic import BaseModel, ConfigDict, Field, model_validator
+from pydantic import BaseModel, ConfigDict, Field
 
 from app.product.schemas import ProductPhotoResponse
 
@@ -118,34 +118,8 @@ class CreateReservationRequest(BaseModel):
     item_id: uuid.UUID
     reservation_type: ReservationType
     reserved_by_user_id: uuid.UUID
-    # Required for every `reservation_type` except `RETURN`, where the
-    # server derives it from the item's most recent LEND leg (see
-    # `create_reservation`) — there's no Term context at a RETURN call site
-    # (e.g. `PanelDataContext.tsx::returnBorrowedItem`).
-    term_id: uuid.UUID | None = None
+    term_id: uuid.UUID
     expires_at: datetime | None = None
-    notes: str | None = Field(default=None, max_length=1000)
-
-    @model_validator(mode="after")
-    def _require_term_id_unless_return(self) -> CreateReservationRequest:
-        if self.reservation_type != ReservationType.RETURN and self.term_id is None:
-            raise ValueError(
-                f"term_id is required for reservation_type={self.reservation_type} "
-                "(only RETURN derives it server-side)"
-            )
-        return self
-
-
-class CreateReturnReservationRequest(BaseModel):
-    """`POST /api/reservations` body — the raw route only creates the
-    borrower's RETURN. `reserved_by_user_id` is derived server-side (the
-    item's home owner) and `term_id` from the item's last fulfilled LEND, so
-    neither is accepted here; extra body fields are ignored.
-    `reservation_type` exists only so that any other value is rejected with
-    403 instead of being silently treated as a RETURN."""
-
-    item_id: uuid.UUID
-    reservation_type: ReservationType = ReservationType.RETURN
     notes: str | None = Field(default=None, max_length=1000)
 
 

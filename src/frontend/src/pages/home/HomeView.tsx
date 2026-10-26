@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom";
-import { BuildingIcon, CalendarPlusIcon, GiftIcon } from "../../components/shared/appIcons";
+import { BuildingIcon, CalendarPlusIcon } from "../../components/shared/appIcons";
 import { HintCard, ItemTile } from "../../components/shared/appComponents";
 import { capitalize, ITEM_MODE_TONE, ITEM_MODES, viewPath } from "../../utils/appHelpers";
 import { MOCK_RECENT_ITEMS } from "../../utils/mocks";
@@ -21,7 +21,6 @@ export function HomeView() {
     myGroups,
     items,
     itemCounts,
-    borrowedItems,
     setView,
     setModal,
     setFirstTermForOrganizer,
@@ -54,7 +53,7 @@ export function HomeView() {
           <div className={`${CARD} flex flex-col items-center gap-2.5 border-dashed px-5 py-6 text-center`}>
             <p className="text-[17px] font-extrabold text-ink">Nie masz jeszcze żadnych rzeczy</p>
             <p className="max-w-68 text-sm leading-snug text-ink-soft">
-              Dodaj coś, co możesz wypożyczyć, oddać albo zamienić z innymi rodzicami.
+              Dodaj coś, co możesz oddać albo zamienić z innymi rodzicami.
             </p>
             <Link
               to="/product/new"
@@ -64,7 +63,7 @@ export function HomeView() {
             </Link>
           </div>
         ) : (
-          <div className="grid grid-cols-3 gap-2.5">
+          <div className="grid grid-cols-2 gap-2.5">
             {ITEM_MODES.map((m) => (
               <button
                 key={m}
@@ -78,22 +77,6 @@ export function HomeView() {
             ))}
           </div>
         )}
-        <button
-          type="button"
-          onClick={() => setView("podarki")}
-          className={`${CARD} mt-2.5 flex w-full items-center gap-3 px-3.5 py-3 text-left transition-colors hover:border-line-strong`}
-        >
-          <span className="flex h-10 w-10 flex-none items-center justify-center rounded-[14px] bg-cream text-ink">
-            <GiftIcon c="currentColor" />
-          </span>
-          <span className="min-w-0 flex-1">
-            <span className="block text-[15px] font-extrabold text-ink">Wypożyczone</span>
-            <span className="block text-[13px] text-ink-soft">
-              {borrowedItems.length === 0 ? "Teraz nic nie pożyczasz od innych." : "Rzeczy pożyczone od innych"}
-            </span>
-          </span>
-          <span className="font-serif text-[22px] font-extrabold text-ink-soft">{borrowedItems.length}</span>
-        </button>
       </section>
 
       <section className="mt-7">

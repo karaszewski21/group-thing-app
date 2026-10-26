@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { getInventoryItemBalance, getMyInventoryItems } from "../../../api/inventories";
 import { serverMessageOr } from "../../../api/problem";
-import type { ReservationType } from "../../../api/reservations";
+import type { ListingMode } from "../../../api/itemListingPreferences";
 import { proposeSwap, takeTermItemListing } from "../../../api/termItemListings";
 import type { AvailableItem } from "../modals/SwapProposeDialog";
 import { useAccountGate, type TermActionDeps } from "./useAccountGate";
@@ -21,7 +21,7 @@ async function fetchMySwapItems(): Promise<AvailableItem[]> {
     }));
 }
 
-/** "Pożycz" / "Zamień" / "Weź na stałe" on an attendee's listed item, for
+/** "Zamień" / "Weź na stałe" on an attendee's listed item, for
  * the term `termId`. A SWAP is always a proposal the owner accepts/rejects:
  * the first `take(itemId, "SWAP")` opens the swap picker (`swap`), and its
  * `confirm` submits. The viewer's swap items load lazily on the first swap
@@ -71,7 +71,7 @@ export function useItemTake({ isLoggedIn, refetch, showToast, termId }: TermActi
     }
   }
 
-  async function performTake(itemId: string, reservationType: ReservationType) {
+  async function performTake(itemId: string, reservationType: ListingMode) {
     if (termId === null) return;
     if (reservationType === "SWAP") {
       await performProposeSwap(itemId);

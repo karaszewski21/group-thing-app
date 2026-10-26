@@ -183,7 +183,7 @@ async def test_familyWithActiveListingPreference_sharesItemTrue(
     )
     item_id = await _register_personal_item(client, guardian_token, "Rowerek")
     await service.set_item_listing_preference(
-        db_session, _principal(guardian_token), item_id, ReservationType.LEND
+        db_session, _principal(guardian_token), item_id, ReservationType.GIFT
     )
 
     summary = await service.get_group_exchange_summary(db_session, group_id, guardian_party_id)

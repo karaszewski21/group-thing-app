@@ -30,17 +30,17 @@ export interface MockWant {
 }
 
 export const MOCK_RECENT_ITEMS: MockItem[] = [
-  { id: "m1", name: "Fotelik 9–18 kg", owner: "Anna K.", mode: "wypożyczę", addedAgo: "2 godz." },
+  { id: "m1", name: "Fotelik 9–18 kg", owner: "Anna K.", mode: "oddam", addedAgo: "2 godz." },
   { id: "m2", name: "Body 74, 5 szt.", owner: "Marta W.", mode: "oddam", addedAgo: "wczoraj" },
   { id: "m3", name: "Klocki drewniane", owner: "Kasia P.", mode: "zamienię", addedAgo: "wczoraj" },
-  { id: "m4", name: "Leżaczek bujany", owner: "Ola S.", mode: "wypożyczę", addedAgo: "2 dni" },
+  { id: "m4", name: "Leżaczek bujany", owner: "Ola S.", mode: "zamienię", addedAgo: "2 dni" },
   { id: "m5", name: "Kalosze 25", owner: "Ewa M.", mode: "oddam", addedAgo: "3 dni" },
   { id: "m6", name: "Rowerek 12\"", owner: "Piotr L.", mode: "zamienię", addedAgo: "4 dni" },
 ];
 
 export const MOCK_SEARCH_ITEMS: MockItem[] = [
   ...MOCK_RECENT_ITEMS,
-  { id: "m7", name: "Wózek spacerowy", owner: "Marta W.", mode: "wypożyczę", addedAgo: "5 dni" },
+  { id: "m7", name: "Wózek spacerowy", owner: "Marta W.", mode: "zamienię", addedAgo: "5 dni" },
   { id: "m8", name: "Wózek głęboki 2w1", owner: "Anna K.", mode: "oddam", addedAgo: "tydzień" },
   { id: "m9", name: "Kurtka zimowa 104", owner: "Ola S.", mode: "zamienię", addedAgo: "tydzień" },
 ];
@@ -53,9 +53,9 @@ export const MOCK_SEARCH_MEETINGS: MockMeeting[] = [
 ];
 
 export const MOCK_WANTS: MockWant[] = [
-  { id: "w1", name: "Fotelik samochodowy 9–18 kg", modes: ["wypożyczę", "oddam"], matches: 2 },
+  { id: "w1", name: "Fotelik samochodowy 9–18 kg", modes: ["oddam"], matches: 2 },
   { id: "w2", name: "Kurtka zimowa 110", modes: ["oddam", "zamienię"], matches: 0 },
-  { id: "w3", name: "Rowerek biegowy", modes: ["wypożyczę", "oddam", "zamienię"], matches: 1 },
+  { id: "w3", name: "Rowerek biegowy", modes: ["oddam", "zamienię"], matches: 1 },
 ];
 
 /** Case- and diacritic-insensitive "contains" for the mock search. */

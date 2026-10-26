@@ -87,16 +87,6 @@ async def find_personal_inventory(db: AsyncSession, owner_user_id: uuid.UUID) ->
     return result.scalars().first()
 
 
-async def find_virtual_inventory(db: AsyncSession, owner_user_id: uuid.UUID) -> Inventory | None:
-    result = await db.execute(
-        select(Inventory).where(
-            Inventory.owner_user_id == owner_user_id,
-            Inventory.inventory_type == InventoryType.VIRTUAL,
-        )
-    )
-    return result.scalars().first()
-
-
 async def get_item(db: AsyncSession, item_id: uuid.UUID) -> InventoryItem | None:
     return await db.get(InventoryItem, item_id)
 
@@ -149,24 +139,6 @@ async def list_items_for_inventory_with_product_name(
         .join(Product, Product.id == InventoryItem.product_id)
         .where(
             InventoryItem.inventory_id == inventory_id,
-            InventoryItem.deleted_at.is_(None),
-        )
-    )
-    return [(item, name) for item, name in result.all()]
-
-
-async def list_lent_out_items_with_product_name(
-    db: AsyncSession, home_inventory_id: uuid.UUID
-) -> list[tuple[InventoryItem, str]]:
-    """Items currently lent out of `home_inventory_id` — physically in a
-    borrower's VIRTUAL inventory, with `home_inventory_id` pointing back
-    home. Same explicit product join as
-    `list_items_for_inventory_with_product_name`."""
-    result = await db.execute(
-        select(InventoryItem, Product.name)
-        .join(Product, Product.id == InventoryItem.product_id)
-        .where(
-            InventoryItem.home_inventory_id == home_inventory_id,
             InventoryItem.deleted_at.is_(None),
         )
     )
@@ -340,16 +312,15 @@ async def list_active_reservations_for_item(db: AsyncSession, item_id: uuid.UUID
 async def list_active_hand_over_reservations_for_terms(
     db: AsyncSession, term_ids: list[uuid.UUID]
 ) -> list[Reservation]:
-    """Every `PENDING`/`CONFIRMED` GIFT or LEND reservation whose `term_id`
-    is one of `term_ids` — the candidates of the term-end prompt. RETURN
-    (inherits its LEND's past `term_id`) and SWAP (prompted via
-    `SwapProposal`) are excluded. Same query shape as
+    """Every `PENDING`/`CONFIRMED` GIFT reservation whose `term_id` is one
+    of `term_ids` — the candidates of the term-end prompt. SWAP (prompted
+    via `SwapProposal`) is excluded. Same query shape as
     `list_active_reservations_for_item`."""
     result = await db.execute(
         select(Reservation)
         .where(
             Reservation.term_id.in_(term_ids),
-            Reservation.reservation_type.in_((ReservationType.GIFT, ReservationType.LEND)),
+            Reservation.reservation_type == ReservationType.GIFT,
             Reservation.status.in_((ReservationStatus.PENDING, ReservationStatus.CONFIRMED)),
         )
         .order_by(Reservation.id)

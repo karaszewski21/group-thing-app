@@ -22,14 +22,6 @@ export interface ReservationResponse {
   notes: string | null;
 }
 
-/** The raw `POST /reservations` route only creates RETURNs; the server
- * derives the recipient (the item's home owner) from the item itself. */
-export interface CreateReturnReservationRequest {
-  item_id: string;
-  reservation_type?: "RETURN";
-  notes?: string | null;
-}
-
 export function getReservations(itemId: string): Promise<ReservationResponse[]> {
   return api.get(`/reservations?item_id=${itemId}`);
 }
@@ -43,20 +35,6 @@ export interface ReservationDetailResponse extends ReservationResponse {
 
 export function getReservation(id: string): Promise<ReservationDetailResponse> {
   return api.get(`/reservations/${id}`);
-}
-
-export function createReservation(
-  request: CreateReturnReservationRequest,
-): Promise<ReservationResponse> {
-  return api.post("/reservations", request);
-}
-
-export function confirmReservation(id: string): Promise<ReservationResponse> {
-  return api.post(`/reservations/${id}/confirm`, undefined);
-}
-
-export function fulfillReservation(id: string): Promise<ReservationResponse> {
-  return api.post(`/reservations/${id}/fulfill`, undefined);
 }
 
 /** `already_resolved` is the explicit discriminator the global pending-

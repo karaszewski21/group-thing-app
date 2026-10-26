@@ -362,7 +362,7 @@ export interface OrganizerTerm {
   attendee_count: number;
 }
 
-export type ExchangeMode = "GIFT" | "SWAP" | "LEND";
+export type ExchangeMode = "GIFT" | "SWAP";
 
 export interface OrganizerExchangeItem {
   item_id: string;

@@ -6,7 +6,6 @@ import { capitalize, ITEM_MODE_TONE, ITEM_MODES, type ItemMode } from "../../uti
 import { MOCK_RECENT_ITEMS, MOCK_SEARCH_MEETINGS } from "../../utils/mocks";
 
 const MODE_HINT: Record<ItemMode, string> = {
-  "wypożyczę": "Rzecz wraca do Ciebie po umówionym czasie.",
   "oddam": "Za darmo — komuś przyda się bardziej.",
   "zamienię": "Na coś, czego potrzebujesz teraz.",
 };
@@ -29,7 +28,7 @@ export function LandingPage() {
             Rzeczy i spotkania Twojej grupy w jednym miejscu
           </h1>
           <p className="relative mt-3 max-w-80 text-base leading-snug opacity-90">
-            Wypożyczaj, oddawaj i zamieniaj dziecięce rzeczy z rodzicami z okolicy. Zapisuj się na zajęcia i umawiaj,
+            Oddawaj i zamieniaj dziecięce rzeczy z rodzicami z okolicy. Zapisuj się na zajęcia i umawiaj,
             kto co przyniesie.
           </p>
           <div className="relative mt-6 flex flex-wrap gap-2.5">
@@ -52,7 +51,7 @@ export function LandingPage() {
           <h2 id="landing-jak" className={SECTION_TITLE}>
             Co możesz zrobić z rzeczą
           </h2>
-          <ul className="mt-4 grid grid-cols-1 gap-2.5 min-[420px]:grid-cols-3">
+          <ul className="mt-4 grid grid-cols-1 gap-2.5 min-[420px]:grid-cols-2">
             {ITEM_MODES.map((m) => (
               <li key={m} className={`rounded-[22px] p-4 ${ITEM_MODE_TONE[m]}`}>
                 <h3 className="text-base font-extrabold">{capitalize(m)}</h3>

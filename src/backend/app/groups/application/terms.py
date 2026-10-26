@@ -202,8 +202,8 @@ async def create_needed_item(
 
 
 async def get_needed_item(db: AsyncSession, needed_item_id: uuid.UUID) -> NeededItem:
-    """ORM getter — kept as the dependency of `pledges` / `pledge_fulfillment`
-    / `_require_needed_item_organizer`. A soft-deleted row, or one whose
+    """ORM getter — kept as the dependency of `pledges` /
+    `_require_needed_item_organizer`. A soft-deleted row, or one whose
     Circle is soft-deleted, is a 404."""
     needed_item = await repository.get_needed_item(db, needed_item_id)
     if needed_item is None:
@@ -271,19 +271,16 @@ async def soft_delete_needed_item(
     db: AsyncSession, needed_item_id: uuid.UUID, caller_party_id: uuid.UUID
 ) -> None:
     """Soft-delete a needed item in one transaction. Blocked (409) if any
-    pledge is already FULFILLED; otherwise every OPEN/CLAIMED pledge is
-    transitioned to WITHDRAWN, its party is notified, and `deleted_at` is
-    stamped."""
+    pledge is FULFILLED (an existing row: the status is no longer set);
+    otherwise every OPEN/CLAIMED pledge is transitioned to WITHDRAWN, its
+    party is notified, and `deleted_at` is stamped."""
     needed_item = await _require_needed_item_organizer(db, needed_item_id, caller_party_id)
 
     pledges = list(
         (await db.execute(select(Pledge).where(Pledge.needed_item_id == needed_item.id))).scalars()
     )
 
-    if any(
-        pledge.status == PledgeStatus.FULFILLED or pledge.resolved_reservation_id is not None
-        for pledge in pledges
-    ):
+    if any(pledge.status == PledgeStatus.FULFILLED for pledge in pledges):
         raise BusinessConflictException("Nie można usunąć — rzecz została już dostarczona")
 
     affected_party_ids = [

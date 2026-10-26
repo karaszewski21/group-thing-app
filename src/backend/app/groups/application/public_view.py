@@ -177,7 +177,6 @@ async def list_my_pledges(db: AsyncSession, party_id: uuid.UUID) -> list[MyPledg
             group_name=group.name,
             occurs_on=term.occurs_on,
             organizer_slug=slug_by_group[cast(uuid.UUID, group.id)],
-            registered=pledge.resolved_reservation_id is not None,
         )
         for pledge, product_name, item_description, term, group in rows
     ]

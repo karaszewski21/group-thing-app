@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../../../auth/AuthContext";
 import type { PublicCircleResponse, PublicItemListingResponse } from "../../../api/groups";
-import type { ReservationType } from "../../../api/reservations";
+import type { ListingMode } from "../../../api/itemListingPreferences";
 import { RsvpDialog } from "../modals/RsvpDialog";
 import { RsvpDialogLoggedIn } from "../modals/RsvpDialogLoggedIn";
 import { AuthGateSheet } from "../modals/AuthGateSheet";
@@ -71,8 +71,8 @@ export function PublicTermView({
 
   function toListingRow(listing: PublicItemListingResponse): ListingRowVM {
     const mergeKey = `listing-${listing.item_id}`;
-    const offeredTypes = listing.offered_types.filter((t): t is ReservationType =>
-      LISTABLE_RESERVATION_TYPES.includes(t as ReservationType),
+    const offeredTypes = listing.offered_types.filter((t): t is ListingMode =>
+      LISTABLE_RESERVATION_TYPES.includes(t as ListingMode),
     );
     return {
       key: listing.item_id,
@@ -228,7 +228,7 @@ export function PublicTermView({
       {itemTake.gateOpen && (
         <AuthGateSheet
           title="Potrzebne konto"
-          message="Żeby wziąć, pożyczyć albo zamienić się rzeczą, musisz mieć konto — dzięki temu wiadomo, kto co bierze, a rzecz trafia do Twoich zbiorów."
+          message="Żeby wziąć albo zamienić się rzeczą, musisz mieć konto — dzięki temu wiadomo, kto co bierze, a rzecz trafia do Twoich zbiorów."
           ariaLabel="Załóż konto, aby wziąć rzecz"
           onClose={itemTake.closeGate}
         />

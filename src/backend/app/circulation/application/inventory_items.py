@@ -117,13 +117,6 @@ async def list_items_with_product_name(
     return await repository.list_items_for_inventory_with_product_name(db, inventory_id)
 
 
-async def list_lent_out_items_with_product_name(
-    db: AsyncSession, home_inventory_id: uuid.UUID
-) -> list[tuple[InventoryItem, str]]:
-    """Joined read backing `GET /api/inventory-items/mine/lent-out`."""
-    return await repository.list_lent_out_items_with_product_name(db, home_inventory_id)
-
-
 async def list_available_items_with_product(
     db: AsyncSession, item_ids: Collection[uuid.UUID]
 ) -> dict[uuid.UUID, AvailableItemView]:
@@ -187,7 +180,7 @@ _item_listing_preferences = table("item_listing_preferences", column("item_id"))
 
 class ItemHasStandingListingException(BusinessConflictException):
     """Raised when deleting an item that still has a standing `app.groups.
-    ItemListingPreference` (an active "zamienię"/"pożyczę"/"oddam" mode,
+    ItemListingPreference` (an active "zamienię"/"oddam" mode,
     possibly with pending `SwapProposal`s against it) — deleting it out from
     under that listing would orphan the preference row and leave any
     proposer's locked counter-offer item stuck with no way to resolve."""
@@ -195,7 +188,7 @@ class ItemHasStandingListingException(BusinessConflictException):
     def __init__(self, item_id: uuid.UUID) -> None:
         super().__init__(
             f"Nie można usunąć rzeczy {item_id} — jest wystawiona jako dostępna do "
-            "wymiany. Wyłącz tryb wypożyczę/oddam/zamienię dla tej rzeczy, zanim ją usuniesz."
+            "wymiany. Wyłącz tryb oddam/zamienię dla tej rzeczy, zanim ją usuniesz."
         )
 
 
@@ -231,8 +224,8 @@ async def update_item(
     | None = None,
 ) -> InventoryItem:
     """PATCH an item's `condition` and/or re-point it to another `product_id`.
-    Allowed regardless of the item's `InventoryBalance` status — a reserved or
-    lent item can still be corrected. When `product_id` actually changes, the
+    Allowed regardless of the item's `InventoryBalance` status — a reserved
+    item can still be corrected. When `product_id` actually changes, the
     flushed re-point is handed to `on_product_changed` (the router injects
     `app.groups`' listing withdraw — circulation never imports groups) before
     the single commit, so a failing hook leaves the re-point uncommitted too."""
@@ -253,7 +246,7 @@ async def update_item(
 async def soft_delete_item(db: AsyncSession, item_id: uuid.UUID, principal: Principal) -> None:
     """Soft-deletes an item by posting its REMOVE movement to EXTERNAL,
     which sets `deleted_at`. Blocked with a 409 when the item's balance is
-    not `AVAILABLE` (a reserved/in-transit/lent item can't be withdrawn from
+    not `AVAILABLE` (a reserved/in-transit item can't be withdrawn from
     circulation), when it still has a standing `app.groups.
     ItemListingPreference` (see `ItemHasStandingListingException`), and, by
     `post_movement`, when the item is away from its home inventory. The 1:1
@@ -264,7 +257,7 @@ async def soft_delete_item(db: AsyncSession, item_id: uuid.UUID, principal: Prin
     balance = await get_item_balance(db, item_id)
     if balance.status != BalanceStatus.AVAILABLE:
         raise BusinessConflictException(
-            "Nie można usunąć — rzecz jest zarezerwowana lub wypożyczona"
+            "Nie można usunąć — rzecz jest zarezerwowana"
         )
     product = await product_service.get_product(db, item.product_id)
     await post_movement(

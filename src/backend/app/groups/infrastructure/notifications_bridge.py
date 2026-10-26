@@ -1,9 +1,8 @@
 """Anti-corruption layer over `app.notifications`: the ONLY `app.groups`
-module that imports the notifications vertical. `application/pledges` and
-`application/pledge_fulfillment` / `application/terms` build the Polish
-message themselves (the groups BC owns its own copy) and stage it through
-this thin pass-through, so it lands atomically with the pledge write on the
-caller's trailing `db.commit()`."""
+module that imports the notifications vertical. `application/terms` and
+`application/term_item_listings` build the Polish message themselves (the
+groups BC owns its own copy) and stage it through this thin pass-through, so
+it lands atomically with the caller's write on its trailing `db.commit()`."""
 
 from __future__ import annotations
 

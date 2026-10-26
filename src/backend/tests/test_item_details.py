@@ -23,12 +23,6 @@ from app.groups.models import Term
 from app.groups.schemas import TakeTermItemListingRequest
 from app.moderation.status import ModerationStatus
 from app.product.models import Product, ProductPhoto
-from tests.test_circulation_ledger import (
-    _confirm_and_fulfill,
-    _register_item_via_api,
-    _register_user,
-    _reserve,
-)
 from tests.test_term_item_listings import (
     _auth,
     _create_circle_and_term,
@@ -270,70 +264,6 @@ async def test_getItemDetails_offeredItemInPendingSwap_returnsProposedSwapThenIn
     assert accepted["code"] == "IN_TRANSIT"
     assert accepted["term_occurs_on"] == term.occurs_on.isoformat()
     assert accepted["counterparty_label"] == lister_name
-
-
-async def test_getItemDetails_lentItem_returnsLentWithDueDateAndBorrowerLabel(
-    client: AsyncClient, db_session: AsyncSession
-) -> None:
-    owner_headers, owner_id = await _register_user(client, "itd.owner6@example.com")
-    borrower_headers, borrower_id = await _register_user(client, "itd.borrower6@example.com")
-    third_headers, _ = await _register_user(client, "itd.third6@example.com")
-    _, item_id = await _register_item_via_api(client, db_session, owner_headers)
-    lend_id = await _reserve(
-        client,
-        db_session,
-        headers=owner_headers,
-        item_id=item_id,
-        reservation_type=ReservationType.LEND,
-        reserved_by_user_id=borrower_id,
-    )
-    await _confirm_and_fulfill(db_session, lend_id, owner_id)
-    borrower_name = await _display_name(client, borrower_headers)
-
-    owner_view = await _details(client, item_id, owner_headers)
-    assert owner_view["is_owner"] is True
-    assert owner_view["status"]["code"] == "LENT"
-    assert owner_view["status"]["due_date"] is not None
-    assert owner_view["status"]["term_occurs_on"] is None
-    assert owner_view["status"]["counterparty_label"] == borrower_name
-
-    borrower_view = await _details(client, item_id, borrower_headers)
-    assert borrower_view["is_owner"] is False
-    assert borrower_view["status"]["counterparty_label"] == "Ty"
-
-    third_view = await _details(client, item_id, third_headers)
-    assert third_view["status"]["counterparty_label"] == "inna rodzina"
-
-
-async def test_getItemDetails_returnConfirmedByBorrower_returnsReturningWithoutTermDate(
-    client: AsyncClient, db_session: AsyncSession
-) -> None:
-    owner_headers, owner_id = await _register_user(client, "itd.owner7@example.com")
-    borrower_headers, borrower_id = await _register_user(client, "itd.borrower7@example.com")
-    _, item_id = await _register_item_via_api(client, db_session, owner_headers)
-    lend_id = await _reserve(
-        client,
-        db_session,
-        headers=owner_headers,
-        item_id=item_id,
-        reservation_type=ReservationType.LEND,
-        reserved_by_user_id=borrower_id,
-    )
-    await _confirm_and_fulfill(db_session, lend_id, owner_id)
-    created = await client.post(
-        "/api/reservations", json={"item_id": str(item_id)}, headers=borrower_headers
-    )
-    assert created.status_code == 201
-    confirmed = await client.post(
-        f"/api/reservations/{created.json()['id']}/confirm", headers=borrower_headers
-    )
-    assert confirmed.status_code == 200
-
-    status = (await _details(client, item_id, borrower_headers))["status"]
-
-    assert status["code"] == "RETURNING"
-    assert status["term_occurs_on"] is None
-    assert status["counterparty_label"] == await _display_name(client, owner_headers)
 
 
 async def test_getItemDetails_malformedItemId_returns400(client: AsyncClient) -> None:

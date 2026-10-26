@@ -44,7 +44,7 @@ export function AddView() {
         <span aria-hidden="true" className="absolute -top-10 -right-10 h-35 w-35 rounded-full bg-accent" />
         <h2 className="relative font-serif text-2xl font-extrabold">Rzecz</h2>
         <p className="relative mt-1 max-w-58 text-[15px] leading-snug opacity-90">
-          Zrób zdjęcie i zdecyduj: wypożyczysz, oddasz czy zamienisz.
+          Zrób zdjęcie i zdecyduj: oddasz czy zamienisz.
         </p>
         <Link
           to="/product/new"

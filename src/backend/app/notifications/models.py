@@ -35,20 +35,19 @@ def _enum_column(enum_cls: type[enum.StrEnum], length: int) -> Enum:
 
 
 class NotificationKind(enum.StrEnum):
-    """What happened. The recipient differs by kind: the first three go to a
+    """What happened. The recipient differs by kind: the first two go to a
     Term's organizer, `NEEDED_ITEM_REMOVED` goes to the affected pledger,
     `TERM_ITEM_LISTING_TAKEN` goes to the lister whose offered item was just
     taken by another attendee, `ITEM_RESERVED_FOR_PICKUP` goes to the taker
     of a term listing at take time, `SWAP_PROPOSED` goes to the target listing's
     owner, `SWAP_ACCEPTED`/`SWAP_REJECTED` go back to the swap's proposer,
     `TERM_CONFIRMATION_NEEDED` goes to both parties of an `ACCEPTED` swap
-    or of a still-open GIFT/LEND reservation once its Term ends, and
+    or of a still-open GIFT reservation once its Term ends, and
     `TERM_ALREADY_RESOLVED` goes to the other party in a swap/giveaway when
     they act after the first party already resolved the same transaction."""
 
     PLEDGE_CREATED = "PLEDGE_CREATED"
     PLEDGE_WITHDRAWN = "PLEDGE_WITHDRAWN"
-    PLEDGE_ITEM_REGISTERED = "PLEDGE_ITEM_REGISTERED"
     NEEDED_ITEM_REMOVED = "NEEDED_ITEM_REMOVED"
     TERM_ITEM_LISTING_TAKEN = "TERM_ITEM_LISTING_TAKEN"
     ITEM_RESERVED_FOR_PICKUP = "ITEM_RESERVED_FOR_PICKUP"
@@ -76,7 +75,7 @@ class Notification(BaseEntity):
     link_path: Mapped[str | None] = mapped_column(String(255), nullable=True)
     read_at: Mapped[datetime | None] = mapped_column(DateTime(), nullable=True)
     # Loose cross-BC pointer (no FK, per `standards/backend/models.md`'s
-    # `ItemListingPreference`/`Pledge.resolved_reservation_id` convention) at
+    # `ItemListingPreference.item_id` convention) at
     # `app.groups.models.SwapProposal.id`. Populated only for `SWAP_PROPOSED`
     # so the frontend's global pending-actions modal can call
     # `acceptSwapProposal`/`rejectSwapProposal` directly instead of
@@ -86,7 +85,7 @@ class Notification(BaseEntity):
     )
     # Loose cross-BC pointer (no FK, same convention as `proposal_id`) at
     # `app.circulation.models.Reservation.id`. Populated for
-    # `TERM_CONFIRMATION_NEEDED` raised for a GIFT or LEND reservation;
+    # `TERM_CONFIRMATION_NEEDED` raised for a GIFT reservation;
     # `None` for every other kind (including the SWAP prompt).
     reservation_id: Mapped[uuid.UUID | None] = mapped_column(
         postgresql.UUID(as_uuid=True), nullable=True

@@ -170,37 +170,6 @@ async def test_scanForTermEnded_deletedGroupTerm_stillProcessed(
     assert payloads[0]["group_name"] == "Krąg sdk-scan"
 
 
-async def test_syncPledgeFulfillment_onDeletedGroup_stillWorks(
-    client: AsyncClient, db_session: AsyncSession
-) -> None:
-    org_token, _ = await _register(client, "ORGANIZER", "sdk.sync.org@example.com")
-    group_id, term_id = await _create_circle_and_term(client, org_token, "sdk-sync")
-    need_id = await _needed_item(client, org_token, term_id, "Sdk skrzypce")
-    guest_token, _ = await _register(client, "GUEST", "sdk.sync.guest@example.com")
-    await _rsvp(client, guest_token, group_id, term_id)
-    pledge = await client.post(
-        "/api/pledges", json={"needed_item_id": str(need_id)}, headers=_auth(guest_token)
-    )
-    assert pledge.status_code == 201
-    pledge_id = pledge.json()["id"]
-    fulfilled = await client.post(
-        f"/api/pledges/{pledge_id}/fulfill", json={"condition": "GOOD"}, headers=_auth(guest_token)
-    )
-    assert fulfilled.status_code == 200, fulfilled.text
-    await _end_term(db_session, term_id)
-    confirmed = await client.post(
-        f"/api/reservations/{fulfilled.json()['resolved_reservation_id']}/confirm-transaction",
-        headers=_auth(guest_token),
-    )
-    assert confirmed.status_code == 200, confirmed.text
-
-    await _soft_delete_row(db_session, group_id)
-
-    synced = await client.post(f"/api/pledges/{pledge_id}/sync", headers=_auth(guest_token))
-    assert synced.status_code == 200, synced.text
-    assert synced.json()["status"] == "FULFILLED"
-
-
 async def test_listSwapProposalsForMyItem_onDeletedGroup_stillAnswers(
     client: AsyncClient, db_session: AsyncSession
 ) -> None:

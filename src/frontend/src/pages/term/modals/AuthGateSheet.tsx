@@ -51,7 +51,7 @@ export function AuthGateLinks({ onGuest }: { onGuest?: () => void }) {
 /**
  * Bottom sheet shown when an ANONYMOUS visitor on a term page attempts an
  * action that needs (or offers) an account — RSVP, "Ja to przyniosę",
- * "Pożycz"/"Zamień"/"Weź na stałe". `onGuest` adds the "as a guest" path,
+ * "Zamień"/"Weź na stałe". `onGuest` adds the "as a guest" path,
  * which only the RSVP flow has. Tailwind for layout/spacing and the
  * shared `uiStyles` buttons, to match the rest of the term page.
  */

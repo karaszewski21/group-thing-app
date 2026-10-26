@@ -1,7 +1,7 @@
 """`app.groups` bounded context: Circles (`Group`), the person-side roles
 played toward a Circle (`GroupRole`), the two relationships built on those
-roles (`Leadership`, `Membership`), and the Term/NeededItem/Pledge bridge
-into `app.circulation` (unchanged contract — see `Pledge`'s docstring).
+roles (`Leadership`, `Membership`), Term/NeededItem/Pledge, and the
+item-listing exchange bridge into `app.circulation`.
 
 `leaderships` lives in this module (not `app.users`) because this module
 owns the invariant it enforces — "at most one active leader per Circle" —
@@ -236,13 +236,11 @@ class NeededItem(BaseEntity):
 
 
 class Pledge(BaseEntity):
-    """ "I'll bring it" declaration bridging a Party to a NeededItem.
-    Converts into a `circulation.Reservation` only once a concrete
-    `InventoryItem` is registered. `pledged_by_party_id` is a cross-module
-    reference straight to `parties.id` (not to any one BC's role/profile
-    table) — the pledging identity, resolved to a `users.id` via
-    `app.users.service.get_profile_by_party` only at the fulfillment step,
-    where `app.circulation` actually needs a raw account id."""
+    """ "I'll bring it" declaration bridging a Party to a NeededItem — a
+    pure declaration: no item is registered, reserved or moved.
+    `pledged_by_party_id` is a cross-module reference straight to
+    `parties.id` (not to any one BC's role/profile table). `FULFILLED` is no
+    longer set but stays loadable for existing rows."""
 
     __tablename__ = "pledges"
 
@@ -257,12 +255,6 @@ class Pledge(BaseEntity):
         nullable=False,
     )
     status: Mapped[PledgeStatus] = mapped_column(_enum_column(PledgeStatus, 20), nullable=False)
-    # Deliberate loose reference into `app.circulation.Reservation` — no FK,
-    # mirrors `app.plugin.models.PluginObject.entity_id`'s precedent for a
-    # cross-bounded-context pointer.
-    resolved_reservation_id: Mapped[uuid.UUID | None] = mapped_column(
-        postgresql.UUID(as_uuid=True), nullable=True
-    )
 
 
 class TermAttendance(BaseEntity):
@@ -295,7 +287,7 @@ class TermAttendance(BaseEntity):
 
 
 class ItemListingPreference(BaseEntity):
-    """A standing "I'll lend/swap/gift this item" mode set on one of the
+    """A standing "I'll swap/gift this item" mode set on one of the
     owner's own items from `Moje rzeczy` — not scoped to any Term. Whether
     it's actually visible/takeable for a given Term is derived at read time
     (`application/term_item_listings.py`) from the owner's `TermAttendance`
@@ -303,8 +295,7 @@ class ItemListingPreference(BaseEntity):
     `InventoryBalance`, never cached here — same "derived, never stored"
     principle the exchange mechanism already applies to takeability.
     `item_id` is a deliberate loose pointer into
-    `app.circulation.InventoryItem`, mirroring `Pledge.resolved_reservation_id`
-    — no `ForeignKeyConstraint`, per `standards/backend/models.md`'s
+    `app.circulation.InventoryItem` — no `ForeignKeyConstraint`, per `standards/backend/models.md`'s
     cross-module-reference rule. One row per item; clearing the mode deletes
     the row rather than nulling it out, and so does a fulfilled GIFT/SWAP
     (`confirm_transaction`) — the item then belongs to someone else, who
@@ -312,9 +303,8 @@ class ItemListingPreference(BaseEntity):
 
     __tablename__ = "item_listing_preferences"
 
-    # Loose cross-BC pointer into `app.circulation.InventoryItem` — no FK,
-    # same precedent as `Pledge.resolved_reservation_id`. Unique: at most one
-    # standing preference per item.
+    # Loose cross-BC pointer into `app.circulation.InventoryItem` — no FK.
+    # Unique: at most one standing preference per item.
     item_id: Mapped[uuid.UUID] = mapped_column(
         postgresql.UUID(as_uuid=True), nullable=False, unique=True
     )
@@ -323,7 +313,7 @@ class ItemListingPreference(BaseEntity):
         ForeignKey("parties.id", name="fk_item_listing_preferences_owner_party_id_parties"),
         nullable=False,
     )
-    # One of `ReservationType`'s LEND/GIFT/SWAP values (validated in
+    # One of `ReservationType`'s GIFT/SWAP values (validated in
     # schemas.py against `_OFFERABLE_RESERVATION_TYPES`) — plain string, not
     # the circulation enum type itself, per the module-boundary rule.
     mode: Mapped[str] = mapped_column(String(20), nullable=False)
@@ -337,8 +327,8 @@ class SwapProposal(BaseEntity):
     own leg is only created once they `ACCEPT`. `listing_item_id`,
     `offered_item_id`, and `proposer_reservation_id` are deliberate loose
     pointers into `app.circulation` — no `ForeignKeyConstraint` — mirroring
-    `ItemListingPreference.item_id`/`Pledge.resolved_reservation_id`'s
-    cross-BC-pointer convention, per `standards/backend/models.md`.
+    `ItemListingPreference.item_id`'s cross-BC-pointer convention, per
+    `standards/backend/models.md`.
     `term_ended_notified_at` is the idempotency marker the term-end scanner
     (Group 4) sets the first time it notifies about this proposal's swap
     legs once `ACCEPTED` — giveaway (GIFT) reservations have no
@@ -376,9 +366,8 @@ class SwapProposal(BaseEntity):
 
 class GiveawayTermEndMarker(BaseEntity):
     """Idempotency marker for the term-end scanner
-    (`application/term_end_scan`) on a GIFT or LEND `Reservation` (the name
-    predates LEND coverage). This groups-owned row carries the "already
-    notified" flag so circulation's `Reservation` needs no column for it.
+    (`application/term_end_scan`) on a GIFT `Reservation`. This groups-owned
+    row carries the "already notified" flag so circulation's `Reservation` needs no column for it.
     `reservation_id` is a loose cross-BC pointer — no FK, same precedent as
     `SwapProposal`'s `*_item_id`/`proposer_reservation_id` fields."""
 

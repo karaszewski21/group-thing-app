@@ -1,7 +1,6 @@
 """Pure, already-standalone circulation-domain helpers: the party-to-
-reservation authorization predicates, the exchange-shape rule, the
-raw-route reservation-type rule and the transaction-number generator. No
-`db`, no ORM queries."""
+reservation authorization predicates, the exchange-shape rule and the
+transaction-number generator. No `db`, no ORM queries."""
 
 from __future__ import annotations
 
@@ -32,12 +31,9 @@ def _require_party_to_any_reservation(
 
 
 def _require_exchange_legs(reservations: Sequence[Reservation]) -> None:
-    """An exchange is a single LEND or GIFT leg, or exactly two SWAP legs
-    paired with each other."""
-    if len(reservations) == 1 and reservations[0].reservation_type in (
-        ReservationType.LEND,
-        ReservationType.GIFT,
-    ):
+    """An exchange is a single GIFT leg, or exactly two SWAP legs paired
+    with each other."""
+    if len(reservations) == 1 and reservations[0].reservation_type == ReservationType.GIFT:
         return
     if len(reservations) == 2:
         first, second = reservations
@@ -48,7 +44,7 @@ def _require_exchange_legs(reservations: Sequence[Reservation]) -> None:
         ):
             return
     raise BusinessConflictException(
-        "Wymiana to jedna rezerwacja LEND/GIFT albo dwie sparowane rezerwacje SWAP"
+        "Wymiana to jedna rezerwacja GIFT albo dwie sparowane rezerwacje SWAP"
     )
 
 
@@ -58,24 +54,14 @@ def _require_holder_to_confirm(holder_user_id: uuid.UUID, acting_user_id: uuid.U
     who proposed it — see `create_reservation`/`take_item_listing`), and
     `holder_user_id` is always the party *giving it up* — two always-
     distinct roles (the fulfilment's movement always leaves from the
-    holder's inventory account, e.g. a LEND moves the item from the
-    holder's PERSONAL to `reserved_by`'s VIRTUAL). Restricting `confirm`
+    holder's inventory account, e.g. a GIFT moves the item from the
+    holder's PERSONAL to `reserved_by`'s PERSONAL). Restricting `confirm`
     to the holder alone therefore always requires the *other* side to
     agree, for every reservation type — including each leg of a `SWAP`,
     where each leg's holder is whoever currently possesses that specific
     item."""
     if acting_user_id != holder_user_id:
         raise AccessDeniedException
-
-
-def require_raw_route_reservation_type(reservation_type: ReservationType) -> None:
-    """The raw `/api/reservations` write routes only serve the borrower's
-    one-sided RETURN ("Oddaję"). Every other type is created and resolved by
-    the groups exchange flow (take -> Term ends -> `confirm-transaction`),
-    so the raw routes reject it outright. Applied by the router only — the
-    shared transitions stay type-agnostic because groups drives them too."""
-    if reservation_type != ReservationType.RETURN:
-        raise AccessDeniedException("Surowe trasy rezerwacji obsługują tylko zwrot (RETURN)")
 
 
 def _next_transaction_number() -> str:

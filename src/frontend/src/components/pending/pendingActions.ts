@@ -24,7 +24,7 @@ export interface PendingSwapAction {
 
 /** The post-term-end confirm-race prompt — fully wired to
  * `confirmTransaction`. `reservationId` is `Notification.reservation_id`
- * (set for GIFT/LEND prompts, incl. Pledge-LEND); when it is `null` (SWAP,
+ * (set for GIFT prompts); when it is `null` (SWAP,
  * older notifications) the reservation is resolved client-side from the
  * term's `getMyTermItemListings`/`getMyTakenTermItemListings` (see
  * `resolvePendingReservationId`). `proposalId` is set for swap prompts. */
@@ -100,10 +100,10 @@ export function confirmActionTitle(action: PendingConfirmAction): string {
  * still works for the post-term-end `TERM_CONFIRMATION_NEEDED` prompt.
  *
  * Then checks the lister/owner side of the caller's own listings: an
- * accepted SWAP resolves via its paired leg, while GIFT/LEND resolve
+ * accepted SWAP resolves via its paired leg, while GIFT resolves
  * directly to the caller's own reservation id (symmetric to the SWAP
- * branch — the owner IS the party who must confirm handoff for those
- * types, there's no separate paired reservation to look up).
+ * branch — the owner IS the party who must confirm handoff for a gift,
+ * there's no separate paired reservation to look up).
  *
  * `null` when neither side applies (nothing left to confirm, or it
  * doesn't belong to this caller). */
@@ -127,7 +127,7 @@ export async function resolvePendingReservationId(termId: string, myPartyId: str
         return paired.id;
       }
     } else if (
-      (primary.reservation_type === "GIFT" || primary.reservation_type === "LEND") &&
+      primary.reservation_type === "GIFT" &&
       primary.status !== "FULFILLED" &&
       primary.status !== "CANCELLED"
     ) {

@@ -44,7 +44,7 @@ async def test_itemListingPreference_roundTripsAllColumns_viaRawInsertAndSelect(
         insert(ItemListingPreference.__table__).values(
             item_id=item_id,
             owner_party_id=owner_party_id,
-            mode="LEND",
+            mode="GIFT",
             created_at=now,
             updated_at=now,
         )
@@ -59,7 +59,7 @@ async def test_itemListingPreference_roundTripsAllColumns_viaRawInsertAndSelect(
 
     assert row.item_id == item_id
     assert row.owner_party_id == owner_party_id
-    assert row.mode == "LEND"
+    assert row.mode == "GIFT"
 
 
 async def test_itemListingPreference_mode_persistsAsString(db_session: AsyncSession) -> None:

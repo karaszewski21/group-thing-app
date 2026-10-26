@@ -24,7 +24,6 @@ from app.groups.schemas import (
     CancelTransactionResponse,
     ConfirmTransactionResponse,
     ItemListingPreferenceResponse,
-    LentOutItemResponse,
     MyInventoryItemResponse,
     ProposeSwapRequest,
     SetItemListingPreferenceRequest,
@@ -62,13 +61,6 @@ async def list_my_inventory_items(
     db: DbSession, principal: ReadPrincipal, storage: Storage
 ) -> list[MyInventoryItemResponse]:
     return await service.list_my_inventory_items(db, principal, storage)
-
-
-@router.get("/api/inventory-items/mine/lent-out", response_model=list[LentOutItemResponse])
-async def list_my_lent_out_items(
-    db: DbSession, principal: ReadPrincipal
-) -> list[LentOutItemResponse]:
-    return await service.list_my_lent_out_items(db, principal)
 
 
 # Declared before `POST /api/term-item-listings/{item_id}/take` so the

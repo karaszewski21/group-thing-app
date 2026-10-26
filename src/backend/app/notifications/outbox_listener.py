@@ -86,8 +86,8 @@ def _term_suffix(payload: dict[str, Any]) -> str | None:
 
 
 async def _handle_term_ended_giveaway(db: AsyncSession, payload: dict[str, Any]) -> None:
-    """One `Notification` per party (the giver and the taker) of a GIFT or
-    LEND `Reservation` whose Term just ended — same payload-driven, fully
+    """One `Notification` per party (the giver and the taker) of a GIFT
+    `Reservation` whose Term just ended — same payload-driven, fully
     pre-rendered message shape as `_handle_pledge_claimed`. Both carry
     `reservation_id` so the client can confirm that reservation directly."""
     link_path = payload["link_path"]

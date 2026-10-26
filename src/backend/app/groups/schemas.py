@@ -7,7 +7,7 @@ import uuid
 from datetime import date, datetime
 from typing import Literal
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from app.circulation.models import ItemCondition, ReservationType
 from app.users.schemas import EMAIL_PATTERN, normalize_email
@@ -21,11 +21,8 @@ from .models import (
     SwapProposalStatus,
 )
 
-# Listing-time offer subset — never RETURN (a lifecycle transition, not a
-# listing-time choice; see `ItemListingPreference.mode`'s docstring).
-_OFFERABLE_RESERVATION_TYPES = frozenset(
-    {ReservationType.LEND, ReservationType.SWAP, ReservationType.GIFT}
-)
+# Listing-time offer subset: an item is only ever offered as a gift or a swap.
+_OFFERABLE_RESERVATION_TYPES = frozenset({ReservationType.SWAP, ReservationType.GIFT})
 
 
 class GroupResponse(BaseModel):
@@ -228,49 +225,12 @@ class PledgeResponse(BaseModel):
     needed_item_id: uuid.UUID
     pledged_by_party_id: uuid.UUID
     status: PledgeStatus
-    resolved_reservation_id: uuid.UUID | None
     created_at: datetime
     updated_at: datetime
 
 
 class CreatePledgeRequest(BaseModel):
     needed_item_id: uuid.UUID
-
-
-class FulfillPledgeRequest(BaseModel):
-    """The concrete item the pledging guardian brings, in one of two modes
-    (exactly one):
-
-    - **new item** — `condition` (+ optional `product_id` to override the
-      need's product); a fresh `InventoryItem` is registered in the
-      guardian's personal inventory.
-    - **owned item** — `inventory_item_id` of a thing already on the
-      guardian's shelf (must be `AVAILABLE`); no new item is created.
-
-    Either way the bridging `LEND` `Reservation` opens toward the organizer.
-    """
-
-    condition: ItemCondition | None = None
-    product_id: uuid.UUID | None = None
-    inventory_item_id: uuid.UUID | None = None
-
-    @model_validator(mode="after")
-    def _exactly_one_mode(self) -> FulfillPledgeRequest:
-        owned = self.inventory_item_id is not None
-        new_item = self.condition is not None
-        if owned and (new_item or self.product_id is not None):
-            raise ValueError(
-                "Podaj albo inventory_item_id (rzecz z Twoich zbiorów), albo condition "
-                "(nowa rzecz) — nie oba naraz"
-            )
-        if not owned and not new_item:
-            raise ValueError(
-                "Podaj condition (nowa rzecz) albo inventory_item_id (rzecz z Twoich zbiorów)"
-            )
-        return self
-
-
-# --- Public circle-view (unauthenticated, `GET /api/groups/public/{id}`) -------
 
 
 class PublicNeededItemResponse(BaseModel):
@@ -381,7 +341,7 @@ class GroupAccessResponse(BaseModel):
 # Anonymous read model: explicit allowlisted fields only, never a person's
 # name, party id or child data.
 
-ExchangeMode = Literal["GIFT", "SWAP", "LEND"]
+ExchangeMode = Literal["GIFT", "SWAP"]
 
 
 class OrganizerNextTermResponse(BaseModel):
@@ -411,7 +371,6 @@ class OrganizerTermResponse(BaseModel):
 class OrganizerExchangeCounts(BaseModel):
     GIFT: int
     SWAP: int
-    LEND: int
 
 
 class OrganizerExchangeItemResponse(BaseModel):
@@ -517,9 +476,7 @@ class GroupMemberResponse(BaseModel):
 class MyPledgeResponse(BaseModel):
     """One row of the caller's own "rzeczy, które obiecałem przynieść" list —
     carries enough to render a panel tile and rebuild the public-term link
-    (`organizer_slug` + `group_id` + `term_id`). `registered` is `True` once
-    a concrete `InventoryItem` + `LEND` `Reservation` have been opened
-    (`resolved_reservation_id` set) — i.e. "Rezygnuję" is no longer offered."""
+    (`organizer_slug` + `group_id` + `term_id`)."""
 
     pledge_id: uuid.UUID
     status: PledgeStatus
@@ -530,7 +487,6 @@ class MyPledgeResponse(BaseModel):
     group_name: str
     occurs_on: datetime
     organizer_slug: str
-    registered: bool
 
 
 class MyAttendanceResponse(BaseModel):
@@ -603,10 +559,7 @@ class SetItemListingPreferenceRequest(BaseModel):
     @classmethod
     def _validate_mode(cls, value: ReservationType | None) -> ReservationType | None:
         if value is not None and value not in _OFFERABLE_RESERVATION_TYPES:
-            raise ValueError(
-                "mode may only be LEND, SWAP or GIFT — RETURN is a lifecycle transition, "
-                "never a listing-time choice"
-            )
+            raise ValueError("mode may only be SWAP or GIFT")
         return value
 
 
@@ -623,8 +576,7 @@ class ItemListingPreferenceResponse(BaseModel):
 
 class MyInventoryItemResponse(BaseModel):
     """One row of `GET /api/inventory-items/mine` — an item physically in
-    the caller's PERSONAL inventory (a lent-out one is listed by
-    `GET /api/inventory-items/mine/lent-out` instead) together with its
+    the caller's PERSONAL inventory together with its
     standing `ItemListingPreference.mode` (`None` = not offered), so
     `Moje rzeczy` only ever shows and seeds toggles for items at home.
     `photos_moderation_pending` is true while the item's product has a
@@ -644,20 +596,6 @@ class MyInventoryItemResponse(BaseModel):
     listing_mode: ReservationType | None
     photos_moderation_pending: bool
     thumb_url: str | None = None
-
-
-class LentOutItemResponse(BaseModel):
-    """One row of `GET /api/inventory-items/mine/lent-out` — one of the
-    caller's items currently sitting in a borrower's VIRTUAL inventory,
-    with the borrower's display name and the loan's
-    `InventoryBalance.due_date`."""
-
-    id: uuid.UUID
-    product_id: uuid.UUID
-    product_name: str
-    condition: ItemCondition
-    lent_to_display_name: str
-    lent_due_date: datetime | None
 
 
 class BrowseTermItemListingResponse(BaseModel):
@@ -688,7 +626,7 @@ class TakeTermItemListingRequest(BaseModel):
     """`term_id` is the Term context the take happens in (eligibility,
     notification link) — the listing itself is Term-independent. SWAP no
     longer goes through this route (see `take_item_listing`'s docstring) —
-    `reservation_type` is only ever `LEND`/`GIFT` here; a SWAP take is
+    `reservation_type` is only ever `GIFT` here; a SWAP take is
     rejected by `take_item_listing` itself, so this schema no longer carries
     a SWAP-specific `offered_item_id` field (that now lives on
     `ProposeSwapRequest`, dispatched through the dedicated propose/accept/

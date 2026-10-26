@@ -12,11 +12,11 @@ const VISIBLE_LISTINGS = 3;
 export interface AttendeeVM {
   partyId: string;
   name: string;
-  /** Items this person offers to lend / swap / give away on this Term. */
+  /** Items this person offers to swap / give away on this Term. */
   listings: ListingRowVM[];
 }
 
-/** A take action wears its exchange mode's tone (Pożycz / Zamień / Weź na stałe). */
+/** A take action wears its exchange mode's tone (Zamień / Weź na stałe). */
 function actionTone(key: string): string {
   return EXCHANGE_MODE_TONE[key as ExchangeMode] ?? EXCHANGE_MODE_TONE.GIFT;
 }

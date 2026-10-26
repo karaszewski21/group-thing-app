@@ -3,27 +3,23 @@ driven `InventoryBalance` field-mutation cascades (kept inline per D2).
 
 `_confirm` / `_cancel` / `_fulfill` only mutate and flush; the public
 wrappers commit, except `release_reservation`, which only flushes.
-`_fulfill` returns the `MovementLeg` of the fulfilment and the wrapper
-posts it through `post_movement`, the only code that changes an
-item's location. `fulfill_exchange` / `cancel_exchange` resolve a whole
-exchange (a LEND/GIFT leg or both SWAP legs) in one commit."""
+`_fulfill` returns the `MovementLeg` of the fulfilment and
+`fulfill_exchange` posts it through `post_movement`, the only code that
+changes an item's location. `fulfill_exchange` / `cancel_exchange` resolve
+a whole exchange (a GIFT leg or both SWAP legs) in one commit."""
 
 from __future__ import annotations
 
 import uuid
 from collections.abc import Sequence
-from datetime import datetime, timedelta
+from datetime import datetime
 from typing import cast
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.circulation.application.inventory import (
-    get_or_create_personal_inventory,
-    get_or_create_virtual_inventory,
-)
+from app.circulation.application.inventory import get_or_create_personal_inventory
 from app.circulation.application.inventory_items import get_item, get_item_balance
 from app.circulation.application.reservations import _current_holder_user_id, get_reservation
-from app.circulation.domain.constants import _DEFAULT_LEND_DAYS
 from app.circulation.domain.reservation_rules import (
     _require_exchange_legs,
     _require_holder_to_confirm,
@@ -74,13 +70,8 @@ async def _cancel(db: AsyncSession, reservation: Reservation, acting_user_id: uu
     reservation.status = ReservationStatus.CANCELLED
     balance = await get_item_balance(db, cast(uuid.UUID, item.id))
     balance.reserved_at = None
-    if reservation.reservation_type == ReservationType.RETURN:
-        # The item is still in the borrower's VIRTUAL inventory, so the loan
-        # simply continues — same `lent_at`/`due_date`.
-        balance.status = BalanceStatus.LENT
-    else:
-        balance.status = BalanceStatus.AVAILABLE
-        balance.due_date = None
+    balance.status = BalanceStatus.AVAILABLE
+    balance.due_date = None
     await db.flush()
 
 
@@ -88,8 +79,10 @@ async def _fulfill(
     db: AsyncSession, reservation: Reservation, acting_user_id: uuid.UUID, now: datetime
 ) -> MovementLeg:
     """Marks the reservation FULFILLED, updates the balance and returns the
-    leg moving the item from its current inventory to the reservation's
-    target. The item's location itself is changed by `post_movement`."""
+    leg handing the item over to the recipient's PERSONAL inventory (a GIFT
+    or SWAP is a permanent change of possession; `_require_exchange_legs`
+    has already rejected every other type). The item's location itself is
+    changed by `post_movement`."""
     if reservation.status != ReservationStatus.CONFIRMED:
         raise BusinessConflictException(f"Reservation {reservation.id} is not CONFIRMED")
     item, holder_user_id = await _load_reservation_for_transition(db, reservation)
@@ -98,33 +91,11 @@ async def _fulfill(
     balance = await get_item_balance(db, cast(uuid.UUID, item.id))
     from_inventory_id = item.inventory_id
 
-    if reservation.reservation_type == ReservationType.LEND:
-        if item.home_inventory_id is not None:
-            raise BusinessConflictException(
-                f"InventoryItem {item.id} is already on loan and cannot be lent again"
-            )
-        target = await get_or_create_virtual_inventory(db, reservation.reserved_by_user_id)
-        to_inventory_id = cast(uuid.UUID, target.id)
-        balance.status = BalanceStatus.LENT
-        balance.lent_at = now
-        balance.due_date = reservation.expires_at or (now + timedelta(days=_DEFAULT_LEND_DAYS))
-    elif reservation.reservation_type == ReservationType.RETURN:
-        if item.home_inventory_id is None:
-            raise BusinessConflictException(
-                f"InventoryItem {item.id} is not on loan and has no home to return to"
-            )
-        to_inventory_id = item.home_inventory_id
-        balance.status = BalanceStatus.AVAILABLE
-        balance.returned_at = now
-        balance.reserved_at = None
-        balance.lent_at = None
-        balance.due_date = None
-    else:  # SWAP, GIFT: permanent change of possession
-        target = await get_or_create_personal_inventory(db, reservation.reserved_by_user_id)
-        to_inventory_id = cast(uuid.UUID, target.id)
-        balance.status = BalanceStatus.AVAILABLE
-        balance.reserved_at = None
-        balance.due_date = None
+    target = await get_or_create_personal_inventory(db, reservation.reserved_by_user_id)
+    to_inventory_id = cast(uuid.UUID, target.id)
+    balance.status = BalanceStatus.AVAILABLE
+    balance.reserved_at = None
+    balance.due_date = None
 
     reservation.status = ReservationStatus.FULFILLED
     await db.flush()
@@ -164,23 +135,6 @@ async def release_reservation(
     and commit or roll back everything together."""
     reservation = await get_reservation(db, reservation_id)
     await _cancel(db, reservation, acting_user_id)
-    return reservation
-
-
-async def fulfill_reservation(
-    db: AsyncSession, reservation_id: uuid.UUID, acting_user_id: uuid.UUID
-) -> Reservation:
-    """Fulfils a single-leg LEND, RETURN or GIFT and posts its movement in
-    the same commit. A SWAP leg is rejected with 409, because an exchange
-    is only ever fulfilled as a pair."""
-    reservation = await get_reservation(db, reservation_id)
-    if reservation.reservation_type == ReservationType.SWAP:
-        raise BusinessConflictException("Zamiana realizowana jest wyłącznie parą")
-    now = datetime.utcnow()
-    leg = await _fulfill(db, reservation, acting_user_id, now)
-    await _post_fulfilment(db, reservation.reservation_type, [leg], now)
-    await db.commit()
-    await db.refresh(reservation)
     return reservation
 
 

@@ -1,12 +1,8 @@
 """The `ItemListingPreference` set/list/browse/take use cases — the
-exchange-mechanism counterpart to `pledge_fulfillment.py`'s Pledge->Reservation
-bridge. Gated on `attendance._require_term_eligibility` (Term-scoped
-attendance, or being the Term's Circle organizer) rather than Circle-wide
-membership. Ownership validation for the item being offered (a `SWAP`
-taker's own counter-offer) is the exact `inventory.owner_user_id ==
-profile.account_user_id and inventory_type == PERSONAL` + `AVAILABLE`-balance
-check `pledge_fulfillment.fulfill_pledge` already performs — factored here
-into `_require_own_available_personal_item` so both call sites share it.
+GIFT/SWAP exchange mechanism. Gated on `attendance._require_term_eligibility`
+(Term-scoped attendance, or being the Term's Circle organizer) rather than
+Circle-wide membership. Ownership validation for the item being offered (a
+`SWAP` proposer's own counter-offer) is `_require_own_available_personal_item`.
 
 Listing membership itself ("does this item show up for this Term") and
 listing status ("is it still takeable, who took it") are both derived, never
@@ -47,7 +43,6 @@ from ..models import ItemListingPreference, SwapProposal, SwapProposalStatus, Te
 from ..schemas import (
     AcceptedSwapProposalResponse,
     BrowseTermItemListingResponse,
-    LentOutItemResponse,
     MyInventoryItemResponse,
     SwapProposalOfferResponse,
     SwapProposalResponse,
@@ -61,14 +56,10 @@ _ACTIVE_RESERVATION_STATUSES = (
     circulation_bridge.ReservationStatus.PENDING,
     circulation_bridge.ReservationStatus.CONFIRMED,
 )
-_OWNERSHIP_TRANSFER_TYPES = (
-    circulation_bridge.ReservationType.GIFT,
-    circulation_bridge.ReservationType.SWAP,
-)
 
 PHOTOS_IN_MODERATION_MESSAGE = (
     "Nie można wystawić tej rzeczy — jej zdjęcia czekają na moderację. "
-    "Tryb wypożyczę/oddam/zamienię włączysz po ich zatwierdzeniu."
+    "Tryb oddam/zamienię włączysz po ich zatwierdzeniu."
 )
 
 
@@ -87,10 +78,8 @@ class TermAlreadyResolvedException(BusinessConflictException):
 async def _require_own_available_personal_item(
     db: AsyncSession, account_user_id: uuid.UUID | None, item_id: uuid.UUID
 ) -> circulation_bridge.InventoryItem:
-    """Identical check to `fulfill_pledge`'s `inventory_item_id` branch —
-    used by a `SWAP` taker's own counter-offer, per spec.md's "reuse the
-    ownership-check helper from listing-creation" (now reused from the
-    preference-set path instead, see `set_item_listing_preference`)."""
+    """The offered item must be the caller's own, in their PERSONAL
+    inventory and `AVAILABLE` — used by a `SWAP` proposer's counter-offer."""
     item = await circulation_bridge.get_item(db, item_id)
     inventory = await circulation_bridge.resolve_owning_inventory(db, item)
     if (
@@ -101,7 +90,7 @@ async def _require_own_available_personal_item(
     balance = await circulation_bridge.get_item_balance(db, cast(uuid.UUID, item.id))
     if balance.status != circulation_bridge.BalanceStatus.AVAILABLE:
         raise BusinessConflictException(
-            "Nie można użyć tej rzeczy — jest zarezerwowana lub wypożyczona"
+            "Nie można użyć tej rzeczy — jest zarezerwowana"
         )
     return item
 
@@ -115,7 +104,7 @@ async def set_item_listing_preference(
     """Sets, changes, or (when `mode` is `None`) clears the standing listing
     mode on one of the caller's own items. Ownership-only check (no
     availability requirement) — unlike taking a listing, expressing intent
-    to lend/gift/swap an item shouldn't be blocked by its current balance.
+    to gift/swap an item shouldn't be blocked by its current balance.
     Setting a mode (never clearing one) is refused while the item's product
     has a photo still in moderation (PENDING/NEEDS_REVIEW), since an
     unmoderated photo would otherwise be shown to the Term. The item row is
@@ -157,9 +146,8 @@ async def set_item_listing_preference(
 async def list_my_inventory_items(
     db: AsyncSession, principal: Principal, storage: ObjectStorage | None = None
 ) -> list[MyInventoryItemResponse]:
-    """The caller's items physically in their PERSONAL inventory — never a
-    lent-out one (see `list_my_lent_out_items`) nor one borrowed from
-    someone else — with each item's standing listing mode, used by
+    """The caller's items physically in their PERSONAL inventory, with each
+    item's standing listing mode, used by
     `Moje rzeczy` to list items and seed each mode toggle on load. Items
     whose product has a photo in moderation are flagged (one batched query),
     so their toggles can be shown as locked. With `storage`, each item
@@ -204,40 +192,6 @@ async def list_my_inventory_items(
         )
         for item, product_name in rows
     ]
-
-
-async def list_my_lent_out_items(
-    db: AsyncSession, principal: Principal
-) -> list[LentOutItemResponse]:
-    """The caller's items currently lent out of their PERSONAL inventory,
-    backing "Wypożyczone innym". The borrower's display name and the loan's
-    due date are resolved per lent item (bounded loop, same precedent as
-    `_resolve_item_display_info`)."""
-    profile = await get_profile_by_principal(db, principal)
-    inventory = await circulation_bridge.find_personal_inventory(
-        db, cast(uuid.UUID, profile.account_user_id)
-    )
-    if inventory is None:
-        return []
-    rows = await circulation_bridge.list_lent_out_items_with_product_name(
-        db, cast(uuid.UUID, inventory.id)
-    )
-    responses: list[LentOutItemResponse] = []
-    for item, product_name in rows:
-        balance = await circulation_bridge.get_item_balance(db, cast(uuid.UUID, item.id))
-        borrower_inventory = await circulation_bridge.get_inventory(db, item.inventory_id)
-        borrower = await get_profile_by_account_user_id(db, borrower_inventory.owner_user_id)
-        responses.append(
-            LentOutItemResponse(
-                id=cast(uuid.UUID, item.id),
-                product_id=item.product_id,
-                product_name=product_name,
-                condition=item.condition,
-                lent_to_display_name=borrower.display_name,
-                lent_due_date=balance.due_date,
-            )
-        )
-    return responses
 
 
 async def _is_item_available(db: AsyncSession, item_id: uuid.UUID) -> bool:
@@ -408,12 +362,7 @@ async def list_my_active_taken_term_item_listings(
     eligible_lister_party_ids = await _list_eligible_lister_party_ids(db, term)
     preferences: list[ItemListingPreference] = []
     for reservation in reservations:
-        # A RETURN names the home owner as `reserved_by`, yet the owner took
-        # nothing — it is the borrower giving the item back.
-        if (
-            reservation.reservation_type == circulation_bridge.ReservationType.RETURN
-            or reservation.term_id != term_id
-        ):
+        if reservation.term_id != term_id:
             continue
         preference = await repository.get_item_listing_preference(db, reservation.item_id)
         if preference is None:
@@ -592,8 +541,7 @@ async def propose_swap(
 ) -> SwapProposal:
     """The SWAP counterpart of `take_item_listing`: locks only the
     proposer's own offered item (auto-confirmed on their own behalf, same
-    reasoning `create_lend_reservation`'s docstring gives for the existing
-    auto-confirm cases — their own consent already exists) and leaves the
+    their own consent already exists) and leaves the
     target listing item `AVAILABLE` until the owner explicitly
     `accept_swap_proposal`s or `reject_swap_proposal`s it."""
     proposer_profile = await get_profile_by_principal(db, principal)
@@ -907,7 +855,7 @@ async def _resolve_transaction_reservations_for_action(
 ) -> tuple[uuid.UUID, list[circulation_bridge.Reservation]]:
     """Shared gating sequence for both `confirm_transaction` and
     `cancel_transaction`: race-participant authorization (403 before any
-    409), the RETURN guard, the term-ended check, and the already-resolved
+    409), the unaccepted-swap guard, the term-ended check, and the already-resolved
     guard — then returns the caller's account user id and the
     reservation(s) the caller should act on next (one, or two for a
     resolved SWAP pair via `paired_reservation_id`).
@@ -921,9 +869,6 @@ async def _resolve_transaction_reservations_for_action(
 
     Callers own their own terminal step (circulation's `fulfill_exchange`
     vs. `cancel_exchange`) — this helper stops right before that.
-
-    A RETURN is not a Term transaction (the two-sided return arrives with
-    the Loan MVP), so it is rejected here rather than confirmed/cancelled.
 
     The Term gated on is always the reservation's own `term_id` — never a
     caller-supplied one, which would let a party resolve an exchange early
@@ -946,9 +891,6 @@ async def _resolve_transaction_reservations_for_action(
         reservation.giver_user_id,
         acting_user_id=acting_user_id,
     )
-
-    if reservation.reservation_type == circulation_bridge.ReservationType.RETURN:
-        raise BusinessConflictException("Zwrot nie jest transakcją Terminu")
 
     # An unpaired SWAP leg is a still-PROPOSED swap's proposer lock: resolving
     # it alone would hand the proposer's item over without the listing owner
@@ -988,7 +930,7 @@ async def _resolve_transaction_reservations_for_action(
 async def confirm_transaction(
     db: AsyncSession, principal: Principal, reservation_id: uuid.UUID
 ) -> circulation_bridge.Reservation:
-    """Resolves a locked exchange (LEND/GIFT leg, or a SWAP's paired legs)
+    """Resolves a locked exchange (a GIFT leg, or a SWAP's paired legs)
     once its Term has ended: whichever party of the transaction calls this
     first wins the race and circulation's `fulfill_exchange` confirms and
     fulfils every leg in one commit, which also commits the listing
@@ -1004,10 +946,9 @@ async def confirm_transaction(
     # isn't re-offered on the giver's behalf at their next Term. The new
     # owner sets their own mode from `Moje rzeczy` if they want to pass it on.
     for r in reservations:
-        if r.reservation_type in _OWNERSHIP_TRANSFER_TYPES:
-            preference = await repository.get_item_listing_preference(db, r.item_id)
-            if preference is not None:
-                await db.delete(preference)
+        preference = await repository.get_item_listing_preference(db, r.item_id)
+        if preference is not None:
+            await db.delete(preference)
     await db.flush()
 
     fulfilled = await circulation_bridge.fulfill_exchange(
@@ -1020,7 +961,7 @@ async def cancel_transaction(
     db: AsyncSession, principal: Principal, reservation_id: uuid.UUID
 ) -> circulation_bridge.Reservation:
     """The cancel counterpart of `confirm_transaction`: same shared gating
-    (race-participant, RETURN guard, term-ended, already-resolved) via
+    (race-participant, unaccepted-swap guard, term-ended, already-resolved) via
     `_resolve_transaction_reservations_for_action`, then circulation's
     `cancel_exchange` releases every resolved leg — both paired legs of a
     SWAP, not just the one the caller named — in one commit."""
