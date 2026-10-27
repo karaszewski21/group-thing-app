@@ -2954,8 +2954,38 @@ describe("AppPage — redesigned navigation and pages", () => {
     mockGuestDefaults();
     renderPanel("/dodaj");
 
-    expect(await screen.findByRole("link", { name: "+ Dodaj rzecz" })).toHaveAttribute("href", "/product/new");
+    expect(await screen.findByRole("link", { name: /^Rzecz/ })).toHaveAttribute("href", "/product/new");
     fireEvent.click(screen.getByRole("button", { name: /Termin spotkania/ }));
     expect(await screen.findByRole("dialog", { name: "Załóż grupę" })).toBeInTheDocument();
+  });
+});
+
+describe("AppPage — Dodaj › Wydarzenie (mock)", () => {
+  beforeEach(() => {
+    vi.resetAllMocks();
+    localStorage.clear();
+  });
+
+  it("Dodaj links to the event form, which validates and confirms a saved event", async () => {
+    mockGuestDefaults();
+    renderPanel("/dodaj");
+
+    expect(await screen.findByRole("link", { name: /Wydarzenie/ })).toHaveAttribute("href", "/wydarzenie");
+    expect(screen.queryByRole("button", { name: /^Grupa/ })).not.toBeInTheDocument();
+  });
+
+  it("the event form needs a name and a date, then shows a confirmation", async () => {
+    mockGuestDefaults();
+    renderPanel("/wydarzenie");
+
+    const save = await screen.findByRole("button", { name: "Zapisz wydarzenie" });
+    expect(save).toBeDisabled();
+    fireEvent.change(screen.getByLabelText("Nazwa"), { target: { value: "Piknik w parku" } });
+    fireEvent.change(screen.getByLabelText("Data"), { target: { value: "2099-06-01" } });
+    expect(save).toBeEnabled();
+
+    fireEvent.click(save);
+    expect(screen.getByText("Wydarzenie zapisane")).toBeInTheDocument();
+    expect(screen.getByText("Piknik w parku")).toBeInTheDocument();
   });
 });

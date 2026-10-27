@@ -1,0 +1,343 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Specification — Vinted category tree + Oddam / Zamienię / Wersja robocza</title>
+<style>
+:root {
+  --bg:#f6f7f9; --surface:#fff; --border:#e2e5ea; --text:#1a1d23; --dim:#6b7280;
+  --accent:#4f46e5; --accent-soft:#eef2ff; --ok:#16a34a; --ok-soft:#ecfdf3;
+  --warn:#d97706; --warn-soft:#fffbeb; --crit:#dc2626; --crit-soft:#fef2f2;
+  --info:#2563eb; --info-soft:#eff6ff; --radius:10px;
+}
+@media (prefers-color-scheme: dark) {
+  :root { --bg:#111418; --surface:#1a1f26; --border:#2e3640; --text:#e6e9ee; --dim:#9aa4b2;
+    --accent:#818cf8; --accent-soft:#26294a; --ok:#4ade80; --ok-soft:#11291a;
+    --warn:#fbbf24; --warn-soft:#2e2410; --crit:#f87171; --crit-soft:#321616;
+    --info:#60a5fa; --info-soft:#15233a; }
+}
+* { box-sizing:border-box; }
+body { margin:0 auto; max-width:1100px; padding:24px 20px 64px; background:var(--bg);
+  color:var(--text); font:14px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif; }
+a { color:var(--accent); text-decoration:none; } a:hover { text-decoration:underline; }
+h1 { font-size:22px; letter-spacing:-.01em; } h2 { font-size:16px; margin-top:28px; }
+.card { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius);
+  padding:16px 18px; margin:14px 0; }
+.badge { display:inline-block; font-size:11px; font-weight:600; text-transform:uppercase;
+  letter-spacing:.04em; padding:2px 8px; border-radius:99px; background:var(--accent-soft); color:var(--accent); }
+.sev { display:inline-block; font-size:10.5px; font-weight:700; text-transform:uppercase;
+  padding:1.5px 7px; border-radius:99px; margin-right:6px; }
+.sev.critical { background:var(--crit-soft); color:var(--crit); }
+.sev.warning  { background:var(--warn-soft); color:var(--warn); }
+.sev.info     { background:var(--info-soft); color:var(--info); }
+.pass { color:var(--ok); font-weight:600; } .fail { color:var(--crit); font-weight:600; }
+table { width:100%; border-collapse:collapse; }
+th, td { text-align:left; padding:7px 10px; border-bottom:1px solid var(--border); vertical-align:top; }
+th { font-size:11.5px; text-transform:uppercase; letter-spacing:.04em; color:var(--dim); }
+code { font-family:ui-monospace,SFMono-Regular,Menlo,monospace; font-size:12.5px;
+  background:var(--accent-soft); padding:1px 5px; border-radius:4px; }
+img.shot { max-width:100%; border:1px solid var(--border); border-radius:var(--radius); }
+details > summary { cursor:pointer; font-weight:600; }
+.crumbs { display:flex; gap:14px; font-size:13px; margin-bottom:18px; flex-wrap:wrap; }
+.crumbs a.md { margin-left:auto; color:var(--dim); }
+.crumbs .here { font-weight:650; color:var(--text); }
+.tiles { display:flex; gap:10px; flex-wrap:wrap; margin:14px 0; }
+.tile { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius);
+  padding:10px 16px; text-align:center; min-width:90px; }
+.tile b { display:block; font-size:20px; letter-spacing:-.01em; }
+.tile span { font-size:10.5px; text-transform:uppercase; letter-spacing:.05em; color:var(--dim); }
+.grid2 { display:grid; grid-template-columns:1fr 1fr; gap:14px; }
+@media (max-width:760px) { .grid2 { grid-template-columns:1fr; } }
+.stories { display:grid; grid-template-columns:repeat(auto-fill,minmax(240px,1fr)); gap:10px; }
+.story { background:var(--surface); border:1px solid var(--border); border-left:3px solid var(--accent);
+  border-radius:var(--radius); padding:10px 12px; font-size:13px; }
+.toc { font-size:13px; color:var(--dim); margin:10px 0 0; }
+ul.tight { margin:6px 0; padding-left:18px; } ul.tight li { margin:3px 0; }
+.group { font-size:11px; font-weight:700; color:var(--dim); text-transform:uppercase; letter-spacing:.05em; background:var(--bg); }
+</style>
+</head>
+<body>
+<nav class="crumbs">
+  <a href="../dashboard.html">← Dashboard</a>
+  <span class="here">Spec</span>
+  <a href="implementation-plan.html">Plan</a>
+  <a href="../verification/implementation-verification.html">Verification</a>
+  <a href="spec.md" target="_blank" rel="noopener" class="md">md twin ↗</a>
+</nav>
+
+<header>
+  <span class="badge">Specification</span>
+  <h1>Vinted category tree + Oddam / Zamienię / Wersja robocza</h1>
+  <div style="color:var(--dim);font-size:12.5px">Task 2026-10-26-item-vinted-categories · generated 2026-10-27 · <a href="spec.md" target="_blank" rel="noopener">spec.md</a></div>
+</header>
+
+<div class="tiles">
+  <div class="tile"><b>25</b><span>requirements</span></div>
+  <div class="tile"><b>12</b><span>reused components</span></div>
+  <div class="tile"><b>4</b><span>new components</span></div>
+  <div class="tile"><b>6</b><span>migrations</span></div>
+  <div class="tile"><b>11</b><span>mockups</span></div>
+  <div class="tile"><b style="color:var(--crit)">High</b><span>risk</span></div>
+</div>
+
+<section class="tldr card">
+  <h2 style="margin-top:0">TL;DR</h2>
+  <ul class="tight">
+    <li><code>categories</code> becomes a tree (<code>parent_id</code>, <code>external_id</code>), seeded once from a reviewed Polish Vinted JSON snapshot. The legacy flat catalog is wiped, products can only use leaf categories, and admins manage the tree without reparenting.</li>
+    <li>One shared <code>CategoryTreePicker</code> (ModalSheet, search with full paths + drill-down) replaces every "Typ" <code>&lt;select&gt;</code>. The add-item form ends with three buttons: Oddam / Zamienię / Wersja robocza.</li>
+    <li>Items get <code>inventory_items.listing_status</code> (DRAFT/ACTIVE), kept in lockstep with the <code>item_listing_preferences</code> row. The mode is set atomically at registration, and the backend enforces the 10-gift limit.</li>
+    <li>The photo-moderation listing gate and withdraw-on-upload/re-point are removed. Needed items become plain names (no product link), and existing needed items and pledges are wiped.</li>
+  </ul>
+  <h2>Key Decisions</h2>
+  <table>
+    <tr><th>Decision</th><th>Rationale</th></tr>
+    <tr><td><code>listing_status</code> / <code>ItemListingStatus</code>, not <code>status</code></td><td><code>InventoryBalance.status</code> and <code>ItemDetailsResponse.status</code> already exist, so a bare <code>status</code> would be ambiguous.</td></tr>
+    <tr><td>Enum holds only DRAFT/ACTIVE; <code>VARCHAR(20)</code></td><td>MODERATION/REJECTED can be added later without a type change. No speculative enum members.</td></tr>
+    <tr><td>Status mirrors the pref row (ACTIVE ⇔ a pref row exists)</td><td>Listing reads stay pref-driven and unchanged, the smallest regression surface.</td></tr>
+    <tr><td>Mode set at registration (<code>listing_mode</code> on <code>POST /api/inventory-items</code>), before photo uploads</td><td>The "after uploads" order only existed for withdraw-on-upload. Atomic creation means a gift-limit 409 persists nothing: the form keeps its data and there is no duplicate draft.</td></tr>
+    <tr><td>Implicit Enter submission does nothing; buttons are <code>type="button"</code></td><td>The visibility outcome is always an explicit choice.</td></tr>
+    <tr><td>Path labels and search run client-side over cached <code>useCategories</code></td><td>No new endpoint, no response key-set churn.</td></tr>
+    <tr><td>Leaf-only through <code>require_leaf_category</code> (409 non-leaf, 404 unknown)</td><td>One check reused by product create, update and resolve.</td></tr>
+    <tr><td><code>uq_categories_parent_id_name</code> + partial <code>uq_categories_root_name</code>; business key <code>(parent_id, name)</code></td><td>Vinted repeats names under different parents.</td></tr>
+    <tr><td>Wipe every pre-existing category with its products and dependents</td><td>A leftover flat root would break the taxonomy. This is dev data.</td></tr>
+    <tr><td>Needed-item DTOs expose <code>name</code>; <code>MyPledgeResponse.item_name</code>; outbox key stays <code>product_name</code></td><td>The value is no longer a product name, and the key-set tests change anyway. Queued outbox events stay valid.</td></tr>
+    <tr><td>Needed-item names are text-moderated like product names</td><td>They render on the anonymous public term page.</td></tr>
+    <tr><td>Separate schema and data revisions 0064–0069, each with a round-trip test</td><td>Per <code>migrations.md</code>.</td></tr>
+    <tr><td>Admin tree uses nested lists + disclosure buttons, not <code>role="tree"</code></td><td>Avoids a roving-tabindex model that is not required here. The mockup layout is kept.</td></tr>
+  </table>
+  <h2>Open Questions / Risks</h2>
+  <ul class="tight">
+    <li><span class="sev critical">critical</span>The user's uncommitted <code>AppPage.test.tsx</code> breaks on the <code>Category</code> type and needed-item changes, and can be updated only after the user commits. <code>appHelpers.ts</code> keeps the stale UI-only gift-limit comment and a different <code>GIFT_LIMIT_MESSAGE</code>. Router, AddView, AppPage and EventCreateView need no change.</li>
+    <li><span class="sev critical">critical</span>The Vinted fixture is a hand-compiled one-time snapshot with possible ToS concerns and missing ids. <b>The user must review it before the seed is applied.</b></li>
+    <li><span class="sev critical">critical</span>The destructive data revision wipes all products, items, ledger, reservations, swaps, conversations and photo rows (dev). Spaces objects are orphaned.</li>
+    <li><span class="sev warning">warning</span>Gift-limit race: concurrent Oddam requests could reach 11 (accepted as a soft limit).</li>
+    <li><span class="sev warning">warning</span>Leaf race: an admin adding a child while a product is created on that leaf (accepted).</li>
+    <li><span class="sev warning">warning</span>A needed-item name is rejected after <code>createTerm</code>: the term is kept and a toast is shown (FR-24).</li>
+    <li><span class="sev info">info</span>Items can be listed before photo approval and show without a photo until then.</li>
+    <li><span class="sev info">info</span>19 backend test files take <code>categories[0]</code> (now a root) and must switch to a leaf helper.</li>
+  </ul>
+  <p class="toc">Contents: <a href="#scope">Scope</a> · <a href="#stories">User Stories</a> · <a href="#requirements">Requirements</a> · <a href="#visual">Visual Design</a> · <a href="#reuse">Components</a> · <a href="#tech">Technical Approach</a> · <a href="#tests">Testing</a> · <a href="#success">Success Criteria</a></p>
+</section>
+
+<h2 id="scope">Scope</h2>
+<div class="grid2">
+  <div class="card"><b class="pass">In scope</b>
+    <ul class="tight">
+      <li>Category tree schema, Vinted JSON seed, legacy wipe</li>
+      <li>Leaf-only product categories</li>
+      <li>Admin tree: create root/child, rename, sibling reorder, delete with 409s</li>
+      <li><code>listing_status</code> DRAFT/ACTIVE in lockstep with prefs; mode at registration</li>
+      <li>Backend gift limit (10) on register and mode change</li>
+      <li>Removal of the photo-moderation listing gate and withdraw paths</li>
+      <li>Needed items as plain names; existing data wiped</li>
+      <li>Shared CategoryTreePicker everywhere; three add-item buttons</li>
+    </ul>
+  </div>
+  <div class="card"><b class="fail">Out of scope</b>
+    <ul class="tight">
+      <li>Renaming the needed-items entity</li>
+      <li>MODERATION/REJECTED statuses; other moderation changes</li>
+      <li>Reparenting, drag-and-drop, subtree product filter</li>
+      <li>Runtime Vinted fetch or sync</li>
+      <li>Restoring legacy products or Spaces objects; client gift pre-check on the add page</li>
+      <li>Edits to the user's uncommitted files</li>
+    </ul>
+  </div>
+</div>
+
+<div class="card"><b>Goal:</b> Owners classify each item with a leaf from the Polish Vinted category tree and, in the same step, decide whether it is offered (Oddam/Zamienię) or kept as a draft. Category data and listing semantics stay consistent across the backend, the admin tooling and the term's needed list.</div>
+
+<h2 id="stories">User Stories</h2>
+<div class="stories">
+  <div class="story"><b>Owner (add)</b><br>Pick "Kategoria" from a searchable Vinted tree, so the item is classified the way I know from Vinted.</div>
+  <div class="story"><b>Owner (add)</b><br>Finish with Oddam, Zamienię or Wersja robocza, and decide visibility immediately.</div>
+  <div class="story"><b>Owner (edit)</b><br>Change the category with the same picker and see whether the item is a draft.</div>
+  <div class="story"><b>Owner (moderation)</b><br>Still offer my item while its photos are in moderation.</div>
+  <div class="story"><b>Organizer</b><br>List needed items by plain name, without a category.</div>
+  <div class="story"><b>Admin</b><br>Manage the category tree, with clear errors when an operation is not allowed.</div>
+</div>
+
+<h2 id="requirements">Core Requirements</h2>
+<div class="card" style="padding:0">
+<table>
+  <tr><th>ID</th><th>Requirement</th><th>Priority</th></tr>
+  <tr><td colspan="3" class="group">A. Category tree (backend)</td></tr>
+  <tr><td>FR-1</td><td>Add <code>parent_id</code> (self-FK + index) and <code>external_id</code> (unique); replace <code>uq_categories_name</code> with a per-parent unique constraint and a partial root unique index; <code>sort_order</code> ordered among siblings</td><td>Must</td></tr>
+  <tr><td>FR-2</td><td>JSON fixture <code>{name, external_id, children}</code>, 9 roots in order, validated in the migration; <b>user review before apply</b></td><td>Must</td></tr>
+  <tr><td>FR-3</td><td>One data revision: legacy wipe in FK-safe order, then batched seed; downgrade restores the 5 legacy rows</td><td>Must</td></tr>
+  <tr><td>FR-4</td><td><code>CategoryResponse.parent_id</code>; flat list ordered by <code>sort_order, name</code>, single query</td><td>Must</td></tr>
+  <tr><td>FR-5</td><td>Create with <code>parent_id</code>: 404 unknown parent; 409 parent has products; 409 duplicate sibling name</td><td>Must</td></tr>
+  <tr><td>FR-6</td><td>Update is rename/description only; no reparenting</td><td>Must</td></tr>
+  <tr><td>FR-7</td><td>Delete: 409 with children or with products (Polish messages)</td><td>Must</td></tr>
+  <tr><td>FR-8</td><td>Move swaps only with the adjacent sibling</td><td>Must</td></tr>
+  <tr><td>FR-9</td><td>Leaf-only product create, update and resolve (409 non-leaf, 404 unknown)</td><td>Must</td></tr>
+  <tr><td colspan="3" class="group">B. Listing status and modes (backend)</td></tr>
+  <tr><td>FR-10</td><td><code>inventory_items.listing_status</code> NOT NULL default DRAFT; backfill ACTIVE where a pref exists</td><td>Must</td></tr>
+  <tr><td>FR-11</td><td>Expose <code>listing_status</code> in InventoryItem, ItemDetails and MyInventoryItem responses</td><td>Must</td></tr>
+  <tr><td>FR-12</td><td><code>listing_mode</code> on register; item + pref + status in one commit via the injected groups hook</td><td>Must</td></tr>
+  <tr><td>FR-13</td><td>Lockstep: set → ACTIVE, clear → DRAFT, confirm → DRAFT at the new owner; written through a bridge only</td><td>Must</td></tr>
+  <tr><td>FR-14</td><td>Gift limit 10 on register and on PUT (Polish 409 messages)</td><td>Must</td></tr>
+  <tr><td>FR-15</td><td>Remove the moderation listing gate, both withdraw hooks, the script and the dead reads</td><td>Must</td></tr>
+  <tr><td colspan="3" class="group">C. Needed items (backend)</td></tr>
+  <tr><td>FR-16</td><td>Wipe pledges and needed items; add <code>name</code>, drop <code>product_id</code></td><td>Must</td></tr>
+  <tr><td>FR-17</td><td>New request/response contract with <code>name</code>, <code>item_name</code> on pledges; text moderation of the name</td><td>Must</td></tr>
+  <tr><td>FR-18</td><td>Switch every reader to <code>needed_items.name</code> (terms, pledges, public_view, organizer_page, repository)</td><td>Must</td></tr>
+  <tr><td colspan="3" class="group">D. Frontend</td></tr>
+  <tr><td>FR-19</td><td>snake_case <code>Category</code> with <code>parent_id</code>; pure <code>utils/categoryTree.ts</code></td><td>Must</td></tr>
+  <tr><td>FR-20</td><td>CategoryTreePicker: trigger, ModalSheet, combobox search, drill-down, leaf/any modes</td><td>Must</td></tr>
+  <tr><td>FR-21</td><td>Add item: required Kategoria, three buttons, mode passed at registration, backend error verbatim with data kept</td><td>Must</td></tr>
+  <tr><td>FR-22</td><td>Item edit: picker in NameCategoryEditor, status chip, withdrawn notice removed</td><td>Must</td></tr>
+  <tr><td>FR-23</td><td>Moje rzeczy: toggles no longer locked by pending photos</td><td>Must</td></tr>
+  <tr><td>FR-24</td><td>Needed-item UI as plain names; handleAddTerm failure toast; DTO renames at display sites</td><td>Must</td></tr>
+  <tr><td>FR-25</td><td>Admin tree list, parent picker form, picker in ProductFormPage, path labels in product list/detail</td><td>Must</td></tr>
+</table>
+</div>
+<p style="font-size:12.5px;color:var(--dim)">Full detail, including exact messages, is in <a href="spec.md" target="_blank" rel="noopener">spec.md ↗</a> § Core Requirements.</p>
+
+<h2 id="visual">Visual Design</h2>
+<p>Mockups in <code>analysis/design-context/</code> are binding inputs — implementation-planner will attach <code>Visual References</code> to UI task groups.</p>
+<div class="card" style="padding:0">
+<table>
+  <tr><th>ID</th><th>Mockup</th><th>Key elements</th><th>Reqs</th></tr>
+  <tr><td><code>screen:dodaj-rzecz</code></td><td><a href="../analysis/design-context/mockups/dodaj-rzecz.html">dodaj-rzecz.html</a></td><td>Empty required Kategoria trigger; three disabled buttons</td><td>FR-20, 21</td></tr>
+  <tr><td><code>screen:dodaj-rzecz-wybrana-kategoria</code></td><td><a href="../analysis/design-context/mockups/dodaj-rzecz-wybrana-kategoria.html">dodaj-rzecz-wybrana-kategoria.html</a></td><td>Path + bold leaf in the trigger; buttons enabled</td><td>FR-19–21</td></tr>
+  <tr><td><code>screen:dodaj-rzecz-limit-oddam</code></td><td><a href="../analysis/design-context/mockups/dodaj-rzecz-limit-oddam.html">dodaj-rzecz-limit-oddam.html</a></td><td>Gift-limit alert, data kept</td><td>FR-14, 21</td></tr>
+  <tr><td><code>screen:wybor-kategorii-przegladanie</code></td><td><a href="../analysis/design-context/mockups/wyb-r-kategorii-przegl-danie.html">wyb-r-kategorii-przegl-danie.html</a></td><td>Sheet, Wstecz, breadcrumb, › rows</td><td>FR-20</td></tr>
+  <tr><td><code>screen:wybor-kategorii-szukaj</code></td><td><a href="../analysis/design-context/mockups/wyb-r-kategorii-szukaj.html">wyb-r-kategorii-szukaj.html</a></td><td>Combobox results with paths, live count, non-leaf drills</td><td>FR-19, 20</td></tr>
+  <tr><td><code>screen:edycja-rzeczy-kategoria</code></td><td><a href="../analysis/design-context/mockups/edycja-rzeczy-kategoria.html">edycja-rzeczy-kategoria.html</a></td><td>"Wersja robocza" chip, Kategoria picker</td><td>FR-11, 22</td></tr>
+  <tr><td><code>screen:admin-drzewo-kategorii</code></td><td><a href="../analysis/design-context/mockups/admin-drzewo-kategorii.html">admin-drzewo-kategorii.html</a></td><td>Expandable tree, sibling ↑/↓, 409 alert, filter, disabled actions</td><td>FR-7, 8, 25</td></tr>
+  <tr><td><code>screen:admin-formularz-kategorii</code></td><td><a href="../analysis/design-context/mockups/admin-formularz-kategorii.html">admin-formularz-kategorii.html</a></td><td>Parent picker (any node), hint, Nazwa, Opis</td><td>FR-5, 20, 25</td></tr>
+  <tr><td><code>screen:rzeczy-potrzebne-na-termin</code></td><td><a href="../analysis/design-context/mockups/rzeczy-potrzebne-na-termin.html">rzeczy-potrzebne-na-termin.html</a></td><td>Plain-name list, add row, no category</td><td>FR-24</td></tr>
+  <tr><td><code>component:category-tree-picker</code></td><td><a href="../analysis/design-context/mockups/wyb-r-kategorii-szukaj.html">wyb-r-kategorii-szukaj.html</a></td><td>Shared picker, leaf / any-node</td><td>FR-20</td></tr>
+  <tr><td><code>component:item-submit-actions</code></td><td><a href="../analysis/design-context/mockups/dodaj-rzecz.html">dodaj-rzecz.html</a></td><td>Oddam (primary), Zamienię (secondary), Wersja robocza (outline)</td><td>FR-21</td></tr>
+</table>
+</div>
+
+<h2 id="reuse">Reusable vs New Components</h2>
+<div class="grid2">
+  <div class="card"><b class="pass">Reuse</b>
+    <ul class="tight">
+      <li><code>components/shared/ModalSheet.tsx</code>, <code>trapFocus.ts</code>, <code>openSheets.ts</code></li>
+      <li><code>components/shared/LocationAddForm.tsx</code> combobox pattern</li>
+      <li><code>pages/term/components/termLabels.ts</code> <code>EXCHANGE_MODE_LABELS</code></li>
+      <li><code>hooks/useCategories.ts</code> / <code>api/categories.ts</code></li>
+      <li><code>hooks/useCreateItem.ts</code>, <code>ItemCreatePage.tsx</code>, <code>ItemQuickAddForm.tsx</code></li>
+      <li><code>api/problem.ts</code> server-message passthrough</li>
+      <li><code>app/category/service.py</code> (list aggregate, move, getters)</li>
+      <li><code>term_item_listings.py</code> write sites + <code>circulation_bridge.py</code></li>
+      <li><code>app/circulation/router.py</code> hook-injection pattern</li>
+      <li><code>app/circulation/models.py</code> <code>_enum_column</code></li>
+      <li><code>moderation/rules.py</code> + <code>text_guard.py</code></li>
+      <li><code>0025_category_reintroduction.py</code>; migration test templates</li>
+    </ul>
+  </div>
+  <div class="card"><b>New (justified)</b>
+    <ul class="tight">
+      <li><code>CategoryTreePicker.tsx</code>: no tree selector exists; a flat select cannot handle about 1000 nodes on mobile</li>
+      <li><code>utils/categoryTree.ts</code>: shared pure path, leaf and search helpers, table-testable</li>
+      <li><code>vinted_categories_pl.json</code> + revisions 0064–0069: new data and schema</li>
+      <li><code>require_leaf_category</code>, <code>set_item_listing_status</code>, register-time listing hook: each invariant in one place, each with a caller</li>
+    </ul>
+  </div>
+</div>
+
+<h2 id="tech">Technical Approach</h2>
+<div class="card" style="padding:0">
+<table>
+  <tr><th>Rev</th><th>Kind</th><th>Content</th></tr>
+  <tr><td><code>0064</code></td><td>schema</td><td><code>inventory_items.listing_status</code> default DRAFT</td></tr>
+  <tr><td><code>0065</code></td><td>data</td><td>Backfill ACTIVE where a pref exists</td></tr>
+  <tr><td><code>0066</code></td><td>schema</td><td>Category tree columns and constraints</td></tr>
+  <tr><td><code>0067</code></td><td>data</td><td>Wipe pledges + needed items</td></tr>
+  <tr><td><code>0068</code></td><td>schema</td><td><code>needed_items.name</code>, drop <code>product_id</code></td></tr>
+  <tr><td><code>0069</code></td><td>data</td><td>Legacy wipe + Vinted seed</td></tr>
+</table>
+</div>
+<details class="card"><summary>Legacy-wipe delete order (0069)</summary>
+<ol>
+  <li>Messages and conversation reads of item conversations, then the conversations</li>
+  <li><code>swap_proposals</code> on the items</li>
+  <li><code>giveaway_term_end_markers</code> + <code>notifications</code> of those reservations</li>
+  <li><code>circulation_entries</code>, then empty <code>circulation_transactions</code></li>
+  <li><code>reservations</code> (null <code>paired_reservation_id</code> first)</li>
+  <li><code>inventory_balances</code></li>
+  <li><code>item_listing_preferences</code> (loose pointer)</li>
+  <li><code>inventory_items</code></li>
+  <li><code>moderation_decisions</code> (PHOTO), then <code>product_photos</code></li>
+  <li><code>products</code></li>
+  <li>The pre-existing categories</li>
+</ol>
+<p>Re-grep the FKs and loose pointers at implementation time and extend this list if anything new appears.</p>
+</details>
+<details class="card"><summary>Create-item flow and listing invariant</summary>
+<p><b>Frontend:</b> profile → personal inventory → <code>POST /api/products/resolve</code> (leaf check) → <code>POST /api/inventory-items {…, listing_mode}</code> → photo uploads → navigate to <code>/product/{id}</code>.</p>
+<p><b>Backend:</b> <code>register_item</code> (status from the mode) → flush → groups hook (gift-limit count → insert pref) → a single commit. On an exception nothing persists.</p>
+<p>Pref existence stays the only input to listing reads, and none of them change. <code>listing_status</code> is a mirror written in the same transaction as each pref insert or delete: register, set/clear, confirm, backfill.</p>
+</details>
+<details class="card"><summary>Cross-module boundaries, authorization, docs</summary>
+<ul class="tight">
+  <li>Groups writes <code>listing_status</code> only through <code>circulation_bridge</code>.</li>
+  <li>Product checks leaves through <code>app.category.service</code>.</li>
+  <li>No new <code>relationship()</code>; tree assembly is client-side.</li>
+  <li>No new routes, so <code>AUTHORIZATION_MATRIX</code> is unchanged (GET READ, mutations ADMIN).</li>
+  <li>Update <code>.maister/docs/project/architecture.md</code>: remove the "Publish gate and withdraw" section and the cleanup script; add notes on <code>listing_status</code> lockstep and the category tree.</li>
+</ul>
+</details>
+
+<h2 id="tests">Testing Approach</h2>
+<div class="card">
+  <p>2–8 focused tests per implementation step group; verification runs only the new and changed tests. Add a <code>leaf_category_id</code> helper in <code>tests/conftest.py</code> and switch every <code>categories[0]</code> lookup to it. Exact key sets are updated, never loosened.</p>
+  <div class="grid2">
+    <div><b>New backend</b>
+      <ul class="tight">
+        <li><code>test_item_listing_status_migration.py</code></li>
+        <li><code>test_category_tree_migration.py</code></li>
+        <li><code>test_needed_item_name_migration.py</code></li>
+        <li><code>test_vinted_category_seed_migration.py</code></li>
+        <li><code>test_category_tree.py</code></li>
+        <li><code>test_product_leaf_category.py</code></li>
+        <li><code>test_item_listing_status.py</code></li>
+      </ul>
+    </div>
+    <div><b>New frontend</b>
+      <ul class="tight">
+        <li><code>categoryTree.test.ts</code></li>
+        <li><code>CategoryTreePicker.test.tsx</code></li>
+      </ul>
+    </div>
+  </div>
+  <details><summary>Changed or deleted test files</summary>
+    <p><b>Backend:</b> test_category_reintroduction, test_category_module, test_product_category_fk_rename, test_pagination, test_product_resolution, test_item_details, test_term_item_listings(_router), test_photo_moderation_gate (rewrite), test_photo_moderation_withdraw / _repoint / test_withdraw_unmoderated_listings_script (delete), test_photo_moderation_queries, test_moderation, test_groups, test_public_term, test_organizer_page(_queries), test_exchange_summary, test_notifications, test_group_soft_delete_keep_live / _reads, test_authorization_matrix; category-helper switch in test_attendance_withdrawal, test_circulation(_ledger), test_conversation_inbox / _messages, test_domain_clock_guard, test_item_conversations, test_reservation_write_guards, test_term_clock_regressions, test_term_end_scan (and test_lend_listing_preferences_migration if it registers items).</p>
+    <p><b>Frontend:</b> ItemCreatePage (rewrite), ItemQuickAddForm(Category), CategoryListPage, CategoryFormPage, ProductFormPageCategory, ProductCategoryDisplayByCategoriesHook, useCategories, NeededItemQuickAddForm, EditTermDialog, MyItemsViewCategory, ItemDetailPage, useItemDetail, TermPage, termViewModel, organizer* block tests, OrganizerEditor, OrganizerTermsPage, PublicOrganizationPage, LayoutRenderer, useOrganizerPage, pages, extension-points, OrganizerItemRoute, OrganizerPhotosTab. <span class="sev critical">blocked</span>AppPage.test.tsx (user's uncommitted work).</p>
+  </details>
+  <details><summary>Standards compliance</summary>
+    <ul class="tight">
+      <li><b>models.md</b>: BaseEntity UUIDs, <code>_enum_column</code>, business key <code>(parent_id, name)</code>, bridges, no <code>relationship()</code></li>
+      <li><b>migrations.md</b>: separate schema and data, explicit names, partial unique, reverse downgrades, round-trip tests</li>
+      <li><b>api.md / error-handling.md</b>: typed 409/404 with Polish messages</li>
+      <li><b>security.md</b>: matrix unchanged</li>
+      <li><b>queries.md</b>: single aggregate and count queries, no N+1</li>
+      <li><b>components.md / accessibility.md</b>: ModalSheet picker, combobox Esc rule, focus return, disclosure tree</li>
+      <li><b>data-fetching.md</b>: one subscriber per field, prefix invalidation, verbatim messages</li>
+      <li><b>validation.md</b>: server-side rules; required field with submit disabled</li>
+      <li><b>minimal-implementation.md</b>: dead gate code deleted, no speculative enum values or endpoints</li>
+      <li><b>backend/frontend-testing.md</b>: flat placement, naming, explicit vitest imports</li>
+    </ul>
+  </details>
+</div>
+
+<h2 id="success">Success Criteria</h2>
+<div class="card">
+<ul class="tight">
+  <li>After <code>upgrade head</code>, only the reviewed Vinted tree exists: 9 ordered roots, no legacy rows. A downgrade to 0063 followed by <code>upgrade head</code> succeeds.</li>
+  <li>Non-leaf product writes return 409, and pickers allow only leaves (except the admin parent picker).</li>
+  <li>The three buttons create ACTIVE+GIFT / ACTIVE+SWAP / DRAFT. An 11th GIFT returns 409 and persists nothing.</li>
+  <li>ACTIVE ⇔ a pref row exists, after register, set, clear, confirm and backfill.</li>
+  <li>A pending photo upload or re-point never removes a pref, and PUT while photos are pending returns 200.</li>
+  <li>Needed items work end to end by <code>name</code>.</li>
+  <li>The picker meets the a11y rules: keyboard selection works, Esc in search does not close the sheet, focus returns to the trigger.</li>
+  <li>New and changed tests pass. mypy and ruff are no worse than the HEAD baseline. tsc is clean except the blocked <code>AppPage.test.tsx</code>.</li>
+</ul>
+</div>
+</body>
+</html>

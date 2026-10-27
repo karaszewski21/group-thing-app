@@ -47,6 +47,7 @@ const PANEL_VIEWS: readonly Exclude<View, "home">[] = [
   "szukaj",
   "szukam",
   "dodaj",
+  "wydarzenie",
 ];
 
 function Layout() {

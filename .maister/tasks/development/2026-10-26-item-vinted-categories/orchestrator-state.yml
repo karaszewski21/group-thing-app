@@ -1,0 +1,146 @@
+orchestrator:
+  started_phase: phase-1
+  completed_phases: [phase-1, phase-2, phase-4, phase-5]
+  failed_phases: []
+  auto_fix_attempts: {}
+  options:
+    sequential: null
+    html_output: true
+    mockup_format: html
+    spec_audit_enabled: true
+    skip_test_suite: true
+    e2e_enabled: true
+    user_docs_enabled: true
+    code_review_enabled: true
+    pragmatic_review_enabled: true
+    reality_check_enabled: true
+    production_check_enabled: true
+  created: "2026-10-26T19:06:16Z"
+  updated: "2026-10-27T10:40:26Z"
+  task_path: .maister/tasks/development/2026-10-26-item-vinted-categories
+  task_ids: {}
+
+task:
+  title: Item categories from Vinted + Oddam/Zamienię/Wersja robocza buttons
+  description: "chce z zmienićw dodawaniu rzeczy typ na kategorie. Kategorię liste chce wziać całą z vinted 3 przycuiski Oddam,Zamienię, Wersja robacza"
+  status: in_progress
+  tags: [items, categories, frontend, backend]
+  priority: null
+
+task_context:
+  risk_level: high
+  clarifications_resolved: true
+  scope_expanded: true
+  architecture_decision: "listing_status mirrors pref row; mode set atomically at registration; client-side category tree"
+  task_characteristics:
+    has_reproducible_defect: false
+    modifies_existing_code: true
+    creates_new_entities: true
+    involves_data_operations: true
+    ui_heavy: true
+  research_reference:
+    path: null
+    research_question: null
+    research_type: null
+    confidence_level: null
+  design_reference:
+    source: phase-4-mockup-studio
+    product_design_path: null
+    mockup_count: 9
+    has_brief: false
+    index_path: analysis/design-context/INDEX.md
+  project_context:
+    project_doc_paths:
+      - .maister/docs/project/tech-stack.md
+      - .maister/docs/project/architecture.md
+  phase_summaries:
+    codebase_analysis:
+      summary: "'Typ' on the add form already is a flat category select over a 5-row categories table; work is making categories a Vinted tree (parent_id, per-parent uniqueness, seed migration 0064+) and adding Oddam/Zamienie/Wersja robocza buttons. Draft = no listing-preference row; mode at creation clashes with photo-moderation 409/withdraw."
+      key_files:
+        - src/frontend/src/components/shared/ItemQuickAddForm.tsx
+        - src/frontend/src/pages/product/ItemCreatePage.tsx
+        - src/frontend/src/hooks/useCreateItem.ts
+        - src/frontend/src/hooks/useCategories.ts
+        - src/frontend/src/api/categories.ts
+        - src/backend/app/category/models.py
+        - src/backend/app/category/service.py
+        - src/backend/app/groups/application/term_item_listings.py
+      primary_language: python+typescript
+      decisions: []
+      risks:
+        - "test_category_reintroduction.py asserts exactly 5 seeded rows and will break"
+        - "Admin CategoryListPage assumes a flat list with up/down moves"
+        - "Uncommitted user work in AddView.tsx, router.tsx, appHelpers.ts, AppPage.tsx, AppPage.test.tsx and untracked EventCreateView.tsx overlaps the area"
+      artifacts:
+        - {path: analysis/codebase-analysis.md, label: Codebase analysis, html: null}
+    clarifications:
+      - "Full Vinted tree, cascading + search, leaf assignment"
+      - "Existing 5 categories: dev data, free to clear/remap"
+      - "Wersja robocza = saved without listing mode (no new column)"
+      - "Oddam/Zamienie with pending photos: backend stores pending intent, activates on approval"
+      - "Tree picker everywhere incl. admin category management rebuild"
+    gap_analysis:
+      summary: "Two gaps: flat categories need parent link, per-parent uniqueness, seeded Polish Vinted tree, shared tree picker in 5 places + tree-aware admin; and no storage/activation path for a gift/swap choice made while photos await moderation (approvals come from external cron, so activation needs an in-app sweep)."
+      integration_points: [app/category, app/product/service.py resolve, app/groups/application/term_item_listings.py, app/moderation/service.py, app/main.py scheduler, ItemCreatePage, MyItemsView, AppDataContext]
+      decisions: []
+      risks:
+        - "Approvals are written by an external cron with no callback, so activation needs a sweep in this app"
+        - "The pending choice is invisible and uneditable unless Moje rzeczy is extended"
+        - "No Vinted tree data exists; origin and licence must be settled"
+      artifacts:
+        - {path: analysis/gap-analysis.md, label: Gap analysis, html: null}
+    scope_clarifications:
+      summary: "Intent concept dropped: explicit item status (DRAFT/ACTIVE) + mode GIFT/SWAP; photo-moderation listing gate removed; Vinted JSON snapshot + external_id; leaf-only ModalSheet picker; needed items decoupled from products (scope expanded); legacy categories deleted with products; backend gift limit."
+      scope_expanded: true
+      decisions:
+        - {decision: "Explicit item status DRAFT/ACTIVE (MODERATION/REJECTED later) + existing mode GIFT/SWAP on item_listing_preferences", rationale: "user's model; moderation states deferred"}
+        - {decision: "Remove photo-moderation gate on listings (no 409, upload no longer withdraws offers); moderation itself stays", rationale: "user: remove moderation on photos for now, scoped to the gate"}
+        - {decision: "One-time vinted.pl snapshot in alembic/data/vinted_categories_pl.json + nullable unique external_id", rationale: "no public API; idempotent re-import"}
+        - {decision: "Backend enforces MAX_GIFT_ITEMS=10", rationale: "two write paths now"}
+        - {decision: "Decouple needed_items from products; plain names", rationale: "user: needed items are just a string list"}
+        - {decision: "Admin tree: create child, rename, sibling reorder, delete 409 on children/products; no reparenting; child under leaf with products blocked 409", rationale: "minimal; seed defines structure"}
+        - {decision: "Delete 5 legacy categories with their products", rationale: "user: clean start"}
+        - {decision: "ModalSheet picker with search + drill-down, leaf-only", rationale: "~1000 nodes on mobile"}
+      risks:
+        - "Deleting legacy products cascades to items, prefs, reservations, needed items; delete in dependency order"
+        - "Decoupling needed items touches offer/need matching and term views"
+        - "Removing the moderation gate changes test_photo_moderation_gate/_withdraw/_repoint semantics"
+        - "Vinted catalog ids may not be recoverable for every node"
+        - "New item status may be confused with InventoryBalance.status"
+      artifacts:
+        - {path: analysis/scope-clarifications.md, label: Scope clarifications, html: null}
+    ui_mockups:
+      summary: "9 HTML mockups: add item with Kategoria picker + Oddam/Zamienię/Wersja robocza, CategoryTreePicker sheet (browse + search), item edit, admin tree + form, gift-limit error, term needed list as plain names."
+      components_designed: [CategoryTreePicker, ItemSubmitActions, AdminCategoryTree]
+      format_used: html
+      gallery_url: "http://localhost:3847"
+      decisions:
+        - {decision: "Submit buttons disabled until name and leaf category set", rationale: "category has no sensible default in a tree"}
+        - {decision: "Search inside picker is client-side over the cached useCategories tree", rationale: "no new endpoint"}
+        - {decision: "Admin parent picker allows any node; read-only on edit", rationale: "no reparenting"}
+      risks: []
+      artifacts:
+        - {path: analysis/design-context/INDEX.md, label: Mockup index, html: null}
+        - {path: analysis/design-context/design-resources.md, label: Design resources, html: null}
+    design: {summary: "Phase 4 HTML mockups bind layout, copy and states for 9 screens; see INDEX.md.", screen_count: 9, component_count: 2, index_path: analysis/design-context/INDEX.md}
+    specification:
+      summary: "25 requirements (FR-1..FR-25): category tree + Vinted seed + legacy wipe, leaf-only products, admin tree, inventory_items.listing_status DRAFT/ACTIVE mirroring prefs, mode set atomically at registration, gift limit 10, moderation gate removed, needed items as plain names, shared CategoryTreePicker; migrations 0064-0069."
+      decisions:
+        - {decision: "Column named listing_status (ItemListingStatus DRAFT/ACTIVE), VARCHAR(20)", rationale: "avoid collision with InventoryBalance.status / ItemDetailsResponse.status"}
+        - {decision: "Mode set at registration (POST /api/inventory-items listing_mode) in one commit before photo uploads", rationale: "gift-limit 409 persists nothing; supersedes mockup note 'after photo uploads'"}
+        - {decision: "All three submit buttons type=button; Enter does not submit", rationale: "visibility is always an explicit choice"}
+        - {decision: "Legacy wipe deletes every pre-seed category with products and dependents", rationale: "leftover flat roots would break taxonomy"}
+        - {decision: "Needed-item DTO uses name; MyPledgeResponse.product_name -> item_name; outbox key product_name kept", rationale: "value is no longer a product name; outbox is internal contract"}
+        - {decision: "Admin tree via nested lists + disclosure buttons, not role=tree", rationale: "no roving-tabindex model needed"}
+      risks:
+        - "AppPage.test.tsx and appHelpers.ts (uncommitted user work) must be updated after the user commits"
+        - "Vinted fixture must be reviewed by the user before seed 0069 is applied"
+        - "Destructive legacy wipe orphans Spaces photo objects (dev data)"
+        - "Gift-limit race between concurrent requests accepted as soft limit"
+        - "Needed-item name moderation runs after createTerm; rejected name leaves term (FR-24)"
+        - "19 backend tests take categories[0], must switch to a leaf helper"
+        - "Migration numbering assumes head 0063"
+      artifacts:
+        - {path: analysis/requirements.md, label: Requirements, html: null}
+        - {path: implementation/spec.md, label: Specification, html: implementation/spec.html}
+    architecture_decision: {decision: null, summary: null}

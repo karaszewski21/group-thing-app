@@ -1,31 +1,38 @@
 import type { ReactNode } from "react";
 import { Link } from "react-router-dom";
-import { CalendarPlusIcon, ChevronRightIcon, CloseIcon, FamilyIcon, SearchIcon } from "../../components/shared/appIcons";
+import { BoxIcon, CalendarIcon, CalendarPlusIcon, CloseIcon, SearchIcon } from "../../components/shared/appIcons";
 import { viewPath } from "../../utils/appHelpers";
 import { useAppData } from "../../app/appDataStore";
 
-const OPTION_CLASS =
-  "flex w-full items-center gap-3.5 rounded-[22px] border border-line bg-paper p-3.5 text-left text-ink transition-colors hover:border-line-strong focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring";
+const TILE_CLASS =
+  "relative flex aspect-[4/5] flex-col justify-between overflow-hidden rounded-[26px] p-4 text-left transition-transform hover:-translate-y-0.5 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring";
 
-function OptionContent({ icon, tone, title, hint }: { icon: ReactNode; tone: string; title: string; hint: string }) {
+function TileContent({ icon, iconTone, title, hint }: { icon: ReactNode; iconTone: string; title: string; hint: string }) {
   return (
     <>
-      <span className={`flex h-12 w-12 flex-none items-center justify-center rounded-2xl ${tone}`}>{icon}</span>
-      <span className="min-w-0 flex-1">
-        <span className="block text-base font-extrabold">{title}</span>
-        <span className="block text-[13px] text-ink-soft">{hint}</span>
-      </span>
-      <span className="text-ink-soft">
-        <ChevronRightIcon />
+      <span className={`flex h-13 w-13 items-center justify-center rounded-[18px] ${iconTone}`}>{icon}</span>
+      <span>
+        <span className="block font-serif text-[21px] leading-tight font-extrabold">{title}</span>
+        <span className="mt-1 block text-[13px] leading-snug opacity-85">{hint}</span>
       </span>
     </>
   );
 }
 
-/** The bottom bar's "+": everything a user can add, in one place. */
+/** The bottom bar's "+": four big tiles — an item, a wanted item, a term of
+ * one of the user's groups and a one-off event. */
 export function AddView() {
   const { myGroups, setModal, selectTermGroup } = useAppData();
   const hasGroups = myGroups.length > 0;
+
+  function addTerm() {
+    if (hasGroups) {
+      selectTermGroup(myGroups[0].id);
+      setModal("termin");
+    } else {
+      setModal("zaloz-grupe");
+    }
+  }
 
   return (
     <>
@@ -40,67 +47,43 @@ export function AddView() {
         </Link>
       </div>
 
-      <section className="relative overflow-hidden rounded-[28px] bg-primary p-5 text-on-primary">
-        <span aria-hidden="true" className="absolute -top-10 -right-10 h-35 w-35 rounded-full bg-accent" />
-        <h2 className="relative font-serif text-2xl font-extrabold">Rzecz</h2>
-        <p className="relative mt-1 max-w-58 text-[15px] leading-snug opacity-90">
-          Zrób zdjęcie i zdecyduj: oddasz czy zamienisz.
-        </p>
-        <Link
-          to="/product/new"
-          className="relative mt-4 flex min-h-13 items-center justify-center rounded-full bg-paper text-base font-extrabold text-primary-fg focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-paper"
-        >
-          + Dodaj rzecz
+      <div className="grid grid-cols-2 gap-3">
+        <Link to="/product/new" className={`${TILE_CLASS} bg-primary text-on-primary`}>
+          <span aria-hidden="true" className="absolute -top-8 -right-8 h-24 w-24 rounded-full bg-accent" />
+          <span className="relative flex h-full flex-col justify-between">
+            <TileContent
+              icon={<BoxIcon c="currentColor" />}
+              iconTone="bg-paper text-primary-fg"
+              title="Rzecz"
+              hint="Zrób zdjęcie: oddasz czy zamienisz"
+            />
+          </span>
         </Link>
-      </section>
-
-      <div className="mt-4 flex flex-col gap-2.5">
-        <Link to={viewPath("szukam")} className={OPTION_CLASS}>
-          <OptionContent
+        <Link to={viewPath("szukam")} className={`${TILE_CLASS} bg-teal-soft text-ink`}>
+          <TileContent
             icon={<SearchIcon c="currentColor" />}
-            tone="bg-teal-soft text-ink"
+            iconTone="bg-paper text-ink"
             title="Szukam rzeczy"
             hint="Damy znać, gdy ktoś doda pasującą"
           />
         </Link>
+        <button type="button" onClick={addTerm} className={`${TILE_CLASS} bg-accent-soft text-ink`}>
+          <TileContent
+            icon={<CalendarPlusIcon c="currentColor" />}
+            iconTone="bg-paper text-accent-fg"
+            title="Termin spotkania"
+            hint={hasGroups ? "W jednej z Twoich grup" : "Najpierw załóż grupę"}
+          />
+        </button>
+        <Link to={viewPath("wydarzenie")} className={`${TILE_CLASS} bg-primary-soft text-ink`}>
+          <TileContent
+            icon={<CalendarIcon c="currentColor" />}
+            iconTone="bg-paper text-primary-fg"
+            title="Wydarzenie"
+            hint="Jednorazowe: piknik, urodziny"
+          />
+        </Link>
       </div>
-
-      <section className="mt-6">
-        <h2 className="mb-2.5 text-[13px] font-extrabold tracking-[.12em] text-ink-soft uppercase">Spotkania</h2>
-        <div className="flex flex-col gap-2.5">
-          <button
-            type="button"
-            className={OPTION_CLASS}
-            onClick={() => {
-              if (hasGroups) {
-                selectTermGroup(myGroups[0].id);
-                setModal("termin");
-              } else {
-                setModal("zaloz-grupe");
-              }
-            }}
-          >
-            <OptionContent
-              icon={<CalendarPlusIcon c="currentColor" />}
-              tone="bg-accent-soft text-accent-fg"
-              title="Termin spotkania"
-              hint={hasGroups ? "Data, godzina i rzeczy do przyniesienia" : "Najpierw załóż grupę"}
-            />
-          </button>
-          <button
-            type="button"
-            className={OPTION_CLASS}
-            onClick={() => setModal(hasGroups ? "grupa" : "zaloz-grupe")}
-          >
-            <OptionContent
-              icon={<FamilyIcon c="currentColor" />}
-              tone="bg-primary-soft text-primary-fg"
-              title="Grupa"
-              hint="Stały cykl, np. „Poniedziałki 10:00”"
-            />
-          </button>
-        </div>
-      </section>
     </>
   );
 }

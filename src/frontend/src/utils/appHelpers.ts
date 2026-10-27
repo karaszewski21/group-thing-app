@@ -19,7 +19,8 @@ export type View =
   | "konto"
   | "szukaj"
   | "szukam"
-  | "dodaj";
+  | "dodaj"
+  | "wydarzenie";
 
 const VIEW_VALUES: readonly View[] = [
   "home",
@@ -33,6 +34,7 @@ const VIEW_VALUES: readonly View[] = [
   "szukaj",
   "szukam",
   "dodaj",
+  "wydarzenie",
 ];
 
 function isView(value: string | undefined): value is View {

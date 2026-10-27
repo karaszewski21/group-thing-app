@@ -16,6 +16,7 @@ import { AccountView } from "../account/AccountView";
 import { SearchView } from "../search/SearchView";
 import { WantedView } from "../search/WantedView";
 import { AddView } from "../add/AddView";
+import { EventCreateView } from "../add/EventCreateView";
 import { SubPageHeader } from "../../components/shared/appComponents";
 import { KONTO_SUBVIEWS, viewPath } from "../../utils/appHelpers";
 
@@ -98,6 +99,7 @@ function AppPageView() {
         {view === "szukaj" && <SearchView />}
         {view === "szukam" && <WantedView />}
         {view === "dodaj" && <AddView />}
+        {view === "wydarzenie" && <EventCreateView />}
       </div>
 
       <AppModals />
