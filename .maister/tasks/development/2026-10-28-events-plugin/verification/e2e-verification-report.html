@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>E2E Verification — 2026-10-28-events-plugin</title>
+<style>
+:root {
+  --bg:#f6f7f9; --surface:#fff; --border:#e2e5ea; --text:#1a1d23; --dim:#6b7280;
+  --accent:#4f46e5; --accent-soft:#eef2ff; --ok:#16a34a; --ok-soft:#ecfdf3;
+  --warn:#d97706; --warn-soft:#fffbeb; --crit:#dc2626; --crit-soft:#fef2f2;
+  --info:#2563eb; --info-soft:#eff6ff; --radius:10px;
+}
+@media (prefers-color-scheme: dark) {
+  :root { --bg:#111418; --surface:#1a1f26; --border:#2e3640; --text:#e6e9ee; --dim:#9aa4b2;
+    --accent:#818cf8; --accent-soft:#26294a; --ok:#4ade80; --ok-soft:#11291a;
+    --warn:#fbbf24; --warn-soft:#2e2410; --crit:#f87171; --crit-soft:#321616;
+    --info:#60a5fa; --info-soft:#15233a; }
+}
+* { box-sizing:border-box; }
+body { margin:0 auto; max-width:1100px; padding:24px 20px 64px; background:var(--bg);
+  color:var(--text); font:14px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif; }
+a { color:var(--accent); text-decoration:none; } a:hover { text-decoration:underline; }
+h1 { font-size:22px; letter-spacing:-.01em; } h2 { font-size:16px; margin-top:28px; }
+.card { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius);
+  padding:16px 18px; margin:14px 0; }
+.badge { display:inline-block; font-size:11px; font-weight:600; text-transform:uppercase;
+  letter-spacing:.04em; padding:2px 8px; border-radius:99px; background:var(--accent-soft); color:var(--accent); }
+.sev { display:inline-block; font-size:10.5px; font-weight:700; text-transform:uppercase;
+  padding:1.5px 7px; border-radius:99px; margin-right:6px; }
+.sev.critical { background:var(--crit-soft); color:var(--crit); }
+.sev.warning  { background:var(--warn-soft); color:var(--warn); }
+.sev.info     { background:var(--info-soft); color:var(--info); }
+.pass { color:var(--ok); font-weight:600; } .fail { color:var(--crit); font-weight:600; }
+table { width:100%; border-collapse:collapse; }
+th, td { text-align:left; padding:7px 10px; border-bottom:1px solid var(--border); vertical-align:top; }
+th { font-size:11.5px; text-transform:uppercase; letter-spacing:.04em; color:var(--dim); }
+code { font-family:ui-monospace,SFMono-Regular,Menlo,monospace; font-size:12.5px;
+  background:var(--accent-soft); padding:1px 5px; border-radius:4px; }
+img.shot { max-width:100%; border:1px solid var(--border); border-radius:var(--radius); }
+details > summary { cursor:pointer; font-weight:600; }
+.crumbs { display:flex; gap:14px; font-size:13px; margin-bottom:18px; flex-wrap:wrap; }
+.crumbs a.md { margin-left:auto; color:var(--dim); }
+.crumbs .here { font-weight:650; color:var(--text); }
+.tiles { display:flex; gap:10px; flex-wrap:wrap; margin:14px 0; }
+.tile { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius);
+  padding:10px 16px; text-align:center; min-width:90px; }
+.tile b { display:block; font-size:20px; letter-spacing:-.01em; }
+.tile span { font-size:10.5px; text-transform:uppercase; letter-spacing:.05em; color:var(--dim); }
+.verdict { padding:14px 18px; border-radius:var(--radius); background:var(--crit-soft); color:var(--crit); font-weight:700; font-size:16px; }
+.shots { display:flex; gap:10px; flex-wrap:wrap; } .shots img.shot { width:200px; }
+.warnc { color:var(--warn); font-weight:600; }
+</style>
+</head>
+<body>
+<nav class="crumbs">
+  <a href="../dashboard.html">← Dashboard</a>
+  <a href="../implementation/spec.html">Spec</a> <a href="../implementation/implementation-plan.html">Plan</a>
+  <a href="implementation-verification.html">Verification</a>
+  <span class="here">E2E</span> <a href="visual-fidelity.html">Visual fidelity</a>
+  <a href="e2e-verification-report.md" target="_blank" rel="noopener" class="md">md twin ↗</a>
+</nav>
+<header>
+  <span class="badge">e2e verification</span>
+  <h1>E2E Verification — Events plugin at /add/event</h1>
+  <div style="color:var(--dim)">2026-10-28 · git 364c05c (main, working tree) · Playwright MCP (Chromium) · 360×800 / 390×844 / 1280×800</div>
+</header>
+<div class="verdict" style="margin-top:14px">❌ NO-GO — with the real backend, plugin discovery always falls back to "Plugin wydarzeń jest niedostępny"</div>
+<div class="tiles">
+  <div class="tile"><b>10/10</b><span>executed</span></div>
+  <div class="tile"><b class="pass">9</b><span>passed (4 ⚠️)</span></div>
+  <div class="tile"><b class="fail">1</b><span>failed</span></div>
+  <div class="tile"><b>1 · 0 · 2 · 1</b><span>crit · major · minor · cosm.</span></div>
+</div>
+
+<section class="card tldr">
+  <h2 style="margin-top:0">TL;DR</h2>
+  <ul>
+    <li><b>NO-GO.</b> <code>GET /api/plugins</code> returns <code>extension_points</code>, but the host reads <code>plugin.extensionPoints</code>, so <code>/add/event</code> always shows the fallback. The bug predates the task, but it makes the feature unreachable.</li>
+    <li>With a test-only route shim, the plugin, <code>done</code> and <code>uploadImage</code> work end to end. 9/10 scenarios passed (4 with issues).</li>
+    <li>iframe chrome is <b>246 px</b> on phones; recommended <code>FRAME_STYLE = { height: "calc(100dvh - 250px)", minHeight: "400px" }</code>.</li>
+  </ul>
+  <h2>Key Decisions</h2>
+  <ul>
+    <li>The test continued past C1 by rewriting the <code>/api/plugins</code> response in Playwright. No code was changed.</li>
+    <li>Storage was disabled (409 mode), so scenario B covered the banner-failed path, not the thumbnail path.</li>
+  </ul>
+  <h2>Open Questions / Risks</h2>
+  <ul>
+    <li><span class="sev critical">critical</span> The key-shape mismatch likely breaks every plugin extension point, admin pages included. Unit tests stub camelCase fixtures, so they do not catch it.</li>
+    <li>A duplicate dev registration <code>Events</code> (same manifest) is also enabled, and the host picks it.</li>
+    <li>The banner success path (APPROVED row + WebP files) was not verified at runtime.</li>
+  </ul>
+</section>
+
+<p>Contents: <a href="#env">Environment</a> · <a href="#scenarios">Scenarios</a> · <a href="#disc">Discrepancies</a> · <a href="#console">Console</a> · <a href="#exit">Exit criteria</a> · <a href="#rec">Recommendations</a></p>
+
+<main>
+<h2 id="env">Environment &amp; preflight</h2>
+<div class="card">
+<table>
+<tr><th>Field</th><th>Value</th></tr>
+<tr><td>Base URL</td><td>http://localhost:5173 (→ /api on 8080); plugin http://localhost:3004</td></tr>
+<tr><td>Auth</td><td>New GUEST user <code>e2e-events-1793198641@example.test</code>; plugin admin <code>e2e-plugadmin-1793198729@example.test</code> (+PLUGIN_MANAGEMENT through SQL)</td></tr>
+<tr><td>Backend</td><td>Fresh routes (<code>POST /api/events</code> unauthenticated → 401); DB migrated 0069 → <b>0070</b> during preflight</td></tr>
+<tr><td>SDK</td><td><code>/assets/plugin-sdk.js</code> contains <code>uploadImage</code></td></tr>
+<tr><td>Plugin</td><td><code>PUT /api/plugins/events/manifest</code> → 200 (the seeded admin password no longer works)</td></tr>
+<tr><td>Storage</td><td><b>Disabled</b>: avatar and banner → 409</td></tr>
+</table>
+</div>
+
+<h2 id="scenarios">Scenarios</h2>
+
+<div class="card">
+<h3>4.1 Plugin discovery with the real backend — <span class="fail">❌ Failed</span></h3>
+<table><tr><th>#</th><th>Action</th><th>Expected</th><th>Actual</th><th></th></tr>
+<tr><td>1</td><td>Home → + → /add</td><td>Tile "Wydarzenie"</td><td>Present → /add/event</td><td>✅</td></tr>
+<tr><td>2</td><td>Open /add/event</td><td>iframe "Formularz nowego wydarzenia"</td><td>Fallback "Plugin wydarzeń jest niedostępny"</td><td>❌</td></tr>
+<tr><td>3</td><td>Inspect /api/plugins</td><td><code>extensionPoints</code></td><td><code>extension_points</code></td><td>❌</td></tr></table>
+<div class="shots"><img class="shot" src="screenshots/01-add-hub.png" alt="Add hub"><img class="shot" src="screenshots/00-bug-fallback-with-enabled-plugin.png" alt="Fallback despite enabled plugin"></div>
+</div>
+
+<div class="card">
+<h3>4.2 A — Happy path without banner — <span class="warnc">⚠️ Passed with issues</span></h3>
+<table><tr><th>#</th><th>Action</th><th>Actual</th><th></th></tr>
+<tr><td>1</td><td>Open form</td><td>Header + iframe title OK; RENDER prefix; blank date/time</td><td>✅</td></tr>
+<tr><td>2</td><td>Submit state</td><td><code>aria-disabled="true"</code> + hint via <code>aria-describedby</code></td><td>✅</td></tr>
+<tr><td>3</td><td>Fill fields</td><td>Counter "50 / 2000"</td><td>✅</td></tr>
+<tr><td>4</td><td>Add place in sheet</td><td>POST /api/locations 201; selected; focus back on trigger</td><td>✅</td></tr>
+<tr><td>5</td><td>Save</td><td>POST /api/events 201, naive <code>2026-11-15T14:00:00</code>/<code>18:00:00</code></td><td>✅</td></tr>
+<tr><td>6</td><td>Confirmation</td><td>"niedziela, 15 listopada · 14:00–18:00" + place</td><td>✅</td></tr>
+<tr><td>7</td><td>Wróć do dodawania</td><td>/add + toast "Wydarzenie „Piknik testowy E2E” zapisane"</td><td>✅</td></tr>
+<tr><td>8</td><td>DB</td><td>Row with the caller's party, naive times</td><td>✅</td></tr></table>
+<p>Issues: needs the shim (C1); stale banner error visible (m2).</p>
+<div class="shots"><img class="shot" src="screenshots/02-event-form-empty.png" alt="Empty form"><img class="shot" src="screenshots/10-form-filled-location.png" alt="Filled with location"><img class="shot" src="screenshots/13-event-saved.png" alt="Saved"><img class="shot" src="screenshots/14-add-hub-toast.png" alt="Hub toast"></div>
+</div>
+
+<div class="card">
+<h3>4.3 B — Banner, storage disabled — <span class="pass">✅ Passed</span></h3>
+<p>Preview with Zmień/Usuń → two-step saving with natively disabled "Zapisywanie…" → multipart upload (<code>X-Requested-With: PluginFetch</code>, Bearer) → 409 → banner.failed + "Dodawanie zdjęć jest chwilowo niedostępne" → retry (409 again) → "Pomiń baner" → saved card "piątek, 20 listopada · 16:30" → "Dodaj kolejne" resets the form.</p>
+<div class="shots"><img class="shot" src="screenshots/19-saving-step1.png" alt="Saving step 1"><img class="shot" src="screenshots/20-saving-step2-banner.png" alt="Saving step 2"><img class="shot" src="screenshots/17-banner-failed.png" alt="Banner failed"><img class="shot" src="screenshots/18-skip-banner-saved.png" alt="Skip banner saved"></div>
+</div>
+
+<div class="card">
+<h3>4.4 C — Validation — <span class="warnc">⚠️ Passed with issues</span></h3>
+<table><tr><th>Check</th><th>Text shown</th><th></th></tr>
+<tr><td>Blocked submit click</td><td>"Podaj nazwę wydarzenia." · "Podaj datę i godzinę początku." (+ aria-invalid / describedby)</td><td>✅</td></tr>
+<tr><td>Name "ab"</td><td>"Nazwa musi mieć od 3 do 120 znaków."</td><td>✅</td></tr>
+<tr><td>Past start</td><td>"Początek nie może być w przeszłości."</td><td>✅</td></tr>
+<tr><td>End ≤ start</td><td>"Koniec musi być później niż początek."</td><td>✅</td></tr>
+<tr><td>Start 2029</td><td>"Początek może być najwyżej 2 lata od dziś."</td><td>✅</td></tr>
+<tr><td>GIF</td><td>"Nieobsługiwany plik — dodaj zdjęcie JPG, PNG lub WebP"</td><td>✅</td></tr>
+<tr><td>5.86 MB PNG</td><td>"Baner jest za duży (maks. 5 MB)"</td><td>✅</td></tr>
+<tr><td>Error reset</td><td>Banner error persists after the draft is valid (m2)</td><td>⚠️</td></tr></table>
+<div class="shots"><img class="shot" src="screenshots/03-blocked-submit-errors.png" alt="Blocked submit"><img class="shot" src="screenshots/04-validation-errors.png" alt="Validation errors"><img class="shot" src="screenshots/05-banner-gif-rejected.png" alt="GIF rejected"><img class="shot" src="screenshots/12-form-filled-before-submit.png" alt="Stale banner error"></div>
+</div>
+
+<div class="card">
+<h3>4.5 Location sheet accessibility — <span class="pass">✅ Passed</span></h3>
+<p><code>aria-modal</code> dialog, all buttons <code>type=button</code>. The Tab cycle stays inside (✕ → place → + Dodaj nowe miejsce → Bez lokalizacji → ✕). Esc closes and returns focus to <code>#event-location-button</code>. Add-place uses <code>aria-disabled</code> with the errors "Podaj nazwę miejsca." / "Podaj adres miejsca."; maxLength is 255/500.</p>
+<div class="shots"><img class="shot" src="screenshots/07-location-sheet.png" alt="Sheet"><img class="shot" src="screenshots/09-add-place-errors.png" alt="Add place errors"><img class="shot" src="screenshots/11-location-sheet-list.png" alt="Sheet list"></div>
+</div>
+
+<div class="card">
+<h3>4.6 D — Plugin disabled fallback — <span class="pass">✅ Passed</span></h3>
+<p>Both registrations disabled → 🎈 card + copy, no iframe, "Wróć do dodawania" → /add. Re-enabled afterwards.</p>
+<div class="shots"><img class="shot" src="screenshots/21-plugin-unavailable.png" alt="Unavailable"></div>
+</div>
+
+<div class="card">
+<h3>4.7 E — iframe height with the sheet open — <span class="warnc">⚠️ Passed with issues</span></h3>
+<table><tr><th>Viewport</th><th>iframe</th><th>Host scrollHeight</th><th>Result</th></tr>
+<tr><td>360×800 (current 240 / min 560)</td><td>150.8 → 710.8 (560)</td><td>806 vs 800</td><td>⚠️ 6 px double scroll</td></tr>
+<tr><td>390×844 (current)</td><td>h 604</td><td>850 vs 844</td><td>⚠️ 6 px double scroll</td></tr>
+<tr><td>390×844 @ 246 / min 480</td><td>h 598</td><td>844 = 844</td><td>✅</td></tr>
+<tr><td>360×800 @ 250 / min 400</td><td>h 550, bottom 700.8 (FAB ≈708)</td><td>800 = 800</td><td>✅</td></tr>
+<tr><td>1280×800 (current)</td><td>182.8 → 742.8 (nav at 729.2)</td><td>870 vs 800</td><td>⚠️ 70 px; 13 px under nav</td></tr>
+<tr><td>1280×800 @ 310 / min 400</td><td>h 490</td><td>800 = 800</td><td>✅</td></tr></table>
+<p><b>Recommendation:</b> <code>{ height: "calc(100dvh - 250px)", minHeight: "400px" }</code> (phone chrome = 150.8 top + 24 padding + 70.8 nav ≈ 246). For widths ≥640 px, use responsive classes such as <code>sm:h-[calc(100dvh-282px)] lg:h-[calc(100dvh-314px)]</code>, or a single <code>calc(100dvh - 312px)</code>.</p>
+<div class="shots"><img class="shot" src="screenshots/08-sheet-390x844.png" alt="390x844 sheet"></div>
+</div>
+
+<div class="card">
+<h3>4.8 Desktop 1280×800 — <span class="warnc">⚠️ Passed with issues</span></h3>
+<p>No horizontal scroll. Vertical overflow of 70 px, and the iframe runs 13 px under the bottom nav (m1).</p>
+<img class="shot" src="screenshots/22-desktop-form.png" alt="Desktop form" style="max-width:640px">
+</div>
+
+<div class="card">
+<h3>4.9 Backend error paths — <span class="pass">✅ Passed</span></h3>
+<table><tr><th>Call</th><th>Result</th></tr>
+<tr><td><code>POST /api/events {}</code></td><td>400 "Podaj datę i godzinę początku."</td></tr>
+<tr><td>aware <code>starts_at</code></td><td>400 "Podaj datę i godzinę bez strefy czasowej."</td></tr>
+<tr><td>end next day 00:00</td><td>400 "Koniec musi przypadać tego samego dnia co początek."</td></tr>
+<tr><td>banner, other user's event</td><td>403 "Możesz dodać baner tylko do swojego wydarzenia."</td></tr>
+<tr><td>banner, missing event</td><td>404 "Nie znaleziono wydarzenia."</td></tr>
+<tr><td>banner, storage off</td><td>409 "Dodawanie zdjęć jest chwilowo niedostępne"</td></tr>
+<tr><td>PATCH plugin enabled as user</td><td>403 "Access denied" (unchanged)</td></tr></table>
+</div>
+
+<div class="card">
+<h3>4.10 F — Console — <span class="pass">✅ Passed</span></h3>
+<p>No errors from origin 3004. Only expected or pre-existing entries (see below).</p>
+</div>
+
+<h2 id="disc">Discrepancies</h2>
+<div class="card">
+<p><span class="sev critical">critical</span><b>C1 — <code>extension_points</code> vs <code>extensionPoints</code></b>: the host never resolves <code>add.event</code>. Fix by giving the backend <code>PluginResponse</code> a camel alias, or by mapping in <code>api/plugins.ts</code>. Add a test that uses the real response shape.</p>
+<p><span class="sev warning">minor</span><b>m1 — iframe height</b>: 6 px host scroll on phones, 70 px on desktop with 13 px under the nav. Use the FRAME_STYLE above.</p>
+<p><span class="sev warning">minor</span><b>m2 — stale banner error</b>: "Baner jest za duży" stays visible after the rejected file is discarded, while the submit is enabled.</p>
+<p><span class="sev info">cosmetic</span><b>c1 — no progress bar</b> on the saving screen, which the mockup shows.</p>
+</div>
+
+<h2 id="console">Console &amp; network</h2>
+<div class="card"><table><tr><th>Source</th><th>Message</th><th>Severity</th></tr>
+<tr><td>/api/events/{id}/banner</td><td>409 Conflict (×4, expected)</td><td><span class="sev warning">minor</span></td></tr>
+<tr><td>/api/organizations/mine</td><td>404 (pre-existing)</td><td><span class="sev warning">minor</span></td></tr>
+<tr><td>react-dom_client.js:6805</td><td>iframe sandbox allow-scripts + allow-same-origin warning (pre-existing)</td><td><span class="sev warning">minor</span></td></tr>
+<tr><td>127.0.0.1:8765/favicon.ico</td><td>404 (test helper)</td><td><span class="sev info">cosmetic</span></td></tr></table></div>
+
+<h2 id="exit">Exit criteria</h2>
+<div class="card"><table><tr><th>Criterion</th><th>Status</th></tr>
+<tr><td>Event created end to end with the caller's party and naive times</td><td>❌ (shim only)</td></tr>
+<tr><td>Banner gives an APPROVED row + two WebP files</td><td>❌ (storage disabled)</td></tr>
+<tr><td>Validation copy matches; blocked-submit click reveals errors</td><td>✅</td></tr>
+<tr><td>Banner endpoint 404/403/409 order and copy</td><td>✅</td></tr>
+<tr><td>Fallback when disabled; existing 403 "Access denied"</td><td>✅</td></tr>
+<tr><td><code>done</code> → /add + toast</td><td>✅</td></tr>
+<tr><td>0070 creates the three tables</td><td>✅</td></tr></table></div>
+
+<h2 id="rec">Recommendations</h2>
+<div class="card"><ul>
+<li><b>Must fix before merge:</b> C1</li>
+<li><b>Should fix soon:</b> m1, m2</li>
+<li><b>Nice-to-have:</b> c1; delete the stray <code>Events</code> plugin row; re-run B with Spaces configured</li>
+</ul>
+<p>Data created in the dev DB: 2 test users, plugin registration <code>events</code>, location d436c69a…, events b0a099e8…, 7f25009f…, e91aa41b…; no banner rows.</p></div>
+</main>
+</body>
+</html>

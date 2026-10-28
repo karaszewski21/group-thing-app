@@ -1,6 +1,6 @@
 orchestrator:
   started_phase: phase-1
-  completed_phases: [phase-1, phase-2, phase-4, phase-5, phase-6, phase-7]
+  completed_phases: [phase-1, phase-2, phase-4, phase-5, phase-6, phase-7, phase-8, phase-10, phase-11, phase-12, phase-13, phase-14]
   failed_phases: []
   auto_fix_attempts: {}
   options:
@@ -16,13 +16,13 @@ orchestrator:
     reality_check_enabled: true
     production_check_enabled: true
   created: "2026-10-28T10:20:51Z"
-  updated: "2026-10-28T12:40:56Z"
+  updated: "2026-10-28T15:55:55Z"
   task_path: .maister/tasks/development/2026-10-28-events-plugin
   task_ids: {}
 task:
   title: Events plugin (wydarzenia)
   description: "Create an 'events' (wydarzenia) plugin. The /add/event page hosts it in an iframe, like other plugins (e.g. warehouse). Simple events: banner, name, start date, optional end time, description. Must be separate from Term."
-  status: in_progress
+  status: completed
   tags: [plugin, events, frontend, backend]
   priority: null
 task_context:
@@ -161,8 +161,48 @@ task_context:
       artifacts:
         - {path: implementation/implementation-plan.md, label: "Implementation plan", html: implementation/implementation-plan.html}
         - {path: implementation/visual-coverage.md, label: "Visual coverage", html: null}
+    implementation:
+      summary: "11/11 groups in 5 waves. Backend full suite 908 passed; frontend 1192 passed with 8 pre-existing + 1 flaky failures. Step 6.5 (iframe height tuning) deferred to E2E."
+      decisions:
+        - {decision: "Group 9 scope extended: crossorigin on SDK script + .loc .ph style", rationale: "Vite blocks cross-origin classic script without it"}
+      risks:
+        - "Iframe height not tuned in browser"
+        - "Real host-backend round trip not exercised yet"
+        - "Orphan large image if thumb put fails (avatar pattern)"
+      artifacts:
+        - {path: implementation/work-log.md, label: "Work log", html: null}
+    verification:
+      summary: "Cycle 2: passed with issues; 0 critical; 6 fixes confirmed; 4 warnings left (refactors 5-7 optional, 6.5 to E2E); backend 909/909, frontend no regressions."
+      decisions:
+        - {decision: "Fix 1,2,3,4,8; leave 5,6,7", rationale: "user choice"}
+      risks:
+        - "Live round trip not exercised (E2E)"
+        - "N2: unparsable 201 maps to create.generic"
+      artifacts:
+        - {path: verification/implementation-verification.md, label: "Verification report", html: verification/implementation-verification.html}
+    e2e:
+      summary: "Initial NO-GO: C1 extension_points vs extensionPoints (pre-existing) hid the plugin. Fixed in api/plugins.ts + test; live render confirmed; step 6.5 tuned; m2, N2, N3 fixed. Visual fidelity 8 match / 3 minor / 0 drift."
+      decisions:
+        - {decision: "C1 fixed by mapping at api/plugins.ts boundary", rationale: "smallest change"}
+      risks:
+        - "Banner success path not exercised locally (Spaces not configured)"
+      artifacts:
+        - {path: verification/e2e-verification-report.md, label: "E2E report", html: verification/e2e-verification-report.html}
+        - {path: verification/visual-fidelity.md, label: "Visual fidelity", html: verification/visual-fidelity.html}
+    user_docs:
+      summary: "Polish user guide (documentation/user-guide.md) with 14 reused E2E screenshots; states create-only limitation."
+      decisions: []
+      risks: []
+      artifacts:
+        - {path: documentation/user-guide.md, label: "User guide", html: null}
     clarifications:
       - "Storage: app/events module"
       - "Banner: SDK uploadImage message"
       - "Scope: create only"
       - "Moderation: none for now"
+verification_context:
+  last_status: passed_with_issues
+  issues_found: [orphan-banner-file, done-payload-validation, sdk-timeout-duplicate, strict-response-parsers, lock-during-upload, two-message-mechanisms, upload-rules-table, docs-gaps, iframe-height]
+  fixes_applied: [orphan-banner-file, done-payload-validation, sdk-timeout-duplicate, strict-response-parsers, docs-gaps, spec-timeout-w4]
+  decisions_made: ["fix 1,2,3,4,8; skip 5,6,7; 9 in E2E", "cycle 2: W4 spec timeout fixed"]
+  reverify_count: 1

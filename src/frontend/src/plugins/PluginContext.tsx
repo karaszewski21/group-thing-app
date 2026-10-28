@@ -1,16 +1,12 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import type { ReactNode } from "react";
-import type { ExtensionPoint, PluginResponse } from "../api/plugins";
+import type { PluginResponse } from "../api/plugins";
 import { getPlugins } from "../api/plugins";
 import { createMessageHandler } from "./PluginMessageHandler";
 import { MENU_MAIN, PRODUCT_DETAIL_INFO, PRODUCT_DETAIL_TABS, PRODUCT_LIST_FILTERS } from "./extensionPoints";
 import { iframeRegistry } from "./iframeRegistry";
-
-export interface ResolvedExtensionPoint extends ExtensionPoint {
-  pluginId: string;
-  pluginName: string;
-  pluginUrl: string;
-}
+import type { ResolvedExtensionPoint } from "./resolveExtensionPoints";
+import { resolveExtensionPoints } from "./resolveExtensionPoints";
 
 interface PluginContextValue {
   plugins: PluginResponse[];
@@ -24,28 +20,6 @@ interface PluginContextValue {
 }
 
 const PluginContext = createContext<PluginContextValue | null>(null);
-
-function resolveExtensionPoints(plugins: PluginResponse[], type: string, pluginId?: string): ResolvedExtensionPoint[] {
-  const results: ResolvedExtensionPoint[] = [];
-
-  for (const plugin of plugins) {
-    if (!plugin.enabled) continue;
-    if (pluginId && plugin.id !== pluginId) continue;
-
-    for (const ep of plugin.extensionPoints) {
-      if (ep.type === type) {
-        results.push({
-          ...ep,
-          pluginId: plugin.id,
-          pluginName: plugin.name,
-          pluginUrl: plugin.url,
-        });
-      }
-    }
-  }
-
-  return results.sort((a, b) => a.priority - b.priority);
-}
 
 export function PluginProvider({ children }: { children: ReactNode }) {
   const [plugins, setPlugins] = useState<PluginResponse[]>([]);

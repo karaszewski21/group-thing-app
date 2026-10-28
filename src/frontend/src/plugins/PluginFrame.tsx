@@ -1,6 +1,6 @@
 import { useEffect, useRef } from "react";
 import type { ExtensionPointType } from "./extensionPoints";
-import { MENU_MAIN, PRODUCT_DETAIL_INFO, PRODUCT_DETAIL_TABS, PRODUCT_LIST_FILTERS } from "./extensionPoints";
+import { ADD_EVENT, MENU_MAIN, PRODUCT_DETAIL_INFO, PRODUCT_DETAIL_TABS, PRODUCT_LIST_FILTERS } from "./extensionPoints";
 import { iframeRegistry } from "./iframeRegistry";
 
 interface PluginFrameProps {
@@ -11,6 +11,7 @@ interface PluginFrameProps {
   contextData?: Record<string, unknown>;
   path: string;
   style?: React.CSSProperties;
+  title?: string;
 }
 
 const CONTEXT_TYPE_PREFIX: Record<ExtensionPointType, string> = {
@@ -18,6 +19,7 @@ const CONTEXT_TYPE_PREFIX: Record<ExtensionPointType, string> = {
   [PRODUCT_DETAIL_TABS]: "PRODUCT_DETAIL",
   [PRODUCT_LIST_FILTERS]: "FILTER",
   [PRODUCT_DETAIL_INFO]: "PRODUCT_DETAIL",
+  [ADD_EVENT]: "RENDER",
 };
 
 function buildContextString(props: PluginFrameProps): string {
@@ -71,7 +73,7 @@ export function PluginFrame(props: PluginFrameProps) {
       ref={iframeRef}
       sandbox={SANDBOX}
       style={{ border: "none", width: "100%", height: "100%", ...props.style }}
-      title={`Plugin: ${props.pluginName}`}
+      title={props.title ?? `Plugin: ${props.pluginName}`}
     />
   );
 }

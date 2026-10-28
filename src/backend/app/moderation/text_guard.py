@@ -30,6 +30,8 @@ class TextField(StrEnum):
     PROFILE_NAME = "PROFILE_NAME"
     PROFILE_BIO = "PROFILE_BIO"
     MESSAGE_BODY = "MESSAGE_BODY"
+    EVENT_NAME = "EVENT_NAME"
+    EVENT_DESCRIPTION = "EVENT_DESCRIPTION"
 
 
 MESSAGES: dict[TextField, str] = {
@@ -56,6 +58,12 @@ MESSAGES: dict[TextField, str] = {
         "Opis „O mnie” narusza zasady społeczności. Zmień go i spróbuj ponownie."
     ),
     TextField.MESSAGE_BODY: "Wiadomość narusza zasady społeczności. Zmień ją i spróbuj ponownie.",
+    TextField.EVENT_NAME: (
+        "Nazwa wydarzenia narusza zasady społeczności. Zmień ją i spróbuj ponownie."
+    ),
+    TextField.EVENT_DESCRIPTION: (
+        "Opis wydarzenia narusza zasady społeczności. Zmień go i spróbuj ponownie."
+    ),
 }
 
 _classifier: TextClassifier | None = None

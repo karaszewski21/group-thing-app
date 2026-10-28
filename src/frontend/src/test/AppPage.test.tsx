@@ -17,6 +17,10 @@ import * as reservationsApi from "../api/reservations";
 import * as itemListingPreferencesApi from "../api/itemListingPreferences";
 import * as termItemListingsApi from "../api/termItemListings";
 import * as locationsApi from "../api/locations";
+import * as pluginsApi from "../api/plugins";
+import { ADD_EVENT } from "../plugins/extensionPoints";
+import { QueryClient } from "@tanstack/react-query";
+import { LOCATIONS_KEY } from "../hooks/useMyLocations";
 import { AppPage } from "../pages/home/AppPage";
 import { emitPendingActionResolved } from "../components/pending/pendingActionResolved";
 import { ApiError } from "../api/client";
@@ -115,6 +119,11 @@ vi.mock("../api/locations", () => ({
   createLocation: vi.fn(),
   updateLocation: vi.fn(),
   deleteLocation: vi.fn(),
+}));
+
+// EventCreateView resolves its iframe from the add.event extension point.
+vi.mock("../api/plugins", () => ({
+  getPlugins: vi.fn(),
 }));
 
 vi.mock("../api/organizations", () => ({
@@ -3006,32 +3015,106 @@ describe("AppPage — redesigned navigation and pages", () => {
   });
 });
 
-describe("AppPage — Dodaj › Wydarzenie (mock)", () => {
+describe("AppPage — Dodaj › Wydarzenie", () => {
+  const EVENTS_PLUGIN: pluginsApi.PluginResponse = {
+    id: "events",
+    name: "Wydarzenia",
+    version: "1.0.0",
+    url: "http://localhost:3004",
+    description: "Tworzenie jednorazowych wydarzeń",
+    enabled: true,
+    extensionPoints: [{ type: ADD_EVENT, label: "Wydarzenie", path: "/", priority: 10 }],
+  };
+
   beforeEach(() => {
     vi.resetAllMocks();
     localStorage.clear();
   });
 
-  it("Dodaj links to the event form, which validates and confirms a saved event", async () => {
+  it("Dodaj links the Wydarzenie tile to /add/event", async () => {
     mockGuestDefaults();
     renderPanel("/add");
 
     expect(await screen.findByRole("link", { name: /Wydarzenie/ })).toHaveAttribute("href", "/add/event");
-    expect(screen.queryByRole("button", { name: /^Grupa/ })).not.toBeInTheDocument();
   });
 
-  it("the event form needs a name and a date, then shows a confirmation", async () => {
+  it("an enabled add.event plugin renders its form iframe under Nowe wydarzenie", async () => {
     mockGuestDefaults();
+    vi.mocked(pluginsApi.getPlugins).mockResolvedValue([EVENTS_PLUGIN]);
     renderPanel("/add/event");
 
-    const save = await screen.findByRole("button", { name: "Zapisz wydarzenie" });
-    expect(save).toBeDisabled();
-    fireEvent.change(screen.getByLabelText("Nazwa"), { target: { value: "Piknik w parku" } });
-    fireEvent.change(screen.getByLabelText("Data"), { target: { value: "2099-06-01" } });
-    expect(save).toBeEnabled();
+    expect(await screen.findByRole("heading", { name: "Nowe wydarzenie" })).toBeInTheDocument();
+    const frame = await screen.findByTitle("Formularz nowego wydarzenia");
+    expect(frame.tagName).toBe("IFRAME");
+    expect(frame.getAttribute("src")).toMatch(/^http:\/\/localhost:3004\/#RENDER/);
+    expect(screen.getByRole("link", { name: "Wróć do dodawania" })).toHaveAttribute("href", "/add");
+  });
 
-    fireEvent.click(save);
-    expect(screen.getByText("Wydarzenie zapisane")).toBeInTheDocument();
-    expect(screen.getByText("Piknik w parku")).toBeInTheDocument();
+  it.each<[string, pluginsApi.PluginResponse[]]>([
+    ["no plugin", []],
+    ["a disabled plugin", [{ ...EVENTS_PLUGIN, enabled: false }]],
+  ])("with %s shows the unavailable fallback and a way back", async (_label, plugins) => {
+    mockGuestDefaults();
+    vi.mocked(pluginsApi.getPlugins).mockResolvedValue(plugins);
+    renderPanel("/add/event");
+
+    expect(await screen.findByText("Plugin wydarzeń jest niedostępny")).toBeInTheDocument();
+    expect(screen.getByText("Dodawanie wydarzeń jest chwilowo wyłączone. Spróbuj później.")).toBeInTheDocument();
+    expect(screen.queryByTitle("Formularz nowego wydarzenia")).not.toBeInTheDocument();
+    const backLinks = screen.getAllByRole("link", { name: "Wróć do dodawania" });
+    expect(backLinks).toHaveLength(2);
+    for (const link of backLinks) expect(link).toHaveAttribute("href", "/add");
+  });
+
+  it("a failed plugin list shows the unavailable fallback", async () => {
+    mockGuestDefaults();
+    vi.mocked(pluginsApi.getPlugins).mockRejectedValue(new ApiError(500, "Internal Server Error", {}));
+    renderPanel("/add/event");
+
+    expect(await screen.findByText("Plugin wydarzeń jest niedostępny")).toBeInTheDocument();
+    expect(screen.queryByTitle("Formularz nowego wydarzenia")).not.toBeInTheDocument();
+  });
+
+  async function sendDone(payload: Record<string, unknown>) {
+    const frame = await screen.findByTitle<HTMLIFrameElement>("Formularz nowego wydarzenia");
+    act(() => {
+      window.dispatchEvent(
+        new MessageEvent("message", {
+          data: { requestId: "aj.plugin.done-1", type: "done", payload },
+          origin: "http://localhost:3004",
+          source: frame.contentWindow,
+        }),
+      );
+    });
+  }
+
+  it("a done message from the plugin returns to the /add hub with a toast and refreshes places", async () => {
+    mockGuestDefaults();
+    vi.mocked(pluginsApi.getPlugins).mockResolvedValue([EVENTS_PLUGIN]);
+    const invalidateSpy = vi.spyOn(QueryClient.prototype, "invalidateQueries");
+    renderPanel("/add/event");
+
+    await sendDone({ name: "  Piknik w parku  " });
+
+    expect(await screen.findByRole("status")).toHaveTextContent("Wydarzenie „Piknik w parku” zapisane");
+    expect(await screen.findByRole("link", { name: /Wydarzenie/ })).toHaveAttribute("href", "/add/event");
+    expect(screen.queryByTitle("Formularz nowego wydarzenia")).not.toBeInTheDocument();
+    expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: [LOCATIONS_KEY] });
+    invalidateSpy.mockRestore();
+  });
+
+  it.each<[string, Record<string, unknown>, string]>([
+    ["no name", {}, "Wydarzenie zapisane"],
+    ["a blank name", { name: "   " }, "Wydarzenie zapisane"],
+    ["a non-string name", { name: 42 }, "Wydarzenie zapisane"],
+    ["a name over 120 characters", { name: "x".repeat(130) }, `Wydarzenie „${"x".repeat(120)}” zapisane`],
+  ])("a done message with %s shows the toast %s", async (_label, payload, toast) => {
+    mockGuestDefaults();
+    vi.mocked(pluginsApi.getPlugins).mockResolvedValue([EVENTS_PLUGIN]);
+    renderPanel("/add/event");
+
+    await sendDone(payload);
+
+    expect(await screen.findByRole("status")).toHaveTextContent(new RegExp(`^${toast}$`));
   });
 });

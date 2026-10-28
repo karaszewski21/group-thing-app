@@ -270,6 +270,8 @@ def test_resolveRequirement_groupSoftDeleteAndLeadershipRows_resolveToExpectedRo
         ("POST", "/api/locations", EDIT),
         ("PATCH", "/api/locations/x", EDIT),
         ("DELETE", "/api/locations/x", EDIT),
+        ("POST", "/api/events", EDIT),
+        ("POST", "/api/events/x/banner", EDIT),
     ],
 )
 def test_resolveRequirement_locationRows_resolveToExpectedRowNotCatchAll(

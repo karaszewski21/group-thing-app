@@ -134,6 +134,15 @@ Rollback: set `MODERATION_IMAGE_ENABLED=false` on VPS A (uploads are auto-approv
 - **Inheritance**: `create_term` copies the group's default place and capacity **by value**; later changes to the group default never touch existing terms.
 - **Google Places caching**: the backend never calls Google. The browser looks places up via Places API (New) (`importLibrary("places")`, session tokens, `src/frontend/src/lib/googleMaps.ts`) and posts the result. `google_place_id` may be stored indefinitely; `formatted_address`, `lat` and `lng` are cached Google data subject to Google's caching limits, and refreshing them is out of scope (`updated_at` is the cache timestamp). Without `VITE_GOOGLE_MAPS_API_KEY` (a frontend build arg, never committed) the picker falls back to MANUAL places typed by hand.
 
+## Events (`app/events/`)
+
+`app/events/` is its own bounded context for one-off events created by a person (author = their PERSON `profile.party_id`). Migration `0070_events` adds `events` (naive Warsaw `starts_at`/`ends_at`, end on the same day, optional `location_id`), `event_banners` (one per event via `uq_event_banners_event_id`) and `event_attendances` (future sign-ups; no readers or writers yet). Routes: `POST /api/events` (201, rules in Copy-table order, then text moderation of name/description) and `POST /api/events/{id}/banner` (author only; Polish 404 before 403); both need `EDIT`/`mcp:edit` in the `AUTHORIZATION_MATRIX`.
+
+- **Boundary**: `app/events/infrastructure/locations_acl.py` is the only `app.events` module that imports `app.locations`; a new `location_id` must be one of the caller's own active places, and the response embeds the narrow location ref.
+- **Banner storage**: the upload is processed into `events/{event_id}/{banner_id}/w1600.webp` and `w400.webp`, both stored **public**. The event row is locked (`FOR UPDATE`) so concurrent uploads serialize; a replacement deletes the old row and stages a `storage.objects_delete` (`OBJECTS_DELETE`) outbox entry for the old keys in the same transaction. If storing or committing fails, the already-stored new files are deleted (a failed cleanup is logged, the original error is raised).
+- **No image moderation yet**: banners are written as `APPROVED` and not scanned; adding moderation must also gate the public flag.
+- **UI**: the form is the `plugins/events` plugin (dev port 3004) on the `add.event` extension point, rendered by the host at `/add/event`. It calls the routes through `hostApp.fetch`/`hostApp.uploadImage` and sends `thisPlugin.done({ name })` when finished.
+
 ## Messaging (`app/messaging/`)
 
 `app/messaging/` is its own bounded context: private text chats between logged-in users. Tables `conversations`, `messages` and `conversation_reads` (migration `0061_messaging`). Routes live under `/api/conversations`: the inbox (`GET ""`), `GET /unread-count`, get-or-create `POST /item`, `/group` and `/term`, `GET /{id}`, `GET`/`POST /{id}/messages` and `POST /{id}/read`. Authorization matrix rows 53-54 accept only the login `READ`/`EDIT` permissions, not the OAuth `mcp:read`/`mcp:edit` scopes.
@@ -198,6 +207,9 @@ app/
 ├── locations/                   (saved meeting places BC: models, schemas, service, router;
 │                                 reached from app.groups only via
 │                                 groups/infrastructure/locations_acl.py)
+├── events/                      (one-off events BC: models, schemas, service, router;
+│                                 reaches app.locations only via
+│                                 events/infrastructure/locations_acl.py)
 ├── footprint/                   (emissions-footprint domain — the largest vertical)
 │   ├── archetype/                (calculator/component/validity/applicability model)
 │   ├── domain/                   (breakdown, enums, exceptions — discriminated unions)

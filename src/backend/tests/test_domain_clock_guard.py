@@ -1,6 +1,6 @@
-"""Guards for the domain clock: the groups package reads "now" only through
-`app.core.clock`, and accepting a swap is gated on the Term not having
-started yet (frozen via the opt-in `freeze_local_now` fixture)."""
+"""Guards for the domain clock: the groups and events packages read "now"
+only through `app.core.clock`, and accepting a swap is gated on the Term not
+having started yet (frozen via the opt-in `freeze_local_now` fixture)."""
 
 from __future__ import annotations
 
@@ -24,11 +24,15 @@ from app.groups.models import SwapProposalStatus, Term
 from tests.conftest import leaf_category_ids
 
 _APP_ROOT = Path(__file__).resolve().parents[1] / "app"
-_GUARDED_DIRS = (_APP_ROOT / "groups" / "application", _APP_ROOT / "groups" / "router")
+_GUARDED_DIRS = (
+    _APP_ROOT / "groups" / "application",
+    _APP_ROOT / "groups" / "router",
+    _APP_ROOT / "events",
+)
 _FORBIDDEN = ("datetime.now(", "date.today(")
 
 
-def test_groupsApplicationAndRouter_noHostClockCalls() -> None:
+def test_guardedPackages_noHostClockCalls() -> None:
     offenders = [
         f"{path.relative_to(_APP_ROOT)}: {needle}"
         for directory in _GUARDED_DIRS

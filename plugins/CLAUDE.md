@@ -35,12 +35,14 @@ import { toWarehouse } from "../domain";
 import type { Warehouse } from "../domain";
 ```
 
+The SDK path depends on file depth: `../../sdk` from files directly in `src/` (e.g. `src/main.tsx`), `../../../sdk` from `src/pages/*` and `src/components/*`.
+
 ## Quick Start
 
 1. Copy `plugins/warehouse/` as a template
 2. Update `manifest.json` with your plugin's identity and extension points
 3. Update routes in `src/main.tsx` to match manifest paths
-4. Register with the host: `curl -X PUT http://localhost:8080/api/plugins/{pluginId}/manifest -H "Content-Type: application/json" -d @manifest.json`
+4. Register with the host (see [Development Workflow](#development-workflow) for the admin `Authorization` header)
 5. Run dev server: `npm run dev`
 6. Access via host sidebar or product detail tabs
 
@@ -53,7 +55,7 @@ Plugins must use the host's shared UI stylesheet to maintain visual consistency.
 Add both the SDK and the UI stylesheet in your plugin's `<head>`:
 
 ```html
-<script src="http://localhost:5173/assets/plugin-sdk.js"></script>
+<script src="http://localhost:5173/assets/plugin-sdk.js" crossorigin></script>
 <link rel="stylesheet" href="http://localhost:5173/assets/plugin-ui.css" />
 ```
 
@@ -109,6 +111,8 @@ Wrap your plugin root in `tc-plugin` for base typography and color:
 - Use `tc-primary-button` for all primary actions — it matches the host's `PrimaryButton` component exactly
 - Wrap plugin root in `tc-plugin` for consistent typography
 - Only use inline `style` for layout-specific concerns (padding, max-width, margins) that aren't covered by the shared classes
+
+**Exception — panel plugins:** plugins rendered inside a host panel page (e.g. `add.event`) do not load `plugin-ui.css`. They ship their own `src/styles.css` that mirrors the host design tokens (colors, radii, spacing, font) so the iframe blends into the surrounding page. See `plugins/events/src/styles.css`.
 
 ## Manifest
 
@@ -187,12 +191,26 @@ Renders a plugin iframe below the product details card. Your component receives 
 - Keep the component compact (~60px height) — it renders inline below product details
 - `priority` controls sort order (lower = higher)
 
+### `add.event` -- Add Event Panel
+
+Renders your plugin inside the host's `/add/event` panel page (reached from the `/add` hub). The plugin owns the whole create-event flow.
+
+```json
+{ "type": "add.event", "label": "Wydarzenie", "path": "/", "priority": 10 }
+```
+
+- `path` is appended to your plugin's base URL
+- Context: `RENDER{"pluginId":"...","pluginName":"...","hostOrigin":"..."}` (same prefix as `menu.main`)
+- The iframe has a fixed height set by the host; it does not resize to content, so the plugin must scroll inside its own root
+- Upload images with `hostApp.uploadImage` and call `thisPlugin.done({ name })` when the flow finishes (the host shows a toast and returns to `/add`)
+- Use your own CSS mirroring the host tokens instead of `plugin-ui.css` (see [UI & Styling](#ui--styling))
+
 ## SDK API
 
 Load in your `index.html` `<head>`:
 
 ```html
-<script src="http://localhost:5173/assets/plugin-sdk.js"></script>
+<script src="http://localhost:5173/assets/plugin-sdk.js" crossorigin></script>
 ```
 
 Import the shared type declarations in your TypeScript code:
@@ -235,6 +253,9 @@ await thisPlugin.objects.save(objectType, objectId, data, options?)   // Create 
   // Omitting entityType/entityId clears any existing entity binding
 await thisPlugin.objects.delete(objectType, objectId)                 // Delete
 
+// Flow completion (fire-and-forget, returns void)
+thisPlugin.done({ name })                   // Tell the host the flow is finished
+
 // Note: Product list filters are now host-rendered from manifest metadata.
 // No SDK call needed -- define filterKey/filterType in your manifest.
 ```
@@ -251,6 +272,19 @@ await hostApp.fetch("/api/some-endpoint", { method: "POST", body: JSON.stringify
 ```
 
 **`hostApp.fetch` restrictions:** Only `/api/` URLs allowed. Credentials stripped. Path traversal (`..`) rejected.
+
+**`hostApp.uploadImage(url, file)`** posts a `Blob`/`File` as multipart form data (field `file`, built by the host):
+
+```typescript
+const res = await hostApp.uploadImage(`/api/events/${eventId}/banner`, file);
+// { status, headers, body } — same envelope as hostApp.fetch; body is the raw response text
+```
+
+- Allowlisted URL only: `/api/events/{uuid}/banner`; anything else rejects
+- Max 5 MB; MIME types `image/jpeg`, `image/png`, `image/webp`
+- 60 s timeout (every other SDK call: 10 s): a slow upload can still reject on the client even though the server stored the file, so treat a timeout as "unknown" and let the user retry (a retry replaces the banner)
+
+**`thisPlugin.done(payload?)`** is fire-and-forget. Only panel hosts with a done handler act on it (the `/add/event` page shows a toast with `payload.name` and returns to `/add`); other hosts, such as admin pages, ignore it.
 
 ## Data Storage Patterns
 
@@ -359,7 +393,7 @@ The host passes context to your plugin via the iframe's URL hash fragment. The S
 
 ## Error Handling
 
-- All SDK methods return promises that reject on failure (10 second timeout)
+- All SDK methods return promises that reject on failure (10 second timeout; `hostApp.uploadImage`: 60 seconds)
 - Always wrap SDK calls in try/catch
 - Show errors to the user -- don't swallow them silently
 - When running standalone (not in iframe), the SDK provides a fallback context but messages will time out
@@ -367,10 +401,22 @@ The host passes context to your plugin via the iframe's URL hash fragment. The S
 ## Development Workflow
 
 1. Start the host (backend + Postgres + frontend app shell): `docker compose up` from the repo root — backend on :8080, frontend on :5173. Or run the frontend with hot reload instead: `cd src/frontend && npm run dev` (Vite dev server on :5173, proxies `/api` and `/oauth2` to the backend)
-2. Start your plugin: `cd plugins/my-plugin && npm run dev`
-3. Register manifest once: `curl -X PUT http://localhost:8080/api/plugins/my-plugin/manifest -H "Content-Type: application/json" -d @manifest.json`
-4. Access your plugin through the host app (sidebar, product tabs, etc.)
-5. Re-register manifest after changes to extension points
+2. Build the SDK: `cd src/frontend && npm run build:sdk` — copies `plugin-sdk.js` into `public/assets/` (git-ignored) so :5173 serves `/assets/plugin-sdk.js`. Run it before starting a plugin and again after any SDK change
+3. Start your plugin: `cd plugins/my-plugin && npm run dev`
+4. Register manifest once (requires a token with `PLUGIN_MANAGEMENT` or `ADMIN`):
+   ```bash
+   curl -X PUT http://localhost:8080/api/plugins/my-plugin/manifest \
+     -H "Content-Type: application/json" \
+     -H "Authorization: Bearer <admin-token>" \
+     -d @manifest.json
+   ```
+   Getting `<admin-token>`: log in (`POST /api/auth/login` with `email`/`password`, or through the host UI) as an account holding `ADMIN` or `PLUGIN_MANAGEMENT`, then copy `token` from the login response or `localStorage.auth_token` in the host tab's devtools. The dev `admin` account (seeded in `0002_seed_dev_users.py`, password in that migration's docstring; `ADMIN` restored by `0043`) has no email in its profile, and login is by email, so set one first, e.g. `UPDATE user_profiles SET email = 'admin@localhost' WHERE account_user_id = (SELECT id FROM users WHERE username = 'admin');`. Never commit or paste a real token.
+5. Access your plugin through the host app (sidebar, product tabs, `/add/event`, etc.)
+6. Re-register manifest after changes to extension points
+
+**Events plugin (`plugins/events`):** `cd plugins/events && npm install` once, build the SDK (step 2), `npm run dev` (port 3004), then register it under the plugin id `events`, i.e. `PUT /api/plugins/events/manifest` with `-d @plugins/events/manifest.json`. Symptoms: no registered/enabled manifest → `/add/event` shows "Plugin wydarzeń jest niedostępny"; no SDK build (`/assets/plugin-sdk.js` missing) → a blank iframe, or host calls that never answer and time out.
+
+**Dev ports:** 3001 warehouse, 3002 box-size, 3003 ai-description, 3004 events. Pick a free port for a new plugin and use it in both `vite.config.ts` and the manifest `url`.
 
 ## Reference Plugins
 
@@ -394,3 +440,11 @@ The host passes context to your plugin via the iframe's URL hash fragment. The S
 - Product detail info badge (`product.detail.info`) showing "Box: 120cm/12cm/48cm"
 - Domain types and formatters in `src/domain.ts`
 - Validation and error handling in the save flow
+
+### Events Plugin
+
+`plugins/events/` (port 3004) is a panel plugin demonstrating:
+- The `add.event` extension point rendered in the host's `/add/event` page
+- Creating an event through `hostApp.fetch`, then uploading its banner with `hostApp.uploadImage`
+- Ending the flow with `thisPlugin.done({ name })`
+- Own `src/styles.css` mirroring host tokens instead of `plugin-ui.css`, scrolling inside a fixed-height iframe

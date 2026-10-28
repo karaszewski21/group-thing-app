@@ -51,8 +51,11 @@ class BusinessConflictException(Exception):
 
 
 class AccessDeniedException(Exception):
-    """Authenticated but insufficient permission. Legacy 403, fixed message
-    "Access denied" (Group 4's authorization dependency raises this)."""
+    """Authenticated but insufficient permission. Legacy 403 with the fixed
+    message "Access denied", unless a subclass sets `public_message` to a
+    user-facing text."""
+
+    public_message: str | None = None
 
 
 class TextModerationRejected(ValueError):
@@ -130,7 +133,7 @@ async def validation_error_handler(request: Request, exc: RequestValidationError
 
 
 async def access_denied_handler(request: Request, exc: AccessDeniedException) -> JSONResponse:
-    return _envelope(status.HTTP_403_FORBIDDEN, "Forbidden", "Access denied")
+    return _envelope(status.HTTP_403_FORBIDDEN, "Forbidden", exc.public_message or "Access denied")
 
 
 async def moderation_unavailable_handler(

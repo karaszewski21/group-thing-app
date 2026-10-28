@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Visual Fidelity — 2026-10-28-events-plugin</title>
+<style>
+:root {
+  --bg:#f6f7f9; --surface:#fff; --border:#e2e5ea; --text:#1a1d23; --dim:#6b7280;
+  --accent:#4f46e5; --accent-soft:#eef2ff; --ok:#16a34a; --ok-soft:#ecfdf3;
+  --warn:#d97706; --warn-soft:#fffbeb; --crit:#dc2626; --crit-soft:#fef2f2;
+  --info:#2563eb; --info-soft:#eff6ff; --radius:10px;
+}
+@media (prefers-color-scheme: dark) {
+  :root { --bg:#111418; --surface:#1a1f26; --border:#2e3640; --text:#e6e9ee; --dim:#9aa4b2;
+    --accent:#818cf8; --accent-soft:#26294a; --ok:#4ade80; --ok-soft:#11291a;
+    --warn:#fbbf24; --warn-soft:#2e2410; --crit:#f87171; --crit-soft:#321616;
+    --info:#60a5fa; --info-soft:#15233a; }
+}
+* { box-sizing:border-box; }
+body { margin:0 auto; max-width:1100px; padding:24px 20px 64px; background:var(--bg);
+  color:var(--text); font:14px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif; }
+a { color:var(--accent); text-decoration:none; } a:hover { text-decoration:underline; }
+h1 { font-size:22px; letter-spacing:-.01em; } h2 { font-size:16px; margin-top:28px; }
+.card { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius);
+  padding:16px 18px; margin:14px 0; }
+.badge { display:inline-block; font-size:11px; font-weight:600; text-transform:uppercase;
+  letter-spacing:.04em; padding:2px 8px; border-radius:99px; background:var(--accent-soft); color:var(--accent); }
+.sev { display:inline-block; font-size:10.5px; font-weight:700; text-transform:uppercase;
+  padding:1.5px 7px; border-radius:99px; margin-right:6px; }
+.sev.critical { background:var(--crit-soft); color:var(--crit); }
+.sev.warning  { background:var(--warn-soft); color:var(--warn); }
+.sev.info     { background:var(--info-soft); color:var(--info); }
+.pass { color:var(--ok); font-weight:600; } .fail { color:var(--crit); font-weight:600; }
+code { font-family:ui-monospace,SFMono-Regular,Menlo,monospace; font-size:12.5px;
+  background:var(--accent-soft); padding:1px 5px; border-radius:4px; }
+img.shot { max-width:100%; border:1px solid var(--border); border-radius:var(--radius); }
+.crumbs { display:flex; gap:14px; font-size:13px; margin-bottom:18px; flex-wrap:wrap; }
+.crumbs a.md { margin-left:auto; color:var(--dim); }
+.crumbs .here { font-weight:650; color:var(--text); }
+.tiles { display:flex; gap:10px; flex-wrap:wrap; margin:14px 0; }
+.tile { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius);
+  padding:10px 16px; text-align:center; min-width:90px; }
+.tile b { display:block; font-size:20px; letter-spacing:-.01em; }
+.tile span { font-size:10.5px; text-transform:uppercase; letter-spacing:.05em; color:var(--dim); }
+.pair { display:grid; grid-template-columns:1fr 1fr; gap:12px; align-items:start; }
+.pair figure { margin:0; } .pair figcaption { font-size:12px; color:var(--dim); margin-bottom:4px; }
+.pair img.shot { max-height:620px; object-fit:contain; object-position:top; width:100%; }
+.warnc { color:var(--warn); font-weight:600; }
+@media (max-width:640px) { .pair { grid-template-columns:1fr; } }
+</style>
+</head>
+<body>
+<nav class="crumbs">
+  <a href="../dashboard.html">← Dashboard</a>
+  <a href="../implementation/spec.html">Spec</a> <a href="../implementation/implementation-plan.html">Plan</a>
+  <a href="implementation-verification.html">Verification</a>
+  <a href="e2e-verification-report.html">E2E</a> <span class="here">Visual fidelity</span>
+  <a href="visual-fidelity.md" target="_blank" rel="noopener" class="md">md twin ↗</a>
+</nav>
+<header>
+  <span class="badge">visual fidelity · report-only</span>
+  <h1>Visual Fidelity — Events plugin</h1>
+  <div style="color:var(--dim)">LLM-judged structural match (not pixel-perfect) · source analysis/design-context/INDEX.md · mockups rendered to <code>screenshots/mockup-*.png</code></div>
+</header>
+<div class="tiles">
+  <div class="tile"><b>11</b><span>compared</span></div>
+  <div class="tile"><b class="pass">8</b><span>match ✓</span></div>
+  <div class="tile"><b class="warnc">3</b><span>minor ⚠</span></div>
+  <div class="tile"><b>0</b><span>drift ✗</span></div>
+</div>
+<section class="card">
+  <h2 style="margin-top:0">TL;DR</h2>
+  <ul>
+    <li>The implementation follows the mockups closely: 8 match, 3 minor deviations, no substantive drift.</li>
+    <li>Deviations: the saving screen has no progress bar; the hub's tile design comes from the existing app; the empty form has no date prefill (a correction the spec required).</li>
+    <li>Runtime captures used the test-only <code>/api/plugins</code> shim (see the E2E report, C1).</li>
+  </ul>
+  <h2>Open Questions / Risks</h2>
+  <ul><li><code>event-saving</code>: build the progress bar, or update the mockup?</li></ul>
+</section>
+
+<main>
+<div class="card"><h2 style="margin-top:0">screen:event-form-empty — <span class="warnc">⚠ Minor deviation</span></h2>
+<div class="pair"><figure><figcaption>Mockup</figcaption><img class="shot" src="screenshots/mockup-formularz-nowego-wydarzenia-pusty.png" alt="mockup empty form"></figure><figure><figcaption>Implementation (360×800)</figcaption><img class="shot" src="screenshots/02-event-form-empty.png" alt="empty form"></figure></div>
+<p>Field order and layout match. Date and time are blank, and the hint says "JPG"; both are spec-mandated corrections.</p></div>
+
+<div class="card"><h2 style="margin-top:0">screen:event-form-filled + component:banner-picker — <span class="pass">✓ Match</span></h2>
+<div class="pair"><figure><figcaption>Mockup</figcaption><img class="shot" src="screenshots/mockup-formularz-wype-niony-z-banerem.png" alt="mockup filled form"></figure><figure><figcaption>Implementation</figcaption><img class="shot" src="screenshots/10-form-filled-location.png" alt="filled form"></figure></div>
+<p>Banner preview with Zmień/Usuń chips (DOM-verified; see <code>15-form-with-banner.png</code>), the location row with name, address and "Zmień ›", and the description counter.</p></div>
+
+<div class="card"><h2 style="margin-top:0">screen:event-form-errors — <span class="pass">✓ Match</span></h2>
+<div class="pair"><figure><figcaption>Mockup</figcaption><img class="shot" src="screenshots/mockup-b-dy-walidacji.png" alt="mockup errors"></figure><figure><figcaption>Implementation</figcaption><img class="shot" src="screenshots/04-validation-errors.png" alt="errors"></figure></div>
+<p>Inline red errors with red-bordered fields; the copy is identical.</p></div>
+
+<div class="card"><h2 style="margin-top:0">screen:event-location-picker + component:location-field — <span class="pass">✓ Match</span></h2>
+<div class="pair"><figure><figcaption>Mockup</figcaption><img class="shot" src="screenshots/mockup-wyb-r-lokalizacji.png" alt="mockup sheet"></figure><figure><figcaption>Implementation</figcaption><img class="shot" src="screenshots/11-location-sheet-list.png" alt="sheet"></figure></div>
+<p>Bottom sheet, "Lokalizacja" title with ✕, the selected place in mint, a dashed "+ Dodaj nowe miejsce", and the "Bez lokalizacji" pill.</p></div>
+
+<div class="card"><h2 style="margin-top:0">screen:event-saving — <span class="warnc">⚠ Minor deviation</span></h2>
+<div class="pair"><figure><figcaption>Mockup</figcaption><img class="shot" src="screenshots/mockup-zapisywanie-wydarzenia.png" alt="mockup saving"></figure><figure><figcaption>Implementation</figcaption><img class="shot" src="screenshots/20-saving-step2-banner.png" alt="saving"></figure></div>
+<p>Steps, the note and the disabled pill match. The progress bar is absent.</p></div>
+
+<div class="card"><h2 style="margin-top:0">screen:event-saved — <span class="pass">✓ Match</span></h2>
+<div class="pair"><figure><figcaption>Mockup</figcaption><img class="shot" src="screenshots/mockup-potwierdzenie-zapisu.png" alt="mockup saved"></figure><figure><figcaption>Implementation</figcaption><img class="shot" src="screenshots/13-event-saved.png" alt="saved"></figure></div></div>
+
+<div class="card"><h2 style="margin-top:0">screen:event-banner-failed — <span class="pass">✓ Match</span></h2>
+<div class="pair"><figure><figcaption>Mockup</figcaption><img class="shot" src="screenshots/mockup-b-d-wysy-ania-banera.png" alt="mockup banner failed"></figure><figure><figcaption>Implementation</figcaption><img class="shot" src="screenshots/17-banner-failed.png" alt="banner failed"></figure></div>
+<p>Adds the 409 detail line under banner.failed, as the spec requires.</p></div>
+
+<div class="card"><h2 style="margin-top:0">screen:event-plugin-unavailable — <span class="pass">✓ Match</span></h2>
+<div class="pair"><figure><figcaption>Mockup</figcaption><img class="shot" src="screenshots/mockup-plugin-niedost-pny.png" alt="mockup unavailable"></figure><figure><figcaption>Implementation</figcaption><img class="shot" src="screenshots/21-plugin-unavailable.png" alt="unavailable"></figure></div></div>
+
+<div class="card"><h2 style="margin-top:0">screen:add-hub-toast — <span class="warnc">⚠ Minor deviation</span></h2>
+<div class="pair"><figure><figcaption>Mockup</figcaption><img class="shot" src="screenshots/mockup-hub-dodawania-z-toastem.png" alt="mockup hub toast"></figure><figure><figcaption>Implementation</figcaption><img class="shot" src="screenshots/14-add-hub-toast.png" alt="hub toast"></figure></div>
+<p>The toast matches. The hub tiles are the app's existing "Co dodajesz?" design (out of scope).</p></div>
+</main>
+</body>
+</html>

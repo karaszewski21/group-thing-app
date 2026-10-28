@@ -1,171 +1,102 @@
-import { useState, type FormEvent } from "react";
-import { Link } from "react-router-dom";
-import dayjs from "../../utils/dayjs";
+import { useQueryClient } from "@tanstack/react-query";
+import { useCallback } from "react";
+import { Link, useNavigate } from "react-router-dom";
+import { useAppData } from "../../app/appDataStore";
 import { SubPageHeader } from "../../components/shared/appComponents";
+import { LOCATIONS_KEY } from "../../hooks/useMyLocations";
+import { usePlugins } from "../../hooks/usePlugins";
+import { ADD_EVENT } from "../../plugins/extensionPoints";
+import { PluginFrame } from "../../plugins/PluginFrame";
+import { usePluginMessageHandler } from "../../plugins/usePluginMessageHandler";
 import { viewPath } from "../../utils/appHelpers";
+import type { EventCreateView as EventCreateViewState } from "./eventCreateViewState";
+import { resolveEventCreateView } from "./eventCreateViewState";
 
-const LABEL = "mb-1.5 block text-sm font-bold text-ink";
-const INPUT =
-  "h-12 w-full rounded-2xl border-[1.5px] border-line bg-paper px-4 text-base text-ink outline-none focus:border-focus-ring focus:ring-[3px] focus:ring-primary-soft";
+const MAX_TOAST_NAME = 120;
 
-interface EventDraft {
-  name: string;
-  date: string;
-  time: string;
-  place: string;
-  description: string;
+// Top bar, bottom nav, the panel's vertical padding and the SubPageHeader (246 px,
+// +64 px of PhoneFrame padding from 520 px), so only the iframe scrolls.
+const FRAME_BOX = "h-[calc(100dvh-250px)] min-h-[400px] min-[520px]:h-[calc(100dvh-314px)]";
+const FRAME_STYLE = { display: "block" };
+
+function savedToast(payload: Record<string, unknown>): string {
+  const name = typeof payload.name === "string" ? payload.name.trim().slice(0, MAX_TOAST_NAME) : "";
+  return name ? `Wydarzenie „${name}” zapisane` : "Wydarzenie zapisane";
 }
 
-const EMPTY: EventDraft = { name: "", date: "", time: "", place: "", description: "" };
-
-/** "Nowe wydarzenie" — a one-off meeting (a picnic, a birthday), reached from
- * /add. MOCK: the backend has no events yet, so saving only shows a
- * confirmation; nothing is stored. */
+/** "Nowe wydarzenie" — the host chrome around the events plugin's form,
+ * reached from /add. The plugin sends `done` once the event is saved. */
 export function EventCreateView() {
-  const [draft, setDraft] = useState<EventDraft>(EMPTY);
-  const [saved, setSaved] = useState<EventDraft | null>(null);
-  const [touchedDate, setTouchedDate] = useState(false);
+  const plugins = usePlugins();
+  const view = resolveEventCreateView({ loading: plugins.loading, error: plugins.error, plugins: plugins.data });
+  const { showToast } = useAppData();
+  const queryClient = useQueryClient();
+  const navigate = useNavigate();
 
-  const today = dayjs().format("YYYY-MM-DD");
-  const dateInPast = draft.date !== "" && draft.date < today;
-  const valid = draft.name.trim() !== "" && draft.date !== "" && !dateInPast;
-  const set = (key: keyof EventDraft) => (value: string) => setDraft((d) => ({ ...d, [key]: value }));
+  const readyPluginId = view.kind === "ready" ? view.point.pluginId : null;
 
-  function submit(e: FormEvent) {
-    e.preventDefault();
-    if (!valid) return;
-    setSaved({ ...draft, name: draft.name.trim() });
-    setDraft(EMPTY);
-    setTouchedDate(false);
-  }
-
-  if (saved) {
-    const when = dayjs(`${saved.date}T${saved.time || "00:00"}`);
-    return (
-      <>
-        <SubPageHeader title="Nowe wydarzenie" backTo={viewPath("add")} backLabel="Wróć do dodawania" />
-        <div role="status" className="flex flex-col items-center gap-2.5 rounded-[28px] bg-primary-soft px-5 py-7 text-center">
-          <p className="font-serif text-[22px] font-extrabold text-ink">Wydarzenie zapisane</p>
-          <p className="text-base font-bold text-ink">{saved.name}</p>
-          <p className="text-sm text-ink-soft">
-            {when.format(saved.time ? "dddd, D MMMM · H:mm" : "dddd, D MMMM")}
-            {saved.place ? ` · ${saved.place}` : ""}
-          </p>
-          <p className="max-w-70 text-[13px] text-ink-soft">To wersja próbna — wydarzenie nie trafia jeszcze do Spotkań.</p>
-        </div>
-        <div className="mt-4 flex flex-col gap-2.5">
-          <button
-            type="button"
-            onClick={() => setSaved(null)}
-            className="min-h-12 rounded-full bg-primary text-[15px] font-extrabold text-on-primary"
-          >
-            Dodaj kolejne
-          </button>
-          <Link
-            to={viewPath("add")}
-            className="flex min-h-12 items-center justify-center rounded-full border-[1.5px] border-line bg-paper text-[15px] font-extrabold text-ink"
-          >
-            Gotowe
-          </Link>
-        </div>
-      </>
-    );
-  }
+  const onDone = useCallback(
+    (pluginId: string, payload: Record<string, unknown>) => {
+      if (pluginId !== readyPluginId) return;
+      showToast(savedToast(payload));
+      // The plugin may have added a place through hostApp.fetch.
+      void queryClient.invalidateQueries({ queryKey: [LOCATIONS_KEY] });
+      navigate(viewPath("add"));
+    },
+    [readyPluginId, showToast, queryClient, navigate],
+  );
+  usePluginMessageHandler({ onDone });
 
   return (
     <>
       <SubPageHeader title="Nowe wydarzenie" backTo={viewPath("add")} backLabel="Wróć do dodawania" />
-      <p className="-mt-2 mb-4 text-[15px] leading-snug text-ink-soft">
-        Jednorazowe spotkanie, np. piknik, urodziny albo wspólny spacer.
-      </p>
-
-      <form onSubmit={submit} className="flex flex-col gap-3.5">
-        <div>
-          <label htmlFor="wydarzenie-nazwa" className={LABEL}>
-            Nazwa
-          </label>
-          <input
-            id="wydarzenie-nazwa"
-            value={draft.name}
-            onChange={(e) => set("name")(e.target.value)}
-            maxLength={120}
-            placeholder="Np. Piknik w parku"
-            className={INPUT}
-          />
-        </div>
-
-        <div className="grid grid-cols-2 gap-2.5">
-          <div>
-            <label htmlFor="wydarzenie-data" className={LABEL}>
-              Data
-            </label>
-            <input
-              id="wydarzenie-data"
-              type="date"
-              min={today}
-              value={draft.date}
-              onChange={(e) => set("date")(e.target.value)}
-              onBlur={() => setTouchedDate(true)}
-              aria-invalid={touchedDate && dateInPast}
-              aria-describedby={touchedDate && dateInPast ? "wydarzenie-data-blad" : undefined}
-              className={INPUT}
-            />
-          </div>
-          <div>
-            <label htmlFor="wydarzenie-godzina" className={LABEL}>
-              Godzina
-            </label>
-            <input
-              id="wydarzenie-godzina"
-              type="time"
-              value={draft.time}
-              onChange={(e) => set("time")(e.target.value)}
-              className={INPUT}
-            />
-          </div>
-        </div>
-        {touchedDate && dateInPast && (
-          <p id="wydarzenie-data-blad" role="alert" className="-mt-2 text-[13px] font-bold text-danger">
-            Data nie może być w przeszłości.
-          </p>
-        )}
-
-        <div>
-          <label htmlFor="wydarzenie-miejsce" className={LABEL}>
-            Miejsce
-          </label>
-          <input
-            id="wydarzenie-miejsce"
-            value={draft.place}
-            onChange={(e) => set("place")(e.target.value)}
-            maxLength={200}
-            placeholder="Np. Park Szczęśliwicki, przy placu zabaw"
-            className={INPUT}
-          />
-        </div>
-
-        <div>
-          <label htmlFor="wydarzenie-opis" className={LABEL}>
-            Opis
-          </label>
-          <textarea
-            id="wydarzenie-opis"
-            value={draft.description}
-            onChange={(e) => set("description")(e.target.value)}
-            maxLength={1000}
-            placeholder="Co planujecie, co warto zabrać"
-            className={`${INPUT} min-h-24 resize-y py-3`}
-          />
-        </div>
-
-        <button
-          type="submit"
-          disabled={!valid}
-          className="mt-1 min-h-13 rounded-full bg-primary text-base font-extrabold text-on-primary disabled:opacity-60"
-        >
-          Zapisz wydarzenie
-        </button>
-      </form>
+      <EventCreateBody view={view} />
     </>
   );
+}
+
+function EventCreateBody({ view }: { view: EventCreateViewState }) {
+  switch (view.kind) {
+    case "loading":
+      return (
+        <p role="status" className="text-sm text-ink-soft">
+          Wczytywanie…
+        </p>
+      );
+    case "unavailable":
+      return (
+        <>
+          <div className="flex flex-col items-center gap-2.5 rounded-3xl border border-line bg-paper px-2.5 py-10 text-center">
+            <span
+              aria-hidden="true"
+              className="flex h-14 w-14 items-center justify-center rounded-full bg-accent-soft text-[26px]"
+            >
+              🎈
+            </span>
+            <h2 className="font-serif text-xl font-extrabold text-ink">Plugin wydarzeń jest niedostępny</h2>
+            <p className="text-sm text-ink-soft">Dodawanie wydarzeń jest chwilowo wyłączone. Spróbuj później.</p>
+          </div>
+          <Link
+            to={viewPath("add")}
+            className="mt-4 flex min-h-12 items-center justify-center rounded-full border-[1.5px] border-line bg-paper text-[15px] font-extrabold text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring"
+          >
+            Wróć do dodawania
+          </Link>
+        </>
+      );
+    case "ready":
+      return (
+        <div className={FRAME_BOX}>
+          <PluginFrame
+            pluginId={view.point.pluginId}
+            pluginName={view.point.pluginName}
+            pluginUrl={view.point.pluginUrl}
+            contextType={ADD_EVENT}
+            path={view.point.path ?? "/"}
+            title="Formularz nowego wydarzenia"
+            style={FRAME_STYLE}
+          />
+        </div>
+      );
+  }
 }

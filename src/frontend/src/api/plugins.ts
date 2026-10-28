@@ -29,22 +29,32 @@ export interface ManifestPayload {
   extensionPoints?: ExtensionPoint[];
 }
 
-export function getPlugins(): Promise<PluginResponse[]> {
-  return api.get("/plugins");
+/** Wire shape of `app/plugin/schemas.py` `PluginResponse` (snake_case `extension_points`). */
+interface PluginWire extends Omit<PluginResponse, "extensionPoints"> {
+  extension_points?: ExtensionPoint[];
 }
 
-export function getPlugin(id: string): Promise<PluginResponse> {
-  return api.get(`/plugins/${id}`);
+function toPlugin({ extension_points, ...rest }: PluginWire): PluginResponse {
+  return { ...rest, extensionPoints: extension_points ?? [] };
 }
 
-export function uploadManifest(id: string, manifest: ManifestPayload): Promise<PluginResponse> {
-  return api.put(`/plugins/${id}/manifest`, manifest);
+export async function getPlugins(): Promise<PluginResponse[]> {
+  const plugins = await api.get<PluginWire[]>("/plugins");
+  return plugins.map(toPlugin);
+}
+
+export async function getPlugin(id: string): Promise<PluginResponse> {
+  return toPlugin(await api.get<PluginWire>(`/plugins/${id}`));
+}
+
+export async function uploadManifest(id: string, manifest: ManifestPayload): Promise<PluginResponse> {
+  return toPlugin(await api.put<PluginWire>(`/plugins/${id}/manifest`, manifest));
 }
 
 export function deletePlugin(id: string): Promise<void> {
   return api.delete(`/plugins/${id}`);
 }
 
-export function setPluginEnabled(id: string, enabled: boolean): Promise<PluginResponse> {
-  return api.patch(`/plugins/${id}/enabled`, { enabled });
+export async function setPluginEnabled(id: string, enabled: boolean): Promise<PluginResponse> {
+  return toPlugin(await api.patch<PluginWire>(`/plugins/${id}/enabled`, { enabled }));
 }

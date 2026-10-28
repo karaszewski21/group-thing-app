@@ -56,7 +56,7 @@
 
 ## Open Questions / Risks
 - **SDK timeout.**
-  - The 10 s limit stays. A slow 5 MB upload can report a failure even though it succeeded.
+  - Per-call timeout (verification fix, cycle 1): `uploadImage` waits 60 s, every other call keeps 10 s. A create that times out shows create.unconfirmed instead of create.generic, so the user does not blindly retry into a duplicate.
   - "Spróbuj ponownie" then replaces the banner safely, because uploads are serialised on the event-row lock.
 - **No production story for plugins.**
   - The manifest URL and the `plugin-sdk.js` URL are localhost, and registration is a manual curl with an admin token.
@@ -105,6 +105,7 @@ A logged-in user can create a one-off event from `/add` → "Wydarzenie". The ho
 | create.location | Wybrane miejsce jest niedostępne — wybierz inne. | plugin, `createEvent` 403/404 only |
 | session | Sesja wygasła — zaloguj się ponownie. | plugin, any 401 |
 | create.generic | Nie udało się zapisać wydarzenia. Spróbuj ponownie. | plugin |
+| create.unconfirmed | Nie udało się potwierdzić zapisu — wydarzenie mogło zostać zapisane. Odczekaj chwilę przed ponowną próbą. | plugin, `createEvent` rejected call / timeout (no HTTP status), or a 201 whose body cannot be parsed |
 | place.name | Podaj nazwę miejsca. | plugin |
 | place.address | Podaj adres miejsca. | plugin |
 | place.invalid | Uzupełnij nazwę i adres miejsca. | plugin, `POST /api/locations` 400 |
@@ -221,7 +222,7 @@ A logged-in user can create a one-off event from `/add` → "Wydarzenie". The ho
       - It is sent with raw `fetch` (`POST`, `credentials: "omit"`). The headers are `X-Requested-With: PluginFetch` and the Bearer token; `Content-Type` is not set.
       - The response is `{ status, headers (safelisted), body: text }`.
 13. **SDK** (`src/plugin-sdk/`).
-    - `hostApp.uploadImage(url: string, file: Blob)` uses `sendMessageAndWait("uploadImage", { url, file })` and returns the `pluginFetch` shape. The timeout stays 10 s.
+    - `hostApp.uploadImage(url: string, file: Blob)` uses `sendMessageAndWait("uploadImage", { url, file })` and returns the `pluginFetch` shape. It passes a 60 s timeout (`sendMessageAndWait` takes an optional `timeoutMs`, default 10 s).
     - `thisPlugin.done(payload?: { name?: string })` uses `sendFireAndForget("done", payload ?? {})`.
     - Both are mirrored in `plugins/sdk.ts`.
     - **Dev serving:** the `build:sdk` script becomes `vite build -c vite.sdk.config.ts` followed by a cross-platform Node copy (`fs.copyFileSync`) of `dist/assets/plugin-sdk.js` to `public/assets/plugin-sdk.js`. Add `public/assets/plugin-sdk.js` to `src/frontend/.gitignore`. The Vite dev server on 5173 serves it at `/assets/plugin-sdk.js`. The production build is unchanged and keeps writing to `dist/assets`.
@@ -261,7 +262,7 @@ A logged-in user can create a one-off event from `/add` → "Wydarzenie". The ho
     - `validatePlace({name, address})` returns place.name / place.address when a field is blank after trimming. The inputs cap length with `maxLength` 255 and 500.
     - `toRequest(draft)` builds naive `YYYY-MM-DDTHH:mm:00` strings. `ends_at` uses the start date with the end time.
     - Error mappers, one per call:
-      - `createEventError(res)`: 400/409/503 → the body `message`; 403/404 → create.location; 401 → session; otherwise → create.generic.
+      - `createEventError(res)`: 400/409/503 → the body `message`; 403/404 → create.location; 401 → session; a rejected call or timeout (no status), or a 201 whose body cannot be parsed → create.unconfirmed; otherwise → create.generic. A malformed `location` in the 201 body degrades to `location: null` instead of failing the parse.
       - `bannerError(res | rejection)`: 400/403/404/409 → the body `message`, which is now always Polish; 401 → session; otherwise, including a timeout → no extra line, banner.failed only.
       - `locationError(res)`: 400 → place.invalid; 401 → session; otherwise → place.generic.
     - API helpers wrap `hostApp.fetch` and `hostApp.uploadImage`: `createEvent`, `uploadBanner`, `listMyLocations` (`GET /api/locations/mine`) and `createLocation` (`POST /api/locations`, `source: "MANUAL"`).
@@ -288,7 +289,7 @@ A logged-in user can create a one-off event from `/add` → "Wydarzenie". The ho
     - "Bez lokalizacji" clears the chosen place.
 20. **Save flow** (screens `event-saving`, `event-saved`, `event-banner-failed`):
     1. **Saving**: "Zapisujemy „{name}”…", then the steps "✓ Wydarzenie zapisane" and "Wysyłanie banera…", with the note "Nie zamykaj tej strony."
-    2. **Create**: `createEvent` runs. On anything other than 201, the plugin goes back to the form, keeps the draft, and shows `createEventError` as a form-level `role="alert"`.
+    2. **Create**: `createEvent` runs. On anything other than a parseable 201, the plugin goes back to the form, keeps the draft, and shows `createEventError` as a form-level `role="alert"`.
     3. **Banner upload** (only when a banner was chosen): on a non-200 response or a rejected call, the plugin shows `bannerFailed`. That screen shows banner.failed plus the `bannerError` line when there is one, and two actions:
        - "Spróbuj ponownie" uploads again, replacing any banner already stored.
        - "Pomiń baner" goes to `saved`.
@@ -300,7 +301,7 @@ A logged-in user can create a one-off event from `/add` → "Wydarzenie". The ho
        - "Wróć do dodawania", which calls `thisPlugin.done({ name })`.
 21. **Docs** (`plugins/CLAUDE.md`):
     - The `add.event` extension point section.
-    - `hostApp.uploadImage`: allowlist, 5 MB limit, response shape, and the 10 s timeout caveat.
+    - `hostApp.uploadImage`: allowlist, 5 MB limit, response shape, and the 60 s timeout caveat.
     - `thisPlugin.done`: only panel hosts honour it.
     - The dev SDK step: run `npm run build:sdk` in `src/frontend` before starting a plugin, and again after any SDK change.
     - Ports: 3001 warehouse, 3002 box-size, 3003 ai-description, 3004 events.
@@ -482,7 +483,7 @@ Layout guidance:
 - Hosting and registering plugins in production: a service, an nginx route, a seed migration, configurable URLs.
 - Updating the legacy `src/resources/static/assets/plugin-sdk.js`.
 - The EntityId `int` → `UUID` bug at `app/plugin/router.py:39`.
-- An iframe resize protocol, a generic `navigate` message, and per-message SDK timeouts.
+- An iframe resize protocol and a generic `navigate` message.
 - Google Places search in the plugin's location form.
 - Plugin unit-test infrastructure.
 - Restyling `plugin-ui.css`.

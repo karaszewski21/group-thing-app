@@ -20,7 +20,7 @@ Located in `.maister/docs/project/`
 Python 3.12+, FastAPI, SQLAlchemy 2.0 (async) + asyncpg, Alembic, PostgreSQL, uv, PyJWT, bcrypt, Pydantic v2, tenacity, ruff, mypy. Includes exact pinned dependency versions, rationale for choices, and the resolved JPA-vs-jOOQ decision (SQLAlchemy ORM + Core serves both roles); migrated from Java/Spring Boot/Maven (see `.maister/tasks/migrations/2026-08-31-java-to-python-fastapi/`).
 
 ### Architecture (`project/architecture.md`)
-Microkernel (plugin-based) architecture pattern — no longer pre-alpha scaffolding; real business logic across category/product/plugin/footprint verticals plus a full OAuth2 authorization server. Covers the category tree (Vinted-seeded, products on leaf categories only), `inventory_items.listing_status`, needed items as plain names, the removed photo-moderation listing gate, and the 0064–0069 cutover/rollback runbook. Documents the FastAPI `app/` package structure, database layer (Alembic + PostgreSQL), deferred test infrastructure, and data flow.
+Microkernel (plugin-based) architecture pattern — no longer pre-alpha scaffolding; real business logic across category/product/plugin/footprint verticals plus a full OAuth2 authorization server. Covers the category tree (Vinted-seeded, products on leaf categories only), `inventory_items.listing_status`, needed items as plain names, the removed photo-moderation listing gate, the `app/events` bounded context (migration 0070, `POST /api/events` + banner upload with public w1600/w400 files, form via the `plugins/events` plugin on `add.event`), and the 0064–0069 cutover/rollback runbook. Documents the FastAPI `app/` package structure, database layer (Alembic + PostgreSQL), deferred test infrastructure, and data flow.
 
 ---
 

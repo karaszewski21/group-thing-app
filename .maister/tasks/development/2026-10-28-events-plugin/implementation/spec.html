@@ -172,7 +172,7 @@ The old Java-era copy at <code>src/resources/static/assets/plugin-sdk.js</code> 
 </li></ul><h2>Open Questions / Risks</h2><ul class="tight"><li>
 <b>SDK timeout.</b>
 <ul class="tight"><li>
-The 10 s limit stays. A slow 5 MB upload can report a failure even though it succeeded.
+Per-call timeout (verification fix, cycle 1): <code>uploadImage</code> waits 60 s, every other call keeps 10 s. A create that times out shows create.unconfirmed instead of create.generic, so the user does not blindly retry into a duplicate.
 </li><li>
 "Spróbuj ponownie" then replaces the banner safely, because uploads are serialised on the event-row lock.
 </li></ul>
@@ -219,7 +219,7 @@ Updating the legacy <code>src/resources/static/assets/plugin-sdk.js</code>.
 </li><li>
 The EntityId <code>int</code> → <code>UUID</code> bug at <code>app/plugin/router.py:39</code>.
 </li><li>
-An iframe resize protocol, a generic <code>navigate</code> message, and per-message SDK timeouts.
+An iframe resize protocol and a generic <code>navigate</code> message.
 </li><li>
 Google Places search in the plugin's location form.
 </li><li>
@@ -471,7 +471,7 @@ The response is <code>{ status, headers (safelisted), body: text }</code>.
 </li><li>
 <b>SDK</b> (<code>src/plugin-sdk/</code>).
 <ul class="tight"><li>
-<code>hostApp.uploadImage(url: string, file: Blob)</code> uses <code>sendMessageAndWait("uploadImage", { url, file })</code> and returns the <code>pluginFetch</code> shape. The timeout stays 10 s.
+<code>hostApp.uploadImage(url: string, file: Blob)</code> uses <code>sendMessageAndWait("uploadImage", { url, file })</code> and returns the <code>pluginFetch</code> shape. It passes a 60 s timeout (<code>sendMessageAndWait</code> takes an optional <code>timeoutMs</code>, default 10 s).
 </li><li>
 <code>thisPlugin.done(payload?: { name?: string })</code> uses <code>sendFireAndForget("done", payload ?? {})</code>.
 </li><li>
@@ -638,7 +638,7 @@ The location name and address, when set.
 <ul class="tight"><li>
 The <code>add.event</code> extension point section.
 </li><li>
-<code>hostApp.uploadImage</code>: allowlist, 5 MB limit, response shape, and the 10 s timeout caveat.
+<code>hostApp.uploadImage</code>: allowlist, 5 MB limit, response shape, and the 60 s timeout caveat.
 </li><li>
 <code>thisPlugin.done</code>: only panel hosts honour it.
 </li><li>
