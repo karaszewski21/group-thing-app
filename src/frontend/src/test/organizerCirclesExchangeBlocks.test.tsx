@@ -84,14 +84,14 @@ describe("CirclesGridBlock", () => {
 
     expect(screen.getByRole("heading", { name: "Nasze grupy" })).toBeInTheDocument();
     const withTerm = screen.getByRole("link", { name: "Zobacz grupę Maluchy 0-2" });
-    expect(withTerm).toHaveAttribute("href", `/${SLUG}/grupa/a/term/term-a`);
+    expect(withTerm).toHaveAttribute("href", `/${SLUG}/group/a/term/term-a`);
     const withTermCard = withTerm.closest("li")!;
     expect(withTermCard).toHaveTextContent("zapisanych: 7 · 4 terminy");
     expect(withTermCard).toHaveTextContent("nast.: Cz 15 paź, 09:30");
     expect(within(withTermCard).getByRole("img", { name: "Zapisanych 7 rodzin" })).toBeInTheDocument();
 
     const withoutTerm = screen.getByRole("link", { name: "Zobacz grupę Rytmika" });
-    expect(withoutTerm).toHaveAttribute("href", `/${SLUG}/terminy?group_id=b`);
+    expect(withoutTerm).toHaveAttribute("href", `/${SLUG}/terms?group_id=b`);
     expect(withoutTerm.closest("li")).toHaveTextContent("brak zaplanowanych terminów");
   });
 
@@ -127,7 +127,7 @@ describe("CirclesGridBlock", () => {
     expect(visual).toHaveTextContent("+4");
     expect(screen.getByRole("link", { name: "Zobacz zajęcia →" })).toHaveAttribute(
       "href",
-      `/${SLUG}/grupa/a/term/t1`,
+      `/${SLUG}/group/a/term/t1`,
     );
     unmount();
 
@@ -145,7 +145,7 @@ describe("ExchangeCountsBlock", () => {
     renderWithRouter(<ExchangeCountsBlock data={data} variant="tiles3" mode="visitor" />);
 
     expect(screen.getByRole("heading", { name: "Wymiana rzeczy" })).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: /Oddam\s*3/ })).toHaveAttribute("href", `/${SLUG}/grupa/g1/term/term-2`);
+    expect(screen.getByRole("link", { name: /Oddam\s*3/ })).toHaveAttribute("href", `/${SLUG}/group/g1/term/term-2`);
     expect(screen.queryByRole("link", { name: /Zamienię/ })).not.toBeInTheDocument();
     expect(screen.getByText("Zamienię")).toBeInTheDocument();
   });
@@ -190,9 +190,9 @@ describe("ExchangeItemCard", () => {
   it("opens the item page from the tile and the nearest term from the mode button", () => {
     renderWithRouter(<ExchangeItemCard slug={SLUG} item={item("1", "SWAP")} />);
 
-    expect(screen.getByRole("link", { name: "Rzecz 1" })).toHaveAttribute("href", `/${SLUG}/produkt/1`);
+    expect(screen.getByRole("link", { name: "Rzecz 1" })).toHaveAttribute("href", `/${SLUG}/product/1`);
     const mode = screen.getByRole("link", { name: "Zamienię: Rzecz 1, odbiór Śr 14 paź" });
-    expect(mode).toHaveAttribute("href", `/${SLUG}/grupa/g1/term/term-1`);
+    expect(mode).toHaveAttribute("href", `/${SLUG}/group/g1/term/term-1`);
     expect(mode).toHaveTextContent(/^ZamienięŚr 14 paź$/);
   });
 
@@ -227,7 +227,7 @@ describe("NeededItemsBlock", () => {
 
     expect(screen.getByRole("heading", { name: "Potrzebne na najbliższe zajęcia" })).toBeInTheDocument();
     const rows = screen.getAllByRole("listitem");
-    expect(within(rows[0]).getByRole("link", { name: /Zobacz/ })).toHaveAttribute("href", `/${SLUG}/grupa/a/term/term-a`);
+    expect(within(rows[0]).getByRole("link", { name: /Zobacz/ })).toHaveAttribute("href", `/${SLUG}/group/a/term/term-a`);
     expect(rows[0]).toHaveTextContent("Cz 15 paź");
     expect(within(rows[1]).getByText("Zapewnione")).toBeInTheDocument();
     expect(within(rows[1]).queryByRole("link")).not.toBeInTheDocument();

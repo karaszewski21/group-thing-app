@@ -79,7 +79,7 @@ describe("useOpenAndNavigate", () => {
 
     await act(() => result.current.chat.open({ kind: "TERM", id: "t1" }));
 
-    expect(result.current.location.pathname).toBe("/wiadomosci/c7");
+    expect(result.current.location.pathname).toBe("/messages/c7");
     expect(result.current.chat).toMatchObject({ busy: false, error: null });
   });
 

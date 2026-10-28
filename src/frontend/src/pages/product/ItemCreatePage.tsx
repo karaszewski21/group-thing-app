@@ -15,7 +15,7 @@ const ACTION_CLASS =
   "rounded-[13px] px-4 py-3 text-[13.5px] font-extrabold disabled:opacity-60 aria-disabled:cursor-not-allowed aria-disabled:opacity-60";
 const MISSING_FIELDS_HINT_ID = "item-create-missing-fields";
 
-/** `/product/new`: adds an item to the caller's own inventory with optional
+/** `/add/product`: adds an item to the caller's own inventory with optional
  * photos — offered at once (Oddam / Zamienię) or saved as a draft — then
  * replaces itself with the new item's page (handing it the count of refused
  * photos). Standalone, outside AppDataProvider. */

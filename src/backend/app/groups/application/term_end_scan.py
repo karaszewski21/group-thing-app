@@ -207,7 +207,7 @@ async def scan_for_term_ended(db: AsyncSession, *, window: timedelta = DEFAULT_W
     for term in terms:
         term_id = cast(uuid.UUID, term.id)
         slug = await resolve_organizer_slug(db, term.circle_group_id)
-        link_paths[term_id] = f"/{slug}/grupa/{term.circle_group_id}/term/{term.id}"
+        link_paths[term_id] = f"/{slug}/group/{term.circle_group_id}/term/{term.id}"
         # JSON-safe for the outbox: `occurs_on` travels as an ISO string.
         details_by_term[term_id] = {
             "occurs_on": term.occurs_on.isoformat(),

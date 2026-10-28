@@ -128,7 +128,7 @@ function recommendedLayouts() {
 
 /** Opens the sheet on "Układ i kolor", where most of these tests work. */
 async function openEditor() {
-  const router = renderAt("/muzyczne-skrzaty?edit=1&tab=uklad");
+  const router = renderAt("/muzyczne-skrzaty?edit=1&tab=layout");
   const sheet = await screen.findByRole("dialog", { name: "Ustawienia" });
   return { router, sheet };
 }
@@ -263,7 +263,7 @@ describe("Organizer editor sheet", () => {
     expect(screen.getByRole("button", { name: "Udostępnij" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Ustawienia" })).toHaveFocus();
 
-    await act(() => router.navigate("/muzyczne-skrzaty?edit=1&tab=uklad"));
+    await act(() => router.navigate("/muzyczne-skrzaty?edit=1&tab=layout"));
 
     expect(screen.getByRole("radio", { name: "Klasyczny" })).toHaveAttribute("aria-checked", "true");
     expect(screen.getByRole("button", { name: "Zapisz" })).toBeDisabled();
@@ -468,16 +468,6 @@ describe("Organizer editor photos tab", () => {
     expect(tab("Zdjęcia i opis")).toHaveAttribute("aria-selected", "true");
   });
 
-  it.each([
-    ["opis", "Zdjęcia i opis"],
-    ["kolory", "Układ i kolor"],
-  ])("maps the former ?tab=%s to %s", async (value, name) => {
-    renderAt(`/muzyczne-skrzaty?edit=1&tab=${value}`);
-    await screen.findByRole("dialog", { name: "Ustawienia" });
-
-    expect(tab(name)).toHaveAttribute("aria-selected", "true");
-  });
-
   it("switches an open sheet to Zdjęcia from the gallery ghost CTA, and closing drops edit and tab", async () => {
     await openEditor();
     expect(tab("Układ i kolor")).toHaveAttribute("aria-selected", "true");
@@ -486,11 +476,11 @@ describe("Organizer editor photos tab", () => {
 
     expect(await screen.findByRole("region", { name: "Logo" })).toBeInTheDocument();
     expect(tab("Zdjęcia i opis")).toHaveAttribute("aria-selected", "true");
-    expect(screen.getByTestId("location")).toHaveTextContent("/muzyczne-skrzaty?edit=1&tab=zdjecia");
+    expect(screen.getByTestId("location")).toHaveTextContent("/muzyczne-skrzaty?edit=1&tab=photos");
 
     fireEvent.click(tab("Układ i kolor"));
 
-    expect(screen.getByTestId("location")).toHaveTextContent("/muzyczne-skrzaty?edit=1&tab=uklad");
+    expect(screen.getByTestId("location")).toHaveTextContent("/muzyczne-skrzaty?edit=1&tab=layout");
 
     fireEvent.click(screen.getByRole("link", { name: "Dodaj zdjęcia →" }));
 
@@ -512,7 +502,7 @@ describe("Organizer editor photos tab", () => {
       thumb_url: "https://cdn/m-1-t",
       sort_order: 0,
     });
-    renderAt("/muzyczne-skrzaty?edit=1&tab=zdjecia");
+    renderAt("/muzyczne-skrzaty?edit=1&tab=photos");
     const logo = within(await screen.findByRole("region", { name: "Logo" }));
 
     fireEvent.change(logo.getByLabelText("Dodaj logo"), { target: { files: [JPEG] } });

@@ -22,17 +22,16 @@ function TileContent({ icon, iconTone, title, hint }: { icon: ReactNode; iconTon
 /** The bottom bar's "+": four big tiles — an item, a wanted item, a term of
  * one of the user's groups and a one-off event. */
 export function AddView() {
-  const { myGroups, setModal, selectTermGroup } = useAppData();
+  const { myGroups, setModal } = useAppData();
   const hasGroups = myGroups.length > 0;
-
-  function addTerm() {
-    if (hasGroups) {
-      selectTermGroup(myGroups[0].id);
-      setModal("termin");
-    } else {
-      setModal("zaloz-grupe");
-    }
-  }
+  const termTile = (
+    <TileContent
+      icon={<CalendarPlusIcon c="currentColor" />}
+      iconTone="bg-paper text-accent-fg"
+      title="Termin spotkania"
+      hint={hasGroups ? "W jednej z Twoich grup" : "Najpierw załóż grupę"}
+    />
+  );
 
   return (
     <>
@@ -48,7 +47,7 @@ export function AddView() {
       </div>
 
       <div className="grid grid-cols-2 gap-3">
-        <Link to="/product/new" className={`${TILE_CLASS} bg-primary text-on-primary`}>
+        <Link to="/add/product" className={`${TILE_CLASS} bg-primary text-on-primary`}>
           <span aria-hidden="true" className="absolute -top-8 -right-8 h-24 w-24 rounded-full bg-accent" />
           <span className="relative flex h-full flex-col justify-between">
             <TileContent
@@ -59,7 +58,7 @@ export function AddView() {
             />
           </span>
         </Link>
-        <Link to={viewPath("szukam")} className={`${TILE_CLASS} bg-teal-soft text-ink`}>
+        <Link to={viewPath("add/hunting")} className={`${TILE_CLASS} bg-teal-soft text-ink`}>
           <TileContent
             icon={<SearchIcon c="currentColor" />}
             iconTone="bg-paper text-ink"
@@ -67,15 +66,16 @@ export function AddView() {
             hint="Damy znać, gdy ktoś doda pasującą"
           />
         </Link>
-        <button type="button" onClick={addTerm} className={`${TILE_CLASS} bg-accent-soft text-ink`}>
-          <TileContent
-            icon={<CalendarPlusIcon c="currentColor" />}
-            iconTone="bg-paper text-accent-fg"
-            title="Termin spotkania"
-            hint={hasGroups ? "W jednej z Twoich grup" : "Najpierw załóż grupę"}
-          />
-        </button>
-        <Link to={viewPath("wydarzenie")} className={`${TILE_CLASS} bg-primary-soft text-ink`}>
+        {hasGroups ? (
+          <Link to={viewPath("add/term")} className={`${TILE_CLASS} bg-accent-soft text-ink`}>
+            {termTile}
+          </Link>
+        ) : (
+          <button type="button" onClick={() => setModal("zaloz-grupe")} className={`${TILE_CLASS} bg-accent-soft text-ink`}>
+            {termTile}
+          </button>
+        )}
+        <Link to={viewPath("add/event")} className={`${TILE_CLASS} bg-primary-soft text-ink`}>
           <TileContent
             icon={<CalendarIcon c="currentColor" />}
             iconTone="bg-paper text-primary-fg"

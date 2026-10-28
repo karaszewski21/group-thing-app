@@ -52,7 +52,7 @@ function fakeJwt(sub: string): string {
   return `eyJhbGciOiJIUzI1NiJ9.${payload}.signature`;
 }
 
-function renderApp(initialRoute = "/login?tryb=rejestracja") {
+function renderApp(initialRoute = "/login?mode=register") {
   return render(
     <AuthProvider>
       <MemoryRouter initialEntries={[initialRoute]}>
@@ -60,7 +60,7 @@ function renderApp(initialRoute = "/login?tryb=rejestracja") {
           <Route path="/login" element={<LoginPage />} />
           <Route path="/onboarding" element={<OnboardingPage />} />
           <Route path="/" element={<div>PANEL</div>} />
-          <Route path="/zajecia/grupa/7/term/9" element={<div>TERM PAGE</div>} />
+          <Route path="/zajecia/group/7/term/9" element={<div>TERM PAGE</div>} />
         </Routes>
       </MemoryRouter>
     </AuthProvider>, { wrapper: createQueryWrapper() },
@@ -102,7 +102,7 @@ describe("register -> onboarding -> panel handoff (crosses Group 4 / Group 7 bou
       json: () => Promise.resolve({ token: fakeJwt("jan.kowalski"), party_id: "1", role: "GUEST" }),
     });
 
-    renderApp(`/login?tryb=rejestracja&returnTo=${encodeURIComponent("/zajecia/grupa/7/term/9")}`);
+    renderApp(`/login?mode=register&returnTo=${encodeURIComponent("/zajecia/group/7/term/9")}`);
 
     expect(screen.getByRole("tab", { name: "Załóż konto" })).toHaveAttribute("aria-selected", "true");
 

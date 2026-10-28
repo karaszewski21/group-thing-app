@@ -9,7 +9,7 @@ import uuid
 
 
 def _fallback_organizer_slug(seed: str) -> str:
-    """A stable, URL-safe pseudo-slug for the `/<slug>/grupa/<id>/term/<id>`
+    """A stable, URL-safe pseudo-slug for the `/<slug>/group/<id>/term/<id>`
     public URL when the organizer has not created an `Organization`. Keyed on
     the organizer's party id so every Circle that person leads shares one
     prefix, exactly as a real Organization slug would.

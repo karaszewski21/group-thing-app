@@ -57,7 +57,7 @@ async def _emit_pledge_event(
             "actor_name": actor_name,
             # Key kept for already-queued events; the value is the need's name.
             "product_name": needed_item.name,
-            "link_path": f"/{slug}/grupa/{term.circle_group_id}/term/{term.id}",
+            "link_path": f"/{slug}/group/{term.circle_group_id}/term/{term.id}",
         },
     )
 

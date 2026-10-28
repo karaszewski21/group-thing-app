@@ -18,7 +18,7 @@ const LAYOUT_LABEL: Record<GroupLayoutMode, string> = { CIRCLE: "Krąg", PITCH: 
 function circleHref(slug: string, circle: OrganizerCircle): string {
   return circle.next_term
     ? organizerTermPath(slug, circle.id, circle.next_term.id)
-    : `/${slug}/terminy?group_id=${circle.id}`;
+    : `/${slug}/terms?group_id=${circle.id}`;
 }
 
 function CircleFacts({ circle }: { circle: OrganizerCircle }) {

@@ -16,7 +16,7 @@ const KIND_CHIP: Record<ConversationKind, { label: string; className: string }> 
   TERM: { label: "Termin", className: "bg-teal-soft text-ink" },
 };
 
-/** The messages inbox (`/wiadomosci`): every conversation with a
+/** The messages inbox (`/messages`): every conversation with a
  * message, newest first, read-only chats included. */
 export function InboxPage() {
   const { data, loading, error, refetch } = useConversations();

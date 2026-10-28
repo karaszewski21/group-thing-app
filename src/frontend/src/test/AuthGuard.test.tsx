@@ -33,9 +33,9 @@ function renderAt(initialRoute: string) {
 
 describe("AuthGuard forwardReturnTo", () => {
   it("sends a logged-in visitor to onboarding with the returnTo carried along, not straight to it", () => {
-    renderAt(`/register?returnTo=${encodeURIComponent("/zajecia/grupa/7/term/9")}`);
+    renderAt(`/register?returnTo=${encodeURIComponent("/zajecia/group/7/term/9")}`);
     expect(screen.getByTestId("where")).toHaveTextContent(
-      `/onboarding?returnTo=${encodeURIComponent("/zajecia/grupa/7/term/9")}`,
+      `/onboarding?returnTo=${encodeURIComponent("/zajecia/group/7/term/9")}`,
     );
   });
 

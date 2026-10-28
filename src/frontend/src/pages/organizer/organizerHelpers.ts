@@ -2,7 +2,7 @@ import type { ExchangeMode } from "../../api/groups";
 
 /** Public per-term URL under the organizer's slug. */
 export function organizerTermPath(slug: string, groupId: string, termId: string): string {
-  return `/${slug}/grupa/${groupId}/term/${termId}`;
+  return `/${slug}/group/${groupId}/term/${termId}`;
 }
 
 /** Items offered across every exchange mode. */

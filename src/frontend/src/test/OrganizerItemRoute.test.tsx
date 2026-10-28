@@ -71,9 +71,9 @@ function renderAt(path: string) {
   return render(
     <MemoryRouter initialEntries={[path]}>
       <Routes>
-        <Route path="/:organizationSlug/produkt" element={<Navigate to=".." relative="path" replace />} />
+        <Route path="/:organizationSlug/product" element={<Navigate to=".." relative="path" replace />} />
         <Route
-          path="/:organizationSlug/produkt/:id"
+          path="/:organizationSlug/product/:id"
           element={
             <AuthGuard>
               <OrganizerItemLayout />
@@ -107,15 +107,15 @@ describe("Organizer product route", () => {
 
   it("sends an anonymous visitor to login with returnTo", () => {
     mockAuth.token = null;
-    renderAt("/ania/produkt/9");
+    renderAt("/ania/product/9");
 
-    expect(screen.getByTestId("where")).toHaveTextContent("/login?returnTo=%2Fania%2Fprodukt%2F9");
+    expect(screen.getByTestId("where")).toHaveTextContent("/login?returnTo=%2Fania%2Fproduct%2F9");
     expect(itemsApi.getItemDetails).not.toHaveBeenCalled();
   });
 
   it("shows a neutral loader while the organization is pending, item fetch already started", async () => {
     vi.mocked(organizationsApi.getPublicOrganization).mockReturnValue(new Promise(() => {}));
-    const { container } = renderAt("/ania/produkt/9");
+    const { container } = renderAt("/ania/product/9");
 
     expect(screen.getByText("Wczytywanie rzeczy…")).toBeInTheDocument();
     expect(container.querySelector("[data-organizer-theme]")).toBeNull();
@@ -124,34 +124,34 @@ describe("Organizer product route", () => {
   });
 
   it("renders the item in the organizer palette", async () => {
-    renderAt("/ania/produkt/9");
+    renderAt("/ania/product/9");
 
     const heading = await screen.findByRole("heading", { name: "Rowerek biegowy" });
     const scope = scopeOf(heading);
     expect(scope).toHaveAttribute("data-organizer-theme", "custom");
     expect(scope.style.getPropertyValue("--color-primary")).toBe("#7a2a4f");
-    expect(screen.getByRole("link", { name: /Edytuj/ })).toHaveAttribute("href", "/ania/produkt/9/edit");
+    expect(screen.getByRole("link", { name: /Edytuj/ })).toHaveAttribute("href", "/ania/product/9/edit");
   });
 
   it("falls back to the default palette when the organization is unknown", async () => {
     vi.mocked(organizationsApi.getPublicOrganization).mockRejectedValue(new ApiError(404, "Not Found", null));
-    renderAt("/ania/produkt/9");
+    renderAt("/ania/product/9");
 
     const heading = await screen.findByRole("heading", { name: "Rowerek biegowy" });
     expect(scopeOf(heading)).toHaveAttribute("data-organizer-theme", "default");
   });
 
   it("edit page links back inside the organizer prefix", async () => {
-    renderAt("/ania/produkt/9/edit");
+    renderAt("/ania/product/9/edit");
 
     expect(await screen.findByRole("heading", { name: "Edycja rzeczy" })).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Gotowe" })).toHaveAttribute("href", "/ania/produkt/9");
-    expect(screen.getByRole("link", { name: /Wróć do podglądu/ })).toHaveAttribute("href", "/ania/produkt/9");
+    expect(screen.getByRole("link", { name: "Gotowe" })).toHaveAttribute("href", "/ania/product/9");
+    expect(screen.getByRole("link", { name: /Wróć do podglądu/ })).toHaveAttribute("href", "/ania/product/9");
   });
 
   it("redirects a non-owner from edit to the organizer view", async () => {
     vi.mocked(itemsApi.getItemDetails).mockResolvedValue(details({ is_owner: false }));
-    renderAt("/ania/produkt/9/edit");
+    renderAt("/ania/product/9/edit");
 
     expect(await screen.findByRole("heading", { name: "Rowerek biegowy" })).toBeInTheDocument();
     expect(screen.queryByRole("heading", { name: "Edycja rzeczy" })).not.toBeInTheDocument();
@@ -159,7 +159,7 @@ describe("Organizer product route", () => {
   });
 
   it("Wróć on a direct entry goes to the organizer page", async () => {
-    renderAt("/ania/produkt/9");
+    renderAt("/ania/product/9");
 
     await screen.findByRole("heading", { name: "Rowerek biegowy" });
     fireEvent.click(screen.getByRole("button", { name: /Wróć/ }));
@@ -168,15 +168,15 @@ describe("Organizer product route", () => {
 
   it("Wróć on a direct entry under a fallback k- slug goes to the panel items list", async () => {
     vi.mocked(organizationsApi.getPublicOrganization).mockRejectedValue(new ApiError(404, "Not Found", null));
-    renderAt("/k-0123456789ab/produkt/9");
+    renderAt("/k-0123456789ab/product/9");
 
     await screen.findByRole("heading", { name: "Rowerek biegowy" });
     fireEvent.click(screen.getByRole("button", { name: /Wróć/ }));
-    expect(screen.getByTestId("where")).toHaveTextContent(/^\/rzeczy$/);
+    expect(screen.getByTestId("where")).toHaveTextContent(/^\/items$/);
   });
 
-  it("bare /:slug/produkt redirects to the organizer page without fetching an item", () => {
-    renderAt("/ania/produkt");
+  it("bare /:slug/product redirects to the organizer page without fetching an item", () => {
+    renderAt("/ania/product");
 
     expect(screen.getByTestId("where")).toHaveTextContent(/^\/ania$/);
     expect(itemsApi.getItemDetails).not.toHaveBeenCalled();

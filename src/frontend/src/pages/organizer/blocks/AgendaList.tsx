@@ -30,7 +30,7 @@ interface AgendaListProps {
 }
 
 /** Terms grouped under day headers, each row one link to the term page.
- * Shared by the agenda block and the `/:slug/terminy` page. */
+ * Shared by the agenda block and the `/:slug/terms` page. */
 export function AgendaList({ slug, terms, dayHeadingLevel }: AgendaListProps) {
   const DayHeading = dayHeadingLevel === 2 ? "h2" : "h3";
   return (

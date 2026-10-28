@@ -66,10 +66,10 @@ const members: GroupMemberResponse[] = [
 
 function renderPage() {
   return render(
-    <MemoryRouter initialEntries={[`/grupy/${GROUP_ID}`]}>
+    <MemoryRouter initialEntries={[`/groups/${GROUP_ID}`]}>
       <Routes>
-        <Route path="/grupy/:groupId" element={<GroupDetailsPage />} />
-        <Route path="/wiadomosci/:id" element={<p>Wątek rozmowy</p>} />
+        <Route path="/groups/:groupId" element={<GroupDetailsPage />} />
+        <Route path="/messages/:id" element={<p>Wątek rozmowy</p>} />
       </Routes>
     </MemoryRouter>,
     { wrapper: createQueryWrapper() },
@@ -145,7 +145,7 @@ describe("GroupDetailsPage", () => {
     renderPage();
 
     expect(await screen.findByText("Nie znaleziono tej grupy.")).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: /Wróć/ })).toHaveAttribute("href", "/spotkania");
+    expect(screen.getByRole("link", { name: /Wróć/ })).toHaveAttribute("href", "/meetings");
   });
 
   it("generic error retry refetches", async () => {

@@ -11,19 +11,15 @@ import { PhotosTab } from "./PhotosTab";
 import { nextIndex } from "./rovingIndex";
 import { UnsavedChangesDialog } from "./UnsavedChangesDialog";
 
-type Tab = "zdjecia" | "uklad";
+type Tab = "photos" | "layout";
 
 const TABS: { id: Tab; label: string }[] = [
-  { id: "zdjecia", label: "Zdjęcia i opis" },
-  { id: "uklad", label: "Układ i kolor" },
+  { id: "photos", label: "Zdjęcia i opis" },
+  { id: "layout", label: "Układ i kolor" },
 ];
 
-/** The former single-topic tab ids, still used by links such as the ghost CTAs. */
-const TAB_ALIASES: Record<string, Tab> = { opis: "zdjecia", kolory: "uklad" };
-
 function toTab(value: string | null): Tab {
-  if (value !== null && value in TAB_ALIASES) return TAB_ALIASES[value];
-  return TABS.find((t) => t.id === value)?.id ?? "zdjecia";
+  return TABS.find((t) => t.id === value)?.id ?? "photos";
 }
 
 const SAVE_FALLBACK = "Nie udało się zapisać. Spróbuj ponownie.";
@@ -57,7 +53,7 @@ export function EditorSheet({
   onClose,
 }: EditorSheetProps) {
   const [searchParams, setSearchParams] = useSearchParams();
-  // The `tab` param drives the visible tab, so a link to `?tab=zdjecia` (the
+  // The `tab` param drives the visible tab, so a link to `?tab=photos` (the
   // gallery ghost) switches an already open sheet too.
   const tab = toTab(searchParams.get("tab"));
   const [saving, setSaving] = useState(false);
@@ -65,7 +61,7 @@ export function EditorSheet({
   const [confirmOpen, setConfirmOpen] = useState(false);
   const titleRef = useRef<HTMLHeadingElement>(null);
   const closeRef = useRef<HTMLButtonElement>(null);
-  const tabRefs = useRef<Record<Tab, HTMLButtonElement | null>>({ zdjecia: null, uklad: null });
+  const tabRefs = useRef<Record<Tab, HTMLButtonElement | null>>({ photos: null, layout: null });
   // Changing only the query string (closing the sheet) is never blocked.
   const blocker = useBlocker(
     ({ currentLocation, nextLocation }) => dirty && currentLocation.pathname !== nextLocation.pathname,
@@ -194,15 +190,15 @@ export function EditorSheet({
           className="max-h-[55vh] overflow-y-auto"
         >
           {/* Photos save on their own, so the draft lock and dirty state never touch them. */}
-          {tab === "zdjecia" && <PhotosTab organizationId={organizationId} />}
+          {tab === "photos" && <PhotosTab organizationId={organizationId} />}
           {/* Locked while saving, so nothing is edited on top of the draft being sent. */}
           <fieldset disabled={saving} className="m-0 min-w-0 border-0 p-0">
-            {tab === "zdjecia" && (
+            {tab === "photos" && (
               <div className="mt-5 border-t border-line pt-4">
                 <AboutTab value={draft.description} onChange={(description) => change({ ...draft, description })} />
               </div>
             )}
-            {tab === "uklad" && (
+            {tab === "layout" && (
               <>
                 <p className={`${SECTION_LABEL} mb-2`}>Układ strony</p>
                 <LayoutTab

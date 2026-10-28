@@ -250,9 +250,9 @@ describe("LayoutRenderer gallery slot", () => {
       within(ghost).getByText("Dodaj do 3 zdjęć — odwiedzający zobaczą je po sprawdzeniu. Widzisz to tylko Ty."),
     ).toBeInTheDocument();
     const cta = within(ghost).getByRole("link", { name: "Dodaj zdjęcia →" });
-    expect(cta).toHaveAttribute("href", `/${SLUG}?edit=1&tab=zdjecia`);
+    expect(cta).toHaveAttribute("href", `/${SLUG}?edit=1&tab=photos`);
 
     fireEvent.click(cta);
-    expect(screen.getByTestId("location")).toHaveTextContent(`REPLACE /${SLUG}?edit=1&tab=zdjecia`);
+    expect(screen.getByTestId("location")).toHaveTextContent(`REPLACE /${SLUG}?edit=1&tab=photos`);
   });
 });

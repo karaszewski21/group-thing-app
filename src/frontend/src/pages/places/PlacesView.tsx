@@ -12,7 +12,7 @@ import { ConfirmDeleteDialog } from "../../components/shared/ConfirmDeleteDialog
 import { useMyLocations } from "../../hooks/useMyLocations";
 
 /* ------------------------------------------------------------------ */
-/*  "Moje miejsca" (/miejsca): the only place to list, add, edit */
+/*  "Moje miejsca" (/places): the only place to list, add, edit */
 /*  and delete the caller's saved places (mockups 2a-2e).              */
 /* ------------------------------------------------------------------ */
 

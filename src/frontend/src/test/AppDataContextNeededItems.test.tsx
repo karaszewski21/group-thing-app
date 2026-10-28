@@ -62,19 +62,18 @@ const term = { id: "t1", circle_group_id: "g1", occurs_on: "2026-11-05T17:00:00"
 function wrapper({ children }: { children: ReactNode }) {
   return (
     <QueryClientProvider client={createTestQueryClient()}>
-      <MemoryRouter initialEntries={["/"]}>
+      <MemoryRouter initialEntries={["/add/term"]}>
         <AppDataProvider>{children}</AppDataProvider>
       </MemoryRouter>
     </QueryClientProvider>
   );
 }
 
-/** Opens "Dodaj termin" with a group, a date and the given needed-item drafts. */
+/** On the "Dodaj termin" page: a group, a date and the given needed-item drafts. */
 async function renderFilledTermForm(names: string[]) {
   const hook = renderHook(() => useAppData(), { wrapper });
   await waitFor(() => expect(hook.result.current.loading).toBe(false));
   act(() => {
-    hook.result.current.setModal("termin");
     hook.result.current.selectTermGroup("g1");
     hook.result.current.setTermDate("2026-11-05T17:00");
   });
@@ -111,7 +110,7 @@ describe("AppDataContext — handleAddTerm needed items", () => {
     expect(termsApi.createNeededItem).toHaveBeenNthCalledWith(2, { term_id: "t1", name: "Termos", description: undefined });
   });
 
-  it("handleAddTerm_rejectedNeededItem_closesModalWithoutTermError", async () => {
+  it("handleAddTerm_rejectedNeededItem_leavesForSpotkaniaWithoutTermError", async () => {
     vi.mocked(termsApi.createNeededItem).mockRejectedValue(
       new ApiError(409, "Conflict", { message: "Nazwa narusza zasady." }),
     );
@@ -119,7 +118,7 @@ describe("AppDataContext — handleAddTerm needed items", () => {
 
     await act(() => result.current.handleAddTerm());
 
-    expect(result.current.modal).toBeNull();
+    expect(result.current.view).toBe("meetings");
     expect(result.current.addTermError).toBeNull();
     expect(result.current.neededDraft).toEqual([]);
   });

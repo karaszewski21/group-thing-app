@@ -94,7 +94,7 @@ export function UpcomingTermsBlock({ data, variant }: BlockProps) {
       </ul>
       {allTermsLabel && (
         <Link
-          to={`/${slug}/terminy`}
+          to={`/${slug}/terms`}
           className={`mt-1 flex min-h-[44px] items-center justify-center text-[13px] font-bold text-primary-fg ${FOCUS_RING}`}
         >
           {allTermsLabel}

@@ -69,9 +69,9 @@ function NewItemProbe() {
 
 function renderPage() {
   return render(
-    <MemoryRouter initialEntries={["/product/new"]}>
+    <MemoryRouter initialEntries={["/add/product"]}>
       <Routes>
-        <Route path="/product/new" element={<ItemCreatePage />} />
+        <Route path="/add/product" element={<ItemCreatePage />} />
         <Route path="/product/:id" element={<NewItemProbe />} />
       </Routes>
     </MemoryRouter>,

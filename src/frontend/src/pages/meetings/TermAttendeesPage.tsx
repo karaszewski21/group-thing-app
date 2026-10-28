@@ -9,7 +9,7 @@ import { pluralPl } from "../../utils/plural";
 import { dayMonth, termPublicPath, termTime } from "../../utils/appHelpers";
 import { BackIcon } from "../../components/shared/appIcons";
 
-/** Organizer-only list of who signed up for one term (`/terminy/:termId`).
+/** Organizer-only list of who signed up for one term (`/terms/:termId`).
  * A standalone route outside AppDataProvider: the hook resolves the group
  * from the term itself. */
 export function TermAttendeesPage() {
@@ -21,7 +21,7 @@ export function TermAttendeesPage() {
     <PhoneFrame>
       <div className="flex-1 overflow-y-auto px-[18px] pb-6 pt-[18px]">
         <Link
-          to="/spotkania"
+          to="/meetings"
           className="mb-4 inline-flex items-center gap-1.5 text-xs font-bold text-ink-soft"
         >
           <BackIcon /> Wróć

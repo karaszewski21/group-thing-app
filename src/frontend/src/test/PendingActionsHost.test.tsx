@@ -42,7 +42,7 @@ function pendingNotif(
     id: "1",
     kind: "SWAP_PROPOSED",
     message: '„Marek" proponuje zamianę za: Rowerek',
-    link_path: "/ania/grupa/5/term/3",
+    link_path: "/ania/group/5/term/3",
     read_at: null,
     created_at: "2026-03-01T10:00:00",
     reservation_id: null,
@@ -55,7 +55,7 @@ function confirmNotif(over: Partial<notificationsApi.NotificationResponse> = {})
     id: "2",
     kind: "TERM_CONFIRMATION_NEEDED",
     message: "Czy przekazanie „Pucio” doszło do skutku? (śr 15.10, Muzyczne Maluchy)",
-    link_path: "/ania/grupa/5/term/9",
+    link_path: "/ania/group/5/term/9",
     ...over,
   });
 }
@@ -134,7 +134,7 @@ describe("PendingActionsHost — swap proposal prompt", () => {
   // Accept/reject never happen from this one-at-a-time modal: it could only
   // surface the first of possibly several competing offers. It links to
   // "Moje rzeczy", where every offer against the item is listed together.
-  it("'Zobacz w Moje rzeczy' marks it read, navigates to /rzeczy and clears the prompt", async () => {
+  it("'Zobacz w Moje rzeczy' marks it read, navigates to /items and clears the prompt", async () => {
     vi.mocked(notificationsApi.getMyNotifications).mockResolvedValue([pendingNotif()]);
     renderHost();
 
@@ -145,7 +145,7 @@ describe("PendingActionsHost — swap proposal prompt", () => {
     fireEvent.click(within(dialog).getByRole("button", { name: "Zobacz w Moje rzeczy" }));
 
     await waitFor(() => expect(notificationsApi.markNotificationRead).toHaveBeenCalledWith("1"));
-    expect(screen.getByTestId("location")).toHaveTextContent("/rzeczy");
+    expect(screen.getByTestId("location")).toHaveTextContent("/items");
     expect(screen.queryByRole("dialog", { name: "Propozycja zamiany" })).not.toBeInTheDocument();
   });
 
@@ -177,7 +177,7 @@ describe("PendingActionsHost — snooze", () => {
         id: "5",
         kind: "TERM_CONFIRMATION_NEEDED",
         message: "Czy przekazanie doszło do skutku?",
-        link_path: "/ania/grupa/5/term/9",
+        link_path: "/ania/group/5/term/9",
       }),
     ]);
     renderHost();

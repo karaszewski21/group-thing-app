@@ -12,10 +12,10 @@ function injectedCss(): string {
 describe("organizer theme after client-side navigation", () => {
   it("leaves no organizer vars or term-page rules behind once the user moves on to /panel", () => {
     render(
-      <MemoryRouter initialEntries={["/ania/grupa/g/term/t"]}>
+      <MemoryRouter initialEntries={["/ania/group/g/term/t"]}>
         <Routes>
           <Route
-            path="/:organizationSlug/grupa/:groupId/term/:termId"
+            path="/:organizationSlug/group/:groupId/term/:termId"
             element={
               <OrganizerThemeScope theme={{ primary_color: "#7a2a4f", accent_color: null }}>
                 <div>

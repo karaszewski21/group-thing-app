@@ -26,8 +26,8 @@ export function AccountView() {
         <div className="mt-2.5">
           <ListCard
             rows={[
-              { label: "Lokalizacja", meta: "Moje miejsca", to: viewPath("miejsca") },
-              { label: "Mój dom", to: viewPath("rodzina") },
+              { label: "Lokalizacja", meta: "Moje miejsca", to: viewPath("places") },
+              { label: "Mój dom", to: viewPath("family") },
             ]}
           />
         </div>
@@ -77,7 +77,7 @@ export function AccountView() {
               rows={[
                 { label: "Wygląd strony", to: `/${organizationSlug}?edit=1` },
                 { label: "Dane organizacji", to: "/organization" },
-                { label: "Grupy i terminy", to: viewPath("spotkania") },
+                { label: "Grupy i terminy", to: viewPath("meetings") },
               ]}
             />
           </div>
@@ -90,11 +90,11 @@ export function AccountView() {
         </h2>
         <ListCard
           rows={[
-            { label: "Moje rzeczy", meta: items.length > 0 ? String(items.length) : "brak", to: viewPath("rzeczy") },
+            { label: "Moje rzeczy", meta: items.length > 0 ? String(items.length) : "brak", to: viewPath("items") },
             {
               label: "Szukam",
               meta: `${MOCK_WANTS.length} ${pluralPl(MOCK_WANTS.length, "rzecz", "rzeczy", "rzeczy")}`,
-              to: viewPath("szukam"),
+              to: viewPath("wanted"),
             },
           ]}
         />
@@ -104,7 +104,7 @@ export function AccountView() {
         <h2 id="konto-ustawienia" className={SECTION_LABEL}>
           Ustawienia
         </h2>
-        <ListCard rows={[{ label: "Prywatność", to: viewPath("ustawienia") }]} />
+        <ListCard rows={[{ label: "Prywatność", to: viewPath("settings") }]} />
       </section>
 
       <button

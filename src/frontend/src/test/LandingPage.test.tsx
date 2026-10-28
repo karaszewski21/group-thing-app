@@ -12,7 +12,7 @@ describe("LandingPage", () => {
     );
 
     expect(screen.getByRole("heading", { level: 1 })).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Załóż konto" })).toHaveAttribute("href", "/login?tryb=rejestracja");
+    expect(screen.getByRole("link", { name: "Załóż konto" })).toHaveAttribute("href", "/login?mode=register");
     expect(screen.getByRole("link", { name: "Mam już konto" })).toHaveAttribute("href", "/login");
     expect(screen.getByRole("heading", { name: "Ostatnio dodane" })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Fotelik 9–18 kg" })).toBeInTheDocument();

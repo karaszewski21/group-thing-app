@@ -1,12 +1,9 @@
-import { useState } from "react";
-import { NeededItemQuickAddForm } from "../components/shared/NeededItemQuickAddForm";
 import { CreateFamilyDialog } from "../components/panel/CreateFamilyDialog";
 import { EditTermDialog } from "../components/panel/EditTermDialog";
 import { CreateGroupStepper } from "../components/panel/CreateGroupStepper";
 import { FirstTermStepperOrganizer } from "../components/panel/FirstTermStepperOrganizer";
 import { GroupFormFields } from "../components/panel/GroupFormFields";
-import { LocationPicker } from "../components/shared/LocationPicker";
-import { CapacityField, Field, INPUT_CLASS, ModalSheet } from "../components/shared/appComponents";
+import { ModalSheet } from "../components/shared/appComponents";
 import { parseCapacity } from "../utils/appHelpers";
 import { useAppData } from "./appDataStore";
 
@@ -25,38 +22,17 @@ export function AppModals() {
     editGroupForm,
     editGroupError,
     addGroupError,
-    addTermError,
-    termGroupId,
-    termDate,
-    termDescription,
-    termLocationId,
-    termCapacity,
-    neededDraft,
-    draftNeededItem,
     busy,
     setModal,
     setEditTermId,
     setGroupForm,
     setEditGroupForm,
-    selectTermGroup,
-    setTermDate,
-    setTermDescription,
-    setTermLocationId,
-    setTermCapacity,
-    setDraftNeededItem,
     showToast,
     load,
     handleAddGroup,
     cancelEditGroup,
     saveEditGroup,
-    handleAddTerm,
-    addDraftNeededItem,
-    removeDraftNeededItem,
   } = useAppData();
-
-  // "Potrzebne rzeczy" is optional — collapsed behind a small button until
-  // the organizer actually wants to add one (same pattern as EditTermDialog).
-  const [addingNeeded, setAddingNeeded] = useState(false);
 
   const createGroupStepper = (
     <CreateGroupStepper
@@ -71,7 +47,6 @@ export function AppModals() {
     />
   );
   const editingGroup = myGroups.find((g) => g.id === editingGroupId) ?? null;
-  const termGroup = myGroups.find((g) => g.id === termGroupId) ?? null;
 
   return (
     <>
@@ -163,120 +138,6 @@ export function AppModals() {
             className="mt-4 w-full rounded-[13px] bg-mint px-5 py-3 text-[13.5px] font-extrabold text-white disabled:opacity-60"
           >
             Zapisz
-          </button>
-        </ModalSheet>
-      )}
-
-      {/* ---------- modal: dodaj termin ---------- */}
-      {modal === "termin" && (
-        <ModalSheet
-          title="Dodaj termin zajęć"
-          onClose={() => {
-            setModal(null);
-            setAddingNeeded(false);
-          }}
-        >
-          <div className="grid grid-cols-1 gap-3">
-            <Field label="Grupa">
-              <select
-                aria-label="Grupa"
-                value={termGroupId ?? ""}
-                onChange={(e) => selectTermGroup(e.target.value || null)}
-                className={INPUT_CLASS}
-              >
-                <option value="" disabled>Wybierz grupę…</option>
-                {myGroups.map((g) => (
-                  <option key={g.id} value={g.id}>{g.name}</option>
-                ))}
-              </select>
-            </Field>
-            <Field label="Data i godzina">
-              <input
-                type="datetime-local"
-                aria-label="Data i godzina"
-                value={termDate}
-                onChange={(e) => setTermDate(e.target.value)}
-                className={INPUT_CLASS}
-              />
-            </Field>
-            <Field label="Opis (opcjonalnie)">
-              <input
-                aria-label="Opis (opcjonalnie)"
-                value={termDescription}
-                onChange={(e) => setTermDescription(e.target.value)}
-                placeholder="Park Sołacki · wstęp wolny"
-                className={INPUT_CLASS}
-              />
-            </Field>
-            <Field label="Miejsce">
-              <LocationPicker
-                value={termLocationId}
-                onChange={setTermLocationId}
-                label="Miejsce"
-                noneLabel="Brak miejsca"
-                idPrefix="add-term-place"
-                fallbackLocation={termGroup?.default_location ?? null}
-                helperText={
-                  termGroup?.default_location && termLocationId === termGroup.default_location.id
-                    ? "Domyślne miejsce grupy — możesz zmienić"
-                    : undefined
-                }
-              />
-            </Field>
-            <CapacityField label="Ile miejsc" value={termCapacity} onChange={setTermCapacity} />
-            <Field label="Potrzebne rzeczy (opcjonalnie)">
-              {neededDraft.map((item, index) => (
-                <div key={index} className="mb-1.5 flex items-center gap-2 text-[13px]">
-                  <span className="flex-1">
-                    {item.name}
-                    {item.description ? ` — ${item.description}` : ""}
-                  </span>
-                  <button onClick={() => removeDraftNeededItem(index)} className="text-xs font-bold text-danger">
-                    Usuń
-                  </button>
-                </div>
-              ))}
-              {addingNeeded ? (
-                <div className="mt-1.5 flex flex-col gap-1.5">
-                  <NeededItemQuickAddForm value={draftNeededItem} onChange={setDraftNeededItem} />
-                  <div className="flex gap-1.5">
-                    <button
-                      type="button"
-                      onClick={addDraftNeededItem}
-                      disabled={!draftNeededItem.name.trim()}
-                      className="rounded-full border border-line px-3 py-1.5 text-xs font-bold text-ink-soft disabled:opacity-50"
-                    >
-                      Dodaj rzecz
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setAddingNeeded(false)}
-                      className="rounded-full px-3 py-1.5 text-xs font-bold text-ink-soft hover:bg-cream"
-                    >
-                      Zwiń
-                    </button>
-                  </div>
-                </div>
-              ) : (
-                <button
-                  type="button"
-                  onClick={() => setAddingNeeded(true)}
-                  className="mt-1 self-start rounded-[9px] px-1.5 py-1 text-[12px] font-bold text-ink-soft transition-colors hover:bg-cream hover:text-ink"
-                >
-                  + Dodaj potrzebną rzecz
-                </button>
-              )}
-            </Field>
-          </div>
-          {addTermError && (
-            <p role="alert" className="mt-2 text-[12.5px] font-semibold text-danger">{addTermError}</p>
-          )}
-          <button
-            onClick={() => void handleAddTerm()}
-            disabled={busy || !termDate || !termGroupId || parseCapacity(termCapacity) === undefined}
-            className="mt-4 w-full rounded-[13px] bg-mint px-5 py-3 text-[13.5px] font-extrabold text-white disabled:opacity-60"
-          >
-            Dodaj termin
           </button>
         </ModalSheet>
       )}

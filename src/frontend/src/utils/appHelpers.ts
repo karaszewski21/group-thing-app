@@ -10,31 +10,35 @@ import type { NeededItemResponse, TermResponse } from "../api/terms";
 
 export type View =
   | "home"
-  | "spotkania"
-  | "rzeczy"
-  | "profil"
-  | "ustawienia"
-  | "miejsca"
-  | "rodzina"
-  | "konto"
-  | "szukaj"
-  | "szukam"
-  | "dodaj"
-  | "wydarzenie";
+  | "meetings"
+  | "items"
+  | "profile"
+  | "settings"
+  | "places"
+  | "family"
+  | "account"
+  | "search"
+  | "wanted"
+  | "add"
+  | "add/term"
+  | "add/event"
+  | "add/hunting";
 
 const VIEW_VALUES: readonly View[] = [
   "home",
-  "spotkania",
-  "rzeczy",
-  "profil",
-  "ustawienia",
-  "miejsca",
-  "rodzina",
-  "konto",
-  "szukaj",
-  "szukam",
-  "dodaj",
-  "wydarzenie",
+  "meetings",
+  "items",
+  "profile",
+  "settings",
+  "places",
+  "family",
+  "account",
+  "search",
+  "wanted",
+  "add",
+  "add/term",
+  "add/event",
+  "add/hunting",
 ];
 
 function isView(value: string | undefined): value is View {
@@ -42,7 +46,7 @@ function isView(value: string | undefined): value is View {
 }
 
 /** Sub-pages of "Konto": they show a back link to it. */
-export const KONTO_SUBVIEWS: readonly View[] = ["profil", "ustawienia", "miejsca", "rodzina", "szukam"];
+export const ACCOUNT_SUBVIEWS: readonly View[] = ["profile", "settings", "places", "family", "wanted"];
 
 /** The URL of a panel view: `/` for home, `/<view>` otherwise. */
 export function viewPath(view: View): string {
@@ -65,7 +69,6 @@ export function defaultVisibility(organizationSlug: string | null): GroupVisibil
 export type ModalKind =
   | "grupa"
   | "edit-grupa"
-  | "termin"
   | "pierwszy-termin"
   | "zaloz-grupe"
   | "rodzina-nowa"
@@ -182,5 +185,5 @@ export function initials(name: string): string {
  * no Organization) — the `?? "krag"` only guards the `GET /api/groups` list
  * response, which the Panel never uses to build these links. */
 export function termPublicPath(group: GroupResponse, termId: string): string {
-  return `/${group.organizer_slug ?? "krag"}/grupa/${group.id}/term/${termId}`;
+  return `/${group.organizer_slug ?? "krag"}/group/${group.id}/term/${termId}`;
 }

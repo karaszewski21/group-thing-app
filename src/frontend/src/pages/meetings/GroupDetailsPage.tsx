@@ -14,7 +14,7 @@ import { BackIcon } from "../../components/shared/appIcons";
 const LAYOUT_LABEL = { CIRCLE: "Krąg", PITCH: "Boisko", TABLE: "Stół" } as const;
 const VISIBILITY_LABEL = { PUBLIC: "Publiczna", PRIVATE: "Prywatna (dostęp z kodem)" } as const;
 
-/** Group details plus everyone who signed up for its terms (`/grupy/:groupId`).
+/** Group details plus everyone who signed up for its terms (`/groups/:groupId`).
  * A standalone route outside AppDataProvider, like TermAttendeesPage. The
  * backend lets the group's organizer and its members in. */
 export function GroupDetailsPage() {
@@ -37,7 +37,7 @@ export function GroupDetailsPage() {
     <PhoneFrame>
       <div className="flex-1 overflow-y-auto px-[18px] pb-6 pt-[18px]">
         <Link
-          to="/spotkania"
+          to="/meetings"
           className="mb-4 inline-flex items-center gap-1.5 text-xs font-bold text-ink-soft"
         >
           <BackIcon /> Wróć

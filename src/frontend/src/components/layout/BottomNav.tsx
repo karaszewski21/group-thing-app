@@ -2,18 +2,18 @@ import { useLocation, useNavigate } from "react-router-dom";
 import { useUnreadMessages } from "../../hooks/useUnreadMessages";
 import { INBOX_PATH } from "../../utils/messagesPaths";
 import { BoxIcon, ChatIcon, HomeIcon, PlusIcon, UserIcon } from "../shared/appIcons";
-import { KONTO_SUBVIEWS, viewFromPath, viewPath } from "../../utils/appHelpers";
+import { ACCOUNT_SUBVIEWS, viewFromPath, viewPath } from "../../utils/appHelpers";
 
-type TabKey = "home" | "czat" | "rzeczy" | "konto";
+type TabKey = "home" | "chat" | "items" | "account";
 
 const SIDE_TABS: { key: TabKey; label: string; to: string; Icon: typeof HomeIcon }[][] = [
   [
     { key: "home", label: "Start", to: viewPath("home"), Icon: HomeIcon },
-    { key: "czat", label: "Czat", to: INBOX_PATH, Icon: ChatIcon },
+    { key: "chat", label: "Czat", to: INBOX_PATH, Icon: ChatIcon },
   ],
   [
-    { key: "rzeczy", label: "Moje rzeczy", to: viewPath("rzeczy"), Icon: BoxIcon },
-    { key: "konto", label: "Konto", to: viewPath("konto"), Icon: UserIcon },
+    { key: "items", label: "Moje rzeczy", to: viewPath("items"), Icon: BoxIcon },
+    { key: "account", label: "Konto", to: viewPath("account"), Icon: UserIcon },
   ],
 ];
 
@@ -23,10 +23,10 @@ const TAB_CLASS =
 /** The tab a pathname belongs to; `undefined` highlights none (item pages,
  * group details, …). */
 function activeTab(pathname: string): TabKey | undefined {
-  if (pathname === INBOX_PATH || pathname.startsWith(`${INBOX_PATH}/`)) return "czat";
+  if (pathname === INBOX_PATH || pathname.startsWith(`${INBOX_PATH}/`)) return "chat";
   const view = viewFromPath(pathname);
-  if (view === "home" || view === "rzeczy" || view === "konto") return view;
-  if (view !== null && KONTO_SUBVIEWS.includes(view)) return "konto";
+  if (view === "home" || view === "items" || view === "account") return view;
+  if (view !== null && ACCOUNT_SUBVIEWS.includes(view)) return "account";
   return undefined;
 }
 
@@ -51,12 +51,12 @@ export function BottomNav() {
       >
         <span className={`relative flex h-7.5 w-13.5 items-center justify-center rounded-full ${on ? "bg-primary-soft" : ""}`}>
           <Icon c="currentColor" />
-          {key === "czat" && unread > 0 && (
+          {key === "chat" && unread > 0 && (
             <span className="absolute top-0.5 right-3 h-2.5 w-2.5 rounded-full border-2 border-paper bg-accent" />
           )}
         </span>
         {label}
-        {key === "czat" && unread > 0 && (
+        {key === "chat" && unread > 0 && (
           <>
             {" "}
             <span className="sr-only">({unread} nieprzeczytane)</span>
@@ -75,7 +75,7 @@ export function BottomNav() {
       <div className="flex flex-1 justify-center">
         <button
           type="button"
-          onClick={() => navigate(viewPath("dodaj"))}
+          onClick={() => navigate(viewPath("add"))}
           aria-label="Dodaj nowe"
           className="-mt-7.5 flex h-15.5 w-15.5 items-center justify-center rounded-full border-4 border-cream bg-primary text-on-primary shadow-[0_12px_22px_-10px_rgba(31,106,82,0.85)] transition-transform hover:scale-105 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring"
         >

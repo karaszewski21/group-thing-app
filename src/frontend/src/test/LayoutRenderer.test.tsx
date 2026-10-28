@@ -116,7 +116,7 @@ describe("LayoutRenderer", () => {
     expect(ghost).toHaveAttribute("data-ghost", "about");
     expect(ghost).not.toHaveAttribute("tabindex");
     expect(ghost).not.toHaveAttribute("role");
-    expect(within(ghost).getByRole("link", { name: "Dodaj opis →" })).toHaveAttribute("href", "/?edit=1&tab=opis");
+    expect(within(ghost).getByRole("link", { name: "Dodaj opis →" })).toHaveAttribute("href", "/?edit=1&tab=photos");
     expect(ghost.querySelectorAll("button, a, [tabindex]")).toHaveLength(1);
   });
 
@@ -345,10 +345,10 @@ describe("LayoutRenderer", () => {
       "Wymiana rzeczy (8)",
       "Udostępnij stronę",
     ]);
-    expect(actions[0]).toHaveAttribute("href", `/${SLUG}/grupa/g1/term/t1`);
+    expect(actions[0]).toHaveAttribute("href", `/${SLUG}/group/g1/term/t1`);
     expect(actions[0]).toHaveClass("bg-paper");
-    expect(actions[1]).toHaveAttribute("href", `/${SLUG}/terminy`);
-    expect(actions[2]).toHaveAttribute("href", `/${SLUG}/grupa/g2/term/t9`);
+    expect(actions[1]).toHaveAttribute("href", `/${SLUG}/terms`);
+    expect(actions[2]).toHaveAttribute("href", `/${SLUG}/group/g2/term/t9`);
     expect(actions[3]).not.toHaveClass("bg-paper");
     cleanup();
 
@@ -409,7 +409,7 @@ describe("LayoutRenderer", () => {
     const { container } = renderLayout("CLASSIC", full);
 
     expect(screen.getByText("Orliki 2017")).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: /Oddam\s*1/ })).toHaveAttribute("href", `/${SLUG}/grupa/g1/term/t1`);
+    expect(screen.getByRole("link", { name: /Oddam\s*1/ })).toHaveAttribute("href", `/${SLUG}/group/g1/term/t1`);
     expect(container.textContent).not.toMatch(/Kasia|Wójcik|party-secret/);
     expect(container.innerHTML).not.toMatch(/party-secret|avatar\.png/);
   });

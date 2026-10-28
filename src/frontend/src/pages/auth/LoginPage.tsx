@@ -22,7 +22,7 @@ const TAB_CLASS =
   "min-h-11 flex-1 rounded-full px-3 text-[15px] transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring";
 
 /** `/login`: logging in and registering on one page, as two tabs. The tab
- * lives in `?tryb=rejestracja` so links (and a refresh) can open "Załóż
+ * lives in `?mode=register` so links (and a refresh) can open "Załóż
  * konto" directly; `?returnTo=` survives switching tabs. A logged-in visitor
  * is sent on by AuthGuard — after registering to onboarding first. */
 export function LoginPage() {

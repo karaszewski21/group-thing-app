@@ -124,7 +124,7 @@ const PENDING_PHOTO_POLL_MS = 10_000;
 function useAppDataValue() {
   const { logout, username } = useAuth();
   const navigate = useNavigate();
-  // The active section is the pathname (`/`, `/rzeczy`, `/konto`, …), not
+  // The active section is the pathname (`/`, `/items`, `/account`, …), not
   // local state — this way a refresh (or a shared/bookmarked link) lands
   // back on the same section instead of always resetting to "home".
   const location = useLocation();
@@ -179,9 +179,9 @@ function useAppDataValue() {
     [navigate],
   );
   const [modal, setModal] = useState<ModalKind>(null);
-  // Inline (E2) server errors for the "Dodaj grupę" / "Dodaj termin" modals —
-  // cleared whenever the matching modal opens, so the many close paths don't
-  // each have to reset them.
+  // Inline (E2) server errors for the "Dodaj grupę" modal / "Dodaj termin"
+  // page — cleared whenever the modal opens or the page is entered, so the
+  // many close paths don't each have to reset them.
   const [addGroupError, setAddGroupError] = useState<string | null>(null);
   const [addTermError, setAddTermError] = useState<string | null>(null);
   useEffect(() => {
@@ -189,8 +189,10 @@ function useAppDataValue() {
       setAddGroupError(null);
       setGroupForm((form) => ({ ...form, visibility: defaultVisibility(organizationSlug) }));
     }
-    if (modal === "termin") setAddTermError(null);
   }, [modal, organizationSlug]);
+  useEffect(() => {
+    if (view === "add/term") setAddTermError(null);
+  }, [view]);
   // Which "pierwszy-termin" variant to render, captured when its hint is
   // clicked rather than derived live from `myGroups` — the "Załóż grupę"
   // stepper's own step 1 grows `myGroups` via a silent `load()` mid-flow,
@@ -399,7 +401,7 @@ function useAppDataValue() {
   // and firing this one too would double every ordinary panel-open network
   // call. `prevPathnameRef` starts `null` (no observed pathname yet) so the
   // first run only records the pathname instead of treating it as a
-  // transition; switching between panel sections (e.g. / -> /rzeczy) also
+  // transition; switching between panel sections (e.g. / -> /items) also
   // doesn't re-fire this, since both are sections and `wasPanelRoute` stays
   // true across that change.
   const prevPathnameRef = useRef<string | null>(null);
@@ -542,6 +544,8 @@ function useAppDataValue() {
     setNeededDraft((prev) => prev.filter((_, i) => i !== index));
   }
 
+  /** Creates the term and its needed items, then leaves the "Dodaj termin"
+   * page for "Spotkania". */
   async function handleAddTerm() {
     const capacity = parseCapacity(termCapacity);
     if (!termGroupId || !termDate || capacity === undefined) return;
@@ -582,7 +586,7 @@ function useAppDataValue() {
       setTermDate("");
       setTermDescription("");
       setNeededDraft([]);
-      setModal(null);
+      navigate(viewPath("meetings"));
       showToast(
         rejected.length > 0
           ? `Termin dodany, ale nie dodano rzeczy: ${rejected.join(", ")} — ${firstMessage}`
@@ -738,7 +742,7 @@ function useAppDataValue() {
     return (
       <div className="mt-2">
         <Link
-          to={`/terminy/${term.id}`}
+          to={`/terms/${term.id}`}
           aria-label={`Zapisani na termin: ${
             hasAttendees ? `${attendeesText}, ${childrenText}` : "brak zapisów"
           }${capacityLabel && `, ${capacityLabel}`}`}
@@ -974,7 +978,7 @@ function useAppDataValue() {
       occursOn: a.occurs_on,
       groupName: a.group_name,
       description: guestTermById.get(a.term_id)?.term.description ?? null,
-      href: `/${a.organizer_slug}/grupa/${a.group_id}/term/${a.term_id}`,
+      href: `/${a.organizer_slug}/group/${a.group_id}/term/${a.term_id}`,
       location: a.location,
       capacity: a.capacity,
       attendeeCount: a.attendee_count,

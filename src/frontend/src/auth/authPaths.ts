@@ -1,8 +1,8 @@
 export type AuthTab = "login" | "register";
 
 /** `/login`'s query param that opens the "Załóż konto" tab. */
-export const AUTH_TAB_PARAM = "tryb";
-export const REGISTER_TAB_VALUE = "rejestracja";
+export const AUTH_TAB_PARAM = "mode";
+export const REGISTER_TAB_VALUE = "register";
 
 /** The URL of the login / register page (`/login`, one page with two tabs),
  * optionally on the "Załóż konto" tab and carrying a `?returnTo=`. */

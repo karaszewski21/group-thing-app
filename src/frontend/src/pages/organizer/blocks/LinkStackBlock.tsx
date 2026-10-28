@@ -35,7 +35,7 @@ export function LinkStackBlock({ data }: BlockProps) {
       });
     }
     const termCount = directory.stats.upcoming_term_count;
-    if (termCount > 0) links.push({ label: `Wszystkie terminy (${termCount})`, to: `/${slug}/terminy` });
+    if (termCount > 0) links.push({ label: `Wszystkie terminy (${termCount})`, to: `/${slug}/terms` });
     const { counts, items } = directory.exchange;
     const itemCount = exchangeTotal(counts);
     const exchangeTerm = items[0] ?? nearest;

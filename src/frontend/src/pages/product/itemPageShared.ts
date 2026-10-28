@@ -18,7 +18,7 @@ export function photoFileError(file: File): string | null {
   return null;
 }
 
-/** Navigation state `/product/new` hands the new item's page when some of
+/** Navigation state `/add/product` hands the new item's page when some of
  * the photos could not be added. */
 export interface ItemCreatedState {
   failedPhotos: number;

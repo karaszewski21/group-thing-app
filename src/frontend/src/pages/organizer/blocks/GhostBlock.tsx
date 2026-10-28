@@ -9,20 +9,20 @@ interface GhostCopy {
   cta?: { label: string; to: string; replace?: true };
 }
 
-const ADD_TERM = { label: "Dodaj termin →", to: "/spotkania" };
-const ADD_EXCHANGE_ITEM = { label: "Dodaj rzecz do wymiany →", to: "/rzeczy" };
+const ADD_TERM = { label: "Dodaj termin →", to: "/meetings" };
+const ADD_EXCHANGE_ITEM = { label: "Dodaj rzecz do wymiany →", to: "/items" };
 
 const GHOST_COPY: Partial<Record<BlockId, GhostCopy>> = {
   about: {
     title: "O nas",
     body: "Napisz kilka zdań o sobie i swoich zajęciach — odwiedzający zobaczą je tutaj. Widzisz to tylko Ty.",
     // Opens the editor on this page, like the gear button: no history entry.
-    cta: { label: "Dodaj opis →", to: "?edit=1&tab=opis", replace: true },
+    cta: { label: "Dodaj opis →", to: "?edit=1&tab=photos", replace: true },
   },
   gallery: {
     title: "Galeria",
     body: "Dodaj do 3 zdjęć — odwiedzający zobaczą je po sprawdzeniu. Widzisz to tylko Ty.",
-    cta: { label: "Dodaj zdjęcia →", to: "?edit=1&tab=zdjecia", replace: true },
+    cta: { label: "Dodaj zdjęcia →", to: "?edit=1&tab=photos", replace: true },
   },
   stats: {
     title: "Statystyki",
@@ -47,7 +47,7 @@ const GHOST_COPY: Partial<Record<BlockId, GhostCopy>> = {
   "circles-grid": {
     title: "Nasze grupy",
     body: "Tu pokażemy Twoje publiczne grupy z najbliższymi terminami. Widzisz to tylko Ty.",
-    cta: { label: "Dodaj grupę →", to: "/spotkania" },
+    cta: { label: "Dodaj grupę →", to: "/meetings" },
   },
   "exchange-counts": {
     title: "Wymiana rzeczy",
@@ -62,7 +62,7 @@ const GHOST_COPY: Partial<Record<BlockId, GhostCopy>> = {
   "needed-items": {
     title: "Potrzebne rzeczy",
     body: "Gdy dodasz do terminu potrzebne rzeczy, rodzice zobaczą tu, co jeszcze trzeba przynieść. Widzisz to tylko Ty.",
-    cta: { label: "Dodaj potrzebną rzecz →", to: "/spotkania" },
+    cta: { label: "Dodaj potrzebną rzecz →", to: "/meetings" },
   },
 };
 

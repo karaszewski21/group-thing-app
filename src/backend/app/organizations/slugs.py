@@ -25,33 +25,31 @@ RESERVED_SLUGS: frozenset[str] = frozenset(
         "panel",
         "onboarding",
         # Panel sections and the other logged-in pages, mounted at the top
-        # level (`/rzeczy`, `/wiadomosci`, `/grupy/:id`, …).
-        "spotkania",
-        "rzeczy",
+        # level (`/items`, `/messages`, `/groups/:id`, …).
+        "meetings",
+        "items",
         "podarki",
-        "profil",
-        "ustawienia",
-        "miejsca",
-        "rodzina",
-        "konto",
-        "szukaj",
-        "szukam",
-        "dodaj",
-        "wiadomosci",
-        "grupy",
+        "profile",
+        "settings",
+        "places",
+        "family",
+        "account",
+        "search",
+        "wanted",
+        "add",
+        "messages",
+        "groups",
         "organization",
         "product",
         "products",
         "categories",
         "moderation",
         "plugins",
-        # Second-segment organizer routes (`/:slug/produkt/:id`,
-        # `/:slug/grupa/...`) — reserved so an organization slug never reads
-        # like one of those path segments.
-        "produkt",
-        "grupa",
-        # Frontend second-segment route `/:slug/terminy` (organizer terms list).
-        "terminy",
+        # Second-segment organizer routes (`/:slug/product/:id`,
+        # `/:slug/group/...`, `/:slug/terms`) — reserved so an organization
+        # slug never reads like one of those path segments ("product" and
+        # "terms" are listed elsewhere).
+        "group",
         # Backend sub-paths under `/api/groups/public/organizers/{slug}`
         # (`/terms`) and the sibling `/api/groups/public/{group_id}/access`
         # route the organizer router must never be confused with.

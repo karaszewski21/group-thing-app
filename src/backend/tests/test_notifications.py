@@ -165,7 +165,7 @@ async def _append_term_ended_giveaway(
             "owner_party_id": owner_party_id,
             "taker_party_id": taker_party_id,
             "reservation_id": reservation_id,
-            "link_path": "/x/grupa/1/term/1",
+            "link_path": "/x/group/1/term/1",
         },
     )
     await db_session.commit()

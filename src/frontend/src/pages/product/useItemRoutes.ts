@@ -14,10 +14,10 @@ const FALLBACK_ORGANIZER_SLUG = /^k-[0-9a-f]{12}$/;
 /** An item's page under its organizer's prefix, or the panel-wide
  * `/product/:id` when there is no organizer slug. */
 export function organizerItemPath(organizerSlug: string | null | undefined, id: string): string {
-  return organizerSlug ? `/${organizerSlug}/produkt/${id}` : `/product/${id}`;
+  return organizerSlug ? `/${organizerSlug}/product/${id}` : `/product/${id}`;
 }
 
-/** Item page paths: under `/:organizationSlug/produkt` on the organizer
+/** Item page paths: under `/:organizationSlug/product` on the organizer
  * route, under `/product` everywhere else. */
 export function useItemRoutes(): ItemRoutes {
   const { organizationSlug } = useParams();
@@ -25,6 +25,6 @@ export function useItemRoutes(): ItemRoutes {
   return {
     viewPath: (id) => organizerItemPath(organizationSlug, id),
     editPath: (id) => `${organizerItemPath(organizationSlug, id)}/edit`,
-    backFallback: hasOrganizerPage ? `/${organizationSlug}` : "/rzeczy",
+    backFallback: hasOrganizerPage ? `/${organizationSlug}` : "/items",
   };
 }

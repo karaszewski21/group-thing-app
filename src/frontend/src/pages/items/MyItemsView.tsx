@@ -311,7 +311,7 @@ export function MyItemsView() {
               ))}
             </div>
             <Link
-              to="/product/new"
+              to="/add/product"
               className="mt-2 flex min-h-12.5 items-center rounded-full bg-primary px-5.5 text-base font-extrabold text-on-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring"
             >
               + Dodaj pierwszą rzecz
@@ -455,7 +455,7 @@ export function MyItemsView() {
         {itemError && <p className="mt-2 text-[13px] font-semibold text-danger">{itemError}</p>}
       </div>
 
-      <FloatingAddButton label="Dodaj rzecz" to="/product/new" />
+      <FloatingAddButton label="Dodaj rzecz" to="/add/product" />
       {acceptedSwap && <SwapAcceptSuccessSheet swap={acceptedSwap} onClose={() => setAcceptedSwap(null)} />}
     </div>
   );

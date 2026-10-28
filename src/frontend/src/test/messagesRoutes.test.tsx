@@ -19,22 +19,22 @@ function renderAt(path: string) {
 }
 
 describe("messages routes", () => {
-  it("/wiadomosci renders the inbox, not the panel", async () => {
+  it("/messages renders the inbox, not the panel", async () => {
     mockToken = "tok";
-    renderAt("/wiadomosci");
+    renderAt("/messages");
     expect(await screen.findByRole("heading", { name: "Skrzynka" })).toBeInTheDocument();
     expect(screen.queryByRole("heading", { name: "Panel" })).not.toBeInTheDocument();
   });
 
-  it("/wiadomosci/:conversationId renders the thread", async () => {
+  it("/messages/:conversationId renders the thread", async () => {
     mockToken = "tok";
-    renderAt("/wiadomosci/c42");
+    renderAt("/messages/c42");
     expect(await screen.findByRole("heading", { name: "Rozmowa c42" })).toBeInTheDocument();
   });
 
   it("logged out: the inbox redirects to the login page", async () => {
     mockToken = null;
-    const router = createMemoryRouter(routes, { initialEntries: ["/wiadomosci"] });
+    const router = createMemoryRouter(routes, { initialEntries: ["/messages"] });
     render(<RouterProvider router={router} />);
     await waitFor(() => expect(router.state.location.pathname).toBe("/login"));
     expect(screen.queryByRole("heading", { name: "Skrzynka" })).not.toBeInTheDocument();

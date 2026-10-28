@@ -1,6 +1,6 @@
 """Server-rendered `<head>` meta tags (Open Graph / Twitter Card) for the
-two shareable public pages — a circle/term (`/:slug/grupa/:groupId` and
-`/:slug/grupa/:groupId/term/:termId`) and an organization
+two shareable public pages — a circle/term (`/:slug/group/:groupId` and
+`/:slug/group/:groupId/term/:termId`) and an organization
 (`/:slug`) — injected into the same built `index.html` shell the SPA
 hydrates from.
 

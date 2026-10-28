@@ -78,7 +78,7 @@ export function FirstTermStepperOrganizer({
           tę stronę może zobaczyć każdy, kto dostanie do niej link, bez logowania.
         </p>
         <Link
-          to={`/${organizerSlug ?? "krag"}/grupa/${circleGroupId}/term/${createdTermId}`}
+          to={`/${organizerSlug ?? "krag"}/group/${circleGroupId}/term/${createdTermId}`}
           className="mt-4 block w-full rounded-[13px] bg-mint px-5 py-3 text-center text-[13.5px] font-extrabold text-white"
         >
           Przejdź do publicznej strony →

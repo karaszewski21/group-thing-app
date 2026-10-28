@@ -1,7 +1,7 @@
 """`app.system.public_preview` / the three public-preview routes in
 `app.system.router`: Open Graph/Twitter meta tags injected into
 `index.html` for the same URL shapes the SPA owns client-side
-(`/:slug`, `/:slug/grupa/:groupId`, `/:slug/grupa/:groupId/term/:termId`).
+(`/:slug`, `/:slug/group/:groupId`, `/:slug/group/:groupId/term/:termId`).
 
 Isolation via the `conftest.py` TestContainers + savepoint-rollback
 fixtures; naming follows `action_condition_expectedResult`
@@ -60,7 +60,7 @@ async def test_publicTermPreview_realGroupAndTerm_injectsCircleNameAndDate(
     occurs_on = date.today() + timedelta(days=7)
     term_id = await _create_term(client, token, group_id, occurs_on, "Sala 12, godz. 17:00")
 
-    response = await client.get(f"/any-slug/grupa/{group_id}/term/{term_id}")
+    response = await client.get(f"/any-slug/group/{group_id}/term/{term_id}")
 
     assert response.status_code == 200
     assert response.headers["content-type"].startswith("text/html")
@@ -78,7 +78,7 @@ async def test_publicCirclePreview_noTermIdInPath_usesNextTerm(
     group_id = await _create_circle(client, token, "Krąg Skowronków")
     await _create_term(client, token, group_id, date.today() + timedelta(days=3))
 
-    response = await client.get(f"/any-slug/grupa/{group_id}")
+    response = await client.get(f"/any-slug/group/{group_id}")
 
     assert response.status_code == 200
     assert 'content="Krąg Skowronków"' in response.text
@@ -87,7 +87,7 @@ async def test_publicCirclePreview_noTermIdInPath_usesNextTerm(
 async def test_publicTermPreview_unknownGroupId_fallsBackToPlainIndexNot404(
     client: AsyncClient,
 ) -> None:
-    response = await client.get("/any-slug/grupa/999999999/term/1")
+    response = await client.get("/any-slug/group/999999999/term/1")
 
     assert response.status_code == 200
     assert "og:title" not in response.text

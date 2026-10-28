@@ -156,7 +156,7 @@ export function endMembership(membershipId: string, validTo?: string): Promise<M
 }
 
 /* ------------------------------------------------------------------ */
-/*  Public circle/term view + RSVP (unauthenticated, `/:slug/grupa/:id/term/:id`) */
+/*  Public circle/term view + RSVP (unauthenticated, `/:slug/group/:id/term/:id`) */
 /* ------------------------------------------------------------------ */
 
 export interface PublicNeededItemResponse {

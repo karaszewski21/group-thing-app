@@ -101,7 +101,7 @@ describe("GhostBlock", () => {
     expect(screen.getByText("Najbliższe terminy")).toBeInTheDocument();
     expect(screen.getByText("Tu pokażemy Twoje najbliższe zajęcia. Widzisz to tylko Ty.")).toBeInTheDocument();
     const cta = screen.getByRole("link", { name: "Dodaj termin →" });
-    expect(cta).toHaveAttribute("href", "/spotkania");
+    expect(cta).toHaveAttribute("href", "/meetings");
     expect(cta).toHaveClass("min-h-[44px]");
     unmount();
 

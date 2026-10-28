@@ -23,7 +23,7 @@ const FOCUS_RING = "focus-visible:outline-2 focus-visible:outline-offset-2 focus
 export function PublicLayout() {
   const { token } = useAuth();
   const inThread = useMatch(`${INBOX_PATH}/:conversationId`) !== null;
-  const onSearch = useMatch(viewPath("szukaj")) !== null;
+  const onSearch = useMatch(viewPath("search")) !== null;
 
   return (
     <div className={`flex flex-col bg-cream ${inThread ? "h-dvh" : "min-h-dvh"}`}>
@@ -31,14 +31,14 @@ export function PublicLayout() {
         <nav aria-label="Menu konta" className="flex items-center gap-2">
           {!inThread && !onSearch && (
           <Link
-            to={viewPath("szukaj")}
+            to={viewPath("search")}
             className={`flex min-h-12 items-center gap-2.5 rounded-full border-[1.5px] border-line bg-paper px-4.5 text-[15px] text-ink-soft transition-colors hover:border-line-strong ${FOCUS_RING}`}
           >
             <SearchIcon c="currentColor" />
             Szukaj rzeczy i spotkań
           </Link>
         )}
-          <Link to={viewPath("spotkania")} aria-label="Spotkania" className={HEADER_BUTTON}>
+          <Link to={viewPath("meetings")} aria-label="Spotkania" className={HEADER_BUTTON}>
             <CalendarIcon c="currentColor" />
           </Link>
           {token ? <NotificationBell /> : <LoginBell />}

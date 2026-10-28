@@ -3,8 +3,8 @@ import { BackIcon } from "../../components/shared/appIcons";
 import { BACK_LINK } from "./itemPageShared";
 import { useItemRoutes } from "./useItemRoutes";
 
-/** "Wróć": history back, or the route's fallback (`/rzeczy`, or the
- * organizer page on `/:organizationSlug/produkt/...`) when opened directly.
+/** "Wróć": history back, or the route's fallback (`/items`, or the
+ * organizer page on `/:organizationSlug/product/...`) when opened directly.
  * `overlay` is the round white button laid over the item photo. */
 export function ItemBackButton({ overlay = false }: { overlay?: boolean }) {
   const navigate = useNavigate();

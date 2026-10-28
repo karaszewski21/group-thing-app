@@ -30,9 +30,9 @@ function renderPublicPage(initialEntry = "/skrzaty") {
       <Routes>
         <Route element={<PublicLayout />}>
           <Route path="/" element={<h1>Start</h1>} />
-          <Route path="/konto" element={<AuthGuard><h1>Konto</h1></AuthGuard>} />
-          <Route path="/profil" element={<h1>Profil</h1>} />
-          <Route path="/wiadomosci/:conversationId" element={<h1>Wątek</h1>} />
+          <Route path="/account" element={<AuthGuard><h1>Konto</h1></AuthGuard>} />
+          <Route path="/profile" element={<h1>Profil</h1>} />
+          <Route path="/messages/:conversationId" element={<h1>Wątek</h1>} />
           <Route path="/:organizationSlug" element={<h1>Strona publiczna</h1>} />
         </Route>
         <Route path="/login" element={<h1>Logowanie</h1>} />
@@ -61,7 +61,7 @@ describe("PublicLayout", () => {
       "href",
       "/login?returnTo=%2Fskrzaty",
     );
-    expect(within(bar).getByRole("link", { name: "Spotkania" })).toHaveAttribute("href", "/spotkania");
+    expect(within(bar).getByRole("link", { name: "Spotkania" })).toHaveAttribute("href", "/meetings");
     expect(within(bar).queryByRole("link", { name: "Zaloguj się" })).not.toBeInTheDocument();
     expect(notificationsApi.getMyNotifications).not.toHaveBeenCalled();
   });
@@ -79,13 +79,13 @@ describe("PublicLayout", () => {
     const nav = screen.getByRole("navigation", { name: "Nawigacja główna" });
     fireEvent.click(within(nav).getByRole("button", { name: "Konto" }));
 
-    expect(screen.getByTestId("where")).toHaveTextContent("/login?returnTo=%2Fkonto");
+    expect(screen.getByTestId("where")).toHaveTextContent("/login?returnTo=%2Faccount");
   });
 
   it.each([
     ["/", "Start"],
-    ["/konto", "Konto"],
-    ["/profil", "Konto"],
+    ["/account", "Konto"],
+    ["/profile", "Konto"],
   ])("logged in at %s: the bottom nav highlights %s", (path, tab) => {
     mockAuth = { token: "tok" };
     renderPublicPage(path);
@@ -105,7 +105,7 @@ describe("PublicLayout", () => {
 
   it("a chat thread keeps the top bar but drops the search field and the bottom nav", () => {
     mockAuth = { token: "tok" };
-    renderPublicPage("/wiadomosci/7");
+    renderPublicPage("/messages/7");
 
     expect(screen.getByRole("navigation", { name: "Menu konta" })).toBeInTheDocument();
     expect(screen.queryByRole("link", { name: "Szukaj rzeczy i spotkań" })).not.toBeInTheDocument();
@@ -128,10 +128,10 @@ describe("PublicLayout", () => {
     expect(screen.getByRole("navigation", { name: "Nawigacja główna" })).toBeInTheDocument();
   });
 
-  it("the top bar's search field leads to /szukaj on every page", () => {
+  it("the top bar's search field leads to /search on every page", () => {
     renderPublicPage();
 
-    expect(screen.getByRole("link", { name: "Szukaj rzeczy i spotkań" })).toHaveAttribute("href", "/szukaj");
+    expect(screen.getByRole("link", { name: "Szukaj rzeczy i spotkań" })).toHaveAttribute("href", "/search");
   });
 
   it("logged in: the top bar holds only the brand, Spotkania and the notification bell", async () => {
@@ -140,7 +140,7 @@ describe("PublicLayout", () => {
 
     const bar = screen.getByRole("navigation", { name: "Menu konta" });
     expect(await within(bar).findByRole("button", { name: "Powiadomienia" })).toBeInTheDocument();
-    expect(within(bar).getAllByRole("link").map((l) => l.getAttribute("href"))).toEqual(["/", "/spotkania"]);
+    expect(within(bar).getAllByRole("link").map((l) => l.getAttribute("href"))).toEqual(["/", "/meetings"]);
     expect(within(bar).getAllByRole("button")).toHaveLength(1);
     expect(notificationsApi.getMyNotifications).toHaveBeenCalled();
   });
@@ -159,7 +159,7 @@ describe("PublicLayout", () => {
         id: "5",
         kind: "TERM_CONFIRMATION_NEEDED",
         message: "Czy przekazanie „Pucio” doszło do skutku?",
-        link_path: "/ania/grupa/5/term/9",
+        link_path: "/ania/group/5/term/9",
         read_at: null,
         created_at: "2026-03-01T10:00:00",
         reservation_id: null,

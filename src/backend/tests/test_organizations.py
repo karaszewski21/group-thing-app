@@ -94,7 +94,7 @@ async def test_createMyOrganization_nameProduct_neverGetsReservedSlug(
 
 
 @pytest.mark.parametrize(
-    ("name", "expected_slug"), [("Produkt", "produkt-2"), ("Grupa", "grupa-2")]
+    ("name", "expected_slug"), [("Product", "product-2"), ("Group", "group-2")]
 )
 async def test_createMyOrganization_nameMatchingOrganizerRouteSegment_neverGetsReservedSlug(
     client: AsyncClient, db_session: AsyncSession, name: str, expected_slug: str
@@ -106,22 +106,23 @@ async def test_createMyOrganization_nameMatchingOrganizerRouteSegment_neverGetsR
     )
 
     assert response.status_code == 201
-    # "/:slug/produkt/:id" and "/:slug/grupa/..." are organizer sub-routes.
+    # "/:slug/produkt/:id" and "/:slug/group/..." are organizer sub-routes.
     assert response.json()["slug"] == expected_slug
 
 
-@pytest.mark.parametrize("slug", ["access", "terms", "terminy"])
+@pytest.mark.parametrize("slug", ["access", "terms", "group"])
 def test_reservedSlugs_organizerSubPaths_areReserved(slug: str) -> None:
     # Sub-paths under `/api/groups/public/organizers/{slug}` and the
-    # frontend `/:slug/terminy` route must never be handed out as slugs.
+    # frontend `/:slug/terms` / `/:slug/group/...` routes must never be
+    # handed out as slugs.
     assert slug in RESERVED_SLUGS
 
 
 @pytest.mark.parametrize(
     "slug",
     [
-        "spotkania", "rzeczy", "podarki", "profil", "ustawienia", "miejsca",
-        "rodzina", "konto", "szukaj", "szukam", "dodaj", "wiadomosci", "grupy",
+        "meetings", "items", "podarki", "profile", "settings", "places",
+        "family", "account", "search", "wanted", "add", "messages", "groups",
     ],
 )
 def test_reservedSlugs_topLevelPanelRoutes_areReserved(slug: str) -> None:

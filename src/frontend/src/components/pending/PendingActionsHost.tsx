@@ -82,7 +82,7 @@ export function PendingActionsHost() {
 
   function openSwapProposalsOnMyItems(action: PendingSwapAction) {
     dismissPendingAction(action);
-    navigate("/rzeczy");
+    navigate("/items");
   }
 
   async function confirmPendingAction(action: PendingConfirmAction) {

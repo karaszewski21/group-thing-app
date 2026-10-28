@@ -37,17 +37,19 @@ import { viewPath, type View } from "./utils/appHelpers";
 import { INBOX_PATH } from "./utils/messagesPaths";
 
 const PANEL_VIEWS: readonly Exclude<View, "home">[] = [
-  "spotkania",
-  "rzeczy",
-  "profil",
-  "ustawienia",
-  "miejsca",
-  "rodzina",
-  "konto",
-  "szukaj",
-  "szukam",
-  "dodaj",
-  "wydarzenie",
+  "meetings",
+  "items",
+  "profile",
+  "settings",
+  "places",
+  "family",
+  "account",
+  "search",
+  "wanted",
+  "add",
+  "add/term",
+  "add/event",
+  "add/hunting",
 ];
 
 function Layout() {
@@ -104,7 +106,7 @@ export const routes: RouteObject[] = [
         path: "/login",
         element: <LoginPage />,
       },
-      // The panel's sections, one top-level URL each (`/rzeczy`, `/konto`, …)
+      // The panel's sections, one top-level URL each (`/items`, `/account`, …)
       // so a refresh or a shared link lands on the same section — see
       // AppDataContext.tsx, which derives `view` from the pathname. Static
       // segments, so they rank above the `/:organizationSlug` catch-all; every
@@ -116,13 +118,13 @@ export const routes: RouteObject[] = [
       {
         // Organizer-only attendee list for one term. Standalone (no
         // AppDataProvider): the page resolves the group from the term.
-        path: "/terminy/:termId",
+        path: "/terms/:termId",
         element: <AuthGuard><TermAttendeesPage /></AuthGuard>,
       },
       {
         // Group details + standing member list, reached from the "Prowadzę"
         // tiles.
-        path: "/grupy/:groupId",
+        path: "/groups/:groupId",
         element: <AuthGuard><GroupDetailsPage /></AuthGuard>,
       },
       {
@@ -134,11 +136,13 @@ export const routes: RouteObject[] = [
         element: <AuthGuard><ThreadPage /></AuthGuard>,
       },
       {
-        // Item pages; "product" is in the backend's RESERVED_SLUGS.
-        path: "/product/new",
+        // Adding an item; standalone (no AppDataProvider), unlike the other
+        // `/add/*` pages, which are panel views.
+        path: "/add/product",
         element: <AuthGuard><ItemCreatePage /></AuthGuard>,
       },
       {
+        // Item pages; "product" is in the backend's RESERVED_SLUGS.
         path: "/product/:id",
         element: <AuthGuard><ItemDetailPage /></AuthGuard>,
       },
@@ -150,15 +154,15 @@ export const routes: RouteObject[] = [
         // The bare organizer product prefix has no page of its own: back to
         // the organizer. A sibling, not a layout child, so the layout below
         // only ever mounts with an item id.
-        path: "/:organizationSlug/produkt",
+        path: "/:organizationSlug/product",
         element: <Navigate to=".." relative="path" replace />,
       },
       {
         // Item pages reached from an organizer's term page: the same bodies
         // as /product/:id[/edit], in the organizer's palette and without the
-        // panel nav (see OrganizerItemLayout). "produkt" and "grupa" are in
+        // panel nav (see OrganizerItemLayout). "product" and "group" are in
         // the backend's RESERVED_SLUGS.
-        path: "/:organizationSlug/produkt/:id",
+        path: "/:organizationSlug/product/:id",
         element: <AuthGuard><OrganizerItemLayout /></AuthGuard>,
         children: [
           { index: true, element: <ItemDetailBody /> },
@@ -166,15 +170,15 @@ export const routes: RouteObject[] = [
         ],
       },
       {
-        path: "/:organizationSlug/grupa/:groupId/term/:termId",
+        path: "/:organizationSlug/group/:groupId/term/:termId",
         element: <TermPage />,
       },
       {
         // The organizer's full agenda — public, no AuthGuard. Two segments, so
         // the single-segment `/:organizationSlug` catch-all below never matches
-        // it. "terminy" is in the backend's RESERVED_SLUGS only so a slug never
-        // reads like this path segment (as with "grupa").
-        path: "/:organizationSlug/terminy",
+        // it. "terms" is in the backend's RESERVED_SLUGS only so a slug never
+        // reads like this path segment (as with "group").
+        path: "/:organizationSlug/terms",
         element: <OrganizerTermsPage />,
       },
       {

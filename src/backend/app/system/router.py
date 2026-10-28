@@ -10,8 +10,8 @@ reaches the catch-all.
 
 The three public-preview routes sit between those two: they match the same
 URL shapes the SPA already owns client-side
-(`/:organizationSlug`, `/:organizationSlug/grupa/:groupId`,
-`/:organizationSlug/grupa/:groupId/term/:termId` — see `router.tsx`), and
+(`/:organizationSlug`, `/:organizationSlug/group/:groupId`,
+`/:organizationSlug/group/:groupId/term/:termId` — see `router.tsx`), and
 exist only to inject real Open Graph/Twitter meta tags into `index.html`
 for link-unfurling bots (see `public_preview.py`'s module docstring). Any
 input that isn't a real, resolvable slug/circle/term falls straight back to
@@ -77,7 +77,7 @@ def _plain_index() -> FileResponse:
     return FileResponse(INDEX_HTML)
 
 
-@router.get("/{organization_slug}/grupa/{group_id}/term/{term_id}", response_model=None)
+@router.get("/{organization_slug}/group/{group_id}/term/{term_id}", response_model=None)
 async def public_term_preview(
     organization_slug: str, group_id: str, term_id: str, db: DbSession
 ) -> HTMLResponse | FileResponse:
@@ -95,7 +95,7 @@ async def public_term_preview(
     return HTMLResponse(render_public_circle_meta(circle))
 
 
-@router.get("/{organization_slug}/grupa/{group_id}", response_model=None)
+@router.get("/{organization_slug}/group/{group_id}", response_model=None)
 async def public_circle_preview(
     organization_slug: str, group_id: str, db: DbSession
 ) -> HTMLResponse | FileResponse:

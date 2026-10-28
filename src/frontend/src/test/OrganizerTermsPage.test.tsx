@@ -86,7 +86,7 @@ function renderAt(path: string) {
   const router = createMemoryRouter(
     [
       {
-        path: "/:organizationSlug/terminy",
+        path: "/:organizationSlug/terms",
         element: (
           <>
             <OrganizerTermsPage />
@@ -129,7 +129,7 @@ describe("OrganizerTermsPage", () => {
       ),
     );
 
-    renderAt(`/${SLUG}/terminy`);
+    renderAt(`/${SLUG}/terms`);
 
     expect(await screen.findByRole("link", { name: "Akademia Orlik" })).toHaveAttribute("href", `/${SLUG}`);
     const heading = screen.getByRole("heading", { level: 1, name: "Wszystkie terminy" });
@@ -154,13 +154,13 @@ describe("OrganizerTermsPage", () => {
   it("refetches with group_id when a chip is selected and records it in the URL", async () => {
     vi.mocked(groupsApi.getOrganizerTerms).mockResolvedValue(termsPage([term("t1", "2026-10-14T17:00:00")], 1, 1));
 
-    renderAt(`/${SLUG}/terminy`);
+    renderAt(`/${SLUG}/terms`);
 
     const group = await screen.findByRole("radiogroup");
     fireEvent.click(within(group).getByRole("radio", { name: "Młodziki 2015" }));
 
     await waitFor(() => expect(groupsApi.getOrganizerTerms).toHaveBeenLastCalledWith(SLUG, 1, "g2"));
-    expect(location()).toBe(`/${SLUG}/terminy?group_id=g2`);
+    expect(location()).toBe(`/${SLUG}/terms?group_id=g2`);
     expect(within(group).getByRole("radio", { name: "Młodziki 2015" })).toHaveAttribute("aria-checked", "true");
   });
 
@@ -173,21 +173,21 @@ describe("OrganizerTermsPage", () => {
       }),
     );
 
-    const { unmount } = renderAt(`/${SLUG}/terminy?group_id=g2`);
+    const { unmount } = renderAt(`/${SLUG}/terms?group_id=g2`);
 
     await screen.findByRole("link", { name: "Akademia Orlik" });
     expect(groupsApi.getOrganizerTerms).not.toHaveBeenCalled();
     resolveDirectory(directory(TWO_CIRCLES));
     await waitFor(() => expect(groupsApi.getOrganizerTerms).toHaveBeenCalledWith(SLUG, 1, "g2"));
     expect(screen.getByRole("radio", { name: "Młodziki 2015" })).toHaveAttribute("aria-checked", "true");
-    expect(location()).toBe(`/${SLUG}/terminy?group_id=g2`);
+    expect(location()).toBe(`/${SLUG}/terms?group_id=g2`);
     unmount();
 
     vi.mocked(groupsApi.getOrganizerTerms).mockClear();
     vi.mocked(groupsApi.getOrganizerPage).mockResolvedValue(directory(TWO_CIRCLES));
-    renderAt(`/${SLUG}/terminy?group_id=not-a-circle`);
+    renderAt(`/${SLUG}/terms?group_id=not-a-circle`);
 
-    await waitFor(() => expect(location()).toBe(`/${SLUG}/terminy`));
+    await waitFor(() => expect(location()).toBe(`/${SLUG}/terms`));
     expect(await screen.findByRole("radio", { name: "Wszystkie" })).toHaveAttribute("aria-checked", "true");
     expect(groupsApi.getOrganizerTerms).toHaveBeenCalledWith(SLUG, 1, undefined);
     expect(groupsApi.getOrganizerTerms).not.toHaveBeenCalledWith(SLUG, 1, "not-a-circle");
@@ -197,12 +197,12 @@ describe("OrganizerTermsPage", () => {
     vi.mocked(groupsApi.getOrganizerPage).mockRejectedValue(new ApiError(503, "Service Unavailable", null));
     vi.mocked(groupsApi.getOrganizerTerms).mockResolvedValue(termsPage([term("t1", "2026-10-14T17:00:00")], 1, 1));
 
-    renderAt(`/${SLUG}/terminy?group_id=g2`);
+    renderAt(`/${SLUG}/terms?group_id=g2`);
 
     expect(await screen.findByRole("heading", { level: 2, name: "środa, 14 października" })).toBeInTheDocument();
     expect(groupsApi.getOrganizerTerms).toHaveBeenCalledWith(SLUG, 1, undefined);
     expect(groupsApi.getOrganizerTerms).not.toHaveBeenCalledWith(SLUG, 1, "g2");
-    expect(location()).toBe(`/${SLUG}/terminy?group_id=g2`);
+    expect(location()).toBe(`/${SLUG}/terms?group_id=g2`);
   });
 
   it("loads the next page on demand, announces the new terms and hides the button at the end", async () => {
@@ -215,7 +215,7 @@ describe("OrganizerTermsPage", () => {
           }),
     );
 
-    renderAt(`/${SLUG}/terminy`);
+    renderAt(`/${SLUG}/terms`);
 
     fireEvent.click(await screen.findByRole("button", { name: "Pokaż więcej" }));
 
@@ -236,12 +236,12 @@ describe("OrganizerTermsPage", () => {
   it("shows the empty state and resets an active chip with 'Pokaż wszystkie grupy'", async () => {
     vi.mocked(groupsApi.getOrganizerTerms).mockResolvedValue(termsPage([], 1, 0));
 
-    renderAt(`/${SLUG}/terminy?group_id=g1`);
+    renderAt(`/${SLUG}/terms?group_id=g1`);
 
     expect(await screen.findByText("Brak zaplanowanych zajęć")).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Pokaż wszystkie grupy" }));
 
-    await waitFor(() => expect(location()).toBe(`/${SLUG}/terminy`));
+    await waitFor(() => expect(location()).toBe(`/${SLUG}/terms`));
     expect(await screen.findByText("Brak zaplanowanych zajęć")).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Pokaż wszystkie grupy" })).not.toBeInTheDocument();
     expect(groupsApi.getOrganizerTerms).toHaveBeenLastCalledWith(SLUG, 1, undefined);
@@ -251,13 +251,13 @@ describe("OrganizerTermsPage", () => {
     vi.mocked(organizationsApi.getPublicOrganization).mockRejectedValue(new ApiError(404, "Not Found", null));
     vi.mocked(groupsApi.getOrganizerTerms).mockResolvedValue(termsPage([], 1, 0));
 
-    const { unmount } = renderAt(`/brak/terminy`);
+    const { unmount } = renderAt(`/brak/terms`);
     expect(await screen.findByRole("heading", { name: "Nie znaleziono strony" })).toBeInTheDocument();
     unmount();
 
     vi.mocked(organizationsApi.getPublicOrganization).mockResolvedValue(ORGANIZATION);
     vi.mocked(groupsApi.getOrganizerTerms).mockRejectedValue(new ApiError(404, "Not Found", null));
-    renderAt(`/${SLUG}/terminy`);
+    renderAt(`/${SLUG}/terms`);
     expect(await screen.findByRole("heading", { name: "Nie znaleziono strony" })).toBeInTheDocument();
   });
 
@@ -266,7 +266,7 @@ describe("OrganizerTermsPage", () => {
       .mockRejectedValueOnce(new ApiError(503, "Service Unavailable", null))
       .mockResolvedValue(termsPage([term("t1", "2026-10-14T17:00:00")], 1, 1));
 
-    renderAt(`/${SLUG}/terminy`);
+    renderAt(`/${SLUG}/terms`);
 
     expect(await screen.findByText("Nie udało się wczytać terminów.")).toBeInTheDocument();
     expect(screen.getByRole("heading", { level: 1, name: "Wszystkie terminy" })).toBeInTheDocument();

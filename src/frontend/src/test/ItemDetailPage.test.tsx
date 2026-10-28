@@ -107,7 +107,7 @@ function renderPage(path: string) {
       <Routes>
         <Route path="/product/:id" element={<ItemDetailPage />} />
         <Route path="/product/:id/edit" element={<ItemEditPage />} />
-        <Route path="/wiadomosci/:id" element={<p>Wątek rozmowy</p>} />
+        <Route path="/messages/:id" element={<p>Wątek rozmowy</p>} />
       </Routes>
     </MemoryRouter>,
     { wrapper: createQueryWrapper() },
@@ -472,13 +472,13 @@ describe("ItemDetailPage fallbacks", () => {
     expect(screen.queryByRole("button", { name: /^Zdjęcie \d z/ })).not.toBeInTheDocument();
   });
 
-  it("Wróć on a directly opened page falls back to /rzeczy", async () => {
+  it("Wróć on a directly opened page falls back to /items", async () => {
     vi.mocked(itemsApi.getItemDetails).mockResolvedValue(details());
     render(
       <MemoryRouter initialEntries={[`/product/${ITEM_ID}`]}>
         <Routes>
           <Route path="/product/:id" element={<ItemDetailPage />} />
-          <Route path="/rzeczy" element={<p>Panel rzeczy</p>} />
+          <Route path="/items" element={<p>Panel rzeczy</p>} />
         </Routes>
       </MemoryRouter>,
       { wrapper: createQueryWrapper() },
@@ -500,10 +500,10 @@ describe("ItemDetailPage fallbacks", () => {
   it("Moje rzeczy → edit → Gotowe → Wróć returns to Moje rzeczy; Edytuj → Gotowe never leaves the editor in history", async () => {
     vi.mocked(itemsApi.getItemDetails).mockResolvedValue(details());
     render(
-      <MemoryRouter initialEntries={["/rzeczy"]}>
+      <MemoryRouter initialEntries={["/items"]}>
         <Routes>
           <Route
-            path="/rzeczy"
+            path="/items"
             element={
               <>
                 <Link to={`/product/${ITEM_ID}`}>Otwórz rzecz</Link>
@@ -595,7 +595,7 @@ describe("ItemDetailPage reservation party view", () => {
     const url = await openCalendarMenu();
     expect(url.searchParams.get("text")).toBe("Przekazanie: Wózek spacerowy Baby Jogger");
     expect(url.searchParams.get("details")).toContain(
-      `${window.location.origin}/krag/grupa/${GROUP_ID}/term/${TERM_ID}`,
+      `${window.location.origin}/krag/group/${GROUP_ID}/term/${TERM_ID}`,
     );
   });
 

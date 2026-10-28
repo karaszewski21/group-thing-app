@@ -16,9 +16,11 @@ import { AccountView } from "../account/AccountView";
 import { SearchView } from "../search/SearchView";
 import { WantedView } from "../search/WantedView";
 import { AddView } from "../add/AddView";
+import { AddTermView } from "../add/AddTermView";
 import { EventCreateView } from "../add/EventCreateView";
+import { HuntingCreateView } from "../add/HuntingCreateView";
 import { SubPageHeader } from "../../components/shared/appComponents";
-import { KONTO_SUBVIEWS, viewPath } from "../../utils/appHelpers";
+import { ACCOUNT_SUBVIEWS, viewPath } from "../../utils/appHelpers";
 
 /* ------------------------------------------------------------------ */
 /*  Panel — organizator/gość (port z pages/PanelOrganizatora.tsx +      */
@@ -48,16 +50,16 @@ export function AppPage() {
 function AppPageView() {
   const { loading, error, profile, view, toast, setModal, load } = useAppData();
   const [searchParams, setSearchParams] = useSearchParams();
-  const createGroupRequested = searchParams.get("nowa") === "grupa";
+  const createGroupRequested = searchParams.get("new") === "group";
 
-  // `?nowa=grupa` (the public pages' "Załóż grupę" link) opens the stepper
+  // `?new=group` (the public pages' "Załóż grupę" link) opens the stepper
   // once; the param is stripped so a refresh or back step doesn't reopen it.
   useEffect(() => {
     if (!createGroupRequested) return;
     setModal("zaloz-grupe");
     setSearchParams(
       (params) => {
-        params.delete("nowa");
+        params.delete("new");
         return params;
       },
       { replace: true },
@@ -87,19 +89,21 @@ function AppPageView() {
   return (
     <PhoneFrame>
       <div className="flex-1 overflow-y-auto px-[18px] pb-6 pt-[18px]">
-        {KONTO_SUBVIEWS.includes(view) && <SubPageHeader backTo={viewPath("konto")} backLabel="Wróć do konta" />}
+        {ACCOUNT_SUBVIEWS.includes(view) && <SubPageHeader backTo={viewPath("account")} backLabel="Wróć do konta" />}
         {view === "home" && <HomeView />}
-        {view === "spotkania" && <MeetingsView />}
-        {view === "rzeczy" && <MyItemsView />}
-        {view === "profil" && <ProfileView />}
-        {view === "ustawienia" && <SettingsView />}
-        {view === "miejsca" && <PlacesView onPlacesChanged={() => void load({ silent: true })} />}
-        {view === "rodzina" && <FamilyView />}
-        {view === "konto" && <AccountView />}
-        {view === "szukaj" && <SearchView />}
-        {view === "szukam" && <WantedView />}
-        {view === "dodaj" && <AddView />}
-        {view === "wydarzenie" && <EventCreateView />}
+        {view === "meetings" && <MeetingsView />}
+        {view === "items" && <MyItemsView />}
+        {view === "profile" && <ProfileView />}
+        {view === "settings" && <SettingsView />}
+        {view === "places" && <PlacesView onPlacesChanged={() => void load({ silent: true })} />}
+        {view === "family" && <FamilyView />}
+        {view === "account" && <AccountView />}
+        {view === "search" && <SearchView />}
+        {view === "wanted" && <WantedView />}
+        {view === "add" && <AddView />}
+        {view === "add/term" && <AddTermView />}
+        {view === "add/event" && <EventCreateView />}
+        {view === "add/hunting" && <HuntingCreateView />}
       </div>
 
       <AppModals />

@@ -325,7 +325,7 @@ async def test_outboxListener_termEndedGiveaway_createsNotificationForTakerOnly(
             "owner_party_id": owner_party_id,
             "taker_party_id": taker_party_id,
             "reservation_id": str(uuid.uuid4()),
-            "link_path": "/x/grupa/1/term/1",
+            "link_path": "/x/group/1/term/1",
         },
     )
     await db_session.commit()
@@ -363,7 +363,7 @@ async def test_outboxListener_termEndedSwap_createsNotificationForBothParties(
             "proposer_party_id": proposer_party_id,
             "owner_party_id": owner_party_id,
             "proposal_id": str(uuid.uuid4()),
-            "link_path": "/x/grupa/1/term/1",
+            "link_path": "/x/group/1/term/1",
         },
     )
     await db_session.commit()
@@ -672,7 +672,7 @@ async def test_outboxListener_giveawayWithDetails_rendersQuestionAndKeepsReserva
             "owner_party_id": owner_party_id,
             "taker_party_id": taker_party_id,
             "reservation_id": str(reservation_id),
-            "link_path": "/x/grupa/1/term/1",
+            "link_path": "/x/group/1/term/1",
             "item_name": "Rowerek",
             "occurs_on": "2026-10-14T16:30:00",
             "group_name": "Krąg Słoneczko",
@@ -702,7 +702,7 @@ async def test_outboxListener_swapWithDetails_rendersQuestionAndSetsProposalId(
             "proposer_party_id": proposer_party_id,
             "owner_party_id": owner_party_id,
             "proposal_id": str(proposal_id),
-            "link_path": "/x/grupa/1/term/1",
+            "link_path": "/x/group/1/term/1",
             "listing_item_name": "Kajak",
             "offered_item_name": "Sanki",
             "occurs_on": "2026-10-14T16:30:00",
@@ -731,7 +731,7 @@ async def test_outboxListener_payloadsWithoutDetails_fallBackToGenericQuestions(
             "owner_party_id": party_a,
             "taker_party_id": party_b,
             "reservation_id": str(uuid.uuid4()),
-            "link_path": "/x/grupa/1/term/1",
+            "link_path": "/x/group/1/term/1",
         },
     )
     assert {n.message for n in giveaway} == {"Czy przekazanie rzeczy doszło do skutku?"}
@@ -743,7 +743,7 @@ async def test_outboxListener_payloadsWithoutDetails_fallBackToGenericQuestions(
             "proposer_party_id": party_a,
             "owner_party_id": party_b,
             "proposal_id": str(uuid.uuid4()),
-            "link_path": "/x/grupa/1/term/1",
+            "link_path": "/x/group/1/term/1",
         },
     )
     swap = [n for n in all_notifs if n.proposal_id is not None]
@@ -764,7 +764,7 @@ async def test_outboxListener_maxLengthNames_messageCappedAt500Characters(
             "owner_party_id": owner_party_id,
             "taker_party_id": taker_party_id,
             "reservation_id": str(uuid.uuid4()),
-            "link_path": "/x/grupa/1/term/1",
+            "link_path": "/x/group/1/term/1",
             "item_name": "p" * 255,
             "occurs_on": "2026-10-14T16:30:00",
             "group_name": "g" * 255,
@@ -791,7 +791,7 @@ async def test_outboxListener_swapMaxLengthNames_messageCappedAt500AndKeepsPropo
             "proposer_party_id": proposer_party_id,
             "owner_party_id": owner_party_id,
             "proposal_id": str(proposal_id),
-            "link_path": "/x/grupa/1/term/1",
+            "link_path": "/x/group/1/term/1",
             "listing_item_name": "k" * 255,
             "offered_item_name": "s" * 255,
             "occurs_on": "2026-10-14T16:30:00",

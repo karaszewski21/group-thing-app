@@ -61,7 +61,7 @@ export function ItemDetailBody() {
   );
 }
 
-/** On `/:organizationSlug/produkt/...`: a chip back to the organizer's page,
+/** On `/:organizationSlug/product/...`: a chip back to the organizer's page,
  * laid over the item photo. The organization comes from `OrganizerItemLayout`
  * (route outlet context), so this never fetches it again. */
 function OrganizerChip({ organization }: { organization: PublicOrganizationResponse }) {
@@ -85,7 +85,7 @@ function OrganizerChip({ organization }: { organization: PublicOrganizationRespo
   );
 }
 
-/** Shown right after `/product/new` when some photos were refused. */
+/** Shown right after `/add/product` when some photos were refused. */
 export function FailedPhotosNotice() {
   const state = useLocation().state as ItemCreatedState | null;
   if (!state?.failedPhotos) return null;

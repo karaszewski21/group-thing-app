@@ -18,7 +18,7 @@ function Heading() {
 }
 
 /**
- * `/:slug/terminy`: the organizer's full forward agenda, filterable by circle.
+ * `/:slug/terms`: the organizer's full forward agenda, filterable by circle.
  * The `group_id` search parameter is honored only when it names one of the
  * directory's circles, so the terms request never carries an unvalidated id;
  * it is dropped from the URL only once the directory has loaded without it.

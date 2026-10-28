@@ -137,8 +137,8 @@ async def list_groups(db: DbSession, principal: ReadPrincipal) -> list[GroupResp
 async def get_public_circle(
     group_id: uuid.UUID, db: DbSession, storage: Storage, term_id: uuid.UUID | None = None
 ) -> PublicCircleResponse:
-    """Unauthenticated — the page a shared `/<slug>/grupa/<groupId>/term/<termId>`
-    (or term-less `/<slug>/grupa/<groupId>`) link resolves to. Still matched
+    """Unauthenticated — the page a shared `/<slug>/group/<groupId>/term/<termId>`
+    (or term-less `/<slug>/group/<groupId>`) link resolves to. Still matched
     by the unchanged `^/api/groups/public/[^/]+$` PUBLIC row in
     `AUTHORIZATION_MATRIX` (declared ahead of the blanket `/api/groups` READ
     row) — `term_id` is a query parameter, not a path segment, so the path

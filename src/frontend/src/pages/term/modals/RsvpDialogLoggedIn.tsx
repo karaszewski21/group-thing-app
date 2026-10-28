@@ -113,7 +113,7 @@ export function RsvpDialogLoggedIn({
           </p>
           <div className="flex items-center gap-2">
             <Link
-              to={`/rodzina?returnTo=${encodeURIComponent(pathname)}`}
+              to={`/family?returnTo=${encodeURIComponent(pathname)}`}
               className={`${BTN_PRIMARY} ${BTN_SM} inline-block no-underline`}
             >
               Przejdź do „Mój dom”

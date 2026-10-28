@@ -3,8 +3,8 @@ import { isSafeReturnPath } from "../utils/url";
 
 describe("isSafeReturnPath", () => {
   it("accepts a same-origin absolute path", () => {
-    expect(isSafeReturnPath("/x/grupa/1/term/2")).toBe(true);
-    expect(isSafeReturnPath("/kowalscy/grupa/12/term/34")).toBe(true);
+    expect(isSafeReturnPath("/x/group/1/term/2")).toBe(true);
+    expect(isSafeReturnPath("/kowalscy/group/12/term/34")).toBe(true);
   });
 
   it.each<[string, string | null | undefined]>([

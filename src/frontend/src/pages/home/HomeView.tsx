@@ -44,7 +44,7 @@ export function HomeView() {
         <div className="mb-2.5 flex items-baseline justify-between gap-2.5">
           <h2 className={SECTION_TITLE}>Twoje rzeczy</h2>
           {items.length > 0 && (
-            <button onClick={() => setView("rzeczy")} className={SECTION_LINK}>
+            <button onClick={() => setView("items")} className={SECTION_LINK}>
               Zobacz →
             </button>
           )}
@@ -56,7 +56,7 @@ export function HomeView() {
               Dodaj coś, co możesz oddać albo zamienić z innymi rodzicami.
             </p>
             <Link
-              to="/product/new"
+              to="/add/product"
               className="mt-1 flex min-h-12 items-center rounded-full bg-primary px-5.5 text-[15px] font-extrabold text-on-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring"
             >
               + Dodaj pierwszą rzecz
@@ -68,7 +68,7 @@ export function HomeView() {
               <button
                 key={m}
                 type="button"
-                onClick={() => setView("rzeczy")}
+                onClick={() => setView("items")}
                 className={`flex flex-col items-start rounded-[20px] p-3.5 text-left focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring ${ITEM_MODE_TONE[m]}`}
               >
                 <b className="font-serif text-[30px] leading-none font-extrabold">{itemCounts[m]}</b>
@@ -82,7 +82,7 @@ export function HomeView() {
       <section className="mt-7">
         <div className="mb-1 flex items-baseline justify-between gap-2.5">
           <h2 className={SECTION_TITLE}>Ostatnio dodane</h2>
-          <Link to={viewPath("szukaj")} className={SECTION_LINK}>
+          <Link to={viewPath("search")} className={SECTION_LINK}>
             Przeglądaj
           </Link>
         </div>

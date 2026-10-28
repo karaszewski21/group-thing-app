@@ -23,11 +23,11 @@ describe("api client 401 handling", () => {
   });
 
   it("request_unauthorized_redirectsToLoginWithEncodedReturnTo", async () => {
-    const location = stubLocation("/org/grupa/5/term/7", "?tab=rzeczy");
+    const location = stubLocation("/org/group/5/term/7", "?tab=rzeczy");
 
     await expect(api.get("/groups/public/5/access")).rejects.toBeInstanceOf(ApiError);
 
-    expect(location.href).toBe(`/login?returnTo=${encodeURIComponent("/org/grupa/5/term/7?tab=rzeczy")}`);
+    expect(location.href).toBe(`/login?returnTo=${encodeURIComponent("/org/group/5/term/7?tab=rzeczy")}`);
     expect(localStorage.getItem("auth_token")).toBeNull();
   });
 

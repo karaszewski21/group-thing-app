@@ -120,12 +120,12 @@ describe("UpcomingTermsBlock", () => {
     expect(screen.getByRole("heading", { name: "Najbliższe terminy" })).toBeInTheDocument();
     const rows = screen.getAllByRole("link").filter((link) => link.getAttribute("href")?.includes("/term/"));
     expect(rows.map((row) => row.getAttribute("href"))).toEqual([
-      `/${SLUG}/grupa/g1/term/t1`,
-      `/${SLUG}/grupa/g1/term/t2`,
+      `/${SLUG}/group/g1/term/t1`,
+      `/${SLUG}/group/g1/term/t2`,
     ]);
     expect(within(rows[0]).getByText("Śr · 16:30 · zapisanych: 12")).toBeInTheDocument();
     expect(within(rows[1]).getByText("Pt · 10:00")).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Wszystkie terminy (9) →" })).toHaveAttribute("href", `/${SLUG}/terminy`);
+    expect(screen.getByRole("link", { name: "Wszystkie terminy (9) →" })).toHaveAttribute("href", `/${SLUG}/terms`);
     unmount();
 
     renderWithProviders(
@@ -146,8 +146,8 @@ describe("UpcomingTermsBlock", () => {
       />,
     );
 
-    expect(screen.getByRole("link", { name: /Młodziki 2015/ })).toHaveAttribute("href", `/${SLUG}/grupa/g2/term/next-g2`);
-    expect(screen.getByRole("link", { name: "Wszystkie terminy →" })).toHaveAttribute("href", `/${SLUG}/terminy`);
+    expect(screen.getByRole("link", { name: /Młodziki 2015/ })).toHaveAttribute("href", `/${SLUG}/group/g2/term/next-g2`);
+    expect(screen.getByRole("link", { name: "Wszystkie terminy →" })).toHaveAttribute("href", `/${SLUG}/terms`);
   });
 
   it("compact renders at most 3 date chips", () => {
@@ -158,7 +158,7 @@ describe("UpcomingTermsBlock", () => {
     const chips = screen.getAllByRole("link");
     expect(chips).toHaveLength(3);
     expect(chips[0]).toHaveTextContent("Śr 14 paź");
-    expect(chips[0]).toHaveAttribute("href", `/${SLUG}/grupa/g1/term/t14`);
+    expect(chips[0]).toHaveAttribute("href", `/${SLUG}/group/g1/term/t14`);
   });
 });
 
@@ -174,7 +174,7 @@ describe("NextTermCtaBlock", () => {
     expect(screen.getByText("zapisanych: 12")).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Zobacz i zapisz się →" })).toHaveAttribute(
       "href",
-      `/${SLUG}/grupa/g1/term/t1`,
+      `/${SLUG}/group/g1/term/t1`,
     );
   });
 });
@@ -198,7 +198,7 @@ describe("AgendaBlock", () => {
     expect(screen.getByRole("heading", { level: 3, name: "piątek, 16 października" })).toBeInTheDocument();
     expect(screen.getByText("Turniej")).toBeInTheDocument();
     const row = screen.getByRole("link", { name: /Młodziki 2015/ });
-    expect(row).toHaveAttribute("href", `/${SLUG}/grupa/g2/term/t2`);
+    expect(row).toHaveAttribute("href", `/${SLUG}/group/g2/term/t2`);
     expect(row).toHaveTextContent("18:15");
     expect(row).toHaveTextContent("zapisanych 12");
 

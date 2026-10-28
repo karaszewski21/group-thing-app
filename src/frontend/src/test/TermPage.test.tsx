@@ -44,7 +44,7 @@ vi.mock("../auth/AuthContext", () => ({
 const GROUP_ID = "5f0c2a7e-3b1d-4e6a-9c8f-0000000000a5";
 const TERM_ID = "1c2d3e4f-5a6b-4c7d-8e9f-0000000000c1";
 const OTHER_TERM_ID = "7d8e9fa0-b1c2-4d3e-8f4a-0000000000c7";
-const PATH = `/zajecia/grupa/${GROUP_ID}/term/${TERM_ID}`;
+const PATH = `/zajecia/group/${GROUP_ID}/term/${TERM_ID}`;
 
 const circle: PublicCircleResponse = {
   id: "7",
@@ -140,8 +140,8 @@ function page(entry = PATH) {
   return (
     <MemoryRouter initialEntries={[entry]}>
       <Routes>
-        <Route path="/:organizationSlug/grupa/:groupId/term/:termId" element={<TermPage />} />
-        <Route path="/wiadomosci/:id" element={<p>Wątek rozmowy</p>} />
+        <Route path="/:organizationSlug/group/:groupId/term/:termId" element={<TermPage />} />
+        <Route path="/messages/:id" element={<p>Wątek rozmowy</p>} />
       </Routes>
       <SearchProbe />
     </MemoryRouter>
@@ -232,10 +232,10 @@ describe("TermPage — header and content", () => {
 
     await screen.findByRole("region", { name: "Zapisani na zajęcia" });
     const ola = document.getElementById("attendee-21")!;
-    expect(within(ola).getByRole("link", { name: "Rowerek" })).toHaveAttribute("href", "/ania/produkt/9");
+    expect(within(ola).getByRole("link", { name: "Rowerek" })).toHaveAttribute("href", "/ania/product/9");
     expect(within(document.getElementById("attendee-99")!).getByRole("link", { name: "Namiot" })).toHaveAttribute(
       "href",
-      "/ania/produkt/10",
+      "/ania/product/10",
     );
     expect(screen.getAllByText("Bębenek").length).toBeGreaterThan(0);
     expect(screen.queryByRole("link", { name: /Bębenek/ })).toBeNull();
@@ -372,7 +372,7 @@ describe("TermPage — sign-up footer", () => {
     await waitFor(() => expect(familiesApi.getMyFamilies).toHaveBeenCalled());
     expect(within(dialog).getByRole("link", { name: "Przejdź do „Mój dom”" })).toHaveAttribute(
       "href",
-      `/rodzina?returnTo=${encodeURIComponent(PATH)}`,
+      `/family?returnTo=${encodeURIComponent(PATH)}`,
     );
   });
 
@@ -610,9 +610,9 @@ describe("TermPage — access", () => {
     vi.mocked(groupsApi.getGroupAccess).mockResolvedValueOnce(access()).mockRejectedValueOnce(new Error("404"));
     render(
       <MemoryRouter initialEntries={[PATH]}>
-        <Link to={`/zajecia/grupa/${GROUP_ID}/term/${OTHER_TERM_ID}`}>Następne zajęcia</Link>
+        <Link to={`/zajecia/group/${GROUP_ID}/term/${OTHER_TERM_ID}`}>Następne zajęcia</Link>
         <Routes>
-          <Route path="/:organizationSlug/grupa/:groupId/term/:termId" element={<TermPage />} />
+          <Route path="/:organizationSlug/group/:groupId/term/:termId" element={<TermPage />} />
         </Routes>
       </MemoryRouter>, { wrapper: createQueryWrapper() },
     );
@@ -864,7 +864,7 @@ describe("TermPage — join a private group by code", () => {
       <MemoryRouter initialEntries={[`${PATH}#code=482910`]}>
         <Link to={{ pathname: PATH, hash: "#code=582913" }}>Drugi link</Link>
         <Routes>
-          <Route path="/:organizationSlug/grupa/:groupId/term/:termId" element={<TermPage />} />
+          <Route path="/:organizationSlug/group/:groupId/term/:termId" element={<TermPage />} />
         </Routes>
         <SearchProbe />
       </MemoryRouter>,
@@ -910,7 +910,7 @@ describe("TermPage — join a private group by code", () => {
     );
     expect(screen.getByRole("link", { name: "Zarejestruj się" })).toHaveAttribute(
       "href",
-      `/login?tryb=rejestracja&returnTo=${encodeURIComponent(PATH)}`,
+      `/login?mode=register&returnTo=${encodeURIComponent(PATH)}`,
     );
     anonymous.unmount();
 

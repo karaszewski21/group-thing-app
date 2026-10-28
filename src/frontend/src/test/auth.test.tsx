@@ -178,7 +178,7 @@ describe("LoginPage", () => {
       expect(mockLogin).toHaveBeenCalledWith("admin@example.com", "pass123");
     });
   });
-  it("is one page with 'Zaloguj się' / 'Załóż konto' tabs kept in ?tryb=", async () => {
+  it("is one page with 'Zaloguj się' / 'Załóż konto' tabs kept in ?mode=", async () => {
     mockUseAuth.mockReturnValue({
       token: null as string | null,
       username: null as string | null,
@@ -190,7 +190,7 @@ describe("LoginPage", () => {
     });
 
     const { LoginPage } = await import("../pages/auth/LoginPage");
-    renderWithProviders(<LoginPage />, "/login?tryb=rejestracja&returnTo=%2Fkonto");
+    renderWithProviders(<LoginPage />, "/login?mode=register&returnTo=%2Faccount");
 
     const registerTab = screen.getByRole("tab", { name: "Załóż konto" });
     expect(registerTab).toHaveAttribute("aria-selected", "true");

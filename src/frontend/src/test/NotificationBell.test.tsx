@@ -18,7 +18,7 @@ const notif = (over: Partial<NotificationResponse> = {}): NotificationResponse =
   id: "1",
   kind: "PLEDGE_CREATED",
   message: "„Kasia\" zadeklarował(a) przyniesienie: Bębenek",
-  link_path: "/ania/grupa/5/term/3",
+  link_path: "/ania/group/5/term/3",
   read_at: null,
   created_at: "2026-03-01T10:00:00",
   reservation_id: null,
@@ -30,7 +30,7 @@ function renderBell() {
     <MemoryRouter initialEntries={["/"]}>
       <Routes>
         <Route path="/" element={<NotificationBell />} />
-        <Route path="/ania/grupa/5/term/3" element={<h1>Strona terminu</h1>} />
+        <Route path="/ania/group/5/term/3" element={<h1>Strona terminu</h1>} />
       </Routes>
     </MemoryRouter>,
     { wrapper: createQueryWrapper() },

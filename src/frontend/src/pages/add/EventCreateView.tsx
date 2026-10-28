@@ -19,7 +19,7 @@ interface EventDraft {
 const EMPTY: EventDraft = { name: "", date: "", time: "", place: "", description: "" };
 
 /** "Nowe wydarzenie" — a one-off meeting (a picnic, a birthday), reached from
- * /dodaj. MOCK: the backend has no events yet, so saving only shows a
+ * /add. MOCK: the backend has no events yet, so saving only shows a
  * confirmation; nothing is stored. */
 export function EventCreateView() {
   const [draft, setDraft] = useState<EventDraft>(EMPTY);
@@ -43,7 +43,7 @@ export function EventCreateView() {
     const when = dayjs(`${saved.date}T${saved.time || "00:00"}`);
     return (
       <>
-        <SubPageHeader title="Nowe wydarzenie" backTo={viewPath("dodaj")} backLabel="Wróć do dodawania" />
+        <SubPageHeader title="Nowe wydarzenie" backTo={viewPath("add")} backLabel="Wróć do dodawania" />
         <div role="status" className="flex flex-col items-center gap-2.5 rounded-[28px] bg-primary-soft px-5 py-7 text-center">
           <p className="font-serif text-[22px] font-extrabold text-ink">Wydarzenie zapisane</p>
           <p className="text-base font-bold text-ink">{saved.name}</p>
@@ -62,7 +62,7 @@ export function EventCreateView() {
             Dodaj kolejne
           </button>
           <Link
-            to={viewPath("dodaj")}
+            to={viewPath("add")}
             className="flex min-h-12 items-center justify-center rounded-full border-[1.5px] border-line bg-paper text-[15px] font-extrabold text-ink"
           >
             Gotowe
@@ -74,7 +74,7 @@ export function EventCreateView() {
 
   return (
     <>
-      <SubPageHeader title="Nowe wydarzenie" backTo={viewPath("dodaj")} backLabel="Wróć do dodawania" />
+      <SubPageHeader title="Nowe wydarzenie" backTo={viewPath("add")} backLabel="Wróć do dodawania" />
       <p className="-mt-2 mb-4 text-[15px] leading-snug text-ink-soft">
         Jednorazowe spotkanie, np. piknik, urodziny albo wspólny spacer.
       </p>
