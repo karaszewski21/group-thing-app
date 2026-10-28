@@ -1,0 +1,988 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Specification — Events plugin (wydarzenia)</title>
+<style>
+:root {
+  --bg:#f6f7f9; --surface:#fff; --border:#e2e5ea; --text:#1a1d23; --dim:#6b7280;
+  --accent:#4f46e5; --accent-soft:#eef2ff; --ok:#16a34a; --ok-soft:#ecfdf3;
+  --warn:#d97706; --warn-soft:#fffbeb; --crit:#dc2626; --crit-soft:#fef2f2;
+  --info:#2563eb; --info-soft:#eff6ff; --radius:10px;
+}
+@media (prefers-color-scheme: dark) {
+  :root { --bg:#111418; --surface:#1a1f26; --border:#2e3640; --text:#e6e9ee; --dim:#9aa4b2;
+    --accent:#818cf8; --accent-soft:#26294a; --ok:#4ade80; --ok-soft:#11291a;
+    --warn:#fbbf24; --warn-soft:#2e2410; --crit:#f87171; --crit-soft:#321616;
+    --info:#60a5fa; --info-soft:#15233a; }
+}
+* { box-sizing:border-box; }
+body { margin:0 auto; max-width:1100px; padding:24px 20px 64px; background:var(--bg);
+  color:var(--text); font:14px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif; }
+a { color:var(--accent); text-decoration:none; } a:hover { text-decoration:underline; }
+h1 { font-size:22px; letter-spacing:-.01em; } h2 { font-size:16px; margin-top:28px; }
+.card { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius);
+  padding:16px 18px; margin:14px 0; }
+.badge { display:inline-block; font-size:11px; font-weight:600; text-transform:uppercase;
+  letter-spacing:.04em; padding:2px 8px; border-radius:99px; background:var(--accent-soft); color:var(--accent); }
+.sev { display:inline-block; font-size:10.5px; font-weight:700; text-transform:uppercase;
+  padding:1.5px 7px; border-radius:99px; margin-right:6px; }
+.sev.critical { background:var(--crit-soft); color:var(--crit); }
+.sev.warning  { background:var(--warn-soft); color:var(--warn); }
+.sev.info     { background:var(--info-soft); color:var(--info); }
+.pass { color:var(--ok); font-weight:600; } .fail { color:var(--crit); font-weight:600; }
+table { width:100%; border-collapse:collapse; }
+th, td { text-align:left; padding:7px 10px; border-bottom:1px solid var(--border); vertical-align:top; }
+th { font-size:11.5px; text-transform:uppercase; letter-spacing:.04em; color:var(--dim); }
+code { font-family:ui-monospace,SFMono-Regular,Menlo,monospace; font-size:12.5px;
+  background:var(--accent-soft); padding:1px 5px; border-radius:4px; }
+img.shot { max-width:100%; border:1px solid var(--border); border-radius:var(--radius); }
+details > summary { cursor:pointer; font-weight:600; }
+.crumbs { display:flex; gap:14px; font-size:13px; margin-bottom:18px; flex-wrap:wrap; }
+.crumbs a.md { margin-left:auto; color:var(--dim); }
+.crumbs .here { font-weight:650; color:var(--text); }
+.tiles { display:flex; gap:10px; flex-wrap:wrap; margin:14px 0; }
+.tile { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius);
+  padding:10px 16px; text-align:center; min-width:90px; }
+.tile b { display:block; font-size:20px; letter-spacing:-.01em; }
+.tile span { font-size:10.5px; text-transform:uppercase; letter-spacing:.05em; color:var(--dim); }
+.grid2 { display:grid; grid-template-columns:1fr 1fr; gap:14px; }
+.grid3 { display:grid; grid-template-columns:repeat(auto-fill,minmax(280px,1fr)); gap:12px; }
+@media (max-width:720px){ .grid2 { grid-template-columns:1fr; } }
+.in { border-left:4px solid var(--ok); } .out { border-left:4px solid var(--crit); }
+.story { margin:0; }
+ul.tight { margin:6px 0; padding-left:20px; } ul.tight li { margin:3px 0; }
+.flow { font-family:ui-monospace,Menlo,monospace; font-size:12.5px; white-space:pre-wrap; background:var(--accent-soft); padding:12px; border-radius:var(--radius); }
+</style>
+
+</head>
+<body>
+<nav class="crumbs"><a href="../dashboard.html">← Dashboard</a> <span class="here">Spec</span> <a href="implementation-plan.html">Plan</a> <a href="../verification/spec-audit.md" target="_blank" rel="noopener">Spec audit ↗</a> <a href="../verification/implementation-verification.html">Verification</a> <a href="spec.md" target="_blank" rel="noopener" class="md">md twin ↗</a></nav>
+<header><span class="badge">Specification</span> <span class="badge" style="background:var(--ok-soft);color:var(--ok)">audit resolved</span><h1>Events plugin (wydarzenia) at <code>/add/event</code></h1><div style="color:var(--dim);font-size:13px">2026-10-28 · Risk: medium-high · Source: <a href="spec.md" target="_blank" rel="noopener">spec.md</a></div></header>
+<div class="tiles"><div class="tile"><b>23</b><span>core requirements</span></div><div class="tile"><b>20</b><span>reused assets</span></div><div class="tile"><b>6</b><span>new components</span></div><div class="tile"><b>11</b><span>design refs</span></div><div class="tile"><b>19</b><span>audit findings resolved</span></div><div class="tile"><b>med-high</b><span>risk</span></div></div>
+<section class="tldr card"><h2 style="margin-top:0">TL;DR</h2><ul class="tight"><li>
+<code>/add/event</code> stops being a host-side mock. It becomes the host <code>SubPageHeader</code> "Nowe wydarzenie" plus a <code>PluginFrame</code> for whichever enabled plugin declares the new extension point <code>add.event</code>. When no such plugin exists, the page shows a Polish fallback.
+</li><li>
+The new <code>plugins/events</code> app (Vite + React 19, port 3004) renders the form: banner, name, start, optional same-day end, location, description. It calls a new host-native backend module <code>app/events</code> through <code>hostApp.fetch</code>.
+</li><li>
+The backend module adds migration 0070 with three tables: <code>events</code>, <code>event_banners</code> (1:1) and <code>event_attendances</code> (a table only, with no endpoints and no UI). It adds two routes, <code>POST /api/events</code> and <code>POST /api/events/{id}/banner</code>. Every user-facing error is in Polish.
+</li><li>
+The SDK gets two new messages: <code>uploadImage</code> (the host builds the FormData, the path is allowlisted, the limit is 5 MB) and <code>done</code> (the host navigates to <code>/add</code> and shows a toast). In dev, <code>build:sdk</code> also writes the SDK bundle to <code>public/assets</code> so port 5173 serves it.
+</li><li>
+The feature only creates events. Nothing lists or shows them, and banners are not moderated. Revised after the spec audit (see Audit Resolutions).
+</li></ul><h2>Key Decisions</h2><ul class="tight"><li>
+<b>Plugin lookup in the panel uses a TanStack <code>usePlugins()</code> hook plus <code>resolveExtensionPoints</code>, not <code>PluginProvider</code>.</b>
+<ul class="tight"><li>
+<code>resolveExtensionPoints</code> moves to a plain <code>.ts</code> module, <code>plugins/resolveExtensionPoints.ts</code>, so the React Fast Refresh lint rule passes.
+</li><li>
+The panel follows the data-fetching standard. <code>PluginProvider</code>, which uses legacy <code>useState</code> fetching, stays admin-only.
+</li></ul>
+</li><li>
+<b>A new <code>usePluginMessageHandler(options)</code> hook installs the postMessage handler only while <code>EventCreateView</code> is mounted.</b> The admin and panel route trees never mount together, so two handlers never run at once.
+</li><li>
+<b><code>done</code> is honoured only by a handler created with an <code>onDone</code> option.</b> The admin handler ignores it silently. This avoids a generic navigate or open-redirect primitive.
+</li><li>
+<b><code>uploadImage</code> returns the same <code>{status, headers, body}</code> envelope as <code>pluginFetch</code>.</b>
+<ul class="tight"><li>
+It uses the same raw-fetch rules as <code>pluginFetch</code>: Bearer token, <code>X-Requested-With: PluginFetch</code>, <code>credentials: "omit"</code>.
+</li><li>
+Upload rules live in a host-side table. The only rule is <code>/api/events/{uuid}/banner</code>: 5 MB, JPEG/PNG/WebP.
+</li><li>
+The table is defence in depth, not a security boundary: a plugin can already reach any <code>/api/</code> path through <code>pluginFetch</code>.
+</li></ul>
+</li><li>
+<b>Every user-facing error from <code>app/events</code> is Polish.</b> The Pydantic schema checks only the shape of the request; all fields are optional at that level. The service raises:
+<ul class="tight"><li>
+<code>ValueError</code> for domain rules, which becomes a 400 with the Polish text in <code>message</code>.
+</li><li>
+<code>EventNotFound(EntityNotFoundException)</code> for a missing event: 404 "Nie znaleziono wydarzenia."
+</li><li>
+<code>NotEventAuthor(AccessDeniedException)</code> for someone else's event: 403 "Możesz dodać baner tylko do swojego wydarzenia."
+</li><li>
+The 403 relies on a new optional <code>public_message</code> attribute on <code>AccessDeniedException</code>. Every existing 403 keeps "Access denied".
+</li></ul>
+</li><li>
+<b>The plugin maps errors per call.</b> It has three mappers: <code>createEventError</code>, <code>bannerError</code> and <code>locationError</code>. No 403/404 mapping is shared between calls.
+</li><li>
+<b>Submit is blocked with <code>aria-disabled</code>, not <code>disabled</code>, while the form is invalid.</b>
+<ul class="tight"><li>
+The button carries <code>aria-disabled="true"</code> and <code>aria-describedby</code> pointing at a visible hint.
+</li><li>
+A click on the blocked button reveals every field error.
+</li><li>
+Native <code>disabled</code> is used only while a save is running. This is the user's decision, following <code>pages/product/ItemCreatePage.tsx</code> and <code>accessibility.md</code>.
+</li></ul>
+</li><li>
+<b>The empty form starts with blank date and time fields.</b> The end shares the start's date. The pre-filled dates in the <code>event-form-empty</code> mockup are illustrative only.
+</li><li>
+<b>The banner upload locks the <code>events</code> row <code>FOR UPDATE</code> before checking for a previous banner.</b>
+<ul class="tight"><li>
+Concurrent uploads, such as a retry while a timed-out upload is still running, then run one after another. The later upload cleanly replaces the earlier one.
+</li><li>
+An old banner is replaced by deleting its row, flushing the delete, and staging an outbox <code>OBJECTS_DELETE</code> for its files.
+</li></ul>
+</li><li>
+<b>The storage-disabled response uses the existing avatar wording and status.</b>
+<ul class="tight"><li>
+With storage unconfigured, the banner upload returns 409 "Dodawanie zdjęć jest chwilowo niedostępne" (<code>BusinessConflictException</code>). The event itself stays saved.
+</li><li>
+The invalid-image text reuses <code>INVALID_IMAGE_MESSAGE</code> on both sides.
+</li></ul>
+</li><li>
+<b>Banners are not moderated.</b> They are always <code>APPROVED</code> and stored <code>public=True</code>, whatever <code>MODERATION_IMAGE_ENABLED</code> says. This is the user's decision; the <code>status</code> column is ready for the moderation follow-up.
+</li><li>
+<b>Dates are naive Warsaw wall-clock times.</b>
+<ul class="tight"><li>
+Seconds are truncated to the minute.
+</li><li>
+No DST adjustment is made.
+</li><li>
+The start must fall between now and two years ahead.
+</li><li>
+The end must be later than the start and on the same calendar day, so the latest possible end is 23:59 and midnight is not allowed.
+</li></ul>
+</li><li>
+<b><code>EventResponse</code> has no <code>banner</code> key and no author id.</b> On create the banner is always null, so neither has a reader.
+</li><li>
+<b>The iframe has a fixed viewport-relative height and the plugin scrolls inside it.</b> This keeps the plugin's bottom sheet visible. There is no resize message.
+</li><li>
+<b><code>event_attendances</code> is created now, as a schema only, by user decision.</b>
+<ul class="tight"><li>
+It is modelled on <code>TermAttendance</code> (<code>app/groups/models.py:255-281</code>).
+</li><li>
+<code>party_id</code> is a plain FK-id column with a real foreign key to <code>parties.id</code>, the same as <code>events.author_party_id</code>. There is no <code>relationship()</code>.
+</li><li>
+There is deliberately no <code>child_count</code>.
+</li><li>
+A partial unique index allows one active sign-up per party per event.
+</li><li>
+The business key is <code>(event_id, party_id, created_at)</code>. All three values are immutable, unlike <code>withdrawn_at</code>.
+</li></ul>
+</li><li>
+<b>The SDK bundle for dev is written in two places.</b>
+<ul class="tight"><li>
+<code>npm run build:sdk</code> writes <code>dist/assets/plugin-sdk.js</code> as before, and then copies it to <code>src/frontend/public/assets/plugin-sdk.js</code>.
+</li><li>
+The copy in <code>public/assets</code> is git-ignored. The Vite dev server on port 5173 serves it at <code>/assets/plugin-sdk.js</code>.
+</li><li>
+The old Java-era copy at <code>src/resources/static/assets/plugin-sdk.js</code> is left untouched.
+</li></ul>
+</li><li>
+<b>The plugin has no unit tests.</b> There is no plugin test infrastructure. Its validation sits in a pure <code>domain.ts</code> whose wording is copied from the Copy table below. The plugin is verified by <code>tsc -b &amp;&amp; vite build</code> plus an end-to-end or manual pass.
+</li></ul><h2>Open Questions / Risks</h2><ul class="tight"><li>
+<b>SDK timeout.</b>
+<ul class="tight"><li>
+The 10 s limit stays. A slow 5 MB upload can report a failure even though it succeeded.
+</li><li>
+"Spróbuj ponownie" then replaces the banner safely, because uploads are serialised on the event-row lock.
+</li></ul>
+</li><li>
+<b>No production story for plugins.</b>
+<ul class="tight"><li>
+The manifest URL and the <code>plugin-sdk.js</code> URL are localhost, and registration is a manual curl with an admin token.
+</li><li>
+In production, <code>/add/event</code> shows the fallback until someone hosts and registers the plugin.
+</li></ul>
+</li><li>
+<b>Unmoderated public banner.</b>
+<ul class="tight"><li>
+This is the first user image without moderation, and there is no admin path to delete it.
+</li><li>
+Follow-up needed: <code>ModerationSubjectType</code> plus the <code>group-thing-ai</code> cron.
+</li></ul>
+</li><li>
+<b>Unused table, a deliberate deviation from <code>minimal-implementation.md</code>.</b> <code>event_attendances</code> has no readers or writers until the sign-ups follow-up. This was the user's explicit choice.
+</li><li>
+<b>Write-only data.</b> Nothing displays events or banners yet. A list/detail follow-up is needed.
+</li><li>
+<b>Iframe height offset.</b> The <code>calc(100dvh - …)</code> offset depends on the PhoneFrame chrome. Tune it during implementation so the panel itself does not scroll as well.
+</li><li>
+<b>Browser time vs Warsaw time.</b> The plugin's "start in the past" and "two-year" checks use the browser's local time. The server decides, using Warsaw time.
+</li><li>
+<b>A Polish message can be duplicated between the plugin and the backend.</b> Both copy the Copy table. Verification compares the two by hand; there is no shared module.
+</li></ul></section>
+<nav class="toc" style="font-size:13px">Contents: <a href="#goal">Goal</a> · <a href="#scope">Scope</a> · <a href="#stories">User Stories</a> · <a href="#copy">Copy table</a> · <a href="#requirements">Requirements</a> · <a href="#visual">Visual Design</a> · <a href="#reuse">Reuse vs New</a> · <a href="#tech">Technical</a> · <a href="#tests">Tests</a> · <a href="#success">Success Criteria</a> · <a href="#audit">Audit Resolutions</a></nav>
+<main>
+<h2 id="goal">Goal</h2><div class="card"><p>A logged-in user can create a one-off event from <code>/add</code> → "Wydarzenie". The host backend persists it through a plugin form in an iframe, and the user returns to the hub with a confirmation toast.</p></div>
+<h2 id="scope">Scope</h2><div class="grid2"><div class="card in"><b>In scope</b><ul class="tight"><li><code>app/events</code>, migration 0070 (<code>events</code>, <code>event_banners</code>, <code>event_attendances</code> schema only), 2 endpoints, 2 authz rows, Polish 404/403</li><li>Text moderation for the name and the description</li><li>Host: <code>add.event</code>, <code>resolveExtensionPoints.ts</code>, <code>usePlugins</code>, <code>usePluginMessageHandler</code>, <code>uploadImage</code> + <code>done</code>, fallback, locations cache invalidation</li><li>SDK methods and the dev <code>build:sdk</code> copy into <code>public/assets</code></li><li>The <code>plugins/events</code> app, <code>plugins/CLAUDE.md</code>, and the tests</li></ul></div><div class="card out"><b>Out of scope</b><ul class="tight"><li>
+An event list, detail page, Meetings feed or organizer-page display.
+</li><li>
+Event sign-ups: join/leave endpoints, UI and capacity. Only the <code>event_attendances</code> table is created now.
+</li><li>
+Editing or deleting events or banners, and admin removal.
+</li><li>
+Banner moderation: <code>ModerationSubjectType</code>, and the <code>group-thing-ai</code> cron and grants.
+</li><li>
+Hosting and registering plugins in production: a service, an nginx route, a seed migration, configurable URLs.
+</li><li>
+Updating the legacy <code>src/resources/static/assets/plugin-sdk.js</code>.
+</li><li>
+The EntityId <code>int</code> → <code>UUID</code> bug at <code>app/plugin/router.py:39</code>.
+</li><li>
+An iframe resize protocol, a generic <code>navigate</code> message, and per-message SDK timeouts.
+</li><li>
+Google Places search in the plugin's location form.
+</li><li>
+Plugin unit-test infrastructure.
+</li><li>
+Restyling <code>plugin-ui.css</code>.
+</li></ul></div></div>
+<h2 id="stories">User Stories</h2><div class="grid3"><div class="card story">As a logged-in user, I want to create a one-off event (name, start, optional end, place, description) so that I can plan a picnic or a birthday.</div><div class="card story">As a logged-in user, I want to add an optional banner image so that my event is recognisable.</div><div class="card story">As a logged-in user, I want to pick one of my saved places, or quickly add a new one, without leaving the form.</div><div class="card story">As a logged-in user, I want clear Polish errors when I enter a past start, an end before the start, or a too-short name, so that I can fix the form before saving.</div><div class="card story">As a logged-in user, I want to keep my saved event when the banner upload fails, and be able to retry or skip it.</div><div class="card story">As a user on an environment where the events plugin is missing or disabled, I want a clear message and a way back instead of a blank page.</div></div>
+<h2 id="copy">Copy table (single source for backend and plugin)</h2><div class="card"><table><tr><th>Key</th><th>Polish text</th><th>Where</th></tr>
+<tr><td>name.blank</td><td>Podaj nazwę wydarzenia.</td><td>backend 400 + plugin</td></tr>
+<tr><td>name.length</td><td>Nazwa musi mieć od 3 do 120 znaków.</td><td>backend 400 + plugin</td></tr>
+<tr><td>start.missing</td><td>Podaj datę i godzinę początku.</td><td>backend 400 + plugin</td></tr>
+<tr><td>start.past</td><td>Początek nie może być w przeszłości.</td><td>backend 400 + plugin</td></tr>
+<tr><td>start.tooFar</td><td>Początek może być najwyżej 2 lata od dziś.</td><td>backend 400 + plugin</td></tr>
+<tr><td>end.notAfter</td><td>Koniec musi być później niż początek.</td><td>backend 400 + plugin</td></tr>
+<tr><td>end.otherDay</td><td>Koniec musi przypadać tego samego dnia co początek.</td><td>backend 400 (the plugin cannot produce it)</td></tr>
+<tr><td>datetime.aware</td><td>Podaj datę i godzinę bez strefy czasowej.</td><td>backend 400</td></tr>
+<tr><td>description.length</td><td>Opis może mieć najwyżej 2000 znaków.</td><td>backend 400 + plugin</td></tr>
+<tr><td>moderation</td><td><code>MESSAGES[EVENT_NAME]</code> "Nazwa wydarzenia narusza zasady społeczności. Zmień ją i spróbuj ponownie." / <code>MESSAGES[EVENT_DESCRIPTION]</code> "Opis wydarzenia narusza zasady społeczności. Zmień go i spróbuj ponownie."</td><td>backend 400</td></tr>
+<tr><td>banner.notFound</td><td>Nie znaleziono wydarzenia.</td><td>backend 404</td></tr>
+<tr><td>banner.notAuthor</td><td>Możesz dodać baner tylko do swojego wydarzenia.</td><td>backend 403</td></tr>
+<tr><td>banner.disabled</td><td>Dodawanie zdjęć jest chwilowo niedostępne</td><td>backend 409 (same text as <code>AVATAR_UPLOAD_DISABLED_MESSAGE</code>)</td></tr>
+<tr><td>banner.tooLarge</td><td>Baner jest za duży (maks. 5 MB)</td><td>backend 400 + plugin</td></tr>
+<tr><td>banner.invalid</td><td>Nieobsługiwany plik — dodaj zdjęcie JPG, PNG lub WebP</td><td>backend 400 (<code>INVALID_IMAGE_MESSAGE</code>) + plugin</td></tr>
+<tr><td>banner.hint</td><td>JPG, PNG lub WebP, do 5 MB</td><td>plugin (the mockup's "JPEG" is corrected)</td></tr>
+<tr><td>banner.failed</td><td>Nie udało się wysłać banera. Wydarzenie jest zapisane bez banera.</td><td>plugin</td></tr>
+<tr><td>submit.hint</td><td>Uzupełnij nazwę oraz datę i godzinę początku, aby zapisać.</td><td>plugin (<code>aria-describedby</code> target)</td></tr>
+<tr><td>create.location</td><td>Wybrane miejsce jest niedostępne — wybierz inne.</td><td>plugin, <code>createEvent</code> 403/404 only</td></tr>
+<tr><td>session</td><td>Sesja wygasła — zaloguj się ponownie.</td><td>plugin, any 401</td></tr>
+<tr><td>create.generic</td><td>Nie udało się zapisać wydarzenia. Spróbuj ponownie.</td><td>plugin</td></tr>
+<tr><td>place.name</td><td>Podaj nazwę miejsca.</td><td>plugin</td></tr>
+<tr><td>place.address</td><td>Podaj adres miejsca.</td><td>plugin</td></tr>
+<tr><td>place.invalid</td><td>Uzupełnij nazwę i adres miejsca.</td><td>plugin, <code>POST /api/locations</code> 400</td></tr>
+<tr><td>place.generic</td><td>Nie udało się dodać miejsca. Spróbuj ponownie.</td><td>plugin</td></tr>
+<tr><td>places.load</td><td>Nie udało się wczytać miejsc.</td><td>plugin</td></tr>
+<tr><td>unavailable</td><td>Plugin wydarzeń jest niedostępny / Dodawanie wydarzeń jest chwilowo wyłączone. Spróbuj później.</td><td>host</td></tr>
+<tr><td>toast</td><td>Wydarzenie „{name}” zapisane (fallback: Wydarzenie zapisane)</td><td>host</td></tr>
+</table></div>
+<h2 id="requirements">Core Requirements</h2><details class="card" open><summary>All 23 requirements (backend, host, plugin, docs, tests)</summary><h3 style="font-size:14px">Backend: <code>app/events</code></h3>
+<ol class="tight"><li>
+<b>Migration <code>0070_events</code></b> (<code>down_revision = "0069"</code>) creates three tables.
+<ul class="tight"><li>
+<code>downgrade()</code> drops them in reverse dependency order: first the indexes of <code>event_attendances</code>, then <code>event_attendances</code>, then <code>event_banners</code>, then <code>events</code>.
+</li><li>
+<code>events</code>:
+<ul class="tight"><li>
+<code>id</code> UUID <code>pk_events</code>, server default <code>gen_random_uuid()</code>
+</li><li>
+<code>author_party_id</code> UUID NOT NULL, FK <code>fk_events_author_party_id_parties</code> → <code>parties.id</code>
+</li><li>
+<code>name</code> VARCHAR(120) NOT NULL
+</li><li>
+<code>description</code> VARCHAR(2000) NULL
+</li><li>
+<code>starts_at</code> TIMESTAMP (naive) NOT NULL
+</li><li>
+<code>ends_at</code> TIMESTAMP NULL
+</li><li>
+<code>location_id</code> UUID NULL, FK <code>fk_events_location_id_locations</code> → <code>locations.id</code>
+</li><li>
+<code>created_at</code>, <code>updated_at</code> (BaseEntity)
+</li></ul>
+</li><li>
+<code>event_banners</code>:
+<ul class="tight"><li>
+<code>id</code> UUID <code>pk_event_banners</code>
+</li><li>
+<code>event_id</code> UUID NOT NULL, FK <code>fk_event_banners_event_id_events</code>, unique <code>uq_event_banners_event_id</code>
+</li><li>
+<code>storage_key</code> VARCHAR(200) NOT NULL
+</li><li>
+<code>size_bytes</code> INTEGER NOT NULL
+</li><li>
+<code>content_sha256</code> VARCHAR(64) NOT NULL
+</li><li>
+<code>status</code> VARCHAR(20) NOT NULL (string-backed <code>ModerationStatus</code>)
+</li><li>
+<code>created_at</code>, <code>updated_at</code>
+</li></ul>
+</li><li>
+<code>event_attendances</code> (schema only: no service, router or UI in this task):
+<ul class="tight"><li>
+<code>id</code> UUID <code>pk_event_attendances</code>, server default <code>gen_random_uuid()</code>
+</li><li>
+<code>event_id</code> UUID NOT NULL, FK <code>fk_event_attendances_event_id_events</code> → <code>events.id</code>, index <code>ix_event_attendances_event_id</code>
+</li><li>
+<code>party_id</code> UUID NOT NULL, FK <code>fk_event_attendances_party_id_parties</code> → <code>parties.id</code>. A plain FK-id column, consistent with <code>events.author_party_id</code>.
+</li><li>
+<code>withdrawn_at</code> TIMESTAMP (naive UTC) NULL. NULL means the sign-up is active.
+</li><li>
+<code>created_at</code>, <code>updated_at</code>
+</li><li>
+Partial unique index <code>uq_event_attendances_event_id_party_id</code> on <code>(event_id, party_id)</code> <code>WHERE withdrawn_at IS NULL</code>: one active sign-up per party per event.
+</li><li>
+Deliberately no <code>child_count</code> (unlike <code>TermAttendance</code>) and no <code>capacity</code>.
+</li></ul>
+</li><li>
+No other indexes on <code>events</code> or <code>event_banners</code>, because no read query exists yet.
+</li></ul>
+</li><li>
+<b>Models</b> in <code>app/events/models.py</code>:
+<ul class="tight"><li>
+<code>Event(BaseEntity)</code>, <code>EventBanner(BaseEntity)</code> and <code>EventAttendance(BaseEntity)</code>.
+</li><li>
+No <code>relationship()</code> anywhere. The module gets its own copy of <code>_enum_column</code>.
+</li><li>
+Business-key <code>__eq__</code>/<code>__hash__</code> use immutable columns only:
+<ul class="tight"><li>
+<code>Event</code> on <code>(author_party_id, created_at)</code>. No natural unique key exists; name and start may repeat.
+</li><li>
+<code>EventBanner</code> on <code>storage_key</code>.
+</li><li>
+<code>EventAttendance</code> on <code>(event_id, party_id, created_at)</code>. <code>(event_id, party_id)</code> alone repeats across withdrawn and later sign-ups, and <code>withdrawn_at</code> changes.
+</li></ul>
+</li><li>
+<code>EventBanner.large_key</code> = <code>{storage_key}/w1600.webp</code>, <code>thumb_key</code> = <code>{storage_key}/w400.webp</code>.
+</li><li>
+Nothing reads or writes <code>EventAttendance</code> in this task.
+</li></ul>
+</li><li>
+<b><code>POST /api/events</code></b> creates an event.
+<ul class="tight"><li>
+Requires <code>EDIT</code> or <code>mcp:edit</code>.
+</li><li>
+Returns 201 with <code>EventResponse</code>.
+</li><li>
+The author is the caller's party (<code>get_profile_by_principal(...).party_id</code>). It is never a field in the body.
+</li><li>
+Request model <code>CreateEventRequest</code> (<code>extra="forbid"</code>; every field optional at the schema level, so a missing field reaches the service). Validation happens in the service, in table order, and the first failing rule wins:
+<table><tr><th>Field</th><th>Rule (copy key → 400)</th></tr>
+<tr><td><code>starts_at</code> naive datetime</td><td>Missing → start.missing. Timezone-aware → datetime.aware. Seconds and microseconds are truncated. Earlier than <code>clock.local_now()</code> truncated to the minute → start.past. Later than <code>clock.local_now() + timedelta(days=730)</code> → start.tooFar.</td></tr>
+<tr><td><code>ends_at</code> naive datetime or null</td><td>Timezone-aware → datetime.aware. Truncated to the minute. Not later than <code>starts_at</code> → end.notAfter. Its <code>.date()</code> differs from that of <code>starts_at</code> → end.otherDay. So the latest possible end is 23:59, and midnight is not allowed.</td></tr>
+<tr><td><code>name</code> str</td><td>Trimmed. Blank or missing → name.blank. Outside 3–120 characters after trimming → name.length.</td></tr>
+<tr><td><code>description</code> str or null</td><td>Trimmed. A blank value is stored as null. Over 2000 characters → description.length.</td></tr>
+<tr><td><code>location_id</code> UUID or null</td><td>Checked with <code>locations_acl.get_owned_location</code>, as for a Term. Missing or soft-deleted → 404; someone else's → 403. These stay English server-side, and the plugin maps them.</td></tr>
+</table>
+</li><li>
+DST: naive wall-clock values are stored exactly as entered. A time inside a DST gap or overlap is accepted with no adjustment.
+</li><li>
+Text moderation runs after these rules and before the insert: <code>check_text(TextField.EVENT_NAME, name)</code>, then <code>check_text(TextField.EVENT_DESCRIPTION, description)</code>. A rejected text returns 400 with its <code>MESSAGES</code> text. An unavailable classifier returns 503 with the existing Polish <code>ModerationUnavailable</code> text.
+</li><li>
+Wrong JSON types still produce the existing 400 "Validation failed" envelope. That is a client bug, not a user path.
+</li><li>
+<code>EventResponse</code> has exactly these keys: <code>id</code>, <code>name</code>, <code>description</code>, <code>starts_at</code>, <code>ends_at</code>, <code>location</code> (<code>LocationRefResponse | null</code>), <code>created_at</code>, <code>updated_at</code>.
+</li></ul>
+</li><li>
+<b><code>POST /api/events/{event_id}/banner</code></b> uploads the banner.
+<ul class="tight"><li>
+Multipart request with one field, <code>file</code>.
+</li><li>
+Requires <code>EDIT</code> or <code>mcp:edit</code>.
+</li><li>
+Returns 200 with <code>EventBannerResponse {url, status}</code>. <code>url</code> is the public URL of the <code>w1600</code> image.
+</li><li>
+The router reads at most <code>EVENT_BANNER_MAX_BYTES + 1</code> bytes (5 MB + 1) and passes the bytes to <code>set_event_banner(db, principal, event_id, data, storage)</code>. The service then runs, in this order:
+<ol class="tight"><li>
+<code>db.get(Event, event_id, with_for_update=True)</code>. A missing event raises <code>EventNotFound</code> → 404 banner.notFound.
+</li><li>
+The caller is not the author → <code>NotEventAuthor</code> → 403 banner.notAuthor.
+</li><li>
+<code>storage is None</code> → 409 banner.disabled.
+</li><li>
+<code>len(data) &gt; EVENT_BANNER_MAX_BYTES</code> → 400 banner.tooLarge. This check sits in the service, after steps 1–3.
+</li><li>
+<code>images.process_upload</code> runs in a thread. A file that is not an image → 400 <code>INVALID_IMAGE_MESSAGE</code>.
+</li><li>
+Look up the previous banner. The event-row lock makes concurrent uploads run one after another.
+</li><li>
+Store the large and thumb images under <code>events/{event_id}/{banner_id}</code> with <code>public=True</code>, <code>status=APPROVED</code>.
+</li><li>
+If a previous banner exists: delete it, flush, and stage <code>OBJECTS_DELETE</code> for its keys.
+</li><li>
+Commit. On any failure, roll back and delete the newly stored files (the avatar pattern).
+</li></ol>
+</li></ul>
+</li><li>
+<b><code>app/events/infrastructure/locations_acl.py</code></b> is the only events module that imports <code>app.locations</code>.
+<ul class="tight"><li>
+It re-exports <code>LocationRefResponse</code>, <code>get_owned_location</code>, <code>get_location</code> and <code>location_ref_response</code>.
+</li><li>
+It never imports <code>..schemas</code>. <code>app/events/schemas.py</code> takes <code>LocationRefResponse</code> from the ACL.
+</li></ul>
+</li><li>
+<b>Errors and moderation fields.</b>
+<ul class="tight"><li>
+In <code>app/core/errors.py</code>, <code>AccessDeniedException</code> gains an optional <code>public_message: str | None = None</code>. <code>access_denied_handler</code> uses it when it is set and falls back to "Access denied", so existing 403s do not change.
+</li><li>
+<code>app/events/service.py</code> defines <code>EventNotFound(EntityNotFoundException)</code> (message banner.notFound) and <code>NotEventAuthor(AccessDeniedException)</code> (<code>public_message</code> banner.notAuthor).
+</li><li>
+<code>app/moderation/text_guard.py</code> gains <code>TextField.EVENT_NAME</code> and <code>TextField.EVENT_DESCRIPTION</code>, with their <code>MESSAGES</code> from the Copy table.
+</li></ul>
+</li><li>
+<b>Authorization.</b>
+<ul class="tight"><li>
+Add two <code>AUTHORIZATION_MATRIX</code> rows before the catch-all: <code>POST ^/api/events$</code> and <code>POST ^/api/events/[^/]+/banner$</code>, both <code>("EDIT", "mcp:edit")</code>.
+</li><li>
+Register the router with <code>app.include_router(events_router)</code> in <code>main.py</code>.
+</li></ul>
+</li></ol>
+<h3 style="font-size:14px">Host frontend</h3>
+<ol class="tight"><li>
+<b>Extension point.</b>
+<ul class="tight"><li>
+Add <code>ADD_EVENT = "add.event"</code> to <code>plugins/extensionPoints.ts</code>, which widens <code>ExtensionPointType</code>.
+</li><li>
+<code>PluginFrame</code> maps it with <code>CONTEXT_TYPE_PREFIX[ADD_EVENT] = "RENDER"</code>.
+</li><li>
+<code>api/plugins.ts</code> needs no edit; its type follows the union.
+</li></ul>
+</li><li>
+<b>Resolver module.</b>
+<ul class="tight"><li>
+Move <code>resolveExtensionPoints</code> and <code>ResolvedExtensionPoint</code> out of <code>PluginContext.tsx</code> into a new <code>plugins/resolveExtensionPoints.ts</code>. Behaviour does not change: disabled plugins are skipped and results are sorted by ascending priority.
+</li><li>
+<code>PluginContext.tsx</code> and <code>PluginFilterBar.tsx</code> import from the new module.
+</li></ul>
+</li><li>
+<b><code>hooks/usePlugins.ts</code></b> (new) is a TanStack hook over <code>getPlugins()</code>.
+<ul class="tight"><li>
+Its query key starts with the prefix constant <code>PLUGINS_KEY = "plugins"</code>.
+</li><li>
+It returns <code>{ data: PluginResponse[]</code> with a stable empty fallback, <code>loading</code>, <code>error: string | null</code>, <code>refetch }</code>.
+</li></ul>
+</li><li>
+<b><code>plugins/usePluginMessageHandler.ts</code></b> (new) adds the <code>createMessageHandler(iframeRegistry, options)</code> listener on mount and removes it on unmount. It keeps the latest <code>options</code> in a ref, so the listener is installed only once.
+</li><li>
+<b><code>PluginMessageHandler.ts</code></b> gains two message types. Both run after the existing prefix, source and origin checks. Existing types do not change.
+<ul class="tight"><li>
+<code>done</code> is fire-and-forget: it calls <code>options.onDone?.(pluginId, payload)</code> and sends no response. Without <code>onDone</code> it is ignored silently.
+</li><li>
+<code>uploadImage</code> takes the payload <code>{ url: string, file: Blob }</code>. It responds with an error when any of these holds:
+<ul class="tight"><li>
+<code>url</code> is not a string, contains <code>..</code>, or matches no entry in <code>UPLOAD_IMAGE_RULES</code>.
+</li><li>
+<code>file</code> is not a <code>Blob</code>.
+</li><li>
+The file is larger than the rule's <code>maxBytes</code>.
+</li><li>
+The file type is not among the rule's <code>mimeTypes</code>.
+<p style="margin:6px 0">The one rule matches <code>^/api/events/&lt;uuid&gt;/banner$</code> (case-insensitive), with a 5 × 1024 × 1024 byte limit and the types <code>image/jpeg</code>, <code>image/png</code> and <code>image/webp</code>. A request that passes is sent like this:</p>
+</li><li>
+The body is a <code>FormData</code> with one field, <code>file</code>.
+</li><li>
+It is sent with raw <code>fetch</code> (<code>POST</code>, <code>credentials: "omit"</code>). The headers are <code>X-Requested-With: PluginFetch</code> and the Bearer token; <code>Content-Type</code> is not set.
+</li><li>
+The response is <code>{ status, headers (safelisted), body: text }</code>.
+</li></ul>
+</li></ul>
+</li><li>
+<b>SDK</b> (<code>src/plugin-sdk/</code>).
+<ul class="tight"><li>
+<code>hostApp.uploadImage(url: string, file: Blob)</code> uses <code>sendMessageAndWait("uploadImage", { url, file })</code> and returns the <code>pluginFetch</code> shape. The timeout stays 10 s.
+</li><li>
+<code>thisPlugin.done(payload?: { name?: string })</code> uses <code>sendFireAndForget("done", payload ?? {})</code>.
+</li><li>
+Both are mirrored in <code>plugins/sdk.ts</code>.
+</li><li>
+<b>Dev serving:</b> the <code>build:sdk</code> script becomes <code>vite build -c vite.sdk.config.ts</code> followed by a cross-platform Node copy (<code>fs.copyFileSync</code>) of <code>dist/assets/plugin-sdk.js</code> to <code>public/assets/plugin-sdk.js</code>. Add <code>public/assets/plugin-sdk.js</code> to <code>src/frontend/.gitignore</code>. The Vite dev server on 5173 serves it at <code>/assets/plugin-sdk.js</code>. The production build is unchanged and keeps writing to <code>dist/assets</code>.
+</li></ul>
+</li><li>
+<b><code>pages/add/eventCreateViewState.ts</code></b> (new) holds the pure <code>resolveEventCreateView({ loading, error, plugins })</code>. It returns:
+<ul class="tight"><li>
+<code>{ kind: "loading" }</code>.
+</li><li>
+<code>{ kind: "unavailable" }</code> when the fetch failed, or no enabled plugin declares <code>add.event</code>.
+</li><li>
+<code>{ kind: "ready", point }</code> with the first point by priority.
+</li></ul>
+</li><li>
+<b><code>EventCreateView.tsx</code> is rewritten.</b> It always renders <code>SubPageHeader</code> with <code>title="Nowe wydarzenie"</code>, <code>backTo={viewPath("add")}</code> and <code>backLabel="Wróć do dodawania"</code>, then switches on <code>view.kind</code>:
+<ul class="tight"><li>
+<code>loading</code>: a <code>role="status"</code> "Wczytywanie…".
+</li><li>
+<code>unavailable</code> (screen:event-plugin-unavailable): a card with "🎈" (<code>aria-hidden</code>), the unavailable copy, and a link "Wróć do dodawania".
+</li><li>
+<code>ready</code>: a <code>PluginFrame</code> with:
+<ul class="tight"><li>
+<code>pluginId</code>, <code>pluginName</code> and <code>pluginUrl</code> taken from <code>point</code>
+</li><li>
+<code>contextType={ADD_EVENT}</code>
+</li><li>
+<code>path={point.path ?? "/"}</code>
+</li><li>
+<code>title="Formularz nowego wydarzenia"</code>. This is a new optional <code>title</code> prop on <code>PluginFrame</code>; the default stays <code>Plugin: {name}</code>.
+</li><li>
+<code>style.height: calc(100dvh - &lt;chrome offset&gt;)</code> and <code>minHeight: 560px</code>
+<p style="margin:6px 0">The view also mounts <code>usePluginMessageHandler({ onDone })</code>. <code>onDone</code>:</p>
+</li></ul>
+</li><li>
+trims the payload <code>name</code> and caps it at 120 characters;
+</li><li>
+calls <code>showToast</code> with the toast copy;
+</li><li>
+calls <code>void queryClient.invalidateQueries({ queryKey: [LOCATIONS_KEY] })</code> through <code>useQueryClient()</code>, because the plugin may have created a place with <code>hostApp.fetch</code>, which bypasses the host's hook invalidation;
+</li><li>
+calls <code>navigate(viewPath("add"))</code>.
+</li></ul>
+</li></ol>
+<h3 style="font-size:14px">Plugin <code>plugins/events</code></h3>
+<ol class="tight"><li>
+<b>Scaffold.</b> Copy the warehouse structure without its code smells:
+<ul class="tight"><li>
+<code>package.json</code>: name <code>events-plugin</code>, <code>"type": "module"</code>, the same dependency versions as warehouse.
+</li><li>
+<code>vite.config.ts</code>: port 3004, <code>strictPort</code>.
+</li><li>
+<code>tsconfig.json</code> and <code>src/vite-env.d.ts</code>.
+</li><li>
+<code>index.html</code>: <code>lang="pl"</code>. It loads <code>http://localhost:5173/assets/plugin-sdk.js</code> and not <code>plugin-ui.css</code>.
+</li><li>
+<code>src/styles.css</code>: mirrors the host tokens from <code>src/frontend/src/index.css</code>, with system font fallbacks and no external font loads.
+</li><li>
+<code>src/main.tsx</code>: a single route, <code>/</code> → <code>pages/EventCreatePage.tsx</code>.
+</li><li>
+<code>manifest.json</code>: name "Wydarzenia", version "1.0.0", url <code>http://localhost:3004</code>, description "Tworzenie jednorazowych wydarzeń", and <code>extensionPoints: [{ "type": "add.event", "label": "Wydarzenie", "path": "/", "priority": 10 }]</code>.
+</li><li>
+SDK imports: <code>../../sdk</code> from <code>src/*.ts(x)</code>, and <code>../../../sdk</code> from <code>src/pages/*</code> and <code>src/components/*</code>. Call <code>getSDK()</code> once per module.
+</li></ul>
+</li><li>
+<b><code>src/domain.ts</code></b> (pure):
+<ul class="tight"><li>
+Types: <code>EventDraft</code>, <code>EventResponse</code>, <code>LocationResponse</code>, <code>EventBannerResponse</code>.
+</li><li>
+<code>validateDraft(draft, now)</code> returns per-field errors using the Copy table (name, start.missing/past/tooFar, end.notAfter, description) plus the banner checks banner.invalid and banner.tooLarge.
+</li><li>
+<code>validatePlace({name, address})</code> returns place.name / place.address when a field is blank after trimming. The inputs cap length with <code>maxLength</code> 255 and 500.
+</li><li>
+<code>toRequest(draft)</code> builds naive <code>YYYY-MM-DDTHH:mm:00</code> strings. <code>ends_at</code> uses the start date with the end time.
+</li><li>
+Error mappers, one per call:
+<ul class="tight"><li>
+<code>createEventError(res)</code>: 400/409/503 → the body <code>message</code>; 403/404 → create.location; 401 → session; otherwise → create.generic.
+</li><li>
+<code>bannerError(res | rejection)</code>: 400/403/404/409 → the body <code>message</code>, which is now always Polish; 401 → session; otherwise, including a timeout → no extra line, banner.failed only.
+</li><li>
+<code>locationError(res)</code>: 400 → place.invalid; 401 → session; otherwise → place.generic.
+</li></ul>
+</li><li>
+API helpers wrap <code>hostApp.fetch</code> and <code>hostApp.uploadImage</code>: <code>createEvent</code>, <code>uploadBanner</code>, <code>listMyLocations</code> (<code>GET /api/locations/mine</code>) and <code>createLocation</code> (<code>POST /api/locations</code>, <code>source: "MANUAL"</code>).
+</li></ul>
+</li><li>
+<b>Form</b> (screens <code>event-form-empty</code>, <code>event-form-filled</code>, <code>event-form-errors</code>). The fields follow the mockup order:
+<ul class="tight"><li>
+Banner (optional):
+<ul class="tight"><li>
+A "+ Dodaj baner" drop zone with the banner.hint text.
+</li><li>
+The file input has <code>accept="image/jpeg,image/png,image/webp"</code>.
+</li><li>
+The preview uses <code>URL.createObjectURL</code>; the URL is revoked when the file is replaced or the component unmounts.
+</li><li>
+"Zmień" and "Usuń" chips.
+</li></ul>
+</li><li>
+Nazwa: <code>maxLength=120</code>.
+</li><li>
+Początek: a date input and a time input, both <b>blank on an empty form</b>.
+</li><li>
+Koniec: a time input that is blank by default, labelled "opcjonalnie, tego samego dnia". It always uses the start date.
+</li><li>
+Lokalizacja: a row button.
+</li><li>
+Opis: <code>maxLength=2000</code> and a "N / 2000" counter.
+</li><li>
+Each field shows its error after it is blurred. The error is inline with <code>role="alert"</code>, and the field gets <code>aria-invalid</code> and <code>aria-describedby</code>.
+</li><li>
+<b>"Zapisz wydarzenie"</b> is a focusable <code>aria-disabled="true"</code> button while the draft is invalid, with <code>aria-describedby</code> pointing at a visible submit.hint paragraph. Clicking it marks every field as touched, which reveals all the errors, and then returns without saving. While a save runs, the button is natively <code>disabled</code>.
+</li></ul>
+</li><li>
+<b>Location sheet</b> (screen <code>event-location-picker</code>):
+<ul class="tight"><li>
+It is a <code>role="dialog"</code> with <code>aria-modal</code>, the heading "Lokalizacja" and a ✕ close button. It traps Tab and Shift+Tab, Esc closes it, and focus returns to the trigger. Every button has <code>type="button"</code>.
+</li><li>
+It lists <code>GET /api/locations/mine</code>. While loading it shows <code>role="status"</code>. On error it shows places.load and a "Spróbuj ponownie" button.
+</li><li>
+"+ Dodaj nowe miejsce" opens an inline form with Nazwa (<code>maxLength=255</code>) and Adres (<code>maxLength=500</code>):
+<ul class="tight"><li>
+Field errors follow <code>validatePlace</code>.
+</li><li>
+The "Dodaj miejsce" button follows the same <code>aria-disabled</code> pattern as the main submit.
+</li><li>
+On submit it calls <code>POST /api/locations</code> with <code>{name, formatted_address, source: "MANUAL"}</code>. Success (201 or 200) selects the new place and closes the sheet. Failure shows <code>locationError</code> with <code>role="alert"</code>, and the form keeps its input.
+</li></ul>
+</li><li>
+"Bez lokalizacji" clears the chosen place.
+</li></ul>
+</li><li>
+<b>Save flow</b> (screens <code>event-saving</code>, <code>event-saved</code>, <code>event-banner-failed</code>):
+<ol class="tight"><li>
+<b>Saving</b>: "Zapisujemy „{name}”…", then the steps "✓ Wydarzenie zapisane" and "Wysyłanie banera…", with the note "Nie zamykaj tej strony."
+</li><li>
+<b>Create</b>: <code>createEvent</code> runs. On anything other than 201, the plugin goes back to the form, keeps the draft, and shows <code>createEventError</code> as a form-level <code>role="alert"</code>.
+</li><li>
+<b>Banner upload</b> (only when a banner was chosen): on a non-200 response or a rejected call, the plugin shows <code>bannerFailed</code>. That screen shows banner.failed plus the <code>bannerError</code> line when there is one, and two actions:
+<ul class="tight"><li>
+"Spróbuj ponownie" uploads again, replacing any banner already stored.
+</li><li>
+"Pomiń baner" goes to <code>saved</code>.
+</li></ul>
+</li><li>
+<b>Saved</b>: a <code>role="status"</code> card with:
+<ul class="tight"><li>
+"Wydarzenie zapisane" and the event name.
+</li><li>
+The date line from <code>Intl.DateTimeFormat("pl-PL")</code>, e.g. "niedziela, 15 listopada · 14:00–18:00", or "· 14:00" when there is no end.
+</li><li>
+The location name and address, when set.
+</li><li>
+"Dodaj kolejne", which resets to the empty form.
+</li><li>
+"Wróć do dodawania", which calls <code>thisPlugin.done({ name })</code>.
+</li></ul>
+</li></ol>
+</li><li>
+<b>Docs</b> (<code>plugins/CLAUDE.md</code>):
+<ul class="tight"><li>
+The <code>add.event</code> extension point section.
+</li><li>
+<code>hostApp.uploadImage</code>: allowlist, 5 MB limit, response shape, and the 10 s timeout caveat.
+</li><li>
+<code>thisPlugin.done</code>: only panel hosts honour it.
+</li><li>
+The dev SDK step: run <code>npm run build:sdk</code> in <code>src/frontend</code> before starting a plugin, and again after any SDK change.
+</li><li>
+Ports: 3001 warehouse, 3002 box-size, 3003 ai-description, 3004 events.
+</li><li>
+The registration curl, with <code>-H "Authorization: Bearer &lt;admin-token&gt;"</code> as a placeholder only (PLUGIN_MANAGEMENT or ADMIN).
+</li><li>
+Import paths: <code>../../sdk</code> vs <code>../../../sdk</code>.
+</li><li>
+A note that panel-hosted plugins use their own CSS mirroring the host tokens.
+</li><li>
+An "Events Plugin" reference entry.
+</li></ul>
+</li><li>
+<b>Requirements trace.</b> <code>analysis/requirements.md</code> Key Decisions records <code>event_attendances</code> (done).
+</li></ol>
+<h3 style="font-size:14px">Tests</h3>
+<ol class="tight"><li>
+Backend and host tests as listed in the Testing Approach. They replace the mock <code>/add/event</code> tests in <code>AppPage.test.tsx</code>.
+</li></ol></details>
+<h2 id="visual">Visual Design</h2><div class="card"><p>Mockups in <code>analysis/design-context/</code> are binding inputs — implementation-planner will attach <code>Visual References</code> to UI task groups. Fidelity: high (rendered HTML on host tokens). Corrections against the mockups:</p>
+<ul class="tight"><li>
+<code>event-form-empty</code> shows pre-filled dates; they are illustrative, and the real empty form has blank date and time fields.
+</li><li>
+The banner hint says "JPG", not "JPEG".
+</li><li>
+The disabled-looking submit is rendered with <code>aria-disabled</code> and a visible hint below it.
+</li></ul>
+<table><tr><th>ID</th><th>Mockup</th><th>Rendered by</th><th>Key elements → requirements</th></tr>
+<tr><td>screen:event-form-empty</td><td><a href="../analysis/design-context/mockups/formularz-nowego-wydarzenia-pusty.html">mockups/formularz-nowego-wydarzenia-pusty.html</a></td><td>plugin, under the host header</td><td>Intro text, banner drop zone, blank fields, <code>aria-disabled</code> submit + hint (Req 18)</td></tr>
+<tr><td>screen:event-form-filled</td><td><a href="../analysis/design-context/mockups/formularz-wype-niony-z-banerem.html">mockups/formularz-wype-niony-z-banerem.html</a></td><td>plugin</td><td>Banner preview with Zmień/Usuń, date + time, end time, location row, counter "49 / 2000" (Req 18)</td></tr>
+<tr><td>screen:event-form-errors</td><td><a href="../analysis/design-context/mockups/b-dy-walidacji.html">mockups/b-dy-walidacji.html</a></td><td>plugin</td><td>Inline name.blank / start.past / end.notAfter (Req 3, 17, 18)</td></tr>
+<tr><td>screen:event-location-picker</td><td><a href="../analysis/design-context/mockups/wyb-r-lokalizacji.html">mockups/wyb-r-lokalizacji.html</a></td><td>plugin sheet</td><td>"Lokalizacja" ✕, my places, "+ Dodaj nowe miejsce", "Bez lokalizacji" (Req 19)</td></tr>
+<tr><td>screen:event-saving</td><td><a href="../analysis/design-context/mockups/zapisywanie-wydarzenia.html">mockups/zapisywanie-wydarzenia.html</a></td><td>plugin</td><td>Two-step progress, "Nie zamykaj tej strony.", natively disabled "Zapisywanie…" (Req 20)</td></tr>
+<tr><td>screen:event-saved</td><td><a href="../analysis/design-context/mockups/potwierdzenie-zapisu.html">mockups/potwierdzenie-zapisu.html</a></td><td>plugin</td><td>Confirmation from the POST response; "Dodaj kolejne" / "Wróć do dodawania" sends <code>done</code> (Req 13, 20)</td></tr>
+<tr><td>screen:event-banner-failed</td><td><a href="../analysis/design-context/mockups/b-d-wysy-ania-banera.html">mockups/b-d-wysy-ania-banera.html</a></td><td>plugin</td><td>Saved card + banner.failed; "Spróbuj ponownie" / "Pomiń baner" (Req 4, 20)</td></tr>
+<tr><td>screen:event-plugin-unavailable</td><td><a href="../analysis/design-context/mockups/plugin-niedost-pny.html">mockups/plugin-niedost-pny.html</a></td><td>host</td><td>🎈, unavailable copy, "Wróć do dodawania" (Req 14, 15)</td></tr>
+<tr><td>screen:add-hub-toast</td><td><a href="../analysis/design-context/mockups/hub-dodawania-z-toastem.html">mockups/hub-dodawania-z-toastem.html</a></td><td>host</td><td><code>/add</code> hub with the toast "Wydarzenie „Piknik w parku” zapisane" (Req 12, 15)</td></tr>
+<tr><td>component:banner-picker</td><td><a href="../analysis/design-context/mockups/formularz-wype-niony-z-banerem.html">mockups/formularz-wype-niony-z-banerem.html</a></td><td>plugin</td><td>Drop zone or preview, change/remove chips, banner.hint (Req 18)</td></tr>
+<tr><td>component:location-field</td><td><a href="../analysis/design-context/mockups/wyb-r-lokalizacji.html">mockups/wyb-r-lokalizacji.html</a></td><td>plugin</td><td>Row button opening the sheet, <code>type="button"</code> (Req 18, 19)</td></tr>
+</table>
+<p>Layout guidance:</p>
+<ul class="tight"><li>
+Inputs are <code>h-12 rounded-2xl</code>, with a 1.5px border in <code>line</code>, a <code>paper</code> background, and a focus ring in <code>focus-ring</code> + <code>primary-soft</code>.
+</li><li>
+Buttons are <code>primary</code> pills.
+</li><li>
+The confirmation card is <code>rounded-[28px] bg-primary-soft</code>.
+</li><li>
+Bricolage Grotesque for serif titles, Figtree for body text.
+</li><li>
+Mobile-first, a 16px gutter, no horizontal scroll.
+</li></ul></div>
+<h2 id="reuse">Reusable vs New Components</h2><div class="card"><h3 style="font-size:14px">Existing Code to Leverage</h3>
+<table><tr><th>What</th><th>Where</th><th>How</th></tr>
+<tr><td>Avatar upload flow</td><td><code>src/backend/app/users/service.py:152-195</code>, <code>users/router.py:84-96</code></td><td>Template for <code>set_event_banner</code> (the event-row lock is added), bounded read, rollback deletes the new files</td></tr>
+<tr><td>Disabled-upload wording</td><td><code>users/service.py:128</code> <code>AVATAR_UPLOAD_DISABLED_MESSAGE</code></td><td>Same text for banner.disabled</td></tr>
+<tr><td>Image pipeline</td><td><code>app/storage/images.py</code> (<code>process_upload</code>, <code>INVALID_IMAGE_MESSAGE</code>)</td><td>Unchanged. The 5 MB check runs before it; the global 15 MB limit stays</td></tr>
+<tr><td>Storage, outbox</td><td><code>app/storage/service.py</code>, <code>app/storage/outbox_listener.py</code> (<code>OBJECTS_DELETE</code>), <code>app/outbox/service.append</code></td><td>Banner files and deletes of replaced files</td></tr>
+<tr><td>Location ACL</td><td><code>app/groups/infrastructure/locations_acl.py</code>, <code>app/locations/service.get_own_location</code></td><td>Pattern for <code>app/events/infrastructure/locations_acl.py</code>, including the <code>LocationRefResponse</code> re-export</td></tr>
+<tr><td>Attendance shape</td><td><code>app/groups/models.py:255-281</code> <code>TermAttendance</code></td><td>Model for <code>EventAttendance</code> (no <code>child_count</code>)</td></tr>
+<tr><td>Profile → party</td><td><code>app/users/service.get_profile_by_principal</code></td><td>Author party id</td></tr>
+<tr><td>Text moderation</td><td><code>app/moderation/text_guard.py</code></td><td>Two new fields</td></tr>
+<tr><td>Domain clock</td><td><code>app/core/clock.local_now()</code></td><td>Start-time checks</td></tr>
+<tr><td>Error envelope</td><td><code>app/core/errors.py</code></td><td>ValueError → 400, subclassed 404/403, 409; additive <code>public_message</code></td></tr>
+<tr><td>Authorization</td><td><code>app/core/authorization_matrix.py</code></td><td>Two rows</td></tr>
+<tr><td>Test fixtures</td><td><code>tests/conftest.py</code> (<code>client</code>, <code>db_session</code>, <code>fake_storage</code>, <code>freeze_local_now</code>), <code>test_my_profile.py::_png</code>, <code>test_conversation_messages.py</code> classifier fakes, <code>test_locations_migration.py</code></td><td>Backend tests</td></tr>
+<tr><td>Plugin host</td><td><code>plugins/PluginFrame.tsx</code>, <code>iframeRegistry.ts</code>, <code>PluginMessageHandler.ts</code></td><td>Extended, not forked</td></tr>
+<tr><td><code>aria-disabled</code> pattern</td><td><code>pages/product/ItemCreatePage.tsx</code> (<code>actionState</code>, <code>MISSING_FIELDS_HINT_ID</code>)</td><td>Submit and add-place buttons in the plugin</td></tr>
+<tr><td>Locations cache key</td><td><code>hooks/useMyLocations.ts</code> <code>LOCATIONS_KEY</code></td><td>Invalidated in <code>onDone</code></td></tr>
+<tr><td>Message handler tests</td><td><code>src/test/plugins.test.tsx:156-200</code> (MessageEvent with <code>source</code>/<code>origin</code>)</td><td>Pattern for the new handler and AppPage tests</td></tr>
+<tr><td>Panel chrome, toast</td><td><code>SubPageHeader</code>, <code>useAppData().showToast</code>, <code>viewPath</code></td><td>Host view</td></tr>
+<tr><td>Copy and classes</td><td>the current <code>pages/add/EventCreateView.tsx</code></td><td>Ported into the plugin</td></tr>
+<tr><td>Plugin scaffold</td><td><code>plugins/warehouse/*</code>, <code>plugins/sdk.ts</code></td><td>Template for the structure</td></tr>
+</table>
+<h3 style="font-size:14px">New Components Required</h3>
+<ul class="tight"><li>
+<b><code>app/events</code></b> (<code>models</code>, <code>schemas</code>, <code>service</code>, <code>router</code>, <code>infrastructure/locations_acl</code>) and migration 0070. Events need an owner and text moderation, and they are a separate concept from Term. <code>plugin_objects</code> has neither an owner nor moderation.
+</li><li>
+<b><code>plugins/resolveExtensionPoints.ts</code></b>. React Fast Refresh forbids a <code>.tsx</code> context module from exporting non-component functions, and the pure view-state module must not import a React context.
+</li><li>
+<b><code>hooks/usePlugins.ts</code></b>. The data-fetching standard requires it, and <code>PluginProvider</code> is admin-scoped.
+</li><li>
+<b><code>plugins/usePluginMessageHandler.ts</code></b>. The panel needs the message handler without <code>PluginProvider</code>.
+</li><li>
+<b><code>pages/add/eventCreateViewState.ts</code></b>. Required by the view-state standard.
+</li><li>
+<b><code>plugins/events/*</code></b>. The task requires an iframe plugin. Host components such as <code>LocationAddForm</code> and <code>trapFocus</code> cannot cross the iframe boundary.
+</li></ul></div>
+<h2 id="tech">Technical Approach</h2><details class="card" open><summary>Data flow, concurrency, compatibility</summary><ul class="tight"><li>
+<b>Data flow.</b>
+<ol class="tight"><li>
+<code>/add</code> → <code>/add/event</code>.
+</li><li>
+<code>usePlugins</code> → <code>resolveEventCreateView</code> → <code>PluginFrame</code> loads <code>http://localhost:3004/#RENDER{…}</code>.
+</li><li>
+<code>hostApp.fetch POST /api/events</code> creates the event.
+</li><li>
+<code>hostApp.uploadImage</code> sends the banner; the host checks the rule, builds the FormData and calls <code>/banner</code>.
+</li><li>
+<code>thisPlugin.done</code> → the host shows the toast, invalidates locations and navigates to <code>/add</code>.
+</li></ol>
+</li><li>
+<b>Same-origin API.</b> Every call goes through the host origin's <code>/api</code>: the Vite proxy in dev, nginx in production (16 MB body limit). No CORS change is needed.
+</li><li>
+<b>Dates.</b> Naive Europe/Warsaw wall-clock times from end to end, truncated to the minute, with no DST adjustment.
+</li><li>
+<b><code>create_event</code> steps.</b>
+<ol class="tight"><li>
+Load the profile.
+</li><li>
+Validate in Copy-table order and normalise.
+</li><li>
+Run the location ACL check when <code>location_id</code> is set.
+</li><li>
+Run <code>check_text</code> on the name, then the description.
+</li><li>
+Insert and commit.
+</li><li>
+Load the location for the response.
+</li></ol>
+</li><li>
+<b>Concurrency.</b> <code>set_event_banner</code> takes the event row <code>FOR UPDATE</code>, so a second upload waits, then sees the first upload's banner and replaces it. <code>uq_event_banners_event_id</code> stays as a backstop.
+</li><li>
+<b>Compatibility.</b>
+<ul class="tight"><li>
+Existing message types, <code>PluginProvider</code> behaviour, the admin routes and the product-detail frames do not change.
+</li><li>
+The <code>AccessDeniedException</code> change is additive: every existing raise keeps "Access denied".
+</li><li>
+In prod, <code>build:sdk</code> still writes to <code>dist/assets</code>.
+</li></ul>
+</li></ul></details>
+<h2 id="tests">Testing Approach</h2><div class="card"><ul class="tight"><li>
+2–8 focused tests per implementation step group. Test verification runs only the new tests, not the entire suite.
+</li><li>
+<b>Backend <code>tests/test_events.py</code></b> — event creation, 8 tests:
+<ol class="tight"><li>
+<code>test_createEvent_validWithOwnLocation_returns201ExactKeys</code>: exact key set, blank description → null, seconds truncated.
+</li><li>
+<code>test_createEvent_missingOrAwareStart_returns400</code>: parametrised over start.missing and datetime.aware.
+</li><li>
+<code>test_createEvent_startPastOrTooFar_returns400</code>: uses <code>freeze_local_now</code>.
+</li><li>
+<code>test_createEvent_endNotAfterStartOrOtherDay_returns400</code>: parametrised over equal times, earlier time, and an end of 00:00 on the next day.
+</li><li>
+<code>test_createEvent_nameOrDescriptionOutOfBounds_returns400</code>: blank, 2 and 121 characters; 2001-character description.
+</li><li>
+<code>test_createEvent_foreignOrMissingLocation_returns403Or404</code>.
+</li><li>
+<code>test_createEvent_rejectedText_returns400</code>: fake rejecting classifier, restored afterwards.
+</li><li>
+<code>test_createEvent_classifierUnavailable_returns503</code>.
+</li></ol>
+</li><li>
+<b>Backend <code>tests/test_event_banners.py</code></b> — banner upload, 5 tests:
+<ol class="tight"><li>
+<code>test_uploadBanner_author_returns200StoresPublicFiles</code>.
+</li><li>
+<code>test_uploadBanner_replace_keepsOneRowStagesOutboxDelete</code>.
+</li><li>
+<code>test_uploadBanner_nonAuthorOrMissing_returns403Or404Polish</code>.
+</li><li>
+<code>test_uploadBanner_tooLargeOrNotImage_returns400</code>.
+</li><li>
+<code>test_uploadBanner_storageDisabled_returns409</code>.
+</li></ol>
+<ul class="tight"><li>
+The savepoint fixture cannot reproduce two concurrent requests, so the row lock is checked in code review, not by a test.
+</li></ul>
+</li><li>
+<b>Backend <code>tests/test_events_migration.py</code></b> — 1–2 tests: downgrade to 0069 drops all three tables, then upgrade to head restores them, their named constraints, and the predicate of <code>uq_event_attendances_event_id_party_id</code>.
+</li><li>
+<b>Backend: other test files.</b>
+<ul class="tight"><li>
+Add the two rows to <code>tests/test_authorization_matrix.py</code>.
+</li><li>
+In <code>tests/test_domain_clock_guard.py</code>, add <code>app/events</code> to <code>_GUARDED_DIRS</code> and rename the test to <code>test_guardedPackages_noHostClockCalls</code>.
+</li></ul>
+</li><li>
+<b>Frontend</b> — Vitest under <code>src/test/</code>, explicit vitest imports, typed fixtures:
+<ul class="tight"><li>
+<code>eventCreateViewState.test.ts</code>: an <code>it.each</code> table over loading, fetch error, no plugins, disabled plugin, enabled plugin without <code>add.event</code>, ready, and lowest-priority-wins.
+</li><li>
+<code>plugins.test.tsx</code>, 7 additions:
+<ol class="tight"><li>
+<code>uploadImage</code> happy path: FormData field <code>file</code>, Bearer, <code>X-Requested-With</code>, <code>pluginFetch</code> shape.
+</li><li>
+A path that is not allowlisted → error.
+</li><li>
+<code>it.each</code> over non-Blob, oversized, and disallowed MIME type (<code>image/gif</code>) → error.
+</li><li>
+<code>done</code> calls <code>onDone</code> and sends no response.
+</li><li>
+<code>done</code> without <code>onDone</code> → no response and no throw.
+</li><li>
+<code>PluginFrame</code> with <code>add.event</code> → <code>RENDER</code> prefix.
+</li><li>
+<code>usePluginMessageHandler</code> removes its listener on unmount.
+</li></ol>
+</li><li>
+<code>plugin-sdk.test.ts</code>, 2 additions: <code>hostApp.uploadImage</code> posts <code>{url, file}</code>; <code>thisPlugin.done</code> is fire-and-forget.
+</li><li>
+<code>AppPage.test.tsx</code>, up to 4 tests. Replace the "Dodaj › Wydarzenie (mock)" describe; add <code>vi.mock("../api/plugins")</code> and stub <code>getPlugins</code> per test.
+<ol class="tight"><li>
+The hub link points to <code>/add/event</code>.
+</li><li>
+With a plugin that has <code>add.event</code> enabled, the iframe "Formularz nowego wydarzenia" renders under "Nowe wydarzenie".
+</li><li>
+No plugin, or a disabled one → the fallback and its back link.
+</li><li>
+A <code>done</code> <code>MessageEvent</code> with <code>source</code> = the iframe's <code>contentWindow</code> and <code>origin</code> = <code>http://localhost:3004</code> → the <code>/add</code> hub plus the toast "Wydarzenie „Piknik w parku” zapisane".
+</li></ol>
+</li></ul>
+</li><li>
+<b>Plugin:</b> <code>npm run build</code> (<code>tsc -b &amp;&amp; vite build</code>) must pass. Behaviour, including that the copy matches the Copy table, is checked by end-to-end or manual verification against the mockups.
+</li><li>
+<b>Commands:</b>
+<ul class="tight"><li>
+Backend: <code>uv run python -m pytest|mypy|ruff</code>, from <code>src/backend</code>.
+</li><li>
+Frontend: <code>npm test</code> and <code>tsc -p tsconfig.app.json</code>, from <code>src/frontend</code>.
+</li></ul>
+</li></ul></div>
+<details class="card"><summary>Standards compliance</summary><ul class="tight"><li>
+<code>standards/backend/models.md</code>:
+<ul class="tight"><li>
+BaseEntity UUID primary keys, string-backed enum columns.
+</li><li>
+No <code>relationship()</code>.
+</li><li>
+Business-key equality on immutable columns only.
+</li><li>
+Cross-context access through one <code>infrastructure/locations_acl.py</code> that re-exports <code>LocationRefResponse</code>, and the owner's 404-before-403 check.
+</li></ul>
+</li><li>
+<code>standards/backend/migrations.md</code>:
+<ul class="tight"><li>
+One revision, 0070.
+</li><li>
+Named <code>pk_</code>/<code>fk_</code>/<code>ix_</code>/<code>uq_</code> constraints, <code>gen_random_uuid()</code> defaults, a partial unique index.
+</li><li>
+<code>downgrade()</code> drops in reverse order, and a downgrade-then-upgrade test covers it.
+</li></ul>
+</li><li>
+<code>standards/backend/security.md</code>: <code>Depends(require_any("EDIT", "mcp:edit"))</code>, and matrix rows verified by tests.
+</li><li>
+<code>standards/backend/time.md</code>: <code>clock.local_now()</code> through the module attribute, naive Warsaw times, clock-guard coverage. <code>withdrawn_at</code> is naive UTC.
+</li><li>
+<code>standards/backend/api.md</code>: plural <code>/api/events</code>, sub-resource <code>/banner</code>, 201 on create.
+</li><li>
+<code>standards/global/error-handling.md</code> and <code>validation.md</code>:
+<ul class="tight"><li>
+Specific Polish messages, with the server as the authority.
+</li><li>
+Inline client feedback.
+</li><li>
+Submit is blocked while invalid, here through <code>aria-disabled</code> so the hint can be reached.
+</li></ul>
+</li><li>
+<code>standards/global/minimal-implementation.md</code>: create-only, no <code>banner</code> key, no resize protocol. One deliberate exception: <code>event_attendances</code>, created ahead of its follow-up by user decision.
+</li><li>
+<code>standards/backend/plugin-auth.md</code>: the host injects the JWT.
+</li><li>
+<code>standards/frontend/data-fetching.md</code>:
+<ul class="tight"><li>
+The <code>usePlugins</code> hook uses a prefix key.
+</li><li>
+<code>onDone</code> invalidates the <code>LOCATIONS_KEY</code> prefix after the plugin may have created a place.
+</li></ul>
+</li><li>
+<code>standards/frontend/components.md</code>: <code>resolveEventCreateView</code> lives in <code>*ViewState.ts</code> and is table-tested.
+</li><li>
+<code>standards/frontend/accessibility.md</code>:
+<ul class="tight"><li>
+Labels; <code>role="alert"</code> with <code>aria-invalid</code> and <code>aria-describedby</code>.
+</li><li>
+<code>aria-disabled</code> plus a hint for blocked actions, native <code>disabled</code> only while busy.
+</li><li>
+The modal sheet traps focus, closes on Esc and returns focus; buttons have <code>type="button"</code>; the iframe has a Polish title.
+</li></ul>
+</li><li>
+<code>standards/frontend/css.md</code> and <code>responsive.md</code>: tokens mirrored from the host, mobile-first.
+</li><li>
+<code>standards/testing/backend-testing.md</code>:
+<ul class="tight"><li>
+8 + 5 + 2 tests across three features.
+</li><li>
+Exact key sets, <code>freeze_local_now</code>, and the <code>test_&lt;operation&gt;_&lt;scenario&gt;_&lt;expected&gt;</code> naming.
+</li></ul>
+</li><li>
+<code>standards/testing/frontend-testing.md</code>: <code>vi.mock</code> for API modules, <code>createQueryWrapper</code>.
+</li><li>
+CLAUDE.md secrets rule: the docs and curl use only <code>&lt;admin-token&gt;</code> placeholders; no SPACES or JWT values.
+</li></ul></details>
+<h2 id="success">Success Criteria</h2><div class="card"><ul class="tight"><li>
+<b>Event created end to end.</b> After <code>npm run build:sdk</code>, a logged-in user creates an event through the plugin with every optional field filled. <code>events</code> then holds the caller's <code>author_party_id</code> and naive Warsaw times. A chosen banner gives one <code>APPROVED</code> row in <code>event_banners</code> and two public WebP files.
+</li><li>
+<b>Validation copy matches.</b> Every rule in Req 3 returns a 400 with the exact Copy-table text. The plugin shows the same text inline before submitting. Clicking the <code>aria-disabled</code> submit reveals every field error.
+</li><li>
+<b>Banner endpoint errors.</b> It returns 404 "Nie znaleziono wydarzenia.", 403 "Możesz dodać baner tylko do swojego wydarzenia.", 409 for storage disabled, and 400 for too large or invalid, in that order. A second upload leaves exactly one banner row and stages one outbox delete.
+</li><li>
+<b>Fallback and compatibility.</b> Without the plugin, or with it disabled, <code>/add/event</code> shows the Polish fallback. Admin plugin pages and product frames behave as before. Existing 403 responses still say "Access denied".
+</li><li>
+<b><code>done</code> and <code>uploadImage</code>.</b> <code>done</code> returns the user to <code>/add</code> with the toast and invalidates the locations cache. Hosts without <code>onDone</code> ignore <code>done</code>. <code>uploadImage</code> refuses any path, size or MIME type outside its rule.
+</li><li>
+<b>Migration.</b> 0070 creates and drops all three tables cleanly. <code>event_attendances</code> enforces one active sign-up per party per event.
+</li><li>
+<b>Checks pass.</b>
+<ul class="tight"><li>
+All new tests pass.
+</li><li>
+ruff and mypy stay at or below the HEAD baseline.
+</li><li>
+The frontend <code>tsc</code> and lint pass.
+</li><li>
+<code>plugins/events</code> builds.
+</li><li>
+<code>plugins/CLAUDE.md</code> documents <code>add.event</code>, <code>uploadImage</code>, <code>done</code>, the SDK build step, all four ports, and the placeholder registration curl.
+</li></ul>
+</li></ul></div>
+<h2 id="audit">Audit Resolutions</h2><div class="card"><table><tr><th>Finding</th><th>Resolution</th></tr>
+<tr><td>H1 SDK build/serve</td><td><code>build:sdk</code> also copies the bundle to <code>public/assets/plugin-sdk.js</code> (git-ignored); 5173 serves it; step documented in <code>plugins/CLAUDE.md</code>; legacy copy out of scope (Req 13, 21)</td></tr>
+<tr><td>M1 disabled vs aria-disabled</td><td>User decision: <code>aria-disabled</code> + <code>aria-describedby</code> hint; a click reveals all errors; native <code>disabled</code> only while saving (Req 18, 19)</td></tr>
+<tr><td>M2 banner error copy</td><td>The backend returns Polish 404/403 (<code>EventNotFound</code>, <code>NotEventAuthor</code>, <code>public_message</code>); the plugin has one error mapper per call (Req 4, 6, 17)</td></tr>
+<tr><td>M3 retry race</td><td>The event row is locked <code>FOR UPDATE</code> before the previous-banner lookup; the unique constraint stays as a backstop (Req 4, Technical Approach)</td></tr>
+<tr><td>M4 missing copy</td><td>start.missing is raised in the service (fields optional in the schema); add-place rules, <code>maxLength</code>, place.* copy and the <code>locationError</code> mapping are defined (Copy table, Req 3, 17, 19)</td></tr>
+<tr><td>L1 table count</td><td>Req 1 says "creates three tables"</td></tr>
+<tr><td>L2 5 MB ordering</td><td>The size check runs in the service after the 404/403/409 checks (Req 4.4)</td></tr>
+<tr><td>L3 ACL re-export</td><td><code>LocationRefResponse</code> is re-exported by the events ACL (Req 5)</td></tr>
+<tr><td>L4 wording drift</td><td>banner.disabled uses the avatar text; banner.invalid uses <code>INVALID_IMAGE_MESSAGE</code>; the hint says "JPG" (Copy table)</td></tr>
+<tr><td>L5 stale locations cache</td><td><code>onDone</code> invalidates <code>[LOCATIONS_KEY]</code> (Req 15)</td></tr>
+<tr><td>L6 react-refresh export</td><td>The resolver moves to <code>plugins/resolveExtensionPoints.ts</code> (Req 9)</td></tr>
+<tr><td>L7 AppPage test prerequisites</td><td><code>vi.mock("../api/plugins")</code>; MessageEvent <code>source</code>/<code>origin</code> spelled out (Testing Approach)</td></tr>
+<tr><td>L8 test gaps</td><td>Added: aware datetime, missing start, classifier 503, blank description → null, MIME rejection, listener removal on unmount; copy parity checked by e2e against the Copy table</td></tr>
+<tr><td>L9 test volume</td><td>Split into <code>test_events.py</code> (8) and <code>test_event_banners.py</code> (5), each within 2–8</td></tr>
+<tr><td>L10 docs details</td><td>Ports include 3003; the curl has a placeholder admin Bearer header; <code>../../sdk</code> vs <code>../../../sdk</code> import paths (Req 16, 21)</td></tr>
+<tr><td>L11 empty-form prefill</td><td>User decision: blank date and time; the end shares the start's date; the mockup prefill is illustrative (Req 18, Visual Design)</td></tr>
+<tr><td>L12 traceability, clock-guard name</td><td><code>event_attendances</code> added to <code>analysis/requirements.md</code>; the test is renamed <code>test_guardedPackages_noHostClockCalls</code></td></tr>
+<tr><td>L13 business keys</td><td><code>EventAttendance</code> on <code>(event_id, party_id, created_at)</code>; <code>Event</code> on <code>(author_party_id, created_at)</code>; immutable columns only (Req 2)</td></tr>
+<tr><td>L14 date edge cases</td><td>End must be after the start and on the same day (an end of 00:00 is not allowed; the latest end is 23:59); naive wall clock, no DST adjustment; start ≤ now + 730 days (start.tooFar); seconds truncated; confirmation format without an end defined (Req 3, 20)</td></tr>
+</table></div>
+</main>
+</body>
+</html>
