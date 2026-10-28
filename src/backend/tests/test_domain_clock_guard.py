@@ -21,6 +21,7 @@ from app.core.errors import BusinessConflictException
 from app.core.security import decode_token
 from app.groups import service
 from app.groups.models import SwapProposalStatus, Term
+from tests.conftest import leaf_category_ids
 
 _APP_ROOT = Path(__file__).resolve().parents[1] / "app"
 _GUARDED_DIRS = (_APP_ROOT / "groups" / "application", _APP_ROOT / "groups" / "router")
@@ -59,10 +60,10 @@ async def _register(client: AsyncClient, role: str, email: str) -> str:
 async def _register_swap_item(
     client: AsyncClient, db_session: AsyncSession, token: str, product_name: str
 ) -> uuid.UUID:
-    categories = await client.get("/api/categories", headers=_auth(token))
+    category_id = (await leaf_category_ids(client, _auth(token)))[0]
     product = await client.post(
         "/api/products/resolve",
-        json={"name": product_name, "category_id": str(categories.json()[0]["id"])},
+        json={"name": product_name, "category_id": category_id},
         headers=_auth(token),
     )
     assert product.status_code == 200

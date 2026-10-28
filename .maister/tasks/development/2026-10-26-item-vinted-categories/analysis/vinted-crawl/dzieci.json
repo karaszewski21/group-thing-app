@@ -1,0 +1,1168 @@
+[
+ {
+  "name": "Ubrania dla dziewczynek",
+  "external_id": 1195,
+  "children": [
+   {
+    "name": "Okrycia wierzchnie",
+    "external_id": 1244,
+    "children": [
+     {
+      "name": "Kurtki",
+      "external_id": 1521,
+      "children": [
+       {
+        "name": "Kurtki ocieplane",
+        "external_id": 2548,
+        "children": []
+       },
+       {
+        "name": "Kurtki wiatrówki",
+        "external_id": 2549,
+        "children": []
+       },
+       {
+        "name": "Kurtki jeansowe",
+        "external_id": 2546,
+        "children": []
+       },
+       {
+        "name": "Bomberki",
+        "external_id": 2545,
+        "children": []
+       },
+       {
+        "name": "Kurtki z polaru",
+        "external_id": 2547,
+        "children": []
+       },
+       {
+        "name": "Marynarki",
+        "external_id": 2544,
+        "children": []
+       }
+      ]
+     },
+     {
+      "name": "Odzież zimowa",
+      "external_id": 2559,
+      "children": [
+       {
+        "name": "Kombinezony i zestawy zimowe",
+        "external_id": 2565,
+        "children": []
+       },
+       {
+        "name": "Kurtki zimowe",
+        "external_id": 2560,
+        "children": []
+       },
+       {
+        "name": "Spodnie zimowe",
+        "external_id": 2582,
+        "children": []
+       }
+      ]
+     },
+     {
+      "name": "Płaszcze",
+      "external_id": 1519,
+      "children": [
+       {
+        "name": "Parki",
+        "external_id": 2541,
+        "children": []
+       },
+       {
+        "name": "Trencze",
+        "external_id": 2543,
+        "children": []
+       },
+       {
+        "name": "Budrysówki",
+        "external_id": 2540,
+        "children": []
+       },
+       {
+        "name": "Bosmanki",
+        "external_id": 2542,
+        "children": []
+       }
+      ]
+     },
+     {
+      "name": "Bezrękawniki",
+      "external_id": 1518,
+      "children": []
+     },
+     {
+      "name": "Odzież przeciwdeszczowa",
+      "external_id": 2554,
+      "children": [
+       {
+        "name": "Kurtki i płaszcze przeciwdeszczowe",
+        "external_id": 2558,
+        "children": []
+       },
+       {
+        "name": "Komplety przeciwdeszczowe",
+        "external_id": 2557,
+        "children": []
+       },
+       {
+        "name": "Poncza",
+        "external_id": 2556,
+        "children": []
+       },
+       {
+        "name": "Spodnie przeciwdeszczowe",
+        "external_id": 2555,
+        "children": []
+       }
+      ]
+     }
+    ]
+   },
+   {
+    "name": "Obuwie",
+    "external_id": 1255,
+    "children": [
+     {
+      "name": "Buty za kostkę",
+      "external_id": 1530,
+      "children": [
+       {
+        "name": "Botki",
+        "external_id": 2695,
+        "children": []
+       },
+       {
+        "name": "Śniegowce",
+        "external_id": 2697,
+        "children": []
+       },
+       {
+        "name": "Kozaki",
+        "external_id": 2696,
+        "children": []
+       },
+       {
+        "name": "Kalosze",
+        "external_id": 2698,
+        "children": []
+       }
+      ]
+     },
+     {
+      "name": "Sneakersy, trampki i tenisówki",
+      "external_id": 1533,
+      "children": [
+       {
+        "name": "Buty na rzepy",
+        "external_id": 2718,
+        "children": []
+       },
+       {
+        "name": "Buty sznurowane",
+        "external_id": 2719,
+        "children": []
+       },
+       {
+        "name": "Buty wsuwane",
+        "external_id": 2720,
+        "children": []
+       }
+      ]
+     },
+     {
+      "name": "Obuwie sportowe",
+      "external_id": 2693,
+      "children": [
+       {
+        "name": "Buty do biegania",
+        "external_id": 2714,
+        "children": []
+       },
+       {
+        "name": "Trekkingi",
+        "external_id": 2711,
+        "children": []
+       },
+       {
+        "name": "Buty do wody",
+        "external_id": 2717,
+        "children": []
+       },
+       {
+        "name": "Rolki i wrotki",
+        "external_id": 2713,
+        "children": []
+       },
+       {
+        "name": "Buty do piłki nożnej",
+        "external_id": 2710,
+        "children": []
+       },
+       {
+        "name": "Buty do koszykówki",
+        "external_id": 2708,
+        "children": []
+       },
+       {
+        "name": "Buty do tańca",
+        "external_id": 2709,
+        "children": []
+       },
+       {
+        "name": "Łyżwy",
+        "external_id": 2712,
+        "children": []
+       },
+       {
+        "name": "Buty narciarskie",
+        "external_id": 2715,
+        "children": []
+       },
+       {
+        "name": "Buty snowboardowe",
+        "external_id": 2716,
+        "children": []
+       }
+      ]
+     },
+     {
+      "name": "Klapki i sandały",
+      "external_id": 2691,
+      "children": [
+       {
+        "name": "Sandały",
+        "external_id": 2705,
+        "children": []
+       },
+       {
+        "name": "Klapki basenowe",
+        "external_id": 2707,
+        "children": []
+       },
+       {
+        "name": "Japonki",
+        "external_id": 2704,
+        "children": []
+       }
+      ]
+     },
+     {
+      "name": "Buciki niemowlęce",
+      "external_id": 1525,
+      "children": []
+     },
+     {
+      "name": "Kapcie",
+      "external_id": 1534,
+      "children": []
+     },
+     {
+      "name": "Buty na płaskim obcasie",
+      "external_id": 1526,
+      "children": [
+       {
+        "name": "Baleriny, Mary Jane i T-bary",
+        "external_id": 2753,
+        "children": []
+       },
+       {
+        "name": "Oksfordki",
+        "external_id": 2702,
+        "children": []
+       },
+       {
+        "name": "Espadryle",
+        "external_id": 2701,
+        "children": []
+       }
+      ]
+     },
+     {
+      "name": "Obuwie wizytowe i na specjalne okazje",
+      "external_id": 1528,
+      "children": []
+     },
+     {
+      "name": "Chodaki i mule",
+      "external_id": 2690,
+      "children": []
+     },
+     {
+      "name": "Buty na obcasie",
+      "external_id": 2692,
+      "children": []
+     }
+    ]
+   },
+   {
+    "name": "Spodnie i szorty",
+    "external_id": 1249,
+    "children": [
+     {
+      "name": "Legginsy",
+      "external_id": 1565,
+      "children": []
+     },
+     {
+      "name": "Jeansy",
+      "external_id": 1559,
+      "children": []
+     },
+     {
+      "name": "Z szeroką nogawką",
+      "external_id": 1562,
+      "children": []
+     },
+     {
+      "name": "Spodenki",
+      "external_id": 1250,
+      "children": []
+     },
+     {
+      "name": "Inne",
+      "external_id": 1880,
+      "children": []
+     },
+     {
+      "name": "Kombinezony",
+      "external_id": 1568,
+      "children": []
+     },
+     {
+      "name": "Rurki",
+      "external_id": 1560,
+      "children": []
+     },
+     {
+      "name": "Haremki",
+      "external_id": 2079,
+      "children": []
+     }
+    ]
+   },
+   {
+    "name": "Swetry i bluzy",
+    "external_id": 1246,
+    "children": [
+     {
+      "name": "Swetry",
+      "external_id": 1542,
+      "children": []
+     },
+     {
+      "name": "Bluzy",
+      "external_id": 1550,
+      "children": []
+     },
+     {
+      "name": "Zapinane swetry",
+      "external_id": 1548,
+      "children": []
+     },
+     {
+      "name": "Inne",
+      "external_id": 1877,
+      "children": []
+     },
+     {
+      "name": "Bolerka",
+      "external_id": 1549,
+      "children": []
+     },
+     {
+      "name": "Golfy",
+      "external_id": 1544,
+      "children": []
+     },
+     {
+      "name": "Kamizelki",
+      "external_id": 1551,
+      "children": []
+     },
+     {
+      "name": "Swetry z dekoltem V",
+      "external_id": 1543,
+      "children": []
+     }
+    ]
+   },
+   {
+    "name": "Sukienki",
+    "external_id": 1247,
+    "children": [
+     {
+      "name": "Krótkie sukienki",
+      "external_id": 1554,
+      "children": []
+     },
+     {
+      "name": "Długie sukienki",
+      "external_id": 1553,
+      "children": []
+     }
+    ]
+   },
+   {
+    "name": "Dziew. ubranka niemowlęce",
+    "external_id": 1243,
+    "children": [
+     {
+      "name": "Zestawy",
+      "external_id": 1517,
+      "children": []
+     },
+     {
+      "name": "Body",
+      "external_id": 1515,
+      "children": []
+     },
+     {
+      "name": "Pajacyki",
+      "external_id": 1514,
+      "children": []
+     },
+     {
+      "name": "Inne",
+      "external_id": 1875,
+      "children": []
+     },
+     {
+      "name": "Kombinezony dziecięce",
+      "external_id": 1516,
+      "children": []
+     }
+    ]
+   },
+   {
+    "name": "Koszulki, topy i bluzki",
+    "external_id": 1245,
+    "children": [
+     {
+      "name": "T-shirty",
+      "external_id": 1535,
+      "children": []
+     },
+     {
+      "name": "Koszule z długim rękawem",
+      "external_id": 1539,
+      "children": []
+     },
+     {
+      "name": "Koszule",
+      "external_id": 1537,
+      "children": []
+     },
+     {
+      "name": "Koszule bez rękawów",
+      "external_id": 1540,
+      "children": []
+     },
+     {
+      "name": "Koszule z krótkim rękawem",
+      "external_id": 1538,
+      "children": []
+     },
+     {
+      "name": "Inne",
+      "external_id": 1878,
+      "children": []
+     },
+     {
+      "name": "Tuniki",
+      "external_id": 1541,
+      "children": []
+     },
+     {
+      "name": "Koszulki polo",
+      "external_id": 1536,
+      "children": []
+     }
+    ]
+   },
+   {
+    "name": "Akcesoria",
+    "external_id": 1574,
+    "children": [
+     {
+      "name": "Kapelusze i czapki",
+      "external_id": 1577,
+      "children": []
+     },
+     {
+      "name": "Akcesoria do włosów",
+      "external_id": 1582,
+      "children": []
+     },
+     {
+      "name": "Biżuteria",
+      "external_id": 1586,
+      "children": []
+     },
+     {
+      "name": "Szale i szaliki",
+      "external_id": 1580,
+      "children": []
+     },
+     {
+      "name": "Inne akcesoria",
+      "external_id": 1881,
+      "children": []
+     },
+     {
+      "name": "Rękawiczki",
+      "external_id": 1578,
+      "children": []
+     },
+     {
+      "name": "Portmonetki",
+      "external_id": 1584,
+      "children": []
+     },
+     {
+      "name": "Paski",
+      "external_id": 1581,
+      "children": []
+     }
+    ]
+   },
+   {
+    "name": "Stroje wizytowe i na specjalne okazje",
+    "external_id": 2080,
+    "children": []
+   },
+   {
+    "name": "Piżamy",
+    "external_id": 1594,
+    "children": [
+     {
+      "name": "Jednoczęściowe",
+      "external_id": 1596,
+      "children": []
+     },
+     {
+      "name": "Dwuczęściowe",
+      "external_id": 1597,
+      "children": []
+     },
+     {
+      "name": "Koszule nocne",
+      "external_id": 1598,
+      "children": []
+     }
+    ]
+   },
+   {
+    "name": "Spódniczki",
+    "external_id": 1248,
+    "children": []
+   },
+   {
+    "name": "Paki ubrań",
+    "external_id": 1510,
+    "children": []
+   },
+   {
+    "name": "Przebranie, kostiumy tematyczne",
+    "external_id": 1606,
+    "children": []
+   },
+   {
+    "name": "Odzież sportowa",
+    "external_id": 1253,
+    "children": []
+   },
+   {
+    "name": "Bielizna",
+    "external_id": 1252,
+    "children": [
+     {
+      "name": "Rajstopy",
+      "external_id": 1601,
+      "children": []
+     },
+     {
+      "name": "Skarpetki",
+      "external_id": 1600,
+      "children": []
+     },
+     {
+      "name": "Inne",
+      "external_id": 1872,
+      "children": []
+     },
+     {
+      "name": "Majtki",
+      "external_id": 1602,
+      "children": []
+     }
+    ]
+   },
+   {
+    "name": "Stroje kąpielowe",
+    "external_id": 1251,
+    "children": [
+     {
+      "name": "Jednoczęściowe",
+      "external_id": 1590,
+      "children": []
+     },
+     {
+      "name": "Dwuczęściowe",
+      "external_id": 1592,
+      "children": []
+     },
+     {
+      "name": "Szlafroki kąpielowe",
+      "external_id": 1593,
+      "children": []
+     }
+    ]
+   },
+   {
+    "name": "Torby i plecaki",
+    "external_id": 1258,
+    "children": []
+   },
+   {
+    "name": "Inne",
+    "external_id": 1254,
+    "children": []
+   },
+   {
+    "name": "Bliźnięta i więcej",
+    "external_id": 1604,
+    "children": []
+   }
+  ]
+ },
+ {
+  "name": "Ubrania dla chłopców",
+  "external_id": 1194,
+  "children": [
+   {
+    "name": "Płaszcze i kurtki",
+    "external_id": 1197,
+    "children": []
+   },
+   {
+    "name": "Obuwie",
+    "external_id": 1256,
+    "children": []
+   },
+   {
+    "name": "Chł. ubranka niemowlęce",
+    "external_id": 1196,
+    "children": []
+   },
+   {
+    "name": "Spodnie i szorty",
+    "external_id": 1200,
+    "children": []
+   },
+   {
+    "name": "Swetry i bluzy",
+    "external_id": 1199,
+    "children": []
+   },
+   {
+    "name": "Koszule i T-shirty",
+    "external_id": 1198,
+    "children": []
+   },
+   {
+    "name": "Akcesoria",
+    "external_id": 1714,
+    "children": []
+   },
+   {
+    "name": "Piżamy",
+    "external_id": 1752,
+    "children": []
+   },
+   {
+    "name": "Odzież sportowa",
+    "external_id": 1204,
+    "children": []
+   },
+   {
+    "name": "Paki ubrań",
+    "external_id": 1760,
+    "children": []
+   },
+   {
+    "name": "Przebrania, kostiumy tematyczne",
+    "external_id": 1762,
+    "children": []
+   },
+   {
+    "name": "Stroje wizytowe i na specjalne okazje",
+    "external_id": 2083,
+    "children": []
+   },
+   {
+    "name": "Bielizna",
+    "external_id": 1203,
+    "children": []
+   },
+   {
+    "name": "Stroje kąpielowe",
+    "external_id": 1202,
+    "children": []
+   },
+   {
+    "name": "Torby i plecaki",
+    "external_id": 1257,
+    "children": []
+   },
+   {
+    "name": "Inne",
+    "external_id": 1205,
+    "children": []
+   },
+   {
+    "name": "Bliźniaki i więcej",
+    "external_id": 1761,
+    "children": []
+   }
+  ]
+ },
+ {
+  "name": "Zabawki",
+  "external_id": 1499,
+  "children": [
+   {
+    "name": "Figurki i akcesoria",
+    "external_id": 1730,
+    "children": []
+   },
+   {
+    "name": "Pluszowe zabawki i zwierzątka",
+    "external_id": 1764,
+    "children": []
+   },
+   {
+    "name": "Zabawkowe auta, pociągi i inne pojazdy",
+    "external_id": 3375,
+    "children": []
+   },
+   {
+    "name": "Klocki i zabawki konstrukcyjne",
+    "external_id": 1767,
+    "children": []
+   },
+   {
+    "name": "Zabawy i zabawki dla niemowląt",
+    "external_id": 3344,
+    "children": []
+   },
+   {
+    "name": "Lalki i akcesoria",
+    "external_id": 1731,
+    "children": []
+   },
+   {
+    "name": "Zabawki edukacyjne",
+    "external_id": 1763,
+    "children": []
+   },
+   {
+    "name": "Zabawki elektroniczne",
+    "external_id": 1725,
+    "children": []
+   },
+   {
+    "name": "Gadżety i zabawki antystresowe",
+    "external_id": 3336,
+    "children": []
+   },
+   {
+    "name": "Przebrania i odgrywanie ról",
+    "external_id": 3329,
+    "children": []
+   },
+   {
+    "name": "Plastyczne i kreatywne",
+    "external_id": 3314,
+    "children": []
+   },
+   {
+    "name": "Zabawki sportowe i ogrodowe",
+    "external_id": 1771,
+    "children": []
+   },
+   {
+    "name": "Zabawki i instrumenty muzyczne",
+    "external_id": 1766,
+    "children": []
+   }
+  ]
+ },
+ {
+  "name": "Akcesoria do sypialni",
+  "external_id": 3296,
+  "children": [
+   {
+    "name": "Pościel, koce i narzuty",
+    "external_id": 3297,
+    "children": []
+   },
+   {
+    "name": "Śpiwory i koce z rękawami",
+    "external_id": 3307,
+    "children": []
+   },
+   {
+    "name": "Otulacze",
+    "external_id": 3309,
+    "children": []
+   },
+   {
+    "name": "Śpiwory",
+    "external_id": 3308,
+    "children": []
+   },
+   {
+    "name": "Lampki nocne i budziki świetlne",
+    "external_id": 3306,
+    "children": []
+   },
+   {
+    "name": "Elektroniczne nianie dla dzieci",
+    "external_id": 3303,
+    "children": []
+   },
+   {
+    "name": "Barierki i osłony do łóżka",
+    "external_id": 3304,
+    "children": []
+   },
+   {
+    "name": "Generatory białego szumu",
+    "external_id": 3310,
+    "children": []
+   },
+   {
+    "name": "Poduszki elektryczne i termofory",
+    "external_id": 3302,
+    "children": []
+   },
+   {
+    "name": "Zasłony przeciwsłoneczne",
+    "external_id": 3305,
+    "children": []
+   }
+  ]
+ },
+ {
+  "name": "Wózki spacerowe, nosidełka i foteliki samochodowe",
+  "external_id": 1496,
+  "children": [
+   {
+    "name": "Akcesoria do wózków dziecięcych",
+    "external_id": 1511,
+    "children": []
+   },
+   {
+    "name": "Nosidełka i chusty do noszenia dzieci",
+    "external_id": 3461,
+    "children": []
+   },
+   {
+    "name": "Wózki spacerowe",
+    "external_id": 1612,
+    "children": []
+   },
+   {
+    "name": "Foteliki samochodowe",
+    "external_id": 3383,
+    "children": []
+   },
+   {
+    "name": "Akcesoria do fotelików",
+    "external_id": 3385,
+    "children": []
+   },
+   {
+    "name": "Podkładki samochodowe",
+    "external_id": 3384,
+    "children": []
+   }
+  ]
+ },
+ {
+  "name": "Pielęgnacja i karmienie",
+  "external_id": 3432,
+  "children": [
+   {
+    "name": "Karmienie piersią",
+    "external_id": 3453,
+    "children": []
+   },
+   {
+    "name": "Kubki, naczynia i przybory kuchenne",
+    "external_id": 3444,
+    "children": []
+   },
+   {
+    "name": "Karmienie butelką",
+    "external_id": 3435,
+    "children": []
+   },
+   {
+    "name": "Śliniaki",
+    "external_id": 3434,
+    "children": []
+   },
+   {
+    "name": "Smoczki dla dzieci",
+    "external_id": 3458,
+    "children": []
+   },
+   {
+    "name": "Poduszki i okrycia do karmienia",
+    "external_id": 3452,
+    "children": []
+   },
+   {
+    "name": "Krzesełka do karmienia",
+    "external_id": 3450,
+    "children": []
+   },
+   {
+    "name": "Sterylizatory",
+    "external_id": 3460,
+    "children": []
+   },
+   {
+    "name": "Akcesoria do smoczków dla dzieci",
+    "external_id": 3459,
+    "children": []
+   },
+   {
+    "name": "Blendery i roboty kuchenne dla niemowląt",
+    "external_id": 3433,
+    "children": []
+   },
+   {
+    "name": "Śliniaki i ściereczki do odbijania",
+    "external_id": 3443,
+    "children": []
+   },
+   {
+    "name": "Akcesoria do krzesełek do karmienia",
+    "external_id": 3451,
+    "children": []
+   }
+  ]
+ },
+ {
+  "name": "Meble i dekoracje",
+  "external_id": 1498,
+  "children": [
+   {
+    "name": "Dekoracje i pamiątki",
+    "external_id": 3276,
+    "children": []
+   },
+   {
+    "name": "Meble dla niemowląt",
+    "external_id": 3284,
+    "children": []
+   },
+   {
+    "name": "Krzesełka",
+    "external_id": 3291,
+    "children": []
+   },
+   {
+    "name": "Stoły i biurka",
+    "external_id": 3294,
+    "children": []
+   },
+   {
+    "name": "Leżaczki i kokony",
+    "external_id": 3275,
+    "children": []
+   },
+   {
+    "name": "Maty podłogowe",
+    "external_id": 1572,
+    "children": []
+   },
+   {
+    "name": "Materace dla dzieci",
+    "external_id": 1567,
+    "children": []
+   },
+   {
+    "name": "Meble do zabawy",
+    "external_id": 3292,
+    "children": []
+   },
+   {
+    "name": "Szafy na ubrania",
+    "external_id": 3295,
+    "children": []
+   },
+   {
+    "name": "Półki",
+    "external_id": 3293,
+    "children": []
+   },
+   {
+    "name": "Dywaniki i maty",
+    "external_id": 3290,
+    "children": []
+   },
+   {
+    "name": "Kojce",
+    "external_id": 1573,
+    "children": []
+   }
+  ]
+ },
+ {
+  "name": "Kąpiel i przewijanie",
+  "external_id": 3393,
+  "children": [
+   {
+    "name": "Pieluszki",
+    "external_id": 3399,
+    "children": []
+   },
+   {
+    "name": "Kąpiel",
+    "external_id": 3412,
+    "children": []
+   },
+   {
+    "name": "Pielęgnacja i higiena skóry",
+    "external_id": 3408,
+    "children": []
+   },
+   {
+    "name": "Torby do przewijania",
+    "external_id": 3394,
+    "children": []
+   },
+   {
+    "name": "Przewijaki i pokrowce na przewijaki",
+    "external_id": 3395,
+    "children": []
+   },
+   {
+    "name": "Nocniki",
+    "external_id": 3417,
+    "children": []
+   },
+   {
+    "name": "Przechowywanie i utylizacja pieluszek",
+    "external_id": 3403,
+    "children": []
+   },
+   {
+    "name": "Podnóżki",
+    "external_id": 3418,
+    "children": []
+   }
+  ]
+ },
+ {
+  "name": "Inne przedmioty dla dzieci",
+  "external_id": 1502,
+  "children": []
+ },
+ {
+  "name": "Artykuły szkolne",
+  "external_id": 1501,
+  "children": [
+   {
+    "name": "Tornistry i plecaki szkolne",
+    "external_id": 1508,
+    "children": []
+   },
+   {
+    "name": "Artykuły szkolne",
+    "external_id": 1509,
+    "children": []
+   },
+   {
+    "name": "Śniadaniówki",
+    "external_id": 3269,
+    "children": []
+   }
+  ]
+ },
+ {
+  "name": "Zdrowie i ciąża",
+  "external_id": 3419,
+  "children": [
+   {
+    "name": "Pasy ciążowe",
+    "external_id": 3425,
+    "children": []
+   },
+   {
+    "name": "Opieka poporodowa",
+    "external_id": 3423,
+    "children": []
+   },
+   {
+    "name": "Poduszki ciążowe",
+    "external_id": 3424,
+    "children": []
+   },
+   {
+    "name": "Wagi",
+    "external_id": 3426,
+    "children": []
+   },
+   {
+    "name": "Termometry",
+    "external_id": 3422,
+    "children": []
+   },
+   {
+    "name": "Aspiratory do nosa",
+    "external_id": 3421,
+    "children": []
+   },
+   {
+    "name": "Nawilżacze powietrza",
+    "external_id": 3420,
+    "children": []
+   }
+  ]
+ },
+ {
+  "name": "Blokady i zabezpieczenia",
+  "external_id": 3427,
+  "children": [
+   {
+    "name": "Akcesoria zabezpieczające",
+    "external_id": 3429,
+    "children": []
+   },
+   {
+    "name": "Szelki bezpieczeństwa",
+    "external_id": 3431,
+    "children": []
+   },
+   {
+    "name": "Bramki i ogrodzenia",
+    "external_id": 3428,
+    "children": []
+   },
+   {
+    "name": "Ochrona słuchu",
+    "external_id": 3430,
+    "children": []
+   }
+  ]
+ }
+]

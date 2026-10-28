@@ -51,6 +51,7 @@ from app.groups.application.term_item_listings import TermAlreadyResolvedExcepti
 from app.groups.infrastructure import circulation_bridge, repository
 from app.groups.models import Term
 from app.groups.schemas import TakeTermItemListingRequest
+from tests.conftest import leaf_category_ids
 from tests.ledger_assertions import assert_ledger_matches_projection, movements_for_item
 
 
@@ -120,9 +121,7 @@ async def _rsvp(
 
 
 async def _category_id(client: AsyncClient, token: str) -> str:
-    categories = await client.get("/api/categories", headers=_auth(token))
-    assert categories.status_code == 200
-    return str(categories.json()[0]["id"])
+    return (await leaf_category_ids(client, _auth(token)))[0]
 
 
 async def _resolve_product(client: AsyncClient, token: str, name: str) -> str:
@@ -1108,6 +1107,8 @@ async def test_confirmTransaction_swap_clearsBothPreferences(
 
     assert await repository.get_item_listing_preference(db_session, listed_item_id) is None
     assert await repository.get_item_listing_preference(db_session, offered_item_id) is None
+    assert (await _fresh_item(db_session, listed_item_id)).listing_status == "DRAFT"
+    assert (await _fresh_item(db_session, offered_item_id)).listing_status == "DRAFT"
 
     with pytest.raises(TermAlreadyResolvedException):
         await service.confirm_transaction(

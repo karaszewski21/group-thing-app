@@ -295,7 +295,7 @@ export function MeetingsView() {
                     <div key={p.pledge_id} className="flex items-start gap-3 rounded-[22px] border border-line bg-paper p-3.5">
                       <div className="min-w-0 flex-1">
                         <h3 className="text-[15px] font-bold wrap-break-word text-ink">
-                          {p.product_name}
+                          {p.item_name}
                           {p.item_description ? ` — ${p.item_description}` : ""}
                         </h3>
                         <small className="mt-0.5 block text-sm text-ink-soft">

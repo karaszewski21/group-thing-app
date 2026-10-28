@@ -8,11 +8,13 @@ import {
   Text,
   Textarea,
 } from "@chakra-ui/react";
+import { useQueryClient } from "@tanstack/react-query";
 import { useCallback, useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { getProduct, createProduct, updateProduct } from "../../api/products";
 import { serverMessageOr } from "../../api/problem";
-import { useCategories } from "../../hooks/useCategories";
+import { CategoryTreePicker } from "../../components/shared/CategoryTreePicker";
+import { CATEGORIES_KEY } from "../../hooks/useCategories";
 import { PhotoPlaceholder } from "../../components/shared/Icons";
 import { isValidImageUrl } from "../../utils/url";
 import { PrimaryButton } from "../../components/shared/PrimaryButton";
@@ -25,9 +27,13 @@ const labelStyle: React.CSSProperties = {
   marginBottom: "6px",
 };
 
+const CATEGORY_LABEL_ID = "product-category-label";
+const CATEGORY_ERROR_ID = "product-category-error";
+
 export function ProductFormPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const isEdit = Boolean(id);
 
   const [name, setName] = useState("");
@@ -38,7 +44,7 @@ export function ProductFormPage() {
   const [loading, setLoading] = useState(false);
   const [loadingData, setLoadingData] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const { data: categories } = useCategories();
+  const [categoryMissing, setCategoryMissing] = useState(false);
 
   const loadData = useCallback(async () => {
     setLoadingData(true);
@@ -64,7 +70,10 @@ export function ProductFormPage() {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!categoryId) return;
+    if (!categoryId) {
+      setCategoryMissing(true);
+      return;
+    }
     setLoading(true);
     setError(null);
     const payload = {
@@ -80,6 +89,8 @@ export function ProductFormPage() {
       } else {
         await createProduct(payload);
       }
+      // A product write changes `product_count`, which the cached category tree shows.
+      await queryClient.invalidateQueries({ queryKey: CATEGORIES_KEY });
       navigate("/admin/products");
     } catch (err) {
       setError(serverMessageOr(err, "Failed to save product."));
@@ -139,30 +150,25 @@ export function ProductFormPage() {
           </Box>
 
           <Box>
-            <label htmlFor="product-category" style={labelStyle}>
+            <span id={CATEGORY_LABEL_ID} style={labelStyle}>
               Category <Text as="span" color="#EF4444">*</Text>
-            </label>
-            <select
-              id="product-category"
+            </span>
+            <CategoryTreePicker
+              labelledBy={CATEGORY_LABEL_ID}
               value={categoryId}
-              onChange={(e) => setCategoryId(e.target.value)}
-              required
-              style={{
-                width: "100%",
-                padding: "10px 12px",
-                border: "1px solid #E2E8F0",
-                borderRadius: "8px",
-                fontSize: "14px",
-                background: "white",
+              onChange={(next) => {
+                setCategoryId(next ?? "");
+                setCategoryMissing(false);
               }}
-            >
-              <option value="">Select a category...</option>
-              {categories.map((cat) => (
-                <option key={cat.id} value={cat.id}>
-                  {cat.name}
-                </option>
-              ))}
-            </select>
+              placeholder="Select a category..."
+              aria-invalid={categoryMissing}
+              aria-describedby={categoryMissing ? CATEGORY_ERROR_ID : undefined}
+            />
+            {categoryMissing && (
+              <Text id={CATEGORY_ERROR_ID} role="alert" fontSize="12px" color="#DC2626" mt="6px">
+                Select a category.
+              </Text>
+            )}
           </Box>
 
           <Box gridColumn={{ base: "1", md: "1 / -1" }}>

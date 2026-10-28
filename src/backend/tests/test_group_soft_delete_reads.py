@@ -15,7 +15,7 @@ from app.groups import service
 from app.groups.models import Group
 from tests.test_group_soft_delete import _register_admin
 from tests.test_organizer_page import _circle, _in_days, _needed_item, _organization_slug, _term
-from tests.test_term_item_listings import _auth, _register, _resolve_product, _rsvp
+from tests.test_term_item_listings import _auth, _register, _rsvp
 
 
 async def _delete(client: AsyncClient, token: str, group_id: uuid.UUID) -> None:
@@ -208,7 +208,6 @@ async def test_mutationsOnDeletedGroup_return404(client: AsyncClient) -> None:
     org_token, _ = await _register(client, "ORGANIZER", "sdr.mut.org@example.com")
     group_id = await _circle(client, org_token, "Krąg bez zmian")
     term_id = await _term(client, org_token, group_id, _in_days(3))
-    product_id = await _resolve_product(client, org_token, "Sdr bębenek")
     guest_token, _ = await _register(client, "GUEST", "sdr.mut.guest@example.com")
 
     await _delete(client, org_token, group_id)
@@ -228,7 +227,7 @@ async def test_mutationsOnDeletedGroup_return404(client: AsyncClient) -> None:
         ),
         "create need": await client.post(
             "/api/needed-items",
-            json={"term_id": str(term_id), "product_id": product_id},
+            json={"term_id": str(term_id), "name": "Sdr bębenek"},
             headers=org,
         ),
         "rsvp": await client.post(

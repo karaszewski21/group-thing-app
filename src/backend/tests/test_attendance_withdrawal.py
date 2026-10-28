@@ -19,6 +19,7 @@ from app.config import settings
 from app.core.auth_deps import Principal
 from app.core.security import decode_token
 from app.groups import service
+from tests.conftest import leaf_category_ids
 
 
 def _auth(token: str) -> dict[str, str]:
@@ -69,9 +70,7 @@ async def _rsvp(client: AsyncClient, token: str, group_id: int, term_id: int) ->
 
 
 async def _category_id(client: AsyncClient, token: str) -> str:
-    categories = await client.get("/api/categories", headers=_auth(token))
-    assert categories.status_code == 200
-    return str(categories.json()[0]["id"])
+    return (await leaf_category_ids(client, _auth(token)))[0]
 
 
 async def _resolve_product(client: AsyncClient, token: str, name: str) -> int:

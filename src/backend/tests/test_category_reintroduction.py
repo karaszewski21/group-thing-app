@@ -1,6 +1,6 @@
 """`0025_category_reintroduction` migration + `Permission.ADMIN` tests
-(implementation/spec.md Core Requirements #1-2). Verifies the seeded
-`categories` reference table, the `ADMIN` permission grant to the seeded
+(implementation/spec.md Core Requirements #1-2). Verifies that the legacy
+`categories` rows are gone at head, the `ADMIN` permission grant to the seeded
 dev `admin` account, and the `products.category_id` FK/NOT NULL schema
 shape — the migration itself already ran against the test database by the
 time `db_session` is available (see `conftest.py`'s `database_url` fixture,
@@ -16,22 +16,23 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.auth.models import Permission
 
 
-async def test_categoriesTable_afterMigration_hasExactlyFiveSeededPolishRows(
+async def test_categoriesTable_atHead_hasNoLegacyRootRows(
     db_session: AsyncSession,
 ) -> None:
+    """`0069_vinted_categories` replaces the 5 legacy rows seeded here with
+    the Vinted tree; "Inne" survives only as a Vinted leaf name."""
     rows = (
-        await db_session.execute(
-            text("SELECT name, sort_order FROM categories ORDER BY sort_order")
+        (
+            await db_session.execute(
+                text("SELECT name FROM categories WHERE parent_id IS NULL AND name = ANY(:names)"),
+                {"names": ["Zabawka", "Książka", "Gra", "Ubranie", "Inne"]},
+            )
         )
-    ).all()
+        .scalars()
+        .all()
+    )
 
-    assert [(row.name, row.sort_order) for row in rows] == [
-        ("Zabawka", 0),
-        ("Książka", 1),
-        ("Gra", 2),
-        ("Ubranie", 3),
-        ("Inne", 4),
-    ]
+    assert rows == []
 
 
 def test_permissionAdmin_existsAndIsDistinctFromPluginManagement() -> None:
@@ -43,14 +44,18 @@ async def test_seededAdminAccount_afterMigration_hasAdminPermission(
     db_session: AsyncSession,
 ) -> None:
     result = (
-        await db_session.execute(
-            text(
-                "SELECT p.permission FROM user_permissions p "
-                "JOIN users u ON u.id = p.user_id "
-                "WHERE u.username = 'admin'"
+        (
+            await db_session.execute(
+                text(
+                    "SELECT p.permission FROM user_permissions p "
+                    "JOIN users u ON u.id = p.user_id "
+                    "WHERE u.username = 'admin'"
+                )
             )
         )
-    ).scalars().all()
+        .scalars()
+        .all()
+    )
 
     assert "ADMIN" in result
 

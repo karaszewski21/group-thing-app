@@ -313,10 +313,8 @@ export function MyItemsView() {
           const mode = itemModes[it.id] ?? null;
           const locked = ACTIVE_LOCK_BALANCE_STATUSES.includes(itemBalances[it.id]?.status ?? "AVAILABLE");
           const badgeLabel = lockBadgeLabel(itemBalances[it.id]?.status);
-          // The server rejects a mode (409) while the product's photos are in
-          // moderation, so block the toggles too. Plain OR with `locked`.
+          // Informational only: pending photos dash the card border; the mode stays selectable.
           const photosPending = it.photos_moderation_pending === true;
-          const modeHintId = `mode-hint-${it.id}`;
           return (
             <div
               key={it.id}
@@ -385,8 +383,7 @@ export function MyItemsView() {
               {photosPending ? (
                 <div className="relative z-10 mt-3 rounded-2xl bg-cream px-3.5 py-2.5 text-[13px] leading-snug text-ink">
                   <StatusPill label="Zdjęcia w moderacji" />
-                  <p id={modeHintId} className="mt-1.5">
-                    Tryb włączysz po zatwierdzeniu zdjęć.{" "}
+                  <p className="mt-1.5">
                     <Link to={`/product/${it.id}/edit`} className="font-extrabold text-primary-fg underline">
                       Zobacz zdjęcia →
                     </Link>
@@ -398,7 +395,7 @@ export function MyItemsView() {
                 {ITEM_MODES.map((m) => {
                   const on = mode === m;
                   const overGiftLimit = m === "oddam" && !on && giftLimitReached;
-                  const disabled = locked || photosPending || overGiftLimit;
+                  const disabled = locked || overGiftLimit;
                   return (
                     <button
                       key={m}
@@ -406,7 +403,7 @@ export function MyItemsView() {
                       aria-pressed={on}
                       disabled={disabled}
                       aria-disabled={disabled}
-                      aria-describedby={photosPending ? modeHintId : overGiftLimit ? "gift-limit-hint" : undefined}
+                      aria-describedby={overGiftLimit ? "gift-limit-hint" : undefined}
                       className={`min-h-9 flex-1 rounded-full px-2 text-[13px] font-extrabold transition-colors disabled:cursor-not-allowed disabled:opacity-60 ${
                         on ? MODE_TONE[m] : "border-[1.5px] border-dashed border-line-strong text-ink-soft hover:text-ink"
                       }`}

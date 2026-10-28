@@ -46,10 +46,7 @@ export interface CreateTermRequest {
 export interface NeededItemResponse {
   id: string;
   term_id: string;
-  product_id: string;
-  product_name: string;
-  product_category_id: string;
-  product_category_name: string;
+  name: string;
   description: string | null;
   /** An active (non-withdrawn) pledge exists — "ktoś przyniesie". */
   claimed: boolean;
@@ -59,7 +56,7 @@ export interface NeededItemResponse {
 
 export interface CreateNeededItemRequest {
   term_id: string;
-  product_id: string;
+  name: string;
   description?: string;
 }
 
@@ -100,7 +97,7 @@ export function createNeededItem(request: CreateNeededItemRequest): Promise<Need
 }
 
 export interface UpdateNeededItemRequest {
-  product_id?: string;
+  name?: string;
   description?: string;
 }
 

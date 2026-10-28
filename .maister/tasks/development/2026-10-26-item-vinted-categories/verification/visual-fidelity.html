@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Visual Fidelity — 2026-10-26-item-vinted-categories</title>
+<style>
+:root {
+  --bg:#f6f7f9; --surface:#fff; --border:#e2e5ea; --text:#1a1d23; --dim:#6b7280;
+  --accent:#4f46e5; --accent-soft:#eef2ff; --ok:#16a34a; --ok-soft:#ecfdf3;
+  --warn:#d97706; --warn-soft:#fffbeb; --crit:#dc2626; --crit-soft:#fef2f2;
+  --info:#2563eb; --info-soft:#eff6ff; --radius:10px;
+}
+@media (prefers-color-scheme: dark) {
+  :root { --bg:#111418; --surface:#1a1f26; --border:#2e3640; --text:#e6e9ee; --dim:#9aa4b2;
+    --accent:#818cf8; --accent-soft:#26294a; --ok:#4ade80; --ok-soft:#11291a;
+    --warn:#fbbf24; --warn-soft:#2e2410; --crit:#f87171; --crit-soft:#321616;
+    --info:#60a5fa; --info-soft:#15233a; }
+}
+* { box-sizing:border-box; }
+body { margin:0 auto; max-width:1100px; padding:24px 20px 64px; background:var(--bg);
+  color:var(--text); font:14px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif; }
+a { color:var(--accent); text-decoration:none; } a:hover { text-decoration:underline; }
+h1 { font-size:22px; letter-spacing:-.01em; } h2 { font-size:16px; margin-top:28px; }
+.card { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius);
+  padding:16px 18px; margin:14px 0; }
+.badge { display:inline-block; font-size:11px; font-weight:600; text-transform:uppercase;
+  letter-spacing:.04em; padding:2px 8px; border-radius:99px; background:var(--accent-soft); color:var(--accent); }
+.sev { display:inline-block; font-size:10.5px; font-weight:700; text-transform:uppercase;
+  padding:1.5px 7px; border-radius:99px; margin-right:6px; }
+.sev.critical { background:var(--crit-soft); color:var(--crit); }
+.sev.warning  { background:var(--warn-soft); color:var(--warn); }
+.sev.info     { background:var(--info-soft); color:var(--info); }
+.pass { color:var(--ok); font-weight:600; } .fail { color:var(--crit); font-weight:600; }
+table { width:100%; border-collapse:collapse; }
+th, td { text-align:left; padding:7px 10px; border-bottom:1px solid var(--border); vertical-align:top; }
+th { font-size:11.5px; text-transform:uppercase; letter-spacing:.04em; color:var(--dim); }
+code { font-family:ui-monospace,SFMono-Regular,Menlo,monospace; font-size:12.5px;
+  background:var(--accent-soft); padding:1px 5px; border-radius:4px; }
+img.shot { max-width:100%; border:1px solid var(--border); border-radius:var(--radius); }
+details > summary { cursor:pointer; font-weight:600; }
+.crumbs { display:flex; gap:14px; font-size:13px; margin-bottom:18px; flex-wrap:wrap; }
+.crumbs a.md { margin-left:auto; color:var(--dim); }
+.crumbs .here { font-weight:650; color:var(--text); }
+.tiles { display:flex; gap:10px; flex-wrap:wrap; margin:14px 0; }
+.tile { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius);
+  padding:10px 16px; text-align:center; min-width:90px; }
+.tile b { display:block; font-size:20px; letter-spacing:-.01em; }
+.tile span { font-size:10.5px; text-transform:uppercase; letter-spacing:.05em; color:var(--dim); }
+.verdict { background:var(--ok-soft); border:1px solid var(--ok); color:var(--ok); border-radius:var(--radius);
+  padding:12px 16px; font-weight:700; font-size:16px; }
+.shots { display:grid; grid-template-columns:repeat(auto-fill,minmax(180px,1fr)); gap:10px; margin-top:10px; }
+.shots figure { margin:0; } .shots figcaption { font-size:11px; color:var(--dim); word-break:break-all; }
+.sc h3 { margin:0 0 6px; font-size:15px; }
+.pair{display:grid;grid-template-columns:1fr 1fr;gap:12px}.pair figure{margin:0}.pair figcaption{font-size:11px;color:var(--dim)}.m{color:var(--ok);font-weight:700}.d{color:var(--warn);font-weight:700}@media(max-width:640px){.pair{grid-template-columns:1fr}}</style>
+</head>
+<body>
+<nav class="crumbs">
+  <a href="../dashboard.html">← Dashboard</a>
+  <a href="../implementation/spec.html">Spec</a> <a href="../implementation/implementation-plan.html">Plan</a>
+  <a href="implementation-verification.html">Verification</a>
+  <a href="e2e-verification-report.html">E2E</a>
+  <span class="here">Visual fidelity</span>
+  <a href="visual-fidelity.md" target="_blank" rel="noopener" class="md">md twin ↗</a>
+</nav>
+<header>
+  <h1>Visual Fidelity Report <span class="badge">report-only</span></h1>
+  <div style="color:var(--dim)">LLM-judged structural match (not pixel diff) · source analysis/design-context/INDEX.md · 2026-10-28</div>
+</header>
+<div class="tiles">
+  <div class="tile"><b>11</b><span>compared</span></div>
+  <div class="tile"><b class="m">7</b><span>match</span></div>
+  <div class="tile"><b class="d">4</b><span>minor deviation</span></div>
+  <div class="tile"><b>0</b><span>drift</span></div>
+</div>
+<section class="tldr card">
+  <h2 style="margin-top:0">TL;DR</h2>
+  <ul><li><b>High structural fidelity:</b> 7 ✓, 4 ⚠, 0 ✗.</li>
+  <li>The user-facing flows (add item, three buttons, picker browse and search, gift-limit error) match closely.</li>
+  <li>The deviations are admin styling (Chakra blue, text-style actions) plus two layout details: no visible "Nazwa" label in the edit editor, and the needed-items add row collapsed behind a button.</li></ul>
+  <h2>Key Decisions</h2>
+  <ul><li>Mockups were rendered at the same viewports as the app captures (390×844 user, 1366×900 admin); the gallery chrome and annotations were ignored.</li>
+  <li>Component IDs were judged through their host screens.</li></ul>
+  <h2>Open Questions / Risks</h2>
+  <ul><li>Should the admin screens adopt the mockup's green palette, or keep the existing Chakra admin theme?</li></ul>
+</section>
+<main>
+<h2>Per-screen comparison</h2>
+<div class="card"><h3 style="margin:0 0 6px;font-size:15px">screen:dodaj-rzecz <span class="m">✓ Match</span></h3>
+<p style="margin:4px 0 10px">Field order Nazwa → Stan → Kategoria * → Zdjęcia → buttons; Oddam/Zamienię grid + full-width Wersja robocza, disabled while invalid. Adds the FR-21 hint text.</p>
+<div class="pair"><figure><img class="shot" src="screenshots/mockup-dodaj-rzecz.png" alt="mockup"><figcaption>Mockup · <a href="../analysis/design-context/mockups/dodaj-rzecz.html">dodaj-rzecz.html</a></figcaption></figure>
+<figure><img class="shot" src="screenshots/01-add-item-empty-390.png" alt="implementation"><figcaption>Implementation · 01-add-item-empty-390.png</figcaption></figure></div></div>
+<div class="card"><h3 style="margin:0 0 6px;font-size:15px">screen:dodaj-rzecz-wybrana-kategoria <span class="m">✓ Match</span></h3>
+<p style="margin:4px 0 10px">Trigger shows the small ancestor path + bold leaf; buttons enabled.</p>
+<div class="pair"><figure><img class="shot" src="screenshots/mockup-dodaj-rzecz-wybrana-kategoria.png" alt="mockup"><figcaption>Mockup · <a href="../analysis/design-context/mockups/dodaj-rzecz-wybrana-kategoria.html">dodaj-rzecz-wybrana-kategoria.html</a></figcaption></figure>
+<figure><img class="shot" src="screenshots/08-add-item-ready-390.png" alt="implementation"><figcaption>Implementation · 08-add-item-ready-390.png</figcaption></figure></div></div>
+<div class="card"><h3 style="margin:0 0 6px;font-size:15px">screen:dodaj-rzecz-limit-oddam <span class="m">✓ Match</span></h3>
+<p style="margin:4px 0 10px">Danger-soft role=alert with the verbatim backend text above the buttons; data kept.</p>
+<div class="pair"><figure><img class="shot" src="screenshots/mockup-dodaj-rzecz-limit-oddam.png" alt="mockup"><figcaption>Mockup · <a href="../analysis/design-context/mockups/dodaj-rzecz-limit-oddam.html">dodaj-rzecz-limit-oddam.html</a></figcaption></figure>
+<figure><img class="shot" src="screenshots/15-add-item-gift-limit-390.png" alt="implementation"><figcaption>Implementation · 15-add-item-gift-limit-390.png</figcaption></figure></div></div>
+<div class="card"><h3 style="margin:0 0 6px;font-size:15px">screen:wybor-kategorii-przegladanie <span class="m">✓ Match</span></h3>
+<p style="margin:4px 0 10px">Sheet title + ✕, search, ‹ Wstecz, breadcrumb with the bold current level, › on non-leaves, 'wybierz' on leaves.</p>
+<div class="pair"><figure><img class="shot" src="screenshots/mockup-wyb-r-kategorii-przegl-danie.png" alt="mockup"><figcaption>Mockup · <a href="../analysis/design-context/mockups/wyb-r-kategorii-przegl-danie.html">wyb-r-kategorii-przegl-danie.html</a></figcaption></figure>
+<figure><img class="shot" src="screenshots/03-picker-drill-kobiety-ubrania-390.png" alt="implementation"><figcaption>Implementation · 03-picker-drill-kobiety-ubrania-390.png</figcaption></figure></div></div>
+<div class="card"><h3 style="margin:0 0 6px;font-size:15px">screen:wybor-kategorii-szukaj <span class="m">✓ Match</span></h3>
+<p style="margin:4px 0 10px">Path line over a highlighted name, live count, › on non-leaf results. The 50-cap hint (FR-20) appears in 06.</p>
+<div class="pair"><figure><img class="shot" src="screenshots/mockup-wyb-r-kategorii-szukaj.png" alt="mockup"><figcaption>Mockup · <a href="../analysis/design-context/mockups/wyb-r-kategorii-szukaj.html">wyb-r-kategorii-szukaj.html</a></figcaption></figure>
+<figure><img class="shot" src="screenshots/04-picker-search-sukienki-390.png" alt="implementation"><figcaption>Implementation · 04-picker-search-sukienki-390.png</figcaption></figure></div></div>
+<div class="card"><h3 style="margin:0 0 6px;font-size:15px">screen:edycja-rzeczy-kategoria <span class="d">⚠ Minor deviation</span></h3>
+<p style="margin:4px 0 10px">Chip, Kategoria picker and Zapisz/Anuluj match. Deviation: no visible 'Nazwa' label (sits under the 'NAZWA I KATEGORIA' heading); embedded in the full edit page.</p>
+<div class="pair"><figure><img class="shot" src="screenshots/mockup-edycja-rzeczy-kategoria.png" alt="mockup"><figcaption>Mockup · <a href="../analysis/design-context/mockups/edycja-rzeczy-kategoria.html">edycja-rzeczy-kategoria.html</a></figcaption></figure>
+<figure><img class="shot" src="screenshots/13-item-edit-category-editor-390.png" alt="implementation"><figcaption>Implementation · 13-item-edit-category-editor-390.png</figcaption></figure></div></div>
+<div class="card"><h3 style="margin:0 0 6px;font-size:15px">screen:admin-drzewo-kategorii <span class="d">⚠ Minor deviation</span></h3>
+<p style="margin:4px 0 10px">Structure, order, meta, alert, filter and disabled states match. Deviation: borderless text actions; Chakra-blue primary instead of green; extra subtitle.</p>
+<div class="pair"><figure><img class="shot" src="screenshots/mockup-admin-drzewo-kategorii.png" alt="mockup"><figcaption>Mockup · <a href="../analysis/design-context/mockups/admin-drzewo-kategorii.html">admin-drzewo-kategorii.html</a></figcaption></figure>
+<figure><img class="shot" src="screenshots/27-admin-delete-parent-409-alert-desktop.png" alt="implementation"><figcaption>Implementation · 27-admin-delete-parent-409-alert-desktop.png</figcaption></figure></div></div>
+<div class="card"><h3 style="margin:0 0 6px;font-size:15px">screen:admin-formularz-kategorii <span class="d">⚠ Minor deviation</span></h3>
+<p style="margin:4px 0 10px">Fields and hint match. Deviation: extra breadcrumb; blue Zapisz.</p>
+<div class="pair"><figure><img class="shot" src="screenshots/mockup-admin-formularz-kategorii.png" alt="mockup"><figcaption>Mockup · <a href="../analysis/design-context/mockups/admin-formularz-kategorii.html">admin-formularz-kategorii.html</a></figcaption></figure>
+<figure><img class="shot" src="screenshots/23-admin-new-subcategory-form-desktop.png" alt="implementation"><figcaption>Implementation · 23-admin-new-subcategory-form-desktop.png</figcaption></figure></div></div>
+<div class="card"><h3 style="margin:0 0 6px;font-size:15px">screen:rzeczy-potrzebne-na-termin <span class="d">⚠ Minor deviation</span></h3>
+<p style="margin:4px 0 10px">Plain names with Usuń, no category. Deviation: extra Edytuj per row; add row collapsed behind '+ Dodaj potrzebną rzecz' with an optional Doprecyzowanie field.</p>
+<div class="pair"><figure><img class="shot" src="screenshots/mockup-rzeczy-potrzebne-na-termin.png" alt="mockup"><figcaption>Mockup · <a href="../analysis/design-context/mockups/rzeczy-potrzebne-na-termin.html">rzeczy-potrzebne-na-termin.html</a></figcaption></figure>
+<figure><img class="shot" src="screenshots/38-edit-term-dialog-after-edits-390.png" alt="implementation"><figcaption>Implementation · 38-edit-term-dialog-after-edits-390.png</figcaption></figure></div></div>
+<div class="card"><h3 style="margin:0 0 6px;font-size:15px">component:category-tree-picker <span class="m">✓ Match</span></h3>
+<p style="margin:4px 0 10px">Same sheet in the add, edit, admin product and admin parent pickers; any-node mode adds 'Kategoria główna (brak)'.</p>
+<div class="pair"><figure><img class="shot" src="screenshots/mockup-wyb-r-kategorii-szukaj.png" alt="mockup"><figcaption>Mockup · <a href="../analysis/design-context/mockups/wyb-r-kategorii-szukaj.html">wyb-r-kategorii-szukaj.html</a></figcaption></figure>
+<figure><img class="shot" src="screenshots/24-admin-parent-picker-any-mode-desktop.png" alt="implementation"><figcaption>Implementation · 24-admin-parent-picker-any-mode-desktop.png</figcaption></figure></div></div>
+<div class="card"><h3 style="margin:0 0 6px;font-size:15px">component:item-submit-actions <span class="m">✓ Match</span></h3>
+<p style="margin:4px 0 10px">Oddam primary (mint), Zamienię secondary (teal-soft), Wersja robocza outline full width.</p>
+<div class="pair"><figure><img class="shot" src="screenshots/mockup-dodaj-rzecz.png" alt="mockup"><figcaption>Mockup · <a href="../analysis/design-context/mockups/dodaj-rzecz.html">dodaj-rzecz.html</a></figcaption></figure>
+<figure><img class="shot" src="screenshots/08-add-item-ready-390.png" alt="implementation"><figcaption>Implementation · 08-add-item-ready-390.png</figcaption></figure></div></div>
+
+</main>
+</body>
+</html>

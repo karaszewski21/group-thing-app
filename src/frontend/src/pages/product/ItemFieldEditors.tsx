@@ -1,9 +1,9 @@
-import { useState, type KeyboardEvent } from "react";
+import { useId, useState, type KeyboardEvent } from "react";
 import type { ItemCondition } from "../../api/inventories";
 import type { ItemDetailsResponse } from "../../api/items";
-import { useCategories } from "../../hooks/useCategories";
+import { CategoryTreePicker } from "../../components/shared/CategoryTreePicker";
 import { CONDITION_LABELS } from "../../utils/productCategory";
-import { NO_CATEGORY_LABEL, PRIMARY_BTN } from "./itemPageShared";
+import { PRIMARY_BTN } from "./itemPageShared";
 
 const DESCRIPTION_MAX = 2000;
 
@@ -60,7 +60,7 @@ export function NameCategoryEditor({
   onSave: (name: string, categoryId: string) => Promise<void>;
   onClose: () => void;
 }) {
-  const { data: categories } = useCategories();
+  const categoryLabelId = useId();
   const [name, setName] = useState(item.name);
   const [categoryId, setCategoryId] = useState(item.category_id);
   const { busy, error, setError, save } = useFieldSave(onClose);
@@ -86,30 +86,26 @@ export function NameCategoryEditor({
 
   return (
     <div className="mt-2">
-      <div className="flex flex-wrap items-center gap-2">
-        <input
-          aria-label="Nazwa rzeczy"
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          onKeyDown={onKeyDown}
-          className={`min-w-0 flex-1 text-[13.5px] ${INPUT}`}
-        />
-        <select
-          aria-label="Typ rzeczy"
+      <input
+        aria-label="Nazwa rzeczy"
+        value={name}
+        onChange={(e) => setName(e.target.value)}
+        onKeyDown={onKeyDown}
+        className={`w-full min-w-0 text-[13.5px] ${INPUT}`}
+      />
+      {/* No Enter/Escape handler on the picker: its trigger opens the sheet. */}
+      <div className="mt-2 flex flex-col gap-1">
+        <span id={categoryLabelId} className="text-[11.5px] font-extrabold text-ink-soft">
+          Kategoria
+        </span>
+        <CategoryTreePicker
+          labelledBy={categoryLabelId}
           value={categoryId}
-          onChange={(e) => setCategoryId(e.target.value)}
-          onKeyDown={onKeyDown}
-          className={`max-w-full text-[12.5px] ${INPUT}`}
-        >
-          {!categories.some((c) => c.id === item.category_id) && (
-            <option value={item.category_id}>{item.category_name ?? NO_CATEGORY_LABEL}</option>
-          )}
-          {categories.map((c) => (
-            <option key={c.id} value={c.id}>
-              {c.name}
-            </option>
-          ))}
-        </select>
+          onChange={(id) => {
+            if (id) setCategoryId(id);
+          }}
+          placeholder={item.category_name ?? undefined}
+        />
       </div>
       <SaveCancel busy={busy} onSave={submit} onCancel={onClose} />
       <p className={HINT_TEXT}>

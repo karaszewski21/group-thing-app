@@ -23,6 +23,7 @@ from app.groups.models import Term
 from app.groups.schemas import TakeTermItemListingRequest
 from app.moderation.status import ModerationStatus
 from app.product.models import Product, ProductPhoto
+from tests.conftest import leaf_category_ids
 from tests.test_term_item_listings import (
     _auth,
     _create_circle_and_term,
@@ -56,7 +57,9 @@ async def test_getItemDetails_ownerAndNonOwner_returnsFieldsPhotosAndIsOwnerFlag
     owner_token, _ = await _register(client, "GUEST", "itd.owner1@example.com")
     other_token, _ = await _register(client, "GUEST", "itd.other1@example.com")
     item_id = await _register_personal_item(client, owner_token, "Rowerek biegowy")
-    category = (await client.get("/api/categories", headers=_auth(owner_token))).json()[0]
+    leaf_id = (await leaf_category_ids(client, _auth(owner_token)))[0]
+    categories = (await client.get("/api/categories", headers=_auth(owner_token))).json()
+    category = next(c for c in categories if c["id"] == leaf_id)
 
     product = await _product_of(db_session, item_id)
     product.plugin_data = {
@@ -94,6 +97,22 @@ async def test_getItemDetails_ownerAndNonOwner_returnsFieldsPhotosAndIsOwnerFlag
 
     owner_view = await _details(client, item_id, _auth(owner_token))
 
+    assert set(owner_view) == {
+        "id",
+        "product_id",
+        "name",
+        "category_id",
+        "category_name",
+        "condition",
+        "description",
+        "photos",
+        "product_photo_url",
+        "is_owner",
+        "deleted_at",
+        "status",
+        "listing_status",
+    }
+    assert owner_view["listing_status"] == "DRAFT"
     assert owner_view["id"] == str(item_id)
     assert owner_view["product_id"] == str(product.id)
     assert owner_view["name"] == "Rowerek biegowy"

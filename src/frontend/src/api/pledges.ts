@@ -15,7 +15,7 @@ export interface PledgeResponse {
 export interface MyPledgeResponse {
   pledge_id: string;
   status: PledgeStatus;
-  product_name: string;
+  item_name: string;
   item_description: string | null;
   term_id: string;
   group_id: string;

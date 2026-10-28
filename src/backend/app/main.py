@@ -20,6 +20,7 @@ from pathlib import Path
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.middleware.gzip import GZipMiddleware
 
 from app.auth.router import router as auth_router
 from app.category.router import router as category_router
@@ -140,6 +141,8 @@ app.add_middleware(
     allow_headers=["*"],
     allow_credentials=True,
 )
+# `GET /api/categories` returns the whole tree (~580 KB of JSON).
+app.add_middleware(GZipMiddleware, minimum_size=1000)
 
 # Legacy flat-envelope handlers — global (Groups 3 and 4).
 register_exception_handlers(app)

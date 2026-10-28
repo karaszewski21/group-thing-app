@@ -161,10 +161,7 @@ export function endMembership(membershipId: string, validTo?: string): Promise<M
 
 export interface PublicNeededItemResponse {
   id: string;
-  product_id: string;
-  product_name: string;
-  product_category_id: string;
-  product_category_name: string;
+  name: string;
   description: string | null;
   /** Someone already declared they'll bring this (single-claim). */
   claimed: boolean;
@@ -379,7 +376,7 @@ export interface OrganizerNeededItem {
   id: string;
   term_id: string;
   group_id: string;
-  product_name: string;
+  name: string;
   claimed: boolean;
 }
 

@@ -91,14 +91,14 @@ async def get_item(db: AsyncSession, item_id: uuid.UUID) -> InventoryItem | None
     return await db.get(InventoryItem, item_id)
 
 
-async def get_item_for_share(db: AsyncSession, item_id: uuid.UUID) -> InventoryItem | None:
-    """The item under a FOR SHARE row lock, re-read from the database even
-    when already in the session, so a concurrent uncommitted UPDATE of the
-    row is waited for and its committed values are seen."""
+async def get_item_for_update(db: AsyncSession, item_id: uuid.UUID) -> InventoryItem | None:
+    """The item under a FOR UPDATE row lock, re-read from the database even
+    when already in the session, so its listing status changes one writer at
+    a time."""
     result = await db.execute(
         select(InventoryItem)
         .where(InventoryItem.id == item_id)
-        .with_for_update(read=True)
+        .with_for_update()
         .execution_options(populate_existing=True)
     )
     return result.scalar_one_or_none()
@@ -110,17 +110,6 @@ async def list_items_for_inventory(db: AsyncSession, inventory_id: uuid.UUID) ->
             InventoryItem.inventory_id == inventory_id,
             InventoryItem.deleted_at.is_(None),
         )
-    )
-    return list(result.scalars().all())
-
-
-async def list_item_ids_for_product(db: AsyncSession, product_id: uuid.UUID) -> list[uuid.UUID]:
-    """Ids of every item of `product_id`, soft-deleted ones included, so a
-    withdraw of the product's listings reaches all of them."""
-    result = await db.execute(
-        select(InventoryItem.id)
-        .where(InventoryItem.product_id == product_id)
-        .order_by(InventoryItem.id)
     )
     return list(result.scalars().all())
 

@@ -157,6 +157,12 @@ if (
     await locations_acl.get_owned_location(db, data.default_location_id, caller_party_id)
 ```
 
+### Category Tree and Item Listing Status
+
+`categories.parent_id` is a self-FK (`fk_categories_parent_id_categories`, `ON DELETE RESTRICT`) declared as a plain FK id column with no `relationship()`. `external_id` is a nullable unique integer holding the Vinted catalog id (`uq_categories_external_id`). Names are unique per parent (`uq_categories_parent_id_name`) plus a partial unique root index (`uq_categories_root_name … WHERE parent_id IS NULL`); the business key for `__eq__`/`__hash__` is `(parent_id, name)`. Products may only use leaf categories — enforced by `require_leaf_category` in `app/category/service.py`.
+
+`inventory_items.listing_status` (`ItemListingStatus` DRAFT/ACTIVE, VARCHAR(20) via `_enum_column`) mirrors whether an `item_listing_preferences` row exists and is written only in lockstep with it; the groups BC writes it through `app/groups/infrastructure/circulation_bridge.py`. Reference: `app/category/models.py`, `app/circulation/models.py`.
+
 ---
 
 ### Entity Identity
@@ -216,4 +222,6 @@ This document previously described JPA `@MappedSuperclass`/`@Version`/`@Sequence
 
 The PK guidance was later updated for the move from per-table `Sequence` ids to UUID ids, and soft-delete, coordinate and ACL sections were added for the groups and locations verticals.
 
-*Last Updated*: 2026-10-20
+The category-tree and listing-status section was added with the Vinted categories task.
+
+*Last Updated*: 2026-10-28

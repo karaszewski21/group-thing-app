@@ -71,10 +71,7 @@ const circle: PublicCircleResponse = {
     needed_items: [
       {
         id: "11",
-        product_id: "1",
-        product_name: "Bębenek",
-        product_category_id: "5",
-        product_category_name: "Inne",
+        name: "Bębenek",
         description: null,
         claimed: false,
         claimed_by_name: null,

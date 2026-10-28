@@ -29,6 +29,7 @@ from app.messaging.models import Message
 from app.moderation import text_guard
 from app.notifications.models import Notification
 from app.users.models import UserProfile
+from tests.conftest import leaf_category_ids
 
 BODY_ERROR = "Wiadomość musi mieć od 1 do 1000 znaków"
 MESSAGE_KEYS = {"id", "body", "created_at", "is_mine", "sender_name", "sender_is_organizer"}
@@ -72,11 +73,9 @@ async def _create_inventory(client: AsyncClient, token: str) -> uuid.UUID:
 async def _create_item(
     client: AsyncClient, token: str, inventory_id: uuid.UUID, name: str
 ) -> uuid.UUID:
-    categories = await client.get("/api/categories", headers=_auth(token))
-    assert categories.status_code == 200, categories.text
     product = await client.post(
         "/api/products/resolve",
-        json={"name": name, "category_id": categories.json()[0]["id"]},
+        json={"name": name, "category_id": (await leaf_category_ids(client, _auth(token)))[0]},
         headers=_auth(token),
     )
     assert product.status_code == 200, product.text

@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>E2E Verification — 2026-10-26-item-vinted-categories</title>
+<style>
+:root {
+  --bg:#f6f7f9; --surface:#fff; --border:#e2e5ea; --text:#1a1d23; --dim:#6b7280;
+  --accent:#4f46e5; --accent-soft:#eef2ff; --ok:#16a34a; --ok-soft:#ecfdf3;
+  --warn:#d97706; --warn-soft:#fffbeb; --crit:#dc2626; --crit-soft:#fef2f2;
+  --info:#2563eb; --info-soft:#eff6ff; --radius:10px;
+}
+@media (prefers-color-scheme: dark) {
+  :root { --bg:#111418; --surface:#1a1f26; --border:#2e3640; --text:#e6e9ee; --dim:#9aa4b2;
+    --accent:#818cf8; --accent-soft:#26294a; --ok:#4ade80; --ok-soft:#11291a;
+    --warn:#fbbf24; --warn-soft:#2e2410; --crit:#f87171; --crit-soft:#321616;
+    --info:#60a5fa; --info-soft:#15233a; }
+}
+* { box-sizing:border-box; }
+body { margin:0 auto; max-width:1100px; padding:24px 20px 64px; background:var(--bg);
+  color:var(--text); font:14px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif; }
+a { color:var(--accent); text-decoration:none; } a:hover { text-decoration:underline; }
+h1 { font-size:22px; letter-spacing:-.01em; } h2 { font-size:16px; margin-top:28px; }
+.card { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius);
+  padding:16px 18px; margin:14px 0; }
+.badge { display:inline-block; font-size:11px; font-weight:600; text-transform:uppercase;
+  letter-spacing:.04em; padding:2px 8px; border-radius:99px; background:var(--accent-soft); color:var(--accent); }
+.sev { display:inline-block; font-size:10.5px; font-weight:700; text-transform:uppercase;
+  padding:1.5px 7px; border-radius:99px; margin-right:6px; }
+.sev.critical { background:var(--crit-soft); color:var(--crit); }
+.sev.warning  { background:var(--warn-soft); color:var(--warn); }
+.sev.info     { background:var(--info-soft); color:var(--info); }
+.pass { color:var(--ok); font-weight:600; } .fail { color:var(--crit); font-weight:600; }
+table { width:100%; border-collapse:collapse; }
+th, td { text-align:left; padding:7px 10px; border-bottom:1px solid var(--border); vertical-align:top; }
+th { font-size:11.5px; text-transform:uppercase; letter-spacing:.04em; color:var(--dim); }
+code { font-family:ui-monospace,SFMono-Regular,Menlo,monospace; font-size:12.5px;
+  background:var(--accent-soft); padding:1px 5px; border-radius:4px; }
+img.shot { max-width:100%; border:1px solid var(--border); border-radius:var(--radius); }
+details > summary { cursor:pointer; font-weight:600; }
+.crumbs { display:flex; gap:14px; font-size:13px; margin-bottom:18px; flex-wrap:wrap; }
+.crumbs a.md { margin-left:auto; color:var(--dim); }
+.crumbs .here { font-weight:650; color:var(--text); }
+.tiles { display:flex; gap:10px; flex-wrap:wrap; margin:14px 0; }
+.tile { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius);
+  padding:10px 16px; text-align:center; min-width:90px; }
+.tile b { display:block; font-size:20px; letter-spacing:-.01em; }
+.tile span { font-size:10.5px; text-transform:uppercase; letter-spacing:.05em; color:var(--dim); }
+.verdict { background:var(--ok-soft); border:1px solid var(--ok); color:var(--ok); border-radius:var(--radius);
+  padding:12px 16px; font-weight:700; font-size:16px; }
+.shots { display:grid; grid-template-columns:repeat(auto-fill,minmax(180px,1fr)); gap:10px; margin-top:10px; }
+.shots figure { margin:0; } .shots figcaption { font-size:11px; color:var(--dim); word-break:break-all; }
+.sc h3 { margin:0 0 6px; font-size:15px; }
+</style>
+</head>
+<body>
+<nav class="crumbs">
+  <a href="../dashboard.html">← Dashboard</a>
+  <a href="../implementation/spec.html">Spec</a> <a href="../implementation/implementation-plan.html">Plan</a>
+  <a href="implementation-verification.html">Verification</a>
+  <span class="here">E2E</span>
+  <a href="visual-fidelity.html">Visual fidelity</a>
+  <a href="e2e-verification-report.md" target="_blank" rel="noopener" class="md">md twin ↗</a>
+</nav>
+<header>
+  <h1>E2E Verification Report <span class="badge">e2e</span></h1>
+  <div style="color:var(--dim)">2026-10-26-item-vinted-categories · 2026-10-28 · git 12587e6 (main + working tree) · Chromium via Playwright MCP</div>
+</header>
+
+<div class="tiles">
+  <div class="tile"><b class="pass">GO</b><span>verdict</span></div>
+  <div class="tile"><b>13/13</b><span>passed</span></div>
+  <div class="tile"><b>1</b><span>skipped (photos)</span></div>
+  <div class="tile"><b>0</b><span>critical / major / minor</span></div>
+  <div class="tile"><b>3</b><span>cosmetic</span></div>
+</div>
+
+<section class="tldr card">
+  <div class="verdict">✅ GO: 13 of 13 executed scenarios passed</div>
+  <h2>TL;DR</h2>
+  <ul>
+    <li>The Vinted tree, the shared CategoryTreePicker, Oddam / Zamienię / Wersja robocza, the 10-gift limit, the admin tree and name-only needed items all behave as specified in the live app.</li>
+    <li>The DB confirms that listing status and the listing preference stay in step after every create, toggle and 409. The 409 persisted nothing. The tree has 9 roots and 2286 nodes.</li>
+    <li>No new defects. 3 cosmetic findings: 2 existed before this change and 1 is mockup styling drift.</li>
+  </ul>
+  <h2>Key Decisions</h2>
+  <ul>
+    <li>The dev DB was upgraded 0063 → 0069 (approved, backup in place). The stale :8080 backend was restarted on current code and left running detached.</li>
+    <li>Throwaway <code>e2e.*@example.test</code> accounts were used, with ADMIN granted by SQL as in the tests. The first 10 gift items were seeded through the API.</li>
+    <li>Visual fidelity was judged structurally against mockups rendered in the same browser.</li>
+  </ul>
+  <h2>Open Questions / Risks</h2>
+  <ul>
+    <li>The listing status chip appears only on the item <b>edit</b> page (per FR-22). The edit page also shows the older "Aktualny status: Dostępna" panel, and two different "status" concepts may confuse owners.</li>
+    <li>Test data remains in the dev DB: 4 accounts, about 16 items, 1 group, 3 terms and product <code>E2E-SKU-001</code>.</li>
+  </ul>
+</section>
+<p style="font-size:13px">Contents: <a href="#env">Environment</a> · <a href="#scenarios">Scenarios</a> · <a href="#disc">Discrepancies</a> · <a href="#console">Console</a> · <a href="#align">Spec alignment</a> · <a href="#variances">Variances</a> · <a href="#exit">Exit criteria</a> · <a href="#rec">Recommendations</a></p>
+
+<main>
+<h2 id="env">Test Environment</h2>
+<div class="card"><table>
+<tr><th>Base URL</th><td>http://localhost:5173 (Vite, /api → FastAPI :8080)</td></tr>
+<tr><th>Viewport</th><td>390×844 (user screens) · 1366×900 (admin)</td></tr>
+<tr><th>Auth</th><td>e2e.owner, e2e.gifter (GUEST) · e2e.org (ORGANIZER) · e2e.admin (GUEST + ADMIN)</td></tr>
+<tr><th>Data</th><td>Dev DB at 0069 after the legacy wipe; items created through the UI + 10 gift items through the API</td></tr>
+</table></div>
+
+<h2 id="scenarios">Scenarios</h2>
+
+<div class="card sc"><h3>4.1 Add item: initial state &amp; implicit submit <span class="pass">✅ Passed</span></h3>
+<ul><li>✅ "Kategoria *" is empty and shows "Wybierz kategorię"; the trigger uses <code>aria-labelledby</code></li>
+<li>✅ All three buttons are <code>type="button"</code> and <code>aria-disabled</code>, with the hint "Podaj nazwę i wybierz kategorię, aby zapisać."</li>
+<li>✅ Force-click and Enter in the name field (with or without a category) send no POST</li></ul>
+<div class="shots"><figure><img class="shot" src="screenshots/01-add-item-empty-390.png" alt=""><figcaption>01-add-item-empty-390</figcaption></figure>
+<figure><img class="shot" src="screenshots/08-add-item-ready-390.png" alt=""><figcaption>08-add-item-ready-390</figcaption></figure></div></div>
+
+<div class="card sc"><h3>4.2 Picker: drill-down, Wstecz, breadcrumb <span class="pass">✅ Passed</span></h3>
+<ul><li>✅ 9 roots in fixture order; the sheet is portaled to <code>body</code> with no form ancestor</li>
+<li>✅ Kobiety › Ubrania; leaves show "wybierz"</li>
+<li>✅ "‹ Wstecz" goes Sukienki → Ubrania; the breadcrumb jumps to Kobiety and Wszystkie</li></ul>
+<div class="shots"><figure><img class="shot" src="screenshots/02-picker-root-390.png" alt=""><figcaption>02-picker-root-390</figcaption></figure>
+<figure><img class="shot" src="screenshots/03-picker-drill-kobiety-ubrania-390.png" alt=""><figcaption>03-picker-drill-kobiety-ubrania-390</figcaption></figure></div></div>
+
+<div class="card sc"><h3>4.3 Picker search <span class="pass">✅ Passed</span></h3>
+<ul><li>✅ "sukienki" → "16 wyników", full paths, highlighted match; <code>aria-controls</code> only while results show</li>
+<li>✅ "ksiazki" → Książki (diacritic-insensitive)</li>
+<li>✅ "inne" → "Pokazano 50 z 80 — zawęź wyszukiwanie", 50 options</li>
+<li>✅ Esc clears without closing; ArrowDown + Enter selects; focus returns to the trigger</li></ul>
+<div class="shots"><figure><img class="shot" src="screenshots/04-picker-search-sukienki-390.png" alt=""><figcaption>04-picker-search-sukienki-390</figcaption></figure>
+<figure><img class="shot" src="screenshots/05-picker-search-ksiazki-390.png" alt=""><figcaption>05-picker-search-ksiazki-390</figcaption></figure>
+<figure><img class="shot" src="screenshots/06-picker-search-inne-cap-390.png" alt=""><figcaption>06-picker-search-inne-cap-390</figcaption></figure>
+<figure><img class="shot" src="screenshots/07-add-item-category-selected-390.png" alt=""><figcaption>07-add-item-category-selected-390</figcaption></figure></div></div>
+
+<div class="card sc"><h3>4.4 Picker close paths &amp; form safety <span class="pass">✅ Passed</span></h3>
+<ul><li>✅ Reopens at the parent level ("… › Sukienki")</li>
+<li>✅ ✕ / Esc / scrim close the sheet; no reopen, no POST; focus returns</li>
+<li>✅ Admin parent picker: Enter in search with no active option does not submit the admin form</li></ul>
+<div class="shots"><figure><img class="shot" src="screenshots/24-admin-parent-picker-any-mode-desktop.png" alt=""><figcaption>24-admin-parent-picker-any-mode-desktop</figcaption></figure></div></div>
+
+<div class="card sc"><h3>4.5 Oddam / Zamienię / Wersja robocza <span class="pass">✅ Passed</span></h3>
+<ul><li>✅ The register payload carries <code>listing_mode</code> GIFT / SWAP / none</li>
+<li>✅ DB: <code>ACTIVE/GIFT</code>, <code>ACTIVE/SWAP</code>, <code>DRAFT/-</code></li>
+<li>✅ Moje rzeczy shows ✓ Oddam, ✓ Zamienię, and no mode; "Do oddania: 1/10"</li></ul>
+<div class="shots"><figure><img class="shot" src="screenshots/09-item-page-after-oddam-390.png" alt=""><figcaption>09-item-page-after-oddam-390</figcaption></figure>
+<figure><img class="shot" src="screenshots/10-moje-rzeczy-390.png" alt=""><figcaption>10-moje-rzeczy-390</figcaption></figure></div></div>
+
+<div class="card sc"><h3>4.6 Gift limit (10) <span class="pass">✅ Passed</span></h3>
+<ul><li>✅ API 11th GIFT → 409 with the register message</li>
+<li>✅ UI 11th Oddam → verbatim <code>role="alert"</code>; name, Stan and category kept; Zamienię then succeeds; only 1 row in the DB</li>
+<li>✅ PUT GIFT at 10/10 → 409 "… Zdejmij „Oddam” z innej rzeczy."</li></ul>
+<div class="shots"><figure><img class="shot" src="screenshots/15-add-item-gift-limit-390.png" alt=""><figcaption>15-add-item-gift-limit-390</figcaption></figure>
+<figure><img class="shot" src="screenshots/16-moje-rzeczy-gift-limit-390.png" alt=""><figcaption>16-moje-rzeczy-gift-limit-390</figcaption></figure></div></div>
+
+<div class="card sc"><h3>4.7 Item edit <span class="pass">✅ Passed</span></h3>
+<ul><li>✅ Chips "Wersja robocza" / "Aktywna"; the moderation notice is gone</li>
+<li>✅ "Kategoria" picker reopens at the parent level; Zapisz → resolve + PATCH re-point</li></ul>
+<div class="shots"><figure><img class="shot" src="screenshots/12-item-edit-draft-chip-390.png" alt=""><figcaption>12-item-edit-draft-chip-390</figcaption></figure>
+<figure><img class="shot" src="screenshots/13-item-edit-category-editor-390.png" alt=""><figcaption>13-item-edit-category-editor-390</figcaption></figure>
+<figure><img class="shot" src="screenshots/14-item-edit-active-chip-390.png" alt=""><figcaption>14-item-edit-active-chip-390</figcaption></figure></div></div>
+
+<div class="card sc"><h3>4.8 Moje rzeczy toggles <span class="pass">✅ Passed</span></h3>
+<ul><li>✅ GIFT→SWAP stays ACTIVE · clear → DRAFT · DRAFT→GIFT → ACTIVE (all PUT 200, confirmed in the DB)</li></ul>
+<div class="shots"><figure><img class="shot" src="screenshots/11-moje-rzeczy-after-toggles-390.png" alt=""><figcaption>11-moje-rzeczy-after-toggles-390</figcaption></figure></div></div>
+
+<div class="card sc"><h3>4.9 Admin category tree <span class="pass">✅ Passed</span></h3>
+<ul><li>✅ ▸/▾ with <code>aria-expanded</code>; "5 podkategorii" / "4 podkategorie" plurals</li>
+<li>✅ ↑/↓ swap only within siblings, boundary buttons disabled; the filter expands matching branches</li>
+<li>✅ Leaf with products: "+ Podkategoria" / Usuń disabled, title "Kategoria ma przypisane rzeczy"</li>
+<li>✅ Delete parent → top alert "Nie można usunąć „Zwierzęta”: kategoria ma podkategorie."</li></ul>
+<div class="shots"><figure><img class="shot" src="screenshots/21-admin-tree-kobiety-expanded-desktop.png" alt=""><figcaption>21-admin-tree-kobiety-expanded-desktop</figcaption></figure>
+<figure><img class="shot" src="screenshots/22-admin-tree-filter-leaf-with-products-desktop.png" alt=""><figcaption>22-admin-tree-filter-leaf-with-products-desktop</figcaption></figure>
+<figure><img class="shot" src="screenshots/27-admin-delete-parent-409-alert-desktop.png" alt=""><figcaption>27-admin-delete-parent-409-alert-desktop</figcaption></figure></div></div>
+
+<div class="card sc"><h3>4.10 Admin category form <span class="pass">✅ Passed</span></h3>
+<ul><li>✅ "+ Podkategoria" → <code>?parent=</code>, "Nowa podkategoria", parent preselected, hint shown</li>
+<li>✅ Create 201 · duplicate → "Kategoria o tej nazwie już istnieje na tym poziomie" · rename PUT 200 with a read-only parent · delete the test child</li></ul>
+<div class="shots"><figure><img class="shot" src="screenshots/23-admin-new-subcategory-form-desktop.png" alt=""><figcaption>23-admin-new-subcategory-form-desktop</figcaption></figure>
+<figure><img class="shot" src="screenshots/25-admin-duplicate-sibling-409-desktop.png" alt=""><figcaption>25-admin-duplicate-sibling-409-desktop</figcaption></figure>
+<figure><img class="shot" src="screenshots/26-admin-edit-category-readonly-parent-desktop.png" alt=""><figcaption>26-admin-edit-category-readonly-parent-desktop</figcaption></figure></div></div>
+
+<div class="card sc"><h3>4.11 Admin products <span class="pass">✅ Passed</span></h3>
+<ul><li>✅ Filter: 1978 options = 1978 leaves, 0 non-leaf, sorted by path; the column shows full paths</li>
+<li>✅ The product form picker drills on a non-leaf result; save 201 with a leaf; resolve with a root → 409</li></ul>
+<div class="shots"><figure><img class="shot" src="screenshots/28-admin-product-list-desktop.png" alt=""><figcaption>28-admin-product-list-desktop</figcaption></figure>
+<figure><img class="shot" src="screenshots/29-admin-product-form-picker-drill-desktop.png" alt=""><figcaption>29-admin-product-form-picker-drill-desktop</figcaption></figure>
+<figure><img class="shot" src="screenshots/30-admin-product-form-filled-desktop.png" alt=""><figcaption>30-admin-product-form-filled-desktop</figcaption></figure></div></div>
+
+<div class="card sc"><h3>4.12 Needed items by name <span class="pass">✅ Passed</span></h3>
+<ul><li>✅ No category field; POST <code>{term_id, name, description?}</code></li>
+<li>✅ The term page lists "Koc piknikowy", "Termos — najlepiej 1 l"; the public payload key set matches the spec exactly</li>
+<li>✅ A contact-info name → one toast "Termin dodany, ale nie dodano rzeczy: …"; modal closed</li>
+<li>✅ EditTermDialog rename and add by name</li></ul>
+<div class="shots"><figure><img class="shot" src="screenshots/31-term-add-needed-item-form-390.png" alt=""><figcaption>31-term-add-needed-item-form-390</figcaption></figure>
+<figure><img class="shot" src="screenshots/33-term-public-page-organizer-390.png" alt=""><figcaption>33-term-public-page-organizer-390</figcaption></figure>
+<figure><img class="shot" src="screenshots/35-term-needed-item-rejected-toast-390.png" alt=""><figcaption>35-term-needed-item-rejected-toast-390</figcaption></figure>
+<figure><img class="shot" src="screenshots/38-edit-term-dialog-after-edits-390.png" alt=""><figcaption>38-edit-term-dialog-after-edits-390</figcaption></figure></div></div>
+
+<div class="card sc"><h3>4.13 Responsive (390px / desktop) <span class="pass">✅ Passed</span></h3>
+<ul><li>✅ The sheet and trigger wrap long paths at 390px; admin rows are single-line at 1366px</li></ul></div>
+
+<h2 id="disc">Discrepancies</h2>
+<div class="card"><table>
+<tr><th>Severity</th><th>Finding</th><th>Notes</th></tr>
+<tr><td><span class="sev info">cosmetic</span></td><td>C1: the admin delete confirm shows English "Cancel"</td><td>Pre-existing shared <code>ConfirmDialog</code>; pass a Polish label</td></tr>
+<tr><td><span class="sev info">cosmetic</span></td><td>C2: non-admins can open <code>/admin/categories</code> read-only</td><td>Pre-existing <code>isAdmin</code> gating of actions only; server enforces ADMIN</td></tr>
+<tr><td><span class="sev info">cosmetic</span></td><td>C3: admin action styling differs from the mockup</td><td>Borderless text actions, Chakra-blue primary; structure matches</td></tr>
+</table><p style="color:var(--dim);font-size:13px">Critical, Major, Minor: none observed.</p></div>
+
+<h2 id="console">Console &amp; Network</h2>
+<div class="card"><p>No JS exceptions or React warnings. 404 <code>/api/organizations/mine</code> (×~10) existed before and is expected for users without an organization. All other 4xx are the deliberate negative tests: 409 inventory-items, 409 PUT listing preference, 409 POST and DELETE categories, 400 needed-items.</p></div>
+
+<h2 id="align">Spec Alignment</h2>
+<div class="card"><p><span class="pass">Fully implemented:</span> FR-1, 3–14, 19–25 as observed in the browser and the DB. <b>Partial / not implemented:</b> none. <b>Not testable here:</b> FR-15 photo gate (upload skipped), FR-2 fixture provenance.</p></div>
+
+<h2 id="variances">Variances from Plan</h2>
+<div class="card"><ul>
+<li>Photo upload skipped (optional; Spaces is root-<code>.env</code> only).</li>
+<li>10 gift items seeded through the API; the PUT gift limit was verified through <code>fetch</code> because the UI pre-disables Oddam at 10/10.</li>
+<li>The group was created private, so the anonymous public view showed the private gate. Names were verified in the organizer's public view and the API payload.</li>
+<li>The stale backend was restarted on current code, then left running detached on :8080.</li>
+</ul></div>
+
+<h2 id="exit">Exit Criteria</h2>
+<div class="card"><table>
+<tr><th>Criterion</th><th>Status</th></tr>
+<tr><td>9 roots, only the Vinted tree after upgrade</td><td class="pass">✅</td></tr>
+<tr><td>downgrade 0063 → upgrade head</td><td>⚠️ not run here (pytest scope)</td></tr>
+<tr><td>Non-leaf product writes 409; pickers leaf-only except the admin parent</td><td class="pass">✅</td></tr>
+<tr><td>Oddam/Zamienię/Draft → ACTIVE+GIFT / ACTIVE+SWAP / DRAFT; 11th GIFT 409, nothing persisted</td><td class="pass">✅</td></tr>
+<tr><td>ACTIVE ⇔ pref after register, set and clear</td><td class="pass">✅ (confirm not exercised)</td></tr>
+<tr><td>Photo upload / re-point keeps the pref</td><td>⚠️ re-point ✅, upload skipped</td></tr>
+<tr><td>Needed items by name; public term page shows names</td><td class="pass">✅</td></tr>
+<tr><td>Picker a11y (keyboard, Esc, focus return)</td><td class="pass">✅</td></tr>
+<tr><td>Picker never submits a host form</td><td class="pass">✅</td></tr>
+<tr><td>Tests, mypy, ruff, tsc</td><td>⚠️ out of E2E scope</td></tr>
+</table></div>
+
+<h2 id="rec">Recommendations</h2>
+<div class="card"><ul>
+<li><b>Must fix:</b> none · <b>Should fix:</b> none</li>
+<li><b>Nice-to-have:</b> C1 Polish "Anuluj"; C3 admin styling; C2 optional redirect; consider surfacing the listing status outside the edit page.</li>
+</ul>
+<p><b>Conclusion:</b> ✅ GO. Merge; optionally run a photo-upload smoke test with Spaces before release.</p></div>
+</main>
+</body>
+</html>

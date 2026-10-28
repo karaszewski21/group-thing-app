@@ -48,9 +48,10 @@ function details(overrides: Partial<ItemDetailsResponse> = {}): ItemDetailsRespo
     id: "9",
     product_id: "p-1",
     name: "Rowerek biegowy",
-    category_id: null,
+    category_id: "c-1",
     category_name: "Zabawki",
     condition: "GOOD",
+    listing_status: "ACTIVE",
     description: "Lekki, aluminiowy.",
     photos: [],
     product_photo_url: null,
@@ -58,7 +59,7 @@ function details(overrides: Partial<ItemDetailsResponse> = {}): ItemDetailsRespo
     deleted_at: null,
     status: { code: "AVAILABLE", term_occurs_on: null, due_date: null, counterparty_label: null },
     ...overrides,
-  } as ItemDetailsResponse;
+  };
 }
 
 function Where() {

@@ -15,13 +15,13 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
 from app.core.authorization_matrix import resolve_requirement
-from app.groups.application.term_item_listings import PHOTOS_IN_MODERATION_MESSAGE
 from app.moderation.models import ModerationDecision, ModerationSource, ModerationSubjectType
 from app.moderation.rules import CONTACT_INFO_MESSAGE, contains_contact_info
 from app.moderation.status import ModerationStatus
 from app.outbox.models import OutboxEntry
 from app.product.models import ProductPhoto
 from app.storage.outbox_listener import OBJECTS_DELETE
+from tests.conftest import leaf_category_ids
 from tests.fake_storage import FakeStorage
 from tests.test_term_item_listings import (
     _auth,
@@ -69,34 +69,6 @@ def moderation_on(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(settings, "moderation_image_enabled", True)
 
 
-async def test_setListingPreference_pendingPhotoThenApproved_409Then200(
-    client: AsyncClient, db_session: AsyncSession, moderation_on: None
-) -> None:
-    """No text gate on a product name; only a photo still in moderation
-    blocks listing, and approving it lifts the block."""
-    token, _ = await _register(client, "GUEST", "mod.l1@example.com")
-    item_id = await _register_personal_item(client, token, "Nowa nazwa bez bramki")
-    product_id = await _resolve_product(client, token, "Nowa nazwa bez bramki")
-    photo_id = await _pending_photo(client, token, product_id, 1)
-
-    blocked = await client.put(
-        f"/api/item-listing-preferences/{item_id}", json={"mode": "GIFT"}, headers=_auth(token)
-    )
-    await db_session.execute(
-        update(ProductPhoto)
-        .where(ProductPhoto.id == photo_id)
-        .values(status=ModerationStatus.APPROVED)
-    )
-    await db_session.commit()
-    listed = await client.put(
-        f"/api/item-listing-preferences/{item_id}", json={"mode": "GIFT"}, headers=_auth(token)
-    )
-
-    assert blocked.status_code == 409
-    assert blocked.json()["message"] == PHOTOS_IN_MODERATION_MESSAGE
-    assert listed.status_code == 200, listed.text
-
-
 @pytest.mark.parametrize(
     "value",
     [
@@ -136,11 +108,11 @@ async def test_productTextWrites_contactInfo_return400WithPolishMessage(
     token, _ = await _register(client, "GUEST", "mod.r1@example.com")
     await _register_personal_item(client, token, "Rowerek")
     product_id = await _resolve_product(client, token, "Rowerek")
-    categories = (await client.get("/api/categories", headers=_auth(token))).json()
+    category_id = (await leaf_category_ids(client, _auth(token)))[0]
 
     resolved = await client.post(
         "/api/products/resolve",
-        json={"name": "Rowerek tel 601 234 567", "category_id": categories[0]["id"]},
+        json={"name": "Rowerek tel 601 234 567", "category_id": category_id},
         headers=_auth(token),
     )
     described = await client.patch(

@@ -27,6 +27,7 @@ from app.category.service import (
 )
 from app.core.authorization_matrix import resolve_requirement
 from app.core.errors import EntityNotFoundException
+from tests.conftest import leaf_category_ids
 
 ADMIN = ("ADMIN",)
 READ = ("READ", "mcp:read")
@@ -98,7 +99,9 @@ async def test_createCategory_nonAdminThenAdmin_forbiddenThenCreated(
 ) -> None:
     headers = await _authed_headers(client, "catcreate1@example.com")
 
-    forbidden = await client.post("/api/categories", json={"name": "Elektronika"}, headers=headers)
+    forbidden = await client.post(
+        "/api/categories", json={"name": "Nowa Kategoria Testowa"}, headers=headers
+    )
     assert forbidden.status_code == 403
 
     admin_headers = await _grant_admin_and_relogin(
@@ -106,11 +109,12 @@ async def test_createCategory_nonAdminThenAdmin_forbiddenThenCreated(
     )
 
     created = await client.post(
-        "/api/categories", json={"name": "Elektronika"}, headers=admin_headers
+        "/api/categories", json={"name": "Nowa Kategoria Testowa"}, headers=admin_headers
     )
     assert created.status_code == 201
     body = created.json()
-    assert body["name"] == "Elektronika"
+    assert body["name"] == "Nowa Kategoria Testowa"
+    assert body["parent_id"] is None
     assert body["product_count"] == 0
 
 
@@ -122,7 +126,7 @@ async def test_deleteCategory_nonAdminPrincipal_returns403(client: AsyncClient) 
     assert response.status_code == 403
 
 
-async def test_deleteCategory_referencedByProducts_raisesWithExactBlockingCount(
+async def test_deleteCategory_referencedByProducts_raisesPolishProductsMessage(
     db_session: AsyncSession,
 ) -> None:
     category = Category(name="Testowa Kategoria", description=None, sort_order=999)
@@ -143,7 +147,9 @@ async def test_deleteCategory_referencedByProducts_raisesWithExactBlockingCount(
     with pytest.raises(CategoryHasProductsException) as exc_info:
         await delete_category(db_session, category_id)
 
-    assert "2" in str(exc_info.value)
+    assert str(exc_info.value) == (
+        "Nie można usunąć „Testowa Kategoria”: kategoria ma przypisane rzeczy."
+    )
 
 
 async def test_listCategories_returnsRowsOrderedBySortOrderWithAggregatedProductCounts(
@@ -201,10 +207,8 @@ async def test_moveCategory_atBoundary_isNoOpRatherThanError(db_session: AsyncSe
     `sort_order` row `"down"` must leave `sort_order` untouched and must
     not raise, since the router has no other error path to catch a
     `scalar_one_or_none() is None` case here."""
-    # Sort orders chosen to sit strictly outside the 5 permanently-seeded
-    # categories' range (0-4, per `0025_category_reintroduction`) so this
-    # test's rows are the genuine global boundary within its own
-    # transaction, regardless of what other tests insert in theirs.
+    # Both rows are roots, and the sort orders sit strictly outside the
+    # seeded roots' range, so they are the genuine sibling boundary.
     lowest = Category(name="Skrajnie Pierwsza", description=None, sort_order=-100)
     highest = Category(name="Skrajnie Ostatnia", description=None, sort_order=999_999)
     db_session.add_all([lowest, highest])
@@ -272,9 +276,8 @@ async def test_editorEquivalentPrincipal_categoriesAndProductsEndToEnd_regressio
 
     listing = await client.get("/api/categories", headers=headers)
     assert listing.status_code == 200
-    categories = listing.json()
-    assert len(categories) >= 5
-    first_category_id = categories[0]["id"]
+    assert len(listing.json()) >= 5
+    first_category_id, other_category_id = await leaf_category_ids(client, headers, n=2)
 
     single = await client.get(f"/api/categories/{first_category_id}", headers=headers)
     assert single.status_code == 200
@@ -291,7 +294,6 @@ async def test_editorEquivalentPrincipal_categoriesAndProductsEndToEnd_regressio
     )
     assert created.status_code == 201
     product_id = created.json()["id"]
-    other_category_id = next(c["id"] for c in categories if c["id"] != first_category_id)
 
     updated = await client.put(
         f"/api/products/{product_id}",

@@ -1,10 +1,13 @@
 import { api } from "./client";
+import type { ListingMode } from "./itemListingPreferences";
 import type { ProductResponse } from "./products";
 import type { ReservationType } from "./reservations";
 
 export type InventoryType = "PERSONAL" | "PICKUP_POINT" | "VIRTUAL";
 export type ItemCondition = "NEW" | "LIKE_NEW" | "GOOD" | "FAIR" | "POOR";
 export type BalanceStatus = "AVAILABLE" | "RESERVED" | "IN_TRANSIT" | "LENT" | "RETURNED";
+/** `DRAFT` until the item is first offered (or after its mode is cleared). */
+export type ListingStatus = "DRAFT" | "ACTIVE";
 
 export interface InventoryResponse {
   id: string;
@@ -27,6 +30,7 @@ export interface InventoryItemResponse {
   product_id: string;
   product_name: string;
   condition: ItemCondition;
+  listing_status: ListingStatus;
   added_at: string;
   created_at: string;
   updated_at: string;
@@ -48,6 +52,8 @@ export interface CreateInventoryItemRequest {
   inventory_id: string;
   product_id: string;
   condition: ItemCondition;
+  /** Offers the item right away (`ACTIVE`); null or omitted saves a `DRAFT`. */
+  listing_mode?: ListingMode | null;
 }
 
 export interface InventoryBalanceResponse {

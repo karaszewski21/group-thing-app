@@ -186,11 +186,11 @@ const mockInventory: inventoriesApi.InventoryResponse = {
 
 // Seeded category ids/names (migration 0025_category_reintroduction.py).
 const mockCategories: categoriesApi.Category[] = [
-  { id: "1", name: "Zabawka", description: null, sortOrder: 1, productCount: 0, createdAt: "", updatedAt: "" },
-  { id: "2", name: "Książka", description: null, sortOrder: 2, productCount: 0, createdAt: "", updatedAt: "" },
-  { id: "3", name: "Gra", description: null, sortOrder: 3, productCount: 0, createdAt: "", updatedAt: "" },
-  { id: "4", name: "Ubranie", description: null, sortOrder: 4, productCount: 0, createdAt: "", updatedAt: "" },
-  { id: "5", name: "Inne", description: null, sortOrder: 5, productCount: 0, createdAt: "", updatedAt: "" },
+  { id: "1", name: "Zabawka", description: null, parent_id: null, sort_order: 1, product_count: 0, created_at: "", updated_at: "" },
+  { id: "2", name: "Książka", description: null, parent_id: null, sort_order: 2, product_count: 0, created_at: "", updated_at: "" },
+  { id: "3", name: "Gra", description: null, parent_id: null, sort_order: 3, product_count: 0, created_at: "", updated_at: "" },
+  { id: "4", name: "Ubranie", description: null, parent_id: null, sort_order: 4, product_count: 0, created_at: "", updated_at: "" },
+  { id: "5", name: "Inne", description: null, parent_id: null, sort_order: 5, product_count: 0, created_at: "", updated_at: "" },
 ];
 
 // Term/Group ids are UUID strings end to end (spec R29) — never coerced.
@@ -1743,12 +1743,10 @@ describe("AppPage — per-term public links & copy-link button", () => {
     ]);
     vi.mocked(termsApi.getNeededItems).mockResolvedValue([
       {
-        id: "1", term_id: TERM_ID, product_id: "5", product_name: "Bębenek",
-        product_category_id: "5", product_category_name: "Inne", description: null, claimed: true, created_at: "", updated_at: "",
+        id: "1", term_id: TERM_ID, name: "Bębenek", description: null, claimed: true, created_at: "", updated_at: "",
       },
       {
-        id: "2", term_id: TERM_ID, product_id: "6", product_name: "Koc",
-        product_category_id: "5", product_category_name: "Inne", description: null, claimed: false, created_at: "", updated_at: "",
+        id: "2", term_id: TERM_ID, name: "Koc", description: null, claimed: false, created_at: "", updated_at: "",
       },
     ]);
     renderPanel();
@@ -1845,10 +1843,7 @@ describe("AppPage — needed item sub-CRUD (in the term dialog)", () => {
   const neededItem = {
     id: "11",
     term_id: TERM_ID,
-    product_id: "5",
-    product_name: "Bębenek",
-    product_category_id: "5",
-    product_category_name: "Inne",
+    name: "Bębenek",
     description: "mały",
     claimed: false,
     created_at: "",
@@ -1868,15 +1863,10 @@ describe("AppPage — needed item sub-CRUD (in the term dialog)", () => {
     return screen.findByRole("dialog", { name: "Edytuj termin" });
   }
 
-  it("adds a needed item via the dialog add row (resolveProduct then createNeededItem)", async () => {
+  it("adds a needed item via the dialog add row by name only (no resolveProduct)", async () => {
     mockTermWithNeeded();
-    vi.mocked(productsApi.resolveProduct).mockResolvedValue({
-      id: "42", name: "Mata", description: null, photo_url: null, sku: "MATA-1",
-      category_id: "1", plugin_data: null, created_at: "", updated_at: "",
-    });
     vi.mocked(termsApi.createNeededItem).mockResolvedValue({
-      id: "12", term_id: TERM_ID, product_id: "42", product_name: "Mata", product_category_id: "1", product_category_name: "Zabawka",
-      description: "Koc", claimed: false, created_at: "", updated_at: "",
+      id: "12", term_id: TERM_ID, name: "Mata", description: "Koc", claimed: false, created_at: "", updated_at: "",
     });
     const dialog = await openEditDialog();
 
@@ -1886,13 +1876,11 @@ describe("AppPage — needed item sub-CRUD (in the term dialog)", () => {
     fireEvent.click(within(dialog).getByRole("button", { name: "Dodaj" }));
 
     await waitFor(() =>
-      expect(productsApi.resolveProduct).toHaveBeenCalledWith({ name: "Mata", category_id: "1" }),
-    );
-    await waitFor(() =>
       expect(termsApi.createNeededItem).toHaveBeenCalledWith({
-        term_id: TERM_ID, product_id: "42", description: "Koc",
+        term_id: TERM_ID, name: "Mata", description: "Koc",
       }),
     );
+    expect(productsApi.resolveProduct).not.toHaveBeenCalled();
   });
 
   it("edits a needed item's description only via the dialog (no resolveProduct)", async () => {
@@ -1950,6 +1938,7 @@ describe("AppPage — inventory item edit/delete", () => {
     created_at: "",
     updated_at: "",
     listing_mode: null,
+    listing_status: "DRAFT" as const,
     photos_moderation_pending: false,
   };
 
@@ -1961,7 +1950,7 @@ describe("AppPage — inventory item edit/delete", () => {
   it("seeds each item's mode toggle from its listing_mode in 'Moje rzeczy'", async () => {
     mockGuestDefaults();
     vi.mocked(inventoriesApi.getMyInventoryItems).mockResolvedValue([
-      { ...invItem, listing_mode: "GIFT" },
+      { ...invItem, listing_mode: "GIFT", listing_status: "ACTIVE" },
     ]);
     renderPanel();
 
@@ -2009,6 +1998,7 @@ describe("AppPage — mode toggle errors and photo-moderation poll", () => {
     created_at: "",
     updated_at: "",
     listing_mode: null,
+    listing_status: "DRAFT" as const,
     photos_moderation_pending: false,
   };
 
@@ -2169,7 +2159,7 @@ describe("AppPage — mode toggle errors and photo-moderation poll", () => {
             resolvePoll = resolve;
           }),
       )
-      .mockResolvedValue([{ ...modItem, listing_mode: "GIFT" }, pendingItem]);
+      .mockResolvedValue([{ ...modItem, listing_mode: "GIFT", listing_status: "ACTIVE" }, pendingItem]);
     vi.mocked(itemListingPreferencesApi.setItemListingPreference).mockResolvedValue(null);
     renderPanel("/rzeczy");
 
@@ -2214,10 +2204,7 @@ describe("AppPage — needed item edit error path", () => {
   const neededItem = {
     id: "11",
     term_id: TERM_ID,
-    product_id: "5",
-    product_name: "Bębenek",
-    product_category_id: "5",
-    product_category_name: "Inne",
+    name: "Bębenek",
     description: "mały",
     claimed: false,
     created_at: "",
@@ -2260,7 +2247,7 @@ describe("AppPage — Zadeklarowane rzeczy (my pledges)", () => {
   const myPledge: pledgesApi.MyPledgeResponse = {
     pledge_id: "7",
     status: "CLAIMED",
-    product_name: "Bębenek",
+    item_name: "Bębenek",
     item_description: "mały",
     term_id: "3",
     group_id: "5",
@@ -2366,6 +2353,7 @@ describe("AppPage — MyItemsView post-term-end fallback buttons (Bug #4c, full 
     created_at: "",
     updated_at: "",
     listing_mode: null,
+    listing_status: "DRAFT" as const,
     photos_moderation_pending: false,
   };
 
@@ -2427,6 +2415,7 @@ describe("AppPage — MyItemsView swap accept success sheet", () => {
     created_at: "",
     updated_at: "",
     listing_mode: "SWAP" as const,
+    listing_status: "ACTIVE" as const,
     photos_moderation_pending: false,
   };
 
@@ -2619,8 +2608,16 @@ describe("AppPage — moderation errors inline in the add-group / add-term / edi
     expect(within(dialog).queryByRole("alert")).not.toBeInTheDocument();
   });
 
-  it("add term: a rejected needed-item name never creates the term and shows an inline alert", async () => {
-    vi.mocked(productsApi.resolveProduct).mockRejectedValue(
+  function mockCreatedTerm() {
+    return {
+      id: TERM_ID, circle_group_id: GROUP_ID, occurs_on: "2026-02-01", description: null,
+      created_at: "", updated_at: "", attendee_count: null, child_count: null,
+    };
+  }
+
+  it("add term: a rejected needed-item name does not block the term — one toast, modal closes", async () => {
+    vi.mocked(termsApi.createTerm).mockResolvedValue(mockCreatedTerm());
+    vi.mocked(termsApi.createNeededItem).mockRejectedValue(
       new ApiError(400, "Bad Request", { message: PRODUCT_NAME_REJECTED }),
     );
     renderPanel();
@@ -2628,25 +2625,34 @@ describe("AppPage — moderation errors inline in the add-group / add-term / edi
 
     fireEvent.click(within(dialog).getByRole("button", { name: "Dodaj termin" }));
 
-    expect(await within(dialog).findByRole("alert")).toHaveTextContent(PRODUCT_NAME_REJECTED);
-    expect(termsApi.createTerm).not.toHaveBeenCalled();
+    expect(await screen.findByRole("status")).toHaveTextContent(
+      `Termin dodany, ale nie dodano rzeczy: Zła rzecz — ${PRODUCT_NAME_REJECTED}`,
+    );
+    expect(termsApi.createTerm).toHaveBeenCalledTimes(1);
+    expect(termsApi.createNeededItem).toHaveBeenCalledWith({ term_id: TERM_ID, name: "Zła rzecz", description: undefined });
+    await waitFor(() => expect(screen.queryByRole("dialog", { name: "Dodaj termin zajęć" })).not.toBeInTheDocument());
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+  });
+
+  it("add term: a rejected createTerm shows an inline alert, creates no needed items and keeps the modal open", async () => {
+    const TERM_REJECTED = "Opis terminu narusza zasady społeczności. Zmień go i spróbuj ponownie.";
+    vi.mocked(termsApi.createTerm).mockRejectedValue(new ApiError(400, "Bad Request", { message: TERM_REJECTED }));
+    renderPanel();
+    const dialog = await openAddTermDialogWithDraftItem("Mata");
+
+    fireEvent.click(within(dialog).getByRole("button", { name: "Dodaj termin" }));
+
+    expect(await within(dialog).findByRole("alert")).toHaveTextContent(TERM_REJECTED);
     expect(termsApi.createNeededItem).not.toHaveBeenCalled();
     expect(screen.queryByRole("status")).not.toBeInTheDocument();
     expect(screen.getByRole("dialog", { name: "Dodaj termin zajęć" })).toBeInTheDocument();
   });
 
-  it("add term: resolves every needed item before createTerm, then creates the needed items", async () => {
+  it("add term: creates the term first, then the needed items by name (no resolveProduct)", async () => {
     const calls: string[] = [];
-    vi.mocked(productsApi.resolveProduct).mockImplementation(async () => {
-      calls.push("resolveProduct");
-      return { id: "p-1" } as Awaited<ReturnType<typeof productsApi.resolveProduct>>;
-    });
     vi.mocked(termsApi.createTerm).mockImplementation(async () => {
       calls.push("createTerm");
-      return {
-        id: TERM_ID, circle_group_id: GROUP_ID, occurs_on: "2026-02-01", description: null,
-        created_at: "", updated_at: "", attendee_count: null, child_count: null,
-      };
+      return mockCreatedTerm();
     });
     vi.mocked(termsApi.createNeededItem).mockImplementation(async () => {
       calls.push("createNeededItem");
@@ -2657,8 +2663,9 @@ describe("AppPage — moderation errors inline in the add-group / add-term / edi
 
     fireEvent.click(within(dialog).getByRole("button", { name: "Dodaj termin" }));
 
-    await waitFor(() => expect(calls).toEqual(["resolveProduct", "createTerm", "createNeededItem"]));
-    expect(termsApi.createNeededItem).toHaveBeenCalledWith({ term_id: TERM_ID, product_id: "p-1", description: undefined });
+    await waitFor(() => expect(calls).toEqual(["createTerm", "createNeededItem"]));
+    expect(termsApi.createNeededItem).toHaveBeenCalledWith({ term_id: TERM_ID, name: "Mata", description: undefined });
+    expect(productsApi.resolveProduct).not.toHaveBeenCalled();
   });
 
   it("edit group: a server-rejected name shows the server message in an alert", async () => {
@@ -2832,7 +2839,7 @@ describe("AppPage — delete group (soft delete)", () => {
 
   it("409 message is shown inline in the dialog", async () => {
     vi.mocked(groupsApi.deleteGroup).mockRejectedValue(new ApiError(409, "Conflict", { message: RSVP_BLOCK }));
-    const { dialog } = await openDeleteDialog();
+    const { trash, dialog } = await openDeleteDialog();
 
     fireEvent.click(within(dialog).getByRole("button", { name: "Usuń grupę" }));
 
@@ -2840,7 +2847,6 @@ describe("AppPage — delete group (soft delete)", () => {
     expect(screen.queryByRole("status")).not.toBeInTheDocument();
 
     const loadsBefore = vi.mocked(peopleApi.getLeadershipsForPerson).mock.calls.length;
-    const trash = screen.getByRole("button", { name: /^Usuń grupę / });
     fireEvent.click(within(dialog).getByRole("button", { name: "Anuluj" }));
     await waitFor(() => expect(peopleApi.getLeadershipsForPerson).toHaveBeenCalledTimes(loadsBefore + 1));
     // The re-read is silent: no skeleton, so the trash button survives and gets focus back.

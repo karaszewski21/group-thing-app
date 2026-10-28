@@ -1,0 +1,26 @@
+[
+  {"name": "Książki", "external_id": 2312, "children": [
+    {"name": "Beletrystyka", "external_id": 2319, "children": []},
+    {"name": "Dzieci i młodzież", "external_id": 2318, "children": []},
+    {"name": "Literatura faktu", "external_id": 2320, "children": []},
+    {"name": "Podręczniki i materiały do nauki", "external_id": 5426, "children": []},
+    {"name": "Komiksy, manga i powieści graficzne", "external_id": 5425, "children": []},
+    {"name": "Książki z kolorowankami, łamigłówkami i zadaniami", "external_id": 5427, "children": []}
+  ]},
+  {"name": "Muzyka", "external_id": 3036, "children": [
+    {"name": "Płyty CD", "external_id": 3039, "children": []},
+    {"name": "Płyty gramofonowe", "external_id": 3041, "children": []},
+    {"name": "Kasety magnetofonowe", "external_id": 3038, "children": []},
+    {"name": "Płyty MiniDisc", "external_id": 3040, "children": []}
+  ]},
+  {"name": "Wideo", "external_id": 3037, "children": [
+    {"name": "DVD", "external_id": 3045, "children": []},
+    {"name": "VHS", "external_id": 3048, "children": []},
+    {"name": "Blu-ray", "external_id": 3044, "children": []},
+    {"name": "Blu-ray 4K", "external_id": 3042, "children": []},
+    {"name": "LaserDisc", "external_id": 3047, "children": []},
+    {"name": "HD DVD", "external_id": 3046, "children": []},
+    {"name": "Betamax", "external_id": 3043, "children": []}
+  ]},
+  {"name": "Czasopisma", "external_id": 5424, "children": []}
+]

@@ -2,7 +2,7 @@
 driven `InventoryBalance` field-mutation cascades (kept inline per D2).
 
 `_confirm` / `_cancel` / `_fulfill` only mutate and flush; the public
-wrappers commit, except `release_reservation`, which only flushes.
+wrappers commit.
 `_fulfill` returns the `MovementLeg` of the fulfilment and
 `fulfill_exchange` posts it through `post_movement`, the only code that
 changes an item's location. `fulfill_exchange` / `cancel_exchange` resolve
@@ -124,17 +124,6 @@ async def cancel_reservation(
     await _cancel(db, reservation, acting_user_id)
     await db.commit()
     await db.refresh(reservation)
-    return reservation
-
-
-async def release_reservation(
-    db: AsyncSession, reservation_id: uuid.UUID, acting_user_id: uuid.UUID
-) -> Reservation:
-    """Cancels the reservation like `cancel_reservation` (same status guard
-    and party rule) but only flushes: for callers that own the transaction
-    and commit or roll back everything together."""
-    reservation = await get_reservation(db, reservation_id)
-    await _cancel(db, reservation, acting_user_id)
     return reservation
 
 

@@ -11,6 +11,7 @@ import {
   updateProduct as apiUpdateProduct,
   deleteProduct as apiDeleteProduct,
 } from "../api/products";
+import { CATEGORIES_KEY } from "./useCategories";
 
 interface UseProductsResult {
   data: ProductResponse[];
@@ -66,8 +67,13 @@ export function useProducts(params: UseProductsParams): UseProductsResult {
 
   // Invalidates every product list, not just this one's filter combination:
   // a create/update/delete can move a product into or out of any of them.
+  // Categories too: their `product_count` gates the admin tree's buttons.
   const invalidate = useCallback(
-    () => queryClient.invalidateQueries({ queryKey: PRODUCTS_KEY }),
+    () =>
+      Promise.all([
+        queryClient.invalidateQueries({ queryKey: PRODUCTS_KEY }),
+        queryClient.invalidateQueries({ queryKey: CATEGORIES_KEY }),
+      ]),
     [queryClient],
   );
 

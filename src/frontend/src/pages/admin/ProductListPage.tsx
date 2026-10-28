@@ -7,7 +7,7 @@ import {
   Table,
   Text,
 } from "@chakra-ui/react";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { PAGE_SIZE } from "../../api/pagination";
 import { useProducts } from "../../hooks/useProducts";
@@ -20,6 +20,7 @@ import { Pagination } from "../../components/shared/Pagination";
 import { PrimaryButton } from "../../components/shared/PrimaryButton";
 import { useAuth } from "../../auth/AuthContext";
 import dayjs from "../../utils/dayjs";
+import { buildCategoryIndex, formatCategoryPath, isLeaf } from "../../utils/categoryTree";
 
 export function ProductListPage() {
   const { permissions } = useAuth();
@@ -33,8 +34,18 @@ export function ProductListPage() {
   const debounceRef = useRef<ReturnType<typeof setTimeout>>(null);
   const { getProductListFilters } = usePluginContext();
   const { data: categories } = useCategories();
-  const categoryName = (categoryId: string): string =>
-    categories.find((c) => c.id === categoryId)?.name ?? `#${categoryId}`;
+  const categoryIndex = useMemo(() => buildCategoryIndex(categories), [categories]);
+  // Products only sit on leaves and the backend filter has no descendant match.
+  const leafOptions = useMemo(
+    () =>
+      categories
+        .filter((c) => isLeaf(categoryIndex, c.id))
+        .map((c) => ({ id: c.id, path: formatCategoryPath(categoryIndex, c.id) }))
+        .sort((a, b) => a.path.localeCompare(b.path, "pl")),
+    [categories, categoryIndex],
+  );
+  const categoryPath = (categoryId: string): string =>
+    formatCategoryPath(categoryIndex, categoryId) || `#${categoryId}`;
 
   useEffect(() => {
     if (debounceRef.current) {
@@ -155,9 +166,9 @@ export function ProductListPage() {
           }}
         >
           <option value="">All Categories</option>
-          {categories.map((cat) => (
-            <option key={cat.id} value={cat.id}>
-              {cat.name}
+          {leafOptions.map((option) => (
+            <option key={option.id} value={option.id}>
+              {option.path}
             </option>
           ))}
         </select>
@@ -269,7 +280,7 @@ export function ProductListPage() {
                         fontWeight="500"
                         color="#334155"
                       >
-                        {categoryName(product.category_id)}
+                        {categoryPath(product.category_id)}
                       </Text>
                     </Table.Cell>
                     <Table.Cell color="#64748B" fontSize="13px" whiteSpace="nowrap">

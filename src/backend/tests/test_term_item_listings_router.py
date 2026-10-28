@@ -14,6 +14,7 @@ from datetime import date, timedelta
 from httpx import AsyncClient
 
 from app.core import clock
+from tests.conftest import leaf_category_ids
 
 
 def _auth(token: str) -> dict[str, str]:
@@ -59,9 +60,7 @@ async def _rsvp(client: AsyncClient, token: str, group_id: int, term_id: int) ->
 
 
 async def _category_id(client: AsyncClient, token: str) -> str:
-    categories = await client.get("/api/categories", headers=_auth(token))
-    assert categories.status_code == 200
-    return str(categories.json()[0]["id"])
+    return (await leaf_category_ids(client, _auth(token)))[0]
 
 
 async def _resolve_product(client: AsyncClient, token: str, name: str) -> int:
@@ -200,6 +199,19 @@ async def test_listMyInventoryItems_returnsOnlyCallersOwnWithModeAndReflectsClea
         headers=_auth(owner_token),
     )
     assert untagged.status_code == 201
+    assert set(untagged.json()) == {
+        "id",
+        "inventory_id",
+        "home_inventory_id",
+        "product_id",
+        "product_name",
+        "condition",
+        "added_at",
+        "created_at",
+        "updated_at",
+        "listing_status",
+    }
+    assert untagged.json()["listing_status"] == "DRAFT"
     untagged_item_id = untagged.json()["id"]
     await _set_preference(client, owner_token, item_id, "GIFT")
 
@@ -210,6 +222,28 @@ async def test_listMyInventoryItems_returnsOnlyCallersOwnWithModeAndReflectsClea
     modes = {row["id"]: row["listing_mode"] for row in mine.json()}
     assert modes == {item_id: "GIFT", untagged_item_id: None}
     assert {row["product_name"] for row in mine.json()} == {"Bilard", "Kredki"}
+    assert {
+        row["id"]: row["listing_status"] for row in mine.json()
+    } == {item_id: "ACTIVE", untagged_item_id: "DRAFT"}
+    assert {frozenset(row) for row in mine.json()} == {
+        frozenset(
+            {
+                "id",
+                "inventory_id",
+                "home_inventory_id",
+                "product_id",
+                "product_name",
+                "condition",
+                "added_at",
+                "created_at",
+                "updated_at",
+                "listing_mode",
+                "listing_status",
+                "photos_moderation_pending",
+                "thumb_url",
+            }
+        )
+    }
 
     other_mine = await client.get("/api/inventory-items/mine", headers=_auth(other_token))
     assert other_mine.status_code == 200

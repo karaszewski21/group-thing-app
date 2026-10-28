@@ -57,3 +57,6 @@ A child component rendered under a host that already uses a TanStack Query hook 
 const { data: locations, create } = useMyLocations();   // host: the only subscriber
 <LocationAddForm create={create} onSaved={...} />
 ```
+
+### Documented staleTime Exception: Categories
+The categories list (`useCategories`, a ~2300-node tree) is the one documented exception to the default `staleTime: 0`: it uses a 5-minute `staleTime` (`CATEGORIES_STALE_TIME_MS`). In exchange, every write that changes categories or product counts must `await queryClient.invalidateQueries({ queryKey: CATEGORIES_KEY })`: `useCategories` create/update/remove/move, the `useProducts` invalidate, and the admin `ProductFormPage` after save. A new write path that affects categories or product counts adds the same invalidation.

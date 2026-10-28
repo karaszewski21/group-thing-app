@@ -214,10 +214,9 @@ class Term(BaseEntity):
 
 
 class NeededItem(BaseEntity):
-    """A structured "we need X for this Term" request: a reference to a
-    concrete `app.product` catalog entry (`product_id`, a plain cross-module
-    FK-id per `standards/backend/models.md`) plus an optional free-text
-    refinement (`description` — e.g. "rozmiar 1/2", "czerwona")."""
+    """A "we need X for this Term" request: a plain `name` (no product or
+    category link) plus an optional free-text refinement (`description` —
+    e.g. "rozmiar 1/2", "czerwona")."""
 
     __tablename__ = "needed_items"
 
@@ -226,11 +225,7 @@ class NeededItem(BaseEntity):
         ForeignKey("terms.id", name="fk_needed_items_term_id_terms"),
         nullable=False,
     )
-    product_id: Mapped[uuid.UUID] = mapped_column(
-        postgresql.UUID(as_uuid=True),
-        ForeignKey("products.id", name="fk_needed_items_product_id_products"),
-        nullable=False,
-    )
+    name: Mapped[str] = mapped_column(String(255), nullable=False)
     description: Mapped[str | None] = mapped_column(String(500), nullable=True)
     deleted_at: Mapped[datetime | None] = mapped_column(DateTime(), nullable=True)
 

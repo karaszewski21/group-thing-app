@@ -5,10 +5,10 @@ on `page`/`size`."""
 from __future__ import annotations
 
 from httpx import AsyncClient
-from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.authorization_matrix import resolve_requirement
+from tests.conftest import leaf_category_ids
 from tests.test_groups_moderation import _authed_headers, _grant_admin_and_relogin
 
 
@@ -16,9 +16,7 @@ async def test_pageProducts_searchSortedByName_slicesPagesAndReportsTotal(
     client: AsyncClient, db_session: AsyncSession
 ) -> None:
     headers = await _authed_headers(client, "page.products@example.com")
-    category_id = (
-        await db_session.execute(text("SELECT id FROM categories WHERE name = 'Zabawka'"))
-    ).scalar_one()
+    category_id = (await leaf_category_ids(client, headers))[0]
     for name, sku in [
         ("Stronicowany C", "PAGE-C"),
         ("Stronicowany A", "PAGE-A"),
@@ -26,7 +24,7 @@ async def test_pageProducts_searchSortedByName_slicesPagesAndReportsTotal(
     ]:
         created = await client.post(
             "/api/products",
-            json={"name": name, "sku": sku, "category_id": str(category_id)},
+            json={"name": name, "sku": sku, "category_id": category_id},
             headers=headers,
         )
         assert created.status_code == 201, created.text

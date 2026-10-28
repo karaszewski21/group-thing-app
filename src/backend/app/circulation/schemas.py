@@ -10,7 +10,7 @@ from __future__ import annotations
 import uuid
 from datetime import datetime
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from app.product.schemas import ProductPhotoResponse
 
@@ -20,10 +20,15 @@ from .models import (
     BalanceStatus,
     InventoryType,
     ItemCondition,
+    ItemListingStatus,
     MovementType,
     ReservationStatus,
     ReservationType,
 )
+
+# The modes an item can be offered in at registration; mirrors groups'
+# `_OFFERABLE_RESERVATION_TYPES` for `PUT /api/item-listing-preferences`.
+_LISTING_MODES = frozenset({ReservationType.SWAP, ReservationType.GIFT})
 
 
 class InventoryResponse(BaseModel):
@@ -73,12 +78,24 @@ class InventoryItemResponse(BaseModel):
     added_at: datetime
     created_at: datetime
     updated_at: datetime
+    listing_status: ItemListingStatus
 
 
 class CreateInventoryItemRequest(BaseModel):
+    """`listing_mode` `None` registers a draft; GIFT/SWAP offers the item
+    right away (PERSONAL inventory only, in the same commit)."""
+
     inventory_id: uuid.UUID
     product_id: uuid.UUID
     condition: ItemCondition
+    listing_mode: ReservationType | None = None
+
+    @field_validator("listing_mode")
+    @classmethod
+    def _validate_listing_mode(cls, value: ReservationType | None) -> ReservationType | None:
+        if value is not None and value not in _LISTING_MODES:
+            raise ValueError("listing_mode may only be SWAP or GIFT")
+        return value
 
 
 class UpdateInventoryItemRequest(BaseModel):
@@ -178,6 +195,7 @@ class ItemDetailsResponse(BaseModel):
     is_owner: bool
     deleted_at: datetime | None
     status: ItemStatusResponse
+    listing_status: ItemListingStatus
 
 
 class ItemHistoryEntryResponse(BaseModel):

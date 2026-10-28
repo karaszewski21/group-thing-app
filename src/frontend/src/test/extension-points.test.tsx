@@ -101,7 +101,7 @@ const mockProduct: ProductResponse = {
 const mockProducts: ProductResponse[] = [mockProduct];
 
 const mockCategories: categoriesApi.Category[] = [
-  { id: "1", name: "Zabawka", description: null, sortOrder: 1, productCount: 0, createdAt: "", updatedAt: "" },
+  { id: "1", name: "Zabawka", description: null, parent_id: null, sort_order: 1, product_count: 0, created_at: "", updated_at: "" },
 ];
 
 function renderWithProviders(ui: React.ReactElement, initialRoute = "/") {

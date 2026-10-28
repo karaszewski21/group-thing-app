@@ -123,6 +123,7 @@ const item: MyInventoryItemResponse = {
   created_at: "2026-01-01T00:00:00Z",
   updated_at: "2026-01-01T00:00:00Z",
   listing_mode: null,
+  listing_status: "DRAFT",
   photos_moderation_pending: false,
 };
 
@@ -466,7 +467,7 @@ describe("MyItemsView — post-term-end fallback buttons (Bug #4c)", () => {
   });
 });
 
-describe("MyItemsView — mode toggles blocked while photos are in moderation", () => {
+describe("MyItemsView — photos in moderation do not block the mode toggles", () => {
   beforeEach(() => {
     vi.mocked(api.get).mockReset();
   });
@@ -475,29 +476,31 @@ describe("MyItemsView — mode toggles blocked while photos are in moderation", 
     return ["Oddam", "Zamienię"].map((name) => screen.getByRole("button", { name }));
   }
 
-  it("pending → 2 toggles disabled + aria-disabled, pill and hint visible, aria-describedby wired, edit link to /product/{id}/edit", async () => {
+  it("pending → toggles enabled with no hint, the pill and the edit link stay", async () => {
     vi.mocked(api.get).mockResolvedValue(mockBalance(item.id, "AVAILABLE"));
+    const setItemMode = vi.fn();
     vi.mocked(appDataStore.useAppData).mockReturnValue(
-      makeContextValue({ items: [pendingItem] }),
+      makeContextValue({ items: [pendingItem], setItemMode }),
     );
 
     renderView();
 
     await waitFor(() => expect(api.get).toHaveBeenCalled());
-    const hint = screen.getByText("Tryb włączysz po zatwierdzeniu zdjęć.", { exact: false });
-    expect(hint).toHaveAttribute("id", `mode-hint-${item.id}`);
     for (const button of modeToggleButtons()) {
-      expect(button).toBeDisabled();
-      expect(button).toHaveAttribute("aria-disabled", "true");
-      expect(button).toHaveAttribute("aria-describedby", `mode-hint-${item.id}`);
+      expect(button).toBeEnabled();
+      expect(button).not.toHaveAttribute("aria-describedby");
     }
+    expect(screen.queryByText(/Tryb włączysz po zatwierdzeniu zdjęć/)).not.toBeInTheDocument();
     expect(screen.getByRole("status")).toHaveTextContent("Zdjęcia w moderacji");
-    const link = screen.getByRole("link", { name: "Zobacz zdjęcia →" });
-    expect(link).toHaveAttribute("href", `/product/${item.id}/edit`);
-    expect(link.className).toContain("text-primary-fg");
+    expect(screen.getByRole("link", { name: "Zobacz zdjęcia →" })).toHaveAttribute(
+      "href",
+      `/product/${item.id}/edit`,
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Oddam" }));
+    expect(setItemMode).toHaveBeenCalledWith(item.id, "oddam");
   });
 
-  it("locked + pending → both pills, lock pill first, Odebrał/Anuluj still visible", async () => {
+  it("locked + pending → both pills, lock pill first, toggles disabled by the lock only", async () => {
     mockApiGetRouter({
       balances: [mockBalance(item.id, "IN_TRANSIT", "55")],
       reservations: { "55": mockReservation("55", ENDED_TERM_ID, "2020-01-01T10:00:00") },
@@ -509,28 +512,23 @@ describe("MyItemsView — mode toggles blocked while photos are in moderation", 
     renderView();
 
     expect(await screen.findByRole("button", { name: "Odebrał" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Anuluj wymianę" })).toBeInTheDocument();
     const pills = screen.getAllByRole("status").map((el) => el.textContent);
     expect(pills).toEqual(["zablokowane", "Zdjęcia w moderacji"]);
     for (const button of modeToggleButtons()) {
       expect(button).toBeDisabled();
-      expect(button).toHaveAttribute("aria-describedby", `mode-hint-${item.id}`);
+      expect(button).not.toHaveAttribute("aria-describedby");
     }
   });
 
-  it("not pending → toggles enabled, no pill, no hint, no aria-describedby", async () => {
+  it("not pending → toggles enabled, no pill", async () => {
     vi.mocked(api.get).mockResolvedValue(mockBalance(item.id, "AVAILABLE"));
     vi.mocked(appDataStore.useAppData).mockReturnValue(makeContextValue());
 
     renderView();
 
     await waitFor(() => expect(api.get).toHaveBeenCalled());
-    for (const button of modeToggleButtons()) {
-      expect(button).not.toBeDisabled();
-      expect(button).not.toHaveAttribute("aria-describedby");
-    }
+    for (const button of modeToggleButtons()) expect(button).toBeEnabled();
     expect(screen.queryByText("Zdjęcia w moderacji")).not.toBeInTheDocument();
-    expect(screen.queryByText(/Tryb włączysz po zatwierdzeniu zdjęć/)).not.toBeInTheDocument();
     expect(screen.queryByRole("link", { name: "Zobacz zdjęcia →" })).not.toBeInTheDocument();
   });
 });
@@ -590,7 +588,7 @@ describe("MyItemsView — gift limit", () => {
     renderView();
 
     const hint = screen.getByText(/Do oddania: 10\/10/);
-    expect(hint).toHaveTextContent("Możesz oddawać naraz najwyżej 10 rzeczy.");
+    expect(hint).toHaveTextContent("Możesz mieć maksymalnie 10 rzeczy do oddania. Zdejmij „Oddam” z innej rzeczy.");
     const giftButtons = screen.getAllByRole("button", { name: "Oddam" });
     expect(giftButtons.slice(0, 10).every((button) => !(button as HTMLButtonElement).disabled)).toBe(true);
     expect(giftButtons[10]).toBeDisabled();

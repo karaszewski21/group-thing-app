@@ -146,6 +146,20 @@ def reset_message_limiter() -> Iterator[None]:
     limiter.reset()
 
 
+async def leaf_category_ids(client: AsyncClient, headers: dict[str, str], n: int = 1) -> list[str]:
+    """The ids of the first `n` categories without children, in `GET
+    /api/categories` order. Products may only point at leaves. Asks the API
+    on every call: migration round trips across `0069` re-seed the tree with
+    new UUIDs, so the ids must never be cached."""
+    response = await client.get("/api/categories", headers=headers)
+    assert response.status_code == 200, response.text
+    categories = response.json()
+    parent_ids = {category["parent_id"] for category in categories}
+    leaves = [str(category["id"]) for category in categories if category["id"] not in parent_ids]
+    assert len(leaves) >= n, f"need {n} leaf categories, found {len(leaves)}"
+    return leaves[:n]
+
+
 @pytest.fixture
 def fake_storage() -> FakeStorage:
     return FakeStorage()

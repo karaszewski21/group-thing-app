@@ -9,10 +9,7 @@ import {
   type UpdateNeededItemRequest,
   type UpdateTermRequest,
 } from "../../api/terms";
-import { resolveProduct } from "../../api/products";
 import { serverMessageOr } from "../../api/problem";
-import type { Category } from "../../api/categories";
-import { useCategories } from "../../hooks/useCategories";
 import { CapacityField, Field, INPUT_CLASS, ModalSheet } from "../shared/appComponents";
 import { capacityText, parseCapacity } from "../../utils/appHelpers";
 import { LocationPicker } from "../shared/LocationPicker";
@@ -26,15 +23,13 @@ import { LocationPicker } from "../shared/LocationPicker";
 /*  `load({ silent: true })` — so after each mutation we call          */
 /*  `onChanged()` and the dialog re-renders with the refreshed data.   */
 /*  Needed-item sub-CRUD is non-optimistic here (await, then refresh); */
-/*  a rejected delete keeps the row and shows an inline message. Each  */
-/*  needed item names a real `Product` (resolved by name + category).  */
+/*  a rejected delete keeps the row and shows an inline message. A     */
+/*  needed item is a plain name plus an optional refinement.           */
 /* ------------------------------------------------------------------ */
 
 const inputClass = `${INPUT_CLASS} w-full`;
 const rowInputClass =
   "w-full min-w-0 rounded-lg border-[1.5px] border-line bg-cream px-2.5 py-2 text-[12.5px] text-ink";
-const selectClass =
-  "w-full rounded-lg border-[1.5px] border-line bg-cream px-2.5 py-2 text-[12.5px] text-ink";
 const rowSaveBtn =
   "flex-none rounded-[9px] bg-mint px-3 py-1.5 text-[11.5px] font-extrabold text-white disabled:opacity-60";
 const rowCancelBtn =
@@ -44,16 +39,10 @@ const rowIconBtn =
 
 interface NeededItemDraft {
   name: string;
-  category_id: string;
   description: string;
 }
 
-/** No hardcoded category default — sourced from `useCategories()`'s live
- * data at each call site (falls back to `""` if categories haven't loaded
- * yet). */
-function makeEmptyDraft(categories: Category[]): NeededItemDraft {
-  return { name: "", category_id: categories[0]?.id ?? "", description: "" };
-}
+const EMPTY_DRAFT: NeededItemDraft = { name: "", description: "" };
 
 interface EditTermDialogProps {
   term: TermResponse;
@@ -67,12 +56,10 @@ function NeededItemFields({
   value,
   onChange,
   namePrefix,
-  categories,
 }: {
   value: NeededItemDraft;
   onChange: (v: NeededItemDraft) => void;
   namePrefix: string;
-  categories: Category[];
 }) {
   return (
     <>
@@ -80,21 +67,9 @@ function NeededItemFields({
         aria-label={`Nazwa ${namePrefix}`}
         value={value.name}
         onChange={(e) => onChange({ ...value, name: e.target.value })}
-        placeholder="np. Tamburyn"
+        placeholder="np. Termos"
         className={rowInputClass}
       />
-      <select
-        aria-label={`Typ ${namePrefix}`}
-        value={value.category_id}
-        onChange={(e) => onChange({ ...value, category_id: e.target.value })}
-        className={selectClass}
-      >
-        {categories.map((c) => (
-          <option key={c.id} value={c.id}>
-            {c.name}
-          </option>
-        ))}
-      </select>
       <input
         aria-label={`Doprecyzowanie ${namePrefix}`}
         value={value.description}
@@ -112,7 +87,6 @@ const toLocalInput = (iso: string): string =>
   iso.length >= 16 ? iso.slice(0, 16) : `${iso.slice(0, 10)}T00:00`;
 
 export function EditTermDialog({ term, neededItems, onChanged, onClose }: EditTermDialogProps) {
-  const { data: categories } = useCategories();
   const [occursOn, setOccursOn] = useState(toLocalInput(term.occurs_on));
   const [description, setDescription] = useState(term.description ?? "");
   const [locationId, setLocationId] = useState<string | null>(term.location?.id ?? null);
@@ -124,7 +98,7 @@ export function EditTermDialog({ term, neededItems, onChanged, onClose }: EditTe
 
   const [editing, setEditing] = useState<({ id: string } & NeededItemDraft) | null>(null);
   const [adding, setAdding] = useState(false);
-  const [newDraft, setNewDraft] = useState<NeededItemDraft>(() => makeEmptyDraft(categories));
+  const [newDraft, setNewDraft] = useState<NeededItemDraft>(EMPTY_DRAFT);
   const [itemsError, setItemsError] = useState<string | null>(null);
 
   async function saveTermFields() {
@@ -154,8 +128,7 @@ export function EditTermDialog({ term, neededItems, onChanged, onClose }: EditTe
   function startEdit(item: NeededItemResponse) {
     setEditing({
       id: item.id,
-      name: item.product_name,
-      category_id: item.product_category_id,
+      name: item.name,
       description: item.description ?? "",
     });
     setItemsError(null);
@@ -168,17 +141,8 @@ export function EditTermDialog({ term, neededItems, onChanged, onClose }: EditTe
     setItemsError(null);
     try {
       const patch: UpdateNeededItemRequest = { description: editing.description.trim() };
-      if (
-        editing.name.trim() &&
-        (editing.name.trim() !== orig?.product_name ||
-          editing.category_id !== orig?.product_category_id)
-      ) {
-        const product = await resolveProduct({
-          name: editing.name.trim(),
-          category_id: editing.category_id,
-        });
-        patch.product_id = product.id;
-      }
+      const name = editing.name.trim();
+      if (name && name !== orig?.name) patch.name = name;
       await updateNeededItem(editing.id, patch);
       setEditing(null);
       onChanged();
@@ -207,17 +171,13 @@ export function EditTermDialog({ term, neededItems, onChanged, onClose }: EditTe
     setBusy(true);
     setItemsError(null);
     try {
-      const product = await resolveProduct({
-        name: newDraft.name.trim(),
-        category_id: newDraft.category_id,
-      });
       await createNeededItem({
         term_id: term.id,
-        product_id: product.id,
+        name: newDraft.name.trim(),
         description: newDraft.description.trim() || undefined,
       });
       setAdding(false);
-      setNewDraft(makeEmptyDraft(categories));
+      setNewDraft(EMPTY_DRAFT);
       onChanged();
     } catch (err) {
       setItemsError(serverMessageOr(err, "Nie udało się dodać rzeczy — spróbuj ponownie"));
@@ -309,7 +269,6 @@ export function EditTermDialog({ term, neededItems, onChanged, onClose }: EditTe
                     value={editing}
                     onChange={(v) => setEditing((s) => (s ? { ...s, ...v } : s))}
                     namePrefix="rzeczy"
-                    categories={categories}
                   />
                   <div className="flex gap-1.5">
                     <button
@@ -328,7 +287,7 @@ export function EditTermDialog({ term, neededItems, onChanged, onClose }: EditTe
               ) : (
                 <>
                   <span className="min-w-0 flex-1 text-ink-soft">
-                    {ni.product_name}
+                    {ni.name}
                     {ni.description ? ` — ${ni.description}` : ""}
                   </span>
                   <button
@@ -343,7 +302,7 @@ export function EditTermDialog({ term, neededItems, onChanged, onClose }: EditTe
                     type="button"
                     onClick={() => void removeItem(ni.id)}
                     aria-label="Usuń potrzebną rzecz"
-                    className="flex-none rounded-[9px] px-2.5 py-1.5 text-[11.5px] font-extrabold text-ink-soft transition-colors hover:bg-danger-soft hover:text-danger"
+                    className="flex-none rounded-[9px] px-2.5 py-1.5 text-[11.5px] font-extrabold text-danger transition-colors hover:bg-danger-soft"
                   >
                     Usuń
                   </button>
@@ -360,7 +319,6 @@ export function EditTermDialog({ term, neededItems, onChanged, onClose }: EditTe
             value={newDraft}
             onChange={setNewDraft}
             namePrefix="nowej rzeczy"
-            categories={categories}
           />
           <div className="flex gap-1.5">
             <button
@@ -381,7 +339,7 @@ export function EditTermDialog({ term, neededItems, onChanged, onClose }: EditTe
           type="button"
           onClick={() => {
             setAdding(true);
-            setNewDraft(makeEmptyDraft(categories));
+            setNewDraft(EMPTY_DRAFT);
             setItemsError(null);
           }}
           aria-label="Dodaj potrzebną rzecz"

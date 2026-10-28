@@ -14,7 +14,7 @@ from __future__ import annotations
 import asyncio
 import time
 import uuid
-from collections.abc import Awaitable, Callable, Collection, Mapping
+from collections.abc import Collection, Mapping
 from dataclasses import dataclass
 from typing import Any, cast
 
@@ -24,6 +24,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.models import User
+from app.category.service import require_leaf_category
 from app.config import settings
 from app.core.auth_deps import Principal
 from app.core.errors import (
@@ -144,6 +145,7 @@ async def get_product(db: AsyncSession, product_id: uuid.UUID) -> Product:
 
 
 async def create_product(db: AsyncSession, data: CreateProductRequest) -> Product:
+    await require_leaf_category(db, data.category_id)
     rules.ensure_no_contact_info(data.name, data.description)
     await check_text(TextField.PRODUCT_NAME, data.name)
     await check_text(TextField.PRODUCT_DESCRIPTION, data.description)
@@ -163,6 +165,10 @@ async def update_product(
     db: AsyncSession, product_id: uuid.UUID, data: UpdateProductRequest
 ) -> Product:
     product = await get_product(db, product_id)
+    if data.category_id != product.category_id:
+        # A product left on an inner node by a concurrent admin edit can
+        # still be renamed; only moving it requires a leaf.
+        await require_leaf_category(db, data.category_id)
     rules.ensure_no_contact_info(data.name, data.description)
     await check_text(TextField.PRODUCT_NAME, data.name, product.name)
     await check_text(TextField.PRODUCT_DESCRIPTION, data.description, product.description)
@@ -181,7 +187,9 @@ async def get_or_create_product_by_name(
     """Resolves a freeform item name typed by a user (e.g. during
     onboarding) to an existing `Product` in the same `category_id` — matched
     case-insensitively — or creates a new one with a placeholder sku
-    (`"<NAME[:10].upper()>-<epoch millis>"`) when no match exists."""
+    (`"<NAME[:10].upper()>-<epoch millis>"`) when no match exists. The
+    category must be a leaf, even for an existing match."""
+    await require_leaf_category(db, category_id)
     result = await db.execute(
         _product_select().where(
             func.lower(Product.name) == name.lower(), Product.category_id == category_id
@@ -291,8 +299,8 @@ async def product_photos(db: AsyncSession, product_id: uuid.UUID) -> list[Produc
     return list(result.scalars().all())
 
 
-# Photos still waiting for (or under) moderation: an item of their product
-# cannot be listed in a term until none is left.
+# Photos still waiting for (or under) moderation: their product's items are
+# flagged as pending in "Moje rzeczy" (informational, listing is not blocked).
 UNMODERATED_STATUSES = (ModerationStatus.PENDING, ModerationStatus.NEEDS_REVIEW)
 
 
@@ -335,21 +343,6 @@ async def first_approved_photo_by_product(
         .order_by(ProductPhoto.product_id, ProductPhoto.sort_order, ProductPhoto.id)
     )
     return {photo.product_id: photo for photo in result.scalars().all()}
-
-
-async def list_product_ids_with_unmoderated_photos(db: AsyncSession) -> list[uuid.UUID]:
-    """Every product with a PENDING or NEEDS_REVIEW photo, ordered by id."""
-    result = await db.execute(_unmoderated_product_ids_select().order_by(ProductPhoto.product_id))
-    return list(result.scalars().all())
-
-
-async def has_unmoderated_photos(db: AsyncSession, product_id: uuid.UUID) -> bool:
-    """Whether the product has a PENDING or NEEDS_REVIEW photo. Takes a
-    FOR SHARE lock on the product row first, so the check serializes with
-    `add_product_photo`'s FOR UPDATE: a concurrent upload is either seen or
-    runs (and withdraws) after the caller commits."""
-    await db.execute(select(Product.id).where(Product.id == product_id).with_for_update(read=True))
-    return product_id in await product_ids_with_unmoderated_photos(db, [product_id])
 
 
 @dataclass(frozen=True)
@@ -416,17 +409,12 @@ async def add_product_photo(
     data: bytes,
     principal: Principal,
     storage: ObjectStorage | None,
-    on_pending_photo: Callable[[AsyncSession, uuid.UUID], Awaitable[None]] | None = None,
 ) -> PhotoView:
     """Sanitizes the upload (outside the product lock, as it is CPU work),
     stores both WebP sizes and records the photo. With moderation on, the
-    files stay private, VPS B's cron scores the photo, and
-    `on_pending_photo` (the router's groups withdraw — `app.product` must not
-    import `app.groups`) takes all items of the product out of terms in the
-    same transaction, under the product lock. Nothing in the hook commits:
-    on any failure the session is rolled back and both stored files are
-    deleted. A rejected photo still counts as a duplicate, so it cannot be
-    re-uploaded."""
+    files stay private and VPS B's cron scores the photo. On a failed commit
+    the session is rolled back and both stored files are deleted. A rejected
+    photo still counts as a duplicate, so it cannot be re-uploaded."""
     if storage is None:
         raise BusinessConflictException(PHOTO_UPLOAD_DISABLED_MESSAGE)
     processed = await asyncio.to_thread(images.process_upload, data)
@@ -457,8 +445,6 @@ async def add_product_photo(
     await storage.put(photo.thumb_key, processed.thumb, "image/webp", public=approved)
     try:
         db.add(photo)
-        if not approved and on_pending_photo is not None:
-            await on_pending_photo(db, product_id)
         await db.commit()
     except Exception:
         await db.rollback()

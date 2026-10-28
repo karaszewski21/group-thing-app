@@ -1,6 +1,6 @@
 orchestrator:
   started_phase: phase-1
-  completed_phases: [phase-1, phase-2, phase-4, phase-5]
+  completed_phases: [phase-1, phase-2, phase-4, phase-5, phase-6, phase-7, phase-8, phase-10, phase-11, phase-12, phase-13, phase-14]
   failed_phases: []
   auto_fix_attempts: {}
   options:
@@ -8,7 +8,7 @@ orchestrator:
     html_output: true
     mockup_format: html
     spec_audit_enabled: true
-    skip_test_suite: true
+    skip_test_suite: false
     e2e_enabled: true
     user_docs_enabled: true
     code_review_enabled: true
@@ -16,14 +16,14 @@ orchestrator:
     reality_check_enabled: true
     production_check_enabled: true
   created: "2026-10-26T19:06:16Z"
-  updated: "2026-10-27T10:40:26Z"
+  updated: "2026-10-28T08:30:41Z"
   task_path: .maister/tasks/development/2026-10-26-item-vinted-categories
   task_ids: {}
 
 task:
   title: Item categories from Vinted + Oddam/Zamienię/Wersja robocza buttons
   description: "chce z zmienićw dodawaniu rzeczy typ na kategorie. Kategorię liste chce wziać całą z vinted 3 przycuiski Oddam,Zamienię, Wersja robacza"
-  status: in_progress
+  status: completed
   tags: [items, categories, frontend, backend]
   priority: null
 
@@ -143,4 +143,60 @@ task_context:
       artifacts:
         - {path: analysis/requirements.md, label: Requirements, html: null}
         - {path: implementation/spec.md, label: Specification, html: implementation/spec.html}
+    spec_audit:
+      summary: "pass-with-concerns: 0 critical, 1 high (picker ModalSheet inside form/label submits or reopens), 6 medium, 13 low; code claims verified (head 0063, FK-safe wipe order)."
+      decisions:
+        - {decision: "All 20 audit findings resolved in spec (Audit resolution table)", rationale: "user chose fix spec before planning"}
+      risks:
+        - "resolved: H1: ModalSheet not portaled; inside admin forms/labels the close button submits the form and scrim tap reopens the sheet"
+        - "resolved: M2: 0069 wipe leaves proposal_id notifications and unprocessed outbox events pointing at deleted swaps"
+        - "resolved: M3: register-time listing hook lacks the PERSONAL inventory check"
+        - "resolved: M6: test_photo_moderation_hardening.py imports deleted test modules"
+      artifacts:
+        - {path: verification/spec-audit.md, label: Spec audit, html: null}
+    planning:
+      summary: "17 task groups, 115 steps, ~84-94 tests: fixture (user review checkpoint) + migrations 0064-0068 -> seed 0069 + leaf helper -> backend domains -> suite alignment; frontend utils -> picker -> screens -> fixtures; test review; Group 17 blocked until user commits uncommitted files."
+      task_groups: 17
+      total_steps: 115
+      decisions:
+        - {decision: "Fixture compiled in Group 1 ending at USER REVIEW checkpoint; 0069 only on ephemeral testcontainers DBs until approved", rationale: "user must review Vinted data before seed"}
+        - {decision: "ORM mappings move with schema revisions in Group 2", rationale: "models always match alembic head"}
+        - {decision: "Group 17 deferred/blocked: AppPage.test.tsx and appHelpers.ts after user commits", rationale: "do not edit uncommitted user work"}
+      risks:
+        - "Fixture review blocks Groups 3-8"
+        - "Interim backend breakage between Groups 2-7 (needed items) and 3-8 (categories[0])"
+        - "AppPage.test.tsx stays red until Group 17"
+        - "Destructive 0069 wipes all products and dependents"
+      artifacts:
+        - {path: implementation/implementation-plan.md, label: Implementation plan, html: implementation/implementation-plan.html}
+        - {path: implementation/visual-coverage.md, label: Visual coverage, html: null}
+    implementation:
+      summary: "17/17 groups, 115 steps, 8 waves. Backend full suite 878 passed; frontend 1156 passed with 5 pre-existing HEAD failures; tsc clean."
+      decisions:
+        - {decision: "Vinted fixture approved with incomplete depth; Polish renames for 3 duplicate pairs", rationale: "user review 2026-10-27; gaps to follow-up task"}
+        - {decision: "0069 deletes categories leaves-first", rationale: "nulling parents collides on uq_categories_root_name"}
+      risks:
+        - "5 pre-existing frontend test failures on HEAD (incl. real a11y defect: RSVP Imie label)"
+        - "release_reservation now unused in production"
+        - "Vinted tree incomplete - follow-up task"
+      artifacts:
+        - {path: implementation/work-log.md, label: Work log, html: null}
     architecture_decision: {decision: null, summary: null}
+
+verification_context:
+  last_status: passed_with_issues
+  issues_found: [2 critical, 14 warning, 9 info]
+  fixes_applied:
+    - "0069 stages storage.objects_delete outbox entries; temp tables IF EXISTS; row-count logging"
+    - "Needed-item description moderated"
+    - "release_reservation chain removed"
+    - "GZipMiddleware added"
+    - "Category names stripped"
+    - "scripts/ package and stale pycs removed"
+    - "architecture.md cutover/rollback runbook + stale lines fixed; spec L12 reworded"
+    - "Frontend: categories cache invalidation, useCategories create/update, folded-name index, single filter pass, TermResponse type, missing-fields hint, comment"
+    - "Local dev DB backup taken (pg_dump -Fc, rev 0063)"
+  decisions_made:
+    - "User chose fixes: Kod + dokumentacja"
+    - "User asked Claude to take the DB backup and do the commit"
+  reverify_count: 1

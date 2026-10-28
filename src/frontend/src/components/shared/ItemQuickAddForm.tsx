@@ -1,7 +1,8 @@
+import { useId } from "react";
 import type { ItemCondition } from "../../api/inventories";
 import type { ItemQuickAddValue } from "../../utils/itemQuickAdd";
 import { CONDITION_LABELS } from "../../utils/productCategory";
-import { useCategories } from "../../hooks/useCategories";
+import { CategoryTreePicker } from "./CategoryTreePicker";
 
 const inputClass =
   "min-w-0 flex-1 rounded-xl border-[1.5px] border-line bg-cream px-3.5 py-2.5 text-ink";
@@ -14,13 +15,13 @@ interface ItemQuickAddFormProps {
 }
 
 /**
- * Freeform "add item" form — Nazwa (name) / Stan (condition) / Typ (category).
- * Purely presentational: the caller owns submission (`resolveProduct()`, then
- * `registerInventoryItem`). Used by `ItemCreatePage` (`/product/new`). The
- * "Typ" select lists `useCategories()`'s live data.
+ * Freeform "add item" form — Nazwa (name) / Stan (condition) / Kategoria
+ * (required leaf category, no default). Purely presentational: the caller
+ * owns submission (`resolveProduct()`, then `registerInventoryItem`). Used by
+ * `ItemCreatePage` (`/product/new`).
  */
 export function ItemQuickAddForm({ value, onChange, disabled = false }: ItemQuickAddFormProps) {
-  const { data: categories } = useCategories();
+  const categoryLabelId = useId();
 
   return (
     <div className="flex flex-col gap-3">
@@ -49,20 +50,18 @@ export function ItemQuickAddForm({ value, onChange, disabled = false }: ItemQuic
         </select>
       </Field>
 
-      <Field label="Typ">
-        <select
-          className={inputClass}
-          value={value.category_id}
-          onChange={(e) => onChange({ ...value, category_id: e.target.value})}
+      {/* Not a <label>-wrapping Field: the picker's trigger is a button labelled by the span. */}
+      <div className="flex flex-col gap-1.5">
+        <span id={categoryLabelId} className={labelClass}>
+          Kategoria <span aria-hidden="true">*</span>
+        </span>
+        <CategoryTreePicker
+          labelledBy={categoryLabelId}
+          value={value.category_id || null}
+          onChange={(id) => onChange({ ...value, category_id: id ?? "" })}
           disabled={disabled}
-        >
-          {categories.map((cat) => (
-            <option key={cat.id} value={cat.id}>
-              {cat.name}
-            </option>
-          ))}
-        </select>
-      </Field>
+        />
+      </div>
     </div>
   );
 }

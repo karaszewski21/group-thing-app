@@ -1,0 +1,320 @@
+[
+  {"name": "Gry wideo i konsole", "external_id": 3002, "children": [
+    {"name": "Gry", "external_id": 3026, "children": []},
+    {"name": "Akcesoria", "external_id": 3024, "children": [
+      {"name": "Inne akcesoria", "external_id": 3030, "children": []},
+      {"name": "Etui i pokrowce", "external_id": 3027, "children": []},
+      {"name": "Ładowarki i stacje dokujące", "external_id": 3573, "children": []},
+      {"name": "Uchwyty i stojaki gamingowe", "external_id": 3572, "children": []},
+      {"name": "Poradniki do gier", "external_id": 3574, "children": []}
+    ]},
+    {"name": "Konsole do gier", "external_id": 3025, "children": []},
+    {"name": "Słuchawki dla graczy", "external_id": 3571, "children": []},
+    {"name": "Kontrolery", "external_id": 3570, "children": []},
+    {"name": "Urządzenia VR", "external_id": 3576, "children": [
+      {"name": "Gogle VR", "external_id": 3577, "children": []},
+      {"name": "Akcesoria VR", "external_id": 3578, "children": []},
+      {"name": "Elementy urządzeń VR", "external_id": 3579, "children": []}
+    ]},
+    {"name": "Symulatory", "external_id": 3575, "children": []}
+  ]},
+  {"name": "Telefony komórkowe i komunikacja", "external_id": 3565, "children": [
+    {"name": "Części i akcesoria do telefonów komórkowych", "external_id": 3662, "children": [
+      {"name": "Etui na telefony komórkowe", "external_id": 3667, "children": []},
+      {"name": "Ochraniacze ekranu telefonu komórkowego", "external_id": 3668, "children": []},
+      {"name": "Mocowania i stojaki na telefony komórkowe", "external_id": 3671, "children": []},
+      {"name": "Zawieszki na telefon komórkowy", "external_id": 3673, "children": []},
+      {"name": "Inne akcesoria do telefonów komórkowych", "external_id": 3675, "children": []},
+      {"name": "Części do telefonów komórkowych", "external_id": 3674, "children": []},
+      {"name": "Uchwyty na telefony komórkowe", "external_id": 3669, "children": []},
+      {"name": "Kije do selfie", "external_id": 3670, "children": []},
+      {"name": "Lampy do telefonu komórkowego", "external_id": 3672, "children": []}
+    ]},
+    {"name": "Telefony komórkowe", "external_id": 3661, "children": []},
+    {"name": "Telefony stacjonarne", "external_id": 3663, "children": []},
+    {"name": "Komunikacja radiowa", "external_id": 3665, "children": [
+      {"name": "Krótkofalówki", "external_id": 3677, "children": []},
+      {"name": "Radiostacje", "external_id": 3676, "children": []}
+    ]},
+    {"name": "Atrapy telefonów komórkowych", "external_id": 3666, "children": []},
+    {"name": "Faksy", "external_id": 3664, "children": []}
+  ]},
+  {"name": "Komputery i akcesoria", "external_id": 3564, "children": [
+    {"name": "Części i podzespoły komputerowe", "external_id": 3582, "children": [
+      {"name": "Pamięci RAM", "external_id": 3603, "children": []},
+      {"name": "Chłodzenie komputerowe", "external_id": 3604, "children": []},
+      {"name": "Wewnętrzne dyski twarde", "external_id": 3607, "children": []},
+      {"name": "Karty graficzne", "external_id": 3602, "children": []},
+      {"name": "Płyty główne", "external_id": 3600, "children": []},
+      {"name": "Procesory", "external_id": 3599, "children": []},
+      {"name": "Zasilacze komputerowe", "external_id": 3608, "children": []},
+      {"name": "Inne części i podzespoły", "external_id": 3611, "children": []},
+      {"name": "Części zamienne do laptopów", "external_id": 3610, "children": []},
+      {"name": "Obudowy do komputera", "external_id": 3598, "children": []},
+      {"name": "Płyty główne z procesorami", "external_id": 3601, "children": []},
+      {"name": "Karty dźwiękowe", "external_id": 3605, "children": []},
+      {"name": "Karty przechwytujące wideo i tunery TV", "external_id": 3606, "children": []},
+      {"name": "Narzędzia do naprawy komputerów", "external_id": 3609, "children": []}
+    ]},
+    {"name": "Klawiatury i akcesoria", "external_id": 3587, "children": [
+      {"name": "Klawiatury", "external_id": 3631, "children": []},
+      {"name": "Nakładki na klawisze klawiatury", "external_id": 3633, "children": []},
+      {"name": "Przełączniki klawiatury", "external_id": 3632, "children": []},
+      {"name": "Naklejki na klawiaturę", "external_id": 3634, "children": []},
+      {"name": "Pokrowce na klawiaturę", "external_id": 3635, "children": []}
+    ]},
+    {"name": "Akcesoria do laptopów", "external_id": 3585, "children": [
+      {"name": "Torby i futerały na laptopy", "external_id": 3624, "children": []},
+      {"name": "Zasilacze do laptopów", "external_id": 3626, "children": []},
+      {"name": "Podstawki pod laptopa", "external_id": 3625, "children": []},
+      {"name": "Podstawki chłodzące i wentylatory do laptopów", "external_id": 3628, "children": []},
+      {"name": "Linki zabezpieczające do laptopów", "external_id": 3629, "children": []},
+      {"name": "Filtry prywatyzujące do laptopów", "external_id": 3627, "children": []},
+      {"name": "Zaślepki na kamerę laptopa", "external_id": 3630, "children": []}
+    ]},
+    {"name": "Myszy", "external_id": 3588, "children": []},
+    {"name": "Urządzenia sieciowe", "external_id": 3594, "children": [
+      {"name": "Routery", "external_id": 3642, "children": []},
+      {"name": "Adaptery sieciowe", "external_id": 3647, "children": []},
+      {"name": "Modemy", "external_id": 3645, "children": []},
+      {"name": "Wzmacniacze sieciowe", "external_id": 3644, "children": []},
+      {"name": "Routery mobilne", "external_id": 3646, "children": []},
+      {"name": "Systemy mesh", "external_id": 3643, "children": []},
+      {"name": "Odbiorniki internetu satelitarnego", "external_id": 3648, "children": []}
+    ]},
+    {"name": "Drukarki i akcesoria", "external_id": 3595, "children": [
+      {"name": "Wkłady atramentowe do drukarek", "external_id": 3655, "children": []},
+      {"name": "Drukarki atramentowe", "external_id": 3649, "children": []},
+      {"name": "Tonery do drukarek", "external_id": 3656, "children": []},
+      {"name": "Drukarki laserowe", "external_id": 3650, "children": []},
+      {"name": "Drukarki etykiet", "external_id": 3652, "children": []},
+      {"name": "Drukarki termiczne", "external_id": 3653, "children": []},
+      {"name": "Drukarki wielofunkcyjne", "external_id": 3654, "children": []},
+      {"name": "Części do drukarek", "external_id": 3658, "children": []},
+      {"name": "Drukarki fotograficzne", "external_id": 3651, "children": []},
+      {"name": "Taśmy barwiące", "external_id": 3657, "children": []}
+    ]},
+    {"name": "Laptopy", "external_id": 3580, "children": []},
+    {"name": "Puste nośniki", "external_id": 3583, "children": [
+      {"name": "Płyty CD, DVD i Blu-ray", "external_id": 3614, "children": []},
+      {"name": "Pamięć USB", "external_id": 3612, "children": []},
+      {"name": "Zewnętrzne dyski twarde", "external_id": 3613, "children": []},
+      {"name": "Etui i pokrowce na nośniki", "external_id": 3617, "children": []},
+      {"name": "Dyskietki", "external_id": 3615, "children": []},
+      {"name": "Inne puste nośniki", "external_id": 3618, "children": []},
+      {"name": "Dyski Zip i Jaz", "external_id": 3616, "children": []}
+    ]},
+    {"name": "Monitory i akcesoria", "external_id": 3590, "children": [
+      {"name": "Monitory", "external_id": 3637, "children": []},
+      {"name": "Uchwyty na monitor", "external_id": 3639, "children": []},
+      {"name": "Podstawki pod monitor", "external_id": 3638, "children": []},
+      {"name": "Pokrowiec na monitor", "external_id": 3641, "children": []},
+      {"name": "Filtry prywatyzujące na monitor", "external_id": 3640, "children": []}
+    ]},
+    {"name": "Akcesoria komputerowe", "external_id": 3584, "children": [
+      {"name": "Inne akcesoria komputerowe", "external_id": 3623, "children": []},
+      {"name": "Czytniki kart pamięci", "external_id": 3621, "children": []},
+      {"name": "Adaptery do kart pamięci", "external_id": 3620, "children": []},
+      {"name": "Duplikatory dysków twardych", "external_id": 3619, "children": []}
+    ]},
+    {"name": "Komputery stacjonarne", "external_id": 3581, "children": []},
+    {"name": "Podkładki pod mysz", "external_id": 3589, "children": []},
+    {"name": "Stacje dokujące i koncentratory USB", "external_id": 3586, "children": []},
+    {"name": "Kamery internetowe", "external_id": 3593, "children": []},
+    {"name": "Tablety graficzne", "external_id": 3597, "children": []},
+    {"name": "Mikrofony komputerowe", "external_id": 3592, "children": []},
+    {"name": "Głośniki komputerowe", "external_id": 3591, "children": []},
+    {"name": "Skanery i akcesoria", "external_id": 3596, "children": [
+      {"name": "Skanery", "external_id": 3659, "children": []},
+      {"name": "Akcesoria do skanerów", "external_id": 3660, "children": []}
+    ]}
+  ]},
+  {"name": "Inne urządzenia i akcesoria", "external_id": 2995, "children": [
+    {"name": "Inne akcesoria", "external_id": 3013, "children": []},
+    {"name": "Kable", "external_id": 3006, "children": []},
+    {"name": "Ładowarki", "external_id": 3008, "children": []},
+    {"name": "Adaptery", "external_id": 3005, "children": []},
+    {"name": "Baterie i zasilacze", "external_id": 3794, "children": [
+      {"name": "Akumulatory", "external_id": 3805, "children": []},
+      {"name": "Baterie jednorazowego użytku", "external_id": 3804, "children": []},
+      {"name": "Ładowarki akumulatorów", "external_id": 3806, "children": []},
+      {"name": "Falowniki", "external_id": 3808, "children": []},
+      {"name": "Listwy zasilające PDU", "external_id": 3807, "children": []}
+    ]},
+    {"name": "Urządzenia do nawigacji satelitarnej", "external_id": 3789, "children": []},
+    {"name": "Powerbanki", "external_id": 3792, "children": []},
+    {"name": "Listwy zasilające i przedłużacze", "external_id": 3793, "children": []},
+    {"name": "Lokalizator przedmiotów", "external_id": 3052, "children": []},
+    {"name": "Drukowanie i skanowanie 3D", "external_id": 3788, "children": [
+      {"name": "Drukarki 3D", "external_id": 3795, "children": []},
+      {"name": "Długopisy 3D", "external_id": 3797, "children": []},
+      {"name": "Filamenty do drukarek 3D", "external_id": 3798, "children": []},
+      {"name": "Części do drukarek 3D", "external_id": 3799, "children": []},
+      {"name": "Skanery 3D", "external_id": 3796, "children": []}
+    ]},
+    {"name": "Wagi bagażowe", "external_id": 3791, "children": []}
+  ]},
+  {"name": "Audio i słuchawki", "external_id": 3566, "children": [
+    {"name": "Słuchawki", "external_id": 3678, "children": []},
+    {"name": "Domowe systemy audio", "external_id": 3683, "children": [
+      {"name": "Głośniki", "external_id": 3695, "children": []},
+      {"name": "Wzmacniacze i przedwzmacniacze", "external_id": 3699, "children": []},
+      {"name": "Wieże i systemy audio", "external_id": 3694, "children": []},
+      {"name": "Gramofony", "external_id": 3701, "children": []},
+      {"name": "Inne domowe urządzenia audio", "external_id": 3706, "children": []},
+      {"name": "Tunery radiowe", "external_id": 3704, "children": []},
+      {"name": "Odtwarzacze i nagrywarki CD", "external_id": 3702, "children": []},
+      {"name": "Magnetofony", "external_id": 3703, "children": []},
+      {"name": "Soundbary", "external_id": 3697, "children": []},
+      {"name": "Subwoofery", "external_id": 3696, "children": []},
+      {"name": "Odbiorniki", "external_id": 3700, "children": []},
+      {"name": "Odtwarzacze i nagrywarki MiniDisc", "external_id": 3705, "children": []},
+      {"name": "Korektory graficzne", "external_id": 3698, "children": []}
+    ]},
+    {"name": "Przenośne głośniki", "external_id": 3681, "children": []},
+    {"name": "Akcesoria do urządzeń audio", "external_id": 3686, "children": [
+      {"name": "Inne akcesoria audio", "external_id": 3713, "children": []},
+      {"name": "Stojaki na słuchawki", "external_id": 3707, "children": []},
+      {"name": "Nakładki do słuchawek", "external_id": 3709, "children": []},
+      {"name": "Nauszniki do słuchawek", "external_id": 3708, "children": []},
+      {"name": "Podkładki pod głośniki", "external_id": 3712, "children": []},
+      {"name": "Igły gramofonowe", "external_id": 3710, "children": []},
+      {"name": "Podkładki pod gramofon", "external_id": 3711, "children": []}
+    ]},
+    {"name": "Przenośne radia", "external_id": 3680, "children": []},
+    {"name": "Przenośne odtwarzacze muzyki", "external_id": 3679, "children": [
+      {"name": "Odtwarzacze MP3", "external_id": 3688, "children": []},
+      {"name": "Walkmany", "external_id": 3690, "children": []},
+      {"name": "Discmany", "external_id": 3689, "children": []},
+      {"name": "Przenośne odtwarzacze MiniDisc", "external_id": 3691, "children": []}
+    ]},
+    {"name": "Inteligentne głośniki", "external_id": 3682, "children": []},
+    {"name": "Części domowego audio", "external_id": 3687, "children": []}
+  ]},
+  {"name": "Urządzenia do pielęgnacji urody", "external_id": 3569, "children": [
+    {"name": "Urządzenia do stylizacji włosów", "external_id": 3758, "children": [
+      {"name": "Prostownice", "external_id": 3766, "children": []},
+      {"name": "Lokówki", "external_id": 3767, "children": []},
+      {"name": "Inne narzędzia do stylizacji włosów", "external_id": 3768, "children": []},
+      {"name": "Suszarki do włosów", "external_id": 3765, "children": []}
+    ]},
+    {"name": "Urządzenia do masażu", "external_id": 3761, "children": [
+      {"name": "Pistolety do masażu", "external_id": 3778, "children": []},
+      {"name": "Masażery na podczerwień", "external_id": 3780, "children": []},
+      {"name": "Pasy do masażu", "external_id": 3779, "children": []},
+      {"name": "Masażery do twarzy", "external_id": 3777, "children": []}
+    ]},
+    {"name": "Golarki i depilatory", "external_id": 3760, "children": [
+      {"name": "Depilatory IPL", "external_id": 3772, "children": []},
+      {"name": "Golarki elektryczne", "external_id": 3776, "children": []},
+      {"name": "Trymery", "external_id": 3774, "children": []},
+      {"name": "Depilatory obrotowe", "external_id": 3773, "children": []},
+      {"name": "Trymery do nosa", "external_id": 3775, "children": []}
+    ]},
+    {"name": "Urządzenia do pielęgnacji paznokci", "external_id": 3763, "children": [
+      {"name": "Lampy UV do paznokci", "external_id": 3786, "children": []},
+      {"name": "Elektryczne zestawy do manicure i pedicure", "external_id": 3784, "children": []},
+      {"name": "Suszarki do paznokci", "external_id": 3785, "children": []}
+    ]},
+    {"name": "Pielęgnacja zębów i jamy ustnej", "external_id": 3762, "children": [
+      {"name": "Elektryczne szczoteczki do zębów", "external_id": 3781, "children": []},
+      {"name": "Części do elektrycznych szczoteczek i irygatorów", "external_id": 3783, "children": []},
+      {"name": "Irygatory", "external_id": 3782, "children": []}
+    ]},
+    {"name": "Urządzenia kosmetyczne", "external_id": 3759, "children": [
+      {"name": "Maski LED", "external_id": 3769, "children": []},
+      {"name": "Urządzenia do oczyszczania i eksfoliacji twarzy", "external_id": 3770, "children": []},
+      {"name": "Beauty peny", "external_id": 3771, "children": []}
+    ]},
+    {"name": "Wagi łazienkowe", "external_id": 3764, "children": []}
+  ]},
+  {"name": "Aparaty fotograficzne i akcesoria", "external_id": 3054, "children": [
+    {"name": "Aparaty fotograficzne", "external_id": 3060, "children": [
+      {"name": "Aparaty cyfrowe", "external_id": 3075, "children": []},
+      {"name": "Aparaty analogowe", "external_id": 3076, "children": []},
+      {"name": "Kamery sportowe", "external_id": 3074, "children": []},
+      {"name": "Aparaty natychmiastowe", "external_id": 3077, "children": []},
+      {"name": "Kamery", "external_id": 3078, "children": []},
+      {"name": "Inne aparaty fotograficzne", "external_id": 3714, "children": []}
+    ]},
+    {"name": "Akcesoria", "external_id": 3059, "children": [
+      {"name": "Futerały i torby na aparaty", "external_id": 3068, "children": []},
+      {"name": "Inne akcesoria do aparatów fotograficznych", "external_id": 3073, "children": []},
+      {"name": "Akcesoria do obiektywów", "external_id": 3072, "children": []},
+      {"name": "Film", "external_id": 3071, "children": []},
+      {"name": "Paski do aparatów", "external_id": 3069, "children": []},
+      {"name": "Akcesoria do lamp błyskowych", "external_id": 3726, "children": []},
+      {"name": "Zestawy do naprawy aparatów fotograficznych", "external_id": 3727, "children": []}
+    ]},
+    {"name": "Obiektywy", "external_id": 3061, "children": []},
+    {"name": "Stabilizatory i mocowania", "external_id": 3065, "children": []},
+    {"name": "Drony z kamerą i akcesoria", "external_id": 3716, "children": [
+      {"name": "Drony z kamerą", "external_id": 3723, "children": []},
+      {"name": "Części do dronów", "external_id": 3725, "children": []},
+      {"name": "Torby na drony", "external_id": 3724, "children": []}
+    ]},
+    {"name": "Inny sprzęt fotograficzny", "external_id": 3064, "children": []},
+    {"name": "Statywy i monopody", "external_id": 3067, "children": []},
+    {"name": "Karty pamięci", "external_id": 3063, "children": []},
+    {"name": "Lampy błyskowe", "external_id": 3062, "children": []},
+    {"name": "Wyposażenie studia", "external_id": 3066, "children": [
+      {"name": "Oświetlenie studyjne", "external_id": 3081, "children": []},
+      {"name": "Tła fotograficzne", "external_id": 3080, "children": []},
+      {"name": "Rekwizyty do studia i fotobudki", "external_id": 3079, "children": []}
+    ]},
+    {"name": "Wyposażenie ciemni", "external_id": 3715, "children": [
+      {"name": "Papier fotograficzny", "external_id": 3721, "children": []},
+      {"name": "Lampy ciemniowe", "external_id": 3719, "children": []},
+      {"name": "Powiększalniki", "external_id": 3720, "children": []},
+      {"name": "Inne wyposażenie ciemni", "external_id": 3722, "children": []},
+      {"name": "Sprzęt do obróbki w ciemni", "external_id": 3718, "children": []}
+    ]},
+    {"name": "Części zamienne do aparatów fotograficznych", "external_id": 3717, "children": []}
+  ]},
+  {"name": "Urządzenia ubieralne", "external_id": 3004, "children": [
+    {"name": "Smartwatche", "external_id": 3035, "children": []},
+    {"name": "Paski do smartwatchy", "external_id": 3032, "children": []},
+    {"name": "Smartbandy", "external_id": 3031, "children": []},
+    {"name": "Smart ringi", "external_id": 3034, "children": []},
+    {"name": "Etui do smartwatchy", "external_id": 3810, "children": []},
+    {"name": "Inteligentne okulary", "external_id": 3033, "children": []}
+  ]},
+  {"name": "Tablety, czytniki e-booków i akcesoria", "external_id": 3567, "children": [
+    {"name": "Akcesoria", "external_id": 3732, "children": [
+      {"name": "Etui i futerały na tablety", "external_id": 3733, "children": []},
+      {"name": "Klawiatury do tabletów", "external_id": 3735, "children": []},
+      {"name": "Rysiki", "external_id": 3737, "children": []},
+      {"name": "Etui i etui na czytniki e-booków", "external_id": 3734, "children": []},
+      {"name": "Podstawki i uchwyty do tabletów", "external_id": 3736, "children": []},
+      {"name": "Części do tabletów i czytników e-booków", "external_id": 3809, "children": []}
+    ]},
+    {"name": "Tablety", "external_id": 3728, "children": []},
+    {"name": "Czytniki e-booków", "external_id": 3729, "children": []},
+    {"name": "Notatniki cyfrowe", "external_id": 3730, "children": []},
+    {"name": "Palmtopy", "external_id": 3731, "children": []}
+  ]},
+  {"name": "Telewizor i kino domowe", "external_id": 3568, "children": [
+    {"name": "Akcesoria do telewizorów i kina domowego", "external_id": 3750, "children": [
+      {"name": "Piloty zdalnego sterowania", "external_id": 3757, "children": []},
+      {"name": "Uchwyty i stojaki do projektorów", "external_id": 3755, "children": []},
+      {"name": "Ekrany projekcyjne", "external_id": 3756, "children": []}
+    ]},
+    {"name": "Telewizory", "external_id": 3738, "children": []},
+    {"name": "Projektory", "external_id": 3739, "children": []},
+    {"name": "Odtwarzacze DVD", "external_id": 3747, "children": []},
+    {"name": "Urządzenia do streamingu", "external_id": 3740, "children": []},
+    {"name": "Anteny telewizyjne", "external_id": 3741, "children": []},
+    {"name": "Systemy kina domowego", "external_id": 3745, "children": []},
+    {"name": "Dekodery wideo", "external_id": 3743, "children": []},
+    {"name": "Odbiorniki telewizyjne", "external_id": 3744, "children": []},
+    {"name": "Anteny satelitarne", "external_id": 3742, "children": []},
+    {"name": "Magnetowidy", "external_id": 3748, "children": []},
+    {"name": "Inne urządzenia do odtwarzania wideo", "external_id": 3749, "children": [
+      {"name": "Odtwarzacze HD DVD", "external_id": 3751, "children": []},
+      {"name": "Odtwarzacze Video 2000", "external_id": 3753, "children": []},
+      {"name": "Odtwarzacze LaserDisc", "external_id": 3752, "children": []},
+      {"name": "Odtwarzacze Betamax", "external_id": 3754, "children": []}
+    ]},
+    {"name": "Odtwarzacze Blu-ray", "external_id": 3746, "children": []}
+  ]}
+]

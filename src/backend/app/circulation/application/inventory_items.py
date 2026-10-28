@@ -22,7 +22,9 @@ from app.circulation.models import (
     InventoryBalance,
     InventoryItem,
     ItemCondition,
+    ItemListingStatus,
     MovementType,
+    ReservationType,
 )
 from app.circulation.schemas import UpdateInventoryItemRequest
 from app.core.auth_deps import Principal
@@ -33,6 +35,10 @@ from app.core.errors import (
 )
 from app.product import service as product_service
 
+OnItemRegistered = Callable[
+    [AsyncSession, InventoryItem, Inventory, ReservationType], Awaitable[None]
+]
+
 
 async def register_item(
     db: AsyncSession,
@@ -41,9 +47,17 @@ async def register_item(
     condition: str,
     *,
     owner_user_id: uuid.UUID | None = None,
+    listing_mode: ReservationType | None = None,
+    on_registered: OnItemRegistered | None = None,
 ) -> InventoryItem:
     """Registers a new item in `inventory_id` and posts its REGISTER
-    movement from EXTERNAL in the same commit."""
+    movement from EXTERNAL in the same commit. With a `listing_mode` the item
+    starts ACTIVE and the flushed item is handed to `on_registered` (the
+    router injects `app.groups`' listing-preference insert — circulation
+    never imports groups) before that single commit, so a failing hook
+    persists nothing."""
+    if listing_mode is not None and on_registered is None:
+        raise ValueError("listing_mode requires an on_registered hook")
     inventory = await get_inventory(db, inventory_id)
     if owner_user_id is not None and inventory.owner_user_id != owner_user_id:
         raise AccessDeniedException
@@ -53,6 +67,9 @@ async def register_item(
         inventory_id=inventory_id,
         product_id=product_id,
         condition=ItemCondition(condition),
+        listing_status=(
+            ItemListingStatus.DRAFT if listing_mode is None else ItemListingStatus.ACTIVE
+        ),
         added_at=datetime.utcnow(),
     )
     db.add(item)
@@ -67,6 +84,9 @@ async def register_item(
         description=f"{MovementType.REGISTER}: {product.name}",
         occurred_at=item.added_at,
     )
+    if listing_mode is not None and on_registered is not None:
+        await db.flush()
+        await on_registered(db, item, inventory, listing_mode)
     await db.commit()
     await db.refresh(item)
     return item
@@ -81,14 +101,25 @@ async def get_item(db: AsyncSession, item_id: uuid.UUID) -> InventoryItem:
     return item
 
 
-async def get_item_for_share(db: AsyncSession, item_id: uuid.UUID) -> InventoryItem:
-    """`get_item` under a FOR SHARE lock on the item row: serializes with a
-    concurrent re-point (`update_item`), so the caller reads the committed
-    `product_id`."""
-    item = await repository.get_item_for_share(db, item_id)
+async def get_item_for_update(db: AsyncSession, item_id: uuid.UUID) -> InventoryItem:
+    """`get_item` under a FOR UPDATE lock on the item row, for a caller that
+    changes its listing status."""
+    item = await repository.get_item_for_update(db, item_id)
     if item is None or item.deleted_at is not None:
         raise EntityNotFoundException("InventoryItem", item_id)
     return item
+
+
+async def set_item_listing_status(
+    db: AsyncSession, item_id: uuid.UUID, listing_status: ItemListingStatus
+) -> None:
+    """Flush only — the caller (`app.groups`' listing-preference writes)
+    owns the commit that also inserts or deletes the preference row."""
+    item = await repository.get_item(db, item_id)
+    if item is None:
+        raise EntityNotFoundException("InventoryItem", item_id)
+    item.listing_status = listing_status
+    await db.flush()
 
 
 async def find_item_including_deleted(db: AsyncSession, item_id: uuid.UUID) -> InventoryItem | None:
@@ -220,22 +251,14 @@ async def update_item(
     item_id: uuid.UUID,
     principal: Principal,
     data: UpdateInventoryItemRequest,
-    on_product_changed: Callable[[AsyncSession, uuid.UUID, uuid.UUID], Awaitable[None]]
-    | None = None,
 ) -> InventoryItem:
     """PATCH an item's `condition` and/or re-point it to another `product_id`.
     Allowed regardless of the item's `InventoryBalance` status — a reserved
-    item can still be corrected. When `product_id` actually changes, the
-    flushed re-point is handed to `on_product_changed` (the router injects
-    `app.groups`' listing withdraw — circulation never imports groups) before
-    the single commit, so a failing hook leaves the re-point uncommitted too."""
+    item can still be corrected."""
     item = await _require_item_owner(db, item_id, principal)
     if data.product_id is not None and data.product_id != item.product_id:
         await product_service.get_product(db, data.product_id)
         item.product_id = data.product_id
-        if on_product_changed is not None:
-            await db.flush()
-            await on_product_changed(db, item_id, data.product_id)
     if data.condition is not None:
         item.condition = data.condition
     await db.commit()

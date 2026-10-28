@@ -30,7 +30,7 @@ from tests.test_organizer_bridges import (
     _set_balance,
     _uploader_id,
 )
-from tests.test_term_item_listings import _auth, _register, _resolve_product, _rsvp
+from tests.test_term_item_listings import _auth, _register, _rsvp
 
 FORBIDDEN_KEYS = {
     "display_name",
@@ -84,15 +84,10 @@ async def _term(
     return uuid.UUID(term.json()["id"])
 
 
-async def _needed_item(
-    client: AsyncClient, token: str, term_id: uuid.UUID, product_name: str
-) -> uuid.UUID:
+async def _needed_item(client: AsyncClient, token: str, term_id: uuid.UUID, name: str) -> uuid.UUID:
     created = await client.post(
         "/api/needed-items",
-        json={
-            "term_id": str(term_id),
-            "product_id": await _resolve_product(client, token, product_name),
-        },
+        json={"term_id": str(term_id), "name": name},
         headers=_auth(token),
     )
     assert created.status_code == 201
@@ -182,7 +177,7 @@ async def test_getOrganizerPage_populatedDirectory_matchesContractWithoutIdentit
         "occurs_on",
     }
     [needed] = body["needed_items"]
-    assert set(needed) == {"id", "term_id", "group_id", "product_name", "claimed"}
+    assert set(needed) == {"id", "term_id", "group_id", "name", "claimed"}
     assert body["stats"] == {"circle_count": 1, "upcoming_term_count": 1, "family_count": None}
     assert _keys(body) & FORBIDDEN_KEYS == set()
 
@@ -424,14 +419,14 @@ async def test_getOrganizerPage_neededItems_claimedFlagLiveItemsOfNextTermsOnly(
             "id": str(claimed_id),
             "term_id": str(next_term),
             "group_id": str(group_id),
-            "product_name": "Op need ażur",
+            "name": "Op need ażur",
             "claimed": True,
         },
         {
             "id": str(open_id),
             "term_id": str(next_term),
             "group_id": str(group_id),
-            "product_name": "Op need balon",
+            "name": "Op need balon",
             "claimed": False,
         },
     ]
@@ -533,18 +528,19 @@ async def test_getOrganizerPage_manyItemsAndNeeds_itemsCappedAt12NeedsAt5InCodeP
     group_id = await _circle(client, owner_token, "Pełny")
     term_id = await _term(client, owner_token, group_id, _in_days(2))
     names = [f"Op cap A{index:02d}" for index in range(11)] + ["Op cap Ćma", "Op cap Da"]
-    item_ids = await _listed_items(client, owner_token, *((name, "GIFT") for name in names))
+    modes = ["GIFT" if index < 10 else "SWAP" for index in range(len(names))]
+    item_ids = await _listed_items(client, owner_token, *zip(names, modes, strict=True))
     for index in range(6):
         await _needed_item(client, owner_token, term_id, f"Op cap potrzeba {index:02d}")
 
     body = await _page(client, slug)
 
-    assert body["exchange"]["counts"] == {"GIFT": 13, "SWAP": 0}
+    assert body["exchange"]["counts"] == {"GIFT": 10, "SWAP": 3}
     by_name = dict(zip(names, item_ids, strict=True))
     assert [i["item_id"] for i in body["exchange"]["items"]] == [
         str(by_name[name]) for name in sorted(names)[:12]
     ]
     assert "Op cap Ćma" not in {i["product_name"] for i in body["exchange"]["items"]}
-    assert [n["product_name"] for n in body["needed_items"]] == [
+    assert [n["name"] for n in body["needed_items"]] == [
         f"Op cap potrzeba {index:02d}" for index in range(5)
     ]

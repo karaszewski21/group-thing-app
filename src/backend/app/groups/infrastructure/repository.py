@@ -23,7 +23,6 @@ from sqlalchemy import (
     exists,
     func,
     literal,
-    or_,
     select,
     true,
     union_all,
@@ -31,9 +30,7 @@ from sqlalchemy import (
 from sqlalchemy.dialects import postgresql
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.category.models import Category
 from app.families.models import FamilyMembership, FamilyRole
-from app.product.models import Product
 from app.users.models import UserProfile
 
 from ..models import (
@@ -468,37 +465,9 @@ async def list_needed_items_for_term(db: AsyncSession, term_id: uuid.UUID) -> li
     result = await db.execute(
         select(NeededItem)
         .where(NeededItem.term_id == term_id, NeededItem.deleted_at.is_(None))
-        .order_by(NeededItem.id)
+        .order_by(NeededItem.name, NeededItem.id)
     )
     return list(result.scalars().all())
-
-
-async def get_needed_item_with_product(
-    db: AsyncSession, needed_item_id: uuid.UUID
-) -> Row[tuple[NeededItem, str, uuid.UUID, str]] | None:
-    """`NeededItem` + its product's name/category via an explicit join
-    scoped to this one read (`standards/backend/models.md` cross-module
-    rule — no `relationship()` into `app.product` or `app.category`)."""
-    result = await db.execute(
-        select(NeededItem, Product.name, Category.id, Category.name)
-        .join(Product, NeededItem.product_id == Product.id)
-        .join(Category, Product.category_id == Category.id)
-        .where(NeededItem.id == needed_item_id)
-    )
-    return result.one_or_none()
-
-
-async def list_needed_items_with_product_for_term(
-    db: AsyncSession, term_id: uuid.UUID
-) -> list[Row[tuple[NeededItem, str, uuid.UUID, str]]]:
-    result = await db.execute(
-        select(NeededItem, Product.name, Category.id, Category.name)
-        .join(Product, NeededItem.product_id == Product.id)
-        .join(Category, Product.category_id == Category.id)
-        .where(NeededItem.term_id == term_id, NeededItem.deleted_at.is_(None))
-        .order_by(NeededItem.id)
-    )
-    return list(result.all())
 
 
 # --- Pledge -------------------------------------------------------------------
@@ -536,15 +505,14 @@ async def list_active_pledges_for_term(
 async def list_my_pledges_joined(
     db: AsyncSession, party_id: uuid.UUID
 ) -> list[Row[tuple[Pledge, str, str | None, Term, Group]]]:
-    """The caller's own non-withdrawn pledges + the product name / need
+    """The caller's own non-withdrawn pledges + the need's name /
     refinement / term / circle, one explicit multi-entity join (these
     entities carry no `relationship()` — same form as
     `list_my_attendances_joined`). Live needs only (`deleted_at IS NULL`),
     SQL-level ordering by class date."""
     result = await db.execute(
-        select(Pledge, Product.name, NeededItem.description, Term, Group)
+        select(Pledge, NeededItem.name, NeededItem.description, Term, Group)
         .join(NeededItem, Pledge.needed_item_id == NeededItem.id)
-        .join(Product, NeededItem.product_id == Product.id)
         .join(Term, NeededItem.term_id == Term.id)
         .join(Group, Term.circle_group_id == Group.id)
         .where(
@@ -773,28 +741,6 @@ async def list_other_pending_swap_proposals_for_listing_item(
     return [p for p in proposals if p.id != exclude_proposal_id]
 
 
-async def list_pending_swap_proposals_involving_items(
-    db: AsyncSession, item_ids: Collection[uuid.UUID]
-) -> list[SwapProposal]:
-    """Every still-`PROPOSED` `SwapProposal` whose listing item or offered
-    (counter-offer) item is one of `item_ids`, oldest first — what the
-    photo-moderation withdraw rejects."""
-    if not item_ids:
-        return []
-    result = await db.execute(
-        select(SwapProposal)
-        .where(
-            SwapProposal.status == SwapProposalStatus.PROPOSED,
-            or_(
-                SwapProposal.listing_item_id.in_(item_ids),
-                SwapProposal.offered_item_id.in_(item_ids),
-            ),
-        )
-        .order_by(SwapProposal.created_at, SwapProposal.id)
-    )
-    return list(result.scalars().all())
-
-
 # --- Public organizer directory ----------------------------------------------
 # Every query is batched over the organizer's circles or their terms, so the
 # page's statement count does not grow with the number of circles. `now` is
@@ -971,10 +917,10 @@ async def count_member_families_for_groups(
     return int(count or 0)
 
 
-async def list_needed_items_with_product_for_terms(
+async def list_needed_items_for_terms(
     db: AsyncSession, term_ids: list[uuid.UUID], limit: int
 ) -> list[Row[tuple[uuid.UUID, uuid.UUID, uuid.UUID, str, bool]]]:
-    """`(needed_item_id, term_id, group_id, product_name, claimed)` for the
+    """`(needed_item_id, term_id, group_id, name, claimed)` for the
     first `limit` live needs of `term_ids`, soonest term first; `claimed`
     uses the same rule as the term page (a pledge that is not WITHDRAWN).
     Never carries the pledger."""
@@ -986,13 +932,12 @@ async def list_needed_items_with_product_for_terms(
             NeededItem.id,
             NeededItem.term_id,
             Term.circle_group_id,
-            Product.name,
+            NeededItem.name,
             claimed.label("claimed"),
         )
         .join(Term, Term.id == NeededItem.term_id)
-        .join(Product, Product.id == NeededItem.product_id)
         .where(NeededItem.term_id.in_(term_ids), NeededItem.deleted_at.is_(None))
-        .order_by(Term.occurs_on, Product.name, NeededItem.id)
+        .order_by(Term.occurs_on, NeededItem.name, NeededItem.id)
         .limit(limit)
     )
     return list(result.all())

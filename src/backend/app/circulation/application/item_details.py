@@ -18,7 +18,7 @@ from app.circulation.application.inventory import get_inventory
 from app.circulation.application.inventory_items import resolve_owning_inventory
 from app.circulation.domain.item_privacy import ItemStatus, derive_status, newest_reservation
 from app.circulation.infrastructure import repository
-from app.circulation.models import BalanceStatus, ItemCondition
+from app.circulation.models import BalanceStatus, ItemCondition, ItemListingStatus
 from app.core.auth_deps import Principal
 from app.core.errors import EntityNotFoundException
 from app.product import service as product_service
@@ -40,6 +40,7 @@ class ItemDetails:
     is_owner: bool
     deleted_at: datetime | None
     status: ItemStatus
+    listing_status: ItemListingStatus
 
 
 async def get_item_details(
@@ -105,4 +106,5 @@ async def get_item_details(
         is_owner=is_owner,
         deleted_at=item.deleted_at,
         status=status,
+        listing_status=item.listing_status,
     )

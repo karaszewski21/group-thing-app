@@ -4,6 +4,7 @@ import {
   registerInventoryItem,
   type InventoryItemResponse,
 } from "../api/inventories";
+import type { ListingMode } from "../api/itemListingPreferences";
 import { getMyProfile } from "../api/people";
 import { serverMessageOr } from "../api/problem";
 import { addProductPhoto, resolveProduct } from "../api/products";
@@ -19,14 +20,20 @@ export interface CreateItemResult {
 }
 
 /** Adds an item to the caller's PERSONAL inventory: resolves the product by
- * name within its category, registers the item, then uploads `photos` to the
- * product in order (the owner check needs the item to exist first). Creation
+ * name within its category, registers the item with `mode` (`GIFT`/`SWAP`
+ * offers it at once, `null` saves a draft; the server writes both
+ * atomically), then uploads `photos` to the product in order (the owner
+ * check needs the item to exist first). Creation
  * errors are rethrown as Polish messages; a refused photo only counts towards
  * `failedPhotos`, since the item already exists by then. No query caches the
  * caller's item list ("Moje rzeczy" reloads on mount), so nothing is
  * invalidated. */
 export function useCreateItem() {
-  return useCallback(async (value: ItemQuickAddValue, photos: File[]): Promise<CreateItemResult> => {
+  return useCallback(async (
+    value: ItemQuickAddValue,
+    photos: File[],
+    mode: ListingMode | null,
+  ): Promise<CreateItemResult> => {
     let productId: string;
     let item: InventoryItemResponse;
     try {
@@ -40,6 +47,7 @@ export function useCreateItem() {
         inventory_id: inventory.id,
         product_id: product.id,
         condition: value.condition,
+        listing_mode: mode,
       });
     } catch (err) {
       throw new Error(serverMessageOr(err, CREATE_FALLBACK));

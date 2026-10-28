@@ -1,5 +1,5 @@
 import { api } from "./client";
-import type { ItemCondition } from "./inventories";
+import type { ItemCondition, ListingStatus } from "./inventories";
 import type { ProductPhotoResponse } from "./products";
 
 export type ItemStatusCode =
@@ -35,6 +35,7 @@ export interface ItemDetailsResponse {
   category_id: string;
   category_name: string | null;
   condition: ItemCondition;
+  listing_status: ListingStatus;
   description: string | null;
   photos: ProductPhotoResponse[];
   product_photo_url: string | null;

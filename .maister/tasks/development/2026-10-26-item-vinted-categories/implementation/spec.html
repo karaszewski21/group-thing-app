@@ -87,6 +87,7 @@ ul.tight { margin:6px 0; padding-left:18px; } ul.tight li { margin:3px 0; }
     <li>One shared <code>CategoryTreePicker</code> (ModalSheet, search with full paths + drill-down) replaces every "Typ" <code>&lt;select&gt;</code>. The add-item form ends with three buttons: Oddam / Zamienię / Wersja robocza.</li>
     <li>Items get <code>inventory_items.listing_status</code> (DRAFT/ACTIVE), kept in lockstep with the <code>item_listing_preferences</code> row. The mode is set atomically at registration, and the backend enforces the 10-gift limit.</li>
     <li>The photo-moderation listing gate and withdraw-on-upload/re-point are removed. Needed items become plain names (no product link), and existing needed items and pledges are wiped.</li>
+    <li>The spec audit (1 high, 6 medium, 13 low) is resolved. The picker sheet is portaled out of forms and labels, every picker button is <code>type="button"</code>, register-time listing requires a PERSONAL inventory, and the wipe, downgrades, dead-code list and test list are completed (see <a href="#audit">Audit resolution</a>).</li>
   </ul>
   <h2>Key Decisions</h2>
   <table>
@@ -104,19 +105,30 @@ ul.tight { margin:6px 0; padding-left:18px; } ul.tight li { margin:3px 0; }
     <tr><td>Needed-item names are text-moderated like product names</td><td>They render on the anonymous public term page.</td></tr>
     <tr><td>Separate schema and data revisions 0064–0069, each with a round-trip test</td><td>Per <code>migrations.md</code>.</td></tr>
     <tr><td>Admin tree uses nested lists + disclosure buttons, not <code>role="tree"</code></td><td>Avoids a roving-tabindex model that is not required here. The mockup layout is kept.</td></tr>
+    <tr><td colspan="2" class="group">Audit decisions</td></tr>
+    <tr><td>Portal in the picker only; <code>ModalSheet</code> ✕ gets <code>type="button"</code> (H1)</td><td>Fixes form submission and label re-click without changing the term dialogs.</td></tr>
+    <tr><td>Register with a mode into a non-PERSONAL inventory → 403 (M3)</td><td>Same rule and status as PUT.</td></tr>
+    <tr><td><code>external_id</code> only when read from vinted.pl, else null; all-null acceptable (M4)</td><td>Never invent ids.</td></tr>
+    <tr><td><code>handleAddTerm</code>: continue, collect failures, close the modal, one toast; drafts not kept (M5)</td><td>Minimal and predictable.</td></tr>
+    <tr><td>Search ignores case and diacritics; first 50 results + hint (L7)</td><td>Polish input; bounded rendering.</td></tr>
+    <tr><td><code>update_product</code> leaf check only when the category changes (L8)</td><td>Products left on inner nodes stay editable.</td></tr>
+    <tr><td><code>ItemDetailPage</code> keeps the leaf name; product filter lists leaves only (L9)</td><td>No new display scope; non-leaf filters were always empty.</td></tr>
+    <tr><td>Categories query <code>staleTime</code> 5 min (L11)</td><td>No refetch of about 1000 rows per picker mount.</td></tr>
+    <tr><td>In <code>any</code> mode a non-leaf search result selects (L13)</td><td>The goal there is choosing a parent.</td></tr>
+    <tr><td>0068 downgrade wipes needed items; 0069 downgrade deletes all categories and fails if products exist (L2, L12)</td><td>Deterministic, reversible on dev data.</td></tr>
   </table>
   <h2>Open Questions / Risks</h2>
   <ul class="tight">
     <li><span class="sev critical">critical</span>The user's uncommitted <code>AppPage.test.tsx</code> breaks on the <code>Category</code> type and needed-item changes, and can be updated only after the user commits. <code>appHelpers.ts</code> keeps the stale UI-only gift-limit comment and a different <code>GIFT_LIMIT_MESSAGE</code>. Router, AddView, AppPage and EventCreateView need no change.</li>
-    <li><span class="sev critical">critical</span>The Vinted fixture is a hand-compiled one-time snapshot with possible ToS concerns and missing ids. <b>The user must review it before the seed is applied.</b></li>
-    <li><span class="sev critical">critical</span>The destructive data revision wipes all products, items, ledger, reservations, swaps, conversations and photo rows (dev). Spaces objects are orphaned.</li>
+    <li><span class="sev critical">critical</span>The Vinted fixture is a hand-compiled one-time snapshot with possible ToS concerns and missing ids (never invented). <b>The user must review the fixture and its provenance README before the seed is applied.</b></li>
+    <li><span class="sev critical">critical</span>The destructive data revision wipes all products, items, ledger, reservations, swaps, conversations, photo rows, related notifications and PENDING term-end outbox events (dev). Spaces objects are orphaned.</li>
     <li><span class="sev warning">warning</span>Gift-limit race: concurrent Oddam requests could reach 11 (accepted as a soft limit).</li>
     <li><span class="sev warning">warning</span>Leaf race: an admin adding a child while a product is created on that leaf (accepted).</li>
-    <li><span class="sev warning">warning</span>A needed-item name is rejected after <code>createTerm</code>: the term is kept and a toast is shown (FR-24).</li>
+    <li><span class="sev warning">warning</span>A needed-item name is rejected after <code>createTerm</code>: the term is kept, one toast lists the rejected names, and the organizer re-adds them (FR-24).</li>
     <li><span class="sev info">info</span>Items can be listed before photo approval and show without a photo until then.</li>
     <li><span class="sev info">info</span>19 backend test files take <code>categories[0]</code> (now a root) and must switch to a leaf helper.</li>
   </ul>
-  <p class="toc">Contents: <a href="#scope">Scope</a> · <a href="#stories">User Stories</a> · <a href="#requirements">Requirements</a> · <a href="#visual">Visual Design</a> · <a href="#reuse">Components</a> · <a href="#tech">Technical Approach</a> · <a href="#tests">Testing</a> · <a href="#success">Success Criteria</a></p>
+  <p class="toc">Contents: <a href="#scope">Scope</a> · <a href="#stories">User Stories</a> · <a href="#requirements">Requirements</a> · <a href="#visual">Visual Design</a> · <a href="#reuse">Components</a> · <a href="#tech">Technical Approach</a> · <a href="#tests">Testing</a> · <a href="#audit">Audit resolution</a> · <a href="#success">Success Criteria</a></p>
 </section>
 
 <h2 id="scope">Scope</h2>
@@ -163,33 +175,33 @@ ul.tight { margin:6px 0; padding-left:18px; } ul.tight li { margin:3px 0; }
   <tr><th>ID</th><th>Requirement</th><th>Priority</th></tr>
   <tr><td colspan="3" class="group">A. Category tree (backend)</td></tr>
   <tr><td>FR-1</td><td>Add <code>parent_id</code> (self-FK + index) and <code>external_id</code> (unique); replace <code>uq_categories_name</code> with a per-parent unique constraint and a partial root unique index; <code>sort_order</code> ordered among siblings</td><td>Must</td></tr>
-  <tr><td>FR-2</td><td>JSON fixture <code>{name, external_id, children}</code>, 9 roots in order, validated in the migration; <b>user review before apply</b></td><td>Must</td></tr>
-  <tr><td>FR-3</td><td>One data revision: legacy wipe in FK-safe order, then batched seed; downgrade restores the 5 legacy rows</td><td>Must</td></tr>
+  <tr><td>FR-2</td><td>JSON fixture <code>{name, external_id, children}</code>, 9 roots in order, validated in the migration; <code>external_id</code> only when read from vinted.pl; provenance README; <b>user review before apply</b></td><td>Must</td></tr>
+  <tr><td>FR-3</td><td>One data revision: legacy wipe in FK-safe order, then batched seed; downgrade fails if products exist, deletes all categories, restores the 5 legacy rows</td><td>Must</td></tr>
   <tr><td>FR-4</td><td><code>CategoryResponse.parent_id</code>; flat list ordered by <code>sort_order, name</code>, single query</td><td>Must</td></tr>
   <tr><td>FR-5</td><td>Create with <code>parent_id</code>: 404 unknown parent; 409 parent has products; 409 duplicate sibling name</td><td>Must</td></tr>
   <tr><td>FR-6</td><td>Update is rename/description only; no reparenting</td><td>Must</td></tr>
-  <tr><td>FR-7</td><td>Delete: 409 with children or with products (Polish messages)</td><td>Must</td></tr>
+  <tr><td>FR-7</td><td>Delete: explicit pre-checks, children first, then products; 409 with Polish messages</td><td>Must</td></tr>
   <tr><td>FR-8</td><td>Move swaps only with the adjacent sibling</td><td>Must</td></tr>
-  <tr><td>FR-9</td><td>Leaf-only product create, update and resolve (409 non-leaf, 404 unknown)</td><td>Must</td></tr>
+  <tr><td>FR-9</td><td>Leaf-only product create, update (only when the category changes) and resolve (409 non-leaf, 404 unknown)</td><td>Must</td></tr>
   <tr><td colspan="3" class="group">B. Listing status and modes (backend)</td></tr>
   <tr><td>FR-10</td><td><code>inventory_items.listing_status</code> NOT NULL default DRAFT; backfill ACTIVE where a pref exists</td><td>Must</td></tr>
-  <tr><td>FR-11</td><td>Expose <code>listing_status</code> in InventoryItem, ItemDetails and MyInventoryItem responses</td><td>Must</td></tr>
-  <tr><td>FR-12</td><td><code>listing_mode</code> on register; item + pref + status in one commit via the injected groups hook</td><td>Must</td></tr>
-  <tr><td>FR-13</td><td>Lockstep: set → ACTIVE, clear → DRAFT, confirm → DRAFT at the new owner; written through a bridge only</td><td>Must</td></tr>
+  <tr><td>FR-11</td><td>Expose <code>listing_status</code> in InventoryItem, ItemDetails and MyInventoryItem responses, plus the matching frontend types and <code>listing_mode</code> on the create request</td><td>Must</td></tr>
+  <tr><td>FR-12</td><td><code>listing_mode</code> on register; PERSONAL inventory required (403); item + pref + status in one commit via the injected groups hook (<code>register_item</code> refactored to commit once)</td><td>Must</td></tr>
+  <tr><td>FR-13</td><td>Lockstep: set → ACTIVE, clear → DRAFT, confirm → DRAFT at the new owner; groups writes through the bridge, <code>register_item</code> sets the initial value; new <code>get_item_for_update</code></td><td>Must</td></tr>
   <tr><td>FR-14</td><td>Gift limit 10 on register and on PUT (Polish 409 messages)</td><td>Must</td></tr>
-  <tr><td>FR-15</td><td>Remove the moderation listing gate, both withdraw hooks, the script and the dead reads</td><td>Must</td></tr>
+  <tr><td>FR-15</td><td>Remove the moderation listing gate, both withdraw hooks, the script and the full dead-code list (including the <code>get_item_for_share</code> chain); fix the <code>UNMODERATED_STATUSES</code> comment</td><td>Must</td></tr>
   <tr><td colspan="3" class="group">C. Needed items (backend)</td></tr>
-  <tr><td>FR-16</td><td>Wipe pledges and needed items; add <code>name</code>, drop <code>product_id</code></td><td>Must</td></tr>
+  <tr><td>FR-16</td><td>Wipe pledges and needed items; add <code>name</code>, drop <code>product_id</code>; the 0068 downgrade wipes needed items first</td><td>Must</td></tr>
   <tr><td>FR-17</td><td>New request/response contract with <code>name</code>, <code>item_name</code> on pledges; text moderation of the name</td><td>Must</td></tr>
   <tr><td>FR-18</td><td>Switch every reader to <code>needed_items.name</code> (terms, pledges, public_view, organizer_page, repository)</td><td>Must</td></tr>
   <tr><td colspan="3" class="group">D. Frontend</td></tr>
-  <tr><td>FR-19</td><td>snake_case <code>Category</code> with <code>parent_id</code>; pure <code>utils/categoryTree.ts</code></td><td>Must</td></tr>
-  <tr><td>FR-20</td><td>CategoryTreePicker: trigger, ModalSheet, combobox search, drill-down, leaf/any modes</td><td>Must</td></tr>
-  <tr><td>FR-21</td><td>Add item: required Kategoria, three buttons, mode passed at registration, backend error verbatim with data kept</td><td>Must</td></tr>
-  <tr><td>FR-22</td><td>Item edit: picker in NameCategoryEditor, status chip, withdrawn notice removed</td><td>Must</td></tr>
+  <tr><td>FR-19</td><td>snake_case <code>Category</code> with <code>parent_id</code>; pure <code>utils/categoryTree.ts</code> with diacritic-insensitive search; categories <code>staleTime</code> 5 min</td><td>Must</td></tr>
+  <tr><td>FR-20</td><td>CategoryTreePicker: sheet portaled to <code>body</code>, all buttons <code>type="button"</code>, Enter in search prevented, trigger via <code>aria-labelledby</code>; combobox search (50-result cap), drill-down, leaf/any modes</td><td>Must</td></tr>
+  <tr><td>FR-21</td><td>Add item: required Kategoria (no <code>&lt;label&gt;</code> wrapper), form <code>onSubmit</code> prevented, three buttons, mode passed at registration, backend error verbatim with data kept</td><td>Must</td></tr>
+  <tr><td>FR-22</td><td>Item edit: picker in NameCategoryEditor, status chip, withdrawn notice and stale gallery hint removed; ItemDetailPage leaf name unchanged</td><td>Must</td></tr>
   <tr><td>FR-23</td><td>Moje rzeczy: toggles no longer locked by pending photos</td><td>Must</td></tr>
-  <tr><td>FR-24</td><td>Needed-item UI as plain names; handleAddTerm failure toast; DTO renames at display sites</td><td>Must</td></tr>
-  <tr><td>FR-25</td><td>Admin tree list, parent picker form, picker in ProductFormPage, path labels in product list/detail</td><td>Must</td></tr>
+  <tr><td>FR-24</td><td>Needed-item UI as plain names; handleAddTerm continues past failures, then one toast; <code>addDraftNeededItem</code> caller change; DTO renames at display sites</td><td>Must</td></tr>
+  <tr><td>FR-25</td><td>Admin tree list, parent picker form (span labels, never submits), picker in ProductFormPage, leaf-only product filter, path labels in product list/detail</td><td>Must</td></tr>
 </table>
 </div>
 <p style="font-size:12.5px;color:var(--dim)">Full detail, including exact messages, is in <a href="spec.md" target="_blank" rel="noopener">spec.md ↗</a> § Core Requirements.</p>
@@ -257,13 +269,13 @@ ul.tight { margin:6px 0; padding-left:18px; } ul.tight li { margin:3px 0; }
 <ol>
   <li>Messages and conversation reads of item conversations, then the conversations</li>
   <li><code>swap_proposals</code> on the items</li>
-  <li><code>giveaway_term_end_markers</code> + <code>notifications</code> of those reservations</li>
+  <li><code>giveaway_term_end_markers</code>; <code>notifications</code> by <code>reservation_id</code>, <code>proposal_id</code> (deleted proposals) or <code>link_path</code> <code>/product/{id}</code>; PENDING <code>groups.term_ended_giveaway</code>/<code>_swap</code> outbox entries</li>
   <li><code>circulation_entries</code>, then empty <code>circulation_transactions</code></li>
   <li><code>reservations</code> (null <code>paired_reservation_id</code> first)</li>
   <li><code>inventory_balances</code></li>
   <li><code>item_listing_preferences</code> (loose pointer)</li>
   <li><code>inventory_items</code></li>
-  <li><code>moderation_decisions</code> (PHOTO), then <code>product_photos</code></li>
+  <li><code>moderation_decisions</code> (PHOTO for the photos, PRODUCT_TEXT for the products), then <code>product_photos</code></li>
   <li><code>products</code></li>
   <li>The pre-existing categories</li>
 </ol>
@@ -271,7 +283,7 @@ ul.tight { margin:6px 0; padding-left:18px; } ul.tight li { margin:3px 0; }
 </details>
 <details class="card"><summary>Create-item flow and listing invariant</summary>
 <p><b>Frontend:</b> profile → personal inventory → <code>POST /api/products/resolve</code> (leaf check) → <code>POST /api/inventory-items {…, listing_mode}</code> → photo uploads → navigate to <code>/product/{id}</code>.</p>
-<p><b>Backend:</b> <code>register_item</code> (status from the mode) → flush → groups hook (gift-limit count → insert pref) → a single commit. On an exception nothing persists.</p>
+<p><b>Backend:</b> <code>register_item</code> (status from the mode) → flush → groups hook (PERSONAL check → gift-limit count → insert pref) → a single commit. On an exception nothing persists. 0065 is kept for chain correctness, even though 0069 later deletes the items it touches.</p>
 <p>Pref existence stays the only input to listing reads, and none of them change. <code>listing_status</code> is a mirror written in the same transaction as each pref insert or delete: register, set/clear, confirm, backfill.</p>
 </details>
 <details class="card"><summary>Cross-module boundaries, authorization, docs</summary>
@@ -286,7 +298,7 @@ ul.tight { margin:6px 0; padding-left:18px; } ul.tight li { margin:3px 0; }
 
 <h2 id="tests">Testing Approach</h2>
 <div class="card">
-  <p>2–8 focused tests per implementation step group; verification runs only the new and changed tests. Add a <code>leaf_category_id</code> helper in <code>tests/conftest.py</code> and switch every <code>categories[0]</code> lookup to it. Exact key sets are updated, never loosened.</p>
+  <p>2–8 focused tests per implementation step group; verification runs only the new and changed tests. Add a <code>leaf_category_ids(client, headers, n=1)</code> helper in <code>tests/conftest.py</code> (never cached, because round trips re-seed the tree) and switch every <code>categories[0]</code> lookup to it. The 0065 backfill test asserts at 0065, before upgrading to head. Picker tests run inside a form: the ✕ and Enter do not submit, and a scrim click closes the sheet. Exact key sets are updated, never loosened.</p>
   <div class="grid2">
     <div><b>New backend</b>
       <ul class="tight">
@@ -307,13 +319,13 @@ ul.tight { margin:6px 0; padding-left:18px; } ul.tight li { margin:3px 0; }
     </div>
   </div>
   <details><summary>Changed or deleted test files</summary>
-    <p><b>Backend:</b> test_category_reintroduction, test_category_module, test_product_category_fk_rename, test_pagination, test_product_resolution, test_item_details, test_term_item_listings(_router), test_photo_moderation_gate (rewrite), test_photo_moderation_withdraw / _repoint / test_withdraw_unmoderated_listings_script (delete), test_photo_moderation_queries, test_moderation, test_groups, test_public_term, test_organizer_page(_queries), test_exchange_summary, test_notifications, test_group_soft_delete_keep_live / _reads, test_authorization_matrix; category-helper switch in test_attendance_withdrawal, test_circulation(_ledger), test_conversation_inbox / _messages, test_domain_clock_guard, test_item_conversations, test_reservation_write_guards, test_term_clock_regressions, test_term_end_scan (and test_lend_listing_preferences_migration if it registers items).</p>
+    <p><b>Backend:</b> test_category_reintroduction, test_category_module, test_product_category_fk_rename, test_pagination, test_product_resolution, test_item_details, test_term_item_listings(_router), test_photo_moderation_gate (rewrite), test_photo_moderation_withdraw / _repoint / _hardening / test_withdraw_unmoderated_listings_script (delete), test_photo_moderation_queries (surviving reads only), test_moderation, test_groups, test_public_term, test_organizer_page(_queries), test_exchange_summary, test_notifications, test_group_soft_delete_keep_live / _reads, test_authorization_matrix; category-helper switch in test_attendance_withdrawal, test_circulation(_ledger), test_conversation_inbox / _messages, test_domain_clock_guard, test_item_conversations, test_reservation_write_guards, test_term_clock_regressions, test_term_end_scan (and test_lend_listing_preferences_migration if it registers items).</p>
     <p><b>Frontend:</b> ItemCreatePage (rewrite), ItemQuickAddForm(Category), CategoryListPage, CategoryFormPage, ProductFormPageCategory, ProductCategoryDisplayByCategoriesHook, useCategories, NeededItemQuickAddForm, EditTermDialog, MyItemsViewCategory, ItemDetailPage, useItemDetail, TermPage, termViewModel, organizer* block tests, OrganizerEditor, OrganizerTermsPage, PublicOrganizationPage, LayoutRenderer, useOrganizerPage, pages, extension-points, OrganizerItemRoute, OrganizerPhotosTab. <span class="sev critical">blocked</span>AppPage.test.tsx (user's uncommitted work).</p>
   </details>
   <details><summary>Standards compliance</summary>
     <ul class="tight">
       <li><b>models.md</b>: BaseEntity UUIDs, <code>_enum_column</code>, business key <code>(parent_id, name)</code>, bridges, no <code>relationship()</code></li>
-      <li><b>migrations.md</b>: separate schema and data, explicit names, partial unique, reverse downgrades, round-trip tests</li>
+      <li><b>migrations.md</b>: separate schema and data, explicit names, partial unique, reverse downgrades, round-trip tests. <i>Deliberate deviation:</i> NOT NULL <code>listing_status</code> (with a server default) and <code>needed_items.name</code> (empty table)</li>
       <li><b>api.md / error-handling.md</b>: typed 409/404 with Polish messages</li>
       <li><b>security.md</b>: matrix unchanged</li>
       <li><b>queries.md</b>: single aggregate and count queries, no N+1</li>
@@ -326,6 +338,34 @@ ul.tight { margin:6px 0; padding-left:18px; } ul.tight li { margin:3px 0; }
   </details>
 </div>
 
+<h2 id="audit">Audit resolution</h2>
+<p style="font-size:12.5px;color:var(--dim)">Source: <a href="../verification/spec-audit.md" target="_blank" rel="noopener">verification/spec-audit.md ↗</a>. 1 high, 6 medium, 13 low; user-approved decisions are unchanged.</p>
+<div class="card" style="padding:0">
+<table>
+  <tr><th>Finding</th><th>Resolution</th></tr>
+  <tr><td><span class="sev critical">H1</span></td><td>FR-20: sheet portaled to <code>body</code>; all picker buttons and the ModalSheet ✕ <code>type="button"</code>; Enter in search prevented; trigger via <code>aria-labelledby</code>. FR-21/25: no <code>&lt;label&gt;</code> wrapper; add form <code>onSubmit</code> prevented. Picker-in-form tests.</td></tr>
+  <tr><td><span class="sev warning">M1</span></td><td>FR-22: drop the stale gallery-hint sentence; update <code>ItemDetailPage.test.tsx</code>.</td></tr>
+  <tr><td><span class="sev warning">M2</span></td><td>Wipe step 3: notifications by <code>proposal_id</code>/<code>link_path</code>; PENDING term-end outbox entries.</td></tr>
+  <tr><td><span class="sev warning">M3</span></td><td>FR-12: PERSONAL inventory required → 403; test.</td></tr>
+  <tr><td><span class="sev warning">M4</span></td><td>FR-2: no invented ids; all-null acceptable; provenance README reviewed.</td></tr>
+  <tr><td><span class="sev warning">M5</span></td><td>FR-24: continue, collect, close the modal, one toast; no retained drafts.</td></tr>
+  <tr><td><span class="sev warning">M6</span></td><td>Delete <code>test_photo_moderation_hardening.py</code>; <code>leaf_category_ids(n)</code>; query tests trimmed.</td></tr>
+  <tr><td><span class="sev info">L1</span></td><td>0065 test asserts at 0065, then upgrades to head.</td></tr>
+  <tr><td><span class="sev info">L2</span></td><td>The 0068 downgrade wipes needed items first.</td></tr>
+  <tr><td><span class="sev info">L3</span></td><td>Dead-code list extended; <code>get_item_for_update</code> added; <code>UNMODERATED_STATUSES</code> comment fixed.</td></tr>
+  <tr><td><span class="sev info">L4</span></td><td>FR-7: explicit children-then-products pre-checks.</td></tr>
+  <tr><td><span class="sev info">L5</span></td><td>Wipe step 9: PRODUCT_TEXT decisions too.</td></tr>
+  <tr><td><span class="sev info">L6</span></td><td>FR-13 reworded (groups via the bridge; register sets the initial value).</td></tr>
+  <tr><td><span class="sev info">L7</span></td><td>Diacritic-insensitive search; 50-result cap + hint.</td></tr>
+  <tr><td><span class="sev info">L8</span></td><td><code>update_product</code> leaf check only on a category change.</td></tr>
+  <tr><td><span class="sev info">L9</span></td><td>ItemDetailPage keeps the leaf name; product filter is leaves-only.</td></tr>
+  <tr><td><span class="sev info">L10</span></td><td>NOT NULL deviation acknowledged in Standards Compliance.</td></tr>
+  <tr><td><span class="sev info">L11</span></td><td>Categories <code>staleTime</code> 5 min.</td></tr>
+  <tr><td><span class="sev info">L12</span></td><td>The 0069 downgrade fails if products exist, then deletes all categories and re-inserts the legacy rows.</td></tr>
+  <tr><td><span class="sev info">L13</span></td><td>A non-leaf result selects in <code>any</code> mode; frontend types listed; <code>addDraftNeededItem</code> caller; helper never cached.</td></tr>
+</table>
+</div>
+
 <h2 id="success">Success Criteria</h2>
 <div class="card">
 <ul class="tight">
@@ -336,6 +376,7 @@ ul.tight { margin:6px 0; padding-left:18px; } ul.tight li { margin:3px 0; }
   <li>A pending photo upload or re-point never removes a pref, and PUT while photos are pending returns 200.</li>
   <li>Needed items work end to end by <code>name</code>.</li>
   <li>The picker meets the a11y rules: keyboard selection works, Esc in search does not close the sheet, focus returns to the trigger.</li>
+  <li>The picker never submits a host form (✕, Enter, scrim), and a scrim click does not reopen the sheet.</li>
   <li>New and changed tests pass. mypy and ruff are no worse than the HEAD baseline. tsc is clean except the blocked <code>AppPage.test.tsx</code>.</li>
 </ul>
 </div>

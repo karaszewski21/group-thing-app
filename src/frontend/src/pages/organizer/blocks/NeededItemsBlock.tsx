@@ -38,7 +38,7 @@ export function NeededItemsBlock({ data }: BlockProps) {
             return (
               <li key={item.id} className="flex min-h-[44px] items-center gap-3 px-4 py-2.5">
                 <Check aria-hidden="true" className="h-5 w-5 shrink-0 text-primary-fg" />
-                <span className="min-w-0 flex-1 text-[14px] text-ink-soft">{item.product_name}</span>
+                <span className="min-w-0 flex-1 text-[14px] text-ink-soft">{item.name}</span>
                 <span className="rounded-full bg-primary-soft px-2 py-0.5 text-[11px] font-extrabold text-primary-fg">
                   Zapewnione
                 </span>
@@ -50,14 +50,14 @@ export function NeededItemsBlock({ data }: BlockProps) {
             <li key={item.id} className="flex min-h-[44px] items-center gap-3 px-4 py-2.5">
               <BringsIcon aria-hidden="true" className="h-5 w-5 shrink-0 text-ink-soft" />
               <span className="min-w-0 flex-1">
-                <span className="block text-[14px] font-bold text-ink">{item.product_name}</span>
+                <span className="block text-[14px] font-bold text-ink">{item.name}</span>
                 {occursOn && (
                   <span className="block text-[12px] text-ink-soft">{dayjs(occursOn).format("dd D MMM")}</span>
                 )}
               </span>
               <Link
                 to={organizerTermPath(slug, item.group_id, item.term_id)}
-                aria-label={`Zobacz termin: ${item.product_name}`}
+                aria-label={`Zobacz termin: ${item.name}`}
                 className="flex min-h-[44px] shrink-0 items-center text-[13px] font-extrabold text-primary-fg focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring"
               >
                 Zobacz →

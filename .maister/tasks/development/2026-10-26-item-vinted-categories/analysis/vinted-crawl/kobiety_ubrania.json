@@ -1,0 +1,799 @@
+[
+  {
+    "name": "Bluzki, topy i koszulki",
+    "external_id": 12,
+    "children": [
+      {
+        "name": "Bluzki",
+        "external_id": 1043,
+        "children": []
+      },
+      {
+        "name": "T-shirty",
+        "external_id": 221,
+        "children": []
+      },
+      {
+        "name": "Bluzki z długim rękawem",
+        "external_id": 224,
+        "children": []
+      },
+      {
+        "name": "Koszule",
+        "external_id": 222,
+        "children": []
+      },
+      {
+        "name": "Crop topy",
+        "external_id": 1041,
+        "children": []
+      },
+      {
+        "name": "Bluzki bez rękawów",
+        "external_id": 534,
+        "children": []
+      },
+      {
+        "name": "Bluzki z krótkim rękawem",
+        "external_id": 223,
+        "children": []
+      },
+      {
+        "name": "Body",
+        "external_id": 1835,
+        "children": []
+      },
+      {
+        "name": "Bluzki z odkrytymi ramionami",
+        "external_id": 1042,
+        "children": []
+      },
+      {
+        "name": "Bluzki z ¾ rękawami",
+        "external_id": 225,
+        "children": []
+      },
+      {
+        "name": "Golfy",
+        "external_id": 1045,
+        "children": []
+      },
+      {
+        "name": "Topy z dekoltem halter",
+        "external_id": 1044,
+        "children": []
+      },
+      {
+        "name": "Tuniki",
+        "external_id": 227,
+        "children": []
+      },
+      {
+        "name": "Bluzki z baskinką",
+        "external_id": 1837,
+        "children": []
+      },
+      {
+        "name": "Podkoszulki",
+        "external_id": 14,
+        "children": []
+      },
+      {
+        "name": "Inne",
+        "external_id": 228,
+        "children": []
+      }
+    ]
+  },
+  {
+    "name": "Sukienki",
+    "external_id": 10,
+    "children": [
+      {
+        "name": "Sukienki wizytowe",
+        "external_id": 1774,
+        "children": []
+      },
+      {
+        "name": "Długie sukienki",
+        "external_id": 1055,
+        "children": []
+      },
+      {
+        "name": "Letnie sukienki",
+        "external_id": 1065,
+        "children": []
+      },
+      {
+        "name": "Krótkie sukienki",
+        "external_id": 178,
+        "children": []
+      },
+      {
+        "name": "Sukienki na co dzień",
+        "external_id": 1059,
+        "children": []
+      },
+      {
+        "name": "Sukienki midi",
+        "external_id": 1056,
+        "children": []
+      },
+      {
+        "name": "Małe czarne",
+        "external_id": 1058,
+        "children": []
+      },
+      {
+        "name": "Sukienki na zimę",
+        "external_id": 1779,
+        "children": []
+      },
+      {
+        "name": "Sukienki biurowe",
+        "external_id": 1057,
+        "children": []
+      },
+      {
+        "name": "Sukienki jeansowe",
+        "external_id": 179,
+        "children": []
+      },
+      {
+        "name": "Sukienki bez ramiączek",
+        "external_id": 1061,
+        "children": []
+      },
+      {
+        "name": "Inne",
+        "external_id": 176,
+        "children": []
+      }
+    ]
+  },
+  {
+    "name": "Bluzy i swetry",
+    "external_id": 13,
+    "children": [
+      {
+        "name": "Bluzy",
+        "external_id": 1917,
+        "children": [
+          {
+            "name": "Swetry",
+            "external_id": 529,
+            "children": []
+          },
+          {
+            "name": "Golfy i półgolfy",
+            "external_id": 191,
+            "children": []
+          },
+          {
+            "name": "Swetry z dekoltem V",
+            "external_id": 190,
+            "children": []
+          },
+          {
+            "name": "Bluzy",
+            "external_id": 1066,
+            "children": []
+          },
+          {
+            "name": "Swetry z rękawem ¾",
+            "external_id": 193,
+            "children": []
+          },
+          {
+            "name": "Długie swetry",
+            "external_id": 192,
+            "children": []
+          }
+        ]
+      },
+      {
+        "name": "Bluzy (hoodies-and-sweatshirts)",
+        "external_id": 196,
+        "children": []
+      },
+      {
+        "name": "Kardigany",
+        "external_id": 194,
+        "children": []
+      },
+      {
+        "name": "Kamizelki",
+        "external_id": 1874,
+        "children": []
+      },
+      {
+        "name": "Inne",
+        "external_id": 197,
+        "children": []
+      },
+      {
+        "name": "Bolera",
+        "external_id": 195,
+        "children": []
+      },
+      {
+        "name": "Kimona",
+        "external_id": 1067,
+        "children": []
+      }
+    ]
+  },
+  {
+    "name": "Okrycia wierzchnie",
+    "external_id": 1037,
+    "children": [
+      {
+        "name": "Kurtki",
+        "external_id": 1908,
+        "children": [
+          {
+            "name": "Kurtki ocieplane",
+            "external_id": 2614,
+            "children": []
+          },
+          {
+            "name": "Kurtki pikowane",
+            "external_id": 2596,
+            "children": []
+          },
+          {
+            "name": "Kurtki jeansowe",
+            "external_id": 1079,
+            "children": []
+          },
+          {
+            "name": "Motocyklówki i kurtki wyścigowe",
+            "external_id": 2527,
+            "children": []
+          },
+          {
+            "name": "Bomberki",
+            "external_id": 1078,
+            "children": []
+          },
+          {
+            "name": "Kurtki wiatrówki",
+            "external_id": 2532,
+            "children": []
+          },
+          {
+            "name": "Kurtki koszulowe",
+            "external_id": 2529,
+            "children": []
+          },
+          {
+            "name": "Kurtki z polaru",
+            "external_id": 1086,
+            "children": []
+          },
+          {
+            "name": "Kurtki narciarskie i snowboardowe",
+            "external_id": 2530,
+            "children": []
+          },
+          {
+            "name": "Kurtki wojskowe i utility",
+            "external_id": 2528,
+            "children": []
+          },
+          {
+            "name": "Kurtki bejsbolówki",
+            "external_id": 2531,
+            "children": []
+          }
+        ]
+      },
+      {
+        "name": "Płaszcze",
+        "external_id": 1907,
+        "children": [
+          {
+            "name": "Klasyczne i długie płaszcze",
+            "external_id": 2526,
+            "children": []
+          },
+          {
+            "name": "Sztuczne futra",
+            "external_id": 1090,
+            "children": []
+          },
+          {
+            "name": "Trencze",
+            "external_id": 1834,
+            "children": []
+          },
+          {
+            "name": "Parki",
+            "external_id": 1087,
+            "children": []
+          },
+          {
+            "name": "Bosmanki",
+            "external_id": 1076,
+            "children": []
+          },
+          {
+            "name": "Przeciwdeszczowe",
+            "external_id": 1080,
+            "children": []
+          },
+          {
+            "name": "Budrysówki",
+            "external_id": 2525,
+            "children": []
+          }
+        ]
+      },
+      {
+        "name": "Bezrękawniki",
+        "external_id": 2524,
+        "children": []
+      },
+      {
+        "name": "Peleryny i poncza",
+        "external_id": 1773,
+        "children": []
+      }
+    ]
+  },
+  {
+    "name": "Spodnie i legginsy",
+    "external_id": 9,
+    "children": [
+      {
+        "name": "Spodnie z szerokimi nogawkami",
+        "external_id": 1071,
+        "children": []
+      },
+      {
+        "name": "Legginsy",
+        "external_id": 525,
+        "children": []
+      },
+      {
+        "name": "Spodnie typu proste",
+        "external_id": 1846,
+        "children": []
+      },
+      {
+        "name": "Skórzane spodnie",
+        "external_id": 184,
+        "children": []
+      },
+      {
+        "name": "Inne",
+        "external_id": 189,
+        "children": []
+      },
+      {
+        "name": "Spodnie do kostek i chinosy",
+        "external_id": 1070,
+        "children": []
+      },
+      {
+        "name": "Rurki",
+        "external_id": 185,
+        "children": []
+      },
+      {
+        "name": "Spodnie z wysokim stanem",
+        "external_id": 187,
+        "children": []
+      },
+      {
+        "name": "Haremki/ Alladynki",
+        "external_id": 526,
+        "children": []
+      }
+    ]
+  },
+  {
+    "name": "Jeansy",
+    "external_id": 183,
+    "children": [
+      {
+        "name": "Dżinsy skinny",
+        "external_id": 1844,
+        "children": []
+      },
+      {
+        "name": "Dżinsy z wysokim stanem",
+        "external_id": 1842,
+        "children": []
+      },
+      {
+        "name": "Dżinsy straight",
+        "external_id": 1845,
+        "children": []
+      },
+      {
+        "name": "Dzwony jeansy",
+        "external_id": 1841,
+        "children": []
+      },
+      {
+        "name": "Dżinsy z rozdarciami",
+        "external_id": 1843,
+        "children": []
+      },
+      {
+        "name": "Inne",
+        "external_id": 1864,
+        "children": []
+      },
+      {
+        "name": "Dżinsy boyfriend",
+        "external_id": 1839,
+        "children": []
+      },
+      {
+        "name": "Dżinsy do kostek",
+        "external_id": 1840,
+        "children": []
+      }
+    ]
+  },
+  {
+    "name": "Odzież sportowa",
+    "external_id": 73,
+    "children": [
+      {
+        "name": "Dresy",
+        "external_id": 572,
+        "children": []
+      },
+      {
+        "name": "Topy i T-shirty",
+        "external_id": 576,
+        "children": []
+      },
+      {
+        "name": "Spodnie i legginsy",
+        "external_id": 573,
+        "children": []
+      },
+      {
+        "name": "Szorty",
+        "external_id": 578,
+        "children": []
+      },
+      {
+        "name": "Biustonosze",
+        "external_id": 1439,
+        "children": []
+      },
+      {
+        "name": "Odzież wierzchnia",
+        "external_id": 571,
+        "children": []
+      },
+      {
+        "name": "Akcesoria",
+        "external_id": 579,
+        "children": []
+      },
+      {
+        "name": "Sukienki",
+        "external_id": 574,
+        "children": []
+      },
+      {
+        "name": "Inne",
+        "external_id": 580,
+        "children": []
+      },
+      {
+        "name": "Bluzy i swetry",
+        "external_id": 577,
+        "children": []
+      },
+      {
+        "name": "Spódnice",
+        "external_id": 575,
+        "children": []
+      },
+      {
+        "name": "Koszulki klubowe",
+        "external_id": 3268,
+        "children": []
+      }
+    ]
+  },
+  {
+    "name": "Spódnice",
+    "external_id": 11,
+    "children": [
+      {
+        "name": "Spódnice mini",
+        "external_id": 198,
+        "children": []
+      },
+      {
+        "name": "Spódnice do kolan",
+        "external_id": 2927,
+        "children": []
+      },
+      {
+        "name": "Spódnice midi",
+        "external_id": 199,
+        "children": []
+      },
+      {
+        "name": "Spódnice maxi",
+        "external_id": 200,
+        "children": []
+      },
+      {
+        "name": "Spódnice asymetryczne",
+        "external_id": 2928,
+        "children": []
+      }
+    ]
+  },
+  {
+    "name": "Żakiety i garnitury",
+    "external_id": 8,
+    "children": [
+      {
+        "name": "Żakiety, marynarki",
+        "external_id": 532,
+        "children": []
+      },
+      {
+        "name": "Garnitury ze spodniami",
+        "external_id": 1125,
+        "children": []
+      },
+      {
+        "name": "Garnitury ze spódnicami",
+        "external_id": 1126,
+        "children": []
+      },
+      {
+        "name": "Inne garnitury i żakiety",
+        "external_id": 1129,
+        "children": []
+      },
+      {
+        "name": "Pojedyncze części garnituru",
+        "external_id": 1128,
+        "children": []
+      }
+    ]
+  },
+  {
+    "name": "Bielizna i odzież nocna",
+    "external_id": 29,
+    "children": [
+      {
+        "name": "Biustonosze",
+        "external_id": 119,
+        "children": []
+      },
+      {
+        "name": "Piżamy",
+        "external_id": 123,
+        "children": []
+      },
+      {
+        "name": "Akcesoria bieliźniane",
+        "external_id": 1847,
+        "children": []
+      },
+      {
+        "name": "Skarpety",
+        "external_id": 1262,
+        "children": []
+      },
+      {
+        "name": "Komplety",
+        "external_id": 229,
+        "children": []
+      },
+      {
+        "name": "Majtki",
+        "external_id": 120,
+        "children": []
+      },
+      {
+        "name": "Szlafroki",
+        "external_id": 1030,
+        "children": []
+      },
+      {
+        "name": "Rajstopy",
+        "external_id": 1263,
+        "children": []
+      },
+      {
+        "name": "Bielizna modelująca",
+        "external_id": 1781,
+        "children": []
+      },
+      {
+        "name": "Inne",
+        "external_id": 124,
+        "children": []
+      }
+    ]
+  },
+  {
+    "name": "Szorty",
+    "external_id": 15,
+    "children": [
+      {
+        "name": "Dżinsowe szorty",
+        "external_id": 538,
+        "children": []
+      },
+      {
+        "name": "Szorty z wysokim stanem",
+        "external_id": 1099,
+        "children": []
+      },
+      {
+        "name": "Inne",
+        "external_id": 205,
+        "children": []
+      },
+      {
+        "name": "Szorty z niskim stanem",
+        "external_id": 1838,
+        "children": []
+      },
+      {
+        "name": "Bermudy",
+        "external_id": 203,
+        "children": []
+      },
+      {
+        "name": "Rybaczki",
+        "external_id": 204,
+        "children": []
+      },
+      {
+        "name": "Szorty cargo",
+        "external_id": 1103,
+        "children": []
+      },
+      {
+        "name": "Skórzane szorty",
+        "external_id": 1100,
+        "children": []
+      },
+      {
+        "name": "Szorty z koronką",
+        "external_id": 1101,
+        "children": []
+      }
+    ]
+  },
+  {
+    "name": "Kombinezony",
+    "external_id": 1035,
+    "children": [
+      {
+        "name": "Kombinezony długie",
+        "external_id": 1131,
+        "children": []
+      },
+      {
+        "name": "Kombinezony krótkie",
+        "external_id": 1132,
+        "children": []
+      },
+      {
+        "name": "Inne kombinezony",
+        "external_id": 1134,
+        "children": []
+      }
+    ]
+  },
+  {
+    "name": "Stroje kąpielowe",
+    "external_id": 28,
+    "children": [
+      {
+        "name": "Dwuczęściowe",
+        "external_id": 219,
+        "children": []
+      },
+      {
+        "name": "Jednocześciowe",
+        "external_id": 218,
+        "children": []
+      },
+      {
+        "name": "Tuniki plażowe i pareo",
+        "external_id": 1780,
+        "children": []
+      },
+      {
+        "name": "Inne",
+        "external_id": 220,
+        "children": []
+      }
+    ]
+  },
+  {
+    "name": "Ubrania dla kobiet w ciąży",
+    "external_id": 1176,
+    "children": [
+      {
+        "name": "Spodnie ciążowe",
+        "external_id": 1177,
+        "children": []
+      },
+      {
+        "name": "Sukienki ciążowe",
+        "external_id": 1182,
+        "children": []
+      },
+      {
+        "name": "Bluzki ciążowe",
+        "external_id": 1179,
+        "children": []
+      },
+      {
+        "name": "Spodenki ciążowe",
+        "external_id": 1185,
+        "children": []
+      },
+      {
+        "name": "Bielizna ciążowa",
+        "external_id": 1614,
+        "children": []
+      },
+      {
+        "name": "Spódnice ciążowe",
+        "external_id": 1178,
+        "children": []
+      },
+      {
+        "name": "Bluzy i swetry ciążowe",
+        "external_id": 1184,
+        "children": []
+      },
+      {
+        "name": "Odzież sportowa",
+        "external_id": 2084,
+        "children": []
+      },
+      {
+        "name": "Stroje kąpielowe i plażowe",
+        "external_id": 1186,
+        "children": []
+      },
+      {
+        "name": "Kurtki i płaszcze ciążowe",
+        "external_id": 1183,
+        "children": []
+      },
+      {
+        "name": "Kombinezony ciążowe długie i krótkie",
+        "external_id": 1181,
+        "children": []
+      }
+    ]
+  },
+  {
+    "name": "Inne ubrania",
+    "external_id": 18,
+    "children": []
+  },
+  {
+    "name": "Przebrania i kostiumy tematyczne",
+    "external_id": 1782,
+    "children": []
+  },
+  {
+    "name": "Spódnico-spodenki",
+    "external_id": 5491,
+    "children": []
+  }
+]

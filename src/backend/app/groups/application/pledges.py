@@ -24,7 +24,7 @@ from app.core.errors import (
 from app.users.service import get_profile_by_principal
 
 from ..domain import pledge_events
-from ..infrastructure import outbox_bridge, product_bridge, repository
+from ..infrastructure import outbox_bridge, repository
 from ..infrastructure.slug_resolver import resolve_organizer_slug
 from ..models import Pledge, PledgeStatus
 from .circles import _group_role_party_id, get_current_leadership
@@ -48,7 +48,6 @@ async def _emit_pledge_event(
     if leadership is None:
         return
     organizer_party_id = await _group_role_party_id(db, leadership.from_role_id)
-    product = await product_bridge.get_product(db, needed_item.product_id)
     slug = await resolve_organizer_slug(db, term.circle_group_id)
     await outbox_bridge.append_event(
         db,
@@ -56,7 +55,8 @@ async def _emit_pledge_event(
         payload={
             "organizer_party_id": organizer_party_id,
             "actor_name": actor_name,
-            "product_name": product.name,
+            # Key kept for already-queued events; the value is the need's name.
+            "product_name": needed_item.name,
             "link_path": f"/{slug}/grupa/{term.circle_group_id}/term/{term.id}",
         },
     )

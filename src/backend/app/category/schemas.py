@@ -24,6 +24,7 @@ class CategoryResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     id: uuid.UUID
+    parent_id: uuid.UUID | None
     name: str
     description: str | None
     sort_order: int
@@ -35,6 +36,7 @@ class CategoryResponse(BaseModel):
 def category_response_from(category: Category, product_count: int) -> CategoryResponse:
     return CategoryResponse(
         id=category.id,
+        parent_id=category.parent_id,
         name=category.name,
         description=category.description,
         sort_order=category.sort_order,
@@ -45,11 +47,20 @@ def category_response_from(category: Category, product_count: int) -> CategoryRe
 
 
 class CreateCategoryRequest(BaseModel):
+    """`parent_id` null creates a root; there is no reparenting later.
+    Names are stripped, so a blank name fails `min_length` and a padded one
+    meets the sibling uniqueness check."""
+
+    model_config = ConfigDict(str_strip_whitespace=True)
+
     name: str = Field(min_length=1, max_length=100)
     description: str | None = Field(default=None, max_length=500)
+    parent_id: uuid.UUID | None = None
 
 
 class UpdateCategoryRequest(BaseModel):
+    model_config = ConfigDict(str_strip_whitespace=True)
+
     name: str = Field(min_length=1, max_length=100)
     description: str | None = Field(default=None, max_length=500)
 

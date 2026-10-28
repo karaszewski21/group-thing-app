@@ -1,38 +1,48 @@
-import { useEffect, useMemo, useState, type FormEvent } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import type { ListingMode } from "../../api/itemListingPreferences";
 import { ItemQuickAddForm } from "../../components/shared/ItemQuickAddForm";
 import { PhoneFrame } from "../../components/shared/PhoneFrame";
-import { useCategories } from "../../hooks/useCategories";
 import { useCreateItem } from "../../hooks/useCreateItem";
 import { createEmptyItemQuickAddValue, type ItemQuickAddValue } from "../../utils/itemQuickAdd";
 import { TrashIcon } from "../../components/shared/appIcons";
+import { EXCHANGE_MODE_LABELS } from "../term/components/termLabels";
 import { ItemBackButton } from "./ItemBackButton";
 import { PhotoFileField } from "./ItemGalleryEditor";
 import { FIELD_LABEL, MAX_PRODUCT_PHOTOS, photoFileError, type ItemCreatedState } from "./itemPageShared";
 
+const ACTION_CLASS =
+  "rounded-[13px] px-4 py-3 text-[13.5px] font-extrabold disabled:opacity-60 aria-disabled:cursor-not-allowed aria-disabled:opacity-60";
+const MISSING_FIELDS_HINT_ID = "item-create-missing-fields";
+
 /** `/product/new`: adds an item to the caller's own inventory with optional
- * photos, then replaces itself with the new item's page (handing it the
- * count of refused photos). Standalone, outside AppDataProvider. */
+ * photos — offered at once (Oddam / Zamienię) or saved as a draft — then
+ * replaces itself with the new item's page (handing it the count of refused
+ * photos). Standalone, outside AppDataProvider. */
 export function ItemCreatePage() {
   const navigate = useNavigate();
   const createItem = useCreateItem();
-  const { data: categories } = useCategories();
-  const [draft, setDraft] = useState<ItemQuickAddValue>(createEmptyItemQuickAddValue());
+  const [value, setValue] = useState<ItemQuickAddValue>(createEmptyItemQuickAddValue());
   const [photos, setPhotos] = useState<File[]>([]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Categories load asynchronously, so the default (first) category is
-  // derived until the user picks one.
-  const value = { ...draft, category_id: draft.category_id || (categories[0]?.id ?? "") };
+  const fieldsMissing = value.name.trim() === "" || value.category_id === "";
+  const canSubmit = !busy && !fieldsMissing;
+  // Missing fields keep the actions focusable (aria-disabled) so the hint reaches
+  // keyboard and screen-reader users; only a running save disables them natively.
+  const actionState = {
+    disabled: busy,
+    "aria-disabled": !busy && fieldsMissing ? true : undefined,
+    "aria-describedby": fieldsMissing ? MISSING_FIELDS_HINT_ID : undefined,
+  };
 
-  async function handleSubmit(e: FormEvent) {
-    e.preventDefault();
-    if (!value.name.trim()) return;
+  async function submit(mode: ListingMode | null) {
+    if (!canSubmit) return;
     setBusy(true);
     setError(null);
     try {
-      const { item, failedPhotos } = await createItem(value, photos);
+      const { item, failedPhotos } = await createItem(value, photos, mode);
       const state: ItemCreatedState | undefined = failedPhotos > 0 ? { failedPhotos } : undefined;
       navigate(`/product/${item.id}`, { replace: true, state });
     } catch (err) {
@@ -46,25 +56,47 @@ export function ItemCreatePage() {
       <div className="flex-1 overflow-y-auto px-[18px] pb-6 pt-[18px]">
         <ItemBackButton />
         <h2 className="text-[19px] font-semibold text-ink">Dodaj rzecz</h2>
-        <form onSubmit={(e) => void handleSubmit(e)} className="mt-4 rounded-[22px] border border-line bg-paper p-5">
-          <ItemQuickAddForm value={value} onChange={setDraft} disabled={busy} />
+        {/* No submit button: implicit Enter submission from the name input must do nothing. */}
+        <form onSubmit={(e) => e.preventDefault()} className="mt-4 rounded-[22px] border border-line bg-paper p-5">
+          <ItemQuickAddForm value={value} onChange={setValue} disabled={busy} />
           <NewPhotosField files={photos} onChange={setPhotos} disabled={busy} />
-          <p className="mt-3 text-xs text-ink-soft">
-            Opis dodasz na stronie rzeczy, a sposób udostępnienia (oddam / zamienię) ustawisz na
-            liście „Moje rzeczy”.
-          </p>
+          <p className="mt-3 text-xs text-ink-soft">Opis dodasz na stronie rzeczy.</p>
           {error && (
             <p role="alert" className="mt-3 rounded-xl bg-danger-soft px-3 py-2.5 text-[13px] text-danger">
               {error}
             </p>
           )}
-          <button
-            type="submit"
-            disabled={busy || !value.name.trim()}
-            className="mt-4 w-full rounded-[13px] bg-mint px-5 py-3 text-[13.5px] font-extrabold text-white disabled:opacity-60"
-          >
-            Dodaj rzecz
-          </button>
+          {fieldsMissing && (
+            <p id={MISSING_FIELDS_HINT_ID} className="mt-3 text-xs text-ink-soft">
+              Podaj nazwę i wybierz kategorię, aby zapisać.
+            </p>
+          )}
+          <div className="mt-4 grid grid-cols-2 gap-2">
+            <button
+              type="button"
+              {...actionState}
+              onClick={() => void submit("GIFT")}
+              className={`${ACTION_CLASS} bg-mint text-white`}
+            >
+              {EXCHANGE_MODE_LABELS.GIFT}
+            </button>
+            <button
+              type="button"
+              {...actionState}
+              onClick={() => void submit("SWAP")}
+              className={`${ACTION_CLASS} bg-teal-soft text-ink`}
+            >
+              {EXCHANGE_MODE_LABELS.SWAP}
+            </button>
+            <button
+              type="button"
+              {...actionState}
+              onClick={() => void submit(null)}
+              className={`${ACTION_CLASS} col-span-2 border-[1.5px] border-line-strong bg-transparent text-ink`}
+            >
+              Wersja robocza
+            </button>
+          </div>
         </form>
       </div>
     </PhoneFrame>

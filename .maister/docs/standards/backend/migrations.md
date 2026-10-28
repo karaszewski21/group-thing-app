@@ -39,6 +39,16 @@ op.create_index(
 ### Additive Nullable Columns, Separate From New Tables
 Add columns to existing tables as nullable with no backfill (existing rows get `NULL`), and put them in their own revision rather than the one creating a new table (e.g. `0057_locations.py` creates `locations`; `0058_group_term_location_capacity.py` adds `groups.default_location_id`/`default_capacity` and `terms.location_id`/`capacity` with FKs to it). FKs to soft-deleted-only tables carry no `ON DELETE` action. The module docstring states "Schema only" and what the columns mean.
 
+### Deleting Self-Referential Trees
+When a tree table has a partial root-unique index (e.g. `uq_categories_root_name … WHERE parent_id IS NULL`), delete leaves first: repeat `DELETE … WHERE NOT EXISTS (child)` until a pass deletes nothing. Never null `parent_id` first — the nulled siblings become roots and collide on the root-unique index. Reference: `alembic/versions/0069_vinted_categories.py`.
+```python
+"DELETE FROM categories c WHERE NOT EXISTS "
+"(SELECT 1 FROM categories k WHERE k.parent_id = c.id)"   # loop until rowcount == 0
+```
+
+### Data Migrations That Delete Storage-Backed Rows
+A data migration that deletes rows backed by object storage (e.g. product photos) stages `storage.objects_delete` outbox entries in the same transaction, before deleting the rows. The payload is `{"keys": [...]}` exactly as produced by `_stage_photo_files_delete` in `app/product/service.py`, with at most 1000 keys per entry because DeleteObjects is capped at 1000. Otherwise the objects are orphaned and stay public. Reference: `alembic/versions/0069_vinted_categories.py`.
+
 ### Zero-Downtime Awareness
 Consider deployment order and backward compatibility for high-availability systems — not yet a live concern for this project (no production deployment exists yet), but the convention still applies going forward: additive changes (new nullable column, new table) before any changes that could break an in-flight older application version.
 
@@ -59,4 +69,6 @@ This document previously described Liquibase-specific conventions (changelog XML
 
 The explicit-sequence PK convention was later replaced by UUID PKs (`gen_random_uuid()`), and naming, partial-index, additive-column and migration-test conventions were added from `0054`–`0058`.
 
-*Last Updated*: 2026-10-20
+The tree-deletion and storage-outbox conventions were added from `0069_vinted_categories.py`.
+
+*Last Updated*: 2026-10-28

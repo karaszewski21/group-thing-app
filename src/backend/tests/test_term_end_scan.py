@@ -38,7 +38,7 @@ from app.notifications.models import Notification, NotificationKind
 from app.notifications.outbox_listener import register as register_outbox_handlers
 from app.outbox.dispatcher import dispatch_pending
 from app.outbox.models import OutboxEntry
-from tests.conftest import count_queries
+from tests.conftest import count_queries, leaf_category_ids
 
 
 def _auth(token: str) -> dict[str, str]:
@@ -88,9 +88,7 @@ async def _rsvp(client: AsyncClient, token: str, group_id: int, term_id: int) ->
 
 
 async def _category_id(client: AsyncClient, token: str) -> str:
-    categories = await client.get("/api/categories", headers=_auth(token))
-    assert categories.status_code == 200
-    return str(categories.json()[0]["id"])
+    return (await leaf_category_ids(client, _auth(token)))[0]
 
 
 async def _resolve_product(client: AsyncClient, token: str, name: str) -> int:

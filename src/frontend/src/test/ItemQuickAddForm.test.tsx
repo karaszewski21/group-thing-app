@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { fireEvent, render, screen } from "@testing-library/react";
+import { act, fireEvent, render, screen } from "@testing-library/react";
 import { ItemQuickAddForm } from "../components/shared/ItemQuickAddForm";
 import { createEmptyItemQuickAddValue } from "../utils/itemQuickAdd";
 import { CONDITION_LABELS } from "../utils/productCategory";
@@ -10,13 +10,35 @@ vi.mock("../api/categories", () => ({
   getCategories: vi.fn(),
 }));
 
+function category(id: string, name: string, parent_id: string | null): categoriesApi.Category {
+  return {
+    id,
+    name,
+    description: null,
+    parent_id,
+    sort_order: 0,
+    product_count: 0,
+    created_at: "",
+    updated_at: "",
+  };
+}
+
 const mockCategories: categoriesApi.Category[] = [
-  { id: "1", name: "Zabawka", description: null, sortOrder: 1, productCount: 0, createdAt: "", updatedAt: "" },
-  { id: "2", name: "Książka", description: null, sortOrder: 2, productCount: 0, createdAt: "", updatedAt: "" },
-  { id: "3", name: "Gra", description: null, sortOrder: 3, productCount: 0, createdAt: "", updatedAt: "" },
-  { id: "4", name: "Ubranie", description: null, sortOrder: 4, productCount: 0, createdAt: "", updatedAt: "" },
-  { id: "5", name: "Inne", description: null, sortOrder: 5, productCount: 0, createdAt: "", updatedAt: "" },
+  category("1", "Dzieci", null),
+  category("2", "Zabawki", "1"),
 ];
+
+/** Renders and lets the picker's category fetch settle inside act(). */
+async function renderForm(props: Partial<Parameters<typeof ItemQuickAddForm>[0]> = {}) {
+  render(<ItemQuickAddForm value={createEmptyItemQuickAddValue()} onChange={vi.fn()} {...props} />, {
+    wrapper: createQueryWrapper(),
+  });
+  await act(async () => {});
+}
+
+function categoryTrigger() {
+  return screen.getByRole("button", { name: /^Kategoria/ });
+}
 
 describe("ItemQuickAddForm", () => {
   beforeEach(() => {
@@ -24,58 +46,40 @@ describe("ItemQuickAddForm", () => {
     vi.mocked(categoriesApi.getCategories).mockResolvedValue(mockCategories);
   });
 
-  it("renders exactly 3 fields (name input, condition select, type select) with no product dropdown", async () => {
-    render(<ItemQuickAddForm value={createEmptyItemQuickAddValue()} onChange={vi.fn()} />, { wrapper: createQueryWrapper() });
+  it("renders Nazwa, Stan and the Kategoria picker in order, without a Typ select", async () => {
+    await renderForm();
 
-    expect(screen.getByLabelText("Nazwa")).toBeInTheDocument();
-    expect(screen.getByLabelText("Stan")).toBeInTheDocument();
-    expect(screen.getByLabelText("Typ")).toBeInTheDocument();
-
-    // no catalog/product picker dropdown ("+ inny przedmiot" option is the ProductPicker marker)
-    expect(screen.queryByText("+ inny przedmiot")).not.toBeInTheDocument();
-
-    expect(screen.getAllByRole("textbox")).toHaveLength(1);
-    expect(screen.getAllByRole("combobox")).toHaveLength(2);
-    await screen.findByText("Zabawka"); // wait for the async useCategories() fetch to settle
+    const name = screen.getByLabelText("Nazwa");
+    const condition = screen.getByLabelText("Stan");
+    const trigger = categoryTrigger();
+    expect(name.compareDocumentPosition(condition) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(condition.compareDocumentPosition(trigger) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(screen.queryByLabelText("Typ")).not.toBeInTheDocument();
+    expect(screen.getAllByRole("combobox")).toHaveLength(1);
   });
 
   it("`Stan` select options match CONDITION_LABELS", async () => {
-    render(<ItemQuickAddForm value={createEmptyItemQuickAddValue()} onChange={vi.fn()} />, { wrapper: createQueryWrapper() });
+    await renderForm();
     const select = screen.getByLabelText("Stan") as HTMLSelectElement;
-    const optionLabels = Array.from(select.options).map((o) => o.textContent);
-    expect(optionLabels).toEqual(Object.values(CONDITION_LABELS));
-    await screen.findByText("Zabawka"); // wait for the async useCategories() fetch to settle
+    expect(Array.from(select.options).map((o) => o.textContent)).toEqual(Object.values(CONDITION_LABELS));
   });
 
-  it("`Typ` select options match useCategories()'s fetched data", async () => {
-    render(<ItemQuickAddForm value={createEmptyItemQuickAddValue()} onChange={vi.fn()} />, { wrapper: createQueryWrapper() });
-    const select = screen.getByLabelText("Typ") as HTMLSelectElement;
-    await screen.findByText("Zabawka");
-    const optionLabels = Array.from(select.options).map((o) => o.textContent);
-    expect(optionLabels).toEqual(mockCategories.map((c) => c.name));
-  });
-
-  it("calls onChange with updated {name, condition, category_id} when fields are edited", async () => {
+  it("emits the chosen leaf as category_id", async () => {
     const onChange = vi.fn();
-    render(<ItemQuickAddForm value={createEmptyItemQuickAddValue()} onChange={onChange} />, { wrapper: createQueryWrapper() });
+    await renderForm({ value: { ...createEmptyItemQuickAddValue(), name: "Rowerek" }, onChange });
 
-    fireEvent.change(screen.getByLabelText("Nazwa"), { target: { value: "Rowerek" } });
+    categoryTrigger().focus();
+    fireEvent.click(categoryTrigger());
+    fireEvent.click(await screen.findByRole("button", { name: "Dzieci" }));
+    fireEvent.click(screen.getByRole("button", { name: "Zabawki" }));
 
-    expect(onChange).toHaveBeenCalledWith({
-      name: "Rowerek",
-      condition: "GOOD",
-      category_id: "",
-    });
-    await screen.findByText("Zabawka"); // wait for the async useCategories() fetch to settle
+    expect(onChange).toHaveBeenCalledWith({ name: "Rowerek", condition: "GOOD", category_id: "2" });
   });
 
-  it("disables the name input and selects when `disabled` is true", async () => {
-    render(
-      <ItemQuickAddForm value={createEmptyItemQuickAddValue()} onChange={vi.fn()} disabled />, { wrapper: createQueryWrapper() },
-    );
+  it("disables every field when `disabled` is true", async () => {
+    await renderForm({ disabled: true });
     expect(screen.getByLabelText("Nazwa")).toBeDisabled();
     expect(screen.getByLabelText("Stan")).toBeDisabled();
-    expect(screen.getByLabelText("Typ")).toBeDisabled();
-    await screen.findByText("Zabawka"); // wait for the async useCategories() fetch to settle
+    expect(categoryTrigger()).toBeDisabled();
   });
 });

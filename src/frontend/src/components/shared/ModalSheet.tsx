@@ -70,6 +70,7 @@ export function ModalSheet({
         <div className="mb-4 flex items-center justify-between">
           <h3 className="font-serif text-lg font-semibold text-ink">{title}</h3>
           <button
+            type="button"
             onClick={onClose}
             aria-label="Zamknij"
             className="flex h-9 w-9 items-center justify-center rounded-full bg-cream text-ink-soft hover:bg-danger-soft hover:text-danger"

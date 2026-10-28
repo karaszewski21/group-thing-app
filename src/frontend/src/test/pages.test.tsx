@@ -48,8 +48,9 @@ vi.mock("../api/categories", () => ({
 }));
 
 const mockCategories: categoriesApi.Category[] = [
-  { id: "1", name: "Zabawka", description: null, sortOrder: 1, productCount: 0, createdAt: "", updatedAt: "" },
-  { id: "4", name: "Ubranie", description: null, sortOrder: 4, productCount: 0, createdAt: "", updatedAt: "" },
+  { id: "9", name: "Dzieci", description: null, parent_id: null, sort_order: 0, product_count: 0, created_at: "", updated_at: "" },
+  { id: "1", name: "Zabawka", description: null, parent_id: "9", sort_order: 0, product_count: 1, created_at: "", updated_at: "" },
+  { id: "4", name: "Ubranie", description: null, parent_id: null, sort_order: 1, product_count: 1, created_at: "", updated_at: "" },
 ];
 
 const mockProducts: ProductResponse[] = [
@@ -102,12 +103,25 @@ describe("ProductListPage", () => {
 
     expect(await screen.findByText("Wireless Headphones Pro")).toBeInTheDocument();
     expect(screen.getByText("Premium wireless headphones")).toBeInTheDocument();
-    expect(await screen.findByText("Zabawka", { selector: "td span" })).toBeInTheDocument();
+    expect(await screen.findByText("Dzieci › Zabawka", { selector: "td span" })).toBeInTheDocument();
     expect(screen.getByText("28 mar 2026")).toBeInTheDocument();
     expect(screen.queryByText("Invalid Date")).not.toBeInTheDocument();
     expect(screen.queryByText("WHP-001")).not.toBeInTheDocument();
     expect(screen.getByPlaceholderText(/search/i)).toBeInTheDocument();
     expect(screen.getByRole("combobox", { name: "Filter by category" })).toBeInTheDocument();
+  });
+
+  it("lists only leaf categories in the filter, labelled and sorted by full path", async () => {
+    const { ProductListPage } = await import("../pages/admin/ProductListPage");
+    renderWithProviders(<ProductListPage />);
+    await screen.findByRole("option", { name: "Ubranie" });
+
+    const select = screen.getByRole("combobox", { name: "Filter by category" }) as HTMLSelectElement;
+    expect(Array.from(select.options).map((o) => o.textContent)).toEqual([
+      "All Categories",
+      "Dzieci › Zabawka",
+      "Ubranie",
+    ]);
   });
 
   it("filters products by the selected category", async () => {
@@ -136,7 +150,7 @@ describe("ProductFormPage", () => {
 
     expect(await screen.findByLabelText(/product name/i)).toBeInTheDocument();
     expect(screen.getByLabelText(/sku/i)).toBeInTheDocument();
-    expect(screen.getByLabelText(/category/i)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /^Category/ })).toHaveAttribute("aria-haspopup", "dialog");
     expect(screen.getByLabelText(/description/i)).toBeInTheDocument();
     expect(screen.getByLabelText(/photo url/i)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /save/i })).toBeInTheDocument();

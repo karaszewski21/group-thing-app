@@ -48,6 +48,7 @@ const item: ItemDetailsResponse = {
   product_photo_url: null,
   is_owner: true,
   deleted_at: null,
+  listing_status: "ACTIVE",
   status: { code: "AVAILABLE", term_occurs_on: null, due_date: null, counterparty_label: null },
 };
 

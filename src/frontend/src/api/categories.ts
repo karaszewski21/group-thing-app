@@ -1,20 +1,21 @@
 import { api } from "./client";
 
-/** Mirrors `api/products.ts`'s camelCase convention (`productCount`,
- * `sortOrder`) — this file is a direct structural mirror of that one. */
+/** Matches the backend's snake_case `CategoryResponse`; `parent_id` is null for a root. */
 export interface Category {
   id: string;
   name: string;
   description: string | null;
-  sortOrder: number;
-  productCount: number;
-  createdAt: string;
-  updatedAt: string;
+  parent_id: string | null;
+  sort_order: number;
+  product_count: number;
+  created_at: string;
+  updated_at: string;
 }
 
 export interface CreateCategoryRequest {
   name: string;
   description?: string;
+  parent_id?: string | null;
 }
 
 export interface UpdateCategoryRequest {

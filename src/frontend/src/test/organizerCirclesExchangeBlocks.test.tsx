@@ -218,8 +218,8 @@ describe("ExchangeItemCard", () => {
 describe("NeededItemsBlock", () => {
   it("links open items and marks claimed ones without a name", () => {
     const needed: OrganizerNeededItem[] = [
-      { id: "n1", term_id: "term-a", group_id: "a", product_name: "Koc piknikowy", claimed: false },
-      { id: "n2", term_id: "term-a", group_id: "a", product_name: "Głośnik", claimed: true },
+      { id: "n1", term_id: "term-a", group_id: "a", name: "Koc piknikowy", claimed: false },
+      { id: "n2", term_id: "term-a", group_id: "a", name: "Głośnik", claimed: true },
     ];
     renderWithRouter(
       <NeededItemsBlock data={pageData({ needed_items: needed, circles: [circle("a")] })} variant="list" mode="visitor" />,
@@ -256,7 +256,7 @@ describe("circle and exchange isEmpty predicates", () => {
     expect(
       isNeededItemsEmpty(
         pageData({
-          needed_items: [{ id: "n", term_id: "t", group_id: "g", product_name: "Koc", claimed: false }],
+          needed_items: [{ id: "n", term_id: "t", group_id: "g", name: "Koc", claimed: false }],
         }),
       ),
     ).toBe(false);

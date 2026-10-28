@@ -43,8 +43,6 @@ import {
   type UserProfileResponse,
 } from "../api/people";
 import { getMyOrganization } from "../api/organizations";
-import { resolveProduct } from "../api/products";
-import { useCategories } from "../hooks/useCategories";
 import {
   createNeededItem,
   createTerm,
@@ -126,10 +124,6 @@ const PENDING_PHOTO_POLL_MS = 10_000;
 function useAppDataValue() {
   const { logout, username } = useAuth();
   const navigate = useNavigate();
-  // Single source of truth for the category list — MyItemsView's inline
-  // "Typ rzeczy" select and the item/needed-item quick-add defaults below
-  // all read from this instead of a compile-time enum.
-  const { data: categoriesData } = useCategories();
   // The active section is the pathname (`/`, `/rzeczy`, `/konto`, …), not
   // local state — this way a refresh (or a shared/bookmarked link) lands
   // back on the same section instead of always resetting to "home".
@@ -436,7 +430,7 @@ function useAppDataValue() {
   }, []);
 
   // While any item's photos are in moderation, re-read the items every 10 s
-  // so the card unblocks after approval. Runs only while the tab is visible;
+  // so the "Zdjęcia w moderacji" pill and thumbnail update after approval. Runs only while the tab is visible;
   // `visibilitychange` re-arms or pauses it.
   const anyPhotosPending = items.some((it) => it.photos_moderation_pending);
   useEffect(() => {
@@ -465,7 +459,7 @@ function useAppDataValue() {
 
   useEffect(() => {
     if (!toast) return;
-    // Long server messages (e.g. the 409 about photos in moderation) need
+    // Long server messages (e.g. the 409 about the gift limit) need
     // more reading time than the short confirmations.
     const t = setTimeout(() => setToast(""), Math.max(2200, toast.length * 45));
     return () => clearTimeout(t);
@@ -533,7 +527,7 @@ function useAppDataValue() {
       ...prev,
       { ...draftNeededItem, name: draftNeededItem.name.trim(), description: draftNeededItem.description.trim() },
     ]);
-    setDraftNeededItem(createEmptyNeededItemQuickAddValue(categoriesData[0]?.id ?? ""));
+    setDraftNeededItem(createEmptyNeededItemQuickAddValue());
   }
 
   /** Picks the group of the "Dodaj termin" form and prefills its default place and capacity. */
@@ -554,37 +548,47 @@ function useAppDataValue() {
     setBusy(true);
     setAddTermError(null);
     try {
-      // Resolve (and so moderate) every product name BEFORE creating the
-      // term: a rejected name must not leave a created term behind, or a
-      // retry would duplicate it. Products resolved before a rejected term
-      // description stay as orphans; a retry reuses them by name.
-      const products = [];
-      for (const draft of neededDraft) {
-        products.push(await resolveProduct({ name: draft.name, category_id: draft.category_id }));
-      }
-      const term = await createTerm({
-        circle_group_id: termGroupId,
-        occurs_on: termDate,
-        description: termDescription || undefined,
-        location_id: termLocationId,
-        capacity,
-      });
-      for (const [i, draft] of neededDraft.entries()) {
-        await createNeededItem({
-          term_id: term.id,
-          product_id: products[i].id,
-          description: draft.description || undefined,
+      let term: TermResponse;
+      try {
+        term = await createTerm({
+          circle_group_id: termGroupId,
+          occurs_on: termDate,
+          description: termDescription || undefined,
+          location_id: termLocationId,
+          capacity,
         });
+      } catch (err) {
+        setAddTermError(serverMessageOr(err, "Nie udało się dodać terminu"));
+        return;
+      }
+      // Needed-item names are moderated only after the term exists, so a
+      // rejected name cannot roll the term back: keep going, then report
+      // every rejected name in one toast (re-added via "Edytuj termin").
+      const rejected: string[] = [];
+      let firstMessage: string | null = null;
+      for (const draft of neededDraft) {
+        try {
+          await createNeededItem({
+            term_id: term.id,
+            name: draft.name,
+            description: draft.description || undefined,
+          });
+        } catch (err) {
+          rejected.push(draft.name);
+          firstMessage ??= serverMessageOr(err, "Nie udało się dodać rzeczy");
+        }
       }
       selectTermGroup(null);
       setTermDate("");
       setTermDescription("");
       setNeededDraft([]);
       setModal(null);
-      showToast("Dodano termin");
+      showToast(
+        rejected.length > 0
+          ? `Termin dodany, ale nie dodano rzeczy: ${rejected.join(", ")} — ${firstMessage}`
+          : "Dodano termin",
+      );
       await load();
-    } catch (err) {
-      setAddTermError(serverMessageOr(err, "Nie udało się dodać terminu"));
     } finally {
       setBusy(false);
     }
@@ -614,8 +618,8 @@ function useAppDataValue() {
       setItemModes((prev) => ({ ...prev, [itemId]: next }));
     } catch (err) {
       // A toast, not `itemError`: that one renders below the whole list,
-      // off-screen on a phone. The refresh flips a card whose photos went
-      // into moderation meanwhile to its blocked state.
+      // off-screen on a phone. The refresh resyncs the card with the server
+      // (e.g. after a gift-limit 409).
       showToast(serverMessageOr(err, "Nie udało się zapisać trybu — spróbuj ponownie"));
       void refreshItems();
     }
@@ -800,7 +804,7 @@ function useAppDataValue() {
                     }`}
                   >
                     {ni.claimed ? "✓ " : ""}
-                    {ni.product_name}
+                    {ni.name}
                   </span>
                 ))}
               </div>
@@ -1027,7 +1031,7 @@ function useAppDataValue() {
                   key={ni.id}
                   className="rounded-full border-[1.5px] border-dashed border-accent px-2.5 py-0.5 text-xs font-extrabold text-accent-fg"
                 >
-                  {ni.product_name}
+                  {ni.name}
                 </span>
               ))}
             </div>
@@ -1101,7 +1105,6 @@ function useAppDataValue() {
     neededDraft,
     draftNeededItem,
     items,
-    categories: categoriesData,
     // --- setters the render calls directly ---
     setView,
     setModal,

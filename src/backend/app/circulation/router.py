@@ -64,6 +64,7 @@ def _item_response(item: InventoryItem, product_name: str) -> InventoryItemRespo
         added_at=item.added_at,
         created_at=item.created_at,
         updated_at=item.updated_at,
+        listing_status=item.listing_status,
     )
 
 
@@ -134,7 +135,13 @@ async def register_item(
 ) -> InventoryItemResponse:
     owner_user_id = await service.get_user_id_by_principal(db, principal)
     item = await service.register_item(
-        db, body.inventory_id, body.product_id, body.condition.value, owner_user_id=owner_user_id
+        db,
+        body.inventory_id,
+        body.product_id,
+        body.condition.value,
+        owner_user_id=owner_user_id,
+        listing_mode=body.listing_mode,
+        on_registered=term_item_listings.list_registered_item,
     )
     product = await product_service.get_product(db, item.product_id)
     return _item_response(item, product.name)
@@ -158,13 +165,7 @@ async def get_item(item_id: uuid.UUID, db: DbSession, principal: ReadPrincipal) 
 async def update_item(
     item_id: uuid.UUID, body: UpdateInventoryItemRequest, db: DbSession, principal: EditPrincipal
 ) -> InventoryItemResponse:
-    item = await service.update_item(
-        db,
-        item_id,
-        principal,
-        body,
-        on_product_changed=term_item_listings.withdraw_item_listing_if_photos_pending,
-    )
+    item = await service.update_item(db, item_id, principal, body)
     product = await product_service.get_product(db, item.product_id)
     return _item_response(item, product.name)
 

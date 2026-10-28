@@ -5,6 +5,7 @@ shape), `create_term` happy path, and basic `NeededItem` creation."""
 from __future__ import annotations
 
 import uuid
+from collections.abc import Generator
 from datetime import date, datetime, timedelta
 
 import pytest
@@ -13,6 +14,8 @@ from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.config import settings
+from app.groups.domain import pledge_events
 from app.groups.models import (
     Group,
     Leadership,
@@ -22,6 +25,9 @@ from app.groups.models import (
     Term,
     TermAttendance,
 )
+from app.moderation import text_guard
+from app.moderation.rules import CONTACT_INFO_MESSAGE
+from app.outbox.models import OutboxEntry
 from app.party.models import Party, PartyType
 
 
@@ -69,30 +75,28 @@ async def _create_circle_with_term(
     return circle_id, term.json()["id"]
 
 
-async def _other_category_id(client: AsyncClient, token: str) -> str:
-    """The seeded "Inne" category — the one the name assertions below expect."""
-    categories = await client.get("/api/categories", headers=_auth_headers(token))
-    assert categories.status_code == 200
-    return next(c["id"] for c in categories.json() if c["name"] == "Inne")
+NEEDED_ITEM_KEYS = {"id", "term_id", "name", "description", "claimed", "created_at", "updated_at"}
 
 
-async def _resolve_product(client: AsyncClient, token: str, name: str = "Bębenek") -> int:
-    resolved = await client.post(
-        "/api/products/resolve",
-        json={"name": name, "category_id": await _other_category_id(client, token)},
-        headers=_auth_headers(token),
-    )
-    assert resolved.status_code == 200
-    return resolved.json()["id"]
+class _RejectingClassifier:
+    model_id = "fake/bielik-guard"
+
+    def scores(self, text: str) -> dict[str, float]:
+        return {"SEX": 1.0}
+
+
+@pytest.fixture
+def _restore_classifier() -> Generator[None, None, None]:
+    yield
+    text_guard.set_classifier(None)
 
 
 async def _create_needed_item(
-    client: AsyncClient, token: str, term_id: int, product_name: str = "Instrument"
+    client: AsyncClient, token: str, term_id: int, name: str = "Instrument"
 ) -> int:
-    product_id = await _resolve_product(client, token, product_name)
     item = await client.post(
         "/api/needed-items",
-        json={"term_id": term_id, "product_id": product_id, "description": "Bębenek"},
+        json={"term_id": term_id, "name": name, "description": "Bębenek"},
         headers=_auth_headers(token),
     )
     assert item.status_code == 201
@@ -162,34 +166,32 @@ async def test_patchTerm_invalidBody_returns400(client: AsyncClient) -> None:
     assert response.status_code == 400
 
 
-async def test_patchNeededItem_activeOrganizer_updatesProductAndDescription(
+async def test_patchNeededItem_activeOrganizer_updatesNameAndDescription(
     client: AsyncClient,
 ) -> None:
     token = await _register_organizer(client, "patch.ni1@example.com")
     _circle_id, term_id = await _create_circle_with_term(client, token, "Krąg rzeczy")
-    needed_item_id = await _create_needed_item(client, token, term_id, product_name="Instrument")
+    needed_item_id = await _create_needed_item(client, token, term_id, name="Instrument")
 
-    other_product_id = await _resolve_product(client, token, "Materiały plastyczne")
     response = await client.patch(
         f"/api/needed-items/{needed_item_id}",
-        json={"product_id": other_product_id, "description": "duży format"},
+        json={"name": "  Materiały plastyczne ", "description": "duży format"},
         headers=_auth_headers(token),
     )
 
     assert response.status_code == 200
     body = response.json()
-    assert body["product_id"] == other_product_id
-    assert body["product_name"] == "Materiały plastyczne"
+    assert body["name"] == "Materiały plastyczne"
     assert body["description"] == "duży format"
 
-    # Description-only PATCH leaves the product untouched.
+    # Description-only PATCH leaves the name untouched.
     desc_only = await client.patch(
         f"/api/needed-items/{needed_item_id}",
         json={"description": "mały format"},
         headers=_auth_headers(token),
     )
     assert desc_only.status_code == 200
-    assert desc_only.json()["product_id"] == other_product_id
+    assert desc_only.json()["name"] == "Materiały plastyczne"
     assert desc_only.json()["description"] == "mały format"
 
     # Non-organizer PATCH on the same item → 403 (lightweight fold-in).
@@ -202,16 +204,121 @@ async def test_patchNeededItem_activeOrganizer_updatesProductAndDescription(
     assert forbidden.status_code == 403
 
 
-async def test_createNeededItem_unknownProductId_returns404(client: AsyncClient) -> None:
-    token = await _register_organizer(client, "ni.unknownprod@example.com")
+async def test_createNeededItem_nameWithContactInfo_returns400(
+    client: AsyncClient, db_session: AsyncSession
+) -> None:
+    token = await _register_organizer(client, "ni.contact@example.com")
     _circle_id, term_id = await _create_circle_with_term(client, token, "Krąg rzeczy")
 
     response = await client.post(
         "/api/needed-items",
-        json={"term_id": term_id, "product_id": str(uuid.uuid4()), "description": None},
+        json={"term_id": term_id, "name": "Bębenek, dzwoń 600 700 800", "description": None},
         headers=_auth_headers(token),
     )
-    assert response.status_code == 404
+
+    assert response.status_code == 400, response.text
+    assert response.json()["message"] == CONTACT_INFO_MESSAGE
+    count = (await db_session.execute(select(func.count()).select_from(NeededItem))).scalar_one()
+    assert count == 0
+
+
+async def test_createNeededItem_descriptionWithContactInfo_returns400(
+    client: AsyncClient, db_session: AsyncSession
+) -> None:
+    token = await _register_organizer(client, "ni.desc.contact@example.com")
+    _circle_id, term_id = await _create_circle_with_term(client, token, "Krąg rzeczy")
+
+    response = await client.post(
+        "/api/needed-items",
+        json={"term_id": term_id, "name": "Bębenek", "description": "dzwoń 600 700 800"},
+        headers=_auth_headers(token),
+    )
+
+    assert response.status_code == 400, response.text
+    assert response.json()["message"] == CONTACT_INFO_MESSAGE
+    count = (await db_session.execute(select(func.count()).select_from(NeededItem))).scalar_one()
+    assert count == 0
+
+
+@pytest.mark.usefixtures("_restore_classifier")
+async def test_patchNeededItem_rejectedDescriptionChange_returns400AndKeepsDescription(
+    client: AsyncClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    token = await _register_organizer(client, "patch.ni.desc.moderation@example.com")
+    _circle_id, term_id = await _create_circle_with_term(client, token, "Krąg moderacji")
+    needed_item_id = await _create_needed_item(client, token, term_id)
+
+    monkeypatch.setattr(settings, "moderation_text_enabled", True)
+    text_guard.set_classifier(_RejectingClassifier())
+    rejected = await client.patch(
+        f"/api/needed-items/{needed_item_id}",
+        json={"description": "coś niestosownego"},
+        headers=_auth_headers(token),
+    )
+
+    assert rejected.status_code == 400, rejected.text
+    assert (
+        rejected.json()["message"] == text_guard.MESSAGES[text_guard.TextField.PRODUCT_DESCRIPTION]
+    )
+    fetched = await client.get(f"/api/needed-items/{needed_item_id}", headers=_auth_headers(token))
+    assert fetched.json()["description"] == "Bębenek"
+
+
+async def test_createNeededItem_blankName_returns400(client: AsyncClient) -> None:
+    token = await _register_organizer(client, "ni.blank@example.com")
+    _circle_id, term_id = await _create_circle_with_term(client, token, "Krąg rzeczy")
+
+    response = await client.post(
+        "/api/needed-items",
+        json={"term_id": term_id, "name": "   "},
+        headers=_auth_headers(token),
+    )
+
+    assert response.status_code == 400
+
+
+@pytest.mark.usefixtures("_restore_classifier")
+async def test_patchNeededItem_nameChange_rerunsModerationAndPersistsName(
+    client: AsyncClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    token = await _register_organizer(client, "patch.ni.moderation@example.com")
+    _circle_id, term_id = await _create_circle_with_term(client, token, "Krąg moderacji")
+    needed_item_id = await _create_needed_item(client, token, term_id, name="Instrument")
+
+    monkeypatch.setattr(settings, "moderation_text_enabled", True)
+    text_guard.set_classifier(_RejectingClassifier())
+    rejected = await client.patch(
+        f"/api/needed-items/{needed_item_id}",
+        json={"name": "coś niestosownego"},
+        headers=_auth_headers(token),
+    )
+    assert rejected.status_code == 400, rejected.text
+    assert rejected.json()["message"] == text_guard.MESSAGES[text_guard.TextField.PRODUCT_NAME]
+
+    # An unchanged name and description are not re-scored.
+    unchanged = await client.patch(
+        f"/api/needed-items/{needed_item_id}",
+        json={"name": "Instrument", "description": "Bębenek"},
+        headers=_auth_headers(token),
+    )
+    assert unchanged.status_code == 200, unchanged.text
+
+    monkeypatch.setattr(settings, "moderation_text_enabled", False)
+    contact = await client.patch(
+        f"/api/needed-items/{needed_item_id}",
+        json={"name": "Bębenek kontakt@example.com"},
+        headers=_auth_headers(token),
+    )
+    assert contact.status_code == 400
+
+    renamed = await client.patch(
+        f"/api/needed-items/{needed_item_id}",
+        json={"name": "Grzechotka"},
+        headers=_auth_headers(token),
+    )
+    assert renamed.status_code == 200
+    fetched = await client.get(f"/api/needed-items/{needed_item_id}", headers=_auth_headers(token))
+    assert fetched.json()["name"] == "Grzechotka"
 
 
 async def test_deleteNeededItem_claimedPledge_transitionsToWithdrawn(
@@ -373,7 +480,7 @@ async def test_createTerm_happyPath_returns201WithTermFields(
     assert body["description"] == "Pierwsze spotkanie"
 
 
-async def test_createNeededItem_happyPath_returns201WithProduct(
+async def test_createNeededItem_happyPath_returns201WithName(
     client: AsyncClient, db_session: AsyncSession
 ) -> None:
     token = await _register_organizer(client, "circle.owner3@example.com")
@@ -388,21 +495,19 @@ async def test_createNeededItem_happyPath_returns201WithProduct(
     )
     term_id = term.json()["id"]
 
-    product_id = await _resolve_product(client, token, "Instrument")
     response = await client.post(
         "/api/needed-items",
-        json={"term_id": term_id, "product_id": product_id, "description": "Bębenek"},
+        json={"term_id": term_id, "name": " Instrument ", "description": "Bębenek"},
         headers=_auth_headers(token),
     )
 
     assert response.status_code == 201
     body = response.json()
+    assert set(body) == NEEDED_ITEM_KEYS
     assert body["term_id"] == term_id
-    assert body["product_id"] == product_id
-    assert body["product_name"] == "Instrument"
-    assert body["product_category_id"] == await _other_category_id(client, token)
-    assert body["product_category_name"] == "Inne"
+    assert body["name"] == "Instrument"
     assert body["description"] == "Bębenek"
+    assert body["claimed"] is False
 
 
 async def test_getNeededItem_softDeleted_returns404(
@@ -419,13 +524,7 @@ async def test_getNeededItem_softDeleted_returns404(
         headers=_auth_headers(token),
     )
     term_id = term.json()["id"]
-    product_id = await _resolve_product(client, token, "Instrument")
-    item = await client.post(
-        "/api/needed-items",
-        json={"term_id": term_id, "product_id": product_id, "description": "Bębenek"},
-        headers=_auth_headers(token),
-    )
-    needed_item_id = item.json()["id"]
+    needed_item_id = await _create_needed_item(client, token, term_id)
 
     assert (
         await client.get(f"/api/needed-items/{needed_item_id}", headers=_auth_headers(token))
@@ -530,12 +629,7 @@ async def test_getPublicCircle_noAuthHeader_returnsExpectedShape(
         headers=_auth_headers(token),
     )
     term_id = term.json()["id"]
-    product_id = await _resolve_product(client, token, "Instrument")
-    await client.post(
-        "/api/needed-items",
-        json={"term_id": term_id, "product_id": product_id, "description": "Bębenek"},
-        headers=_auth_headers(token),
-    )
+    await _create_needed_item(client, token, term_id)
 
     # No Authorization header at all — this must succeed unauthenticated.
     response = await client.get(f"/api/groups/public/{circle_group_id}")
@@ -546,7 +640,7 @@ async def test_getPublicCircle_noAuthHeader_returnsExpectedShape(
     assert body["name"] == "Krąg Publiczny"
     assert body["organizer_display_name"] is not None
     assert body["term"]["id"] == term_id
-    assert body["term"]["needed_items"][0]["product_name"] == "Instrument"
+    assert body["term"]["needed_items"][0]["name"] == "Instrument"
     assert body["term"]["needed_items"][0]["description"] == "Bębenek"
     assert body["guardians"] == []
 
@@ -692,7 +786,7 @@ async def test_getMyPledges_returnsCallersNonWithdrawnPledges(client: AsyncClien
     assert len(rows) == 1
     assert rows[0]["status"] == "CLAIMED"
     assert "registered" not in rows[0]
-    assert rows[0]["product_name"] == "Instrument"
+    assert rows[0]["item_name"] == "Instrument"
     assert rows[0]["term_id"] == term_id
 
     # The organizer has no pledges of their own.
@@ -703,6 +797,31 @@ async def test_getMyPledges_returnsCallersNonWithdrawnPledges(client: AsyncClien
     )
     assert withdrawn.status_code == 200
     assert (await client.get("/api/pledges/mine", headers=_auth_headers(guest_token))).json() == []
+
+
+async def test_createPledge_outboxPayload_productNameKeyCarriesNeededItemName(
+    client: AsyncClient, db_session: AsyncSession
+) -> None:
+    org_token = await _register_organizer(client, "pledge.outbox.org@example.com")
+    _circle_id, term_id = await _create_circle_with_term(client, org_token, "Krąg zdarzeń")
+    needed_item_id = await _create_needed_item(client, org_token, term_id, name="Ukulele")
+    guest_token, _ = await _register_guest(client, "pledge.outbox.guest@example.com")
+
+    pledge = await client.post(
+        "/api/pledges", json={"needed_item_id": needed_item_id}, headers=_auth_headers(guest_token)
+    )
+
+    assert pledge.status_code == 201
+    entries = (
+        (
+            await db_session.execute(
+                select(OutboxEntry).where(OutboxEntry.event_type == pledge_events.PLEDGE_CLAIMED)
+            )
+        )
+        .scalars()
+        .all()
+    )
+    assert [entry.payload["product_name"] for entry in entries] == ["Ukulele"]
 
 
 async def test_withdrawPledge_fulfilledPledge_returns200Withdrawn(

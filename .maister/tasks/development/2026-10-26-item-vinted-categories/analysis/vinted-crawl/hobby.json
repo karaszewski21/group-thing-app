@@ -1,0 +1,1316 @@
+[
+  {
+    "name": "Karty kolekcjonerskie",
+    "external_id": 4874,
+    "children": [
+      {
+        "name": "Pojedyncze karty kolekcjonerskie",
+        "external_id": 4875,
+        "children": []
+      },
+      {
+        "name": "Zestawy kart kolekcjonerskich",
+        "external_id": 4879,
+        "children": []
+      },
+      {
+        "name": "Talie kart",
+        "external_id": 4878,
+        "children": []
+      },
+      {
+        "name": "Booster boxy",
+        "external_id": 4877,
+        "children": []
+      },
+      {
+        "name": "Boostery",
+        "external_id": 4876,
+        "children": []
+      },
+      {
+        "name": "Niepocięte arkusze kart",
+        "external_id": 4880,
+        "children": []
+      }
+    ]
+  },
+  {
+    "name": "Plastyka i rękodzieło",
+    "external_id": 5151,
+    "children": [
+      {
+        "name": "Szycie, dzierganie i haftowanie",
+        "external_id": 5152,
+        "children": [
+          {
+            "name": "Tkaniny",
+            "external_id": 5154,
+            "children": []
+          },
+          {
+            "name": "Włóczki i przędza",
+            "external_id": 5153,
+            "children": []
+          },
+          {
+            "name": "Pasmanteria",
+            "external_id": 5236,
+            "children": []
+          },
+          {
+            "name": "Igły i szydełka",
+            "external_id": 5159,
+            "children": []
+          },
+          {
+            "name": "Zapięcia",
+            "external_id": 5229,
+            "children": []
+          },
+          {
+            "name": "Wykroje i wzory",
+            "external_id": 5228,
+            "children": []
+          },
+          {
+            "name": "Tkaniny i kanwy do haftu",
+            "external_id": 5156,
+            "children": []
+          },
+          {
+            "name": "Akcesoria",
+            "external_id": 5177,
+            "children": []
+          },
+          {
+            "name": "Nici i mulina",
+            "external_id": 5158,
+            "children": []
+          },
+          {
+            "name": "Zestawy do haftowania",
+            "external_id": 5227,
+            "children": []
+          },
+          {
+            "name": "Maszyny do szycia",
+            "external_id": 5221,
+            "children": []
+          },
+          {
+            "name": "Filc",
+            "external_id": 5155,
+            "children": []
+          },
+          {
+            "name": "Akcesoria do szycia",
+            "external_id": 5245,
+            "children": []
+          },
+          {
+            "name": "Części i akcesoria do maszyn do szycia",
+            "external_id": 5224,
+            "children": []
+          },
+          {
+            "name": "Tamborki do haftu",
+            "external_id": 5226,
+            "children": []
+          },
+          {
+            "name": "Stopki do maszyn do szycia",
+            "external_id": 5223,
+            "children": []
+          },
+          {
+            "name": "Ramki do haftu krzyżykowego",
+            "external_id": 5225,
+            "children": []
+          },
+          {
+            "name": "Owerloki",
+            "external_id": 5222,
+            "children": []
+          }
+        ]
+      },
+      {
+        "name": "Tworzenie biżuterii",
+        "external_id": 5301,
+        "children": [
+          {
+            "name": "Koraliki",
+            "external_id": 5306,
+            "children": []
+          },
+          {
+            "name": "Półfabrykaty jubilerskie",
+            "external_id": 5309,
+            "children": []
+          },
+          {
+            "name": "Kaboszony i kamienie",
+            "external_id": 5307,
+            "children": []
+          },
+          {
+            "name": "Wisiorki i zawieszki",
+            "external_id": 5308,
+            "children": []
+          },
+          {
+            "name": "Zestawy do tworzenia biżuterii",
+            "external_id": 5318,
+            "children": []
+          },
+          {
+            "name": "Akcesoria do tworzenia biżuterii",
+            "external_id": 5319,
+            "children": []
+          },
+          {
+            "name": "Przechowywanie biżuterii",
+            "external_id": 5321,
+            "children": []
+          },
+          {
+            "name": "Łańcuszki",
+            "external_id": 5302,
+            "children": []
+          },
+          {
+            "name": "Sznurki i nici",
+            "external_id": 5304,
+            "children": []
+          },
+          {
+            "name": "Rzemienie",
+            "external_id": 5305,
+            "children": []
+          },
+          {
+            "name": "Druty",
+            "external_id": 5303,
+            "children": []
+          },
+          {
+            "name": "Krosna do koralików",
+            "external_id": 5320,
+            "children": []
+          }
+        ]
+      },
+      {
+        "name": "Akcesoria plastyczne",
+        "external_id": 5372,
+        "children": [
+          {
+            "name": "Naklejki",
+            "external_id": 5393,
+            "children": []
+          },
+          {
+            "name": "Tasiemki",
+            "external_id": 5395,
+            "children": []
+          },
+          {
+            "name": "Brokat",
+            "external_id": 5394,
+            "children": []
+          },
+          {
+            "name": "Kleje i spoiwa",
+            "external_id": 5373,
+            "children": []
+          },
+          {
+            "name": "Taśmy klejące",
+            "external_id": 5385,
+            "children": []
+          },
+          {
+            "name": "Pióra",
+            "external_id": 5396,
+            "children": []
+          },
+          {
+            "name": "Pieczęci i laki",
+            "external_id": 5400,
+            "children": []
+          },
+          {
+            "name": "Pompony",
+            "external_id": 5397,
+            "children": []
+          },
+          {
+            "name": "Poduszki z tuszem",
+            "external_id": 5398,
+            "children": []
+          },
+          {
+            "name": "Pudry do embossingu",
+            "external_id": 5399,
+            "children": []
+          }
+        ]
+      },
+      {
+        "name": "Malarstwo",
+        "external_id": 5251,
+        "children": [
+          {
+            "name": "Podobrazia i deski",
+            "external_id": 5267,
+            "children": []
+          },
+          {
+            "name": "Farby i media",
+            "external_id": 5254,
+            "children": []
+          },
+          {
+            "name": "Pędzle",
+            "external_id": 5252,
+            "children": []
+          },
+          {
+            "name": "Szablony malarskie",
+            "external_id": 5273,
+            "children": []
+          },
+          {
+            "name": "Przechowywanie",
+            "external_id": 5268,
+            "children": []
+          },
+          {
+            "name": "Sztalugi",
+            "external_id": 5266,
+            "children": []
+          },
+          {
+            "name": "Palety",
+            "external_id": 5265,
+            "children": []
+          },
+          {
+            "name": "Koła barw",
+            "external_id": 5275,
+            "children": []
+          },
+          {
+            "name": "Aerografy",
+            "external_id": 5264,
+            "children": []
+          },
+          {
+            "name": "Szpachelki",
+            "external_id": 5253,
+            "children": []
+          },
+          {
+            "name": "Gąbki malarskie",
+            "external_id": 5263,
+            "children": []
+          },
+          {
+            "name": "Rozcieńczalniki do farb",
+            "external_id": 5274,
+            "children": []
+          }
+        ]
+      },
+      {
+        "name": "Papieroplastyka",
+        "external_id": 5322,
+        "children": [
+          {
+            "name": "Papiery",
+            "external_id": 5326,
+            "children": []
+          },
+          {
+            "name": "Ozdoby do scrapbookingu",
+            "external_id": 5325,
+            "children": []
+          },
+          {
+            "name": "Albumy do scrapbookingu",
+            "external_id": 5323,
+            "children": []
+          },
+          {
+            "name": "Akcesoria do scrapbookingu",
+            "external_id": 5324,
+            "children": []
+          },
+          {
+            "name": "Akcesoria introligatorskie",
+            "external_id": 5336,
+            "children": []
+          },
+          {
+            "name": "Akcesoria do grafiki artystycznej",
+            "external_id": 5337,
+            "children": []
+          },
+          {
+            "name": "Akcesoria do quillingu",
+            "external_id": 5338,
+            "children": []
+          }
+        ]
+      },
+      {
+        "name": "Rysunek",
+        "external_id": 5276,
+        "children": [
+          {
+            "name": "Przyrządy do rysunku",
+            "external_id": 5277,
+            "children": []
+          },
+          {
+            "name": "Papier rysunkowy w arkuszach",
+            "external_id": 5290,
+            "children": []
+          },
+          {
+            "name": "Szkicowniki i bloki",
+            "external_id": 5289,
+            "children": []
+          },
+          {
+            "name": "Deski kreślarskie",
+            "external_id": 5291,
+            "children": []
+          },
+          {
+            "name": "Fiksatywy",
+            "external_id": 5292,
+            "children": []
+          }
+        ]
+      },
+      {
+        "name": "Kaligrafia",
+        "external_id": 5293,
+        "children": [
+          {
+            "name": "Zeszyty i papier do kaligrafii",
+            "external_id": 5296,
+            "children": []
+          },
+          {
+            "name": "Pióra kaligraficzne",
+            "external_id": 5294,
+            "children": []
+          },
+          {
+            "name": "Inne akcesoria kaligraficzne",
+            "external_id": 5300,
+            "children": []
+          },
+          {
+            "name": "Atrament",
+            "external_id": 5297,
+            "children": []
+          },
+          {
+            "name": "Naboje do piór",
+            "external_id": 5298,
+            "children": []
+          },
+          {
+            "name": "Stalówki",
+            "external_id": 5299,
+            "children": []
+          },
+          {
+            "name": "Pędzle kaligraficzne",
+            "external_id": 5295,
+            "children": []
+          }
+        ]
+      },
+      {
+        "name": "Tworzenie świec",
+        "external_id": 5349,
+        "children": [
+          {
+            "name": "Formy do świec",
+            "external_id": 5355,
+            "children": []
+          },
+          {
+            "name": "Zapachy do świec",
+            "external_id": 5354,
+            "children": []
+          },
+          {
+            "name": "Zestawy do tworzenia świec",
+            "external_id": 5356,
+            "children": []
+          },
+          {
+            "name": "Woski do świec",
+            "external_id": 5350,
+            "children": []
+          },
+          {
+            "name": "Barwniki do świec",
+            "external_id": 5353,
+            "children": []
+          },
+          {
+            "name": "Knoty",
+            "external_id": 5351,
+            "children": []
+          },
+          {
+            "name": "Podgrzewacze do wosku",
+            "external_id": 5352,
+            "children": []
+          }
+        ]
+      },
+      {
+        "name": "Narzędzia plastyczne",
+        "external_id": 5401,
+        "children": [
+          {
+            "name": "Stemple i akcesoria do stemplowania",
+            "external_id": 5412,
+            "children": []
+          },
+          {
+            "name": "Pistolety do klejenia na gorąco",
+            "external_id": 5402,
+            "children": []
+          },
+          {
+            "name": "Narzędzia i sprzęt do lutowania",
+            "external_id": 5411,
+            "children": []
+          },
+          {
+            "name": "Zaciski i prasy do prac plastycznych",
+            "external_id": 5416,
+            "children": []
+          },
+          {
+            "name": "Narzędzia do grawerowania",
+            "external_id": 5410,
+            "children": []
+          },
+          {
+            "name": "Pęsety do prac plastycznych",
+            "external_id": 5417,
+            "children": []
+          },
+          {
+            "name": "Dziurkacze ozdobne",
+            "external_id": 5407,
+            "children": []
+          },
+          {
+            "name": "Obcinarki i gilotyny do papieru",
+            "external_id": 5405,
+            "children": []
+          },
+          {
+            "name": "Maty do cięcia",
+            "external_id": 5406,
+            "children": []
+          },
+          {
+            "name": "Suche stemple",
+            "external_id": 5408,
+            "children": []
+          },
+          {
+            "name": "Przyrządy do pomponów",
+            "external_id": 5415,
+            "children": []
+          },
+          {
+            "name": "Podgrzewacze i łyżeczki do laku",
+            "external_id": 5418,
+            "children": []
+          },
+          {
+            "name": "Maszyny do produkcji guzików",
+            "external_id": 5409,
+            "children": []
+          }
+        ]
+      },
+      {
+        "name": "Rzeźba i ceramika",
+        "external_id": 5357,
+        "children": [
+          {
+            "name": "Gliny",
+            "external_id": 5358,
+            "children": []
+          },
+          {
+            "name": "Inne akcesoria do rzeźby i ceramiki",
+            "external_id": 5371,
+            "children": []
+          },
+          {
+            "name": "Szkliwa ceramiczne",
+            "external_id": 5361,
+            "children": []
+          },
+          {
+            "name": "Gips",
+            "external_id": 5359,
+            "children": []
+          },
+          {
+            "name": "Formy do rzeźby i ceramiki",
+            "external_id": 5366,
+            "children": []
+          },
+          {
+            "name": "Biskwity i formy nieszkliwione",
+            "external_id": 5360,
+            "children": []
+          },
+          {
+            "name": "Narzędzia do rzeźby i ceramiki",
+            "external_id": 5364,
+            "children": []
+          },
+          {
+            "name": "Farby ceramiczne",
+            "external_id": 5362,
+            "children": []
+          },
+          {
+            "name": "Fartuchy do ceramiki",
+            "external_id": 5367,
+            "children": []
+          },
+          {
+            "name": "Druty modelarskie",
+            "external_id": 5368,
+            "children": []
+          },
+          {
+            "name": "Akcesoria do pieców",
+            "external_id": 5370,
+            "children": []
+          },
+          {
+            "name": "Praski i wytłaczarki do gliny",
+            "external_id": 5365,
+            "children": []
+          },
+          {
+            "name": "Koła garncarskie",
+            "external_id": 5363,
+            "children": []
+          }
+        ]
+      },
+      {
+        "name": "Wykrawanie",
+        "external_id": 5339,
+        "children": [
+          {
+            "name": "Wykrojniki",
+            "external_id": 5341,
+            "children": []
+          },
+          {
+            "name": "Inne akcesoria do wykrawania",
+            "external_id": 5348,
+            "children": []
+          },
+          {
+            "name": "Szablony",
+            "external_id": 5345,
+            "children": []
+          },
+          {
+            "name": "Folie uwalniające",
+            "external_id": 5344,
+            "children": []
+          },
+          {
+            "name": "Maszyny tnąco-wytłaczające",
+            "external_id": 5340,
+            "children": []
+          },
+          {
+            "name": "Foldery i maty do embossingu",
+            "external_id": 5346,
+            "children": []
+          },
+          {
+            "name": "Płytki do wycinania",
+            "external_id": 5342,
+            "children": []
+          },
+          {
+            "name": "Przechowywanie wykrojników",
+            "external_id": 5347,
+            "children": []
+          },
+          {
+            "name": "Podkładki do wycinania",
+            "external_id": 5343,
+            "children": []
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "name": "Puzzle",
+    "external_id": 4882,
+    "children": []
+  },
+  {
+    "name": "Gry planszowe",
+    "external_id": 4881,
+    "children": []
+  },
+  {
+    "name": "Pamiątki kolekcjonerskie",
+    "external_id": 4901,
+    "children": [
+      {
+        "name": "Inne pamiątki",
+        "external_id": 4905,
+        "children": []
+      },
+      {
+        "name": "Pamiątki sportowe",
+        "external_id": 4902,
+        "children": []
+      },
+      {
+        "name": "Pamiątki muzyczne",
+        "external_id": 4903,
+        "children": []
+      },
+      {
+        "name": "Pamiątki filmowe i telewizyjne",
+        "external_id": 4904,
+        "children": []
+      }
+    ]
+  },
+  {
+    "name": "Monety i banknoty",
+    "external_id": 4895,
+    "children": [
+      {
+        "name": "Monety",
+        "external_id": 4897,
+        "children": []
+      },
+      {
+        "name": "Banknoty",
+        "external_id": 4896,
+        "children": []
+      },
+      {
+        "name": "Medale i żetony",
+        "external_id": 4899,
+        "children": []
+      },
+      {
+        "name": "Partie i zestawy",
+        "external_id": 4898,
+        "children": []
+      },
+      {
+        "name": "Świadectwa udziałowe",
+        "external_id": 4900,
+        "children": []
+      }
+    ]
+  },
+  {
+    "name": "Instrumenty i sprzęt muzyczny",
+    "external_id": 4825,
+    "children": [
+      {
+        "name": "Sprzęt studyjny i nagłośnienie sceniczne",
+        "external_id": 4833,
+        "children": [
+          {
+            "name": "Mikrofony",
+            "external_id": 5103,
+            "children": []
+          },
+          {
+            "name": "Oświetlenie sceniczne",
+            "external_id": 4940,
+            "children": []
+          },
+          {
+            "name": "Inny sprzęt studyjny i nagłośnienie sceniczne",
+            "external_id": 4941,
+            "children": []
+          },
+          {
+            "name": "Interfejsy audio",
+            "external_id": 4931,
+            "children": []
+          },
+          {
+            "name": "Akcesoria i statywy do mikrofonów",
+            "external_id": 4934,
+            "children": []
+          },
+          {
+            "name": "Kable audio",
+            "external_id": 4930,
+            "children": []
+          },
+          {
+            "name": "Miksery audio",
+            "external_id": 4932,
+            "children": []
+          },
+          {
+            "name": "Monitory audio",
+            "external_id": 4933,
+            "children": []
+          },
+          {
+            "name": "DI boxy",
+            "external_id": 4938,
+            "children": []
+          },
+          {
+            "name": "Procesory zewnętrzne",
+            "external_id": 4935,
+            "children": []
+          },
+          {
+            "name": "Wzmacniacze mocy",
+            "external_id": 4937,
+            "children": []
+          },
+          {
+            "name": "Kolumny PA",
+            "external_id": 4936,
+            "children": []
+          },
+          {
+            "name": "Przenośne systemy nagłośnieniowe",
+            "external_id": 5104,
+            "children": []
+          },
+          {
+            "name": "Krosownice",
+            "external_id": 4939,
+            "children": []
+          }
+        ]
+      },
+      {
+        "name": "Akcesoria muzyczne",
+        "external_id": 4831,
+        "children": [
+          {
+            "name": "Inne akcesoria muzyczne",
+            "external_id": 4873,
+            "children": []
+          },
+          {
+            "name": "Nuty i śpiewniki",
+            "external_id": 4872,
+            "children": []
+          },
+          {
+            "name": "Stroiki do instrumentów muzycznych",
+            "external_id": 4871,
+            "children": []
+          },
+          {
+            "name": "Materiały do nauki muzyki",
+            "external_id": 4868,
+            "children": []
+          },
+          {
+            "name": "Pulpit do nut",
+            "external_id": 4869,
+            "children": []
+          },
+          {
+            "name": "Metronomy",
+            "external_id": 4867,
+            "children": []
+          },
+          {
+            "name": "Oświetlenie pulpitu do nut",
+            "external_id": 4870,
+            "children": []
+          },
+          {
+            "name": "Batuta dyrygenta",
+            "external_id": 4866,
+            "children": []
+          }
+        ]
+      },
+      {
+        "name": "Gitary i gitary basowe",
+        "external_id": 4828,
+        "children": [
+          {
+            "name": "Gitary klasyczne",
+            "external_id": 4849,
+            "children": []
+          },
+          {
+            "name": "Akcesoria i części do gitar",
+            "external_id": 4854,
+            "children": []
+          },
+          {
+            "name": "Gitary elektryczne",
+            "external_id": 4850,
+            "children": []
+          },
+          {
+            "name": "Gitary akustyczne",
+            "external_id": 4848,
+            "children": []
+          },
+          {
+            "name": "Gitary basowe",
+            "external_id": 4853,
+            "children": []
+          },
+          {
+            "name": "Gitary elektroakustyczne",
+            "external_id": 4851,
+            "children": []
+          },
+          {
+            "name": "Gitary specjalistyczne",
+            "external_id": 4852,
+            "children": []
+          }
+        ]
+      },
+      {
+        "name": "Keyboardy i syntezatory",
+        "external_id": 4830,
+        "children": [
+          {
+            "name": "Keyboardy elektroniczne",
+            "external_id": 4859,
+            "children": []
+          },
+          {
+            "name": "Akordeony",
+            "external_id": 4855,
+            "children": []
+          },
+          {
+            "name": "Akcesoria do keyboardów",
+            "external_id": 4865,
+            "children": []
+          },
+          {
+            "name": "Syntezatory",
+            "external_id": 4861,
+            "children": []
+          },
+          {
+            "name": "Kontrolery MIDI",
+            "external_id": 4860,
+            "children": []
+          },
+          {
+            "name": "Samplery i automaty dźwiękowe",
+            "external_id": 4862,
+            "children": []
+          },
+          {
+            "name": "Akcesoria i części do syntezatorów",
+            "external_id": 4864,
+            "children": []
+          },
+          {
+            "name": "Specjalistyczne keyboardy i syntezatory",
+            "external_id": 4863,
+            "children": []
+          }
+        ]
+      },
+      {
+        "name": "Instrumenty smyczkowe",
+        "external_id": 4832,
+        "children": [
+          {
+            "name": "Ukulele",
+            "external_id": 4924,
+            "children": []
+          },
+          {
+            "name": "Skrzypce",
+            "external_id": 4925,
+            "children": []
+          },
+          {
+            "name": "Akcesoria i części do instrumentów strunowych",
+            "external_id": 4928,
+            "children": []
+          },
+          {
+            "name": "Specjalistyczne instrumenty strunowe",
+            "external_id": 4926,
+            "children": []
+          },
+          {
+            "name": "Struny",
+            "external_id": 4927,
+            "children": []
+          },
+          {
+            "name": "Mandoliny",
+            "external_id": 4922,
+            "children": []
+          },
+          {
+            "name": "Autoharfy, psalteriony i cytry",
+            "external_id": 4884,
+            "children": []
+          },
+          {
+            "name": "Wiolonczele",
+            "external_id": 4886,
+            "children": []
+          },
+          {
+            "name": "Banjo",
+            "external_id": 4885,
+            "children": []
+          },
+          {
+            "name": "Altówki",
+            "external_id": 5102,
+            "children": []
+          },
+          {
+            "name": "Sitary",
+            "external_id": 4923,
+            "children": []
+          }
+        ]
+      },
+      {
+        "name": "Wzmacniacze i efekty gitarowe",
+        "external_id": 4826,
+        "children": [
+          {
+            "name": "Efekty gitarowe",
+            "external_id": 4840,
+            "children": []
+          },
+          {
+            "name": "Wzmacniacze gitarowe",
+            "external_id": 4836,
+            "children": []
+          },
+          {
+            "name": "Akcesoria i części do wzmacniaczy",
+            "external_id": 4842,
+            "children": []
+          },
+          {
+            "name": "Akcesoria i części do efektów gitarowych",
+            "external_id": 4841,
+            "children": []
+          },
+          {
+            "name": "Wzmacniacze basowe",
+            "external_id": 4835,
+            "children": []
+          },
+          {
+            "name": "Modelery i procesory wzmacniaczy",
+            "external_id": 4839,
+            "children": []
+          },
+          {
+            "name": "Wzmacniacze do keyboardów",
+            "external_id": 4838,
+            "children": []
+          },
+          {
+            "name": "Wzmacniacze do perkusji elektronicznych",
+            "external_id": 4837,
+            "children": []
+          }
+        ]
+      },
+      {
+        "name": "Instrumenty dęte",
+        "external_id": 4834,
+        "children": [
+          {
+            "name": "Instrumenty dęte drewniane",
+            "external_id": 4947,
+            "children": []
+          },
+          {
+            "name": "Harmonijki",
+            "external_id": 4943,
+            "children": []
+          },
+          {
+            "name": "Akcesoria i części do instrumentów dętych",
+            "external_id": 4948,
+            "children": []
+          },
+          {
+            "name": "Instrumenty dęte blaszane",
+            "external_id": 4942,
+            "children": []
+          },
+          {
+            "name": "Gwizdki muzyczne",
+            "external_id": 4946,
+            "children": []
+          },
+          {
+            "name": "Melodyki",
+            "external_id": 4945,
+            "children": []
+          },
+          {
+            "name": "Kazoo",
+            "external_id": 4944,
+            "children": []
+          }
+        ]
+      },
+      {
+        "name": "Perkusje i instrumenty perkusyjne",
+        "external_id": 4827,
+        "children": [
+          {
+            "name": "Akcesoria i części do perkusji",
+            "external_id": 4847,
+            "children": []
+          },
+          {
+            "name": "Instrumenty perkusyjne ręczne",
+            "external_id": 4845,
+            "children": []
+          },
+          {
+            "name": "Instrumenty perkusyjne",
+            "external_id": 4844,
+            "children": []
+          },
+          {
+            "name": "Talerze perkusyjne",
+            "external_id": 4843,
+            "children": []
+          },
+          {
+            "name": "Perkusje młoteczkowe",
+            "external_id": 4846,
+            "children": []
+          }
+        ]
+      },
+      {
+        "name": "Sprzęt DJ-ski",
+        "external_id": 5091,
+        "children": [
+          {
+            "name": "Kontrolery DJ",
+            "external_id": 5094,
+            "children": []
+          },
+          {
+            "name": "Specjalistyczny sprzęt DJ-ski",
+            "external_id": 5097,
+            "children": []
+          },
+          {
+            "name": "Miksery DJ",
+            "external_id": 5096,
+            "children": []
+          },
+          {
+            "name": "Systemy DJ-skie all-in-one",
+            "external_id": 5092,
+            "children": []
+          },
+          {
+            "name": "Odtwarzacze DJ",
+            "external_id": 5095,
+            "children": []
+          },
+          {
+            "name": "Pokrowce i futerały DJ-skie",
+            "external_id": 5093,
+            "children": []
+          }
+        ]
+      },
+      {
+        "name": "Sprzęt do karaoke",
+        "external_id": 4829,
+        "children": [
+          {
+            "name": "Mikrofony do karaoke",
+            "external_id": 5099,
+            "children": []
+          },
+          {
+            "name": "Urządzenia do karaoke",
+            "external_id": 5098,
+            "children": []
+          },
+          {
+            "name": "Inny sprzęt do karaoke",
+            "external_id": 5101,
+            "children": []
+          },
+          {
+            "name": "Systemy karaoke",
+            "external_id": 5100,
+            "children": []
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "name": "Przechowywanie przedmiotów kolekcjonerskich",
+    "external_id": 4906,
+    "children": [
+      {
+        "name": "Pudełka na przedmioty kolekcjonerskie",
+        "external_id": 4908,
+        "children": []
+      },
+      {
+        "name": "Przechowywanie innych przedmiotów kolekcjonerskich",
+        "external_id": 4915,
+        "children": []
+      },
+      {
+        "name": "Albumy i segregatory",
+        "external_id": 4907,
+        "children": []
+      },
+      {
+        "name": "Wkłady do albumów i segregatorów",
+        "external_id": 4913,
+        "children": []
+      },
+      {
+        "name": "Koszulki na karty",
+        "external_id": 4909,
+        "children": []
+      },
+      {
+        "name": "Pudełka na karty",
+        "external_id": 4911,
+        "children": []
+      },
+      {
+        "name": "Przekładki do albumów i segregatorów",
+        "external_id": 4912,
+        "children": []
+      },
+      {
+        "name": "Maty do puzzli",
+        "external_id": 4914,
+        "children": []
+      },
+      {
+        "name": "Oprawki do kart kolekcjonerskich",
+        "external_id": 4910,
+        "children": []
+      }
+    ]
+  },
+  {
+    "name": "Pocztówki",
+    "external_id": 4894,
+    "children": []
+  },
+  {
+    "name": "Znaczki pocztowe",
+    "external_id": 4888,
+    "children": [
+      {
+        "name": "Partie i zestawy znaczków pocztowych",
+        "external_id": 4890,
+        "children": []
+      },
+      {
+        "name": "Znaczki pocztowe pojedyncze",
+        "external_id": 4889,
+        "children": []
+      },
+      {
+        "name": "Koperty FDC",
+        "external_id": 4891,
+        "children": []
+      },
+      {
+        "name": "Katalogi i przewodniki filatelistyczne",
+        "external_id": 4892,
+        "children": []
+      },
+      {
+        "name": "Akcesoria do znaczków",
+        "external_id": 4893,
+        "children": []
+      }
+    ]
+  },
+  {
+    "name": "Gry stołowe i bitewne",
+    "external_id": 4883,
+    "children": []
+  },
+  {
+    "name": "Akcesoria do gier",
+    "external_id": 4916,
+    "children": [
+      {
+        "name": "Inne akcesoria do gier",
+        "external_id": 4920,
+        "children": []
+      },
+      {
+        "name": "Pionki, kamienie i żetony do gier",
+        "external_id": 4918,
+        "children": []
+      },
+      {
+        "name": "Kości",
+        "external_id": 4917,
+        "children": []
+      },
+      {
+        "name": "Maty do gier",
+        "external_id": 4919,
+        "children": []
+      }
+    ]
+  }
+]

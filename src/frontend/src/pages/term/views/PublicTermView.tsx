@@ -108,7 +108,7 @@ export function PublicTermView({
       key: item.id,
       title: (
         <strong>
-          {item.product_name}
+          {item.name}
           {item.description ? ` — ${item.description}` : ""}
         </strong>
       ),
@@ -119,7 +119,7 @@ export function PublicTermView({
               {
                 key: "pledge",
                 label: "Ja to przyniosę",
-                ariaLabel: `Ja to przyniosę: ${item.product_name}`,
+                ariaLabel: `Ja to przyniosę: ${item.name}`,
                 disabled: pledge.pledgingItemId === item.id,
                 onClick: guest.orMerge(mergeKey, () => pledge.pledge(item.id)),
               },

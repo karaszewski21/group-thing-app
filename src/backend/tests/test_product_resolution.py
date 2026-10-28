@@ -8,6 +8,10 @@ after a resolve call."""
 from __future__ import annotations
 
 from httpx import AsyncClient
+from sqlalchemy import text
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from tests.conftest import leaf_category_ids
 
 
 async def _authed_headers(client: AsyncClient, email: str) -> dict[str, str]:
@@ -22,17 +26,11 @@ async def _authed_headers(client: AsyncClient, email: str) -> dict[str, str]:
     return {"Authorization": f"Bearer {token}"}
 
 
-async def _category_ids(client: AsyncClient, headers: dict[str, str]) -> list[str]:
-    categories = await client.get("/api/categories", headers=headers)
-    assert categories.status_code == 200
-    return [str(category["id"]) for category in categories.json()]
-
-
 async def test_resolveProduct_noExistingMatch_createsNewProductWithPlaceholderSku(
     client: AsyncClient,
 ) -> None:
     headers = await _authed_headers(client, "resolve1@example.com")
-    category_ids = await _category_ids(client, headers)
+    category_ids = await leaf_category_ids(client, headers, n=2)
 
     response = await client.post(
         "/api/products/resolve",
@@ -51,7 +49,7 @@ async def test_resolveProduct_caseInsensitiveNameMatchSameCategory_returnsExisti
     client: AsyncClient,
 ) -> None:
     headers = await _authed_headers(client, "resolve2@example.com")
-    category_ids = await _category_ids(client, headers)
+    category_ids = await leaf_category_ids(client, headers, n=2)
 
     first = await client.post(
         "/api/products/resolve",
@@ -75,7 +73,7 @@ async def test_resolveProduct_sameNameDifferentCategory_createsNew(
     client: AsyncClient,
 ) -> None:
     headers = await _authed_headers(client, "resolve3@example.com")
-    category_ids = await _category_ids(client, headers)
+    category_ids = await leaf_category_ids(client, headers, n=2)
 
     first = await client.post(
         "/api/products/resolve",
@@ -97,7 +95,7 @@ async def test_resolveProduct_thenRegisterInventoryItem_producesRealInventoryIte
     client: AsyncClient,
 ) -> None:
     headers = await _authed_headers(client, "resolve4@example.com")
-    category_ids = await _category_ids(client, headers)
+    category_ids = await leaf_category_ids(client, headers, n=2)
 
     resolved = await client.post(
         "/api/products/resolve",
@@ -126,3 +124,36 @@ async def test_resolveProduct_thenRegisterInventoryItem_producesRealInventoryIte
     assert body["inventory_id"] == inventory_id
     assert body["product_id"] == product_id
     assert body["condition"] == "GOOD"
+
+
+async def test_updateProduct_unchangedNonLeafCategory_returns200(
+    client: AsyncClient, db_session: AsyncSession
+) -> None:
+    """L8: a product left on an inner node (an admin added a child to its
+    leaf concurrently) can still be renamed; only a category change needs a
+    leaf."""
+    headers = await _authed_headers(client, "resolve5@example.com")
+    [leaf_id] = await leaf_category_ids(client, headers)
+    created = await client.post(
+        "/api/products",
+        json={"name": "Stara Nazwa", "sku": "RESOLVE-L8", "category_id": leaf_id},
+        headers=headers,
+    )
+    assert created.status_code == 201
+    await db_session.execute(
+        text(
+            "INSERT INTO categories (id, parent_id, name, sort_order, created_at, updated_at) "
+            "VALUES (gen_random_uuid(), :parent_id, 'Nowe dziecko', 0, now(), now())"
+        ),
+        {"parent_id": leaf_id},
+    )
+    await db_session.commit()
+
+    updated = await client.put(
+        f"/api/products/{created.json()['id']}",
+        json={"name": "Nowa Nazwa", "sku": "RESOLVE-L8", "category_id": leaf_id},
+        headers=headers,
+    )
+
+    assert updated.status_code == 200
+    assert updated.json()["name"] == "Nowa Nazwa"

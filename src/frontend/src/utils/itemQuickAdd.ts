@@ -6,15 +6,12 @@ export interface ItemQuickAddValue {
   category_id: string;
 }
 
-/**
- * Empty value for `ItemQuickAddForm`, used by `ItemCreatePage`. Categories
- * are backend data, so there is no hardcoded default: the caller passes one
- * from `useCategories()` or leaves it empty until they load.
- */
-export function createEmptyItemQuickAddValue(categoryId = ''): ItemQuickAddValue {
+/** Empty value for `ItemQuickAddForm`, used by `ItemCreatePage`. The
+ * category is required and has no default: the user picks a leaf. */
+export function createEmptyItemQuickAddValue(): ItemQuickAddValue {
   return {
     name: "",
     condition: "GOOD",
-    category_id: categoryId,
+    category_id: "",
   };
 }

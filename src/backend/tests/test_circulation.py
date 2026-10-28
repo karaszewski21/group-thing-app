@@ -43,6 +43,7 @@ from app.core.errors import (
 )
 from app.groups.domain.confirm_race_rules import _require_race_participant
 from app.groups.infrastructure import circulation_bridge
+from tests.conftest import leaf_category_ids
 from tests.ledger_assertions import movements_for_item
 
 
@@ -78,9 +79,7 @@ async def _authed_headers(client: AsyncClient, email: str) -> dict[str, str]:
 
 
 async def _category_id(client: AsyncClient, headers: dict[str, str]) -> str:
-    categories = await client.get("/api/categories", headers=headers)
-    assert categories.status_code == 200
-    return str(categories.json()[0]["id"])
+    return (await leaf_category_ids(client, headers))[0]
 
 
 async def _create_item(client: AsyncClient, headers: dict[str, str]) -> tuple[int, int]:

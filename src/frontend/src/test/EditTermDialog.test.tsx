@@ -1,20 +1,12 @@
-import { fireEvent, render, screen, within } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { ApiError } from "../api/client";
-import * as categoriesApi from "../api/categories";
 import * as locationsApi from "../api/locations";
 import type { LocationRefResponse, LocationResponse } from "../api/locations";
-import * as productsApi from "../api/products";
 import * as termsApi from "../api/terms";
 import { EditTermDialog } from "../components/panel/EditTermDialog";
 import { createQueryWrapper } from "./queryClient";
 
-vi.mock("../api/categories", () => ({
-  getCategories: vi.fn(),
-}));
-vi.mock("../api/products", () => ({
-  resolveProduct: vi.fn(),
-}));
 vi.mock("../api/terms", () => ({
   createNeededItem: vi.fn(),
   deleteNeededItem: vi.fn(),
@@ -67,22 +59,19 @@ const term: termsApi.TermResponse = {
 const neededItem: termsApi.NeededItemResponse = {
   id: "ni1",
   term_id: "t1",
-  product_id: "pr1",
-  product_name: "Rower",
-  product_category_id: "c1",
-  product_category_name: "Zabawki",
+  name: "Rower",
   description: null,
   claimed: false,
   created_at: "2026-01-01T00:00:00Z",
   updated_at: "2026-01-01T00:00:00Z",
 };
 
-function renderDialog(shownTerm: termsApi.TermResponse = term) {
+function renderDialog(shownTerm: termsApi.TermResponse = term, onChanged = vi.fn()) {
   return render(
     <EditTermDialog
       term={shownTerm}
       neededItems={[neededItem]}
-      onChanged={vi.fn()}
+      onChanged={onChanged}
       onClose={vi.fn()}
     />,
     { wrapper: createQueryWrapper() },
@@ -91,24 +80,13 @@ function renderDialog(shownTerm: termsApi.TermResponse = term) {
 
 beforeEach(() => {
   vi.resetAllMocks();
-  vi.mocked(categoriesApi.getCategories).mockResolvedValue([
-    {
-      id: "c1",
-      name: "Zabawki",
-      description: null,
-      sortOrder: 0,
-      productCount: 1,
-      createdAt: "2026-01-01T00:00:00Z",
-      updatedAt: "2026-01-01T00:00:00Z",
-    },
-  ]);
   vi.mocked(locationsApi.getMyLocations).mockResolvedValue([salaNr2, groupDefault]);
 });
 
 describe("EditTermDialog — server error surfacing", () => {
   it("saveEdit_rejectedName_showsItemsErrorAndKeepsRowEditorOpen", async () => {
     const rejection = "Nazwa rzeczy narusza zasady społeczności. Zmień ją i spróbuj ponownie.";
-    vi.mocked(productsApi.resolveProduct).mockRejectedValue(
+    vi.mocked(termsApi.updateNeededItem).mockRejectedValue(
       new ApiError(400, "Bad Request", { message: rejection }),
     );
     renderDialog();
@@ -119,7 +97,7 @@ describe("EditTermDialog — server error surfacing", () => {
 
     expect(await screen.findByRole("alert")).toHaveTextContent(rejection);
     expect(screen.getByLabelText("Nazwa rzeczy")).toHaveValue("Zła nazwa");
-    expect(termsApi.updateNeededItem).not.toHaveBeenCalled();
+    expect(termsApi.updateNeededItem).toHaveBeenCalledWith("ni1", { name: "Zła nazwa", description: "" });
   });
 
   it("updateTerm_rejectedDescription_showsFormErrorAlert", async () => {
@@ -147,6 +125,48 @@ describe("EditTermDialog — server error surfacing", () => {
     fireEvent.click(screen.getAllByRole("button", { name: "Zapisz" })[0]);
 
     expect(await screen.findByRole("alert")).toHaveTextContent(unavailable);
+  });
+});
+
+describe("EditTermDialog — needed items as plain names", () => {
+  it("render_listsNamesWithDangerRemove_andNoCategoryField", async () => {
+    renderDialog();
+    await screen.findByRole("combobox", { name: "Miejsce" });
+
+    expect(screen.getByText("Potrzebne rzeczy")).toBeInTheDocument();
+    expect(screen.getByText("Rower")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Usuń potrzebną rzecz" })).toHaveClass("text-danger");
+    fireEvent.click(screen.getByRole("button", { name: "Dodaj potrzebną rzecz" }));
+    expect(screen.getByLabelText("Nazwa nowej rzeczy")).toHaveAttribute("placeholder", "np. Termos");
+    expect(screen.queryByLabelText(/^Typ/)).not.toBeInTheDocument();
+    expect(screen.getAllByRole("combobox")).toHaveLength(1);
+  });
+
+  it("addItem_sendsTermIdNameAndDescription", async () => {
+    vi.mocked(termsApi.createNeededItem).mockResolvedValue(neededItem);
+    const onChanged = vi.fn();
+    renderDialog(term, onChanged);
+
+    fireEvent.click(screen.getByRole("button", { name: "Dodaj potrzebną rzecz" }));
+    fireEvent.change(screen.getByLabelText("Nazwa nowej rzeczy"), { target: { value: "  Termos " } });
+    fireEvent.change(screen.getByLabelText("Doprecyzowanie nowej rzeczy"), { target: { value: "1 l" } });
+    fireEvent.click(screen.getByRole("button", { name: "Dodaj" }));
+
+    await waitFor(() => expect(onChanged).toHaveBeenCalled());
+    expect(termsApi.createNeededItem).toHaveBeenCalledWith({ term_id: "t1", name: "Termos", description: "1 l" });
+  });
+
+  it("saveEdit_unchangedName_sendsOnlyDescription", async () => {
+    vi.mocked(termsApi.updateNeededItem).mockResolvedValue(neededItem);
+    const onChanged = vi.fn();
+    renderDialog(term, onChanged);
+
+    fireEvent.click(screen.getByRole("button", { name: "Edytuj potrzebną rzecz" }));
+    fireEvent.change(screen.getByLabelText("Doprecyzowanie rzeczy"), { target: { value: "dla 3-latka" } });
+    fireEvent.click(screen.getAllByRole("button", { name: "Zapisz" })[1]);
+
+    await waitFor(() => expect(onChanged).toHaveBeenCalled());
+    expect(termsApi.updateNeededItem).toHaveBeenCalledWith("ni1", { description: "dla 3-latka" });
   });
 });
 

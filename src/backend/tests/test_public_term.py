@@ -23,6 +23,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core import clock
 from app.groups.models import Leadership, NeededItem, Term
 from app.organizations.models import Organization
+from tests.conftest import leaf_category_ids
 
 
 async def _register_organizer(client: AsyncClient, email: str) -> str:
@@ -76,25 +77,22 @@ async def _create_term(
     return term.json()["id"]
 
 
-async def _other_category_id(client: AsyncClient, token: str) -> str:
-    """The seeded "Inne" category — the one the name assertions below expect."""
-    categories = await client.get("/api/categories", headers=_auth_headers(token))
-    assert categories.status_code == 200
-    return next(c["id"] for c in categories.json() if c["name"] == "Inne")
+PUBLIC_NEEDED_ITEM_KEYS = {
+    "id",
+    "name",
+    "description",
+    "claimed",
+    "claimed_by_name",
+    "claimed_by_party_id",
+}
 
 
 async def _create_needed_item(
-    client: AsyncClient, token: str, term_id: int, product_name: str, description: str
+    client: AsyncClient, token: str, term_id: int, name: str, description: str
 ) -> int:
-    resolved = await client.post(
-        "/api/products/resolve",
-        json={"name": product_name, "category_id": await _other_category_id(client, token)},
-        headers=_auth_headers(token),
-    )
-    assert resolved.status_code == 200
     item = await client.post(
         "/api/needed-items",
-        json={"term_id": term_id, "product_id": resolved.json()["id"], "description": description},
+        json={"term_id": term_id, "name": name, "description": description},
         headers=_auth_headers(token),
     )
     assert item.status_code == 201
@@ -128,11 +126,8 @@ async def test_getPublicCircle_withTermIdParam_returnsThatTermsItemsAndGuardians
     body = response.json()
     assert body["term"]["id"] == far_term_id
     assert [item["description"] for item in body["term"]["needed_items"]] == ["5 grzechotek"]
-    assert body["term"]["needed_items"][0]["product_name"] == "Grzechotka"
-    assert body["term"]["needed_items"][0]["product_category_id"] == await _other_category_id(
-        client, token
-    )
-    assert body["term"]["needed_items"][0]["product_category_name"] == "Inne"
+    assert set(body["term"]["needed_items"][0]) == PUBLIC_NEEDED_ITEM_KEYS
+    assert body["term"]["needed_items"][0]["name"] == "Grzechotka"
     assert [guardian["display_name"] for guardian in body["guardians"]] == ["Marek Nowak"]
 
 
@@ -201,19 +196,19 @@ async def test_getPublicCircle_noTermIdParam_returnsNearestTermUnchanged(
     }
 
 
-async def test_getPublicCircle_neededItems_orderedById(client: AsyncClient) -> None:
+async def test_getPublicCircle_neededItems_orderedByName(client: AsyncClient) -> None:
     token = await _register_organizer(client, "pt.owner5@example.com")
     group_id = await _create_circle(client, token, "Krąg E")
     term_id = await _create_term(client, token, group_id, clock.local_now().date())
-    id_1 = await _create_needed_item(client, token, term_id, "INSTRUMENT", "bębenek")
-    id_2 = await _create_needed_item(client, token, term_id, "ART_SUPPLIES", "farby")
-    id_3 = await _create_needed_item(client, token, term_id, "OTHER", "koc")
+    await _create_needed_item(client, token, term_id, "Koc", "koc")
+    await _create_needed_item(client, token, term_id, "Bebenek", "bębenek")
+    await _create_needed_item(client, token, term_id, "Farby", "farby")
 
     response = await client.get(f"/api/groups/public/{group_id}?term_id={term_id}")
 
     assert response.status_code == 200
-    returned_ids = [item["id"] for item in response.json()["term"]["needed_items"]]
-    assert returned_ids == sorted([id_1, id_2, id_3])
+    returned_names = [item["name"] for item in response.json()["term"]["needed_items"]]
+    assert returned_names == ["Bebenek", "Farby", "Koc"]
 
 
 async def test_getPublicCircle_afterLoggedInRsvp_stillExposesOnlyGuardianDisplayNameNoPerChildData(
@@ -512,7 +507,10 @@ async def test_getPublicCircle_privateReducedResponse_includesOrganization(
 async def _register_personal_item(client: AsyncClient, token: str, product_name: str) -> int:
     resolved = await client.post(
         "/api/products/resolve",
-        json={"name": product_name, "category_id": await _other_category_id(client, token)},
+        json={
+            "name": product_name,
+            "category_id": (await leaf_category_ids(client, _auth_headers(token)))[0],
+        },
         headers=_auth_headers(token),
     )
     assert resolved.status_code == 200

@@ -31,6 +31,7 @@ from app.groups.domain import swap_events
 from app.groups.models import Term
 from app.groups.schemas import TakeTermItemListingRequest
 from app.outbox.models import OutboxEntry
+from tests.conftest import leaf_category_ids
 
 WARSAW = ZoneInfo("Europe/Warsaw")
 
@@ -109,10 +110,10 @@ async def _rsvp(
 
 
 async def _register_personal_item(client: AsyncClient, token: str, product_name: str) -> uuid.UUID:
-    categories = await client.get("/api/categories", headers=_auth(token))
+    category_id = (await leaf_category_ids(client, _auth(token)))[0]
     product = await client.post(
         "/api/products/resolve",
-        json={"name": product_name, "category_id": str(categories.json()[0]["id"])},
+        json={"name": product_name, "category_id": category_id},
         headers=_auth(token),
     )
     assert product.status_code == 200

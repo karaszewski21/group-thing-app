@@ -1,0 +1,862 @@
+[
+{"name": "Akcesoria i ozdoby", "external_id": 1934, "children": [
+  {"name": "Akcesoria dekoracyjne", "external_id": 3823, "children": [
+    {"name": "Akcenty dekoracyjne", "external_id": 3829, "children": []},
+    {"name": "Magnesy na lodówkę", "external_id": 3827, "children": []},
+    {"name": "Popielniczki", "external_id": 3824, "children": []},
+    {"name": "Podpórki do książek", "external_id": 3825, "children": []},
+    {"name": "Kule śnieżne", "external_id": 3828, "children": []},
+    {"name": "Blokady do drzwi", "external_id": 3826, "children": []}
+  ]},
+  {"name": "Świece i zapachy do domu", "external_id": 1935, "children": [
+    {"name": "Świeczniki", "external_id": 1957, "children": []},
+    {"name": "Świece", "external_id": 1956, "children": []},
+    {"name": "Dyfuzory do olejków eterycznych", "external_id": 3815, "children": []},
+    {"name": "Dyfuzory zapachowe z patyczkami", "external_id": 3816, "children": []},
+    {"name": "Woski zapachowe", "external_id": 3814, "children": []},
+    {"name": "Podstawki pod kadzidełka", "external_id": 3817, "children": []},
+    {"name": "Kadzidełka", "external_id": 3821, "children": []}
+  ]},
+  {"name": "Przechowywanie i organizacja", "external_id": 1939, "children": [
+    {"name": "Kuferki na biżuterię", "external_id": 1964, "children": []},
+    {"name": "Pudełka", "external_id": 1963, "children": []},
+    {"name": "Kosze", "external_id": 1962, "children": []},
+    {"name": "Pokrowce i wieszaki", "external_id": 2012, "children": []},
+    {"name": "Kuferki na kosmetyki", "external_id": 1965, "children": []},
+    {"name": "Organizery do szuflad", "external_id": 3844, "children": []},
+    {"name": "Mydelniczki i dozowniki", "external_id": 3845, "children": []}
+  ]},
+  {"name": "Dekoracje ścienne", "external_id": 3846, "children": [
+    {"name": "Obrazy", "external_id": 3847, "children": []},
+    {"name": "Plakaty i wydruki", "external_id": 3849, "children": []},
+    {"name": "Zawieszki ścienne", "external_id": 3853, "children": []},
+    {"name": "Tabliczki", "external_id": 3851, "children": []},
+    {"name": "Naklejki ścienne", "external_id": 3852, "children": []},
+    {"name": "Fotografie", "external_id": 3848, "children": []},
+    {"name": "Tablice", "external_id": 3850, "children": []}
+  ]},
+  {"name": "Oświetlenie", "external_id": 3834, "children": [
+    {"name": "Lampy sufitowe", "external_id": 3838, "children": []},
+    {"name": "Lampy stołowe", "external_id": 3836, "children": []},
+    {"name": "Kinkiety", "external_id": 3839, "children": []},
+    {"name": "Łańcuchy świetlne", "external_id": 3837, "children": []},
+    {"name": "Lampy specjalne", "external_id": 3843, "children": []},
+    {"name": "Lampki nocne", "external_id": 3842, "children": []},
+    {"name": "Klosze", "external_id": 3840, "children": []},
+    {"name": "Oświetlenie akcentowe", "external_id": 3841, "children": []},
+    {"name": "Lampy podłogowe", "external_id": 3835, "children": []}
+  ]},
+  {"name": "Rzeźby i figurki", "external_id": 3822, "children": []},
+  {"name": "Wazony", "external_id": 1940, "children": []},
+  {"name": "Ramy i ramki", "external_id": 1937, "children": []},
+  {"name": "Sztuczne rośliny i kwiaty", "external_id": 3830, "children": [
+    {"name": "Sztuczne kwiaty", "external_id": 3832, "children": []},
+    {"name": "Sztuczne rośliny", "external_id": 3831, "children": []}
+  ]},
+  {"name": "Zegary", "external_id": 1936, "children": [
+    {"name": "Zegary stojące", "external_id": 1966, "children": []},
+    {"name": "Zegary ścienne", "external_id": 1967, "children": []}
+  ]},
+  {"name": "Półki ścienne", "external_id": 1941, "children": []},
+  {"name": "Lustra", "external_id": 1938, "children": [
+    {"name": "Lustra ścienne", "external_id": 1968, "children": []},
+    {"name": "Lustra stojące", "external_id": 1969, "children": []}
+  ]},
+  {"name": "Akcesoria do kominka", "external_id": 3833, "children": []}
+]},
+{"name": "Akcesoria stołowe", "external_id": 1920, "children": [
+  {"name": "Naczynia do napojów", "external_id": 2005, "children": [
+    {"name": "Kubki i filiżanki", "external_id": 2006, "children": []},
+    {"name": "Szklanki", "external_id": 2010, "children": []},
+    {"name": "Kieliszki", "external_id": 2009, "children": []},
+    {"name": "Zestawy", "external_id": 2011, "children": []}
+  ]},
+  {"name": "Akcesoria do serwowania", "external_id": 3854, "children": [
+    {"name": "Naczynia do serwowania", "external_id": 3860, "children": []},
+    {"name": "Dzbanki", "external_id": 3857, "children": []},
+    {"name": "Tace", "external_id": 3862, "children": []},
+    {"name": "Cukiernice i mleczniki", "external_id": 3861, "children": []},
+    {"name": "Dzbanki do kawy i herbaty", "external_id": 3856, "children": []},
+    {"name": "Specjalne zestawy do serwowania", "external_id": 3865, "children": []},
+    {"name": "Serwisy", "external_id": 3864, "children": []},
+    {"name": "Podstawki pod kubki", "external_id": 3855, "children": []},
+    {"name": "Solniczki i pieprzniczki", "external_id": 3858, "children": []},
+    {"name": "Podkładki pod gorące naczynia", "external_id": 3863, "children": []}
+  ]},
+  {"name": "Naczynia stołowe", "external_id": 1932, "children": [
+    {"name": "Miski", "external_id": 1959, "children": []},
+    {"name": "Talerze", "external_id": 1960, "children": []},
+    {"name": "Serwisy obiadowe", "external_id": 1958, "children": []}
+  ]},
+  {"name": "Sztućce", "external_id": 1931, "children": [
+    {"name": "Łyżki", "external_id": 1952, "children": []},
+    {"name": "Zestawy sztućców", "external_id": 1950, "children": []},
+    {"name": "Widelce", "external_id": 1951, "children": []},
+    {"name": "Noże stołowe", "external_id": 1970, "children": []}
+  ]}
+]},
+{"name": "Tekstylia", "external_id": 1919, "children": [
+  {"name": "Obrusy", "external_id": 1928, "children": [
+    {"name": "Obrusy", "external_id": 3873, "children": []},
+    {"name": "Serwetki koronkowe", "external_id": 3871, "children": []},
+    {"name": "Bieżniki na stół", "external_id": 3874, "children": []},
+    {"name": "Podkładki na stół", "external_id": 3872, "children": []},
+    {"name": "Serwetki materiałowe", "external_id": 3870, "children": []}
+  ]},
+  {"name": "Zasłony i rolety", "external_id": 1926, "children": [
+    {"name": "Firanki", "external_id": 1955, "children": []},
+    {"name": "Zasłony", "external_id": 1946, "children": []},
+    {"name": "Falbany", "external_id": 3868, "children": []},
+    {"name": "Opaski i uchwyty do zasłon", "external_id": 3867, "children": []},
+    {"name": "Rolety i żaluzje", "external_id": 3866, "children": []}
+  ]},
+  {"name": "Pościel", "external_id": 1924, "children": [
+    {"name": "Komplety pościeli", "external_id": 1942, "children": []},
+    {"name": "Poszewki na poduszki", "external_id": 1944, "children": []},
+    {"name": "Poszewki na kołdry", "external_id": 1943, "children": []},
+    {"name": "Prześcieradła i poszewki", "external_id": 1945, "children": []}
+  ]},
+  {"name": "Poduszki dekoracyjne", "external_id": 1974, "children": []},
+  {"name": "Koce i narzuty", "external_id": 1925, "children": []},
+  {"name": "Dywany i chodniki", "external_id": 1927, "children": [
+    {"name": "Dywany", "external_id": 1954, "children": []},
+    {"name": "Chodniki i wycieraczki", "external_id": 1953, "children": []}
+  ]},
+  {"name": "Ręczniki", "external_id": 1930, "children": [
+    {"name": "Ręczniki do rąk", "external_id": 1949, "children": []},
+    {"name": "Ręczniki kąpielowe", "external_id": 1947, "children": []},
+    {"name": "Ręczniki plażowe", "external_id": 1948, "children": []}
+  ]},
+  {"name": "Kilimy i makatki", "external_id": 1929, "children": []},
+  {"name": "Pokrowce na meble", "external_id": 3869, "children": []}
+]},
+{"name": "Uroczystości i święta", "external_id": 2915, "children": [
+  {"name": "Dekoracje świąteczne", "external_id": 2922, "children": []},
+  {"name": "Dekoracje na przyjęcia", "external_id": 2923, "children": []},
+  {"name": "Ozdoby na choinkę", "external_id": 2925, "children": []},
+  {"name": "Dekoracje na stół", "external_id": 2924, "children": []},
+  {"name": "Kartki i koperty", "external_id": 2918, "children": []},
+  {"name": "Papier i torby prezentowe", "external_id": 2921, "children": []},
+  {"name": "Wieńce", "external_id": 2926, "children": []},
+  {"name": "Banery, flagi i girlandy", "external_id": 2917, "children": []}
+]},
+{"name": "Zwierzęta", "external_id": 5106, "children": [
+  {"name": "Psy", "external_id": 5107, "children": [
+    {"name": "Ubranka i akcesoria", "external_id": 5114, "children": [
+      {"name": "Kurtki i kombinezony", "external_id": 5123, "children": []},
+      {"name": "Sweterki", "external_id": 5124, "children": []},
+      {"name": "Akcesoria", "external_id": 5129, "children": []},
+      {"name": "Koszulki", "external_id": 5126, "children": []},
+      {"name": "Kostiumy", "external_id": 5127, "children": []},
+      {"name": "Buty i skarpetki", "external_id": 5128, "children": []}
+    ]},
+    {"name": "Obroże i smycze", "external_id": 5116, "children": [
+      {"name": "Obroże", "external_id": 5133, "children": []},
+      {"name": "Szelki", "external_id": 5134, "children": []},
+      {"name": "Smycze", "external_id": 5135, "children": []},
+      {"name": "Kagańce", "external_id": 5136, "children": []}
+    ]},
+    {"name": "Zabawki", "external_id": 5115, "children": [
+      {"name": "Pluszowe zabawki", "external_id": 5131, "children": []},
+      {"name": "Piłki i zabawki do rzucania", "external_id": 5130, "children": []},
+      {"name": "Twarde zabawki", "external_id": 5132, "children": []}
+    ]},
+    {"name": "Miski i karmniki", "external_id": 5118, "children": [
+      {"name": "Miski", "external_id": 5139, "children": []},
+      {"name": "Karmniki, bidony i poidełka", "external_id": 5140, "children": []}
+    ]},
+    {"name": "Pielęgnacja", "external_id": 5120, "children": [
+      {"name": "Szczotki i grzebienie", "external_id": 5143, "children": []},
+      {"name": "Pielęgnacja łap", "external_id": 5144, "children": []}
+    ]},
+    {"name": "Transportery i klatki", "external_id": 5119, "children": [
+      {"name": "Transportery", "external_id": 5141, "children": []},
+      {"name": "Klatki", "external_id": 5142, "children": []}
+    ]},
+    {"name": "Legowiska i koce", "external_id": 5113, "children": [
+      {"name": "Legowiska", "external_id": 5121, "children": []},
+      {"name": "Koce", "external_id": 5122, "children": []}
+    ]},
+    {"name": "Akcesoria do tresury", "external_id": 5117, "children": [
+      {"name": "Torebki i woreczki", "external_id": 5138, "children": []},
+      {"name": "Gwizdki", "external_id": 5137, "children": []}
+    ]}
+  ]},
+  {"name": "Małe zwierzęta", "external_id": 5111, "children": [
+    {"name": "Zabawki", "external_id": 5197, "children": []},
+    {"name": "Klatki i akcesoria", "external_id": 5196, "children": []}
+  ]},
+  {"name": "Koty", "external_id": 5108, "children": [
+    {"name": "Zabawki", "external_id": 5146, "children": [
+      {"name": "Zabawki interaktywne", "external_id": 5174, "children": []},
+      {"name": "Pluszowe zabawki", "external_id": 5172, "children": []},
+      {"name": "Drapaki", "external_id": 5173, "children": []},
+      {"name": "Piłki", "external_id": 5171, "children": []},
+      {"name": "Wędki", "external_id": 5167, "children": []}
+    ]},
+    {"name": "Ubranka i akcesoria", "external_id": 5150, "children": [
+      {"name": "Akcesoria", "external_id": 5189, "children": []},
+      {"name": "Ubranka", "external_id": 5182, "children": []},
+      {"name": "Kostiumy", "external_id": 5183, "children": []}
+    ]},
+    {"name": "Obroże i smycze", "external_id": 5147, "children": [
+      {"name": "Szelki i smycze", "external_id": 5176, "children": []},
+      {"name": "Obroże", "external_id": 5175, "children": []}
+    ]},
+    {"name": "Miski i karmniki", "external_id": 5145, "children": [
+      {"name": "Miski", "external_id": 5162, "children": []},
+      {"name": "Karmniki i poidełka", "external_id": 5164, "children": []}
+    ]},
+    {"name": "Legowiska", "external_id": 5148, "children": []},
+    {"name": "Transportery", "external_id": 5149, "children": [
+      {"name": "Plecaki i miękkie transportery", "external_id": 5180, "children": []},
+      {"name": "Sztywne transportery", "external_id": 5181, "children": []}
+    ]},
+    {"name": "Kuwety", "external_id": 5157, "children": []},
+    {"name": "Pielęgnacja", "external_id": 5160, "children": []}
+  ]},
+  {"name": "Akwarystyka", "external_id": 5112, "children": [
+    {"name": "Ozdoby i akcesoria", "external_id": 5199, "children": []},
+    {"name": "Sprzęt do akwarium", "external_id": 5198, "children": []}
+  ]},
+  {"name": "Gady", "external_id": 5109, "children": [
+    {"name": "Ozdoby i akcesoria", "external_id": 5203, "children": []},
+    {"name": "Sprzęt do terrarium", "external_id": 5204, "children": []}
+  ]},
+  {"name": "Ptaki", "external_id": 5110, "children": [
+    {"name": "Zabawki", "external_id": 5201, "children": []},
+    {"name": "Klatki i akcesoria", "external_id": 5202, "children": []}
+  ]}
+]},
+{"name": "Narzędzia i majsterkowanie", "external_id": 3811, "children": [
+  {"name": "Artykuły metalowe", "external_id": 3886, "children": [
+    {"name": "Armatura łazienkowa", "external_id": 4048, "children": [
+      {"name": "Baterie łazienkowe", "external_id": 4227, "children": []},
+      {"name": "Uchwyty na papier toaletowy", "external_id": 4236, "children": []},
+      {"name": "Wieszaki na ręczniki", "external_id": 4237, "children": []},
+      {"name": "Umywalki łazienkowe i toaletowe", "external_id": 4228, "children": []},
+      {"name": "Słuchawki prysznicowe", "external_id": 4234, "children": []},
+      {"name": "Haczyki i pierścienie na ręczniki", "external_id": 4238, "children": []},
+      {"name": "Drążki na zasłonki prysznicowe", "external_id": 4235, "children": []},
+      {"name": "Sitka do umywalek", "external_id": 4229, "children": []}
+    ]},
+    {"name": "Uchwyty, gałki i klamki meblowe", "external_id": 4043, "children": []},
+    {"name": "Wsporniki", "external_id": 4052, "children": []},
+    {"name": "Akcesoria do wieszania obrazów", "external_id": 4051, "children": []},
+    {"name": "Klamki i gałki do drzwi", "external_id": 4044, "children": []},
+    {"name": "Zamki wpuszczane", "external_id": 4045, "children": []},
+    {"name": "Armatura kuchenna", "external_id": 4049, "children": [
+      {"name": "Baterie kuchenne", "external_id": 4240, "children": []},
+      {"name": "Zlewozmywaki", "external_id": 4241, "children": []},
+      {"name": "Drzwi do szafek kuchennych", "external_id": 4245, "children": []},
+      {"name": "Przystawki do zlewów", "external_id": 4243, "children": []},
+      {"name": "Wbudowane dozowniki mydła", "external_id": 4239, "children": []},
+      {"name": "Sitka do zlewów", "external_id": 4242, "children": []}
+    ]},
+    {"name": "Łańcuchy, liny i mocowania", "external_id": 4050, "children": [
+      {"name": "Pasy z napinaczem", "external_id": 4250, "children": []},
+      {"name": "Łańcuchy", "external_id": 4246, "children": []},
+      {"name": "Liny", "external_id": 4247, "children": []},
+      {"name": "Opaski kablowe", "external_id": 4248, "children": []},
+      {"name": "Pasy transportowe", "external_id": 4255, "children": []},
+      {"name": "Linki elastyczne", "external_id": 4249, "children": []},
+      {"name": "Siatki ładunkowe", "external_id": 4254, "children": []},
+      {"name": "Klipsy do lin i łańcuchów", "external_id": 4252, "children": []},
+      {"name": "Paski na rzep", "external_id": 4251, "children": []},
+      {"name": "Zatrzaski do lin", "external_id": 4253, "children": []}
+    ]},
+    {"name": "Zawiasy", "external_id": 4046, "children": []},
+    {"name": "Dzwonki do drzwi", "external_id": 4047, "children": []},
+    {"name": "Skrzynki pocztowe", "external_id": 4053, "children": []},
+    {"name": "Numery domów", "external_id": 4055, "children": []},
+    {"name": "Tabliczki adresowe", "external_id": 4054, "children": []}
+  ]},
+  {"name": "Inteligentny dom i bezpieczeństwo", "external_id": 3887, "children": [
+    {"name": "Inteligentne oświetlenie i żarówki", "external_id": 4061, "children": []},
+    {"name": "Inteligentne gniazdka i przełączniki", "external_id": 4060, "children": []},
+    {"name": "Kamery bezpieczeństwa", "external_id": 4058, "children": []},
+    {"name": "Inteligentne termostaty", "external_id": 4062, "children": []},
+    {"name": "Inteligentne czujniki dymu i gazu", "external_id": 4063, "children": []},
+    {"name": "Inteligentne zamki do drzwi", "external_id": 4056, "children": []},
+    {"name": "Kłódki", "external_id": 4064, "children": []},
+    {"name": "Asystenci głosowi", "external_id": 4059, "children": []},
+    {"name": "Wideodomofony", "external_id": 4057, "children": []}
+  ]},
+  {"name": "Narzędzia ręczne", "external_id": 3876, "children": [
+    {"name": "Zestawy narzędzi ręcznych", "external_id": 3931, "children": []},
+    {"name": "Śrubokręty", "external_id": 3918, "children": []},
+    {"name": "Klucze", "external_id": 3919, "children": []},
+    {"name": "Szczypce", "external_id": 3921, "children": []},
+    {"name": "Klucze zapadkowe", "external_id": 3920, "children": []},
+    {"name": "Narzędzia do gwintowania", "external_id": 3930, "children": []},
+    {"name": "Młotki", "external_id": 3916, "children": []},
+    {"name": "Strugi ręczne", "external_id": 3926, "children": []},
+    {"name": "Ręczne zszywacze i takery", "external_id": 3928, "children": []},
+    {"name": "Pilniki i tarniki", "external_id": 3925, "children": []},
+    {"name": "Dłuta", "external_id": 3924, "children": []},
+    {"name": "Klocki szlifierskie", "external_id": 3927, "children": []},
+    {"name": "Nitownice", "external_id": 3929, "children": []},
+    {"name": "Nożyce do blachy", "external_id": 3922, "children": []},
+    {"name": "Łomy", "external_id": 3933, "children": []},
+    {"name": "Nożyce do śrub", "external_id": 3923, "children": []},
+    {"name": "Młoty rozbiórkowe", "external_id": 3932, "children": []}
+  ]},
+  {"name": "Sprzęt ochronny", "external_id": 3883, "children": [
+    {"name": "Fartuchy robocze", "external_id": 4026, "children": []},
+    {"name": "Rękawice robocze", "external_id": 4019, "children": []},
+    {"name": "Kaski robocze", "external_id": 4023, "children": []},
+    {"name": "Osłony twarzy", "external_id": 4022, "children": []},
+    {"name": "Pasy lędźwiowe", "external_id": 4029, "children": []},
+    {"name": "Okulary ochronne", "external_id": 4020, "children": []},
+    {"name": "Kamizelki odblaskowe", "external_id": 4027, "children": []},
+    {"name": "Ochrona słuchu", "external_id": 4024, "children": []},
+    {"name": "Nakolanniki", "external_id": 4025, "children": []},
+    {"name": "Uprzęże bezpieczeństwa", "external_id": 4028, "children": []},
+    {"name": "Gogle ochronne", "external_id": 4021, "children": []}
+  ]},
+  {"name": "Elektronarzędzia", "external_id": 3875, "children": [
+    {"name": "Wiertarki", "external_id": 3898, "children": [
+      {"name": "Wiertarko-wkrętarki", "external_id": 4170, "children": []},
+      {"name": "Wiertarki udarowe", "external_id": 4171, "children": []},
+      {"name": "Automatyczne wkrętarki", "external_id": 4175, "children": []},
+      {"name": "Młoty udarowo-obrotowe", "external_id": 4173, "children": []},
+      {"name": "Elektryczne klucze udarowe", "external_id": 4176, "children": []},
+      {"name": "Zakrętarki udarowe", "external_id": 4172, "children": []},
+      {"name": "Mieszarki", "external_id": 4174, "children": []}
+    ]},
+    {"name": "Piły elektryczne", "external_id": 3899, "children": [
+      {"name": "Piły tarczowe", "external_id": 4177, "children": []},
+      {"name": "Wyrzynarki", "external_id": 4178, "children": []},
+      {"name": "Piły szablaste", "external_id": 4179, "children": []}
+    ]},
+    {"name": "Szlifierki", "external_id": 3901, "children": [
+      {"name": "Szlifierki kątowe", "external_id": 4189, "children": []},
+      {"name": "Szlifierki proste", "external_id": 4191, "children": []},
+      {"name": "Szlifierki stołowe", "external_id": 4190, "children": []}
+    ]},
+    {"name": "Zestawy elektronarzędzi", "external_id": 3902, "children": []},
+    {"name": "Narzędzia pneumatyczne", "external_id": 3904, "children": [
+      {"name": "Gwoździarki pneumatyczne", "external_id": 4192, "children": []},
+      {"name": "Pneumatyczne rozpylacze farby", "external_id": 4198, "children": []},
+      {"name": "Pneumatyczne klucze udarowe", "external_id": 4194, "children": []},
+      {"name": "Zszywacze pneumatyczne", "external_id": 4193, "children": []},
+      {"name": "Piaskarki", "external_id": 4199, "children": []},
+      {"name": "Pneumatyczne klucze zapadkowe", "external_id": 4195, "children": []},
+      {"name": "Młoty pneumatyczne", "external_id": 4196, "children": []},
+      {"name": "Dłuta pneumatyczne", "external_id": 4197, "children": []}
+    ]},
+    {"name": "Szlifierki (3900)", "external_id": 3900, "children": [
+      {"name": "Szlifierki oscylacyjne", "external_id": 4187, "children": []},
+      {"name": "Szlifierki mimośrodowe", "external_id": 4185, "children": []},
+      {"name": "Szlifierki detaliczne", "external_id": 4188, "children": []},
+      {"name": "Szlifierki taśmowe", "external_id": 4186, "children": []}
+    ]},
+    {"name": "Narzędzia obrotowe", "external_id": 3905, "children": []},
+    {"name": "Sprężarki", "external_id": 3903, "children": []},
+    {"name": "Opalarki", "external_id": 3913, "children": []},
+    {"name": "Wkrętarki elektryczne", "external_id": 3912, "children": []},
+    {"name": "Frezarki ręczne", "external_id": 3909, "children": []},
+    {"name": "Odkurzacze na mokro i sucho", "external_id": 3914, "children": []},
+    {"name": "Narzędzia oscylacyjne", "external_id": 3906, "children": []},
+    {"name": "Strugi", "external_id": 3908, "children": []},
+    {"name": "Wciągarki", "external_id": 3915, "children": []},
+    {"name": "Tokarki", "external_id": 3911, "children": []},
+    {"name": "Złącza biszkoptowe", "external_id": 3907, "children": []},
+    {"name": "Wiertarki stołowe", "external_id": 3910, "children": []}
+  ]},
+  {"name": "Akcesoria do narzędzi", "external_id": 3882, "children": [
+    {"name": "Wiertła", "external_id": 3999, "children": [
+      {"name": "Wiertła do metalu", "external_id": 4201, "children": []},
+      {"name": "Wiertła do betonu", "external_id": 4202, "children": []},
+      {"name": "Wiertła do drewna", "external_id": 4200, "children": []},
+      {"name": "Wiertła do szkła i glazury", "external_id": 4203, "children": []}
+    ]},
+    {"name": "Akumulatory do elektronarzędzi", "external_id": 4005, "children": []},
+    {"name": "Tarcze i dyski", "external_id": 4008, "children": [
+      {"name": "Tarcze tnące", "external_id": 4219, "children": []},
+      {"name": "Tarcze szlifujące", "external_id": 4217, "children": []},
+      {"name": "Szczotki druciane", "external_id": 4222, "children": []},
+      {"name": "Ściernice", "external_id": 4218, "children": []},
+      {"name": "Tarcze wachlarzowe", "external_id": 4220, "children": []},
+      {"name": "Szczotki kielichowe", "external_id": 4221, "children": []}
+    ]},
+    {"name": "Akcesoria do narzędzi obrotowych", "external_id": 4014, "children": []},
+    {"name": "Zaciski robocze", "external_id": 4018, "children": []},
+    {"name": "Papiery ścierne", "external_id": 4007, "children": [
+      {"name": "Tarcze szlifierskie", "external_id": 4216, "children": []},
+      {"name": "Arkusze ścierne", "external_id": 4214, "children": []},
+      {"name": "Taśmy ścierne", "external_id": 4215, "children": []}
+    ]},
+    {"name": "Akcesoria do narzędzi pneumatycznych", "external_id": 4010, "children": [
+      {"name": "Złączki do narzędzi pneumatycznych", "external_id": 4225, "children": []},
+      {"name": "Dysze i pistolety do sprężarek", "external_id": 4224, "children": []},
+      {"name": "Węże pneumatyczne", "external_id": 4223, "children": []},
+      {"name": "Zwijacze węży pneumatycznych", "external_id": 4226, "children": []}
+    ]},
+    {"name": "Nasadki i zestawy nasadek", "external_id": 4011, "children": []},
+    {"name": "Bity do wkrętarek", "external_id": 4000, "children": []},
+    {"name": "Otwornice", "external_id": 4004, "children": []},
+    {"name": "Frezy do wiertarki", "external_id": 4012, "children": []},
+    {"name": "Akcesoria do narzędzi oscylacyjnych", "external_id": 4013, "children": []},
+    {"name": "Akcesoria do odkurzaczy na mokro i sucho", "external_id": 4015, "children": []},
+    {"name": "Ładowarki do elektronarzędzi", "external_id": 4006, "children": []},
+    {"name": "Uchwyty wiertarskie", "external_id": 4002, "children": []},
+    {"name": "Brzeszczoty i tarcze", "external_id": 4003, "children": [
+      {"name": "Tarcze do pił tarczowych", "external_id": 4204, "children": []},
+      {"name": "Brzeszczoty do pił ręcznych", "external_id": 4208, "children": []},
+      {"name": "Tarcze do pił ukośnych i stołowych", "external_id": 4205, "children": []},
+      {"name": "Brzeszczoty do wyrzynarek", "external_id": 4206, "children": []},
+      {"name": "Ostrza do pił taśmowych", "external_id": 4212, "children": []},
+      {"name": "Ostrza do pił przewijanych", "external_id": 4213, "children": []},
+      {"name": "Brzeszczoty do pił łukowych", "external_id": 4209, "children": []},
+      {"name": "Brzeszczoty do pił poprzecznych", "external_id": 4210, "children": []},
+      {"name": "Brzeszczoty do pił włosowych", "external_id": 4211, "children": []}
+    ]},
+    {"name": "Gąbki polerskie", "external_id": 4009, "children": []},
+    {"name": "Wiertła mieszające", "external_id": 4017, "children": []},
+    {"name": "Kątowniki do cięcia", "external_id": 4016, "children": []},
+    {"name": "Klucze do wiertarek", "external_id": 4001, "children": []}
+  ]},
+  {"name": "Narzędzia i akcesoria do malowania", "external_id": 3878, "children": [
+    {"name": "Tapety", "external_id": 3960, "children": []},
+    {"name": "Kombinezony", "external_id": 3963, "children": []},
+    {"name": "Pędzle malarskie", "external_id": 3952, "children": []},
+    {"name": "Wałki malarskie", "external_id": 3953, "children": []},
+    {"name": "Pistolety do silikonu", "external_id": 3962, "children": []},
+    {"name": "Taśmy malarskie", "external_id": 3966, "children": []},
+    {"name": "Narzędzia do malowania krawędzi", "external_id": 3955, "children": []},
+    {"name": "Folie malarskie", "external_id": 3964, "children": []},
+    {"name": "Wiaderka i tacki na farbę", "external_id": 3956, "children": []},
+    {"name": "Narzędzia do tapetowania", "external_id": 3961, "children": []},
+    {"name": "Plandeki", "external_id": 3965, "children": []},
+    {"name": "Skrobaki do farby", "external_id": 3959, "children": []},
+    {"name": "Rączki do wałków malarskich", "external_id": 3954, "children": []},
+    {"name": "Kije malarskie", "external_id": 3957, "children": []},
+    {"name": "Przedłużki do kijów malarskich", "external_id": 3958, "children": []}
+  ]},
+  {"name": "Narzędzia pomiarowe", "external_id": 3877, "children": [
+    {"name": "Taśmy miernicze", "external_id": 3935, "children": []},
+    {"name": "Poziomice", "external_id": 3934, "children": []},
+    {"name": "Laserowe mierniki odległości", "external_id": 3944, "children": []},
+    {"name": "Suwmiarki", "external_id": 3940, "children": []},
+    {"name": "Linijki budowlane", "external_id": 3936, "children": []},
+    {"name": "Kamery inspekcyjne", "external_id": 3945, "children": []},
+    {"name": "Mierniki wilgotności", "external_id": 3950, "children": []},
+    {"name": "Wykrywacze profili", "external_id": 3943, "children": []},
+    {"name": "Mierniki konturu", "external_id": 3942, "children": []},
+    {"name": "Wykrywacze gazu", "external_id": 3949, "children": []},
+    {"name": "Kątomierze", "external_id": 3937, "children": []},
+    {"name": "Ołówki stolarskie", "external_id": 3941, "children": []},
+    {"name": "Kamery termowizyjne", "external_id": 3946, "children": []},
+    {"name": "Wykrywacze wycieków wody", "external_id": 3951, "children": []},
+    {"name": "Sznurki traserskie", "external_id": 3938, "children": []},
+    {"name": "Piony", "external_id": 3939, "children": []},
+    {"name": "Wykrywacze rur", "external_id": 3947, "children": []},
+    {"name": "Mierniki dźwięku", "external_id": 3948, "children": []}
+  ]},
+  {"name": "Przenoszenie i przechowywanie narzędzi", "external_id": 3884, "children": [
+    {"name": "Skrzynki narzędziowe", "external_id": 4030, "children": []},
+    {"name": "Pasy narzędziowe", "external_id": 4032, "children": []},
+    {"name": "Szafy narzędziowe", "external_id": 4031, "children": []},
+    {"name": "Kabury na wiertarkę", "external_id": 4033, "children": []},
+    {"name": "Pętle na młotek", "external_id": 4034, "children": []}
+  ]},
+  {"name": "Wyposażenie warsztatu i miejsca pracy", "external_id": 3885, "children": [
+    {"name": "Lampy robocze", "external_id": 4038, "children": []},
+    {"name": "Ścianki panelowe", "external_id": 4042, "children": []},
+    {"name": "Imadła", "external_id": 4041, "children": []},
+    {"name": "Drabiny", "external_id": 4035, "children": []},
+    {"name": "Podesty", "external_id": 4036, "children": []},
+    {"name": "Kobyłki warsztatowe", "external_id": 4039, "children": []},
+    {"name": "Radia na budowę", "external_id": 4037, "children": []}
+  ]},
+  {"name": "Narzędzia dla elektryków", "external_id": 3880, "children": [
+    {"name": "Multimetry", "external_id": 3977, "children": []},
+    {"name": "Testery napięcia", "external_id": 3979, "children": []},
+    {"name": "Zaciskarki do przewodów", "external_id": 3984, "children": []},
+    {"name": "Testery obwodów", "external_id": 3978, "children": []},
+    {"name": "Testery kabli", "external_id": 3980, "children": []},
+    {"name": "Ściągacze izolacji", "external_id": 3983, "children": []},
+    {"name": "Termometry laserowe i na podczerwień", "external_id": 3982, "children": []},
+    {"name": "Uchwyty do przeciągania przewodów", "external_id": 3987, "children": []},
+    {"name": "Taśma do przeciągania przewodów", "external_id": 3986, "children": []},
+    {"name": "Mierniki cęgowe", "external_id": 3981, "children": []},
+    {"name": "Giętarki do przewodów", "external_id": 3988, "children": []},
+    {"name": "Pręt do przeciągania przewodów", "external_id": 3985, "children": []}
+  ]},
+  {"name": "Narzędzia hydrauliczne", "external_id": 3879, "children": [
+    {"name": "Węże kanalizacyjne", "external_id": 3967, "children": []},
+    {"name": "Przepychacze", "external_id": 3968, "children": []},
+    {"name": "Klucze umywalkowe", "external_id": 3969, "children": []},
+    {"name": "Kalibrownice do rur", "external_id": 3972, "children": []},
+    {"name": "Ekspandery do rur", "external_id": 3971, "children": []},
+    {"name": "Nożyce do rur", "external_id": 3970, "children": []},
+    {"name": "Frezy do gniazd zaworowych", "external_id": 3976, "children": []},
+    {"name": "Szczotki do rur", "external_id": 3973, "children": []},
+    {"name": "Gratowniki do rur", "external_id": 3974, "children": []},
+    {"name": "Giętarki do rur", "external_id": 3975, "children": []}
+  ]},
+  {"name": "Narzędzia murarskie", "external_id": 3881, "children": [
+    {"name": "Przecinaki do płytek", "external_id": 3996, "children": []},
+    {"name": "Łaty murarskie", "external_id": 3989, "children": []},
+    {"name": "Fugownice murarskie", "external_id": 3994, "children": []},
+    {"name": "Narzędzia do usuwania fug", "external_id": 3998, "children": []},
+    {"name": "Szpachelki do fug", "external_id": 3992, "children": []},
+    {"name": "Deski murarskie", "external_id": 3991, "children": []},
+    {"name": "Szczypce do płytek", "external_id": 3997, "children": []},
+    {"name": "Chwytaki do cegieł", "external_id": 3995, "children": []},
+    {"name": "Skrobaki murarskie", "external_id": 3990, "children": []},
+    {"name": "Pędzle murarskie", "external_id": 3993, "children": []}
+  ]}
+]},
+{"name": "Akcesoria kuchenne", "external_id": 3477, "children": [
+  {"name": "Przechowywanie żywności", "external_id": 3523, "children": []},
+  {"name": "Inne przybory kuchenne", "external_id": 3524, "children": []},
+  {"name": "Przybory kuchenne", "external_id": 3516, "children": []},
+  {"name": "Akcesoria barmańskie", "external_id": 3562, "children": []},
+  {"name": "Miski do mieszania", "external_id": 3521, "children": []},
+  {"name": "Durszlaki, sita i cedzaki", "external_id": 3522, "children": []},
+  {"name": "Deski do krojenia", "external_id": 3515, "children": []},
+  {"name": "Miarki", "external_id": 3519, "children": []},
+  {"name": "Wagi kuchenne", "external_id": 3518, "children": []},
+  {"name": "Termometry kuchenne", "external_id": 3520, "children": []}
+]},
+{"name": "Małe AGD kuchenne", "external_id": 3474, "children": [
+  {"name": "Parzenie kawy, herbaty i espresso", "external_id": 3480, "children": [
+    {"name": "Ekspresy do kawy", "external_id": 3492, "children": []},
+    {"name": "Akcesoria do kawy, herbaty i espresso", "external_id": 3497, "children": []},
+    {"name": "Młynki do kawy", "external_id": 3495, "children": []},
+    {"name": "Ekspresy do espresso", "external_id": 3493, "children": []},
+    {"name": "Spieniacze do mleka", "external_id": 3496, "children": []},
+    {"name": "Części do ekspresów do kawy, herbaty i espresso", "external_id": 3498, "children": []},
+    {"name": "Ekspresy do herbaty", "external_id": 3494, "children": []}
+  ]},
+  {"name": "Inne małe urządzenia kuchenne", "external_id": 3489, "children": []},
+  {"name": "Blendery, miksery i roboty kuchenne", "external_id": 3482, "children": [
+    {"name": "Blendery kielichowe", "external_id": 3499, "children": []},
+    {"name": "Malaksery", "external_id": 3503, "children": []},
+    {"name": "Roboty kuchenne", "external_id": 3501, "children": []},
+    {"name": "Blendery ręczne", "external_id": 3500, "children": []},
+    {"name": "Miksery ręczne", "external_id": 3502, "children": []}
+  ]},
+  {"name": "Akcesoria do małych urządzeń kuchennych", "external_id": 3490, "children": []},
+  {"name": "Frytkownice", "external_id": 3484, "children": []},
+  {"name": "Grille elektryczne i płyty grillowe", "external_id": 3486, "children": []},
+  {"name": "Sokowirówki", "external_id": 3487, "children": []},
+  {"name": "Czajniki", "external_id": 3479, "children": []},
+  {"name": "Dystrybutory wody i napojów", "external_id": 3488, "children": [
+    {"name": "Filtry i oczyszczacze wody", "external_id": 3504, "children": []},
+    {"name": "Saturatory", "external_id": 3506, "children": []},
+    {"name": "Dystrybutory napojów", "external_id": 3505, "children": []}
+  ]},
+  {"name": "Części do małych urządzeń kuchennych", "external_id": 3491, "children": []},
+  {"name": "Tostery", "external_id": 3481, "children": []},
+  {"name": "Kuchenki nastawne", "external_id": 3485, "children": []},
+  {"name": "Kuchenki mikrofalowe", "external_id": 3483, "children": []}
+]},
+{"name": "Artykuły biurowe", "external_id": 5428, "children": [
+  {"name": "Notatniki i notesy", "external_id": 5430, "children": []},
+  {"name": "Piórniki", "external_id": 5431, "children": []},
+  {"name": "Artykuły piśmiennicze", "external_id": 5436, "children": [
+    {"name": "Długopisy", "external_id": 5456, "children": []},
+    {"name": "Ołówki", "external_id": 5457, "children": []},
+    {"name": "Gumki do ścierania", "external_id": 5461, "children": []},
+    {"name": "Zakreślacze", "external_id": 5459, "children": []},
+    {"name": "Temperówki", "external_id": 5460, "children": []},
+    {"name": "Wkłady do ołówków", "external_id": 5458, "children": []}
+  ]},
+  {"name": "Planery i terminarze", "external_id": 5429, "children": []},
+  {"name": "Zakładki", "external_id": 5432, "children": []},
+  {"name": "Akcesoria na biurko", "external_id": 5434, "children": [
+    {"name": "Organizery na biurko", "external_id": 5443, "children": []},
+    {"name": "Pojemniki na długopisy", "external_id": 5444, "children": []},
+    {"name": "Przyciski do papieru", "external_id": 5445, "children": []},
+    {"name": "Lupy", "external_id": 5451, "children": []},
+    {"name": "Podkładki na biurko", "external_id": 5447, "children": []},
+    {"name": "Biurka na kolana", "external_id": 5450, "children": []},
+    {"name": "Organizery kabli", "external_id": 5448, "children": []},
+    {"name": "Podkładki do pisania", "external_id": 5446, "children": []},
+    {"name": "Podkładki pod nadgarstek", "external_id": 5449, "children": []}
+  ]},
+  {"name": "Organizery na dokumenty", "external_id": 5435, "children": [
+    {"name": "Segregatory", "external_id": 5453, "children": []},
+    {"name": "Teczki na dokumenty", "external_id": 5452, "children": []},
+    {"name": "Pojemniki na czasopisma", "external_id": 5455, "children": []},
+    {"name": "Akcesoria do segregatorów", "external_id": 5454, "children": []}
+  ]},
+  {"name": "Kalkulatory", "external_id": 5433, "children": []},
+  {"name": "Elektronika biurowa", "external_id": 5441, "children": [
+    {"name": "Translatory i słowniki elektroniczne", "external_id": 5486, "children": []},
+    {"name": "Maszyny do pisania", "external_id": 5490, "children": []},
+    {"name": "Niszczarki do papieru", "external_id": 5489, "children": []},
+    {"name": "Laminatory", "external_id": 5484, "children": []},
+    {"name": "Zgrzewarki", "external_id": 5485, "children": []},
+    {"name": "Bindownice", "external_id": 5487, "children": []},
+    {"name": "Urządzenia do cięcia papieru", "external_id": 5488, "children": []},
+    {"name": "Wizualizery", "external_id": 5483, "children": []}
+  ]},
+  {"name": "Taśmy klejące, spinacze i klipsy", "external_id": 5438, "children": [
+    {"name": "Taśmy przezroczyste", "external_id": 5468, "children": []},
+    {"name": "Spinacze", "external_id": 5469, "children": []},
+    {"name": "Podajniki do taśmy klejącej", "external_id": 5467, "children": []},
+    {"name": "Pinezki", "external_id": 5472, "children": []},
+    {"name": "Klipsy do papieru", "external_id": 5470, "children": []},
+    {"name": "Gumki recepturki", "external_id": 5471, "children": []}
+  ]},
+  {"name": "Zszywacze i dziurkacze", "external_id": 5439, "children": [
+    {"name": "Zszywacze", "external_id": 5473, "children": []},
+    {"name": "Dziurkacze ozdobne", "external_id": 5476, "children": []},
+    {"name": "Zszywki", "external_id": 5475, "children": []},
+    {"name": "Rozszywacze", "external_id": 5474, "children": []}
+  ]},
+  {"name": "Przybory do rysunku technicznego", "external_id": 5437, "children": [
+    {"name": "Linijki", "external_id": 5462, "children": []},
+    {"name": "Szablony", "external_id": 5465, "children": []},
+    {"name": "Cyrkle", "external_id": 5463, "children": []},
+    {"name": "Przybory geometryczne", "external_id": 5466, "children": []},
+    {"name": "Kątomierze", "external_id": 5464, "children": []}
+  ]},
+  {"name": "Materiały prezentacyjne", "external_id": 5440, "children": [
+    {"name": "Tablice kredowe", "external_id": 5478, "children": []},
+    {"name": "Tablice suchościeralne", "external_id": 5479, "children": []},
+    {"name": "Piloty do prezentacji", "external_id": 5482, "children": []},
+    {"name": "Gąbki do tablic", "external_id": 5481, "children": []},
+    {"name": "Markery suchościeralne", "external_id": 5480, "children": []},
+    {"name": "Flipcharty", "external_id": 5477, "children": []}
+  ]},
+  {"name": "Sejfy", "external_id": 5442, "children": []}
+]},
+{"name": "AGD i akcesoria do sprzątania", "external_id": 3478, "children": [
+  {"name": "Odkurzanie i czyszczenie", "external_id": 3527, "children": [
+    {"name": "Odkurzacze", "external_id": 3543, "children": []},
+    {"name": "Akcesoria do urządzeń czyszczących", "external_id": 3549, "children": []},
+    {"name": "Inne urządzenia czyszczące", "external_id": 3548, "children": []},
+    {"name": "Myjki parowe", "external_id": 3544, "children": []},
+    {"name": "Mopy elektryczne", "external_id": 3546, "children": []},
+    {"name": "Odkurzacze piorące", "external_id": 3545, "children": []}
+  ]},
+  {"name": "Temperatura i uzdatnianie powietrza", "external_id": 3525, "children": [
+    {"name": "Grzejniki i kaloryfery", "external_id": 3528, "children": []},
+    {"name": "Wentylatory", "external_id": 3529, "children": []},
+    {"name": "Klimatyzatory", "external_id": 3531, "children": []},
+    {"name": "Nawilżacze powietrza", "external_id": 3533, "children": []},
+    {"name": "Oczyszczacze powietrza", "external_id": 3532, "children": []},
+    {"name": "Akcesoria do klimatyzacji", "external_id": 3536, "children": []},
+    {"name": "Osuszacze powietrza", "external_id": 3534, "children": []},
+    {"name": "Inne urządzenia klimatyzacyjne", "external_id": 3535, "children": []}
+  ]},
+  {"name": "Prasowanie i pielęgnacja ubrań", "external_id": 3526, "children": [
+    {"name": "Żelazka", "external_id": 3537, "children": []},
+    {"name": "Akcesoria do pielęgnacji ubrań", "external_id": 3542, "children": []},
+    {"name": "Parownice do ubrań", "external_id": 3538, "children": []},
+    {"name": "Suszarki na pranie", "external_id": 3540, "children": []},
+    {"name": "Inne urządzenia do pielęgnacji ubrań", "external_id": 3541, "children": []},
+    {"name": "Deski do prasowania", "external_id": 3539, "children": []}
+  ]}
+]},
+{"name": "Naczynia do gotowania i pieczenia", "external_id": 3476, "children": [
+  {"name": "Formy do pieczenia", "external_id": 3511, "children": []},
+  {"name": "Akcesoria do gotowania i pieczenia", "external_id": 3513, "children": []},
+  {"name": "Garnki", "external_id": 3507, "children": []},
+  {"name": "Inne naczynia do gotowania i pieczenia", "external_id": 3514, "children": []},
+  {"name": "Naczynia żaroodporne", "external_id": 3510, "children": []},
+  {"name": "Patelnie", "external_id": 3508, "children": []},
+  {"name": "Blachy do pieczenia", "external_id": 3509, "children": []},
+  {"name": "Zestawy naczyń do gotowania i pieczenia", "external_id": 3512, "children": []}
+]},
+{"name": "Wyposażenie ogrodowe", "external_id": 3812, "children": [
+  {"name": "Doniczki, donice i akcesoria", "external_id": 3891, "children": [
+    {"name": "Doniczki", "external_id": 4102, "children": []},
+    {"name": "Doniczki wiklinowe", "external_id": 4106, "children": []},
+    {"name": "Osłony roślin", "external_id": 4110, "children": []},
+    {"name": "Podstawki pod doniczki", "external_id": 4117, "children": []},
+    {"name": "Akcesoria do zawieszania roślin", "external_id": 4112, "children": []},
+    {"name": "Wkłady dystansowe do doniczek", "external_id": 4118, "children": []},
+    {"name": "Doniczki wiszące", "external_id": 4111, "children": []},
+    {"name": "Doniczki balkonowe", "external_id": 4103, "children": []},
+    {"name": "Stelaże dla roślin", "external_id": 4109, "children": []},
+    {"name": "Tyczki ogrodowe", "external_id": 4108, "children": []},
+    {"name": "Siatka ochronna dla roślin", "external_id": 4113, "children": []},
+    {"name": "Skrzynki na parapet", "external_id": 4105, "children": []},
+    {"name": "Doniczki ścienne", "external_id": 4104, "children": []},
+    {"name": "Roślinne terraria", "external_id": 4116, "children": []},
+    {"name": "Tkaniny i włókniny przeciw chwastom", "external_id": 4114, "children": []},
+    {"name": "Torby do sadzenia", "external_id": 4115, "children": []},
+    {"name": "Wkłady do doniczek wiklinowych", "external_id": 4107, "children": []}
+  ]},
+  {"name": "Dekoracje ogrodowe", "external_id": 3893, "children": [
+    {"name": "Oświetlenie zewnętrzne i ogrodowe", "external_id": 4131, "children": [
+      {"name": "Oświetlenie ogrodowe", "external_id": 4289, "children": []},
+      {"name": "Lampy ogrodowe", "external_id": 4290, "children": []},
+      {"name": "Lampiony ogrodowe", "external_id": 4291, "children": []},
+      {"name": "Reflektory i lampy bezpieczeństwa", "external_id": 4288, "children": []},
+      {"name": "Podświetlenie schodów zewnętrznych", "external_id": 4292, "children": []},
+      {"name": "Oświetlenie ścieżek", "external_id": 4293, "children": []},
+      {"name": "Oświetlenie do oczek wodnych", "external_id": 4294, "children": []}
+    ]},
+    {"name": "Parasole ogrodowe", "external_id": 4127, "children": []},
+    {"name": "Dywaniki zewnętrzne", "external_id": 4130, "children": []},
+    {"name": "Podstawy parasoli ogrodowych", "external_id": 4128, "children": []},
+    {"name": "Karmniki dla ptaków", "external_id": 4133, "children": []},
+    {"name": "Dzwonki wietrzne", "external_id": 4135, "children": []},
+    {"name": "Zegary zewnętrzne i ogrodowe", "external_id": 4139, "children": []},
+    {"name": "Domki dla ptaków", "external_id": 4134, "children": []},
+    {"name": "Paleniska", "external_id": 4141, "children": []},
+    {"name": "Wycieraczki", "external_id": 4129, "children": []},
+    {"name": "Poidełka dla ptaków", "external_id": 4132, "children": []},
+    {"name": "Wiatrowskazy", "external_id": 4140, "children": []},
+    {"name": "Zegary słoneczne", "external_id": 4138, "children": []}
+  ]},
+  {"name": "Akcesoria do elektronarzędzi ogrodowych", "external_id": 3889, "children": [
+    {"name": "Akcesoria do innych elektronarzędzi ogrodowych", "external_id": 4086, "children": []},
+    {"name": "Akcesoria do kosiarek", "external_id": 4081, "children": [
+      {"name": "Przystawki do kosiarek", "external_id": 4259, "children": []},
+      {"name": "Ostrza do kosiarek", "external_id": 4257, "children": []},
+      {"name": "Pokrowce na kosiarki", "external_id": 4256, "children": []},
+      {"name": "Kosze na trawę", "external_id": 4261, "children": []},
+      {"name": "Ostrzałki do noży kosiarek", "external_id": 4258, "children": []},
+      {"name": "Zgrzebła", "external_id": 4262, "children": []},
+      {"name": "Przystawki mulczujące", "external_id": 4260, "children": []}
+    ]},
+    {"name": "Akcesoria do pił łańcuchowych", "external_id": 4085, "children": [
+      {"name": "Łańcuchy do pił łańcuchowych", "external_id": 4281, "children": []},
+      {"name": "Pokrowce na piły łańcuchowe", "external_id": 4279, "children": []},
+      {"name": "Osłony na piły łańcuchowe", "external_id": 4280, "children": []},
+      {"name": "Prowadnice do pił łańcuchowych", "external_id": 4282, "children": []},
+      {"name": "Ostrzałki do pił łańcuchowych", "external_id": 4283, "children": []}
+    ]},
+    {"name": "Akcesoria do podkaszarek", "external_id": 4082, "children": [
+      {"name": "Linki do podkaszarek", "external_id": 4263, "children": []},
+      {"name": "Głowice do podkaszarek", "external_id": 4265, "children": []},
+      {"name": "Przystawki do podkaszarki żyłkowej", "external_id": 4264, "children": []},
+      {"name": "Osłony do podkaszarek", "external_id": 4266, "children": []}
+    ]},
+    {"name": "Akcesoria do myjek ciśnieniowych", "external_id": 4084, "children": [
+      {"name": "Dysze do myjek ciśnieniowych", "external_id": 4274, "children": []},
+      {"name": "Węże do myjek ciśnieniowych", "external_id": 4276, "children": []},
+      {"name": "Szczotki do myjek ciśnieniowych", "external_id": 4278, "children": []},
+      {"name": "Lance do myjek ciśnieniowych", "external_id": 4275, "children": []},
+      {"name": "Pokrowce na myjki ciśnieniowe", "external_id": 4273, "children": []},
+      {"name": "Bębny na węże do myjek ciśnieniowych", "external_id": 4277, "children": []}
+    ]},
+    {"name": "Akumulatory do elektronarzędzi ogrodowych", "external_id": 4079, "children": []},
+    {"name": "Akcesoria do dmuchaw i odkurzaczy do liści", "external_id": 4083, "children": [
+      {"name": "Szczotki do odkurzaczy do liści", "external_id": 4267, "children": []},
+      {"name": "Przystawki do dmuchaw i odkurzaczy do liści", "external_id": 4269, "children": []},
+      {"name": "Pokrowce na dmuchawy i odkurzacze do liści", "external_id": 4270, "children": []},
+      {"name": "Przystawki do oczyszczania rynien", "external_id": 4272, "children": []},
+      {"name": "Nasadki do odkurzaczy do liści", "external_id": 4268, "children": []},
+      {"name": "Węże do dmuchaw i odkurzaczy do liści", "external_id": 4271, "children": []}
+    ]},
+    {"name": "Ładowarki do elektronarzędzi ogrodowych", "external_id": 4080, "children": []}
+  ]},
+  {"name": "Sprzęt do nawadniania", "external_id": 3892, "children": [
+    {"name": "Zraszacze ogrodowe", "external_id": 4120, "children": []},
+    {"name": "Konewki", "external_id": 4119, "children": []},
+    {"name": "Końcówki i dysze do węży ogrodowych", "external_id": 4122, "children": []},
+    {"name": "Automatyczne systemy nawadniania", "external_id": 4126, "children": []},
+    {"name": "Węże ogrodowe", "external_id": 4121, "children": []},
+    {"name": "Wózki na węże ogrodowe", "external_id": 4123, "children": []},
+    {"name": "Lance do węży ogrodowych", "external_id": 4125, "children": []},
+    {"name": "Zwijacze do węży ogrodowych", "external_id": 4124, "children": []}
+  ]},
+  {"name": "Sauny, baseny i akcesoria", "external_id": 3895, "children": [
+    {"name": "Akcesoria basenowe", "external_id": 4153, "children": [
+      {"name": "Węże do basenu", "external_id": 4327, "children": []},
+      {"name": "Odkurzacze do basenu", "external_id": 4323, "children": []},
+      {"name": "Termometry do basenu", "external_id": 4324, "children": []},
+      {"name": "Skimmery do basenu", "external_id": 4320, "children": []},
+      {"name": "Szczotki do basenu", "external_id": 4322, "children": []},
+      {"name": "Siatki ochronne do basenu", "external_id": 4321, "children": []},
+      {"name": "Alarmy do basenu", "external_id": 4325, "children": []}
+    ]},
+    {"name": "Akcesoria do sauny", "external_id": 4151, "children": [
+      {"name": "Krzesła i siedziska do sauny", "external_id": 4311, "children": []},
+      {"name": "Kamienie do sauny", "external_id": 4319, "children": []},
+      {"name": "Wiadra do sauny", "external_id": 4313, "children": []},
+      {"name": "Termometry do sauny", "external_id": 4318, "children": []},
+      {"name": "Zagłówki do sauny", "external_id": 4312, "children": []},
+      {"name": "Chochle do sauny", "external_id": 4314, "children": []},
+      {"name": "Maty podłogowe do sauny", "external_id": 4315, "children": []},
+      {"name": "Zegary do sauny", "external_id": 4316, "children": []},
+      {"name": "Higrometry do sauny", "external_id": 4317, "children": []}
+    ]},
+    {"name": "Akcesoria do jacuzzi", "external_id": 4155, "children": [
+      {"name": "Dozowniki do jacuzzi", "external_id": 4331, "children": []},
+      {"name": "Pokrowce na jacuzzi", "external_id": 4328, "children": []},
+      {"name": "Uchwyty i tace na napoje do jacuzzi", "external_id": 4330, "children": []},
+      {"name": "Zagłówki do jacuzzi", "external_id": 4329, "children": []}
+    ]}
+  ]},
+  {"name": "Ręczne narzędzia ogrodowe", "external_id": 3890, "children": [
+    {"name": "Łopatki ogrodnicze", "external_id": 4089, "children": []},
+    {"name": "Ogrodnicza odzież ochronna", "external_id": 4101, "children": [
+      {"name": "Rękawice ogrodnicze", "external_id": 4284, "children": []},
+      {"name": "Fartuchy ogrodnicze", "external_id": 4286, "children": []},
+      {"name": "Podkładki pod kolana", "external_id": 4287, "children": []},
+      {"name": "Nakolanniki ogrodnicze", "external_id": 4285, "children": []}
+    ]},
+    {"name": "Sekatory ogrodowe", "external_id": 4097, "children": []},
+    {"name": "Opryskiwacze ogrodowe", "external_id": 4092, "children": []},
+    {"name": "Ręczne odchwaszczacze", "external_id": 4090, "children": []},
+    {"name": "Grabie", "external_id": 4087, "children": []},
+    {"name": "Łopaty i szpadle", "external_id": 4088, "children": []},
+    {"name": "Ręczne wertykulatory i glebogryzarki", "external_id": 4100, "children": []},
+    {"name": "Ręczne siewniki i rozrzutniki nasion", "external_id": 4093, "children": []},
+    {"name": "Sadzarki", "external_id": 4091, "children": []},
+    {"name": "Motyki", "external_id": 4099, "children": []},
+    {"name": "Ręczne świdry do ziemi", "external_id": 4098, "children": []},
+    {"name": "Kilofy i motyki", "external_id": 4095, "children": []}
+  ]},
+  {"name": "Gotowanie i grillowanie na zewnątrz", "external_id": 3894, "children": [
+    {"name": "Akcesoria do gotowania na świeżym powietrzu", "external_id": 4148, "children": [
+      {"name": "Rożna do grilla", "external_id": 4304, "children": []},
+      {"name": "Szpikulce do grilla", "external_id": 4298, "children": []},
+      {"name": "Szczypce do grilla", "external_id": 4296, "children": []},
+      {"name": "Kosze do grillowania", "external_id": 4299, "children": []},
+      {"name": "Szczotki i skrobaki do grilla", "external_id": 4303, "children": []},
+      {"name": "Łopatki do grillowania", "external_id": 4295, "children": []},
+      {"name": "Widelce do grilla", "external_id": 4297, "children": []},
+      {"name": "Kamienie do pieczenia pizzy na zewnątrz", "external_id": 4301, "children": []},
+      {"name": "Deski do grillowania", "external_id": 4300, "children": []},
+      {"name": "Pędzle do smarowania", "external_id": 4302, "children": []}
+    ]},
+    {"name": "Akcesoria do gotowania na zewnątrz", "external_id": 4149, "children": [
+      {"name": "Ruszty", "external_id": 4306, "children": []},
+      {"name": "Pokrowce na grill", "external_id": 4305, "children": []},
+      {"name": "Węgiel i pellet drzewny", "external_id": 4309, "children": []},
+      {"name": "Tacki ociekowe", "external_id": 4307, "children": []},
+      {"name": "Zrębki wędzarnicze", "external_id": 4310, "children": []},
+      {"name": "Szyny aromatyzujące", "external_id": 4308, "children": []}
+    ]},
+    {"name": "Frytkownice zewnętrzne", "external_id": 4147, "children": []}
+  ]},
+  {"name": "Elektronarzędzia ogrodowe", "external_id": 3888, "children": [
+    {"name": "Podkaszarki", "external_id": 4066, "children": []},
+    {"name": "Myjki ciśnieniowe", "external_id": 4070, "children": []},
+    {"name": "Nożyce do żywopłotu", "external_id": 4072, "children": []},
+    {"name": "Nożyce ręczne do trawy", "external_id": 4073, "children": []},
+    {"name": "Dmuchawy i odkurzacze do liści", "external_id": 4069, "children": []},
+    {"name": "Krawędziarki do trawników", "external_id": 4067, "children": []},
+    {"name": "Świdry", "external_id": 4075, "children": []}
+  ]},
+  {"name": "Przyrządy pogodowe", "external_id": 3896, "children": [
+    {"name": "Barometry", "external_id": 4158, "children": []},
+    {"name": "Termometry meteorologiczne", "external_id": 4156, "children": []},
+    {"name": "Stacje pogodowe", "external_id": 4157, "children": []},
+    {"name": "Higrometry", "external_id": 4159, "children": []},
+    {"name": "Anemometry", "external_id": 4161, "children": []},
+    {"name": "Wiatrowskazy", "external_id": 4160, "children": []}
+  ]},
+  {"name": "Narzędzia do odśnieżania", "external_id": 3897, "children": [
+    {"name": "Skrobaczki do lodu", "external_id": 4168, "children": []},
+    {"name": "Łopaty do śniegu", "external_id": 4162, "children": []},
+    {"name": "Szczotki i miotły do śniegu", "external_id": 4163, "children": []},
+    {"name": "Piaskarki", "external_id": 4169, "children": []},
+    {"name": "Odśnieżarki", "external_id": 4166, "children": []},
+    {"name": "Pchacze do śniegu", "external_id": 4164, "children": []},
+    {"name": "Łopaty do ściągania śniegu", "external_id": 4165, "children": []},
+    {"name": "Skuwacze do lodu", "external_id": 4167, "children": []}
+  ]}
+]}
+]

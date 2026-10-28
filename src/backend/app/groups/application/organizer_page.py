@@ -133,13 +133,11 @@ async def get_organizer_page(
                 id=needed_id,
                 term_id=term_id,
                 group_id=group_id,
-                product_name=product_name,
+                name=name,
                 claimed=claimed,
             )
-            for needed_id, term_id, group_id, product_name, claimed in (
-                await repository.list_needed_items_with_product_for_terms(
-                    db, next_term_ids, NEEDED_ITEMS_LIMIT
-                )
+            for needed_id, term_id, group_id, name, claimed in (
+                await repository.list_needed_items_for_terms(db, next_term_ids, NEEDED_ITEMS_LIMIT)
             )
         ]
         exchange = await _build_exchange(db, owner_party_id, next_term_ids, storage)

@@ -1,0 +1,42 @@
+L1 done (all 12). Children recorded:
+1195 girls: 1244 Okrycia wierzchnie;1255 Obuwie;1249 Spodnie i szorty;1246 Swetry i bluzy;1247 Sukienki;1243 Dziew. ubranka niemowlęce;1245 Koszulki, topy i bluzki;1574 Akcesoria;2080 Stroje wizytowe i na specjalne okazje;1594 Piżamy;1248 Spódniczki;1510 Paki ubrań;1606 Przebrania, kostiumy tematyczne;1253 Odzież sportowa;1252 Bielizna;1251 Stroje kąpielowe;1258 Torby i plecaki;1254 Inne;1604 Bliźnięta i więcej
+1194 boys: 1197 Płaszcze i kurtki;1256 Obuwie;1196 Chł. ubranka niemowlęce;1200 Spodnie i szorty;1199 Swetry i bluzy;1198 Koszule i T-shirty;1714 Akcesoria;1752 Piżamy;1204 Odzież sportowa;1760 Paki ubrań;1762 Przebrania, kostiumy tematyczne;2083 Stroje wizytowe i na specjalne okazje;1203 Bielizna;1202 Stroje kąpielowe;1257 Torby i plecaki;1205 Inne;1761 Bliźniaki i więcej
+1499 toys: 1730 Figurki i akcesoria;1764 Pluszowe zabawki i zwierzątka;3375 Zabawkowe auta, pociągi i inne pojazdy;1767 Klocki i zabawki konstrukcyjne;3344 Zabawy i zabawki dla niemowląt;1731 Lalki i akcesoria;1763 Zabawki edukacyjne;1725 Zabawki elektroniczne;3336 Gadżety i zabawki antystresowe;3329 Przebrania i odgrywanie ról;3314 Plastyczne i kreatywne;1771 Zabawki sportowe i ogrodowe;1766 Zabawki i instrumenty muzyczne
+3296 sleep: 3297 Pościel, koce i narzuty;3307 Śpiwory i koce z rękawami;3309 Otulacze;3308 Śpiwory;3306 Lampki nocne i budziki świetlne;3303 Elektroniczne nianie dla dzieci;3304 Barierki i osłony do łóżka;3310 Generatory białego szumu;3302 Poduszki elektryczne i termofory;3305 Zasłony przeciwsłoneczne
+1496 strollers: 1511 Akcesoria do wózków dziecięcych;3461 Nosidełka i chusty do noszenia dzieci;1612 Wózki spacerowe;3383 Foteliki samochodowe;3385 Akcesoria do fotelików;3384 Podkładki samochodowe
+3432 nursing: 3453 Karmienie piersią;3444 Kubki, naczynia i przybory kuchenne;3435 Karmienie butelką;3434 Śliniaki;3458 Smoczki dla dzieci;3452 Poduszki i okrycia do karmienia;3450 Krzesełka do karmienia;3460 Sterylizatory;3459 Akcesoria do smoczków dla dzieci;3433 Blendery i roboty kuchenne dla niemowląt;3443 Śliniaki i ściereczki do odbijania;3451 Akcesoria do krzesełek do karmienia
+1498 furniture: 3276 Dekoracje i pamiątki;3284 Meble dla niemowląt;3291 Krzesełka;3294 Stoły i biurka;3275 Leżaczki i kokony;1572 Maty podłogowe;1567 Materace dla dzieci;3292 Meble do zabawy;3295 Szafy na ubrania;3293 Półki;3290 Dywaniki i maty;1573 Kojce
+3393 bath: 3399 Pieluszki;3412 Kąpiel;3408 Pielęgnacja i higiena skóry;3394 Torby do przewijania;3395 Przewijaki i pokrowce na przewijaki;3417 Nocniki;3403 Przechowywanie i utylizacja pieluszek;3418 Podnóżki
+1502 other: leaf
+1501 school: 1508 Tornistry i plecaki szkolne;1509 Artykuły szkolne;3269 Śniadaniówki
+3419 health: 3425 Pasy ciążowe;3423 Opieka poporodowa;3424 Poduszki ciążowe;3426 Wagi;3422 Termometry;3421 Aspiratory do nosa;3420 Nawilżacze powietrza
+3427 babyproof: 3429 Akcesoria zabezpieczające;3431 Szelki bezpieczeństwa;3428 Bramki i ogrodzenia;3430 Ochrona słuchu
+L2 results:
+1244: 1521 Kurtki;2559 Odzież zimowa;1519 Płaszcze;1518 Bezrękawniki;2554 Odzież przeciwdeszczowa
+1255: 1530 Buty za kostkę;1533 Sneakersy, trampki i tenisówki;2693 Obuwie sportowe;2691 Klapki i sandały;1525 Buciki niemowlęce;1534 Kapcie;1526 Buty na płaskim obcasie;1528 Obuwie wizytowe i na specjalne okazje;2690 Chodaki i mule;2692 Buty na obcasie
+1249: 1565 Legginsy;1559 Jeansy;1562 Z szeroką nogawką;1250 Spodenki;1880 Inne;1568 Kombinezony;1560 Rurki;2079 Haremki
+1246: 1542 Swetry;1550 Bluzy;1548 Zapinane swetry;1877 Inne;1549 Bolerka;1544 Golfy;1551 Kamizelki;1543 Swetry z dekoltem V
+1247: 1554 Krótkie sukienki;1553 Długie sukienki
+1243: 1517 Zestawy;1515 Body;1514 Pajacyki;1875 Inne;1516 Kombinezony dziecięce
+1245: 1535 T-shirty;1539 Koszule z długim rękawem;1537 Koszule;1540 Koszule bez rękawów;1538 Koszule z krótkim rękawem;1878 Inne;1541 Tuniki;1536 Koszulki polo
+1574: 1577 Kapelusze i czapki;1582 Akcesoria do włosów;1586 Biżuteria;1580 Szale i szaliki;1881 Inne akcesoria;1578 Rękawiczki;1584 Portmonetki;1581 Paski
+2080 leaf; 1248 leaf; 1510 leaf; 1606 leaf (breadcrumb: "Przebranie, kostiumy tematyczne"); 1253 leaf; 1258 leaf
+1594: 1596 Jednoczęściowe;1597 Dwuczęściowe;1598 Koszule nocne
+1252: 1601 Rajstopy;1600 Skarpetki;1872 Inne;1602 Majtki
+1251: 1590 Jednoczęściowe;1592 Dwuczęściowe;1593 Szlafroki kąpielowe
+TODO: 1254, 1604, then L3 of girls, then other subtrees
+1254 leaf; 1604 leaf
+L3 (L4 children are max depth -> leaves, not fetched):
+1521: 2548 Kurtki ocieplane;2549 Kurtki wiatrówki;2546 Kurtki jeansowe;2545 Bomberki;2547 Kurtki z polaru;2544 Marynarki
+2559: 2565 Kombinezony i zestawy zimowe;2560 Kurtki zimowe;2582 Spodnie zimowe
+1519: 2541 Parki;2543 Trencze;2540 Budrysówki;2542 Bosmanki
+1518 leaf
+2554: 2558 Kurtki i płaszcze przeciwdeszczowe;2557 Komplety przeciwdeszczowe;2556 Poncza;2555 Spodnie przeciwdeszczowe
+1530: 2695 Botki;2697 Śniegowce;2696 Kozaki;2698 Kalosze
+1533: 2718 Buty na rzepy;2719 Buty sznurowane;2720 Buty wsuwane
+2693: 2714 Buty do biegania;2711 Trekkingi;2717 Buty do wody;2713 Rolki i wrotki;2710 Buty do piłki nożnej;2708 Buty do koszykówki;2709 Buty do tańca;2712 Łyżwy;2715 Buty narciarskie;2716 Buty snowboardowe
+2691: 2705 Sandały;2707 Klapki basenowe;2704 Japonki
+1525 leaf;1534 leaf;1528 leaf;2690 leaf;2692 leaf
+1526: 2753 Baleriny, Mary Jane i T-bary;2702 Oksfordki;2701 Espadryle
+leaves: 1565 1559 1562 1250 1880 1568 1560 2079 1542 1550 1548 1877 1549 1544 1551 1543 1554 1553
+leaves: 1517 1515 1514 1875 1516 1535 1539 1537 1540 1538 1878 1541 1577 ; TODO 1536

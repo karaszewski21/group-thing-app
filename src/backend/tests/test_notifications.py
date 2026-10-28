@@ -45,22 +45,6 @@ async def _register(client: AsyncClient, role: str, email: str) -> tuple[str, in
     return r.json()["token"], r.json()["party_id"]
 
 
-async def _category_id(client: AsyncClient, token: str) -> str:
-    categories = await client.get("/api/categories", headers=_auth(token))
-    assert categories.status_code == 200
-    return str(categories.json()[0]["id"])
-
-
-async def _resolve_product(client: AsyncClient, token: str, name: str) -> int:
-    r = await client.post(
-        "/api/products/resolve",
-        json={"name": name, "category_id": await _category_id(client, token)},
-        headers=_auth(token),
-    )
-    assert r.status_code == 200
-    return r.json()["id"]
-
-
 async def _setup_pledge(
     client: AsyncClient, db_session: AsyncSession, prefix: str
 ) -> tuple[str, str, int]:
@@ -76,10 +60,9 @@ async def _setup_pledge(
         json={"circle_group_id": circle.json()["id"], "occurs_on": date.today().isoformat()},
         headers=_auth(org_token),
     )
-    product_id = await _resolve_product(client, org_token, "Bębenek")
     needed = await client.post(
         "/api/needed-items",
-        json={"term_id": term.json()["id"], "product_id": product_id, "description": None},
+        json={"term_id": term.json()["id"], "name": "Bębenek", "description": None},
         headers=_auth(org_token),
     )
     assert needed.status_code == 201

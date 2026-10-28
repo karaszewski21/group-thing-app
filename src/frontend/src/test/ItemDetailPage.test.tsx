@@ -43,6 +43,7 @@ vi.mock("../hooks/useOpenConversation", () => ({ useOpenConversation: () => conv
 const ITEM_ID = "5d7e9f10-2a3b-4c4d-8e5f-6a7b8c9d0e1f";
 const PRODUCT_ID = "6e8f0a21-3b4c-4d5e-9f60-7b8c9d0e1f2a";
 const REPOINTED_PRODUCT_ID = "b3d45f76-8091-42a3-8eb5-2a3b4c5d6e7f";
+const CAT_KIDS = "6f801a21-3b4c-4d5e-8f60-7b8c9d0e1f2a";
 const CAT_STROLLERS = "7f901b32-4c5d-4e6f-8a71-8c9d0e1f2a3b";
 const CAT_TOYS = "80a12c43-5d6e-4f70-9b82-9d0e1f2a3b4c";
 const PHOTO_1 = "91b23d54-6e7f-4081-8c93-0e1f2a3b4c5d";
@@ -64,6 +65,7 @@ function details(overrides: Partial<ItemDetailsResponse> = {}): ItemDetailsRespo
     product_photo_url: null,
     is_owner: true,
     deleted_at: null,
+    listing_status: "DRAFT",
     status: {
       code: "LENT",
       term_occurs_on: null,
@@ -89,9 +91,14 @@ const history: ItemHistoryEntryResponse[] = [
   },
 ];
 
+function category(id: string, name: string, parent_id: string | null, sort_order: number): Category {
+  return { id, name, description: null, parent_id, sort_order, product_count: 1, created_at: "", updated_at: "" };
+}
+
 const categories: Category[] = [
-  { id: CAT_STROLLERS, name: "Wózki", description: null, sortOrder: 0, productCount: 1, createdAt: "", updatedAt: "" },
-  { id: CAT_TOYS, name: "Zabawki", description: null, sortOrder: 1, productCount: 1, createdAt: "", updatedAt: "" },
+  category(CAT_KIDS, "Dzieci", null, 0),
+  category(CAT_STROLLERS, "Wózki", CAT_KIDS, 0),
+  category(CAT_TOYS, "Zabawki", CAT_KIDS, 1),
 ];
 
 function renderPage(path: string) {
@@ -262,8 +269,12 @@ describe("ItemDetailPage", () => {
     );
     const nameInput = screen.getByLabelText("Nazwa rzeczy");
     fireEvent.change(nameInput, { target: { value: "Grzechotka" } });
-    await screen.findByRole("option", { name: "Zabawki" });
-    fireEvent.change(screen.getByLabelText("Typ rzeczy"), { target: { value: CAT_TOYS } });
+    expect(screen.queryByLabelText("Typ rzeczy")).not.toBeInTheDocument();
+    const picker = await screen.findByRole("button", { name: /^Kategoria Dzieci ›\s+Wózki/ });
+    picker.focus();
+    fireEvent.click(picker);
+    fireEvent.click(await screen.findByRole("button", { name: "Zabawki" }));
+    expect(await screen.findByRole("button", { name: /^Kategoria Dzieci ›\s+Zabawki/ })).toBeInTheDocument();
     fireEvent.keyDown(nameInput, { key: "Enter" });
 
     await waitFor(() =>
@@ -626,10 +637,7 @@ describe("ItemDetailPage reservation party view", () => {
   });
 });
 
-describe("ItemEditPage photo moderation notice", () => {
-  const NOTICE =
-    "Rzecz zdjęta z terminów do czasu zatwierdzenia zdjęć. Tryb oddam/zamienię włączysz ponownie w „Moje rzeczy”.";
-
+describe("ItemEditPage status chip and photo hints", () => {
   function withSecondPhoto(status: productsApi.ModerationStatus): ItemDetailsResponse {
     const base = details();
     return details({ photos: [base.photos[0], { ...base.photos[1], status }] });
@@ -641,54 +649,39 @@ describe("ItemEditPage photo moderation notice", () => {
     vi.mocked(categoriesApi.getCategories).mockResolvedValue(categories);
   });
 
+  it.each([
+    ["DRAFT", "Wersja robocza"],
+    ["ACTIVE", "Aktywna"],
+  ] as const)("edit page shows the %s status chip next to the item name", async (listing_status, label) => {
+    vi.mocked(itemsApi.getItemDetails).mockResolvedValue(details({ listing_status }));
+    renderPage(`/product/${ITEM_ID}/edit`);
+
+    await screen.findByRole("heading", { name: "Edycja rzeczy" });
+    const chip = screen.getByText(label);
+    expect(chip.closest("[data-testid='item-summary']")).toHaveTextContent("Wózek spacerowy Baby Jogger");
+    expect(screen.queryByText(label === "Aktywna" ? "Wersja robocza" : "Aktywna")).not.toBeInTheDocument();
+  });
+
   it.each(["PENDING", "NEEDS_REVIEW"] as const)(
-    "edit page shows role=status notice with link to /rzeczy when a photo is %s",
+    "edit page shows no moderation notice when a photo is %s",
     async (status) => {
       vi.mocked(itemsApi.getItemDetails).mockResolvedValue(withSecondPhoto(status));
       renderPage(`/product/${ITEM_ID}/edit`);
 
       await screen.findByRole("heading", { name: "Edycja rzeczy" });
-      const notice = screen
-        .getAllByRole("status")
-        .find((el) => el.textContent?.includes("Rzecz zdjęta z terminów"));
-      if (!notice) throw new Error("moderation notice not rendered");
-      expect(notice).toHaveTextContent(NOTICE);
-      expect(within(notice).getByRole("link", { name: "Moje rzeczy →" })).toHaveAttribute(
-        "href",
-        "/rzeczy",
-      );
-      // Placed before the photos card.
-      const photosHeading = screen.getByRole("heading", { name: /^Zdjęcia \(/ });
-      expect(
-        notice.compareDocumentPosition(photosHeading) & Node.DOCUMENT_POSITION_FOLLOWING,
-      ).toBeTruthy();
+      expect(screen.queryByText(/Rzecz zdjęta z terminów/)).not.toBeInTheDocument();
+      expect(screen.queryByRole("link", { name: "Moje rzeczy →" })).not.toBeInTheDocument();
     },
   );
 
-  it("edit page hides the notice when all photos are APPROVED/REJECTED; the view never shows it", async () => {
-    vi.mocked(itemsApi.getItemDetails).mockResolvedValue(withSecondPhoto("REJECTED"));
-    const { unmount } = renderPage(`/product/${ITEM_ID}/edit`);
-
-    await screen.findByRole("heading", { name: "Edycja rzeczy" });
-    expect(screen.queryByText(/Rzecz zdjęta z terminów/)).not.toBeInTheDocument();
-    unmount();
-
-    vi.mocked(itemsApi.getItemDetails).mockResolvedValue(withSecondPhoto("PENDING"));
-    renderPage(`/product/${ITEM_ID}`);
-    await screen.findByRole("heading", { name: "Wózek spacerowy Baby Jogger" });
-    expect(screen.queryByText(/Rzecz zdjęta z terminów/)).not.toBeInTheDocument();
-  });
-
-  it("gallery helper text contains the appended sentence", async () => {
+  it("gallery helper text no longer claims a new photo withdraws the item", async () => {
     vi.mocked(itemsApi.getItemDetails).mockResolvedValue(details());
     renderPage(`/product/${ITEM_ID}/edit`);
 
     fireEvent.click(await screen.findByRole("button", { name: "Edytuj zdjęcia" }));
     expect(
-      screen.getByText(
-        "Zdjęcia są wspólne dla wszystkich rzeczy tego produktu. Inni zobaczą je po sprawdzeniu. " +
-          "Nowe zdjęcie zdejmuje te rzeczy z terminów do czasu jego zatwierdzenia.",
-      ),
+      screen.getByText("Zdjęcia są wspólne dla wszystkich rzeczy tego produktu. Inni zobaczą je po sprawdzeniu."),
     ).toBeInTheDocument();
+    expect(screen.queryByText(/Nowe zdjęcie zdejmuje/)).not.toBeInTheDocument();
   });
 });

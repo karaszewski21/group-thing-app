@@ -1,0 +1,214 @@
+[
+  {"name": "Ubrania", "external_id": 2050, "children": [
+    {"name": "Koszule, T-shirty i podkoszulki", "external_id": 76, "children": [
+      {"name": "T-shirty", "external_id": 77, "children": [
+        {"name": "T-shirty z nadrukiem", "external_id": 1807, "children": []},
+        {"name": "T-shirty gładkie", "external_id": 1806, "children": []},
+        {"name": "Koszulki z długim rękawem", "external_id": 1810, "children": []},
+        {"name": "T-shirty w paski", "external_id": 1808, "children": []},
+        {"name": "Inne", "external_id": 1868, "children": []}
+      ]},
+      {"name": "Koszule", "external_id": 536, "children": [
+        {"name": "Koszule gładkie", "external_id": 1803, "children": []},
+        {"name": "Koszule w kratkę", "external_id": 1801, "children": []},
+        {"name": "Koszulki z nadrukiem", "external_id": 1804, "children": []},
+        {"name": "Koszule w paski", "external_id": 1805, "children": []},
+        {"name": "Inne", "external_id": 1865, "children": []},
+        {"name": "Koszule dżinsowe", "external_id": 1802, "children": []}
+      ]},
+      {"name": "Koszulki polo", "external_id": 5492, "children": []},
+      {"name": "Podkoszulki", "external_id": 560, "children": []}
+    ]},
+    {"name": "Swetry i bluzy", "external_id": 79, "children": [
+      {"name": "Swetry i bluzy z kapturem", "external_id": 267, "children": []},
+      {"name": "Bluzy", "external_id": 1811, "children": []},
+      {"name": "Bluzy rozpinane", "external_id": 1812, "children": []},
+      {"name": "Swetry z okrągłym dekoltem", "external_id": 1813, "children": []},
+      {"name": "Swetry w serek", "external_id": 264, "children": []},
+      {"name": "Kardigany", "external_id": 266, "children": []},
+      {"name": "Swetry z dzianiny", "external_id": 1815, "children": []},
+      {"name": "Swetry z golfem", "external_id": 265, "children": []},
+      {"name": "Inne", "external_id": 268, "children": []},
+      {"name": "Kamizelki", "external_id": 1825, "children": []},
+      {"name": "Długie swetry", "external_id": 1814, "children": []}
+    ]},
+    {"name": "Okrycia wierzchnie", "external_id": 1206, "children": [
+      {"name": "Kurtki", "external_id": 2052, "children": [
+        {"name": "Kurtki wiatrówki", "external_id": 2551, "children": []},
+        {"name": "Kurtki ocieplane", "external_id": 2536, "children": []},
+        {"name": "Bomberki", "external_id": 1223, "children": []},
+        {"name": "Kurtki pikowane", "external_id": 2537, "children": []},
+        {"name": "Kurtki jeansowe", "external_id": 1224, "children": []},
+        {"name": "Motocyklówki i kurtki wyścigowe", "external_id": 2534, "children": []},
+        {"name": "Kurtki koszulowe", "external_id": 2538, "children": []},
+        {"name": "Kurtki narciarskie i snowboardowe", "external_id": 2539, "children": []},
+        {"name": "Kurtki z polaru", "external_id": 1858, "children": []},
+        {"name": "Kurtki wojskowe i utility", "external_id": 2535, "children": []},
+        {"name": "Kurtki bejsbolówki", "external_id": 2550, "children": []},
+        {"name": "Szwedki", "external_id": 1226, "children": []}
+      ]},
+      {"name": "Płaszcze", "external_id": 2051, "children": [
+        {"name": "Klasyczne i długie płaszcze", "external_id": 2533, "children": []},
+        {"name": "Parki", "external_id": 1227, "children": []},
+        {"name": "Przeciwdeszczowe", "external_id": 1859, "children": []},
+        {"name": "Trencze", "external_id": 1230, "children": []},
+        {"name": "Bosmanki", "external_id": 1861, "children": []},
+        {"name": "Budrysówki", "external_id": 1225, "children": []}
+      ]},
+      {"name": "Bezrękawniki", "external_id": 2553, "children": []},
+      {"name": "Poncza", "external_id": 2552, "children": []}
+    ]},
+    {"name": "Odzież sportowa", "external_id": 30, "children": [
+      {"name": "Koszulki z krótkim rękawem, T-shirty", "external_id": 584, "children": []},
+      {"name": "Koszulki klubowe", "external_id": 3267, "children": []},
+      {"name": "Szorty", "external_id": 586, "children": []},
+      {"name": "Spodnie", "external_id": 583, "children": []},
+      {"name": "Okrycia wierzchnie", "external_id": 581, "children": []},
+      {"name": "Akcesoria, dodatki", "external_id": 587, "children": [
+        {"name": "Szaliki", "external_id": 1470, "children": []},
+        {"name": "Czapki", "external_id": 1473, "children": []},
+        {"name": "Rękawiczki", "external_id": 1474, "children": []},
+        {"name": "Okulary", "external_id": 1471, "children": []},
+        {"name": "Frotki na rękę", "external_id": 3050, "children": []}
+      ]},
+      {"name": "Dresy", "external_id": 582, "children": []},
+      {"name": "Pulowery i swetry", "external_id": 585, "children": []},
+      {"name": "Inne", "external_id": 588, "children": []}
+    ]},
+    {"name": "Spodnie", "external_id": 34, "children": [
+      {"name": "Chinosy", "external_id": 1820, "children": []},
+      {"name": "Inne", "external_id": 263, "children": []},
+      {"name": "Spodnie z szerokimi nogawkami", "external_id": 260, "children": []},
+      {"name": "Joggersy", "external_id": 1821, "children": []},
+      {"name": "Spodnie eleganckie", "external_id": 261, "children": []},
+      {"name": "Rurki", "external_id": 259, "children": []},
+      {"name": "Spodenki capri", "external_id": 271, "children": []}
+    ]},
+    {"name": "Dżinsy", "external_id": 257, "children": [
+      {"name": "Dżinsy straight fit", "external_id": 1819, "children": []},
+      {"name": "Dżinsy slim fit", "external_id": 1818, "children": []},
+      {"name": "Dżinsy z przetarciami", "external_id": 1816, "children": []},
+      {"name": "Dżinsy skinny", "external_id": 1817, "children": []}
+    ]},
+    {"name": "Garnitury i marynarki", "external_id": 32, "children": [
+      {"name": "Marynarki", "external_id": 1786, "children": []},
+      {"name": "Garnitury - komplety", "external_id": 1789, "children": []},
+      {"name": "Spodnie garniturowe", "external_id": 1787, "children": []},
+      {"name": "Garnitury ślubne", "external_id": 1790, "children": []},
+      {"name": "Inne", "external_id": 1866, "children": []},
+      {"name": "Kamizelki", "external_id": 1788, "children": []}
+    ]},
+    {"name": "Szorty", "external_id": 80, "children": [
+      {"name": "Szorty dżinsowe", "external_id": 1824, "children": []},
+      {"name": "Inne szorty", "external_id": 272, "children": []},
+      {"name": "Szorty chinosy", "external_id": 1823, "children": []},
+      {"name": "Szorty cargo", "external_id": 1822, "children": []}
+    ]},
+    {"name": "Bielizna i skarpety", "external_id": 85, "children": [
+      {"name": "Skarpety", "external_id": 1828, "children": []},
+      {"name": "Bielizna", "external_id": 1829, "children": []},
+      {"name": "Inne", "external_id": 1867, "children": []},
+      {"name": "Szlafroki", "external_id": 1830, "children": []}
+    ]},
+    {"name": "Przebrania i kostiumy tematyczne", "external_id": 92, "children": []},
+    {"name": "Stroje kąpielowe", "external_id": 84, "children": []},
+    {"name": "Inne ubrania", "external_id": 83, "children": []},
+    {"name": "Piżamy", "external_id": 2910, "children": [
+      {"name": "Doły od piżamy", "external_id": 2912, "children": []},
+      {"name": "Piżamy jednoczęściowe", "external_id": 2911, "children": []},
+      {"name": "Komplety piżamowe", "external_id": 2913, "children": []},
+      {"name": "Góry od piżamy", "external_id": 2914, "children": []}
+    ]}
+  ]},
+  {"name": "Obuwie", "external_id": 1231, "children": [
+    {"name": "Sneakersy, trampki i tenisówki", "external_id": 1242, "children": []},
+    {"name": "Obuwie sportowe", "external_id": 1452, "children": [
+      {"name": "Buty do piłki nożnej", "external_id": 2676, "children": []},
+      {"name": "Buty do biegania", "external_id": 1453, "children": []},
+      {"name": "Buty do koszykówki", "external_id": 2672, "children": []},
+      {"name": "Trekkingi", "external_id": 2678, "children": []},
+      {"name": "Buty do fitnessu", "external_id": 1467, "children": []},
+      {"name": "Halówki piłkarskie", "external_id": 2680, "children": []},
+      {"name": "Buty do tenisa", "external_id": 2686, "children": []},
+      {"name": "Buty kolarskie", "external_id": 2674, "children": []},
+      {"name": "Rolki i wrotki", "external_id": 2682, "children": []},
+      {"name": "Buty narciarskie", "external_id": 2683, "children": []},
+      {"name": "Buty motocyklowe", "external_id": 2681, "children": []},
+      {"name": "Buty do golfa", "external_id": 2677, "children": []},
+      {"name": "Łyżwy", "external_id": 2679, "children": []},
+      {"name": "Buty wspinaczkowe", "external_id": 2673, "children": []},
+      {"name": "Buty snowboardowe", "external_id": 2684, "children": []},
+      {"name": "Buty do wody", "external_id": 2685, "children": []},
+      {"name": "Buty do tańca", "external_id": 2675, "children": []}
+    ]},
+    {"name": "Buty za kostkę", "external_id": 1233, "children": [
+      {"name": "Trzewiki sznurowane", "external_id": 2662, "children": []},
+      {"name": "Obuwie robocze", "external_id": 2664, "children": []},
+      {"name": "Sztyblety i wsuwane botki", "external_id": 2661, "children": []},
+      {"name": "Śniegowce", "external_id": 2663, "children": []},
+      {"name": "Kalosze", "external_id": 1795, "children": []}
+    ]},
+    {"name": "Obuwie wizytowe", "external_id": 1238, "children": []},
+    {"name": "Mokasyny, buty żeglarskie, loafersy", "external_id": 2656, "children": []},
+    {"name": "Klapki i japonki", "external_id": 2969, "children": []},
+    {"name": "Sandały", "external_id": 2968, "children": []},
+    {"name": "Espadryle", "external_id": 2657, "children": []},
+    {"name": "Kapcie", "external_id": 2659, "children": []},
+    {"name": "Chodaki i mule", "external_id": 2970, "children": []}
+  ]},
+  {"name": "Akcesoria, dodatki", "external_id": 82, "children": [
+    {"name": "Kapelusze i czapki", "external_id": 86, "children": [
+      {"name": "Czapki z daszkiem", "external_id": 287, "children": []},
+      {"name": "Lekkie czapki", "external_id": 2964, "children": []},
+      {"name": "Kapelusze", "external_id": 288, "children": []},
+      {"name": "Kominiarki", "external_id": 2965, "children": []}
+    ]},
+    {"name": "Torby", "external_id": 94, "children": [
+      {"name": "Torby na ramię", "external_id": 247, "children": []},
+      {"name": "Plecaki", "external_id": 246, "children": []},
+      {"name": "Portfele", "external_id": 248, "children": []},
+      {"name": "Nerki", "external_id": 1799, "children": []},
+      {"name": "Listonoszki", "external_id": 1797, "children": []},
+      {"name": "Teczki", "external_id": 2963, "children": []},
+      {"name": "Torby na siłownię", "external_id": 2961, "children": []},
+      {"name": "Torby podróżne", "external_id": 1798, "children": []},
+      {"name": "Walizki", "external_id": 1862, "children": []},
+      {"name": "Pokrowce na ubrania", "external_id": 2962, "children": []}
+    ]},
+    {"name": "Biżuteria", "external_id": 95, "children": [
+      {"name": "Bransolety", "external_id": 243, "children": []},
+      {"name": "Naszyjniki", "external_id": 241, "children": []},
+      {"name": "Obrączki", "external_id": 242, "children": []},
+      {"name": "Wisiory i zawieszki", "external_id": 2967, "children": []},
+      {"name": "Kolczyki", "external_id": 2966, "children": []},
+      {"name": "Inne", "external_id": 244, "children": []},
+      {"name": "Spinki do mankietów", "external_id": 1800, "children": []}
+    ]},
+    {"name": "Zegarki", "external_id": 97, "children": []},
+    {"name": "Krawaty i muszki", "external_id": 2956, "children": []},
+    {"name": "Inne", "external_id": 99, "children": []},
+    {"name": "Okulary przeciwsłoneczne", "external_id": 98, "children": []},
+    {"name": "Paski", "external_id": 96, "children": []},
+    {"name": "Szaliki i szale", "external_id": 87, "children": []},
+    {"name": "Rękawiczki", "external_id": 91, "children": []},
+    {"name": "Chusty i chustki", "external_id": 2960, "children": []},
+    {"name": "Szelki", "external_id": 2959, "children": []},
+    {"name": "Poszetki", "external_id": 2957, "children": []},
+    {"name": "Chusteczki", "external_id": 2958, "children": []}
+  ]},
+  {"name": "Kosmetyki", "external_id": 139, "children": [
+    {"name": "Perfumy", "external_id": 145, "children": []},
+    {"name": "Pielęgnacja ciała", "external_id": 141, "children": []},
+    {"name": "Pielęgnacja twarzy", "external_id": 143, "children": []},
+    {"name": "Akcesoria do pielęgnacji dla mężczyzn", "external_id": 2055, "children": [
+      {"name": "Akcesoria do golenia", "external_id": 1826, "children": []},
+      {"name": "Akcesoria do pielęgnacji", "external_id": 1827, "children": []},
+      {"name": "Inne akcesoria do pielęgnacji", "external_id": 971, "children": []}
+    ]},
+    {"name": "Pielęgnacja włosów", "external_id": 140, "children": []},
+    {"name": "Inne", "external_id": 968, "children": []},
+    {"name": "Zestawy", "external_id": 1863, "children": []},
+    {"name": "Kosmetyki do makijażu", "external_id": 144, "children": []},
+    {"name": "Pielęgnacja dłoni i paznokci", "external_id": 142, "children": []}
+  ]}
+]

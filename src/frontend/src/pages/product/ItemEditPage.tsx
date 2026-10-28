@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Link, Navigate, useParams } from "react-router-dom";
+import type { ListingStatus } from "../../api/inventories";
 import type { ItemDetailsResponse } from "../../api/items";
 import { PhoneFrame } from "../../components/shared/PhoneFrame";
 import {
@@ -12,6 +13,7 @@ import { CONDITION_LABELS } from "../../utils/productCategory";
 import { BackIcon, PencilIcon } from "../../components/shared/appIcons";
 import { ItemBackButton } from "./ItemBackButton";
 import { ConditionEditor, DescriptionEditor, NameCategoryEditor } from "./ItemFieldEditors";
+import { SafeImage } from "./ItemGallery";
 import { ItemGalleryEditor, ItemPhotoStrip } from "./ItemGalleryEditor";
 import { ItemLoadStates } from "./ItemLoadStates";
 import {
@@ -26,6 +28,11 @@ import { DescriptionText, ReadOnlyCards } from "./ItemReadOnlyParts";
 import { useItemRoutes } from "./useItemRoutes";
 
 type EditorKey = "photos" | "nameCategory" | "condition" | "description";
+
+const LISTING_STATUS_CHIP: Record<ListingStatus, { label: string; className: string }> = {
+  DRAFT: { label: "Wersja robocza", className: "bg-cream text-ink-soft" },
+  ACTIVE: { label: "Aktywna", className: "bg-primary-soft text-primary-fg" },
+};
 
 /** `/product/:id/edit`. Standalone, outside AppDataProvider. */
 export function ItemEditPage() {
@@ -85,9 +92,7 @@ function ItemEditContent({ item, history, details, onRefetch }: ItemEditContentP
   const productLocked = !editing.productEditable;
   const [openEditor, setOpenEditor] = useState<EditorKey | null>(null);
   const close = () => setOpenEditor(null);
-  // The publish gate withdraws the item while any photo awaits moderation.
-  const photosInModeration = item.photos.some((p) => p.status === "PENDING" || p.status === "NEEDS_REVIEW");
-
+  const chip = LISTING_STATUS_CHIP[item.listing_status];
   const field = (
     key: EditorKey,
     label: string,
@@ -116,15 +121,22 @@ function ItemEditContent({ item, history, details, onRefetch }: ItemEditContentP
           Gotowe
         </Link>
       </div>
-      {photosInModeration && (
-        <div role="status" className="mt-3 rounded-[14px] border border-line bg-cream px-3.5 py-2.5 text-[12.5px] text-ink">
-          Rzecz zdjęta z terminów do czasu zatwierdzenia zdjęć. Tryb oddam/zamienię włączysz ponownie w
-          „Moje rzeczy”.{" "}
-          <Link to="/rzeczy" className="font-extrabold text-primary-fg underline">
-            Moje rzeczy →
-          </Link>
+      <div data-testid="item-summary" className="mt-3 flex items-center gap-3">
+        <SafeImage
+          src={item.photos[0]?.thumb_url ?? item.product_photo_url ?? ""}
+          alt=""
+          className="h-14 w-14 flex-none rounded-2xl"
+          placeholderSize={20}
+        />
+        <div className="min-w-0">
+          <p className="break-words text-[15px] font-bold text-ink">{item.name}</p>
+          <span
+            className={`mt-1 inline-flex rounded-full px-2.5 py-0.5 text-[11.5px] font-extrabold ${chip.className}`}
+          >
+            {chip.label}
+          </span>
         </div>
-      )}
+      </div>
       {details.failed && !details.fetching && (
         <div role="alert" className="mt-3 rounded-[14px] border border-line bg-cream px-3.5 py-2.5 text-[12.5px] text-ink">
           Nie udało się wczytać aktualnych danych produktu — zdjęcia i opis są chwilowo zablokowane.{" "}

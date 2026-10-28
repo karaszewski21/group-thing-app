@@ -43,6 +43,12 @@ for hidden in ("owner_party_id", "lat", "lng"):
     assert hidden not in row["location"]
 ```
 
+### Categories in Tests
+Products accept leaf categories only, so tests obtain product categories exclusively through `tests.conftest.leaf_category_ids(client, headers, n)`. Call it per test — never cache the ids at module or session scope (migration round trips across `0069` re-seed the tree with new ids), and never pick a category by index (`categories[0]`) or by name.
+```python
+(category_id,) = await leaf_category_ids(client, _auth(token), 1)
+```
+
 ### Dates in Tests
 Build Term/occurrence times from `clock.local_now()` (e.g. `(clock.local_now() + timedelta(days=1)).replace(microsecond=0)`), never `datetime.now()`; pin "now" with the opt-in `freeze_local_now` fixture when a test depends on it. See `standards/backend/time.md`.
 

@@ -5,7 +5,7 @@ import {
   Image,
   Text,
 } from "@chakra-ui/react";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { getProduct } from "../../api/products";
 import type { ProductResponse } from "../../api/products";
@@ -15,6 +15,7 @@ import { PRODUCT_DETAIL_INFO, PRODUCT_DETAIL_TABS } from "../../plugins/extensio
 import { PluginFrame } from "../../plugins/PluginFrame";
 import { PhotoPlaceholder } from "../../components/shared/Icons";
 import { isValidImageUrl } from "../../utils/url";
+import { buildCategoryIndex, formatCategoryPath } from "../../utils/categoryTree";
 
 export function ProductDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -24,6 +25,7 @@ export function ProductDetailPage() {
   const [activeTab, setActiveTab] = useState(0);
   const { getProductDetailTabs, getProductDetailInfo } = usePluginContext();
   const { data: categories } = useCategories();
+  const categoryIndex = useMemo(() => buildCategoryIndex(categories), [categories]);
 
   const loadProduct = useCallback(async () => {
     if (!id) return;
@@ -152,8 +154,7 @@ export function ProductDetailPage() {
                     Category
                   </Text>
                   <Text color="#334155">
-                    {categories.find((c) => c.id === product.category_id)?.name ??
-                      `#${product.category_id}`}
+                    {formatCategoryPath(categoryIndex, product.category_id) || `#${product.category_id}`}
                   </Text>
                 </Box>
                 {product.description && (

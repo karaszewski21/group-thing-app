@@ -9,7 +9,7 @@ from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
-from app.circulation.models import ItemCondition, ReservationType
+from app.circulation.models import ItemCondition, ItemListingStatus, ReservationType
 from app.users.schemas import EMAIL_PATTERN, normalize_email
 
 from .infrastructure.locations_acl import LocationRefResponse, PublicLocationResponse
@@ -195,10 +195,7 @@ class NeededItemResponse(BaseModel):
 
     id: uuid.UUID
     term_id: uuid.UUID
-    product_id: uuid.UUID
-    product_name: str
-    product_category_id: uuid.UUID
-    product_category_name: str
+    name: str
     description: str | None
     # An active (non-withdrawn) pledge exists — the organizer's term tile
     # shows a "ktoś przyniesie" mark; who exactly is on the term page.
@@ -209,13 +206,22 @@ class NeededItemResponse(BaseModel):
 
 class CreateNeededItemRequest(BaseModel):
     term_id: uuid.UUID
-    product_id: uuid.UUID
+    name: str = Field(min_length=1, max_length=255)
     description: str | None = Field(default=None, max_length=500)
+
+    _strip_name = field_validator("name")(_reject_blank_name)
 
 
 class UpdateNeededItemRequest(BaseModel):
-    product_id: uuid.UUID | None = None
+    """`name` applies only when non-null."""
+
+    name: str | None = Field(default=None, min_length=1, max_length=255)
     description: str | None = Field(default=None, max_length=500)
+
+    @field_validator("name")
+    @classmethod
+    def _strip_name(cls, value: str | None) -> str | None:
+        return None if value is None else _reject_blank_name(value)
 
 
 class PledgeResponse(BaseModel):
@@ -235,10 +241,7 @@ class CreatePledgeRequest(BaseModel):
 
 class PublicNeededItemResponse(BaseModel):
     id: uuid.UUID
-    product_id: uuid.UUID
-    product_name: str
-    product_category_id: uuid.UUID
-    product_category_name: str
+    name: str
     description: str | None
     # `claimed` = someone has an active pledge for this item (single-claim);
     # `claimed_by_name` is that pledger's display name (or `None`).
@@ -394,7 +397,7 @@ class OrganizerNeededItemResponse(BaseModel):
     id: uuid.UUID
     term_id: uuid.UUID
     group_id: uuid.UUID
-    product_name: str
+    name: str
     claimed: bool
 
 
@@ -480,7 +483,7 @@ class MyPledgeResponse(BaseModel):
 
     pledge_id: uuid.UUID
     status: PledgeStatus
-    product_name: str
+    item_name: str
     item_description: str | None
     term_id: uuid.UUID
     group_id: uuid.UUID
@@ -580,7 +583,8 @@ class MyInventoryItemResponse(BaseModel):
     standing `ItemListingPreference.mode` (`None` = not offered), so
     `Moje rzeczy` only ever shows and seeds toggles for items at home.
     `photos_moderation_pending` is true while the item's product has a
-    PENDING/NEEDS_REVIEW photo — listing it is refused until then.
+    PENDING/NEEDS_REVIEW photo; it is informational only and does not
+    block listing the item.
     `thumb_url` is the product's first APPROVED photo (400 px), `None`
     without one or without object storage."""
 
@@ -594,6 +598,7 @@ class MyInventoryItemResponse(BaseModel):
     created_at: datetime
     updated_at: datetime
     listing_mode: ReservationType | None
+    listing_status: ItemListingStatus
     photos_moderation_pending: bool
     thumb_url: str | None = None
 

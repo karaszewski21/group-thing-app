@@ -5,15 +5,13 @@ bridge exclusively through these thin pass-throughs (`create_reservation`/
 `list_reservations` and the re-exported `ReservationType`/
 `ReservationStatus`), never importing circulation models directly; a Term transaction is
 resolved in one circulation commit through `fulfill_exchange`/
-`cancel_exchange`. The photo-moderation withdraw reaches every item of a
-product through `list_item_ids_for_product` and releases a rejected swap
-proposer's reservation through `release_reservation`, the flush-only
-cancel that stays inside the caller's transaction; the publish gate reads
-the item through `get_item_for_share`, so a concurrent re-point serializes
-against it. The term page thumbnails resolve listed items to their
-products in one batch through `list_available_items_with_product`; the
-organizer page joins `available_items_with_product_select` into its own
-exchange query instead."""
+`cancel_exchange`. Listing-preference
+writes lock the item through `get_item_for_update` and keep its
+`listing_status` in step through `set_item_listing_status`. The term page
+thumbnails resolve listed items to their products in one batch through
+`list_available_items_with_product`; the organizer page joins
+`available_items_with_product_select` into its own exchange query
+instead."""
 
 from __future__ import annotations
 
@@ -31,6 +29,7 @@ from app.circulation.models import (
     InventoryItem,
     InventoryType,
     ItemCondition,
+    ItemListingStatus,
     Reservation,
     ReservationStatus,
     ReservationType,
@@ -42,8 +41,10 @@ __all__ = [
     "AvailableItemView",
     "BalanceStatus",
     "available_items_with_product_select",
+    "Inventory",
     "InventoryItem",
     "InventoryType",
+    "ItemListingStatus",
     "Reservation",
     "ReservationStatus",
     "ReservationType",
@@ -51,23 +52,21 @@ __all__ = [
     "cancel_reservation",
     "confirm_reservation",
     "create_reservation",
-    "find_item_including_deleted",
     "find_personal_inventory",
     "fulfill_exchange",
     "get_item",
     "get_item_balance",
-    "get_item_for_share",
+    "get_item_for_update",
     "get_reservation",
     "list_active_hand_over_reservations_for_terms",
     "list_active_reservations_for_taker",
     "list_available_items_with_product",
-    "list_item_ids_for_product",
     "list_items_with_product_name",
     "list_product_names_for_items",
     "list_reservations",
-    "release_reservation",
     "reservation_ids_for_term_select",
     "resolve_owning_inventory",
+    "set_item_listing_status",
 ]
 
 
@@ -107,19 +106,6 @@ async def confirm_reservation(db: AsyncSession, reservation_id: uuid.UUID, actin
 async def cancel_reservation(db: AsyncSession, reservation_id: uuid.UUID, acting_user_id: uuid.UUID) -> Reservation:
     """Thin pass-through, same shape as `confirm_reservation` above."""
     return await circulation_service.cancel_reservation(db, reservation_id, acting_user_id)
-
-
-async def release_reservation(
-    db: AsyncSession, reservation_id: uuid.UUID, acting_user_id: uuid.UUID
-) -> Reservation:
-    """Same cancel as `cancel_reservation` but flush-only: used by the
-    photo-moderation withdraw, whose caller owns the single commit."""
-    return await circulation_service.release_reservation(db, reservation_id, acting_user_id)
-
-
-async def list_item_ids_for_product(db: AsyncSession, product_id: uuid.UUID) -> list[uuid.UUID]:
-    """Every item of the product, soft-deleted ones included."""
-    return await circulation_service.list_item_ids_for_product(db, product_id)
 
 
 async def list_available_items_with_product(
@@ -211,16 +197,18 @@ async def get_item(db: AsyncSession, item_id: uuid.UUID) -> InventoryItem:
     return await circulation_service.get_item(db, item_id)
 
 
-async def get_item_for_share(db: AsyncSession, item_id: uuid.UUID) -> InventoryItem:
-    """`get_item` under a FOR SHARE item row lock — see
-    `app.circulation.application.inventory_items.get_item_for_share`."""
-    return await circulation_service.get_item_for_share(db, item_id)
+async def get_item_for_update(db: AsyncSession, item_id: uuid.UUID) -> InventoryItem:
+    """`get_item` under a FOR UPDATE item row lock — see
+    `app.circulation.application.inventory_items.get_item_for_update`."""
+    return await circulation_service.get_item_for_update(db, item_id)
 
 
-async def find_item_including_deleted(db: AsyncSession, item_id: uuid.UUID) -> InventoryItem | None:
-    """Used by the photo-moderation withdraw, which also reaches soft-deleted
-    items."""
-    return await circulation_service.find_item_including_deleted(db, item_id)
+async def set_item_listing_status(
+    db: AsyncSession, item_id: uuid.UUID, listing_status: ItemListingStatus
+) -> None:
+    """The only way `app.groups` writes `listing_status`, alongside every
+    listing-preference insert/delete. Flush only — the caller commits."""
+    await circulation_service.set_item_listing_status(db, item_id, listing_status)
 
 
 async def get_item_balance(db: AsyncSession, item_id: uuid.UUID) -> InventoryBalance:

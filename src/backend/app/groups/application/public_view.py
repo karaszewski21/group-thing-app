@@ -156,7 +156,7 @@ async def list_my_attendances(db: AsyncSession, party_id: uuid.UUID) -> list[MyA
 
 async def list_my_pledges(db: AsyncSession, party_id: uuid.UUID) -> list[MyPledgeResponse]:
     """The caller's own "obiecałem przynieść" list — non-withdrawn pledges
-    joined to product / term / circle, class date ascending. Organizer slug
+    joined to need / term / circle, class date ascending. Organizer slug
     resolved once per DISTINCT circle (same bounded-loop precedent as
     `list_my_attendances`), for the public-term deep link."""
     rows = await repository.list_my_pledges_joined(db, party_id)
@@ -170,7 +170,7 @@ async def list_my_pledges(db: AsyncSession, party_id: uuid.UUID) -> list[MyPledg
         MyPledgeResponse(
             pledge_id=cast(uuid.UUID, pledge.id),
             status=pledge.status,
-            product_name=product_name,
+            item_name=item_name,
             item_description=item_description,
             term_id=cast(uuid.UUID, term.id),
             group_id=cast(uuid.UUID, group.id),
@@ -178,7 +178,7 @@ async def list_my_pledges(db: AsyncSession, party_id: uuid.UUID) -> list[MyPledg
             occurs_on=term.occurs_on,
             organizer_slug=slug_by_group[cast(uuid.UUID, group.id)],
         )
-        for pledge, product_name, item_description, term, group in rows
+        for pledge, item_name, item_description, term, group in rows
     ]
 
 
@@ -293,10 +293,7 @@ async def get_public_circle_view(
             needed_items=[
                 PublicNeededItemResponse(
                     id=view["id"],
-                    product_id=view["product_id"],
-                    product_name=view["product_name"],
-                    product_category_id=view["product_category_id"],
-                    product_category_name=view["product_category_name"],
+                    name=view["name"],
                     description=view["description"],
                     claimed=view["claimed"],
                     claimed_by_name=pledger_name_by_item.get(view["id"]),

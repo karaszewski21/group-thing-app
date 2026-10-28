@@ -1,21 +1,12 @@
 /**
- * Value shape for `NeededItemQuickAddForm` — the sibling of
- * `ItemQuickAddValue` minus `condition` (the pledger picks that later),
- * plus a free-text `description` refinement. Callers resolve the `Product`
- * via `resolveProduct({ name, category_id })` then send `createNeededItem`.
+ * Value shape for `NeededItemQuickAddForm` — a plain needed-item name plus
+ * a free-text `description` refinement, sent as-is to `createNeededItem`.
  */
 export interface NeededItemQuickAddValue {
   name: string;
-  category_id: string;
   description: string;
 }
 
-/**
- * `categoryId` has no hardcoded default — callers source it from
- * `useCategories()`'s live data at the call site. Omitting it falls back
- * to `""` (no category yet resolved) for callers that don't have category
- * data on hand.
- */
-export function createEmptyNeededItemQuickAddValue(categoryId = ""): NeededItemQuickAddValue {
-  return { name: "", category_id: categoryId, description: "" };
+export function createEmptyNeededItemQuickAddValue(): NeededItemQuickAddValue {
+  return { name: "", description: "" };
 }

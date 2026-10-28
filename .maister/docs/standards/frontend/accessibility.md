@@ -46,3 +46,22 @@ When an accessible name is composed with `sr-only` text (e.g. link "Otwórz w Go
 Otwórz w Google Maps<span aria-hidden="true"> ↗</span>{" "}
 <span className="sr-only">(nowa karta)</span>
 ```
+
+### Picker Sheets Inside Forms
+A selection sheet opened from inside a host form renders via `createPortal(…, document.body)`, wrapped in a React-tree span that stops `onClick`/`onKeyDown` propagation, so host form and outer-sheet handlers never see its events (React bubbles portal events through the React tree, not the DOM). Every button inside is `type="button"` (including the shared `ModalSheet` ✕), and Enter in the sheet's search always calls `preventDefault()`, so nothing submits the host form. The trigger is a `<button type="button">` labelled via `aria-labelledby` pointing at a visible `<span id>` — never wrapped in a `<label>`. Reference: `components/shared/CategoryTreePicker.tsx`.
+```tsx
+// Portaled out of the host <form>; React events still bubble, so the wrapper stops them.
+<span className="contents" onClick={stop} onKeyDown={stop}>
+  {createPortal(<CategoryTreeSheet … />, document.body)}
+</span>
+```
+
+### Blocked-by-Input Actions
+When an action is blocked only by missing input and has an explanatory hint, use `aria-disabled="true"` instead of native `disabled`: the button stays focusable, the hint is linked via `aria-describedby`, and the handler guards against submitting. Use native `disabled` only while busy. Reference: `pages/product/ItemCreatePage.tsx`.
+```tsx
+"aria-disabled": !busy && fieldsMissing ? true : undefined,
+"aria-describedby": fieldsMissing ? MISSING_FIELDS_HINT_ID : undefined,
+```
+
+### Editable Trees
+Admin/editable trees use nested lists with disclosure buttons (`aria-expanded`, decorative ▸/▾ in an `aria-hidden="true"` span) instead of `role="tree"` when a roving-tabindex keyboard model is not needed. Reference: `pages/admin/CategoryListPage.tsx`.

@@ -106,6 +106,15 @@ class ReservationType(enum.StrEnum):
     GIFT = "GIFT"
 
 
+class ItemListingStatus(enum.StrEnum):
+    """`ACTIVE` exactly when an `item_listing_preferences` row exists for the
+    item (written in the same transaction as every pref insert/delete);
+    `DRAFT` otherwise."""
+
+    DRAFT = "DRAFT"
+    ACTIVE = "ACTIVE"
+
+
 class ReservationStatus(enum.StrEnum):
     PENDING = "PENDING"
     CONFIRMED = "CONFIRMED"
@@ -193,6 +202,12 @@ class InventoryItem(BaseEntity):
     )
     condition: Mapped[ItemCondition] = mapped_column(
         _enum_column(ItemCondition, 20), nullable=False
+    )
+    listing_status: Mapped[ItemListingStatus] = mapped_column(
+        _enum_column(ItemListingStatus, 20),
+        nullable=False,
+        default=ItemListingStatus.DRAFT,
+        server_default=text("'DRAFT'"),
     )
     added_at: Mapped[datetime] = mapped_column(DateTime(), nullable=False)
     deleted_at: Mapped[datetime | None] = mapped_column(DateTime(), nullable=True)

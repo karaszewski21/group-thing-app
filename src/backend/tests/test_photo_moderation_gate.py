@@ -1,6 +1,7 @@
-"""Publish gate for photos in moderation: an item cannot get a listing mode
-while its product has a PENDING or NEEDS_REVIEW photo (`mode: null` is
-always allowed), and `GET /api/inventory-items/mine` flags such items."""
+"""Photos in moderation no longer gate listing: an item can get a listing
+mode while its product has a PENDING or NEEDS_REVIEW photo, a new pending
+photo or a re-point keeps the listing, and `GET /api/inventory-items/mine`
+still flags such items."""
 
 from __future__ import annotations
 
@@ -12,7 +13,6 @@ from sqlalchemy import update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
-from app.groups.application.term_item_listings import PHOTOS_IN_MODERATION_MESSAGE
 from app.moderation.status import ModerationStatus
 from app.product.models import ProductPhoto
 from tests.test_moderation import _png
@@ -36,188 +36,114 @@ async def _upload_photo(client: AsyncClient, token: str, product_id: str, seed: 
         headers=_auth(token),
     )
     assert response.status_code == 201, response.text
+    assert response.json()["status"] == "PENDING"
     return uuid.UUID(response.json()["id"])
 
 
-async def _set_status(db: AsyncSession, photo_id: uuid.UUID, status: ModerationStatus) -> None:
-    await db.execute(update(ProductPhoto).where(ProductPhoto.id == photo_id).values(status=status))
-    await db.commit()
-
-
-async def _put_mode(
-    client: AsyncClient, token: str, item_id: uuid.UUID, mode: str | None
-) -> tuple[int, dict[str, object] | None]:
+async def _put_mode(client: AsyncClient, token: str, item_id: uuid.UUID, mode: str | None) -> int:
     response = await client.put(
         f"/api/item-listing-preferences/{item_id}", json={"mode": mode}, headers=_auth(token)
     )
-    return response.status_code, response.json()
+    return response.status_code
 
 
-async def test_setListingPreference_pendingPhoto_returns409WithExactMessage(
+async def _mine_row(client: AsyncClient, token: str, item_id: uuid.UUID) -> dict[str, object]:
+    response = await client.get("/api/inventory-items/mine", headers=_auth(token))
+    assert response.status_code == 200, response.text
+    return next(row for row in response.json() if row["id"] == str(item_id))
+
+
+async def _add_item(
+    client: AsyncClient, token: str, sibling_item: uuid.UUID, product_name: str
+) -> uuid.UUID:
+    """A second item in the inventory `sibling_item` lives in."""
+    inventory_id = (await _mine_row(client, token, sibling_item))["inventory_id"]
+    response = await client.post(
+        "/api/inventory-items",
+        json={
+            "inventory_id": inventory_id,
+            "product_id": await _resolve_product(client, token, product_name),
+            "condition": "GOOD",
+        },
+        headers=_auth(token),
+    )
+    assert response.status_code == 201, response.text
+    return uuid.UUID(response.json()["id"])
+
+
+async def test_setListingPreference_pendingAndNeedsReviewPhotos_returns200AndActive(
     client: AsyncClient, db_session: AsyncSession, moderation_on: None
 ) -> None:
     token, _ = await _register(client, "GUEST", "gate.p1@example.com")
     item_id = await _register_personal_item(client, token, "Bramka wózek")
     product_id = await _resolve_product(client, token, "Bramka wózek")
     await _upload_photo(client, token, product_id, 1)
-
-    status, body = await _put_mode(client, token, item_id, "GIFT")
-
-    assert status == 409
-    assert body is not None and body["message"] == PHOTOS_IN_MODERATION_MESSAGE
-    assert PHOTOS_IN_MODERATION_MESSAGE == (
-        "Nie można wystawić tej rzeczy — jej zdjęcia czekają na moderację. "
-        "Tryb oddam/zamienię włączysz po ich zatwierdzeniu."
+    review_id = await _upload_photo(client, token, product_id, 2)
+    await db_session.execute(
+        update(ProductPhoto)
+        .where(ProductPhoto.id == review_id)
+        .values(status=ModerationStatus.NEEDS_REVIEW)
     )
+    await db_session.commit()
+
+    status = await _put_mode(client, token, item_id, "GIFT")
+
+    assert status == 200
+    row = await _mine_row(client, token, item_id)
+    assert (row["listing_mode"], row["listing_status"]) == ("GIFT", "ACTIVE")
 
 
-async def test_setListingPreference_needsReviewPhoto_returns409(
+async def test_addProductPhoto_pendingPhoto_keepsListingPreference(
     client: AsyncClient, db_session: AsyncSession, moderation_on: None
 ) -> None:
-    token, _ = await _register(client, "GUEST", "gate.n1@example.com")
+    token, _ = await _register(client, "GUEST", "gate.u1@example.com")
     item_id = await _register_personal_item(client, token, "Bramka rowerek")
     product_id = await _resolve_product(client, token, "Bramka rowerek")
-    photo_id = await _upload_photo(client, token, product_id, 2)
-    await _set_status(db_session, photo_id, ModerationStatus.NEEDS_REVIEW)
+    assert await _put_mode(client, token, item_id, "SWAP") == 200
 
-    status, body = await _put_mode(client, token, item_id, "SWAP")
+    await _upload_photo(client, token, product_id, 3)
 
-    assert status == 409
-    assert body is not None and body["message"] == PHOTOS_IN_MODERATION_MESSAGE
+    row = await _mine_row(client, token, item_id)
+    assert (row["listing_mode"], row["listing_status"]) == ("SWAP", "ACTIVE")
 
 
-async def test_setListingPreference_onlyApprovedOrRejected_returns200(
+async def test_updateItem_repointToPendingProduct_keepsListingPreference(
     client: AsyncClient, db_session: AsyncSession, moderation_on: None
 ) -> None:
-    token, _ = await _register(client, "GUEST", "gate.a1@example.com")
+    token, _ = await _register(client, "GUEST", "gate.r1@example.com")
+    other_token, _ = await _register(client, "GUEST", "gate.r2@example.com")
     item_id = await _register_personal_item(client, token, "Bramka hulajnoga")
-    product_id = await _resolve_product(client, token, "Bramka hulajnoga")
-    approved = await _upload_photo(client, token, product_id, 3)
-    rejected = await _upload_photo(client, token, product_id, 4)
-    await _set_status(db_session, approved, ModerationStatus.APPROVED)
-    await _set_status(db_session, rejected, ModerationStatus.REJECTED)
+    await _register_personal_item(client, other_token, "Bramka fotelik")
+    other_product_id = await _resolve_product(client, other_token, "Bramka fotelik")
+    await _upload_photo(client, other_token, other_product_id, 4)
+    assert await _put_mode(client, token, item_id, "GIFT") == 200
 
-    status, body = await _put_mode(client, token, item_id, "SWAP")
-
-    assert status == 200, body
-    assert body is not None and body["mode"] == "SWAP"
-
-
-async def test_setListingPreference_modeNullWhilePending_returns200(
-    client: AsyncClient, db_session: AsyncSession, moderation_on: None
-) -> None:
-    token, _ = await _register(client, "GUEST", "gate.z1@example.com")
-    item_id = await _register_personal_item(client, token, "Bramka fotelik")
-    product_id = await _resolve_product(client, token, "Bramka fotelik")
-    await _upload_photo(client, token, product_id, 5)
-
-    status, body = await _put_mode(client, token, item_id, None)
-
-    assert status == 200
-    assert body is None
-
-
-async def test_setListingPreference_coOwnersPendingPhoto_blocks(
-    client: AsyncClient, db_session: AsyncSession, moderation_on: None
-) -> None:
-    owner_token, _ = await _register(client, "GUEST", "gate.c1@example.com")
-    co_owner_token, _ = await _register(client, "GUEST", "gate.c2@example.com")
-    item_id = await _register_personal_item(client, owner_token, "Bramka klocki")
-    await _register_personal_item(client, co_owner_token, "Bramka klocki")
-    product_id = await _resolve_product(client, owner_token, "Bramka klocki")
-    assert product_id == await _resolve_product(client, co_owner_token, "Bramka klocki")
-    await _upload_photo(client, co_owner_token, product_id, 6)
-
-    status, body = await _put_mode(client, owner_token, item_id, "GIFT")
-
-    assert status == 409
-    assert body is not None and body["message"] == PHOTOS_IN_MODERATION_MESSAGE
-
-
-async def test_setListingPreference_imageModerationDisabled_notBlocked(
-    client: AsyncClient, db_session: AsyncSession, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    monkeypatch.setattr(settings, "moderation_image_enabled", False)
-    token, _ = await _register(client, "GUEST", "gate.d1@example.com")
-    item_id = await _register_personal_item(client, token, "Bramka lalka")
-    product_id = await _resolve_product(client, token, "Bramka lalka")
-    await _upload_photo(client, token, product_id, 7)
-
-    status, body = await _put_mode(client, token, item_id, "GIFT")
-
-    assert status == 200, body
-
-
-async def test_myInventoryItems_photosModerationPending_trueAndFalse(
-    client: AsyncClient, db_session: AsyncSession, moderation_on: None
-) -> None:
-    token, _ = await _register(client, "GUEST", "gate.f1@example.com")
-    pending_item = await _register_personal_item(client, token, "Bramka puzzle")
-    mine = await client.get("/api/inventory-items/mine", headers=_auth(token))
-    second = await client.post(
-        "/api/inventory-items",
-        json={
-            "inventory_id": mine.json()[0]["inventory_id"],
-            "product_id": await _resolve_product(client, token, "Bramka książka"),
-            "condition": "GOOD",
-        },
+    response = await client.patch(
+        f"/api/inventory-items/{item_id}",
+        json={"product_id": other_product_id},
         headers=_auth(token),
     )
-    assert second.status_code == 201, second.text
-    clean_item = second.json()["id"]
-    await _upload_photo(client, token, await _resolve_product(client, token, "Bramka puzzle"), 8)
-
-    response = await client.get("/api/inventory-items/mine", headers=_auth(token))
 
     assert response.status_code == 200, response.text
-    flags = {row["id"]: row["photos_moderation_pending"] for row in response.json()}
-    assert flags == {str(pending_item): True, clean_item: False}
+    row = await _mine_row(client, token, item_id)
+    assert row["product_id"] == other_product_id
+    assert (row["listing_mode"], row["listing_status"]) == ("GIFT", "ACTIVE")
 
 
-async def test_setListingPreference_existingModeWhilePending_changeBlockedNullClears(
+async def test_myInventoryItems_photosModerationPending_stillReported(
     client: AsyncClient, db_session: AsyncSession, moderation_on: None
 ) -> None:
-    """A listing that predates the gate (or the cleanup script): the owner can
-    neither switch it to another mode nor re-save it, but can always turn it
-    off — the toggles' disabled state must not trap a live listing."""
-    token, _ = await _register(client, "GUEST", "gate.e1@example.com")
-    item_id = await _register_personal_item(client, token, "Bramka sanki")
-    product_id = await _resolve_product(client, token, "Bramka sanki")
-    photo_id = await _upload_photo(client, token, product_id, 10)
-    await _set_status(db_session, photo_id, ModerationStatus.APPROVED)
-    assert (await _put_mode(client, token, item_id, "GIFT"))[0] == 200
-    await _set_status(db_session, photo_id, ModerationStatus.PENDING)
-
-    async def _listing_mode() -> object:
-        response = await client.get("/api/inventory-items/mine", headers=_auth(token))
-        return next(r["listing_mode"] for r in response.json() if r["id"] == str(item_id))
-
-    status, body = await _put_mode(client, token, item_id, "SWAP")
-
-    assert status == 409
-    assert body is not None and body["message"] == PHOTOS_IN_MODERATION_MESSAGE
-    assert await _listing_mode() == "GIFT"
-
-    status, body = await _put_mode(client, token, item_id, None)
-
-    assert status == 200
-    assert body is None
-    assert await _listing_mode() is None
-
-
-async def test_myInventoryItems_coOwnersPendingPhoto_flagTrueForEveryOwner(
-    client: AsyncClient, db_session: AsyncSession, moderation_on: None
-) -> None:
-    owner_token, _ = await _register(client, "GUEST", "gate.f2@example.com")
-    co_owner_token, _ = await _register(client, "GUEST", "gate.f3@example.com")
-    owner_item = await _register_personal_item(client, owner_token, "Bramka wspólna")
+    owner_token, _ = await _register(client, "GUEST", "gate.f1@example.com")
+    co_owner_token, _ = await _register(client, "GUEST", "gate.f2@example.com")
+    pending_item = await _register_personal_item(client, owner_token, "Bramka wspólna")
+    clean_item = await _add_item(client, owner_token, pending_item, "Bramka książka")
     co_owner_item = await _register_personal_item(client, co_owner_token, "Bramka wspólna")
     product_id = await _resolve_product(client, owner_token, "Bramka wspólna")
     assert product_id == await _resolve_product(client, co_owner_token, "Bramka wspólna")
-    await _upload_photo(client, co_owner_token, product_id, 9)
+    await _upload_photo(client, co_owner_token, product_id, 5)
 
-    for token, item_id in ((owner_token, owner_item), (co_owner_token, co_owner_item)):
-        response = await client.get("/api/inventory-items/mine", headers=_auth(token))
-        assert response.status_code == 200, response.text
-        flags = {row["id"]: row["photos_moderation_pending"] for row in response.json()}
-        assert flags == {str(item_id): True}
+    assert (await _mine_row(client, owner_token, pending_item))["photos_moderation_pending"] is True
+    assert (await _mine_row(client, owner_token, clean_item))["photos_moderation_pending"] is False
+    assert (await _mine_row(client, co_owner_token, co_owner_item))[
+        "photos_moderation_pending"
+    ] is True

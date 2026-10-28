@@ -28,6 +28,7 @@ from app.groups import service
 from app.groups.schemas import TakeTermItemListingRequest
 from app.party.models import Party, PartyType
 from app.users.service import get_profile_by_principal
+from tests.conftest import leaf_category_ids
 
 
 def _auth(token: str) -> dict[str, str]:
@@ -87,29 +88,20 @@ async def _join_group_as_family_guardian(
     return uuid.UUID(family.json()["id"])
 
 
-async def _category_id(client: AsyncClient, token: str) -> str:
-    categories = await client.get("/api/categories", headers=_auth(token))
-    assert categories.status_code == 200
-    return str(categories.json()[0]["id"])
-
-
 async def _resolve_product(client: AsyncClient, token: str, name: str) -> int:
     r = await client.post(
         "/api/products/resolve",
-        json={"name": name, "category_id": await _category_id(client, token)},
+        json={"name": name, "category_id": (await leaf_category_ids(client, _auth(token)))[0]},
         headers=_auth(token),
     )
     assert r.status_code == 200
     return r.json()["id"]
 
 
-async def _create_needed_item(
-    client: AsyncClient, org_token: str, term_id: int, product_name: str
-) -> int:
-    product_id = await _resolve_product(client, org_token, product_name)
+async def _create_needed_item(client: AsyncClient, org_token: str, term_id: int, name: str) -> int:
     r = await client.post(
         "/api/needed-items",
-        json={"term_id": term_id, "product_id": product_id},
+        json={"term_id": term_id, "name": name},
         headers=_auth(org_token),
     )
     assert r.status_code == 201

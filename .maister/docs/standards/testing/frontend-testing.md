@@ -90,3 +90,12 @@ afterEach(() => vi.useRealTimers());
 ### Test Organization
 
 Use `describe()` blocks named after the page or feature being tested. Place test files in `src/test/` directory.
+
+### Typed Fixtures
+Fixture factories return fully typed objects — no `as <ResponseType>` casts — so `tsc` catches DTO drift when a response type gains a field. A cast once hid a missing `listing_status` and caused a runtime crash in `OrganizerItemRoute.test.tsx`.
+```typescript
+// DON'T: return { ... } as ItemDetailsResponse;
+function details(overrides: Partial<ItemDetailsResponse> = {}): ItemDetailsResponse {
+  return { /* every field */ listing_status: "ACTIVE", ...overrides };
+}
+```

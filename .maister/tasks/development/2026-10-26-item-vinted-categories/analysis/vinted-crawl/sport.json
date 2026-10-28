@@ -1,0 +1,1535 @@
+[
+  {
+    "name": "Jazda na rowerze",
+    "external_id": 4333,
+    "children": [
+      {
+        "name": "Kaski rowerowe",
+        "external_id": 4348,
+        "children": []
+      },
+      {
+        "name": "Rowery dziecięce",
+        "external_id": 4347,
+        "children": [
+          {
+            "name": "Rowery dziecięce",
+            "external_id": 4373,
+            "children": []
+          },
+          {
+            "name": "Rowerki biegowe",
+            "external_id": 4372,
+            "children": []
+          },
+          {
+            "name": "Rowery trójkołowe",
+            "external_id": 4375,
+            "children": []
+          }
+        ]
+      },
+      {
+        "name": "Części rowerowe",
+        "external_id": 4353,
+        "children": [
+          {
+            "name": "Inne części rowerowe",
+            "external_id": 4412,
+            "children": []
+          },
+          {
+            "name": "Siodełka",
+            "external_id": 4405,
+            "children": []
+          },
+          {
+            "name": "Hamulce",
+            "external_id": 4394,
+            "children": []
+          },
+          {
+            "name": "Opony",
+            "external_id": 4409,
+            "children": []
+          },
+          {
+            "name": "Koła",
+            "external_id": 4411,
+            "children": []
+          },
+          {
+            "name": "Kierownica",
+            "external_id": 4402,
+            "children": []
+          },
+          {
+            "name": "Pedały",
+            "external_id": 4404,
+            "children": []
+          },
+          {
+            "name": "Dętki",
+            "external_id": 4410,
+            "children": []
+          },
+          {
+            "name": "Przerzutki",
+            "external_id": 4400,
+            "children": []
+          },
+          {
+            "name": "Gripy",
+            "external_id": 4401,
+            "children": []
+          },
+          {
+            "name": "Mechanizmy korbowe",
+            "external_id": 4398,
+            "children": []
+          },
+          {
+            "name": "Sztyce rowerowe",
+            "external_id": 4406,
+            "children": []
+          },
+          {
+            "name": "Kasety",
+            "external_id": 4395,
+            "children": []
+          },
+          {
+            "name": "Manetki",
+            "external_id": 4407,
+            "children": []
+          },
+          {
+            "name": "Zębatki rowerowe",
+            "external_id": 4396,
+            "children": []
+          },
+          {
+            "name": "Widelce rowerowe",
+            "external_id": 4399,
+            "children": []
+          },
+          {
+            "name": "Stery rowerowe",
+            "external_id": 4403,
+            "children": []
+          },
+          {
+            "name": "Łańcuchy",
+            "external_id": 4397,
+            "children": []
+          },
+          {
+            "name": "Amortyzatory tylne",
+            "external_id": 4408,
+            "children": []
+          },
+          {
+            "name": "Suporty",
+            "external_id": 4393,
+            "children": []
+          }
+        ]
+      },
+      {
+        "name": "Akcesoria i narzędzia rowerowe",
+        "external_id": 4349,
+        "children": [
+          {
+            "name": "Inne akcesoria rowerowe",
+            "external_id": 4392,
+            "children": []
+          },
+          {
+            "name": "Oświetlenie rowerowe",
+            "external_id": 4379,
+            "children": []
+          },
+          {
+            "name": "Sakwy i torby rowerowe",
+            "external_id": 4386,
+            "children": []
+          },
+          {
+            "name": "Bidony rowerowe",
+            "external_id": 4381,
+            "children": []
+          },
+          {
+            "name": "Zapięcia rowerowe",
+            "external_id": 4380,
+            "children": []
+          },
+          {
+            "name": "Bagażniki samochodowe na rowery",
+            "external_id": 4390,
+            "children": []
+          },
+          {
+            "name": "Pompki rowerowe",
+            "external_id": 4383,
+            "children": []
+          },
+          {
+            "name": "Dzwonki i klaksony rowerowe",
+            "external_id": 4377,
+            "children": []
+          },
+          {
+            "name": "Koszyki na bidon",
+            "external_id": 4382,
+            "children": []
+          },
+          {
+            "name": "Kosze rowerowe",
+            "external_id": 4376,
+            "children": []
+          },
+          {
+            "name": "Narzędzia rowerowe",
+            "external_id": 4387,
+            "children": []
+          },
+          {
+            "name": "Błotniki rowerowe",
+            "external_id": 4378,
+            "children": []
+          },
+          {
+            "name": "Bagażniki rowerowe",
+            "external_id": 4389,
+            "children": []
+          },
+          {
+            "name": "Stopki rowerowe",
+            "external_id": 4385,
+            "children": []
+          },
+          {
+            "name": "Stojaki i wieszaki rowerowe",
+            "external_id": 4388,
+            "children": []
+          },
+          {
+            "name": "Pokrowce na rowery",
+            "external_id": 4391,
+            "children": []
+          }
+        ]
+      },
+      {
+        "name": "Foteliki rowerowe dla dzieci",
+        "external_id": 4352,
+        "children": []
+      },
+      {
+        "name": "Przyczepki rowerowe",
+        "external_id": 4351,
+        "children": []
+      }
+    ]
+  },
+  {
+    "name": "Jazda konna",
+    "external_id": 4340,
+    "children": [
+      {
+        "name": "Siodła i osprzęt jeździecki",
+        "external_id": 4742,
+        "children": [
+          {
+            "name": "Inne akcesoria do jazdy konnej",
+            "external_id": 4807,
+            "children": []
+          },
+          {
+            "name": "Czapraki i podkładki pod siodło",
+            "external_id": 4802,
+            "children": []
+          },
+          {
+            "name": "Uzdy",
+            "external_id": 4795,
+            "children": []
+          },
+          {
+            "name": "Derki dla konia",
+            "external_id": 4797,
+            "children": []
+          },
+          {
+            "name": "Wędzidła",
+            "external_id": 4794,
+            "children": []
+          },
+          {
+            "name": "Popręgi",
+            "external_id": 4796,
+            "children": []
+          },
+          {
+            "name": "Siodła",
+            "external_id": 4803,
+            "children": []
+          },
+          {
+            "name": "Strzemiona",
+            "external_id": 4806,
+            "children": []
+          },
+          {
+            "name": "Martyngały i napierśniki",
+            "external_id": 4798,
+            "children": []
+          },
+          {
+            "name": "Szpicruty jeździeckie",
+            "external_id": 4800,
+            "children": []
+          },
+          {
+            "name": "Wodze",
+            "external_id": 4799,
+            "children": []
+          },
+          {
+            "name": "Puśliska",
+            "external_id": 4805,
+            "children": []
+          },
+          {
+            "name": "Pokrowce na siodło",
+            "external_id": 4808,
+            "children": []
+          },
+          {
+            "name": "Sakwy na siodło",
+            "external_id": 4801,
+            "children": []
+          }
+        ]
+      },
+      {
+        "name": "Kamizelki ochronne do jazdy konnej",
+        "external_id": 4809,
+        "children": []
+      },
+      {
+        "name": "Kaski do jazdy konnej",
+        "external_id": 4810,
+        "children": []
+      },
+      {
+        "name": "Rękawice jeździeckie",
+        "external_id": 4811,
+        "children": []
+      },
+      {
+        "name": "Osłony na kaski do jazdy konnej",
+        "external_id": 4812,
+        "children": []
+      }
+    ]
+  },
+  {
+    "name": "Fitness, bieganie i joga",
+    "external_id": 4334,
+    "children": [
+      {
+        "name": "Akcesoria fitness do domu",
+        "external_id": 4417,
+        "children": [
+          {
+            "name": "Inne akcesoria fitness",
+            "external_id": 4469,
+            "children": []
+          },
+          {
+            "name": "Skakanki",
+            "external_id": 4466,
+            "children": []
+          },
+          {
+            "name": "Piłki do ćwiczeń",
+            "external_id": 4458,
+            "children": []
+          },
+          {
+            "name": "Sprzęt do gimnastyki artystycznej",
+            "external_id": 4465,
+            "children": []
+          },
+          {
+            "name": "Wałki do masażu",
+            "external_id": 4460,
+            "children": []
+          },
+          {
+            "name": "Sprzęt do treningu core",
+            "external_id": 4456,
+            "children": []
+          },
+          {
+            "name": "Hula hop z obciążeniem",
+            "external_id": 4468,
+            "children": []
+          },
+          {
+            "name": "Trampoliny fitness",
+            "external_id": 4462,
+            "children": []
+          },
+          {
+            "name": "Poduszki balansowe",
+            "external_id": 4455,
+            "children": []
+          },
+          {
+            "name": "Stepy do ćwiczeń",
+            "external_id": 4459,
+            "children": []
+          },
+          {
+            "name": "Kółka gimnastyczne",
+            "external_id": 4461,
+            "children": []
+          },
+          {
+            "name": "Deski balansowe",
+            "external_id": 4454,
+            "children": []
+          },
+          {
+            "name": "Materace gimnastyczne",
+            "external_id": 4467,
+            "children": []
+          },
+          {
+            "name": "Nakolanniki do tańca",
+            "external_id": 4457,
+            "children": []
+          },
+          {
+            "name": "Kijki do nordic walking",
+            "external_id": 4463,
+            "children": []
+          },
+          {
+            "name": "Skrzynie plyometryczne",
+            "external_id": 4464,
+            "children": []
+          }
+        ]
+      },
+      {
+        "name": "Bidony",
+        "external_id": 4698,
+        "children": []
+      },
+      {
+        "name": "Bieganie",
+        "external_id": 4415,
+        "children": [
+          {
+            "name": "Inne akcesoria do biegania",
+            "external_id": 4446,
+            "children": []
+          },
+          {
+            "name": "Kamizelki do biegania",
+            "external_id": 4445,
+            "children": []
+          },
+          {
+            "name": "Paski do biegania i uchwyty na telefon",
+            "external_id": 4443,
+            "children": []
+          },
+          {
+            "name": "Odzież odblaskowa do biegania",
+            "external_id": 4444,
+            "children": []
+          }
+        ]
+      },
+      {
+        "name": "Trening siłowy",
+        "external_id": 4414,
+        "children": [
+          {
+            "name": "Inne akcesoria do treningu siłowego",
+            "external_id": 4438,
+            "children": []
+          },
+          {
+            "name": "Taśmy oporowe",
+            "external_id": 4430,
+            "children": []
+          },
+          {
+            "name": "Hantle",
+            "external_id": 4424,
+            "children": []
+          },
+          {
+            "name": "Pasy treningowe",
+            "external_id": 4433,
+            "children": []
+          },
+          {
+            "name": "Ściskacze",
+            "external_id": 4425,
+            "children": []
+          },
+          {
+            "name": "Drążki do podciągania",
+            "external_id": 4429,
+            "children": []
+          },
+          {
+            "name": "Sztangi i akcesoria",
+            "external_id": 4423,
+            "children": []
+          },
+          {
+            "name": "Obciążniki na nadgarstki i kostki",
+            "external_id": 4437,
+            "children": []
+          },
+          {
+            "name": "Rękawice treningowe",
+            "external_id": 4434,
+            "children": []
+          },
+          {
+            "name": "Hantle kettlebell",
+            "external_id": 4427,
+            "children": []
+          },
+          {
+            "name": "Piłki lekarskie",
+            "external_id": 4428,
+            "children": []
+          },
+          {
+            "name": "Kamizelki z obciążeniem",
+            "external_id": 4436,
+            "children": []
+          },
+          {
+            "name": "Przechowywanie ciężarków",
+            "external_id": 4435,
+            "children": []
+          }
+        ]
+      },
+      {
+        "name": "Sprzęt do jogi i pilatesu",
+        "external_id": 4416,
+        "children": [
+          {
+            "name": "Maty do jogi",
+            "external_id": 4450,
+            "children": []
+          },
+          {
+            "name": "Akcesoria do pilatesu",
+            "external_id": 4447,
+            "children": []
+          },
+          {
+            "name": "Klocki i kostki do jogi",
+            "external_id": 4448,
+            "children": []
+          },
+          {
+            "name": "Pokrowce i torby na maty do jogi",
+            "external_id": 4451,
+            "children": []
+          },
+          {
+            "name": "Paski do jogi",
+            "external_id": 4452,
+            "children": []
+          },
+          {
+            "name": "Wałki do jogi",
+            "external_id": 4449,
+            "children": []
+          },
+          {
+            "name": "Ręczniki do jogi",
+            "external_id": 4453,
+            "children": []
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "name": "Sporty outdoorowe",
+    "external_id": 4335,
+    "children": [
+      {
+        "name": "Wędkarstwo i myślistwo",
+        "external_id": 4627,
+        "children": [
+          {
+            "name": "Przynęty i akcesoria wędkarskie",
+            "external_id": 4643,
+            "children": []
+          },
+          {
+            "name": "Inne akcesoria wędkarskie i myśliwskie",
+            "external_id": 4651,
+            "children": []
+          },
+          {
+            "name": "Kołowrotki wędkarskie",
+            "external_id": 4642,
+            "children": []
+          },
+          {
+            "name": "Wędki",
+            "external_id": 4641,
+            "children": []
+          },
+          {
+            "name": "Narzędzia wędkarskie",
+            "external_id": 4645,
+            "children": []
+          },
+          {
+            "name": "Skrzynki i torby wędkarskie",
+            "external_id": 4646,
+            "children": []
+          },
+          {
+            "name": "Przechowywanie wędek",
+            "external_id": 4647,
+            "children": []
+          },
+          {
+            "name": "Podbierak wędkarski",
+            "external_id": 4644,
+            "children": []
+          },
+          {
+            "name": "Ochronniki słuchu dla myśliwych",
+            "external_id": 4650,
+            "children": []
+          },
+          {
+            "name": "Kamery myśliwskie",
+            "external_id": 4648,
+            "children": []
+          },
+          {
+            "name": "Przynęty i wabiki myśliwskie",
+            "external_id": 4649,
+            "children": []
+          }
+        ]
+      },
+      {
+        "name": "Plecaki turystyczne",
+        "external_id": 4665,
+        "children": [
+          {
+            "name": "Plecaki trekkingowe",
+            "external_id": 4679,
+            "children": []
+          },
+          {
+            "name": "Plecaki jednodniowe",
+            "external_id": 4680,
+            "children": []
+          },
+          {
+            "name": "Pokrowce na plecaki",
+            "external_id": 4681,
+            "children": []
+          }
+        ]
+      },
+      {
+        "name": "Namioty biwakowe i spanie",
+        "external_id": 4652,
+        "children": [
+          {
+            "name": "Śpiwory",
+            "external_id": 4667,
+            "children": []
+          },
+          {
+            "name": "Namioty",
+            "external_id": 4653,
+            "children": []
+          },
+          {
+            "name": "Materace dmuchane",
+            "external_id": 4671,
+            "children": []
+          },
+          {
+            "name": "Hamaki turystyczne",
+            "external_id": 4670,
+            "children": []
+          },
+          {
+            "name": "Maty do spania",
+            "external_id": 4669,
+            "children": []
+          },
+          {
+            "name": "Podłogi do namiotu",
+            "external_id": 4656,
+            "children": []
+          },
+          {
+            "name": "Śledzie do namiotu",
+            "external_id": 4655,
+            "children": []
+          },
+          {
+            "name": "Wkładki do śpiworów",
+            "external_id": 4668,
+            "children": []
+          }
+        ]
+      },
+      {
+        "name": "Inne akcesoria do sportów outdoorowych",
+        "external_id": 4666,
+        "children": []
+      },
+      {
+        "name": "Latarki czołowe i lampy turystyczne",
+        "external_id": 4662,
+        "children": [
+          {
+            "name": "Latarki czołowe",
+            "external_id": 4676,
+            "children": []
+          },
+          {
+            "name": "Latarki",
+            "external_id": 4678,
+            "children": []
+          },
+          {
+            "name": "Lampy turystyczne",
+            "external_id": 4677,
+            "children": []
+          }
+        ]
+      },
+      {
+        "name": "Lornetki i lunety",
+        "external_id": 4658,
+        "children": []
+      },
+      {
+        "name": "Meble turystyczne",
+        "external_id": 4661,
+        "children": [
+          {
+            "name": "Krzesła turystyczne",
+            "external_id": 4743,
+            "children": []
+          },
+          {
+            "name": "Stoły turystyczne",
+            "external_id": 4746,
+            "children": []
+          },
+          {
+            "name": "Szafki turystyczne",
+            "external_id": 4744,
+            "children": []
+          },
+          {
+            "name": "Kuchnie turystyczne",
+            "external_id": 4745,
+            "children": []
+          }
+        ]
+      },
+      {
+        "name": "Wspinaczka i bouldering",
+        "external_id": 4626,
+        "children": [
+          {
+            "name": "Liny, przyrządy asekuracyjne i karabinki",
+            "external_id": 4636,
+            "children": []
+          },
+          {
+            "name": "Uprzęże wspinaczkowe",
+            "external_id": 4630,
+            "children": []
+          },
+          {
+            "name": "Sprzęt wysokogórski",
+            "external_id": 4635,
+            "children": []
+          },
+          {
+            "name": "Inne akcesoria wspinaczkowe",
+            "external_id": 4639,
+            "children": []
+          },
+          {
+            "name": "Woreczki na magnezję",
+            "external_id": 4640,
+            "children": []
+          },
+          {
+            "name": "Przyrządy do treningu wspinaczkowego",
+            "external_id": 4633,
+            "children": []
+          },
+          {
+            "name": "Kaski wspinaczkowe",
+            "external_id": 4631,
+            "children": []
+          },
+          {
+            "name": "Chwyty wspinaczkowe",
+            "external_id": 4632,
+            "children": []
+          },
+          {
+            "name": "Materace asekuracyjne",
+            "external_id": 4634,
+            "children": []
+          },
+          {
+            "name": "Zestawy asekuracyjne na via ferraty",
+            "external_id": 4638,
+            "children": []
+          },
+          {
+            "name": "Taśmy slackline",
+            "external_id": 4637,
+            "children": []
+          },
+          {
+            "name": "Szczotki do chwytów",
+            "external_id": 4628,
+            "children": []
+          },
+          {
+            "name": "Rękawice wspinaczkowe",
+            "external_id": 4629,
+            "children": []
+          }
+        ]
+      },
+      {
+        "name": "Kuchenki i naczynia turystyczne",
+        "external_id": 4657,
+        "children": [
+          {
+            "name": "Naczynia turystyczne",
+            "external_id": 4673,
+            "children": []
+          },
+          {
+            "name": "Przybory turystyczne",
+            "external_id": 4675,
+            "children": []
+          },
+          {
+            "name": "Turystyczny sprzęt kuchenny",
+            "external_id": 4672,
+            "children": []
+          },
+          {
+            "name": "Kuchenki turystyczne",
+            "external_id": 4674,
+            "children": []
+          }
+        ]
+      },
+      {
+        "name": "Lodówki",
+        "external_id": 4659,
+        "children": []
+      },
+      {
+        "name": "Kompasy",
+        "external_id": 4664,
+        "children": []
+      },
+      {
+        "name": "Kije trekkingowe",
+        "external_id": 4663,
+        "children": []
+      },
+      {
+        "name": "Bukłaki na wodę",
+        "external_id": 4660,
+        "children": []
+      }
+    ]
+  },
+  {
+    "name": "Sporty zimowe",
+    "external_id": 4344,
+    "children": [
+      {
+        "name": "Sprzęt narciarski",
+        "external_id": 4713,
+        "children": [
+          {
+            "name": "Inne akcesoria narciarskie",
+            "external_id": 4741,
+            "children": []
+          },
+          {
+            "name": "Narty zjazdowe",
+            "external_id": 4733,
+            "children": []
+          },
+          {
+            "name": "Torby na narty i buty narciarskie",
+            "external_id": 4739,
+            "children": []
+          },
+          {
+            "name": "Narty biegowe",
+            "external_id": 4736,
+            "children": []
+          },
+          {
+            "name": "Kijki do narciarstwa zjazdowego",
+            "external_id": 4734,
+            "children": []
+          },
+          {
+            "name": "Narty skiturowe",
+            "external_id": 4735,
+            "children": []
+          },
+          {
+            "name": "Wiązania narciarskie",
+            "external_id": 4740,
+            "children": []
+          },
+          {
+            "name": "Paski do nart",
+            "external_id": 4738,
+            "children": []
+          },
+          {
+            "name": "Kijki do narciarstwa biegowego",
+            "external_id": 4737,
+            "children": []
+          }
+        ]
+      },
+      {
+        "name": "Kaski do sportów zimowych",
+        "external_id": 4721,
+        "children": []
+      },
+      {
+        "name": "Gogle narciarskie",
+        "external_id": 4720,
+        "children": []
+      },
+      {
+        "name": "Hokej na lodzie",
+        "external_id": 4715,
+        "children": [
+          {
+            "name": "Ochraniacze do hokeja na lodzie",
+            "external_id": 4730,
+            "children": []
+          },
+          {
+            "name": "Inne akcesoria do hokeja na lodzie",
+            "external_id": 4732,
+            "children": []
+          },
+          {
+            "name": "Kije do hokeja na lodzie",
+            "external_id": 4726,
+            "children": []
+          },
+          {
+            "name": "Kaski do hokeja na lodzie",
+            "external_id": 4728,
+            "children": []
+          },
+          {
+            "name": "Krążki hokejowe",
+            "external_id": 4731,
+            "children": []
+          },
+          {
+            "name": "Rękawice do hokeja na lodzie",
+            "external_id": 4727,
+            "children": []
+          },
+          {
+            "name": "Bramki do hokeja na lodzie",
+            "external_id": 4729,
+            "children": []
+          }
+        ]
+      },
+      {
+        "name": "Sanki",
+        "external_id": 4717,
+        "children": []
+      },
+      {
+        "name": "Sprzęt snowboardowy",
+        "external_id": 4714,
+        "children": [
+          {
+            "name": "Deski snowboardowe",
+            "external_id": 4722,
+            "children": []
+          },
+          {
+            "name": "Wiązania snowboardowe",
+            "external_id": 4724,
+            "children": []
+          },
+          {
+            "name": "Torby na deski i buty snowboardowe",
+            "external_id": 4725,
+            "children": []
+          },
+          {
+            "name": "Splitboardy",
+            "external_id": 4723,
+            "children": []
+          }
+        ]
+      },
+      {
+        "name": "Akcesoria do łyżwiarstwa figurowego",
+        "external_id": 4716,
+        "children": []
+      },
+      {
+        "name": "Rakiety śnieżne",
+        "external_id": 4718,
+        "children": []
+      },
+      {
+        "name": "Stuptuty",
+        "external_id": 4719,
+        "children": []
+      }
+    ]
+  },
+  {
+    "name": "Sporty wodne",
+    "external_id": 4336,
+    "children": [
+      {
+        "name": "Pływanie",
+        "external_id": 4747,
+        "children": [
+          {
+            "name": "Czepki pływackie",
+            "external_id": 4753,
+            "children": []
+          },
+          {
+            "name": "Okulary do pływania",
+            "external_id": 4754,
+            "children": []
+          },
+          {
+            "name": "Akcesoria do nauki pływania",
+            "external_id": 4755,
+            "children": []
+          },
+          {
+            "name": "Płetwy pływackie",
+            "external_id": 4749,
+            "children": []
+          },
+          {
+            "name": "Zabawki basenowe",
+            "external_id": 4750,
+            "children": []
+          },
+          {
+            "name": "Maski do nurkowania",
+            "external_id": 4748,
+            "children": []
+          },
+          {
+            "name": "Bojki asekuracyjne do pływania",
+            "external_id": 4756,
+            "children": []
+          },
+          {
+            "name": "Zestawy do snorkelingu",
+            "external_id": 4752,
+            "children": []
+          },
+          {
+            "name": "Akcesoria do aqua aerobiku",
+            "external_id": 4757,
+            "children": []
+          },
+          {
+            "name": "Fajki do snorkelingu",
+            "external_id": 4751,
+            "children": []
+          }
+        ]
+      },
+      {
+        "name": "Pianki, rękawice i buty neoprenowe",
+        "external_id": 4768,
+        "children": [
+          {
+            "name": "Pianki",
+            "external_id": 4780,
+            "children": []
+          },
+          {
+            "name": "Buty neoprenowe",
+            "external_id": 4782,
+            "children": []
+          },
+          {
+            "name": "Rękawice neoprenowe",
+            "external_id": 4781,
+            "children": []
+          },
+          {
+            "name": "Kaptury neoprenowe",
+            "external_id": 4783,
+            "children": []
+          }
+        ]
+      },
+      {
+        "name": "Akcesoria do sportów wodnych",
+        "external_id": 4769,
+        "children": [
+          {
+            "name": "Inne akcesoria do sportów wodnych",
+            "external_id": 4779,
+            "children": []
+          },
+          {
+            "name": "Worki wodoszczelne",
+            "external_id": 4770,
+            "children": []
+          },
+          {
+            "name": "Pompy do sprzętu pływackiego",
+            "external_id": 4777,
+            "children": []
+          },
+          {
+            "name": "Akcesoria do sprzętu wodnego",
+            "external_id": 4776,
+            "children": []
+          },
+          {
+            "name": "Bagażniki samochodowe na sprzęt wodny",
+            "external_id": 4772,
+            "children": []
+          },
+          {
+            "name": "Kamizelki ochronne do sportów wodnych",
+            "external_id": 4774,
+            "children": []
+          },
+          {
+            "name": "Torby podróżne na sprzęt wodny",
+            "external_id": 4778,
+            "children": []
+          },
+          {
+            "name": "Uprzęże do sportów wodnych",
+            "external_id": 4773,
+            "children": []
+          },
+          {
+            "name": "Wiązania do sportów wodnych",
+            "external_id": 4771,
+            "children": []
+          },
+          {
+            "name": "Liny do holowania",
+            "external_id": 4775,
+            "children": []
+          }
+        ]
+      },
+      {
+        "name": "Kamizelki ratunkowe",
+        "external_id": 4766,
+        "children": []
+      },
+      {
+        "name": "Pontony dmuchane",
+        "external_id": 4758,
+        "children": []
+      },
+      {
+        "name": "Deski SUP",
+        "external_id": 4784,
+        "children": []
+      },
+      {
+        "name": "Kajaki",
+        "external_id": 4759,
+        "children": []
+      },
+      {
+        "name": "Deski do kitesurfingu",
+        "external_id": 4760,
+        "children": []
+      },
+      {
+        "name": "Deski wakeboardowe",
+        "external_id": 4764,
+        "children": []
+      },
+      {
+        "name": "Kaski do sportów wodnych",
+        "external_id": 4767,
+        "children": []
+      },
+      {
+        "name": "Koła i tuby do holowania",
+        "external_id": 4763,
+        "children": []
+      },
+      {
+        "name": "Narty wodne",
+        "external_id": 4765,
+        "children": []
+      },
+      {
+        "name": "Deski do skimboardu",
+        "external_id": 4761,
+        "children": []
+      }
+    ]
+  },
+  {
+    "name": "Deskorolki i hulajnogi",
+    "external_id": 4341,
+    "children": [
+      {
+        "name": "Hulajnogi",
+        "external_id": 4818,
+        "children": []
+      },
+      {
+        "name": "Deskorolki",
+        "external_id": 4607,
+        "children": []
+      },
+      {
+        "name": "Ochraniacze do jazdy na deskorolce",
+        "external_id": 4609,
+        "children": []
+      },
+      {
+        "name": "Części i akcesoria do deskorolek",
+        "external_id": 4611,
+        "children": []
+      },
+      {
+        "name": "Części i akcesoria do wrotek i rolek",
+        "external_id": 4610,
+        "children": []
+      },
+      {
+        "name": "Kaski do jazdy na deskorolce",
+        "external_id": 4608,
+        "children": []
+      },
+      {
+        "name": "Longboardy",
+        "external_id": 4606,
+        "children": []
+      }
+    ]
+  },
+  {
+    "name": "Sporty zespołowe",
+    "external_id": 4337,
+    "children": [
+      {
+        "name": "Piłka nożna",
+        "external_id": 4485,
+        "children": []
+      },
+      {
+        "name": "Unihokej",
+        "external_id": 4495,
+        "children": []
+      },
+      {
+        "name": "Inne akcesoria do sportów drużynowych",
+        "external_id": 4499,
+        "children": []
+      },
+      {
+        "name": "Koszykówka",
+        "external_id": 4486,
+        "children": []
+      },
+      {
+        "name": "Siatkówka",
+        "external_id": 4488,
+        "children": []
+      },
+      {
+        "name": "Akcesoria treningowe i sędziowskie",
+        "external_id": 4490,
+        "children": []
+      },
+      {
+        "name": "Piłka ręczna",
+        "external_id": 4487,
+        "children": []
+      },
+      {
+        "name": "Futbol amerykański",
+        "external_id": 4491,
+        "children": []
+      },
+      {
+        "name": "Baseball i softball",
+        "external_id": 4492,
+        "children": []
+      },
+      {
+        "name": "Rugby",
+        "external_id": 4489,
+        "children": []
+      },
+      {
+        "name": "Hokej na trawie",
+        "external_id": 4494,
+        "children": []
+      },
+      {
+        "name": "Sporty gaelickie",
+        "external_id": 4496,
+        "children": []
+      },
+      {
+        "name": "Lacrosse",
+        "external_id": 4497,
+        "children": []
+      },
+      {
+        "name": "Krykiet",
+        "external_id": 4493,
+        "children": []
+      },
+      {
+        "name": "Netball",
+        "external_id": 4498,
+        "children": []
+      },
+      {
+        "name": "Futbol australijski",
+        "external_id": 5590,
+        "children": []
+      }
+    ]
+  },
+  {
+    "name": "Boks i sztuki walki",
+    "external_id": 4342,
+    "children": [
+      {
+        "name": "Rękawice bokserskie i do sportów walki",
+        "external_id": 4619,
+        "children": []
+      },
+      {
+        "name": "Inne akcesoria do sztuk walki",
+        "external_id": 4625,
+        "children": []
+      },
+      {
+        "name": "Ochraniacze ciała w boksie i sportach walki",
+        "external_id": 4617,
+        "children": []
+      },
+      {
+        "name": "Pasy do sportów walki",
+        "external_id": 4621,
+        "children": []
+      },
+      {
+        "name": "Ochraniacze głowy w boksie i sportach walki",
+        "external_id": 4616,
+        "children": []
+      },
+      {
+        "name": "Worki treningowe",
+        "external_id": 4622,
+        "children": []
+      },
+      {
+        "name": "Bandaże bokserskie",
+        "external_id": 4620,
+        "children": []
+      },
+      {
+        "name": "Tarcze treningowe",
+        "external_id": 4618,
+        "children": []
+      },
+      {
+        "name": "Gruszki bokserskie",
+        "external_id": 4624,
+        "children": []
+      }
+    ]
+  },
+  {
+    "name": "Sporty rakietowe",
+    "external_id": 4338,
+    "children": [
+      {
+        "name": "Tenis",
+        "external_id": 4477,
+        "children": []
+      },
+      {
+        "name": "Tenis stołowy",
+        "external_id": 4481,
+        "children": []
+      },
+      {
+        "name": "Padel",
+        "external_id": 4482,
+        "children": []
+      },
+      {
+        "name": "Badminton",
+        "external_id": 4479,
+        "children": []
+      },
+      {
+        "name": "Squash",
+        "external_id": 4478,
+        "children": []
+      },
+      {
+        "name": "Pickleball",
+        "external_id": 4483,
+        "children": []
+      },
+      {
+        "name": "Okulary ochronne do sportów rakietowych",
+        "external_id": 4484,
+        "children": []
+      },
+      {
+        "name": "Racquetball",
+        "external_id": 4480,
+        "children": []
+      }
+    ]
+  },
+  {
+    "name": "Gry rekreacyjne",
+    "external_id": 4343,
+    "children": [
+      {
+        "name": "Frisbee i disc golf",
+        "external_id": 4684,
+        "children": []
+      },
+      {
+        "name": "Wyposażenie do darta",
+        "external_id": 4683,
+        "children": []
+      },
+      {
+        "name": "Gra w bule i inne",
+        "external_id": 4682,
+        "children": []
+      },
+      {
+        "name": "Piłki na plac zabaw",
+        "external_id": 4686,
+        "children": []
+      },
+      {
+        "name": "Bilard i snooker",
+        "external_id": 4687,
+        "children": []
+      },
+      {
+        "name": "Kręgle",
+        "external_id": 4689,
+        "children": []
+      },
+      {
+        "name": "Roundnet i spikeball",
+        "external_id": 4688,
+        "children": []
+      }
+    ]
+  },
+  {
+    "name": "Golf",
+    "external_id": 4339,
+    "children": [
+      {
+        "name": "Piłki do golfa",
+        "external_id": 4472,
+        "children": []
+      },
+      {
+        "name": "Kije golfowe",
+        "external_id": 4473,
+        "children": []
+      },
+      {
+        "name": "Akcesoria do golfa",
+        "external_id": 4470,
+        "children": []
+      },
+      {
+        "name": "Torby do golfa",
+        "external_id": 4471,
+        "children": []
+      },
+      {
+        "name": "Sprzęt treningowy do golfa",
+        "external_id": 4476,
+        "children": []
+      },
+      {
+        "name": "Rękawiczki do golfa",
+        "external_id": 4474,
+        "children": []
+      },
+      {
+        "name": "Wózki golfowe",
+        "external_id": 4475,
+        "children": []
+      }
+    ]
+  }
+]
