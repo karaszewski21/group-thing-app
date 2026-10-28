@@ -86,10 +86,11 @@ def _term_suffix(payload: dict[str, Any]) -> str | None:
 
 
 async def _handle_term_ended_giveaway(db: AsyncSession, payload: dict[str, Any]) -> None:
-    """One `Notification` per party (the giver and the taker) of a GIFT
-    `Reservation` whose Term just ended — same payload-driven, fully
-    pre-rendered message shape as `_handle_pledge_claimed`. Both carry
-    `reservation_id` so the client can confirm that reservation directly."""
+    """One `Notification` for the taker of a GIFT `Reservation` whose Term
+    just ended — same payload-driven, fully pre-rendered message shape as
+    `_handle_pledge_claimed`. Only the taker is prompted, since only they
+    may confirm a gift (the giver cancels from `Moje rzeczy` if needed); it
+    carries `reservation_id` so the client can confirm it directly."""
     link_path = payload["link_path"]
     reservation_id = uuid.UUID(payload["reservation_id"])
     item_name = payload.get("item_name")
@@ -98,15 +99,14 @@ async def _handle_term_ended_giveaway(db: AsyncSession, payload: dict[str, Any])
         message = f"Czy przekazanie „{item_name}” doszło do skutku? {suffix}"
     else:
         message = "Czy przekazanie rzeczy doszło do skutku?"
-    for party_id in (payload["owner_party_id"], payload["taker_party_id"]):
-        await service.create_notification(
-            db,
-            party_id=uuid.UUID(party_id),
-            kind=NotificationKind.TERM_CONFIRMATION_NEEDED,
-            message=clock.fit_notification_message(message),
-            link_path=link_path,
-            reservation_id=reservation_id,
-        )
+    await service.create_notification(
+        db,
+        party_id=uuid.UUID(payload["taker_party_id"]),
+        kind=NotificationKind.TERM_CONFIRMATION_NEEDED,
+        message=clock.fit_notification_message(message),
+        link_path=link_path,
+        reservation_id=reservation_id,
+    )
 
 
 async def _handle_term_ended_swap(db: AsyncSession, payload: dict[str, Any]) -> None:

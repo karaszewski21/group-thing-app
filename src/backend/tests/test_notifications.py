@@ -171,7 +171,7 @@ async def _append_term_ended_giveaway(
     await db_session.commit()
 
 
-async def test_handleTermEndedGiveaway_payloadWithReservationId_setsItOnBothNotifications(
+async def test_handleTermEndedGiveaway_payloadWithReservationId_setsItOnTakerNotificationOnly(
     client: AsyncClient, db_session: AsyncSession
 ) -> None:
     _, owner_party_id = await _register(client, "GUEST", "notif.resid.owner@example.com")
@@ -193,22 +193,22 @@ async def test_handleTermEndedGiveaway_payloadWithReservationId_setsItOnBothNoti
         .scalars()
         .all()
     )
-    assert {str(n.party_id) for n in notifications} == {owner_party_id, taker_party_id}
-    assert [str(n.reservation_id) for n in notifications] == [reservation_id, reservation_id]
+    assert [str(n.party_id) for n in notifications] == [taker_party_id]
+    assert [str(n.reservation_id) for n in notifications] == [reservation_id]
 
 
 async def test_listMyNotifications_notificationWithReservationId_returnsReservationId(
     client: AsyncClient, db_session: AsyncSession
 ) -> None:
-    owner_token, owner_party_id = await _register(
-        client, "GUEST", "notif.resid.api.owner@example.com"
+    _, owner_party_id = await _register(client, "GUEST", "notif.resid.api.owner@example.com")
+    taker_token, taker_party_id = await _register(
+        client, "GUEST", "notif.resid.api.taker@example.com"
     )
-    _, taker_party_id = await _register(client, "GUEST", "notif.resid.api.taker@example.com")
     reservation_id = str(uuid.uuid4())
     await _append_term_ended_giveaway(db_session, owner_party_id, taker_party_id, reservation_id)
     await _process_outbox(db_session)
 
-    rows = await _my_notifications(client, owner_token)
+    rows = await _my_notifications(client, taker_token)
 
     assert len(rows) == 1
     assert rows[0]["kind"] == "TERM_CONFIRMATION_NEEDED"

@@ -498,7 +498,7 @@ async def test_confirmTransaction_beforeTermEnd_raisesBusinessConflict(
 async def test_confirmTransaction_afterTermEnd_fulfillsReservation(
     client: AsyncClient, db_session: AsyncSession
 ) -> None:
-    """(f) After the Term has ended, either party's `confirm_transaction`
+    """(f) After the Term has ended, the recipient's `confirm_transaction`
     call succeeds and actually moves inventory (`FULFILLED`)."""
     org_token, _ = await _register(client, "ORGANIZER", "til.org16@example.com")
     group_id, term_id = await _create_circle_and_term(client, org_token, "til16")
@@ -613,6 +613,51 @@ async def test_confirmTransaction_nonParty_raisesAccessDenied(
         await service.confirm_transaction(
             db_session, _principal(outsider_token), taken.resolved_reservation_id
         )
+
+
+async def test_confirmTransaction_giftGiver_raisesAccessDeniedButCanStillCancel(
+    client: AsyncClient, db_session: AsyncSession
+) -> None:
+    """Only a gift's recipient confirms the handover: the giver's confirm is
+    rejected and leaves the reservation open, while the giver's cancel
+    (the recipient never showed up) still releases the item."""
+    org_token, _ = await _register(client, "ORGANIZER", "til.org18g@example.com")
+    group_id, term_id = await _create_circle_and_term(client, org_token, "til18g")
+
+    lister_token, _ = await _register(client, "GUEST", "til.lister18g@example.com")
+    await _rsvp(client, lister_token, group_id, term_id)
+    item_id = await _register_personal_item(client, lister_token, "Rower18g")
+    await service.set_item_listing_preference(
+        db_session, _principal(lister_token), item_id, ReservationType.GIFT
+    )
+
+    taker_token, _ = await _register(client, "GUEST", "til.taker18g@example.com")
+    await _rsvp(client, taker_token, group_id, term_id)
+
+    taken = await service.take_item_listing(
+        db_session,
+        _principal(taker_token),
+        item_id,
+        TakeTermItemListingRequest(term_id=term_id, reservation_type="GIFT"),
+    )
+
+    term = (await db_session.execute(select(Term).where(Term.id == term_id))).scalar_one()
+    term.occurs_on = clock.local_now() - timedelta(days=1)
+    await db_session.commit()
+
+    with pytest.raises(AccessDeniedException):
+        await service.confirm_transaction(
+            db_session, _principal(lister_token), taken.resolved_reservation_id
+        )
+    await db_session.rollback()
+
+    cancelled = await service.cancel_transaction(
+        db_session, _principal(lister_token), taken.resolved_reservation_id
+    )
+    assert cancelled.status == "CANCELLED"
+
+    balance = await get_item_balance(db_session, item_id)
+    assert balance.status == BalanceStatus.AVAILABLE
 
 
 async def test_confirmTransaction_swapCounterpartyConfirmsViaPairedLegId_succeeds(

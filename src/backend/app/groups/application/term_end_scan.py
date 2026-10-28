@@ -1,8 +1,8 @@
 """Periodic background scan for `Term`s whose `occurs_on` has just passed,
 emitting an idempotent outbox event for each still-open GIFT
 `Reservation` and each `ACCEPTED` `SwapProposal` it affects — the trigger
-`app.notifications.outbox_listener` listens for to prompt both parties to
-call `confirm_transaction`.
+`app.notifications.outbox_listener` listens for to prompt the parties
+allowed to call `confirm_transaction` (a GIFT's taker, both SWAP parties).
 
 Reads circulation state ONLY through `circulation_bridge` — this module
 never imports `app.circulation` directly. GIFT candidates come from

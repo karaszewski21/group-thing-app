@@ -29,24 +29,7 @@ export function PublicLayout() {
     <div className={`flex flex-col bg-cream ${inThread ? "h-dvh" : "min-h-dvh"}`}>
       <header className="sticky top-0 z-20 flex flex-none flex-col gap-3 border-b border-line bg-cream px-4 py-3">
         <nav aria-label="Menu konta" className="flex items-center gap-2">
-          <Link
-            to="/"
-            aria-label="Krąg grupy — Start"
-            className={`mr-auto flex min-h-11 min-w-0 items-center gap-2.5 rounded-xl pr-2 ${FOCUS_RING}`}
-          >
-            <span
-              aria-hidden="true"
-              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-primary font-serif text-[15px] font-extrabold text-on-primary"
-            >
-              KG
-            </span>
-          </Link>
-          <Link to={viewPath("spotkania")} aria-label="Spotkania" className={HEADER_BUTTON}>
-            <CalendarIcon c="currentColor" />
-          </Link>
-          {token ? <NotificationBell /> : <LoginBell />}
-        </nav>
-        {!inThread && !onSearch && (
+          {!inThread && !onSearch && (
           <Link
             to={viewPath("szukaj")}
             className={`flex min-h-12 items-center gap-2.5 rounded-full border-[1.5px] border-line bg-paper px-4.5 text-[15px] text-ink-soft transition-colors hover:border-line-strong ${FOCUS_RING}`}
@@ -55,6 +38,11 @@ export function PublicLayout() {
             Szukaj rzeczy i spotkań
           </Link>
         )}
+          <Link to={viewPath("spotkania")} aria-label="Spotkania" className={HEADER_BUTTON}>
+            <CalendarIcon c="currentColor" />
+          </Link>
+          {token ? <NotificationBell /> : <LoginBell />}
+        </nav> 
       </header>
       <main tabIndex={-1} className="flex min-h-0 flex-1 flex-col outline-none">
         <Outlet />

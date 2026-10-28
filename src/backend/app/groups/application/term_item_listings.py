@@ -904,10 +904,15 @@ async def confirm_transaction(
     fulfils every leg in one commit, which also commits the listing
     preferences deleted here; the other party's later call is recognized
     as a no-op via `TermAlreadyResolvedException` rather than a raw,
-    unexplained conflict."""
+    unexplained conflict. A GIFT is confirmed by its recipient only (403
+    for the giver, who can still cancel); either SWAP party may confirm."""
     acting_user_id, reservations = await _resolve_transaction_reservations_for_action(
         db, principal, reservation_id
     )
+    if reservations[0].reservation_type == circulation_bridge.ReservationType.GIFT:
+        confirm_race_rules._require_recipient_to_confirm_gift(
+            reservations[0].reserved_by_user_id, acting_user_id
+        )
 
     # A GIFT/SWAP permanently hands the item to someone else, so the giver's
     # standing listing mode no longer applies — deleted here so the item

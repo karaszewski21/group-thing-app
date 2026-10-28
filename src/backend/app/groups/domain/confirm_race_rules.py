@@ -23,3 +23,14 @@ def _require_race_participant(
 ) -> None:
     if acting_user_id not in (reserved_by_user_id, holder_user_id):
         raise AccessDeniedException
+
+
+def _require_recipient_to_confirm_gift(
+    reserved_by_user_id: uuid.UUID, acting_user_id: uuid.UUID
+) -> None:
+    """A GIFT's handover is confirmed only by its recipient — the party who
+    has the item in hand. The giver confirming alone could mark a gift as
+    handed over to a recipient who never showed up; the giver can still
+    cancel. (Each SWAP party receives an item, so either may confirm.)"""
+    if acting_user_id != reserved_by_user_id:
+        raise AccessDeniedException

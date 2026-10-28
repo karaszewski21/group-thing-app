@@ -65,11 +65,12 @@ function mockReservation(
   termId: string,
   termOccursOn: string,
   itemId: string = item.id,
+  reservationType: ReservationDetailResponse["reservation_type"] = "SWAP",
 ): ReservationDetailResponse {
   return {
     id,
     item_id: itemId,
-    reservation_type: "GIFT",
+    reservation_type: reservationType,
     reserved_by_user_id: "1",
     term_id: termId,
     paired_reservation_id: null,
@@ -399,6 +400,21 @@ describe("MyItemsView — post-term-end fallback buttons (Bug #4c)", () => {
     await waitFor(() => expect(screen.getAllByRole("button", { name: "Odebrał" })).toHaveLength(2));
     expect(screen.getAllByRole("button", { name: "Anuluj wymianę" })).toHaveLength(2);
     expect(api.get).not.toHaveBeenCalledWith(expect.stringContaining("/terms/"));
+  });
+
+  it("offers the giver of an ended GIFT only 'Anuluj wymianę' — the recipient confirms receipt", async () => {
+    mockApiGetRouter({
+      balances: [mockBalance(item.id, "IN_TRANSIT", "55")],
+      reservations: { "55": mockReservation("55", ENDED_TERM_ID, "2020-01-01T10:00:00", item.id, "GIFT") },
+    });
+    vi.mocked(appDataStore.useAppData).mockReturnValue(
+      makeContextValue(),
+    );
+
+    renderView();
+
+    expect(await screen.findByRole("button", { name: "Anuluj wymianę" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Odebrał" })).not.toBeInTheDocument();
   });
 
   it("does not render the new buttons for an AVAILABLE item (no active reservation)", async () => {

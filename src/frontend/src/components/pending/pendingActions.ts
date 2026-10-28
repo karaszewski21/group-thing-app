@@ -100,10 +100,8 @@ export function confirmActionTitle(action: PendingConfirmAction): string {
  * still works for the post-term-end `TERM_CONFIRMATION_NEEDED` prompt.
  *
  * Then checks the lister/owner side of the caller's own listings: an
- * accepted SWAP resolves via its paired leg, while GIFT resolves
- * directly to the caller's own reservation id (symmetric to the SWAP
- * branch — the owner IS the party who must confirm handoff for a gift,
- * there's no separate paired reservation to look up).
+ * accepted SWAP resolves via its paired leg. A GIFT is skipped there —
+ * only its recipient may confirm it, which the taker side already covers.
  *
  * `null` when neither side applies (nothing left to confirm, or it
  * doesn't belong to this caller). */
@@ -126,12 +124,6 @@ export async function resolvePendingReservationId(termId: string, myPartyId: str
       if (paired.status !== "FULFILLED" && paired.status !== "CANCELLED") {
         return paired.id;
       }
-    } else if (
-      primary.reservation_type === "GIFT" &&
-      primary.status !== "FULFILLED" &&
-      primary.status !== "CANCELLED"
-    ) {
-      return primary.id;
     }
   }
   return null;

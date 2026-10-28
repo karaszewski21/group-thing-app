@@ -99,8 +99,10 @@ export function MyItemsView() {
   // (`term_occurs_on`), which still resolves when the Term's group is
   // soft-deleted, unlike `GET /terms/{id}`. Settled per reservation so one
   // failing fetch never hides the buttons of the other locked items.
+  // `isGift`: on their own gift the owner is the giver, who may only cancel —
+  // the recipient confirms receipt.
   const [reservationTermInfo, setReservationTermInfo] = useState<
-    Record<string, { hasEnded: boolean }>
+    Record<string, { hasEnded: boolean; isGift: boolean }>
   >({});
   useEffect(() => {
     const lockedReservationIds = Array.from(
@@ -118,12 +120,13 @@ export function MyItemsView() {
     let cancelled = false;
     void Promise.allSettled(lockedReservationIds.map((id) => getReservation(id))).then((results) => {
       if (cancelled) return;
-      const next: Record<string, { hasEnded: boolean }> = {};
+      const next: Record<string, { hasEnded: boolean; isGift: boolean }> = {};
       for (const result of results) {
         if (result.status !== "fulfilled") continue;
-        const { id, term_occurs_on } = result.value;
+        const { id, term_occurs_on, reservation_type } = result.value;
         next[id] = {
           hasEnded: term_occurs_on != null && new Date(term_occurs_on).getTime() <= Date.now(),
+          isGift: reservation_type === "GIFT",
         };
       }
       setReservationTermInfo(next);
@@ -195,6 +198,12 @@ export function MyItemsView() {
     const reservationId = itemBalances[itemId]?.reservationId;
     if (reservationId == null) return false;
     return reservationTermInfo[reservationId]?.hasEnded === true;
+  }
+
+  function isGift(itemId: string): boolean {
+    const reservationId = itemBalances[itemId]?.reservationId;
+    if (reservationId == null) return false;
+    return reservationTermInfo[reservationId]?.isGift === true;
   }
 
   async function handleConfirmReceipt(itemId: string) {
@@ -359,14 +368,16 @@ export function MyItemsView() {
                   {badgeLabel && <StatusPill label={badgeLabel} />}
                   {locked && termHasEnded(it.id) && (
                     <>
-                      <button
-                        type="button"
-                        onClick={() => void handleConfirmReceipt(it.id)}
-                        disabled={actionBusyItemId === it.id}
-                        className="min-h-9 rounded-full bg-primary px-3.5 text-[13px] font-extrabold text-on-primary disabled:opacity-60"
-                      >
-                        Odebrał
-                      </button>
+                      {!isGift(it.id) && (
+                        <button
+                          type="button"
+                          onClick={() => void handleConfirmReceipt(it.id)}
+                          disabled={actionBusyItemId === it.id}
+                          className="min-h-9 rounded-full bg-primary px-3.5 text-[13px] font-extrabold text-on-primary disabled:opacity-60"
+                        >
+                          Odebrał
+                        </button>
+                      )}
                       <button
                         type="button"
                         onClick={() => void handleCancelTransaction(it.id)}

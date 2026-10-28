@@ -188,7 +188,7 @@ async def test_takeListing_termStartedInWarsaw_serverClockUtc_raisesTermAlreadyH
 async def test_confirmTransaction_termStartedInWarsaw_serverClockUtc_fulfills(
     client: AsyncClient, db_session: AsyncSession, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    lister_token, taker_token, item_id, term_id = await _listing_with_taker(
+    _, taker_token, item_id, term_id = await _listing_with_taker(
         client, db_session, "2", ReservationType.GIFT
     )
     taken = await service.take_item_listing(
@@ -202,7 +202,7 @@ async def test_confirmTransaction_termStartedInWarsaw_serverClockUtc_fulfills(
     monkeypatch.setattr(term_item_listings, "datetime", _UtcServerDatetime, raising=False)
 
     outcome = await service.confirm_transaction(
-        db_session, _principal(lister_token), taken.resolved_reservation_id
+        db_session, _principal(taker_token), taken.resolved_reservation_id
     )
 
     assert outcome.status == "FULFILLED"

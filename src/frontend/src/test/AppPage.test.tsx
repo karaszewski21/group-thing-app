@@ -2366,7 +2366,7 @@ describe("AppPage — MyItemsView post-term-end fallback buttons (Bug #4c, full 
     vi.mocked(reservationsApi.getReservation).mockResolvedValue({
       id: "88",
       item_id: lockedItem.id,
-      reservation_type: "GIFT",
+      reservation_type: "SWAP",
       reserved_by_user_id: "1",
       term_id: ENDED_TERM_ID,
       paired_reservation_id: null,

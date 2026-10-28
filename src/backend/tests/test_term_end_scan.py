@@ -305,12 +305,13 @@ async def test_scan_graceBoundary_emitsOnlyFromTwoHoursAfterTerm(
     assert await _count_outbox_entries(db_session, swap_events.TERM_ENDED_GIVEAWAY) == 1
 
 
-async def test_outboxListener_termEndedGiveaway_createsNotificationPerParty(
+async def test_outboxListener_termEndedGiveaway_createsNotificationForTakerOnly(
     client: AsyncClient, db_session: AsyncSession
 ) -> None:
     """Directly exercises the outbox handler (bypassing `scan_for_term_ended`)
     against a hand-built payload — real registered parties are required
-    since `Notification.party_id` carries a real FK into `parties`."""
+    since `Notification.party_id` carries a real FK into `parties`. Only the
+    taker is prompted: only the recipient may confirm a gift."""
     _, owner_party_id = await _register(client, "GUEST", "tes.listenerowner1@example.com")
     _, taker_party_id = await _register(client, "GUEST", "tes.listenertaker1@example.com")
 
@@ -343,8 +344,7 @@ async def test_outboxListener_termEndedGiveaway_createsNotificationPerParty(
         .scalars()
         .all()
     )
-    assert len(notifs) == 2
-    assert {str(n.party_id) for n in notifs} == {owner_party_id, taker_party_id}
+    assert [str(n.party_id) for n in notifs] == [taker_party_id]
 
 
 async def test_outboxListener_termEndedSwap_createsNotificationForBothParties(
@@ -486,10 +486,10 @@ async def test_scan_giftTakeWithClearedPreference_stillPromptsReservation(
     assert payloads[0]["taker_party_id"] == taker_party_id
 
 
-async def test_scan_pendingGift_secondRun_oneEventAndTwoNotificationsWithReservationId(
+async def test_scan_pendingGift_secondRun_oneEventAndOneTakerNotificationWithReservationId(
     client: AsyncClient, db_session: AsyncSession
 ) -> None:
-    _lister_token, lister_party_id, taker_party_id, term_id, reservation_id = await _taken_gift(
+    _lister_token, _lister_party_id, taker_party_id, term_id, reservation_id = await _taken_gift(
         client, db_session, "7"
     )
     await _push_term_into_past(db_session, term_id)
@@ -513,9 +513,8 @@ async def test_scan_pendingGift_secondRun_oneEventAndTwoNotificationsWithReserva
         .scalars()
         .all()
     )
-    assert {str(n.party_id) for n in notifications} == {lister_party_id, taker_party_id}
-    assert len(notifications) == 2
-    assert {n.reservation_id for n in notifications} == {reservation_id}
+    assert [str(n.party_id) for n in notifications] == [taker_party_id]
+    assert notifications[0].reservation_id == reservation_id
 
 
 async def test_scan_candidateWithMissingGiverProfile_isSkippedWhileOthersStillPrompted(
@@ -680,7 +679,7 @@ async def test_outboxListener_giveawayWithDetails_rendersQuestionAndKeepsReserva
         },
     )
 
-    assert len(notifs) == 2
+    assert len(notifs) == 1
     for n in notifs:
         assert n.message == (
             "Czy przekazanie „Rowerek” doszło do skutku? (śr 14.10, Krąg Słoneczko)"
@@ -772,7 +771,7 @@ async def test_outboxListener_maxLengthNames_messageCappedAt500Characters(
         },
     )
 
-    assert len(notifs) == 2
+    assert len(notifs) == 1
     for n in notifs:
         assert len(n.message) == 500
         assert n.message.endswith("…")
