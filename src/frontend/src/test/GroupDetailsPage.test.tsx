@@ -1,7 +1,7 @@
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { GroupDetailsPage } from "../pages/meetings/GroupDetailsPage";
+import { GroupDetailsPage } from "../pages/groups/GroupDetailsPage";
 import * as groupsApi from "../api/groups";
 import * as termsApi from "../api/terms";
 import { ApiError } from "../api/client";
@@ -145,7 +145,7 @@ describe("GroupDetailsPage", () => {
     renderPage();
 
     expect(await screen.findByText("Nie znaleziono tej grupy.")).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: /Wróć/ })).toHaveAttribute("href", "/meetings");
+    expect(screen.getByRole("link", { name: /Wróć/ })).toHaveAttribute("href", "/groups");
   });
 
   it("generic error retry refetches", async () => {

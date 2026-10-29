@@ -1,5 +1,3 @@
-import { useEffect } from "react";
-import { useSearchParams } from "react-router-dom";
 import { PhoneFrame } from "../../components/shared/PhoneFrame";
 import { AppDataProvider } from "../../app/AppDataContext";
 import { useAppData } from "../../app/appDataStore";
@@ -7,11 +5,16 @@ import { AppSkeleton } from "./AppSkeleton";
 import { AppModals } from "../../app/AppModals";
 import { HomeView } from "./HomeView";
 import { MeetingsView } from "../meetings/MeetingsView";
+import { GroupsView } from "../groups/GroupsView";
+import { GroupCreateView } from "../groups/GroupCreateView";
+import { GroupEditView } from "../groups/GroupEditView";
 import { MyItemsView } from "../items/MyItemsView";
 import { ProfileView } from "../profile/ProfileView";
 import { SettingsView } from "../account/SettingsView";
 import { FamilyView } from "../family/FamilyView";
 import { PlacesView } from "../places/PlacesView";
+import { PlaceCreateView } from "../places/PlaceCreateView";
+import { PlaceEditView } from "../places/PlaceEditView";
 import { AccountView } from "../account/AccountView";
 import { SearchView } from "../search/SearchView";
 import { WantedView } from "../search/WantedView";
@@ -49,24 +52,7 @@ export function AppPage() {
 }
 
 function AppPageView() {
-  const { loading, error, profile, view, toast, setModal, load } = useAppData();
-  const [searchParams, setSearchParams] = useSearchParams();
-  const createGroupRequested = searchParams.get("new") === "group";
-
-  // `?new=group` (the public pages' "Załóż grupę" link) opens the stepper
-  // once; the param is stripped so a refresh or back step doesn't reopen it.
-  useEffect(() => {
-    if (!createGroupRequested) return;
-    setModal("zaloz-grupe");
-    setSearchParams(
-      (params) => {
-        params.delete("new");
-        return params;
-      },
-      { replace: true },
-    );
-  }, [createGroupRequested, setModal, setSearchParams]);
-
+  const { loading, error, profile, view, toast, load } = useAppData();
   if (loading) {
     return (
       <PhoneFrame>
@@ -93,10 +79,15 @@ function AppPageView() {
         {ACCOUNT_SUBVIEWS.includes(view) && <SubPageHeader backTo={viewPath("account")} backLabel="Wróć do konta" />}
         {view === "home" && <HomeView />}
         {view === "meetings" && <MeetingsView />}
+        {view === "groups" && <GroupsView />}
+        {view === "groups/new" && <GroupCreateView />}
+        {view === "groups/edit" && <GroupEditView />}
         {view === "items" && <MyItemsView />}
         {view === "profile" && <ProfileView />}
         {view === "settings" && <SettingsView />}
         {view === "places" && <PlacesView onPlacesChanged={() => void load({ silent: true })} />}
+        {view === "places/new" && <PlaceCreateView />}
+        {view === "places/edit" && <PlaceEditView onPlacesChanged={() => void load({ silent: true })} />}
         {view === "family" && <FamilyView />}
         {view === "account" && <AccountView />}
         {view === "search" && <SearchView />}

@@ -1,3 +1,4 @@
+import { MemoryRouter } from "react-router-dom";
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { ApiError } from "../api/client";
@@ -68,12 +69,14 @@ const neededItem: termsApi.NeededItemResponse = {
 
 function renderDialog(shownTerm: termsApi.TermResponse = term, onChanged = vi.fn()) {
   return render(
-    <EditTermDialog
-      term={shownTerm}
-      neededItems={[neededItem]}
-      onChanged={onChanged}
-      onClose={vi.fn()}
-    />,
+    <MemoryRouter>
+      <EditTermDialog
+        term={shownTerm}
+        neededItems={[neededItem]}
+        onChanged={onChanged}
+        onClose={vi.fn()}
+      />
+    </MemoryRouter>,
     { wrapper: createQueryWrapper() },
   );
 }

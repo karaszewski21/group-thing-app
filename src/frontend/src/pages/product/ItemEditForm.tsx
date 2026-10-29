@@ -4,10 +4,7 @@ import type { ItemDetailsResponse } from "../../api/items";
 import { CategoryTreePicker } from "../../components/shared/CategoryTreePicker";
 import type { useItemEditing } from "../../hooks/useItemDetail";
 import { CONDITION_LABELS } from "../../utils/productCategory";
-import { ItemGalleryEditor } from "./ItemGalleryEditor";
-import { FIELD_LABEL, MAX_PRODUCT_PHOTOS } from "./itemPageShared";
-
-const DESCRIPTION_MAX = 2000;
+import { FIELD_LABEL, PRODUCT_DESCRIPTION_MAX } from "./itemPageShared";
 
 const INPUT = "rounded-xl border-[1.5px] border-line bg-paper px-3 py-2 text-ink disabled:opacity-60";
 const HINT_TEXT = "mt-1.5 text-[11.5px] text-ink-soft";
@@ -29,9 +26,9 @@ interface ItemEditFormProps {
   onDone: () => void;
 }
 
-/** The item page in edit mode: name and description as text fields,
- * category and condition as pickers, saved together with "Zapisz". Photos
- * are edited one by one and save at once, like before. Photos and the
+/** The item page's sheet in edit mode: name, condition, category,
+ * description, saved together with "Zapisz". The photos above it are edited
+ * in `ItemGalleryEditor` and save at once. Photos and the
  * description belong to the product, so a name/category change (which
  * re-points the item to another product) locks the description until it is
  * saved. */
@@ -97,6 +94,10 @@ export function ItemEditForm({ item, editing, detailsFailed, onRetryDetails, onD
           </button>
         </div>
       )}
+      <p className={HINT_TEXT}>
+        Zdjęcia zmieniasz na górze — zapisują się od razu. Są wspólne dla wszystkich rzeczy tego produktu, a inni
+        zobaczą je po sprawdzeniu.
+      </p>
       <form
         aria-label="Edycja rzeczy"
         onSubmit={(e) => {
@@ -118,38 +119,36 @@ export function ItemEditForm({ item, editing, detailsFailed, onRetryDetails, onD
             className={`w-full min-w-0 font-serif text-[22px] leading-tight font-extrabold ${INPUT}`}
           />
         </div>
-        <div className="grid grid-cols-1 gap-3 min-[400px]:grid-cols-2">
-          <div className="flex min-w-0 flex-col gap-1">
-            <span id={categoryLabelId} className={FIELD_LABEL}>
-              Kategoria
-            </span>
-            <CategoryTreePicker
-              labelledBy={categoryLabelId}
-              value={categoryId}
-              onChange={(id) => {
-                if (id) setCategoryId(id);
-              }}
-              placeholder={item.category_name ?? undefined}
-            />
-          </div>
-          <div className="flex min-w-0 flex-col gap-1">
-            <label htmlFor={conditionId} className={FIELD_LABEL}>
-              Stan
-            </label>
-            <select
-              id={conditionId}
-              value={condition}
-              disabled={busy}
-              onChange={(e) => setCondition(e.target.value as ItemCondition)}
-              className={`text-[13.5px] ${INPUT}`}
-            >
-              {(Object.keys(CONDITION_LABELS) as ItemCondition[]).map((c) => (
-                <option key={c} value={c}>
-                  {CONDITION_LABELS[c]}
-                </option>
-              ))}
-            </select>
-          </div>
+        <div className="flex min-w-0 flex-col gap-1">
+          <label htmlFor={conditionId} className={FIELD_LABEL}>
+            Stan
+          </label>
+          <select
+            id={conditionId}
+            value={condition}
+            disabled={busy}
+            onChange={(e) => setCondition(e.target.value as ItemCondition)}
+            className={`text-[13.5px] ${INPUT}`}
+          >
+            {(Object.keys(CONDITION_LABELS) as ItemCondition[]).map((c) => (
+              <option key={c} value={c}>
+                {CONDITION_LABELS[c]}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div className="flex min-w-0 flex-col gap-1">
+          <span id={categoryLabelId} className={FIELD_LABEL}>
+            Kategoria
+          </span>
+          <CategoryTreePicker
+            labelledBy={categoryLabelId}
+            value={categoryId}
+            onChange={(id) => {
+              if (id) setCategoryId(id);
+            }}
+            placeholder={item.category_name ?? undefined}
+          />
         </div>
         {repoints && (
           <p className="text-[11.5px] text-ink-soft">
@@ -164,7 +163,7 @@ export function ItemEditForm({ item, editing, detailsFailed, onRetryDetails, onD
           <textarea
             id={descriptionId}
             rows={5}
-            maxLength={DESCRIPTION_MAX}
+            maxLength={PRODUCT_DESCRIPTION_MAX}
             value={description}
             disabled={busy || descriptionLocked}
             aria-describedby={`${descriptionId}-hint`}
@@ -172,7 +171,7 @@ export function ItemEditForm({ item, editing, detailsFailed, onRetryDetails, onD
             className={`block w-full resize-y text-[13.5px] ${INPUT}`}
           />
           <p className="text-right text-[11.5px] text-ink-soft">
-            {description.length} / {DESCRIPTION_MAX}
+            {description.length} / {PRODUCT_DESCRIPTION_MAX}
           </p>
           <p id={`${descriptionId}-hint`} className="text-[11.5px] text-ink-soft">
             {repoints
@@ -199,20 +198,6 @@ export function ItemEditForm({ item, editing, detailsFailed, onRetryDetails, onD
           </button>
         </div>
       </form>
-
-      <section aria-labelledby="item-photos-edit-heading" className="mt-4 rounded-3xl border border-line bg-paper p-5">
-        <h3 id="item-photos-edit-heading" className={FIELD_LABEL}>
-          Zdjęcia ({item.photos.length}/{MAX_PRODUCT_PHOTOS})
-        </h3>
-        <ItemGalleryEditor
-          photos={item.photos}
-          busy={editing.photoBusy || productLocked}
-          onAdd={editing.addPhoto}
-          onRemove={editing.removePhoto}
-          onMove={editing.movePhoto}
-        />
-        <p className={HINT_TEXT}>Zmiany zdjęć zapisują się od razu.</p>
-      </section>
     </>
   );
 }

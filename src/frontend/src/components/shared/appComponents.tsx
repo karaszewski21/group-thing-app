@@ -334,8 +334,19 @@ export function ListCard({ rows }: { rows: ListRowItem[] }) {
   );
 }
 
-/** Back link + title for panel sub-pages without the tab bar. */
-export function SubPageHeader({ title, backTo, backLabel }: { title?: string; backTo: string; backLabel: string }) {
+/** Back link + title for panel sub-pages without the tab bar; `action`
+ * (e.g. a link to a related page) sits at the right end. */
+export function SubPageHeader({
+  title,
+  backTo,
+  backLabel,
+  action,
+}: {
+  title?: string;
+  backTo: string;
+  backLabel: string;
+  action?: ReactNode;
+}) {
   return (
     <div className="mb-4 flex items-center gap-2.5">
       <Link
@@ -348,6 +359,7 @@ export function SubPageHeader({ title, backTo, backLabel }: { title?: string; ba
       {title && (
         <h1 className="font-serif text-[26px] leading-tight font-extrabold tracking-tight text-ink">{title}</h1>
       )}
+      {action && <div className="ml-auto flex-none">{action}</div>}
     </div>
   );
 }

@@ -1,6 +1,7 @@
 import { useRef } from "react";
 import { initials } from "../../utils/appHelpers";
 import { useAppData } from "../../app/appDataStore";
+import { useProfileForm } from "./useProfileForm";
 
 const AVATAR_STATUS_NOTE: Record<string, string> = {
   PENDING: "Zdjęcie czeka na moderację — do tego czasu widzisz je tylko Ty.",
@@ -12,20 +13,20 @@ const INPUT_CLASS =
   "rounded-xl border-[1.5px] border-line bg-cream px-3.5 py-2.5 text-ink focus:border-mint focus:outline-none focus:ring-[3px] focus:ring-mint-soft";
 
 export function ProfileView() {
+  const { profile } = useAppData();
   const {
-    profile,
-    profileName,
-    profileBio,
-    profileSaved,
-    profileError,
+    name: profileName,
+    setName: setProfileName,
+    bio: profileBio,
+    setBio: setProfileBio,
+    saved: profileSaved,
+    error: profileError,
     avatarBusy,
     avatarError,
-    setProfileName,
-    setProfileBio,
-    saveProfile,
+    save: saveProfile,
     changeAvatar,
     removeAvatar,
-  } = useAppData();
+  } = useProfileForm();
   const fileInput = useRef<HTMLInputElement>(null);
 
   if (!profile) return null;

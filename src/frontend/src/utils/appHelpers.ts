@@ -11,10 +11,15 @@ import type { NeededItemResponse, TermResponse } from "../api/terms";
 export type View =
   | "home"
   | "meetings"
+  | "groups"
+  | "groups/new"
+  | "groups/edit"
   | "items"
   | "profile"
   | "settings"
   | "places"
+  | "places/new"
+  | "places/edit"
   | "family"
   | "account"
   | "search"
@@ -28,10 +33,15 @@ export type View =
 const VIEW_VALUES: readonly View[] = [
   "home",
   "meetings",
+  "groups",
+  "groups/new",
+  "groups/edit",
   "items",
   "profile",
   "settings",
   "places",
+  "places/new",
+  "places/edit",
   "family",
   "account",
   "search",
@@ -55,9 +65,37 @@ export function viewPath(view: View): string {
   return view === "home" ? "/" : `/${view}`;
 }
 
+/** Panel views with an id in their path (`/<section>/:id/edit`); they have
+ * no `viewPath()`, their URLs come from `groupEditPath`/`placeEditPath`. */
+export const ID_PATH_VIEWS = ["groups/edit", "places/edit"] as const satisfies readonly View[];
+
+export function groupEditPath(groupId: string): string {
+  return `/groups/${groupId}/edit`;
+}
+
+export function placeEditPath(locationId: string): string {
+  return `/places/${locationId}/edit`;
+}
+
+/** `/places/new` opened from a form's place picker: after saving it goes
+ * back to `returnTo` and hands the new place to the picker named `picker`
+ * (see `PickedLocationState`). */
+export function placeCreatePath(returnTo: string, picker: string): string {
+  return `${viewPath("places/new")}?${new URLSearchParams({ returnTo, picker })}`;
+}
+
+/** Navigation state `/places/new` returns with to the picker's page. */
+export interface PickedLocationState {
+  pickedLocation: { picker: string; locationId: string };
+}
+
+const EDIT_PATH = /^\/(groups|places)\/[^/]+\/edit$/;
+
 /** The panel view a pathname shows, or `null` when it is not a panel view. */
 export function viewFromPath(pathname: string): View | null {
   if (pathname === "/") return "home";
+  const edit = EDIT_PATH.exec(pathname);
+  if (edit) return `${edit[1] as "groups" | "places"}/edit`;
   const segment = pathname.slice(1);
   return segment !== "home" && isView(segment) ? segment : null;
 }
@@ -69,10 +107,7 @@ export function defaultVisibility(organizationSlug: string | null): GroupVisibil
 }
 
 export type ModalKind =
-  | "grupa"
-  | "edit-grupa"
   | "pierwszy-termin"
-  | "zaloz-grupe"
   | "rodzina-nowa"
   | "edit-termin"
   | null;

@@ -26,6 +26,7 @@ vi.mock("../api/people", () => ({
 vi.mock("../api/products", () => ({
   resolveProduct: vi.fn(),
   addProductPhoto: vi.fn(),
+  updateProductDescription: vi.fn(),
 }));
 
 vi.mock("../api/categories", () => ({
@@ -208,6 +209,60 @@ describe("ItemCreateView", () => {
     expect(registerOrder).toBeLessThan(vi.mocked(productsApi.addProductPhoto).mock.invocationCallOrder[0]);
   });
 
+  it("orders the page Zdjęcia, Nazwa, Stan, Kategoria, Opis and saves the description to the product", async () => {
+    vi.mocked(productsApi.updateProductDescription).mockResolvedValue(
+      {} as Awaited<ReturnType<typeof productsApi.updateProductDescription>>,
+    );
+    await fillForm();
+
+    const fields = [
+      screen.getByLabelText("Dodaj zdjęcia"),
+      screen.getByLabelText("Nazwa"),
+      screen.getByLabelText("Stan"),
+      categoryTrigger(),
+      screen.getByLabelText("Opis"),
+    ];
+    for (const [before, after] of fields.slice(0, -1).map((field, i) => [field, fields[i + 1]])) {
+      expect(before.compareDocumentPosition(after) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    }
+    fireEvent.change(screen.getByLabelText("Opis"), { target: { value: "  Mało używany  " } });
+    fireEvent.click(screen.getByRole("button", { name: "Wersja robocza" }));
+
+    expect(await screen.findByText(`ITEM PAGE ${NEW_ITEM_ID}`)).toBeInTheDocument();
+    expect(productsApi.updateProductDescription).toHaveBeenCalledWith(PRODUCT_ID, "Mało używany");
+  });
+
+  it("skips an empty description", async () => {
+    await fillForm();
+    fireEvent.click(screen.getByRole("button", { name: "Wersja robocza" }));
+    expect(await screen.findByText(`ITEM PAGE ${NEW_ITEM_ID}`)).toBeInTheDocument();
+    expect(productsApi.updateProductDescription).not.toHaveBeenCalled();
+  });
+
+  it("still opens the new item when the description is refused, with a notice", async () => {
+    vi.mocked(productsApi.updateProductDescription).mockRejectedValue(new ApiError(500, "Internal Server Error", {}));
+    await fillForm();
+    fireEvent.change(screen.getByLabelText("Opis"), { target: { value: "Opis" } });
+    fireEvent.click(screen.getByRole("button", { name: "Wersja robocza" }));
+
+    expect(await screen.findByText(`ITEM PAGE ${NEW_ITEM_ID}`)).toBeInTheDocument();
+    expect(screen.getByRole("status")).toHaveTextContent("nie udało się zapisać opisu");
+  });
+
+  it("an empty gallery is one big add tile; a photo shows a tile with Usuń and the main add button", async () => {
+    renderPage();
+    await act(async () => {});
+    expect(screen.queryByRole("button", { name: /^Usuń zdjęcie/ })).not.toBeInTheDocument();
+
+    addPhoto(new File(["a"], "a.jpg", { type: "image/jpeg" }));
+    expect(screen.getByText("+ Dodaj zdjęcia")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Usuń zdjęcie 1" }));
+    expect(screen.queryByRole("button", { name: "Usuń zdjęcie 1" })).not.toBeInTheDocument();
+    expect(screen.queryByText("+ Dodaj zdjęcia")).not.toBeInTheDocument();
+    expect(screen.getByLabelText("Dodaj zdjęcia")).toBeEnabled();
+  });
+
   it("shows the gift-limit 409 verbatim and keeps the form data", async () => {
     vi.mocked(inventoriesApi.registerInventoryItem).mockRejectedValue(
       new ApiError(409, "Conflict", { status: 409, error: "Conflict", message: GIFT_LIMIT_MESSAGE }),
@@ -223,7 +278,7 @@ describe("ItemCreateView", () => {
     expect(screen.getByLabelText("Nazwa")).toHaveValue("Rowerek");
     expect(screen.getByLabelText("Stan")).toHaveValue("NEW");
     expect(categoryTrigger()).toHaveTextContent("Wózki");
-    expect(screen.getByText("1. a.jpg")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Usuń zdjęcie 1" })).toBeInTheDocument();
     for (const button of actionButtons()) expect(button).toBeEnabled();
   });
 

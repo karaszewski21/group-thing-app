@@ -1,7 +1,7 @@
 import { act, fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import type { GroupResponse } from "../api/groups";
-import { DeleteGroupDialog } from "../pages/meetings/DeleteGroupDialog";
+import { DeleteGroupDialog } from "../pages/groups/DeleteGroupDialog";
 
 const GROUP: GroupResponse = {
   id: "g-1",

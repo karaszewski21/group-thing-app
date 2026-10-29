@@ -308,14 +308,14 @@ describe("ItemDetailPage", () => {
     expect(within(form).getByLabelText("Opis")).toHaveValue("Inny opis");
   });
 
-  it("each photo is edited on its own: files are validated and controls lock while a move is pending", async () => {
+  it("edit mode turns the top photo into the editable slider: files are validated and controls lock while a move is pending", async () => {
     const pending = deferred<productsApi.ProductPhotoResponse[]>();
     vi.mocked(productsApi.reorderProductPhotos).mockReturnValue(pending.promise);
     renderPage(`/product/${ITEM_ID}?edit=1`);
 
     await screen.findByRole("form", { name: "Edycja rzeczy" });
-    expect(screen.getByText("Zdjęcia (2/10)")).toBeInTheDocument();
-    expect(screen.getByText("Zmiany zdjęć zapisują się od razu.")).toBeInTheDocument();
+    expect(screen.getByText("1 / 2")).toBeInTheDocument();
+    expect(screen.getByText(/Zdjęcia zmieniasz na górze — zapisują się od razu/)).toBeInTheDocument();
     fireEvent.change(screen.getByLabelText("Dodaj zdjęcia"), {
       target: { files: [new File(["x"], "x.gif", { type: "image/gif" })] },
     });
@@ -324,12 +324,12 @@ describe("ItemDetailPage", () => {
     ).toBeInTheDocument();
     expect(productsApi.addProductPhoto).not.toHaveBeenCalled();
 
-    fireEvent.click(screen.getByRole("button", { name: "Przesuń zdjęcie 1 w dół" }));
+    fireEvent.click(screen.getByRole("button", { name: "Przesuń zdjęcie 1 dalej" }));
     await waitFor(() =>
       expect(productsApi.reorderProductPhotos).toHaveBeenCalledWith(PRODUCT_ID, [PHOTO_2, PHOTO_1]),
     );
     expect(screen.getByRole("button", { name: "Usuń zdjęcie 1" })).toBeDisabled();
-    expect(screen.getByRole("button", { name: "Przesuń zdjęcie 2 w górę" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Przesuń zdjęcie 1 dalej" })).toBeDisabled();
     expect(screen.getByLabelText("Dodaj zdjęcia")).toBeDisabled();
 
     pending.resolve([]);
@@ -339,6 +339,7 @@ describe("ItemDetailPage", () => {
     expect(itemsApi.getItemDetails).toHaveBeenCalledTimes(2);
 
     vi.mocked(productsApi.deleteProductPhoto).mockResolvedValue(undefined);
+    fireEvent.click(screen.getByRole("button", { name: "Następne zdjęcie" }));
     fireEvent.click(screen.getByRole("button", { name: "Usuń zdjęcie 2" }));
     await waitFor(() => expect(productsApi.deleteProductPhoto).toHaveBeenCalledWith(PRODUCT_ID, PHOTO_2));
     expect(screen.getByRole("form", { name: "Edycja rzeczy" })).toBeInTheDocument();
@@ -624,7 +625,7 @@ describe("Item edit mode status chip and photo hints", () => {
     renderPage(`/product/${ITEM_ID}?edit=1`);
 
     expect(
-      await screen.findByText("Zdjęcia są wspólne dla wszystkich rzeczy tego produktu. Inni zobaczą je po sprawdzeniu."),
+      await screen.findByText(/Są wspólne dla wszystkich rzeczy tego produktu, a inni zobaczą je po sprawdzeniu\./),
     ).toBeInTheDocument();
     expect(screen.queryByText(/Nowe zdjęcie zdejmuje/)).not.toBeInTheDocument();
   });

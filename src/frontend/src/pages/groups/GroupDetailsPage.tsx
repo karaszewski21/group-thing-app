@@ -37,7 +37,7 @@ export function GroupDetailsPage() {
     <PhoneFrame>
       <div className="flex-1 overflow-y-auto px-[18px] pb-6 pt-[18px]">
         <Link
-          to="/meetings"
+          to="/groups"
           className="mb-4 inline-flex items-center gap-1.5 text-xs font-bold text-ink-soft"
         >
           <BackIcon /> Wróć

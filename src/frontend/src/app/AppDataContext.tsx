@@ -1,11 +1,11 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type { ReactNode } from "react";
-import { Link, useLocation, useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../auth/AuthContext";
 import { useQueryClient } from "@tanstack/react-query";
 import { NOTIFICATIONS_KEY } from "../hooks/useNotifications";
 import { subscribePendingActionResolved } from "../components/pending/pendingActionResolved";
-import { getMyPledges, withdrawPledge, type MyPledgeResponse } from "../api/pledges";
+import { MY_PLEDGES_KEY } from "../hooks/useMyPledges";
 import {
   createLightweightMembers,
   getGuardians,
@@ -19,12 +19,10 @@ import {
 } from "../api/families";
 import {
   createAdditionalMyCircle,
-  deleteGroup,
   getGroup,
   getMyAttendances,
   updateGroup,
   type GroupResponse,
-  type LeadershipResponse,
   type MyAttendanceResponse,
 } from "../api/groups";
 import {
@@ -35,11 +33,8 @@ import {
   type MyInventoryItemResponse,
 } from "../api/inventories";
 import {
-  deleteMyAvatar,
   getLeadershipsForPerson,
   getMyProfile,
-  updateMyProfile,
-  uploadMyAvatar,
   type UserProfileResponse,
 } from "../api/people";
 import { getMyOrganization } from "../api/organizations";
@@ -48,7 +43,6 @@ import {
   createTerm,
   getNeededItems,
   getTerms,
-  type NeededItemResponse,
   type TermResponse,
 } from "../api/terms";
 import {
@@ -57,14 +51,10 @@ import {
 } from "../utils/neededItemQuickAdd";
 import { hasStatus, serverMessageOr } from "../api/problem";
 import { setItemListingPreference } from "../api/itemListingPreferences";
-import { pluralPl } from "../utils/plural";
 import type { GroupFormValue } from "../components/panel/GroupFormFields";
-import { TermPlaceLine } from "../components/shared/TermPlaceLine";
-import { CopyIcon, FamilyIcon, PencilIcon } from "../components/shared/appIcons";
+import { EMPTY_EVENT_DRAFT, type EventDraft } from "../pages/add/eventDraft";
 import {
-  dayMonth,
   defaultVisibility,
-  termTime,
   termPublicPath,
   GIFT_LIMIT_MESSAGE,
   ITEM_MODE_TO_RESERVATION_TYPE,
@@ -91,20 +81,6 @@ import { AppDataContext } from "./appDataStore";
 
 export type AppDataContextValue = ReturnType<typeof useAppDataValue>;
 
-/** The `localStorage` key of a home hint's "dismissed" flag for one account. */
-function hintKey(flag: string, username: string | null): string {
-  return `${flag}:${username ?? ""}`;
-}
-
-function useDismissibleHint(storageKey: string): [boolean, () => void] {
-  const [dismissed, setDismissed] = useState(() => localStorage.getItem(storageKey) === "1");
-  function dismiss() {
-    localStorage.setItem(storageKey, "1");
-    setDismissed(true);
-  }
-  return [dismissed, dismiss];
-}
-
 /** Each item's standing mode keyed by item id, seeded from `listing_mode`
  * (items without a mode are left out). */
 function itemModesFrom(items: MyInventoryItemResponse[]): Record<string, ItemMode> {
@@ -122,7 +98,7 @@ function itemModesFrom(items: MyInventoryItemResponse[]): Record<string, ItemMod
 const PENDING_PHOTO_POLL_MS = 10_000;
 
 function useAppDataValue() {
-  const { logout, username } = useAuth();
+  const { logout } = useAuth();
   const navigate = useNavigate();
   // The active section is the pathname (`/`, `/items`, `/account`, …), not
   // local state — this way a refresh (or a shared/bookmarked link) lands
@@ -132,17 +108,13 @@ function useAppDataValue() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [profile, setProfile] = useState<UserProfileResponse | null>(null);
-  const [myLeaderships, setMyLeaderships] = useState<LeadershipResponse[]>([]);
   const [myGroups, setMyGroups] = useState<GroupResponse[]>([]);
-  const [guestCircles, setGuestCircles] = useState<GroupResponse[]>([]);
   // Terms of the groups I lead (`terms`) and of my family's member circles (`guestTerms`), kept apart.
   const [terms, setTerms] = useState<TermWithNeeded[]>([]);
   const [guestTerms, setGuestTerms] = useState<TermWithNeeded[]>([]);
   const [family, setFamily] = useState<FamilyOut | null>(null);
   const [guardians, setGuardians] = useState<GuardianResponse[]>([]);
   const [myAttendances, setMyAttendances] = useState<MyAttendanceResponse[]>([]);
-  // "Zadeklarowane rzeczy" (HomeView) — the caller's own non-withdrawn pledges.
-  const [myPledges, setMyPledges] = useState<MyPledgeResponse[]>([]);
   const queryClient = useQueryClient();
   // Inline "Mój dom" family rename (D4 / TC4) — no dedicated modal.
   const [renamingFamily, setRenamingFamily] = useState(false);
@@ -155,8 +127,8 @@ function useAppDataValue() {
   // entry at render time so the open dialog always sees fresh props after a
   // `load({ silent: true })` refresh.
   const [editTermId, setEditTermId] = useState<string | null>(null);
-  // "Edytuj grupę" dialog (name, layout template, visibility, default place
-  // and capacity) next to each led group (`modal === "edit-grupa"`).
+  // The `/groups/:groupId/edit` form (name, layout template, visibility,
+  // default place and capacity), seeded by `startEditGroup`.
   const [editingGroupId, setEditingGroupId] = useState<string | null>(null);
   const [editGroupForm, setEditGroupForm] = useState<GroupFormValue>({
     name: "",
@@ -179,58 +151,24 @@ function useAppDataValue() {
     [navigate],
   );
   const [modal, setModal] = useState<ModalKind>(null);
-  // Inline (E2) server errors for the "Dodaj grupę" modal / "Dodaj termin"
-  // page — cleared whenever the modal opens or the page is entered, so the
-  // many close paths don't each have to reset them.
+  // Inline (E2) server errors for the "Nowa grupa" / "Dodaj termin" pages —
+  // cleared whenever the page is entered, so the many leave paths don't each
+  // have to reset them.
   const [addGroupError, setAddGroupError] = useState<string | null>(null);
   const [addTermError, setAddTermError] = useState<string | null>(null);
   useEffect(() => {
-    if (modal === "grupa") {
-      setAddGroupError(null);
-      setGroupForm((form) => ({ ...form, visibility: defaultVisibility(organizationSlug) }));
-    }
-  }, [modal, organizationSlug]);
+    if (view === "groups/new") setAddGroupError(null);
+  }, [view]);
+  // Not on entering /groups/new: coming back from /places/new (its place
+  // picker's "+") must keep the visibility the user already chose.
+  useEffect(() => {
+    setGroupForm((form) => ({ ...form, visibility: defaultVisibility(organizationSlug) }));
+  }, [organizationSlug]);
   useEffect(() => {
     if (view === "add/term") setAddTermError(null);
   }, [view]);
-  // Which "pierwszy-termin" variant to render, captured when its hint is
-  // clicked rather than derived live from `myGroups` — the "Załóż grupę"
-  // stepper's own step 1 grows `myGroups` via a silent `load()` mid-flow,
-  // and re-deriving the branch on every render would swap the mounted
-  // stepper out from under the user (losing the step-2 progress).
-  const [firstTermForOrganizer, setFirstTermForOrganizer] = useState(false);
   const [toast, setToast] = useState("");
   const [busy, setBusy] = useState(false);
-
-  // --- Panel home dismissible hints (spec.md §3) — dismissible-banner
-  // `localStorage` convention: read the flag once on mount, write it on
-  // dismiss-click. Keys are per account (`hintKey`), so a browser shared by
-  // several accounts never hides a new account's hints because another
-  // account dismissed them. Independent flags:
-  //  - `hint_create_group_dismissed` — "Załóż grupę", no led group yet
-  //  - `hint_create_org_dismissed` — "Stwórz wizytówkę", groups but no Organization
-  //  - `hint_org_polish_dismissed` — "Dopracuj stronę organizacji", groups and an Organization
-  //  - `hint_org_first_term_dismissed` — "Dodaj swój pierwszy termin", groups but no term
-  const [hintCreateGroupDismissed, dismissCreateGroupHint] = useDismissibleHint(
-    hintKey("hint_create_group_dismissed", username),
-  );
-  const [hintCreateOrgDismissed, dismissCreateOrgHint] = useDismissibleHint(
-    hintKey("hint_create_org_dismissed", username),
-  );
-  const [hintOrgFirstTermDismissed, dismissOrgFirstTermHint] = useDismissibleHint(
-    hintKey("hint_org_first_term_dismissed", username),
-  );
-  const [hintOrgPolishDismissed, dismissOrgPolishHint] = useDismissibleHint(
-    hintKey("hint_org_polish_dismissed", username),
-  );
-
-  // --- profil: formularz "Dane profilowe" i avatar ---
-  const [profileName, setProfileName] = useState("");
-  const [profileBio, setProfileBio] = useState("");
-  const [profileSaved, setProfileSaved] = useState(false);
-  const [profileError, setProfileError] = useState<string | null>(null);
-  const [avatarBusy, setAvatarBusy] = useState(false);
-  const [avatarError, setAvatarError] = useState<string | null>(null);
 
   // --- lokalne, niepersystentne pola (patrz komentarz na górze pliku) ---
   const [settings, setSettings] = useState({ publicProfile: true });
@@ -250,6 +188,11 @@ function useAppDataValue() {
     defaultCapacity: "",
   });
   const [groupForm, setGroupForm] = useState<GroupFormValue>(emptyGroupForm);
+
+  // --- formularz: nowe wydarzenie (/add/event) — kept here so it survives
+  // a trip to /places/new from its place picker ---
+  const [eventDraft, setEventDraft] = useState<EventDraft>(EMPTY_EVENT_DRAFT);
+  const [eventBanner, setEventBanner] = useState<File | null>(null);
 
   // --- formularz: dodaj termin ---
   const [termGroupId, setTermGroupId] = useState<string | null>(null);
@@ -276,19 +219,13 @@ function useAppDataValue() {
 
   const load = useCallback(async (options?: { silent?: boolean }) => {
     // `silent` skips the full-page "Wczytywanie…" early-return branch — used
-    // when a mid-flow modal (e.g. CreateGroupStepper's step 1 -> step 2
-    // transition) needs `myGroups` refreshed in the background without
-    // unmounting the still-open modal underneath it.
+    // when an open modal or a half-filled form needs `myGroups` refreshed in
+    // the background without being unmounted.
     if (!options?.silent) setLoading(true);
     setError(null);
     try {
       const me = await getMyProfile();
       setProfile(me);
-      // A silent refresh must not overwrite edits still being typed.
-      if (!options?.silent) {
-        setProfileName(me.display_name);
-        setProfileBio(me.bio ?? "");
-      }
 
       const leaderships = await getLeadershipsForPerson(me.id);
 
@@ -300,7 +237,6 @@ function useAppDataValue() {
       }
 
       const activeLeaderships = leaderships.filter((l) => l.valid_to === null);
-      setMyLeaderships(activeLeaderships);
 
       // "Rodzina" section (§7): fetched once here and reused below for the
       // family's member circles instead of a second `getMyFamilies()` round trip.
@@ -325,13 +261,11 @@ function useAppDataValue() {
         setMyAttendances([]);
       }
 
-      // "Zadeklarowane rzeczy" + notification bell — same guarded pattern.
-      try {
-        setMyPledges(await getMyPledges());
-      } catch {
-        setMyPledges([]);
-      }
-      await queryClient.invalidateQueries({ queryKey: NOTIFICATIONS_KEY });
+      // "Zadeklarowane rzeczy" and the notification bell read their own queries.
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: [MY_PLEDGES_KEY] }),
+        queryClient.invalidateQueries({ queryKey: NOTIFICATIONS_KEY }),
+      ]);
 
       // A group deleted between the leadership/membership read and these
       // fetches answers 404; skip it instead of failing the whole panel.
@@ -359,7 +293,6 @@ function useAppDataValue() {
         const active = memberships.filter((m) => m.valid_to === null && !ledIds.has(m.to_group_id));
         memberGroups = await getGroups(active.map((m) => m.to_group_id));
       }
-      setGuestCircles(memberGroups);
 
       async function getGroupTerms(group: GroupResponse) {
         const list = await getTerms(group.id);
@@ -467,21 +400,6 @@ function useAppDataValue() {
     return () => clearTimeout(t);
   }, [toast]);
 
-  /* ---------- zadeklarowane rzeczy / powiadomienia ---------- */
-
-  async function withdrawMyPledge(pledgeId: string) {
-    setBusy(true);
-    try {
-      await withdrawPledge(pledgeId);
-      showToast("Wycofano zgłoszenie");
-      await load({ silent: true });
-    } catch {
-      showToast("Nie udało się wycofać zgłoszenia");
-    } finally {
-      setBusy(false);
-    }
-  }
-
   /* ---------- grupy ---------- */
 
   async function handleAddGroup() {
@@ -500,7 +418,7 @@ function useAppDataValue() {
         default_capacity: defaultCapacity,
       });
       setGroupForm(emptyGroupForm());
-      setModal(null);
+      navigate(viewPath("groups"));
       showToast("Dodano grupę");
       await load();
     } catch (err) {
@@ -508,17 +426,6 @@ function useAppDataValue() {
     } finally {
       setBusy(false);
     }
-  }
-
-  /** Rejects with the message `DeleteGroupDialog` shows inline. */
-  async function handleRemoveGroup(groupId: string): Promise<void> {
-    try {
-      await deleteGroup(groupId);
-    } catch (err) {
-      throw new Error(serverMessageOr(err, "Nie udało się usunąć grupy. Spróbuj ponownie."));
-    }
-    showToast("Usunięto grupę");
-    await load({ silent: true });
   }
 
   /* ---------- terminy ---------- */
@@ -629,14 +536,6 @@ function useAppDataValue() {
     }
   }
 
-  const itemCounts = useMemo(
-    () => ({
-      "oddam": items.filter((i) => itemModes[i.id] === "oddam").length,
-      "zamienię": items.filter((i) => itemModes[i.id] === "zamienię").length,
-    }),
-    [items, itemModes],
-  );
-
   /* ---------- rodzina ---------- */
 
   async function handleAddFamilyMember() {
@@ -727,127 +626,7 @@ function useAppDataValue() {
     }
   }
 
-  /** Sign-up summary pill linking to the organizer attendees page. Counts come
-   * from the terms payload and are `null` for non-organizers — no chip then. */
-  function signupSummaryChip(term: TermResponse) {
-    const attendees = term.attendee_count;
-    if (attendees === null) return null;
-    const children = term.child_count ?? 0;
-    const hasAttendees = attendees > 0;
-    const attendeesText = `${attendees} ${pluralPl(attendees, "zapis", "zapisy", "zapisów")}`;
-    const childrenText = `${children} ${pluralPl(children, "dziecko", "dzieci", "dzieci")}`;
-    const capacity = term.capacity ?? null;
-    const capacityLabel = capacity === null ? "" : `${attendees}/${capacity} miejsc`;
-
-    return (
-      <div className="mt-2">
-        <Link
-          to={`/terms/${term.id}`}
-          aria-label={`Zapisani na termin: ${
-            hasAttendees ? `${attendeesText}, ${childrenText}` : "brak zapisów"
-          }${capacityLabel && `, ${capacityLabel}`}`}
-          className="inline-flex min-h-8 items-center gap-1 rounded-full bg-cream px-3 text-[13px] font-bold text-ink transition-colors hover:bg-line"
-        >
-          {hasAttendees && (
-            <span aria-hidden="true" className="flex [&>svg]:h-3.5 [&>svg]:w-3.5">
-              <FamilyIcon />
-            </span>
-          )}
-          {hasAttendees ? `${attendeesText} · ${childrenText}` : "Brak zapisów"}
-          {capacityLabel && ` · ${capacityLabel}`}
-          <span aria-hidden="true">›</span>
-        </Link>
-      </div>
-    );
-  }
-
-  /** Organizer term tile — a read-only compact card. The circle name links to
-   * the public per-term page; a copy-link button and an edit pencil (opening
-   * `EditTermDialog`) are the only controls. Date, description and needed-items
-   * editing all live in that dialog. Guest terms use `guestTermCard`. */
-  function organizerTermCard(
-    term: TermResponse,
-    group: GroupResponse,
-    neededItems: NeededItemResponse[],
-  ) {
-    const { day, month } = dayMonth(term.occurs_on);
-    const time = termTime(term.occurs_on);
-    const iconBtnClass =
-      "flex h-10 w-10 flex-none items-center justify-center rounded-full border-[1.5px] border-line bg-paper text-ink transition-colors hover:border-line-strong focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring";
-
-    return (
-      <div className="rounded-[22px] border border-line bg-paper p-3.5">
-        <div className="flex items-start gap-3">
-          <div className="flex h-14.5 w-13 flex-none flex-col items-center justify-center rounded-2xl bg-primary-soft leading-none">
-            <b className="font-serif text-[22px] font-extrabold text-ink">{day}</b>
-            <small className="mt-0.5 text-[10px] font-extrabold tracking-wide text-primary-fg uppercase">{month}</small>
-          </div>
-          <div className="min-w-0 flex-1">
-            <Link
-              to={termPublicPath(group, term.id)}
-              className="text-base font-bold text-ink hover:underline"
-            >
-              {group.name}
-            </Link>
-            <p className="mt-0.5 text-sm text-ink-soft">
-              {time && <span className="font-bold text-ink">godz. {time}</span>}
-              {time && (term.description ? " · " : "")}
-              {term.description || (time ? "" : "Bez opisu")}
-            </p>
-            <TermPlaceLine location={term.location ?? null} capacity={null} withMapLink className="mt-1.5" />
-            {neededItems.length > 0 && (
-              <div className="mt-2 flex flex-wrap gap-1.5">
-                {neededItems.map((ni) => (
-                  <span
-                    key={ni.id}
-                    title={ni.claimed ? "Ktoś zadeklarował, że to przyniesie" : undefined}
-                    className={`rounded-full px-2.5 py-0.5 text-xs font-extrabold ${
-                      ni.claimed
-                        ? "bg-primary-soft text-primary-fg"
-                        : "border-[1.5px] border-dashed border-accent text-accent-fg"
-                    }`}
-                  >
-                    {ni.claimed ? "✓ " : ""}
-                    {ni.name}
-                  </span>
-                ))}
-              </div>
-            )}
-            {signupSummaryChip(term)}
-          </div>
-          <div className="flex flex-none flex-col gap-1">
-            <button
-              type="button"
-              title="Kopiuj link do terminu"
-              aria-label="Kopiuj link do terminu"
-              onClick={() => {
-                void navigator.clipboard.writeText(
-                  `${window.location.origin}${termPublicPath(group, term.id)}`,
-                );
-                showToast("Skopiowano link");
-              }}
-              className={iconBtnClass}
-            >
-              <CopyIcon />
-            </button>
-            <button
-              type="button"
-              aria-label="Edytuj termin"
-              onClick={() => {
-                setEditTermId(term.id);
-                setModal("edit-termin");
-              }}
-              className={iconBtnClass}
-            >
-              <PencilIcon />
-            </button>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  /* ---------- dialog "Edytuj grupę" (nazwa, layout, widoczność, stałe miejsce, ile miejsc) ---------- */
+  /* ---------- strona "Edytuj grupę" (nazwa, layout, widoczność, stałe miejsce, ile miejsc) ---------- */
 
   function startEditGroup(group: GroupResponse) {
     setEditingGroupId(group.id);
@@ -859,13 +638,6 @@ function useAppDataValue() {
       defaultCapacity: capacityText(group.default_capacity),
     });
     setEditGroupError(null);
-    setModal("edit-grupa");
-  }
-
-  function cancelEditGroup() {
-    setEditingGroupId(null);
-    setEditGroupError(null);
-    setModal(null);
   }
 
   async function saveEditGroup() {
@@ -886,7 +658,7 @@ function useAppDataValue() {
         default_capacity: defaultCapacity,
       });
       setEditingGroupId(null);
-      setModal(null);
+      navigate(viewPath("groups"));
       showToast("Zapisano zmiany grupy");
       await load({ silent: true });
     } catch (err) {
@@ -916,54 +688,6 @@ function useAppDataValue() {
         return next;
       });
       setItemError("Nie udało się usunąć — przywrócono pozycję");
-    }
-  }
-
-  /* ---------- profil ---------- */
-
-  async function saveProfile() {
-    setProfileError(null);
-    try {
-      const updated = await updateMyProfile({
-        display_name: profileName,
-        bio: profileBio.trim() || null,
-      });
-      setProfile(updated);
-      setProfileName(updated.display_name);
-      setProfileBio(updated.bio ?? "");
-      setProfileSaved(true);
-      showToast("Zapisano dane profilowe");
-      setTimeout(() => setProfileSaved(false), 2200);
-    } catch (err) {
-      setProfileError(serverMessageOr(err, "Nie udało się zapisać profilu — spróbuj ponownie"));
-    }
-  }
-
-  async function changeAvatar(file: File) {
-    setAvatarBusy(true);
-    setAvatarError(null);
-    try {
-      const avatar = await uploadMyAvatar(file);
-      setProfile((current) => (current ? { ...current, avatar } : current));
-      showToast(avatar.status === "APPROVED" ? "Zapisano zdjęcie profilowe" : "Zdjęcie czeka na moderację");
-    } catch (err) {
-      setAvatarError(serverMessageOr(err, "Nie udało się wgrać zdjęcia — spróbuj ponownie"));
-    } finally {
-      setAvatarBusy(false);
-    }
-  }
-
-  async function removeAvatar() {
-    setAvatarBusy(true);
-    setAvatarError(null);
-    try {
-      await deleteMyAvatar();
-      setProfile((current) => (current ? { ...current, avatar: null } : current));
-      showToast("Usunięto zdjęcie profilowe");
-    } catch (err) {
-      setAvatarError(serverMessageOr(err, "Nie udało się usunąć zdjęcia — spróbuj ponownie"));
-    } finally {
-      setAvatarBusy(false);
     }
   }
 
@@ -1000,51 +724,6 @@ function useAppDataValue() {
     }));
   const savedCards = [...attendedCards, ...memberCards].sort((a, b) => a.occursOn.localeCompare(b.occursOn));
 
-  /** Guest term card — the whole card links to the public term page, so the
-   * place line carries no Maps link of its own (no nested anchors). */
-  function guestTermCard(card: GuestTermCard) {
-    const { day, month } = dayMonth(card.occursOn);
-    const time = termTime(card.occursOn);
-    return (
-      <Link
-        to={card.href}
-        className="flex items-start gap-3 rounded-[22px] border border-line bg-paper p-3.5 transition-colors hover:border-line-strong"
-      >
-        <div className="flex h-14.5 w-13 flex-none flex-col items-center justify-center rounded-2xl bg-primary-soft leading-none">
-          <b className="font-serif text-[22px] font-extrabold text-ink">{day}</b>
-          <small className="mt-0.5 text-[10px] font-extrabold tracking-wide text-primary-fg uppercase">{month}</small>
-        </div>
-        <div className="min-w-0 flex-1">
-          <h4 className="text-base font-bold text-ink">{card.groupName}</h4>
-          <small className="mt-0.5 block text-sm text-ink-soft">
-            {time && <span className="font-bold text-ink">godz. {time}</span>}
-            {time && (card.description ? " · " : "")}
-            {card.description || (time ? "" : "Bez opisu")}
-          </small>
-          <TermPlaceLine
-            location={card.location}
-            capacity={card.capacity}
-            attendeeCount={card.attendeeCount}
-            withMapLink={false}
-            className="mt-1.5"
-          />
-          {card.neededItems.length > 0 && (
-            <div className="mt-2 flex flex-wrap gap-1.5">
-              {card.neededItems.map((ni) => (
-                <span
-                  key={ni.id}
-                  className="rounded-full border-[1.5px] border-dashed border-accent px-2.5 py-0.5 text-xs font-extrabold text-accent-fg"
-                >
-                  {ni.name}
-                </span>
-              ))}
-            </div>
-          )}
-        </div>
-      </Link>
-    );
-  }
-
   // Resolved from live `terms` at render time so the open EditTermDialog keeps
   // getting fresh props after each `load({ silent: true })` refresh.
   const editTermEntry =
@@ -1057,22 +736,15 @@ function useAppDataValue() {
     loading,
     error,
     profile,
-    myLeaderships,
     myGroups,
-    guestCircles,
     terms,
-    guestTerms,
     savedCards,
     family,
     guardians,
-    myAttendances,
-    myPledges,
-    withdrawMyPledge,
     renamingFamily,
     familyNameDraft,
     renameError,
     familyMemberError,
-    editTermId,
     editingGroupId,
     editGroupForm,
     editGroupError,
@@ -1082,25 +754,16 @@ function useAppDataValue() {
     organizationSlug,
     view,
     modal,
-    firstTermForOrganizer,
     toast,
     busy,
-    hintCreateGroupDismissed,
-    hintCreateOrgDismissed,
-    hintOrgFirstTermDismissed,
-    hintOrgPolishDismissed,
-    profileName,
-    profileBio,
-    profileSaved,
-    profileError,
-    avatarBusy,
-    avatarError,
     settings,
     itemModes,
     memberName,
     memberRole,
     memberBirthYear,
     groupForm,
+    eventDraft,
+    eventBanner,
     termGroupId,
     termDate,
     termDescription,
@@ -1111,12 +774,12 @@ function useAppDataValue() {
     items,
     // --- setters the render calls directly ---
     setView,
+    setProfile,
     setModal,
-    setFirstTermForOrganizer,
-    setProfileName,
-    setProfileBio,
     setSettings,
     setGroupForm,
+    setEventDraft,
+    setEventBanner,
     selectTermGroup,
     setTermDate,
     setTermDescription,
@@ -1132,17 +795,9 @@ function useAppDataValue() {
     // --- derived ---
     showToast,
     load,
-    itemCounts,
     editTermEntry,
-    organizerTermCard,
-    guestTermCard,
     // --- handlers ---
-    dismissCreateGroupHint,
-    dismissCreateOrgHint,
-    dismissOrgFirstTermHint,
-    dismissOrgPolishHint,
     handleAddGroup,
-    handleRemoveGroup,
     addDraftNeededItem,
     removeDraftNeededItem,
     handleAddTerm,
@@ -1154,12 +809,8 @@ function useAppDataValue() {
     cancelRenameFamily,
     saveRenameFamily,
     startEditGroup,
-    cancelEditGroup,
     saveEditGroup,
     handleDeleteItem,
-    saveProfile,
-    changeAvatar,
-    removeAvatar,
   };
 }
 

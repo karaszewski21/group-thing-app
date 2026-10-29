@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
 import { NeededItemQuickAddForm } from "../../components/shared/NeededItemQuickAddForm";
 import { LocationPicker } from "../../components/shared/LocationPicker";
 import { CapacityField, Field, INPUT_CLASS, SubPageHeader } from "../../components/shared/appComponents";
@@ -21,7 +22,6 @@ export function AddTermView() {
     neededDraft,
     draftNeededItem,
     busy,
-    setModal,
     selectTermGroup,
     setTermDate,
     setTermDescription,
@@ -49,13 +49,12 @@ export function AddTermView() {
       {myGroups.length === 0 ? (
         <div className="rounded-[22px] border border-line bg-paper p-5 text-sm text-ink-soft">
           <p>Termin dodasz w swojej grupie — najpierw ją załóż.</p>
-          <button
-            type="button"
-            onClick={() => setModal("zaloz-grupe")}
-            className="mt-3 rounded-full bg-primary px-4 py-2 text-sm font-extrabold text-on-primary"
+          <Link
+            to={viewPath("groups/new")}
+            className="mt-3 inline-block rounded-full bg-primary px-4 py-2 text-sm font-extrabold text-on-primary"
           >
             Załóż grupę
-          </button>
+          </Link>
         </div>
       ) : (
         <div className="rounded-[22px] border border-line bg-paper p-5">
@@ -99,11 +98,6 @@ export function AddTermView() {
                 noneLabel="Brak miejsca"
                 idPrefix="add-term-place"
                 fallbackLocation={termGroup?.default_location ?? null}
-                helperText={
-                  termGroup?.default_location && termLocationId === termGroup.default_location.id
-                    ? "Domyślne miejsce grupy — możesz zmienić"
-                    : undefined
-                }
               />
             </Field>
             <CapacityField label="Ile miejsc" value={termCapacity} onChange={setTermCapacity} />

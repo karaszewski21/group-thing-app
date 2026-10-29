@@ -4,6 +4,7 @@ export interface ItemQuickAddValue {
   name: string;
   condition: ItemCondition;
   category_id: string;
+  description: string;
 }
 
 /** Empty value for `ItemQuickAddForm`, used by `ItemCreateView`. The
@@ -13,5 +14,6 @@ export function createEmptyItemQuickAddValue(): ItemQuickAddValue {
     name: "",
     condition: "GOOD",
     category_id: "",
+    description: "",
   };
 }

@@ -4,10 +4,16 @@ import * as locationsApi from "../api/locations";
 import type { LocationResponse } from "../api/locations";
 import * as googleMaps from "../lib/googleMaps";
 import type { PlacesApi, Suggestion } from "../lib/googleMaps";
+import { MemoryRouter, Route, Routes } from "react-router-dom";
+import { PlaceCreateView } from "../pages/places/PlaceCreateView";
+import { PlaceEditView } from "../pages/places/PlaceEditView";
 import { PlacesView } from "../pages/places/PlacesView";
 import { createQueryWrapper } from "./queryClient";
 
 vi.mock("../auth/AuthContext", () => ({ useAuth: () => ({ token: "token-a" }) }));
+
+const showToast = vi.fn();
+vi.mock("../app/appDataStore", () => ({ useAppData: () => ({ showToast }) }));
 
 vi.mock("../api/locations", () => ({
   getMyLocations: vi.fn(),
@@ -68,8 +74,29 @@ const SUGGESTION: Suggestion = {
 
 const onPlacesChanged = vi.fn();
 
-function renderView() {
-  return render(<PlacesView onPlacesChanged={onPlacesChanged} />, { wrapper: createQueryWrapper() });
+/** The list stays empty until `createLocation` runs (both the list and the
+ * add page fetch it), then holds `created`. */
+function mockCreatedOnSave(created: LocationResponse) {
+  let saved = false;
+  vi.mocked(locationsApi.getMyLocations).mockImplementation(async () => (saved ? [created] : []));
+  vi.mocked(locationsApi.createLocation).mockImplementation(async () => {
+    saved = true;
+    return created;
+  });
+}
+
+/** "Moje miejsca" with its add and edit pages, as the panel routes them. */
+function renderView(path = "/places") {
+  return render(
+    <MemoryRouter initialEntries={[path]}>
+      <Routes>
+        <Route path="/places" element={<PlacesView onPlacesChanged={onPlacesChanged} />} />
+        <Route path="/places/new" element={<PlaceCreateView />} />
+        <Route path="/places/:locationId/edit" element={<PlaceEditView onPlacesChanged={onPlacesChanged} />} />
+      </Routes>
+    </MemoryRouter>,
+    { wrapper: createQueryWrapper() },
+  );
 }
 
 beforeEach(() => {
@@ -81,7 +108,7 @@ afterEach(() => {
   vi.unstubAllEnvs();
 });
 
-describe("PlacesView", () => {
+describe("Moje miejsca — list, add and edit pages", () => {
   it("lists own places with name, address and notes, plus per-row Edytuj/Usuń", async () => {
     vi.mocked(locationsApi.getMyLocations).mockResolvedValue([SWIETLICA, PARK]);
     renderView();
@@ -94,36 +121,33 @@ describe("PlacesView", () => {
     expect(rows[0]).toHaveTextContent("ul. Polna 12, 60-595 Poznań");
     expect(rows[0]).toHaveTextContent("wejście od podwórza");
     expect(rows[1]).toHaveTextContent("Park Sołacki");
-    expect(within(rows[0]).getByRole("button", { name: "Edytuj miejsce Świetlica na Polnej" })).toBeInTheDocument();
+    expect(within(rows[0]).getByRole("link", { name: "Edytuj miejsce Świetlica na Polnej" })).toHaveAttribute(
+      "href",
+      "/places/loc-1/edit",
+    );
     expect(within(rows[1]).getByRole("button", { name: "Usuń miejsce Park Sołacki" })).toBeInTheDocument();
     expect(screen.queryByText("Nie masz jeszcze zapisanych miejsc.")).not.toBeInTheDocument();
   });
 
-  it("empty state shows the copy and the collapsed add disclosure", async () => {
+  it("empty state shows the copy and a link to the add page, no inline form", async () => {
     vi.mocked(locationsApi.getMyLocations).mockResolvedValue([]);
     renderView();
 
     expect(await screen.findByText("Nie masz jeszcze zapisanych miejsc.")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "+ Dodaj miejsce" })).toHaveAttribute("aria-expanded", "false");
+    expect(screen.getByRole("link", { name: "+ Dodaj miejsce" })).toHaveAttribute("href", "/places/new");
     expect(screen.queryByLabelText("Nazwa miejsca")).not.toBeInTheDocument();
   });
 
-  it("adds a MANUAL place through the disclosure; the new row appears and the form collapses", async () => {
+  it("adds a MANUAL place on /places/new, then lists it back on Moje miejsca with a toast", async () => {
     const created: LocationResponse = { ...PARK, id: "loc-new", name: "Sala nr 2", formatted_address: "ul. Szkolna 5" };
-    vi.mocked(locationsApi.getMyLocations).mockResolvedValueOnce([]).mockResolvedValue([created]);
-    vi.mocked(locationsApi.createLocation).mockResolvedValue(created);
+    mockCreatedOnSave(created);
     renderView();
 
-    const toggle = await screen.findByRole("button", { name: "+ Dodaj miejsce" });
-    fireEvent.click(toggle);
-    expect(toggle).toHaveAttribute("aria-expanded", "true");
-    expect(document.getElementById(toggle.getAttribute("aria-controls")!)).toContainElement(
-      screen.getByLabelText("Nazwa miejsca"),
-    );
-
-    fireEvent.change(screen.getByLabelText("Nazwa miejsca"), { target: { value: "Sala nr 2" } });
-    fireEvent.change(screen.getByLabelText("Adres"), { target: { value: "ul. Szkolna 5" } });
-    fireEvent.click(screen.getByRole("button", { name: "Zapisz miejsce" }));
+    fireEvent.click(await screen.findByRole("link", { name: "+ Dodaj miejsce" }));
+    const page = await screen.findByRole("region", { name: "Nowe miejsce" });
+    fireEvent.change(within(page).getByLabelText("Nazwa miejsca"), { target: { value: "Sala nr 2" } });
+    fireEvent.change(within(page).getByLabelText("Adres"), { target: { value: "ul. Szkolna 5" } });
+    fireEvent.click(within(page).getByRole("button", { name: "Zapisz miejsce" }));
 
     await waitFor(() =>
       expect(locationsApi.createLocation).toHaveBeenCalledWith({
@@ -133,39 +157,48 @@ describe("PlacesView", () => {
         notes: null,
       }),
     );
-    const row = await screen.findByRole("listitem");
-    expect(row).toHaveTextContent("Sala nr 2");
-    expect(screen.queryByLabelText("Nazwa miejsca")).not.toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "+ Dodaj miejsce" })).toHaveAttribute("aria-expanded", "false");
-    await waitFor(() => expect(within(row).getByRole("button", { name: "Edytuj miejsce Sala nr 2" })).toHaveFocus());
-    expect(onPlacesChanged).toHaveBeenCalledTimes(1);
+    expect(await screen.findByRole("listitem")).toHaveTextContent("Sala nr 2");
+    expect(showToast).toHaveBeenCalledWith("Dodano miejsce „Sala nr 2”");
   });
 
-  it("edit: Google address is read-only '(z Google)', MANUAL address editable; save PATCHes and refocuses Edytuj", async () => {
+  it("the add page's Anuluj goes back without saving", async () => {
+    vi.mocked(locationsApi.getMyLocations).mockResolvedValue([]);
+    renderView("/places/new");
+
+    fireEvent.click(await screen.findByRole("button", { name: "Anuluj" }));
+    expect(await screen.findByText("Nie masz jeszcze zapisanych miejsc.")).toBeInTheDocument();
+    expect(locationsApi.createLocation).not.toHaveBeenCalled();
+  });
+
+  it("edit page: Google address is read-only '(z Google)'; save PATCHes and goes back to the list", async () => {
     vi.mocked(locationsApi.getMyLocations).mockResolvedValue([SWIETLICA, PARK]);
     vi.mocked(locationsApi.updateLocation).mockResolvedValue({ ...SWIETLICA, notes: null });
     renderView();
 
-    fireEvent.click(await screen.findByRole("button", { name: "Edytuj miejsce Świetlica na Polnej" }));
-    expect(screen.getByLabelText("Nazwa miejsca")).toHaveFocus();
-    expect(screen.getByText(/\(z Google\)/)).toBeInTheDocument();
-    expect(screen.queryByLabelText("Adres")).not.toBeInTheDocument();
+    fireEvent.click(await screen.findByRole("link", { name: "Edytuj miejsce Świetlica na Polnej" }));
+    const page = await screen.findByRole("region", { name: "Edytuj miejsce" });
+    expect(within(page).getByText(/\(z Google\)/)).toBeInTheDocument();
+    expect(within(page).queryByLabelText("Adres")).not.toBeInTheDocument();
 
-    fireEvent.change(screen.getByLabelText("Nazwa miejsca"), { target: { value: "Świetlica" } });
-    fireEvent.change(screen.getByLabelText("Notatka"), { target: { value: "" } });
-    fireEvent.click(screen.getByRole("button", { name: "Zapisz" }));
+    fireEvent.change(within(page).getByLabelText("Nazwa miejsca"), { target: { value: "Świetlica" } });
+    fireEvent.change(within(page).getByLabelText("Notatka"), { target: { value: "" } });
+    fireEvent.click(within(page).getByRole("button", { name: "Zapisz" }));
     await waitFor(() =>
       expect(locationsApi.updateLocation).toHaveBeenCalledWith("loc-1", { name: "Świetlica", notes: null }),
     );
-    await waitFor(() =>
-      expect(screen.getByRole("button", { name: "Edytuj miejsce Świetlica na Polnej" })).toHaveFocus(),
-    );
+    expect(await screen.findByRole("list", { name: "Moje miejsca" })).toBeInTheDocument();
     expect(onPlacesChanged).toHaveBeenCalledTimes(1);
+    expect(showToast).toHaveBeenCalledWith("Zapisano miejsce");
+  });
 
-    fireEvent.click(screen.getByRole("button", { name: "Edytuj miejsce Park Sołacki" }));
-    expect(screen.getByLabelText("Adres")).toHaveValue("Park Sołacki, Poznań");
-    fireEvent.click(screen.getByRole("button", { name: "Anuluj" }));
-    expect(screen.getByRole("button", { name: "Edytuj miejsce Park Sołacki" })).toHaveFocus();
+  it("edit page: a MANUAL address is editable; an unknown id shows a not-found note", async () => {
+    vi.mocked(locationsApi.getMyLocations).mockResolvedValue([SWIETLICA, PARK]);
+    const { unmount } = renderView("/places/loc-2/edit");
+    expect(await screen.findByLabelText("Adres")).toHaveValue("Park Sołacki, Poznań");
+    unmount();
+
+    renderView("/places/nope/edit");
+    expect(await screen.findByText("Nie znaleziono tego miejsca wśród Twoich miejsc.")).toBeInTheDocument();
   });
 
   it("delete asks in an alertdialog, then DELETEs and moves focus to the next row", async () => {
@@ -183,7 +216,7 @@ describe("PlacesView", () => {
     await waitFor(() => expect(locationsApi.deleteLocation).toHaveBeenCalledWith("loc-1"));
     await waitFor(() => expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument());
     expect(screen.queryByText("Świetlica na Polnej")).not.toBeInTheDocument();
-    await waitFor(() => expect(screen.getByRole("button", { name: "Edytuj miejsce Park Sołacki" })).toHaveFocus());
+    await waitFor(() => expect(screen.getByRole("link", { name: "Edytuj miejsce Park Sołacki" })).toHaveFocus());
     expect(onPlacesChanged).toHaveBeenCalledTimes(1);
   });
 
@@ -222,12 +255,11 @@ describe("PlacesView", () => {
       google_place_id: "ChIJ-test",
       notes: null,
     };
-    vi.mocked(locationsApi.getMyLocations).mockResolvedValueOnce([]).mockResolvedValue([created]);
-    vi.mocked(locationsApi.createLocation).mockResolvedValue(created);
+    mockCreatedOnSave(created);
     renderView();
 
-    fireEvent.click(await screen.findByRole("button", { name: "+ Dodaj miejsce" }));
-    const input = screen.getByRole("combobox", { name: "Szukaj adresu lub nazwy miejsca" });
+    fireEvent.click(await screen.findByRole("link", { name: "+ Dodaj miejsce" }));
+    const input = await screen.findByRole("combobox", { name: "Szukaj adresu lub nazwy miejsca" });
     fireEvent.focus(input);
     fireEvent.change(input, { target: { value: "pol" } });
     fireEvent.click(within(await screen.findByRole("listbox")).getByRole("option", { name: /Świetlica Osiedlowa/ }));

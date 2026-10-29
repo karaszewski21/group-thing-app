@@ -22,7 +22,7 @@ function TileContent({ icon, iconTone, title, hint }: { icon: ReactNode; iconTon
 /** The bottom bar's "+": four big tiles — an item, a wanted item, a term of
  * one of the user's groups and a one-off event. */
 export function AddView() {
-  const { myGroups, setModal } = useAppData();
+  const { myGroups } = useAppData();
   const hasGroups = myGroups.length > 0;
   const termTile = (
     <TileContent
@@ -66,15 +66,12 @@ export function AddView() {
             hint="Damy znać, gdy ktoś doda pasującą"
           />
         </Link>
-        {hasGroups ? (
-          <Link to={viewPath("add/term")} className={`${TILE_CLASS} bg-accent-soft text-ink`}>
-            {termTile}
-          </Link>
-        ) : (
-          <button type="button" onClick={() => setModal("zaloz-grupe")} className={`${TILE_CLASS} bg-accent-soft text-ink`}>
-            {termTile}
-          </button>
-        )}
+        <Link
+          to={viewPath(hasGroups ? "add/term" : "groups/new")}
+          className={`${TILE_CLASS} bg-accent-soft text-ink`}
+        >
+          {termTile}
+        </Link>
         <Link to={viewPath("add/event")} className={`${TILE_CLASS} bg-primary-soft text-ink`}>
           <TileContent
             icon={<CalendarIcon c="currentColor" />}

@@ -73,7 +73,7 @@ describe("ItemQuickAddForm", () => {
     fireEvent.click(await screen.findByRole("button", { name: "Dzieci" }));
     fireEvent.click(screen.getByRole("button", { name: "Zabawki" }));
 
-    expect(onChange).toHaveBeenCalledWith({ name: "Rowerek", condition: "GOOD", category_id: "2" });
+    expect(onChange).toHaveBeenCalledWith({ name: "Rowerek", condition: "GOOD", category_id: "2", description: "" });
   });
 
   it("disables every field when `disabled` is true", async () => {

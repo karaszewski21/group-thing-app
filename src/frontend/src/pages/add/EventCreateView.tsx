@@ -4,10 +4,10 @@ import type { EventResponse } from "../../api/events";
 import { useAppData } from "../../app/appDataStore";
 import { INPUT_CLASS, SubPageHeader } from "../../components/shared/appComponents";
 import { LocationPicker } from "../../components/shared/LocationPicker";
+import { PhotoGalleryField } from "../../components/shared/PhotoGalleryField";
 import { useCreateEvent } from "../../hooks/useCreateEvent";
 import { viewPath } from "../../utils/appHelpers";
 import dayjs from "../../utils/dayjs";
-import { PhotoFileField } from "../product/ItemGalleryEditor";
 import {
   EMPTY_EVENT_DRAFT,
   EVENT_DESCRIPTION_MAX,
@@ -51,17 +51,18 @@ function FieldError({ id, message }: { id: string; message: string | undefined }
  * only the banner fails, the event already exists, so the page offers a retry
  * or skipping the banner instead of the form. */
 export function EventCreateView() {
-  const { showToast } = useAppData();
+  const { showToast, eventDraft: draft, setEventDraft: setDraft, eventBanner: banner, setEventBanner: setBanner } =
+    useAppData();
   const navigate = useNavigate();
   const { create, uploadBanner } = useCreateEvent();
-  const [draft, setDraft] = useState<EventDraft>(EMPTY_EVENT_DRAFT);
-  const [banner, setBanner] = useState<File | null>(null);
   const [showErrors, setShowErrors] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [screen, setScreen] = useState<Screen>({ kind: "form" });
 
   function finish(event: EventResponse) {
+    setDraft(EMPTY_EVENT_DRAFT);
+    setBanner(null);
     showToast(savedToast(event));
     navigate(viewPath("add"));
   }
@@ -182,8 +183,8 @@ function EventForm({
 
   return (
     <form noValidate onSubmit={submit} className="rounded-[22px] border border-line bg-paper p-5">
-      <p className="mb-4 text-[13px] text-ink-soft">Jednorazowe spotkanie, np. piknik, urodziny albo wspólny spacer.</p>
       <div className="grid grid-cols-1 gap-3">
+        <BannerField value={banner} onChange={onBannerChange} disabled={busy} />
         <div className="flex flex-col gap-1.5">
           <label htmlFor="event-name" className={LABEL_CLASS}>
             Nazwa
@@ -281,8 +282,6 @@ function EventForm({
           </p>
           <FieldError id="event-description-error" message={descriptionError} />
         </div>
-
-        <BannerField value={banner} onChange={onBannerChange} disabled={busy} />
       </div>
 
       {error && (
@@ -315,8 +314,8 @@ function EventForm({
   );
 }
 
-/** Optional banner: a local preview with "Usuń" once chosen. An invalid file
- * is refused here and the previous choice is kept. */
+/** Optional banner in the shared photo slider (a single wide photo). An
+ * invalid file is refused here and the previous choice is kept. */
 function BannerField({ value, onChange, disabled }: { value: File | null; onChange: (file: File | null) => void; disabled: boolean }) {
   const [error, setError] = useState<string | null>(null);
   const preview = useMemo(() => (value ? URL.createObjectURL(value) : null), [value]);
@@ -337,32 +336,18 @@ function BannerField({ value, onChange, disabled }: { value: File | null; onChan
       <h2 id="event-banner-heading" className={LABEL_CLASS}>
         Baner{OPTIONAL}
       </h2>
-      {value && (
-        <div className="flex items-center gap-2 rounded-2xl border border-line bg-cream p-2">
-          {preview && <img src={preview} alt="Podgląd banera" className="h-14 w-24 flex-none rounded-xl object-cover" />}
-          <span className="min-w-0 flex-1 truncate text-[12.5px] text-ink" title={value.name}>
-            {value.name}
-          </span>
-          <button
-            type="button"
-            disabled={disabled}
-            onClick={() => {
-              setError(null);
-              onChange(null);
-            }}
-            className="rounded-[9px] px-2.5 py-1.5 text-xs font-bold text-danger disabled:opacity-40"
-          >
-            Usuń{" "}
-            <span className="sr-only">baner</span>
-          </button>
-        </div>
-      )}
-      <PhotoFileField
+      <PhotoGalleryField
+        photos={preview ? [{ id: preview, src: preview }] : []}
+        max={1}
         disabled={disabled}
-        label={value ? "Zmień baner" : "+ Dodaj baner"}
-        multiple={false}
-        className="self-start"
         onFiles={pick}
+        onRemove={() => {
+          setError(null);
+          onChange(null);
+        }}
+        noun="baner"
+        addLabel="Dodaj baner"
+        variant="create"
       />
       <p className="text-[11.5px] text-ink-soft">JPG, PNG lub WebP, do 5 MB</p>
       {error && (

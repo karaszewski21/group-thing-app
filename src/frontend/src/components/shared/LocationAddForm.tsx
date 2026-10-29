@@ -15,8 +15,8 @@ import { INPUT_CLASS } from "./appComponents";
 
 /* ------------------------------------------------------------------ */
 /*  Form adding one saved place: Google search (mockup 2c) or manual   */
-/*  entry (2d). Inline only — shared by the forms' LocationPicker and  */
-/*  the "Moje miejsca" panel view.                                     */
+/*  entry (2d). Shared by the forms' LocationPicker and the            */
+/*  /places/new page.                                                  */
 /* ------------------------------------------------------------------ */
 
 export const LOCATION_INPUT_CLASS = `${INPUT_CLASS} w-full`;

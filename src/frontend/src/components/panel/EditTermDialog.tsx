@@ -16,7 +16,7 @@ import { LocationPicker } from "../shared/LocationPicker";
 
 /* ------------------------------------------------------------------ */
 /*  "Edytuj termin" — single Panel dialog replacing the inline per-    */
-/*  field pencils that used to live inside `organizerTermCard`. Local  */
+/*  field pencils that used to live inside `OrganizerTermCard`. Local  */
 /*  `useState` (mirrors CreateFamilyDialog): the modal can be opened/  */
 /*  closed/reopened in one page session. `term`/`neededItems` come as  */
 /*  props from the host, which passes fresh values on every           */
@@ -219,6 +219,7 @@ export function EditTermDialog({ term, neededItems, onChanged, onClose }: EditTe
         </Field>
         <Field label="Miejsce">
           <LocationPicker
+            addMode="inline"
             value={locationId}
             onChange={(id) => {
               setLocationId(id);

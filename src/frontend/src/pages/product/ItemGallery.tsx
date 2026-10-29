@@ -3,7 +3,7 @@ import type { ModerationStatus, ProductPhotoResponse } from "../../api/products"
 import { PhotoPlaceholder } from "../../components/shared/Icons";
 import { PhotoViewer } from "../../components/shared/PhotoViewer";
 import { isValidImageUrl } from "../../utils/url";
-import { ModerationBadge } from "./ItemGalleryEditor";
+import { ModerationBadge } from "../../components/shared/PhotoGalleryField";
 
 /** An image that swaps itself for the placeholder tile when it fails to load. */
 export function SafeImage({

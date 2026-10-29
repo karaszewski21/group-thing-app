@@ -10,6 +10,7 @@ import { PencilIcon, TrashIcon } from "../../components/shared/appIcons";
 import { ItemBackButton } from "./ItemBackButton";
 import { ItemEditForm } from "./ItemEditForm";
 import { ItemGallery } from "./ItemGallery";
+import { ItemGalleryEditor } from "./ItemGalleryEditor";
 import { ItemLoadStates } from "./ItemLoadStates";
 import { ItemPageSkeleton } from "./ItemPageSkeleton";
 import {
@@ -92,14 +93,21 @@ function OrganizerChip({ organization }: { organization: PublicOrganizationRespo
   );
 }
 
-/** Shown right after `/add/product` when some photos were refused. */
+/** Shown right after `/add/product` when some photos or the description were refused. */
 export function FailedPhotosNotice() {
   const state = useLocation().state as ItemCreatedState | null;
-  if (!state?.failedPhotos) return null;
+  if (!state?.failedPhotos && !state?.failedDescription) return null;
   return (
     <div role="status" className="mb-3 rounded-[14px] border border-line bg-cream px-3.5 py-2.5 text-[12.5px] text-ink">
-      {`Rzecz została dodana, ale nie udało się dodać części zdjęć (${state.failedPhotos}). ` +
-        `Mogły się powtarzać albo przekroczyć limit ${MAX_PRODUCT_PHOTOS} zdjęć produktu — możesz je poprawić w edycji.`}
+      {state.failedPhotos > 0 && (
+        <p>
+          {`Rzecz została dodana, ale nie udało się dodać części zdjęć (${state.failedPhotos}). ` +
+            `Mogły się powtarzać albo przekroczyć limit ${MAX_PRODUCT_PHOTOS} zdjęć produktu — możesz je poprawić w edycji.`}
+        </p>
+      )}
+      {state.failedDescription && (
+        <p>Rzecz została dodana, ale nie udało się zapisać opisu — możesz go dodać w edycji.</p>
+      )}
     </div>
   );
 }
@@ -112,7 +120,8 @@ interface ItemViewContentProps {
 
 /** Full-bleed photo with the back button (and organizer chip) over it, then
  * the details on a rounded sheet that overlaps the photo's bottom edge. In
- * edit mode the sheet's fields turn into inputs. Entering and leaving the
+ * edit mode the photo becomes the editable slider and the sheet's fields
+ * turn into inputs. Entering and leaving the
  * mode replaces the history entry, so "Wróć" never lands on the editor. */
 function ItemViewContent({ item, details, onRefetch }: ItemViewContentProps) {
   const deleted = item.deleted_at !== null;
@@ -144,16 +153,27 @@ function ItemViewContent({ item, details, onRefetch }: ItemViewContentProps) {
   return (
     <>
       <div className="relative">
-        <ItemGallery
-          name={item.name}
-          photos={item.photos}
-          productPhotoUrl={item.product_photo_url}
-          faded={deleted}
-          showOwnerHint={canEdit}
-        />
-        <div className="absolute inset-x-4 top-3.5 flex items-start justify-between gap-3">
+        {editMode ? (
+          <ItemGalleryEditor
+            photos={item.photos}
+            busy={editing.photoBusy || !editing.productEditable}
+            onAdd={editing.addPhoto}
+            onRemove={editing.removePhoto}
+            onMove={editing.movePhoto}
+          />
+        ) : (
+          <ItemGallery
+            name={item.name}
+            photos={item.photos}
+            productPhotoUrl={item.product_photo_url}
+            faded={deleted}
+            showOwnerHint={canEdit}
+          />
+        )}
+        {/* In edit mode the top-right corner holds the slider's "Dodaj" button. */}
+        <div className="pointer-events-none absolute inset-x-4 top-3.5 flex items-start justify-between gap-3 *:pointer-events-auto">
           <ItemBackButton overlay />
-          {organization && <OrganizerChip organization={organization} />}
+          {organization && !editMode && <OrganizerChip organization={organization} />}
         </div>
       </div>
       <div className="relative -mt-6 rounded-t-[28px] bg-cream px-5 pt-6">

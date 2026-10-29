@@ -1,4 +1,5 @@
 export const MAX_PRODUCT_PHOTOS = 10;
+export const PRODUCT_DESCRIPTION_MAX = 2000;
 
 /** Photo files the backend accepts (it re-encodes them to WebP). */
 export const ACCEPTED_PHOTO_TYPES = "image/jpeg,image/png,image/webp";
@@ -15,9 +16,10 @@ export function photoFileError(file: File): string | null {
 }
 
 /** Navigation state `/add/product` hands the new item's page when some of
- * the photos could not be added. */
+ * the photos or the description could not be saved. */
 export interface ItemCreatedState {
   failedPhotos: number;
+  failedDescription: boolean;
 }
 
 /** Shown where a product has no category (`category_name` is nullable). */

@@ -1,6 +1,7 @@
 import { useId } from "react";
 import type { ItemCondition } from "../../api/inventories";
 import type { ItemQuickAddValue } from "../../utils/itemQuickAdd";
+import { PRODUCT_DESCRIPTION_MAX } from "../../pages/product/itemPageShared";
 import { CONDITION_LABELS } from "../../utils/productCategory";
 import { CategoryTreePicker } from "./CategoryTreePicker";
 
@@ -16,7 +17,7 @@ interface ItemQuickAddFormProps {
 
 /**
  * Freeform "add item" form — Nazwa (name) / Stan (condition) / Kategoria
- * (required leaf category, no default). Purely presentational: the caller
+ * (required leaf category, no default) / Opis (optional). Purely presentational: the caller
  * owns submission (`resolveProduct()`, then `registerInventoryItem`). Used by
  * `ItemCreateView` (`/add/product`).
  */
@@ -62,6 +63,18 @@ export function ItemQuickAddForm({ value, onChange, disabled = false }: ItemQuic
           disabled={disabled}
         />
       </div>
+
+      <Field label="Opis">
+        <textarea
+          className={`${inputClass} resize-y`}
+          rows={4}
+          maxLength={PRODUCT_DESCRIPTION_MAX}
+          placeholder="Rozmiar, wady, co jest w zestawie"
+          value={value.description}
+          onChange={(e) => onChange({ ...value, description: e.target.value })}
+          disabled={disabled}
+        />
+      </Field>
     </div>
   );
 }

@@ -1,7 +1,7 @@
 import { act, render, screen, waitFor, within } from "@testing-library/react";
 import { fireEvent } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi, beforeEach } from "vitest";
-import { Link, MemoryRouter, Route, Routes, useLocation, useNavigate } from "react-router-dom";
+import { Link, MemoryRouter, Route, Routes, useNavigate } from "react-router-dom";
 
 import * as peopleApi from "../api/people";
 import * as familiesApi from "../api/families";
@@ -322,6 +322,9 @@ function renderPanel(initialEntry = "/") {
         <Route path="/" element={<AppPage />} />
         <Route path="/:view" element={<AppPage />} />
         <Route path="/add/:page" element={<AppPage />} />
+        <Route path="/groups/new" element={<AppPage />} />
+        <Route path="/groups/:groupId/edit" element={<AppPage />} />
+        <Route path="/places/new" element={<AppPage />} />
       </Routes>
       {HEADER_SPOTKANIA}
       <BottomNav />
@@ -355,6 +358,9 @@ function renderPanelWithNavigation() {
         <Route path="/" element={<AppPage />} />
         <Route path="/:view" element={<AppPage />} />
         <Route path="/add/:page" element={<AppPage />} />
+        <Route path="/groups/new" element={<AppPage />} />
+        <Route path="/groups/:groupId/edit" element={<AppPage />} />
+        <Route path="/places/new" element={<AppPage />} />
         <Route path="/other" element={<div>Poza panelem</div>} />
       </Routes>
       {HEADER_SPOTKANIA}
@@ -407,21 +413,21 @@ const TERM_FIXTURE: termsApi.TermResponse = {
   attendee_count: null, child_count: null, location: null, capacity: null,
 };
 
-/** Walks the "Załóż grupę" stepper opened from the Home hint: a new group "Nutki", then a first term. */
-async function completeCreateGroupStepper() {
-  fireEvent.click(await screen.findByRole("button", { name: "Zacznijmy →" }));
-  const dialog = await screen.findByRole("dialog", { name: "Załóż grupę" });
-  fireEvent.change(within(dialog).getByLabelText("Nazwa grupy"), { target: { value: "Nutki" } });
-  await within(dialog).findByRole("combobox", { name: "Stałe miejsce spotkań (opcjonalnie)" });
+/** Follows the Home "Załóż grupę" hint to /groups/new and saves a first group "Nutki". */
+async function createFirstGroupFromHint() {
+  fireEvent.click(await screen.findByRole("link", { name: "Zacznijmy →" }));
+  const page = await screen.findByRole("region", { name: "Nowa grupa" });
+  fireEvent.change(within(page).getByLabelText("Nazwa grupy"), { target: { value: "Nutki" } });
+  await within(page).findByRole("combobox", { name: "Stałe miejsce spotkań (opcjonalnie)" });
 
-  // Step 1 -> step 2 immediately triggers a silent `load()` (onCircleCreated).
+  // The save reloads the panel: from now on the caller leads the new group.
   vi.mocked(peopleApi.getLeadershipsForPerson).mockResolvedValue([
     { id: "1", from_role_id: "1", to_group_id: GROUP_ID, organizer_party_id: "1", valid_from: "2026-01-01", valid_to: null },
   ]);
   vi.mocked(groupsApi.getGroup).mockResolvedValue(mockGroup);
   vi.mocked(termsApi.getTerms).mockResolvedValue([]);
 
-  fireEvent.click(within(dialog).getByRole("button", { name: "Dalej →" }));
+  fireEvent.click(within(page).getByRole("button", { name: "Dodaj grupę" }));
   await waitFor(() =>
     expect(groupsApi.createAdditionalMyCircle).toHaveBeenCalledWith({
       name: "Nutki",
@@ -430,62 +436,38 @@ async function completeCreateGroupStepper() {
       default_capacity: null,
     }),
   );
-
-  fireEvent.change(await within(dialog).findByLabelText("Data i godzina"), { target: { value: "2026-02-01T17:00" } });
-  vi.mocked(termsApi.getTerms).mockResolvedValue([TERM_FIXTURE]);
-  vi.mocked(termsApi.getNeededItems).mockResolvedValue([]);
-  fireEvent.click(within(dialog).getByRole("button", { name: "Dodaj" }));
-  await waitFor(() =>
-    expect(termsApi.createTerm).toHaveBeenCalledWith({
-      circle_group_id: mockGroup.id,
-      occurs_on: "2026-02-01T17:00",
-      description: undefined,
-      location_id: null,
-      capacity: null,
-    }),
-  );
-  return dialog;
+  expect(await screen.findByText("Dodano grupę")).toBeInTheDocument();
 }
 
-describe("AppPage — Załóż grupę stepper", () => {
+describe("AppPage — Załóż grupę (first group)", () => {
   beforeEach(() => {
     vi.resetAllMocks();
     localStorage.clear();
   });
 
-  it("the home hint opens the 2-step stepper; completing it creates the group and term and lands on the public link", async () => {
+  it("the home hint leads to /groups/new; saving a PRIVATE first group lands on Moje grupy with it", async () => {
     mockGuestDefaults();
-    // A group whose founder has no Organization gets a stable `k-<hash>` pseudo-slug.
-    vi.mocked(groupsApi.createAdditionalMyCircle).mockResolvedValue(mockGroupHashSlug);
-    vi.mocked(termsApi.createTerm).mockResolvedValue(TERM_FIXTURE);
+    vi.mocked(groupsApi.createAdditionalMyCircle).mockResolvedValue(mockGroup);
     renderPanel();
 
-    const dialog = await completeCreateGroupStepper();
+    await createFirstGroupFromHint();
 
-    const publicLink = await within(dialog).findByRole("link", { name: /Przejdź do publicznej strony/ });
-    expect(publicLink).toHaveAttribute(
-      "href",
-      `/${mockGroupHashSlug.organizer_slug}/group/${mockGroupHashSlug.id}/term/${TERM_ID}`,
-    );
-    expect(within(dialog).queryByLabelText("Nazwa organizacji")).not.toBeInTheDocument();
-
-    fireEvent.click(within(dialog).getByRole("button", { name: "Gotowe" }));
-    await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
-    expect(await screen.findByText("Grupa założona — dodano pierwszy termin")).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "Moje grupy" }, { timeout: 3000 })).toBeInTheDocument();
+    expect(await screen.findByText("Nowa grupa", { selector: "h3" })).toBeInTheDocument();
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
   });
 
   it("shows an inline error (not a silent failure) when creating the group rejects", async () => {
     mockGuestDefaults();
     vi.mocked(groupsApi.createAdditionalMyCircle).mockRejectedValue(new Error("network error"));
-    renderPanel();
-    fireEvent.click(await screen.findByRole("button", { name: "Zacznijmy →" }));
+    renderPanel("/groups/new");
 
-    const dialog = await screen.findByRole("dialog", { name: "Załóż grupę" });
-    fireEvent.change(within(dialog).getByLabelText("Nazwa grupy"), { target: { value: "Nutki" } });
-    fireEvent.click(within(dialog).getByRole("button", { name: "Dalej →" }));
+    const page = await screen.findByRole("region", { name: "Nowa grupa" });
+    fireEvent.change(within(page).getByLabelText("Nazwa grupy"), { target: { value: "Nutki" } });
+    fireEvent.click(within(page).getByRole("button", { name: "Dodaj grupę" }));
 
-    expect(await within(dialog).findByRole("alert")).toHaveTextContent("Nie udało się zapisać grupy — spróbuj ponownie");
-    expect(screen.getByRole("dialog", { name: "Załóż grupę" })).toBeInTheDocument();
+    expect(await within(page).findByRole("alert")).toHaveTextContent("Nie udało się dodać grupy");
+    expect(within(page).getByLabelText("Nazwa grupy")).toHaveValue("Nutki");
   });
 
   it("the leader-with-zero-terms home hint opens the 1-step FirstTermStepperOrganizer", async () => {
@@ -498,30 +480,6 @@ describe("AppPage — Załóż grupę stepper", () => {
     // 1-step: term fields only, no group-name field
     expect(within(dialog).queryByLabelText("Nazwa grupy")).not.toBeInTheDocument();
     expect(within(dialog).getByRole("button", { name: "Dodaj termin" })).toBeInTheDocument();
-  });
-
-  it("/meetings?new=group opens the stepper once and drops the param from the URL", async () => {
-    mockGuestDefaults();
-    function SearchProbe() {
-      return <output data-testid="search">{useLocation().search}</output>;
-    }
-    render(
-      <MemoryRouter initialEntries={["/meetings?new=group"]}>
-        <SearchProbe />
-        <Routes>
-          <Route path="/:view" element={<AppPage />} />
-        <Route path="/add/:page" element={<AppPage />} />
-        </Routes>
-      </MemoryRouter>,
-      { wrapper: createQueryWrapper() },
-    );
-
-    expect(await screen.findByRole("dialog", { name: "Załóż grupę" })).toBeInTheDocument();
-    await waitFor(() => expect(screen.getByTestId("search")).toBeEmptyDOMElement());
-    expect(screen.getByRole("heading", { name: "Spotkania" })).toBeInTheDocument();
-
-    fireEvent.click(screen.getByRole("button", { name: "Zamknij" }));
-    await waitFor(() => expect(screen.queryByRole("dialog", { name: "Załóż grupę" })).not.toBeInTheDocument());
   });
 });
 
@@ -634,17 +592,17 @@ describe("AppPage — dismissible home hints", () => {
     expect(screen.queryByText("Stwórz wizytówkę")).not.toBeInTheDocument();
   });
 
-  it('"Załóż grupę" auto-disappears after completing the stepper (a group now exists, not a manual dismiss)', async () => {
+  it('"Załóż grupę" auto-disappears once a group exists (not a manual dismiss)', async () => {
     mockGuestDefaults();
     vi.mocked(groupsApi.createAdditionalMyCircle).mockResolvedValue(mockGroup);
-    vi.mocked(termsApi.createTerm).mockResolvedValue(TERM_FIXTURE);
     renderPanel();
 
-    const dialog = await completeCreateGroupStepper();
-    fireEvent.click(await within(dialog).findByRole("button", { name: "Gotowe" }));
-    await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+    await createFirstGroupFromHint();
+    fireEvent.click(await screen.findByRole("link", { name: "Wróć do spotkań" }, { timeout: 3000 }));
+    fireEvent.click(await screen.findByRole("link", { name: "Wróć na Start" }));
 
-    await waitFor(() => expect(screen.queryByText("Zacznijmy →")).not.toBeInTheDocument());
+    expect(await screen.findByText("Ustal pierwsze spotkanie w swojej grupie.")).toBeInTheDocument();
+    expect(screen.queryByText("Zacznijmy →")).not.toBeInTheDocument();
     expect(localStorage.getItem("hint_create_group_dismissed:guest")).toBeNull();
   });
 
@@ -1288,30 +1246,41 @@ describe("AppPage — Term/Group ids stay UUID strings (R29)", () => {
   });
 });
 
-describe("AppPage — edit group dialog (name/layout/visibility/default place and capacity)", () => {
+describe("AppPage — edit group page (name/layout/visibility/default place and capacity)", () => {
   beforeEach(() => {
     vi.resetAllMocks();
   });
 
   async function openEditDialog() {
     fireEvent.click(await screen.findByRole("link", { name: "Spotkania" }));
+    fireEvent.click(await screen.findByRole("link", { name: "Moje grupy" }));
     await screen.findByRole("heading", { name: "Prowadzę" });
-    fireEvent.click(await screen.findByRole("button", { name: "Edytuj grupę Nowa grupa" }));
-    await screen.findByRole("dialog", { name: "Edytuj grupę" });
+    fireEvent.click(await screen.findByRole("link", { name: "Edytuj grupę Nowa grupa" }));
+    await screen.findByRole("region", { name: "Edytuj grupę" });
   }
 
-  it("focuses the first field on open and returns focus to the opener on close", async () => {
+  it("the tile's pencil and layout icon open /groups/:id/edit, whose back link returns to Moje grupy", async () => {
     mockOrganizerDefaults();
-    renderPanel();
-    fireEvent.click(await screen.findByRole("link", { name: "Spotkania" }));
-    const opener = await screen.findByRole("button", { name: "Edytuj grupę Nowa grupa" });
-    opener.focus();
-    fireEvent.click(opener);
+    renderPanel("/groups");
 
-    const dialog = await screen.findByRole("dialog", { name: "Edytuj grupę" });
-    await waitFor(() => expect(within(dialog).getByLabelText("Nazwa grupy")).toHaveFocus());
-    fireEvent.click(within(dialog).getByRole("button", { name: "Zamknij" }));
-    await waitFor(() => expect(opener).toHaveFocus());
+    const pencil = await screen.findByRole("link", { name: "Edytuj grupę Nowa grupa" });
+    expect(pencil).toHaveAttribute("href", `/groups/${GROUP_ID}/edit`);
+    expect(screen.getByRole("link", { name: /^Zmień układ grupy Nowa grupa/ })).toHaveAttribute(
+      "href",
+      `/groups/${GROUP_ID}/edit`,
+    );
+    fireEvent.click(pencil);
+    await screen.findByRole("region", { name: "Edytuj grupę" });
+    fireEvent.click(screen.getByRole("link", { name: "Wróć do moich grup" }));
+    expect(await screen.findByRole("heading", { name: "Moje grupy" })).toBeInTheDocument();
+  });
+
+  it("an id outside the led groups shows a not-found note instead of the form", async () => {
+    mockOrganizerDefaults();
+    renderPanel("/groups/not-mine/edit");
+
+    expect(await screen.findByText("Nie znaleziono tej grupy wśród grup, które prowadzisz.")).toBeInTheDocument();
+    expect(screen.queryByLabelText("Nazwa grupy")).not.toBeInTheDocument();
   });
 
   it("pre-fills the form from the group's current name and layout_mode", async () => {
@@ -1357,7 +1326,7 @@ describe("AppPage — edit group dialog (name/layout/visibility/default place an
     renderPanel();
     await openEditDialog();
 
-    const dialog = screen.getByRole("dialog", { name: "Edytuj grupę" });
+    const dialog = screen.getByRole("region", { name: "Edytuj grupę" });
     const placeSelect = await within(dialog).findByRole("combobox", { name: "Stałe miejsce spotkań (opcjonalnie)" });
     expect(placeSelect).toHaveDisplayValue("Świetlica na Polnej");
     expect(within(dialog).getByLabelText("Ile miejsc (opcjonalnie)")).toHaveValue("12");
@@ -1378,7 +1347,7 @@ describe("AppPage — edit group dialog (name/layout/visibility/default place an
     );
   });
 
-  it("saves every field in one updateGroup call and closes on success", async () => {
+  it("saves every field in one updateGroup call and goes back to Moje grupy on success", async () => {
     mockOrganizerDefaults();
     vi.mocked(groupsApi.updateGroup).mockResolvedValue({
       ...mockGroup,
@@ -1406,10 +1375,10 @@ describe("AppPage — edit group dialog (name/layout/visibility/default place an
       }),
     );
     expect(await screen.findByText("Nutki", { selector: "h3" })).toBeInTheDocument();
-    expect(screen.queryByRole("dialog", { name: "Edytuj grupę" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("region", { name: "Edytuj grupę" })).not.toBeInTheDocument();
   });
 
-  it("shows an inline error and keeps the dialog open on a rejected save", async () => {
+  it("shows an inline error and stays on the page on a rejected save", async () => {
     mockOrganizerDefaults();
     vi.mocked(groupsApi.updateGroup).mockRejectedValue(new Error("500"));
     renderPanel();
@@ -1418,7 +1387,7 @@ describe("AppPage — edit group dialog (name/layout/visibility/default place an
     fireEvent.click(screen.getByRole("button", { name: "Zapisz" }));
 
     expect(await screen.findByText(/Nie udało się zapisać zmian/)).toBeInTheDocument();
-    expect(screen.getByRole("dialog", { name: "Edytuj grupę" })).toBeInTheDocument();
+    expect(screen.getByRole("region", { name: "Edytuj grupę" })).toBeInTheDocument();
   });
 });
 
@@ -1516,10 +1485,12 @@ describe("AppPage — Spotkania list links to the public circle page", () => {
     renderPanel();
 
     fireEvent.click(await screen.findByRole("link", { name: "Spotkania" }));
+    fireEvent.click(await screen.findByRole("link", { name: "Moje grupy" }));
 
     await screen.findByText("Nowa grupa", { selector: "h3" });
     const led = screen.getByRole("heading", { name: "Prowadzę" }).closest("section")!;
     expect(within(led).queryByText(/Nutki dla starszaków/)).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("link", { name: "Wróć do spotkań" }));
     fireEvent.click(await screen.findByRole("tab", { name: "Biorę udział" }));
     const saved = (await screen.findByRole("heading", { name: "Zapisane" })).closest("section")!;
     expect(within(saved).getByText("· 2")).toBeInTheDocument();
@@ -1529,21 +1500,20 @@ describe("AppPage — Spotkania list links to the public circle page", () => {
     );
   });
 
-  it('a user without groups sees "+ Załóż grupę" opening the stepper, the empty copy and no floating add button', async () => {
+  it('a user without groups sees no "+ Dodaj termin" on Spotkania and "+ Załóż grupę" linking to /groups/new on Moje grupy', async () => {
     mockGuestDefaults();
     renderPanel("/meetings");
 
-    expect(
-      await screen.findByText("Nie masz jeszcze żadnej grupy. Załóż pierwszą, żeby dodać termin."),
-    ).toBeInTheDocument();
+    expect(await screen.findByText("Brak zaplanowanych terminów.")).toBeInTheDocument();
     expect(screen.queryByRole("link", { name: "+ Dodaj termin" })).not.toBeInTheDocument();
     fireEvent.click(await screen.findByRole("tab", { name: "Biorę udział" }));
     expect(screen.getByText("Nie masz jeszcze zapisów na zajęcia.")).toBeInTheDocument();
-    fireEvent.click(screen.getByRole("tab", { name: "Organizujesz" }));
 
-    fireEvent.click(await screen.findByRole("button", { name: "+ Załóż grupę" }));
-    const dialog = await screen.findByRole("dialog", { name: "Załóż grupę" });
-    await waitFor(() => expect(within(dialog).getByLabelText("Nazwa grupy")).toHaveFocus());
+    fireEvent.click(await screen.findByRole("link", { name: "Moje grupy" }));
+    expect(
+      await screen.findByText("Nie masz jeszcze żadnej grupy. Załóż pierwszą, żeby dodać termin."),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "+ Załóż grupę" })).toHaveAttribute("href", "/groups/new");
   });
 
   it("the attended card shows the place and \"8/10 miejsc\" inside its link, with no nested anchor", async () => {
@@ -1649,9 +1619,10 @@ describe("AppPage — family member circles (both contexts)", () => {
   it('a leader whose family also belongs to a circle sees both "Prowadzę" and that circle\'s term under "Zapisane"', async () => {
     mockOrganizerDefaults();
     mockMemberCircle([memberTerm(MEMBER_TERM_ID, "2026-02-10T10:00:00")]);
-    renderPanel("/meetings");
+    renderPanel("/groups");
 
     expect(await screen.findByText("Nowa grupa", { selector: "h3" })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("link", { name: "Wróć do spotkań" }));
     fireEvent.click(await screen.findByRole("tab", { name: "Biorę udział" }));
     const saved = (await screen.findByRole("heading", { name: "Zapisane" })).closest("section")!;
     expect(await within(saved).findByRole("link", { name: /Rowerki/ })).toBeInTheDocument();
@@ -2555,7 +2526,7 @@ describe("AppPage — Mój dom — inline birth-year editor and returnTo (gap te
   });
 });
 
-describe("AppPage — moderation errors inline in the add-group / add-term / edit-group modals", () => {
+describe("AppPage — moderation errors inline in the add-group page and add-term / edit-group forms", () => {
   const GROUP_NAME_REJECTED = "Nazwa grupy narusza zasady społeczności. Zmień ją i spróbuj ponownie.";
   const PRODUCT_NAME_REJECTED = "Nazwa rzeczy narusza zasady społeczności. Zmień ją i spróbuj ponownie.";
 
@@ -2564,10 +2535,11 @@ describe("AppPage — moderation errors inline in the add-group / add-term / edi
     mockOrganizerDefaults();
   });
 
-  async function openAddGroupDialog() {
+  async function openAddGroupPage() {
     fireEvent.click(await screen.findByRole("link", { name: "Spotkania" }));
-    fireEvent.click(await screen.findByRole("button", { name: "+ Dodaj grupę" }));
-    return screen.findByRole("dialog", { name: "Dodaj nową grupę" });
+    fireEvent.click(await screen.findByRole("link", { name: "Moje grupy" }));
+    fireEvent.click(await screen.findByRole("link", { name: "+ Dodaj grupę" }));
+    return screen.findByRole("region", { name: "Nowa grupa" });
   }
 
   async function openAddTermDialogWithDraftItem(itemName: string) {
@@ -2581,12 +2553,12 @@ describe("AppPage — moderation errors inline in the add-group / add-term / edi
     return dialog;
   }
 
-  it("add group: a server-rejected name shows an inline alert, no toast, and keeps the modal open with its input", async () => {
+  it("add group: a server-rejected name shows an inline alert, no toast, and keeps the page with its input", async () => {
     vi.mocked(groupsApi.createAdditionalMyCircle).mockRejectedValue(
       new ApiError(400, "Bad Request", { message: GROUP_NAME_REJECTED }),
     );
     renderPanel();
-    const dialog = await openAddGroupDialog();
+    const dialog = await openAddGroupPage();
 
     expect(within(dialog).getByText("Stałe miejsce spotkań (opcjonalnie)")).toBeInTheDocument();
     expect(within(dialog).queryByText("Lokalizacja")).not.toBeInTheDocument();
@@ -2595,24 +2567,76 @@ describe("AppPage — moderation errors inline in the add-group / add-term / edi
 
     expect(await within(dialog).findByRole("alert")).toHaveTextContent(GROUP_NAME_REJECTED);
     expect(screen.queryByRole("status")).not.toBeInTheDocument();
-    expect(screen.getByRole("dialog", { name: "Dodaj nową grupę" })).toBeInTheDocument();
+    expect(screen.getByRole("region", { name: "Nowa grupa" })).toBeInTheDocument();
     expect(within(dialog).getByPlaceholderText("np. Nutki dla starszaków")).toHaveValue("Zła nazwa");
   });
 
-  it("add group: reopening the modal clears the previous inline error", async () => {
+  it("add group: a saved group goes back to Moje grupy with a toast", async () => {
+    vi.mocked(groupsApi.createAdditionalMyCircle).mockResolvedValue(
+      {} as Awaited<ReturnType<typeof groupsApi.createAdditionalMyCircle>>,
+    );
+    renderPanel();
+    const page = await openAddGroupPage();
+    fireEvent.change(within(page).getByPlaceholderText("np. Nutki dla starszaków"), { target: { value: "Rytmika" } });
+    fireEvent.click(within(page).getByRole("button", { name: "Dodaj grupę" }));
+
+    expect(await screen.findByRole("status")).toHaveTextContent("Dodano grupę");
+    // The non-silent reload shows the skeleton for a moment before the page.
+    expect(await screen.findByRole("heading", { name: "Moje grupy" }, { timeout: 3000 })).toBeInTheDocument();
+    expect(groupsApi.createAdditionalMyCircle).toHaveBeenCalledWith(expect.objectContaining({ name: "Rytmika" }));
+  });
+
+  it("add group: the place picker's + goes to /places/new and comes back with the new place selected and the name kept", async () => {
+    const created: locationsApi.LocationResponse = {
+      id: "loc-new",
+      owner_party_id: "1",
+      name: "Sala nr 2",
+      formatted_address: "ul. Szkolna 5",
+      google_place_id: null,
+      lat: null,
+      lng: null,
+      notes: null,
+      source: "MANUAL",
+      created_at: "",
+      updated_at: "",
+      deleted_at: null,
+    };
+    let saved = false;
+    vi.mocked(locationsApi.getMyLocations).mockImplementation(async () => (saved ? [created] : []));
+    vi.mocked(locationsApi.createLocation).mockImplementation(async () => {
+      saved = true;
+      return created;
+    });
+    renderPanel();
+    let page = await openAddGroupPage();
+    fireEvent.change(within(page).getByPlaceholderText("np. Nutki dla starszaków"), { target: { value: "Rytmika" } });
+
+    fireEvent.click(await within(page).findByRole("link", { name: "Dodaj nowe miejsce" }));
+    const placePage = await screen.findByRole("region", { name: "Nowe miejsce" });
+    fireEvent.change(within(placePage).getByLabelText("Nazwa miejsca"), { target: { value: "Sala nr 2" } });
+    fireEvent.change(within(placePage).getByLabelText("Adres"), { target: { value: "ul. Szkolna 5" } });
+    fireEvent.click(within(placePage).getByRole("button", { name: "Zapisz miejsce" }));
+
+    page = await screen.findByRole("region", { name: "Nowa grupa" });
+    expect(within(page).getByPlaceholderText("np. Nutki dla starszaków")).toHaveValue("Rytmika");
+    await waitFor(() =>
+      expect(within(page).getByRole("combobox", { name: "Stałe miejsce spotkań (opcjonalnie)" })).toHaveValue("loc-new"),
+    );
+  });
+
+  it("add group: coming back to the page clears the previous inline error", async () => {
     vi.mocked(groupsApi.createAdditionalMyCircle).mockRejectedValue(
       new ApiError(400, "Bad Request", { message: GROUP_NAME_REJECTED }),
     );
     renderPanel();
-    let dialog = await openAddGroupDialog();
+    let dialog = await openAddGroupPage();
     fireEvent.change(within(dialog).getByPlaceholderText("np. Nutki dla starszaków"), { target: { value: "Zła nazwa" } });
     fireEvent.click(within(dialog).getByRole("button", { name: "Dodaj grupę" }));
     await within(dialog).findByRole("alert");
 
-    fireEvent.click(within(dialog).getByRole("button", { name: "Zamknij" }));
-    await waitFor(() => expect(screen.queryByRole("dialog", { name: "Dodaj nową grupę" })).not.toBeInTheDocument());
-    fireEvent.click(screen.getByRole("button", { name: "+ Dodaj grupę" }));
-    dialog = await screen.findByRole("dialog", { name: "Dodaj nową grupę" });
+    fireEvent.click(screen.getByRole("link", { name: "Wróć do moich grup" }));
+    fireEvent.click(await screen.findByRole("link", { name: "+ Dodaj grupę" }));
+    dialog = await screen.findByRole("region", { name: "Nowa grupa" });
 
     expect(within(dialog).queryByRole("alert")).not.toBeInTheDocument();
   });
@@ -2683,8 +2707,9 @@ describe("AppPage — moderation errors inline in the add-group / add-term / edi
     );
     renderPanel();
     fireEvent.click(await screen.findByRole("link", { name: "Spotkania" }));
-    fireEvent.click(await screen.findByRole("button", { name: "Edytuj grupę Nowa grupa" }));
-    const dialog = await screen.findByRole("dialog", { name: "Edytuj grupę" });
+    fireEvent.click(await screen.findByRole("link", { name: "Moje grupy" }));
+    fireEvent.click(await screen.findByRole("link", { name: "Edytuj grupę Nowa grupa" }));
+    const dialog = await screen.findByRole("region", { name: "Edytuj grupę" });
 
     fireEvent.click(within(dialog).getByRole("button", { name: "Zapisz" }));
 
@@ -2785,6 +2810,7 @@ describe("AppPage — delete group (soft delete)", () => {
   async function openDeleteDialog() {
     renderPanel();
     fireEvent.click(await screen.findByRole("link", { name: "Spotkania" }));
+    fireEvent.click(await screen.findByRole("link", { name: "Moje grupy" }));
     const trash = await screen.findByRole("button", { name: "Usuń grupę Rytmika" });
     fireEvent.click(trash);
     const dialog = await screen.findByRole("alertdialog", { name: "Usunąć grupę „Rytmika”?" });
@@ -2889,6 +2915,7 @@ describe("AppPage — delete group (soft delete)", () => {
     renderPanel();
 
     fireEvent.click(await screen.findByRole("link", { name: "Spotkania" }));
+    fireEvent.click(await screen.findByRole("link", { name: "Moje grupy" }));
 
     expect(await screen.findByRole("button", { name: "Usuń grupę Nowa grupa" })).toBeInTheDocument();
     expect(screen.getByText("· 2")).toBeInTheDocument();
@@ -3012,13 +3039,12 @@ describe("AppPage — redesigned navigation and pages", () => {
     expect(within(page).getByRole("link", { name: "Wróć do dodawania" })).toHaveAttribute("href", "/add");
   });
 
-  it("Dodaj links to the item form and, without groups, opens the group stepper for a term", async () => {
+  it("Dodaj links to the item form and, without groups, sends a term to the new-group page", async () => {
     mockGuestDefaults();
     renderPanel("/add");
 
     expect(await screen.findByRole("link", { name: /^Rzecz/ })).toHaveAttribute("href", "/add/product");
-    fireEvent.click(screen.getByRole("button", { name: /Termin spotkania/ }));
-    expect(await screen.findByRole("dialog", { name: "Załóż grupę" })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /Termin spotkania/ })).toHaveAttribute("href", "/groups/new");
   });
 });
 

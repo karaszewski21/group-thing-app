@@ -5,10 +5,9 @@ import { ItemQuickAddForm } from "../../components/shared/ItemQuickAddForm";
 import { SubPageHeader } from "../../components/shared/appComponents";
 import { useCreateItem } from "../../hooks/useCreateItem";
 import { createEmptyItemQuickAddValue, type ItemQuickAddValue } from "../../utils/itemQuickAdd";
-import { TrashIcon } from "../../components/shared/appIcons";
 import { viewPath } from "../../utils/appHelpers";
 import { EXCHANGE_MODE_LABELS } from "../term/components/termLabels";
-import { PhotoFileField } from "../product/ItemGalleryEditor";
+import { PhotoGalleryField } from "../../components/shared/PhotoGalleryField";
 import { FIELD_LABEL, MAX_PRODUCT_PHOTOS, photoFileError, type ItemCreatedState } from "../product/itemPageShared";
 
 const ACTION_CLASS =
@@ -16,11 +15,11 @@ const ACTION_CLASS =
 const MISSING_FIELDS_HINT_ID = "item-create-missing-fields";
 const TITLE = "Dodaj rzecz";
 
-/** `/add/product`: adds an item to the caller's own inventory with optional
- * photos — offered at once (Oddam / Zamienię) or saved as a draft — then
- * replaces itself with the new item's page (handing it the count of refused
- * photos). A panel view like the other `/add/*` pages; it reads nothing
- * from AppDataContext. */
+/** `/add/product`: adds an item to the caller's own inventory — photos,
+ * name, condition, category and an optional description — offered at once
+ * (Oddam / Zamienię) or saved as a draft — then replaces itself with the
+ * new item's page (handing it what could not be saved). A panel view like
+ * the other `/add/*` pages; it reads nothing from AppDataContext. */
 export function ItemCreateView() {
   const navigate = useNavigate();
   const createItem = useCreateItem();
@@ -44,8 +43,9 @@ export function ItemCreateView() {
     setBusy(true);
     setError(null);
     try {
-      const { item, failedPhotos } = await createItem(value, photos, mode);
-      const state: ItemCreatedState | undefined = failedPhotos > 0 ? { failedPhotos } : undefined;
+      const { item, failedPhotos, failedDescription } = await createItem(value, photos, mode);
+      const state: ItemCreatedState | undefined =
+        failedPhotos > 0 || failedDescription ? { failedPhotos, failedDescription } : undefined;
       navigate(`/product/${item.id}`, { replace: true, state });
     } catch (err) {
       setError(err instanceof Error ? err.message : "Nie udało się dodać rzeczy.");
@@ -58,9 +58,10 @@ export function ItemCreateView() {
       <SubPageHeader title={TITLE} backTo={viewPath("add")} backLabel="Wróć do dodawania" />
       {/* No submit button: implicit Enter submission from the name input must do nothing. */}
       <form onSubmit={(e) => e.preventDefault()} className="rounded-[22px] border border-line bg-paper p-5">
-        <ItemQuickAddForm value={value} onChange={setValue} disabled={busy} />
         <NewPhotosField files={photos} onChange={setPhotos} disabled={busy} />
-        <p className="mt-3 text-xs text-ink-soft">Opis dodasz na stronie rzeczy.</p>
+        <div className="mt-4">
+          <ItemQuickAddForm value={value} onChange={setValue} disabled={busy} />
+        </div>
         {error && (
           <p role="alert" className="mt-3 rounded-xl bg-danger-soft px-3 py-2.5 text-[13px] text-danger">
             {error}
@@ -119,7 +120,6 @@ function usePreviewUrls(files: File[]): string[] {
 function NewPhotosField({ files, onChange, disabled }: NewPhotosFieldProps) {
   const [error, setError] = useState<string | null>(null);
   const previews = usePreviewUrls(files);
-  const atLimit = files.length >= MAX_PRODUCT_PHOTOS;
 
   function handleFiles(picked: File[]) {
     const invalid = picked.map(photoFileError).find((message) => message !== null);
@@ -132,36 +132,18 @@ function NewPhotosField({ files, onChange, disabled }: NewPhotosFieldProps) {
   }
 
   return (
-    <section aria-labelledby="new-item-photos-heading" className="mt-4">
+    <section aria-labelledby="new-item-photos-heading">
       <h3 id="new-item-photos-heading" className={FIELD_LABEL}>
         Zdjęcia ({files.length}/{MAX_PRODUCT_PHOTOS})
       </h3>
-      {files.length > 0 && (
-        <ul className="mt-2 space-y-2">
-          {files.map((file, i) => (
-            <li key={previews[i]} className="flex items-center gap-2 rounded-2xl border border-line bg-cream p-2">
-              <img src={previews[i]} alt="" className="h-12 w-12 flex-none rounded-xl object-cover" />
-              <span className="min-w-0 flex-1 truncate text-[12.5px] text-ink" title={file.name}>
-                {i + 1}. {file.name}
-              </span>
-              <button
-                type="button"
-                aria-label={`Usuń zdjęcie ${i + 1}`}
-                disabled={disabled}
-                onClick={() => onChange(files.filter((other) => other !== file))}
-                className="flex h-[30px] w-[30px] flex-none items-center justify-center rounded-[10px] text-ink-soft hover:bg-paper hover:text-danger disabled:opacity-40"
-              >
-                <TrashIcon />
-              </button>
-            </li>
-          ))}
-        </ul>
-      )}
-      <PhotoFileField disabled={disabled || atLimit} onFiles={handleFiles} />
-      {atLimit && <p className="mt-1.5 text-[12.5px] text-ink-soft">Osiągnięto limit {MAX_PRODUCT_PHOTOS} zdjęć.</p>}
-      <p className="mt-1.5 text-[11.5px] text-ink-soft">
-        Zdjęcia są wspólne dla wszystkich rzeczy tego produktu. Inni zobaczą je po sprawdzeniu.
-      </p>
+      <PhotoGalleryField
+        photos={previews.map((url) => ({ id: url, src: url }))}
+        max={MAX_PRODUCT_PHOTOS}
+        disabled={disabled}
+        onFiles={handleFiles}
+        onRemove={(url) => onChange(files.filter((_, i) => previews[i] !== url))}
+        variant="create"
+      />
       {error && (
         <p role="alert" className="mt-1.5 text-[12.5px] font-semibold text-danger">
           {error}

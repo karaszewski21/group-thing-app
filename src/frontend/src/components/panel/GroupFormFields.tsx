@@ -29,8 +29,8 @@ interface GroupFormFieldsProps {
   fallbackLocation?: FallbackLocation | null;
 }
 
-/** The group fields shared by the "Załóż grupę" stepper and the add/edit
- * group sheets, always in one order: name, (layout), visibility, place, capacity. */
+/** The group fields shared by the add and edit group pages, always in one
+ * order: name, (layout), visibility, place, capacity. */
 export function GroupFormFields({ value, onChange, showLayoutMode = false, idPrefix, fallbackLocation }: GroupFormFieldsProps) {
   function set(patch: Partial<GroupFormValue>) {
     onChange({ ...value, ...patch });

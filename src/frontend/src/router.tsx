@@ -18,7 +18,7 @@ import { OAuth2AuthorizePage } from "./pages/auth/OAuth2AuthorizePage";
 import { TermPage } from "./pages/term/TermPage";
 import { AppPage } from "./pages/home/AppPage";
 import { TermAttendeesPage } from "./pages/meetings/TermAttendeesPage";
-import { GroupDetailsPage } from "./pages/meetings/GroupDetailsPage";
+import { GroupDetailsPage } from "./pages/groups/GroupDetailsPage";
 import { InboxPage } from "./pages/messages/InboxPage";
 import { ThreadPage } from "./pages/messages/ThreadPage";
 import { ItemDetailBody, ItemDetailPage } from "./pages/product/ItemDetailPage";
@@ -31,15 +31,19 @@ import { PublicOrganizationPage } from "./pages/organizer/PublicOrganizationPage
 import { AuthGuard } from "./auth/AuthGuard";
 import { useAuth } from "./auth/AuthContext";
 import { PluginProvider } from "./plugins/PluginContext";
-import { viewPath, type View } from "./utils/appHelpers";
+import { viewPath, type ID_PATH_VIEWS, type View } from "./utils/appHelpers";
 import { INBOX_PATH } from "./utils/messagesPaths";
 
-const PANEL_VIEWS: readonly Exclude<View, "home">[] = [
+// The ID_PATH_VIEWS have their own routes below: their paths carry an id.
+const PANEL_VIEWS: readonly Exclude<View, "home" | (typeof ID_PATH_VIEWS)[number]>[] = [
   "meetings",
+  "groups",
+  "groups/new",
   "items",
   "profile",
   "settings",
   "places",
+  "places/new",
   "family",
   "account",
   "search",
@@ -115,14 +119,22 @@ export const routes: RouteObject[] = [
         element: <AppRoute />,
       })),
       {
+        path: "/groups/:groupId/edit",
+        element: <AppRoute />,
+      },
+      {
+        path: "/places/:locationId/edit",
+        element: <AppRoute />,
+      },
+      {
         // Organizer-only attendee list for one term. Standalone (no
         // AppDataProvider): the page resolves the group from the term.
         path: "/terms/:termId",
         element: <AuthGuard><TermAttendeesPage /></AuthGuard>,
       },
       {
-        // Group details + standing member list, reached from the "Prowadzę"
-        // tiles.
+        // Group details + standing member list, reached from the group
+        // tiles on /groups ("Moje grupy").
         path: "/groups/:groupId",
         element: <AuthGuard><GroupDetailsPage /></AuthGuard>,
       },

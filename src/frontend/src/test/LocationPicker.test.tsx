@@ -1,5 +1,6 @@
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { useState } from "react";
+import { MemoryRouter, type InitialEntry } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import * as locationsApi from "../api/locations";
 import type { LocationResponse } from "../api/locations";
@@ -71,10 +72,12 @@ function Harness({
   initial = null,
   onChange,
   fallbackLocation,
+  addMode = "inline",
 }: {
   initial?: string | null;
   onChange: (id: string | null) => void;
   fallbackLocation?: FallbackLocation | null;
+  addMode?: "page" | "inline";
 }) {
   const [value, setValue] = useState<string | null>(initial);
   return (
@@ -88,12 +91,18 @@ function Harness({
       noneLabel="Brak miejsca"
       idPrefix="test"
       fallbackLocation={fallbackLocation}
+      addMode={addMode}
     />
   );
 }
 
-function renderPicker(props: Parameters<typeof Harness>[0]) {
-  return render(<Harness {...props} />, { wrapper: createQueryWrapper() });
+function renderPicker(props: Parameters<typeof Harness>[0], entry: InitialEntry = "/form") {
+  return render(
+    <MemoryRouter initialEntries={[entry]}>
+      <Harness {...props} />
+    </MemoryRouter>,
+    { wrapper: createQueryWrapper() },
+  );
 }
 
 function stubGoogle() {
@@ -187,6 +196,35 @@ describe("LocationPicker", () => {
       "Park Sołacki",
       "Sala nr 2",
     ]);
+  });
+
+  it("page mode: '+' links to /places/new with this form as returnTo and the picker's name", async () => {
+    vi.mocked(locationsApi.getMyLocations).mockResolvedValue([SWIETLICA]);
+    renderPicker({ onChange: vi.fn(), addMode: "page" }, "/groups/new?x=1");
+
+    const add = await screen.findByRole("link", { name: "Dodaj nowe miejsce" });
+    expect(add).toHaveAttribute("href", "/places/new?returnTo=%2Fgroups%2Fnew%3Fx%3D1&picker=test");
+    expect(screen.queryByLabelText("Nazwa miejsca")).not.toBeInTheDocument();
+  });
+
+  it("page mode: back from /places/new, the place handed to this picker gets selected; another picker's is ignored", async () => {
+    vi.mocked(locationsApi.getMyLocations).mockResolvedValue([SWIETLICA, PARK]);
+    const onChange = vi.fn();
+    const { unmount } = renderPicker(
+      { onChange, addMode: "page" },
+      { pathname: "/form", state: { pickedLocation: { picker: "other", locationId: PARK.id } } },
+    );
+    await screen.findByRole("combobox", { name: "Miejsce" });
+    expect(onChange).not.toHaveBeenCalled();
+    unmount();
+
+    renderPicker(
+      { onChange, addMode: "page" },
+      { pathname: "/form", state: { pickedLocation: { picker: "test", locationId: PARK.id } } },
+    );
+    await waitFor(() => expect(screen.getByRole("combobox", { name: "Miejsce" })).toHaveValue(PARK.id));
+    expect(onChange).toHaveBeenCalledTimes(1);
+    expect(onChange).toHaveBeenCalledWith(PARK.id);
   });
 
   it("'+' expands the inline add form; manual save selects the new place, collapses and refocuses the select", async () => {
