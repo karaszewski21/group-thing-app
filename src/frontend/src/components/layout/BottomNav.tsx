@@ -77,7 +77,7 @@ export function BottomNav() {
           type="button"
           onClick={() => navigate(viewPath("add"))}
           aria-label="Dodaj nowe"
-          className="-mt-7.5 flex h-15.5 w-15.5 items-center justify-center rounded-full border-4 border-cream bg-primary text-on-primary shadow-[0_12px_22px_-10px_rgba(31,106,82,0.85)] transition-transform hover:scale-105 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring"
+          className="-mt-1.5 flex h-12 w-12 items-center justify-center rounded-full border-4 border-cream bg-primary text-on-primary shadow-[0_12px_22px_-10px_rgba(31,106,82,0.85)] transition-transform hover:scale-105 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring"
         >
           <PlusIcon />
         </button>

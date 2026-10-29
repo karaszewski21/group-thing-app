@@ -152,10 +152,7 @@ export function MeetingsView() {
           <section>
             <div className="mb-3 flex items-center justify-between gap-2.5">
               <div className="flex items-baseline gap-1.5">
-                <h2 className={SECTION_TITLE}>Terminy</h2>
-                <span className={SECTION_COUNT}>
-                  · {upcoming > 0 ? `${upcoming} ${pluralPl(upcoming, "nadchodzący", "nadchodzące", "nadchodzących")}` : terms.length}
-                </span>
+
               </div>
               {hasGroups && (
                 <Link
@@ -183,8 +180,7 @@ export function MeetingsView() {
         <div role="tabpanel" id="spotkania-panel-udzial" aria-labelledby="spotkania-tab-udzial">
           <section>
             <div className="mb-3 flex items-baseline gap-1.5">
-              <h2 className={SECTION_TITLE}>Zapisane</h2>
-              <span className={SECTION_COUNT}>· {savedCards.length}</span>
+             
             </div>
             {savedCards.length === 0 ? (
               <div className={EMPTY}>Nie masz jeszcze zapisów na zajęcia.</div>
