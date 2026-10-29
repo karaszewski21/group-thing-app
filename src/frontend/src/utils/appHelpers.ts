@@ -21,6 +21,10 @@ export type View =
   | "places/new"
   | "places/edit"
   | "family"
+  | "family/new"
+  | "family/edit"
+  | "family/members/new"
+  | "family/members/edit"
   | "account"
   | "search"
   | "wanted"
@@ -43,6 +47,10 @@ const VIEW_VALUES: readonly View[] = [
   "places/new",
   "places/edit",
   "family",
+  "family/new",
+  "family/edit",
+  "family/members/new",
+  "family/members/edit",
   "account",
   "search",
   "wanted",
@@ -66,8 +74,9 @@ export function viewPath(view: View): string {
 }
 
 /** Panel views with an id in their path (`/<section>/:id/edit`); they have
- * no `viewPath()`, their URLs come from `groupEditPath`/`placeEditPath`. */
-export const ID_PATH_VIEWS = ["groups/edit", "places/edit"] as const satisfies readonly View[];
+ * no `viewPath()`, their URLs come from `groupEditPath`/`placeEditPath`/
+ * `familyMemberEditPath`. */
+export const ID_PATH_VIEWS = ["groups/edit", "places/edit", "family/members/edit"] as const satisfies readonly View[];
 
 export function groupEditPath(groupId: string): string {
   return `/groups/${groupId}/edit`;
@@ -75,6 +84,10 @@ export function groupEditPath(groupId: string): string {
 
 export function placeEditPath(locationId: string): string {
   return `/places/${locationId}/edit`;
+}
+
+export function familyMemberEditPath(familyMembershipId: string): string {
+  return `/family/members/${familyMembershipId}/edit`;
 }
 
 /** `/places/new` opened from a form's place picker: after saving it goes
@@ -89,13 +102,13 @@ export interface PickedLocationState {
   pickedLocation: { picker: string; locationId: string };
 }
 
-const EDIT_PATH = /^\/(groups|places)\/[^/]+\/edit$/;
+const EDIT_PATH = /^\/(groups|places|family\/members)\/[^/]+\/edit$/;
 
 /** The panel view a pathname shows, or `null` when it is not a panel view. */
 export function viewFromPath(pathname: string): View | null {
   if (pathname === "/") return "home";
   const edit = EDIT_PATH.exec(pathname);
-  if (edit) return `${edit[1] as "groups" | "places"}/edit`;
+  if (edit) return `${edit[1] as "groups" | "places" | "family/members"}/edit`;
   const segment = pathname.slice(1);
   return segment !== "home" && isView(segment) ? segment : null;
 }
@@ -108,9 +121,15 @@ export function defaultVisibility(organizationSlug: string | null): GroupVisibil
 
 export type ModalKind =
   | "pierwszy-termin"
-  | "rodzina-nowa"
   | "edit-termin"
   | null;
+
+/** A person added on `/family/members/new`; `birthYear` only for a CHILD. */
+export interface NewFamilyMember {
+  name: string;
+  roleType: "GUARDIAN" | "CHILD";
+  birthYear: number | null;
+}
 
 export type ItemMode = "oddam" | "zamienię";
 

@@ -10,12 +10,13 @@ from typing import Any
 import pytest
 from httpx import AsyncClient, Response
 from sqlalchemy import func, select
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession
 
 from app.config import settings
 from app.core import clock
 from app.events.models import Event
 from app.moderation import text_guard
+from tests.conftest import count_queries
 
 EVENT_KEYS = {
     "id",
@@ -310,3 +311,53 @@ async def test_createEvent_classifierUnavailable_returns503(
     assert response.status_code == 503, response.text
     assert response.json()["message"] == "Moderacja jest chwilowo niedostępna — spróbuj za chwilę."
     assert await _count_events(db_session) == 0
+
+
+async def test_listMyEvents_ownOnly_returnsEarliestFirstExactKeys(
+    client: AsyncClient, frozen: datetime
+) -> None:
+    token = await _register(client, "ev.mine@example.com")
+    other = await _register(client, "ev.mine.other@example.com")
+    location = await _create_location(client, token)
+    later = (frozen + timedelta(days=9)).replace(hour=12, minute=0)
+    sooner = (frozen + timedelta(days=2)).replace(hour=12, minute=0)
+    await _create_event(client, token, name="Później", starts_at=_iso(later))
+    await _create_event(
+        client, token, name="Wcześniej", starts_at=_iso(sooner), location_id=location["id"]
+    )
+    await _create_event(client, other, name="Cudze", starts_at=_iso(sooner))
+
+    response = await client.get("/api/events/mine", headers=_auth(token))
+
+    assert response.status_code == 200, response.text
+    body = response.json()
+    assert [e["name"] for e in body] == ["Wcześniej", "Później"]
+    assert all(set(e) == EVENT_KEYS for e in body)
+    assert body[0]["location"]["id"] == location["id"]
+    assert body[1]["location"] is None
+
+
+async def test_listMyEvents_manyEventsWithPlaces_queryCountDoesNotGrow(
+    client: AsyncClient, engine: AsyncEngine, frozen: datetime
+) -> None:
+    token = await _register(client, "ev.mine.budget@example.com")
+    starts_at = (frozen + timedelta(days=3)).replace(hour=12, minute=0)
+
+    async def _statements() -> int:
+        with count_queries(engine) as statements:
+            response = await client.get("/api/events/mine", headers=_auth(token))
+        assert response.status_code == 200
+        return len(statements)
+
+    location = await _create_location(client, token)
+    await _create_event(
+        client, token, name="Pierwsze", starts_at=_iso(starts_at), location_id=location["id"]
+    )
+    one = await _statements()
+    for name in ("Drugie", "Trzecie", "Czwarte"):
+        location = await _create_location(client, token)
+        await _create_event(
+            client, token, name=name, starts_at=_iso(starts_at), location_id=location["id"]
+        )
+
+    assert await _statements() == one

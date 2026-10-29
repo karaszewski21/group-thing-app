@@ -15,25 +15,31 @@ from app.storage.service import ObjectStorage, get_storage
 
 from . import service
 from .infrastructure import locations_acl
+from .infrastructure.locations_acl import LocationRefResponse
 from .models import Event
 from .schemas import CreateEventRequest, EventBannerResponse, EventResponse
 
 router = APIRouter(tags=["events"])
 
 DbSession = Annotated[AsyncSession, Depends(get_db)]
+ReadPrincipal = Annotated[Principal, Depends(require_any("READ", "mcp:read"))]
 EditPrincipal = Annotated[Principal, Depends(require_any("EDIT", "mcp:edit"))]
 Storage = Annotated[ObjectStorage | None, Depends(get_storage)]
 
 
 async def _event_response(db: AsyncSession, event: Event) -> EventResponse:
     location = await locations_acl.get_location(db, event.location_id)
+    return _to_response(event, locations_acl.location_ref_response(location))
+
+
+def _to_response(event: Event, location: LocationRefResponse | None) -> EventResponse:
     return EventResponse(
         id=event.id,
         name=event.name,
         description=event.description,
         starts_at=event.starts_at,
         ends_at=event.ends_at,
-        location=locations_acl.location_ref_response(location),
+        location=location,
         created_at=event.created_at,
         updated_at=event.updated_at,
     )
@@ -45,6 +51,24 @@ async def create_event(
 ) -> EventResponse:
     event = await service.create_event(db, principal, body)
     return await _event_response(db, event)
+
+
+@router.get("/api/events/mine", response_model=list[EventResponse])
+async def list_my_events(db: DbSession, principal: ReadPrincipal) -> list[EventResponse]:
+    """The caller's own events, earliest first; places load in one batch."""
+    events = await service.list_my_events(db, principal)
+    locations = await locations_acl.get_locations_by_ids(
+        db, {e.location_id for e in events if e.location_id is not None}
+    )
+    return [
+        _to_response(
+            e,
+            locations_acl.location_ref_response(
+                locations.get(e.location_id) if e.location_id else None
+            ),
+        )
+        for e in events
+    ]
 
 
 @router.post("/api/events/{event_id}/banner", response_model=EventBannerResponse)

@@ -120,6 +120,7 @@ vi.mock("../api/locations", () => ({
 
 vi.mock("../api/events", () => ({
   createEvent: vi.fn(),
+  getMyEvents: vi.fn(),
   uploadEventBanner: vi.fn(),
 }));
 
@@ -325,6 +326,9 @@ function renderPanel(initialEntry = "/") {
         <Route path="/groups/new" element={<AppPage />} />
         <Route path="/groups/:groupId/edit" element={<AppPage />} />
         <Route path="/places/new" element={<AppPage />} />
+        <Route path="/family/:page" element={<AppPage />} />
+        <Route path="/family/members/new" element={<AppPage />} />
+        <Route path="/family/members/:familyMembershipId/edit" element={<AppPage />} />
       </Routes>
       {HEADER_SPOTKANIA}
       <BottomNav />
@@ -361,6 +365,9 @@ function renderPanelWithNavigation() {
         <Route path="/groups/new" element={<AppPage />} />
         <Route path="/groups/:groupId/edit" element={<AppPage />} />
         <Route path="/places/new" element={<AppPage />} />
+        <Route path="/family/:page" element={<AppPage />} />
+        <Route path="/family/members/new" element={<AppPage />} />
+        <Route path="/family/members/:familyMembershipId/edit" element={<AppPage />} />
         <Route path="/other" element={<div>Poza panelem</div>} />
       </Routes>
       {HEADER_SPOTKANIA}
@@ -382,6 +389,7 @@ function mockGuestDefaults() {
   vi.mocked(groupsApi.getMyAttendances).mockResolvedValue([]);
   vi.mocked(organizationsApi.getMyOrganization).mockRejectedValue(new Error("404"));
   vi.mocked(pledgesApi.getMyPledges).mockResolvedValue([]);
+  vi.mocked(eventsApi.getMyEvents).mockResolvedValue([]);
   vi.mocked(notificationsApi.getMyNotifications).mockResolvedValue([]);
   vi.mocked(locationsApi.getMyLocations).mockResolvedValue([]);
 }
@@ -404,6 +412,7 @@ function mockOrganizerDefaults() {
   vi.mocked(groupsApi.getMyAttendances).mockResolvedValue([]);
   vi.mocked(organizationsApi.getMyOrganization).mockRejectedValue(new Error("404"));
   vi.mocked(pledgesApi.getMyPledges).mockResolvedValue([]);
+  vi.mocked(eventsApi.getMyEvents).mockResolvedValue([]);
   vi.mocked(notificationsApi.getMyNotifications).mockResolvedValue([]);
   vi.mocked(locationsApi.getMyLocations).mockResolvedValue([]);
 }
@@ -649,346 +658,7 @@ describe("AppPage — Moje miejsca section", () => {
   });
 });
 
-describe("AppPage — Rodzina section", () => {
-  beforeEach(() => {
-    vi.resetAllMocks();
-  });
-
-  it("/family renders the family list with role labels (Ty / opiekun / dziecko, no avatars)", async () => {
-    mockGuestDefaults();
-    vi.mocked(familiesApi.getMyFamilies).mockResolvedValue([mockFamily]);
-    vi.mocked(familiesApi.getGuardians).mockResolvedValue(mockGuardians);
-    renderPanel("/family");
-
-    expect(await screen.findByRole("heading", { name: "Mój dom", level: 2 })).toBeInTheDocument();
-    expect(screen.getByText("Jan Kowalski", { selector: "h3" })).toHaveTextContent("Jan Kowalski(Ty)");
-    expect(screen.getByText("Marek Kowalski", { selector: "h3" })).toHaveTextContent("Marek Kowalski(opiekun)");
-    // a CHILD is never labelled "(opiekun)"
-    expect(screen.getByText("Zosia Kowalska", { selector: "h3" })).toHaveTextContent("Zosia Kowalska(dziecko)");
-    expect(screen.getAllByText("(opiekun)")).toHaveLength(1);
-    expect(screen.getByText(`rocznik 2018 · ${formatApproxAge(approxAge(2018))}`)).toBeInTheDocument();
-    // no avatars — rows carry no <img> element
-    expect(screen.queryAllByRole("img")).toHaveLength(0);
-  });
-
-  it("inline add-member form submits and the new member appears without a reload", async () => {
-    mockGuestDefaults();
-    vi.mocked(familiesApi.getMyFamilies).mockResolvedValue([mockFamily]);
-    vi.mocked(familiesApi.getGuardians).mockResolvedValueOnce([]).mockResolvedValueOnce(mockGuardians);
-    vi.mocked(familiesApi.createLightweightMembers).mockResolvedValue({
-      family: mockFamily,
-      guardians: mockGuardians,
-    });
-    renderPanel("/family");
-    await screen.findByRole("heading", { name: "Mój dom", level: 2 });
-
-    fireEvent.change(screen.getByPlaceholderText("np. Zosia Kowalska"), {
-      target: { value: "Marek Kowalski" },
-    });
-    fireEvent.click(screen.getByRole("button", { name: "Dodaj" }));
-
-    await waitFor(() =>
-      expect(familiesApi.createLightweightMembers).toHaveBeenCalledWith([
-        { name: "Marek Kowalski", role_type: "GUARDIAN" },
-      ]),
-    );
-    // list refreshes in place — no reload/navigation required
-    expect(await screen.findByText("Marek Kowalski")).toBeInTheDocument();
-  });
-
-  it('the "Mój dom" section is reachable and shows the same family list for both GUEST and ORGANIZER accounts', async () => {
-    mockOrganizerDefaults();
-    vi.mocked(familiesApi.getMyFamilies).mockResolvedValue([mockFamily]);
-    vi.mocked(familiesApi.getGuardians).mockResolvedValue(mockGuardians);
-    renderPanel("/family");
-
-    expect(await screen.findByRole("heading", { name: "Mój dom", level: 2 })).toBeInTheDocument();
-    expect(screen.getByText("Jan Kowalski", { selector: "h3" })).toBeInTheDocument();
-    expect(screen.getByText("Marek Kowalski", { selector: "h3" })).toBeInTheDocument();
-  });
-});
-
-describe("AppPage — Mój dom — no family", () => {
-  beforeEach(() => {
-    vi.resetAllMocks();
-  });
-
-  // "Mój dom" is reached from Konto, so these tests land on the section
-  // route directly.
-  function openMojDom() {
-    renderPanel("/family");
-  }
-
-  it("renders the no-family empty-state card with a CTA for a GUEST", async () => {
-    mockGuestDefaults();
-    openMojDom();
-
-    expect(await screen.findByText("Nie masz jeszcze rodziny")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Załóż rodzinę" })).toBeInTheDocument();
-  });
-
-  it("renders the no-family empty-state card with a CTA for an ORGANIZER", async () => {
-    mockOrganizerDefaults();
-    openMojDom();
-
-    expect(await screen.findByText("Nie masz jeszcze rodziny")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Załóż rodzinę" })).toBeInTheDocument();
-  });
-
-  it("the CTA opens CreateFamilyDialog", async () => {
-    mockGuestDefaults();
-    openMojDom();
-
-    fireEvent.click(await screen.findByRole("button", { name: "Załóż rodzinę" }));
-
-    const dialog = await screen.findByRole("dialog", { name: "Załóż rodzinę" });
-    expect(within(dialog).getByLabelText("Nazwa rodziny")).toBeInTheDocument();
-    expect(within(dialog).getByRole("button", { name: "Dalej" })).toBeInTheDocument();
-  });
-
-  it("step 1 submits the typed name to createOwnFamily and advances to step 2", async () => {
-    mockGuestDefaults();
-    vi.mocked(familiesApi.createOwnFamily).mockResolvedValue({ ...mockFamily, name: "Nowakowie" });
-    openMojDom();
-    fireEvent.click(await screen.findByRole("button", { name: "Załóż rodzinę" }));
-
-    const dialog = await screen.findByRole("dialog", { name: "Załóż rodzinę" });
-    fireEvent.change(within(dialog).getByLabelText("Nazwa rodziny"), { target: { value: "Nowakowie" } });
-    fireEvent.click(within(dialog).getByRole("button", { name: "Dalej" }));
-
-    await waitFor(() => expect(familiesApi.createOwnFamily).toHaveBeenCalledWith("Nowakowie"));
-    expect(familiesApi.createOwnFamily).toHaveBeenCalledTimes(1);
-    expect(await within(dialog).findByRole("button", { name: "Zakończ" })).toBeInTheDocument();
-  });
-
-  it("step 2 with drafted members calls createLightweightMembers once with all rows, then the family shows in Mój dom", async () => {
-    mockGuestDefaults();
-    vi.mocked(familiesApi.createOwnFamily).mockResolvedValue(mockFamily);
-    vi.mocked(familiesApi.createLightweightMembers).mockResolvedValue({
-      family: mockFamily,
-      guardians: mockGuardians,
-    });
-    openMojDom();
-    fireEvent.click(await screen.findByRole("button", { name: "Załóż rodzinę" }));
-
-    const dialog = await screen.findByRole("dialog", { name: "Załóż rodzinę" });
-    fireEvent.change(within(dialog).getByLabelText("Nazwa rodziny"), { target: { value: "Kowalscy" } });
-    fireEvent.click(within(dialog).getByRole("button", { name: "Dalej" }));
-
-    await within(dialog).findByRole("button", { name: "Zakończ" });
-
-    fireEvent.change(within(dialog).getByLabelText("Imię i nazwisko"), { target: { value: "Marek Kowalski" } });
-    fireEvent.click(within(dialog).getByRole("button", { name: "Opiekun" }));
-    fireEvent.click(within(dialog).getByRole("button", { name: "Dodaj kolejną osobę" }));
-
-    fireEvent.change(within(dialog).getByLabelText("Imię i nazwisko"), { target: { value: "Zosia Kowalska" } });
-    fireEvent.click(within(dialog).getByRole("button", { name: "Dziecko" }));
-    fireEvent.click(within(dialog).getByRole("button", { name: "Dodaj kolejną osobę" }));
-
-    // family exists after the silent refresh that follows the dialog
-    vi.mocked(familiesApi.getMyFamilies).mockResolvedValue([mockFamily]);
-    vi.mocked(familiesApi.getGuardians).mockResolvedValue(mockGuardians);
-
-    fireEvent.click(within(dialog).getByRole("button", { name: "Zakończ" }));
-
-    await waitFor(() =>
-      expect(familiesApi.createLightweightMembers).toHaveBeenCalledWith([
-        { name: "Marek Kowalski", role_type: "GUARDIAN" },
-        { name: "Zosia Kowalska", role_type: "CHILD" },
-      ]),
-    );
-    expect(familiesApi.createLightweightMembers).toHaveBeenCalledTimes(1);
-
-    fireEvent.click(await within(dialog).findByRole("button", { name: "Gotowe" }));
-    await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
-    expect(await screen.findByText("Kowalscy", { selector: "h3" })).toBeInTheDocument();
-  });
-
-  it("reopening the dialog after closing mid-flow starts clean on step 1 (local state, no stale name/step)", async () => {
-    mockGuestDefaults();
-    vi.mocked(familiesApi.createOwnFamily).mockResolvedValue(mockFamily);
-    openMojDom();
-    fireEvent.click(await screen.findByRole("button", { name: "Załóż rodzinę" }));
-
-    let dialog = await screen.findByRole("dialog", { name: "Załóż rodzinę" });
-    fireEvent.change(within(dialog).getByLabelText("Nazwa rodziny"), { target: { value: "Kowalscy" } });
-    fireEvent.click(within(dialog).getByRole("button", { name: "Dalej" }));
-    await within(dialog).findByRole("button", { name: "Zakończ" });
-
-    fireEvent.click(within(dialog).getByRole("button", { name: "Zamknij" }));
-    await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
-
-    fireEvent.click(await screen.findByRole("button", { name: "Załóż rodzinę" }));
-    dialog = await screen.findByRole("dialog", { name: "Załóż rodzinę" });
-    expect(within(dialog).getByLabelText("Nazwa rodziny")).toHaveValue("");
-    expect(within(dialog).getByRole("button", { name: "Dalej" })).toBeInTheDocument();
-    expect(within(dialog).queryByRole("button", { name: "Zakończ" })).not.toBeInTheDocument();
-  });
-
-  it("step 2 skipped makes no members call and the family is still visible", async () => {
-    mockGuestDefaults();
-    vi.mocked(familiesApi.createOwnFamily).mockResolvedValue(mockFamily);
-    openMojDom();
-    fireEvent.click(await screen.findByRole("button", { name: "Załóż rodzinę" }));
-
-    const dialog = await screen.findByRole("dialog", { name: "Załóż rodzinę" });
-    fireEvent.change(within(dialog).getByLabelText("Nazwa rodziny"), { target: { value: "Kowalscy" } });
-    fireEvent.click(within(dialog).getByRole("button", { name: "Dalej" }));
-
-    vi.mocked(familiesApi.getMyFamilies).mockResolvedValue([mockFamily]);
-    vi.mocked(familiesApi.getGuardians).mockResolvedValue(mockGuardians);
-
-    fireEvent.click(await within(dialog).findByRole("button", { name: "Zakończ" }));
-    fireEvent.click(await within(dialog).findByRole("button", { name: "Gotowe" }));
-
-    await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
-    expect(familiesApi.createLightweightMembers).not.toHaveBeenCalled();
-    expect(await screen.findByText("Kowalscy", { selector: "h3" })).toBeInTheDocument();
-  });
-
-  it("removing a middle draft member keeps the other rows' names/roles intact (stable keys, no bleed)", async () => {
-    mockGuestDefaults();
-    vi.mocked(familiesApi.createOwnFamily).mockResolvedValue(mockFamily);
-    openMojDom();
-    fireEvent.click(await screen.findByRole("button", { name: "Załóż rodzinę" }));
-
-    const dialog = await screen.findByRole("dialog", { name: "Załóż rodzinę" });
-    fireEvent.change(within(dialog).getByLabelText("Nazwa rodziny"), { target: { value: "Kowalscy" } });
-    fireEvent.click(within(dialog).getByRole("button", { name: "Dalej" }));
-    await within(dialog).findByRole("button", { name: "Zakończ" });
-
-    const addPerson = (name: string, role: "Opiekun" | "Dziecko") => {
-      fireEvent.change(within(dialog).getByLabelText("Imię i nazwisko"), { target: { value: name } });
-      fireEvent.click(within(dialog).getByRole("button", { name: role }));
-      fireEvent.click(within(dialog).getByRole("button", { name: "Dodaj kolejną osobę" }));
-    };
-    addPerson("Anna Nowak", "Opiekun");
-    addPerson("Bartek Nowak", "Dziecko");
-    addPerson("Celina Nowak", "Dziecko");
-
-    const rows = within(dialog).getAllByRole("listitem");
-    expect(rows).toHaveLength(3);
-
-    // remove the middle row — with an array-index key this would shift the
-    // third row's name/role onto the second position.
-    fireEvent.click(within(rows[1]).getByRole("button", { name: "Usuń" }));
-
-    const remaining = within(dialog).getAllByRole("listitem");
-    expect(remaining).toHaveLength(2);
-    expect(remaining[0]).toHaveTextContent("Anna Nowak");
-    expect(remaining[0]).toHaveTextContent("Opiekun");
-    expect(remaining[1]).toHaveTextContent("Celina Nowak");
-    expect(remaining[1]).toHaveTextContent("Dziecko");
-    expect(within(dialog).queryByText("Bartek Nowak")).not.toBeInTheDocument();
-
-    // and the surviving rows submit with the correct role mapping
-    vi.mocked(familiesApi.createLightweightMembers).mockResolvedValue({
-      family: mockFamily,
-      guardians: mockGuardians,
-    });
-    fireEvent.click(within(dialog).getByRole("button", { name: "Zakończ" }));
-    await waitFor(() =>
-      expect(familiesApi.createLightweightMembers).toHaveBeenCalledWith([
-        { name: "Anna Nowak", role_type: "GUARDIAN" },
-        { name: "Celina Nowak", role_type: "CHILD" },
-      ]),
-    );
-  });
-});
-
-describe("AppPage — Mój dom — inline family rename", () => {
-  beforeEach(() => {
-    vi.resetAllMocks();
-  });
-
-  async function openMojDom() {
-    renderPanel("/family");
-    await screen.findByRole("heading", { name: "Mój dom", level: 2 });
-  }
-
-  it("calls renameFamily and updates the heading in place", async () => {
-    mockGuestDefaults();
-    vi.mocked(familiesApi.getMyFamilies).mockResolvedValue([mockFamily]);
-    vi.mocked(familiesApi.getGuardians).mockResolvedValue(mockGuardians);
-    vi.mocked(familiesApi.renameFamily).mockResolvedValue({ ...mockFamily, name: "Nowakowie" });
-    await openMojDom();
-
-    fireEvent.click(screen.getByRole("button", { name: "Zmień nazwę rodziny" }));
-    const input = screen.getByLabelText("Nazwa rodziny");
-    fireEvent.change(input, { target: { value: "Nowakowie" } });
-
-    vi.mocked(familiesApi.getMyFamilies).mockResolvedValue([{ ...mockFamily, name: "Nowakowie" }]);
-    fireEvent.click(screen.getByRole("button", { name: "Zapisz" }));
-
-    await waitFor(() => expect(familiesApi.renameFamily).toHaveBeenCalledWith("10", "Nowakowie"));
-    expect(await screen.findByText("Nowakowie", { selector: "h3" })).toBeInTheDocument();
-  });
-
-  it("network error shows an inline message and restores the previous name", async () => {
-    mockGuestDefaults();
-    vi.mocked(familiesApi.getMyFamilies).mockResolvedValue([mockFamily]);
-    vi.mocked(familiesApi.getGuardians).mockResolvedValue(mockGuardians);
-    vi.mocked(familiesApi.renameFamily).mockRejectedValue(new Error("network"));
-    await openMojDom();
-
-    fireEvent.click(screen.getByRole("button", { name: "Zmień nazwę rodziny" }));
-    fireEvent.change(screen.getByLabelText("Nazwa rodziny"), { target: { value: "Nowakowie" } });
-    fireEvent.click(screen.getByRole("button", { name: "Zapisz" }));
-
-    expect(await screen.findByText(/Nie udało się zmienić nazwy/)).toBeInTheDocument();
-    expect(screen.getByText("Kowalscy", { selector: "h3" })).toBeInTheDocument();
-  });
-});
-
-describe("AppPage — Mój dom — remove family member", () => {
-  beforeEach(() => {
-    vi.resetAllMocks();
-  });
-
-  async function openMojDom() {
-    renderPanel("/family");
-    await screen.findByRole("heading", { name: "Mój dom", level: 2 });
-  }
-
-  it("removes a family member and refreshes the list", async () => {
-    mockGuestDefaults();
-    vi.mocked(familiesApi.getMyFamilies).mockResolvedValue([mockFamily]);
-    vi.mocked(familiesApi.getGuardians)
-      .mockResolvedValueOnce(mockGuardians)
-      .mockResolvedValueOnce([mockGuardians[0]]);
-    vi.mocked(familiesApi.removeFamilyMember).mockResolvedValue(undefined);
-    await openMojDom();
-
-    expect(screen.getByText("Marek Kowalski", { selector: "h3" })).toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: "Usuń członka rodziny Marek Kowalski" }));
-
-    await waitFor(() =>
-      expect(familiesApi.removeFamilyMember).toHaveBeenCalledWith("10", "2"),
-    );
-    await waitFor(() =>
-      expect(screen.queryByText("Marek Kowalski", { selector: "h3" })).not.toBeInTheDocument(),
-    );
-  });
-
-  it("shows an inline error when member removal is rejected (e.g. last guardian 409)", async () => {
-    mockGuestDefaults();
-    vi.mocked(familiesApi.getMyFamilies).mockResolvedValue([mockFamily]);
-    vi.mocked(familiesApi.getGuardians).mockResolvedValue(mockGuardians);
-    vi.mocked(familiesApi.removeFamilyMember).mockRejectedValue(
-      new ApiError(409, "Conflict", { message: "Nie można usunąć jedynego opiekuna rodziny" }),
-    );
-    await openMojDom();
-
-    fireEvent.click(screen.getByRole("button", { name: "Usuń członka rodziny Marek Kowalski" }));
-
-    expect(
-      await screen.findByText("Nie można usunąć jedynego opiekuna rodziny"),
-    ).toBeInTheDocument();
-    expect(screen.getByText("Marek Kowalski", { selector: "h3" })).toBeInTheDocument();
-  });
-});
-
-describe("AppPage — Mój dom — birth year, return to term, errors", () => {
+describe("AppPage — Mój dom (family list and its pages)", () => {
   const RETURN_PATH = "/x/group/1/term/2";
 
   beforeEach(() => {
@@ -1003,117 +673,168 @@ describe("AppPage — Mój dom — birth year, return to term, errors", () => {
     await screen.findByRole("heading", { name: "Mój dom", level: 2 });
   }
 
-  it("birth-year field appears only for Dziecko and is sent only for CHILD", async () => {
+  it("/family renders the family list with role labels (Ty / opiekun / dziecko, no avatars)", async () => {
+    await openFamily();
+
+    expect(screen.getByText("Jan Kowalski", { selector: "h3" })).toHaveTextContent("Jan Kowalski(Ty)");
+    expect(screen.getByText("Marek Kowalski", { selector: "h3" })).toHaveTextContent("Marek Kowalski(opiekun)");
+    expect(screen.getByText("Zosia Kowalska", { selector: "h3" })).toHaveTextContent("Zosia Kowalska(dziecko)");
+    expect(screen.getAllByText("(opiekun)")).toHaveLength(1);
+    expect(screen.getByText(`rocznik 2018 · ${formatApproxAge(approxAge(2018))}`)).toBeInTheDocument();
+    expect(screen.queryAllByRole("img")).toHaveLength(0);
+    // only a child has something to edit (its birth year)
+    expect(screen.getByRole("link", { name: "Edytuj członka rodziny Zosia Kowalska" })).toHaveAttribute(
+      "href",
+      "/family/members/3/edit",
+    );
+    expect(screen.queryByRole("link", { name: "Edytuj członka rodziny Marek Kowalski" })).not.toBeInTheDocument();
+  });
+
+  it("without a family, 'Załóż rodzinę' leads to /family/new, which creates it and returns to the list with returnTo kept", async () => {
+    mockGuestDefaults();
+    vi.mocked(familiesApi.createOwnFamily).mockResolvedValue(mockFamily);
+    renderPanel(`/family?returnTo=${encodeURIComponent(RETURN_PATH)}`);
+
+    expect(await screen.findByText("Nie masz jeszcze rodziny")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Wróć do terminu" })).toHaveAttribute("href", RETURN_PATH);
+    fireEvent.click(screen.getByRole("link", { name: "Załóż rodzinę" }));
+
+    const page = await screen.findByRole("region", { name: "Nowa rodzina" });
+    expect(within(page).getByRole("link", { name: "Wróć do mojego domu" })).toHaveAttribute(
+      "href",
+      `/family?returnTo=${encodeURIComponent(RETURN_PATH)}`,
+    );
+    const submit = within(page).getByRole("button", { name: "Załóż rodzinę" });
+    expect(submit).toBeDisabled();
+    fireEvent.change(within(page).getByLabelText("Nazwa rodziny"), { target: { value: "Kowalscy" } });
+
+    vi.mocked(familiesApi.getMyFamilies).mockResolvedValue([mockFamily]);
+    vi.mocked(familiesApi.getGuardians).mockResolvedValue(mockGuardians);
+    fireEvent.click(submit);
+
+    await waitFor(() => expect(familiesApi.createOwnFamily).toHaveBeenCalledWith("Kowalscy"));
+    expect(await screen.findByText("Kowalscy", { selector: "h3" })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Wróć do terminu" })).toHaveAttribute("href", RETURN_PATH);
+    expect(screen.getByRole("status")).toHaveTextContent("Rodzina utworzona");
+  });
+
+  it("the rename page saves the name and goes back; a rejected save stays with an inline alert", async () => {
+    vi.mocked(familiesApi.renameFamily)
+      .mockRejectedValueOnce(new Error("network"))
+      .mockResolvedValue({ ...mockFamily, name: "Nowakowie" });
+    await openFamily();
+
+    fireEvent.click(screen.getByRole("link", { name: "Zmień nazwę rodziny" }));
+    const page = await screen.findByRole("region", { name: "Edytuj rodzinę" });
+    const input = within(page).getByLabelText("Nazwa rodziny");
+    expect(input).toHaveValue("Kowalscy");
+    fireEvent.change(input, { target: { value: "Nowakowie" } });
+    fireEvent.click(within(page).getByRole("button", { name: "Zapisz" }));
+
+    expect(await within(page).findByRole("alert")).toHaveTextContent(/Nie udało się zmienić nazwy/);
+
+    vi.mocked(familiesApi.getMyFamilies).mockResolvedValue([{ ...mockFamily, name: "Nowakowie" }]);
+    fireEvent.click(within(page).getByRole("button", { name: "Zapisz" }));
+
+    await waitFor(() => expect(familiesApi.renameFamily).toHaveBeenLastCalledWith("10", "Nowakowie"));
+    expect(await screen.findByText("Nowakowie", { selector: "h3" })).toBeInTheDocument();
+    expect(screen.queryByRole("region", { name: "Edytuj rodzinę" })).not.toBeInTheDocument();
+  });
+
+  it("the add-member page shows the birth year only for Dziecko, validates it and sends it only for a CHILD", async () => {
     vi.mocked(familiesApi.createLightweightMembers).mockResolvedValue({ family: mockFamily, guardians: mockGuardians });
     await openFamily();
 
-    expect(screen.queryByLabelText("Rok urodzenia")).not.toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: "Dziecko" }));
-    fireEvent.change(screen.getByLabelText("Rok urodzenia"), { target: { value: "2019" } });
-    expect(screen.getByText(formatApproxAge(approxAge(2019)))).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("link", { name: "+ Dodaj członka" }));
+    const page = await screen.findByRole("region", { name: "Nowy członek rodziny" });
+    expect(within(page).queryByLabelText("Rok urodzenia")).not.toBeInTheDocument();
+
+    fireEvent.change(within(page).getByLabelText("Imię i nazwisko"), { target: { value: "Ola Kowalska" } });
+    fireEvent.click(within(page).getByRole("button", { name: "Dziecko" }));
+    const year = within(page).getByLabelText("Rok urodzenia");
+    fireEvent.change(year, { target: { value: "1890" } });
+    expect(within(page).getByRole("alert")).toHaveTextContent(
+      `Podaj rok urodzenia z zakresu 1900–${new Date().getFullYear()}`,
+    );
+    expect(year).toHaveAttribute("aria-invalid", "true");
+    expect(within(page).getByRole("button", { name: "Dodaj" })).toBeDisabled();
 
     // switching to Opiekun hides and clears the year
-    fireEvent.click(screen.getByRole("button", { name: "Opiekun" }));
-    expect(screen.queryByLabelText("Rok urodzenia")).not.toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: "Dziecko" }));
-    expect(screen.getByLabelText("Rok urodzenia")).toHaveValue(null);
+    fireEvent.click(within(page).getByRole("button", { name: "Opiekun" }));
+    expect(within(page).queryByLabelText("Rok urodzenia")).not.toBeInTheDocument();
+    fireEvent.click(within(page).getByRole("button", { name: "Dziecko" }));
+    expect(within(page).getByLabelText("Rok urodzenia")).toHaveValue("");
 
-    // out-of-range year: inline error, submit disabled
-    fireEvent.change(screen.getByPlaceholderText("np. Zosia Kowalska"), { target: { value: "Ola Kowalska" } });
-    fireEvent.change(screen.getByLabelText("Rok urodzenia"), { target: { value: "1890" } });
-    expect(screen.getByText(`Podaj rok urodzenia z zakresu 1900–${new Date().getFullYear()}`)).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Dodaj" })).toBeDisabled();
-
-    fireEvent.change(screen.getByLabelText("Rok urodzenia"), { target: { value: "2019" } });
-    fireEvent.click(screen.getByRole("button", { name: "Dodaj" }));
+    fireEvent.change(within(page).getByLabelText("Rok urodzenia"), { target: { value: "2019" } });
+    expect(within(page).getByText(formatApproxAge(approxAge(2019)))).toBeInTheDocument();
+    fireEvent.click(within(page).getByRole("button", { name: "Dodaj" }));
 
     await waitFor(() =>
       expect(familiesApi.createLightweightMembers).toHaveBeenCalledWith([
         { name: "Ola Kowalska", role_type: "CHILD", birth_year: 2019 },
       ]),
     );
+    expect(await screen.findByRole("heading", { name: "Mój dom", level: 2 })).toBeInTheDocument();
+    expect(screen.getByRole("status")).toHaveTextContent("Dodano członka rodziny");
   });
 
-  it("inline birth-year edit saves and toasts", async () => {
-    vi.mocked(familiesApi.updateChildBirthYear).mockResolvedValue(undefined);
-    await openFamily();
-
-    fireEvent.click(screen.getByRole("button", { name: "Edytuj rok urodzenia: Zosia Kowalska" }));
-    const input = screen.getByLabelText("Rok urodzenia: Zosia Kowalska");
-    expect(input).toHaveValue(2018);
-    fireEvent.change(input, { target: { value: "2017" } });
-    fireEvent.keyDown(input, { key: "Enter" });
-
-    await waitFor(() => expect(familiesApi.updateChildBirthYear).toHaveBeenCalledWith("10", "3", 2017));
-    expect(await screen.findByText("Zapisano rok urodzenia")).toBeInTheDocument();
-    expect(screen.queryByLabelText("Rok urodzenia: Zosia Kowalska")).not.toBeInTheDocument();
-  });
-
-  it("returnTo safe shows link; unsafe hides it", async () => {
-    await openFamily(`/family?returnTo=${encodeURIComponent(RETURN_PATH)}`);
-    expect(screen.getByRole("link", { name: "Wróć do terminu" })).toHaveAttribute("href", RETURN_PATH);
-  });
-
-  it("an unsafe returnTo (//evil.com) renders no return link", async () => {
-    await openFamily(`/family?returnTo=${encodeURIComponent("//evil.com")}`);
-    expect(screen.queryByRole("link", { name: "Wróć do terminu" })).not.toBeInTheDocument();
-  });
-
-  it("empty family state shows the return button", async () => {
-    mockGuestDefaults();
-    renderPanel(`/family?returnTo=${encodeURIComponent(RETURN_PATH)}`);
-
-    expect(await screen.findByText("Nie masz jeszcze rodziny")).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Wróć do terminu" })).toHaveAttribute("href", RETURN_PATH);
-  });
-
-  it("CreateFamilyDialog step 2 sends birth_year for a child draft", async () => {
-    mockGuestDefaults();
-    vi.mocked(familiesApi.createOwnFamily).mockResolvedValue(mockFamily);
-    vi.mocked(familiesApi.createLightweightMembers).mockResolvedValue({ family: mockFamily, guardians: mockGuardians });
-    renderPanel(`/family?returnTo=${encodeURIComponent(RETURN_PATH)}`);
-    fireEvent.click(await screen.findByRole("button", { name: "Załóż rodzinę" }));
-
-    const dialog = await screen.findByRole("dialog", { name: "Załóż rodzinę" });
-    fireEvent.change(within(dialog).getByLabelText("Nazwa rodziny"), { target: { value: "Kowalscy" } });
-    fireEvent.click(within(dialog).getByRole("button", { name: "Dalej" }));
-    await within(dialog).findByRole("button", { name: "Zakończ" });
-
-    fireEvent.change(within(dialog).getByLabelText("Imię i nazwisko"), { target: { value: "Marek Kowalski" } });
-    expect(within(dialog).queryByLabelText("Rok urodzenia")).not.toBeInTheDocument();
-    fireEvent.click(within(dialog).getByRole("button", { name: "Dodaj kolejną osobę" }));
-
-    fireEvent.change(within(dialog).getByLabelText("Imię i nazwisko"), { target: { value: "Zosia Kowalska" } });
-    fireEvent.click(within(dialog).getByRole("button", { name: "Dziecko" }));
-    fireEvent.change(within(dialog).getByLabelText("Rok urodzenia"), { target: { value: "2018" } });
-    fireEvent.click(within(dialog).getByRole("button", { name: "Dodaj kolejną osobę" }));
-
-    const rows = within(dialog).getAllByRole("listitem");
-    expect(rows[1]).toHaveTextContent(`Dziecko · ${formatApproxAge(approxAge(2018))}`);
-    // the year resets together with the role after a draft is added
-    expect(within(dialog).queryByLabelText("Rok urodzenia")).not.toBeInTheDocument();
-
-    fireEvent.click(within(dialog).getByRole("button", { name: "Zakończ" }));
-    await waitFor(() =>
-      expect(familiesApi.createLightweightMembers).toHaveBeenCalledWith([
-        { name: "Marek Kowalski", role_type: "GUARDIAN" },
-        { name: "Zosia Kowalska", role_type: "CHILD", birth_year: 2018 },
-      ]),
-    );
-    // the dialog never navigates, so returnTo survives
-    expect(screen.getByRole("link", { name: "Wróć do terminu" })).toHaveAttribute("href", RETURN_PATH);
-  });
-
-  it("add-member server error message shown verbatim", async () => {
+  it("an add-member server error is shown verbatim and the page stays", async () => {
     vi.mocked(familiesApi.createLightweightMembers).mockRejectedValue(
       new ApiError(400, "Bad Request", { message: "Rok urodzenia można ustawić tylko dziecku" }),
     );
     await openFamily();
 
-    fireEvent.change(screen.getByPlaceholderText("np. Zosia Kowalska"), { target: { value: "Ola Kowalska" } });
-    fireEvent.click(screen.getByRole("button", { name: "Dodaj" }));
+    fireEvent.click(screen.getByRole("link", { name: "+ Dodaj członka" }));
+    const page = await screen.findByRole("region", { name: "Nowy członek rodziny" });
+    fireEvent.change(within(page).getByLabelText("Imię i nazwisko"), { target: { value: "Ola Kowalska" } });
+    fireEvent.click(within(page).getByRole("button", { name: "Dodaj" }));
 
-    expect(await screen.findByText("Rok urodzenia można ustawić tylko dziecku")).toBeInTheDocument();
+    expect(await within(page).findByRole("alert")).toHaveTextContent("Rok urodzenia można ustawić tylko dziecku");
+  });
+
+  it("the member page edits a child's birth year, toasts and goes back to the list", async () => {
+    vi.mocked(familiesApi.updateChildBirthYear).mockResolvedValue(undefined);
+    await openFamily();
+
+    fireEvent.click(screen.getByRole("link", { name: "Edytuj członka rodziny Zosia Kowalska" }));
+    const page = await screen.findByRole("region", { name: "Edytuj członka rodziny" });
+    const input = within(page).getByLabelText("Rok urodzenia");
+    expect(input).toHaveValue("2018");
+    fireEvent.change(input, { target: { value: String(new Date().getFullYear() + 1) } });
+    expect(within(page).getByRole("button", { name: "Zapisz" })).toBeDisabled();
+    fireEvent.change(input, { target: { value: "2017" } });
+    fireEvent.click(within(page).getByRole("button", { name: "Zapisz" }));
+
+    await waitFor(() => expect(familiesApi.updateChildBirthYear).toHaveBeenCalledWith("10", "3", 2017));
+    expect(await screen.findByText("Zapisano rok urodzenia")).toBeInTheDocument();
+    await waitFor(() =>
+      expect(screen.queryByRole("region", { name: "Edytuj członka rodziny" })).not.toBeInTheDocument(),
+    );
+  });
+
+  it("removes a family member and refreshes the list; a rejected removal shows the server message inline", async () => {
+    mockGuestDefaults();
+    vi.mocked(familiesApi.getMyFamilies).mockResolvedValue([mockFamily]);
+    vi.mocked(familiesApi.getGuardians).mockResolvedValueOnce(mockGuardians).mockResolvedValue([mockGuardians[0], mockGuardians[2]]);
+    vi.mocked(familiesApi.removeFamilyMember)
+      .mockRejectedValueOnce(new ApiError(409, "Conflict", { message: "Nie można usunąć jedynego opiekuna rodziny" }))
+      .mockResolvedValue(undefined);
+    renderPanel("/family");
+    await screen.findByRole("heading", { name: "Mój dom", level: 2 });
+
+    fireEvent.click(screen.getByRole("button", { name: "Usuń członka rodziny Marek Kowalski" }));
+    expect(await screen.findByRole("alert")).toHaveTextContent("Nie można usunąć jedynego opiekuna rodziny");
+
+    fireEvent.click(screen.getByRole("button", { name: "Usuń członka rodziny Marek Kowalski" }));
+    await waitFor(() => expect(familiesApi.removeFamilyMember).toHaveBeenLastCalledWith("10", "2"));
+    await waitFor(() =>
+      expect(screen.queryByText("Marek Kowalski", { selector: "h3" })).not.toBeInTheDocument(),
+    );
+  });
+
+  it("an unsafe returnTo (//evil.com) renders no return link", async () => {
+    await openFamily(`/family?returnTo=${encodeURIComponent("//evil.com")}`);
+    expect(screen.queryByRole("link", { name: "Wróć do terminu" })).not.toBeInTheDocument();
   });
 });
 
@@ -1135,7 +856,7 @@ describe("AppPage — term edit dialog", () => {
 
   async function openEditDialog() {
     fireEvent.click(await screen.findByRole("link", { name: "Spotkania" }));
-    await screen.findByRole("heading", { name: "Terminy" });
+    await screen.findByRole("tabpanel", { name: "Organizujesz" });
     fireEvent.click((await screen.findAllByRole("button", { name: "Edytuj termin" }))[0]);
     return screen.findByRole("dialog", { name: "Edytuj termin" });
   }
@@ -1402,7 +1123,7 @@ describe("AppPage — Spotkania › Biorę udział (attendances)", () => {
     renderPanel("/meetings");
     fireEvent.click(await screen.findByRole("tab", { name: "Biorę udział" }));
 
-    await screen.findByRole("heading", { name: "Zapisane" });
+    await screen.findByRole("tabpanel", { name: "Biorę udział" });
     const first = await screen.findByRole("link", { name: /Nutki dla starszaków/ });
     expect(first).toHaveAttribute("href", `/ania-kowalska/group/${GROUP_ID}/term/${ATTENDED_TERM_ID}`);
     const second = screen.getByRole("link", { name: /Rytmika/ });
@@ -1414,7 +1135,7 @@ describe("AppPage — Spotkania › Biorę udział (attendances)", () => {
     renderPanel("/meetings");
     fireEvent.click(await screen.findByRole("tab", { name: "Biorę udział" }));
 
-    await screen.findByRole("heading", { name: "Zapisane" });
+    await screen.findByRole("tabpanel", { name: "Biorę udział" });
     expect(screen.getByText("Nie masz jeszcze zapisów na zajęcia.")).toBeInTheDocument();
     expect(screen.queryByText(/Nie udało się/)).not.toBeInTheDocument();
   });
@@ -1425,7 +1146,7 @@ describe("AppPage — Spotkania › Biorę udział (attendances)", () => {
     renderPanel("/meetings");
     fireEvent.click(await screen.findByRole("tab", { name: "Biorę udział" }));
 
-    expect(await screen.findByRole("heading", { name: "Zapisane" })).toBeInTheDocument();
+    expect(await screen.findByRole("tabpanel", { name: "Biorę udział" })).toBeInTheDocument();
     expect(screen.getByText("Nie masz jeszcze zapisów na zajęcia.")).toBeInTheDocument();
     expect(screen.queryByText(/Nie udało się/)).not.toBeInTheDocument();
   });
@@ -1436,7 +1157,7 @@ describe("AppPage — Spotkania › Biorę udział (attendances)", () => {
     renderPanel("/meetings");
     fireEvent.click(await screen.findByRole("tab", { name: "Biorę udział" }));
 
-    await screen.findByRole("heading", { name: "Zapisane" });
+    await screen.findByRole("tabpanel", { name: "Biorę udział" });
     expect(await screen.findByRole("link", { name: /Nutki dla starszaków/ })).toBeInTheDocument();
   });
 });
@@ -1492,8 +1213,8 @@ describe("AppPage — Spotkania list links to the public circle page", () => {
     expect(within(led).queryByText(/Nutki dla starszaków/)).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole("link", { name: "Wróć do spotkań" }));
     fireEvent.click(await screen.findByRole("tab", { name: "Biorę udział" }));
-    const saved = (await screen.findByRole("heading", { name: "Zapisane" })).closest("section")!;
-    expect(within(saved).getByText("· 2")).toBeInTheDocument();
+    const saved = await screen.findByRole("tabpanel", { name: "Biorę udział" });
+    expect(within(saved).getAllByRole("link")).toHaveLength(2);
     expect(within(saved).getByRole("link", { name: /Nutki dla starszaków/ })).toHaveAttribute(
       "href",
       `/ania-kowalska/group/${GROUP_ID}/term/${ATTENDED_TERM_ID}`,
@@ -1504,7 +1225,7 @@ describe("AppPage — Spotkania list links to the public circle page", () => {
     mockGuestDefaults();
     renderPanel("/meetings");
 
-    expect(await screen.findByText("Brak zaplanowanych terminów.")).toBeInTheDocument();
+    expect(await screen.findByText("Brak zaplanowanych spotkań.")).toBeInTheDocument();
     expect(screen.queryByRole("link", { name: "+ Dodaj termin" })).not.toBeInTheDocument();
     fireEvent.click(await screen.findByRole("tab", { name: "Biorę udział" }));
     expect(screen.getByText("Nie masz jeszcze zapisów na zajęcia.")).toBeInTheDocument();
@@ -1587,11 +1308,11 @@ describe("AppPage — family member circles (both contexts)", () => {
     renderPanel("/meetings");
     fireEvent.click(await screen.findByRole("tab", { name: "Biorę udział" }));
 
-    const saved = (await screen.findByRole("heading", { name: "Zapisane" })).closest("section")!;
+    const saved = await screen.findByRole("tabpanel", { name: "Biorę udział" });
     const card = await within(saved).findByRole("link", { name: /Rowerki/ });
     expect(card).toHaveAttribute("href", `/basia-nowak/group/${OTHER_GROUP_ID}/term/${MEMBER_TERM_ID}`);
     expect(within(card).getByText("10 miejsc")).toBeInTheDocument();
-    expect(within(saved).getByText("· 1")).toBeInTheDocument();
+    expect(within(saved).getAllByRole("link")).toHaveLength(1);
   });
 
   it("a term both RSVPed and membership-visible renders once, as the attended card", async () => {
@@ -1610,7 +1331,7 @@ describe("AppPage — family member circles (both contexts)", () => {
     renderPanel("/meetings");
     fireEvent.click(await screen.findByRole("tab", { name: "Biorę udział" }));
 
-    const saved = (await screen.findByRole("heading", { name: "Zapisane" })).closest("section")!;
+    const saved = await screen.findByRole("tabpanel", { name: "Biorę udział" });
     await within(saved).findByText("4/10 miejsc");
     expect(within(saved).getAllByRole("link", { name: /Rowerki/ })).toHaveLength(1);
     expect(within(saved).queryByText("10 miejsc")).not.toBeInTheDocument();
@@ -1624,7 +1345,7 @@ describe("AppPage — family member circles (both contexts)", () => {
     expect(await screen.findByText("Nowa grupa", { selector: "h3" })).toBeInTheDocument();
     fireEvent.click(screen.getByRole("link", { name: "Wróć do spotkań" }));
     fireEvent.click(await screen.findByRole("tab", { name: "Biorę udział" }));
-    const saved = (await screen.findByRole("heading", { name: "Zapisane" })).closest("section")!;
+    const saved = await screen.findByRole("tabpanel", { name: "Biorę udział" });
     expect(await within(saved).findByRole("link", { name: /Rowerki/ })).toBeInTheDocument();
     expect(termsApi.getTerms).toHaveBeenCalledWith(OTHER_GROUP_ID);
   });
@@ -2219,7 +1940,7 @@ describe("AppPage — needed item edit error path", () => {
   });
 });
 
-describe("AppPage — Zadeklarowane rzeczy (my pledges)", () => {
+describe("AppPage — Spotkania: pledges on term tiles, events next to group terms", () => {
   beforeEach(() => {
     vi.resetAllMocks();
   });
@@ -2236,7 +1957,7 @@ describe("AppPage — Zadeklarowane rzeczy (my pledges)", () => {
     organizer_slug: "ania",
   };
 
-  it("renders a declared item and 'Rezygnuję' calls withdrawPledge then reloads", async () => {
+  it("a pledge for a term without an RSVP gets its own tile; 'Rezygnuję' calls withdrawPledge", async () => {
     mockGuestDefaults();
     vi.mocked(pledgesApi.getMyPledges).mockResolvedValueOnce([myPledge]).mockResolvedValue([]);
     vi.mocked(pledgesApi.withdrawPledge).mockResolvedValue({
@@ -2250,22 +1971,30 @@ describe("AppPage — Zadeklarowane rzeczy (my pledges)", () => {
     renderPanel("/meetings");
     fireEvent.click(await screen.findByRole("tab", { name: "Biorę udział" }));
 
-    expect(await screen.findByRole("heading", { name: "Zadeklarowane rzeczy" })).toBeInTheDocument();
-    expect(screen.getByText(/Bębenek/)).toBeInTheDocument();
-    expect(screen.getByText(/Nutki/)).toBeInTheDocument();
+    const panel = await screen.findByRole("tabpanel", { name: "Biorę udział" });
+    expect(await within(panel).findByRole("link", { name: /Nutki/ })).toHaveAttribute("href", "/ania/group/5/term/3");
+    expect(within(panel).getByText("Bębenek — mały")).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "Zadeklarowane rzeczy" })).not.toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole("button", { name: "Rezygnuję" }));
+    fireEvent.click(within(panel).getByRole("button", { name: "Rezygnuję z przyniesienia: Bębenek" }));
     await waitFor(() => expect(pledgesApi.withdrawPledge).toHaveBeenCalledWith("7"));
   });
 
-  it("shows the empty state when there are no pledges", async () => {
+  it("a pledge for an attended term shows on that term's tile, not on a second one", async () => {
     mockGuestDefaults();
+    vi.mocked(groupsApi.getMyAttendances).mockResolvedValue(mockAttendances);
+    vi.mocked(pledgesApi.getMyPledges).mockResolvedValue([
+      { ...myPledge, term_id: ATTENDED_TERM_ID, group_name: "Nutki dla starszaków" },
+      { ...myPledge, pledge_id: "8", item_name: "Grzechotka", status: "WITHDRAWN", term_id: ATTENDED_TERM_ID },
+    ]);
     renderPanel("/meetings");
     fireEvent.click(await screen.findByRole("tab", { name: "Biorę udział" }));
 
-    expect(
-      await screen.findByText("Brak deklaracji przyniesienia rzeczy."),
-    ).toBeInTheDocument();
+    const panel = await screen.findByRole("tabpanel", { name: "Biorę udział" });
+    await within(panel).findByText("Bębenek — mały");
+    expect(within(panel).getAllByRole("link", { name: /Nutki dla starszaków/ })).toHaveLength(1);
+    expect(within(panel).getAllByRole("link")).toHaveLength(2);
+    expect(within(panel).queryByText(/Grzechotka/)).not.toBeInTheDocument();
   });
 
   it("still offers 'Rezygnuję' on a pledge left FULFILLED by the old registration flow", async () => {
@@ -2275,7 +2004,40 @@ describe("AppPage — Zadeklarowane rzeczy (my pledges)", () => {
     fireEvent.click(await screen.findByRole("tab", { name: "Biorę udział" }));
 
     expect(await screen.findByText(/Bębenek/)).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Rezygnuję" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Rezygnuję z przyniesienia: Bębenek" })).toBeInTheDocument();
+  });
+
+  it("Organizujesz lists own events and group terms together by date, each tile badged with its kind", async () => {
+    vi.useFakeTimers({ toFake: ["Date"], now: new Date("2026-01-15T08:00:00") });
+    try {
+      mockOrganizerDefaults();
+      vi.mocked(termsApi.getTerms).mockResolvedValue([
+        { id: TERM_ID, circle_group_id: GROUP_ID, occurs_on: "2026-02-01T17:00:00", description: null, created_at: "", updated_at: "", attendee_count: null, child_count: null },
+      ]);
+      vi.mocked(eventsApi.getMyEvents).mockResolvedValue([
+        {
+          id: "ev-1",
+          name: "Piknik w parku",
+          description: null,
+          starts_at: "2026-01-20T14:00:00",
+          ends_at: "2026-01-20T18:00:00",
+          location: null,
+          created_at: "",
+          updated_at: "",
+        },
+      ]);
+      renderPanel("/meetings");
+
+      const panel = await screen.findByRole("tabpanel", { name: "Organizujesz" });
+      const event = await within(panel).findByRole("heading", { name: "Piknik w parku" });
+      const term = await within(panel).findByRole("link", { name: new RegExp(`^${mockGroup.name}$`) });
+      expect(event.compareDocumentPosition(term) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+      expect(within(panel).getByText("Wydarzenie")).toBeInTheDocument();
+      expect(within(panel).getByText("Spotkanie w grupie")).toBeInTheDocument();
+      expect(within(panel).getByText("(do 18:00)")).toBeInTheDocument();
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });
 
@@ -2483,46 +2245,6 @@ describe("AppPage — MyItemsView swap accept success sheet", () => {
 
     expect(await screen.findByText("Termin już się odbył")).toBeInTheDocument();
     expect(screen.queryByText("Nie udało się zaakceptować propozycji — spróbuj ponownie")).not.toBeInTheDocument();
-  });
-});
-
-describe("AppPage — Mój dom — inline birth-year editor and returnTo (gap tests)", () => {
-  const RETURN_PATH = "/x/group/1/term/2";
-
-  beforeEach(() => {
-    vi.resetAllMocks();
-  });
-
-  it("Esc cancels the inline edit without saving; an out-of-range year disables Zapisz", async () => {
-    mockGuestDefaults();
-    vi.mocked(familiesApi.getMyFamilies).mockResolvedValue([mockFamily]);
-    vi.mocked(familiesApi.getGuardians).mockResolvedValue(mockGuardians);
-    renderPanel("/family");
-    await screen.findByRole("heading", { name: "Mój dom", level: 2 });
-
-    fireEvent.click(screen.getByRole("button", { name: "Edytuj rok urodzenia: Zosia Kowalska" }));
-    const input = screen.getByLabelText("Rok urodzenia: Zosia Kowalska");
-    fireEvent.change(input, { target: { value: String(new Date().getFullYear() + 1) } });
-    expect(screen.getByRole("button", { name: "Zapisz" })).toBeDisabled();
-
-    fireEvent.keyDown(input, { key: "Escape" });
-
-    expect(screen.queryByLabelText("Rok urodzenia: Zosia Kowalska")).not.toBeInTheDocument();
-    expect(screen.getByText(`rocznik 2018 · ${formatApproxAge(approxAge(2018))}`)).toBeInTheDocument();
-    expect(familiesApi.updateChildBirthYear).not.toHaveBeenCalled();
-  });
-
-  it("closing CreateFamilyDialog mid-flow keeps the 'Wróć do terminu' link", async () => {
-    mockGuestDefaults();
-    renderPanel(`/family?returnTo=${encodeURIComponent(RETURN_PATH)}`);
-    fireEvent.click(await screen.findByRole("button", { name: "Załóż rodzinę" }));
-
-    const dialog = await screen.findByRole("dialog", { name: "Załóż rodzinę" });
-    fireEvent.click(within(dialog).getByRole("button", { name: "Zamknij" }));
-
-    expect(screen.queryByRole("dialog", { name: "Załóż rodzinę" })).not.toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Wróć do terminu" })).toHaveAttribute("href", RETURN_PATH);
-    expect(familiesApi.createOwnFamily).not.toHaveBeenCalled();
   });
 });
 

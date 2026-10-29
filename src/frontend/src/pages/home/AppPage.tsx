@@ -12,6 +12,10 @@ import { MyItemsView } from "../items/MyItemsView";
 import { ProfileView } from "../profile/ProfileView";
 import { SettingsView } from "../account/SettingsView";
 import { FamilyView } from "../family/FamilyView";
+import { FamilyCreateView } from "../family/FamilyCreateView";
+import { FamilyEditView } from "../family/FamilyEditView";
+import { FamilyMemberCreateView } from "../family/FamilyMemberCreateView";
+import { FamilyMemberEditView } from "../family/FamilyMemberEditView";
 import { PlacesView } from "../places/PlacesView";
 import { PlaceCreateView } from "../places/PlaceCreateView";
 import { PlaceEditView } from "../places/PlaceEditView";
@@ -89,6 +93,10 @@ function AppPageView() {
         {view === "places/new" && <PlaceCreateView />}
         {view === "places/edit" && <PlaceEditView onPlacesChanged={() => void load({ silent: true })} />}
         {view === "family" && <FamilyView />}
+        {view === "family/new" && <FamilyCreateView />}
+        {view === "family/edit" && <FamilyEditView />}
+        {view === "family/members/new" && <FamilyMemberCreateView />}
+        {view === "family/members/edit" && <FamilyMemberEditView />}
         {view === "account" && <AccountView />}
         {view === "search" && <SearchView />}
         {view === "wanted" && <WantedView />}

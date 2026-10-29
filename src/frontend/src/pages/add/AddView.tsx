@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import { Link } from "react-router-dom";
 import { BoxIcon, CalendarIcon, CalendarPlusIcon, CloseIcon, SearchIcon } from "../../components/shared/appIcons";
+import { authPath } from "../../auth/authPaths";
 import { viewPath } from "../../utils/appHelpers";
 import { useAppData } from "../../app/appDataStore";
 
@@ -19,20 +20,33 @@ function TileContent({ icon, iconTone, title, hint }: { icon: ReactNode; iconTon
   );
 }
 
-/** The bottom bar's "+": four big tiles — an item, a wanted item, a term of
- * one of the user's groups and a one-off event. */
+/** The bottom bar's "+" in the panel: four big tiles — an item, a wanted
+ * item, a term of one of the user's groups and a one-off event. */
 export function AddView() {
   const { myGroups } = useAppData();
   const hasGroups = myGroups.length > 0;
-  const termTile = (
-    <TileContent
-      icon={<CalendarPlusIcon c="currentColor" />}
-      iconTone="bg-paper text-accent-fg"
-      title="Termin spotkania"
-      hint={hasGroups ? "W jednej z Twoich grup" : "Najpierw załóż grupę"}
+  return (
+    <AddTiles
+      termHint={hasGroups ? "W jednej z Twoich grup" : "Najpierw załóż grupę"}
+      linkTo={(path) => (path === viewPath("add/term") && !hasGroups ? viewPath("groups/new") : path)}
     />
   );
+}
 
+/** `/add` for an anonymous visitor: the same four tiles, so they see what
+ * they can add; each one goes to the login page and, once logged in, on to
+ * the chosen form. */
+export function PublicAddView() {
+  return <AddTiles termHint="W jednej z Twoich grup" linkTo={(path) => authPath("login", path)} />;
+}
+
+interface AddTilesProps {
+  termHint: string;
+  /** The link of a tile, given the form it stands for. */
+  linkTo: (path: string) => string;
+}
+
+function AddTiles({ termHint, linkTo }: AddTilesProps) {
   return (
     <>
       <div className="mb-4 flex items-center justify-between gap-3">
@@ -47,7 +61,7 @@ export function AddView() {
       </div>
 
       <div className="grid grid-cols-2 gap-3">
-        <Link to="/add/product" className={`${TILE_CLASS} bg-primary text-on-primary`}>
+        <Link to={linkTo(viewPath("add/product"))} className={`${TILE_CLASS} bg-primary text-on-primary`}>
           <span aria-hidden="true" className="absolute -top-8 -right-8 h-24 w-24 rounded-full bg-accent" />
           <span className="relative flex h-full flex-col justify-between">
             <TileContent
@@ -58,7 +72,7 @@ export function AddView() {
             />
           </span>
         </Link>
-        <Link to={viewPath("add/hunting")} className={`${TILE_CLASS} bg-teal-soft text-ink`}>
+        <Link to={linkTo(viewPath("add/hunting"))} className={`${TILE_CLASS} bg-teal-soft text-ink`}>
           <TileContent
             icon={<SearchIcon c="currentColor" />}
             iconTone="bg-paper text-ink"
@@ -66,13 +80,15 @@ export function AddView() {
             hint="Damy znać, gdy ktoś doda pasującą"
           />
         </Link>
-        <Link
-          to={viewPath(hasGroups ? "add/term" : "groups/new")}
-          className={`${TILE_CLASS} bg-accent-soft text-ink`}
-        >
-          {termTile}
+        <Link to={linkTo(viewPath("add/term"))} className={`${TILE_CLASS} bg-accent-soft text-ink`}>
+          <TileContent
+            icon={<CalendarPlusIcon c="currentColor" />}
+            iconTone="bg-paper text-accent-fg"
+            title="Termin spotkania"
+            hint={termHint}
+          />
         </Link>
-        <Link to={viewPath("add/event")} className={`${TILE_CLASS} bg-primary-soft text-ink`}>
+        <Link to={linkTo(viewPath("add/event"))} className={`${TILE_CLASS} bg-primary-soft text-ink`}>
           <TileContent
             icon={<CalendarIcon c="currentColor" />}
             iconTone="bg-paper text-primary-fg"

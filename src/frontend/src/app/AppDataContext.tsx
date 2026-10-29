@@ -8,6 +8,7 @@ import { subscribePendingActionResolved } from "../components/pending/pendingAct
 import { MY_PLEDGES_KEY } from "../hooks/useMyPledges";
 import {
   createLightweightMembers,
+  createOwnFamily,
   getGuardians,
   getMembershipsForFamily,
   getMyFamilies,
@@ -63,6 +64,7 @@ import {
   type GuestTermCard,
   type ItemMode,
   type ModalKind,
+  type NewFamilyMember,
   type TermWithNeeded,
   type View,
   capacityText,
@@ -116,10 +118,6 @@ function useAppDataValue() {
   const [guardians, setGuardians] = useState<GuardianResponse[]>([]);
   const [myAttendances, setMyAttendances] = useState<MyAttendanceResponse[]>([]);
   const queryClient = useQueryClient();
-  // Inline "Mój dom" family rename (D4 / TC4) — no dedicated modal.
-  const [renamingFamily, setRenamingFamily] = useState(false);
-  const [familyNameDraft, setFamilyNameDraft] = useState("");
-  const [renameError, setRenameError] = useState<string | null>(null);
   const [familyMemberError, setFamilyMemberError] = useState<string | null>(null);
   // Term editing (date, description, needed-items sub-CRUD) lives in the
   // `EditTermDialog` opened from each organizer tile — the tile itself is a
@@ -174,12 +172,6 @@ function useAppDataValue() {
   const [settings, setSettings] = useState({ publicProfile: true });
   const [itemModes, setItemModes] = useState<Record<string, ItemMode | null>>({});
 
-  // --- formularz: dodaj członka rodziny ("Rodzina" section, inline form) ---
-  const [memberName, setMemberName] = useState("");
-  const [memberRole, setMemberRole] = useState<"GUARDIAN" | "CHILD">("GUARDIAN");
-  // Raw input value; only sent (as a number) for CHILD members.
-  const [memberBirthYear, setMemberBirthYear] = useState("");
-
   // --- formularz: dodaj grupę ---
   const emptyGroupForm = (): GroupFormValue => ({
     name: "",
@@ -227,6 +219,7 @@ function useAppDataValue() {
       const me = await getMyProfile();
       setProfile(me);
 
+     
       const leaderships = await getLeadershipsForPerson(me.id);
 
       const itemsSeq = ++itemsSeqRef.current;
@@ -240,11 +233,13 @@ function useAppDataValue() {
 
       // "Rodzina" section (§7): fetched once here and reused below for the
       // family's member circles instead of a second `getMyFamilies()` round trip.
+     
       const myFamilies = await getMyFamilies();
       const myFamily = myFamilies[0] ?? null;
       setFamily(myFamily);
       setGuardians(myFamily ? await getGuardians(myFamily.id) : []);
 
+     
       try {
         const organization = await getMyOrganization();
         setOrganizationSlug(organization.slug);
@@ -267,6 +262,7 @@ function useAppDataValue() {
         queryClient.invalidateQueries({ queryKey: NOTIFICATIONS_KEY }),
       ]);
 
+     
       // A group deleted between the leadership/membership read and these
       // fetches answers 404; skip it instead of failing the whole panel.
       async function unlessGone<T>(request: Promise<T>): Promise<T | null> {
@@ -310,6 +306,7 @@ function useAppDataValue() {
       setTerms(ledTerms);
       setGuestTerms(memberTerms);
     } catch (err) {
+     
       setError(err instanceof Error ? err.message : "Nie udało się wczytać panelu");
     } finally {
       if (!options?.silent) setLoading(false);
@@ -538,25 +535,38 @@ function useAppDataValue() {
 
   /* ---------- rodzina ---------- */
 
-  async function handleAddFamilyMember() {
-    if (!memberName.trim()) return;
-    const birthYear = memberRole === "CHILD" && memberBirthYear.trim() ? Number(memberBirthYear) : null;
+  /** The family pages (`/family/new`, `/family/edit`, `/family/members/…`)
+   * keep their form state and navigate themselves; each save resolves to the
+   * inline error message, or `null` once saved and reloaded. */
+  async function handleCreateFamily(name: string): Promise<string | null> {
+    setBusy(true);
+    try {
+      await createOwnFamily(name);
+      await load({ silent: true });
+      showToast("Rodzina utworzona");
+      return null;
+    } catch (err) {
+      return serverMessageOr(err, "Nie udało się założyć rodziny — spróbuj ponownie");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function handleAddFamilyMember(member: NewFamilyMember): Promise<string | null> {
     setBusy(true);
     try {
       await createLightweightMembers([
         {
-          name: memberName.trim(),
-          role_type: memberRole,
-          ...(birthYear !== null && { birth_year: birthYear }),
+          name: member.name,
+          role_type: member.roleType,
+          ...(member.birthYear !== null && { birth_year: member.birthYear }),
         },
       ]);
-      setMemberName("");
-      setMemberRole("GUARDIAN");
-      setMemberBirthYear("");
+      await load({ silent: true });
       showToast("Dodano członka rodziny");
-      await load();
+      return null;
     } catch (err) {
-      showToast(serverMessageOr(err, "Nie udało się dodać członka rodziny"));
+      return serverMessageOr(err, "Nie udało się dodać członka rodziny — spróbuj ponownie");
     } finally {
       setBusy(false);
     }
@@ -592,35 +602,16 @@ function useAppDataValue() {
     }
   }
 
-  function startRenameFamily() {
-    if (!family) return;
-    setFamilyNameDraft(family.name);
-    setRenameError(null);
-    setRenamingFamily(true);
-  }
-
-  function cancelRenameFamily() {
-    setRenamingFamily(false);
-    setRenameError(null);
-  }
-
-  async function saveRenameFamily() {
-    if (!family) return;
-    const next = familyNameDraft.trim();
-    if (!next || next === family.name) {
-      cancelRenameFamily();
-      return;
-    }
+  async function saveRenameFamily(name: string): Promise<string | null> {
+    if (!family) return null;
     setBusy(true);
-    setRenameError(null);
     try {
-      await renameFamily(family.id, next);
-      setRenamingFamily(false);
+      await renameFamily(family.id, name);
       await load({ silent: true });
-    } catch {
-      // Restore the previous name (exit the editor) and surface the error inline.
-      setRenamingFamily(false);
-      setRenameError("Nie udało się zmienić nazwy rodziny — spróbuj ponownie");
+      showToast("Zmieniono nazwę rodziny");
+      return null;
+    } catch (err) {
+      return serverMessageOr(err, "Nie udało się zmienić nazwy rodziny — spróbuj ponownie");
     } finally {
       setBusy(false);
     }
@@ -741,9 +732,6 @@ function useAppDataValue() {
     savedCards,
     family,
     guardians,
-    renamingFamily,
-    familyNameDraft,
-    renameError,
     familyMemberError,
     editingGroupId,
     editGroupForm,
@@ -758,9 +746,6 @@ function useAppDataValue() {
     busy,
     settings,
     itemModes,
-    memberName,
-    memberRole,
-    memberBirthYear,
     groupForm,
     eventDraft,
     eventBanner,
@@ -787,11 +772,7 @@ function useAppDataValue() {
     setTermCapacity,
     setDraftNeededItem,
     setEditTermId,
-    setMemberName,
-    setMemberRole,
-    setMemberBirthYear,
     setEditGroupForm,
-    setFamilyNameDraft,
     // --- derived ---
     showToast,
     load,
@@ -802,11 +783,10 @@ function useAppDataValue() {
     removeDraftNeededItem,
     handleAddTerm,
     setItemMode,
+    handleCreateFamily,
     handleAddFamilyMember,
     handleRemoveFamilyMember,
     saveChildBirthYear,
-    startRenameFamily,
-    cancelRenameFamily,
     saveRenameFamily,
     startEditGroup,
     saveEditGroup,

@@ -1,23 +1,42 @@
 import { useState, type ReactNode } from "react";
 import { Link } from "react-router-dom";
+import type { EventResponse } from "../../api/events";
+import type { MyPledgeResponse } from "../../api/pledges";
 import dayjs from "../../utils/dayjs";
-import { pluralPl } from "../../utils/plural";
 import { SubPageHeader } from "../../components/shared/appComponents";
 import { FamilyIcon } from "../../components/shared/appIcons";
-import { termTime, viewPath, type GuestTermCard, type TermWithNeeded } from "../../utils/appHelpers";
+import { viewPath, type GuestTermCard, type TermWithNeeded } from "../../utils/appHelpers";
 import { useAppData } from "../../app/appDataStore";
+import { useMyEvents } from "../../hooks/useMyEvents";
 import { useMyPledges } from "../../hooks/useMyPledges";
-import { OrganizerTermCard, SavedTermCard } from "./TermCards";
+import { EventCard, OrganizerTermCard, SavedTermCard } from "./TermCards";
 
-const SECTION_TITLE = "font-serif text-[21px] font-bold text-ink";
-const SECTION_COUNT = "font-sans text-base font-semibold text-ink-soft";
 const EMPTY = "rounded-[22px] border border-dashed border-line bg-paper p-5 text-center text-[13px] text-ink-soft";
 
-/** A led term or a guest card — whatever a `TermList` row is built from. */
-type ListedTerm = TermWithNeeded | GuestTermCard;
+/** A led term, an own event or a guest card — whatever a `TermList` row is built from. */
+type ListedTerm = TermWithNeeded | EventResponse | GuestTermCard;
 
-const termIdOf = (entry: ListedTerm) => ("term" in entry ? entry.term.id : entry.termId);
-const occursOnOf = (entry: ListedTerm) => ("term" in entry ? entry.term.occurs_on : entry.occursOn);
+const termIdOf = (entry: ListedTerm) =>
+  "term" in entry ? entry.term.id : "starts_at" in entry ? entry.id : entry.termId;
+const occursOnOf = (entry: ListedTerm) =>
+  "term" in entry ? entry.term.occurs_on : "starts_at" in entry ? entry.starts_at : entry.occursOn;
+
+const byDate = (a: ListedTerm, b: ListedTerm) => occursOnOf(a).localeCompare(occursOnOf(b));
+
+/** A card for a term known only from a pledge (no RSVP, no family circle). */
+function pledgeTermCard(pledge: MyPledgeResponse): GuestTermCard {
+  return {
+    termId: pledge.term_id,
+    occursOn: pledge.occurs_on,
+    groupName: pledge.group_name,
+    description: null,
+    href: `/${pledge.organizer_slug}/group/${pledge.group_id}/term/${pledge.term_id}`,
+    location: null,
+    capacity: null,
+    attendeeCount: null,
+    neededItems: [],
+  };
+}
 
 interface TermSections<T> {
   thisWeek: T[];
@@ -85,14 +104,8 @@ const TABS: { id: Tab; label: string }[] = [
 ];
 
 export function MeetingsView() {
-  const {
-    myGroups,
-    terms,
-    savedCards,
-    selectTermGroup,
-    showToast,
-    load,
-  } = useAppData();
+  const { terms, savedCards, showToast, load } = useAppData();
+  const { data: myEvents } = useMyEvents();
   const { data: myPledges, withdraw } = useMyPledges();
 
   async function withdrawMyPledge(pledgeId: string) {
@@ -107,9 +120,23 @@ export function MeetingsView() {
     void load({ silent: true });
   }
   const [tab, setTab] = useState<Tab>("organizujesz");
-  const sections = splitTerms(terms);
-  const upcoming = sections.thisWeek.length + sections.later.length;
-  const hasGroups = myGroups.length > 0;
+
+  const organized: (TermWithNeeded | EventResponse)[] = [...terms, ...myEvents].sort(byDate);
+
+  // Each pledge shows on its term's card; a pledged-for term with no card of
+  // its own gets one.
+  const pledgesByTerm = new Map<string, MyPledgeResponse[]>();
+  for (const pledge of myPledges) {
+    if (pledge.status === "WITHDRAWN") continue;
+    pledgesByTerm.set(pledge.term_id, [...(pledgesByTerm.get(pledge.term_id) ?? []), pledge]);
+  }
+  const savedIds = new Set(savedCards.map((c) => c.termId));
+  const pledgeOnlyCards = [...pledgesByTerm.values()]
+    .map((pledges) => pledges[0])
+    .filter((p) => !savedIds.has(p.term_id))
+    .map(pledgeTermCard);
+  const attending = [...savedCards, ...pledgeOnlyCards].sort(byDate);
+
   return (
     <>
       <SubPageHeader
@@ -149,86 +176,39 @@ export function MeetingsView() {
 
       {tab === "organizujesz" ? (
         <div role="tabpanel" id="spotkania-panel-organizujesz" aria-labelledby="spotkania-tab-organizujesz">
-          <section>
-            <div className="mb-3 flex items-center justify-between gap-2.5">
-              <div className="flex items-baseline gap-1.5">
-
-              </div>
-              {hasGroups && (
-                <Link
-                  to={viewPath("add/term")}
-                  onClick={() => selectTermGroup(myGroups[0].id)}
-                  className="flex min-h-10 flex-none items-center rounded-full bg-primary px-3.5 text-sm font-extrabold text-on-primary"
-                >
-                  + Dodaj termin
-                </Link>
-              )}
-            </div>
-            {terms.length === 0 ? (
-              <div className={EMPTY}>Brak zaplanowanych terminów.</div>
-            ) : (
-              <TermList
-                list={terms}
-                renderTerm={({ term, group, neededItems }) => (
-                  <OrganizerTermCard term={term} group={group} neededItems={neededItems} />
-                )}
-              />
-            )}
-          </section>
+          {organized.length === 0 ? (
+            <div className={EMPTY}>Brak zaplanowanych spotkań.</div>
+          ) : (
+            <TermList
+              list={organized}
+              renderTerm={(entry) =>
+                "term" in entry ? (
+                  <OrganizerTermCard term={entry.term} group={entry.group} neededItems={entry.neededItems} />
+                ) : (
+                  <EventCard event={entry} />
+                )
+              }
+            />
+          )}
         </div>
       ) : (
         <div role="tabpanel" id="spotkania-panel-udzial" aria-labelledby="spotkania-tab-udzial">
-          <section>
-            <div className="mb-3 flex items-baseline gap-1.5">
-             
-            </div>
-            {savedCards.length === 0 ? (
-              <div className={EMPTY}>Nie masz jeszcze zapisów na zajęcia.</div>
-            ) : (
-              <TermList list={savedCards} renderTerm={(card) => <SavedTermCard card={card} />} />
-            )}
-          </section>
-
-          <section className="mt-7">
-            <div className="mb-3 flex items-baseline gap-1.5">
-              <h2 className={SECTION_TITLE}>Zadeklarowane rzeczy</h2>
-              <span className={SECTION_COUNT}>· {myPledges.length}</span>
-            </div>
-            {myPledges.length === 0 ? (
-              <div className={EMPTY}>Brak deklaracji przyniesienia rzeczy.</div>
-            ) : (
-              <div className="flex flex-col gap-2.5">
-                {myPledges.map((p) => {
-                  const time = termTime(p.occurs_on);
-                  return (
-                    <div key={p.pledge_id} className="flex items-start gap-3 rounded-[22px] border border-line bg-paper p-3.5">
-                      <div className="min-w-0 flex-1">
-                        <h3 className="text-[15px] font-bold wrap-break-word text-ink">
-                          {p.item_name}
-                          {p.item_description ? ` — ${p.item_description}` : ""}
-                        </h3>
-                        <small className="mt-0.5 block text-sm text-ink-soft">
-                          {p.group_name} · {dayjs(p.occurs_on).format("D MMM")}
-                          {time ? `, godz. ${time}` : ""}
-                        </small>
-                      </div>
-                      {p.status !== "WITHDRAWN" && (
-                        <button
-                          onClick={() => void withdrawMyPledge(p.pledge_id)}
-                          className="min-h-9 flex-none rounded-full border-[1.5px] border-line px-3 text-xs font-bold text-danger hover:bg-cream"
-                        >
-                          Rezygnuję
-                        </button>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </section>
+          {attending.length === 0 ? (
+            <div className={EMPTY}>Nie masz jeszcze zapisów na zajęcia.</div>
+          ) : (
+            <TermList
+              list={attending}
+              renderTerm={(card) => (
+                <SavedTermCard
+                  card={card}
+                  pledges={pledgesByTerm.get(card.termId) ?? []}
+                  onWithdrawPledge={(pledgeId) => void withdrawMyPledge(pledgeId)}
+                />
+              )}
+            />
+          )}
         </div>
       )}
-
     </>
   );
 }

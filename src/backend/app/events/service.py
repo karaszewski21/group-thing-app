@@ -136,6 +136,17 @@ async def create_event(db: AsyncSession, principal: Principal, data: CreateEvent
     return event
 
 
+async def list_my_events(db: AsyncSession, principal: Principal) -> list[Event]:
+    """The caller's own events, earliest start first."""
+    profile = await get_profile_by_principal(db, principal)
+    rows = await db.scalars(
+        select(Event)
+        .where(Event.author_party_id == profile.party_id)
+        .order_by(Event.starts_at, Event.id)
+    )
+    return list(rows)
+
+
 async def set_event_banner(
     db: AsyncSession,
     principal: Principal,

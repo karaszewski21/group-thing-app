@@ -11,10 +11,11 @@ export const MIN_BIRTH_YEAR = 1900;
 
 /** Empty input is valid (the year is optional). */
 export function birthYearError(value: string): string | null {
-  if (!value.trim()) return null;
-  const year = Number(value);
+  const trimmed = value.trim();
+  if (!trimmed) return null;
+  const year = Number(trimmed);
   const currentYear = dayjs().year();
-  if (!Number.isInteger(year) || year < MIN_BIRTH_YEAR || year > currentYear) {
+  if (!/^\d+$/.test(trimmed) || year < MIN_BIRTH_YEAR || year > currentYear) {
     return `Podaj rok urodzenia z zakresu ${MIN_BIRTH_YEAR}–${currentYear}`;
   }
   return null;

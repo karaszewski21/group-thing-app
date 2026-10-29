@@ -31,6 +31,11 @@ export function createEvent(request: CreateEventRequest): Promise<EventResponse>
   return api.post("/events", request);
 }
 
+/** The caller's own events, earliest start first. */
+export function getMyEvents(): Promise<EventResponse[]> {
+  return api.get("/events/mine");
+}
+
 /** Replaces any banner already stored for the event. */
 export function uploadEventBanner(eventId: string, file: File): Promise<EventBannerResponse> {
   const body = new FormData();

@@ -25,6 +25,8 @@ import { ItemDetailBody, ItemDetailPage } from "./pages/product/ItemDetailPage";
 import { OrganizerItemLayout } from "./pages/product/OrganizerItemLayout";
 import { OnboardingPage } from "./pages/auth/OnboardingPage";
 import { LandingPage } from "./pages/home/LandingPage";
+import { PublicAddView } from "./pages/add/AddView";
+import { PhoneFrame } from "./components/shared/PhoneFrame";
 import { OrganizationPage } from "./pages/organizer/OrganizationPage";
 import { OrganizerTermsPage } from "./pages/organizer/OrganizerTermsPage";
 import { PublicOrganizationPage } from "./pages/organizer/PublicOrganizationPage";
@@ -45,6 +47,9 @@ const PANEL_VIEWS: readonly Exclude<View, "home" | (typeof ID_PATH_VIEWS)[number
   "places",
   "places/new",
   "family",
+  "family/new",
+  "family/edit",
+  "family/members/new",
   "account",
   "search",
   "wanted",
@@ -67,11 +72,21 @@ function Layout() {
 
 /** Every panel section, "/" included: one element type for all of them, so
  * switching sections keeps AppPage (and its loaded data) mounted. An
- * anonymous visitor gets the LandingPage at "/" and the login page elsewhere. */
+ * anonymous visitor gets the LandingPage at "/", the "Co dodajesz?" tiles at
+ * /add (each leading to the login page) and the login page elsewhere. */
 function AppRoute() {
   const { token } = useAuth();
   const { pathname } = useLocation();
   if (!token && pathname === "/") return <LandingPage />;
+  if (!token && pathname === viewPath("add")) {
+    return (
+      <PhoneFrame>
+        <div className="flex-1 overflow-y-auto px-[18px] pb-6 pt-[18px]">
+          <PublicAddView />
+        </div>
+      </PhoneFrame>
+    );
+  }
   return <AuthGuard><AppPage /></AuthGuard>;
 }
 
@@ -124,6 +139,10 @@ export const routes: RouteObject[] = [
       },
       {
         path: "/places/:locationId/edit",
+        element: <AppRoute />,
+      },
+      {
+        path: "/family/members/:familyMembershipId/edit",
         element: <AppRoute />,
       },
       {

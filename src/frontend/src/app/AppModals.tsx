@@ -1,4 +1,3 @@
-import { CreateFamilyDialog } from "../components/panel/CreateFamilyDialog";
 import { EditTermDialog } from "../components/panel/EditTermDialog";
 import { FirstTermStepperOrganizer } from "../components/panel/FirstTermStepperOrganizer";
 import { useAppData } from "./appDataStore";
@@ -31,18 +30,6 @@ export function AppModals() {
             setModal(null);
             showToast("Dodano pierwszy termin");
             void load();
-          }}
-        />
-      )}
-
-      {/* ---------- modal: załóż rodzinę ---------- */}
-      {modal === "rodzina-nowa" && (
-        <CreateFamilyDialog
-          onClose={() => setModal(null)}
-          onCreated={() => {
-            setModal(null);
-            showToast("Rodzina utworzona");
-            void load({ silent: true });
           }}
         />
       )}
