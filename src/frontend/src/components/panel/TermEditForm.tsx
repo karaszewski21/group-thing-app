@@ -10,22 +10,16 @@ import {
   type UpdateTermRequest,
 } from "../../api/terms";
 import { serverMessageOr } from "../../api/problem";
-import { CapacityField, Field, INPUT_CLASS, ModalSheet } from "../shared/appComponents";
+import { CapacityField, Field, INPUT_CLASS } from "../shared/appComponents";
 import { capacityText, parseCapacity } from "../../utils/appHelpers";
 import { LocationPicker } from "../shared/LocationPicker";
 
-/* ------------------------------------------------------------------ */
-/*  "Edytuj termin" — single Panel dialog replacing the inline per-    */
-/*  field pencils that used to live inside `OrganizerTermCard`. Local  */
-/*  `useState` (mirrors CreateFamilyDialog): the modal can be opened/  */
-/*  closed/reopened in one page session. `term`/`neededItems` come as  */
-/*  props from the host, which passes fresh values on every           */
-/*  `load({ silent: true })` — so after each mutation we call          */
-/*  `onChanged()` and the dialog re-renders with the refreshed data.   */
-/*  Needed-item sub-CRUD is non-optimistic here (await, then refresh); */
-/*  a rejected delete keeps the row and shows an inline message. A     */
-/*  needed item is a plain name plus an optional refinement.           */
-/* ------------------------------------------------------------------ */
+/** The "Edytuj termin" form shown on `/terms/:termId/edit` (`TermEditView`).
+ * `term`/`neededItems` come as props from the host, which passes fresh values
+ * after each `load({ silent: true })` — so every needed-item mutation calls
+ * `onChanged()`. Needed-item sub-CRUD is non-optimistic (await, then
+ * refresh); a rejected delete keeps the row and shows an inline message. A
+ * needed item is a plain name plus an optional refinement. */
 
 const inputClass = `${INPUT_CLASS} w-full`;
 const rowInputClass =
@@ -44,12 +38,13 @@ interface NeededItemDraft {
 
 const EMPTY_DRAFT: NeededItemDraft = { name: "", description: "" };
 
-interface EditTermDialogProps {
+interface TermEditFormProps {
   term: TermResponse;
   neededItems: NeededItemResponse[];
   /** `() => void load({ silent: true })` on the host — refreshes the props. */
   onChanged: () => void;
-  onClose: () => void;
+  /** After "Zapisz" — `saved` is false when nothing had changed. */
+  onDone: (saved: boolean) => void;
 }
 
 function NeededItemFields({
@@ -86,7 +81,7 @@ function NeededItemFields({
 const toLocalInput = (iso: string): string =>
   iso.length >= 16 ? iso.slice(0, 16) : `${iso.slice(0, 10)}T00:00`;
 
-export function EditTermDialog({ term, neededItems, onChanged, onClose }: EditTermDialogProps) {
+export function TermEditForm({ term, neededItems, onChanged, onDone }: TermEditFormProps) {
   const [occursOn, setOccursOn] = useState(toLocalInput(term.occurs_on));
   const [description, setDescription] = useState(term.description ?? "");
   const [locationId, setLocationId] = useState<string | null>(term.location?.id ?? null);
@@ -94,7 +89,6 @@ export function EditTermDialog({ term, neededItems, onChanged, onClose }: EditTe
   const capacity = parseCapacity(capacityInput);
   const [busy, setBusy] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
-  const [saved, setSaved] = useState(false);
 
   const [editing, setEditing] = useState<({ id: string } & NeededItemDraft) | null>(null);
   const [adding, setAdding] = useState(false);
@@ -109,20 +103,20 @@ export function EditTermDialog({ term, neededItems, onChanged, onClose }: EditTe
     if (locationId !== (term.location?.id ?? null)) patch.location_id = locationId;
     if (capacity !== (term.capacity ?? null)) patch.capacity = capacity;
     if (Object.keys(patch).length === 0) {
-      onClose();
+      onDone(false);
       return;
     }
     setBusy(true);
     setFormError(null);
     try {
       await updateTerm(term.id, patch);
-      setSaved(true);
-      onChanged();
     } catch (err) {
       setFormError(serverMessageOr(err, "Nie udało się zapisać zmian terminu — spróbuj ponownie"));
-    } finally {
       setBusy(false);
+      return;
     }
+    onChanged();
+    onDone(true);
   }
 
   function startEdit(item: NeededItemResponse) {
@@ -187,17 +181,14 @@ export function EditTermDialog({ term, neededItems, onChanged, onClose }: EditTe
   }
 
   return (
-    <ModalSheet title="Edytuj termin" onClose={onClose}>
+    <>
       <div className="grid grid-cols-1 gap-3">
         <Field label="Data i godzina">
           <input
             aria-label="Data i godzina"
             type="datetime-local"
             value={occursOn}
-            onChange={(e) => {
-              setOccursOn(e.target.value);
-              setSaved(false);
-            }}
+            onChange={(e) => setOccursOn(e.target.value)}
             className={inputClass}
           />
         </Field>
@@ -206,10 +197,7 @@ export function EditTermDialog({ term, neededItems, onChanged, onClose }: EditTe
             aria-label="Opis"
             type="text"
             value={description}
-            onChange={(e) => {
-              setDescription(e.target.value);
-              setSaved(false);
-            }}
+            onChange={(e) => setDescription(e.target.value)}
             onKeyDown={(e) => {
               if (e.key === "Enter") void saveTermFields();
             }}
@@ -221,10 +209,7 @@ export function EditTermDialog({ term, neededItems, onChanged, onClose }: EditTe
           <LocationPicker
             addMode="inline"
             value={locationId}
-            onChange={(id) => {
-              setLocationId(id);
-              setSaved(false);
-            }}
+            onChange={setLocationId}
             label="Miejsce"
             noneLabel="Brak miejsca"
             idPrefix={`edit-term-${term.id}-place`}
@@ -234,10 +219,7 @@ export function EditTermDialog({ term, neededItems, onChanged, onClose }: EditTe
         <CapacityField
           label="Ile miejsc"
           value={capacityInput}
-          onChange={(raw) => {
-            setCapacityInput(raw);
-            setSaved(false);
-          }}
+          onChange={setCapacityInput}
           inputClassName={`${inputClass} w-28`}
         />
       </div>
@@ -246,7 +228,6 @@ export function EditTermDialog({ term, neededItems, onChanged, onClose }: EditTe
           {formError}
         </p>
       )}
-      {saved && !formError && <p className="mt-2 text-[12.5px] font-bold text-mint">Zapisano</p>}
       <button
         type="button"
         onClick={() => void saveTermFields()}
@@ -355,7 +336,6 @@ export function EditTermDialog({ term, neededItems, onChanged, onClose }: EditTe
           {itemsError}
         </p>
       )}
-
-    </ModalSheet>
+    </>
   );
 }

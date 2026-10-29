@@ -19,6 +19,7 @@ import { TermPage } from "./pages/term/TermPage";
 import { AppPage } from "./pages/home/AppPage";
 import { TermAttendeesPage } from "./pages/meetings/TermAttendeesPage";
 import { GroupDetailsPage } from "./pages/groups/GroupDetailsPage";
+import { EventPage } from "./pages/events/EventPage";
 import { InboxPage } from "./pages/messages/InboxPage";
 import { ThreadPage } from "./pages/messages/ThreadPage";
 import { ItemDetailBody, ItemDetailPage } from "./pages/product/ItemDetailPage";
@@ -144,6 +145,20 @@ export const routes: RouteObject[] = [
       {
         path: "/family/members/:familyMembershipId/edit",
         element: <AppRoute />,
+      },
+      {
+        path: "/events/:eventId/edit",
+        element: <AppRoute />,
+      },
+      {
+        path: "/terms/:termId/edit",
+        element: <AppRoute />,
+      },
+      {
+        // The public event page — no AuthGuard; the author gets edit/delete.
+        // "events" is in the backend's RESERVED_SLUGS.
+        path: "/events/:eventId",
+        element: <EventPage />,
       },
       {
         // Organizer-only attendee list for one term. Standalone (no

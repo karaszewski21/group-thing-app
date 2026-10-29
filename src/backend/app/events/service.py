@@ -8,7 +8,7 @@ import logging
 import uuid
 from datetime import datetime, timedelta
 
-from sqlalchemy import select
+from sqlalchemy import delete, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core import clock
@@ -27,8 +27,8 @@ from app.storage.service import ObjectStorage
 from app.users.service import AVATAR_UPLOAD_DISABLED_MESSAGE, get_profile_by_principal
 
 from .infrastructure import locations_acl
-from .models import Event, EventBanner
-from .schemas import CreateEventRequest
+from .models import Event, EventAttendance, EventBanner
+from .schemas import CreateEventRequest, UpdateEventRequest
 
 NAME_MIN_LENGTH = 3
 NAME_MAX_LENGTH = 120
@@ -48,6 +48,8 @@ DESCRIPTION_LENGTH_MESSAGE = "Opis może mieć najwyżej 2000 znaków."
 EVENT_NOT_FOUND_MESSAGE = "Nie znaleziono wydarzenia."
 NOT_EVENT_AUTHOR_MESSAGE = "Możesz dodać baner tylko do swojego wydarzenia."
 BANNER_TOO_LARGE_MESSAGE = "Baner jest za duży (maks. 5 MB)"
+NOT_EVENT_AUTHOR_EDIT_MESSAGE = "Możesz zmieniać tylko swoje wydarzenia."
+EVENT_HAS_ATTENDEES_MESSAGE = "Nie można usunąć wydarzenia, na które ktoś się zapisał."
 
 logger = logging.getLogger(__name__)
 
@@ -62,6 +64,15 @@ class EventNotFound(EntityNotFoundException):
 
 class NotEventAuthor(AccessDeniedException):
     public_message = NOT_EVENT_AUTHOR_MESSAGE
+
+
+class NotEventAuthorToChange(AccessDeniedException):
+    public_message = NOT_EVENT_AUTHOR_EDIT_MESSAGE
+
+
+class EventHasAttendees(BusinessConflictException):
+    def __init__(self) -> None:
+        super().__init__(EVENT_HAS_ATTENDEES_MESSAGE)
 
 
 def _to_minute(value: datetime) -> datetime:
@@ -134,6 +145,108 @@ async def create_event(db: AsyncSession, principal: Principal, data: CreateEvent
     await db.commit()
     await db.refresh(event)
     return event
+
+
+async def get_event(db: AsyncSession, event_id: uuid.UUID) -> Event:
+    event = await db.get(Event, event_id)
+    if event is None:
+        raise EventNotFound(event_id)
+    return event
+
+
+async def get_banner(db: AsyncSession, event_id: uuid.UUID) -> EventBanner | None:
+    return (
+        await db.execute(select(EventBanner).where(EventBanner.event_id == event_id))
+    ).scalar_one_or_none()
+
+
+async def count_attendees(db: AsyncSession, event_id: uuid.UUID) -> int:
+    """Active sign-ups only; a withdrawn one does not block deleting."""
+    return (
+        await db.execute(
+            select(func.count())
+            .select_from(EventAttendance)
+            .where(EventAttendance.event_id == event_id, EventAttendance.withdrawn_at.is_(None))
+        )
+    ).scalar_one()
+
+
+async def is_author(db: AsyncSession, principal: Principal | None, event: Event) -> bool:
+    if principal is None:
+        return False
+    profile = await get_profile_by_principal(db, principal)
+    return event.author_party_id == profile.party_id
+
+
+async def _get_own_event_for_update(
+    db: AsyncSession, principal: Principal, event_id: uuid.UUID
+) -> tuple[Event, uuid.UUID]:
+    """404 before 403; the row stays locked until the caller commits."""
+    event = await db.get(Event, event_id, with_for_update=True)
+    if event is None:
+        raise EventNotFound(event_id)
+    profile = await get_profile_by_principal(db, principal)
+    if event.author_party_id != profile.party_id:
+        raise NotEventAuthorToChange()
+    return event, profile.party_id
+
+
+async def update_event(
+    db: AsyncSession, principal: Principal, event_id: uuid.UUID, data: UpdateEventRequest
+) -> Event:
+    """Rules run on the fields sent, in create's order. An unchanged start
+    is not checked against "now" (an event may be edited after it began),
+    and an unchanged place is not re-validated."""
+    event, party_id = await _get_own_event_for_update(db, principal, event_id)
+    sent = data.model_fields_set
+
+    starts_at = event.starts_at
+    if "starts_at" in sent and (
+        data.starts_at is None or _to_minute(data.starts_at) != event.starts_at
+    ):
+        starts_at = _validate_start(data.starts_at)
+    ends_at = event.ends_at
+    if "ends_at" in sent or starts_at != event.starts_at:
+        ends_at = _validate_end(data.ends_at if "ends_at" in sent else event.ends_at, starts_at)
+    name = _validate_name(data.name) if "name" in sent else event.name
+    description = (
+        _validate_description(data.description) if "description" in sent else event.description
+    )
+    location_id = data.location_id if "location_id" in sent else event.location_id
+    if location_id is not None and location_id != event.location_id:
+        await locations_acl.get_owned_location(db, location_id, party_id)
+    if name != event.name:
+        await check_text(TextField.EVENT_NAME, name)
+    if description != event.description:
+        await check_text(TextField.EVENT_DESCRIPTION, description)
+
+    event.name = name
+    event.description = description
+    event.starts_at = starts_at
+    event.ends_at = ends_at
+    event.location_id = location_id
+    await db.commit()
+    await db.refresh(event)
+    return event
+
+
+async def delete_event(db: AsyncSession, principal: Principal, event_id: uuid.UUID) -> None:
+    """Only while nobody is signed up (409 otherwise). The banner's files
+    are deleted through the outbox in the same transaction."""
+    event, _ = await _get_own_event_for_update(db, principal, event_id)
+    if await count_attendees(db, event_id) > 0:
+        raise EventHasAttendees()
+    banner = await get_banner(db, event_id)
+    if banner is not None:
+        await outbox_service.append(
+            db,
+            event_type=OBJECTS_DELETE,
+            payload={"keys": [banner.large_key, banner.thumb_key]},
+        )
+        await db.delete(banner)
+    await db.execute(delete(EventAttendance).where(EventAttendance.event_id == event_id))
+    await db.delete(event)
+    await db.commit()
 
 
 async def list_my_events(db: AsyncSession, principal: Principal) -> list[Event]:

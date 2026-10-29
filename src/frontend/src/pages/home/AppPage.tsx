@@ -26,6 +26,8 @@ import { AddView } from "../add/AddView";
 import { AddTermView } from "../add/AddTermView";
 import { ItemCreateView } from "../add/ItemCreateView";
 import { EventCreateView } from "../add/EventCreateView";
+import { EventEditView } from "../events/EventEditView";
+import { TermEditView } from "../term/TermEditView";
 import { HuntingCreateView } from "../add/HuntingCreateView";
 import { SubPageHeader } from "../../components/shared/appComponents";
 import { ACCOUNT_SUBVIEWS, viewPath } from "../../utils/appHelpers";
@@ -105,6 +107,8 @@ function AppPageView() {
         {view === "add/term" && <AddTermView />}
         {view === "add/event" && <EventCreateView />}
         {view === "add/hunting" && <HuntingCreateView />}
+        {view === "events/edit" && <EventEditView />}
+        {view === "terms/edit" && <TermEditView />}
       </div>
 
       <AppModals />

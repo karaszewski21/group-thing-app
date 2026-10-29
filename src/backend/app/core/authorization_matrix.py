@@ -200,7 +200,10 @@ _RAW_MATRIX: tuple[_RawEntry, ...] = (
     (_methods("POST"), r"^/api/locations(/.*)?$", ("EDIT", "mcp:edit")),
     # app.events — one-off events and their banner. Authorship (only the
     # author may upload the banner) lives in `app.events.service`.
+    # `/mine` sits ahead of the public `/{event_id}` page row it would match.
     (_methods("GET"), r"^/api/events/mine$", ("READ", "mcp:read")),
+    (_methods("GET"), r"^/api/events/[^/]+$", "PUBLIC"),
+    (_methods("PATCH", "DELETE"), r"^/api/events/[^/]+$", ("EDIT", "mcp:edit")),
     (_methods("POST"), r"^/api/events$", ("EDIT", "mcp:edit")),
     (_methods("POST"), r"^/api/events/[^/]+/banner$", ("EDIT", "mcp:edit")),
     # 51-52: app.notifications — the caller's own in-app inbox. `/mine` +

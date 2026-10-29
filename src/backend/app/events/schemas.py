@@ -24,6 +24,19 @@ class CreateEventRequest(BaseModel):
     location_id: uuid.UUID | None = None
 
 
+class UpdateEventRequest(BaseModel):
+    """Only the fields present in the body change; each one is checked by
+    the same rules as on create."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    name: str | None = None
+    description: str | None = None
+    starts_at: datetime | None = None
+    ends_at: datetime | None = None
+    location_id: uuid.UUID | None = None
+
+
 class EventResponse(BaseModel):
     id: uuid.UUID
     name: str
@@ -33,6 +46,14 @@ class EventResponse(BaseModel):
     location: LocationRefResponse | None
     created_at: datetime
     updated_at: datetime
+
+
+class EventDetailResponse(EventResponse):
+    """The event page: the public event plus what the page needs around it."""
+
+    banner_url: str | None
+    attendee_count: int
+    is_author: bool
 
 
 class EventBannerResponse(BaseModel):

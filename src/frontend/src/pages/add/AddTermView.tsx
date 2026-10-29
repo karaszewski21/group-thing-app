@@ -34,7 +34,7 @@ export function AddTermView() {
   } = useAppData();
 
   // "Potrzebne rzeczy" is optional — collapsed behind a small button until
-  // the organizer actually wants to add one (same pattern as EditTermDialog).
+  // the organizer actually wants to add one (same pattern as TermEditForm).
   const [addingNeeded, setAddingNeeded] = useState(false);
   const termGroup = myGroups.find((g) => g.id === termGroupId) ?? null;
 

@@ -5,7 +5,7 @@ import { ApiError } from "../api/client";
 import * as locationsApi from "../api/locations";
 import type { LocationRefResponse, LocationResponse } from "../api/locations";
 import * as termsApi from "../api/terms";
-import { EditTermDialog } from "../components/panel/EditTermDialog";
+import { TermEditForm } from "../components/panel/TermEditForm";
 import { createQueryWrapper } from "./queryClient";
 
 vi.mock("../api/terms", () => ({
@@ -67,14 +67,14 @@ const neededItem: termsApi.NeededItemResponse = {
   updated_at: "2026-01-01T00:00:00Z",
 };
 
-function renderDialog(shownTerm: termsApi.TermResponse = term, onChanged = vi.fn()) {
+function renderForm(shownTerm: termsApi.TermResponse = term, onChanged = vi.fn(), onDone = vi.fn()) {
   return render(
     <MemoryRouter>
-      <EditTermDialog
+      <TermEditForm
         term={shownTerm}
         neededItems={[neededItem]}
         onChanged={onChanged}
-        onClose={vi.fn()}
+        onDone={onDone}
       />
     </MemoryRouter>,
     { wrapper: createQueryWrapper() },
@@ -86,13 +86,13 @@ beforeEach(() => {
   vi.mocked(locationsApi.getMyLocations).mockResolvedValue([salaNr2, groupDefault]);
 });
 
-describe("EditTermDialog — server error surfacing", () => {
+describe("TermEditForm — server error surfacing", () => {
   it("saveEdit_rejectedName_showsItemsErrorAndKeepsRowEditorOpen", async () => {
     const rejection = "Nazwa rzeczy narusza zasady społeczności. Zmień ją i spróbuj ponownie.";
     vi.mocked(termsApi.updateNeededItem).mockRejectedValue(
       new ApiError(400, "Bad Request", { message: rejection }),
     );
-    renderDialog();
+    renderForm();
 
     fireEvent.click(screen.getByRole("button", { name: "Edytuj potrzebną rzecz" }));
     fireEvent.change(screen.getByLabelText("Nazwa rzeczy"), { target: { value: "Zła nazwa" } });
@@ -108,7 +108,7 @@ describe("EditTermDialog — server error surfacing", () => {
     vi.mocked(termsApi.updateTerm).mockRejectedValue(
       new ApiError(400, "Bad Request", { message: rejection }),
     );
-    renderDialog();
+    renderForm();
 
     fireEvent.change(screen.getByLabelText("Opis"), { target: { value: "Zły opis" } });
     fireEvent.click(screen.getAllByRole("button", { name: "Zapisz" })[0]);
@@ -122,7 +122,7 @@ describe("EditTermDialog — server error surfacing", () => {
     vi.mocked(termsApi.updateTerm).mockRejectedValue(
       new ApiError(503, "Service Unavailable", { message: unavailable }),
     );
-    renderDialog();
+    renderForm();
 
     fireEvent.change(screen.getByLabelText("Opis"), { target: { value: "Nowy opis" } });
     fireEvent.click(screen.getAllByRole("button", { name: "Zapisz" })[0]);
@@ -131,9 +131,9 @@ describe("EditTermDialog — server error surfacing", () => {
   });
 });
 
-describe("EditTermDialog — needed items as plain names", () => {
+describe("TermEditForm — needed items as plain names", () => {
   it("render_listsNamesWithDangerRemove_andNoCategoryField", async () => {
-    renderDialog();
+    renderForm();
     await screen.findByRole("combobox", { name: "Miejsce" });
 
     expect(screen.getByText("Potrzebne rzeczy")).toBeInTheDocument();
@@ -148,7 +148,7 @@ describe("EditTermDialog — needed items as plain names", () => {
   it("addItem_sendsTermIdNameAndDescription", async () => {
     vi.mocked(termsApi.createNeededItem).mockResolvedValue(neededItem);
     const onChanged = vi.fn();
-    renderDialog(term, onChanged);
+    renderForm(term, onChanged);
 
     fireEvent.click(screen.getByRole("button", { name: "Dodaj potrzebną rzecz" }));
     fireEvent.change(screen.getByLabelText("Nazwa nowej rzeczy"), { target: { value: "  Termos " } });
@@ -162,7 +162,7 @@ describe("EditTermDialog — needed items as plain names", () => {
   it("saveEdit_unchangedName_sendsOnlyDescription", async () => {
     vi.mocked(termsApi.updateNeededItem).mockResolvedValue(neededItem);
     const onChanged = vi.fn();
-    renderDialog(term, onChanged);
+    renderForm(term, onChanged);
 
     fireEvent.click(screen.getByRole("button", { name: "Edytuj potrzebną rzecz" }));
     fireEvent.change(screen.getByLabelText("Doprecyzowanie rzeczy"), { target: { value: "dla 3-latka" } });
@@ -173,9 +173,9 @@ describe("EditTermDialog — needed items as plain names", () => {
   });
 });
 
-describe("EditTermDialog — place and capacity", () => {
+describe("TermEditForm — place and capacity", () => {
   it("render_noStandingMembersSection", async () => {
-    renderDialog();
+    renderForm();
 
     expect(await screen.findByLabelText("Miejsce")).toBeInTheDocument();
     expect(screen.queryByText("Formalizuj stałych członków")).not.toBeInTheDocument();
@@ -183,7 +183,7 @@ describe("EditTermDialog — place and capacity", () => {
   });
 
   it("initialState_showsTermValuesNotGroupDefaults", async () => {
-    renderDialog();
+    renderForm();
 
     const select = await screen.findByRole("combobox", { name: "Miejsce" });
     expect(select).toHaveValue("loc-2");
@@ -194,29 +194,31 @@ describe("EditTermDialog — place and capacity", () => {
 
   it("saveTermFields_clearedPlace_sendsOnlyLocationIdNull", async () => {
     vi.mocked(termsApi.updateTerm).mockResolvedValue(term);
-    renderDialog();
+    const onDone = vi.fn();
+    renderForm(term, vi.fn(), onDone);
 
     fireEvent.change(await screen.findByRole("combobox", { name: "Miejsce" }), { target: { value: "" } });
     fireEvent.click(screen.getAllByRole("button", { name: "Zapisz" })[0]);
 
-    expect(await screen.findByText("Zapisano")).toBeInTheDocument();
+    await waitFor(() => expect(onDone).toHaveBeenCalledWith(true));
     expect(termsApi.updateTerm).toHaveBeenCalledWith("t1", { location_id: null });
   });
 
   it("saveTermFields_changedCapacity_sendsOnlyCapacity", async () => {
     vi.mocked(termsApi.updateTerm).mockResolvedValue(term);
-    renderDialog();
+    const onDone = vi.fn();
+    renderForm(term, vi.fn(), onDone);
 
     expect(await screen.findByRole("combobox", { name: "Miejsce" })).toHaveValue("loc-2");
     fireEvent.change(screen.getByLabelText("Ile miejsc"), { target: { value: "8" } });
     fireEvent.click(screen.getAllByRole("button", { name: "Zapisz" })[0]);
 
-    expect(await screen.findByText("Zapisano")).toBeInTheDocument();
+    await waitFor(() => expect(onDone).toHaveBeenCalledWith(true));
     expect(termsApi.updateTerm).toHaveBeenCalledWith("t1", { capacity: 8 });
   });
 
   it.each(["0", "-1", "2.5", "10001"])("saveTermFields_invalidCapacity_%s_showsInlineErrorAndBlocksSave", async (raw) => {
-    renderDialog();
+    renderForm();
 
     await screen.findByRole("combobox", { name: "Miejsce" });
     fireEvent.change(screen.getByLabelText("Ile miejsc"), { target: { value: raw } });
@@ -230,7 +232,7 @@ describe("EditTermDialog — place and capacity", () => {
 
   it("deletedTermLocation_rendersUsunieteRow", async () => {
     vi.mocked(locationsApi.getMyLocations).mockResolvedValue([groupDefault]);
-    renderDialog({ ...term, location: { ...locationRef(salaNr2), deleted_at: "2026-10-10T10:00:00Z" } });
+    renderForm({ ...term, location: { ...locationRef(salaNr2), deleted_at: "2026-10-10T10:00:00Z" } });
 
     const select = await screen.findByRole("combobox", { name: "Miejsce" });
     expect(select).toHaveValue("loc-2");

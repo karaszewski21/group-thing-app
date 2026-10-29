@@ -32,7 +32,9 @@ export type View =
   | "add/product"
   | "add/term"
   | "add/event"
-  | "add/hunting";
+  | "add/hunting"
+  | "events/edit"
+  | "terms/edit";
 
 const VIEW_VALUES: readonly View[] = [
   "home",
@@ -59,6 +61,8 @@ const VIEW_VALUES: readonly View[] = [
   "add/term",
   "add/event",
   "add/hunting",
+  "events/edit",
+  "terms/edit",
 ];
 
 function isView(value: string | undefined): value is View {
@@ -75,8 +79,14 @@ export function viewPath(view: View): string {
 
 /** Panel views with an id in their path (`/<section>/:id/edit`); they have
  * no `viewPath()`, their URLs come from `groupEditPath`/`placeEditPath`/
- * `familyMemberEditPath`. */
-export const ID_PATH_VIEWS = ["groups/edit", "places/edit", "family/members/edit"] as const satisfies readonly View[];
+ * `familyMemberEditPath`/`eventEditPath`/`termEditPath`. */
+export const ID_PATH_VIEWS = [
+  "groups/edit",
+  "places/edit",
+  "family/members/edit",
+  "events/edit",
+  "terms/edit",
+] as const satisfies readonly View[];
 
 export function groupEditPath(groupId: string): string {
   return `/groups/${groupId}/edit`;
@@ -84,6 +94,19 @@ export function groupEditPath(groupId: string): string {
 
 export function placeEditPath(locationId: string): string {
   return `/places/${locationId}/edit`;
+}
+
+/** The public event page. */
+export function eventPath(eventId: string): string {
+  return `/events/${eventId}`;
+}
+
+export function eventEditPath(eventId: string): string {
+  return `/events/${eventId}/edit`;
+}
+
+export function termEditPath(termId: string): string {
+  return `/terms/${termId}/edit`;
 }
 
 export function familyMemberEditPath(familyMembershipId: string): string {
@@ -102,13 +125,13 @@ export interface PickedLocationState {
   pickedLocation: { picker: string; locationId: string };
 }
 
-const EDIT_PATH = /^\/(groups|places|family\/members)\/[^/]+\/edit$/;
+const EDIT_PATH = /^\/(groups|places|family\/members|events|terms)\/[^/]+\/edit$/;
 
 /** The panel view a pathname shows, or `null` when it is not a panel view. */
 export function viewFromPath(pathname: string): View | null {
   if (pathname === "/") return "home";
   const edit = EDIT_PATH.exec(pathname);
-  if (edit) return `${edit[1] as "groups" | "places" | "family/members"}/edit`;
+  if (edit) return `${edit[1] as "groups" | "places" | "family/members" | "events" | "terms"}/edit`;
   const segment = pathname.slice(1);
   return segment !== "home" && isView(segment) ? segment : null;
 }
@@ -121,7 +144,6 @@ export function defaultVisibility(organizationSlug: string | null): GroupVisibil
 
 export type ModalKind =
   | "pierwszy-termin"
-  | "edit-termin"
   | null;
 
 /** A person added on `/family/members/new`; `birthYear` only for a CHILD. */

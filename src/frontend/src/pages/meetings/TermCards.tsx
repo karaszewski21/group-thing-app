@@ -6,7 +6,15 @@ import type { NeededItemResponse, TermResponse } from "../../api/terms";
 import { useAppData } from "../../app/appDataStore";
 import { TermPlaceLine } from "../../components/shared/TermPlaceLine";
 import { CopyIcon, FamilyIcon, PencilIcon } from "../../components/shared/appIcons";
-import { dayMonth, termPublicPath, termTime, type GuestTermCard } from "../../utils/appHelpers";
+import {
+  dayMonth,
+  eventEditPath,
+  eventPath,
+  termEditPath,
+  termPublicPath,
+  termTime,
+  type GuestTermCard,
+} from "../../utils/appHelpers";
 import { pluralPl } from "../../utils/plural";
 
 const ICON_BUTTON =
@@ -91,11 +99,11 @@ interface OrganizerTermCardProps {
 }
 
 /** Organizer term tile — a read-only compact card. The circle name links to
- * the public per-term page; a copy-link button and an edit pencil (opening
- * `EditTermDialog`) are the only controls. Date, description and needed-items
- * editing all live in that dialog. Guest terms use `SavedTermCard`. */
+ * the public per-term page; a copy-link button and an edit pencil (linking
+ * to `/terms/:termId/edit`) are the only controls. Guest terms use
+ * `SavedTermCard`. */
 export function OrganizerTermCard({ term, group, neededItems }: OrganizerTermCardProps) {
-  const { showToast, setEditTermId, setModal } = useAppData();
+  const { showToast } = useAppData();
 
   return (
     <div className="rounded-[22px] border border-line bg-paper p-3.5">
@@ -143,38 +151,52 @@ export function OrganizerTermCard({ term, group, neededItems }: OrganizerTermCar
           >
             <CopyIcon />
           </button>
-          <button
-            type="button"
-            aria-label="Edytuj termin"
-            onClick={() => {
-              setEditTermId(term.id);
-              setModal("edit-termin");
-            }}
-            className={ICON_BUTTON}
-          >
+          <Link to={termEditPath(term.id)} aria-label="Edytuj termin" className={ICON_BUTTON}>
             <PencilIcon />
-          </button>
+          </Link>
         </div>
       </div>
     </div>
   );
 }
 
-/** An event the caller created. There is no event page or edit form yet,
- * so the tile is read-only. */
+/** An event the caller created: its name links to the event page; a
+ * copy-link button and an edit pencil, as on `OrganizerTermCard`. */
 export function EventCard({ event }: { event: EventResponse }) {
+  const { showToast } = useAppData();
   const end = event.ends_at ? termTime(event.ends_at) : "";
   return (
     <div className="flex items-start gap-3 rounded-[22px] border border-line bg-paper p-3.5">
       <DateBadge occursOn={event.starts_at} />
       <div className="min-w-0 flex-1">
         <KindBadge kind="event" />
-        <h3 className="text-base font-bold wrap-break-word text-ink">{event.name}</h3>
+        <h3 className="text-base font-bold wrap-break-word text-ink">
+          <Link to={eventPath(event.id)} className="hover:underline">
+            {event.name}
+          </Link>
+        </h3>
         <p className="mt-0.5 text-sm text-ink-soft">
           <TimeAndDescription occursOn={event.starts_at} description={event.description} />
           {end && <span className="font-bold text-ink"> (do {end})</span>}
         </p>
         <TermPlaceLine location={event.location} capacity={null} withMapLink className="mt-1.5" />
+      </div>
+      <div className="flex flex-none flex-col gap-1">
+        <button
+          type="button"
+          title="Kopiuj link do wydarzenia"
+          aria-label="Kopiuj link do wydarzenia"
+          onClick={() => {
+            void navigator.clipboard.writeText(`${window.location.origin}${eventPath(event.id)}`);
+            showToast("Skopiowano link");
+          }}
+          className={ICON_BUTTON}
+        >
+          <CopyIcon />
+        </button>
+        <Link to={eventEditPath(event.id)} aria-label={`Edytuj wydarzenie ${event.name}`} className={ICON_BUTTON}>
+          <PencilIcon />
+        </Link>
       </div>
     </div>
   );

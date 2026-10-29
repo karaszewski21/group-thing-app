@@ -121,6 +121,9 @@ vi.mock("../api/locations", () => ({
 vi.mock("../api/events", () => ({
   createEvent: vi.fn(),
   getMyEvents: vi.fn(),
+  getEvent: vi.fn(),
+  updateEvent: vi.fn(),
+  deleteEvent: vi.fn(),
   uploadEventBanner: vi.fn(),
 }));
 
@@ -329,6 +332,9 @@ function renderPanel(initialEntry = "/") {
         <Route path="/family/:page" element={<AppPage />} />
         <Route path="/family/members/new" element={<AppPage />} />
         <Route path="/family/members/:familyMembershipId/edit" element={<AppPage />} />
+        <Route path="/events/:eventId/edit" element={<AppPage />} />
+        <Route path="/terms/:termId/edit" element={<AppPage />} />
+        <Route path="/events/:eventId" element={<p>Strona wydarzenia</p>} />
       </Routes>
       {HEADER_SPOTKANIA}
       <BottomNav />
@@ -368,6 +374,9 @@ function renderPanelWithNavigation() {
         <Route path="/family/:page" element={<AppPage />} />
         <Route path="/family/members/new" element={<AppPage />} />
         <Route path="/family/members/:familyMembershipId/edit" element={<AppPage />} />
+        <Route path="/events/:eventId/edit" element={<AppPage />} />
+        <Route path="/terms/:termId/edit" element={<AppPage />} />
+        <Route path="/events/:eventId" element={<p>Strona wydarzenia</p>} />
         <Route path="/other" element={<div>Poza panelem</div>} />
       </Routes>
       {HEADER_SPOTKANIA}
@@ -838,7 +847,7 @@ describe("AppPage — Mój dom (family list and its pages)", () => {
   });
 });
 
-describe("AppPage — term edit dialog", () => {
+describe("AppPage — term edit page", () => {
   beforeEach(() => {
     vi.resetAllMocks();
   });
@@ -857,8 +866,8 @@ describe("AppPage — term edit dialog", () => {
   async function openEditDialog() {
     fireEvent.click(await screen.findByRole("link", { name: "Spotkania" }));
     await screen.findByRole("tabpanel", { name: "Organizujesz" });
-    fireEvent.click((await screen.findAllByRole("button", { name: "Edytuj termin" }))[0]);
-    return screen.findByRole("dialog", { name: "Edytuj termin" });
+    fireEvent.click((await screen.findAllByRole("link", { name: "Edytuj termin" }))[0]);
+    return screen.findByRole("region", { name: "Edytuj termin" });
   }
 
   it("calls updateTerm with only the changed occurs_on field", async () => {
@@ -880,7 +889,7 @@ describe("AppPage — term edit dialog", () => {
     await waitFor(() => expect(vi.mocked(termsApi.getTerms).mock.calls.length).toBeGreaterThan(1));
   });
 
-  it("shows an inline error and stays open when the save is rejected", async () => {
+  it("shows an inline error and stays on the page when the save is rejected", async () => {
     mockOrganizerDefaults();
     vi.mocked(termsApi.getTerms).mockResolvedValue([term]);
     vi.mocked(termsApi.getNeededItems).mockResolvedValue([]);
@@ -892,10 +901,10 @@ describe("AppPage — term edit dialog", () => {
     fireEvent.click(within(dialog).getByRole("button", { name: "Zapisz" }));
 
     expect(await within(dialog).findByText(/Nie udało się zapisać zmian terminu/)).toBeInTheDocument();
-    expect(screen.getByRole("dialog", { name: "Edytuj termin" })).toBeInTheDocument();
+    expect(screen.getByRole("region", { name: "Edytuj termin" })).toBeInTheDocument();
   });
 
-  it("closes without calling updateTerm when nothing changed", async () => {
+  it("goes back to Spotkania without calling updateTerm when nothing changed", async () => {
     mockOrganizerDefaults();
     vi.mocked(termsApi.getTerms).mockResolvedValue([term]);
     vi.mocked(termsApi.getNeededItems).mockResolvedValue([]);
@@ -906,7 +915,7 @@ describe("AppPage — term edit dialog", () => {
 
     expect(termsApi.updateTerm).not.toHaveBeenCalled();
     await waitFor(() =>
-      expect(screen.queryByRole("dialog", { name: "Edytuj termin" })).not.toBeInTheDocument(),
+      expect(screen.queryByRole("region", { name: "Edytuj termin" })).not.toBeInTheDocument(),
     );
   });
 });
@@ -1560,8 +1569,8 @@ describe("AppPage — needed item sub-CRUD (in the term dialog)", () => {
   async function openEditDialog() {
     renderPanel();
     fireEvent.click(await screen.findByRole("link", { name: "Spotkania" }));
-    fireEvent.click((await screen.findAllByRole("button", { name: "Edytuj termin" }))[0]);
-    return screen.findByRole("dialog", { name: "Edytuj termin" });
+    fireEvent.click((await screen.findAllByRole("link", { name: "Edytuj termin" }))[0]);
+    return screen.findByRole("region", { name: "Edytuj termin" });
   }
 
   it("adds a needed item via the dialog add row by name only (no resolveProduct)", async () => {
@@ -1920,8 +1929,8 @@ describe("AppPage — needed item edit error path", () => {
     renderPanel();
 
     fireEvent.click(await screen.findByRole("link", { name: "Spotkania" }));
-    fireEvent.click((await screen.findAllByRole("button", { name: "Edytuj termin" }))[0]);
-    const dialog = await screen.findByRole("dialog", { name: "Edytuj termin" });
+    fireEvent.click((await screen.findAllByRole("link", { name: "Edytuj termin" }))[0]);
+    const dialog = await screen.findByRole("region", { name: "Edytuj termin" });
 
     fireEvent.click(within(dialog).getByRole("button", { name: "Edytuj potrzebną rzecz" }));
     fireEvent.change(within(dialog).getByLabelText("Doprecyzowanie rzeczy"), {
@@ -2038,6 +2047,72 @@ describe("AppPage — Spotkania: pledges on term tiles, events next to group ter
     } finally {
       vi.useRealTimers();
     }
+  });
+});
+
+describe("AppPage — event tile links and the event edit page", () => {
+  const EVENT: eventsApi.EventDetailResponse = {
+    id: "ev-1",
+    name: "Piknik w parku",
+    description: null,
+    starts_at: "2027-01-20T14:00:00",
+    ends_at: null,
+    location: null,
+    created_at: "",
+    updated_at: "",
+    banner_url: null,
+    attendee_count: 0,
+    is_author: true,
+  };
+
+  beforeEach(() => {
+    vi.resetAllMocks();
+    mockGuestDefaults();
+  });
+
+  it("the event tile links its name to the event page and its pencil to the edit page", async () => {
+    vi.mocked(eventsApi.getMyEvents).mockResolvedValue([EVENT]);
+    renderPanel("/meetings");
+
+    const panel = await screen.findByRole("tabpanel", { name: "Organizujesz" });
+    expect(await within(panel).findByRole("link", { name: "Piknik w parku" })).toHaveAttribute("href", "/events/ev-1");
+    expect(within(panel).getByRole("link", { name: "Edytuj wydarzenie Piknik w parku" })).toHaveAttribute(
+      "href",
+      "/events/ev-1/edit",
+    );
+  });
+
+  it("the edit page is prefilled, sends the whole event and goes back to the event page", async () => {
+    vi.mocked(eventsApi.getEvent).mockResolvedValue(EVENT);
+    vi.mocked(eventsApi.updateEvent).mockResolvedValue(EVENT);
+    renderPanel("/events/ev-1/edit");
+
+    const page = await screen.findByRole("region", { name: "Edytuj wydarzenie" });
+    const name = await within(page).findByLabelText("Nazwa");
+    expect(name).toHaveValue("Piknik w parku");
+    expect(within(page).getByLabelText("Godzina początku")).toHaveValue("14:00");
+    expect(within(page).queryByRole("heading", { name: /Baner/ })).not.toBeInTheDocument();
+    fireEvent.change(name, { target: { value: "Piknik nad rzeką" } });
+    fireEvent.click(within(page).getByRole("button", { name: "Zapisz zmiany" }));
+
+    await waitFor(() =>
+      expect(eventsApi.updateEvent).toHaveBeenCalledWith("ev-1", {
+        name: "Piknik nad rzeką",
+        description: null,
+        starts_at: "2027-01-20T14:00:00",
+        ends_at: null,
+        location_id: null,
+      }),
+    );
+    expect(await screen.findByText("Strona wydarzenia")).toBeInTheDocument();
+  });
+
+  it("someone else's event shows a note instead of the form", async () => {
+    vi.mocked(eventsApi.getEvent).mockResolvedValue({ ...EVENT, is_author: false });
+    renderPanel("/events/ev-1/edit");
+
+    expect(await screen.findByText("Nie znaleziono tego wydarzenia wśród Twoich wydarzeń.")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Zapisz zmiany" })).not.toBeInTheDocument();
   });
 });
 

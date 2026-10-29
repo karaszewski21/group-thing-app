@@ -6,10 +6,10 @@ from __future__ import annotations
 import uuid
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, File, UploadFile, status
+from fastapi import APIRouter, Depends, File, Response, UploadFile, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.auth_deps import Principal, require_any
+from app.core.auth_deps import OptionalPrincipal, Principal, require_any
 from app.db import get_db
 from app.storage.service import ObjectStorage, get_storage
 
@@ -17,7 +17,13 @@ from . import service
 from .infrastructure import locations_acl
 from .infrastructure.locations_acl import LocationRefResponse
 from .models import Event
-from .schemas import CreateEventRequest, EventBannerResponse, EventResponse
+from .schemas import (
+    CreateEventRequest,
+    EventBannerResponse,
+    EventDetailResponse,
+    EventResponse,
+    UpdateEventRequest,
+)
 
 router = APIRouter(tags=["events"])
 
@@ -69,6 +75,37 @@ async def list_my_events(db: DbSession, principal: ReadPrincipal) -> list[EventR
         )
         for e in events
     ]
+
+
+@router.get("/api/events/{event_id}", response_model=EventDetailResponse)
+async def get_event(
+    event_id: uuid.UUID, db: DbSession, storage: Storage, principal: OptionalPrincipal = None
+) -> EventDetailResponse:
+    """The public event page. A valid token is optionally honoured to tell
+    the author (edit/delete controls) apart; no token is never a 401."""
+    event = await service.get_event(db, event_id)
+    banner = await service.get_banner(db, event_id)
+    base = await _event_response(db, event)
+    return EventDetailResponse(
+        **base.model_dump(),
+        banner_url=storage.public_url(banner.large_key) if banner and storage else None,
+        attendee_count=await service.count_attendees(db, event_id),
+        is_author=await service.is_author(db, principal, event),
+    )
+
+
+@router.patch("/api/events/{event_id}", response_model=EventResponse)
+async def update_event(
+    event_id: uuid.UUID, body: UpdateEventRequest, db: DbSession, principal: EditPrincipal
+) -> EventResponse:
+    event = await service.update_event(db, principal, event_id, body)
+    return await _event_response(db, event)
+
+
+@router.delete("/api/events/{event_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_event(event_id: uuid.UUID, db: DbSession, principal: EditPrincipal) -> Response:
+    await service.delete_event(db, principal, event_id)
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
 @router.post("/api/events/{event_id}/banner", response_model=EventBannerResponse)

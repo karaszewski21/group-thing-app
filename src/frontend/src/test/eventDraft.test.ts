@@ -1,7 +1,9 @@
 import { describe, expect, it } from "vitest";
+import type { EventResponse } from "../api/events";
 import {
   EMPTY_EVENT_DRAFT,
   EVENT_MESSAGES,
+  draftFromEvent,
   toCreateEventRequest,
   validateEventDraft,
   type EventDraft,
@@ -24,6 +26,48 @@ describe("validateEventDraft", () => {
     ["a too long description", { description: "x".repeat(2001) }, { description: EVENT_MESSAGES.descriptionLength }],
   ])("%s", (_label, overrides, expected) => {
     expect(validateEventDraft({ ...VALID, ...overrides }, NOW)).toEqual(expected);
+  });
+});
+
+describe("validateEventDraft on an edited event (savedStart)", () => {
+  const SAVED = "2026-10-29T10:00:00";
+
+  it.each<[string, Partial<EventDraft>, EventDraftErrors]>([
+    ["its kept start, already past", { date: "2026-10-29", startTime: "10:00" }, {}],
+    ["a new start in the past", { date: "2026-10-29", startTime: "09:00" }, { start: EVENT_MESSAGES.startPast }],
+    ["a new start ahead", { date: "2026-11-02", startTime: "17:00" }, {}],
+  ])("%s", (_label, overrides, expected) => {
+    expect(validateEventDraft({ ...VALID, ...overrides }, NOW, SAVED)).toEqual(expected);
+  });
+});
+
+describe("draftFromEvent", () => {
+  it("splits the naive start/end into the form's date and times", () => {
+    const event: EventResponse = {
+      id: "ev-1",
+      name: "Piknik",
+      description: null,
+      starts_at: "2026-11-02T17:00:00",
+      ends_at: "2026-11-02T19:30:00",
+      location: {
+        id: "loc-1",
+        name: "Park",
+        formatted_address: "ul. Parkowa 1",
+        google_place_id: null,
+        notes: null,
+        deleted_at: null,
+      },
+      created_at: "",
+      updated_at: "",
+    };
+    expect(draftFromEvent(event)).toEqual({
+      name: "Piknik",
+      date: "2026-11-02",
+      startTime: "17:00",
+      endTime: "19:30",
+      description: "",
+      locationId: "loc-1",
+    });
   });
 });
 

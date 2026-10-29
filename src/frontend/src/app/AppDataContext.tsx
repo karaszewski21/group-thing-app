@@ -119,12 +119,6 @@ function useAppDataValue() {
   const [myAttendances, setMyAttendances] = useState<MyAttendanceResponse[]>([]);
   const queryClient = useQueryClient();
   const [familyMemberError, setFamilyMemberError] = useState<string | null>(null);
-  // Term editing (date, description, needed-items sub-CRUD) lives in the
-  // `EditTermDialog` opened from each organizer tile — the tile itself is a
-  // read-only compact card. `editTermId` is resolved back to a live `terms`
-  // entry at render time so the open dialog always sees fresh props after a
-  // `load({ silent: true })` refresh.
-  const [editTermId, setEditTermId] = useState<string | null>(null);
   // The `/groups/:groupId/edit` form (name, layout template, visibility,
   // default place and capacity), seeded by `startEditGroup`.
   const [editingGroupId, setEditingGroupId] = useState<string | null>(null);
@@ -185,6 +179,8 @@ function useAppDataValue() {
   // a trip to /places/new from its place picker ---
   const [eventDraft, setEventDraft] = useState<EventDraft>(EMPTY_EVENT_DRAFT);
   const [eventBanner, setEventBanner] = useState<File | null>(null);
+  // `/events/:id/edit` — kept here for the same trip, seeded once per event.
+  const [eventEdit, setEventEdit] = useState<{ eventId: string; draft: EventDraft } | null>(null);
 
   // --- formularz: dodaj termin ---
   const [termGroupId, setTermGroupId] = useState<string | null>(null);
@@ -715,11 +711,6 @@ function useAppDataValue() {
     }));
   const savedCards = [...attendedCards, ...memberCards].sort((a, b) => a.occursOn.localeCompare(b.occursOn));
 
-  // Resolved from live `terms` at render time so the open EditTermDialog keeps
-  // getting fresh props after each `load({ silent: true })` refresh.
-  const editTermEntry =
-    editTermId === null ? null : terms.find((t) => t.term.id === editTermId) ?? null;
-
   return {
     // --- auth ---
     logout,
@@ -749,6 +740,7 @@ function useAppDataValue() {
     groupForm,
     eventDraft,
     eventBanner,
+    eventEdit,
     termGroupId,
     termDate,
     termDescription,
@@ -765,18 +757,17 @@ function useAppDataValue() {
     setGroupForm,
     setEventDraft,
     setEventBanner,
+    setEventEdit,
     selectTermGroup,
     setTermDate,
     setTermDescription,
     setTermLocationId,
     setTermCapacity,
     setDraftNeededItem,
-    setEditTermId,
     setEditGroupForm,
     // --- derived ---
     showToast,
     load,
-    editTermEntry,
     // --- handlers ---
     handleAddGroup,
     addDraftNeededItem,

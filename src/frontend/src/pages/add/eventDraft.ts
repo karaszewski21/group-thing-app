@@ -1,4 +1,4 @@
-import type { CreateEventRequest } from "../../api/events";
+import type { CreateEventRequest, EventResponse } from "../../api/events";
 import dayjs from "../../utils/dayjs";
 
 type Dayjs = ReturnType<typeof dayjs>;
@@ -60,9 +60,23 @@ export function bannerFileError(file: File): string | null {
   return null;
 }
 
+/** The edit form's starting values. */
+export function draftFromEvent(event: EventResponse): EventDraft {
+  return {
+    name: event.name,
+    date: event.starts_at.slice(0, 10),
+    startTime: event.starts_at.slice(11, 16),
+    endTime: event.ends_at ? event.ends_at.slice(11, 16) : "",
+    description: event.description ?? "",
+    locationId: event.location?.id ?? null,
+  };
+}
+
 /** Browser-side mirror of the backend rules for instant feedback; the server
- * stays the authority (it checks against Warsaw time). */
-export function validateEventDraft(draft: EventDraft, now: Dayjs): EventDraftErrors {
+ * stays the authority (it checks against Warsaw time). `savedStart` (an
+ * edited event's `starts_at`) is never checked against "now" while the
+ * draft keeps it, as on the server. */
+export function validateEventDraft(draft: EventDraft, now: Dayjs, savedStart?: string): EventDraftErrors {
   const errors: EventDraftErrors = {};
 
   const name = draft.name.trim();
@@ -73,8 +87,9 @@ export function validateEventDraft(draft: EventDraft, now: Dayjs): EventDraftErr
   if (!start) {
     errors.start = EVENT_MESSAGES.startMissing;
   } else {
-    if (start.isBefore(now.startOf("minute"))) errors.start = EVENT_MESSAGES.startPast;
-    else if (start.isAfter(now.add(START_MAX_DAYS_AHEAD, "day"))) errors.start = EVENT_MESSAGES.startTooFar;
+    const keptStart = savedStart !== undefined && start.format("YYYY-MM-DDTHH:mm") === savedStart.slice(0, 16);
+    if (!keptStart && start.isBefore(now.startOf("minute"))) errors.start = EVENT_MESSAGES.startPast;
+    else if (!keptStart && start.isAfter(now.add(START_MAX_DAYS_AHEAD, "day"))) errors.start = EVENT_MESSAGES.startTooFar;
 
     const end = draft.endTime === "" ? null : parseLocal(draft.date, draft.endTime);
     if (end && !end.isAfter(start)) errors.end = EVENT_MESSAGES.endNotAfter;

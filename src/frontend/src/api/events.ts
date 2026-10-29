@@ -22,6 +22,14 @@ export interface EventResponse {
   updated_at: string;
 }
 
+/** The event page: the event plus its banner, sign-up count and whether
+ * the caller wrote it (edit/delete controls). */
+export interface EventDetailResponse extends EventResponse {
+  banner_url: string | null;
+  attendee_count: number;
+  is_author: boolean;
+}
+
 export interface EventBannerResponse {
   url: string;
   status: ModerationStatus;
@@ -29,6 +37,20 @@ export interface EventBannerResponse {
 
 export function createEvent(request: CreateEventRequest): Promise<EventResponse> {
   return api.post("/events", request);
+}
+
+export function getEvent(eventId: string): Promise<EventDetailResponse> {
+  return api.get(`/events/${eventId}`);
+}
+
+/** Every field is sent, so the whole event is replaced by the form's values. */
+export function updateEvent(eventId: string, request: CreateEventRequest): Promise<EventResponse> {
+  return api.patch(`/events/${eventId}`, request);
+}
+
+/** Refused (409) once someone has signed up. */
+export function deleteEvent(eventId: string): Promise<void> {
+  return api.delete(`/events/${eventId}`);
 }
 
 /** The caller's own events, earliest start first. */

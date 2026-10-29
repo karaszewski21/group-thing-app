@@ -39,6 +39,7 @@ RESERVED_SLUGS: frozenset[str] = frozenset(
         "add",
         "messages",
         "groups",
+        "events",
         "organization",
         "product",
         "products",
