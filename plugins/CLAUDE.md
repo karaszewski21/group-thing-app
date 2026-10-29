@@ -400,6 +400,8 @@ The host passes context to your plugin via the iframe's URL hash fragment. The S
 
 ## Development Workflow
 
+**Shortcut — everything at once:** from the repo root run `npm run install:all` once (installs the host frontend and every plugin), then `npm run dev:all`. It builds the SDK, then starts the host frontend (:5173) and all plugins (warehouse :3001, box-size :3002, ai-description :3003, events :3004) in one terminal with prefixed logs; Ctrl+C stops them all. The backend still runs separately (`docker compose up` or uvicorn on :8080), and manifests are still registered once per database (step 4). A new plugin needs its own entry in the root `package.json` scripts. The steps below are the manual equivalent for a single plugin.
+
 1. Start the host (backend + Postgres + frontend app shell): `docker compose up` from the repo root — backend on :8080, frontend on :5173. Or run the frontend with hot reload instead: `cd src/frontend && npm run dev` (Vite dev server on :5173, proxies `/api` and `/oauth2` to the backend)
 2. Build the SDK: `cd src/frontend && npm run build:sdk` — copies `plugin-sdk.js` into `public/assets/` (git-ignored) so :5173 serves `/assets/plugin-sdk.js`. Run it before starting a plugin and again after any SDK change
 3. Start your plugin: `cd plugins/my-plugin && npm run dev`

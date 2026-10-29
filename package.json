@@ -1,0 +1,13 @@
+{
+  "name": "group-thing-app",
+  "private": true,
+  "scripts": {
+    "web": "cd src/frontend && npm run dev",
+    "server": "cd src/backend && uv run uvicorn app.main:app --host 0.0.0.0 --port 8080",
+    "install:all": "npm --prefix src/frontend install && npm --prefix plugins/warehouse install && npm --prefix plugins/box-size install && npm --prefix plugins/ai-description install && npm --prefix plugins/events install",
+    "dev:all": "npm --prefix src/frontend run build:sdk && concurrently --kill-others-on-fail -n web,warehouse,box-size,ai-desc,events -c blue,yellow,magenta,cyan,green \"npm --prefix src/frontend run dev\" \"npm --prefix plugins/warehouse run dev\" \"npm --prefix plugins/box-size run dev\" \"npm --prefix plugins/ai-description run dev\" \"npm --prefix plugins/events run dev\""
+  },
+  "devDependencies": {
+    "concurrently": "^9.2.5"
+  }
+}
