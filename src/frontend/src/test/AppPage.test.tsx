@@ -2957,6 +2957,30 @@ describe("AppPage — redesigned navigation and pages", () => {
     expect(screen.getByRole("link", { name: /^Szukam/ })).toHaveAttribute("href", "/wanted");
   });
 
+  it("Konto with an organization links Moje grupy (with the count) and Terminy separately", async () => {
+    mockOrganizerDefaults();
+    vi.mocked(organizationsApi.getMyOrganization).mockResolvedValue({
+      id: "1",
+      party_id: "1",
+      name: "Muzyczne Skrzaty",
+      slug: "muzyczne-skrzaty",
+      primary_color: null,
+      accent_color: null,
+      page_layout: "CLASSIC",
+      palette_preset: null,
+      description: null,
+      created_at: "",
+      updated_at: "",
+      media: [],
+    });
+    renderPanel("/account");
+
+    expect(await screen.findByRole("link", { name: /^Moje grupy/ })).toHaveAttribute("href", "/groups");
+    expect(screen.getByRole("link", { name: /^Moje grupy/ })).toHaveTextContent("1");
+    expect(screen.getByRole("link", { name: /^Terminy/ })).toHaveAttribute("href", "/meetings");
+    expect(screen.queryByText("Grupy i terminy")).not.toBeInTheDocument();
+  });
+
   it("a Konto sub-page has a back link to Konto and keeps the tab bar on Konto", async () => {
     mockGuestDefaults();
     renderPanel("/wanted");
