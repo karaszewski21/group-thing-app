@@ -17,6 +17,7 @@ import { SearchView } from "../search/SearchView";
 import { WantedView } from "../search/WantedView";
 import { AddView } from "../add/AddView";
 import { AddTermView } from "../add/AddTermView";
+import { ItemCreateView } from "../add/ItemCreateView";
 import { EventCreateView } from "../add/EventCreateView";
 import { HuntingCreateView } from "../add/HuntingCreateView";
 import { SubPageHeader } from "../../components/shared/appComponents";
@@ -101,6 +102,7 @@ function AppPageView() {
         {view === "search" && <SearchView />}
         {view === "wanted" && <WantedView />}
         {view === "add" && <AddView />}
+        {view === "add/product" && <ItemCreateView />}
         {view === "add/term" && <AddTermView />}
         {view === "add/event" && <EventCreateView />}
         {view === "add/hunting" && <HuntingCreateView />}

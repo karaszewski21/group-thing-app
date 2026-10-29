@@ -18,7 +18,7 @@ interface ItemQuickAddFormProps {
  * Freeform "add item" form — Nazwa (name) / Stan (condition) / Kategoria
  * (required leaf category, no default). Purely presentational: the caller
  * owns submission (`resolveProduct()`, then `registerInventoryItem`). Used by
- * `ItemCreatePage` (`/add/product`).
+ * `ItemCreateView` (`/add/product`).
  */
 export function ItemQuickAddForm({ value, onChange, disabled = false }: ItemQuickAddFormProps) {
   const categoryLabelId = useId();

@@ -20,6 +20,7 @@ export type View =
   | "search"
   | "wanted"
   | "add"
+  | "add/product"
   | "add/term"
   | "add/event"
   | "add/hunting";
@@ -36,6 +37,7 @@ const VIEW_VALUES: readonly View[] = [
   "search",
   "wanted",
   "add",
+  "add/product",
   "add/term",
   "add/event",
   "add/hunting",

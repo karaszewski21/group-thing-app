@@ -141,7 +141,7 @@ Rollback: set `MODERATION_IMAGE_ENABLED=false` on VPS A (uploads are auto-approv
 - **Boundary**: `app/events/infrastructure/locations_acl.py` is the only `app.events` module that imports `app.locations`; a new `location_id` must be one of the caller's own active places, and the response embeds the narrow location ref.
 - **Banner storage**: the upload is processed into `events/{event_id}/{banner_id}/w1600.webp` and `w400.webp`, both stored **public**. The event row is locked (`FOR UPDATE`) so concurrent uploads serialize; a replacement deletes the old row and stages a `storage.objects_delete` (`OBJECTS_DELETE`) outbox entry for the old keys in the same transaction. If storing or committing fails, the already-stored new files are deleted (a failed cleanup is logged, the original error is raised).
 - **No image moderation yet**: banners are written as `APPROVED` and not scanned; adding moderation must also gate the public flag.
-- **UI**: the form is the `plugins/events` plugin (dev port 3004) on the `add.event` extension point, rendered by the host at `/add/event`. It calls the routes through `hostApp.fetch`/`hostApp.uploadImage` and sends `thisPlugin.done({ name })` when finished.
+- **UI**: the form is a native host page at `/add/event` (`pages/add/EventCreateView.tsx`, client rules in `pages/add/eventDraft.ts`, `src/api/events.ts` + `hooks/useCreateEvent.ts`): it saves the event, then the optional banner, and returns to `/add` with a toast; a failed banner offers retry/skip. The `plugins/events` plugin (dev port 3004, `add.event` extension point) is kept for future development but is no longer mounted by the host.
 
 ## Messaging (`app/messaging/`)
 

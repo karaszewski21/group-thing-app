@@ -7,7 +7,6 @@ import * as organizationsApi from "../api/organizations";
 import { ApiError } from "../api/client";
 import type { ItemDetailsResponse } from "../api/items";
 import { ItemDetailBody } from "../pages/product/ItemDetailPage";
-import { ItemEditBody } from "../pages/product/ItemEditPage";
 import { OrganizerItemLayout } from "../pages/product/OrganizerItemLayout";
 import { createQueryWrapper } from "./queryClient";
 
@@ -19,7 +18,6 @@ vi.mock("../auth/AuthContext", () => ({
 
 vi.mock("../api/items", () => ({
   getItemDetails: vi.fn(),
-  getItemHistory: vi.fn(),
 }));
 
 vi.mock("../api/organizations", () => ({
@@ -81,7 +79,7 @@ function renderAt(path: string) {
           }
         >
           <Route index element={<ItemDetailBody />} />
-          <Route path="edit" element={<ItemEditBody />} />
+          <Route path="edit" element={<Navigate to="..?edit=1" relative="path" replace />} />
         </Route>
         <Route path="*" element={<Where />} />
       </Routes>
@@ -101,7 +99,6 @@ describe("Organizer product route", () => {
     vi.clearAllMocks();
     mockAuth.token = "valid.jwt.token";
     vi.mocked(itemsApi.getItemDetails).mockResolvedValue(details());
-    vi.mocked(itemsApi.getItemHistory).mockResolvedValue([]);
     vi.mocked(organizationsApi.getPublicOrganization).mockResolvedValue(ORGANIZATION);
   });
 
@@ -130,7 +127,7 @@ describe("Organizer product route", () => {
     const scope = scopeOf(heading);
     expect(scope).toHaveAttribute("data-organizer-theme", "custom");
     expect(scope.style.getPropertyValue("--color-primary")).toBe("#7a2a4f");
-    expect(screen.getByRole("link", { name: /Edytuj/ })).toHaveAttribute("href", "/ania/product/9/edit");
+    expect(screen.getByRole("button", { name: /Edytuj/ })).toBeInTheDocument();
   });
 
   it("falls back to the default palette when the organization is unknown", async () => {
@@ -141,21 +138,21 @@ describe("Organizer product route", () => {
     expect(scopeOf(heading)).toHaveAttribute("data-organizer-theme", "default");
   });
 
-  it("edit page links back inside the organizer prefix", async () => {
+  it("the old edit address opens edit mode in place, inside the organizer prefix", async () => {
     renderAt("/ania/product/9/edit");
 
-    expect(await screen.findByRole("heading", { name: "Edycja rzeczy" })).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Gotowe" })).toHaveAttribute("href", "/ania/product/9");
-    expect(screen.getByRole("link", { name: /Wróć do podglądu/ })).toHaveAttribute("href", "/ania/product/9");
+    expect(await screen.findByRole("form", { name: "Edycja rzeczy" })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Anuluj" }));
+    expect(await screen.findByRole("heading", { name: "Rowerek biegowy" })).toBeInTheDocument();
   });
 
-  it("redirects a non-owner from edit to the organizer view", async () => {
+  it("a non-owner on the edit address sees the organizer view without edit controls", async () => {
     vi.mocked(itemsApi.getItemDetails).mockResolvedValue(details({ is_owner: false }));
     renderAt("/ania/product/9/edit");
 
     expect(await screen.findByRole("heading", { name: "Rowerek biegowy" })).toBeInTheDocument();
-    expect(screen.queryByRole("heading", { name: "Edycja rzeczy" })).not.toBeInTheDocument();
-    expect(screen.queryByRole("link", { name: /Edytuj/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole("form", { name: "Edycja rzeczy" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Edytuj/ })).not.toBeInTheDocument();
   });
 
   it("Wróć on a direct entry goes to the organizer page", async () => {

@@ -1,15 +1,14 @@
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
-import { Link, MemoryRouter, Route, Routes } from "react-router-dom";
+import { Link, MemoryRouter, Navigate, Route, Routes } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ItemDetailPage } from "../pages/product/ItemDetailPage";
-import { ItemEditPage } from "../pages/product/ItemEditPage";
 import * as itemsApi from "../api/items";
 import * as inventoriesApi from "../api/inventories";
 import * as productsApi from "../api/products";
 import * as categoriesApi from "../api/categories";
 import { ApiError } from "../api/client";
 import { ACCESS_DENIED_MESSAGE } from "../api/problem";
-import type { ItemDetailsResponse, ItemHistoryEntryResponse } from "../api/items";
+import type { ItemDetailsResponse } from "../api/items";
 import type { Category } from "../api/categories";
 import type { InventoryItemResponse } from "../api/inventories";
 import type { ProductResponse } from "../api/products";
@@ -17,7 +16,6 @@ import { createQueryWrapper } from "./queryClient";
 
 vi.mock("../api/items", () => ({
   getItemDetails: vi.fn(),
-  getItemHistory: vi.fn(),
 }));
 
 vi.mock("../api/inventories", () => ({
@@ -76,21 +74,6 @@ function details(overrides: Partial<ItemDetailsResponse> = {}): ItemDetailsRespo
   };
 }
 
-const history: ItemHistoryEntryResponse[] = [
-  {
-    occurred_at: "2026-10-12T10:00:00",
-    movement_type: "LEND",
-    description: "Ty → Anna Kowalska",
-    term_occurs_on: "2026-10-12T17:00:00",
-  },
-  {
-    occurred_at: "2026-09-03T10:00:00",
-    movement_type: "REGISTER",
-    description: "Dodana przez: Ty",
-    term_occurs_on: null,
-  },
-];
-
 function category(id: string, name: string, parent_id: string | null, sort_order: number): Category {
   return { id, name, description: null, parent_id, sort_order, product_count: 1, created_at: "", updated_at: "" };
 }
@@ -106,7 +89,7 @@ function renderPage(path: string) {
     <MemoryRouter initialEntries={[path]}>
       <Routes>
         <Route path="/product/:id" element={<ItemDetailPage />} />
-        <Route path="/product/:id/edit" element={<ItemEditPage />} />
+        <Route path="/product/:id/edit" element={<Navigate to="..?edit=1" relative="path" replace />} />
         <Route path="/messages/:id" element={<p>Wątek rozmowy</p>} />
       </Routes>
     </MemoryRouter>,
@@ -126,11 +109,10 @@ describe("ItemDetailPage", () => {
   beforeEach(() => {
     vi.resetAllMocks();
     vi.mocked(itemsApi.getItemDetails).mockResolvedValue(details());
-    vi.mocked(itemsApi.getItemHistory).mockResolvedValue(history);
     vi.mocked(categoriesApi.getCategories).mockResolvedValue(categories);
   });
 
-  it("view renders fields, gallery, status and history with an owner Edytuj link", async () => {
+  it("view renders fields, gallery and status with an owner Edytuj button, and no history", async () => {
     renderPage(`/product/${ITEM_ID}`);
 
     expect(
@@ -149,17 +131,9 @@ describe("ItemDetailPage", () => {
     expect(screen.getByText("Pożyczona do 20.10.2026")).toBeInTheDocument();
     expect(screen.getByText("U: Anna Kowalska")).toBeInTheDocument();
 
-    const list = await screen.findByRole("list", { name: "Historia rzeczy" });
-    const rows = within(list).getAllByRole("listitem");
-    expect(rows).toHaveLength(2);
-    expect(within(rows[0]).getByText("Pożyczona")).toBeInTheDocument();
-    expect(within(rows[0]).getByText("na terminie 12.10.2026")).toBeInTheDocument();
-    expect(within(rows[1]).getByText("Dodana przez: Ty")).toBeInTheDocument();
-
-    expect(screen.getByRole("link", { name: /Edytuj/ })).toHaveAttribute(
-      "href",
-      `/product/${ITEM_ID}/edit`,
-    );
+    expect(screen.queryByText("Historia")).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Edytuj/ })).toBeInTheDocument();
+    expect(screen.queryByRole("form", { name: "Edycja rzeczy" })).not.toBeInTheDocument();
     expect(itemsApi.getItemDetails).toHaveBeenCalledWith(ITEM_ID);
   });
 
@@ -199,161 +173,149 @@ describe("ItemDetailPage", () => {
     ).toBeInTheDocument();
   });
 
-  it("deleted item shows the banner, no Edytuj, and /edit falls back to the view", async () => {
+  it("deleted item shows the banner and no Edytuj, and ?edit=1 stays in view mode", async () => {
     vi.mocked(itemsApi.getItemDetails).mockResolvedValue(
       details({
         deleted_at: "2026-10-14T09:00:00",
         status: { code: "DELETED", term_occurs_on: null, due_date: null, counterparty_label: null },
       }),
     );
-    renderPage(`/product/${ITEM_ID}/edit`);
+    renderPage(`/product/${ITEM_ID}?edit=1`);
 
     const banner = await screen.findByText("Rzecz usunięta");
     expect(banner.closest('[role="status"]')).not.toBeNull();
     expect(
-      screen.getByText("Ta rzecz została usunięta 14.10.2026. Możesz przejrzeć jej historię."),
+      screen.getByText("Ta rzecz została usunięta 14.10.2026."),
     ).toBeInTheDocument();
-    expect(screen.queryByRole("heading", { name: "Edycja rzeczy" })).not.toBeInTheDocument();
-    expect(screen.queryByRole("link", { name: /Edytuj/ })).not.toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: /^Edytuj/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole("form", { name: "Edycja rzeczy" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Edytuj/ })).not.toBeInTheDocument();
   });
 
-  it("non-owner on /edit is redirected to the view with no pencils", async () => {
+  it("a non-owner on the old /edit address sees the view with no edit controls", async () => {
     vi.mocked(itemsApi.getItemDetails).mockResolvedValue(details({ is_owner: false }));
     renderPage(`/product/${ITEM_ID}/edit`);
 
     expect(
       await screen.findByRole("heading", { name: "Wózek spacerowy Baby Jogger" }),
     ).toBeInTheDocument();
-    expect(screen.queryByRole("heading", { name: "Edycja rzeczy" })).not.toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: /^Edytuj/ })).not.toBeInTheDocument();
-    expect(screen.queryByRole("link", { name: /Edytuj/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole("form", { name: "Edycja rzeczy" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Edytuj/ })).not.toBeInTheDocument();
   });
 
-  it("owner saves condition and the editor closes", async () => {
+  it("Edytuj turns the fields into inputs on the same page; Zapisz saves condition and description together", async () => {
     vi.mocked(inventoriesApi.updateInventoryItem).mockResolvedValue({} as InventoryItemResponse);
-    renderPage(`/product/${ITEM_ID}/edit`);
-
-    fireEvent.click(await screen.findByRole("button", { name: "Edytuj stan" }));
-    fireEvent.change(screen.getByLabelText("Stan rzeczy"), { target: { value: "LIKE_NEW" } });
-    fireEvent.click(screen.getByRole("button", { name: "Zapisz" }));
-
-    await waitFor(() =>
-      expect(inventoriesApi.updateInventoryItem).toHaveBeenCalledWith(ITEM_ID, {
-        condition: "LIKE_NEW",
-      }),
-    );
-    await waitFor(() => expect(screen.queryByLabelText("Stan rzeczy")).not.toBeInTheDocument());
-
     vi.mocked(productsApi.updateProductDescription).mockResolvedValue({ description: "Nowy opis" });
-    fireEvent.click(screen.getByRole("button", { name: "Edytuj opis" }));
-    fireEvent.change(screen.getByLabelText("Opis rzeczy"), { target: { value: "Nowy opis" } });
-    fireEvent.click(screen.getByRole("button", { name: "Zapisz" }));
+    renderPage(`/product/${ITEM_ID}`);
+
+    fireEvent.click(await screen.findByRole("button", { name: /Edytuj/ }));
+    const form = screen.getByRole("form", { name: "Edycja rzeczy" });
+    expect(within(form).getByLabelText("Nazwa")).toHaveValue("Wózek spacerowy Baby Jogger");
+    expect(within(form).getByLabelText("Nazwa")).toHaveFocus();
+    expect(within(form).getByLabelText("Opis")).toHaveValue("Lekki, składany, z daszkiem i koszem.");
+    expect(within(form).getByLabelText("Stan")).toHaveValue("GOOD");
+    expect(await within(form).findByRole("button", { name: /^Kategoria Dzieci ›\s+Wózki/ })).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "Wózek spacerowy Baby Jogger" })).not.toBeInTheDocument();
+
+    fireEvent.change(within(form).getByLabelText("Stan"), { target: { value: "LIKE_NEW" } });
+    fireEvent.change(within(form).getByLabelText("Opis"), { target: { value: "Nowy opis" } });
+    fireEvent.click(within(form).getByRole("button", { name: "Zapisz" }));
+
     await waitFor(() =>
       expect(productsApi.updateProductDescription).toHaveBeenCalledWith(PRODUCT_ID, "Nowy opis"),
     );
+    await waitFor(() =>
+      expect(inventoriesApi.updateInventoryItem).toHaveBeenCalledWith(ITEM_ID, { condition: "LIKE_NEW" }),
+    );
+    expect(productsApi.resolveProduct).not.toHaveBeenCalled();
+    await waitFor(() => expect(screen.queryByRole("form", { name: "Edycja rzeczy" })).not.toBeInTheDocument());
+    expect(screen.getByRole("button", { name: /Edytuj/ })).toHaveFocus();
   });
 
-  it("name and category save resolves the product, then re-points the item", async () => {
-    const resolved = { id: REPOINTED_PRODUCT_ID } as unknown as ProductResponse;
-    vi.mocked(productsApi.resolveProduct).mockResolvedValue(resolved);
-    vi.mocked(inventoriesApi.updateInventoryItem).mockResolvedValue({} as InventoryItemResponse);
-    renderPage(`/product/${ITEM_ID}/edit`);
+  it("Anuluj leaves edit mode without saving", async () => {
+    renderPage(`/product/${ITEM_ID}?edit=1`);
 
-    fireEvent.click(await screen.findByRole("button", { name: "Edytuj nazwę i kategorię" }));
-    expect(
-      screen.getByText(/Zdjęcia i opis należą do produktu — po zmianie nazwy lub kategorii rzecz pokaże zdjęcia i opis nowego produktu\./),
-    ).toBeInTheDocument();
-    vi.mocked(itemsApi.getItemDetails).mockResolvedValue(
-      details({ product_id: REPOINTED_PRODUCT_ID, name: "Grzechotka", category_id: CAT_TOYS }),
-    );
-    const nameInput = screen.getByLabelText("Nazwa rzeczy");
-    fireEvent.change(nameInput, { target: { value: "Grzechotka" } });
-    expect(screen.queryByLabelText("Typ rzeczy")).not.toBeInTheDocument();
-    const picker = await screen.findByRole("button", { name: /^Kategoria Dzieci ›\s+Wózki/ });
-    picker.focus();
-    fireEvent.click(picker);
-    fireEvent.click(await screen.findByRole("button", { name: "Zabawki" }));
-    expect(await screen.findByRole("button", { name: /^Kategoria Dzieci ›\s+Zabawki/ })).toBeInTheDocument();
-    fireEvent.keyDown(nameInput, { key: "Enter" });
+    const form = await screen.findByRole("form", { name: "Edycja rzeczy" });
+    fireEvent.change(within(form).getByLabelText("Nazwa"), { target: { value: "Inna nazwa" } });
+    fireEvent.click(within(form).getByRole("button", { name: "Anuluj" }));
 
-    await waitFor(() =>
-      expect(inventoriesApi.updateInventoryItem).toHaveBeenCalledWith(ITEM_ID, {
-        product_id: resolved.id,
-      }),
-    );
-    expect(productsApi.resolveProduct).toHaveBeenCalledWith({
-      name: "Grzechotka",
-      category_id: CAT_TOYS,
-    });
-
-    // The refetched details carry the new product; later product calls use it.
-    await waitFor(() => expect(itemsApi.getItemDetails).toHaveBeenCalledTimes(2));
-    vi.mocked(productsApi.updateProductDescription).mockResolvedValue({ description: "Opis" });
-    const pencil = await screen.findByRole("button", { name: "Edytuj opis" });
-    await waitFor(() => expect(pencil).toBeEnabled());
-    fireEvent.click(pencil);
-    fireEvent.change(screen.getByLabelText("Opis rzeczy"), { target: { value: "Opis" } });
-    fireEvent.click(screen.getByRole("button", { name: "Zapisz" }));
-    await waitFor(() =>
-      expect(productsApi.updateProductDescription).toHaveBeenCalledWith(
-        REPOINTED_PRODUCT_ID,
-        "Opis",
-      ),
-    );
-  });
-
-  it("a failed refetch after a re-point locks the photo and description editors with a retry", async () => {
-    vi.mocked(productsApi.resolveProduct).mockResolvedValue({
-      id: REPOINTED_PRODUCT_ID,
-    } as unknown as ProductResponse);
-    vi.mocked(inventoriesApi.updateInventoryItem).mockResolvedValue({} as InventoryItemResponse);
-    renderPage(`/product/${ITEM_ID}/edit`);
-
-    fireEvent.click(await screen.findByRole("button", { name: "Edytuj nazwę i kategorię" }));
-    vi.mocked(itemsApi.getItemDetails).mockRejectedValue(new ApiError(500, "Server Error", null));
-    const nameInput = screen.getByLabelText("Nazwa rzeczy");
-    fireEvent.change(nameInput, { target: { value: "Grzechotka" } });
-    fireEvent.keyDown(nameInput, { key: "Enter" });
-
-    expect(
-      await screen.findByText(/zdjęcia i opis są chwilowo zablokowane/),
-    ).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Edytuj zdjęcia" })).toBeDisabled();
-    expect(screen.getByRole("button", { name: "Edytuj opis" })).toBeDisabled();
-    expect(screen.getByRole("button", { name: "Edytuj stan" })).toBeEnabled();
-
-    vi.mocked(itemsApi.getItemDetails).mockResolvedValue(
-      details({ product_id: REPOINTED_PRODUCT_ID, name: "Grzechotka" }),
-    );
-    fireEvent.click(screen.getByRole("button", { name: "Spróbuj ponownie" }));
-    await waitFor(() => expect(screen.getByRole("button", { name: "Edytuj opis" })).toBeEnabled());
-    expect(screen.queryByText(/chwilowo zablokowane/)).not.toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "Wózek spacerowy Baby Jogger" })).toBeInTheDocument();
+    expect(inventoriesApi.updateInventoryItem).not.toHaveBeenCalled();
     expect(productsApi.updateProductDescription).not.toHaveBeenCalled();
   });
 
-  it("a 403 on a description save shows ACCESS_DENIED_MESSAGE inline and keeps the editor open", async () => {
+  it("a name and category change locks the description, then resolves the product and re-points the item", async () => {
+    const resolved = { id: REPOINTED_PRODUCT_ID } as unknown as ProductResponse;
+    vi.mocked(productsApi.resolveProduct).mockResolvedValue(resolved);
+    vi.mocked(inventoriesApi.updateInventoryItem).mockResolvedValue({} as InventoryItemResponse);
+    renderPage(`/product/${ITEM_ID}?edit=1`);
+
+    const form = await screen.findByRole("form", { name: "Edycja rzeczy" });
+    fireEvent.change(within(form).getByLabelText("Nazwa"), { target: { value: "Grzechotka" } });
+    expect(
+      within(form).getByText(/Zdjęcia i opis należą do produktu — po zmianie nazwy lub kategorii rzecz pokaże zdjęcia i opis nowego produktu\./),
+    ).toBeInTheDocument();
+    expect(within(form).getByLabelText("Opis")).toBeDisabled();
+    const picker = await within(form).findByRole("button", { name: /^Kategoria Dzieci ›\s+Wózki/ });
+    fireEvent.click(picker);
+    fireEvent.click(await screen.findByRole("button", { name: "Zabawki" }));
+    expect(await within(form).findByRole("button", { name: /^Kategoria Dzieci ›\s+Zabawki/ })).toBeInTheDocument();
+
+    vi.mocked(itemsApi.getItemDetails).mockResolvedValue(
+      details({ product_id: REPOINTED_PRODUCT_ID, name: "Grzechotka", category_id: CAT_TOYS }),
+    );
+    fireEvent.click(within(form).getByRole("button", { name: "Zapisz" }));
+
+    await waitFor(() =>
+      expect(inventoriesApi.updateInventoryItem).toHaveBeenCalledWith(ITEM_ID, { product_id: resolved.id }),
+    );
+    expect(productsApi.resolveProduct).toHaveBeenCalledWith({ name: "Grzechotka", category_id: CAT_TOYS });
+    expect(productsApi.updateProductDescription).not.toHaveBeenCalled();
+    expect(await screen.findByRole("heading", { name: "Grzechotka" })).toBeInTheDocument();
+  });
+
+  it("a failed details refetch locks photos and the description with a retry", async () => {
+    vi.mocked(inventoriesApi.updateInventoryItem).mockResolvedValue({} as InventoryItemResponse);
+    renderPage(`/product/${ITEM_ID}?edit=1`);
+
+    const form = await screen.findByRole("form", { name: "Edycja rzeczy" });
+    vi.mocked(itemsApi.getItemDetails).mockRejectedValue(new ApiError(500, "Server Error", null));
+    fireEvent.change(within(form).getByLabelText("Stan"), { target: { value: "FAIR" } });
+    fireEvent.click(within(form).getByRole("button", { name: "Zapisz" }));
+    fireEvent.click(await screen.findByRole("button", { name: /Edytuj/ }));
+
+    expect(await screen.findByText(/zdjęcia i opis są chwilowo zablokowane/)).toBeInTheDocument();
+    expect(screen.getByLabelText("Opis")).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Usuń zdjęcie 1" })).toBeDisabled();
+    expect(screen.getByLabelText("Stan")).toBeEnabled();
+
+    vi.mocked(itemsApi.getItemDetails).mockResolvedValue(details());
+    fireEvent.click(screen.getByRole("button", { name: "Spróbuj ponownie" }));
+    await waitFor(() => expect(screen.getByLabelText("Opis")).toBeEnabled());
+    expect(screen.queryByText(/chwilowo zablokowane/)).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Usuń zdjęcie 1" })).toBeEnabled();
+  });
+
+  it("a 403 on a description save shows ACCESS_DENIED_MESSAGE inline and stays in edit mode", async () => {
     vi.mocked(productsApi.updateProductDescription).mockRejectedValue(
       new ApiError(403, "Forbidden", { message: "Access denied" }),
     );
-    renderPage(`/product/${ITEM_ID}/edit`);
+    renderPage(`/product/${ITEM_ID}?edit=1`);
 
-    fireEvent.click(await screen.findByRole("button", { name: "Edytuj opis" }));
-    fireEvent.change(screen.getByLabelText("Opis rzeczy"), { target: { value: "Inny opis" } });
-    fireEvent.click(screen.getByRole("button", { name: "Zapisz" }));
-    expect(await screen.findByRole("alert")).toHaveTextContent(ACCESS_DENIED_MESSAGE);
-    expect(screen.getByLabelText("Opis rzeczy")).toBeInTheDocument();
+    const form = await screen.findByRole("form", { name: "Edycja rzeczy" });
+    fireEvent.change(within(form).getByLabelText("Opis"), { target: { value: "Inny opis" } });
+    fireEvent.click(within(form).getByRole("button", { name: "Zapisz" }));
+    expect(await within(form).findByRole("alert")).toHaveTextContent(ACCESS_DENIED_MESSAGE);
+    expect(within(form).getByLabelText("Opis")).toHaveValue("Inny opis");
   });
 
-  it("gallery editor validates files and disables controls while a move is pending", async () => {
+  it("each photo is edited on its own: files are validated and controls lock while a move is pending", async () => {
     const pending = deferred<productsApi.ProductPhotoResponse[]>();
     vi.mocked(productsApi.reorderProductPhotos).mockReturnValue(pending.promise);
-    renderPage(`/product/${ITEM_ID}/edit`);
+    renderPage(`/product/${ITEM_ID}?edit=1`);
 
-    fireEvent.click(await screen.findByRole("button", { name: "Edytuj zdjęcia" }));
-    expect(
-      screen.getByText(/Zdjęcia są wspólne dla wszystkich rzeczy tego produktu\./),
-    ).toBeInTheDocument();
+    await screen.findByRole("form", { name: "Edycja rzeczy" });
+    expect(screen.getByText("Zdjęcia (2/10)")).toBeInTheDocument();
+    expect(screen.getByText("Zmiany zdjęć zapisują się od razu.")).toBeInTheDocument();
     fireEvent.change(screen.getByLabelText("Dodaj zdjęcia"), {
       target: { files: [new File(["x"], "x.gif", { type: "image/gif" })] },
     });
@@ -375,9 +337,14 @@ describe("ItemDetailPage", () => {
       expect(screen.getByRole("button", { name: "Usuń zdjęcie 1" })).toBeEnabled(),
     );
     expect(itemsApi.getItemDetails).toHaveBeenCalledTimes(2);
+
+    vi.mocked(productsApi.deleteProductPhoto).mockResolvedValue(undefined);
+    fireEvent.click(screen.getByRole("button", { name: "Usuń zdjęcie 2" }));
+    await waitFor(() => expect(productsApi.deleteProductPhoto).toHaveBeenCalledWith(PRODUCT_ID, PHOTO_2));
+    expect(screen.getByRole("form", { name: "Edycja rzeczy" })).toBeInTheDocument();
   });
 
-  it("PROPOSED_SWAP copy renders and a history failure stays inside the Historia card", async () => {
+  it("PROPOSED_SWAP copy renders", async () => {
     vi.mocked(itemsApi.getItemDetails).mockResolvedValue(
       details({
         status: {
@@ -388,18 +355,12 @@ describe("ItemDetailPage", () => {
         },
       }),
     );
-    vi.mocked(itemsApi.getItemHistory).mockRejectedValue(new ApiError(500, "Server Error", null));
     renderPage(`/product/${ITEM_ID}`);
 
     expect(
       await screen.findByText("Zaproponowana do zamiany — czeka na decyzję"),
     ).toBeInTheDocument();
     expect(screen.getByText("Dla: Ty")).toBeInTheDocument();
-    expect(
-      await screen.findByText("Nie udało się wczytać historii — spróbuj ponownie"),
-    ).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: "Wózek spacerowy Baby Jogger" })).toBeInTheDocument();
-    expect(screen.queryByRole("list", { name: "Historia rzeczy" })).not.toBeInTheDocument();
   });
 });
 
@@ -408,7 +369,6 @@ describe("ItemDetailPage ask about the item", () => {
 
   beforeEach(() => {
     vi.resetAllMocks();
-    vi.mocked(itemsApi.getItemHistory).mockResolvedValue(history);
   });
 
   it("is shown to a non-owner and hidden for the owner and for a deleted item", async () => {
@@ -457,7 +417,6 @@ describe("ItemDetailPage ask about the item", () => {
 describe("ItemDetailPage fallbacks", () => {
   beforeEach(() => {
     vi.resetAllMocks();
-    vi.mocked(itemsApi.getItemHistory).mockResolvedValue(history);
     vi.mocked(categoriesApi.getCategories).mockResolvedValue(categories);
   });
 
@@ -497,7 +456,7 @@ describe("ItemDetailPage fallbacks", () => {
     expect(screen.queryByText(/null/)).not.toBeInTheDocument();
   });
 
-  it("Moje rzeczy → edit → Gotowe → Wróć returns to Moje rzeczy; Edytuj → Gotowe never leaves the editor in history", async () => {
+  it("edit mode never adds a history entry: Moje rzeczy → edit → Anuluj → Wróć returns to Moje rzeczy", async () => {
     vi.mocked(itemsApi.getItemDetails).mockResolvedValue(details());
     render(
       <MemoryRouter initialEntries={["/items"]}>
@@ -507,12 +466,11 @@ describe("ItemDetailPage fallbacks", () => {
             element={
               <>
                 <Link to={`/product/${ITEM_ID}`}>Otwórz rzecz</Link>
-                <Link to={`/product/${ITEM_ID}/edit`}>Edytuj rzecz</Link>
+                <Link to={`/product/${ITEM_ID}?edit=1`}>Edytuj rzecz</Link>
               </>
             }
           />
           <Route path="/product/:id" element={<ItemDetailPage />} />
-          <Route path="/product/:id/edit" element={<ItemEditPage />} />
         </Routes>
       </MemoryRouter>,
       { wrapper: createQueryWrapper() },
@@ -523,24 +481,14 @@ describe("ItemDetailPage fallbacks", () => {
     };
 
     fireEvent.click(await screen.findByRole("link", { name: "Edytuj rzecz" }));
-    fireEvent.click(await screen.findByRole("link", { name: "Gotowe" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Anuluj" }));
     await backToList();
 
-    fireEvent.click(screen.getByRole("link", { name: "Edytuj rzecz" }));
-    fireEvent.click(await screen.findByRole("link", { name: /Wróć do podglądu/ }));
-    await backToList();
-
-    // From the view, Edytuj pushes; Gotowe replaces the editor, so Wróć
-    // lands on the view, never on the editor.
     fireEvent.click(screen.getByRole("link", { name: "Otwórz rzecz" }));
-    fireEvent.click(await screen.findByRole("link", { name: /Edytuj/ }));
-    fireEvent.click(await screen.findByRole("link", { name: "Gotowe" }));
-    fireEvent.click(await screen.findByRole("button", { name: /^Wróć$/ }));
-    await screen.findByRole("heading", { name: "Wózek spacerowy Baby Jogger" });
-    expect(screen.queryByRole("heading", { name: "Edycja rzeczy" })).not.toBeInTheDocument();
-    expect(screen.getByRole("link", { name: /Edytuj/ })).toBeInTheDocument();
+    fireEvent.click(await screen.findByRole("button", { name: /Edytuj/ }));
+    fireEvent.click(await screen.findByRole("button", { name: "Anuluj" }));
+    await backToList();
   });
-
 });
 
 describe("ItemDetailPage reservation party view", () => {
@@ -560,7 +508,6 @@ describe("ItemDetailPage reservation party view", () => {
     vi.resetAllMocks();
     vi.useFakeTimers({ toFake: ["Date"] });
     vi.setSystemTime(new Date(2026, 9, 13, 12, 0));
-    vi.mocked(itemsApi.getItemHistory).mockResolvedValue(history);
     vi.mocked(categoriesApi.getCategories).mockResolvedValue(categories);
   });
 
@@ -637,7 +584,7 @@ describe("ItemDetailPage reservation party view", () => {
   });
 });
 
-describe("ItemEditPage status chip and photo hints", () => {
+describe("Item edit mode status chip and photo hints", () => {
   function withSecondPhoto(status: productsApi.ModerationStatus): ItemDetailsResponse {
     const base = details();
     return details({ photos: [base.photos[0], { ...base.photos[1], status }] });
@@ -645,28 +592,26 @@ describe("ItemEditPage status chip and photo hints", () => {
 
   beforeEach(() => {
     vi.resetAllMocks();
-    vi.mocked(itemsApi.getItemHistory).mockResolvedValue(history);
     vi.mocked(categoriesApi.getCategories).mockResolvedValue(categories);
   });
 
   it.each([
     ["DRAFT", "Wersja robocza"],
     ["ACTIVE", "Aktywna"],
-  ] as const)("edit page shows the %s status chip next to the item name", async (listing_status, label) => {
+  ] as const)("edit mode shows the %s status chip next to its heading", async (listing_status, label) => {
     vi.mocked(itemsApi.getItemDetails).mockResolvedValue(details({ listing_status }));
-    renderPage(`/product/${ITEM_ID}/edit`);
+    renderPage(`/product/${ITEM_ID}?edit=1`);
 
-    await screen.findByRole("heading", { name: "Edycja rzeczy" });
-    const chip = screen.getByText(label);
-    expect(chip.closest("[data-testid='item-summary']")).toHaveTextContent("Wózek spacerowy Baby Jogger");
+    const heading = await screen.findByRole("heading", { name: "Edycja rzeczy" });
+    expect(heading.parentElement).toHaveTextContent(label);
     expect(screen.queryByText(label === "Aktywna" ? "Wersja robocza" : "Aktywna")).not.toBeInTheDocument();
   });
 
   it.each(["PENDING", "NEEDS_REVIEW"] as const)(
-    "edit page shows no moderation notice when a photo is %s",
+    "edit mode shows no moderation notice when a photo is %s",
     async (status) => {
       vi.mocked(itemsApi.getItemDetails).mockResolvedValue(withSecondPhoto(status));
-      renderPage(`/product/${ITEM_ID}/edit`);
+      renderPage(`/product/${ITEM_ID}?edit=1`);
 
       await screen.findByRole("heading", { name: "Edycja rzeczy" });
       expect(screen.queryByText(/Rzecz zdjęta z terminów/)).not.toBeInTheDocument();
@@ -676,11 +621,10 @@ describe("ItemEditPage status chip and photo hints", () => {
 
   it("gallery helper text no longer claims a new photo withdraws the item", async () => {
     vi.mocked(itemsApi.getItemDetails).mockResolvedValue(details());
-    renderPage(`/product/${ITEM_ID}/edit`);
+    renderPage(`/product/${ITEM_ID}?edit=1`);
 
-    fireEvent.click(await screen.findByRole("button", { name: "Edytuj zdjęcia" }));
     expect(
-      screen.getByText("Zdjęcia są wspólne dla wszystkich rzeczy tego produktu. Inni zobaczą je po sprawdzeniu."),
+      await screen.findByText("Zdjęcia są wspólne dla wszystkich rzeczy tego produktu. Inni zobaczą je po sprawdzeniu."),
     ).toBeInTheDocument();
     expect(screen.queryByText(/Nowe zdjęcie zdejmuje/)).not.toBeInTheDocument();
   });

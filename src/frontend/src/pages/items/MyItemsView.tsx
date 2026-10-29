@@ -19,6 +19,7 @@ import { capitalize, GIFT_LIMIT_MESSAGE, ITEM_MODES, MAX_GIFT_ITEMS, type ItemMo
 import { FloatingAddButton } from "../../components/shared/appComponents";
 import { useAppData } from "../../app/appDataStore";
 import { SafeImage } from "../product/ItemGallery";
+import { itemEditPath } from "../product/useItemRoutes";
 import { SwapAcceptSuccessSheet, type AcceptedSwap } from "./SwapAcceptSuccessSheet";
 
 /** Soft tile + readable text per item mode, matching the exchange tones. */
@@ -348,7 +349,7 @@ export function MyItemsView() {
                   <small className="mt-0.5 block text-[13px] text-ink-soft">Stan: {CONDITION_LABELS[it.condition]}</small>
                 </div>
                 <div className="relative z-10 flex flex-none gap-1">
-                  <Link to={`/product/${it.id}/edit`} aria-label={`Edytuj rzecz ${it.product_name}`} className={ICON_BUTTON}>
+                  <Link to={itemEditPath(`/product/${it.id}`)} aria-label={`Edytuj rzecz ${it.product_name}`} className={ICON_BUTTON}>
                     <PencilIcon />
                   </Link>
                   <button
@@ -395,7 +396,7 @@ export function MyItemsView() {
                 <div className="relative z-10 mt-3 rounded-2xl bg-cream px-3.5 py-2.5 text-[13px] leading-snug text-ink">
                   <StatusPill label="Zdjęcia w moderacji" />
                   <p className="mt-1.5">
-                    <Link to={`/product/${it.id}/edit`} className="font-extrabold text-primary-fg underline">
+                    <Link to={itemEditPath(`/product/${it.id}`)} className="font-extrabold text-primary-fg underline">
                       Zobacz zdjęcia →
                     </Link>
                   </p>

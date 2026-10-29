@@ -31,49 +31,24 @@ export function ModerationBadge({
 }
 
 
-/** Idle edit-mode preview of the photo row. */
-export function ItemPhotoStrip({ photos }: { photos: ProductPhotoResponse[] }) {
-  if (photos.length === 0) {
-    return <p className="mt-1 text-[12.5px] italic text-ink-soft">Brak zdjęć</p>;
-  }
-  return (
-    <div className="mt-1.5 flex gap-2 overflow-x-auto pb-1">
-      {photos.map((p) => (
-        <SafeImage
-          key={p.id}
-          src={p.thumb_url}
-          alt=""
-          className="h-12 w-12 flex-none rounded-xl"
-          placeholderSize={20}
-        />
-      ))}
-    </div>
-  );
-}
-
 interface ItemGalleryEditorProps {
   photos: ProductPhotoResponse[];
   busy: boolean;
   onAdd: (file: File) => Promise<void>;
   onRemove: (photoId: string) => Promise<void>;
   onMove: (photoId: string, direction: "up" | "down") => Promise<void>;
-  onClose: () => void;
 }
 
-/** Every action saves immediately; all controls are disabled while a photo
+/** Each photo on its own row (move up/down, remove) plus adding new ones.
+ * Every action saves immediately; all controls are disabled while a photo
  * call and its follow-up refetch are pending, so a reorder never works from
  * a stale order. */
-export function ItemGalleryEditor({ photos, busy, onAdd, onRemove, onMove, onClose }: ItemGalleryEditorProps) {
+export function ItemGalleryEditor({ photos, busy, onAdd, onRemove, onMove }: ItemGalleryEditorProps) {
   const [error, setError] = useState<string | null>(null);
   const focusAfterMove = useRef<{ id: string; dir: "up" | "down" } | null>(null);
   const moveButtons = useRef(new Map<string, HTMLButtonElement>());
-  const inputRef = useRef<HTMLInputElement>(null);
   const activeCount = photos.filter((p) => p.status !== "REJECTED").length;
   const atLimit = activeCount >= MAX_PRODUCT_PHOTOS;
-
-  useEffect(() => {
-    inputRef.current?.focus();
-  }, []);
 
   useEffect(() => {
     if (busy || !focusAfterMove.current) return;
@@ -170,7 +145,7 @@ export function ItemGalleryEditor({ photos, busy, onAdd, onRemove, onMove, onClo
           })}
         </ul>
       )}
-      <PhotoFileField inputRef={inputRef} disabled={busy || atLimit} onFiles={handleFiles} onEscape={onClose} />
+      <PhotoFileField disabled={busy || atLimit} onFiles={handleFiles} />
       {atLimit && <p className="mt-1.5 text-[12.5px] text-ink-soft">Osiągnięto limit {MAX_PRODUCT_PHOTOS} zdjęć.</p>}
       <p className="mt-1.5 text-[11.5px] text-ink-soft">
         Zdjęcia są wspólne dla wszystkich rzeczy tego produktu. Inni zobaczą je po sprawdzeniu.
@@ -180,13 +155,6 @@ export function ItemGalleryEditor({ photos, busy, onAdd, onRemove, onMove, onClo
           {error}
         </p>
       )}
-      <button
-        type="button"
-        onClick={onClose}
-        className="mt-2.5 rounded-[9px] border border-line px-2.5 py-1.5 text-[11.5px] font-extrabold text-ink-soft"
-      >
-        Gotowe
-      </button>
     </div>
   );
 }
@@ -198,7 +166,6 @@ interface PhotoFileFieldProps {
   /** Extra classes on the button-like label, e.g. a 44px touch height. */
   className?: string;
   onFiles: (files: File[]) => void;
-  onEscape?: () => void;
   inputRef?: RefObject<HTMLInputElement | null>;
 }
 
@@ -210,7 +177,6 @@ export function PhotoFileField({
   multiple = true,
   className = "",
   onFiles,
-  onEscape,
   inputRef,
 }: PhotoFileFieldProps) {
   return (
@@ -231,9 +197,6 @@ export function PhotoFileField({
           const files = Array.from(e.target.files ?? []);
           e.target.value = "";
           if (files.length > 0) onFiles(files);
-        }}
-        onKeyDown={(e) => {
-          if (e.key === "Escape") onEscape?.();
         }}
         className="sr-only"
       />

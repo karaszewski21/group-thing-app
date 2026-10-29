@@ -21,9 +21,7 @@ import { TermAttendeesPage } from "./pages/meetings/TermAttendeesPage";
 import { GroupDetailsPage } from "./pages/meetings/GroupDetailsPage";
 import { InboxPage } from "./pages/messages/InboxPage";
 import { ThreadPage } from "./pages/messages/ThreadPage";
-import { ItemCreatePage } from "./pages/product/ItemCreatePage";
 import { ItemDetailBody, ItemDetailPage } from "./pages/product/ItemDetailPage";
-import { ItemEditBody, ItemEditPage } from "./pages/product/ItemEditPage";
 import { OrganizerItemLayout } from "./pages/product/OrganizerItemLayout";
 import { OnboardingPage } from "./pages/auth/OnboardingPage";
 import { LandingPage } from "./pages/home/LandingPage";
@@ -47,6 +45,7 @@ const PANEL_VIEWS: readonly Exclude<View, "home">[] = [
   "search",
   "wanted",
   "add",
+  "add/product",
   "add/term",
   "add/event",
   "add/hunting",
@@ -136,19 +135,14 @@ export const routes: RouteObject[] = [
         element: <AuthGuard><ThreadPage /></AuthGuard>,
       },
       {
-        // Adding an item; standalone (no AppDataProvider), unlike the other
-        // `/add/*` pages, which are panel views.
-        path: "/add/product",
-        element: <AuthGuard><ItemCreatePage /></AuthGuard>,
-      },
-      {
         // Item pages; "product" is in the backend's RESERVED_SLUGS.
         path: "/product/:id",
         element: <AuthGuard><ItemDetailPage /></AuthGuard>,
       },
       {
+        // Former edit subpage: editing now happens in place on the item page.
         path: "/product/:id/edit",
-        element: <AuthGuard><ItemEditPage /></AuthGuard>,
+        element: <Navigate to="..?edit=1" relative="path" replace />,
       },
       {
         // The bare organizer product prefix has no page of its own: back to
@@ -159,14 +153,14 @@ export const routes: RouteObject[] = [
       },
       {
         // Item pages reached from an organizer's term page: the same bodies
-        // as /product/:id[/edit], in the organizer's palette and without the
+        // as /product/:id, in the organizer's palette and without the
         // panel nav (see OrganizerItemLayout). "product" and "group" are in
         // the backend's RESERVED_SLUGS.
         path: "/:organizationSlug/product/:id",
         element: <AuthGuard><OrganizerItemLayout /></AuthGuard>,
         children: [
           { index: true, element: <ItemDetailBody /> },
-          { path: "edit", element: <ItemEditBody /> },
+          { path: "edit", element: <Navigate to="..?edit=1" relative="path" replace /> },
         ],
       },
       {

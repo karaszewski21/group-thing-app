@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { api } from "../api/client";
-import { getItemDetails, getItemHistory } from "../api/items";
+import { getItemDetails } from "../api/items";
 import { getPublicOrganization } from "../api/organizations";
 
 vi.mock("../api/client", () => ({
@@ -27,9 +27,7 @@ describe("API path segment encoding", () => {
 
   it("itemHelpers_traversalId_isEncodedAsSingleSegment", async () => {
     await getItemDetails("../../admin");
-    await getItemHistory("1/x");
 
     expect(api.get).toHaveBeenCalledWith("/inventory-items/..%2F..%2Fadmin/details");
-    expect(api.get).toHaveBeenCalledWith("/inventory-items/1%2Fx/history");
   });
 });

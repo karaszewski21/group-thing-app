@@ -171,7 +171,7 @@ describe("MyItemsView — item card links to the item page", () => {
     );
     expect(screen.getByRole("link", { name: "Edytuj rzecz Rowerek" })).toHaveAttribute(
       "href",
-      `/product/${item.id}/edit`,
+      `/product/${item.id}?edit=1`,
     );
     expect(screen.queryByRole("button", { name: "Edytuj stan rzeczy" })).toBeNull();
     expect(screen.queryByRole("button", { name: "Edytuj rzecz Rowerek" })).toBeNull();
@@ -510,7 +510,7 @@ describe("MyItemsView — photos in moderation do not block the mode toggles", (
     expect(screen.getByRole("status")).toHaveTextContent("Zdjęcia w moderacji");
     expect(screen.getByRole("link", { name: "Zobacz zdjęcia →" })).toHaveAttribute(
       "href",
-      `/product/${item.id}/edit`,
+      `/product/${item.id}?edit=1`,
     );
     fireEvent.click(screen.getByRole("button", { name: "Oddam" }));
     expect(setItemMode).toHaveBeenCalledWith(item.id, "oddam");

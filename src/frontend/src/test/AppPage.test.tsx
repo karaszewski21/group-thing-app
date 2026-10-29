@@ -17,10 +17,7 @@ import * as reservationsApi from "../api/reservations";
 import * as itemListingPreferencesApi from "../api/itemListingPreferences";
 import * as termItemListingsApi from "../api/termItemListings";
 import * as locationsApi from "../api/locations";
-import * as pluginsApi from "../api/plugins";
-import { ADD_EVENT } from "../plugins/extensionPoints";
-import { QueryClient } from "@tanstack/react-query";
-import { LOCATIONS_KEY } from "../hooks/useMyLocations";
+import * as eventsApi from "../api/events";
 import { AppPage } from "../pages/home/AppPage";
 import { emitPendingActionResolved } from "../components/pending/pendingActionResolved";
 import { ApiError } from "../api/client";
@@ -121,9 +118,9 @@ vi.mock("../api/locations", () => ({
   deleteLocation: vi.fn(),
 }));
 
-// EventCreateView resolves its iframe from the add.event extension point.
-vi.mock("../api/plugins", () => ({
-  getPlugins: vi.fn(),
+vi.mock("../api/events", () => ({
+  createEvent: vi.fn(),
+  uploadEventBanner: vi.fn(),
 }));
 
 vi.mock("../api/organizations", () => ({
@@ -3005,6 +3002,16 @@ describe("AppPage — redesigned navigation and pages", () => {
     expect(screen.getByText("Kask rowerowy")).toBeInTheDocument();
   });
 
+  it("/add/product is a panel view with the item form and a way back to /add", async () => {
+    mockGuestDefaults();
+    renderPanel("/add/product");
+
+    const page = await screen.findByRole("region", { name: "Dodaj rzecz" });
+    expect(within(page).getByRole("heading", { name: "Dodaj rzecz" })).toBeInTheDocument();
+    expect(within(page).getByRole("button", { name: "Wersja robocza" })).toBeInTheDocument();
+    expect(within(page).getByRole("link", { name: "Wróć do dodawania" })).toHaveAttribute("href", "/add");
+  });
+
   it("Dodaj links to the item form and, without groups, opens the group stepper for a term", async () => {
     mockGuestDefaults();
     renderPanel("/add");
@@ -3016,20 +3023,37 @@ describe("AppPage — redesigned navigation and pages", () => {
 });
 
 describe("AppPage — Dodaj › Wydarzenie", () => {
-  const EVENTS_PLUGIN: pluginsApi.PluginResponse = {
-    id: "events",
-    name: "Wydarzenia",
-    version: "1.0.0",
-    url: "http://localhost:3004",
-    description: "Tworzenie jednorazowych wydarzeń",
-    enabled: true,
-    extensionPoints: [{ type: ADD_EVENT, label: "Wydarzenie", path: "/", priority: 10 }],
+  const EVENT_FIXTURE: eventsApi.EventResponse = {
+    id: "ev-1",
+    name: "Piknik w parku",
+    description: null,
+    starts_at: "2026-11-02T17:00:00",
+    ends_at: "2026-11-02T19:00:00",
+    location: null,
+    created_at: "2026-10-29T10:00:00",
+    updated_at: "2026-10-29T10:00:00",
   };
 
   beforeEach(() => {
     vi.resetAllMocks();
     localStorage.clear();
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date(2026, 9, 29, 12, 0));
+    // jsdom has no object URLs; the banner preview needs one.
+    Object.assign(URL, { createObjectURL: vi.fn(() => "blob:banner"), revokeObjectURL: vi.fn() });
   });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  async function fillRequired() {
+    const page = await screen.findByRole("region", { name: "Nowe wydarzenie" });
+    fireEvent.change(within(page).getByLabelText("Nazwa"), { target: { value: "  Piknik w parku  " } });
+    fireEvent.change(within(page).getByLabelText("Data początku"), { target: { value: "2026-11-02" } });
+    fireEvent.change(within(page).getByLabelText("Godzina początku"), { target: { value: "17:00" } });
+    return page;
+  }
 
   it("Dodaj links the Wydarzenie tile to /add/event", async () => {
     mockGuestDefaults();
@@ -3038,83 +3062,79 @@ describe("AppPage — Dodaj › Wydarzenie", () => {
     expect(await screen.findByRole("link", { name: /Wydarzenie/ })).toHaveAttribute("href", "/add/event");
   });
 
-  it("an enabled add.event plugin renders its form iframe under Nowe wydarzenie", async () => {
+  it("an empty submit shows the field errors and sends nothing", async () => {
     mockGuestDefaults();
-    vi.mocked(pluginsApi.getPlugins).mockResolvedValue([EVENTS_PLUGIN]);
     renderPanel("/add/event");
 
-    expect(await screen.findByRole("heading", { name: "Nowe wydarzenie" })).toBeInTheDocument();
-    const frame = await screen.findByTitle("Formularz nowego wydarzenia");
-    expect(frame.tagName).toBe("IFRAME");
-    expect(frame.getAttribute("src")).toMatch(/^http:\/\/localhost:3004\/#RENDER/);
+    const page = await screen.findByRole("region", { name: "Nowe wydarzenie" });
     expect(screen.getByRole("link", { name: "Wróć do dodawania" })).toHaveAttribute("href", "/add");
+    const submit = within(page).getByRole("button", { name: "Zapisz wydarzenie" });
+    expect(submit).toHaveAttribute("aria-disabled", "true");
+    fireEvent.click(submit);
+
+    expect(await within(page).findByText("Podaj nazwę wydarzenia.")).toBeInTheDocument();
+    expect(within(page).getByText("Podaj datę i godzinę początku.")).toBeInTheDocument();
+    expect(within(page).getByLabelText("Nazwa")).toHaveAttribute("aria-invalid", "true");
+    expect(eventsApi.createEvent).not.toHaveBeenCalled();
   });
 
-  it.each<[string, pluginsApi.PluginResponse[]]>([
-    ["no plugin", []],
-    ["a disabled plugin", [{ ...EVENTS_PLUGIN, enabled: false }]],
-  ])("with %s shows the unavailable fallback and a way back", async (_label, plugins) => {
+  it("saves the event and returns to the /add hub with a toast", async () => {
     mockGuestDefaults();
-    vi.mocked(pluginsApi.getPlugins).mockResolvedValue(plugins);
+    vi.mocked(eventsApi.createEvent).mockResolvedValue(EVENT_FIXTURE);
     renderPanel("/add/event");
 
-    expect(await screen.findByText("Plugin wydarzeń jest niedostępny")).toBeInTheDocument();
-    expect(screen.getByText("Dodawanie wydarzeń jest chwilowo wyłączone. Spróbuj później.")).toBeInTheDocument();
-    expect(screen.queryByTitle("Formularz nowego wydarzenia")).not.toBeInTheDocument();
-    const backLinks = screen.getAllByRole("link", { name: "Wróć do dodawania" });
-    expect(backLinks).toHaveLength(2);
-    for (const link of backLinks) expect(link).toHaveAttribute("href", "/add");
+    const page = await fillRequired();
+    fireEvent.change(within(page).getByLabelText(/Godzina końca/), { target: { value: "19:00" } });
+    fireEvent.click(within(page).getByRole("button", { name: "Zapisz wydarzenie" }));
+
+    await waitFor(() =>
+      expect(eventsApi.createEvent).toHaveBeenCalledWith({
+        name: "Piknik w parku",
+        description: null,
+        starts_at: "2026-11-02T17:00:00",
+        ends_at: "2026-11-02T19:00:00",
+        location_id: null,
+      }),
+    );
+    await waitFor(() => expect(screen.queryByRole("region", { name: "Nowe wydarzenie" })).not.toBeInTheDocument());
+    expect(await screen.findByRole("status")).toHaveTextContent("Wydarzenie „Piknik w parku” zapisane");
+    expect(eventsApi.uploadEventBanner).not.toHaveBeenCalled();
   });
 
-  it("a failed plugin list shows the unavailable fallback", async () => {
+  it("shows the server's message when the save is refused", async () => {
     mockGuestDefaults();
-    vi.mocked(pluginsApi.getPlugins).mockRejectedValue(new ApiError(500, "Internal Server Error", {}));
+    vi.mocked(eventsApi.createEvent).mockRejectedValue(
+      new ApiError(400, "Bad Request", { message: "Początek nie może być w przeszłości." }),
+    );
     renderPanel("/add/event");
 
-    expect(await screen.findByText("Plugin wydarzeń jest niedostępny")).toBeInTheDocument();
-    expect(screen.queryByTitle("Formularz nowego wydarzenia")).not.toBeInTheDocument();
+    const page = await fillRequired();
+    fireEvent.click(within(page).getByRole("button", { name: "Zapisz wydarzenie" }));
+
+    expect(await within(page).findByText("Początek nie może być w przeszłości.")).toBeInTheDocument();
+    expect(within(page).getByRole("button", { name: "Zapisz wydarzenie" })).not.toBeDisabled();
   });
 
-  async function sendDone(payload: Record<string, unknown>) {
-    const frame = await screen.findByTitle<HTMLIFrameElement>("Formularz nowego wydarzenia");
-    act(() => {
-      window.dispatchEvent(
-        new MessageEvent("message", {
-          data: { requestId: "aj.plugin.done-1", type: "done", payload },
-          origin: "http://localhost:3004",
-          source: frame.contentWindow,
-        }),
-      );
-    });
-  }
-
-  it("a done message from the plugin returns to the /add hub with a toast and refreshes places", async () => {
+  it("a failed banner upload keeps the saved event and offers a retry", async () => {
     mockGuestDefaults();
-    vi.mocked(pluginsApi.getPlugins).mockResolvedValue([EVENTS_PLUGIN]);
-    const invalidateSpy = vi.spyOn(QueryClient.prototype, "invalidateQueries");
+    vi.mocked(eventsApi.createEvent).mockResolvedValue(EVENT_FIXTURE);
+    vi.mocked(eventsApi.uploadEventBanner)
+      .mockRejectedValueOnce(new ApiError(500, "Internal Server Error", {}))
+      .mockResolvedValueOnce({ url: "https://cdn.example/banner.webp", status: "PENDING" });
     renderPanel("/add/event");
 
-    await sendDone({ name: "  Piknik w parku  " });
+    const page = await fillRequired();
+    const banner = new File(["x"], "baner.png", { type: "image/png" });
+    fireEvent.change(within(page).getByLabelText("Dodaj baner"), { target: { files: [banner] } });
+    fireEvent.click(within(page).getByRole("button", { name: "Zapisz wydarzenie" }));
+
+    expect(
+      await screen.findByText("Nie udało się wysłać banera. Wydarzenie jest zapisane bez banera."),
+    ).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Spróbuj ponownie" }));
 
     expect(await screen.findByRole("status")).toHaveTextContent("Wydarzenie „Piknik w parku” zapisane");
-    expect(await screen.findByRole("link", { name: /Wydarzenie/ })).toHaveAttribute("href", "/add/event");
-    expect(screen.queryByTitle("Formularz nowego wydarzenia")).not.toBeInTheDocument();
-    expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: [LOCATIONS_KEY] });
-    invalidateSpy.mockRestore();
-  });
-
-  it.each<[string, Record<string, unknown>, string]>([
-    ["no name", {}, "Wydarzenie zapisane"],
-    ["a blank name", { name: "   " }, "Wydarzenie zapisane"],
-    ["a non-string name", { name: 42 }, "Wydarzenie zapisane"],
-    ["a name over 120 characters", { name: "x".repeat(130) }, `Wydarzenie „${"x".repeat(120)}” zapisane`],
-  ])("a done message with %s shows the toast %s", async (_label, payload, toast) => {
-    mockGuestDefaults();
-    vi.mocked(pluginsApi.getPlugins).mockResolvedValue([EVENTS_PLUGIN]);
-    renderPanel("/add/event");
-
-    await sendDone(payload);
-
-    expect(await screen.findByRole("status")).toHaveTextContent(new RegExp(`^${toast}$`));
+    expect(eventsApi.uploadEventBanner).toHaveBeenNthCalledWith(2, "ev-1", banner);
+    expect(eventsApi.createEvent).toHaveBeenCalledTimes(1);
   });
 });

@@ -3,9 +3,7 @@ import { useCallback, useState } from "react";
 import { updateInventoryItem, type ItemCondition } from "../api/inventories";
 import {
   getItemDetails,
-  getItemHistory,
   type ItemDetailsResponse,
-  type ItemHistoryEntryResponse,
 } from "../api/items";
 import { extractProblemMessage, hasStatus, serverMessageOr } from "../api/problem";
 import {
@@ -17,9 +15,6 @@ import {
 } from "../api/products";
 
 const ITEM_DETAILS_KEY = "itemDetails";
-const ITEM_HISTORY_KEY = "itemHistory";
-
-const NO_HISTORY: ItemHistoryEntryResponse[] = [];
 
 /** How often the owner's page re-reads details while a photo awaits the AI verdict. */
 const PENDING_PHOTO_POLL_MS = 10_000;
@@ -69,38 +64,10 @@ export function useItemDetail(itemId: string): UseItemDetailResult {
   };
 }
 
-interface UseItemHistoryResult {
-  data: ItemHistoryEntryResponse[];
-  loading: boolean;
-  error: string | null;
-  refetch: () => Promise<void>;
-}
-
-/** Separate from the details query so a history failure leaves the rest
- * of the page usable. */
-export function useItemHistory(itemId: string): UseItemHistoryResult {
-  const query = useQuery({
-    queryKey: [ITEM_HISTORY_KEY, itemId],
-    queryFn: () => getItemHistory(itemId),
-  });
-  const { refetch: refetchQuery } = query;
-  const refetch = useCallback(async () => {
-    await refetchQuery();
-  }, [refetchQuery]);
-
-  return {
-    data: query.data ?? NO_HISTORY,
-    loading: query.isPending,
-    error: query.error ? extractProblemMessage(query.error) : null,
-    refetch,
-  };
-}
-
-/** Starts the details and history reads before the item page body mounts,
- * so they run in parallel with whatever the page waits on first. */
+/** Starts the details read before the item page body mounts, so it runs
+ * in parallel with whatever the page waits on first. */
 export function useItemPagePrefetch(itemId: string): void {
   usePrefetchQuery({ queryKey: [ITEM_DETAILS_KEY, itemId], queryFn: () => getItemDetails(itemId) });
-  usePrefetchQuery({ queryKey: [ITEM_HISTORY_KEY, itemId], queryFn: () => getItemHistory(itemId) });
 }
 
 /** What product-scoped edits need from the details query. */

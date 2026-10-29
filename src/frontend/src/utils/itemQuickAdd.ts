@@ -6,7 +6,7 @@ export interface ItemQuickAddValue {
   category_id: string;
 }
 
-/** Empty value for `ItemQuickAddForm`, used by `ItemCreatePage`. The
+/** Empty value for `ItemQuickAddForm`, used by `ItemCreateView`. The
  * category is required and has no default: the user picks a leaf. */
 export function createEmptyItemQuickAddValue(): ItemQuickAddValue {
   return {

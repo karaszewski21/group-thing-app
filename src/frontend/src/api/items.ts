@@ -11,7 +11,6 @@ export type ItemStatusCode =
   | "LENT"
   | "DELETED";
 
-export type MovementType = "REGISTER" | "REMOVE" | "GIFT" | "LEND" | "RETURN" | "SWAP";
 
 export interface ItemStatusResponse {
   code: ItemStatusCode;
@@ -44,19 +43,6 @@ export interface ItemDetailsResponse {
   status: ItemStatusResponse;
 }
 
-/** One movement, newest first. Carries no ids: `description` is the
- * server-built, privacy-labelled "{from} → {to}" text. */
-export interface ItemHistoryEntryResponse {
-  occurred_at: string;
-  movement_type: MovementType;
-  description: string;
-  term_occurs_on: string | null;
-}
-
 export function getItemDetails(id: string): Promise<ItemDetailsResponse> {
   return api.get(`/inventory-items/${encodeURIComponent(id)}/details`);
-}
-
-export function getItemHistory(id: string): Promise<ItemHistoryEntryResponse[]> {
-  return api.get(`/inventory-items/${encodeURIComponent(id)}/history`);
 }

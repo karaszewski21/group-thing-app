@@ -2,24 +2,26 @@ import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import type { ListingMode } from "../../api/itemListingPreferences";
 import { ItemQuickAddForm } from "../../components/shared/ItemQuickAddForm";
-import { PhoneFrame } from "../../components/shared/PhoneFrame";
+import { SubPageHeader } from "../../components/shared/appComponents";
 import { useCreateItem } from "../../hooks/useCreateItem";
 import { createEmptyItemQuickAddValue, type ItemQuickAddValue } from "../../utils/itemQuickAdd";
 import { TrashIcon } from "../../components/shared/appIcons";
+import { viewPath } from "../../utils/appHelpers";
 import { EXCHANGE_MODE_LABELS } from "../term/components/termLabels";
-import { ItemBackButton } from "./ItemBackButton";
-import { PhotoFileField } from "./ItemGalleryEditor";
-import { FIELD_LABEL, MAX_PRODUCT_PHOTOS, photoFileError, type ItemCreatedState } from "./itemPageShared";
+import { PhotoFileField } from "../product/ItemGalleryEditor";
+import { FIELD_LABEL, MAX_PRODUCT_PHOTOS, photoFileError, type ItemCreatedState } from "../product/itemPageShared";
 
 const ACTION_CLASS =
   "rounded-[13px] px-4 py-3 text-[13.5px] font-extrabold disabled:opacity-60 aria-disabled:cursor-not-allowed aria-disabled:opacity-60";
 const MISSING_FIELDS_HINT_ID = "item-create-missing-fields";
+const TITLE = "Dodaj rzecz";
 
 /** `/add/product`: adds an item to the caller's own inventory with optional
  * photos — offered at once (Oddam / Zamienię) or saved as a draft — then
  * replaces itself with the new item's page (handing it the count of refused
- * photos). Standalone, outside AppDataProvider. */
-export function ItemCreatePage() {
+ * photos). A panel view like the other `/add/*` pages; it reads nothing
+ * from AppDataContext. */
+export function ItemCreateView() {
   const navigate = useNavigate();
   const createItem = useCreateItem();
   const [value, setValue] = useState<ItemQuickAddValue>(createEmptyItemQuickAddValue());
@@ -52,54 +54,51 @@ export function ItemCreatePage() {
   }
 
   return (
-    <PhoneFrame>
-      <div className="flex-1 overflow-y-auto px-[18px] pb-6 pt-[18px]">
-        <ItemBackButton />
-        <h2 className="text-[19px] font-semibold text-ink">Dodaj rzecz</h2>
-        {/* No submit button: implicit Enter submission from the name input must do nothing. */}
-        <form onSubmit={(e) => e.preventDefault()} className="mt-4 rounded-[22px] border border-line bg-paper p-5">
-          <ItemQuickAddForm value={value} onChange={setValue} disabled={busy} />
-          <NewPhotosField files={photos} onChange={setPhotos} disabled={busy} />
-          <p className="mt-3 text-xs text-ink-soft">Opis dodasz na stronie rzeczy.</p>
-          {error && (
-            <p role="alert" className="mt-3 rounded-xl bg-danger-soft px-3 py-2.5 text-[13px] text-danger">
-              {error}
-            </p>
-          )}
-          {fieldsMissing && (
-            <p id={MISSING_FIELDS_HINT_ID} className="mt-3 text-xs text-ink-soft">
-              Podaj nazwę i wybierz kategorię, aby zapisać.
-            </p>
-          )}
-          <div className="mt-4 grid grid-cols-2 gap-2">
-            <button
-              type="button"
-              {...actionState}
-              onClick={() => void submit("GIFT")}
-              className={`${ACTION_CLASS} bg-mint text-white`}
-            >
-              {EXCHANGE_MODE_LABELS.GIFT}
-            </button>
-            <button
-              type="button"
-              {...actionState}
-              onClick={() => void submit("SWAP")}
-              className={`${ACTION_CLASS} bg-teal-soft text-ink`}
-            >
-              {EXCHANGE_MODE_LABELS.SWAP}
-            </button>
-            <button
-              type="button"
-              {...actionState}
-              onClick={() => void submit(null)}
-              className={`${ACTION_CLASS} col-span-2 border-[1.5px] border-line-strong bg-transparent text-ink`}
-            >
-              Wersja robocza
-            </button>
-          </div>
-        </form>
-      </div>
-    </PhoneFrame>
+    <section aria-label={TITLE}>
+      <SubPageHeader title={TITLE} backTo={viewPath("add")} backLabel="Wróć do dodawania" />
+      {/* No submit button: implicit Enter submission from the name input must do nothing. */}
+      <form onSubmit={(e) => e.preventDefault()} className="rounded-[22px] border border-line bg-paper p-5">
+        <ItemQuickAddForm value={value} onChange={setValue} disabled={busy} />
+        <NewPhotosField files={photos} onChange={setPhotos} disabled={busy} />
+        <p className="mt-3 text-xs text-ink-soft">Opis dodasz na stronie rzeczy.</p>
+        {error && (
+          <p role="alert" className="mt-3 rounded-xl bg-danger-soft px-3 py-2.5 text-[13px] text-danger">
+            {error}
+          </p>
+        )}
+        {fieldsMissing && (
+          <p id={MISSING_FIELDS_HINT_ID} className="mt-3 text-xs text-ink-soft">
+            Podaj nazwę i wybierz kategorię, aby zapisać.
+          </p>
+        )}
+        <div className="mt-4 grid grid-cols-2 gap-2">
+          <button
+            type="button"
+            {...actionState}
+            onClick={() => void submit("GIFT")}
+            className={`${ACTION_CLASS} bg-mint text-white`}
+          >
+            {EXCHANGE_MODE_LABELS.GIFT}
+          </button>
+          <button
+            type="button"
+            {...actionState}
+            onClick={() => void submit("SWAP")}
+            className={`${ACTION_CLASS} bg-teal-soft text-ink`}
+          >
+            {EXCHANGE_MODE_LABELS.SWAP}
+          </button>
+          <button
+            type="button"
+            {...actionState}
+            onClick={() => void submit(null)}
+            className={`${ACTION_CLASS} col-span-2 border-[1.5px] border-line-strong bg-transparent text-ink`}
+          >
+            Wersja robocza
+          </button>
+        </div>
+      </form>
+    </section>
   );
 }
 

@@ -57,7 +57,7 @@ A selection sheet opened from inside a host form renders via `createPortal(…, 
 ```
 
 ### Blocked-by-Input Actions
-When an action is blocked only by missing input and has an explanatory hint, use `aria-disabled="true"` instead of native `disabled`: the button stays focusable, the hint is linked via `aria-describedby`, and the handler guards against submitting. Use native `disabled` only while busy. Reference: `pages/product/ItemCreatePage.tsx`.
+When an action is blocked only by missing input and has an explanatory hint, use `aria-disabled="true"` instead of native `disabled`: the button stays focusable, the hint is linked via `aria-describedby`, and the handler guards against submitting. Use native `disabled` only while busy. Reference: `pages/add/ItemCreateView.tsx`.
 ```tsx
 "aria-disabled": !busy && fieldsMissing ? true : undefined,
 "aria-describedby": fieldsMissing ? MISSING_FIELDS_HINT_ID : undefined,

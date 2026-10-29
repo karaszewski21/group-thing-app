@@ -1,7 +1,3 @@
-import type { useItemHistory } from "../../hooks/useItemDetail";
-
-export type HistoryState = ReturnType<typeof useItemHistory>;
-
 export const MAX_PRODUCT_PHOTOS = 10;
 
 /** Photo files the backend accepts (it re-encodes them to WebP). */

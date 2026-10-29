@@ -1,7 +1,7 @@
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { MemoryRouter, Route, Routes, useParams } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { ItemCreatePage } from "../pages/product/ItemCreatePage";
+import { ItemCreateView } from "../pages/add/ItemCreateView";
 import { FailedPhotosNotice } from "../pages/product/ItemDetailPage";
 import * as inventoriesApi from "../api/inventories";
 import * as peopleApi from "../api/people";
@@ -71,7 +71,7 @@ function renderPage() {
   return render(
     <MemoryRouter initialEntries={["/add/product"]}>
       <Routes>
-        <Route path="/add/product" element={<ItemCreatePage />} />
+        <Route path="/add/product" element={<ItemCreateView />} />
         <Route path="/product/:id" element={<NewItemProbe />} />
       </Routes>
     </MemoryRouter>,
@@ -130,7 +130,7 @@ beforeEach(() => {
   URL.revokeObjectURL = vi.fn();
 });
 
-describe("ItemCreatePage", () => {
+describe("ItemCreateView", () => {
   it("keeps Oddam, Zamienię and Wersja robocza aria-disabled until a name and a category are set", async () => {
     renderPage();
 

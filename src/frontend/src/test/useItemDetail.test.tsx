@@ -6,12 +6,11 @@ import * as itemsApi from "../api/items";
 import type { ItemDetailsResponse } from "../api/items";
 import { ACCESS_DENIED_MESSAGE } from "../api/problem";
 import * as productsApi from "../api/products";
-import { useItemDetail, useItemEditing, useItemHistory } from "../hooks/useItemDetail";
+import { useItemDetail, useItemEditing } from "../hooks/useItemDetail";
 import { createQueryWrapper, createTestQueryClient } from "./queryClient";
 
 vi.mock("../api/items", () => ({
   getItemDetails: vi.fn(),
-  getItemHistory: vi.fn(),
 }));
 
 vi.mock("../api/inventories", () => ({
@@ -115,26 +114,6 @@ describe("useItemDetail", () => {
     expect(result.current.item).toBeNull();
   });
 
-  it("isolates a history failure: details still load, history falls back to a stable empty list", async () => {
-    vi.mocked(itemsApi.getItemDetails).mockResolvedValue(item);
-    vi.mocked(itemsApi.getItemHistory).mockRejectedValue(
-      new ApiError(500, "Internal Server Error", { message: "Historia niedostępna" }),
-    );
-    const { result, rerender } = renderHook(
-      () => ({ detail: useItemDetail(ITEM_ID), history: useItemHistory(ITEM_ID) }),
-      { wrapper: createQueryWrapper() },
-    );
-    await waitFor(() => expect(result.current.history.loading).toBe(false));
-    await waitFor(() => expect(result.current.detail.loading).toBe(false));
-
-    expect(result.current.detail.item).toEqual(item);
-    expect(result.current.detail.error).toBeNull();
-    expect(result.current.history.error).toBe("Historia niedostępna");
-    expect(result.current.history.data).toEqual([]);
-    const fallback = result.current.history.data;
-    rerender();
-    expect(result.current.history.data).toBe(fallback);
-  });
 });
 
 describe("useItemDetail pending-photo polling", () => {
