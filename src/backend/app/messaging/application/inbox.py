@@ -1,8 +1,9 @@
 """The inbox and the unread badge, each in a fixed number of statements
 whatever the number of conversations: the caller's profile, the audience
-(3), one conversations/unread statement, then for the inbox one
-last-message statement and one batched lookup each for item refs, group
-refs, term refs, organizers and profiles. Read-only conversations are listed and counted."""
+(3 for groups, 1 for events), one conversations/unread statement, then for
+the inbox one last-message statement and one batched lookup each for item
+refs, group refs, term refs, event refs, organizers and profiles.
+Read-only conversations are listed and counted."""
 
 from __future__ import annotations
 
@@ -15,7 +16,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.auth_deps import Principal
 
-from ..infrastructure import circulation_acl, groups_acl, repository, users_acl
+from ..infrastructure import circulation_acl, events_acl, groups_acl, repository, users_acl
 from ..models import Conversation, ConversationKind, Message
 from ..schemas import (
     ConversationItemRef,
@@ -33,6 +34,7 @@ class _Labels(NamedTuple):
     item_refs: dict[uuid.UUID, tuple[str, datetime | None]]
     group_refs: dict[uuid.UUID, tuple[str, groups_acl.GroupVisibility, datetime | None]]
     term_refs: dict[uuid.UUID, tuple[uuid.UUID, datetime]]
+    event_refs: dict[uuid.UUID, tuple[str, uuid.UUID]]
     organizers: dict[uuid.UUID, uuid.UUID]
     names: dict[uuid.UUID, str]
 
@@ -40,8 +42,14 @@ class _Labels(NamedTuple):
 async def list_inbox(db: AsyncSession, principal: Principal) -> list[InboxRowResponse]:
     me = await users_acl.get_caller_party_id(db, principal)
     audience = await groups_acl.get_chat_audience_for_party(db, me)
+    event_ids = await events_acl.list_chat_event_ids_for_party(db, me)
     rows = await repository.select_inbox_rows(
-        db, me, audience.led_group_ids, audience.member_group_ids, audience.attended_term_ids
+        db,
+        me,
+        audience.led_group_ids,
+        audience.member_group_ids,
+        audience.attended_term_ids,
+        event_ids,
     )
     conversations = [row.conversation for row in rows]
     ids = [cast(uuid.UUID, conversation.id) for conversation in conversations]
@@ -74,6 +82,9 @@ async def _load_labels(
         term_refs=await groups_acl.list_chat_term_refs(
             db, {c.term_id for c in conversations if c.term_id is not None}
         ),
+        event_refs=await events_acl.list_chat_event_refs(
+            db, {c.event_id for c in conversations if c.event_id is not None}
+        ),
         organizers=await groups_acl.list_current_organizer_party_ids(db, group_ids),
         names={party_id: name for party_id, (name, _) in profiles.items()},
     )
@@ -97,6 +108,9 @@ def _to_row(
             id=conversation.item_id, name=title, deleted=deleted_at is not None
         )
         counterpart_name = labels.names.get(item_counterpart(conversation, me))
+    elif conversation.kind == ConversationKind.EVENT:
+        assert conversation.event_id is not None
+        title, organizer = labels.event_refs[conversation.event_id]
     else:
         assert conversation.group_id is not None
         group_name, visibility, group_deleted_at = labels.group_refs[conversation.group_id]
@@ -130,7 +144,13 @@ def _to_row(
 async def count_unread(db: AsyncSession, principal: Principal) -> UnreadCountResponse:
     me = await users_acl.get_caller_party_id(db, principal)
     audience = await groups_acl.get_chat_audience_for_party(db, me)
+    event_ids = await events_acl.list_chat_event_ids_for_party(db, me)
     total = await repository.sum_unread(
-        db, me, audience.led_group_ids, audience.member_group_ids, audience.attended_term_ids
+        db,
+        me,
+        audience.led_group_ids,
+        audience.member_group_ids,
+        audience.attended_term_ids,
+        event_ids,
     )
     return UnreadCountResponse(count=total)

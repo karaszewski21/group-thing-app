@@ -1,7 +1,7 @@
 import { api } from "./client";
 import { hasStatus, serverMessageOr } from "./problem";
 
-export type ConversationKind = "ITEM" | "GROUP" | "TERM";
+export type ConversationKind = "ITEM" | "GROUP" | "TERM" | "EVENT";
 
 export type ReadOnlyReason = "GROUP_DELETED" | "GROUP_PUBLIC" | null;
 
@@ -14,7 +14,7 @@ export interface ConversationItemRef {
 interface ConversationBase {
   id: string;
   kind: ConversationKind;
-  /** Built by the server (item name, group name, or "Termin: śr 29.10 17:00"). */
+  /** Built by the server (item name, group name, event name, or "Termin: śr 29.10 17:00"). */
   title: string;
   /** ITEM only. */
   item: ConversationItemRef | null;
@@ -42,7 +42,7 @@ export interface InboxRow extends ConversationBase {
 }
 
 export interface ConversationResponse extends ConversationBase {
-  /** GROUP and TERM only. */
+  /** GROUP, TERM and EVENT only. */
   participant_count: number | null;
 }
 
@@ -83,6 +83,10 @@ export function getOrCreateGroupConversation(groupId: string): Promise<Conversat
 
 export function getOrCreateTermConversation(termId: string): Promise<ConversationResponse> {
   return api.post("/conversations/term", { term_id: termId });
+}
+
+export function getOrCreateEventConversation(eventId: string): Promise<ConversationResponse> {
+  return api.post("/conversations/event", { event_id: eventId });
 }
 
 export function getConversation(id: string): Promise<ConversationResponse> {

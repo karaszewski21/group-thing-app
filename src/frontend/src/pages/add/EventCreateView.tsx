@@ -4,7 +4,7 @@ import type { EventResponse } from "../../api/events";
 import { useAppData } from "../../app/appDataStore";
 import { SubPageHeader } from "../../components/shared/appComponents";
 import { useCreateEvent } from "../../hooks/useCreateEvent";
-import { viewPath } from "../../utils/appHelpers";
+import { eventPath, viewPath } from "../../utils/appHelpers";
 import { EMPTY_EVENT_DRAFT, toCreateEventRequest } from "./eventDraft";
 import { EventForm } from "./EventForm";
 
@@ -16,12 +16,11 @@ function savedToast(event: EventResponse): string {
 }
 
 /** `/add/event`: a one-off event (picnic, birthday). Saves the event, then its
- * optional banner; back on the /add hub with a toast once both are done. If
+ * optional banner; then on to the event page with a toast once both are done. If
  * only the banner fails, the event already exists, so the page offers a retry
  * or skipping the banner instead of the form. */
 export function EventCreateView() {
-  const { showToast, eventDraft: draft, setEventDraft: setDraft, eventBanner: banner, setEventBanner: setBanner } =
-    useAppData();
+  const { eventDraft: draft, setEventDraft: setDraft, eventBanner: banner, setEventBanner: setBanner } = useAppData();
   const navigate = useNavigate();
   const { create, uploadBanner } = useCreateEvent();
   const [showErrors, setShowErrors] = useState(false);
@@ -32,8 +31,8 @@ export function EventCreateView() {
   function finish(event: EventResponse) {
     setDraft(EMPTY_EVENT_DRAFT);
     setBanner(null);
-    showToast(savedToast(event));
-    navigate(viewPath("add"));
+    // The event page sits outside AppDataProvider, so the toast travels in router state.
+    navigate(eventPath(event.author_slug, event.id), { state: { toast: savedToast(event) } });
   }
 
   /** Also the retry: a new upload replaces any banner already stored. */

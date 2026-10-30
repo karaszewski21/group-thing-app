@@ -79,7 +79,7 @@ async def test_upgradeHead_eventConstraints_namedAndPartial(engine: AsyncEngine)
         "fk_events_author_party_id_parties": (["author_party_id"], "parties"),
         "fk_events_location_id_locations": (["location_id"], "locations"),
     }
-    assert events["indexes"] == {}
+    assert set(events["indexes"]) == {"ix_events_author_party_id"}
 
     assert banners["pk"] == "pk_event_banners"
     assert banners["fks"] == {"fk_event_banners_event_id_events": (["event_id"], "events")}
@@ -90,7 +90,11 @@ async def test_upgradeHead_eventConstraints_namedAndPartial(engine: AsyncEngine)
         "fk_event_attendances_event_id_events": (["event_id"], "events"),
         "fk_event_attendances_party_id_parties": (["party_id"], "parties"),
     }
-    assert set(attendances["indexes"]) == {"ix_event_attendances_event_id", ATTENDANCE_UNIQUE}
+    assert set(attendances["indexes"]) == {
+        "ix_event_attendances_event_id",
+        "ix_event_attendances_party_id",
+        ATTENDANCE_UNIQUE,
+    }
     partial = attendances["indexes"][ATTENDANCE_UNIQUE]
     assert partial["unique"] is True
     assert partial["column_names"] == ["event_id", "party_id"]

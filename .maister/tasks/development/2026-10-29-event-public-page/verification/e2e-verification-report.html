@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>E2E Verification Report — 2026-10-29-event-public-page</title>
+<style>
+:root {
+  --bg:#f6f7f9; --surface:#fff; --border:#e2e5ea; --text:#1a1d23; --dim:#6b7280;
+  --accent:#4f46e5; --accent-soft:#eef2ff; --ok:#16a34a; --ok-soft:#ecfdf3;
+  --warn:#d97706; --warn-soft:#fffbeb; --crit:#dc2626; --crit-soft:#fef2f2;
+  --info:#2563eb; --info-soft:#eff6ff; --radius:10px;
+}
+@media (prefers-color-scheme: dark) {
+  :root { --bg:#111418; --surface:#1a1f26; --border:#2e3640; --text:#e6e9ee; --dim:#9aa4b2;
+    --accent:#818cf8; --accent-soft:#26294a; --ok:#4ade80; --ok-soft:#11291a;
+    --warn:#fbbf24; --warn-soft:#2e2410; --crit:#f87171; --crit-soft:#321616;
+    --info:#60a5fa; --info-soft:#15233a; }
+}
+* { box-sizing:border-box; }
+body { margin:0 auto; max-width:1100px; padding:24px 20px 64px; background:var(--bg);
+  color:var(--text); font:14px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif; }
+a { color:var(--accent); text-decoration:none; } a:hover { text-decoration:underline; }
+h1 { font-size:22px; letter-spacing:-.01em; } h2 { font-size:16px; margin-top:28px; }
+.card { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius);
+  padding:16px 18px; margin:14px 0; }
+.badge { display:inline-block; font-size:11px; font-weight:600; text-transform:uppercase;
+  letter-spacing:.04em; padding:2px 8px; border-radius:99px; background:var(--accent-soft); color:var(--accent); }
+.sev { display:inline-block; font-size:10.5px; font-weight:700; text-transform:uppercase;
+  padding:1.5px 7px; border-radius:99px; margin-right:6px; }
+.sev.critical { background:var(--crit-soft); color:var(--crit); }
+.sev.warning  { background:var(--warn-soft); color:var(--warn); }
+.sev.info     { background:var(--info-soft); color:var(--info); }
+.pass { color:var(--ok); font-weight:600; } .fail { color:var(--crit); font-weight:600; }
+table { width:100%; border-collapse:collapse; }
+th, td { text-align:left; padding:7px 10px; border-bottom:1px solid var(--border); vertical-align:top; }
+th { font-size:11.5px; text-transform:uppercase; letter-spacing:.04em; color:var(--dim); }
+code { font-family:ui-monospace,SFMono-Regular,Menlo,monospace; font-size:12.5px;
+  background:var(--accent-soft); padding:1px 5px; border-radius:4px; }
+img.shot { max-width:100%; border:1px solid var(--border); border-radius:var(--radius); }
+details > summary { cursor:pointer; font-weight:600; }
+.crumbs { display:flex; gap:14px; font-size:13px; margin-bottom:18px; flex-wrap:wrap; }
+.crumbs a.md { margin-left:auto; color:var(--dim); }
+.crumbs .here { font-weight:650; color:var(--text); }
+.tiles { display:flex; gap:10px; flex-wrap:wrap; margin:14px 0; }
+.tile { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius);
+  padding:10px 16px; text-align:center; min-width:90px; }
+.tile b { display:block; font-size:20px; letter-spacing:-.01em; }
+.tile span { font-size:10.5px; text-transform:uppercase; letter-spacing:.05em; color:var(--dim); }
+.verdict { background:var(--warn-soft); border:1px solid var(--warn); color:var(--text); border-radius:var(--radius); padding:12px 16px; font-weight:600; }
+.shots { display:grid; grid-template-columns:repeat(auto-fill,minmax(180px,1fr)); gap:10px; margin-top:10px; }
+.shots figure { margin:0; } .shots figcaption { font-size:11.5px; color:var(--dim); }
+.scen h3 { margin:0 0 6px; font-size:15px; }
+</style>
+</head>
+<body>
+<nav class="crumbs">
+  <a href="../dashboard.html">← Dashboard</a>
+  <a href="../implementation/spec.html">Spec</a> <a href="../implementation/implementation-plan.html">Plan</a>
+  <a href="implementation-verification.html">Verification</a>
+  <span class="here">E2E</span>
+  <a href="visual-fidelity.html">Visual fidelity</a>
+  <a href="e2e-verification-report.md" target="_blank" rel="noopener" class="md">md twin ↗</a>
+</nav>
+<header>
+  <span class="badge">e2e verification</span>
+  <h1>E2E Verification Report: public event page</h1>
+  <div style="color:var(--dim);font-size:13px">2026-10-30 · git bea67df (feat/events-plugin, with uncommitted changes) · Playwright MCP Chromium 430×900 · base http://localhost:5173</div>
+</header>
+<div class="tiles">
+  <div class="tile"><b>⚠️ GO WITH CAVEATS</b><span>verdict</span></div>
+  <div class="tile"><b>10 / 10</b><span>scenarios passed</span></div>
+  <div class="tile"><b>0</b><span>failed</span></div>
+  <div class="tile"><b>0 / 0</b><span>critical / major</span></div>
+  <div class="tile"><b>3 / 1</b><span>minor / cosmetic</span></div>
+</div>
+<section class="tldr card">
+  <h2 style="margin-top:0">TL;DR</h2>
+  <p>Verdict: <b>GO WITH CAVEATS</b>. 10 of 10 scenarios ran and passed. Every core flow works end-to-end in the live app: create, author, anonymous, guest sign-up and merge, one-click sign-up, chat, withdraw, Spotkania, ended event, old/edit routes, backslash names and the OG preview. No Critical or Major issues; 1 Cosmetic and 3 Minor/informational findings. Banner, item rows and the org header chip could not be exercised locally.</p>
+  <h2>Key Decisions</h2>
+  <ul>
+    <li>Accounts were created via <code>POST /api/auth/register</code>; the main event via the <code>/add/event</code> UI; the ended and backslash events via <code>POST /api/events</code>.</li>
+    <li>The ended event starts in the current minute with no end (past dates are rejected by create/PATCH).</li>
+    <li>A MANUAL location was added to verify "Miejsce" and the OG place suffix.</li>
+  </ul>
+  <h2>Open Questions / Risks</h2>
+  <ul>
+    <li>Item rows, "Pokaż wszystkie", the banner, <code>og:image</code> and the org chip were not verified at runtime.</li>
+    <li>An unreproduced first-attempt withdraw anomaly, most likely a harness artefact (Minor-3).</li>
+  </ul>
+</section>
+<p style="font-size:13px">Contents: <a href="#scenarios">Scenarios</a> · <a href="#discrepancies">Discrepancies</a> · <a href="#console">Console</a> · <a href="#alignment">Spec alignment</a> · <a href="#variances">Variances</a> · <a href="#exit">Exit criteria</a> · <a href="#recs">Recommendations</a></p>
+
+<main>
+<h2>Environment</h2>
+<div class="card"><table>
+<tr><th>Base URL</th><td>http://localhost:5173 (Vite, /api proxied to :8080)</td></tr>
+<tr><th>Auth contexts</th><td>e2e-author-135502, e2e-participant-135502, anonymous (later merged to e2e-guest-135502), fresh anonymous</td></tr>
+<tr><th>Test data</th><td>local dev DB (head 0072); events <code>64292a46-…</code> "E2E Piknik wymiany 135502", <code>87427a32-…</code> "E2E Zakonczone 135502", <code>ea4c69ad-…</code> "E2E Swap \o/ 135502"; slug <code>k-ac16defb20c2</code></td></tr>
+</table></div>
+
+<h2 id="scenarios">Scenarios</h2>
+
+<div class="card scen"><h3><span class="pass">✅</span> 4.1 Author creates event and sees author view</h3>
+<table><tr><th>#</th><th>Action</th><th>Actual</th><th></th></tr>
+<tr><td>1</td><td>Fill /add/event, no banner</td><td>Accepted</td><td>✅</td></tr>
+<tr><td>2</td><td>Zapisz wydarzenie</td><td><code>/k-ac16defb20c2/event/64292a46-…</code> + toast "Wydarzenie „…” zapisane"</td><td>✅</td></tr>
+<tr><td>3</td><td>history.state</td><td>usr: null (cleared)</td><td>✅</td></tr>
+<tr><td>4</td><td>Page order</td><td>header, when-card, description, chat, list, author card; no chip (org null)</td><td>✅</td></tr>
+<tr><td>5</td><td>Author card</td><td>Edytuj → /events/:id/edit; Usuń enabled at 0 attendees</td><td>✅</td></tr>
+<tr><td>6</td><td>Footer / empty copy</td><td>No footer; "Nikt jeszcze się nie zapisał." (no nudge)</td><td>✅</td></tr></table>
+<div class="shots"><figure><img class="shot" src="screenshots/01-create-event-form.png" alt="create form"><figcaption>01 create form</figcaption></figure><figure><img class="shot" src="screenshots/02-author-view-saved-toast.png" alt="author view"><figcaption>02 author view + toast</figcaption></figure><figure><img class="shot" src="screenshots/02b-author-view-top.png" alt="author top"><figcaption>02b author top</figcaption></figure></div></div>
+
+<div class="card scen"><h3><span class="pass">✅</span> 4.2 Anonymous visitor view and copy link</h3>
+<table><tr><th>#</th><th>Action</th><th>Actual</th><th></th></tr>
+<tr><td>1</td><td>Open URL</td><td>when-card, description, list; no chat row</td><td>✅</td></tr>
+<tr><td>2</td><td>Empty copy</td><td>Includes "Zapisz się jako pierwsza osoba…"</td><td>✅</td></tr>
+<tr><td>3</td><td>Footer</td><td>"＋ Zapisz się na wydarzenie", clickable</td><td>✅</td></tr>
+<tr><td>4</td><td>Kopiuj link</td><td>Toast "Skopiowano link"; clipboard = URL</td><td>✅</td></tr>
+<tr><td>5</td><td>Miejsce block</td><td>name, address, notes, Maps link + sr-only "(nowa karta)"</td><td>✅</td></tr></table>
+<div class="shots"><figure><img class="shot" src="screenshots/03-anonymous-view-top.png" alt=""><figcaption>03 anonymous (empty)</figcaption></figure><figure><img class="shot" src="screenshots/26-anon-footer-empty.png" alt=""><figcaption>26 footer (empty)</figcaption></figure><figure><img class="shot" src="screenshots/04-anonymous-copy-link-toast.png" alt=""><figcaption>04 copy link toast</figcaption></figure><figure><img class="shot" src="screenshots/27-merged-attendee-view-with-place.png" alt=""><figcaption>27 place block</figcaption></figure></div></div>
+
+<div class="card scen"><h3>⚠️ 4.3 Guest sign-up and account merge</h3>
+<table><tr><th>#</th><th>Action</th><th>Actual</th><th></th></tr>
+<tr><td>1</td><td>Footer → sheet</td><td>Title, subtitle "… · sob. 7 listopada, 18:00", hint, login link with returnTo</td><td>✅</td></tr>
+<tr><td>2</td><td>Blank submit</td><td>role=alert "Podaj swoje imię."; aria-invalid/describedby</td><td>✅</td></tr>
+<tr><td>3</td><td>Name + Enter</td><td>Merge card "Zapisano Cię jako gościa ✓", no footer, guest listed, key written</td><td>✅</td></tr>
+<tr><td>4</td><td>Załóż konto</td><td>Attendee view: chat, "To Ty", "Wypisz się"</td><td>✅</td></tr>
+<tr><td>5</td><td>Card visuals</td><td>Divider above title (Cosmetic-1)</td><td>⚠️</td></tr></table>
+<div class="shots"><figure><img class="shot" src="screenshots/05-guest-signup-sheet.png" alt=""><figcaption>05 sheet</figcaption></figure><figure><img class="shot" src="screenshots/06-guest-signup-blank-error.png" alt=""><figcaption>06 blank error</figcaption></figure><figure><img class="shot" src="screenshots/07b-guest-merge-card-full.png" alt=""><figcaption>07b merge card</figcaption></figure><figure><img class="shot" src="screenshots/08-guest-after-merge.png" alt=""><figcaption>08 after merge</figcaption></figure></div></div>
+
+<div class="card scen"><h3><span class="pass">✅</span> 4.4 Logged-in participant: sign-up, chat, inbox, withdraw</h3>
+<table><tr><th>#</th><th>Action</th><th>Actual</th><th></th></tr>
+<tr><td>1</td><td>One-click sign-up</td><td>Toast "Zapisano na wydarzenie"</td><td>✅</td></tr>
+<tr><td>2</td><td>State</td><td>"To Ty", "Wypisz się", chat row</td><td>✅</td></tr>
+<tr><td>3</td><td>Chat row</td><td>Thread "E2E Piknik wymiany 135502 · czat wydarzenia", 3 uczestników</td><td>✅</td></tr>
+<tr><td>4</td><td>Inbox</td><td>🎉 + "Wydarzenie" chip</td><td>✅</td></tr>
+<tr><td>5</td><td>Wypisz się</td><td>alertdialog with spec copy; no request until confirm</td><td>✅</td></tr>
+<tr><td>6</td><td>Confirm</td><td>withdraw POST; toast "Wypisano z wydarzenia"</td><td>✅</td></tr>
+<tr><td>7</td><td>Thread / inbox</td><td>"Nie masz dostępu do tej rozmowy."; inbox empty</td><td>✅</td></tr></table>
+<div class="shots"><figure><img class="shot" src="screenshots/10-participant-signed-up-toast.png" alt=""><figcaption>10 signed up</figcaption></figure><figure><img class="shot" src="screenshots/11-participant-event-thread.png" alt=""><figcaption>11 thread</figcaption></figure><figure><img class="shot" src="screenshots/12-participant-inbox-event-chip.png" alt=""><figcaption>12 inbox chip</figcaption></figure><figure><img class="shot" src="screenshots/15-withdraw-confirm-dialog.png" alt=""><figcaption>15 confirm dialog</figcaption></figure><figure><img class="shot" src="screenshots/16-withdrawn-toast.png" alt=""><figcaption>16 withdrawn toast</figcaption></figure><figure><img class="shot" src="screenshots/17-withdrawn-thread-no-access.png" alt=""><figcaption>17 no access</figcaption></figure></div></div>
+
+<div class="card scen"><h3><span class="pass">✅</span> 4.5 Author with attendees: delete blocked</h3>
+<table><tr><th>#</th><th>Action</th><th>Actual</th><th></th></tr>
+<tr><td>1</td><td>2 attendees</td><td>aria-disabled; "Nie można usunąć — zapisały się już 2 osoby."</td><td>✅</td></tr>
+<tr><td>2</td><td>Force-click Usuń</td><td>No dialog</td><td>✅</td></tr>
+<tr><td>3</td><td>1 attendee</td><td>"Nie można usunąć — zapisała się już 1 osoba."</td><td>✅</td></tr>
+<tr><td>4</td><td>Author inbox</td><td>"Wydarzenie" chip, 1 unread, nav badge</td><td>✅</td></tr></table>
+<div class="shots"><figure><img class="shot" src="screenshots/13-author-delete-blocked-2.png" alt=""><figcaption>13 blocked (2)</figcaption></figure><figure><img class="shot" src="screenshots/19-author-delete-blocked-1.png" alt=""><figcaption>19 blocked (1)</figcaption></figure><figure><img class="shot" src="screenshots/20-author-inbox-event.png" alt=""><figcaption>20 author inbox</figcaption></figure></div></div>
+
+<div class="card scen"><h3><span class="pass">✅</span> 4.6 Spotkania "Biorę udział"</h3>
+<p>Event listed with href <code>/k-ac16defb20c2/event/64292a46-…</code>, no pencil. After withdraw: "Nie masz jeszcze żadnych zapisów."</p>
+<div class="shots"><figure><img class="shot" src="screenshots/14-meetings-attending-event.png" alt=""><figcaption>14 Biorę udział</figcaption></figure></div></div>
+
+<div class="card scen"><h3><span class="pass">✅</span> 4.7 Ended event</h3>
+<p>A disabled "Wydarzenie się zakończyło" footer for logged-in non-author and anonymous viewers; the author sees the author card with no footer. API: sign-up after end gives 409; author sign-up gives 409.</p>
+<div class="shots"><figure><img class="shot" src="screenshots/21-ended-event-logged-in.png" alt=""><figcaption>21 ended (logged in)</figcaption></figure><figure><img class="shot" src="screenshots/22-ended-event-anonymous.png" alt=""><figcaption>22 ended (anonymous)</figcaption></figure></div></div>
+
+<div class="card scen"><h3>⚠️ 4.8 Old route removed, edit route kept</h3>
+<p><code>/events/&lt;id&gt;</code> shows React Router's default 404 error page (accepted risk, Minor-1). <code>/events/&lt;id&gt;/edit</code> loads prefilled, with the back link to the slug URL.</p>
+<div class="shots"><figure><img class="shot" src="screenshots/23-old-route-events-id.png" alt=""><figcaption>23 old route</figcaption></figure><figure><img class="shot" src="screenshots/24-edit-route-still-works.png" alt=""><figcaption>24 edit route</figcaption></figure></div></div>
+
+<div class="card scen"><h3><span class="pass">✅</span> 4.9 Backslash in event name</h3>
+<p>"E2E Swap \o/ 135502": direct load and reload on :5173 return 200; the backend OG route on :8080 returns 200 with <code>&lt;title&gt;E2E Swap \o/ 135502&lt;/title&gt;</code>.</p>
+<div class="shots"><figure><img class="shot" src="screenshots/25-backslash-event-refresh.png" alt=""><figcaption>25 backslash refresh</figcaption></figure></div></div>
+
+<div class="card scen"><h3><span class="pass">✅</span> 4.10 OG preview</h3>
+<table><tr><th>Request</th><th>Result</th></tr>
+<tr><td>GET /k-ac16defb20c2/event/64292a46-…</td><td>title/og:title "E2E Piknik wymiany 135502"; og:description "sob 07.11 o 18:00 · E2E Park testowy Wymiana ubranek…"</td></tr>
+<tr><td>Invalid UUID</td><td>Plain index (<code>&lt;title&gt;aj&lt;/title&gt;</code>)</td></tr>
+<tr><td>/api/event/&lt;uuid&gt;</td><td>404 JSON</td></tr>
+<tr><td>/api/events/&lt;id&gt; anonymous / garbage token</td><td>200 / 200</td></tr>
+<tr><td>og:image</td><td>Not verifiable (no banner)</td></tr></table></div>
+
+<h2 id="discrepancies">Discrepancies</h2>
+<div class="card"><table>
+<tr><th>Severity</th><th>Finding</th><th>Fix</th></tr>
+<tr><td><span class="sev info">cosmetic</span></td><td><b>Cosmetic-1</b>: merge card shows an empty band and a divider above the title (mockup: divider between hint and fields). <a href="screenshots/07b-guest-merge-card-full.png">evidence</a></td><td>Drop/override <code>AccountMergeForm</code>'s top border inside <code>EventGuestMergeCard</code></td></tr>
+<tr><td><span class="sev warning">minor</span></td><td><b>Minor-1</b>: <code>/events/&lt;id&gt;</code> shows React Router's developer error page (accepted in spec)</td><td>Follow-up app-level <code>errorElement</code></td></tr>
+<tr><td><span class="sev warning">minor</span></td><td><b>Minor-2</b>: og:description keeps a raw newline from the description</td><td>Optionally collapse whitespace</td></tr>
+<tr><td><span class="sev warning">minor</span></td><td><b>Minor-3</b>: first withdraw attempt ended withdrawn with no observed confirm click; not reproducible (controlled re-run correct)</td><td>None; optional manual spot-check</td></tr>
+</table><p style="font-size:12px;color:var(--dim)">Critical: none observed · Major: none observed</p></div>
+
+<h2 id="console">Console &amp; Network Errors</h2>
+<div class="card"><table>
+<tr><th>Source</th><th>Message</th><th>Frequency</th><th>Severity</th></tr>
+<tr><td>/api/organizations/mine</td><td>404</td><td>Every authenticated app load (no Organization)</td><td><span class="sev warning">minor</span> pre-existing</td></tr>
+<tr><td>react-router-dom</td><td>No routes matched /events/&lt;id&gt; + default ErrorBoundary</td><td>Old route only</td><td><span class="sev warning">minor</span> expected</td></tr>
+<tr><td>:8080/favicon.ico</td><td>404</td><td>Once</td><td><span class="sev info">cosmetic</span></td></tr>
+</table><p>No console errors on any event page, sheet, thread, inbox or Spotkania screen.</p></div>
+
+<h2 id="alignment">Spec Alignment</h2>
+<div class="card">
+<p><b>Fully implemented:</b> public detail without 401; logged-in and guest sign-up; blank-name validation; 409 after end and for author; withdraw with confirm; slug URLs everywhere observed; EVENT chat (header, inbox chip, unread, revoked on withdraw); OG title/description and reserved-slug guard; route changes; Spotkania; post-create toast via router state; gender-neutral copy; Miejsce block.</p>
+<p><b>Partially implemented:</b> none observed. <b>Not implemented:</b> none observed.</p>
+<p><b>Extra:</b> the page renders inside the app shell (search bar, bottom nav) for all viewers; the mockups show a bare page.</p></div>
+
+<h2 id="variances">Variances from Plan</h2>
+<div class="card"><ul>
+<li>Banner skipped (no storage keys locally), so banner render and <code>og:image</code> are unverified.</li>
+<li>No listed items for test users, so item rows, thumbs, mode labels and "Pokaż wszystkie/Zwiń" are unverified.</li>
+<li>No Organization, so the org chip and theme are unverified (chip absence for org=null verified).</li>
+<li>Ended event made by starting in the current minute; the attendee+ended variant was unreachable.</li>
+<li>Plural for 5+ attendees not exercised.</li>
+<li>Moderation accepted all names.</li></ul></div>
+
+<h2 id="exit">Exit Criteria</h2>
+<div class="card"><table>
+<tr><th>Criterion</th><th>Status</th><th>Evidence</th></tr>
+<tr><td>7 binding screens render; /events/&lt;id&gt; no longer a page route</td><td>✅</td><td>§4.1–4.8</td></tr>
+<tr><td>Guest sign-up, merge, logged-in sign-up, withdraw; 409 after end and for author</td><td>✅</td><td>§4.3, 4.4, 4.7</td></tr>
+<tr><td>Detail query count independent of participants/items</td><td>✅</td><td>Backend tests (not E2E-observable)</td></tr>
+<tr><td>EVENT chat: access, inbox, unread; delete cascade</td><td>✅</td><td>§4.4, 4.5 (cascade not exercised in UI)</td></tr>
+<tr><td>Migration 0071 up/down</td><td>✅</td><td>Not E2E-observable; DB at head</td></tr>
+<tr><td>author_slug on every EventResponse; slug links everywhere</td><td>✅</td><td>API responses, Spotkania, edit links</td></tr>
+<tr><td>OG preview with title, date, banner</td><td>⚠️</td><td>Title + date only; banner unverifiable</td></tr>
+<tr><td>Attended events in Spotkania</td><td>✅</td><td>§4.6</td></tr>
+</table></div>
+
+<h2 id="recs">Recommendations</h2>
+<div class="card"><ul>
+<li><b>Must fix before merge:</b> none.</li>
+<li><b>Should fix soon:</b> Cosmetic-1.</li>
+<li><b>Nice-to-have:</b> Minor-2, Minor-1 follow-up, Minor-3 spot-check; manually check items/banner/org chip on a seeded account.</li></ul></div>
+
+<h2>Conclusion</h2>
+<div class="verdict">GO WITH CAVEATS: merge, optionally after the merge-card divider fix, and spot-check the data-dependent surfaces on a seeded account.</div>
+</main>
+</body>
+</html>

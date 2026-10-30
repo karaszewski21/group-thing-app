@@ -46,14 +46,61 @@ class EventResponse(BaseModel):
     location: LocationRefResponse | None
     created_at: datetime
     updated_at: datetime
+    author_slug: str
+
+
+class EventOrganizationResponse(BaseModel):
+    """The author's own Organization: its name and stored theme colors."""
+
+    name: str
+    primary_color: str | None
+    accent_color: str | None
+    palette_preset: str | None
+
+
+class EventParticipantItemResponse(BaseModel):
+    item_id: uuid.UUID
+    product_name: str
+    mode: str
+    thumb_url: str | None
+
+
+class EventParticipantResponse(BaseModel):
+    party_id: uuid.UUID
+    display_name: str
+    is_author: bool
+    is_me: bool
+    items: list[EventParticipantItemResponse]
 
 
 class EventDetailResponse(EventResponse):
-    """The event page: the public event plus what the page needs around it."""
+    """The event page: the public event plus what the page needs around it.
+    `participants` lists the author first, then active attendees in sign-up
+    order; `attendee_count` excludes the author."""
 
     banner_url: str | None
     attendee_count: int
     is_author: bool
+    author_display_name: str
+    organization: EventOrganizationResponse | None
+    participants: list[EventParticipantResponse]
+    is_attending: bool
+    has_ended: bool
+
+
+class EventAttendanceRequest(BaseModel):
+    """`guest_name` is needed only without an account and ignored otherwise."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    guest_name: str | None = None
+
+
+class EventAttendanceResponse(BaseModel):
+    id: uuid.UUID
+    event_id: uuid.UUID
+    user_profile_id: uuid.UUID
+    attached_to_account: bool
 
 
 class EventBannerResponse(BaseModel):

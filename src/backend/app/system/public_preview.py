@@ -1,7 +1,7 @@
 """Server-rendered `<head>` meta tags (Open Graph / Twitter Card) for the
-two shareable public pages — a circle/term (`/:slug/group/:groupId` and
-`/:slug/group/:groupId/term/:termId`) and an organization
-(`/:slug`) — injected into the same built `index.html` shell the SPA
+shareable public pages — a circle/term (`/:slug/group/:groupId` and
+`/:slug/group/:groupId/term/:termId`), an event (`/:slug/event/:eventId`)
+and an organization (`/:slug`) — injected into the same built `index.html` shell the SPA
 hydrates from.
 
 Link-unfurling bots (Messenger, WhatsApp, Slack, Discord, ...) read only
@@ -18,6 +18,8 @@ import html
 import re
 from pathlib import Path
 
+from app.core import clock
+from app.events.models import Event
 from app.groups.schemas import PublicCircleResponse
 from app.organizations.schemas import PublicOrganizationResponse
 
@@ -50,7 +52,9 @@ def _inject(title: str, description: str, image_url: str | None = None) -> str:
         f'<meta name="twitter:description" content="{safe_description}">'
     )
     document = _INDEX_HTML_PATH.read_text(encoding="utf-8")
-    document = _TITLE_TAG_PATTERN.sub(f"<title>{safe_title}</title>", document, count=1)
+    title_tag = f"<title>{safe_title}</title>"
+    # A callable replacement keeps backslashes in user text literal.
+    document = _TITLE_TAG_PATTERN.sub(lambda _: title_tag, document, count=1)
     document = document.replace("</head>", f"{meta_tags}</head>", 1)
     return document
 
@@ -70,3 +74,14 @@ def render_public_organization_meta(
     organization: PublicOrganizationResponse, cover_url: str | None = None
 ) -> str:
     return _inject(organization.name, f"Strona organizacji {organization.name}.", cover_url)
+
+
+def render_public_event_meta(
+    event: Event, place_name: str | None, banner_url: str | None = None
+) -> str:
+    description = clock.format_term_when(event.starts_at)
+    if place_name:
+        description += f" · {place_name}"
+    if event.description:
+        description += f" {event.description}"
+    return _inject(event.name, description, banner_url)

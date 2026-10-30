@@ -40,29 +40,29 @@ Paths below are relative to the repo root. Backend files are under `src/backend/
 **Files to Modify:** src/backend/alembic/versions/0071_event_conversations.py, src/backend/app/messaging/models.py, src/backend/tests/test_event_conversations_migration.py, src/backend/tests/test_messaging_migration.py
 **Estimated Steps:** 6
 
-- [ ] 1.0 Complete database migration layer
-  - [ ] 1.1 Write 2 focused tests in `tests/test_event_conversations_migration.py` and update 1 test
+- [x] 1.0 Complete database migration layer
+  - [x] 1.1 Write 2 focused tests in `tests/test_event_conversations_migration.py` and update 1 test
     - `test_downgradeTo0070ThenUpgradeHead_succeeds`: the event column, both indexes and the FK exist after re-upgrade (pattern: `tests/test_locations_migration.py`, `tests/test_group_soft_delete_migration.py`).
     - `test_insertDuplicateEventConversation_violatesUniqueIndex`: a second `kind='EVENT'` row with the same `event_id` raises `IntegrityError` on `uq_conversations_event_id`.
     - Update `tests/test_messaging_migration.py`: add `"fk_conversations_event_id_events": ("event_id", "events")` to `CONVERSATION_FKS` (6 FKs, M2).
-  - [ ] 1.2 Write the `0071_event_conversations.py` upgrade (revises `0070`)
+  - [x] 1.2 Write the `0071_event_conversations.py` upgrade (revises `0070`)
     - Add nullable `conversations.event_id` UUID.
     - Add FK `fk_conversations_event_id_events` → `events.id` with `ON DELETE CASCADE`.
     - Add partial unique `uq_conversations_event_id` on `(event_id)` `postgresql_where=kind = 'EVENT'`.
     - Add plain `ix_conversations_event_id` for the cascade lookup (L4; mirrors `ix_conversations_group_id`).
     - Drop and recreate `fk_messages_conversation_id_conversations` and `fk_conversation_reads_conversation_id_conversations` with `ondelete="CASCADE"` (names from 0061).
-  - [ ] 1.3 Write the downgrade in reverse dependency order
+  - [x] 1.3 Write the downgrade in reverse dependency order
     - `DELETE FROM conversations WHERE kind = 'EVENT'` while the cascades are still active.
     - Recreate both FKs with no `ON DELETE`.
     - Drop `ix_conversations_event_id`, then `uq_conversations_event_id`, then the FK, then the column.
-  - [ ] 1.4 Align ORM models in `app/messaging/models.py`
+  - [x] 1.4 Align ORM models in `app/messaging/models.py`
     - `ConversationKind.EVENT` (`kind` stays `String(10)`).
     - `Conversation.event_id` (`ForeignKey("events.id", ondelete="CASCADE")`, nullable) plus both `Index` entries in `__table_args__`.
     - `ondelete="CASCADE"` on `Message.conversation_id` and `ConversationRead.conversation_id`; no `relationship()`.
     - Update the docstring to list EVENT.
-  - [ ] 1.5 Check the autogenerate diff is empty
+  - [x] 1.5 Check the autogenerate diff is empty
     - Run `uv run python -m alembic check`, or review an autogenerate run without writing it, so the ORM and 0071 match.
-  - [ ] 1.6 Ensure migration tests pass
+  - [x] 1.6 Ensure migration tests pass
     - Run only `tests/test_event_conversations_migration.py` and `tests/test_messaging_migration.py`.
     - Run ruff and mypy on the touched files.
 
@@ -76,37 +76,37 @@ Paths below are relative to the repo root. Backend files are under `src/backend/
 **Files to Modify:** src/backend/app/organizations/service.py, src/backend/app/groups/domain/organizer_slug.py, src/backend/app/events/infrastructure/users_acl.py, src/backend/app/events/infrastructure/organizations_acl.py, src/backend/app/events/infrastructure/groups_acl.py, src/backend/app/events/service.py, src/backend/app/events/schemas.py, src/backend/app/events/router.py, src/backend/app/events/models.py, src/backend/app/core/authorization_matrix.py, src/backend/tests/test_events.py, src/backend/tests/test_authorization_matrix.py
 **Estimated Steps:** 8
 
-- [ ] 2.0 Complete event slug and attending-list layer
-  - [ ] 2.1 Write 5 focused tests
+- [x] 2.0 Complete event slug and attending-list layer
+  - [x] 2.1 Write 5 focused tests
     - In `tests/test_events.py` (update `EVENT_KEYS` with `author_slug`):
       - `test_createEvent_authorOwnsOrganization_authorSlugIsOrgSlug`
       - `test_createEvent_authorWithoutOrganization_authorSlugMatchesTermOrganizerSlug`: `k-…`, equal to `derive_organizer_slug` for the same party.
       - `test_listAttending_onlyActiveAttendances_orderedByStartsAt`: seeds `event_attendances` rows via SQL plus `await db_session.commit()`, including one withdrawn row that must be excluded.
       - `test_listAttending_eventsByOneVsThreeAuthors_queryCountConstant`: `count_queries(engine)`, M5.
     - In `tests/test_authorization_matrix.py`: `GET /api/events/attending` → READ (and `/mine` still READ).
-  - [ ] 2.2 Add `get_own_organizations_by_party_ids(db, party_ids) -> dict[UUID, Organization]` to `app/organizations/service.py`
+  - [x] 2.2 Add `get_own_organizations_by_party_ids(db, party_ids) -> dict[UUID, Organization]` to `app/organizations/service.py`
     - One statement joining `OrganizationMembership`/`OrganizationRole`/`Organization` with `role_type == OWNER`, `valid_to IS NULL` and `party_id IN (…)`.
     - Return `{}` for empty input without querying. `get_own_organization` is unchanged.
-  - [ ] 2.3 Add `derive_party_slug(party_id, organization_slug)` to `app/groups/domain/organizer_slug.py`
+  - [x] 2.3 Add `derive_party_slug(party_id, organization_slug)` to `app/groups/domain/organizer_slug.py`
     - It returns the org slug, else `_fallback_organizer_slug(f"party:{party_id}")`.
     - `derive_organizer_slug` delegates to it for the party case, with byte-identical output (existing term slug tests must stay green).
-  - [ ] 2.4 Create the events ACL modules under `app/events/infrastructure/`
+  - [x] 2.4 Create the events ACL modules under `app/events/infrastructure/`
     - None of them imports `..schemas`, and each starts with a module docstring stating the ACL rule (L1).
     - `users_acl.py`, the guest identity facade: `find_caller_profile(db, principal|None)` (returns `None` for a missing token or profile), `get_caller_profile`, and the re-exported `AVATAR_UPLOAD_DISABLED_MESSAGE`.
     - `organizations_acl.py`: `get_own_organization(party_id)` and `get_own_organizations_by_party_ids(party_ids)`.
     - `groups_acl.py`: `derive_party_slug`.
-  - [ ] 2.5 Route existing direct imports through the ACLs in `app/events/service.py`
+  - [x] 2.5 Route existing direct imports through the ACLs in `app/events/service.py`
     - Replace the direct `app.users.service` imports (`get_profile_by_principal`, `AVATAR_UPLOAD_DISABLED_MESSAGE`) and the `is_author` lookup with `users_acl`.
     - Shared platform imports (`app.core`, `app.moderation`, `app.outbox`, `app.storage`) stay direct.
-  - [ ] 2.6 Add `author_slug: str` to `EventResponse` and add `resolve_author_slugs(db, author_party_ids) -> dict`
+  - [x] 2.6 Add `author_slug: str` to `EventResponse` and add `resolve_author_slugs(db, author_party_ids) -> dict`
     - `resolve_author_slugs` makes one `organizations_acl.get_own_organizations_by_party_ids` call and feeds the results to `groups_acl.derive_party_slug`.
     - Wire it into the create, patch and mine responses.
-  - [ ] 2.7 Add `list_attending_events` and the `/attending` route
+  - [x] 2.7 Add `list_attending_events` and the `/attending` route
     - `service.list_attending_events(db, principal)`: `Event` JOIN active `EventAttendance` (`withdrawn_at IS NULL`) for the caller's party, ordered by `starts_at` then `id`.
     - `GET /api/events/attending` (`ReadPrincipal`) is declared before `/{event_id}` and returns `list[EventResponse]` with locations batched via `locations_acl` and slugs via `resolve_author_slugs`.
     - Matrix: replace the `/mine` row with `GET ^/api/events/(mine|attending)$` → READ, mcp:read, above any PUBLIC detail row.
     - Update the `EventAttendance` docstring in `models.py` to name its writers and readers (L5).
-  - [ ] 2.8 Ensure Group 2 tests pass
+  - [x] 2.8 Ensure Group 2 tests pass
     - Run only `tests/test_events.py` and `tests/test_authorization_matrix.py` (plus the existing organizer-slug tests in groups, if present, to prove `derive_organizer_slug` is unchanged).
     - Run ruff and mypy on the touched modules.
 
@@ -120,8 +120,8 @@ Paths below are relative to the repo root. Backend files are under `src/backend/
 **Files to Modify:** src/backend/app/events/service.py, src/backend/app/events/schemas.py, src/backend/app/events/router.py, src/backend/app/events/infrastructure/users_acl.py, src/backend/app/core/authorization_matrix.py, src/backend/tests/test_event_attendance.py, src/backend/tests/test_authorization_matrix.py
 **Estimated Steps:** 9
 
-- [ ] 3.0 Complete attendance command layer
-  - [ ] 3.1 Write 7 focused tests
+- [x] 3.0 Complete attendance command layer
+  - [x] 3.1 Write 7 focused tests
     - In `tests/test_event_attendance.py`, using `freeze_local_now` and exact key sets for `EventAttendanceResponse`:
       - `test_signUp_loggedInTwice_returns201SameAttendance`
       - `test_signUp_guestName_createsUnattachedProfile_blankNameReturns400`
@@ -130,30 +130,30 @@ Paths below are relative to the repo root. Backend files are under `src/backend/
       - `test_withdraw_twice_returns204_thenSignUpAgainSucceeds`
       - `test_withdraw_withoutToken_returns401`
     - In `tests/test_authorization_matrix.py`: `POST …/attendances` → PUBLIC, `POST …/attendances/withdraw` → EDIT (one parametrized case).
-  - [ ] 3.2 Add schemas
+  - [x] 3.2 Add schemas
     - `EventAttendanceRequest` (`model_config = ConfigDict(extra="forbid")`, `guest_name: str | None = None`).
     - `EventAttendanceResponse` (`id`, `event_id`, `user_profile_id`, `attached_to_account`).
-  - [ ] 3.3 Add the shared `has_ended(event)` and Polish error constants
+  - [x] 3.3 Add the shared `has_ended(event)` and Polish error constants
     - `has_ended(event)`: `clock.local_now() >= (ends_at or starts_at)`.
     - Constants: `EVENT_ENDED_MESSAGE` ("Wydarzenie się zakończyło."), `AUTHOR_SIGN_UP_MESSAGE` ("Organizator nie zapisuje się na własne wydarzenie."), and the guest-name messages ("Podaj swoje imię.", "Imię może mieć najwyżej 255 znaków.").
-  - [ ] 3.4 Add `users_acl.create_guest_profile(db, name)`
+  - [x] 3.4 Add `users_acl.create_guest_profile(db, name)`
     - Same shape as `create_rsvp`: new party → `UserProfile(account_user_id=None)` → `create_solo_family_for_party`, with the deferred families import.
-  - [ ] 3.5 Implement `service.sign_up(db, principal|None, event_id, guest_name)`
+  - [x] 3.5 Implement `service.sign_up(db, principal|None, event_id, guest_name)`
     - Load the event `with_for_update(read=True)` (404, L3), then 409 if it has ended.
     - Classify the caller via `users_acl.find_caller_profile`:
       - Account-backed caller: 409 for the author; return the existing active row; otherwise insert inside `begin_nested` and re-select on `IntegrityError`.
       - Anonymous caller (also an invalid or expired token, L9): trim, blank → 400, over 255 → 400, `check_text(TextField.PROFILE_NAME, name)`, `create_guest_profile`, insert.
     - Commit.
-  - [ ] 3.6 Implement `service.withdraw(db, principal, event_id)`
+  - [x] 3.6 Implement `service.withdraw(db, principal, event_id)`
     - 404 for an unknown event, then `get_caller_profile` (401), then `withdrawn_at = datetime.utcnow()` on the active row if one exists. Commit. Idempotent (template: `groups/application/attendance.withdraw_attendance`).
-  - [ ] 3.7 Add routes in `app/events/router.py`
+  - [x] 3.7 Add routes in `app/events/router.py`
     - `POST /api/events/{id}/attendances` (`OptionalPrincipal`, 201 also when idempotent).
     - `POST /api/events/{id}/attendances/withdraw` (`EditPrincipal`, 204).
-  - [ ] 3.8 Add matrix rows in the spec order
+  - [x] 3.8 Add matrix rows in the spec order
     - `POST ^/api/events/[^/]+/attendances$` → PUBLIC, anchored so withdraw never matches, placed before the EDIT rows.
     - `POST ^/api/events/[^/]+/attendances/withdraw$` → EDIT, mcp:edit.
     - Keep the existing PATCH/DELETE/create/banner rows unchanged.
-  - [ ] 3.9 Ensure attendance tests pass
+  - [x] 3.9 Ensure attendance tests pass
     - Run only `tests/test_event_attendance.py` and `tests/test_authorization_matrix.py`.
     - Run ruff and mypy on the touched modules.
 
@@ -167,8 +167,8 @@ Paths below are relative to the repo root. Backend files are under `src/backend/
 **Files to Modify:** src/backend/app/events/page.py, src/backend/app/events/schemas.py, src/backend/app/events/router.py, src/backend/app/events/service.py, src/backend/app/events/infrastructure/users_acl.py, src/backend/app/events/infrastructure/groups_acl.py, src/backend/app/events/infrastructure/circulation_acl.py, src/backend/app/events/infrastructure/product_acl.py, src/backend/app/groups/infrastructure/repository.py, src/backend/app/groups/service.py, src/backend/app/system/router.py, src/backend/app/system/public_preview.py, src/backend/app/organizations/slugs.py, src/backend/tests/test_event_page.py, src/backend/tests/test_public_preview.py
 **Estimated Steps:** 9
 
-- [ ] 4.0 Complete public detail and preview layer
-  - [ ] 4.1 Write 8 focused tests
+- [x] 4.0 Complete public detail and preview layer
+  - [x] 4.1 Write 8 focused tests
     - In `tests/test_event_page.py` (update `DETAIL_KEYS` to the exact spec set, plus exact participant and item key sets):
       - `test_getEvent_withAttendees_authorFirstThenSignUpOrder_isMeAndIsAuthorFlags`
       - `test_getEvent_participantItems_onlyAvailableListedItems`
@@ -179,19 +179,19 @@ Paths below are relative to the repo root. Backend files are under `src/backend/
       - `test_eventPreview_rendersTitleAndOgImage`
       - `test_eventPreview_invalidUuid_returnsPlainIndex`
       - `test_eventPreview_reservedFirstSegment_notServedByPreview` (`/api/event/<uuid>` keeps its JSON 404, L10)
-  - [ ] 4.2 Add the unexecuted listing-preference select in `app/groups/infrastructure/repository.py`
+  - [x] 4.2 Add the unexecuted listing-preference select in `app/groups/infrastructure/repository.py`
     - `item_listing_preferences_select(party_ids)` returning `(item_id, owner_party_id, mode)`; re-export it from `app.groups.service`.
-  - [ ] 4.3 Extend the ACLs
+  - [x] 4.3 Extend the ACLs
     - `groups_acl.item_listing_preferences_select`.
     - `circulation_acl.available_items_select()` wrapping `available_items_with_product_select`.
     - `product_acl.first_approved_photo_by_product`.
     - `users_acl.list_display_names(party_ids) -> {party_id: (name, has_account)}` via `list_chat_profiles_by_party_ids` (one IN query).
-  - [ ] 4.4 Add detail schemas in `app/events/schemas.py`
+  - [x] 4.4 Add detail schemas in `app/events/schemas.py`
     - `EventOrganizationResponse` (`name`, `primary_color`, `accent_color`, `palette_preset`).
     - `EventParticipantItemResponse` (`item_id`, `product_name`, `mode`, `thumb_url`).
     - `EventParticipantResponse` (`party_id`, `display_name`, `is_author`, `is_me`, `items`).
     - `EventDetailResponse(EventResponse)` adds exactly `banner_url`, `attendee_count`, `is_author`, `author_display_name`, `organization`, `participants`, `is_attending`, `has_ended`. Keep `location` as `LocationRefResponse`.
-  - [ ] 4.5 Implement `app/events/page.get_event_page(db, event_id, principal|None, storage)`
+  - [x] 4.5 Implement `app/events/page.get_event_page(db, event_id, principal|None, storage)`
     - Load in this order:
       1. Event (404)
       2. Banner
@@ -203,14 +203,14 @@ Paths below are relative to the repo root. Backend files are under `src/backend/
       8. Items: one statement joining the listing-preference select with the available-items select, ordered by product name `COLLATE "C"`, then item id
       9. Thumbnails: one query, skipped when storage is `None`
     - Author first, unresolved attendee profiles skipped, and `attendee_count`/`is_attending`/`is_me` derived in memory.
-  - [ ] 4.6 Switch `GET /api/events/{id}` (`OptionalPrincipal`) to `page.get_event_page`
+  - [x] 4.6 Switch `GET /api/events/{id}` (`OptionalPrincipal`) to `page.get_event_page`
     - Confirm the PUBLIC matrix row `GET ^/api/events/[^/]+$` sits below the `(mine|attending)` row. Never return 401 for a bad token.
-  - [ ] 4.7 Add the OG preview
+  - [x] 4.7 Add the OG preview
     - `service.get_event_preview(db, event_id, storage)` returns the event, place name and w1600 banner URL.
     - `public_preview.render_public_event_meta`: title = name; description = `clock.format_term_when(starts_at)` + ` · {place}` + ` {description}`; `og:image` = banner.
     - `app/system/router.py`: `GET /{organization_slug}/event/{event_id}` placed before `/{organization_slug}`. It delegates to `spa_fallback` for reserved or dotted first segments, and returns the plain index for an invalid UUID or unknown event.
-  - [ ] 4.8 Add "event" to the second-segment group of `RESERVED_SLUGS` in `app/organizations/slugs.py`
-  - [ ] 4.9 Ensure detail and preview tests pass
+  - [x] 4.8 Add "event" to the second-segment group of `RESERVED_SLUGS` in `app/organizations/slugs.py`
+  - [x] 4.9 Ensure detail and preview tests pass
     - Run only `tests/test_event_page.py` and `tests/test_public_preview.py`.
     - Run ruff and mypy on the touched modules.
 
@@ -225,43 +225,43 @@ Paths below are relative to the repo root. Backend files are under `src/backend/
 **Files to Modify:** src/backend/app/events/service.py, src/backend/app/messaging/infrastructure/events_acl.py, src/backend/app/messaging/application/access.py, src/backend/app/messaging/application/conversations.py, src/backend/app/messaging/application/inbox.py, src/backend/app/messaging/infrastructure/repository.py, src/backend/app/messaging/schemas.py, src/backend/app/messaging/router.py, src/backend/app/messaging/service.py, src/backend/app/core/authorization_matrix.py, src/backend/tests/test_event_conversations.py, src/backend/tests/test_authorization_matrix.py
 **Estimated Steps:** 9
 
-- [ ] 5.0 Complete EVENT chat layer
-  - [ ] 5.1 Write 5 focused tests
+- [x] 5.0 Complete EVENT chat layer
+  - [x] 5.1 Write 5 focused tests
     - In `tests/test_event_conversations.py`:
       - `test_openEventConversation_firstThenSecond_returns201Then200`
       - `test_openEventConversation_access_authorAndAttendeeOk_withdrawnGets403_anonymousGets401`
       - `test_inbox_mixedKinds_showsEventTitleAndUnreadCount`
       - `test_deleteEvent_afterWithdrawals_cascadesConversationMessagesAndReads`
     - In `tests/test_authorization_matrix.py`: `POST /api/conversations/event` → EDIT (L8).
-  - [ ] 5.2 Add chat-support reads to `app/events/service.py`
+  - [x] 5.2 Add chat-support reads to `app/events/service.py`
     - `has_active_attendance(event_id, party_id)`
     - `list_active_attendee_party_ids(event_id)`
     - `list_chat_event_ids_for_party(party_id)`: authored ∪ actively attended, one statement
     - `list_chat_event_refs(event_ids) -> {id: (name, author_party_id)}`: one IN query, `{}` for empty input
     - `app/events` never imports messaging.
-  - [ ] 5.3 Create `app/messaging/infrastructure/events_acl.py`
+  - [x] 5.3 Create `app/messaging/infrastructure/events_acl.py`
     - Re-exports `Event`, `get_event` and the four functions above. It is the only place messaging touches events.
-  - [ ] 5.4 Update `application/access.py`
+  - [x] 5.4 Update `application/access.py`
     - `Access.event: events_acl.Event | None = None`.
     - `event_access`: author or active attendee, else 403; `read_only_reason=None`; `organizer_party_id = author_party_id`.
     - `resolve_access` gets explicit TERM and EVENT branches, replacing the fall-through `assert term_id`.
-  - [ ] 5.5 Update `infrastructure/repository.py`
+  - [x] 5.5 Update `infrastructure/repository.py`
     - Add `find_event_conversation`.
     - `_audience_filter`, `select_inbox_rows` and `sum_unread` take `event_ids` with a `kind = 'EVENT' AND event_id IN (…)` clause (skipped when empty).
-  - [ ] 5.6 Update `application/conversations.py`
+  - [x] 5.6 Update `application/conversations.py`
     - `open_event_conversation`: get event → 404, `event_access`, find or `_insert_or_reselect`.
     - `_to_response` EVENT branch before the group assert: title = event name; `group_name`/`term_occurs_on` null; `participant_count` = account-backed author + active attendees.
-  - [ ] 5.7 Update `application/inbox.py`
+  - [x] 5.7 Update `application/inbox.py`
     - `list_inbox`/`count_unread` fetch `event_ids` via `events_acl.list_chat_event_ids_for_party`.
     - `_Labels.event_refs`; `_to_row` EVENT branch (title = name, organizer = author, reason `None`).
     - Update the docstring statement count.
-  - [ ] 5.8 Wire the endpoint
+  - [x] 5.8 Wire the endpoint
     - `schemas.OpenEventConversationRequest{event_id}`.
     - `router` `POST /event` via `_respond` (201 when created, 200 when it exists).
     - `service` re-exports `open_event_conversation`.
     - Matrix row 54 comment lists `/event`.
     - Update the messaging docstrings ("GROUP, TERM and EVENT").
-  - [ ] 5.9 Ensure messaging tests pass
+  - [x] 5.9 Ensure messaging tests pass
     - Run `tests/test_event_conversations.py` and `tests/test_authorization_matrix.py`.
     - As a regression guard for the kind switches, also run the existing `tests/test_conversation_messages.py`, `tests/test_messaging_repository.py` and `tests/test_messaging_cross_context.py`.
     - Run ruff and mypy on the touched modules.
@@ -276,31 +276,31 @@ Paths below are relative to the repo root. Backend files are under `src/backend/
 **Files to Modify:** src/frontend/src/api/events.ts, src/frontend/src/api/conversations.ts, src/frontend/src/hooks/useOpenConversation.ts, src/frontend/src/hooks/useEvent.ts, src/frontend/src/hooks/useAttendingEvents.ts, src/frontend/src/utils/appHelpers.ts, src/frontend/src/test/useEvent.test.tsx, src/frontend/src/test/useOpenConversation.test.tsx, src/frontend/src/test/AppPage.test.tsx, src/frontend/src/test/eventDraft.test.ts, src/frontend/src/test/EventPage.test.tsx, src/frontend/src/test/eventViewState.test.ts
 **Estimated Steps:** 7
 
-- [ ] 6.0 Complete frontend data layer
-  - [ ] 6.1 Write 5 focused tests
+- [x] 6.0 Complete frontend data layer
+  - [x] 6.1 Write 5 focused tests
     - In `src/test/useEvent.test.tsx` (`createQueryWrapper`, `vi.mock("../api/events")`):
       - token change keeps the previous data with `isStale: true` until the refetch resolves
       - a failed refresh keeps the data and exposes `refreshError`
       - `signUp(guestName)` posts `guest_name` and awaits invalidation of `[EVENT_KEY]`, `[MY_EVENTS_KEY]` and `[ATTENDING_EVENTS_KEY]`
       - `withdraw()` also invalidates `CONVERSATIONS_KEY` (L7)
     - In `src/test/useOpenConversation.test.tsx`: EVENT posts to `/conversations/event`.
-  - [ ] 6.2 Update `api/events.ts`
+  - [x] 6.2 Update `api/events.ts`
     - Add `author_slug` to `EventResponse` and the new `EventDetailResponse` keys mirroring the backend.
     - New types: `EventOrganization` (extends `OrganizerTheme` with `name`), `EventParticipant`, `EventParticipantItem` (`mode: ListingMode`), `EventAttendanceResponse`.
     - New functions: `signUpForEvent(eventId, { guest_name })`, `withdrawFromEvent`, `getAttendingEvents`, and `eventGuestProfileKey(eventId)` → `guest_profile_id:event:<id>`.
-  - [ ] 6.3 Update `api/conversations.ts` and `hooks/useOpenConversation.ts`
+  - [x] 6.3 Update `api/conversations.ts` and `hooks/useOpenConversation.ts`
     - `ConversationKind` adds "EVENT"; add `getOrCreateEventConversation(eventId)` and `GET_OR_CREATE.EVENT`.
     - Comments become "GROUP, TERM and EVENT".
-  - [ ] 6.4 Rework `hooks/useEvent.ts` to the `useTermAccess` `forToken`/`isStale` pattern
+  - [x] 6.4 Rework `hooks/useEvent.ts` to the `useTermAccess` `forToken`/`isStale` pattern
     - Key `[EVENT_KEY, eventId]`; the `queryFn` returns `{ data, forToken }`; a `useRef`/`useEffect` refetches on token change.
     - Return `isStale` and `refreshError`, plus `signUp(guestName | null)`/`withdraw()` mutations that pass errors through `extractProblemMessage`.
-  - [ ] 6.5 Add `hooks/useAttendingEvents.ts` and `eventPath`
+  - [x] 6.5 Add `hooks/useAttendingEvents.ts` and `eventPath`
     - `useAttendingEvents`: key `["attendingEvents", token]`, enabled when logged in, app-shaped return with a module-level empty fallback.
     - `utils/appHelpers.eventPath(organizerSlug, eventId)` → `/${slug}/event/${id}`; `eventEditPath` is unchanged.
-  - [ ] 6.6 Patch existing typed fixtures for the new required keys (fixture-only, no behaviour change)
+  - [x] 6.6 Patch existing typed fixtures for the new required keys (fixture-only, no behaviour change)
     - Files: `AppPage.test.tsx` (`EVENT`, `EVENT_FIXTURE`), `eventDraft.test.ts`, `EventPage.test.tsx`, `eventViewState.test.ts`.
     - Keys: `author_slug`, `organization`, `participants`, `is_attending`, `has_ended`, `author_display_name`. No `as` casts.
-  - [ ] 6.7 Ensure data-layer tests pass
+  - [x] 6.7 Ensure data-layer tests pass
     - Run only `src/test/useEvent.test.tsx` and `src/test/useOpenConversation.test.tsx`.
     - Run `npx tsc -p tsconfig.app.json --noEmit` (it must stay green).
 
@@ -347,25 +347,25 @@ Paths below are relative to the repo root. Backend files are under `src/backend/
   acceptance: `ended` variant is a disabled "Wydarzenie się zakończyło" button
 **Estimated Steps:** 7
 
-- [ ] 7.0 Complete event presentational components
-  - [ ] 7.1 Write 6 focused tests in `src/test/EventComponents.test.tsx` (`renderWithProviders`, typed fixtures, fake `Date` only)
+- [x] 7.0 Complete event presentational components
+  - [x] 7.1 Write 6 focused tests in `src/test/EventComponents.test.tsx` (`renderWithProviders`, typed fixtures, fake `Date` only)
     - `EventWhenCard` renders the "godz. 11:00–15:00" range and falls back to "godz. 11:00" with no end
     - `EventAttendeeList` puts the author first with "Organizator" and the `is_me` row with "To Ty"
     - item links point to `/<slug>/product/<id>` with the mode labels
     - "Pokaż wszystkie (n)" toggles `aria-expanded` and shows every item
     - the empty-state copy renders when there are no attendees
     - `EventFooter` renders `signUp`/`withdraw`/`ended` (disabled) variants with the exact copy
-  - [ ] 7.2 Create `EventWhenCard.tsx` as a copy of `TermCard` adapted to the start–end range
+  - [x] 7.2 Create `EventWhenCard.tsx` as a copy of `TermCard` adapted to the start–end range
     - Reuse `buildMapsUrl`, `AddToCalendarButton`, `dayjs` from `utils/dayjs`, and an `onCopyLink` prop.
-  - [ ] 7.3 Create `EventAttendeeList.tsx` (`participants`, `authorSlug` props)
+  - [x] 7.3 Create `EventAttendeeList.tsx` (`participants`, `authorSlug` props)
     - Reuse `Avatar`, `SafeImage`, `PhotoPlaceholder` and `organizerItemPath`. Expansion state is local per row.
-  - [ ] 7.4 Create `EventChatRow.tsx`
+  - [x] 7.4 Create `EventChatRow.tsx`
     - Props `onOpen`, `busy`, `error`; `CHAT_BUTTON` classes, copied rather than imported if `ChatRow` is not exported.
-  - [ ] 7.5 Create `EventFooter.tsx` with a discriminated `variant: "signUp" | "withdraw" | "ended"`
+  - [x] 7.5 Create `EventFooter.tsx` with a discriminated `variant: "signUp" | "withdraw" | "ended"`
     - Props `onSignUp`/`onWithdraw`/`busy`; sticky layout as in `TermFooter`.
-  - [ ] 7.6 Use only `uiStyles` classes and `@theme` tokens
+  - [x] 7.6 Use only `uiStyles` classes and `@theme` tokens
     - No new custom CSS, mobile-first, sr-only spacing per accessibility.md. Term components are not modified.
-  - [ ] 7.7 Ensure component tests pass
+  - [x] 7.7 Ensure component tests pass
     - Run only `src/test/EventComponents.test.tsx` and `tsc`.
 
 **Acceptance Criteria:**
@@ -407,8 +407,8 @@ Paths below are relative to the repo root. Backend files are under `src/backend/
   acceptance: organizer row always shown with the empty copy; the anonymous footer is "＋ Zapisz się na wydarzenie" (M3 overrides the mockup's "Zaloguj się, żeby się zapisać")
 **Estimated Steps:** 9
 
-- [ ] 8.0 Complete event page composition
-  - [ ] 8.1 Write 8 focused tests
+- [x] 8.0 Complete event page composition
+  - [x] 8.1 Write 8 focused tests
     - In `src/test/eventViewState.test.ts`: one `it.each` table (rewritten) covering `loading`, `notFound`, `error`, `author`, `attendee`, `guestAttendee` and `visitor` (ended and not), plus the M4 rows:
       - anonymous → logged-in `isStale` → `refreshing`
       - author → logged-out `isStale` → `refreshing`
@@ -422,32 +422,32 @@ Paths below are relative to the repo root. Backend files are under `src/backend/
       - attendee sees the chat row and "Wypisz się" confirm → withdraw
       - author card with no footer
       - ended footer disabled
-  - [ ] 8.2 Rewrite `pages/events/eventViewState.ts` `resolveEventView`
+  - [x] 8.2 Rewrite `pages/events/eventViewState.ts` `resolveEventView`
     - Inputs: `data`, `loading`, `notFound`, `error`, `isStale`, `isLoggedIn`, `guestProfileId`.
     - Union per spec, including the read-only `refreshing`. 404 wins.
     - Export `EventContentView = Extract<…, { event }>`.
-  - [ ] 8.3 Create `pages/events/hooks/useEventSignUp.ts`
+  - [x] 8.3 Create `pages/events/hooks/useEventSignUp.ts`
     - `guestProfileId` is seeded from `readValidGuestProfile(eventGuestProfileKey(id))`.
     - `openSignUp`: logged-in → `signUp(null)` + toast "Zapisano na wydarzenie"; anonymous → open the sheet.
     - `submitGuest(name)`: client blank check "Podaj swoje imię."; on success `writeGuestProfile` → close → toast.
     - Withdraw-confirm state.
-  - [ ] 8.4 Create `EventGuestSignUpSheet.tsx` on `ModalSheet`
+  - [x] 8.4 Create `EventGuestSignUpSheet.tsx` on `ModalSheet`
     - `ModalSheet` registers itself with `useRegisterOpenSheet`. Follow the picker-sheet rules in accessibility.md.
-  - [ ] 8.5 Add the merge card and the author card
+  - [x] 8.5 Add the merge card and the author card
     - `AccountMergeForm.tsx`: optional `title`/`hint` props that default to the current Term copy (byte-identical Term rendering).
     - `EventGuestMergeCard.tsx` passes the event copy to it.
-  - [ ] 8.6 Create `EventAuthorCard.tsx`
+  - [x] 8.6 Create `EventAuthorCard.tsx`
     - Extracted from the current `EventPage.tsx` delete flow: `ConfirmDeleteDialog`, the "Nie można usunąć — zapisał… się już N osób." hint, and `aria-disabled` + `aria-describedby` with a handler guard.
-  - [ ] 8.7 Rewrite `EventPage.tsx` as a thin `switch (view.kind)`
+  - [x] 8.7 Rewrite `EventPage.tsx` as a thin `switch (view.kind)`
     - `TermPageSkeleton`, not-found copy, error + retry.
     - Content inside `OrganizerThemeScope theme={event.organization}` + `PAGE_SHELL` in the spec page order. `GroupHeader` gets `organizerSlug` only when `organization !== null` (L6).
     - The chat row (author/attendee) uses `useOpenAndNavigate().open({ kind: "EVENT", id })`. Copy link uses `eventPath`.
     - It owns `useEvent`, `useToast` and `useEventSignUp`, passing callbacks as props.
     - Router-state toast: show it once on mount, then `navigate(pathname, { replace: true, state: null })` (M1).
-  - [ ] 8.8 Update `router.tsx`
+  - [x] 8.8 Update `router.tsx`
     - Remove the `/events/:eventId` page route and add `{ path: "/:organizationSlug/event/:eventId", element: <EventPage/> }` next to the term route (no AuthGuard).
     - Keep `/events/:eventId/edit` and update the comments ("event" is reserved).
-  - [ ] 8.9 Ensure page tests pass
+  - [x] 8.9 Ensure page tests pass
     - Run only `src/test/eventViewState.test.ts` and `src/test/EventPage.test.tsx`, plus the existing Term test files that render `AccountMergeForm`, to prove the copy is unchanged.
     - Run `tsc`.
 
@@ -462,29 +462,29 @@ Paths below are relative to the repo root. Backend files are under `src/backend/
 **Visual References:** this group touches UI that no `design-context/INDEX.md` screen covers (Spotkania, Inbox, Thread, Add/Edit flows). Follow the existing page styling; there is no mockup contract.
 **Estimated Steps:** 7
 
-- [ ] 9.0 Complete app-wide event integration
-  - [ ] 9.1 Write 5 focused tests
+- [x] 9.0 Complete app-wide event integration
+  - [x] 9.1 Write 5 focused tests
     - In `src/test/AppPage.test.tsx`:
       - event card `href`s use `/<author_slug>/event/<id>` (routes updated)
       - "Biorę udział" lists attended events with no edit pencil, and the empty copy is "Nie masz jeszcze żadnych zapisów."
       - create flow (rewrite ~2928–2948, 2983): after save, navigation lands on `/<slug>/event/<id>` with `state.toast`, asserted through a stub event route that renders the router state (M1)
     - In `src/test/InboxPage.test.tsx`: an EVENT row shows the "Wydarzenie" chip and the 🎉 icon.
     - In `src/test/ThreadPage.test.tsx`: an EVENT thread header shows "czat wydarzenia".
-  - [ ] 9.2 Update `TermCards.tsx` `EventCard`
+  - [x] 9.2 Update `TermCards.tsx` `EventCard`
     - The link and copy link use `eventPath(event.author_slug, event.id)`.
     - New `editable?: boolean` (default `true`) hides the pencil.
-  - [ ] 9.3 Update `MeetingsView.tsx`
+  - [x] 9.3 Update `MeetingsView.tsx`
     - Merge `useAttendingEvents().data` into `attending` (sorted by `byDate`) and render `EventCard editable={false}`.
     - The empty copy becomes "Nie masz jeszcze żadnych zapisów." (L8).
-  - [ ] 9.4 Update `EventCreateView.tsx` `finish()`
+  - [x] 9.4 Update `EventCreateView.tsx` `finish()`
     - `navigate(eventPath(event.author_slug, event.id), { state: { toast: savedToast(event) } })`, replacing `/add` + `useAppData().showToast`. This also covers banner-skip.
-  - [ ] 9.5 Update `EventEditView.tsx`
+  - [x] 9.5 Update `EventEditView.tsx`
     - Treat `isStale` like `loading`.
     - The back link and post-save navigation use `eventPath(event.author_slug, …)`, falling back to `viewPath("meetings")` while loading.
-  - [ ] 9.6 Update the Messages UI
+  - [x] 9.6 Update the Messages UI
     - `InboxPage.tsx`: `KIND_CHIP.EVENT = { label: "Wydarzenie", className: "bg-accent-soft text-accent-fg" }`, and `LeadingVisual` EVENT → `RoundIcon` "🎉".
     - `ThreadPage.tsx`: header suffix from a kind → label map (TERM "czat terminu", GROUP "czat grupy", EVENT "czat wydarzenia").
-  - [ ] 9.7 Ensure integration tests pass
+  - [x] 9.7 Ensure integration tests pass
     - Run only `src/test/AppPage.test.tsx`, `src/test/InboxPage.test.tsx` and `src/test/ThreadPage.test.tsx`.
     - Run `tsc`.
     - Grep the frontend source for leftover `/events/${` page links outside `eventEditPath`.
@@ -499,9 +499,9 @@ Paths below are relative to the repo root. Backend files are under `src/backend/
 **Files to Modify:** src/backend/tests/test_event_attendance.py, src/backend/tests/test_event_page.py, src/backend/tests/test_event_conversations.py, src/backend/tests/test_events.py, src/frontend/src/test/EventPage.test.tsx, src/frontend/src/test/EventComponents.test.tsx, src/frontend/src/test/useEvent.test.tsx
 **Estimated Steps:** 4
 
-- [ ] 10.0 Review and fill critical gaps
-  - [ ] 10.1 Review the 52 tests from Groups 1–9 against the 14 spec requirements and the success criteria
-  - [ ] 10.2 Analyze gaps for this feature only
+- [x] 10.0 Review and fill critical gaps
+  - [x] 10.1 Review the 52 tests from Groups 1–9 against the 14 spec requirements and the success criteria
+  - [x] 10.2 Analyze gaps for this feature only
     - Candidates:
       - sign-up race against delete → 404 (L3)
       - guest name >255 → 400 and the moderation rejection path
@@ -510,8 +510,8 @@ Paths below are relative to the repo root. Backend files are under `src/backend/
       - `refreshing` view hides footer/author card in `EventPage`
       - logged-in one-click sign-up toast
       - "Kopiuj link" toast
-  - [ ] 10.3 Write up to 10 additional strategic tests in the existing feature test files listed above
-  - [ ] 10.4 Run feature-specific tests only
+  - [x] 10.3 Write up to 10 additional strategic tests in the existing feature test files listed above
+  - [x] 10.4 Run feature-specific tests only
     - All backend `tests/test_event*.py`, `test_messaging_migration.py`, `test_authorization_matrix.py` and `test_public_preview.py`, plus the frontend event/inbox/thread/AppPage/useEvent/useOpenConversation test files. Expect about 52–62 tests.
 
 **Acceptance Criteria:**

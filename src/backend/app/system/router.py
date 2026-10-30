@@ -8,10 +8,11 @@ module's own `/api/health` and the public-preview routes below) is matched
 first by FastAPI's router; only a request no earlier route consumed ever
 reaches the catch-all.
 
-The three public-preview routes sit between those two: they match the same
+The public-preview routes sit between those two: they match the same
 URL shapes the SPA already owns client-side
 (`/:organizationSlug`, `/:organizationSlug/group/:groupId`,
-`/:organizationSlug/group/:groupId/term/:termId` — see `router.tsx`), and
+`/:organizationSlug/group/:groupId/term/:termId`,
+`/:organizationSlug/event/:eventId` — see `router.tsx`), and
 exist only to inject real Open Graph/Twitter meta tags into `index.html`
 for link-unfurling bots (see `public_preview.py`'s module docstring). Any
 input that isn't a real, resolvable slug/circle/term falls straight back to
@@ -41,6 +42,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.errors import EntityNotFoundException, ErrorResponse
 from app.db import get_db
+from app.events import service as events_service
 from app.groups import service as groups_service
 from app.organizations import media as organizations_media
 from app.organizations import service as organizations_service
@@ -48,7 +50,11 @@ from app.organizations.schemas import PublicOrganizationResponse
 from app.organizations.slugs import RESERVED_SLUGS
 from app.storage.service import ObjectStorage, get_storage
 
-from .public_preview import render_public_circle_meta, render_public_organization_meta
+from .public_preview import (
+    render_public_circle_meta,
+    render_public_event_meta,
+    render_public_organization_meta,
+)
 
 router = APIRouter(tags=["system"])
 
@@ -108,6 +114,29 @@ async def public_circle_preview(
     except EntityNotFoundException:
         return _plain_index()
     return HTMLResponse(render_public_circle_meta(circle))
+
+
+@router.get("/{organization_slug}/event/{event_id}", response_model=None)
+async def public_event_preview(
+    organization_slug: str, event_id: str, db: DbSession, storage: Storage
+) -> HTMLResponse | FileResponse | JSONResponse:
+    """Like the organization preview, a reserved or dotted first segment
+    (e.g. `/api/event/<id>`) falls through to the plain catch-all so it keeps
+    its real 404; otherwise the slug is cosmetic and only `event_id` drives
+    the lookup."""
+    if organization_slug in RESERVED_SLUGS or "." in organization_slug:
+        return await spa_fallback(f"{organization_slug}/event/{event_id}")
+    try:
+        event_uuid = uuid.UUID(event_id)
+    except ValueError:
+        return _plain_index()
+    try:
+        event, place_name, banner_url = await events_service.get_event_preview(
+            db, event_uuid, storage
+        )
+    except EntityNotFoundException:
+        return _plain_index()
+    return HTMLResponse(render_public_event_meta(event, place_name, banner_url))
 
 
 @router.get("/{organization_slug}", response_model=None)

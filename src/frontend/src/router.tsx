@@ -147,18 +147,14 @@ export const routes: RouteObject[] = [
         element: <AppRoute />,
       },
       {
+        // Editing stays under "/events" (in the backend's RESERVED_SLUGS);
+        // the event page itself lives under the author's slug, below.
         path: "/events/:eventId/edit",
         element: <AppRoute />,
       },
       {
         path: "/terms/:termId/edit",
         element: <AppRoute />,
-      },
-      {
-        // The public event page — no AuthGuard; the author gets edit/delete.
-        // "events" is in the backend's RESERVED_SLUGS.
-        path: "/events/:eventId",
-        element: <EventPage />,
       },
       {
         // Organizer-only attendee list for one term. Standalone (no
@@ -212,6 +208,12 @@ export const routes: RouteObject[] = [
       {
         path: "/:organizationSlug/group/:groupId/term/:termId",
         element: <TermPage />,
+      },
+      {
+        // The public event page — no AuthGuard; the author gets edit/delete.
+        // "event" is in the backend's RESERVED_SLUGS.
+        path: "/:organizationSlug/event/:eventId",
+        element: <EventPage />,
       },
       {
         // The organizer's full agenda — public, no AuthGuard. Two segments, so

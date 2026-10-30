@@ -7,7 +7,7 @@ their own Organization) live here, raising `AccessDeniedException` — per
 from __future__ import annotations
 
 import uuid
-
+from collections.abc import Collection
 from datetime import date
 from typing import cast
 
@@ -92,6 +92,26 @@ async def get_own_organization(db: AsyncSession, owner_party_id: uuid.UUID) -> O
     if membership is None:
         return None
     return await get_organization(db, cast(uuid.UUID, membership.to_organization_id))
+
+
+async def get_own_organizations_by_party_ids(
+    db: AsyncSession, party_ids: Collection[uuid.UUID]
+) -> dict[uuid.UUID, Organization]:
+    """`get_own_organization` for many owners in one statement; a party
+    without an Organization is simply absent from the result."""
+    if not party_ids:
+        return {}
+    rows = await db.execute(
+        select(OrganizationRole.party_id, Organization)
+        .join(OrganizationMembership, OrganizationMembership.from_role_id == OrganizationRole.id)
+        .join(Organization, Organization.id == OrganizationMembership.to_organization_id)
+        .where(
+            OrganizationRole.party_id.in_(set(party_ids)),
+            OrganizationRole.role_type == OrganizationRoleType.OWNER,
+            OrganizationMembership.valid_to.is_(None),
+        )
+    )
+    return {party_id: organization for party_id, organization in rows.tuples()}
 
 
 async def get_owner_party_id(db: AsyncSession, organization_id: uuid.UUID) -> uuid.UUID | None:

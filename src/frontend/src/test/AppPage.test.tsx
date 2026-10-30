@@ -1,7 +1,7 @@
 import { act, render, screen, waitFor, within } from "@testing-library/react";
 import { fireEvent } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi, beforeEach } from "vitest";
-import { Link, MemoryRouter, Route, Routes, useNavigate } from "react-router-dom";
+import { Link, MemoryRouter, Route, Routes, useLocation, useNavigate } from "react-router-dom";
 
 import * as peopleApi from "../api/people";
 import * as familiesApi from "../api/families";
@@ -121,6 +121,7 @@ vi.mock("../api/locations", () => ({
 vi.mock("../api/events", () => ({
   createEvent: vi.fn(),
   getMyEvents: vi.fn(),
+  getAttendingEvents: vi.fn(),
   getEvent: vi.fn(),
   updateEvent: vi.fn(),
   deleteEvent: vi.fn(),
@@ -315,6 +316,20 @@ const mockGuardians: familiesApi.GuardianResponse[] = [
   },
 ];
 
+/** Stands in for the public event page: shows where navigation landed and
+ * the toast handed over in router state. */
+function EventRouteStub() {
+  const { pathname, state } = useLocation();
+  const toast: unknown = typeof state === "object" && state !== null && "toast" in state ? state.toast : null;
+  return (
+    <div>
+      <p>Strona wydarzenia</p>
+      <p>Adres: {pathname}</p>
+      {typeof toast === "string" && <p>Toast z nawigacji: {toast}</p>}
+    </div>
+  );
+}
+
 // The global top bar's Spotkania link (PublicLayout), mirrored next to the
 // panel the way BottomNav is.
 const HEADER_SPOTKANIA = <Link to="/meetings" aria-label="Spotkania" />;
@@ -334,7 +349,7 @@ function renderPanel(initialEntry = "/") {
         <Route path="/family/members/:familyMembershipId/edit" element={<AppPage />} />
         <Route path="/events/:eventId/edit" element={<AppPage />} />
         <Route path="/terms/:termId/edit" element={<AppPage />} />
-        <Route path="/events/:eventId" element={<p>Strona wydarzenia</p>} />
+        <Route path="/:organizationSlug/event/:eventId" element={<EventRouteStub />} />
       </Routes>
       {HEADER_SPOTKANIA}
       <BottomNav />
@@ -376,7 +391,7 @@ function renderPanelWithNavigation() {
         <Route path="/family/members/:familyMembershipId/edit" element={<AppPage />} />
         <Route path="/events/:eventId/edit" element={<AppPage />} />
         <Route path="/terms/:termId/edit" element={<AppPage />} />
-        <Route path="/events/:eventId" element={<p>Strona wydarzenia</p>} />
+        <Route path="/:organizationSlug/event/:eventId" element={<EventRouteStub />} />
         <Route path="/other" element={<div>Poza panelem</div>} />
       </Routes>
       {HEADER_SPOTKANIA}
@@ -399,6 +414,7 @@ function mockGuestDefaults() {
   vi.mocked(organizationsApi.getMyOrganization).mockRejectedValue(new Error("404"));
   vi.mocked(pledgesApi.getMyPledges).mockResolvedValue([]);
   vi.mocked(eventsApi.getMyEvents).mockResolvedValue([]);
+  vi.mocked(eventsApi.getAttendingEvents).mockResolvedValue([]);
   vi.mocked(notificationsApi.getMyNotifications).mockResolvedValue([]);
   vi.mocked(locationsApi.getMyLocations).mockResolvedValue([]);
 }
@@ -422,6 +438,7 @@ function mockOrganizerDefaults() {
   vi.mocked(organizationsApi.getMyOrganization).mockRejectedValue(new Error("404"));
   vi.mocked(pledgesApi.getMyPledges).mockResolvedValue([]);
   vi.mocked(eventsApi.getMyEvents).mockResolvedValue([]);
+  vi.mocked(eventsApi.getAttendingEvents).mockResolvedValue([]);
   vi.mocked(notificationsApi.getMyNotifications).mockResolvedValue([]);
   vi.mocked(locationsApi.getMyLocations).mockResolvedValue([]);
 }
@@ -1145,7 +1162,7 @@ describe("AppPage — Spotkania › Biorę udział (attendances)", () => {
     fireEvent.click(await screen.findByRole("tab", { name: "Biorę udział" }));
 
     await screen.findByRole("tabpanel", { name: "Biorę udział" });
-    expect(screen.getByText("Nie masz jeszcze zapisów na zajęcia.")).toBeInTheDocument();
+    expect(screen.getByText("Nie masz jeszcze żadnych zapisów.")).toBeInTheDocument();
     expect(screen.queryByText(/Nie udało się/)).not.toBeInTheDocument();
   });
 
@@ -1156,7 +1173,7 @@ describe("AppPage — Spotkania › Biorę udział (attendances)", () => {
     fireEvent.click(await screen.findByRole("tab", { name: "Biorę udział" }));
 
     expect(await screen.findByRole("tabpanel", { name: "Biorę udział" })).toBeInTheDocument();
-    expect(screen.getByText("Nie masz jeszcze zapisów na zajęcia.")).toBeInTheDocument();
+    expect(screen.getByText("Nie masz jeszcze żadnych zapisów.")).toBeInTheDocument();
     expect(screen.queryByText(/Nie udało się/)).not.toBeInTheDocument();
   });
 
@@ -1237,7 +1254,7 @@ describe("AppPage — Spotkania list links to the public circle page", () => {
     expect(await screen.findByText("Brak zaplanowanych spotkań.")).toBeInTheDocument();
     expect(screen.queryByRole("link", { name: "+ Dodaj termin" })).not.toBeInTheDocument();
     fireEvent.click(await screen.findByRole("tab", { name: "Biorę udział" }));
-    expect(screen.getByText("Nie masz jeszcze zapisów na zajęcia.")).toBeInTheDocument();
+    expect(screen.getByText("Nie masz jeszcze żadnych zapisów.")).toBeInTheDocument();
 
     fireEvent.click(await screen.findByRole("link", { name: "Moje grupy" }));
     expect(
@@ -2033,6 +2050,7 @@ describe("AppPage — Spotkania: pledges on term tiles, events next to group ter
           location: null,
           created_at: "",
           updated_at: "",
+          author_slug: "zielony-krag",
         },
       ]);
       renderPanel("/meetings");
@@ -2060,9 +2078,15 @@ describe("AppPage — event tile links and the event edit page", () => {
     location: null,
     created_at: "",
     updated_at: "",
+    author_slug: "zielony-krag",
     banner_url: null,
     attendee_count: 0,
     is_author: true,
+    author_display_name: "Fundacja Zielony Krąg",
+    organization: null,
+    participants: [],
+    is_attending: false,
+    has_ended: false,
   };
 
   beforeEach(() => {
@@ -2075,7 +2099,10 @@ describe("AppPage — event tile links and the event edit page", () => {
     renderPanel("/meetings");
 
     const panel = await screen.findByRole("tabpanel", { name: "Organizujesz" });
-    expect(await within(panel).findByRole("link", { name: "Piknik w parku" })).toHaveAttribute("href", "/events/ev-1");
+    expect(await within(panel).findByRole("link", { name: "Piknik w parku" })).toHaveAttribute(
+      "href",
+      "/zielony-krag/event/ev-1",
+    );
     expect(within(panel).getByRole("link", { name: "Edytuj wydarzenie Piknik w parku" })).toHaveAttribute(
       "href",
       "/events/ev-1/edit",
@@ -2089,6 +2116,7 @@ describe("AppPage — event tile links and the event edit page", () => {
 
     const page = await screen.findByRole("region", { name: "Edytuj wydarzenie" });
     const name = await within(page).findByLabelText("Nazwa");
+    expect(screen.getByRole("link", { name: "Wróć do wydarzenia" })).toHaveAttribute("href", "/zielony-krag/event/ev-1");
     expect(name).toHaveValue("Piknik w parku");
     expect(within(page).getByLabelText("Godzina początku")).toHaveValue("14:00");
     expect(within(page).queryByRole("heading", { name: /Baner/ })).not.toBeInTheDocument();
@@ -2104,7 +2132,21 @@ describe("AppPage — event tile links and the event edit page", () => {
         location_id: null,
       }),
     );
-    expect(await screen.findByText("Strona wydarzenia")).toBeInTheDocument();
+    expect(await screen.findByText("Adres: /zielony-krag/event/ev-1")).toBeInTheDocument();
+  });
+
+  it("Biorę udział lists attended events linking to their page, with no edit pencil", async () => {
+    vi.mocked(eventsApi.getAttendingEvents).mockResolvedValue([{ ...EVENT, author_slug: "basia-nowak" }]);
+    renderPanel("/meetings");
+    fireEvent.click(await screen.findByRole("tab", { name: "Biorę udział" }));
+
+    const panel = await screen.findByRole("tabpanel", { name: "Biorę udział" });
+    expect(await within(panel).findByRole("link", { name: "Piknik w parku" })).toHaveAttribute(
+      "href",
+      "/basia-nowak/event/ev-1",
+    );
+    expect(within(panel).queryByRole("link", { name: /Edytuj wydarzenie/ })).not.toBeInTheDocument();
+    expect(within(panel).queryByText("Nie masz jeszcze żadnych zapisów.")).not.toBeInTheDocument();
   });
 
   it("someone else's event shows a note instead of the form", async () => {
@@ -2879,6 +2921,7 @@ describe("AppPage — Dodaj › Wydarzenie", () => {
     location: null,
     created_at: "2026-10-29T10:00:00",
     updated_at: "2026-10-29T10:00:00",
+    author_slug: "zielony-krag",
   };
 
   beforeEach(() => {
@@ -2925,7 +2968,7 @@ describe("AppPage — Dodaj › Wydarzenie", () => {
     expect(eventsApi.createEvent).not.toHaveBeenCalled();
   });
 
-  it("saves the event and returns to the /add hub with a toast", async () => {
+  it("saves the event and lands on its page with the toast in router state", async () => {
     mockGuestDefaults();
     vi.mocked(eventsApi.createEvent).mockResolvedValue(EVENT_FIXTURE);
     renderPanel("/add/event");
@@ -2943,8 +2986,9 @@ describe("AppPage — Dodaj › Wydarzenie", () => {
         location_id: null,
       }),
     );
-    await waitFor(() => expect(screen.queryByRole("region", { name: "Nowe wydarzenie" })).not.toBeInTheDocument());
-    expect(await screen.findByRole("status")).toHaveTextContent("Wydarzenie „Piknik w parku” zapisane");
+    expect(await screen.findByText("Adres: /zielony-krag/event/ev-1")).toBeInTheDocument();
+    expect(screen.getByText("Toast z nawigacji: Wydarzenie „Piknik w parku” zapisane")).toBeInTheDocument();
+    expect(screen.queryByRole("region", { name: "Nowe wydarzenie" })).not.toBeInTheDocument();
     expect(eventsApi.uploadEventBanner).not.toHaveBeenCalled();
   });
 
@@ -2980,7 +3024,8 @@ describe("AppPage — Dodaj › Wydarzenie", () => {
     ).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Spróbuj ponownie" }));
 
-    expect(await screen.findByRole("status")).toHaveTextContent("Wydarzenie „Piknik w parku” zapisane");
+    expect(await screen.findByText("Toast z nawigacji: Wydarzenie „Piknik w parku” zapisane")).toBeInTheDocument();
+    expect(screen.getByText("Adres: /zielony-krag/event/ev-1")).toBeInTheDocument();
     expect(eventsApi.uploadEventBanner).toHaveBeenNthCalledWith(2, "ev-1", banner);
     expect(eventsApi.createEvent).toHaveBeenCalledTimes(1);
   });

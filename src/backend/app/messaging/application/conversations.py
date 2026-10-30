@@ -1,4 +1,4 @@
-"""Get-or-create for ITEM, GROUP and TERM conversations (checks run in a
+"""Get-or-create for ITEM, GROUP, TERM and EVENT conversations (checks run in a
 fixed order) and `GET /{id}`, plus the title and counterpart rules the
 inbox shares.
 
@@ -21,10 +21,10 @@ from app.core import clock
 from app.core.auth_deps import Principal
 from app.core.errors import BusinessConflictException, EntityNotFoundException
 
-from ..infrastructure import circulation_acl, groups_acl, repository, users_acl
+from ..infrastructure import circulation_acl, events_acl, groups_acl, repository, users_acl
 from ..models import Conversation, ConversationKind
 from ..schemas import ConversationItemRef, ConversationResponse
-from .access import Access, group_access, resolve_access, term_access
+from .access import Access, event_access, group_access, resolve_access, term_access
 from .send_limiter import limiter
 
 
@@ -130,6 +130,24 @@ async def open_term_conversation(
     return await _to_response(db, existing, me, access), created
 
 
+async def open_event_conversation(
+    db: AsyncSession, principal: Principal, event_id: uuid.UUID
+) -> tuple[ConversationResponse, bool]:
+    me = await users_acl.get_caller_party_id(db, principal)
+    event = await events_acl.get_event(db, event_id)
+    access = await event_access(db, event, me)
+
+    def find() -> Awaitable[Conversation | None]:
+        return repository.find_event_conversation(db, event_id)
+
+    existing = await find()
+    created = False
+    if existing is None:
+        conversation = Conversation(kind=ConversationKind.EVENT, event_id=event_id)
+        existing, created = await _insert_or_reselect(db, conversation, find)
+    return await _to_response(db, existing, me, access), created
+
+
 async def get_conversation(
     db: AsyncSession, principal: Principal, conversation_id: uuid.UUID
 ) -> ConversationResponse:
@@ -192,6 +210,13 @@ async def _to_response(
         counterpart = item_counterpart(conversation, me)
         profiles = await users_acl.list_chat_profiles_by_party_ids(db, [counterpart])
         counterpart_name = profiles[counterpart][0] if counterpart in profiles else None
+    elif conversation.kind == ConversationKind.EVENT:
+        assert access.event is not None
+        title = access.event.name
+        attendees = await events_acl.list_active_attendee_party_ids(
+            db, cast(uuid.UUID, access.event.id)
+        )
+        participant_count = await _participant_count(db, access.organizer_party_id, attendees)
     else:
         assert access.group is not None
         group_name = access.group.name

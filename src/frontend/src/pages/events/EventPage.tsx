@@ -1,188 +1,235 @@
-import { useState } from "react";
-import { Link, useNavigate, useParams } from "react-router-dom";
+import { useEffect, type ReactNode } from "react";
+import { useLocation, useNavigate, useParams } from "react-router-dom";
 import type { EventDetailResponse } from "../../api/events";
 import { useAuth } from "../../auth/AuthContext";
-import { AddToCalendarButton } from "../../components/shared/AddToCalendarButton";
-import { BackIcon, CopyIcon, PencilIcon, TrashIcon } from "../../components/shared/appIcons";
 import { ConfirmDeleteDialog } from "../../components/shared/ConfirmDeleteDialog";
-import { PhoneFrame } from "../../components/shared/PhoneFrame";
-import { TermPlaceLine } from "../../components/shared/TermPlaceLine";
 import { ToastPill } from "../../components/shared/ToastPill";
 import { useToast } from "../../components/shared/useToast";
+import { PAGE_SHELL } from "../../components/shared/uiStyles";
 import { useEvent } from "../../hooks/useEvent";
-import { eventEditPath, eventPath, termTime, viewPath } from "../../utils/appHelpers";
-import dayjs from "../../utils/dayjs";
-import { pluralPl } from "../../utils/plural";
+import { useOpenAndNavigate } from "../../hooks/useOpenAndNavigate";
+import { OrganizerThemeScope } from "../../theme/OrganizerThemeScope";
+import { eventPath, viewPath } from "../../utils/appHelpers";
+import { GroupHeader } from "../term/components/GroupHeader";
+import { TermPageSkeleton } from "../term/components/TermPageSkeleton";
+import { EventAttendeeList } from "./components/EventAttendeeList";
+import { EventAuthorCard } from "./components/EventAuthorCard";
+import { EventChatRow } from "./components/EventChatRow";
+import { EventFooter } from "./components/EventFooter";
+import { EventGuestMergeCard } from "./components/EventGuestMergeCard";
+import { EventGuestSignUpSheet } from "./components/EventGuestSignUpSheet";
+import { EventWhenCard } from "./components/EventWhenCard";
 import { resolveEventView } from "./eventViewState";
+import { useEventSignUp } from "./hooks/useEventSignUp";
 
-const ACTION_BUTTON =
-  "flex min-h-11 flex-1 items-center justify-center gap-1.5 rounded-[13px] border-[1.5px] border-line bg-paper px-4 text-[13.5px] font-extrabold text-ink hover:border-line-strong focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring";
-const DELETE_HINT_ID = "event-delete-hint";
+const RETRY_BUTTON =
+  "mt-3 rounded-xl border border-line bg-paper px-4 py-2 text-[13px] font-semibold text-ink hover:bg-cream";
 
-/** Route element for `/events/:eventId`: the public page of a one-off event.
- * Anyone may read it; its author also gets edit and delete. */
+/** A toast handed over in router state, e.g. by the create flow. */
+function routerToast(state: unknown): string | null {
+  return typeof state === "object" && state !== null && "toast" in state && typeof state.toast === "string"
+    ? state.toast
+    : null;
+}
+
+/** Route element for `/:organizationSlug/event/:eventId`: the public page of
+ * a one-off event. Keyed on the id, since React Router reuses the element
+ * when only `:eventId` changes and the page state belongs to one event. */
 export function EventPage() {
   const { eventId = "" } = useParams();
+  return <EventPageContent key={eventId} eventId={eventId} />;
+}
+
+/** Shows exactly one view per `resolveEventView` state; sign-up and withdraw
+ * live in `useEventSignUp`. */
+function EventPageContent({ eventId }: { eventId: string }) {
   const { token } = useAuth();
+  const isLoggedIn = Boolean(token);
   const navigate = useNavigate();
-  const { data, loading, notFound, error, refetch, remove } = useEvent(eventId);
+  const { pathname, state } = useLocation();
+  const event = useEvent(eventId);
   const { toast, showToast } = useToast();
-  const view = resolveEventView({ data, loading, notFound, error });
+  const chat = useOpenAndNavigate();
+  const signUp = useEventSignUp({
+    eventId,
+    isLoggedIn,
+    signUp: event.signUp,
+    withdraw: event.withdraw,
+    showToast,
+  });
+  const view = resolveEventView({
+    data: event.data,
+    loading: event.loading,
+    notFound: event.notFound,
+    error: event.error,
+    isStale: event.isStale,
+    isLoggedIn,
+    guestProfileId: signUp.guestProfileId,
+  });
+
+  // Shown once: the history entry loses its state so a refresh or a back
+  // navigation doesn't repeat it.
+  const handedOverToast = routerToast(state);
+  useEffect(() => {
+    if (handedOverToast === null) return;
+    showToast(handedOverToast);
+    navigate(pathname, { replace: true, state: null });
+  }, [handedOverToast, pathname, navigate, showToast]);
+
+  const page = (content: EventDetailResponse, sections: Omit<EventShellProps, "event" | "onCopyLink">) => (
+    <EventShell event={content} onCopyLink={() => showToast("Skopiowano link")} {...sections} />
+  );
+  const chatRow = (id: string) => (
+    <EventChatRow onOpen={() => void chat.open({ kind: "EVENT", id })} busy={chat.busy} error={chat.error} />
+  );
+
+  const body = (() => {
+    switch (view.kind) {
+      case "loading":
+        return <TermPageSkeleton />;
+      case "notFound":
+        return <p className="px-5 pt-6 text-[12.5px] text-ink-soft">Nie znaleziono wydarzenia.</p>;
+      case "error":
+        return (
+          <div className="px-5 pt-6">
+            <p role="alert" className="text-[12.5px] font-semibold text-danger">
+              Nie udało się wczytać wydarzenia — {view.message}
+            </p>
+            <button type="button" onClick={() => void event.refetch()} className={RETRY_BUTTON}>
+              Spróbuj ponownie
+            </button>
+          </div>
+        );
+      case "refreshing":
+        return page(view.event, {
+          card: view.error && (
+            <div className="mx-5 mt-6">
+              <p role="alert" className="text-[12.5px] font-semibold text-danger">
+                Nie udało się odświeżyć wydarzenia — {view.error}
+              </p>
+              <button type="button" onClick={() => void event.refetch()} className={RETRY_BUTTON}>
+                Spróbuj ponownie
+              </button>
+            </div>
+          ),
+        });
+      case "author":
+        return page(view.event, {
+          chat: chatRow(view.event.id),
+          card: (
+            <EventAuthorCard
+              event={view.event}
+              onDelete={async () => {
+                await event.remove();
+                navigate(viewPath("meetings"));
+              }}
+            />
+          ),
+        });
+      case "attendee":
+        return page(view.event, {
+          chat: chatRow(view.event.id),
+          footer: view.ended ? (
+            <EventFooter variant="ended" />
+          ) : (
+            <EventFooter variant="withdraw" busy={false} onWithdraw={signUp.openWithdraw} />
+          ),
+          overlay: signUp.confirmingWithdraw && (
+            <ConfirmDeleteDialog
+              title="Wypisać się z wydarzenia?"
+              body="Znikniesz z listy zapisanych i stracisz dostęp do czatu wydarzenia."
+              confirmLabel="Wypisz się"
+              tone="primary"
+              busyLabel="Wypisywanie…"
+              fallbackError="Nie udało się wypisać. Spróbuj ponownie."
+              onConfirm={signUp.confirmWithdraw}
+              onClose={signUp.closeWithdraw}
+            />
+          ),
+        });
+      case "guestAttendee":
+        return page(view.event, { card: <EventGuestMergeCard guestProfileId={view.guestProfileId} /> });
+      case "visitor":
+        return page(view.event, {
+          canSignUp: !view.ended,
+          footer: view.ended ? (
+            <EventFooter variant="ended" />
+          ) : (
+            <EventFooter variant="signUp" busy={signUp.signingUp} onSignUp={signUp.openSignUp} />
+          ),
+          overlay: signUp.sheetOpen && (
+            <EventGuestSignUpSheet event={view.event} onSubmit={signUp.submitGuest} onClose={signUp.closeSheet} />
+          ),
+        });
+    }
+  })();
 
   return (
-    <PhoneFrame>
-      <main tabIndex={-1} className="flex-1 overflow-y-auto px-4.5 pt-4.5 pb-6 outline-none">
-        {token && (
-          <Link to={viewPath("meetings")} className="mb-4 inline-flex items-center gap-1.5 text-xs font-bold text-ink-soft">
-            <BackIcon /> Spotkania
-          </Link>
-        )}
-        {(() => {
-          switch (view.kind) {
-            case "loading":
-              return <p className="text-[12.5px] text-ink-soft">Wczytywanie wydarzenia…</p>;
-            case "notFound":
-              return <p className="text-[12.5px] text-ink-soft">Nie znaleziono wydarzenia.</p>;
-            case "error":
-              return (
-                <div>
-                  <p role="alert" className="text-[12.5px] font-semibold text-danger">
-                    Nie udało się wczytać wydarzenia — {view.message}
-                  </p>
-                  <button
-                    type="button"
-                    onClick={() => void refetch()}
-                    className="mt-3 rounded-xl border border-line bg-paper px-4 py-2 text-[13px] font-semibold text-ink hover:bg-cream"
-                  >
-                    Spróbuj ponownie
-                  </button>
-                </div>
-              );
-            case "content":
-              return (
-                <EventView
-                  event={view.event}
-                  onCopied={() => showToast("Skopiowano link")}
-                  onDelete={async () => {
-                    await remove();
-                    navigate(viewPath("meetings"));
-                  }}
-                />
-              );
-          }
-        })()}
-      </main>
+    <>
+      {body}
       <ToastPill message={toast} />
-    </PhoneFrame>
+    </>
   );
 }
 
-interface EventViewProps {
+interface EventShellProps {
   event: EventDetailResponse;
-  onCopied: () => void;
-  /** Rejects with the message the confirm dialog shows. */
-  onDelete: () => Promise<void>;
+  onCopyLink: () => void;
+  /** The viewer may sign up, so the empty attendee list invites them to. */
+  canSignUp?: boolean;
+  /** The per-view parts, in page order; omitted ones render nothing. */
+  chat?: ReactNode;
+  card?: ReactNode;
+  footer?: ReactNode;
+  /** A sheet or dialog over the page. */
+  overlay?: ReactNode;
 }
 
-function EventView({ event, onCopied, onDelete }: EventViewProps) {
-  const [confirmingDelete, setConfirmingDelete] = useState(false);
-  const url = `${window.location.origin}${eventPath(event.id)}`;
-  const start = termTime(event.starts_at);
-  const end = event.ends_at ? termTime(event.ends_at) : "";
-  const deleteBlocked = event.attendee_count > 0;
+/** The event page in the author's theme: header, banner, date and place,
+ * description, chat, the attendee list, the view's card and footer. */
+function EventShell({ event, onCopyLink, canSignUp = false, chat, card, footer, overlay }: EventShellProps) {
+  const navigate = useNavigate();
 
   return (
-    <article>
-      {event.banner_url && (
-        <img
-          src={event.banner_url}
-          alt={`Baner wydarzenia ${event.name}`}
-          className="mb-4 aspect-16/7 w-full rounded-[22px] object-cover"
+    <OrganizerThemeScope theme={event.organization}>
+      <div className={PAGE_SHELL}>
+        <GroupHeader
+          title={event.name}
+          eyebrow="Wydarzenie"
+          onBack={() => navigate(-1)}
+          organizerName={event.author_display_name}
+          // A `k-…` fallback slug has no organizer page to link to.
+          organizerSlug={event.organization !== null ? event.author_slug : null}
         />
-      )}
-      <span className="inline-block rounded-full bg-accent-soft px-2.5 py-0.5 text-[11px] font-extrabold text-accent-fg">
-        Wydarzenie
-      </span>
-      <h1 className="mt-1.5 font-serif text-[26px] leading-tight font-extrabold tracking-tight wrap-break-word text-ink">
-        {event.name}
-      </h1>
-      <p className="mt-1.5 text-[15px] font-bold text-ink">
-        {dayjs(event.starts_at).format("dddd, D MMMM YYYY")}
-        {start && `, godz. ${start}${end ? `–${end}` : ""}`}
-      </p>
-      <TermPlaceLine location={event.location} capacity={null} withMapLink className="mt-2" />
-      {event.description && (
-        <p className="mt-4 text-[14px] whitespace-pre-line wrap-break-word text-ink">{event.description}</p>
-      )}
-
-      <div className="mt-5 flex flex-wrap items-center gap-2">
-        <AddToCalendarButton
-          event={{
-            uid: event.id,
-            title: event.name,
-            occursOn: event.starts_at,
-            groupName: event.location?.name ?? event.name,
-            url,
-          }}
-          size="sm"
-          direction="down"
-        />
-        <button
-          type="button"
-          onClick={() => {
-            void navigator.clipboard.writeText(url);
-            onCopied();
-          }}
-          className="flex min-h-10 items-center gap-1.5 rounded-full border-[1.5px] border-line bg-paper px-3.5 text-sm font-bold text-ink hover:border-line-strong"
-        >
-          <CopyIcon /> Kopiuj link
-        </button>
-      </div>
-
-      {event.is_author && (
-        <section aria-labelledby="event-author-heading" className="mt-6 rounded-[22px] border border-line bg-paper p-4">
-          <h2 id="event-author-heading" className="font-serif text-[17px] font-bold text-ink">
-            Twoje wydarzenie
-          </h2>
-          <div className="mt-3 flex gap-2">
-            <Link to={eventEditPath(event.id)} className={ACTION_BUTTON}>
-              <PencilIcon /> Edytuj
-            </Link>
-            <button
-              type="button"
-              aria-disabled={deleteBlocked || undefined}
-              aria-describedby={deleteBlocked ? DELETE_HINT_ID : undefined}
-              aria-haspopup="dialog"
-              onClick={(e) => {
-                if (deleteBlocked) return;
-                // Safari does not focus a clicked button; the dialog returns focus to it.
-                e.currentTarget.focus();
-                setConfirmingDelete(true);
-              }}
-              className={`${ACTION_BUTTON} text-danger aria-disabled:cursor-not-allowed aria-disabled:opacity-60`}
-            >
-              <TrashIcon /> Usuń
-            </button>
-          </div>
-          {deleteBlocked && (
-            <p id={DELETE_HINT_ID} className="mt-2 text-xs text-ink-soft">
-              Nie można usunąć — zapisał{event.attendee_count === 1 ? "a" : "o"} się już {event.attendee_count}{" "}
-              {pluralPl(event.attendee_count, "osoba", "osoby", "osób")}.
+        <main tabIndex={-1} className="flex-1 pb-6 outline-none">
+          {event.banner_url && (
+            <img
+              src={event.banner_url}
+              alt={`Baner wydarzenia ${event.name}`}
+              className="mx-5 block aspect-16/7 w-[calc(100%-2.5rem)] rounded-[22px] object-cover"
+            />
+          )}
+          <EventWhenCard
+            event={event}
+            url={`${window.location.origin}${eventPath(event.author_slug, event.id)}`}
+            onCopyLink={onCopyLink}
+          />
+          {event.description && (
+            <p className="mx-5 mt-5 text-[15px] leading-relaxed whitespace-pre-line wrap-break-word text-ink">
+              {event.description}
             </p>
           )}
-        </section>
-      )}
-
-      {confirmingDelete && (
-        <ConfirmDeleteDialog
-          title="Usunąć wydarzenie?"
-          body={`„${event.name}” zniknie razem z banerem. Tej operacji nie można cofnąć.`}
-          confirmLabel="Usuń wydarzenie"
-          fallbackError="Nie udało się usunąć wydarzenia. Spróbuj ponownie."
-          onConfirm={onDelete}
-          onClose={() => setConfirmingDelete(false)}
-        />
-      )}
-    </article>
+          {chat}
+          <EventAttendeeList
+            participants={event.participants}
+            authorSlug={event.author_slug}
+            canSignUp={canSignUp}
+          />
+          {card}
+        </main>
+        {footer}
+        {overlay}
+      </div>
+    </OrganizerThemeScope>
   );
 }

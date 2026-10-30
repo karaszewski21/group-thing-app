@@ -20,6 +20,7 @@ from .schemas import (
     MarkReadRequest,
     MessagePage,
     MessageResponse,
+    OpenEventConversationRequest,
     OpenGroupConversationRequest,
     OpenItemConversationRequest,
     OpenTermConversationRequest,
@@ -92,6 +93,18 @@ async def open_term_conversation(
     body: OpenTermConversationRequest, response: Response, db: DbSession, principal: EditPrincipal
 ) -> ConversationResponse:
     return _respond(response, await service.open_term_conversation(db, principal, body.term_id))
+
+
+@router.post(
+    "/event",
+    response_model=ConversationResponse,
+    status_code=status.HTTP_201_CREATED,
+    responses=_EXISTING,
+)
+async def open_event_conversation(
+    body: OpenEventConversationRequest, response: Response, db: DbSession, principal: EditPrincipal
+) -> ConversationResponse:
+    return _respond(response, await service.open_event_conversation(db, principal, body.event_id))
 
 
 @router.get("/{conversation_id}", response_model=ConversationResponse)

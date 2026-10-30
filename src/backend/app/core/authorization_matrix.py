@@ -198,11 +198,14 @@ _RAW_MATRIX: tuple[_RawEntry, ...] = (
     (_methods("PATCH", "DELETE"), r"^/api/locations/[^/]+$", ("EDIT", "mcp:edit")),
     (_methods("GET"), r"^/api/locations(/.*)?$", ("READ", "mcp:read")),
     (_methods("POST"), r"^/api/locations(/.*)?$", ("EDIT", "mcp:edit")),
-    # app.events — one-off events and their banner. Authorship (only the
-    # author may upload the banner) lives in `app.events.service`.
-    # `/mine` sits ahead of the public `/{event_id}` page row it would match.
-    (_methods("GET"), r"^/api/events/mine$", ("READ", "mcp:read")),
+    # app.events — one-off events, their banner and sign-ups. Authorship (only
+    # the author may upload the banner) lives in `app.events.service`.
+    # `/mine` and `/attending` sit ahead of the public `/{event_id}` page row
+    # they would match. Sign-up is public (guests); withdraw needs an account.
+    (_methods("GET"), r"^/api/events/(mine|attending)$", ("READ", "mcp:read")),
     (_methods("GET"), r"^/api/events/[^/]+$", "PUBLIC"),
+    (_methods("POST"), r"^/api/events/[^/]+/attendances$", "PUBLIC"),
+    (_methods("POST"), r"^/api/events/[^/]+/attendances/withdraw$", ("EDIT", "mcp:edit")),
     (_methods("PATCH", "DELETE"), r"^/api/events/[^/]+$", ("EDIT", "mcp:edit")),
     (_methods("POST"), r"^/api/events$", ("EDIT", "mcp:edit")),
     (_methods("POST"), r"^/api/events/[^/]+/banner$", ("EDIT", "mcp:edit")),
@@ -213,7 +216,7 @@ _RAW_MATRIX: tuple[_RawEntry, ...] = (
     (_methods("GET"), r"^/api/notifications(/.*)?$", ("READ", "mcp:read")),  # 51
     (_methods("POST"), r"^/api/notifications(/.*)?$", ("EDIT", "mcp:edit")),  # 52
     # 53-54: app.messaging — conversations. Literal paths (`/unread-count`,
-    # `/item`, `/group`, `/term`) and `/{id}` routes share the two blanket
+    # `/item`, `/group`, `/term`, `/event`) and `/{id}` routes share the two blanket
     # rows; who may read or write a conversation is computed in
     # `application/access.py`. Private chats are for logged-in users only, so
     # unlike rows 51-52 the OAuth `mcp:read`/`mcp:edit` scopes are not accepted.

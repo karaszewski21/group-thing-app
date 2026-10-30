@@ -686,6 +686,19 @@ async def list_item_listing_preferences_for_parties(
     return list(result.scalars().all())
 
 
+def item_listing_preferences_select(
+    party_ids: Collection[uuid.UUID],
+) -> Select[tuple[uuid.UUID, uuid.UUID, str]]:
+    """`(item_id, owner_party_id, mode)` of every listing preference owned by
+    `party_ids`. Unexecuted, so another context can join it with its own
+    item select in one statement."""
+    return select(
+        ItemListingPreference.item_id.label("item_id"),
+        ItemListingPreference.owner_party_id.label("owner_party_id"),
+        ItemListingPreference.mode.label("mode"),
+    ).where(ItemListingPreference.owner_party_id.in_(set(party_ids)))
+
+
 # --- SwapProposal -----------------------------------------------------------
 
 

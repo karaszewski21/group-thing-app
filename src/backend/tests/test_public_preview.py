@@ -1,7 +1,8 @@
-"""`app.system.public_preview` / the three public-preview routes in
+"""`app.system.public_preview` / the public-preview routes in
 `app.system.router`: Open Graph/Twitter meta tags injected into
 `index.html` for the same URL shapes the SPA owns client-side
-(`/:slug`, `/:slug/group/:groupId`, `/:slug/group/:groupId/term/:termId`).
+(`/:slug`, `/:slug/group/:groupId`, `/:slug/group/:groupId/term/:termId`,
+`/:slug/event/:eventId`).
 
 Isolation via the `conftest.py` TestContainers + savepoint-rollback
 fixtures; naming follows `action_condition_expectedResult`
@@ -9,10 +10,16 @@ fixtures; naming follows `action_condition_expectedResult`
 
 from __future__ import annotations
 
-from datetime import date, timedelta
+import io
+import uuid
+from datetime import date, datetime, timedelta
 
 from httpx import AsyncClient
+from PIL import Image
 from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.core import clock
+from tests.fake_storage import FakeStorage
 
 
 async def _register_organizer(client: AsyncClient, email: str) -> str:
@@ -147,3 +154,98 @@ async def test_publicOrganizationPreview_nameWithHtml_isEscapedNotInjected(
     assert response.status_code == 200
     assert "<script>alert" not in response.text
     assert "&lt;script&gt;" in response.text
+
+
+async def _create_event_with_place_and_banner(
+    client: AsyncClient, token: str
+) -> tuple[str, datetime]:
+    place = await client.post(
+        "/api/locations",
+        json={"name": "Park Skaryszewski", "formatted_address": "Warszawa", "source": "MANUAL"},
+        headers=_auth_headers(token),
+    )
+    assert place.status_code == 201, place.text
+    starts_at = (clock.local_now() + timedelta(days=5)).replace(
+        hour=14, minute=0, second=0, microsecond=0
+    )
+    event = await client.post(
+        "/api/events",
+        json={
+            "name": "Piknik wymiany",
+            "description": "Przynieś rzeczy do wymiany.",
+            "starts_at": starts_at.isoformat(),
+            "location_id": place.json()["id"],
+        },
+        headers=_auth_headers(token),
+    )
+    assert event.status_code == 201, event.text
+    buffer = io.BytesIO()
+    Image.new("RGB", (20, 20), (40, 30, 90)).save(buffer, "PNG")
+    banner = await client.post(
+        f"/api/events/{event.json()['id']}/banner",
+        files={"file": ("b.png", buffer.getvalue(), "image/png")},
+        headers=_auth_headers(token),
+    )
+    assert banner.status_code == 200, banner.text
+    return str(event.json()["id"]), starts_at
+
+
+async def test_eventPreview_rendersTitleAndOgImage(
+    client: AsyncClient, fake_storage: FakeStorage
+) -> None:
+    token = await _register_organizer(client, "preview.event1@example.com")
+    event_id, starts_at = await _create_event_with_place_and_banner(client, token)
+    banner_url = (await client.get(f"/api/events/{event_id}")).json()["banner_url"]
+
+    response = await client.get(f"/any-slug/event/{event_id}")
+
+    assert response.status_code == 200
+    body = response.text
+    assert "<title>Piknik wymiany</title>" in body
+    assert '<meta property="og:title" content="Piknik wymiany">' in body
+    description = (
+        f"{clock.format_term_when(starts_at)} · Park Skaryszewski Przynieś rzeczy do wymiany."
+    )
+    assert f'<meta property="og:description" content="{description}">' in body
+    assert f'<meta property="og:image" content="{banner_url}">' in body
+
+
+async def test_eventPreview_invalidUuid_returnsPlainIndex(client: AsyncClient) -> None:
+    invalid = await client.get("/any-slug/event/not-a-uuid")
+    unknown = await client.get(f"/any-slug/event/{uuid.uuid4()}")
+
+    for response in (invalid, unknown):
+        assert response.status_code == 200
+        assert response.headers["content-type"].startswith("text/html")
+        assert "og:title" not in response.text
+
+
+async def test_eventPreview_reservedFirstSegment_notServedByPreview(
+    client: AsyncClient,
+) -> None:
+    api = await client.get(f"/api/event/{uuid.uuid4()}")
+    reserved = await client.get(f"/login/event/{uuid.uuid4()}")
+
+    assert api.status_code == 404
+    assert api.json()["error"] == "Not Found"
+    assert reserved.status_code == 200
+    assert "og:title" not in reserved.text
+
+
+async def test_eventPreview_nameWithBackslashAndGroupReference_rendersLiterally(
+    client: AsyncClient,
+) -> None:
+    token = await _register_organizer(client, "preview.event2@example.com")
+    starts_at = (clock.local_now() + timedelta(days=5)).replace(microsecond=0)
+    created = await client.post(
+        "/api/events",
+        json={"name": r"Swap \o/ \1", "starts_at": starts_at.isoformat()},
+        headers=_auth_headers(token),
+    )
+    assert created.status_code == 201, created.text
+
+    response = await client.get(f"/any-slug/event/{created.json()['id']}")
+
+    assert response.status_code == 200
+    assert r"<title>Swap \o/ \1</title>" in response.text
+    assert r'<meta property="og:title" content="Swap \o/ \1">' in response.text

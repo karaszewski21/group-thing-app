@@ -7,6 +7,7 @@ import { SubPageHeader } from "../../components/shared/appComponents";
 import { FamilyIcon } from "../../components/shared/appIcons";
 import { viewPath, type GuestTermCard, type TermWithNeeded } from "../../utils/appHelpers";
 import { useAppData } from "../../app/appDataStore";
+import { useAttendingEvents } from "../../hooks/useAttendingEvents";
 import { useMyEvents } from "../../hooks/useMyEvents";
 import { useMyPledges } from "../../hooks/useMyPledges";
 import { EventCard, OrganizerTermCard, SavedTermCard } from "./TermCards";
@@ -106,6 +107,7 @@ const TABS: { id: Tab; label: string }[] = [
 export function MeetingsView() {
   const { terms, savedCards, showToast, load } = useAppData();
   const { data: myEvents } = useMyEvents();
+  const { data: attendingEvents } = useAttendingEvents();
   const { data: myPledges, withdraw } = useMyPledges();
 
   async function withdrawMyPledge(pledgeId: string) {
@@ -135,7 +137,9 @@ export function MeetingsView() {
     .map((pledges) => pledges[0])
     .filter((p) => !savedIds.has(p.term_id))
     .map(pledgeTermCard);
-  const attending = [...savedCards, ...pledgeOnlyCards].sort(byDate);
+  const attending: (GuestTermCard | EventResponse)[] = [...savedCards, ...pledgeOnlyCards, ...attendingEvents].sort(
+    byDate,
+  );
 
   return (
     <>
@@ -194,17 +198,21 @@ export function MeetingsView() {
       ) : (
         <div role="tabpanel" id="spotkania-panel-udzial" aria-labelledby="spotkania-tab-udzial">
           {attending.length === 0 ? (
-            <div className={EMPTY}>Nie masz jeszcze zapisów na zajęcia.</div>
+            <div className={EMPTY}>Nie masz jeszcze żadnych zapisów.</div>
           ) : (
             <TermList
               list={attending}
-              renderTerm={(card) => (
-                <SavedTermCard
-                  card={card}
-                  pledges={pledgesByTerm.get(card.termId) ?? []}
-                  onWithdrawPledge={(pledgeId) => void withdrawMyPledge(pledgeId)}
-                />
-              )}
+              renderTerm={(entry) =>
+                "termId" in entry ? (
+                  <SavedTermCard
+                    card={entry}
+                    pledges={pledgesByTerm.get(entry.termId) ?? []}
+                    onWithdrawPledge={(pledgeId) => void withdrawMyPledge(pledgeId)}
+                  />
+                ) : (
+                  <EventCard event={entry} editable={false} />
+                )
+              }
             />
           )}
         </div>

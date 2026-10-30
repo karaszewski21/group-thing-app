@@ -32,6 +32,7 @@ def _enum_column(enum_cls: type[enum.StrEnum], length: int) -> Enum:
 
 class Event(BaseEntity):
     __tablename__ = "events"
+    __table_args__ = (Index("ix_events_author_party_id", "author_party_id"),)
 
     author_party_id: Mapped[uuid.UUID] = mapped_column(
         postgresql.UUID(as_uuid=True),
@@ -99,11 +100,19 @@ class EventBanner(BaseEntity):
 
 class EventAttendance(BaseEntity):
     """A sign-up for one event, shaped like `app.groups.models.TermAttendance`
-    but without `child_count`. Nothing reads or writes it yet."""
+    but without `child_count`. Written by the events sign-up and withdraw use
+    cases; read by the event page, the caller's attended-events list
+    (`GET /api/events/attending`), event deletion (blocked while active) and
+    the messaging event-chat access check."""
 
     __tablename__ = "event_attendances"
     __table_args__ = (
         Index("ix_event_attendances_event_id", "event_id"),
+        Index(
+            "ix_event_attendances_party_id",
+            "party_id",
+            postgresql_where=text("withdrawn_at IS NULL"),
+        ),
         Index(
             "uq_event_attendances_event_id_party_id",
             "event_id",

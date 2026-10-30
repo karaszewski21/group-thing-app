@@ -3,7 +3,7 @@ import { useNavigate, useParams } from "react-router-dom";
 import { useAppData } from "../../app/appDataStore";
 import { SubPageHeader } from "../../components/shared/appComponents";
 import { useEvent } from "../../hooks/useEvent";
-import { eventPath } from "../../utils/appHelpers";
+import { eventPath, viewPath } from "../../utils/appHelpers";
 import { draftFromEvent, toCreateEventRequest } from "../add/eventDraft";
 import { EventForm } from "../add/EventForm";
 
@@ -17,11 +17,12 @@ export function EventEditView() {
   const { eventId = "" } = useParams();
   const navigate = useNavigate();
   const { eventEdit, setEventEdit } = useAppData();
-  const { data: event, loading, update } = useEvent(eventId);
+  const { data: event, loading, isStale, update } = useEvent(eventId);
   const [showErrors, setShowErrors] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const editable = event !== null && event.is_author;
+  const eventHref = event ? eventPath(event.author_slug, event.id) : viewPath("meetings");
   const draft = eventEdit?.eventId === eventId ? eventEdit.draft : null;
 
   useEffect(() => {
@@ -40,13 +41,13 @@ export function EventEditView() {
       return;
     }
     setEventEdit(null);
-    navigate(eventPath(eventId));
+    navigate(eventHref);
   }
 
   return (
     <section aria-label={TITLE}>
-      <SubPageHeader title={TITLE} backTo={eventPath(eventId)} backLabel="Wróć do wydarzenia" />
-      {loading ? (
+      <SubPageHeader title={TITLE} backTo={eventHref} backLabel="Wróć do wydarzenia" />
+      {loading || isStale ? (
         <p className="text-[12.5px] text-ink-soft">Wczytywanie wydarzenia…</p>
       ) : !editable ? (
         <p className="rounded-[22px] border border-line bg-paper p-5 text-sm text-ink-soft">

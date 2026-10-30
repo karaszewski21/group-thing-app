@@ -13,12 +13,13 @@ from app.core.auth_deps import OptionalPrincipal, Principal, require_any
 from app.db import get_db
 from app.storage.service import ObjectStorage, get_storage
 
-from . import service
+from . import page, service
 from .infrastructure import locations_acl
-from .infrastructure.locations_acl import LocationRefResponse
 from .models import Event
 from .schemas import (
     CreateEventRequest,
+    EventAttendanceRequest,
+    EventAttendanceResponse,
     EventBannerResponse,
     EventDetailResponse,
     EventResponse,
@@ -34,21 +35,32 @@ Storage = Annotated[ObjectStorage | None, Depends(get_storage)]
 
 
 async def _event_response(db: AsyncSession, event: Event) -> EventResponse:
-    location = await locations_acl.get_location(db, event.location_id)
-    return _to_response(event, locations_acl.location_ref_response(location))
+    [response] = await _event_responses(db, [event])
+    return response
 
 
-def _to_response(event: Event, location: LocationRefResponse | None) -> EventResponse:
-    return EventResponse(
-        id=event.id,
-        name=event.name,
-        description=event.description,
-        starts_at=event.starts_at,
-        ends_at=event.ends_at,
-        location=location,
-        created_at=event.created_at,
-        updated_at=event.updated_at,
+async def _event_responses(db: AsyncSession, events: list[Event]) -> list[EventResponse]:
+    """Places and author slugs load in one batch each, however many events."""
+    locations = await locations_acl.get_locations_by_ids(
+        db, {e.location_id for e in events if e.location_id is not None}
     )
+    slugs = await service.resolve_author_slugs(db, {e.author_party_id for e in events})
+    return [
+        EventResponse(
+            id=e.id,
+            name=e.name,
+            description=e.description,
+            starts_at=e.starts_at,
+            ends_at=e.ends_at,
+            location=locations_acl.location_ref_response(
+                locations.get(e.location_id) if e.location_id else None
+            ),
+            created_at=e.created_at,
+            updated_at=e.updated_at,
+            author_slug=slugs[e.author_party_id],
+        )
+        for e in events
+    ]
 
 
 @router.post("/api/events", response_model=EventResponse, status_code=status.HTTP_201_CREATED)
@@ -61,37 +73,23 @@ async def create_event(
 
 @router.get("/api/events/mine", response_model=list[EventResponse])
 async def list_my_events(db: DbSession, principal: ReadPrincipal) -> list[EventResponse]:
-    """The caller's own events, earliest first; places load in one batch."""
-    events = await service.list_my_events(db, principal)
-    locations = await locations_acl.get_locations_by_ids(
-        db, {e.location_id for e in events if e.location_id is not None}
-    )
-    return [
-        _to_response(
-            e,
-            locations_acl.location_ref_response(
-                locations.get(e.location_id) if e.location_id else None
-            ),
-        )
-        for e in events
-    ]
+    """The caller's own events, earliest first."""
+    return await _event_responses(db, await service.list_my_events(db, principal))
+
+
+@router.get("/api/events/attending", response_model=list[EventResponse])
+async def list_attending_events(db: DbSession, principal: ReadPrincipal) -> list[EventResponse]:
+    """Events the caller is actively signed up for, earliest first."""
+    return await _event_responses(db, await service.list_attending_events(db, principal))
 
 
 @router.get("/api/events/{event_id}", response_model=EventDetailResponse)
 async def get_event(
     event_id: uuid.UUID, db: DbSession, storage: Storage, principal: OptionalPrincipal = None
 ) -> EventDetailResponse:
-    """The public event page. A valid token is optionally honoured to tell
-    the author (edit/delete controls) apart; no token is never a 401."""
-    event = await service.get_event(db, event_id)
-    banner = await service.get_banner(db, event_id)
-    base = await _event_response(db, event)
-    return EventDetailResponse(
-        **base.model_dump(),
-        banner_url=storage.public_url(banner.large_key) if banner and storage else None,
-        attendee_count=await service.count_attendees(db, event_id),
-        is_author=await service.is_author(db, principal, event),
-    )
+    """The public event page. A valid token adds the viewer's flags (author,
+    signed up, "this is me"); a missing or bad token is never a 401."""
+    return await page.get_event_page(db, event_id, principal, storage)
 
 
 @router.patch("/api/events/{event_id}", response_model=EventResponse)
@@ -105,6 +103,27 @@ async def update_event(
 @router.delete("/api/events/{event_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_event(event_id: uuid.UUID, db: DbSession, principal: EditPrincipal) -> Response:
     await service.delete_event(db, principal, event_id)
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+@router.post(
+    "/api/events/{event_id}/attendances",
+    response_model=EventAttendanceResponse,
+    status_code=status.HTTP_201_CREATED,
+)
+async def sign_up(
+    event_id: uuid.UUID,
+    body: EventAttendanceRequest,
+    db: DbSession,
+    principal: OptionalPrincipal = None,
+) -> EventAttendanceResponse:
+    """Public sign-up; 201 also when the caller is already signed up."""
+    return await service.sign_up(db, principal, event_id, body.guest_name)
+
+
+@router.post("/api/events/{event_id}/attendances/withdraw", status_code=status.HTTP_204_NO_CONTENT)
+async def withdraw(event_id: uuid.UUID, db: DbSession, principal: EditPrincipal) -> Response:
+    await service.withdraw(db, principal, event_id)
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 

@@ -6,9 +6,11 @@ from __future__ import annotations
 import asyncio
 import logging
 import uuid
+from collections.abc import Collection
 from datetime import datetime, timedelta
 
-from sqlalchemy import delete, func, select
+from sqlalchemy import delete, func, select, union
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core import clock
@@ -24,11 +26,10 @@ from app.outbox import service as outbox_service
 from app.storage import images
 from app.storage.outbox_listener import OBJECTS_DELETE
 from app.storage.service import ObjectStorage
-from app.users.service import AVATAR_UPLOAD_DISABLED_MESSAGE, get_profile_by_principal
 
-from .infrastructure import locations_acl
+from .infrastructure import groups_acl, locations_acl, organizations_acl, users_acl
 from .models import Event, EventAttendance, EventBanner
-from .schemas import CreateEventRequest, UpdateEventRequest
+from .schemas import CreateEventRequest, EventAttendanceResponse, UpdateEventRequest
 
 NAME_MIN_LENGTH = 3
 NAME_MAX_LENGTH = 120
@@ -50,6 +51,11 @@ NOT_EVENT_AUTHOR_MESSAGE = "Możesz dodać baner tylko do swojego wydarzenia."
 BANNER_TOO_LARGE_MESSAGE = "Baner jest za duży (maks. 5 MB)"
 NOT_EVENT_AUTHOR_EDIT_MESSAGE = "Możesz zmieniać tylko swoje wydarzenia."
 EVENT_HAS_ATTENDEES_MESSAGE = "Nie można usunąć wydarzenia, na które ktoś się zapisał."
+EVENT_ENDED_MESSAGE = "Wydarzenie się zakończyło."
+AUTHOR_SIGN_UP_MESSAGE = "Organizator nie zapisuje się na własne wydarzenie."
+GUEST_NAME_BLANK_MESSAGE = "Podaj swoje imię."
+GUEST_NAME_LENGTH_MESSAGE = "Imię może mieć najwyżej 255 znaków."
+GUEST_NAME_MAX_LENGTH = 255
 
 logger = logging.getLogger(__name__)
 
@@ -73,6 +79,16 @@ class NotEventAuthorToChange(AccessDeniedException):
 class EventHasAttendees(BusinessConflictException):
     def __init__(self) -> None:
         super().__init__(EVENT_HAS_ATTENDEES_MESSAGE)
+
+
+class EventEnded(BusinessConflictException):
+    def __init__(self) -> None:
+        super().__init__(EVENT_ENDED_MESSAGE)
+
+
+class AuthorSignUp(BusinessConflictException):
+    def __init__(self) -> None:
+        super().__init__(AUTHOR_SIGN_UP_MESSAGE)
 
 
 def _to_minute(value: datetime) -> datetime:
@@ -123,7 +139,7 @@ def _validate_description(description: str | None) -> str | None:
 async def create_event(db: AsyncSession, principal: Principal, data: CreateEventRequest) -> Event:
     """Rules run in Copy-table order and the first failure wins; text
     moderation runs after them and before the insert."""
-    profile = await get_profile_by_principal(db, principal)
+    profile = await users_acl.get_caller_profile(db, principal)
     starts_at = _validate_start(data.starts_at)
     ends_at = _validate_end(data.ends_at, starts_at)
     name = _validate_name(data.name)
@@ -171,11 +187,34 @@ async def count_attendees(db: AsyncSession, event_id: uuid.UUID) -> int:
     ).scalar_one()
 
 
-async def is_author(db: AsyncSession, principal: Principal | None, event: Event) -> bool:
-    if principal is None:
-        return False
-    profile = await get_profile_by_principal(db, principal)
-    return event.author_party_id == profile.party_id
+def has_ended(event: Event) -> bool:
+    return clock.local_now() >= (event.ends_at or event.starts_at)
+
+
+async def get_event_preview(
+    db: AsyncSession, event_id: uuid.UUID, storage: ObjectStorage | None
+) -> tuple[Event, str | None, str | None]:
+    """The event, its place name and its banner's public URL, for the link
+    preview of the event page."""
+    event = await get_event(db, event_id)
+    location = await locations_acl.get_location(db, event.location_id)
+    banner = await get_banner(db, event_id)
+    banner_url = storage.public_url(banner.large_key) if banner and storage else None
+    return event, location.name if location is not None else None, banner_url
+
+
+async def resolve_author_slugs(
+    db: AsyncSession, author_party_ids: Collection[uuid.UUID]
+) -> dict[uuid.UUID, str]:
+    """Each author's public-URL prefix; one organization lookup however many
+    authors there are."""
+    organizations = await organizations_acl.get_own_organizations_by_party_ids(db, author_party_ids)
+    return {
+        party_id: groups_acl.derive_party_slug(
+            party_id, organizations[party_id].slug if party_id in organizations else None
+        )
+        for party_id in author_party_ids
+    }
 
 
 async def _get_own_event_for_update(
@@ -185,7 +224,7 @@ async def _get_own_event_for_update(
     event = await db.get(Event, event_id, with_for_update=True)
     if event is None:
         raise EventNotFound(event_id)
-    profile = await get_profile_by_principal(db, principal)
+    profile = await users_acl.get_caller_profile(db, principal)
     if event.author_party_id != profile.party_id:
         raise NotEventAuthorToChange()
     return event, profile.party_id
@@ -251,13 +290,159 @@ async def delete_event(db: AsyncSession, principal: Principal, event_id: uuid.UU
 
 async def list_my_events(db: AsyncSession, principal: Principal) -> list[Event]:
     """The caller's own events, earliest start first."""
-    profile = await get_profile_by_principal(db, principal)
+    profile = await users_acl.get_caller_profile(db, principal)
     rows = await db.scalars(
         select(Event)
         .where(Event.author_party_id == profile.party_id)
         .order_by(Event.starts_at, Event.id)
     )
     return list(rows)
+
+
+async def list_attending_events(db: AsyncSession, principal: Principal) -> list[Event]:
+    """Events the caller is actively signed up for, earliest start first."""
+    profile = await users_acl.get_caller_profile(db, principal)
+    rows = await db.scalars(
+        select(Event)
+        .join(EventAttendance, EventAttendance.event_id == Event.id)
+        .where(
+            EventAttendance.party_id == profile.party_id,
+            EventAttendance.withdrawn_at.is_(None),
+        )
+        .order_by(Event.starts_at, Event.id)
+    )
+    return list(rows)
+
+
+async def _find_active_attendance(
+    db: AsyncSession, event_id: uuid.UUID, party_id: uuid.UUID
+) -> EventAttendance | None:
+    return (
+        await db.execute(
+            select(EventAttendance).where(
+                EventAttendance.event_id == event_id,
+                EventAttendance.party_id == party_id,
+                EventAttendance.withdrawn_at.is_(None),
+            )
+        )
+    ).scalar_one_or_none()
+
+
+async def has_active_attendance(db: AsyncSession, event_id: uuid.UUID, party_id: uuid.UUID) -> bool:
+    return await _find_active_attendance(db, event_id, party_id) is not None
+
+
+async def list_active_attendee_party_ids(db: AsyncSession, event_id: uuid.UUID) -> list[uuid.UUID]:
+    rows = await db.scalars(
+        select(EventAttendance.party_id).where(
+            EventAttendance.event_id == event_id, EventAttendance.withdrawn_at.is_(None)
+        )
+    )
+    return list(rows)
+
+
+async def list_chat_event_ids_for_party(db: AsyncSession, party_id: uuid.UUID) -> list[uuid.UUID]:
+    """Events whose chat the party may read: authored or actively attended,
+    in one statement."""
+    rows = await db.scalars(
+        union(
+            select(Event.id).where(Event.author_party_id == party_id),
+            select(EventAttendance.event_id).where(
+                EventAttendance.party_id == party_id, EventAttendance.withdrawn_at.is_(None)
+            ),
+        )
+    )
+    return list(rows)
+
+
+async def list_chat_event_refs(
+    db: AsyncSession, event_ids: Collection[uuid.UUID]
+) -> dict[uuid.UUID, tuple[str, uuid.UUID]]:
+    """`{event_id: (name, author_party_id)}` in one statement; none for empty
+    input."""
+    if not event_ids:
+        return {}
+    rows = await db.execute(
+        select(Event.id, Event.name, Event.author_party_id).where(Event.id.in_(list(event_ids)))
+    )
+    return {event_id: (name, author) for event_id, name, author in rows.tuples()}
+
+
+def _validate_guest_name(name: str | None) -> str:
+    trimmed = (name or "").strip()
+    if not trimmed:
+        raise ValueError(GUEST_NAME_BLANK_MESSAGE)
+    if len(trimmed) > GUEST_NAME_MAX_LENGTH:
+        raise ValueError(GUEST_NAME_LENGTH_MESSAGE)
+    return trimmed
+
+
+def _require_open(event: Event | None, event_id: uuid.UUID) -> Event:
+    if event is None:
+        raise EventNotFound(event_id)
+    if has_ended(event):
+        raise EventEnded()
+    return event
+
+
+async def sign_up(
+    db: AsyncSession, principal: Principal | None, event_id: uuid.UUID, guest_name: str | None
+) -> EventAttendanceResponse:
+    """A caller with an account attaches their own party, idempotently (the
+    author is refused). Anyone else, including an invalid or expired token,
+    signs up as a new guest named `guest_name`, validated and moderated
+    before the event is locked. The event is then held `FOR SHARE` so a
+    concurrent delete cannot remove it before this commits."""
+    profile = await users_acl.find_caller_profile(db, principal)
+    attached = profile is not None and profile.account_user_id is not None
+    name: str | None = None
+    if not attached:
+        _require_open(await db.get(Event, event_id), event_id)
+        name = _validate_guest_name(guest_name)
+        await check_text(TextField.PROFILE_NAME, name)
+    event = _require_open(
+        await db.get(Event, event_id, with_for_update={"read": True}, populate_existing=True),
+        event_id,
+    )
+
+    if profile is not None and attached:
+        party_id = profile.party_id
+        if party_id == event.author_party_id:
+            raise AuthorSignUp()
+        attendance = await _find_active_attendance(db, event_id, party_id)
+        if attendance is None:
+            attendance = EventAttendance(event_id=event_id, party_id=party_id)
+            try:
+                async with db.begin_nested():
+                    db.add(attendance)
+                    await db.flush()
+            except IntegrityError:
+                # A concurrent double submit won the partial unique index.
+                attendance = await _find_active_attendance(db, event_id, party_id)
+                if attendance is None:
+                    raise
+    else:
+        assert name is not None
+        profile = await users_acl.create_guest_profile(db, name)
+        attendance = EventAttendance(event_id=event_id, party_id=profile.party_id)
+        db.add(attendance)
+    await db.commit()
+    return EventAttendanceResponse(
+        id=attendance.id,
+        event_id=event_id,
+        user_profile_id=profile.id,
+        attached_to_account=attached,
+    )
+
+
+async def withdraw(db: AsyncSession, principal: Principal, event_id: uuid.UUID) -> None:
+    """Idempotent: with no active sign-up there is nothing to change."""
+    await get_event(db, event_id)
+    profile = await users_acl.get_caller_profile(db, principal)
+    attendance = await _find_active_attendance(db, event_id, profile.party_id)
+    if attendance is not None:
+        attendance.withdrawn_at = datetime.utcnow()
+    await db.commit()
 
 
 async def set_event_banner(
@@ -275,11 +460,11 @@ async def set_event_banner(
     event = await db.get(Event, event_id, with_for_update=True)
     if event is None:
         raise EventNotFound(event_id)
-    profile = await get_profile_by_principal(db, principal)
+    profile = await users_acl.get_caller_profile(db, principal)
     if event.author_party_id != profile.party_id:
         raise NotEventAuthor()
     if storage is None:
-        raise BusinessConflictException(AVATAR_UPLOAD_DISABLED_MESSAGE)
+        raise BusinessConflictException(users_acl.AVATAR_UPLOAD_DISABLED_MESSAGE)
     if len(data) > EVENT_BANNER_MAX_BYTES:
         raise ValueError(BANNER_TOO_LARGE_MESSAGE)
     processed = await asyncio.to_thread(images.process_upload, data)

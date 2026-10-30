@@ -160,10 +160,12 @@ export function OrganizerTermCard({ term, group, neededItems }: OrganizerTermCar
   );
 }
 
-/** An event the caller created: its name links to the event page; a
- * copy-link button and an edit pencil, as on `OrganizerTermCard`. */
-export function EventCard({ event }: { event: EventResponse }) {
+/** An event the caller created or signed up for: its name links to the
+ * event page; a copy-link button and, unless `editable` is false, an edit
+ * pencil, as on `OrganizerTermCard`. */
+export function EventCard({ event, editable = true }: { event: EventResponse; editable?: boolean }) {
   const { showToast } = useAppData();
+  const href = eventPath(event.author_slug, event.id);
   const end = event.ends_at ? termTime(event.ends_at) : "";
   return (
     <div className="flex items-start gap-3 rounded-[22px] border border-line bg-paper p-3.5">
@@ -171,7 +173,7 @@ export function EventCard({ event }: { event: EventResponse }) {
       <div className="min-w-0 flex-1">
         <KindBadge kind="event" />
         <h3 className="text-base font-bold wrap-break-word text-ink">
-          <Link to={eventPath(event.id)} className="hover:underline">
+          <Link to={href} className="hover:underline">
             {event.name}
           </Link>
         </h3>
@@ -187,16 +189,18 @@ export function EventCard({ event }: { event: EventResponse }) {
           title="Kopiuj link do wydarzenia"
           aria-label="Kopiuj link do wydarzenia"
           onClick={() => {
-            void navigator.clipboard.writeText(`${window.location.origin}${eventPath(event.id)}`);
+            void navigator.clipboard.writeText(`${window.location.origin}${href}`);
             showToast("Skopiowano link");
           }}
           className={ICON_BUTTON}
         >
           <CopyIcon />
         </button>
-        <Link to={eventEditPath(event.id)} aria-label={`Edytuj wydarzenie ${event.name}`} className={ICON_BUTTON}>
-          <PencilIcon />
-        </Link>
+        {editable && (
+          <Link to={eventEditPath(event.id)} aria-label={`Edytuj wydarzenie ${event.name}`} className={ICON_BUTTON}>
+            <PencilIcon />
+          </Link>
+        )}
       </div>
     </div>
   );

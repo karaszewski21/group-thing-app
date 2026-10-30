@@ -96,9 +96,9 @@ export function placeEditPath(locationId: string): string {
   return `/places/${locationId}/edit`;
 }
 
-/** The public event page. */
-export function eventPath(eventId: string): string {
-  return `/events/${eventId}`;
+/** The public event page, under the author's organizer slug (`EventResponse.author_slug`). */
+export function eventPath(organizerSlug: string, eventId: string): string {
+  return `/${organizerSlug}/event/${eventId}`;
 }
 
 export function eventEditPath(eventId: string): string {

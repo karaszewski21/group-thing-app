@@ -6,6 +6,13 @@ orchestrator:
     - phase-4
     - phase-5
     - phase-6
+    - phase-7
+    - phase-8
+    - phase-10
+    - phase-11
+    - phase-12
+    - phase-13
+    - phase-14
   failed_phases: []
   auto_fix_attempts: {}
   options:
@@ -21,7 +28,7 @@ orchestrator:
     reality_check_enabled: true
     production_check_enabled: true
   created: "2026-10-29T17:15:48Z"
-  updated: "2026-10-30T09:35:23Z"
+  updated: "2026-10-30T13:17:04Z"
   task_path: .maister/tasks/development/2026-10-29-event-public-page
   task_ids: {}
 task:
@@ -32,7 +39,7 @@ task:
     Układ strony: baner - termin - lista zapisanych i ich rzeczy (taka sekcja jak na terminie),
     czat eventu. Bez "potrzebne rzeczy" - event nie ma takiej opcji (jednorazowe wydarzenie).
     Ma przyjmować style jak termin.
-  status: in_progress
+  status: completed
   tags: [events, frontend, backend]
   priority: null
 task_context:
@@ -280,3 +287,47 @@ task_context:
         - path: implementation/visual-coverage.md
           label: Visual coverage
           html: null
+    implementation:
+      summary: "10/10 task groups in 5 waves (75 steps); ~62 new tests; backend full suite 955 passed; frontend 1224 passed with 14 failures that also fail on clean HEAD (13) or are flaky (1); tsc clean."
+      decisions:
+        - decision: "Accepted Group 6 transient tsc breakage until Groups 8/9"
+          rationale: "Planned call-site owners; cleared by wave 4"
+      risks:
+        - "14 pre-existing frontend test failures unrelated to feature"
+        - "app/messaging/__init__.py docstring lacks EVENT"
+        - "No concurrent sign-up vs delete race test (fixture limitation)"
+      artifacts:
+        - path: implementation/work-log.md
+          label: Work log
+          html: null
+    e2e:
+      summary: "10/10 E2E scenarios passed (Playwright, local dev); 1 cosmetic + 3 info; visual fidelity 9 match / 2 minor / 0 drift."
+      decisions: []
+      risks:
+        - "Not verified locally: item rows, banner/og:image, organizer chip/theme"
+        - "Merge card divider misplaced (AccountMergeForm SUB_FORM border inside card)"
+      artifacts:
+        - path: verification/e2e-verification-report.md
+          label: E2E report
+          html: verification/e2e-verification-report.html
+        - path: verification/visual-fidelity.md
+          label: Visual fidelity
+          html: verification/visual-fidelity.html
+    user_docs:
+      summary: "Polish user guide (documentation/user-guide.md) with 18 reused E2E screenshots; 3 statements implying organizers can remove guests were corrected by the orchestrator."
+      decisions: []
+      risks:
+        - "Merge-card screenshot shows the cosmetic divider defect"
+        - "No screenshots for item rows / banner / organizer chip"
+      artifacts:
+        - path: documentation/user-guide.md
+          label: User guide
+          html: null
+verification_context:
+  last_status: passed_with_issues
+  issues_found: [W1, W2, W3, W4, W5, W6, W7, W8, W9, W10, W11, W12]
+  fixes_applied: [W1, W2, W3, W4, W5, W6, W7, W10, W11, I1, I3, I5, R1-test-events-migration-index-sets]
+  decisions_made:
+    - "Fix recommended set; W8/W9/W12 left as follow-ups"
+    - "Re-run verification after fixes"
+  reverify_count: 1

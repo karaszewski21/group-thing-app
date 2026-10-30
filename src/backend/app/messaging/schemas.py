@@ -36,7 +36,8 @@ class ConversationSummary(BaseModel):
 
 
 class ConversationResponse(ConversationSummary):
-    """`participant_count` counts account-backed parties (GROUP and TERM)."""
+    """`participant_count` counts account-backed parties (GROUP, TERM and
+    EVENT)."""
 
     participant_count: int | None
 
@@ -51,6 +52,10 @@ class OpenGroupConversationRequest(BaseModel):
 
 class OpenTermConversationRequest(BaseModel):
     term_id: uuid.UUID
+
+
+class OpenEventConversationRequest(BaseModel):
+    event_id: uuid.UUID
 
 
 class MessageResponse(BaseModel):

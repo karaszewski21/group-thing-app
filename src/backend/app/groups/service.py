@@ -111,6 +111,7 @@ from app.groups.infrastructure.locations_acl import (
 from app.groups.infrastructure.repository import (
     has_active_attendance,
     has_active_membership,
+    item_listing_preferences_select,
     list_chat_group_refs,
     list_chat_term_refs,
     list_current_organizer_party_ids,
@@ -153,6 +154,7 @@ __all__ = [
     "has_active_attendance",
     "has_active_membership",
     "is_active_group_organizer",
+    "item_listing_preferences_select",
     "list_active_attendee_party_ids",
     "list_active_leaderships_for_party",
     "list_browsable_term_item_listings",

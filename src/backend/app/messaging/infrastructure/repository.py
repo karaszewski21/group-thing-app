@@ -10,7 +10,8 @@ The ORM `Conversation` instance is never modified on those paths:
 `updated_at` themselves, since it has no column default.
 
 The inbox and unread aggregates take the caller's audience as plain id sets
-(from `groups_acl.get_chat_audience_for_party`) and are one statement each,
+(from `groups_acl.get_chat_audience_for_party` and
+`events_acl.list_chat_event_ids_for_party`) and are one statement each,
 whatever the row count."""
 
 from __future__ import annotations
@@ -70,6 +71,15 @@ async def find_term_conversation(db: AsyncSession, term_id: uuid.UUID) -> Conver
     result = await db.execute(
         select(Conversation).where(
             Conversation.kind == ConversationKind.TERM, Conversation.term_id == term_id
+        )
+    )
+    return result.scalar_one_or_none()
+
+
+async def find_event_conversation(db: AsyncSession, event_id: uuid.UUID) -> Conversation | None:
+    result = await db.execute(
+        select(Conversation).where(
+            Conversation.kind == ConversationKind.EVENT, Conversation.event_id == event_id
         )
     )
     return result.scalar_one_or_none()
@@ -196,8 +206,11 @@ def _audience_filter(
     led_group_ids: Collection[uuid.UUID],
     member_group_ids: Collection[uuid.UUID],
     attended_term_ids: Collection[uuid.UUID],
+    event_ids: Collection[uuid.UUID],
 ) -> ColumnElement[bool]:
-    return or_(
+    """EVENT chats are matched only when the caller has any (authored or
+    actively attended) events."""
+    clauses: list[ColumnElement[bool]] = [
         and_(
             Conversation.kind == ConversationKind.ITEM,
             or_(
@@ -216,7 +229,15 @@ def _audience_filter(
                 Conversation.group_id.in_(list(led_group_ids)),
             ),
         ),
-    )
+    ]
+    if event_ids:
+        clauses.append(
+            and_(
+                Conversation.kind == ConversationKind.EVENT,
+                Conversation.event_id.in_(list(event_ids)),
+            )
+        )
+    return or_(*clauses)
 
 
 def _unread_join(party_id: uuid.UUID) -> tuple[ColumnElement[bool], ColumnElement[bool]]:
@@ -243,6 +264,7 @@ async def select_inbox_rows(
     led_group_ids: Collection[uuid.UUID],
     member_group_ids: Collection[uuid.UUID],
     attended_term_ids: Collection[uuid.UUID],
+    event_ids: Collection[uuid.UUID] = (),
     limit: int = INBOX_LIMIT,
 ) -> list[InboxRow]:
     """The caller's conversations that have a message, newest first, each
@@ -253,7 +275,9 @@ async def select_inbox_rows(
         .outerjoin(ConversationRead, read_on)
         .outerjoin(Message, unread_on)
         .where(
-            _audience_filter(party_id, led_group_ids, member_group_ids, attended_term_ids),
+            _audience_filter(
+                party_id, led_group_ids, member_group_ids, attended_term_ids, event_ids
+            ),
             Conversation.last_message_at.is_not(None),
         )
         .group_by(Conversation.id)
@@ -270,13 +294,14 @@ async def sum_unread(
     led_group_ids: Collection[uuid.UUID],
     member_group_ids: Collection[uuid.UUID],
     attended_term_ids: Collection[uuid.UUID],
+    event_ids: Collection[uuid.UUID] = (),
 ) -> int:
     """Exact unread total over every accessible conversation, read-only ones
     included, with no LIMIT — one statement."""
     return await _count_unread_where(
         db,
         party_id,
-        _audience_filter(party_id, led_group_ids, member_group_ids, attended_term_ids),
+        _audience_filter(party_id, led_group_ids, member_group_ids, attended_term_ids, event_ids),
     )
 
 

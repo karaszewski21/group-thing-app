@@ -35,6 +35,19 @@ const groupConversation: ConversationResponse = {
   participant_count: 12,
 };
 
+const eventConversation: ConversationResponse = {
+  id: "c3",
+  kind: "EVENT",
+  title: "Piknik sąsiedzki",
+  item: null,
+  counterpart_name: null,
+  group_name: null,
+  term_occurs_on: null,
+  unread_count: 0,
+  read_only_reason: null,
+  participant_count: 4,
+};
+
 const messages: MessageResponse[] = [
   {
     id: "m1",
@@ -170,6 +183,15 @@ describe("ThreadPage", () => {
     expect(screen.getByText("Organizator")).toBeInTheDocument();
     expect(screen.getByText("Kasia W.")).toBeInTheDocument();
     expect(screen.getByText("Będziemy z Zosią")).toBeInTheDocument();
+  });
+
+  it("eventThread_header_showsEventNameAndCzatWydarzenia", () => {
+    mockConversation({ conversation: eventConversation });
+    renderPage("c3");
+
+    const header = screen.getByRole("banner");
+    expect(within(header).getByRole("heading", { name: "Piknik sąsiedzki · czat wydarzenia" })).toBeInTheDocument();
+    expect(header).toHaveTextContent("4 uczestników");
   });
 
   it.each([

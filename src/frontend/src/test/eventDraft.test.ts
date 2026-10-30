@@ -59,6 +59,7 @@ describe("draftFromEvent", () => {
       },
       created_at: "",
       updated_at: "",
+      author_slug: "zielony-krag",
     };
     expect(draftFromEvent(event)).toEqual({
       name: "Piknik",

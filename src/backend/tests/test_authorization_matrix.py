@@ -85,6 +85,7 @@ def test_resolveRequirement_notificationsMarkRead_resolvesToEdit() -> None:
         ("GET", "/api/conversations", ("READ",)),
         ("GET", "/api/conversations/unread-count", ("READ",)),
         ("POST", "/api/conversations/item", ("EDIT",)),
+        ("POST", "/api/conversations/event", ("EDIT",)),
         ("POST", "/api/conversations/42/read", ("EDIT",)),
     ],
 )
@@ -271,11 +272,14 @@ def test_resolveRequirement_groupSoftDeleteAndLeadershipRows_resolveToExpectedRo
         ("PATCH", "/api/locations/x", EDIT),
         ("DELETE", "/api/locations/x", EDIT),
         ("GET", "/api/events/mine", READ),
+        ("GET", "/api/events/attending", READ),
         ("GET", "/api/events/x", "PUBLIC"),
         ("PATCH", "/api/events/x", EDIT),
         ("DELETE", "/api/events/x", EDIT),
         ("POST", "/api/events", EDIT),
         ("POST", "/api/events/x/banner", EDIT),
+        ("POST", "/api/events/x/attendances", "PUBLIC"),
+        ("POST", "/api/events/x/attendances/withdraw", EDIT),
     ],
 )
 def test_resolveRequirement_locationRows_resolveToExpectedRowNotCatchAll(

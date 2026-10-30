@@ -1,4 +1,6 @@
 import { api } from "./client";
+import type { OrganizerTheme } from "./groups";
+import type { ListingMode } from "./itemListingPreferences";
 import type { LocationRefResponse } from "./locations";
 import type { ModerationStatus } from "./products";
 
@@ -20,14 +22,57 @@ export interface EventResponse {
   location: LocationRefResponse | null;
   created_at: string;
   updated_at: string;
+  /** The author's URL prefix, shared with their term pages: `eventPath(author_slug, id)`. */
+  author_slug: string;
 }
 
-/** The event page: the event plus its banner, sign-up count and whether
- * the caller wrote it (edit/delete controls). */
+/** The author's own Organization: its name and colors for the page theme. */
+export interface EventOrganization extends OrganizerTheme {
+  name: string;
+}
+
+/** A live, available item the participant shares, ordered by product name. */
+export interface EventParticipantItem {
+  item_id: string;
+  product_name: string;
+  mode: ListingMode;
+  thumb_url: string | null;
+}
+
+/** The author comes first, then active attendees in sign-up order. */
+export interface EventParticipant {
+  party_id: string;
+  display_name: string;
+  is_author: boolean;
+  /** The viewer themself (the "To Ty" pill). */
+  is_me: boolean;
+  items: EventParticipantItem[];
+}
+
+/** The public event page. `attendee_count` excludes the author;
+ * `author_display_name` is the author's Organization name, else their
+ * profile name; `is_attending` is the viewer's own active sign-up. */
 export interface EventDetailResponse extends EventResponse {
   banner_url: string | null;
   attendee_count: number;
   is_author: boolean;
+  author_display_name: string;
+  organization: EventOrganization | null;
+  participants: EventParticipant[];
+  is_attending: boolean;
+  has_ended: boolean;
+}
+
+/** `guest_name` is required for an anonymous caller, ignored otherwise. */
+export interface EventAttendanceRequest {
+  guest_name: string | null;
+}
+
+export interface EventAttendanceResponse {
+  id: string;
+  event_id: string;
+  user_profile_id: string;
+  attached_to_account: boolean;
 }
 
 export interface EventBannerResponse {
@@ -56,6 +101,26 @@ export function deleteEvent(eventId: string): Promise<void> {
 /** The caller's own events, earliest start first. */
 export function getMyEvents(): Promise<EventResponse[]> {
   return api.get("/events/mine");
+}
+
+/** The events the caller actively attends, earliest start first. */
+export function getAttendingEvents(): Promise<EventResponse[]> {
+  return api.get("/events/attending");
+}
+
+/** Idempotent for a logged-in caller; refused (409) for the author or once the event has ended. */
+export function signUpForEvent(eventId: string, request: EventAttendanceRequest): Promise<EventAttendanceResponse> {
+  return api.post(`/events/${eventId}/attendances`, request);
+}
+
+/** Idempotent: succeeds even when the caller isn't signed up. */
+export function withdrawFromEvent(eventId: string): Promise<void> {
+  return api.post(`/events/${eventId}/attendances/withdraw`, undefined);
+}
+
+/** localStorage key for an anonymous visitor's guest sign-up, scoped per event. */
+export function eventGuestProfileKey(eventId: string): string {
+  return `guest_profile_id:event:${eventId}`;
 }
 
 /** Replaces any banner already stored for the event. */

@@ -14,6 +14,7 @@ const KIND_CHIP: Record<ConversationKind, { label: string; className: string }> 
   ITEM: { label: "Rzecz", className: "bg-accent-soft text-ink" },
   GROUP: { label: "Grupa", className: "bg-mint-soft text-primary-fg" },
   TERM: { label: "Termin", className: "bg-teal-soft text-ink" },
+  EVENT: { label: "Wydarzenie", className: "bg-accent-soft text-accent-fg" },
 };
 
 /** The messages inbox (`/messages`): every conversation with a
@@ -57,6 +58,8 @@ function LeadingVisual({ row }: { row: InboxRow }) {
       return <Avatar name={row.group_name ?? row.title} size="md" />;
     case "TERM":
       return <RoundIcon className="bg-teal-soft">📅</RoundIcon>;
+    case "EVENT":
+      return <RoundIcon className="bg-accent-soft">🎉</RoundIcon>;
   }
 }
 

@@ -1,0 +1,208 @@
+import { fireEvent, render, screen, within } from "@testing-library/react";
+import type { ReactElement } from "react";
+import { MemoryRouter } from "react-router-dom";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import type { EventParticipant, EventParticipantItem, EventResponse } from "../api/events";
+import { EventAttendeeList } from "../pages/events/components/EventAttendeeList";
+import { EventChatRow } from "../pages/events/components/EventChatRow";
+import { EventFooter } from "../pages/events/components/EventFooter";
+import { EventWhenCard } from "../pages/events/components/EventWhenCard";
+
+const EMPTY_COPY =
+  "Nikt jeszcze się nie zapisał. Zapisz się jako pierwsza osoba i pokaż, co przyniesiesz do wymiany.";
+const NEUTRAL_EMPTY_COPY = "Nikt jeszcze się nie zapisał.";
+
+function renderWithProviders(ui: ReactElement) {
+  return render(<MemoryRouter>{ui}</MemoryRouter>);
+}
+
+function eventFixture(overrides: Partial<EventResponse> = {}): EventResponse {
+  return {
+    id: "ev-1",
+    name: "Piknik wymiany zabawek",
+    description: null,
+    starts_at: "2026-11-14T11:00:00",
+    ends_at: "2026-11-14T15:00:00",
+    location: {
+      id: "loc-1",
+      name: "Park Skaryszewski",
+      formatted_address: "al. Jerzego Waszyngtona, Warszawa",
+      google_place_id: null,
+      notes: null,
+      deleted_at: null,
+    },
+    created_at: "",
+    updated_at: "",
+    author_slug: "zielony-krag",
+    ...overrides,
+  };
+}
+
+function item(id: string, productName: string, mode: EventParticipantItem["mode"]): EventParticipantItem {
+  return { item_id: id, product_name: productName, mode, thumb_url: null };
+}
+
+function participant(overrides: Partial<EventParticipant> = {}): EventParticipant {
+  return {
+    party_id: "p-author",
+    display_name: "Fundacja Zielony Krąg",
+    is_author: true,
+    is_me: false,
+    items: [],
+    ...overrides,
+  };
+}
+
+describe("EventWhenCard", () => {
+  beforeEach(() => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date("2026-11-01T10:00:00"));
+  });
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it("shows the start–end range, and only the start time without an end", () => {
+    const { rerender } = renderWithProviders(
+      <EventWhenCard event={eventFixture()} url="https://app.test/zielony-krag/event/ev-1" onCopyLink={() => {}} />,
+    );
+    const card = screen.getByRole("region", { name: "Termin wydarzenia" });
+    expect(within(card).getByText("Termin wydarzenia")).toBeInTheDocument();
+    expect(within(card).getByText("sobota, 14 listopada 2026")).toBeInTheDocument();
+    expect(within(card).getByText("godz. 11:00–15:00")).toBeInTheDocument();
+    expect(within(card).getByText("Park Skaryszewski")).toBeInTheDocument();
+    expect(within(card).getByRole("button", { name: /Dodaj do kalendarza/ })).toBeInTheDocument();
+    expect(within(card).getByRole("button", { name: "Kopiuj link" })).toBeInTheDocument();
+
+    rerender(
+      <MemoryRouter>
+        <EventWhenCard
+          event={eventFixture({ ends_at: null })}
+          url="https://app.test/zielony-krag/event/ev-1"
+          onCopyLink={() => {}}
+        />
+      </MemoryRouter>,
+    );
+    expect(screen.getByText("godz. 11:00")).toBeInTheDocument();
+  });
+});
+
+describe("EventAttendeeList", () => {
+  it("puts the author first with Organizator and marks the viewer's row with To Ty", () => {
+    renderWithProviders(
+      <EventAttendeeList
+        authorSlug="zielony-krag"
+        canSignUp
+        participants={[
+          participant(),
+          participant({ party_id: "p-kasia", display_name: "Kasia", is_author: false, is_me: true }),
+          participant({ party_id: "p-marek", display_name: "Marek", is_author: false }),
+        ]}
+      />,
+    );
+    const list = screen.getByRole("region", { name: "Zapisani na wydarzenie" });
+    expect(within(list).getByRole("heading", { level: 2, name: "Zapisani i ich rzeczy" })).toBeInTheDocument();
+    const rows = within(list).getAllByRole("listitem");
+    expect(rows).toHaveLength(3);
+    expect(within(rows[0]).getByText("Fundacja Zielony Krąg")).toBeInTheDocument();
+    expect(within(rows[0]).getByText("Organizator")).toBeInTheDocument();
+    expect(within(rows[1]).getByText("To Ty")).toBeInTheDocument();
+    expect(within(rows[2]).queryByText("To Ty")).not.toBeInTheDocument();
+    expect(within(rows[2]).queryByText("Organizator")).not.toBeInTheDocument();
+    expect(screen.queryByText(EMPTY_COPY)).not.toBeInTheDocument();
+  });
+
+  it("links every item to its product page under the author slug, with its mode label", () => {
+    renderWithProviders(
+      <EventAttendeeList
+        authorSlug="zielony-krag"
+        canSignUp
+        participants={[participant({ items: [item("it-1", "Pluszowy miś", "GIFT"), item("it-2", "Rowerek", "SWAP")] })]}
+      />,
+    );
+    const gift = screen.getByRole("link", { name: /Pluszowy miś/ });
+    expect(gift).toHaveAttribute("href", "/zielony-krag/product/it-1");
+    expect(gift).toHaveTextContent("Weź na stałe");
+    const swap = screen.getByRole("link", { name: /Rowerek/ });
+    expect(swap).toHaveAttribute("href", "/zielony-krag/product/it-2");
+    expect(swap).toHaveTextContent("Zamiana");
+  });
+
+  it("shows the first 3 items, and Pokaż wszystkie (n) expands to all of them", () => {
+    renderWithProviders(
+      <EventAttendeeList
+        authorSlug="zielony-krag"
+        canSignUp
+        participants={[
+          participant({
+            items: [
+              item("it-1", "Miś", "GIFT"),
+              item("it-2", "Rowerek", "SWAP"),
+              item("it-3", "Książeczki", "GIFT"),
+              item("it-4", "Klocki", "SWAP"),
+            ],
+          }),
+        ]}
+      />,
+    );
+    expect(screen.getAllByRole("link")).toHaveLength(3);
+    const toggle = screen.getByRole("button", { name: "Pokaż wszystkie (4)" });
+    expect(toggle).toHaveAttribute("aria-expanded", "false");
+
+    fireEvent.click(toggle);
+    expect(screen.getAllByRole("link")).toHaveLength(4);
+    expect(screen.getByRole("button", { name: "Zwiń" })).toHaveAttribute("aria-expanded", "true");
+  });
+
+  it("keeps the author row and shows the empty copy when nobody else signed up", () => {
+    renderWithProviders(<EventAttendeeList authorSlug="zielony-krag" canSignUp participants={[participant()]} />);
+    expect(screen.getAllByRole("listitem")).toHaveLength(1);
+    expect(screen.getByText("Organizator")).toBeInTheDocument();
+    expect(screen.getByText(EMPTY_COPY)).toBeInTheDocument();
+  });
+
+  it("shows neutral empty copy without the sign-up nudge when the viewer cannot sign up", () => {
+    renderWithProviders(
+      <EventAttendeeList authorSlug="zielony-krag" canSignUp={false} participants={[participant()]} />,
+    );
+    expect(screen.getByText(NEUTRAL_EMPTY_COPY)).toBeInTheDocument();
+    expect(screen.queryByText(EMPTY_COPY)).not.toBeInTheDocument();
+  });
+});
+
+describe("EventFooter", () => {
+  it("renders the signUp, withdraw and disabled ended variants with their copy", () => {
+    const onSignUp = vi.fn();
+    const onWithdraw = vi.fn();
+    const { rerender } = render(<EventFooter variant="signUp" busy={false} onSignUp={onSignUp} />);
+    fireEvent.click(screen.getByRole("button", { name: "＋ Zapisz się na wydarzenie" }));
+    expect(onSignUp).toHaveBeenCalledTimes(1);
+
+    rerender(<EventFooter variant="signUp" busy onSignUp={onSignUp} />);
+    expect(screen.getByRole("button", { name: "＋ Zapisz się na wydarzenie" })).toBeDisabled();
+
+    rerender(<EventFooter variant="withdraw" busy={false} onWithdraw={onWithdraw} />);
+    fireEvent.click(screen.getByRole("button", { name: "Wypisz się" }));
+    expect(onWithdraw).toHaveBeenCalledTimes(1);
+
+    rerender(<EventFooter variant="ended" />);
+    expect(screen.getByRole("button", { name: "Wydarzenie się zakończyło" })).toBeDisabled();
+  });
+});
+
+describe("EventChatRow", () => {
+  it("opens the chat, is disabled while busy and shows an error inline as an alert", () => {
+    const onOpen = vi.fn();
+    const { rerender } = render(<EventChatRow onOpen={onOpen} busy={false} error={null} />);
+    fireEvent.click(screen.getByRole("button", { name: /Czat wydarzenia/ }));
+    expect(onOpen).toHaveBeenCalledTimes(1);
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+
+    rerender(<EventChatRow onOpen={onOpen} busy error={null} />);
+    expect(screen.getByRole("button", { name: /Czat wydarzenia/ })).toBeDisabled();
+
+    rerender(<EventChatRow onOpen={onOpen} busy={false} error="Brak dostępu do czatu." />);
+    expect(screen.getByRole("alert")).toHaveTextContent("Brak dostępu do czatu.");
+    expect(screen.getByRole("button", { name: /Czat wydarzenia/ })).toBeEnabled();
+  });
+});
