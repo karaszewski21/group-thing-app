@@ -1,0 +1,282 @@
+orchestrator:
+  started_phase: phase-1
+  completed_phases:
+    - phase-1
+    - phase-2
+    - phase-4
+    - phase-5
+    - phase-6
+  failed_phases: []
+  auto_fix_attempts: {}
+  options:
+    sequential: null
+    html_output: true
+    mockup_format: html
+    spec_audit_enabled: true
+    skip_test_suite: false
+    e2e_enabled: true
+    user_docs_enabled: true
+    code_review_enabled: true
+    pragmatic_review_enabled: true
+    reality_check_enabled: true
+    production_check_enabled: true
+  created: "2026-10-29T17:15:48Z"
+  updated: "2026-10-30T09:35:23Z"
+  task_path: .maister/tasks/development/2026-10-29-event-public-page
+  task_ids: {}
+task:
+  title: Publiczna strona wydarzenia (event) na wzór terminu
+  description: |
+    poprawka eventu. Dodanie strony event na podobę terminu. Routing z slug organizatora lub losowy.
+    Strona eventu jest zawsze publiczna. Zapis na wydarzenie.
+    Układ strony: baner - termin - lista zapisanych i ich rzeczy (taka sekcja jak na terminie),
+    czat eventu. Bez "potrzebne rzeczy" - event nie ma takiej opcji (jednorazowe wydarzenie).
+    Ma przyjmować style jak termin.
+  status: in_progress
+  tags: [events, frontend, backend]
+  priority: null
+task_context:
+  risk_level: medium
+  clarifications_resolved: true
+  scope_expanded: true
+  tech_clarified: true
+  architecture_decision: "events BC + infrastructure ACLs; batched items query; EVENT conversation kind"
+  project_doc_paths:
+    - .maister/docs/project/tech-stack.md
+    - .maister/docs/project/architecture.md
+  task_characteristics:
+    has_reproducible_defect: false
+    modifies_existing_code: true
+    creates_new_entities: true
+    involves_data_operations: true
+    ui_heavy: true
+  research_reference:
+    path: null
+    research_question: null
+    research_type: null
+    confidence_level: null
+  design_reference:
+    source: phase-4-mockup-studio
+    product_design_path: null
+    mockup_count: 7
+    has_brief: false
+    index_path: analysis/design-context/INDEX.md
+  design_resources:
+    ran: true
+    found_any: true
+    standards:
+      - .maister/docs/standards/frontend/css.md
+      - .maister/docs/standards/frontend/components.md
+      - .maister/docs/standards/frontend/accessibility.md
+      - .maister/docs/standards/frontend/responsive.md
+    design_system:
+      - src/frontend/src/index.css
+      - src/frontend/src/components/shared/uiStyles.ts
+      - src/frontend/src/pages/term/components/
+  phase_summaries:
+    codebase_analysis:
+      summary: "A basic public /events/:eventId page exists (banner, date, place, description), without sign-up, participants, items or chat, and not in Term styling. EventAttendance table exists but is unused; event chat needs a new EVENT conversation kind (migration 0071)."
+      complexity: complex
+      key_files:
+        - src/backend/app/events/service.py
+        - src/backend/app/events/router.py
+        - src/backend/app/events/models.py
+        - src/backend/app/events/schemas.py
+        - src/backend/app/core/authorization_matrix.py
+        - src/backend/app/messaging/
+        - src/backend/app/groups/application/public_view.py
+        - src/backend/app/organizations/slugs.py
+        - src/frontend/src/pages/events/EventPage.tsx
+        - src/frontend/src/hooks/useEvent.ts
+        - src/frontend/src/api/events.ts
+        - src/frontend/src/router.tsx
+        - src/frontend/src/pages/term/components/
+      primary_language: python+typescript
+      decisions:
+        - decision: "Extend app/events rather than reuse groups/terms"
+          rationale: "EventAttendance already exists; copy create_rsvp branches without child_count"
+        - decision: "Cosmetic organizer slug in URL; backend loads by id"
+          rationale: "Same as Term page"
+        - decision: "Parametrize TermCard/AttendeeList/TermFooter instead of forking"
+          rationale: "Reuse Term styling, avoid duplicates"
+      risks:
+        - "Messaging assumes group_id is not None — EVENT kind touches every chat path"
+        - "Term item-listing path is N+1; events should use the batched query"
+        - "Organizer theme needs organizations lookup (event author is a person party)"
+        - "No OG link preview for event URLs yet"
+      artifacts:
+        - path: analysis/codebase-analysis.md
+          label: Codebase analysis
+          html: null
+    clarifications:
+      summary: "Route only /<slug>/event/<id> (old /events/:id removed, no redirect); sign-up for logged-in + guests; items read-only; chat as button to EVENT thread."
+      decisions:
+        - decision: "Routing /<organizer-slug>/event/<eventId>; remove old /events/:eventId page route without redirect"
+          rationale: "User choice"
+        - decision: "Sign-up for logged-in users and guests (Term-style)"
+          rationale: "User choice"
+        - decision: "Participants' items read-only, no take/swap"
+          rationale: "Reservations tied to term_id NOT NULL"
+        - decision: "Chat via button opening EVENT thread in Messages"
+          rationale: "Same pattern as Term"
+      risks:
+        - "Fate of /events/:eventId/edit route unclear"
+        - "All eventPath() call sites need organizer slug"
+      artifacts:
+        - path: analysis/clarifications.md
+          label: Clarifications
+          html: null
+    gap_analysis:
+      summary: "Gap analysis: medium risk, medium-high effort; additive (sign-up/withdraw, participants+items read model, EVENT chat kind via migration 0071, OG preview) plus modifications (routing to /<slug>/event/<id>, EventPage rebuild in Term style)."
+      integration_points:
+        - app/events (service, router, schemas)
+        - app/messaging (EVENT kind branches)
+        - app/system/router.py (OG preview)
+        - core/authorization_matrix.py
+        - frontend router.tsx, EventPage, EventCard, EventEditView
+      decisions: []
+      risks:
+        - "Messaging EVENT branch must cover all group_id-asserting paths or inbox breaks"
+        - "Participants' items need batched query + count_queries test"
+        - "No catch-all 404 in router.tsx; removed /events/<id> links show default error page"
+        - "EventResponse needs author slug for EventCard/EventEditView links"
+      artifacts:
+        - path: analysis/gap-analysis.md
+          label: Gap analysis
+          html: null
+    scope_clarifications:
+      scope_expanded: true
+      summary: "Added withdraw (logged-in self) and cascade-delete of event chat; event-only component copies (Term untouched); author org theme; author first as Organizator; sign-up closed after end; no capacity; OG preview; guest merge reused; guest name moderated; item links /<slug>/product/<id>."
+      decisions:
+        - decision: "Withdraw: logged-in self, idempotent; guests cannot"
+          rationale: "Critical — otherwise event undeletable"
+        - decision: "conversations.event_id ON DELETE CASCADE"
+          rationale: "Critical — hard delete would fail on FK"
+        - decision: "Keep /events/:eventId/edit"
+          rationale: "Internal author route"
+        - decision: "Theme = author's Organization theme else default"
+          rationale: "Matches Term"
+        - decision: "Author first in list as Organizator, no sign-up button"
+          rationale: "User choice"
+        - decision: "Sign-up 409 after ends_at (or starts_at)"
+          rationale: "One-off event"
+        - decision: "No capacity in v1"
+          rationale: "Scope"
+        - decision: "OG preview added"
+          rationale: "Page meant to be shared"
+        - decision: "Reuse AccountMergeForm with guest_profile_id:event:<id>"
+          rationale: "Backend merge keeps party"
+        - decision: "Event-only component copies (do not parametrize Term components)"
+          rationale: "User choice — zero Term regression risk"
+        - decision: "Item link /<slug>/product/<id>"
+          rationale: "Matches Term"
+        - decision: "check_text on guest name"
+          rationale: "Public page"
+      risks:
+        - "Event-only copies may drift from Term styling"
+      artifacts:
+        - path: analysis/scope-clarifications.md
+          label: Scope clarifications
+          html: null
+    ui_mockups:
+      summary: "7 HTML mockup screens in Term styling (anonymous, participant, author, guest sign-up sheet, guest merge card, ended, empty); 4 event components indexed."
+      format_used: html
+      components_designed:
+        - event-when-card
+        - event-attendee-list
+        - event-chat-row
+        - event-footer
+      decisions: []
+      risks: []
+      artifacts:
+        - path: analysis/design-context/INDEX.md
+          label: Design context index
+          html: null
+        - path: analysis/design-context/design-resources.md
+          label: Design resources
+          html: null
+        - path: analysis/design-context/mockups/anonymous-visitor-view.html
+          label: Mockup - anonymous visitor
+          html: analysis/design-context/mockups/anonymous-visitor-view.html
+    design:
+      summary: "Event page mockups bound to Term design tokens; see analysis/design-context/INDEX.md."
+      screen_count: 7
+      component_count: 4
+      index_path: analysis/design-context/INDEX.md
+      decisions: []
+      risks: []
+      artifacts: []
+    specification:
+      summary: "Spec: 14 requirements; public detail with participants+items, guest/logged-in sign-up, withdraw, /attending, EVENT chat (migration 0071 incl. cascade on messages/conversation_reads FKs), OG preview, author_slug, new pages/events/components; 7 test groups."
+      decisions:
+        - decision: "Migration 0071 also recreates messages/conversation_reads conversation FKs with ON DELETE CASCADE"
+          rationale: "Otherwise event->conversation cascade fails once a message exists"
+        - decision: "Keep LocationRefResponse on detail"
+          rationale: "EditView needs location.id; no coordinates exposed"
+        - decision: "Participants nested with items[] and server-computed is_me"
+          rationale: "Frontend has no party id"
+        - decision: "New derive_party_slug shared by term and event URLs"
+          rationale: "One organizer, one slug"
+        - decision: "Anonymous footer opens guest sheet directly (no AuthGateSheet)"
+          rationale: "Follows screen:event-anonymous"
+        - decision: "Guest name moderated with TextField.PROFILE_NAME"
+          rationale: "No new moderation field"
+        - decision: "EventCreateView navigates to the new event page after create"
+          rationale: "Requirements journey"
+      risks:
+        - "Old /events/<id> links show React Router default error page"
+        - "Messaging blast radius if any kind switch misses EVENT"
+        - "Anonymous sign-ups unthrottled"
+        - "'Jesteś zapisana jako gość' is gendered copy from mockup"
+        - "Withdraw allowed after end but hidden in UI; ended event with attendees undeletable"
+      artifacts:
+        - path: analysis/requirements.md
+          label: Requirements
+          html: null
+        - path: analysis/technical-clarifications.md
+          label: Technical clarifications
+          html: null
+        - path: implementation/spec.md
+          label: Specification
+          html: implementation/spec.html
+    spec_audit:
+      summary: "pass-with-concerns: 0 critical, 0 high, 5 medium, 10 low; all fixes and user decisions fed back into spec."
+      decisions:
+        - decision: "Anonymous footer '＋ Zapisz się na wydarzenie' everywhere; login only via sheet link"
+          rationale: "User choice (M3)"
+        - decision: "Post-create toast passed via navigation state"
+          rationale: "User choice (M1)"
+        - decision: "useEvent follows forToken/isStale standard"
+          rationale: "User choice (M4)"
+        - decision: "Gender-neutral guest copy"
+          rationale: "User choice"
+      risks: []
+      artifacts:
+        - path: verification/spec-audit.md
+          label: Spec audit
+          html: null
+    implementation_planning:
+      summary: "10 task groups, 75 steps (5 backend, 4 frontend, 1 test review); backend chain 0071 -> slugs/ACLs/attending -> sign-up/withdraw -> detail+OG -> messaging EVENT; frontend data -> components -> page/routing -> app-wide links; ~52-62 tests; all 11 design items covered."
+      decisions:
+        - decision: "/attending and batched org lookup ship together in Group 2"
+          rationale: "M5 count_queries guard belongs where resolve_author_slugs is introduced"
+        - decision: "OG preview and 'event' reserved slug folded into detail Group 4"
+          rationale: "Same public read surface"
+        - decision: "ACL modules grow with their first consumer"
+          rationale: "minimal-implementation.md"
+        - decision: "resolveEventView moves with the page (Group 8)"
+          rationale: "Union change breaks EventPage switch"
+        - decision: "Messaging Group 5 re-runs existing messaging tests"
+          rationale: "Missing EVENT branch would break every inbox"
+      risks:
+        - "Hot shared files serialize most backend work"
+        - "Frontend/backend contract drift until E2E"
+        - "AppPage.test.tsx touched by Groups 6 and 9"
+        - "Term must stay byte-identical (AccountMergeForm optional props)"
+      artifacts:
+        - path: implementation/implementation-plan.md
+          label: Implementation plan
+          html: implementation/implementation-plan.html
+        - path: implementation/visual-coverage.md
+          label: Visual coverage
+          html: null
