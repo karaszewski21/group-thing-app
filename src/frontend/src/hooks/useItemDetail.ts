@@ -14,7 +14,7 @@ import {
   updateProductDescription,
 } from "../api/products";
 
-const ITEM_DETAILS_KEY = "itemDetails";
+export const ITEM_DETAILS_KEY = "itemDetails";
 
 /** How often the owner's page re-reads details while a photo awaits the AI verdict. */
 const PENDING_PHOTO_POLL_MS = 10_000;

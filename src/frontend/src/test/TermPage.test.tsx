@@ -9,7 +9,7 @@ import * as pledgesApi from "../api/pledges";
 import * as termItemListingsApi from "../api/termItemListings";
 import * as inventoriesApi from "../api/inventories";
 import { ApiError } from "../api/client";
-import type { GroupAccessResponse, PublicCircleResponse } from "../api/groups";
+import type { GroupAccessResponse, PublicCircleResponse, PublicItemListingResponse } from "../api/groups";
 import { createQueryWrapper } from "./queryClient";
 
 vi.mock("../api/groups", async (importOriginal) => {
@@ -88,6 +88,7 @@ const circle: PublicCircleResponse = {
         lister_party_id: "21",
         lister_display_name: "Ola Nowak",
         thumb_url: null,
+        added_at: "2026-10-20T09:00:00",
       },
       {
         id: "10",
@@ -98,6 +99,7 @@ const circle: PublicCircleResponse = {
         lister_party_id: "99",
         lister_display_name: "Ania Kowalska",
         thumb_url: null,
+        added_at: "2026-10-21T09:00:00",
       },
     ],
   },
@@ -232,10 +234,10 @@ describe("TermPage — header and content", () => {
 
     await screen.findByRole("region", { name: "Zapisani na zajęcia" });
     const ola = document.getElementById("attendee-21")!;
-    expect(within(ola).getByRole("link", { name: "Rowerek" })).toHaveAttribute("href", "/ania/product/9");
-    expect(within(document.getElementById("attendee-99")!).getByRole("link", { name: "Namiot" })).toHaveAttribute(
+    expect(within(ola).getByRole("link", { name: /Rowerek/ })).toHaveAttribute("href", "/ania/product/9?term=101");
+    expect(within(document.getElementById("attendee-99")!).getByRole("link", { name: /Namiot/ })).toHaveAttribute(
       "href",
-      "/ania/product/10",
+      "/ania/product/10?term=101",
     );
     expect(screen.getAllByText("Bębenek").length).toBeGreaterThan(0);
     expect(screen.queryByRole("link", { name: /Bębenek/ })).toBeNull();
@@ -247,8 +249,48 @@ describe("TermPage — header and content", () => {
 
     await screen.findByRole("region", { name: "Zapisani na zajęcia" });
     expect(
-      within(document.getElementById("attendee-21")!).getByRole("link", { name: "Rowerek" }),
-    ).toHaveAttribute("href", "/product/9");
+      within(document.getElementById("attendee-21")!).getByRole("link", { name: /Rowerek/ }),
+    ).toHaveAttribute("href", "/product/9?term=101");
+  });
+
+  it("previews each attendee's 3 newest items with inline take buttons and Pokaż więcej to their items page", async () => {
+    const olaListing = (itemId: string, productName: string, addedAt: string): PublicItemListingResponse => ({
+      id: itemId,
+      item_id: itemId,
+      product_name: productName,
+      condition: "GOOD",
+      offered_types: ["GIFT"],
+      lister_party_id: "21",
+      lister_display_name: "Ola Nowak",
+      thumb_url: null,
+      added_at: addedAt,
+    });
+    vi.mocked(groupsApi.getGroupAccess).mockResolvedValue(
+      access({
+        group: {
+          term: {
+            ...circle.term!,
+            item_listings: [
+              olaListing("31", "Najstarsza lalka", "2026-09-01T09:00:00"),
+              olaListing("32", "Hulajnoga", "2026-10-29T09:00:00"),
+              olaListing("33", "Kredki", "2026-10-30T09:00:00"),
+              olaListing("34", "Puzzle", "2026-10-25T09:00:00"),
+            ],
+          },
+        },
+      }),
+    );
+    renderPage();
+
+    await screen.findByRole("region", { name: "Zapisani na zajęcia" });
+    const ola = document.getElementById("attendee-21")!;
+    const names = within(ola)
+      .getAllByRole("link", { name: /Hulajnoga|Kredki|Puzzle|Najstarsza lalka/ })
+      .map((link) => link.querySelector("span.block")?.textContent);
+    expect(names).toEqual(["Kredki", "Hulajnoga", "Puzzle"]);
+    expect(within(ola).getByRole("button", { name: "Weź na stałe: Kredki" })).toBeInTheDocument();
+    expect(within(ola).getByRole("link", { name: "Pokaż więcej (4)" })).toHaveAttribute("href", "/21/items?term=101");
+    expect(within(ola).queryByRole("button", { name: /Pokaż wszystkie/ })).not.toBeInTheDocument();
   });
 });
 
@@ -517,6 +559,14 @@ describe("TermPage — take success sheet", () => {
     expect(screen.queryByText(/Wzięto!/)).not.toBeInTheDocument();
   });
 
+  it("passes the term context to the sheet: the calendar links to the organizer term page", async () => {
+    const dialog = await takeRowerek();
+    fireEvent.click(within(dialog).getByRole("button", { name: /Dodaj do kalendarza/ }));
+
+    const google = within(dialog).getByRole("menuitem", { name: /Kalendarz Google/ });
+    expect(decodeURIComponent(google.getAttribute("href") ?? "")).toContain("/ania/group/7/term/101");
+  });
+
   it("Esc with the calendar menu open closes only the menu; a second Esc closes the sheet", async () => {
     const dialog = await takeRowerek();
     fireEvent.click(within(dialog).getByRole("button", { name: /Dodaj do kalendarza/ }));
@@ -561,14 +611,24 @@ describe("TermPage — take success sheet", () => {
       }),
     );
     vi.mocked(inventoriesApi.getMyInventoryItems).mockResolvedValue([
-      { id: "50", product_name: "Kask", listing_mode: "SWAP" } as never,
+      { id: "50", product_name: "Kask", condition: "GOOD", listing_mode: "SWAP" } as never,
     ]);
     vi.mocked(inventoriesApi.getInventoryItemBalance).mockResolvedValue({ status: "AVAILABLE" } as never);
     vi.mocked(termItemListingsApi.proposeSwap).mockResolvedValue({} as never);
     renderPage();
 
     fireEvent.click(await screen.findByRole("button", { name: "Zamień: Rowerek" }));
-    fireEvent.click(await screen.findByRole("button", { name: "Zaproponuj zamianę" }));
+    const sheet = await screen.findByRole("dialog");
+    expect(within(sheet).getByRole("heading", { name: "Co proponujesz w zamian?" })).toBeInTheDocument();
+    const group = within(sheet).getByRole("group", { name: "Twoje rzeczy wystawione do zamiany" });
+    expect(within(group).getByRole("radio", { name: /Kask/ })).toBeChecked();
+    expect(group).toHaveTextContent("Dobry");
+    expect(within(sheet).getByRole("button", { name: "Anuluj" })).toBeInTheDocument();
+    fireEvent.click(within(sheet).getByRole("button", { name: "Zaproponuj zamianę" }));
+
+    await waitFor(() =>
+      expect(termItemListingsApi.proposeSwap).toHaveBeenCalledWith("9", { term_id: "101", offered_item_id: "50" }),
+    );
 
     expect(await screen.findByRole("status")).toHaveTextContent("Zaproponowano zamianę! Szczegóły w Twoim panelu");
     expect(screen.queryByRole("dialog", { name: /Odbierz/ })).not.toBeInTheDocument();

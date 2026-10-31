@@ -1,0 +1,206 @@
+orchestrator:
+  started_phase: phase-1
+  completed_phases: [phase-1, phase-2, phase-4, phase-5, phase-6, phase-7, phase-8, phase-10, phase-11, phase-12, phase-13, phase-14]
+  failed_phases: []
+  auto_fix_attempts: {}
+  options:
+    sequential: false
+    html_output: true
+    mockup_format: html
+    spec_audit_enabled: true
+    skip_test_suite: false
+    e2e_enabled: true
+    user_docs_enabled: true
+    code_review_enabled: true
+    pragmatic_review_enabled: true
+    reality_check_enabled: true
+    production_check_enabled: true
+  created: "2026-10-31T08:36:57Z"
+  updated: "2026-10-31T17:15:43Z"
+  task_path: .maister/tasks/development/2026-10-31-items-page-event-reservations
+  task_ids: {}
+task:
+  title: Owner items page, attendee items on event/term pages, event item reservations
+  description: >-
+    1) New items list page for reviewing a user's/organizer's items: user at /<user-id>/items,
+    organizer at /<organization-slug>/items. The items page also shows the owner's nearest upcoming
+    term where one can come to pick up/swap; if the owner has no future terms, only chat is possible.
+    2) Event and term pages - "Signed up and their items" - show 3 most recently added items with
+    "Show more" and a link to the item page. The item page accepts ?term=<term-id> and ?event=<event-id>
+    params and shows take / swap buttons to reserve the item, plus "write" (chat).
+    3) Implement item reservation on an event.
+  status: completed
+  tags: [items, events, terms, reservations, frontend, backend]
+  priority: null
+task_context:
+  risk_level: medium-high
+  clarifications_resolved: true
+  tech_clarified: true
+  scope_expanded: true
+  architecture_decision: "ReservationContext (Term|Event) in groups; POST /api/events/{id}/items/{item_id}/take|propose; public GET /api/items/{id}/actions"
+  task_characteristics:
+    has_reproducible_defect: false
+    modifies_existing_code: true
+    creates_new_entities: true
+    involves_data_operations: true
+    ui_heavy: true
+  research_reference:
+    path: null
+    research_question: null
+    research_type: null
+    confidence_level: null
+  design_reference:
+    source: phase-4-mockup-studio
+    product_design_path: null
+    mockup_count: 11
+    has_brief: false
+    index_path: analysis/design-context/INDEX.md
+  project_context:
+    project_doc_paths:
+      - .maister/docs/project/tech-stack.md
+      - .maister/docs/project/architecture.md
+  phase_summaries:
+    codebase_analysis:
+      summary: "Part 2 half built (3-item toggles exist on event+term pages; missing recency order, show-more link, ?term/?event links). Part 1 needs a new public owner-items endpoint (party-id lookup; k- slugs are one-way). Part 3 is the main risk: Reservation.term_id NOT NULL needs migration 0073 (term_id nullable + event_id + CHECK) and ~11 term_id readers need an event branch."
+      primary_language: python+typescript
+      key_files:
+        - src/backend/app/circulation/models.py
+        - src/backend/app/groups/application/term_item_listings.py
+        - src/backend/app/events/page.py
+        - src/backend/app/events/service.py
+        - src/backend/app/circulation/domain/item_privacy.py
+        - src/backend/app/groups/application/organizer_page.py
+        - src/backend/app/core/authorization_matrix.py
+        - src/frontend/src/router.tsx
+        - src/frontend/src/pages/product/ItemDetailPage.tsx
+        - src/frontend/src/pages/events/components/EventAttendeeList.tsx
+        - src/frontend/src/pages/term/components/AttendeeList.tsx
+        - src/frontend/src/pages/term/hooks/useItemTake.ts
+      decisions:
+        - {decision: "Reservation context is Term XOR Event at the DB level (nullable term_id + event_id + CHECK)", rationale: "smallest schema change keeping term reservations intact"}
+        - {decision: "Add a reservation-context abstraction (Term | Event) in groups rather than duplicating take/swap in app/events", rationale: "SwapProposal, accept/reject, confirm/cancel all live in groups"}
+        - {decision: "Event eligibility = author or active attendee with an account", rationale: "guests have no account_user_id; reserved_by_user_id NOT NULL"}
+        - {decision: "Use party id for /<user-id>/items", rationale: "k- slugs are irreversible; party_id already public on event participants"}
+        - {decision: "Newest-first via ItemListingPreference.created_at DESC with row_number() cap", rationale: "keeps event page query count constant"}
+        - {decision: "Extract one shared 3-items + show-more component", rationale: "AttendeeList and EventAttendeeList are near-duplicates"}
+      risks:
+        - "Item page access: /details requires READ and item routes are behind AuthGuard; anonymous access to listed items is not implemented"
+        - "Owner chat without an item: no DIRECT/PARTY conversation kind exists"
+        - "Nearest term for a regular user has no owned terms (attendances? events?)"
+        - "Event swap timing: starts_at vs ends_at gates confirm/cancel"
+        - "Withdrawal/event deletion do not cancel reservations"
+        - "Reverses the 2026-10-29 event-page decision 'Items: read-only; no take/swap'"
+      artifacts:
+        - {path: analysis/codebase-analysis.md, label: Codebase analysis, html: null}
+    clarifications:
+      - "Item page public for ACTIVE listed items; take/swap/chat via account gate"
+      - "Chat-only = existing per-item ITEM conversation (no DIRECT kind)"
+      - "Owner nearest date = terms (led or attended) + events (authored or attended)"
+      - "Event reservations gated on starts_at like terms; withdrawal does not cancel reservations"
+    gap_analysis:
+      summary: "Parts 1-2 are additive/small; Part 3 is the main risk — event reservations would be orphaned (no confirm/cancel, no hand-over prompt, wrong item status) unless every term_id reader gets an event branch. Lifecycle completeness for event reservations is 25%."
+      integration_points: [term_end_scan, pendingActions.ts, MyItemsView, ItemStatusCard, item_privacy.derive_status, item_details.find_reservation_term, circulation history join, "GET /api/reservations/{id}", notification wording/link_path, event-scoped mine-as-taker]
+      decisions:
+        - {decision: "Event delete cancels open reservations and notifies both sides", rationale: "user choice over blocking delete"}
+        - {decision: "Extend term_end_scan to events past starts_at, reusing TERM_CONFIRMATION_NEEDED", rationale: "avoid orphaned open reservations"}
+        - {decision: "Nearest date only from PUBLIC circles + events", rationale: "do not leak private meetings"}
+        - {decision: "Items-page cards carry owner's nearest ?term/?event (option A)", rationale: "single URL-driven context logic on item page"}
+        - {decision: "Ineligible viewer sees Zapisz się CTA + Napisz", rationale: "no doomed 409 clicks"}
+        - {decision: "Pokaż więcej links to /<owner>/items with context; shared preview component", rationale: "removes duplicated toggles"}
+        - {decision: "Keep inline term take buttons; item names link with ?term=", rationale: "no regression on term page"}
+        - {decision: "Allow editing event starts_at with open reservations", rationale: "gates read starts_at live like terms"}
+        - {decision: "Party id in /<user-id>/items; org owner's party-id URL redirects to slug", rationale: "party id already public; one canonical org URL"}
+        - {decision: "Reuse existing notification kinds with event wording/link", rationale: "no enum churn"}
+      risks:
+        - "Migration 0073: Reservation.term_id NOT NULL -> nullable + event_id + CHECK exactly one; ~11 readers need an event branch"
+        - "Previous event-page task declared event items read-only; docs and tests must be reversed"
+      artifacts:
+        - {path: analysis/gap-analysis.md, label: Gap analysis, html: null}
+    scope_clarifications:
+      scope_expanded: true
+      summary: "Event delete cancels open reservations + notifies; term_end_scan extended to events; nearest date = public circles + events; items-page cards carry owner's nearest ?term/?event; ineligible viewer sees Zapisz się + Napisz; Pokaż więcej links to owner items page; inline term buttons stay; starts_at edits allowed; party id URL with redirect to slug for org owners; existing notification kinds reused."
+    ui_mockups:
+      components_designed: [participant-items-preview, item-context-actions]
+      summary: "11 HTML mockups (format html, live gallery http://localhost:3847) bound to index.css tokens: owner items page (nearest date / chat-only), participants preview, 7 item-page action states, event-delete confirmation."
+      artifacts:
+        - {path: analysis/design-context/INDEX.md, label: Design index, html: null}
+        - {path: analysis/design-context/design-resources.md, label: Design resources, html: null}
+    design: {summary: "11 screens + 2 components; see INDEX.md", screen_count: 11, component_count: 2, index_path: analysis/design-context/INDEX.md}
+    specification:
+      summary: "31 requirements: owner items page (slug/party-id), shared 3-newest preview, public item page with context actions, event reservations end-to-end (migration 0073, ReservationContext, event scan, cancel-on-delete), EXCHANGE recent-items block."
+      decisions:
+        - {decision: "0073: at most one of term_id/event_id; open reservations need exactly one; event_id ON DELETE SET NULL", rationale: "keep cancelled/fulfilled rows linked from circulation_entries after event hard-delete"}
+        - {decision: "0073 downgrade refuses while reservations with term_id IS NULL exist", rationale: "deleting ledger-linked rows unsafe"}
+        - {decision: "New notification kind RESERVATION_CANCELLED for event-deletion cancellations", rationale: "user choice at Phase 5 gate; take/swap/confirm keep existing kinds"}
+        - {decision: "End-of-event prompt at starts_at + 2h", rationale: "same grace as terms"}
+        - {decision: "recent-items block after exchange-board in EXCHANGE layout", rationale: "user: EXCHANGE only for now"}
+      risks:
+        - "resolved: groups<->events ACL import cycle — groups reads app.events.models only; circulation uses Core table refs"
+        - "Each of ~11 term_id readers needs an event test; a missed one gives 500 or wrong status"
+        - "Several strict key-set tests change on purpose"
+        - "Spec audit FAIL (1C/3H/7M/8L) — all resolved in spec revision; 35 requirements"
+        - "Event delete refused after starts_at with open reservations; blocked while anyone signed up (unchanged)"
+      artifacts:
+        - {path: verification/spec-audit.md, label: Spec audit, html: null}
+        - {path: implementation/spec.md, label: Specification, html: implementation/spec.html}
+        - {path: analysis/requirements.md, label: Requirements, html: null}
+        - {path: analysis/technical-clarifications.md, label: Technical clarifications, html: null}
+    architecture_decision: {decision: "ReservationContext (Term|Event) in groups", summary: "groups reads events via app.events.models only; new event take/propose routes; public item actions endpoint"}
+    implementation:
+      summary: "18/18 groups, 105 steps. Backend 1027 passed (+1 organizer query-budget regression fixed: budget 10→11). Frontend 1295 passed; 13 failing are pre-existing on HEAD (12) or flaky (1). tsc clean; term regression gate unchanged."
+      decisions:
+        - {decision: "owner display_name = Organization name when owner has one", rationale: "user confirmed at Phase 8 gate"}
+        - {decision: "RESERVATION_CANCELLED wording kept as implemented", rationale: "user confirmed at Phase 8 gate"}
+        - {decision: "Organizer page statement budget raised 10→11", rationale: "one added recent-items select; count stays constant"}
+      risks:
+        - "12 pre-existing frontend test failures on HEAD (auth, extension-points, foundation, PublicLayout, AppPage add-term, PendingActionsHost GIFT, TermPage sign-up) — separate follow-up"
+        - "Full backend suite not re-run end-to-end after the budget fix"
+      artifacts:
+        - {path: implementation/work-log.md, label: Work log, html: null}
+    implementation_plan:
+      summary: "18 task groups / 105 steps in 5 waves (1:{1,2,4} 2:{3,5,6,10} 3:{7,8,9,11,13} 4:{12,14,15,16} 5:{17,18}); critical path 1→5→7→14→17; visual coverage 13/13."
+      decisions:
+        - {decision: "events_acl written in full in group 1", rationale: "consumers 3/5/7/8 do not serialize on it"}
+        - {decision: "All authorization-matrix rows in standalone group 2", rationale: "one file, one owner"}
+        - {decision: "Delete tests in tests/test_event_reservation_delete.py", rationale: "groups 5 and 9 work independently"}
+        - {decision: "Both ?term and ?event present → no-context view", rationale: "avoid endpoint 400"}
+      risks:
+        - "~13 context readers must each get event coverage"
+        - "term regression gate after refactoring term_item_listings.py (951 lines)"
+        - "import-cycle discipline (subprocess import guard in group 1)"
+        - "atomic single commit in delete_event"
+        - "shared files force serialization within waves (groups/schemas.py, router.tsx, api/events.ts...)"
+      artifacts:
+        - {path: implementation/implementation-plan.md, label: Implementation plan, html: implementation/implementation-plan.html}
+        - {path: implementation/visual-coverage.md, label: Visual coverage, html: null}
+verification_context:
+  last_status: passed_with_issues
+  issues_found:
+    - {id: W1, severity: warning, source: code_review, description: "event FOR SHARE lock released by commits in create/confirm; accept/reject load proposal unlocked; concurrent delete → StaleDataError 500 / stuck PROPOSED", fixable: true}
+    - {id: W2, severity: warning, source: code_review, description: "anonymous sees owner display_name + party_id via /actions and /parties/{id}/items", fixable: false}
+    - {id: W3, severity: warning, source: code_review, description: "take/propose does not invalidate OWNER_ITEMS_KEY / EVENT_KEY / organizer page", fixable: true}
+    - {id: W4, severity: warning, source: code_review, description: "hard-coded item-actions/itemDetails query keys", fixable: true}
+    - {id: W5, severity: warning, source: completeness, description: "owner_items.py imports Organization model bypassing organizations_acl", fixable: true}
+    - {id: W6, severity: warning, source: pragmatic, description: "5 mode-label maps for 2 modes", fixable: true}
+    - {id: W7, severity: warning, source: pragmatic, description: "owner-summary logic duplicated", fixable: true}
+    - {id: W8, severity: warning, source: pragmatic, description: "kind casing mapper boilerplate", fixable: true}
+    - {id: W9, severity: warning, source: production, description: "0073 lacks SET LOCAL lock_timeout", fixable: true}
+    - {id: W10, severity: warning, source: production, description: "no rate limit on new anonymous endpoints (platform-wide)", fixable: false}
+  fixes_applied:
+    - {issue: W1, fix: "commit=False flush-only create/confirm/cancel; use cases commit once; proposal locked FOR UPDATE with status re-check (409) in accept/reject; lock order event→proposal; also applies to terms"}
+    - {issue: W2, fix: "/parties/{id}/items → 404 when party has no listed items"}
+    - {issue: W3, fix: "useItemTake invalidates owner-items, event, organizer page keys"}
+    - {issue: W4, fix: "exported ITEM_DETAILS_KEY; imports instead of literals"}
+    - {issue: W5, fix: "Organization via organizations_acl"}
+    - {issue: W6, fix: "label maps consolidated in termLabels.ts"}
+    - {issue: W7, fix: "owner_summary helper shared by owner_items and item_actions"}
+    - {issue: W8, fix: "single itemContextKind mapper"}
+    - {issue: W9, fix: "SET LOCAL lock_timeout = '5s' in 0073 upgrade"}
+    - {issue: info, fix: "error view shows message; dead ListingRowVM fields removed; NearestHint event wording; ReservationDetailResponse docstring"}
+  decisions_made:
+    - "W2: keep owner name public, 404 for parties without listed items"
+    - "W10 rate limiting: out of scope (platform-wide follow-up)"
+    - "W1 single-commit applies to terms too"
+    - "Skip full re-verification; go to E2E"
+    - "E2E minor/cosmetic findings left as known issues (no fixes)"
+  reverify_count: 0

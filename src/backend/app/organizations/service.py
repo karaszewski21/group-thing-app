@@ -33,16 +33,30 @@ async def _slug_taken(db: AsyncSession, slug: str) -> bool:
     return result.scalar_one_or_none() is not None
 
 
+def _is_uuid_shaped(candidate: str) -> bool:
+    """`/<uuid>/items` is the party-id owner page, so a slug that parses as a
+    UUID would be read as a party id."""
+    try:
+        uuid.UUID(candidate)
+    except ValueError:
+        return False
+    return True
+
+
 async def _generate_unique_slug(db: AsyncSession, name: str) -> str:
     """Derives a slug from `name`, appending `-2`, `-3`, ... until it is
-    neither reserved (`RESERVED_SLUGS`) nor already taken by another
+    neither reserved (`RESERVED_SLUGS`, or UUID-shaped) nor already taken by another
     Organization — this is the whitelist enforcement point: an organizer
     can never end up with `/panel`, `/login`, etc. as their page, they
     silently get `panel-2` instead rather than a rejected save."""
     base = slugify(name)
     candidate = base
     suffix = 2
-    while candidate in RESERVED_SLUGS or await _slug_taken(db, candidate):
+    while (
+        candidate in RESERVED_SLUGS
+        or _is_uuid_shaped(candidate)
+        or await _slug_taken(db, candidate)
+    ):
         candidate = f"{base}-{suffix}"
         suffix += 1
     return candidate

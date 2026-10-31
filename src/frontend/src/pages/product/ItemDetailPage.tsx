@@ -1,13 +1,17 @@
 import { useEffect, useRef, type RefObject } from "react";
-import { Link, useLocation, useOutletContext, useParams, useSearchParams } from "react-router-dom";
+import { Link, Navigate, useLocation, useOutletContext, useParams, useSearchParams } from "react-router-dom";
 import type { ItemDetailsResponse } from "../../api/items";
+import { useAuth } from "../../auth/AuthContext";
+import { authPath } from "../../auth/authPaths";
 import { PhoneFrame } from "../../components/shared/PhoneFrame";
+import { useItemActions, type UseItemActionsResult } from "../../hooks/useItemActions";
 import { useItemDetail, useItemEditing, type ProductDetailsState } from "../../hooks/useItemDetail";
-import { useOpenAndNavigate } from "../../hooks/useOpenAndNavigate";
 import dayjs from "../../utils/dayjs";
 import { CONDITION_LABELS } from "../../utils/productCategory";
 import { PencilIcon, TrashIcon } from "../../components/shared/appIcons";
 import { ItemBackButton } from "./ItemBackButton";
+import { ItemContextActions } from "./ItemContextActions";
+import { resolveItemActionsView } from "./itemActionsViewState";
 import { ItemEditForm } from "./ItemEditForm";
 import { ItemGallery } from "./ItemGallery";
 import { ItemGalleryEditor } from "./ItemGalleryEditor";
@@ -23,6 +27,7 @@ import { DescriptionText } from "./ItemReadOnlyParts";
 import { ItemStatusCard } from "./ItemStatusCard";
 import { familyInitials } from "../../components/shared/Avatar";
 import type { PublicOrganizationResponse } from "../../api/organizations";
+import type { ItemContext } from "./useItemRoutes";
 
 /** The search param that switches the item page into edit mode (owner only). */
 export const EDIT_PARAM = "edit";
@@ -36,11 +41,26 @@ export function ItemDetailPage() {
   );
 }
 
-/** The item view inside a frame.
+/** The term or event the page was opened from: only when exactly one of
+ * `?term=`/`?event=` is present. */
+function itemContextFrom(params: URLSearchParams): ItemContext | null {
+  const term = params.get("term");
+  const event = params.get("event");
+  if (term && !event) return { kind: "term", id: term };
+  if (event && !term) return { kind: "event", id: event };
+  return null;
+}
+
+/** The item view inside a frame. Public for listed items; an anonymous
+ * visitor whose item is not public (404) goes to login and comes back.
  * With `?edit=1` the owner edits the item in place. */
 export function ItemDetailBody() {
   const { id = "" } = useParams();
+  const location = useLocation();
+  const [searchParams] = useSearchParams();
+  const isLoggedIn = useAuth().token !== null;
   const { item, notFound, error, loading, fetching, refetch } = useItemDetail(id);
+  const actions = useItemActions(id, itemContextFrom(searchParams));
 
   if (item) {
     return (
@@ -49,9 +69,14 @@ export function ItemDetailBody() {
           item={item}
           details={{ productId: item.product_id, fetching, failed: error !== null }}
           onRefetch={() => void refetch()}
+          actions={actions}
+          isLoggedIn={isLoggedIn}
         />
       </div>
     );
+  }
+  if (notFound && !isLoggedIn) {
+    return <Navigate to={authPath("login", location.pathname + location.search)} replace />;
   }
   if (loading && !notFound && !error) {
     return (
@@ -116,6 +141,8 @@ interface ItemViewContentProps {
   item: ItemDetailsResponse;
   details: ProductDetailsState;
   onRefetch: () => void;
+  actions: UseItemActionsResult;
+  isLoggedIn: boolean;
 }
 
 /** Full-bleed photo with the back button (and organizer chip) over it, then
@@ -123,7 +150,7 @@ interface ItemViewContentProps {
  * edit mode the photo becomes the editable slider and the sheet's fields
  * turn into inputs. Entering and leaving the
  * mode replaces the history entry, so "Wróć" never lands on the editor. */
-function ItemViewContent({ item, details, onRefetch }: ItemViewContentProps) {
+function ItemViewContent({ item, details, onRefetch, actions, isLoggedIn }: ItemViewContentProps) {
   const deleted = item.deleted_at !== null;
   const canEdit = item.is_owner && !deleted;
   const [searchParams, setSearchParams] = useSearchParams();
@@ -187,7 +214,14 @@ function ItemViewContent({ item, details, onRefetch }: ItemViewContentProps) {
             onDone={() => setEditMode(false)}
           />
         ) : (
-          <ItemViewFields item={item} canEdit={canEdit} editButtonRef={editButtonRef} onEdit={() => setEditMode(true)} />
+          <ItemViewFields
+            item={item}
+            canEdit={canEdit}
+            editButtonRef={editButtonRef}
+            onEdit={() => setEditMode(true)}
+            actions={actions}
+            isLoggedIn={isLoggedIn}
+          />
         )}
       </div>
     </>
@@ -199,10 +233,21 @@ interface ItemViewFieldsProps {
   canEdit: boolean;
   editButtonRef: RefObject<HTMLButtonElement | null>;
   onEdit: () => void;
+  actions: UseItemActionsResult;
+  isLoggedIn: boolean;
 }
 
 /** The sheet's read-only fields (view mode). */
-function ItemViewFields({ item, canEdit, editButtonRef, onEdit }: ItemViewFieldsProps) {
+function ItemViewFields({ item, canEdit, editButtonRef, onEdit, actions, isLoggedIn }: ItemViewFieldsProps) {
+  const view = resolveItemActionsView({
+    item: { deleted: item.deleted_at !== null, isOwner: item.is_owner },
+    detailsLoading: false,
+    actions: actions.data,
+    actionsLoading: actions.loading,
+    actionsFetching: actions.fetching,
+    actionsError: actions.error,
+    isLoggedIn,
+  });
   return (
     <>
       {item.deleted_at && (
@@ -234,7 +279,13 @@ function ItemViewFields({ item, canEdit, editButtonRef, onEdit }: ItemViewFields
         )}
       </div>
       <ItemStatusCard status={item.status} itemId={item.id} itemName={item.name} isOwner={item.is_owner} />
-      {!item.is_owner && !item.deleted_at && <AskAboutItemButton itemId={item.id} />}
+      <ItemContextActions
+        view={view}
+        itemId={item.id}
+        itemName={item.name}
+        isLoggedIn={isLoggedIn}
+        refetch={actions.refetch}
+      />
       <section className="mt-4 rounded-3xl border border-line bg-paper p-5" aria-labelledby="item-description-heading">
         <h3 id="item-description-heading" className={FIELD_LABEL}>
           Opis
@@ -242,30 +293,5 @@ function ItemViewFields({ item, canEdit, editButtonRef, onEdit }: ItemViewFields
         <DescriptionText description={item.description} />
       </section>
     </>
-  );
-}
-
-/** "Zapytaj o rzecz": opens (or creates) the chat with the item's current
- * owner and goes to its thread; a refusal (e.g. 429) shows inline. Both item
- * routes are behind AuthGuard, so the visitor is always logged in. */
-function AskAboutItemButton({ itemId }: { itemId: string }) {
-  const { open, busy, error } = useOpenAndNavigate();
-
-  return (
-    <div className="mt-3">
-      <button
-        type="button"
-        disabled={busy}
-        onClick={() => void open({ kind: "ITEM", id: itemId })}
-        className="inline-flex min-h-10 items-center gap-1.5 rounded-full border-[1.5px] border-line bg-paper px-3.5 text-[13px] font-extrabold text-ink hover:border-line-strong focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring disabled:opacity-60"
-      >
-        <span aria-hidden="true">💬</span> Zapytaj o rzecz
-      </button>
-      {error && (
-        <p role="alert" className="mt-1.5 text-xs font-semibold text-danger">
-          {error}
-        </p>
-      )}
-    </div>
   );
 }

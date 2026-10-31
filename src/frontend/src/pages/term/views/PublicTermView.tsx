@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../../auth/AuthContext";
 import type { PublicCircleResponse, PublicItemListingResponse } from "../../../api/groups";
 import type { ListingMode } from "../../../api/itemListingPreferences";
@@ -24,8 +24,8 @@ import { useToast } from "../../../components/shared/useToast";
 import { useGuestMerge } from "../hooks/useGuestMerge";
 import { useTermSignUp } from "../hooks/useTermSignUp";
 import { useNeededItemPledge } from "../hooks/useNeededItemPledge";
-import { useItemTake } from "../hooks/useItemTake";
-import { organizerItemPath } from "../../product/useItemRoutes";
+import { useItemTake, type TakeContext } from "../hooks/useItemTake";
+import { organizerTermPath } from "../../organizer/organizerHelpers";
 import { useOpenAndNavigate } from "../../../hooks/useOpenAndNavigate";
 
 /** The server's chat-relevant relationship to the group and the shown term. */
@@ -60,7 +60,16 @@ export function PublicTermView({
   const guest = useGuestMerge({ groupId, termId, isLoggedIn, isAttendingOnServer });
   const signUp = useTermSignUp({ ...deps, groupId, termId, displayName });
   const pledge = useNeededItemPledge(deps);
-  const itemTake = useItemTake({ ...deps, termId });
+  const takeContext: TakeContext | null = term
+    ? {
+        kind: "term",
+        id: term.id,
+        name: group.name,
+        starts_at: term.occurs_on,
+        path: organizerTermPath(group.organizer_slug ?? "krag", groupId, term.id),
+      }
+    : null;
+  const itemTake = useItemTake({ ...deps, context: takeContext });
 
   function handleSelectAttendee(partyId: string) {
     setActivePartyId(partyId);
@@ -76,15 +85,6 @@ export function PublicTermView({
     );
     return {
       key: listing.item_id,
-      title: (
-        <Link
-          to={organizerItemPath(group.organizer_slug, listing.item_id)}
-          className="rounded text-inherit no-underline decoration-[1.5px] underline-offset-2 hover:text-primary-fg hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring"
-        >
-          <strong>{listing.product_name}</strong>
-          <span aria-hidden="true">{" ›"}</span>
-        </Link>
-      ),
       actions: guest.isMerging(mergeKey)
         ? []
         : offeredTypes.map((t) => ({
@@ -95,7 +95,6 @@ export function PublicTermView({
             onClick: guest.orMerge(mergeKey, () => itemTake.take(listing.item_id, t)),
           })),
       extra: guest.mergeForm(mergeKey),
-      thumbUrl: listing.thumb_url,
     };
   }
 
@@ -248,15 +247,11 @@ export function PublicTermView({
             />
           ) : null;
         })()}
-      {itemTake.takeSuccess && term && (
+      {itemTake.takeSuccess && (
         <TakeSuccessSheet
           itemId={itemTake.takeSuccess.itemId}
           itemName={itemTake.takeSuccess.itemName}
-          occursOn={term.occurs_on}
-          groupName={group.name}
-          groupId={groupId}
-          termId={term.id}
-          organizerSlug={group.organizer_slug ?? "krag"}
+          context={itemTake.takeSuccess.context}
           onClose={itemTake.closeTakeSuccess}
         />
       )}

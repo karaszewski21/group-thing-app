@@ -1,8 +1,9 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { MemoryRouter, Navigate, Route, Routes, useLocation } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { AuthGuard } from "../auth/AuthGuard";
 import * as itemsApi from "../api/items";
+import * as itemActionsApi from "../api/itemActions";
+import type { ItemActionsResponse } from "../api/itemActions";
 import * as organizationsApi from "../api/organizations";
 import { ApiError } from "../api/client";
 import type { ItemDetailsResponse } from "../api/items";
@@ -18,6 +19,10 @@ vi.mock("../auth/AuthContext", () => ({
 
 vi.mock("../api/items", () => ({
   getItemDetails: vi.fn(),
+}));
+
+vi.mock("../api/itemActions", () => ({
+  getItemActions: vi.fn(),
 }));
 
 vi.mock("../api/organizations", () => ({
@@ -60,6 +65,18 @@ function details(overrides: Partial<ItemDetailsResponse> = {}): ItemDetailsRespo
   };
 }
 
+function itemActions(overrides: Partial<ItemActionsResponse> = {}): ItemActionsResponse {
+  return {
+    mode: "GIFT",
+    available: true,
+    owner: { party_id: "party-1", display_name: "Studio Ania", slug: "ania", items_total: 4 },
+    context: null,
+    viewer: "OWN",
+    nearest: null,
+    ...overrides,
+  };
+}
+
 function Where() {
   const location = useLocation();
   return <div data-testid="where">{location.pathname + location.search}</div>;
@@ -72,11 +89,7 @@ function renderAt(path: string) {
         <Route path="/:organizationSlug/product" element={<Navigate to=".." relative="path" replace />} />
         <Route
           path="/:organizationSlug/product/:id"
-          element={
-            <AuthGuard>
-              <OrganizerItemLayout />
-            </AuthGuard>
-          }
+          element={<OrganizerItemLayout />}
         >
           <Route index element={<ItemDetailBody />} />
           <Route path="edit" element={<Navigate to="..?edit=1" relative="path" replace />} />
@@ -100,14 +113,29 @@ describe("Organizer product route", () => {
     mockAuth.token = "valid.jwt.token";
     vi.mocked(itemsApi.getItemDetails).mockResolvedValue(details());
     vi.mocked(organizationsApi.getPublicOrganization).mockResolvedValue(ORGANIZATION);
+    vi.mocked(itemActionsApi.getItemActions).mockResolvedValue(itemActions());
   });
 
-  it("sends an anonymous visitor to login with returnTo", () => {
+  it("anonymous: a listed item renders with the actions card, no login detour", async () => {
     mockAuth.token = null;
+    vi.mocked(itemsApi.getItemDetails).mockResolvedValue(details({ is_owner: false }));
+    vi.mocked(itemActionsApi.getItemActions).mockResolvedValue(itemActions({ viewer: "ANONYMOUS" }));
     renderAt("/ania/product/9");
 
-    expect(screen.getByTestId("where")).toHaveTextContent("/login?returnTo=%2Fania%2Fproduct%2F9");
-    expect(itemsApi.getItemDetails).not.toHaveBeenCalled();
+    expect(await screen.findByRole("heading", { name: "Rowerek biegowy" })).toBeInTheDocument();
+    expect(await screen.findByText("Właściciel nie ma teraz zaplanowanych spotkań")).toBeInTheDocument();
+    expect(screen.queryByTestId("where")).not.toBeInTheDocument();
+    expect(itemActionsApi.getItemActions).toHaveBeenCalledWith("9", null);
+  });
+
+  it("anonymous: a non-public item (404) sends the visitor to login with returnTo, query kept", async () => {
+    mockAuth.token = null;
+    vi.mocked(itemsApi.getItemDetails).mockRejectedValue(new ApiError(404, "Not Found", null));
+    renderAt("/ania/product/9?event=ev-1");
+
+    expect(await screen.findByTestId("where")).toHaveTextContent(
+      "/login?returnTo=%2Fania%2Fproduct%2F9%3Fevent%3Dev-1",
+    );
   });
 
   it("shows a neutral loader while the organization is pending, item fetch already started", async () => {

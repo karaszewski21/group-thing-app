@@ -38,6 +38,7 @@ function event(overrides: Partial<EventDetailResponse> = {}): EventDetailRespons
     participants: [],
     is_attending: false,
     has_ended: false,
+    open_reservations: null,
     ...overrides,
   };
 }

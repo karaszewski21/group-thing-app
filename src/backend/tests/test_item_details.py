@@ -5,6 +5,7 @@ fallback), gallery, `is_owner` and the privacy-labelled current status."""
 from __future__ import annotations
 
 import uuid
+from datetime import datetime
 
 from httpx import AsyncClient
 from sqlalchemy import select
@@ -24,6 +25,7 @@ from app.groups.schemas import TakeTermItemListingRequest
 from app.moderation.status import ModerationStatus
 from app.product.models import Product, ProductPhoto
 from tests.conftest import leaf_category_ids
+from tests.test_event_reservation_readers import _create_event, _reserve, _user_id
 from tests.test_term_item_listings import (
     _auth,
     _create_circle_and_term,
@@ -142,6 +144,8 @@ async def test_getItemDetails_ownerAndNonOwner_returnsFieldsPhotosAndIsOwnerFlag
         "term_id": None,
         "group_id": None,
         "group_name": None,
+        "event_id": None,
+        "event_slug": None,
     }
 
     other_view = await _details(client, item_id, _auth(other_token))
@@ -193,6 +197,8 @@ async def test_getItemDetails_deletedOrMissingItem_returns200DeletedOr404(
         "term_id": None,
         "group_id": None,
         "group_name": None,
+        "event_id": None,
+        "event_slug": None,
     }
     missing = await client.get(
         f"/api/inventory-items/{uuid.uuid4()}/details", headers=_auth(owner_token)
@@ -271,6 +277,8 @@ async def test_getItemDetails_offeredItemInPendingSwap_returnsProposedSwapThenIn
         "term_id": None,
         "group_id": None,
         "group_name": None,
+        "event_id": None,
+        "event_slug": None,
     }
     lister_view = (await _details(client, offered_item_id, _auth(lister_token)))["status"]
     assert lister_view["code"] == "PROPOSED_SWAP"
@@ -283,6 +291,101 @@ async def test_getItemDetails_offeredItemInPendingSwap_returnsProposedSwapThenIn
     assert accepted["code"] == "IN_TRANSIT"
     assert accepted["term_occurs_on"] == term.occurs_on.isoformat()
     assert accepted["counterparty_label"] == lister_name
+
+
+async def test_getItemDetails_eventReservation_partiesSeeEventIdSlugDateAndName(
+    client: AsyncClient, db_session: AsyncSession
+) -> None:
+    author_token, _ = await _register(client, "ORGANIZER", "itd.author9@example.com")
+    org = await client.post(
+        "/api/organizations/mine", json={"name": "Fundacja Itd"}, headers=_auth(author_token)
+    )
+    assert org.status_code == 201, org.text
+    event_id, starts_at = await _create_event(client, author_token, "Wymiana zabawek")
+    owner_token, _ = await _register(client, "GUEST", "itd.owner9@example.com")
+    taker_token, _ = await _register(client, "GUEST", "itd.taker9@example.com")
+    third_token, _ = await _register(client, "GUEST", "itd.third9@example.com")
+    item_id = await _register_personal_item(client, owner_token, "Wózek")
+    await _reserve(db_session, item_id, await _user_id(db_session, taker_token), event_id=event_id)
+
+    taker_view = (await _details(client, item_id, _auth(taker_token)))["status"]
+    third_view = (await _details(client, item_id, _auth(third_token)))["status"]
+
+    assert taker_view == {
+        "code": "RESERVED",
+        "term_occurs_on": starts_at.isoformat(),
+        "due_date": None,
+        "counterparty_label": "Ty",
+        "term_id": None,
+        "group_id": None,
+        "group_name": "Wymiana zabawek",
+        "event_id": str(event_id),
+        "event_slug": org.json()["slug"],
+    }
+    assert third_view == {
+        **taker_view,
+        "counterparty_label": OTHER_FAMILY_LABEL,
+        "group_name": None,
+        "event_id": None,
+        "event_slug": None,
+    }
+
+
+async def test_getItemDetails_anonymousOnActiveItem_returns200WithoutCounterpartyNames(
+    client: AsyncClient, db_session: AsyncSession
+) -> None:
+    author_token, _ = await _register(client, "GUEST", "itd.author10@example.com")
+    event_id, starts_at = await _create_event(client, author_token)
+    owner_token, _ = await _register(client, "GUEST", "itd.owner10@example.com")
+    taker_token, _ = await _register(client, "GUEST", "itd.taker10@example.com")
+    item_id = await _register_personal_item(client, owner_token, "Rowerek")
+    await groups_service.set_item_listing_preference(
+        db_session, _principal(owner_token), item_id, ReservationType.GIFT
+    )
+    await _reserve(db_session, item_id, await _user_id(db_session, taker_token), event_id=event_id)
+
+    response = await client.get(f"/api/inventory-items/{item_id}/details")
+
+    assert response.status_code == 200, response.text
+    body = response.json()
+    assert body["is_owner"] is False
+    assert body["listing_status"] == "ACTIVE"
+    assert body["status"] == {
+        "code": "RESERVED",
+        "term_occurs_on": starts_at.isoformat(),
+        "due_date": None,
+        "counterparty_label": OTHER_FAMILY_LABEL,
+        "term_id": None,
+        "group_id": None,
+        "group_name": None,
+        "event_id": None,
+        "event_slug": None,
+    }
+
+
+async def test_getItemDetails_anonymousOnDraftOrDeletedItem_returns404(
+    client: AsyncClient, db_session: AsyncSession
+) -> None:
+    owner_token, _ = await _register(client, "GUEST", "itd.owner11@example.com")
+    other_token, _ = await _register(client, "GUEST", "itd.other11@example.com")
+    draft_id = await _register_personal_item(client, owner_token, "Szafka")
+    deleted_id = await _register_personal_item(client, other_token, "Krzesełko")
+    await groups_service.set_item_listing_preference(
+        db_session, _principal(other_token), deleted_id, ReservationType.GIFT
+    )
+    # Soft-deleted while still ACTIVE, so only the deletion gates it.
+    item = (
+        await db_session.execute(select(InventoryItem).where(InventoryItem.id == deleted_id))
+    ).scalar_one()
+    item.deleted_at = datetime.utcnow()
+    await db_session.commit()
+
+    draft = await client.get(f"/api/inventory-items/{draft_id}/details")
+    gone = await client.get(f"/api/inventory-items/{deleted_id}/details")
+
+    assert draft.status_code == 404
+    assert gone.status_code == 404
+    assert (await _details(client, deleted_id, _auth(other_token)))["status"]["code"] == "DELETED"
 
 
 async def test_getItemDetails_malformedItemId_returns400(client: AsyncClient) -> None:

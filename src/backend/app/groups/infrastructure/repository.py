@@ -23,6 +23,7 @@ from sqlalchemy import (
     exists,
     func,
     literal,
+    or_,
     select,
     true,
     union_all,
@@ -688,14 +689,15 @@ async def list_item_listing_preferences_for_parties(
 
 def item_listing_preferences_select(
     party_ids: Collection[uuid.UUID],
-) -> Select[tuple[uuid.UUID, uuid.UUID, str]]:
-    """`(item_id, owner_party_id, mode)` of every listing preference owned by
-    `party_ids`. Unexecuted, so another context can join it with its own
-    item select in one statement."""
+) -> Select[tuple[uuid.UUID, uuid.UUID, str, datetime]]:
+    """`(item_id, owner_party_id, mode, created_at)` of every listing
+    preference owned by `party_ids`. Unexecuted, so another context can join
+    it with its own item select in one statement."""
     return select(
         ItemListingPreference.item_id.label("item_id"),
         ItemListingPreference.owner_party_id.label("owner_party_id"),
         ItemListingPreference.mode.label("mode"),
+        ItemListingPreference.created_at.label("created_at"),
     ).where(ItemListingPreference.owner_party_id.in_(set(party_ids)))
 
 
@@ -704,6 +706,12 @@ def item_listing_preferences_select(
 
 async def get_swap_proposal(db: AsyncSession, proposal_id: uuid.UUID) -> SwapProposal | None:
     return await db.get(SwapProposal, proposal_id)
+
+
+async def lock_swap_proposal(db: AsyncSession, proposal_id: uuid.UUID) -> SwapProposal | None:
+    """The proposal re-read `FOR UPDATE` until the caller commits, so a
+    concurrent decision or event delete is either seen or waits."""
+    return await db.get(SwapProposal, proposal_id, with_for_update=True, populate_existing=True)
 
 
 async def get_active_swap_proposal_for_listing_item(
@@ -1033,3 +1041,99 @@ async def list_nearest_exchange_items(
         .limit(limit)
     )
     return list(result.all())
+
+
+# --- Owner items page ------------------------------------------------------------
+# One owner's listed items (a listing preference on a live AVAILABLE item;
+# the preference exists exactly while the item's `listing_status` is ACTIVE)
+# and the owner's nearest public term. Counts, page and nearest term are one
+# statement each, whatever the number of items.
+
+
+def _owner_listed_items(
+    owner_party_id: uuid.UUID, available_items: Select[tuple[uuid.UUID, uuid.UUID, str, Any]]
+) -> Subquery:
+    """`(item_id, mode, created_at, product_id, product_name, condition)`."""
+    preferences = item_listing_preferences_select([owner_party_id]).subquery("preferences")
+    available = available_items.subquery("available_items")
+    return (
+        select(
+            preferences.c.item_id,
+            preferences.c.mode,
+            preferences.c.created_at,
+            available.c.product_id,
+            available.c.product_name,
+            available.c.condition,
+        )
+        .join(available, available.c.item_id == preferences.c.item_id)
+        .subquery("owner_listed_items")
+    )
+
+
+async def count_owner_listed_items_by_mode(
+    db: AsyncSession,
+    owner_party_id: uuid.UUID,
+    available_items: Select[tuple[uuid.UUID, uuid.UUID, str, Any]],
+) -> dict[str, int]:
+    """Listing mode -> number of the owner's listed items."""
+    listed = _owner_listed_items(owner_party_id, available_items)
+    result = await db.execute(select(listed.c.mode, func.count()).group_by(listed.c.mode))
+    return {mode: count for mode, count in result.all()}
+
+
+async def list_owner_listed_items_page(
+    db: AsyncSession,
+    owner_party_id: uuid.UUID,
+    available_items: Select[tuple[uuid.UUID, uuid.UUID, str, Any]],
+    mode: str | None,
+    offset: int,
+    limit: int,
+) -> list[Row[tuple[uuid.UUID, str, datetime, uuid.UUID, str, Any]]]:
+    """One page of the owner's listed items, optionally of one `mode`,
+    newest preference first, then item id."""
+    listed = _owner_listed_items(owner_party_id, available_items)
+    query = select(listed).order_by(listed.c.created_at.desc(), listed.c.item_id)
+    if mode is not None:
+        query = query.where(listed.c.mode == mode)
+    result = await db.execute(query.offset(offset).limit(limit))
+    return list(result.all())
+
+
+async def nearest_public_term_for_party(
+    db: AsyncSession, party_id: uuid.UUID, now: datetime
+) -> Row[tuple[uuid.UUID, uuid.UUID, str, datetime, uuid.UUID | None, int]] | None:
+    """`(term_id, group_id, group_name, occurs_on, location_id,
+    attendee_count)` of the earliest term at or after `now` in a PUBLIC,
+    non-deleted circle the party currently leads or holds a non-withdrawn
+    RSVP for; `None` when there is none."""
+    attending = exists().where(
+        TermAttendance.term_id == Term.id,
+        TermAttendance.party_id == party_id,
+        TermAttendance.withdrawn_at.is_(None),
+    )
+    attendee_count = (
+        select(func.count())
+        .where(TermAttendance.term_id == Term.id, TermAttendance.withdrawn_at.is_(None))
+        .correlate(Term)
+        .scalar_subquery()
+    )
+    result = await db.execute(
+        select(
+            Term.id,
+            Term.circle_group_id,
+            Group.name,
+            Term.occurs_on,
+            Term.location_id,
+            attendee_count,
+        )
+        .join(Group, Group.id == Term.circle_group_id)
+        .where(
+            Group.visibility == GroupVisibility.PUBLIC,
+            Group.deleted_at.is_(None),
+            Term.occurs_on >= now,
+            or_(Term.circle_group_id.in_(_qualifying_owner_circles(party_id)), attending),
+        )
+        .order_by(Term.occurs_on, Term.id)
+        .limit(1)
+    )
+    return result.first()

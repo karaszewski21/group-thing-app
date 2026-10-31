@@ -183,6 +183,8 @@ export function MyItemsView() {
         groupName: accepted.group_name,
         groupId: accepted.group_id,
         termId: accepted.term_id,
+        eventId: accepted.event_id ?? null,
+        eventSlug: accepted.event_slug ?? null,
         itemId,
         hadOtherOffers: (swapProposals[itemId]?.length ?? 0) > 1,
       });

@@ -1,10 +1,11 @@
 """The anonymous organizer directory behind `/:slug`: the owner's PUBLIC
 circles, their upcoming terms, the exchange items and needed items of each
-circle's next term, and aggregate stats.
+circle's next term, aggregate stats, and the owner's newest listed items
+with their nearest public date (`owner_items`), shown even with no circles.
 
-Every read is batched over the circles or their next terms (at most 10
-statements however many circles there are), and every list is capped in
-SQL. Lister identity is used only to decide eligibility and never leaves
+Every read is batched over the circles or their next terms (a constant
+number of statements however many circles or items there are), and every
+list is capped in SQL. Lister identity is used only to decide eligibility and never leaves
 the repository's exchange query. The per-item helpers of
 `term_item_listings.py` are not used, because they run several queries per
 item.
@@ -21,11 +22,10 @@ from typing import cast
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core import clock
-from app.core.errors import EntityNotFoundException
 from app.core.pagination import Page, PageParams
 from app.storage.service import ObjectStorage
 
-from ..infrastructure import circulation_bridge, organizations_acl, product_bridge, repository
+from ..infrastructure import circulation_bridge, product_bridge, repository
 from ..schemas import (
     ExchangeMode,
     OrganizerCircleResponse,
@@ -37,26 +37,21 @@ from ..schemas import (
     OrganizerPageResponse,
     OrganizerStatsResponse,
     OrganizerTermResponse,
+    OwnerItemCardResponse,
+    OwnerNearestDateResponse,
 )
+from . import owner_items
 
 UPCOMING_WINDOW = timedelta(days=60)
 EXCHANGE_ITEMS_LIMIT = 12
 NEEDED_ITEMS_LIMIT = 5
+RECENT_ITEMS_LIMIT = 4
 # Below this, a family count could single out the families in a small group.
 MIN_REPORTED_FAMILY_COUNT = 3
 
 
 async def _resolve_owner(db: AsyncSession, slug: str) -> uuid.UUID:
-    """The slug's Organization owner party. A 404 comes only from these two
-    lookups, so a `k-…` pseudo-slug is a 404 because no Organization has it."""
-    organization = await organizations_acl.get_organization_by_slug(db, slug)
-    if organization is None:
-        raise EntityNotFoundException("Organization", slug)
-    owner_party_id = await organizations_acl.get_owner_party_id(
-        db, cast(uuid.UUID, organization.id)
-    )
-    if owner_party_id is None:
-        raise EntityNotFoundException("Organization", slug)
+    _, owner_party_id = await owner_items.resolve_organization_owner(db, slug)
     return owner_party_id
 
 
@@ -64,13 +59,17 @@ def _empty_exchange() -> OrganizerExchangeResponse:
     return OrganizerExchangeResponse(counts=OrganizerExchangeCounts(GIFT=0, SWAP=0), items=[])
 
 
-def _empty_page() -> OrganizerPageResponse:
+def _empty_page(
+    recent_items: list[OwnerItemCardResponse], owner_nearest: OwnerNearestDateResponse | None
+) -> OrganizerPageResponse:
     return OrganizerPageResponse(
         circles=[],
         upcoming_terms=[],
         exchange=_empty_exchange(),
         needed_items=[],
         stats=OrganizerStatsResponse(circle_count=0, upcoming_term_count=0, family_count=None),
+        recent_items=recent_items,
+        owner_nearest=owner_nearest,
     )
 
 
@@ -82,9 +81,16 @@ async def get_organizer_page(
     now = clock.local_now()
     window_end = now + UPCOMING_WINDOW
 
+    recent_items = await owner_items.list_owner_recent_items(
+        db, owner_party_id, RECENT_ITEMS_LIMIT, storage
+    )
+    owner_nearest = (
+        await owner_items.get_owner_nearest(db, owner_party_id) if recent_items else None
+    )
+
     circle_rows = await repository.list_owner_public_circles(db, owner_party_id, now, window_end)
     if not circle_rows:
-        return _empty_page()
+        return _empty_page(recent_items, owner_nearest)
     group_ids = [row[0] for row in circle_rows]
     next_term_ids = [row[3] for row in circle_rows if row[3] is not None]
 
@@ -152,6 +158,8 @@ async def get_organizer_page(
             upcoming_term_count=sum(circle.upcoming_term_count for circle in circles),
             family_count=family_count if family_count >= MIN_REPORTED_FAMILY_COUNT else None,
         ),
+        recent_items=recent_items,
+        owner_nearest=owner_nearest,
     )
 
 

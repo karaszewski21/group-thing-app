@@ -18,6 +18,7 @@ from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession
 
 from app.circulation.models import BalanceStatus
 from app.events.models import Event, EventAttendance, EventBanner
+from app.groups.models import ItemListingPreference
 from app.moderation.status import ModerationStatus
 from app.outbox.models import OutboxEntry
 from app.storage.outbox_listener import OBJECTS_DELETE
@@ -45,10 +46,11 @@ DETAIL_KEYS = {
     "participants",
     "is_attending",
     "has_ended",
+    "open_reservations",
 }
 ORGANIZATION_KEYS = {"name", "primary_color", "accent_color", "palette_preset"}
-PARTICIPANT_KEYS = {"party_id", "display_name", "is_author", "is_me", "items"}
-ITEM_KEYS = {"item_id", "product_name", "mode", "thumb_url"}
+PARTICIPANT_KEYS = {"party_id", "display_name", "is_author", "is_me", "items", "items_total"}
+ITEM_KEYS = {"item_id", "product_name", "mode", "thumb_url", "added_at"}
 
 
 @pytest.fixture(autouse=True)
@@ -154,6 +156,9 @@ async def test_getEvent_anonymousAndAuthor_returnsExactKeysAndAuthorFlag(
     assert body["is_author"] is False
     assert as_other.json()["is_author"] is False
     assert as_author.json()["is_author"] is True
+    assert body["open_reservations"] is None
+    assert as_other.json()["open_reservations"] is None
+    assert as_author.json()["open_reservations"] == {"total": 0, "swaps": 0}
 
 
 async def test_getEvent_unknownId_returns404Polish(client: AsyncClient) -> None:
@@ -383,10 +388,12 @@ async def test_getEvent_participantItems_onlyAvailableListedItems(
     await db_session.commit()
     await _attend(client, event_id, attendee)
 
+    await _set_added_at(db_session, {klocki: NOW - timedelta(days=2), auto: NOW})
+
     body = await _page(client, event_id)
 
     author_row, attendee_row = body["participants"]
-    assert author_row["items"] == [
+    assert [_without_added_at(item) for item in author_row["items"]] == [
         {
             "item_id": str(author_item),
             "product_name": "Pi Zabawka autora",
@@ -394,7 +401,7 @@ async def test_getEvent_participantItems_onlyAvailableListedItems(
             "thumb_url": None,
         }
     ]
-    assert attendee_row["items"] == [
+    assert [_without_added_at(item) for item in attendee_row["items"]] == [
         {"item_id": str(auto), "product_name": "Pi Auto", "mode": "SWAP", "thumb_url": None},
         {
             "item_id": str(klocki),
@@ -403,6 +410,65 @@ async def test_getEvent_participantItems_onlyAvailableListedItems(
             "thumb_url": "https://cdn.test/pi-klocki/w400.webp",
         },
     ]
+    assert [item["added_at"] for item in attendee_row["items"]] == [
+        NOW.isoformat(),
+        (NOW - timedelta(days=2)).isoformat(),
+    ]
+    assert (author_row["items_total"], attendee_row["items_total"]) == (1, 2)
+
+
+async def _set_added_at(db_session: AsyncSession, added_at: dict[uuid.UUID, datetime]) -> None:
+    """Pins each item's listing-preference `created_at` (naive UTC)."""
+    for item_id, created_at in added_at.items():
+        await db_session.execute(
+            update(ItemListingPreference)
+            .where(ItemListingPreference.item_id == item_id)
+            .values(created_at=created_at)
+        )
+    await db_session.commit()
+
+
+def _without_added_at(item: dict[str, Any]) -> dict[str, Any]:
+    return {key: value for key, value in item.items() if key != "added_at"}
+
+
+async def test_getEvent_participantWithFiveItems_returnsThreeNewestAndItemsTotal(
+    client: AsyncClient, db_session: AsyncSession
+) -> None:
+    author = await _register(client, "page.newest.author@example.com")
+    attendee = await _register(client, "page.newest.attendee@example.com")
+    event_id = await _create_event(client, author)
+    first, second, third, fourth, fifth = await _listed_items(
+        client,
+        attendee,
+        ("Pn Arbuz", "GIFT"),
+        ("Pn Balon", "SWAP"),
+        ("Pn Cymbałki", "GIFT"),
+        ("Pn Domek", "GIFT"),
+        ("Pn Ekran", "SWAP"),
+    )
+    await _set_added_at(
+        db_session,
+        {
+            first: NOW - timedelta(days=1),
+            second: NOW - timedelta(days=5),
+            third: NOW,
+            fourth: NOW - timedelta(days=3),
+            fifth: NOW - timedelta(hours=2),
+        },
+    )
+    await _attend(client, event_id, attendee)
+
+    body = await _page(client, event_id)
+
+    author_row, attendee_row = body["participants"]
+    assert (author_row["items"], author_row["items_total"]) == ([], 0)
+    assert [item["item_id"] for item in attendee_row["items"]] == [
+        str(third),
+        str(fifth),
+        str(first),
+    ]
+    assert attendee_row["items_total"] == 5
 
 
 async def test_getEvent_anonymousOrInvalidToken_returns200NotAuthorView(
@@ -485,6 +551,7 @@ async def test_getEvent_oneVsFiveParticipantsWithItems_queryCountConstant(
 
     assert [len(p["items"]) for p in one_body["participants"]] == [2, 2]
     assert [len(p["items"]) for p in five_body["participants"]] == [2] * 6
+    assert [p["items_total"] for p in five_body["participants"]] == [2] * 6
     assert all(item["thumb_url"] for p in five_body["participants"] for item in p["items"])
     assert len(one_statements) == len(five_statements), (one_statements, five_statements)
 

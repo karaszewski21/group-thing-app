@@ -18,10 +18,15 @@ export interface ItemStatusResponse {
   due_date: string | null;
   counterparty_label: string | null;
   /** Set only for a reservation party (taker or giver) of a RESERVED or
-   * IN_TRANSIT item; null for everyone else. */
+   * IN_TRANSIT item; null for everyone else. For an event reservation
+   * `term_id`/`group_id` stay null, `group_name` is the event name and
+   * `term_occurs_on` its start. */
   term_id?: string | null;
   group_id?: string | null;
   group_name?: string | null;
+  event_id?: string | null;
+  /** The event author's slug, for `eventPath(event_slug, event_id)`. */
+  event_slug?: string | null;
 }
 
 /** The item page's read model. `description` and `photos` belong to the

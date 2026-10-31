@@ -115,7 +115,8 @@ class ReservationResponse(BaseModel):
     item_id: uuid.UUID
     reservation_type: ReservationType
     reserved_by_user_id: uuid.UUID
-    term_id: uuid.UUID
+    term_id: uuid.UUID | None
+    event_id: uuid.UUID | None
     paired_reservation_id: uuid.UUID | None
     reserved_at: datetime
     expires_at: datetime | None
@@ -124,20 +125,12 @@ class ReservationResponse(BaseModel):
 
 
 class ReservationDetailResponse(ReservationResponse):
-    """`GET /api/reservations/{id}` — adds the Term's date, read through the
-    keep-live `find_reservation_term` so it still resolves once the Term's
-    group is soft-deleted (`GET /api/terms/{id}` then answers 404)."""
+    """`GET /api/reservations/{id}` — adds the context date (the Term's
+    `occurs_on` or the Event's `starts_at`), read through the keep-live
+    `find_reservation_context_occurs_on` so it still resolves once the
+    Term's group is soft-deleted (`GET /api/terms/{id}` then answers 404)."""
 
     term_occurs_on: datetime | None
-
-
-class CreateReservationRequest(BaseModel):
-    item_id: uuid.UUID
-    reservation_type: ReservationType
-    reserved_by_user_id: uuid.UUID
-    term_id: uuid.UUID
-    expires_at: datetime | None = None
-    notes: str | None = Field(default=None, max_length=1000)
 
 
 class CirculationEntryResponse(BaseModel):
@@ -175,6 +168,8 @@ class ItemStatusResponse(BaseModel):
     term_id: uuid.UUID | None = None
     group_id: uuid.UUID | None = None
     group_name: str | None = None
+    event_id: uuid.UUID | None = None
+    event_slug: str | None = None
 
 
 class ItemDetailsResponse(BaseModel):

@@ -2087,6 +2087,7 @@ describe("AppPage — event tile links and the event edit page", () => {
     participants: [],
     is_attending: false,
     has_ended: false,
+    open_reservations: null,
   };
 
   beforeEach(() => {

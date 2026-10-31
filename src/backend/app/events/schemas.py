@@ -59,24 +59,40 @@ class EventOrganizationResponse(BaseModel):
 
 
 class EventParticipantItemResponse(BaseModel):
+    """`added_at` is the listing preference's `created_at` (naive UTC)."""
+
     item_id: uuid.UUID
     product_name: str
     mode: str
     thumb_url: str | None
+    added_at: datetime
 
 
 class EventParticipantResponse(BaseModel):
+    """`items` holds at most the 3 newest listed items; `items_total` counts
+    them all."""
+
     party_id: uuid.UUID
     display_name: str
     is_author: bool
     is_me: bool
     items: list[EventParticipantItemResponse]
+    items_total: int
+
+
+class EventOpenReservationsResponse(BaseModel):
+    """What deleting the event would cancel: open gift reservations plus
+    open swaps (`total`), of which `swaps` are swaps."""
+
+    total: int
+    swaps: int
 
 
 class EventDetailResponse(EventResponse):
     """The event page: the public event plus what the page needs around it.
     `participants` lists the author first, then active attendees in sign-up
-    order; `attendee_count` excludes the author."""
+    order; `attendee_count` excludes the author. `open_reservations` is
+    filled for the author only."""
 
     banner_url: str | None
     attendee_count: int
@@ -86,6 +102,7 @@ class EventDetailResponse(EventResponse):
     participants: list[EventParticipantResponse]
     is_attending: bool
     has_ended: bool
+    open_reservations: EventOpenReservationsResponse | None
 
 
 class EventAttendanceRequest(BaseModel):

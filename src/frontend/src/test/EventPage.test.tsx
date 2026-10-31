@@ -1,6 +1,6 @@
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { Link, matchRoutes, MemoryRouter, Route, Routes, useLocation, type InitialEntry } from "react-router-dom";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import * as eventsApi from "../api/events";
 import type { EventAttendanceResponse, EventDetailResponse, EventParticipant } from "../api/events";
 import { EventAuthorCard } from "../pages/events/components/EventAuthorCard";
@@ -34,9 +34,17 @@ const AUTHOR: EventParticipant = {
   display_name: "Fundacja Zielony Krąg",
   is_author: true,
   is_me: false,
-  items: [{ item_id: "it-1", product_name: "Pluszowy miś", mode: "GIFT", thumb_url: null }],
+  items: [{ item_id: "it-1", product_name: "Pluszowy miś", mode: "GIFT", thumb_url: null, added_at: "2026-10-30T09:00:00" }],
+  items_total: 1,
 };
-const ME: EventParticipant = { party_id: "p-me", display_name: "Kasia", is_author: false, is_me: true, items: [] };
+const ME: EventParticipant = {
+  party_id: "p-me",
+  display_name: "Kasia",
+  is_author: false,
+  is_me: true,
+  items: [],
+  items_total: 0,
+};
 
 function event(overrides: Partial<EventDetailResponse> = {}): EventDetailResponse {
   return {
@@ -57,6 +65,7 @@ function event(overrides: Partial<EventDetailResponse> = {}): EventDetailRespons
     participants: [AUTHOR],
     is_attending: false,
     has_ended: false,
+    open_reservations: null,
     ...overrides,
   };
 }
@@ -101,6 +110,10 @@ beforeEach(() => {
   mockAuth = { token: null };
 });
 
+afterEach(() => {
+  vi.useRealTimers();
+});
+
 describe("EventPage", () => {
   it("shows an anonymous visitor the page in order, the empty copy and the sign-up footer, without chat", async () => {
     vi.mocked(eventsApi.getEvent).mockResolvedValue(event());
@@ -123,6 +136,40 @@ describe("EventPage", () => {
     ).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /Czat wydarzenia/ })).not.toBeInTheDocument();
     expect(screen.queryByRole("link", { name: /Edytuj/ })).not.toBeInTheDocument();
+  });
+
+  it("shows each participant's newest items with event-context links and Pokaż więcej to their items page", async () => {
+    const bartek: EventParticipant = {
+      party_id: "p-bartek",
+      display_name: "Bartek K.",
+      is_author: false,
+      is_me: false,
+      items: [
+        { item_id: "it-7", product_name: "Kurtka", mode: "GIFT", thumb_url: null, added_at: "2026-10-30T09:00:00" },
+        { item_id: "it-6", product_name: "Rowerek", mode: "SWAP", thumb_url: null, added_at: "2026-10-28T09:00:00" },
+        { item_id: "it-5", product_name: "Carcassonne", mode: "GIFT", thumb_url: null, added_at: "2026-10-24T09:00:00" },
+      ],
+      items_total: 12,
+    };
+    vi.mocked(eventsApi.getEvent).mockResolvedValue(event({ attendee_count: 1, participants: [AUTHOR, bartek] }));
+    renderPage();
+
+    const list = await screen.findByRole("region", { name: "Zapisani na wydarzenie" });
+    const [authorRow, bartekRow] = within(list).getAllByRole("listitem");
+    expect(within(authorRow).getByRole("link", { name: /Pluszowy miś/ })).toHaveAttribute(
+      "href",
+      `/zielony-krag/product/it-1?event=${EVENT_ID}`,
+    );
+    expect(within(authorRow).queryByRole("link", { name: /Pokaż więcej/ })).not.toBeInTheDocument();
+    expect(within(bartekRow).getByRole("link", { name: /Kurtka/ })).toHaveAttribute(
+      "href",
+      `/zielony-krag/product/it-7?event=${EVENT_ID}`,
+    );
+    expect(within(bartekRow).getByRole("link", { name: "Pokaż więcej (12)" })).toHaveAttribute(
+      "href",
+      `/p-bartek/items?event=${EVENT_ID}`,
+    );
+    expect(within(list).queryByRole("button", { name: /Pokaż wszystkie/ })).not.toBeInTheDocument();
   });
 
   it("a guest signs up in the sheet, the key is stored and the merge card replaces the footer", async () => {
@@ -258,15 +305,70 @@ describe("EventPage", () => {
 
   it("the author's delete is blocked with a count hint while people are signed up", async () => {
     mockAuth = { token: "t" };
-    const guest: EventParticipant = { party_id: "p-2", display_name: "Ola", is_author: false, is_me: false, items: [] };
+    const guest: EventParticipant = {
+      party_id: "p-2",
+      display_name: "Ola",
+      is_author: false,
+      is_me: false,
+      items: [],
+      items_total: 0,
+    };
     vi.mocked(eventsApi.getEvent).mockResolvedValue(
-      event({ is_author: true, attendee_count: 2, participants: [AUTHOR, ME, guest] }),
+      event({
+        is_author: true,
+        attendee_count: 2,
+        participants: [AUTHOR, ME, guest],
+        open_reservations: { total: 2, swaps: 0 },
+      }),
     );
     renderPage();
 
     const remove = await screen.findByRole("button", { name: "Usuń" });
     expect(remove).toHaveAttribute("aria-disabled", "true");
     expect(remove).toHaveAccessibleDescription("Nie można usunąć — zapisały się już 2 osoby.");
+    fireEvent.click(remove);
+    expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument();
+    expect(eventsApi.deleteEvent).not.toHaveBeenCalled();
+  });
+
+  it("before the start, deleting an event with open reservations warns with the counts and cancels them", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date(2026, 10, 1, 12, 0));
+    mockAuth = { token: "t" };
+    vi.mocked(eventsApi.getEvent).mockResolvedValue(
+      event({ is_author: true, open_reservations: { total: 3, swaps: 1 } }),
+    );
+    vi.mocked(eventsApi.deleteEvent).mockResolvedValue(undefined);
+    renderPage();
+
+    const remove = await screen.findByRole("button", { name: "Usuń" });
+    expect(remove).not.toHaveAttribute("aria-disabled");
+    fireEvent.click(remove);
+    const dialog = await screen.findByRole("alertdialog", { name: "Usunąć wydarzenie?" });
+    expect(dialog).toHaveAccessibleDescription(
+      "Na tym wydarzeniu są 3 otwarte rezerwacje (w tym 1 zamiana). Usunięcie je anuluje — rzeczy wrócą do właścicieli, a obie strony dostaną powiadomienie.",
+    );
+    expect(within(dialog).getByRole("button", { name: "Anuluj" })).toBeInTheDocument();
+    fireEvent.click(within(dialog).getByRole("button", { name: "Usuń i anuluj rezerwacje" }));
+
+    await waitFor(() => expect(eventsApi.deleteEvent).toHaveBeenCalledWith(EVENT_ID));
+    expect(await screen.findByText("Strona spotkań")).toBeInTheDocument();
+  });
+
+  it("after the start, the author's delete is blocked while reservations are open", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date(2026, 10, 2, 15, 0));
+    mockAuth = { token: "t" };
+    vi.mocked(eventsApi.getEvent).mockResolvedValue(
+      event({ is_author: true, open_reservations: { total: 1, swaps: 0 } }),
+    );
+    renderPage();
+
+    const remove = await screen.findByRole("button", { name: "Usuń" });
+    expect(remove).toHaveAttribute("aria-disabled", "true");
+    expect(remove).toHaveAccessibleDescription(
+      "Nie można usunąć — wydarzenie się rozpoczęło i ma otwarte rezerwacje",
+    );
     fireEvent.click(remove);
     expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument();
     expect(eventsApi.deleteEvent).not.toHaveBeenCalled();
@@ -308,6 +410,23 @@ describe("EventPage", () => {
     expect(await screen.findByRole("heading", { name: "Bazar zimowy", level: 1 })).toBeInTheDocument();
     expect(screen.queryByText("Zapisano Cię jako gościa ✓")).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: "＋ Zapisz się na wydarzenie" })).toBeInTheDocument();
+  });
+
+  it.each([
+    [1, 0, "Na tym wydarzeniu jest 1 otwarta rezerwacja. Usunięcie"],
+    [2, 2, "Na tym wydarzeniu są 2 otwarte rezerwacje (w tym 2 zamiany). Usunięcie"],
+    [5, 5, "Na tym wydarzeniu jest 5 otwartych rezerwacji (w tym 5 zamian). Usunięcie"],
+    [22, 1, "Na tym wydarzeniu są 22 otwarte rezerwacje (w tym 1 zamiana). Usunięcie"],
+  ])("the delete warning for %i reservation(s), %i swap(s) agrees in number", (total, swaps, copy) => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date(2026, 10, 1, 12, 0));
+    render(
+      <MemoryRouter>
+        <EventAuthorCard event={event({ is_author: true, open_reservations: { total, swaps } })} onDelete={vi.fn()} />
+      </MemoryRouter>,
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Usuń" }));
+    expect(screen.getByRole("alertdialog").textContent).toContain(copy);
   });
 
   it.each([

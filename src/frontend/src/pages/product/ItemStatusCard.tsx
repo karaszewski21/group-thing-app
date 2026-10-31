@@ -1,22 +1,38 @@
+import { Link } from "react-router-dom";
 import type { ItemStatusResponse } from "../../api/items";
 import { AddToCalendarButton } from "../../components/shared/AddToCalendarButton";
 import { calendarUid, type CalendarEvent } from "../../utils/calendar";
+import { eventPath } from "../../utils/appHelpers";
 import dayjs from "../../utils/dayjs";
 import { organizerTermPath } from "../organizer/organizerHelpers";
 
+/** Where the hand-over happens: a Term or an event. `contextId` feeds the
+ * calendar uid and `path` the link; `groupName` is the event name for an
+ * event. */
 interface PartyTerm {
-  termId: string;
-  groupId: string;
+  contextId: string;
+  path: string;
+  isEvent: boolean;
   groupName: string;
   occursOn: string;
 }
 
-/** The hand-over Term, present only when the viewer is a reservation party
- * (the backend sends these fields to the taker and the giver only). */
+/** The hand-over context, present only when the viewer is a reservation
+ * party (the backend sends these fields to the taker and the giver only). */
 function partyTerm(status: ItemStatusResponse): PartyTerm | null {
-  const { code, term_id, group_id, group_name, term_occurs_on } = status;
-  if ((code !== "RESERVED" && code !== "IN_TRANSIT") || !term_id || !group_id || !group_name || !term_occurs_on) return null;
-  return { termId: term_id, groupId: group_id, groupName: group_name, occursOn: term_occurs_on };
+  const { code, term_id, group_id, group_name, term_occurs_on, event_id, event_slug } = status;
+  if ((code !== "RESERVED" && code !== "IN_TRANSIT") || !group_name || !term_occurs_on) return null;
+  if (event_id && event_slug) {
+    return { contextId: event_id, path: eventPath(event_slug, event_id), isEvent: true, groupName: group_name, occursOn: term_occurs_on };
+  }
+  if (!term_id || !group_id) return null;
+  return {
+    contextId: term_id,
+    path: organizerTermPath("krag", group_id, term_id),
+    isEvent: false,
+    groupName: group_name,
+    occursOn: term_occurs_on,
+  };
 }
 
 function statusLines(status: ItemStatusResponse): { title: string; detail: string | null; pill: string } {
@@ -66,11 +82,11 @@ function statusLines(status: ItemStatusResponse): { title: string; detail: strin
 
 function partyCalendarEvent(party: PartyTerm, itemId: string, itemName: string, isOwner: boolean): CalendarEvent {
   return {
-    uid: calendarUid(party.termId, itemId),
+    uid: calendarUid(party.contextId, itemId),
     title: isOwner ? `Przekazanie: ${itemName}` : `Odbiór: ${itemName}`,
     occursOn: party.occursOn,
     groupName: party.groupName,
-    url: window.location.origin + organizerTermPath("krag", party.groupId, party.termId),
+    url: window.location.origin + party.path,
   };
 }
 
@@ -109,6 +125,16 @@ export function ItemStatusCard({
           {title}
         </p>
         {detail && <p className="mt-0.5 text-sm">{detail}</p>}
+        {party?.isEvent && (
+          <p className="mt-1 text-sm">
+            <Link
+              to={party.path}
+              className="font-bold underline underline-offset-2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring"
+            >
+              Zobacz wydarzenie
+            </Link>
+          </p>
+        )}
         {upcoming && (
           <div className="mt-3 inline-block rounded-full bg-paper/70">
             <AddToCalendarButton

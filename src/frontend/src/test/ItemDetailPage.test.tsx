@@ -6,11 +6,16 @@ import * as itemsApi from "../api/items";
 import * as inventoriesApi from "../api/inventories";
 import * as productsApi from "../api/products";
 import * as categoriesApi from "../api/categories";
+import * as itemActionsApi from "../api/itemActions";
+import * as eventItemsApi from "../api/eventItems";
+import type { ItemActionsResponse } from "../api/itemActions";
 import { ApiError } from "../api/client";
 import { ACCESS_DENIED_MESSAGE } from "../api/problem";
 import type { ItemDetailsResponse } from "../api/items";
 import type { Category } from "../api/categories";
-import type { InventoryItemResponse } from "../api/inventories";
+import type { InventoryBalanceResponse, InventoryItemResponse, MyInventoryItemResponse } from "../api/inventories";
+import type { OwnerNearestDate } from "../api/ownerItems";
+import type { SwapProposalResponse } from "../api/termItemListings";
 import type { ProductResponse } from "../api/products";
 import { createQueryWrapper } from "./queryClient";
 
@@ -20,7 +25,21 @@ vi.mock("../api/items", () => ({
 
 vi.mock("../api/inventories", () => ({
   updateInventoryItem: vi.fn(),
+  getMyInventoryItems: vi.fn(),
+  getInventoryItemBalance: vi.fn(),
 }));
+
+vi.mock("../api/itemActions", () => ({
+  getItemActions: vi.fn(),
+}));
+
+vi.mock("../api/eventItems", () => ({
+  takeEventItem: vi.fn(),
+  proposeEventSwap: vi.fn(),
+}));
+
+const mockAuth: { token: string | null } = { token: "valid.jwt.token" };
+vi.mock("../auth/AuthContext", () => ({ useAuth: () => mockAuth }));
 
 vi.mock("../api/products", () => ({
   resolveProduct: vi.fn(),
@@ -74,6 +93,40 @@ function details(overrides: Partial<ItemDetailsResponse> = {}): ItemDetailsRespo
   };
 }
 
+const OWNER: ItemActionsResponse["owner"] = {
+  party_id: "party-1",
+  display_name: "Bartek K.",
+  slug: "bartek",
+  items_total: 12,
+};
+
+const LIVE_EVENT: NonNullable<ItemActionsResponse["context"]> = {
+  kind: "EVENT",
+  id: "ev-1",
+  name: "Wymianka sąsiedzka",
+  starts_at: "2026-11-07T10:00:00",
+  path: "/bartek/event/ev-1",
+  has_started: false,
+};
+
+function itemActions(overrides: Partial<ItemActionsResponse> = {}): ItemActionsResponse {
+  return {
+    mode: "GIFT",
+    available: true,
+    owner: OWNER,
+    context: null,
+    viewer: "NOT_ELIGIBLE",
+    nearest: null,
+    ...overrides,
+  };
+}
+
+/** After `vi.resetAllMocks()`: a logged-in viewer and an actions read with no context. */
+function mockDefaults() {
+  mockAuth.token = "valid.jwt.token";
+  vi.mocked(itemActionsApi.getItemActions).mockResolvedValue(itemActions());
+}
+
 function category(id: string, name: string, parent_id: string | null, sort_order: number): Category {
   return { id, name, description: null, parent_id, sort_order, product_count: 1, created_at: "", updated_at: "" };
 }
@@ -108,6 +161,7 @@ function deferred<T>() {
 describe("ItemDetailPage", () => {
   beforeEach(() => {
     vi.resetAllMocks();
+    mockDefaults();
     vi.mocked(itemsApi.getItemDetails).mockResolvedValue(details());
     vi.mocked(categoriesApi.getCategories).mockResolvedValue(categories);
   });
@@ -365,23 +419,27 @@ describe("ItemDetailPage", () => {
   });
 });
 
-describe("ItemDetailPage ask about the item", () => {
-  const ASK = "Zapytaj o rzecz";
+describe("ItemDetailPage context actions", () => {
+  const ASK = /Napisz do właściciela/;
 
   beforeEach(() => {
     vi.resetAllMocks();
+    mockDefaults();
   });
 
-  it("is shown to a non-owner and hidden for the owner and for a deleted item", async () => {
+  it("Napisz is shown to a non-owner; the owner and a deleted item get no chat button", async () => {
     vi.mocked(itemsApi.getItemDetails).mockResolvedValue(details({ is_owner: false }));
     const { unmount } = renderPage(`/product/${ITEM_ID}`);
     expect(await screen.findByRole("button", { name: ASK })).toBeInTheDocument();
+    expect(screen.getByText("Właściciel nie ma teraz zaplanowanych spotkań")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Zobacz wszystkie rzeczy (12) ›" })).toHaveAttribute("href", "/bartek/items");
     unmount();
 
     vi.mocked(itemsApi.getItemDetails).mockResolvedValue(details({ is_owner: true }));
     const owner = renderPage(`/product/${ITEM_ID}`);
-    await screen.findByRole("heading", { name: "Wózek spacerowy Baby Jogger" });
-    expect(screen.queryByRole("button", { name: ASK })).not.toBeInTheDocument();
+    expect(await screen.findByText(/^To Twoja rzecz/)).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Napisz/ })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Edytuj/ })).toBeInTheDocument();
     owner.unmount();
 
     vi.mocked(itemsApi.getItemDetails).mockResolvedValue(
@@ -389,10 +447,10 @@ describe("ItemDetailPage ask about the item", () => {
     );
     renderPage(`/product/${ITEM_ID}`);
     await screen.findByText("Rzecz usunięta");
-    expect(screen.queryByRole("button", { name: ASK })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Napisz/ })).not.toBeInTheDocument();
   });
 
-  it("opens the item conversation and navigates to the thread", async () => {
+  it("Napisz opens the item conversation and navigates to the thread", async () => {
     vi.mocked(itemsApi.getItemDetails).mockResolvedValue(details({ is_owner: false }));
     conversationHook.openConversation.mockResolvedValue("conv-9");
     renderPage(`/product/${ITEM_ID}`);
@@ -403,7 +461,7 @@ describe("ItemDetailPage ask about the item", () => {
     expect(conversationHook.openConversation).toHaveBeenCalledWith({ kind: "ITEM", id: ITEM_ID });
   });
 
-  it("shows the error inline under the button and stays on the item", async () => {
+  it("a chat failure shows inline under the button and stays on the item", async () => {
     vi.mocked(itemsApi.getItemDetails).mockResolvedValue(details({ is_owner: false }));
     conversationHook.openConversation.mockRejectedValue(new Error("Za dużo nowych rozmów — spróbuj później"));
     renderPage(`/product/${ITEM_ID}`);
@@ -413,11 +471,199 @@ describe("ItemDetailPage ask about the item", () => {
     expect(await screen.findByRole("alert")).toHaveTextContent("Za dużo nowych rozmów — spróbuj później");
     expect(screen.getByRole("button", { name: ASK })).toBeEnabled();
   });
+
+  it("anonymous: Weź opens the account sheet whose links come back with the query", async () => {
+    mockAuth.token = null;
+    vi.mocked(itemsApi.getItemDetails).mockResolvedValue(details({ is_owner: false }));
+    vi.mocked(itemActionsApi.getItemActions).mockResolvedValue(
+      itemActions({ viewer: "ANONYMOUS", context: LIVE_EVENT }),
+    );
+    renderPage(`/product/${ITEM_ID}?event=ev-1`);
+
+    fireEvent.click(await screen.findByRole("button", { name: "Weź" }));
+
+    const sheet = await screen.findByRole("dialog", { name: "Załóż konto, żeby zarezerwować" });
+    const returnTo = encodeURIComponent(`/product/${ITEM_ID}?event=ev-1`);
+    expect(within(sheet).getByRole("link", { name: "Załóż konto" })).toHaveAttribute(
+      "href",
+      `/login?mode=register&returnTo=${returnTo}`,
+    );
+    expect(within(sheet).getByRole("link", { name: "Mam konto — zaloguj" })).toHaveAttribute(
+      "href",
+      `/login?returnTo=${returnTo}`,
+    );
+    expect(eventItemsApi.takeEventItem).not.toHaveBeenCalled();
+    expect(itemActionsApi.getItemActions).toHaveBeenCalledWith(ITEM_ID, { kind: "event", id: "ev-1" });
+  });
+
+  it("eligible: Weź in an event takes the item and shows the event TakeSuccessSheet", async () => {
+    vi.mocked(itemsApi.getItemDetails).mockResolvedValue(details({ is_owner: false }));
+    vi.mocked(itemActionsApi.getItemActions).mockResolvedValue(itemActions({ viewer: "ELIGIBLE", context: LIVE_EVENT }));
+    vi.mocked(eventItemsApi.takeEventItem).mockResolvedValue({
+      item_id: ITEM_ID,
+      product_name: "Wózek spacerowy Baby Jogger",
+      context: LIVE_EVENT,
+    });
+    renderPage(`/product/${ITEM_ID}?event=ev-1`);
+
+    expect(await screen.findByText("📅 Odbiór na: Wymianka sąsiedzka · sob 7 lis, 10:00")).toBeInTheDocument();
+    expect(
+      screen.getByText("Rezerwacja możliwa do startu wydarzenia. Właściciel dostanie powiadomienie."),
+    ).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Weź" }));
+
+    expect(await screen.findByRole("dialog", { name: /Odbierz „Wózek spacerowy Baby Jogger”/ })).toBeInTheDocument();
+    expect(screen.getByText(/Rzecz czeka na Ciebie na tym wydarzeniu/)).toBeInTheDocument();
+    expect(eventItemsApi.takeEventItem).toHaveBeenCalledWith("ev-1", ITEM_ID, "GIFT");
+  });
+
+  it("not signed up: links to the term page to sign up, with Napisz", async () => {
+    vi.mocked(itemsApi.getItemDetails).mockResolvedValue(details({ is_owner: false }));
+    vi.mocked(itemActionsApi.getItemActions).mockResolvedValue(
+      itemActions({
+        viewer: "NOT_ELIGIBLE",
+        context: { ...LIVE_EVENT, kind: "TERM", id: "t-1", path: "/bartek/group/g-1/term/t-1" },
+      }),
+    );
+    renderPage(`/product/${ITEM_ID}?term=t-1`);
+
+    expect(await screen.findByRole("link", { name: "Zapisz się na termin ›" })).toHaveAttribute(
+      "href",
+      "/bartek/group/g-1/term/t-1",
+    );
+    expect(
+      screen.getByText("Żeby zarezerwować tę rzecz, zapisz się na termin — tam ją odbierzesz."),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "💬 Napisz" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Weź" })).not.toBeInTheDocument();
+  });
+
+  it("stale: a started event says so and offers the owner's next date with Napisz, no Weź", async () => {
+    // 2026-11-14 is a Saturday ("sob 14 lis").
+    const nextTerm: OwnerNearestDate = {
+      kind: "TERM",
+      id: "t-2",
+      name: "Krąg Bartka",
+      starts_at: "2026-11-14T10:00:00",
+      location_name: null,
+      attendee_count: 3,
+      path: "/bartek/group/g-1/term/t-2",
+    };
+    vi.mocked(itemsApi.getItemDetails).mockResolvedValue(details({ is_owner: false }));
+    vi.mocked(itemActionsApi.getItemActions).mockResolvedValue(
+      itemActions({ viewer: "ELIGIBLE", context: { ...LIVE_EVENT, has_started: true }, nearest: nextTerm }),
+    );
+    renderPage(`/product/${ITEM_ID}?event=ev-1`);
+
+    expect(
+      await screen.findByText("⏱ Wymianka sąsiedzka (sob 7 lis) — wydarzenie już się rozpoczęło"),
+    ).toBeInTheDocument();
+    expect(screen.getByText("sob 14 lis · Krąg Bartka")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Przejdź do nowego terminu ›" })).toHaveAttribute(
+      "href",
+      `/bartek/product/${ITEM_ID}?term=t-2`,
+    );
+    expect(screen.getByRole("button", { name: "💬 Napisz" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Weź" })).not.toBeInTheDocument();
+  });
+
+  it("stale: an owner's next event is worded as an event and links with ?event=", async () => {
+    const nextEvent: OwnerNearestDate = {
+      kind: "EVENT",
+      id: "ev-2",
+      name: "Wymianka jesienna",
+      starts_at: "2026-11-14T10:00:00",
+      location_name: null,
+      attendee_count: 3,
+      path: "/bartek/event/ev-2",
+    };
+    vi.mocked(itemsApi.getItemDetails).mockResolvedValue(details({ is_owner: false }));
+    vi.mocked(itemActionsApi.getItemActions).mockResolvedValue(
+      itemActions({ viewer: "ELIGIBLE", context: { ...LIVE_EVENT, has_started: true }, nearest: nextEvent }),
+    );
+    renderPage(`/product/${ITEM_ID}?event=ev-1`);
+
+    expect(await screen.findByText(/ma kolejne wydarzenie:/)).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Przejdź do wydarzenia ›" })).toHaveAttribute(
+      "href",
+      `/bartek/product/${ITEM_ID}?event=ev-2`,
+    );
+  });
+
+  it("eligible: Zamienię in an event picks one of the viewer's swap items and proposes it", async () => {
+    const mySwapItem: MyInventoryItemResponse = {
+      id: "m1",
+      inventory_id: "inv",
+      home_inventory_id: null,
+      product_id: "pr1",
+      product_name: "Blender",
+      condition: "GOOD",
+      listing_status: "ACTIVE",
+      added_at: "2026-10-01T10:00:00",
+      created_at: "2026-10-01T10:00:00",
+      updated_at: "2026-10-01T10:00:00",
+      listing_mode: "SWAP",
+      photos_moderation_pending: false,
+    };
+    const available: InventoryBalanceResponse = {
+      id: "b1",
+      item_id: "m1",
+      status: "AVAILABLE",
+      reserved_at: null,
+      lent_at: null,
+      returned_at: null,
+      due_date: null,
+      reservation_id: null,
+    };
+    const proposal: SwapProposalResponse = {
+      id: "s1",
+      proposer_party_id: "p2",
+      listing_item_id: ITEM_ID,
+      offered_item_id: "m1",
+      proposer_reservation_id: "r2",
+      status: "PROPOSED",
+      created_at: "2026-10-01T10:00:00",
+      updated_at: "2026-10-01T10:00:00",
+    };
+    vi.mocked(itemsApi.getItemDetails).mockResolvedValue(details({ is_owner: false }));
+    vi.mocked(itemActionsApi.getItemActions).mockResolvedValue(
+      itemActions({ mode: "SWAP", viewer: "ELIGIBLE", context: LIVE_EVENT }),
+    );
+    vi.mocked(inventoriesApi.getMyInventoryItems).mockResolvedValue([mySwapItem]);
+    vi.mocked(inventoriesApi.getInventoryItemBalance).mockResolvedValue(available);
+    vi.mocked(eventItemsApi.proposeEventSwap).mockResolvedValue(proposal);
+    renderPage(`/product/${ITEM_ID}?event=ev-1`);
+
+    fireEvent.click(await screen.findByRole("button", { name: "Zamienię" }));
+
+    const dialog = await screen.findByRole("dialog", {
+      name: "Co proponujesz w zamian za „Wózek spacerowy Baby Jogger”?",
+    });
+    expect(within(dialog).getByText("Blender")).toBeInTheDocument();
+    fireEvent.click(within(dialog).getByRole("button", { name: "Zaproponuj zamianę" }));
+
+    await waitFor(() => expect(eventItemsApi.proposeEventSwap).toHaveBeenCalledWith("ev-1", ITEM_ID, "m1"));
+    expect(await screen.findByText("Zaproponowano zamianę! Szczegóły w Twoim panelu")).toBeInTheDocument();
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    expect(eventItemsApi.takeEventItem).not.toHaveBeenCalled();
+  });
+
+  it("an actions failure shows a retry in the card while the rest of the page renders", async () => {
+    vi.mocked(itemsApi.getItemDetails).mockResolvedValue(details({ is_owner: false }));
+    vi.mocked(itemActionsApi.getItemActions).mockRejectedValueOnce(new ApiError(500, "Server Error", null));
+    renderPage(`/product/${ITEM_ID}`);
+
+    expect(await screen.findByText("Nie udało się wczytać akcji")).toBeInTheDocument();
+    expect(screen.getByText("Lekki, składany, z daszkiem i koszem.")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Spróbuj ponownie" }));
+    expect(await screen.findByRole("button", { name: ASK })).toBeInTheDocument();
+  });
 });
 
 describe("ItemDetailPage fallbacks", () => {
   beforeEach(() => {
     vi.resetAllMocks();
+    mockDefaults();
     vi.mocked(categoriesApi.getCategories).mockResolvedValue(categories);
   });
 
@@ -507,6 +753,7 @@ describe("ItemDetailPage reservation party view", () => {
 
   beforeEach(() => {
     vi.resetAllMocks();
+    mockDefaults();
     vi.useFakeTimers({ toFake: ["Date"] });
     vi.setSystemTime(new Date(2026, 9, 13, 12, 0));
     vi.mocked(categoriesApi.getCategories).mockResolvedValue(categories);
@@ -593,6 +840,7 @@ describe("Item edit mode status chip and photo hints", () => {
 
   beforeEach(() => {
     vi.resetAllMocks();
+    mockDefaults();
     vi.mocked(categoriesApi.getCategories).mockResolvedValue(categories);
   });
 

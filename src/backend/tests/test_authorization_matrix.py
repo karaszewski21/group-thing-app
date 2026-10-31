@@ -19,7 +19,11 @@ from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
-from app.core.authorization_matrix import AUTHORIZATION_MATRIX, resolve_requirement
+from app.core.authorization_matrix import (
+    AUTHORIZATION_MATRIX,
+    MatrixEntry,
+    resolve_requirement,
+)
 from app.core.security import decode_base64_hmac_key
 
 EDIT = ("EDIT", "mcp:edit")
@@ -312,3 +316,76 @@ async def test_adminLoginToken_carriesEdit(client: AsyncClient, db_session: Asyn
 
     claims = jwt.decode(login.json()["token"], options={"verify_signature": False})
     assert {"ADMIN", "EDIT"} <= set(claims["permissions"])
+
+
+def _first_match_without(method: str, path: str, removed_pattern: str) -> MatrixEntry:
+    remaining = [e for e in AUTHORIZATION_MATRIX if e.pattern.pattern != removed_pattern]
+    assert len(remaining) == len(AUTHORIZATION_MATRIX) - 1
+    return next(
+        e for e in remaining if (e.methods is None or method in e.methods) and e.pattern.match(path)
+    )
+
+
+@pytest.mark.parametrize(
+    "path",
+    [
+        "/api/groups/public/organizers/x/items",
+        f"/api/groups/public/parties/{uuid.uuid4()}/items",
+        f"/api/inventory-items/{uuid.uuid4()}/details",
+        f"/api/items/{uuid.uuid4()}/actions",
+    ],
+)
+def test_resolveRequirement_itemsPageReadRoutes_resolveToPublic(path: str) -> None:
+    assert resolve_requirement("GET", path) == "PUBLIC"
+
+
+@pytest.mark.parametrize("action", ["take", "propose"])
+def test_resolveRequirement_eventItemTakeOrPropose_requiresEdit(action: str) -> None:
+    path = f"/api/events/{uuid.uuid4()}/items/{uuid.uuid4()}/{action}"
+    assert resolve_requirement("POST", path) == EDIT
+    assert resolve_requirement("POST", f"/api/events/{uuid.uuid4()}/attendances") == "PUBLIC"
+
+
+@pytest.mark.parametrize(
+    ("path", "removed", "fallback_pattern", "fallback_requirement"),
+    [
+        (
+            "/api/groups/public/parties/p1/items",
+            r"^/api/groups/public/parties/[^/]+/items$",
+            r"^/api/groups(/.*)?$",
+            READ,
+        ),
+        (
+            "/api/inventory-items/i1/details",
+            r"^/api/inventory-items/[^/]+/details$",
+            r"^/api/inventory-items(/.*)?$",
+            READ,
+        ),
+    ],
+)
+def test_resolveRequirement_withoutNewPublicRow_fallsToBlanketRead(
+    path: str, removed: str, fallback_pattern: str, fallback_requirement: object
+) -> None:
+    """Guards placement: each new PUBLIC row sits ahead of the blanket READ
+    row that would otherwise demand a login."""
+    first_match = _first_match_without("GET", path, removed)
+    assert first_match.pattern.pattern == fallback_pattern
+    assert first_match.requirement == fallback_requirement
+
+
+@pytest.mark.parametrize(
+    "path",
+    [
+        "/api/inventory-items/i1",
+        "/api/inventory-items/i1/details/extra",
+        "/api/inventory-items/mine",
+    ],
+)
+def test_resolveRequirement_otherInventoryItemGets_stayRead(path: str) -> None:
+    assert resolve_requirement("GET", path) == READ
+
+
+def test_resolveRequirement_postItemsPageReadRoutes_areNotPublic() -> None:
+    assert resolve_requirement("POST", "/api/groups/public/organizers/x/items") != "PUBLIC"
+    assert resolve_requirement("POST", "/api/inventory-items/i1/details") != "PUBLIC"
+    assert resolve_requirement("POST", "/api/items/i1/actions") != "PUBLIC"

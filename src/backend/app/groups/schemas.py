@@ -266,6 +266,8 @@ class PublicItemListingResponse(BaseModel):
     # Public CDN URL of the product's first APPROVED photo, `None` when there
     # is none or storage is not configured.
     thumb_url: str | None = None
+    # The listing preference's `created_at` (naive UTC).
+    added_at: datetime
 
 
 class PublicTermResponse(BaseModel):
@@ -408,12 +410,62 @@ class OrganizerStatsResponse(BaseModel):
     family_count: int | None
 
 
+class OwnerItemCardResponse(BaseModel):
+    item_id: uuid.UUID
+    product_name: str
+    condition: str
+    mode: ExchangeMode
+    thumb_url: str | None
+    # The listing preference's `created_at`, naive UTC like every audit timestamp.
+    added_at: datetime
+
+
+class OwnerNearestDateResponse(BaseModel):
+    kind: Literal["TERM", "EVENT"]
+    id: uuid.UUID
+    name: str
+    # Naive Warsaw wall clock (`Term.occurs_on` / `Event.starts_at`).
+    starts_at: datetime
+    location_name: str | None
+    attendee_count: int
+    path: str
+
+
 class OrganizerPageResponse(BaseModel):
     circles: list[OrganizerCircleResponse]
     upcoming_terms: list[OrganizerTermResponse]
     exchange: OrganizerExchangeResponse
     needed_items: list[OrganizerNeededItemResponse]
     stats: OrganizerStatsResponse
+    recent_items: list[OwnerItemCardResponse]
+    # Computed only when `recent_items` is non-empty.
+    owner_nearest: OwnerNearestDateResponse | None
+
+
+# --- Public owner items page (`GET /api/groups/public/{organizers/{slug},parties/{id}}/items`)
+
+
+class OwnerSummaryResponse(BaseModel):
+    party_id: uuid.UUID
+    # The owner's Organization name when they have one, else their profile name.
+    display_name: str
+    slug: str | None
+
+
+class OwnerItemCountsResponse(BaseModel):
+    GIFT: int
+    SWAP: int
+
+
+class OwnerItemsPageResponse(BaseModel):
+    owner: OwnerSummaryResponse
+    nearest: OwnerNearestDateResponse | None
+    # Over every listed item, ignoring the `mode` filter.
+    counts: OwnerItemCountsResponse
+    items: list[OwnerItemCardResponse]
+    total: int
+    page: int
+    size: int
 
 
 class CreateRsvpRequest(BaseModel):
@@ -655,6 +707,58 @@ class ProposeSwapRequest(BaseModel):
     offered_item_id: uuid.UUID
 
 
+# --- Event reservations (authenticated, `/api/events/{id}/items/{item_id}/take|propose`)
+
+
+class EventTakeRequest(BaseModel):
+    """Only `GIFT` is taken directly; a SWAP goes through the propose route."""
+
+    reservation_type: ReservationType
+
+
+class EventProposeRequest(BaseModel):
+    offered_item_id: uuid.UUID
+
+
+class ItemContextResponse(BaseModel):
+    """The term or event an item is reserved in. `name` is the circle's name
+    for a term; `starts_at` is naive Warsaw wall clock."""
+
+    kind: Literal["TERM", "EVENT"]
+    id: uuid.UUID
+    name: str
+    starts_at: datetime
+    path: str
+    has_started: bool
+
+
+class EventTakeResponse(BaseModel):
+    item_id: uuid.UUID
+    product_name: str
+    context: ItemContextResponse
+
+
+class ItemActionsOwnerResponse(OwnerSummaryResponse):
+    items_total: int
+
+
+ItemActionsViewer = Literal["ANONYMOUS", "OWN", "ELIGIBLE", "NOT_ELIGIBLE"]
+
+
+class ItemActionsResponse(BaseModel):
+    """The item page's action read model. `mode` is null without a listing
+    preference; `available` means listed (ACTIVE) and AVAILABLE; `context`
+    is null unless the requested term/event exists, the owner is eligible in
+    it and it is public or the viewer is eligible in it."""
+
+    mode: ExchangeMode | None
+    available: bool
+    owner: ItemActionsOwnerResponse
+    context: ItemContextResponse | None
+    viewer: ItemActionsViewer
+    nearest: OwnerNearestDateResponse | None
+
+
 class JoinCodeResponse(BaseModel):
     """The only schema that carries a Circle's join code — organizer-only."""
 
@@ -686,12 +790,16 @@ class SwapProposalResponse(BaseModel):
 
 
 class AcceptedSwapProposalResponse(SwapProposalResponse):
-    """Accept response: the proposal plus where and when the swap happens."""
+    """Accept response: the proposal plus where and when the swap happens.
+    For an event swap `term_id`/`group_id` are null, `term_occurs_on` is the
+    event start and `group_name` the event name."""
 
-    term_id: uuid.UUID
+    term_id: uuid.UUID | None
     term_occurs_on: datetime
-    group_id: uuid.UUID
+    group_id: uuid.UUID | None
     group_name: str
+    event_id: uuid.UUID | None = None
+    event_slug: str | None = None
 
 
 class SwapProposalOfferResponse(BaseModel):

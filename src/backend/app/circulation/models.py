@@ -11,7 +11,7 @@ projection of that ledger (see `docs/system-wypozyczalni-inventory-accounting.md
 `InventoryItem.product_id` points at `app.product.models.Product`, the
 shared product catalog.
 
-Cross-module references (`users.id`, `products.id`, `terms.id`) are plain
+Cross-module references (`users.id`, `products.id`, `terms.id`, `events.id`) are plain
 FK-id columns, never a `relationship()` crossing the module boundary, per
 `standards/backend/models.md`.
 """
@@ -244,9 +244,23 @@ class InventoryBalance(BaseEntity):
 class Reservation(BaseEntity):
     """The "cart" step preceding any change of possession. `reserved_by`
     always resolves to a `User`, never a `Group`/Family — see Insight 3 in
-    the research synthesis."""
+    the research synthesis. Its context is a Term or an Event: exactly one
+    while PENDING/CONFIRMED, at most one afterwards (a deleted event leaves
+    its terminal reservations with neither)."""
 
     __tablename__ = "reservations"
+    __table_args__ = (
+        CheckConstraint(
+            "num_nonnulls(term_id, event_id) <= 1 AND "
+            "(status NOT IN ('PENDING', 'CONFIRMED') OR num_nonnulls(term_id, event_id) = 1)",
+            name="ck_reservations_context",
+        ),
+        Index(
+            "ix_reservations_event_id",
+            "event_id",
+            postgresql_where=text("event_id IS NOT NULL"),
+        ),
+    )
 
     item_id: Mapped[uuid.UUID] = mapped_column(
         postgresql.UUID(as_uuid=True),
@@ -273,12 +287,17 @@ class Reservation(BaseEntity):
     # Plain FK-id column, no ORM relationship — `Term` lives in the `groups`
     # module, and `circulation` must not take an ORM-level dependency on it,
     # per `standards/backend/models.md`'s cross-module-reference convention.
-    # Always caller-supplied: the creating use case has already resolved a
-    # `Term` by then.
-    term_id: Mapped[uuid.UUID] = mapped_column(
+    # Caller-supplied: the creating use case has already resolved its Term
+    # or Event by then. The same holds for `event_id` (`app.events`).
+    term_id: Mapped[uuid.UUID | None] = mapped_column(
         postgresql.UUID(as_uuid=True),
         ForeignKey("terms.id", name="fk_reservations_term_id_terms"),
-        nullable=False,
+        nullable=True,
+    )
+    event_id: Mapped[uuid.UUID | None] = mapped_column(
+        postgresql.UUID(as_uuid=True),
+        ForeignKey("events.id", name="fk_reservations_event_id_events", ondelete="SET NULL"),
+        nullable=True,
     )
     # Self-referential — only populated for `SWAP`, pointing at the other
     # item's Reservation in the same exchange.

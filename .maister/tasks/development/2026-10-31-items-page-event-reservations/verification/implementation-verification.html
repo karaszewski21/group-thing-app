@@ -1,0 +1,324 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Implementation Verification — items-page-event-reservations</title>
+<style>
+:root {
+  --bg:#f6f7f9; --surface:#fff; --border:#e2e5ea; --text:#1a1d23; --dim:#6b7280;
+  --accent:#4f46e5; --accent-soft:#eef2ff; --ok:#16a34a; --ok-soft:#ecfdf3;
+  --warn:#d97706; --warn-soft:#fffbeb; --crit:#dc2626; --crit-soft:#fef2f2;
+  --info:#2563eb; --info-soft:#eff6ff; --radius:10px;
+}
+@media (prefers-color-scheme: dark) {
+  :root { --bg:#111418; --surface:#1a1f26; --border:#2e3640; --text:#e6e9ee; --dim:#9aa4b2;
+    --accent:#818cf8; --accent-soft:#26294a; --ok:#4ade80; --ok-soft:#11291a;
+    --warn:#fbbf24; --warn-soft:#2e2410; --crit:#f87171; --crit-soft:#321616;
+    --info:#60a5fa; --info-soft:#15233a; }
+}
+* { box-sizing:border-box; }
+body { margin:0 auto; max-width:1100px; padding:24px 20px 64px; background:var(--bg);
+  color:var(--text); font:14px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif; }
+a { color:var(--accent); text-decoration:none; } a:hover { text-decoration:underline; }
+h1 { font-size:22px; letter-spacing:-.01em; } h2 { font-size:16px; margin-top:28px; }
+.card { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius);
+  padding:16px 18px; margin:14px 0; }
+.badge { display:inline-block; font-size:11px; font-weight:600; text-transform:uppercase;
+  letter-spacing:.04em; padding:2px 8px; border-radius:99px; background:var(--accent-soft); color:var(--accent); }
+.sev { display:inline-block; font-size:10.5px; font-weight:700; text-transform:uppercase;
+  padding:1.5px 7px; border-radius:99px; margin-right:6px; }
+.sev.critical { background:var(--crit-soft); color:var(--crit); }
+.sev.warning  { background:var(--warn-soft); color:var(--warn); }
+.sev.info     { background:var(--info-soft); color:var(--info); }
+.pass { color:var(--ok); font-weight:600; } .fail { color:var(--crit); font-weight:600; }
+table { width:100%; border-collapse:collapse; }
+th, td { text-align:left; padding:7px 10px; border-bottom:1px solid var(--border); vertical-align:top; }
+th { font-size:11.5px; text-transform:uppercase; letter-spacing:.04em; color:var(--dim); }
+code { font-family:ui-monospace,SFMono-Regular,Menlo,monospace; font-size:12.5px;
+  background:var(--accent-soft); padding:1px 5px; border-radius:4px; }
+img.shot { max-width:100%; border:1px solid var(--border); border-radius:var(--radius); }
+details > summary { cursor:pointer; font-weight:600; }
+
+.crumbs { display:flex; gap:14px; font-size:13px; margin-bottom:18px; flex-wrap:wrap; }
+.crumbs a.md { margin-left:auto; color:var(--dim); }
+.crumbs .here { font-weight:650; color:var(--text); }
+.tiles { display:flex; gap:10px; flex-wrap:wrap; margin:14px 0; }
+.tile { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius);
+  padding:10px 16px; text-align:center; min-width:90px; }
+.tile b { display:block; font-size:20px; letter-spacing:-.01em; }
+.tile span { font-size:10.5px; text-transform:uppercase; letter-spacing:.05em; color:var(--dim); }
+.tile.t-warn b { color:var(--warn); } .tile.t-ok b { color:var(--ok); } .tile.t-info b { color:var(--info); }
+
+header .meta { color:var(--dim); font-size:13px; }
+.verdict { display:flex; align-items:center; gap:14px; flex-wrap:wrap; background:var(--warn-soft);
+  border:1px solid var(--warn); border-left:6px solid var(--warn); border-radius:var(--radius); padding:14px 18px; margin:14px 0; }
+.verdict .v { font-size:18px; font-weight:700; color:var(--warn); }
+.verdict .counts { display:flex; gap:8px; flex-wrap:wrap; }
+.tldr ul { margin:6px 0; padding-left:20px; }
+.grid2 { display:grid; grid-template-columns:1fr 1fr; gap:14px; }
+@media (max-width:760px) { .grid2 { grid-template-columns:1fr; } }
+.risk { border-left:4px solid var(--warn); }
+.sev.process { background:var(--accent-soft); color:var(--accent); }
+.toc { font-size:13px; color:var(--dim); margin:8px 0 4px; }
+.fix-yes { color:var(--ok); font-weight:600; } .fix-no { color:var(--dim); } .fix-dec { color:var(--warn); font-weight:600; }
+.check li { list-style:none; } .check { padding-left:4px; }
+.info-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(240px,1fr)); gap:12px; }
+.info-grid .card { margin:0; } .info-grid h3 { font-size:13px; margin:0 0 6px; }
+.info-grid ul { margin:0; padding-left:18px; font-size:13px; }
+td.loc code { font-size:11.5px; }
+.table-wrap { overflow-x:auto; }
+tr.fixed td { opacity:.55; } tr.fixed td:nth-child(2) { opacity:1; }
+.fixed-badge { display:inline-block; font-size:10.5px; font-weight:700; text-transform:uppercase;
+  padding:1.5px 7px; border-radius:99px; background:var(--ok-soft); color:var(--ok); }
+.sev.ok { background:var(--ok-soft); color:var(--ok); }
+.decisions { margin:6px 0 0; padding-left:20px; }
+</style>
+</head>
+<body>
+<nav class="crumbs">
+  <a href="../dashboard.html">← Dashboard</a>
+  <a href="../implementation/spec.html">Spec</a>
+  <a href="../implementation/implementation-plan.html">Plan</a>
+  <span class="here">Verification</span>
+  <a href="completeness-report.md" target="_blank" rel="noopener">Completeness ↗</a>
+  <a href="test-suite-results.md" target="_blank" rel="noopener">Tests ↗</a>
+  <a href="code-review-report.md" target="_blank" rel="noopener">Code Review ↗</a>
+  <a href="pragmatic-review.md" target="_blank" rel="noopener">Pragmatic ↗</a>
+  <a href="production-readiness-report.md" target="_blank" rel="noopener">Production ↗</a>
+  <a href="reality-check.md" target="_blank" rel="noopener">Reality ↗</a>
+  <a href="implementation-verification.md" target="_blank" rel="noopener" class="md">md twin ↗</a>
+</nav>
+
+<header>
+  <span class="badge">Implementation Verification</span>
+  <h1>Owner items page, attendee items on event/term pages, event item reservations</h1>
+  <div class="meta">Location: <code>.maister/tasks/development/2026-10-31-items-page-event-reservations</code> · Verification cycle: 1 (initial)</div>
+</header>
+
+<div class="verdict">
+  <span class="v">⚠️ Passed with Issues (post-fix)</span>
+  <span class="counts">
+    <span class="sev critical">0 critical</span>
+    <span class="sev warning">1 warning open (W10)</span>
+    <span class="fixed-badge">✓ 9 fixed</span>
+  </span>
+  <span style="color:var(--dim);font-size:13px">W10: platform-wide rate limiting, out of scope</span>
+</div>
+
+<div class="tiles">
+  <div class="tile t-ok"><b>105/105</b><span>plan steps</span></div>
+  <div class="tile t-ok"><b>35/35</b><span>requirements</span></div>
+  <div class="tile t-ok"><b>9/10</b><span>warnings fixed</span></div>
+  <div class="tile t-warn"><b>1</b><span>warning open</span></div>
+  <div class="tile t-ok"><b>0</b><span>critical</span></div>
+</div>
+
+<section class="tldr">
+  <div class="grid2">
+    <div class="card">
+      <h2 style="margin-top:0">TL;DR</h2>
+      <p style="margin:0 0 6px"><b>⚠️ Passed with Issues, after fixes</b>: 0 critical. 1 warning still open: W10, rate limiting across the whole platform, which is out of scope. The other 9 warnings are fixed (see <a href="#history">Fix &amp; Re-Verification History</a>).</p>
+      <ul>
+        <li>Plan: 105/105 steps done; all 35 spec requirements and 13 design entries are covered.</li>
+        <li>Cycle 1 results:
+          <ul>
+            <li>Backend tests: 1028/1028 pass.</li>
+            <li>Frontend tests: 1295/1308 pass. All 13 failures also fail on a clean HEAD.</li>
+          </ul></li>
+        <li>After fixes, tests were run only on the affected areas, not the full suite:
+          <ul>
+            <li>Backend: 177 + 175 pass.</li>
+            <li>Frontend: 198/199 pass. The one failure is a known one that predates this work.</li>
+            <li>tsc: 0 errors.</li>
+          </ul></li>
+        <li>The user chose to skip a full re-verification. E2E (Phase 12) is the runtime check.</li>
+      </ul>
+    </div>
+    <div class="card risk">
+      <h2 style="margin-top:0">Open Questions / Risks</h2>
+      <ul>
+        <li><b>Owner identity is public (W2).</b> Anonymous visitors see the item owner's <code>display_name</code> and <code>party_id</code> through <code>/api/items/{id}/actions</code> and <code>/api/groups/public/parties/{id}/items</code>, plus the owner's nearest date. This covers people who are not Organizations. Someone has to decide whether that is acceptable.</li>
+        <li><b>Lock released mid-flow (W1).</b> The event <code>FOR SHARE</code> lock does not hold through take/propose/accept, because <code>create_reservation</code> and <code>confirm_reservation</code> commit inside the flow. A <code>delete_event</code> running at the same time can produce a 500 <code>StaleDataError</code> or leave a PROPOSED proposal that can never be resolved.</li>
+        <li><b>Rollback is forward-only once event reservations exist.</b> Rolling back after that point means following the 0073 runbook: purge the event rows manually or restore the dump.</li>
+        <li><b>New files are untracked.</b> All new files, including migration 0073, are still untracked in git and must be committed together.</li>
+        <li><b>Pre-existing test failures overlap this work.</b> The 13 failing frontend tests cover pending actions and the term page, which this task touched, so they could hide a regression there.</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<nav class="toc">Contents:
+  <a href="#summary">Summary</a> ·
+  <a href="#checks">Check Status</a> ·
+  <a href="#tests">Tests</a> ·
+  <a href="#issues">Issues</a> ·
+  <a href="#info">Info</a> ·
+  <a href="#recommendations">Recommendations</a> ·
+  <a href="#checklist">Checklist</a> ·
+  <a href="#history">Fix History</a>
+</nav>
+
+<main>
+<h2 id="summary">Executive Summary</h2>
+<div class="card">
+  <p style="margin-top:0">All four requested features are implemented end to end and traced through the code by the reality assessor:</p>
+  <ul>
+    <li>the owner items page;</li>
+    <li>the shared 3-newest participants preview with context links;</li>
+    <li>the public item page with Weź / Zamienię / Napisz / Zapisz się;</li>
+    <li>event reservations, including the scan, cancel-on-delete and 409 after start.</li>
+  </ul>
+  <p style="margin-bottom:0">The term take/swap regression gate passed with the term test files unchanged. The remaining issues are an event-delete concurrency edge, a privacy decision, and cleanup left over from groups that ran in parallel.</p>
+</div>
+
+<h2 id="checks">Per-Check Status</h2>
+<div class="card table-wrap">
+<table>
+  <thead><tr><th>Check</th><th>Status</th><th>Detail</th><th>Report</th></tr></thead>
+  <tbody>
+    <tr><td>Implementation plan</td><td class="pass">✓ Complete</td><td>18/18 groups, 105/105 steps, 100%. Spot checks found no gaps. All 35 requirements map to code. <code>visual-coverage.md</code> covers 13/13 design entries.</td><td><a href="completeness-report.md" target="_blank" rel="noopener">completeness-report.md</a></td></tr>
+    <tr><td>Test suite</td><td class="pass">✓ No regressions</td><td>Pass rate 99.44% overall; 100% excluding pre-existing failures.</td><td><a href="test-suite-results.md" target="_blank" rel="noopener">test-suite-results.md</a></td></tr>
+    <tr><td>Standards compliance</td><td><span class="sev warning">19/20</span></td><td>Gap: <code>backend/models.md</code> — <code>groups/application/owner_items.py:24</code> imports <code>app.organizations.models</code> directly instead of going through <code>organizations_acl</code>.</td><td><a href="completeness-report.md" target="_blank" rel="noopener">completeness-report.md</a></td></tr>
+    <tr><td>Documentation</td><td class="pass">✓ Updated</td><td><code>architecture.md</code> has Event reservations, Owner items page and 0073 runbook sections; <code>INDEX.md</code> and <code>migrations.md</code> updated. <code>work-log.md</code> complete, but its Standards Reading Log placeholder was never filled <span class="sev info">info</span></td><td>—</td></tr>
+    <tr><td>Code review</td><td><span class="sev warning">issues_found</span></td><td>0 C / 5 W / 9 I</td><td><a href="code-review-report.md" target="_blank" rel="noopener">code-review-report.md</a></td></tr>
+    <tr><td>Pragmatic review</td><td class="pass">Appropriate</td><td>0 C / 3 W / 7 I</td><td><a href="pragmatic-review.md" target="_blank" rel="noopener">pragmatic-review.md</a></td></tr>
+    <tr><td>Production readiness</td><td><span class="sev warning">GO with mitigations (82%)</span></td><td>0 blockers / 4 W / 2 I</td><td><a href="production-readiness-report.md" target="_blank" rel="noopener">production-readiness-report.md</a></td></tr>
+    <tr><td>Reality check</td><td><span class="sev warning">Issues found, deployable</span></td><td>0 C / 5 W / 7 I</td><td><a href="reality-check.md" target="_blank" rel="noopener">reality-check.md</a></td></tr>
+    <tr><td>Visual fidelity / E2E</td><td style="color:var(--dim);font-weight:600">Not run yet</td><td>E2E verification (Phase 12) will write <code>verification/visual-fidelity.md</code>.</td><td>—</td></tr>
+  </tbody>
+</table>
+</div>
+
+<h2 id="tests">Test Suite Results</h2>
+<div class="card table-wrap">
+<table>
+  <thead><tr><th>Suite</th><th>Result</th></tr></thead>
+  <tbody>
+    <tr><td>Backend pytest</td><td class="pass">1028/1028 passed (9m14s)</td></tr>
+    <tr><td>Frontend vitest</td><td><span class="sev warning">1295/1308</span> 13 failures, all of which fail the same way on HEAD: auth 1, extension-points 2, foundation 1, PublicLayout 2, AppPage add-term 5, PendingActionsHost GIFT 1, TermPage sign-up 1</td></tr>
+    <tr><td>tsc (app)</td><td class="pass">0 errors</td></tr>
+    <tr><td>mypy</td><td>15 errors, at baseline; none in this diff's hunks</td></tr>
+    <tr><td>ruff</td><td>Only E501/I001 that already existed, plus 1 UP017 in an untouched file</td></tr>
+  </tbody>
+</table>
+<p style="margin-bottom:0;color:var(--dim)">Pass rate: 99.44% overall; 100% when the pre-existing failures are excluded. Regressions: 0.</p>
+</div>
+
+<h2 id="issues">Issues Requiring Attention (deduplicated)</h2>
+<div class="card table-wrap">
+<table>
+  <thead><tr><th>#</th><th>Severity</th><th>Source</th><th>Issue</th><th>Location</th><th>Fixable</th></tr></thead>
+  <tbody>
+    <tr class="fixed"><td><b>W1</b></td><td><span class="sev warning">warning</span> <span class="fixed-badge">✓ fixed</span></td><td>code_review W1/W3, reality G1</td><td>The event <code>FOR SHARE</code> lock is released by commits inside create/confirm. In addition, accept and reject load the proposal without locking it. A concurrent <code>delete_event</code> then gives a <code>StaleDataError</code> 500 or a stuck PROPOSED proposal.</td><td class="loc"><code>groups/application/term_item_listings.py:676-702, 752-813, 820-858</code>; <code>circulation/application/reservations.py:77</code></td><td class="fix-yes">yes (medium)</td></tr>
+    <tr class="fixed"><td><b>W2</b></td><td><span class="sev warning">warning</span> <span class="fixed-badge">✓ fixed</span></td><td>code_review W2, reality G2</td><td>Anonymous visitors see the owner's <code>display_name</code> and <code>party_id</code>, and the party items endpoint returns 200 for any party that has a profile.</td><td class="loc"><code>groups/application/item_actions.py:84-97</code>; <code>owner_items.py:117-214</code></td><td class="fix-dec">needs a product decision</td></tr>
+    <tr class="fixed"><td><b>W3</b></td><td><span class="sev warning">warning</span> <span class="fixed-badge">✓ fixed</span></td><td>code_review W5</td><td>A take or propose does not invalidate the <code>OWNER_ITEMS_KEY</code>, <code>EVENT_KEY</code> or organizer-page queries, so stale "available" items stay on screen.</td><td class="loc"><code>frontend/src/pages/term/hooks/useItemTake.ts</code></td><td class="fix-yes">yes</td></tr>
+    <tr class="fixed"><td><b>W4</b></td><td><span class="sev warning">warning</span> <span class="fixed-badge">✓ fixed</span></td><td>code_review W4, pragmatic I1</td><td>Query keys <code>"item-actions"</code> and <code>"itemDetails"</code> are hard-coded; <code>ITEM_DETAILS_KEY</code> is not exported.</td><td class="loc"><code>useItemTake.ts</code>, <code>hooks/useItemDetail.ts</code></td><td class="fix-yes">yes</td></tr>
+    <tr class="fixed"><td><b>W5</b></td><td><span class="sev warning">warning</span> <span class="fixed-badge">✓ fixed</span></td><td>completeness</td><td><code>owner_items.py</code> imports the Organization model directly, bypassing <code>organizations_acl</code>.</td><td class="loc"><code>groups/application/owner_items.py:24,47</code></td><td class="fix-yes">yes</td></tr>
+    <tr class="fixed"><td><b>W6</b></td><td><span class="sev warning">warning</span> <span class="fixed-badge">✓ fixed</span></td><td>pragmatic W1</td><td>Five mode-label maps exist for two modes.</td><td class="loc"><code>ItemContextActions.tsx:32</code>, <code>ParticipantItemsPreview.tsx:12</code>, <code>termLabels.ts:20</code></td><td class="fix-yes">yes</td></tr>
+    <tr class="fixed"><td><b>W7</b></td><td><span class="sev warning">warning</span> <span class="fixed-badge">✓ fixed</span></td><td>pragmatic W2</td><td>The owner-summary logic is duplicated.</td><td class="loc"><code>item_actions.py:84-97</code>, <code>owner_items.py:207-212</code></td><td class="fix-yes">yes</td></tr>
+    <tr class="fixed"><td><b>W8</b></td><td><span class="sev warning">warning</span> <span class="fixed-badge">✓ fixed</span></td><td>pragmatic W3</td><td>Two mappers exist only because the client uses lowercase <code>kind</code> where the server uses uppercase.</td><td class="loc"><code>useItemRoutes.ts:15-23</code>, <code>useItemTake.ts:15-30</code></td><td class="fix-yes">yes</td></tr>
+    <tr class="fixed"><td><b>W9</b></td><td><span class="sev warning">warning</span> <span class="fixed-badge">✓ fixed</span></td><td>production C2</td><td>Migration 0073 sets no <code>SET LOCAL lock_timeout</code>, unlike 0071.</td><td class="loc"><code>alembic/versions/0073_event_reservations.py</code></td><td class="fix-yes">yes</td></tr>
+    <tr><td><b>W10</b></td><td><span class="sev warning">warning</span></td><td>production C4</td><td>The new anonymous endpoints have no rate limit. This applies to the whole platform and is tied to follow-up W8.</td><td class="loc"><code>/details</code>, <code>/actions</code>, owner items</td><td class="fix-no">no (out of scope)</td></tr>
+    <tr><td>—</td><td><span class="sev process">process</span></td><td>production C1, reality G4</td><td>Migration 0073, 8 backend modules and 15 frontend files are untracked.</td><td class="loc">git</td><td class="fix-no">handled at commit</td></tr>
+  </tbody>
+</table>
+</div>
+
+<h2 id="info">Info Items</h2>
+<details class="card" open>
+<summary><span class="sev info">info</span> ~20 lower-priority observations by source</summary>
+<div class="info-grid" style="margin-top:12px">
+  <div class="card"><h3>Code review</h3><ul>
+    <li>a <code>ValueError</code> doubles as the 400 signal;</li>
+    <li>for terms, the already-resolved check now runs before <code>require_ended</code>;</li>
+    <li><code>_scan_event_swaps</code> and <code>author_slugs</code> run one query per item;</li>
+    <li><code>/actions</code> costs about 12 statements per call;</li>
+    <li>the AVAILABLE check in take/propose is not locked (this predates the task);</li>
+    <li>an anonymous visitor hitting a 404 is sent to the login page;</li>
+    <li>the 0073 downgrade is guarded;</li>
+    <li>a stale docstring in <code>circulation/schemas.py</code>.</li>
+  </ul></div>
+  <div class="card"><h3>Pragmatic review</h3><ul>
+    <li>a local <code>ItemAuthGateSheet</code> duplicates <code>AuthGateSheet</code>;</li>
+    <li><code>ListingRowVM</code> has dead <code>title</code>/<code>subtitle</code>/<code>thumbUrl</code> fields;</li>
+    <li>the error view never shows its <code>message</code>;</li>
+    <li><code>FOCUS_RING</code> is defined twice.</li>
+  </ul></div>
+  <div class="card"><h3>Production readiness</h3><ul>
+    <li><code>s-maxage</code> has no effect because there is no CDN;</li>
+    <li>the scan's term pass and event pass share one transaction.</li>
+  </ul></div>
+  <div class="card"><h3>Reality check</h3><ul>
+    <li>the item page has no "already proposed" state;</li>
+    <li><code>NearestHint</code> says "termin" for events;</li>
+    <li>the delete dialog compares "started" in the browser's time zone;</li>
+    <li>one context reader has no event test.</li>
+  </ul></div>
+  <div class="card"><h3>Completeness</h3><ul>
+    <li>the Standards Reading Log placeholder is empty;</li>
+    <li>Groups 9 and 16 never had a red test phase;</li>
+    <li>two test files were edited outside the planned scope.</li>
+  </ul></div>
+</div>
+</details>
+
+<h2 id="recommendations">Recommendations</h2>
+<div class="card">
+<ol style="margin:0;padding-left:20px">
+  <li>Decide W2 (owner identity for anonymous visitors) with the product owner.</li>
+  <li>Fix W1: flush-only create/confirm for the event paths, or lock and map <code>StaleDataError</code> to 409. Also lock the proposal <code>FOR UPDATE</code> in accept/reject.</li>
+  <li>Fix the quick wins: W3–W9.</li>
+  <li>Run E2E (Phase 12) for a runtime check.</li>
+  <li>Commit all untracked files together, then check <code>alembic heads</code> and <code>import app.main</code>.</li>
+  <li>Handle the 13 pre-existing frontend failures in a separate task.</li>
+</ol>
+</div>
+
+<h2 id="checklist">Verification Checklist</h2>
+<div class="card">
+<ul class="check" style="margin:0">
+  <li><span class="pass">✓</span> Completeness check</li>
+  <li><span class="pass">✓</span> Full test suite (no regressions)</li>
+  <li><span class="pass">✓</span> Code review</li>
+  <li><span class="pass">✓</span> Pragmatic review</li>
+  <li><span class="pass">✓</span> Production readiness</li>
+  <li><span class="pass">✓</span> Reality check</li>
+  <li><span style="color:var(--dim)">☐</span> E2E / visual fidelity (Phase 12)</li>
+</ul>
+</div>
+
+<h2 id="history">Fix &amp; Re-Verification History</h2>
+<div class="card">
+  <p style="margin-top:0"><b>Cycle 1 → fixes applied.</b> The user approved fixing every fixable issue.</p>
+  <b>User decisions:</b>
+  <ul class="decisions">
+    <li><b>W2:</b> owner name stays public; the party items endpoint returns 404 when the party has nothing listed.</li>
+    <li><b>W1:</b> the single-commit approach applies to terms as well as events.</li>
+    <li><b>Re-verification:</b> the user chose to skip a full re-run of the reviews. The fixes were checked with targeted tests only.</li>
+  </ul>
+</div>
+<div class="card table-wrap">
+<table>
+  <thead><tr><th>Issue</th><th>Fix applied</th><th>Re-check outcome</th></tr></thead>
+  <tbody>
+    <tr><td><b>W1</b> concurrency</td><td>Circulation <code>create_reservation</code>, <code>confirm_reservation</code> and <code>cancel_reservation</code> now take a <code>commit=False</code> flag that only flushes. Take, propose, accept and reject commit once at the end. The proposal is locked <code>FOR UPDATE</code> and its status re-checked, returning 409 "Ta propozycja została już rozstrzygnięta". Locks are taken event first, then proposal (same order as <code>delete_event</code>). <code>StaleDataError</code> already maps to 409 globally.</td><td><span class="fixed-badge">✓ Resolved</span> 3 new tests (accept and reject after a concurrent reject → 409; accept commits once) fail without the fix and pass with it. Term test files pass unchanged.</td></tr>
+    <tr><td><b>W2</b> privacy</td><td><code>get_party_owner_items</code> → 404 when the party has no ACTIVE+AVAILABLE items.</td><td><span class="fixed-badge">✓ Resolved per user decision</span> <code>test_owner_items_page.py</code> updated. <span class="sev info">info</span>Residual: an item page for an unavailable item can link "Zobacz wszystkie rzeczy" to a 404 when the owner has no other listed items.</td></tr>
+    <tr><td><b>W3</b> stale lists</td><td><code>useItemTake</code> invalidates six prefixes: ITEM_ACTIONS, ITEM_DETAILS, OWNER_ITEMS, EVENT, ORGANIZER_PAGE and NOTIFICATIONS.</td><td><span class="fixed-badge">✓ Resolved</span> <code>useItemTake.test.tsx</code> asserts all six.</td></tr>
+    <tr><td><b>W4</b> hard-coded keys</td><td><code>ITEM_DETAILS_KEY</code> exported; both key constants imported where they were hard-coded.</td><td><span class="fixed-badge">✓ Resolved</span> grep finds no literals outside tests.</td></tr>
+    <tr><td><b>W5</b> ACL bypass</td><td><code>owner_items.py</code> uses <code>organizations_acl.Organization</code>.</td><td><span class="fixed-badge">✓ Resolved</span></td></tr>
+    <tr><td><b>W6</b> label maps</td><td>Maps consolidated in <code>termLabels.ts</code> (<code>PICKUP_MODE_LABELS</code>, <code>PREVIEW_MODE_LABELS</code>).</td><td><span class="fixed-badge">✓ Resolved</span> UI copy unchanged.</td></tr>
+    <tr><td><b>W7</b> duplicated owner summary</td><td><code>owner_summary()</code> helper shared by <code>owner_items</code> and <code>item_actions</code>.</td><td><span class="fixed-badge">✓ Resolved</span></td></tr>
+    <tr><td><b>W8</b> casing mappers</td><td>A single <code>itemContextKind()</code> mapper in <code>useItemRoutes.ts</code>.</td><td><span class="fixed-badge">✓ Resolved</span> URLs unchanged.</td></tr>
+    <tr><td><b>W9</b> lock_timeout</td><td><code>SET LOCAL lock_timeout = '5s'</code> in the 0073 <code>upgrade()</code>, as in 0071.</td><td><span class="fixed-badge">✓ Resolved</span></td></tr>
+    <tr><td><b>W10</b> rate limiting</td><td>Not fixed. Platform-wide follow-up, tied to W8 (guest limits).</td><td><span class="sev warning">Residual (warning)</span></td></tr>
+    <tr><td><b>Info</b></td><td>Error view shows its message. Dead <code>ListingRowVM</code> fields removed. NearestHint uses event wording for events. Stale docstring fixed.</td><td><span class="fixed-badge">✓ Resolved</span> New ItemDetailPage test for the event wording.</td></tr>
+  </tbody>
+</table>
+</div>
+<div class="verdict">
+  <span class="v">Post-fix verdict: ⚠️ Passed with Issues</span>
+  <span>Open items: W10 (out of scope), the 13 frontend test failures that predate this work (separate task), and E2E pending.</span>
+</div>
+</main>
+</body>
+</html>

@@ -51,6 +51,9 @@ NOT_EVENT_AUTHOR_MESSAGE = "Możesz dodać baner tylko do swojego wydarzenia."
 BANNER_TOO_LARGE_MESSAGE = "Baner jest za duży (maks. 5 MB)"
 NOT_EVENT_AUTHOR_EDIT_MESSAGE = "Możesz zmieniać tylko swoje wydarzenia."
 EVENT_HAS_ATTENDEES_MESSAGE = "Nie można usunąć wydarzenia, na które ktoś się zapisał."
+EVENT_HAS_OPEN_RESERVATIONS_MESSAGE = (
+    "Wydarzenie już się rozpoczęło i ma otwarte rezerwacje — potwierdźcie lub anulujcie przekazania"
+)
 EVENT_ENDED_MESSAGE = "Wydarzenie się zakończyło."
 AUTHOR_SIGN_UP_MESSAGE = "Organizator nie zapisuje się na własne wydarzenie."
 GUEST_NAME_BLANK_MESSAGE = "Podaj swoje imię."
@@ -79,6 +82,11 @@ class NotEventAuthorToChange(AccessDeniedException):
 class EventHasAttendees(BusinessConflictException):
     def __init__(self) -> None:
         super().__init__(EVENT_HAS_ATTENDEES_MESSAGE)
+
+
+class EventHasOpenReservations(BusinessConflictException):
+    def __init__(self) -> None:
+        super().__init__(EVENT_HAS_OPEN_RESERVATIONS_MESSAGE)
 
 
 class EventEnded(BusinessConflictException):
@@ -270,11 +278,18 @@ async def update_event(
 
 
 async def delete_event(db: AsyncSession, principal: Principal, event_id: uuid.UUID) -> None:
-    """Only while nobody is signed up (409 otherwise). The banner's files
-    are deleted through the outbox in the same transaction."""
+    """Only while nobody is signed up (409 otherwise). Before the start the
+    event's open reservations and swaps are cancelled with notice; from the
+    start on, any open one refuses the delete (409). The cancellations, the
+    banner's outbox file delete and the row delete commit once."""
     event, _ = await _get_own_event_for_update(db, principal, event_id)
     if await count_attendees(db, event_id) > 0:
         raise EventHasAttendees()
+    if clock.local_now() >= event.starts_at:
+        if (await groups_acl.count_open_event_reservations(db, event_id)).total > 0:
+            raise EventHasOpenReservations()
+    else:
+        await groups_acl.cancel_open_event_reservations(db, event_id, event.name, event.starts_at)
     banner = await get_banner(db, event_id)
     if banner is not None:
         await outbox_service.append(

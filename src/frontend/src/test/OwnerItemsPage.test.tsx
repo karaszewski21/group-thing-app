@@ -1,0 +1,207 @@
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { createMemoryRouter, RouterProvider, useLocation } from "react-router-dom";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import type { PublicOrganizationResponse } from "../api/organizations";
+import * as organizationsApi from "../api/organizations";
+import type { OwnerItemCard, OwnerItemsPageResponse, OwnerNearestDate } from "../api/ownerItems";
+import * as ownerItemsApi from "../api/ownerItems";
+import { OwnerItemsPage } from "../pages/owner/OwnerItemsPage";
+import { createQueryWrapper } from "./queryClient";
+
+vi.mock("../auth/AuthContext", () => ({ useAuth: () => ({ token: null }) }));
+
+vi.mock("../api/organizations", () => ({
+  getPublicOrganization: vi.fn(),
+}));
+
+vi.mock("../api/ownerItems", () => ({
+  getOrganizationOwnerItems: vi.fn(),
+  getPartyOwnerItems: vi.fn(),
+}));
+
+const SLUG = "akademia-orlik";
+const PARTY_ID = "0b6f3c1e-9a7d-4c2e-8f1a-2d3e4f5a6b7c";
+
+const ORGANIZATION: PublicOrganizationResponse = {
+  slug: SLUG,
+  name: "Akademia Orlik",
+  primary_color: "#7a1f3d",
+  accent_color: "#d4a017",
+  page_layout: "EXCHANGE",
+  palette_preset: null,
+  description: null,
+  logo: null,
+  cover: null,
+  gallery: [],
+};
+
+function card(id: string, mode: OwnerItemCard["mode"], overrides: Partial<OwnerItemCard> = {}): OwnerItemCard {
+  return {
+    item_id: id,
+    product_name: `Rzecz ${id}`,
+    condition: "GOOD",
+    mode,
+    thumb_url: null,
+    added_at: "2026-10-30T09:00:00",
+    ...overrides,
+  };
+}
+
+// 2026-11-07 is a Saturday ("sob 7 lis").
+const NEAREST_EVENT: OwnerNearestDate = {
+  kind: "EVENT",
+  id: "e1",
+  name: "Wymianka sąsiedzka",
+  starts_at: "2026-11-07T10:00:00",
+  location_name: "Park Jordana, Kraków",
+  attendee_count: 14,
+  path: `/${SLUG}/event/e1`,
+};
+
+function ownerPage(overrides: Partial<OwnerItemsPageResponse> = {}): OwnerItemsPageResponse {
+  return {
+    owner: { party_id: PARTY_ID, display_name: "Akademia Orlik", slug: SLUG },
+    nearest: NEAREST_EVENT,
+    counts: { GIFT: 2, SWAP: 1 },
+    items: [card("i1", "GIFT"), card("i2", "SWAP"), card("i3", "GIFT")],
+    total: 3,
+    page: 1,
+    size: 20,
+    ...overrides,
+  };
+}
+
+function LocationProbe() {
+  const location = useLocation();
+  return <output data-testid="location">{location.pathname + location.search}</output>;
+}
+
+function renderAt(path: string) {
+  const router = createMemoryRouter(
+    [
+      {
+        path: "/:organizationSlug/items",
+        element: (
+          <>
+            <OwnerItemsPage />
+            <LocationProbe />
+          </>
+        ),
+      },
+    ],
+    { initialEntries: [path] },
+  );
+  render(<RouterProvider router={router} />, { wrapper: createQueryWrapper() });
+  return router;
+}
+
+beforeEach(() => {
+  vi.resetAllMocks();
+  vi.mocked(organizationsApi.getPublicOrganization).mockResolvedValue(ORGANIZATION);
+});
+
+describe("OwnerItemsPage", () => {
+  it("shows the nearest date card and dated chips on cards linking with its context", async () => {
+    vi.mocked(ownerItemsApi.getOrganizationOwnerItems).mockResolvedValue(ownerPage());
+
+    renderAt(`/${SLUG}/items`);
+
+    const heading = await screen.findByRole("heading", { level: 1, name: "Rzeczy: Akademia Orlik" });
+    expect(heading.closest("[data-organizer-theme]")).toHaveAttribute("data-organizer-theme", "custom");
+    expect(screen.getByText("3 rzeczy do oddania lub zamiany")).toBeInTheDocument();
+    expect(screen.getByText("Najbliższa okazja do odbioru")).toBeInTheDocument();
+    expect(screen.getByText("sobota, 7 listopada · 10:00")).toBeInTheDocument();
+    expect(screen.getByText("Park Jordana, Kraków · 14 zapisanych")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Zobacz wydarzenie i zapisz się" })).toHaveAttribute(
+      "href",
+      `/${SLUG}/event/e1`,
+    );
+    expect(screen.getByRole("link", { name: "Rzecz i1" })).toHaveAttribute("href", `/${SLUG}/product/i1?event=e1`);
+    const [gift, swap] = screen.getAllByRole("article");
+    expect(gift).toHaveTextContent("Weź · sob 7 lis");
+    expect(swap).toHaveTextContent("Zamienię · sob 7 lis");
+    expect(ownerItemsApi.getOrganizationOwnerItems).toHaveBeenCalledWith(SLUG, 1, undefined);
+  });
+
+  it("shows the chat-only notice, mode-only chips and context-free links without a nearest date", async () => {
+    vi.mocked(ownerItemsApi.getPartyOwnerItems).mockResolvedValue(
+      ownerPage({
+        owner: { party_id: PARTY_ID, display_name: "Ania W.", slug: null },
+        nearest: null,
+        counts: { GIFT: 1, SWAP: 1 },
+        items: [card("i1", "GIFT"), card("i2", "SWAP")],
+        total: 2,
+      }),
+    );
+
+    renderAt(`/${PARTY_ID}/items`);
+
+    expect(await screen.findByText("Ania W. nie ma teraz zaplanowanych spotkań")).toBeInTheDocument();
+    expect(screen.getByText("Napisz w sprawie konkretnej rzeczy — umówicie się na czacie.")).toBeInTheDocument();
+    expect(screen.queryByText("Najbliższa okazja do odbioru")).not.toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Rzecz i1" })).toHaveAttribute("href", "/product/i1");
+    const [gift, swap] = screen.getAllByRole("article");
+    expect(within(gift).getByText("Oddam")).toBeInTheDocument();
+    expect(within(swap).getByText("Zamienię")).toBeInTheDocument();
+    expect(gift).not.toHaveTextContent("·");
+    expect(ownerItemsApi.getPartyOwnerItems).toHaveBeenCalledWith(PARTY_ID, 1, undefined);
+    expect(organizationsApi.getPublicOrganization).not.toHaveBeenCalled();
+  });
+
+  it("refetches with the mode when a filter tab is picked while the counts stay", async () => {
+    vi.mocked(ownerItemsApi.getOrganizationOwnerItems).mockImplementation(async (_slug, _page, mode) =>
+      mode === "GIFT" ? ownerPage({ items: [card("i1", "GIFT"), card("i3", "GIFT")], total: 2 }) : ownerPage(),
+    );
+
+    renderAt(`/${SLUG}/items`);
+
+    const tablist = await screen.findByRole("tablist");
+    const tabs = within(tablist).getAllByRole("tab");
+    expect(tabs.map((tab) => tab.textContent)).toEqual(["Wszystkie 3", "Oddam 2", "Zamienię 1"]);
+
+    fireEvent.click(within(tablist).getByRole("tab", { name: "Oddam 2" }));
+
+    await waitFor(() => expect(ownerItemsApi.getOrganizationOwnerItems).toHaveBeenCalledWith(SLUG, 1, "GIFT"));
+    await waitFor(() => expect(screen.queryByRole("link", { name: "Rzecz i2" })).not.toBeInTheDocument());
+    expect(within(tablist).getByRole("tab", { name: "Oddam 2" })).toHaveAttribute("aria-selected", "true");
+    expect(within(tablist).getByRole("tab", { name: "Wszystkie 3" })).toBeInTheDocument();
+    expect(within(tablist).getByRole("tab", { name: "Zamienię 1" })).toBeInTheDocument();
+  });
+
+  it("redirects an organization owner's party URL to the slug URL, keeping the query", async () => {
+    vi.mocked(ownerItemsApi.getPartyOwnerItems).mockResolvedValue(ownerPage());
+    vi.mocked(ownerItemsApi.getOrganizationOwnerItems).mockResolvedValue(ownerPage());
+
+    const router = renderAt(`/${PARTY_ID}/items?event=e9`);
+
+    await waitFor(() => expect(screen.getByTestId("location")).toHaveTextContent(`/${SLUG}/items?event=e9`));
+    expect(router.state.historyAction).toBe("REPLACE");
+  });
+
+  it("links cards with the page's own context over the nearest date", async () => {
+    vi.mocked(ownerItemsApi.getOrganizationOwnerItems).mockResolvedValue(ownerPage());
+
+    renderAt(`/${SLUG}/items?term=t9`);
+
+    expect(await screen.findByRole("link", { name: "Rzecz i2" })).toHaveAttribute(
+      "href",
+      `/${SLUG}/product/i2?term=t9`,
+    );
+  });
+
+  it("loads the next page on 'Pokaż więcej'", async () => {
+    vi.mocked(ownerItemsApi.getOrganizationOwnerItems).mockImplementation(async (_slug, page) =>
+      page === 1
+        ? ownerPage({ counts: { GIFT: 21, SWAP: 0 }, items: [card("i1", "GIFT")], total: 21 })
+        : ownerPage({ counts: { GIFT: 21, SWAP: 0 }, items: [card("i21", "GIFT")], total: 21, page: 2 }),
+    );
+
+    renderAt(`/${SLUG}/items`);
+
+    fireEvent.click(await screen.findByRole("button", { name: "Pokaż więcej" }));
+
+    expect(await screen.findByRole("link", { name: "Rzecz i21" })).toBeInTheDocument();
+    expect(ownerItemsApi.getOrganizationOwnerItems).toHaveBeenCalledWith(SLUG, 2, undefined);
+    expect(screen.getByRole("link", { name: "Rzecz i1" })).toBeInTheDocument();
+  });
+});

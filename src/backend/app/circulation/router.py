@@ -23,7 +23,7 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.auth_deps import Principal, require_any
+from app.core.auth_deps import OptionalPrincipal, Principal, require_any
 from app.db import get_db
 from app.groups.application import term_item_listings
 from app.product import service as product_service
@@ -180,10 +180,11 @@ async def delete_item(item_id: uuid.UUID, db: DbSession, principal: EditPrincipa
 async def get_item_details(
     item_id: uuid.UUID,
     db: DbSession,
-    principal: ReadPrincipal,
     storage: Annotated[ObjectStorage | None, Depends(get_storage)],
+    principal: OptionalPrincipal = None,
 ) -> ItemDetailsResponse:
-    """Item page read model; 200 for a soft-deleted item (status `DELETED`)."""
+    """Item page read model; 200 for a soft-deleted item (status `DELETED`).
+    Public: anonymous callers get 404 unless the item is live and ACTIVE."""
     details = await service.get_item_details(db, item_id, principal, storage)
     return ItemDetailsResponse.model_validate(details)
 
@@ -231,7 +232,7 @@ async def get_reservation(
     reservation_id: uuid.UUID, db: DbSession, principal: ReadPrincipal
 ) -> ReservationDetailResponse:
     reservation = await service.get_reservation(db, reservation_id)
-    term_occurs_on = await service.find_reservation_term_occurs_on(db, reservation.term_id)
+    term_occurs_on = await service.find_reservation_context_occurs_on(db, reservation)
     return ReservationDetailResponse(
         **ReservationResponse.model_validate(reservation).model_dump(),
         term_occurs_on=term_occurs_on,

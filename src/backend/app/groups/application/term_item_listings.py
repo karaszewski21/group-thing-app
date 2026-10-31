@@ -11,7 +11,13 @@ from `Moje rzeczy`; whether it's visible for a given Term follows from the
 owner's `TermAttendance`/organizer status for that Term, and whether it's
 still open follows from the item's live `InventoryBalance` and
 `circulation.Reservation` history (`_resolve_listing_status`) — no
-listing-owned status field, per `standards/global/minimal-implementation.md`."""
+listing-owned status field, per `standards/global/minimal-implementation.md`.
+
+Take/propose/accept/reject call circulation with `commit=False` and commit
+once at the end: an event's `FOR SHARE` lock and a proposal's `FOR UPDATE`
+lock then hold for the whole use case, so a concurrent `delete_event` waits
+instead of cancelling a half-written exchange, and a failure leaves nothing
+behind."""
 
 from __future__ import annotations
 
@@ -29,6 +35,7 @@ from app.core.errors import (
     EntityNotFoundException,
 )
 from app.storage.service import ObjectStorage
+from app.users.models import UserProfile
 from app.users.service import (
     get_profile_by_account_user_id,
     get_profile_by_party,
@@ -42,13 +49,20 @@ from ..models import ItemListingPreference, SwapProposal, SwapProposalStatus, Te
 from ..schemas import (
     AcceptedSwapProposalResponse,
     BrowseTermItemListingResponse,
+    EventTakeResponse,
     MyInventoryItemResponse,
     SwapProposalOfferResponse,
     SwapProposalResponse,
     TakeTermItemListingRequest,
 )
 from .attendance import _require_term_eligibility
-from .circles import _group_role_party_id, get_current_leadership, get_group
+from .circles import _group_role_party_id, get_current_leadership
+from .reservation_context import (
+    ReservationContext,
+    load_for_reservation,
+    load_term_context,
+    lock_event_context,
+)
 from .terms import get_term, get_term_any
 
 _ACTIVE_RESERVATION_STATUSES = (
@@ -470,15 +484,18 @@ async def list_public_term_item_listings(
     return await _build_listing_views(db, term_id, takeable)
 
 
-async def take_item_listing(
-    db: AsyncSession, principal: Principal, item_id: uuid.UUID, data: TakeTermItemListingRequest
-) -> BrowseTermItemListingResponse:
-    taker_profile = await get_profile_by_principal(db, principal)
-    term = await get_term(db, data.term_id)
-    if term.occurs_on < clock.local_now():
-        raise BusinessConflictException("Termin już się odbył")
-
-    await _require_term_eligibility(db, data.term_id, term.circle_group_id, taker_profile.party_id)
+async def _take(
+    db: AsyncSession,
+    taker_profile: UserProfile,
+    item_id: uuid.UUID,
+    reservation_type: circulation_bridge.ReservationType,
+    context: ReservationContext,
+) -> tuple[ItemListingPreference, str]:
+    """The take shared by terms and events; returns the listing preference
+    and the product name. The reservation stays `PENDING` until either party
+    resolves it via `confirm_transaction` once the date has come."""
+    context.require_open()
+    await context.require_eligibility(db, taker_profile.party_id)
 
     preference = await repository.get_item_listing_preference(db, item_id)
     if preference is None:
@@ -487,53 +504,41 @@ async def take_item_listing(
     if preference.owner_party_id == taker_profile.party_id:
         raise BusinessConflictException("Nie możesz wziąć własnej rzeczy")
 
-    await _require_term_eligibility(
-        db, data.term_id, term.circle_group_id, preference.owner_party_id
-    )
+    await context.require_eligibility(db, preference.owner_party_id)
 
     listed_item = await circulation_bridge.get_item(db, item_id)
     balance = await circulation_bridge.get_item_balance(db, item_id)
     if balance.status != circulation_bridge.BalanceStatus.AVAILABLE:
         raise BusinessConflictException("Ta rzecz jest już zajęta")
 
-    if data.reservation_type.value != preference.mode:
+    if reservation_type.value != preference.mode:
         raise BusinessConflictException("Ten sposób wzięcia rzeczy nie został zaoferowany")
 
-    if data.reservation_type == circulation_bridge.ReservationType.SWAP:
-        # SWAP no longer dispatches from here — see `propose_swap` below.
-        # A listing's SWAP mode is still browsable/take-eligible-checked
-        # the same way, but actually proposing a swap goes through the
-        # dedicated propose/accept/reject flow instead of this single-shot
-        # take, since it needs the target owner's separate accept/reject
-        # decision rather than an immediate double-auto-confirm.
+    if reservation_type == circulation_bridge.ReservationType.SWAP:
+        # A swap needs the owner's separate accept/reject decision, so it goes
+        # through `propose_swap` instead of this single-shot take.
         raise BusinessConflictException(
             "Zamianę zaproponuj przez propozycję zamiany, nie przez wzięcie rzeczy"
         )
 
-    taker_account_user_id = cast(uuid.UUID, taker_profile.account_user_id)
-
-    # No longer auto-confirmed: the `Reservation` stays `PENDING` after
-    # creation — the lister must review and, once the Term ends, either
-    # party resolves it via `confirm_transaction` below. This replaces the
-    # previous unilateral auto-confirm-on-behalf-of-the-holder behavior.
     reservation = await circulation_bridge.create_reservation(
         db,
         item_id=item_id,
-        reservation_type=data.reservation_type,
-        reserved_by_user_id=taker_account_user_id,
-        term_id=term.id,
+        reservation_type=reservation_type,
+        reserved_by_user_id=cast(uuid.UUID, taker_profile.account_user_id),
+        commit=False,
+        **context.reservation_kwargs(),
     )
 
     product = await product_bridge.get_product(db, listed_item.product_id)
-    group = await get_group(db, term.circle_group_id)
-    when = clock.format_term_when(term.occurs_on)
+    when = clock.format_term_when(context.starts_at)
     await notifications_bridge.create_notification(
         db,
         party_id=preference.owner_party_id,
         kind=NotificationKind.TERM_ITEM_LISTING_TAKEN,
         message=clock.fit_notification_message(
             f"„{taker_profile.display_name}” weźmie „{product.name}”"
-            f" — przynieś w {when} — {group.name}"
+            f" — przynieś w {when} — {context.display_name}"
         ),
         link_path=f"/product/{item_id}",
     )
@@ -542,15 +547,38 @@ async def take_item_listing(
         party_id=taker_profile.party_id,
         kind=NotificationKind.ITEM_RESERVED_FOR_PICKUP,
         message=clock.fit_notification_message(
-            f"Zarezerwowano „{product.name}” — odbierz w {when} — {group.name}"
+            f"Zarezerwowano „{product.name}” — odbierz w {when} — {context.display_name}"
         ),
         link_path=f"/product/{item_id}",
     )
     await db.commit()
     await db.refresh(reservation)
+    return preference, product.name
 
+
+async def take_item_listing(
+    db: AsyncSession, principal: Principal, item_id: uuid.UUID, data: TakeTermItemListingRequest
+) -> BrowseTermItemListingResponse:
+    taker_profile = await get_profile_by_principal(db, principal)
+    context = await load_term_context(db, data.term_id)
+    preference, _ = await _take(db, taker_profile, item_id, data.reservation_type, context)
     views = await _build_listing_views(db, data.term_id, [preference])
     return views[0]
+
+
+async def take_event_item(
+    db: AsyncSession,
+    principal: Principal,
+    event_id: uuid.UUID,
+    item_id: uuid.UUID,
+    reservation_type: circulation_bridge.ReservationType,
+) -> EventTakeResponse:
+    taker_profile = await get_profile_by_principal(db, principal)
+    context = await lock_event_context(db, event_id)
+    _, product_name = await _take(db, taker_profile, item_id, reservation_type, context)
+    return EventTakeResponse(
+        item_id=item_id, product_name=product_name, context=await context.to_response(db)
+    )
 
 
 async def list_swap_proposals_for_my_item(
@@ -587,23 +615,44 @@ async def list_swap_proposals_for_my_item(
 async def propose_swap(
     db: AsyncSession, principal: Principal, listing_item_id: uuid.UUID, offered_item_id: uuid.UUID, term_id: uuid.UUID
 ) -> SwapProposal:
-    """The SWAP counterpart of `take_item_listing`: locks only the
+    proposer_profile = await get_profile_by_principal(db, principal)
+    context = await load_term_context(db, term_id)
+    return await _propose(db, proposer_profile, listing_item_id, offered_item_id, context)
+
+
+async def propose_event_swap(
+    db: AsyncSession,
+    principal: Principal,
+    event_id: uuid.UUID,
+    listing_item_id: uuid.UUID,
+    offered_item_id: uuid.UUID,
+) -> SwapProposal:
+    proposer_profile = await get_profile_by_principal(db, principal)
+    context = await lock_event_context(db, event_id)
+    return await _propose(db, proposer_profile, listing_item_id, offered_item_id, context)
+
+
+async def _propose(
+    db: AsyncSession,
+    proposer_profile: UserProfile,
+    listing_item_id: uuid.UUID,
+    offered_item_id: uuid.UUID,
+    context: ReservationContext,
+) -> SwapProposal:
+    """The SWAP counterpart of `_take`: locks only the
     proposer's own offered item (auto-confirmed on their own behalf, same
     their own consent already exists) and leaves the
     target listing item `AVAILABLE` until the owner explicitly
     `accept_swap_proposal`s or `reject_swap_proposal`s it."""
-    proposer_profile = await get_profile_by_principal(db, principal)
-    term = await get_term(db, term_id)
-    if term.occurs_on < clock.local_now():
-        raise BusinessConflictException("Termin już się odbył")
-    await _require_term_eligibility(db, term_id, term.circle_group_id, proposer_profile.party_id)
+    context.require_open()
+    await context.require_eligibility(db, proposer_profile.party_id)
 
     preference = await repository.get_item_listing_preference(db, listing_item_id)
     if preference is None:
         raise EntityNotFoundException("ItemListingPreference", listing_item_id)
     if preference.owner_party_id == proposer_profile.party_id:
         raise BusinessConflictException("Nie możesz wziąć własnej rzeczy")
-    await _require_term_eligibility(db, term_id, term.circle_group_id, preference.owner_party_id)
+    await context.require_eligibility(db, preference.owner_party_id)
 
     listed_item = await circulation_bridge.get_item(db, listing_item_id)
     listing_balance = await circulation_bridge.get_item_balance(db, listing_item_id)
@@ -638,13 +687,17 @@ async def propose_swap(
         item_id=offered_item_id,
         reservation_type=circulation_bridge.ReservationType.SWAP,
         reserved_by_user_id=cast(uuid.UUID, owner_profile_for_reservation.account_user_id),
-        term_id=cast(uuid.UUID, term.id),
+        commit=False,
+        **context.reservation_kwargs(),
     )
     # Confirming is keyed on the item's actual CURRENT physical holder
     # (derived from inventory, independent of `reserved_by_user_id` above)
     # — still the proposer at this point, since nothing has moved yet.
     await circulation_bridge.confirm_reservation(
-        db, cast(uuid.UUID, proposer_reservation.id), acting_user_id=proposer_account_user_id
+        db,
+        cast(uuid.UUID, proposer_reservation.id),
+        acting_user_id=proposer_account_user_id,
+        commit=False,
     )
 
     proposal = SwapProposal(
@@ -671,6 +724,15 @@ async def propose_swap(
     )
     await db.commit()
     await db.refresh(proposal)
+    return proposal
+
+
+async def _lock_pending_proposal(db: AsyncSession, proposal_id: uuid.UUID) -> SwapProposal:
+    proposal = await repository.lock_swap_proposal(db, proposal_id)
+    if proposal is None:
+        raise EntityNotFoundException("SwapProposal", proposal_id)
+    if proposal.status != SwapProposalStatus.PROPOSED:
+        raise BusinessConflictException("Ta propozycja została już rozstrzygnięta")
     return proposal
 
 
@@ -702,26 +764,35 @@ async def accept_swap_proposal(
     # party — here, the proposer, who will receive the listing owner's item
     # once fulfilled — not the listing owner themself.
     proposer_profile_for_reservation = await get_profile_by_party(db, proposal.proposer_party_id)
-    # Fetched ahead of the owner's own leg to reuse its already-resolved
-    # `term_id` — both legs of one swap always share the same Term — and to
-    # reject a late accept before any reservation is written.
+    # Fetched ahead of the owner's own leg to reuse its context — both legs
+    # of one swap always share the same term or event — and to reject a late
+    # accept before any reservation is written. An event is locked FOR SHARE
+    # so a concurrent delete cannot orphan the new leg.
     proposer_reservation = await circulation_bridge.get_reservation(
         db, proposal.proposer_reservation_id
     )
-    term = await get_term(db, proposer_reservation.term_id)
-    if term.occurs_on < clock.local_now():
-        raise BusinessConflictException("Termin już się odbył")
+    context = await load_for_reservation(db, proposer_reservation, for_write=True)
+    if context is None:
+        raise BusinessConflictException("Wydarzenie tej zamiany zostało usunięte")
+    # Locked after the event, the order `delete_event` takes them in, then
+    # re-checked: a delete or another decision may have resolved it since.
+    proposal = await _lock_pending_proposal(db, proposal_id)
+    context.require_open()
     owner_reservation = await circulation_bridge.create_reservation(
         db,
         item_id=proposal.listing_item_id,
         reservation_type=circulation_bridge.ReservationType.SWAP,
         reserved_by_user_id=cast(uuid.UUID, proposer_profile_for_reservation.account_user_id),
-        term_id=proposer_reservation.term_id,
+        commit=False,
+        **context.reservation_kwargs(),
     )
     # Confirming is keyed on the item's actual current physical holder
     # (still the owner at this point) — independent of `reserved_by_user_id`.
     await circulation_bridge.confirm_reservation(
-        db, cast(uuid.UUID, owner_reservation.id), acting_user_id=owner_account_user_id
+        db,
+        cast(uuid.UUID, owner_reservation.id),
+        acting_user_id=owner_account_user_id,
+        commit=False,
     )
 
     proposer_reservation.paired_reservation_id = owner_reservation.id
@@ -731,14 +802,13 @@ async def accept_swap_proposal(
 
     listed_item = await circulation_bridge.get_item(db, proposal.listing_item_id)
     product = await product_bridge.get_product(db, listed_item.product_id)
-    group = await get_group(db, term.circle_group_id)
     await notifications_bridge.create_notification(
         db,
         party_id=proposal.proposer_party_id,
         kind=NotificationKind.SWAP_ACCEPTED,
         message=clock.fit_notification_message(
             f"Twoja propozycja zamiany za „{product.name}” została zaakceptowana"
-            f" — wymiana w {clock.format_term_when(term.occurs_on)} — {group.name}"
+            f" — wymiana w {clock.format_term_when(context.starts_at)} — {context.display_name}"
         ),
         link_path=f"/product/{proposal.listing_item_id}",
     )
@@ -756,6 +826,7 @@ async def accept_swap_proposal(
             db,
             other.proposer_reservation_id,
             acting_user_id=cast(uuid.UUID, other_proposer_profile.account_user_id),
+            commit=False,
         )
         other.status = SwapProposalStatus.REJECTED
         await notifications_bridge.create_notification(
@@ -770,10 +841,7 @@ async def accept_swap_proposal(
     await db.refresh(proposal)
     return AcceptedSwapProposalResponse(
         **SwapProposalResponse.model_validate(proposal).model_dump(),
-        term_id=term.id,
-        term_occurs_on=term.occurs_on,
-        group_id=group.id,
-        group_name=group.name,
+        **await context.accepted_swap_fields(db),
     )
 
 
@@ -789,6 +857,7 @@ async def reject_swap_proposal(
         raise AccessDeniedException
     if proposal.status != SwapProposalStatus.PROPOSED:
         raise BusinessConflictException("Ta propozycja została już rozstrzygnięta")
+    proposal = await _lock_pending_proposal(db, proposal_id)
 
     # Cancelled on the proposer's own behalf — the same self-reservation
     # convention `propose_swap` used to lock it (`reserved_by_user_id` ==
@@ -800,6 +869,7 @@ async def reject_swap_proposal(
         db,
         proposal.proposer_reservation_id,
         acting_user_id=cast(uuid.UUID, proposer_profile.account_user_id),
+        commit=False,
     )
 
     proposal.status = SwapProposalStatus.REJECTED
@@ -823,8 +893,8 @@ async def _resolve_transaction_reservations_for_action(
 ) -> tuple[uuid.UUID, list[circulation_bridge.Reservation]]:
     """Shared gating sequence for both `confirm_transaction` and
     `cancel_transaction`: race-participant authorization (403 before any
-    409), the unaccepted-swap guard, the term-ended check, and the already-resolved
-    guard — then returns the caller's account user id and the
+    409), the already-resolved guard, the unaccepted-swap guard, and the
+    context's has-come check (`require_ended`) — then returns the caller's account user id and the
     reservation(s) the caller should act on next (one, or two for a
     resolved SWAP pair via `paired_reservation_id`).
     Extracted per spec.md Bug #4's "shared gating helper" requirement:
@@ -838,14 +908,10 @@ async def _resolve_transaction_reservations_for_action(
     Callers own their own terminal step (circulation's `fulfill_exchange`
     vs. `cancel_exchange`) — this helper stops right before that.
 
-    The Term gated on is always the reservation's own `term_id` — never a
-    caller-supplied one, which would let a party resolve an exchange early
-    by naming some other, already-ended Term. It deliberately does NOT
-    share a helper with `take_item_listing`'s own, differently-timed
-    `occurs_on < clock.local_now()` check (see spec.md Technical Approach
-    step 3). Both compare against `clock.local_now()`: `occurs_on` is a
-    naive Europe/Warsaw wall-clock value, so neither the host clock nor UTC
-    "now" can be compared with it directly."""
+    The term or event gated on is always the reservation's own context —
+    never a caller-supplied one, which would let a party resolve an exchange
+    early by naming some other, already-ended Term. Both dates are naive
+    Europe/Warsaw wall-clock values compared with `clock.local_now()`."""
     profile = await get_profile_by_principal(db, principal)
     reservation = await circulation_bridge.get_reservation(db, reservation_id)
     # `giver_user_id` (captured at reservation creation), not the item's
@@ -860,19 +926,8 @@ async def _resolve_transaction_reservations_for_action(
         acting_user_id=acting_user_id,
     )
 
-    # An unpaired SWAP leg is a still-PROPOSED swap's proposer lock: resolving
-    # it alone would hand the proposer's item over without the listing owner
-    # giving theirs. A proposal is only released via `reject_swap_proposal`.
-    if (
-        reservation.reservation_type == circulation_bridge.ReservationType.SWAP
-        and reservation.paired_reservation_id is None
-    ):
-        raise BusinessConflictException("Zamiana nie została zaakceptowana")
-
-    term = await get_term_any(db, reservation.term_id)
-    if term.occurs_on > clock.local_now():
-        raise BusinessConflictException("Termin jeszcze się nie odbył")
-
+    # Checked before the context: a resolved reservation may have none left
+    # (its event was deleted) and must still answer "already resolved".
     if reservation.status not in _ACTIVE_RESERVATION_STATUSES:
         # The other party already resolved this transaction first.
         await notifications_bridge.create_notification(
@@ -884,6 +939,21 @@ async def _resolve_transaction_reservations_for_action(
         )
         await db.commit()
         raise TermAlreadyResolvedException
+
+    # An unpaired SWAP leg is a still-PROPOSED swap's proposer lock: resolving
+    # it alone would hand the proposer's item over without the listing owner
+    # giving theirs. A proposal is only released via `reject_swap_proposal`.
+    if (
+        reservation.reservation_type == circulation_bridge.ReservationType.SWAP
+        and reservation.paired_reservation_id is None
+    ):
+        raise BusinessConflictException("Zamiana nie została zaakceptowana")
+
+    # An open reservation always has a context (`ck_reservations_context`).
+    context = await load_for_reservation(db, reservation, for_write=False)
+    if context is None:
+        raise BusinessConflictException("Ta rezerwacja nie ma terminu ani wydarzenia")
+    context.require_ended()
 
     reservations = [reservation]
     if (

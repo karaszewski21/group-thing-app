@@ -1,24 +1,43 @@
 import type { PublicCircleResponse, PublicItemListingResponse } from "../../api/groups";
+import { PREVIEW_ITEM_LIMIT } from "../../components/shared/ParticipantItemsPreview";
 import type { VisualizationFamily } from "./components/GroupVisualization";
 import type { AttendeeVM } from "./components/AttendeeList";
 import type { ListingRowVM } from "./components/termSectionTypes";
 
+/** Newest listing first; `added_at` is naive UTC ISO, so strings sort as dates. */
+function byNewest(a: PublicItemListingResponse, b: PublicItemListingResponse): number {
+  if (a.added_at === b.added_at) return 0;
+  return a.added_at < b.added_at ? 1 : -1;
+}
+
 /** Everyone in the attendee list: the Term's guardians first, then any
- * lister who offers items without being signed up (e.g. the organizer). */
+ * lister who offers items without being signed up (e.g. the organizer).
+ * Each keeps their `PREVIEW_ITEM_LIMIT` newest listings plus the total count;
+ * the term page gets every listing, so it sorts and caps here. */
 export function buildAttendees(
   group: PublicCircleResponse,
   toRow: (listing: PublicItemListingResponse) => ListingRowVM,
 ): AttendeeVM[] {
   const listings = group.term?.item_listings ?? [];
+  const context = group.term ? { kind: "term" as const, id: group.term.id } : null;
   const people = new Map<string, string>(group.guardians.map((g) => [g.party_id, g.display_name]));
   for (const listing of listings) {
     if (!people.has(listing.lister_party_id)) people.set(listing.lister_party_id, listing.lister_display_name);
   }
-  return Array.from(people, ([partyId, name]) => ({
-    partyId,
-    name,
-    listings: listings.filter((l) => l.lister_party_id === partyId).map(toRow),
-  }));
+  return Array.from(people, ([partyId, name]) => {
+    const own = listings.filter((l) => l.lister_party_id === partyId);
+    return {
+      partyId,
+      name,
+      listings: [...own]
+        .sort(byNewest)
+        .slice(0, PREVIEW_ITEM_LIMIT)
+        .map((listing) => ({ ...toRow(listing), listing })),
+      listingsTotal: own.length,
+      organizerSlug: group.organizer_slug,
+      context,
+    };
+  });
 }
 
 /** The Term's guardians for `GroupVisualization`, flagged by whether they

@@ -46,6 +46,7 @@ describe("organizer-themed files use role tokens", () => {
     "pages/organizer/blocks/ExchangeCountsBlock.tsx",
     "pages/organizer/blocks/ExchangeBoardBlock.tsx",
     "pages/organizer/blocks/ExchangeItemCard.tsx",
+    "pages/organizer/blocks/RecentItemsBlock.tsx",
     "pages/organizer/blocks/NeededItemsBlock.tsx",
     "pages/organizer/blocks/EmptyStateBlock.tsx",
     "pages/organizer/blocks/BlockSkeleton.tsx",

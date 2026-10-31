@@ -1,5 +1,6 @@
 import { api } from "./client";
 import type { LocationRefResponse, PublicLocationResponse } from "./locations";
+import type { OwnerItemCard, OwnerNearestDate } from "./ownerItems";
 import { pageParams, type Page } from "./pagination";
 
 /** The participant-visualization layout an organizer picks for their
@@ -181,6 +182,8 @@ export interface PublicItemListingResponse {
   lister_display_name: string;
   /** Public CDN URL of the product's first approved photo. */
   thumb_url: string | null;
+  /** When it was listed: naive UTC ISO, no offset (parse with `dayjs.utc`). */
+  added_at: string;
 }
 
 export interface PublicTermResponse {
@@ -398,6 +401,10 @@ export interface OrganizerPageResponse {
   };
   needed_items: OrganizerNeededItem[];
   stats: OrganizerStats;
+  /** The Organization owner's newest listed items (up to 4). */
+  recent_items: OwnerItemCard[];
+  /** The owner's next public term or event; computed only when `recent_items` is non-empty. */
+  owner_nearest: OwnerNearestDate | null;
 }
 
 export function getOrganizerPage(slug: string): Promise<OrganizerPageResponse> {

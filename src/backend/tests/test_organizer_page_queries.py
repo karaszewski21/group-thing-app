@@ -22,7 +22,9 @@ from tests.test_organizer_page import (
 )
 from tests.test_term_item_listings import _register, _rsvp
 
-MAIN_ENDPOINT_BUDGET = 10
+# 10 directory statements plus the owner's recent items select. The owner's
+# thumbnails and nearest date run only when that select returns items.
+MAIN_ENDPOINT_BUDGET = 11
 TERMS_ENDPOINT_BUDGET = 5
 
 

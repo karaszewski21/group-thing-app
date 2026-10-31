@@ -14,13 +14,19 @@ from datetime import datetime, time, timedelta
 from typing import Any
 
 from httpx import AsyncClient
-from sqlalchemy import select
+from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.circulation.models import BalanceStatus
 from app.core import clock
 from app.groups import service
-from app.groups.models import GroupRole, GroupRoleType, Leadership, TermAttendance
+from app.groups.models import (
+    GroupRole,
+    GroupRoleType,
+    ItemListingPreference,
+    Leadership,
+    TermAttendance,
+)
 from app.moderation.status import ModerationStatus
 from app.organizations.models import Organization, OrganizationMembership
 from tests.test_organizer_bridges import (
@@ -143,7 +149,15 @@ async def test_getOrganizerPage_populatedDirectory_matchesContractWithoutIdentit
 
     body = await _page(client, slug)
 
-    assert set(body) == {"circles", "upcoming_terms", "exchange", "needed_items", "stats"}
+    assert set(body) == {
+        "circles",
+        "upcoming_terms",
+        "exchange",
+        "needed_items",
+        "stats",
+        "recent_items",
+        "owner_nearest",
+    }
     [circle] = body["circles"]
     assert set(circle) == {"id", "name", "layout_mode", "next_term", "upcoming_term_count"}
     assert circle["name"] == "Nutki" and circle["layout_mode"] == "CIRCLE"
@@ -266,6 +280,8 @@ async def test_getOrganizerPage_unknownPseudoOwnerlessOrEmpty_returns404OrEmpty(
         "exchange": {"counts": {"GIFT": 0, "SWAP": 0}, "items": []},
         "needed_items": [],
         "stats": {"circle_count": 0, "upcoming_term_count": 0, "family_count": None},
+        "recent_items": [],
+        "owner_nearest": None,
     }
 
 
@@ -544,3 +560,62 @@ async def test_getOrganizerPage_manyItemsAndNeeds_itemsCappedAt12NeedsAt5InCodeP
     assert [n["name"] for n in body["needed_items"]] == [
         f"Op cap potrzeba {index:02d}" for index in range(5)
     ]
+
+
+async def test_getOrganizerPage_noCircles_recentItemsFourNewestAndOwnerNearestEvent(
+    client: AsyncClient, db_session: AsyncSession
+) -> None:
+    owner_token, _ = await _register(client, "ORGANIZER", "op.recent.owner@example.com")
+    slug = await _organization_slug(client, owner_token, "Świeże Nutki")
+    item_ids = await _listed_items(
+        client, owner_token, *((f"Op recent {index}", "GIFT") for index in range(5))
+    )
+    added = datetime(2026, 10, 1, 12, 0)
+    for index, item_id in enumerate(item_ids):
+        await db_session.execute(
+            update(ItemListingPreference)
+            .where(ItemListingPreference.item_id == item_id)
+            .values(created_at=added + timedelta(hours=index))
+        )
+    await db_session.commit()
+    # Events keep whole minutes.
+    starts_at = _in_days(4).replace(second=0)
+    event = await client.post(
+        "/api/events",
+        json={"name": "Op recent piknik", "starts_at": starts_at.isoformat()},
+        headers=_auth(owner_token),
+    )
+    assert event.status_code == 201, event.text
+
+    body = await _page(client, slug)
+
+    assert body["circles"] == [] and body["exchange"]["items"] == []
+    assert [i["item_id"] for i in body["recent_items"]] == [
+        str(item_id) for item_id in reversed(item_ids[1:])
+    ]
+    assert set(body["recent_items"][0]) == {
+        "item_id",
+        "product_name",
+        "condition",
+        "mode",
+        "thumb_url",
+        "added_at",
+    }
+    nearest = body["owner_nearest"]
+    assert nearest["kind"] == "EVENT" and nearest["id"] == event.json()["id"]
+    assert nearest["path"] == f"/{slug}/event/{event.json()['id']}"
+    assert nearest["starts_at"] == starts_at.isoformat()
+    assert _keys(body) & FORBIDDEN_KEYS == set()
+
+
+async def test_getOrganizerPage_noListedItems_ownerNearestNotComputed(
+    client: AsyncClient,
+) -> None:
+    owner_token, _ = await _register(client, "ORGANIZER", "op.recent.empty@example.com")
+    slug = await _organization_slug(client, owner_token, "Bez Rzeczy")
+    group_id = await _circle(client, owner_token, "Op bez rzeczy")
+    await _term(client, owner_token, group_id, _in_days(2))
+
+    body = await _page(client, slug)
+
+    assert body["recent_items"] == [] and body["owner_nearest"] is None

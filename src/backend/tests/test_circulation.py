@@ -35,7 +35,6 @@ from app.circulation.models import (
     ReservationStatus,
     ReservationType,
 )
-from app.circulation.schemas import CreateReservationRequest
 from app.core.errors import (
     AccessDeniedException,
     BusinessConflictException,
@@ -284,12 +283,10 @@ async def _create_gift(
     term_id = await _create_term(client, owner_headers)
     reservation = await circulation_service.create_reservation(
         db_session,
-        CreateReservationRequest(
-            item_id=item_id,
-            reservation_type=ReservationType.GIFT,
-            reserved_by_user_id=borrower_user_id,
-            term_id=term_id,
-        ),
+        item_id=item_id,
+        reservation_type=ReservationType.GIFT,
+        reserved_by_user_id=borrower_user_id,
+        term_id=term_id,
     )
     return reservation.id
 
@@ -586,6 +583,10 @@ async def test_migration0034_backfillsLegacyNullTermIdRows_withoutError(
     )
 
     await db_session.execute(text("ALTER TABLE reservations ALTER COLUMN term_id DROP NOT NULL"))
+    # Pre-0034 rows predate 0073's context CHECK too.
+    await db_session.execute(
+        text("ALTER TABLE reservations DROP CONSTRAINT ck_reservations_context")
+    )
     await db_session.execute(
         text("UPDATE reservations SET term_id = NULL WHERE id = :id"), {"id": reservation_id}
     )

@@ -8,7 +8,7 @@ from __future__ import annotations
 import uuid
 from collections import defaultdict
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.auth_deps import Principal
@@ -26,6 +26,7 @@ from .infrastructure import (
 from .models import EventAttendance
 from .schemas import (
     EventDetailResponse,
+    EventOpenReservationsResponse,
     EventOrganizationResponse,
     EventParticipantItemResponse,
     EventParticipantResponse,
@@ -50,25 +51,42 @@ async def _active_attendee_party_ids(
     return list(rows)
 
 
+PREVIEW_ITEM_LIMIT = 3
+
+
 async def _listed_items_by_party(
     db: AsyncSession, party_ids: list[uuid.UUID], storage: ObjectStorage | None
-) -> dict[uuid.UUID, list[EventParticipantItemResponse]]:
-    """Each party's live AVAILABLE items carrying a listing preference, by
-    product name in code-point order, then item id: one statement, plus one
-    for the thumbnails when storage is configured."""
+) -> tuple[dict[uuid.UUID, list[EventParticipantItemResponse]], dict[uuid.UUID, int]]:
+    """Each party's 3 newest live AVAILABLE items carrying a listing
+    preference (preference `created_at` descending, then item id) and how
+    many such items they have in total: one statement, plus one for the
+    thumbnails when storage is configured."""
     preferences = groups_acl.item_listing_preferences_select(party_ids).subquery("preferences")
     available = circulation_acl.available_items_select().subquery("available_items")
+    ranked = (
+        select(
+            preferences.c.owner_party_id,
+            preferences.c.item_id,
+            preferences.c.mode,
+            preferences.c.created_at,
+            available.c.product_id,
+            available.c.product_name,
+            func.row_number()
+            .over(
+                partition_by=preferences.c.owner_party_id,
+                order_by=(preferences.c.created_at.desc(), preferences.c.item_id),
+            )
+            .label("position"),
+            func.count().over(partition_by=preferences.c.owner_party_id).label("items_total"),
+        )
+        .join(available, available.c.item_id == preferences.c.item_id)
+        .subquery("ranked")
+    )
     rows = (
         await db.execute(
-            select(
-                preferences.c.owner_party_id,
-                preferences.c.item_id,
-                preferences.c.mode,
-                available.c.product_id,
-                available.c.product_name,
-            )
-            .join(available, available.c.item_id == preferences.c.item_id)
-            .order_by(available.c.product_name.collate("C"), preferences.c.item_id)
+            select(ranked)
+            .where(ranked.c.position <= PREVIEW_ITEM_LIMIT)
+            .order_by(ranked.c.owner_party_id, ranked.c.position)
         )
     ).all()
     photos = (
@@ -77,17 +95,20 @@ async def _listed_items_by_party(
         else {}
     )
     items: dict[uuid.UUID, list[EventParticipantItemResponse]] = defaultdict(list)
+    totals: dict[uuid.UUID, int] = {}
     for row in rows:
         photo = photos.get(row.product_id)
+        totals[row.owner_party_id] = row.items_total
         items[row.owner_party_id].append(
             EventParticipantItemResponse(
                 item_id=row.item_id,
                 product_name=row.product_name,
                 mode=row.mode,
                 thumb_url=storage.public_url(photo.thumb_key) if storage and photo else None,
+                added_at=row.created_at,
             )
         )
-    return items
+    return items, totals
 
 
 async def get_event_page(
@@ -107,9 +128,15 @@ async def get_event_page(
     organization = await organizations_acl.get_own_organization(db, author_party_id)
     attendee_party_ids = await _active_attendee_party_ids(db, event_id, author_party_id)
     names = await users_acl.list_display_names(db, [author_party_id, *attendee_party_ids])
-    items = await _listed_items_by_party(db, [author_party_id, *attendee_party_ids], storage)
+    items, items_totals = await _listed_items_by_party(
+        db, [author_party_id, *attendee_party_ids], storage
+    )
 
     viewer_party_id = viewer.party_id if viewer is not None else None
+    open_reservations = None
+    if viewer_party_id == author_party_id:
+        counts = await groups_acl.count_open_event_reservations(db, event_id)
+        open_reservations = EventOpenReservationsResponse(total=counts.total, swaps=counts.swaps)
     author_display_name = (
         organization.name
         if organization is not None
@@ -122,6 +149,7 @@ async def get_event_page(
             is_author=True,
             is_me=viewer_party_id == author_party_id,
             items=items.get(author_party_id, []),
+            items_total=items_totals.get(author_party_id, 0),
         ),
         *(
             EventParticipantResponse(
@@ -130,6 +158,7 @@ async def get_event_page(
                 is_author=False,
                 is_me=viewer_party_id == party_id,
                 items=items.get(party_id, []),
+                items_total=items_totals.get(party_id, 0),
             )
             for party_id in attendee_party_ids
             if party_id in names
@@ -166,4 +195,5 @@ async def get_event_page(
         and viewer.account_user_id is not None
         and viewer_party_id in attendee_party_ids,
         has_ended=service.has_ended(event),
+        open_reservations=open_reservations,
     )

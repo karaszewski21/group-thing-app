@@ -33,7 +33,6 @@ from app.circulation.models import (
     MovementType,
     ReservationType,
 )
-from app.circulation.schemas import CreateReservationRequest
 from app.core.base_model import BaseEntity
 from app.core.errors import BusinessConflictException
 from app.product.models import Product
@@ -411,12 +410,10 @@ async def _reserve(
 ) -> uuid.UUID:
     reservation = await circulation_service.create_reservation(
         db,
-        CreateReservationRequest(
-            item_id=item_id,
-            reservation_type=reservation_type,
-            reserved_by_user_id=reserved_by_user_id,
-            term_id=await _create_term(client, headers),
-        ),
+        item_id=item_id,
+        reservation_type=reservation_type,
+        reserved_by_user_id=reserved_by_user_id,
+        term_id=await _create_term(client, headers),
     )
     return _id(reservation)
 

@@ -80,12 +80,15 @@ _RAW_MATRIX: tuple[_RawEntry, ...] = (
     # principal in the route — no ownership check beyond authentication + READ.
     (_methods("GET"), r"^/api/groups/mine/attendances$", ("READ", "mcp:read")),
     # Public organizer directory (`GET /api/groups/public/organizers/{slug}`
-    # and its `/terms` page). First match wins: without this row,
+    # and its `/terms` and `/items` pages). First match wins: without this row,
     # `/organizers/{slug}` would fall through to row 26's blanket READ row
     # and `/organizers/access` would read like the `/public/{id}/access` row
     # below, so it is declared ahead of both. GET only — any other method on
     # this path still falls to the blanket rows.
-    (_methods("GET"), r"^/api/groups/public/organizers/[^/]+(/terms)?$", "PUBLIC"),
+    (_methods("GET"), r"^/api/groups/public/organizers/[^/]+(/terms|/items)?$", "PUBLIC"),
+    # A party's public items page — ahead of row 26's blanket READ row so an
+    # anonymous visitor can load it. Visibility filtering lives in the route.
+    (_methods("GET"), r"^/api/groups/public/parties/[^/]+/items$", "PUBLIC"),
     # Public circle/term page (`/krag/:groupId/publiczny`) — declared ahead of
     # row 26's blanket /api/groups READ requirement so an anonymous visitor
     # can load it, RSVP, and merge into a real account. Mirrors row 48's
@@ -171,6 +174,9 @@ _RAW_MATRIX: tuple[_RawEntry, ...] = (
     # (`inventory.owner_user_id == acting user`) lives in
     # `app.circulation.service`; the matrix only gates it to EDIT.
     (_methods("PATCH", "DELETE"), r"^/api/inventory-items/[^/]+$", ("EDIT", "mcp:edit")),
+    # Public item details (anonymous visitors of an items page) — ahead of
+    # row 40 so only this exact path drops the READ requirement.
+    (_methods("GET"), r"^/api/inventory-items/[^/]+/details$", "PUBLIC"),
     (_methods("GET"), r"^/api/inventory-items(/.*)?$", ("READ", "mcp:read")),  # 40
     (_methods("POST"), r"^/api/inventory-items(/.*)?$", ("EDIT", "mcp:edit")),  # 41
     (_methods("GET"), r"^/api/reservations(/.*)?$", ("READ", "mcp:read")),  # 42
@@ -209,6 +215,11 @@ _RAW_MATRIX: tuple[_RawEntry, ...] = (
     (_methods("PATCH", "DELETE"), r"^/api/events/[^/]+$", ("EDIT", "mcp:edit")),
     (_methods("POST"), r"^/api/events$", ("EDIT", "mcp:edit")),
     (_methods("POST"), r"^/api/events/[^/]+/banner$", ("EDIT", "mcp:edit")),
+    # Taking or proposing an event participant's item needs an account; the
+    # attendance check lives in the route's service.
+    (_methods("POST"), r"^/api/events/[^/]+/items/[^/]+/(take|propose)$", ("EDIT", "mcp:edit")),
+    # The viewer's available actions on an item — anonymous callers get none.
+    (_methods("GET"), r"^/api/items/[^/]+/actions$", "PUBLIC"),
     # 51-52: app.notifications — the caller's own in-app inbox. `/mine` +
     # `/unread-count` are GETs, `/{id}/read` + `/read-all` are POSTs, so the
     # two blanket rows cover every route; recipient-ownership ("only my own

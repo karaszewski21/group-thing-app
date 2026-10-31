@@ -1,6 +1,6 @@
 import { fireEvent, render, screen, within } from "@testing-library/react";
 import type { ReactElement } from "react";
-import { MemoryRouter } from "react-router-dom";
+import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { EventParticipant, EventParticipantItem, EventResponse } from "../api/events";
 import { EventAttendeeList } from "../pages/events/components/EventAttendeeList";
@@ -39,7 +39,7 @@ function eventFixture(overrides: Partial<EventResponse> = {}): EventResponse {
 }
 
 function item(id: string, productName: string, mode: EventParticipantItem["mode"]): EventParticipantItem {
-  return { item_id: id, product_name: productName, mode, thumb_url: null };
+  return { item_id: id, product_name: productName, mode, thumb_url: null, added_at: "2026-10-30T09:00:00" };
 }
 
 function participant(overrides: Partial<EventParticipant> = {}): EventParticipant {
@@ -49,6 +49,7 @@ function participant(overrides: Partial<EventParticipant> = {}): EventParticipan
     is_author: true,
     is_me: false,
     items: [],
+    items_total: 0,
     ...overrides,
   };
 }
@@ -128,30 +129,34 @@ describe("EventAttendeeList", () => {
     expect(swap).toHaveTextContent("Zamiana");
   });
 
-  it("shows the first 3 items, and Pokaż wszystkie (n) expands to all of them", () => {
-    renderWithProviders(
-      <EventAttendeeList
-        authorSlug="zielony-krag"
-        canSignUp
-        participants={[
-          participant({
-            items: [
-              item("it-1", "Miś", "GIFT"),
-              item("it-2", "Rowerek", "SWAP"),
-              item("it-3", "Książeczki", "GIFT"),
-              item("it-4", "Klocki", "SWAP"),
-            ],
-          }),
-        ]}
-      />,
+  it("shows 3 items, then Pokaż więcej (N) › to the participant's items page with the event context", () => {
+    render(
+      <MemoryRouter initialEntries={["/zielony-krag/event/ev-1"]}>
+        <Routes>
+          <Route
+            path="/:organizationSlug/event/:eventId"
+            element={
+              <EventAttendeeList
+                authorSlug="zielony-krag"
+                canSignUp
+                participants={[
+                  participant({
+                    items: [item("it-1", "Miś", "GIFT"), item("it-2", "Rowerek", "SWAP"), item("it-3", "Książeczki", "GIFT")],
+                    items_total: 5,
+                  }),
+                ]}
+              />
+            }
+          />
+        </Routes>
+      </MemoryRouter>,
     );
-    expect(screen.getAllByRole("link")).toHaveLength(3);
-    const toggle = screen.getByRole("button", { name: "Pokaż wszystkie (4)" });
-    expect(toggle).toHaveAttribute("aria-expanded", "false");
-
-    fireEvent.click(toggle);
-    expect(screen.getAllByRole("link")).toHaveLength(4);
-    expect(screen.getByRole("button", { name: "Zwiń" })).toHaveAttribute("aria-expanded", "true");
+    expect(screen.getAllByRole("link", { name: /Miś|Rowerek|Książeczki/ })).toHaveLength(3);
+    expect(screen.getByRole("link", { name: /Rowerek/ })).toHaveAttribute("href", "/zielony-krag/product/it-2?event=ev-1");
+    const more = screen.getByRole("link", { name: "Pokaż więcej (5)" });
+    expect(more).toHaveTextContent("Pokaż więcej (5) ›");
+    expect(more).toHaveAttribute("href", "/p-author/items?event=ev-1");
+    expect(screen.queryByRole("button", { name: /Pokaż wszystkie/ })).not.toBeInTheDocument();
   });
 
   it("keeps the author row and shows the empty copy when nobody else signed up", () => {

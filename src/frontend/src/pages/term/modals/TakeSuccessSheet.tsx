@@ -4,31 +4,28 @@ import { BTN_LG, BTN_PRIMARY } from "../../../components/shared/uiStyles";
 import { AddToCalendarButton } from "../../../components/shared/AddToCalendarButton";
 import { calendarUid } from "../../../utils/calendar";
 import dayjs from "../../../utils/dayjs";
-import { organizerTermPath } from "../../organizer/organizerHelpers";
+import type { TakeContext } from "../hooks/useItemTake";
 
-/** "Wzięte!" sheet after a successful take on the term page: when and where
- * to pick the item up, a calendar export and a link to the item page. */
+/** "Wzięte!" sheet after a successful take in a term or event `context`:
+ * when and where to pick the item up, a calendar export linking to the
+ * context's page and a link to the item page. */
 export function TakeSuccessSheet({
   itemId,
   itemName,
-  occursOn,
-  groupName,
-  groupId,
-  termId,
-  organizerSlug,
+  context,
   onClose,
 }: {
   itemId: string;
   itemName: string;
-  occursOn: string;
-  groupName: string;
-  groupId: string;
-  termId: string;
-  organizerSlug: string;
+  context: TakeContext;
   onClose: () => void;
 }) {
-  const when = dayjs(occursOn).format("ddd DD.MM [o] HH:mm");
-  const sentence = `Odbierz „${itemName}” w ${when} — ${groupName}`;
+  const when = dayjs(context.starts_at).format("ddd DD.MM [o] HH:mm");
+  const sentence = `Odbierz „${itemName}” w ${when} — ${context.name}`;
+  const reminder =
+    context.kind === "event"
+      ? "Rzecz czeka na Ciebie na tym wydarzeniu. Dodaj je do kalendarza, żeby nie zapomnieć."
+      : "Rzecz czeka na Ciebie na tym terminie. Dodaj go do kalendarza, żeby nie zapomnieć.";
 
   return (
     <ModalSheet title="Wzięte!" ariaLabel={sentence} onClose={onClose}>
@@ -41,9 +38,7 @@ export function TakeSuccessSheet({
         </span>
         <p className="text-[15px] font-extrabold text-ink">{sentence}</p>
       </div>
-      <p className="mt-3 text-sm text-ink-soft">
-        Rzecz czeka na Ciebie na tym terminie. Dodaj go do kalendarza, żeby nie zapomnieć.
-      </p>
+      <p className="mt-3 text-sm text-ink-soft">{reminder}</p>
 
       <div className="mt-5 flex flex-col gap-2 min-[520px]:flex-row min-[520px]:flex-wrap">
         <div className="min-[520px]:flex-1">
@@ -51,11 +46,11 @@ export function TakeSuccessSheet({
             size="lg"
             direction="up"
             event={{
-              uid: calendarUid(termId, itemId),
+              uid: calendarUid(context.id, itemId),
               title: `Odbiór: ${itemName}`,
-              occursOn,
-              groupName,
-              url: window.location.origin + organizerTermPath(organizerSlug, groupId, termId),
+              occursOn: context.starts_at,
+              groupName: context.name,
+              url: window.location.origin + context.path,
             }}
           />
         </div>

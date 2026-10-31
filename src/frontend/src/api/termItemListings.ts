@@ -86,11 +86,15 @@ export interface SwapProposalResponse {
 /** The accept response also names the Term and Circle the swap happens at
  * (always set by the backend on success; typed nullable so the success sheet
  * degrades instead of crashing if they are ever missing). */
+/** For an event swap `term_id`/`group_id` are null, `term_occurs_on` is the
+ * event start and `group_name` the event name. */
 export interface AcceptedSwapProposalResponse extends SwapProposalResponse {
   term_id: string | null;
   term_occurs_on: string | null;
   group_id: string | null;
   group_name: string | null;
+  event_id?: string | null;
+  event_slug?: string | null;
 }
 
 /** SWAP no longer goes through `takeTermItemListing` (the backend rejects

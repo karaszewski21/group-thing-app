@@ -59,6 +59,11 @@ const GHOST_COPY: Partial<Record<BlockId, GhostCopy>> = {
     body: "Tu pojawią się rzeczy, które Ty i rodzice z Twoich grup wystawicie na najbliższe zajęcia. Widzisz to tylko Ty.",
     cta: ADD_EXCHANGE_ITEM,
   },
+  "recent-items": {
+    title: "Ostatnio dodane rzeczy",
+    body: "Tu pokażemy rzeczy, które ostatnio wystawisz do oddania lub wymiany. Widzisz to tylko Ty.",
+    cta: ADD_EXCHANGE_ITEM,
+  },
   "needed-items": {
     title: "Potrzebne rzeczy",
     body: "Gdy dodasz do terminu potrzebne rzeczy, rodzice zobaczą tu, co jeszcze trzeba przynieść. Widzisz to tylko Ty.",

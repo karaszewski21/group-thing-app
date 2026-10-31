@@ -30,6 +30,7 @@ import { PublicAddView } from "./pages/add/AddView";
 import { PhoneFrame } from "./components/shared/PhoneFrame";
 import { OrganizationPage } from "./pages/organizer/OrganizationPage";
 import { OrganizerTermsPage } from "./pages/organizer/OrganizerTermsPage";
+import { OwnerItemsPage } from "./pages/owner/OwnerItemsPage";
 import { PublicOrganizationPage } from "./pages/organizer/PublicOrganizationPage";
 import { AuthGuard } from "./auth/AuthGuard";
 import { useAuth } from "./auth/AuthContext";
@@ -177,9 +178,11 @@ export const routes: RouteObject[] = [
         element: <AuthGuard><ThreadPage /></AuthGuard>,
       },
       {
-        // Item pages; "product" is in the backend's RESERVED_SLUGS.
+        // Item pages — public, no AuthGuard: listed items read anonymously;
+        // a non-public item sends an anonymous visitor to login (ItemDetailBody).
+        // "product" is in the backend's RESERVED_SLUGS.
         path: "/product/:id",
-        element: <AuthGuard><ItemDetailPage /></AuthGuard>,
+        element: <ItemDetailPage />,
       },
       {
         // Former edit subpage: editing now happens in place on the item page.
@@ -199,7 +202,7 @@ export const routes: RouteObject[] = [
         // panel nav (see OrganizerItemLayout). "product" and "group" are in
         // the backend's RESERVED_SLUGS.
         path: "/:organizationSlug/product/:id",
-        element: <AuthGuard><OrganizerItemLayout /></AuthGuard>,
+        element: <OrganizerItemLayout />,
         children: [
           { index: true, element: <ItemDetailBody /> },
           { path: "edit", element: <Navigate to="..?edit=1" relative="path" replace /> },
@@ -222,6 +225,12 @@ export const routes: RouteObject[] = [
         // reads like this path segment (as with "group").
         path: "/:organizationSlug/terms",
         element: <OrganizerTermsPage />,
+      },
+      {
+        // The owner's listed items — public, no AuthGuard. A UUID-shaped first
+        // segment is a party id (any person), otherwise an Organization slug.
+        path: "/:organizationSlug/items",
+        element: <OwnerItemsPage />,
       },
       {
         path: "/:organizationSlug",

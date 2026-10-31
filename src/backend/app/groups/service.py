@@ -42,6 +42,11 @@ from app.groups.application.circles import (
     soft_delete_group,
     update_group,
 )
+from app.groups.application.event_reservations import (
+    OpenEventReservationCounts,
+    cancel_open_event_reservations,
+    count_open_event_reservations,
+)
 from app.groups.application.exchange_summary import (
     get_family_exchange_offers,
     get_group_exchange_summary,
@@ -120,13 +125,16 @@ from app.groups.infrastructure.slug_resolver import resolve_organizer_slug
 
 __all__ = [
     "ChatAudience",
+    "OpenEventReservationCounts",
     "accept_swap_proposal",
     "add_active_membership",
     "assign_leadership",
     "build_leadership_responses",
     "build_membership_responses",
+    "cancel_open_event_reservations",
     "cancel_transaction",
     "confirm_transaction",
+    "count_open_event_reservations",
     "create_additional_circle",
     "create_circle",
     "create_needed_item",

@@ -3,6 +3,7 @@ import { MemoryRouter } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import * as groupsApi from "../api/groups";
 import type { OrganizerCircle, OrganizerPageResponse, OrganizerTerm } from "../api/groups";
+import type { OwnerItemCard, OwnerNearestDate } from "../api/ownerItems";
 import type { PublicOrganizationResponse } from "../api/organizations";
 import { LayoutRenderer } from "../pages/organizer/LayoutRenderer";
 import { FALLBACK_LAYOUT, isRecommended, LAYOUT_REGISTRY, resolveLayout } from "../pages/organizer/layouts/registry";
@@ -40,6 +41,8 @@ function pageData(overrides: Partial<OrganizerPageResponse> = {}): OrganizerPage
       exchange: { counts: { GIFT: 0, SWAP: 0 }, items: [] },
       needed_items: [],
       stats: { circle_count: 0, upcoming_term_count: 0, family_count: null },
+      recent_items: [],
+      owner_nearest: null,
       ...overrides,
     },
   };
@@ -69,6 +72,22 @@ function term(id: string, occursOn: string): OrganizerTerm {
     attendee_count: 8,
   };
 }
+
+function recentItem(id: string, name: string, mode: OwnerItemCard["mode"]): OwnerItemCard {
+  return { item_id: id, product_name: name, condition: "GOOD", mode, thumb_url: null, added_at: "2026-10-30T09:00:00" };
+}
+
+const RECENT = [recentItem("i1", "Kurtka", "GIFT"), recentItem("i2", "Rower", "SWAP")];
+
+const NEAREST_EVENT: OwnerNearestDate = {
+  kind: "EVENT",
+  id: "e1",
+  name: "Wymianka sąsiedzka",
+  starts_at: "2026-11-07T10:00:00",
+  location_name: null,
+  attendee_count: 14,
+  path: `/${SLUG}/event/e1`,
+};
 
 function inDays(days: number): string {
   return dayjs().add(days, "day").format("YYYY-MM-DDTHH:mm:ss");
@@ -199,6 +218,7 @@ describe("LayoutRenderer", () => {
     expect(composition("EXCHANGE")).toEqual([
       "hero:compact",
       "exchange-board:grid2*",
+      "recent-items",
       "needed-items:list",
       "upcoming-terms:compact",
       "about",
@@ -368,6 +388,55 @@ describe("LayoutRenderer", () => {
     expect(hero).toHaveClass("bg-paper", "border-b", "border-line");
     expect(within(hero).getByText(`domena.pl/${SLUG}`)).toBeInTheDocument();
     expect(within(hero).getByRole("button", { name: "Udostępnij" })).toHaveClass("min-h-[44px]");
+  });
+
+  it("places recent items right after the exchange board in EXCHANGE only", () => {
+    for (const layout of Object.values(LAYOUT_REGISTRY)) {
+      const blocks = layout.blocks.map((slot) => slot.block);
+      if (layout.key !== "EXCHANGE") {
+        expect(blocks, layout.key).not.toContain("recent-items");
+        continue;
+      }
+      const index = blocks.indexOf("recent-items");
+      expect(blocks[index - 1]).toBe("exchange-board");
+      expect(blocks[index + 1]).toBe("needed-items");
+    }
+
+    renderLayout("CLASSIC", pageData({ recent_items: RECENT }));
+    expect(screen.queryByRole("heading", { name: "Ostatnio dodane rzeczy" })).not.toBeInTheDocument();
+  });
+
+  it("shows recent item cards with nearest-date chips and a link to all the owner's items", () => {
+    renderLayout("EXCHANGE", pageData({ recent_items: RECENT, owner_nearest: NEAREST_EVENT }));
+
+    const block = screen.getByRole("region", { name: "Ostatnio dodane rzeczy" });
+    const date = dayjs(NEAREST_EVENT.starts_at).format("ddd D MMM");
+    expect(within(block).getAllByRole("listitem")).toHaveLength(2);
+    expect(within(block).getByRole("link", { name: "Kurtka" })).toHaveAttribute("href", `/${SLUG}/product/i1?event=e1`);
+    expect(within(block).getByText(`Weź · ${date}`)).toBeInTheDocument();
+    expect(within(block).getByText(`Zamienię · ${date}`)).toBeInTheDocument();
+    expect(within(block).getByRole("link", { name: "Zobacz więcej →" })).toHaveAttribute("href", `/${SLUG}/items`);
+  });
+
+  it("shows mode-only chips and plain item links without a nearest date", () => {
+    renderLayout("EXCHANGE", pageData({ recent_items: RECENT }));
+
+    const block = screen.getByRole("region", { name: "Ostatnio dodane rzeczy" });
+    expect(within(block).getByRole("link", { name: "Kurtka" })).toHaveAttribute("href", `/${SLUG}/product/i1`);
+    expect(within(block).getByText("Oddam")).toBeInTheDocument();
+    expect(within(block).getByText("Zamienię")).toBeInTheDocument();
+  });
+
+  it("hides empty recent items from visitors and shows the owner a ghost", () => {
+    renderLayout("EXCHANGE", data);
+    expect(screen.queryByRole("heading", { name: "Ostatnio dodane rzeczy" })).not.toBeInTheDocument();
+    cleanup();
+
+    const owner = renderLayout("EXCHANGE", data, "owner-edit");
+    const ghost = owner.container.querySelector('[data-ghost="recent-items"]') as HTMLElement;
+    expect(ghost).not.toBeNull();
+    expect(within(ghost).getByText("Ostatnio dodane rzeczy")).toBeInTheDocument();
+    expect(within(ghost).getByRole("link", { name: "Dodaj rzecz do wymiany →" })).toHaveAttribute("href", "/items");
   });
 
   it("recommends nothing while loading, even with a directory that would recommend SCHEDULE and CIRCLES", () => {

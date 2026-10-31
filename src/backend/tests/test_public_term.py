@@ -21,7 +21,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core import clock
-from app.groups.models import Leadership, NeededItem, Term
+from app.groups.models import ItemListingPreference, Leadership, NeededItem, Term
 from app.organizations.models import Organization
 from tests.conftest import leaf_category_ids
 
@@ -659,3 +659,41 @@ async def test_getPublicCircle_pledgedNeededItem_exposesPledgerPartyId(client: A
     item = response.json()["term"]["needed_items"][0]
     assert item["claimed_by_party_id"] == guest_party_id
     assert item["claimed_by_name"] == "Pt Pledger Guest"
+
+
+PUBLIC_ITEM_LISTING_KEYS = {
+    "id",
+    "item_id",
+    "product_name",
+    "condition",
+    "offered_types",
+    "lister_party_id",
+    "lister_display_name",
+    "thumb_url",
+    "added_at",
+}
+
+
+async def test_getPublicCircle_itemListing_carriesAddedAtAsNaiveUtcPreferenceCreatedAt(
+    client: AsyncClient, db_session: AsyncSession
+) -> None:
+    org_token = await _register_organizer(client, "pt.added.org@example.com")
+    group_id = await _create_circle(client, org_token, "Krąg dodanych")
+    term_id = await _create_term(
+        client, org_token, group_id, clock.local_now().date() + timedelta(days=7)
+    )
+    item_id = await _register_personal_item(client, org_token, "Hulajnoga")
+    await _set_preference(client, org_token, item_id, "GIFT")
+    created_at = await db_session.scalar(
+        select(ItemListingPreference.created_at).where(
+            ItemListingPreference.item_id == uuid.UUID(str(item_id))
+        )
+    )
+
+    response = await client.get(f"/api/groups/public/{group_id}?term_id={term_id}")
+
+    assert response.status_code == 200
+    [listing] = response.json()["term"]["item_listings"]
+    assert set(listing) == PUBLIC_ITEM_LISTING_KEYS
+    assert re.fullmatch(r"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?", listing["added_at"])
+    assert datetime.fromisoformat(listing["added_at"]) == created_at

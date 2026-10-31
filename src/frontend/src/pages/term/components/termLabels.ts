@@ -16,6 +16,18 @@ export const EXCHANGE_MODE_LABELS: Record<ExchangeMode, string> = {
   SWAP: "Zamienię",
 };
 
+/** Item chip wording once a card links to a pickup term or event. */
+export const PICKUP_MODE_LABELS: Record<ExchangeMode, string> = {
+  GIFT: "Weź",
+  SWAP: "Zamienię",
+};
+
+/** Mode wording on a participant's item preview row ("Zamiana / Weź na stałe"). */
+export const PREVIEW_MODE_LABELS: Record<ListingMode, string> = {
+  GIFT: "Weź na stałe",
+  SWAP: "Zamiana",
+};
+
 /** Soft background plus a readable foreground per exchange mode. */
 export const EXCHANGE_MODE_TONE: Record<ExchangeMode, string> = {
   GIFT: "bg-primary-soft text-primary-fg",

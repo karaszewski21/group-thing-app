@@ -75,6 +75,21 @@ describe("NotificationBell", () => {
     expect(screen.getByRole("button", { name: "Powiadomienia" })).toBeInTheDocument();
   });
 
+  it("renders a RESERVATION_CANCELLED notification", async () => {
+    vi.mocked(notificationsApi.getMyNotifications).mockResolvedValue([
+      notif({
+        kind: "RESERVATION_CANCELLED",
+        message: "Wydarzenie „Kiermasz rzeczy” zostało usunięte — rezerwacja „Rowerek” anulowana",
+        link_path: "/product/item-1",
+      }),
+    ]);
+    renderBell();
+
+    fireEvent.click(await screen.findByRole("button", { name: "Powiadomienia (1 nieprzeczytane)" }));
+
+    expect(screen.getByRole("menuitem", { name: /rezerwacja „Rowerek” anulowana/ })).toBeInTheDocument();
+  });
+
   it("shows no badge and an empty state when there is nothing unread", async () => {
     vi.mocked(notificationsApi.getMyNotifications).mockResolvedValue([]);
     renderBell();

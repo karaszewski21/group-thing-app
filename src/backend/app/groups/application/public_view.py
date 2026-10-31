@@ -311,6 +311,7 @@ async def get_public_circle_view(
                     lister_party_id=listing.lister_party_id,
                     lister_display_name=listing.lister_display_name,
                     thumb_url=thumb_urls.get(listing.item_id),
+                    added_at=listing.created_at,
                 )
                 for listing in item_listings
             ],

@@ -23,13 +23,8 @@ export interface NeededItemRowVM {
  * optional extra content (the swap picker or the account-merge mini-form). */
 export interface ListingRowVM {
   key: string | number;
-  title: ReactNode;
-  subtitle?: ReactNode;
   actions: TermActionVM[];
   extra?: ReactNode;
-  /** Public term page only: the item photo (null = placeholder tile). Left
-   * undefined on the private page, where no tile is rendered. */
-  thumbUrl?: string | null;
 }
 
 /** DOM id of an attendee's list entry — the scroll/focus target when their

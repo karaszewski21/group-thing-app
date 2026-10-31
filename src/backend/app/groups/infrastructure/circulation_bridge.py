@@ -34,7 +34,6 @@ from app.circulation.models import (
     ReservationStatus,
     ReservationType,
 )
-from app.circulation.schemas import CreateReservationRequest
 from app.circulation.service import AvailableItemView
 
 __all__ = [
@@ -50,6 +49,7 @@ __all__ = [
     "ReservationType",
     "cancel_exchange",
     "cancel_reservation",
+    "cancel_reservations_without_commit",
     "confirm_reservation",
     "create_reservation",
     "find_personal_inventory",
@@ -58,12 +58,15 @@ __all__ = [
     "get_item_balance",
     "get_item_for_update",
     "get_reservation",
+    "list_active_hand_over_reservations_for_events",
     "list_active_hand_over_reservations_for_terms",
     "list_active_reservations_for_taker",
     "list_available_items_with_product",
     "list_items_with_product_name",
+    "list_open_reservations_for_event",
     "list_product_names_for_items",
     "list_reservations",
+    "reservation_ids_for_event_select",
     "reservation_ids_for_term_select",
     "resolve_owning_inventory",
     "set_item_listing_status",
@@ -76,18 +79,22 @@ async def create_reservation(
     item_id: uuid.UUID,
     reservation_type: ReservationType,
     reserved_by_user_id: uuid.UUID,
-    term_id: uuid.UUID,
+    term_id: uuid.UUID | None = None,
+    event_id: uuid.UUID | None = None,
+    commit: bool = True,
 ) -> Reservation:
-    """`GIFT`/`SWAP` reservation creation for the exchange mechanism. Used
-    by `app.groups.application.term_item_listings`."""
+    """`GIFT`/`SWAP` reservation creation for the exchange mechanism, in
+    exactly one context (`ValueError` otherwise). Used by
+    `app.groups.application.term_item_listings`; `commit=False` only
+    flushes."""
     return await circulation_service.create_reservation(
         db,
-        CreateReservationRequest(
-            item_id=item_id,
-            reservation_type=reservation_type,
-            reserved_by_user_id=reserved_by_user_id,
-            term_id=term_id,
-        ),
+        item_id=item_id,
+        reservation_type=reservation_type,
+        reserved_by_user_id=reserved_by_user_id,
+        term_id=term_id,
+        event_id=event_id,
+        commit=commit,
     )
 
 
@@ -95,17 +102,34 @@ async def get_reservation(db: AsyncSession, reservation_id: uuid.UUID) -> Reserv
     return await circulation_service.get_reservation(db, reservation_id)
 
 
-async def confirm_reservation(db: AsyncSession, reservation_id: uuid.UUID, acting_user_id: uuid.UUID) -> Reservation:
+async def confirm_reservation(
+    db: AsyncSession, reservation_id: uuid.UUID, acting_user_id: uuid.UUID, *, commit: bool = True
+) -> Reservation:
     """Used by `term_item_listings` to auto-confirm a just-created swap leg
     on behalf of the item's current holder, whose consent already exists (a
     published `ItemListingPreference`, or the proposer's own offer) —
     circulation's `confirm_reservation` requires exactly that party."""
-    return await circulation_service.confirm_reservation(db, reservation_id, acting_user_id)
+    return await circulation_service.confirm_reservation(
+        db, reservation_id, acting_user_id, commit=commit
+    )
 
 
-async def cancel_reservation(db: AsyncSession, reservation_id: uuid.UUID, acting_user_id: uuid.UUID) -> Reservation:
+async def cancel_reservation(
+    db: AsyncSession, reservation_id: uuid.UUID, acting_user_id: uuid.UUID, *, commit: bool = True
+) -> Reservation:
     """Thin pass-through, same shape as `confirm_reservation` above."""
-    return await circulation_service.cancel_reservation(db, reservation_id, acting_user_id)
+    return await circulation_service.cancel_reservation(
+        db, reservation_id, acting_user_id, commit=commit
+    )
+
+
+async def cancel_reservations_without_commit(
+    db: AsyncSession, reservation_ids: Collection[uuid.UUID]
+) -> list[Reservation]:
+    """Holder-side cancel of the still-open reservations among
+    `reservation_ids`, for event deletion. Flush only — the caller commits;
+    see `app.circulation.service.cancel_reservations_without_commit`."""
+    return await circulation_service.cancel_reservations_without_commit(db, reservation_ids)
 
 
 async def list_available_items_with_product(
@@ -167,6 +191,27 @@ def reservation_ids_for_term_select(term_id: uuid.UUID) -> Select[tuple[uuid.UUI
     """Used by `application/term_end_scan.py` to scope swap proposals to the
     Term their proposer reservation belongs to, as an SQL subquery."""
     return circulation_service.reservation_ids_for_term_select(term_id)
+
+
+async def list_active_hand_over_reservations_for_events(
+    db: AsyncSession, event_ids: list[uuid.UUID]
+) -> list[Reservation]:
+    """Used by the term-end scan's event pass: the still-open GIFT
+    reservations of the just-started Events, in one query."""
+    return await circulation_service.list_active_hand_over_reservations_for_events(db, event_ids)
+
+
+def reservation_ids_for_event_select(event_id: uuid.UUID) -> Select[tuple[uuid.UUID]]:
+    """`reservation_ids_for_term_select` for an Event's swap proposals."""
+    return circulation_service.reservation_ids_for_event_select(event_id)
+
+
+async def list_open_reservations_for_event(
+    db: AsyncSession, event_id: uuid.UUID
+) -> list[Reservation]:
+    """Every PENDING/CONFIRMED reservation of the Event, both swap legs
+    included, for `cancel_reservations_without_commit` on event deletion."""
+    return await circulation_service.list_open_reservations_for_event(db, event_id)
 
 
 async def list_product_names_for_items(

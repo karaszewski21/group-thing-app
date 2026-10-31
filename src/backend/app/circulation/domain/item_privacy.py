@@ -43,6 +43,15 @@ class ReservationTerm:
 
 
 @dataclass(frozen=True)
+class ReservationEvent:
+    """The reservation's Event and its author's public-URL slug."""
+
+    starts_at: datetime
+    name: str
+    author_slug: str
+
+
+@dataclass(frozen=True)
 class ItemStatus:
     code: ItemStatusCode
     term_occurs_on: datetime | None = None
@@ -51,6 +60,8 @@ class ItemStatus:
     term_id: uuid.UUID | None = None
     group_id: uuid.UUID | None = None
     group_name: str | None = None
+    event_id: uuid.UUID | None = None
+    event_slug: str | None = None
 
 
 def label(
@@ -99,13 +110,15 @@ def derive_status(
     reservation: Reservation | None,
     term: ReservationTerm | None,
     viewer: uuid.UUID | None,
+    event: ReservationEvent | None = None,
     holder_user_id: uuid.UUID,
     home_owner_user_id: uuid.UUID,
     display_names: Mapping[uuid.UUID, str],
 ) -> ItemStatus:
     """The "Aktualny status" block. `reservation` is the newest active
-    reservation (see `newest_reservation`) and `term` its Term, whose id and
-    group are shown only to the reservation's two parties; `holder_user_id`
+    reservation (see `newest_reservation`) and `term` or `event` its context,
+    whose date is shown to everyone but whose id, name and link are shown
+    only to the reservation's two parties; `holder_user_id`
     owns the item's current inventory (the borrower while lent) and
     `home_owner_user_id` its permanent one."""
     if deleted:
@@ -140,17 +153,31 @@ def derive_status(
         and reservation.paired_reservation_id is None
     ):
         return ItemStatus(ItemStatusCode.PROPOSED_SWAP, counterparty_label=counterparty)
-    if term is None:
-        return ItemStatus(balance_code, counterparty_label=counterparty)
-    if viewer not in {recipient, reservation.giver_user_id}:
+    is_party = viewer in {recipient, reservation.giver_user_id}
+    if term is not None:
+        if not is_party:
+            return ItemStatus(
+                balance_code, term_occurs_on=term.occurs_on, counterparty_label=counterparty
+            )
         return ItemStatus(
-            balance_code, term_occurs_on=term.occurs_on, counterparty_label=counterparty
+            balance_code,
+            term_occurs_on=term.occurs_on,
+            counterparty_label=counterparty,
+            term_id=reservation.term_id,
+            group_id=term.group_id,
+            group_name=term.group_name,
         )
-    return ItemStatus(
-        balance_code,
-        term_occurs_on=term.occurs_on,
-        counterparty_label=counterparty,
-        term_id=reservation.term_id,
-        group_id=term.group_id,
-        group_name=term.group_name,
-    )
+    if event is not None:
+        if not is_party:
+            return ItemStatus(
+                balance_code, term_occurs_on=event.starts_at, counterparty_label=counterparty
+            )
+        return ItemStatus(
+            balance_code,
+            term_occurs_on=event.starts_at,
+            counterparty_label=counterparty,
+            group_name=event.name,
+            event_id=reservation.event_id,
+            event_slug=event.author_slug,
+        )
+    return ItemStatus(balance_code, counterparty_label=counterparty)

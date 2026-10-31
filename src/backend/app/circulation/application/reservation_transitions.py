@@ -2,7 +2,8 @@
 driven `InventoryBalance` field-mutation cascades (kept inline per D2).
 
 `_confirm` / `_cancel` / `_fulfill` only mutate and flush; the public
-wrappers commit.
+wrappers commit, except `cancel_reservations_without_commit` and a
+`commit=False` confirm/cancel, which leave the commit to their caller.
 `_fulfill` returns the `MovementLeg` of the fulfilment and
 `fulfill_exchange` posts it through `post_movement`, the only code that
 changes an item's location. `fulfill_exchange` / `cancel_exchange` resolve
@@ -11,10 +12,11 @@ a whole exchange (a GIFT leg or both SWAP legs) in one commit."""
 from __future__ import annotations
 
 import uuid
-from collections.abc import Sequence
+from collections.abc import Collection, Sequence
 from datetime import datetime
 from typing import cast
 
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.circulation.application.inventory import get_or_create_personal_inventory
@@ -37,6 +39,8 @@ from app.circulation.models import (
 )
 from app.core.errors import BusinessConflictException
 from app.product import service as product_service
+
+_TERMINAL_STATUSES = (ReservationStatus.FULFILLED, ReservationStatus.CANCELLED)
 
 
 async def _load_reservation_for_transition(
@@ -62,17 +66,49 @@ async def _confirm(db: AsyncSession, reservation: Reservation, acting_user_id: u
 
 
 async def _cancel(db: AsyncSession, reservation: Reservation, acting_user_id: uuid.UUID) -> None:
-    if reservation.status in (ReservationStatus.FULFILLED, ReservationStatus.CANCELLED):
+    if reservation.status in _TERMINAL_STATUSES:
         raise BusinessConflictException(f"Reservation {reservation.id} cannot be cancelled")
     item, holder_user_id = await _load_reservation_for_transition(db, reservation)
     _require_party_to_reservation(reservation, holder_user_id, acting_user_id)
+    await _release(db, reservation)
 
+
+async def _release(db: AsyncSession, reservation: Reservation) -> None:
+    """The cancel transition itself: CANCELLED, and the item AVAILABLE
+    again."""
     reservation.status = ReservationStatus.CANCELLED
-    balance = await get_item_balance(db, cast(uuid.UUID, item.id))
+    balance = await get_item_balance(db, reservation.item_id)
     balance.reserved_at = None
     balance.status = BalanceStatus.AVAILABLE
     balance.due_date = None
     await db.flush()
+
+
+async def cancel_reservations_without_commit(
+    db: AsyncSession, reservation_ids: Collection[uuid.UUID]
+) -> list[Reservation]:
+    """Cancels every still-open reservation among `reservation_ids` on
+    behalf of each item's holder (no party check), for a context that is
+    going away. Rows are locked `FOR UPDATE` in id order; FULFILLED and
+    CANCELLED rows are skipped. Flushes only: the caller commits, so the
+    cancellations are atomic with the rest of its transaction. Returns the
+    reservations it cancelled, in id order."""
+    if not reservation_ids:
+        return []
+    reservations = await db.scalars(
+        select(Reservation)
+        .where(Reservation.id.in_(set(reservation_ids)))
+        .order_by(Reservation.id)
+        .with_for_update()
+        .execution_options(populate_existing=True)
+    )
+    cancelled = []
+    for reservation in reservations.all():
+        if reservation.status in _TERMINAL_STATUSES:
+            continue
+        await _release(db, reservation)
+        cancelled.append(reservation)
+    return cancelled
 
 
 async def _fulfill(
@@ -108,20 +144,34 @@ async def _fulfill(
 
 
 async def confirm_reservation(
-    db: AsyncSession, reservation_id: uuid.UUID, acting_user_id: uuid.UUID
+    db: AsyncSession,
+    reservation_id: uuid.UUID,
+    acting_user_id: uuid.UUID,
+    *,
+    commit: bool = True,
 ) -> Reservation:
+    """`commit=False` only flushes, leaving the commit to the caller."""
     reservation = await get_reservation(db, reservation_id)
     await _confirm(db, reservation, acting_user_id)
+    if not commit:
+        return reservation
     await db.commit()
     await db.refresh(reservation)
     return reservation
 
 
 async def cancel_reservation(
-    db: AsyncSession, reservation_id: uuid.UUID, acting_user_id: uuid.UUID
+    db: AsyncSession,
+    reservation_id: uuid.UUID,
+    acting_user_id: uuid.UUID,
+    *,
+    commit: bool = True,
 ) -> Reservation:
+    """`commit=False` only flushes, leaving the commit to the caller."""
     reservation = await get_reservation(db, reservation_id)
     await _cancel(db, reservation, acting_user_id)
+    if not commit:
+        return reservation
     await db.commit()
     await db.refresh(reservation)
     return reservation

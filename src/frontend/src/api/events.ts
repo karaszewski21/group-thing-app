@@ -37,6 +37,8 @@ export interface EventParticipantItem {
   product_name: string;
   mode: ListingMode;
   thumb_url: string | null;
+  /** When it was listed: naive UTC ISO, no offset (parse with `dayjs.utc`). */
+  added_at: string;
 }
 
 /** The author comes first, then active attendees in sign-up order. */
@@ -46,12 +48,20 @@ export interface EventParticipant {
   is_author: boolean;
   /** The viewer themself (the "To Ty" pill). */
   is_me: boolean;
+  /** The 3 newest listed items; `items_total` counts all of them. */
   items: EventParticipantItem[];
+  items_total: number;
+}
+
+export interface EventOpenReservations {
+  total: number;
+  swaps: number;
 }
 
 /** The public event page. `attendee_count` excludes the author;
  * `author_display_name` is the author's Organization name, else their
- * profile name; `is_attending` is the viewer's own active sign-up. */
+ * profile name; `is_attending` is the viewer's own active sign-up;
+ * `open_reservations` is set for the author only, else `null`. */
 export interface EventDetailResponse extends EventResponse {
   banner_url: string | null;
   attendee_count: number;
@@ -61,6 +71,7 @@ export interface EventDetailResponse extends EventResponse {
   participants: EventParticipant[];
   is_attending: boolean;
   has_ended: boolean;
+  open_reservations: EventOpenReservations | null;
 }
 
 /** `guest_name` is required for an anonymous caller, ignored otherwise. */

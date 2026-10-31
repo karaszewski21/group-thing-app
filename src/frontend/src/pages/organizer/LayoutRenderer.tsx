@@ -13,6 +13,7 @@ import { HeroBlock } from "./blocks/HeroBlock";
 import { LinkStackBlock } from "./blocks/LinkStackBlock";
 import { isNeededItemsEmpty, NeededItemsBlock } from "./blocks/NeededItemsBlock";
 import { isNextTermCtaEmpty, NextTermCtaBlock } from "./blocks/NextTermCtaBlock";
+import { isRecentItemsEmpty, RecentItemsBlock } from "./blocks/RecentItemsBlock";
 import { ShareBlock } from "./blocks/ShareBlock";
 import { isStatsEmpty, StatsBlock } from "./blocks/StatsBlock";
 import { isUpcomingTermsEmpty, UpcomingTermsBlock } from "./blocks/UpcomingTermsBlock";
@@ -51,9 +52,16 @@ const BLOCKS: Record<BlockId, BlockDefinition> = {
   "exchange-counts": { Component: ExchangeCountsBlock, directory: true, isEmpty: isExchangeCountsEmpty },
   "exchange-board": { Component: ExchangeBoardBlock, directory: true, isEmpty: isExchangeBoardEmpty },
   "needed-items": { Component: NeededItemsBlock, directory: true, isEmpty: isNeededItemsEmpty },
+  "recent-items": { Component: RecentItemsBlock, directory: true, isEmpty: isRecentItemsEmpty },
 };
 
-const GRID_SKELETON_BLOCKS = new Set<BlockId>(["stats", "circles-grid", "exchange-counts", "exchange-board"]);
+const GRID_SKELETON_BLOCKS = new Set<BlockId>([
+  "stats",
+  "circles-grid",
+  "exchange-counts",
+  "exchange-board",
+  "recent-items",
+]);
 
 /** Without a known circle count (loading or unavailable), only the first slot
  * of a block id matches, so a single skeleton or ghost stands for its variants. */

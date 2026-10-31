@@ -14,12 +14,24 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import Any
 
-from sqlalchemy import ColumnElement, DateTime, Select, String, column, or_, select, table
+from sqlalchemy import (
+    ColumnElement,
+    Date,
+    DateTime,
+    Select,
+    String,
+    and_,
+    column,
+    func,
+    or_,
+    select,
+    table,
+)
 from sqlalchemy.dialects import postgresql
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload, selectinload
 
-from app.circulation.domain.item_privacy import ReservationTerm
+from app.circulation.domain.item_privacy import ReservationEvent, ReservationTerm
 from app.circulation.models import (
     Account,
     AccountType,
@@ -36,13 +48,15 @@ from app.circulation.models import (
     ReservationStatus,
     ReservationType,
 )
+from app.groups.domain.organizer_slug import derive_party_slug
 from app.product.models import Product
 
 # Ad-hoc, typed Core references to other modules' tables — never their ORM
 # models (`app.category`, `app.users`, `app.groups`), per
 # `standards/backend/models.md`'s cross-module rule (precedent:
 # `application/inventory_items.py`'s `_item_listing_preferences`). Only the
-# columns the item page reads are declared.
+# columns the item page reads are declared. Events are reached the same way,
+# never through `app.events`, so that module can keep importing circulation.
 _categories = table(
     "categories",
     column("id", postgresql.UUID(as_uuid=True)),
@@ -63,6 +77,32 @@ _groups = table(
     "groups",
     column("id", postgresql.UUID(as_uuid=True)),
     column("name", String),
+)
+_events = table(
+    "events",
+    column("id", postgresql.UUID(as_uuid=True)),
+    column("author_party_id", postgresql.UUID(as_uuid=True)),
+    column("name", String),
+    column("starts_at", DateTime),
+)
+_organizations = table(
+    "organizations",
+    column("id", postgresql.UUID(as_uuid=True)),
+    column("slug", String),
+)
+# An Organization's owner is the party of its active OWNER membership, as in
+# `app.organizations.service.get_own_organization`.
+_organization_roles = table(
+    "organization_roles",
+    column("id", postgresql.UUID(as_uuid=True)),
+    column("party_id", postgresql.UUID(as_uuid=True)),
+    column("role_type", String),
+)
+_organization_memberships = table(
+    "organization_memberships",
+    column("from_role_id", postgresql.UUID(as_uuid=True)),
+    column("to_organization_id", postgresql.UUID(as_uuid=True)),
+    column("valid_to", Date),
 )
 
 
@@ -323,6 +363,43 @@ def reservation_ids_for_term_select(term_id: uuid.UUID) -> Select[tuple[uuid.UUI
     return select(Reservation.id).where(Reservation.term_id == term_id)
 
 
+async def list_active_hand_over_reservations_for_events(
+    db: AsyncSession, event_ids: list[uuid.UUID]
+) -> list[Reservation]:
+    """`list_active_hand_over_reservations_for_terms` for Events."""
+    result = await db.execute(
+        select(Reservation)
+        .where(
+            Reservation.event_id.in_(event_ids),
+            Reservation.reservation_type == ReservationType.GIFT,
+            Reservation.status.in_((ReservationStatus.PENDING, ReservationStatus.CONFIRMED)),
+        )
+        .order_by(Reservation.id)
+    )
+    return list(result.scalars().all())
+
+
+def reservation_ids_for_event_select(event_id: uuid.UUID) -> Select[tuple[uuid.UUID]]:
+    """`reservation_ids_for_term_select` for an Event."""
+    return select(Reservation.id).where(Reservation.event_id == event_id)
+
+
+async def list_open_reservations_for_event(
+    db: AsyncSession, event_id: uuid.UUID
+) -> list[Reservation]:
+    """Every `PENDING`/`CONFIRMED` reservation of `event_id`, both swap legs
+    included: what deleting the Event cancels."""
+    result = await db.execute(
+        select(Reservation)
+        .where(
+            Reservation.event_id == event_id,
+            Reservation.status.in_((ReservationStatus.PENDING, ReservationStatus.CONFIRMED)),
+        )
+        .order_by(Reservation.id)
+    )
+    return list(result.scalars().all())
+
+
 @dataclass(frozen=True)
 class ItemDetailsRow:
     item: InventoryItem
@@ -370,7 +447,9 @@ async def get_item_details_row(db: AsyncSession, item_id: uuid.UUID) -> ItemDeta
 class ItemHistoryRow:
     """One ledger entry of the item with its transaction, the owner (and
     the owner's display name) of the entry's inventory — `None` for the
-    EXTERNAL account — and its reservation's term date."""
+    EXTERNAL account — and its reservation's context date (the Term's
+    `occurs_on` or the Event's `starts_at`; `None` once the Event is
+    deleted)."""
 
     transaction_id: uuid.UUID
     occurred_at: datetime
@@ -385,7 +464,8 @@ async def list_item_history_rows(db: AsyncSession, item_id: uuid.UUID) -> list[I
     """Every ledger entry of `item_id` in ONE select, newest movement first.
     `created_at` (Python-side insert time) breaks `occurred_at` ties by
     posting order; the random `id` only makes the order deterministic.
-    `user_profiles` and `terms` are read through the Core references."""
+    `user_profiles`, `terms` and `events` are read through the Core
+    references."""
     result = await db.execute(
         select(
             CirculationTransaction.id,
@@ -394,7 +474,7 @@ async def list_item_history_rows(db: AsyncSession, item_id: uuid.UUID) -> list[I
             CirculationEntry.quantity,
             Inventory.owner_user_id,
             _user_profiles.c.display_name,
-            _terms.c.occurs_on,
+            func.coalesce(_terms.c.occurs_on, _events.c.starts_at),
         )
         .select_from(CirculationEntry)
         .join(CirculationTransaction, CirculationTransaction.id == CirculationEntry.transaction_id)
@@ -403,6 +483,7 @@ async def list_item_history_rows(db: AsyncSession, item_id: uuid.UUID) -> list[I
         .outerjoin(_user_profiles, _user_profiles.c.account_user_id == Inventory.owner_user_id)
         .outerjoin(Reservation, Reservation.id == CirculationEntry.reservation_id)
         .outerjoin(_terms, _terms.c.id == Reservation.term_id)
+        .outerjoin(_events, _events.c.id == Reservation.event_id)
         .where(CirculationEntry.item_id == item_id)
         .order_by(
             CirculationTransaction.occurred_at.desc(),
@@ -426,7 +507,12 @@ async def find_display_names(
     return {user_id: name for user_id, name in result.all()}
 
 
-async def find_reservation_term(db: AsyncSession, term_id: uuid.UUID) -> ReservationTerm | None:
+async def find_reservation_term(
+    db: AsyncSession, term_id: uuid.UUID | None
+) -> ReservationTerm | None:
+    """`None` for an event or context-less reservation (`term_id` `None`)."""
+    if term_id is None:
+        return None
     result = await db.execute(
         select(_terms.c.occurs_on, _terms.c.circle_group_id, _groups.c.name)
         .join(_groups, _groups.c.id == _terms.c.circle_group_id)
@@ -434,3 +520,47 @@ async def find_reservation_term(db: AsyncSession, term_id: uuid.UUID) -> Reserva
     )
     row = result.one_or_none()
     return ReservationTerm(*row) if row is not None else None
+
+
+async def find_reservation_event(
+    db: AsyncSession, event_id: uuid.UUID | None
+) -> ReservationEvent | None:
+    """The Event's date and name plus its author's public-URL slug (the
+    author's own Organization slug, else the party hash), in one select;
+    `None` for a term or context-less reservation."""
+    if event_id is None:
+        return None
+    result = await db.execute(
+        select(
+            _events.c.starts_at,
+            _events.c.name,
+            _events.c.author_party_id,
+            _organizations.c.slug,
+        )
+        .outerjoin(
+            _organization_roles,
+            and_(
+                _organization_roles.c.party_id == _events.c.author_party_id,
+                _organization_roles.c.role_type == "OWNER",
+            ),
+        )
+        .outerjoin(
+            _organization_memberships,
+            and_(
+                _organization_memberships.c.from_role_id == _organization_roles.c.id,
+                _organization_memberships.c.valid_to.is_(None),
+            ),
+        )
+        .outerjoin(
+            _organizations,
+            _organizations.c.id == _organization_memberships.c.to_organization_id,
+        )
+        .where(_events.c.id == event_id)
+        .order_by(_organizations.c.slug.is_(None))
+        .limit(1)
+    )
+    row = result.one_or_none()
+    if row is None:
+        return None
+    starts_at, name, author_party_id, organization_slug = row
+    return ReservationEvent(starts_at, name, derive_party_slug(author_party_id, organization_slug))
