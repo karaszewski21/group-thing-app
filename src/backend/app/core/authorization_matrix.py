@@ -49,8 +49,8 @@ _RAW_MATRIX: tuple[_RawEntry, ...] = (
     # non-/api/ path) is deliberately NOT public and needs authentication —
     # a literal "any method" reading of row 10 would swallow it here, before
     # ever reaching row 25, contradicting that note. Resolved as GET-only:
-    # this is an SPA-fallback rule (serving index.html to a browser
-    # navigating), which is inherently a GET concern; scoping it to GET
+    # this rule covers browser navigation to non-API paths (page paths now
+    # get a JSON 404 here; Next.js serves them), a GET concern; scoping it to GET
     # excludes `/oauth2/authorize` (POST) without needing to special-case
     # that path, and lets it correctly fall through to row 25.
     (_methods("GET"), r"^(?!/api/).*$", "PUBLIC"),

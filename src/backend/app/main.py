@@ -2,8 +2,8 @@
 
 Instantiates the app, wires CORS, registers every exception handler, and
 includes every router from Groups 4-9 plus this group's own
-`system.router` — in that order, since `system.router`'s SPA-fallback
-catch-all (`/{full_path:path}`) must be registered LAST: FastAPI's router
+`system.router` — in that order, since `system.router`'s unmatched-path
+404 catch-all (`/{full_path:path}`) must be registered LAST: FastAPI's router
 matches in registration order, so every more-specific route needs to be
 tried first.
 """
@@ -149,7 +149,7 @@ app.add_middleware(GZipMiddleware, minimum_size=1000)
 register_exception_handlers(app)
 register_auth_exception_handlers(app)
 
-# Routers — specific paths before the SPA catch-all (system_router last).
+# Routers — specific paths before the 404 catch-all (system_router last).
 app.include_router(auth_router)
 app.include_router(oauth2_router)
 app.include_router(oauth2_metadata_router)

@@ -1,8 +1,6 @@
 """Read side of organization media: the public `/public/{slug}` payload
 (newest APPROVED logo/cover, APPROVED gallery, CDN URLs, 2 statements), the
-owner's `/mine` list (non-superseded rows, signed URLs for unapproved ones)
-and the `/{slug}` HTML preview, which reads only the newest APPROVED cover
-for its `og:image`, in one statement."""
+owner's `/mine` list (non-superseded rows, signed URLs for unapproved ones)."""
 
 from __future__ import annotations
 
@@ -282,41 +280,3 @@ async def test_mine_storageNone_returnsEmptyMedia(
     assert response.status_code == 200
     assert response.json()["media"] == []
     assert response.json()["name"] == "Media D"
-
-
-async def test_slugPreview_newestApprovedCover_isOgImage_oneMediaQuery(
-    client: AsyncClient, db_session: AsyncSession, engine: AsyncEngine
-) -> None:
-    _, organization = await _create_organization(client, "media.preview1@example.com", "Media E")
-    rows = await _full_media(db_session, organization["id"])
-
-    with count_queries(engine) as statements:
-        response = await client.get(f"/{organization['slug']}")
-
-    assert response.status_code == 200
-    cover_url = _public(rows["cover"])["url"]
-    assert '<meta property="og:title" content="Media E">' in response.text
-    assert f'<meta property="og:image" content="{cover_url}">' in response.text
-    assert '<meta name="twitter:card" content="summary_large_image">' in response.text
-    assert len([statement for statement in statements if "organization_media" in statement]) == 1
-
-
-async def test_slugPreview_noApprovedCover_hasNoOgImage(
-    client: AsyncClient, db_session: AsyncSession
-) -> None:
-    _, organization = await _create_organization(client, "media.preview2@example.com", "Media F")
-    uploader = await _uploader_id(db_session)
-    await create_and_save_media(
-        db_session,
-        organization["id"],
-        uploader,
-        MediaKind.COVER,
-        ModerationStatus.PENDING,
-        minutes=1,
-    )
-
-    response = await client.get(f"/{organization['slug']}")
-
-    assert response.status_code == 200
-    assert "og:image" not in response.text
-    assert '<meta name="twitter:card" content="summary">' in response.text
