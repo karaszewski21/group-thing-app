@@ -9,6 +9,7 @@ from __future__ import annotations
 from app.groups.models import Group, GroupVisibility, Term
 from app.groups.service import (
     ChatAudience,
+    can_view_item,
     get_chat_audience_for_party,
     get_group_including_deleted,
     get_term_any,
@@ -27,6 +28,7 @@ __all__ = [
     "Group",
     "GroupVisibility",
     "Term",
+    "can_view_item",
     "get_chat_audience_for_party",
     "get_group_including_deleted",
     "get_term_any",

@@ -11,7 +11,6 @@ export type ItemStatusCode =
   | "LENT"
   | "DELETED";
 
-export type MovementType = "REGISTER" | "REMOVE" | "GIFT" | "LEND" | "RETURN" | "SWAP";
 
 export interface ItemStatusResponse {
   code: ItemStatusCode;
@@ -19,10 +18,17 @@ export interface ItemStatusResponse {
   due_date: string | null;
   counterparty_label: string | null;
   /** Set only for a reservation party (taker or giver) of a RESERVED or
-   * IN_TRANSIT item; null for everyone else. */
+   * IN_TRANSIT item; null for everyone else. For an event reservation
+   * `term_id`/`group_id` stay null, `group_name` is the event name and
+   * `term_occurs_on` its start. */
   term_id?: string | null;
   group_id?: string | null;
   group_name?: string | null;
+  event_id?: string | null;
+  /** The event author's slug, for `eventPath(event_slug, event_id)`. */
+  event_slug?: string | null;
+  /** The item's open reservation is a personal pickup (no term or event). */
+  personal_pickup: boolean;
 }
 
 /** The item page's read model. `description` and `photos` belong to the
@@ -44,19 +50,6 @@ export interface ItemDetailsResponse {
   status: ItemStatusResponse;
 }
 
-/** One movement, newest first. Carries no ids: `description` is the
- * server-built, privacy-labelled "{from} → {to}" text. */
-export interface ItemHistoryEntryResponse {
-  occurred_at: string;
-  movement_type: MovementType;
-  description: string;
-  term_occurs_on: string | null;
-}
-
 export function getItemDetails(id: string): Promise<ItemDetailsResponse> {
   return api.get(`/inventory-items/${encodeURIComponent(id)}/details`);
-}
-
-export function getItemHistory(id: string): Promise<ItemHistoryEntryResponse[]> {
-  return api.get(`/inventory-items/${encodeURIComponent(id)}/history`);
 }

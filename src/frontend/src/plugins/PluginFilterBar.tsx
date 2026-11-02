@@ -1,6 +1,6 @@
 import { Flex, Input, Switch, Text } from "@chakra-ui/react";
 import { useRef, useState } from "react";
-import type { ResolvedExtensionPoint } from "./PluginContext";
+import type { ResolvedExtensionPoint } from "./resolveExtensionPoints";
 
 interface PluginFilterBarProps {
   filters: ResolvedExtensionPoint[];

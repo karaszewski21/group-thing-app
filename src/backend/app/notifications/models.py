@@ -44,7 +44,9 @@ class NotificationKind(enum.StrEnum):
     `TERM_CONFIRMATION_NEEDED` goes to both parties of an `ACCEPTED` swap
     or of a still-open GIFT reservation once its Term ends, and
     `TERM_ALREADY_RESOLVED` goes to the other party in a swap/giveaway when
-    they act after the first party already resolved the same transaction."""
+    they act after the first party already resolved the same transaction,
+    and `RESERVATION_CANCELLED` goes to both parties of a reservation or
+    swap cancelled because its event was deleted."""
 
     PLEDGE_CREATED = "PLEDGE_CREATED"
     PLEDGE_WITHDRAWN = "PLEDGE_WITHDRAWN"
@@ -56,6 +58,7 @@ class NotificationKind(enum.StrEnum):
     SWAP_REJECTED = "SWAP_REJECTED"
     TERM_CONFIRMATION_NEEDED = "TERM_CONFIRMATION_NEEDED"
     TERM_ALREADY_RESOLVED = "TERM_ALREADY_RESOLVED"
+    RESERVATION_CANCELLED = "RESERVATION_CANCELLED"
 
 
 class Notification(BaseEntity):

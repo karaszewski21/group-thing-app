@@ -109,6 +109,85 @@ describe("Plugin SDK", () => {
     });
   });
 
+  describe("hostApp.uploadImage", () => {
+    it("posts uploadImage with url and the unencoded file, resolves the pluginFetch shape", async () => {
+      const { hostApp } = await import("../plugin-sdk/host-app");
+      const { handleResponse } = await import("../plugin-sdk/messaging");
+
+      (window as Window & { __pluginHostOrigin?: string }).__pluginHostOrigin = "http://localhost:8080";
+      const mockPostMessage = vi.fn();
+      vi.stubGlobal("parent", { postMessage: mockPostMessage });
+
+      const file = new File(["png-bytes"], "banner.png", { type: "image/png" });
+      const resultPromise = hostApp.uploadImage("/api/events/ev-1/banner", file);
+
+      expect(mockPostMessage).toHaveBeenCalledOnce();
+      const [postedMessage, targetOrigin] = mockPostMessage.mock.calls[0];
+      expect(targetOrigin).toBe("http://localhost:8080");
+      expect(postedMessage.type).toBe("uploadImage");
+      expect(postedMessage.payload.url).toBe("/api/events/ev-1/banner");
+      expect(postedMessage.payload.file).toBe(file);
+
+      const envelope = { status: 201, headers: { "content-type": "application/json" }, body: "{}" };
+      handleResponse({ responseId: postedMessage.requestId, payload: envelope });
+
+      await expect(resultPromise).resolves.toEqual(envelope);
+
+      vi.unstubAllGlobals();
+      delete (window as Window & { __pluginHostOrigin?: string }).__pluginHostOrigin;
+    });
+
+    it("waits 60 seconds before timing out, unlike the 10 s default", async () => {
+      const { hostApp } = await import("../plugin-sdk/host-app");
+
+      (window as Window & { __pluginHostOrigin?: string }).__pluginHostOrigin = "http://localhost:8080";
+      vi.stubGlobal("parent", { postMessage: vi.fn() });
+
+      const file = new File(["png-bytes"], "banner.png", { type: "image/png" });
+      const resultPromise = hostApp.uploadImage("/api/events/ev-1/banner", file);
+      const rejected = vi.fn();
+      resultPromise.catch(rejected);
+
+      await vi.advanceTimersByTimeAsync(10_001);
+      expect(rejected).not.toHaveBeenCalled();
+      await vi.advanceTimersByTimeAsync(50_000);
+      await expect(resultPromise).rejects.toThrow("timeout");
+
+      vi.unstubAllGlobals();
+      delete (window as Window & { __pluginHostOrigin?: string }).__pluginHostOrigin;
+    });
+  });
+
+  describe("thisPlugin.done", () => {
+    it("sends a fire-and-forget done message with the payload", async () => {
+      vi.resetModules();
+      Object.defineProperty(window, "name", {
+        value: 'add.event{"pluginId":"events","pluginName":"Events","hostOrigin":"http://localhost:8080"}',
+        writable: true,
+      });
+
+      const { thisPlugin } = await import("../plugin-sdk/this-plugin");
+      const { getPendingCount } = await import("../plugin-sdk/messaging");
+
+      const mockPostMessage = vi.fn();
+      vi.stubGlobal("parent", { postMessage: mockPostMessage });
+
+      const countBefore = getPendingCount();
+      const result = thisPlugin.done({ name: "Bieg nad Wisłą" });
+
+      expect(result).toBeUndefined();
+      expect(mockPostMessage).toHaveBeenCalledOnce();
+      const [postedMessage, targetOrigin] = mockPostMessage.mock.calls[0];
+      expect(targetOrigin).toBe("http://localhost:8080");
+      expect(postedMessage.type).toBe("done");
+      expect(postedMessage.payload).toEqual({ name: "Bieg nad Wisłą" });
+      expect(getPendingCount()).toBe(countBefore);
+
+      vi.unstubAllGlobals();
+      Object.defineProperty(window, "name", { value: "", writable: true });
+    });
+  });
+
   describe("thisPlugin.getContext", () => {
     it("returns parsed context with productId from window.name", async () => {
       // Reset the cached context by re-importing fresh module

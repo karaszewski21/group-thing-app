@@ -5,6 +5,7 @@ from __future__ import annotations
 
 from app.messaging.application.conversations import (
     get_conversation,
+    open_event_conversation,
     open_group_conversation,
     open_item_conversation,
     open_term_conversation,
@@ -19,6 +20,7 @@ __all__ = [
     "list_inbox",
     "list_messages",
     "mark_read",
+    "open_event_conversation",
     "open_group_conversation",
     "open_item_conversation",
     "open_term_conversation",

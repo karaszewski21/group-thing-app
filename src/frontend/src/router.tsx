@@ -18,35 +18,45 @@ import { OAuth2AuthorizePage } from "./pages/auth/OAuth2AuthorizePage";
 import { TermPage } from "./pages/term/TermPage";
 import { AppPage } from "./pages/home/AppPage";
 import { TermAttendeesPage } from "./pages/meetings/TermAttendeesPage";
-import { GroupDetailsPage } from "./pages/meetings/GroupDetailsPage";
+import { GroupDetailsPage } from "./pages/groups/GroupDetailsPage";
+import { EventPage } from "./pages/events/EventPage";
 import { InboxPage } from "./pages/messages/InboxPage";
 import { ThreadPage } from "./pages/messages/ThreadPage";
-import { ItemCreatePage } from "./pages/product/ItemCreatePage";
 import { ItemDetailBody, ItemDetailPage } from "./pages/product/ItemDetailPage";
-import { ItemEditBody, ItemEditPage } from "./pages/product/ItemEditPage";
 import { OrganizerItemLayout } from "./pages/product/OrganizerItemLayout";
 import { OnboardingPage } from "./pages/auth/OnboardingPage";
 import { LandingPage } from "./pages/home/LandingPage";
+import { PublicAddView } from "./pages/add/AddView";
+import { PhoneFrame } from "./components/shared/PhoneFrame";
 import { OrganizationPage } from "./pages/organizer/OrganizationPage";
 import { OrganizerTermsPage } from "./pages/organizer/OrganizerTermsPage";
+import { OwnerItemsPage } from "./pages/owner/OwnerItemsPage";
 import { PublicOrganizationPage } from "./pages/organizer/PublicOrganizationPage";
 import { AuthGuard } from "./auth/AuthGuard";
 import { useAuth } from "./auth/AuthContext";
 import { PluginProvider } from "./plugins/PluginContext";
-import { viewPath, type View } from "./utils/appHelpers";
+import { viewPath, type ID_PATH_VIEWS, type View } from "./utils/appHelpers";
 import { INBOX_PATH } from "./utils/messagesPaths";
 
-const PANEL_VIEWS: readonly Exclude<View, "home">[] = [
+// The ID_PATH_VIEWS have their own routes below: their paths carry an id.
+const PANEL_VIEWS: readonly Exclude<View, "home" | (typeof ID_PATH_VIEWS)[number]>[] = [
   "meetings",
+  "groups",
+  "groups/new",
   "items",
   "profile",
   "settings",
   "places",
+  "places/new",
   "family",
+  "family/new",
+  "family/edit",
+  "family/members/new",
   "account",
   "search",
   "wanted",
   "add",
+  "add/product",
   "add/term",
   "add/event",
   "add/hunting",
@@ -64,11 +74,21 @@ function Layout() {
 
 /** Every panel section, "/" included: one element type for all of them, so
  * switching sections keeps AppPage (and its loaded data) mounted. An
- * anonymous visitor gets the LandingPage at "/" and the login page elsewhere. */
+ * anonymous visitor gets the LandingPage at "/", the "Co dodajesz?" tiles at
+ * /add (each leading to the login page) and the login page elsewhere. */
 function AppRoute() {
   const { token } = useAuth();
   const { pathname } = useLocation();
   if (!token && pathname === "/") return <LandingPage />;
+  if (!token && pathname === viewPath("add")) {
+    return (
+      <PhoneFrame>
+        <div className="flex-1 overflow-y-auto px-[18px] pb-6 pt-[18px]">
+          <PublicAddView />
+        </div>
+      </PhoneFrame>
+    );
+  }
   return <AuthGuard><AppPage /></AuthGuard>;
 }
 
@@ -116,14 +136,36 @@ export const routes: RouteObject[] = [
         element: <AppRoute />,
       })),
       {
+        path: "/groups/:groupId/edit",
+        element: <AppRoute />,
+      },
+      {
+        path: "/places/:locationId/edit",
+        element: <AppRoute />,
+      },
+      {
+        path: "/family/members/:familyMembershipId/edit",
+        element: <AppRoute />,
+      },
+      {
+        // Editing stays under "/events" (in the backend's RESERVED_SLUGS);
+        // the event page itself lives under the author's slug, below.
+        path: "/events/:eventId/edit",
+        element: <AppRoute />,
+      },
+      {
+        path: "/terms/:termId/edit",
+        element: <AppRoute />,
+      },
+      {
         // Organizer-only attendee list for one term. Standalone (no
         // AppDataProvider): the page resolves the group from the term.
         path: "/terms/:termId",
         element: <AuthGuard><TermAttendeesPage /></AuthGuard>,
       },
       {
-        // Group details + standing member list, reached from the "Prowadzę"
-        // tiles.
+        // Group details + standing member list, reached from the group
+        // tiles on /groups ("Moje grupy").
         path: "/groups/:groupId",
         element: <AuthGuard><GroupDetailsPage /></AuthGuard>,
       },
@@ -136,19 +178,16 @@ export const routes: RouteObject[] = [
         element: <AuthGuard><ThreadPage /></AuthGuard>,
       },
       {
-        // Adding an item; standalone (no AppDataProvider), unlike the other
-        // `/add/*` pages, which are panel views.
-        path: "/add/product",
-        element: <AuthGuard><ItemCreatePage /></AuthGuard>,
-      },
-      {
-        // Item pages; "product" is in the backend's RESERVED_SLUGS.
+        // Item pages — public, no AuthGuard: listed items read anonymously;
+        // a non-public item sends an anonymous visitor to login (ItemDetailBody).
+        // "product" is in the backend's RESERVED_SLUGS.
         path: "/product/:id",
-        element: <AuthGuard><ItemDetailPage /></AuthGuard>,
+        element: <ItemDetailPage />,
       },
       {
+        // Former edit subpage: editing now happens in place on the item page.
         path: "/product/:id/edit",
-        element: <AuthGuard><ItemEditPage /></AuthGuard>,
+        element: <Navigate to="..?edit=1" relative="path" replace />,
       },
       {
         // The bare organizer product prefix has no page of its own: back to
@@ -159,19 +198,25 @@ export const routes: RouteObject[] = [
       },
       {
         // Item pages reached from an organizer's term page: the same bodies
-        // as /product/:id[/edit], in the organizer's palette and without the
+        // as /product/:id, in the organizer's palette and without the
         // panel nav (see OrganizerItemLayout). "product" and "group" are in
         // the backend's RESERVED_SLUGS.
         path: "/:organizationSlug/product/:id",
-        element: <AuthGuard><OrganizerItemLayout /></AuthGuard>,
+        element: <OrganizerItemLayout />,
         children: [
           { index: true, element: <ItemDetailBody /> },
-          { path: "edit", element: <ItemEditBody /> },
+          { path: "edit", element: <Navigate to="..?edit=1" relative="path" replace /> },
         ],
       },
       {
         path: "/:organizationSlug/group/:groupId/term/:termId",
         element: <TermPage />,
+      },
+      {
+        // The public event page — no AuthGuard; the author gets edit/delete.
+        // "event" is in the backend's RESERVED_SLUGS.
+        path: "/:organizationSlug/event/:eventId",
+        element: <EventPage />,
       },
       {
         // The organizer's full agenda — public, no AuthGuard. Two segments, so
@@ -180,6 +225,12 @@ export const routes: RouteObject[] = [
         // reads like this path segment (as with "group").
         path: "/:organizationSlug/terms",
         element: <OrganizerTermsPage />,
+      },
+      {
+        // The owner's listed items — public, no AuthGuard. A UUID-shaped first
+        // segment is a party id (any person), otherwise an Organization slug.
+        path: "/:organizationSlug/items",
+        element: <OwnerItemsPage />,
       },
       {
         path: "/:organizationSlug",

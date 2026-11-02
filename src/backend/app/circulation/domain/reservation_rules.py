@@ -51,7 +51,7 @@ def _require_exchange_legs(reservations: Sequence[Reservation]) -> None:
 def _require_holder_to_confirm(holder_user_id: uuid.UUID, acting_user_id: uuid.UUID) -> None:
     """Mutual-consent gate for `confirm`: `reserved_by_user_id` is always
     the party *gaining* the item as a result of this reservation (the one
-    who proposed it — see `create_reservation`/`take_item_listing`), and
+    who proposed it — see `create_reservation`/`take_item`), and
     `holder_user_id` is always the party *giving it up* — two always-
     distinct roles (the fulfilment's movement always leaves from the
     holder's inventory account, e.g. a GIFT moves the item from the

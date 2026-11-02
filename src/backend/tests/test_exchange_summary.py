@@ -25,10 +25,10 @@ from app.core.errors import AccessDeniedException, EntityNotFoundException
 from app.core.security import decode_token
 from app.families.models import Family, FamilyMembership, FamilyRole, FamilyRoleType
 from app.groups import service
-from app.groups.schemas import TakeTermItemListingRequest
 from app.party.models import Party, PartyType
 from app.users.service import get_profile_by_principal
 from tests.conftest import leaf_category_ids
+from tests.test_term_item_listings import _propose_in_term, _take_in_term
 
 
 def _auth(token: str) -> dict[str, str]:
@@ -238,12 +238,7 @@ async def test_fulfilledOrCancelledOffer_doesNotCountAsActive_sharesItemFalse(
         headers=_auth(taker_token),
     )
 
-    await service.take_item_listing(
-        db_session,
-        _principal(taker_token),
-        item_id,
-        TakeTermItemListingRequest(term_id=term_id, reservation_type="GIFT"),
-    )
+    await _take_in_term(db_session, _principal(taker_token), item_id, term_id)
 
     summary = await service.get_group_exchange_summary(db_session, group_id, lister_party_id)
 
@@ -398,3 +393,119 @@ async def test_getFamilyExchangeOffers_familyFromOtherGroup_raisesNotFound(
         await service.get_family_exchange_offers(
             db_session, group1_id, other_family_id, viewer_party_id
         )
+
+
+async def test_pendingSwapProposal_offerNoLongerTakeable_sharesItemFalseAndNoOffer(
+    client: AsyncClient, db_session: AsyncSession
+) -> None:
+    org_token, _ = await _register(client, "ORGANIZER", "exs.org9@example.com")
+    group_id, term_id = await _create_circle_and_term(client, org_token, "exs9")
+    rsvp = {"term_id": term_id, "guardian_name": "ignored", "child_count": 0}
+
+    lister_token, lister_party_id = await _register(client, "GUEST", "exs.lister9@example.com")
+    family_id = await _join_group_as_family_guardian(
+        client, db_session, lister_token, group_id, "Rodzina 9"
+    )
+    await client.post(f"/api/groups/public/{group_id}/rsvp", json=rsvp, headers=_auth(lister_token))
+    item_id = await _register_personal_item(client, lister_token, "Rower 9")
+    await service.set_item_listing_preference(
+        db_session, _principal(lister_token), item_id, ReservationType.SWAP
+    )
+
+    proposer_token, _ = await _register(client, "GUEST", "exs.proposer9@example.com")
+    await client.post(
+        f"/api/groups/public/{group_id}/rsvp", json=rsvp, headers=_auth(proposer_token)
+    )
+    offered_id = await _register_personal_item(client, proposer_token, "Rolki 9")
+    await service.set_item_listing_preference(
+        db_session, _principal(proposer_token), offered_id, ReservationType.SWAP
+    )
+    await _propose_in_term(
+        db_session, _principal(proposer_token), item_id, offered_id, uuid.UUID(term_id)
+    )
+
+    summary = await service.get_group_exchange_summary(db_session, group_id, lister_party_id)
+    offers = await service.get_family_exchange_offers(
+        db_session, group_id, family_id, lister_party_id
+    )
+
+    [family] = [f for f in summary.families if f.family_id == family_id]
+    assert family.shares_item is False
+    assert offers.offers == []
+
+
+async def _add_co_guardian(
+    db_session: AsyncSession, family_id: uuid.UUID, party_id: uuid.UUID
+) -> None:
+    role = FamilyRole(party_id=party_id, role_type=FamilyRoleType.GUARDIAN, valid_from=date.today())
+    db_session.add(role)
+    await db_session.flush()
+    db_session.add(
+        FamilyMembership(
+            from_role_id=role.id,
+            to_family_id=family_id,
+            is_primary_contact=False,
+            valid_from=date.today(),
+        )
+    )
+    await db_session.commit()
+
+
+async def _list_private(client: AsyncClient, token: str, product_name: str) -> uuid.UUID:
+    item_id = await _register_personal_item(client, token, product_name)
+    response = await client.put(
+        f"/api/item-listing-preferences/{item_id}",
+        json={"mode": "GIFT", "visibility": "PRIVATE"},
+        headers=_auth(token),
+    )
+    assert response.status_code == 200, response.text
+    return item_id
+
+
+async def test_privateCircle_rsvpOnlyCoGuardianPrivateItem_notOffered_memberGuardianOffered(
+    client: AsyncClient, db_session: AsyncSession
+) -> None:
+    """A co-guardian who only RSVPs to a PRIVATE circle's term is not in
+    that circle: their PRIVATE item neither marks the family as sharing nor
+    shows among its offers, while a member guardian's PRIVATE item does."""
+    org_token, _ = await _register(client, "ORGANIZER", "exs.org10@example.com")
+    group_id, term_id = await _create_circle_and_term(client, org_token, "exs10")
+    rsvp = {"term_id": term_id, "guardian_name": "ignored", "child_count": 0}
+
+    member_token, member_party_id = await _register(client, "GUEST", "exs.member10@example.com")
+    family_id = await _join_group_as_family_guardian(
+        client, db_session, member_token, group_id, "Rodzina 10"
+    )
+    co_token, co_party_id = await _register(client, "GUEST", "exs.co10@example.com")
+    await _add_co_guardian(db_session, family_id, co_party_id)
+
+    lone_token, _ = await _register(client, "GUEST", "exs.lone10@example.com")
+    lone_family_id = await _join_group_as_family_guardian(
+        client, db_session, lone_token, group_id, "Rodzina 10b"
+    )
+    lone_co_token, lone_co_party_id = await _register(client, "GUEST", "exs.loneco10@example.com")
+    await _add_co_guardian(db_session, lone_family_id, lone_co_party_id)
+
+    for token in (member_token, co_token, lone_token, lone_co_token):
+        response = await client.post(
+            f"/api/groups/public/{group_id}/rsvp", json=rsvp, headers=_auth(token)
+        )
+        assert response.status_code == 201, response.text
+    member_item = await _list_private(client, member_token, "Rowerek 10")
+    await _list_private(client, co_token, "Sanki 10")
+    await _list_private(client, lone_co_token, "Narty 10")
+    patched = await client.patch(
+        f"/api/groups/{group_id}",
+        json={"name": "Krąg exs10", "visibility": "PRIVATE"},
+        headers=_auth(org_token),
+    )
+    assert patched.status_code == 200, patched.text
+
+    summary = await service.get_group_exchange_summary(db_session, group_id, member_party_id)
+    offers = await service.get_family_exchange_offers(
+        db_session, group_id, family_id, member_party_id
+    )
+
+    shares = {family.family_id: family.shares_item for family in summary.families}
+    assert shares == {family_id: True, lone_family_id: False}
+    assert [offer.item_id for offer in offers.offers] == [member_item]

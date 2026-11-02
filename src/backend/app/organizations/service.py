@@ -7,7 +7,7 @@ their own Organization) live here, raising `AccessDeniedException` — per
 from __future__ import annotations
 
 import uuid
-
+from collections.abc import Collection
 from datetime import date
 from typing import cast
 
@@ -33,16 +33,30 @@ async def _slug_taken(db: AsyncSession, slug: str) -> bool:
     return result.scalar_one_or_none() is not None
 
 
+def _is_uuid_shaped(candidate: str) -> bool:
+    """`/<uuid>/items` is the party-id owner page, so a slug that parses as a
+    UUID would be read as a party id."""
+    try:
+        uuid.UUID(candidate)
+    except ValueError:
+        return False
+    return True
+
+
 async def _generate_unique_slug(db: AsyncSession, name: str) -> str:
     """Derives a slug from `name`, appending `-2`, `-3`, ... until it is
-    neither reserved (`RESERVED_SLUGS`) nor already taken by another
+    neither reserved (`RESERVED_SLUGS`, or UUID-shaped) nor already taken by another
     Organization — this is the whitelist enforcement point: an organizer
     can never end up with `/panel`, `/login`, etc. as their page, they
     silently get `panel-2` instead rather than a rejected save."""
     base = slugify(name)
     candidate = base
     suffix = 2
-    while candidate in RESERVED_SLUGS or await _slug_taken(db, candidate):
+    while (
+        candidate in RESERVED_SLUGS
+        or _is_uuid_shaped(candidate)
+        or await _slug_taken(db, candidate)
+    ):
         candidate = f"{base}-{suffix}"
         suffix += 1
     return candidate
@@ -92,6 +106,26 @@ async def get_own_organization(db: AsyncSession, owner_party_id: uuid.UUID) -> O
     if membership is None:
         return None
     return await get_organization(db, cast(uuid.UUID, membership.to_organization_id))
+
+
+async def get_own_organizations_by_party_ids(
+    db: AsyncSession, party_ids: Collection[uuid.UUID]
+) -> dict[uuid.UUID, Organization]:
+    """`get_own_organization` for many owners in one statement; a party
+    without an Organization is simply absent from the result."""
+    if not party_ids:
+        return {}
+    rows = await db.execute(
+        select(OrganizationRole.party_id, Organization)
+        .join(OrganizationMembership, OrganizationMembership.from_role_id == OrganizationRole.id)
+        .join(Organization, Organization.id == OrganizationMembership.to_organization_id)
+        .where(
+            OrganizationRole.party_id.in_(set(party_ids)),
+            OrganizationRole.role_type == OrganizationRoleType.OWNER,
+            OrganizationMembership.valid_to.is_(None),
+        )
+    )
+    return {party_id: organization for party_id, organization in rows.tuples()}
 
 
 async def get_owner_party_id(db: AsyncSession, organization_id: uuid.UUID) -> uuid.UUID | None:

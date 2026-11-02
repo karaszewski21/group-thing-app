@@ -16,6 +16,7 @@ vi.mock("../api/conversations", async (importOriginal) => {
     getOrCreateItemConversation: vi.fn(),
     getOrCreateGroupConversation: vi.fn(),
     getOrCreateTermConversation: vi.fn(),
+    getOrCreateEventConversation: vi.fn(),
   };
 });
 
@@ -45,6 +46,7 @@ describe("useOpenConversation", () => {
     ["ITEM", "getOrCreateItemConversation"],
     ["GROUP", "getOrCreateGroupConversation"],
     ["TERM", "getOrCreateTermConversation"],
+    ["EVENT", "getOrCreateEventConversation"],
   ] as const)("open_%s_callsItsGetOrCreateAndInvalidatesTheInbox", async (kind, fn) => {
     vi.mocked(conversationsApi[fn]).mockResolvedValue(conversation("c1"));
     const client = createTestQueryClient();

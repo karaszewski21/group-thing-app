@@ -1,0 +1,498 @@
+<!DOCTYPE html>
+<html lang="pl"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>E2E Verification Report — 2026-10-31-product-page-reservations-visibility-location</title><style>:root{--bg:#f6f7f9;--surface:#fff;--border:#e2e5ea;--text:#1a1d23;--dim:#6b7280;--accent:#4f46e5;--accent-soft:#eef2ff;--ok:#16a34a;--ok-soft:#ecfdf3;--warn:#d97706;--warn-soft:#fffbeb;--crit:#dc2626;--crit-soft:#fef2f2;--info:#2563eb;--info-soft:#eff6ff;--radius:10px;}
+@media (prefers-color-scheme: dark){:root{--bg:#111418;--surface:#1a1f26;--border:#2e3640;--text:#e6e9ee;--dim:#9aa4b2;--accent:#818cf8;--accent-soft:#26294a;--ok:#4ade80;--ok-soft:#11291a;--warn:#fbbf24;--warn-soft:#2e2410;--crit:#f87171;--crit-soft:#321616;--info:#60a5fa;--info-soft:#15233a;}}
+*{box-sizing:border-box;}
+body{margin:0 auto;max-width:1100px;padding:24px 20px 64px;background:var(--bg);color:var(--text);font:14px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;}
+a{color:var(--accent);text-decoration:none;}a:hover{text-decoration:underline;}
+h1{font-size:22px;letter-spacing:-.01em;}h2{font-size:16px;margin-top:28px;}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:16px 18px;margin:14px 0;}
+.badge{display:inline-block;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.04em;padding:2px 8px;border-radius:99px;background:var(--accent-soft);color:var(--accent);}
+.sev{display:inline-block;font-size:10.5px;font-weight:700;text-transform:uppercase;padding:1.5px 7px;border-radius:99px;margin-right:6px;}
+.sev.critical{background:var(--crit-soft);color:var(--crit);}.sev.warning{background:var(--warn-soft);color:var(--warn);}.sev.info{background:var(--info-soft);color:var(--info);}
+.pass{color:var(--ok);font-weight:600;}.fail{color:var(--crit);font-weight:600;}
+table{width:100%;border-collapse:collapse;}th,td{text-align:left;padding:7px 10px;border-bottom:1px solid var(--border);vertical-align:top;}
+th{font-size:11.5px;text-transform:uppercase;letter-spacing:.04em;color:var(--dim);}
+code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12.5px;background:var(--accent-soft);padding:1px 5px;border-radius:4px;}
+img.shot{max-width:100%;border:1px solid var(--border);border-radius:var(--radius);}
+details>summary{cursor:pointer;font-weight:600;}
+.crumbs{display:flex;gap:14px;font-size:13px;margin-bottom:18px;flex-wrap:wrap;}.crumbs a.md{margin-left:auto;color:var(--dim);}.crumbs .here{font-weight:650;color:var(--text);}
+.tiles{display:flex;gap:10px;flex-wrap:wrap;margin:14px 0;}.tile{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:10px 16px;text-align:center;min-width:90px;}
+.tile b{display:block;font-size:20px;letter-spacing:-.01em;}.tile span{font-size:10.5px;text-transform:uppercase;letter-spacing:.05em;color:var(--dim);}
+.banner{border-radius:var(--radius);padding:14px 18px;font-weight:700;font-size:16px;background:var(--warn-soft);color:var(--warn);border:1px solid var(--warn);}
+.tldr{border-left:4px solid var(--accent);}
+.shots{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:10px;margin:8px 0;}
+.shots figure{margin:0}.shots figcaption{font-size:11.5px;color:var(--dim);word-break:break-all}
+.pair{display:grid;grid-template-columns:1fr 1fr;gap:12px}.pair iframe{width:100%;height:520px;border:1px solid var(--border);border-radius:var(--radius);background:#fff}
+@media (max-width:700px){.pair{grid-template-columns:1fr}}
+</style></head>
+<body><nav class="crumbs"><a href="../dashboard.html">← Dashboard</a><a href="../implementation/spec.html">Spec</a><a href="../implementation/implementation-plan.html">Plan</a><a href="implementation-verification.html">Verification</a><a href="visual-fidelity.html">Visual fidelity</a><span class="here">E2E Verification Report</span><a href="e2e-verification-report.md" target="_blank" rel="noopener" class="md">md twin ↗</a></nav>
+<header><span class="badge">e2e</span><h1>E2E Verification Report</h1><div style="color:var(--dim);font-size:12.5px">Generated 2026-11-01 · twin: <a href="e2e-verification-report.md" target="_blank" rel="noopener">e2e-verification-report.md</a></div></header>
+<div class="banner">⚠️ GO WITH CAVEATS — 12/12 scenarios passed (2 with minor issues); 0 critical, 0 major</div>
+<div class="tiles"><div class="tile"><b>GO w/ caveats</b><span>verdict</span></div><div class="tile"><b>12/12</b><span>scenarios passed</span></div><div class="tile"><b>0</b><span>failed</span></div><div class="tile"><b>0/0</b><span>critical/major</span></div><div class="tile"><b>1</b><span>minor</span></div><div class="tile"><b>3</b><span>cosmetic</span></div></div>
+<section class="card tldr"><h2 id="tl-dr">TL;DR</h2>
+<ul>
+<li>Verdict: <b>GO WITH CAVEATS</b>. All 12 scenarios ran and passed, 2 of them with minor issues. Nothing is Critical or Major.</li>
+<li>These work end to end in the real UI against a live backend at 0077: inventory location, the visibility toggle, the 3-action product page, a personal GIFT reservation that opens the ITEM chat, giver cancel with a confirmation dialog, receiver confirm, reserved badges with the name rules, the organizer and owner-items counts, and the 404 gate on PRIVATE items.</li>
+<li>The findings are 1 Minor (own-item copy on an unlisted item) and 3 Cosmetic (organizer tab strip overflows on mobile; an EXCHANGE-layout counts row is missing compared with the mockup; a sheet button label).</li>
+<li>No JavaScript console errors and no backend 5xx. Every console error was an expected 404 from a gate.</li>
+</ul>
+<h2 id="key-decisions">Key Decisions</h2>
+<ul>
+<li>Test data was created through the public API with fake users. A is the owner and organizer ("Ania"). B is the taker and has an RSVP on A's term ("Bartek"). C is a logged-in stranger ("Celina"). Every UI step was then run in the browser.</li>
+<li>Personal pickup was tested end to end in the UI: reserve, cancel by the giver, confirm by the receiver. The second reservation of the same item, and the reservation of the tile item, were made through the API so the confirm and tile states could be tested.</li>
+</ul>
+<h2 id="open-questions-risks">Open Questions / Risks</h2>
+<ul>
+<li>Organizer and term-page tiles link to <code>/&lt;org-slug&gt;/product/&lt;id&gt;</code>, not to a plain <code>/product/&lt;id&gt;</code>. There is no <code>?term</code>/<code>?event</code> query. This is how spec R5.9 defines <code>organizerItemPath</code>, and that route shows the same product page. The orchestrator brief expected a plain <code>/product/:id</code>, so please confirm this is what you want.</li>
+<li>In the <code>reserved</code> view the "Gdzie jeszcze można odebrać" list is hidden. This matches the mockup and the R5.2 union, but R5.4 says "every viewer sees it". The spec contradicts itself here.</li>
+</ul></section>
+
+<main><h2 id="1-identifier">1. Identifier</h2>
+<ul>
+<li><b>Task</b>: 2026-10-31-product-page-reservations-visibility-location</li>
+<li><b>Task path</b>: C:\Users\karas\Desktop\swaptime\group-thing-app\.maister\tasks\development\2026-10-31-product-page-reservations-visibility-location</li>
+<li><b>Spec</b>: C:\Users\karas\Desktop\swaptime\group-thing-app\.maister\tasks\development\2026-10-31-product-page-reservations-visibility-location\implementation\spec.md</li>
+<li><b>Date</b>: 2026-11-01</li>
+<li><b>Git ref</b>: bf55353 + uncommitted working tree, branch <code>feat/product-page-reservations</code></li>
+<li><b>Tester</b>: e2e-test-verifier (maister)</li>
+</ul>
+<h2 id="2-test-environment">2. Test Environment</h2>
+<div class="card" style="overflow-x:auto"><table><tr><th>Field</th><th>Value</th></tr>
+<tr><td>Base URL</td><td>http://localhost:5173 (Vite dev server, <code>/api</code> proxied to uvicorn on 127.0.0.1:8080)</td></tr>
+<tr><td>Browser</td><td>Playwright MCP Chromium</td></tr>
+<tr><td>Viewport</td><td>430×1400 for product/list pages (mobile). The first Moje rzeczy capture used the default desktop viewport</td></tr>
+<tr><td>Auth context</td><td>Anonymous; A (owner/organizer, ORGANIZER role); B (GUEST with an RSVP on A's PUBLIC-circle term); C (GUEST, no shared context)</td></tr>
+<tr><td>Test data</td><td>Seeded through the public API: 1 PUBLIC circle and 1 term on 2026-11-20 17:00 at "Szkoła Testowa"; 2 MANUAL locations; 4 listed items (GIFT, SWAP, GIFT→PRIVATE, GIFT→reserved) plus 1 draft; an organization with the EXCHANGE layout. DB migrated to 0077 (0074–0077 applied during this run)</td></tr>
+</table></div>
+<h2 id="3-executive-summary">3. Executive Summary</h2>
+<p><b>Verdict</b>: ⚠️ GO WITH CAVEATS</p>
+<div class="card" style="overflow-x:auto"><table><tr><th>Metric</th><th>Count</th></tr>
+<tr><td>Scenarios planned</td><td>12</td></tr>
+<tr><td>Scenarios executed</td><td>12</td></tr>
+<tr><td>Passed</td><td>12</td></tr>
+<tr><td>Failed</td><td>0</td></tr>
+<tr><td>Blocked</td><td>0</td></tr>
+<tr><td>Pass rate</td><td>100%</td></tr>
+<tr><td>Critical issues</td><td>0</td></tr>
+<tr><td>Major issues</td><td>0</td></tr>
+<tr><td>Minor issues</td><td>1</td></tr>
+<tr><td>Cosmetic issues</td><td>3</td></tr>
+</table></div>
+<p>Every acceptance point in the brief was observed in the running app.</p>
+<ul>
+<li><b>Moje rzeczy:</b> the inventory location is persisted, and the visibility toggle always sends <code>mode</code>.</li>
+<li><b>Product page by viewer:</b> the owner sees the full address and "(widzisz tylko Ty)". Logged-in viewers see the place name only, with no address in the DOM or the payload. Anonymous viewers get no location block and see the "Chcesz tę rzecz?" gate.</li>
+<li><b>Personal pickup:</b> a personal GIFT reservation opens the ITEM chat, and both parties can settle it from the product page.</li>
+<li><b>Tiles:</b> intent and reserved pills follow the name rules (by name / "przez Ciebie" / anonymous without a name).</li>
+<li><b>Counts:</b> organizer counts are GIFT 0 / SWAP 1 / RESERVED 1 and owner-items counts include reserved items.</li>
+<li><b>PRIVATE items:</b> a stranger gets 404 on every item read and on take, and the item is absent from every public list.</li>
+</ul>
+<p>The issues are copy and layout polish only.</p>
+<h2 id="4-verification-scenarios">4. Verification Scenarios</h2>
+<h3 id="4-1-moje-rzeczy-inventory-location-and-visibility-toggle-passed">4.1 Moje rzeczy: inventory location and visibility toggle — <span class="pass">✅</span> Passed</h3>
+<ul>
+<li><b>User story / acceptance criterion</b>: R1.3, R12.3, R12.4; mockup <code>screen:my-items-location-visibility</code></li>
+<li><b>Preconditions</b>: A is logged in through the login form and has 4 listed items, 1 draft and 2 own locations.</li>
+</ul>
+<div class="card" style="overflow-x:auto"><table><tr><th>#</th><th>Action</th><th>Expected</th><th>Actual</th><th>Status</th></tr>
+<tr><td>1</td><td>Open <code>/items</code></td><td>"📍 Gdzie są moje rzeczy?" picker with the privacy hint</td><td>Picker (combobox + "+ Dodaj nowe miejsce") and the exact hint copy are shown</td><td><span class="pass">✅</span></td></tr>
+<tr><td>2</td><td>Select "Dom – Mokotów"</td><td><code>PUT /api/inventories/mine/location</code> returns 200</td><td>200, <code>location.name = "Dom – Mokotów"</code>; after reload the picker keeps the value and shows the address under it</td><td><span class="pass">✅</span></td></tr>
+<tr><td>3</td><td>Click 🔒 Prywatna on "F oferta"</td><td>Body carries the current mode plus <code>visibility</code></td><td>Request <code>{"mode":"GIFT","visibility":"PRIVATE"}</code> → 200; <code>aria-pressed="true"</code>; hint "Prywatna: widoczna tylko w Twoich prywatnych grupach."</td><td><span class="pass">✅</span></td></tr>
+<tr><td>4</td><td>Change the mode of the private item (Zamienię, then Oddam)</td><td>Mode-only body keeps visibility</td><td>Requests <code>{"mode":"SWAP"}</code> / <code>{"mode":"GIFT"}</code> → responses keep <code>"visibility":"PRIVATE"</code></td><td><span class="pass">✅</span></td></tr>
+<tr><td>5</td><td>Look at the draft item (no mode)</td><td>No toggle, "Ustaw tryb, żeby wybrać widoczność."</td><td>5 cards, 4 toggles, 1 "Ustaw tryb…" hint</td><td><span class="pass">✅</span></td></tr>
+</table></div>
+<ul>
+<li><b>Issues observed</b>: <i>None observed.</i></li>
+<li><b>Evidence</b>: <code>screenshots/01-moje-rzeczy-initial.png</code>, <code>screenshots/02-moje-rzeczy-location-visibility.png</code></li>
+<div class="shots"><figure><a href="screenshots/01-moje-rzeczy-initial.png"><img class="shot" loading="lazy" src="screenshots/01-moje-rzeczy-initial.png" alt="01-moje-rzeczy-initial.png"></a><figcaption>01-moje-rzeczy-initial.png</figcaption></figure><figure><a href="screenshots/02-moje-rzeczy-location-visibility.png"><img class="shot" loading="lazy" src="screenshots/02-moje-rzeczy-location-visibility.png" alt="02-moje-rzeczy-location-visibility.png"></a><figcaption>02-moje-rzeczy-location-visibility.png</figcaption></figure></div>
+<li><b>Acceptance criteria checklist</b>:</li>
+<ul>
+<li>☑ Location set through the LocationPicker and persisted</li>
+<li>☑ Toggle shown only when a mode is set, with <code>aria-pressed</code></li>
+<li>☑ A visibility change always sends the mode; a mode change keeps the visibility</li>
+</ul>
+</ul>
+<h3 id="4-2-product-page-logged-in-non-owner-3-actions-sheets-passed">4.2 Product page, logged-in non-owner (3 actions, sheets) — <span class="pass">✅</span> Passed</h3>
+<ul>
+<li><b>User story / acceptance criterion</b>: R2.2–R2.4, R5.3–R5.7; mockups <code>screen:product-logged-in</code>, <code>screen:sheet-choose-term</code>, <code>screen:sheet-personal-pickup</code></li>
+<li><b>Preconditions</b>: B is logged in and has an RSVP on A's term; the GIFT item is available; A has a location.</li>
+</ul>
+<div class="card" style="overflow-x:auto"><table><tr><th>#</th><th>Action</th><th>Expected</th><th>Actual</th><th>Status</th></tr>
+<tr><td>1</td><td>Open <code>/product/{gift}</code></td><td>Location name only, "Dokładny adres ustalicie na czacie."</td><td>"Dom – Mokotów" + the hint. <code>/actions.location = {name, formatted_address:null}</code>; the address string is not in the DOM</td><td><span class="pass">✅</span></td></tr>
+<tr><td>2</td><td>—</td><td>"Gdzie jeszcze można odebrać" list</td><td>"Terminy i wydarzenia, na których bywa Ania…", row "PT 20 LIS · Wymianka E2E · 📍 Szkoła Testowa · 17:00"</td><td><span class="pass">✅</span></td></tr>
+<tr><td>3</td><td>—</td><td>"Jak chcesz odebrać?" with 3 enabled actions</td><td>Odbiorę osobiście / Wybieram termin / 💬 Napisz o przedmiocie, all enabled (<code>personal_pickup_available:true</code>, context <code>eligible:true</code>)</td><td><span class="pass">✅</span></td></tr>
+<tr><td>4</td><td>Click "Wybieram termin" (GIFT)</td><td>Sheet "Wybierz termin odbioru" with the hint and a radio list</td><td>1 radio, primary "Rezerwuję"; Esc closes it</td><td><span class="pass">✅</span></td></tr>
+<tr><td>5</td><td>Same on the SWAP item</td><td>SWAP note + "Dalej: wybierz rzecz na zamianę"</td><td>Exact copy is shown; the ✕ close button is present</td><td><span class="pass">✅</span></td></tr>
+<tr><td>6</td><td>Click "Odbiorę osobiście" (GIFT)</td><td>Sheet with the place name and the GIFT copy</td><td>"📍 Dom – Mokotów", the address-in-chat note, "Zarezerwujemy dla Ciebie … potwierdź przekazanie na tej stronie.", buttons "Rezerwuję i piszę do Ania…" / "Anuluj" (all <code>type="button"</code>)</td><td><span class="pass">✅</span></td></tr>
+<tr><td>7</td><td>C (no shared term) opens the SWAP item</td><td>"Wybieram termin" <code>aria-disabled</code> with the hint</td><td><code>aria-disabled="true"</code> + <code>aria-describedby</code> → "Nie macie wspólnego terminu ani wydarzenia, na które jesteś zapisany(-a)."; a forced click opens no sheet</td><td><span class="pass">✅</span></td></tr>
+<tr><td>8</td><td>C opens "Odbiorę osobiście" on SWAP</td><td>SWAP body copy</td><td>"Zaproponujesz zamianę za … Gdy … ją przyjmie i się wymienicie, potwierdźcie to na tej stronie."</td><td><span class="pass">✅</span></td></tr>
+</table></div>
+<ul>
+<li><b>Issues observed</b>: Cosmetic §5.4 C3 (GIFT term-sheet button label).</li>
+<li><b>Evidence</b>: <code>screenshots/05-product-logged-in-3-actions.png</code>, <code>screenshots/06-sheet-choose-term.png</code>, <code>screenshots/31-sheet-choose-term-swap.png</code>, <code>screenshots/07-sheet-personal-pickup.png</code>, <code>screenshots/29-product-swap-stranger-term-disabled.png</code>, <code>screenshots/30-sheet-personal-pickup-swap.png</code></li>
+<div class="shots"><figure><a href="screenshots/05-product-logged-in-3-actions.png"><img class="shot" loading="lazy" src="screenshots/05-product-logged-in-3-actions.png" alt="05-product-logged-in-3-actions.png"></a><figcaption>05-product-logged-in-3-actions.png</figcaption></figure><figure><a href="screenshots/06-sheet-choose-term.png"><img class="shot" loading="lazy" src="screenshots/06-sheet-choose-term.png" alt="06-sheet-choose-term.png"></a><figcaption>06-sheet-choose-term.png</figcaption></figure><figure><a href="screenshots/31-sheet-choose-term-swap.png"><img class="shot" loading="lazy" src="screenshots/31-sheet-choose-term-swap.png" alt="31-sheet-choose-term-swap.png"></a><figcaption>31-sheet-choose-term-swap.png</figcaption></figure><figure><a href="screenshots/07-sheet-personal-pickup.png"><img class="shot" loading="lazy" src="screenshots/07-sheet-personal-pickup.png" alt="07-sheet-personal-pickup.png"></a><figcaption>07-sheet-personal-pickup.png</figcaption></figure><figure><a href="screenshots/29-product-swap-stranger-term-disabled.png"><img class="shot" loading="lazy" src="screenshots/29-product-swap-stranger-term-disabled.png" alt="29-product-swap-stranger-term-disabled.png"></a><figcaption>29-product-swap-stranger-term-disabled.png</figcaption></figure><figure><a href="screenshots/30-sheet-personal-pickup-swap.png"><img class="shot" loading="lazy" src="screenshots/30-sheet-personal-pickup-swap.png" alt="30-sheet-personal-pickup-swap.png"></a><figcaption>30-sheet-personal-pickup-swap.png</figcaption></figure></div>
+<li><b>Acceptance criteria checklist</b>:</li>
+<ul>
+<li>☑ Location shown by name only to other logged-in viewers</li>
+<li>☑ Read-only context list</li>
+<li>☑ Three actions with correct enable/disable rules and hints</li>
+<li>☑ Both sheets match the spec copy</li>
+</ul>
+</ul>
+<h3 id="4-3-personal-gift-reservation-opens-the-item-chat-passed">4.3 Personal GIFT reservation opens the ITEM chat — <span class="pass">✅</span> Passed</h3>
+<ul>
+<li><b>User story / acceptance criterion</b>: R3.1, R4, R5.7 ("On success the page opens the ITEM chat")</li>
+<li><b>Preconditions</b>: As in 4.2, with the "Odbiór osobisty" sheet open.</li>
+</ul>
+<div class="card" style="overflow-x:auto"><table><tr><th>#</th><th>Action</th><th>Expected</th><th>Actual</th><th>Status</th></tr>
+<tr><td>1</td><td>Click "Rezerwuję i piszę do Ania…"</td><td><code>POST /api/items/{id}/take</code> with <code>{context:{kind:"PERSONAL"}}</code></td><td>Request <code>{"context":{"kind":"PERSONAL"},"reservation_type":"GIFT"}</code> → 200 <code>{…, "context":null}</code></td><td><span class="pass">✅</span></td></tr>
+<tr><td>2</td><td>—</td><td>ITEM conversation opens</td><td>Navigated to <code>/messages/{id}</code>; header "📦 G zamiana… Rozmowa z: Ania E2E569440 · zobacz rzecz"</td><td><span class="pass">✅</span></td></tr>
+</table></div>
+<ul>
+<li><b>Issues observed</b>: <i>None observed.</i></li>
+<li><b>Evidence</b>: <code>screenshots/08-personal-reserve-chat-opened.png</code></li>
+<div class="shots"><figure><a href="screenshots/08-personal-reserve-chat-opened.png"><img class="shot" loading="lazy" src="screenshots/08-personal-reserve-chat-opened.png" alt="08-personal-reserve-chat-opened.png"></a><figcaption>08-personal-reserve-chat-opened.png</figcaption></figure></div>
+<li><b>Acceptance criteria checklist</b>:</li>
+<ul>
+<li>☑ Single take endpoint with the PERSONAL context ref</li>
+<li>☑ Chat opens right after the reservation</li>
+</ul>
+</ul>
+<h3 id="4-4-party-actions-on-the-product-page-receiver-and-giver-passed">4.4 Party actions on the product page (receiver and giver) — <span class="pass">✅</span> Passed</h3>
+<ul>
+<li><b>User story / acceptance criterion</b>: R8.5, R8.6 (audit C1), R4.5</li>
+<li><b>Preconditions</b>: There is an open personal GIFT reservation of A's item by B.</li>
+</ul>
+<div class="card" style="overflow-x:auto"><table><tr><th>#</th><th>Action</th><th>Expected</th><th>Actual</th><th>Status</th></tr>
+<tr><td>1</td><td>B opens the product page</td><td><code>reserved</code> view with "przez Ciebie", party wording, confirm + cancel</td><td>Badge "Zarezerwowana · przez Ciebie"; status "Zarezerwowana / Odbiór osobisty — szczegóły ustalają Ania… i Bartek… na czacie."; buttons "Potwierdzam przekazanie", "Anuluj rezerwację", chat. <code>party_reservation</code>: role RECEIVER, can_confirm/can_cancel true</td><td><span class="pass">✅</span></td></tr>
+<tr><td>2</td><td>A (giver) opens the product page</td><td>Cancel only, with the giver hint</td><td>"Anuluj rezerwację" + "Przekazanie potwierdza Bartek E2E569440, gdy odbierze rzecz."; no confirm (<code>can_confirm:false</code>)</td><td><span class="pass">✅</span></td></tr>
+<tr><td>3</td><td>A clicks "Anuluj rezerwację"</td><td>Confirmation dialog</td><td><code>alertdialog</code> "Anulować rezerwację? / Rzecz znów będzie dostępna dla innych. / Anuluj · Tak, anuluj"</td><td><span class="pass">✅</span></td></tr>
+<tr><td>4</td><td>A clicks "Tak, anuluj"</td><td><code>cancel-transaction</code> returns 200 and the item is available again</td><td>200; the page re-renders "Dostępna" with no reserved badge</td><td><span class="pass">✅</span></td></tr>
+<tr><td>5</td><td>B re-reserves (API), then clicks "Potwierdzam przekazanie"</td><td><code>confirm-transaction</code> returns 200 and the item moves to B</td><td>200; the page shows B's own-item view (OWN, "Nie ustawiono jeszcze miejsca odbioru.")</td><td><span class="pass">✅</span></td></tr>
+</table></div>
+<ul>
+<li><b>Issues observed</b>: Minor §5.3 M1 (own-view copy on the now-unlisted item).</li>
+<li><b>Evidence</b>: <code>screenshots/09-product-reserved-receiver.png</code>, <code>screenshots/12-product-reserved-giver.png</code>, <code>screenshots/13-cancel-confirm-dialog.png</code>, <code>screenshots/14-after-cancel-available.png</code>, <code>screenshots/16-after-confirm.png</code></li>
+<div class="shots"><figure><a href="screenshots/09-product-reserved-receiver.png"><img class="shot" loading="lazy" src="screenshots/09-product-reserved-receiver.png" alt="09-product-reserved-receiver.png"></a><figcaption>09-product-reserved-receiver.png</figcaption></figure><figure><a href="screenshots/12-product-reserved-giver.png"><img class="shot" loading="lazy" src="screenshots/12-product-reserved-giver.png" alt="12-product-reserved-giver.png"></a><figcaption>12-product-reserved-giver.png</figcaption></figure><figure><a href="screenshots/13-cancel-confirm-dialog.png"><img class="shot" loading="lazy" src="screenshots/13-cancel-confirm-dialog.png" alt="13-cancel-confirm-dialog.png"></a><figcaption>13-cancel-confirm-dialog.png</figcaption></figure><figure><a href="screenshots/14-after-cancel-available.png"><img class="shot" loading="lazy" src="screenshots/14-after-cancel-available.png" alt="14-after-cancel-available.png"></a><figcaption>14-after-cancel-available.png</figcaption></figure><figure><a href="screenshots/16-after-confirm.png"><img class="shot" loading="lazy" src="screenshots/16-after-confirm.png" alt="16-after-confirm.png"></a><figcaption>16-after-confirm.png</figcaption></figure></div>
+<li><b>Acceptance criteria checklist</b>:</li>
+<ul>
+<li>☑ Server-computed flags drive the buttons</li>
+<li>☑ GIFT confirm is receiver-only; the giver can cancel</li>
+<li>☑ Personal confirm/cancel work immediately (no term-end wait)</li>
+<li>☑ Invalidation refreshes the page after the mutation</li>
+</ul>
+</ul>
+<h3 id="4-5-reserved-item-seen-by-a-logged-in-non-party-passed">4.5 Reserved item seen by a logged-in non-party — <span class="pass">✅</span> Passed</h3>
+<ul>
+<li><b>User story / acceptance criterion</b>: R8.1, R8.3, R8.5</li>
+<li><b>Preconditions</b>: C is logged in; the item is reserved by B.</li>
+</ul>
+<div class="card" style="overflow-x:auto"><table><tr><th>#</th><th>Action</th><th>Expected</th><th>Actual</th><th>Status</th></tr>
+<tr><td>1</td><td>C opens the product page</td><td>"Zarezerwowana · przez Bartek…", "Ta rzecz jest zarezerwowana."</td><td>Both shown; <code>party_reservation:null</code>, <code>by_me:false</code></td><td><span class="pass">✅</span></td></tr>
+<tr><td>2</td><td>—</td><td>Both reserve actions <code>aria-disabled</code> with the hint; chat enabled</td><td>Both have <code>aria-disabled="true"</code> and describe "Ktoś już zarezerwował tę rzecz. Jeśli rezerwacja zostanie anulowana, znów będzie dostępna."; the chat is enabled</td><td><span class="pass">✅</span></td></tr>
+<tr><td>3</td><td>C tries a PERSONAL take (API)</td><td>409 "Ta rzecz jest już zajęta"</td><td>409 with that message</td><td><span class="pass">✅</span></td></tr>
+</table></div>
+<ul>
+<li><b>Issues observed</b>: <i>None observed.</i></li>
+<li><b>Evidence</b>: <code>screenshots/10-product-reserved-stranger.png</code></li>
+<div class="shots"><figure><a href="screenshots/10-product-reserved-stranger.png"><img class="shot" loading="lazy" src="screenshots/10-product-reserved-stranger.png" alt="10-product-reserved-stranger.png"></a><figcaption>10-product-reserved-stranger.png</figcaption></figure></div>
+<li><b>Acceptance criteria checklist</b>:</li>
+<ul>
+<li>☑ Reserver name shown to logged-in viewers</li>
+<li>☑ Non-party actions disabled with the hint, chat kept</li>
+</ul>
+</ul>
+<h3 id="4-6-anonymous-product-page-passed">4.6 Anonymous product page — <span class="pass">✅</span> Passed</h3>
+<ul>
+<li><b>User story / acceptance criterion</b>: R2.2, R5.3, R5.5; mockup <code>screen:product-anonymous</code></li>
+<li><b>Preconditions</b>: Logged out.</li>
+</ul>
+<div class="card" style="overflow-x:auto"><table><tr><th>#</th><th>Action</th><th>Expected</th><th>Actual</th><th>Status</th></tr>
+<tr><td>1</td><td>Open the available SWAP item</td><td>No location block; context list; gate</td><td>No "Lokalizacja przedmiotu" and no place name in the HTML; <code>/actions.location = null</code>; the context list is shown; "Chcesz tę rzecz? Zaloguj się, żeby zarezerwować lub napisać do właściciela." with links "Zaloguj się" / "Załóż konto" (<code>returnTo</code> set)</td><td><span class="pass">✅</span></td></tr>
+<tr><td>2</td><td>—</td><td>Anonymous cache header</td><td><code>Cache-Control: public, max-age=0, s-maxage=60</code>, <code>Vary: Authorization</code></td><td><span class="pass">✅</span></td></tr>
+<tr><td>3</td><td>Open the reserved item</td><td>"Zarezerwowana" without a name</td><td>Badge "Zarezerwowana" (no name). Disabled actions and the chat are shown; clicking the chat opens the account gate "Załóż konto, żeby napisać"</td><td><span class="pass">✅</span></td></tr>
+</table></div>
+<ul>
+<li><b>Issues observed</b>: <i>None observed.</i></li>
+<li><b>Evidence</b>: <code>screenshots/20-product-anonymous.png</code>, <code>screenshots/21-product-reserved-anonymous-orgpath.png</code>, <code>screenshots/22-anon-reserved-chat-gate.png</code></li>
+<div class="shots"><figure><a href="screenshots/20-product-anonymous.png"><img class="shot" loading="lazy" src="screenshots/20-product-anonymous.png" alt="20-product-anonymous.png"></a><figcaption>20-product-anonymous.png</figcaption></figure><figure><a href="screenshots/21-product-reserved-anonymous-orgpath.png"><img class="shot" loading="lazy" src="screenshots/21-product-reserved-anonymous-orgpath.png" alt="21-product-reserved-anonymous-orgpath.png"></a><figcaption>21-product-reserved-anonymous-orgpath.png</figcaption></figure><figure><a href="screenshots/22-anon-reserved-chat-gate.png"><img class="shot" loading="lazy" src="screenshots/22-anon-reserved-chat-gate.png" alt="22-anon-reserved-chat-gate.png"></a><figcaption>22-anon-reserved-chat-gate.png</figcaption></figure></div>
+<li><b>Acceptance criteria checklist</b>:</li>
+<ul>
+<li>☑ No location for anonymous viewers</li>
+<li>☑ Login/register gate</li>
+<li>☑ Reserved badge without a name</li>
+</ul>
+</ul>
+<h3 id="4-7-owner-view-address-widzisz-tylko-ty-prywatny-passed">4.7 Owner view (address, "(widzisz tylko Ty)", 🔒 Prywatny) — <span class="pass">✅</span> Passed</h3>
+<ul>
+<li><b>User story / acceptance criterion</b>: R2.2 (OWN), R5.3, R5.11, R12.4; mockup <code>screen:product-own</code></li>
+<li><b>Preconditions</b>: A is logged in and has a location set.</li>
+</ul>
+<div class="card" style="overflow-x:auto"><table><tr><th>#</th><th>Action</th><th>Expected</th><th>Actual</th><th>Status</th></tr>
+<tr><td>1</td><td>Open the PRIVATE item</td><td>Full address, "(widzisz tylko Ty)", "Zmień w „Moje rzeczy”", 🔒 badge, private copy</td><td>"Lokalizacja przedmiotu (widzisz tylko Ty) / Dom – Mokotów / ul. Testowa 5/12, 02-000 Warszawa / Zmień w „Moje rzeczy”"; badges "Chcę oddać" + "🔒 Prywatny"; "To Twoja rzecz. … Prywatna — widzą ją tylko osoby z Twoich prywatnych grup."</td><td><span class="pass">✅</span></td></tr>
+<tr><td>2</td><td>—</td><td>No public contexts for a PRIVATE item (R13.5)</td><td>No context list is shown (the term's circle is PUBLIC)</td><td><span class="pass">✅</span></td></tr>
+<tr><td>3</td><td>Open the PUBLIC GIFT item</td><td>Same block, no 🔒 badge; contexts "na których bywasz"</td><td>As expected; <code>visibility:"PUBLIC"</code>; <code>Cache-Control: private, no-store</code></td><td><span class="pass">✅</span></td></tr>
+</table></div>
+<ul>
+<li><b>Issues observed</b>: <i>None observed.</i></li>
+<li><b>Evidence</b>: <code>screenshots/03-product-own-private.png</code>, <code>screenshots/04-product-own-public.png</code></li>
+<div class="shots"><figure><a href="screenshots/03-product-own-private.png"><img class="shot" loading="lazy" src="screenshots/03-product-own-private.png" alt="03-product-own-private.png"></a><figcaption>03-product-own-private.png</figcaption></figure><figure><a href="screenshots/04-product-own-public.png"><img class="shot" loading="lazy" src="screenshots/04-product-own-public.png" alt="04-product-own-public.png"></a><figcaption>04-product-own-public.png</figcaption></figure></div>
+<li><b>Acceptance criteria checklist</b>:</li>
+<ul>
+<li>☑ Full address shown to the owner only</li>
+<li>☑ 🔒 Prywatny badge and visibility line</li>
+</ul>
+</ul>
+<h3 id="4-8-term-page-tiles-passed-with-issues">4.8 Term page tiles — ⚠️ Passed with issues</h3>
+<ul>
+<li><b>User story / acceptance criterion</b>: R6.1–R6.4, R8.1, R8.4; mockup <code>screen:term-participant-items</code></li>
+<li><b>Preconditions</b>: The term page of A's PUBLIC circle; the "D zamiana" item is reserved by B; the PRIVATE item is listed by A.</li>
+</ul>
+<div class="card" style="overflow-x:auto"><table><tr><th>#</th><th>Action</th><th>Expected</th><th>Actual</th><th>Status</th></tr>
+<tr><td>1</td><td>B opens the term page</td><td>Intent pills, "przez Ciebie", no take buttons</td><td>"D zamiana · Chcę oddać · Zarezerwowana · przez Ciebie", "G oddam · Chcę się zamienić"; 0 take buttons</td><td><span class="pass">✅</span></td></tr>
+<tr><td>2</td><td>C opens it</td><td>"Zarezerwowana · przez Bartek…"</td><td>As expected</td><td><span class="pass">✅</span></td></tr>
+<tr><td>3</td><td>Anonymous</td><td>"Zarezerwowana" only; <code>by_name:null</code></td><td>As expected; <code>/access</code> → <code>public, max-age=0, s-maxage=60</code>; logged in → <code>private, no-store</code></td><td><span class="pass">✅</span></td></tr>
+<tr><td>4</td><td>—</td><td>Whole tile is one link with no <code>?term</code>/<code>?event</code></td><td>Each tile is a single <code>&lt;a&gt;</code> to <code>/k-715bcc2e8805/product/{id}</code>, with no query</td><td>⚠️</td></tr>
+<tr><td>5</td><td>—</td><td>PRIVATE item absent</td><td>Not in <code>/access</code> for anonymous or logged-in viewers</td><td><span class="pass">✅</span></td></tr>
+</table></div>
+<ul>
+<li><b>Issues observed</b>: The link is org-slug-scoped (<code>/&lt;slug&gt;/product/:id</code>), not a plain <code>/product/:id</code>. This matches the spec (R5.9 <code>organizerItemPath</code>), so it is recorded as a variance, not a defect (§8).</li>
+<li><b>Evidence</b>: <code>screenshots/17-term-page-logged-in-B.png</code>, <code>screenshots/18-term-page-logged-in-stranger.png</code>, <code>screenshots/19-term-page-anonymous.png</code></li>
+<div class="shots"><figure><a href="screenshots/17-term-page-logged-in-B.png"><img class="shot" loading="lazy" src="screenshots/17-term-page-logged-in-B.png" alt="17-term-page-logged-in-B.png"></a><figcaption>17-term-page-logged-in-B.png</figcaption></figure><figure><a href="screenshots/18-term-page-logged-in-stranger.png"><img class="shot" loading="lazy" src="screenshots/18-term-page-logged-in-stranger.png" alt="18-term-page-logged-in-stranger.png"></a><figcaption>18-term-page-logged-in-stranger.png</figcaption></figure><figure><a href="screenshots/19-term-page-anonymous.png"><img class="shot" loading="lazy" src="screenshots/19-term-page-anonymous.png" alt="19-term-page-anonymous.png"></a><figcaption>19-term-page-anonymous.png</figcaption></figure></div>
+<li><b>Acceptance criteria checklist</b>:</li>
+<ul>
+<li>☑ Intent badges "Chcę oddać"/"Chcę się zamienić"</li>
+<li>☑ Reserved badge naming rules</li>
+<li>☑ No take buttons; tile links carry no context query</li>
+</ul>
+</ul>
+<h3 id="4-9-owner-items-page-passed">4.9 Owner items page — <span class="pass">✅</span> Passed</h3>
+<ul>
+<li><b>User story / acceptance criterion</b>: R6.4, R8.1, R10.4; mockup <code>screen:owner-items-anonymous</code></li>
+<li><b>Preconditions</b>: A's items (2 public listed, 1 reserved, 1 private).</li>
+</ul>
+<div class="card" style="overflow-x:auto"><table><tr><th>#</th><th>Action</th><th>Expected</th><th>Actual</th><th>Status</th></tr>
+<tr><td>1</td><td>Anonymous <code>/&lt;party-id&gt;/items</code></td><td>Tabs "Wszystkie / Chcę oddać / Chcę się zamienić"; GIFT count includes reserved; private excluded</td><td>"Wszystkie 2 · Chcę oddać 1 · Chcę się zamienić 1"; <code>counts {GIFT:1, SWAP:1}</code>, <code>total 2</code>; the private item is absent</td><td><span class="pass">✅</span></td></tr>
+<tr><td>2</td><td>—</td><td>Reserved badge without a name; plain <code>/product/:id</code> links</td><td>"Zarezerwowana"; links <code>/product/{id}</code></td><td><span class="pass">✅</span></td></tr>
+<tr><td>3</td><td>C on <code>/&lt;org-slug&gt;/items</code></td><td>"przez Bartek…"</td><td>"Zarezerwowana · przez Bartek E2E569440"</td><td><span class="pass">✅</span></td></tr>
+</table></div>
+<ul>
+<li><b>Issues observed</b>: <i>None observed.</i></li>
+<li><b>Evidence</b>: <code>screenshots/23-owner-items-anonymous.png</code>, <code>screenshots/28-owner-items-logged-in.png</code></li>
+<div class="shots"><figure><a href="screenshots/23-owner-items-anonymous.png"><img class="shot" loading="lazy" src="screenshots/23-owner-items-anonymous.png" alt="23-owner-items-anonymous.png"></a><figcaption>23-owner-items-anonymous.png</figcaption></figure><figure><a href="screenshots/28-owner-items-logged-in.png"><img class="shot" loading="lazy" src="screenshots/28-owner-items-logged-in.png" alt="28-owner-items-logged-in.png"></a><figcaption>28-owner-items-logged-in.png</figcaption></figure></div>
+<li><b>Acceptance criteria checklist</b>:</li>
+<ul>
+<li>☑ Counts match the mode-filtered list (reserved included)</li>
+<li>☑ PRIVATE items are not listed</li>
+</ul>
+</ul>
+<h3 id="4-10-organizer-page-counts-tabs-and-tiles-passed-with-issues">4.10 Organizer page counts, tabs and tiles — ⚠️ Passed with issues</h3>
+<ul>
+<li><b>User story / acceptance criterion</b>: R10.1–R10.3, R8.2, R8.4; mockup <code>screen:organizer-exchange-board</code></li>
+<li><b>Preconditions</b>: A's organization "ania-wymiany-e2e-569440" with the EXCHANGE layout (and briefly CLASSIC).</li>
+</ul>
+<div class="card" style="overflow-x:auto"><table><tr><th>#</th><th>Action</th><th>Expected</th><th>Actual</th><th>Status</th></tr>
+<tr><td>1</td><td>Anonymous, EXCHANGE</td><td>Counts GIFT/SWAP available only + RESERVED</td><td><code>counts {GIFT:0, SWAP:1, RESERVED:1}</code>; tabs "Wszystkie 2 · Chcę oddać 0 (disabled) · Chcę się zamienić 1 · Zarezerwowane 1"</td><td><span class="pass">✅</span></td></tr>
+<tr><td>2</td><td>Click each tab</td><td>Tabs filter consistently with the counts</td><td>"Chcę się zamienić" → [G oddam]; "Zarezerwowane" → [D zamiana]; "Wszystkie" → both</td><td><span class="pass">✅</span></td></tr>
+<tr><td>3</td><td>CLASSIC layout, logged in as C</td><td>ExchangeCountsBlock "N Chcę oddać · N Chcę się zamienić · N Zarezerwowane"</td><td>"0 Chcę oddać · 1 Chcę się zamienić · 1 Zarezerwowane"</td><td><span class="pass">✅</span></td></tr>
+<tr><td>4</td><td>Logged in as C, EXCHANGE</td><td>"Zarezerwowana · przez Bartek…" on the board and in recent items; <code>private, no-store</code></td><td>As expected</td><td><span class="pass">✅</span></td></tr>
+<tr><td>5</td><td>Mobile 430px</td><td>All tabs visible</td><td>The tab strip scrolls horizontally and "Zarezerwowane" is off-screen</td><td>⚠️</td></tr>
+</table></div>
+<ul>
+<li><b>Issues observed</b>: Cosmetic §5.4 C1 (tab overflow) and §5.4 C2 (no counts tiles in the EXCHANGE layout).</li>
+<li><b>Evidence</b>: <code>screenshots/24-organizer-page-anonymous.png</code>, <code>screenshots/25-organizer-tab-reserved.png</code>, <code>screenshots/26-organizer-classic-counts-logged-in.png</code>, <code>screenshots/27-organizer-exchange-logged-in.png</code></li>
+<div class="shots"><figure><a href="screenshots/24-organizer-page-anonymous.png"><img class="shot" loading="lazy" src="screenshots/24-organizer-page-anonymous.png" alt="24-organizer-page-anonymous.png"></a><figcaption>24-organizer-page-anonymous.png</figcaption></figure><figure><a href="screenshots/25-organizer-tab-reserved.png"><img class="shot" loading="lazy" src="screenshots/25-organizer-tab-reserved.png" alt="25-organizer-tab-reserved.png"></a><figcaption>25-organizer-tab-reserved.png</figcaption></figure><figure><a href="screenshots/26-organizer-classic-counts-logged-in.png"><img class="shot" loading="lazy" src="screenshots/26-organizer-classic-counts-logged-in.png" alt="26-organizer-classic-counts-logged-in.png"></a><figcaption>26-organizer-classic-counts-logged-in.png</figcaption></figure><figure><a href="screenshots/27-organizer-exchange-logged-in.png"><img class="shot" loading="lazy" src="screenshots/27-organizer-exchange-logged-in.png" alt="27-organizer-exchange-logged-in.png"></a><figcaption>27-organizer-exchange-logged-in.png</figcaption></figure></div>
+<li><b>Acceptance criteria checklist</b>:</li>
+<ul>
+<li>☑ Organizer counts Chcę oddać / Chcę się zamienić / Zarezerwowane</li>
+<li>☑ Tabs consistent with the counts</li>
+<li>☑ Personalised cache headers</li>
+</ul>
+</ul>
+<h3 id="4-11-private-item-gating-passed">4.11 PRIVATE item gating — <span class="pass">✅</span> Passed</h3>
+<ul>
+<li><b>User story / acceptance criterion</b>: R13.3, R13.4, R3.5 (404-before-403/409)</li>
+<li><b>Preconditions</b>: The "F oferta" item is PRIVATE; A has no PRIVATE circle; C is logged in.</li>
+</ul>
+<div class="card" style="overflow-x:auto"><table><tr><th>#</th><th>Action</th><th>Expected</th><th>Actual</th><th>Status</th></tr>
+<tr><td>1</td><td>C opens <code>/product/{private}</code></td><td>404 page</td><td><code>/details</code> 404, <code>/actions</code> 404; the page shows "Nie znaleziono tej rzeczy."</td><td><span class="pass">✅</span></td></tr>
+<tr><td>2</td><td>C <code>POST /take</code> PERSONAL</td><td>404</td><td>404</td><td><span class="pass">✅</span></td></tr>
+<tr><td>3</td><td>C <code>GET /inventory-items/{id}</code>, <code>/history</code>, <code>/balance</code>; anonymous <code>/details</code></td><td>404</td><td>All 404</td><td><span class="pass">✅</span></td></tr>
+<tr><td>4</td><td>Public lists</td><td>Absent</td><td>Absent from the term <code>/access</code>, the organizer exchange and recent items, the owner items page, and <code>items_total</code> (3 → excludes private)</td><td><span class="pass">✅</span></td></tr>
+</table></div>
+<ul>
+<li><b>Issues observed</b>: <i>None observed.</i></li>
+<li><b>Evidence</b>: <code>screenshots/11-private-item-stranger-404.png</code></li>
+<div class="shots"><figure><a href="screenshots/11-private-item-stranger-404.png"><img class="shot" loading="lazy" src="screenshots/11-private-item-stranger-404.png" alt="11-private-item-stranger-404.png"></a><figcaption>11-private-item-stranger-404.png</figcaption></figure></div>
+<li><b>Acceptance criteria checklist</b>:</li>
+<ul>
+<li>☑ A stranger gets 404 on every read path and on take</li>
+<li>☑ Absent from every public page</li>
+</ul>
+</ul>
+<h3 id="4-12-api-contract-spot-checks-passed">4.12 API contract spot checks — <span class="pass">✅</span> Passed</h3>
+<ul>
+<li><b>User story / acceptance criterion</b>: R3.3, R3.5, R11.1, R8.2</li>
+<li><b>Preconditions</b>: B and C tokens.</li>
+</ul>
+<div class="card" style="overflow-x:auto"><table><tr><th>#</th><th>Action</th><th>Expected</th><th>Actual</th><th>Status</th></tr>
+<tr><td>1</td><td>B takes the SWAP item with <code>reservation_type:"GIFT"</code> through TERM</td><td>409 mode not offered</td><td>409 "Ten sposób wzięcia rzeczy nie został zaoferowany"</td><td><span class="pass">✅</span></td></tr>
+<tr><td>2</td><td>C proposes through a TERM it is not eligible for</td><td>403</td><td>403</td><td><span class="pass">✅</span></td></tr>
+<tr><td>3</td><td>PERSONAL context with an <code>id</code></td><td>400 fieldErrors</td><td>400 <code>fieldErrors.context = "…Odbiór osobisty nie ma identyfikatora"</code></td><td><span class="pass">✅</span></td></tr>
+<tr><td>4</td><td>C <code>GET /api/reservations?item_id=</code> on B's reservation</td><td><code>[]</code></td><td><code>[]</code></td><td><span class="pass">✅</span></td></tr>
+<tr><td>5</td><td>Cache headers (<code>/actions</code>, <code>/access</code>, organizer)</td><td>Logged in <code>private, no-store</code>; anonymous <code>public, max-age=0, s-maxage=60</code>; <code>Vary: Authorization</code></td><td>As expected on all three</td><td><span class="pass">✅</span></td></tr>
+</table></div>
+<ul>
+<li><b>Issues observed</b>: <i>None observed.</i></li>
+<li><b>Evidence</b>: inline (network responses captured during the run)</li>
+<li><b>Acceptance criteria checklist</b>:</li>
+<ul>
+<li>☑ Error codes as specified</li>
+<li>☑ Reservation reads restricted to parties</li>
+</ul>
+</ul>
+<h2 id="5-discrepancies">5. Discrepancies</h2>
+<h3 id="5-1-critical">5.1 Critical <span class="sev critical">critical</span></h3>
+<p><i>None observed.</i></p>
+<h3 id="5-2-major">5.2 Major <span class="sev critical">major</span></h3>
+<p><i>None observed.</i></p>
+<h3 id="5-3-minor">5.3 Minor <span class="sev warning">minor</span></h3>
+<p><b>M1: own view of an unlisted item still says it can be reserved</b></p>
+<ul>
+<li><b>Spec requirement</b>: R5.11, the own-view copy "To Twoja rzecz. Inni mogą ją zarezerwować osobiście albo na Twoich terminach."</li>
+<li><b>Expected</b>: This copy describes a listed item. An item with no mode (for example one the receiver just got after a confirm) cannot be reserved by others.</li>
+<li><b>Actual</b>: After B confirmed the handover, B's product page for the now-unlisted item shows "Dostępna" and "Inni mogą ją zarezerwować…". <code>/actions.mode</code> is null.</li>
+<li><b>Evidence</b>: <code>screenshots/16-after-confirm.png</code></li>
+<div class="shots"><figure><a href="screenshots/16-after-confirm.png"><img class="shot" loading="lazy" src="screenshots/16-after-confirm.png" alt="16-after-confirm.png"></a><figcaption>16-after-confirm.png</figcaption></figure></div>
+<li><b>Root cause hypothesis</b>: The <code>own</code> view renders the R5.11 sentence without checking <code>mode !== null</code>.</li>
+<li><b>User impact</b>: A new owner may think the item is already offered when it is not.</li>
+<li><b>Recommended fix</b>: When <code>mode === null</code>, show a hint such as "Ustaw tryb w „Moje rzeczy”, żeby inni mogli ją zarezerwować." instead.</li>
+<li><b>Workaround</b>: The owner sets the mode in Moje rzeczy.</li>
+</ul>
+<h3 id="5-4-cosmetic">5.4 Cosmetic <span class="sev info">cosmetic</span></h3>
+<p><b>C1: organizer EXCHANGE tab strip overflows on mobile</b></p>
+<ul>
+<li><b>Spec requirement</b>: R10.3, four tabs; mockup <code>screen:organizer-exchange-board</code></li>
+<li><b>Expected</b>: All four tabs are reachable at a glance, as in the mockup.</li>
+<li><b>Actual</b>: At 430px the strip scrolls horizontally and "Zarezerwowane 1" is cut off.</li>
+<li><b>Evidence</b>: <code>screenshots/27-organizer-exchange-logged-in.png</code></li>
+<div class="shots"><figure><a href="screenshots/27-organizer-exchange-logged-in.png"><img class="shot" loading="lazy" src="screenshots/27-organizer-exchange-logged-in.png" alt="27-organizer-exchange-logged-in.png"></a><figcaption>27-organizer-exchange-logged-in.png</figcaption></figure></div>
+<li><b>Root cause hypothesis</b>: The fourth tab, plus counts in the labels, exceeds the width of the existing chip row.</li>
+<li><b>User impact</b>: The reserved tab is easy to miss on phones.</li>
+<li><b>Recommended fix</b>: Wrap the tabs or shorten the labels on narrow screens.</li>
+<li><b>Workaround</b>: Scroll the strip horizontally.</li>
+</ul>
+<p><b>C2: EXCHANGE layout has no counts tiles above the board</b></p>
+<ul>
+<li><b>Spec requirement</b>: R10.2; the mockup shows "3 Chcę oddać / 4 Chcę się zamienić / 4 Zarezerwowane" tiles above the tabs</li>
+<li><b>Expected</b>: Count tiles plus tabs, as in the mockup.</li>
+<li><b>Actual</b>: In EXCHANGE the counts appear only inside the tab labels. The ExchangeCountsBlock tiles render in CLASSIC/SCHEDULE/CIRCLES (verified in CLASSIC).</li>
+<li><b>Evidence</b>: <code>screenshots/24-organizer-page-anonymous.png</code>, <code>screenshots/26-organizer-classic-counts-logged-in.png</code></li>
+<div class="shots"><figure><a href="screenshots/24-organizer-page-anonymous.png"><img class="shot" loading="lazy" src="screenshots/24-organizer-page-anonymous.png" alt="24-organizer-page-anonymous.png"></a><figcaption>24-organizer-page-anonymous.png</figcaption></figure><figure><a href="screenshots/26-organizer-classic-counts-logged-in.png"><img class="shot" loading="lazy" src="screenshots/26-organizer-classic-counts-logged-in.png" alt="26-organizer-classic-counts-logged-in.png"></a><figcaption>26-organizer-classic-counts-logged-in.png</figcaption></figure></div>
+<li><b>Root cause hypothesis</b>: The layout registry does not include <code>exchange-counts</code> in EXCHANGE. This layout composition probably predates the task.</li>
+<li><b>User impact</b>: None functionally; the numbers are visible in the tabs.</li>
+<li><b>Recommended fix</b>: Confirm with design, or add <code>exchange-counts</code> to the EXCHANGE layout.</li>
+<li><b>Workaround</b>: n/a</li>
+</ul>
+<p><b>C3: GIFT label in the "Wybierz termin odbioru" sheet</b></p>
+<ul>
+<li><b>Spec requirement</b>: The <code>screen:sheet-choose-term</code> annotation says "GIFT: button 'Rezerwuję na ten termin'"</li>
+<li><b>Expected</b>: "Rezerwuję na ten termin"</li>
+<li><b>Actual</b>: "Rezerwuję"</li>
+<li><b>Evidence</b>: <code>screenshots/06-sheet-choose-term.png</code></li>
+<div class="shots"><figure><a href="screenshots/06-sheet-choose-term.png"><img class="shot" loading="lazy" src="screenshots/06-sheet-choose-term.png" alt="06-sheet-choose-term.png"></a><figcaption>06-sheet-choose-term.png</figcaption></figure></div>
+<li><b>Root cause hypothesis</b>: The label was shortened during implementation (the spec R5.6 only says "the primary button reserves").</li>
+<li><b>User impact</b>: Negligible.</li>
+<li><b>Recommended fix</b>: Align with the mockup if desired.</li>
+<li><b>Workaround</b>: n/a</li>
+</ul>
+<h2 id="6-console-network-errors">6. Console &amp; Network Errors</h2>
+<div class="card" style="overflow-x:auto"><table><tr><th>Source (file:line)</th><th>Message</th><th>Frequency</th><th>Severity</th><th>Impact</th></tr>
+<tr><td>network <code>/api/organizations/mine</code></td><td>404 (organizer without an organization)</td><td>8</td><td>Cosmetic</td><td>Expected; existing behaviour before the organization was created</td></tr>
+<tr><td>network <code>/api/inventory-items/{private}/details</code>, <code>/actions</code>, <code>/history</code>, <code>/balance</code>, <code>/{id}</code>, <code>/take</code></td><td>404</td><td>9</td><td>Cosmetic</td><td>Expected: the visibility gate (R13.4)</td></tr>
+<tr><td>network <code>/api/organizations/public/k-…</code>, <code>/api/groups/public/organizers/k-…</code></td><td>404 for a derived slug with no organization</td><td>3</td><td>Cosmetic</td><td>Expected; the test navigated there deliberately</td></tr>
+</table></div>
+<p>There were no JavaScript errors or warnings, and the backend log has no 5xx responses or tracebacks.</p>
+<h2 id="7-spec-alignment">7. Spec Alignment</h2>
+<ul>
+<li><b>Fully implemented</b>:</li>
+<ul>
+<li>R1 inventory location (GET/PUT, picker, persistence)</li>
+<li>R2 <code>/actions</code> shape:</li>
+<ul>
+<li>viewer-shaped location;</li>
+<li>contexts with <code>eligible</code>;</li>
+<li><code>personal_pickup_available</code>;</li>
+<li><code>party_reservation</code>.</li>
+</ul>
+<li>R3 single take/propose endpoint, with the error codes sampled (400/403/404/409)</li>
+<li>R4 personal context: personal reservation, immediate confirm/cancel</li>
+<li>R5 product page states:</li>
+<ul>
+<li>own;</li>
+<li>anonymous;</li>
+<li>choose;</li>
+<li>reserved (party and non-party);</li>
+<li>both sheets;</li>
+<li>chat opens on success.</li>
+</ul>
+<li>R6 tiles: intent badges, single link, no take buttons</li>
+<li>R7/R8 reserved items stay listed:</li>
+<ul>
+<li>badge naming rules (name / "przez Ciebie" / anonymous without a name);</li>
+<li>personalised cache headers.</li>
+</ul>
+<li>R10 counts on the organizer page (available-only plus RESERVED) and on the owner items page (reserved included)</li>
+<li>R11 <code>/api/reservations?item_id=</code> limited to parties</li>
+<li>R12 visibility toggle (always sends the mode; a mode-only change keeps visibility; hint copy)</li>
+<li>R13 PRIVATE gating:</li>
+<ul>
+<li>404 on the read paths and on take;</li>
+<li>excluded from public lists and <code>items_total</code>;</li>
+<li>no public contexts offered.</li>
+</ul>
+</ul>
+<li><b>Partially implemented</b>: <i>None.</i> (C2 is a layout-composition choice, not a missing requirement.)</li>
+<li><b>Not implemented</b>: <i>None observed.</i></li>
+<li><b>Extra (unspecified) behavior</b>:</li>
+<ul>
+<li>The giver's "Anuluj rezerwację" asks for confirmation in an <code>alertdialog</code>. "Potwierdzam przekazanie" runs without a confirmation step.</li>
+<li>An anonymous viewer who clicks the chat on a reserved item gets the account gate "Załóż konto, żeby napisać".</li>
+</ul>
+</ul>
+<h2 id="8-variances-from-plan">8. Variances from Plan</h2>
+<ul>
+<li>Test data was created through the public API, not through the UI. Exceptions: the inventory location and the visibility toggle were set in the UI (scenario 4.1), and the first personal reservation was made in the UI (4.3).</li>
+<li>The second personal reservation of the GIFT item (used to test the receiver's confirm) and the reservation of the "D zamiana" tile item were made through <code>POST /api/items/{id}/take</code> with B's token.</li>
+<li>A PRIVATE item with a shared PRIVATE circle (the positive path of <code>can_view_item</code> for a member) was not exercised. Only the stranger 404 path and the owner path were covered.</li>
+<li>Event contexts were not seeded. Only a TERM context was shown and tested.</li>
+<li>The organization was created through the API (<code>/api/organizations/mine</code>) to reach the organizer page. The layout was switched to CLASSIC to see ExchangeCountsBlock, then back to EXCHANGE.</li>
+<li>Tile links point to <code>/&lt;org-slug&gt;/product/:id</code> rather than the plain <code>/product/:id</code> the brief expected. This is consistent with spec R5.9.</li>
+<li>The "Potwierdzam przekazanie" flow has no confirmation dialog, so no <code>15-*.png</code> screenshot exists.</li>
+</ul>
+<h2 id="9-evaluation-against-exit-criteria">9. Evaluation Against Exit Criteria</h2>
+<div class="card" style="overflow-x:auto"><table><tr><th>Criterion (from spec)</th><th>Status</th><th>Evidence</th></tr>
+<tr><td>The product page is the single surface to reserve: Odbiorę osobiście / Wybieram termin / Napisz o przedmiocie</td><td><span class="pass">✅</span></td><td>4.2, <code>screenshots/05-product-logged-in-3-actions.png</code></td></tr>
+<tr><td>Parties confirm/cancel on the product page (C1)</td><td><span class="pass">✅</span></td><td>4.4, <code>screenshots/09-product-reserved-receiver.png</code>, <code>screenshots/13-cancel-confirm-dialog.png</code></td></tr>
+<tr><td>Chat opens right after a personal reservation</td><td><span class="pass">✅</span></td><td>4.3, <code>screenshots/08-personal-reserve-chat-opened.png</code></td></tr>
+<tr><td>Location name only for others; full address for the owner; none for anonymous viewers</td><td><span class="pass">✅</span></td><td>4.2, 4.6, 4.7</td></tr>
+<tr><td>Tiles: intent badge, reserved badge with the name rule, single link, no take buttons</td><td><span class="pass">✅</span></td><td>4.8, 4.9, 4.10</td></tr>
+<tr><td>Organizer counts GIFT/SWAP available-only + RESERVED; owner counts include reserved</td><td><span class="pass">✅</span></td><td>4.9, 4.10</td></tr>
+<tr><td>PRIVATE items: 404 for strangers, absent from public pages</td><td><span class="pass">✅</span></td><td>4.11</td></tr>
+<tr><td>Personalised responses not shared-cached</td><td><span class="pass">✅</span></td><td>4.12</td></tr>
+</table></div>
+<h2 id="10-recommendations">10. Recommendations</h2>
+<ul>
+<li><b>Must fix before merge</b>: <i>None.</i></li>
+<li><b>Should fix soon</b>: §5.3 M1 (own view of an unlisted item).</li>
+<li><b>Nice-to-have</b>: §5.4 C1 (tab overflow), §5.4 C2 (EXCHANGE counts tiles), §5.4 C3 (sheet button label).</li>
+</ul>
+<h2 id="11-artifacts">11. Artifacts</h2>
+<ul>
+<li><b>Screenshots</b>: <code>verification/screenshots/</code> (30 files)</li>
+<li><b>Visual-fidelity report</b>: <code>verification/visual-fidelity.md</code></li>
+<li><b>Console log dump</b>: inline in §6</li>
+</ul>
+<h2 id="12-conclusion">12. Conclusion</h2>
+<p>Verdict: <b>GO WITH CAVEATS</b>. Every scenario in the brief passed against the running app, and every requirement exercised (R1–R13) behaves as specified, including the privacy gates and the personalised cache headers. The remaining items are 1 Minor copy issue and 3 Cosmetic layout/label points, none of which block use. Recommendation: merge, and track M1 (and optionally C1–C3) as a follow-up.</p></main></body></html>

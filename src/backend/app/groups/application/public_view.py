@@ -30,7 +30,6 @@ from app.users.service import get_profile_by_party, get_profile_by_principal
 
 from ..domain.organizer_slug import derive_organizer_slug
 from ..infrastructure import (
-    circulation_bridge,
     locations_acl,
     organizations_acl,
     product_bridge,
@@ -44,7 +43,6 @@ from ..schemas import (
     MyPledgeResponse,
     PublicCircleResponse,
     PublicGuardianResponse,
-    PublicItemListingResponse,
     PublicNeededItemResponse,
     PublicTermResponse,
     RsvpResponse,
@@ -183,20 +181,18 @@ async def list_my_pledges(db: AsyncSession, party_id: uuid.UUID) -> list[MyPledg
 
 
 async def _listing_thumb_urls(
-    db: AsyncSession, item_ids: list[uuid.UUID], storage: ObjectStorage | None
+    db: AsyncSession, product_ids: dict[uuid.UUID, uuid.UUID], storage: ObjectStorage | None
 ) -> dict[uuid.UUID, str]:
-    """Item id -> public URL of its product's first APPROVED photo, in two
-    batched statements regardless of the number of listings."""
-    if storage is None or not item_ids:
+    """Item id -> public URL of its product's (`product_ids`: item id ->
+    product id) first APPROVED photo, in one batched statement regardless of
+    the number of listings."""
+    if storage is None or not product_ids:
         return {}
-    items = await circulation_bridge.list_available_items_with_product(db, item_ids)
-    photos = await product_bridge.first_approved_photo_by_product(
-        db, {item.product_id for item in items.values()}
-    )
+    photos = await product_bridge.first_approved_photo_by_product(db, set(product_ids.values()))
     return {
-        item_id: storage.public_url(photos[item.product_id].thumb_key)
-        for item_id, item in items.items()
-        if item.product_id in photos
+        item_id: storage.public_url(photos[product_id].thumb_key)
+        for item_id, product_id in product_ids.items()
+        if product_id in photos
     }
 
 
@@ -206,6 +202,7 @@ async def get_public_circle_view(
     term_id: uuid.UUID | None = None,
     include_private_content: bool = False,
     storage: ObjectStorage | None = None,
+    viewer_party_id: uuid.UUID | None = None,
 ) -> PublicCircleResponse:
     """Unauthenticated read assembled server-side in one call: organizer
     name (via the active `Leadership`, `None` if the Circle currently has
@@ -227,7 +224,9 @@ async def get_public_circle_view(
     so an outsider cannot probe which Terms exist.
 
     `storage` absent (the OG-preview callers): every listing's `thumb_url`
-    is `None`."""
+    is `None`. `viewer_party_id` shapes the listings' reserved badges
+    (`None` = anonymous, no reserver names). PRIVATE items are listed only
+    on a PRIVATE circle's full view (`include_private_content`)."""
     group = await get_group(db, group_id)
 
     organizer_display_name: str | None = None
@@ -280,9 +279,14 @@ async def get_public_circle_view(
         active_pledges = await repository.list_active_pledges_for_term(db, cast(uuid.UUID, term.id))
         pledger_name_by_item = {item_id: name for item_id, name, _ in active_pledges}
         pledger_party_by_item = {item_id: party for item_id, _, party in active_pledges}
-        item_listings = await list_public_term_item_listings(db, cast(uuid.UUID, term.id))
+        item_listings = await list_public_term_item_listings(
+            db,
+            cast(uuid.UUID, term.id),
+            viewer_party_id=viewer_party_id,
+            include_private=include_private_content and group.visibility == GroupVisibility.PRIVATE,
+        )
         thumb_urls = await _listing_thumb_urls(
-            db, [listing.item_id for listing in item_listings], storage
+            db, {row.listing.item_id: row.product_id for row in item_listings}, storage
         )
         location = await locations_acl.get_location(db, term.location_id)
         counts = await repository.count_active_attendances_by_term(db, [cast(uuid.UUID, term.id)])
@@ -302,17 +306,8 @@ async def get_public_circle_view(
                 for view in needed_item_views
             ],
             item_listings=[
-                PublicItemListingResponse(
-                    id=listing.item_id,
-                    item_id=listing.item_id,
-                    product_name=listing.product_name,
-                    condition=listing.condition,
-                    offered_types=listing.offered_types,
-                    lister_party_id=listing.lister_party_id,
-                    lister_display_name=listing.lister_display_name,
-                    thumb_url=thumb_urls.get(listing.item_id),
-                )
-                for listing in item_listings
+                row.listing.model_copy(update={"thumb_url": thumb_urls.get(row.listing.item_id)})
+                for row in item_listings
             ],
             location=locations_acl.public_location_response(location),
             capacity=term.capacity,
@@ -381,6 +376,7 @@ async def get_group_access(
         term_id,
         include_private_content=is_member or is_organizer,
         storage=storage,
+        viewer_party_id=profile.party_id if profile is not None else None,
     )
     is_attending = profile is not None and any(
         guardian.party_id == profile.party_id for guardian in group_response.guardians

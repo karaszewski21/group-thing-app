@@ -87,6 +87,7 @@ export const LAYOUT_REGISTRY: Record<string, PageLayoutDefinition> = {
     blocks: [
       { block: "hero", variant: "compact" },
       { block: "exchange-board", variant: "grid2", primary: true },
+      { block: "recent-items" },
       { block: "needed-items", variant: "list" },
       { block: "upcoming-terms", variant: "compact" },
       { block: "about" },

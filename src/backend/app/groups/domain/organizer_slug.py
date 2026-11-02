@@ -27,8 +27,17 @@ def derive_organizer_slug(
     """The Circle's public-URL slug: the organizer's own `Organization` slug
     when they have one, else a hash of the organizer's party id, else (no
     active organizer) a hash of the Circle id. Never empty."""
+    if organizer_party_id is not None:
+        return derive_party_slug(organizer_party_id, organization_slug)
     if organization_slug is not None:
         return organization_slug
-    if organizer_party_id is None:
-        return _fallback_organizer_slug(f"group:{group_id}")
-    return _fallback_organizer_slug(f"party:{organizer_party_id}")
+    return _fallback_organizer_slug(f"group:{group_id}")
+
+
+def derive_party_slug(party_id: uuid.UUID, organization_slug: str | None) -> str:
+    """A party's public-URL prefix: its own `Organization` slug, else the
+    same hash a Circle it leads would get, so an organizer's event and term
+    URLs share one prefix."""
+    if organization_slug is not None:
+        return organization_slug
+    return _fallback_organizer_slug(f"party:{party_id}")

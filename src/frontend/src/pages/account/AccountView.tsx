@@ -11,7 +11,7 @@ import { ProfileView } from "../profile/ProfileView";
 const SECTION_LABEL = "mb-2.5 text-[13px] font-extrabold tracking-[.12em] text-ink-soft uppercase";
 
 export function AccountView() {
-  const { organizationSlug, items, logout } = useAppData();
+  const { organizationSlug, items, myGroups, logout } = useAppData();
   const { data: organization } = useMyOrganization();
 
   return (
@@ -77,7 +77,12 @@ export function AccountView() {
               rows={[
                 { label: "Wygląd strony", to: `/${organizationSlug}?edit=1` },
                 { label: "Dane organizacji", to: "/organization" },
-                { label: "Grupy i terminy", to: viewPath("meetings") },
+                {
+                  label: "Moje grupy",
+                  meta: myGroups.length > 0 ? String(myGroups.length) : "brak",
+                  to: viewPath("groups"),
+                },
+                { label: "Terminy", to: viewPath("meetings") },
               ]}
             />
           </div>

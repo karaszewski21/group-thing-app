@@ -19,9 +19,9 @@ const group = {
 
 describe("termViewModel", () => {
   it("buildAttendees_listsGuardiansFirst_thenNonAttendingListers_withOwnListings", () => {
-    const attendees = buildAttendees(group, (l) => ({ key: l.item_id }) as never);
+    const attendees = buildAttendees(group);
 
-    expect(attendees.map((a) => [a.partyId, a.name, a.listings.map((r) => r.key)])).toEqual([
+    expect(attendees.map((a) => [a.partyId, a.name, a.listings.map((l) => l.item_id)])).toEqual([
       ["1", "Ola", ["10"]],
       ["2", "Ewa", []],
       ["9", "Ania Kowalska", ["11"]],
@@ -38,7 +38,7 @@ describe("termViewModel", () => {
   it("noTerm_givesNoListingsAndNoFlags", () => {
     const empty = { ...group, term: null } as PublicCircleResponse;
 
-    expect(buildAttendees(empty, () => ({}) as never).every((a) => a.listings.length === 0)).toBe(true);
+    expect(buildAttendees(empty).every((a) => a.listings.length === 0)).toBe(true);
     expect(buildVisualizationFamilies(empty).some((f) => f.sharesItem || f.bringsItem)).toBe(false);
   });
 });

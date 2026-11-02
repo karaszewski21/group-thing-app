@@ -42,11 +42,17 @@ from app.groups.application.circles import (
     soft_delete_group,
     update_group,
 )
+from app.groups.application.event_reservations import (
+    OpenEventReservationCounts,
+    cancel_open_event_reservations,
+    count_open_event_reservations,
+)
 from app.groups.application.exchange_summary import (
     get_family_exchange_offers,
     get_group_exchange_summary,
     list_group_member_party_ids,
 )
+from app.groups.application.item_visibility import can_view_item
 from app.groups.application.join_code import (
     get_join_code,
     redeem_join_code,
@@ -75,6 +81,7 @@ from app.groups.application.public_view import (
     list_my_attendances,
     list_my_pledges,
 )
+from app.groups.application.reserved_by import ReservedByNames, load_reserved_by_names
 from app.groups.application.term_item_listings import (
     accept_swap_proposal,
     cancel_transaction,
@@ -84,10 +91,10 @@ from app.groups.application.term_item_listings import (
     list_my_inventory_items,
     list_my_term_item_listings,
     list_swap_proposals_for_my_item,
-    propose_swap,
+    propose_item_swap,
     reject_swap_proposal,
     set_item_listing_preference,
-    take_item_listing,
+    take_item,
 )
 from app.groups.application.terms import (
     create_needed_item,
@@ -111,21 +118,28 @@ from app.groups.infrastructure.locations_acl import (
 from app.groups.infrastructure.repository import (
     has_active_attendance,
     has_active_membership,
+    item_listing_preferences_select,
     list_chat_group_refs,
     list_chat_term_refs,
     list_current_organizer_party_ids,
+    with_pending_proposer,
 )
 from app.groups.infrastructure.slug_resolver import resolve_organizer_slug
 
 __all__ = [
     "ChatAudience",
+    "OpenEventReservationCounts",
+    "ReservedByNames",
     "accept_swap_proposal",
     "add_active_membership",
     "assign_leadership",
     "build_leadership_responses",
     "build_membership_responses",
+    "can_view_item",
+    "cancel_open_event_reservations",
     "cancel_transaction",
     "confirm_transaction",
+    "count_open_event_reservations",
     "create_additional_circle",
     "create_circle",
     "create_needed_item",
@@ -153,6 +167,8 @@ __all__ = [
     "has_active_attendance",
     "has_active_membership",
     "is_active_group_organizer",
+    "item_listing_preferences_select",
+    "load_reserved_by_names",
     "list_active_attendee_party_ids",
     "list_active_leaderships_for_party",
     "list_browsable_term_item_listings",
@@ -181,7 +197,7 @@ __all__ = [
     "list_terms_with_counts",
     "location_ref_response",
     "merge_anonymous_profile",
-    "propose_swap",
+    "propose_item_swap",
     "redeem_join_code",
     "regenerate_join_code",
     "reject_swap_proposal",
@@ -191,10 +207,11 @@ __all__ = [
     "set_item_listing_preference",
     "soft_delete_group",
     "soft_delete_needed_item",
-    "take_item_listing",
+    "take_item",
     "update_group",
     "update_needed_item",
     "update_term",
+    "with_pending_proposer",
     "withdraw_attendance",
     "withdraw_pledge",
 ]

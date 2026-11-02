@@ -2,6 +2,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useCallback } from "react";
 import {
   chatErrorMessage,
+  getOrCreateEventConversation,
   getOrCreateGroupConversation,
   getOrCreateItemConversation,
   getOrCreateTermConversation,
@@ -12,7 +13,7 @@ import { CONVERSATIONS_KEY } from "./useConversations";
 
 const OPEN_FALLBACK = "Nie udało się otworzyć rozmowy — spróbuj ponownie";
 
-/** What to open a chat about: an item, a group or a term, by id. */
+/** What to open a chat about: an item, a group, a term or an event, by id. */
 export interface ChatTarget {
   kind: ConversationKind;
   id: string;
@@ -22,6 +23,7 @@ const GET_OR_CREATE: Record<ConversationKind, (id: string) => Promise<Conversati
   ITEM: getOrCreateItemConversation,
   GROUP: getOrCreateGroupConversation,
   TERM: getOrCreateTermConversation,
+  EVENT: getOrCreateEventConversation,
 };
 
 /** Get-or-create entry point: resolves to the conversation id to navigate

@@ -32,7 +32,7 @@ export function PublicLayout() {
           {!inThread && !onSearch && (
           <Link
             to={viewPath("search")}
-            className={`flex min-h-12 items-center gap-2.5 rounded-full border-[1.5px] border-line bg-paper px-4.5 text-[15px] text-ink-soft transition-colors hover:border-line-strong ${FOCUS_RING}`}
+            className={`flex flex-1 min-h-12 items-center gap-2.5 rounded-full border-[1.5px] border-line bg-paper px-4.5 text-[15px] text-ink-soft transition-colors hover:border-line-strong ${FOCUS_RING}`}
           >
             <SearchIcon c="currentColor" />
             Szukaj rzeczy i spotkań

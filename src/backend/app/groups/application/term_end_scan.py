@@ -34,7 +34,7 @@ from app.outbox import service as outbox_service
 from app.users.service import get_profile_by_account_user_id
 
 from ..domain import swap_events
-from ..infrastructure import circulation_bridge, repository
+from ..infrastructure import circulation_bridge, events_acl, repository
 from ..infrastructure.slug_resolver import resolve_organizer_slug
 from ..models import (
     GiveawayTermEndMarker,
@@ -73,19 +73,35 @@ async def _find_terms_just_ended(db: AsyncSession, *, window: timedelta) -> list
     return list(result.scalars().all())
 
 
+async def _find_events_just_started(
+    db: AsyncSession, *, window: timedelta
+) -> list[events_acl.Event]:
+    """The Event counterpart of `_find_terms_just_ended`: an Event "ends" for
+    the prompt `TERM_END_GRACE` after its `starts_at` (naive Warsaw)."""
+    ended_by = clock.local_now() - TERM_END_GRACE
+    return await events_acl.list_events_starting_between(db, ended_by - window, ended_by)
+
+
+def _context_id(reservation: circulation_bridge.Reservation) -> uuid.UUID:
+    """The Term or Event a reservation was made for — the key of the scan's
+    `link_paths`/`details` maps (Term and Event ids never collide)."""
+    return cast(
+        uuid.UUID,
+        reservation.term_id if reservation.term_id is not None else reservation.event_id,
+    )
+
+
 async def _scan_hand_over_reservations(
     db: AsyncSession,
+    candidates: list[circulation_bridge.Reservation],
     link_paths: dict[uuid.UUID, str],
-    details_by_term: dict[uuid.UUID, dict[str, object]],
+    details_by_context: dict[uuid.UUID, dict[str, object]],
 ) -> int:
-    """One bridge query for every just-ended Term's still-open GIFT
-    reservations, minus those already carrying a `GiveawayTermEndMarker`.
-    Deliberately independent of eligibility and `ItemListingPreference` — the
-    giver may have cleared the listing after the take. Returns how many
-    events it emitted."""
-    candidates = await circulation_bridge.list_active_hand_over_reservations_for_terms(
-        db, list(link_paths)
-    )
+    """The still-open GIFT reservations of every just-ended Term and Event
+    (read by the caller in one bridge query each), minus those already
+    carrying a `GiveawayTermEndMarker`. Deliberately independent of
+    eligibility and `ItemListingPreference` — the giver may have cleared the
+    listing after the take. Returns how many events it emitted."""
     if not candidates:
         return 0
 
@@ -130,9 +146,9 @@ async def _scan_hand_over_reservations(
                 "owner_party_id": owner_profile.party_id,
                 "taker_party_id": taker_profile.party_id,
                 "reservation_id": reservation_id,
-                "link_path": link_paths[reservation.term_id],
+                "link_path": link_paths[_context_id(reservation)],
                 "item_name": item_names.get(reservation.item_id),
-                **details_by_term[reservation.term_id],
+                **details_by_context[_context_id(reservation)],
             },
         )
         db.add(GiveawayTermEndMarker(reservation_id=reservation_id, notified_at=datetime.utcnow()))
@@ -195,6 +211,86 @@ async def _scan_swaps(
     return len(proposals)
 
 
+async def _scan_event_swaps(
+    db: AsyncSession,
+    events: list[events_acl.Event],
+    link_paths: dict[uuid.UUID, str],
+    details_by_context: dict[uuid.UUID, dict[str, object]],
+) -> int:
+    """Emits each ACCEPTED, not-yet-notified proposal whose proposer
+    reservation belongs to a just-started Event. Reservation-driven: unlike
+    `_scan_swaps` it ignores eligibility and listing preferences, so the swap
+    of an attendee who withdrew is still prompted. The owner is the taker of
+    the proposer reservation; each party's payload names the reservation it
+    confirms — the owner the proposer reservation, the proposer its paired
+    one — because event prompts are always confirmed by `reservation_id`."""
+    proposals_by_event: list[tuple[uuid.UUID, SwapProposal]] = []
+    for event in events:
+        event_id = cast(uuid.UUID, event.id)
+        result = await db.execute(
+            select(SwapProposal).where(
+                SwapProposal.status == SwapProposalStatus.ACCEPTED,
+                SwapProposal.term_ended_notified_at.is_(None),
+                SwapProposal.proposer_reservation_id.in_(
+                    circulation_bridge.reservation_ids_for_event_select(event_id)
+                ),
+            )
+        )
+        proposals_by_event.extend((event_id, p) for p in result.scalars().all())
+    if not proposals_by_event:
+        return 0
+
+    proposals = [p for _, p in proposals_by_event]
+    reservation_model = circulation_bridge.Reservation
+    owner_reservations = {
+        cast(uuid.UUID, r.id): r
+        for r in (
+            await db.execute(
+                select(reservation_model).where(
+                    reservation_model.id.in_([p.proposer_reservation_id for p in proposals])
+                )
+            )
+        )
+        .scalars()
+        .all()
+    }
+    item_names = await circulation_bridge.list_product_names_for_items(
+        db, {p.listing_item_id for p in proposals} | {p.offered_item_id for p in proposals}
+    )
+
+    emitted = 0
+    for event_id, proposal in proposals_by_event:
+        owner_reservation = owner_reservations[proposal.proposer_reservation_id]
+        try:
+            owner_profile = await get_profile_by_account_user_id(
+                db, owner_reservation.reserved_by_user_id
+            )
+        except EntityNotFoundException:
+            logger.warning(
+                "Term-end scan skipped swap proposal %s: the owner has no user profile",
+                proposal.id,
+            )
+            continue
+        await outbox_service.append(
+            db,
+            event_type=swap_events.TERM_ENDED_SWAP,
+            payload={
+                "proposer_party_id": proposal.proposer_party_id,
+                "owner_party_id": owner_profile.party_id,
+                "proposal_id": proposal.id,
+                "owner_reservation_id": proposal.proposer_reservation_id,
+                "proposer_reservation_id": owner_reservation.paired_reservation_id,
+                "link_path": link_paths[event_id],
+                "listing_item_name": item_names.get(proposal.listing_item_id),
+                "offered_item_name": item_names.get(proposal.offered_item_id),
+                **details_by_context[event_id],
+            },
+        )
+        proposal.term_ended_notified_at = datetime.utcnow()
+        emitted += 1
+    return emitted
+
+
 async def scan_for_term_ended(db: AsyncSession, *, window: timedelta = DEFAULT_WINDOW) -> None:
     """Entry point for both the APScheduler job (`term_end_worker`) and
     tests. Commits once at the end — the outbox-append and idempotency
@@ -202,34 +298,54 @@ async def scan_for_term_ended(db: AsyncSession, *, window: timedelta = DEFAULT_W
     atomic transaction."""
     terms = await _find_terms_just_ended(db, window=window)
     link_paths: dict[uuid.UUID, str] = {}
-    details_by_term: dict[uuid.UUID, dict[str, object]] = {}
+    details_by_context: dict[uuid.UUID, dict[str, object]] = {}
     group_names = await repository.list_group_names(db, {t.circle_group_id for t in terms})
     for term in terms:
         term_id = cast(uuid.UUID, term.id)
         slug = await resolve_organizer_slug(db, term.circle_group_id)
         link_paths[term_id] = f"/{slug}/group/{term.circle_group_id}/term/{term.id}"
         # JSON-safe for the outbox: `occurs_on` travels as an ISO string.
-        details_by_term[term_id] = {
+        details_by_context[term_id] = {
             "occurs_on": term.occurs_on.isoformat(),
             "group_name": group_names.get(term.circle_group_id),
         }
-    hand_over_events = (
-        await _scan_hand_over_reservations(db, link_paths, details_by_term) if link_paths else 0
+    events = await _find_events_just_started(db, window=window)
+    event_slugs = await events_acl.author_slugs(db, events)
+    for event in events:
+        event_id = cast(uuid.UUID, event.id)
+        link_paths[event_id] = f"/{event_slugs[event_id]}/event/{event.id}"
+        details_by_context[event_id] = {
+            "occurs_on": event.starts_at.isoformat(),
+            "group_name": event.name,
+        }
+
+    candidates: list[circulation_bridge.Reservation] = []
+    if terms:
+        candidates += await circulation_bridge.list_active_hand_over_reservations_for_terms(
+            db, [cast(uuid.UUID, t.id) for t in terms]
+        )
+    if events:
+        candidates += await circulation_bridge.list_active_hand_over_reservations_for_events(
+            db, [cast(uuid.UUID, e.id) for e in events]
+        )
+    hand_over_events = await _scan_hand_over_reservations(
+        db, candidates, link_paths, details_by_context
     )
-    swap_events_emitted = 0
+    swap_events_emitted = await _scan_event_swaps(db, events, link_paths, details_by_context)
 
     for term in terms:
         eligible_party_ids = await _list_eligible_lister_party_ids(db, term)
         if not eligible_party_ids:
             continue
+        # Every listed swap is prompted, whatever its visibility.
         preferences = await repository.list_item_listing_preferences_for_parties(
-            db, eligible_party_ids
+            db, eligible_party_ids, include_private=True
         )
         if not preferences:
             continue
         term_id = cast(uuid.UUID, term.id)
         swap_events_emitted += await _scan_swaps(
-            db, preferences, term, link_paths[term_id], details_by_term[term_id]
+            db, preferences, term, link_paths[term_id], details_by_context[term_id]
         )
     await db.commit()
 
@@ -237,8 +353,9 @@ async def scan_for_term_ended(db: AsyncSession, *, window: timedelta = DEFAULT_W
     level = logging.INFO if hand_over_events or swap_events_emitted else logging.DEBUG
     logger.log(
         level,
-        "Term-end scan: %d terms, %d hand-over events, %d swap events",
+        "Term-end scan: %d terms, %d events, %d hand-over events, %d swap events",
         len(terms),
+        len(events),
         hand_over_events,
         swap_events_emitted,
     )

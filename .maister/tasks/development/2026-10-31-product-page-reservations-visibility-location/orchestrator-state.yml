@@ -1,0 +1,208 @@
+orchestrator:
+  started_phase: phase-1
+  completed_phases: [phase-1, phase-2, phase-4, phase-5, phase-6, phase-7, phase-8, phase-10, phase-11, phase-12, phase-13, phase-14]
+  failed_phases: []
+  auto_fix_attempts: {}
+  options:
+    sequential: null
+    html_output: true
+    mockup_format: html
+    spec_audit_enabled: true
+    skip_test_suite: false
+    e2e_enabled: true
+    user_docs_enabled: true
+    code_review_enabled: true
+    pragmatic_review_enabled: true
+    reality_check_enabled: true
+    production_check_enabled: true
+  created: "2026-10-31T17:16:28Z"
+  updated: "2026-11-02T10:12:14Z"
+  task_path: .maister/tasks/development/2026-10-31-product-page-reservations-visibility-location
+  task_ids: {}
+  git:
+    base_commit: bf55353
+    branch: feat/product-page-reservations
+
+task:
+  title: "Product page reservations, item visibility, physical & suggested location, reserved badges"
+  description: >
+    Review, refactor and plan. (1) Take/swap reservation moves entirely to the product page;
+    tiles of attendees' items on term/event pages and org/user item lists show only the owner's
+    intent ("Chcę oddać" / "Chcę się zamienić") and link to the product page; take/swap buttons are
+    removed from lists/tiles. (2) Item proposal visibility: public by default, owner can set private
+    (mainly for private groups). (3) "Moje rzeczy" gets the item's physical location (future global
+    search, product page shows where the item physically is, pickup independent of a term).
+    (4) Product page shows selects of terms/events the owner attends — the "suggested" location.
+    (5) Reserved items stay on lists with a "zarezerwowana" badge; logged-in users see who reserved,
+    anonymous users only "zarezerwowana".
+  status: completed
+  tags: [circulation, groups, events, frontend, product-page]
+  priority: null
+
+task_context:
+  risk_level: medium-high
+  clarifications_resolved: true
+  scope_expanded: true
+  tech_clarified: true
+  architecture_decision: "PersonalContext third ReservationContext; single item take/propose endpoint. One task, slices S1 (inventory location + product page 3 actions + no-context reservation + tile cleanup/intent badges) -> S2 (reserved badge, proposal block, counts, privacy leaks) -> S3 (private visibility)"
+  project_doc_paths:
+    - .maister/docs/project/tech-stack.md
+    - .maister/docs/project/architecture.md
+  task_characteristics:
+    has_reproducible_defect: false
+    modifies_existing_code: true
+    creates_new_entities: true
+    involves_data_operations: true
+    ui_heavy: true
+  research_reference:
+    path: null
+    research_question: null
+    research_type: null
+    confidence_level: null
+  design_reference:
+    source: phase-4-mockup-studio
+    product_design_path: null
+    mockup_count: 10
+    has_brief: false
+    index_path: analysis/design-context/INDEX.md
+  design_resources:
+    ran: true
+    standards:
+      - {path: .maister/docs/standards/frontend/components.md, topic: components}
+      - {path: .maister/docs/standards/frontend/accessibility.md, topic: a11y}
+      - {path: .maister/docs/standards/frontend/responsive.md, topic: responsive}
+      - {path: .maister/docs/standards/frontend/css.md, topic: css}
+    design_system:
+      - {kind: css-var, path: src/frontend/src/index.css, note: "Tailwind v4 @theme static tokens"}
+      - {kind: component-lib, path: src/frontend/src/components/shared, note: "Chakra + local shared components"}
+    skill_hints: []
+    found_any: true
+  phase_summaries:
+    codebase_analysis:
+      summary: "Product page already has full take/swap flow; only the term page has inline take buttons. All public lists share available_items_with_product_select (hides reserved). No item visibility, no item location FK, no owner-contexts list yet."
+      key_files:
+        - src/backend/app/groups/application/term_item_listings.py
+        - src/backend/app/groups/application/item_actions.py
+        - src/backend/app/groups/infrastructure/repository.py
+        - src/backend/app/circulation/infrastructure/repository.py
+        - src/backend/app/circulation/domain/item_privacy.py
+        - src/frontend/src/pages/product/ItemContextActions.tsx
+        - src/frontend/src/pages/term/views/PublicTermView.tsx
+        - src/frontend/src/pages/items/MyItemsView.tsx
+      primary_language: python+typescript
+      decisions: []
+      risks: []
+      artifacts:
+        - {path: analysis/codebase-analysis.md, label: Codebase analysis, html: null}
+        - {path: analysis/clarifications.md, label: Clarifications, html: null}
+    clarifications:
+      - "Reserver name visible to every logged-in user; anonymous see only 'zarezerwowana' (overrides item_privacy parties-only rule)"
+      - "Private = item only in lists of owner's private groups; never on public pages"
+      - "Pickup without term/event is a follow-up; this task only stores/shows physical location"
+      - "Pending swap proposal = item treated as reserved (badge + blocks further takes/proposals)"
+    gap_analysis:
+      summary: "Completeness 45%; 7 critical + 10 important decisions. Product-page context select must ship with term-button removal; visibility best on inventory_items; pending-proposal guard needs lock; physical location is personal data."
+      integration_points:
+        - GET /api/items/{id}/actions (contexts list with place + group_id)
+        - available_items_with_product_select
+        - item_listing_preferences_select
+        - PATCH /api/inventory-items/{id}
+        - item_details /details
+        - _take / _propose / propose_event_swap
+        - item_privacy.label()
+      decisions: []
+      risks:
+        - "Statement-count tests on list read models at risk when adding status/reserver data"
+        - "Dirty branch; untracked 0073; next migrations 0074/0075"
+        - "Item-page term-context tests must precede deleting TermPage take tests"
+      artifacts:
+        - {path: analysis/gap-analysis.md, label: Gap analysis, html: null}
+    scope_clarifications:
+      scope_expanded: true
+      summary: "Product page = 3 actions (Odbiorę osobiście with no term/event, Wybieram termin, chat); URL ?term/?event removed; physical location on Inventory (location_id) set on Moje rzeczy, name-only for others; visibility on item_listing_preferences; single 'zarezerwowana' badge; pickup-without-term back IN scope; privacy gaps fixed."
+      artifacts:
+        - {path: analysis/scope-clarifications.md, label: Scope clarifications, html: null}
+    ui_mockups:
+      summary: "10 HTML mockups (format html, gallery http://localhost:3847): product page 4 variants + 2 sheets, term/organizer/owner tiles, Moje rzeczy location + visibility."
+      components_designed: [intent-badge, reserved-badge, visibility-toggle]
+      decisions: []
+      risks: []
+      artifacts:
+        - {path: analysis/design-context/INDEX.md, label: Design index, html: null}
+        - {path: analysis/design-context/design-resources.md, label: Design resources, html: null}
+    e2e:
+      summary: "GO WITH CAVEATS: 12/12 scenarios pass, 0 critical/major; defects M1 (no-mode owner item says Dostępna), C1 tab overflow 430px, C2 EXCHANGE counts tiles missing, C3 'Rezerwuję' label. Visual fidelity 8 ok / 5 minor / 0 drift."
+      decisions: []
+      risks:
+        - "Not covered: PRIVATE positive path for shared-private-circle member; EVENT contexts"
+      artifacts:
+        - {path: verification/e2e-verification-report.md, label: E2E report, html: verification/e2e-verification-report.html}
+        - {path: verification/visual-fidelity.md, label: Visual fidelity, html: verification/visual-fidelity.html}
+    user_docs:
+      summary: "Polish user guide with 20 mobile screenshots (all recaptured): location, visibility, 3 actions, settlement, tiles/counters, who-sees-what table, troubleshooting."
+      decisions: []
+      risks:
+        - "Button copy with organization owner reads awkwardly ('Rezerwuję i piszę do Wymianki u Ani')"
+        - ".playwright-mcp/ folder in repo root not in .gitignore"
+      artifacts:
+        - {path: documentation/user-guide.md, label: User guide, html: null}
+    design:
+      summary: "Mockups bind to index.css tokens and existing components; see INDEX.md for stable IDs."
+      screen_count: 10
+      component_count: 3
+      index_path: analysis/design-context/INDEX.md
+    specification:
+      summary: "13 requirements (S1 R1-R6, S2 R7-R11, S3 R12-R13); PersonalContext + 0074/0075/0076; /actions returns contexts[], viewer-shaped location, personal_pickup_available; single POST /api/items/{id}/take|propose; can_view_item gate; party-only /api/reservations."
+      decisions: []
+      risks:
+        - "0073 untracked / uncommitted event-reservation work; stabilise before S1"
+        - "PRIVATE setting lost when preference row deleted (accepted)"
+        - "Statement-count tests need re-baseline (must not grow with rows)"
+      artifacts:
+        - {path: analysis/requirements.md, label: Requirements, html: null}
+        - {path: analysis/technical-clarifications.md, label: Technical clarifications, html: null}
+        - {path: implementation/spec.md, label: Specification, html: implementation/spec.html}
+    architecture_decision: {decision: "PersonalContext + unified item endpoint", summary: "see technical-clarifications.md"}
+    implementation:
+      summary: "17/17 groups (15 waves), 119 steps. Backend full suite 1112 passed, mypy 15 = baseline; frontend 1330 passed / 13 pre-existing failures; tsc clean; 1 new ruff E501 (authorization_matrix.py:248 comment)."
+      decisions: []
+      risks:
+        - "One new ruff E501 at authorization_matrix.py:248"
+        - "Minor visual deviations: owner names not declined, toggle on own row, term/event non-party reserved copy kept"
+      artifacts:
+        - {path: implementation/work-log.md, label: Work log, html: null}
+    planning:
+      summary: "17 task groups, 119 steps, S1 (G1-G9) -> S2 (G10-G12) -> S3 (G13-G15), docs G16, regression G17; visual coverage 13/13."
+      decisions: []
+      risks:
+        - "Precondition: commit/stabilise 0073 + event-reservation work before Group 1"
+        - "Migration test chain fixtures must avoid open no-context / PRIVATE rows"
+        - "Shared files force sequential groups"
+      artifacts:
+        - {path: implementation/implementation-plan.md, label: Implementation plan, html: implementation/implementation-plan.html}
+        - {path: implementation/visual-coverage.md, label: Visual coverage, html: null}
+
+verification_context:
+  last_status: passed
+  issues_found: []
+  fixes_applied:
+    - "W1 PRIVATE items listed only for owners who are members/organizers of the private circle (listings, browse, /actions, take/propose 409)"
+    - "W2 migration 0077 partial index ix_swap_proposals_listing_item_id_proposed"
+    - "W3 app/core/cache_headers.py on /actions, /details, /events/{id}, /access (+organizer routes)"
+    - "W4 require_placeable re-checked after FOR UPDATE lock"
+    - "W5 hint + aria-describedby when personal pickup unavailable"
+    - "W6 useReservationSettlement hook, RESERVATION_STATE_KEYS, isAlreadyResolved shared, confirm dialog for cancel/reject"
+    - "W7 0075 downgrade guarded; runbook mandates both guard counts; lock_timeout on 0075/0076"
+    - "W8 isPersonalSwapAccept + shared copy"
+    - "W9 useItemTake onReserved callback; files moved to pages/product"
+    - "W10 E501 rewrapped"
+    - "W11 spec 422 -> 400"
+    - "info: useMyInventoryLocation loading, stale .pyc removed, INDEX.md updated for 0077"
+    - "Round 2 N1: exchange_summary private_circle_id (RSVP-only co-guardian PRIVATE items hidden)"
+    - "Round 2 N2: confirm dialog closes only on success"
+    - "Round 2 D1-D5: architecture.md + spec.md aligned (Rev 3)"
+  decisions_made:
+    - "W1: do not show PRIVATE items of RSVP-only owners (user)"
+    - "Fix all fixable issues (user)"
+    - "Round 2: fix N1 + docs; keep anonymous 60s shared cache (user)"
+  reverify_count: 1

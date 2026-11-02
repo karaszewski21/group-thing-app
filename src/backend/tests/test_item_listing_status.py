@@ -18,7 +18,6 @@ from app.circulation.models import InventoryItem
 from app.core import clock
 from app.groups import service
 from app.groups.models import ItemListingPreference, Term
-from app.groups.schemas import TakeTermItemListingRequest
 from tests.test_term_item_listings import (
     _auth,
     _create_circle_and_term,
@@ -26,6 +25,7 @@ from tests.test_term_item_listings import (
     _register,
     _resolve_product,
     _rsvp,
+    _take_in_term,
 )
 
 REGISTER_LIMIT_MESSAGE = (
@@ -211,12 +211,7 @@ async def test_confirmTransaction_gift_itemIsDraftAtNewOwner(
 
     taker_token, _ = await _register(client, "GUEST", "ils.taker@example.com")
     await _rsvp(client, taker_token, group_id, term_id)
-    taken = await service.take_item_listing(
-        db_session,
-        _principal(taker_token),
-        uuid.UUID(item_id),
-        TakeTermItemListingRequest(term_id=term_id, reservation_type="GIFT"),
-    )
+    taken = await _take_in_term(db_session, _principal(taker_token), uuid.UUID(item_id), term_id)
     term = (await db_session.execute(select(Term).where(Term.id == term_id))).scalar_one()
     term.occurs_on = clock.local_now() - timedelta(days=1)
     await db_session.commit()
@@ -269,12 +264,7 @@ async def test_listingInvariant_registerSetClearConfirmSequence_activeExactlyWhe
 
     taker_token, _ = await _register(client, "GUEST", "ils.seq.taker@example.com")
     await _rsvp(client, taker_token, group_id, term_id)
-    taken = await service.take_item_listing(
-        db_session,
-        _principal(taker_token),
-        uuid.UUID(gift_id),
-        TakeTermItemListingRequest(term_id=term_id, reservation_type="GIFT"),
-    )
+    taken = await _take_in_term(db_session, _principal(taker_token), uuid.UUID(gift_id), term_id)
     term = (await db_session.execute(select(Term).where(Term.id == term_id))).scalar_one()
     term.occurs_on = clock.local_now() - timedelta(days=1)
     await db_session.commit()

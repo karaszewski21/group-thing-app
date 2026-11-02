@@ -1,13 +1,13 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { MemoryRouter, Navigate, Route, Routes, useLocation } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { AuthGuard } from "../auth/AuthGuard";
 import * as itemsApi from "../api/items";
+import * as itemActionsApi from "../api/itemActions";
+import type { ItemActionsResponse } from "../api/itemActions";
 import * as organizationsApi from "../api/organizations";
 import { ApiError } from "../api/client";
 import type { ItemDetailsResponse } from "../api/items";
 import { ItemDetailBody } from "../pages/product/ItemDetailPage";
-import { ItemEditBody } from "../pages/product/ItemEditPage";
 import { OrganizerItemLayout } from "../pages/product/OrganizerItemLayout";
 import { createQueryWrapper } from "./queryClient";
 
@@ -19,7 +19,10 @@ vi.mock("../auth/AuthContext", () => ({
 
 vi.mock("../api/items", () => ({
   getItemDetails: vi.fn(),
-  getItemHistory: vi.fn(),
+}));
+
+vi.mock("../api/itemActions", () => ({
+  getItemActions: vi.fn(),
 }));
 
 vi.mock("../api/organizations", () => ({
@@ -57,7 +60,23 @@ function details(overrides: Partial<ItemDetailsResponse> = {}): ItemDetailsRespo
     product_photo_url: null,
     is_owner: true,
     deleted_at: null,
-    status: { code: "AVAILABLE", term_occurs_on: null, due_date: null, counterparty_label: null },
+    status: { code: "AVAILABLE", term_occurs_on: null, due_date: null, counterparty_label: null, personal_pickup: false },
+    ...overrides,
+  };
+}
+
+function itemActions(overrides: Partial<ItemActionsResponse> = {}): ItemActionsResponse {
+  return {
+    mode: "GIFT",
+    visibility: null,
+    available: true,
+    reservation: null,
+    party_reservation: null,
+    owner: { party_id: "party-1", display_name: "Studio Ania", slug: "ania", items_total: 4 },
+    viewer: "OWN",
+    location: null,
+    contexts: [],
+    personal_pickup_available: false,
     ...overrides,
   };
 }
@@ -74,14 +93,10 @@ function renderAt(path: string) {
         <Route path="/:organizationSlug/product" element={<Navigate to=".." relative="path" replace />} />
         <Route
           path="/:organizationSlug/product/:id"
-          element={
-            <AuthGuard>
-              <OrganizerItemLayout />
-            </AuthGuard>
-          }
+          element={<OrganizerItemLayout />}
         >
           <Route index element={<ItemDetailBody />} />
-          <Route path="edit" element={<ItemEditBody />} />
+          <Route path="edit" element={<Navigate to="..?edit=1" relative="path" replace />} />
         </Route>
         <Route path="*" element={<Where />} />
       </Routes>
@@ -101,16 +116,30 @@ describe("Organizer product route", () => {
     vi.clearAllMocks();
     mockAuth.token = "valid.jwt.token";
     vi.mocked(itemsApi.getItemDetails).mockResolvedValue(details());
-    vi.mocked(itemsApi.getItemHistory).mockResolvedValue([]);
     vi.mocked(organizationsApi.getPublicOrganization).mockResolvedValue(ORGANIZATION);
+    vi.mocked(itemActionsApi.getItemActions).mockResolvedValue(itemActions());
   });
 
-  it("sends an anonymous visitor to login with returnTo", () => {
+  it("anonymous: a listed item renders with the actions card, no login detour", async () => {
     mockAuth.token = null;
+    vi.mocked(itemsApi.getItemDetails).mockResolvedValue(details({ is_owner: false }));
+    vi.mocked(itemActionsApi.getItemActions).mockResolvedValue(itemActions({ viewer: "ANONYMOUS" }));
     renderAt("/ania/product/9");
 
-    expect(screen.getByTestId("where")).toHaveTextContent("/login?returnTo=%2Fania%2Fproduct%2F9");
-    expect(itemsApi.getItemDetails).not.toHaveBeenCalled();
+    expect(await screen.findByRole("heading", { name: "Rowerek biegowy" })).toBeInTheDocument();
+    expect(await screen.findByRole("region", { name: "Chcesz tę rzecz?" })).toBeInTheDocument();
+    expect(screen.queryByTestId("where")).not.toBeInTheDocument();
+    expect(itemActionsApi.getItemActions).toHaveBeenCalledWith("9");
+  });
+
+  it("anonymous: a non-public item (404) sends the visitor to login with returnTo, query kept", async () => {
+    mockAuth.token = null;
+    vi.mocked(itemsApi.getItemDetails).mockRejectedValue(new ApiError(404, "Not Found", null));
+    renderAt("/ania/product/9?event=ev-1");
+
+    expect(await screen.findByTestId("where")).toHaveTextContent(
+      "/login?returnTo=%2Fania%2Fproduct%2F9%3Fevent%3Dev-1",
+    );
   });
 
   it("shows a neutral loader while the organization is pending, item fetch already started", async () => {
@@ -130,7 +159,7 @@ describe("Organizer product route", () => {
     const scope = scopeOf(heading);
     expect(scope).toHaveAttribute("data-organizer-theme", "custom");
     expect(scope.style.getPropertyValue("--color-primary")).toBe("#7a2a4f");
-    expect(screen.getByRole("link", { name: /Edytuj/ })).toHaveAttribute("href", "/ania/product/9/edit");
+    expect(screen.getByRole("button", { name: /Edytuj/ })).toBeInTheDocument();
   });
 
   it("falls back to the default palette when the organization is unknown", async () => {
@@ -141,21 +170,21 @@ describe("Organizer product route", () => {
     expect(scopeOf(heading)).toHaveAttribute("data-organizer-theme", "default");
   });
 
-  it("edit page links back inside the organizer prefix", async () => {
+  it("the old edit address opens edit mode in place, inside the organizer prefix", async () => {
     renderAt("/ania/product/9/edit");
 
-    expect(await screen.findByRole("heading", { name: "Edycja rzeczy" })).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Gotowe" })).toHaveAttribute("href", "/ania/product/9");
-    expect(screen.getByRole("link", { name: /Wróć do podglądu/ })).toHaveAttribute("href", "/ania/product/9");
+    expect(await screen.findByRole("form", { name: "Edycja rzeczy" })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Anuluj" }));
+    expect(await screen.findByRole("heading", { name: "Rowerek biegowy" })).toBeInTheDocument();
   });
 
-  it("redirects a non-owner from edit to the organizer view", async () => {
+  it("a non-owner on the edit address sees the organizer view without edit controls", async () => {
     vi.mocked(itemsApi.getItemDetails).mockResolvedValue(details({ is_owner: false }));
     renderAt("/ania/product/9/edit");
 
     expect(await screen.findByRole("heading", { name: "Rowerek biegowy" })).toBeInTheDocument();
-    expect(screen.queryByRole("heading", { name: "Edycja rzeczy" })).not.toBeInTheDocument();
-    expect(screen.queryByRole("link", { name: /Edytuj/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole("form", { name: "Edycja rzeczy" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Edytuj/ })).not.toBeInTheDocument();
   });
 
   it("Wróć on a direct entry goes to the organizer page", async () => {

@@ -21,7 +21,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core import clock
-from app.groups.models import Leadership, NeededItem, Term
+from app.groups.models import ItemListingPreference, Leadership, NeededItem, Term
 from app.organizations.models import Organization
 from tests.conftest import leaf_category_ids
 
@@ -583,7 +583,9 @@ async def test_getPublicCircle_organizerAndAttendeeListings_visibleAnonymously(
     assert lister_by_item[attendee_item_id] == attendee_party_id
 
 
-async def test_getPublicCircle_takenItem_disappearsFromPublicListings(client: AsyncClient) -> None:
+async def test_getPublicCircle_takenItem_staysListedWithAnonymousReservation(
+    client: AsyncClient,
+) -> None:
     org_token = await _register_organizer(client, "pt.exchange.taken@example.com")
     group_id = await _create_circle(client, org_token, "Krąg wzięty")
     term_id = await _create_term(
@@ -599,14 +601,16 @@ async def test_getPublicCircle_takenItem_disappearsFromPublicListings(client: As
         headers=_auth_headers(taker_token),
     )
     take = await client.post(
-        f"/api/term-item-listings/{item_id}/take",
-        json={"term_id": term_id, "reservation_type": "GIFT"},
+        f"/api/items/{item_id}/take",
+        json={"context": {"kind": "TERM", "id": term_id}, "reservation_type": "GIFT"},
         headers=_auth_headers(taker_token),
     )
     assert take.status_code == 200
 
     response = await client.get(f"/api/groups/public/{group_id}?term_id={term_id}")
-    assert response.json()["term"]["item_listings"] == []
+    [listing] = response.json()["term"]["item_listings"]
+    assert listing["item_id"] == item_id
+    assert listing["reservation"] == {"by_name": None, "by_me": False}
 
 
 async def test_getPublicCircle_termOccursOnInPast_listingsStillVisible(
@@ -659,3 +663,42 @@ async def test_getPublicCircle_pledgedNeededItem_exposesPledgerPartyId(client: A
     item = response.json()["term"]["needed_items"][0]
     assert item["claimed_by_party_id"] == guest_party_id
     assert item["claimed_by_name"] == "Pt Pledger Guest"
+
+
+PUBLIC_ITEM_LISTING_KEYS = {
+    "id",
+    "item_id",
+    "product_name",
+    "condition",
+    "offered_types",
+    "lister_party_id",
+    "lister_display_name",
+    "thumb_url",
+    "added_at",
+    "reservation",
+}
+
+
+async def test_getPublicCircle_itemListing_carriesAddedAtAsNaiveUtcPreferenceCreatedAt(
+    client: AsyncClient, db_session: AsyncSession
+) -> None:
+    org_token = await _register_organizer(client, "pt.added.org@example.com")
+    group_id = await _create_circle(client, org_token, "Krąg dodanych")
+    term_id = await _create_term(
+        client, org_token, group_id, clock.local_now().date() + timedelta(days=7)
+    )
+    item_id = await _register_personal_item(client, org_token, "Hulajnoga")
+    await _set_preference(client, org_token, item_id, "GIFT")
+    created_at = await db_session.scalar(
+        select(ItemListingPreference.created_at).where(
+            ItemListingPreference.item_id == uuid.UUID(str(item_id))
+        )
+    )
+
+    response = await client.get(f"/api/groups/public/{group_id}?term_id={term_id}")
+
+    assert response.status_code == 200
+    [listing] = response.json()["term"]["item_listings"]
+    assert set(listing) == PUBLIC_ITEM_LISTING_KEYS
+    assert re.fullmatch(r"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?", listing["added_at"])
+    assert datetime.fromisoformat(listing["added_at"]) == created_at

@@ -1,28 +1,43 @@
-import { useRef, useState, type ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import { Link } from "react-router-dom";
-import type { GroupResponse } from "../../api/groups";
+import type { EventResponse } from "../../api/events";
+import type { MyPledgeResponse } from "../../api/pledges";
 import dayjs from "../../utils/dayjs";
-import { pluralPl } from "../../utils/plural";
-import { DeleteGroupDialog } from "./DeleteGroupDialog";
 import { SubPageHeader } from "../../components/shared/appComponents";
-import { LayoutModeIcon, PencilIcon, TrashIcon } from "../../components/shared/appIcons";
-import { termTime, viewPath, type GuestTermCard, type TermWithNeeded } from "../../utils/appHelpers";
+import { FamilyIcon } from "../../components/shared/appIcons";
+import { viewPath, type GuestTermCard, type TermWithNeeded } from "../../utils/appHelpers";
 import { useAppData } from "../../app/appDataStore";
+import { useAttendingEvents } from "../../hooks/useAttendingEvents";
+import { useMyEvents } from "../../hooks/useMyEvents";
+import { useMyPledges } from "../../hooks/useMyPledges";
+import { EventCard, OrganizerTermCard, SavedTermCard } from "./TermCards";
 
-const SECTION_TITLE = "font-serif text-[21px] font-bold text-ink";
-const SECTION_COUNT = "font-sans text-base font-semibold text-ink-soft";
 const EMPTY = "rounded-[22px] border border-dashed border-line bg-paper p-5 text-center text-[13px] text-ink-soft";
-const GROUP_TONES = ["bg-accent-soft", "bg-primary-soft"];
-const LAYOUT_LABEL = { CIRCLE: "Krąg", PITCH: "Boisko", TABLE: "Stół" } as const;
-const GROUP_ICON_TONES = ["bg-accent text-ink", "bg-primary text-on-primary"];
-const TILE_BUTTON =
-  "flex h-9 w-9 items-center justify-center rounded-full bg-paper/70 text-ink transition-colors hover:bg-paper focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring";
 
-/** A led term or a guest card — whatever a `TermList` row is built from. */
-type ListedTerm = TermWithNeeded | GuestTermCard;
+/** A led term, an own event or a guest card — whatever a `TermList` row is built from. */
+type ListedTerm = TermWithNeeded | EventResponse | GuestTermCard;
 
-const termIdOf = (entry: ListedTerm) => ("term" in entry ? entry.term.id : entry.termId);
-const occursOnOf = (entry: ListedTerm) => ("term" in entry ? entry.term.occurs_on : entry.occursOn);
+const termIdOf = (entry: ListedTerm) =>
+  "term" in entry ? entry.term.id : "starts_at" in entry ? entry.id : entry.termId;
+const occursOnOf = (entry: ListedTerm) =>
+  "term" in entry ? entry.term.occurs_on : "starts_at" in entry ? entry.starts_at : entry.occursOn;
+
+const byDate = (a: ListedTerm, b: ListedTerm) => occursOnOf(a).localeCompare(occursOnOf(b));
+
+/** A card for a term known only from a pledge (no RSVP, no family circle). */
+function pledgeTermCard(pledge: MyPledgeResponse): GuestTermCard {
+  return {
+    termId: pledge.term_id,
+    occursOn: pledge.occurs_on,
+    groupName: pledge.group_name,
+    description: null,
+    href: `/${pledge.organizer_slug}/group/${pledge.group_id}/term/${pledge.term_id}`,
+    location: null,
+    capacity: null,
+    attendeeCount: null,
+    neededItems: [],
+  };
+}
 
 interface TermSections<T> {
   thisWeek: T[];
@@ -90,50 +105,57 @@ const TABS: { id: Tab; label: string }[] = [
 ];
 
 export function MeetingsView() {
-  const {
-    myGroups,
-    terms,
-    savedCards,
-    myPledges,
-    withdrawMyPledge,
-    setModal,
-    selectTermGroup,
-    startEditGroup,
-    handleRemoveGroup,
-    load,
-    organizerTermCard,
-    guestTermCard,
-  } = useAppData();
-  const [tab, setTab] = useState<Tab>("organizujesz");
-  const [pendingDeleteGroup, setPendingDeleteGroup] = useState<GroupResponse | null>(null);
-  const deleteFailedRef = useRef(false);
+  const { terms, savedCards, showToast, load } = useAppData();
+  const { data: myEvents } = useMyEvents();
+  const { data: attendingEvents } = useAttendingEvents();
+  const { data: myPledges, withdraw } = useMyPledges();
 
-  async function confirmDeleteGroup(groupId: string) {
+  async function withdrawMyPledge(pledgeId: string) {
     try {
-      await handleRemoveGroup(groupId);
-    } catch (err) {
-      deleteFailedRef.current = true;
-      throw err;
+      await withdraw(pledgeId);
+    } catch {
+      showToast("Nie udało się wycofać zgłoszenia");
+      return;
     }
-    deleteFailedRef.current = false;
-    setPendingDeleteGroup(null);
+    showToast("Wycofano zgłoszenie");
+    // The pledge's needed item may sit on one of the caller's own terms.
+    void load({ silent: true });
   }
+  const [tab, setTab] = useState<Tab>("organizujesz");
 
-  /** After a failed attempt the group may already be gone (404/403), so re-read. */
-  function closeDeleteDialog() {
-    setPendingDeleteGroup(null);
-    if (deleteFailedRef.current) {
-      deleteFailedRef.current = false;
-      void load({ silent: true });
-    }
+  const organized: (TermWithNeeded | EventResponse)[] = [...terms, ...myEvents].sort(byDate);
+
+  // Each pledge shows on its term's card; a pledged-for term with no card of
+  // its own gets one.
+  const pledgesByTerm = new Map<string, MyPledgeResponse[]>();
+  for (const pledge of myPledges) {
+    if (pledge.status === "WITHDRAWN") continue;
+    pledgesByTerm.set(pledge.term_id, [...(pledgesByTerm.get(pledge.term_id) ?? []), pledge]);
   }
+  const savedIds = new Set(savedCards.map((c) => c.termId));
+  const pledgeOnlyCards = [...pledgesByTerm.values()]
+    .map((pledges) => pledges[0])
+    .filter((p) => !savedIds.has(p.term_id))
+    .map(pledgeTermCard);
+  const attending: (GuestTermCard | EventResponse)[] = [...savedCards, ...pledgeOnlyCards, ...attendingEvents].sort(
+    byDate,
+  );
 
-  const sections = splitTerms(terms);
-  const upcoming = sections.thisWeek.length + sections.later.length;
-  const hasGroups = myGroups.length > 0;
   return (
     <>
-      <SubPageHeader title="Spotkania" backTo="/" backLabel="Wróć na Start" />
+      <SubPageHeader
+        title="Spotkania"
+        backTo="/"
+        backLabel="Wróć na Start"
+        action={
+          <Link
+            to={viewPath("groups")}
+            className="flex min-h-11 items-center gap-1.5 rounded-full border-[1.5px] border-line bg-paper px-3.5 text-sm font-extrabold text-ink hover:border-line-strong focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring"
+          >
+            <FamilyIcon c="currentColor" /> Moje grupy
+          </Link>
+        }
+      />
       <div role="tablist" aria-label="Rodzaj spotkań" className="mb-5 grid grid-cols-2 gap-1 rounded-full bg-line p-1">
         {TABS.map((t) => {
           const on = tab === t.id;
@@ -158,173 +180,43 @@ export function MeetingsView() {
 
       {tab === "organizujesz" ? (
         <div role="tabpanel" id="spotkania-panel-organizujesz" aria-labelledby="spotkania-tab-organizujesz">
-          <section>
-            <div className="mb-2.5 flex items-center justify-between gap-2.5">
-              <div className="flex items-baseline gap-1.5">
-                <h2 className={SECTION_TITLE}>Prowadzę</h2>
-                <span className={SECTION_COUNT}>· {myGroups.length}</span>
-              </div>
-              <button
-                type="button"
-                onClick={() => setModal(hasGroups ? "grupa" : "zaloz-grupe")}
-                className="min-h-10 flex-none rounded-full border-[1.5px] border-line bg-paper px-3.5 text-sm font-extrabold text-ink hover:border-line-strong"
-              >
-                {hasGroups ? "+ Dodaj grupę" : "+ Załóż grupę"}
-              </button>
-            </div>
-            {!hasGroups ? (
-              <div className={EMPTY}>Nie masz jeszcze żadnej grupy. Załóż pierwszą, żeby dodać termin.</div>
-            ) : (
-              <div className="grid grid-cols-2 gap-2.5">
-                {myGroups.map((g, index) => {
-                  const termCount = terms.filter((t) => t.group.id === g.id).length;
-                  return (
-                    <div
-                      key={g.id}
-                      className={`flex min-h-36 flex-col justify-between gap-3 rounded-[22px] p-3.5 ${GROUP_TONES[index % 2]}`}
-                    >
-                      <div className="flex items-start justify-between gap-1">
-                        <button
-                          type="button"
-                          onClick={() => startEditGroup(g)}
-                          aria-label={`Zmień układ grupy ${g.name} (${LAYOUT_LABEL[g.layout_mode]})`}
-                          title={`Układ: ${LAYOUT_LABEL[g.layout_mode]}`}
-                          className={`flex h-10 w-10 items-center justify-center rounded-full transition-transform hover:scale-105 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring ${GROUP_ICON_TONES[index % 2]}`}
-                        >
-                          <LayoutModeIcon mode={g.layout_mode} />
-                        </button>
-                        <div className="flex gap-1">
-                          <button onClick={() => startEditGroup(g)} aria-label={`Edytuj grupę ${g.name}`} className={TILE_BUTTON}>
-                            <PencilIcon />
-                          </button>
-                          <button
-                            type="button"
-                            onClick={(event) => {
-                              // Safari does not focus a clicked button; the dialog
-                              // captures the focused element as its opener.
-                              event.currentTarget.focus();
-                              setPendingDeleteGroup(g);
-                            }}
-                            aria-label={`Usuń grupę ${g.name}`}
-                            aria-haspopup="dialog"
-                            className={`${TILE_BUTTON} hover:text-danger`}
-                          >
-                            <TrashIcon />
-                          </button>
-                        </div>
-                      </div>
-                      <div className="min-w-0">
-                        <h3 className="text-base font-extrabold wrap-break-word text-ink">{g.name}</h3>
-                        <small className="block text-[13px] text-ink-soft">
-                          {g.default_location?.name ?? `${termCount} ${pluralPl(termCount, "termin", "terminy", "terminów")}`}
-                        </small>
-                        {g.default_location && (
-                          <small className="block truncate text-xs text-ink-soft">{g.default_location.formatted_address}</small>
-                        )}
-                        <Link
-                          to={`/groups/${g.id}`}
-                          className="mt-1.5 inline-block rounded text-[13px] font-bold text-ink hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring"
-                        >
-                          Szczegóły<span className="sr-only"> grupy {g.name}</span> ›
-                        </Link>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </section>
-
-          <section className="mt-7">
-            <div className="mb-3 flex items-center justify-between gap-2.5">
-              <div className="flex items-baseline gap-1.5">
-                <h2 className={SECTION_TITLE}>Terminy</h2>
-                <span className={SECTION_COUNT}>
-                  · {upcoming > 0 ? `${upcoming} ${pluralPl(upcoming, "nadchodzący", "nadchodzące", "nadchodzących")}` : terms.length}
-                </span>
-              </div>
-              {hasGroups && (
-                <Link
-                  to={viewPath("add/term")}
-                  onClick={() => selectTermGroup(myGroups[0].id)}
-                  className="flex min-h-10 flex-none items-center rounded-full bg-primary px-3.5 text-sm font-extrabold text-on-primary"
-                >
-                  + Dodaj termin
-                </Link>
-              )}
-            </div>
-            {terms.length === 0 ? (
-              <div className={EMPTY}>Brak zaplanowanych terminów.</div>
-            ) : (
-              <TermList
-                list={terms}
-                renderTerm={({ term, group, neededItems }) => organizerTermCard(term, group, neededItems)}
-              />
-            )}
-          </section>
+          {organized.length === 0 ? (
+            <div className={EMPTY}>Brak zaplanowanych spotkań.</div>
+          ) : (
+            <TermList
+              list={organized}
+              renderTerm={(entry) =>
+                "term" in entry ? (
+                  <OrganizerTermCard term={entry.term} group={entry.group} neededItems={entry.neededItems} />
+                ) : (
+                  <EventCard event={entry} />
+                )
+              }
+            />
+          )}
         </div>
       ) : (
         <div role="tabpanel" id="spotkania-panel-udzial" aria-labelledby="spotkania-tab-udzial">
-          <section>
-            <div className="mb-3 flex items-baseline gap-1.5">
-              <h2 className={SECTION_TITLE}>Zapisane</h2>
-              <span className={SECTION_COUNT}>· {savedCards.length}</span>
-            </div>
-            {savedCards.length === 0 ? (
-              <div className={EMPTY}>Nie masz jeszcze zapisów na zajęcia.</div>
-            ) : (
-              <TermList list={savedCards} renderTerm={guestTermCard} />
-            )}
-          </section>
-
-          <section className="mt-7">
-            <div className="mb-3 flex items-baseline gap-1.5">
-              <h2 className={SECTION_TITLE}>Zadeklarowane rzeczy</h2>
-              <span className={SECTION_COUNT}>· {myPledges.length}</span>
-            </div>
-            {myPledges.length === 0 ? (
-              <div className={EMPTY}>Brak deklaracji przyniesienia rzeczy.</div>
-            ) : (
-              <div className="flex flex-col gap-2.5">
-                {myPledges.map((p) => {
-                  const time = termTime(p.occurs_on);
-                  return (
-                    <div key={p.pledge_id} className="flex items-start gap-3 rounded-[22px] border border-line bg-paper p-3.5">
-                      <div className="min-w-0 flex-1">
-                        <h3 className="text-[15px] font-bold wrap-break-word text-ink">
-                          {p.item_name}
-                          {p.item_description ? ` — ${p.item_description}` : ""}
-                        </h3>
-                        <small className="mt-0.5 block text-sm text-ink-soft">
-                          {p.group_name} · {dayjs(p.occurs_on).format("D MMM")}
-                          {time ? `, godz. ${time}` : ""}
-                        </small>
-                      </div>
-                      {p.status !== "WITHDRAWN" && (
-                        <button
-                          onClick={() => void withdrawMyPledge(p.pledge_id)}
-                          className="min-h-9 flex-none rounded-full border-[1.5px] border-line px-3 text-xs font-bold text-danger hover:bg-cream"
-                        >
-                          Rezygnuję
-                        </button>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </section>
+          {attending.length === 0 ? (
+            <div className={EMPTY}>Nie masz jeszcze żadnych zapisów.</div>
+          ) : (
+            <TermList
+              list={attending}
+              renderTerm={(entry) =>
+                "termId" in entry ? (
+                  <SavedTermCard
+                    card={entry}
+                    pledges={pledgesByTerm.get(entry.termId) ?? []}
+                    onWithdrawPledge={(pledgeId) => void withdrawMyPledge(pledgeId)}
+                  />
+                ) : (
+                  <EventCard event={entry} editable={false} />
+                )
+              }
+            />
+          )}
         </div>
       )}
-
-      {pendingDeleteGroup && (
-        <DeleteGroupDialog
-          group={pendingDeleteGroup}
-          onConfirm={() => confirmDeleteGroup(pendingDeleteGroup.id)}
-          onClose={closeDeleteDialog}
-        />
-      )}
-
     </>
   );
 }

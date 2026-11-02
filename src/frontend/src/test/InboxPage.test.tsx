@@ -105,6 +105,18 @@ describe("InboxPage", () => {
     expect(term).toHaveTextContent("12:41");
   });
 
+  it("event row: the Wydarzenie chip and the party icon", async () => {
+    vi.mocked(conversationsApi.getConversations).mockResolvedValue([
+      row({ id: "c4", kind: "EVENT", title: "Piknik sąsiedzki", item: null, counterpart_name: null }),
+    ]);
+    renderInbox();
+
+    const link = await screen.findByRole("link", { name: /Piknik sąsiedzki/ });
+    expect(link).toHaveAttribute("href", "/messages/c4");
+    expect(within(link).getByText("Wydarzenie")).toHaveClass("bg-accent-soft");
+    expect(within(link).getByText("🎉")).toHaveAttribute("aria-hidden", "true");
+  });
+
   it("no conversations: the dashed empty card", async () => {
     vi.mocked(conversationsApi.getConversations).mockResolvedValue([]);
     renderInbox();

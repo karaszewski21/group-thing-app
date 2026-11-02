@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="pl"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Visual Fidelity Report — 2026-10-31-product-page-reservations-visibility-location</title><style>:root{--bg:#f6f7f9;--surface:#fff;--border:#e2e5ea;--text:#1a1d23;--dim:#6b7280;--accent:#4f46e5;--accent-soft:#eef2ff;--ok:#16a34a;--ok-soft:#ecfdf3;--warn:#d97706;--warn-soft:#fffbeb;--crit:#dc2626;--crit-soft:#fef2f2;--info:#2563eb;--info-soft:#eff6ff;--radius:10px;}
+@media (prefers-color-scheme: dark){:root{--bg:#111418;--surface:#1a1f26;--border:#2e3640;--text:#e6e9ee;--dim:#9aa4b2;--accent:#818cf8;--accent-soft:#26294a;--ok:#4ade80;--ok-soft:#11291a;--warn:#fbbf24;--warn-soft:#2e2410;--crit:#f87171;--crit-soft:#321616;--info:#60a5fa;--info-soft:#15233a;}}
+*{box-sizing:border-box;}
+body{margin:0 auto;max-width:1100px;padding:24px 20px 64px;background:var(--bg);color:var(--text);font:14px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;}
+a{color:var(--accent);text-decoration:none;}a:hover{text-decoration:underline;}
+h1{font-size:22px;letter-spacing:-.01em;}h2{font-size:16px;margin-top:28px;}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:16px 18px;margin:14px 0;}
+.badge{display:inline-block;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.04em;padding:2px 8px;border-radius:99px;background:var(--accent-soft);color:var(--accent);}
+.sev{display:inline-block;font-size:10.5px;font-weight:700;text-transform:uppercase;padding:1.5px 7px;border-radius:99px;margin-right:6px;}
+.sev.critical{background:var(--crit-soft);color:var(--crit);}.sev.warning{background:var(--warn-soft);color:var(--warn);}.sev.info{background:var(--info-soft);color:var(--info);}
+.pass{color:var(--ok);font-weight:600;}.fail{color:var(--crit);font-weight:600;}
+table{width:100%;border-collapse:collapse;}th,td{text-align:left;padding:7px 10px;border-bottom:1px solid var(--border);vertical-align:top;}
+th{font-size:11.5px;text-transform:uppercase;letter-spacing:.04em;color:var(--dim);}
+code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12.5px;background:var(--accent-soft);padding:1px 5px;border-radius:4px;}
+img.shot{max-width:100%;border:1px solid var(--border);border-radius:var(--radius);}
+details>summary{cursor:pointer;font-weight:600;}
+.crumbs{display:flex;gap:14px;font-size:13px;margin-bottom:18px;flex-wrap:wrap;}.crumbs a.md{margin-left:auto;color:var(--dim);}.crumbs .here{font-weight:650;color:var(--text);}
+.tiles{display:flex;gap:10px;flex-wrap:wrap;margin:14px 0;}.tile{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:10px 16px;text-align:center;min-width:90px;}
+.tile b{display:block;font-size:20px;letter-spacing:-.01em;}.tile span{font-size:10.5px;text-transform:uppercase;letter-spacing:.05em;color:var(--dim);}
+.banner{border-radius:var(--radius);padding:14px 18px;font-weight:700;font-size:16px;background:var(--warn-soft);color:var(--warn);border:1px solid var(--warn);}
+.tldr{border-left:4px solid var(--accent);}
+.shots{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:10px;margin:8px 0;}
+.shots figure{margin:0}.shots figcaption{font-size:11.5px;color:var(--dim);word-break:break-all}
+.pair{display:grid;grid-template-columns:1fr 1fr;gap:12px}.pair iframe{width:100%;height:520px;border:1px solid var(--border);border-radius:var(--radius);background:#fff}
+@media (max-width:700px){.pair{grid-template-columns:1fr}}
+</style></head>
+<body><nav class="crumbs"><a href="../dashboard.html">← Dashboard</a><a href="../implementation/spec.html">Spec</a><a href="../implementation/implementation-plan.html">Plan</a><a href="implementation-verification.html">Verification</a><a href="e2e-verification-report.html">E2E report</a><span class="here">Visual Fidelity Report</span><a href="visual-fidelity.md" target="_blank" rel="noopener" class="md">md twin ↗</a></nav>
+<header><span class="badge">visual-fidelity</span><h1>Visual Fidelity Report</h1><div style="color:var(--dim);font-size:12.5px">Generated 2026-11-01 · twin: <a href="visual-fidelity.md" target="_blank" rel="noopener">visual-fidelity.md</a></div></header>
+<div class="banner">High fidelity — 8 match, 5 minor deviations (3 spec-sanctioned), 0 substantive drift · report-only</div>
+<div class="tiles"><div class="tile"><b>13</b><span>compared</span></div><div class="tile"><b>8</b><span>match ✓</span></div><div class="tile"><b>5</b><span>deviation ⚠</span></div><div class="tile"><b>0</b><span>drift ✗</span></div></div>
+<section class="card tldr"><p><b>Mode</b>: Report-only (does NOT gate completion)</p>
+<p><b>Comparison</b>: LLM-judged structural match (not pixel-perfect)</p>
+<p><b>Source</b>: analysis/design-context/INDEX.md</p>
+<p><b>Captured</b>: verification/screenshots/</p>
+<h2 id="tl-dr">TL;DR</h2>
+<ul>
+<li>Overall fidelity is <b>high</b>. I compared 13 entries (10 screens and 3 components): <b>8 ✓ match, 5 ⚠ minor deviation, 0 ✗ substantive drift</b>.</li>
+<li>3 of the deviations follow spec decisions made after the mockups:</li>
+<ul>
+<li>the C1 "potwierdź na tej stronie" copy;</li>
+<li>the non-party "Ta rzecz jest zarezerwowana." line;</li>
+<li>PRIVATE items not offering public contexts.</li>
+</ul>
+<li>The other 2 are layout-composition and copy-length points on the organizer board and the term sheet.</li>
+</ul>
+<h2 id="key-decisions">Key Decisions</h2>
+<ul>
+<li>When the spec text and a mockup disagree, I judged against the spec text and recorded the mockup difference as ⚠ "spec-sanctioned". The spec states which items post-date the mockups (audit C1, R8.5, R13.5).</li>
+</ul>
+<h2 id="open-questions-risks">Open Questions / Risks</h2>
+<ul>
+<li>The organizer EXCHANGE layout shows counts only inside the tab labels. The mockup also has three count tiles above the tabs. Design should confirm whether <code>exchange-counts</code> belongs in EXCHANGE.</li>
+<li>Tile links point to <code>/&lt;org-slug&gt;/product/:id</code>. The mockup annotation says "/product/:id (no ?term)". The no-query intent is met; the slug prefix comes from <code>organizerItemPath</code> (spec R5.9).</li>
+</ul></section>
+<h2 id="pairs">Mockup vs implementation (side by side)</h2><div class="card"><b>strona-produktu-zalogowany-3-akcje</b><div class="pair"><iframe loading="lazy" src="../analysis/design-context/mockups/strona-produktu-zalogowany-3-akcje.html" title="mockup strona-produktu-zalogowany-3-akcje"></iframe><a href="screenshots/05-product-logged-in-3-actions.png"><img class="shot" loading="lazy" src="screenshots/05-product-logged-in-3-actions.png" alt="05-product-logged-in-3-actions.png"></a></div></div><div class="card"><b>strona-produktu-niezalogowany</b><div class="pair"><iframe loading="lazy" src="../analysis/design-context/mockups/strona-produktu-niezalogowany.html" title="mockup strona-produktu-niezalogowany"></iframe><a href="screenshots/20-product-anonymous.png"><img class="shot" loading="lazy" src="screenshots/20-product-anonymous.png" alt="20-product-anonymous.png"></a></div></div><div class="card"><b>strona-produktu-m-j-przedmiot</b><div class="pair"><iframe loading="lazy" src="../analysis/design-context/mockups/strona-produktu-m-j-przedmiot.html" title="mockup strona-produktu-m-j-przedmiot"></iframe><a href="screenshots/03-product-own-private.png"><img class="shot" loading="lazy" src="screenshots/03-product-own-private.png" alt="03-product-own-private.png"></a></div></div><div class="card"><b>strona-produktu-zarezerwowana</b><div class="pair"><iframe loading="lazy" src="../analysis/design-context/mockups/strona-produktu-zarezerwowana.html" title="mockup strona-produktu-zarezerwowana"></iframe><a href="screenshots/10-product-reserved-stranger.png"><img class="shot" loading="lazy" src="screenshots/10-product-reserved-stranger.png" alt="10-product-reserved-stranger.png"></a></div></div><div class="card"><b>arkusz-wybieram-termin</b><div class="pair"><iframe loading="lazy" src="../analysis/design-context/mockups/arkusz-wybieram-termin.html" title="mockup arkusz-wybieram-termin"></iframe><a href="screenshots/31-sheet-choose-term-swap.png"><img class="shot" loading="lazy" src="screenshots/31-sheet-choose-term-swap.png" alt="31-sheet-choose-term-swap.png"></a></div></div><div class="card"><b>arkusz-odbior-osobi-cie</b><div class="pair"><iframe loading="lazy" src="../analysis/design-context/mockups/arkusz-odbior-osobi-cie.html" title="mockup arkusz-odbior-osobi-cie"></iframe><a href="screenshots/07-sheet-personal-pickup.png"><img class="shot" loading="lazy" src="screenshots/07-sheet-personal-pickup.png" alt="07-sheet-personal-pickup.png"></a></div></div><div class="card"><b>strona-terminu-rzeczy-uczestnik-w</b><div class="pair"><iframe loading="lazy" src="../analysis/design-context/mockups/strona-terminu-rzeczy-uczestnik-w.html" title="mockup strona-terminu-rzeczy-uczestnik-w"></iframe><a href="screenshots/18-term-page-logged-in-stranger.png"><img class="shot" loading="lazy" src="screenshots/18-term-page-logged-in-stranger.png" alt="18-term-page-logged-in-stranger.png"></a></div></div><div class="card"><b>strona-organizatora-tablica-wymiany-i-liczniki</b><div class="pair"><iframe loading="lazy" src="../analysis/design-context/mockups/strona-organizatora-tablica-wymiany-i-liczniki.html" title="mockup strona-organizatora-tablica-wymiany-i-liczniki"></iframe><a href="screenshots/27-organizer-exchange-logged-in.png"><img class="shot" loading="lazy" src="screenshots/27-organizer-exchange-logged-in.png" alt="27-organizer-exchange-logged-in.png"></a></div></div><div class="card"><b>rzeczy-w-a-ciciela-niezalogowany</b><div class="pair"><iframe loading="lazy" src="../analysis/design-context/mockups/rzeczy-w-a-ciciela-niezalogowany.html" title="mockup rzeczy-w-a-ciciela-niezalogowany"></iframe><a href="screenshots/23-owner-items-anonymous.png"><img class="shot" loading="lazy" src="screenshots/23-owner-items-anonymous.png" alt="23-owner-items-anonymous.png"></a></div></div><div class="card"><b>moje-rzeczy-lokalizacja-i-widoczno</b><div class="pair"><iframe loading="lazy" src="../analysis/design-context/mockups/moje-rzeczy-lokalizacja-i-widoczno.html" title="mockup moje-rzeczy-lokalizacja-i-widoczno"></iframe><a href="screenshots/02-moje-rzeczy-location-visibility.png"><img class="shot" loading="lazy" src="screenshots/02-moje-rzeczy-location-visibility.png" alt="02-moje-rzeczy-location-visibility.png"></a></div></div>
+<main><h2 id="summary">Summary</h2>
+<ul>
+<li>Total screens compared: 13 (10 screens + 3 components)</li>
+<li>Match (✓): 8</li>
+<li>Minor deviation (⚠): 5</li>
+<li>Substantive drift (✗): 0</li>
+</ul>
+<h2 id="per-screen-comparison">Per-Screen Comparison</h2>
+<h3 id="screen-product-logged-in-match">screen:product-logged-in (✓ Match)</h3>
+<ul>
+<li>Mockup: analysis/design-context/mockups/strona-produktu-zalogowany-3-akcje.html</li>
+<li>Screenshot: verification/screenshots/05-product-logged-in-3-actions.png</li>
+<div class="shots"><figure><a href="screenshots/05-product-logged-in-3-actions.png"><img class="shot" loading="lazy" src="screenshots/05-product-logged-in-3-actions.png" alt="05-product-logged-in-3-actions.png"></a><figcaption>05-product-logged-in-3-actions.png</figcaption></figure></div>
+<li>Layout: the intent pill sits above the title. The cards follow the mockup order: status, location, "Gdzie jeszcze można odebrać", "Jak chcesz odebrać?".</li>
+<li>Location: name plus "Dokładny adres ustalicie na czacie." (no address) ✓</li>
+<li>Primary actions: Odbiorę osobiście (filled), Wybieram termin (outline), 💬 Napisz o przedmiocie (ghost). Order and styling match ✓</li>
+<li>States covered: choose (enabled), "Wybieram termin" disabled with hint (<code>29-product-swap-stranger-term-disabled.png</code>)</li>
+</ul>
+<h3 id="screen-product-anonymous-match">screen:product-anonymous (✓ Match)</h3>
+<ul>
+<li>Mockup: analysis/design-context/mockups/strona-produktu-niezalogowany.html</li>
+<li>Screenshot: verification/screenshots/20-product-anonymous.png</li>
+<div class="shots"><figure><a href="screenshots/20-product-anonymous.png"><img class="shot" loading="lazy" src="screenshots/20-product-anonymous.png" alt="20-product-anonymous.png"></a><figcaption>20-product-anonymous.png</figcaption></figure></div>
+<li>Layout: no location block; context list; a "Chcesz tę rzecz?" card with "Zaloguj się" / "Załóż konto" ✓</li>
+<li>Copy: matches word for word</li>
+</ul>
+<h3 id="screen-product-own-minor-deviation">screen:product-own (⚠ Minor Deviation)</h3>
+<ul>
+<li>Mockup: analysis/design-context/mockups/strona-produktu-m-j-przedmiot.html</li>
+<li>Screenshot: verification/screenshots/03-product-own-private.png, verification/screenshots/04-product-own-public.png</li>
+<div class="shots"><figure><a href="screenshots/03-product-own-private.png"><img class="shot" loading="lazy" src="screenshots/03-product-own-private.png" alt="03-product-own-private.png"></a><figcaption>03-product-own-private.png</figcaption></figure><figure><a href="screenshots/04-product-own-public.png"><img class="shot" loading="lazy" src="screenshots/04-product-own-public.png" alt="04-product-own-public.png"></a><figcaption>04-product-own-public.png</figcaption></figure></div>
+<li>Layout: the badges (intent + 🔒 Prywatny), the location card with "(widzisz tylko Ty)", the full address and "Zmień w „Moje rzeczy”", and the "To Twoja rzecz…" line all match.</li>
+<li>Deviation 1: the mockup's PRIVATE item still lists terms and events. The implementation shows none, because R13.5 never offers public-circle terms or events for a PRIVATE item. The public item does show the list (<code>04-product-own-public.png</code>). This is spec-sanctioned.</li>
+<li>Deviation 2: the edit action is an "Edytuj" pill beside the title, not an "Edytuj przedmiot" button at the bottom. This is existing page chrome.</li>
+<li>Impact: none on the information hierarchy.</li>
+</ul>
+<h3 id="screen-product-reserved-minor-deviation">screen:product-reserved (⚠ Minor Deviation)</h3>
+<ul>
+<li>Mockup: analysis/design-context/mockups/strona-produktu-zarezerwowana.html</li>
+<li>Screenshot: verification/screenshots/10-product-reserved-stranger.png, verification/screenshots/09-product-reserved-receiver.png, verification/screenshots/12-product-reserved-giver.png</li>
+<div class="shots"><figure><a href="screenshots/10-product-reserved-stranger.png"><img class="shot" loading="lazy" src="screenshots/10-product-reserved-stranger.png" alt="10-product-reserved-stranger.png"></a><figcaption>10-product-reserved-stranger.png</figcaption></figure><figure><a href="screenshots/09-product-reserved-receiver.png"><img class="shot" loading="lazy" src="screenshots/09-product-reserved-receiver.png" alt="09-product-reserved-receiver.png"></a><figcaption>09-product-reserved-receiver.png</figcaption></figure><figure><a href="screenshots/12-product-reserved-giver.png"><img class="shot" loading="lazy" src="screenshots/12-product-reserved-giver.png" alt="12-product-reserved-giver.png"></a><figcaption>12-product-reserved-giver.png</figcaption></figure></div>
+<li>Layout: the header badge "Zarezerwowana · przez &lt;imię&gt;", the status card, the location (name only), both actions <code>aria-disabled</code> with the hint, and the chat enabled all match ✓</li>
+<li>Deviation: the mockup's status line "Odbiór osobisty — szczegóły ustalają Kasia i Anna na czacie." is shown only to parties. Non-parties see "Ta rzecz jest zarezerwowana.", as R8.5 requires. This is spec-sanctioned.</li>
+<li>Additional: the party buttons (Potwierdzam przekazanie / Anuluj rezerwację) have no mockup. They use the existing button styles, as the spec allows.</li>
+</ul>
+<h3 id="screen-sheet-choose-term-minor-deviation">screen:sheet-choose-term (⚠ Minor Deviation)</h3>
+<ul>
+<li>Mockup: analysis/design-context/mockups/arkusz-wybieram-termin.html</li>
+<li>Screenshot: verification/screenshots/31-sheet-choose-term-swap.png (SWAP), verification/screenshots/06-sheet-choose-term.png (GIFT)</li>
+<div class="shots"><figure><a href="screenshots/31-sheet-choose-term-swap.png"><img class="shot" loading="lazy" src="screenshots/31-sheet-choose-term-swap.png" alt="31-sheet-choose-term-swap.png"></a><figcaption>31-sheet-choose-term-swap.png</figcaption></figure><figure><a href="screenshots/06-sheet-choose-term.png"><img class="shot" loading="lazy" src="screenshots/06-sheet-choose-term.png" alt="06-sheet-choose-term.png"></a><figcaption>06-sheet-choose-term.png</figcaption></figure></div>
+<li>Layout: the title, ✕, hint, radio rows (day · name, 📍 place · time), SWAP note and "Dalej: wybierz rzecz na zamianę" match ✓</li>
+<li>Deviation: the GIFT primary button reads "Rezerwuję" instead of "Rezerwuję na ten termin" (mockup annotation).</li>
+</ul>
+<h3 id="screen-sheet-personal-pickup-minor-deviation">screen:sheet-personal-pickup (⚠ Minor Deviation)</h3>
+<ul>
+<li>Mockup: analysis/design-context/mockups/arkusz-odbior-osobi-cie.html</li>
+<li>Screenshot: verification/screenshots/07-sheet-personal-pickup.png, verification/screenshots/30-sheet-personal-pickup-swap.png</li>
+<div class="shots"><figure><a href="screenshots/07-sheet-personal-pickup.png"><img class="shot" loading="lazy" src="screenshots/07-sheet-personal-pickup.png" alt="07-sheet-personal-pickup.png"></a><figcaption>07-sheet-personal-pickup.png</figcaption></figure><figure><a href="screenshots/30-sheet-personal-pickup-swap.png"><img class="shot" loading="lazy" src="screenshots/30-sheet-personal-pickup-swap.png" alt="30-sheet-personal-pickup-swap.png"></a><figcaption>30-sheet-personal-pickup-swap.png</figcaption></figure></div>
+<li>Layout: the title, 📍 place name only, the address-in-chat note, the body, and "Rezerwuję i piszę do &lt;owner&gt;" / "Anuluj" match ✓</li>
+<li>Deviation: the mockup body ends "potwierdźcie je w „Moje rzeczy”". The implementation says "potwierdź przekazanie na tej stronie", the updated copy from spec R5.7 (audit C1). This is spec-sanctioned.</li>
+</ul>
+<h3 id="screen-term-participant-items-match">screen:term-participant-items (✓ Match)</h3>
+<ul>
+<li>Mockup: analysis/design-context/mockups/strona-terminu-rzeczy-uczestnik-w.html</li>
+<li>Screenshot: verification/screenshots/18-term-page-logged-in-stranger.png, verification/screenshots/19-term-page-anonymous.png</li>
+<div class="shots"><figure><a href="screenshots/18-term-page-logged-in-stranger.png"><img class="shot" loading="lazy" src="screenshots/18-term-page-logged-in-stranger.png" alt="18-term-page-logged-in-stranger.png"></a><figcaption>18-term-page-logged-in-stranger.png</figcaption></figure><figure><a href="screenshots/19-term-page-anonymous.png"><img class="shot" loading="lazy" src="screenshots/19-term-page-anonymous.png" alt="19-term-page-anonymous.png"></a><figcaption>19-term-page-anonymous.png</figcaption></figure></div>
+<li>Layout: rows grouped under each participant, a thumbnail, the name, an intent pill and a reserved pill, a › chevron, the whole row as a link, and no take buttons ✓</li>
+<li>Note: the link goes to <code>/&lt;org-slug&gt;/product/:id</code> (no query), from spec R5.9 <code>organizerItemPath</code>.</li>
+</ul>
+<h3 id="screen-organizer-exchange-board-minor-deviation">screen:organizer-exchange-board (⚠ Minor Deviation)</h3>
+<ul>
+<li>Mockup: analysis/design-context/mockups/strona-organizatora-tablica-wymiany-i-liczniki.html</li>
+<li>Screenshot: verification/screenshots/27-organizer-exchange-logged-in.png, verification/screenshots/25-organizer-tab-reserved.png, verification/screenshots/26-organizer-classic-counts-logged-in.png</li>
+<div class="shots"><figure><a href="screenshots/27-organizer-exchange-logged-in.png"><img class="shot" loading="lazy" src="screenshots/27-organizer-exchange-logged-in.png" alt="27-organizer-exchange-logged-in.png"></a><figcaption>27-organizer-exchange-logged-in.png</figcaption></figure><figure><a href="screenshots/25-organizer-tab-reserved.png"><img class="shot" loading="lazy" src="screenshots/25-organizer-tab-reserved.png" alt="25-organizer-tab-reserved.png"></a><figcaption>25-organizer-tab-reserved.png</figcaption></figure><figure><a href="screenshots/26-organizer-classic-counts-logged-in.png"><img class="shot" loading="lazy" src="screenshots/26-organizer-classic-counts-logged-in.png" alt="26-organizer-classic-counts-logged-in.png"></a><figcaption>26-organizer-classic-counts-logged-in.png</figcaption></figure></div>
+<li>Layout: four tabs (Wszystkie / Chcę oddać / Chcę się zamienić / Zarezerwowane) and a 2-column ItemCard grid with "Stan: …", intent and reserved pills ✓</li>
+<li>Deviation 1: the three count tiles shown above the tabs in the mockup are not rendered in the EXCHANGE layout; the counts sit in the tab labels. The tiles do render in CLASSIC.</li>
+<li>Deviation 2: at 430px the tab strip scrolls horizontally and "Zarezerwowane" is cut off.</li>
+<li>Recommendation: design to confirm whether the EXCHANGE layout composition should include the counts block.</li>
+</ul>
+<h3 id="screen-owner-items-anonymous-match">screen:owner-items-anonymous (✓ Match)</h3>
+<ul>
+<li>Mockup: analysis/design-context/mockups/rzeczy-w-a-ciciela-niezalogowany.html</li>
+<li>Screenshot: verification/screenshots/23-owner-items-anonymous.png</li>
+<div class="shots"><figure><a href="screenshots/23-owner-items-anonymous.png"><img class="shot" loading="lazy" src="screenshots/23-owner-items-anonymous.png" alt="23-owner-items-anonymous.png"></a><figcaption>23-owner-items-anonymous.png</figcaption></figure></div>
+<li>Layout: the nearest-occasion block, three tabs, a tile grid, intent pills, and "Zarezerwowana" with no name ✓</li>
+<li>Note: the nearest occasion renders as the existing "Najbliższa okazja do odbioru" card rather than a one-line "Najbliżej: …". The same information is shown in the existing component.</li>
+</ul>
+<h3 id="screen-my-items-location-visibility-match">screen:my-items-location-visibility (✓ Match)</h3>
+<ul>
+<li>Mockup: analysis/design-context/mockups/moje-rzeczy-lokalizacja-i-widoczno.html</li>
+<li>Screenshot: verification/screenshots/02-moje-rzeczy-location-visibility.png</li>
+<div class="shots"><figure><a href="screenshots/02-moje-rzeczy-location-visibility.png"><img class="shot" loading="lazy" src="screenshots/02-moje-rzeczy-location-visibility.png" alt="02-moje-rzeczy-location-visibility.png"></a><figcaption>02-moje-rzeczy-location-visibility.png</figcaption></figure></div>
+<li>Layout: the "📍 Gdzie są moje rzeczy?" card with the picker and the exact hint; per-item Oddam/Zamienię; the Publiczna/Prywatna toggle only when a mode is set; "Ustaw tryb…" on the draft; the private hint ✓</li>
+<li>Extra: the existing filter chips (Wszystkie/Oddam/Zamienię) and "+ Dodaj nowe miejsce" button. These are additive.</li>
+</ul>
+<h3 id="component-intent-badge-match">component:intent-badge (✓ Match)</h3>
+<ul>
+<li>Source: strona-terminu-rzeczy-uczestnik-w.html</li>
+<li>Screenshots: 18, 23, 27. "Chcę oddać" uses the primary-soft (teal) tone and "Chcę się zamienić" the accent-soft (lime) tone, as text pills ✓</li>
+</ul>
+<h3 id="component-reserved-badge-match">component:reserved-badge (✓ Match)</h3>
+<ul>
+<li>Source: strona-organizatora-tablica-wymiany-i-liczniki.html</li>
+<li>Screenshots: 10, 18, 19, 27. A teal-soft pill reading "Zarezerwowana", "Zarezerwowana · przez &lt;imię&gt;" or "· przez Ciebie" ✓</li>
+</ul>
+<h3 id="component-visibility-toggle-match">component:visibility-toggle (✓ Match)</h3>
+<ul>
+<li>Source: moje-rzeczy-lokalizacja-i-widoczno.html</li>
+<li>Screenshot: 02. A "🌍 Publiczna / 🔒 Prywatna" segmented control with <code>aria-pressed</code>; the dark fill marks the selected side ✓</li>
+</ul></main></body></html>

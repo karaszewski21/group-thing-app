@@ -1,0 +1,348 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Implementation Verification — Publiczna strona wydarzenia</title>
+<style>
+:root {
+  --bg:#f6f7f9; --surface:#fff; --border:#e2e5ea; --text:#1a1d23; --dim:#6b7280;
+  --accent:#4f46e5; --accent-soft:#eef2ff; --ok:#16a34a; --ok-soft:#ecfdf3;
+  --warn:#d97706; --warn-soft:#fffbeb; --crit:#dc2626; --crit-soft:#fef2f2;
+  --info:#2563eb; --info-soft:#eff6ff; --radius:10px;
+}
+@media (prefers-color-scheme: dark) {
+  :root { --bg:#111418; --surface:#1a1f26; --border:#2e3640; --text:#e6e9ee; --dim:#9aa4b2;
+    --accent:#818cf8; --accent-soft:#26294a; --ok:#4ade80; --ok-soft:#11291a;
+    --warn:#fbbf24; --warn-soft:#2e2410; --crit:#f87171; --crit-soft:#321616;
+    --info:#60a5fa; --info-soft:#15233a; }
+}
+* { box-sizing:border-box; }
+body { margin:0 auto; max-width:1100px; padding:24px 20px 64px; background:var(--bg);
+  color:var(--text); font:14px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif; }
+a { color:var(--accent); text-decoration:none; } a:hover { text-decoration:underline; }
+h1 { font-size:22px; letter-spacing:-.01em; } h2 { font-size:16px; margin-top:28px; }
+.card { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius);
+  padding:16px 18px; margin:14px 0; }
+.badge { display:inline-block; font-size:11px; font-weight:600; text-transform:uppercase;
+  letter-spacing:.04em; padding:2px 8px; border-radius:99px; background:var(--accent-soft); color:var(--accent); }
+.sev { display:inline-block; font-size:10.5px; font-weight:700; text-transform:uppercase;
+  padding:1.5px 7px; border-radius:99px; margin-right:6px; }
+.sev.critical { background:var(--crit-soft); color:var(--crit); }
+.sev.warning  { background:var(--warn-soft); color:var(--warn); }
+.sev.info     { background:var(--info-soft); color:var(--info); }
+.pass { color:var(--ok); font-weight:600; } .fail { color:var(--crit); font-weight:600; }
+table { width:100%; border-collapse:collapse; }
+th, td { text-align:left; padding:7px 10px; border-bottom:1px solid var(--border); vertical-align:top; }
+th { font-size:11.5px; text-transform:uppercase; letter-spacing:.04em; color:var(--dim); }
+code { font-family:ui-monospace,SFMono-Regular,Menlo,monospace; font-size:12.5px;
+  background:var(--accent-soft); padding:1px 5px; border-radius:4px; }
+img.shot { max-width:100%; border:1px solid var(--border); border-radius:var(--radius); }
+details > summary { cursor:pointer; font-weight:600; }
+
+.crumbs { display:flex; gap:14px; font-size:13px; margin-bottom:18px; flex-wrap:wrap; }
+.crumbs a.md { margin-left:auto; color:var(--dim); }
+.crumbs .here { font-weight:650; color:var(--text); }
+.tiles { display:flex; gap:10px; flex-wrap:wrap; margin:14px 0; }
+.tile { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius);
+  padding:10px 16px; text-align:center; min-width:90px; }
+.tile b { display:block; font-size:20px; letter-spacing:-.01em; }
+.tile span { font-size:10.5px; text-transform:uppercase; letter-spacing:.05em; color:var(--dim); }
+.tile small { display:block; font-size:11px; color:var(--dim); }
+
+header .meta { color:var(--dim); font-size:12.5px; }
+.verdict { display:flex; gap:14px; align-items:center; flex-wrap:wrap; background:var(--warn-soft);
+  border:1px solid var(--warn); border-left-width:6px; border-radius:var(--radius); padding:14px 18px; margin:14px 0; }
+.verdict .v { font-size:18px; font-weight:700; color:var(--warn); }
+.verdict .counts { display:flex; gap:6px; flex-wrap:wrap; }
+.tldr h3 { font-size:13px; text-transform:uppercase; letter-spacing:.05em; color:var(--dim); margin:14px 0 6px; }
+.tldr ul { margin:4px 0; padding-left:20px; }
+.toc { font-size:13px; color:var(--dim); margin:10px 0; }
+.ok-badge { display:inline-block; font-size:11px; font-weight:700; padding:2px 8px; border-radius:99px;
+  background:var(--ok-soft); color:var(--ok); white-space:nowrap; }
+.warn-badge { display:inline-block; font-size:11px; font-weight:700; padding:2px 8px; border-radius:99px;
+  background:var(--warn-soft); color:var(--warn); white-space:nowrap; }
+.pend-badge { display:inline-block; font-size:11px; font-weight:700; padding:2px 8px; border-radius:99px;
+  background:var(--info-soft); color:var(--info); white-space:nowrap; }
+.history { border:2px solid var(--ok); }
+.history h2 { margin-top:0; }
+.arrow { color:var(--dim); }
+.files { display:flex; gap:6px; flex-wrap:wrap; margin-top:8px; }
+.checklist { list-style:none; padding-left:0; }
+.checklist li::before { content:"☑ "; color:var(--ok); }
+.checklist li.open::before { content:"☐ "; color:var(--dim); }
+.checklist li.note::before { content:"– "; color:var(--dim); }
+.table-wrap { overflow-x:auto; }
+details.card > summary { font-size:15px; }
+</style>
+</head>
+<body>
+
+<nav class="crumbs">
+  <a href="../dashboard.html">← Dashboard</a>
+  <a href="../implementation/spec.html">Spec</a>
+  <a href="../implementation/implementation-plan.html">Plan</a>
+  <span class="here">Verification</span>
+  <a href="implementation-verification.md" target="_blank" rel="noopener" class="md">md twin ↗</a>
+</nav>
+
+<header>
+  <span class="badge">Implementation Verification</span>
+  <h1>Implementation Verification — Publiczna strona wydarzenia</h1>
+  <div class="meta">Canonical report rewritten with the post-fix verdict and fix history · Re-verify count: 1 · Source: <a href="implementation-verification.md" target="_blank" rel="noopener">implementation-verification.md</a></div>
+</header>
+
+<div class="verdict">
+  <span class="v">⚠️ Passed with Issues</span>
+  <span>after 1 fix and re-verify cycle · only accepted follow-ups remain</span>
+  <span class="counts">
+    <span class="sev critical">0 critical</span>
+    <span class="sev warning">3 warning (accepted follow-ups)</span>
+    <span class="sev info">info (optional)</span>
+  </span>
+</div>
+
+<div class="tiles">
+  <div class="tile"><b>75/75</b><span>plan steps</span><small>100%</small></div>
+  <div class="tile"><b>959/959</b><span>backend tests</span><small>after test fix</small></div>
+  <div class="tile"><b>1233/1246</b><span>frontend tests</span><small>13 pre-existing</small></div>
+  <div class="tile"><b>12/12</b><span>fixes resolved</span><small>W1–W7, W10, W11, I1, I3, I5</small></div>
+  <div class="tile"><b>88%</b><span>production readiness</span><small>GO with mitigations (was 82%)</small></div>
+</div>
+
+<section class="card tldr" id="tldr">
+  <h3>TL;DR</h3>
+  <p>⚠️ <b>Passed with issues, after 1 fix and re-verify cycle.</b> Plan 75/75 (100%). Full suite after fixes: backend 959/959 (the one regression, an exact index-set assertion, was fixed), frontend 1233/1246 (the 13 failures also fail on a clean HEAD, so none are regressions), tsc clean.</p>
+  <p>12 of 12 selected issues fixed (W1–W7, W10, W11, I1, I3, I5) and confirmed resolved by every re-check. 3 warnings remain open as accepted follow-ups (W8 guest rate limit, W9 participant cap, W12 alembic env.py) and 0 critical issues. Production: GO with mitigations (readiness 88%, up from 82%).</p>
+  <h3>Open Questions / Risks</h3>
+  <ul>
+    <li><span class="sev warning">W8</span>Public guest sign-up has no rate limit. Guests can't be removed and they block event deletion. Accepted, but there is no tracked follow-up task yet.</li>
+    <li><span class="sev warning">W9</span>The public event page returns every attendee and every listed item, uncapped. Accepted follow-up.</li>
+    <li>0071 still validates FKs under an ACCESS EXCLUSIVE lock (<code>lock_timeout</code> only bounds the wait). If it times out, the backend crash-loops (<code>alembic upgrade head &amp;&amp; uvicorn</code>) and the whole API is down until 0071 succeeds. Check the row counts of <code>messages</code>/<code>conversation_reads</code> before deploy (runbook step 1).</li>
+    <li>The <code>messages</code>/<code>conversation_reads</code> cascade applies to <b>all</b> conversation kinds (documented in the runbook).</li>
+    <li>No browser visual-fidelity check yet; Phase 12 E2E will produce <code>visual-fidelity.md</code>.</li>
+  </ul>
+</section>
+
+<nav class="toc">Contents:
+  <a href="#summary">Summary</a> ·
+  <a href="#checks">Check Status</a> ·
+  <a href="#history">Fix &amp; Re-Verification History</a> ·
+  <a href="#warnings">Remaining Warnings</a> ·
+  <a href="#info">Info</a> ·
+  <a href="#recommendations">Recommendations</a> ·
+  <a href="#details">Details</a> ·
+  <a href="#checklist">Checklist</a> ·
+  <a href="#reports">Reviewer Reports</a>
+</nav>
+
+<main>
+
+<section class="card" id="summary">
+  <h2 style="margin-top:0">Executive Summary</h2>
+  <p>Every scoped requirement is implemented, reachable from the UI and tested at the integration points. The re-verification cycle confirmed all 12 selected fixes in code and tests, and the reality re-check gives a final verdict of ✅ Complete. What remains is two accepted product and design follow-ups (W8, W9), one tooling task (W12) and 18 optional info items.</p>
+</section>
+
+<section id="checks">
+  <h2>Per-Check Status — Initial vs After Fixes</h2>
+  <div class="card table-wrap">
+    <table>
+      <thead><tr><th>Check</th><th>Initial</th><th>After fixes</th></tr></thead>
+      <tbody>
+        <tr><td>Code review</td><td>issues found: 0 critical / 4 warning / 8 info</td><td><span class="ok-badge">✅</span> 0 critical / 0 warning / 7 info (W1–W4 resolved)</td></tr>
+        <tr><td>Pragmatic</td><td>appropriate: 0 / 0 / 7</td><td><span class="ok-badge">✅</span> appropriate: no new complexity; 7 earlier infos still open (cleanup not chosen) + 1 low</td></tr>
+        <tr><td>Production readiness</td><td>GO with mitigations, 82%</td><td><span class="warn-badge">⚠️</span> GO with mitigations, <b>88%</b>, 0 blockers, 2 accepted warnings (W8, W9)</td></tr>
+        <tr><td>Reality check</td><td>complete with minor gaps (~97%)</td><td><span class="ok-badge">✅</span> complete, all user-visible fixes traced end-to-end, no regressions</td></tr>
+        <tr><td>Completeness</td><td>passed with issues: 0 / 4 / 6</td><td><span class="ok-badge">✅</span> <b>passed</b>: 0 / 0 / 2</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h2>Test Suite Results</h2>
+  <div class="card table-wrap">
+    <table>
+      <thead><tr><th>Run</th><th>Backend</th><th>Frontend</th><th>tsc</th><th>ruff / mypy</th></tr></thead>
+      <tbody>
+        <tr><td>Initial</td><td>955/955</td><td>1225/1238 (13 pre-existing)</td><td class="pass">clean</td><td>53 pre-existing / 16 (none in changed files)</td></tr>
+        <tr><td>After fixes</td><td>958/959 <span class="arrow">→</span> <b class="pass">959/959</b> after the test fix below</td><td>1233/1246 (the same 13 pre-existing)</td><td class="pass">clean</td><td>unchanged</td></tr>
+      </tbody>
+    </table>
+    <p style="margin-bottom:0">Regression found in the re-run: <code>tests/test_events_migration.py::test_upgradeHead_eventConstraints_namedAndPartial</code> asserted the exact index sets that existed before 0072. The orchestrator updated both expected sets, keeping the exact-match assertions (<code>ix_events_author_party_id</code>, <code>ix_event_attendances_party_id</code>), and re-ran the event migration tests: 3/3 passed, ruff clean. Details: <a href="test-suite-results.md" target="_blank" rel="noopener">test-suite-results.md</a>, <a href="test-suite-results-reverify.md" target="_blank" rel="noopener">test-suite-results-reverify.md</a>.</p>
+  </div>
+
+  <h2>Overall Assessment</h2>
+  <div class="card table-wrap">
+    <table>
+      <thead><tr><th>Dimension</th><th>Status</th></tr></thead>
+      <tbody>
+        <tr><td>Implementation</td><td><span class="ok-badge">✅</span> 100%</td></tr>
+        <tr><td>Tests</td><td><span class="ok-badge">✅</span> 0 regressions (after the test fix)</td></tr>
+        <tr><td>Standards</td><td><span class="ok-badge">✅</span> compliant</td></tr>
+        <tr><td>Documentation</td><td><span class="ok-badge">✅</span> complete</td></tr>
+        <tr><td>Code review</td><td><span class="ok-badge">✅</span> 0 warnings</td></tr>
+        <tr><td>Production</td><td><span class="warn-badge">⚠️</span> GO with mitigations (W8, W9 accepted)</td></tr>
+        <tr><td>Reality</td><td><span class="ok-badge">✅</span> complete</td></tr>
+        <tr><td><b>Overall</b></td><td><span class="warn-badge">⚠️</span> <b>Passed with Issues</b>: only accepted follow-ups remain</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section class="card history" id="history">
+  <h2>Fix &amp; Re-Verification History</h2>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Issue</th><th>Fix applied</th><th>Re-check outcome</th></tr></thead>
+      <tbody>
+        <tr><td><b>W1</b> backslash in event name → 500</td><td><code>_inject</code> uses a callable <code>re.sub</code> replacement (<code>public_preview.py:56-57</code>); test with <code>Swap \o/ \1</code></td><td><span class="ok-badge">✅ resolved</span> (code review, reality)</td></tr>
+        <tr><td><b>W2</b> missing party indexes</td><td>Migration <code>0072_event_party_indexes</code> (<code>ix_events_author_party_id</code>, partial <code>ix_event_attendances_party_id WHERE withdrawn_at IS NULL</code>) + models + round-trip test; <code>test_events_migration.py</code> exact sets updated</td><td><span class="ok-badge">✅ resolved</span>; every party query filters <code>withdrawn_at IS NULL</code>, so the partial index can be used</td></tr>
+        <tr><td><b>W3</b> lock held during moderation</td><td>Guest name validated and moderated before the <code>FOR SHARE</code> get; <code>_require_open</code> re-checked under the lock with <code>populate_existing</code>; ordering test</td><td><span class="ok-badge">✅ resolved</span> for the row lock; connection-hold residual logged as N1</td></tr>
+        <tr><td><b>W4</b> guest state carried across events</td><td><code>EventPage</code> → <code>&lt;EventPageContent key={eventId}&gt;</code>; navigation test</td><td><span class="ok-badge">✅ resolved</span>; router-state toast still works</td></tr>
+        <tr><td><b>W5</b> empty-list sign-up nudge for author/ended</td><td><code>EventAttendeeList canSignUp</code>; only the not-ended visitor view gets the nudge</td><td><span class="ok-badge">✅ resolved</span></td></tr>
+        <tr><td><b>W6</b> Polish verb plural</td><td><code>pluralPl</code> for the verb; <code>it.each</code> for 1/2/5/12/22</td><td><span class="ok-badge">✅ resolved</span></td></tr>
+        <tr><td><b>W7</b> 0071 without <code>lock_timeout</code></td><td><code>SET LOCAL lock_timeout = '5s'</code> as the first upgrade statement</td><td><span class="ok-badge">✅ resolved</span>; scoped to 0071's transaction (<code>transaction_per_migration=True</code>)</td></tr>
+        <tr><td><b>W10</b> stale project docs / no runbook</td><td><code>architecture.md</code> Events, Messaging and 0071–0072 runbook; <code>INDEX.md</code> entry</td><td><span class="ok-badge">✅ resolved</span>; runbook checked against the code</td></tr>
+        <tr><td><b>W11</b> messaging docstring</td><td>Lists EVENT + <code>events_acl</code></td><td><span class="ok-badge">✅ resolved</span></td></tr>
+        <tr><td><b>I1</b> author KeyError → 500</td><td><code>UNKNOWN_AUTHOR_NAME = "Użytkownik"</code> fallback; test</td><td><span class="ok-badge">✅ resolved</span></td></tr>
+        <tr><td><b>I3</b> deleted event chat lingers in the inbox</td><td><code>useEvent.remove</code> also invalidates conversations</td><td><span class="ok-badge">✅ resolved</span> (unread badge residual logged as N3)</td></tr>
+        <tr><td><b>I5</b> guest name length</td><td><code>maxLength={255}</code></td><td><span class="ok-badge">✅ resolved</span></td></tr>
+        <tr><td><b>Regression from W2</b></td><td><code>test_events_migration.py</code> expected index sets extended (exact match kept)</td><td><span class="ok-badge">✅</span> 3/3 event migration tests pass</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p style="margin-bottom:0">Re-verify count: 1. Reviewer side files:</p>
+  <div class="files">
+    <a href="test-suite-results-reverify.md" target="_blank" rel="noopener"><code>test-suite-results-reverify.md</code></a>
+    <a href="completeness-reverify.md" target="_blank" rel="noopener"><code>completeness-reverify.md</code></a>
+    <a href="code-review-reverify.md" target="_blank" rel="noopener"><code>code-review-reverify.md</code></a>
+    <a href="pragmatic-reverify.md" target="_blank" rel="noopener"><code>pragmatic-reverify.md</code></a>
+    <a href="production-readiness-reverify.md" target="_blank" rel="noopener"><code>production-readiness-reverify.md</code></a>
+    <a href="reality-reverify.md" target="_blank" rel="noopener"><code>reality-reverify.md</code></a>
+  </div>
+</section>
+
+<section id="warnings">
+  <h2>Remaining Warnings (accepted follow-ups)</h2>
+  <div class="card table-wrap">
+    <table>
+      <thead><tr><th>#</th><th>Issue</th><th>Location</th><th>Status</th></tr></thead>
+      <tbody>
+        <tr><td><span class="sev warning">W8</span></td><td>Public guest sign-up has no rate limit; guests can't be removed and block deletion</td><td><code>app/events/router.py</code>, <code>service.py</code></td><td>accepted. Suggested: nginx <code>limit_req</code> or the <code>send_limiter</code> pattern, plus author/moderator guest removal; create a follow-up task</td></tr>
+        <tr><td><span class="sev warning">W9</span></td><td>Public page returns all attendees and items, uncapped</td><td><code>app/events/page.py</code></td><td>accepted. Suggested: show the first N + <code>attendee_count</code>, cap items per attendee</td></tr>
+        <tr><td><span class="sev warning">W12</span></td><td><code>alembic/env.py</code> sets <code>target_metadata = None</code>, so the <code>alembic check</code> drift guard is disabled</td><td><code>src/backend/alembic/env.py</code></td><td>separate task</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section id="info">
+  <h2>Info (optional)</h2>
+  <div class="card table-wrap">
+    <table>
+      <thead><tr><th>#</th><th>Source</th><th>Issue</th><th>Location</th></tr></thead>
+      <tbody>
+        <tr><td><span class="sev info">N1</span></td><td>code review, production</td><td>The guest sign-up path keeps a pooled connection and an open transaction during <code>check_text</code> (the row lock is gone, the connection hold is not)</td><td><code>app/events/service.py:395-406</code></td></tr>
+        <tr><td><span class="sev info">N2</span></td><td>code review, production, completeness</td><td>0071 <code>downgrade()</code> and 0072 set no <code>lock_timeout</code></td><td><code>alembic/versions/0071_…py:65-69</code>, <code>0072_…py</code></td></tr>
+        <tr><td><span class="sev info">N3</span></td><td>code review</td><td><code>useEvent.remove</code> doesn't invalidate <code>UNREAD_MESSAGES_KEY</code>, so the badge stays stale for up to 20 s</td><td><code>hooks/useEvent.ts:91-95</code></td></tr>
+        <tr><td><span class="sev info">N4</span></td><td>code review</td><td>No test for an event deleted or ended between the unlocked pre-check and the <code>FOR SHARE</code> re-read</td><td><code>tests/test_event_attendance.py</code></td></tr>
+        <tr><td><span class="sev info">N5</span></td><td>reality</td><td><code>attendee_count</code> includes attendees with an unresolvable profile, who are dropped from <code>participants</code> (predates the fixes; needs a broken profile row)</td><td><code>app/events/page.py</code></td></tr>
+        <tr><td><span class="sev info">N6</span></td><td>completeness</td><td>The docs don't say the <code>event_attendances.party_id</code> index is partial</td><td><code>architecture.md:139,266</code></td></tr>
+        <tr><td><span class="sev info">N7</span></td><td>production</td><td>The runbook has no row-count threshold for the <code>NOT VALID</code> split and doesn't say a 0071 timeout takes down the whole API</td><td><code>architecture.md</code> runbook</td></tr>
+        <tr><td><span class="sev info">N8</span></td><td>pragmatic</td><td>Optional comment explaining the double event read in guest sign-up</td><td><code>service.py:399-406</code></td></tr>
+        <tr><td><span class="sev info">I2</span></td><td>carried</td><td>The OG description holds the full description (escaped)</td><td><code>public_preview.py:94-98</code></td></tr>
+        <tr><td><span class="sev info">I4</span></td><td>carried</td><td>The cascade applies to all conversation kinds (documented)</td><td>0071</td></tr>
+        <tr><td><span class="sev info">I6–I11</span></td><td>pragmatic, carried</td><td>Unused <code>EventContentView</code>, <code>visitor.isLoggedIn</code>, <code>refreshError</code>, always-false <code>busy</code>; duplicate attendee query; batched org lookup / positional <code>Access</code> / duplicated retry markup</td><td><code>eventViewState.ts</code>, <code>useEvent.ts</code>, <code>EventPage.tsx</code>, <code>page.py</code>, <code>access.py</code></td></tr>
+        <tr><td><span class="sev info">I12</span></td><td>carried</td><td><code>party_id</code> in the anonymous public payload (spec-defined)</td><td><code>app/events/schemas.py</code></td></tr>
+        <tr><td><span class="sev info">I13</span></td><td>carried</td><td>An invalid token on one-click sign-up → guest branch → "Podaj swoje imię."</td><td><code>service.py</code>, <code>useEventSignUp.ts</code></td></tr>
+        <tr><td><span class="sev info">I14</span></td><td>carried</td><td>The IntegrityError double-submit re-select path has no test</td><td><code>service.py:413-418</code></td></tr>
+        <tr><td><span class="sev info">I15–I18</span></td><td>carried</td><td>Sign-up error shown only as a toast; EVENT thread header doesn't link to the event; no canonical-slug redirect; old <code>/events/:id</code> links have no redirect</td><td>various</td></tr>
+        <tr><td><span class="sev info">I19</span></td><td>carried</td><td>Pre-deploy checks (<code>slug='event'</code>, row counts), now in the runbook</td><td><code>architecture.md</code></td></tr>
+      </tbody>
+    </table>
+    <p style="margin-bottom:0"><b>Dismissed:</b> the claim that the EVENT chat <code>participant_count</code> includes guests. It doesn't: <code>_participant_count</code> counts only parties with an account (<code>messaging/application/conversations.py:181-190</code>).</p>
+  </div>
+</section>
+
+<section class="card" id="recommendations">
+  <h2 style="margin-top:0">Recommendations</h2>
+  <ol>
+    <li>Create follow-up tasks for W8 (guest rate limit + guest removal) and W9 (participant cap) before wide rollout.</li>
+    <li>Before deploy, follow the runbook: row counts, the <code>slug='event'</code> check, a dump of the messaging tables, an off-peak window.</li>
+    <li>Optional quick wins: N2 (<code>lock_timeout</code> in the 0071 downgrade/0072), N3 (unread badge), N6/N7 (runbook precision), N1 (<code>db.rollback()</code> before moderation).</li>
+    <li>Separate task: W12 (<code>alembic env.py target_metadata</code>).</li>
+  </ol>
+</section>
+
+<section id="details">
+  <h2>Details</h2>
+
+  <details class="card">
+    <summary>Implementation Plan Verification <span class="ok-badge">75/75</span></summary>
+    <ul>
+      <li>75/75 steps (85 checkboxes including group headers). Re-check: plan complete, no spot-check issues.</li>
+      <li>Term components are untouched. <code>AccountMergeForm</code> only gained optional props whose defaults keep the current Term copy.</li>
+    </ul>
+  </details>
+
+  <details class="card">
+    <summary>Standards Compliance <span class="ok-badge">compliant</span></summary>
+    <p>Re-check: compliant. 0072 follows migrations.md (explicit <code>ix_</code> names, partial index via <code>postgresql_where</code>, reverse-order downgrade, downgrade→upgrade test), models.md (<code>__table_args__</code> matches the migration) and backend-testing.md (naming, flat placement). The one accepted deviation: <code>useEventSignUp</code> doesn't take <code>view.kind</code>, because that would be circular with <code>guestProfileId</code> (documented).</p>
+  </details>
+
+  <details class="card">
+    <summary>Documentation Completeness <span class="ok-badge">complete</span></summary>
+    <p>Re-check: complete.</p>
+    <ul>
+      <li><code>architecture.md</code> now covers the Events context (routes, read model, ACLs, public page, OG preview, reserved slug), the Messaging EVENT kind, and a deploy/rollback runbook for 0071–0072.</li>
+      <li>The <code>INDEX.md</code> Architecture entry is refreshed, and the <code>app/messaging/__init__.py</code> docstring lists EVENT.</li>
+      <li>The work log documents the fix cycle.</li>
+    </ul>
+  </details>
+
+  <details class="card">
+    <summary>Visual Fidelity <span class="pend-badge">pending</span></summary>
+    <p>Pending: produced by the Phase 12 E2E run (report-only). Known deviations:</p>
+    <ul>
+      <li>the copy-link button uses <code>CopyIcon</code> instead of 🔗;</li>
+      <li>"Twoje wydarzenie" is kept as an <code>h2</code>;</li>
+      <li>the guest-sheet date has an extra dot;</li>
+      <li>the merge card shows a dashed <code>SUB_FORM</code> border.</li>
+    </ul>
+  </details>
+</section>
+
+<section class="card" id="checklist">
+  <h2 style="margin-top:0">Verification Checklist</h2>
+  <ul class="checklist">
+    <li>Completeness checker: initial + re-check, reports on disk</li>
+    <li>Full test suite: initial + re-run, reports on disk; the re-run regression fixed and re-tested</li>
+    <li>Code review: initial + re-check</li>
+    <li>Pragmatic review: initial + re-check</li>
+    <li>Production readiness: initial + re-check</li>
+    <li>Reality check: initial + re-check</li>
+    <li>Canonical report rewritten with the post-fix verdict and fix history</li>
+    <li class="open">Visual fidelity: pending Phase 12 E2E</li>
+    <li class="note">Roadmap: <code>.maister/docs/project/roadmap.md</code> does not exist; no update</li>
+  </ul>
+</section>
+
+<section class="card" id="reports">
+  <h2 style="margin-top:0">Reviewer Reports</h2>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Check</th><th>Initial</th><th>Re-verify</th></tr></thead>
+      <tbody>
+        <tr><td>Test suite</td><td><a href="test-suite-results.md" target="_blank" rel="noopener">test-suite-results.md</a></td><td><a href="test-suite-results-reverify.md" target="_blank" rel="noopener">test-suite-results-reverify.md</a></td></tr>
+        <tr><td>Completeness</td><td><a href="completeness-report.md" target="_blank" rel="noopener">completeness-report.md</a></td><td><a href="completeness-reverify.md" target="_blank" rel="noopener">completeness-reverify.md</a></td></tr>
+        <tr><td>Code review</td><td><a href="code-review-report.md" target="_blank" rel="noopener">code-review-report.md</a></td><td><a href="code-review-reverify.md" target="_blank" rel="noopener">code-review-reverify.md</a></td></tr>
+        <tr><td>Pragmatic</td><td><a href="pragmatic-review.md" target="_blank" rel="noopener">pragmatic-review.md</a></td><td><a href="pragmatic-reverify.md" target="_blank" rel="noopener">pragmatic-reverify.md</a></td></tr>
+        <tr><td>Production readiness</td><td><a href="production-readiness-report.md" target="_blank" rel="noopener">production-readiness-report.md</a></td><td><a href="production-readiness-reverify.md" target="_blank" rel="noopener">production-readiness-reverify.md</a></td></tr>
+        <tr><td>Reality check</td><td><a href="reality-check.md" target="_blank" rel="noopener">reality-check.md</a></td><td><a href="reality-reverify.md" target="_blank" rel="noopener">reality-reverify.md</a></td></tr>
+        <tr><td>Spec audit</td><td><a href="spec-audit.md" target="_blank" rel="noopener">spec-audit.md</a></td><td>—</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+</main>
+</body>
+</html>

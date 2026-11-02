@@ -1,0 +1,14 @@
+{
+  "name": "Wydarzenia",
+  "version": "1.0.0",
+  "url": "http://localhost:3004",
+  "description": "Tworzenie jednorazowych wydarzeń",
+  "extensionPoints": [
+    {
+      "type": "add.event",
+      "label": "Wydarzenie",
+      "path": "/",
+      "priority": 10
+    }
+  ]
+}

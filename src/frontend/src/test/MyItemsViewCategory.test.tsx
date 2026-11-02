@@ -21,6 +21,9 @@ vi.mock("../api/reservations", async () => {
   return { ...actual, confirmTransaction: vi.fn(), cancelTransaction: vi.fn() };
 });
 
+// The location card has its own query-backed tests in `MyItemsView.test.tsx`.
+vi.mock("../pages/items/InventoryLocationCard", () => ({ InventoryLocationCard: () => null }));
+
 vi.mock("../app/appDataStore", async () => {
   const actual = await vi.importActual<typeof import("../app/appDataStore")>(
     "../app/appDataStore",
@@ -73,12 +76,14 @@ function mockReservation(
     reservation_type: reservationType,
     reserved_by_user_id: "1",
     term_id: termId,
-    paired_reservation_id: null,
+    // A paired leg: an unpaired SWAP leg is never confirmable or cancellable.
+    paired_reservation_id: reservationType === "SWAP" ? `${id}-paired` : null,
     reserved_at: "",
     expires_at: null,
     status: "CONFIRMED",
     notes: null,
     term_occurs_on: termOccursOn,
+    personal_pickup: false,
   };
 }
 
@@ -124,6 +129,7 @@ const item: MyInventoryItemResponse = {
   created_at: "2026-01-01T00:00:00Z",
   updated_at: "2026-01-01T00:00:00Z",
   listing_mode: null,
+  listing_visibility: null,
   listing_status: "DRAFT",
   photos_moderation_pending: false,
 };
@@ -171,7 +177,7 @@ describe("MyItemsView — item card links to the item page", () => {
     );
     expect(screen.getByRole("link", { name: "Edytuj rzecz Rowerek" })).toHaveAttribute(
       "href",
-      `/product/${item.id}/edit`,
+      `/product/${item.id}?edit=1`,
     );
     expect(screen.queryByRole("button", { name: "Edytuj stan rzeczy" })).toBeNull();
     expect(screen.queryByRole("button", { name: "Edytuj rzecz Rowerek" })).toBeNull();
@@ -510,7 +516,7 @@ describe("MyItemsView — photos in moderation do not block the mode toggles", (
     expect(screen.getByRole("status")).toHaveTextContent("Zdjęcia w moderacji");
     expect(screen.getByRole("link", { name: "Zobacz zdjęcia →" })).toHaveAttribute(
       "href",
-      `/product/${item.id}/edit`,
+      `/product/${item.id}?edit=1`,
     );
     fireEvent.click(screen.getByRole("button", { name: "Oddam" }));
     expect(setItemMode).toHaveBeenCalledWith(item.id, "oddam");

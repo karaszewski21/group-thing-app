@@ -117,6 +117,7 @@ export function FirstTermStepperOrganizer({
         </Field>
         <Field label="Miejsce">
           <LocationPicker
+            addMode="inline"
             value={locationId}
             onChange={setLocationId}
             label="Miejsce"

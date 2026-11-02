@@ -19,7 +19,11 @@ from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
-from app.core.authorization_matrix import AUTHORIZATION_MATRIX, resolve_requirement
+from app.core.authorization_matrix import (
+    AUTHORIZATION_MATRIX,
+    MatrixEntry,
+    resolve_requirement,
+)
 from app.core.security import decode_base64_hmac_key
 
 EDIT = ("EDIT", "mcp:edit")
@@ -85,6 +89,7 @@ def test_resolveRequirement_notificationsMarkRead_resolvesToEdit() -> None:
         ("GET", "/api/conversations", ("READ",)),
         ("GET", "/api/conversations/unread-count", ("READ",)),
         ("POST", "/api/conversations/item", ("EDIT",)),
+        ("POST", "/api/conversations/event", ("EDIT",)),
         ("POST", "/api/conversations/42/read", ("EDIT",)),
     ],
 )
@@ -139,14 +144,15 @@ def test_resolveRequirement_publicGroup_notRegressedByGroupsPatchRow() -> None:
     assert resolve_requirement("GET", "/api/groups/public/some-id") == "PUBLIC"
 
 
-def test_resolveRequirement_termItemListingsBrowseAndTake_andWithdrawAttendance() -> None:
+def test_resolveRequirement_termItemListingsBrowse_andWithdrawAttendance() -> None:
     """Rows for the exchange mechanism (`/api/term-item-listings`,
     `/api/item-listing-preferences`), plus confirmation that
     `POST /api/groups/mine/attendances/{id}/withdraw` needs no new row of
     its own — it falls under the pre-existing blanket
-    `POST ^/api/groups(/.*)?$` row (row 27)."""
+    `POST ^/api/groups(/.*)?$` row (row 27). The term take/propose POSTs
+    are gone, so they fall through to the catch-all."""
     assert resolve_requirement("GET", "/api/term-item-listings/browse") == READ
-    assert resolve_requirement("POST", "/api/term-item-listings/123/take") == EDIT
+    assert resolve_requirement("POST", "/api/term-item-listings/123/take") == "AUTHENTICATED"
     assert resolve_requirement("PUT", "/api/item-listing-preferences/123") == EDIT
     assert resolve_requirement("POST", "/api/groups/mine/attendances/42/withdraw") == EDIT
 
@@ -270,6 +276,17 @@ def test_resolveRequirement_groupSoftDeleteAndLeadershipRows_resolveToExpectedRo
         ("POST", "/api/locations", EDIT),
         ("PATCH", "/api/locations/x", EDIT),
         ("DELETE", "/api/locations/x", EDIT),
+        ("GET", "/api/events/mine", READ),
+        ("GET", "/api/events/attending", READ),
+        ("GET", "/api/events/x", "PUBLIC"),
+        ("PATCH", "/api/events/x", EDIT),
+        ("DELETE", "/api/events/x", EDIT),
+        ("POST", "/api/events", EDIT),
+        ("POST", "/api/events/x/banner", EDIT),
+        ("POST", "/api/events/x/attendances", "PUBLIC"),
+        ("POST", "/api/events/x/attendances/withdraw", EDIT),
+        ("GET", "/api/inventories/mine/location", READ),
+        ("PUT", "/api/inventories/mine/location", EDIT),
     ],
 )
 def test_resolveRequirement_locationRows_resolveToExpectedRowNotCatchAll(
@@ -302,3 +319,100 @@ async def test_adminLoginToken_carriesEdit(client: AsyncClient, db_session: Asyn
 
     claims = jwt.decode(login.json()["token"], options={"verify_signature": False})
     assert {"ADMIN", "EDIT"} <= set(claims["permissions"])
+
+
+def _first_match_without(method: str, path: str, removed_pattern: str) -> MatrixEntry:
+    remaining = [e for e in AUTHORIZATION_MATRIX if e.pattern.pattern != removed_pattern]
+    assert len(remaining) == len(AUTHORIZATION_MATRIX) - 1
+    return next(
+        e for e in remaining if (e.methods is None or method in e.methods) and e.pattern.match(path)
+    )
+
+
+@pytest.mark.parametrize(
+    "path",
+    [
+        "/api/groups/public/organizers/x/items",
+        f"/api/groups/public/parties/{uuid.uuid4()}/items",
+        f"/api/inventory-items/{uuid.uuid4()}/details",
+        f"/api/items/{uuid.uuid4()}/actions",
+    ],
+)
+def test_resolveRequirement_itemsPageReadRoutes_resolveToPublic(path: str) -> None:
+    assert resolve_requirement("GET", path) == "PUBLIC"
+
+
+def test_matrix_removedReservationRows_absent() -> None:
+    """The old term/event take/propose rows are gone; the GET term-item-listings
+    rows and the swap-proposal/reservation action rows stay."""
+    patterns = {(entry.methods, entry.pattern.pattern) for entry in AUTHORIZATION_MATRIX}
+    for removed in (
+        r"^/api/term-item-listings(/.*)?$",
+        r"^/api/term-item-listings/[^/]+/propose$",
+        r"^/api/events/[^/]+/items/[^/]+/(take|propose)$",
+    ):
+        assert not any(
+            pattern == removed and methods is not None and "POST" in methods
+            for methods, pattern in patterns
+        ), removed
+    for action in ("take", "propose"):
+        event_path = f"/api/events/{uuid.uuid4()}/items/{uuid.uuid4()}/{action}"
+        assert resolve_requirement("POST", event_path) == "AUTHENTICATED"
+        assert resolve_requirement("POST", f"/api/term-item-listings/x/{action}") == "AUTHENTICATED"
+    assert resolve_requirement("GET", "/api/term-item-listings/x/swap-proposals") == READ
+    assert resolve_requirement("POST", "/api/swap-proposals/x/accept") == EDIT
+    assert resolve_requirement("POST", "/api/swap-proposals/x/reject") == EDIT
+    assert resolve_requirement("POST", "/api/reservations/x/confirm-transaction") == EDIT
+    assert resolve_requirement("POST", "/api/reservations/x/cancel-transaction") == EDIT
+    assert resolve_requirement("POST", f"/api/events/{uuid.uuid4()}/attendances") == "PUBLIC"
+
+
+@pytest.mark.parametrize(
+    ("path", "removed", "fallback_pattern", "fallback_requirement"),
+    [
+        (
+            "/api/groups/public/parties/p1/items",
+            r"^/api/groups/public/parties/[^/]+/items$",
+            r"^/api/groups(/.*)?$",
+            READ,
+        ),
+        (
+            "/api/inventory-items/i1/details",
+            r"^/api/inventory-items/[^/]+/details$",
+            r"^/api/inventory-items(/.*)?$",
+            READ,
+        ),
+    ],
+)
+def test_resolveRequirement_withoutNewPublicRow_fallsToBlanketRead(
+    path: str, removed: str, fallback_pattern: str, fallback_requirement: object
+) -> None:
+    """Guards placement: each new PUBLIC row sits ahead of the blanket READ
+    row that would otherwise demand a login."""
+    first_match = _first_match_without("GET", path, removed)
+    assert first_match.pattern.pattern == fallback_pattern
+    assert first_match.requirement == fallback_requirement
+
+
+@pytest.mark.parametrize(
+    "path",
+    [
+        "/api/inventory-items/i1",
+        "/api/inventory-items/i1/details/extra",
+        "/api/inventory-items/mine",
+    ],
+)
+def test_resolveRequirement_otherInventoryItemGets_stayRead(path: str) -> None:
+    assert resolve_requirement("GET", path) == READ
+
+
+@pytest.mark.parametrize("action", ["take", "propose"])
+def test_resolveRequirement_itemTakeOrPropose_requiresEdit(action: str) -> None:
+    assert resolve_requirement("POST", f"/api/items/{uuid.uuid4()}/{action}") == EDIT
+    assert resolve_requirement("POST", f"/api/items/{uuid.uuid4()}/{action}/x") == "AUTHENTICATED"
+
+
+def test_resolveRequirement_postItemsPageReadRoutes_areNotPublic() -> None:
+    assert resolve_requirement("POST", "/api/groups/public/organizers/x/items") != "PUBLIC"
+    assert resolve_requirement("POST", "/api/inventory-items/i1/details") != "PUBLIC"
+    assert resolve_requirement("POST", "/api/items/i1/actions") != "PUBLIC"

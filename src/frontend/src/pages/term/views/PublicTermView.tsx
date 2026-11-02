@@ -1,8 +1,7 @@
 import { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../../auth/AuthContext";
-import type { PublicCircleResponse, PublicItemListingResponse } from "../../../api/groups";
-import type { ListingMode } from "../../../api/itemListingPreferences";
+import type { PublicCircleResponse } from "../../../api/groups";
 import { RsvpDialog } from "../modals/RsvpDialog";
 import { RsvpDialogLoggedIn } from "../modals/RsvpDialogLoggedIn";
 import { AuthGateSheet } from "../modals/AuthGateSheet";
@@ -15,17 +14,12 @@ import { TermCard } from "../components/TermCard";
 import { NeededItemsSection } from "../components/NeededItemsSection";
 import { AttendeeList } from "../components/AttendeeList";
 import { TermFooter } from "../components/TermFooter";
-import { SwapProposeDialog } from "../modals/SwapProposeDialog";
-import { TakeSuccessSheet } from "../modals/TakeSuccessSheet";
-import { LISTABLE_RESERVATION_TYPES, TAKE_ACTION_LABELS } from "../components/termLabels";
-import { attendeeElementId, type ListingRowVM, type NeededItemRowVM } from "../components/termSectionTypes";
+import { attendeeElementId, type NeededItemRowVM } from "../components/termSectionTypes";
 import { buildAttendees, buildVisualizationFamilies } from "../termViewModel";
 import { useToast } from "../../../components/shared/useToast";
 import { useGuestMerge } from "../hooks/useGuestMerge";
 import { useTermSignUp } from "../hooks/useTermSignUp";
 import { useNeededItemPledge } from "../hooks/useNeededItemPledge";
-import { useItemTake } from "../hooks/useItemTake";
-import { organizerItemPath } from "../../product/useItemRoutes";
 import { useOpenAndNavigate } from "../../../hooks/useOpenAndNavigate";
 
 /** The server's chat-relevant relationship to the group and the shown term. */
@@ -60,43 +54,12 @@ export function PublicTermView({
   const guest = useGuestMerge({ groupId, termId, isLoggedIn, isAttendingOnServer });
   const signUp = useTermSignUp({ ...deps, groupId, termId, displayName });
   const pledge = useNeededItemPledge(deps);
-  const itemTake = useItemTake({ ...deps, termId });
 
   function handleSelectAttendee(partyId: string) {
     setActivePartyId(partyId);
     const entry = document.getElementById(attendeeElementId(partyId));
     entry?.scrollIntoView({ behavior: "smooth", block: "start" });
     entry?.focus({ preventScroll: true });
-  }
-
-  function toListingRow(listing: PublicItemListingResponse): ListingRowVM {
-    const mergeKey = `listing-${listing.item_id}`;
-    const offeredTypes = listing.offered_types.filter((t): t is ListingMode =>
-      LISTABLE_RESERVATION_TYPES.includes(t as ListingMode),
-    );
-    return {
-      key: listing.item_id,
-      title: (
-        <Link
-          to={organizerItemPath(group.organizer_slug, listing.item_id)}
-          className="rounded text-inherit no-underline decoration-[1.5px] underline-offset-2 hover:text-primary-fg hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring"
-        >
-          <strong>{listing.product_name}</strong>
-          <span aria-hidden="true">{" ›"}</span>
-        </Link>
-      ),
-      actions: guest.isMerging(mergeKey)
-        ? []
-        : offeredTypes.map((t) => ({
-            key: t,
-            label: TAKE_ACTION_LABELS[t],
-            ariaLabel: `${TAKE_ACTION_LABELS[t]}: ${listing.product_name}`,
-            disabled: itemTake.busyItemId === listing.item_id,
-            onClick: guest.orMerge(mergeKey, () => itemTake.take(listing.item_id, t)),
-          })),
-      extra: guest.mergeForm(mergeKey),
-      thumbUrl: listing.thumb_url,
-    };
   }
 
   const neededItemRows: NeededItemRowVM[] = (term?.needed_items ?? []).map((item) => {
@@ -170,7 +133,7 @@ export function PublicTermView({
 
         {term && <NeededItemsSection rows={neededItemRows} />}
 
-        {term && <AttendeeList attendees={buildAttendees(group, toListingRow)} activePartyId={activePartyId} />}
+        {term && <AttendeeList attendees={buildAttendees(group)} activePartyId={activePartyId} />}
 
         {signUp.accountSuggestion && (
           <div className={`${CARD} mx-5 mt-6`}>
@@ -223,41 +186,6 @@ export function PublicTermView({
           message="Żeby zgłosić, że przyniesiesz coś na zajęcia, musisz mieć konto — dzięki temu organizator wie, kto co przynosi, a rzecz trafia do Twoich zbiorów."
           ariaLabel="Załóż konto, aby przynieść rzecz"
           onClose={pledge.closeGate}
-        />
-      )}
-      {itemTake.gateOpen && (
-        <AuthGateSheet
-          title="Potrzebne konto"
-          message="Żeby wziąć albo zamienić się rzeczą, musisz mieć konto — dzięki temu wiadomo, kto co bierze, a rzecz trafia do Twoich zbiorów."
-          ariaLabel="Załóż konto, aby wziąć rzecz"
-          onClose={itemTake.closeGate}
-        />
-      )}
-      {itemTake.swap.itemId !== null &&
-        (() => {
-          const listing = term?.item_listings.find((l) => l.item_id === itemTake.swap.itemId);
-          return listing ? (
-            <SwapProposeDialog
-              availableItems={itemTake.swap.availableItems}
-              offeredItemId={itemTake.swap.offeredItemId}
-              onOfferedItemChange={itemTake.swap.setOfferedItemId}
-              listingProductName={listing.product_name}
-              busy={itemTake.busyItemId === listing.item_id}
-              onConfirm={() => itemTake.swap.confirm(listing.item_id)}
-              onCancel={itemTake.swap.cancel}
-            />
-          ) : null;
-        })()}
-      {itemTake.takeSuccess && term && (
-        <TakeSuccessSheet
-          itemId={itemTake.takeSuccess.itemId}
-          itemName={itemTake.takeSuccess.itemName}
-          occursOn={term.occurs_on}
-          groupName={group.name}
-          groupId={groupId}
-          termId={term.id}
-          organizerSlug={group.organizer_slug ?? "krag"}
-          onClose={itemTake.closeTakeSuccess}
         />
       )}
       <ToastPill message={toast} />

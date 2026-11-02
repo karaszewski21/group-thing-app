@@ -14,6 +14,7 @@ import isSameOrAfter from 'dayjs/plugin/isSameOrAfter.js';
 import isSameOrBefore from 'dayjs/plugin/isSameOrBefore.js';
 import duration from 'dayjs/plugin/duration.js';
 import weekOfYear from 'dayjs/plugin/weekOfYear.js';
+import relativeTime from 'dayjs/plugin/relativeTime.js';
 
 
 dayjs.locale('pl');
@@ -27,6 +28,7 @@ dayjs.extend(weekOfYear);
 dayjs.extend(duration);
 dayjs.extend(utc);
 dayjs.extend(localeData);
+dayjs.extend(relativeTime);
 
 
 dayjs.locale("pl");

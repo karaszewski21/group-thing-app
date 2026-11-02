@@ -21,12 +21,14 @@ class ConversationKind(enum.StrEnum):
     ITEM = "ITEM"
     GROUP = "GROUP"
     TERM = "TERM"
+    EVENT = "EVENT"
 
 
 class Conversation(BaseEntity):
     """ITEM rows carry `item_id`, `asker_party_id` and `owner_party_id` (the
     item's owner when the thread was opened); GROUP rows carry `group_id`;
-    TERM rows carry `term_id` and the Term's `group_id`."""
+    TERM rows carry `term_id` and the Term's `group_id`; EVENT rows carry
+    `event_id` and are deleted with their event (migration 0071)."""
 
     __tablename__ = "conversations"
     __table_args__ = (
@@ -43,6 +45,12 @@ class Conversation(BaseEntity):
             postgresql_where=text("kind = 'TERM'"),
         ),
         Index(
+            "uq_conversations_event_id",
+            "event_id",
+            unique=True,
+            postgresql_where=text("kind = 'EVENT'"),
+        ),
+        Index(
             "uq_conversations_item_id_asker_party_id_owner_party_id",
             "item_id",
             "asker_party_id",
@@ -53,6 +61,7 @@ class Conversation(BaseEntity):
         Index("ix_conversations_asker_party_id", "asker_party_id"),
         Index("ix_conversations_owner_party_id", "owner_party_id"),
         Index("ix_conversations_group_id", "group_id"),
+        Index("ix_conversations_event_id", "event_id"),
     )
 
     kind: Mapped[ConversationKind] = mapped_column(
@@ -79,6 +88,11 @@ class Conversation(BaseEntity):
         ForeignKey("terms.id", name="fk_conversations_term_id_terms"),
         nullable=True,
     )
+    event_id: Mapped[uuid.UUID | None] = mapped_column(
+        postgresql.UUID(as_uuid=True),
+        ForeignKey("events.id", name="fk_conversations_event_id_events", ondelete="CASCADE"),
+        nullable=True,
+    )
     asker_party_id: Mapped[uuid.UUID | None] = mapped_column(
         postgresql.UUID(as_uuid=True),
         ForeignKey("parties.id", name="fk_conversations_asker_party_id_parties"),
@@ -100,7 +114,11 @@ class Message(BaseEntity):
 
     conversation_id: Mapped[uuid.UUID] = mapped_column(
         postgresql.UUID(as_uuid=True),
-        ForeignKey("conversations.id", name="fk_messages_conversation_id_conversations"),
+        ForeignKey(
+            "conversations.id",
+            name="fk_messages_conversation_id_conversations",
+            ondelete="CASCADE",
+        ),
         nullable=False,
     )
     sender_party_id: Mapped[uuid.UUID] = mapped_column(
@@ -124,7 +142,11 @@ class ConversationRead(BaseEntity):
 
     conversation_id: Mapped[uuid.UUID] = mapped_column(
         postgresql.UUID(as_uuid=True),
-        ForeignKey("conversations.id", name="fk_conversation_reads_conversation_id_conversations"),
+        ForeignKey(
+            "conversations.id",
+            name="fk_conversation_reads_conversation_id_conversations",
+            ondelete="CASCADE",
+        ),
         nullable=False,
     )
     party_id: Mapped[uuid.UUID] = mapped_column(

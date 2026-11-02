@@ -6,7 +6,10 @@ import { getMyTakenTermItemListings, getMyTermItemListings } from "../../api/ter
  * derived client-side from `notifications`' `kind`/`link_path` rather than a
  * new backend endpoint. Only `TERM_CONFIRMATION_NEEDED` carries a
  * term-shaped `link_path`, and its `termId` is parsed out of it, since
- * that's the only structured data the feed carries. Item-related kinds,
+ * that's the only structured data the feed carries. An event prompt links to
+ * `/…/event/{id}` instead, so its `termId` stays null and it always carries
+ * `reservation_id`. `RESERVATION_CANCELLED` is informational and yields no
+ * action. Item-related kinds,
  * `SWAP_PROPOSED` included, link to `/product/<itemId>`, so
  * `PendingSwapAction.linkPath` is not a term link.
  *
@@ -24,7 +27,7 @@ export interface PendingSwapAction {
 
 /** The post-term-end confirm-race prompt — fully wired to
  * `confirmTransaction`. `reservationId` is `Notification.reservation_id`
- * (set for GIFT prompts); when it is `null` (SWAP,
+ * (set for GIFT and every event prompt); when it is `null` (term SWAP,
  * older notifications) the reservation is resolved client-side from the
  * term's `getMyTermItemListings`/`getMyTakenTermItemListings` (see
  * `resolvePendingReservationId`). `proposalId` is set for swap prompts. */

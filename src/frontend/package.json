@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build && vite build -c vite.sdk.config.ts",
-    "build:sdk": "vite build -c vite.sdk.config.ts",
+    "build:sdk": "vite build -c vite.sdk.config.ts && node -e \"const fs=require('fs');fs.mkdirSync('public/assets',{recursive:true});fs.copyFileSync('dist/assets/plugin-sdk.js','public/assets/plugin-sdk.js')\"",
     "lint": "eslint .",
     "preview": "vite preview",
     "test": "vitest run",

@@ -13,6 +13,12 @@ their own inventory) are enforced in `service.py`.
 
 Reservations are read-only here: GIFT/SWAP reservations are created and
 resolved exclusively by the groups exchange flow.
+
+Item reads (`GET /api/inventory-items/{id}`, `/details`, `/history`,
+`/balance`) first call the groups visibility gate
+(`item_visibility.require_item_visible_to`), injected here as
+`register_item`'s listing hook is: a PRIVATE item is a 404 for anyone but
+its owner, a shared private circle's party and a current counterparty.
 """
 
 from __future__ import annotations
@@ -20,12 +26,13 @@ from __future__ import annotations
 import uuid
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends, Response, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.auth_deps import Principal, require_any
+from app.core.auth_deps import OptionalPrincipal, Principal, require_any
+from app.core.cache_headers import set_personalised_cache_headers
 from app.db import get_db
-from app.groups.application import term_item_listings
+from app.groups.application import item_visibility, term_item_listings
 from app.product import service as product_service
 from app.storage.service import ObjectStorage, get_storage
 
@@ -38,11 +45,13 @@ from .schemas import (
     CreateInventoryRequest,
     InventoryBalanceResponse,
     InventoryItemResponse,
+    InventoryLocationResponse,
     InventoryResponse,
     ItemDetailsResponse,
     ItemHistoryEntryResponse,
     ReservationDetailResponse,
     ReservationResponse,
+    SetInventoryLocationRequest,
     UpdateInventoryItemRequest,
 )
 
@@ -117,6 +126,21 @@ async def list_inventories(
     return [InventoryResponse.model_validate(inventory) for inventory in inventories]
 
 
+# Declared before `/api/inventories/{inventory_id}` so "mine" is not parsed as an id.
+@router.get("/api/inventories/mine/location", response_model=InventoryLocationResponse)
+async def get_my_inventory_location(
+    db: DbSession, principal: ReadPrincipal
+) -> InventoryLocationResponse:
+    return await service.get_my_inventory_location(db, principal)
+
+
+@router.put("/api/inventories/mine/location", response_model=InventoryLocationResponse)
+async def set_my_inventory_location(
+    body: SetInventoryLocationRequest, db: DbSession, principal: EditPrincipal
+) -> InventoryLocationResponse:
+    return await service.set_my_inventory_location(db, principal, body)
+
+
 @router.get("/api/inventories/{inventory_id}", response_model=InventoryResponse)
 async def get_inventory(
     inventory_id: uuid.UUID, db: DbSession, principal: ReadPrincipal
@@ -151,12 +175,14 @@ async def register_item(
 async def list_items(
     inventory_id: uuid.UUID, db: DbSession, principal: ReadPrincipal
 ) -> list[InventoryItemResponse]:
-    rows = await service.list_items_with_product_name(db, inventory_id)
+    """The caller's own inventory only: 404 unknown, 403 someone else's."""
+    rows = await service.list_own_items_with_product_name(db, principal, inventory_id)
     return [_item_response(item, product_name) for item, product_name in rows]
 
 
 @router.get("/api/inventory-items/{item_id}", response_model=InventoryItemResponse)
 async def get_item(item_id: uuid.UUID, db: DbSession, principal: ReadPrincipal) -> InventoryItemResponse:
+    await item_visibility.require_item_visible_to(db, item_id, principal)
     item, product_name = await service.get_item_with_product_name(db, item_id)
     return _item_response(item, product_name)
 
@@ -180,11 +206,15 @@ async def delete_item(item_id: uuid.UUID, db: DbSession, principal: EditPrincipa
 async def get_item_details(
     item_id: uuid.UUID,
     db: DbSession,
-    principal: ReadPrincipal,
     storage: Annotated[ObjectStorage | None, Depends(get_storage)],
+    response: Response,
+    principal: OptionalPrincipal = None,
 ) -> ItemDetailsResponse:
-    """Item page read model; 200 for a soft-deleted item (status `DELETED`)."""
+    """Item page read model; 200 for a soft-deleted item (status `DELETED`).
+    Public: anonymous callers get 404 unless the item is live and ACTIVE."""
+    await item_visibility.require_item_visible_to(db, item_id, principal)
     details = await service.get_item_details(db, item_id, principal, storage)
+    set_personalised_cache_headers(response, principal)
     return ItemDetailsResponse.model_validate(details)
 
 
@@ -193,6 +223,7 @@ async def get_item_history(
     item_id: uuid.UUID, db: DbSession, principal: ReadPrincipal
 ) -> list[ItemHistoryEntryResponse]:
     """Privacy-labelled movements, newest first; 200 for a soft-deleted item."""
+    await item_visibility.require_item_visible_to(db, item_id, principal)
     entries = await service.get_item_history(db, item_id, principal)
     return [ItemHistoryEntryResponse.model_validate(entry) for entry in entries]
 
@@ -201,6 +232,7 @@ async def get_item_history(
 async def get_item_balance(
     item_id: uuid.UUID, db: DbSession, principal: ReadPrincipal
 ) -> InventoryBalanceResponse:
+    await item_visibility.require_item_visible_to(db, item_id, principal)
     balance = await service.get_item_balance(db, item_id)
     reservation_id = await service.get_active_reservation_id_for_item(db, item_id, balance.status)
     return InventoryBalanceResponse(
@@ -222,7 +254,7 @@ async def get_item_balance(
 async def list_reservations(
     item_id: uuid.UUID, db: DbSession, principal: ReadPrincipal
 ) -> list[ReservationResponse]:
-    reservations = await service.list_reservations(db, item_id)
+    reservations = await service.list_reservations_for_caller(db, principal, item_id)
     return [ReservationResponse.model_validate(reservation) for reservation in reservations]
 
 
@@ -230,8 +262,8 @@ async def list_reservations(
 async def get_reservation(
     reservation_id: uuid.UUID, db: DbSession, principal: ReadPrincipal
 ) -> ReservationDetailResponse:
-    reservation = await service.get_reservation(db, reservation_id)
-    term_occurs_on = await service.find_reservation_term_occurs_on(db, reservation.term_id)
+    reservation = await service.get_reservation_for_caller(db, principal, reservation_id)
+    term_occurs_on = await service.find_reservation_context_occurs_on(db, reservation)
     return ReservationDetailResponse(
         **ReservationResponse.model_validate(reservation).model_dump(),
         term_occurs_on=term_occurs_on,

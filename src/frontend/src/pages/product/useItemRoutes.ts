@@ -2,7 +2,6 @@ import { useParams } from "react-router-dom";
 
 interface ItemRoutes {
   viewPath: (id: string) => string;
-  editPath: (id: string) => string;
   /** Where "Wróć" goes when the page was opened directly. */
   backFallback: string;
 }
@@ -17,6 +16,11 @@ export function organizerItemPath(organizerSlug: string | null | undefined, id: 
   return organizerSlug ? `/${organizerSlug}/product/${id}` : `/product/${id}`;
 }
 
+/** An item page opened in edit mode (`?edit=1`, see `ItemDetailPage`). */
+export function itemEditPath(viewPath: string): string {
+  return `${viewPath}?edit=1`;
+}
+
 /** Item page paths: under `/:organizationSlug/product` on the organizer
  * route, under `/product` everywhere else. */
 export function useItemRoutes(): ItemRoutes {
@@ -24,7 +28,6 @@ export function useItemRoutes(): ItemRoutes {
   const hasOrganizerPage = !!organizationSlug && !FALLBACK_ORGANIZER_SLUG.test(organizationSlug);
   return {
     viewPath: (id) => organizerItemPath(organizationSlug, id),
-    editPath: (id) => `${organizerItemPath(organizationSlug, id)}/edit`,
     backFallback: hasOrganizerPage ? `/${organizationSlug}` : "/items",
   };
 }

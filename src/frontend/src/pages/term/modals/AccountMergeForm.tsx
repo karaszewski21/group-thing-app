@@ -14,7 +14,16 @@ const DEFAULT_ERROR_MESSAGE = "Nie udało się założyć konta — spróbuj pon
  * Rendered by `TermPage.tsx` in place of a needed item's "Zgłoś się"
  * pledge-trigger, not as a modal/overlay — see §4/§3a of spec.md.
  */
-export function AccountMergeForm({ userProfileId }: { userProfileId: string }) {
+export function AccountMergeForm({
+  userProfileId,
+  title = "Załóż konto, aby oddawać i zamieniać rzeczy",
+  hint = "Twoje zapisanie na zajęcia zostanie zachowane.",
+}: {
+  userProfileId: string;
+  /** Heading and form label; defaults to the term page's copy. */
+  title?: string;
+  hint?: string;
+}) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [busy, setBusy] = useState(false);
@@ -52,12 +61,12 @@ export function AccountMergeForm({ userProfileId }: { userProfileId: string }) {
   }
 
   return (
-    <div className={`${SUB_FORM}`} role="form" aria-label="Załóż konto, aby oddawać i zamieniać rzeczy">
+    <div className={`${SUB_FORM}`} role="form" aria-label={title}>
       <p style={{ fontWeight: 700, fontSize: 13, marginBottom: 4 }}>
-        Załóż konto, aby oddawać i zamieniać rzeczy
+        {title}
       </p>
       <p style={{ fontSize: 12, color: "var(--color-ink-soft)", marginBottom: 10 }}>
-        Twoje zapisanie na zajęcia zostanie zachowane.
+        {hint}
       </p>
 
       <div style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: 10 }}>

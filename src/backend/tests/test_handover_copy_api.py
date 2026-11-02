@@ -14,16 +14,17 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.circulation.models import InventoryItem, ReservationType
 from app.groups import service
 from app.groups.models import Group
-from app.groups.schemas import TakeTermItemListingRequest
 from app.product.models import Product
 from app.users.models import UserProfile
 from tests.test_term_item_listings import (
     _auth,
     _notifications,
     _principal,
+    _propose_in_term,
     _register,
     _register_personal_item,
     _rsvp,
+    _take_in_term,
 )
 
 _NOW = datetime(2026, 10, 13, 12, 0)
@@ -81,12 +82,7 @@ async def _attendee(
 
 
 async def _take(db: AsyncSession, token: str, item_id: uuid.UUID, term_id: uuid.UUID) -> None:
-    await service.take_item_listing(
-        db,
-        _principal(token),
-        item_id,
-        TakeTermItemListingRequest(term_id=term_id, reservation_type="GIFT"),
-    )
+    await _take_in_term(db, _principal(token), item_id, term_id)
 
 
 async def test_takeItemListing_giverAndTaker_receiveDatedCopyWithGroup(
@@ -171,8 +167,11 @@ async def test_acceptSwapProposal_viaApi_returnsTermAndGroupAndSendsDatedCopy(
         db_session, _principal(proposer_token), offered_item_id, ReservationType.SWAP
     )
     proposed = await client.post(
-        f"/api/term-item-listings/{listed_item_id}/propose",
-        json={"offered_item_id": str(offered_item_id), "term_id": str(term_id)},
+        f"/api/items/{listed_item_id}/propose",
+        json={
+            "context": {"kind": "TERM", "id": str(term_id)},
+            "offered_item_id": str(offered_item_id),
+        },
         headers=_auth(proposer_token),
     )
     assert proposed.status_code == 200, proposed.text
@@ -213,7 +212,7 @@ async def test_rejectSwapProposal_viaApi_responseHasNoAcceptFields(
     await service.set_item_listing_preference(
         db_session, _principal(proposer_token), offered_item_id, ReservationType.SWAP
     )
-    proposal = await service.propose_swap(
+    proposal = await _propose_in_term(
         db_session, _principal(proposer_token), listed_item_id, offered_item_id, term_id
     )
 
@@ -239,7 +238,7 @@ async def _accepted_swap(
     await service.set_item_listing_preference(
         db, _principal(proposer_token), offered_item_id, ReservationType.SWAP
     )
-    proposal = await service.propose_swap(
+    proposal = await _propose_in_term(
         db, _principal(proposer_token), listed_item_id, offered_item_id, term_id
     )
     return lister_token, proposer_token, group_id, term_id, listed_item_id, proposal.id

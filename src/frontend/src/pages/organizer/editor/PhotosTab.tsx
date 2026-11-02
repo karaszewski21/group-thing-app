@@ -6,7 +6,7 @@ import { useMyOrganization } from "../../../hooks/useMyOrganization";
 import { useOrganizationMedia } from "../../../hooks/useOrganizationMedia";
 import { TrashIcon } from "../../../components/shared/appIcons";
 import { SafeImage } from "../../product/ItemGallery";
-import { ModerationBadge, PhotoFileField, type ModerationLabels } from "../../product/ItemGalleryEditor";
+import { ModerationBadge, PhotoFileField, type ModerationLabels } from "../../../components/shared/PhotoGalleryField";
 import { photoFileError } from "../../product/itemPageShared";
 import { SECTION_LABEL } from "./ColorsTab";
 
@@ -21,7 +21,7 @@ const MEDIA_LABELS: ModerationLabels = {
 
 const REJECTED_NOTE = "Odrzucone przez moderację — dodaj inne zdjęcie.";
 const HINT = "text-[12px] text-ink-soft";
-const PICKER = "min-h-11";
+const PICKER = "mt-2 min-h-11";
 const TEXT_BUTTON =
   "mt-2 inline-flex min-h-11 items-center rounded-[9px] border border-line px-3 text-[11.5px] font-extrabold text-ink-soft hover:text-ink disabled:opacity-40";
 const ICON_BUTTON =
@@ -282,8 +282,8 @@ function SlotRow({ thumb, children }: { thumb: ReactNode; children: ReactNode })
 }
 
 /** Up to three ordered photos (APPROVED and awaiting moderation keep their
- * place), then REJECTED ones below a divider (mockup states G1-G6). The row
- * markup follows `ItemGalleryEditor`, with 44px buttons. */
+ * place), then REJECTED ones below a divider (mockup states G1-G6). The
+ * rows have 44px buttons. */
 function GallerySection({ media, actions }: { media: OwnerMedia[]; actions: MediaActions }) {
   const { busy, uploading, error, run, upload } = useSectionAction();
   const focusAfterMove = useRef<{ id: string; dir: "up" | "down" } | null>(null);

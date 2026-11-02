@@ -16,7 +16,8 @@ export type BlockId =
   | "circles-grid"
   | "exchange-counts"
   | "exchange-board"
-  | "needed-items";
+  | "needed-items"
+  | "recent-items";
 
 /** One block placement in a layout. `variant` is read by the block itself;
  * `primary` marks the layout's main content slot (exactly one is active for

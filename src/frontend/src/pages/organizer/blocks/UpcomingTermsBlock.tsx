@@ -2,24 +2,11 @@ import { Link } from "react-router-dom";
 import dayjs from "../../../utils/dayjs";
 import type { BlockProps, OrganizerPageData } from "../layouts/types";
 import { organizerTermPath } from "../organizerHelpers";
+import { DateTile } from "./NearestDateCard";
 import { nearestTerm } from "./nearestTerm";
 
 const COMPACT_LIMIT = 3;
 const FOCUS_RING = "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring";
-
-/** The TermPreviewCard date tile: day number over the short month. */
-export function DateTile({ occursOn, className = "bg-primary-soft" }: { occursOn: string; className?: string }) {
-  const date = dayjs(occursOn);
-  return (
-    <div
-      aria-hidden="true"
-      className={`flex h-[46px] w-[46px] shrink-0 flex-col items-center justify-center rounded-[13px] text-ink ${className}`}
-    >
-      <span className="text-base font-extrabold leading-none">{date.format("D")}</span>
-      <span className="text-[10.5px] font-bold">{date.format("MMM")}</span>
-    </div>
-  );
-}
 
 // eslint-disable-next-line react-refresh/only-export-components -- the renderer reads each block's isEmpty next to it
 export function isUpcomingTermsEmpty(data: OrganizerPageData): boolean {

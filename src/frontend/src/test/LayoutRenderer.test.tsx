@@ -3,6 +3,7 @@ import { MemoryRouter } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import * as groupsApi from "../api/groups";
 import type { OrganizerCircle, OrganizerPageResponse, OrganizerTerm } from "../api/groups";
+import type { OwnerItemCard, OwnerNearestDate } from "../api/ownerItems";
 import type { PublicOrganizationResponse } from "../api/organizations";
 import { LayoutRenderer } from "../pages/organizer/LayoutRenderer";
 import { FALLBACK_LAYOUT, isRecommended, LAYOUT_REGISTRY, resolveLayout } from "../pages/organizer/layouts/registry";
@@ -37,9 +38,11 @@ function pageData(overrides: Partial<OrganizerPageResponse> = {}): OrganizerPage
     directory: {
       circles: [],
       upcoming_terms: [],
-      exchange: { counts: { GIFT: 0, SWAP: 0 }, items: [] },
+      exchange: { counts: { GIFT: 0, SWAP: 0, RESERVED: 0 }, items: [] },
       needed_items: [],
       stats: { circle_count: 0, upcoming_term_count: 0, family_count: null },
+      recent_items: [],
+      owner_nearest: null,
       ...overrides,
     },
   };
@@ -69,6 +72,22 @@ function term(id: string, occursOn: string): OrganizerTerm {
     attendee_count: 8,
   };
 }
+
+function recentItem(id: string, name: string, mode: OwnerItemCard["mode"]): OwnerItemCard {
+  return { item_id: id, product_name: name, condition: "GOOD", mode, thumb_url: null, added_at: "2026-10-30T09:00:00", reservation: null };
+}
+
+const RECENT = [recentItem("i1", "Kurtka", "GIFT"), recentItem("i2", "Rower", "SWAP")];
+
+const NEAREST_EVENT: OwnerNearestDate = {
+  kind: "EVENT",
+  id: "e1",
+  name: "Wymianka sąsiedzka",
+  starts_at: "2026-11-07T10:00:00",
+  location_name: null,
+  attendee_count: 14,
+  path: `/${SLUG}/event/e1`,
+};
 
 function inDays(days: number): string {
   return dayjs().add(days, "day").format("YYYY-MM-DDTHH:mm:ss");
@@ -199,6 +218,7 @@ describe("LayoutRenderer", () => {
     expect(composition("EXCHANGE")).toEqual([
       "hero:compact",
       "exchange-board:grid2*",
+      "recent-items",
       "needed-items:list",
       "upcoming-terms:compact",
       "about",
@@ -296,7 +316,7 @@ describe("LayoutRenderer", () => {
     const busy = pageData({
       circles: [circle("g1", "Orliki 2017"), circle("g2", "Młodziki 2015")],
       upcoming_terms: soon,
-      exchange: { counts: { GIFT: 2, SWAP: 2 }, items: [] },
+      exchange: { counts: { GIFT: 2, SWAP: 2, RESERVED: 0 }, items: [] },
     });
 
     expect(recommended(data)).toEqual(["LINKS"]);
@@ -308,7 +328,7 @@ describe("LayoutRenderer", () => {
         pageData({
           circles: [circle("g1", "Orliki 2017")],
           upcoming_terms: [...soon.slice(0, 3), term("late", inDays(20))],
-          exchange: { counts: { GIFT: 2, SWAP: 1 }, items: [] },
+          exchange: { counts: { GIFT: 2, SWAP: 1, RESERVED: 0 }, items: [] },
         }),
       ),
     ).toEqual([]);
@@ -320,7 +340,7 @@ describe("LayoutRenderer", () => {
       circles: [circle("g1", "Orliki 2017")],
       upcoming_terms: [nearest],
       exchange: {
-        counts: { GIFT: 4, SWAP: 4 },
+        counts: { GIFT: 4, SWAP: 4, RESERVED: 0 },
         items: [
           {
             item_id: "i1",
@@ -331,6 +351,7 @@ describe("LayoutRenderer", () => {
             term_id: "t9",
             group_id: "g2",
             occurs_on: "2026-10-18T10:00:00",
+            reservation: null,
           },
         ],
       },
@@ -370,6 +391,46 @@ describe("LayoutRenderer", () => {
     expect(within(hero).getByRole("button", { name: "Udostępnij" })).toHaveClass("min-h-[44px]");
   });
 
+  it("places recent items right after the exchange board in EXCHANGE only", () => {
+    for (const layout of Object.values(LAYOUT_REGISTRY)) {
+      const blocks = layout.blocks.map((slot) => slot.block);
+      if (layout.key !== "EXCHANGE") {
+        expect(blocks, layout.key).not.toContain("recent-items");
+        continue;
+      }
+      const index = blocks.indexOf("recent-items");
+      expect(blocks[index - 1]).toBe("exchange-board");
+      expect(blocks[index + 1]).toBe("needed-items");
+    }
+
+    renderLayout("CLASSIC", pageData({ recent_items: RECENT }));
+    expect(screen.queryByRole("heading", { name: "Ostatnio dodane rzeczy" })).not.toBeInTheDocument();
+  });
+
+  it("shows recent item tiles with intent pills linking to the plain product page, even with a nearest date", () => {
+    renderLayout("EXCHANGE", pageData({ recent_items: RECENT, owner_nearest: NEAREST_EVENT }));
+
+    const block = screen.getByRole("region", { name: "Ostatnio dodane rzeczy" });
+    expect(within(block).getAllByRole("listitem")).toHaveLength(2);
+    expect(within(block).getByRole("link", { name: "Kurtka" })).toHaveAttribute("href", `/${SLUG}/product/i1`);
+    expect(within(block).getByText("Chcę oddać")).toHaveClass("bg-primary-soft");
+    expect(within(block).getByText("Chcę się zamienić")).toHaveClass("bg-accent-soft");
+    expect(block).not.toHaveTextContent(dayjs(NEAREST_EVENT.starts_at).format("ddd D MMM"));
+    expect(within(block).getByRole("link", { name: "Zobacz więcej →" })).toHaveAttribute("href", `/${SLUG}/items`);
+  });
+
+  it("hides empty recent items from visitors and shows the owner a ghost", () => {
+    renderLayout("EXCHANGE", data);
+    expect(screen.queryByRole("heading", { name: "Ostatnio dodane rzeczy" })).not.toBeInTheDocument();
+    cleanup();
+
+    const owner = renderLayout("EXCHANGE", data, "owner-edit");
+    const ghost = owner.container.querySelector('[data-ghost="recent-items"]') as HTMLElement;
+    expect(ghost).not.toBeNull();
+    expect(within(ghost).getByText("Ostatnio dodane rzeczy")).toBeInTheDocument();
+    expect(within(ghost).getByRole("link", { name: "Dodaj rzecz do wymiany →" })).toHaveAttribute("href", "/items");
+  });
+
   it("recommends nothing while loading, even with a directory that would recommend SCHEDULE and CIRCLES", () => {
     const busy = pageData({
       circles: [circle("g1", "Orliki 2017"), circle("g2", "Młodziki 2015")],
@@ -388,7 +449,7 @@ describe("LayoutRenderer", () => {
       circles: [circle("g1", "Orliki 2017"), circle("g2", "Młodziki 2015")],
       upcoming_terms: [{ ...term("t1", inDays(2)), ...identity } as OrganizerTerm],
       exchange: {
-        counts: { GIFT: 1, SWAP: 0 },
+        counts: { GIFT: 1, SWAP: 0, RESERVED: 0 },
         items: [
           {
             item_id: "i1",
@@ -399,6 +460,7 @@ describe("LayoutRenderer", () => {
             term_id: "t1",
             group_id: "g1",
             occurs_on: inDays(2),
+            reservation: null,
             ...identity,
           },
         ],
@@ -409,7 +471,7 @@ describe("LayoutRenderer", () => {
     const { container } = renderLayout("CLASSIC", full);
 
     expect(screen.getByText("Orliki 2017")).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: /Oddam\s*1/ })).toHaveAttribute("href", `/${SLUG}/group/g1/term/t1`);
+    expect(screen.getByRole("link", { name: /1\s*Chcę oddać/ })).toHaveAttribute("href", `/${SLUG}/group/g1/term/t1`);
     expect(container.textContent).not.toMatch(/Kasia|Wójcik|party-secret/);
     expect(container.innerHTML).not.toMatch(/party-secret|avatar\.png/);
   });

@@ -1,5 +1,7 @@
+import { Link } from "react-router-dom";
 import { AddToCalendarButton } from "../../components/shared/AddToCalendarButton";
 import { calendarUid } from "../../utils/calendar";
+import { eventPath } from "../../utils/appHelpers";
 import dayjs from "../../utils/dayjs";
 import { organizerTermPath } from "../organizer/organizerHelpers";
 import { ModalSheet } from "../../components/shared/appComponents";
@@ -11,15 +13,28 @@ export interface AcceptedSwap {
   groupName: string | null;
   groupId: string | null;
   termId: string | null;
+  /** Set for an event swap; `groupName` is then the event name. */
+  eventId: string | null;
+  eventSlug: string | null;
   itemId: string;
   hadOtherOffers: boolean;
 }
 
+/** Where the swap happens: the Term or, for an event swap, the event. */
+function swapContext(swap: AcceptedSwap): { id: string; path: string; isEvent: boolean } | null {
+  const { groupId, termId, eventId, eventSlug } = swap;
+  if (eventId !== null && eventSlug !== null) return { id: eventId, path: eventPath(eventSlug, eventId), isEvent: true };
+  if (groupId !== null && termId !== null) return { id: termId, path: organizerTermPath("krag", groupId, termId), isEvent: false };
+  return null;
+}
+
 /** "Zamiana zaakceptowana" sheet after the owner picks a swap offer. Without
- * term data (degraded response) it omits the date line and the calendar. */
+ * term or event data (degraded response) it omits the date line and the
+ * calendar. */
 export function SwapAcceptSuccessSheet({ swap, onClose }: { swap: AcceptedSwap; onClose: () => void }) {
-  const { myItemName, offeredName, occursOn, groupName, groupId, termId, itemId, hadOtherOffers } = swap;
-  const hasTerm = occursOn !== null && groupName !== null && groupId !== null && termId !== null;
+  const { myItemName, offeredName, occursOn, groupName, itemId, hadOtherOffers } = swap;
+  const context = swapContext(swap);
+  const hasTerm = occursOn !== null && groupName !== null && context !== null;
 
   return (
     <ModalSheet title="Zamiana zaakceptowana" onClose={onClose}>
@@ -31,8 +46,19 @@ export function SwapAcceptSuccessSheet({ swap, onClose }: { swap: AcceptedSwap; 
         {groupName !== null && <p>— {groupName}</p>}
       </div>
       <p className="mt-3 text-sm text-ink-soft">
-        Przynieś „{myItemName}” i odbierz „{offeredName}” na tym terminie.
+        Przynieś „{myItemName}” i odbierz „{offeredName}” {context?.isEvent ? "na tym wydarzeniu" : "na tym terminie"}.
       </p>
+      {context?.isEvent && (
+        <p className="mt-2 text-sm">
+          <Link
+            to={context.path}
+            onClick={onClose}
+            className="font-bold text-primary underline underline-offset-2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring"
+          >
+            Zobacz wydarzenie
+          </Link>
+        </p>
+      )}
       {hadOtherOffers && <p className="mt-1 text-xs text-ink-soft">Pozostałe propozycje zostały odrzucone.</p>}
 
       <div className="mt-5 flex flex-col gap-2 min-[520px]:flex-row min-[520px]:flex-wrap">
@@ -42,11 +68,11 @@ export function SwapAcceptSuccessSheet({ swap, onClose }: { swap: AcceptedSwap; 
               size="lg"
               direction="up"
               event={{
-                uid: calendarUid(termId, itemId),
+                uid: calendarUid(context.id, itemId),
                 title: `Zamiana: ${myItemName} ↔ ${offeredName}`,
                 occursOn,
                 groupName,
-                url: window.location.origin + organizerTermPath("krag", groupId, termId),
+                url: window.location.origin + context.path,
               }}
             />
           </div>

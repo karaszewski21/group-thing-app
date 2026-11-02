@@ -11,7 +11,8 @@ export type NotificationKind =
   | "SWAP_REJECTED"
   | "TERM_CONFIRMATION_NEEDED"
   | "TERM_ALREADY_RESOLVED"
-  | "ITEM_RESERVED_FOR_PICKUP";
+  | "ITEM_RESERVED_FOR_PICKUP"
+  | "RESERVATION_CANCELLED";
 
 export interface NotificationResponse {
   id: string;
@@ -28,9 +29,10 @@ export interface NotificationResponse {
    * every other kind. */
   proposal_id?: string | null;
   /** Loose pointer at `Reservation.id`, populated for
-   * `TERM_CONFIRMATION_NEEDED` raised from a GIFT reservation — lets
-   * the pending-actions modal `confirmTransaction` on it directly. `null`
-   * for every other kind (and for SWAP prompts). */
+   * `TERM_CONFIRMATION_NEEDED` raised from a GIFT reservation and for every
+   * event prompt (swap legs included) — lets the pending-actions modal
+   * `confirmTransaction` on it directly. `null` for every other kind (and
+   * for term SWAP prompts). */
   reservation_id: string | null;
 }
 

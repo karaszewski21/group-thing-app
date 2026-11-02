@@ -112,7 +112,9 @@ async def _handle_term_ended_giveaway(db: AsyncSession, payload: dict[str, Any])
 async def _handle_term_ended_swap(db: AsyncSession, payload: dict[str, Any]) -> None:
     """One `Notification` per party (the proposer and the listing owner) of
     an `ACCEPTED` `SwapProposal` whose Term just ended. Both carry
-    `proposal_id`, which tells the client a swap prompt from a giveaway one."""
+    `proposal_id`, which tells the client a swap prompt from a giveaway one;
+    an Event's prompts also carry the reservation each party confirms
+    (`owner_reservation_id`/`proposer_reservation_id`), Term ones none."""
     link_path = payload["link_path"]
     proposal_id = uuid.UUID(payload["proposal_id"])
     listing_item_name = payload.get("listing_item_name")
@@ -125,7 +127,10 @@ async def _handle_term_ended_swap(db: AsyncSession, payload: dict[str, Any]) -> 
         )
     else:
         message = "Czy zamiana doszła do skutku?"
-    for party_id in (payload["proposer_party_id"], payload["owner_party_id"]):
+    for party_id, reservation_id in (
+        (payload["proposer_party_id"], payload.get("proposer_reservation_id")),
+        (payload["owner_party_id"], payload.get("owner_reservation_id")),
+    ):
         await service.create_notification(
             db,
             party_id=uuid.UUID(party_id),
@@ -133,4 +138,5 @@ async def _handle_term_ended_swap(db: AsyncSession, payload: dict[str, Any]) -> 
             message=clock.fit_notification_message(message),
             link_path=link_path,
             proposal_id=proposal_id,
+            reservation_id=uuid.UUID(reservation_id) if reservation_id else None,
         )

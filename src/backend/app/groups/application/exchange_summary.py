@@ -1,4 +1,4 @@
-""""Udostępnia rzecz"/"przynosi na zajęcia" aggregation for a Circle's
+""" "Udostępnia rzecz"/"przynosi na zajęcia" aggregation for a Circle's
 current Term (`PrivateKragGrupyView`'s family cards). Deliberately its own
 module (not folded into the already-large `term_item_listings.py`) — see
 spec.md's Phase-1 Q3 decision.
@@ -28,7 +28,7 @@ from app.core.errors import AccessDeniedException, EntityNotFoundException
 from app.families.models import FamilyMembership, FamilyRole, FamilyRoleType
 
 from ..infrastructure import repository
-from ..models import GroupRole, NeededItem, Pledge, PledgeStatus, Term
+from ..models import Group, GroupRole, GroupVisibility, NeededItem, Pledge, PledgeStatus, Term
 from ..schemas import (
     FamilyExchangeDetailResponse,
     FamilyExchangeOffer,
@@ -37,9 +37,9 @@ from ..schemas import (
 )
 from .circles import _group_role_party_id, get_current_leadership, get_group
 from .term_item_listings import (
-    _is_item_available,
     _list_eligible_lister_party_ids,
     _resolve_item_display_info,
+    _takeable_preferences,
 )
 
 
@@ -48,7 +48,10 @@ async def _get_current_term(db: AsyncSession, group_id: uuid.UUID) -> Term | Non
     Circle (`occurs_on DESC`, first row) — deliberately not the nearest
     *upcoming* one `public_view.py` picks. See module docstring."""
     result = await db.execute(
-        select(Term).where(Term.circle_group_id == group_id).order_by(Term.occurs_on.desc()).limit(1)
+        select(Term)
+        .where(Term.circle_group_id == group_id)
+        .order_by(Term.occurs_on.desc())
+        .limit(1)
     )
     return result.scalars().first()
 
@@ -79,7 +82,10 @@ async def list_group_member_party_ids(db: AsyncSession, group_id: uuid.UUID) -> 
 
 
 async def _require_group_member_or_leader(
-    db: AsyncSession, group_id: uuid.UUID, viewer_party_id: uuid.UUID, member_party_ids: list[uuid.UUID]
+    db: AsyncSession,
+    group_id: uuid.UUID,
+    viewer_party_id: uuid.UUID,
+    member_party_ids: list[uuid.UUID],
 ) -> None:
     """Membership/leadership check that can't live in the coarse
     `AUTHORIZATION_MATRIX` — per `standards/backend/security.md`. Takes the
@@ -89,7 +95,10 @@ async def _require_group_member_or_leader(
     if viewer_party_id in member_party_ids:
         return
     leadership = await get_current_leadership(db, group_id)
-    if leadership is not None and await _group_role_party_id(db, leadership.from_role_id) == viewer_party_id:
+    if (
+        leadership is not None
+        and await _group_role_party_id(db, leadership.from_role_id) == viewer_party_id
+    ):
         return
     raise AccessDeniedException
 
@@ -171,28 +180,37 @@ async def _pledging_party_ids(
 
 
 async def _sharing_party_ids(
-    db: AsyncSession, term: Term | None, guardian_party_ids: set[uuid.UUID]
+    db: AsyncSession,
+    term: Term | None,
+    guardian_party_ids: set[uuid.UUID],
+    private_circle_id: uuid.UUID | None,
 ) -> set[uuid.UUID]:
     """Which of `guardian_party_ids` currently have a takeable exchange-
     mechanism offer for `term`: eligible to list for this Term
-    (`_list_eligible_lister_party_ids`) **and** their listed item is still
-    `AVAILABLE` (`_is_item_available`) — the same "active" definition
-    `list_browsable_term_item_listings` uses. One batched `IN (...)` fetch
-    of `ItemListingPreference` rows (`repository.
-    list_item_listing_preferences_for_parties`), then a bounded per-listing-
-    item availability check (same precedent as `_build_listing_views`)."""
+    (`_list_eligible_lister_party_ids`) **and** their listed item can still
+    be taken (`_takeable_preferences`: AVAILABLE, no pending swap proposal) —
+    the same "active" definition `list_browsable_term_item_listings` uses.
+    One batched `IN (...)` fetch of `ItemListingPreference` rows
+    (`repository.list_item_listing_preferences_for_parties`), then a bounded
+    per-listing-item availability check (same precedent as
+    `_build_listing_views`)."""
     if term is None or not guardian_party_ids:
         return set()
     eligible_party_ids = await _list_eligible_lister_party_ids(db, term)
     relevant_party_ids = eligible_party_ids & guardian_party_ids
     if not relevant_party_ids:
         return set()
-    preferences = await repository.list_item_listing_preferences_for_parties(db, relevant_party_ids)
-    sharing: set[uuid.UUID] = set()
-    for preference in preferences:
-        if await _is_item_available(db, preference.item_id):
-            sharing.add(preference.owner_party_id)
-    return sharing
+    preferences = await repository.list_item_listing_preferences_for_parties(
+        db, relevant_party_ids, private_circle_id=private_circle_id
+    )
+    return {pref.owner_party_id for pref in await _takeable_preferences(db, preferences)}
+
+
+def _private_circle_id(group: Group, group_id: uuid.UUID) -> uuid.UUID | None:
+    """`group_id` when PRIVATE, so only the PRIVATE items of its standing
+    members or organizer are visible (an RSVP is not membership,
+    `repository._visible_preferences`); None keeps PUBLIC items only."""
+    return group_id if group.visibility == GroupVisibility.PRIVATE else None
 
 
 async def get_group_exchange_summary(
@@ -201,8 +219,10 @@ async def get_group_exchange_summary(
     """`shares_item`/`brings_item` for every family currently in `group_id`,
     for its current Term (see module docstring for "current"). Raises
     `AccessDeniedException` unless `viewer_party_id` is a member or the
-    active leader of `group_id`."""
-    await get_group(db, group_id)
+    active leader of `group_id`. PRIVATE items count only in a PRIVATE
+    group, and only those of its standing members or organizer
+    (`_private_circle_id`)."""
+    group = await get_group(db, group_id)
     member_party_ids = await list_group_member_party_ids(db, group_id)
     await _require_group_member_or_leader(db, group_id, viewer_party_id, member_party_ids)
 
@@ -213,7 +233,12 @@ async def get_group_exchange_summary(
 
     term = await _get_current_term(db, group_id)
     pledging_party_ids = await _pledging_party_ids(db, term, all_guardian_party_ids)
-    sharing_party_ids = await _sharing_party_ids(db, term, all_guardian_party_ids)
+    sharing_party_ids = await _sharing_party_ids(
+        db,
+        term,
+        all_guardian_party_ids,
+        private_circle_id=_private_circle_id(group, group_id),
+    )
 
     families = [
         FamilyExchangeSummary(
@@ -233,8 +258,11 @@ async def get_family_exchange_offers(
     `family_id`, for `group_id`'s current Term. `family_id` must have an
     active `Membership` in `group_id` (via one of its guardians) — a
     family from another Circle, or a family currently with no active
-    guardian at all, is a 404, not a silently-empty list."""
-    await get_group(db, group_id)
+    guardian at all, is a 404, not a silently-empty list. PRIVATE items
+    are offered only in a PRIVATE group, and only those of its standing
+    members or organizer — a co-guardian who merely RSVPs is not in the
+    circle (`_private_circle_id`)."""
+    group = await get_group(db, group_id)
     member_party_ids = set(await list_group_member_party_ids(db, group_id))
     await _require_group_member_or_leader(db, group_id, viewer_party_id, list(member_party_ids))
 
@@ -249,11 +277,15 @@ async def get_family_exchange_offers(
     eligible_party_ids = await _list_eligible_lister_party_ids(db, term)
     relevant_party_ids = eligible_party_ids & guardian_party_ids
     preferences = (
-        await repository.list_item_listing_preferences_for_parties(db, relevant_party_ids)
+        await repository.list_item_listing_preferences_for_parties(
+            db,
+            relevant_party_ids,
+            private_circle_id=_private_circle_id(group, group_id),
+        )
         if relevant_party_ids
         else []
     )
-    available = [pref for pref in preferences if await _is_item_available(db, pref.item_id)]
+    available = await _takeable_preferences(db, preferences)
     item_info = await _resolve_item_display_info(db, {pref.item_id for pref in available})
 
     offers = [

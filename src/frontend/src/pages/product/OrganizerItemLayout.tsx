@@ -6,8 +6,9 @@ import { OrganizerThemeScope } from "../../theme/OrganizerThemeScope";
 import { ItemBackButton } from "./ItemBackButton";
 import { ItemLoadStates } from "./ItemLoadStates";
 
-/** `/:organizationSlug/product/:id[/edit]`: the item pages in the organizer's
- * palette. The item reads start right away, in
+/** `/:organizationSlug/product/:id`: the item pages in the organizer's
+ * palette. Public like `/product/:id`: `ItemDetailBody` sends an anonymous
+ * visitor to login only when the item is not public. The item reads start right away, in
  * parallel with the organization; until the organization settles a neutral
  * loader shows in the default palette, so content never paints in the wrong
  * colors. An unknown organization or a failed read gives the default palette. */

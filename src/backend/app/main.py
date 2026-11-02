@@ -30,6 +30,7 @@ from app.core import clock
 from app.core.auth_deps import register_auth_exception_handlers
 from app.core.errors import register_exception_handlers
 from app.db import async_session_factory
+from app.events.router import router as events_router
 from app.families.router import router as families_router
 from app.groups.application.term_end_scan import scan_for_term_ended
 from app.groups.router import router as groups_router
@@ -159,6 +160,7 @@ app.include_router(users_router)
 app.include_router(groups_router)
 app.include_router(organizations_router)
 app.include_router(locations_router)
+app.include_router(events_router)
 app.include_router(families_router)
 app.include_router(circulation_router)
 app.include_router(notifications_router)

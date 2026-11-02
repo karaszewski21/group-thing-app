@@ -1,4 +1,4 @@
-import { api } from "./client";
+import { api, ApiError } from "./client";
 
 export type ReservationType = "LEND" | "RETURN" | "SWAP" | "GIFT";
 export type ReservationStatus = "PENDING" | "CONFIRMED" | "CANCELLED" | "FULFILLED";
@@ -14,7 +14,9 @@ export interface ReservationResponse {
   // `TermPage.test.tsx`/`AppPage.test.tsx` (written before this
   // field existed on the frontend type) keep compiling without an
   // unrelated, out-of-scope rewrite.
-  term_id?: string;
+  // `null` for an event reservation, which sets `event_id` instead.
+  term_id?: string | null;
+  event_id?: string | null;
   paired_reservation_id: string | null;
   reserved_at: string;
   expires_at: string | null;
@@ -26,11 +28,14 @@ export function getReservations(itemId: string): Promise<ReservationResponse[]> 
   return api.get(`/reservations?item_id=${itemId}`);
 }
 
-/** `GET /reservations/{id}` adds the Term's date, resolved server-side even
- * when the Term's group is soft-deleted (`GET /terms/{id}` is then 404).
+/** `GET /reservations/{id}` adds the context date (the Term's, or the
+ * event's start), resolved server-side even when the Term's group is
+ * soft-deleted (`GET /terms/{id}` is then 404).
  * Optional for the same pre-existing-mock reason as `term_id` above. */
 export interface ReservationDetailResponse extends ReservationResponse {
   term_occurs_on?: string | null;
+  /** Arranged at the owner's place, with no term or event. */
+  personal_pickup: boolean;
 }
 
 export function getReservation(id: string): Promise<ReservationDetailResponse> {
@@ -61,4 +66,18 @@ export type CancelTransactionResponse = ConfirmTransactionResponse;
 
 export function cancelTransaction(reservationId: string): Promise<CancelTransactionResponse> {
   return api.post(`/reservations/${reservationId}/cancel-transaction`, undefined);
+}
+
+export const ALREADY_RESOLVED_MESSAGE = "Transakcja została już rozstrzygnięta przez drugą stronę.";
+
+/** A confirm/cancel that lost the race: the 409 whose body carries
+ * `already_resolved: true` because the other party settled it first. */
+export function isAlreadyResolved(err: unknown): boolean {
+  return (
+    err instanceof ApiError &&
+    err.status === 409 &&
+    typeof err.body === "object" &&
+    err.body !== null &&
+    (err.body as { already_resolved?: unknown }).already_resolved === true
+  );
 }

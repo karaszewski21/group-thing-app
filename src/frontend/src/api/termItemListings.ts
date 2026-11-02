@@ -1,5 +1,4 @@
 import { api } from "./client";
-import type { ListingMode } from "./itemListingPreferences";
 
 /** One row of "Twoje wystawione rzeczy" (`getMyTermItemListings`) or
  * "Rzeczy od innych" (`getBrowseTermItemListings`) — derived server-side
@@ -25,15 +24,6 @@ export interface BrowseTermItemListingResponse {
   updated_at: string;
 }
 
-/** `offered_item_id` is required for, and only meaningful for, a `SWAP`
- * take. `term_id` is the Term context the take happens in (eligibility,
- * notification link) — the listing itself is Term-independent. */
-export interface TakeTermItemListingRequest {
-  term_id: string;
-  reservation_type: ListingMode;
-  offered_item_id?: string;
-}
-
 export function getMyTermItemListings(termId: string): Promise<BrowseTermItemListingResponse[]> {
   return api.get(`/term-item-listings/mine?term_id=${termId}`);
 }
@@ -52,25 +42,9 @@ export function getMyTakenTermItemListings(
   return api.get(`/term-item-listings/mine-as-taker?term_id=${termId}`);
 }
 
-export function takeTermItemListing(
-  itemId: string,
-  request: TakeTermItemListingRequest,
-): Promise<BrowseTermItemListingResponse> {
-  return api.post(`/term-item-listings/${itemId}/take`, request);
-}
-
 /** `PROPOSED` (awaiting the listing owner's decision), `ACCEPTED` or
  * `REJECTED` — mirrors the backend's `SwapProposalStatus` StrEnum. */
 export type SwapProposalStatus = "PROPOSED" | "ACCEPTED" | "REJECTED";
-
-/** Body of `POST /term-item-listings/{item_id}/propose` — `term_id` is the
- * eligibility/notification context (same role as
- * `TakeTermItemListingRequest.term_id`), `offered_item_id` is the
- * proposer's own single counter-offer item (V1 scope: exactly one). */
-export interface ProposeSwapRequest {
-  term_id: string;
-  offered_item_id: string;
-}
 
 export interface SwapProposalResponse {
   id: string;
@@ -83,25 +57,30 @@ export interface SwapProposalResponse {
   updated_at: string;
 }
 
-/** The accept response also names the Term and Circle the swap happens at
- * (always set by the backend on success; typed nullable so the success sheet
- * degrades instead of crashing if they are ever missing). */
+/** The accept response also names where and when the swap happens. For an
+ * event swap `term_id`/`group_id` are null, `term_occurs_on` is the event
+ * start and `group_name` the event name; a personal swap has all four null. */
 export interface AcceptedSwapProposalResponse extends SwapProposalResponse {
   term_id: string | null;
   term_occurs_on: string | null;
   group_id: string | null;
   group_name: string | null;
+  event_id?: string | null;
+  event_slug?: string | null;
 }
 
-/** SWAP no longer goes through `takeTermItemListing` (the backend rejects
- * it there) — a swap "take" is always a proposal the listing owner must
- * accept or reject. */
-export function proposeSwap(
-  itemId: string,
-  request: ProposeSwapRequest,
-): Promise<SwapProposalResponse> {
-  return api.post(`/term-item-listings/${itemId}/propose`, request);
+/** A personal swap has no term or event: all four context fields are null
+ * (an event swap carries the event start and name). */
+export function isPersonalSwapAccept(accepted: AcceptedSwapProposalResponse): boolean {
+  return (
+    accepted.term_id === null &&
+    accepted.term_occurs_on === null &&
+    accepted.group_id === null &&
+    accepted.group_name === null
+  );
 }
+
+export const PERSONAL_SWAP_ACCEPTED_MESSAGE = "Zamiana przyjęta — odbiór osobisty, ustalcie szczegóły na czacie.";
 
 export function acceptSwapProposal(proposalId: string): Promise<AcceptedSwapProposalResponse> {
   return api.post(`/swap-proposals/${proposalId}/accept`, undefined);

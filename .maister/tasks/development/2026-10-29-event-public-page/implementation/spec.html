@@ -1,0 +1,328 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Specification — Public event page (Term-style)</title>
+<style>
+:root {
+  --bg:#f6f7f9; --surface:#fff; --border:#e2e5ea; --text:#1a1d23; --dim:#6b7280;
+  --accent:#4f46e5; --accent-soft:#eef2ff; --ok:#16a34a; --ok-soft:#ecfdf3;
+  --warn:#d97706; --warn-soft:#fffbeb; --crit:#dc2626; --crit-soft:#fef2f2;
+  --info:#2563eb; --info-soft:#eff6ff; --radius:10px;
+}
+@media (prefers-color-scheme: dark) {
+  :root { --bg:#111418; --surface:#1a1f26; --border:#2e3640; --text:#e6e9ee; --dim:#9aa4b2;
+    --accent:#818cf8; --accent-soft:#26294a; --ok:#4ade80; --ok-soft:#11291a;
+    --warn:#fbbf24; --warn-soft:#2e2410; --crit:#f87171; --crit-soft:#321616;
+    --info:#60a5fa; --info-soft:#15233a; }
+}
+* { box-sizing:border-box; }
+body { margin:0 auto; max-width:1100px; padding:24px 20px 64px; background:var(--bg);
+  color:var(--text); font:14px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif; }
+a { color:var(--accent); text-decoration:none; } a:hover { text-decoration:underline; }
+h1 { font-size:22px; letter-spacing:-.01em; } h2 { font-size:16px; margin-top:28px; }
+.card { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius);
+  padding:16px 18px; margin:14px 0; }
+.badge { display:inline-block; font-size:11px; font-weight:600; text-transform:uppercase;
+  letter-spacing:.04em; padding:2px 8px; border-radius:99px; background:var(--accent-soft); color:var(--accent); }
+.sev { display:inline-block; font-size:10.5px; font-weight:700; text-transform:uppercase;
+  padding:1.5px 7px; border-radius:99px; margin-right:6px; }
+.sev.critical { background:var(--crit-soft); color:var(--crit); }
+.sev.warning  { background:var(--warn-soft); color:var(--warn); }
+.sev.info     { background:var(--info-soft); color:var(--info); }
+.pass { color:var(--ok); font-weight:600; } .fail { color:var(--crit); font-weight:600; }
+table { width:100%; border-collapse:collapse; }
+th, td { text-align:left; padding:7px 10px; border-bottom:1px solid var(--border); vertical-align:top; }
+th { font-size:11.5px; text-transform:uppercase; letter-spacing:.04em; color:var(--dim); }
+code { font-family:ui-monospace,SFMono-Regular,Menlo,monospace; font-size:12.5px;
+  background:var(--accent-soft); padding:1px 5px; border-radius:4px; }
+img.shot { max-width:100%; border:1px solid var(--border); border-radius:var(--radius); }
+details > summary { cursor:pointer; font-weight:600; }
+.crumbs { display:flex; gap:14px; font-size:13px; margin-bottom:18px; flex-wrap:wrap; }
+.crumbs a.md { margin-left:auto; color:var(--dim); }
+.crumbs .here { font-weight:650; color:var(--text); }
+.tiles { display:flex; gap:10px; flex-wrap:wrap; margin:14px 0; }
+.tile { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius);
+  padding:10px 16px; text-align:center; min-width:90px; }
+.tile b { display:block; font-size:20px; letter-spacing:-.01em; }
+.tile span { font-size:10.5px; text-transform:uppercase; letter-spacing:.05em; color:var(--dim); }
+.grid2 { display:grid; grid-template-columns:repeat(auto-fit,minmax(300px,1fr)); gap:14px; }
+.stories { display:grid; grid-template-columns:repeat(auto-fit,minmax(240px,1fr)); gap:10px; }
+.stories .card { margin:0; }
+.toc { font-size:13px; color:var(--dim); }
+ul.tight { margin:6px 0; padding-left:20px; } ul.tight li { margin:3px 0; }
+.flow { display:flex; flex-wrap:wrap; gap:6px; align-items:center; font-size:13px; }
+.flow span.step { background:var(--surface); border:1px solid var(--border); border-radius:99px; padding:3px 10px; }
+</style>
+</head>
+<body>
+<nav class="crumbs">
+  <a href="../dashboard.html">← Dashboard</a>
+  <span class="here">Spec</span>
+  <a href="implementation-plan.html">Plan</a>
+  <a href="../verification/implementation-verification.html">Verification</a>
+  <a href="spec.md" target="_blank" rel="noopener" class="md">md twin ↗</a>
+</nav>
+
+<header>
+  <span class="badge">Specification</span>
+  <h1>Public event page (Term-style)</h1>
+  <div style="color:var(--dim);font-size:13px">Generated 2026-10-29 · task <code>2026-10-29-event-public-page</code> · <a href="spec.md" target="_blank" rel="noopener">spec.md</a></div>
+</header>
+
+<div class="tiles">
+  <div class="tile"><b>14</b><span>core requirements</span></div>
+  <div class="tile"><b>~22</b><span>reused pieces</span></div>
+  <div class="tile"><b>13</b><span>new components</span></div>
+  <div class="tile"><b>11</b><span>mockup IDs</span></div>
+  <div class="tile"><b>medium</b><span>risk</span></div>
+  <div class="tile"><b>16</b><span>audit amendments</span></div>
+</div>
+
+<section class="tldr card">
+  <h2 style="margin-top:0">TL;DR</h2>
+  <ul class="tight">
+    <li>The public event page moves to <code>/&lt;organizer-slug&gt;/event/&lt;eventId&gt;</code> in Term styling. The old <code>/events/:eventId</code> page route is removed with no redirect.</li>
+    <li><code>app/events</code> gains attendance sign-up and withdraw, a batched participants+items read model, <code>author_slug</code> on every response, <code>GET /api/events/attending</code> and an OG preview. It reads other business contexts only through new <code>*_acl.py</code> modules; organization lookups are batched. Spec-audit decisions and fixes are applied (see <a href="#audit">Audit amendments</a>).</li>
+    <li>Messaging gains an <code>EVENT</code> kind. Migration 0071 adds <code>conversations.event_id</code> with <code>ON DELETE CASCADE</code>, makes the messages/reads FKs cascade, and adds a partial unique index.</li>
+    <li>On the frontend, event-only components go in <code>pages/events/components/</code> (Term components are not modified), alongside a discriminated <code>resolveEventView</code> with <code>isStale</code> (the token is kept out of the query key), EVENT branches in Inbox/Thread, and attended events in Spotkania.</li>
+  </ul>
+  <h2>Key Decisions</h2>
+  <table>
+    <tr><th>Decision</th><th>Rationale</th></tr>
+    <tr><td>0071 recreates <code>messages</code>/<code>conversation_reads</code> FKs with CASCADE</td><td>Their FKs have no <code>ON DELETE</code> action (0061), so a cascade from events would fail once a message exists.</td></tr>
+    <tr><td>Detail keeps <code>location: LocationRefResponse</code></td><td><code>EventEditView</code> needs <code>location.id</code>, and the Maps URL only needs the address and place id. The ref exposes no owner and no coordinates.</td></tr>
+    <tr><td>Participants are nested with <code>items[]</code> and a server-side <code>is_me</code></td><td>The frontend auth context has no party id, and the "To Ty" pill needs one.</td></tr>
+    <tr><td>Organizer label = Organization name, else profile name (<code>author_display_name</code>)</td><td>Matches the mockups: the chip and the author row both show the org name.</td></tr>
+    <tr><td>New <code>derive_party_slug</code> shared with <code>derive_organizer_slug</code></td><td>An organizer's event and term URLs share one slug prefix.</td></tr>
+    <tr><td>One join for items (groups ACL select + circulation ACL select) and one batched thumbnail query</td><td>Constant query count, with no N+1.</td></tr>
+    <tr><td>Anonymous footer is always "＋ Zapisz się na wydarzenie" (user decision, M3)</td><td>It opens the guest sheet, whose "Masz konto? Zaloguj się" link is the only login entry. The empty-state mockup's "Zaloguj się" copy is overridden, and there is no login footer variant.</td></tr>
+    <tr><td>Token out of the <code>useEvent</code> key, with a <code>forToken</code>/<code>isStale</code> pattern (user decision, M4)</td><td>Follows the data-fetching standard. A read-only <code>refreshing</code> view during login/logout transitions hides stale controls.</td></tr>
+    <tr><td>Post-create toast passed through router state (user decision, M1)</td><td>The event route sits outside <code>AppDataProvider</code>. <code>EventPage</code> shows the toast once, then clears the history state.</td></tr>
+    <tr><td>Batched <code>get_own_organizations_by_party_ids</code> (M5)</td><td>One statement for any number of authors. The detail page reuses its own lookup.</td></tr>
+    <tr><td>ACL rule scoped to business contexts (L1)</td><td>Platform modules stay direct imports. <code>AVATAR_UPLOAD_DISABLED_MESSAGE</code> moves behind <code>users_acl</code>.</td></tr>
+    <tr><td>Gender-neutral copy everywhere</td><td>"Zapisano Cię jako gościa ✓"; "Zapisz się jako pierwsza osoba…".</td></tr>
+    <tr><td><code>AccountMergeForm</code> gets optional <code>title</code>/<code>hint</code></td><td>Event merge copy, with Term defaults unchanged.</td></tr>
+    <tr><td>Guest name moderated with <code>TextField.PROFILE_NAME</code></td><td>No new moderation field.</td></tr>
+  </table>
+  <h2>Open Questions / Risks</h2>
+  <ul class="tight">
+    <li><span class="sev info">info</span>An expired token on sign-up takes the anonymous branch (400 "Podaj swoje imię." without a name), as in Term RSVP. Accepted and documented (L9).</li>
+    <li><span class="sev info">info</span>Old <code>/events/&lt;id&gt;</code> links hit React Router's default error page, because there is no catch-all or <code>errorElement</code>.</li>
+    <li><span class="sev critical">critical</span>Messaging blast radius: if any kind switch lacks an EVENT branch, the inbox breaks. The mixed-kind inbox test is the guard.</li>
+    <li><span class="sev warning">warning</span>Anonymous sign-ups stay unthrottled. Only the name is moderated.</li>
+    <li><span class="sev info">info</span>Withdraw stays possible after the end but is hidden in the UI. An ended event with attendees can't be deleted.</li>
+  </ul>
+</section>
+
+<p class="toc">Contents: <a href="#scope">Scope</a> · <a href="#requirements">Requirements</a> · <a href="#stories">User Stories</a> · <a href="#visual">Visual Design</a> · <a href="#reuse">Reuse vs New</a> · <a href="#technical">Technical Approach</a> · <a href="#testing">Testing</a> · <a href="#audit">Audit amendments</a> · <a href="#success">Success Criteria</a></p>
+
+<main>
+<h2 id="scope">Scope</h2>
+<div class="grid2">
+  <div class="card"><b class="pass">In scope</b>
+    <ul class="tight">
+      <li>The slug route <code>/:organizationSlug/event/:eventId</code>, always public</li>
+      <li>Sign-up for logged-in users and guests; withdraw for logged-in users</li>
+      <li>Participants and their AVAILABLE items, read-only; the author first as "Organizator"</li>
+      <li>EVENT chat, cascaded on delete</li>
+      <li>OG preview; <code>author_slug</code> everywhere; attended events in Spotkania</li>
+      <li>Guest merge via <code>AccountMergeForm</code></li>
+    </ul></div>
+  <div class="card"><b class="fail">Out of scope</b>
+    <ul class="tight">
+      <li>Take/swap; capacity; needed items; group visualization; embedded chat</li>
+      <li>A short public code; a redirect from <code>/events/:id</code>; a catch-all 404</li>
+      <li>The author removing participants; guest withdraw; moving edit under the slug</li>
+      <li>Parametrizing Term components (except the AccountMergeForm copy props)</li>
+      <li>Rate-limiting anonymous sign-ups; clearing the guest key after a merge; an event link in the thread header</li>
+    </ul></div>
+</div>
+
+<h2 id="requirements">Core Requirements</h2>
+<table>
+  <tr><th>#</th><th>Requirement</th><th>Priority</th></tr>
+  <tr><td>1</td><td>Public <code>GET /api/events/{id}</code> (OptionalPrincipal) returns the full page payload; a bad token never returns 401</td><td><span class="sev critical">must</span></td></tr>
+  <tr><td>2</td><td><code>POST /api/events/{id}/attendances</code> (PUBLIC): logged-in is idempotent; guest name is required and moderated and creates a party, profile and family; 409 after the end and for the author</td><td><span class="sev critical">must</span></td></tr>
+  <tr><td>3</td><td><code>POST …/attendances/withdraw</code> (EDIT): idempotent 204; 404 for an unknown event</td><td><span class="sev critical">must</span></td></tr>
+  <tr><td>4</td><td><code>GET /api/events/attending</code> (READ), earliest first</td><td><span class="sev critical">must</span></td></tr>
+  <tr><td>5</td><td><code>author_slug</code> on every <code>EventResponse</code></td><td><span class="sev critical">must</span></td></tr>
+  <tr><td>6</td><td>EVENT chat: <code>POST /api/conversations/event</code>; access for the author and active attendees; inbox, unread and title; cascade delete</td><td><span class="sev critical">must</span></td></tr>
+  <tr><td>7</td><td>OG preview for <code>/{slug}/event/{id}</code></td><td><span class="sev warning">should</span></td></tr>
+  <tr><td>8</td><td>Migration 0071</td><td><span class="sev critical">must</span></td></tr>
+  <tr><td>9</td><td>Authorization matrix rows in the correct order</td><td><span class="sev critical">must</span></td></tr>
+  <tr><td>10</td><td>Frontend route; <code>/events/:id</code> removed; <code>eventPath(slug, id)</code> at all call sites; post-create lands on the event page</td><td><span class="sev critical">must</span></td></tr>
+  <tr><td>11</td><td>Event page built from the binding mockups; items link to <code>/&lt;slug&gt;/product/&lt;id&gt;</code></td><td><span class="sev critical">must</span></td></tr>
+  <tr><td>12</td><td>Spotkania "Biorę udział" lists attended events</td><td><span class="sev warning">should</span></td></tr>
+  <tr><td>13</td><td>Inbox/Thread EVENT chip and header</td><td><span class="sev critical">must</span></td></tr>
+  <tr><td>14</td><td>"event" added to the backend <code>RESERVED_SLUGS</code></td><td><span class="sev warning">should</span></td></tr>
+</table>
+
+<h2 id="stories">User Stories</h2>
+<div class="stories">
+  <div class="card"><b>Anonymous visitor</b><br>As an anonymous visitor with the link, I want to see the event, who is coming and what they share, and to sign up as a guest with only my name.</div>
+  <div class="card"><b>Guest</b><br>As a guest who has signed up, I want to turn my guest profile into an account in place, so that I can chat and withdraw.</div>
+  <div class="card"><b>Logged-in user</b><br>As a logged-in user, I want to sign up with one click, see myself marked "To Ty", open the event chat, and withdraw if my plans change.</div>
+  <div class="card"><b>Author</b><br>As the event author, I want to share a link that has a rich preview, see participants and their items, chat with attendees, and edit or delete the event.</div>
+  <div class="card"><b>Participant</b><br>As a participant, I want events I signed up for to show in Spotkania → "Biorę udział".</div>
+</div>
+
+<h2 id="visual">Visual Design</h2>
+<p>Mockups in <code>analysis/design-context/</code> are binding inputs. The implementation-planner will attach Visual References to UI task groups.</p>
+<div class="flow">
+  <span class="step">GroupHeader (chip only with an org, "Wydarzenie", h1)</span>→<span class="step">Banner 16/7</span>→<span class="step">EventWhenCard</span>→<span class="step">Description</span>→<span class="step">EventChatRow</span>→<span class="step">EventAttendeeList</span>→<span class="step">Merge / Author card</span>→<span class="step">EventFooter</span>
+</div>
+<table style="margin-top:12px">
+  <tr><th>ID</th><th>Mockup</th><th>Key elements</th></tr>
+  <tr><td><code>screen:event-anonymous</code></td><td><a href="../analysis/design-context/mockups/anonymous-visitor-view.html">anonymous-visitor-view</a></td><td>No chat; author first with "Organizator"; read-only items; footer "＋ Zapisz się na wydarzenie" opens the guest sheet</td></tr>
+  <tr><td><code>screen:event-participant</code></td><td><a href="../analysis/design-context/mockups/signed-up-participant-view.html">signed-up-participant-view</a></td><td>"💬 Czat wydarzenia"; "To Ty" pill; outline "Wypisz się" with a confirm dialog</td></tr>
+  <tr><td><code>screen:event-author</code></td><td><a href="../analysis/design-context/mockups/author-view.html">author-view</a></td><td>Chat; no footer; "Twoje wydarzenie" card with Edytuj and Usuń (aria-disabled while attendees exist)</td></tr>
+  <tr><td><code>screen:event-guest-signup</code></td><td><a href="../analysis/design-context/mockups/guest-sign-up-sheet.html">guest-sign-up-sheet</a></td><td>ModalSheet with a "Twoje imię" field, its hint, "Zapisz się" and "Masz konto? Zaloguj się"</td></tr>
+  <tr><td><code>screen:event-guest-merge</code></td><td><a href="../analysis/design-context/mockups/guest-signed-up-merge-card.html">guest-signed-up-merge-card</a></td><td>No footer; "Zapisano Cię jako gościa ✓" (gender-neutral, replacing the mockup copy) with the AccountMergeForm fields</td></tr>
+  <tr><td><code>screen:event-ended</code></td><td><a href="../analysis/design-context/mockups/ended-event-state.html">ended-event-state</a></td><td>Disabled "Wydarzenie się zakończyło"; list and chat remain</td></tr>
+  <tr><td><code>screen:event-empty</code></td><td><a href="../analysis/design-context/mockups/empty-participants-state.html">empty-participants-state</a></td><td>Organizer row plus the dashed copy "Nikt jeszcze się nie zapisał. Zapisz się jako pierwsza osoba…". The footer is "＋ Zapisz się na wydarzenie" (the mockup's "Zaloguj się" is overridden, M3).</td></tr>
+  <tr><td><code>component:event-when-card</code></td><td>anonymous-visitor-view</td><td>"Termin wydarzenia", date badge, "godz. HH:mm–HH:mm", Miejsce and Maps link, calendar and copy-link actions</td></tr>
+  <tr><td><code>component:event-attendee-list</code></td><td>anonymous-visitor-view</td><td>Organizator / To Ty pills; item links with thumb and mode label (Weź na stałe / Zamiana); 3 items then "Pokaż wszystkie (n)"</td></tr>
+  <tr><td><code>component:event-chat-row</code></td><td>signed-up-participant-view</td><td><code>open({kind:"EVENT", id})</code>; errors inline with <code>role="alert"</code></td></tr>
+  <tr><td><code>component:event-footer</code></td><td>anonymous-visitor-view</td><td>Variants: signUp, withdraw, ended</td></tr>
+</table>
+
+<h2 id="reuse">Reusable vs New Components</h2>
+<div class="grid2">
+  <div class="card"><b>Reuse</b>
+    <ul class="tight">
+      <li><code>EventAttendance</code>, <code>get_event</code>, <code>delete_event</code>, the Polish error pattern</li>
+      <li><code>create_rsvp</code> and <code>withdraw_attendance</code> (templates)</li>
+      <li><code>organizer_slug.py</code>; <code>get_own_organization</code></li>
+      <li><code>available_items_with_product_select</code>, <code>_exchange_candidates</code> (template), <code>first_approved_photo_by_product</code></li>
+      <li><code>list_chat_profiles_by_party_ids</code>; <code>check_text</code>(PROFILE_NAME)</li>
+      <li>Messaging <code>_insert_or_reselect</code>, <code>_participant_count</code>, the TERM access shape</li>
+      <li><code>public_term_preview</code>, <code>_inject</code>, <code>format_term_when</code></li>
+      <li>Frontend: GroupHeader, TermPageSkeleton, AccountMergeForm, uiStyles, ModalSheet, ConfirmDeleteDialog, Avatar, AddToCalendarButton, SafeImage, organizerItemPath, OrganizerThemeScope, useOpenAndNavigate, writeGuestProfile/readValidGuestProfile, EventCard, MeetingsView</li>
+    </ul></div>
+  <div class="card"><b>New</b>
+    <table>
+      <tr><th>Component</th><th>Why</th></tr>
+      <tr><td><code>events/infrastructure/{users,organizations,groups,circulation,product}_acl.py</code></td><td>Cross-BC access through ACLs only</td></tr>
+      <tr><td><code>app/events/page.py</code></td><td>The read model, kept separate from commands</td></tr>
+      <tr><td><code>messaging/infrastructure/events_acl.py</code></td><td>The single place messaging reads events</td></tr>
+      <tr><td>Migration <code>0071_event_conversations.py</code></td><td>Column, index and cascade FKs</td></tr>
+      <tr><td>EventWhenCard, EventAttendeeList, EventChatRow, EventFooter</td><td>Event-only copies (user decision)</td></tr>
+      <tr><td>EventGuestSignUpSheet, EventGuestMergeCard, EventAuthorCard</td><td>Name-only sheet; extracted cards</td></tr>
+      <tr><td><code>useEventSignUp</code>, <code>useAttendingEvents</code></td><td><code>useTermSignUp</code> is tied to families; data for Spotkania</td></tr>
+    </table></div>
+</div>
+
+<h2 id="technical">Technical Approach</h2>
+<details class="card"><summary>Schemas and exact response keys</summary>
+<ul class="tight">
+  <li><b>EventResponse</b>: id, name, description, starts_at, ends_at, location, created_at, updated_at, <b>author_slug</b></li>
+  <li><b>EventDetailResponse</b> adds: banner_url, attendee_count, is_author, author_display_name, organization{name, primary_color, accent_color, palette_preset}|null, participants[], is_attending, has_ended</li>
+  <li><b>EventParticipantResponse</b>: party_id, display_name, is_author, is_me, items[{item_id, product_name, mode, thumb_url}]. The author comes first, then attendees in sign-up order. Items are AVAILABLE only, ordered by name (C collation) and then id.</li>
+  <li><b>EventAttendanceRequest</b> (extra=forbid): guest_name|null · <b>EventAttendanceResponse</b>: id, event_id, user_profile_id, attached_to_account</li>
+</ul></details>
+<details class="card"><summary>Service functions, ACLs and routes</summary>
+<ul class="tight">
+  <li><code>sign_up</code> checks, in order: 404 (event loaded FOR SHARE so a racing delete gives 404, not 500; L3) → 409 ended ("Wydarzenie się zakończyło.") → logged-in: 409 author ("Organizator nie zapisuje się na własne wydarzenie."), return the existing row or insert in a savepoint and re-select on IntegrityError → anonymous: 400 name ("Podaj swoje imię." / "Imię może mieć najwyżej 255 znaków."), <code>check_text</code>, guest profile, insert.</li>
+  <li><code>withdraw</code>: 404, then the caller's profile (401 without one), then sets <code>withdrawn_at</code>. Idempotent 204.</li>
+  <li><code>list_attending_events</code>; <code>resolve_author_slugs</code> (one batched <code>get_own_organizations_by_party_ids</code> statement; M5); messaging-support functions; <code>get_event_preview</code>.</li>
+  <li><code>page.get_event_page</code> loads: event, banner, location, viewer, organization, attendances, names (one IN query), items (one join), thumbnails (one query). Constant query count.</li>
+  <li>ACLs (business contexts only; platform modules stay direct): users, the "guest identity" facade (find_caller_profile, list_display_names, create_guest_profile, AVATAR_UPLOAD_DISABLED_MESSAGE), organizations (single and batched), groups (item_listing_preferences_select, derive_party_slug), circulation (available_items_select), product (first_approved_photo_by_product).</li>
+  <li>Routes: <code>GET /attending</code> (declared before <code>/{id}</code>), <code>GET /{id}</code>, <code>POST /{id}/attendances</code> 201, <code>POST /{id}/attendances/withdraw</code> 204.</li>
+</ul></details>
+<details class="card"><summary>Authorization matrix order (events block)</summary>
+<ol class="tight">
+  <li><code>GET ^/api/events/(mine|attending)$</code> → READ, mcp:read</li>
+  <li><code>GET ^/api/events/[^/]+$</code> → PUBLIC</li>
+  <li><code>POST ^/api/events/[^/]+/attendances$</code> → PUBLIC</li>
+  <li><code>POST ^/api/events/[^/]+/attendances/withdraw$</code> → EDIT, mcp:edit</li>
+  <li>The existing PATCH/DELETE, create and banner rows. <code>/api/conversations/event</code> is covered by row 54; the OG route by row 10.</li>
+</ol></details>
+<details class="card"><summary>Migration 0071</summary>
+<ul class="tight">
+  <li>Upgrade: add <code>event_id</code>; <code>fk_conversations_event_id_events</code> ON DELETE CASCADE; <code>uq_conversations_event_id</code> WHERE kind='EVENT'; plain <code>ix_conversations_event_id</code> (L4); recreate the messages and reads conversation FKs with CASCADE.</li>
+  <li>Downgrade: delete EVENT conversations (still cascading), revert the two FKs, then drop both indexes, the FK and the column.</li>
+  <li><code>tests/test_messaging_migration.py</code> <code>CONVERSATION_FKS</code> gains the event FK (6 FKs, M2).</li>
+  <li>The ORM models mirror the <code>ondelete</code> settings and the index.</li>
+</ul></details>
+<details class="card"><summary>Messaging — files that switch on kind</summary>
+<table>
+  <tr><th>File</th><th>Change</th></tr>
+  <tr><td><code>models.py</code></td><td>EVENT kind, event_id column, index</td></tr>
+  <tr><td><code>infrastructure/events_acl.py</code></td><td>New; re-exports from events.service</td></tr>
+  <tr><td><code>application/access.py</code></td><td><code>Access.event</code> (default None); <code>event_access</code>; explicit TERM and EVENT branches</td></tr>
+  <tr><td><code>application/conversations.py</code></td><td><code>open_event_conversation</code>; EVENT branch in <code>_to_response</code></td></tr>
+  <tr><td><code>application/inbox.py</code></td><td>event_ids audience; event_refs labels; EVENT branch in <code>_to_row</code></td></tr>
+  <tr><td><code>infrastructure/repository.py</code></td><td><code>find_event_conversation</code>; event_ids in the audience filter, inbox rows and unread sum</td></tr>
+  <tr><td><code>schemas.py</code> / <code>router.py</code> / <code>service.py</code></td><td>OpenEventConversationRequest; <code>POST /event</code>; re-export</td></tr>
+  <tr><td><code>application/messages.py</code></td><td>No code change (the organizer is the author)</td></tr>
+</table></details>
+<details class="card"><summary>Frontend changes</summary>
+<ul class="tight">
+  <li><code>api/events.ts</code>: new types and fields; <code>signUpForEvent</code>, <code>withdrawFromEvent</code>, <code>getAttendingEvents</code>, <code>eventGuestProfileKey</code>.</li>
+  <li><code>api/conversations.ts</code> and <code>useOpenConversation</code>: EVENT kind and <code>getOrCreateEventConversation</code>.</li>
+  <li><code>useEvent</code>: key <code>[EVENT_KEY, eventId]</code> with a <code>forToken</code>/<code>isStale</code> pattern; signUp and withdraw await invalidation of the event, myEvents and attendingEvents prefixes, and withdraw also invalidates the conversations key. New <code>useAttendingEvents</code>.</li>
+  <li><code>eventPath(slug, id)</code> call sites: EventCard (link and copy), EventEditView (back and post-save), EventPage (copy), EventCreateView <code>finish()</code> (<code>navigate(path, {state:{toast}})</code>; EventPage shows the toast once and clears the state).</li>
+  <li><code>router.tsx</code>: remove <code>/events/:eventId</code>; add <code>/:organizationSlug/event/:eventId</code>; keep the edit route.</li>
+  <li><code>resolveEventView</code> (inputs include <code>isStale</code>): loading | notFound | error | refreshing | author | attendee | guestAttendee | visitor.</li>
+  <li>MeetingsView "Biorę udział" adds attended events with <code>EventCard editable={false}</code>. Spotkania empty copy "Nie masz jeszcze żadnych zapisów.". Inbox chip "Wydarzenie" with 🎉; Thread header "czat wydarzenia". The header chip renders only when <code>organization</code> is set.</li>
+</ul></details>
+<details class="card"><summary>OG preview</summary>
+<p><code>GET /{organization_slug}/event/{event_id}</code> sits before <code>/{organization_slug}</code>. Reserved or dotted first segments are delegated to <code>spa_fallback</code> (L10). An invalid UUID or an unknown event returns the plain index. The tags are: title = event name; description = <code>format_term_when</code> plus the place and description; <code>og:image</code> = the banner w1600.</p></details>
+
+<h2 id="testing">Testing Approach</h2>
+<p>2–8 focused tests per step group, running only the new and updated tests.</p>
+<div class="grid2">
+  <div class="card"><b>Backend</b>
+    <ul class="tight">
+      <li><code>test_event_attendance.py</code> (new)</li>
+      <li><code>test_event_page.py</code>: DETAIL_KEYS and <code>count_queries</code></li>
+      <li><code>test_events.py</code>: EVENT_KEYS, author_slug, and <code>count_queries</code> on /attending for 1 vs 3 authors</li>
+      <li><code>test_messaging_migration.py</code>: CONVERSATION_FKS with 6 FKs</li>
+      <li><code>test_event_conversations.py</code> (new)</li>
+      <li><code>test_event_conversations_migration.py</code> (new)</li>
+      <li><code>test_authorization_matrix.py</code> (including <code>/api/conversations/event</code>), <code>test_public_preview.py</code> (including the reserved-slug guard)</li>
+    </ul></div>
+  <div class="card"><b>Frontend</b>
+    <ul class="tight">
+      <li><code>eventViewState.test.ts</code>: an <code>it.each</code> table including merge/login and logout <code>isStale</code> rows and refresh-error rows</li>
+      <li><code>EventPage.test.tsx</code>: rewritten per screen</li>
+      <li><code>InboxPage</code>/<code>ThreadPage</code>/<code>useOpenConversation</code> tests: EVENT</li>
+      <li><code>AppPage.test.tsx</code>: slug hrefs, attended events, and the rewritten create-flow tests (~2928–2948, 2983) asserting navigation with <code>state.toast</code></li>
+    </ul></div>
+</div>
+
+<h2 id="audit">Audit amendments</h2>
+<p>Applied from <a href="../verification/spec-audit.md" target="_blank" rel="noopener">spec-audit.md</a> and the user decisions that followed it.</p>
+<table>
+  <tr><th>ID</th><th>Change</th></tr>
+  <tr><td><span class="sev warning">M1</span></td><td>Post-create toast handed over via <code>navigate(path, {state:{toast}})</code>; EventPage shows it once and clears the state; AppPage create-flow tests rewritten.</td></tr>
+  <tr><td><span class="sev warning">M2</span></td><td><code>CONVERSATION_FKS</code> in <code>test_messaging_migration.py</code> gains the event FK (6 FKs).</td></tr>
+  <tr><td><span class="sev warning">M3</span></td><td>Anonymous footer is always "＋ Zapisz się na wydarzenie"; the sheet's login link is the only login entry; no login footer variant.</td></tr>
+  <tr><td><span class="sev warning">M4</span></td><td><code>useEvent</code> token out of the key, with <code>forToken</code>/<code>isStale</code>; <code>resolveEventView</code> gains <code>isStale</code> and a <code>refreshing</code> view; <code>placeholderData</code> removed.</td></tr>
+  <tr><td><span class="sev warning">M5</span></td><td>Batched <code>get_own_organizations_by_party_ids</code> via <code>organizations_acl</code>; <code>count_queries</code> test for /attending (1 vs 3 authors); detail reuses its lookup.</td></tr>
+  <tr><td><span class="sev info">Copy</span></td><td>Gender-neutral: "Zapisano Cię jako gościa ✓", "Zapisz się jako pierwsza osoba…", "Nie masz jeszcze żadnych zapisów."</td></tr>
+  <tr><td><span class="sev info">L1</span></td><td>ACL rule scoped to business contexts; <code>AVATAR_UPLOAD_DISABLED_MESSAGE</code> behind <code>users_acl</code>.</td></tr>
+  <tr><td><span class="sev info">L2</span></td><td><code>users_acl</code> documented as the "guest identity" facade.</td></tr>
+  <tr><td><span class="sev info">L3</span></td><td><code>sign_up</code> loads the event FOR SHARE (a racing delete gives 404, not 500).</td></tr>
+  <tr><td><span class="sev info">L4</span></td><td>Plain <code>ix_conversations_event_id</code> added.</td></tr>
+  <tr><td><span class="sev info">L5</span></td><td><code>EventAttendance</code> docstring updated.</td></tr>
+  <tr><td><span class="sev info">L6</span></td><td>Header chip / <code>organizerSlug</code> only when <code>organization !== null</code>.</td></tr>
+  <tr><td><span class="sev info">L7</span></td><td>Withdraw also invalidates <code>CONVERSATIONS_KEY</code>.</td></tr>
+  <tr><td><span class="sev info">L8</span></td><td>MeetingsView empty copy neutralised; <code>/api/conversations/event</code> added to the matrix test.</td></tr>
+  <tr><td><span class="sev info">L9</span></td><td>Expired token on sign-up → anonymous branch: accepted and documented.</td></tr>
+  <tr><td><span class="sev info">L10</span></td><td>OG route guards <code>RESERVED_SLUGS</code> and dotted segments.</td></tr>
+</table>
+
+<h2 id="success">Success Criteria</h2>
+<ul class="tight">
+  <li>All 7 binding screens render with their copy and order; <code>/events/&lt;id&gt;</code> no longer matches a page route.</li>
+  <li>Guest, merge, logged-in sign-up and withdraw work end-to-end. Sign-up after the end returns 409, and the author can't sign up.</li>
+  <li>The detail endpoint's query count is constant, asserted with <code>count_queries</code>.</li>
+  <li>EVENT chat access is correct, it appears in the inbox and unread count, and deleting the event cascades the conversation, messages and reads.</li>
+  <li>0071 upgrades and downgrades cleanly; <code>author_slug</code> is on every event response and in every link; the OG preview works; Spotkania lists attended events.</li>
+  <li>The Term page and its tests are unchanged and pass; new tests, mypy/ruff (baseline) and tsc are green.</li>
+</ul>
+</main>
+</body>
+</html>

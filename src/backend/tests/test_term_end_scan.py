@@ -33,12 +33,12 @@ from app.groups.application.term_end_scan import scan_for_term_ended
 from app.groups.domain import swap_events
 from app.groups.infrastructure import circulation_bridge
 from app.groups.models import GiveawayTermEndMarker, SwapProposal, SwapProposalStatus, Term
-from app.groups.schemas import TakeTermItemListingRequest
 from app.notifications.models import Notification, NotificationKind
 from app.notifications.outbox_listener import register as register_outbox_handlers
 from app.outbox.dispatcher import dispatch_pending
 from app.outbox.models import OutboxEntry
 from tests.conftest import count_queries, leaf_category_ids
+from tests.test_term_item_listings import _propose_in_term, _take_in_term
 
 
 def _auth(token: str) -> dict[str, str]:
@@ -146,12 +146,7 @@ async def test_scan_pendingGiveawayPastTermEnd_appendsOneEventAndCreatesMarker(
 
     taker_token, _ = await _register(client, "GUEST", "tes.taker1@example.com")
     await _rsvp(client, taker_token, group_id, term_id)
-    taken = await service.take_item_listing(
-        db_session,
-        _principal(taker_token),
-        item_id,
-        TakeTermItemListingRequest(term_id=term_id, reservation_type="GIFT"),
-    )
+    taken = await _take_in_term(db_session, _principal(taker_token), item_id, term_id)
     reservation_id = taken.resolved_reservation_id
 
     await _push_term_into_past(db_session, term_id)
@@ -184,12 +179,7 @@ async def test_scan_secondRunOverSameWindow_isIdempotent(
 
     taker_token, _ = await _register(client, "GUEST", "tes.taker2@example.com")
     await _rsvp(client, taker_token, group_id, term_id)
-    await service.take_item_listing(
-        db_session,
-        _principal(taker_token),
-        item_id,
-        TakeTermItemListingRequest(term_id=term_id, reservation_type="GIFT"),
-    )
+    await _take_in_term(db_session, _principal(taker_token), item_id, term_id)
 
     await _push_term_into_past(db_session, term_id)
 
@@ -221,7 +211,7 @@ async def test_scan_acceptedSwapProposalPastTermEnd_emitsTermEndedSwap(
         db_session, _principal(proposer_token), offered_item_id, ReservationType.SWAP
     )
 
-    proposal = await service.propose_swap(
+    proposal = await _propose_in_term(
         db_session, _principal(proposer_token), listing_item_id, offered_item_id, term_id
     )
     accepted = await service.accept_swap_proposal(db_session, _principal(owner_token), proposal.id)
@@ -254,12 +244,7 @@ async def test_scan_termInFuture_neverScanned(
 
     taker_token, _ = await _register(client, "GUEST", "tes.taker4@example.com")
     await _rsvp(client, taker_token, group_id, term_id)
-    await service.take_item_listing(
-        db_session,
-        _principal(taker_token),
-        item_id,
-        TakeTermItemListingRequest(term_id=term_id, reservation_type="GIFT"),
-    )
+    await _take_in_term(db_session, _principal(taker_token), item_id, term_id)
     # Term.occurs_on stays in the future (created 7 days ahead) — never pushed
     # into the past, unlike every other test in this module.
 
@@ -287,12 +272,7 @@ async def test_scan_graceBoundary_emitsOnlyFromTwoHoursAfterTerm(
 
     taker_token, _ = await _register(client, "GUEST", "tes.taker20@example.com")
     await _rsvp(client, taker_token, group_id, term_id)
-    await service.take_item_listing(
-        db_session,
-        _principal(taker_token),
-        item_id,
-        TakeTermItemListingRequest(term_id=term_id, reservation_type="GIFT"),
-    )
+    await _take_in_term(db_session, _principal(taker_token), item_id, term_id)
     term = (await db_session.execute(select(Term).where(Term.id == term_id))).scalar_one()
     grace_ends = term.occurs_on + term_end_scan.TERM_END_GRACE
 
@@ -420,12 +400,7 @@ async def test_scan_giftReservationOfOtherTerm_isNotPrompted(
     await service.set_item_listing_preference(
         db_session, _principal(lister_token), item_id, ReservationType.GIFT
     )
-    await service.take_item_listing(
-        db_session,
-        _principal(taker_token),
-        item_id,
-        TakeTermItemListingRequest(term_id=later_term_id, reservation_type="GIFT"),
-    )
+    await _take_in_term(db_session, _principal(taker_token), item_id, later_term_id)
 
     await _push_term_into_past(db_session, ended_term_id)
 
@@ -453,12 +428,7 @@ async def _taken_gift(
     )
     taker_token, taker_party_id = await _register(client, "GUEST", f"tes.taker{prefix}@example.com")
     await _rsvp(client, taker_token, group_id, term_id)
-    taken = await service.take_item_listing(
-        db_session,
-        _principal(taker_token),
-        item_id,
-        TakeTermItemListingRequest(term_id=term_id, reservation_type="GIFT"),
-    )
+    taken = await _take_in_term(db_session, _principal(taker_token), item_id, term_id)
     assert taken.resolved_reservation_id is not None
     return lister_token, lister_party_id, taker_party_id, term_id, taken.resolved_reservation_id
 
@@ -536,12 +506,7 @@ async def test_scan_candidateWithMissingGiverProfile_isSkippedWhileOthersStillPr
         await service.set_item_listing_preference(
             db_session, _principal(lister_token), item_id, ReservationType.GIFT
         )
-        taken = await service.take_item_listing(
-            db_session,
-            _principal(taker_token),
-            item_id,
-            TakeTermItemListingRequest(term_id=term_id, reservation_type="GIFT"),
-        )
+        taken = await _take_in_term(db_session, _principal(taker_token), item_id, term_id)
         reservation_ids.append(cast(uuid.UUID, taken.resolved_reservation_id))
         me = await client.get("/api/people/me", headers=_auth(lister_token))
         lister_user_ids.append(uuid.UUID(me.json()["account_user_id"]))
@@ -591,12 +556,7 @@ async def test_scan_giveawayPastGrace_payloadCarriesItemDateAndGroup(
     )
     taker_token, _ = await _register(client, "GUEST", "tes.taker50@example.com")
     await _rsvp(client, taker_token, group_id, term_id)
-    await service.take_item_listing(
-        db_session,
-        _principal(taker_token),
-        item_id,
-        TakeTermItemListingRequest(term_id=term_id, reservation_type="GIFT"),
-    )
+    await _take_in_term(db_session, _principal(taker_token), item_id, term_id)
     await _push_term_into_past(db_session, term_id)
     term = (await db_session.execute(select(Term).where(Term.id == term_id))).scalar_one()
 
@@ -626,7 +586,7 @@ async def test_scan_swapPastGrace_payloadCarriesBothItemsDateAndGroup(
     await service.set_item_listing_preference(
         db_session, _principal(proposer_token), offered_item_id, ReservationType.SWAP
     )
-    proposal = await service.propose_swap(
+    proposal = await _propose_in_term(
         db_session, _principal(proposer_token), listing_item_id, offered_item_id, term_id
     )
     await service.accept_swap_proposal(db_session, _principal(owner_token), proposal.id)
@@ -823,12 +783,7 @@ async def _term_with_gifts(
         await service.set_item_listing_preference(
             db_session, _principal(lister_token), item_id, ReservationType.GIFT
         )
-        await service.take_item_listing(
-            db_session,
-            _principal(taker_token),
-            item_id,
-            TakeTermItemListingRequest(term_id=term_id, reservation_type="GIFT"),
-        )
+        await _take_in_term(db_session, _principal(taker_token), item_id, term_id)
     return term_id
 
 
@@ -862,3 +817,167 @@ async def test_scan_threeHandOversVersusOne_itemProductAndGroupReadsDoNotGrow(
     assert len(_reads_without_profile_lookups(three_events)) == len(
         _reads_without_profile_lookups(one_event)
     )
+
+
+async def _event_with_attendees(
+    client: AsyncClient, prefix: str, *names: str
+) -> tuple[uuid.UUID, datetime, list[str]]:
+    """An event starting in a week plus one signed-up account per name."""
+    from tests.test_event_item_reservations import _attendees
+
+    return await _attendees(client, prefix, *names)
+
+
+async def _event_swap(
+    client: AsyncClient, event_id: uuid.UUID, owner: str, proposer: str, prefix: str
+) -> dict[str, str]:
+    """An ACCEPTED event swap; returns the proposal JSON."""
+    from tests.test_event_item_reservations import _listed_items, _propose
+
+    (listed,) = await _listed_items(client, owner, (f"Monopoly {prefix}", "SWAP"))
+    (offered,) = await _listed_items(client, proposer, (f"Scrabble {prefix}", "SWAP"))
+    propose = await _propose(client, event_id, listed, offered, proposer)
+    assert propose.status_code == 200, propose.text
+    accept = await client.post(
+        f"/api/swap-proposals/{propose.json()['id']}/accept", headers=_auth(owner)
+    )
+    assert accept.status_code == 200, accept.text
+    return cast(dict[str, str], propose.json())
+
+
+async def _event_link(client: AsyncClient, event_id: uuid.UUID) -> str:
+    page = await client.get(f"/api/events/{event_id}")
+    assert page.status_code == 200, page.text
+    return f"/{page.json()['author_slug']}/event/{event_id}"
+
+
+async def _prompts(db_session: AsyncSession, party_id: str) -> list[Notification]:
+    result = await db_session.execute(
+        select(Notification).where(
+            Notification.party_id == uuid.UUID(party_id),
+            Notification.kind == NotificationKind.TERM_CONFIRMATION_NEEDED,
+        )
+    )
+    return list(result.scalars().all())
+
+
+async def _party_id(client: AsyncClient, token: str) -> str:
+    me = await client.get("/api/people/me", headers=_auth(token))
+    assert me.status_code == 200, me.text
+    return str(me.json()["party_id"])
+
+
+async def test_scan_eventGiftPastGrace_promptsTakerWithReservationAndEventLinkOnce(
+    client: AsyncClient,
+    db_session: AsyncSession,
+    freeze_local_now: Callable[[datetime], None],
+) -> None:
+    from tests.test_event_item_reservations import _event_reservation, _listed_items, _take
+
+    event_id, starts_at, (owner, taker) = await _event_with_attendees(
+        client, "tee1", "owner", "taker"
+    )
+    (item_id,) = await _listed_items(client, owner, ("Rowerek tee1", "GIFT"))
+    status, body = await _take(client, event_id, item_id, taker)
+    assert status == 200, body
+    reservation = await _event_reservation(db_session, item_id)
+    link_path = await _event_link(client, event_id)
+
+    freeze_local_now(starts_at + term_end_scan.TERM_END_GRACE + timedelta(minutes=1))
+    register_outbox_handlers()
+    await scan_for_term_ended(db_session)
+    await scan_for_term_ended(db_session)
+    await dispatch_pending(db_session)
+
+    payloads = await _outbox_payloads(db_session, swap_events.TERM_ENDED_GIVEAWAY)
+    assert len(payloads) == 1
+    assert payloads[0]["reservation_id"] == str(reservation.id)
+    assert payloads[0]["link_path"] == link_path
+    assert payloads[0]["occurs_on"] == starts_at.isoformat()
+    assert payloads[0]["group_name"] == "Piknik wymiany"
+    (prompt,) = await _prompts(db_session, await _party_id(client, taker))
+    assert prompt.reservation_id == reservation.id
+    assert prompt.link_path == link_path
+    assert await _prompts(db_session, await _party_id(client, owner)) == []
+
+
+async def test_scan_eventGiftBeforeGrace_notPrompted(
+    client: AsyncClient,
+    db_session: AsyncSession,
+    freeze_local_now: Callable[[datetime], None],
+) -> None:
+    from tests.test_event_item_reservations import _listed_items, _take
+
+    event_id, starts_at, (owner, taker) = await _event_with_attendees(
+        client, "tee2", "owner", "taker"
+    )
+    (item_id,) = await _listed_items(client, owner, ("Rowerek tee2", "GIFT"))
+    status, body = await _take(client, event_id, item_id, taker)
+    assert status == 200, body
+
+    freeze_local_now(starts_at + term_end_scan.TERM_END_GRACE - timedelta(minutes=1))
+    await scan_for_term_ended(db_session)
+
+    assert await _count_outbox_entries(db_session, swap_events.TERM_ENDED_GIVEAWAY) == 0
+
+
+async def test_scan_eventSwap_promptsEachPartyWithItsReservationOnce(
+    client: AsyncClient,
+    db_session: AsyncSession,
+    freeze_local_now: Callable[[datetime], None],
+) -> None:
+    event_id, starts_at, (owner, proposer) = await _event_with_attendees(
+        client, "tee3", "owner", "proposer"
+    )
+    proposal = await _event_swap(client, event_id, owner, proposer, "tee3")
+    owner_reservation = await circulation_bridge.get_reservation(
+        db_session, uuid.UUID(proposal["proposer_reservation_id"])
+    )
+    link_path = await _event_link(client, event_id)
+
+    freeze_local_now(starts_at + term_end_scan.TERM_END_GRACE + timedelta(minutes=1))
+    register_outbox_handlers()
+    await scan_for_term_ended(db_session)
+    await scan_for_term_ended(db_session)
+    await dispatch_pending(db_session)
+
+    assert await _count_outbox_entries(db_session, swap_events.TERM_ENDED_SWAP) == 1
+    (owner_prompt,) = await _prompts(db_session, await _party_id(client, owner))
+    (proposer_prompt,) = await _prompts(db_session, await _party_id(client, proposer))
+    assert owner_prompt.reservation_id == owner_reservation.id
+    assert proposer_prompt.reservation_id == owner_reservation.paired_reservation_id
+    assert proposer_prompt.reservation_id is not None
+    for prompt in (owner_prompt, proposer_prompt):
+        assert prompt.proposal_id == uuid.UUID(proposal["id"])
+        assert prompt.link_path == link_path
+
+
+async def test_scan_eventSwapOfWithdrawnAttendee_stillPrompted(
+    client: AsyncClient,
+    db_session: AsyncSession,
+    freeze_local_now: Callable[[datetime], None],
+) -> None:
+    event_id, starts_at, (owner, proposer) = await _event_with_attendees(
+        client, "tee4", "owner", "proposer"
+    )
+    proposal = await _event_swap(client, event_id, owner, proposer, "tee4")
+    withdraw = await client.post(
+        f"/api/events/{event_id}/attendances/withdraw", headers=_auth(proposer)
+    )
+    assert withdraw.status_code == 204
+
+    freeze_local_now(starts_at + term_end_scan.TERM_END_GRACE + timedelta(minutes=1))
+    await scan_for_term_ended(db_session)
+
+    payloads = await _outbox_payloads(db_session, swap_events.TERM_ENDED_SWAP)
+    assert [p["proposal_id"] for p in payloads] == [proposal["id"]]
+    assert payloads[0]["proposer_party_id"] == await _party_id(client, proposer)
+    assert payloads[0]["owner_party_id"] == await _party_id(client, owner)
+    refreshed = (
+        await db_session.execute(
+            select(SwapProposal)
+            .where(SwapProposal.id == uuid.UUID(proposal["id"]))
+            .execution_options(populate_existing=True)
+        )
+    ).scalar_one()
+    assert refreshed.term_ended_notified_at is not None

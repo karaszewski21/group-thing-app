@@ -80,12 +80,15 @@ _RAW_MATRIX: tuple[_RawEntry, ...] = (
     # principal in the route — no ownership check beyond authentication + READ.
     (_methods("GET"), r"^/api/groups/mine/attendances$", ("READ", "mcp:read")),
     # Public organizer directory (`GET /api/groups/public/organizers/{slug}`
-    # and its `/terms` page). First match wins: without this row,
+    # and its `/terms` and `/items` pages). First match wins: without this row,
     # `/organizers/{slug}` would fall through to row 26's blanket READ row
     # and `/organizers/access` would read like the `/public/{id}/access` row
     # below, so it is declared ahead of both. GET only — any other method on
     # this path still falls to the blanket rows.
-    (_methods("GET"), r"^/api/groups/public/organizers/[^/]+(/terms)?$", "PUBLIC"),
+    (_methods("GET"), r"^/api/groups/public/organizers/[^/]+(/terms|/items)?$", "PUBLIC"),
+    # A party's public items page — ahead of row 26's blanket READ row so an
+    # anonymous visitor can load it. Visibility filtering lives in the route.
+    (_methods("GET"), r"^/api/groups/public/parties/[^/]+/items$", "PUBLIC"),
     # Public circle/term page (`/krag/:groupId/publiczny`) — declared ahead of
     # row 26's blanket /api/groups READ requirement so an anonymous visitor
     # can load it, RSVP, and merge into a real account. Mirrors row 48's
@@ -164,6 +167,8 @@ _RAW_MATRIX: tuple[_RawEntry, ...] = (
     (_methods("POST"), r"^/api/needed-items(/.*)?$", ("EDIT", "mcp:edit")),  # 35
     (_methods("GET"), r"^/api/pledges(/.*)?$", ("READ", "mcp:read")),  # 36
     (_methods("POST"), r"^/api/pledges(/.*)?$", ("EDIT", "mcp:edit")),  # 37
+    # The owner's pickup place — ahead of rows 38-39, which cover no PUT.
+    (_methods("PUT"), r"^/api/inventories/mine/location$", ("EDIT", "mcp:edit")),
     (_methods("GET"), r"^/api/inventories(/.*)?$", ("READ", "mcp:read")),  # 38
     (_methods("POST"), r"^/api/inventories(/.*)?$", ("EDIT", "mcp:edit")),  # 39
     # Fine-grained inventory-item edit + soft-delete — ahead of rows 40-41's
@@ -171,6 +176,9 @@ _RAW_MATRIX: tuple[_RawEntry, ...] = (
     # (`inventory.owner_user_id == acting user`) lives in
     # `app.circulation.service`; the matrix only gates it to EDIT.
     (_methods("PATCH", "DELETE"), r"^/api/inventory-items/[^/]+$", ("EDIT", "mcp:edit")),
+    # Public item details (anonymous visitors of an items page) — ahead of
+    # row 40 so only this exact path drops the READ requirement.
+    (_methods("GET"), r"^/api/inventory-items/[^/]+/details$", "PUBLIC"),
     (_methods("GET"), r"^/api/inventory-items(/.*)?$", ("READ", "mcp:read")),  # 40
     (_methods("POST"), r"^/api/inventory-items(/.*)?$", ("EDIT", "mcp:edit")),  # 41
     (_methods("GET"), r"^/api/reservations(/.*)?$", ("READ", "mcp:read")),  # 42
@@ -198,6 +206,22 @@ _RAW_MATRIX: tuple[_RawEntry, ...] = (
     (_methods("PATCH", "DELETE"), r"^/api/locations/[^/]+$", ("EDIT", "mcp:edit")),
     (_methods("GET"), r"^/api/locations(/.*)?$", ("READ", "mcp:read")),
     (_methods("POST"), r"^/api/locations(/.*)?$", ("EDIT", "mcp:edit")),
+    # app.events — one-off events, their banner and sign-ups. Authorship (only
+    # the author may upload the banner) lives in `app.events.service`.
+    # `/mine` and `/attending` sit ahead of the public `/{event_id}` page row
+    # they would match. Sign-up is public (guests); withdraw needs an account.
+    (_methods("GET"), r"^/api/events/(mine|attending)$", ("READ", "mcp:read")),
+    (_methods("GET"), r"^/api/events/[^/]+$", "PUBLIC"),
+    (_methods("POST"), r"^/api/events/[^/]+/attendances$", "PUBLIC"),
+    (_methods("POST"), r"^/api/events/[^/]+/attendances/withdraw$", ("EDIT", "mcp:edit")),
+    (_methods("PATCH", "DELETE"), r"^/api/events/[^/]+$", ("EDIT", "mcp:edit")),
+    (_methods("POST"), r"^/api/events$", ("EDIT", "mcp:edit")),
+    (_methods("POST"), r"^/api/events/[^/]+/banner$", ("EDIT", "mcp:edit")),
+    # The viewer's available actions on an item — anonymous callers get none.
+    (_methods("GET"), r"^/api/items/[^/]+/actions$", "PUBLIC"),
+    # Reserving an item in a term, an event or personally needs an account;
+    # eligibility lives in the use case.
+    (_methods("POST"), r"^/api/items/[^/]+/(take|propose)$", ("EDIT", "mcp:edit")),
     # 51-52: app.notifications — the caller's own in-app inbox. `/mine` +
     # `/unread-count` are GETs, `/{id}/read` + `/read-all` are POSTs, so the
     # two blanket rows cover every route; recipient-ownership ("only my own
@@ -205,7 +229,7 @@ _RAW_MATRIX: tuple[_RawEntry, ...] = (
     (_methods("GET"), r"^/api/notifications(/.*)?$", ("READ", "mcp:read")),  # 51
     (_methods("POST"), r"^/api/notifications(/.*)?$", ("EDIT", "mcp:edit")),  # 52
     # 53-54: app.messaging — conversations. Literal paths (`/unread-count`,
-    # `/item`, `/group`, `/term`) and `/{id}` routes share the two blanket
+    # `/item`, `/group`, `/term`, `/event`) and `/{id}` routes share the two blanket
     # rows; who may read or write a conversation is computed in
     # `application/access.py`. Private chats are for logged-in users only, so
     # unlike rows 51-52 the OAuth `mcp:read`/`mcp:edit` scopes are not accepted.
@@ -220,27 +244,23 @@ _RAW_MATRIX: tuple[_RawEntry, ...] = (
     (_methods("POST", "PUT", "DELETE", "PATCH"), r"^/api/categories(/.*)?$", ("ADMIN",)),  # 56
     # 57-60: app.groups' exchange mechanism (`/api/term-item-listings`,
     # `/api/item-listing-preferences`, implementation/spec.md's
-    # lending-exchange task). `/mine` and `/browse` need no separate
-    # literal-segment row the way `pledges.py`'s `/mine` needed none
-    # either here. `POST /api/groups/mine/attendances/{id}/withdraw`
-    # likewise needs no new row: it already falls under row 27's blanket
+    # lending-exchange task). The term-item-listings routes are read-only:
+    # takes and proposals go through `POST /api/items/{id}/take|propose`.
+    # `/mine` and `/browse` need no separate literal-segment row the way
+    # `pledges.py`'s `/mine` needed none either here.
+    # `POST /api/groups/mine/attendances/{id}/withdraw` likewise needs no
+    # new row: it already falls under row 27's blanket
     # `POST ^/api/groups(/.*)?$`.
     (_methods("GET"), r"^/api/term-item-listings(/.*)?$", ("READ", "mcp:read")),  # 57
-    (_methods("POST"), r"^/api/term-item-listings(/.*)?$", ("EDIT", "mcp:edit")),  # 58
     (_methods("GET"), r"^/api/item-listing-preferences(/.*)?$", ("READ", "mcp:read")),  # 59
     (_methods("PUT"), r"^/api/item-listing-preferences(/.*)?$", ("EDIT", "mcp:edit")),  # 60
-    # 61-64: the SWAP propose/accept/reject flow and post-Term confirmation
-    # (implementation/spec.md's giveaway/exchange rework, Task Group 5) —
-    # each an explicit, self-documenting row matching `take_item_listing`'s
-    # (row 58's) permission requirement exactly, declared right after it in
-    # evaluation order. `propose` (POST .../term-item-listings/{id}/propose)
-    # is already reachable via row 58's blanket POST rule — that row changes
-    # no actual routing decision, it only makes the exchange-mechanism's full
-    # route set explicit. `/api/swap-proposals` (accept/reject) and
+    # 62-64: the SWAP accept/reject flow and post-Term confirmation
+    # (implementation/spec.md's giveaway/exchange rework, Task Group 5), with
+    # the same permission requirement as `POST /api/items/{id}/take|propose`.
+    # `/api/swap-proposals` (accept/reject) and
     # `/api/reservations/{id}/confirm-transaction`/`cancel-transaction` have
     # no blanket POST row (`/api/reservations` is otherwise read-only), so
     # those rows are load-bearing.
-    (_methods("POST"), r"^/api/term-item-listings/[^/]+/propose$", ("EDIT", "mcp:edit")),  # 61
     (_methods("POST"), r"^/api/swap-proposals/[^/]+/accept$", ("EDIT", "mcp:edit")),  # 62
     (_methods("POST"), r"^/api/swap-proposals/[^/]+/reject$", ("EDIT", "mcp:edit")),  # 63
     (

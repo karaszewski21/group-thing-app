@@ -1,6 +1,6 @@
 import { Fragment, useCallback, useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
-import type { ConversationResponse, MessageResponse, ReadOnlyReason } from "../../api/conversations";
+import type { ConversationKind, ConversationResponse, MessageResponse, ReadOnlyReason } from "../../api/conversations";
 import { Avatar } from "../../components/shared/Avatar";
 import { useConversation } from "../../hooks/useConversation";
 import { useThread } from "../../hooks/useThread";
@@ -15,6 +15,12 @@ import { useThreadReadMarker } from "./useThreadReadMarker";
 
 /** Within this distance of the bottom the list follows new messages. */
 const STICK_TO_BOTTOM_PX = 48;
+
+const CHAT_LABEL: Record<Exclude<ConversationKind, "ITEM">, string> = {
+  TERM: "czat terminu",
+  GROUP: "czat grupy",
+  EVENT: "czat wydarzenia",
+};
 
 const HEADER_LINE: Record<NonNullable<ReadOnlyReason>, string> = {
   GROUP_DELETED: "Grupa usunięta",
@@ -132,7 +138,7 @@ function ThreadHeader({ conversation }: { conversation: ConversationResponse }) 
 
   let title: ReactNode;
   let subtitle: ReactNode;
-  if (isItem) {
+  if (conversation.kind === "ITEM") {
     title = item?.deleted ? (
       <>
         {item.name} <span className="font-semibold text-ink-soft">(usunięte)</span>
@@ -156,7 +162,7 @@ function ThreadHeader({ conversation }: { conversation: ConversationResponse }) 
     );
   } else {
     const count = conversation.participant_count;
-    title = `${groupName} · ${conversation.kind === "TERM" ? "czat terminu" : "czat grupy"}`;
+    title = `${groupName} · ${CHAT_LABEL[conversation.kind]}`;
     subtitle =
       conversation.read_only_reason !== null
         ? HEADER_LINE[conversation.read_only_reason]

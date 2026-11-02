@@ -1,5 +1,6 @@
 import { api } from "./client";
 import type { LocationRefResponse, PublicLocationResponse } from "./locations";
+import type { OwnerItemCard, OwnerNearestDate } from "./ownerItems";
 import { pageParams, type Page } from "./pagination";
 
 /** The participant-visualization layout an organizer picks for their
@@ -169,8 +170,16 @@ export interface PublicNeededItemResponse {
   claimed_by_party_id: string | null;
 }
 
-/** A still-available exchange-mechanism offer — always AVAILABLE-only, so
- * no status/taken fields (see `app.groups.schemas.PublicItemListingResponse`). */
+/** A listed item's reserved badge (`app.groups.schemas.ReservedByResponse`).
+ * `by_name` is who would receive the item, `null` for an anonymous viewer or
+ * without a profile; `by_me` is true when that is the viewer. */
+export interface ReservedByResponse {
+  by_name: string | null;
+  by_me: boolean;
+}
+
+/** An exchange-mechanism offer on the public Term page, available or
+ * reserved (see `app.groups.schemas.PublicItemListingResponse`). */
 export interface PublicItemListingResponse {
   id: string;
   item_id: string;
@@ -181,6 +190,10 @@ export interface PublicItemListingResponse {
   lister_display_name: string;
   /** Public CDN URL of the product's first approved photo. */
   thumb_url: string | null;
+  /** When it was listed: naive UTC ISO, no offset (parse with `dayjs.utc`). */
+  added_at: string;
+  /** `null` while the item is available. */
+  reservation: ReservedByResponse | null;
 }
 
 export interface PublicTermResponse {
@@ -370,7 +383,12 @@ export interface OrganizerExchangeItem {
   term_id: string;
   group_id: string;
   occurs_on: string;
+  /** `null` while the item is available. */
+  reservation: ReservedByResponse | null;
 }
+
+/** GIFT/SWAP count available items only; RESERVED the reserved ones. */
+export type OrganizerExchangeCounts = Record<ExchangeMode | "RESERVED", number>;
 
 export interface OrganizerNeededItem {
   id: string;
@@ -393,11 +411,15 @@ export interface OrganizerPageResponse {
   upcoming_terms: OrganizerTerm[];
   exchange: {
     /** Over every eligible item; `items` is capped, so it may hold fewer. */
-    counts: Record<ExchangeMode, number>;
+    counts: OrganizerExchangeCounts;
     items: OrganizerExchangeItem[];
   };
   needed_items: OrganizerNeededItem[];
   stats: OrganizerStats;
+  /** The Organization owner's newest listed items (up to 4). */
+  recent_items: OwnerItemCard[];
+  /** The owner's next public term or event; computed only when `recent_items` is non-empty. */
+  owner_nearest: OwnerNearestDate | null;
 }
 
 export function getOrganizerPage(slug: string): Promise<OrganizerPageResponse> {

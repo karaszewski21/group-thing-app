@@ -13,9 +13,26 @@ interface PluginMessageResponse {
   error?: string;
 }
 
-interface MessageHandlerOptions {
+export interface MessageHandlerOptions {
   onFilterChange?: (pluginId: string, payload: Record<string, unknown>) => void;
+  /** Only hosts that pass this honour `done`; others ignore it. */
+  onDone?: (pluginId: string, payload: Record<string, unknown>) => void;
 }
+
+interface UploadImageRule {
+  pattern: RegExp;
+  maxBytes: number;
+  mimeTypes: readonly string[];
+}
+
+// The only multipart endpoints plugins may reach through `uploadImage`.
+const UPLOAD_IMAGE_RULES: readonly UploadImageRule[] = [
+  {
+    pattern: /^\/api\/events\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\/banner$/i,
+    maxBytes: 5 * 1024 * 1024,
+    mimeTypes: ["image/jpeg", "image/png", "image/webp"],
+  },
+];
 
 type IframeRegistry = typeof IframeRegistryType;
 
@@ -40,9 +57,64 @@ function sendError(source: MessageEventSource, origin: string, requestId: string
   sendResponse(source, origin, { responseId: requestId, payload: null, error });
 }
 
-async function handlePluginFetch(
-  payload: Record<string, unknown>,
-): Promise<{ status: number; headers: Record<string, string>; body: string }> {
+type PluginFetchResult = { status: number; headers: Record<string, string>; body: string };
+
+async function toPluginFetchResult(response: Response): Promise<PluginFetchResult> {
+  // Req 11c: Only return CORS-safelisted headers
+  const responseHeaders: Record<string, string> = {};
+  response.headers.forEach((value, key) => {
+    if (SAFELISTED_HEADERS.has(key.toLowerCase())) {
+      responseHeaders[key] = value;
+    }
+  });
+
+  return {
+    status: response.status,
+    headers: responseHeaders,
+    body: await response.text(),
+  };
+}
+
+function pluginAuthHeaders(): Record<string, string> {
+  const token = localStorage.getItem("auth_token");
+  return {
+    "X-Requested-With": "PluginFetch",
+    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+  };
+}
+
+async function handleUploadImage(payload: Record<string, unknown>): Promise<PluginFetchResult> {
+  const { url, file } = payload;
+  if (typeof url !== "string" || url.includes("..")) {
+    throw new Error("uploadImage requires an allowlisted URL");
+  }
+  const rule = UPLOAD_IMAGE_RULES.find((r) => r.pattern.test(url));
+  if (!rule) {
+    throw new Error("uploadImage requires an allowlisted URL");
+  }
+  if (!(file instanceof Blob)) {
+    throw new Error("uploadImage requires a file");
+  }
+  if (file.size > rule.maxBytes) {
+    throw new Error("uploadImage file is too large");
+  }
+  if (!rule.mimeTypes.includes(file.type)) {
+    throw new Error("uploadImage file type is not allowed");
+  }
+
+  const body = new FormData();
+  body.append("file", file);
+  // No Content-Type: the browser sets the multipart boundary.
+  const response = await fetch(url, {
+    method: "POST",
+    credentials: "omit",
+    headers: pluginAuthHeaders(),
+    body,
+  });
+  return toPluginFetchResult(response);
+}
+
+async function handlePluginFetch(payload: Record<string, unknown>): Promise<PluginFetchResult> {
   const url = payload.url as string;
   const method = (payload.method as string) ?? "GET";
   const headers = (payload.headers as Record<string, string>) ?? {};
@@ -58,17 +130,13 @@ async function handlePluginFetch(
     throw new Error("pluginFetch only allows /api/ URLs");
   }
 
-  // Inject JWT token for authenticated plugin fetch requests
-  const token = localStorage.getItem("auth_token");
-
   // Req 11c: Strip security-sensitive options, add X-Requested-With
   const fetchOptions: RequestInit = {
     method,
     credentials: "omit",
     headers: {
       ...headers,
-      "X-Requested-With": "PluginFetch",
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      ...pluginAuthHeaders(),
     },
   };
 
@@ -76,23 +144,7 @@ async function handlePluginFetch(
     fetchOptions.body = body;
   }
 
-  const response = await fetch(url, fetchOptions);
-
-  // Req 11c: Only return CORS-safelisted headers
-  const responseHeaders: Record<string, string> = {};
-  response.headers.forEach((value, key) => {
-    if (SAFELISTED_HEADERS.has(key.toLowerCase())) {
-      responseHeaders[key] = value;
-    }
-  });
-
-  const responseBody = await response.text();
-
-  return {
-    status: response.status,
-    headers: responseHeaders,
-    body: responseBody,
-  };
+  return toPluginFetchResult(await fetch(url, fetchOptions));
 }
 
 // API-based message handlers that proxy SDK calls to backend
@@ -186,6 +238,16 @@ export function createMessageHandler(
       return; // No response sent
     }
 
+    // Fire-and-forget: the plugin finished its flow
+    if (type === "done") {
+      const donePayload =
+        typeof payload === "object" && payload !== null && !Array.isArray(payload)
+          ? (payload as Record<string, unknown>)
+          : {};
+      options?.onDone?.(pluginInfo.pluginId, donePayload);
+      return;
+    }
+
     // Return the current user's JWT token to the plugin
     if (type === "getToken") {
       const token = localStorage.getItem("auth_token");
@@ -198,9 +260,9 @@ export function createMessageHandler(
       return;
     }
 
-    // Route pluginFetch separately (different response format)
-    if (type === "pluginFetch") {
-      handlePluginFetch(payload)
+    // Route pluginFetch and uploadImage separately (different response format)
+    if (type === "pluginFetch" || type === "uploadImage") {
+      (type === "pluginFetch" ? handlePluginFetch(payload) : handleUploadImage(payload))
         .then((result) => {
           if (event.source) {
             sendResponse(event.source, event.origin, {

@@ -1,5 +1,5 @@
 const REQUEST_ID_PREFIX = "aj.plugin.";
-const TIMEOUT_MS = 10_000;
+const DEFAULT_TIMEOUT_MS = 10_000;
 
 interface PendingRequest {
   resolve: (value: unknown) => void;
@@ -15,12 +15,13 @@ function generateRequestId(): string {
 
 /**
  * Sends a message to the host and waits for a correlated response.
- * Times out after 10 seconds.
+ * Times out after `timeoutMs` (10 seconds by default).
  */
 export function sendMessageAndWait(
   type: string,
   payload: Record<string, unknown>,
   hostOrigin: string,
+  timeoutMs: number = DEFAULT_TIMEOUT_MS,
 ): Promise<unknown> {
   const requestId = generateRequestId();
 
@@ -28,7 +29,7 @@ export function sendMessageAndWait(
     const timer = setTimeout(() => {
       pending.delete(requestId);
       reject(new Error(`Plugin message timeout: ${type} (${requestId})`));
-    }, TIMEOUT_MS);
+    }, timeoutMs);
 
     pending.set(requestId, { resolve, reject, timer });
 

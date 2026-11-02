@@ -60,6 +60,10 @@ export const thisPlugin = {
     sendFireAndForget("filterChange", payload, getHostOrigin());
   },
 
+  done(payload?: { name?: string }): void {
+    sendFireAndForget("done", payload ?? {}, getHostOrigin());
+  },
+
   objects: {
     list(type: string, options?: { entityType?: string; entityId?: string; filter?: string }): Promise<PluginObject[]> {
       return sendMessageAndWait("objectsList", { objectType: type, ...options }, getHostOrigin()) as Promise<PluginObject[]>;

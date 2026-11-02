@@ -45,6 +45,15 @@ export interface PluginSDKType {
       headers: Record<string, string>;
       body: string;
     }>;
+    /**
+     * Upload an image file; the host builds the multipart FormData (field "file"), so the Blob is posted as-is.
+     * Only the host-allowlisted upload path is accepted (max 5 MB, image MIME types). Same envelope as fetch; 60 s timeout (other calls: 10 s).
+     */
+    uploadImage(url: string, file: Blob): Promise<{
+      status: number;
+      headers: Record<string, string>;
+      body: string;
+    }>;
   };
   /** Plugin-scoped operations — data storage, context, custom objects. */
   thisPlugin: {
@@ -62,6 +71,8 @@ export interface PluginSDKType {
     setData(productId: string, data: Record<string, unknown>): Promise<unknown>;
     /** Remove this plugin's data from a product. */
     removeData(productId: string): Promise<unknown>;
+    /** Tell the host this plugin's flow is finished (fire-and-forget). Hosts without a done handler ignore it. */
+    done(payload?: { name?: string }): void;
     /** CRUD for plugin-owned custom objects, stored in the host's plugin_objects table. */
     objects: {
       /**

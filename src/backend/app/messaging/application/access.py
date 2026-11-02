@@ -1,6 +1,6 @@
 """Per-request access to a conversation: there is no participant table, so
-who may read a chat is computed from current groups data, soft-deleted
-Circles included. Lookups raise 404 before any 403."""
+who may read a chat is computed from current groups and events data,
+soft-deleted Circles included. Lookups raise 404 before any 403."""
 
 from __future__ import annotations
 
@@ -12,7 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.errors import AccessDeniedException
 
-from ..infrastructure import groups_acl
+from ..infrastructure import events_acl, groups_acl
 from ..models import Conversation, ConversationKind
 from ..schemas import ReadOnlyReason
 
@@ -22,6 +22,7 @@ class Access(NamedTuple):
     organizer_party_id: uuid.UUID | None
     group: groups_acl.Group | None
     term: groups_acl.Term | None
+    event: events_acl.Event | None = None
 
 
 def read_only_reason(
@@ -75,6 +76,18 @@ async def term_access(db: AsyncSession, term: groups_acl.Term, party_id: uuid.UU
     )
 
 
+async def event_access(db: AsyncSession, event: events_acl.Event, party_id: uuid.UUID) -> Access:
+    """The event's author or an active attendee, whatever the event's date;
+    otherwise 403. An EVENT chat is never read-only."""
+    event_id = cast(uuid.UUID, event.id)
+    allowed = event.author_party_id == party_id or await events_acl.has_active_attendance(
+        db, event_id, party_id
+    )
+    if not allowed:
+        raise AccessDeniedException
+    return Access(None, event.author_party_id, None, None, event)
+
+
 async def resolve_access(
     db: AsyncSession, conversation: Conversation, party_id: uuid.UUID
 ) -> Access:
@@ -88,6 +101,12 @@ async def resolve_access(
         assert conversation.group_id is not None
         group = await groups_acl.get_group_including_deleted(db, conversation.group_id)
         return await group_access(db, group, party_id)
-    assert conversation.term_id is not None
-    term = await groups_acl.get_term_any(db, conversation.term_id)
-    return await term_access(db, term, party_id)
+    if conversation.kind == ConversationKind.TERM:
+        assert conversation.term_id is not None
+        term = await groups_acl.get_term_any(db, conversation.term_id)
+        return await term_access(db, term, party_id)
+    if conversation.kind == ConversationKind.EVENT:
+        assert conversation.event_id is not None
+        event = await events_acl.get_event(db, conversation.event_id)
+        return await event_access(db, event, party_id)
+    raise AssertionError(f"Unknown conversation kind {conversation.kind}")

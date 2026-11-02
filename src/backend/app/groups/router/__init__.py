@@ -13,6 +13,8 @@ from fastapi import APIRouter
 
 from app.groups.router import (
     circles,
+    item_actions,
+    item_reservations,
     join_code,
     leaderships,
     memberships,
@@ -38,3 +40,5 @@ router.include_router(memberships.router)
 router.include_router(terms.router)
 router.include_router(pledges.router)
 router.include_router(term_item_listings.router)
+router.include_router(item_actions.router)
+router.include_router(item_reservations.router)

@@ -39,6 +39,7 @@ RESERVED_SLUGS: frozenset[str] = frozenset(
         "add",
         "messages",
         "groups",
+        "events",
         "organization",
         "product",
         "products",
@@ -46,10 +47,11 @@ RESERVED_SLUGS: frozenset[str] = frozenset(
         "moderation",
         "plugins",
         # Second-segment organizer routes (`/:slug/product/:id`,
-        # `/:slug/group/...`, `/:slug/terms`) — reserved so an organization
-        # slug never reads like one of those path segments ("product" and
-        # "terms" are listed elsewhere).
+        # `/:slug/group/...`, `/:slug/event/:id`, `/:slug/terms`) — reserved
+        # so an organization slug never reads like one of those path segments
+        # ("product" and "terms" are listed elsewhere).
         "group",
+        "event",
         # Backend sub-paths under `/api/groups/public/organizers/{slug}`
         # (`/terms`) and the sibling `/api/groups/public/{group_id}/access`
         # route the organizer router must never be confused with.

@@ -2,7 +2,8 @@
 description, the product's gallery, `is_owner` and the privacy-labelled
 current status. Deleted items are readable (status `DELETED`). Photos not
 yet approved by moderation are shown to the owner only; the description is
-checked synchronously on write, so every viewer gets it."""
+checked synchronously on write, so every viewer gets it. Anonymous callers
+see only live ACTIVE items, labelled as outsiders."""
 
 from __future__ import annotations
 
@@ -18,7 +19,7 @@ from app.circulation.application.inventory import get_inventory
 from app.circulation.application.inventory_items import resolve_owning_inventory
 from app.circulation.domain.item_privacy import ItemStatus, derive_status, newest_reservation
 from app.circulation.infrastructure import repository
-from app.circulation.models import BalanceStatus, ItemCondition, ItemListingStatus
+from app.circulation.models import BalanceStatus, InventoryItem, ItemCondition, ItemListingStatus
 from app.core.auth_deps import Principal
 from app.core.errors import EntityNotFoundException
 from app.product import service as product_service
@@ -44,18 +45,21 @@ class ItemDetails:
 
 
 async def get_item_details(
-    db: AsyncSession, item_id: uuid.UUID, principal: Principal, storage: ObjectStorage | None
+    db: AsyncSession,
+    item_id: uuid.UUID,
+    principal: Principal | None,
+    storage: ObjectStorage | None,
 ) -> ItemDetails:
     """A bounded number of queries regardless of gallery size: the details
     row, photos, the viewer, the owning/holding inventories, the balance and,
     only when reserved/in transit, the active reservations, display names
-    and the term date."""
+    and the term or event."""
     row = await repository.get_item_details_row(db, item_id)
-    if row is None:
+    if row is None or (principal is None and not _is_public(row.item)):
         raise EntityNotFoundException("InventoryItem", item_id)
     item = row.item
     photos = await product_service.product_photos(db, item.product_id)
-    viewer = await find_user_id_by_principal(db, principal)
+    viewer = await find_user_id_by_principal(db, principal) if principal is not None else None
     home_owner = (await resolve_owning_inventory(db, item)).owner_user_id
     holder = (
         home_owner
@@ -67,6 +71,7 @@ async def get_item_details(
 
     reservation = None
     term = None
+    event = None
     in_flight = balance_status in (BalanceStatus.RESERVED, BalanceStatus.IN_TRANSIT)
     if item.deleted_at is None and in_flight:
         reservation = newest_reservation(
@@ -74,6 +79,7 @@ async def get_item_details(
         )
         if reservation is not None:
             term = await repository.find_reservation_term(db, reservation.term_id)
+            event = await repository.find_reservation_event(db, reservation.event_id)
 
     display_names: dict[uuid.UUID, str] = {}
     if reservation is not None:
@@ -86,6 +92,7 @@ async def get_item_details(
         due_date=balance.due_date if balance is not None else None,
         reservation=reservation,
         term=term,
+        event=event,
         viewer=viewer,
         holder_user_id=holder,
         home_owner_user_id=home_owner,
@@ -108,3 +115,7 @@ async def get_item_details(
         status=status,
         listing_status=item.listing_status,
     )
+
+
+def _is_public(item: InventoryItem) -> bool:
+    return item.deleted_at is None and item.listing_status == ItemListingStatus.ACTIVE

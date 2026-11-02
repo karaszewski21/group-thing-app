@@ -52,6 +52,17 @@ Products accept leaf categories only, so tests obtain product categories exclusi
 ### Dates in Tests
 Build Term/occurrence times from `clock.local_now()` (e.g. `(clock.local_now() + timedelta(days=1)).replace(microsecond=0)`), never `datetime.now()`; pin "now" with the opt-in `freeze_local_now` fixture when a test depends on it. See `standards/backend/time.md`.
 
+### Downgrade Refusal Tests Restore Head
+`alembic/env.py` runs with `transaction_per_migration=True`, so a refused chained downgrade (e.g. `downgrade 0073` refused by `0074`) leaves the shared session database at an intermediate revision with the later revisions already undone. Every guarded-downgrade refusal test therefore runs `alembic upgrade head` and `await engine.dispose()` in a `finally` block, so later tests see the full schema. Examples: `tests/test_personal_pickup_migration.py`, `tests/test_vinted_category_seed_migration.py`.
+```python
+try:
+    result = _alembic(database_url, "downgrade", "0073")
+    assert result.returncode != 0
+finally:
+    _alembic(database_url, "upgrade", "head")
+    await engine.dispose()
+```
+
 ### Test Naming and Placement
 Test files are flat in `src/backend/tests/` as `test_<feature>.py` (migration tests `test_<feature>_migration.py`, see `standards/backend/migrations.md`). Test functions are module-level `async def` named `test_<operation>_<scenario>_<expected>` in camelCase segments, e.g. `test_createLocation_manual_returns201AndListsInMine`, `test_updateTerm_nullClears_omittedKeeps`. Start each file with a docstring summarizing what it covers. Long names get `# noqa: E501`.
 

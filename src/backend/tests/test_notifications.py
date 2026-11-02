@@ -22,6 +22,7 @@ from httpx import AsyncClient
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.notifications import service as notifications_service
 from app.notifications.models import Notification, NotificationKind
 from app.notifications.outbox_listener import register as register_outbox_handlers
 from app.outbox import service as outbox_service
@@ -213,3 +214,28 @@ async def test_listMyNotifications_notificationWithReservationId_returnsReservat
     assert len(rows) == 1
     assert rows[0]["kind"] == "TERM_CONFIRMATION_NEEDED"
     assert rows[0]["reservation_id"] == reservation_id
+
+
+async def test_listMyNotifications_reservationCancelledKind_roundTrips(
+    client: AsyncClient, db_session: AsyncSession
+) -> None:
+    token, party_id = await _register(client, "GUEST", "notif.cancelled@example.com")
+    item_id = uuid.uuid4()
+    await notifications_service.create_notification(
+        db_session,
+        party_id=uuid.UUID(str(party_id)),
+        kind=NotificationKind.RESERVATION_CANCELLED,
+        message="Wydarzenie zostało usunięte — rezerwacja anulowana",
+        link_path=f"/product/{item_id}",
+    )
+    await db_session.commit()
+
+    stored = (
+        await db_session.execute(select(Notification).where(Notification.party_id == party_id))
+    ).scalar_one()
+    rows = await _my_notifications(client, token)
+
+    assert stored.kind is NotificationKind.RESERVATION_CANCELLED
+    assert [(row["kind"], row["link_path"]) for row in rows] == [
+        ("RESERVATION_CANCELLED", f"/product/{item_id}")
+    ]

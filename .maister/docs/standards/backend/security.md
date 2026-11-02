@@ -42,6 +42,13 @@ Rows resolving to `"PUBLIC"` need no `Depends(...)` — that's simply the FastAP
 
 Matrix rows are evaluated in order, first match wins — a row stated informally (e.g. "any method") can accidentally swallow a more specific, later row if read too literally. When a matrix row's method scope is ambiguous against explicit prose elsewhere describing one specific route's behavior, the specific prose wins and the row is scoped down to avoid the conflict — documented inline at the row, not resolved silently. (Precedent: `AUTHORIZATION_MATRIX` row 10, an SPA-fallback rule, is scoped to `GET` only, specifically so it doesn't swallow `/oauth2/authorize` — a `POST`, non-`/api/` path that a separate note establishes is NOT public — before that request ever reaches the catch-all `AUTHENTICATED` row.)
 
+### Personalised Public Responses Never Hit Shared Caches
+Public GET routes that personalise on `OptionalPrincipal` call `app.core.cache_headers.set_personalised_cache_headers(response, principal)` after the service call succeeds (never on errors). A resolved principal gets `Cache-Control: private, no-store`; an anonymous request or an invalid token gets `public, max-age=0, s-maxage=60`; `Vary: Authorization` is always set. Never send shared-cache headers for an authenticated response. Current users: `/api/items/{id}/actions`, `/api/inventory-items/{id}/details`, `/api/events/{id}`, `/api/groups/public/{id}/access` and the organizer/owner-items routes (`/organizers/{slug}`, `…/{slug}/items`, `/parties/{id}/items`); `…/organizers/{slug}/terms` does not personalise and keeps the plain public header.
+```python
+result = await service.get_actions(db, item_id, principal)
+set_personalised_cache_headers(response, principal)
+```
+
 ### Error Responses for Auth Failures
 
 Custom exception handlers replicate the legacy flat-envelope 401/403 shape (`{"status": ..., "error": ..., "message": ...}`), registered globally via `app.add_exception_handler(...)` in `app/main.py` — analogous to Spring's `AuthenticationEntryPoint`/`AccessDeniedHandler`, but as FastAPI exception handlers rather than filter-chain hooks. `AuthenticationRequiredException` (401, "Authentication required") is raised by `require_any`'s own dependency function before any route body runs; `AccessDeniedException` (403) is raised the same way for an authenticated-but-under-permissioned caller. Both fire before the route handler executes, so a route's own body never needs to check permissions itself — same principle as the JVM-era guidance, applied to dependency injection instead of a filter chain.
@@ -76,4 +83,4 @@ There is no `@WithMockUser`-style annotation in this codebase (no automated test
 
 This document previously described Spring Security conventions (`SecurityFilterChain`, `@PreAuthorize` avoidance, `BCryptPasswordEncoder`) for the Java/Spring Boot backend. The backend was migrated to Python/FastAPI (see `.maister/tasks/migrations/2026-08-31-java-to-python-fastapi/`); the content above describes the current FastAPI-dependency-based authorization actually implemented in `app/core/auth_deps.py`, `app/core/security.py`, and `app/oauth2/`.
 
-*Last Updated*: 2026-09-01
+*Last Updated*: 2026-11-02

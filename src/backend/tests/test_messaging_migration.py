@@ -32,6 +32,7 @@ CONVERSATION_FKS = {
     "fk_conversations_term_id_terms": ("term_id", "terms"),
     "fk_conversations_asker_party_id_parties": ("asker_party_id", "parties"),
     "fk_conversations_owner_party_id_parties": ("owner_party_id", "parties"),
+    "fk_conversations_event_id_events": ("event_id", "events"),
 }
 MESSAGE_FKS = {
     "fk_messages_conversation_id_conversations": ("conversation_id", "conversations"),

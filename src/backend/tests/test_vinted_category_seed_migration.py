@@ -389,3 +389,6 @@ async def test_downgrade0069_withProductPresent_raisesAndKeepsTree(
         async with engine.begin() as conn:
             await conn.execute(text("DELETE FROM products WHERE id = :id"), {"id": product_id})
         await engine.dispose()
+        # Each revision commits on its own, so the refused chain stops at 0069.
+        _alembic(database_url, "upgrade", "head")
+        await engine.dispose()

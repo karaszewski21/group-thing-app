@@ -6,10 +6,8 @@ import { TermPage } from "../pages/term/TermPage";
 import * as groupsApi from "../api/groups";
 import * as familiesApi from "../api/families";
 import * as pledgesApi from "../api/pledges";
-import * as termItemListingsApi from "../api/termItemListings";
-import * as inventoriesApi from "../api/inventories";
 import { ApiError } from "../api/client";
-import type { GroupAccessResponse, PublicCircleResponse } from "../api/groups";
+import type { GroupAccessResponse, PublicCircleResponse, PublicItemListingResponse } from "../api/groups";
 import { createQueryWrapper } from "./queryClient";
 
 vi.mock("../api/groups", async (importOriginal) => {
@@ -24,12 +22,6 @@ vi.mock("../api/groups", async (importOriginal) => {
 });
 vi.mock("../api/pledges", () => ({ createPledge: vi.fn() }));
 vi.mock("../api/families", () => ({ getMyFamilies: vi.fn() }));
-vi.mock("../api/termItemListings", () => ({ takeTermItemListing: vi.fn(), proposeSwap: vi.fn() }));
-vi.mock("../api/inventories", async (importOriginal) => ({
-  ...(await importOriginal<typeof import("../api/inventories")>()),
-  getMyInventoryItems: vi.fn(),
-  getInventoryItemBalance: vi.fn(),
-}));
 
 const conversationHook = vi.hoisted(() => ({ openConversation: vi.fn() }));
 vi.mock("../hooks/useOpenConversation", () => ({ useOpenConversation: () => conversationHook }));
@@ -88,6 +80,8 @@ const circle: PublicCircleResponse = {
         lister_party_id: "21",
         lister_display_name: "Ola Nowak",
         thumb_url: null,
+        added_at: "2026-10-20T09:00:00",
+        reservation: null,
       },
       {
         id: "10",
@@ -98,6 +92,8 @@ const circle: PublicCircleResponse = {
         lister_party_id: "99",
         lister_display_name: "Ania Kowalska",
         thumb_url: null,
+        added_at: "2026-10-21T09:00:00",
+        reservation: null,
       },
     ],
   },
@@ -215,25 +211,26 @@ describe("TermPage — header and content", () => {
     expect(entry).toHaveAttribute("data-active", "true");
   });
 
-  it("lists every attendee with their own offered items, plus non-attending listers", async () => {
+  it("lists every attendee with their own offered items and intent pills, no take buttons, plus non-attending listers", async () => {
     renderPage();
 
     const list = await screen.findByRole("region", { name: "Zapisani na zajęcia" });
     const ola = document.getElementById("attendee-21")!;
     expect(within(ola).getByText("Rowerek")).toBeInTheDocument();
-    expect(within(ola).getByRole("button", { name: "Weź na stałe: Rowerek" })).toBeInTheDocument();
+    expect(within(ola).getByText("Chcę oddać")).toBeInTheDocument();
+    expect(within(ola).queryAllByRole("button")).toHaveLength(0);
     expect(within(document.getElementById("attendee-22")!).queryAllByRole("button")).toHaveLength(0);
     expect(within(list).getByText("Ania Kowalska")).toBeInTheDocument();
     expect(within(document.getElementById("attendee-99")!).getByText("Namiot")).toBeInTheDocument();
   });
 
-  it("links each offered item's title to its item page, leaving needed items plain", async () => {
+  it("links each offered item's row to its plain item page, leaving needed items plain", async () => {
     renderPage();
 
     await screen.findByRole("region", { name: "Zapisani na zajęcia" });
     const ola = document.getElementById("attendee-21")!;
-    expect(within(ola).getByRole("link", { name: "Rowerek" })).toHaveAttribute("href", "/ania/product/9");
-    expect(within(document.getElementById("attendee-99")!).getByRole("link", { name: "Namiot" })).toHaveAttribute(
+    expect(within(ola).getByRole("link", { name: /Rowerek/ })).toHaveAttribute("href", "/ania/product/9");
+    expect(within(document.getElementById("attendee-99")!).getByRole("link", { name: /Namiot/ })).toHaveAttribute(
       "href",
       "/ania/product/10",
     );
@@ -247,8 +244,50 @@ describe("TermPage — header and content", () => {
 
     await screen.findByRole("region", { name: "Zapisani na zajęcia" });
     expect(
-      within(document.getElementById("attendee-21")!).getByRole("link", { name: "Rowerek" }),
+      within(document.getElementById("attendee-21")!).getByRole("link", { name: /Rowerek/ }),
     ).toHaveAttribute("href", "/product/9");
+  });
+
+  it("previews each attendee's 3 newest items as plain links and Pokaż więcej to their items page", async () => {
+    const olaListing = (itemId: string, productName: string, addedAt: string): PublicItemListingResponse => ({
+      id: itemId,
+      item_id: itemId,
+      product_name: productName,
+      condition: "GOOD",
+      offered_types: ["GIFT"],
+      lister_party_id: "21",
+      lister_display_name: "Ola Nowak",
+      thumb_url: null,
+      added_at: addedAt,
+      reservation: null,
+    });
+    vi.mocked(groupsApi.getGroupAccess).mockResolvedValue(
+      access({
+        group: {
+          term: {
+            ...circle.term!,
+            item_listings: [
+              olaListing("31", "Najstarsza lalka", "2026-09-01T09:00:00"),
+              olaListing("32", "Hulajnoga", "2026-10-29T09:00:00"),
+              olaListing("33", "Kredki", "2026-10-30T09:00:00"),
+              olaListing("34", "Puzzle", "2026-10-25T09:00:00"),
+            ],
+          },
+        },
+      }),
+    );
+    renderPage();
+
+    await screen.findByRole("region", { name: "Zapisani na zajęcia" });
+    const ola = document.getElementById("attendee-21")!;
+    const names = within(ola)
+      .getAllByRole("link", { name: /Hulajnoga|Kredki|Puzzle|Najstarsza lalka/ })
+      .map((link) => link.querySelector("span.block")?.textContent);
+    expect(names).toEqual(["Kredki", "Hulajnoga", "Puzzle"]);
+    expect(within(ola).getAllByText("Chcę oddać")).toHaveLength(3);
+    expect(within(ola).queryAllByRole("button")).toHaveLength(0);
+    expect(within(ola).getByRole("link", { name: "Pokaż więcej (4)" })).toHaveAttribute("href", "/21/items");
+    expect(within(ola).queryByRole("button", { name: /Pokaż wszystkie/ })).not.toBeInTheDocument();
   });
 });
 
@@ -467,111 +506,6 @@ describe("TermPage — item actions", () => {
 
     await waitFor(() => expect(pledgesApi.createPledge).toHaveBeenCalledWith("11"));
     expect(await screen.findByText("Przynosi: Ty")).toBeInTheDocument();
-  });
-
-  it("logged in 'Weź na stałe' takes the item for the shown term", async () => {
-    mockAuth = { token: "tok", displayName: "Ala" };
-    vi.mocked(termItemListingsApi.takeTermItemListing).mockResolvedValue({ item_id: "9", product_name: "Rowerek" } as never);
-    renderPage();
-
-    fireEvent.click(await screen.findByRole("button", { name: "Weź na stałe: Rowerek" }));
-
-    await waitFor(() =>
-      expect(termItemListingsApi.takeTermItemListing).toHaveBeenCalledWith("9", {
-        term_id: "101",
-        reservation_type: "GIFT",
-      }),
-    );
-  });
-});
-
-describe("TermPage — take success sheet", () => {
-  // 14.10.2026 is a Wednesday ("śr").
-  const datedTerm = { ...circle.term!, occurs_on: "2026-10-14T16:30:00" };
-  const SENTENCE = "Odbierz „Rowerek” w śr 14.10 o 16:30 — Muzyczne Skrzaty";
-
-  beforeEach(() => {
-    mockAuth = { token: "tok", displayName: "Ala" };
-    vi.mocked(groupsApi.getGroupAccess).mockResolvedValue(access({ group: { term: datedTerm } }));
-    vi.mocked(termItemListingsApi.takeTermItemListing).mockResolvedValue({
-      item_id: "9",
-      product_name: "Rowerek",
-    } as never);
-  });
-
-  async function takeRowerek() {
-    renderPage();
-    fireEvent.click(await screen.findByRole("button", { name: "Weź na stałe: Rowerek" }));
-    return screen.findByRole("dialog", { name: SENTENCE });
-  }
-
-  it("after 'Weź na stałe' shows 'Wzięte!' with the item, date and group, links to the item page and shows no toast", async () => {
-    const dialog = await takeRowerek();
-
-    expect(within(dialog).getByRole("heading", { name: "Wzięte!" })).toBeInTheDocument();
-    expect(dialog).toHaveTextContent(SENTENCE);
-    const itemLink = within(dialog).getByRole("link", { name: "Zobacz rzecz" });
-    expect(itemLink).toHaveAttribute("href", "/product/9");
-    expect(itemLink).toHaveClass("inline-flex", "items-center", "justify-center");
-    expect(within(dialog).getByRole("button", { name: /Dodaj do kalendarza/ })).toHaveClass("whitespace-nowrap");
-    expect(screen.queryByText(/Wzięto!/)).not.toBeInTheDocument();
-  });
-
-  it("Esc with the calendar menu open closes only the menu; a second Esc closes the sheet", async () => {
-    const dialog = await takeRowerek();
-    fireEvent.click(within(dialog).getByRole("button", { name: /Dodaj do kalendarza/ }));
-    const menuItem = within(dialog).getByRole("menuitem", { name: /Kalendarz Google/ });
-
-    fireEvent.keyDown(menuItem, { key: "Escape" });
-
-    expect(screen.queryByRole("menu")).not.toBeInTheDocument();
-    expect(screen.getByRole("dialog", { name: SENTENCE })).toBeInTheDocument();
-
-    fireEvent.keyDown(within(dialog).getByRole("button", { name: /Dodaj do kalendarza/ }), { key: "Escape" });
-
-    expect(screen.queryByRole("dialog", { name: SENTENCE })).not.toBeInTheDocument();
-  });
-
-  it("closing the sheet focuses main when the take button is gone after the refetch", async () => {
-    vi.mocked(groupsApi.getGroupAccess)
-      .mockResolvedValueOnce(access({ group: { term: datedTerm } }))
-      .mockResolvedValue(
-        access({
-          group: { term: { ...datedTerm, item_listings: datedTerm.item_listings.filter((l) => l.item_id !== "9") } },
-        }),
-      );
-    const dialog = await takeRowerek();
-    await waitFor(() => expect(screen.queryByRole("button", { name: "Weź na stałe: Rowerek" })).not.toBeInTheDocument());
-
-    fireEvent.click(within(dialog).getAllByRole("button", { name: "Zamknij" })[0]);
-
-    expect(screen.queryByRole("dialog", { name: SENTENCE })).not.toBeInTheDocument();
-    expect(screen.getByRole("main")).toHaveFocus();
-  });
-
-  it("a swap proposal keeps its toast and opens no sheet", async () => {
-    vi.mocked(groupsApi.getGroupAccess).mockResolvedValue(
-      access({
-        group: {
-          term: {
-            ...datedTerm,
-            item_listings: [{ ...datedTerm.item_listings[0], offered_types: ["SWAP"] }],
-          },
-        },
-      }),
-    );
-    vi.mocked(inventoriesApi.getMyInventoryItems).mockResolvedValue([
-      { id: "50", product_name: "Kask", listing_mode: "SWAP" } as never,
-    ]);
-    vi.mocked(inventoriesApi.getInventoryItemBalance).mockResolvedValue({ status: "AVAILABLE" } as never);
-    vi.mocked(termItemListingsApi.proposeSwap).mockResolvedValue({} as never);
-    renderPage();
-
-    fireEvent.click(await screen.findByRole("button", { name: "Zamień: Rowerek" }));
-    fireEvent.click(await screen.findByRole("button", { name: "Zaproponuj zamianę" }));
-
-    expect(await screen.findByRole("status")).toHaveTextContent("Zaproponowano zamianę! Szczegóły w Twoim panelu");
-    expect(screen.queryByRole("dialog", { name: /Odbierz/ })).not.toBeInTheDocument();
   });
 });
 
@@ -1155,18 +1089,6 @@ describe("TermPage — direct sign-up and server error messages", () => {
     fireEvent.click(await screen.findByRole("button", { name: "Ja to przyniosę: Bębenek" }));
 
     expect(await screen.findByRole("status")).toHaveTextContent("Nie masz uprawnień do tej akcji");
-  });
-
-  it("a 409 on 'Weź na stałe' shows the server's reason", async () => {
-    mockAuth = { token: "tok", displayName: "Ala" };
-    vi.mocked(termItemListingsApi.takeTermItemListing).mockRejectedValue(
-      new ApiError(409, "Conflict", { message: "Ta rzecz jest już zajęta" }),
-    );
-    renderPage();
-
-    fireEvent.click(await screen.findByRole("button", { name: "Weź na stałe: Rowerek" }));
-
-    expect(await screen.findByRole("status")).toHaveTextContent("Ta rzecz jest już zajęta");
   });
 });
 

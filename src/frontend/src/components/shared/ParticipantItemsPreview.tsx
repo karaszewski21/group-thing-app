@@ -1,0 +1,100 @@
+import { Link } from "react-router-dom";
+import type { ReservedByResponse } from "../../api/groups";
+import type { ListingMode } from "../../api/itemListingPreferences";
+import { SafeImage } from "../../pages/product/ItemGallery";
+import { organizerItemPath } from "../../pages/product/useItemRoutes";
+import dayjs from "../../utils/dayjs";
+import { PhotoPlaceholder } from "./Icons";
+import { ItemTileBadges } from "./ItemTileBadges";
+
+/** Items a participant preview shows; the rest sit behind "Pokaż więcej". */
+export const PREVIEW_ITEM_LIMIT = 3;
+
+export interface ParticipantPreviewItem {
+  itemId: string;
+  name: string;
+  /** The modes it is offered in, shown as intent pills. */
+  modes: ListingMode[];
+  thumbUrl: string | null;
+  /** Naive UTC ISO, no offset. */
+  addedAt: string;
+  /** `null` while available; a reserved row keeps its link and adds the reserved pill. */
+  reservation: ReservedByResponse | null;
+}
+
+/** "dodano dziś" / "dodano wczoraj" by calendar day, "tydzień temu" for the
+ * second week, else dayjs' Polish relative time ("3 dni temu"). */
+function addedAgo(addedAt: string): string {
+  const added = dayjs.utc(addedAt).local();
+  const days = dayjs().startOf("day").diff(added.startOf("day"), "day");
+  if (days <= 0) return "dodano dziś";
+  if (days === 1) return "dodano wczoraj";
+  if (days < 7) return `${days} dni temu`;
+  if (days < 14) return "tydzień temu";
+  return added.fromNow();
+}
+
+/** One row, a single link to the item's product page. */
+function ItemRow({ item, organizerSlug }: { item: ParticipantPreviewItem; organizerSlug: string | null }) {
+  return (
+    <div data-preview-item className="py-3">
+      <Link
+        to={organizerItemPath(organizerSlug, item.itemId)}
+        className="flex items-center gap-3 rounded-xl text-ink no-underline hover:text-primary-fg focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring"
+      >
+        <span
+          className={`flex size-12 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-cream ${item.reservation ? "opacity-60" : ""}`}
+        >
+          {item.thumbUrl === null ? (
+            <PhotoPlaceholder size={20} />
+          ) : (
+            <SafeImage src={item.thumbUrl} alt="" className="size-full" placeholderSize={20} />
+          )}
+        </span>
+        <span className="flex min-w-0 flex-1 flex-col gap-1">
+          <span className="block text-[15px] leading-snug wrap-break-word">{item.name}</span>{" "}
+          <ItemTileBadges modes={item.modes} reservation={item.reservation} />{" "}
+          <small className="block text-xs text-ink-soft">{addedAgo(item.addedAt)}</small>
+        </span>
+        <span aria-hidden="true" className="shrink-0 text-ink-soft">
+          ›
+        </span>
+      </Link>
+    </div>
+  );
+}
+
+/** A participant's newest items (at most `PREVIEW_ITEM_LIMIT`), each linking
+ * to its product page, then "Pokaż więcej (N) ›" to the owner's items page
+ * when they share more. Shared by the event and term pages. */
+export function ParticipantItemsPreview({
+  items,
+  total,
+  partyId,
+  organizerSlug,
+}: {
+  items: ParticipantPreviewItem[];
+  total: number;
+  partyId: string;
+  organizerSlug: string | null;
+}) {
+  if (items.length === 0) return null;
+  return (
+    <div className="mt-1 ml-13">
+      <div className="divide-y divide-line">
+        {items.slice(0, PREVIEW_ITEM_LIMIT).map((item) => (
+          <ItemRow key={item.itemId} item={item} organizerSlug={organizerSlug} />
+        ))}
+      </div>
+      {total > PREVIEW_ITEM_LIMIT && (
+        <Link
+          to={`/${partyId}/items`}
+          className="mt-1 inline-flex min-h-11 items-center rounded text-sm font-extrabold text-primary-fg no-underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring"
+        >
+          {`Pokaż więcej (${total})`}
+          <span aria-hidden="true">{" ›"}</span>
+        </Link>
+      )}
+    </div>
+  );
+}

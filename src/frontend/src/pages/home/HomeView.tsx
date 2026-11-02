@@ -1,4 +1,6 @@
+import { useState } from "react";
 import { Link } from "react-router-dom";
+import { useAuth } from "../../auth/AuthContext";
 import { BuildingIcon, CalendarPlusIcon } from "../../components/shared/appIcons";
 import { HintCard, ItemTile } from "../../components/shared/appComponents";
 import { capitalize, ITEM_MODE_TONE, ITEM_MODES, viewPath } from "../../utils/appHelpers";
@@ -9,26 +11,46 @@ const SECTION_TITLE = "font-serif text-[21px] font-bold text-ink";
 const SECTION_LINK = "text-sm font-extrabold text-primary-fg hover:underline";
 const CARD = "rounded-[22px] border border-line bg-paper";
 
+/** The `localStorage` key of a home hint's "dismissed" flag for one account. */
+function hintKey(flag: string, username: string | null): string {
+  return `${flag}:${username ?? ""}`;
+}
+
+/** A dismissible banner's flag: read once on mount, written on dismiss. */
+function useDismissibleHint(storageKey: string): [boolean, () => void] {
+  const [dismissed, setDismissed] = useState(() => localStorage.getItem(storageKey) === "1");
+  function dismiss() {
+    localStorage.setItem(storageKey, "1");
+    setDismissed(true);
+  }
+  return [dismissed, dismiss];
+}
+
 export function HomeView() {
-  const {
-    profile,
-    hintCreateGroupDismissed,
-    hintCreateOrgDismissed,
-    hintOrgPolishDismissed,
-    hintOrgFirstTermDismissed,
-    organizationSlug,
-    terms,
-    myGroups,
-    items,
-    itemCounts,
-    setView,
-    setModal,
-    setFirstTermForOrganizer,
-    dismissCreateGroupHint,
-    dismissCreateOrgHint,
-    dismissOrgFirstTermHint,
-    dismissOrgPolishHint,
-  } = useAppData();
+  const { profile, organizationSlug, terms, myGroups, items, itemModes, setView, setModal } = useAppData();
+  const { username } = useAuth();
+  // Dismissed flags are per account (`hintKey`): a browser shared by several
+  // accounts never hides a new account's hints because another dismissed them.
+  //  - "Załóż grupę": no led group yet
+  //  - "Stwórz wizytówkę": groups but no Organization
+  //  - "Dopracuj stronę organizacji": groups and an Organization
+  //  - "Dodaj swój pierwszy termin": groups but no term
+  const [hintCreateGroupDismissed, dismissCreateGroupHint] = useDismissibleHint(
+    hintKey("hint_create_group_dismissed", username),
+  );
+  const [hintCreateOrgDismissed, dismissCreateOrgHint] = useDismissibleHint(
+    hintKey("hint_create_org_dismissed", username),
+  );
+  const [hintOrgFirstTermDismissed, dismissOrgFirstTermHint] = useDismissibleHint(
+    hintKey("hint_org_first_term_dismissed", username),
+  );
+  const [hintOrgPolishDismissed, dismissOrgPolishHint] = useDismissibleHint(
+    hintKey("hint_org_polish_dismissed", username),
+  );
+  const itemCounts = {
+    oddam: items.filter((i) => itemModes[i.id] === "oddam").length,
+    zamienię: items.filter((i) => itemModes[i.id] === "zamienię").length,
+  };
 
   if (!profile) return null;
 
@@ -101,7 +123,7 @@ export function HomeView() {
             title="Załóż grupę"
             description="Zbierz znajomych lub rodziny i ustal pierwsze spotkanie — bez zakładania organizacji."
             ctaLabel="Zacznijmy →"
-            onCtaClick={() => setModal("zaloz-grupe")}
+            ctaTo={viewPath("groups/new")}
             onDismiss={dismissCreateGroupHint}
           />
         )}
@@ -135,7 +157,6 @@ export function HomeView() {
             description="Ustal pierwsze spotkanie w swojej grupie."
             ctaLabel="Dodaj termin →"
             onCtaClick={() => {
-              setFirstTermForOrganizer(true);
               setModal("pierwszy-termin");
             }}
             onDismiss={dismissOrgFirstTermHint}

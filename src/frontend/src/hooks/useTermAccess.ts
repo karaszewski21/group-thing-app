@@ -4,6 +4,8 @@ import { getGroupAccess, redeemJoinCode, type GroupAccessResponse } from "../api
 import { serverMessageOr } from "../api/problem";
 import { useAuth } from "../auth/AuthContext";
 
+export const GROUP_ACCESS_KEY = "groupAccess";
+
 export type TermAccessState =
   | { status: "loading" }
   | { status: "error"; message: string }
@@ -45,7 +47,7 @@ export function useTermAccess(groupId: string, termId: string): UseTermAccessRes
   const { token } = useAuth();
   const queryClient = useQueryClient();
   const query = useQuery({
-    queryKey: ["groupAccess", groupId, termId ?? null],
+    queryKey: [GROUP_ACCESS_KEY, groupId, termId ?? null],
     queryFn: async () => ({ data: await getGroupAccess(groupId, termId), forToken: token }),
   });
   const { refetch: queryRefetch } = query;
@@ -61,7 +63,7 @@ export function useTermAccess(groupId: string, termId: string): UseTermAccessRes
       } catch (err) {
         throw new Error(serverMessageOr(err, "Nie udało się dołączyć — spróbuj ponownie"), { cause: err });
       }
-      await queryClient.invalidateQueries({ queryKey: ["groupAccess", groupId] });
+      await queryClient.invalidateQueries({ queryKey: [GROUP_ACCESS_KEY, groupId] });
     },
     [groupId, queryClient],
   );
