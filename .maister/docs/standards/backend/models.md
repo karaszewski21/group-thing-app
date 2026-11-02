@@ -165,6 +165,13 @@ if (
 
 ---
 
+### Listing Visibility Is Safe by Default
+Listing-preference read selects default to PUBLIC only (`include_private=False`); including PRIVATE listings is an explicit opt-in by the caller. For a private circle pass `private_circle_id=` instead of a blanket `include_private`: a PRIVATE item is included only when its **owner** is a standing member or the current organizer of that circle — an RSVP alone never counts. The same rule applies in listings, browse, `/actions` contexts, take/propose and `exchange_summary`. Every item read/write path calls `app/groups/application/item_visibility.py` (`can_view_item` / `require_item_visible`) first, so a hidden item returns 404 before any 403/409. Reference: `app/groups/infrastructure/repository.py::_visible_preferences` / `_owner_in_circle`.
+```python
+_visible_preferences(include_private=False)                # PUBLIC only (default)
+_visible_preferences(False, private_circle_id=circle.id)   # + PRIVATE of circle members/organizer
+```
+
 ### Entity Identity
 
 Use a business key (natural ID) for `__eq__`/`__hash__` when a mapped class has one — never the surrogate `id`, which is `None` until first flush and therefore useless for identity comparison before that point.
@@ -224,4 +231,6 @@ The PK guidance was later updated for the move from per-table `Sequence` ids to 
 
 The category-tree and listing-status section was added with the Vinted categories task.
 
-*Last Updated*: 2026-10-28
+The listing-visibility section was added with the product-page reservations task (`0076_item_listing_visibility.py`).
+
+*Last Updated*: 2026-11-02

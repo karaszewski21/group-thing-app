@@ -65,3 +65,6 @@ When an action is blocked only by missing input and has an explanatory hint, use
 
 ### Editable Trees
 Admin/editable trees use nested lists with disclosure buttons (`aria-expanded`, decorative ▸/▾ in an `aria-hidden="true"` span) instead of `role="tree"` when a roving-tabindex keyboard model is not needed. Reference: `pages/admin/CategoryListPage.tsx`.
+
+### Confirmation Dialogs Use ConfirmDeleteDialog
+In Tailwind pages, destructive or irreversible confirmations use `components/shared/ConfirmDeleteDialog` — Polish labels ("Anuluj"), `tone` (`"danger"` default, `"primary"` for non-delete irreversible actions), focus trap, focus returned to the opener, registration as an open sheet so `PendingActionsHost` waits, and an inline `role="alert"` error that keeps the dialog open when `onConfirm` throws. Don't use the Chakra `components/shared/ConfirmDialog` there (English "Cancel"). Example: `pages/product/PartyReservationActions.tsx` (cancel/reject).
