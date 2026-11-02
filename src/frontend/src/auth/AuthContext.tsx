@@ -1,6 +1,8 @@
-import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
+import { createContext, useCallback, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import { getMyProfile } from "../api/people";
+import { useRouterRefresh } from "../routing/navigation";
+import { clearSession, decodeJwtPayload, reconcileSession, setSession } from "./session";
 
 export interface RegisterPayload {
   role: "GUEST" | "ORGANIZER";
@@ -26,55 +28,32 @@ interface AuthContextValue {
   registeredRole: RegisterResult | null;
   login: (email: string, password: string) => Promise<void>;
   register: (payload: RegisterPayload) => Promise<RegisterResult>;
-  /** Stores `jwt` under `"auth_token"`, decodes its claims, and updates
+  /** Stores `jwt` as the session (`auth/session.ts`), decodes its claims, and updates
    * context state — identical body to the internal `applyToken`, just
    * exposed publicly for a non-login/register auth event (spec.md §4's
    * account-merge flow: the visitor is authenticated by a merge response,
    * not a `/api/auth/login` or `/api/auth/register` call). */
   applyExternalToken: (jwt: string) => void;
   logout: () => void;
+  /** Clears an expired session without leaving the page (`AuthGuard`). */
+  expireSession: () => void;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 
-function decodeJwtPayload(token: string): { sub?: string; permissions?: string[]; exp?: number } {
-  try {
-    const base64Url = token.split(".")[1];
-    if (!base64Url) return {};
-    const base64 = base64Url.replace(/-/g, "+").replace(/_/g, "/");
-    const json = atob(base64);
-    return JSON.parse(json);
-  } catch {
-    return {};
-  }
-}
-
-function isTokenExpired(token: string): boolean {
+function claimsOf(token: string | null): { username: string | null; permissions: string[] } {
+  if (!token) return { username: null, permissions: [] };
   const payload = decodeJwtPayload(token);
-  if (!payload.exp) return true;
-  return payload.exp * 1000 < Date.now();
+  return { username: payload.sub ?? null, permissions: payload.permissions ?? [] };
 }
 
-function loadStoredAuth(): { token: string | null; username: string | null; permissions: string[] } {
-  const stored = localStorage.getItem("auth_token");
-  if (stored && !isTokenExpired(stored)) {
-    const payload = decodeJwtPayload(stored);
-    return { token: stored, username: payload.sub ?? null, permissions: payload.permissions ?? [] };
-  }
-  if (stored) {
-    localStorage.removeItem("auth_token");
-  }
-  return { token: null, username: null, permissions: [] };
-}
-
-const NO_AUTH: ReturnType<typeof loadStoredAuth> = { token: null, username: null, permissions: [] };
-
-export function AuthProvider({ children }: { children: ReactNode }) {
-  // Read on first render, not at import: there is no localStorage while server rendering.
-  const [initialAuth] = useState(() => (typeof window === "undefined" ? NO_AUTH : loadStoredAuth()));
-  const [token, setToken] = useState<string | null>(initialAuth.token);
-  const [username, setUsername] = useState<string | null>(initialAuth.username);
-  const [permissions, setPermissions] = useState<string[]>(initialAuth.permissions);
+/** `initialToken` seeds the first render (the server cookie under Next, the
+ * localStorage token under Vite); a mount effect then reconciles it with the
+ * browser's stored session. */
+export function AuthProvider({ children, initialToken }: { children: ReactNode; initialToken: string | null }) {
+  const [token, setToken] = useState<string | null>(initialToken);
+  const [username, setUsername] = useState<string | null>(() => claimsOf(initialToken).username);
+  const [permissions, setPermissions] = useState<string[]>(() => claimsOf(initialToken).permissions);
   const [displayName, setDisplayName] = useState<string | null>(null);
   const [registeredRole, setRegisteredRole] = useState<RegisterResult | null>(null);
 
@@ -87,26 +66,44 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
+  const showToken = useCallback((jwt: string | null) => {
+    const claims = claimsOf(jwt);
+    setToken(jwt);
+    setUsername(claims.username);
+    setPermissions(claims.permissions);
+  }, []);
+
+  const resetAuth = useCallback(() => {
+    clearSession();
+    showToken(null);
+    setDisplayName(null);
+    setRegisteredRole(null);
+  }, [showToken]);
+
   const applyToken = useCallback(
     (jwt: string) => {
-      localStorage.setItem("auth_token", jwt);
-      const payload = decodeJwtPayload(jwt);
-      setToken(jwt);
-      setUsername(payload.sub ?? null);
-      setPermissions(payload.permissions ?? []);
+      setSession(jwt);
+      showToken(jwt);
       void refreshDisplayName();
     },
-    [refreshDisplayName],
+    [showToken, refreshDisplayName],
   );
 
-  // Populate displayName on initial load when a valid token was already
-  // stored (applyToken only runs on fresh login/register).
-  useEffect(() => {
-    if (initialAuth.token) {
-      void refreshDisplayName();
-    }
+  // Layout effect: runs before any child's data fetch reads the stored token.
+  useLayoutEffect(() => {
+    const reconciled = reconcileSession();
+    if (reconciled !== initialToken) showToken(reconciled);
+    if (reconciled) void refreshDisplayName();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  const refreshRouter = useRouterRefresh();
+  const previousToken = useRef(token);
+  useEffect(() => {
+    if (previousToken.current === token) return;
+    previousToken.current = token;
+    refreshRouter();
+  }, [token, refreshRouter]);
 
   const login = useCallback(
     async (email: string, password: string) => {
@@ -154,14 +151,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   );
 
   const logout = useCallback(() => {
-    localStorage.removeItem("auth_token");
-    setToken(null);
-    setUsername(null);
-    setPermissions([]);
-    setDisplayName(null);
-    setRegisteredRole(null);
+    resetAuth();
     window.location.href = "/login";
-  }, []);
+  }, [resetAuth]);
 
   const value = useMemo<AuthContextValue>(
     () => ({
@@ -174,8 +166,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       register,
       applyExternalToken: applyToken,
       logout,
+      expireSession: resetAuth,
     }),
-    [token, username, displayName, permissions, registeredRole, login, register, applyToken, logout],
+    [token, username, displayName, permissions, registeredRole, login, register, applyToken, logout, resetAuth],
   );
 
   return <AuthContext value={value}>{children}</AuthContext>;

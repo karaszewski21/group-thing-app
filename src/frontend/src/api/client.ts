@@ -1,3 +1,5 @@
+import { clearSession, readStoredToken } from "../auth/session";
+
 export class ApiError extends Error {
   status: number;
   statusText: string;
@@ -18,7 +20,7 @@ export interface RequestOpts {
 
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
   const url = `/api${path}`;
-  const token = localStorage.getItem("auth_token");
+  const token = readStoredToken();
   // FormData bodies set their own multipart Content-Type (with the boundary).
   const headers: Record<string, string> = {
     ...(options?.body instanceof FormData ? {} : { "Content-Type": "application/json" }),
@@ -36,7 +38,7 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
   if (!response.ok) {
     if (response.status === 401) {
       if (typeof window !== "undefined") {
-        localStorage.removeItem("auth_token");
+        clearSession();
         if (window.location.pathname !== "/login") {
           const returnTo = window.location.pathname + window.location.search;
           window.location.href = `/login?returnTo=${encodeURIComponent(returnTo)}`;

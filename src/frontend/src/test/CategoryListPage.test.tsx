@@ -71,6 +71,7 @@ function mockAuth(permissions: string[]) {
     register: vi.fn(),
     applyExternalToken: vi.fn(),
     logout: vi.fn(),
+    expireSession: vi.fn(),
   });
 }
 

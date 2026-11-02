@@ -302,7 +302,7 @@ describe("AuthContext", () => {
 
     render(
       <ChakraProvider value={system}>
-        <RealAuthProvider>
+        <RealAuthProvider initialToken={mockToken}>
           <TestConsumer />
         </RealAuthProvider>
       </ChakraProvider>, { wrapper: createQueryWrapper() },

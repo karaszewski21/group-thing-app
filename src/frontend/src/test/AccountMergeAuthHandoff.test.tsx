@@ -25,7 +25,7 @@ vi.mock("../api/people", () => ({
 
 function renderForm() {
   return renderWithRoute(
-    <AuthProvider>
+    <AuthProvider initialToken={null}>
       <AccountMergeForm userProfileId="55" />
     </AuthProvider>,
     { url: "/" },

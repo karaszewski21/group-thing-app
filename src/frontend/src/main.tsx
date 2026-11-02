@@ -7,6 +7,7 @@ import { NavigationTracker } from "./routing/NavigationTracker";
 import { router } from "./router";
 import { system } from "./theme/system";
 import { AuthProvider } from "./auth/AuthContext";
+import { readStoredToken } from "./auth/session";
 import { getQueryClient } from "./api/queryClient";
 import "./index.css";
 
@@ -14,7 +15,7 @@ createRoot(document.getElementById("root")!).render(
   <StrictMode>
     <QueryClientProvider client={getQueryClient()}>
       <ChakraProvider value={system}>
-        <AuthProvider>
+        <AuthProvider initialToken={readStoredToken()}>
           <NavigationTracker />
           <RouterProvider router={router} />
         </AuthProvider>

@@ -82,7 +82,7 @@ function renderOnServer(
   return renderToString(
     <QueryClientProvider client={client}>
       <ChakraProvider value={system}>
-        <AuthProvider>
+        <AuthProvider initialToken={null}>
           {routeElement(page, { url, pattern })}
         </AuthProvider>
       </ChakraProvider>

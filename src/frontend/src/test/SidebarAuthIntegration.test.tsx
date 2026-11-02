@@ -56,7 +56,7 @@ async function renderSidebarWithRealAuth() {
   const { Sidebar } = await import("../components/layout/Sidebar");
   return renderWithRoute(
     <ChakraProvider value={system}>
-      <AuthProvider>
+      <AuthProvider initialToken={localStorage.getItem("auth_token")}>
         <Sidebar />
       </AuthProvider>
     </ChakraProvider>,

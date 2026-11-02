@@ -2,7 +2,9 @@ import { Navigate, useAppPathname, useAppSearch, useAppSearchParams } from "../r
 import { useAuth } from "./AuthContext";
 import { authPath } from "./authPaths";
 import { homePath } from "./homePath";
+import { useEffect } from "react";
 import type { ReactNode } from "react";
+import { hasTokenExpired } from "./session";
 
 interface AuthGuardProps {
   children: ReactNode;
@@ -28,8 +30,14 @@ export function AuthGuard({
   authenticatedRedirect,
   forwardReturnTo = false,
 }: AuthGuardProps) {
-  const { token, permissions } = useAuth();
+  const { token: currentToken, permissions, expireSession } = useAuth();
   const pathname = useAppPathname();
+  // A token that expired while the tab was open counts as signed out.
+  const stale = currentToken !== null && hasTokenExpired(currentToken);
+  const token = stale ? null : currentToken;
+  useEffect(() => {
+    if (stale) expireSession();
+  }, [stale, expireSession]);
 
   const search = useAppSearch();
   const [searchParams] = useAppSearchParams();

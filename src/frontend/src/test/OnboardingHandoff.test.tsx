@@ -64,7 +64,7 @@ function renderApp(initialRoute = "/login?mode=register") {
     },
     wrapper: ({ children }) => (
       <QueryWrapper>
-        <AuthProvider>{children}</AuthProvider>
+        <AuthProvider initialToken={null}>{children}</AuthProvider>
       </QueryWrapper>
     ),
   });

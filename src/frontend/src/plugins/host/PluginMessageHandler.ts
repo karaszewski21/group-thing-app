@@ -1,4 +1,5 @@
 import { api } from "../../api/client";
+import { readStoredToken } from "../../auth/session";
 import type { iframeRegistry as IframeRegistryType } from "./iframeRegistry";
 
 interface PluginMessage {
@@ -76,7 +77,7 @@ async function toPluginFetchResult(response: Response): Promise<PluginFetchResul
 }
 
 function pluginAuthHeaders(): Record<string, string> {
-  const token = localStorage.getItem("auth_token");
+  const token = readStoredToken();
   return {
     "X-Requested-With": "PluginFetch",
     ...(token ? { Authorization: `Bearer ${token}` } : {}),
@@ -250,7 +251,7 @@ export function createMessageHandler(
 
     // Return the current user's JWT token to the plugin
     if (type === "getToken") {
-      const token = localStorage.getItem("auth_token");
+      const token = readStoredToken();
       if (event.source) {
         sendResponse(event.source, event.origin, {
           responseId: requestId,

@@ -33,6 +33,7 @@ function mockViewer(username: string | null) {
     register: vi.fn(),
     applyExternalToken: vi.fn(),
     logout: vi.fn(),
+    expireSession: vi.fn(),
   });
 }
 
