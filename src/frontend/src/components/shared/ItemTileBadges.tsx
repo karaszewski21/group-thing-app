@@ -1,6 +1,6 @@
 import { Fragment } from "react";
 import type { ExchangeMode, ReservedByResponse } from "../../api/groups";
-import { EXCHANGE_MODE_TONE, INTENT_LABELS } from "../../pages/term/components/termLabels";
+import { EXCHANGE_MODE_TONE, INTENT_LABELS } from "../../features/terms/components/termLabels";
 
 const PILL_SIZE = {
   sm: "px-2 py-0.5 text-[11px]",

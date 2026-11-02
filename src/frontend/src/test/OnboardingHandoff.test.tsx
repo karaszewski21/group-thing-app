@@ -2,8 +2,8 @@ import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import { MemoryRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "../auth/AuthContext";
-import { LoginPage } from "../pages/auth/LoginPage";
-import { OnboardingPage } from "../pages/auth/OnboardingPage";
+import { LoginPage } from "../features/auth/LoginPage";
+import { OnboardingPage } from "../features/auth/OnboardingPage";
 import { createQueryWrapper } from "./queryClient";
 
 // Group 8 gap fill (implementation-plan.md 8.2(a)): Groups 1-7 each tested

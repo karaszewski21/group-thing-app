@@ -1,7 +1,7 @@
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { Link, MemoryRouter, Navigate, Route, Routes } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { ItemDetailPage } from "../pages/product/ItemDetailPage";
+import { ItemDetailPage } from "../features/items/product/ItemDetailPage";
 import * as itemsApi from "../api/items";
 import * as inventoriesApi from "../api/inventories";
 import * as productsApi from "../api/products";

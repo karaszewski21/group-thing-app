@@ -2,11 +2,11 @@ import { act, fireEvent, render, screen, waitFor, within } from "@testing-librar
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { ChakraProvider } from "@chakra-ui/react";
-import { system } from "../theme";
+import { system } from "../theme/system";
 import type { Category } from "../api/categories";
 import * as categoriesApi from "../api/categories";
 import { ApiError } from "../api/client";
-import { CategoryFormPage } from "../pages/admin/CategoryFormPage";
+import { CategoryFormPage } from "../features/admin/CategoryFormPage";
 import { createQueryWrapper } from "./queryClient";
 
 vi.mock("../api/categories", () => ({

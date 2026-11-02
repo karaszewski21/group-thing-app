@@ -2,11 +2,11 @@ import { fireEvent, render, screen, waitFor, within } from "@testing-library/rea
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { MemoryRouter } from "react-router-dom";
 import { ChakraProvider } from "@chakra-ui/react";
-import { system } from "../theme";
+import { system } from "../theme/system";
 import type { Category } from "../api/categories";
 import * as categoriesApi from "../api/categories";
 import { ApiError } from "../api/client";
-import { CategoryListPage } from "../pages/admin/CategoryListPage";
+import { CategoryListPage } from "../features/admin/CategoryListPage";
 
 vi.mock("../auth/AuthContext", async (importOriginal) => {
   const actual = await importOriginal<typeof import("../auth/AuthContext")>();

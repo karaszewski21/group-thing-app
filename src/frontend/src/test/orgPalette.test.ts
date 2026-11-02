@@ -8,7 +8,7 @@ import {
   resolveOrgTheme,
   THEME_ROLES,
 } from "../theme/orgPalette";
-import { findPreset } from "../theme/palettePresets";
+import { findPreset } from "../theme/palettes";
 import { contrastFailures, INK } from "./themeContrast";
 
 function hslToHex(hue: number, saturation: number, lightness: number): string {

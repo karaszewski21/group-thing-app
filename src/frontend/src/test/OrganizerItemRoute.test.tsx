@@ -7,8 +7,8 @@ import type { ItemActionsResponse } from "../api/itemActions";
 import * as organizationsApi from "../api/organizations";
 import { ApiError } from "../api/client";
 import type { ItemDetailsResponse } from "../api/items";
-import { ItemDetailBody } from "../pages/product/ItemDetailPage";
-import { OrganizerItemLayout } from "../pages/product/OrganizerItemLayout";
+import { ItemDetailBody } from "../features/items/product/ItemDetailPage";
+import { OrganizerItemLayout } from "../features/items/product/OrganizerItemLayout";
 import { createQueryWrapper } from "./queryClient";
 
 const mockAuth: { token: string | null } = { token: "valid.jwt.token" };

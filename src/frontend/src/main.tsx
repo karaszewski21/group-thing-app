@@ -4,7 +4,7 @@ import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { RouterProvider } from "react-router-dom";
 import { router } from "./router";
-import { system } from "./theme";
+import { system } from "./theme/system";
 import { AuthProvider } from "./auth/AuthContext";
 import { queryClient } from "./api/queryClient";
 import "./index.css";

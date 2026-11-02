@@ -3,9 +3,9 @@ import { describe, expect, it, vi, beforeEach } from "vitest";
 import { createMemoryRouter, RouterProvider, useLocation } from "react-router-dom";
 import * as groupsApi from "../api/groups";
 import * as organizationsApi from "../api/organizations";
-import { PublicOrganizationPage } from "../pages/organizer/PublicOrganizationPage";
+import { PublicOrganizationPage } from "../features/owner-page/PublicOrganizationPage";
 import { buildOrgThemeVars } from "../theme/orgPalette";
-import { findPreset } from "../theme/palettePresets";
+import { findPreset } from "../theme/palettes";
 import { createQueryWrapper } from "./queryClient";
 
 let mockAuth: { token: string | null };

@@ -1,6 +1,6 @@
 import { useLocation, useNavigate } from "react-router-dom";
 import { useUnreadMessages } from "../../hooks/useUnreadMessages";
-import { INBOX_PATH } from "../../utils/messagesPaths";
+import { INBOX_PATH } from "../../routing/messagesPaths";
 import { BoxIcon, ChatIcon, HomeIcon, PlusIcon, UserIcon } from "../shared/appIcons";
 import { ACCOUNT_SUBVIEWS, viewFromPath, viewPath } from "../../utils/appHelpers";
 

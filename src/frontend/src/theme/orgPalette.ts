@@ -1,5 +1,5 @@
 import type { OrganizerTheme } from "../api/groups";
-import { findPreset } from "./palettePresets";
+import { findPreset } from "./palettes";
 
 /** The 13 themable color roles, in index.css token order. */
 export const THEME_ROLES = [

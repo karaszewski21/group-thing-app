@@ -4,7 +4,7 @@ import { ApiError } from "../api/client";
 import * as organizationsApi from "../api/organizations";
 import type { MyOrganizationResponse, OwnerMedia } from "../api/organizations";
 import { MY_ORGANIZATION_KEY } from "../hooks/useMyOrganization";
-import { PhotosTab } from "../pages/organizer/editor/PhotosTab";
+import { PhotosTab } from "../features/owner-page/editor/PhotosTab";
 import { createTestQueryClient, withQueryClient } from "./queryClient";
 
 vi.mock("../auth/AuthContext", () => ({ useAuth: () => ({ token: "token-a" }) }));

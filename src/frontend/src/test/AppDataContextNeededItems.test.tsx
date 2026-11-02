@@ -10,8 +10,8 @@ import * as organizationsApi from "../api/organizations";
 import * as peopleApi from "../api/people";
 import * as pledgesApi from "../api/pledges";
 import * as termsApi from "../api/terms";
-import { AppDataProvider } from "../app/AppDataContext";
-import { useAppData } from "../app/appDataStore";
+import { AppDataProvider } from "../features/panel/AppDataContext";
+import { useAppData } from "../features/panel/appDataStore";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { createTestQueryClient } from "./queryClient";
 

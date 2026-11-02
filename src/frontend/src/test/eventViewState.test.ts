@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { EventDetailResponse } from "../api/events";
-import { resolveEventView, type EventViewState } from "../pages/events/eventViewState";
+import { resolveEventView, type EventViewState } from "../features/events/eventViewState";
 
 function event(overrides: Partial<EventDetailResponse> = {}): EventDetailResponse {
   return {

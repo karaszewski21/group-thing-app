@@ -1,7 +1,7 @@
 import { render, screen, fireEvent } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { ChakraProvider } from "@chakra-ui/react";
-import { system } from "../theme";
+import { system } from "../theme/system";
 import { ConfirmDialog } from "../components/shared/ConfirmDialog";
 
 function renderDialog(props: Partial<React.ComponentProps<typeof ConfirmDialog>> = {}) {

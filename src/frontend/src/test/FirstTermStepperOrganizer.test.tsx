@@ -5,7 +5,7 @@ import * as locationsApi from "../api/locations";
 import type { LocationRefResponse, LocationResponse } from "../api/locations";
 import * as termsApi from "../api/terms";
 import { ApiError } from "../api/client";
-import { FirstTermStepperOrganizer } from "../components/panel/FirstTermStepperOrganizer";
+import { FirstTermStepperOrganizer } from "../features/terms/FirstTermStepperOrganizer";
 import { createQueryWrapper } from "./queryClient";
 
 vi.mock("../api/terms", () => ({ createTerm: vi.fn() }));

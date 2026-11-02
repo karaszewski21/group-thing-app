@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { NotificationResponse } from "../api/notifications";
-import { derivePendingActions } from "../components/pending/pendingActions";
+import { derivePendingActions } from "../components/layout/pending/pendingActions";
 
 const EVENT_ID = "22222222-2222-2222-2222-222222222222";
 

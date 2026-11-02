@@ -2,7 +2,7 @@ import { render, screen, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { ChakraProvider } from "@chakra-ui/react";
-import { system } from "../theme";
+import { system } from "../theme/system";
 import type { PluginResponse } from "../api/plugins";
 import type { ProductResponse } from "../api/products";
 import { MENU_MAIN, PRODUCT_DETAIL_TABS, PRODUCT_LIST_FILTERS } from "../plugins/extensionPoints";
@@ -122,7 +122,7 @@ beforeEach(() => {
 
 describe("Sidebar with plugin menu items", () => {
   it("renders hardcoded items then plugin menu items", async () => {
-    const { PluginProvider } = await import("../plugins/PluginContext");
+    const { PluginProvider } = await import("../plugins/host/PluginHost");
     const { Sidebar } = await import("../components/layout/Sidebar");
 
     renderWithProviders(
@@ -147,8 +147,8 @@ describe("Sidebar with plugin menu items", () => {
 
 describe("ProductDetailPage", () => {
   it("renders product info in Details tab and plugin tabs", async () => {
-    const { PluginProvider } = await import("../plugins/PluginContext");
-    const { ProductDetailPage } = await import("../pages/admin/ProductDetailPage");
+    const { PluginProvider } = await import("../plugins/host/PluginHost");
+    const { ProductDetailPage } = await import("../features/admin/ProductDetailPage");
 
     render(
       <ChakraProvider value={system}>
@@ -179,8 +179,8 @@ describe("ProductDetailPage", () => {
 
 describe("ProductListPage with plugin filters", () => {
   it("renders plugin filter iframes in filter bar", async () => {
-    const { PluginProvider } = await import("../plugins/PluginContext");
-    const { ProductListPage } = await import("../pages/admin/ProductListPage");
+    const { PluginProvider } = await import("../plugins/host/PluginHost");
+    const { ProductListPage } = await import("../features/admin/ProductListPage");
 
     renderWithProviders(
       <PluginProvider>
@@ -204,8 +204,8 @@ describe("ProductListPage with plugin filters", () => {
 
 describe("Plugin page route", () => {
   it("renders full-page PluginFrame for /plugins/:pluginId/*", async () => {
-    const { PluginProvider } = await import("../plugins/PluginContext");
-    const { PluginPageRoute } = await import("../pages/admin/PluginPageRoute");
+    const { PluginProvider } = await import("../plugins/host/PluginHost");
+    const { PluginPageRoute } = await import("../features/admin/PluginPageRoute");
 
     render(
       <ChakraProvider value={system}>
@@ -234,8 +234,8 @@ describe("ProductDetailPage with no plugins", () => {
   it("renders only Details tab when no plugins are loaded", async () => {
     vi.mocked(pluginsApi.getPlugins).mockResolvedValue([]);
 
-    const { PluginProvider } = await import("../plugins/PluginContext");
-    const { ProductDetailPage } = await import("../pages/admin/ProductDetailPage");
+    const { PluginProvider } = await import("../plugins/host/PluginHost");
+    const { ProductDetailPage } = await import("../features/admin/ProductDetailPage");
 
     render(
       <ChakraProvider value={system}>
@@ -265,8 +265,8 @@ describe("ProductDetailPage with no plugins", () => {
 
 describe("PluginListPage", () => {
   it("renders table of plugins with name, version, URL, enabled columns", async () => {
-    const { PluginProvider } = await import("../plugins/PluginContext");
-    const { PluginListPage } = await import("../pages/admin/PluginListPage");
+    const { PluginProvider } = await import("../plugins/host/PluginHost");
+    const { PluginListPage } = await import("../features/admin/PluginListPage");
 
     renderWithProviders(
       <PluginProvider>

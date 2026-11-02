@@ -1,8 +1,8 @@
 import { Link } from "react-router-dom";
 import type { ReservedByResponse } from "../../api/groups";
 import type { ListingMode } from "../../api/itemListingPreferences";
-import { SafeImage } from "../../pages/product/ItemGallery";
-import { organizerItemPath } from "../../pages/product/useItemRoutes";
+import { SafeImage } from "../../features/items/product/ItemGallery";
+import { organizerItemPath } from "../../features/items/product/useItemRoutes";
 import dayjs from "../../utils/dayjs";
 import { PhotoPlaceholder } from "./Icons";
 import { ItemTileBadges } from "./ItemTileBadges";

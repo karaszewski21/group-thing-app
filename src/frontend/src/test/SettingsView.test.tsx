@@ -1,12 +1,12 @@
 import { fireEvent, render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { SettingsView } from "../pages/account/SettingsView";
-import * as appDataStore from "../app/appDataStore";
-import type { AppDataContextValue } from "../app/AppDataContext";
+import { SettingsView } from "../features/account/SettingsView";
+import * as appDataStore from "../features/panel/appDataStore";
+import type { AppDataContextValue } from "../features/panel/AppDataContext";
 
-vi.mock("../app/appDataStore", async () => {
-  const actual = await vi.importActual<typeof import("../app/appDataStore")>(
-    "../app/appDataStore",
+vi.mock("../features/panel/appDataStore", async () => {
+  const actual = await vi.importActual<typeof import("../features/panel/appDataStore")>(
+    "../features/panel/appDataStore",
   );
   return { ...actual, useAppData: vi.fn() };
 });

@@ -2,10 +2,10 @@ import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import { MemoryRouter } from "react-router-dom";
 import { ChakraProvider } from "@chakra-ui/react";
-import { system } from "../theme";
+import { system } from "../theme/system";
 import type { ProductResponse } from "../api/products";
 import * as productsApi from "../api/products";
-import { PluginProvider } from "../plugins/PluginContext";
+import { PluginProvider } from "../plugins/host/PluginHost";
 import * as pluginsApi from "../api/plugins";
 import * as categoriesApi from "../api/categories";
 import { pageOf } from "./page";
@@ -98,7 +98,7 @@ beforeEach(() => {
 
 describe("ProductListPage", () => {
   it("renders name, description, category and created date with filter controls", async () => {
-    const { ProductListPage } = await import("../pages/admin/ProductListPage");
+    const { ProductListPage } = await import("../features/admin/ProductListPage");
     renderWithProviders(<ProductListPage />);
 
     expect(await screen.findByText("Wireless Headphones Pro")).toBeInTheDocument();
@@ -112,7 +112,7 @@ describe("ProductListPage", () => {
   });
 
   it("lists only leaf categories in the filter, labelled and sorted by full path", async () => {
-    const { ProductListPage } = await import("../pages/admin/ProductListPage");
+    const { ProductListPage } = await import("../features/admin/ProductListPage");
     renderWithProviders(<ProductListPage />);
     await screen.findByRole("option", { name: "Ubranie" });
 
@@ -125,7 +125,7 @@ describe("ProductListPage", () => {
   });
 
   it("filters products by the selected category", async () => {
-    const { ProductListPage } = await import("../pages/admin/ProductListPage");
+    const { ProductListPage } = await import("../features/admin/ProductListPage");
     renderWithProviders(<ProductListPage />);
     await screen.findByText("Wireless Headphones Pro");
     await screen.findByRole("option", { name: "Ubranie" });
@@ -145,7 +145,7 @@ describe("ProductListPage", () => {
 
 describe("ProductFormPage", () => {
   it("renders form fields for product creation", async () => {
-    const { ProductFormPage } = await import("../pages/admin/ProductFormPage");
+    const { ProductFormPage } = await import("../features/admin/ProductFormPage");
     renderWithProviders(<ProductFormPage />, "/admin/products/new");
 
     expect(await screen.findByLabelText(/product name/i)).toBeInTheDocument();

@@ -4,7 +4,7 @@ import { MemoryRouter } from "react-router-dom";
 import { ApiError } from "../api/client";
 import * as conversationsApi from "../api/conversations";
 import type { InboxRow } from "../api/conversations";
-import { InboxPage } from "../pages/messages/InboxPage";
+import { InboxPage } from "../features/messages/InboxPage";
 import { createQueryWrapper } from "./queryClient";
 
 vi.mock("../api/conversations", async (importOriginal) => ({

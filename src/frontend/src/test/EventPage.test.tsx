@@ -3,8 +3,8 @@ import { Link, matchRoutes, MemoryRouter, Route, Routes, useLocation, type Initi
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import * as eventsApi from "../api/events";
 import type { EventAttendanceResponse, EventDetailResponse, EventParticipant } from "../api/events";
-import { EventAuthorCard } from "../pages/events/components/EventAuthorCard";
-import { EventPage } from "../pages/events/EventPage";
+import { EventAuthorCard } from "../features/events/components/EventAuthorCard";
+import { EventPage } from "../features/events/EventPage";
 import { routes } from "../router";
 import { createQueryWrapper } from "./queryClient";
 

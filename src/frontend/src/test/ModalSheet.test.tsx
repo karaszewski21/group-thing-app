@@ -2,9 +2,9 @@ import { act, fireEvent, render, renderHook, screen } from "@testing-library/rea
 import { describe, expect, it, vi } from "vitest";
 import { useState } from "react";
 import { ModalSheet } from "../components/shared/ModalSheet";
-import { JoinByCodeSheet } from "../pages/term/modals/JoinByCodeSheet";
+import { JoinByCodeSheet } from "../features/terms/modals/JoinByCodeSheet";
 import { getOpenSheetCount, subscribeOpenSheets, useRegisterOpenSheet } from "../components/shared/openSheets";
-import { UnsavedChangesDialog } from "../pages/organizer/editor/UnsavedChangesDialog";
+import { UnsavedChangesDialog } from "../features/owner-page/editor/UnsavedChangesDialog";
 import { ModalSheet as AppModalSheet } from "../components/shared/appComponents";
 
 function Opener({ removeOpenerOnOpen = false }: { removeOpenerOnOpen?: boolean }) {

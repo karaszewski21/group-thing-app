@@ -2,7 +2,7 @@ import { fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { MemoryRouter } from "react-router-dom";
 import type { ItemStatusResponse } from "../api/items";
-import { ItemStatusCard } from "../pages/product/ItemStatusCard";
+import { ItemStatusCard } from "../features/items/product/ItemStatusCard";
 import * as calendar from "../utils/calendar";
 
 vi.mock("../utils/calendar", async (importOriginal) => {

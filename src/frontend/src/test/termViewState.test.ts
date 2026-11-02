@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { resolveTermView } from "../pages/term/termViewState";
+import { resolveTermView } from "../features/terms/termViewState";
 import type { GroupAccessDetails, PublicCircleResponse } from "../api/groups";
 import type { TermAccessState } from "../hooks/useTermAccess";
 

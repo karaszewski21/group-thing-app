@@ -11,7 +11,7 @@ describe("Plugin SDK Auth", () => {
       // Store a token in localStorage
       localStorage.setItem("auth_token", "test-jwt-token");
 
-      const { createMessageHandler } = await import("../plugins/PluginMessageHandler");
+      const { createMessageHandler } = await import("../plugins/host/PluginMessageHandler");
 
       const mockIframe = document.createElement("iframe");
       document.body.appendChild(mockIframe);

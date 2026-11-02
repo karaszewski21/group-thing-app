@@ -1,7 +1,7 @@
 import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { ApiError } from "../api/client";
-import { MessageComposer } from "../pages/messages/MessageComposer";
+import { MessageComposer } from "../features/messages/MessageComposer";
 
 function typeInto(text: string) {
   fireEvent.change(screen.getByLabelText("Wiadomość"), { target: { value: text } });

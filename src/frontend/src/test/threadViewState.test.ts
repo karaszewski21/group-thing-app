@@ -5,7 +5,7 @@ import {
   type ConversationState,
   type ThreadState,
   type ThreadViewState,
-} from "../pages/messages/threadViewState";
+} from "../features/messages/threadViewState";
 
 const conversation: ConversationResponse = {
   id: "c1",

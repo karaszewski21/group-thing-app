@@ -2,7 +2,7 @@ import { render, screen } from "@testing-library/react";
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import { MemoryRouter } from "react-router-dom";
 import { ChakraProvider } from "@chakra-ui/react";
-import { system } from "../theme";
+import { system } from "../theme/system";
 
 vi.mock("../auth/AuthContext", async (importOriginal) => {
   const actual = await importOriginal<typeof import("../auth/AuthContext")>();
@@ -12,8 +12,8 @@ vi.mock("../auth/AuthContext", async (importOriginal) => {
   };
 });
 
-vi.mock("../plugins/PluginContext", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("../plugins/PluginContext")>();
+vi.mock("../plugins/host/PluginHost", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../plugins/host/PluginHost")>();
   return {
     ...actual,
     usePluginContext: vi.fn(),
@@ -21,7 +21,7 @@ vi.mock("../plugins/PluginContext", async (importOriginal) => {
 });
 
 import { useAuth } from "../auth/AuthContext";
-import { usePluginContext } from "../plugins/PluginContext";
+import { usePluginContext } from "../plugins/host/PluginHost";
 import { Sidebar } from "../components/layout/Sidebar";
 
 function mockAuth(permissions: string[]) {

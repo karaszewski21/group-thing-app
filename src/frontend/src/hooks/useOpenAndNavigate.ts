@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { threadPath } from "../utils/messagesPaths";
+import { threadPath } from "../routing/messagesPaths";
 import { useOpenConversation, type ChatTarget } from "./useOpenConversation";
 
 interface UseOpenAndNavigateResult {

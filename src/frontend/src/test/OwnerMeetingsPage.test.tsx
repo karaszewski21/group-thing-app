@@ -6,7 +6,7 @@ import type { PublicOrganizationResponse } from "../api/organizations";
 import * as organizationsApi from "../api/organizations";
 import type { OwnerMeetingsResponse, OwnerNearestDate } from "../api/ownerItems";
 import * as ownerItemsApi from "../api/ownerItems";
-import { OwnerMeetingsPage } from "../pages/owner/OwnerMeetingsPage";
+import { OwnerMeetingsPage } from "../features/owner-page/OwnerMeetingsPage";
 import { createQueryWrapper } from "./queryClient";
 
 vi.mock("../api/organizations", () => ({

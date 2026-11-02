@@ -1,8 +1,8 @@
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
-import { LAYOUT_REGISTRY } from "../pages/organizer/layouts/registry";
-import { PALETTE_PRESETS } from "../theme/palettePresets";
+import { LAYOUT_REGISTRY } from "../features/owner-page/layouts/registry";
+import { PALETTE_PRESETS } from "../theme/palettes";
 
 const BACKEND_ORGANIZATIONS = resolve(process.cwd(), "../backend/app/organizations");
 

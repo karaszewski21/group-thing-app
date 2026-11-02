@@ -3,10 +3,10 @@ import type { ReactElement } from "react";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { EventParticipant, EventParticipantItem, EventResponse } from "../api/events";
-import { EventAttendeeList } from "../pages/events/components/EventAttendeeList";
-import { EventChatRow } from "../pages/events/components/EventChatRow";
-import { EventFooter } from "../pages/events/components/EventFooter";
-import { EventWhenCard } from "../pages/events/components/EventWhenCard";
+import { EventAttendeeList } from "../features/events/components/EventAttendeeList";
+import { EventChatRow } from "../features/events/components/EventChatRow";
+import { EventFooter } from "../features/events/components/EventFooter";
+import { EventWhenCard } from "../features/events/components/EventWhenCard";
 
 const EMPTY_COPY =
   "Nikt jeszcze się nie zapisał. Zapisz się jako pierwsza osoba i pokaż, co przyniesiesz do wymiany.";

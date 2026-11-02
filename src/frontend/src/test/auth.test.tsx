@@ -2,7 +2,7 @@ import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import { MemoryRouter } from "react-router-dom";
 import { ChakraProvider } from "@chakra-ui/react";
-import { system } from "../theme";
+import { system } from "../theme/system";
 import { createQueryWrapper } from "./queryClient";
 
 // Mock fetch globally
@@ -164,7 +164,7 @@ describe("LoginPage", () => {
       logout: vi.fn(),
     });
 
-    const { LoginPage } = await import("../pages/auth/LoginPage");
+    const { LoginPage } = await import("../features/auth/LoginPage");
     renderWithProviders(<LoginPage />);
 
     expect(screen.getByLabelText(/^email$/i)).toBeInTheDocument();
@@ -189,7 +189,7 @@ describe("LoginPage", () => {
       logout: vi.fn(),
     });
 
-    const { LoginPage } = await import("../pages/auth/LoginPage");
+    const { LoginPage } = await import("../features/auth/LoginPage");
     renderWithProviders(<LoginPage />, "/login?mode=register&returnTo=%2Faccount");
 
     const registerTab = screen.getByRole("tab", { name: "Załóż konto" });
@@ -217,7 +217,7 @@ describe("RegisterForm", () => {
       logout: vi.fn(),
     });
 
-    const { RegisterForm } = await import("../pages/auth/RegisterForm");
+    const { RegisterForm } = await import("../features/auth/RegisterForm");
     renderWithProviders(<RegisterForm />);
 
     fireEvent.change(screen.getByLabelText(/^email$/i), { target: { value: "new@example.com" } });
@@ -250,7 +250,7 @@ describe("RegisterForm", () => {
       logout: vi.fn(),
     });
 
-    const { RegisterForm } = await import("../pages/auth/RegisterForm");
+    const { RegisterForm } = await import("../features/auth/RegisterForm");
     renderWithProviders(<RegisterForm />);
 
     fireEvent.change(screen.getByLabelText(/^email$/i), { target: { value: "dup@example.com" } });
@@ -276,7 +276,7 @@ describe("RegisterForm", () => {
       logout: vi.fn(),
     });
 
-    const { RegisterForm } = await import("../pages/auth/RegisterForm");
+    const { RegisterForm } = await import("../features/auth/RegisterForm");
     renderWithProviders(<RegisterForm />);
 
     fireEvent.change(screen.getByLabelText(/^email$/i), { target: { value: "new@example.com" } });
@@ -343,8 +343,8 @@ describe("Permission-based UI visibility", () => {
       logout: vi.fn(),
     });
 
-    const { PluginProvider } = await import("../plugins/PluginContext");
-    const { ProductListPage } = await import("../pages/admin/ProductListPage");
+    const { PluginProvider } = await import("../plugins/host/PluginHost");
+    const { ProductListPage } = await import("../features/admin/ProductListPage");
 
     render(
       <ChakraProvider value={system}>

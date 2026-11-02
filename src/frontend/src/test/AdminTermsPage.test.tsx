@@ -3,8 +3,8 @@ import { render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { ModerationTermResponse } from "../api/terms";
 import * as termsApi from "../api/terms";
-import { AdminTermsPage } from "../pages/admin/AdminTermsPage";
-import { system } from "../theme";
+import { AdminTermsPage } from "../features/admin/AdminTermsPage";
+import { system } from "../theme/system";
 import { pageOf } from "./page";
 import { createQueryWrapper } from "./queryClient";
 

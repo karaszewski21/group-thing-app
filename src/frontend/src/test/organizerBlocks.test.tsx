@@ -6,11 +6,11 @@ import * as groupsApi from "../api/groups";
 import type { OrganizerCircle, OrganizerPageResponse, OrganizerTerm } from "../api/groups";
 import type { PublicOrganizationResponse } from "../api/organizations";
 import type { Page } from "../api/pagination";
-import { AgendaBlock } from "../pages/organizer/blocks/AgendaBlock";
-import { NextTermCtaBlock } from "../pages/organizer/blocks/NextTermCtaBlock";
-import { isStatsEmpty, StatsBlock } from "../pages/organizer/blocks/StatsBlock";
-import { UpcomingTermsBlock } from "../pages/organizer/blocks/UpcomingTermsBlock";
-import type { OrganizerPageData } from "../pages/organizer/layouts/types";
+import { AgendaBlock } from "../features/owner-page/blocks/AgendaBlock";
+import { NextTermCtaBlock } from "../features/owner-page/blocks/NextTermCtaBlock";
+import { isStatsEmpty, StatsBlock } from "../features/owner-page/blocks/StatsBlock";
+import { UpcomingTermsBlock } from "../features/owner-page/blocks/UpcomingTermsBlock";
+import type { OrganizerPageData } from "../features/owner-page/layouts/types";
 import { createQueryWrapper } from "./queryClient";
 
 vi.mock("../api/groups", () => ({

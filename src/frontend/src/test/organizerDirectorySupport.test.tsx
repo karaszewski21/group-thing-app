@@ -4,13 +4,13 @@ import { MemoryRouter } from "react-router-dom";
 import { describe, expect, it } from "vitest";
 import type { OrganizerCircle, OrganizerPageResponse, OrganizerTerm } from "../api/groups";
 import type { PublicOrganizationResponse } from "../api/organizations";
-import { BlockSkeleton } from "../pages/organizer/blocks/BlockSkeleton";
-import { EmptyStateBlock } from "../pages/organizer/blocks/EmptyStateBlock";
-import { GhostBlock } from "../pages/organizer/blocks/GhostBlock";
-import { nearestTerm } from "../pages/organizer/blocks/nearestTerm";
-import { LayoutRenderer } from "../pages/organizer/LayoutRenderer";
-import { isRecommended, LAYOUT_REGISTRY } from "../pages/organizer/layouts/registry";
-import type { OrganizerPageData, PageLayoutDefinition } from "../pages/organizer/layouts/types";
+import { BlockSkeleton } from "../features/owner-page/blocks/BlockSkeleton";
+import { EmptyStateBlock } from "../features/owner-page/blocks/EmptyStateBlock";
+import { GhostBlock } from "../features/owner-page/blocks/GhostBlock";
+import { nearestTerm } from "../features/owner-page/blocks/nearestTerm";
+import { LayoutRenderer } from "../features/owner-page/LayoutRenderer";
+import { isRecommended, LAYOUT_REGISTRY } from "../features/owner-page/layouts/registry";
+import type { OrganizerPageData, PageLayoutDefinition } from "../features/owner-page/layouts/types";
 
 const organization: PublicOrganizationResponse = {
   slug: "akademia-orlik",

@@ -1,7 +1,7 @@
 import { useId } from "react";
 import type { ItemCondition } from "../../api/inventories";
 import type { ItemQuickAddValue } from "../../utils/itemQuickAdd";
-import { PRODUCT_DESCRIPTION_MAX } from "../../pages/product/itemPageShared";
+import { PRODUCT_DESCRIPTION_MAX } from "../../features/items/product/itemPageShared";
 import { CONDITION_LABELS } from "../../utils/productCategory";
 import { CategoryTreePicker } from "./CategoryTreePicker";
 

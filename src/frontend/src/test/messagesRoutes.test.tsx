@@ -6,9 +6,9 @@ import { routes } from "../router";
 let mockToken: string | null = "tok";
 vi.mock("../auth/AuthContext", () => ({ useAuth: () => ({ token: mockToken, username: "ania", permissions: [] }) }));
 vi.mock("../components/layout/PublicLayout", () => ({ PublicLayout: () => <Outlet /> }));
-vi.mock("../pages/home/AppPage", () => ({ AppPage: () => <h1>Panel</h1> }));
-vi.mock("../pages/messages/InboxPage", () => ({ InboxPage: () => <h1>Skrzynka</h1> }));
-vi.mock("../pages/messages/ThreadPage", () => ({
+vi.mock("../features/panel/AppPage", () => ({ AppPage: () => <h1>Panel</h1> }));
+vi.mock("../features/messages/InboxPage", () => ({ InboxPage: () => <h1>Skrzynka</h1> }));
+vi.mock("../features/messages/ThreadPage", () => ({
   ThreadPage: function ThreadStub() {
     return <h1>Rozmowa {useParams().conversationId}</h1>;
   },

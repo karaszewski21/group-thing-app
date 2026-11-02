@@ -1,7 +1,7 @@
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 import { MemoryRouter } from "react-router-dom";
-import { LandingPage } from "../pages/home/LandingPage";
+import { LandingPage } from "../features/landing/LandingPage";
 
 describe("LandingPage", () => {
   it("offers sign-up and login and previews items and meetings", () => {

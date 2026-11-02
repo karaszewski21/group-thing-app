@@ -1,9 +1,9 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { MyItemsView } from "../pages/items/MyItemsView";
-import * as appDataStore from "../app/appDataStore";
-import type { AppDataContextValue } from "../app/AppDataContext";
+import { MyItemsView } from "../features/items/MyItemsView";
+import * as appDataStore from "../features/panel/appDataStore";
+import type { AppDataContextValue } from "../features/panel/AppDataContext";
 import type { InventoryBalanceResponse, MyInventoryItemResponse } from "../api/inventories";
 import type { ReservationDetailResponse } from "../api/reservations";
 import type { NotificationKind } from "../api/notifications";
@@ -22,11 +22,11 @@ vi.mock("../api/reservations", async () => {
 });
 
 // The location card has its own query-backed tests in `MyItemsView.test.tsx`.
-vi.mock("../pages/items/InventoryLocationCard", () => ({ InventoryLocationCard: () => null }));
+vi.mock("../features/items/InventoryLocationCard", () => ({ InventoryLocationCard: () => null }));
 
-vi.mock("../app/appDataStore", async () => {
-  const actual = await vi.importActual<typeof import("../app/appDataStore")>(
-    "../app/appDataStore",
+vi.mock("../features/panel/appDataStore", async () => {
+  const actual = await vi.importActual<typeof import("../features/panel/appDataStore")>(
+    "../features/panel/appDataStore",
   );
   return { ...actual, useAppData: vi.fn() };
 });

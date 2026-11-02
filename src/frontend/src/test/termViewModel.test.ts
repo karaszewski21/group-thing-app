@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { PublicCircleResponse, PublicItemListingResponse } from "../api/groups";
-import { buildAttendees, buildVisualizationFamilies } from "../pages/term/termViewModel";
+import { buildAttendees, buildVisualizationFamilies } from "../features/terms/termViewModel";
 
 function listing(itemId: string, listerPartyId: string, listerName: string): PublicItemListingResponse {
   return { item_id: itemId, lister_party_id: listerPartyId, lister_display_name: listerName } as PublicItemListingResponse;

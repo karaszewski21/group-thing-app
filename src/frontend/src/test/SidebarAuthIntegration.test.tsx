@@ -2,7 +2,7 @@ import { render, screen } from "@testing-library/react";
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import { MemoryRouter } from "react-router-dom";
 import { ChakraProvider } from "@chakra-ui/react";
-import { system } from "../theme";
+import { system } from "../theme/system";
 
 /**
  * Task Group 9 gap (9.2): `Sidebar.test.tsx` gates its ADMIN assertions
@@ -27,8 +27,8 @@ import { system } from "../theme";
  * the token, mirroring the dynamic-import-after-setup pattern already
  * used in `CategoryFormPage.test.tsx`.
  */
-vi.mock("../plugins/PluginContext", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("../plugins/PluginContext")>();
+vi.mock("../plugins/host/PluginHost", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../plugins/host/PluginHost")>();
   return {
     ...actual,
     usePluginContext: () => ({

@@ -6,7 +6,7 @@ import * as conversationsApi from "../api/conversations";
 import * as notificationsApi from "../api/notifications";
 import { PublicLayout } from "../components/layout/PublicLayout";
 import { createQueryWrapper } from "./queryClient";
-import { resetSnoozeStoreForTests } from "../components/pending/snoozeStore";
+import { resetSnoozeStoreForTests } from "../components/layout/pending/snoozeStore";
 
 vi.mock("../api/conversations", () => ({ getUnreadMessageCount: vi.fn(), chatErrorMessage: vi.fn() }));
 vi.mock("../api/notifications", () => ({

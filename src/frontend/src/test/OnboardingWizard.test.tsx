@@ -2,8 +2,8 @@ import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import { ApiError } from "../api/client";
 import * as organizationsApi from "../api/organizations";
-import { OnboardingWizard, type Step } from "../components/onboarding/OnboardingWizard";
-import { organizerSteps } from "../components/onboarding/steps/organizerSteps";
+import { OnboardingWizard, type Step } from "../features/auth/onboarding/OnboardingWizard";
+import { organizerSteps } from "../features/auth/onboarding/steps/organizerSteps";
 import { createQueryWrapper } from "./queryClient";
 
 vi.mock("../api/groups", () => ({

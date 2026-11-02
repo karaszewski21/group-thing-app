@@ -2,9 +2,9 @@ import { render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { MemoryRouter } from "react-router-dom";
 import { ChakraProvider } from "@chakra-ui/react";
-import { system } from "../theme";
+import { system } from "../theme/system";
 import { AppShell } from "../components/layout/AppShell";
-import { PluginProvider } from "../plugins/PluginContext";
+import { PluginProvider } from "../plugins/host/PluginHost";
 import { createQueryWrapper } from "./queryClient";
 
 vi.mock("../api/plugins", () => ({

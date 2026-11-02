@@ -2,7 +2,7 @@ import { StrictMode } from "react";
 import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { Link, MemoryRouter, Route, Routes, useLocation } from "react-router-dom";
-import { TermPage } from "../pages/term/TermPage";
+import { TermPage } from "../features/terms/TermPage";
 import * as groupsApi from "../api/groups";
 import * as familiesApi from "../api/families";
 import * as pledgesApi from "../api/pledges";

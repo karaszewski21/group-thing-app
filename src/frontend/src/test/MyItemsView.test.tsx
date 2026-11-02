@@ -1,9 +1,9 @@
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { MyItemsView } from "../pages/items/MyItemsView";
-import * as appDataStore from "../app/appDataStore";
-import type { AppDataContextValue } from "../app/AppDataContext";
+import { MyItemsView } from "../features/items/MyItemsView";
+import * as appDataStore from "../features/panel/appDataStore";
+import type { AppDataContextValue } from "../features/panel/AppDataContext";
 import * as authContext from "../auth/AuthContext";
 import * as inventoriesApi from "../api/inventories";
 import type { MyInventoryItemResponse } from "../api/inventories";
@@ -17,8 +17,8 @@ import { api } from "../api/client";
 import { setItemListingPreference } from "../api/itemListingPreferences";
 import { createQueryWrapper } from "./queryClient";
 
-vi.mock("../app/appDataStore", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("../app/appDataStore")>();
+vi.mock("../features/panel/appDataStore", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../features/panel/appDataStore")>();
   return { ...actual, useAppData: vi.fn() };
 });
 

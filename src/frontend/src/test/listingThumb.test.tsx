@@ -2,7 +2,7 @@ import { render, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 import { MemoryRouter } from "react-router-dom";
 import type { PublicItemListingResponse } from "../api/groups";
-import { AttendeeList } from "../pages/term/components/AttendeeList";
+import { AttendeeList } from "../features/terms/components/AttendeeList";
 
 function listing(thumbUrl: string | null): PublicItemListingResponse {
   return {

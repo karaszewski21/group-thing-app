@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { findPreset, PALETTE_PRESETS } from "../theme/palettePresets";
+import { findPreset, PALETTE_PRESETS } from "../theme/palettes";
 import { contrastFailures, contrastRatio, INK, INK_SOFT, PAPER } from "./themeContrast";
 
 describe("PALETTE_PRESETS", () => {

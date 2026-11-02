@@ -6,7 +6,7 @@ import { routes } from "../router";
 let mockToken: string | null = null;
 vi.mock("../auth/AuthContext", () => ({ useAuth: () => ({ token: mockToken, username: null, permissions: [] }) }));
 vi.mock("../components/layout/PublicLayout", () => ({ PublicLayout: () => <Outlet /> }));
-vi.mock("../pages/home/AppPage", () => ({ AppPage: () => <h1>Panel</h1> }));
+vi.mock("../features/panel/AppPage", () => ({ AppPage: () => <h1>Panel</h1> }));
 
 function renderAt(path: string) {
   const router = createMemoryRouter(routes, { initialEntries: [path] });

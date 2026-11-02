@@ -5,15 +5,15 @@ import type { LocationResponse } from "../api/locations";
 import * as googleMaps from "../lib/googleMaps";
 import type { PlacesApi, Suggestion } from "../lib/googleMaps";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
-import { PlaceCreateView } from "../pages/places/PlaceCreateView";
-import { PlaceEditView } from "../pages/places/PlaceEditView";
-import { PlacesView } from "../pages/places/PlacesView";
+import { PlaceCreateView } from "../features/places/PlaceCreateView";
+import { PlaceEditView } from "../features/places/PlaceEditView";
+import { PlacesView } from "../features/places/PlacesView";
 import { createQueryWrapper } from "./queryClient";
 
 vi.mock("../auth/AuthContext", () => ({ useAuth: () => ({ token: "token-a" }) }));
 
 const showToast = vi.fn();
-vi.mock("../app/appDataStore", () => ({ useAppData: () => ({ showToast }) }));
+vi.mock("../features/panel/appDataStore", () => ({ useAppData: () => ({ showToast }) }));
 
 vi.mock("../api/locations", () => ({
   getMyLocations: vi.fn(),

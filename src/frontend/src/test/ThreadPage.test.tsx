@@ -4,7 +4,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { ConversationResponse, MessageResponse } from "../api/conversations";
 import { useConversation } from "../hooks/useConversation";
 import { useThread } from "../hooks/useThread";
-import { ThreadPage } from "../pages/messages/ThreadPage";
+import { ThreadPage } from "../features/messages/ThreadPage";
 
 vi.mock("../hooks/useConversation", () => ({ useConversation: vi.fn() }));
 vi.mock("../hooks/useThread", () => ({ useThread: vi.fn() }));

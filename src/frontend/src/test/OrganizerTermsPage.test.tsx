@@ -6,7 +6,7 @@ import * as groupsApi from "../api/groups";
 import type { OrganizerCircle, OrganizerPageResponse, OrganizerTerm } from "../api/groups";
 import * as organizationsApi from "../api/organizations";
 import type { Page } from "../api/pagination";
-import { OrganizerTermsPage } from "../pages/organizer/OrganizerTermsPage";
+import { OrganizerTermsPage } from "../features/owner-page/OrganizerTermsPage";
 import { createQueryWrapper } from "./queryClient";
 
 vi.mock("../auth/AuthContext", () => ({ useAuth: () => ({ token: null }) }));

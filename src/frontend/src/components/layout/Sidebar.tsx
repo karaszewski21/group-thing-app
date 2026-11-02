@@ -2,7 +2,7 @@ import { Box, Flex, Text } from "@chakra-ui/react";
 import { Link, useLocation } from "react-router-dom";
 import type { LucideIcon } from "lucide-react";
 import { ProductsIcon, PluginsIcon, KragIcon, CategoriesIcon, GroupsIcon, TermsIcon, PhotosIcon, resolveIcon } from "../shared/Icons";
-import { usePluginContext } from "../../plugins/PluginContext";
+import { usePluginContext } from "../../plugins/host/PluginHost";
 import { useAuth } from "../../auth/AuthContext";
 
 interface NavItemProps {

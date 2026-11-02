@@ -3,11 +3,11 @@ import { MemoryRouter, Route, Routes, useLocation, useNavigationType } from "rea
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import * as groupsApi from "../api/groups";
 import type { PublicMedia, PublicOrganizationResponse } from "../api/organizations";
-import { GalleryBlock } from "../pages/organizer/blocks/GalleryBlock";
-import { HeroBlock } from "../pages/organizer/blocks/HeroBlock";
-import { LayoutRenderer } from "../pages/organizer/LayoutRenderer";
-import { LAYOUT_REGISTRY, resolveLayout } from "../pages/organizer/layouts/registry";
-import type { OrganizerPageData, RenderMode } from "../pages/organizer/layouts/types";
+import { GalleryBlock } from "../features/owner-page/blocks/GalleryBlock";
+import { HeroBlock } from "../features/owner-page/blocks/HeroBlock";
+import { LayoutRenderer } from "../features/owner-page/LayoutRenderer";
+import { LAYOUT_REGISTRY, resolveLayout } from "../features/owner-page/layouts/registry";
+import type { OrganizerPageData, RenderMode } from "../features/owner-page/layouts/types";
 import { createQueryWrapper } from "./queryClient";
 
 vi.mock("../api/groups", async (importOriginal) => ({

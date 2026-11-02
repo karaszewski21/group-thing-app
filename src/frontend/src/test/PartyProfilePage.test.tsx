@@ -4,7 +4,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { ApiError } from "../api/client";
 import type { OwnerItemCard, PartyProfileResponse } from "../api/ownerItems";
 import * as ownerItemsApi from "../api/ownerItems";
-import { PartyProfilePage } from "../pages/owner/PartyProfilePage";
+import { PartyProfilePage } from "../features/owner-page/PartyProfilePage";
 import { createQueryWrapper } from "./queryClient";
 
 const mockAuth: { token: string | null; username: string | null } = { token: null, username: null };

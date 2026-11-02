@@ -1,6 +1,6 @@
 import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
-import { VisibilityToggle } from "../pages/items/VisibilityToggle";
+import { VisibilityToggle } from "../features/items/VisibilityToggle";
 
 describe("VisibilityToggle", () => {
   it("marks the current value pressed and calls back with the other one", () => {

@@ -9,12 +9,12 @@ import type {
   OrganizerPageResponse,
 } from "../api/groups";
 import type { PublicOrganizationResponse } from "../api/organizations";
-import { CirclesGridBlock, isCirclesGridEmpty } from "../pages/organizer/blocks/CirclesGridBlock";
-import { ExchangeBoardBlock, isExchangeBoardEmpty } from "../pages/organizer/blocks/ExchangeBoardBlock";
-import { ExchangeCountsBlock, isExchangeCountsEmpty } from "../pages/organizer/blocks/ExchangeCountsBlock";
-import { ExchangeItemCard } from "../pages/organizer/blocks/ExchangeItemCard";
-import { isNeededItemsEmpty, NeededItemsBlock } from "../pages/organizer/blocks/NeededItemsBlock";
-import type { OrganizerPageData } from "../pages/organizer/layouts/types";
+import { CirclesGridBlock, isCirclesGridEmpty } from "../features/owner-page/blocks/CirclesGridBlock";
+import { ExchangeBoardBlock, isExchangeBoardEmpty } from "../features/owner-page/blocks/ExchangeBoardBlock";
+import { ExchangeCountsBlock, isExchangeCountsEmpty } from "../features/owner-page/blocks/ExchangeCountsBlock";
+import { ExchangeItemCard } from "../features/owner-page/blocks/ExchangeItemCard";
+import { isNeededItemsEmpty, NeededItemsBlock } from "../features/owner-page/blocks/NeededItemsBlock";
+import type { OrganizerPageData } from "../features/owner-page/layouts/types";
 
 const SLUG = "akademia-orlik";
 

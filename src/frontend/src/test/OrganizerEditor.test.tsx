@@ -6,9 +6,9 @@ import * as groupsApi from "../api/groups";
 import { ACCESS_DENIED_MESSAGE } from "../api/problem";
 import { getOpenSheetCount } from "../components/shared/openSheets";
 import * as organizationsApi from "../api/organizations";
-import { diffDraft, paletteSelection, sameDraft, type Draft } from "../pages/organizer/editor/draft";
-import { PublicOrganizationPage } from "../pages/organizer/PublicOrganizationPage";
-import { findPreset } from "../theme/palettePresets";
+import { diffDraft, paletteSelection, sameDraft, type Draft } from "../features/owner-page/editor/draft";
+import { PublicOrganizationPage } from "../features/owner-page/PublicOrganizationPage";
+import { findPreset } from "../theme/palettes";
 import dayjs from "../utils/dayjs";
 import { createQueryWrapper } from "./queryClient";
 

@@ -6,7 +6,7 @@ import * as organizationsApi from "../api/organizations";
 import type { OwnerItemCard, OwnerItemsPageResponse, OwnerNearestDate } from "../api/ownerItems";
 import * as ownerItemsApi from "../api/ownerItems";
 import { useOwnerItems } from "../hooks/useOwnerItems";
-import { OwnerItemsPage } from "../pages/owner/OwnerItemsPage";
+import { OwnerItemsPage } from "../features/owner-page/OwnerItemsPage";
 import { createQueryWrapper } from "./queryClient";
 
 const mockAuth: { token: string | null; username: string | null } = { token: null, username: null };

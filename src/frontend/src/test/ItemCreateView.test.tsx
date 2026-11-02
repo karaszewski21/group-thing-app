@@ -1,8 +1,8 @@
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { MemoryRouter, Route, Routes, useParams } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { ItemCreateView } from "../pages/add/ItemCreateView";
-import { FailedPhotosNotice } from "../pages/product/ItemDetailPage";
+import { ItemCreateView } from "../features/items/ItemCreateView";
+import { FailedPhotosNotice } from "../features/items/product/ItemDetailPage";
 import * as inventoriesApi from "../api/inventories";
 import * as peopleApi from "../api/people";
 import * as productsApi from "../api/products";

@@ -4,7 +4,7 @@ import {
   formatDaySeparator,
   formatInboxTime,
   localDayKey,
-} from "../pages/messages/messageTime";
+} from "../features/messages/messageTime";
 
 // Audit timestamps arrive as naive UTC; the assertions are Warsaw wall-clock.
 const originalTz = process.env.TZ;

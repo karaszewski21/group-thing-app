@@ -1,11 +1,11 @@
 import { render, renderHook, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ChakraProvider } from "@chakra-ui/react";
-import { system } from "../theme";
+import { system } from "../theme/system";
 import * as pluginsApi from "../api/plugins";
 import type { PluginResponse } from "../api/plugins";
 import { ADD_EVENT, MENU_MAIN, PRODUCT_DETAIL_TABS, PRODUCT_LIST_FILTERS } from "../plugins/extensionPoints";
-import { iframeRegistry } from "../plugins/iframeRegistry";
+import { iframeRegistry } from "../plugins/host/iframeRegistry";
 import { ApiError } from "../api/client";
 import { createQueryWrapper } from "./queryClient";
 
@@ -58,7 +58,7 @@ beforeEach(() => {
 
 describe("PluginContext", () => {
   it("provides plugins after fetch", async () => {
-    const { PluginProvider, usePluginContext } = await import("../plugins/PluginContext");
+    const { PluginProvider, usePluginContext } = await import("../plugins/host/PluginHost");
 
     function TestConsumer() {
       const { plugins, loading } = usePluginContext();
@@ -85,7 +85,7 @@ describe("PluginContext", () => {
   });
 
   it("resolves extension points: getMenuItems, getProductDetailTabs, getProductListFilters", async () => {
-    const { PluginProvider, usePluginContext } = await import("../plugins/PluginContext");
+    const { PluginProvider, usePluginContext } = await import("../plugins/host/PluginHost");
 
     function TestConsumer() {
       const { loading, getMenuItems, getProductDetailTabs, getProductListFilters } = usePluginContext();
@@ -129,7 +129,7 @@ describe("PluginContext", () => {
 
 describe("PluginFrame", () => {
   it("sets iframe.name correctly for each context type", async () => {
-    const { PluginFrame } = await import("../plugins/PluginFrame");
+    const { PluginFrame } = await import("../plugins/slots/PluginFrame");
 
     renderWithProviders(
       <PluginFrame
@@ -157,7 +157,7 @@ describe("PluginFrame", () => {
 
 describe("PluginMessageHandler", () => {
   it("validates 'aj.plugin.' prefix and rejects invalid requestId", async () => {
-    const { createMessageHandler } = await import("../plugins/PluginMessageHandler");
+    const { createMessageHandler } = await import("../plugins/host/PluginMessageHandler");
 
     const mockIframe = document.createElement("iframe");
     const mockRegistry = {
@@ -179,7 +179,7 @@ describe("PluginMessageHandler", () => {
   });
 
   it("rejects message with invalid origin", async () => {
-    const { createMessageHandler } = await import("../plugins/PluginMessageHandler");
+    const { createMessageHandler } = await import("../plugins/host/PluginMessageHandler");
 
     const mockIframe = document.createElement("iframe");
     document.body.appendChild(mockIframe);
@@ -219,7 +219,7 @@ describe("PluginMessageHandler", () => {
   });
 
   it("routes pluginFetch to api client and returns response", async () => {
-    const { createMessageHandler } = await import("../plugins/PluginMessageHandler");
+    const { createMessageHandler } = await import("../plugins/host/PluginMessageHandler");
 
     const mockIframe = document.createElement("iframe");
     document.body.appendChild(mockIframe);
@@ -270,7 +270,7 @@ describe("PluginMessageHandler", () => {
   });
 
   it("handles filterChange as fire-and-forget (no response sent)", async () => {
-    const { createMessageHandler } = await import("../plugins/PluginMessageHandler");
+    const { createMessageHandler } = await import("../plugins/host/PluginMessageHandler");
 
     const mockIframe = document.createElement("iframe");
     document.body.appendChild(mockIframe);
@@ -356,7 +356,7 @@ describe("PluginMessageHandler uploadImage", () => {
   });
 
   it("posts the file as FormData with the token and returns the pluginFetch shape", async () => {
-    const { createMessageHandler } = await import("../plugins/PluginMessageHandler");
+    const { createMessageHandler } = await import("../plugins/host/PluginMessageHandler");
     const harness = mountPluginWindow();
     localStorage.setItem("auth_token", "test-token");
     const responseBody = JSON.stringify({ url: "https://cdn.example/x.webp", status: "APPROVED" });
@@ -403,7 +403,7 @@ describe("PluginMessageHandler uploadImage", () => {
     ["a non-uuid event id", "/api/events/abc/banner"],
     ["a non-string url", 42],
   ])("rejects %s", async (_label, url) => {
-    const { createMessageHandler } = await import("../plugins/PluginMessageHandler");
+    const { createMessageHandler } = await import("../plugins/host/PluginMessageHandler");
     const harness = mountPluginWindow();
     const fetchSpy = vi.spyOn(globalThis, "fetch");
 
@@ -427,7 +427,7 @@ describe("PluginMessageHandler uploadImage", () => {
     ["a file over 5 MB", imageFile("image/jpeg", 5 * 1024 * 1024 + 1)],
     ["a disallowed MIME type", imageFile("image/gif")],
   ])("rejects %s", async (_label, file) => {
-    const { createMessageHandler } = await import("../plugins/PluginMessageHandler");
+    const { createMessageHandler } = await import("../plugins/host/PluginMessageHandler");
     const harness = mountPluginWindow();
     const fetchSpy = vi.spyOn(globalThis, "fetch");
 
@@ -446,7 +446,7 @@ describe("PluginMessageHandler uploadImage", () => {
 
 describe("PluginMessageHandler uploadImage failures", () => {
   it("answers with an error when the upload request itself fails", async () => {
-    const { createMessageHandler } = await import("../plugins/PluginMessageHandler");
+    const { createMessageHandler } = await import("../plugins/host/PluginMessageHandler");
     const harness = mountPluginWindow();
     const fetchSpy = vi.spyOn(globalThis, "fetch").mockRejectedValue(new TypeError("Failed to fetch"));
 
@@ -466,7 +466,7 @@ describe("PluginMessageHandler uploadImage failures", () => {
 
 describe("PluginMessageHandler done", () => {
   it("ignores done from an origin other than the plugin's", async () => {
-    const { createMessageHandler } = await import("../plugins/PluginMessageHandler");
+    const { createMessageHandler } = await import("../plugins/host/PluginMessageHandler");
     const harness = mountPluginWindow();
     const onDone = vi.fn();
 
@@ -485,7 +485,7 @@ describe("PluginMessageHandler done", () => {
   });
 
   it("calls onDone with the plugin id and payload and sends no response", async () => {
-    const { createMessageHandler } = await import("../plugins/PluginMessageHandler");
+    const { createMessageHandler } = await import("../plugins/host/PluginMessageHandler");
     const harness = mountPluginWindow();
     const onDone = vi.fn();
 
@@ -505,7 +505,7 @@ describe("PluginMessageHandler done", () => {
     ["null", null],
     ["a string", "Piknik"],
   ])("calls onDone with {} when the payload is %s, without throwing", async (_label, payload) => {
-    const { createMessageHandler } = await import("../plugins/PluginMessageHandler");
+    const { createMessageHandler } = await import("../plugins/host/PluginMessageHandler");
     const harness = mountPluginWindow();
     const onDone = vi.fn();
     const handler = createMessageHandler(iframeRegistry, { onDone });
@@ -525,7 +525,7 @@ describe("PluginMessageHandler done", () => {
   });
 
   it("is ignored without onDone: no response and no throw", async () => {
-    const { createMessageHandler } = await import("../plugins/PluginMessageHandler");
+    const { createMessageHandler } = await import("../plugins/host/PluginMessageHandler");
     const harness = mountPluginWindow();
     const handler = createMessageHandler(iframeRegistry);
 
@@ -539,7 +539,7 @@ describe("PluginMessageHandler done", () => {
 
 describe("PluginFrame add.event", () => {
   it("uses the RENDER prefix and the given title", async () => {
-    const { PluginFrame } = await import("../plugins/PluginFrame");
+    const { PluginFrame } = await import("../plugins/slots/PluginFrame");
 
     renderWithProviders(
       <PluginFrame
@@ -560,7 +560,7 @@ describe("PluginFrame add.event", () => {
 
 describe("usePluginMessageHandler", () => {
   it("installs one message listener on mount and removes it on unmount", async () => {
-    const { usePluginMessageHandler } = await import("../plugins/usePluginMessageHandler");
+    const { usePluginMessageHandler } = await import("../plugins/host/usePluginMessageHandler");
     const addSpy = vi.spyOn(window, "addEventListener");
     const removeSpy = vi.spyOn(window, "removeEventListener");
 

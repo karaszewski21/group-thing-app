@@ -2,12 +2,12 @@ import { render, screen } from "@testing-library/react";
 import { MemoryRouter, Routes, Route } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { ChakraProvider } from "@chakra-ui/react";
-import { system } from "../theme";
+import { system } from "../theme/system";
 import * as productsApi from "../api/products";
 import type { ProductResponse } from "../api/products";
 import * as categoriesApi from "../api/categories";
 import type { Category } from "../api/categories";
-import { ProductDetailPage } from "../pages/admin/ProductDetailPage";
+import { ProductDetailPage } from "../features/admin/ProductDetailPage";
 import { createQueryWrapper } from "./queryClient";
 
 vi.mock("../api/products", () => ({
@@ -21,7 +21,7 @@ vi.mock("../api/categories", () => ({
   moveCategory: vi.fn(),
 }));
 
-vi.mock("../plugins/PluginContext", () => ({
+vi.mock("../plugins/host/PluginHost", () => ({
   usePluginContext: vi.fn(() => ({
     getProductDetailTabs: () => [],
     getProductDetailInfo: () => [],

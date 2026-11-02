@@ -6,7 +6,7 @@ import type {
   ItemPartyReservationResponse,
 } from "../api/itemActions";
 import type { ReservedByResponse } from "../api/groups";
-import { resolveItemActionsView, type ItemActionsView } from "../pages/product/itemActionsViewState";
+import { resolveItemActionsView, type ItemActionsView } from "../features/items/product/itemActionsViewState";
 
 const OWNER: ItemActionsResponse["owner"] = {
   party_id: "party-1",

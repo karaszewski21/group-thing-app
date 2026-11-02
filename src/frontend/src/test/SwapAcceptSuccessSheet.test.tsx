@@ -1,7 +1,7 @@
 import { fireEvent, render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { MemoryRouter } from "react-router-dom";
-import { SwapAcceptSuccessSheet, type AcceptedSwap } from "../pages/items/SwapAcceptSuccessSheet";
+import { SwapAcceptSuccessSheet, type AcceptedSwap } from "../features/items/SwapAcceptSuccessSheet";
 import * as calendar from "../utils/calendar";
 
 vi.mock("../utils/calendar", async (importOriginal) => {

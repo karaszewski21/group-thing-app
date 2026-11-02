@@ -1,7 +1,7 @@
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { GroupDetailsPage } from "../pages/groups/GroupDetailsPage";
+import { GroupDetailsPage } from "../features/groups/GroupDetailsPage";
 import * as groupsApi from "../api/groups";
 import * as termsApi from "../api/terms";
 import { ApiError } from "../api/client";

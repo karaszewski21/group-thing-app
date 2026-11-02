@@ -8,7 +8,7 @@ import {
   validateEventDraft,
   type EventDraft,
   type EventDraftErrors,
-} from "../pages/add/eventDraft";
+} from "../features/events/eventDraft";
 import dayjs from "../utils/dayjs";
 
 const NOW = dayjs("2026-10-29 12:00:30", "YYYY-MM-DD HH:mm:ss");

@@ -5,7 +5,7 @@ import { ApiError } from "../api/client";
 import * as locationsApi from "../api/locations";
 import type { LocationRefResponse, LocationResponse } from "../api/locations";
 import * as termsApi from "../api/terms";
-import { TermEditForm } from "../components/panel/TermEditForm";
+import { TermEditForm } from "../features/terms/TermEditForm";
 import { createQueryWrapper } from "./queryClient";
 
 vi.mock("../api/terms", () => ({
