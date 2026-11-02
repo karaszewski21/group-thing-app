@@ -131,6 +131,24 @@ def test_reservedSlugs_topLevelPanelRoutes_areReserved(slug: str) -> None:
     assert slug in RESERVED_SLUGS
 
 
+def test_reservedSlugs_home_isReserved() -> None:
+    # `proxy.ts` rewrites `/` to `/home` for cookie holders.
+    assert "home" in RESERVED_SLUGS
+
+
+async def test_createMyOrganization_nameHome_getsSuffixedSlug(
+    client: AsyncClient, db_session: AsyncSession
+) -> None:
+    token = await _register_organizer(client, "org.owner.slughome@example.com")
+
+    response = await client.post(
+        "/api/organizations/mine", json={"name": "Home"}, headers=_auth_headers(token)
+    )
+
+    assert response.status_code == 201
+    assert response.json()["slug"] == "home-2"
+
+
 async def test_getPublicOrganization_byExistingSlug_returnsNameAndColors(
     client: AsyncClient, db_session: AsyncSession
 ) -> None:

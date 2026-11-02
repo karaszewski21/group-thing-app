@@ -2,12 +2,13 @@
 (`domena.pl/<slug>`, see `PublicOrganizationPage` on the frontend).
 
 `RESERVED_SLUGS` is a manually-maintained allowlist of every top-level path
-segment the frontend router (`router.tsx`) already owns — an organizer can
-never register one of these as their Organization's slug, since the
-frontend mounts the public organization page as a catch-all route *after*
-every fixed route, so a colliding slug would otherwise be permanently
+segment the frontend route tree (`src/app`, mirrored in
+`routing/reservedSlugs.ts`) already owns — an organizer can never register
+one of these as their Organization's slug, since the public organization
+page is the dynamic `[organizationSlug]` segment and every static segment
+wins over it, so a colliding slug would otherwise be permanently
 unreachable (shadowed by the real page). Update this set whenever a new
-top-level route is added to `router.tsx`.
+top-level route is added under `src/app`.
 """
 
 from __future__ import annotations
@@ -17,7 +18,10 @@ import unicodedata
 
 RESERVED_SLUGS: frozenset[str] = frozenset(
     {
-        # Top-level frontend routes (router.tsx) — keep in sync.
+        # Top-level frontend routes (`src/app`, `routing/reservedSlugs.ts`)
+        # — keep in sync. "home" is the internal rewrite target of `/` for
+        # cookie holders (`proxy.ts`).
+        "home",
         "login",
         "register",
         "oauth2",

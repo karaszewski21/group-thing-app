@@ -19,8 +19,9 @@ PERSONALISED_CACHE_CONTROL = "private, no-store"
 
 def set_personalised_cache_headers(response: Response, principal: Principal | None) -> None:
     """`Vary` keeps a cache from mixing the anonymous and personalised
-    variants."""
+    variants; the principal comes from the Bearer header or, on GET/HEAD,
+    the `auth_token` cookie."""
     response.headers["Cache-Control"] = (
         PUBLIC_CACHE_CONTROL if principal is None else PERSONALISED_CACHE_CONTROL
     )
-    response.headers["Vary"] = "Authorization"
+    response.headers["Vary"] = "Authorization, Cookie"

@@ -408,7 +408,7 @@ async def test_cacheHeaders_anonymousPublic_authenticatedPrivateNoStore_invalidT
     ):
         assert response.status_code == 200, response.text
         assert response.headers["cache-control"] == cache_control
-        assert response.headers["vary"] == "Authorization"
+        assert response.headers["vary"] == "Authorization, Cookie"
 
 
 @pytest.mark.parametrize("route", ["actions", "details", "event", "access"])
@@ -443,7 +443,7 @@ async def test_personalisedReads_cacheHeaders_principalPrivateNoStore_anonymousP
     ):
         assert response.status_code == 200, response.text
         assert response.headers["cache-control"] == cache_control
-        assert response.headers["vary"] == "Authorization"
+        assert response.headers["vary"] == "Authorization, Cookie"
 
 
 async def _term_with_reserved_listings(
