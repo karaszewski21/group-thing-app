@@ -71,3 +71,42 @@ export function getPartyOwnerItems(
 ): Promise<OwnerItemsPageResponse> {
   return api.get(`/groups/public/parties/${encodeURIComponent(partyId)}/items?${query(page, mode)}`);
 }
+
+/** Mirrors `app.groups.schemas.PartyProfileResponse`: a person's public
+ * profile behind `/<party-id>`. */
+export interface PartyProfileResponse {
+  /** `slug` is set when the person owns an Organization: the client then
+   * redirects to its page. */
+  owner: OwnerItemsPageResponse["owner"];
+  bio: string | null;
+  /** The approved avatar's thumbnail, else `null`. */
+  avatar_url: string | null;
+  nearest: OwnerNearestDate | null;
+  counts: Record<ExchangeMode, number>;
+  /** The newest listed items, at most 6. */
+  recent_items: OwnerItemCard[];
+  is_me: boolean;
+}
+
+/** `/<party-id>`: 404 for a person with nothing public. */
+export function getPartyProfile(partyId: string): Promise<PartyProfileResponse> {
+  return api.get(`/groups/public/parties/${encodeURIComponent(partyId)}`);
+}
+
+/** Mirrors `app.groups.schemas.OwnerMeetingsResponse`: the owner's upcoming
+ * public terms and events, earliest first, at most 50. */
+export interface OwnerMeetingsResponse {
+  /** `slug` set on a party URL means an Organization owner: redirect. */
+  owner: OwnerItemsPageResponse["owner"];
+  meetings: OwnerNearestDate[];
+}
+
+/** `/<org-slug>/meetings`. */
+export function getOrganizationOwnerMeetings(slug: string): Promise<OwnerMeetingsResponse> {
+  return api.get(`/groups/public/organizers/${encodeURIComponent(slug)}/meetings`);
+}
+
+/** `/<party-id>/meetings`: 404 for a person with nothing public. */
+export function getPartyOwnerMeetings(partyId: string): Promise<OwnerMeetingsResponse> {
+  return api.get(`/groups/public/parties/${encodeURIComponent(partyId)}/meetings`);
+}

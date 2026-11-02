@@ -31,7 +31,8 @@ import { PhoneFrame } from "./components/shared/PhoneFrame";
 import { OrganizationPage } from "./pages/organizer/OrganizationPage";
 import { OrganizerTermsPage } from "./pages/organizer/OrganizerTermsPage";
 import { OwnerItemsPage } from "./pages/owner/OwnerItemsPage";
-import { PublicOrganizationPage } from "./pages/organizer/PublicOrganizationPage";
+import { OwnerMeetingsPage } from "./pages/owner/OwnerMeetingsPage";
+import { OwnerPage } from "./pages/owner/OwnerPage";
 import { AuthGuard } from "./auth/AuthGuard";
 import { useAuth } from "./auth/AuthContext";
 import { PluginProvider } from "./plugins/PluginContext";
@@ -233,8 +234,17 @@ export const routes: RouteObject[] = [
         element: <OwnerItemsPage />,
       },
       {
+        // The owner's upcoming public terms and events — public, no
+        // AuthGuard. A UUID-shaped first segment is a party id, otherwise an
+        // Organization slug ("meetings" is in the backend's RESERVED_SLUGS).
+        path: "/:organizationSlug/meetings",
+        element: <OwnerMeetingsPage />,
+      },
+      {
+        // A UUID-shaped segment is a person's profile, otherwise an
+        // Organization's page (see OwnerPage).
         path: "/:organizationSlug",
-        element: <PublicOrganizationPage />,
+        element: <OwnerPage />,
       },
     ],
   },

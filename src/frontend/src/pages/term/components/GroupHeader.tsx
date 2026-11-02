@@ -17,6 +17,8 @@ export function GroupHeader({
   eyebrow?: string;
   onBack: () => void;
   organizerName?: string | null;
+  /** The organizer page's path segment: an Organization slug or, for an
+   * organizer without one, their party id (the person profile). */
   organizerSlug?: string | null;
 }) {
   return (

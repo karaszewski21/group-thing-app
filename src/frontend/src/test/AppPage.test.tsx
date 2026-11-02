@@ -529,14 +529,14 @@ describe("AppPage — item add entry point", () => {
     vi.resetAllMocks();
   });
 
-  it('"+ Dodaj rzecz" links to the /add/product page instead of opening a modal', async () => {
+  it('"Moje rzeczy" has no floating "+ Dodaj rzecz" — adding goes through the bottom-nav "+"', async () => {
     mockGuestDefaults();
     renderPanel();
 
     fireEvent.click(await screen.findByRole("button", { name: "Moje rzeczy" }));
-    const link = await screen.findByRole("link", { name: "+ Dodaj rzecz" });
+    await screen.findByRole("heading", { name: "Moje rzeczy" });
 
-    expect(link).toHaveAttribute("href", "/add/product");
+    expect(screen.queryByRole("link", { name: "+ Dodaj rzecz" })).not.toBeInTheDocument();
     expect(screen.queryByRole("dialog", { name: "Dodaj rzecz" })).not.toBeInTheDocument();
   });
 });

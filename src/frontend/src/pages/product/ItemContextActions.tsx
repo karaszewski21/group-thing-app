@@ -7,7 +7,7 @@ import { ToastPill } from "../../components/shared/ToastPill";
 import { BTN_GHOST, BTN_LG, BTN_PRIMARY, CARD } from "../../components/shared/uiStyles";
 import { useToast } from "../../components/shared/useToast";
 import { useOpenAndNavigate } from "../../hooks/useOpenAndNavigate";
-import { viewPath } from "../../utils/appHelpers";
+import { ownerPagePath, viewPath } from "../../utils/appHelpers";
 import dayjs from "../../utils/dayjs";
 import { useAccountGate } from "../term/hooks/useAccountGate";
 import { AuthGateSheet } from "../term/modals/AuthGateSheet";
@@ -472,7 +472,12 @@ function OwnerRow({ owner }: { owner: Owner }) {
     <section className={`mt-3 flex items-center gap-3 ${CARD}`} aria-label="Właściciel">
       <Avatar name={owner.display_name} size="md" />
       <div className="min-w-0">
-        <p className="truncate text-sm font-extrabold text-ink">{owner.display_name}</p>
+        <Link
+          to={ownerPagePath(owner)}
+          className="block truncate text-sm font-extrabold text-ink no-underline hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring"
+        >
+          {owner.display_name}
+        </Link>
         <Link to={ownerItemsPath(owner)} className="text-[13px] font-extrabold text-primary-fg no-underline">
           {`Zobacz wszystkie rzeczy (${owner.items_total}) ›`}
         </Link>

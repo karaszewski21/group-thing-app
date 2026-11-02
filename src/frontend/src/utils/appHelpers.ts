@@ -96,6 +96,19 @@ export function placeEditPath(locationId: string): string {
   return `/places/${locationId}/edit`;
 }
 
+const PARTY_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/** A UUID-shaped first path segment is a party id (a person), never an
+ * Organization slug: the backend keeps slugs from looking like UUIDs. */
+export function isPartyId(segment: string): boolean {
+  return PARTY_ID.test(segment);
+}
+
+/** An owner's public page: their Organization's, else their person profile. */
+export function ownerPagePath(owner: { slug: string | null; party_id: string }): string {
+  return `/${owner.slug ?? owner.party_id}`;
+}
+
 /** The public event page, under the author's organizer slug (`EventResponse.author_slug`). */
 export function eventPath(organizerSlug: string, eventId: string): string {
   return `/${organizerSlug}/event/${eventId}`;

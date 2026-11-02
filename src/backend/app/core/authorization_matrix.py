@@ -85,10 +85,11 @@ _RAW_MATRIX: tuple[_RawEntry, ...] = (
     # and `/organizers/access` would read like the `/public/{id}/access` row
     # below, so it is declared ahead of both. GET only — any other method on
     # this path still falls to the blanket rows.
-    (_methods("GET"), r"^/api/groups/public/organizers/[^/]+(/terms|/items)?$", "PUBLIC"),
-    # A party's public items page — ahead of row 26's blanket READ row so an
-    # anonymous visitor can load it. Visibility filtering lives in the route.
-    (_methods("GET"), r"^/api/groups/public/parties/[^/]+/items$", "PUBLIC"),
+    (_methods("GET"), r"^/api/groups/public/organizers/[^/]+(/terms|/items|/meetings)?$", "PUBLIC"),
+    # A party's public profile, items and meetings pages — ahead of row 26's blanket
+    # READ row so an anonymous visitor can load them. Visibility filtering
+    # lives in the routes.
+    (_methods("GET"), r"^/api/groups/public/parties/[^/]+(/items|/meetings)?$", "PUBLIC"),
     # Public circle/term page (`/krag/:groupId/publiczny`) — declared ahead of
     # row 26's blanket /api/groups READ requirement so an anonymous visitor
     # can load it, RSVP, and merge into a real account. Mirrors row 48's

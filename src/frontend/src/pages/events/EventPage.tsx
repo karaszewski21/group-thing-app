@@ -198,8 +198,13 @@ function EventShell({ event, onCopyLink, canSignUp = false, chat, card, footer, 
           eyebrow="Wydarzenie"
           onBack={() => navigate(-1)}
           organizerName={event.author_display_name}
-          // A `k-…` fallback slug has no organizer page to link to.
-          organizerSlug={event.organization !== null ? event.author_slug : null}
+          // A `k-…` fallback slug has no organizer page: an author without an
+          // Organization links to their person profile instead.
+          organizerSlug={
+            event.organization !== null
+              ? event.author_slug
+              : (event.participants.find((p) => p.is_author)?.party_id ?? null)
+          }
         />
         <main tabIndex={-1} className="flex-1 pb-6 outline-none">
           {event.banner_url && (

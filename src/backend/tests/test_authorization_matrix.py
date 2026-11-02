@@ -334,6 +334,9 @@ def _first_match_without(method: str, path: str, removed_pattern: str) -> Matrix
     [
         "/api/groups/public/organizers/x/items",
         f"/api/groups/public/parties/{uuid.uuid4()}/items",
+        f"/api/groups/public/parties/{uuid.uuid4()}",
+        "/api/groups/public/organizers/x/meetings",
+        f"/api/groups/public/parties/{uuid.uuid4()}/meetings",
         f"/api/inventory-items/{uuid.uuid4()}/details",
         f"/api/items/{uuid.uuid4()}/actions",
     ],
@@ -372,7 +375,7 @@ def test_matrix_removedReservationRows_absent() -> None:
     [
         (
             "/api/groups/public/parties/p1/items",
-            r"^/api/groups/public/parties/[^/]+/items$",
+            r"^/api/groups/public/parties/[^/]+(/items|/meetings)?$",
             r"^/api/groups(/.*)?$",
             READ,
         ),

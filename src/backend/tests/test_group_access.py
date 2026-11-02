@@ -365,6 +365,7 @@ async def test_groupReads_privateGroupWithCode_neverExposeJoinCode(
         "name",
         "organizer_display_name",
         "organizer_slug",
+        "organizer_party_id",
         "organization",
         "visibility",
         "layout_mode",

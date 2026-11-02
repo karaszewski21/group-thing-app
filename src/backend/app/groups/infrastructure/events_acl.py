@@ -5,8 +5,9 @@ service here would close an import cycle (guarded by
 `tests/test_event_reservations_migration.py`).
 
 Used by event reservations (lookup, `FOR SHARE` lock, eligibility), the owner
-items page (upcoming events of a party), the end-of-event scan (events in a
-start window) and every event link (`author_slugs`)."""
+items page (upcoming events of a party), the party profile (any authored
+event), the end-of-event scan (events in a start window) and every event link
+(`author_slugs`)."""
 
 from __future__ import annotations
 
@@ -31,6 +32,7 @@ __all__ = [
     "author_slugs",
     "eligible_event_ids",
     "get_event",
+    "has_authored_event",
     "is_event_eligible",
     "list_events_starting_between",
     "list_upcoming_events_for_parties",
@@ -139,6 +141,11 @@ async def list_upcoming_events_for_parties(
         )
         for event, count in rows
     ]
+
+
+async def has_authored_event(db: AsyncSession, party_id: uuid.UUID) -> bool:
+    result = await db.execute(select(exists().where(Event.author_party_id == party_id)))
+    return bool(result.scalar())
 
 
 async def list_events_starting_between(

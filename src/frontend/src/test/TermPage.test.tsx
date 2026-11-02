@@ -43,6 +43,7 @@ const circle: PublicCircleResponse = {
   name: "Muzyczne Skrzaty",
   organizer_display_name: "Ania Kowalska",
   organizer_slug: "ania",
+  organizer_party_id: "5f0c2a7e-3b1d-4e6a-9c8f-0000000000e1",
   visibility: "PUBLIC",
   layout_mode: "CIRCLE",
   organization: null,

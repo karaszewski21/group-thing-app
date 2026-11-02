@@ -319,6 +319,9 @@ class PublicCircleResponse(BaseModel):
     name: str
     organizer_display_name: str | None
     organizer_slug: str | None
+    # Links the organizer's person profile (`/<party-id>`) when there is no
+    # Organization; null when the circle has no leadership.
+    organizer_party_id: uuid.UUID | None
     # Object whenever the organizer owns an Organization (even with all
     # colors null); null when there is none (a `k-…` slug or no leadership).
     organization: PublicCircleOrganization | None
@@ -483,6 +486,31 @@ class OwnerItemsPageResponse(BaseModel):
     total: int
     page: int
     size: int
+
+
+class OwnerMeetingsResponse(BaseModel):
+    """The owner meetings page (`/<org-slug>/meetings`, `/<party-id>/meetings`):
+    the owner's upcoming public terms and events, earliest first, at most
+    `OWNER_MEETINGS_LIMIT`."""
+
+    owner: OwnerSummaryResponse
+    meetings: list[OwnerNearestDateResponse]
+
+
+class PartyProfileResponse(BaseModel):
+    """The public profile of a person (`/<party-id>`). `owner.slug` is set
+    when they own an Organization, so the client can redirect to its page."""
+
+    owner: OwnerSummaryResponse
+    bio: str | None
+    # The approved avatar's thumbnail; never a pending or rejected one.
+    avatar_url: str | None
+    nearest: OwnerNearestDateResponse | None
+    counts: OwnerItemCountsResponse
+    # The newest listed items, at most `PROFILE_RECENT_ITEMS`.
+    recent_items: list[OwnerItemCardResponse]
+    # The viewer is this person (the "Załóż stronę organizatora" invite).
+    is_me: bool
 
 
 class CreateRsvpRequest(BaseModel):

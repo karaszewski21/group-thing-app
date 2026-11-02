@@ -18,7 +18,6 @@ import {
 import { CONDITION_LABELS } from "../../utils/productCategory";
 import { BoxIcon, PencilIcon, TrashIcon } from "../../components/shared/appIcons";
 import { capitalize, GIFT_LIMIT_MESSAGE, ITEM_MODES, MAX_GIFT_ITEMS, type ItemMode } from "../../utils/appHelpers";
-import { FloatingAddButton } from "../../components/shared/appComponents";
 import { useAppData } from "../../app/appDataStore";
 import { SafeImage } from "../product/ItemGallery";
 import { itemEditPath } from "../product/useItemRoutes";
@@ -509,7 +508,6 @@ export function MyItemsView() {
         {itemError && <p className="mt-2 text-[13px] font-semibold text-danger">{itemError}</p>}
       </div>
 
-      <FloatingAddButton label="Dodaj rzecz" to="/add/product" />
       {acceptedSwap && <SwapAcceptSuccessSheet swap={acceptedSwap} onClose={() => setAcceptedSwap(null)} />}
     </div>
   );

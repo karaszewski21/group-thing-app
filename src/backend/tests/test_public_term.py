@@ -171,12 +171,14 @@ async def test_getPublicCircle_noTermIdParam_returnsNearestTermUnchanged(
     assert response.status_code == 200
     body = response.json()
     assert body["term"]["id"] == nearer_term_id
-    # Response shape unchanged apart from the additive `organizer_slug`.
+    # Response shape unchanged apart from the additive `organizer_slug` and
+    # `organizer_party_id`.
     assert set(body.keys()) == {
         "id",
         "name",
         "organizer_display_name",
         "organizer_slug",
+        "organizer_party_id",
         "organization",
         "visibility",
         "layout_mode",

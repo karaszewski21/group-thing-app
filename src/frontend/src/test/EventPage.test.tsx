@@ -211,11 +211,11 @@ describe("EventPage", () => {
     await waitFor(() => expect(screen.getByTestId("location-state")).toHaveTextContent("null"));
   });
 
-  it("links the header chip to the organizer only when the author has an organization", async () => {
+  it("links the header chip to the organization, else to the author's person profile", async () => {
     vi.mocked(eventsApi.getEvent).mockResolvedValueOnce(event());
     const { unmount } = renderPage();
     await screen.findByRole("heading", { name: "Piknik w parku", level: 1 });
-    expect(screen.queryByRole("link", { name: /Fundacja Zielony Krąg/ })).not.toBeInTheDocument();
+    expect(screen.getAllByRole("link", { name: /Fundacja Zielony Krąg/ })[0]).toHaveAttribute("href", "/p-author");
     unmount();
 
     vi.mocked(eventsApi.getEvent).mockResolvedValueOnce(

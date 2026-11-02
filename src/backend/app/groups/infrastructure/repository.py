@@ -11,7 +11,7 @@ Never commits or flushes; `EntityNotFoundException` raising stays in the
 from __future__ import annotations
 
 import uuid
-from collections.abc import Collection
+from collections.abc import Collection, Sequence
 from datetime import datetime
 from typing import Any
 
@@ -977,6 +977,11 @@ def _qualifying_owner_circles(owner_party_id: uuid.UUID) -> Select[tuple[uuid.UU
     )
 
 
+async def party_leads_public_circle(db: AsyncSession, party_id: uuid.UUID) -> bool:
+    result = await db.execute(select(exists(_qualifying_owner_circles(party_id))))
+    return bool(result.scalar())
+
+
 async def list_owner_public_circles(
     db: AsyncSession,
     owner_party_id: uuid.UUID,
@@ -1301,13 +1306,13 @@ async def list_owner_listed_items_page(
     return list(result.all())
 
 
-async def nearest_public_term_for_party(
-    db: AsyncSession, party_id: uuid.UUID, now: datetime
-) -> Row[tuple[uuid.UUID, uuid.UUID, str, datetime, uuid.UUID | None, int]] | None:
+async def list_upcoming_public_terms_for_party(
+    db: AsyncSession, party_id: uuid.UUID, now: datetime, limit: int
+) -> Sequence[Row[tuple[uuid.UUID, uuid.UUID, str, datetime, uuid.UUID | None, int]]]:
     """`(term_id, group_id, group_name, occurs_on, location_id,
-    attendee_count)` of the earliest term at or after `now` in a PUBLIC,
-    non-deleted circle the party currently leads or holds a non-withdrawn
-    RSVP for; `None` when there is none."""
+    attendee_count)` of the `limit` earliest terms at or after `now` in a
+    PUBLIC, non-deleted circle the party currently leads or holds a
+    non-withdrawn RSVP for, earliest first."""
     attending = exists().where(
         TermAttendance.term_id == Term.id,
         TermAttendance.party_id == party_id,
@@ -1336,9 +1341,9 @@ async def nearest_public_term_for_party(
             or_(Term.circle_group_id.in_(_qualifying_owner_circles(party_id)), attending),
         )
         .order_by(Term.occurs_on, Term.id)
-        .limit(1)
+        .limit(limit)
     )
-    return result.first()
+    return result.all()
 
 
 def _leads_term_circle(party_id: uuid.UUID) -> Any:

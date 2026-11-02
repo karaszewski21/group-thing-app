@@ -234,6 +234,9 @@ export interface PublicCircleResponse {
   name: string;
   organizer_display_name: string | null;
   organizer_slug: string | null;
+  /** The organizer's person profile (`/<party-id>`), for a circle whose
+   * organizer has no Organization; `null` without a leadership. */
+  organizer_party_id: string | null;
   visibility: GroupVisibility;
   layout_mode: GroupLayoutMode;
   term: PublicTermResponse | null;

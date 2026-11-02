@@ -12,7 +12,10 @@ statement through `events_acl`, then the winner's place and slug). The
 per-item helpers of `term_item_listings.py` are not used, because they run
 several queries per item.
 
-Also used by the organizer page (`recent_items`, `owner_nearest`)."""
+Also used by the organizer page (`recent_items`, `owner_nearest`), the
+person profile behind `/<party-id>` (`get_party_profile`) and the owner
+meetings pages behind `/<org-slug>/meetings` and `/<party-id>/meetings`
+(`list_owner_dates`)."""
 
 from __future__ import annotations
 
@@ -26,9 +29,10 @@ from app.core import clock
 from app.core.auth_deps import Principal
 from app.core.errors import EntityNotFoundException
 from app.core.pagination import PageParams
+from app.moderation.status import ModerationStatus
 from app.storage.service import ObjectStorage
 from app.users.models import UserProfile
-from app.users.service import get_profile_by_party
+from app.users.service import get_avatar, get_profile_by_party
 
 from ..infrastructure import (
     circulation_bridge,
@@ -38,14 +42,16 @@ from ..infrastructure import (
     product_bridge,
     repository,
 )
-from ..infrastructure.slug_resolver import resolve_organizer_slug
+from ..infrastructure.slug_resolver import resolve_organizer_slugs
 from ..schemas import (
     ExchangeMode,
     OwnerItemCardResponse,
     OwnerItemCountsResponse,
     OwnerItemsPageResponse,
+    OwnerMeetingsResponse,
     OwnerNearestDateResponse,
     OwnerSummaryResponse,
+    PartyProfileResponse,
 )
 from .reserved_by import load_reserved_by_names, resolve_viewer_party_id
 
@@ -129,46 +135,61 @@ async def list_owner_recent_items(
     return await _list_owner_items(db, party_id, None, 0, limit, storage, viewer_party_id)
 
 
-async def get_owner_nearest(
-    db: AsyncSession, party_id: uuid.UUID
-) -> OwnerNearestDateResponse | None:
-    """The earliest upcoming of the party's nearest public term (a PUBLIC,
-    non-deleted circle it leads or actively attends) and nearest event (one
-    it authored or actively attends); a term wins a tie."""
+async def list_owner_dates(
+    db: AsyncSession, party_id: uuid.UUID, limit: int
+) -> list[OwnerNearestDateResponse]:
+    """The party's `limit` earliest upcoming public dates, earliest first:
+    terms of PUBLIC, non-deleted circles it leads or actively attends and
+    events it authored or actively attends; a term wins a tie. A fixed
+    number of statements: terms, events, their places, then one
+    organization lookup per distinct circle organizer and event author."""
     # Warsaw wall clock, the clock of `Term.occurs_on` and `Event.starts_at`.
     now = clock.local_now()
-    term = await repository.nearest_public_term_for_party(db, party_id, now)
-    events = await events_acl.list_upcoming_events_for_parties(db, [party_id], now, limit=1)
-    upcoming = events[0] if events else None
+    terms = await repository.list_upcoming_public_terms_for_party(db, party_id, now, limit)
+    events = await events_acl.list_upcoming_events_for_parties(db, [party_id], now, limit=limit)
+    locations = await locations_acl.get_locations_by_ids(
+        db, {row.location_id for row in terms if row.location_id is not None}
+    )
+    # The circle's organizer slug: the party may only attend the circle.
+    term_slugs = await resolve_organizer_slugs(db, {row.circle_group_id for row in terms})
+    event_slugs = await events_acl.author_slugs(db, [upcoming.event for upcoming in events])
 
-    if term is not None and (upcoming is None or term.occurs_on <= upcoming.event.starts_at):
-        term_id, group_id, group_name, occurs_on, location_id, attendee_count = term
-        location = await locations_acl.get_location(db, location_id)
-        # The circle's organizer slug: the party may only attend the circle.
-        slug = await resolve_organizer_slug(db, group_id)
-        return OwnerNearestDateResponse(
+    dates = [
+        OwnerNearestDateResponse(
             kind="TERM",
             id=term_id,
             name=group_name,
             starts_at=occurs_on,
-            location_name=location.name if location is not None else None,
+            location_name=locations[location_id].name if location_id in locations else None,
             attendee_count=attendee_count,
-            path=f"/{slug}/group/{group_id}/term/{term_id}",
+            path=f"/{term_slugs[group_id]}/group/{group_id}/term/{term_id}",
         )
-    if upcoming is None:
-        return None
-    event = upcoming.event
-    event_id = cast(uuid.UUID, event.id)
-    author_slug = (await events_acl.author_slugs(db, [event]))[event_id]
-    return OwnerNearestDateResponse(
-        kind="EVENT",
-        id=event_id,
-        name=event.name,
-        starts_at=event.starts_at,
-        location_name=upcoming.location_name,
-        attendee_count=upcoming.attendee_count,
-        path=f"/{author_slug}/event/{event_id}",
-    )
+        for term_id, group_id, group_name, occurs_on, location_id, attendee_count in terms
+    ]
+    for upcoming in events:
+        event_id = cast(uuid.UUID, upcoming.event.id)
+        dates.append(
+            OwnerNearestDateResponse(
+                kind="EVENT",
+                id=event_id,
+                name=upcoming.event.name,
+                starts_at=upcoming.event.starts_at,
+                location_name=upcoming.location_name,
+                attendee_count=upcoming.attendee_count,
+                path=f"/{event_slugs[event_id]}/event/{event_id}",
+            )
+        )
+    # Stable sort: terms come first in `dates`, so a term wins a tie.
+    dates.sort(key=lambda date: date.starts_at)
+    return dates[:limit]
+
+
+async def get_owner_nearest(
+    db: AsyncSession, party_id: uuid.UUID
+) -> OwnerNearestDateResponse | None:
+    """The first of `list_owner_dates`."""
+    dates = await list_owner_dates(db, party_id, 1)
+    return dates[0] if dates else None
 
 
 async def owner_summary(db: AsyncSession, profile: UserProfile) -> OwnerSummaryResponse:
@@ -246,3 +267,78 @@ async def get_party_owner_items(
         raise EntityNotFoundException("Party", party_id)
     owner = await owner_summary(db, profile)
     return await _build_page(db, owner, counts, params, mode, storage, principal)
+
+
+PROFILE_RECENT_ITEMS = 6
+
+
+async def _has_public_footprint(db: AsyncSession, party_id: uuid.UUID, listed: int) -> bool:
+    """The person already shows their name publicly: a listed item, an
+    authored event or a PUBLIC circle they lead."""
+    return (
+        listed > 0
+        or await events_acl.has_authored_event(db, party_id)
+        or await repository.party_leads_public_circle(db, party_id)
+    )
+
+
+async def get_party_profile(
+    db: AsyncSession,
+    party_id: uuid.UUID,
+    storage: ObjectStorage | None,
+    principal: Principal | None = None,
+) -> PartyProfileResponse:
+    """404 when the party has no user profile or no public footprint
+    (`_has_public_footprint`), so a bare party id never reveals a private
+    person. Nothing beyond what that footprint shows is exposed: the bio the
+    person wrote for others, an approved avatar, public dates and listed
+    items."""
+    profile = await get_profile_by_party(db, party_id)
+    counts = await _counts(db, party_id)
+    if not await _has_public_footprint(db, party_id, counts.GIFT + counts.SWAP):
+        raise EntityNotFoundException("Party", party_id)
+    avatar = await get_avatar(db, cast(uuid.UUID, profile.id))
+    avatar_url = (
+        storage.public_url(avatar.thumb_key)
+        if storage is not None and avatar is not None and avatar.status == ModerationStatus.APPROVED
+        else None
+    )
+    viewer_party_id = await resolve_viewer_party_id(db, principal)
+    return PartyProfileResponse(
+        owner=await owner_summary(db, profile),
+        bio=profile.bio,
+        avatar_url=avatar_url,
+        nearest=await get_owner_nearest(db, party_id),
+        counts=counts,
+        recent_items=await list_owner_recent_items(
+            db, party_id, PROFILE_RECENT_ITEMS, storage, viewer_party_id
+        ),
+        is_me=viewer_party_id == party_id,
+    )
+
+
+OWNER_MEETINGS_LIMIT = 50
+
+
+async def get_organization_owner_meetings(db: AsyncSession, slug: str) -> OwnerMeetingsResponse:
+    """`/<org-slug>/meetings`; 404 as for the Organization's items page."""
+    organization, owner_party_id = await resolve_organization_owner(db, slug)
+    return OwnerMeetingsResponse(
+        owner=OwnerSummaryResponse(
+            party_id=owner_party_id, display_name=organization.name, slug=organization.slug
+        ),
+        meetings=await list_owner_dates(db, owner_party_id, OWNER_MEETINGS_LIMIT),
+    )
+
+
+async def get_party_owner_meetings(db: AsyncSession, party_id: uuid.UUID) -> OwnerMeetingsResponse:
+    """`/<party-id>/meetings`; 404 under the profile's rule
+    (`_has_public_footprint`), so a bare party id never reveals a private
+    person. `owner.slug` lets the client redirect an Organization owner."""
+    profile = await get_profile_by_party(db, party_id)
+    if not await _has_public_footprint(db, party_id, await count_owner_items(db, party_id)):
+        raise EntityNotFoundException("Party", party_id)
+    return OwnerMeetingsResponse(
+        owner=await owner_summary(db, profile),
+        meetings=await list_owner_dates(db, party_id, OWNER_MEETINGS_LIMIT),
+    )

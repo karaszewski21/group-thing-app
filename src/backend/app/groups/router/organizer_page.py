@@ -1,5 +1,6 @@
 """`/api/groups/public/organizers/{slug}` — the public organizer
-directory behind the `/:slug` page, and the owner items pages.
+directory behind the `/:slug` page, the owner items and meetings pages and
+the person profile behind `/:partyId`.
 
 Included first in `app.groups.router`, ahead of `circles.py`'s
 `/api/groups/public/{group_id}/access`, so that `/public/organizers/access`
@@ -24,6 +25,8 @@ from app.groups.schemas import (
     OrganizerPageResponse,
     OrganizerTermResponse,
     OwnerItemsPageResponse,
+    OwnerMeetingsResponse,
+    PartyProfileResponse,
 )
 from app.storage.service import ObjectStorage, get_storage
 
@@ -42,7 +45,7 @@ async def get_organizer_page(
     principal: OptionalPrincipal = None,
 ) -> OrganizerPageResponse:
     """Unauthenticated — matched by the PUBLIC row
-    `GET ^/api/groups/public/organizers/[^/]+(/terms|/items)?$` in
+    `GET ^/api/groups/public/organizers/[^/]+(/terms|/items|/meetings)?$` in
     `AUTHORIZATION_MATRIX`, so no `require_any` dependency. 404 when the slug
     resolves to no Organization or the Organization has no active owner."""
     page = await service.get_organizer_page(db, slug, storage, principal)
@@ -101,10 +104,52 @@ async def get_party_owner_items(
     principal: OptionalPrincipal = None,
 ) -> OwnerItemsPageResponse:
     """Unauthenticated — matched by the PUBLIC row
-    `GET ^/api/groups/public/parties/[^/]+/items$`. 404 when the party has
+    `GET ^/api/groups/public/parties/[^/]+(/items|/meetings)?$`. 404 when the party has
     no user profile."""
     page = await owner_items.get_party_owner_items(
         db, party_id, pagination, mode, storage, principal
     )
     set_personalised_cache_headers(response, principal)
     return page
+
+
+@router.get("/api/groups/public/parties/{party_id}", response_model=PartyProfileResponse)
+async def get_party_profile(
+    party_id: uuid.UUID,
+    db: DbSession,
+    storage: Storage,
+    response: Response,
+    principal: OptionalPrincipal = None,
+) -> PartyProfileResponse:
+    """Unauthenticated — matched by the parties PUBLIC row in
+    `AUTHORIZATION_MATRIX`. 404 when the party has no user profile or
+    nothing public (see `owner_items.get_party_profile`)."""
+    profile = await owner_items.get_party_profile(db, party_id, storage, principal)
+    set_personalised_cache_headers(response, principal)
+    return profile
+
+
+@router.get(
+    "/api/groups/public/organizers/{slug}/meetings", response_model=OwnerMeetingsResponse
+)
+async def get_organization_owner_meetings(
+    slug: str, db: DbSession, response: Response
+) -> OwnerMeetingsResponse:
+    """Unauthenticated — matched by the organizers PUBLIC row in
+    `AUTHORIZATION_MATRIX`. Not personalised, so the plain public header."""
+    meetings = await owner_items.get_organization_owner_meetings(db, slug)
+    response.headers["Cache-Control"] = PUBLIC_CACHE_CONTROL
+    return meetings
+
+
+@router.get(
+    "/api/groups/public/parties/{party_id}/meetings", response_model=OwnerMeetingsResponse
+)
+async def get_party_owner_meetings(
+    party_id: uuid.UUID, db: DbSession, response: Response
+) -> OwnerMeetingsResponse:
+    """Unauthenticated — matched by the parties PUBLIC row in
+    `AUTHORIZATION_MATRIX`. 404 as for `get_party_profile`."""
+    meetings = await owner_items.get_party_owner_meetings(db, party_id)
+    response.headers["Cache-Control"] = PUBLIC_CACHE_CONTROL
+    return meetings

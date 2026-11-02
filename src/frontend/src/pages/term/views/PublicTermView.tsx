@@ -22,6 +22,13 @@ import { useTermSignUp } from "../hooks/useTermSignUp";
 import { useNeededItemPledge } from "../hooks/useNeededItemPledge";
 import { useOpenAndNavigate } from "../../../hooks/useOpenAndNavigate";
 
+/** The header chip's target: the Organization's page, else, for a PUBLIC
+ * circle, the organizer's person profile (a `k-…` slug has no page). */
+function organizerPageSegment(group: PublicCircleResponse): string | null {
+  if (group.organization !== null) return group.organizer_slug;
+  return group.visibility === "PUBLIC" ? group.organizer_party_id : null;
+}
+
 /** The server's chat-relevant relationship to the group and the shown term. */
 interface ChatAccess {
   isOrganizer: boolean;
@@ -99,7 +106,7 @@ export function PublicTermView({
         subtitle={term?.description ?? null}
         onBack={() => navigate(-1)}
         organizerName={group.organizer_display_name}
-        organizerSlug={group.organizer_slug}
+        organizerSlug={organizerPageSegment(group)}
       />
 
       <main tabIndex={-1} className="flex-1 outline-none">

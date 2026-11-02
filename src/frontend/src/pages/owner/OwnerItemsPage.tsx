@@ -4,6 +4,7 @@ import type { OwnerNearestDate } from "../../api/ownerItems";
 import { useOwnerItems, type OwnerRef } from "../../hooks/useOwnerItems";
 import { usePublicOrganization } from "../../hooks/usePublicOrganization";
 import { OrganizerThemeScope } from "../../theme/OrganizerThemeScope";
+import { isPartyId } from "../../utils/appHelpers";
 import { pluralPl } from "../../utils/plural";
 import { BlockSkeleton } from "../organizer/blocks/BlockSkeleton";
 import { ExchangeModeTabs, type ExchangeFilter } from "../organizer/blocks/ExchangeBoardBlock";
@@ -13,15 +14,25 @@ import { NearestDateCard } from "../organizer/blocks/NearestDateCard";
 import { NotFoundFrame, PageFrame } from "../organizer/PageFrame";
 import { organizerItemPath } from "../product/useItemRoutes";
 
-const PARTY_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-
 const FOCUS_RING = "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring";
 const BACK_LINK = `inline-flex min-h-[44px] items-center gap-1.5 self-start text-[14px] font-bold text-primary-fg ${FOCUS_RING}`;
 const RETRY_BUTTON = `min-h-[44px] font-bold text-primary-fg underline ${FOCUS_RING}`;
 const MORE_BUTTON = `flex min-h-11 w-full items-center justify-center rounded-full border border-line bg-paper px-5 text-[14px] font-bold text-ink disabled:opacity-60 ${FOCUS_RING}`;
 
 
-function NearestSection({ nearest, name }: { nearest: OwnerNearestDate | null; name: string }) {
+const ALL_MEETINGS_LINK = `inline-flex min-h-11 items-center self-start text-[14px] font-extrabold text-primary-fg no-underline ${FOCUS_RING}`;
+
+/** The owner's nearest date (or a chat-only notice) and, with one, a link to
+ * all their meetings at `meetingsHref`. */
+export function NearestSection({
+  nearest,
+  name,
+  meetingsHref,
+}: {
+  nearest: OwnerNearestDate | null;
+  name: string;
+  meetingsHref: string;
+}) {
   if (!nearest) {
     return (
       <div className="rounded-3xl border border-line bg-paper p-4">
@@ -32,15 +43,21 @@ function NearestSection({ nearest, name }: { nearest: OwnerNearestDate | null; n
   }
   const attendees = `${nearest.attendee_count} ${pluralPl(nearest.attendee_count, "zapisany", "zapisanych", "zapisanych")}`;
   return (
-    <NearestDateCard
-      variant="card"
-      kicker="Najbliższa okazja do odbioru"
-      name={nearest.name}
-      startsAt={nearest.starts_at}
-      details={nearest.location_name ? `${nearest.location_name} · ${attendees}` : attendees}
-      ctaHref={nearest.path}
-      ctaLabel={nearest.kind === "EVENT" ? "Zobacz wydarzenie i zapisz się" : "Zobacz termin i zapisz się"}
-    />
+    <div className="flex flex-col gap-1">
+      <NearestDateCard
+        variant="card"
+        kicker="Najbliższa okazja do odbioru"
+        name={nearest.name}
+        startsAt={nearest.starts_at}
+        details={nearest.location_name ? `${nearest.location_name} · ${attendees}` : attendees}
+        ctaHref={nearest.path}
+        ctaLabel={nearest.kind === "EVENT" ? "Zobacz wydarzenie i zapisz się" : "Zobacz termin i zapisz się"}
+      />
+      <Link to={meetingsHref} className={ALL_MEETINGS_LINK}>
+        Wszystkie spotkania
+        <span aria-hidden="true">{" ›"}</span>
+      </Link>
+    </div>
   );
 }
 
@@ -118,7 +135,11 @@ function OwnerItemsContent({ ownerRef, back }: { ownerRef: OwnerRef; back: React
             </p>
           </div>
         </div>
-        <NearestSection nearest={nearest} name={owner.display_name} />
+        <NearestSection
+          nearest={nearest}
+          name={owner.display_name}
+          meetingsHref={`/${owner.slug ?? owner.party_id}/meetings`}
+        />
         {total > 0 && (
           <ExchangeModeTabs
             counts={counts}
@@ -242,7 +263,7 @@ function PartyOwnerItems({ partyId }: { partyId: string }) {
  * person): the owner's listed items, each tile linking to its product page. */
 export function OwnerItemsPage() {
   const { organizationSlug = "" } = useParams<{ organizationSlug: string }>();
-  return PARTY_ID.test(organizationSlug) ? (
+  return isPartyId(organizationSlug) ? (
     <PartyOwnerItems key={organizationSlug} partyId={organizationSlug} />
   ) : (
     <OrganizationOwnerItems key={organizationSlug} slug={organizationSlug} />
