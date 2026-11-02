@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { useAppNavigate, useAppSearchParams } from "../../routing/navigation";
 import { Box, Button, Flex, Heading, Spinner, Text } from "@chakra-ui/react";
 import { useClientValue } from "../../lib/useClientValue";
 
@@ -17,8 +17,8 @@ const scopeDescriptions: Record<string, { title: string; description: string }> 
 const ALWAYS_SELECTED_SCOPES = new Set(["mcp:read"]);
 
 export function OAuth2AuthorizePage() {
-  const [searchParams] = useSearchParams();
-  const navigate = useNavigate();
+  const [searchParams] = useAppSearchParams();
+  const navigate = useAppNavigate();
   const [clientName, setClientName] = useState("Application");
   const [availableScopes, setAvailableScopes] = useState<string[]>([]);
   const [selectedScopes, setSelectedScopes] = useState<Record<string, boolean>>({});

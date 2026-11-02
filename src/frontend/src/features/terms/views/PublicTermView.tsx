@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useAppNavigate } from "../../../routing/navigation";
 import { useAuth } from "../../../auth/AuthContext";
 import type { PublicCircleResponse } from "../../../api/groups";
 import { RsvpDialog } from "../modals/RsvpDialog";
@@ -48,7 +48,7 @@ export function PublicTermView({
   chatAccess: ChatAccess;
   refetch: () => Promise<void>;
 }) {
-  const navigate = useNavigate();
+  const navigate = useAppNavigate();
   const { token, displayName } = useAuth();
   const isLoggedIn = Boolean(token);
   const groupId = group.id;

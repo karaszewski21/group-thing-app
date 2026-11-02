@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { useLocation, useNavigate } from "react-router-dom";
+import { useAppHash, useAppNavigate, useAppPathname, useAppSearch } from "../../../routing/navigation";
 import { ApiError } from "../../../api/client";
 import { useClientValue } from "../../../lib/useClientValue";
 import { parseJoinCode } from "../../../utils/joinCode";
@@ -55,9 +55,11 @@ export function useJoinCodeLink({
   joinWithCode: (code: string) => Promise<void>;
   onJoined: () => void;
 }) {
-  const location = useLocation();
-  const navigate = useNavigate();
-  const hashCode = new URLSearchParams(location.hash.slice(1)).get("code");
+  const pathname = useAppPathname();
+  const search = useAppSearch();
+  const hash = useAppHash();
+  const navigate = useAppNavigate();
+  const hashCode = new URLSearchParams(hash.slice(1)).get("code");
   // Once a redeem starts, the stored entry is `join`'s own (kept only
   // through a 401's login redirect), so it is no longer read here.
   const [redeemStarted, setRedeemStarted] = useState(false);
@@ -89,8 +91,8 @@ export function useJoinCodeLink({
     if (view !== "enterCode" || typeof parseJoinCode(pendingCode) !== "string") {
       writePendingCode(groupId, null);
     }
-    if (hashCode !== null) navigate({ pathname: location.pathname, search: location.search }, { replace: true });
-  }, [settled, view, pendingCode, hashCode, groupId, navigate, location.pathname, location.search]);
+    if (hashCode !== null) navigate(pathname + search, { replace: true });
+  }, [settled, view, pendingCode, hashCode, groupId, navigate, pathname, search]);
 
   const join = useCallback(
     async (code: string) => {

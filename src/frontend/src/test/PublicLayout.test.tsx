@@ -1,11 +1,12 @@
-import { fireEvent, render, screen, within } from "@testing-library/react";
+import { fireEvent, screen, within } from "@testing-library/react";
+import type { ReactNode } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { MemoryRouter, Route, Routes, useLocation } from "react-router-dom";
 import { AuthGuard } from "../auth/AuthGuard";
 import * as conversationsApi from "../api/conversations";
 import * as notificationsApi from "../api/notifications";
 import { PublicLayout } from "../components/layout/PublicLayout";
 import { createQueryWrapper } from "./queryClient";
+import { getTestLocation, renderWithRoute } from "./renderWithRoute";
 import { resetSnoozeStoreForTests } from "../components/layout/pending/snoozeStore";
 
 vi.mock("../api/conversations", () => ({ getUnreadMessageCount: vi.fn(), chatErrorMessage: vi.fn() }));
@@ -18,28 +19,27 @@ vi.mock("../api/notifications", () => ({
 let mockAuth: { token: string | null; username?: string };
 vi.mock("../auth/AuthContext", () => ({ useAuth: () => mockAuth }));
 
-function LocationProbe() {
-  const { pathname, search } = useLocation();
-  return <output data-testid="where">{pathname + search}</output>;
+function inLayout(page: ReactNode) {
+  return <PublicLayout>{page}</PublicLayout>;
 }
 
 function renderPublicPage(initialEntry = "/skrzaty") {
-  return render(
-    <MemoryRouter initialEntries={[initialEntry]}>
-      <LocationProbe />
-      <Routes>
-        <Route element={<PublicLayout />}>
-          <Route path="/" element={<h1>Start</h1>} />
-          <Route path="/account" element={<AuthGuard><h1>Konto</h1></AuthGuard>} />
-          <Route path="/profile" element={<h1>Profil</h1>} />
-          <Route path="/messages/:conversationId" element={<h1>Wątek</h1>} />
-          <Route path="/:organizationSlug" element={<h1>Strona publiczna</h1>} />
-        </Route>
-        <Route path="/login" element={<h1>Logowanie</h1>} />
-      </Routes>
-    </MemoryRouter>,
-    { wrapper: createQueryWrapper() },
-  );
+  return renderWithRoute(inLayout(<h1>Strona publiczna</h1>), {
+    url: initialEntry,
+    pattern: "/:organizationSlug",
+    routes: {
+      "/": inLayout(<h1>Start</h1>),
+      "/account": inLayout(
+        <AuthGuard>
+          <h1>Konto</h1>
+        </AuthGuard>,
+      ),
+      "/profile": inLayout(<h1>Profil</h1>),
+      "/messages/:conversationId": inLayout(<h1>Wątek</h1>),
+      "/login": <h1>Logowanie</h1>,
+    },
+    wrapper: createQueryWrapper(),
+  });
 }
 
 beforeEach(() => {
@@ -79,7 +79,7 @@ describe("PublicLayout", () => {
     const nav = screen.getByRole("navigation", { name: "Nawigacja główna" });
     fireEvent.click(within(nav).getByRole("button", { name: "Konto" }));
 
-    expect(screen.getByTestId("where")).toHaveTextContent("/login?returnTo=%2Faccount");
+    expect(getTestLocation()).toEqual({ pathname: "/login", search: "?returnTo=%2Faccount" });
   });
 
   it.each([
@@ -113,16 +113,11 @@ describe("PublicLayout", () => {
   });
 
   it("/login sits inside the layout with both global bars", () => {
-    render(
-      <MemoryRouter initialEntries={["/login"]}>
-        <Routes>
-          <Route element={<PublicLayout />}>
-            <Route path="/login" element={<h1>Logowanie</h1>} />
-          </Route>
-        </Routes>
-      </MemoryRouter>,
-      { wrapper: createQueryWrapper() },
-    );
+    renderWithRoute(inLayout(<h1>Logowanie</h1>), {
+      url: "/login",
+      pattern: "/login",
+      wrapper: createQueryWrapper(),
+    });
 
     expect(screen.getByRole("navigation", { name: "Menu konta" })).toBeInTheDocument();
     expect(screen.getByRole("navigation", { name: "Nawigacja główna" })).toBeInTheDocument();

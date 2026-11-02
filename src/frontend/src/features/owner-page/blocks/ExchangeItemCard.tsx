@@ -1,4 +1,4 @@
-import { Link } from "react-router-dom";
+import { Link } from "../../../routing/navigation";
 import type { ExchangeMode, OrganizerExchangeItem, ReservedByResponse } from "../../../api/groups";
 import type { ItemCondition } from "../../../api/inventories";
 import { PhotoPlaceholder } from "../../../components/shared/Icons";

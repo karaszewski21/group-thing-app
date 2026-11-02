@@ -1,6 +1,6 @@
-import { render, screen } from "@testing-library/react";
+import { screen } from "@testing-library/react";
+import { renderWithRoute } from "./renderWithRoute";
 import { describe, expect, it, vi, beforeEach } from "vitest";
-import { MemoryRouter } from "react-router-dom";
 import { ChakraProvider } from "@chakra-ui/react";
 import { system } from "../theme/system";
 
@@ -58,12 +58,11 @@ function mockPlugins(menuItems: Array<{ pluginId: string; pluginName: string; pa
 }
 
 function renderSidebar() {
-  return render(
+  return renderWithRoute(
     <ChakraProvider value={system}>
-      <MemoryRouter initialEntries={["/"]}>
-        <Sidebar />
-      </MemoryRouter>
+      <Sidebar />
     </ChakraProvider>,
+    { url: "/" },
   );
 }
 

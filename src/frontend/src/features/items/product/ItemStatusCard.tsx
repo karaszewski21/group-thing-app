@@ -1,9 +1,9 @@
-import { Link } from "react-router-dom";
+import { Link } from "../../../routing/navigation";
 import type { ItemStatusResponse } from "../../../api/items";
 import { AddToCalendarButton } from "../../../components/shared/AddToCalendarButton";
 import { useOrigin } from "../../../lib/useClientValue";
 import { calendarUid, type CalendarEvent } from "../../../utils/calendar";
-import { eventPath } from "../../../utils/appHelpers";
+import { eventPath } from "../../../routing/paths";
 import dayjs from "../../../utils/dayjs";
 import { organizerTermPath } from "../../owner-page/organizerHelpers";
 

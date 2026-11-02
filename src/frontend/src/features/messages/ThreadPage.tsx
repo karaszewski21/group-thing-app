@@ -1,5 +1,5 @@
 import { Fragment, useCallback, useLayoutEffect, useRef, useState, type ReactNode } from "react";
-import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
+import { Link, useAppNavigate, useAppParams, useHasInAppHistory } from "../../routing/navigation";
 import type { ConversationKind, ConversationResponse, MessageResponse, ReadOnlyReason } from "../../api/conversations";
 import { Avatar } from "../../components/shared/Avatar";
 import { useConversation } from "../../hooks/useConversation";
@@ -39,7 +39,7 @@ type Thread = ReturnType<typeof useThread>;
 /** One conversation, full height under the top bar: header, scrolling
  * messages and the sticky composer (or the read-only banner). */
 export function ThreadPage() {
-  const { conversationId = "" } = useParams();
+  const { conversationId = "" } = useAppParams();
   const conversation = useConversation(conversationId);
   // A conversation known to be missing or off-limits stops the 5 s poll.
   const thread = useThread(conversationId, { poll: !conversation.notFound && !conversation.denied });
@@ -88,13 +88,13 @@ function ThreadShell({ children }: { children: ReactNode }) {
 }
 
 function BackButton() {
-  const navigate = useNavigate();
-  const location = useLocation();
+  const navigate = useAppNavigate();
+  const hasInAppHistory = useHasInAppHistory();
   return (
     <button
       type="button"
       aria-label="Wróć"
-      onClick={() => (location.key !== "default" ? navigate(-1) : navigate(INBOX_PATH))}
+      onClick={() => (hasInAppHistory ? navigate(-1) : navigate(INBOX_PATH))}
       className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-cream text-ink ${FOCUS_RING}`}
     >
       <BackIcon />

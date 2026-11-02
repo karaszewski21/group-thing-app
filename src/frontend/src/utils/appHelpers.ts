@@ -2,129 +2,15 @@ import type { GroupResponse, GroupVisibility } from "../api/groups";
 import type { ListingMode } from "../api/itemListingPreferences";
 import type { ReservationType } from "../api/reservations";
 import type { NeededItemResponse, TermResponse } from "../api/terms";
+import { viewPath, type View } from "../routing/paths";
 
 /* ------------------------------------------------------------------ */
 /*  Panel — współdzielone typy, stałe i czyste helpery                  */
 /*  (wydzielone z AppPage.tsx — zero zmian zachowania).               */
 /* ------------------------------------------------------------------ */
 
-export type View =
-  | "home"
-  | "meetings"
-  | "groups"
-  | "groups/new"
-  | "groups/edit"
-  | "items"
-  | "profile"
-  | "settings"
-  | "places"
-  | "places/new"
-  | "places/edit"
-  | "family"
-  | "family/new"
-  | "family/edit"
-  | "family/members/new"
-  | "family/members/edit"
-  | "account"
-  | "search"
-  | "wanted"
-  | "add"
-  | "add/product"
-  | "add/term"
-  | "add/event"
-  | "add/hunting"
-  | "events/edit"
-  | "terms/edit";
-
-const VIEW_VALUES: readonly View[] = [
-  "home",
-  "meetings",
-  "groups",
-  "groups/new",
-  "groups/edit",
-  "items",
-  "profile",
-  "settings",
-  "places",
-  "places/new",
-  "places/edit",
-  "family",
-  "family/new",
-  "family/edit",
-  "family/members/new",
-  "family/members/edit",
-  "account",
-  "search",
-  "wanted",
-  "add",
-  "add/product",
-  "add/term",
-  "add/event",
-  "add/hunting",
-  "events/edit",
-  "terms/edit",
-];
-
-function isView(value: string | undefined): value is View {
-  return value !== undefined && (VIEW_VALUES as readonly string[]).includes(value);
-}
-
 /** Sub-pages of "Konto": they show a back link to it. */
 export const ACCOUNT_SUBVIEWS: readonly View[] = ["profile", "settings", "places", "family", "wanted"];
-
-/** The URL of a panel view: `/` for home, `/<view>` otherwise. */
-export function viewPath(view: View): string {
-  return view === "home" ? "/" : `/${view}`;
-}
-
-/** Panel views with an id in their path (`/<section>/:id/edit`); they have
- * no `viewPath()`, their URLs come from `groupEditPath`/`placeEditPath`/
- * `familyMemberEditPath`/`eventEditPath`/`termEditPath`. */
-export const ID_PATH_VIEWS = [
-  "groups/edit",
-  "places/edit",
-  "family/members/edit",
-  "events/edit",
-  "terms/edit",
-] as const satisfies readonly View[];
-
-export function groupEditPath(groupId: string): string {
-  return `/groups/${groupId}/edit`;
-}
-
-export function placeEditPath(locationId: string): string {
-  return `/places/${locationId}/edit`;
-}
-
-const PARTY_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-
-/** A UUID-shaped first path segment is a party id (a person), never an
- * Organization slug: the backend keeps slugs from looking like UUIDs. */
-export function isPartyId(segment: string): boolean {
-  return PARTY_ID.test(segment);
-}
-
-/** An owner's public page: their Organization's, else their person profile. */
-export function ownerPagePath(owner: { slug: string | null; party_id: string }): string {
-  return `/${owner.slug ?? owner.party_id}`;
-}
-
-/** The public event page, under the author's organizer slug (`EventResponse.author_slug`). */
-export function eventPath(organizerSlug: string, eventId: string): string {
-  return `/${organizerSlug}/event/${eventId}`;
-}
-
-export function eventEditPath(eventId: string): string {
-  return `/events/${eventId}/edit`;
-}
-
-export function termEditPath(termId: string): string {
-  return `/terms/${termId}/edit`;
-}
-
-export function familyMemberEditPath(familyMembershipId: string): string {
-  return `/family/members/${familyMembershipId}/edit`;
-}
 
 /** `/places/new` opened from a form's place picker: after saving it goes
  * back to `returnTo` and hands the new place to the picker named `picker`
@@ -136,17 +22,6 @@ export function placeCreatePath(returnTo: string, picker: string): string {
 /** Navigation state `/places/new` returns with to the picker's page. */
 export interface PickedLocationState {
   pickedLocation: { picker: string; locationId: string };
-}
-
-const EDIT_PATH = /^\/(groups|places|family\/members|events|terms)\/[^/]+\/edit$/;
-
-/** The panel view a pathname shows, or `null` when it is not a panel view. */
-export function viewFromPath(pathname: string): View | null {
-  if (pathname === "/") return "home";
-  const edit = EDIT_PATH.exec(pathname);
-  if (edit) return `${edit[1] as "groups" | "places" | "family/members" | "events" | "terms"}/edit`;
-  const segment = pathname.slice(1);
-  return segment !== "home" && isView(segment) ? segment : null;
 }
 
 /** A new group starts PRIVATE until its founder has an Organization page to

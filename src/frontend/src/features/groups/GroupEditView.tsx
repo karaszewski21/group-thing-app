@@ -1,9 +1,10 @@
 import { useEffect } from "react";
-import { useParams } from "react-router-dom";
+import { useAppParams } from "../../routing/navigation";
 import { useAppData } from "../panel/appDataStore";
 import { GroupFormFields } from "./GroupFormFields";
 import { SubPageHeader } from "../../components/shared/appComponents";
-import { parseCapacity, viewPath } from "../../utils/appHelpers";
+import { parseCapacity } from "../../utils/appHelpers";
+import { viewPath } from "../../routing/paths";
 
 const TITLE = "Edytuj grupę";
 
@@ -13,7 +14,7 @@ const TITLE = "Edytuj grupę";
  * state and the save (which then goes back to "Moje grupy") live in
  * AppDataContext. */
 export function GroupEditView() {
-  const { groupId = "" } = useParams();
+  const { groupId = "" } = useAppParams();
   const {
     myGroups,
     editingGroupId,

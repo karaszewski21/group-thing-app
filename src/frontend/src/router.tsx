@@ -36,7 +36,7 @@ import { OwnerPage } from "./features/owner-page/OwnerPage";
 import { AuthGuard } from "./auth/AuthGuard";
 import { useAuth } from "./auth/AuthContext";
 import { PluginProvider } from "./plugins/host/PluginHost";
-import { viewPath, type ID_PATH_VIEWS, type View } from "./utils/appHelpers";
+import { viewPath, type ID_PATH_VIEWS, type View } from "./routing/paths";
 import { INBOX_PATH } from "./routing/messagesPaths";
 
 // The ID_PATH_VIEWS have their own routes below: their paths carry an id.
@@ -115,7 +115,11 @@ export const routes: RouteObject[] = [
   {
     // Pathless layout route for every page below: the global top bar and
     // bottom tab bar (see PublicLayout).
-    element: <PublicLayout />,
+    element: (
+      <PublicLayout>
+        <Outlet />
+      </PublicLayout>
+    ),
     children: [
       {
         path: "/",
@@ -203,7 +207,11 @@ export const routes: RouteObject[] = [
         // panel nav (see OrganizerItemLayout). "product" and "group" are in
         // the backend's RESERVED_SLUGS.
         path: "/:organizationSlug/product/:id",
-        element: <OrganizerItemLayout />,
+        element: (
+          <OrganizerItemLayout>
+            <Outlet />
+          </OrganizerItemLayout>
+        ),
         children: [
           { index: true, element: <ItemDetailBody /> },
           { path: "edit", element: <Navigate to="..?edit=1" relative="path" replace /> },

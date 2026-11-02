@@ -1,8 +1,8 @@
 import type { ReactNode } from "react";
-import { Link } from "react-router-dom";
+import { Link } from "../../routing/navigation";
 import { BoxIcon, CalendarIcon, CalendarPlusIcon, CloseIcon, SearchIcon } from "../../components/shared/appIcons";
 import { authPath } from "../../auth/authPaths";
-import { viewPath } from "../../utils/appHelpers";
+import { viewPath } from "../../routing/paths";
 import { useAppData } from "../panel/appDataStore";
 
 const TILE_CLASS =

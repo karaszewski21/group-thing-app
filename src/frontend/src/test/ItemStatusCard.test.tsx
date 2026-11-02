@@ -1,6 +1,6 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, screen } from "@testing-library/react";
+import { renderWithRoute } from "./renderWithRoute";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { MemoryRouter } from "react-router-dom";
 import type { ItemStatusResponse } from "../api/items";
 import { ItemStatusCard } from "../features/items/product/ItemStatusCard";
 import * as calendar from "../utils/calendar";
@@ -30,10 +30,9 @@ function eventStatus(over: Partial<ItemStatusResponse> = {}): ItemStatusResponse
 }
 
 function renderCard(status: ItemStatusResponse) {
-  return render(
-    <MemoryRouter>
-      <ItemStatusCard status={status} itemId={ITEM_ID} itemName="Rowerek" isOwner={false} />
-    </MemoryRouter>,
+  return renderWithRoute(
+    <ItemStatusCard status={status} itemId={ITEM_ID} itemName="Rowerek" isOwner={false} />,
+    { url: "/" },
   );
 }
 

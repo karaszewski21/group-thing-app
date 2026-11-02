@@ -1,5 +1,4 @@
-import { render, screen } from "@testing-library/react";
-import { MemoryRouter, Routes, Route } from "react-router-dom";
+import { screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { ChakraProvider } from "@chakra-ui/react";
 import { system } from "../theme/system";
@@ -9,6 +8,7 @@ import * as categoriesApi from "../api/categories";
 import type { Category } from "../api/categories";
 import { ProductDetailPage } from "../features/admin/ProductDetailPage";
 import { createQueryWrapper } from "./queryClient";
+import { renderWithRoute } from "./renderWithRoute";
 
 vi.mock("../api/products", () => ({
   getProduct: vi.fn(),
@@ -73,14 +73,11 @@ describe("Category display resolves via useCategories(), not CATEGORY_LABELS", (
   it("ProductDetailPage shows the full category path looked up by category_id", async () => {
     vi.mocked(productsApi.getProduct).mockResolvedValue(mockProduct);
 
-    render(
+    renderWithRoute(
       <ChakraProvider value={system}>
-        <MemoryRouter initialEntries={["/admin/products/1"]}>
-          <Routes>
-            <Route path="/admin/products/:id" element={<ProductDetailPage />} />
-          </Routes>
-        </MemoryRouter>
-      </ChakraProvider>, { wrapper: createQueryWrapper() },
+        <ProductDetailPage />
+      </ChakraProvider>,
+      { url: "/admin/products/1", pattern: "/admin/products/:id", wrapper: createQueryWrapper() },
     );
 
     expect(await screen.findByText("Dom › Elektronika")).toBeInTheDocument();

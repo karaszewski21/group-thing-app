@@ -1,6 +1,6 @@
 import { Box, Button, Flex, Heading, Input, Text } from "@chakra-ui/react";
 import { useMemo, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link } from "../../routing/navigation";
 import type { Category } from "../../api/categories";
 import { useCategories } from "../../hooks/useCategories";
 import { ConfirmDialog } from "../../components/shared/ConfirmDialog";

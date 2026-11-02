@@ -1,5 +1,4 @@
-import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
-import { createMemoryRouter, RouterProvider, useLocation } from "react-router-dom";
+import { fireEvent, screen, waitFor, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { ApiError } from "../api/client";
 import * as groupsApi from "../api/groups";
@@ -8,6 +7,7 @@ import * as organizationsApi from "../api/organizations";
 import type { Page } from "../api/pagination";
 import { OrganizerTermsPage } from "../features/owner-page/OrganizerTermsPage";
 import { createQueryWrapper } from "./queryClient";
+import { getTestLocation, renderWithRoute } from "./renderWithRoute";
 
 vi.mock("../auth/AuthContext", () => ({ useAuth: () => ({ token: null }) }));
 
@@ -79,33 +79,17 @@ function termsPage(items: OrganizerTerm[], page: number, total: number): Page<Or
 
 const TWO_CIRCLES = [circle("g1", "Orliki 2017"), circle("g2", "Młodziki 2015")];
 
-function LocationProbe() {
-  const location = useLocation();
-  return <output data-testid="location">{location.pathname + location.search}</output>;
-}
-
 function renderAt(path: string) {
-  const router = createMemoryRouter(
-    [
-      {
-        path: "/:organizationSlug/terms",
-        element: (
-          <>
-            <OrganizerTermsPage />
-            <LocationProbe />
-          </>
-        ),
-      },
-    ],
-    { initialEntries: [path] },
-  );
-  return render(<RouterProvider router={router} />, {
+  return renderWithRoute(<OrganizerTermsPage />, {
+    url: path,
+    pattern: "/:organizationSlug/terms",
     wrapper: createQueryWrapper(),
   });
 }
 
 function location(): string {
-  return screen.getByTestId("location").textContent ?? "";
+  const { pathname, search } = getTestLocation();
+  return pathname + search;
 }
 
 beforeEach(() => {

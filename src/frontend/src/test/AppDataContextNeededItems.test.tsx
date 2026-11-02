@@ -1,6 +1,4 @@
 import { act, renderHook, waitFor } from "@testing-library/react";
-import type { ReactNode } from "react";
-import { MemoryRouter } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { ApiError } from "../api/client";
 import * as familiesApi from "../api/families";
@@ -12,8 +10,8 @@ import * as pledgesApi from "../api/pledges";
 import * as termsApi from "../api/terms";
 import { AppDataProvider } from "../features/panel/AppDataContext";
 import { useAppData } from "../features/panel/appDataStore";
-import { QueryClientProvider } from "@tanstack/react-query";
-import { createTestQueryClient } from "./queryClient";
+import { createQueryWrapper } from "./queryClient";
+import { routeWrapper } from "./renderWithRoute";
 
 vi.mock("../auth/AuthContext", () => ({
   useAuth: () => ({ token: "tok", username: "anna", logout: vi.fn() }),
@@ -59,19 +57,21 @@ vi.mock("../api/terms", () => ({
 
 const term = { id: "t1", circle_group_id: "g1", occurs_on: "2026-11-05T17:00:00" } as termsApi.TermResponse;
 
-function wrapper({ children }: { children: ReactNode }) {
-  return (
-    <QueryClientProvider client={createTestQueryClient()}>
-      <MemoryRouter initialEntries={["/add/term"]}>
+/** Renders `useAppData()` inside the provider on the page at `url`. */
+function renderAppData(url: string) {
+  const RouteWrapper = routeWrapper({ url, wrapper: createQueryWrapper() });
+  return renderHook(() => useAppData(), {
+    wrapper: ({ children }) => (
+      <RouteWrapper>
         <AppDataProvider>{children}</AppDataProvider>
-      </MemoryRouter>
-    </QueryClientProvider>
-  );
+      </RouteWrapper>
+    ),
+  });
 }
 
 /** On the "Dodaj termin" page: a group, a date and the given needed-item drafts. */
 async function renderFilledTermForm(names: string[]) {
-  const hook = renderHook(() => useAppData(), { wrapper });
+  const hook = renderAppData("/add/term");
   await waitFor(() => expect(hook.result.current.loading).toBe(false));
   act(() => {
     hook.result.current.selectTermGroup("g1");

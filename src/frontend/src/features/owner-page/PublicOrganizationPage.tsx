@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { useParams, useSearchParams } from "react-router-dom";
+import { useAppParams, useAppSearchParams } from "../../routing/navigation";
 import { useMyOrganization } from "../../hooks/useMyOrganization";
 import { useOrganizerPage } from "../../hooks/useOrganizerPage";
 import { usePublicOrganization } from "../../hooks/usePublicOrganization";
@@ -26,8 +26,8 @@ import { OrganizerPageSkeleton } from "./OrganizerPageSkeleton";
  * (the baseline, which refreshes on every refetch) when saved.
  */
 export function PublicOrganizationPage() {
-  const { organizationSlug = "" } = useParams<{ organizationSlug: string }>();
-  const [searchParams, setSearchParams] = useSearchParams();
+  const { organizationSlug = "" } = useAppParams<{ organizationSlug: string }>();
+  const [searchParams, setSearchParams] = useAppSearchParams();
   const { data: organization, loading } = usePublicOrganization(organizationSlug);
   // Fetched in parallel; the directory never holds back the first paint.
   const directory = useOrganizerPage(organizationSlug);

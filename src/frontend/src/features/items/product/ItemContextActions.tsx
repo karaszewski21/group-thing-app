@@ -1,5 +1,5 @@
 import { useId, useState, type ReactNode } from "react";
-import { Link, useLocation } from "react-router-dom";
+import { Link, useAppPathname, useAppSearch } from "../../../routing/navigation";
 import type { ItemActionsResponse, ItemContextOptionResponse, ItemLocationResponse } from "../../../api/itemActions";
 import { authPath } from "../../../auth/authPaths";
 import { Avatar } from "../../../components/shared/Avatar";
@@ -7,7 +7,7 @@ import { ToastPill } from "../../../components/shared/ToastPill";
 import { BTN_GHOST, BTN_LG, BTN_PRIMARY, CARD } from "../../../components/shared/uiStyles";
 import { useToast } from "../../../components/shared/useToast";
 import { useOpenAndNavigate } from "../../../hooks/useOpenAndNavigate";
-import { ownerPagePath, viewPath } from "../../../utils/appHelpers";
+import { ownerPagePath, viewPath } from "../../../routing/paths";
 import dayjs from "../../../utils/dayjs";
 import { useAccountGate } from "../../terms/hooks/useAccountGate";
 import { AuthGateSheet } from "../../terms/modals/AuthGateSheet";
@@ -427,8 +427,10 @@ function ContextList({ contexts, subtitle }: { contexts: ItemContextOptionRespon
 /** The anonymous visitor's way in: both links come back to this item. */
 function AnonymousGate() {
   const headingId = useId();
-  const location = useLocation();
-  const returnTo = location.pathname + location.search;
+  const pathname = useAppPathname();
+
+  const search = useAppSearch();
+  const returnTo = pathname + search;
   return (
     <section className={`mt-3 ${CARD}`} aria-labelledby={headingId}>
       <h3 id={headingId} className={HEADING}>

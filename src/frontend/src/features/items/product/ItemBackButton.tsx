@@ -1,4 +1,4 @@
-import { useLocation, useNavigate } from "react-router-dom";
+import { useAppNavigate, useHasInAppHistory } from "../../../routing/navigation";
 import { BackIcon } from "../../../components/shared/appIcons";
 import { BACK_LINK } from "./itemPageShared";
 import { useItemRoutes } from "./useItemRoutes";
@@ -7,12 +7,12 @@ import { useItemRoutes } from "./useItemRoutes";
  * organizer page on `/:organizationSlug/product/...`) when opened directly.
  * `overlay` is the round white button laid over the item photo. */
 export function ItemBackButton({ overlay = false }: { overlay?: boolean }) {
-  const navigate = useNavigate();
-  const location = useLocation();
+  const navigate = useAppNavigate();
+  const hasInAppHistory = useHasInAppHistory();
   const { backFallback } = useItemRoutes();
 
   const goBack = () => {
-    if (location.key !== "default") navigate(-1);
+    if (hasInAppHistory) navigate(-1);
     else navigate(backFallback);
   };
 

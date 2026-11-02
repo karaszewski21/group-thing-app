@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useAppNavigate, useAppParams } from "../../routing/navigation";
 import type { LocationResponse, UpdateLocationRequest } from "../../api/locations";
 import { useAppData } from "../panel/appDataStore";
 import {
@@ -11,7 +11,7 @@ import {
 } from "../../components/shared/LocationAddForm";
 import { SubPageHeader } from "../../components/shared/appComponents";
 import { useMyLocations } from "../../hooks/useMyLocations";
-import { viewPath } from "../../utils/appHelpers";
+import { viewPath } from "../../routing/paths";
 
 const TITLE = "Edytuj miejsce";
 
@@ -20,8 +20,8 @@ const TITLE = "Edytuj miejsce";
  * back to "Moje miejsca". `onPlacesChanged` lets the panel refresh the group
  * tiles and term cards that show the place. */
 export function PlaceEditView({ onPlacesChanged }: { onPlacesChanged: () => void }) {
-  const { locationId = "" } = useParams();
-  const navigate = useNavigate();
+  const { locationId = "" } = useAppParams();
+  const navigate = useAppNavigate();
   const { showToast } = useAppData();
   const { data: locations, loading, error, update } = useMyLocations();
   const location = locations.find((l) => l.id === locationId) ?? null;

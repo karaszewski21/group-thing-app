@@ -1,5 +1,5 @@
 import { Box, Flex, Text } from "@chakra-ui/react";
-import { Link, useLocation } from "react-router-dom";
+import { Link, useAppPathname } from "../../routing/navigation";
 import type { LucideIcon } from "lucide-react";
 import { ProductsIcon, PluginsIcon, KragIcon, CategoriesIcon, GroupsIcon, TermsIcon, PhotosIcon, resolveIcon } from "../shared/Icons";
 import { usePluginContext } from "../../plugins/host/PluginHost";
@@ -12,8 +12,8 @@ interface NavItemProps {
 }
 
 function NavItem({ to, label, icon: Icon }: NavItemProps) {
-  const location = useLocation();
-  const isActive = location.pathname.startsWith(to);
+  const pathname = useAppPathname();
+  const isActive = pathname.startsWith(to);
 
   return (
     <Flex asChild px="12px">

@@ -8,7 +8,7 @@ import {
   Textarea,
 } from "@chakra-ui/react";
 import { useCallback, useEffect, useState } from "react";
-import { Link, useNavigate, useParams } from "react-router-dom";
+import { Link, useAppNavigate, useAppParams } from "../../routing/navigation";
 import { getPlugin, uploadManifest } from "../../api/plugins";
 import type { ManifestPayload } from "../../api/plugins";
 import { PrimaryButton } from "../../components/shared/PrimaryButton";
@@ -30,8 +30,8 @@ const DEFAULT_MANIFEST: ManifestPayload = {
 };
 
 export function PluginFormPage() {
-  const { pluginId } = useParams<{ pluginId: string }>();
-  const navigate = useNavigate();
+  const { pluginId } = useAppParams<{ pluginId: string }>();
+  const navigate = useAppNavigate();
   const isEdit = Boolean(pluginId);
 
   const [id, setId] = useState(pluginId ?? "");

@@ -1,5 +1,5 @@
-import { act, cleanup, fireEvent, render, screen, within } from "@testing-library/react";
-import { MemoryRouter } from "react-router-dom";
+import { act, cleanup, fireEvent, screen, within } from "@testing-library/react";
+import { renderWithRoute } from "./renderWithRoute";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import * as groupsApi from "../api/groups";
 import type { OrganizerCircle, OrganizerPageResponse, OrganizerTerm } from "../api/groups";
@@ -94,11 +94,9 @@ function inDays(days: number): string {
 }
 
 function renderLayout(key: string, pageState: OrganizerPageData, mode: RenderMode = "visitor") {
-  return render(
-    <MemoryRouter>
-      <LayoutRenderer layout={resolveLayout(key)} data={pageState} mode={mode} />
-    </MemoryRouter>,
-    { wrapper: createQueryWrapper() },
+  return renderWithRoute(
+    <LayoutRenderer layout={resolveLayout(key)} data={pageState} mode={mode} />,
+    { url: "/", wrapper: createQueryWrapper() },
   );
 }
 

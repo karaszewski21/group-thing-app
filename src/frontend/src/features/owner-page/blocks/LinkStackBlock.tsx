@@ -1,4 +1,4 @@
-import { Link } from "react-router-dom";
+import { Link } from "../../../routing/navigation";
 import dayjs from "../../../utils/dayjs";
 import type { BlockProps } from "../layouts/types";
 import { exchangeTotal, organizerTermPath } from "../organizerHelpers";

@@ -1,5 +1,5 @@
 import { useEffect, useId, useRef, useState, type ReactNode } from "react";
-import { Link } from "react-router-dom";
+import { Link } from "../../routing/navigation";
 import { useRegisterOpenSheet } from "./openSheets";
 import dayjs from "../../utils/dayjs";
 import { CAPACITY_ERROR, capitalize, ITEM_MODE_TONE, parseCapacity, type ItemMode } from "../../utils/appHelpers";

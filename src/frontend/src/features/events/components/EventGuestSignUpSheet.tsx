@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from "react";
-import { Link, useLocation } from "react-router-dom";
+import { Link, useAppPathname, useAppSearch } from "../../../routing/navigation";
 import type { EventResponse } from "../../../api/events";
 import { authPath } from "../../../auth/authPaths";
 import { ModalSheet } from "../../../components/shared/ModalSheet";
@@ -22,7 +22,8 @@ export function EventGuestSignUpSheet({
   onSubmit: (name: string) => Promise<void>;
   onClose: () => void;
 }) {
-  const { pathname, search } = useLocation();
+  const pathname = useAppPathname();
+  const search = useAppSearch();
   const [name, setName] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);

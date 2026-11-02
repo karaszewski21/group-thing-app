@@ -1,6 +1,6 @@
-import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { fireEvent, screen, waitFor, within } from "@testing-library/react";
+import { renderWithRoute } from "./renderWithRoute";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { MemoryRouter } from "react-router-dom";
 import { ChakraProvider } from "@chakra-ui/react";
 import { system } from "../theme/system";
 import type { Category } from "../api/categories";
@@ -52,13 +52,11 @@ const mockCategories: Category[] = [
 ];
 
 function renderPage() {
-  return render(
+  return renderWithRoute(
     <ChakraProvider value={system}>
-      <MemoryRouter initialEntries={["/admin/categories"]}>
-        <CategoryListPage />
-      </MemoryRouter>
+      <CategoryListPage />
     </ChakraProvider>,
-    { wrapper: createQueryWrapper() },
+    { url: "/admin/categories", wrapper: createQueryWrapper() },
   );
 }
 

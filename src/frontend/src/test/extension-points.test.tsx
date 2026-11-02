@@ -1,6 +1,5 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { screen, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi, beforeEach } from "vitest";
-import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { ChakraProvider } from "@chakra-ui/react";
 import { system } from "../theme/system";
 import type { PluginResponse } from "../api/plugins";
@@ -11,6 +10,7 @@ import * as productsApi from "../api/products";
 import * as categoriesApi from "../api/categories";
 import { pageOf } from "./page";
 import { createQueryWrapper } from "./queryClient";
+import { renderWithRoute } from "./renderWithRoute";
 
 vi.mock("../auth/AuthContext", async (importOriginal) => {
   const actual = await importOriginal<typeof import("../auth/AuthContext")>();
@@ -105,11 +105,10 @@ const mockCategories: categoriesApi.Category[] = [
 ];
 
 function renderWithProviders(ui: React.ReactElement, initialRoute = "/") {
-  return render(
-    <ChakraProvider value={system}>
-      <MemoryRouter initialEntries={[initialRoute]}>{ui}</MemoryRouter>
-    </ChakraProvider>, { wrapper: createQueryWrapper() },
-  );
+  return renderWithRoute(<ChakraProvider value={system}>{ui}</ChakraProvider>, {
+    url: initialRoute,
+    wrapper: createQueryWrapper(),
+  });
 }
 
 beforeEach(() => {
@@ -150,16 +149,13 @@ describe("ProductDetailPage", () => {
     const { PluginProvider } = await import("../plugins/host/PluginHost");
     const { ProductDetailPage } = await import("../features/admin/ProductDetailPage");
 
-    render(
+    renderWithRoute(
       <ChakraProvider value={system}>
         <PluginProvider>
-          <MemoryRouter initialEntries={["/admin/products/42"]}>
-            <Routes>
-              <Route path="/admin/products/:id" element={<ProductDetailPage />} />
-            </Routes>
-          </MemoryRouter>
+          <ProductDetailPage />
         </PluginProvider>
-      </ChakraProvider>, { wrapper: createQueryWrapper() },
+      </ChakraProvider>,
+      { url: "/admin/products/42", pattern: "/admin/products/:id", wrapper: createQueryWrapper() },
     );
 
     // Product info should load
@@ -207,16 +203,13 @@ describe("Plugin page route", () => {
     const { PluginProvider } = await import("../plugins/host/PluginHost");
     const { PluginPageRoute } = await import("../features/admin/PluginPageRoute");
 
-    render(
+    renderWithRoute(
       <ChakraProvider value={system}>
         <PluginProvider>
-          <MemoryRouter initialEntries={["/admin/plugins/warehouse/some/path"]}>
-            <Routes>
-              <Route path="/admin/plugins/:pluginId/*" element={<PluginPageRoute />} />
-            </Routes>
-          </MemoryRouter>
+          <PluginPageRoute />
         </PluginProvider>
-      </ChakraProvider>, { wrapper: createQueryWrapper() },
+      </ChakraProvider>,
+      { url: "/admin/plugins/warehouse/some/path", pattern: "/admin/plugins/:pluginId/*", wrapper: createQueryWrapper() },
     );
 
     // Wait for plugins to load and iframe to render
@@ -237,16 +230,13 @@ describe("ProductDetailPage with no plugins", () => {
     const { PluginProvider } = await import("../plugins/host/PluginHost");
     const { ProductDetailPage } = await import("../features/admin/ProductDetailPage");
 
-    render(
+    renderWithRoute(
       <ChakraProvider value={system}>
         <PluginProvider>
-          <MemoryRouter initialEntries={["/admin/products/42"]}>
-            <Routes>
-              <Route path="/admin/products/:id" element={<ProductDetailPage />} />
-            </Routes>
-          </MemoryRouter>
+          <ProductDetailPage />
         </PluginProvider>
-      </ChakraProvider>, { wrapper: createQueryWrapper() },
+      </ChakraProvider>,
+      { url: "/admin/products/42", pattern: "/admin/products/:id", wrapper: createQueryWrapper() },
     );
 
     // Product info should load

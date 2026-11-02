@@ -1,11 +1,11 @@
 import { useRef, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link } from "../../routing/navigation";
 import { deleteGroup, type GroupResponse } from "../../api/groups";
 import { serverMessageOr } from "../../api/problem";
 import { useAppData } from "../panel/appDataStore";
 import { SubPageHeader } from "../../components/shared/appComponents";
 import { LayoutModeIcon, PencilIcon, TrashIcon } from "../../components/shared/appIcons";
-import { groupEditPath, viewPath } from "../../utils/appHelpers";
+import { groupEditPath, viewPath } from "../../routing/paths";
 import { pluralPl } from "../../utils/plural";
 import { DeleteGroupDialog } from "./DeleteGroupDialog";
 

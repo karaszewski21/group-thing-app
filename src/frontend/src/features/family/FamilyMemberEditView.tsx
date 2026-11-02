@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useParams } from "react-router-dom";
+import { useAppParams } from "../../routing/navigation";
 import type { GuardianResponse } from "../../api/families";
 import { useAppData } from "../panel/appDataStore";
 import { birthYearError } from "../../utils/age";
@@ -12,7 +12,7 @@ const TITLE = "Edytuj członka rodziny";
 /** `/family/members/:familyMembershipId/edit`: a child's birth year, the
  * only member detail the API lets the family change. */
 export function FamilyMemberEditView() {
-  const { familyMembershipId = "" } = useParams();
+  const { familyMembershipId = "" } = useAppParams();
   const { guardians } = useAppData();
   const member = guardians.find((g) => g.family_membership_id === familyMembershipId && g.role_type === "CHILD");
 

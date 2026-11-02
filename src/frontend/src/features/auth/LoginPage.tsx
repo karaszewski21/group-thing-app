@@ -1,5 +1,5 @@
 import { useId, useRef, useState, type KeyboardEvent } from "react";
-import { useSearchParams } from "react-router-dom";
+import { useAppSearchParams } from "../../routing/navigation";
 import { useAuth } from "../../auth/AuthContext";
 import { AuthGuard } from "../../auth/AuthGuard";
 import { AUTH_TAB_PARAM, REGISTER_TAB_VALUE, type AuthTab } from "../../auth/authPaths";
@@ -26,7 +26,7 @@ const TAB_CLASS =
  * konto" directly; `?returnTo=` survives switching tabs. A logged-in visitor
  * is sent on by AuthGuard — after registering to onboarding first. */
 export function LoginPage() {
-  const [searchParams, setSearchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useAppSearchParams();
   const tab: AuthTab = searchParams.get(AUTH_TAB_PARAM) === REGISTER_TAB_VALUE ? "register" : "login";
   const current = TABS.find((t) => t.key === tab)!;
   const baseId = useId();

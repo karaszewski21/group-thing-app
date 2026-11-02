@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Link } from "react-router-dom";
+import { Link } from "../../routing/navigation";
 import type { LocationRefResponse } from "../../api/locations";
 import { createTerm, type CreateTermRequest } from "../../api/terms";
 import { serverMessageOr } from "../../api/problem";

@@ -1,10 +1,10 @@
 import { useEffect, useId, useState, type ReactNode } from "react";
-import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
+import { Link, useAppNavigate, useAppParams, useAppSearch, useHasInAppHistory } from "../../routing/navigation";
 import type { OwnerNearestDate } from "../../api/ownerItems";
 import { useOwnerItems, type OwnerRef } from "../../hooks/useOwnerItems";
 import { usePublicOrganization } from "../../hooks/usePublicOrganization";
 import { OrganizerThemeScope } from "../../theme/OrganizerThemeScope";
-import { isPartyId } from "../../utils/appHelpers";
+import { isPartyId } from "../../routing/paths";
 import { pluralPl } from "../../utils/plural";
 import { BlockSkeleton } from "./blocks/BlockSkeleton";
 import { ExchangeModeTabs, type ExchangeFilter } from "./blocks/ExchangeBoardBlock";
@@ -67,8 +67,8 @@ export function NearestSection({
 function OwnerItemsContent({ ownerRef, back }: { ownerRef: OwnerRef; back: ReactNode }) {
   const [filter, setFilter] = useState<Exclude<ExchangeFilter, "RESERVED">>("ALL");
   const result = useOwnerItems(ownerRef, filter === "ALL" ? undefined : filter);
-  const navigate = useNavigate();
-  const { search } = useLocation();
+  const navigate = useAppNavigate();
+  const search = useAppSearch();
   const baseId = useId();
 
   const redirectSlug = ownerRef.kind === "party" ? (result.owner?.slug ?? null) : null;
@@ -236,12 +236,12 @@ function OrganizationOwnerItems({ slug }: { slug: string }) {
 }
 
 function PartyOwnerItems({ partyId }: { partyId: string }) {
-  const navigate = useNavigate();
-  const location = useLocation();
+  const navigate = useAppNavigate();
+  const hasInAppHistory = useHasInAppHistory();
   const back = (
     <button
       type="button"
-      onClick={() => (location.key !== "default" ? navigate(-1) : navigate("/"))}
+      onClick={() => (hasInAppHistory ? navigate(-1) : navigate("/"))}
       className={BACK_LINK}
     >
       <span aria-hidden="true">‹</span>
@@ -262,7 +262,7 @@ function PartyOwnerItems({ partyId }: { partyId: string }) {
 /** `/:slug/items` (an Organization, in its theme) or `/:partyId/items` (any
  * person): the owner's listed items, each tile linking to its product page. */
 export function OwnerItemsPage() {
-  const { organizationSlug = "" } = useParams<{ organizationSlug: string }>();
+  const { organizationSlug = "" } = useAppParams<{ organizationSlug: string }>();
   return isPartyId(organizationSlug) ? (
     <PartyOwnerItems key={organizationSlug} partyId={organizationSlug} />
   ) : (

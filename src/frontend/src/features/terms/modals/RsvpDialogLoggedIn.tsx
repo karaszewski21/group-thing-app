@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Link, useLocation } from "react-router-dom";
+import { Link, useAppPathname } from "../../../routing/navigation";
 import { getMyFamilies, type FamilyOut } from "../../../api/families";
 import { createRsvp, type RsvpResponse } from "../../../api/groups";
 import { Field } from "../../../components/shared/appComponents";
@@ -31,7 +31,7 @@ export function RsvpDialogLoggedIn({
   onClose: () => void;
   onSubmitted: (rsvp: RsvpResponse) => void;
 }) {
-  const { pathname } = useLocation();
+  const pathname = useAppPathname();
   const [family, setFamily] = useState<FamilyOut | null>(null);
   const [childCount, setChildCount] = useState(0);
   const [skipBanner, setSkipBanner] = useState(false);

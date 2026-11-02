@@ -1,6 +1,6 @@
-import { render, screen } from "@testing-library/react";
+import { screen } from "@testing-library/react";
+import { renderWithRoute } from "./renderWithRoute";
 import { describe, expect, it } from "vitest";
-import { MemoryRouter } from "react-router-dom";
 import type { PublicItemListingResponse } from "../api/groups";
 import { AttendeeList } from "../features/terms/components/AttendeeList";
 
@@ -20,21 +20,20 @@ function listing(thumbUrl: string | null): PublicItemListingResponse {
 }
 
 function renderRow(thumbUrl: string | null) {
-  render(
-    <MemoryRouter>
-      <AttendeeList
-        attendees={[
-          {
-            partyId: "21",
-            name: "Ola Nowak",
-            listings: [listing(thumbUrl)],
-            listingsTotal: 1,
-            organizerSlug: "ania",
-          },
-        ]}
-        activePartyId={null}
-      />
-    </MemoryRouter>,
+  renderWithRoute(
+    <AttendeeList
+      attendees={[
+        {
+          partyId: "21",
+          name: "Ola Nowak",
+          listings: [listing(thumbUrl)],
+          listingsTotal: 1,
+          organizerSlug: "ania",
+        },
+      ]}
+      activePartyId={null}
+    />,
+    { url: "/" },
   );
   const link = screen.getByRole("link", { name: /Kask rowerowy/ });
   const tile = link.firstElementChild as HTMLElement;

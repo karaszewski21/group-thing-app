@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useAppNavigate } from "../routing/navigation";
 import { threadPath } from "../routing/messagesPaths";
 import { useOpenConversation, type ChatTarget } from "./useOpenConversation";
 
@@ -14,7 +14,7 @@ interface UseOpenAndNavigateResult {
 /** The chat entry points' click handler: opens (or creates) the conversation
  * and goes to its thread; a failure lands in `error` for an inline alert. */
 export function useOpenAndNavigate(): UseOpenAndNavigateResult {
-  const navigate = useNavigate();
+  const navigate = useAppNavigate();
   const { openConversation } = useOpenConversation();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);

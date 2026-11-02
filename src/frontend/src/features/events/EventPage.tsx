@@ -1,5 +1,5 @@
 import { useEffect, type ReactNode } from "react";
-import { useLocation, useNavigate, useParams } from "react-router-dom";
+import { useAppNavigate, useAppParams, useNavigationState } from "../../routing/navigation";
 import type { EventDetailResponse } from "../../api/events";
 import { useAuth } from "../../auth/AuthContext";
 import { ConfirmDeleteDialog } from "../../components/shared/ConfirmDeleteDialog";
@@ -10,7 +10,7 @@ import { useEvent } from "../../hooks/useEvent";
 import { useOpenAndNavigate } from "../../hooks/useOpenAndNavigate";
 import { useOrigin } from "../../lib/useClientValue";
 import { OrganizerThemeScope } from "../../theme/OrganizerThemeScope";
-import { eventPath, viewPath } from "../../utils/appHelpers";
+import { eventPath, viewPath } from "../../routing/paths";
 import { GroupHeader } from "../terms/components/GroupHeader";
 import { TermPageSkeleton } from "../terms/components/TermPageSkeleton";
 import { EventAttendeeList } from "./components/EventAttendeeList";
@@ -37,7 +37,7 @@ function routerToast(state: unknown): string | null {
  * a one-off event. Keyed on the id, since React Router reuses the element
  * when only `:eventId` changes and the page state belongs to one event. */
 export function EventPage() {
-  const { eventId = "" } = useParams();
+  const { eventId = "" } = useAppParams();
   return <EventPageContent key={eventId} eventId={eventId} />;
 }
 
@@ -46,8 +46,8 @@ export function EventPage() {
 function EventPageContent({ eventId }: { eventId: string }) {
   const { token } = useAuth();
   const isLoggedIn = Boolean(token);
-  const navigate = useNavigate();
-  const { pathname, state } = useLocation();
+  const navigate = useAppNavigate();
+  const state = useNavigationState<unknown>();
   const event = useEvent(eventId);
   const { toast, showToast } = useToast();
   const chat = useOpenAndNavigate();
@@ -68,14 +68,13 @@ function EventPageContent({ eventId }: { eventId: string }) {
     guestProfileId: signUp.guestProfileId,
   });
 
-  // Shown once: the history entry loses its state so a refresh or a back
-  // navigation doesn't repeat it.
+  // Shown once: the handed-over state is read once, so a refresh or a back
+  // navigation doesn’t repeat it.
   const handedOverToast = routerToast(state);
   useEffect(() => {
     if (handedOverToast === null) return;
     showToast(handedOverToast);
-    navigate(pathname, { replace: true, state: null });
-  }, [handedOverToast, pathname, navigate, showToast]);
+  }, [handedOverToast, showToast]);
 
   const page = (content: EventDetailResponse, sections: Omit<EventShellProps, "event" | "onCopyLink">) => (
     <EventShell event={content} onCopyLink={() => showToast("Skopiowano link")} {...sections} />
@@ -189,7 +188,7 @@ interface EventShellProps {
 /** The event page in the author's theme: header, banner, date and place,
  * description, chat, the attendee list, the view's card and footer. */
 function EventShell({ event, onCopyLink, canSignUp = false, chat, card, footer, overlay }: EventShellProps) {
-  const navigate = useNavigate();
+  const navigate = useAppNavigate();
   const origin = useOrigin();
 
   return (

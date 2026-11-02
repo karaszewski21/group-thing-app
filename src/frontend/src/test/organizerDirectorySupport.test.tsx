@@ -1,6 +1,5 @@
 import { render, screen, within } from "@testing-library/react";
 import type { ReactElement } from "react";
-import { MemoryRouter } from "react-router-dom";
 import { describe, expect, it } from "vitest";
 import type { OrganizerCircle, OrganizerPageResponse, OrganizerTerm } from "../api/groups";
 import type { PublicOrganizationResponse } from "../api/organizations";
@@ -11,6 +10,7 @@ import { nearestTerm } from "../features/owner-page/blocks/nearestTerm";
 import { LayoutRenderer } from "../features/owner-page/LayoutRenderer";
 import { isRecommended, LAYOUT_REGISTRY } from "../features/owner-page/layouts/registry";
 import type { OrganizerPageData, PageLayoutDefinition } from "../features/owner-page/layouts/types";
+import { renderWithRoute } from "./renderWithRoute";
 
 const organization: PublicOrganizationResponse = {
   slug: "akademia-orlik",
@@ -58,7 +58,7 @@ function directory(overrides: Partial<OrganizerPageResponse> = {}): OrganizerPag
 }
 
 function renderWithRouter(ui: ReactElement) {
-  return render(<MemoryRouter>{ui}</MemoryRouter>);
+  return renderWithRoute(ui, { url: "/" });
 }
 
 describe("nearestTerm", () => {
@@ -192,21 +192,13 @@ describe("LayoutRenderer directory rules", () => {
     expect(screen.getByRole("heading", { level: 1, name: "Akademia Orlik" })).toBeInTheDocument();
 
     const unavailable: OrganizerPageData = { organization, directory: null, directoryStatus: "unavailable" };
-    rerender(
-      <MemoryRouter>
-        <LayoutRenderer layout={layout} data={unavailable} mode="visitor" />
-      </MemoryRouter>,
-    );
+    rerender(<LayoutRenderer layout={layout} data={unavailable} mode="visitor" />);
     expect(container.querySelector('[aria-busy="true"]')).toBeNull();
     expect(screen.getAllByRole("heading", { name: "Brak informacji do pokazania" })).toHaveLength(1);
     expect(container.querySelector("[data-ghost]")).toBeNull();
     expect(screen.getByText("Strona utworzona w Krąg grupy")).toBeInTheDocument();
 
-    rerender(
-      <MemoryRouter>
-        <LayoutRenderer layout={layout} data={unavailable} mode="owner-edit" />
-      </MemoryRouter>,
-    );
+    rerender(<LayoutRenderer layout={layout} data={unavailable} mode="owner-edit" />);
     const ghosts = container.querySelectorAll("[data-ghost]");
     expect(ghosts).toHaveLength(1);
     const neutralBody = "Nie udało się wczytać danych. Odwiedzający nie widzą tej sekcji.";

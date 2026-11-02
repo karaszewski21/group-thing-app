@@ -1,4 +1,4 @@
-import { Link } from "react-router-dom";
+import { Link } from "../../../routing/navigation";
 import type { OrganizerExchangeCounts, OrganizerExchangeItem, OrganizerPageResponse } from "../../../api/groups";
 import { EXCHANGE_MODE_TONE, INTENT_LABELS } from "../../terms/components/termLabels";
 import type { BlockProps, OrganizerPageData } from "../layouts/types";

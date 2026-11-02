@@ -1,4 +1,4 @@
-import { Link, useLocation } from "react-router-dom";
+import { Link, useAppPathname, useAppSearch } from "../../../routing/navigation";
 import { ModalSheet } from "../../../components/shared/ModalSheet";
 import { authPath } from "../../../auth/authPaths";
 import { BTN_GHOST, BTN_PRIMARY } from "../../../components/shared/uiStyles";
@@ -8,8 +8,9 @@ import { BTN_GHOST, BTN_PRIMARY } from "../../../components/shared/uiStyles";
  * purpose: inside the query it would reach the server, so a `#code=`
  * survives login through sessionStorage instead (`TermPage`). */
 function useReturnTo(): string {
-  const location = useLocation();
-  return location.pathname + location.search;
+  const pathname = useAppPathname();
+  const search = useAppSearch();
+  return pathname + search;
 }
 
 /**

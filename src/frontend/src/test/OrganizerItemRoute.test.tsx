@@ -1,5 +1,4 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
-import { MemoryRouter, Navigate, Route, Routes, useLocation } from "react-router-dom";
+import { fireEvent, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import * as itemsApi from "../api/items";
 import * as itemActionsApi from "../api/itemActions";
@@ -9,7 +8,9 @@ import { ApiError } from "../api/client";
 import type { ItemDetailsResponse } from "../api/items";
 import { ItemDetailBody } from "../features/items/product/ItemDetailPage";
 import { OrganizerItemLayout } from "../features/items/product/OrganizerItemLayout";
+import { Navigate, useAppParams } from "../routing/navigation";
 import { createQueryWrapper } from "./queryClient";
+import { getTestLocation, renderWithRoute } from "./renderWithRoute";
 
 const mockAuth: { token: string | null } = { token: "valid.jwt.token" };
 
@@ -81,27 +82,36 @@ function itemActions(overrides: Partial<ItemActionsResponse> = {}): ItemActionsR
   };
 }
 
-function Where() {
-  const location = useLocation();
-  return <div data-testid="where">{location.pathname + location.search}</div>;
+function currentUrl() {
+  const { pathname, search } = getTestLocation();
+  return pathname + search;
+}
+
+// The redirects `router.tsx` sets up around the organizer item route.
+function ToOrganizerPage() {
+  const { organizationSlug = "" } = useAppParams();
+  return <Navigate to={`/${organizationSlug}`} replace />;
+}
+
+function ToEditMode() {
+  const { organizationSlug = "", id = "" } = useAppParams();
+  return <Navigate to={`/${organizationSlug}/product/${id}?edit=1`} replace />;
 }
 
 function renderAt(path: string) {
-  return render(
-    <MemoryRouter initialEntries={[path]}>
-      <Routes>
-        <Route path="/:organizationSlug/product" element={<Navigate to=".." relative="path" replace />} />
-        <Route
-          path="/:organizationSlug/product/:id"
-          element={<OrganizerItemLayout />}
-        >
-          <Route index element={<ItemDetailBody />} />
-          <Route path="edit" element={<Navigate to="..?edit=1" relative="path" replace />} />
-        </Route>
-        <Route path="*" element={<Where />} />
-      </Routes>
-    </MemoryRouter>,
-    { wrapper: createQueryWrapper() },
+  return renderWithRoute(
+    <OrganizerItemLayout>
+      <ItemDetailBody />
+    </OrganizerItemLayout>,
+    {
+      url: path,
+      pattern: "/:organizationSlug/product/:id",
+      routes: {
+        "/:organizationSlug/product": <ToOrganizerPage />,
+        "/:organizationSlug/product/:id/edit": <ToEditMode />,
+      },
+      wrapper: createQueryWrapper(),
+    },
   );
 }
 
@@ -128,7 +138,7 @@ describe("Organizer product route", () => {
 
     expect(await screen.findByRole("heading", { name: "Rowerek biegowy" })).toBeInTheDocument();
     expect(await screen.findByRole("region", { name: "Chcesz tę rzecz?" })).toBeInTheDocument();
-    expect(screen.queryByTestId("where")).not.toBeInTheDocument();
+    expect(currentUrl()).toBe("/ania/product/9");
     expect(itemActionsApi.getItemActions).toHaveBeenCalledWith("9");
   });
 
@@ -137,9 +147,7 @@ describe("Organizer product route", () => {
     vi.mocked(itemsApi.getItemDetails).mockRejectedValue(new ApiError(404, "Not Found", null));
     renderAt("/ania/product/9?event=ev-1");
 
-    expect(await screen.findByTestId("where")).toHaveTextContent(
-      "/login?returnTo=%2Fania%2Fproduct%2F9%3Fevent%3Dev-1",
-    );
+    await waitFor(() => expect(currentUrl()).toBe("/login?returnTo=%2Fania%2Fproduct%2F9%3Fevent%3Dev-1"));
   });
 
   it("shows a neutral loader while the organization is pending, item fetch already started", async () => {
@@ -192,7 +200,7 @@ describe("Organizer product route", () => {
 
     await screen.findByRole("heading", { name: "Rowerek biegowy" });
     fireEvent.click(screen.getByRole("button", { name: /Wróć/ }));
-    expect(screen.getByTestId("where")).toHaveTextContent(/^\/ania$/);
+    expect(currentUrl()).toBe("/ania");
   });
 
   it("Wróć on a direct entry under a fallback k- slug goes to the panel items list", async () => {
@@ -201,13 +209,13 @@ describe("Organizer product route", () => {
 
     await screen.findByRole("heading", { name: "Rowerek biegowy" });
     fireEvent.click(screen.getByRole("button", { name: /Wróć/ }));
-    expect(screen.getByTestId("where")).toHaveTextContent(/^\/items$/);
+    expect(currentUrl()).toBe("/items");
   });
 
   it("bare /:slug/product redirects to the organizer page without fetching an item", () => {
     renderAt("/ania/product");
 
-    expect(screen.getByTestId("where")).toHaveTextContent(/^\/ania$/);
+    expect(currentUrl()).toBe("/ania");
     expect(itemsApi.getItemDetails).not.toHaveBeenCalled();
   });
 });

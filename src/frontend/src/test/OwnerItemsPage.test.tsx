@@ -1,5 +1,4 @@
-import { fireEvent, render, renderHook, screen, waitFor, within } from "@testing-library/react";
-import { createMemoryRouter, RouterProvider, useLocation } from "react-router-dom";
+import { fireEvent, renderHook, screen, waitFor, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { PublicOrganizationResponse } from "../api/organizations";
 import * as organizationsApi from "../api/organizations";
@@ -8,6 +7,7 @@ import * as ownerItemsApi from "../api/ownerItems";
 import { useOwnerItems } from "../hooks/useOwnerItems";
 import { OwnerItemsPage } from "../features/owner-page/OwnerItemsPage";
 import { createQueryWrapper } from "./queryClient";
+import { getTestLocation, getTestRouter, renderWithRoute } from "./renderWithRoute";
 
 const mockAuth: { token: string | null; username: string | null } = { token: null, username: null };
 vi.mock("../auth/AuthContext", () => ({ useAuth: () => mockAuth }));
@@ -74,28 +74,12 @@ function ownerPage(overrides: Partial<OwnerItemsPageResponse> = {}): OwnerItemsP
   };
 }
 
-function LocationProbe() {
-  const location = useLocation();
-  return <output data-testid="location">{location.pathname + location.search}</output>;
-}
-
 function renderAt(path: string) {
-  const router = createMemoryRouter(
-    [
-      {
-        path: "/:organizationSlug/items",
-        element: (
-          <>
-            <OwnerItemsPage />
-            <LocationProbe />
-          </>
-        ),
-      },
-    ],
-    { initialEntries: [path] },
-  );
-  render(<RouterProvider router={router} />, { wrapper: createQueryWrapper() });
-  return router;
+  renderWithRoute(<OwnerItemsPage />, {
+    url: path,
+    pattern: "/:organizationSlug/items",
+    wrapper: createQueryWrapper(),
+  });
 }
 
 beforeEach(() => {
@@ -214,10 +198,13 @@ describe("OwnerItemsPage", () => {
     vi.mocked(ownerItemsApi.getPartyOwnerItems).mockResolvedValue(ownerPage());
     vi.mocked(ownerItemsApi.getOrganizationOwnerItems).mockResolvedValue(ownerPage());
 
-    const router = renderAt(`/${PARTY_ID}/items?event=e9`);
+    renderAt(`/${PARTY_ID}/items?event=e9`);
 
-    await waitFor(() => expect(screen.getByTestId("location")).toHaveTextContent(`/${SLUG}/items?event=e9`));
-    expect(router.state.historyAction).toBe("REPLACE");
+    await waitFor(() => {
+      const { pathname, search } = getTestLocation();
+      expect(pathname + search).toBe(`/${SLUG}/items?event=e9`);
+    });
+    expect(getTestRouter().calls).toEqual([{ method: "replace", url: `/${SLUG}/items?event=e9`, scroll: true }]);
   });
 
   it("ignores a ?term= on the page and links tiles to the plain product page", async () => {

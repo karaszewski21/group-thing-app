@@ -1,6 +1,6 @@
-import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { cleanup, fireEvent, screen, waitFor, within } from "@testing-library/react";
+import { renderWithRoute } from "./renderWithRoute";
 import type { ReactElement } from "react";
-import { MemoryRouter } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import * as groupsApi from "../api/groups";
 import type { OrganizerCircle, OrganizerPageResponse, OrganizerTerm } from "../api/groups";
@@ -76,7 +76,7 @@ function termsPage(items: OrganizerTerm[], page: number, total: number): Page<Or
 }
 
 function renderWithProviders(ui: ReactElement) {
-  return render(<MemoryRouter>{ui}</MemoryRouter>, { wrapper: createQueryWrapper() });
+  return renderWithRoute(ui, { url: "/", wrapper: createQueryWrapper() });
 }
 
 const TWO_CIRCLES = [circle("g1", "Orliki 2017", "2026-10-13T17:00:00"), circle("g2", "Młodziki 2015", null)];

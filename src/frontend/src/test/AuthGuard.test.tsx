@@ -1,47 +1,38 @@
-import { render, screen } from "@testing-library/react";
+import { screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
-import { MemoryRouter, Route, Routes, useLocation } from "react-router-dom";
 import { AuthGuard } from "../auth/AuthGuard";
 import { homePath } from "../auth/homePath";
+import { getTestLocation, renderWithRoute } from "./renderWithRoute";
 
 vi.mock("../auth/AuthContext", () => ({
   useAuth: () => ({ token: "valid.jwt.token" }),
 }));
 
-function Where() {
-  const location = useLocation();
-  return <div data-testid="where">{location.pathname + location.search}</div>;
+function where() {
+  const { pathname, search } = getTestLocation();
+  return pathname + search;
 }
 
 function renderAt(initialRoute: string) {
-  return render(
-    <MemoryRouter initialEntries={[initialRoute]}>
-      <Routes>
-        <Route
-          path="/register"
-          element={
-            <AuthGuard requireAuth={false} authenticatedRedirect="/onboarding" forwardReturnTo>
-              <div>REGISTER</div>
-            </AuthGuard>
-          }
-        />
-        <Route path="*" element={<Where />} />
-      </Routes>
-    </MemoryRouter>,
+  return renderWithRoute(
+    <AuthGuard requireAuth={false} authenticatedRedirect="/onboarding" forwardReturnTo>
+      <div>REGISTER</div>
+    </AuthGuard>,
+    { url: initialRoute, pattern: "/register" },
   );
 }
 
 describe("AuthGuard forwardReturnTo", () => {
   it("sends a logged-in visitor to onboarding with the returnTo carried along, not straight to it", () => {
     renderAt(`/register?returnTo=${encodeURIComponent("/zajecia/group/7/term/9")}`);
-    expect(screen.getByTestId("where")).toHaveTextContent(
-      `/onboarding?returnTo=${encodeURIComponent("/zajecia/group/7/term/9")}`,
-    );
+    expect(where()).toBe(`/onboarding?returnTo=${encodeURIComponent("/zajecia/group/7/term/9")}`);
+    expect(screen.queryByText("REGISTER")).not.toBeInTheDocument();
   });
 
   it("without returnTo goes to the plain authenticatedRedirect", () => {
     renderAt("/register");
-    expect(screen.getByTestId("where")).toHaveTextContent(/^\/onboarding$/);
+    expect(where()).toBe("/onboarding");
+    expect(screen.queryByText("REGISTER")).not.toBeInTheDocument();
   });
 });
 

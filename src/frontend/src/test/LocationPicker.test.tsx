@@ -1,13 +1,14 @@
-import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { fireEvent, screen, waitFor, within } from "@testing-library/react";
 import { useState } from "react";
-import { MemoryRouter, type InitialEntry } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import * as locationsApi from "../api/locations";
 import type { LocationResponse } from "../api/locations";
 import { LocationPicker, type FallbackLocation } from "../components/shared/LocationPicker";
 import * as googleMaps from "../lib/googleMaps";
 import type { PlacesApi, Suggestion } from "../lib/googleMaps";
+import type { PickedLocationState } from "../utils/appHelpers";
 import { createQueryWrapper } from "./queryClient";
+import { renderWithRoute } from "./renderWithRoute";
 
 vi.mock("../auth/AuthContext", () => ({ useAuth: () => ({ token: "token-a" }) }));
 
@@ -96,13 +97,8 @@ function Harness({
   );
 }
 
-function renderPicker(props: Parameters<typeof Harness>[0], entry: InitialEntry = "/form") {
-  return render(
-    <MemoryRouter initialEntries={[entry]}>
-      <Harness {...props} />
-    </MemoryRouter>,
-    { wrapper: createQueryWrapper() },
-  );
+function renderPicker(props: Parameters<typeof Harness>[0], url = "/form", state?: PickedLocationState) {
+  return renderWithRoute(<Harness {...props} />, { url, state, wrapper: createQueryWrapper() });
 }
 
 function stubGoogle() {
@@ -212,7 +208,8 @@ describe("LocationPicker", () => {
     const onChange = vi.fn();
     const { unmount } = renderPicker(
       { onChange, addMode: "page" },
-      { pathname: "/form", state: { pickedLocation: { picker: "other", locationId: PARK.id } } },
+      "/form",
+      { pickedLocation: { picker: "other", locationId: PARK.id } },
     );
     await screen.findByRole("combobox", { name: "Miejsce" });
     expect(onChange).not.toHaveBeenCalled();
@@ -220,7 +217,8 @@ describe("LocationPicker", () => {
 
     renderPicker(
       { onChange, addMode: "page" },
-      { pathname: "/form", state: { pickedLocation: { picker: "test", locationId: PARK.id } } },
+      "/form",
+      { pickedLocation: { picker: "test", locationId: PARK.id } },
     );
     await waitFor(() => expect(screen.getByRole("combobox", { name: "Miejsce" })).toHaveValue(PARK.id));
     expect(onChange).toHaveBeenCalledTimes(1);

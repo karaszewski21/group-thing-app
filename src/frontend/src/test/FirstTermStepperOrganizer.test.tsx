@@ -1,6 +1,6 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, screen } from "@testing-library/react";
+import { renderWithRoute } from "./renderWithRoute";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { MemoryRouter } from "react-router-dom";
 import * as locationsApi from "../api/locations";
 import type { LocationRefResponse, LocationResponse } from "../api/locations";
 import * as termsApi from "../api/terms";
@@ -45,17 +45,15 @@ function renderStepper(
   onDone = vi.fn(),
   defaults: { defaultLocation?: LocationRefResponse | null; defaultCapacity?: number | null } = {},
 ) {
-  render(
-    <MemoryRouter>
-      <FirstTermStepperOrganizer
-        onClose={vi.fn()}
-        circleGroupId="g-1"
-        organizerSlug={null}
-        onDone={onDone}
-        {...defaults}
-      />
-    </MemoryRouter>,
-    { wrapper: createQueryWrapper() },
+  renderWithRoute(
+    <FirstTermStepperOrganizer
+      onClose={vi.fn()}
+      circleGroupId="g-1"
+      organizerSlug={null}
+      onDone={onDone}
+      {...defaults}
+    />,
+    { url: "/", wrapper: createQueryWrapper() },
   );
   return onDone;
 }

@@ -1,4 +1,4 @@
-import { Link } from "react-router-dom";
+import { Link } from "../../../routing/navigation";
 import type { GroupLayoutMode, OrganizerCircle } from "../../../api/groups";
 import { GroupsIcon } from "../../../components/shared/Icons";
 import dayjs from "../../../utils/dayjs";

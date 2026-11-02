@@ -1,6 +1,6 @@
-import { fireEvent, render, screen, within } from "@testing-library/react";
+import { fireEvent, screen, within } from "@testing-library/react";
+import { renderWithRoute } from "./renderWithRoute";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { MemoryRouter } from "react-router-dom";
 import { ApiError } from "../api/client";
 import * as conversationsApi from "../api/conversations";
 import type { InboxRow } from "../api/conversations";
@@ -37,12 +37,7 @@ function row(over: Partial<InboxRow> = {}): InboxRow {
 }
 
 function renderInbox() {
-  return render(
-    <MemoryRouter initialEntries={["/messages"]}>
-      <InboxPage />
-    </MemoryRouter>,
-    { wrapper: createQueryWrapper() },
-  );
+  return renderWithRoute(<InboxPage />, { url: "/messages", wrapper: createQueryWrapper() });
 }
 
 beforeEach(() => {

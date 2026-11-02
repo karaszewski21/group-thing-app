@@ -1,7 +1,6 @@
-import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { act, fireEvent, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { useState, type ReactNode } from "react";
-import { MemoryRouter, Route, Routes, useLocation } from "react-router-dom";
 import * as notificationsApi from "../api/notifications";
 import * as peopleApi from "../api/people";
 import * as termItemListingsApi from "../api/termItemListings";
@@ -16,6 +15,7 @@ import { ModalSheet } from "../components/shared/ModalSheet";
 import { useRegisterOpenSheet } from "../components/shared/openSheets";
 import { NOTIFICATIONS_KEY } from "../hooks/useNotifications";
 import { createQueryWrapper, createTestQueryClient } from "./queryClient";
+import { getTestLocation, renderWithRoute } from "./renderWithRoute";
 
 vi.mock("../auth/AuthContext", () => ({ useAuth: () => ({ token: "tok", username: "guest" }) }));
 vi.mock("../api/notifications", () => ({
@@ -98,27 +98,13 @@ function reservation(
   };
 }
 
-function LocationProbe() {
-  return <p data-testid="location">{useLocation().pathname}</p>;
-}
-
 function renderHost(extra: ReactNode = null, client = createTestQueryClient()) {
-  return render(
-    <MemoryRouter initialEntries={["/strona"]}>
-      <Routes>
-        <Route
-          path="*"
-          element={
-            <>
-              {extra}
-              <PendingActionsHost />
-              <LocationProbe />
-            </>
-          }
-        />
-      </Routes>
-    </MemoryRouter>,
-    { wrapper: createQueryWrapper(client) },
+  return renderWithRoute(
+    <>
+      {extra}
+      <PendingActionsHost />
+    </>,
+    { url: "/strona", wrapper: createQueryWrapper(client) },
   );
 }
 
@@ -150,7 +136,7 @@ describe("PendingActionsHost — swap proposal prompt", () => {
     fireEvent.click(within(dialog).getByRole("button", { name: "Zobacz w Moje rzeczy" }));
 
     await waitFor(() => expect(notificationsApi.markNotificationRead).toHaveBeenCalledWith("1"));
-    expect(screen.getByTestId("location")).toHaveTextContent("/items");
+    expect(getTestLocation().pathname).toBe("/items");
     expect(screen.queryByRole("dialog", { name: "Propozycja zamiany" })).not.toBeInTheDocument();
   });
 

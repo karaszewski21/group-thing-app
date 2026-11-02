@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { Link } from "react-router-dom";
+import { Link } from "../../routing/navigation";
 import type { ConversationKind, InboxRow } from "../../api/conversations";
 import { Avatar } from "../../components/shared/Avatar";
 import { PhoneFrame } from "../../components/shared/PhoneFrame";

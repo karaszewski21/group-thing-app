@@ -1,4 +1,4 @@
-import { Link, Navigate, useLocation, useNavigate, useParams } from "react-router-dom";
+import { Link, Navigate, useAppNavigate, useAppParams, useHasInAppHistory } from "../../routing/navigation";
 import type { PartyProfileResponse } from "../../api/ownerItems";
 import { familyInitials, familyTone } from "../../components/shared/Avatar";
 import { CARD } from "../../components/shared/uiStyles";
@@ -19,12 +19,12 @@ const ALL_ITEMS_LINK = `inline-flex min-h-11 items-center text-[14px] font-extra
 const CTA_LINK = `mt-3 flex min-h-11 items-center justify-center rounded-full bg-primary px-5 text-[14px] font-extrabold text-on-primary no-underline ${FOCUS_RING}`;
 
 function BackButton() {
-  const navigate = useNavigate();
-  const location = useLocation();
+  const navigate = useAppNavigate();
+  const hasInAppHistory = useHasInAppHistory();
   return (
     <button
       type="button"
-      onClick={() => (location.key !== "default" ? navigate(-1) : navigate("/"))}
+      onClick={() => (hasInAppHistory ? navigate(-1) : navigate("/"))}
       className={BACK_BUTTON}
     >
       <span aria-hidden="true">‹</span>
@@ -130,7 +130,7 @@ function ProfileContent({ profile }: { profile: PartyProfileResponse }) {
  * for the person themself an invite to set up an organizer page. A person
  * who owns an Organization is redirected to its page. */
 export function PartyProfilePage() {
-  const { organizationSlug: partyId = "" } = useParams<{ organizationSlug: string }>();
+  const { organizationSlug: partyId = "" } = useAppParams<{ organizationSlug: string }>();
   const profile = usePartyProfile(partyId);
 
   if (profile.notFound) return <NotFoundFrame message="Ten profil nie istnieje albo nie jest publiczny." />;

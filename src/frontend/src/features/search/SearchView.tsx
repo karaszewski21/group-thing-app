@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Link } from "react-router-dom";
+import { Link } from "../../routing/navigation";
 import { pluralPl } from "../../utils/plural";
 import { ItemTile, MeetingRow } from "../../components/shared/appComponents";
 import { BackIcon, CloseIcon, SearchIcon } from "../../components/shared/appIcons";

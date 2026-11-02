@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Link, useLocation, useNavigate } from "react-router-dom";
+import { Link, useAppPathname, useAppSearch, useNavigationState } from "../../routing/navigation";
 import type { LocationResponse } from "../../api/locations";
 import { useMyLocations } from "../../hooks/useMyLocations";
 import { placeCreatePath, type PickedLocationState } from "../../utils/appHelpers";
@@ -54,23 +54,19 @@ export function LocationPicker({
   const selectRef = useRef<HTMLSelectElement>(null);
   const addButtonRef = useRef<HTMLButtonElement>(null);
   const addFormId = `${idPrefix}-add-location`;
-  const location = useLocation();
-  const navigate = useNavigate();
-  const picked = (location.state as PickedLocationState | null)?.pickedLocation;
-  const returnTo = location.pathname + location.search;
+  const picked = useNavigationState<PickedLocationState>()?.pickedLocation;
+  const returnTo = useAppPathname() + useAppSearch();
 
   const handledPick = useRef<PickedLocationState["pickedLocation"] | null>(null);
 
-  // Back from /places/new: select the new place once (a re-render before the
-  // state is dropped must not select it again), then drop the state so a
-  // refresh doesn't either.
+  // Back from /places/new: select the new place once (the state is read once,
+  // so a refresh doesn’t select it again).
   useEffect(() => {
     if (picked?.picker !== idPrefix || handledPick.current === picked) return;
     handledPick.current = picked;
     onChange(picked.locationId);
-    navigate(returnTo, { replace: true, state: null });
     selectRef.current?.focus();
-  }, [picked, idPrefix, onChange, navigate, returnTo]);
+  }, [picked, idPrefix, onChange]);
 
   if (loading) {
     return <p className="text-[12.5px] text-ink-soft">Ładowanie miejsc…</p>;

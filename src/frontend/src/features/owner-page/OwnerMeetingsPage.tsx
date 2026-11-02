@@ -1,11 +1,11 @@
 import { useEffect, type ReactNode } from "react";
-import { Link, useNavigate, useParams } from "react-router-dom";
+import { Link, useAppNavigate, useAppParams } from "../../routing/navigation";
 import type { OwnerNearestDate } from "../../api/ownerItems";
 import type { OwnerRef } from "../../hooks/useOwnerItems";
 import { useOwnerMeetings } from "../../hooks/useOwnerMeetings";
 import { usePublicOrganization } from "../../hooks/usePublicOrganization";
 import { OrganizerThemeScope } from "../../theme/OrganizerThemeScope";
-import { isPartyId } from "../../utils/appHelpers";
+import { isPartyId } from "../../routing/paths";
 import dayjs from "../../utils/dayjs";
 import { pluralPl } from "../../utils/plural";
 import { BlockSkeleton } from "./blocks/BlockSkeleton";
@@ -43,7 +43,7 @@ function MeetingCard({ meeting }: { meeting: OwnerNearestDate }) {
  * its page. A party URL of an Organization owner is replaced by its slug URL. */
 function OwnerMeetingsContent({ ownerRef, back }: { ownerRef: OwnerRef; back: ReactNode }) {
   const result = useOwnerMeetings(ownerRef);
-  const navigate = useNavigate();
+  const navigate = useAppNavigate();
 
   const redirectSlug = ownerRef.kind === "party" ? (result.owner?.slug ?? null) : null;
   useEffect(() => {
@@ -174,7 +174,7 @@ function PartyOwnerMeetings({ partyId }: { partyId: string }) {
  * (any person with a public footprint): the owner's upcoming public terms
  * and events, earliest first. */
 export function OwnerMeetingsPage() {
-  const { organizationSlug = "" } = useParams<{ organizationSlug: string }>();
+  const { organizationSlug = "" } = useAppParams<{ organizationSlug: string }>();
   return isPartyId(organizationSlug) ? (
     <PartyOwnerMeetings key={organizationSlug} partyId={organizationSlug} />
   ) : (

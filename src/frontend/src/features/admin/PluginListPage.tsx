@@ -5,7 +5,7 @@ import {
   Table,
   Text,
 } from "@chakra-ui/react";
-import { Link } from "react-router-dom";
+import { Link } from "../../routing/navigation";
 import { useAuth } from "../../auth/AuthContext";
 import { usePluginContext } from "../../plugins/host/PluginHost";
 import { PrimaryButton } from "../../components/shared/PrimaryButton";

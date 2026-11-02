@@ -1,7 +1,8 @@
 import { useAppData } from "../panel/appDataStore";
 import { GroupFormFields } from "./GroupFormFields";
 import { SubPageHeader } from "../../components/shared/appComponents";
-import { parseCapacity, viewPath } from "../../utils/appHelpers";
+import { parseCapacity } from "../../utils/appHelpers";
+import { viewPath } from "../../routing/paths";
 
 const TITLE = "Nowa grupa";
 

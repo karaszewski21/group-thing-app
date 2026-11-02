@@ -1,8 +1,8 @@
-import { useNavigate, useParams } from "react-router-dom";
+import { useAppNavigate, useAppParams } from "../../routing/navigation";
 import { useAppData } from "../panel/appDataStore";
 import { TermEditForm } from "./TermEditForm";
 import { SubPageHeader } from "../../components/shared/appComponents";
-import { viewPath } from "../../utils/appHelpers";
+import { viewPath } from "../../routing/paths";
 
 const TITLE = "Edytuj termin";
 
@@ -11,8 +11,8 @@ const TITLE = "Edytuj termin";
  * `terms`, so each `load({ silent: true })` refreshes the form's props; after
  * saving, back to "Spotkania". */
 export function TermEditView() {
-  const { termId = "" } = useParams();
-  const navigate = useNavigate();
+  const { termId = "" } = useAppParams();
+  const navigate = useAppNavigate();
   const { terms, myGroups, load, showToast } = useAppData();
   const entry = terms.find((t) => t.term.id === termId) ?? null;
   const editable = entry !== null && myGroups.some((g) => g.id === entry.term.circle_group_id);

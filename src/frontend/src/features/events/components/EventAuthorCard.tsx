@@ -1,9 +1,9 @@
 import { useState } from "react";
-import { Link } from "react-router-dom";
+import { Link } from "../../../routing/navigation";
 import type { EventDetailResponse } from "../../../api/events";
 import { ConfirmDeleteDialog } from "../../../components/shared/ConfirmDeleteDialog";
 import { CARD } from "../../../components/shared/uiStyles";
-import { eventEditPath } from "../../../utils/appHelpers";
+import { eventEditPath } from "../../../routing/paths";
 import dayjs from "../../../utils/dayjs";
 import { pluralPl } from "../../../utils/plural";
 

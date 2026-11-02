@@ -1,19 +1,19 @@
 import { fireEvent, render, screen, within } from "@testing-library/react";
 import type { ReactElement } from "react";
-import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { EventParticipant, EventParticipantItem, EventResponse } from "../api/events";
 import { EventAttendeeList } from "../features/events/components/EventAttendeeList";
 import { EventChatRow } from "../features/events/components/EventChatRow";
 import { EventFooter } from "../features/events/components/EventFooter";
 import { EventWhenCard } from "../features/events/components/EventWhenCard";
+import { renderWithRoute } from "./renderWithRoute";
 
 const EMPTY_COPY =
   "Nikt jeszcze się nie zapisał. Zapisz się jako pierwsza osoba i pokaż, co przyniesiesz do wymiany.";
 const NEUTRAL_EMPTY_COPY = "Nikt jeszcze się nie zapisał.";
 
 function renderWithProviders(ui: ReactElement) {
-  return render(<MemoryRouter>{ui}</MemoryRouter>);
+  return renderWithRoute(ui, { url: "/" });
 }
 
 function eventFixture(overrides: Partial<EventResponse> = {}): EventResponse {
@@ -76,13 +76,11 @@ describe("EventWhenCard", () => {
     expect(within(card).getByRole("button", { name: "Kopiuj link" })).toBeInTheDocument();
 
     rerender(
-      <MemoryRouter>
-        <EventWhenCard
-          event={eventFixture({ ends_at: null })}
-          url="https://app.test/zielony-krag/event/ev-1"
-          onCopyLink={() => {}}
-        />
-      </MemoryRouter>,
+      <EventWhenCard
+        event={eventFixture({ ends_at: null })}
+        url="https://app.test/zielony-krag/event/ev-1"
+        onCopyLink={() => {}}
+      />,
     );
     expect(screen.getByText("godz. 11:00")).toBeInTheDocument();
   });
@@ -130,26 +128,18 @@ describe("EventAttendeeList", () => {
   });
 
   it("shows 3 items, then Pokaż więcej (N) › to the participant's items page, no event query", () => {
-    render(
-      <MemoryRouter initialEntries={["/zielony-krag/event/ev-1"]}>
-        <Routes>
-          <Route
-            path="/:organizationSlug/event/:eventId"
-            element={
-              <EventAttendeeList
-                authorSlug="zielony-krag"
-                canSignUp
-                participants={[
-                  participant({
-                    items: [item("it-1", "Miś", "GIFT"), item("it-2", "Rowerek", "SWAP"), item("it-3", "Książeczki", "GIFT")],
-                    items_total: 5,
-                  }),
-                ]}
-              />
-            }
-          />
-        </Routes>
-      </MemoryRouter>,
+    renderWithRoute(
+      <EventAttendeeList
+        authorSlug="zielony-krag"
+        canSignUp
+        participants={[
+          participant({
+            items: [item("it-1", "Miś", "GIFT"), item("it-2", "Rowerek", "SWAP"), item("it-3", "Książeczki", "GIFT")],
+            items_total: 5,
+          }),
+        ]}
+      />,
+      { url: "/zielony-krag/event/ev-1", pattern: "/:organizationSlug/event/:eventId" },
     );
     expect(screen.getAllByRole("link", { name: /Miś|Rowerek|Książeczki/ })).toHaveLength(3);
     expect(screen.getByRole("link", { name: /Rowerek/ })).toHaveAttribute("href", "/zielony-krag/product/it-2");

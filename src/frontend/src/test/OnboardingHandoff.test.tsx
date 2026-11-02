@@ -1,10 +1,10 @@
-import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import { screen, fireEvent, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi, beforeEach } from "vitest";
-import { MemoryRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "../auth/AuthContext";
 import { LoginPage } from "../features/auth/LoginPage";
 import { OnboardingPage } from "../features/auth/OnboardingPage";
 import { createQueryWrapper } from "./queryClient";
+import { renderWithRoute } from "./renderWithRoute";
 
 // Group 8 gap fill (implementation-plan.md 8.2(a)): Groups 1-7 each tested
 // their own surface in isolation (Group 4: register() posts the right body
@@ -53,18 +53,21 @@ function fakeJwt(sub: string): string {
 }
 
 function renderApp(initialRoute = "/login?mode=register") {
-  return render(
-    <AuthProvider>
-      <MemoryRouter initialEntries={[initialRoute]}>
-        <Routes>
-          <Route path="/login" element={<LoginPage />} />
-          <Route path="/onboarding" element={<OnboardingPage />} />
-          <Route path="/" element={<div>PANEL</div>} />
-          <Route path="/zajecia/group/7/term/9" element={<div>TERM PAGE</div>} />
-        </Routes>
-      </MemoryRouter>
-    </AuthProvider>, { wrapper: createQueryWrapper() },
-  );
+  const QueryWrapper = createQueryWrapper();
+  return renderWithRoute(<LoginPage />, {
+    url: initialRoute,
+    pattern: "/login",
+    routes: {
+      "/onboarding": <OnboardingPage />,
+      "/": <div>PANEL</div>,
+      "/zajecia/group/7/term/9": <div>TERM PAGE</div>,
+    },
+    wrapper: ({ children }) => (
+      <QueryWrapper>
+        <AuthProvider>{children}</AuthProvider>
+      </QueryWrapper>
+    ),
+  });
 }
 
 beforeEach(() => {

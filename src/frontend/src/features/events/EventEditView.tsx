@@ -1,9 +1,9 @@
 import { useEffect, useState } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useAppNavigate, useAppParams } from "../../routing/navigation";
 import { useAppData } from "../panel/appDataStore";
 import { SubPageHeader } from "../../components/shared/appComponents";
 import { useEvent } from "../../hooks/useEvent";
-import { eventPath, viewPath } from "../../utils/appHelpers";
+import { eventPath, viewPath } from "../../routing/paths";
 import { draftFromEvent, toCreateEventRequest } from "./eventDraft";
 import { EventForm } from "./EventForm";
 
@@ -14,8 +14,8 @@ const TITLE = "Edytuj wydarzenie";
  * AppDataContext, so a trip to /places/new from the place picker keeps it;
  * after saving, back to the event page. */
 export function EventEditView() {
-  const { eventId = "" } = useParams();
-  const navigate = useNavigate();
+  const { eventId = "" } = useAppParams();
+  const navigate = useAppNavigate();
   const { eventEdit, setEventEdit } = useAppData();
   const { data: event, loading, isStale, update } = useEvent(eventId);
   const [showErrors, setShowErrors] = useState(false);

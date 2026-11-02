@@ -1,10 +1,11 @@
 import { useState } from "react";
-import { Link } from "react-router-dom";
+import { Link } from "../../routing/navigation";
 import { useAuth } from "../../auth/AuthContext";
 import { useClientValue } from "../../lib/useClientValue";
 import { BuildingIcon, CalendarPlusIcon } from "../../components/shared/appIcons";
 import { HintCard, ItemTile } from "../../components/shared/appComponents";
-import { capitalize, ITEM_MODE_TONE, ITEM_MODES, viewPath } from "../../utils/appHelpers";
+import { capitalize, ITEM_MODE_TONE, ITEM_MODES } from "../../utils/appHelpers";
+import { viewPath } from "../../routing/paths";
 import { MOCK_RECENT_ITEMS } from "../../utils/mocks";
 import { useAppData } from "./appDataStore";
 

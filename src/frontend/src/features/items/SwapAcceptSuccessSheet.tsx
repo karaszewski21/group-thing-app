@@ -1,8 +1,8 @@
-import { Link } from "react-router-dom";
+import { Link } from "../../routing/navigation";
 import { AddToCalendarButton } from "../../components/shared/AddToCalendarButton";
 import { useOrigin } from "../../lib/useClientValue";
 import { calendarUid } from "../../utils/calendar";
-import { eventPath } from "../../utils/appHelpers";
+import { eventPath } from "../../routing/paths";
 import dayjs from "../../utils/dayjs";
 import { organizerTermPath } from "../owner-page/organizerHelpers";
 import { ModalSheet } from "../../components/shared/appComponents";

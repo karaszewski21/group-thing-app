@@ -1,15 +1,11 @@
-import { render, screen } from "@testing-library/react";
+import { screen } from "@testing-library/react";
+import { renderWithRoute } from "./renderWithRoute";
 import { describe, expect, it } from "vitest";
-import { MemoryRouter } from "react-router-dom";
 import { LandingPage } from "../features/landing/LandingPage";
 
 describe("LandingPage", () => {
   it("offers sign-up and login and previews items and meetings", () => {
-    render(
-      <MemoryRouter>
-        <LandingPage />
-      </MemoryRouter>,
-    );
+    renderWithRoute(<LandingPage />, { url: "/" });
 
     expect(screen.getByRole("heading", { level: 1 })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Załóż konto" })).toHaveAttribute("href", "/login?mode=register");

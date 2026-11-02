@@ -1,7 +1,9 @@
-import { act, render, screen, waitFor, within } from "@testing-library/react";
+import { act, screen, waitFor, within } from "@testing-library/react";
 import { fireEvent } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi, beforeEach } from "vitest";
-import { Link, MemoryRouter, Route, Routes, useLocation, useNavigate } from "react-router-dom";
+import type { ReactNode } from "react";
+import { Link, useAppNavigate, useAppPathname, useNavigationState } from "../routing/navigation";
+import { renderWithRoute } from "./renderWithRoute";
 
 import * as peopleApi from "../api/people";
 import * as familiesApi from "../api/families";
@@ -323,7 +325,8 @@ const mockGuardians: familiesApi.GuardianResponse[] = [
 /** Stands in for the public event page: shows where navigation landed and
  * the toast handed over in router state. */
 function EventRouteStub() {
-  const { pathname, state } = useLocation();
+  const pathname = useAppPathname();
+  const state = useNavigationState<unknown>();
   const toast: unknown = typeof state === "object" && state !== null && "toast" in state ? state.toast : null;
   return (
     <div>
@@ -338,35 +341,45 @@ function EventRouteStub() {
 // panel the way BottomNav is.
 const HEADER_SPOTKANIA = <Link to="/meetings" aria-label="Spotkania" />;
 
+/** The panel's routes, each page rendered by `page`. */
+function panelRoutes(page: (element: ReactNode) => ReactNode): Record<string, ReactNode> {
+  return {
+    "/:view": page(<AppPage />),
+    "/add/:page": page(<AppPage />),
+    "/groups/new": page(<AppPage />),
+    "/groups/:groupId/edit": page(<AppPage />),
+    "/places/new": page(<AppPage />),
+    "/family/:page": page(<AppPage />),
+    "/family/members/new": page(<AppPage />),
+    "/family/members/:familyMembershipId/edit": page(<AppPage />),
+    "/events/:eventId/edit": page(<AppPage />),
+    "/terms/:termId/edit": page(<AppPage />),
+    "/:organizationSlug/event/:eventId": page(<EventRouteStub />),
+  };
+}
+
 function renderPanel(initialEntry = "/") {
-  return render(
-    <MemoryRouter initialEntries={[initialEntry]}>
-      <Routes>
-        <Route path="/" element={<AppPage />} />
-        <Route path="/:view" element={<AppPage />} />
-        <Route path="/add/:page" element={<AppPage />} />
-        <Route path="/groups/new" element={<AppPage />} />
-        <Route path="/groups/:groupId/edit" element={<AppPage />} />
-        <Route path="/places/new" element={<AppPage />} />
-        <Route path="/family/:page" element={<AppPage />} />
-        <Route path="/family/members/new" element={<AppPage />} />
-        <Route path="/family/members/:familyMembershipId/edit" element={<AppPage />} />
-        <Route path="/events/:eventId/edit" element={<AppPage />} />
-        <Route path="/terms/:termId/edit" element={<AppPage />} />
-        <Route path="/:organizationSlug/event/:eventId" element={<EventRouteStub />} />
-      </Routes>
+  const page = (element: ReactNode) => (
+    <>
+      {element}
       {HEADER_SPOTKANIA}
       <BottomNav />
-    </MemoryRouter>, { wrapper: createQueryWrapper() },
+    </>
   );
+  return renderWithRoute(page(<AppPage />), {
+    url: initialEntry,
+    pattern: "/",
+    routes: panelRoutes(page),
+    wrapper: createQueryWrapper(),
+  });
 }
 
 // Bug #3 (cache refresh): a bare navigation harness rendered alongside the
-// /panel routes so a test can drive real react-router navigation (away from
-// and back to /panel) without unmounting the MemoryRouter itself — exercises
-// AppDataContext's route-watching silent-reload effect (useLocation).
+// /panel routes so a test can drive real router navigation (away from
+// and back to /panel) without unmounting the router itself — exercises
+// AppDataContext's route-watching silent-reload effect.
 function NavigationHarness() {
-  const navigate = useNavigate();
+  const navigate = useAppNavigate();
   return (
     <div>
       <button type="button" onClick={() => navigate("/other")}>
@@ -380,28 +393,20 @@ function NavigationHarness() {
 }
 
 function renderPanelWithNavigation() {
-  return render(
-    <MemoryRouter initialEntries={["/"]}>
+  const page = (element: ReactNode) => (
+    <>
       <NavigationHarness />
-      <Routes>
-        <Route path="/" element={<AppPage />} />
-        <Route path="/:view" element={<AppPage />} />
-        <Route path="/add/:page" element={<AppPage />} />
-        <Route path="/groups/new" element={<AppPage />} />
-        <Route path="/groups/:groupId/edit" element={<AppPage />} />
-        <Route path="/places/new" element={<AppPage />} />
-        <Route path="/family/:page" element={<AppPage />} />
-        <Route path="/family/members/new" element={<AppPage />} />
-        <Route path="/family/members/:familyMembershipId/edit" element={<AppPage />} />
-        <Route path="/events/:eventId/edit" element={<AppPage />} />
-        <Route path="/terms/:termId/edit" element={<AppPage />} />
-        <Route path="/:organizationSlug/event/:eventId" element={<EventRouteStub />} />
-        <Route path="/other" element={<div>Poza panelem</div>} />
-      </Routes>
+      {element}
       {HEADER_SPOTKANIA}
       <BottomNav />
-    </MemoryRouter>, { wrapper: createQueryWrapper() },
+    </>
   );
+  return renderWithRoute(page(<AppPage />), {
+    url: "/",
+    pattern: "/",
+    routes: { ...panelRoutes(page), "/other": page(<div>Poza panelem</div>) },
+    wrapper: createQueryWrapper(),
+  });
 }
 
 function mockGuestDefaults() {

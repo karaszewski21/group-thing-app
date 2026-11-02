@@ -1,5 +1,5 @@
 import { useId, type ReactNode } from "react";
-import { Link, useParams } from "react-router-dom";
+import { Link, useAppParams } from "../../routing/navigation";
 import type { GroupMemberResponse, GroupResponse } from "../../api/groups";
 import { JoinCodeCard } from "./JoinCodeCard";
 import { PhoneFrame } from "../../components/shared/PhoneFrame";
@@ -18,7 +18,7 @@ const VISIBILITY_LABEL = { PUBLIC: "Publiczna", PRIVATE: "Prywatna (dostęp z ko
  * A standalone route outside AppDataProvider, like TermAttendeesPage. The
  * backend lets the group's organizer and its members in. */
 export function GroupDetailsPage() {
-  const { groupId = "" } = useParams();
+  const { groupId = "" } = useAppParams();
   const { group, members, denied, notFound, error, loading, refetch } = useGroupDetails(groupId);
   const isPrivate = group?.visibility === "PRIVATE";
   const joinCode = useJoinCode(groupId, { enabled: isPrivate });

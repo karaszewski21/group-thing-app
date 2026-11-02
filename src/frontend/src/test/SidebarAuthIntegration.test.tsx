@@ -1,6 +1,6 @@
-import { render, screen } from "@testing-library/react";
+import { screen } from "@testing-library/react";
+import { renderWithRoute } from "./renderWithRoute";
 import { describe, expect, it, vi, beforeEach } from "vitest";
-import { MemoryRouter } from "react-router-dom";
 import { ChakraProvider } from "@chakra-ui/react";
 import { system } from "../theme/system";
 
@@ -54,14 +54,13 @@ function setRealJwt(permissions: string[]): void {
 async function renderSidebarWithRealAuth() {
   const { AuthProvider } = await import("../auth/AuthContext");
   const { Sidebar } = await import("../components/layout/Sidebar");
-  return render(
+  return renderWithRoute(
     <ChakraProvider value={system}>
       <AuthProvider>
-        <MemoryRouter initialEntries={["/"]}>
-          <Sidebar />
-        </MemoryRouter>
+        <Sidebar />
       </AuthProvider>
     </ChakraProvider>,
+    { url: "/" },
   );
 }
 

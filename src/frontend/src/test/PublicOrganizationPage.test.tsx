@@ -1,12 +1,12 @@
-import { act, fireEvent, render, screen } from "@testing-library/react";
+import { act, fireEvent, screen } from "@testing-library/react";
 import { describe, expect, it, vi, beforeEach } from "vitest";
-import { createMemoryRouter, RouterProvider, useLocation } from "react-router-dom";
 import * as groupsApi from "../api/groups";
 import * as organizationsApi from "../api/organizations";
 import { PublicOrganizationPage } from "../features/owner-page/PublicOrganizationPage";
 import { buildOrgThemeVars } from "../theme/orgPalette";
 import { findPreset } from "../theme/palettes";
 import { createQueryWrapper } from "./queryClient";
+import { getTestLocation, renderWithRoute } from "./renderWithRoute";
 
 let mockAuth: { token: string | null };
 vi.mock("../auth/AuthContext", () => ({ useAuth: () => mockAuth }));
@@ -21,28 +21,12 @@ vi.mock("../api/groups", () => ({
   getOrganizerPage: vi.fn(),
 }));
 
-function LocationProbe() {
-  const location = useLocation();
-  return <output data-testid="location">{location.pathname + location.search}</output>;
-}
-
-// A data router: once open, the editor sheet guards navigation with useBlocker.
 function renderAt(path: string) {
-  const router = createMemoryRouter(
-    [
-      {
-        path: "/:organizationSlug",
-        element: (
-          <>
-            <PublicOrganizationPage />
-            <LocationProbe />
-          </>
-        ),
-      },
-    ],
-    { initialEntries: [path] },
-  );
-  return render(<RouterProvider router={router} />, { wrapper: createQueryWrapper() });
+  return renderWithRoute(<PublicOrganizationPage />, {
+    url: path,
+    pattern: "/:organizationSlug",
+    wrapper: createQueryWrapper(),
+  });
 }
 
 function themeScope(element: HTMLElement): HTMLElement {
@@ -225,7 +209,8 @@ describe("PublicOrganizationPage", () => {
 
     fireEvent.click(settings);
 
-    expect(screen.getByTestId("location")).toHaveTextContent("/muzyczne-skrzaty?edit=1");
+    const { pathname, search } = getTestLocation();
+    expect(pathname + search).toBe("/muzyczne-skrzaty?edit=1");
     expect(screen.getByRole("button", { name: "Ustawienia" })).toHaveAttribute("aria-expanded", "true");
   });
 

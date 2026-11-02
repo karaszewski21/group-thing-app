@@ -1,7 +1,8 @@
-import { fireEvent, render, screen } from "@testing-library/react";
-import { Link, MemoryRouter, Route, Routes } from "react-router-dom";
+import { fireEvent, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
+import { Link } from "../routing/navigation";
 import { OrganizerThemeScope } from "../theme/OrganizerThemeScope";
+import { renderWithRoute } from "./renderWithRoute";
 
 function injectedCss(): string {
   return Array.from(document.querySelectorAll("style"))
@@ -11,22 +12,17 @@ function injectedCss(): string {
 
 describe("organizer theme after client-side navigation", () => {
   it("leaves no organizer vars or term-page rules behind once the user moves on to /panel", () => {
-    render(
-      <MemoryRouter initialEntries={["/ania/group/g/term/t"]}>
-        <Routes>
-          <Route
-            path="/:organizationSlug/group/:groupId/term/:termId"
-            element={
-              <OrganizerThemeScope theme={{ primary_color: "#7a2a4f", accent_color: null }}>
-                <div>
-                  <Link to="/">Panel</Link>
-                </div>
-              </OrganizerThemeScope>
-            }
-          />
-          <Route path="/" element={<h1>Panel</h1>} />
-        </Routes>
-      </MemoryRouter>,
+    renderWithRoute(
+      <OrganizerThemeScope theme={{ primary_color: "#7a2a4f", accent_color: null }}>
+        <div>
+          <Link to="/">Panel</Link>
+        </div>
+      </OrganizerThemeScope>,
+      {
+        url: "/ania/group/g/term/t",
+        pattern: "/:organizationSlug/group/:groupId/term/:termId",
+        routes: { "/": <h1>Panel</h1> },
+      },
     );
     expect(document.querySelector('[data-organizer-theme="custom"]')).not.toBeNull();
 

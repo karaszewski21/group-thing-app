@@ -1,5 +1,13 @@
 import { useEffect, useRef, type RefObject } from "react";
-import { Link, Navigate, useLocation, useOutletContext, useParams, useSearchParams } from "react-router-dom";
+import {
+  Link,
+  Navigate,
+  useAppParams,
+  useAppPathname,
+  useAppSearch,
+  useAppSearchParams,
+  useNavigationState,
+} from "../../../routing/navigation";
 import type { ItemDetailsResponse } from "../../../api/items";
 import { useAuth } from "../../../auth/AuthContext";
 import { authPath } from "../../../auth/authPaths";
@@ -25,6 +33,7 @@ import {
 } from "./itemPageShared";
 import { DescriptionText } from "./ItemReadOnlyParts";
 import { ItemStatusCard, type StatusReservation } from "./ItemStatusCard";
+import { useOrganizerItemOrganization } from "./OrganizerItemContext";
 import { ItemTileBadges } from "../../../components/shared/ItemTileBadges";
 import type { ItemActionsResponse } from "../../../api/itemActions";
 import { familyInitials } from "../../../components/shared/Avatar";
@@ -46,8 +55,9 @@ export function ItemDetailPage() {
  * visitor whose item is not public (404) goes to login and comes back.
  * With `?edit=1` the owner edits the item in place. */
 export function ItemDetailBody() {
-  const { id = "" } = useParams();
-  const location = useLocation();
+  const { id = "" } = useAppParams();
+  const pathname = useAppPathname();
+  const search = useAppSearch();
   const isLoggedIn = useAuth().token !== null;
   const { item, notFound, error, loading, fetching, refetch } = useItemDetail(id);
   const actions = useItemActions(id);
@@ -66,7 +76,7 @@ export function ItemDetailBody() {
     );
   }
   if (notFound && !isLoggedIn) {
-    return <Navigate to={authPath("login", location.pathname + location.search)} replace />;
+    return <Navigate to={authPath("login", pathname + search)} replace />;
   }
   if (loading && !notFound && !error) {
     return (
@@ -110,7 +120,7 @@ function OrganizerChip({ organization }: { organization: PublicOrganizationRespo
 
 /** Shown right after `/add/product` when some photos or the description were refused. */
 export function FailedPhotosNotice() {
-  const state = useLocation().state as ItemCreatedState | null;
+  const state = useNavigationState<ItemCreatedState>();
   if (!state?.failedPhotos && !state?.failedDescription) return null;
   return (
     <div role="status" className="mb-3 rounded-[14px] border border-line bg-cream px-3.5 py-2.5 text-[12.5px] text-ink">
@@ -143,13 +153,12 @@ interface ItemViewContentProps {
 function ItemViewContent({ item, details, onRefetch, actions, isLoggedIn }: ItemViewContentProps) {
   const deleted = item.deleted_at !== null;
   const canEdit = item.is_owner && !deleted;
-  const [searchParams, setSearchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useAppSearchParams();
   const editMode = canEdit && searchParams.has(EDIT_PARAM);
   const editing = useItemEditing(item.id, details);
   const editButtonRef = useRef<HTMLButtonElement>(null);
   const wasEditing = useRef(editMode);
-  // Set only under OrganizerItemLayout; `/product/:id` has no organizer.
-  const organization = useOutletContext<PublicOrganizationResponse | null | undefined>();
+  const organization = useOrganizerItemOrganization();
 
   useEffect(() => {
     if (wasEditing.current && !editMode) editButtonRef.current?.focus();

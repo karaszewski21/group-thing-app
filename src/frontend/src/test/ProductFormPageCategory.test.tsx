@@ -1,6 +1,6 @@
-import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { fireEvent, screen, waitFor, within } from "@testing-library/react";
+import { renderWithRoute } from "./renderWithRoute";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { MemoryRouter } from "react-router-dom";
 import { ChakraProvider } from "@chakra-ui/react";
 import { system } from "../theme/system";
 import * as productsApi from "../api/products";
@@ -53,12 +53,10 @@ async function chooseCategory(path: string[]) {
 }
 
 function renderForm(client = createTestQueryClient()) {
-  return render(
+  return renderWithRoute(
     <ChakraProvider value={system}>
-      <MemoryRouter initialEntries={["/admin/products/new"]}>
-        <ProductFormPage />
-      </MemoryRouter>
-    </ChakraProvider>, { wrapper: createQueryWrapper(client) },
+      <ProductFormPage />
+    </ChakraProvider>, { url: "/admin/products/new", wrapper: createQueryWrapper(client) },
   );
 }
 

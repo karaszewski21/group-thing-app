@@ -3,7 +3,6 @@ import { ChakraProvider } from "@chakra-ui/react";
 import { QueryClientProvider, type QueryClient } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { renderToString } from "react-dom/server";
-import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { EventDetailResponse } from "../api/events";
 import type { GroupAccessResponse } from "../api/groups";
@@ -18,6 +17,7 @@ import { EVENT_KEY } from "../hooks/useEvent";
 import { GROUP_ACCESS_KEY } from "../hooks/useTermAccess";
 import { system } from "../theme/system";
 import { createTestQueryClient } from "./queryClient";
+import { routeElement } from "./renderWithRoute";
 
 const EVENT_ID = "ev-1";
 const GROUP_ID = "5f0c2a7e-3b1d-4e6a-9c8f-0000000000a5";
@@ -73,14 +73,17 @@ const ACCESS: GroupAccessResponse = {
 };
 
 /** The app's provider stack around one routed page, rendered as on the server. */
-function renderOnServer(url: string, routes: ReactElement, client: QueryClient = createTestQueryClient()): string {
+function renderOnServer(
+  url: string,
+  pattern: string,
+  page: ReactElement,
+  client: QueryClient = createTestQueryClient(),
+): string {
   return renderToString(
     <QueryClientProvider client={client}>
       <ChakraProvider value={system}>
         <AuthProvider>
-          <MemoryRouter initialEntries={[url]}>
-            <Routes>{routes}</Routes>
-          </MemoryRouter>
+          {routeElement(page, { url, pattern })}
         </AuthProvider>
       </ChakraProvider>
     </QueryClientProvider>,
@@ -101,18 +104,19 @@ describe("SSR safety", () => {
     expect(typeof window).toBe("undefined");
     const landing = renderOnServer(
       "/",
-      <Route element={<PublicLayout />}>
-        <Route path="/" element={<LandingPage />} />
-      </Route>,
+      "/",
+      <PublicLayout>
+        <LandingPage />
+      </PublicLayout>,
     );
     expect(landing.length).toBeGreaterThan(0);
 
-    const login = renderOnServer("/login", <Route path="/login" element={<LoginPage />} />);
+    const login = renderOnServer("/login", "/login", <LoginPage />);
     expect(login.length).toBeGreaterThan(0);
   });
 
   it("renders the item page shell while its data is loading", () => {
-    const html = renderOnServer("/product/it-1", <Route path="/product/:id" element={<ItemDetailPage />} />);
+    const html = renderOnServer("/product/it-1", "/product/:id", <ItemDetailPage />);
     expect(html.length).toBeGreaterThan(0);
   });
 
@@ -121,7 +125,8 @@ describe("SSR safety", () => {
     client.setQueryData([EVENT_KEY, EVENT_ID], { data: EVENT, forToken: null });
     const html = renderOnServer(
       `/zielony-krag/event/${EVENT_ID}`,
-      <Route path="/:organizationSlug/event/:eventId" element={<EventPage />} />,
+      "/:organizationSlug/event/:eventId",
+      <EventPage />,
       client,
     );
     expect(html).toContain("Piknik w parku");
@@ -132,7 +137,8 @@ describe("SSR safety", () => {
     client.setQueryData([GROUP_ACCESS_KEY, GROUP_ID, TERM_ID], { data: ACCESS, forToken: null });
     const html = renderOnServer(
       `/ania/group/${GROUP_ID}/term/${TERM_ID}`,
-      <Route path="/:organizationSlug/group/:groupId/term/:termId" element={<TermPage />} />,
+      "/:organizationSlug/group/:groupId/term/:termId",
+      <TermPage />,
       client,
     );
     expect(html).toContain("Muzyczne Skrzaty");

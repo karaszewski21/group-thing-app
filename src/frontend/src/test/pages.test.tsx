@@ -1,6 +1,6 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, screen, waitFor } from "@testing-library/react";
+import { renderWithRoute } from "./renderWithRoute";
 import { describe, expect, it, vi, beforeEach } from "vitest";
-import { MemoryRouter } from "react-router-dom";
 import { ChakraProvider } from "@chakra-ui/react";
 import { system } from "../theme/system";
 import type { ProductResponse } from "../api/products";
@@ -79,12 +79,12 @@ const mockProducts: ProductResponse[] = [
 ];
 
 function renderWithProviders(ui: React.ReactElement, initialRoute = "/") {
-  return render(
+  return renderWithRoute(
     <ChakraProvider value={system}>
       <PluginProvider>
-        <MemoryRouter initialEntries={[initialRoute]}>{ui}</MemoryRouter>
+        {ui}
       </PluginProvider>
-    </ChakraProvider>, { wrapper: createQueryWrapper() },
+    </ChakraProvider>, { url: initialRoute, wrapper: createQueryWrapper() },
   );
 }
 

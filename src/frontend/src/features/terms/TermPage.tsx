@@ -1,5 +1,5 @@
 import { useCallback } from "react";
-import { useParams } from "react-router-dom";
+import { useAppParams } from "../../routing/navigation";
 import { ToastPill } from "../../components/shared/ToastPill";
 import { useToast } from "../../components/shared/useToast";
 import { useTermAccess } from "../../hooks/useTermAccess";
@@ -14,7 +14,7 @@ import { PublicTermView } from "./views/PublicTermView";
  * Shows exactly one view per `resolveTermView` state; the access-code flow
  * (`#code=` link, code sheet, join) lives in `useJoinCodeLink`. */
 export function TermPage() {
-  const params = useParams<{ groupId: string; termId: string }>();
+  const params = useAppParams<{ groupId: string; termId: string }>();
   const groupId = params.groupId ?? "";
   const { state, isStale, refetch, joinWithCode } = useTermAccess(groupId, params.termId ?? "");
   const view = resolveTermView(state, isStale);

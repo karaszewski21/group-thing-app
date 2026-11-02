@@ -1,10 +1,10 @@
-import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
-import { MemoryRouter, Route, Routes } from "react-router-dom";
+import { fireEvent, screen, waitFor, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { ConversationResponse, MessageResponse } from "../api/conversations";
 import { useConversation } from "../hooks/useConversation";
 import { useThread } from "../hooks/useThread";
 import { ThreadPage } from "../features/messages/ThreadPage";
+import { renderWithRoute } from "./renderWithRoute";
 
 vi.mock("../hooks/useConversation", () => ({ useConversation: vi.fn() }));
 vi.mock("../hooks/useThread", () => ({ useThread: vi.fn() }));
@@ -104,13 +104,7 @@ function mockThread(items: MessageResponse[] = messages) {
 }
 
 function renderPage(id = "c1") {
-  return render(
-    <MemoryRouter initialEntries={[`/messages/${id}`]}>
-      <Routes>
-        <Route path="/messages/:conversationId" element={<ThreadPage />} />
-      </Routes>
-    </MemoryRouter>,
-  );
+  return renderWithRoute(<ThreadPage />, { url: `/messages/${id}`, pattern: "/messages/:conversationId" });
 }
 
 describe("ThreadPage", () => {
@@ -231,13 +225,7 @@ describe("ThreadPage", () => {
       ...messages,
       { ...messages[1], id: "m4", body: "Nowa", created_at: "2026-10-21T17:40:00" },
     ]);
-    rerender(
-      <MemoryRouter initialEntries={["/messages/c2"]}>
-        <Routes>
-          <Route path="/messages/:conversationId" element={<ThreadPage />} />
-        </Routes>
-      </MemoryRouter>,
-    );
+    rerender(<ThreadPage />);
 
     await waitFor(() => expect(markRead).toHaveBeenCalledWith("m4"));
     expect(markRead).toHaveBeenCalledTimes(2);

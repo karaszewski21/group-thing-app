@@ -1,10 +1,10 @@
 import { useEffect, useRef, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useAppNavigate } from "../../routing/navigation";
 import type { EventResponse } from "../../api/events";
 import { useAppData } from "../panel/appDataStore";
 import { SubPageHeader } from "../../components/shared/appComponents";
 import { useCreateEvent } from "../../hooks/useCreateEvent";
-import { eventPath, viewPath } from "../../utils/appHelpers";
+import { eventPath, viewPath } from "../../routing/paths";
 import { EMPTY_EVENT_DRAFT, toCreateEventRequest } from "./eventDraft";
 import { EventForm } from "./EventForm";
 
@@ -21,7 +21,7 @@ function savedToast(event: EventResponse): string {
  * or skipping the banner instead of the form. */
 export function EventCreateView() {
   const { eventDraft: draft, setEventDraft: setDraft, eventBanner: banner, setEventBanner: setBanner } = useAppData();
-  const navigate = useNavigate();
+  const navigate = useAppNavigate();
   const { create, uploadBanner } = useCreateEvent();
   const [showErrors, setShowErrors] = useState(false);
   const [busy, setBusy] = useState(false);

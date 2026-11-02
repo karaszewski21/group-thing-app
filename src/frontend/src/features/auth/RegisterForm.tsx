@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Link, useNavigate, useSearchParams } from "react-router-dom";
+import { Link, useAppNavigate, useAppSearchParams } from "../../routing/navigation";
 import { useAuth, type RegisterPayload } from "../../auth/AuthContext";
 import { authPath } from "../../auth/authPaths";
 import { AUTH_INPUT, AUTH_LABEL, AUTH_SUBMIT } from "./authStyles";
@@ -14,8 +14,8 @@ export function RegisterForm() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const { register } = useAuth();
-  const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
+  const navigate = useAppNavigate();
+  const [searchParams] = useAppSearchParams();
   // Carried through onboarding (and onto the login tab link) so a visitor
   // who came from a term page's account gate lands back on it.
   const returnTo = searchParams.get("returnTo");

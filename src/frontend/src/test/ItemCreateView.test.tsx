@@ -1,5 +1,4 @@
-import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
-import { MemoryRouter, Route, Routes, useParams } from "react-router-dom";
+import { act, fireEvent, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { ItemCreateView } from "../features/items/ItemCreateView";
 import { FailedPhotosNotice } from "../features/items/product/ItemDetailPage";
@@ -12,7 +11,9 @@ import type { Category } from "../api/categories";
 import type { InventoryItemResponse, InventoryResponse } from "../api/inventories";
 import type { UserProfileResponse } from "../api/people";
 import type { ProductResponse } from "../api/products";
+import { useAppParams } from "../routing/navigation";
 import { createQueryWrapper } from "./queryClient";
+import { renderWithRoute } from "./renderWithRoute";
 
 vi.mock("../api/inventories", () => ({
   getOrCreatePersonalInventory: vi.fn(),
@@ -59,7 +60,7 @@ function category(id: string, name: string, parent_id: string | null, sort_order
 }
 
 function NewItemProbe() {
-  const { id } = useParams();
+  const { id } = useAppParams();
   return (
     <>
       <p>ITEM PAGE {id}</p>
@@ -69,15 +70,12 @@ function NewItemProbe() {
 }
 
 function renderPage() {
-  return render(
-    <MemoryRouter initialEntries={["/add/product"]}>
-      <Routes>
-        <Route path="/add/product" element={<ItemCreateView />} />
-        <Route path="/product/:id" element={<NewItemProbe />} />
-      </Routes>
-    </MemoryRouter>,
-    { wrapper: createQueryWrapper() },
-  );
+  return renderWithRoute(<ItemCreateView />, {
+    url: "/add/product",
+    pattern: "/add/product",
+    routes: { "/product/:id": <NewItemProbe /> },
+    wrapper: createQueryWrapper(),
+  });
 }
 
 function categoryTrigger() {

@@ -1,6 +1,6 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, screen } from "@testing-library/react";
+import { renderWithRoute } from "./renderWithRoute";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { MemoryRouter } from "react-router-dom";
 import { SwapAcceptSuccessSheet, type AcceptedSwap } from "../features/items/SwapAcceptSuccessSheet";
 import * as calendar from "../utils/calendar";
 
@@ -29,11 +29,7 @@ function eventSwap(over: Partial<AcceptedSwap> = {}): AcceptedSwap {
 }
 
 function renderSheet(swap: AcceptedSwap) {
-  return render(
-    <MemoryRouter>
-      <SwapAcceptSuccessSheet swap={swap} onClose={() => {}} />
-    </MemoryRouter>,
-  );
+  return renderWithRoute(<SwapAcceptSuccessSheet swap={swap} onClose={() => {}} />, { url: "/" });
 }
 
 describe("SwapAcceptSuccessSheet event branch", () => {

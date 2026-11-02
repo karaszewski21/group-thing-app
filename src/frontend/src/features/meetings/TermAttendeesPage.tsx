@@ -1,4 +1,4 @@
-import { Link, useParams } from "react-router-dom";
+import { Link, useAppParams } from "../../routing/navigation";
 import type { GroupResponse, TermAttendeeResponse } from "../../api/groups";
 import type { TermResponse } from "../../api/terms";
 import { PhoneFrame } from "../../components/shared/PhoneFrame";
@@ -13,7 +13,7 @@ import { BackIcon } from "../../components/shared/appIcons";
  * A standalone route outside AppDataProvider: the hook resolves the group
  * from the term itself. */
 export function TermAttendeesPage() {
-  const { termId = "" } = useParams();
+  const { termId = "" } = useAppParams();
   const { term, group, attendees, denied, notFound, error, loading, refetch } =
     useTermAttendees(termId);
 

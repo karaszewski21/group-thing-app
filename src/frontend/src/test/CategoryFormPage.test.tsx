@@ -1,6 +1,5 @@
-import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { act, fireEvent, screen, waitFor, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { ChakraProvider } from "@chakra-ui/react";
 import { system } from "../theme/system";
 import type { Category } from "../api/categories";
@@ -8,6 +7,7 @@ import * as categoriesApi from "../api/categories";
 import { ApiError } from "../api/client";
 import { CategoryFormPage } from "../features/admin/CategoryFormPage";
 import { createQueryWrapper } from "./queryClient";
+import { renderWithRoute } from "./renderWithRoute";
 
 vi.mock("../api/categories", () => ({
   getCategories: vi.fn(),
@@ -36,18 +36,20 @@ const mockCategories: Category[] = [
 ];
 
 function renderAt(initialRoute: string) {
-  return render(
-    <ChakraProvider value={system}>
-      <MemoryRouter initialEntries={[initialRoute]}>
-        <Routes>
-          <Route path="/admin/categories" element={<div>Lista kategorii</div>} />
-          <Route path="/admin/categories/new" element={<CategoryFormPage />} />
-          <Route path="/admin/categories/:id/edit" element={<CategoryFormPage />} />
-        </Routes>
-      </MemoryRouter>
-    </ChakraProvider>,
-    { wrapper: createQueryWrapper() },
-  );
+  const QueryWrapper = createQueryWrapper();
+  return renderWithRoute(<CategoryFormPage />, {
+    url: initialRoute,
+    pattern: "/admin/categories/new",
+    routes: {
+      "/admin/categories": <div>Lista kategorii</div>,
+      "/admin/categories/:id/edit": <CategoryFormPage />,
+    },
+    wrapper: ({ children }) => (
+      <QueryWrapper>
+        <ChakraProvider value={system}>{children}</ChakraProvider>
+      </QueryWrapper>
+    ),
+  });
 }
 
 beforeEach(() => {

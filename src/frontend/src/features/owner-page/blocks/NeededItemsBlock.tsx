@@ -1,5 +1,5 @@
 import { Check } from "lucide-react";
-import { Link } from "react-router-dom";
+import { Link } from "../../../routing/navigation";
 import type { OrganizerPageResponse } from "../../../api/groups";
 import { BringsIcon } from "../../../components/shared/Icons";
 import dayjs from "../../../utils/dayjs";

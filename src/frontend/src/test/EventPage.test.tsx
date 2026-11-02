@@ -1,12 +1,15 @@
-import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
-import { Link, matchRoutes, MemoryRouter, Route, Routes, useLocation, type InitialEntry } from "react-router-dom";
+import { fireEvent, screen, waitFor, within } from "@testing-library/react";
+import { matchRoutes } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import * as eventsApi from "../api/events";
 import type { EventAttendanceResponse, EventDetailResponse, EventParticipant } from "../api/events";
 import { EventAuthorCard } from "../features/events/components/EventAuthorCard";
 import { EventPage } from "../features/events/EventPage";
 import { routes } from "../router";
+import { Link } from "../routing/navigation";
+import { peekNavigationState } from "../routing/navigationState";
 import { createQueryWrapper } from "./queryClient";
+import { renderWithRoute } from "./renderWithRoute";
 
 vi.mock("../api/events", async (importOriginal) => ({
   ...(await importOriginal<typeof import("../api/events")>()),
@@ -77,26 +80,23 @@ const GUEST_ATTENDANCE: EventAttendanceResponse = {
   attached_to_account: false,
 };
 
-function LocationProbe() {
-  const location = useLocation();
-  return <pre data-testid="location-state">{JSON.stringify(location.state)}</pre>;
-}
-
-function pageTree(entry: InitialEntry = PAGE_PATH) {
+function page() {
   return (
-    <MemoryRouter initialEntries={[entry]}>
-      <Routes>
-        <Route path="/:organizationSlug/event/:eventId" element={<EventPage />} />
-        <Route path="/meetings" element={<p>Strona spotkań</p>} />
-      </Routes>
-      <LocationProbe />
+    <>
+      <EventPage />
       <Link to={`/zielony-krag/event/${OTHER_EVENT_ID}`}>Inne wydarzenie</Link>
-    </MemoryRouter>
+    </>
   );
 }
 
-function renderPage(entry: InitialEntry = PAGE_PATH) {
-  return render(pageTree(entry), { wrapper: createQueryWrapper() });
+function renderPage(state?: { toast: string }) {
+  return renderWithRoute(page(), {
+    url: PAGE_PATH,
+    pattern: "/:organizationSlug/event/:eventId",
+    routes: { "/meetings": <p>Strona spotkań</p> },
+    state,
+    wrapper: createQueryWrapper(),
+  });
 }
 
 /** `a` comes before `b` in document order. */
@@ -205,10 +205,10 @@ describe("EventPage", () => {
 
   it("shows the toast handed over in router state once and clears the state", async () => {
     vi.mocked(eventsApi.getEvent).mockResolvedValue(event());
-    renderPage({ pathname: PAGE_PATH, state: { toast: "Dodano wydarzenie" } });
+    renderPage({ toast: "Dodano wydarzenie" });
 
     expect(await screen.findByRole("status")).toHaveTextContent("Dodano wydarzenie");
-    await waitFor(() => expect(screen.getByTestId("location-state")).toHaveTextContent("null"));
+    await waitFor(() => expect(peekNavigationState(PAGE_PATH)).toBeNull());
   });
 
   it("links the header chip to the organization, else to the author's person profile", async () => {
@@ -382,7 +382,7 @@ describe("EventPage", () => {
 
     vi.mocked(eventsApi.getEvent).mockReturnValueOnce(new Promise<EventDetailResponse>(() => {}));
     mockAuth = { token: null };
-    rerender(pageTree());
+    rerender(page());
 
     await waitFor(() => expect(screen.queryByRole("link", { name: /Edytuj/ })).not.toBeInTheDocument());
     expect(screen.getByRole("heading", { name: "Piknik w parku", level: 1 })).toBeInTheDocument();
@@ -420,10 +420,9 @@ describe("EventPage", () => {
   ])("the delete warning for %i reservation(s), %i swap(s) agrees in number", (total, swaps, copy) => {
     vi.useFakeTimers({ toFake: ["Date"] });
     vi.setSystemTime(new Date(2026, 10, 1, 12, 0));
-    render(
-      <MemoryRouter>
-        <EventAuthorCard event={event({ is_author: true, open_reservations: { total, swaps } })} onDelete={vi.fn()} />
-      </MemoryRouter>,
+    renderWithRoute(
+      <EventAuthorCard event={event({ is_author: true, open_reservations: { total, swaps } })} onDelete={vi.fn()} />,
+      { url: "/" },
     );
     fireEvent.click(screen.getByRole("button", { name: "Usuń" }));
     expect(screen.getByRole("alertdialog").textContent).toContain(copy);
@@ -436,11 +435,9 @@ describe("EventPage", () => {
     [12, "Nie można usunąć — zapisało się już 12 osób."],
     [22, "Nie można usunąć — zapisały się już 22 osoby."],
   ])("the blocked-delete hint for %i attendee(s) agrees in number", (count, hint) => {
-    render(
-      <MemoryRouter>
-        <EventAuthorCard event={event({ is_author: true, attendee_count: count })} onDelete={vi.fn()} />
-      </MemoryRouter>,
-    );
+    renderWithRoute(<EventAuthorCard event={event({ is_author: true, attendee_count: count })} onDelete={vi.fn()} />, {
+      url: "/",
+    });
     expect(screen.getByRole("button", { name: "Usuń" })).toHaveAccessibleDescription(hint);
   });
 

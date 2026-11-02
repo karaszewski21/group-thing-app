@@ -1,5 +1,5 @@
 import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
-import { MemoryRouter, Route, Routes, useLocation, useNavigationType } from "react-router-dom";
+import { getTestLocation, getTestRouter, renderWithRoute } from "./renderWithRoute";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import * as groupsApi from "../api/groups";
 import type { PublicMedia, PublicOrganizationResponse } from "../api/organizations";
@@ -51,29 +51,12 @@ function pageData(overrides: Partial<PublicOrganizationResponse> = {}): Organize
   };
 }
 
-function LocationProbe() {
-  const location = useLocation();
-  const navigationType = useNavigationType();
-  return <output data-testid="location">{`${navigationType} ${location.pathname}${location.search}`}</output>;
-}
-
 function renderLayout(key: string, data: OrganizerPageData, mode: RenderMode = "visitor") {
-  return render(
-    <MemoryRouter initialEntries={[`/${SLUG}`]}>
-      <Routes>
-        <Route
-          path="/:slug"
-          element={
-            <>
-              <LayoutRenderer layout={resolveLayout(key)} data={data} mode={mode} />
-              <LocationProbe />
-            </>
-          }
-        />
-      </Routes>
-    </MemoryRouter>,
-    { wrapper: createQueryWrapper() },
-  );
+  return renderWithRoute(<LayoutRenderer layout={resolveLayout(key)} data={data} mode={mode} />, {
+    url: `/${SLUG}`,
+    pattern: "/:slug",
+    wrapper: createQueryWrapper(),
+  });
 }
 
 beforeEach(() => {
@@ -89,10 +72,9 @@ describe("HeroBlock media", () => {
     ["compact", "h-14"],
     ["centered", "h-24"],
   ])("shows the logo thumb in the %s variant and falls back to initials on error", (variant, size) => {
-    const { container } = render(
-      <MemoryRouter>
-        <HeroBlock data={pageData({ logo: media(1) })} variant={variant} mode="visitor" />
-      </MemoryRouter>,
+    const { container } = renderWithRoute(
+      <HeroBlock data={pageData({ logo: media(1) })} variant={variant} mode="visitor" />,
+      { url: "/" },
     );
 
     const logo = container.querySelector(`img[src="${media(1).thumb_url}"]`) as HTMLImageElement;
@@ -112,10 +94,9 @@ describe("HeroBlock media", () => {
       ["centered", "absolute"],
       ["compact", "h-30"],
     ]) {
-      const { container } = render(
-        <MemoryRouter>
-          <HeroBlock data={pageData({ cover: media(2) })} variant={variant} mode="visitor" />
-        </MemoryRouter>,
+      const { container } = renderWithRoute(
+        <HeroBlock data={pageData({ cover: media(2) })} variant={variant} mode="visitor" />,
+        { url: "/" },
       );
       const cover = container.querySelector(`img[src="${media(2).url}"]`);
       expect(cover, variant).toHaveAttribute("alt", "");
@@ -125,10 +106,9 @@ describe("HeroBlock media", () => {
   });
 
   it("drops the compact cover strip when the cover fails, keeping the top bar", () => {
-    const { container } = render(
-      <MemoryRouter>
-        <HeroBlock data={pageData({ cover: media(2) })} variant="compact" mode="visitor" />
-      </MemoryRouter>,
+    const { container } = renderWithRoute(
+      <HeroBlock data={pageData({ cover: media(2) })} variant="compact" mode="visitor" />,
+      { url: "/" },
     );
 
     fireEvent.error(container.querySelector(`img[src="${media(2).url}"]`)!);
@@ -137,10 +117,9 @@ describe("HeroBlock media", () => {
   });
 
   it("puts the centered hero over the cover in the fixed light token, and in on-primary after it fails", () => {
-    const { container } = render(
-      <MemoryRouter>
-        <HeroBlock data={pageData({ cover: media(2) })} variant="centered" mode="visitor" />
-      </MemoryRouter>,
+    const { container } = renderWithRoute(
+      <HeroBlock data={pageData({ cover: media(2) })} variant="centered" mode="visitor" />,
+      { url: "/" },
     );
     const name = screen.getByRole("heading", { level: 1, name: NAME });
     const address = screen.getByText(`domena.pl/${SLUG}`);
@@ -156,11 +135,7 @@ describe("HeroBlock media", () => {
   });
 
   it("keeps the name, address and logo ring in the fixed light token over a cover, and on-primary after it fails", () => {
-    const { container } = render(
-      <MemoryRouter>
-        <HeroBlock data={pageData({ cover: media(2) })} variant="cover" mode="visitor" />
-      </MemoryRouter>,
-    );
+    const { container } = renderWithRoute(<HeroBlock data={pageData({ cover: media(2) })} variant="cover" mode="visitor" />, { url: "/" });
     const name = screen.getByRole("heading", { level: 1, name: NAME });
     const address = screen.getByText(`domena.pl/${SLUG}`);
     const ring = screen.getByText("RG");
@@ -255,6 +230,7 @@ describe("LayoutRenderer gallery slot", () => {
     expect(cta).toHaveAttribute("href", `/${SLUG}?edit=1&tab=photos`);
 
     fireEvent.click(cta);
-    expect(screen.getByTestId("location")).toHaveTextContent(`REPLACE /${SLUG}?edit=1&tab=photos`);
+    expect(getTestLocation()).toEqual({ pathname: `/${SLUG}`, search: "?edit=1&tab=photos" });
+    expect(getTestRouter().calls.at(-1)).toMatchObject({ method: "replace", url: `/${SLUG}?edit=1&tab=photos` });
   });
 });

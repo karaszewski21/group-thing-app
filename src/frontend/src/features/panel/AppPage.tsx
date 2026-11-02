@@ -30,7 +30,8 @@ import { EventEditView } from "../events/EventEditView";
 import { TermEditView } from "../terms/TermEditView";
 import { HuntingCreateView } from "../add/HuntingCreateView";
 import { SubPageHeader } from "../../components/shared/appComponents";
-import { ACCOUNT_SUBVIEWS, viewPath } from "../../utils/appHelpers";
+import { ACCOUNT_SUBVIEWS } from "../../utils/appHelpers";
+import { viewPath } from "../../routing/paths";
 
 /* ------------------------------------------------------------------ */
 /*  Panel — organizator/gość (port z pages/PanelOrganizatora.tsx +      */

@@ -1,11 +1,11 @@
 import { useEffect, useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useAppNavigate } from "../../routing/navigation";
 import type { ListingMode } from "../../api/itemListingPreferences";
 import { ItemQuickAddForm } from "../../components/shared/ItemQuickAddForm";
 import { SubPageHeader } from "../../components/shared/appComponents";
 import { useCreateItem } from "../../hooks/useCreateItem";
 import { createEmptyItemQuickAddValue, type ItemQuickAddValue } from "../../utils/itemQuickAdd";
-import { viewPath } from "../../utils/appHelpers";
+import { viewPath } from "../../routing/paths";
 import { EXCHANGE_MODE_LABELS } from "../terms/components/termLabels";
 import { PhotoGalleryField } from "../../components/shared/PhotoGalleryField";
 import { FIELD_LABEL, MAX_PRODUCT_PHOTOS, photoFileError, type ItemCreatedState } from "./product/itemPageShared";
@@ -21,7 +21,7 @@ const TITLE = "Dodaj rzecz";
  * new item's page (handing it what could not be saved). A panel view like
  * the other `/add/*` pages; it reads nothing from AppDataContext. */
 export function ItemCreateView() {
-  const navigate = useNavigate();
+  const navigate = useAppNavigate();
   const createItem = useCreateItem();
   const [value, setValue] = useState<ItemQuickAddValue>(createEmptyItemQuickAddValue());
   const [photos, setPhotos] = useState<File[]>([]);

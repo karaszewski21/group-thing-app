@@ -1,6 +1,5 @@
-import { act, fireEvent, render, screen, within } from "@testing-library/react";
+import { act, fireEvent, screen, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { createMemoryRouter, RouterProvider, useLocation } from "react-router-dom";
 import { ApiError } from "../api/client";
 import * as groupsApi from "../api/groups";
 import { ACCESS_DENIED_MESSAGE } from "../api/problem";
@@ -11,6 +10,7 @@ import { PublicOrganizationPage } from "../features/owner-page/PublicOrganizatio
 import { findPreset } from "../theme/palettes";
 import dayjs from "../utils/dayjs";
 import { createQueryWrapper } from "./queryClient";
+import { getTestLocation, getTestRouter, renderWithRoute } from "./renderWithRoute";
 
 let mockAuth: { token: string | null };
 vi.mock("../auth/AuthContext", () => ({ useAuth: () => mockAuth }));
@@ -28,29 +28,19 @@ vi.mock("../api/groups", () => ({
   getOrganizerPage: vi.fn(),
 }));
 
-function LocationProbe() {
-  const location = useLocation();
-  return <output data-testid="location">{location.pathname + location.search}</output>;
+function currentUrl() {
+  const { pathname, search } = getTestLocation();
+  return pathname + search;
 }
 
 function renderAt(path: string) {
-  const router = createMemoryRouter(
-    [
-      {
-        path: "/:organizationSlug",
-        element: (
-          <>
-            <PublicOrganizationPage />
-            <LocationProbe />
-          </>
-        ),
-      },
-      { path: "/home", element: <p>Panel</p> },
-    ],
-    { initialEntries: [path] },
-  );
-  render(<RouterProvider router={router} />, { wrapper: createQueryWrapper() });
-  return router;
+  renderWithRoute(<PublicOrganizationPage />, {
+    url: path,
+    pattern: "/:organizationSlug",
+    routes: { "/home": <p>Panel</p> },
+    wrapper: createQueryWrapper(),
+  });
+  return getTestRouter();
 }
 
 const ORGANIZATION = {
@@ -150,7 +140,7 @@ beforeEach(() => {
 async function expectSheetClosedAfterSave() {
   await vi.waitFor(() => expect(screen.queryByRole("dialog", { name: "Ustawienia" })).not.toBeInTheDocument());
   expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument();
-  expect(screen.getByTestId("location")).toHaveTextContent(/^\/muzyczne-skrzaty$/);
+  expect(currentUrl()).toBe("/muzyczne-skrzaty");
   expect(screen.getByRole("button", { name: "Ustawienia" })).toHaveFocus();
 }
 
@@ -211,7 +201,7 @@ describe("Organizer editor sheet", () => {
 
     expect(screen.queryByRole("dialog", { name: "Ustawienia" })).not.toBeInTheDocument();
     expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument();
-    expect(screen.getByTestId("location")).toHaveTextContent(/^\/muzyczne-skrzaty$/);
+    expect(currentUrl()).toBe("/muzyczne-skrzaty");
     expect(screen.getByRole("button", { name: "Udostępnij" })).toBeInTheDocument();
   });
 
@@ -227,7 +217,7 @@ describe("Organizer editor sheet", () => {
 
     expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument();
     expect(screen.queryByText("Panel")).not.toBeInTheDocument();
-    expect(screen.getByTestId("location")).toHaveTextContent("/muzyczne-skrzaty?edit=1");
+    expect(currentUrl()).toContain("/muzyczne-skrzaty?edit=1");
     expect(screen.getByRole("button", { name: "Udostępnij stronę" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Zamknij" })).toHaveFocus();
   });
@@ -311,7 +301,7 @@ describe("Organizer editor sheet", () => {
 
     expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument();
     expect(screen.queryByRole("dialog", { name: "Ustawienia" })).not.toBeInTheDocument();
-    expect(screen.getByTestId("location")).toHaveTextContent(/^\/muzyczne-skrzaty$/);
+    expect(currentUrl()).toBe("/muzyczne-skrzaty");
   });
 
   it("marks both Plan zajęć and Grupy as Polecany for two circles with four terms within 14 days", async () => {
@@ -478,11 +468,11 @@ describe("Organizer editor photos tab", () => {
 
     expect(await screen.findByRole("region", { name: "Logo" })).toBeInTheDocument();
     expect(tab("Zdjęcia i opis")).toHaveAttribute("aria-selected", "true");
-    expect(screen.getByTestId("location")).toHaveTextContent("/muzyczne-skrzaty?edit=1&tab=photos");
+    expect(currentUrl()).toContain("/muzyczne-skrzaty?edit=1&tab=photos");
 
     fireEvent.click(tab("Układ i kolor"));
 
-    expect(screen.getByTestId("location")).toHaveTextContent("/muzyczne-skrzaty?edit=1&tab=layout");
+    expect(currentUrl()).toContain("/muzyczne-skrzaty?edit=1&tab=layout");
 
     fireEvent.click(screen.getByRole("link", { name: "Dodaj zdjęcia →" }));
 
@@ -492,7 +482,7 @@ describe("Organizer editor photos tab", () => {
     fireEvent.click(screen.getByRole("button", { name: "Zamknij" }));
 
     expect(screen.queryByRole("dialog", { name: "Ustawienia" })).not.toBeInTheDocument();
-    expect(screen.getByTestId("location")).toHaveTextContent(/^\/muzyczne-skrzaty$/);
+    expect(currentUrl()).toBe("/muzyczne-skrzaty");
   });
 
   it("uploads a photo right away without making the draft dirty", async () => {

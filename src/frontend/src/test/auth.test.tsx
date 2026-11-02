@@ -1,9 +1,9 @@
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi, beforeEach } from "vitest";
-import { MemoryRouter } from "react-router-dom";
 import { ChakraProvider } from "@chakra-ui/react";
 import { system } from "../theme/system";
 import { createQueryWrapper } from "./queryClient";
+import { getTestRouter, renderWithRoute } from "./renderWithRoute";
 
 // Mock fetch globally
 const mockFetch = vi.fn();
@@ -14,16 +14,6 @@ const mockLocation = { href: "", pathname: "/" };
 Object.defineProperty(window, "location", {
   value: mockLocation,
   writable: true,
-});
-
-// Spy on react-router-dom's useNavigate to assert navigation targets
-const mockNavigate = vi.fn();
-vi.mock("react-router-dom", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("react-router-dom")>();
-  return {
-    ...actual,
-    useNavigate: () => mockNavigate,
-  };
 });
 
 // Keep a reference to the real implementations before mocking
@@ -80,11 +70,10 @@ vi.mock("../api/products", () => ({
 }));
 
 function renderWithProviders(ui: React.ReactElement, initialRoute = "/") {
-  return render(
-    <ChakraProvider value={system}>
-      <MemoryRouter initialEntries={[initialRoute]}>{ui}</MemoryRouter>
-    </ChakraProvider>, { wrapper: createQueryWrapper() },
-  );
+  return renderWithRoute(<ChakraProvider value={system}>{ui}</ChakraProvider>, {
+    url: initialRoute,
+    wrapper: createQueryWrapper(),
+  });
 }
 
 beforeEach(() => {
@@ -284,7 +273,7 @@ describe("RegisterForm", () => {
     fireEvent.click(screen.getByRole("button", { name: /załóż konto/i }));
 
     await waitFor(() => {
-      expect(mockNavigate).toHaveBeenCalledWith("/onboarding", { replace: true });
+      expect(getTestRouter().calls).toContainEqual({ method: "replace", url: "/onboarding", scroll: true });
     });
   });
 });
@@ -346,14 +335,13 @@ describe("Permission-based UI visibility", () => {
     const { PluginProvider } = await import("../plugins/host/PluginHost");
     const { ProductListPage } = await import("../features/admin/ProductListPage");
 
-    render(
+    renderWithRoute(
       <ChakraProvider value={system}>
         <PluginProvider>
-          <MemoryRouter initialEntries={["/admin/products"]}>
-            <ProductListPage />
-          </MemoryRouter>
+          <ProductListPage />
         </PluginProvider>
-      </ChakraProvider>, { wrapper: createQueryWrapper() },
+      </ChakraProvider>,
+      { url: "/admin/products", wrapper: createQueryWrapper() },
     );
 
     await waitFor(() => {

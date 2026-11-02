@@ -1,4 +1,4 @@
-import { useParams } from "react-router-dom";
+import { useAppParams } from "../../../routing/navigation";
 
 interface ItemRoutes {
   viewPath: (id: string) => string;
@@ -24,7 +24,7 @@ export function itemEditPath(viewPath: string): string {
 /** Item page paths: under `/:organizationSlug/product` on the organizer
  * route, under `/product` everywhere else. */
 export function useItemRoutes(): ItemRoutes {
-  const { organizationSlug } = useParams();
+  const { organizationSlug } = useAppParams();
   const hasOrganizerPage = !!organizationSlug && !FALLBACK_ORGANIZER_SLUG.test(organizationSlug);
   return {
     viewPath: (id) => organizerItemPath(organizationSlug, id),

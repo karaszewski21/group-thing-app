@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { Link } from "react-router-dom";
+import { Link } from "../../../routing/navigation";
 import dayjs from "../../../utils/dayjs";
 
 const FOCUS_RING = "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring";

@@ -1,10 +1,10 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, screen, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi, beforeEach } from "vitest";
-import { MemoryRouter } from "react-router-dom";
 import * as groupsApi from "../api/groups";
 import * as peopleApi from "../api/people";
 import { AuthProvider } from "../auth/AuthContext";
 import { AccountMergeForm } from "../features/terms/modals/AccountMergeForm";
+import { getTestRouter, renderWithRoute } from "./renderWithRoute";
 
 // Group 11 gap review (candidate gap #3): no existing test exercises the
 // specific handoff "account-merge succeeds -> applyExternalToken stores the
@@ -23,19 +23,12 @@ vi.mock("../api/people", () => ({
   getMyProfile: vi.fn(),
 }));
 
-const mockNavigate = vi.fn();
-vi.mock("react-router-dom", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("react-router-dom")>();
-  return { ...actual, useNavigate: () => mockNavigate };
-});
-
 function renderForm() {
-  return render(
-    <MemoryRouter>
-      <AuthProvider>
-        <AccountMergeForm userProfileId="55" />
-      </AuthProvider>
-    </MemoryRouter>,
+  return renderWithRoute(
+    <AuthProvider>
+      <AccountMergeForm userProfileId="55" />
+    </AuthProvider>,
+    { url: "/" },
   );
 }
 
@@ -80,7 +73,7 @@ describe("account-merge -> real AuthContext.applyExternalToken -> authenticated 
     // 401 would), not just that a token string was stored.
     await waitFor(() => expect(peopleApi.getMyProfile).toHaveBeenCalled());
 
-    expect(mockNavigate).not.toHaveBeenCalled();
+    expect(getTestRouter().calls).toEqual([]);
   });
 
   it("when the subsequent getMyProfile() call fails, the merge itself is unaffected — token stays stored and the visitor stays on the page", async () => {
@@ -98,6 +91,6 @@ describe("account-merge -> real AuthContext.applyExternalToken -> authenticated 
 
     await waitFor(() => expect(localStorage.getItem("auth_token")).toBe("merged-jwt-token-2"));
     await waitFor(() => expect(peopleApi.getMyProfile).toHaveBeenCalled());
-    expect(mockNavigate).not.toHaveBeenCalled();
+    expect(getTestRouter().calls).toEqual([]);
   });
 });

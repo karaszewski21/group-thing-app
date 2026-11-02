@@ -1,5 +1,5 @@
 import { useId } from "react";
-import { Link } from "react-router-dom";
+import { Link } from "../../../routing/navigation";
 import { organizerItemPath } from "../../items/product/useItemRoutes";
 import type { BlockProps, OrganizerPageData } from "../layouts/types";
 import { ItemCard } from "./ExchangeItemCard";

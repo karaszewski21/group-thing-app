@@ -1,5 +1,5 @@
 import { useEffect, useId, useMemo, useState, useSyncExternalStore } from "react";
-import { useNavigate } from "react-router-dom";
+import { useAppNavigate } from "../../../routing/navigation";
 import { useQueryClient } from "@tanstack/react-query";
 import { getMyProfile } from "../../../api/people";
 import { ALREADY_RESOLVED_MESSAGE, confirmTransaction, isAlreadyResolved } from "../../../api/reservations";
@@ -33,7 +33,7 @@ const GHOST_BUTTON = `${BTN_GHOST} ${BTN_LG}`;
  * Renders no prompt while a page-level dialog is open. */
 export function PendingActionsHost() {
   const { username } = useAuth();
-  const navigate = useNavigate();
+  const navigate = useAppNavigate();
   const queryClient = useQueryClient();
   const { data: notifications, markRead } = useNotifications();
   const openSheetCount = useSyncExternalStore(subscribeOpenSheets, getOpenSheetCount);

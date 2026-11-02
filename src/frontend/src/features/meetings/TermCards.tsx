@@ -1,4 +1,4 @@
-import { Link } from "react-router-dom";
+import { Link } from "../../routing/navigation";
 import type { EventResponse } from "../../api/events";
 import type { GroupResponse } from "../../api/groups";
 import type { MyPledgeResponse } from "../../api/pledges";
@@ -6,15 +6,8 @@ import type { NeededItemResponse, TermResponse } from "../../api/terms";
 import { useAppData } from "../panel/appDataStore";
 import { TermPlaceLine } from "../../components/shared/TermPlaceLine";
 import { CopyIcon, FamilyIcon, PencilIcon } from "../../components/shared/appIcons";
-import {
-  dayMonth,
-  eventEditPath,
-  eventPath,
-  termEditPath,
-  termPublicPath,
-  termTime,
-  type GuestTermCard,
-} from "../../utils/appHelpers";
+import { dayMonth, termPublicPath, termTime, type GuestTermCard } from "../../utils/appHelpers";
+import { eventEditPath, eventPath, termEditPath } from "../../routing/paths";
 import { pluralPl } from "../../utils/plural";
 
 const ICON_BUTTON =

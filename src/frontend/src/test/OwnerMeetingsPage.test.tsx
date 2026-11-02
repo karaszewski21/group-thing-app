@@ -1,5 +1,4 @@
-import { render, screen, waitFor } from "@testing-library/react";
-import { createMemoryRouter, RouterProvider, useLocation } from "react-router-dom";
+import { screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { ApiError } from "../api/client";
 import type { PublicOrganizationResponse } from "../api/organizations";
@@ -8,6 +7,7 @@ import type { OwnerMeetingsResponse, OwnerNearestDate } from "../api/ownerItems"
 import * as ownerItemsApi from "../api/ownerItems";
 import { OwnerMeetingsPage } from "../features/owner-page/OwnerMeetingsPage";
 import { createQueryWrapper } from "./queryClient";
+import { getTestLocation, renderWithRoute } from "./renderWithRoute";
 
 vi.mock("../api/organizations", () => ({
   getPublicOrganization: vi.fn(),
@@ -62,27 +62,12 @@ function meetings(overrides: Partial<OwnerMeetingsResponse> = {}): OwnerMeetings
   };
 }
 
-function LocationProbe() {
-  const location = useLocation();
-  return <output data-testid="location">{location.pathname}</output>;
-}
-
 function renderAt(path: string) {
-  const router = createMemoryRouter(
-    [
-      {
-        path: "/:organizationSlug/meetings",
-        element: (
-          <>
-            <OwnerMeetingsPage />
-            <LocationProbe />
-          </>
-        ),
-      },
-    ],
-    { initialEntries: [path] },
-  );
-  render(<RouterProvider router={router} />, { wrapper: createQueryWrapper() });
+  renderWithRoute(<OwnerMeetingsPage />, {
+    url: path,
+    pattern: "/:organizationSlug/meetings",
+    wrapper: createQueryWrapper(),
+  });
 }
 
 beforeEach(() => {
@@ -126,7 +111,7 @@ describe("OwnerMeetingsPage", () => {
 
     renderAt(`/${PARTY_ID}/meetings`);
 
-    await waitFor(() => expect(screen.getByTestId("location")).toHaveTextContent(`/${SLUG}/meetings`));
+    await waitFor(() => expect(getTestLocation().pathname).toBe(`/${SLUG}/meetings`));
     expect(await screen.findByRole("heading", { level: 1, name: "Spotkania: Akademia Orlik" })).toBeInTheDocument();
   });
 

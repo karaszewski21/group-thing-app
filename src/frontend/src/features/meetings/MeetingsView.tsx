@@ -1,11 +1,12 @@
 import { useState, type ReactNode } from "react";
-import { Link } from "react-router-dom";
+import { Link } from "../../routing/navigation";
 import type { EventResponse } from "../../api/events";
 import type { MyPledgeResponse } from "../../api/pledges";
 import dayjs from "../../utils/dayjs";
 import { SubPageHeader } from "../../components/shared/appComponents";
 import { FamilyIcon } from "../../components/shared/appIcons";
-import { viewPath, type GuestTermCard, type TermWithNeeded } from "../../utils/appHelpers";
+import { type GuestTermCard, type TermWithNeeded } from "../../utils/appHelpers";
+import { viewPath } from "../../routing/paths";
 import { useAppData } from "../panel/appDataStore";
 import { useAttendingEvents } from "../../hooks/useAttendingEvents";
 import { useMyEvents } from "../../hooks/useMyEvents";

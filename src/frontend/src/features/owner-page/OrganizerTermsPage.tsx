@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import { Link, useParams, useSearchParams } from "react-router-dom";
+import { Link, useAppParams, useAppSearchParams } from "../../routing/navigation";
 import { useOrganizerPage } from "../../hooks/useOrganizerPage";
 import { useOrganizerTerms } from "../../hooks/useOrganizerTerms";
 import { usePublicOrganization } from "../../hooks/usePublicOrganization";
@@ -24,8 +24,8 @@ function Heading() {
  * it is dropped from the URL only once the directory has loaded without it.
  */
 export function OrganizerTermsPage() {
-  const { organizationSlug = "" } = useParams<{ organizationSlug: string }>();
-  const [searchParams, setSearchParams] = useSearchParams();
+  const { organizationSlug = "" } = useAppParams<{ organizationSlug: string }>();
+  const [searchParams, setSearchParams] = useAppSearchParams();
   const organization = usePublicOrganization(organizationSlug);
   const directory = useOrganizerPage(organizationSlug);
   const circles = directory.data?.circles ?? [];

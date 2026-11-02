@@ -1,11 +1,11 @@
-import { render, screen, waitFor } from "@testing-library/react";
-import { createMemoryRouter, RouterProvider, useLocation } from "react-router-dom";
+import { screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { ApiError } from "../api/client";
 import type { OwnerItemCard, PartyProfileResponse } from "../api/ownerItems";
 import * as ownerItemsApi from "../api/ownerItems";
 import { PartyProfilePage } from "../features/owner-page/PartyProfilePage";
 import { createQueryWrapper } from "./queryClient";
+import { getTestLocation, renderWithRoute } from "./renderWithRoute";
 
 const mockAuth: { token: string | null; username: string | null } = { token: null, username: null };
 vi.mock("../auth/AuthContext", () => ({ useAuth: () => mockAuth }));
@@ -41,27 +41,12 @@ function profile(overrides: Partial<PartyProfileResponse> = {}): PartyProfileRes
   };
 }
 
-function LocationProbe() {
-  const location = useLocation();
-  return <output data-testid="location">{location.pathname}</output>;
-}
-
 function renderAt(path: string) {
-  const router = createMemoryRouter(
-    [
-      {
-        path: "/:organizationSlug",
-        element: (
-          <>
-            <PartyProfilePage />
-            <LocationProbe />
-          </>
-        ),
-      },
-    ],
-    { initialEntries: [path] },
-  );
-  render(<RouterProvider router={router} />, { wrapper: createQueryWrapper() });
+  renderWithRoute(<PartyProfilePage />, {
+    url: path,
+    pattern: "/:organizationSlug",
+    wrapper: createQueryWrapper(),
+  });
 }
 
 beforeEach(() => {
@@ -114,7 +99,7 @@ describe("PartyProfilePage", () => {
 
     renderAt(`/${PARTY_ID}`);
 
-    await waitFor(() => expect(screen.getByTestId("location")).toHaveTextContent("/akademia-orlik"));
+    await waitFor(() => expect(getTestLocation().pathname).toBe("/akademia-orlik"));
   });
 
   it("a person with nothing public is not found", async () => {

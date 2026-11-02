@@ -1,14 +1,15 @@
 import { StrictMode } from "react";
-import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { act, fireEvent, screen, waitFor, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { Link, MemoryRouter, Route, Routes, useLocation } from "react-router-dom";
 import { TermPage } from "../features/terms/TermPage";
+import { Link, useAppHash, useAppSearch } from "../routing/navigation";
 import * as groupsApi from "../api/groups";
 import * as familiesApi from "../api/families";
 import * as pledgesApi from "../api/pledges";
 import { ApiError } from "../api/client";
 import type { GroupAccessResponse, PublicCircleResponse, PublicItemListingResponse } from "../api/groups";
 import { createQueryWrapper } from "./queryClient";
+import { renderWithRoute } from "./renderWithRoute";
 
 vi.mock("../api/groups", async (importOriginal) => {
   const actual = await importOriginal<typeof import("../api/groups")>();
@@ -124,7 +125,8 @@ function access(
 }
 
 function SearchProbe() {
-  const { search, hash } = useLocation();
+  const search = useAppSearch();
+  const hash = useAppHash();
   return (
     <>
       <span data-testid="search">{search}</span>
@@ -133,20 +135,24 @@ function SearchProbe() {
   );
 }
 
-function page(entry = PATH) {
+const TERM_ROUTE = "/:organizationSlug/group/:groupId/term/:termId";
+
+function page() {
   return (
-    <MemoryRouter initialEntries={[entry]}>
-      <Routes>
-        <Route path="/:organizationSlug/group/:groupId/term/:termId" element={<TermPage />} />
-        <Route path="/messages/:id" element={<p>Wątek rozmowy</p>} />
-      </Routes>
+    <>
+      <TermPage />
       <SearchProbe />
-    </MemoryRouter>
+    </>
   );
 }
 
 function renderPage(entry = PATH) {
-  return render(page(entry), { wrapper: createQueryWrapper() });
+  return renderWithRoute(page(), {
+    url: entry,
+    pattern: TERM_ROUTE,
+    routes: { "/messages/:id": <p>Wątek rozmowy</p> },
+    wrapper: createQueryWrapper(),
+  });
 }
 
 beforeEach(() => {
@@ -543,13 +549,12 @@ describe("TermPage — access", () => {
 
   it("navigating to another term whose fetch fails shows 'Nie znaleziono', not the previous term", async () => {
     vi.mocked(groupsApi.getGroupAccess).mockResolvedValueOnce(access()).mockRejectedValueOnce(new Error("404"));
-    render(
-      <MemoryRouter initialEntries={[PATH]}>
+    renderWithRoute(
+      <>
         <Link to={`/zajecia/group/${GROUP_ID}/term/${OTHER_TERM_ID}`}>Następne zajęcia</Link>
-        <Routes>
-          <Route path="/:organizationSlug/group/:groupId/term/:termId" element={<TermPage />} />
-        </Routes>
-      </MemoryRouter>, { wrapper: createQueryWrapper() },
+        <TermPage />
+      </>,
+      { url: PATH, pattern: TERM_ROUTE, wrapper: createQueryWrapper() },
     );
     expect(await screen.findByText("Zajęcia w parku")).toBeInTheDocument();
 
@@ -795,15 +800,13 @@ describe("TermPage — join a private group by code", () => {
     vi.mocked(groupsApi.redeemJoinCode)
       .mockRejectedValueOnce(new ApiError(409, "Conflict", { message: WRONG_CODE }))
       .mockReturnValue(new Promise(() => {}));
-    render(
-      <MemoryRouter initialEntries={[`${PATH}#code=482910`]}>
-        <Link to={{ pathname: PATH, hash: "#code=582913" }}>Drugi link</Link>
-        <Routes>
-          <Route path="/:organizationSlug/group/:groupId/term/:termId" element={<TermPage />} />
-        </Routes>
+    renderWithRoute(
+      <>
+        <Link to={`${PATH}#code=582913`}>Drugi link</Link>
+        <TermPage />
         <SearchProbe />
-      </MemoryRouter>,
-      { wrapper: createQueryWrapper() },
+      </>,
+      { url: `${PATH}#code=482910`, pattern: TERM_ROUTE, wrapper: createQueryWrapper() },
     );
     const first = await screen.findByRole("dialog", { name: "Wpisz kod dostępu" });
     expect(await within(first).findByRole("alert")).toHaveTextContent(WRONG_CODE);
@@ -877,7 +880,7 @@ describe("TermPage — join a private group by code", () => {
     expect(await screen.findByText(/Masz kod\? Zaloguj się, żeby go użyć\./)).toBeInTheDocument();
 
     mockAuth = { token: "tok", displayName: "Ala" };
-    view.rerender(page(`${PATH}#code=482913`));
+    view.rerender(page());
     await waitFor(() => expect(groupsApi.getGroupAccess).toHaveBeenCalledTimes(2));
     expect(groupsApi.redeemJoinCode).not.toHaveBeenCalled();
     expect(screen.getByTestId("hash")).toHaveTextContent("#code=482913");
@@ -947,7 +950,16 @@ describe("TermPage — join a private group by code", () => {
   it("#code= under StrictMode redeems exactly once", async () => {
     vi.mocked(groupsApi.getGroupAccess).mockResolvedValueOnce(privateAccess()).mockResolvedValue(memberAccess);
     vi.mocked(groupsApi.redeemJoinCode).mockResolvedValue({ created: true });
-    render(<StrictMode>{page(`${PATH}#code=482913`)}</StrictMode>, { wrapper: createQueryWrapper() });
+    const QueryWrapper = createQueryWrapper();
+    renderWithRoute(page(), {
+      url: `${PATH}#code=482913`,
+      pattern: TERM_ROUTE,
+      wrapper: ({ children }) => (
+        <QueryWrapper>
+          <StrictMode>{children}</StrictMode>
+        </QueryWrapper>
+      ),
+    });
 
     expect(await screen.findByText("Zajęcia w parku")).toBeInTheDocument();
     await waitFor(() => expect(screen.getByTestId("hash")).toBeEmptyDOMElement());

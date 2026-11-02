@@ -1,6 +1,6 @@
-import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import { screen, fireEvent, waitFor } from "@testing-library/react";
+import { renderWithRoute } from "./renderWithRoute";
 import { describe, expect, it, vi, beforeEach } from "vitest";
-import { MemoryRouter } from "react-router-dom";
 import { ApiError } from "../api/client";
 import * as organizationsApi from "../api/organizations";
 import { OrganizationPage } from "../features/owner-page/OrganizationPage";
@@ -27,11 +27,7 @@ const mockOrganization: organizationsApi.MyOrganizationResponse = {
 };
 
 function renderPage() {
-  return render(
-    <MemoryRouter>
-      <OrganizationPage />
-    </MemoryRouter>,
-  );
+  return renderWithRoute(<OrganizationPage />, { url: "/" });
 }
 
 beforeEach(() => {

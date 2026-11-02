@@ -1,4 +1,4 @@
-import { Link } from "react-router-dom";
+import { Link } from "../../routing/navigation";
 import { authPath } from "../../auth/authPaths";
 import { ItemTile, MeetingRow } from "../../components/shared/appComponents";
 import { BuildingIcon } from "../../components/shared/appIcons";

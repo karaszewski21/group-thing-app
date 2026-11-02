@@ -1,12 +1,12 @@
 import { Box, Text } from "@chakra-ui/react";
-import { useParams, useLocation } from "react-router-dom";
+import { useAppParams, useAppPathname } from "../../routing/navigation";
 import { usePluginContext } from "../../plugins/host/PluginHost";
 import { MENU_MAIN } from "../../plugins/extensionPoints";
 import { PluginFrame } from "../../plugins/slots/PluginFrame";
 
 export function PluginPageRoute() {
-  const { pluginId } = useParams<{ pluginId: string }>();
-  const location = useLocation();
+  const { pluginId } = useAppParams<{ pluginId: string }>();
+  const pathname = useAppPathname();
   const { plugins, loading } = usePluginContext();
 
   if (loading) return <Text>Loading plugin...</Text>;
@@ -23,7 +23,7 @@ export function PluginPageRoute() {
 
   // Extract the path after /admin/plugins/:pluginId
   const basePath = `/admin/plugins/${pluginId}`;
-  const pluginPath = location.pathname.slice(basePath.length) || "/";
+  const pluginPath = pathname.slice(basePath.length) || "/";
 
   return (
     <Box h="100%" minH="calc(100vh - 120px)">

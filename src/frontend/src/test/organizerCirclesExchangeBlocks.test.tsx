@@ -1,6 +1,6 @@
-import { fireEvent, render, screen, within } from "@testing-library/react";
+import { fireEvent, screen, within } from "@testing-library/react";
+import { renderWithRoute } from "./renderWithRoute";
 import type { ReactElement } from "react";
-import { MemoryRouter } from "react-router-dom";
 import { describe, expect, it } from "vitest";
 import type {
   OrganizerCircle,
@@ -75,7 +75,7 @@ function pageData(overrides: Partial<OrganizerPageResponse> = {}): OrganizerPage
 }
 
 function renderWithRouter(ui: ReactElement) {
-  return render(<MemoryRouter>{ui}</MemoryRouter>);
+  return renderWithRoute(ui, { url: "/" });
 }
 
 describe("CirclesGridBlock", () => {

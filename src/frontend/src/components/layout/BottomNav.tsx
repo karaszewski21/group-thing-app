@@ -1,8 +1,9 @@
-import { useLocation, useNavigate } from "react-router-dom";
+import { useAppNavigate, useAppPathname } from "../../routing/navigation";
 import { useUnreadMessages } from "../../hooks/useUnreadMessages";
 import { INBOX_PATH } from "../../routing/messagesPaths";
 import { BoxIcon, ChatIcon, HomeIcon, PlusIcon, UserIcon } from "../shared/appIcons";
-import { ACCOUNT_SUBVIEWS, viewFromPath, viewPath } from "../../utils/appHelpers";
+import { ACCOUNT_SUBVIEWS } from "../../utils/appHelpers";
+import { viewFromPath, viewPath } from "../../routing/paths";
 
 type TabKey = "home" | "chat" | "items" | "account";
 
@@ -34,8 +35,8 @@ function activeTab(pathname: string): TabKey | undefined {
  * page) · Moje rzeczy · Konto. Shown to anonymous visitors too — every tab
  * but Start is behind AuthGuard, which sends them to /login and back. */
 export function BottomNav() {
-  const navigate = useNavigate();
-  const { pathname } = useLocation();
+  const navigate = useAppNavigate();
+  const pathname = useAppPathname();
   const { count: unread } = useUnreadMessages();
   const active = activeTab(pathname);
 

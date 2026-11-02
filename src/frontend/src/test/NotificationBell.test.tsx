@@ -1,10 +1,10 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { MemoryRouter, Route, Routes } from "react-router-dom";
 import * as notificationsApi from "../api/notifications";
 import type { NotificationResponse } from "../api/notifications";
 import { NotificationBell } from "../components/shared/NotificationBell";
 import { createQueryWrapper } from "./queryClient";
+import { renderWithRoute } from "./renderWithRoute";
 
 vi.mock("../api/notifications", () => ({
   getMyNotifications: vi.fn(),
@@ -26,15 +26,12 @@ const notif = (over: Partial<NotificationResponse> = {}): NotificationResponse =
 });
 
 function renderBell() {
-  return render(
-    <MemoryRouter initialEntries={["/"]}>
-      <Routes>
-        <Route path="/" element={<NotificationBell />} />
-        <Route path="/ania/group/5/term/3" element={<h1>Strona terminu</h1>} />
-      </Routes>
-    </MemoryRouter>,
-    { wrapper: createQueryWrapper() },
-  );
+  return renderWithRoute(<NotificationBell />, {
+    url: "/",
+    pattern: "/",
+    routes: { "/ania/group/5/term/3": <h1>Strona terminu</h1> },
+    wrapper: createQueryWrapper(),
+  });
 }
 
 beforeEach(() => {

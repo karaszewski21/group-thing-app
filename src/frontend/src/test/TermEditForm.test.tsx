@@ -1,5 +1,5 @@
-import { MemoryRouter } from "react-router-dom";
-import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { fireEvent, screen, waitFor, within } from "@testing-library/react";
+import { renderWithRoute } from "./renderWithRoute";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { ApiError } from "../api/client";
 import * as locationsApi from "../api/locations";
@@ -68,16 +68,14 @@ const neededItem: termsApi.NeededItemResponse = {
 };
 
 function renderForm(shownTerm: termsApi.TermResponse = term, onChanged = vi.fn(), onDone = vi.fn()) {
-  return render(
-    <MemoryRouter>
-      <TermEditForm
-        term={shownTerm}
-        neededItems={[neededItem]}
-        onChanged={onChanged}
-        onDone={onDone}
-      />
-    </MemoryRouter>,
-    { wrapper: createQueryWrapper() },
+  return renderWithRoute(
+    <TermEditForm
+      term={shownTerm}
+      neededItems={[neededItem]}
+      onChanged={onChanged}
+      onDone={onDone}
+    />,
+    { url: "/", wrapper: createQueryWrapper() },
   );
 }
 

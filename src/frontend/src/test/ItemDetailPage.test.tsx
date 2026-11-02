@@ -1,5 +1,4 @@
-import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
-import { Link, MemoryRouter, Navigate, Route, Routes } from "react-router-dom";
+import { fireEvent, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ItemDetailPage } from "../features/items/product/ItemDetailPage";
 import * as itemsApi from "../api/items";
@@ -23,7 +22,9 @@ import type { Category } from "../api/categories";
 import type { InventoryBalanceResponse, InventoryItemResponse, MyInventoryItemResponse } from "../api/inventories";
 import type { AcceptedSwapProposalResponse, SwapProposalResponse } from "../api/termItemListings";
 import type { ProductResponse } from "../api/products";
+import { Link, Navigate, useAppParams } from "../routing/navigation";
 import { createQueryWrapper } from "./queryClient";
+import { renderWithRoute } from "./renderWithRoute";
 
 vi.mock("../api/items", () => ({
   getItemDetails: vi.fn(),
@@ -198,17 +199,19 @@ const categories: Category[] = [
   category(CAT_TOYS, "Zabawki", CAT_KIDS, 1),
 ];
 
+// The redirect `router.tsx` sets up for the old edit address.
+function ToEditMode() {
+  const { id = "" } = useAppParams();
+  return <Navigate to={`/product/${id}?edit=1`} replace />;
+}
+
 function renderPage(path: string) {
-  return render(
-    <MemoryRouter initialEntries={[path]}>
-      <Routes>
-        <Route path="/product/:id" element={<ItemDetailPage />} />
-        <Route path="/product/:id/edit" element={<Navigate to="..?edit=1" relative="path" replace />} />
-        <Route path="/messages/:id" element={<p>Wątek rozmowy</p>} />
-      </Routes>
-    </MemoryRouter>,
-    { wrapper: createQueryWrapper() },
-  );
+  return renderWithRoute(<ItemDetailPage />, {
+    url: path,
+    pattern: "/product/:id",
+    routes: { "/product/:id/edit": <ToEditMode />, "/messages/:id": <p>Wątek rozmowy</p> },
+    wrapper: createQueryWrapper(),
+  });
 }
 
 function deferred<T>() {
@@ -1071,15 +1074,12 @@ describe("ItemDetailPage fallbacks", () => {
 
   it("Wróć on a directly opened page falls back to /items", async () => {
     vi.mocked(itemsApi.getItemDetails).mockResolvedValue(details());
-    render(
-      <MemoryRouter initialEntries={[`/product/${ITEM_ID}`]}>
-        <Routes>
-          <Route path="/product/:id" element={<ItemDetailPage />} />
-          <Route path="/items" element={<p>Panel rzeczy</p>} />
-        </Routes>
-      </MemoryRouter>,
-      { wrapper: createQueryWrapper() },
-    );
+    renderWithRoute(<ItemDetailPage />, {
+      url: `/product/${ITEM_ID}`,
+      pattern: "/product/:id",
+      routes: { "/items": <p>Panel rzeczy</p> },
+      wrapper: createQueryWrapper(),
+    });
 
     await screen.findByRole("heading", { name: "Wózek spacerowy Baby Jogger" });
     fireEvent.click(screen.getByRole("button", { name: /Wróć/ }));
@@ -1096,22 +1096,17 @@ describe("ItemDetailPage fallbacks", () => {
 
   it("edit mode never adds a history entry: Moje rzeczy → edit → Anuluj → Wróć returns to Moje rzeczy", async () => {
     vi.mocked(itemsApi.getItemDetails).mockResolvedValue(details());
-    render(
-      <MemoryRouter initialEntries={["/items"]}>
-        <Routes>
-          <Route
-            path="/items"
-            element={
-              <>
-                <Link to={`/product/${ITEM_ID}`}>Otwórz rzecz</Link>
-                <Link to={`/product/${ITEM_ID}?edit=1`}>Edytuj rzecz</Link>
-              </>
-            }
-          />
-          <Route path="/product/:id" element={<ItemDetailPage />} />
-        </Routes>
-      </MemoryRouter>,
-      { wrapper: createQueryWrapper() },
+    renderWithRoute(
+      <>
+        <Link to={`/product/${ITEM_ID}`}>Otwórz rzecz</Link>
+        <Link to={`/product/${ITEM_ID}?edit=1`}>Edytuj rzecz</Link>
+      </>,
+      {
+        url: "/items",
+        pattern: "/items",
+        routes: { "/product/:id": <ItemDetailPage /> },
+        wrapper: createQueryWrapper(),
+      },
     );
     const backToList = async () => {
       fireEvent.click(await screen.findByRole("button", { name: /^Wróć$/ }));

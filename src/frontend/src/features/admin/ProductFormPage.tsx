@@ -10,7 +10,7 @@ import {
 } from "@chakra-ui/react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useCallback, useEffect, useState } from "react";
-import { Link, useNavigate, useParams } from "react-router-dom";
+import { Link, useAppNavigate, useAppParams } from "../../routing/navigation";
 import { getProduct, createProduct, updateProduct } from "../../api/products";
 import { serverMessageOr } from "../../api/problem";
 import { CategoryTreePicker } from "../../components/shared/CategoryTreePicker";
@@ -31,8 +31,8 @@ const CATEGORY_LABEL_ID = "product-category-label";
 const CATEGORY_ERROR_ID = "product-category-error";
 
 export function ProductFormPage() {
-  const { id } = useParams<{ id: string }>();
-  const navigate = useNavigate();
+  const { id } = useAppParams<{ id: string }>();
+  const navigate = useAppNavigate();
   const queryClient = useQueryClient();
   const isEdit = Boolean(id);
 

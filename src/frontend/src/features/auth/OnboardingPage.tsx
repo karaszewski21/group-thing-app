@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Navigate, useNavigate, useSearchParams } from "react-router-dom";
+import { Navigate, useAppNavigate, useAppSearchParams } from "../../routing/navigation";
 import { useAuth } from "../../auth/AuthContext";
 import { getLeadershipsForPerson, getMyProfile } from "../../api/people";
 import { OnboardingWizard } from "./onboarding/OnboardingWizard";
@@ -17,8 +17,8 @@ type Role = "GUEST" | "ORGANIZER";
  */
 export function OnboardingPage() {
   const { registeredRole } = useAuth();
-  const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
+  const navigate = useAppNavigate();
+  const [searchParams] = useAppSearchParams();
   const [role, setRole] = useState<Role | null>(
     registeredRole ? (registeredRole.role === "ORGANIZER" ? "ORGANIZER" : "GUEST") : null,
   );

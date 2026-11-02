@@ -1,5 +1,4 @@
-import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
-import { MemoryRouter, Route, Routes } from "react-router-dom";
+import { fireEvent, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { GroupDetailsPage } from "../features/groups/GroupDetailsPage";
 import * as groupsApi from "../api/groups";
@@ -9,6 +8,7 @@ import type { GroupMemberResponse, GroupResponse } from "../api/groups";
 import type { TermResponse } from "../api/terms";
 import { termPublicPath } from "../utils/appHelpers";
 import { createQueryWrapper } from "./queryClient";
+import { renderWithRoute } from "./renderWithRoute";
 
 vi.mock("../api/groups", () => ({
   getGroup: vi.fn(),
@@ -65,15 +65,12 @@ const members: GroupMemberResponse[] = [
 ];
 
 function renderPage() {
-  return render(
-    <MemoryRouter initialEntries={[`/groups/${GROUP_ID}`]}>
-      <Routes>
-        <Route path="/groups/:groupId" element={<GroupDetailsPage />} />
-        <Route path="/messages/:id" element={<p>Wątek rozmowy</p>} />
-      </Routes>
-    </MemoryRouter>,
-    { wrapper: createQueryWrapper() },
-  );
+  return renderWithRoute(<GroupDetailsPage />, {
+    url: `/groups/${GROUP_ID}`,
+    pattern: "/groups/:groupId",
+    routes: { "/messages/:id": <p>Wątek rozmowy</p> },
+    wrapper: createQueryWrapper(),
+  });
 }
 
 describe("GroupDetailsPage", () => {

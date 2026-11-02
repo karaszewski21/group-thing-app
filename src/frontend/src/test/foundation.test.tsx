@@ -1,6 +1,6 @@
-import { render, screen } from "@testing-library/react";
+import { screen } from "@testing-library/react";
+import { renderWithRoute } from "./renderWithRoute";
 import { describe, expect, it, vi } from "vitest";
-import { MemoryRouter } from "react-router-dom";
 import { ChakraProvider } from "@chakra-ui/react";
 import { system } from "../theme/system";
 import { AppShell } from "../components/layout/AppShell";
@@ -31,12 +31,12 @@ vi.mock("../auth/AuthContext", async (importOriginal) => {
 });
 
 function renderWithProviders(ui: React.ReactElement, initialRoute = "/") {
-  return render(
+  return renderWithRoute(
     <ChakraProvider value={system}>
       <PluginProvider>
-        <MemoryRouter initialEntries={[initialRoute]}>{ui}</MemoryRouter>
+        {ui}
       </PluginProvider>
-    </ChakraProvider>, { wrapper: createQueryWrapper() },
+    </ChakraProvider>, { url: initialRoute, wrapper: createQueryWrapper() },
   );
 }
 

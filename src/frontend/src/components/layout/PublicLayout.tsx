@@ -1,11 +1,12 @@
-import { Link, Outlet, useLocation, useMatch } from "react-router-dom";
+import type { ReactNode } from "react";
+import { Link, useAppPathname, useAppSearch } from "../../routing/navigation";
 import { useAuth } from "../../auth/AuthContext";
 import { HEADER_BUTTON } from "../shared/headerButton";
 import { NotificationBell } from "../shared/NotificationBell";
 import { PendingActionsHost } from "./pending/PendingActionsHost";
 import { INBOX_PATH } from "../../routing/messagesPaths";
 import { BellIcon, CalendarIcon, SearchIcon } from "../shared/appIcons";
-import { viewPath } from "../../utils/appHelpers";
+import { matchPath, viewPath } from "../../routing/paths";
 import { authPath } from "../../auth/authPaths";
 import { BottomNav } from "./BottomNav";
 
@@ -20,10 +21,11 @@ const FOCUS_RING = "focus-visible:outline-2 focus-visible:outline-offset-2 focus
  * thread gets a one-row bar, no tab bar and a viewport-tall body for its
  * scrolling messages and composer. Logged in, the app-wide pending-actions
  * prompt is mounted too. */
-export function PublicLayout() {
+export function PublicLayout({ children }: { children: ReactNode }) {
   const { token } = useAuth();
-  const inThread = useMatch(`${INBOX_PATH}/:conversationId`) !== null;
-  const onSearch = useMatch(viewPath("search")) !== null;
+  const pathname = useAppPathname();
+  const inThread = matchPath(`${INBOX_PATH}/:conversationId`, pathname) !== null;
+  const onSearch = matchPath(viewPath("search"), pathname) !== null;
 
   return (
     <div className={`flex flex-col bg-cream ${inThread ? "h-dvh" : "min-h-dvh"}`}>
@@ -45,7 +47,7 @@ export function PublicLayout() {
         </nav> 
       </header>
       <main tabIndex={-1} className="flex min-h-0 flex-1 flex-col outline-none">
-        <Outlet />
+        {children}
       </main>
       {!inThread && <BottomNav />}
       {token && <PendingActionsHost />}
@@ -56,7 +58,8 @@ export function PublicLayout() {
 /** The bell for anonymous visitors: same place and look as NotificationBell,
  * but it sends them to log in (and back here afterwards). */
 function LoginBell() {
-  const { pathname, search } = useLocation();
+  const pathname = useAppPathname();
+  const search = useAppSearch();
   const returnTo = pathname === "/" || pathname === "/login" ? null : pathname + search;
   return (
     <Link to={authPath("login", returnTo)} aria-label="Powiadomienia" className={HEADER_BUTTON}>

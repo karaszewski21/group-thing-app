@@ -1,5 +1,5 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
-import { MemoryRouter } from "react-router-dom";
+import { fireEvent, screen, waitFor } from "@testing-library/react";
+import { renderWithRoute } from "./renderWithRoute";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { MyItemsView } from "../features/items/MyItemsView";
 import * as appDataStore from "../features/panel/appDataStore";
@@ -152,11 +152,7 @@ function makeContextValue(
 }
 
 function renderView() {
-  return render(
-    <MemoryRouter>
-      <MyItemsView />
-    </MemoryRouter>,
-  );
+  return renderWithRoute(<MyItemsView />, { url: "/" });
 }
 
 describe("MyItemsView — item card links to the item page", () => {

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { ReactNode } from "react";
-import { useLocation, useNavigate } from "react-router-dom";
+import { useAppNavigate, useAppPathname } from "../../routing/navigation";
 import { useAuth } from "../../auth/AuthContext";
 import { useQueryClient } from "@tanstack/react-query";
 import { NOTIFICATIONS_KEY } from "../../hooks/useNotifications";
@@ -54,24 +54,8 @@ import { hasStatus, serverMessageOr } from "../../api/problem";
 import { setItemListingPreference, type ItemVisibility } from "../../api/itemListingPreferences";
 import type { GroupFormValue } from "../groups/GroupFormFields";
 import { EMPTY_EVENT_DRAFT, type EventDraft } from "../events/eventDraft";
-import {
-  defaultVisibility,
-  termPublicPath,
-  GIFT_LIMIT_MESSAGE,
-  ITEM_MODE_TO_RESERVATION_TYPE,
-  MAX_GIFT_ITEMS,
-  RESERVATION_TYPE_TO_ITEM_MODE,
-  type GuestTermCard,
-  type ItemMode,
-  type ModalKind,
-  type NewFamilyMember,
-  type TermWithNeeded,
-  type View,
-  capacityText,
-  parseCapacity,
-  viewFromPath,
-  viewPath,
-} from "../../utils/appHelpers";
+import { defaultVisibility, termPublicPath, GIFT_LIMIT_MESSAGE, ITEM_MODE_TO_RESERVATION_TYPE, MAX_GIFT_ITEMS, RESERVATION_TYPE_TO_ITEM_MODE, type GuestTermCard, type ItemMode, type ModalKind, type NewFamilyMember, type TermWithNeeded, capacityText, parseCapacity } from "../../utils/appHelpers";
+import { type View, viewFromPath, viewPath } from "../../routing/paths";
 import { AppDataContext } from "./appDataStore";
 
 /* ------------------------------------------------------------------ */
@@ -101,11 +85,11 @@ const PENDING_PHOTO_POLL_MS = 10_000;
 
 function useAppDataValue() {
   const { logout } = useAuth();
-  const navigate = useNavigate();
+  const navigate = useAppNavigate();
   // The active section is the pathname (`/`, `/items`, `/account`, …), not
   // local state — this way a refresh (or a shared/bookmarked link) lands
   // back on the same section instead of always resetting to "home".
-  const location = useLocation();
+  const pathname = useAppPathname();
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -137,7 +121,7 @@ function useAppDataValue() {
   // Organization exists, both link straight to its public page instead.
   const [organizationSlug, setOrganizationSlug] = useState<string | null>(null);
 
-  const view: View = viewFromPath(location.pathname) ?? "home";
+  const view: View = viewFromPath(pathname) ?? "home";
   const setView = useCallback(
     (next: View) => navigate(viewPath(next)),
     [navigate],
@@ -332,14 +316,14 @@ function useAppDataValue() {
   // true across that change.
   const prevPathnameRef = useRef<string | null>(null);
   useEffect(() => {
-    const isPanelRoute = viewFromPath(location.pathname) !== null;
+    const isPanelRoute = viewFromPath(pathname) !== null;
     const prevPathname = prevPathnameRef.current;
     const wasPanelRoute = prevPathname !== null && viewFromPath(prevPathname) !== null;
-    prevPathnameRef.current = location.pathname;
+    prevPathnameRef.current = pathname;
     if (isPanelRoute && !wasPanelRoute && prevPathname !== null) {
       void load({ silent: true });
     }
-  }, [location.pathname, load]);
+  }, [pathname, load]);
 
   // Items-only re-read (not the full `load()`, which would also re-fetch
   // groups, terms and notifications). A failure keeps the current list; the

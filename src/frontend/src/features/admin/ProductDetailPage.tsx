@@ -6,7 +6,7 @@ import {
   Text,
 } from "@chakra-ui/react";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Link, useParams } from "react-router-dom";
+import { Link, useAppParams } from "../../routing/navigation";
 import { getProduct } from "../../api/products";
 import type { ProductResponse } from "../../api/products";
 import { useCategories } from "../../hooks/useCategories";
@@ -18,7 +18,7 @@ import { isValidImageUrl } from "../../utils/url";
 import { buildCategoryIndex, formatCategoryPath } from "../../utils/categoryTree";
 
 export function ProductDetailPage() {
-  const { id } = useParams<{ id: string }>();
+  const { id } = useAppParams<{ id: string }>();
   const [product, setProduct] = useState<ProductResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);

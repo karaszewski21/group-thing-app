@@ -1,5 +1,5 @@
-import { useParams } from "react-router-dom";
-import { isPartyId } from "../../utils/appHelpers";
+import { useAppParams } from "../../routing/navigation";
+import { isPartyId } from "../../routing/paths";
 import { PublicOrganizationPage } from "./PublicOrganizationPage";
 import { PartyProfilePage } from "./PartyProfilePage";
 
@@ -7,7 +7,7 @@ import { PartyProfilePage } from "./PartyProfilePage";
  * else the Organization's page. Keyed on the segment, so moving between two
  * profiles starts afresh. */
 export function OwnerPage() {
-  const { organizationSlug = "" } = useParams<{ organizationSlug: string }>();
+  const { organizationSlug = "" } = useAppParams<{ organizationSlug: string }>();
   return isPartyId(organizationSlug) ? (
     <PartyProfilePage key={organizationSlug} />
   ) : (

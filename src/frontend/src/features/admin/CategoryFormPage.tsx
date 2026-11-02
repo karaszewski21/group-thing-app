@@ -1,6 +1,6 @@
 import { Box, Button, Flex, Heading, Input, Text, Textarea } from "@chakra-ui/react";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
+import { Link, useAppNavigate, useAppParams, useAppSearchParams } from "../../routing/navigation";
 import { getCategory } from "../../api/categories";
 import { extractProblemMessage } from "../../api/problem";
 import { CategoryTreePicker } from "../../components/shared/CategoryTreePicker";
@@ -25,9 +25,9 @@ const ROOT_TEXT = "Brak (kategoria główna)";
  * The parent is chosen only on create; the backend has no reparenting.
  */
 export function CategoryFormPage() {
-  const { id } = useParams<{ id: string }>();
-  const [searchParams] = useSearchParams();
-  const navigate = useNavigate();
+  const { id } = useAppParams<{ id: string }>();
+  const [searchParams] = useAppSearchParams();
+  const navigate = useAppNavigate();
   const isEdit = Boolean(id);
 
   const [parentId, setParentId] = useState<string | null>(() => (id ? null : searchParams.get("parent")));

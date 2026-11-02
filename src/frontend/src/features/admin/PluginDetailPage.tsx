@@ -6,12 +6,12 @@ import {
   Text,
 } from "@chakra-ui/react";
 import { useCallback, useEffect, useState } from "react";
-import { Link, useParams } from "react-router-dom";
+import { Link, useAppParams } from "../../routing/navigation";
 import { getPlugin, setPluginEnabled } from "../../api/plugins";
 import type { PluginResponse } from "../../api/plugins";
 
 export function PluginDetailPage() {
-  const { pluginId } = useParams<{ pluginId: string }>();
+  const { pluginId } = useAppParams<{ pluginId: string }>();
   const [plugin, setPlugin] = useState<PluginResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);

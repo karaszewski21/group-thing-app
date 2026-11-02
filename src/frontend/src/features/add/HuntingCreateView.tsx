@@ -1,7 +1,7 @@
 import { useState, type FormEvent } from "react";
-import { Link } from "react-router-dom";
+import { Link } from "../../routing/navigation";
 import { SubPageHeader } from "../../components/shared/appComponents";
-import { viewPath } from "../../utils/appHelpers";
+import { viewPath } from "../../routing/paths";
 
 const LABEL = "mb-1.5 block text-sm font-bold text-ink";
 const INPUT =

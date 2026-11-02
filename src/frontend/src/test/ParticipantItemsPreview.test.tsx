@@ -1,6 +1,6 @@
-import { render, screen, within } from "@testing-library/react";
+import { screen, within } from "@testing-library/react";
+import { renderWithRoute } from "./renderWithRoute";
 import type { ReactElement } from "react";
-import { MemoryRouter } from "react-router-dom";
 import type { ReservedByResponse } from "../api/groups";
 import type { ListingMode } from "../api/itemListingPreferences";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -10,7 +10,7 @@ import {
 } from "../components/shared/ParticipantItemsPreview";
 
 function renderWithProviders(ui: ReactElement) {
-  return render(<MemoryRouter>{ui}</MemoryRouter>);
+  return renderWithRoute(ui, { url: "/" });
 }
 
 function item(

@@ -1,9 +1,10 @@
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { useAppNavigate, useAppSearchParams } from "../../routing/navigation";
 import { useAppData } from "../panel/appDataStore";
 import { LocationAddForm } from "../../components/shared/LocationAddForm";
 import { SubPageHeader } from "../../components/shared/appComponents";
 import { useMyLocations } from "../../hooks/useMyLocations";
-import { viewPath, type PickedLocationState } from "../../utils/appHelpers";
+import { type PickedLocationState } from "../../utils/appHelpers";
+import { viewPath } from "../../routing/paths";
 import { isSafeReturnPath } from "../../utils/url";
 
 const TITLE = "Nowe miejsce";
@@ -13,8 +14,8 @@ const TITLE = "Nowe miejsce";
  * opened from a form's place picker (`placeCreatePath`), to that form with
  * the new place handed to the picker. */
 export function PlaceCreateView() {
-  const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
+  const navigate = useAppNavigate();
+  const [searchParams] = useAppSearchParams();
   const { showToast } = useAppData();
   const { create } = useMyLocations();
   const requested = searchParams.get("returnTo");

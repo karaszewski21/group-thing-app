@@ -1,4 +1,4 @@
-import { Navigate, useLocation, useSearchParams } from "react-router-dom";
+import { Navigate, useAppPathname, useAppSearch, useAppSearchParams } from "../routing/navigation";
 import { useAuth } from "./AuthContext";
 import { authPath } from "./authPaths";
 import { homePath } from "./homePath";
@@ -29,11 +29,13 @@ export function AuthGuard({
   forwardReturnTo = false,
 }: AuthGuardProps) {
   const { token, permissions } = useAuth();
-  const location = useLocation();
-  const [searchParams] = useSearchParams();
+  const pathname = useAppPathname();
+
+  const search = useAppSearch();
+  const [searchParams] = useAppSearchParams();
 
   if (requireAuth && !token) {
-    const returnTo = location.pathname + location.search;
+    const returnTo = pathname + search;
     return <Navigate to={authPath("login", returnTo)} replace />;
   }
 

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useAppNavigate } from "../../../routing/navigation";
 import { BTN_PRIMARY, CARD, ERROR_TEXT, PAGE_SHELL } from "../../../components/shared/uiStyles";
 import { GroupHeader } from "../components/GroupHeader";
 import type { CodeSheet } from "../hooks/useJoinCodeLink";
@@ -36,7 +36,7 @@ export function PrivateTermView({
   onCloseSheet: () => void;
   onJoin: (code: string) => Promise<void>;
 }) {
-  const navigate = useNavigate();
+  const navigate = useAppNavigate();
   const { group } = view;
 
   return (

@@ -1,7 +1,7 @@
-import { Link, useLocation, useSearchParams } from "react-router-dom";
+import { Link, useAppSearch, useAppSearchParams } from "../../routing/navigation";
 import type { GuardianResponse } from "../../api/families";
 import { approxAge, formatApproxAge } from "../../utils/age";
-import { familyMemberEditPath, viewPath } from "../../utils/appHelpers";
+import { familyMemberEditPath, viewPath } from "../../routing/paths";
 import { isSafeReturnPath } from "../../utils/url";
 import { BackIcon, PencilIcon, TrashIcon } from "../../components/shared/appIcons";
 import { useAppData } from "../panel/appDataStore";
@@ -12,7 +12,7 @@ const ROW_BUTTON =
   "flex h-9 w-9 flex-none items-center justify-center rounded-full text-ink-soft transition-colors hover:bg-paper hover:text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring";
 
 function ReturnToTermButton() {
-  const [searchParams] = useSearchParams();
+  const [searchParams] = useAppSearchParams();
   const returnTo = searchParams.get("returnTo");
   if (!isSafeReturnPath(returnTo)) return null;
   return (
@@ -38,7 +38,7 @@ function roleLabel(g: GuardianResponse, selfPartyId: string): string {
  * "Moje grupy"). A `?returnTo=` term link is carried to those pages and back. */
 export function FamilyView() {
   const { profile, family, guardians, familyMemberError, busy, handleRemoveFamilyMember } = useAppData();
-  const { search } = useLocation();
+  const search = useAppSearch();
 
   if (!profile) return null;
 
@@ -54,7 +54,7 @@ export function FamilyView() {
             Załóż rodzinę, aby dodać opiekunów i dzieci oraz wspólnie zapisywać się na zajęcia.
           </p>
           <Link
-            to={{ pathname: viewPath("family/new"), search }}
+            to={`${viewPath("family/new")}${search}`}
             className="mt-4 inline-block rounded-[13px] bg-mint px-5 py-3 text-[13.5px] font-extrabold text-white"
           >
             Załóż rodzinę
@@ -73,7 +73,7 @@ export function FamilyView() {
           <div className="mt-1.5 flex items-center gap-1">
             <h3 className="text-[15.5px] font-semibold wrap-break-word text-ink">{family.name}</h3>
             <Link
-              to={{ pathname: viewPath("family/edit"), search }}
+              to={`${viewPath("family/edit")}${search}`}
               aria-label="Zmień nazwę rodziny"
               className={ROW_BUTTON}
             >
@@ -84,7 +84,7 @@ export function FamilyView() {
             {guardians.length} {guardians.length === 1 ? "osoba" : "osoby"}
           </small>
         </div>
-        <Link to={{ pathname: viewPath("family/members/new"), search }} className={ADD_BUTTON}>
+        <Link to={`${viewPath("family/members/new")}${search}`} className={ADD_BUTTON}>
           + Dodaj członka
         </Link>
       </div>
@@ -114,7 +114,7 @@ export function FamilyView() {
             </div>
             {g.role_type === "CHILD" && (
               <Link
-                to={{ pathname: familyMemberEditPath(g.family_membership_id), search }}
+                to={`${familyMemberEditPath(g.family_membership_id)}${search}`}
                 aria-label={`Edytuj członka rodziny ${g.display_name}`}
                 className={ROW_BUTTON}
               >

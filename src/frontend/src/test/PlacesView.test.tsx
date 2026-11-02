@@ -1,14 +1,14 @@
-import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { fireEvent, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import * as locationsApi from "../api/locations";
 import type { LocationResponse } from "../api/locations";
 import * as googleMaps from "../lib/googleMaps";
 import type { PlacesApi, Suggestion } from "../lib/googleMaps";
-import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { PlaceCreateView } from "../features/places/PlaceCreateView";
 import { PlaceEditView } from "../features/places/PlaceEditView";
 import { PlacesView } from "../features/places/PlacesView";
 import { createQueryWrapper } from "./queryClient";
+import { renderWithRoute } from "./renderWithRoute";
 
 vi.mock("../auth/AuthContext", () => ({ useAuth: () => ({ token: "token-a" }) }));
 
@@ -87,16 +87,15 @@ function mockCreatedOnSave(created: LocationResponse) {
 
 /** "Moje miejsca" with its add and edit pages, as the panel routes them. */
 function renderView(path = "/places") {
-  return render(
-    <MemoryRouter initialEntries={[path]}>
-      <Routes>
-        <Route path="/places" element={<PlacesView onPlacesChanged={onPlacesChanged} />} />
-        <Route path="/places/new" element={<PlaceCreateView />} />
-        <Route path="/places/:locationId/edit" element={<PlaceEditView onPlacesChanged={onPlacesChanged} />} />
-      </Routes>
-    </MemoryRouter>,
-    { wrapper: createQueryWrapper() },
-  );
+  return renderWithRoute(<PlacesView onPlacesChanged={onPlacesChanged} />, {
+    url: path,
+    pattern: "/places",
+    routes: {
+      "/places/new": <PlaceCreateView />,
+      "/places/:locationId/edit": <PlaceEditView onPlacesChanged={onPlacesChanged} />,
+    },
+    wrapper: createQueryWrapper(),
+  });
 }
 
 beforeEach(() => {

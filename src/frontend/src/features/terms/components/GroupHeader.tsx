@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { Link } from "react-router-dom";
+import { Link } from "../../../routing/navigation";
 
 /** Term page header: back button, a chip back to the organizer's page, an
  * optional eyebrow, the group name and an optional subtitle line (omitted

@@ -1,4 +1,4 @@
-import { Link } from "react-router-dom";
+import { Link } from "../../../routing/navigation";
 import { ModalSheet } from "../../../components/shared/ModalSheet";
 import { BTN_LG, BTN_PRIMARY } from "../../../components/shared/uiStyles";
 import { AddToCalendarButton } from "../../../components/shared/AddToCalendarButton";

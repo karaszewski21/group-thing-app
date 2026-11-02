@@ -1,5 +1,4 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
-import { MemoryRouter, Route, Routes } from "react-router-dom";
+import { fireEvent, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { TermAttendeesPage } from "../features/meetings/TermAttendeesPage";
 import * as termsApi from "../api/terms";
@@ -9,6 +8,7 @@ import type { TermResponse } from "../api/terms";
 import type { GroupResponse, TermAttendeeResponse } from "../api/groups";
 import dayjs from "../utils/dayjs";
 import { createQueryWrapper } from "./queryClient";
+import { renderWithRoute } from "./renderWithRoute";
 
 vi.mock("../api/terms", () => ({
   getTerm: vi.fn(),
@@ -85,15 +85,12 @@ const attendees: TermAttendeeResponse[] = [
 ];
 
 function renderPage() {
-  return render(
-    <MemoryRouter initialEntries={[`/terms/${TERM_ID}`]}>
-      <Routes>
-        <Route path="/terms/:termId" element={<TermAttendeesPage />} />
-        <Route path="/messages/:id" element={<p>Wątek rozmowy</p>} />
-      </Routes>
-    </MemoryRouter>,
-    { wrapper: createQueryWrapper() },
-  );
+  return renderWithRoute(<TermAttendeesPage />, {
+    url: `/terms/${TERM_ID}`,
+    pattern: "/terms/:termId",
+    routes: { "/messages/:id": <p>Wątek rozmowy</p> },
+    wrapper: createQueryWrapper(),
+  });
 }
 
 describe("TermAttendeesPage", () => {

@@ -1,9 +1,9 @@
-import { Link } from "react-router-dom";
+import { Link } from "../../routing/navigation";
 import { useMyOrganization } from "../../hooks/useMyOrganization";
 import { pluralPl } from "../../utils/plural";
 import { ListCard } from "../../components/shared/appComponents";
 import { BuildingIcon, LogoutIcon } from "../../components/shared/appIcons";
-import { viewPath } from "../../utils/appHelpers";
+import { viewPath } from "../../routing/paths";
 import { MOCK_WANTS } from "../../utils/mocks";
 import { useAppData } from "../panel/appDataStore";
 import { ProfileView } from "./ProfileView";

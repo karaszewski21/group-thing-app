@@ -1,5 +1,5 @@
+import { useAppPathname } from "../../routing/navigation";
 import { Button, Flex, IconButton, Text } from "@chakra-ui/react";
-import { useLocation } from "react-router-dom";
 import { useAuth } from "../../auth/AuthContext";
 
 function MenuIcon() {
@@ -29,8 +29,8 @@ function getBreadcrumbs(pathname: string): string[] {
 }
 
 export function Header({ onMenuOpen }: HeaderProps) {
-  const location = useLocation();
-  const breadcrumbs = getBreadcrumbs(location.pathname);
+  const pathname = useAppPathname();
+  const breadcrumbs = getBreadcrumbs(pathname);
   const { displayName, logout } = useAuth();
 
   return (

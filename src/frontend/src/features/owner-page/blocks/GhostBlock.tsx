@@ -1,4 +1,4 @@
-import { Link } from "react-router-dom";
+import { Link } from "../../../routing/navigation";
 import { EyeIcon } from "../../../components/shared/appIcons";
 import type { BlockId } from "../layouts/types";
 

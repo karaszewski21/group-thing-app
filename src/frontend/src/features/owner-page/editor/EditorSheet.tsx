@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type KeyboardEvent } from "react";
-import { useBlocker, useSearchParams } from "react-router-dom";
+import { useAppPathname, useAppSearchParams, useNavigationGuard } from "../../../routing/navigation";
 import { useRegisterOpenSheet } from "../../../components/shared/openSheets";
 import { CloseIcon } from "../../../components/shared/appIcons";
 import type { OrganizerPageData } from "../layouts/types";
@@ -52,7 +52,7 @@ export function EditorSheet({
   onSave,
   onClose,
 }: EditorSheetProps) {
-  const [searchParams, setSearchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useAppSearchParams();
   // The `tab` param drives the visible tab, so a link to `?tab=photos` (the
   // gallery ghost) switches an already open sheet too.
   const tab = toTab(searchParams.get("tab"));
@@ -62,10 +62,9 @@ export function EditorSheet({
   const titleRef = useRef<HTMLHeadingElement>(null);
   const closeRef = useRef<HTMLButtonElement>(null);
   const tabRefs = useRef<Record<Tab, HTMLButtonElement | null>>({ photos: null, layout: null });
+  const pathname = useAppPathname();
   // Changing only the query string (closing the sheet) is never blocked.
-  const blocker = useBlocker(
-    ({ currentLocation, nextLocation }) => dirty && currentLocation.pathname !== nextLocation.pathname,
-  );
+  const blocker = useNavigationGuard((next) => dirty && next.pathname !== pathname);
   const blocked = blocker.state === "blocked";
   // Mounted only while open; app-wide prompts wait until it closes.
   useRegisterOpenSheet(true);

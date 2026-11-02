@@ -1,5 +1,5 @@
-import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
-import { MemoryRouter } from "react-router-dom";
+import { fireEvent, screen, waitFor, within } from "@testing-library/react";
+import { renderWithRoute } from "./renderWithRoute";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { MyItemsView } from "../features/items/MyItemsView";
 import * as appDataStore from "../features/panel/appDataStore";
@@ -162,12 +162,7 @@ function setup({
 }
 
 function renderWithProviders() {
-  return render(
-    <MemoryRouter>
-      <MyItemsView />
-    </MemoryRouter>,
-    { wrapper: createQueryWrapper() },
-  );
+  return renderWithRoute(<MyItemsView />, { url: "/", wrapper: createQueryWrapper() });
 }
 
 describe("MyItemsView — inventory location card", () => {

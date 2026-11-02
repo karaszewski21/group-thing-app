@@ -1,4 +1,4 @@
-import { Link } from "react-router-dom";
+import { Link } from "../../../routing/navigation";
 import type { OrganizerTerm } from "../../../api/groups";
 import dayjs from "../../../utils/dayjs";
 import { organizerTermPath } from "../organizerHelpers";

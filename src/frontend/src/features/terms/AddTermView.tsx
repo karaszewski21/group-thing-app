@@ -1,10 +1,11 @@
 import { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link } from "../../routing/navigation";
 import { NeededItemQuickAddForm } from "../../components/shared/NeededItemQuickAddForm";
 import { LocationPicker } from "../../components/shared/LocationPicker";
 import { CapacityField, Field, INPUT_CLASS, SubPageHeader } from "../../components/shared/appComponents";
 import { useAppData } from "../panel/appDataStore";
-import { parseCapacity, viewPath } from "../../utils/appHelpers";
+import { parseCapacity } from "../../utils/appHelpers";
+import { viewPath } from "../../routing/paths";
 
 const TITLE = "Dodaj termin zajęć";
 

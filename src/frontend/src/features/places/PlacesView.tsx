@@ -1,10 +1,10 @@
 import { useEffect, useRef, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link } from "../../routing/navigation";
 import type { LocationResponse } from "../../api/locations";
 import { LOCATION_ERROR_CLASS } from "../../components/shared/LocationAddForm";
 import { ConfirmDeleteDialog } from "../../components/shared/ConfirmDeleteDialog";
 import { useMyLocations } from "../../hooks/useMyLocations";
-import { placeEditPath, viewPath } from "../../utils/appHelpers";
+import { placeEditPath, viewPath } from "../../routing/paths";
 
 /* ------------------------------------------------------------------ */
 /*  "Moje miejsca" (/places): the caller's saved places, deleted here; */

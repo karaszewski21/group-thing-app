@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useAppNavigate } from "../../routing/navigation";
 import type { NotificationResponse } from "../../api/notifications";
 import { useNotifications } from "../../hooks/useNotifications";
 import { BellIcon } from "./appIcons";
@@ -12,7 +12,7 @@ import { HEADER_BADGE, HEADER_BUTTON } from "./headerButton";
 export function NotificationBell() {
   const { data: notifications, unreadCount, markRead, markAllRead } = useNotifications();
   const [open, setOpen] = useState(false);
-  const navigate = useNavigate();
+  const navigate = useAppNavigate();
 
   function openNotification(n: NotificationResponse) {
     setOpen(false);
