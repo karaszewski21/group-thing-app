@@ -1,13 +1,12 @@
 import { fireEvent, screen, waitFor, within } from "@testing-library/react";
-import { matchRoutes } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import * as eventsApi from "../api/events";
 import type { EventAttendanceResponse, EventDetailResponse, EventParticipant } from "../api/events";
 import { EventAuthorCard } from "../features/events/components/EventAuthorCard";
 import { EventPage } from "../features/events/EventPage";
-import { routes } from "../router";
 import { Link } from "../routing/navigation";
 import { peekNavigationState } from "../routing/navigationState";
+import { pageFor } from "./appRoutes";
 import { createQueryWrapper } from "./queryClient";
 import { renderWithRoute } from "./renderWithRoute";
 
@@ -442,9 +441,8 @@ describe("EventPage", () => {
   });
 
   it("is routed only at /:slug/event/:id; the old /events/:id page route is gone but edit stays", () => {
-    const leaf = (path: string) => matchRoutes(routes, path)?.at(-1)?.route.path;
-    expect(leaf(PAGE_PATH)).toBe("/:organizationSlug/event/:eventId");
-    expect(matchRoutes(routes, `/events/${EVENT_ID}`)).toBeNull();
-    expect(leaf(`/events/${EVENT_ID}/edit`)).toBe("/events/:eventId/edit");
+    expect(pageFor(PAGE_PATH)?.pattern).toBe("/:organizationSlug/event/:eventId");
+    expect(pageFor(`/events/${EVENT_ID}`)).toBeNull();
+    expect(pageFor(`/events/${EVENT_ID}/edit`)?.pattern).toBe("/events/:eventId/edit");
   });
 });

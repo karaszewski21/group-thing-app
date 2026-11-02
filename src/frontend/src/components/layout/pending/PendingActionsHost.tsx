@@ -36,7 +36,7 @@ export function PendingActionsHost() {
   const navigate = useAppNavigate();
   const queryClient = useQueryClient();
   const { data: notifications, markRead } = useNotifications();
-  const openSheetCount = useSyncExternalStore(subscribeOpenSheets, getOpenSheetCount);
+  const openSheetCount = useSyncExternalStore(subscribeOpenSheets, getOpenSheetCount, () => 0);
   const { toast, showToast } = useToast();
 
   const [snoozed, setSnoozed] = useState(() => getSnoozed(username));

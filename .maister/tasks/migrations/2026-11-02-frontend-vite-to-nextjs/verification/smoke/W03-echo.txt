@@ -1,0 +1,4 @@
+# echo stub on :8099 (only Host and X-Forwarded-* printed)
+GET /x {"host":"localhost:8099"}
+POST /oauth2/authorize {"host":"localhost:8099","x-forwarded-host":"localhost:5176","x-forwarded-proto":"https","x-forwarded-port":"5176","x-forwarded-for":"::1"}
+GET /api/health {"host":"localhost:8099","x-forwarded-host":"localhost:5176","x-forwarded-proto":"https"}

@@ -2,25 +2,51 @@
 #
 # Build context is the repo root (not src/frontend/), because the frontend's
 # test suite imports the sibling `plugins/server-sdk.ts` module by relative
-# path — see docker-compose.yml's `frontend.build.context`.
+# path, and `next build` type-checks it — see docker-compose.yml's
+# `web.build.context`.
 
-FROM node:22-alpine AS builder
+FROM node:22-alpine AS deps
+
+WORKDIR /app/src/frontend
+
+COPY src/frontend/package.json src/frontend/package-lock.json ./
+RUN npm ci
+
+FROM node:22-alpine AS build
 
 WORKDIR /app
 
-COPY src/frontend/package.json src/frontend/package-lock.json ./src/frontend/
-RUN cd src/frontend && npm ci
-
+COPY --from=deps /app/src/frontend/node_modules ./src/frontend/node_modules
 COPY src/frontend ./src/frontend
 COPY plugins/server-sdk.ts ./plugins/server-sdk.ts
-# Referrer-restricted browser key, baked into the bundle; empty = manual mode.
-ARG VITE_GOOGLE_MAPS_API_KEY=
-ENV VITE_GOOGLE_MAPS_API_KEY=$VITE_GOOGLE_MAPS_API_KEY
+# Referrer-restricted browser key, inlined into the client bundle at build
+# time; empty = manual mode.
+ARG NEXT_PUBLIC_GOOGLE_MAPS_API_KEY=
+ENV NEXT_PUBLIC_GOOGLE_MAPS_API_KEY=$NEXT_PUBLIC_GOOGLE_MAPS_API_KEY
+ENV NEXT_TELEMETRY_DISABLED=1
+# next.config rewrites are fixed at build time (fallback when nginx is not in
+# front); proxy.ts and server fetches read the runtime value from compose.
+ARG BACKEND_INTERNAL_URL=http://backend:8080
+ENV BACKEND_INTERNAL_URL=$BACKEND_INTERNAL_URL
+# `prebuild` builds the plugin SDK into public/assets first.
 RUN cd src/frontend && npm run build
 
-FROM nginx:1.27-alpine AS runtime
+FROM node:22-alpine AS runner
 
-COPY src/frontend/nginx.conf /etc/nginx/conf.d/default.conf
-COPY --from=builder /app/src/frontend/dist /usr/share/nginx/html
+WORKDIR /app
 
-EXPOSE 80
+ENV NODE_ENV=production \
+    NEXT_TELEMETRY_DISABLED=1 \
+    PORT=3000 \
+    HOSTNAME=0.0.0.0 \
+    TZ=Europe/Warsaw
+
+COPY --from=build --chown=node:node /app/src/frontend/.next/standalone ./
+COPY --from=build --chown=node:node /app/src/frontend/.next/static ./.next/static
+COPY --from=build --chown=node:node /app/src/frontend/public ./public
+
+USER node
+
+EXPOSE 3000
+
+CMD ["node", "server.js"]

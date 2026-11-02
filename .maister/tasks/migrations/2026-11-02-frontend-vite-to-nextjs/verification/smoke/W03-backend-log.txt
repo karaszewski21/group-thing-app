@@ -1,0 +1,4 @@
+INFO:     ::1:0 - "POST /oauth2/register HTTP/1.1" 201 Created
+INFO:     127.0.0.1:52497 - "GET /api/oauth2/client-info?client_id=d151a858-5456-468d-92d6-fe6bc44c385b HTTP/1.1" 200 OK
+INFO:     ::1:0 - "POST /oauth2/authorize HTTP/1.1" 302 Found
+INFO:     ::1:0 - "POST /oauth2/token HTTP/1.1" 200 OK

@@ -1,0 +1,125 @@
+- generic [ref=e3]:
+  - banner [ref=e4]:
+    - navigation "Menu konta" [ref=e5]:
+      - link "Szukaj rzeczy i spotkań" [ref=e6] [cursor=pointer]:
+        - /url: /search
+      - link "Spotkania" [ref=e10] [cursor=pointer]:
+        - /url: /meetings
+      - link "Powiadomienia" [ref=e14] [cursor=pointer]:
+        - /url: /login
+  - main [ref=e18]:
+    - generic [ref=e20]:
+      - generic [ref=e21]:
+        - heading "Rzeczy i spotkania Twojej grupy w jednym miejscu" [level=1] [ref=e24]
+        - paragraph [ref=e25]: Oddawaj i zamieniaj dziecięce rzeczy z rodzicami z okolicy. Zapisuj się na zajęcia i umawiaj, kto co przyniesie.
+        - generic [ref=e26]:
+          - link "Załóż konto" [ref=e27] [cursor=pointer]:
+            - /url: /login?mode=register
+          - link "Mam już konto" [ref=e28] [cursor=pointer]:
+            - /url: /login
+      - region [ref=e29]:
+        - heading "Co możesz zrobić z rzeczą" [level=2] [ref=e30]
+        - list [ref=e31]:
+          - listitem [ref=e32]:
+            - heading "Oddam" [level=3] [ref=e33]
+            - paragraph [ref=e34]: Za darmo — komuś przyda się bardziej.
+          - listitem [ref=e35]:
+            - heading "Zamienię" [level=3] [ref=e36]
+            - paragraph [ref=e37]: Na coś, czego potrzebujesz teraz.
+      - region [ref=e38]:
+        - heading "Ostatnio dodane" [level=2] [ref=e39]
+        - paragraph [ref=e40]: Tak wyglądają rzeczy, które krążą w grupach.
+        - generic [ref=e41]:
+          - article [ref=e42]:
+            - generic [ref=e43]:
+              - generic [ref=e44]: Oddam
+              - generic [ref=e45]: 2 godz.
+            - generic [ref=e46]:
+              - heading "Fotelik 9–18 kg" [level=4] [ref=e47]
+              - paragraph [ref=e48]: Anna K.
+          - article [ref=e49]:
+            - generic [ref=e50]:
+              - generic [ref=e51]: Oddam
+              - generic [ref=e52]: wczoraj
+            - generic [ref=e53]:
+              - heading "Body 74, 5 szt." [level=4] [ref=e54]
+              - paragraph [ref=e55]: Marta W.
+          - article [ref=e56]:
+            - generic [ref=e57]:
+              - generic [ref=e58]: Zamienię
+              - generic [ref=e59]: wczoraj
+            - generic [ref=e60]:
+              - heading "Klocki drewniane" [level=4] [ref=e61]
+              - paragraph [ref=e62]: Kasia P.
+          - article [ref=e63]:
+            - generic [ref=e64]:
+              - generic [ref=e65]: Zamienię
+              - generic [ref=e66]: 2 dni
+            - generic [ref=e67]:
+              - heading "Leżaczek bujany" [level=4] [ref=e68]
+              - paragraph [ref=e69]: Ola S.
+          - article [ref=e70]:
+            - generic [ref=e71]:
+              - generic [ref=e72]: Oddam
+              - generic [ref=e73]: 3 dni
+            - generic [ref=e74]:
+              - heading "Kalosze 25" [level=4] [ref=e75]
+              - paragraph [ref=e76]: Ewa M.
+          - article [ref=e77]:
+            - generic [ref=e78]:
+              - generic [ref=e79]: Zamienię
+              - generic [ref=e80]: 4 dni
+            - generic [ref=e81]:
+              - heading "Rowerek 12\"" [level=4] [ref=e82]
+              - paragraph [ref=e83]: Piotr L.
+      - region [ref=e84]:
+        - heading "Spotkania w okolicy" [level=2] [ref=e85]
+        - list [ref=e86]:
+          - listitem [ref=e87]:
+            - generic [ref=e88]:
+              - generic [ref=e89]:
+                - generic [ref=e90]: Wt
+                - generic [ref=e91]: "3"
+              - generic [ref=e92]:
+                - heading "Mali Odkrywcy · 17:00" [level=3] [ref=e93]
+                - paragraph [ref=e94]: Pracownia Ciekawości
+                - paragraph [ref=e95]: 3 wolne miejsca
+          - listitem [ref=e96]:
+            - generic [ref=e97]:
+              - generic [ref=e98]:
+                - generic [ref=e99]: So
+                - generic [ref=e100]: "7"
+              - generic [ref=e101]:
+                - heading "Joga dla rodzin · 9:30" [level=3] [ref=e102]
+                - paragraph [ref=e103]: Studio Oddech
+                - paragraph [ref=e104]: 1 wolne miejsce
+          - listitem [ref=e105]:
+            - generic [ref=e106]:
+              - generic [ref=e107]:
+                - generic [ref=e108]: So
+                - generic [ref=e109]: "7"
+              - generic [ref=e110]:
+                - heading "Spacer z wózkami · 10:00" [level=3] [ref=e111]
+                - paragraph [ref=e112]: Mamy z Mokotowa
+                - paragraph [ref=e113]: Bez limitu
+          - listitem [ref=e114]:
+            - generic [ref=e115]:
+              - generic [ref=e116]:
+                - generic [ref=e117]: Pn
+                - generic [ref=e118]: "9"
+              - generic [ref=e119]:
+                - heading "Muzyczne Maluchy · 10:00" [level=3] [ref=e120]
+                - paragraph [ref=e121]: rodzinny grajdołek
+                - paragraph [ref=e122]: Lista rezerwowa
+      - generic [ref=e128]:
+        - heading "Prowadzisz zajęcia?" [level=2] [ref=e129]
+        - paragraph [ref=e130]: "Załóż organizację: dostaniesz własną stronę, grupy z terminami i zapisy rodziców."
+        - link "Załóż konto →" [ref=e131] [cursor=pointer]:
+          - /url: /login?mode=register
+      - generic [ref=e132]: Krąg grupy
+  - navigation "Nawigacja główna" [ref=e133]:
+    - button [ref=e134]
+    - button [ref=e139]
+    - button "Dodaj nowe" [ref=e144]
+    - button [ref=e147]
+    - button [ref=e152]

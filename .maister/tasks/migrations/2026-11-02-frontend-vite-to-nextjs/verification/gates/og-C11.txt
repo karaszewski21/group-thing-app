@@ -1,0 +1,67 @@
+C11 OG check, 2026-11-02T18:43:20Z. Server: next start -p 5175 on the C11 build (5173 held by a pre-existing next dev, PID 32508, returning 500 from a crashed jest-worker; not started by this agent). Backend: uvicorn app.main:app on 127.0.0.1:8080, local dev DB.
+Command per URL: curl -s -A 'facebookexternalhit/1.1' http://localhost:5175<path> | grep title / og: / twitter: meta
+
+== C:/Program Files/Git/rodzinny-grajdolek  HTTP 200/n<title>rodzinny grajdołek</title>
+<meta property="og:title" content="rodzinny grajdołek"/>
+<meta property="og:description" content="Strona organizacji rodzinny grajdołek."/>
+<meta property="og:image" content="https://group-thing-app.fra1.cdn.digitaloceanspaces.com/organizations/a8a77a56-8b2e-4b73-9f15-d8be3064e3e1/bb6744a2-0f4b-4525-bedb-a31aadcf165a/w1600.webp"/>
+<meta property="og:type" content="website"/>
+<meta name="twitter:card" content="summary_large_image"/>
+<meta name="twitter:title" content="rodzinny grajdołek"/>
+<meta name="twitter:description" content="Strona organizacji rodzinny grajdołek."/>
+<meta name="twitter:image" content="https://group-thing-app.fra1.cdn.digitaloceanspaces.com/organizations/a8a77a56-8b2e-4b73-9f15-d8be3064e3e1/bb6744a2-0f4b-4525-bedb-a31aadcf165a/w1600.webp"/>
+  palette wrapper (display:contents): --color-primary:#7a2a4f
+
+== C:/Program Files/Git/pracownia-pod-lipa  HTTP 200/n<title>Pracownia Pod Lipą</title>
+<meta property="og:title" content="Pracownia Pod Lipą"/>
+<meta property="og:description" content="Strona organizacji Pracownia Pod Lipą."/>
+<meta property="og:type" content="website"/>
+<meta name="twitter:card" content="summary"/>
+<meta name="twitter:title" content="Pracownia Pod Lipą"/>
+<meta name="twitter:description" content="Strona organizacji Pracownia Pod Lipą."/>
+  palette wrapper (display:contents): --color-primary:#7a2a4f
+
+== X:/event/0a34169f-5add-49f8-b02c-67c39ff53e91  HTTP 200/n<title>Sp[otkanie wymianka 2026</title>
+<meta property="og:title" content="Sp[otkanie wymianka 2026"/>
+<meta property="og:description" content="sob 31.10 o 13:07 · Dom"/>
+<meta property="og:image" content="https://group-thing-app.fra1.cdn.digitaloceanspaces.com/events/0a34169f-5add-49f8-b02c-67c39ff53e91/dbfae728-6484-4113-af2d-b6e10897ffbb/w1600.webp"/>
+<meta property="og:type" content="website"/>
+<meta name="twitter:card" content="summary_large_image"/>
+<meta name="twitter:title" content="Sp[otkanie wymianka 2026"/>
+<meta name="twitter:description" content="sob 31.10 o 13:07 · Dom"/>
+<meta name="twitter:image" content="https://group-thing-app.fra1.cdn.digitaloceanspaces.com/events/0a34169f-5add-49f8-b02c-67c39ff53e91/dbfae728-6484-4113-af2d-b6e10897ffbb/w1600.webp"/>
+  palette wrapper (display:contents): --color-primary:#7a2a4f
+
+== X:/event/e91aa41b-76c1-4044-980d-f146e20de6da  HTTP 200/n<title>Spacer E2E saving</title>
+<meta property="og:title" content="Spacer E2E saving"/>
+<meta property="og:description" content="wt 01.12 o 11:00"/>
+<meta property="og:type" content="website"/>
+<meta name="twitter:card" content="summary"/>
+<meta name="twitter:title" content="Spacer E2E saving"/>
+<meta name="twitter:description" content="wt 01.12 o 11:00"/>
+
+== X:/group/f52d882e-4778-4fa1-961c-f1bc35b91e8f/term/7a97da0c-839a-44ef-9e9c-7a219c2e1dcd  HTTP 200/n<title>Zajecia Pomelody</title>
+<meta property="og:title" content="Zajecia Pomelody"/>
+<meta property="og:description" content="Najbliższy termin: 29.09.2026. Bedzie fajna zabawa, prosz ezabrac pluszaki"/>
+<meta property="og:type" content="website"/>
+<meta name="twitter:card" content="summary"/>
+<meta name="twitter:title" content="Zajecia Pomelody"/>
+<meta name="twitter:description" content="Najbliższy termin: 29.09.2026. Bedzie fajna zabawa, prosz ezabrac pluszaki"/>
+  palette wrapper (display:contents): --color-primary:#7a2a4f
+
+== C:/Program Files/Git/krag/group/815d4faf-84b9-4967-a2b9-1c02db817d71/term/d2f9f39a-ff5a-4233-b40d-866d07766788  HTTP 200/n<title>Grupa E2E zmieniona</title>
+<meta property="og:title" content="Grupa E2E zmieniona"/>
+<meta property="og:description" content="Najbliższy termin: 20.11.2026. Spotkanie w parku E2E"/>
+<meta property="og:type" content="website"/>
+<meta name="twitter:card" content="summary"/>
+<meta name="twitter:title" content="Grupa E2E zmieniona"/>
+<meta name="twitter:description" content="Najbliższy termin: 20.11.2026. Spotkanie w parku E2E"/>
+  palette wrapper (display:contents): --color-primary:#1b8168
+
+== X:/event/not-a-uuid  HTTP 200/n<title>Krąg grupy</title>
+
+== C:/Program Files/Git/3f2b8c1e-9a4d-4e6b-8f1a-2c3d4e5f6a7b  HTTP 200/n<title>Krąg grupy</title>
+
+== C:/Program Files/Git/krag  HTTP 200/n<title>Krąg grupy</title>
+
+== C:/Program Files/Git/login  HTTP 200/n<title>Krąg grupy</title>

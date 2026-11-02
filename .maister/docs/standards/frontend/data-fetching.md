@@ -6,7 +6,17 @@ Fetch server state with TanStack Query v5 (`@tanstack/react-query`, `useQuery`),
 
 ### One Shared QueryClient
 
-Use the single `queryClient` from `src/api/queryClient.ts`, provided in `src/main.tsx` via `QueryClientProvider`. Retry policy: no retry for an `ApiError` with status < 500 (404/403/409 won't change on retry); up to 2 retries for network/5xx failures.
+Get the QueryClient only from `getQueryClient()` in `src/api/queryClient.ts`: one singleton in the browser, and a new client per server render, so no cache is shared between requests. `src/app/providers.tsx` provides it via `QueryClientProvider`; components and hooks reach it with `useQueryClient()`, never with a module-level client. Retry policy: no retry for an `ApiError` with status < 500 (404/403/409 won't change on retry); up to 2 retries for network/5xx failures.
+
+### Server-Side Reads Only Through `api/server.ts`
+
+Code that runs on the server (`generateMetadata`, server pages and layouts in `src/app/`) reads the backend only through `src/api/server.ts` (`import "server-only"`). Its `serverGet<T>(path)` calls `${BACKEND_INTERNAL_URL}/api…` with `cache: "no-store"`, is always anonymous (the `auth_token` cookie and any token are never forwarded), is wrapped in React `cache()` so the metadata, the layout and the page share one fetch per request, and returns `null` on a network error or a non-2xx status, so the page still renders with the default metadata. Add a named loader next to the existing ones (`getPublicOrganizationOnServer`, `getEventOnServer`, `getPublicCircleOnServer`) instead of calling `fetch` in a route file. Server reads are for metadata and the initial palette only; the page's data still comes from the client hooks.
+
+```ts
+export async function generateMetadata({ params }: Props): Promise<Metadata> {
+  return eventMetadata(await getEventOnServer((await params).eventId));
+}
+```
 
 ### Query Keys
 
@@ -52,7 +62,7 @@ dayjs(iso).format("D MMMM YYYY");
 ```
 
 ### Pass Mutation Callbacks Down Instead of Re-subscribing
-A child component rendered under a host that already uses a TanStack Query hook (e.g. `useMyLocations`) takes the hook's mutation callbacks (`create`, `update`, `remove`) as props instead of calling the hook again. A second subscriber mounting with the default `staleTime: 0` triggers a background refetch every time it mounts (e.g. each time an inline add form opens), which can race with optimistic or pre-check logic. Reference: `components/shared/LocationAddForm.tsx` (`create: (request) => Promise<LocationResponse>` prop), passed from `components/shared/LocationPicker.tsx` and `pages/places/PlacesView.tsx`.
+A child component rendered under a host that already uses a TanStack Query hook (e.g. `useMyLocations`) takes the hook's mutation callbacks (`create`, `update`, `remove`) as props instead of calling the hook again. A second subscriber mounting with the default `staleTime: 0` triggers a background refetch every time it mounts (e.g. each time an inline add form opens), which can race with optimistic or pre-check logic. Reference: `components/shared/LocationAddForm.tsx` (`create: (request) => Promise<LocationResponse>` prop), passed from `components/shared/LocationPicker.tsx` and `features/places/PlacesView.tsx`.
 ```tsx
 const { data: locations, create } = useMyLocations();   // host: the only subscriber
 <LocationAddForm create={create} onSaved={...} />

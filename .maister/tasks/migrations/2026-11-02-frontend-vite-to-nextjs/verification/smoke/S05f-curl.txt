@@ -1,0 +1,5 @@
+/meetings HTTP/1.1 307 Temporary Redirect location: /login?returnTo=%2Fmeetings 
+/messages HTTP/1.1 307 Temporary Redirect location: /login?returnTo=%2Fmessages 
+/admin HTTP/1.1 307 Temporary Redirect location: /login?returnTo=%2Fadmin 
+/onboarding HTTP/1.1 307 Temporary Redirect location: /login?returnTo=%2Fonboarding 
+/groupsx HTTP/1.1 200 OK 

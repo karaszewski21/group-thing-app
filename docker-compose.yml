@@ -15,23 +15,6 @@ services:
       timeout: 5s
       retries: 10
 
-  # One-shot: builds the real frontend (same builder stage the `frontend`
-  # image uses) and copies just `index.html` into `frontend_index` — the
-  # backend's public-preview routes (app/system/router.py) inject Open
-  # Graph/Twitter meta tags into this file, so they need the actual current
-  # build's <script>/<link> tags, not a placeholder. Exits once done; both
-  # `backend` and `frontend` wait on it via `service_completed_successfully`.
-  frontend-build:
-    build:
-      context: .
-      dockerfile: src/frontend/Dockerfile
-      target: builder
-      args:
-        VITE_GOOGLE_MAPS_API_KEY: ${VITE_GOOGLE_MAPS_API_KEY:-}
-    volumes:
-      - frontend_index:/output
-    command: sh -c "cp /app/src/frontend/dist/index.html /output/index.html"
-
   backend:
     build:
       context: src/backend
@@ -59,33 +42,41 @@ services:
       SPACES_PUBLIC_BASE_URL: ${SPACES_PUBLIC_BASE_URL:-}
       MODERATION_TEXT_ENABLED: "true"
       MODERATION_IMAGE_ENABLED: ${MODERATION_IMAGE_ENABLED:-false}
-    volumes:
-      - frontend_index:/app/static
     depends_on:
       postgres:
         condition: service_healthy
-      frontend-build:
-        condition: service_completed_successfully
 
-  frontend:
+  # Next.js standalone server: pages, server metadata, public/ assets.
+  web:
     build:
       # Repo root, not src/frontend/ — the frontend's test suite imports the
       # sibling plugins/server-sdk.ts module, so it must be in the build context.
       context: .
       dockerfile: src/frontend/Dockerfile
       args:
-        VITE_GOOGLE_MAPS_API_KEY: ${VITE_GOOGLE_MAPS_API_KEY:-}
+        NEXT_PUBLIC_GOOGLE_MAPS_API_KEY: ${NEXT_PUBLIC_GOOGLE_MAPS_API_KEY:-}
+    environment:
+      BACKEND_INTERNAL_URL: http://backend:8080
+    depends_on:
+      backend:
+        condition: service_started
+
+  # Single origin: /api, OAuth2 endpoints and /.well-known go to the backend,
+  # everything else to `web`.
+  frontend:
+    image: nginx:1.27-alpine
+    volumes:
+      - ./src/frontend/nginx.conf:/etc/nginx/conf.d/default.conf:ro
     ports:
       - "5174:80"
     depends_on:
       backend:
         condition: service_started
-      frontend-build:
-        condition: service_completed_successfully
+      web:
+        condition: service_started
 
 volumes:
   postgres_data:
-  frontend_index:
 
 secrets:
   hf_token:

@@ -1,6 +1,7 @@
 import { useMemo, type CSSProperties, type ReactNode } from "react";
 import type { OrganizerTheme } from "../api/groups";
 import { DEFAULT_THEME_VARS, resolveOrgTheme } from "./orgPalette";
+import { useInitialOrganizerTheme } from "./ServerThemeProvider";
 
 interface OrganizerThemeScopeProps {
   theme: (Pick<OrganizerTheme, "primary_color" | "accent_color"> & { palette_preset?: string | null }) | null | undefined;
@@ -8,8 +9,11 @@ interface OrganizerThemeScopeProps {
 }
 
 /** Sets all 13 role colors inline, so everything inside renders in the
- * organizer's preset or palette (or the defaults when there is none). */
-export function OrganizerThemeScope({ theme, children }: OrganizerThemeScopeProps) {
+ * organizer's preset or palette (or the defaults when there is none). Until
+ * the page's own data arrives, the server-fetched theme stands in. */
+export function OrganizerThemeScope({ theme: liveTheme, children }: OrganizerThemeScopeProps) {
+  const initialTheme = useInitialOrganizerTheme();
+  const theme = liveTheme ?? initialTheme;
   const primaryColor = theme?.primary_color;
   const accentColor = theme?.accent_color;
   const palettePreset = theme?.palette_preset;

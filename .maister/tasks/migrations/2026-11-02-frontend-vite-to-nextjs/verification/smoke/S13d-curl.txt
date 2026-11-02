@@ -1,0 +1,2 @@
+/assets/plugin-sdk.js HTTP/1.1 200 OK Content-Type: application/javascript; charset=UTF-8 
+/assets/plugin-ui.css HTTP/1.1 200 OK Content-Type: text/css; charset=UTF-8 

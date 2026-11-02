@@ -1,9 +1,9 @@
 import { render, type RenderOptions, type RenderResult } from "@testing-library/react";
 import { useLayoutEffect, type ComponentType, type ReactElement, type ReactNode } from "react";
-import { MemoryRouter, Route, Routes, useLocation } from "react-router-dom";
 import { useAppNavigate, type AppNavigate } from "../routing/navigation";
 import { clearAllNavigationStates, setNavigationState } from "../routing/navigationState";
 import { NavigationTracker, subscribeNavigationCalls, type NavigationCall } from "../routing/NavigationTracker";
+import { getMockUrl, matchMockRoute, resetMockNavigation, usePathname } from "./navigationMock";
 
 export interface RenderWithRouteOptions extends Omit<RenderOptions, "queries"> {
   /** The URL the test starts on (pathname, query and hash). */
@@ -28,15 +28,10 @@ export interface TestRouter {
   navigate: AppNavigate;
 }
 
-let currentLocation: TestLocation = { pathname: "/", search: "" };
 let router: TestRouter | null = null;
 
 function Probe({ calls }: { calls: NavigationCall[] }) {
-  const { pathname, search } = useLocation();
   const navigate = useAppNavigate();
-  useLayoutEffect(() => {
-    currentLocation = { pathname, search };
-  }, [pathname, search]);
   useLayoutEffect(() => {
     router = { calls, navigate };
   }, [calls, navigate]);
@@ -50,19 +45,26 @@ function Probe({ calls }: { calls: NavigationCall[] }) {
   return null;
 }
 
-function tree(ui: ReactNode, url: string, pattern: string, routes: Record<string, ReactNode>, calls: NavigationCall[]) {
+/** The page whose pattern matches the mocked URL, as the App Router picks
+ * one. Unkeyed: pages of the same component keep their state, as pages
+ * under a shared layout do. */
+function Page({ pages }: { pages: Record<string, ReactNode> }) {
+  const match = matchMockRoute(Object.keys(pages), usePathname());
+  return match && pages[match.pattern];
+}
+
+function tree(ui: ReactNode, pattern: string, routes: Record<string, ReactNode>, calls: NavigationCall[]) {
   return (
-    <MemoryRouter initialEntries={[url]}>
+    <>
       <NavigationTracker />
       <Probe calls={calls} />
-      <Routes>
-        <Route path={pattern} element={ui} />
-        {Object.entries(routes).map(([routePattern, element]) => (
-          <Route key={routePattern} path={routePattern} element={element} />
-        ))}
-      </Routes>
-    </MemoryRouter>
+      <Page pages={{ [pattern]: ui, ...routes }} />
+    </>
   );
+}
+
+function start(url: string, pattern: string, routes: Record<string, ReactNode>) {
+  resetMockNavigation(url, [pattern, ...Object.keys(routes)]);
 }
 
 /** Renders `ui` as the page at `url`, inside the app's router. `rerender`
@@ -73,11 +75,12 @@ export function renderWithRoute(
 ): RenderResult {
   clearAllNavigationStates();
   if (state !== undefined) setNavigationState(url, state);
+  start(url, pattern, routes);
   const calls: NavigationCall[] = [];
-  const result = render(tree(ui, url, pattern, routes, calls), renderOptions);
+  const result = render(tree(ui, pattern, routes, calls), renderOptions);
   return {
     ...result,
-    rerender: (next: ReactNode) => result.rerender(tree(next, url, pattern, routes, calls)),
+    rerender: (next: ReactNode) => result.rerender(tree(next, pattern, routes, calls)),
   };
 }
 
@@ -86,7 +89,8 @@ export function routeElement(
   ui: ReactElement,
   { url, pattern = "*", routes = {} }: Pick<RenderWithRouteOptions, "url" | "pattern" | "routes">,
 ): ReactElement {
-  return tree(ui, url, pattern, routes, []);
+  start(url, pattern, routes);
+  return tree(ui, pattern, routes, []);
 }
 
 /** A `renderHook` wrapper: the hook runs on the page at `url`, inside
@@ -97,16 +101,19 @@ export function routeWrapper({
 }: Pick<RenderWithRouteOptions, "url" | "pattern" | "routes"> & {
   wrapper?: ComponentType<{ children: ReactNode }>;
 }): ComponentType<{ children: ReactNode }> {
+  const { url, pattern = "*", routes = {} } = options;
   clearAllNavigationStates();
+  start(url, pattern, routes);
   return function RouteWrapper({ children }: { children: ReactNode }) {
-    const page = routeElement(<>{children}</>, options);
+    const page = tree(<>{children}</>, pattern, routes, []);
     return Outer ? <Outer>{page}</Outer> : page;
   };
 }
 
 /** The test router's current location (raw: `/home` stays `/home`). */
 export function getTestLocation(): TestLocation {
-  return currentLocation;
+  const { pathname, search } = getMockUrl();
+  return { pathname, search };
 }
 
 export function getTestRouter(): TestRouter {

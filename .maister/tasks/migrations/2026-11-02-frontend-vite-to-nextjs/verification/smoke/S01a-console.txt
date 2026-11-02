@@ -1,0 +1,2 @@
+[     461ms] [INFO] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold @ http://localhost:5173/_next/static/chunks/node_modules_next_dist_05y3oi5z9mc_3._.js:760
+[     561ms] [LOG] [HMR] connected @ http://localhost:5173/_next/static/chunks/node_modules_next_dist_05y3oi5z9mc_3._.js:760

@@ -1,3 +1,5 @@
+"use client";
+
 import { useAppParams } from "../../routing/navigation";
 import { isPartyId } from "../../routing/paths";
 import { PublicOrganizationPage } from "./PublicOrganizationPage";

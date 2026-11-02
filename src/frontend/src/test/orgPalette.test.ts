@@ -81,7 +81,7 @@ describe("buildOrgThemeVars", () => {
 
 describe("DEFAULT_THEME_VARS", () => {
   it("equals the 13 defaults declared in index.css", () => {
-    const css = readFileSync(resolve(process.cwd(), "src", "index.css"), "utf8");
+    const css = readFileSync(resolve(process.cwd(), "src", "app", "globals.css"), "utf8");
     const declared: Record<string, string> = {};
     for (const match of css.matchAll(/--color-([a-z-]+)\s*:\s*(#[0-9a-fA-F]{6})\s*;/g)) {
       declared[`--color-${match[1]}`] = match[2];

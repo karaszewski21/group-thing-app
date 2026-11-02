@@ -77,14 +77,14 @@ Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
 **Files to Modify:** `.maister/tasks/migrations/2026-11-02-frontend-vite-to-nextjs/verification/baseline/*` (vitest-A0.json, vitest-A0.txt, tsc-A0.txt, eslint-A0.json, eslint-A0.txt, pytest-A0.txt, ruff-A0.txt, mypy-A0.txt, summary.md)
 **Estimated Steps:** 7
 
-- [ ] 2.0 Record measurable baselines before any migration change (R2)
-  - [ ] 2.1 Vitest: `npx vitest run --reporter=json --outputFile=<task>/verification/baseline/vitest-A0.json`. Derive `vitest-A0.txt`, a sorted `file › full name → status` list, and the total case count. Note the ~13 known failures and the OrganizerEditor flake.
-  - [ ] 2.2 `npx tsc -b`: record the exit code and error count in `tsc-A0.txt`. `npx eslint . -f json -o …/eslint-A0.json`: record error and warning counts in `eslint-A0.txt`.
-  - [ ] 2.3 Backend, from `src/backend`, with Docker running: `uv run python -m pytest -q -rA` → `pytest-A0.txt` (pass/fail list). Then `uv run python -m ruff check .` → `ruff-A0.txt` and `uv run python -m mypy app` → `mypy-A0.txt` (expect 15). Check Docker by presence only. Never dump env.
-  - [ ] 2.4 Write the scratchpad `compare-vitest.mjs`. It takes the A0 and a candidate JSON and prints baseline-passing ids that no longer pass, plus the case-count delta, and exits non-zero on a regression. Write `compare-pytest` in the same way. Do not commit them.
-  - [ ] 2.5 Self-check the compare scripts: compare A0 against itself (expect 0 regressions, delta 0). Run a second Vitest pass to classify flaky ids, and list them in `summary.md`.
-  - [ ] 2.6 Write `summary.md`: counts per tool, known failures, flaky ids, the eslint/tsc baseline numbers that later gates use.
-  - [ ] 2.7 Commit C1 `chore(migration): A0 baselines`. Stage only `<task>/` (this task folder: analysis/, implementation/, verification/, orchestrator state/dashboard). The other task folder stays untracked.
+- [x] 2.0 Record measurable baselines before any migration change (R2)
+  - [x] 2.1 Vitest: `npx vitest run --reporter=json --outputFile=<task>/verification/baseline/vitest-A0.json`. Derive `vitest-A0.txt`, a sorted `file › full name → status` list, and the total case count. Note the ~13 known failures and the OrganizerEditor flake.
+  - [x] 2.2 `npx tsc -b`: record the exit code and error count in `tsc-A0.txt`. `npx eslint . -f json -o …/eslint-A0.json`: record error and warning counts in `eslint-A0.txt`.
+  - [x] 2.3 Backend, from `src/backend`, with Docker running: `uv run python -m pytest -q -rA` → `pytest-A0.txt` (pass/fail list). Then `uv run python -m ruff check .` → `ruff-A0.txt` and `uv run python -m mypy app` → `mypy-A0.txt` (expect 15). Check Docker by presence only. Never dump env.
+  - [x] 2.4 Write the scratchpad `compare-vitest.mjs`. It takes the A0 and a candidate JSON and prints baseline-passing ids that no longer pass, plus the case-count delta, and exits non-zero on a regression. Write `compare-pytest` in the same way. Do not commit them.
+  - [x] 2.5 Self-check the compare scripts: compare A0 against itself (expect 0 regressions, delta 0). Run a second Vitest pass to classify flaky ids, and list them in `summary.md`.
+  - [x] 2.6 Write `summary.md`: counts per tool, known failures, flaky ids, the eslint/tsc baseline numbers that later gates use.
+  - [x] 2.7 Commit C1 `chore(migration): A0 baselines`. Stage only `<task>/` (this task folder: analysis/, implementation/, verification/, orchestrator state/dashboard). The other task folder stays untracked.
 
 **Checkpoint gate:** baselines recorded; compare scripts self-check clean.
 **Rollback:** `git revert <C1>` (task-folder only; no runtime impact).
@@ -98,20 +98,20 @@ Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
 **Files to Modify:** `src/frontend/src/**` (moves per spec §4: `src/frontend/src/app/*`, `src/frontend/src/pages/**`, `src/frontend/src/components/{moderation,onboarding,panel,pending}/**`, `src/frontend/src/components/layout/{AuthLayout.tsx,authStyles.ts,SocialAuthButtons.tsx}`, `src/frontend/src/plugins/*`, `src/frontend/src/theme/{index.ts,palettePresets.ts}`, `src/frontend/src/utils/messagesPaths.ts`, `src/frontend/src/assets/{hero.png,react.svg,vite.svg}` → `src/frontend/src/features/**`, `src/frontend/src/components/layout/pending/**`, `src/frontend/src/plugins/{host,slots}/**`, `src/frontend/src/theme/{system,palettes}.ts`, `src/frontend/src/routing/messagesPaths.ts`), `src/frontend/src/router.tsx`, `src/frontend/src/main.tsx`, `src/frontend/src/test/**/*.test.ts(x)` (specifiers only), `src/frontend/src/test/themeDefects.test.tsx`
 **Estimated Steps:** 9
 
-- [ ] 3.0 Move every file per the §4 table and rewrite specifiers only (R3)
-  - [ ] 3.1 No new tests (moves only). Before starting, confirm that the C1 baseline pass-set is the reference.
-  - [ ] 3.2 Write the scratchpad mapping file `d7-map.json` with one entry per old → new path, transcribed from spec §4, including the renames: `plugins/PluginContext.tsx` → `plugins/host/PluginHost.tsx`, `theme/index.ts` → `theme/system.ts`, `theme/palettePresets.ts` → `theme/palettes.ts`, `utils/messagesPaths.ts` → `routing/messagesPaths.ts`, `features/add/*`, `features/search/*`. Assert that every source file under `src/pages`, `src/app`, `components/{moderation,onboarding,panel,pending}` has an entry. Fail on an unmapped file. `src/assets/layouts/*.svg` is excluded (A2).
-  - [ ] 3.3 Write the scratchpad codemod `d7-move.mjs`.
+- [x] 3.0 Move every file per the §4 table and rewrite specifiers only (R3)
+  - [x] 3.1 No new tests (moves only). Before starting, confirm that the C1 baseline pass-set is the reference.
+  - [x] 3.2 Write the scratchpad mapping file `d7-map.json` with one entry per old → new path, transcribed from spec §4, including the renames: `plugins/PluginContext.tsx` → `plugins/host/PluginHost.tsx`, `theme/index.ts` → `theme/system.ts`, `theme/palettePresets.ts` → `theme/palettes.ts`, `utils/messagesPaths.ts` → `routing/messagesPaths.ts`, `features/add/*`, `features/search/*`. Assert that every source file under `src/pages`, `src/app`, `components/{moderation,onboarding,panel,pending}` has an entry. Fail on an unmapped file. `src/assets/layouts/*.svg` is excluded (A2).
+  - [x] 3.3 Write the scratchpad codemod `d7-move.mjs`.
     - (a) Run `git mv` for each mapping, creating folders as needed.
     - (b) For every `.ts/.tsx` under `src/frontend/src`, rewrite static `import`/`export … from`, dynamic `import()`, and the string arguments of `vi.mock`, `vi.doMock`, `vi.importActual`, `vi.importMock`. For each specifier: resolve it relative to the file's **old** location (extension/index resolution), map it through the table, re-relativise it from the file's **new** location, and keep the original extension style.
     - (c) Print every rewritten and every unresolved specifier.
     - Run it with `--dry-run` first and review the unresolved list.
-  - [ ] 3.4 Run the codemod. Delete the empty `pages/person/` and the unreferenced `assets/hero.png`, `react.svg`, `vite.svg` (first verify with grep that they are unreferenced).
-  - [ ] 3.5 Hand-edit the literal path strings: the `themeDefects.test.tsx` source list, and any `fs`/`readFileSync` paths in tests (grep `src/pages`, `src/app`, `components/panel`, `palettePresets`, `theme/index`). Update comments that name moved file paths.
-  - [ ] 3.6 Grep checks: `grep -rnE "(from|import\(|vi\.(mock|doMock|importActual|importMock)\()\s*['\"][^'\"]*(/pages/|/app/)" src/frontend/src` returns nothing; `src/frontend/src/pages` and `src/frontend/src/app` do not exist.
-  - [ ] 3.7 Run the standard gate (G-VT with the **same case count** as A0, G-TSC `tsc -b`, G-ESL). Run `npx vite build` once as a smoke check.
-  - [ ] 3.8 If the pass-set regresses: inspect the unresolved and mock specifiers first. Fix with specifier edits only. No behaviour edits are allowed in this group.
-  - [ ] 3.9 Commit C2 `refactor(frontend): A1 features/ reorganisation` (stage `src/frontend` only).
+  - [x] 3.4 Run the codemod. Delete the empty `pages/person/` and the unreferenced `assets/hero.png`, `react.svg`, `vite.svg` (first verify with grep that they are unreferenced).
+  - [x] 3.5 Hand-edit the literal path strings: the `themeDefects.test.tsx` source list, and any `fs`/`readFileSync` paths in tests (grep `src/pages`, `src/app`, `components/panel`, `palettePresets`, `theme/index`). Update comments that name moved file paths.
+  - [x] 3.6 Grep checks: `grep -rnE "(from|import\(|vi\.(mock|doMock|importActual|importMock)\()\s*['\"][^'\"]*(/pages/|/app/)" src/frontend/src` returns nothing; `src/frontend/src/pages` and `src/frontend/src/app` do not exist.
+  - [x] 3.7 Run the standard gate (G-VT with the **same case count** as A0, G-TSC `tsc -b`, G-ESL). Run `npx vite build` once as a smoke check.
+  - [x] 3.8 If the pass-set regresses: inspect the unresolved and mock specifiers first. Fix with specifier edits only. No behaviour edits are allowed in this group.
+  - [x] 3.9 Commit C2 `refactor(frontend): A1 features/ reorganisation` (stage `src/frontend` only).
 
 **Checkpoint gate:** G-VT (pass-set ⊇ A0, case count == A0), G-TSC, G-ESL ≤ baseline, the grep checks in 3.6.
 **Rollback:** `git revert <C2>` (user-run). Restores the old paths; no dependency change.
@@ -126,15 +126,15 @@ Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
 **Files to Modify:** `src/frontend/src/auth/AuthContext.tsx`, `src/frontend/src/features/auth/OAuth2AuthorizePage.tsx`, `src/frontend/src/features/panel/HomeView.tsx`, `src/frontend/src/components/layout/pending/PendingActionsHost.tsx` (+ its `snoozeStore`), `src/frontend/src/features/events/hooks/useEventSignUp.ts`, `src/frontend/src/hooks/useGuestMerge.ts`, `src/frontend/src/features/terms/hooks/useJoinCodeLink.ts`, `src/frontend/src/features/owner-page/OrganizationPage.tsx`, `src/frontend/src/features/events/EventPage.tsx`, `src/frontend/src/features/items/product/{ItemStatusCard,TakeSuccessSheet}.tsx`, `src/frontend/src/features/items/SwapAcceptSuccessSheet.tsx`, `src/frontend/src/components/shared/{appComponents,ConfirmDeleteDialog,ModalSheet,PhotoViewer}.tsx`, `src/frontend/src/api/queryClient.ts`, `src/frontend/src/api/client.ts`, `src/frontend/src/main.tsx`, `src/frontend/src/features/owner-page/layouts/registry.ts`, `src/frontend/src/assets/layouts/*.svg` → `src/frontend/public/assets/layouts/*.svg`, `src/frontend/src/test/ssrSafety.test.tsx` (new), test files importing `queryClient` (`src/frontend/src/test/**`)
 **Estimated Steps:** 8
 
-- [ ] 4.0 Remove render-time and module-time browser access (R4)
-  - [ ] 4.1 Write 3–6 tests in `src/test/ssrSafety.test.tsx` (`// @vitest-environment node`, explicit `vitest` imports). `renderToString` LandingPage, PublicLayout, LoginPage, the ItemDetailPage shell, EventPage and TermPage, with mocked APIs and no `window`/`localStorage` access thrown. Add a `getQueryClient()` test: the same instance on repeated browser calls, with `defaultOptions` preserved.
-  - [ ] 4.2 Module time: `AuthContext.tsx:70 loadStoredAuth()` becomes lazy (`useState(() => …)` with a `typeof window` guard). A4 replaces it later.
-  - [ ] 4.3 Render-time sites (spec §5.2; line numbers in `analysis/current-state-analysis.md` §140): move each to `useSyncExternalStore` with a neutral server snapshot, or into an effect/handler. Choose whichever keeps the current first paint in jsdom. Sites: `OAuth2AuthorizePage`, `HomeView`, `snoozeStore`, `useEventSignUp`, `useGuestMerge`, `useJoinCodeLink`, `OrganizationPage`, `EventPage`, `ItemStatusCard`, `TakeSuccessSheet`, `SwapAcceptSuccessSheet`, and the four `document.activeElement` initialisers.
-  - [ ] 4.4 `api/queryClient.ts` exports `getQueryClient()`: a new client on the server, a singleton in the browser, with the same `defaultOptions` and retry policy. Update `main.tsx` and any test/source import of the old `queryClient` export.
-  - [ ] 4.5 Add a `typeof window` guard to the `api/client.ts` 401 handler. Audit `snoozeStore`, `openSheets`, `organizerSteps` `createdCircle`, `googleMaps` `placesPromise` and `iframeRegistry` for writes during render. The executor records the outcome in the work-log.
-  - [ ] 4.6 Run `git mv src/assets/layouts/*.svg public/assets/layouts/`. In `features/owner-page/layouts/registry.ts`, replace the imports with string constants `/assets/layouts/<key>.svg`. Remove the now-empty `src/assets`.
-  - [ ] 4.7 Run the 4.1 tests, then the standard gate (G-VT: pass-set ⊇ A0, case count ≥ A0 + new; G-TSC `tsc -b`; G-ESL).
-  - [ ] 4.8 Commit C3 `refactor(frontend): A2 SSR-safety, getQueryClient` (stage `src/frontend` only).
+- [x] 4.0 Remove render-time and module-time browser access (R4)
+  - [x] 4.1 Write 3–6 tests in `src/test/ssrSafety.test.tsx` (`// @vitest-environment node`, explicit `vitest` imports). `renderToString` LandingPage, PublicLayout, LoginPage, the ItemDetailPage shell, EventPage and TermPage, with mocked APIs and no `window`/`localStorage` access thrown. Add a `getQueryClient()` test: the same instance on repeated browser calls, with `defaultOptions` preserved.
+  - [x] 4.2 Module time: `AuthContext.tsx:70 loadStoredAuth()` becomes lazy (`useState(() => …)` with a `typeof window` guard). A4 replaces it later.
+  - [x] 4.3 Render-time sites (spec §5.2; line numbers in `analysis/current-state-analysis.md` §140): move each to `useSyncExternalStore` with a neutral server snapshot, or into an effect/handler. Choose whichever keeps the current first paint in jsdom. Sites: `OAuth2AuthorizePage`, `HomeView`, `snoozeStore`, `useEventSignUp`, `useGuestMerge`, `useJoinCodeLink`, `OrganizationPage`, `EventPage`, `ItemStatusCard`, `TakeSuccessSheet`, `SwapAcceptSuccessSheet`, and the four `document.activeElement` initialisers.
+  - [x] 4.4 `api/queryClient.ts` exports `getQueryClient()`: a new client on the server, a singleton in the browser, with the same `defaultOptions` and retry policy. Update `main.tsx` and any test/source import of the old `queryClient` export.
+  - [x] 4.5 Add a `typeof window` guard to the `api/client.ts` 401 handler. Audit `snoozeStore`, `openSheets`, `organizerSteps` `createdCircle`, `googleMaps` `placesPromise` and `iframeRegistry` for writes during render. The executor records the outcome in the work-log.
+  - [x] 4.6 Run `git mv src/assets/layouts/*.svg public/assets/layouts/`. In `features/owner-page/layouts/registry.ts`, replace the imports with string constants `/assets/layouts/<key>.svg`. Remove the now-empty `src/assets`.
+  - [x] 4.7 Run the 4.1 tests, then the standard gate (G-VT: pass-set ⊇ A0, case count ≥ A0 + new; G-TSC `tsc -b`; G-ESL).
+  - [x] 4.8 Commit C3 `refactor(frontend): A2 SSR-safety, getQueryClient` (stage `src/frontend` only).
 
 **Checkpoint gate:** G-VT, G-TSC, G-ESL, plus the new SSR-safety tests green.
 **Rollback:** `git revert <C3>` (user-run). Also reverts the SVG move back to `src/assets/layouts`.
@@ -149,8 +149,8 @@ Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
 **Files to Modify:** `src/frontend/src/routing/{navigation.tsx,NavigationTracker.tsx,navigationGuard.ts,navigationState.ts,paths.ts}` (new), `src/frontend/src/utils/appHelpers.ts`, `src/frontend/src/router.tsx`, `src/frontend/src/main.tsx`, `src/frontend/src/auth/AuthGuard.tsx`, `src/frontend/src/components/layout/*.tsx`, `src/frontend/src/features/**` (91 router-using source files), `src/frontend/src/features/items/product/OrganizerItemLayout.tsx` (+ `OrganizerItemContext`), `src/frontend/src/features/owner-page/editor/EditorSheet.tsx`, `src/frontend/src/plugins/**`, `src/frontend/src/test/renderWithRoute.tsx` (new), `src/frontend/src/test/navigationFacade.test.tsx` (new), `src/frontend/src/test/**/*.test.tsx` (55 router-coupled test files, incl. `OrganizerEditor.test.tsx` and organizerMediaBlocks), `src/frontend/eslint.config.js`
 **Estimated Steps:** 11
 
-- [ ] 5.0 Put all router access behind `src/routing/` (R5, R17, R18, R19, R20, R21)
-  - [ ] 5.1 Write 6–8 tests in `src/test/navigationFacade.test.tsx`:
+- [x] 5.0 Put all router access behind `src/routing/` (R5, R17, R18, R19, R20, R21)
+  - [x] 5.1 Write 6–8 tests in `src/test/navigationFacade.test.tsx`:
     - navigation state consumed once;
     - `useHasInAppHistory` false on first load and true after one push;
     - functional `setSearchParams` keeps other params and passes `scroll:false`;
@@ -158,18 +158,18 @@ Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
     - guard popstate best-effort with `proceed()`;
     - `normalizeAppPath("/home") === "/"`;
     - `matchPath` with params and splat.
-  - [ ] 5.2 Create `routing/paths.ts`. Move `View`, `viewPath`, `viewFromPath`, `ID_PATH_VIEWS`, `isPartyId`, `eventPath`, `ownerPagePath` and the `*EditPath` helpers from `utils/appHelpers.ts` without changing their logic, and rewrite the imports (scripted, like A1). Add `normalizeAppPath`, `matchPath(pattern, pathname)` and `PROTECTED_PREFIXES` (spec §8 list).
-  - [ ] 5.3 Create `routing/navigation.tsx` on React Router with the API from the spec §5.3 table: `Link`, `Navigate`, `useAppNavigate`, `useAppParams` (catch-all → `"*"`), `useAppSearchParams`, `useAppPathname`, `useAppSearch`, `useHasInAppHistory`, `useNavigationState`, `useNavigationGuard`, `useRouterRefresh` (no-op on RR). Add `NavigationTracker.tsx` (client navigation count, decremented on popstate), `navigationState.ts` (per-URL store) and `navigationGuard.ts` (registry; capture-phase same-origin `<a>` interception; `beforeunload`; popstate re-push).
-  - [ ] 5.4 Migrate all 91 source files from `react-router-dom` to the facade, including `AuthGuard` (`Navigate`) and `PublicLayout` (`useMatch` → `matchPath`). Mount `NavigationTracker` in `main.tsx`.
-  - [ ] 5.5 R18 sites:
+  - [x] 5.2 Create `routing/paths.ts`. Move `View`, `viewPath`, `viewFromPath`, `ID_PATH_VIEWS`, `isPartyId`, `eventPath`, `ownerPagePath` and the `*EditPath` helpers from `utils/appHelpers.ts` without changing their logic, and rewrite the imports (scripted, like A1). Add `normalizeAppPath`, `matchPath(pattern, pathname)` and `PROTECTED_PREFIXES` (spec §8 list).
+  - [x] 5.3 Create `routing/navigation.tsx` on React Router with the API from the spec §5.3 table: `Link`, `Navigate`, `useAppNavigate`, `useAppParams` (catch-all → `"*"`), `useAppSearchParams`, `useAppPathname`, `useAppSearch`, `useHasInAppHistory`, `useNavigationState`, `useNavigationGuard`, `useRouterRefresh` (no-op on RR). Add `NavigationTracker.tsx` (client navigation count, decremented on popstate), `navigationState.ts` (per-URL store) and `navigationGuard.ts` (registry; capture-phase same-origin `<a>` interception; `beforeunload`; popstate re-push).
+  - [x] 5.4 Migrate all 91 source files from `react-router-dom` to the facade, including `AuthGuard` (`Navigate`) and `PublicLayout` (`useMatch` → `matchPath`). Mount `NavigationTracker` in `main.tsx`.
+  - [x] 5.5 R18 sites:
     - `location.state` flows (EventCreate→EventPage toast, ItemCreate→`ItemDetailPage:113`, PlaceCreate→`LocationPicker:59`) → `Link`/`navigate` `state` + `useNavigationState`.
     - The 4 `location.key !== "default"` sites (ThreadPage, OwnerItemsPage, PartyProfilePage, ItemBackButton) → `useHasInAppHistory`.
-  - [ ] 5.6 R19: `useOutletContext` in ItemDetailPage → `OrganizerItemContext`, provided by `OrganizerItemLayout` around `<Outlet/>`.
-  - [ ] 5.7 R17: `EditorSheet` replaces `useBlocker` with `useNavigationGuard`, using the same pathname-change predicate; the returned object is `useBlocker`-shaped. Adapt `OrganizerEditor.test.tsx` and the organizerMediaBlocks `useNavigationType` usage to the facade.
-  - [ ] 5.8 Create `test/renderWithRoute.tsx` (`renderWithRoute(ui, { url, pattern?, routes? })`, `getTestLocation()`, `getTestRouter()`), backed by MemoryRouter + Routes + a location probe. Migrate the 55 router-coupled test files. Test names stay byte-identical. The 10 per-file `renderWithProviders` helpers delegate to it, and probe routes are replaced by `getTestLocation()`.
-  - [ ] 5.9 ESLint: add `no-restricted-imports` for `react-router-dom` outside `src/routing/**` and `src/test/renderWithRoute.tsx`. Verify with `grep -rln "react-router-dom" src/frontend/src`: only `routing/`, `renderWithRoute.tsx` and `router.tsx`/`main.tsx` (entry, deleted in B3) are allowed.
-  - [ ] 5.10 Run the 5.1 tests, then the standard gate (G-VT: pass-set ⊇ A0, case count ≥ A0; G-TSC `tsc -b`; G-ESL). Re-run the OrganizerEditor flake once if it fails.
-  - [ ] 5.11 Commit C4 `refactor(frontend): A3 navigation facade + renderWithRoute` (stage `src/frontend` only).
+  - [x] 5.6 R19: `useOutletContext` in ItemDetailPage → `OrganizerItemContext`, provided by `OrganizerItemLayout` around `<Outlet/>`.
+  - [x] 5.7 R17: `EditorSheet` replaces `useBlocker` with `useNavigationGuard`, using the same pathname-change predicate; the returned object is `useBlocker`-shaped. Adapt `OrganizerEditor.test.tsx` and the organizerMediaBlocks `useNavigationType` usage to the facade.
+  - [x] 5.8 Create `test/renderWithRoute.tsx` (`renderWithRoute(ui, { url, pattern?, routes? })`, `getTestLocation()`, `getTestRouter()`), backed by MemoryRouter + Routes + a location probe. Migrate the 55 router-coupled test files. Test names stay byte-identical. The 10 per-file `renderWithProviders` helpers delegate to it, and probe routes are replaced by `getTestLocation()`.
+  - [x] 5.9 ESLint: add `no-restricted-imports` for `react-router-dom` outside `src/routing/**` and `src/test/renderWithRoute.tsx`. Verify with `grep -rln "react-router-dom" src/frontend/src`: only `routing/`, `renderWithRoute.tsx` and `router.tsx`/`main.tsx` (entry, deleted in B3) are allowed.
+  - [x] 5.10 Run the 5.1 tests, then the standard gate (G-VT: pass-set ⊇ A0, case count ≥ A0; G-TSC `tsc -b`; G-ESL). Re-run the OrganizerEditor flake once if it fails.
+  - [x] 5.11 Commit C4 `refactor(frontend): A3 navigation facade + renderWithRoute` (stage `src/frontend` only).
 
 **Checkpoint gate:** G-VT (case count ≥ A0), G-TSC, G-ESL, facade tests green, and no `react-router-dom` import outside the allowed files.
 **Rollback:** `git revert <C4>` (user-run). Revert C9+ first if they exist (C9 depends on C4).
@@ -184,20 +184,20 @@ Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
 **Files to Modify:** `src/frontend/src/auth/session.ts` (new), `src/frontend/src/auth/AuthContext.tsx`, `src/frontend/src/auth/AuthGuard.tsx`, `src/frontend/src/api/client.ts`, `src/frontend/src/main.tsx`, `src/frontend/src/test/session.test.ts` (new), `src/frontend/src/test/**/*.test.tsx` (only where `AuthProvider` is rendered without `initialToken`)
 **Estimated Steps:** 7
 
-- [ ] 6.0 Keep the localStorage token and the `auth_token` cookie in lockstep (R6)
-  - [ ] 6.1 Write 4–6 tests in `src/test/session.test.ts`:
+- [x] 6.0 Keep the localStorage token and the `auth_token` cookie in lockstep (R6)
+  - [x] 6.1 Write 4–6 tests in `src/test/session.test.ts`:
     - `setSession` writes localStorage and the cookie together;
     - `clearSession` clears both;
     - `Max-Age` is derived from the JWT `exp`;
     - `Secure` is added on https;
     - the reconciliation table: valid localStorage wins / cookie-only copied / both invalid cleared;
     - a 401 from `api/client.ts` clears both.
-  - [ ] 6.2 Create `auth/session.ts`: `readStoredToken()`, `setSession(jwt)`, `clearSession()`. The cookie is `auth_token=<jwt>; Path=/; SameSite=Lax; Max-Age=<exp−now>` (+ `; Secure` on https). It is not HttpOnly.
-  - [ ] 6.3 Route every write point through it: `login`, `register`, `applyExternalToken`, `logout` (then the hard redirect to `/login`, as today), the `api/client.ts` 401 handler, and the `AuthGuard` stale-token path.
-  - [ ] 6.4 `AuthProvider({ initialToken })`: no module-time read. Vite `main.tsx` passes `readStoredToken()`. A mount effect reconciles per spec §5.4 and always rewrites the cookie to match. Any token change calls `useRouterRefresh()`.
-  - [ ] 6.5 Update the tests that render `AuthProvider` only where needed for the new prop (behaviour unchanged).
-  - [ ] 6.6 Run the 6.1 tests, then the standard gate (G-VT, G-TSC `tsc -b`, G-ESL).
-  - [ ] 6.7 Commit C5 `feat(frontend): A4 auth_token session cookie` (stage `src/frontend` only).
+  - [x] 6.2 Create `auth/session.ts`: `readStoredToken()`, `setSession(jwt)`, `clearSession()`. The cookie is `auth_token=<jwt>; Path=/; SameSite=Lax; Max-Age=<exp−now>` (+ `; Secure` on https). It is not HttpOnly.
+  - [x] 6.3 Route every write point through it: `login`, `register`, `applyExternalToken`, `logout` (then the hard redirect to `/login`, as today), the `api/client.ts` 401 handler, and the `AuthGuard` stale-token path.
+  - [x] 6.4 `AuthProvider({ initialToken })`: no module-time read. Vite `main.tsx` passes `readStoredToken()`. A mount effect reconciles per spec §5.4 and always rewrites the cookie to match. Any token change calls `useRouterRefresh()`.
+  - [x] 6.5 Update the tests that render `AuthProvider` only where needed for the new prop (behaviour unchanged).
+  - [x] 6.6 Run the 6.1 tests, then the standard gate (G-VT, G-TSC `tsc -b`, G-ESL).
+  - [x] 6.7 Commit C5 `feat(frontend): A4 auth_token session cookie` (stage `src/frontend` only).
 
 **Checkpoint gate:** G-VT ⊇ A0 plus the session tests, G-TSC, G-ESL.
 **Rollback:** `git revert <C5>` (user-run). The `auth_token` cookie left in browsers is harmless: delete it in devtools or log out once.
@@ -211,8 +211,8 @@ Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
 **Files to Modify:** `src/backend/app/core/_auth/token.py`, `src/backend/app/core/cache_headers.py`, `src/backend/app/organizations/slugs.py`, `src/backend/tests/test_auth_cookie.py` (new), `src/backend/tests/test_reserved_listings.py`, `src/backend/tests/test_organization_slugs.py` (or the existing slug test file found by grep)
 **Estimated Steps:** 8
 
-- [ ] 7.0 Backend reads the cookie on safe methods, varies on Cookie, and reserves `home` (R7)
-  - [ ] 7.1 Write 6–8 tests in `tests/test_auth_cookie.py` (flat naming per backend-testing.md, exact header assertions):
+- [x] 7.0 Backend reads the cookie on safe methods, varies on Cookie, and reserves `home` (R7)
+  - [x] 7.1 Write 6–8 tests in `tests/test_auth_cookie.py` (flat naming per backend-testing.md, exact header assertions):
     - GET with the `auth_token` cookie resolves the principal;
     - POST with only a cookie on an AUTHENTICATED route → 401;
     - Bearer wins over a different cookie;
@@ -220,13 +220,13 @@ Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
     - HEAD with a cookie is accepted;
     - a personalised public route returns `Vary: Authorization, Cookie`.
     Plus 1–2 slug tests: `home` is reserved, and a name slugifying to `home` → `home-2`.
-  - [ ] 7.2 `_extract_token`: after the header, `_token` query and `_token` form, add `request.cookies.get("auth_token")` only when `request.method in {"GET", "HEAD"}`. Update the docstring. Leave the `app/oauth2/router.py` `_token` form parsing untouched.
-  - [ ] 7.3 `cache_headers.py`: `Vary: Authorization, Cookie`. Update the exact assertions in `tests/test_reserved_listings.py` (lines ~411, ~446) and any other match of `grep -rni vary tests`. Update them, never loosen them.
-  - [ ] 7.4 `slugs.py`: add `"home"` to `RESERVED_SLUGS`. The docstring should point to `src/app` (Next route tree) and `routing/reservedSlugs.ts` instead of `router.tsx`.
-  - [ ] 7.5 CSRF argument: check that no GET/HEAD route in `AUTHORIZATION_MATRIX` mutates state (grep the GET handlers for writes/commits). The executor records the result in the work-log.
-  - [ ] 7.6 Read-only dev-DB check: `SELECT count(*) FROM organizations WHERE slug = 'home'`, run through the existing DB tooling. Report only the count. Never print connection strings or credentials (secrets rule: presence checks only).
-  - [ ] 7.7 Run the 7.1 tests, then G-PY (no new failures vs `pytest-A0.txt`), G-RUFF, G-MYPY ≤ 15.
-  - [ ] 7.8 Wait until C5 is committed, then commit C6 `feat(backend): A5 cookie on GET/HEAD, Vary Cookie, reserve home` (stage `src/backend` only).
+  - [x] 7.2 `_extract_token`: after the header, `_token` query and `_token` form, add `request.cookies.get("auth_token")` only when `request.method in {"GET", "HEAD"}`. Update the docstring. Leave the `app/oauth2/router.py` `_token` form parsing untouched.
+  - [x] 7.3 `cache_headers.py`: `Vary: Authorization, Cookie`. Update the exact assertions in `tests/test_reserved_listings.py` (lines ~411, ~446) and any other match of `grep -rni vary tests`. Update them, never loosen them.
+  - [x] 7.4 `slugs.py`: add `"home"` to `RESERVED_SLUGS`. The docstring should point to `src/app` (Next route tree) and `routing/reservedSlugs.ts` instead of `router.tsx`.
+  - [x] 7.5 CSRF argument: check that no GET/HEAD route in `AUTHORIZATION_MATRIX` mutates state (grep the GET handlers for writes/commits). The executor records the result in the work-log.
+  - [x] 7.6 Read-only dev-DB check: `SELECT count(*) FROM organizations WHERE slug = 'home'`, run through the existing DB tooling. Report only the count. Never print connection strings or credentials (secrets rule: presence checks only).
+  - [x] 7.7 Run the 7.1 tests, then G-PY (no new failures vs `pytest-A0.txt`), G-RUFF, G-MYPY ≤ 15.
+  - [x] 7.8 Wait until C5 is committed, then commit C6 `feat(backend): A5 cookie on GET/HEAD, Vary Cookie, reserve home` (stage `src/backend` only).
 
 **Checkpoint gate:** G-PY, G-RUFF, G-MYPY ≤ 15, and the new tests green.
 **Rollback:** `git revert <C6>` (user-run, independent of the frontend). To keep the B2 parity test green, revert only the `token.py`/`cache_headers.py` hunks: run `git revert -n <C6>`, restore `slugs.py` (and its test), then commit. Restore the old exact `Vary` assertions together with the `cache_headers.py` revert. If C12 is also reverted, revert C12 first.
@@ -242,24 +242,24 @@ Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
 **Files to Modify:** `src/frontend/package.json`, `src/frontend/package-lock.json`, `src/frontend/next.config.ts` (new), `src/frontend/postcss.config.mjs` (new), `src/frontend/tsconfig.json`, `src/frontend/tsconfig.app.json`, `src/frontend/tsconfig.node.json`, `src/frontend/eslint.config.js`, `src/frontend/src/app/{layout.tsx,providers.tsx,not-found.tsx,globals.css}` (new), `src/frontend/next-env.d.ts`, `src/frontend/.gitignore`, `src/frontend/vitest.config.ts`
 **Estimated Steps:** 8
 
-- [ ] 8.0 Add Next 16.4.x next to the running Vite app (R8)
-  - [ ] 8.1 No new tests: the scaffold is covered by `next build` and the unchanged Vitest suite. Confirm that Vitest still discovers the same files after the tsconfig change.
-  - [ ] 8.2 Install `next@16.4.x` (exact patch pinned in the lockfile), `@tailwindcss/postcss`, `eslint-config-next` and `server-only`. Keep `vite`, `@vitejs/plugin-react` and `react-router-dom` until B3.
-  - [ ] 8.3 `next.config.ts`:
+- [x] 8.0 Add Next 16.4.x next to the running Vite app (R8)
+  - [x] 8.1 No new tests: the scaffold is covered by `next build` and the unchanged Vitest suite. Confirm that Vitest still discovers the same files after the tsconfig change.
+  - [x] 8.2 Install `next@16.4.x` (exact patch pinned in the lockfile), `@tailwindcss/postcss`, `eslint-config-next` and `server-only`. Keep `vite`, `@vitejs/plugin-react` and `react-router-dom` until B3.
+  - [x] 8.3 `next.config.ts`:
     - `output: "standalone"`, Turbopack;
     - dev rewrites for `/api/:path*`, `/oauth2/register`, `/oauth2/token`, `/oauth2/introspect` and `/.well-known/:path*` to `BACKEND_INTERNAL_URL` (default `http://localhost:8080`);
     - `outputFileTracingRoot`/`turbopack.root` = `src/frontend` if the repo-root lockfile misleads workspace detection.
-  - [ ] 8.4 `postcss.config.mjs` with `@tailwindcss/postcss`. Merge into a single `tsconfig.json` (Next plugin, `jsx: preserve`, `src/test` still included). Keep `tsc -b`/`--noEmit` workable, and keep Vitest's config independent.
-  - [ ] 8.5 Create `src/app/layout.tsx`:
+  - [x] 8.4 `postcss.config.mjs` with `@tailwindcss/postcss`. Merge into a single `tsconfig.json` (Next plugin, `jsx: preserve`, `src/test` still included). Keep `tsc -b`/`--noEmit` workable, and keep Vitest's config independent.
+  - [x] 8.5 Create `src/app/layout.tsx`:
     - `<html lang="pl" suppressHydrationWarning>`;
     - Google Fonts preconnect and `<link>`;
     - default metadata: "Krąg grupy" and `/favicon.svg`;
     - `(await cookies()).get("auth_token")` → `<Providers initialToken>`;
     - `<body><div id="root">`.
     Create `providers.tsx` (`'use client'`; QueryClientProvider(getQueryClient()) → ChakraProvider(system) → AuthProvider(initialToken) → NavigationTracker), `not-found.tsx` (Polish copy), and `globals.css`, copied from `src/index.css` with the `@layer` order line first.
-  - [ ] 8.6 ESLint: add `eslint-config-next`. Any new-rule error that would force a behaviour change is disabled with a one-line reason. The error count must stay ≤ the baseline.
-  - [ ] 8.7 Env: add the `NEXT_PUBLIC_GOOGLE_MAPS_API_KEY` reading path only where B3 needs it. No `.env` values are read or printed (presence checks only).
-  - [ ] 8.8 Gate: G-NB (`npx next build`); G-VT on Vite ⊇ A0; G-TSC `tsc -b`; G-ESL. Then commit C7 `build(frontend): B1 Next scaffold` (stage `src/frontend` only).
+  - [x] 8.6 ESLint: add `eslint-config-next`. Any new-rule error that would force a behaviour change is disabled with a one-line reason. The error count must stay ≤ the baseline.
+  - [x] 8.7 Env: add the `NEXT_PUBLIC_GOOGLE_MAPS_API_KEY` reading path only where B3 needs it. No `.env` values are read or printed (presence checks only).
+  - [x] 8.8 Gate: G-NB (`npx next build`); G-VT on Vite ⊇ A0; G-TSC `tsc -b`; G-ESL. Commit C7 skipped (user: no commits).
 
 **Checkpoint gate:** G-NB, G-VT, G-TSC, G-ESL ≤ baseline.
 **Rollback:** `git revert <C7>` (user-run), then `npm ci` in `src/frontend`.
@@ -275,22 +275,22 @@ Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
 **Files to Modify:** `src/frontend/src/app/(site)/**`, `src/frontend/src/app/(standalone)/**`, `src/frontend/src/app/admin/**` (61 `page.tsx`, 7 layouts per spec §6.1), `src/frontend/src/routing/{ClientOnly.tsx,reservedSlugs.ts}` (new), `src/frontend/src/features/panel/*` (AppRoute gate logic extracted for the panel layout), `src/frontend/src/features/items/product/OrganizerItemLayout.tsx`, `src/frontend/src/test/routeManifest.test.ts` (new), `src/frontend/src/test/reservedSlugs.test.ts` (new), `src/frontend/src/test/{addRoute,messagesRoutes,EventPage}.test.tsx`
 **Estimated Steps:** 9
 
-- [ ] 9.0 Build the 61-page route tree with thin pages and layouts (R9, R19)
-  - [ ] 9.1 Write 4–5 tests.
+- [x] 9.0 Build the 61-page route tree with thin pages and layouts (R9, R19)
+  - [x] 9.1 Write 4–5 tests.
     - `test/routeManifest.test.ts` (2–3): node `fs` walk of `src/app/**/page.tsx` → patterns (strip `(group)`, `[x]` → `:x`, `[[...x]]` → `*`) equal an explicit 61-entry inventory; every `routing/paths.ts` helper output (sample ids) matches a pattern via `matchPath`.
     - `test/reservedSlugs.test.ts` (2): (a) every top-level static segment outside groups is in `routing/reservedSlugs.ts`; (b) every TS entry is in the backend `RESERVED_SLUGS` parsed from `src/backend/app/organizations/slugs.py`, reusing the `organizerKeyParity.test.ts` approach.
-  - [ ] 9.2 `routing/ClientOnly.tsx`: renders `null` until mounted, using a `useSyncExternalStore` mounted flag. `routing/reservedSlugs.ts` holds the spec §6.3 list (includes `home`).
-  - [ ] 9.3 `(site)/layout.tsx` (PublicLayout chrome), `(site)/page.tsx` (LandingPage), `login`, `product/[id]` and `product/[id]/edit`. The edit route uses a server `redirect()` with awaited `params`.
-  - [ ] 9.4 `(site)/(panel)/layout.tsx`: ClientOnly plus today's AppRoute gate on `useAppPathname()`.
+  - [x] 9.2 `routing/ClientOnly.tsx`: renders `null` until mounted, using a `useSyncExternalStore` mounted flag. `routing/reservedSlugs.ts` holds the spec §6.3 list (includes `home`).
+  - [x] 9.3 `(site)/layout.tsx` (PublicLayout chrome), `(site)/page.tsx` (LandingPage), `login`, `product/[id]` and `product/[id]/edit`. The edit route uses a server `redirect()` with awaited `params`.
+  - [x] 9.4 `(site)/(panel)/layout.tsx`: ClientOnly plus today's AppRoute gate on `useAppPathname()`.
     - anonymous at `/`: `clearSession()` + LandingPage;
     - anonymous at `/add`: PhoneFrame + PublicAddView;
     - otherwise AuthGuard → AppDataProvider → AppPage.
     `children` is ignored. Add the 26 panel `page.tsx` stubs returning `null`.
-  - [ ] 9.5 `(site)/(member)/layout.tsx` (ClientOnly + AuthGuard) with the 4 pages. `[organizationSlug]/(owner)/layout.tsx`: a placeholder server layout (ServerThemeProvider comes in C1). Add the owner page, items/meetings/terms, the `product` → `/${organizationSlug}` redirect, and `product/[id]/layout.tsx` (OrganizerItemLayout providing `OrganizerItemContext` around `children`) with its index and `edit` redirect. Add the event and term pages. Do not add `group/[groupId]` (D11 → 404).
-  - [ ] 9.6 `(standalone)/layout.tsx` (ClientOnly + AuthGuard, no chrome) with onboarding, organization and `oauth2/authorize`. `admin/layout.tsx` (ClientOnly + **AuthGuard only** + PluginProvider + AppShell), the `admin/page.tsx` redirect, and 15 admin pages including `plugins/[pluginId]/[[...path]]`.
-  - [ ] 9.7 Replace the route-table imports in `addRoute.test.tsx`, `messagesRoutes.test.tsx` and `EventPage.test.tsx` with manifest assertions. The executor records each replaced test id in the work-log as a documented replacement.
-  - [ ] 9.8 Run the 9.1 tests, then gate: G-NB, G-VT (Vite still runs the app; ⊇ A0 minus documented replacements), G-TSC `tsc -b`, G-ESL.
-  - [ ] 9.9 Commit C8 `feat(frontend): B2 App Router route tree` (stage `src/frontend` only).
+  - [x] 9.5 `(site)/(member)/layout.tsx` (ClientOnly + AuthGuard) with the 4 pages. `[organizationSlug]/(owner)/layout.tsx`: a placeholder server layout (ServerThemeProvider comes in C1). Add the owner page, items/meetings/terms, the `product` → `/${organizationSlug}` redirect, and `product/[id]/layout.tsx` (OrganizerItemLayout providing `OrganizerItemContext` around `children`) with its index and `edit` redirect. Add the event and term pages. Do not add `group/[groupId]` (D11 → 404).
+  - [x] 9.6 `(standalone)/layout.tsx` (ClientOnly + AuthGuard, no chrome) with onboarding, organization and `oauth2/authorize`. `admin/layout.tsx` (ClientOnly + **AuthGuard only** + PluginProvider + AppShell), the `admin/page.tsx` redirect, and 15 admin pages including `plugins/[pluginId]/[[...path]]`.
+  - [x] 9.7 Replace the route-table imports in `addRoute.test.tsx`, `messagesRoutes.test.tsx` and `EventPage.test.tsx` with manifest assertions. The executor records each replaced test id in the work-log as a documented replacement.
+  - [x] 9.8 Run the 9.1 tests, then gate: G-NB, G-VT (Vite still runs the app; ⊇ A0 minus documented replacements), G-TSC `tsc -b`, G-ESL.
+  - [~] 9.9 SKIPPED (user: no commits): Commit C8 `feat(frontend): B2 App Router route tree` (stage `src/frontend` only).
 
 **Checkpoint gate:** G-NB, the manifest and parity tests green, G-VT, G-TSC, G-ESL.
 **Rollback:** `git revert <C8>` (user-run). Revert C9+ first if they exist.
@@ -305,26 +305,26 @@ Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
 **Files to Modify:** `src/frontend/src/routing/navigation.tsx`, `src/frontend/src/test/renderWithRoute.tsx`, `src/frontend/src/test/navigationMock.ts` (new), `src/frontend/src/test/nextLinkMock.tsx` (new), `src/frontend/src/test/navigationMock.test.tsx` (new), `src/frontend/vitest.config.ts`, `src/frontend/src/router.tsx` (delete), `src/frontend/src/main.tsx` (delete), `src/frontend/index.html` (delete), `src/frontend/src/vite-env.d.ts` (delete), `src/frontend/vite.config.ts` (delete), `src/frontend/package.json`, `src/frontend/package-lock.json`, `src/frontend/eslint.config.js`, `src/frontend/src/lib/googleMaps.ts`, `src/frontend/src/test/{orgPalette,googleMaps,LocationPicker,PlacesView}.test.ts(x)`, `src/frontend/src/resources/static/assets/plugin-sdk.js` (delete, if present), `package.json` (repo root)
 **Estimated Steps:** 9
 
-- [ ] 10.0 Run the app on Next with feature code unchanged (R10, R16, R20, R21)
-  - [ ] 10.1 Write 2–4 tests in `src/test/navigationMock.test.tsx`: push/replace/back update the URL store and are recorded; `useParams` comes from the `pattern`; `redirect`/`notFound` throw sentinels; the core keeps working after `vi.resetAllMocks()`.
-  - [ ] 10.2 Re-implement `routing/navigation.tsx` on `next/navigation` (`useRouter`, `usePathname`, `useSearchParams`, `useParams`) and `next/link`, keeping the public API identical. Search-param updates use `router.replace/push(url, { scroll: false })`, and `useRouterRefresh` → `router.refresh()`.
-  - [ ] 10.3 Create `test/navigationMock.ts` (URL store via `useSyncExternalStore`, recorded calls, sentinels, plain functions) and `test/nextLinkMock.tsx`. In `vitest.config.ts`, add `resolve.alias` from `next/navigation` and `next/link` to the mocks. Switch `renderWithRoute` to the mock: it renders the matching `routes` entry for the current mock pathname. Test files are unchanged.
-  - [ ] 10.4 Delete `router.tsx`, `main.tsx`, `index.html`, `vite-env.d.ts`, `vite.config.ts`, and the `react-router-dom`, `@tailwindcss/vite` and `eslint-plugin-react-refresh` deps. Keep `vite` + `@vitejs/plugin-react` for Vitest and the SDK. Delete the stale `src/resources/static/assets/plugin-sdk.js` if present.
-  - [ ] 10.5 Scripts:
+- [x] 10.0 Run the app on Next with feature code unchanged (R10, R16, R20, R21)
+  - [x] 10.1 Write 2–4 tests in `src/test/navigationMock.test.tsx`: push/replace/back update the URL store and are recorded; `useParams` comes from the `pattern`; `redirect`/`notFound` throw sentinels; the core keeps working after `vi.resetAllMocks()`.
+  - [x] 10.2 Re-implement `routing/navigation.tsx` on `next/navigation` (`useRouter`, `usePathname`, `useSearchParams`, `useParams`) and `next/link`, keeping the public API identical. Search-param updates use `router.replace/push(url, { scroll: false })`, and `useRouterRefresh` → `router.refresh()`.
+  - [x] 10.3 Create `test/navigationMock.ts` (URL store via `useSyncExternalStore`, recorded calls, sentinels, plain functions) and `test/nextLinkMock.tsx`. In `vitest.config.ts`, add `resolve.alias` from `next/navigation` and `next/link` to the mocks. Switch `renderWithRoute` to the mock: it renders the matching `routes` entry for the current mock pathname. Test files are unchanged.
+  - [x] 10.4 Delete `router.tsx`, `main.tsx`, `index.html`, `vite-env.d.ts`, `vite.config.ts`, and the `react-router-dom`, `@tailwindcss/vite` and `eslint-plugin-react-refresh` deps. Keep `vite` + `@vitejs/plugin-react` for Vitest and the SDK. Delete the stale `src/resources/static/assets/plugin-sdk.js` if present.
+  - [x] 10.5 Scripts:
     - `dev` = `next dev -p 5173`, `build` = `next build`, `start` = `next start -p 5173`;
     - `predev`/`prebuild` = `npm run build:sdk` (IIFE into `public/assets/plugin-sdk.js`);
     - `typecheck` = `tsc --noEmit`, `lint` = `eslint .`;
     - drop `preview`;
     - update the repo-root `web`/`dev:all`.
-  - [ ] 10.6 Env and CSS:
+  - [x] 10.6 Env and CSS:
     - `lib/googleMaps.ts` reads `process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY` (static reference);
     - `vi.stubEnv` uses the new name in its 3 tests;
     - `orgPalette.test.ts` reads `src/app/globals.css`;
     - delete `src/index.css`;
     - grep shows no `import.meta.env` left.
     Never print env values.
-  - [ ] 10.7 ESLint: `no-restricted-imports` for `next/navigation`/`next/link` outside `src/routing/**` and the test mocks. `react-router-dom` is now banned everywhere.
-  - [ ] 10.8 Gate:
+  - [x] 10.7 ESLint: `no-restricted-imports` for `next/navigation`/`next/link` outside `src/routing/**` and the test mocks. `react-router-dom` is now banned everywhere.
+  - [x] 10.8 Gate:
     - G-VT ⊇ A0 (documented replacements only);
     - G-TSC `tsc --noEmit`;
     - G-NB;
@@ -332,7 +332,7 @@ Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
     - `npm run dev` serves `/` on 5173 (HTTP 200 via `curl -s -o /dev/null -w "%{http_code}"`);
     - `/assets/plugin-sdk.js` returns 200.
     Stop the dev server afterwards.
-  - [ ] 10.9 Commit C9 `refactor(frontend): B3 switch to Next, drop Vite entry` (stage `src/frontend` + root `package.json` only).
+  - [~] 10.9 SKIPPED (user: no commits): Commit C9 `refactor(frontend): B3 switch to Next, drop Vite entry` (stage `src/frontend` + root `package.json` only).
 
 **Checkpoint gate:** G-VT, G-TSC (`--noEmit`), G-NB, G-ESL, the dev server serving `/` and the SDK on 5173, no `react-router-dom`/`import.meta.env`, no `src/pages`.
 **Rollback:** `git revert <C9>` (user-run), then `npm ci`. Back to Vite + RR with the scaffold present. Requires reverting C10+ first.
@@ -348,8 +348,8 @@ Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
 **Files to Modify:** `src/frontend/src/proxy.ts` (new), `src/frontend/src/test/proxy.test.ts` (new)
 **Estimated Steps:** 6
 
-- [ ] 11.0 Add the rewrite, redirect and gate before render (R11)
-  - [ ] 11.1 Write 6–8 tests in `src/test/proxy.test.ts` against the exported pure function:
+- [x] 11.0 Add the rewrite, redirect and gate before render (R11)
+  - [x] 11.1 Write 6–8 tests in `src/test/proxy.test.ts` against the exported pure function:
     - `/home` → 307 `/` with the search kept;
     - `/` + cookie → rewrite `/home`;
     - `/` without a cookie → next;
@@ -358,16 +358,16 @@ Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
     - `/add` is not gated and `/add/product` is;
     - segment boundary (`/groupsx` not gated);
     - the matcher regex excludes `/api/…`, `/_next/…`, `/assets/…`, `/.well-known/…`, `favicon.svg` and `icons.svg`.
-  - [ ] 11.2 Implement `src/proxy.ts` with the spec §8 rules in order, as a cookie-presence check only (no JWT verification). It uses `PROTECTED_PREFIXES` from `routing/paths.ts` and `authPath` from `auth/authPaths.ts`.
-  - [ ] 11.3 Matcher: `/((?!api/|_next/|assets/|\.well-known/|favicon\.svg|icons\.svg).*)`. `BACKEND_INTERNAL_URL` is server-only, with dev default `http://localhost:8080`.
-  - [ ] 11.4 Run the 11.1 tests, then G-VT, G-TSC `--noEmit`, G-NB, G-ESL.
-  - [ ] 11.5 Manual checks with `next dev -p 5173` and `curl -I`:
+  - [x] 11.2 Implement `src/proxy.ts` with the spec §8 rules in order, as a cookie-presence check only (no JWT verification). It uses `PROTECTED_PREFIXES` from `routing/paths.ts` and `authPath` from `auth/authPaths.ts`.
+  - [x] 11.3 Matcher: `/((?!api/|_next/|assets/|\.well-known/|favicon\.svg|icons\.svg).*)`. `BACKEND_INTERNAL_URL` is server-only, with dev default `http://localhost:8080`.
+  - [x] 11.4 Run the 11.1 tests, then G-VT, G-TSC `--noEmit`, G-NB, G-ESL.
+  - [x] 11.5 Manual checks with `next dev -p 5173` and `curl -I`:
     - `/home` → 307 `/`;
     - `/meetings` without a cookie → 307 to `/login?returnTo=%2Fmeetings`;
     - `/` with a dummy cookie returns 200;
     - `/api/health` is not intercepted.
     Stop the server afterwards.
-  - [ ] 11.6 Commit C10 `feat(frontend): B4 proxy.ts` (stage `src/frontend` only).
+  - [~] 11.6 Commit SKIPPED (user: no commits): C10 `feat(frontend): B4 proxy.ts` (stage `src/frontend` only).
 
 **Checkpoint gate:** the proxy tests, G-VT, G-TSC, G-NB, G-ESL, and the manual curl checks.
 **Rollback:** `git revert <C10>` (user-run). Logged-in `/` then shows the landing until the client reconciles: acceptable when rolling back.
@@ -381,17 +381,17 @@ Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
 **Files to Modify:** `src/frontend/src/api/server.ts` (new), `src/frontend/src/lib/publicMetadata.ts` (new), `src/frontend/src/theme/ServerThemeProvider.tsx` (new), `src/frontend/src/theme/OrganizerThemeScope.tsx`, `src/frontend/src/app/(site)/[organizationSlug]/(owner)/{layout.tsx,page.tsx}`, `src/frontend/src/app/(site)/[organizationSlug]/event/[eventId]/page.tsx`, `src/frontend/src/app/(site)/[organizationSlug]/group/[groupId]/term/[termId]/page.tsx`, `src/frontend/src/features/{owner-page,events,terms}/**` (duplicate client `<title>` removal only), `src/frontend/src/test/publicMetadata.test.ts` (new), `src/frontend/src/test/serverTheme.test.tsx` (new)
 **Estimated Steps:** 8
 
-- [ ] 12.0 Put OG tags and the palette into the first HTML response (R12)
-  - [ ] 12.1 Write 8 tests.
+- [x] 12.0 Put OG tags and the palette into the first HTML response (R12)
+  - [x] 12.1 Write 8 tests.
     - `publicMetadata.test.ts` (6 functions, table-driven `it.each` porting the 10 kept cases from `src/backend/tests/test_public_preview.py`, expected strings copied verbatim): organization; event with location and description; event without location; term with term and description; term without term (`Dołącz i zobacz najbliższe spotkania.`); fallback (party UUID / reserved / not found / invalid UUID / null data → default, no OG), plus escaping/backslash values passed through unchanged; twitter `summary_large_image` vs `summary`.
     - `serverTheme.test.tsx` (2): initial CSS vars come from `resolveOrgTheme`; live `theme` overrides `initialTheme`.
-  - [ ] 12.2 `api/server.ts` (`import "server-only"`): `serverGet<T>(path)` = `fetch(BACKEND_INTERNAL_URL + "/api" + path, { cache: "no-store" })`. It is anonymous, returns `null` on error or non-2xx, and is wrapped in React `cache()`.
-  - [ ] 12.3 `lib/publicMetadata.ts`: pure DTO → `Metadata` ports of the three formatters (spec §9). Event weekdays are `pon, wt, śr, czw, pt, sob, ndz`, taken from the naive `starts_at` with no TZ conversion (time.md).
-  - [ ] 12.4 `generateMetadata` in `(owner)/page.tsx` (skipped for UUID/party slugs and `krag`), the event page and the term page. Remove a duplicate client `<title>` only where the server now sets the same title.
-  - [ ] 12.5 `theme/ServerThemeProvider.tsx`: a context with the initial `OrganizerTheme`, plus a `display: contents` wrapper with inline CSS vars. `OrganizerThemeScope` uses `theme ?? initialTheme`. Wire it into `(owner)/layout.tsx` (org response; best effort, never `notFound`), the event page (`event.organization`) and the term page (`circle.organization`). There is no provider for `krag`, UUID or a missing org.
-  - [ ] 12.6 Run the 12.1 tests, then G-VT, G-TSC `--noEmit`, G-NB, G-ESL.
-  - [ ] 12.7 With the backend on 8080 and `next dev -p 5173`, run `curl -s -A facebookexternalhit http://localhost:5173/<org-slug>` (also the event and term URLs from dev data). `og:title`, `og:description` and the image tags must be present. Record the output in `verification/gates/og-C11.txt`, with tokens stripped and no secrets.
-  - [ ] 12.8 Commit C11 `feat(frontend): C1 server metadata + palette` (stage `src/frontend` only).
+  - [x] 12.2 `api/server.ts` (`import "server-only"`): `serverGet<T>(path)` = `fetch(BACKEND_INTERNAL_URL + "/api" + path, { cache: "no-store" })`. It is anonymous, returns `null` on error or non-2xx, and is wrapped in React `cache()`.
+  - [x] 12.3 `lib/publicMetadata.ts`: pure DTO → `Metadata` ports of the three formatters (spec §9). Event weekdays are `pon, wt, śr, czw, pt, sob, ndz`, taken from the naive `starts_at` with no TZ conversion (time.md).
+  - [x] 12.4 `generateMetadata` in `(owner)/page.tsx` (skipped for UUID/party slugs and `krag`), the event page and the term page. Remove a duplicate client `<title>` only where the server now sets the same title.
+  - [x] 12.5 `theme/ServerThemeProvider.tsx`: a context with the initial `OrganizerTheme`, plus a `display: contents` wrapper with inline CSS vars. `OrganizerThemeScope` uses `theme ?? initialTheme`. Wire it into `(owner)/layout.tsx` (org response; best effort, never `notFound`), the event page (`event.organization`) and the term page (`circle.organization`). There is no provider for `krag`, UUID or a missing org.
+  - [x] 12.6 Run the 12.1 tests, then G-VT, G-TSC `--noEmit`, G-NB, G-ESL.
+  - [x] 12.7 With the backend on 8080 and `next dev -p 5173`, run `curl -s -A facebookexternalhit http://localhost:5173/<org-slug>` (also the event and term URLs from dev data). `og:title`, `og:description` and the image tags must be present. Record the output in `verification/gates/og-C11.txt`, with tokens stripped and no secrets.
+  - [~] 12.8 SKIPPED (user: no commits): Commit C11 `feat(frontend): C1 server metadata + palette` (stage `src/frontend` only).
 
 **Checkpoint gate:** 8 new tests, G-VT (the `test_public_preview.py` → Vitest port documented), G-TSC, G-NB, G-ESL, and the curl OG check on 3 page kinds.
 **Rollback:** `git revert <C11>` (user-run). Revert C12 first, or together with it, otherwise OG tags are lost entirely.
@@ -408,13 +408,13 @@ Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
 **Files to Modify:** `src/backend/app/system/public_preview.py` (delete), `src/backend/app/system/router.py`, `src/backend/app/main.py` (static mount / docstrings, if referenced), `src/backend/tests/test_public_preview.py` (delete), `src/backend/tests/test_unknown_page_404.py` (new; or added to the existing system-router test file), `src/backend/app/core/authorization_matrix.py` (docstring/comment only, if it mentions the fallback)
 **Estimated Steps:** 6
 
-- [ ] 13.0 Stop serving HTML from the backend (R13)
-  - [ ] 13.1 Write 1 test: `GET /some-page` → 404 with the existing JSON envelope (`error == "Not Found"`).
-  - [ ] 13.2 Delete `app/system/public_preview.py`, the four preview routes, `spa_fallback`, `STATIC_DIR`/`INDEX_HTML` (`app/system/router.py:65–183`) and `tests/test_public_preview.py` (11 tests: 10 ported in C11, the circle-without-term case dropped per D11). Keep `GET /api/health`.
-  - [ ] 13.3 Re-check `AUTHORIZATION_MATRIX`: no row references the removed routes, and the `^.*$` catch-all row stays. The executor records this in the work-log. Update module docstrings that mention the SPA fallback.
-  - [ ] 13.4 Remove any static-file mount of `/app/static` in `app/main.py` if present (grep `StaticFiles`, `static`).
-  - [ ] 13.5 Run G-PY (no new failures; −11 deleted tests documented), G-RUFF, G-MYPY ≤ 15.
-  - [ ] 13.6 Commit C12 `refactor(backend): C2 remove OG injection + SPA fallback` (stage `src/backend` only).
+- [x] 13.0 Stop serving HTML from the backend (R13)
+  - [x] 13.1 Write 1 test: `GET /some-page` → 404 with the existing JSON envelope (`error == "Not Found"`).
+  - [x] 13.2 Delete `app/system/public_preview.py`, the four preview routes, `spa_fallback`, `STATIC_DIR`/`INDEX_HTML` (`app/system/router.py:65–183`) and `tests/test_public_preview.py` (11 tests: 10 ported in C11, the circle-without-term case dropped per D11). Keep `GET /api/health`.
+  - [x] 13.3 Re-check `AUTHORIZATION_MATRIX`: no row references the removed routes, and the `^.*$` catch-all row stays. The executor records this in the work-log. Update module docstrings that mention the SPA fallback.
+  - [x] 13.4 Remove any static-file mount of `/app/static` in `app/main.py` if present (grep `StaticFiles`, `static`).
+  - [x] 13.5 Run G-PY (no new failures; −11 deleted tests documented), G-RUFF, G-MYPY ≤ 15.
+  - [~] 13.6 SKIPPED (user: no commits): Commit C12 `refactor(backend): C2 remove OG injection + SPA fallback` (stage `src/backend` only).
 
 **Checkpoint gate:** G-PY, G-RUFF, G-MYPY ≤ 15, and the 404 test green.
 **Rollback:** `git revert <C12>` (user-run, independent). This restores the preview routes and fallback, which are harmless while nginx routes pages to Next. If C6 is reverted too, revert C12 first.
@@ -428,28 +428,28 @@ Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
 **Files to Modify:** `src/frontend/Dockerfile`, `src/frontend/nginx.conf`, `docker-compose.yml`, `.env.example`, `.claude/launch.json`, `src/frontend/next.config.ts` (only if `outputFileTracingRoot` is needed)
 **Estimated Steps:** 7
 
-- [ ] 14.0 Run Next standalone behind nginx (R14)
-  - [ ] 14.1 No new tests (infrastructure). Verification is `docker compose build` and the compose smoke item 16, prepared in group 17.
-  - [ ] 14.2 Dockerfile (context = repo root):
+- [x] 14.0 Run Next standalone behind nginx (R14)
+  - [x] 14.1 No new tests (infrastructure). Verification is `docker compose build` and the compose smoke item 16, prepared in group 17.
+  - [x] 14.2 Dockerfile (context = repo root):
     - `deps` stage: `npm ci`;
     - `build` stage: ARG `NEXT_PUBLIC_GOOGLE_MAPS_API_KEY`, `npm run build` (includes the SDK);
     - `runner` stage, node:22-alpine: copy `.next/standalone`, `.next/static`, `public`; `ENV PORT=3000 HOSTNAME=0.0.0.0 TZ=Europe/Warsaw`; `CMD node server.js`.
     Set `outputFileTracingRoot` if the standalone tree nests wrongly.
-  - [ ] 14.3 nginx.conf:
+  - [x] 14.3 nginx.conf:
     - `/api/` → backend (`client_max_body_size 16m`);
     - `= /oauth2/authorize` → `web:3000`;
     - `/oauth2/` → backend;
     - `/.well-known/` → backend;
     - `/` → `web:3000`.
     All forward `Host`, `X-Forwarded-For` and `X-Forwarded-Proto`. Remove `@backend_fallback`.
-  - [ ] 14.4 docker-compose.yml:
+  - [x] 14.4 docker-compose.yml:
     - delete `frontend-build`, the `frontend_index` volume, the backend `/app/static` mount and the related `depends_on`;
     - add `web` (`BACKEND_INTERNAL_URL=http://backend:8080`);
     - rename the build arg to `NEXT_PUBLIC_GOOGLE_MAPS_API_KEY`;
     - keep the CORS default `http://localhost:5173`.
-  - [ ] 14.5 `.env.example`: placeholder rename only. In the user's local `.env` files, check by presence (e.g. `grep -c '^NEXT_PUBLIC_GOOGLE_MAPS_API_KEY=' .env`) and report whether the rename is still pending. Never print or copy values. Edit a `.env` only if the user approves, and never echo it.
-  - [ ] 14.6 `.claude/launch.json`: check that the frontend entry runs `npm run dev` on 5173. The plugins keep `http://localhost:5173/assets/...`.
-  - [ ] 14.7 Gate: `docker compose build` succeeds (build logs filtered: no `--progress=plain` dump of build args). G-VT and G-NB still green. The C13 commit happens in group 17.
+  - [x] 14.5 `.env.example`: placeholder rename only. In the user's local `.env` files, check by presence (e.g. `grep -c '^NEXT_PUBLIC_GOOGLE_MAPS_API_KEY=' .env`) and report whether the rename is still pending. Never print or copy values. Edit a `.env` only if the user approves, and never echo it.
+  - [x] 14.6 `.claude/launch.json`: check that the frontend entry runs `npm run dev` on 5173. The plugins keep `http://localhost:5173/assets/...`.
+  - [~] 14.7 Gate: `docker compose build` succeeds (build logs filtered: no `--progress=plain` dump of build args). G-VT and G-NB still green. The C13 commit SKIPPED (user: no commits) happens in group 17.
 
 **Checkpoint gate (C13, part 1):** `docker compose build` succeeds; G-NB.
 **Rollback:** part of C13: `git revert <C13>` (user-run). A partial revert of the deploy files alone on top of C9+ leaves compose pointing at the removed Vite `dist/index.html`. Revert the whole of C13.
@@ -465,13 +465,13 @@ Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
 **Files to Modify:** `.maister/docs/project/tech-stack.md`, `.maister/docs/project/architecture.md`, `.maister/docs/standards/frontend/components.md`, `.maister/docs/standards/frontend/accessibility.md`, `.maister/docs/standards/frontend/data-fetching.md`, `.maister/docs/standards/testing/frontend-testing.md`, `.maister/docs/standards/backend/security.md`, `.maister/docs/standards/backend/plugin-auth.md`, `plugins/CLAUDE.md`, `.maister/docs/INDEX.md`
 **Estimated Steps:** 6
 
-- [ ] 15.0 Update project docs and standards per spec §11 (R15)
-  - [ ] 15.1 No new tests (docs). Check with grep that `pages/` paths, `MemoryRouter`, `main.tsx`, `import.meta.env` and `VITE_GOOGLE_MAPS_API_KEY` no longer appear in the standards except as historical notes.
-  - [ ] 15.2 `tech-stack.md`: frontend section covering Next 16.4, Turbopack, scripts, env var and the SDK build. `architecture.md`: deploy topology (nginx → web/backend), OG via `generateMetadata`, `proxy.ts`, the cookie, ports (fix the 5173 vs 5174 line), and that the backend no longer serves HTML.
-  - [ ] 15.3 `components.md`, `accessibility.md`: `pages/...` paths → `features/...`, and the facade rule (router APIs only via `src/routing/`). `data-fetching.md`: `getQueryClient()`, `providers.tsx`, and server fetches only through `api/server.ts` (anonymous, `no-store`).
-  - [ ] 15.4 `frontend-testing.md`: `renderWithRoute`, `getTestLocation`, navigation-mock aliasing, `tsc --noEmit` (replaces the per-file MemoryRouter `renderWithProviders`). `security.md`: cookie accepted on GET/HEAD only, `Vary: Authorization, Cookie`.
-  - [ ] 15.5 `plugin-auth.md`, `plugins/CLAUDE.md`: the host runs on Next; SDK path and port unchanged.
-  - [ ] 15.6 Refresh the `INDEX.md` summaries for every changed file. The C13 commit happens in group 17.
+- [x] 15.0 Update project docs and standards per spec §11 (R15)
+  - [x] 15.1 No new tests (docs). Check with grep that `pages/` paths, `MemoryRouter`, `main.tsx`, `import.meta.env` and `VITE_GOOGLE_MAPS_API_KEY` no longer appear in the standards except as historical notes.
+  - [x] 15.2 `tech-stack.md`: frontend section covering Next 16.4, Turbopack, scripts, env var and the SDK build. `architecture.md`: deploy topology (nginx → web/backend), OG via `generateMetadata`, `proxy.ts`, the cookie, ports (fix the 5173 vs 5174 line), and that the backend no longer serves HTML.
+  - [x] 15.3 `components.md`, `accessibility.md`: `pages/...` paths → `features/...`, and the facade rule (router APIs only via `src/routing/`). `data-fetching.md`: `getQueryClient()`, `providers.tsx`, and server fetches only through `api/server.ts` (anonymous, `no-store`).
+  - [x] 15.4 `frontend-testing.md`: `renderWithRoute`, `getTestLocation`, navigation-mock aliasing, `tsc --noEmit` (replaces the per-file MemoryRouter `renderWithProviders`). `security.md`: cookie accepted on GET/HEAD only, `Vary: Authorization, Cookie`.
+  - [x] 15.5 `plugin-auth.md`, `plugins/CLAUDE.md`: the host runs on Next; SDK path and port unchanged.
+  - [x] 15.6 Refresh the `INDEX.md` summaries for every changed file. The C13 commit happens in group 17.
 
 **Checkpoint gate (C13, part 2):** the grep check in 15.1; INDEX.md consistent with the changed files.
 **Rollback:** part of C13 (`git revert <C13>`, user-run). Docs only, no runtime impact.
@@ -485,11 +485,11 @@ Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
 **Files to Modify:** `src/frontend/src/test/*.test.ts(x)` (new gap tests only), `src/backend/tests/test_*.py` (new gap tests only)
 **Estimated Steps:** 4
 
-- [ ] 16.0 Review and fill critical gaps
-  - [ ] 16.1 Review the tests added in groups 4–7 and 9–13 (40–54 tests) against R1–R21.
-  - [ ] 16.2 Find the gaps for THIS migration only. Candidates: panel layout stale-cookie → `clearSession` + landing; `useAppPathname` on `/home` keeps BottomNav "Start" active; `(owner)` layout never calls `notFound` on a fetch error; the `api/server.ts` `null` on non-2xx; `OrganizerItemContext` under the Next layout.
-  - [ ] 16.3 Write up to 10 additional strategic tests (frontend-testing / backend-testing standards: explicit `vitest` imports, typed fixtures, per-test QueryClient).
-  - [ ] 16.4 Run the new tests, then G-VT (and G-PY if backend tests were added). The C13 commit happens in group 17.
+- [x] 16.0 Review and fill critical gaps
+  - [x] 16.1 Review the tests added in groups 4–7 and 9–13 (40–54 tests) against R1–R21.
+  - [x] 16.2 Find the gaps for THIS migration only. Candidates: panel layout stale-cookie → `clearSession` + landing; `useAppPathname` on `/home` keeps BottomNav "Start" active; `(owner)` layout never calls `notFound` on a fetch error; the `api/server.ts` `null` on non-2xx; `OrganizerItemContext` under the Next layout.
+  - [x] 16.3 Write up to 10 additional strategic tests (frontend-testing / backend-testing standards: explicit `vitest` imports, typed fixtures, per-test QueryClient).
+  - [x] 16.4 Run the new tests, then G-VT (and G-PY if backend tests were added). The C13 commit happens in group 17.
 
 **Checkpoint gate (C13, part 3):** all feature tests green; G-VT ⊇ A0.
 **Rollback:** part of C13 (`git revert <C13>`, user-run).
@@ -503,10 +503,10 @@ Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
 **Files to Modify:** `.maister/tasks/migrations/2026-11-02-frontend-vite-to-nextjs/verification/smoke-checklist.md` (new), `.maister/tasks/migrations/2026-11-02-frontend-vite-to-nextjs/verification/smoke-run-instructions.md` (new)
 **Estimated Steps:** 6
 
-- [ ] 17.0 Prepare (not execute) the Phase 6 Playwright MCP smoke (R15)
-  - [ ] 17.1 No new tests. Self-check: the checklist has one row per spec §12 item (16) and per requirements §3.5 route.
-  - [ ] 17.2 Write `verification/smoke-checklist.md`, one row per item: id, URL/action, expected result, evidence to capture (snapshot / console / network / curl), the risk tag it covers (rewrite pathname + hydration warning (item 2), Emotion FOUC (item 13/10), OAuth2 forwarded host (item 14), 15 MB body (item 16)), and an empty pass/fail column.
-  - [ ] 17.3 Write `verification/smoke-run-instructions.md`:
+- [x] 17.0 Prepare (not execute) the Phase 6 Playwright MCP smoke (R15)
+  - [x] 17.1 No new tests. Self-check: the checklist has one row per spec §12 item (16) and per requirements §3.5 route.
+  - [x] 17.2 Write `verification/smoke-checklist.md`, one row per item: id, URL/action, expected result, evidence to capture (snapshot / console / network / curl), the risk tag it covers (rewrite pathname + hydration warning (item 2), Emotion FOUC (item 13/10), OAuth2 forwarded host (item 14), 15 MB body (item 16)), and an empty pass/fail column.
+  - [x] 17.3 Write `verification/smoke-run-instructions.md`:
     - backend on 8080 (`cd src/backend && uv run uvicorn app.main:app --host 0.0.0.0 --port 8080`, with a stale-uvicorn check on 8080);
     - frontend `cd src/frontend && npm run dev` (= `next dev -p 5173`, SDK pre-built);
     - compose items via `docker compose up` on 5174;
@@ -514,9 +514,9 @@ Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
     - how to set a stale cookie (item 4);
     - the curl OG command (item 10);
     - where to save screenshots (`verification/smoke/`).
-  - [ ] 17.4 Secrets: the instructions state presence-only env checks and forbid pasting tokens or keys into the report.
-  - [ ] 17.5 Final C13 gate, run together: G-VT ⊇ A0, G-TSC `--noEmit`, G-NB, G-ESL ≤ baseline; G-PY, G-RUFF, G-MYPY ≤ 15; `docker compose build`; spec success-criteria greps (no `react-router-dom`, no `src/pages`, no `import.meta.env`, manifest = 61).
-  - [ ] 17.6 Commit C13 `build: D deploy (Next standalone) + docs + smoke checklist`. Stage the groups 14–17 paths explicitly: `src/frontend`, `docker-compose.yml`, `.env.example`, `.claude/launch.json`, `.maister/docs`, `plugins/CLAUDE.md`, `src/backend/tests` (if gap tests were added), and this task folder. The smoke results from Phase 6 are added later to the task folder.
+  - [x] 17.4 Secrets: the instructions state presence-only env checks and forbid pasting tokens or keys into the report.
+  - [x] 17.5 Final C13 gate, run together: G-VT ⊇ A0, G-TSC `--noEmit`, G-NB, G-ESL ≤ baseline; G-PY, G-RUFF, G-MYPY ≤ 15; `docker compose build`; spec success-criteria greps (no `react-router-dom`, no `src/pages`, no `import.meta.env`, manifest = 61).
+  - [~] 17.6 SKIPPED (user: no commits): Commit C13 `build: D deploy (Next standalone) + docs + smoke checklist`. Stage the groups 14–17 paths explicitly: `src/frontend`, `docker-compose.yml`, `.env.example`, `.claude/launch.json`, `.maister/docs`, `plugins/CLAUDE.md`, `src/backend/tests` (if gap tests were added), and this task folder. The smoke results from Phase 6 are added later to the task folder.
 
 **Checkpoint gate:** the full C13 gate in 17.5.
 **Rollback:** `git revert <C13>` (user-run), then rebuild compose. Revert all of C13 rather than parts of it.

@@ -1,0 +1,17 @@
+[
+{"id":"S08a-org-anon","url":"/rodzinny-grajdolek","status":200,"final":"/rodzinny-grajdolek","redirects":[],"title":"rodzinny grajdołek","h":["rodzinny grajdołek","O nas","Galeria"],"primary":"#7a2a4f","console":[]},
+{"id":"S08b-party","url":"/da81565d-3160-4ad7-8b7a-830c14c6ca28","status":200,"final":"/da81565d-3160-4ad7-8b7a-830c14c6ca28","redirects":[],"title":"E2E Gifter","h":["E2E Gifter","Rzeczy do oddania lub zamiany"],"primary":"#1b8168 (default)","console":[]},
+{"id":"S08c-items","url":"/rodzinny-grajdolek/items","status":200,"title":"Rzeczy · rodzinny grajdołek","h":["Rzeczy: rodzinny grajdołek","Najbliższa okazja do odbioru"],"primary":"#7a2a4f","console":[]},
+{"id":"S08c-meetings","url":"/rodzinny-grajdolek/meetings","status":200,"title":"Spotkania · rodzinny grajdołek","h":["Spotkania: rodzinny grajdołek"],"primary":"#7a2a4f","console":[]},
+{"id":"S08c-terms","url":"/rodzinny-grajdolek/terms","status":200,"title":"Wszystkie terminy · rodzinny grajdołek","h":["Wszystkie terminy","środa, 4 listopada"],"primary":"#7a2a4f","console":[]},
+{"id":"S09a-event","url":"/rodzinny-grajdolek/event/0a34169f-5add-49f8-b02c-67c39ff53e91","status":200,"title":"Sp[otkanie wymianka 2026","h":["Sp[otkanie wymianka 2026","Zapisani i ich rzeczy"],"primary":"#7a2a4f","console":[]},
+{"id":"S09b-term","url":"/rodzinny-grajdolek/group/f52d882e-4778-4fa1-961c-f1bc35b91e8f/term/26db8c44-63c4-4a34-97da-a45b3d1ab6f7","status":200,"title":"Zajecia Pomelody","h":["Zajecia Pomelody","Potrzebne rzeczy","Zapisani i ich rzeczy"],"primary":"#7a2a4f","console":[]},
+{"id":"S09c-krag-term","url":"/krag/group/57df9c1e-54a6-4c42-8ef2-abb498780a19/term/b1456335-0263-4f7b-86b7-30ae5825a799","status":200,"title":"E2E Czat Publiczna 799309","primary":"#1b8168 (default)","console":[]},
+{"id":"S07a-product-anon","url":"/product/7686cb60-1f62-4e8c-9560-40976d64bfe0","status":200,"h":["Rwer BMX ver2"],"console":[]},
+{"id":"S07c-org-product-anon","url":"/rodzinny-grajdolek/product/7686cb60-1f62-4e8c-9560-40976d64bfe0","status":200,"h":["Rwer BMX ver2"],"primary":"#7a2a4f","console":[]},
+{"id":"S07d-slug-product","url":"/rodzinny-grajdolek/product","final":"/rodzinny-grajdolek","redirects":["/rodzinny-grajdolek/product"],"status":"200 after redirect","console":[]},
+{"id":"S15b-group","url":"/rodzinny-grajdolek/group/f52d882e-4778-4fa1-961c-f1bc35b91e8f","status":404,"h":["Nie znaleziono strony"],"console":["error: Failed to load resource: 404 (the document itself)"]},
+{"id":"S15a-notfound","url":"/does/not/exist","status":404,"h":["Nie znaleziono strony"],"console":["error: Failed to load resource: 404 (the document itself)"]},
+{"id":"S05c-add-anon","url":"/add","status":200,"final":"/add","h":["Co dodajesz?"],"console":[]},
+{"id":"S05e-addproduct-anon","url":"/add/product","final":"/login?returnTo=%2Fadd%2Fproduct","redirects":["/add/product"],"h":["Witaj w kręgu"],"console":[]}
+]

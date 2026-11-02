@@ -102,7 +102,7 @@ function renderPicker(props: Parameters<typeof Harness>[0], url = "/form", state
 }
 
 function stubGoogle() {
-  vi.stubEnv("VITE_GOOGLE_MAPS_API_KEY", "test-key");
+  vi.stubEnv("NEXT_PUBLIC_GOOGLE_MAPS_API_KEY", "test-key");
   vi.mocked(googleMaps.loadPlaces).mockResolvedValue(fakePlaces);
   vi.mocked(googleMaps.newSessionToken).mockImplementation(
     () => new fakePlaces.AutocompleteSessionToken(),
@@ -121,7 +121,7 @@ function stubGoogle() {
 
 beforeEach(() => {
   vi.resetAllMocks();
-  vi.stubEnv("VITE_GOOGLE_MAPS_API_KEY", "");
+  vi.stubEnv("NEXT_PUBLIC_GOOGLE_MAPS_API_KEY", "");
 });
 
 afterEach(() => {

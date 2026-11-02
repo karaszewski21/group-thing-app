@@ -109,7 +109,6 @@ export function PublicOrganizationPage() {
 
   return (
     <OrganizerThemeScope theme={editing ? editing.current.theme : organization}>
-      <title>{organization.name}</title>
       <PageFrame className={editing ? "pb-[60vh]" : ""}>
         <LayoutRenderer
           layout={resolveLayout(editing ? editing.current.pageLayout : organization.page_layout)}

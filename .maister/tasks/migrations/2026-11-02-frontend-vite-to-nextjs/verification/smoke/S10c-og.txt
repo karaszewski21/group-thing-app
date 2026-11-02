@@ -1,0 +1,22 @@
+$ og /rodzinny-grajdolek/group/f52d882e-4778-4fa1-961c-f1bc35b91e8f/term/26db8c44-63c4-4a34-97da-a45b3d1ab6f7
+<title>Zajecia Pomelody</title>
+<meta property="og:title" content="Zajecia Pomelody"/>
+<meta property="og:description" content="Najbliższy termin: 04.11.2026."/>
+<meta property="og:type" content="website"/>
+<meta name="twitter:card" content="summary"/>
+<meta name="twitter:title" content="Zajecia Pomelody"/>
+<meta name="twitter:description" content="Najbliższy termin: 04.11.2026."/>
+--color-primary:#7a2a4f
+HTTP 200
+
+$ og /rodzinny-grajdolek/group/f52d882e-4778-4fa1-961c-f1bc35b91e8f/term/53b97eb3-aa92-4351-8213-7900301ff048
+<title>Zajecia Pomelody</title>
+<meta property="og:title" content="Zajecia Pomelody"/>
+<meta property="og:description" content="Najbliższy termin: 21.10.2026. Muzyczny poranek z kołysankami"/>
+<meta property="og:type" content="website"/>
+<meta name="twitter:card" content="summary"/>
+<meta name="twitter:title" content="Zajecia Pomelody"/>
+<meta name="twitter:description" content="Najbliższy termin: 21.10.2026. Muzyczny poranek z kołysankami"/>
+--color-primary:#7a2a4f
+HTTP 200
+

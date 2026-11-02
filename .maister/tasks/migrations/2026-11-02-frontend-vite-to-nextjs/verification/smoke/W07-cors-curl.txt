@@ -1,0 +1,7 @@
+$ curl -sI -H "Origin: http://localhost:3004" http://localhost:5173/assets/plugin-sdk.js
+HTTP/1.1 200 OK
+Content-Type: application/javascript; charset=UTF-8
+Vary: Accept-Encoding
+$ curl -sI -H "Origin: http://localhost:3004" http://localhost:5173/assets/plugin-ui.css
+HTTP/1.1 200 OK
+Content-Type: text/css; charset=UTF-8

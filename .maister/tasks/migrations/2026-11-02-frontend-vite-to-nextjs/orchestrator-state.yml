@@ -5,6 +5,7 @@ orchestrator:
   - phase-2
   - phase-3
   - phase-4
+  - phase-5
   failed_phases: []
   auto_fix_attempts: {}
   options:
@@ -12,8 +13,15 @@ orchestrator:
     html_output: true
     mockup_format: html
     docs_enabled: false
+    skip_test_suite: true
+    code_review_enabled: true
+    code_review_scope: all
+    pragmatic_review_enabled: true
+    production_check_enabled: true
+    reality_check_enabled: true
+    e2e_smoke_enabled: true
   created: "2026-11-02T13:55:56Z"
-  updated: "2026-11-02T15:50:26Z"
+  updated: "2026-11-02T21:02:02Z"
   task_path: .maister/tasks/migrations/2026-11-02-frontend-vite-to-nextjs
   task_ids: {}
 task:
@@ -220,10 +228,34 @@ migration_context:
         label: Migration requirements
         html: null
     implementation:
-      summary: null
-      decisions: []
-      risks: []
-      artifacts: []
+      summary: 'All 17 groups done: the app runs on Next 16.4.4 (62 pages, proxy.ts, server metadata + palette, Emotion SSR registry, standalone deploy behind nginx); final gate green (vitest 1469, 0 regressions; pytest 1138/0; tsc 0; eslint 13; ruff 76; mypy 15). C0-C6 committed, B1-D uncommitted (user: no commits).'
+      decisions:
+      - decision: 'User: no more commits after C6; commit steps C7-C13 skipped'
+        rationale: user instruction "tylko nie commituj"
+      - decision: 62 pages instead of 61; admin/(shell) and product/[id]/(item) route groups
+        rationale: spec list sums to 62; server redirect() under a children-withholding layout becomes a 200
+      - decision: eslint-plugin-react-refresh kept
+        rationale: 13 feature files carry its disable directives; removing it = 20 errors or a feature-code diff
+      - decision: Emotion SSR registry added in C1
+        rationale: hydration mismatch observed on SSR'd (site) pages in B3
+      - decision: BACKEND_INTERNAL_URL is also a Docker build arg
+        rationale: next.config rewrites are fixed at build time
+      risks:
+      - Session crash corrupted refs/heads/main and .git/index; repaired (main -> 25c9aec), fsck clean
+      - GET /api/groups/{id}/join-code writes lazily, against the new GET-is-side-effect-free rule (cookie auth on GET)
+      - Emotion fix and /notifications + /[org] routes only checked on a production build; re-check under next dev in the smoke
+      - POST /oauth2/authorize reaches the backend with Host backend:8080; forwarded-host handling unverified end to end
+      - 'User action: rename VITE_GOOGLE_MAPS_API_KEY in root .env; rebuild the backend image before compose up'
+      artifacts:
+      - path: implementation/work-log.md
+        label: Work log
+        html: null
+      - path: verification/smoke-checklist.md
+        label: Smoke checklist (70 rows)
+        html: null
+      - path: verification/smoke-run-instructions.md
+        label: Smoke run instructions
+        html: null
     planning:
       summary: 17 task groups, 124 steps, checkpoints C0-C13 on main; per-group gates; user-run rollback.
       decisions:
@@ -257,8 +289,19 @@ external_research:
   - fetch not cached by default
   migration_guide_url: https://nextjs.org/docs/app/guides/upgrading/version-16
 verification_context:
-  last_status: null
-  issues_found: null
+  last_status: failed
+  issues_found:
+    critical: 1
+    warning: 13
+    info: 11
+    report: verification/implementation-verification.md
+    must_fix:
+    - 1 open redirect via ?returnTo= (AuthGuard.tsx:51-57, OnboardingPage.tsx:48-62)
+    - 2+3 stale cookie lands on /login and raw JWT in HTML (app/layout.tsx:13)
+    - 4 plugin SDK CORS (next.config.ts headers or plugins/events crossorigin)
+    - 7 rollback-plan.md rewrite for C6 + working tree
   fixes_applied: []
-  decisions_made: []
+  decisions_made:
+  - 'Phase 6 options: all reviews on; test suite not re-run (C13 results used); dev smoke only, compose deferred to the user'
   reverify_count: 0
+  resume_point: 'Phase 6 compiled, its exit gate NOT yet asked. On resume: fire the Phase 6 gate (show verdict, ask which issues to fix), then Phase 7.'

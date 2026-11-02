@@ -55,19 +55,19 @@ afterEach(() => {
 
 describe("googleMaps loader", () => {
   it("resolves null without a key, injects nothing and reads the env at call time", async () => {
-    vi.stubEnv("VITE_GOOGLE_MAPS_API_KEY", "");
+    vi.stubEnv("NEXT_PUBLIC_GOOGLE_MAPS_API_KEY", "");
     const maps = await loadModule();
 
     expect(maps.isGoogleMapsConfigured()).toBe(false);
     await expect(maps.loadPlaces()).resolves.toBeNull();
     expect(injectedScripts()).toHaveLength(0);
 
-    vi.stubEnv("VITE_GOOGLE_MAPS_API_KEY", "test-key");
+    vi.stubEnv("NEXT_PUBLIC_GOOGLE_MAPS_API_KEY", "test-key");
     expect(maps.isGoogleMapsConfigured()).toBe(true);
   });
 
   it("resolves null when the script fails to load and retries with a new script", async () => {
-    vi.stubEnv("VITE_GOOGLE_MAPS_API_KEY", "test-key");
+    vi.stubEnv("NEXT_PUBLIC_GOOGLE_MAPS_API_KEY", "test-key");
     const maps = await loadModule();
 
     const pending = maps.loadPlaces();
@@ -87,7 +87,7 @@ describe("googleMaps loader", () => {
   });
 
   it("a retry after the load timeout reuses the still-loading script instead of adding a second one", async () => {
-    vi.stubEnv("VITE_GOOGLE_MAPS_API_KEY", "test-key");
+    vi.stubEnv("NEXT_PUBLIC_GOOGLE_MAPS_API_KEY", "test-key");
     vi.useFakeTimers();
     try {
       const { fakePlaces } = makeFakePlaces();
@@ -113,7 +113,7 @@ describe("googleMaps loader", () => {
   });
 
   it("replaces a script that loaded without defining importLibrary instead of reusing it", async () => {
-    vi.stubEnv("VITE_GOOGLE_MAPS_API_KEY", "test-key");
+    vi.stubEnv("NEXT_PUBLIC_GOOGLE_MAPS_API_KEY", "test-key");
     const { fakePlaces } = makeFakePlaces();
     const importLibrary = vi.fn(async (name: string) => (name === "places" ? fakePlaces : {}));
     const maps = await loadModule();
@@ -138,7 +138,7 @@ describe("googleMaps loader", () => {
   });
 
   it("imports the places library once across calls", async () => {
-    vi.stubEnv("VITE_GOOGLE_MAPS_API_KEY", "test-key");
+    vi.stubEnv("NEXT_PUBLIC_GOOGLE_MAPS_API_KEY", "test-key");
     const { fakePlaces } = makeFakePlaces();
     const importLibrary = vi.fn(async (name: string) => (name === "places" ? fakePlaces : {}));
     const maps = await loadModule();

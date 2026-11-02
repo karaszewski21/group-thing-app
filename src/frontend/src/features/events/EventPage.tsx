@@ -1,3 +1,5 @@
+"use client";
+
 import { useEffect, type ReactNode } from "react";
 import { useAppNavigate, useAppParams, useNavigationState } from "../../routing/navigation";
 import type { EventDetailResponse } from "../../api/events";

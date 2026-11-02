@@ -1,0 +1,6 @@
+{"client":"public client d151a858-5456-468d-92d6-fe6bc44c385b registered via POST :5173/oauth2/register (201; client_secret key present in the response, value never printed)",
+"pkce":"S256 pair generated in the page (crypto.subtle), never printed",
+"S14a_anon":{"GET /oauth2/authorize?...&state=smoke1":"307 -> /login?returnTo=/oauth2/authorize?response_type=code&cli...","landed_h1":"Witaj w kręgu"},
+"S14b_consent_after_login":{"path":"/oauth2/authorize","text":"Smoke client wants to access your account. Permissions requested: Read data (always required), Edit data. Cancel / Allow","form":"POST /oauth2/authorize","backend":"GET /api/oauth2/client-info?client_id=... 200"},
+"S14c_approve":{"POST /oauth2/authorize (host localhost:5173)":302,"Location":"http://localhost:9999/callback?code=<masked,present>&state=smoke1","browser":"navigation to :9999 failed as expected, code present, state=smoke1"},
+"S14d_token":{"POST /oauth2/token":200,"keys":["access_token","token_type","expires_in","refresh_token","scope"]}}

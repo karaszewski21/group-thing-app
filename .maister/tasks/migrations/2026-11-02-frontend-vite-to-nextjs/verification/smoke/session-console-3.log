@@ -1,0 +1,163 @@
+[     161ms] [INFO] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold @ http://localhost:5173/_next/static/chunks/node_modules_next_dist_05y3oi5z9mc_3._.js:760
+[     189ms] [LOG] [HMR] connected @ http://localhost:5173/_next/static/chunks/node_modules_next_dist_05y3oi5z9mc_3._.js:760
+[   36725ms] [INFO] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold @ http://localhost:5173/_next/static/chunks/node_modules_next_dist_05y3oi5z9mc_3._.js:760
+[   36751ms] [LOG] [HMR] connected @ http://localhost:5173/_next/static/chunks/node_modules_next_dist_05y3oi5z9mc_3._.js:760
+[   38407ms] [ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://localhost:5173/api/organizations/mine:0
+[   38446ms] [ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://localhost:5173/api/organizations/mine:0
+[   76332ms] [INFO] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold @ http://localhost:5173/_next/static/chunks/node_modules_next_dist_05y3oi5z9mc_3._.js:760
+[   76368ms] [LOG] [HMR] connected @ http://localhost:5173/_next/static/chunks/node_modules_next_dist_05y3oi5z9mc_3._.js:760
+[   77749ms] [ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://localhost:5173/api/organizations/mine:0
+[   77776ms] [ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://localhost:5173/api/organizations/mine:0
+[   98591ms] [INFO] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold @ http://localhost:5173/_next/static/chunks/node_modules_next_dist_05y3oi5z9mc_3._.js:760
+[   98659ms] [LOG] [HMR] connected @ http://localhost:5173/_next/static/chunks/node_modules_next_dist_05y3oi5z9mc_3._.js:760
+[   98946ms] [ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://localhost:5173/api/organizations/mine:0
+[   98974ms] [ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://localhost:5173/api/organizations/mine:0
+[  100824ms] [INFO] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold @ http://localhost:5173/_next/static/chunks/node_modules_next_dist_05y3oi5z9mc_3._.js:760
+[  100857ms] [LOG] [HMR] connected @ http://localhost:5173/_next/static/chunks/node_modules_next_dist_05y3oi5z9mc_3._.js:760
+[  101159ms] [ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://localhost:5173/api/organizations/mine:0
+[  101184ms] [ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://localhost:5173/api/organizations/mine:0
+[  102854ms] [INFO] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold @ http://localhost:5173/_next/static/chunks/node_modules_next_dist_05y3oi5z9mc_3._.js:760
+[  102976ms] [LOG] [HMR] connected @ http://localhost:5173/_next/static/chunks/node_modules_next_dist_05y3oi5z9mc_3._.js:760
+[  103204ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:5173/_next/static/chunks/node_modules_next_dist_05y3oi5z9mc_3._.js:760
+[  103291ms] [ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://localhost:5173/api/organizations/mine:0
+[  103316ms] [ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://localhost:5173/api/organizations/mine:0
+[  103502ms] [LOG] [Fast Refresh] done in 409ms @ http://localhost:5173/_next/static/chunks/node_modules_next_dist_05y3oi5z9mc_3._.js:760
+[  106592ms] [INFO] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold @ http://localhost:5173/_next/static/chunks/node_modules_next_dist_05y3oi5z9mc_3._.js:760
+[  106625ms] [LOG] [HMR] connected @ http://localhost:5173/_next/static/chunks/node_modules_next_dist_05y3oi5z9mc_3._.js:760
+[  106960ms] [ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://localhost:5173/api/organizations/mine:0
+[  106992ms] [ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://localhost:5173/api/organizations/mine:0
+[  141898ms] [INFO] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold @ http://localhost:5173/_next/static/chunks/node_modules_next_dist_05y3oi5z9mc_3._.js:760
+[  141973ms] [LOG] [HMR] connected @ http://localhost:5173/_next/static/chunks/node_modules_next_dist_05y3oi5z9mc_3._.js:760
+[  142260ms] [ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://localhost:5173/api/organizations/mine:0
+[  142286ms] [ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://localhost:5173/api/organizations/mine:0
+[  147829ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:5173/_next/static/chunks/node_modules_next_dist_05y3oi5z9mc_3._.js:760
+[  148394ms] [LOG] [Fast Refresh] done in 671ms @ http://localhost:5173/_next/static/chunks/node_modules_next_dist_05y3oi5z9mc_3._.js:760
+[  151048ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:5173/_next/static/chunks/node_modules_next_dist_05y3oi5z9mc_3._.js:760
+[  151439ms] [LOG] [Fast Refresh] done in 494ms @ http://localhost:5173/_next/static/chunks/node_modules_next_dist_05y3oi5z9mc_3._.js:760
+[  152672ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:5173/_next/static/chunks/node_modules_next_dist_05y3oi5z9mc_3._.js:760
+[  153108ms] [LOG] [Fast Refresh] done in 544ms @ http://localhost:5173/_next/static/chunks/node_modules_next_dist_05y3oi5z9mc_3._.js:760
+[  153328ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:5173/_next/static/chunks/node_modules_next_dist_05y3oi5z9mc_3._.js:760
+[  153364ms] [LOG] [Fast Refresh] done in 142ms @ http://localhost:5173/_next/static/chunks/node_modules_next_dist_05y3oi5z9mc_3._.js:760
+[  154282ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:5173/_next/static/chunks/node_modules_next_dist_05y3oi5z9mc_3._.js:760
+[  154645ms] [LOG] [Fast Refresh] done in 467ms @ http://localhost:5173/_next/static/chunks/node_modules_next_dist_05y3oi5z9mc_3._.js:760
+[  155891ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:5173/_next/static/chunks/node_modules_next_dist_05y3oi5z9mc_3._.js:760
+[  156395ms] [LOG] [Fast Refresh] done in 608ms @ http://localhost:5173/_next/static/chunks/node_modules_next_dist_05y3oi5z9mc_3._.js:760
+[  156605ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:5173/_next/static/chunks/node_modules_next_dist_05y3oi5z9mc_3._.js:760
+[  156627ms] [LOG] [Fast Refresh] done in 124ms @ http://localhost:5173/_next/static/chunks/node_modules_next_dist_05y3oi5z9mc_3._.js:760
+[  157499ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:5173/_next/static/chunks/node_modules_next_dist_05y3oi5z9mc_3._.js:760
+[  157957ms] [LOG] [Fast Refresh] done in 563ms @ http://localhost:5173/_next/static/chunks/node_modules_next_dist_05y3oi5z9mc_3._.js:760
+[  159111ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:5173/_next/static/chunks/node_modules_next_dist_05y3oi5z9mc_3._.js:760
+[  159457ms] [LOG] [Fast Refresh] done in 454ms @ http://localhost:5173/_next/static/chunks/node_modules_next_dist_05y3oi5z9mc_3._.js:760
+[  160719ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:5173/_next/static/chunks/node_modules_next_dist_05y3oi5z9mc_3._.js:760
+[  161002ms] [LOG] [Fast Refresh] done in 391ms @ http://localhost:5173/_next/static/chunks/node_modules_next_dist_05y3oi5z9mc_3._.js:760
+[  162317ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:5173/_next/static/chunks/node_modules_next_dist_05y3oi5z9mc_3._.js:760
+[  162785ms] [LOG] [Fast Refresh] done in 568ms @ http://localhost:5173/_next/static/chunks/node_modules_next_dist_05y3oi5z9mc_3._.js:760
+[  163876ms] [ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://localhost:5173/api/organizations/mine:0
+[  167157ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:5173/_next/static/chunks/node_modules_next_dist_05y3oi5z9mc_3._.js:760
+[  167488ms] [LOG] [Fast Refresh] done in 436ms @ http://localhost:5173/_next/static/chunks/node_modules_next_dist_05y3oi5z9mc_3._.js:760
+[  170377ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:5173/_next/static/chunks/node_modules_next_dist_05y3oi5z9mc_3._.js:760
+[  170691ms] [LOG] [Fast Refresh] done in 419ms @ http://localhost:5173/_next/static/chunks/node_modules_next_dist_05y3oi5z9mc_3._.js:760
+[  171986ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:5173/_next/static/chunks/node_modules_next_dist_05y3oi5z9mc_3._.js:760
+[  172319ms] [LOG] [Fast Refresh] done in 439ms @ http://localhost:5173/_next/static/chunks/node_modules_next_dist_05y3oi5z9mc_3._.js:760
+[  173595ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:5173/_next/static/chunks/node_modules_next_dist_05y3oi5z9mc_3._.js:760
+[  173935ms] [LOG] [Fast Refresh] done in 450ms @ http://localhost:5173/_next/static/chunks/node_modules_next_dist_05y3oi5z9mc_3._.js:760
+[  175205ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:5173/_next/static/chunks/node_modules_next_dist_05y3oi5z9mc_3._.js:760
+[  175628ms] [LOG] [Fast Refresh] done in 530ms @ http://localhost:5173/_next/static/chunks/node_modules_next_dist_05y3oi5z9mc_3._.js:760
+[  220686ms] [INFO] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold @ http://localhost:5173/_next/static/chunks/node_modules_next_dist_05y3oi5z9mc_3._.js:760
+[  220806ms] [LOG] [HMR] connected @ http://localhost:5173/_next/static/chunks/node_modules_next_dist_05y3oi5z9mc_3._.js:760
+[  222676ms] [ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://localhost:5173/api/organizations/mine:0
+[  222700ms] [ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://localhost:5173/api/organizations/mine:0
+[  266189ms] [INFO] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold @ http://localhost:5173/_next/static/chunks/node_modules_next_dist_05y3oi5z9mc_3._.js:760
+[  266431ms] [LOG] [HMR] connected @ http://localhost:5173/_next/static/chunks/node_modules_next_dist_05y3oi5z9mc_3._.js:760
+[  266766ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:5173/_next/static/chunks/node_modules_next_dist_05y3oi5z9mc_3._.js:760
+[  266958ms] [LOG] [Fast Refresh] done in 341ms @ http://localhost:5173/_next/static/chunks/node_modules_next_dist_05y3oi5z9mc_3._.js:760
+[  266971ms] [ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://localhost:5173/api/organizations/mine:0
+[  267009ms] [ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://localhost:5173/api/organizations/mine:0
+[  380248ms] [ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://localhost:5173/api/organizations/mine:0
+[  380290ms] [ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://localhost:5173/api/organizations/mine:0
+[  401148ms] [INFO] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold @ http://localhost:5173/_next/static/chunks/node_modules_next_dist_05y3oi5z9mc_3._.js:760
+[  401361ms] [LOG] [HMR] connected @ http://localhost:5173/_next/static/chunks/node_modules_next_dist_05y3oi5z9mc_3._.js:760
+[  411103ms] [ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://localhost:5173/api/organizations/mine:0
+[  411138ms] [ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://localhost:5173/api/organizations/mine:0
+[  533598ms] [ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://localhost:5173/api/organizations/mine:0
+[  533638ms] [ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://localhost:5173/api/organizations/mine:0
+[  553295ms] [ERROR] Failed to load resource: the server responded with a status of 500 (Internal Server Error) @ http://localhost:5173/api/products/ff58cf13-9f3b-4b79-906a-631d7438f2db/photos:0
+[  580348ms] [INFO] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold @ http://localhost:5173/_next/static/chunks/node_modules_next_dist_05y3oi5z9mc_3._.js:760
+[  580597ms] [LOG] [HMR] connected @ http://localhost:5173/_next/static/chunks/node_modules_next_dist_05y3oi5z9mc_3._.js:760
+[  597210ms] [INFO] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold @ http://localhost:5173/_next/static/chunks/node_modules_next_dist_05y3oi5z9mc_3._.js:760
+[  597512ms] [LOG] [HMR] connected @ http://localhost:5173/_next/static/chunks/node_modules_next_dist_05y3oi5z9mc_3._.js:760
+[  599579ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:5173/_next/static/chunks/node_modules_next_dist_05y3oi5z9mc_3._.js:760
+[  599781ms] [LOG] [Fast Refresh] done in 304ms @ http://localhost:5173/_next/static/chunks/node_modules_next_dist_05y3oi5z9mc_3._.js:760
+[  600774ms] [INFO] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold @ http://localhost:5173/_next/static/chunks/node_modules_next_dist_05y3oi5z9mc_3._.js:760
+[  600888ms] [LOG] [HMR] connected @ http://localhost:5173/_next/static/chunks/node_modules_next_dist_05y3oi5z9mc_3._.js:760
+[  602939ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:5173/_next/static/chunks/node_modules_next_dist_05y3oi5z9mc_3._.js:760
+[  603090ms] [LOG] [Fast Refresh] done in 257ms @ http://localhost:5173/_next/static/chunks/node_modules_next_dist_05y3oi5z9mc_3._.js:760
+[  604323ms] [INFO] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold @ http://localhost:5173/_next/static/chunks/node_modules_next_dist_05y3oi5z9mc_3._.js:760
+[  604465ms] [LOG] [HMR] connected @ http://localhost:5173/_next/static/chunks/node_modules_next_dist_05y3oi5z9mc_3._.js:760
+[  623091ms] [INFO] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold @ http://localhost:5173/_next/static/chunks/node_modules_next_dist_05y3oi5z9mc_3._.js:760
+[  623285ms] [LOG] [HMR] connected @ http://localhost:5173/_next/static/chunks/node_modules_next_dist_05y3oi5z9mc_3._.js:760
+[  625814ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:5173/_next/static/chunks/node_modules_next_dist_05y3oi5z9mc_3._.js:760
+[  627106ms] [LOG] [Fast Refresh] done in 1397ms @ http://localhost:5173/_next/static/chunks/node_modules_next_dist_05y3oi5z9mc_3._.js:760
+[  639703ms] [INFO] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold @ http://localhost:5173/_next/static/chunks/node_modules_next_dist_05y3oi5z9mc_3._.js:760
+[  639761ms] [LOG] [HMR] connected @ http://localhost:5173/_next/static/chunks/node_modules_next_dist_05y3oi5z9mc_3._.js:760
+[  642774ms] [INFO] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold @ http://localhost:5173/_next/static/chunks/node_modules_next_dist_05y3oi5z9mc_3._.js:760
+[  642915ms] [LOG] [HMR] connected @ http://localhost:5173/_next/static/chunks/node_modules_next_dist_05y3oi5z9mc_3._.js:760
+[  661692ms] [INFO] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold @ http://localhost:5173/_next/static/chunks/node_modules_next_dist_05y3oi5z9mc_3._.js:760
+[  661875ms] [LOG] [HMR] connected @ http://localhost:5173/_next/static/chunks/node_modules_next_dist_05y3oi5z9mc_3._.js:760
+[  662213ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:5173/_next/static/chunks/node_modules_next_dist_05y3oi5z9mc_3._.js:760
+[  662566ms] [ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://localhost:5173/api/organizations/mine:0
+[  662603ms] [ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://localhost:5173/api/organizations/mine:0
+[  662611ms] [LOG] [Fast Refresh] done in 608ms @ http://localhost:5173/_next/static/chunks/node_modules_next_dist_05y3oi5z9mc_3._.js:760
+[  670065ms] [ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://localhost:5173/api/organizations/mine:0
+[  697857ms] [ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://localhost:5173/api/organizations/mine:0
+[  724820ms] [ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://localhost:5173/api/organizations/mine:0
+[  750519ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:5173/_next/static/chunks/node_modules_next_dist_05y3oi5z9mc_3._.js:760
+[  751049ms] [LOG] [Fast Refresh] done in 638ms @ http://localhost:5173/_next/static/chunks/node_modules_next_dist_05y3oi5z9mc_3._.js:760
+[  751888ms] [INFO] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold @ http://localhost:5173/_next/static/chunks/node_modules_next_dist_05y3oi5z9mc_3._.js:760
+[  752081ms] [LOG] [HMR] connected @ http://localhost:5173/_next/static/chunks/node_modules_next_dist_05y3oi5z9mc_3._.js:760
+[  752848ms] [ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://localhost:5173/api/organizations/mine:0
+[  752885ms] [ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://localhost:5173/api/organizations/mine:0
+[  754282ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:5173/_next/static/chunks/node_modules_next_dist_05y3oi5z9mc_3._.js:760
+[  754628ms] [LOG] [Fast Refresh] done in 460ms @ http://localhost:5173/_next/static/chunks/node_modules_next_dist_05y3oi5z9mc_3._.js:760
+[  755492ms] [INFO] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold @ http://localhost:5173/_next/static/chunks/node_modules_next_dist_05y3oi5z9mc_3._.js:760
+[  755599ms] [LOG] [HMR] connected @ http://localhost:5173/_next/static/chunks/node_modules_next_dist_05y3oi5z9mc_3._.js:760
+[  756107ms] [ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://localhost:5173/api/organizations/mine:0
+[  756157ms] [ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://localhost:5173/api/organizations/mine:0
+[  758656ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:5173/_next/static/chunks/node_modules_next_dist_05y3oi5z9mc_3._.js:760
+[  759301ms] [LOG] [Fast Refresh] done in 746ms @ http://localhost:5173/_next/static/chunks/node_modules_next_dist_05y3oi5z9mc_3._.js:760
+[  759517ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:5173/_next/static/chunks/node_modules_next_dist_05y3oi5z9mc_3._.js:760
+[  759567ms] [LOG] [Fast Refresh] done in 157ms @ http://localhost:5173/_next/static/chunks/node_modules_next_dist_05y3oi5z9mc_3._.js:760
+[  760197ms] [INFO] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold @ http://localhost:5173/_next/static/chunks/node_modules_next_dist_05y3oi5z9mc_3._.js:760
+[  760316ms] [LOG] [HMR] connected @ http://localhost:5173/_next/static/chunks/node_modules_next_dist_05y3oi5z9mc_3._.js:760
+[  760935ms] [ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://localhost:5173/api/organizations/mine:0
+[  760963ms] [ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://localhost:5173/api/organizations/mine:0
+[  763457ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:5173/_next/static/chunks/node_modules_next_dist_05y3oi5z9mc_3._.js:760
+[  764422ms] [LOG] [Fast Refresh] done in 1078ms @ http://localhost:5173/_next/static/chunks/node_modules_next_dist_05y3oi5z9mc_3._.js:760
+[  764639ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:5173/_next/static/chunks/node_modules_next_dist_05y3oi5z9mc_3._.js:760
+[  764687ms] [LOG] [Fast Refresh] done in 153ms @ http://localhost:5173/_next/static/chunks/node_modules_next_dist_05y3oi5z9mc_3._.js:760
+[  765426ms] [INFO] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold @ http://localhost:5173/_next/static/chunks/node_modules_next_dist_05y3oi5z9mc_3._.js:760
+[  765595ms] [LOG] [HMR] connected @ http://localhost:5173/_next/static/chunks/node_modules_next_dist_05y3oi5z9mc_3._.js:760
+[  766897ms] [ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://localhost:5173/api/organizations/mine:0
+[  766944ms] [ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://localhost:5173/api/organizations/mine:0
+[  767813ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:5173/_next/static/chunks/node_modules_next_dist_05y3oi5z9mc_3._.js:760
+[  768241ms] [LOG] [Fast Refresh] done in 535ms @ http://localhost:5173/_next/static/chunks/node_modules_next_dist_05y3oi5z9mc_3._.js:760
+[  769097ms] [INFO] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold @ http://localhost:5173/_next/static/chunks/node_modules_next_dist_05y3oi5z9mc_3._.js:760
+[  769268ms] [LOG] [HMR] connected @ http://localhost:5173/_next/static/chunks/node_modules_next_dist_05y3oi5z9mc_3._.js:760
+[  769987ms] [ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://localhost:5173/api/organizations/mine:0
+[  770027ms] [ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://localhost:5173/api/organizations/mine:0
+[  771501ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:5173/_next/static/chunks/node_modules_next_dist_05y3oi5z9mc_3._.js:760
+[  771566ms] [LOG] [Fast Refresh] done in 173ms @ http://localhost:5173/_next/static/chunks/node_modules_next_dist_05y3oi5z9mc_3._.js:760
+[  772300ms] [INFO] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold @ http://localhost:5173/_next/static/chunks/node_modules_next_dist_05y3oi5z9mc_3._.js:760
+[  772339ms] [LOG] [HMR] connected @ http://localhost:5173/_next/static/chunks/node_modules_next_dist_05y3oi5z9mc_3._.js:760
+[  775235ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:5173/_next/static/chunks/node_modules_next_dist_05y3oi5z9mc_3._.js:760
+[  775314ms] [LOG] [Fast Refresh] done in 188ms @ http://localhost:5173/_next/static/chunks/node_modules_next_dist_05y3oi5z9mc_3._.js:760
+[  776050ms] [INFO] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold @ http://localhost:5173/_next/static/chunks/node_modules_next_dist_05y3oi5z9mc_3._.js:760
+[  776114ms] [LOG] [HMR] connected @ http://localhost:5173/_next/static/chunks/node_modules_next_dist_05y3oi5z9mc_3._.js:760
+[  786714ms] [INFO] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold @ http://localhost:5173/_next/static/chunks/node_modules_next_dist_05y3oi5z9mc_3._.js:760
+[  786758ms] [LOG] [HMR] connected @ http://localhost:5173/_next/static/chunks/node_modules_next_dist_05y3oi5z9mc_3._.js:760
+[  789471ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:5173/_next/static/chunks/node_modules_next_dist_05y3oi5z9mc_3._.js:760
+[  789519ms] [LOG] [Fast Refresh] done in 155ms @ http://localhost:5173/_next/static/chunks/node_modules_next_dist_05y3oi5z9mc_3._.js:760
+[  789760ms] [INFO] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold @ http://localhost:5173/_next/static/chunks/node_modules_next_dist_05y3oi5z9mc_3._.js:760
+[  789803ms] [LOG] [HMR] connected @ http://localhost:5173/_next/static/chunks/node_modules_next_dist_05y3oi5z9mc_3._.js:760
+[  790034ms] [ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://localhost:5173/api/organizations/mine:0
+[  790068ms] [ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://localhost:5173/api/organizations/mine:0

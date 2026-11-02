@@ -1,0 +1,8 @@
+/notifications 200
+/rodzinny-grajdolek 200
+/zespol-k 200
+/no-such-org-xyz 200
+# browser (Playwright) on the same fresh server:
+/no-such-org-xyz -> 200, heading "Nie znaleziono strony" (not-found state); console: 2x "Failed to load resource 404" (the backend public lookup returning 404)
+/notifications   -> 200, heading "Nie znaleziono strony"; same 2x 404 resource errors
+# terminal: see W02-terminal.txt (no jest-worker / error lines)

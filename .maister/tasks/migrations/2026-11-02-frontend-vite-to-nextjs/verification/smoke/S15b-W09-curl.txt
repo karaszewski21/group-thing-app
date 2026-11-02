@@ -1,0 +1,4 @@
+$ curl -sI /rodzinny-grajdolek/group/f52d882e-4778-4fa1-961c-f1bc35b91e8f
+HTTP/1.1 404 Not Found
+$ curl -sI /krag/group/57df9c1e-54a6-4c42-8ef2-abb498780a19
+HTTP/1.1 404 Not Found

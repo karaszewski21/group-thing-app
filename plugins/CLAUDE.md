@@ -1,6 +1,6 @@
 # Plugin Development Guide
 
-Plugins are standalone web apps that run in iframes and communicate with the host via postMessage RPC. The host provides a Plugin SDK served at `/assets/plugin-sdk.js`.
+Plugins are standalone web apps that run in iframes and communicate with the host via postMessage RPC. The host (a Next.js app in `src/frontend`) provides a Plugin SDK served at `/assets/plugin-sdk.js`, next to `/assets/plugin-ui.css`, on port 5173. Plugins themselves are Vite apps, independent of the host's framework.
 
 ## Project Structure
 
@@ -400,10 +400,10 @@ The host passes context to your plugin via the iframe's URL hash fragment. The S
 
 ## Development Workflow
 
-**Shortcut — everything at once:** from the repo root run `npm run install:all` once (installs the host frontend and every plugin), then `npm run dev:all`. It builds the SDK, then starts the host frontend (:5173) and all plugins (warehouse :3001, box-size :3002, ai-description :3003, events :3004) in one terminal with prefixed logs; Ctrl+C stops them all. The backend still runs separately (`docker compose up` or uvicorn on :8080), and manifests are still registered once per database (step 4). A new plugin needs its own entry in the root `package.json` scripts. The steps below are the manual equivalent for a single plugin.
+**Shortcut — everything at once:** from the repo root run `npm run install:all` once (installs the host frontend and every plugin), then `npm run dev:all`. It starts the host frontend (`next dev` on :5173, whose `predev` step builds the SDK) and all plugins (warehouse :3001, box-size :3002, ai-description :3003, events :3004) in one terminal with prefixed logs; Ctrl+C stops them all. The backend still runs separately (`docker compose up` or uvicorn on :8080), and manifests are still registered once per database (step 4). A new plugin needs its own entry in the root `package.json` scripts. The steps below are the manual equivalent for a single plugin.
 
-1. Start the host (backend + Postgres + frontend app shell): `docker compose up` from the repo root — backend on :8080, frontend on :5173. Or run the frontend with hot reload instead: `cd src/frontend && npm run dev` (Vite dev server on :5173, proxies `/api` and `/oauth2` to the backend)
-2. Build the SDK: `cd src/frontend && npm run build:sdk` — copies `plugin-sdk.js` into `public/assets/` (git-ignored) so :5173 serves `/assets/plugin-sdk.js`. Run it before starting a plugin and again after any SDK change
+1. Start the backend (`docker compose up` from the repo root, backend on :8080, or uvicorn on :8080), then the host: `cd src/frontend && npm run dev` (`next dev -p 5173`; it forwards `/api`, `/oauth2/*` and `/.well-known/*` to `BACKEND_INTERNAL_URL`, default `http://localhost:8080`). Plugins load the SDK from :5173, so use the dev server for plugin work; the compose stack serves the host through nginx on :5174
+2. Build the SDK: `npm run dev` and `npm run build` already run `npm run build:sdk` first, which writes `plugin-sdk.js` into `src/frontend/public/assets/` (git-ignored) so :5173 serves `/assets/plugin-sdk.js`. Run `cd src/frontend && npm run build:sdk` again after any SDK change while the dev server keeps running
 3. Start your plugin: `cd plugins/my-plugin && npm run dev`
 4. Register manifest once (requires a token with `PLUGIN_MANAGEMENT` or `ADMIN`):
    ```bash

@@ -1,3 +1,5 @@
+"use client";
+
 import { useCallback } from "react";
 import { useAppParams } from "../../routing/navigation";
 import { ToastPill } from "../../components/shared/ToastPill";

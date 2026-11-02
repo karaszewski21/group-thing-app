@@ -100,7 +100,7 @@ function renderView(path = "/places") {
 
 beforeEach(() => {
   vi.resetAllMocks();
-  vi.stubEnv("VITE_GOOGLE_MAPS_API_KEY", "");
+  vi.stubEnv("NEXT_PUBLIC_GOOGLE_MAPS_API_KEY", "");
 });
 
 afterEach(() => {
@@ -235,7 +235,7 @@ describe("Moje miejsca — list, add and edit pages", () => {
   });
 
   it("Google mode: adds a picked suggestion as a GOOGLE place", async () => {
-    vi.stubEnv("VITE_GOOGLE_MAPS_API_KEY", "test-key");
+    vi.stubEnv("NEXT_PUBLIC_GOOGLE_MAPS_API_KEY", "test-key");
     vi.mocked(googleMaps.loadPlaces).mockResolvedValue(fakePlaces);
     vi.mocked(googleMaps.newSessionToken).mockImplementation(() => new fakePlaces.AutocompleteSessionToken());
     vi.mocked(googleMaps.suggest).mockResolvedValue([SUGGESTION]);

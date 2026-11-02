@@ -1,0 +1,6 @@
+{"account":"throwaway EDIT-only user smoke-a-1793651367@example.com (registered via /login?mode=register, Gość)",
+"S02a_login":{"events":["339ms 200 POST /api/auth/login","584ms nav / (client-side, no document request, no 307)"],"state":{"path":"/","h":["Witaj, Smoke","Twoje rzeczy","Ostatnio dodane"],"navCurrent":["Start:true","Czat:false","Moje rzeczy:false","Konto:false"],"hasAuthCookie":true,"hasStoredToken":true}},
+"S02b_reload":{"docs":["200 /"],"state":{"path":"/","h":["Witaj, Smoke","Twoje rzeczy"],"navCurrent":["Start:true"]},"console":["2x 404 /api/organizations/mine (user has no organization; expected)"],"hydration_warnings":0},
+"S03a":{"redirects":["/home 307 -> /"],"final":200,"state":{"path":"/","navCurrent":["Start:true"]}},
+"W05_client_nav_from_meetings":{"docs":[],"state":{"path":"/","navCurrent":["Start:true"]}},
+"W05_hard_load":{"docs":["200 /"],"state":{"path":"/","navCurrent":["Start:true"]}}}

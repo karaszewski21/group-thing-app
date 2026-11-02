@@ -1,17 +1,17 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { screen, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
-import { createMemoryRouter, Outlet, RouterProvider } from "react-router-dom";
-import { routes } from "../router";
+import { PanelGate } from "../features/panel/PanelGate";
+import { pageFor } from "./appRoutes";
+import { getTestLocation, renderWithRoute } from "./renderWithRoute";
 
 let mockToken: string | null = null;
 vi.mock("../auth/AuthContext", () => ({ useAuth: () => ({ token: mockToken, username: null, permissions: [] }) }));
-vi.mock("../components/layout/PublicLayout", () => ({ PublicLayout: () => <Outlet /> }));
 vi.mock("../features/panel/AppPage", () => ({ AppPage: () => <h1>Panel</h1> }));
 
-function renderAt(path: string) {
-  const router = createMemoryRouter(routes, { initialEntries: [path] });
-  render(<RouterProvider router={router} />);
-  return router;
+/** `url` as the App Router serves it: a panel page, so the panel layout's gate. */
+function renderAt(url: string) {
+  expect(pageFor(url)?.dir).toBe(`(site)/(panel)${url}`);
+  renderWithRoute(<PanelGate />, { url, routes: { "/login": <p>Logowanie</p> } });
 }
 
 describe("/add route", () => {
@@ -35,8 +35,8 @@ describe("/add route", () => {
 
   it("logged out: the add forms themselves still require logging in", async () => {
     mockToken = null;
-    const router = renderAt("/add/product");
-    await waitFor(() => expect(router.state.location.pathname).toBe("/login"));
+    renderAt("/add/product");
+    await waitFor(() => expect(getTestLocation().pathname).toBe("/login"));
   });
 
   it("logged in: /add is the panel view", async () => {

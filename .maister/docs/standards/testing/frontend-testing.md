@@ -8,9 +8,15 @@ Use Vitest with `globals: true`; test files still import Vitest APIs explicitly 
 // vitest.config.ts
 export default defineConfig({
   plugins: [react()],
+  resolve: {
+    alias: {
+      "next/navigation": fileURLToPath(new URL("./src/test/navigationMock.ts", import.meta.url)),
+      "next/link": fileURLToPath(new URL("./src/test/nextLinkMock.tsx", import.meta.url)),
+    },
+  },
   test: {
-    globals: true,
     environment: "jsdom",
+    globals: true,
     setupFiles: ["./src/test/setup.ts"],
   },
 });
@@ -18,7 +24,7 @@ export default defineConfig({
 
 ### Explicit Vitest Imports
 
-Test files under `src/test` import `describe`/`it`/`expect`/`vi` (and `beforeEach`/`afterEach`) explicitly from `"vitest"` even though `globals: true` is set, because `tsc -p tsconfig.app.json` type-checks `src/test` without Vitest global types.
+Test files under `src/test` import `describe`/`it`/`expect`/`vi` (and `beforeEach`/`afterEach`) explicitly from `"vitest"` even though `globals: true` is set, because `npm run typecheck` (`tsc --noEmit` on the single `tsconfig.json`, `types: ["node", "next"]`) type-checks `src/test` without Vitest global types.
 
 ```typescript
 import { describe, expect, it, vi } from "vitest";
@@ -33,20 +39,31 @@ Use `@testing-library/react` for rendering and querying components. Use `@testin
 import "@testing-library/jest-dom/vitest";
 ```
 
-### renderWithProviders Helper
+### Render Routed Components With renderWithRoute
 
-Define a `renderWithProviders()` helper per test file that wraps components in required providers (ChakraProvider, MemoryRouter). Keep helpers per-file, not shared globally. If the tree uses React Query, also pass `wrapper: createQueryWrapper()` (see React Query in Tests).
+Anything that uses the navigation facade (`src/routing/navigation.tsx`) renders through `renderWithRoute(ui, options)` from `src/test/renderWithRoute.tsx`, never through a hand-built router. Options: `url` (the start URL, required), `pattern` (the route `ui` is rendered on; its params feed `useAppParams`, default `"*"`), `routes` (other pages by pattern, e.g. `{ "/login": <p>Logowanie</p> }`), `state` (navigation state for the start URL) and any Testing Library render option such as `wrapper`. The page whose pattern matches the current mocked URL is rendered, as the App Router picks one. `routeWrapper(...)` is the `renderHook` counterpart, and `routeElement(...)` returns the routed tree for `renderToString`.
+Assert navigation with `getTestLocation()` (the current `{ pathname, search }`, raw: `/home` stays `/home`) or `getTestRouter().calls` (every facade navigation in order). Check `window.location` only for hard redirects that bypass the facade (e.g. a mocked `window.location.href`).
+A per-file `renderWithProviders()` helper is still fine when a file needs more providers (ChakraProvider, PluginProvider); it wraps `ui` and calls `renderWithRoute`. Keep such helpers per-file. If the tree uses React Query, pass `wrapper: createQueryWrapper()` (see React Query in Tests).
 
 ```typescript
 function renderWithProviders(ui: React.ReactElement, initialRoute = "/") {
-  return render(
-    <ChakraProvider value={system}>
-      <MemoryRouter initialEntries={[initialRoute]}>{ui}</MemoryRouter>
-    </ChakraProvider>,
-    { wrapper: createQueryWrapper() },
-  );
+  return renderWithRoute(<ChakraProvider value={system}>{ui}</ChakraProvider>, {
+    url: initialRoute,
+    wrapper: createQueryWrapper(),
+  });
 }
+
+renderWithRoute(<PanelGate />, { url: "/add/event", routes: { "/login": <p>Logowanie</p> } });
+await waitFor(() => expect(getTestLocation().pathname).toBe("/login"));
 ```
+
+### Next Router Mocks Through Aliases Only
+
+`vitest.config.ts` aliases `next/navigation` to `src/test/navigationMock.ts` and `next/link` to `src/test/nextLinkMock.tsx`. The mock keeps one URL store driven by `renderWithRoute` and the mocked router; its functions are plain functions, not `vi.fn()`, so `vi.resetAllMocks()` leaves them working. `redirect()` and `notFound()` throw `RedirectSentinel`/`NotFoundSentinel`. Never `vi.mock("next/navigation")` or `vi.mock("next/link")` per file.
+
+### Server-Rendering Checks
+
+`src/test/ssrSafety.test.tsx` runs under `// @vitest-environment node` and renders server-rendered pages and chrome with `renderToString(routeElement(...))`, so a render-time browser access or a `useSyncExternalStore` without `getServerSnapshot` fails there. Chrome that renders only for a logged-in user gets a case with `AuthProvider initialToken`.
 
 ### React Query in Tests
 

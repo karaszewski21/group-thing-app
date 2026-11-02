@@ -9,10 +9,10 @@ function readSource(relativePath: string): string {
   return readFileSync(resolve(SRC, relativePath), "utf8");
 }
 
-/** Every `--color-<name>: #rrggbb` declared in index.css `@theme` blocks. */
+/** Every `--color-<name>: #rrggbb` declared in app/globals.css `@theme` blocks. */
 function themeTokens(): Record<string, string> {
   const tokens: Record<string, string> = {};
-  for (const match of readSource("index.css").matchAll(/--color-([a-z-]+)\s*:\s*(#[0-9a-fA-F]{6})\s*;/g)) {
+  for (const match of readSource("app/globals.css").matchAll(/--color-([a-z-]+)\s*:\s*(#[0-9a-fA-F]{6})\s*;/g)) {
     tokens[match[1]] = match[2];
   }
   return tokens;

@@ -1,6 +1,10 @@
-/* The app's only door to the router (React Router today). Every page,
+/* The app's only door to the router (Next.js App Router). Every page,
  * layout and hook navigates and reads the URL through these exports, so the
  * router underneath can be swapped without touching the call sites. */
+"use client";
+
+import NextLink from "next/link";
+import { useParams, usePathname, useRouter, useSearchParams } from "next/navigation";
 import {
   useCallback,
   useEffect,
@@ -8,11 +12,11 @@ import {
   useMemo,
   useRef,
   useState,
+  useSyncExternalStore,
   type AnchorHTMLAttributes,
   type MouseEvent,
   type Ref,
 } from "react";
-import { Link as RouterLink, useLocation, useNavigate, useParams } from "react-router-dom";
 import { interceptNavigation } from "./navigationGuard";
 import { clearNavigationState, peekNavigationState, setNavigationState } from "./navigationState";
 import { recordNavigation } from "./NavigationTracker";
@@ -55,19 +59,19 @@ function isPlainClick(event: MouseEvent<HTMLAnchorElement>): boolean {
 }
 
 export function useAppNavigate(): AppNavigate {
-  const routerNavigate = useNavigate();
-  const { pathname } = useLocation();
-  // The router's function changes with the location; the returned one stays
-  // stable so effects that navigate run once.
-  const latest = useRef({ routerNavigate, pathname });
+  const router = useRouter();
+  const pathname = usePathname();
+  // The returned function stays stable across locations so effects that
+  // navigate run once.
+  const latest = useRef({ router, pathname });
   useLayoutEffect(() => {
-    latest.current = { routerNavigate, pathname };
+    latest.current = { router, pathname };
   });
 
   return useCallback((target, options = {}) => {
     if (target === -1) {
       recordNavigation({ method: "back", url: null, scroll: true });
-      void latest.current.routerNavigate(-1);
+      latest.current.router.back();
       return;
     }
     const to = resolveTo(target, latest.current.pathname);
@@ -75,7 +79,8 @@ export function useAppNavigate(): AppNavigate {
     const go = () => {
       setNavigationState(to, state);
       recordNavigation({ method: replace ? "replace" : "push", url: to, scroll });
-      void latest.current.routerNavigate(to, { replace, preventScrollReset: !scroll });
+      if (replace) latest.current.router.replace(to, { scroll });
+      else latest.current.router.push(to, { scroll });
     };
     if (!interceptNavigation({ pathname: pathnameOf(to) }, go)) go();
   }, []);
@@ -91,13 +96,13 @@ export interface LinkProps extends Omit<AnchorHTMLAttributes<HTMLAnchorElement>,
 
 /** An in-app link. A guard (`useNavigationGuard`) can hold its click back. */
 export function Link({ to: target, replace = false, state, scroll = true, onClick, ...anchorProps }: LinkProps) {
-  const to = resolveTo(target, useLocation().pathname);
+  const to = resolveTo(target, usePathname());
   return (
-    <RouterLink
+    <NextLink
       {...anchorProps}
-      to={to}
+      href={to}
       replace={replace}
-      preventScrollReset={!scroll}
+      scroll={scroll}
       onClick={(event) => {
         onClick?.(event);
         if (event.defaultPrevented || !isPlainClick(event)) return;
@@ -122,22 +127,48 @@ export function Navigate({ to, replace = false }: { to: string; replace?: boolea
 export function useAppParams<
   Params extends Record<string, string | undefined> = Record<string, string | undefined>,
 >(): Readonly<Partial<Params>> {
-  return useParams() as Readonly<Partial<Params>>;
+  const params = useParams();
+  return useMemo(() => {
+    const appParams: Record<string, string> = {};
+    for (const [key, value] of Object.entries(params ?? {})) {
+      if (Array.isArray(value)) appParams["*"] = value.join("/");
+      else if (value !== undefined) appParams[key] = value;
+    }
+    return appParams as Readonly<Partial<Params>>;
+  }, [params]);
 }
 
 /** The app pathname: `/home` (the session holder's `/`) reads as `/`. */
 export function useAppPathname(): string {
-  return normalizeAppPath(useLocation().pathname);
+  return normalizeAppPath(usePathname());
 }
 
-/** The raw query string, with its leading `?` (empty when there is none). */
+/** The query string, with its leading `?` (empty when there is none). */
 export function useAppSearch(): string {
-  return useLocation().search;
+  const query = useSearchParams().toString();
+  return query ? `?${query}` : "";
 }
 
-/** The raw fragment, with its leading `#` (empty when there is none). */
+function subscribeHash(onChange: () => void) {
+  window.addEventListener("hashchange", onChange);
+  window.addEventListener("popstate", onChange);
+  return () => {
+    window.removeEventListener("hashchange", onChange);
+    window.removeEventListener("popstate", onChange);
+  };
+}
+
+/** The fragment, with its leading `#` (empty when there is none; always
+ * empty on the server, which never sees it). */
 export function useAppHash(): string {
-  return useLocation().hash;
+  // The router's search params change with every URL change, hash-only ones
+  // included, so this re-renders and re-reads the hash after a navigation.
+  useSearchParams();
+  return useSyncExternalStore(
+    subscribeHash,
+    () => window.location.hash,
+    () => "",
+  );
 }
 
 type SearchParamsInit = ConstructorParameters<typeof URLSearchParams>[0];
@@ -149,7 +180,8 @@ export type SetSearchParams = (
 /** The query string as `URLSearchParams`, and a setter that keeps the
  * pathname and the scroll position. */
 export function useAppSearchParams(): [URLSearchParams, SetSearchParams] {
-  const { pathname, search } = useLocation();
+  const pathname = usePathname();
+  const search = useAppSearch();
   const navigate = useAppNavigate();
   const searchParams = useMemo(() => new URLSearchParams(search), [search]);
 
@@ -181,7 +213,8 @@ export function useNavigationState<T>(): T | null {
   return current.state as T | null;
 }
 
-/** Re-renders server-provided data; nothing to do on a client-only router. */
+/** Re-renders server-provided data (server components, metadata). */
 export function useRouterRefresh(): () => void {
-  return useCallback(() => {}, []);
+  const router = useRouter();
+  return useCallback(() => router.refresh(), [router]);
 }

@@ -1,0 +1,6 @@
+{"page":"/smoke-org-1367 (owner = user A), editor opened via 'Dodaj opis' -> ?edit=1&tab=photos, description textarea made dirty",
+"S12a_link":{"trigger":"header link a[href=/meetings] click","prompt":"alertdialog 'Odrzucić zmiany? Wybrany układ i kolory nie zostały zapisane.' [Wróć do edycji] [Odrzuć]","afterStay":{"url":"/smoke-org-1367?edit=1&tab=photos","text_kept":true},"afterLeave":{"url":"/meetings","framenavigated":["/meetings"]}},
+"S12b_programmatic":{"trigger":"BottomNav 'Czat' button (calls navigate)","prompt":"same alertdialog","afterStay":{"url":"/smoke-org-1367?edit=1&tab=photos","text_kept":true},"afterLeave":{"url":"/messages","framenavigated":["/messages"]}},
+"S12c_back_forward":{"afterBack":{"url":"/smoke-org-1367?edit=1&tab=photos","prompt":true},"afterStay":{"url":"/smoke-org-1367?edit=1&tab=photos","text_kept":true},"afterForward":{"url":"/smoke-org-1367?edit=1&tab=photos","prompt":false,"note":"no forward entry after the guard restored the URL"},"secondBack_leave":{"final":"/meetings"}},
+"S12d_reload":{"trigger":"page.reload() with dirty textarea (typed with keyboard)","result":"native beforeunload dialog raised (Playwright modal state 'beforeunload'), dismissed -> page and edits kept"},
+"copy_note":"the prompt body says 'Wybrany układ i kolory nie zostały zapisane' although only the description was changed"}

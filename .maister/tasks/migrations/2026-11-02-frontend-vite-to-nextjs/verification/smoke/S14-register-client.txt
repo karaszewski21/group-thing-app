@@ -1,0 +1,1 @@
+HTTP 201 client_id=d151a858-5456-468d-92d6-fe6bc44c385b keys=client_id,client_secret,client_name,client_id_issued_at,redirect_uris,grant_types,response_types,scope,token_endpoint_auth_method,client_secret_expires_at

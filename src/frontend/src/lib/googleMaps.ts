@@ -38,7 +38,7 @@ export interface ResolvedPlace {
 
 /** Reads the env on every call (never cached) so tests can flip modes with `vi.stubEnv`. */
 export function isGoogleMapsConfigured(): boolean {
-  return Boolean(import.meta.env.VITE_GOOGLE_MAPS_API_KEY);
+  return Boolean(process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY);
 }
 
 let placesPromise: Promise<PlacesApi | null> | null = null;
@@ -56,7 +56,7 @@ export function loadPlaces(): Promise<PlacesApi | null> {
 }
 
 async function importPlaces(): Promise<PlacesApi | null> {
-  const key = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
+  const key = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY;
   if (!key) return null;
   let timer: ReturnType<typeof setTimeout> | undefined;
   const timeout = new Promise<null>((resolve) => {

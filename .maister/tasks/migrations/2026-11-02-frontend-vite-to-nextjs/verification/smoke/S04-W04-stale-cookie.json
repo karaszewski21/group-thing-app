@@ -1,0 +1,5 @@
+{"note":"cookie values are dummies (garbage / fake expired JWT {exp:1}); state recorded by name only",
+"S04a":{"path":"/","document":200,"redirects":[],"after_hydration":{"path":"/login?returnTo=%2F","h1":"Witaj w kręgu","hasAuthCookie":false,"hasStoredToken":false},"after_reload":{"path":"/login","hasAuthCookie":false,"hasStoredToken":false},"console":["401 GET /api/conversations/unread-count","401 GET /api/notifications/mine"]},
+"S04a_timeline":["78ms nav /","261ms nav /","304ms 401 GET /api/conversations/unread-count","311ms 401 GET /api/notifications/mine","361ms nav /","412ms nav /login?returnTo=%2F"],
+"S04b":{"path":"/","document":200,"after_hydration":{"path":"/login?returnTo=%2F","hasAuthCookie":false,"hasStoredToken":false},"after_reload":{"path":"/login","hasAuthCookie":false},"console":["2x 401 (same two endpoints)"]},
+"W04":{"path":"/home","redirects":["/home 307 -> /"],"after_hydration":{"path":"/login?returnTo=%2F","hasAuthCookie":false,"hasStoredToken":false},"console":["2x 401 (same two endpoints)"]}}

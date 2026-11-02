@@ -1,0 +1,5 @@
+{"page":"/rodzinny-grajdolek/items (scrollHeight 1741, viewport 800)",
+"push":{"before":{"url":"/rodzinny-grajdolek/items","y":941},"after":{"url":"/rodzinny-grajdolek/product/7686cb60-...","y":0}},
+"back":{"url":"/rodzinny-grajdolek/items","y":910,"note":"restored (bottom-clamped)"},
+"local_filter_no_query":{"before_y":500,"after_y":500,"note":"the items filter is local state, URL unchanged"},
+"query_only_update":{"page":"/product/f322a2d9... -> ?edit=1 via 'Edytuj'","before_y":300,"after_y":194,"note":"not reset to top; the change is the layout swapping to the editor"}}

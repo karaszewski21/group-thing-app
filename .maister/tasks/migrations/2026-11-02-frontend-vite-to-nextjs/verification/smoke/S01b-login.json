@@ -1,0 +1,2 @@
+[{"url":"/login","status":200,"final":"/login","redirects":[],"h":["Witaj w kręgu"],"tabs":["Zaloguj się:true","Załóż konto:false"],"inputs":["email","password"],"console_errors":[]},
+ {"url":"/login?mode=register","status":200,"final":"/login?mode=register","redirects":[],"h":["Dołącz do kręgu"],"tabs":["Zaloguj się:false","Załóż konto:true"],"inputs":["email","password"],"console_errors":[]}]

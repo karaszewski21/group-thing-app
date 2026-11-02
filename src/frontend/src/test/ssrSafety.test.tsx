@@ -10,8 +10,10 @@ import { AuthProvider } from "../auth/AuthContext";
 import { PublicLayout } from "../components/layout/PublicLayout";
 import { LoginPage } from "../features/auth/LoginPage";
 import { EventPage } from "../features/events/EventPage";
-import { ItemDetailPage } from "../features/items/product/ItemDetailPage";
+import { ItemDetailBody, ItemDetailPage } from "../features/items/product/ItemDetailPage";
+import { OrganizerItemLayout } from "../features/items/product/OrganizerItemLayout";
 import { LandingPage } from "../features/landing/LandingPage";
+import { OwnerPage } from "../features/owner-page/OwnerPage";
 import { TermPage } from "../features/terms/TermPage";
 import { EVENT_KEY } from "../hooks/useEvent";
 import { GROUP_ACCESS_KEY } from "../hooks/useTermAccess";
@@ -72,17 +74,21 @@ const ACCESS: GroupAccessResponse = {
   },
 };
 
+/** An unsigned JWT-shaped token: the server render only decodes its claims. */
+const SESSION = `eyJhbGciOiJIUzI1NiJ9.${btoa(JSON.stringify({ sub: "ania@example.com", permissions: [], exp: 4_102_444_800 }))}.signature`;
+
 /** The app's provider stack around one routed page, rendered as on the server. */
 function renderOnServer(
   url: string,
   pattern: string,
   page: ReactElement,
   client: QueryClient = createTestQueryClient(),
+  token: string | null = null,
 ): string {
   return renderToString(
     <QueryClientProvider client={client}>
       <ChakraProvider value={system}>
-        <AuthProvider initialToken={null}>
+        <AuthProvider initialToken={token}>
           {routeElement(page, { url, pattern })}
         </AuthProvider>
       </ChakraProvider>
@@ -113,6 +119,58 @@ describe("SSR safety", () => {
 
     const login = renderOnServer("/login", "/login", <LoginPage />);
     expect(login.length).toBeGreaterThan(0);
+  });
+
+  it("renders the logged-in PublicLayout chrome with its pending-actions host for a cookie session", () => {
+    const html = renderOnServer(
+      "/meetings",
+      "/meetings",
+      <PublicLayout>
+        <p>Spotkania</p>
+      </PublicLayout>,
+      createTestQueryClient(),
+      "dummy",
+    );
+    expect(html).toContain("Spotkania");
+  });
+
+  it.each([
+    { page: "owner page", url: "/zielony-krag", pattern: "/:organizationSlug", element: <OwnerPage />, text: null },
+    { page: "item page", url: "/product/it-1", pattern: "/product/:id", element: <ItemDetailPage />, text: null },
+    {
+      page: "organizer item page",
+      url: "/zielony-krag/product/it-1",
+      pattern: "/:organizationSlug/product/:id",
+      element: (
+        <OrganizerItemLayout>
+          <ItemDetailBody />
+        </OrganizerItemLayout>
+      ),
+      text: null,
+    },
+    {
+      page: "event page",
+      url: `/zielony-krag/event/${EVENT_ID}`,
+      pattern: "/:organizationSlug/event/:eventId",
+      element: <EventPage />,
+      text: "Piknik w parku",
+    },
+    {
+      page: "term page",
+      url: `/ania/group/${GROUP_ID}/term/${TERM_ID}`,
+      pattern: "/:organizationSlug/group/:groupId/term/:termId",
+      element: <TermPage />,
+      text: "Muzyczne Skrzaty",
+    },
+  ])("renders the $page in the logged-in chrome for a cookie session", ({ url, pattern, element, text }) => {
+    const client = createTestQueryClient();
+    client.setQueryData([EVENT_KEY, EVENT_ID], { data: EVENT, forToken: SESSION });
+    client.setQueryData([GROUP_ACCESS_KEY, GROUP_ID, TERM_ID], { data: ACCESS, forToken: SESSION });
+
+    const html = renderOnServer(url, pattern, <PublicLayout>{element}</PublicLayout>, client, SESSION);
+
+    expect(html.length).toBeGreaterThan(0);
+    if (text !== null) expect(html).toContain(text);
   });
 
   it("renders the item page shell while its data is loading", () => {

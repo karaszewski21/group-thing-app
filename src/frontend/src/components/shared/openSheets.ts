@@ -1,7 +1,7 @@
 import { useEffect } from "react";
 
 /** Count of page-level dialogs currently open. App-wide prompts read it via
- * `useSyncExternalStore(subscribeOpenSheets, getOpenSheetCount)` and wait
+ * `useSyncExternalStore(subscribeOpenSheets, getOpenSheetCount, () => 0)` and wait
  * until it drops to 0, so they never stack on top of a page dialog. */
 let openSheetCount = 0;
 const listeners = new Set<() => void>();
