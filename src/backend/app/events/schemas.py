@@ -58,14 +58,24 @@ class EventOrganizationResponse(BaseModel):
     palette_preset: str | None
 
 
+class ReservedByResponse(BaseModel):
+    """The groups reserved badge: `by_name` (the party who would receive the
+    item, `None` for an anonymous viewer) and whether that is the viewer."""
+
+    by_name: str | None
+    by_me: bool
+
+
 class EventParticipantItemResponse(BaseModel):
-    """`added_at` is the listing preference's `created_at` (naive UTC)."""
+    """`added_at` is the listing preference's `created_at` (naive UTC);
+    `reservation` is `None` while the item is available."""
 
     item_id: uuid.UUID
     product_name: str
     mode: str
     thumb_url: str | None
     added_at: datetime
+    reservation: ReservedByResponse | None
 
 
 class EventParticipantResponse(BaseModel):

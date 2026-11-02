@@ -17,11 +17,11 @@ from app.circulation.domain.item_privacy import (
     ItemStatusCode,
     derive_status,
     label,
+    reserver_label,
 )
 from app.circulation.models import BalanceStatus, InventoryItem, ReservationType
 from app.groups import service as groups_service
 from app.groups.models import Term
-from app.groups.schemas import TakeTermItemListingRequest
 from app.moderation.status import ModerationStatus
 from app.product.models import Product, ProductPhoto
 from tests.conftest import leaf_category_ids
@@ -30,9 +30,11 @@ from tests.test_term_item_listings import (
     _auth,
     _create_circle_and_term,
     _principal,
+    _propose_in_term,
     _register,
     _register_personal_item,
     _rsvp,
+    _take_in_term,
 )
 
 
@@ -146,6 +148,7 @@ async def test_getItemDetails_ownerAndNonOwner_returnsFieldsPhotosAndIsOwnerFlag
         "group_name": None,
         "event_id": None,
         "event_slug": None,
+        "personal_pickup": False,
     }
 
     other_view = await _details(client, item_id, _auth(other_token))
@@ -199,6 +202,7 @@ async def test_getItemDetails_deletedOrMissingItem_returns200DeletedOr404(
         "group_name": None,
         "event_id": None,
         "event_slug": None,
+        "personal_pickup": False,
     }
     missing = await client.get(
         f"/api/inventory-items/{uuid.uuid4()}/details", headers=_auth(owner_token)
@@ -221,12 +225,7 @@ async def test_getItemDetails_afterTake_reservedStatusWithTermDateAndPerViewerLa
     await _rsvp(client, taker_token, group_id, term_id)
     third_token, _ = await _register(client, "GUEST", "itd.third4@example.com")
 
-    await groups_service.take_item_listing(
-        db_session,
-        _principal(taker_token),
-        item_id,
-        TakeTermItemListingRequest(term_id=term_id, reservation_type="GIFT"),
-    )
+    await _take_in_term(db_session, _principal(taker_token), item_id, term_id)
     term = (await db_session.execute(select(Term).where(Term.id == term_id))).scalar_one()
     taker_name = await _display_name(client, _auth(taker_token))
 
@@ -240,7 +239,7 @@ async def test_getItemDetails_afterTake_reservedStatusWithTermDateAndPerViewerLa
         labels[viewer] = status["counterparty_label"]
         places[viewer] = (status["term_id"], status["group_id"], status["group_name"])
 
-    assert labels == {"taker": "Ty", "owner": taker_name, "third": "inna rodzina"}
+    assert labels == {"taker": "Ty", "owner": taker_name, "third": taker_name}
     party_place = (str(term_id), str(group_id), "Krąg itd4")
     assert places == {"taker": party_place, "owner": party_place, "third": (None, None, None)}
 
@@ -263,7 +262,7 @@ async def test_getItemDetails_offeredItemInPendingSwap_returnsProposedSwapThenIn
         db_session, _principal(proposer_token), offered_item_id, ReservationType.SWAP
     )
 
-    proposal = await groups_service.propose_swap(
+    proposal = await _propose_in_term(
         db_session, _principal(proposer_token), listed_item_id, offered_item_id, term_id
     )
 
@@ -279,6 +278,7 @@ async def test_getItemDetails_offeredItemInPendingSwap_returnsProposedSwapThenIn
         "group_name": None,
         "event_id": None,
         "event_slug": None,
+        "personal_pickup": False,
     }
     lister_view = (await _details(client, offered_item_id, _auth(lister_token)))["status"]
     assert lister_view["code"] == "PROPOSED_SWAP"
@@ -310,6 +310,7 @@ async def test_getItemDetails_eventReservation_partiesSeeEventIdSlugDateAndName(
 
     taker_view = (await _details(client, item_id, _auth(taker_token)))["status"]
     third_view = (await _details(client, item_id, _auth(third_token)))["status"]
+    taker_name = await _display_name(client, _auth(taker_token))
 
     assert taker_view == {
         "code": "RESERVED",
@@ -321,13 +322,15 @@ async def test_getItemDetails_eventReservation_partiesSeeEventIdSlugDateAndName(
         "group_name": "Wymiana zabawek",
         "event_id": str(event_id),
         "event_slug": org.json()["slug"],
+        "personal_pickup": False,
     }
     assert third_view == {
         **taker_view,
-        "counterparty_label": OTHER_FAMILY_LABEL,
+        "counterparty_label": taker_name,
         "group_name": None,
         "event_id": None,
         "event_slug": None,
+        "personal_pickup": False,
     }
 
 
@@ -354,12 +357,13 @@ async def test_getItemDetails_anonymousOnActiveItem_returns200WithoutCounterpart
         "code": "RESERVED",
         "term_occurs_on": starts_at.isoformat(),
         "due_date": None,
-        "counterparty_label": OTHER_FAMILY_LABEL,
+        "counterparty_label": None,
         "term_id": None,
         "group_id": None,
         "group_name": None,
         "event_id": None,
         "event_slug": None,
+        "personal_pickup": False,
     }
 
 
@@ -419,3 +423,12 @@ def test_label_viewerWithoutUserOrMissingDisplayName_isOtherFamily() -> None:
     )
     assert lent.code == ItemStatusCode.LENT
     assert lent.counterparty_label == OTHER_FAMILY_LABEL
+
+
+def test_reserverLabel_anonymousNone_recipientSelf_anyoneElseNameOrOtherFamily() -> None:
+    recipient, viewer = uuid.uuid4(), uuid.uuid4()
+
+    assert reserver_label(recipient, None, "Anna") is None
+    assert reserver_label(recipient, recipient, "Anna") == "Ty"
+    assert reserver_label(recipient, viewer, "Anna") == "Anna"
+    assert reserver_label(recipient, viewer, None) == OTHER_FAMILY_LABEL

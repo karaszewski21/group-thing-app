@@ -10,6 +10,7 @@ from fastapi import APIRouter, Depends, File, Response, UploadFile, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.auth_deps import OptionalPrincipal, Principal, require_any
+from app.core.cache_headers import set_personalised_cache_headers
 from app.db import get_db
 from app.storage.service import ObjectStorage, get_storage
 
@@ -85,11 +86,17 @@ async def list_attending_events(db: DbSession, principal: ReadPrincipal) -> list
 
 @router.get("/api/events/{event_id}", response_model=EventDetailResponse)
 async def get_event(
-    event_id: uuid.UUID, db: DbSession, storage: Storage, principal: OptionalPrincipal = None
+    event_id: uuid.UUID,
+    db: DbSession,
+    storage: Storage,
+    response: Response,
+    principal: OptionalPrincipal = None,
 ) -> EventDetailResponse:
     """The public event page. A valid token adds the viewer's flags (author,
     signed up, "this is me"); a missing or bad token is never a 401."""
-    return await page.get_event_page(db, event_id, principal, storage)
+    event_page = await page.get_event_page(db, event_id, principal, storage)
+    set_personalised_cache_headers(response, principal)
+    return event_page
 
 
 @router.patch("/api/events/{event_id}", response_model=EventResponse)

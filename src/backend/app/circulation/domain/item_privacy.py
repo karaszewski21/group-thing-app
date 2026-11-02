@@ -2,10 +2,14 @@
 as "inna rodzina", the server-built history descriptions, and the current
 status derivation. No `db`, no ORM queries.
 
-Labelling is strictly per user: a counterparty's display name is shown only
-to a viewer who took part in that event (or reservation); everyone else is
-"inna rodzina". A viewer of `None` (a principal with no `User`) never
-matches anyone."""
+Labelling is per user. Who is reserving an item (RESERVED, IN_TRANSIT,
+PROPOSED_SWAP) is deliberately shown by name to every logged-in viewer
+(`reserver_label`), so a list's "Zarezerwowana · przez …" badge and the item
+page agree; an anonymous viewer sees no name. Everything else — the borrower
+of a LENT item, the RETURNING counterparty and history — keeps the stricter
+rule: the display name only for a viewer who took part in that event (or
+reservation), "inna rodzina" for everyone else (`label`). A viewer of `None`
+(anonymous, or a principal with no `User`) never matches anyone."""
 
 from __future__ import annotations
 
@@ -62,6 +66,7 @@ class ItemStatus:
     group_name: str | None = None
     event_id: uuid.UUID | None = None
     event_slug: str | None = None
+    personal_pickup: bool = False
 
 
 def label(
@@ -80,6 +85,19 @@ def label(
     if viewer in participants:
         return display_name or OTHER_FAMILY_LABEL
     return OTHER_FAMILY_LABEL
+
+
+def reserver_label(
+    recipient: uuid.UUID, viewer: uuid.UUID | None, display_name: str | None
+) -> str | None:
+    """Who receives a reserved item: `None` for an anonymous viewer, "Ty"
+    for the recipient, otherwise their name (falling back to "inna
+    rodzina" without a profile)."""
+    if viewer is None:
+        return None
+    if recipient == viewer:
+        return SELF_LABEL
+    return display_name or OTHER_FAMILY_LABEL
 
 
 def history_description(movement_type: MovementType, from_label: str, to_label: str) -> str:
@@ -118,7 +136,8 @@ def derive_status(
     """The "Aktualny status" block. `reservation` is the newest active
     reservation (see `newest_reservation`) and `term` or `event` its context,
     whose date is shown to everyone but whose id, name and link are shown
-    only to the reservation's two parties; `holder_user_id`
+    only to the reservation's two parties (a reservation with neither is a
+    personal pickup); `holder_user_id`
     owns the item's current inventory (the borrower while lent) and
     `home_owner_user_id` its permanent one."""
     if deleted:
@@ -140,14 +159,17 @@ def derive_status(
     if reservation is None:
         return ItemStatus(balance_code)
     recipient = reservation.reserved_by_user_id
-    counterparty = label(
-        recipient,
-        viewer,
-        {recipient, reservation.giver_user_id},
-        display_names.get(recipient),
-    )
     if reservation.reservation_type == ReservationType.RETURN:
-        return ItemStatus(ItemStatusCode.RETURNING, counterparty_label=counterparty)
+        return ItemStatus(
+            ItemStatusCode.RETURNING,
+            counterparty_label=label(
+                recipient,
+                viewer,
+                {recipient, reservation.giver_user_id},
+                display_names.get(recipient),
+            ),
+        )
+    counterparty = reserver_label(recipient, viewer, display_names.get(recipient))
     if (
         reservation.reservation_type == ReservationType.SWAP
         and reservation.paired_reservation_id is None
@@ -180,4 +202,8 @@ def derive_status(
             event_id=reservation.event_id,
             event_slug=event.author_slug,
         )
-    return ItemStatus(balance_code, counterparty_label=counterparty)
+    return ItemStatus(
+        balance_code,
+        counterparty_label=counterparty,
+        personal_pickup=reservation.term_id is None and reservation.event_id is None,
+    )

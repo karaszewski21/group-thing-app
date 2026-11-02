@@ -39,6 +39,7 @@ RESERVATION_DETAIL_KEYS = {
     "status",
     "notes",
     "term_occurs_on",
+    "personal_pickup",
 }
 
 
@@ -207,8 +208,8 @@ async def test_termScopedReaders_itemTakenOnEvent_skipEventRowAndRefuseTermTake(
         headers=_auth(taker_token),
     )
     term_take = await client.post(
-        f"/api/term-item-listings/{item_id}/take",
-        json={"term_id": str(term_id), "reservation_type": "GIFT"},
+        f"/api/items/{item_id}/take",
+        json={"context": {"kind": "TERM", "id": str(term_id)}, "reservation_type": "GIFT"},
         headers=_auth(taker_token),
     )
 

@@ -70,7 +70,7 @@ async def open_item_conversation(
     existing = await find()
     created = False
     if existing is None:
-        if item.deleted_at is not None:
+        if item.deleted_at is not None or not await groups_acl.can_view_item(db, item_id, me):
             raise EntityNotFoundException("InventoryItem", item_id)
         limiter.check_new_conversation(me)
         conversation = Conversation(

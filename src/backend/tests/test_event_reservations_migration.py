@@ -1,7 +1,10 @@
 """Migration `0073_event_reservations`. The round-trip test moves the shared
-session database to 0072 and always upgrades it back to head, so later tests
-see the full schema. The guarded-downgrade test commits a context-less row to
-the real database and always deletes it again."""
+session database to 0072 (through the 0076, 0075 and 0074 downgrades;
+its rows include no PRIVATE listing preference, so 0076's guard passes) and always
+upgrades it back to head, so later tests see the full schema. The
+guarded-downgrade test commits a terminal context-less row to the real
+database, which 0074's guard lets through and 0073's refuses, and always
+deletes it and upgrades back to head again."""
 
 from __future__ import annotations
 
@@ -184,19 +187,32 @@ async def test_downgradeTo0072_contextlessReservationExists_refusesWithRecoveryP
             for row in rows:
                 await db.execute(delete(type(row)).where(type(row).id == row.id))
             await db.commit()
+        _alembic(database_url, "upgrade", "head")
         await engine.dispose()
 
 
-@pytest.mark.parametrize(
-    "context",
-    [{}, {"term_id": uuid.uuid4(), "event_id": uuid.uuid4()}],
-    ids=["noContext", "bothContexts"],
-)
-async def test_insertOpenReservation_invalidContext_violatesContextCheck(
-    db_session: AsyncSession, context: dict[str, uuid.UUID]
+async def test_insertOpenReservation_noContext_allowedAfter0074(
+    db_session: AsyncSession,
 ) -> None:
     _, user_id, item_id = await _seed_item(db_session)
-    db_session.add(_reservation(user_id, item_id, ReservationStatus.PENDING, **context))
+    db_session.add(_reservation(user_id, item_id, ReservationStatus.PENDING))
+
+    await db_session.flush()
+
+
+async def test_insertOpenReservation_bothContexts_violatesContextCheck(
+    db_session: AsyncSession,
+) -> None:
+    _, user_id, item_id = await _seed_item(db_session)
+    db_session.add(
+        _reservation(
+            user_id,
+            item_id,
+            ReservationStatus.PENDING,
+            term_id=uuid.uuid4(),
+            event_id=uuid.uuid4(),
+        )
+    )
 
     with pytest.raises(IntegrityError, match=CONTEXT_CHECK):
         await db_session.flush()

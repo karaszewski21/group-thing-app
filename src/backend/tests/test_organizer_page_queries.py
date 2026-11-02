@@ -1,6 +1,6 @@
-"""Statement-count budgets of the anonymous organizer endpoints and of the
-term page's listing thumbnails: the count must not grow with the number of
-circles, terms or items."""
+"""Statement-count budgets of the organizer endpoints and of the term page's
+listing thumbnails: the count must not grow with the number of circles,
+terms or items, reserved ones included."""
 
 from __future__ import annotations
 
@@ -20,11 +20,14 @@ from tests.test_organizer_page import (
     _organization_slug,
     _term,
 )
-from tests.test_term_item_listings import _register, _rsvp
+from tests.test_term_item_listings import _auth, _register, _rsvp
 
 # 10 directory statements plus the owner's recent items select. The owner's
 # thumbnails and nearest date run only when that select returns items.
 MAIN_ENDPOINT_BUDGET = 11
+# A logged-in viewer adds the viewer's profile lookup and the reserver names
+# (one lookup per id kind) of the exchange items.
+LOGGED_IN_MAIN_ENDPOINT_BUDGET = MAIN_ENDPOINT_BUDGET + 3
 TERMS_ENDPOINT_BUDGET = 5
 
 
@@ -36,10 +39,16 @@ async def _statement_count(client: AsyncClient, engine: AsyncEngine, url: str) -
 
 
 async def _populated_organizer(
-    client: AsyncClient, db_session: AsyncSession, prefix: str, circle_count: int
+    client: AsyncClient,
+    db_session: AsyncSession,
+    prefix: str,
+    circle_count: int,
+    *,
+    taken: bool = False,
 ) -> str:
     """An organizer whose every circle has a term with an attendee, the
-    attendee's listed item with an APPROVED photo, and a needed item."""
+    attendee's listed item with an APPROVED photo (`taken`: reserved by a
+    second attendee), and a needed item."""
     owner_token, _ = await _register(client, "ORGANIZER", f"{prefix}.owner@example.com")
     slug = await _organization_slug(client, owner_token, f"Budżet {prefix}")
     uploader = await _uploader_id(db_session)
@@ -50,6 +59,15 @@ async def _populated_organizer(
         guest_token, _ = await _register(client, "GUEST", f"{prefix}.g{index}@example.com")
         await _rsvp(client, guest_token, group_id, term_id)
         [item_id] = await _listed_items(client, guest_token, (f"{prefix} rzecz {index}", "GIFT"))
+        if taken:
+            taker_token, _ = await _register(client, "GUEST", f"{prefix}.t{index}@example.com")
+            await _rsvp(client, taker_token, group_id, term_id)
+            take = await client.post(
+                f"/api/items/{item_id}/take",
+                json={"context": {"kind": "TERM", "id": str(term_id)}, "reservation_type": "GIFT"},
+                headers=_auth(taker_token),
+            )
+            assert take.status_code == 200, take.text
         product_id = (await _item(db_session, item_id)).product_id
         db_session.add(
             _photo(product_id, uploader, f"{prefix}-{index}", ModerationStatus.APPROVED, 0)
@@ -69,6 +87,27 @@ async def test_getOrganizerPage_oneVsFiveCircles_constantStatementCountWithinBud
 
     assert one == five, (one, five)
     assert five <= MAIN_ENDPOINT_BUDGET, five
+
+
+async def test_getOrganizerPage_loggedInOneVsFiveCirclesAllReserved_constantStatementCount(
+    client: AsyncClient, engine: AsyncEngine, db_session: AsyncSession
+) -> None:
+    one_slug = await _populated_organizer(client, db_session, "opr-one", 1, taken=True)
+    five_slug = await _populated_organizer(client, db_session, "opr-five", 5, taken=True)
+    viewer_token, _ = await _register(client, "GUEST", "opr.viewer@example.com")
+
+    counts = []
+    for slug in (one_slug, five_slug):
+        with count_queries(engine) as statements:
+            response = await client.get(
+                f"/api/groups/public/organizers/{slug}", headers=_auth(viewer_token)
+            )
+        assert response.status_code == 200, response.text
+        assert all(item["reservation"] for item in response.json()["exchange"]["items"])
+        counts.append(len(statements))
+
+    assert counts[0] == counts[1], counts
+    assert counts[1] <= LOGGED_IN_MAIN_ENDPOINT_BUDGET, counts
 
 
 async def test_listOrganizerTerms_oneVsFiveCirclesAndOneVs25Terms_constantStatementCount(

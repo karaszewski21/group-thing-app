@@ -47,10 +47,16 @@ from app.core.auth_deps import Principal
 from app.core.errors import AccessDeniedException, BusinessConflictException
 from app.core.security import decode_token
 from app.groups import service
+from app.groups.application import term_item_listings
 from app.groups.application.term_item_listings import TermAlreadyResolvedException
 from app.groups.infrastructure import circulation_bridge, repository
-from app.groups.models import Term
-from app.groups.schemas import TakeTermItemListingRequest
+from app.groups.models import SwapProposal, Term
+from app.groups.schemas import (
+    BrowseTermItemListingResponse,
+    ItemProposeRequest,
+    ItemTakeRequest,
+    ReservationContextRef,
+)
 from tests.conftest import leaf_category_ids
 from tests.ledger_assertions import assert_ledger_matches_projection, movements_for_item
 
@@ -65,6 +71,42 @@ def _principal(token: str) -> Principal:
     `UserProfile` from `principal.username` via `get_profile_by_principal`."""
     claims = decode_token(token, settings.jwt_secret)
     return Principal(username=claims["sub"], authorities=frozenset())
+
+
+def _term_ref(term_id: uuid.UUID) -> ReservationContextRef:
+    return ReservationContextRef(kind="TERM", id=term_id)
+
+
+async def _take_in_term(
+    db: AsyncSession, principal: Principal, item_id: uuid.UUID, term_id: uuid.UUID
+) -> BrowseTermItemListingResponse:
+    """A GIFT take in `term_id` through `take_item`, read back as the term's
+    listing view of the item (its reservation id and taker)."""
+    await service.take_item(
+        db,
+        principal,
+        item_id,
+        ItemTakeRequest(context=_term_ref(term_id), reservation_type=ReservationType.GIFT),
+    )
+    preference = await repository.get_item_listing_preference(db, item_id)
+    assert preference is not None
+    (view,) = await term_item_listings._build_listing_views(db, term_id, [preference])
+    return view
+
+
+async def _propose_in_term(
+    db: AsyncSession,
+    principal: Principal,
+    listing_item_id: uuid.UUID,
+    offered_item_id: uuid.UUID,
+    term_id: uuid.UUID,
+) -> SwapProposal:
+    return await service.propose_item_swap(
+        db,
+        principal,
+        listing_item_id,
+        ItemProposeRequest(context=_term_ref(term_id), offered_item_id=offered_item_id),
+    )
 
 
 async def _register(client: AsyncClient, role: str, email: str) -> tuple[str, uuid.UUID]:
@@ -280,12 +322,7 @@ async def test_takeListing_giftType_leavesReservationPendingAndNotifiesLister(
     taker_token, taker_party_id = await _register(client, "GUEST", "til.taker5@example.com")
     await _rsvp(client, taker_token, group_id, term_id)
 
-    taken = await service.take_item_listing(
-        db_session,
-        _principal(taker_token),
-        item_id,
-        TakeTermItemListingRequest(term_id=term_id, reservation_type="GIFT"),
-    )
+    taken = await _take_in_term(db_session, _principal(taker_token), item_id, term_id)
 
     assert taken.resolved_reservation_id is not None
     assert taken.taken_by_party_id == taker_party_id
@@ -305,7 +342,7 @@ async def test_takeListing_giftType_leavesReservationPendingAndNotifiesLister(
 async def test_proposeSwap_locksOnlyProposerItem_andNotifiesOwner(
     client: AsyncClient, db_session: AsyncSession
 ) -> None:
-    """(b) `propose_swap` locks (and auto-confirms) only the proposer's own
+    """(b) `propose_item_swap` locks (and auto-confirms) only the proposer's own
     offered item, creates a `PROPOSED` `SwapProposal`, leaves the listed
     item `AVAILABLE`, and notifies the listing owner."""
     org_token, _ = await _register(client, "ORGANIZER", "til.org6@example.com")
@@ -325,7 +362,7 @@ async def test_proposeSwap_locksOnlyProposerItem_andNotifiesOwner(
         db_session, _principal(taker_token), offered_item_id, ReservationType.SWAP
     )
 
-    proposal = await service.propose_swap(
+    proposal = await _propose_in_term(
         db_session, _principal(taker_token), listed_item_id, offered_item_id, term_id
     )
 
@@ -371,7 +408,7 @@ async def test_proposeSwap_notificationCarriesRealProposalId(
         db_session, _principal(taker_token), offered_item_id, ReservationType.SWAP
     )
 
-    proposal = await service.propose_swap(
+    proposal = await _propose_in_term(
         db_session, _principal(taker_token), listed_item_id, offered_item_id, term_id
     )
 
@@ -405,7 +442,7 @@ async def test_acceptSwapProposal_locksOwnerItem_pairsLegs_andNotifiesProposer(
         db_session, _principal(taker_token), offered_item_id, ReservationType.SWAP
     )
 
-    proposal = await service.propose_swap(
+    proposal = await _propose_in_term(
         db_session, _principal(taker_token), listed_item_id, offered_item_id, term_id
     )
 
@@ -450,7 +487,7 @@ async def test_rejectSwapProposal_releasesProposerLock_andNotifiesProposer(
         db_session, _principal(taker_token), offered_item_id, ReservationType.SWAP
     )
 
-    proposal = await service.propose_swap(
+    proposal = await _propose_in_term(
         db_session, _principal(taker_token), listed_item_id, offered_item_id, term_id
     )
 
@@ -482,12 +519,7 @@ async def test_confirmTransaction_beforeTermEnd_raisesBusinessConflict(
     taker_token, _ = await _register(client, "GUEST", "til.taker15@example.com")
     await _rsvp(client, taker_token, group_id, term_id)
 
-    taken = await service.take_item_listing(
-        db_session,
-        _principal(taker_token),
-        item_id,
-        TakeTermItemListingRequest(term_id=term_id, reservation_type="GIFT"),
-    )
+    taken = await _take_in_term(db_session, _principal(taker_token), item_id, term_id)
 
     with pytest.raises(BusinessConflictException):
         await service.confirm_transaction(
@@ -513,12 +545,7 @@ async def test_confirmTransaction_afterTermEnd_fulfillsReservation(
     taker_token, _ = await _register(client, "GUEST", "til.taker16@example.com")
     await _rsvp(client, taker_token, group_id, term_id)
 
-    taken = await service.take_item_listing(
-        db_session,
-        _principal(taker_token),
-        item_id,
-        TakeTermItemListingRequest(term_id=term_id, reservation_type="GIFT"),
-    )
+    taken = await _take_in_term(db_session, _principal(taker_token), item_id, term_id)
 
     term = (await db_session.execute(select(Term).where(Term.id == term_id))).scalar_one()
     term.occurs_on = clock.local_now() - timedelta(days=1)
@@ -553,12 +580,7 @@ async def test_confirmTransaction_secondCaller_getsAlreadyResolvedOutcomeAndNoti
     taker_token, _ = await _register(client, "GUEST", "til.taker17@example.com")
     await _rsvp(client, taker_token, group_id, term_id)
 
-    taken = await service.take_item_listing(
-        db_session,
-        _principal(taker_token),
-        item_id,
-        TakeTermItemListingRequest(term_id=term_id, reservation_type="GIFT"),
-    )
+    taken = await _take_in_term(db_session, _principal(taker_token), item_id, term_id)
 
     term = (await db_session.execute(select(Term).where(Term.id == term_id))).scalar_one()
     term.occurs_on = clock.local_now() - timedelta(days=1)
@@ -596,12 +618,7 @@ async def test_confirmTransaction_nonParty_raisesAccessDenied(
     taker_token, _ = await _register(client, "GUEST", "til.taker18@example.com")
     await _rsvp(client, taker_token, group_id, term_id)
 
-    taken = await service.take_item_listing(
-        db_session,
-        _principal(taker_token),
-        item_id,
-        TakeTermItemListingRequest(term_id=term_id, reservation_type="GIFT"),
-    )
+    taken = await _take_in_term(db_session, _principal(taker_token), item_id, term_id)
 
     term = (await db_session.execute(select(Term).where(Term.id == term_id))).scalar_one()
     term.occurs_on = clock.local_now() - timedelta(days=1)
@@ -634,12 +651,7 @@ async def test_confirmTransaction_giftGiver_raisesAccessDeniedButCanStillCancel(
     taker_token, _ = await _register(client, "GUEST", "til.taker18g@example.com")
     await _rsvp(client, taker_token, group_id, term_id)
 
-    taken = await service.take_item_listing(
-        db_session,
-        _principal(taker_token),
-        item_id,
-        TakeTermItemListingRequest(term_id=term_id, reservation_type="GIFT"),
-    )
+    taken = await _take_in_term(db_session, _principal(taker_token), item_id, term_id)
 
     term = (await db_session.execute(select(Term).where(Term.id == term_id))).scalar_one()
     term.occurs_on = clock.local_now() - timedelta(days=1)
@@ -691,7 +703,7 @@ async def test_confirmTransaction_swapCounterpartyConfirmsViaPairedLegId_succeed
         db_session, _principal(proposer_token), offered_item_id, ReservationType.SWAP
     )
 
-    proposal = await service.propose_swap(
+    proposal = await _propose_in_term(
         db_session, _principal(proposer_token), listed_item_id, offered_item_id, term_id
     )
     await service.accept_swap_proposal(db_session, _principal(lister_token), proposal.id)
@@ -765,12 +777,7 @@ async def test_cancelTransaction_beforeTermEnd_raisesBusinessConflict(
     taker_token, _ = await _register(client, "GUEST", "til.taker20@example.com")
     await _rsvp(client, taker_token, group_id, term_id)
 
-    taken = await service.take_item_listing(
-        db_session,
-        _principal(taker_token),
-        item_id,
-        TakeTermItemListingRequest(term_id=term_id, reservation_type="GIFT"),
-    )
+    taken = await _take_in_term(db_session, _principal(taker_token), item_id, term_id)
 
     with pytest.raises(BusinessConflictException):
         await service.cancel_transaction(
@@ -797,12 +804,7 @@ async def test_cancelTransaction_singleGiftReservation_releasedToAvailable(
     taker_token, _ = await _register(client, "GUEST", "til.taker21@example.com")
     await _rsvp(client, taker_token, group_id, term_id)
 
-    taken = await service.take_item_listing(
-        db_session,
-        _principal(taker_token),
-        item_id,
-        TakeTermItemListingRequest(term_id=term_id, reservation_type="GIFT"),
-    )
+    taken = await _take_in_term(db_session, _principal(taker_token), item_id, term_id)
 
     term = (await db_session.execute(select(Term).where(Term.id == term_id))).scalar_one()
     term.occurs_on = clock.local_now() - timedelta(days=1)
@@ -840,7 +842,7 @@ async def test_cancelTransaction_swapPairedLegs_bothReleasedTogether(
         db_session, _principal(proposer_token), offered_item_id, ReservationType.SWAP
     )
 
-    proposal = await service.propose_swap(
+    proposal = await _propose_in_term(
         db_session, _principal(proposer_token), listed_item_id, offered_item_id, term_id
     )
     await service.accept_swap_proposal(db_session, _principal(lister_token), proposal.id)
@@ -893,12 +895,7 @@ async def test_cancelTransaction_secondCaller_getsAlreadyResolvedOutcomeAndNotif
     taker_token, _ = await _register(client, "GUEST", "til.taker23@example.com")
     await _rsvp(client, taker_token, group_id, term_id)
 
-    taken = await service.take_item_listing(
-        db_session,
-        _principal(taker_token),
-        item_id,
-        TakeTermItemListingRequest(term_id=term_id, reservation_type="GIFT"),
-    )
+    taken = await _take_in_term(db_session, _principal(taker_token), item_id, term_id)
 
     term = (await db_session.execute(select(Term).where(Term.id == term_id))).scalar_one()
     term.occurs_on = clock.local_now() - timedelta(days=1)
@@ -937,12 +934,7 @@ async def test_cancelTransaction_nonParty_raisesAccessDenied(
     taker_token, _ = await _register(client, "GUEST", "til.taker24@example.com")
     await _rsvp(client, taker_token, group_id, term_id)
 
-    taken = await service.take_item_listing(
-        db_session,
-        _principal(taker_token),
-        item_id,
-        TakeTermItemListingRequest(term_id=term_id, reservation_type="GIFT"),
-    )
+    taken = await _take_in_term(db_session, _principal(taker_token), item_id, term_id)
 
     term = (await db_session.execute(select(Term).where(Term.id == term_id))).scalar_one()
     term.occurs_on = clock.local_now() - timedelta(days=1)
@@ -977,12 +969,7 @@ async def test_setPreference_afterGiftFulfillment_reassignsOwnerToNewHolder(
     taker_token, taker_party_id = await _register(client, "GUEST", "til.taker20@example.com")
     await _rsvp(client, taker_token, group_id, term_id)
 
-    taken = await service.take_item_listing(
-        db_session,
-        _principal(taker_token),
-        item_id,
-        TakeTermItemListingRequest(term_id=term_id, reservation_type="GIFT"),
-    )
+    taken = await _take_in_term(db_session, _principal(taker_token), item_id, term_id)
 
     term = (await db_session.execute(select(Term).where(Term.id == term_id))).scalar_one()
     term.occurs_on = clock.local_now() - timedelta(days=1)
@@ -1040,7 +1027,7 @@ async def test_setPreference_afterSwapFulfillment_reassignsOwnerForReceivedItem(
         db_session, _principal(proposer_token), offered_item_id, ReservationType.SWAP
     )
 
-    proposal = await service.propose_swap(
+    proposal = await _propose_in_term(
         db_session, _principal(proposer_token), listed_item_id, offered_item_id, term_id
     )
     await service.accept_swap_proposal(db_session, _principal(lister_token), proposal.id)
@@ -1082,12 +1069,7 @@ async def test_confirmTransaction_organizerGift_clearsPreference_notReofferedOnN
 
     taker_token, _ = await _register(client, "GUEST", "til.taker40@example.com")
     await _rsvp(client, taker_token, group_id, term_id)
-    taken = await service.take_item_listing(
-        db_session,
-        _principal(taker_token),
-        item_id,
-        TakeTermItemListingRequest(term_id=term_id, reservation_type="GIFT"),
-    )
+    taken = await _take_in_term(db_session, _principal(taker_token), item_id, term_id)
 
     term = (await db_session.execute(select(Term).where(Term.id == term_id))).scalar_one()
     term.occurs_on = clock.local_now() - timedelta(days=1)
@@ -1137,7 +1119,7 @@ async def test_confirmTransaction_swap_clearsBothPreferences(
         db_session, _principal(proposer_token), offered_item_id, ReservationType.SWAP
     )
 
-    proposal = await service.propose_swap(
+    proposal = await _propose_in_term(
         db_session, _principal(proposer_token), listed_item_id, offered_item_id, term_id
     )
     await service.accept_swap_proposal(db_session, _principal(lister_token), proposal.id)
@@ -1177,12 +1159,7 @@ async def test_cancelTransaction_gift_keepsPreference(
 
     taker_token, _ = await _register(client, "GUEST", "til.taker42@example.com")
     await _rsvp(client, taker_token, group_id, term_id)
-    taken = await service.take_item_listing(
-        db_session,
-        _principal(taker_token),
-        item_id,
-        TakeTermItemListingRequest(term_id=term_id, reservation_type="GIFT"),
-    )
+    taken = await _take_in_term(db_session, _principal(taker_token), item_id, term_id)
 
     term = (await db_session.execute(select(Term).where(Term.id == term_id))).scalar_one()
     term.occurs_on = clock.local_now() - timedelta(days=1)
@@ -1214,12 +1191,7 @@ async def test_takeListing_unofferedReservationType_raisesBusinessConflict(
     await _rsvp(client, taker_token, group_id, term_id)
 
     with pytest.raises(BusinessConflictException):
-        await service.take_item_listing(
-            db_session,
-            _principal(taker_token),
-            item_id,
-            TakeTermItemListingRequest(term_id=term_id, reservation_type="GIFT"),
-        )
+        await _take_in_term(db_session, _principal(taker_token), item_id, term_id)
 
 
 # --- Gap-analysis coverage carried over from the original design -----------
@@ -1228,7 +1200,7 @@ async def test_takeListing_unofferedReservationType_raisesBusinessConflict(
 # attendance-withdrawal case in test_attendance_withdrawal.py), (b) a lister
 # taking their own listing, (c) a taker's take succeeding only while the
 # LISTER's own attendance is still active (re-checked inside
-# `take_item_listing`, not just derived at browse-time), and (d) a SWAP take
+# `take_item`, not just derived at browse-time), and (d) a SWAP take
 # whose `offered_item_id` fails the taker's own-and-AVAILABLE check.
 
 
@@ -1281,18 +1253,13 @@ async def test_takeListing_ownListing_raisesBusinessConflict(
     )
 
     with pytest.raises(BusinessConflictException):
-        await service.take_item_listing(
-            db_session,
-            _principal(lister_token),
-            item_id,
-            TakeTermItemListingRequest(term_id=term_id, reservation_type="GIFT"),
-        )
+        await _take_in_term(db_session, _principal(lister_token), item_id, term_id)
 
 
 async def test_takeListing_listerAttendanceLapsedSinceListing_raisesAccessDenied(
     client: AsyncClient, db_session: AsyncSession
 ) -> None:
-    """`take_item_listing` re-checks the LISTER's own eligibility (not just
+    """`take_item` re-checks the LISTER's own eligibility (not just
     the taker's) at take-time — a standing preference set while the lister
     was an active attendee goes stale for this Term once they withdraw, even
     though the preference row itself is untouched."""
@@ -1312,12 +1279,7 @@ async def test_takeListing_listerAttendanceLapsedSinceListing_raisesAccessDenied
     await service.withdraw_attendance(db_session, _principal(lister_token), lister_attendance_id)
 
     with pytest.raises(AccessDeniedException):
-        await service.take_item_listing(
-            db_session,
-            _principal(taker_token),
-            item_id,
-            TakeTermItemListingRequest(term_id=term_id, reservation_type="GIFT"),
-        )
+        await _take_in_term(db_session, _principal(taker_token), item_id, term_id)
 
 
 async def test_takeListing_swapOfferedItemNotOwnedByTaker_raisesAccessDenied(
@@ -1342,7 +1304,7 @@ async def test_takeListing_swapOfferedItemNotOwnedByTaker_raisesAccessDenied(
     )
 
     with pytest.raises(AccessDeniedException):
-        await service.propose_swap(
+        await _propose_in_term(
             db_session, _principal(taker_token), listed_item_id, someone_elses_item_id, term_id
         )
 
@@ -1365,12 +1327,7 @@ async def test_listMyActiveTakenTermItemListings_pendingGiftTaken_returnsIt(
     taker_token, taker_party_id = await _register(client, "GUEST", "til.taker23@example.com")
     await _rsvp(client, taker_token, group_id, term_id)
 
-    taken = await service.take_item_listing(
-        db_session,
-        _principal(taker_token),
-        item_id,
-        TakeTermItemListingRequest(term_id=term_id, reservation_type="GIFT"),
-    )
+    taken = await _take_in_term(db_session, _principal(taker_token), item_id, term_id)
 
     mine_as_taker = await service.list_my_active_taken_term_item_listings(
         db_session, term_id, taker_party_id
@@ -1398,12 +1355,7 @@ async def test_listMyActiveTakenTermItemListings_excludesReservationsNotHeldByCa
 
     taker_token, _ = await _register(client, "GUEST", "til.taker24@example.com")
     await _rsvp(client, taker_token, group_id, term_id)
-    await service.take_item_listing(
-        db_session,
-        _principal(taker_token),
-        item_id,
-        TakeTermItemListingRequest(term_id=term_id, reservation_type="GIFT"),
-    )
+    await _take_in_term(db_session, _principal(taker_token), item_id, term_id)
 
     bystander_token, bystander_party_id = await _register(
         client, "GUEST", "til.bystander24@example.com"
@@ -1436,12 +1388,7 @@ async def test_listMyActiveTakenTermItemListings_excludesListerNotEligibleForTer
     taker_token, taker_party_id = await _register(client, "GUEST", "til.taker25@example.com")
     await _rsvp(client, taker_token, group_id, term_id)
 
-    taken = await service.take_item_listing(
-        db_session,
-        _principal(taker_token),
-        item_id,
-        TakeTermItemListingRequest(term_id=term_id, reservation_type="GIFT"),
-    )
+    taken = await _take_in_term(db_session, _principal(taker_token), item_id, term_id)
     assert taken.resolved_reservation_id is not None
 
     await service.withdraw_attendance(db_session, _principal(lister_token), lister_attendance_id)
@@ -1471,12 +1418,7 @@ async def test_listMyActiveTakenTermItemListings_afterTermEnd_stillResolves(
     taker_token, taker_party_id = await _register(client, "GUEST", "til.taker26@example.com")
     await _rsvp(client, taker_token, group_id, term_id)
 
-    taken = await service.take_item_listing(
-        db_session,
-        _principal(taker_token),
-        item_id,
-        TakeTermItemListingRequest(term_id=term_id, reservation_type="GIFT"),
-    )
+    taken = await _take_in_term(db_session, _principal(taker_token), item_id, term_id)
 
     term = (await db_session.execute(select(Term).where(Term.id == term_id))).scalar_one()
     term.occurs_on = clock.local_now() - timedelta(days=1)
@@ -1538,7 +1480,7 @@ async def test_takeListing_swapOfferedItemNotAvailable_raisesBusinessConflict(
     await db_session.commit()
 
     with pytest.raises(BusinessConflictException):
-        await service.propose_swap(
+        await _propose_in_term(
             db_session, _principal(taker_token), listed_item_id, offered_item_id, term_id
         )
 
@@ -1550,7 +1492,7 @@ async def test_proposeSwap_offeredItemTaggedSwap_succeeds(
     client: AsyncClient, db_session: AsyncSession
 ) -> None:
     """The offered item must itself carry a `SWAP`-tagged
-    `ItemListingPreference` — when it does, `propose_swap` still succeeds
+    `ItemListingPreference` — when it does, `propose_item_swap` still succeeds
     exactly as before this enforcement was added."""
     org_token, _ = await _register(client, "ORGANIZER", "til.org28@example.com")
     group_id, term_id = await _create_circle_and_term(client, org_token, "til28")
@@ -1569,7 +1511,7 @@ async def test_proposeSwap_offeredItemTaggedSwap_succeeds(
         db_session, _principal(taker_token), offered_item_id, ReservationType.SWAP
     )
 
-    proposal = await service.propose_swap(
+    proposal = await _propose_in_term(
         db_session, _principal(taker_token), listed_item_id, offered_item_id, term_id
     )
     assert proposal.status == "PROPOSED"
@@ -1597,7 +1539,7 @@ async def test_proposeSwap_offeredItemHasNoPreference_raisesBusinessConflict(
     offered_item_id = await _register_personal_item(client, taker_token, "Bez preferencji")
 
     with pytest.raises(BusinessConflictException):
-        await service.propose_swap(
+        await _propose_in_term(
             db_session, _principal(taker_token), listed_item_id, offered_item_id, term_id
         )
 
@@ -1626,7 +1568,7 @@ async def test_proposeSwap_offeredItemModeMismatch_raisesBusinessConflict(
     )
 
     with pytest.raises(BusinessConflictException):
-        await service.propose_swap(
+        await _propose_in_term(
             db_session, _principal(taker_token), listed_item_id, offered_item_id, term_id
         )
 
@@ -1714,7 +1656,7 @@ async def _accepted_swap_after_term(
         db_session, _principal(proposer_token), offered_item_id, ReservationType.SWAP
     )
 
-    proposal = await service.propose_swap(
+    proposal = await _propose_in_term(
         db_session, _principal(proposer_token), listed_item_id, offered_item_id, term_id
     )
     await service.accept_swap_proposal(db_session, _principal(lister_token), proposal.id)
@@ -1754,12 +1696,7 @@ async def test_confirmTransaction_giftFulfillment_postsGiftTransactionBetweenPer
     taker_token, _ = await _register(client, "GUEST", "til.taker31@example.com")
     await _rsvp(client, taker_token, group_id, term_id)
 
-    taken = await service.take_item_listing(
-        db_session,
-        _principal(taker_token),
-        item_id,
-        TakeTermItemListingRequest(term_id=term_id, reservation_type="GIFT"),
-    )
+    taken = await _take_in_term(db_session, _principal(taker_token), item_id, term_id)
 
     term = (await db_session.execute(select(Term).where(Term.id == term_id))).scalar_one()
     term.occurs_on = clock.local_now() - timedelta(days=1)
@@ -1944,7 +1881,7 @@ async def test_fulfillExchange_unpairedLegs_raisesConflict(
     await service.set_item_listing_preference(
         db_session, _principal(proposer_token), offered_item_id, ReservationType.SWAP
     )
-    proposal = await service.propose_swap(
+    proposal = await _propose_in_term(
         db_session, _principal(proposer_token), listed_item_id, offered_item_id, term_id
     )
     proposer_user_id = await _account_user_id(client, proposer_token)
@@ -2040,11 +1977,11 @@ async def test_swapReservedByUserId_notInverted_andTermEndGate_usesLocalNow(
         await client.get("/api/people/me", headers=_auth(proposer_token))
     ).json()["account_user_id"]
 
-    proposal = await service.propose_swap(
+    proposal = await _propose_in_term(
         db_session, _principal(proposer_token), listed_item_id, offered_item_id, term_id
     )
     # The proposer's own leg is created (and auto-confirmed) immediately by
-    # `propose_swap` — `reserved_by_user_id` must already be the LISTER
+    # `propose_item_swap` — `reserved_by_user_id` must already be the LISTER
     # (gaining this leg's item), not the proposer themself.
     proposer_leg = await client.get(
         f"/api/reservations/{proposal.proposer_reservation_id}", headers=_auth(proposer_token)
@@ -2118,12 +2055,7 @@ async def test_getItemBalance_reservedStatus_includesReservationId(
 
     taker_token, _ = await _register(client, "GUEST", "til.taker34@example.com")
     await _rsvp(client, taker_token, group_id, term_id)
-    taken = await service.take_item_listing(
-        db_session,
-        _principal(taker_token),
-        item_id,
-        TakeTermItemListingRequest(term_id=term_id, reservation_type="GIFT"),
-    )
+    taken = await _take_in_term(db_session, _principal(taker_token), item_id, term_id)
 
     balance = await client.get(
         f"/api/inventory-items/{item_id}/balance", headers=_auth(lister_token)
@@ -2151,12 +2083,7 @@ async def test_getItemBalance_inTransitStatus_stillReportsSameReservationId(
 
     taker_token, _ = await _register(client, "GUEST", "til.taker35@example.com")
     await _rsvp(client, taker_token, group_id, term_id)
-    taken = await service.take_item_listing(
-        db_session,
-        _principal(taker_token),
-        item_id,
-        TakeTermItemListingRequest(term_id=term_id, reservation_type="GIFT"),
-    )
+    taken = await _take_in_term(db_session, _principal(taker_token), item_id, term_id)
 
     # The item's owner (still the holder before fulfillment) confirms.
     lister_me = await client.get("/api/people/me", headers=_auth(lister_token))
@@ -2198,7 +2125,7 @@ async def test_getItemBalance_swapBothLegs_eachHasOwnDistinctReservationId(
         db_session, _principal(proposer_token), offered_item_id, ReservationType.SWAP
     )
 
-    proposal = await service.propose_swap(
+    proposal = await _propose_in_term(
         db_session, _principal(proposer_token), listed_item_id, offered_item_id, term_id
     )
     await service.accept_swap_proposal(db_session, _principal(lister_token), proposal.id)
@@ -2246,12 +2173,7 @@ async def test_getItemBalance_afterCancelTransaction_reservationIdClearedToNull(
 
     taker_token, _ = await _register(client, "GUEST", "til.taker36@example.com")
     await _rsvp(client, taker_token, group_id, term_id)
-    taken = await service.take_item_listing(
-        db_session,
-        _principal(taker_token),
-        item_id,
-        TakeTermItemListingRequest(term_id=term_id, reservation_type="GIFT"),
-    )
+    taken = await _take_in_term(db_session, _principal(taker_token), item_id, term_id)
 
     term = (await db_session.execute(select(Term).where(Term.id == term_id))).scalar_one()
     term.occurs_on = clock.local_now() - timedelta(days=1)
@@ -2315,12 +2237,7 @@ async def test_takeItemListing_taker_receivesItemReservedForPickupWithProductLin
     taker_token, _ = await _register(client, "GUEST", "til.link1.taker@example.com")
     await _rsvp(client, taker_token, group_id, term_id)
 
-    await service.take_item_listing(
-        db_session,
-        _principal(taker_token),
-        item_id,
-        TakeTermItemListingRequest(term_id=term_id, reservation_type="GIFT"),
-    )
+    await _take_in_term(db_session, _principal(taker_token), item_id, term_id)
 
     term = (await db_session.execute(select(Term).where(Term.id == term_id))).scalar_one()
     [reserved] = await _notifications(client, taker_token, "ITEM_RESERVED_FOR_PICKUP")
@@ -2334,24 +2251,28 @@ async def test_takeItemListing_taker_receivesItemReservedForPickupWithProductLin
     assert taken["link_path"] == f"/product/{item_id}"
 
 
-async def test_proposeSwap_owner_notificationLinksToOfferedItem(
+async def test_proposeSwap_owner_notificationLinksToListingItem(
     client: AsyncClient, db_session: AsyncSession
 ) -> None:
+    """The owner accepts or rejects on the listing item's page, where
+    `/actions.party_reservation` carries the proposal."""
     lister_token, taker_token, _, term_id, listed_item_id, offered_item_id = await _swap_listing(
         client, db_session, "tillink2"
     )
 
-    await service.propose_swap(
+    await _propose_in_term(
         db_session, _principal(taker_token), listed_item_id, offered_item_id, term_id
     )
 
     [proposed] = await _notifications(client, lister_token, "SWAP_PROPOSED")
-    assert proposed["link_path"] == f"/product/{offered_item_id}"
+    assert proposed["link_path"] == f"/product/{listed_item_id}"
 
 
-async def test_acceptSwapProposal_proposerAndAutoRejected_notificationsLinkToListingItem(
-    client: AsyncClient, db_session: AsyncSession
+async def test_proposeSwap_competingProposal_raisesConflict_preDeployRivalAutoRejectedOnAccept(
+    client: AsyncClient, db_session: AsyncSession, monkeypatch: pytest.MonkeyPatch
 ) -> None:
+    """A pending proposal blocks a second one; a rival left over from before
+    that guard is still auto-rejected when the owner accepts."""
     lister_token, taker_token, group_id, term_id, listed_item_id, offered_item_id = (
         await _swap_listing(client, db_session, "tillink3")
     )
@@ -2362,12 +2283,26 @@ async def test_acceptSwapProposal_proposerAndAutoRejected_notificationsLinkToLis
         db_session, _principal(rival_token), rival_item_id, ReservationType.SWAP
     )
 
-    proposal = await service.propose_swap(
+    proposal = await _propose_in_term(
         db_session, _principal(taker_token), listed_item_id, offered_item_id, term_id
     )
-    await service.propose_swap(
-        db_session, _principal(rival_token), listed_item_id, rival_item_id, term_id
-    )
+    with pytest.raises(
+        BusinessConflictException, match="Ktoś już zaproponował zamianę za tę rzecz"
+    ):
+        await _propose_in_term(
+            db_session, _principal(rival_token), listed_item_id, rival_item_id, term_id
+        )
+
+    async def no_pending_proposal(_db: AsyncSession, _item_ids: object) -> set[uuid.UUID]:
+        return set()
+
+    with monkeypatch.context() as patch:
+        patch.setattr(
+            repository, "list_listing_item_ids_with_pending_proposal", no_pending_proposal
+        )
+        await _propose_in_term(
+            db_session, _principal(rival_token), listed_item_id, rival_item_id, term_id
+        )
     await service.accept_swap_proposal(db_session, _principal(lister_token), proposal.id)
 
     [accepted] = await _notifications(client, taker_token, "SWAP_ACCEPTED")
@@ -2383,7 +2318,7 @@ async def test_rejectSwapProposal_proposer_notificationLinksToListingItem(
         client, db_session, "tillink4"
     )
 
-    proposal = await service.propose_swap(
+    proposal = await _propose_in_term(
         db_session, _principal(taker_token), listed_item_id, offered_item_id, term_id
     )
     await service.reject_swap_proposal(db_session, _principal(lister_token), proposal.id)
@@ -2407,12 +2342,7 @@ async def test_resolveTransactionReservations_alreadyResolved_notificationLinksT
 
     taker_token, _ = await _register(client, "GUEST", "til.link5.taker@example.com")
     await _rsvp(client, taker_token, group_id, term_id)
-    taken = await service.take_item_listing(
-        db_session,
-        _principal(taker_token),
-        item_id,
-        TakeTermItemListingRequest(term_id=term_id, reservation_type="GIFT"),
-    )
+    taken = await _take_in_term(db_session, _principal(taker_token), item_id, term_id)
 
     term = (await db_session.execute(select(Term).where(Term.id == term_id))).scalar_one()
     term.occurs_on = clock.local_now() - timedelta(days=1)
@@ -2428,3 +2358,29 @@ async def test_resolveTransactionReservations_alreadyResolved_notificationLinksT
 
     [resolved] = await _notifications(client, lister_token, "TERM_ALREADY_RESOLVED")
     assert resolved["link_path"] == f"/product/{item_id}"
+
+
+async def test_browseListing_pendingProposal_hiddenAndOwnViewExposesNoProposer(
+    client: AsyncClient, db_session: AsyncSession
+) -> None:
+    lister_token, taker_token, group_id, term_id, listed_item_id, offered_item_id = (
+        await _swap_listing(client, db_session, "tilprop1")
+    )
+    viewer_token, viewer_party_id = await _register(client, "GUEST", "tilprop1.viewer@example.com")
+    await _rsvp(client, viewer_token, group_id, term_id)
+    lister_party_id = (await client.get("/api/people/me", headers=_auth(lister_token))).json()[
+        "party_id"
+    ]
+
+    await _propose_in_term(
+        db_session, _principal(taker_token), listed_item_id, offered_item_id, term_id
+    )
+
+    browse = await service.list_browsable_term_item_listings(db_session, term_id, viewer_party_id)
+    mine = await service.list_my_term_item_listings(
+        db_session, term_id, uuid.UUID(lister_party_id)
+    )
+
+    assert listed_item_id not in {view.item_id for view in browse}
+    [own] = [view for view in mine if view.item_id == listed_item_id]
+    assert (own.resolved_reservation_id, own.taken_by_party_id) == (None, None)

@@ -8,6 +8,7 @@ import {
   type OwnerItemsPageResponse,
 } from "../api/ownerItems";
 import { extractProblemMessage, hasStatus } from "../api/problem";
+import { useAuth } from "../auth/AuthContext";
 
 export const OWNER_ITEMS_KEY = "ownerItems";
 
@@ -40,10 +41,12 @@ function fetchPage(owner: OwnerRef, page: number, mode?: ExchangeMode): Promise<
 
 /** One owner's listed items, 20 per page, optionally narrowed to one mode.
  * While a new mode loads, the previous mode's data stays, so the owner
- * header and the (unfiltered) counts never blank out. */
+ * header and the (unfiltered) counts never blank out. The reserved badges
+ * are personalised, so the viewer's user id is part of the key. */
 export function useOwnerItems(owner: OwnerRef, mode?: ExchangeMode): UseOwnerItemsResult {
+  const { username: viewerUserId } = useAuth();
   const query = useInfiniteQuery({
-    queryKey: [OWNER_ITEMS_KEY, owner, mode ?? null],
+    queryKey: [OWNER_ITEMS_KEY, owner, mode ?? null, viewerUserId ?? null],
     queryFn: ({ pageParam }) => fetchPage(owner, pageParam, mode),
     initialPageParam: 1,
     getNextPageParam: (last) => (last.page * last.size < last.total ? last.page + 1 : undefined),

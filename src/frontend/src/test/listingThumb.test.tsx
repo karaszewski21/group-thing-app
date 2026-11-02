@@ -2,7 +2,7 @@ import { render, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 import { MemoryRouter } from "react-router-dom";
 import type { PublicItemListingResponse } from "../api/groups";
-import { AttendeeList, type AttendeeListingVM } from "../pages/term/components/AttendeeList";
+import { AttendeeList } from "../pages/term/components/AttendeeList";
 
 function listing(thumbUrl: string | null): PublicItemListingResponse {
   return {
@@ -15,11 +15,11 @@ function listing(thumbUrl: string | null): PublicItemListingResponse {
     lister_display_name: "Ola Nowak",
     thumb_url: thumbUrl,
     added_at: "2026-10-30T09:00:00",
+    reservation: null,
   };
 }
 
 function renderRow(thumbUrl: string | null) {
-  const row: AttendeeListingVM = { key: "9", actions: [], listing: listing(thumbUrl) };
   render(
     <MemoryRouter>
       <AttendeeList
@@ -27,10 +27,9 @@ function renderRow(thumbUrl: string | null) {
           {
             partyId: "21",
             name: "Ola Nowak",
-            listings: [row],
+            listings: [listing(thumbUrl)],
             listingsTotal: 1,
             organizerSlug: "ania",
-            context: { kind: "term", id: "t-1" },
           },
         ]}
         activePartyId={null}
@@ -52,7 +51,7 @@ describe("Term page listing thumbnail", () => {
     expect(img).toHaveAttribute("src", "https://cdn.example.com/kask.jpg");
     expect(tile).toContainElement(img);
     expect(tile).toHaveClass("size-12", "shrink-0", "rounded-xl", "bg-cream");
-    expect(link).toHaveAttribute("href", "/ania/product/9?term=t-1");
+    expect(link).toHaveAttribute("href", "/ania/product/9");
   });
 
   it("renders the PhotoPlaceholder tile when thumb_url is null", () => {

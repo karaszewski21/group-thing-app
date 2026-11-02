@@ -24,11 +24,13 @@ vi.mock("../api/notifications", () => ({
   markAllNotificationsRead: vi.fn(),
 }));
 vi.mock("../api/people", () => ({ getMyProfile: vi.fn() }));
-vi.mock("../api/termItemListings", () => ({
+vi.mock("../api/termItemListings", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("../api/termItemListings")>()),
   getMyTermItemListings: vi.fn(),
   getMyTakenTermItemListings: vi.fn(),
 }));
-vi.mock("../api/reservations", () => ({
+vi.mock("../api/reservations", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("../api/reservations")>()),
   getReservation: vi.fn(),
   confirmTransaction: vi.fn(),
 }));
@@ -78,7 +80,9 @@ function browseListing(over: Partial<BrowseTermItemListingResponse> = {}): Brows
   };
 }
 
-function reservation(over: Partial<reservationsApi.ReservationResponse> = {}): reservationsApi.ReservationResponse {
+function reservation(
+  over: Partial<reservationsApi.ReservationDetailResponse> = {},
+): reservationsApi.ReservationDetailResponse {
   return {
     id: "77",
     item_id: "9",
@@ -89,6 +93,7 @@ function reservation(over: Partial<reservationsApi.ReservationResponse> = {}): r
     expires_at: null,
     status: "PENDING",
     notes: null,
+    personal_pickup: false,
     ...over,
   };
 }

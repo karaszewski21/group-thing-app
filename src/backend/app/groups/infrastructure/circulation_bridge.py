@@ -7,11 +7,10 @@ bridge exclusively through these thin pass-throughs (`create_reservation`/
 resolved in one circulation commit through `fulfill_exchange`/
 `cancel_exchange`. Listing-preference
 writes lock the item through `get_item_for_update` and keep its
-`listing_status` in step through `set_item_listing_status`. The term page
-thumbnails resolve listed items to their products in one batch through
-`list_available_items_with_product`; the organizer page joins
-`available_items_with_product_select` into its own exchange query
-instead."""
+`listing_status` in step through `set_item_listing_status`. List reads
+join `listed_items_with_product_select` (reserved items included) into
+their own statements; takeability-only reads check a batch of items with
+`list_available_items_with_product`."""
 
 from __future__ import annotations
 
@@ -39,7 +38,6 @@ from app.circulation.service import AvailableItemView
 __all__ = [
     "AvailableItemView",
     "BalanceStatus",
-    "available_items_with_product_select",
     "Inventory",
     "InventoryItem",
     "InventoryType",
@@ -57,12 +55,14 @@ __all__ = [
     "get_item",
     "get_item_balance",
     "get_item_for_update",
+    "get_personal_inventory_live_location_id",
     "get_reservation",
     "list_active_hand_over_reservations_for_events",
     "list_active_hand_over_reservations_for_terms",
     "list_active_reservations_for_taker",
     "list_available_items_with_product",
     "list_items_with_product_name",
+    "listed_items_with_product_select",
     "list_open_reservations_for_event",
     "list_product_names_for_items",
     "list_reservations",
@@ -83,8 +83,9 @@ async def create_reservation(
     event_id: uuid.UUID | None = None,
     commit: bool = True,
 ) -> Reservation:
-    """`GIFT`/`SWAP` reservation creation for the exchange mechanism, in
-    exactly one context (`ValueError` otherwise). Used by
+    """`GIFT`/`SWAP` reservation creation for the exchange mechanism, in at
+    most one context — none for a personal pickup (`ValueError` when both
+    are given). Used by
     `app.groups.application.term_item_listings`; `commit=False` only
     flushes."""
     return await circulation_service.create_reservation(
@@ -138,12 +139,17 @@ async def list_available_items_with_product(
     return await circulation_service.list_available_items_with_product(db, item_ids)
 
 
-def available_items_with_product_select() -> (
-    Select[tuple[uuid.UUID, uuid.UUID, str, ItemCondition]]
-):
-    """`(item_id, product_id, product_name, condition)` of every live
-    AVAILABLE item, unexecuted, for the organizer exchange query to join."""
-    return circulation_service.available_items_with_product_select()
+ListedItemsSelect = Select[
+    tuple[uuid.UUID, uuid.UUID, str, ItemCondition, BalanceStatus, uuid.UUID | None]
+]
+
+
+def listed_items_with_product_select() -> ListedItemsSelect:
+    """`(item_id, product_id, product_name, condition, balance_status,
+    reserved_by_user_id)` of every live AVAILABLE, RESERVED or IN_TRANSIT
+    item, unexecuted, for a list read to join."""
+    return circulation_service.listed_items_with_product_select()
+
 
 
 async def fulfill_exchange(
@@ -229,6 +235,13 @@ async def find_personal_inventory(db: AsyncSession, owner_user_id: uuid.UUID) ->
     return next(
         (inv for inv in inventories if inv.inventory_type == InventoryType.PERSONAL), None
     )
+
+
+async def get_personal_inventory_live_location_id(
+    db: AsyncSession, owner_party_id: uuid.UUID
+) -> uuid.UUID | None:
+    """The owner's live pickup place, required for a personal take."""
+    return await circulation_service.find_personal_inventory_live_location_id(db, owner_party_id)
 
 
 async def list_items_with_product_name(

@@ -1,0 +1,354 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Strona produktu – mój przedmiot — Product Design</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      background: #f5f5f5;
+      color: #222;
+    }
+    header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0.75rem 1.5rem;
+      background: #fff;
+      border-bottom: 1px solid #ddd;
+    }
+    header h1 { margin: 0; font-size: 1.1rem; font-weight: 600; }
+    #status { font-size: 0.8rem; color: #4a4; font-weight: 500; }
+    #status.disconnected { color: #a44; }
+
+    /* Screen navigation */
+    .screen-nav {
+      background: #fafafa;
+      border-bottom: 1px solid #e0e0e0;
+      padding: 0.5rem 1.5rem;
+    }
+    .nav-screens {
+      display: flex;
+      gap: 0.25rem;
+      flex-wrap: wrap;
+      margin-bottom: 0.25rem;
+    }
+    .nav-screen {
+      padding: 0.3rem 0.7rem;
+      border-radius: 4px;
+      text-decoration: none;
+      color: #555;
+      font-size: 0.8rem;
+      background: #eee;
+      transition: background 0.15s;
+    }
+    .nav-screen:hover { background: #ddd; }
+    .nav-screen.active { background: #333; color: #fff; }
+    .nav-prevnext {
+      display: flex;
+      justify-content: space-between;
+      margin-top: 0.25rem;
+    }
+    .nav-arrow {
+      font-size: 0.8rem;
+      color: #0066cc;
+      text-decoration: none;
+    }
+    .nav-arrow:hover { text-decoration: underline; }
+
+    /* Gallery */
+    .gallery-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+      gap: 1.5rem;
+      padding: 1rem 0;
+    }
+    .gallery-card {
+      display: block;
+      background: #fff;
+      border: 1px solid #e0e0e0;
+      border-radius: 6px;
+      overflow: hidden;
+      text-decoration: none;
+      color: inherit;
+      transition: box-shadow 0.2s, transform 0.15s;
+    }
+    .gallery-card:hover {
+      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+      transform: translateY(-2px);
+    }
+    .gallery-card-title {
+      padding: 0.75rem 1rem;
+      font-weight: 600;
+      font-size: 0.9rem;
+      border-bottom: 1px solid #eee;
+      background: #fafafa;
+    }
+    .gallery-card-preview {
+      height: 230px;
+      overflow: hidden;
+      position: relative;
+      background: #0e0f11;
+    }
+    /* The screen renders in a private iframe at desktop width, scaled down to a
+       thumbnail. pointer-events off so the whole card stays a single click target. */
+    .gallery-frame {
+      width: 1280px;
+      height: 820px;
+      border: 0;
+      transform: scale(0.27);
+      transform-origin: top left;
+      pointer-events: none;
+    }
+
+    /* Mockup content */
+    main {
+      max-width: 1200px;
+      margin: 1.5rem auto;
+      padding: 1.5rem;
+      background: #fff;
+      border: 1px solid #e0e0e0;
+      border-radius: 4px;
+      min-height: 300px;
+      position: relative;
+    }
+    .placeholder {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 300px;
+      color: #999;
+      font-size: 1rem;
+      text-align: center;
+      line-height: 1.8;
+    }
+    .annotation-tooltip {
+      position: absolute;
+      background: rgba(0, 0, 0, 0.75);
+      color: #fff;
+      font-size: 0.75rem;
+      padding: 4px 8px;
+      border-radius: 3px;
+      pointer-events: none;
+      max-width: 250px;
+      z-index: 1000;
+      line-height: 1.3;
+    }
+    .annotation-tooltip::before {
+      content: '';
+      position: absolute;
+      top: -4px;
+      left: 10px;
+      width: 8px;
+      height: 8px;
+      background: rgba(0, 0, 0, 0.75);
+      transform: rotate(45deg);
+    }
+
+    /* Interactive screen-to-screen navigation */
+    [data-screen] { cursor: pointer; }
+    [data-screen]:hover { outline: 2px solid #0066cc; outline-offset: 2px; border-radius: 2px; }
+
+    /* Annotation toggle */
+    .annotations-hidden .annotation-tooltip { display: none; }
+    #annotation-toggle {
+      font-size: 0.8rem;
+      padding: 0.25rem 0.6rem;
+      border: 1px solid #ccc;
+      border-radius: 3px;
+      background: #f0f0f0;
+      cursor: pointer;
+      margin-left: 0.75rem;
+    }
+    #annotation-toggle:hover { background: #e0e0e0; }
+    #annotation-toggle.active { background: #333; color: #fff; border-color: #333; }
+    #gallery-link {
+      display: inline-block; margin-right: 0.5rem; padding: 0.35rem 0.75rem;
+      border: 1px solid #ccc; border-radius: 4px; font-size: 0.85rem;
+      color: #333; text-decoration: none; background: #f5f5f5;
+    }
+    #gallery-link:hover { background: #e0e0e0; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Strona produktu – mój przedmiot</h1>
+    <div>
+      <a href="/" id="gallery-link" title="Back to the gallery of all screens">⊞ Gallery</a>
+      <button id="annotation-toggle" class="active" title="Toggle annotation tooltips">Annotations</button>
+      <span id="status">Connected</span>
+    </div>
+  </header>
+
+  <nav class="screen-nav"><div class="nav-screens"><a href="/screen/strona-produktu-zalogowany-3-akcje" class="nav-screen">Strona produktu – zalogowany (3 akcje)</a><a href="/screen/strona-produktu-niezalogowany" class="nav-screen">Strona produktu – niezalogowany</a><a href="/screen/strona-produktu-m-j-przedmiot" class="nav-screen active">Strona produktu – mój przedmiot</a><a href="/screen/strona-produktu-zarezerwowana" class="nav-screen">Strona produktu – zarezerwowana</a><a href="/screen/arkusz-wybieram-termin" class="nav-screen">Arkusz – Wybieram termin</a><a href="/screen/arkusz-odbior-osobi-cie" class="nav-screen">Arkusz – Odbiorę osobiście</a><a href="/screen/strona-terminu-rzeczy-uczestnik-w" class="nav-screen">Strona terminu – rzeczy uczestników</a><a href="/screen/strona-organizatora-tablica-wymiany-i-liczniki" class="nav-screen">Strona organizatora – tablica wymiany i liczniki</a><a href="/screen/rzeczy-w-a-ciciela-niezalogowany" class="nav-screen">Rzeczy właściciela – niezalogowany</a><a href="/screen/moje-rzeczy-lokalizacja-i-widoczno" class="nav-screen">Moje rzeczy – lokalizacja i widoczność</a></div><div class="nav-prevnext"><a href="/screen/strona-produktu-niezalogowany" class="nav-arrow">&larr; Strona produktu – niezalogowany</a><a href="/screen/strona-produktu-zarezerwowana" class="nav-arrow">Strona produktu – zarezerwowana &rarr;</a></div></nav>
+
+  <main id="mockup-container">
+    <style>
+:root{--primary:#1b8168;--primary-soft:#dcf5ec;--primary-fg:#117b63;--accent-soft:#eaf2ce;--accent-fg:#56701f;
+--cream:#f4f8f0;--stage:#edf1ea;--line:#e2eadf;--line-strong:#cbdac7;--paper:#fff;--ink:#1e2e27;--ink-soft:#5c7069;
+--teal-soft:#d9ecec;--danger:#b23b3b;--danger-soft:#f6e4e2;}
+*{box-sizing:border-box}
+body{background:var(--stage);font-family:Figtree,'Segoe UI',system-ui,sans-serif;color:var(--ink);margin:0}
+.phone{max-width:400px;margin:16px auto;background:var(--cream);border-radius:24px;padding:16px;min-height:600px}
+.wide{max-width:900px;margin:16px auto;background:var(--cream);border-radius:24px;padding:20px}
+h1,h2,h3{font-family:'Bricolage Grotesque','Segoe UI',sans-serif;margin:0}
+h1{font-size:22px}h2{font-size:17px;margin:18px 0 8px}h3{font-size:14px}
+.card{background:var(--paper);border:1px solid var(--line);border-radius:16px;padding:12px;margin-top:10px}
+.muted{color:var(--ink-soft);font-size:12px}
+.gallery{aspect-ratio:4/3;background:var(--paper);border:1px solid var(--line);border-radius:16px;display:flex;align-items:center;justify-content:center;color:var(--ink-soft)}
+.chip{display:inline-flex;align-items:center;gap:4px;border-radius:10px;padding:3px 8px;font-size:11px;font-weight:800}
+.gift{background:var(--primary-soft);color:var(--primary-fg)}
+.swap{background:var(--accent-soft);color:var(--accent-fg)}
+.res{background:var(--teal-soft);color:var(--ink)}
+.priv{background:var(--stage);color:var(--ink-soft);border:1px solid var(--line-strong)}
+.btn{display:block;width:100%;border:0;border-radius:12px;padding:12px;font-weight:800;font-size:14px;margin-top:8px;text-align:center;cursor:pointer;font-family:inherit}
+.btn-primary{background:var(--primary);color:#fff}
+.btn-outline{background:var(--paper);color:var(--primary-fg);border:1.5px solid var(--primary)}
+.btn-ghost{background:transparent;color:var(--primary-fg);text-decoration:underline}
+.btn[aria-disabled=true]{opacity:.5}
+.row{display:flex;gap:10px;align-items:center}
+.ctx{display:flex;gap:10px;padding:10px 0;border-top:1px solid var(--line)}
+.ctx:first-child{border-top:0}
+.date{min-width:46px;text-align:center;background:var(--primary-soft);color:var(--primary-fg);border-radius:10px;padding:4px;font-weight:800;font-size:12px}
+.pin{font-size:13px}
+.grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}
+.grid4{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
+.tile{position:relative;background:var(--paper);border:1px solid var(--line);border-radius:16px;padding:10px;display:flex;flex-direction:column;cursor:pointer}
+.thumb{aspect-ratio:1;background:var(--cream);border-radius:12px;display:flex;align-items:center;justify-content:center;color:var(--ink-soft);font-size:11px}
+.tname{font-weight:700;font-size:13px;margin-top:8px}
+.badges{display:flex;flex-wrap:wrap;gap:4px;margin-top:6px}
+.dim .thumb{opacity:.6}
+.prow{display:flex;gap:10px;align-items:center;padding:8px 0;border-top:1px solid var(--line);cursor:pointer}
+.pthumb{width:48px;height:48px;border-radius:10px;background:var(--cream);flex:none}
+.tabs{display:flex;gap:6px;margin:10px 0}
+.tab{border-radius:999px;padding:6px 12px;font-size:12px;font-weight:700;background:var(--paper);border:1px solid var(--line)}
+.tab.on{background:var(--ink);color:#fff}
+.counts{display:flex;gap:10px}
+.count{flex:1;background:var(--paper);border:1px solid var(--line);border-radius:16px;padding:12px;text-align:center}
+.count b{display:block;font-size:22px;font-family:'Bricolage Grotesque',sans-serif}
+select,.select{width:100%;padding:10px;border-radius:12px;border:1px solid var(--line-strong);background:var(--paper);font:inherit;font-size:14px}
+.toggle{display:inline-flex;border:1px solid var(--line-strong);border-radius:10px;overflow:hidden;font-size:12px;font-weight:700}
+.toggle span{padding:6px 10px;background:var(--paper)}
+.toggle span.on{background:var(--ink);color:#fff}
+.sheet{background:var(--paper);border-radius:20px 20px 0 0;padding:16px;margin:-16px;margin-top:180px;min-height:420px;box-shadow:0 -8px 30px rgb(0 0 0 /.15)}
+.scrim{background:rgb(20 28 24 / .55);border-radius:24px;padding:16px;max-width:400px;margin:16px auto;min-height:640px}
+.radio{display:flex;gap:10px;align-items:flex-start;padding:10px;border:1px solid var(--line);border-radius:12px;margin-top:8px}
+.radio.on{border-color:var(--primary);background:var(--primary-soft)}
+.dot{width:16px;height:16px;border-radius:50%;border:2px solid var(--line-strong);margin-top:2px;flex:none}
+.radio.on .dot{border:5px solid var(--primary)}
+.note{background:var(--accent-soft);border-radius:12px;padding:10px;font-size:12px;margin-top:10px}
+.status{border-radius:14px;padding:12px;background:var(--teal-soft);margin-top:10px}
+.loc{display:flex;gap:8px;align-items:flex-start}
+.item-row{display:flex;gap:10px;align-items:flex-start}
+.label{font-size:12px;font-weight:700;color:var(--ink-soft);margin-bottom:4px}
+</style>
+<div id="mockup-content"><div class="phone">
+<div class="gallery">[ zdjęcia przedmiotu ]</div>
+<div class="badges" style="margin-top:10px"><span class="chip swap">Chcę się zamienić</span><span class="chip priv">🔒 Prywatny</span></div>
+<h1 style="margin-top:6px">Rowerek biegowy 12"</h1>
+<div class="muted">Zabawki › Rowerki · Stan: dobry · od <a href="#" style="color:var(--primary-fg)">Kasia N.</a></div>
+<div class="card loc"><span class="pin">📍</span><div><div class="label">Lokalizacja przedmiotu (widzisz tylko Ty)</div>
+<b>Dom – Mokotów</b><div class="muted">ul. Puławska 120/4, 02-620 Warszawa</div>
+<a href="#" style="font-size:12px;color:var(--primary-fg)" data-screen="moje-rzeczy-lokalizacja-i-widoczno">Zmień w „Moje rzeczy”</a></div></div>
+
+<div class="card"><h3>Gdzie jeszcze można odebrać</h3>
+<p class="muted" style="margin:4px 0 6px">Terminy i wydarzenia, na których bywa Kasia</p>
+<div class="ctx"><div class="date">SOB<br>7 LIS</div><div><b style="font-size:13px">Wymianka przedszkolna</b><div class="muted">📍 Przedszkole nr 12, Mokotów · 10:00</div></div></div>
+<div class="ctx"><div class="date">ŚR<br>11 LIS</div><div><b style="font-size:13px">Jarmark sąsiedzki</b> <span class="chip res">wydarzenie</span><div class="muted">📍 Park Dreszera · 16:00</div></div></div>
+</div>
+<div class="note">To Twoja rzecz. Inni mogą ją zarezerwować osobiście albo na Twoich terminach. Prywatna — widzą ją tylko osoby z Twoich prywatnych grup.</div>
+<button class="btn btn-outline">Edytuj przedmiot</button></div></div>
+  </main>
+
+  <script>
+    // SSE client for live refresh. It must NOT hijack the user's location — during a
+    // multi-screen batch that would repeatedly yank the browser to the newest screen and
+    // make it impossible to browse the gallery. On the gallery/latest we reload in place
+    // (so new cards appear live); on an individual screen we show a dismissible toast so a
+    // reader is never interrupted mid-review.
+    const statusEl = document.getElementById('status');
+    const evtSource = new EventSource('/events');
+    function showRefreshToast() {
+      if (document.getElementById('refresh-toast')) return;
+      const t = document.createElement('button');
+      t.id = 'refresh-toast';
+      t.textContent = '↻ Screens updated — click to refresh';
+      t.style.cssText = 'position:fixed;bottom:20px;left:50%;transform:translateX(-50%);z-index:9999;'
+        + 'background:#2563eb;color:#fff;border:0;border-radius:8px;padding:10px 16px;font:600 13px Inter,sans-serif;'
+        + 'cursor:pointer;box-shadow:0 6px 20px rgba(0,0,0,.35)';
+      t.onclick = function(){ window.location.reload(); };
+      document.body.appendChild(t);
+    }
+    evtSource.onmessage = function(e) {
+      if (e.data !== 'refresh') return;
+      if (window.location.pathname === '/' || window.location.pathname === '/latest') {
+        window.location.reload();
+      } else {
+        showRefreshToast();
+      }
+    };
+    evtSource.onopen = function() {
+      statusEl.textContent = 'Connected';
+      statusEl.className = '';
+    };
+    evtSource.onerror = function() {
+      statusEl.textContent = 'Reconnecting...';
+      statusEl.className = 'disconnected';
+    };
+
+    // Annotation overlay rendering
+    const annotations = [{"selector":".loc","text":"Owner sees full address (LocationRefResponse + formatted_address)."},{"selector":".chip.priv","text":"Visibility from item_listing_preferences.visibility"}];
+    function renderAnnotations() {
+      const container = document.getElementById('mockup-container');
+      annotations.forEach(function(ann) {
+        if (!ann.selector) return;
+        const target = container.querySelector(ann.selector);
+        if (!target) return;
+        const text = ann.note || ann.text || '';
+        if (!text) return;
+        const rect = target.getBoundingClientRect();
+        const containerRect = container.getBoundingClientRect();
+        const tooltip = document.createElement('div');
+        tooltip.className = 'annotation-tooltip';
+        tooltip.textContent = text;
+        tooltip.style.top = (rect.bottom - containerRect.top + 6) + 'px';
+        tooltip.style.left = (rect.left - containerRect.left) + 'px';
+        container.appendChild(tooltip);
+      });
+    }
+    if (annotations.length > 0) requestAnimationFrame(renderAnnotations);
+
+    // Annotation toggle with localStorage persistence
+    var toggleBtn = document.getElementById('annotation-toggle');
+    var container = document.getElementById('mockup-container');
+    var annotationsVisible = localStorage.getItem('annotations-visible') !== 'false'; // default: true
+    function updateToggle() {
+      if (annotationsVisible) {
+        container.classList.remove('annotations-hidden');
+        toggleBtn.classList.add('active');
+      } else {
+        container.classList.add('annotations-hidden');
+        toggleBtn.classList.remove('active');
+      }
+    }
+    updateToggle();
+    toggleBtn.addEventListener('click', function() {
+      annotationsVisible = !annotationsVisible;
+      localStorage.setItem('annotations-visible', annotationsVisible);
+      updateToggle();
+    });
+
+    // Screen-to-screen navigation: clicking elements with data-screen="slug" navigates to that screen
+    document.getElementById('mockup-container').addEventListener('click', function(e) {
+      var target = e.target.closest('[data-screen]');
+      if (target) {
+        e.preventDefault();
+        window.location.href = '/screen/' + target.getAttribute('data-screen');
+      }
+    });
+  </script>
+</body>
+</html>

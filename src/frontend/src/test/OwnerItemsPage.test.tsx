@@ -1,14 +1,16 @@
-import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { fireEvent, render, renderHook, screen, waitFor, within } from "@testing-library/react";
 import { createMemoryRouter, RouterProvider, useLocation } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { PublicOrganizationResponse } from "../api/organizations";
 import * as organizationsApi from "../api/organizations";
 import type { OwnerItemCard, OwnerItemsPageResponse, OwnerNearestDate } from "../api/ownerItems";
 import * as ownerItemsApi from "../api/ownerItems";
+import { useOwnerItems } from "../hooks/useOwnerItems";
 import { OwnerItemsPage } from "../pages/owner/OwnerItemsPage";
 import { createQueryWrapper } from "./queryClient";
 
-vi.mock("../auth/AuthContext", () => ({ useAuth: () => ({ token: null }) }));
+const mockAuth: { token: string | null; username: string | null } = { token: null, username: null };
+vi.mock("../auth/AuthContext", () => ({ useAuth: () => mockAuth }));
 
 vi.mock("../api/organizations", () => ({
   getPublicOrganization: vi.fn(),
@@ -43,6 +45,7 @@ function card(id: string, mode: OwnerItemCard["mode"], overrides: Partial<OwnerI
     mode,
     thumb_url: null,
     added_at: "2026-10-30T09:00:00",
+    reservation: null,
     ...overrides,
   };
 }
@@ -97,11 +100,13 @@ function renderAt(path: string) {
 
 beforeEach(() => {
   vi.resetAllMocks();
+  mockAuth.token = null;
+  mockAuth.username = null;
   vi.mocked(organizationsApi.getPublicOrganization).mockResolvedValue(ORGANIZATION);
 });
 
 describe("OwnerItemsPage", () => {
-  it("shows the nearest date card and dated chips on cards linking with its context", async () => {
+  it("keeps the nearest date card and shows intent pills on tiles linking to the plain product page", async () => {
     vi.mocked(ownerItemsApi.getOrganizationOwnerItems).mockResolvedValue(ownerPage());
 
     renderAt(`/${SLUG}/items`);
@@ -116,14 +121,16 @@ describe("OwnerItemsPage", () => {
       "href",
       `/${SLUG}/event/e1`,
     );
-    expect(screen.getByRole("link", { name: "Rzecz i1" })).toHaveAttribute("href", `/${SLUG}/product/i1?event=e1`);
+    expect(screen.getByRole("link", { name: "Rzecz i1" })).toHaveAttribute("href", `/${SLUG}/product/i1`);
     const [gift, swap] = screen.getAllByRole("article");
-    expect(gift).toHaveTextContent("Weź · sob 7 lis");
-    expect(swap).toHaveTextContent("Zamienię · sob 7 lis");
+    expect(within(gift).getByText("Chcę oddać")).toHaveClass("bg-primary-soft", "text-primary-fg");
+    expect(within(swap).getByText("Chcę się zamienić")).toHaveClass("bg-accent-soft", "text-accent-fg");
+    expect(gift).not.toHaveTextContent("sob 7 lis");
+    expect(within(gift).queryByRole("button")).not.toBeInTheDocument();
     expect(ownerItemsApi.getOrganizationOwnerItems).toHaveBeenCalledWith(SLUG, 1, undefined);
   });
 
-  it("shows the chat-only notice, mode-only chips and context-free links without a nearest date", async () => {
+  it("shows the chat-only notice and intent pills without a nearest date", async () => {
     vi.mocked(ownerItemsApi.getPartyOwnerItems).mockResolvedValue(
       ownerPage({
         owner: { party_id: PARTY_ID, display_name: "Ania W.", slug: null },
@@ -141,9 +148,8 @@ describe("OwnerItemsPage", () => {
     expect(screen.queryByText("Najbliższa okazja do odbioru")).not.toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Rzecz i1" })).toHaveAttribute("href", "/product/i1");
     const [gift, swap] = screen.getAllByRole("article");
-    expect(within(gift).getByText("Oddam")).toBeInTheDocument();
-    expect(within(swap).getByText("Zamienię")).toBeInTheDocument();
-    expect(gift).not.toHaveTextContent("·");
+    expect(within(gift).getByText("Chcę oddać")).toBeInTheDocument();
+    expect(within(swap).getByText("Chcę się zamienić")).toBeInTheDocument();
     expect(ownerItemsApi.getPartyOwnerItems).toHaveBeenCalledWith(PARTY_ID, 1, undefined);
     expect(organizationsApi.getPublicOrganization).not.toHaveBeenCalled();
   });
@@ -157,15 +163,51 @@ describe("OwnerItemsPage", () => {
 
     const tablist = await screen.findByRole("tablist");
     const tabs = within(tablist).getAllByRole("tab");
-    expect(tabs.map((tab) => tab.textContent)).toEqual(["Wszystkie 3", "Oddam 2", "Zamienię 1"]);
+    expect(tabs.map((tab) => tab.textContent)).toEqual(["Wszystkie 3", "Chcę oddać 2", "Chcę się zamienić 1"]);
 
-    fireEvent.click(within(tablist).getByRole("tab", { name: "Oddam 2" }));
+    fireEvent.click(within(tablist).getByRole("tab", { name: "Chcę oddać 2" }));
 
     await waitFor(() => expect(ownerItemsApi.getOrganizationOwnerItems).toHaveBeenCalledWith(SLUG, 1, "GIFT"));
     await waitFor(() => expect(screen.queryByRole("link", { name: "Rzecz i2" })).not.toBeInTheDocument());
-    expect(within(tablist).getByRole("tab", { name: "Oddam 2" })).toHaveAttribute("aria-selected", "true");
+    expect(within(tablist).getByRole("tab", { name: "Chcę oddać 2" })).toHaveAttribute("aria-selected", "true");
     expect(within(tablist).getByRole("tab", { name: "Wszystkie 3" })).toBeInTheDocument();
-    expect(within(tablist).getByRole("tab", { name: "Zamienię 1" })).toBeInTheDocument();
+    expect(within(tablist).getByRole("tab", { name: "Chcę się zamienić 1" })).toBeInTheDocument();
+  });
+
+  it("shows an anonymous viewer the reserved pill without a name, next to the intent pill", async () => {
+    vi.mocked(ownerItemsApi.getOrganizationOwnerItems).mockResolvedValue(
+      ownerPage({
+        items: [card("i1", "GIFT", { reservation: { by_name: null, by_me: false } }), card("i2", "SWAP")],
+        total: 2,
+      }),
+    );
+
+    renderAt(`/${SLUG}/items`);
+
+    await screen.findByRole("link", { name: "Rzecz i1" });
+    const [reserved] = screen.getAllByRole("article");
+    const pill = within(reserved).getByText("Zarezerwowana");
+    expect(pill).toHaveClass("bg-teal-soft");
+    expect(pill).toHaveTextContent(/^Zarezerwowana$/);
+    expect(within(reserved).getByText("Chcę oddać")).toBeInTheDocument();
+    expect(screen.queryByText(/przez/)).not.toBeInTheDocument();
+    const tabs = within(screen.getByRole("tablist")).getAllByRole("tab");
+    expect(tabs.map((tab) => tab.textContent)).toEqual(["Wszystkie 3", "Chcę oddać 2", "Chcę się zamienić 1"]);
+  });
+
+  it("refetches the owner items under a new key after a login", async () => {
+    vi.mocked(ownerItemsApi.getOrganizationOwnerItems).mockResolvedValue(ownerPage());
+    const { result, rerender } = renderHook(() => useOwnerItems({ kind: "organization", slug: SLUG }), {
+      wrapper: createQueryWrapper(),
+    });
+    await waitFor(() => expect(result.current.loading).toBe(false));
+    expect(ownerItemsApi.getOrganizationOwnerItems).toHaveBeenCalledTimes(1);
+
+    mockAuth.token = "jwt";
+    mockAuth.username = "user-1";
+    rerender();
+
+    await waitFor(() => expect(ownerItemsApi.getOrganizationOwnerItems).toHaveBeenCalledTimes(2));
   });
 
   it("redirects an organization owner's party URL to the slug URL, keeping the query", async () => {
@@ -178,15 +220,12 @@ describe("OwnerItemsPage", () => {
     expect(router.state.historyAction).toBe("REPLACE");
   });
 
-  it("links cards with the page's own context over the nearest date", async () => {
+  it("ignores a ?term= on the page and links tiles to the plain product page", async () => {
     vi.mocked(ownerItemsApi.getOrganizationOwnerItems).mockResolvedValue(ownerPage());
 
     renderAt(`/${SLUG}/items?term=t9`);
 
-    expect(await screen.findByRole("link", { name: "Rzecz i2" })).toHaveAttribute(
-      "href",
-      `/${SLUG}/product/i2?term=t9`,
-    );
+    expect(await screen.findByRole("link", { name: "Rzecz i2" })).toHaveAttribute("href", `/${SLUG}/product/i2`);
   });
 
   it("loads the next page on 'Pokaż więcej'", async () => {

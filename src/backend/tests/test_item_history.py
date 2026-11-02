@@ -15,7 +15,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.circulation.models import ReservationType
 from app.groups import service as groups_service
 from app.groups.models import Term
-from app.groups.schemas import TakeTermItemListingRequest
 from tests.test_term_item_listings import (
     _accepted_swap_after_term,
     _auth,
@@ -24,6 +23,7 @@ from tests.test_term_item_listings import (
     _register,
     _register_personal_item,
     _rsvp,
+    _take_in_term,
 )
 
 _ENTRY_KEYS = {"occurred_at", "movement_type", "description", "term_occurs_on"}
@@ -106,12 +106,7 @@ async def test_getItemHistory_fulfilledGift_entryCarriesTermDateAndNewOwnerSeesI
     )
     taker_token, _ = await _register(client, "GUEST", "ith.taker3@example.com")
     await _rsvp(client, taker_token, group_id, term_id)
-    taken = await groups_service.take_item_listing(
-        db_session,
-        _principal(taker_token),
-        item_id,
-        TakeTermItemListingRequest(term_id=term_id, reservation_type="GIFT"),
-    )
+    taken = await _take_in_term(db_session, _principal(taker_token), item_id, term_id)
     term = (await db_session.execute(select(Term).where(Term.id == term_id))).scalar_one()
     term.occurs_on = datetime.utcnow() - timedelta(days=1)
     await db_session.commit()

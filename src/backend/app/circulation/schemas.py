@@ -10,11 +10,12 @@ from __future__ import annotations
 import uuid
 from datetime import datetime
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, computed_field, field_validator
 
 from app.product.schemas import ProductPhotoResponse
 
 from .domain.item_privacy import ItemStatusCode
+from .infrastructure.locations_acl import LocationRefResponse
 from .models import (
     AccountType,
     BalanceStatus,
@@ -45,6 +46,18 @@ class InventoryResponse(BaseModel):
 class CreateInventoryRequest(BaseModel):
     inventory_type: InventoryType
     location: str | None = Field(default=None, max_length=500)
+
+
+class InventoryLocationResponse(BaseModel):
+    """The owner's pickup place on their PERSONAL inventory, `None` when unset."""
+
+    location: LocationRefResponse | None
+
+
+class SetInventoryLocationRequest(BaseModel):
+    """`None` clears the place."""
+
+    location_id: uuid.UUID | None
 
 
 class InventoryBalanceResponse(BaseModel):
@@ -128,9 +141,19 @@ class ReservationDetailResponse(ReservationResponse):
     """`GET /api/reservations/{id}` — adds the context date (the Term's
     `occurs_on` or the Event's `starts_at`), read through the keep-live
     `find_reservation_context_occurs_on` so it still resolves once the
-    Term's group is soft-deleted (`GET /api/terms/{id}` then answers 404)."""
+    Term's group is soft-deleted (`GET /api/terms/{id}` then answers 404).
+    `personal_pickup` marks an open reservation with neither context."""
 
     term_occurs_on: datetime | None
+
+    @computed_field  # type: ignore[prop-decorator]
+    @property
+    def personal_pickup(self) -> bool:
+        return (
+            self.status in (ReservationStatus.PENDING, ReservationStatus.CONFIRMED)
+            and self.term_id is None
+            and self.event_id is None
+        )
 
 
 class CirculationEntryResponse(BaseModel):
@@ -170,6 +193,7 @@ class ItemStatusResponse(BaseModel):
     group_name: str | None = None
     event_id: uuid.UUID | None = None
     event_slug: str | None = None
+    personal_pickup: bool = False
 
 
 class ItemDetailsResponse(BaseModel):

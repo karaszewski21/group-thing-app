@@ -1,8 +1,6 @@
 import { useId } from "react";
 import { Link } from "react-router-dom";
-import dayjs from "../../../utils/dayjs";
-import { nearestItemContext, organizerItemPath } from "../../product/useItemRoutes";
-import { EXCHANGE_MODE_LABELS, PICKUP_MODE_LABELS } from "../../term/components/termLabels";
+import { organizerItemPath } from "../../product/useItemRoutes";
 import type { BlockProps, OrganizerPageData } from "../layouts/types";
 import { ItemCard } from "./ExchangeItemCard";
 
@@ -13,16 +11,12 @@ export function isRecentItemsEmpty(data: OrganizerPageData): boolean {
   return (data.directory?.recent_items.length ?? 0) === 0;
 }
 
-/** The owner's newest listed items. With a nearest public term or event, each
- * card opens the item in that context and its chip carries the date. */
+/** The owner's newest listed items, each tile opening its product page. */
 export function RecentItemsBlock({ data }: BlockProps) {
   const headingId = useId();
   const directory = data.directory;
   if (!directory || directory.recent_items.length === 0) return null;
   const slug = data.organization.slug;
-  const nearest = directory.owner_nearest;
-  const context = nearestItemContext(nearest);
-  const date = nearest ? dayjs(nearest.starts_at).format("ddd D MMM") : undefined;
 
   return (
     <section aria-labelledby={headingId} className="px-6 pt-6">
@@ -33,13 +27,12 @@ export function RecentItemsBlock({ data }: BlockProps) {
         {directory.recent_items.map((item) => (
           <li key={item.item_id}>
             <ItemCard
-              href={organizerItemPath(slug, item.item_id, context)}
+              href={organizerItemPath(slug, item.item_id)}
               name={item.product_name}
               condition={item.condition}
               thumbUrl={item.thumb_url}
               mode={item.mode}
-              modeLabel={context ? PICKUP_MODE_LABELS[item.mode] : EXCHANGE_MODE_LABELS[item.mode]}
-              date={date}
+              reservation={item.reservation}
             />
           </li>
         ))}

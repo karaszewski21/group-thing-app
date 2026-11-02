@@ -54,8 +54,8 @@ async def _propose(
     client: AsyncClient, event_id: uuid.UUID, listed: uuid.UUID, offered: uuid.UUID, token: str
 ) -> dict[str, Any]:
     response = await client.post(
-        f"/api/events/{event_id}/items/{listed}/propose",
-        json={"offered_item_id": str(offered)},
+        f"/api/items/{listed}/propose",
+        json={"context": {"kind": "EVENT", "id": str(event_id)}, "offered_item_id": str(offered)},
         headers=_auth(token),
     )
     assert response.status_code == 200, response.text

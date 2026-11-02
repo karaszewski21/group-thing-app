@@ -51,7 +51,7 @@ import {
   type NeededItemQuickAddValue,
 } from "../utils/neededItemQuickAdd";
 import { hasStatus, serverMessageOr } from "../api/problem";
-import { setItemListingPreference } from "../api/itemListingPreferences";
+import { setItemListingPreference, type ItemVisibility } from "../api/itemListingPreferences";
 import type { GroupFormValue } from "../components/panel/GroupFormFields";
 import { EMPTY_EVENT_DRAFT, type EventDraft } from "../pages/add/eventDraft";
 import {
@@ -513,18 +513,38 @@ function useAppDataValue() {
     }
     setItemError(null);
     try {
-      await setItemListingPreference(
+      // Only the mode: the server keeps the item's current visibility.
+      const saved = await setItemListingPreference(
         itemId,
         next ? ITEM_MODE_TO_RESERVATION_TYPE[next] : null,
       );
       // Reads started before this save may carry the old mode — drop them.
       itemsSeqRef.current++;
       setItemModes((prev) => ({ ...prev, [itemId]: next }));
+      setItemVisibilityLocally(itemId, saved?.visibility ?? null);
     } catch (err) {
       // A toast, not `itemError`: that one renders below the whole list,
       // off-screen on a phone. The refresh resyncs the card with the server
       // (e.g. after a gift-limit 409).
       showToast(serverMessageOr(err, "Nie udało się zapisać trybu — spróbuj ponownie"));
+      void refreshItems();
+    }
+  }
+
+  function setItemVisibilityLocally(itemId: string, visibility: ItemVisibility | null) {
+    setItems((prev) => prev.map((i) => (i.id === itemId ? { ...i, listing_visibility: visibility } : i)));
+  }
+
+  /** The "Moje rzeczy" visibility toggle. Always sends the item's current
+   * `mode` with the visibility (audit M6): a visibility-only body is
+   * rejected by the server and must never clear a listing. */
+  async function setItemVisibility(itemId: string, mode: ItemMode, visibility: ItemVisibility) {
+    try {
+      const saved = await setItemListingPreference(itemId, ITEM_MODE_TO_RESERVATION_TYPE[mode], visibility);
+      itemsSeqRef.current++;
+      setItemVisibilityLocally(itemId, saved?.visibility ?? visibility);
+    } catch (err) {
+      showToast(serverMessageOr(err, "Nie udało się zapisać widoczności — spróbuj ponownie"));
       void refreshItems();
     }
   }
@@ -774,6 +794,7 @@ function useAppDataValue() {
     removeDraftNeededItem,
     handleAddTerm,
     setItemMode,
+    setItemVisibility,
     handleCreateFamily,
     handleAddFamilyMember,
     handleRemoveFamilyMember,

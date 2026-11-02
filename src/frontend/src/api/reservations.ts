@@ -1,4 +1,4 @@
-import { api } from "./client";
+import { api, ApiError } from "./client";
 
 export type ReservationType = "LEND" | "RETURN" | "SWAP" | "GIFT";
 export type ReservationStatus = "PENDING" | "CONFIRMED" | "CANCELLED" | "FULFILLED";
@@ -34,6 +34,8 @@ export function getReservations(itemId: string): Promise<ReservationResponse[]> 
  * Optional for the same pre-existing-mock reason as `term_id` above. */
 export interface ReservationDetailResponse extends ReservationResponse {
   term_occurs_on?: string | null;
+  /** Arranged at the owner's place, with no term or event. */
+  personal_pickup: boolean;
 }
 
 export function getReservation(id: string): Promise<ReservationDetailResponse> {
@@ -64,4 +66,18 @@ export type CancelTransactionResponse = ConfirmTransactionResponse;
 
 export function cancelTransaction(reservationId: string): Promise<CancelTransactionResponse> {
   return api.post(`/reservations/${reservationId}/cancel-transaction`, undefined);
+}
+
+export const ALREADY_RESOLVED_MESSAGE = "Transakcja została już rozstrzygnięta przez drugą stronę.";
+
+/** A confirm/cancel that lost the race: the 409 whose body carries
+ * `already_resolved: true` because the other party settled it first. */
+export function isAlreadyResolved(err: unknown): boolean {
+  return (
+    err instanceof ApiError &&
+    err.status === 409 &&
+    typeof err.body === "object" &&
+    err.body !== null &&
+    (err.body as { already_resolved?: unknown }).already_resolved === true
+  );
 }

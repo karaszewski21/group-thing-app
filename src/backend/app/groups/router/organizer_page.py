@@ -1,5 +1,5 @@
-"""`/api/groups/public/organizers/{slug}` — the anonymous organizer
-directory behind the public `/:slug` page.
+"""`/api/groups/public/organizers/{slug}` — the public organizer
+directory behind the `/:slug` page, and the owner items pages.
 
 Included first in `app.groups.router`, ahead of `circles.py`'s
 `/api/groups/public/{group_id}/access`, so that `/public/organizers/access`
@@ -13,6 +13,8 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, Response
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.auth_deps import OptionalPrincipal
+from app.core.cache_headers import PUBLIC_CACHE_CONTROL, set_personalised_cache_headers
 from app.core.pagination import Page, Pagination
 from app.db import get_db
 from app.groups import service
@@ -30,22 +32,21 @@ router = APIRouter(tags=["groups"])
 DbSession = Annotated[AsyncSession, Depends(get_db)]
 Storage = Annotated[ObjectStorage | None, Depends(get_storage)]
 
-# Anonymous, identical for every visitor and already eventually consistent,
-# so a short shared cache is safe. Set only on success: errors are raised
-# before the header is written.
-CACHE_CONTROL = "public, max-age=0, s-maxage=60"
-
 
 @router.get("/api/groups/public/organizers/{slug}", response_model=OrganizerPageResponse)
 async def get_organizer_page(
-    slug: str, db: DbSession, storage: Storage, response: Response
+    slug: str,
+    db: DbSession,
+    storage: Storage,
+    response: Response,
+    principal: OptionalPrincipal = None,
 ) -> OrganizerPageResponse:
     """Unauthenticated — matched by the PUBLIC row
     `GET ^/api/groups/public/organizers/[^/]+(/terms|/items)?$` in
     `AUTHORIZATION_MATRIX`, so no `require_any` dependency. 404 when the slug
     resolves to no Organization or the Organization has no active owner."""
-    page = await service.get_organizer_page(db, slug, storage)
-    response.headers["Cache-Control"] = CACHE_CONTROL
+    page = await service.get_organizer_page(db, slug, storage, principal)
+    set_personalised_cache_headers(response, principal)
     return page
 
 
@@ -65,7 +66,7 @@ async def list_organizer_terms(
     the app's `RequestValidationError` handler; a `group_id` outside the
     owner's PUBLIC circles gives an empty page."""
     page = await service.list_organizer_terms(db, slug, pagination, group_id)
-    response.headers["Cache-Control"] = CACHE_CONTROL
+    response.headers["Cache-Control"] = PUBLIC_CACHE_CONTROL
     return page
 
 
@@ -77,12 +78,15 @@ async def get_organization_owner_items(
     pagination: Pagination,
     response: Response,
     mode: ExchangeMode | None = None,
+    principal: OptionalPrincipal = None,
 ) -> OwnerItemsPageResponse:
     """Unauthenticated — matched by the organizers PUBLIC row in
     `AUTHORIZATION_MATRIX`. 404 as for `get_organizer_page`, including for
     `k-…` pseudo-slugs."""
-    page = await owner_items.get_organization_owner_items(db, slug, pagination, mode, storage)
-    response.headers["Cache-Control"] = CACHE_CONTROL
+    page = await owner_items.get_organization_owner_items(
+        db, slug, pagination, mode, storage, principal
+    )
+    set_personalised_cache_headers(response, principal)
     return page
 
 
@@ -94,10 +98,13 @@ async def get_party_owner_items(
     pagination: Pagination,
     response: Response,
     mode: ExchangeMode | None = None,
+    principal: OptionalPrincipal = None,
 ) -> OwnerItemsPageResponse:
     """Unauthenticated — matched by the PUBLIC row
     `GET ^/api/groups/public/parties/[^/]+/items$`. 404 when the party has
     no user profile."""
-    page = await owner_items.get_party_owner_items(db, party_id, pagination, mode, storage)
-    response.headers["Cache-Control"] = CACHE_CONTROL
+    page = await owner_items.get_party_owner_items(
+        db, party_id, pagination, mode, storage, principal
+    )
+    set_personalised_cache_headers(response, principal)
     return page

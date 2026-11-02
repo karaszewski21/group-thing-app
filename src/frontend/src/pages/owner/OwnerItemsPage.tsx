@@ -1,10 +1,9 @@
 import { useEffect, useId, useState, type ReactNode } from "react";
-import { Link, useLocation, useNavigate, useParams, useSearchParams } from "react-router-dom";
+import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
 import type { OwnerNearestDate } from "../../api/ownerItems";
 import { useOwnerItems, type OwnerRef } from "../../hooks/useOwnerItems";
 import { usePublicOrganization } from "../../hooks/usePublicOrganization";
 import { OrganizerThemeScope } from "../../theme/OrganizerThemeScope";
-import dayjs from "../../utils/dayjs";
 import { pluralPl } from "../../utils/plural";
 import { BlockSkeleton } from "../organizer/blocks/BlockSkeleton";
 import { ExchangeModeTabs, type ExchangeFilter } from "../organizer/blocks/ExchangeBoardBlock";
@@ -12,8 +11,7 @@ import { ItemCard } from "../organizer/blocks/ExchangeItemCard";
 import { FooterBlock } from "../organizer/blocks/FooterBlock";
 import { NearestDateCard } from "../organizer/blocks/NearestDateCard";
 import { NotFoundFrame, PageFrame } from "../organizer/PageFrame";
-import { EXCHANGE_MODE_LABELS, PICKUP_MODE_LABELS } from "../term/components/termLabels";
-import { nearestItemContext, organizerItemPath, type ItemContext } from "../product/useItemRoutes";
+import { organizerItemPath } from "../product/useItemRoutes";
 
 const PARTY_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -22,15 +20,6 @@ const BACK_LINK = `inline-flex min-h-[44px] items-center gap-1.5 self-start text
 const RETRY_BUTTON = `min-h-[44px] font-bold text-primary-fg underline ${FOCUS_RING}`;
 const MORE_BUTTON = `flex min-h-11 w-full items-center justify-center rounded-full border border-line bg-paper px-5 text-[14px] font-bold text-ink disabled:opacity-60 ${FOCUS_RING}`;
 
-
-/** `?event=`/`?term=` this page was opened with (e.g. from a participants preview). */
-function useOwnContext(): ItemContext | null {
-  const [searchParams] = useSearchParams();
-  const event = searchParams.get("event");
-  if (event) return { kind: "event", id: event };
-  const term = searchParams.get("term");
-  return term ? { kind: "term", id: term } : null;
-}
 
 function NearestSection({ nearest, name }: { nearest: OwnerNearestDate | null; name: string }) {
   if (!nearest) {
@@ -59,9 +48,8 @@ function NearestSection({ nearest, name }: { nearest: OwnerNearestDate | null; n
  * paged card grid. A party URL of an Organization owner is replaced by its
  * slug URL, keeping the query. */
 function OwnerItemsContent({ ownerRef, back }: { ownerRef: OwnerRef; back: ReactNode }) {
-  const [filter, setFilter] = useState<ExchangeFilter>("ALL");
+  const [filter, setFilter] = useState<Exclude<ExchangeFilter, "RESERVED">>("ALL");
   const result = useOwnerItems(ownerRef, filter === "ALL" ? undefined : filter);
-  const ownContext = useOwnContext();
   const navigate = useNavigate();
   const { search } = useLocation();
   const baseId = useId();
@@ -107,12 +95,7 @@ function OwnerItemsContent({ ownerRef, back }: { ownerRef: OwnerRef; back: React
   }
 
   const total = counts.GIFT + counts.SWAP;
-  const context = ownContext ?? nearestItemContext(result.nearest);
   const nearest = result.nearest;
-  const chipDate =
-    nearest && (ownContext === null || ownContext.id === nearest.id)
-      ? dayjs(nearest.starts_at).format("ddd D MMM")
-      : undefined;
   const tabId = (id: ExchangeFilter) => `${baseId}-tab-${id}`;
   const panelId = `${baseId}-items`;
 
@@ -140,7 +123,9 @@ function OwnerItemsContent({ ownerRef, back }: { ownerRef: OwnerRef; back: React
           <ExchangeModeTabs
             counts={counts}
             selected={filter}
-            onSelect={setFilter}
+            onSelect={(next) => {
+              if (next !== "RESERVED") setFilter(next);
+            }}
             allLabel="Wszystkie"
             ariaLabel="Rodzaj wymiany"
             tabId={tabId}
@@ -161,13 +146,12 @@ function OwnerItemsContent({ ownerRef, back }: { ownerRef: OwnerRef; back: React
             {result.items.map((item) => (
               <li key={item.item_id}>
                 <ItemCard
-                  href={organizerItemPath(owner.slug, item.item_id, context)}
+                  href={organizerItemPath(owner.slug, item.item_id)}
                   name={item.product_name}
                   condition={item.condition}
                   thumbUrl={item.thumb_url}
                   mode={item.mode}
-                  modeLabel={context ? PICKUP_MODE_LABELS[item.mode] : EXCHANGE_MODE_LABELS[item.mode]}
-                  date={chipDate}
+                  reservation={item.reservation}
                 />
               </li>
             ))}
@@ -255,8 +239,7 @@ function PartyOwnerItems({ partyId }: { partyId: string }) {
 }
 
 /** `/:slug/items` (an Organization, in its theme) or `/:partyId/items` (any
- * person): the owner's listed items, linking to item pages with the page's
- * own `?term=`/`?event=` or else the owner's nearest public date. */
+ * person): the owner's listed items, each tile linking to its product page. */
 export function OwnerItemsPage() {
   const { organizationSlug = "" } = useParams<{ organizationSlug: string }>();
   return PARTY_ID.test(organizationSlug) ? (

@@ -14,9 +14,9 @@ import uuid
 from collections.abc import Collection, Iterable
 from dataclasses import dataclass
 from datetime import datetime
-from typing import cast
+from typing import Any, cast
 
-from sqlalchemy import exists, func, or_, select
+from sqlalchemy import Exists, exists, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.events.models import Event, EventAttendance
@@ -29,6 +29,7 @@ __all__ = [
     "Event",
     "UpcomingEvent",
     "author_slugs",
+    "eligible_event_ids",
     "get_event",
     "is_event_eligible",
     "list_events_starting_between",
@@ -52,9 +53,7 @@ async def lock_event_for_share(db: AsyncSession, event_id: uuid.UUID) -> Event |
     """The event held `FOR SHARE` until the caller commits, so a concurrent
     delete (which locks it `FOR UPDATE`) cannot remove it mid-write — the
     pattern of `app.events.service.sign_up`."""
-    return await db.get(
-        Event, event_id, with_for_update={"read": True}, populate_existing=True
-    )
+    return await db.get(Event, event_id, with_for_update={"read": True}, populate_existing=True)
 
 
 async def is_event_eligible(db: AsyncSession, event: Event, party_id: uuid.UUID) -> bool:
@@ -62,18 +61,36 @@ async def is_event_eligible(db: AsyncSession, event: Event, party_id: uuid.UUID)
     (no `account_user_id`) cannot take part in exchanges."""
     if event.author_party_id == party_id:
         return True
-    attending = await db.scalar(
-        select(
-            exists().where(
-                EventAttendance.event_id == event.id,
-                EventAttendance.party_id == party_id,
-                EventAttendance.withdrawn_at.is_(None),
-                UserProfile.party_id == EventAttendance.party_id,
-                UserProfile.account_user_id.is_not(None),
-            )
+    return bool(await db.scalar(select(_account_attends(event.id, party_id))))
+
+
+def _account_attends(event_id: Any, party_id: uuid.UUID) -> Exists:
+    """`party_id` has an account and is actively signed up for the event
+    (`event_id` a value or a correlated column)."""
+    return exists().where(
+        EventAttendance.event_id == event_id,
+        EventAttendance.party_id == party_id,
+        EventAttendance.withdrawn_at.is_(None),
+        UserProfile.party_id == EventAttendance.party_id,
+        UserProfile.account_user_id.is_not(None),
+    )
+
+
+async def eligible_event_ids(
+    db: AsyncSession, party_id: uuid.UUID, event_ids: Collection[uuid.UUID]
+) -> set[uuid.UUID]:
+    """The ids among `event_ids` in which `party_id` passes
+    `is_event_eligible` (author, or an account actively signed up), in one
+    statement."""
+    if not event_ids:
+        return set()
+    rows = await db.scalars(
+        select(Event.id).where(
+            Event.id.in_(set(event_ids)),
+            or_(Event.author_party_id == party_id, _account_attends(Event.id, party_id)),
         )
     )
-    return bool(attending)
+    return set(rows)
 
 
 async def list_upcoming_events_for_parties(

@@ -45,11 +45,12 @@ async def create_reservation(
     notes: str | None = None,
     commit: bool = True,
 ) -> Reservation:
-    """A PENDING reservation of an AVAILABLE item in exactly one context, a
-    Term or an Event. Commits, or with `commit=False` only flushes so the
-    caller's row locks hold until its own commit."""
-    if (term_id is None) == (event_id is None):
-        raise ValueError("A reservation needs exactly one context: term_id or event_id")
+    """A PENDING reservation of an AVAILABLE item in at most one context, a
+    Term or an Event; with neither it is a personal pickup. Commits, or with
+    `commit=False` only flushes so the caller's row locks hold until its own
+    commit."""
+    if term_id is not None and event_id is not None:
+        raise ValueError("A reservation takes term_id or event_id, not both")
     item = await get_item(db, item_id)
     balance = await get_item_balance(db, cast(uuid.UUID, item.id))
     if balance.status != BalanceStatus.AVAILABLE:

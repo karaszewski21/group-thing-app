@@ -116,12 +116,19 @@ async def _take_gift(client: AsyncClient, prefix: str) -> tuple[str, str, int, i
     taker_token, _ = await _register(client, "GUEST", f"{prefix}.taker@example.com")
     await _rsvp(client, taker_token, group_id, term_id)
     take = await client.post(
-        f"/api/term-item-listings/{item_id}/take",
-        json={"term_id": term_id, "reservation_type": "GIFT"},
+        f"/api/items/{item_id}/take",
+        json={"context": {"kind": "TERM", "id": term_id}, "reservation_type": "GIFT"},
         headers=_auth(taker_token),
     )
     assert take.status_code == 200
-    reservation_id = take.json()["resolved_reservation_id"]
+    (taken,) = (
+        await client.get(
+            "/api/term-item-listings/mine-as-taker",
+            params={"term_id": term_id},
+            headers=_auth(taker_token),
+        )
+    ).json()
+    reservation_id = taken["resolved_reservation_id"]
     return org_token, taker_token, group_id, term_id, reservation_id
 
 

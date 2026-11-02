@@ -2,7 +2,7 @@
 `/api/term-item-listings`, `/api/swap-proposals` and the
 `/api/reservations/{id}/confirm-transaction` routes — the exchange-mechanism HTTP layer over
 `application/term_item_listings.py`'s set/list/browse/take/propose/accept/
-reject/confirm use cases."""
+reject/confirm use cases. Take/propose live in `item_reservations.py`."""
 
 from __future__ import annotations
 
@@ -25,11 +25,9 @@ from app.groups.schemas import (
     ConfirmTransactionResponse,
     ItemListingPreferenceResponse,
     MyInventoryItemResponse,
-    ProposeSwapRequest,
     SetItemListingPreferenceRequest,
     SwapProposalOfferResponse,
     SwapProposalResponse,
-    TakeTermItemListingRequest,
 )
 from app.storage.service import ObjectStorage, get_storage
 from app.users.service import get_profile_by_principal
@@ -49,7 +47,9 @@ EditPrincipal = Annotated[Principal, Depends(require_any("EDIT", "mcp:edit"))]
 async def set_item_listing_preference(
     item_id: uuid.UUID, body: SetItemListingPreferenceRequest, db: DbSession, principal: EditPrincipal
 ) -> ItemListingPreferenceResponse | None:
-    preference = await service.set_item_listing_preference(db, principal, item_id, body.mode)
+    preference = await service.set_item_listing_preference(
+        db, principal, item_id, body.mode, body.visibility
+    )
     return ItemListingPreferenceResponse.model_validate(preference) if preference else None
 
 
@@ -63,7 +63,7 @@ async def list_my_inventory_items(
     return await service.list_my_inventory_items(db, principal, storage)
 
 
-# Declared before `POST /api/term-item-listings/{item_id}/take` so the
+# Declared before `GET /api/term-item-listings/{item_id}/swap-proposals` so the
 # literal `mine`/`browse` segments are not parsed as `item_id: uuid.UUID` — same
 # ordering caveat as `pledges.py`'s `list_my_pledges` (see comment there).
 @router.get("/api/term-item-listings/mine", response_model=list[BrowseTermItemListingResponse])
@@ -90,23 +90,6 @@ async def list_browsable_term_item_listings(
 ) -> list[BrowseTermItemListingResponse]:
     profile = await get_profile_by_principal(db, principal)
     return await service.list_browsable_term_item_listings(db, term_id, profile.party_id)
-
-
-@router.post("/api/term-item-listings/{item_id}/take", response_model=BrowseTermItemListingResponse)
-async def take_item_listing(
-    item_id: uuid.UUID, body: TakeTermItemListingRequest, db: DbSession, principal: EditPrincipal
-) -> BrowseTermItemListingResponse:
-    return await service.take_item_listing(db, principal, item_id, body)
-
-
-@router.post("/api/term-item-listings/{item_id}/propose", response_model=SwapProposalResponse)
-async def propose_swap(
-    item_id: uuid.UUID, body: ProposeSwapRequest, db: DbSession, principal: EditPrincipal
-) -> SwapProposalResponse:
-    proposal = await service.propose_swap(
-        db, principal, item_id, body.offered_item_id, body.term_id
-    )
-    return SwapProposalResponse.model_validate(proposal)
 
 
 @router.get(

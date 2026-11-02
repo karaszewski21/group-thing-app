@@ -35,7 +35,35 @@ function partyTerm(status: ItemStatusResponse): PartyTerm | null {
   };
 }
 
-function statusLines(status: ItemStatusResponse): { title: string; detail: string | null; pill: string } {
+const PERSONAL_PICKUP_LINE = "Odbiór osobisty — szczegóły ustalacie na czacie.";
+const TAKEN_LINE = "Ta rzecz jest zarezerwowana.";
+
+/** The item's reserved badge as the viewer relates to it (from the item
+ * actions): a party of the reservation, with both names for the personal
+ * pickup line when known, or anyone else. */
+export type StatusReservation = { party: true; ownerName: string; reserverName: string | null } | { party: false };
+
+function personalPickupLine(reservation: StatusReservation | null): string {
+  if (reservation === null) return PERSONAL_PICKUP_LINE;
+  if (!reservation.party) return TAKEN_LINE;
+  return reservation.reserverName
+    ? `Odbiór osobisty — szczegóły ustalają ${reservation.ownerName} i ${reservation.reserverName} na czacie.`
+    : PERSONAL_PICKUP_LINE;
+}
+
+/** A personal pickup has no date, so it reads as a plain status with the
+ * chat line (and gets no calendar export: `partyTerm` is null without a
+ * context). A pending swap proposal leaves the balance AVAILABLE, so while
+ * the item is reserved "Dostępna" gives way to "Zarezerwowana"; the owner's
+ * unlisted item reads "U Ciebie", since it is not offered to anyone. */
+function statusLines(
+  status: ItemStatusResponse,
+  reservation: StatusReservation | null,
+  unlisted: boolean,
+): { title: string; detail: string | null; pill: string } {
+  if (reservation && status.code === "AVAILABLE") {
+    return { title: "Zarezerwowana", detail: reservation.party ? null : TAKEN_LINE, pill: "bg-accent-soft text-ink" };
+  }
   const party = partyTerm(status);
   const term = status.term_occurs_on ? dayjs(status.term_occurs_on).format("DD.MM") : null;
   const pickup = party
@@ -44,8 +72,16 @@ function statusLines(status: ItemStatusResponse): { title: string; detail: strin
       ? `odbiór na terminie ${term}`
       : null;
   const forLabel = status.counterparty_label ? `Dla: ${status.counterparty_label}` : null;
+  if (status.personal_pickup && (status.code === "RESERVED" || status.code === "IN_TRANSIT")) {
+    return {
+      title: status.code === "RESERVED" ? "Zarezerwowana" : "W drodze",
+      detail: personalPickupLine(reservation),
+      pill: "bg-accent-soft text-ink",
+    };
+  }
   switch (status.code) {
     case "AVAILABLE":
+      if (unlisted) return { title: "U Ciebie", detail: "Niewystawiona do wymiany.", pill: "bg-cream text-ink" };
       return { title: "Dostępna", detail: null, pill: "bg-primary-soft text-primary-fg" };
     case "RESERVED":
       return {
@@ -94,19 +130,25 @@ function partyCalendarEvent(party: PartyTerm, itemId: string, itemName: string, 
  * status is carried by its text, the colour only reinforces it. Labels come
  * from the server (privacy rule). A reservation party also gets the hour,
  * the group and, until the Term has passed, a calendar export; the owner is
- * the giver. */
+ * the giver. `reservation` is `null` until the actions load or while the
+ * item is not reserved. */
 export function ItemStatusCard({
   status,
   itemId,
   itemName,
   isOwner,
+  reservation = null,
+  unlisted = false,
 }: {
   status: ItemStatusResponse;
   itemId: string;
   itemName: string;
   isOwner: boolean;
+  reservation?: StatusReservation | null;
+  /** The owner's item has no listing mode: it is not offered to anyone. */
+  unlisted?: boolean;
 }) {
-  const { title, detail, pill } = statusLines(status);
+  const { title, detail, pill } = statusLines(status, reservation, unlisted);
   const party = partyTerm(status);
   const upcoming = party && dayjs(party.occursOn).isAfter(dayjs()) ? party : null;
   return (

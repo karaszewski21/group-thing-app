@@ -1,5 +1,6 @@
 import { api } from "./client";
-import type { ListingMode } from "./itemListingPreferences";
+import type { ItemVisibility, ListingMode } from "./itemListingPreferences";
+import type { LocationRefResponse } from "./locations";
 import type { ProductResponse } from "./products";
 import type { ReservationType } from "./reservations";
 
@@ -40,6 +41,8 @@ export interface InventoryItemResponse {
  * its standing gift/swap mode — `null` when not offered. */
 export interface MyInventoryItemResponse extends InventoryItemResponse {
   listing_mode: ReservationType | null;
+  /** The listing's visibility; `null` exactly when `listing_mode` is. */
+  listing_visibility: ItemVisibility | null;
   /** True while any photo of the item's product is still in moderation
    * (PENDING or NEEDS_REVIEW). The server then rejects setting a mode
    * with 409, so the panel disables the mode toggles. */
@@ -148,4 +151,22 @@ export function updateInventoryItem(
 
 export function deleteInventoryItem(id: string): Promise<void> {
   return api.delete(`/inventory-items/${id}`);
+}
+
+/** The caller's pickup place on their PERSONAL inventory, `null` when unset. */
+export interface InventoryLocationResponse {
+  location: LocationRefResponse | null;
+}
+
+/** `location_id: null` clears the place. */
+export interface SetInventoryLocationRequest {
+  location_id: string | null;
+}
+
+export function getMyInventoryLocation(): Promise<InventoryLocationResponse> {
+  return api.get("/inventories/mine/location");
+}
+
+export function setMyInventoryLocation(request: SetInventoryLocationRequest): Promise<InventoryLocationResponse> {
+  return api.put("/inventories/mine/location", request);
 }

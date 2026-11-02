@@ -337,8 +337,9 @@ async def scan_for_term_ended(db: AsyncSession, *, window: timedelta = DEFAULT_W
         eligible_party_ids = await _list_eligible_lister_party_ids(db, term)
         if not eligible_party_ids:
             continue
+        # Every listed swap is prompted, whatever its visibility.
         preferences = await repository.list_item_listing_preferences_for_parties(
-            db, eligible_party_ids
+            db, eligible_party_ids, include_private=True
         )
         if not preferences:
             continue

@@ -29,9 +29,9 @@ from app.groups.application import term_end_scan, term_item_listings
 from app.groups.application.term_end_scan import scan_for_term_ended
 from app.groups.domain import swap_events
 from app.groups.models import Term
-from app.groups.schemas import TakeTermItemListingRequest
 from app.outbox.models import OutboxEntry
 from tests.conftest import leaf_category_ids
+from tests.test_term_item_listings import _propose_in_term, _take_in_term
 
 WARSAW = ZoneInfo("Europe/Warsaw")
 
@@ -177,12 +177,7 @@ async def test_takeListing_termStartedInWarsaw_serverClockUtc_raisesTermAlreadyH
     monkeypatch.setattr(term_item_listings, "datetime", _UtcServerDatetime, raising=False)
 
     with pytest.raises(BusinessConflictException, match="Termin już się odbył"):
-        await service.take_item_listing(
-            db_session,
-            _principal(taker_token),
-            item_id,
-            TakeTermItemListingRequest(term_id=term_id, reservation_type="GIFT"),
-        )
+        await _take_in_term(db_session, _principal(taker_token), item_id, term_id)
 
 
 async def test_confirmTransaction_termStartedInWarsaw_serverClockUtc_fulfills(
@@ -191,12 +186,7 @@ async def test_confirmTransaction_termStartedInWarsaw_serverClockUtc_fulfills(
     _, taker_token, item_id, term_id = await _listing_with_taker(
         client, db_session, "2", ReservationType.GIFT
     )
-    taken = await service.take_item_listing(
-        db_session,
-        _principal(taker_token),
-        item_id,
-        TakeTermItemListingRequest(term_id=term_id, reservation_type="GIFT"),
-    )
+    taken = await _take_in_term(db_session, _principal(taker_token), item_id, term_id)
     assert taken.resolved_reservation_id is not None
     await _set_occurs_on(db_session, term_id, _warsaw_now() - timedelta(minutes=30))
     monkeypatch.setattr(term_item_listings, "datetime", _UtcServerDatetime, raising=False)
@@ -218,7 +208,7 @@ async def test_acceptSwapProposal_afterTermStarted_raisesTermAlreadyHappened(
     await service.set_item_listing_preference(
         db_session, _principal(proposer_token), offered_item_id, ReservationType.SWAP
     )
-    proposal = await service.propose_swap(
+    proposal = await _propose_in_term(
         db_session, _principal(proposer_token), listed_item_id, offered_item_id, term_id
     )
     await _set_occurs_on(db_session, term_id, _warsaw_now() - timedelta(minutes=30))
@@ -233,12 +223,7 @@ async def test_scan_termEndedWithinGracePeriod_emitsNothingYet(
     _, taker_token, item_id, term_id = await _listing_with_taker(
         client, db_session, "4", ReservationType.GIFT
     )
-    await service.take_item_listing(
-        db_session,
-        _principal(taker_token),
-        item_id,
-        TakeTermItemListingRequest(term_id=term_id, reservation_type="GIFT"),
-    )
+    await _take_in_term(db_session, _principal(taker_token), item_id, term_id)
     await _set_occurs_on(db_session, term_id, _warsaw_now() - timedelta(hours=1))
     monkeypatch.setattr(term_end_scan, "datetime", _WarsawServerDatetime, raising=False)
 
@@ -253,12 +238,7 @@ async def test_scan_termEndedPastGracePeriod_emitsGiveawayEvent(
     _, taker_token, item_id, term_id = await _listing_with_taker(
         client, db_session, "5", ReservationType.GIFT
     )
-    await service.take_item_listing(
-        db_session,
-        _principal(taker_token),
-        item_id,
-        TakeTermItemListingRequest(term_id=term_id, reservation_type="GIFT"),
-    )
+    await _take_in_term(db_session, _principal(taker_token), item_id, term_id)
     await _set_occurs_on(db_session, term_id, _warsaw_now() - timedelta(hours=3))
 
     await scan_for_term_ended(db_session)
@@ -288,7 +268,7 @@ async def test_scan_acceptedSwapForLaterTerm_notPromptedWhenEarlierTermEnds(
     await service.set_item_listing_preference(
         db_session, _principal(proposer_token), offered_item_id, ReservationType.SWAP
     )
-    proposal = await service.propose_swap(
+    proposal = await _propose_in_term(
         db_session, _principal(proposer_token), listed_item_id, offered_item_id, later_term_id
     )
     await service.accept_swap_proposal(db_session, _principal(lister_token), proposal.id)

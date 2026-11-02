@@ -1,5 +1,5 @@
 """`circulation.service.cancel_reservations_without_commit`, the holder-side
-bulk cancel used by event deletion, and the exactly-one-context rule of
+bulk cancel used by event deletion, and the at-most-one-context rule of
 `create_reservation`."""
 
 from __future__ import annotations
@@ -148,22 +148,36 @@ async def test_cancelReservationsWithoutCommit_sessionRolledBack_restoresPending
     assert await _state(db_session, reservation_id) == ("PENDING", "RESERVED")
 
 
-@pytest.mark.parametrize(
-    "context",
-    [{}, {"term_id": uuid.uuid4(), "event_id": uuid.uuid4()}],
-    ids=["noContext", "bothContexts"],
-)
-async def test_createReservation_notExactlyOneContext_raisesValueError(
-    db_session: AsyncSession, context: dict[str, uuid.UUID]
+async def test_createReservation_bothContexts_raisesValueError(
+    db_session: AsyncSession,
 ) -> None:
     holder = await _create_user(db_session)
     item_id = await _create_available_item(db_session, holder)
 
-    with pytest.raises(ValueError, match="exactly one"):
+    with pytest.raises(ValueError, match="not both"):
         await circulation_service.create_reservation(
             db_session,
             item_id=item_id,
             reservation_type=ReservationType.GIFT,
             reserved_by_user_id=await _create_user(db_session),
-            **context,
+            term_id=uuid.uuid4(),
+            event_id=uuid.uuid4(),
         )
+
+
+async def test_createReservation_noContext_createsPendingPersonalReservation(
+    db_session: AsyncSession,
+) -> None:
+    holder = await _create_user(db_session)
+    item_id = await _create_available_item(db_session, holder)
+
+    reservation = await circulation_service.create_reservation(
+        db_session,
+        item_id=item_id,
+        reservation_type=ReservationType.GIFT,
+        reserved_by_user_id=await _create_user(db_session),
+        commit=False,
+    )
+
+    assert (reservation.term_id, reservation.event_id) == (None, None)
+    assert await _state(db_session, _id(reservation)) == ("PENDING", "RESERVED")

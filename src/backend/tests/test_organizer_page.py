@@ -178,7 +178,7 @@ async def test_getOrganizerPage_populatedDirectory_matchesContractWithoutIdentit
     assert term["group_name"] == "Nutki" and term["description"] == "Rytmika w parku"
     assert term["attendee_count"] == 1
     assert set(body["exchange"]) == {"counts", "items"}
-    assert body["exchange"]["counts"] == {"GIFT": 1, "SWAP": 0}
+    assert body["exchange"]["counts"] == {"GIFT": 1, "SWAP": 0, "RESERVED": 0}
     [item] = body["exchange"]["items"]
     assert set(item) == {
         "item_id",
@@ -189,6 +189,7 @@ async def test_getOrganizerPage_populatedDirectory_matchesContractWithoutIdentit
         "term_id",
         "group_id",
         "occurs_on",
+        "reservation",
     }
     [needed] = body["needed_items"]
     assert set(needed) == {"id", "term_id", "group_id", "name", "claimed"}
@@ -277,7 +278,7 @@ async def test_getOrganizerPage_unknownPseudoOwnerlessOrEmpty_returns404OrEmpty(
     assert await _page(client, empty_slug) == {
         "circles": [],
         "upcoming_terms": [],
-        "exchange": {"counts": {"GIFT": 0, "SWAP": 0}, "items": []},
+        "exchange": {"counts": {"GIFT": 0, "SWAP": 0, "RESERVED": 0}, "items": []},
         "needed_items": [],
         "stats": {"circle_count": 0, "upcoming_term_count": 0, "family_count": None},
         "recent_items": [],
@@ -329,7 +330,7 @@ async def test_getOrganizerPage_familyCount_nullBelowThreeAndOwnerFamilyExcluded
     assert (await _page(client, slug))["stats"]["family_count"] == 3
 
 
-async def test_getOrganizerPage_exchange_onlyEligibleAvailableItemsDedupedToNearestTerm(
+async def test_getOrganizerPage_exchange_onlyEligibleListedItemsDedupedToNearestTermReservedCounted(
     client: AsyncClient, db_session: AsyncSession
 ) -> None:
     owner_token, _ = await _register(client, "ORGANIZER", "op.ex.owner@example.com")
@@ -363,13 +364,19 @@ async def test_getOrganizerPage_exchange_onlyEligibleAvailableItemsDedupedToNear
 
     exchange = (await _page(client, slug))["exchange"]
 
-    assert exchange["counts"] == {"GIFT": 1, "SWAP": 1}
+    assert exchange["counts"] == {"GIFT": 1, "SWAP": 1, "RESERVED": 1}
     assert [
         (i["item_id"], i["term_id"], i["group_id"], i["mode"], i["product_name"], i["condition"])
         for i in exchange["items"]
     ] == [
         (str(owner_item), str(first_term), str(first_group), "GIFT", "Op ex rower", "GOOD"),
+        (str(reserved_item), str(first_term), str(first_group), "SWAP", "Op ex zajęty", "GOOD"),
         (str(attendee_item), str(second_term), str(second_group), "SWAP", "Op ex lalka", "GOOD"),
+    ]
+    assert [i["reservation"] for i in exchange["items"]] == [
+        None,
+        {"by_name": None, "by_me": False},
+        None,
     ]
 
 
@@ -526,7 +533,7 @@ async def test_getOrganizerPage_attendeeOnSeveralNextTerms_itemPlacedOnEarliestT
     exchange = (await _page(client, slug))["exchange"]
 
     earliest_term = min(tied_terms)
-    assert exchange["counts"] == {"GIFT": 0, "SWAP": 1}
+    assert exchange["counts"] == {"GIFT": 0, "SWAP": 1, "RESERVED": 0}
     [item] = exchange["items"]
     assert (item["item_id"], item["term_id"], item["group_id"], item["occurs_on"]) == (
         str(item_id),
@@ -551,7 +558,7 @@ async def test_getOrganizerPage_manyItemsAndNeeds_itemsCappedAt12NeedsAt5InCodeP
 
     body = await _page(client, slug)
 
-    assert body["exchange"]["counts"] == {"GIFT": 10, "SWAP": 3}
+    assert body["exchange"]["counts"] == {"GIFT": 10, "SWAP": 3, "RESERVED": 0}
     by_name = dict(zip(names, item_ids, strict=True))
     assert [i["item_id"] for i in body["exchange"]["items"]] == [
         str(by_name[name]) for name in sorted(names)[:12]
@@ -600,6 +607,7 @@ async def test_getOrganizerPage_noCircles_recentItemsFourNewestAndOwnerNearestEv
         "mode",
         "thumb_url",
         "added_at",
+        "reservation",
     }
     nearest = body["owner_nearest"]
     assert nearest["kind"] == "EVENT" and nearest["id"] == event.json()["id"]

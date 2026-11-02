@@ -11,6 +11,8 @@ import { cancelTransaction, confirmTransaction, getReservation } from "../../api
 import {
   acceptSwapProposal,
   getSwapProposalsForItem,
+  isPersonalSwapAccept,
+  PERSONAL_SWAP_ACCEPTED_MESSAGE,
   type SwapProposalOfferResponse,
 } from "../../api/termItemListings";
 import { CONDITION_LABELS } from "../../utils/productCategory";
@@ -20,7 +22,12 @@ import { FloatingAddButton } from "../../components/shared/appComponents";
 import { useAppData } from "../../app/appDataStore";
 import { SafeImage } from "../product/ItemGallery";
 import { itemEditPath } from "../product/useItemRoutes";
+import { InventoryLocationCard } from "./InventoryLocationCard";
 import { SwapAcceptSuccessSheet, type AcceptedSwap } from "./SwapAcceptSuccessSheet";
+import { VisibilityToggle } from "./VisibilityToggle";
+
+const PRIVATE_HINT = "Prywatna: widoczna tylko w Twoich prywatnych grupach.";
+const NO_MODE_HINT = "Ustaw tryb, żeby wybrać widoczność.";
 
 /** Soft tile + readable text per item mode, matching the exchange tones. */
 const MODE_TONE: Record<ItemMode, string> = {
@@ -41,6 +48,12 @@ const ICON_BUTTON =
  * swap). Any other status is settled, not "pending", so it renders no
  * badge here. This view is purely informational per
  * spec.md Requirement 12-13 — no action button is ever added next to it. */
+interface ReservationTermInfo {
+  hasEnded: boolean;
+  isGift: boolean;
+  isUnpairedSwap: boolean;
+}
+
 function lockBadgeLabel(status: BalanceStatus | undefined): string | null {
   if (status === "RESERVED") return "czeka na potwierdzenie";
   if (status === "IN_TRANSIT") return "zablokowane";
@@ -68,6 +81,7 @@ export function MyItemsView() {
     itemModes,
     itemError,
     setItemMode,
+    setItemVisibility,
     handleDeleteItem,
     load,
   } = useAppData();
@@ -100,11 +114,11 @@ export function MyItemsView() {
   // (`term_occurs_on`), which still resolves when the Term's group is
   // soft-deleted, unlike `GET /terms/{id}`. Settled per reservation so one
   // failing fetch never hides the buttons of the other locked items.
+  // A personal reservation (no term or event) counts as ended right away.
   // `isGift`: on their own gift the owner is the giver, who may only cancel —
-  // the recipient confirms receipt.
-  const [reservationTermInfo, setReservationTermInfo] = useState<
-    Record<string, { hasEnded: boolean; isGift: boolean }>
-  >({});
+  // the recipient confirms receipt. `isUnpairedSwap`: a SWAP leg still
+  // waiting for its proposal's accept is released only by a reject.
+  const [reservationTermInfo, setReservationTermInfo] = useState<Record<string, ReservationTermInfo>>({});
   useEffect(() => {
     const lockedReservationIds = Array.from(
       new Set(
@@ -121,13 +135,15 @@ export function MyItemsView() {
     let cancelled = false;
     void Promise.allSettled(lockedReservationIds.map((id) => getReservation(id))).then((results) => {
       if (cancelled) return;
-      const next: Record<string, { hasEnded: boolean; isGift: boolean }> = {};
+      const next: Record<string, ReservationTermInfo> = {};
       for (const result of results) {
         if (result.status !== "fulfilled") continue;
-        const { id, term_occurs_on, reservation_type } = result.value;
+        const { id, term_occurs_on, reservation_type, personal_pickup, paired_reservation_id } = result.value;
         next[id] = {
-          hasEnded: term_occurs_on != null && new Date(term_occurs_on).getTime() <= Date.now(),
+          hasEnded:
+            personal_pickup || (term_occurs_on != null && new Date(term_occurs_on).getTime() <= Date.now()),
           isGift: reservation_type === "GIFT",
+          isUnpairedSwap: reservation_type === "SWAP" && paired_reservation_id === null,
         };
       }
       setReservationTermInfo(next);
@@ -148,6 +164,7 @@ export function MyItemsView() {
   const [swapProposals, setSwapProposals] = useState<Record<string, SwapProposalOfferResponse[]>>({});
   const [acceptBusyProposalId, setAcceptBusyProposalId] = useState<string | null>(null);
   const [acceptedSwap, setAcceptedSwap] = useState<AcceptedSwap | null>(null);
+  const [personalSwapAccepted, setPersonalSwapAccepted] = useState(false);
   const swapItemIds = items.filter((it) => itemModes[it.id] === "zamienię").map((it) => it.id);
   const swapItemIdsKey = swapItemIds.join(",");
 
@@ -173,21 +190,27 @@ export function MyItemsView() {
 
   async function handleAcceptSwapProposal(itemId: string, proposal: SwapProposalOfferResponse) {
     setActionError(null);
+    setPersonalSwapAccepted(false);
     setAcceptBusyProposalId(proposal.id);
     try {
       const accepted = await acceptSwapProposal(proposal.id);
-      setAcceptedSwap({
-        myItemName: items.find((it) => it.id === itemId)?.product_name ?? "",
-        offeredName: proposal.offered_product_name,
-        occursOn: accepted.term_occurs_on,
-        groupName: accepted.group_name,
-        groupId: accepted.group_id,
-        termId: accepted.term_id,
-        eventId: accepted.event_id ?? null,
-        eventSlug: accepted.event_slug ?? null,
-        itemId,
-        hadOtherOffers: (swapProposals[itemId]?.length ?? 0) > 1,
-      });
+      // A personal swap has no date or place to show: the parties arrange it in the chat.
+      if (isPersonalSwapAccept(accepted)) {
+        setPersonalSwapAccepted(true);
+      } else {
+        setAcceptedSwap({
+          myItemName: items.find((it) => it.id === itemId)?.product_name ?? "",
+          offeredName: proposal.offered_product_name,
+          occursOn: accepted.term_occurs_on,
+          groupName: accepted.group_name,
+          groupId: accepted.group_id,
+          termId: accepted.term_id,
+          eventId: accepted.event_id ?? null,
+          eventSlug: accepted.event_slug ?? null,
+          itemId,
+          hadOtherOffers: (swapProposals[itemId]?.length ?? 0) > 1,
+        });
+      }
       setSwapProposals((s) => ({ ...s, [itemId]: [] }));
       await load({ silent: true });
     } catch (err) {
@@ -197,10 +220,13 @@ export function MyItemsView() {
     }
   }
 
-  function termHasEnded(itemId: string): boolean {
+  /** Confirm/cancel are open once the term has passed (personal: at once),
+   * never on an unpaired SWAP leg. */
+  function canSettle(itemId: string): boolean {
     const reservationId = itemBalances[itemId]?.reservationId;
     if (reservationId == null) return false;
-    return reservationTermInfo[reservationId]?.hasEnded === true;
+    const info = reservationTermInfo[reservationId];
+    return info !== undefined && info.hasEnded && !info.isUnpairedSwap;
   }
 
   function isGift(itemId: string): boolean {
@@ -257,6 +283,14 @@ export function MyItemsView() {
           </small>
         </div>
       </div>
+
+      <InventoryLocationCard />
+
+      {personalSwapAccepted && (
+        <p role="status" className="mb-3 rounded-2xl bg-primary-soft px-3.5 py-2.5 text-[13px] font-bold text-primary-fg">
+          {PERSONAL_SWAP_ACCEPTED_MESSAGE}
+        </p>
+      )}
 
       {items.length > 0 && (
         <div role="group" aria-label="Filtruj rzeczy" className="mb-3 flex flex-wrap gap-2">
@@ -366,10 +400,10 @@ export function MyItemsView() {
 
               {/* Lock pill and its actions first (an in-flight transaction the
                   user may have to act on), the moderation notice second. */}
-              {(badgeLabel || (locked && termHasEnded(it.id))) && (
+              {(badgeLabel || (locked && canSettle(it.id))) && (
                 <div className="relative z-10 mt-3 flex flex-wrap items-center gap-1.5">
                   {badgeLabel && <StatusPill label={badgeLabel} />}
-                  {locked && termHasEnded(it.id) && (
+                  {locked && canSettle(it.id) && (
                     <>
                       {!isGift(it.id) && (
                         <button
@@ -427,6 +461,23 @@ export function MyItemsView() {
                     </button>
                   );
                 })}
+              </div>
+
+              <div className="relative z-10 mt-2">
+                {mode ? (
+                  <>
+                    <VisibilityToggle
+                      value={it.listing_visibility ?? "PUBLIC"}
+                      onChange={(v) => void setItemVisibility(it.id, mode, v)}
+                      itemName={it.product_name}
+                    />
+                    {it.listing_visibility === "PRIVATE" && (
+                      <p className="mt-1 text-xs text-ink-soft">{PRIVATE_HINT}</p>
+                    )}
+                  </>
+                ) : (
+                  <p className="text-xs text-ink-soft">{NO_MODE_HINT}</p>
+                )}
               </div>
 
               {(swapProposals[it.id]?.length ?? 0) > 0 && (

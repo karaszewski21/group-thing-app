@@ -1,9 +1,8 @@
 import { useEffect, useId, useMemo, useState, useSyncExternalStore } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
-import { ApiError } from "../../api/client";
 import { getMyProfile } from "../../api/people";
-import { confirmTransaction } from "../../api/reservations";
+import { ALREADY_RESOLVED_MESSAGE, confirmTransaction, isAlreadyResolved } from "../../api/reservations";
 import { useAuth } from "../../auth/AuthContext";
 import { NOTIFICATIONS_KEY, useNotifications } from "../../hooks/useNotifications";
 import { ToastPill } from "../shared/ToastPill";
@@ -111,13 +110,7 @@ export function PendingActionsHost() {
       showToast("Potwierdzono");
       emitPendingActionResolved();
     } catch (err) {
-      if (
-        err instanceof ApiError &&
-        err.status === 409 &&
-        err.body &&
-        typeof err.body === "object" &&
-        (err.body as { already_resolved?: unknown }).already_resolved === true
-      ) {
+      if (isAlreadyResolved(err)) {
         setAlreadyResolvedIds((prev) => new Set(prev).add(notificationId));
       } else {
         showToast(CONFIRM_FAILED);
@@ -186,7 +179,7 @@ function NotificationActionSheet({
       {alreadyResolved ? (
         <>
           <p className="mt-3 text-sm font-semibold text-danger" role="alert">
-            Transakcja została już rozstrzygnięta przez drugą stronę.
+            {ALREADY_RESOLVED_MESSAGE}
           </p>
           <button type="button" className={`mt-3 ${GHOST_BUTTON}`} onClick={onDismiss}>
             Rozumiem

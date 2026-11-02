@@ -1,7 +1,10 @@
-"""The anonymous organizer directory behind `/:slug`: the owner's PUBLIC
+"""The public organizer directory behind `/:slug`: the owner's PUBLIC
 circles, their upcoming terms, the exchange items and needed items of each
 circle's next term, aggregate stats, and the owner's newest listed items
 with their nearest public date (`owner_items`), shown even with no circles.
+Reserved items stay listed with their badge, whose reserver name only a
+logged-in viewer gets, so the router never lets a shared cache keep a
+personalised response.
 
 Every read is batched over the circles or their next terms (a constant
 number of statements however many circles or items there are), and every
@@ -22,6 +25,7 @@ from typing import cast
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core import clock
+from app.core.auth_deps import Principal
 from app.core.pagination import Page, PageParams
 from app.storage.service import ObjectStorage
 
@@ -41,6 +45,7 @@ from ..schemas import (
     OwnerNearestDateResponse,
 )
 from . import owner_items
+from .reserved_by import load_reserved_by_names, resolve_viewer_party_id
 
 UPCOMING_WINDOW = timedelta(days=60)
 EXCHANGE_ITEMS_LIMIT = 12
@@ -56,7 +61,9 @@ async def _resolve_owner(db: AsyncSession, slug: str) -> uuid.UUID:
 
 
 def _empty_exchange() -> OrganizerExchangeResponse:
-    return OrganizerExchangeResponse(counts=OrganizerExchangeCounts(GIFT=0, SWAP=0), items=[])
+    return OrganizerExchangeResponse(
+        counts=OrganizerExchangeCounts(GIFT=0, SWAP=0, RESERVED=0), items=[]
+    )
 
 
 def _empty_page(
@@ -74,15 +81,19 @@ def _empty_page(
 
 
 async def get_organizer_page(
-    db: AsyncSession, slug: str, storage: ObjectStorage | None
+    db: AsyncSession,
+    slug: str,
+    storage: ObjectStorage | None,
+    principal: Principal | None = None,
 ) -> OrganizerPageResponse:
     owner_party_id = await _resolve_owner(db, slug)
+    viewer_party_id = await resolve_viewer_party_id(db, principal)
     # Warsaw wall clock, the same clock the naive `occurs_on` values use.
     now = clock.local_now()
     window_end = now + UPCOMING_WINDOW
 
     recent_items = await owner_items.list_owner_recent_items(
-        db, owner_party_id, RECENT_ITEMS_LIMIT, storage
+        db, owner_party_id, RECENT_ITEMS_LIMIT, storage, viewer_party_id
     )
     owner_nearest = (
         await owner_items.get_owner_nearest(db, owner_party_id) if recent_items else None
@@ -146,7 +157,9 @@ async def get_organizer_page(
                 await repository.list_needed_items_for_terms(db, next_term_ids, NEEDED_ITEMS_LIMIT)
             )
         ]
-        exchange = await _build_exchange(db, owner_party_id, next_term_ids, storage)
+        exchange = await _build_exchange(
+            db, owner_party_id, next_term_ids, storage, viewer_party_id
+        )
 
     return OrganizerPageResponse(
         circles=circles,
@@ -198,21 +211,25 @@ async def _build_exchange(
     owner_party_id: uuid.UUID,
     next_term_ids: list[uuid.UUID],
     storage: ObjectStorage | None,
+    viewer_party_id: uuid.UUID | None,
 ) -> OrganizerExchangeResponse:
     """Mirrors the public term listing: on each next term the eligible
     listers are its active attendees plus the circle's leader (the owner),
-    and only live AVAILABLE items count. Each item is placed on the nearest
-    next term its lister is eligible for. Counting and ranking both run in
-    SQL, so only the top `EXCHANGE_ITEMS_LIMIT` rows are loaded."""
-    available_items = circulation_bridge.available_items_with_product_select()
-    counts = await repository.count_exchange_items_by_mode(
-        db, owner_party_id, next_term_ids, available_items
+    and every live listed item counts, reserved ones included. Each item is
+    placed on the nearest next term its lister is eligible for. GIFT/SWAP
+    count the available items and RESERVED the reserved ones, matching the
+    page's tabs. Counting and ranking both run in SQL, so only the top
+    `EXCHANGE_ITEMS_LIMIT` rows are loaded."""
+    listed_items = repository.with_pending_proposer(
+        circulation_bridge.listed_items_with_product_select()
     )
+    counts = await repository.count_exchange_items(db, owner_party_id, next_term_ids, listed_items)
     if not counts:
         return _empty_exchange()
     ranked = await repository.list_nearest_exchange_items(
-        db, owner_party_id, next_term_ids, available_items, EXCHANGE_ITEMS_LIMIT
+        db, owner_party_id, next_term_ids, listed_items, EXCHANGE_ITEMS_LIMIT
     )
+    names = await load_reserved_by_names(db, ranked, viewer_party_id)
 
     photos = (
         await product_bridge.first_approved_photo_by_product(db, {row.product_id for row in ranked})
@@ -225,27 +242,23 @@ async def _build_exchange(
         return None if photo is None or storage is None else storage.public_url(photo.thumb_key)
 
     return OrganizerExchangeResponse(
-        counts=OrganizerExchangeCounts(GIFT=counts.get("GIFT", 0), SWAP=counts.get("SWAP", 0)),
+        counts=OrganizerExchangeCounts(
+            GIFT=counts.get("GIFT", 0),
+            SWAP=counts.get("SWAP", 0),
+            RESERVED=counts.get("RESERVED", 0),
+        ),
         items=[
             OrganizerExchangeItemResponse(
-                item_id=item_id,
-                product_name=product_name,
-                condition=condition,
-                mode=cast(ExchangeMode, mode),
-                thumb_url=thumb_url(product_id),
-                term_id=term_id,
-                group_id=group_id,
-                occurs_on=occurs_on,
+                item_id=row.item_id,
+                product_name=row.product_name,
+                condition=row.condition,
+                mode=cast(ExchangeMode, row.mode),
+                thumb_url=thumb_url(row.product_id),
+                term_id=row.term_id,
+                group_id=row.group_id,
+                occurs_on=row.occurs_on,
+                reservation=names.row_reservation(row),
             )
-            for (
-                item_id,
-                mode,
-                product_id,
-                product_name,
-                condition,
-                occurs_on,
-                term_id,
-                group_id,
-            ) in ranked
+            for row in ranked
         ],
     )

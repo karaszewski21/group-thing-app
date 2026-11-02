@@ -60,7 +60,7 @@ function details(overrides: Partial<ItemDetailsResponse> = {}): ItemDetailsRespo
     product_photo_url: null,
     is_owner: true,
     deleted_at: null,
-    status: { code: "AVAILABLE", term_occurs_on: null, due_date: null, counterparty_label: null },
+    status: { code: "AVAILABLE", term_occurs_on: null, due_date: null, counterparty_label: null, personal_pickup: false },
     ...overrides,
   };
 }
@@ -68,11 +68,15 @@ function details(overrides: Partial<ItemDetailsResponse> = {}): ItemDetailsRespo
 function itemActions(overrides: Partial<ItemActionsResponse> = {}): ItemActionsResponse {
   return {
     mode: "GIFT",
+    visibility: null,
     available: true,
+    reservation: null,
+    party_reservation: null,
     owner: { party_id: "party-1", display_name: "Studio Ania", slug: "ania", items_total: 4 },
-    context: null,
     viewer: "OWN",
-    nearest: null,
+    location: null,
+    contexts: [],
+    personal_pickup_available: false,
     ...overrides,
   };
 }
@@ -123,9 +127,9 @@ describe("Organizer product route", () => {
     renderAt("/ania/product/9");
 
     expect(await screen.findByRole("heading", { name: "Rowerek biegowy" })).toBeInTheDocument();
-    expect(await screen.findByText("Właściciel nie ma teraz zaplanowanych spotkań")).toBeInTheDocument();
+    expect(await screen.findByRole("region", { name: "Chcesz tę rzecz?" })).toBeInTheDocument();
     expect(screen.queryByTestId("where")).not.toBeInTheDocument();
-    expect(itemActionsApi.getItemActions).toHaveBeenCalledWith("9", null);
+    expect(itemActionsApi.getItemActions).toHaveBeenCalledWith("9");
   });
 
   it("anonymous: a non-public item (404) sends the visitor to login with returnTo, query kept", async () => {

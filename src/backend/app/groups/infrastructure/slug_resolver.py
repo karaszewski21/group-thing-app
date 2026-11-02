@@ -5,14 +5,15 @@
 from __future__ import annotations
 
 import uuid
+from collections.abc import Collection
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..application.circles import _group_role_party_id, get_current_leadership
 from ..domain.organizer_slug import derive_organizer_slug
-from . import organizations_acl
+from . import organizations_acl, repository
 
-__all__ = ["resolve_organizer_slug"]
+__all__ = ["resolve_organizer_slug", "resolve_organizer_slugs"]
 
 
 async def resolve_organizer_slug(db: AsyncSession, group_id: uuid.UUID) -> str:
@@ -34,3 +35,23 @@ async def resolve_organizer_slug(db: AsyncSession, group_id: uuid.UUID) -> str:
     return derive_organizer_slug(
         group_id, party_id, organization.slug if organization is not None else None
     )
+
+
+async def resolve_organizer_slugs(
+    db: AsyncSession, group_ids: Collection[uuid.UUID]
+) -> dict[uuid.UUID, str]:
+    """`resolve_organizer_slug` for many circles: one leadership statement
+    for all of them, then one organization lookup per distinct organizer."""
+    organizers = await repository.list_current_organizer_party_ids(db, group_ids)
+    organization_slugs: dict[uuid.UUID, str | None] = {}
+    for party_id in set(organizers.values()):
+        organization = await organizations_acl.get_own_organization(db, party_id)
+        organization_slugs[party_id] = organization.slug if organization is not None else None
+    return {
+        group_id: derive_organizer_slug(
+            group_id,
+            organizers.get(group_id),
+            organization_slugs[organizers[group_id]] if group_id in organizers else None,
+        )
+        for group_id in group_ids
+    }

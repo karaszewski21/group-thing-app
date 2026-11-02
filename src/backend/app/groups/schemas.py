@@ -7,7 +7,7 @@ import uuid
 from datetime import date, datetime
 from typing import Literal
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 from app.circulation.models import ItemCondition, ItemListingStatus, ReservationType
 from app.users.schemas import EMAIL_PATTERN, normalize_email
@@ -17,6 +17,7 @@ from .models import (
     GroupLayoutMode,
     GroupRoleType,
     GroupVisibility,
+    ItemVisibility,
     PledgeStatus,
     SwapProposalStatus,
 )
@@ -250,11 +251,20 @@ class PublicNeededItemResponse(BaseModel):
     claimed_by_party_id: uuid.UUID | None
 
 
+class ReservedByResponse(BaseModel):
+    """A listed item's reserved badge. `by_name` is the party who would
+    receive the item (the taker or swap counterparty, or the proposer of a
+    pending swap proposal), `None` for an anonymous viewer; `by_me` is true
+    when the viewer is that party."""
+
+    by_name: str | None
+    by_me: bool
+
+
 class PublicItemListingResponse(BaseModel):
-    """One still-available exchange-mechanism offer for the public Term
-    page — always derived AVAILABLE-only (see `list_public_term_item_listings`),
-    so no status/taken fields to leak. `id` is the item's id, same
-    convention as `BrowseTermItemListingResponse`."""
+    """One exchange-mechanism offer for the public Term page, available or
+    reserved (see `list_public_term_item_listings`). `id` is the item's id,
+    same convention as `BrowseTermItemListingResponse`."""
 
     id: uuid.UUID
     item_id: uuid.UUID
@@ -268,6 +278,8 @@ class PublicItemListingResponse(BaseModel):
     thumb_url: str | None = None
     # The listing preference's `created_at` (naive UTC).
     added_at: datetime
+    # `None` while the item is available.
+    reservation: ReservedByResponse | None
 
 
 class PublicTermResponse(BaseModel):
@@ -374,8 +386,10 @@ class OrganizerTermResponse(BaseModel):
 
 
 class OrganizerExchangeCounts(BaseModel):
+    # GIFT/SWAP count available items only; RESERVED the reserved ones.
     GIFT: int
     SWAP: int
+    RESERVED: int
 
 
 class OrganizerExchangeItemResponse(BaseModel):
@@ -387,6 +401,7 @@ class OrganizerExchangeItemResponse(BaseModel):
     term_id: uuid.UUID
     group_id: uuid.UUID
     occurs_on: datetime
+    reservation: ReservedByResponse | None
 
 
 class OrganizerExchangeResponse(BaseModel):
@@ -418,6 +433,7 @@ class OwnerItemCardResponse(BaseModel):
     thumb_url: str | None
     # The listing preference's `created_at`, naive UTC like every audit timestamp.
     added_at: datetime
+    reservation: ReservedByResponse | None
 
 
 class OwnerNearestDateResponse(BaseModel):
@@ -453,6 +469,7 @@ class OwnerSummaryResponse(BaseModel):
 
 
 class OwnerItemCountsResponse(BaseModel):
+    # Reserved items included, so GIFT + SWAP is every listed item.
     GIFT: int
     SWAP: int
 
@@ -606,9 +623,12 @@ class MergeAnonymousProfileResponse(BaseModel):
 
 
 class SetItemListingPreferenceRequest(BaseModel):
-    """`mode=None` clears the item's standing listing preference."""
+    """`mode=None` clears the item's standing listing preference. An omitted
+    `visibility` keeps the current one (PUBLIC for a new row); it is refused
+    without a mode, so a visibility change can never clear the listing."""
 
     mode: ReservationType | None = None
+    visibility: ItemVisibility | None = None
 
     @field_validator("mode")
     @classmethod
@@ -616,6 +636,12 @@ class SetItemListingPreferenceRequest(BaseModel):
         if value is not None and value not in _OFFERABLE_RESERVATION_TYPES:
             raise ValueError("mode may only be SWAP or GIFT")
         return value
+
+    @model_validator(mode="after")
+    def _visibility_needs_mode(self) -> SetItemListingPreferenceRequest:
+        if self.visibility is not None and self.mode is None:
+            raise ValueError("Ustaw tryb, żeby wybrać widoczność.")
+        return self
 
 
 class ItemListingPreferenceResponse(BaseModel):
@@ -625,6 +651,7 @@ class ItemListingPreferenceResponse(BaseModel):
     item_id: uuid.UUID
     owner_party_id: uuid.UUID
     mode: str
+    visibility: ItemVisibility
     created_at: datetime
     updated_at: datetime
 
@@ -632,7 +659,8 @@ class ItemListingPreferenceResponse(BaseModel):
 class MyInventoryItemResponse(BaseModel):
     """One row of `GET /api/inventory-items/mine` — an item physically in
     the caller's PERSONAL inventory together with its
-    standing `ItemListingPreference.mode` (`None` = not offered), so
+    standing `ItemListingPreference.mode` and `visibility` (both `None` =
+    not offered), so
     `Moje rzeczy` only ever shows and seeds toggles for items at home.
     `photos_moderation_pending` is true while the item's product has a
     PENDING/NEEDS_REVIEW photo; it is informational only and does not
@@ -650,6 +678,7 @@ class MyInventoryItemResponse(BaseModel):
     created_at: datetime
     updated_at: datetime
     listing_mode: ReservationType | None
+    listing_visibility: ItemVisibility | None
     listing_status: ItemListingStatus
     photos_moderation_pending: bool
     thumb_url: str | None = None
@@ -662,8 +691,9 @@ class BrowseTermItemListingResponse(BaseModel):
     display data (product name/condition from `app.circulation`/
     `app.product`, lister display name from `app.users`) and derived
     status (`resolved_reservation_id`/`taken_by_party_id`, from the item's
-    live `Reservation` history — see `_resolve_listing_status`). `id` is the
-    item's id: one derived listing per item, not per creation event."""
+    own live `Reservation` history — see `_resolve_listing_status`; a
+    pending swap proposer's reservation or party is never exposed). `id` is
+    the item's id: one derived listing per item, not per creation event."""
 
     id: uuid.UUID
     term_id: uuid.UUID
@@ -679,45 +709,8 @@ class BrowseTermItemListingResponse(BaseModel):
     updated_at: datetime
 
 
-class TakeTermItemListingRequest(BaseModel):
-    """`term_id` is the Term context the take happens in (eligibility,
-    notification link) — the listing itself is Term-independent. SWAP no
-    longer goes through this route (see `take_item_listing`'s docstring) —
-    `reservation_type` is only ever `GIFT` here; a SWAP take is
-    rejected by `take_item_listing` itself, so this schema no longer carries
-    a SWAP-specific `offered_item_id` field (that now lives on
-    `ProposeSwapRequest`, dispatched through the dedicated propose/accept/
-    reject flow instead)."""
-
-    term_id: uuid.UUID
-    reservation_type: ReservationType
-
-
-# --- Swap proposals (authenticated, `/api/term-item-listings/{id}/propose`,
-# `/api/swap-proposals`) ----------------------------------------------------
-
-
-class ProposeSwapRequest(BaseModel):
-    """Body of `POST /api/term-item-listings/{item_id}/propose` — `term_id`
-    is the eligibility/notification context (same role as
-    `TakeTermItemListingRequest.term_id`), `offered_item_id` is the
-    proposer's own counter-offer item."""
-
-    term_id: uuid.UUID
-    offered_item_id: uuid.UUID
-
-
-# --- Event reservations (authenticated, `/api/events/{id}/items/{item_id}/take|propose`)
-
-
-class EventTakeRequest(BaseModel):
-    """Only `GIFT` is taken directly; a SWAP goes through the propose route."""
-
-    reservation_type: ReservationType
-
-
-class EventProposeRequest(BaseModel):
-    offered_item_id: uuid.UUID
+# --- Item reservations (authenticated, `/api/items/{item_id}/take|propose`) and
+# swap proposals (`/api/swap-proposals`) -------------------------------------
 
 
 class ItemContextResponse(BaseModel):
@@ -732,31 +725,100 @@ class ItemContextResponse(BaseModel):
     has_started: bool
 
 
-class EventTakeResponse(BaseModel):
+class ReservationContextRef(BaseModel):
+    """Where a take/propose happens: a term or event by id, or a personal
+    pickup at the owner's place, which carries no id."""
+
+    kind: Literal["PERSONAL", "TERM", "EVENT"]
+    id: uuid.UUID | None = None
+
+    @model_validator(mode="after")
+    def _id_matches_kind(self) -> ReservationContextRef:
+        if self.kind == "PERSONAL" and self.id is not None:
+            raise ValueError("Odbiór osobisty nie ma identyfikatora")
+        if self.kind != "PERSONAL" and self.id is None:
+            raise ValueError("Podaj identyfikator terminu albo wydarzenia")
+        return self
+
+
+class ItemTakeRequest(BaseModel):
+    """Only `GIFT` is taken directly; a SWAP goes through the propose route."""
+
+    context: ReservationContextRef
+    reservation_type: ReservationType
+
+
+class ItemProposeRequest(BaseModel):
+    context: ReservationContextRef
+    offered_item_id: uuid.UUID
+
+
+class ItemTakeResponse(BaseModel):
+    """`context` is null for a personal pickup."""
+
     item_id: uuid.UUID
     product_name: str
-    context: ItemContextResponse
+    context: ItemContextResponse | None
 
 
 class ItemActionsOwnerResponse(OwnerSummaryResponse):
     items_total: int
 
 
-ItemActionsViewer = Literal["ANONYMOUS", "OWN", "ELIGIBLE", "NOT_ELIGIBLE"]
+ItemActionsViewer = Literal["ANONYMOUS", "OWN", "OTHER"]
+
+
+class ItemContextOptionResponse(ItemContextResponse):
+    """An upcoming term or event the owner takes part in. `eligible` is
+    whether the logged-in, non-owner viewer may reserve in it."""
+
+    location_name: str | None
+    eligible: bool
+
+
+class ItemLocationResponse(BaseModel):
+    """The owner's pickup place as the viewer may see it: the owner gets the
+    address (and `deleted_at` once removed); anyone else only the name."""
+
+    name: str
+    formatted_address: str | None
+    deleted_at: datetime | None
+
+
+class ItemPartyReservationResponse(BaseModel):
+    """The caller's part in the item's open reservation or pending swap
+    proposal. `role` is GIVER for the item's holder, RECEIVER for the party
+    who would get it; the flags follow the write paths' own rules."""
+
+    role: Literal["GIVER", "RECEIVER"]
+    reservation_id: uuid.UUID | None
+    proposal_id: uuid.UUID | None
+    reservation_type: ReservationType
+    personal_pickup: bool
+    can_confirm: bool
+    can_cancel: bool
+    can_accept: bool
+    can_reject: bool
 
 
 class ItemActionsResponse(BaseModel):
     """The item page's action read model. `mode` is null without a listing
-    preference; `available` means listed (ACTIVE) and AVAILABLE; `context`
-    is null unless the requested term/event exists, the owner is eligible in
-    it and it is public or the viewer is eligible in it."""
+    preference; `available` means listed (ACTIVE), AVAILABLE and without a
+    pending swap proposal; `reservation` is the reserved badge (null while
+    nobody reserves the item); `visibility` is the listing's visibility for
+    its owner and null for anyone else or without a listing preference;
+    `contexts` holds at most 5 upcoming contexts the viewer may see."""
 
     mode: ExchangeMode | None
+    visibility: ItemVisibility | None
     available: bool
+    reservation: ReservedByResponse | None
+    party_reservation: ItemPartyReservationResponse | None
     owner: ItemActionsOwnerResponse
-    context: ItemContextResponse | None
     viewer: ItemActionsViewer
-    nearest: OwnerNearestDateResponse | None
+    location: ItemLocationResponse | None
+    contexts: list[ItemContextOptionResponse]
+    personal_pickup_available: bool
 
 
 class JoinCodeResponse(BaseModel):
@@ -792,12 +854,13 @@ class SwapProposalResponse(BaseModel):
 class AcceptedSwapProposalResponse(SwapProposalResponse):
     """Accept response: the proposal plus where and when the swap happens.
     For an event swap `term_id`/`group_id` are null, `term_occurs_on` is the
-    event start and `group_name` the event name."""
+    event start and `group_name` the event name; a personal swap has all four
+    null."""
 
     term_id: uuid.UUID | None
-    term_occurs_on: datetime
+    term_occurs_on: datetime | None
     group_id: uuid.UUID | None
-    group_name: str
+    group_name: str | None
     event_id: uuid.UUID | None = None
     event_slug: str | None = None
 

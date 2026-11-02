@@ -583,7 +583,9 @@ async def test_getPublicCircle_organizerAndAttendeeListings_visibleAnonymously(
     assert lister_by_item[attendee_item_id] == attendee_party_id
 
 
-async def test_getPublicCircle_takenItem_disappearsFromPublicListings(client: AsyncClient) -> None:
+async def test_getPublicCircle_takenItem_staysListedWithAnonymousReservation(
+    client: AsyncClient,
+) -> None:
     org_token = await _register_organizer(client, "pt.exchange.taken@example.com")
     group_id = await _create_circle(client, org_token, "Krąg wzięty")
     term_id = await _create_term(
@@ -599,14 +601,16 @@ async def test_getPublicCircle_takenItem_disappearsFromPublicListings(client: As
         headers=_auth_headers(taker_token),
     )
     take = await client.post(
-        f"/api/term-item-listings/{item_id}/take",
-        json={"term_id": term_id, "reservation_type": "GIFT"},
+        f"/api/items/{item_id}/take",
+        json={"context": {"kind": "TERM", "id": term_id}, "reservation_type": "GIFT"},
         headers=_auth_headers(taker_token),
     )
     assert take.status_code == 200
 
     response = await client.get(f"/api/groups/public/{group_id}?term_id={term_id}")
-    assert response.json()["term"]["item_listings"] == []
+    [listing] = response.json()["term"]["item_listings"]
+    assert listing["item_id"] == item_id
+    assert listing["reservation"] == {"by_name": None, "by_me": False}
 
 
 async def test_getPublicCircle_termOccursOnInPast_listingsStillVisible(
@@ -671,6 +675,7 @@ PUBLIC_ITEM_LISTING_KEYS = {
     "lister_display_name",
     "thumb_url",
     "added_at",
+    "reservation",
 }
 
 

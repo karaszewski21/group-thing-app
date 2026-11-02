@@ -1,5 +1,5 @@
 import { api } from "./client";
-import type { OrganizerTheme } from "./groups";
+import type { OrganizerTheme, ReservedByResponse } from "./groups";
 import type { ListingMode } from "./itemListingPreferences";
 import type { LocationRefResponse } from "./locations";
 import type { ModerationStatus } from "./products";
@@ -39,6 +39,8 @@ export interface EventParticipantItem {
   thumb_url: string | null;
   /** When it was listed: naive UTC ISO, no offset (parse with `dayjs.utc`). */
   added_at: string;
+  /** `null` while the item is available. */
+  reservation: ReservedByResponse | null;
 }
 
 /** The author comes first, then active attendees in sign-up order. */

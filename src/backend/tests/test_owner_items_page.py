@@ -26,7 +26,15 @@ from tests.test_term_item_listings import _auth, _register, _rsvp
 
 PAGE_KEYS = {"owner", "nearest", "counts", "items", "total", "page", "size"}
 OWNER_KEYS = {"party_id", "display_name", "slug"}
-ITEM_KEYS = {"item_id", "product_name", "condition", "mode", "thumb_url", "added_at"}
+ITEM_KEYS = {
+    "item_id",
+    "product_name",
+    "condition",
+    "mode",
+    "thumb_url",
+    "added_at",
+    "reservation",
+}
 NEAREST_KEYS = {"kind", "id", "name", "starts_at", "location_name", "attendee_count", "path"}
 ADDED = datetime(2026, 10, 1, 12, 0)
 
@@ -87,7 +95,12 @@ async def test_getOwnerItems_organizationSlug_exactShapeNewestFirstModeFilterAnd
     await _set_balance(db_session, reserved, BalanceStatus.RESERVED)
     await _set_added_at(
         db_session,
-        {older: ADDED - timedelta(days=1), newest: ADDED, oldest: ADDED - timedelta(days=2)},
+        {
+            older: ADDED - timedelta(days=1),
+            newest: ADDED,
+            oldest: ADDED - timedelta(days=2),
+            reserved: ADDED - timedelta(days=3),
+        },
     )
     base = f"/api/groups/public/organizers/{slug}/items"
 
@@ -99,9 +112,20 @@ async def test_getOwnerItems_organizationSlug_exactShapeNewestFirstModeFilterAnd
         "slug": slug,
     }
     assert body["nearest"] is None
-    assert body["counts"] == {"GIFT": 2, "SWAP": 1}
-    assert (body["total"], body["page"], body["size"]) == (3, 1, 20)
-    assert [i["item_id"] for i in body["items"]] == [str(newest), str(older), str(oldest)]
+    assert body["counts"] == {"GIFT": 3, "SWAP": 1}
+    assert (body["total"], body["page"], body["size"]) == (4, 1, 20)
+    assert [i["item_id"] for i in body["items"]] == [
+        str(newest),
+        str(older),
+        str(oldest),
+        str(reserved),
+    ]
+    assert [i["reservation"] for i in body["items"]] == [
+        None,
+        None,
+        None,
+        {"by_name": None, "by_me": False},
+    ]
     assert body["items"][0] == {
         "item_id": str(newest),
         "product_name": "Oi najnowszy",
@@ -109,16 +133,17 @@ async def test_getOwnerItems_organizationSlug_exactShapeNewestFirstModeFilterAnd
         "mode": "SWAP",
         "thumb_url": None,
         "added_at": ADDED.isoformat(),
+        "reservation": None,
     }
 
     gifts = await _items_page(client, f"{base}?mode=GIFT")
-    assert gifts["counts"] == {"GIFT": 2, "SWAP": 1}
-    assert [i["item_id"] for i in gifts["items"]] == [str(older), str(oldest)]
-    assert gifts["total"] == 2
+    assert gifts["counts"] == {"GIFT": 3, "SWAP": 1}
+    assert [i["item_id"] for i in gifts["items"]] == [str(older), str(oldest), str(reserved)]
+    assert gifts["total"] == 3
 
     second = await _items_page(client, f"{base}?page=2&size=1")
     assert [i["item_id"] for i in second["items"]] == [str(older)]
-    assert (second["total"], second["page"], second["size"]) == (3, 2, 1)
+    assert (second["total"], second["page"], second["size"]) == (4, 2, 1)
 
 
 async def test_getOwnerItems_unknownPseudoProfilelessOrNothingListed_returns404ElsePartyVariant(

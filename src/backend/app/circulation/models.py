@@ -11,9 +11,9 @@ projection of that ledger (see `docs/system-wypozyczalni-inventory-accounting.md
 `InventoryItem.product_id` points at `app.product.models.Product`, the
 shared product catalog.
 
-Cross-module references (`users.id`, `products.id`, `terms.id`, `events.id`) are plain
-FK-id columns, never a `relationship()` crossing the module boundary, per
-`standards/backend/models.md`.
+Cross-module references (`users.id`, `products.id`, `terms.id`, `events.id`,
+`locations.id`) are plain FK-id columns, never a `relationship()` crossing the
+module boundary, per `standards/backend/models.md`.
 """
 
 from __future__ import annotations
@@ -170,6 +170,13 @@ class Inventory(BaseEntity):
     structured address shape beyond display text."""
 
     __tablename__ = "inventories"
+    __table_args__ = (
+        Index(
+            "ix_inventories_location_id",
+            "location_id",
+            postgresql_where=text("location_id IS NOT NULL"),
+        ),
+    )
 
     owner_user_id: Mapped[uuid.UUID] = mapped_column(
         postgresql.UUID(as_uuid=True),
@@ -180,6 +187,13 @@ class Inventory(BaseEntity):
         _enum_column(InventoryType, 20), nullable=False
     )
     location: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    # The owner's physical pickup place, a `Location` of the `locations`
+    # module. No `ON DELETE`: locations are only ever soft-deleted.
+    location_id: Mapped[uuid.UUID | None] = mapped_column(
+        postgresql.UUID(as_uuid=True),
+        ForeignKey("locations.id", name="fk_inventories_location_id_locations"),
+        nullable=True,
+    )
 
 
 class InventoryItem(BaseEntity):
@@ -244,17 +258,14 @@ class InventoryBalance(BaseEntity):
 class Reservation(BaseEntity):
     """The "cart" step preceding any change of possession. `reserved_by`
     always resolves to a `User`, never a `Group`/Family — see Insight 3 in
-    the research synthesis. Its context is a Term or an Event: exactly one
-    while PENDING/CONFIRMED, at most one afterwards (a deleted event leaves
-    its terminal reservations with neither)."""
+    the research synthesis. Its context is a Term, an Event or neither, never
+    both. An open (PENDING/CONFIRMED) reservation with neither is a personal
+    pickup; a terminal one with neither may also be one whose event was
+    deleted."""
 
     __tablename__ = "reservations"
     __table_args__ = (
-        CheckConstraint(
-            "num_nonnulls(term_id, event_id) <= 1 AND "
-            "(status NOT IN ('PENDING', 'CONFIRMED') OR num_nonnulls(term_id, event_id) = 1)",
-            name="ck_reservations_context",
-        ),
+        CheckConstraint("num_nonnulls(term_id, event_id) <= 1", name="ck_reservations_context"),
         Index(
             "ix_reservations_event_id",
             "event_id",

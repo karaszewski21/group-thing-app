@@ -16,10 +16,12 @@ from datetime import datetime
 from typing import Any
 
 from sqlalchemy import (
+    ColumnElement,
     Row,
     Select,
     Subquery,
     and_,
+    case,
     exists,
     func,
     literal,
@@ -41,6 +43,7 @@ from ..models import (
     GroupRoleType,
     GroupVisibility,
     ItemListingPreference,
+    ItemVisibility,
     Leadership,
     Membership,
     NeededItem,
@@ -645,6 +648,23 @@ async def list_profile_names_by_party_ids(
     )
 
 
+async def list_profile_names_by_account_user_ids(
+    db: AsyncSession, account_user_ids: Collection[uuid.UUID]
+) -> list[Row[tuple[uuid.UUID | None, uuid.UUID, str]]]:
+    """`(account_user_id, party_id, display_name)` of each account's profile."""
+    if not account_user_ids:
+        return []
+    return list(
+        (
+            await db.execute(
+                select(
+                    UserProfile.account_user_id, UserProfile.party_id, UserProfile.display_name
+                ).where(UserProfile.account_user_id.in_(set(account_user_ids)))
+            )
+        ).all()
+    )
+
+
 async def find_profile_by_email(db: AsyncSession, email: str) -> UserProfile | None:
     return (
         await db.execute(select(UserProfile).where(UserProfile.email == email))
@@ -663,25 +683,83 @@ async def get_item_listing_preference(
     return result.scalar_one_or_none()
 
 
+async def lock_item_listing_preference(
+    db: AsyncSession, item_id: uuid.UUID
+) -> ItemListingPreference | None:
+    """The item's listing preference re-read `FOR UPDATE` until the caller
+    commits, so takes and proposals on one item run one at a time."""
+    result = await db.execute(
+        select(ItemListingPreference)
+        .where(ItemListingPreference.item_id == item_id)
+        .with_for_update()
+        .execution_options(populate_existing=True)
+    )
+    return result.scalar_one_or_none()
+
+
+def _visible_preferences(
+    include_private: bool, private_circle_id: uuid.UUID | None = None
+) -> ColumnElement[bool]:
+    """Safe by default: PUBLIC preferences only unless the caller may see
+    PRIVATE ones too. `private_circle_id` admits only the PRIVATE
+    preferences of owners who are standing members or the current
+    organizer of that circle (an RSVP is not membership, `can_view_item`)."""
+    public = ItemListingPreference.visibility == ItemVisibility.PUBLIC
+    if private_circle_id is not None:
+        return or_(public, _owner_in_circle(private_circle_id))
+    if include_private:
+        return true()
+    return public
+
+
+def _owner_in_circle(group_id: uuid.UUID) -> ColumnElement[bool]:
+    """The preference's owner is a standing member or the current organizer
+    of `group_id`, correlated to `ItemListingPreference.owner_party_id`."""
+    member = exists().where(
+        Membership.to_group_id == group_id,
+        Membership.valid_to.is_(None),
+        GroupRole.id == Membership.from_role_id,
+        GroupRole.party_id == ItemListingPreference.owner_party_id,
+    )
+    leads = exists().where(
+        Leadership.to_group_id == group_id,
+        Leadership.valid_to.is_(None),
+        GroupRole.id == Leadership.from_role_id,
+        GroupRole.party_id == ItemListingPreference.owner_party_id,
+    )
+    return or_(member, leads)
+
+
 async def list_item_listing_preferences_for_party(
-    db: AsyncSession, party_id: uuid.UUID
+    db: AsyncSession, party_id: uuid.UUID, *, include_private: bool = False
 ) -> list[ItemListingPreference]:
     result = await db.execute(
         select(ItemListingPreference)
-        .where(ItemListingPreference.owner_party_id == party_id)
+        .where(
+            ItemListingPreference.owner_party_id == party_id,
+            _visible_preferences(include_private),
+        )
         .order_by(ItemListingPreference.id)
     )
     return list(result.scalars().all())
 
 
 async def list_item_listing_preferences_for_parties(
-    db: AsyncSession, party_ids: set[uuid.UUID]
+    db: AsyncSession,
+    party_ids: set[uuid.UUID],
+    *,
+    include_private: bool = False,
+    private_circle_id: uuid.UUID | None = None,
 ) -> list[ItemListingPreference]:
+    """`include_private`/`private_circle_id` as `_visible_preferences`."""
     if not party_ids:
         return []
     result = await db.execute(
         select(ItemListingPreference)
-        .where(ItemListingPreference.owner_party_id.in_(party_ids))
+        .where(
+            ItemListingPreference.owner_party_id.in_(party_ids),
+            _visible_preferences(include_private, private_circle_id),
+        )
         .order_by(ItemListingPreference.id)
     )
     return list(result.scalars().all())
@@ -689,16 +767,128 @@ async def list_item_listing_preferences_for_parties(
 
 def item_listing_preferences_select(
     party_ids: Collection[uuid.UUID],
+    *,
+    include_private: bool = False,
+    private_circle_id: uuid.UUID | None = None,
 ) -> Select[tuple[uuid.UUID, uuid.UUID, str, datetime]]:
     """`(item_id, owner_party_id, mode, created_at)` of every listing
-    preference owned by `party_ids`. Unexecuted, so another context can join
-    it with its own item select in one statement."""
+    preference owned by `party_ids`, PUBLIC ones only unless
+    `include_private` or `private_circle_id` (`_visible_preferences`).
+    Unexecuted, so another context can join it with its own item select in
+    one statement."""
     return select(
         ItemListingPreference.item_id.label("item_id"),
         ItemListingPreference.owner_party_id.label("owner_party_id"),
         ItemListingPreference.mode.label("mode"),
         ItemListingPreference.created_at.label("created_at"),
-    ).where(ItemListingPreference.owner_party_id.in_(set(party_ids)))
+    ).where(
+        ItemListingPreference.owner_party_id.in_(set(party_ids)),
+        _visible_preferences(include_private, private_circle_id),
+    )
+
+
+def _circle_ids_of(party_id: uuid.UUID) -> ColumnElement[bool]:
+    """`Group.id` is a circle `party_id` is a standing member of or
+    currently leads."""
+    member_of = (
+        select(Membership.to_group_id)
+        .join(GroupRole, GroupRole.id == Membership.from_role_id)
+        .where(GroupRole.party_id == party_id, Membership.valid_to.is_(None))
+    )
+    leads = (
+        select(Leadership.to_group_id)
+        .join(GroupRole, GroupRole.id == Leadership.from_role_id)
+        .where(GroupRole.party_id == party_id, Leadership.valid_to.is_(None))
+    )
+    return or_(Group.id.in_(member_of), Group.id.in_(leads))
+
+
+async def is_in_circle(db: AsyncSession, group_id: uuid.UUID, party_id: uuid.UUID) -> bool:
+    """Whether `party_id` is a standing member or the current organizer of
+    `group_id`. One statement."""
+    return bool(
+        await db.scalar(select(exists().where(Group.id == group_id, _circle_ids_of(party_id))))
+    )
+
+
+async def shares_private_circle(
+    db: AsyncSession, party_id: uuid.UUID, other_party_id: uuid.UUID
+) -> bool:
+    """Whether both parties belong to one non-deleted PRIVATE circle, each
+    as a standing member or its current organizer. One statement."""
+    shared = exists().where(
+        Group.visibility == GroupVisibility.PRIVATE,
+        Group.deleted_at.is_(None),
+        _circle_ids_of(party_id),
+        _circle_ids_of(other_party_id),
+    )
+    return bool(await db.scalar(select(shared)))
+
+
+def with_pending_proposer(listed_items: Select[Any]) -> Select[Any]:
+    """`listed_items` (circulation's listed-items select, reserved items
+    included) plus `proposer_party_id`: the proposer of the oldest still
+    `PROPOSED` `SwapProposal` targeting the item, `None` without one.
+    Unexecuted, for a list read to join."""
+    listed = listed_items.subquery("listed")
+    proposer = (
+        select(SwapProposal.proposer_party_id)
+        .where(
+            SwapProposal.listing_item_id == listed.c.item_id,
+            SwapProposal.status == SwapProposalStatus.PROPOSED,
+        )
+        .order_by(SwapProposal.created_at, SwapProposal.id)
+        .limit(1)
+        .correlate(listed)
+        .scalar_subquery()
+    )
+    return select(listed, proposer.label("proposer_party_id"))
+
+
+def _is_reserved(items: Subquery) -> ColumnElement[bool]:
+    """A `with_pending_proposer` row is reserved while its balance is not
+    AVAILABLE (RESERVED or IN_TRANSIT) or a swap proposal is pending."""
+    # The string-backed `BalanceStatus` column binds its plain value.
+    return or_(items.c.balance_status != "AVAILABLE", items.c.proposer_party_id.is_not(None))
+
+
+async def list_listed_items_for_parties(
+    db: AsyncSession,
+    party_ids: Collection[uuid.UUID],
+    listed_items: Select[Any],
+    *,
+    include_private: bool = False,
+    private_circle_id: uuid.UUID | None = None,
+) -> list[Row[Any]]:
+    """`(item_id, owner_party_id, mode, created_at, product_id, product_name,
+    condition, balance_status, reserved_by_user_id, proposer_party_id)` of
+    every item `party_ids` list (PUBLIC ones only unless `include_private`
+    or `private_circle_id`, `_visible_preferences`), in one statement: their
+    listing preferences joined to `listed_items` (a `with_pending_proposer`
+    select). Oldest preference first, then item id."""
+    if not party_ids:
+        return []
+    preferences = item_listing_preferences_select(
+        party_ids, include_private=include_private, private_circle_id=private_circle_id
+    ).subquery("preferences")
+    listed = listed_items.subquery("listed_items")
+    result = await db.execute(
+        select(
+            preferences.c.item_id,
+            preferences.c.owner_party_id,
+            preferences.c.mode,
+            preferences.c.created_at,
+            listed.c.product_id,
+            listed.c.product_name,
+            listed.c.condition,
+            listed.c.balance_status,
+            listed.c.reserved_by_user_id,
+            listed.c.proposer_party_id,
+        )
+        .join(listed, listed.c.item_id == preferences.c.item_id)
+        .order_by(preferences.c.created_at, preferences.c.item_id)
+    )
+    return list(result.all())
 
 
 # --- SwapProposal -----------------------------------------------------------
@@ -714,23 +904,23 @@ async def lock_swap_proposal(db: AsyncSession, proposal_id: uuid.UUID) -> SwapPr
     return await db.get(SwapProposal, proposal_id, with_for_update=True, populate_existing=True)
 
 
-async def get_active_swap_proposal_for_listing_item(
-    db: AsyncSession, listing_item_id: uuid.UUID
-) -> SwapProposal | None:
-    """The latest not-yet-`REJECTED` `SwapProposal` targeting this listing
-    item, if any — used by `_resolve_listing_status`'s fallback to
-    recognize a `PROPOSED` swap (which, unlike an accepted one, leaves no
-    `Reservation` on the listing item itself yet, so the reservation-history
-    scan alone would otherwise miss it)."""
+async def list_listing_item_ids_with_pending_proposal(
+    db: AsyncSession, listing_item_ids: Collection[uuid.UUID]
+) -> set[uuid.UUID]:
+    """Which of `listing_item_ids` a still-`PROPOSED` `SwapProposal`
+    targets, in one query: such an item can no longer be taken or proposed
+    for."""
+    if not listing_item_ids:
+        return set()
     result = await db.execute(
-        select(SwapProposal)
+        select(SwapProposal.listing_item_id)
         .where(
-            SwapProposal.listing_item_id == listing_item_id,
-            SwapProposal.status.in_((SwapProposalStatus.PROPOSED, SwapProposalStatus.ACCEPTED)),
+            SwapProposal.listing_item_id.in_(set(listing_item_ids)),
+            SwapProposal.status == SwapProposalStatus.PROPOSED,
         )
-        .order_by(SwapProposal.created_at.desc(), SwapProposal.id.desc())
+        .distinct()
     )
-    return result.scalars().first()
+    return set(result.scalars().all())
 
 
 async def list_pending_swap_proposals_for_listing_item(
@@ -967,13 +1157,15 @@ async def list_needed_items_for_terms(
 def _exchange_candidates(
     owner_party_id: uuid.UUID,
     term_ids: list[uuid.UUID],
-    available_items: Select[tuple[uuid.UUID, uuid.UUID, str, Any]],
+    listed_items: Select[Any],
 ) -> Subquery:
     """`(item_id, mode, product_id, product_name, condition, occurs_on,
-    term_id, group_id)`: one row per item of `available_items` listed by a
-    party eligible on some term of `term_ids` (the owner on every one, an
-    attendee on those they hold a non-withdrawn RSVP for, as on the term
-    page), placed on that party's nearest such term, ties broken by term id."""
+    term_id, group_id, balance_status, reserved_by_user_id,
+    proposer_party_id)`: one row per PUBLIC item of `listed_items` (a
+    `with_pending_proposer` select) listed by a party eligible on some term
+    of `term_ids` (the owner on every one, an attendee on those they hold a
+    non-withdrawn RSVP for, as on the term page), placed on that party's
+    nearest such term, ties broken by term id."""
     lister_terms = union_all(
         select(
             literal(owner_party_id, postgresql.UUID(as_uuid=True)).label("party_id"),
@@ -991,46 +1183,52 @@ def _exchange_candidates(
         .order_by(lister_terms.c.party_id, lister_terms.c.occurs_on, lister_terms.c.term_id)
         .subquery("nearest_term")
     )
-    available = available_items.subquery("available_items")
+    listed = listed_items.subquery("listed_items")
     return (
         select(
             ItemListingPreference.item_id,
             ItemListingPreference.mode,
-            available.c.product_id,
-            available.c.product_name,
-            available.c.condition,
+            listed.c.product_id,
+            listed.c.product_name,
+            listed.c.condition,
             nearest_term.c.occurs_on,
             nearest_term.c.term_id,
             nearest_term.c.group_id,
+            listed.c.balance_status,
+            listed.c.reserved_by_user_id,
+            listed.c.proposer_party_id,
         )
         .join(nearest_term, nearest_term.c.party_id == ItemListingPreference.owner_party_id)
-        .join(available, available.c.item_id == ItemListingPreference.item_id)
+        .join(listed, listed.c.item_id == ItemListingPreference.item_id)
+        .where(ItemListingPreference.visibility == ItemVisibility.PUBLIC)
         .subquery("exchange_candidates")
     )
 
 
-async def count_exchange_items_by_mode(
+async def count_exchange_items(
     db: AsyncSession,
     owner_party_id: uuid.UUID,
     term_ids: list[uuid.UUID],
-    available_items: Select[tuple[uuid.UUID, uuid.UUID, str, Any]],
+    listed_items: Select[Any],
 ) -> dict[str, int]:
-    """Listing mode -> number of `_exchange_candidates`."""
-    candidates = _exchange_candidates(owner_party_id, term_ids, available_items)
-    result = await db.execute(select(candidates.c.mode, func.count()).group_by(candidates.c.mode))
-    return {mode: count for mode, count in result.all()}
+    """`_exchange_candidates` counted per bucket: `RESERVED` for the
+    reserved ones, else their listing mode (`GIFT`/`SWAP`)."""
+    candidates = _exchange_candidates(owner_party_id, term_ids, listed_items)
+    bucket = case((_is_reserved(candidates), literal("RESERVED")), else_=candidates.c.mode)
+    result = await db.execute(select(bucket, func.count()).group_by(bucket))
+    return {name: count for name, count in result.all()}
 
 
 async def list_nearest_exchange_items(
     db: AsyncSession,
     owner_party_id: uuid.UUID,
     term_ids: list[uuid.UUID],
-    available_items: Select[tuple[uuid.UUID, uuid.UUID, str, Any]],
+    listed_items: Select[Any],
     limit: int,
-) -> list[Row[tuple[uuid.UUID, str, uuid.UUID, str, str, datetime, uuid.UUID, uuid.UUID]]]:
+) -> list[Row[Any]]:
     """The first `limit` `_exchange_candidates` by term date, then product
     name in code-point order (`COLLATE "C"`), then item id."""
-    candidates = _exchange_candidates(owner_party_id, term_ids, available_items)
+    candidates = _exchange_candidates(owner_party_id, term_ids, listed_items)
     result = await db.execute(
         select(candidates)
         .order_by(
@@ -1044,28 +1242,31 @@ async def list_nearest_exchange_items(
 
 
 # --- Owner items page ------------------------------------------------------------
-# One owner's listed items (a listing preference on a live AVAILABLE item;
-# the preference exists exactly while the item's `listing_status` is ACTIVE)
-# and the owner's nearest public term. Counts, page and nearest term are one
-# statement each, whatever the number of items.
+# One owner's listed items (a listing preference on a live AVAILABLE,
+# RESERVED or IN_TRANSIT item; the preference exists exactly while the item's
+# `listing_status` is ACTIVE) and the owner's nearest public term. Counts,
+# page and nearest term are one statement each, whatever the number of items.
 
 
-def _owner_listed_items(
-    owner_party_id: uuid.UUID, available_items: Select[tuple[uuid.UUID, uuid.UUID, str, Any]]
-) -> Subquery:
-    """`(item_id, mode, created_at, product_id, product_name, condition)`."""
+def _owner_listed_items(owner_party_id: uuid.UUID, listed_items: Select[Any]) -> Subquery:
+    """`(item_id, mode, created_at, product_id, product_name, condition,
+    balance_status, reserved_by_user_id, proposer_party_id)`, from a
+    `with_pending_proposer` select."""
     preferences = item_listing_preferences_select([owner_party_id]).subquery("preferences")
-    available = available_items.subquery("available_items")
+    listed = listed_items.subquery("listed_items")
     return (
         select(
             preferences.c.item_id,
             preferences.c.mode,
             preferences.c.created_at,
-            available.c.product_id,
-            available.c.product_name,
-            available.c.condition,
+            listed.c.product_id,
+            listed.c.product_name,
+            listed.c.condition,
+            listed.c.balance_status,
+            listed.c.reserved_by_user_id,
+            listed.c.proposer_party_id,
         )
-        .join(available, available.c.item_id == preferences.c.item_id)
+        .join(listed, listed.c.item_id == preferences.c.item_id)
         .subquery("owner_listed_items")
     )
 
@@ -1073,10 +1274,11 @@ def _owner_listed_items(
 async def count_owner_listed_items_by_mode(
     db: AsyncSession,
     owner_party_id: uuid.UUID,
-    available_items: Select[tuple[uuid.UUID, uuid.UUID, str, Any]],
+    listed_items: Select[Any],
 ) -> dict[str, int]:
-    """Listing mode -> number of the owner's listed items."""
-    listed = _owner_listed_items(owner_party_id, available_items)
+    """Listing mode -> number of the owner's listed items, reserved ones
+    included."""
+    listed = _owner_listed_items(owner_party_id, listed_items)
     result = await db.execute(select(listed.c.mode, func.count()).group_by(listed.c.mode))
     return {mode: count for mode, count in result.all()}
 
@@ -1084,14 +1286,14 @@ async def count_owner_listed_items_by_mode(
 async def list_owner_listed_items_page(
     db: AsyncSession,
     owner_party_id: uuid.UUID,
-    available_items: Select[tuple[uuid.UUID, uuid.UUID, str, Any]],
+    listed_items: Select[Any],
     mode: str | None,
     offset: int,
     limit: int,
-) -> list[Row[tuple[uuid.UUID, str, datetime, uuid.UUID, str, Any]]]:
+) -> list[Row[Any]]:
     """One page of the owner's listed items, optionally of one `mode`,
     newest preference first, then item id."""
-    listed = _owner_listed_items(owner_party_id, available_items)
+    listed = _owner_listed_items(owner_party_id, listed_items)
     query = select(listed).order_by(listed.c.created_at.desc(), listed.c.item_id)
     if mode is not None:
         query = query.where(listed.c.mode == mode)
@@ -1137,3 +1339,74 @@ async def nearest_public_term_for_party(
         .limit(1)
     )
     return result.first()
+
+
+def _leads_term_circle(party_id: uuid.UUID) -> Any:
+    """`Term`'s circle is currently led by `party_id` — the SQL twin of
+    `attendance._is_term_organizer` (active `Leadership` -> `GroupRole`)."""
+    return exists().where(
+        Leadership.to_group_id == Term.circle_group_id,
+        Leadership.valid_to.is_(None),
+        GroupRole.id == Leadership.from_role_id,
+        GroupRole.party_id == party_id,
+    )
+
+
+def _attends_term(party_id: uuid.UUID) -> Any:
+    return exists().where(
+        TermAttendance.term_id == Term.id,
+        TermAttendance.party_id == party_id,
+        TermAttendance.withdrawn_at.is_(None),
+    )
+
+
+async def list_upcoming_owner_terms_for_viewer(
+    db: AsyncSession,
+    owner_party_id: uuid.UUID,
+    viewer_party_id: uuid.UUID | None,
+    now: datetime,
+    limit: int = 5,
+    *,
+    private_only: bool = False,
+) -> list[Row[tuple[uuid.UUID, uuid.UUID, str, GroupVisibility, datetime, uuid.UUID | None, bool]]]:
+    """`(term_id, group_id, group_name, visibility, occurs_on, location_id,
+    viewer_eligible)` of the terms at or after `now` in a non-deleted circle
+    the owner leads or holds a non-withdrawn RSVP for — the write path's
+    `_require_term_eligibility` — that the viewer may see: a PUBLIC circle,
+    or one where the viewer passes that same rule (`viewer_eligible`).
+    `private_only` (a PRIVATE item) keeps PRIVATE circles the owner is a
+    standing member or organizer of, never one they only RSVP to
+    (`can_view_item`). The filters
+    run before `ORDER BY occurs_on LIMIT`, in one statement; an anonymous
+    viewer is never eligible."""
+    viewer_eligible: Any = (
+        literal(False)
+        if viewer_party_id is None
+        else or_(_leads_term_circle(viewer_party_id), _attends_term(viewer_party_id))
+    )
+    result = await db.execute(
+        select(
+            Term.id,
+            Term.circle_group_id.label("group_id"),
+            Group.name,
+            Group.visibility,
+            Term.occurs_on,
+            Term.location_id,
+            viewer_eligible.label("viewer_eligible"),
+        )
+        .join(Group, Group.id == Term.circle_group_id)
+        .where(
+            Group.deleted_at.is_(None),
+            Term.occurs_on >= now,
+            or_(_leads_term_circle(owner_party_id), _attends_term(owner_party_id)),
+            or_(Group.visibility == GroupVisibility.PUBLIC, viewer_eligible),
+            (
+                and_(Group.visibility == GroupVisibility.PRIVATE, _circle_ids_of(owner_party_id))
+                if private_only
+                else true()
+            ),
+        )
+        .order_by(Term.occurs_on, Term.id)
+        .limit(limit)
+    )
+    return list(result.all())

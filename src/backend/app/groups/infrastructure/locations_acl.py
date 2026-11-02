@@ -20,6 +20,7 @@ from app.locations.schemas import LocationRefResponse, PublicLocationResponse
 from app.locations.service import get_own_location as get_owned_location
 
 __all__ = [
+    "Location",
     "LocationRefResponse",
     "PublicLocationResponse",
     "get_location",

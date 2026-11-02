@@ -2,7 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useCallback } from "react";
 import { getItemActions, type ItemActionsResponse } from "../api/itemActions";
 import { extractProblemMessage } from "../api/problem";
-import type { ItemContext } from "../pages/product/useItemRoutes";
+import { useAuth } from "../auth/AuthContext";
 
 /** Takes and swap proposals (`useItemTake`) invalidate this prefix. */
 export const ITEM_ACTIONS_KEY = "item-actions";
@@ -16,11 +16,14 @@ export interface UseItemActionsResult {
   refetch: () => Promise<void>;
 }
 
-/** The item page's actions card data for the `?term=`/`?event=` context. */
-export function useItemActions(itemId: string, context: ItemContext | null): UseItemActionsResult {
+/** The item page's actions card data. The response is personalised, so the
+ * viewer's user id is part of the key: a login, logout or account switch
+ * fetches afresh instead of showing another viewer's cached data. */
+export function useItemActions(itemId: string): UseItemActionsResult {
+  const { username: viewerUserId } = useAuth();
   const query = useQuery({
-    queryKey: [ITEM_ACTIONS_KEY, itemId, context],
-    queryFn: () => getItemActions(itemId, context),
+    queryKey: [ITEM_ACTIONS_KEY, itemId, viewerUserId ?? null],
+    queryFn: () => getItemActions(itemId),
   });
   const { refetch: refetchQuery } = query;
   const refetch = useCallback(async () => {

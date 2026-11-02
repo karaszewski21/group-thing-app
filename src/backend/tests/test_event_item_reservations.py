@@ -1,5 +1,5 @@
-"""Event reservations: `POST /api/events/{id}/items/{item_id}/take|propose`,
-an event swap's accept, and confirm/cancel gated on the event start."""
+"""Event reservations: `POST /api/items/{item_id}/take|propose` with an EVENT
+context, an event swap's accept, and confirm/cancel gated on the event start."""
 
 from __future__ import annotations
 
@@ -7,7 +7,7 @@ import uuid
 from collections.abc import Callable
 from datetime import datetime, timedelta
 
-from httpx import AsyncClient
+from httpx import AsyncClient, Response
 from sqlalchemy import select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -89,11 +89,25 @@ async def _take(
     client: AsyncClient, event_id: uuid.UUID, item_id: uuid.UUID, token: str, mode: str = "GIFT"
 ) -> tuple[int, dict[str, object]]:
     response = await client.post(
-        f"/api/events/{event_id}/items/{item_id}/take",
-        json={"reservation_type": mode},
+        f"/api/items/{item_id}/take",
+        json={"context": _event_ref(event_id), "reservation_type": mode},
         headers=_auth(token),
     )
     return response.status_code, response.json()
+
+
+def _event_ref(event_id: uuid.UUID) -> dict[str, str]:
+    return {"kind": "EVENT", "id": str(event_id)}
+
+
+async def _propose(
+    client: AsyncClient, event_id: uuid.UUID, item_id: uuid.UUID, offered: uuid.UUID, token: str
+) -> Response:
+    return await client.post(
+        f"/api/items/{item_id}/propose",
+        json={"context": _event_ref(event_id), "offered_item_id": str(offered)},
+        headers=_auth(token),
+    )
 
 
 async def _notifications(client: AsyncClient, token: str, kind: str) -> list[dict[str, object]]:
@@ -199,11 +213,7 @@ async def test_takeOrProposeEventItem_afterStart_returns409(
 
     freeze_local_now(starts_at)
     take_status, take_body = await _take(client, event_id, gift_item, taker)
-    propose = await client.post(
-        f"/api/events/{event_id}/items/{swap_item}/propose",
-        json={"offered_item_id": str(offered)},
-        headers=_auth(taker),
-    )
+    propose = await _propose(client, event_id, swap_item, offered, taker)
 
     assert take_status == 409
     assert take_body["message"] == "Wydarzenie już się rozpoczęło"
@@ -218,11 +228,7 @@ async def test_eventSwap_proposeAcceptBeforeStart_confirmOnlyAfterStart(
     (listed,) = await _listed_items(client, owner, ("Monopoly eir5", "SWAP"))
     (offered,) = await _listed_items(client, proposer, ("Scrabble eir5", "SWAP"))
 
-    propose = await client.post(
-        f"/api/events/{event_id}/items/{listed}/propose",
-        json={"offered_item_id": str(offered)},
-        headers=_auth(proposer),
-    )
+    propose = await _propose(client, event_id, listed, offered, proposer)
     assert propose.status_code == 200, propose.text
     proposal = propose.json()
     accept = await client.post(f"/api/swap-proposals/{proposal['id']}/accept", headers=_auth(owner))
@@ -293,11 +299,7 @@ async def test_eventSwap_ownerRejects_cancelsProposerLegAndNotifiesProposer(
     event_id, _, (owner, proposer) = await _attendees(client, "eir8", "owner", "proposer")
     (listed,) = await _listed_items(client, owner, ("Gitara eir8", "SWAP"))
     (offered,) = await _listed_items(client, proposer, ("Ukulele eir8", "SWAP"))
-    propose = await client.post(
-        f"/api/events/{event_id}/items/{listed}/propose",
-        json={"offered_item_id": str(offered)},
-        headers=_auth(proposer),
-    )
+    propose = await _propose(client, event_id, listed, offered, proposer)
     assert propose.status_code == 200, propose.text
 
     reject = await client.post(

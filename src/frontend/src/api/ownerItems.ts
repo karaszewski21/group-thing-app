@@ -1,5 +1,5 @@
 import { api } from "./client";
-import type { ExchangeMode } from "./groups";
+import type { ExchangeMode, ReservedByResponse } from "./groups";
 import { pageParams } from "./pagination";
 
 /** Mirrors `app.groups.schemas.OwnerItemCardResponse`. */
@@ -11,6 +11,8 @@ export interface OwnerItemCard {
   thumb_url: string | null;
   /** Naive UTC ISO, no offset. */
   added_at: string;
+  /** `null` while the item is available. */
+  reservation: ReservedByResponse | null;
 }
 
 /** Mirrors `app.groups.schemas.OwnerNearestDateResponse`: the owner's next
@@ -37,7 +39,7 @@ export interface OwnerItemsPageResponse {
     slug: string | null;
   };
   nearest: OwnerNearestDate | null;
-  /** Over every listed item, ignoring the `mode` filter. */
+  /** Over every listed item (reserved included), ignoring the `mode` filter. */
   counts: Record<ExchangeMode, number>;
   items: OwnerItemCard[];
   /** Matching the `mode` filter. */

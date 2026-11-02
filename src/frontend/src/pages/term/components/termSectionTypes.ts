@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 
-/** One clickable action rendered on a needed-item or listing row. */
+/** One clickable action rendered on a needed-item row. */
 export interface TermActionVM {
   key: string;
   label: string;
@@ -16,14 +16,6 @@ export interface NeededItemRowVM {
   title: ReactNode;
   subtitle?: ReactNode | null;
   inlineActions: TermActionVM[];
-  extra?: ReactNode;
-}
-
-/** One offered item under an attendee: its take-type action buttons, then
- * optional extra content (the swap picker or the account-merge mini-form). */
-export interface ListingRowVM {
-  key: string | number;
-  actions: TermActionVM[];
   extra?: ReactNode;
 }
 

@@ -24,6 +24,7 @@ function eventStatus(over: Partial<ItemStatusResponse> = {}): ItemStatusResponse
     group_name: "Kiermasz rzeczy",
     event_id: EVENT_ID,
     event_slug: "ania",
+    personal_pickup: false,
     ...over,
   };
 }
@@ -69,6 +70,33 @@ describe("ItemStatusCard event reservation", () => {
 
     expect(screen.getByRole("status")).toHaveTextContent("Zarezerwowana — odbiór na terminie 14.10");
     expect(screen.queryByRole("link", { name: "Zobacz wydarzenie" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Dodaj do kalendarza/ })).not.toBeInTheDocument();
+  });
+});
+
+describe("ItemStatusCard personal pickup", () => {
+  const personal = (code: "RESERVED" | "IN_TRANSIT"): ItemStatusResponse => ({
+    code,
+    term_occurs_on: null,
+    due_date: null,
+    counterparty_label: "Anna K.",
+    term_id: null,
+    group_id: null,
+    group_name: null,
+    event_id: null,
+    event_slug: null,
+    personal_pickup: true,
+  });
+
+  it.each([
+    ["RESERVED", "Zarezerwowana"],
+    ["IN_TRANSIT", "W drodze"],
+  ] as const)("%s reads %s with the chat line and no date or calendar", (code, title) => {
+    renderCard(personal(code));
+
+    expect(screen.getByRole("status")).toHaveTextContent(new RegExp(`^${title}$`));
+    expect(screen.getByText("Odbiór osobisty — szczegóły ustalacie na czacie.")).toBeInTheDocument();
+    expect(screen.queryByText(/odbiór na terminie/)).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /Dodaj do kalendarza/ })).not.toBeInTheDocument();
   });
 });

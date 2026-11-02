@@ -11,7 +11,7 @@ import { CONDITION_LABELS } from "../../utils/productCategory";
 import { PencilIcon, TrashIcon } from "../../components/shared/appIcons";
 import { ItemBackButton } from "./ItemBackButton";
 import { ItemContextActions } from "./ItemContextActions";
-import { resolveItemActionsView } from "./itemActionsViewState";
+import { resolveItemActionsView, type ItemActionsView } from "./itemActionsViewState";
 import { ItemEditForm } from "./ItemEditForm";
 import { ItemGallery } from "./ItemGallery";
 import { ItemGalleryEditor } from "./ItemGalleryEditor";
@@ -24,10 +24,11 @@ import {
   type ItemCreatedState,
 } from "./itemPageShared";
 import { DescriptionText } from "./ItemReadOnlyParts";
-import { ItemStatusCard } from "./ItemStatusCard";
+import { ItemStatusCard, type StatusReservation } from "./ItemStatusCard";
+import { ItemTileBadges } from "../../components/shared/ItemTileBadges";
+import type { ItemActionsResponse } from "../../api/itemActions";
 import { familyInitials } from "../../components/shared/Avatar";
 import type { PublicOrganizationResponse } from "../../api/organizations";
-import type { ItemContext } from "./useItemRoutes";
 
 /** The search param that switches the item page into edit mode (owner only). */
 export const EDIT_PARAM = "edit";
@@ -41,26 +42,15 @@ export function ItemDetailPage() {
   );
 }
 
-/** The term or event the page was opened from: only when exactly one of
- * `?term=`/`?event=` is present. */
-function itemContextFrom(params: URLSearchParams): ItemContext | null {
-  const term = params.get("term");
-  const event = params.get("event");
-  if (term && !event) return { kind: "term", id: term };
-  if (event && !term) return { kind: "event", id: event };
-  return null;
-}
-
 /** The item view inside a frame. Public for listed items; an anonymous
  * visitor whose item is not public (404) goes to login and comes back.
  * With `?edit=1` the owner edits the item in place. */
 export function ItemDetailBody() {
   const { id = "" } = useParams();
   const location = useLocation();
-  const [searchParams] = useSearchParams();
   const isLoggedIn = useAuth().token !== null;
   const { item, notFound, error, loading, fetching, refetch } = useItemDetail(id);
-  const actions = useItemActions(id, itemContextFrom(searchParams));
+  const actions = useItemActions(id);
 
   if (item) {
     return (
@@ -228,6 +218,18 @@ function ItemViewContent({ item, details, onRefetch, actions, isLoggedIn }: Item
   );
 }
 
+/** How the status card relates the viewer to the item's reservation: the
+ * owner and a reservation party name both sides, anyone else is told it is
+ * taken. `null` while not reserved or until the actions load. */
+function statusReservation(view: ItemActionsView, actions: ItemActionsResponse | null): StatusReservation | null {
+  const reservation = actions?.reservation ?? null;
+  if (actions === null) return null;
+  const party = { party: true as const, ownerName: actions.owner.display_name, reserverName: reservation?.by_name ?? null };
+  if (view.kind === "own") return reservation ? party : null;
+  if (view.kind !== "reserved") return null;
+  return view.partyReservation ? party : { party: false };
+}
+
 interface ItemViewFieldsProps {
   item: ItemDetailsResponse;
   canEdit: boolean;
@@ -248,6 +250,9 @@ function ItemViewFields({ item, canEdit, editButtonRef, onEdit, actions, isLogge
     actionsError: actions.error,
     isLoggedIn,
   });
+  const mode = actions.data?.mode ?? null;
+  const reservation = view.kind === "loading" ? null : (actions.data?.reservation ?? null);
+  const isPrivate = view.kind === "own" && view.visibility === "PRIVATE";
   return (
     <>
       {item.deleted_at && (
@@ -259,6 +264,17 @@ function ItemViewFields({ item, canEdit, editButtonRef, onEdit, actions, isLogge
             {`Ta rzecz została usunięta ${dayjs(item.deleted_at).format("DD.MM.YYYY")}.`}
           </p>
         </div>
+      )}
+      {(mode || reservation || isPrivate) && view.kind !== "hidden" && (
+        <p className="mb-1.5 flex flex-wrap gap-1">
+          <ItemTileBadges modes={mode ? [mode] : []} reservation={reservation} size="md" />
+          {isPrivate && (
+            <>
+              {" "}
+              <span className="rounded-full bg-cream px-2.5 py-1 text-xs font-extrabold text-ink">🔒 Prywatny</span>
+            </>
+          )}
+        </p>
       )}
       <p className="text-sm text-ink-soft">
         {`${item.category_name ?? NO_CATEGORY_LABEL} · Stan: ${CONDITION_LABELS[item.condition]}`}
@@ -278,12 +294,20 @@ function ItemViewFields({ item, canEdit, editButtonRef, onEdit, actions, isLogge
           </button>
         )}
       </div>
-      <ItemStatusCard status={item.status} itemId={item.id} itemName={item.name} isOwner={item.is_owner} />
+      <ItemStatusCard
+        status={item.status}
+        itemId={item.id}
+        itemName={item.name}
+        isOwner={item.is_owner}
+        reservation={statusReservation(view, actions.data)}
+        unlisted={view.kind === "own" && view.mode === null}
+      />
       <ItemContextActions
         view={view}
         itemId={item.id}
         itemName={item.name}
         isLoggedIn={isLoggedIn}
+        counterpartyName={item.status.counterparty_label}
         refetch={actions.refetch}
       />
       <section className="mt-4 rounded-3xl border border-line bg-paper p-5" aria-labelledby="item-description-heading">

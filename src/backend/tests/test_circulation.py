@@ -242,6 +242,36 @@ async def test_getInventoryItem_softDeleted_returns404(client: AsyncClient) -> N
     assert response.status_code == 404
 
 
+async def test_listInventoryItems_inventoryId_unknown404_otherUser403_ownerIncludesPrivate(
+    client: AsyncClient,
+) -> None:
+    owner_headers = await _authed_headers(client, "circ-list-owner@example.com")
+    other_headers = await _authed_headers(client, "circ-list-other@example.com")
+    inventory_id, item_id = await _create_item(client, owner_headers)
+    private = await client.put(
+        f"/api/item-listing-preferences/{item_id}",
+        json={"mode": "GIFT", "visibility": "PRIVATE"},
+        headers=owner_headers,
+    )
+    assert private.status_code == 200, private.text
+
+    async def list_status(inventory: object, headers: dict[str, str]) -> tuple[int, object]:
+        response = await client.get(
+            "/api/inventory-items", params={"inventory_id": str(inventory)}, headers=headers
+        )
+        return response.status_code, response.json()
+
+    unknown_status, _ = await list_status(uuid.uuid4(), owner_headers)
+    other_status, _ = await list_status(inventory_id, other_headers)
+    owner_status, owner_body = await list_status(inventory_id, owner_headers)
+
+    assert unknown_status == 404
+    assert other_status == 403
+    assert owner_status == 200
+    assert isinstance(owner_body, list)
+    assert [entry["id"] for entry in owner_body] == [item_id]
+
+
 # --- Group 6 gap-fill: unknown-id / non-owner / downstream soft-delete path ----
 
 
@@ -651,3 +681,69 @@ async def test_rawCreateSwap_routeRemoved_returns404or405(client: AsyncClient) -
 
     assert response.status_code in (404, 405)
 
+
+
+# --- Reservation reads are party-only ------------------------------------------
+
+
+async def _gift_with_outsider(
+    client: AsyncClient, db_session: AsyncSession, prefix: str
+) -> tuple[dict[str, str], dict[str, str], dict[str, str], int, int]:
+    """`(owner, taker, outsider headers, item_id, reservation_id)` of one
+    PENDING GIFT."""
+    owner_headers = await _authed_headers(client, f"{prefix}-owner@example.com")
+    _, item_id = await _create_item(client, owner_headers)
+    taker_headers = await _authed_headers(client, f"{prefix}-taker@example.com")
+    outsider_headers = await _authed_headers(client, f"{prefix}-outsider@example.com")
+    reservation_id = await _create_gift(
+        client,
+        db_session,
+        owner_headers=owner_headers,
+        item_id=item_id,
+        borrower_user_id=await _user_id(client, taker_headers),
+    )
+    return owner_headers, taker_headers, outsider_headers, item_id, reservation_id
+
+
+async def test_listReservations_nonParty_returnsEmpty(
+    client: AsyncClient, db_session: AsyncSession
+) -> None:
+    owner, taker, outsider, item_id, reservation_id = await _gift_with_outsider(
+        client, db_session, "circ-read-list"
+    )
+
+    as_outsider = await client.get(f"/api/reservations?item_id={item_id}", headers=outsider)
+    as_owner = await client.get(f"/api/reservations?item_id={item_id}", headers=owner)
+    as_taker = await client.get(f"/api/reservations?item_id={item_id}", headers=taker)
+
+    assert as_outsider.status_code == 200
+    assert as_outsider.json() == []
+    assert [r["id"] for r in as_owner.json()] == [str(reservation_id)]
+    assert [r["id"] for r in as_taker.json()] == [str(reservation_id)]
+
+
+async def test_getReservation_nonParty_returns404(
+    client: AsyncClient, db_session: AsyncSession
+) -> None:
+    _, _, outsider, _, reservation_id = await _gift_with_outsider(
+        client, db_session, "circ-read-404"
+    )
+
+    response = await client.get(f"/api/reservations/{reservation_id}", headers=outsider)
+
+    assert response.status_code == 404
+
+
+async def test_getReservation_party_returnsDetail(
+    client: AsyncClient, db_session: AsyncSession
+) -> None:
+    owner, taker, _, item_id, reservation_id = await _gift_with_outsider(
+        client, db_session, "circ-read-party"
+    )
+
+    for headers in (owner, taker):
+        response = await client.get(f"/api/reservations/{reservation_id}", headers=headers)
+        assert response.status_code == 200
+        assert response.json()["id"] == str(reservation_id)
+        assert response.json()["item_id"] == str(item_id)
+        assert response.json()["status"] == "PENDING"

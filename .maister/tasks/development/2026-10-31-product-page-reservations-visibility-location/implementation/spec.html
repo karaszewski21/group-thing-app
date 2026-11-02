@@ -1,0 +1,933 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Specification (Rev 3) — Product page reservations, visibility, location</title>
+<style>
+:root {
+  --bg:#f6f7f9; --surface:#fff; --border:#e2e5ea; --text:#1a1d23; --dim:#6b7280;
+  --accent:#4f46e5; --accent-soft:#eef2ff; --ok:#16a34a; --ok-soft:#ecfdf3;
+  --warn:#d97706; --warn-soft:#fffbeb; --crit:#dc2626; --crit-soft:#fef2f2;
+  --info:#2563eb; --info-soft:#eff6ff; --radius:10px;
+}
+@media (prefers-color-scheme: dark) {
+  :root { --bg:#111418; --surface:#1a1f26; --border:#2e3640; --text:#e6e9ee; --dim:#9aa4b2;
+    --accent:#818cf8; --accent-soft:#26294a; --ok:#4ade80; --ok-soft:#11291a;
+    --warn:#fbbf24; --warn-soft:#2e2410; --crit:#f87171; --crit-soft:#321616;
+    --info:#60a5fa; --info-soft:#15233a; }
+}
+* { box-sizing:border-box; }
+body { margin:0 auto; max-width:1100px; padding:24px 20px 64px; background:var(--bg);
+  color:var(--text); font:14px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif; }
+a { color:var(--accent); text-decoration:none; } a:hover { text-decoration:underline; }
+h1 { font-size:22px; letter-spacing:-.01em; } h2 { font-size:16px; margin-top:28px; }
+.card { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius);
+  padding:16px 18px; margin:14px 0; }
+.badge { display:inline-block; font-size:11px; font-weight:600; text-transform:uppercase;
+  letter-spacing:.04em; padding:2px 8px; border-radius:99px; background:var(--accent-soft); color:var(--accent); }
+.sev { display:inline-block; font-size:10.5px; font-weight:700; text-transform:uppercase;
+  padding:1.5px 7px; border-radius:99px; margin-right:6px; }
+.sev.critical { background:var(--crit-soft); color:var(--crit); }
+.sev.warning  { background:var(--warn-soft); color:var(--warn); }
+.sev.info     { background:var(--info-soft); color:var(--info); }
+.pass { color:var(--ok); font-weight:600; } .fail { color:var(--crit); font-weight:600; }
+table { width:100%; border-collapse:collapse; }
+th, td { text-align:left; padding:7px 10px; border-bottom:1px solid var(--border); vertical-align:top; }
+th { font-size:11.5px; text-transform:uppercase; letter-spacing:.04em; color:var(--dim); }
+code { font-family:ui-monospace,SFMono-Regular,Menlo,monospace; font-size:12.5px;
+  background:var(--accent-soft); padding:1px 5px; border-radius:4px; }
+img.shot { max-width:100%; border:1px solid var(--border); border-radius:var(--radius); }
+details > summary { cursor:pointer; font-weight:600; }
+/* extensions */
+.crumbs { display:flex; gap:14px; font-size:13px; margin-bottom:18px; flex-wrap:wrap; }
+.crumbs a.md { margin-left:auto; color:var(--dim); }
+.crumbs .here { font-weight:650; color:var(--text); }
+.tiles { display:flex; gap:10px; flex-wrap:wrap; margin:14px 0; }
+.tile { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius);
+  padding:10px 16px; text-align:center; min-width:90px; }
+.tile b { display:block; font-size:20px; letter-spacing:-.01em; }
+.tile span { font-size:10.5px; text-transform:uppercase; letter-spacing:.05em; color:var(--dim); }
+.two { display:grid; grid-template-columns:1fr 1fr; gap:14px; }
+@media (max-width:760px){ .two { grid-template-columns:1fr; } }
+.stories { display:grid; grid-template-columns:repeat(auto-fill,minmax(240px,1fr)); gap:10px; }
+.story { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); padding:12px 14px; font-size:13.5px; }
+.badge.ok { background:var(--ok-soft); color:var(--ok); }
+.badge.warn { background:var(--warn-soft); color:var(--warn); }
+.badge.dim { background:var(--bg); color:var(--dim); border:1px solid var(--border); }
+.badge.s1 { background:var(--info-soft); color:var(--info); }
+.badge.s2 { background:var(--warn-soft); color:var(--warn); }
+.badge.s3 { background:var(--ok-soft); color:var(--ok); }
+.req { margin:10px 0; border:1px solid var(--border); border-radius:var(--radius); background:var(--surface); padding:10px 14px; }
+.req > summary { font-size:14.5px; }
+.req ul, .req ol { margin:6px 0; }
+.slice { border-left:4px solid var(--accent); }
+.tablewrap { overflow-x:auto; }
+.meta { color:var(--dim); font-size:12.5px; }
+.toc { font-size:13px; margin:8px 0 4px; }
+.scope-in { border-left:4px solid var(--ok); } .scope-out { border-left:4px solid var(--crit); }
+ol.steps li { margin:2px 0; }
+</style>
+</head>
+<body>
+<nav class="crumbs">
+  <a href="../dashboard.html">← Dashboard</a>
+  <span class="here">Spec</span>
+  <a href="implementation-plan.html">Plan</a>
+  <a href="../verification/implementation-verification.html">Verification</a>
+  <a href="spec.md" target="_blank" rel="noopener" class="md">md twin ↗</a>
+</nav>
+
+<header>
+  <span class="badge">Specification</span> <span class="badge ok">Rev 3 · 2026-11-01</span>
+  <h1>Product-page reservations, physical location, reserved items on lists, item visibility</h1>
+</header>
+
+<div class="tiles">
+  <div class="tile"><b>14</b><span>requirements (R1–R13, R5a)</span></div>
+  <div class="tile"><b>3</b><span>slices S1 → S2 → S3</span></div>
+  <div class="tile"><b>4</b><span>migrations 0074–0077</span></div>
+  <div class="tile"><b>8</b><span>user stories</span></div>
+  <div class="tile"><b>13</b><span>visual design IDs</span></div>
+</div>
+
+<section class="tldr card">
+  <h2 style="margin-top:0">TL;DR</h2>
+  <ul>
+    <li>The product page becomes the only place to reserve an item, and also the place where the two parties settle it. It offers "Odbiorę osobiście" (no term or event, at the owner's physical location), "Wybieram termin" (a shared term or event the viewer is eligible in) and "Napisz o przedmiocie" (ITEM chat). Parties get confirm/cancel (and accept/reject for a pending swap) there.</li>
+    <li>A third <code>PersonalContext</code> joins the reservation context union, 0074 relaxes <code>ck_reservations_context</code>, and a single <code>POST /api/items/{id}/take|propose</code> replaces the term- and event-scoped routes.</li>
+    <li>Tiles become links with an intent badge and a "Zarezerwowana · przez &lt;imię&gt;" badge. Reserved items stay listed until confirmed, and a pending swap proposal blocks the item. Personalised public responses are never shared-cached.</li>
+    <li>Owners set one physical location per inventory (0075) and a PUBLIC/PRIVATE visibility per listed item (0076), enforced on every item read path. Slices: S1 → S2 → S3.</li>
+  </ul>
+
+  <h2>Key Decisions</h2>
+  <div class="tablewrap"><table>
+    <tr><th style="width:26%">Decision</th><th>Detail</th></tr>
+    <tr><td><b><code>ReservationContext = TermContext | EventContext | PersonalContext</code></b></td><td>Take, propose, accept, confirm and cancel keep one code path, with no <code>None</code>-branching in about 8 places.
+      <ul><li><code>PersonalContext.require_open</code> and <code>require_ended</code> always pass.</li>
+      <li>The owner-location precondition is checked only at create time (<code>load_personal_context</code>), never on accept/confirm/cancel.</li>
+      <li>A reservation-derived <code>PersonalContext</code> carries no owner fields. Eligibility is only checked at create time (R4.1).</li></ul></td></tr>
+    <tr><td><b>Personal vs. deleted context</b></td><td>An <i>open</i> reservation with neither <code>term_id</code> nor <code>event_id</code> is personal. A <i>terminal</i> one with neither keeps meaning "its event was deleted". <code>load_for_reservation</code> discriminates on status, so the existing "Wydarzenie tej zamiany zostało usunięte" path is unchanged.</td></tr>
+    <tr><td><b>Parties settle on the product page (audit C1)</b></td><td><code>/actions</code> gains a party-only <code>party_reservation</code> block with server-computed <code>can_confirm</code>/<code>can_cancel</code>/<code>can_accept</code>/<code>can_reject</code>. The <code>reserved</code> view renders those buttons for the giver and the reserver. This is the taker's entry point: every reservation notification already links to <code>/product/{item_id}</code>. MyItemsView also shows confirm/cancel immediately for personal reservations.</td></tr>
+    <tr><td><b>0074 constraint and downgrade</b></td><td>0074 sets <code>ck_reservations_context</code> to <code>num_nonnulls(term_id, event_id) &lt;= 1</code>. Its downgrade is guarded: it refuses while open no-context reservations exist. The recovery path covers both kinds of open row:
+      <ul><li>pending personal proposals are rejected;</li><li>accepted personal swaps and personal GIFTs are cancelled.</li></ul></td></tr>
+    <tr><td><b>Context ref uses server casing</b></td><td><code>{kind: "PERSONAL"|"TERM"|"EVENT", id?}</code> is uppercase, matching <code>ItemContextResponse.kind</code>.</td></tr>
+    <tr><td><b><code>/actions</code> drops URL hints</b></td><td>It returns:
+      <ul><li><code>contexts[]</code>: at most 5 upcoming contexts <i>visible to the viewer</i>, with the viewer filter applied in SQL before <code>LIMIT</code>;</li>
+      <li>the viewer-shaped <code>location</code>;</li><li><code>personal_pickup_available</code>;</li><li><code>party_reservation</code>.</li></ul></td></tr>
+    <tr><td><b>Location lives on the owner's PERSONAL inventory</b></td><td>It is set through <code>GET|PUT /api/inventories/mine/location</code>. <code>InventoryResponse</code> is unchanged.</td></tr>
+    <tr><td><b>Reserved state is resolved groups-side</b></td><td>Circulation cannot see <code>SwapProposal</code>. The reserver shown for a leg is the party who would <i>receive</i> the item. For a pending proposal on a listed item it is the proposer.</td></tr>
+    <tr><td><b>Reserver-name rule, deliberately changed</b></td><td>Logged-in viewers see the name, anonymous viewers <code>null</code>. It applies only to RESERVED, IN_TRANSIT and PROPOSED_SWAP. LENT and history keep the parties-only rule.</td></tr>
+    <tr><td><b>No shared caching of personalised responses (audit H1)</b></td><td><code>app/core/cache_headers.py::set_personalised_cache_headers</code> is applied on the 7 public reads that personalise on <code>OptionalPrincipal</code> (R8.2 table):
+      <ul><li>with a resolved principal they send <code>Cache-Control: private, no-store</code>;</li>
+      <li>anonymous requests get <code>public, max-age=0, s-maxage=60</code> (accepted, user decision);</li>
+      <li>all seven always send <code>Vary: Authorization</code>.</li></ul></td></tr>
+    <tr><td><b>The term page is changed through <code>/access</code> (audit H2)</b></td><td>The change point is <code>GET /api/groups/public/{id}/access</code> → <code>public_view.get_group_access</code> → <code>get_public_circle_view(viewer_party_id=, include_private=)</code>. Public term listings are rebuilt as one batched select.</td></tr>
+    <tr><td><b>Pending-proposal guard</b></td><td><code>_take</code>/<code>_propose</code> lock the listing's <code>ItemListingPreference</code> row <code>FOR UPDATE</code>, then check that the balance is AVAILABLE and that no PROPOSED proposal exists.</td></tr>
+    <tr><td><b>Gate order is 404-before-403 (audit M1)</b></td><td><code>require_item_visible</code> runs first in <code>take_item</code>/<code>propose_item_swap</code>/<code>/actions</code>, before any context is built or any eligibility is checked.</td></tr>
+    <tr><td><b>Visibility filters are safe by default</b></td><td><code>include_private=False</code> is the default. Only these pass <code>include_private=True</code>:
+      <ul><li>term listings/browse of a PRIVATE circle the viewer can see;</li><li>the owner's own <code>mine</code> lists;</li><li><code>exchange_summary</code> for a PRIVATE group;</li><li><code>term_end_scan</code>.</li></ul>
+      On a private circle's term (listings, browse, <code>/actions</code> contexts, take/propose, <code>exchange_summary</code> shares/offers) the opt-in is <code>private_circle_id</code>, not a blanket <code>include_private</code>: a PRIVATE item counts there only when its <b>owner</b> is a standing member or the current organizer of that circle. An RSVP alone does not count, also for a family co-guardian (user decision, verification W1/N1; R13.5).</td></tr>
+    <tr><td><b>Every item read path is gated (audit H3, user decision)</b></td><td><ul><li>One groups helper, <code>can_view_item</code>, gates <code>/details</code>, <code>/history</code>, <code>/balance</code>, <code>GET /api/inventory-items/{id}</code>, <code>/actions</code>, take/propose and the creation of a <i>new</i> ITEM conversation. A disallowed viewer gets 404.</li>
+      <li><code>GET /api/inventory-items?inventory_id=</code> requires the caller to own the inventory.</li></ul></td></tr>
+    <tr><td><b>Counts (audit M5)</b></td><td><ul><li><b>Organizer page:</b> GIFT/SWAP count available items only, plus a RESERVED count. Its client-side tabs filter the same way, so every tab matches its count.</li>
+      <li><b>Owner items page:</b> the GIFT/SWAP counts include reserved items, matching its server-side mode-filtered list. <code>count_owner_items</code> = GIFT + SWAP = <code>items_total</code>.</li></ul></td></tr>
+    <tr><td><b>The visibility toggle always sends the mode (audit M6)</b></td><td><code>PUT /api/item-listing-preferences/{item_id}</code> with <code>visibility</code> but no <code>mode</code> is rejected with 400 (fieldErrors — the app's validation handler), so a visibility change can never clear a listing.</td></tr>
+    <tr><td><b>Party check on raw reservation reads</b></td><td><code>GET /api/reservations?item_id=</code> returns only the caller's reservations, and <code>GET /api/reservations/{id}</code> returns 404 to non-parties.</td></tr>
+    <tr><td><b>Proposer fallback removed</b></td><td>from <code>_resolve_listing_status</code>.</td></tr>
+  </table></div>
+
+  <h2>Open Questions / Risks</h2>
+  <div class="tablewrap"><table>
+    <tr><th style="width:120px">Kind</th><th>Item</th></tr>
+    <tr><td><span class="sev warning">risk</span></td><td><b>Large cross-module change on a dirty branch.</b> 0073 is untracked and the event-reservation work is uncommitted on <code>feat/events-plugin</code>. Commit or stabilise it before S1. 0074 revises 0073.</td></tr>
+    <tr><td><span class="sev warning">risk</span></td><td><b>The party-actions UI has no mockup.</b> The product page's confirm/cancel/accept/reject block is specified with copy only (R8.6). It reuses the existing button styles of <code>ItemContextActions</code>.</td></tr>
+    <tr><td><span class="sev warning">risk</span></td><td><b>Wide test blast radius.</b> 17 backend test files reference removed routes or use cases (listed in Technical Approach). Two "exactly one context" tests flip. They must be migrated, never loosened.</td></tr>
+    <tr><td><span class="badge dim">accepted</span></td><td><b>Accepted risk C2.</b> A PRIVATE setting is lost when its preference row is deleted (mode cleared, or the exchange confirmed). The toggle copy states the PUBLIC default.</td></tr>
+    <tr><td><span class="sev info">info</span></td><td><b>A PRIVATE item with no private circle</b> is visible only to its owner. Only the hint text warns about this.</td></tr>
+    <tr><td><span class="badge dim">accepted</span></td><td><b>Accepted risk (audit L7): no database discriminator for personal reservations.</b>
+      <ul><li><b>What can go wrong:</b> if an event were deleted without <code>cancel_open_event_reservations</code>, its open reservations would silently become "personal". 0073's CHECK rejected that.</li>
+      <li><b>Why it is accepted:</b> <code>app/events/service.py</code> is the only delete path, and it cancels first. A test pins that deleting an event with an open reservation leaves no open no-context row.</li>
+      <li><b>Why no column now:</b> an explicit <code>personal</code> column was not added, to keep 0074 a constraint-only change.</li></ul></td></tr>
+    <tr><td><span class="sev info">info</span></td><td><b>Terminal personal reservations look like deleted-event ones</b>, both in history and after a 0074 downgrade. This is acceptable, because history omits context for non-parties anyway.</td></tr>
+    <tr><td><span class="sev info">info</span></td><td><b>Contexts beyond the first 5 visible ones are not offered</b> (the "max 5" decision).</td></tr>
+    <tr><td><span class="badge dim">out of scope</span></td><td><b>Pre-existing, out of scope (follow-up):</b> concurrent proposals that offer the <i>same</i> item are still racy (<code>_require_own_available_personal_item</code> reads the offered balance without a lock).</td></tr>
+    <tr><td><span class="sev info">info</span></td><td><b>No item OG preview exists</b>, so the visibility rule needs no OG code.</td></tr>
+  </table></div>
+</section>
+
+<nav class="toc meta">Contents:
+  <a href="#goal">Goal</a> · <a href="#stories">User Stories</a> · <a href="#requirements">Requirements</a> ·
+  <a href="#s1">S1</a> · <a href="#s2">S2</a> · <a href="#s3">S3</a> · <a href="#visual">Visual Design</a> ·
+  <a href="#reuse">Reusable Components</a> · <a href="#tech">Technical Approach</a> · <a href="#guidance">Implementation Guidance</a> ·
+  <a href="#scope">Out of Scope</a> · <a href="#success">Success Criteria</a> · <a href="#revisions">Revision history</a>
+</nav>
+
+<main>
+<h2 id="goal">Goal</h2>
+<div class="card">Make the product page the single, self-sufficient surface for reserving an item and for settling the reservation. It covers personal pickup at the owner's location, a shared term or event, the ITEM chat, and party-side confirm/cancel. Tiles show intent and reserved state, owners can keep items private to their private circles, and the reservation privacy leaks are closed.</div>
+
+<h2 id="stories">User Stories</h2>
+<div class="stories">
+  <div class="story">As a <b>logged-in member</b>, I want to reserve an item for personal pickup or pick a term or event I share with the owner, so that I can get it without the URL carrying a context.</div>
+  <div class="story">As a <b>recipient of a personal pickup</b>, I want to confirm on the product page that I received the item, so that the exchange completes without waiting for a term.</div>
+  <div class="story">As an <b>owner</b>, I want to cancel a personal reservation, or accept or reject a pending swap, from the item's page, so that I can release or settle it at any time.</div>
+  <div class="story">As a <b>logged-in member</b>, I want to see on tiles which items are already reserved and by whom, so that I do not open items I cannot get.</div>
+  <div class="story">As an <b>anonymous visitor</b>, I want to browse items with their intent and a "zarezerwowana" badge, without seeing personal data, and be asked to log in to act.</div>
+  <div class="story">As an <b>owner</b>, I want to set where my things physically are, shown to others by place name only, so that people can arrange a personal pickup safely.</div>
+  <div class="story">As an <b>owner</b>, I want to mark a listed item private, so that only people from my private groups can see and reserve it.</div>
+  <div class="story">As a <b>reserver of a personal pickup</b>, I want the chat with the owner to open right after reserving, so that we can agree on the address and time.</div>
+</div>
+
+<h2 id="requirements">Core Requirements</h2>
+<p class="meta">Numbering follows <a href="../analysis/requirements.md" target="_blank" rel="noopener"><code>analysis/requirements.md</code> ↗</a> (R1–R13). Sub-items are binding acceptance points.</p>
+<div class="card tablewrap">
+  <table>
+    <tr><th style="width:60px">ID</th><th>Requirement</th><th style="width:70px">Slice</th></tr>
+    <tr><td><a href="#r1">R1</a></td><td>Inventory physical location (migration 0075)</td><td><span class="badge s1">S1</span></td></tr>
+    <tr><td><a href="#r2">R2</a></td><td><code>GET /api/items/{id}/actions</code> without URL hints</td><td><span class="badge s1">S1</span></td></tr>
+    <tr><td><a href="#r3">R3</a></td><td>Single item reservation endpoint (replaces the old routes)</td><td><span class="badge s1">S1</span></td></tr>
+    <tr><td><a href="#r4">R4</a></td><td><code>PersonalContext</code> and migration 0074</td><td><span class="badge s1">S1</span></td></tr>
+    <tr><td><a href="#r5">R5</a></td><td>Product page UI</td><td><span class="badge s1">S1</span></td></tr>
+    <tr><td><a href="#r5a">R5a</a></td><td>MyItemsView confirm/cancel for personal reservations (audit C1)</td><td><span class="badge s1">S1</span></td></tr>
+    <tr><td><a href="#r6">R6</a></td><td>Tile cleanup and intent badges</td><td><span class="badge s1">S1</span></td></tr>
+    <tr><td><a href="#r7">R7</a></td><td>Lists include reserved items</td><td><span class="badge s2">S2</span></td></tr>
+    <tr><td><a href="#r8">R8</a></td><td>Reserved badge, reserver rule, party actions</td><td><span class="badge s2">S2</span></td></tr>
+    <tr><td><a href="#r9">R9</a></td><td>A pending swap proposal blocks the item</td><td><span class="badge s2">S2</span></td></tr>
+    <tr><td><a href="#r10">R10</a></td><td>Counts (audit M5)</td><td><span class="badge s2">S2</span></td></tr>
+    <tr><td><a href="#r11">R11</a></td><td>Privacy fixes</td><td><span class="badge s2">S2</span></td></tr>
+    <tr><td><a href="#r12">R12</a></td><td>Visibility setting (migration 0076)</td><td><span class="badge s3">S3</span></td></tr>
+    <tr><td><a href="#r13">R13</a></td><td>Visibility enforcement</td><td><span class="badge s3">S3</span></td></tr>
+  </table>
+</div>
+
+<!-- ============ S1 ============ -->
+<h2 id="s1"><span class="badge s1">S1</span> Slice S1: physical location, product page, personal context, single endpoint, tiles, party actions</h2>
+
+<details class="req" id="r1"><summary>R1. Inventory physical location (migration 0075)</summary>
+<ol>
+  <li>Add a nullable <code>inventories.location_id</code> FK to <code>locations.id</code>:
+    <ul><li>constraint <code>fk_inventories_location_id_locations</code>, no <code>ON DELETE</code> (locations are soft-deleted);</li>
+    <li>partial index <code>ix_inventories_location_id</code> (<code>WHERE location_id IS NOT NULL</code>);</li>
+    <li>the legacy <code>inventories.location</code> text column is untouched.</li></ul>
+    <p>The 0075 downgrade is guarded: it refuses while open (PENDING/CONFIRMED) personal reservations exist (neither <code>term_id</code> nor <code>event_id</code>), because 0074's downgrade would then refuse after every pickup place had already been dropped. Its error names the recovery path (reject pending personal proposals, cancel accepted personal swaps and GIFTs, or restore a pre-0074 dump). Otherwise it drops the index, FK and column. This loses every owner's location setting, which is acceptable and recorded in the runbook.</p></li>
+  <li>Add <code>GET /api/inventories/mine/location</code>. It returns <code>InventoryLocationResponse {location: LocationRefResponse | null}</code> for the caller's PERSONAL inventory (<code>find_personal_inventory</code>), and <code>null</code> when there is no PERSONAL inventory or no location. It is READ, already covered by the <code>GET ^/api/inventories(/.*)?$</code> row.</li>
+  <li>Add <code>PUT /api/inventories/mine/location</code>, which takes <code>SetInventoryLocationRequest {location_id: uuid | null}</code> and returns <code>InventoryLocationResponse</code>:
+    <ul><li>It uses <code>get_or_create_personal_inventory</code>.</li>
+    <li>The caller's party is resolved inside circulation, without importing <code>app.users.service</code> (audit L5). The router gets the user id from <code>circulation/application/identity.get_user_id_by_principal</code>. A new <code>circulation/infrastructure/repository.find_party_id_by_user_id</code> then reads it from the existing Core <code>_user_profiles</code> table ref, with <code>party_id</code> added to the ref.</li>
+    <li>A non-null id is validated through the new <code>app/circulation/infrastructure/locations_acl.py</code> <code>get_owned_location</code>: 404 for an unknown or soft-deleted id, 403 for another owner's.</li>
+    <li><code>null</code> clears the location.</li>
+    <li>It needs EDIT (new matrix row).</li>
+    <li>It is declared before <code>GET /api/inventories/{inventory_id}</code>.</li></ul></li>
+  <li>A location that was soft-deleted later still renders for its owner with <code>deleted_at</code> set. For everyone else it counts as "no location".</li>
+</ol>
+</details>
+
+<details class="req" id="r2"><summary>R2. <code>GET /api/items/{id}/actions</code> without URL hints</summary>
+<ol>
+  <li>The <code>term</code>/<code>event</code> query parameters, and the "both given → 400" rule, are removed. <code>ItemActionsResponse</code> becomes:
+    <table>
+      <tr><th>Field</th><th>Type / note</th></tr>
+      <tr><td><code>mode</code></td><td><code>ExchangeMode | null</code></td></tr>
+      <tr><td><code>visibility</code></td><td><code>"PUBLIC" | "PRIVATE" | null</code>: set only for viewer <code>OWN</code> (S3)</td></tr>
+      <tr><td><code>available</code></td><td><code>bool</code>: ACTIVE and balance AVAILABLE (S2: and no PROPOSED proposal)</td></tr>
+      <tr><td><code>reservation</code></td><td><code>ReservedByResponse | null</code> (S2, R8)</td></tr>
+      <tr><td><code>party_reservation</code></td><td><code>ItemPartyReservationResponse | null</code> (R8.6)</td></tr>
+      <tr><td><code>owner</code></td><td><code>ItemActionsOwnerResponse</code></td></tr>
+      <tr><td><code>viewer</code></td><td><code>"ANONYMOUS" | "OWN" | "OTHER"</code></td></tr>
+      <tr><td><code>location</code></td><td><code>ItemLocationResponse | null</code></td></tr>
+      <tr><td><code>contexts</code></td><td><code>ItemContextOptionResponse[]</code>: at most 5</td></tr>
+      <tr><td><code>personal_pickup_available</code></td><td><code>bool</code></td></tr>
+    </table></li>
+  <li><code>ItemLocationResponse {name, formatted_address | null, deleted_at | null}</code> comes from the owner's PERSONAL inventory. What each viewer gets:
+    <ul><li><b>OWN:</b> all three fields.</li>
+    <li><b>Other logged-in viewers:</b> <code>name</code> only, and <code>location: null</code> when the location is soft-deleted or unset.</li>
+    <li><b>Anonymous viewers:</b> <code>location: null</code>.</li>
+    <li>Never coordinates, <code>google_place_id</code> or notes.</li></ul>
+    <p>For a logged-in non-owner, <code>location === null</code> means "the owner has no usable location". This is the disabled reason for "Odbiorę osobiście" (R5.5), so no extra flag is needed (audit L3).</p></li>
+  <li><code>ItemContextOptionResponse</code> extends <code>ItemContextResponse</code> (<code>kind</code> TERM|EVENT, <code>id</code>, <code>name</code>, <code>starts_at</code>, <code>path</code>, <code>has_started</code>) with <code>location_name: str | null</code> and <code>eligible: bool</code>.
+    <ul><li><b>Owner-eligible upcoming contexts</b> (<code>starts_at &gt;= clock.local_now()</code>):
+        <ul><li>terms where the owner leads the circle or holds a non-withdrawn RSVP;</li><li>events the owner authored or actively attends.</li></ul></li>
+      <li><b>Visible to the viewer:</b>
+        <ul><li>every event;</li><li>every PUBLIC-circle term;</li><li>a PRIVATE-circle term when the viewer leads the circle or holds a non-withdrawn RSVP on it.</li>
+        <li>S3 narrows this further for PRIVATE items (R13.5): a PRIVATE item's private-circle terms are offered only when the owner is a standing member or the current organizer of that circle; the owner's RSVP alone does not make such a term a context for a PRIVATE item (user decision, W1).</li></ul></li>
+      <li><b>The viewer filter runs inside the SQL <code>WHERE</code>, before <code>ORDER BY starts_at</code> (a term wins a tie) <code>LIMIT 5</code>.</b> A viewer is never shown fewer than 5 visible contexts because invisible ones were cut first (audit M4).</li>
+      <li><code>eligible</code> is true when the logged-in, non-owner viewer passes the context's <code>require_eligibility</code> rule. It is false for anonymous viewers and for the owner. It is computed in batch, not per context (R2.5).</li></ul></li>
+  <li><code>personal_pickup_available</code> is true when all of these hold:
+    <ul><li>the viewer is logged in and not the owner;</li><li><code>available</code> is true and <code>mode</code> is not null;</li><li>the owner's PERSONAL inventory has a live location;</li><li>S3: the item is PUBLIC, or the viewer shares a non-deleted PRIVATE circle with the owner.</li></ul></li>
+  <li><b>Statement count is bounded and independent of the number of contexts (audit M4).</b> The statements are:
+    <ul><li>one terms statement, the new <code>repository.list_upcoming_owner_terms_for_viewer(owner_party_id, viewer_party_id | None, now, limit=5)</code>, modelled on <code>nearest_public_term_for_party</code>/<code>_qualifying_owner_circles</code>. It returns each term with its circle id, circle visibility, location id and a computed <code>viewer_eligible</code> column;</li>
+    <li><code>events_acl.list_upcoming_events_for_parties([owner], now, limit=5)</code>;</li>
+    <li>one batched <code>events_acl.eligible_event_ids(viewer_party_id, event_ids)</code> (new; author or active account attendee);</li>
+    <li>one batched location lookup for all context location ids;</li>
+    <li>one batched circle → organizer slug lookup, the new <code>slug_resolver.resolve_organizer_slugs(db, group_ids)</code>, which replaces per-term <code>resolve_organizer_slug</code>;</li>
+    <li>one batched <code>events_acl.author_slugs</code> (one organization lookup per <i>distinct</i> author; the owner is usually the only author).</li></ul>
+    <p>The statement-count test compares an owner with 1 context against one with 5 and asserts equal counts.</p></li>
+</ol>
+</details>
+
+<details class="req" id="r3"><summary>R3. Single item reservation endpoint (replaces the old routes)</summary>
+<ol>
+  <li><code>POST /api/items/{item_id}/take</code> takes <code>ItemTakeRequest {context: ReservationContextRef, reservation_type}</code> and returns <code>ItemTakeResponse {item_id, product_name, context: ItemContextResponse | null}</code>, where <code>null</code> means personal.</li>
+  <li><code>POST /api/items/{item_id}/propose</code> takes <code>ItemProposeRequest {context, offered_item_id}</code> and returns <code>SwapProposalResponse</code> (unchanged).</li>
+  <li><code>ReservationContextRef {kind: "PERSONAL"|"TERM"|"EVENT", id: uuid | null}</code>. A model validator requires <code>id</code> for TERM/EVENT and forbids it for PERSONAL, failing with 400 (fieldErrors — the app's validation handler) otherwise.</li>
+  <li>Both routes need EDIT/<code>mcp:edit</code>. The use cases <code>take_item</code>/<code>propose_item_swap</code>:
+    <ol><li>resolve the caller;</li><li>(S3) call <code>require_item_visible(db, item_id, caller_party_id)</code>, which returns 404, <b>before building any context</b> (M1);</li>
+    <li>build the context: TERM <code>load_term_context</code>, EVENT <code>lock_event_context</code>, PERSONAL <code>load_personal_context</code>;</li><li>call the existing <code>_take</code>/<code>_propose</code>.</li></ol></li>
+  <li>The error codes are 404, 403 and 409:
+    <table>
+      <tr><th style="width:60px">Code</th><th>When</th></tr>
+      <tr><td><b>404</b></td><td>unknown item, term or event, or (S3) an item the caller cannot view. This always comes before any 403 or 409 that would reveal a hidden item.</td></tr>
+      <tr><td><b>403</b></td><td>the caller is not eligible in the context.</td></tr>
+      <tr><td><b>409</b></td><td><ul><li>the context has started;</li><li>it is the caller's own item;</li><li>the item is taken or has a pending proposal (S2);</li><li>the mode was not offered;</li><li>SWAP was sent via take;</li><li>PERSONAL without an owner location ("Właściciel nie ustawił miejsca odbioru");</li><li>(S3) a PRIVATE item in a public context ("Tej rzeczy nie można zarezerwować w tym miejscu").</li></ul></td></tr>
+    </table></li>
+  <li>Removed, with their schemas and matrix rows:
+    <ul><li><code>POST /api/term-item-listings/{item_id}/take|propose</code>;</li><li><code>POST /api/events/{event_id}/items/{item_id}/take|propose</code>;</li>
+    <li><code>TakeTermItemListingRequest</code>, <code>ProposeSwapRequest</code>, <code>EventTakeRequest</code>, <code>EventProposeRequest</code>, <code>EventTakeResponse</code>.</li></ul>
+    <p><code>take_item_listing</code>/<code>take_event_item</code>/<code>propose_swap</code>/<code>propose_event_swap</code> collapse into <code>take_item(db, principal, item_id, data)</code> / <code>propose_item_swap(db, principal, item_id, data)</code>.</p></li>
+  <li>The <code>GET /api/term-item-listings/*</code> read routes and <code>POST /api/swap-proposals/{id}/accept|reject</code>, <code>/api/reservations/{id}/confirm-transaction|cancel-transaction</code> stay as they are.</li>
+</ol>
+</details>
+
+<details class="req" id="r4"><summary>R4. <code>PersonalContext</code> and migration 0074</summary>
+<ol>
+  <li><code>PersonalContext</code> is a frozen dataclass (<code>kind = "PERSONAL"</code>) with two construction paths (audit M2).
+    <div class="two">
+      <div class="card"><b>Create-time: <code>load_personal_context(db, item_id)</code></b>
+        <ul><li>It resolves the preference owner (404 when the item is not listed).</li>
+        <li>It requires a live location on the owner's PERSONAL inventory (409 otherwise).</li>
+        <li>It returns <code>PersonalContext(owner_party_id, owner_display_name, item_visibility)</code>. <code>item_visibility</code> is set from S3, and is <code>PUBLIC</code> before that.</li></ul></div>
+      <div class="card"><b>Reservation-derived: <code>PersonalContext.for_reservation()</code></b>
+        <ul><li>It is returned by <code>load_for_reservation(db, reservation, *, for_write)</code> for an open (PENDING/CONFIRMED) reservation with neither context, whichever leg it is called on: at accept it is the proposer's leg, at confirm/cancel any leg.</li>
+        <li>Its owner fields are <code>None</code>, and no lookup is made.</li>
+        <li>A terminal no-context reservation still returns <code>None</code>.</li></ul></div>
+    </div>
+    <p><b>Protocol, and who calls what:</b></p>
+    <div class="tablewrap"><table>
+      <tr><th>Method</th><th>Personal behaviour</th><th>Called by</th></tr>
+      <tr><td><code>require_open()</code></td><td>no-op</td><td><code>_take</code>, <code>_propose</code>, accept</td></tr>
+      <tr><td><code>require_eligibility(db, party_id)</code></td><td>the owner always passes. Any party passes for a PUBLIC item. A PRIVATE item (S3) needs a shared non-deleted PRIVATE circle (member or organizer). On a reservation-derived instance it raises <code>RuntimeError</code> (never called there)</td><td><code>_take</code>/<code>_propose</code> (taker, then owner)</td></tr>
+      <tr><td><code>reservation_kwargs()</code></td><td><code>{}</code>, so accept's paired leg is also no-context</td><td><code>_take</code>, <code>_propose</code>, accept</td></tr>
+      <tr><td><code>pickup_phrase()</code></td><td>"odbiór osobisty". Terms and events return "&lt;termin&gt; — &lt;nazwa&gt;" from <code>starts_at</code> + <code>display_name</code></td><td>the <code>_take</code> notifications (replacing the <code>starts_at</code>/<code>display_name</code> uses at <code>term_item_listings.py:534-550</code>) and the accept notification (<code>:811</code>)</td></tr>
+      <tr><td><code>accepted_swap_fields(db)</code></td><td><code>term_id/term_occurs_on/group_id/group_name = None</code></td><td>accept (<code>:844</code>)</td></tr>
+      <tr><td><code>to_response(db)</code></td><td><code>None</code>, so <code>ItemTakeResponse.context</code> is null</td><td><code>take_item</code></td></tr>
+      <tr><td><code>require_ended()</code></td><td>no-op</td><td><code>_resolve_transaction_reservations_for_action</code> (confirm/cancel)</td></tr>
+      <tr><td><code>allows_visibility(visibility)</code> (S3)</td><td><code>True</code> (PRIVATE is enforced by <code>require_eligibility</code>)</td><td><code>_take</code>/<code>_propose</code></td></tr>
+      <tr><td><code>id</code>, <code>starts_at</code>, <code>display_name</code></td><td><code>None</code> (not used for personal)</td><td>—</td></tr>
+    </table></div></li>
+  <li><code>create_reservation</code> accepts at most one of <code>term_id</code>/<code>event_id</code>. Its <code>ValueError</code> guard changes from "exactly one" to "not both".</li>
+  <li>The model <code>CheckConstraint</code> and <code>0074_personal_pickup_reservations.py</code> (revises 0073) set <code>ck_reservations_context</code> to <code>num_nonnulls(term_id, event_id) &lt;= 1</code>. The constraint is dropped and recreated under <code>SET LOCAL lock_timeout = '5s'</code>.</li>
+  <li><b>The 0074 downgrade is guarded (audit M3).</b>
+    <ul><li>It counts open no-context rows: <code>status IN ('PENDING','CONFIRMED') AND term_id IS NULL AND event_id IS NULL</code>.</li>
+    <li>If there are any, it raises <code>RuntimeError</code> naming the recovery path:
+      <ul><li><b>(a) pending personal swap proposals</b> (an unpaired CONFIRMED SWAP leg behind a PROPOSED <code>SwapProposal</code>): the listing owner rejects them with <code>POST /api/swap-proposals/{id}/reject</code>, because <code>cancel-transaction</code> refuses unpaired legs;</li>
+      <li><b>(b) accepted personal swaps and personal GIFTs:</b> either party cancels them with <code>POST /api/reservations/{id}/cancel-transaction</code>;</li>
+      <li><b>(c) otherwise:</b> restore a pre-0074 dump.</li></ul></li>
+    <li>Only then does it restore the 0073 check.</li>
+    <li>The runbook notes that after the downgrade, terminal personal rows read as "deleted-event" reservations under 0073.</li>
+    <li>The refusal test covers a PENDING-proposal row and a personal GIFT row.</li></ul></li>
+  <li>Confirm and cancel of a personal reservation work immediately. <code>require_ended</code> passes and the "nie ma terminu ani wydarzenia" 409 is unreachable for open rows.
+    <ul><li>A GIFT is still confirmed by its recipient only.</li><li>An unpaired SWAP leg is still released only by <code>reject_swap_proposal</code>.</li><li>No reminders are sent: the term-end scanner reads candidates per term/event id. A test pins this.</li></ul></li>
+  <li>Notifications reuse the existing kinds, with copy built from <code>pickup_phrase()</code> (all through <code>clock.fit_notification_message</code>, <code>link_path=/product/{item_id}</code> as today):
+    <table>
+      <tr><th>Recipient / kind</th><th>Copy</th></tr>
+      <tr><td>Owner (<code>TERM_ITEM_LISTING_TAKEN</code>), personal</td><td>„&lt;taker&gt;” odbierze osobiście „&lt;produkt&gt;” — ustalcie szczegóły na czacie.</td></tr>
+      <tr><td>Taker (<code>ITEM_RESERVED_FOR_PICKUP</code>), personal</td><td>Zarezerwowano „&lt;produkt&gt;” — odbiór osobisty, ustal szczegóły z &lt;owner&gt; na czacie. Gdy odbierzesz rzecz, potwierdź to na stronie przedmiotu.</td></tr>
+      <tr><td><code>SWAP_ACCEPTED</code></td><td>ends with "— odbiór osobisty".</td></tr>
+    </table></li>
+  <li><code>AcceptedSwapProposalResponse.term_occurs_on</code> and <code>group_name</code> become nullable (null for personal).</li>
+  <li>The read models expose personal pickup:
+    <ul><li><code>ItemStatus</code>/<code>ItemStatusResponse.personal_pickup: bool</code> is true when the active reservation behind RESERVED/IN_TRANSIT has neither context;</li>
+    <li><code>ReservationDetailResponse.personal_pickup: bool</code> is true when the reservation is open and has neither context.</li></ul></li>
+</ol>
+</details>
+
+<details class="req" id="r5"><summary>R5. Product page UI (<code>ItemDetailPage</code>, <code>ItemContextActions</code>, <code>itemActionsViewState</code>)</summary>
+<ol>
+  <li><code>itemContextFrom</code> and every reading of <code>?term=</code>/<code>?event=</code> are removed. <code>getItemActions(itemId)</code> takes no context.</li>
+  <li><code>resolveItemActionsView</code> is rewritten as a pure discriminated union and table-tested. Its kinds:
+    <table>
+      <tr><th>Kind</th><th>Payload</th></tr>
+      <tr><td><code>loading</code>, <code>hidden</code>, <code>error</code></td><td>—</td></tr>
+      <tr><td><code>own</code></td><td>{location, contexts, visibility, partyReservation}</td></tr>
+      <tr><td><code>anonymous</code></td><td>{owner, mode, contexts}</td></tr>
+      <tr><td><code>reserved</code></td><td>{reservation, partyReservation, location} (S1: the parties' personal and term reservations; S2: every viewer)</td></tr>
+      <tr><td><code>unavailable</code></td><td>{owner}</td></tr>
+      <tr><td><code>choose</code></td><td>{owner, mode, location, contexts, eligibleContexts, personalPickup}</td></tr>
+    </table>
+    <p>The page only <code>switch</code>es on <code>view.kind</code>. In S1, <code>reserved</code> is chosen when <code>party_reservation</code> is non-null, and <code>unavailable</code> otherwise. Before S2 a non-party sees no reservation.</p></li>
+  <li><b>Location block:</b> "📍 Lokalizacja przedmiotu" with the name. The owner also sees the address, "(widzisz tylko Ty)" and a "Zmień w „Moje rzeczy”" link. Other logged-in viewers see "Dokładny adres ustalicie na czacie.". Anonymous viewers see no block.</li>
+  <li><b>Read-only context list:</b> "Gdzie jeszcze można odebrać" / "Terminy i wydarzenia, na których bywa &lt;owner&gt;". Each row shows the day, name, an event tag, the 📍 place and the time. Every viewer sees it when <code>contexts</code> is non-empty.</li>
+  <li><b>Three actions</b> under "Jak chcesz odebrać?":
+    <ul><li><b>"Odbiorę osobiście"</b> is enabled when <code>personal_pickup_available</code>. When it is blocked because <code>location === null</code>, it uses <code>aria-disabled="true"</code> + <code>aria-describedby</code> with the hint "&lt;owner&gt; nie ustawił(a) jeszcze miejsca odbioru — napisz na czacie, żeby się umówić.", plus a handler guard (audit L3).</li>
+    <li><b>"Wybieram termin"</b> is enabled when <code>eligibleContexts.length &gt; 0</code>. Otherwise it is <code>aria-disabled</code> with the hint "Nie macie wspólnego terminu ani wydarzenia, na które jesteś zapisany(-a).".</li>
+    <li><b>"💬 Napisz o przedmiocie"</b> calls <code>chat.open({kind:"ITEM", id})</code> in every non-own, non-hidden state, including <code>reserved</code>.</li>
+    <li><b>Anonymous viewers</b> see "Chcesz tę rzecz? Zaloguj się, żeby zarezerwować lub napisać do właściciela." with "Zaloguj się"/"Załóż konto". These use the existing <code>src/frontend/src/pages/term/modals/AuthGateSheet.tsx</code> through <code>useAccountGate</code> (audit L8). There is no guest-merge path.</li></ul></li>
+  <li><b>"Wybieram termin" sheet</b> (<code>ModalSheet</code>):
+    <ul><li>Title "Wybierz termin odbioru". Hint "Pokazujemy terminy i wydarzenia, w których bierzesz udział razem z &lt;owner&gt;."</li>
+    <li>A radio fieldset of the eligible contexts.</li>
+    <li>GIFT: the primary button reserves with <code>{kind, id}</code>.</li>
+    <li>SWAP: the note "&lt;owner&gt; chce się zamienić — w następnym kroku wybierzesz rzecz, którą zaproponujesz." and the button "Dalej: wybierz rzecz na zamianę" open <code>SwapProposeDialog</code>.</li>
+    <li>Success shows the existing <code>TakeSuccessSheet</code>.</li></ul></li>
+  <li><b>"Odbiór osobisty" sheet:</b>
+    <ul><li>"📍 &lt;location name&gt;" and "Dokładny adres i godzinę ustalicie z &lt;owner&gt; na czacie — nie udostępniamy adresu w aplikacji."</li>
+    <li><b>GIFT body:</b> "Zarezerwujemy dla Ciebie &lt;produkt&gt;. Gdy odbierzesz rzecz, potwierdź przekazanie na tej stronie."</li>
+    <li><b>SWAP body:</b> "Zaproponujesz zamianę za &lt;produkt&gt;. Gdy &lt;owner&gt; ją przyjmie i się wymienicie, potwierdźcie to na tej stronie." (C1: the copy points to where the action really is.)</li>
+    <li>Buttons: "Rezerwuję i piszę do &lt;owner&gt;" and "Anuluj". For SWAP, the primary button continues to <code>SwapProposeDialog</code> and proposes with <code>{kind:"PERSONAL"}</code>.</li>
+    <li><b>On success:</b>
+      <ul><li>the page opens the ITEM chat (<code>useOpenAndNavigate().open({kind:"ITEM", id})</code>);</li>
+      <li>if opening the chat fails (e.g. the new-conversation rate limit), the reservation is still shown as successful. The page is in the <code>reserved</code> view, and the chat error is shown separately with <code>extractProblemMessage</code>.</li></ul></li></ul></li>
+  <li><b><code>ItemStatusCard</code>:</b> when <code>status.personal_pickup</code>, RESERVED reads "Zarezerwowana" with the line "Odbiór osobisty — szczegóły ustalacie na czacie.", and IN_TRANSIT reads "W drodze" with the same line. There is no date and no calendar button. This aligns with the mockup (audit L2).</li>
+  <li><b>Tile links drop the query:</b>
+    <ul><li><code>organizerItemPath</code> loses its <code>context</code> parameter;</li><li><code>itemContextQuery</code>, <code>nearestItemContext</code> and URL <code>ItemContext</code> go;</li>
+    <li>the <code>ItemContextResponse</code> TS type moves from <code>src/api/eventItems.ts</code> to <code>src/api/itemActions.ts</code>, and <code>eventItems.ts</code> is deleted (audit L8).</li></ul></li>
+  <li><b><code>useItemTake</code></b> keeps the swap picker, busy state, success, account gate and invalidation. Its <code>context</code> dependency is removed:
+    <ul><li><code>take(itemId, mode, target)</code> / <code>confirm</code> take <code>TakeTarget = {kind:"PERSONAL"} | {kind:"TERM"|"EVENT", id, name, starts_at, path}</code>;</li>
+    <li>it calls <code>takeItem</code>/<code>proposeItemSwap</code> from the new <code>src/api/itemReservations.ts</code>;</li><li>the old take/propose API functions are deleted.</li></ul></li>
+  <li><b>Own view (copy from the mockup, audit L2):</b> under the header, "To Twoja rzecz. Inni mogą ją zarezerwować osobiście albo na Twoich terminach." In S3 it is followed by the visibility line (R12.4).</li>
+  <li><b>Accepted-swap UI with nullable fields (audit L6).</b> The consumers of <code>AcceptedSwapProposalResponse</code> in <code>MyItemsView.tsx:178-185</code> (and the product page's accept in R8.6) handle <code>term_occurs_on</code>/<code>group_name</code> being <code>null</code>. In that case the success copy reads "Zamiana przyjęta — odbiór osobisty, ustalcie szczegóły na czacie.", with no date. The TS type marks both fields <code>string | null</code>.</li>
+</ol>
+</details>
+
+<details class="req" id="r5a"><summary>R5a. MyItemsView confirm/cancel for personal reservations (audit C1)</summary>
+<ol>
+  <li>The reservation info in <code>MyItemsView.tsx</code> (<code>:120-135</code>) sets <code>hasEnded</code> to true when <code>reservation.personal_pickup</code> is true, or when <code>term_occurs_on</code> has passed. Confirm/cancel for personal reservations therefore show immediately.</li>
+  <li>The existing rules stay:
+    <ul><li>a GIFT's "Potwierdź" stays hidden for the giver (recipient-only), but the giver sees "Anuluj";</li><li>SWAP shows both buttons for either party;</li><li>unpaired SWAP legs show neither.</li></ul></li>
+  <li>The frontend <code>ReservationDetailResponse</code> type gains <code>personal_pickup: boolean</code>.</li>
+</ol>
+</details>
+
+<details class="req" id="r6"><summary>R6. Tile cleanup and intent badges</summary>
+<ol>
+  <li>Remove from the term page:
+    <ul><li><code>PublicTermView.toListingRow</code> actions, <code>TAKE_ACTION_LABELS</code>, the term-page <code>useItemTake</code> usage and its <code>SwapProposeDialog</code>/<code>TakeSuccessSheet</code>;</li>
+    <li><code>AttendeeList.ListingActions</code>/<code>actionTone</code>;</li><li>the <code>ParticipantItemsPreview.renderActions</code> slot.</li></ul>
+    <p><code>useGuestMerge</code> stays only on the "Ja to przyniosę" pledge rows.</p></li>
+  <li>One intent map <code>INTENT_LABELS = {GIFT: "Chcę oddać", SWAP: "Chcę się zamienić"}</code> in <code>termLabels.ts</code>, toned with <code>EXCHANGE_MODE_TONE</code>. Unused label maps (<code>PREVIEW_MODE_LABELS</code>, <code>PICKUP_MODE_LABELS</code>, the tile use of <code>EXCHANGE_MODE_LABELS</code>) are deleted.</li>
+  <li>A shared <code>components/shared/ItemTileBadges.tsx</code> renders the intent pill and, from S2, the reserved pill. It is used by <code>ParticipantItemsPreview</code>, <code>ItemCard</code>/<code>ExchangeItemCard</code>, <code>OwnerItemsPage</code> and <code>RecentItemsBlock</code>. The pills are text.</li>
+  <li>Each tile is a single stretched link to the product page. The <code>ItemCard</code> date chip and <code>pickup</code> chip-link are removed. <code>OwnerItemsPage</code> keeps "Najbliżej: …".</li>
+</ol>
+</details>
+
+<!-- ============ S2 ============ -->
+<h2 id="s2"><span class="badge s2">S2</span> Slice S2: reserved items on lists</h2>
+
+<details class="req" id="r7"><summary>R7. Lists include reserved items</summary>
+<ol>
+  <li><code>available_items_with_product_select</code> is replaced by <code>listed_items_with_product_select()</code> (circulation repository, re-exported through <code>circulation_bridge</code> and <code>events/infrastructure/circulation_acl.py</code>).
+    <ul><li>It returns <code>(item_id, product_id, product_name, condition, balance_status, reserved_by_user_id)</code> for every live item with balance AVAILABLE, RESERVED or IN_TRANSIT.</li>
+    <li><code>reserved_by_user_id</code> comes from one <code>DISTINCT ON</code> / correlated subquery over the newest active reservation.</li></ul></li>
+  <li><b>The groups-side join adds the pending proposal.</b> A left join on <code>SwapProposal(status=PROPOSED, listing_item_id)</code> gives <code>proposer_party_id</code>.
+    <ul><li>An item is <i>reserved</i> when its balance is RESERVED/IN_TRANSIT or a PROPOSED proposal exists.</li><li>It stays listed until confirm, and returns to available on cancel or reject.</li></ul></li>
+  <li><b>Consumers.</b>
+    <ul><li><b>Public term listings (audit H2):</b> <code>list_public_term_item_listings(db, term_id, *, viewer_party_id, include_private)</code> is rebuilt as one statement. That statement selects:
+        <ul><li>the eligible listers' preferences (<code>item_listing_preferences_select(party_ids, include_private=)</code>),</li><li>joined to <code>listed_items_with_product_select()</code>,</li><li>left-joined to the PROPOSED proposal.</li></ul>
+        <p>It is followed by one batched profile lookup by party id (listers and proposers) and one by account user id (reservers).</p>
+        <ul><li>It replaces the per-item <code>_is_item_available</code> filter and the per-row <code>_build_listing_views</code>/<code>_resolve_listing_status</code>/profile loops.</li>
+        <li><code>_listing_thumb_urls</code> takes the product ids from the same rows, instead of calling <code>list_available_items_with_product</code>, so reserved items keep their thumbnails.</li></ul></li>
+      <li><code>events/page._listed_items_by_party</code>.</li>
+      <li><code>organizer_page._build_exchange</code> (<code>count_exchange_items_by_mode</code>, <code>list_nearest_exchange_items</code>).</li>
+      <li><code>owner_items._counts</code>/<code>_list_owner_items</code> (<code>_owner_listed_items</code>).</li>
+      <li><b><code>exchange_summary._is_item_available</code> (audit L4)</b> keeps "can still be taken" semantics. It now also returns false when a PROPOSED proposal targets the item.</li>
+      <li><code>list_browsable_term_item_listings</code> keeps its AVAILABLE-only takeability semantics. It now also excludes items with a PROPOSED proposal.</li>
+      <li>Any remaining <code>list_available_items_with_product</code> caller keeps an AVAILABLE-only filter.</li></ul></li>
+</ol>
+</details>
+
+<details class="req" id="r8"><summary>R8. Reserved badge, reserver rule, party actions</summary>
+<ol>
+  <li><b><code>ReservedByResponse {by_name: str | null, by_me: bool}</code></b> is added as <code>reservation: ReservedByResponse | null</code> to <code>PublicItemListingResponse</code>, <code>EventParticipantItemResponse</code>, <code>OrganizerExchangeItemResponse</code>, <code>OwnerItemCardResponse</code> and <code>ItemActionsResponse</code>.
+    <ul><li><code>null</code> means the item is available.</li>
+    <li><b><code>by_name</code></b> is the display name of the party who would receive the item (audit L1):
+      <ul><li>for a RESERVED/IN_TRANSIT leg, its <code>reserved_by_user_id</code>'s profile. That is the taker for a GIFT, and the counterparty for a SWAP leg. On a proposer's offered item it is therefore the listing owner;</li>
+      <li>for a listed item with a PROPOSED proposal, the proposer.</li>
+      <li>It is shown to any logged-in viewer and is null for anonymous viewers.</li></ul></li>
+    <li><b><code>by_me</code></b> is true when the viewer is that party.</li>
+    <li>Names are resolved in batched lookups (at most one per id kind) per response.</li></ul></li>
+  <li><b>Principal and cache handling per route (audit H1/H2):</b>
+    <div class="tablewrap"><table>
+      <tr><th>Route</th><th>Principal</th><th><code>Cache-Control</code></th><th><code>Vary</code></th></tr>
+      <tr><td><code>GET /api/groups/public/organizers/{slug}</code></td><td>add <code>OptionalPrincipal</code></td><td>principal resolved → <code>private, no-store</code>; anonymous → <code>public, max-age=0, s-maxage=60</code></td><td><code>Authorization</code></td></tr>
+      <tr><td><code>GET /api/groups/public/organizers/{slug}/items</code></td><td>add <code>OptionalPrincipal</code></td><td>same</td><td><code>Authorization</code></td></tr>
+      <tr><td><code>GET /api/groups/public/parties/{party_id}/items</code></td><td>add <code>OptionalPrincipal</code></td><td>same</td><td><code>Authorization</code></td></tr>
+      <tr><td><code>GET /api/groups/public/{group_id}/access</code> (term page)</td><td>already <code>OptionalPrincipal</code>. <code>get_group_access</code> passes <code>viewer_party_id</code> and the PRIVATE-circle opt-in for members/organizer into <code>get_public_circle_view</code></td><td>same</td><td><code>Authorization</code></td></tr>
+      <tr><td><code>GET /api/events/{id}</code></td><td>already <code>OptionalPrincipal</code></td><td>same</td><td><code>Authorization</code></td></tr>
+      <tr><td><code>GET /api/items/{id}/actions</code></td><td>already <code>OptionalPrincipal</code></td><td>same</td><td><code>Authorization</code></td></tr>
+      <tr><td><code>GET /api/inventory-items/{id}/details</code></td><td><code>OptionalPrincipal</code> (the <code>can_view_item</code> gate)</td><td>same</td><td><code>Authorization</code></td></tr>
+      <tr><td><code>GET /api/groups/public/organizers/{slug}/terms</code></td><td>none (not personalised)</td><td>unchanged shared <code>public, max-age=0, s-maxage=60</code></td><td>—</td></tr>
+      <tr><td><code>GET /api/groups/public/{group_id}</code></td><td>none. Anonymous defaults (<code>viewer_party_id=None</code>, <code>include_private=False</code>); no component consumer</td><td>unchanged</td><td>—</td></tr>
+    </table></div>
+    <p>An invalid token counts as anonymous (it gets the public header). One helper, <code>app/core/cache_headers.py::set_personalised_cache_headers(response, principal)</code>, sets both headers on success on all 7 personalised routes; a short shared cache of the anonymous variant is an accepted user decision. Tests assert both header variants.</p></li>
+  <li>In <code>item_privacy</code>, a new rule <code>reserver_label(recipient, viewer, display_name)</code> applies to RESERVED/IN_TRANSIT/PROPOSED_SWAP in <code>derive_status</code>:
+    <ul><li>an anonymous viewer gets <code>None</code>;</li><li>the recipient gets "Ty";</li><li>anyone else gets the name, falling back to "inna rodzina".</li></ul>
+    <p>Context ids, names and links stay parties-only. LENT/RETURNING/history are unchanged. The module docstring and <code>architecture.md</code> record the change.</p></li>
+  <li><b>Badge UI:</b> a teal-soft pill reading "Zarezerwowana", "Zarezerwowana · przez &lt;by_name&gt;", or "Zarezerwowana · przez Ciebie". Reserved tiles keep their intent badge and link.</li>
+  <li><b>Product page <code>reserved</code> view:</b>
+    <ul><li>The header badge reads "Zarezerwowana · przez &lt;imię&gt;".</li>
+    <li>The status card follows R5.8. For a personal reservation, parties see "Odbiór osobisty — szczegóły ustalają &lt;owner&gt; i &lt;reserver&gt; na czacie." (the mockup wording). Others see "Ta rzecz jest zarezerwowana."</li>
+    <li>For non-parties, both reserve actions are <code>aria-disabled</code> with the hint "Ktoś już zarezerwował tę rzecz. Jeśli rezerwacja zostanie anulowana, znów będzie dostępna."</li>
+    <li>The chat stays enabled.</li>
+    <li>"Dostępna" is suppressed when <code>reservation</code> is non-null but the balance is AVAILABLE (a pending proposal).</li></ul></li>
+  <li><b>Party actions (audit C1, S1).</b>
+    <p><code>ItemPartyReservationResponse</code> is returned in <code>/actions.party_reservation</code> only to a party of the item's active reservation, or of a PROPOSED proposal on it, and is <code>null</code> for everyone else. Its fields:</p>
+    <table>
+      <tr><th>Field</th><th>Meaning</th></tr>
+      <tr><td><code>role: "GIVER" | "RECEIVER"</code></td><td>the caller currently holds the item, or would receive it</td></tr>
+      <tr><td><code>reservation_id: uuid | null</code></td><td>the active leg on this item</td></tr>
+      <tr><td><code>proposal_id: uuid | null</code></td><td>a PROPOSED proposal targeting this item</td></tr>
+      <tr><td><code>reservation_type: GIFT | SWAP</code></td><td></td></tr>
+      <tr><td><code>personal_pickup: bool</code></td><td></td></tr>
+      <tr><td><code>can_confirm</code>, <code>can_cancel</code>, <code>can_accept</code>, <code>can_reject: bool</code></td><td>computed server-side (below)</td></tr>
+    </table>
+    <p>The flags are computed server-side with the same rules as the write paths:</p>
+    <ul><li><code>can_confirm</code>/<code>can_cancel</code> need a paired or GIFT open leg and a passing <code>context.require_ended()</code> (always passes for personal; for terms and events, after the term-end grace).</li>
+    <li><code>can_confirm</code> additionally requires the receiver for a GIFT.</li><li>Unpaired SWAP legs give all false.</li>
+    <li><code>can_accept</code>/<code>can_reject</code> are true only for the listing owner on a PROPOSED proposal.</li></ul>
+    <p><b>UI</b> (in the <code>reserved</code> and <code>own</code> views, above the chat button):</p>
+    <table>
+      <tr><th>Button</th><th>Flag</th><th>Calls</th></tr>
+      <tr><td>"Potwierdzam przekazanie"</td><td><code>can_confirm</code></td><td><code>confirmTransaction(reservation_id)</code></td></tr>
+      <tr><td>"Anuluj rezerwację"</td><td><code>can_cancel</code></td><td><code>cancelTransaction(reservation_id)</code></td></tr>
+      <tr><td>"Przyjmij zamianę" / "Odrzuć"</td><td><code>can_accept</code>/<code>can_reject</code></td><td><code>acceptSwapProposal</code>/<code>rejectSwapProposal(proposal_id)</code></td></tr>
+    </table>
+    <ul><li><b>Hints:</b>
+      <ul><li>GIFT giver: "Przekazanie potwierdza &lt;odbiorca&gt;, gdy odbierze rzecz.";</li>
+      <li>proposer of a pending proposal: "Czekasz na odpowiedź &lt;owner&gt;. Możesz napisać na czacie.";</li>
+      <li>term/event reservation not yet ended: "Potwierdzicie po terminie."</li></ul></li>
+    <li><b>Buttons:</b> every button is <code>type="button"</code>, disabled while busy, and errors are shown verbatim through <code>extractProblemMessage</code>. A <code>TERM_ALREADY_RESOLVED</code> 409 shows its message and refetches.</li>
+    <li><b>After success:</b> the page awaits invalidation of <code>item-actions</code>, <code>itemDetails</code>, <code>my-inventory-items</code>, <code>owner-items</code>, <code>organizer-page</code>, <code>event</code>, <code>groupAccess</code> and <code>notifications</code>.</li></ul>
+    <p>This is the taker's entry point. The <code>ITEM_RESERVED_FOR_PICKUP</code> and <code>TERM_ALREADY_RESOLVED</code> notifications already link to <code>/product/{item_id}</code>.</p></li>
+</ol>
+</details>
+
+<details class="req" id="r9"><summary>R9. A pending swap proposal blocks the item</summary>
+<ol>
+  <li>In <code>_take</code>/<code>_propose</code>, after the context and eligibility gates, the listing preference is locked (new <code>repository.lock_item_listing_preference</code>, <code>FOR UPDATE</code>, <code>populate_existing</code>). Then:
+    <ul><li>the balance must be AVAILABLE (409 "Ta rzecz jest już zajęta");</li><li>no PROPOSED proposal may target the item (409 "Ktoś już zaproponował zamianę za tę rzecz").</li></ul></li>
+  <li><code>/actions.available</code> and the list reserved state treat a PROPOSED proposal as reserved.</li>
+  <li>Accept still auto-rejects other PROPOSED offers. These can only exist from before the deploy.</li>
+</ol>
+</details>
+
+<details class="req" id="r10"><summary>R10. Counts (audit M5)</summary>
+<ol>
+  <li><code>OrganizerExchangeCounts {GIFT, SWAP, RESERVED}</code>: GIFT/SWAP count available items only, and RESERVED counts reserved listed items. The ranking, dedup and cap are unchanged.</li>
+  <li><code>ExchangeCountsBlock</code> reads "N Chcę oddać · N Chcę się zamienić · N Zarezerwowane".</li>
+  <li><code>ExchangeBoardBlock</code> tabs filter loaded items client-side, consistently with the counts:
+    <table>
+      <tr><th>Tab</th><th>Filter</th></tr>
+      <tr><td>"Wszystkie"</td><td>everything</td></tr>
+      <tr><td>"Chcę oddać"</td><td>GIFT &amp;&amp; <code>reservation === null</code></td></tr>
+      <tr><td>"Chcę się zamienić"</td><td>SWAP &amp;&amp; <code>reservation === null</code></td></tr>
+      <tr><td>"Zarezerwowane"</td><td><code>reservation !== null</code></td></tr>
+    </table></li>
+  <li><b>Owner items page.</b> The tabs stay "Wszystkie / Chcę oddać / Chcę się zamienić".
+    <ul><li><code>OwnerItemCountsResponse {GIFT, SWAP}</code> counts every listed, live, visible item of that mode, reserved included, so each count matches the server-side mode-filtered <code>list_owner_listed_items_page</code>.</li>
+    <li><code>_counts</code> uses <code>listed_items_with_product_select()</code>, so <code>count_owner_items</code> = GIFT + SWAP stays correct by construction and equals <code>items_total</code>.</li>
+    <li>The event <code>items_total</code> counts every listed live item.</li></ul></li>
+</ol>
+</details>
+
+<details class="req" id="r11"><summary>R11. Privacy fixes</summary>
+<ol>
+  <li><code>GET /api/reservations?item_id=</code> returns only reservations where the caller is <code>reserved_by_user_id</code> or <code>giver_user_id</code>, and <code>[]</code> otherwise. <code>GET /api/reservations/{id}</code> returns 404 to a non-party. Row 42 is unchanged, and the check lives in <code>circulation.service</code>.</li>
+  <li><code>_resolve_listing_status</code> drops the PROPOSED-swap proposer fallback. <code>BrowseTermItemListingResponse</code> no longer exposes a proposer's reservation or party id.</li>
+</ol>
+</details>
+
+<!-- ============ S3 ============ -->
+<h2 id="s3"><span class="badge s3">S3</span> Slice S3: item visibility</h2>
+
+<details class="req" id="r12"><summary>R12. Visibility setting (migration 0076)</summary>
+<ol>
+  <li>The <code>ItemVisibility</code> StrEnum (PUBLIC/PRIVATE) in <code>groups/models.py</code> becomes <code>item_listing_preferences.visibility</code>: VARCHAR(10), NOT NULL, <code>server_default 'PUBLIC'</code>, via <code>_enum_column</code>. The template is <code>GroupVisibility</code> + 0036.</li>
+  <li><code>0076_item_listing_visibility.py</code> (revises 0075) adds the column. Its downgrade refuses while <code>visibility = 'PRIVATE'</code> rows exist, naming the recovery path: owners clear those listings, or restore a pre-0076 dump. It then drops the column.</li>
+  <li><b><code>SetItemListingPreferenceRequest</code> gains <code>visibility: ItemVisibility | null = None</code></b> (audit M6):
+    <ul><li>if it is omitted, the existing value is kept, and new rows get PUBLIC;</li>
+    <li>a model validator rejects <code>visibility</code> set together with <code>mode=None</code> (400 (fieldErrors — the app's validation handler): "Ustaw tryb, żeby wybrać widoczność."), so a visibility-only body can never delete the row.</li></ul>
+    <p><code>ItemListingPreferenceResponse</code> gains <code>visibility</code>. <code>MyInventoryItemResponse</code> gains <code>listing_visibility: ItemVisibility | null</code>.</p></li>
+  <li><b>Moje rzeczy toggle.</b> It is a per-item "🌍 Publiczna / 🔒 Prywatna" segmented toggle (<code>aria-pressed</code>), shown only when a mode is set.
+    <ul><li>It calls <code>AppDataContext.setItemListingPreference(itemId, mode, visibility)</code>, which is extended with a <code>visibility</code> argument and always sends the item's current <code>mode</code> together with <code>visibility</code>.</li>
+    <li>The existing mode selector sends only <code>mode</code> and keeps visibility.</li>
+    <li>Without a mode, the row shows "Ustaw tryb, żeby wybrać widoczność.". Under a private item: "Prywatna: widoczna tylko w Twoich prywatnych grupach.".</li>
+    <li>On the product page, the owner sees a "🔒 Prywatny" badge and "Prywatna — widzą ją tylko osoby z Twoich prywatnych grup.".</li></ul></li>
+</ol>
+</details>
+
+<details class="req" id="r13"><summary>R13. Visibility enforcement</summary>
+<ol>
+  <li><code>item_listing_preferences_select(party_ids, *, include_private=False)</code> and <code>list_item_listing_preferences_for_parties(..., include_private=False)</code> filter PUBLIC unless told otherwise. The complete <code>include_private=True</code> caller list (audit L4):
+    <ul><li><b>(a)</b> public term listings via <code>get_group_access</code> for a PRIVATE circle the viewer is a member or organizer of;</li>
+    <li><b>(b)</b> <code>list_browsable_term_item_listings</code> for a PRIVATE circle;</li>
+    <li><b>(c)</b> the owner's own <code>mine</code> lists (<code>list_my_inventory_items</code>, <code>list_my_term_item_listings</code>);</li>
+    <li><b>(d)</b> <code>exchange_summary</code> for a PRIVATE group;</li>
+    <li><b>(e)</b> <code>term_end_scan</code>.</li></ul></li>
+  <li>Events, PUBLIC-circle terms, the organizer page (exchange and recent items), the owner items page and <code>count_owner_items</code> use the default and hide PRIVATE items.</li>
+  <li><b><code>app/groups/application/item_visibility.py</code></b> provides <code>can_view_item(db, item_id, viewer_party_id | None) -&gt; bool</code> and <code>require_item_visible</code> (404).
+    <ul><li>PUBLIC, or no preference, means the existing rules apply.</li>
+    <li>PRIVATE means the viewer is one of:
+      <ul><li>the owner;</li><li>a party sharing a non-deleted PRIVATE circle with the owner (standing membership or active organizer);</li><li>a current counterparty (a party of the item's active reservation, or the proposer of a PROPOSED proposal on it).</li></ul></li>
+    <li>A non-member with only an RSVP on a private circle's term gets 404. This is consistent with <code>get_group_access</code> hiding that term's content from non-members (audit L10).</li></ul></li>
+  <li><b>Gates (audit H3, user decision).</b> Every gate returns 404 before any other check:
+    <div class="tablewrap"><table>
+      <tr><th>Path</th><th>How</th></tr>
+      <tr><td><code>GET /api/inventory-items/{id}/details</code>, <code>/history</code></td><td>the circulation router calls the injected groups helper (the existing <code>on_registered=term_item_listings.list_registered_item</code> pattern)</td></tr>
+      <tr><td><code>GET /api/inventory-items/{id}</code></td><td>same</td></tr>
+      <tr><td><code>GET /api/inventory-items/{id}/balance</code></td><td>same (owners always pass, so <code>MyItemsView</code>, <code>useItemTake</code> and <code>AppDataContext</code> keep working)</td></tr>
+      <tr><td><code>GET /api/inventory-items?inventory_id=</code></td><td><code>circulation.service</code> requires the caller's user id to equal the inventory's <code>owner_user_id</code>: 404 for an unknown inventory, 403 for another user's (404-before-403). The response is then the owner's own items, PRIVATE included</td></tr>
+      <tr><td><code>GET /api/items/{id}/actions</code></td><td><code>require_item_visible</code> first</td></tr>
+      <tr><td><code>POST /api/items/{id}/take|propose</code></td><td><code>require_item_visible</code> first (R3.4), then <code>context.allows_visibility()</code> → 409</td></tr>
+      <tr><td><code>messaging.open_item_conversation</code></td><td>via <code>messaging/infrastructure/groups_acl.py</code>, only when <i>creating</i> a conversation. Existing ones stay accessible</td></tr>
+    </table></div>
+    <p><code>GET /api/inventories?owner_user_id=</code> stays as it is. Inventory ids alone reveal nothing once the item list is owner-only.</p></li>
+  <li><b>Context rules for a PRIVATE item:</b>
+    <ul><li>events are never offered (omitted from <code>contexts</code>; take/propose 409);</li>
+    <li>PUBLIC-circle terms are never offered;</li>
+    <li>PRIVATE-circle terms are offered only when the <b>owner</b> is a standing member or the current organizer of that circle (<code>private_circle_id</code> → <code>repository._owner_in_circle</code>). An owner who only RSVPs gets no such context, the item is not listed there, and take/propose is 409 (user decision, W1). The same rule applies to <code>exchange_summary</code>'s family shares and offers: a co-guardian who only RSVPs contributes no PRIVATE item (N1);</li>
+    <li><b>viewer side (documented behaviour, N3):</b> taking through a private-circle term additionally requires the viewer to be eligible for that term (<code>require_eligibility</code>) and to pass <code>can_view_item</code>;</li>
+    <li>PERSONAL needs a shared private circle.</li></ul>
+    <p><code>TermContext</code> carries its circle's visibility.</p></li>
+</ol>
+</details>
+
+<h2 id="visual">Visual Design</h2>
+<div class="card">
+  <p>The mockups in <code>analysis/design-context/</code> are binding inputs. The implementation-planner will attach <code>Visual References</code> to the UI task groups. Fidelity is high: the mockups use the real tokens from <code>src/frontend/src/index.css</code> and the real components.</p>
+  <div class="tablewrap"><table>
+    <tr><th>Screen / component ID</th><th>Mockup</th><th>Requirements</th><th>Key elements</th></tr>
+    <tr><td><code>screen:product-logged-in</code></td><td><a href="../analysis/design-context/mockups/strona-produktu-zalogowany-3-akcje.html">strona-produktu-zalogowany-3-akcje</a></td><td>R2, R5.3–R5.5</td><td>Intent badge, location name + "Dokładny adres ustalicie na czacie.", context list, "Jak chcesz odebrać?" with 3 actions</td></tr>
+    <tr><td><code>screen:product-anonymous</code></td><td><a href="../analysis/design-context/mockups/strona-produktu-niezalogowany.html">strona-produktu-niezalogowany</a></td><td>R2.2, R5.5</td><td>No location block, context list, login/register gate</td></tr>
+    <tr><td><code>screen:product-own</code></td><td><a href="../analysis/design-context/mockups/strona-produktu-m-j-przedmiot.html">strona-produktu-m-j-przedmiot</a></td><td>R2.2, R5.3, R5.11, R12.4</td><td>Full address "(widzisz tylko Ty)", "Zmień w „Moje rzeczy”", "To Twoja rzecz…", 🔒 Prywatny badge</td></tr>
+    <tr><td><code>screen:product-reserved</code></td><td><a href="../analysis/design-context/mockups/strona-produktu-zarezerwowana.html">strona-produktu-zarezerwowana</a></td><td>R8.5, R8.6, R5.8</td><td>"Zarezerwowana · przez Anna" badge, "Odbiór osobisty — szczegóły ustalają … na czacie.", disabled actions + hint, chat enabled. Party buttons (R8.6) are added above the chat with no mockup, using the existing button styles</td></tr>
+    <tr><td><code>screen:sheet-choose-term</code></td><td><a href="../analysis/design-context/mockups/arkusz-wybieram-termin.html">arkusz-wybieram-termin</a></td><td>R5.6</td><td>Radio list of eligible contexts, SWAP note + "Dalej: wybierz rzecz na zamianę"</td></tr>
+    <tr><td><code>screen:sheet-personal-pickup</code></td><td><a href="../analysis/design-context/mockups/arkusz-odbior-osobi-cie.html">arkusz-odbior-osobi-cie</a></td><td>R5.7</td><td>Location name only, address-in-chat note, "Rezerwuję i piszę do &lt;owner&gt;" / "Anuluj"</td></tr>
+    <tr><td><code>screen:term-participant-items</code></td><td><a href="../analysis/design-context/mockups/strona-terminu-rzeczy-uczestnik-w.html">strona-terminu-rzeczy-uczestnik-w</a></td><td>R6, R8.4</td><td>Whole-row links, intent + reserved pills, no take buttons</td></tr>
+    <tr><td><code>screen:organizer-exchange-board</code></td><td><a href="../analysis/design-context/mockups/strona-organizatora-tablica-wymiany-i-liczniki.html">strona-organizatora-tablica-wymiany-i-liczniki</a></td><td>R10, R6.3, R8.4</td><td>Three counts, four tabs, <code>ItemCard</code> with "Stan: …", pills</td></tr>
+    <tr><td><code>screen:owner-items-anonymous</code></td><td><a href="../analysis/design-context/mockups/rzeczy-w-a-ciciela-niezalogowany.html">rzeczy-w-a-ciciela-niezalogowany</a></td><td>R6.4, R8.1</td><td>"Najbliżej: …", three tabs, reserved badge without a name</td></tr>
+    <tr><td><code>screen:my-items-location-visibility</code></td><td><a href="../analysis/design-context/mockups/moje-rzeczy-lokalizacja-i-widoczno.html">moje-rzeczy-lokalizacja-i-widoczno</a></td><td>R1, R12.4</td><td>"📍 Gdzie są moje rzeczy?" <code>LocationPicker</code> + privacy hint, visibility toggle, "Ustaw tryb…"</td></tr>
+    <tr><td><code>component:intent-badge</code></td><td><a href="../analysis/design-context/mockups/strona-terminu-rzeczy-uczestnik-w.html">strona-terminu-rzeczy-uczestnik-w</a></td><td>R6.2–R6.3</td><td>GIFT <code>bg-primary-soft text-primary-fg</code>, SWAP <code>bg-accent-soft text-accent-fg</code></td></tr>
+    <tr><td><code>component:reserved-badge</code></td><td><a href="../analysis/design-context/mockups/strona-organizatora-tablica-wymiany-i-liczniki.html">strona-organizatora-tablica-wymiany-i-liczniki</a></td><td>R8.4</td><td>Teal-soft "Zarezerwowana" pill, "· przez &lt;imię&gt;"</td></tr>
+    <tr><td><code>component:visibility-toggle</code></td><td><a href="../analysis/design-context/mockups/moje-rzeczy-lokalizacja-i-widoczno.html">moje-rzeczy-lokalizacja-i-widoczno</a></td><td>R12.4</td><td>Publiczna/Prywatna segmented control with <code>aria-pressed</code></td></tr>
+  </table></div>
+  <p>The Moje rzeczy hint text is "Inni zalogowani zobaczą tylko nazwę miejsca (np. „Dom – Mokotów”), nigdy adres. Bez lokalizacji nie da się zarezerwować „osobiście”."</p>
+</div>
+
+<h2 id="reuse">Reusable Components</h2>
+<details class="card"><summary>Existing code to leverage — Backend</summary>
+<ul>
+  <li><code>src/backend/app/groups/application/term_item_listings.py</code>: <code>_take</code>/<code>_propose</code>/<code>accept_swap_proposal</code>/<code>reject_swap_proposal</code>/<code>_resolve_transaction_reservations_for_action</code>/<code>confirm_race_rules._require_recipient_to_confirm_gift</code>. These are the single write path, and their rules are reused for the <code>party_reservation</code> flags.</li>
+  <li><code>src/backend/app/groups/application/reservation_context.py</code>: the <code>TermContext</code>/<code>EventContext</code> protocol, <code>load_term_context</code>, <code>lock_event_context</code>, <code>load_for_reservation</code>.</li>
+  <li><code>src/backend/app/groups/application/item_actions.py</code>: the read-model skeleton, <code>_owner</code>, <code>_is_eligible</code>, <code>_viewer</code>.</li>
+  <li><code>src/backend/app/groups/application/public_view.py</code>: <code>get_group_access</code>, <code>get_public_circle_view</code>, <code>_listing_thumb_urls</code>. <code>src/backend/app/groups/router/circles.py</code> <code>/access</code>.</li>
+  <li><code>src/backend/app/groups/router/organizer_page.py</code> <code>CACHE_CONTROL</code> (becomes principal-dependent).</li>
+  <li><code>src/backend/app/groups/application/owner_items.py</code>: <code>get_owner_nearest</code>, <code>_counts</code>, <code>count_owner_items</code>.</li>
+  <li><code>src/backend/app/groups/infrastructure/repository.py</code>: <code>nearest_public_term_for_party</code>/<code>_qualifying_owner_circles</code> (template), <code>item_listing_preferences_select</code>, <code>get_active_swap_proposal_for_listing_item</code>, <code>lock_swap_proposal</code>, <code>list_member_group_ids_for_party</code>, <code>has_active_membership</code>.</li>
+  <li><code>src/backend/app/groups/infrastructure/events_acl.py</code>: <code>list_upcoming_events_for_parties</code>, <code>is_event_eligible</code> (template for the batched <code>eligible_event_ids</code>), <code>author_slugs</code>. <code>src/backend/app/groups/infrastructure/slug_resolver.py</code> <code>resolve_organizer_slug</code>/<code>derive_organizer_slug</code> (template for <code>resolve_organizer_slugs</code>).</li>
+  <li><code>src/backend/app/groups/infrastructure/locations_acl.py</code>, <code>src/backend/app/events/infrastructure/locations_acl.py</code>: templates for the circulation ACL.</li>
+  <li><code>src/backend/app/locations/service.py</code> <code>get_own_location</code> (404-then-403), <code>src/backend/app/locations/schemas.py</code> <code>LocationRefResponse</code>.</li>
+  <li><code>src/backend/app/circulation/infrastructure/repository.py</code>: <code>available_items_with_product_select</code> (replaced), <code>find_personal_inventory</code>, the <code>_user_profiles</code> Core ref (<code>:65</code>). <code>src/backend/app/circulation/application/identity.py</code> <code>get_user_id_by_principal</code>. <code>src/backend/app/circulation/application/inventory.py</code> <code>get_or_create_personal_inventory</code>.</li>
+  <li><code>src/backend/app/circulation/domain/item_privacy.py</code>: <code>derive_status</code>, <code>label</code>.</li>
+  <li><code>src/backend/app/circulation/router.py</code>: the existing injection of groups use cases.</li>
+  <li><code>src/backend/app/groups/application/event_reservations.py</code>: event delete cancels open reservations first.</li>
+  <li><code>src/backend/app/groups/models.py</code> <code>GroupVisibility</code> + <code>alembic/versions/0036_*</code>; <code>alembic/versions/0073_event_reservations.py</code>; <code>alembic/versions/0058_*</code>.</li>
+  <li><code>src/backend/app/messaging/application/conversations.py</code> <code>open_item_conversation</code>, <code>messaging/infrastructure/groups_acl.py</code>.</li>
+  <li><code>src/backend/app/core/auth_deps.py</code> <code>OptionalPrincipal</code>; <code>src/backend/app/core/authorization_matrix.py</code>.</li>
+</ul>
+</details>
+<details class="card"><summary>Existing code to leverage — Frontend</summary>
+<ul>
+  <li><code>src/frontend/src/pages/product/ItemContextActions.tsx</code>, <code>itemActionsViewState.ts</code> (rewritten in place), <code>ItemDetailPage.tsx</code>, <code>ItemStatusCard.tsx</code>.</li>
+  <li><code>src/frontend/src/pages/term/hooks/useItemTake.ts</code> (moved to <code>pages/product/useItemTake.ts</code>, with <code>onReserved</code>; settlement via <code>hooks/useReservationSettlement.ts</code>), <code>useAccountGate.ts</code>; <code>src/frontend/src/pages/term/modals/SwapProposeDialog.tsx</code>, <code>TakeSuccessSheet.tsx</code>, <code>AuthGateSheet.tsx</code>.</li>
+  <li><code>src/frontend/src/api/reservations.ts</code> <code>confirmTransaction</code>/<code>cancelTransaction</code>/<code>getReservation</code>; <code>src/frontend/src/api/termItemListings.ts</code> <code>acceptSwapProposal</code>/<code>rejectSwapProposal</code>.</li>
+  <li><code>src/frontend/src/components/shared/ModalSheet</code>, <code>trapFocus.ts</code>, <code>openSheets.ts</code>.</li>
+  <li><code>src/frontend/src/components/shared/LocationPicker.tsx</code>, <code>LocationAddForm.tsx</code>, <code>TermPlaceLine.tsx</code>, <code>MapPinIcon</code>; <code>src/frontend/src/hooks/useMyLocations.ts</code>.</li>
+  <li><code>src/frontend/src/hooks/useOpenAndNavigate.ts</code>.</li>
+  <li><code>src/frontend/src/components/shared/ParticipantItemsPreview.tsx</code>, <code>src/frontend/src/pages/organizer/blocks/ExchangeItemCard.tsx</code>, <code>OwnerItemsPage.tsx</code>, <code>RecentItemsBlock.tsx</code>, <code>ExchangeBoardBlock.tsx</code>, <code>ExchangeCountsBlock.tsx</code>.</li>
+  <li><code>src/frontend/src/pages/term/components/termLabels.ts</code>, <code>src/frontend/src/pages/product/useItemRoutes.ts</code>.</li>
+  <li><code>src/frontend/src/pages/items/MyItemsView.tsx</code>, <code>src/frontend/src/app/AppDataContext.tsx</code>, <code>src/frontend/src/api/itemListingPreferences.ts</code>.</li>
+  <li><code>src/frontend/src/hooks/useItemActions.ts</code>, <code>useItemDetail.ts</code>, <code>useOwnerItems.ts</code>, <code>useOrganizerPage.ts</code>, <code>useTermAccess.ts</code> (the <code>forToken</code>/<code>isStale</code> precedent); <code>src/frontend/src/api/queryClient.ts</code>.</li>
+</ul>
+</details>
+<details class="card" open><summary>New components required</summary>
+<table>
+  <tr><th style="width:38%">Component</th><th>Why</th></tr>
+  <tr><td><code>PersonalContext</code> + <code>load_personal_context</code> + <code>PersonalContext.for_reservation</code></td><td>No context without a term or event exists yet, and the union keeps the lifecycle shape-identical.</td></tr>
+  <tr><td>Migrations 0074, 0075, 0076, 0077</td><td>These are new schema facts, kept small and separate. 0077 (<code>0077_swap_proposals_listing_item_index.py</code>) adds the partial index <code>ix_swap_proposals_listing_item_id_proposed</code> on <code>swap_proposals(listing_item_id) WHERE status = 'PROPOSED'</code>, built and dropped <code>CONCURRENTLY</code> (in <code>autocommit_block()</code>, dropping an INVALID leftover first), for the pending-proposal lookups of every listing read and take/propose.</td></tr>
+  <tr><td><code>app/circulation/infrastructure/locations_acl.py</code> and <code>repository.find_party_id_by_user_id</code></td><td>Circulation has no locations ACL and must not import <code>app.users.service</code>.</td></tr>
+  <tr><td>Inventory-location use case + <code>GET|PUT /api/inventories/mine/location</code></td><td>No endpoint edits an inventory today.</td></tr>
+  <tr><td><code>groups/router/item_reservations.py</code> + <code>ItemTakeRequest</code>/<code>ItemProposeRequest</code>/<code>ReservationContextRef</code>/<code>ItemTakeResponse</code></td><td>One route per verb replaces four.</td></tr>
+  <tr><td><code>listed_items_with_product_select</code></td><td>No select returns the reserved state today.</td></tr>
+  <tr><td><code>repository.list_upcoming_owner_terms_for_viewer</code>, <code>events_acl.eligible_event_ids</code>, <code>slug_resolver.resolve_organizer_slugs</code></td><td>The existing ones are single-term, PUBLIC-only or per-context, and cannot give a constant statement count (audit M4).</td></tr>
+  <tr><td>New response shapes: <code>ReservedByResponse</code>, <code>ItemPartyReservationResponse</code>, <code>ItemLocationResponse</code>, <code>ItemContextOptionResponse</code>, <code>InventoryLocationResponse</code>, <code>SetInventoryLocationRequest</code></td><td></td></tr>
+  <tr><td><code>repository.lock_item_listing_preference</code></td><td>No lock exists on the listing.</td></tr>
+  <tr><td>The principal-dependent cache-header helper <code>app/core/cache_headers.py::set_personalised_cache_headers</code></td><td>Used by 7 routes (R8.2). The previous constant was unconditionally public.</td></tr>
+  <tr><td><code>app/groups/application/item_visibility.py</code> + <code>ItemVisibility</code></td><td>One helper keeps one rule across the 9 gates.</td></tr>
+  <tr><td>Frontend</td><td><code>src/api/itemReservations.ts</code>; <code>src/api/inventories.ts</code> <code>getMyInventoryLocation</code>/<code>setMyInventoryLocation</code> + <code>src/hooks/useMyInventoryLocation.ts</code>; <code>components/shared/ItemTileBadges.tsx</code>; <code>pages/product/ChooseContextSheet.tsx</code>, <code>PersonalPickupSheet.tsx</code>, <code>PartyReservationActions.tsx</code>; <code>pages/items/VisibilityToggle.tsx</code>.</td></tr>
+</table>
+</details>
+
+<h2 id="tech">Technical Approach</h2>
+<div class="card">
+  <p><b>Data flow (product page).</b></p>
+  <ol>
+    <li><code>ItemDetailPage</code> loads <code>/details</code> and <code>/actions</code>, and <code>resolveItemActionsView</code> picks the view.</li>
+    <li>The sheets call <code>useItemTake.take/confirm</code> with a <code>TakeTarget</code> → <code>POST /api/items/{id}/take|propose</code>.</li>
+    <li><b>Gate order</b> in <code>take_item</code>/<code>propose_item_swap</code> → <code>_take</code>/<code>_propose</code> (audit M1):
+      <ol class="steps">
+        <li>(S3) <code>require_item_visible</code> → 404;</li>
+        <li>build the context (404 unknown term/event; PERSONAL 409 without a location);</li>
+        <li>context open → 409;</li>
+        <li>taker eligible → 403;</li>
+        <li>preference exists → 404;</li>
+        <li>not the owner → 409;</li>
+        <li>owner eligible;</li>
+        <li>(S3) <code>context.allows_visibility</code> → 409;</li>
+        <li>(S2) lock preference;</li>
+        <li>balance AVAILABLE → 409;</li>
+        <li>(S2) no PROPOSED → 409;</li>
+        <li>mode → 409;</li>
+        <li>create the reservation with <code>**context.reservation_kwargs()</code>;</li>
+        <li>notifications via <code>pickup_phrase()</code>;</li>
+        <li>single commit.</li>
+      </ol>
+      A test pins the order: a PRIVATE item, a non-member, PERSONAL → 404, not 403 or 409.</li>
+    <li><b>Party actions</b> call the existing confirm/cancel/accept/reject routes with the ids from <code>party_reservation</code>.</li>
+    <li><b>After writes,</b> the frontend awaits invalidation of <code>item-actions</code>, <code>itemDetails</code>, <code>owner-items</code>, <code>event</code>, <code>organizer-page</code>, <code>notifications</code>, <code>groupAccess</code> and <code>my-inventory-items</code>. A personal take success then opens the ITEM chat.</li>
+    <li><b>Auth-dependent query keys (audit L9).</b> <code>useOrganizerPage</code>, <code>useOwnerItems</code> and <code>useItemActions</code> add a viewer discriminator to their keys: the current user id from <code>useAuth()</code>, or <code>null</code>. A login, logout or account switch then fetches a fresh personalised response instead of showing cached anonymous data. <code>useTermAccess</code> keeps its existing <code>forToken</code>/<code>isStale</code> pattern. The prefix constants are unchanged, so whole-prefix invalidation still works.</li>
+  </ol>
+</div>
+
+<div class="two">
+  <div class="card"><b>Cross-context boundaries</b>
+    <ul><li>Groups reads inventory and location data through <code>circulation_bridge</code> and <code>groups/infrastructure/locations_acl.py</code>.</li>
+    <li>Circulation reads locations only through its new ACL, and user → party via its own Core ref. It reaches groups only from its router (injection).</li>
+    <li>Events reaches the new select through <code>events/infrastructure/circulation_acl.py</code>/<code>groups_acl.py</code>.</li>
+    <li>Messaging reaches <code>can_view_item</code> through its <code>groups_acl.py</code>.</li></ul></div>
+  <div class="card"><b>Concurrency</b>
+    <p>Take and propose serialise on the preference row (<code>FOR UPDATE</code>). Event contexts keep <code>FOR SHARE</code> on the event, taken first. Accept and reject keep the proposal lock.</p>
+    <b>Time</b>
+    <p>"Upcoming" and "started" comparisons use <code>clock.local_now()</code>. Notification text goes through <code>clock.fit_notification_message</code>.</p></div>
+</div>
+
+<div class="card"><b>Slice ordering and shippability</b>
+  <table>
+    <tr><th style="width:60px">Slice</th><th>Contents</th></tr>
+    <tr><td><span class="badge s1">S1</span></td><td><ul><li>0074 + 0075, the location endpoints, <code>/actions</code> v2 (contexts, location, <code>party_reservation</code>), the unified endpoint, <code>PersonalContext</code>;</li><li>the product page incl. party actions, the MyItemsView personal gating (R5a) and tile cleanup.</li><li>The item-page term/event tests are written before the <code>TermPage.test.tsx</code> take tests are deleted (C7).</li></ul></td></tr>
+    <tr><td><span class="badge s2">S2</span></td><td>Read models, guards, the cache headers (shipped with the <code>OptionalPrincipal</code> additions in R8.2), counts and privacy fixes. Migration 0077 (the PROPOSED partial index) was added during verification.</td></tr>
+    <tr><td><span class="badge s3">S3</span></td><td>0076, all the enforcement points in R13.4, and the toggle, in one slice.</td></tr>
+  </table>
+</div>
+
+<div class="card tablewrap"><b>Authorization matrix changes</b> <span class="meta">(<code>src/backend/app/core/authorization_matrix.py</code>, <code>tests/test_authorization_matrix.py</code>)</span>
+  <table>
+    <tr><th style="width:170px">Change</th><th>Row</th></tr>
+    <tr><td><span class="badge ok">Add</span> (next to <code>/actions</code>)</td><td><code>POST ^/api/items/[^/]+/(take|propose)$</code> → <code>("EDIT","mcp:edit")</code></td></tr>
+    <tr><td><span class="badge ok">Add</span> (ahead of rows 38–39)</td><td><code>PUT ^/api/inventories/mine/location$</code> → <code>("EDIT","mcp:edit")</code></td></tr>
+    <tr><td><span class="sev critical">Remove</span></td><td><code>POST ^/api/events/[^/]+/items/[^/]+/(take|propose)$</code></td></tr>
+    <tr><td><span class="sev critical">Remove</span></td><td>row 61 <code>POST ^/api/term-item-listings/[^/]+/propose$</code></td></tr>
+    <tr><td><span class="sev critical">Remove</span></td><td>row 58 <code>POST ^/api/term-item-listings(/.*)?$</code></td></tr>
+    <tr><td><span class="badge dim">Unchanged</span></td><td><code>GET /api/items/{id}/actions</code> PUBLIC; row 42 <code>GET /api/reservations*</code> READ; <code>GET /api/inventory-items*</code> READ (gates are in the router/service); the public organizer, owner-items and circle rows</td></tr>
+  </table>
+</div>
+
+<details class="card"><summary>Tests to migrate or flip (backend), the complete list (audit M7)</summary>
+  <p><b>Files that reference removed routes or use cases</b> (<code>take_item_listing</code>, <code>propose_swap</code>, <code>take_event_item</code>, <code>propose_event_swap</code>, <code>TakeTermItemListingRequest</code>, or the old URLs). Their calls move to <code>POST /api/items/{id}/take|propose</code> with a TERM/EVENT context (or to <code>take_item</code>/<code>propose_item_swap</code>). They are migrated, never deleted or loosened:</p>
+  <ol>
+    <li><code>tests/test_authorization_matrix.py</code> (rows above)</li>
+    <li><code>tests/test_domain_clock_guard.py</code></li>
+    <li><code>tests/test_event_item_reservations.py</code></li>
+    <li><code>tests/test_event_reservation_delete.py</code></li>
+    <li><code>tests/test_event_reservation_readers.py</code></li>
+    <li><code>tests/test_exchange_summary.py</code></li>
+    <li><code>tests/test_group_soft_delete_keep_live.py</code></li>
+    <li><code>tests/test_handover_copy_api.py</code></li>
+    <li><code>tests/test_item_details.py</code></li>
+    <li><code>tests/test_item_history.py</code></li>
+    <li><code>tests/test_item_listing_status.py</code></li>
+    <li><code>tests/test_public_term.py</code></li>
+    <li><code>tests/test_reservation_write_guards.py</code></li>
+    <li><code>tests/test_term_clock_regressions.py</code></li>
+    <li><code>tests/test_term_end_scan.py</code> (22 references)</li>
+    <li><code>tests/test_term_item_listings.py</code> (79 references; a competing proposal is now 409 in S2)</li>
+    <li><code>tests/test_term_item_listings_router.py</code></li>
+  </ol>
+  <p><b>"Exactly one context" tests flip their <code>noContext</code> case to "allowed":</b></p>
+  <ul>
+    <li><code>tests/test_circulation_bulk_cancel.py:150-169</code> (<code>match="exactly one"</code> → only "both" raises);</li>
+    <li><code>tests/test_event_reservations_migration.py:190-203</code> (<code>test_insertOpenReservation_invalidContext_violatesContextCheck[noContext]</code> becomes "allowed after 0074", and <code>bothContexts</code> still violates).</li>
+    <li><code>tests/test_event_reservations_migration.py</code> downgrades to 0072, which now runs through 0076 → 0075 → 0074. Its fixture must have no open no-context and no PRIVATE rows, so the guarded downgrades pass.</li>
+  </ul>
+  <p><b><code>tests/test_item_actions.py</code>:</b> the hint, <code>context</code> and "both params 400" tests are replaced by <code>contexts</code> (incl. viewer filtering before the limit), <code>location</code>, <code>personal_pickup_available</code> and <code>party_reservation</code> tests.</p>
+  <p><b>Reserved-hidden tests flip to "listed with reservation" (S2):</b></p>
+  <ul>
+    <li><code>tests/test_public_term.py::test_getPublicCircle_takenItem_disappearsFromPublicListings</code></li>
+    <li><code>tests/test_event_page.py::test_getEvent_participantItems_onlyAvailableListedItems</code></li>
+    <li><code>tests/test_organizer_page.py::test_getOrganizerPage_exchange_onlyEligibleAvailableItemsDedupedToNearestTerm</code></li>
+    <li><code>tests/test_owner_items_page.py::test_getOwnerItems_organizationSlug_exactShapeNewestFirstModeFilterAndPages</code> (counts now include reserved)</li>
+    <li><code>tests/test_organizer_bridges.py::test_listAvailableItemsWithProduct_onlyLiveAvailableItems_returnsViews</code></li>
+  </ul>
+  <p><b><code>tests/test_organizer_page_queries.py</code>:</b> re-baseline to the new constants, and add the cache-header assertions.</p>
+  <p><b><code>tests/test_circulation.py</code>:</b> the <code>/api/reservations*</code> party check; <code>GET /api/inventory-items?inventory_id=</code> ownership; the <code>/balance</code> and <code>GET /api/inventory-items/{id}</code> gates (S3).</p>
+  <p><b>Exact key-set assertions</b> are updated, never loosened.</p>
+</details>
+
+<details class="card"><summary>Tests to migrate or flip (frontend)</summary>
+  <ul>
+    <li><code>TermPage.test.tsx</code> (226, 256, 291, 493–602, 1220): the take tests are removed after their <code>ItemDetailPage.test.tsx</code> equivalents exist. The pledge guest-merge tests stay.</li>
+    <li><code>ItemDetailPage.test.tsx</code> "context actions" (422–651): rewritten for the 3 actions, the sheets and the party actions.</li>
+    <li><code>itemActionsViewState.test.ts</code>, <code>useItemTake.test.tsx</code>.</li>
+    <li><code>ParticipantItemsPreview.test.tsx:91</code>, <code>organizerCirclesExchangeBlocks.test.tsx:151,192</code>, <code>OwnerItemsPage.test.tsx</code>.</li>
+    <li><code>LayoutRenderer.test.tsx:416–427</code>, <code>EventComponents.test.tsx</code>, <code>OrganizerItemRoute.test.tsx</code>, <code>AppPage.test.tsx:156–157</code>.</li>
+    <li>MyItemsView tests: the location picker; the visibility toggle payload (<code>mode</code> + <code>visibility</code>); immediate confirm/cancel for <code>personal_pickup</code>, incl. the owner seeing "Anuluj"; an accepted personal swap with null <code>term_occurs_on</code>.</li>
+  </ul>
+</details>
+
+<details class="card"><summary>Docs to update</summary>
+  <ul>
+    <li><code>.maister/docs/project/architecture.md</code>:
+      <ul><li><code>PersonalContext</code> (create-time vs reservation-derived) and the open-vs-terminal rule;</li>
+      <li>the 0074/0075/0076 runbooks: the 0074 recovery split reject/cancel, 0075 losing locations on downgrade, the 0076 PRIVATE guard;</li>
+      <li>the unified endpoint and the removed routes;</li><li><code>/actions</code> v2 incl. <code>party_reservation</code>;</li><li><code>inventories.location_id</code>;</li>
+      <li>reserved items on lists, <code>ReservedByResponse</code> and the pending-proposal block;</li><li>the reserver-name rule change;</li>
+      <li>the cache-header rule for personalised public routes;</li><li>item visibility and its 9 gates;</li><li>the reservation-read party check.</li></ul></li>
+    <li><code>.maister/docs/INDEX.md</code> summary lines.</li>
+    <li><b>Suggested standards</b> (for <code>standards-update</code>, not mandated):
+      <ul><li>"listing read selects default to the safe visibility; private inclusion is an explicit opt-in";</li>
+      <li>"public routes that personalise on <code>OptionalPrincipal</code> never send shared-cache headers for authenticated requests and always <code>Vary: Authorization</code>".</li></ul></li>
+  </ul>
+</details>
+
+<h2 id="guidance">Implementation Guidance</h2>
+<details class="card"><summary>Testing approach</summary>
+  <ul>
+    <li>2-8 focused tests per implementation step group. Test verification runs only the new and changed tests, not the entire suite.</li>
+    <li><b>Backend:</b> integration-first through <code>client</code>/<code>db_session</code> against real PostgreSQL. Other rules:
+      <ul><li>categories only via <code>leaf_category_ids(client, headers, n)</code> per test;</li><li>dates from <code>clock.local_now()</code>/<code>freeze_local_now</code>;</li>
+      <li>exact key-set assertions for new and changed DTOs;</li>
+      <li><code>count_queries(engine)</code> for <code>/actions</code> (1 vs 5 contexts), <code>/access</code> term listings (1 vs 5 listings incl. reserved) and the list read models;</li>
+      <li>a downgrade-then-upgrade round-trip per migration, incl. the guarded refusals (<code>tests/test_personal_pickup_migration.py</code> with a PENDING-proposal row and a GIFT row, <code>tests/test_inventory_location_migration.py</code>, <code>tests/test_item_visibility_migration.py</code>).</li></ul></li>
+    <li><b>New backend test files</b> (flat, <code>test_&lt;operation&gt;_&lt;scenario&gt;_&lt;expected&gt;</code>):
+      <table>
+        <tr><th style="width:36%">File</th><th>Covers</th></tr>
+        <tr><td><code>tests/test_personal_pickup.py</code></td><td>take/propose PERSONAL and 409 without a location; immediate confirm by the recipient, and cancel by the giver; accept of a personal proposal (the reservation-derived context); the notification copy; the scanner skip; deleting an event with an open reservation leaves no open no-context row (L7 guard).</td></tr>
+        <tr><td><code>tests/test_inventory_location.py</code></td><td>GET/PUT, 404/403, the viewer-shaped location on <code>/actions</code>.</td></tr>
+        <tr><td><code>tests/test_item_reservations_router.py</code></td><td>context-ref validation, the removed routes returning 404/405, and the gate order (PRIVATE + non-member + PERSONAL → 404).</td></tr>
+        <tr><td><code>tests/test_reserved_listings.py</code></td><td>reserved state and <code>by_name</code> per viewer (incl. the offered-item label); counts on both pages; the pending-proposal 409 under a race; the cache headers anonymous vs authenticated.</td></tr>
+        <tr><td><code>tests/test_party_reservation_actions.py</code></td><td>the <code>party_reservation</code> flags for giver/receiver/non-party, GIFT/SWAP/unpaired/pending-proposal, and personal vs a term not yet ended.</td></tr>
+        <tr><td><code>tests/test_item_visibility.py</code></td><td>each read path (<code>/details</code>, <code>/history</code>, <code>/balance</code>, <code>GET /api/inventory-items/{id}</code>, the <code>?inventory_id=</code> ownership check, <code>/actions</code>); each write gate and ITEM chat creation; <code>{visibility}</code> without a mode → 400 (fieldErrors — the app's validation handler), and <code>{mode, visibility}</code> keeps the row.</td></tr>
+      </table></li>
+    <li><b>Frontend:</b>
+      <ul><li>Vitest + Testing Library with <code>createQueryWrapper()</code>, <code>vi.mock</code> API modules and fully typed fixtures (no <code>as</code> casts);</li><li>a pinned <code>Date</code>;</li>
+      <li><code>it.each</code> tables for <code>resolveItemActionsView</code>, incl. stale and refresh-error rows and party rows;</li>
+      <li>a11y assertions for the sheets, the party buttons and the toggle;</li><li>a test that a key change on login refetches organizer/owner-items data.</li></ul></li>
+    <li><b>Commands:</b> <code>uv run python -m pytest|mypy|ruff</code> from <code>src/backend</code>; Vitest + <code>tsc -p tsconfig.app.json</code> from <code>src/frontend</code>.</li>
+  </ul>
+</details>
+<details class="card"><summary>Standards compliance</summary>
+  <table>
+    <tr><th style="width:30%">Standard</th><th>Applied as</th></tr>
+    <tr><td><code>standards/backend/models.md</code></td><td>plain FK ids; a VARCHAR StrEnum via <code>_enum_column</code>; cross-context access only through <code>infrastructure/&lt;other&gt;_acl.py</code> or the context's own Core refs (no <code>app.users.service</code> import in circulation); 404-before-403, for ownership and visibility alike; batched <code>get_&lt;x&gt;s_by_ids</code>; narrow location embeds.</td></tr>
+    <tr><td><code>standards/backend/migrations.md</code></td><td>small separate revisions with explicit names; an additive nullable column (0075); reverse-order downgrades; guarded downgrades with runbooks (0074, 0076); a round-trip test per migration; <code>lock_timeout</code> on <code>reservations</code>.</td></tr>
+    <tr><td><code>standards/backend/queries.md</code> / <code>jooq.md</code></td><td>bound parameters, no N+1 (batched names, slugs, eligibility and thumbnails), explicit ordering, the SQL-level <code>LIMIT 5</code> after the viewer filter.</td></tr>
+    <tr><td><code>standards/backend/security.md</code></td><td>every new or removed route is in <code>AUTHORIZATION_MATRIX</code> and its tests; <code>Depends(require_any(...))</code>; <code>OptionalPrincipal</code> on PUBLIC rows; no shared caching of personalised data.</td></tr>
+    <tr><td><code>standards/backend/time.md</code></td><td><code>clock.local_now()</code> only, <code>clock.format_term_when</code>, <code>clock.fit_notification_message</code>.</td></tr>
+    <tr><td><code>standards/backend/api.md</code></td><td>plural resources, the <code>take</code>/<code>propose</code> sibling verbs, limited nesting.</td></tr>
+    <tr><td><code>standards/frontend/components.md</code></td><td>one pure <code>resolveItemActionsView</code>; the page <code>switch</code>es on <code>view.kind</code>; flow state lives in <code>useItemTake</code>, and party actions in <code>PartyReservationActions</code>.</td></tr>
+    <tr><td><code>standards/frontend/accessibility.md</code></td><td><code>ModalSheet</code> with a focus trap, Esc and focus return; <code>useRegisterOpenSheet</code>; a radio fieldset; <code>aria-disabled</code> + <code>aria-describedby</code> with handler guards; text pills; stretched links; <code>aria-pressed</code>.</td></tr>
+    <tr><td><code>standards/frontend/data-fetching.md</code></td><td>hooks in <code>src/hooks/</code> over <code>src/api/*.ts</code>; prefixed array keys (a viewer discriminator where data must <i>not</i> survive an auth change); mutations <code>await invalidateQueries</code>; <code>extractProblemMessage</code> verbatim; <code>dayjs</code> from <code>src/utils/dayjs.ts</code>.</td></tr>
+    <tr><td><code>standards/frontend/css.md</code> / <code>responsive.md</code></td><td>the existing tokens, mobile-first.</td></tr>
+    <tr><td><code>standards/global/minimal-implementation.md</code></td><td>delete the removed routes, schemas, label maps, <code>renderActions</code>, URL-context helpers, <code>eventItems.ts</code> and the term-page take UI.</td></tr>
+    <tr><td><code>standards/testing/backend-testing.md</code>, <code>standards/testing/frontend-testing.md</code></td><td>as above.</td></tr>
+  </table>
+</details>
+
+<h2 id="scope">Scope</h2>
+<div class="two">
+  <div class="card scope-in"><b>In scope (slices)</b>
+    <ul>
+      <li><span class="badge s1">S1</span> physical location, product page, personal context, single endpoint, tiles, party actions (R1–R6, R5a)</li>
+      <li><span class="badge s2">S2</span> reserved items on lists (R7–R11)</li>
+      <li><span class="badge s3">S3</span> item visibility (R12–R13)</li>
+    </ul></div>
+  <div class="card scope-out"><b>Out of Scope</b>
+    <ul>
+      <li>Reminders, auto-expiry or scanner prompts for personal reservations.</li>
+      <li>Private (visibility-flagged) events.</li>
+      <li>Per-item physical locations, and setting the location from the add flow or <code>ItemEditForm</code>.</li>
+      <li>Dropping the legacy <code>inventories.location</code> text column.</li>
+      <li>Global search, and any use of coordinates.</li>
+      <li>Changing Moje rzeczy's own mode wording or the add-flow wording.</li>
+      <li>Guest merge on the product page.</li>
+      <li>Preserving PRIVATE across a cleared mode or a confirmed exchange (C2).</li>
+      <li>An "oddana" state on lists.</li>
+      <li>An item OG preview.</li>
+      <li>Restricting already-existing ITEM conversations of items that later become PRIVATE.</li>
+      <li>An explicit <code>personal</code> discriminator column on <code>reservations</code> (L7, accepted risk).</li>
+      <li>Fixing the pre-existing concurrent offered-item race in <code>_require_own_available_personal_item</code>.</li>
+      <li>A proposer-side "withdraw proposal" action.</li>
+      <li>The deferred event-page follow-ups (W8/W9/W12).</li>
+    </ul></div>
+</div>
+
+<h2 id="success">Success Criteria</h2>
+<div class="card">
+  <ul>
+    <li>A logged-in non-owner can reserve a listed AVAILABLE item from <code>/product/:id</code>, with no URL params, via "Odbiorę osobiście" (only with an owner location) or "Wybieram termin" (only eligible contexts). A personal success opens the ITEM chat.</li>
+    <li>The recipient of a personal GIFT can confirm it on the product page, and either party of a personal reservation can cancel it there or in Moje rzeczy, immediately. The owner can accept or reject a pending swap on the product page.</li>
+    <li>The removed term/event take/propose routes return 404/405. The only reservation writes are <code>POST /api/items/{id}/take|propose</code>.</li>
+    <li>Personal reservations produce no term-end prompts. The 0074 downgrade refuses while open ones exist, and its runbook recovery works for pending proposals and for accepted reservations.</li>
+    <li>No tile renders a take/swap button. Every tile shows an intent badge and links to the product page.</li>
+    <li>Reserved items stay listed with a "Zarezerwowana" badge. The name shows for logged-in viewers and never for anonymous ones, including through any shared cache.</li>
+    <li>A second take or proposal on an item with a pending proposal returns 409, including under concurrency.</li>
+    <li>Counts match their tabs on both the organizer and owner-items pages. List and <code>/actions</code> statement counts stay constant in the number of rows and contexts.</li>
+    <li>No response gives a non-owner the owner's address or coordinates.</li>
+    <li><code>GET /api/reservations*</code> and <code>GET /api/inventory-items?inventory_id=</code> return no other users' data.</li>
+    <li>PRIVATE items:
+      <ul><li>appear only on private-circle term pages, the owner's own lists, and to the owner, shared-private-circle members and current counterparties;</li>
+      <li>return 404 on every item read path for everyone else, before any 403 or 409;</li>
+      <li>are rejected in event and public-circle contexts.</li></ul></li>
+    <li>Every migration passes its round-trip test, and <code>ruff</code>, <code>mypy</code> (no new errors over the HEAD baseline) and <code>tsc</code> are clean.</li>
+  </ul>
+</div>
+
+<h2 id="revisions">Revision history</h2>
+<details class="card" open><summary><span class="badge ok">Rev 3</span> 2026-11-01: aligned with the implementation after verification</summary>
+  <table>
+    <tr><th style="width:180px">Finding</th><th>Resolution</th></tr>
+    <tr><td>D1/D2 cache headers</td><td>R8.2 table and Key Decisions: <code>set_personalised_cache_headers</code> on 7 routes; anonymous <code>public, max-age=0, s-maxage=60</code> accepted</td></tr>
+    <tr><td>D4 migrations</td><td>R1.1 0075 guarded downgrade; New Components 0077 (<code>CONCURRENTLY</code> partial index)</td></tr>
+    <tr><td>D5 W1/N1 owner membership</td><td>Key Decisions, R2.3, R13.5: PRIVATE items on a private circle's term only for owners who are standing members or organizer; RSVP alone does not count (also co-guardians in <code>exchange_summary</code>); N3 viewer-side rule documented</td></tr>
+  </table>
+</details>
+<details class="card"><summary><span class="badge">Rev 2</span> 2026-10-31: resolves <code>verification/spec-audit.md</code></summary>
+  <p class="meta"><a href="../verification/spec-audit.md" target="_blank" rel="noopener">spec-audit.md ↗</a></p>
+  <table>
+    <tr><th style="width:260px">Finding</th><th>Resolution</th></tr>
+    <tr><td><b>C1</b> personal GIFT never confirmable</td><td>R8.6 party actions on the product page (<code>party_reservation</code> + confirm/cancel/accept/reject); R5a MyItemsView treats <code>personal_pickup</code> as ended (owner sees Anuluj); R5.7 copy points to the product page; R4.6 taker notification says where to confirm; the taker's entry point is the product page via notification links</td></tr>
+    <tr><td><b>H1</b> shared cache of personalised responses</td><td>R8.2 per-route table: <code>private, no-store</code> with a principal, <code>public</code> anonymous, <code>Vary: Authorization</code>; header tests</td></tr>
+    <tr><td><b>H2</b> wrong term-page route, unspecified listing path</td><td>R8.2 names <code>/access</code> → <code>get_group_access</code> → <code>get_public_circle_view(viewer_party_id, include_private)</code>; R7.3 one batched select for public term listings plus thumbnails from the same rows; statement-count test</td></tr>
+    <tr><td><b>H3</b> ungated item reads</td><td>R13.4 gates <code>GET /api/inventory-items/{id}</code> and <code>/balance</code> via <code>can_view_item</code> (404); <code>?inventory_id=</code> requires ownership</td></tr>
+    <tr><td><b>M1</b> 403 before 404</td><td><code>require_item_visible</code> first, before the context is built; gate order in Technical Approach; pinning test</td></tr>
+    <tr><td><b>M2</b> <code>PersonalContext</code> from a reservation</td><td>R4.1 create-time vs <code>for_reservation()</code> (field-free) and a protocol table of methods and callers</td></tr>
+    <tr><td><b>M3</b> 0074 recovery for pending swaps</td><td>R4.4 split: reject pending proposals, cancel accepted/GIFT, or restore a dump; downgrade semantics noted; refusal test rows</td></tr>
+    <tr><td><b>M4</b> contexts limit and statement counts</td><td>R2.3 viewer filter in SQL before <code>LIMIT 5</code>; R2.5 lists every statement and the new batched helpers; 1-vs-5 test; New Components lists them</td></tr>
+    <tr><td><b>M5</b> owner-items counts vs list</td><td>R10.3/R10.4: organizer tabs filter like the counts; owner counts include reserved; <code>count_owner_items</code> consistent by construction</td></tr>
+    <tr><td><b>M6</b> visibility-only PUT deletes the listing</td><td>R12.3 validator rejects <code>visibility</code> with no mode (400 (fieldErrors — the app's validation handler)); R12.4 the toggle sends <code>mode</code> + <code>visibility</code>; tests both sides</td></tr>
+    <tr><td><b>M7</b> test blast radius</td><td>the complete list of 17 files, the two <code>noContext</code> flips and the migration-chain note</td></tr>
+    <tr><td><b>L1</b> offered-item reserver label</td><td>R8.1: the receiving party; on the offered item, the listing owner</td></tr>
+    <tr><td><b>L2</b> copy vs mockups</td><td>R5.8, R8.5, R5.11 aligned with the mockups</td></tr>
+    <tr><td><b>L3</b> disabled reason and hint copy</td><td>R2.2 <code>location === null</code> is the reason; R5.5 hint copy for both buttons</td></tr>
+    <tr><td><b>L4</b> <code>include_private</code> callers, <code>exchange_summary</code></td><td>R13.1 complete list; R7.3 <code>exchange_summary</code> also blocks on PROPOSED</td></tr>
+    <tr><td><b>L5</b> circulation importing <code>app.users.service</code></td><td>R1.3 via <code>identity.get_user_id_by_principal</code> + Core <code>find_party_id_by_user_id</code></td></tr>
+    <tr><td><b>L6</b> nullable accept fields in the frontend</td><td>R5.12</td></tr>
+    <tr><td><b>L7</b> lost DB safety net</td><td>Not resolved: accepted risk, with a pinning test</td></tr>
+    <tr><td><b>L8</b> <code>AuthGateSheet</code> path, <code>ItemContextResponse</code> type</td><td>R5.5 correct path; R5.9 the type moves to <code>api/itemActions.ts</code></td></tr>
+    <tr><td><b>L9</b> stale anonymous data after login</td><td>Technical Approach step 6: viewer discriminator in keys</td></tr>
+    <tr><td><b>L10</b> wording, 0075 data loss, membership vs RSVP</td><td>R2.5 wording fixed; R1.1 runbook note; R13.3 states the 404 for RSVP-only non-members</td></tr>
+    <tr><td>Extra: chat rate limit after reservation</td><td>R5.7 shows the reservation as successful, with the chat error separately</td></tr>
+    <tr><td>Extra: offered-item proposal race</td><td>Out of Scope (pre-existing, follow-up)</td></tr>
+  </table>
+</details>
+</main>
+</body>
+</html>

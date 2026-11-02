@@ -1,6 +1,7 @@
 """`/api/item-listing-preferences`, `/api/inventory-items/mine` and
-`/api/term-item-listings` routes
-(`app/groups/router/term_item_listings.py`) and
+`/api/term-item-listings` routes (`app/groups/router/term_item_listings.py`),
+term takes/proposals through `POST /api/items/{id}/take|propose`
+(`app/groups/router/item_reservations.py`) and
 `POST /api/groups/mine/attendances/{id}/withdraw`
 (`app/groups/router/circles.py`) — the HTTP-layer counterpart to
 `test_term_item_listings.py`/`test_attendance_withdrawal.py`, which
@@ -9,9 +10,10 @@ exercise the same use cases directly against `db_session`.
 
 from __future__ import annotations
 
+import uuid
 from datetime import date, timedelta
 
-from httpx import AsyncClient
+from httpx import AsyncClient, Response
 
 from app.core import clock
 from tests.conftest import leaf_category_ids
@@ -19,6 +21,40 @@ from tests.conftest import leaf_category_ids
 
 def _auth(token: str) -> dict[str, str]:
     return {"Authorization": f"Bearer {token}"}
+
+
+async def _take(client: AsyncClient, token: str, item_id: int, term_id: int) -> Response:
+    return await client.post(
+        f"/api/items/{item_id}/take",
+        json={"context": {"kind": "TERM", "id": term_id}, "reservation_type": "GIFT"},
+        headers=_auth(token),
+    )
+
+
+async def _taken_reservation_id(
+    client: AsyncClient, token: str, item_id: int, term_id: int
+) -> int:
+    """The taker's reservation of `item_id`, read from the term's
+    `mine-as-taker` listing view."""
+    rows = (
+        await client.get(
+            "/api/term-item-listings/mine-as-taker",
+            params={"term_id": term_id},
+            headers=_auth(token),
+        )
+    ).json()
+    (row,) = [row for row in rows if row["item_id"] == item_id]
+    return row["resolved_reservation_id"]
+
+
+async def _propose(
+    client: AsyncClient, token: str, listing_item_id: int, offered_item_id: int, term_id: int
+) -> Response:
+    return await client.post(
+        f"/api/items/{listing_item_id}/propose",
+        json={"context": {"kind": "TERM", "id": term_id}, "offered_item_id": offered_item_id},
+        headers=_auth(token),
+    )
 
 
 async def _register(client: AsyncClient, role: str, email: str) -> tuple[str, int]:
@@ -115,13 +151,9 @@ async def test_listAndTake_fullHappyPath_reservationEndsUpConfirmed(client: Asyn
     assert browse.status_code == 200
     assert [row["item_id"] for row in browse.json()] == [item_id]
 
-    take = await client.post(
-        f"/api/term-item-listings/{item_id}/take",
-        json={"term_id": term_id, "reservation_type": "GIFT"},
-        headers=_auth(taker_token),
-    )
+    take = await _take(client, taker_token, item_id, term_id)
     assert take.status_code == 200
-    reservation_id = take.json()["resolved_reservation_id"]
+    reservation_id = await _taken_reservation_id(client, taker_token, item_id, term_id)
     assert reservation_id is not None
 
     reservation = await client.get(
@@ -129,7 +161,7 @@ async def test_listAndTake_fullHappyPath_reservationEndsUpConfirmed(client: Asyn
     )
     assert reservation.status_code == 200
     # No longer auto-confirmed on the lister's behalf at take-time (Group 3
-    # removed `take_item_listing`'s auto-confirm) — the `Reservation` stays
+    # removed the take's auto-confirm) — the `Reservation` stays
     # `PENDING` until either party resolves it via `confirm-transaction`
     # once the Term ends.
     assert reservation.json()["status"] == "PENDING"
@@ -238,6 +270,7 @@ async def test_listMyInventoryItems_returnsOnlyCallersOwnWithModeAndReflectsClea
                 "created_at",
                 "updated_at",
                 "listing_mode",
+                "listing_visibility",
                 "listing_status",
                 "photos_moderation_pending",
                 "thumb_url",
@@ -364,11 +397,7 @@ async def test_proposeSwap_returns2xxWithProposalPayload(client: AsyncClient) ->
     offered_item_id = await _register_personal_item(client, proposer_token, "Gra planszowa")
     await _set_preference(client, proposer_token, offered_item_id, "SWAP")
 
-    propose = await client.post(
-        f"/api/term-item-listings/{listing_item_id}/propose",
-        json={"term_id": term_id, "offered_item_id": offered_item_id},
-        headers=_auth(proposer_token),
-    )
+    propose = await _propose(client, proposer_token, listing_item_id, offered_item_id, term_id)
     assert propose.status_code in (200, 201)
     body = propose.json()
     assert body["listing_item_id"] == listing_item_id
@@ -390,11 +419,7 @@ async def test_acceptSwapProposal_returns2xxWithUpdatedStatus(client: AsyncClien
     offered_item_id = await _register_personal_item(client, proposer_token, "Lalka")
     await _set_preference(client, proposer_token, offered_item_id, "SWAP")
 
-    propose = await client.post(
-        f"/api/term-item-listings/{listing_item_id}/propose",
-        json={"term_id": term_id, "offered_item_id": offered_item_id},
-        headers=_auth(proposer_token),
-    )
+    propose = await _propose(client, proposer_token, listing_item_id, offered_item_id, term_id)
     assert propose.status_code in (200, 201)
     proposal_id = propose.json()["id"]
 
@@ -419,11 +444,7 @@ async def test_rejectSwapProposal_returns2xxWithUpdatedStatus(client: AsyncClien
     offered_item_id = await _register_personal_item(client, proposer_token, "Piłka")
     await _set_preference(client, proposer_token, offered_item_id, "SWAP")
 
-    propose = await client.post(
-        f"/api/term-item-listings/{listing_item_id}/propose",
-        json={"term_id": term_id, "offered_item_id": offered_item_id},
-        headers=_auth(proposer_token),
-    )
+    propose = await _propose(client, proposer_token, listing_item_id, offered_item_id, term_id)
     assert propose.status_code in (200, 201)
     proposal_id = propose.json()["id"]
 
@@ -453,11 +474,7 @@ async def test_swapLifecycle_proposeAcceptTermEndConfirm_bothLegsFulfilledThroug
     offered_item_id = await _register_personal_item(client, proposer_token, "Keyboard")
     await _set_preference(client, proposer_token, offered_item_id, "SWAP")
 
-    propose = await client.post(
-        f"/api/term-item-listings/{listing_item_id}/propose",
-        json={"term_id": term_id, "offered_item_id": offered_item_id},
-        headers=_auth(proposer_token),
-    )
+    propose = await _propose(client, proposer_token, listing_item_id, offered_item_id, term_id)
     assert propose.status_code in (200, 201)
     proposal = propose.json()
     proposer_reservation_id = proposal["proposer_reservation_id"]
@@ -519,11 +536,7 @@ async def test_confirmOrCancelTransaction_unacceptedSwapProposerLeg_returns409An
         await client.get(f"/api/inventory-items/{offered_item_id}", headers=_auth(proposer_token))
     ).json()["inventory_id"]
 
-    propose = await client.post(
-        f"/api/term-item-listings/{listing_item_id}/propose",
-        json={"term_id": term_id, "offered_item_id": offered_item_id},
-        headers=_auth(proposer_token),
-    )
+    propose = await _propose(client, proposer_token, listing_item_id, offered_item_id, term_id)
     assert propose.status_code in (200, 201)
     proposer_reservation_id = propose.json()["proposer_reservation_id"]
     await _end_term(client, org_token, term_id)
@@ -561,19 +574,15 @@ async def _take_gift_listing(
     """Sets up a GIFT listing, takes it, and returns the resulting (still
     `PENDING`) reservation id — shared setup for the confirm-transaction
     tests below. Must be called while `term_id` is still upcoming:
-    `take_item_listing` itself rejects a take against an already-past Term."""
+    `take_item` itself rejects a take against an already-past Term."""
     await _rsvp(client, lister_token, group_id, term_id)
     item_id = await _register_personal_item(client, lister_token, f"Rzecz {prefix}")
     await _set_preference(client, lister_token, item_id, "GIFT")
 
     await _rsvp(client, taker_token, group_id, term_id)
-    take = await client.post(
-        f"/api/term-item-listings/{item_id}/take",
-        json={"term_id": term_id, "reservation_type": "GIFT"},
-        headers=_auth(taker_token),
-    )
+    take = await _take(client, taker_token, item_id, term_id)
     assert take.status_code == 200
-    reservation_id = take.json()["resolved_reservation_id"]
+    reservation_id = await _taken_reservation_id(client, taker_token, item_id, term_id)
     assert reservation_id is not None
     return reservation_id
 
@@ -765,7 +774,8 @@ async def test_listMyInventoryItems_softDeletedItem_isExcluded(client: AsyncClie
 
 async def test_newExchangeRoutes_unauthenticated_return401(client: AsyncClient) -> None:
     propose = await client.post(
-        "/api/term-item-listings/1/propose", json={"term_id": 1, "offered_item_id": 1}
+        f"/api/items/{uuid.uuid4()}/propose",
+        json={"context": {"kind": "TERM", "id": str(uuid.uuid4())}, "offered_item_id": 1},
     )
     assert propose.status_code == 401
 
@@ -835,11 +845,7 @@ async def test_listMineAsTaker_takeOfLaterTerm_showsOnlyOwnTakesOfThatTerm(
     await _rsvp(client, owner_token, group_id, later_term_id)
     other_item_id = await _register_personal_item(client, other_lister_token, "Namiot 31")
     await _set_preference(client, other_lister_token, other_item_id, "GIFT")
-    take = await client.post(
-        f"/api/term-item-listings/{other_item_id}/take",
-        json={"term_id": later_term_id, "reservation_type": "GIFT"},
-        headers=_auth(owner_token),
-    )
+    take = await _take(client, owner_token, other_item_id, later_term_id)
     assert take.status_code == 200
 
     ended_term_list = await client.get(

@@ -1,10 +1,13 @@
-"""The anonymous owner items page behind `/<org-slug>/items` and
+"""The public owner items page behind `/<org-slug>/items` and
 `/<party-id>/items`: one owner's listed items (a listing preference on a live
-AVAILABLE item), newest first, plus the owner's nearest public date.
+AVAILABLE, RESERVED or IN_TRANSIT item, with its reserved badge), newest
+first, plus the owner's nearest public date. The mode counts include
+reserved items, so they match the mode-filtered list and GIFT + SWAP is
+every listed item (`count_owner_items`).
 
 The statement count does not depend on the number of items: owner
-resolution, mode counts, the page and the thumbnails are a fixed number of
-statements, and so is the nearest date (one term statement, one events
+resolution, mode counts, the page, the thumbnails and the reserver names
+are a fixed number of statements, and so is the nearest date (one term statement, one events
 statement through `events_acl`, then the winner's place and slug). The
 per-item helpers of `term_item_listings.py` are not used, because they run
 several queries per item.
@@ -14,11 +17,13 @@ Also used by the organizer page (`recent_items`, `owner_nearest`)."""
 from __future__ import annotations
 
 import uuid
-from typing import cast
+from typing import Any, cast
 
+from sqlalchemy import Select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core import clock
+from app.core.auth_deps import Principal
 from app.core.errors import EntityNotFoundException
 from app.core.pagination import PageParams
 from app.storage.service import ObjectStorage
@@ -42,6 +47,7 @@ from ..schemas import (
     OwnerNearestDateResponse,
     OwnerSummaryResponse,
 )
+from .reserved_by import load_reserved_by_names, resolve_viewer_party_id
 
 
 async def resolve_organization_owner(
@@ -61,10 +67,12 @@ async def resolve_organization_owner(
     return organization, owner_party_id
 
 
+def _listed_items() -> Select[Any]:
+    return repository.with_pending_proposer(circulation_bridge.listed_items_with_product_select())
+
+
 async def _counts(db: AsyncSession, party_id: uuid.UUID) -> OwnerItemCountsResponse:
-    counts = await repository.count_owner_listed_items_by_mode(
-        db, party_id, circulation_bridge.available_items_with_product_select()
-    )
+    counts = await repository.count_owner_listed_items_by_mode(db, party_id, _listed_items())
     return OwnerItemCountsResponse(GIFT=counts.get("GIFT", 0), SWAP=counts.get("SWAP", 0))
 
 
@@ -80,15 +88,12 @@ async def _list_owner_items(
     offset: int,
     limit: int,
     storage: ObjectStorage | None,
+    viewer_party_id: uuid.UUID | None,
 ) -> list[OwnerItemCardResponse]:
     rows = await repository.list_owner_listed_items_page(
-        db,
-        party_id,
-        circulation_bridge.available_items_with_product_select(),
-        mode,
-        offset,
-        limit,
+        db, party_id, _listed_items(), mode, offset, limit
     )
+    names = await load_reserved_by_names(db, rows, viewer_party_id)
     photos = (
         await product_bridge.first_approved_photo_by_product(db, {row.product_id for row in rows})
         if storage is not None
@@ -107,16 +112,21 @@ async def _list_owner_items(
             mode=cast(ExchangeMode, row.mode),
             thumb_url=thumb_url(row.product_id),
             added_at=row.created_at,
+            reservation=names.row_reservation(row),
         )
         for row in rows
     ]
 
 
 async def list_owner_recent_items(
-    db: AsyncSession, party_id: uuid.UUID, limit: int, storage: ObjectStorage | None
+    db: AsyncSession,
+    party_id: uuid.UUID,
+    limit: int,
+    storage: ObjectStorage | None,
+    viewer_party_id: uuid.UUID | None,
 ) -> list[OwnerItemCardResponse]:
     """The owner's `limit` newest listed items."""
-    return await _list_owner_items(db, party_id, None, 0, limit, storage)
+    return await _list_owner_items(db, party_id, None, 0, limit, storage, viewer_party_id)
 
 
 async def get_owner_nearest(
@@ -179,9 +189,18 @@ async def _build_page(
     params: PageParams,
     mode: ExchangeMode | None,
     storage: ObjectStorage | None,
+    principal: Principal | None,
 ) -> OwnerItemsPageResponse:
     total = counts.GIFT + counts.SWAP if mode is None else getattr(counts, mode)
-    items = await _list_owner_items(db, owner.party_id, mode, params.offset, params.size, storage)
+    items = await _list_owner_items(
+        db,
+        owner.party_id,
+        mode,
+        params.offset,
+        params.size,
+        storage,
+        await resolve_viewer_party_id(db, principal),
+    )
     return OwnerItemsPageResponse(
         owner=owner,
         nearest=await get_owner_nearest(db, owner.party_id),
@@ -199,13 +218,14 @@ async def get_organization_owner_items(
     params: PageParams,
     mode: ExchangeMode | None,
     storage: ObjectStorage | None,
+    principal: Principal | None = None,
 ) -> OwnerItemsPageResponse:
     organization, owner_party_id = await resolve_organization_owner(db, slug)
     owner = OwnerSummaryResponse(
         party_id=owner_party_id, display_name=organization.name, slug=organization.slug
     )
     counts = await _counts(db, owner_party_id)
-    return await _build_page(db, owner, counts, params, mode, storage)
+    return await _build_page(db, owner, counts, params, mode, storage, principal)
 
 
 async def get_party_owner_items(
@@ -214,6 +234,7 @@ async def get_party_owner_items(
     params: PageParams,
     mode: ExchangeMode | None,
     storage: ObjectStorage | None,
+    principal: Principal | None = None,
 ) -> OwnerItemsPageResponse:
     """404 when the party has no user profile (e.g. an Organization's own
     party) or no listed item at all, so a bare party id does not reveal a
@@ -224,4 +245,4 @@ async def get_party_owner_items(
     if counts.GIFT + counts.SWAP == 0:
         raise EntityNotFoundException("Party", party_id)
     owner = await owner_summary(db, profile)
-    return await _build_page(db, owner, counts, params, mode, storage)
+    return await _build_page(db, owner, counts, params, mode, storage, principal)

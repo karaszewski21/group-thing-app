@@ -39,7 +39,7 @@ function eventFixture(overrides: Partial<EventResponse> = {}): EventResponse {
 }
 
 function item(id: string, productName: string, mode: EventParticipantItem["mode"]): EventParticipantItem {
-  return { item_id: id, product_name: productName, mode, thumb_url: null, added_at: "2026-10-30T09:00:00" };
+  return { item_id: id, product_name: productName, mode, thumb_url: null, added_at: "2026-10-30T09:00:00", reservation: null };
 }
 
 function participant(overrides: Partial<EventParticipant> = {}): EventParticipant {
@@ -113,7 +113,7 @@ describe("EventAttendeeList", () => {
     expect(screen.queryByText(EMPTY_COPY)).not.toBeInTheDocument();
   });
 
-  it("links every item to its product page under the author slug, with its mode label", () => {
+  it("links every item to its product page under the author slug, with its intent pill", () => {
     renderWithProviders(
       <EventAttendeeList
         authorSlug="zielony-krag"
@@ -123,13 +123,13 @@ describe("EventAttendeeList", () => {
     );
     const gift = screen.getByRole("link", { name: /Pluszowy miś/ });
     expect(gift).toHaveAttribute("href", "/zielony-krag/product/it-1");
-    expect(gift).toHaveTextContent("Weź na stałe");
+    expect(gift).toHaveTextContent("Chcę oddać");
     const swap = screen.getByRole("link", { name: /Rowerek/ });
     expect(swap).toHaveAttribute("href", "/zielony-krag/product/it-2");
-    expect(swap).toHaveTextContent("Zamiana");
+    expect(swap).toHaveTextContent("Chcę się zamienić");
   });
 
-  it("shows 3 items, then Pokaż więcej (N) › to the participant's items page with the event context", () => {
+  it("shows 3 items, then Pokaż więcej (N) › to the participant's items page, no event query", () => {
     render(
       <MemoryRouter initialEntries={["/zielony-krag/event/ev-1"]}>
         <Routes>
@@ -152,10 +152,10 @@ describe("EventAttendeeList", () => {
       </MemoryRouter>,
     );
     expect(screen.getAllByRole("link", { name: /Miś|Rowerek|Książeczki/ })).toHaveLength(3);
-    expect(screen.getByRole("link", { name: /Rowerek/ })).toHaveAttribute("href", "/zielony-krag/product/it-2?event=ev-1");
+    expect(screen.getByRole("link", { name: /Rowerek/ })).toHaveAttribute("href", "/zielony-krag/product/it-2");
     const more = screen.getByRole("link", { name: "Pokaż więcej (5)" });
     expect(more).toHaveTextContent("Pokaż więcej (5) ›");
-    expect(more).toHaveAttribute("href", "/p-author/items?event=ev-1");
+    expect(more).toHaveAttribute("href", "/p-author/items");
     expect(screen.queryByRole("button", { name: /Pokaż wszystkie/ })).not.toBeInTheDocument();
   });
 

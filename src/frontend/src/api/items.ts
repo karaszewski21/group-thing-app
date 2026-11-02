@@ -27,6 +27,8 @@ export interface ItemStatusResponse {
   event_id?: string | null;
   /** The event author's slug, for `eventPath(event_slug, event_id)`. */
   event_slug?: string | null;
+  /** The item's open reservation is a personal pickup (no term or event). */
+  personal_pickup: boolean;
 }
 
 /** The item page's read model. `description` and `photos` belong to the

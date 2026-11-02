@@ -18,7 +18,6 @@ from app.groups import service
 from app.groups.application.term_end_scan import scan_for_term_ended
 from app.groups.domain import swap_events
 from app.groups.models import Term
-from app.groups.schemas import TakeTermItemListingRequest
 from tests.test_group_soft_delete_reads import _soft_delete_row
 from tests.test_organizer_page import _needed_item
 from tests.test_term_end_scan import _outbox_payloads, _push_term_into_past
@@ -26,9 +25,11 @@ from tests.test_term_item_listings import (
     _auth,
     _create_circle_and_term,
     _principal,
+    _propose_in_term,
     _register,
     _register_personal_item,
     _rsvp,
+    _take_in_term,
 )
 
 
@@ -44,12 +45,7 @@ async def _taken_gift(
     await service.set_item_listing_preference(
         db_session, _principal(lister_token), item_id, ReservationType.GIFT
     )
-    taken = await service.take_item_listing(
-        db_session,
-        _principal(taker_token),
-        item_id,
-        TakeTermItemListingRequest(term_id=term_id, reservation_type="GIFT"),
-    )
+    taken = await _take_in_term(db_session, _principal(taker_token), item_id, term_id)
     assert taken.resolved_reservation_id is not None
     return taken.resolved_reservation_id
 
@@ -185,7 +181,7 @@ async def test_listSwapProposalsForMyItem_onDeletedGroup_stillAnswers(
         await service.set_item_listing_preference(
             db_session, _principal(token), item_id, ReservationType.SWAP
         )
-    proposal = await service.propose_swap(
+    proposal = await _propose_in_term(
         db_session, _principal(proposer_token), listed_item_id, offered_item_id, term_id
     )
 

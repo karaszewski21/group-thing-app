@@ -87,6 +87,10 @@ vi.mock("../api/inventories", () => ({
   // factory below replaces the whole module, so the constant must be
   // re-exported here too, not just the mocked functions.
   ACTIVE_LOCK_BALANCE_STATUSES: ["RESERVED", "IN_TRANSIT"],
+  // MyItemsView's pickup-place card (InventoryLocationCard) reads it on mount;
+  // its value is re-set in mockGuestDefaults/mockOrganizerDefaults.
+  getMyInventoryLocation: vi.fn(),
+  setMyInventoryLocation: vi.fn(),
 }));
 
 vi.mock("../api/itemListingPreferences", () => ({
@@ -149,18 +153,18 @@ vi.mock("../api/categories", () => ({
 }));
 
 // MyItemsView's swap-offer actions — mocked so no real network call happens.
-vi.mock("../api/termItemListings", () => ({
+vi.mock("../api/termItemListings", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("../api/termItemListings")>()),
   getMyTermItemListings: vi.fn(),
   getBrowseTermItemListings: vi.fn(),
   getMyTakenTermItemListings: vi.fn(),
-  takeTermItemListing: vi.fn(),
-  proposeSwap: vi.fn(),
   acceptSwapProposal: vi.fn(),
   rejectSwapProposal: vi.fn(),
   getSwapProposalsForItem: vi.fn(),
 }));
 
-vi.mock("../api/reservations", () => ({
+vi.mock("../api/reservations", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("../api/reservations")>()),
   getReservation: vi.fn(),
   confirmTransaction: vi.fn(),
   // Bug #4c: MyItemsView's "Anuluj wymianę" tile fallback button.
@@ -407,6 +411,7 @@ function mockGuestDefaults() {
   vi.mocked(inventoriesApi.getInventories).mockResolvedValue([mockInventory]);
   vi.mocked(inventoriesApi.getMyInventoryItems).mockResolvedValue([]);
   vi.mocked(inventoriesApi.getInventoryItemBalances).mockResolvedValue({});
+  vi.mocked(inventoriesApi.getMyInventoryLocation).mockResolvedValue({ location: null });
   vi.mocked(familiesApi.getMyFamilies).mockResolvedValue([]);
   vi.mocked(familiesApi.getMembershipsForFamily).mockResolvedValue([]);
   vi.mocked(familiesApi.getGuardians).mockResolvedValue([]);
@@ -428,6 +433,7 @@ function mockOrganizerDefaults() {
   vi.mocked(inventoriesApi.getInventories).mockResolvedValue([mockInventory]);
   vi.mocked(inventoriesApi.getMyInventoryItems).mockResolvedValue([]);
   vi.mocked(inventoriesApi.getInventoryItemBalances).mockResolvedValue({});
+  vi.mocked(inventoriesApi.getMyInventoryLocation).mockResolvedValue({ location: null });
   vi.mocked(groupsApi.getGroup).mockResolvedValue(mockGroup);
   vi.mocked(termsApi.getTerms).mockResolvedValue([]);
   vi.mocked(termsApi.getNeededItems).mockResolvedValue([]);
@@ -1665,6 +1671,7 @@ describe("AppPage — inventory item edit/delete", () => {
     created_at: "",
     updated_at: "",
     listing_mode: null,
+    listing_visibility: null,
     listing_status: "DRAFT" as const,
     photos_moderation_pending: false,
   };
@@ -1725,6 +1732,7 @@ describe("AppPage — mode toggle errors and photo-moderation poll", () => {
     created_at: "",
     updated_at: "",
     listing_mode: null,
+    listing_visibility: null,
     listing_status: "DRAFT" as const,
     photos_moderation_pending: false,
   };
@@ -2213,6 +2221,7 @@ describe("AppPage — MyItemsView post-term-end fallback buttons (Bug #4c, full 
     created_at: "",
     updated_at: "",
     listing_mode: null,
+    listing_visibility: null,
     listing_status: "DRAFT" as const,
     photos_moderation_pending: false,
   };
@@ -2229,12 +2238,13 @@ describe("AppPage — MyItemsView post-term-end fallback buttons (Bug #4c, full 
       reservation_type: "SWAP",
       reserved_by_user_id: "1",
       term_id: ENDED_TERM_ID,
-      paired_reservation_id: null,
+      paired_reservation_id: "89", // a paired SWAP leg — an unpaired one is never settled
       reserved_at: "",
       expires_at: null,
       status: "CONFIRMED",
       notes: null,
       term_occurs_on: "2020-01-01T10:00:00", // long past — term has ended
+      personal_pickup: false,
     });
     vi.mocked(reservationsApi.confirmTransaction).mockResolvedValue({
       reservation_id: "88",
@@ -2275,6 +2285,7 @@ describe("AppPage — MyItemsView swap accept success sheet", () => {
     created_at: "",
     updated_at: "",
     listing_mode: "SWAP" as const,
+    listing_visibility: "PUBLIC" as const,
     listing_status: "ACTIVE" as const,
     photos_moderation_pending: false,
   };
@@ -2330,7 +2341,7 @@ describe("AppPage — MyItemsView swap accept success sheet", () => {
     expect(screen.queryByRole("dialog", { name: "Zamiana zaakceptowana" })).not.toBeInTheDocument();
   });
 
-  it("with a single offer and no term data hides the other-offers line, the date and the calendar", async () => {
+  it("a personal swap (no term or event) opens no sheet and points to the chat instead", async () => {
     vi.mocked(termItemListingsApi.acceptSwapProposal).mockResolvedValue({
       ...accepted,
       term_id: null,
@@ -2340,11 +2351,10 @@ describe("AppPage — MyItemsView swap accept success sheet", () => {
     });
     await acceptFirstOffer([offer("p1", "Rowerek")]);
 
-    const dialog = await screen.findByRole("dialog", { name: "Zamiana zaakceptowana" });
-    expect(dialog).toHaveTextContent("„Kask” ↔ „Rowerek”");
-    expect(dialog).not.toHaveTextContent(/ o \d{2}:\d{2}/);
-    expect(dialog).not.toHaveTextContent("Pozostałe propozycje");
-    expect(within(dialog).queryByRole("button", { name: /Dodaj do kalendarza/ })).not.toBeInTheDocument();
+    expect(
+      await screen.findByText("Zamiana przyjęta — odbiór osobisty, ustalcie szczegóły na czacie."),
+    ).toBeInTheDocument();
+    expect(screen.queryByRole("dialog", { name: "Zamiana zaakceptowana" })).not.toBeInTheDocument();
   });
 
   it("a failed accept keeps the inline error and opens no sheet", async () => {

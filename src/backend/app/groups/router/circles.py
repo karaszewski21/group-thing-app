@@ -15,11 +15,12 @@ from __future__ import annotations
 import uuid
 from typing import Annotated, cast
 
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends, Response, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
 from app.core.auth_deps import OptionalPrincipal, Principal, require_any
+from app.core.cache_headers import set_personalised_cache_headers
 from app.core.errors import EntityNotFoundException
 from app.core.pagination import Page, Pagination
 from app.core.security import encode_login_token
@@ -158,6 +159,7 @@ async def get_group_access(
     group_id: uuid.UUID,
     db: DbSession,
     storage: Storage,
+    response: Response,
     principal: OptionalPrincipal = None,
     term_id: uuid.UUID | None = None,
 ) -> GroupAccessResponse:
@@ -168,7 +170,9 @@ async def get_group_access(
     a missing/malformed/expired token degrades to both `False`, never a 401
     — replaces the frontend's previous "any auth token = member view"
     heuristic with a real, server-resolved relationship."""
-    return await service.get_group_access(db, group_id, term_id, principal, storage)
+    access = await service.get_group_access(db, group_id, term_id, principal, storage)
+    set_personalised_cache_headers(response, principal)
+    return access
 
 
 @router.post(

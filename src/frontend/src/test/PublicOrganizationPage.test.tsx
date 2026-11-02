@@ -82,7 +82,7 @@ const MY_ORGANIZATION = {
 const DIRECTORY: groupsApi.OrganizerPageResponse = {
   circles: [],
   upcoming_terms: [],
-  exchange: { counts: { GIFT: 0, SWAP: 0 }, items: [] },
+  exchange: { counts: { GIFT: 0, SWAP: 0, RESERVED: 0 }, items: [] },
   needed_items: [],
   recent_items: [],
   owner_nearest: null,

@@ -136,22 +136,36 @@ async def test_getOwnerPartyId_twoActiveOwners_returnsEarliestMembershipOwner(
     assert await organizations_acl.get_owner_party_id(db_session, organization.id) == owner_party_id
 
 
-async def test_listAvailableItemsWithProduct_onlyLiveAvailableItems_returnsViews(
+async def test_listedItemsWithProductSelect_liveListableItems_availableOnlyViewsStayAvailable(
     client: AsyncClient, db_session: AsyncSession
 ) -> None:
     token, _ = await _register(client, "GUEST", "bridge-items@example.com")
-    available_id, reserved_id, deleted_id = await _register_items(
-        client, token, "Mostek rower", "Mostek hulajnoga", "Mostek kask"
+    available_id, reserved_id, in_transit_id, lent_id, deleted_id = await _register_items(
+        client,
+        token,
+        "Mostek rower",
+        "Mostek hulajnoga",
+        "Mostek rolki",
+        "Mostek namiot",
+        "Mostek kask",
     )
     await _set_balance(db_session, reserved_id, BalanceStatus.RESERVED)
+    await _set_balance(db_session, in_transit_id, BalanceStatus.IN_TRANSIT)
+    await _set_balance(db_session, lent_id, BalanceStatus.LENT)
     (await _item(db_session, deleted_id)).deleted_at = datetime.now()
     await db_session.flush()
     available = await _item(db_session, available_id)
+    item_ids = [available_id, reserved_id, in_transit_id, lent_id, deleted_id]
 
-    views = await circulation_bridge.list_available_items_with_product(
-        db_session, [available_id, reserved_id, deleted_id]
-    )
+    listed = circulation_bridge.listed_items_with_product_select().subquery()
+    rows = (await db_session.execute(select(listed).where(listed.c.item_id.in_(item_ids)))).all()
+    views = await circulation_bridge.list_available_items_with_product(db_session, item_ids)
 
+    assert {(row.item_id, row.balance_status) for row in rows} == {
+        (available_id, BalanceStatus.AVAILABLE),
+        (reserved_id, BalanceStatus.RESERVED),
+        (in_transit_id, BalanceStatus.IN_TRANSIT),
+    }
     assert views == {
         available_id: circulation_bridge.AvailableItemView(
             item_id=available_id,

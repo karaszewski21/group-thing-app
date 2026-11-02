@@ -50,7 +50,7 @@ DETAIL_KEYS = {
 }
 ORGANIZATION_KEYS = {"name", "primary_color", "accent_color", "palette_preset"}
 PARTICIPANT_KEYS = {"party_id", "display_name", "is_author", "is_me", "items", "items_total"}
-ITEM_KEYS = {"item_id", "product_name", "mode", "thumb_url", "added_at"}
+ITEM_KEYS = {"item_id", "product_name", "mode", "thumb_url", "added_at", "reservation"}
 
 
 @pytest.fixture(autouse=True)
@@ -362,7 +362,7 @@ async def test_getEvent_afterLoggedInWithdraw_attendeeLeavesListAndIsAttendingFa
     assert [p["is_me"] for p in as_leaver["participants"]] == [False, False]
 
 
-async def test_getEvent_participantItems_onlyAvailableListedItems(
+async def test_getEvent_participantItems_listedLiveItemsIncludingReserved(
     client: AsyncClient, db_session: AsyncSession
 ) -> None:
     author = await _register(client, "page.items.author@example.com")
@@ -388,7 +388,9 @@ async def test_getEvent_participantItems_onlyAvailableListedItems(
     await db_session.commit()
     await _attend(client, event_id, attendee)
 
-    await _set_added_at(db_session, {klocki: NOW - timedelta(days=2), auto: NOW})
+    await _set_added_at(
+        db_session, {klocki: NOW - timedelta(days=2), rower: NOW - timedelta(days=1), auto: NOW}
+    )
 
     body = await _page(client, event_id)
 
@@ -399,22 +401,38 @@ async def test_getEvent_participantItems_onlyAvailableListedItems(
             "product_name": "Pi Zabawka autora",
             "mode": "GIFT",
             "thumb_url": None,
+            "reservation": None,
         }
     ]
     assert [_without_added_at(item) for item in attendee_row["items"]] == [
-        {"item_id": str(auto), "product_name": "Pi Auto", "mode": "SWAP", "thumb_url": None},
+        {
+            "item_id": str(auto),
+            "product_name": "Pi Auto",
+            "mode": "SWAP",
+            "thumb_url": None,
+            "reservation": None,
+        },
+        {
+            "item_id": str(rower),
+            "product_name": "Pi Rower",
+            "mode": "SWAP",
+            "thumb_url": None,
+            "reservation": {"by_name": None, "by_me": False},
+        },
         {
             "item_id": str(klocki),
             "product_name": "Pi Klocki",
             "mode": "GIFT",
             "thumb_url": "https://cdn.test/pi-klocki/w400.webp",
+            "reservation": None,
         },
     ]
     assert [item["added_at"] for item in attendee_row["items"]] == [
         NOW.isoformat(),
+        (NOW - timedelta(days=1)).isoformat(),
         (NOW - timedelta(days=2)).isoformat(),
     ]
-    assert (author_row["items_total"], attendee_row["items_total"]) == (1, 2)
+    assert (author_row["items_total"], attendee_row["items_total"]) == (1, 3)
 
 
 async def _set_added_at(db_session: AsyncSession, added_at: dict[uuid.UUID, datetime]) -> None:

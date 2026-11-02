@@ -144,14 +144,15 @@ def test_resolveRequirement_publicGroup_notRegressedByGroupsPatchRow() -> None:
     assert resolve_requirement("GET", "/api/groups/public/some-id") == "PUBLIC"
 
 
-def test_resolveRequirement_termItemListingsBrowseAndTake_andWithdrawAttendance() -> None:
+def test_resolveRequirement_termItemListingsBrowse_andWithdrawAttendance() -> None:
     """Rows for the exchange mechanism (`/api/term-item-listings`,
     `/api/item-listing-preferences`), plus confirmation that
     `POST /api/groups/mine/attendances/{id}/withdraw` needs no new row of
     its own — it falls under the pre-existing blanket
-    `POST ^/api/groups(/.*)?$` row (row 27)."""
+    `POST ^/api/groups(/.*)?$` row (row 27). The term take/propose POSTs
+    are gone, so they fall through to the catch-all."""
     assert resolve_requirement("GET", "/api/term-item-listings/browse") == READ
-    assert resolve_requirement("POST", "/api/term-item-listings/123/take") == EDIT
+    assert resolve_requirement("POST", "/api/term-item-listings/123/take") == "AUTHENTICATED"
     assert resolve_requirement("PUT", "/api/item-listing-preferences/123") == EDIT
     assert resolve_requirement("POST", "/api/groups/mine/attendances/42/withdraw") == EDIT
 
@@ -284,6 +285,8 @@ def test_resolveRequirement_groupSoftDeleteAndLeadershipRows_resolveToExpectedRo
         ("POST", "/api/events/x/banner", EDIT),
         ("POST", "/api/events/x/attendances", "PUBLIC"),
         ("POST", "/api/events/x/attendances/withdraw", EDIT),
+        ("GET", "/api/inventories/mine/location", READ),
+        ("PUT", "/api/inventories/mine/location", EDIT),
     ],
 )
 def test_resolveRequirement_locationRows_resolveToExpectedRowNotCatchAll(
@@ -339,10 +342,28 @@ def test_resolveRequirement_itemsPageReadRoutes_resolveToPublic(path: str) -> No
     assert resolve_requirement("GET", path) == "PUBLIC"
 
 
-@pytest.mark.parametrize("action", ["take", "propose"])
-def test_resolveRequirement_eventItemTakeOrPropose_requiresEdit(action: str) -> None:
-    path = f"/api/events/{uuid.uuid4()}/items/{uuid.uuid4()}/{action}"
-    assert resolve_requirement("POST", path) == EDIT
+def test_matrix_removedReservationRows_absent() -> None:
+    """The old term/event take/propose rows are gone; the GET term-item-listings
+    rows and the swap-proposal/reservation action rows stay."""
+    patterns = {(entry.methods, entry.pattern.pattern) for entry in AUTHORIZATION_MATRIX}
+    for removed in (
+        r"^/api/term-item-listings(/.*)?$",
+        r"^/api/term-item-listings/[^/]+/propose$",
+        r"^/api/events/[^/]+/items/[^/]+/(take|propose)$",
+    ):
+        assert not any(
+            pattern == removed and methods is not None and "POST" in methods
+            for methods, pattern in patterns
+        ), removed
+    for action in ("take", "propose"):
+        event_path = f"/api/events/{uuid.uuid4()}/items/{uuid.uuid4()}/{action}"
+        assert resolve_requirement("POST", event_path) == "AUTHENTICATED"
+        assert resolve_requirement("POST", f"/api/term-item-listings/x/{action}") == "AUTHENTICATED"
+    assert resolve_requirement("GET", "/api/term-item-listings/x/swap-proposals") == READ
+    assert resolve_requirement("POST", "/api/swap-proposals/x/accept") == EDIT
+    assert resolve_requirement("POST", "/api/swap-proposals/x/reject") == EDIT
+    assert resolve_requirement("POST", "/api/reservations/x/confirm-transaction") == EDIT
+    assert resolve_requirement("POST", "/api/reservations/x/cancel-transaction") == EDIT
     assert resolve_requirement("POST", f"/api/events/{uuid.uuid4()}/attendances") == "PUBLIC"
 
 
@@ -383,6 +404,12 @@ def test_resolveRequirement_withoutNewPublicRow_fallsToBlanketRead(
 )
 def test_resolveRequirement_otherInventoryItemGets_stayRead(path: str) -> None:
     assert resolve_requirement("GET", path) == READ
+
+
+@pytest.mark.parametrize("action", ["take", "propose"])
+def test_resolveRequirement_itemTakeOrPropose_requiresEdit(action: str) -> None:
+    assert resolve_requirement("POST", f"/api/items/{uuid.uuid4()}/{action}") == EDIT
+    assert resolve_requirement("POST", f"/api/items/{uuid.uuid4()}/{action}/x") == "AUTHENTICATED"
 
 
 def test_resolveRequirement_postItemsPageReadRoutes_areNotPublic() -> None:

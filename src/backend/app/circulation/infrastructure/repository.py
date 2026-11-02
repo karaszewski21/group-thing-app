@@ -12,12 +12,13 @@ import uuid
 from collections.abc import Collection
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Any
+from typing import Any, cast
 
 from sqlalchemy import (
     ColumnElement,
     Date,
     DateTime,
+    ScalarSelect,
     Select,
     String,
     and_,
@@ -65,6 +66,7 @@ _categories = table(
 _user_profiles = table(
     "user_profiles",
     column("account_user_id", postgresql.UUID(as_uuid=True)),
+    column("party_id", postgresql.UUID(as_uuid=True)),
     column("display_name", String),
 )
 _terms = table(
@@ -84,6 +86,13 @@ _events = table(
     column("author_party_id", postgresql.UUID(as_uuid=True)),
     column("name", String),
     column("starts_at", DateTime),
+)
+# Only for the live-pickup-place check; responses still go through
+# `infrastructure/locations_acl.py`.
+_locations = table(
+    "locations",
+    column("id", postgresql.UUID(as_uuid=True)),
+    column("deleted_at", DateTime),
 )
 _organizations = table(
     "organizations",
@@ -125,6 +134,34 @@ async def find_personal_inventory(db: AsyncSession, owner_user_id: uuid.UUID) ->
         )
     )
     return result.scalars().first()
+
+
+async def find_party_id_by_user_id(db: AsyncSession, user_id: uuid.UUID) -> uuid.UUID | None:
+    """The `parties.id` behind a `users.id`, read through the Core
+    `_user_profiles` ref so circulation never imports `app.users`."""
+    result = await db.execute(
+        select(_user_profiles.c.party_id).where(_user_profiles.c.account_user_id == user_id)
+    )
+    return result.scalar_one_or_none()
+
+
+async def find_personal_inventory_live_location_id(
+    db: AsyncSession, owner_party_id: uuid.UUID
+) -> uuid.UUID | None:
+    """The pickup place of the party's PERSONAL inventory in one statement;
+    `None` without an inventory, a place, or when the place is soft-deleted."""
+    result = await db.execute(
+        select(Inventory.location_id)
+        .join(_user_profiles, _user_profiles.c.account_user_id == Inventory.owner_user_id)
+        .join(_locations, _locations.c.id == Inventory.location_id)
+        .where(
+            _user_profiles.c.party_id == owner_party_id,
+            Inventory.inventory_type == InventoryType.PERSONAL,
+            _locations.c.deleted_at.is_(None),
+        )
+        .limit(1)
+    )
+    return result.scalar_one_or_none()
 
 
 async def get_item(db: AsyncSession, item_id: uuid.UUID) -> InventoryItem | None:
@@ -182,24 +219,50 @@ class AvailableItemView:
     condition: ItemCondition
 
 
-def available_items_with_product_select() -> (
-    Select[tuple[uuid.UUID, uuid.UUID, str, ItemCondition]]
-):
-    """`(item_id, product_id, product_name, condition)` of every live (not
-    soft-deleted) AVAILABLE item. Unexecuted, so a caller can narrow it or
-    join it as a subquery instead of shipping item ids back as an IN-list."""
+_LISTABLE_BALANCE_STATUSES = (
+    BalanceStatus.AVAILABLE,
+    BalanceStatus.RESERVED,
+    BalanceStatus.IN_TRANSIT,
+)
+
+
+def listed_items_with_product_select() -> Select[
+    tuple[uuid.UUID, uuid.UUID, str, ItemCondition, BalanceStatus, uuid.UUID | None]
+]:
+    """`(item_id, product_id, product_name, condition, balance_status,
+    reserved_by_user_id)` of every live (not soft-deleted) item whose balance
+    is AVAILABLE, RESERVED or IN_TRANSIT. `reserved_by_user_id` is who
+    receives the item under its newest active reservation, `None` while it
+    is AVAILABLE. Unexecuted, so a caller can narrow it or join it as a
+    subquery instead of shipping item ids back as an IN-list."""
+    reserver = cast(
+        "ScalarSelect[uuid.UUID | None]",
+        (
+            select(Reservation.reserved_by_user_id)
+            .where(
+                Reservation.item_id == InventoryItem.id,
+                Reservation.status.in_((ReservationStatus.PENDING, ReservationStatus.CONFIRMED)),
+            )
+            .order_by(Reservation.created_at.desc(), Reservation.id.desc())
+            .limit(1)
+            .correlate(InventoryItem)
+            .scalar_subquery()
+        ),
+    )
     return (
         select(
             InventoryBalance.item_id.label("item_id"),
             InventoryItem.product_id.label("product_id"),
             Product.name.label("product_name"),
             InventoryItem.condition.label("condition"),
+            InventoryBalance.status.label("balance_status"),
+            reserver.label("reserved_by_user_id"),
         )
         .join(InventoryBalance, InventoryBalance.item_id == InventoryItem.id)
         .join(Product, Product.id == InventoryItem.product_id)
         .where(
             InventoryItem.deleted_at.is_(None),
-            InventoryBalance.status == BalanceStatus.AVAILABLE,
+            InventoryBalance.status.in_(_LISTABLE_BALANCE_STATUSES),
         )
     )
 
@@ -212,8 +275,19 @@ async def list_available_items_with_product(
     if not item_ids:
         return {}
     result = await db.execute(
-        available_items_with_product_select()
-        .where(InventoryItem.id.in_(item_ids))
+        select(
+            InventoryItem.id,
+            InventoryItem.product_id,
+            Product.name,
+            InventoryItem.condition,
+        )
+        .join(InventoryBalance, InventoryBalance.item_id == InventoryItem.id)
+        .join(Product, Product.id == InventoryItem.product_id)
+        .where(
+            InventoryItem.id.in_(item_ids),
+            InventoryItem.deleted_at.is_(None),
+            InventoryBalance.status == BalanceStatus.AVAILABLE,
+        )
         .order_by(InventoryItem.id)
     )
     return {

@@ -18,7 +18,7 @@ import enum
 import uuid
 from datetime import date, datetime
 
-from sqlalchemy import Date, DateTime, Enum, ForeignKey, Index, Integer, String
+from sqlalchemy import Date, DateTime, Enum, ForeignKey, Index, Integer, String, text
 from sqlalchemy.dialects import postgresql
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -81,6 +81,15 @@ class GroupVisibility(enum.StrEnum):
     the `Membership` — never anonymous per-term RSVP. Visibility changes only
     via `PATCH /groups/{id}` (`update_group`); it is fully independent of
     standing-`Membership` creation."""
+
+    PUBLIC = "PUBLIC"
+    PRIVATE = "PRIVATE"
+
+
+class ItemVisibility(enum.StrEnum):
+    """Who may see a listed item. `PUBLIC` (default): anyone who may see the
+    owner's listings. `PRIVATE`: only people in the owner's private groups.
+    Stored on `ItemListingPreference`, so an unlisted item has none."""
 
     PUBLIC = "PUBLIC"
     PRIVATE = "PRIVATE"
@@ -312,6 +321,12 @@ class ItemListingPreference(BaseEntity):
     # schemas.py against `_OFFERABLE_RESERVATION_TYPES`) — plain string, not
     # the circulation enum type itself, per the module-boundary rule.
     mode: Mapped[str] = mapped_column(String(20), nullable=False)
+    visibility: Mapped[ItemVisibility] = mapped_column(
+        _enum_column(ItemVisibility, 10),
+        nullable=False,
+        server_default="PUBLIC",
+        default=ItemVisibility.PUBLIC,
+    )
 
 
 class SwapProposal(BaseEntity):
@@ -331,6 +346,13 @@ class SwapProposal(BaseEntity):
     `GiveawayTermEndMarker` below."""
 
     __tablename__ = "swap_proposals"
+    __table_args__ = (
+        Index(
+            "ix_swap_proposals_listing_item_id_proposed",
+            "listing_item_id",
+            postgresql_where=text("status = 'PROPOSED'"),
+        ),
+    )
 
     proposer_party_id: Mapped[uuid.UUID] = mapped_column(
         postgresql.UUID(as_uuid=True),

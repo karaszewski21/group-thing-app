@@ -34,7 +34,7 @@ const AUTHOR: EventParticipant = {
   display_name: "Fundacja Zielony Krąg",
   is_author: true,
   is_me: false,
-  items: [{ item_id: "it-1", product_name: "Pluszowy miś", mode: "GIFT", thumb_url: null, added_at: "2026-10-30T09:00:00" }],
+  items: [{ item_id: "it-1", product_name: "Pluszowy miś", mode: "GIFT", thumb_url: null, added_at: "2026-10-30T09:00:00", reservation: null }],
   items_total: 1,
 };
 const ME: EventParticipant = {
@@ -138,16 +138,16 @@ describe("EventPage", () => {
     expect(screen.queryByRole("link", { name: /Edytuj/ })).not.toBeInTheDocument();
   });
 
-  it("shows each participant's newest items with event-context links and Pokaż więcej to their items page", async () => {
+  it("shows each participant's newest items with plain product links and Pokaż więcej to their items page", async () => {
     const bartek: EventParticipant = {
       party_id: "p-bartek",
       display_name: "Bartek K.",
       is_author: false,
       is_me: false,
       items: [
-        { item_id: "it-7", product_name: "Kurtka", mode: "GIFT", thumb_url: null, added_at: "2026-10-30T09:00:00" },
-        { item_id: "it-6", product_name: "Rowerek", mode: "SWAP", thumb_url: null, added_at: "2026-10-28T09:00:00" },
-        { item_id: "it-5", product_name: "Carcassonne", mode: "GIFT", thumb_url: null, added_at: "2026-10-24T09:00:00" },
+        { item_id: "it-7", product_name: "Kurtka", mode: "GIFT", thumb_url: null, added_at: "2026-10-30T09:00:00", reservation: null },
+        { item_id: "it-6", product_name: "Rowerek", mode: "SWAP", thumb_url: null, added_at: "2026-10-28T09:00:00", reservation: null },
+        { item_id: "it-5", product_name: "Carcassonne", mode: "GIFT", thumb_url: null, added_at: "2026-10-24T09:00:00", reservation: null },
       ],
       items_total: 12,
     };
@@ -158,16 +158,16 @@ describe("EventPage", () => {
     const [authorRow, bartekRow] = within(list).getAllByRole("listitem");
     expect(within(authorRow).getByRole("link", { name: /Pluszowy miś/ })).toHaveAttribute(
       "href",
-      `/zielony-krag/product/it-1?event=${EVENT_ID}`,
+      "/zielony-krag/product/it-1",
     );
     expect(within(authorRow).queryByRole("link", { name: /Pokaż więcej/ })).not.toBeInTheDocument();
     expect(within(bartekRow).getByRole("link", { name: /Kurtka/ })).toHaveAttribute(
       "href",
-      `/zielony-krag/product/it-7?event=${EVENT_ID}`,
+      "/zielony-krag/product/it-7",
     );
     expect(within(bartekRow).getByRole("link", { name: "Pokaż więcej (12)" })).toHaveAttribute(
       "href",
-      `/p-bartek/items?event=${EVENT_ID}`,
+      "/p-bartek/items",
     );
     expect(within(list).queryByRole("button", { name: /Pokaż wszystkie/ })).not.toBeInTheDocument();
   });

@@ -22,6 +22,7 @@ from app.core.security import decode_token
 from app.groups import service
 from app.groups.models import SwapProposalStatus, Term
 from tests.conftest import leaf_category_ids
+from tests.test_term_item_listings import _propose_in_term
 
 _APP_ROOT = Path(__file__).resolve().parents[1] / "app"
 _GUARDED_DIRS = (
@@ -127,7 +128,7 @@ async def _proposed_swap(
     offered_item_id = await _register_swap_item(
         client, db_session, proposer_token, f"Rowerek{suffix}"
     )
-    proposal = await service.propose_swap(
+    proposal = await _propose_in_term(
         db_session, _principal(proposer_token), listed_item_id, offered_item_id, term_id
     )
     term = (await db_session.execute(select(Term).where(Term.id == term_id))).scalar_one()

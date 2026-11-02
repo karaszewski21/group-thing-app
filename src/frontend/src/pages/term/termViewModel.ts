@@ -2,7 +2,6 @@ import type { PublicCircleResponse, PublicItemListingResponse } from "../../api/
 import { PREVIEW_ITEM_LIMIT } from "../../components/shared/ParticipantItemsPreview";
 import type { VisualizationFamily } from "./components/GroupVisualization";
 import type { AttendeeVM } from "./components/AttendeeList";
-import type { ListingRowVM } from "./components/termSectionTypes";
 
 /** Newest listing first; `added_at` is naive UTC ISO, so strings sort as dates. */
 function byNewest(a: PublicItemListingResponse, b: PublicItemListingResponse): number {
@@ -14,12 +13,8 @@ function byNewest(a: PublicItemListingResponse, b: PublicItemListingResponse): n
  * lister who offers items without being signed up (e.g. the organizer).
  * Each keeps their `PREVIEW_ITEM_LIMIT` newest listings plus the total count;
  * the term page gets every listing, so it sorts and caps here. */
-export function buildAttendees(
-  group: PublicCircleResponse,
-  toRow: (listing: PublicItemListingResponse) => ListingRowVM,
-): AttendeeVM[] {
+export function buildAttendees(group: PublicCircleResponse): AttendeeVM[] {
   const listings = group.term?.item_listings ?? [];
-  const context = group.term ? { kind: "term" as const, id: group.term.id } : null;
   const people = new Map<string, string>(group.guardians.map((g) => [g.party_id, g.display_name]));
   for (const listing of listings) {
     if (!people.has(listing.lister_party_id)) people.set(listing.lister_party_id, listing.lister_display_name);
@@ -29,13 +24,9 @@ export function buildAttendees(
     return {
       partyId,
       name,
-      listings: [...own]
-        .sort(byNewest)
-        .slice(0, PREVIEW_ITEM_LIMIT)
-        .map((listing) => ({ ...toRow(listing), listing })),
+      listings: [...own].sort(byNewest).slice(0, PREVIEW_ITEM_LIMIT),
       listingsTotal: own.length,
       organizerSlug: group.organizer_slug,
-      context,
     };
   });
 }
