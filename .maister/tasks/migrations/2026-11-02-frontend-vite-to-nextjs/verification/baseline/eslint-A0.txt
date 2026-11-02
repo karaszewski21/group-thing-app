@@ -1,0 +1,29 @@
+# eslint baseline (A0, HEAD 2fcb7f5)
+Command: npx eslint . -f json -o eslint-A0.json   (cwd src/frontend)
+Exit code: 1
+Files linted: 471
+Errors: 15
+Warnings: 1
+
+By rule:
+  error react-refresh/only-export-components: 8
+  warning react-hooks/exhaustive-deps: 1
+  error @typescript-eslint/no-explicit-any: 7
+
+Messages:
+  src/auth/AuthContext.tsx:182:17 error react-refresh/only-export-components — Fast refresh only works when a file only exports components. Use a new file to share constants or functions between components.
+  src/components/onboarding/steps/organizerSteps.tsx:29:10 error react-refresh/only-export-components — Fast refresh only works when a file only exports components. Move your component(s) to a separate file. If all exports are HOCs, add them to the `extraHOCs` option.
+  src/components/onboarding/steps/organizerSteps.tsx:64:10 error react-refresh/only-export-components — Fast refresh only works when a file only exports components. Move your component(s) to a separate file. If all exports are HOCs, add them to the `extraHOCs` option.
+  src/components/onboarding/steps/organizerSteps.tsx:96:10 error react-refresh/only-export-components — Fast refresh only works when a file only exports components. Move your component(s) to a separate file. If all exports are HOCs, add them to the `extraHOCs` option.
+  src/components/shared/Icons.tsx:40:17 error react-refresh/only-export-components — Fast refresh only works when a file only exports components. Use a new file to share constants or functions between components.
+  src/plugins/PluginContext.tsx:81:17 error react-refresh/only-export-components — Fast refresh only works when a file only exports components. Use a new file to share constants or functions between components.
+  src/plugins/PluginFrame.tsx:69:6 warning react-hooks/exhaustive-deps — React Hook useEffect has a missing dependency: 'props'. Either include it or remove the dependency array.
+  src/router.tsx:66:10 error react-refresh/only-export-components — Fast refresh only works when a file only exports components. Move your component(s) to a separate file. If all exports are HOCs, add them to the `extraHOCs` option.
+  src/router.tsx:80:10 error react-refresh/only-export-components — Fast refresh only works when a file only exports components. Move your component(s) to a separate file. If all exports are HOCs, add them to the `extraHOCs` option.
+  src/test/plugin-sdk-auth.test.ts:39:60 error @typescript-eslint/no-explicit-any — Unexpected any. Specify a different type.
+  src/test/plugin-sdk.test.ts:108:25 error @typescript-eslint/no-explicit-any — Unexpected any. Specify a different type.
+  src/test/plugin-sdk.test.ts:86:18 error @typescript-eslint/no-explicit-any — Unexpected any. Specify a different type.
+  src/test/plugins.test.tsx:166:58 error @typescript-eslint/no-explicit-any — Unexpected any. Specify a different type.
+  src/test/plugins.test.tsx:197:58 error @typescript-eslint/no-explicit-any — Unexpected any. Specify a different type.
+  src/test/plugins.test.tsx:246:58 error @typescript-eslint/no-explicit-any — Unexpected any. Specify a different type.
+  src/test/plugins.test.tsx:289:58 error @typescript-eslint/no-explicit-any — Unexpected any. Specify a different type.

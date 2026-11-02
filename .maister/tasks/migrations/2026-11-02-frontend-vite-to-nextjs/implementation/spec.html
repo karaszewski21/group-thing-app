@@ -1,0 +1,361 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Specification — Frontend Vite → Next.js 16.4 migration</title>
+<style>
+:root {
+  --bg:#f6f7f9; --surface:#fff; --border:#e2e5ea; --text:#1a1d23; --dim:#6b7280;
+  --accent:#4f46e5; --accent-soft:#eef2ff; --ok:#16a34a; --ok-soft:#ecfdf3;
+  --warn:#d97706; --warn-soft:#fffbeb; --crit:#dc2626; --crit-soft:#fef2f2;
+  --info:#2563eb; --info-soft:#eff6ff; --radius:10px;
+}
+@media (prefers-color-scheme: dark) {
+  :root { --bg:#111418; --surface:#1a1f26; --border:#2e3640; --text:#e6e9ee; --dim:#9aa4b2;
+    --accent:#818cf8; --accent-soft:#26294a; --ok:#4ade80; --ok-soft:#11291a;
+    --warn:#fbbf24; --warn-soft:#2e2410; --crit:#f87171; --crit-soft:#321616;
+    --info:#60a5fa; --info-soft:#15233a; }
+}
+* { box-sizing:border-box; }
+body { margin:0 auto; max-width:1100px; padding:24px 20px 64px; background:var(--bg);
+  color:var(--text); font:14px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif; }
+a { color:var(--accent); text-decoration:none; } a:hover { text-decoration:underline; }
+h1 { font-size:22px; letter-spacing:-.01em; } h2 { font-size:16px; margin-top:28px; }
+.card { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius);
+  padding:16px 18px; margin:14px 0; }
+.badge { display:inline-block; font-size:11px; font-weight:600; text-transform:uppercase;
+  letter-spacing:.04em; padding:2px 8px; border-radius:99px; background:var(--accent-soft); color:var(--accent); }
+.sev { display:inline-block; font-size:10.5px; font-weight:700; text-transform:uppercase;
+  padding:1.5px 7px; border-radius:99px; margin-right:6px; }
+.sev.critical { background:var(--crit-soft); color:var(--crit); }
+.sev.warning  { background:var(--warn-soft); color:var(--warn); }
+.sev.info     { background:var(--info-soft); color:var(--info); }
+.pass { color:var(--ok); font-weight:600; } .fail { color:var(--crit); font-weight:600; }
+table { width:100%; border-collapse:collapse; }
+th, td { text-align:left; padding:7px 10px; border-bottom:1px solid var(--border); vertical-align:top; }
+th { font-size:11.5px; text-transform:uppercase; letter-spacing:.04em; color:var(--dim); }
+code { font-family:ui-monospace,SFMono-Regular,Menlo,monospace; font-size:12.5px;
+  background:var(--accent-soft); padding:1px 5px; border-radius:4px; }
+img.shot { max-width:100%; border:1px solid var(--border); border-radius:var(--radius); }
+details > summary { cursor:pointer; font-weight:600; }
+.crumbs { display:flex; gap:14px; font-size:13px; margin-bottom:18px; flex-wrap:wrap; }
+.crumbs a.md { margin-left:auto; color:var(--dim); }
+.crumbs .here { font-weight:650; color:var(--text); }
+.tiles { display:flex; gap:10px; flex-wrap:wrap; margin:14px 0; }
+.tile { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius);
+  padding:10px 16px; text-align:center; min-width:90px; }
+.tile b { display:block; font-size:20px; letter-spacing:-.01em; }
+.tile span { font-size:10.5px; text-transform:uppercase; letter-spacing:.05em; color:var(--dim); }
+.grid2 { display:grid; grid-template-columns:1fr 1fr; gap:14px; }
+@media (max-width:760px){ .grid2 { grid-template-columns:1fr; } }
+.stories { display:grid; grid-template-columns:repeat(auto-fill,minmax(240px,1fr)); gap:10px; }
+.stories .card { margin:0; }
+.phase { display:flex; flex-wrap:wrap; gap:6px; align-items:center; }
+.phase span { background:var(--surface); border:1px solid var(--border); border-radius:8px; padding:4px 8px; font-size:12px; }
+.phase span.next { border-color:var(--accent); }
+.phase i { color:var(--dim); font-style:normal; }
+pre { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); padding:12px; overflow:auto; font-size:12px; }
+ul { margin:6px 0; padding-left:20px; }
+</style>
+</head>
+<body>
+<nav class="crumbs">
+  <a href="../dashboard.html">← Dashboard</a>
+  <span class="here">Spec</span>
+  <a href="implementation-plan.html">Plan</a>
+  <a href="../verification/implementation-verification.html">Verification</a>
+  <a href="../analysis/rollback-plan.md" target="_blank" rel="noopener">Rollback plan ↗</a>
+  <a href="spec.md" target="_blank" rel="noopener" class="md">md twin ↗</a>
+</nav>
+
+<header>
+  <span class="badge">specification</span> <span class="badge">migration · code + architecture</span>
+  <h1>Frontend migration: Vite 8 + React Router 7 SPA → Next.js 16.4 App Router</h1>
+  <div style="color:var(--dim);font-size:12.5px">Generated 2026-11-02 · source of truth: <a href="spec.md" target="_blank" rel="noopener">spec.md</a></div>
+</header>
+
+<div class="tiles">
+  <div class="tile"><b>21</b><span>requirements</span></div>
+  <div class="tile"><b>13</b><span>reuse assets</span></div>
+  <div class="tile"><b>8</b><span>new components</span></div>
+  <div class="tile"><b>14</b><span>checkpoints C0–C13</span></div>
+  <div class="tile"><b>61</b><span>page routes</span></div>
+  <div class="tile"><b>high→med</b><span>risk</span></div>
+</div>
+
+<section class="tldr card">
+  <h2 style="margin-top:0">TL;DR</h2>
+  <ul>
+    <li>13 commit checkpoints on <code>main</code>. The behaviour-changing prep lands first on Vite, guarded by the ~920-case suite: the full <code>features/</code> reorganisation (D7), SSR-safety fixes, the navigation facade in <code>src/routing/</code>, and the auth cookie.</li>
+    <li>The Next swap only re-implements a few seams. <code>proxy.ts</code> rewrites <code>/</code> → <code>/home</code> for cookie holders (D6), redirects <code>/home</code> → <code>/</code>, gates private prefixes and routes <code>POST /oauth2/authorize</code> to the backend.</li>
+    <li>Public pages get server <code>generateMetadata</code> plus the palette from anonymous fetches, and backend OG and the catch-all are removed. The backend reads the cookie on GET/HEAD only, sends <code>Vary: Authorization, Cookie</code> and reserves <code>home</code>.</li>
+    <li>No regression means: Vitest pass-set ⊇ A0, pytest/ruff unchanged, mypy ≤ 15, <code>next build</code> + typecheck clean, and the Playwright smoke checklist.</li>
+  </ul>
+  <h2>Key Decisions</h2>
+  <table>
+    <tr><th>Decision</th><th>Rationale</th></tr>
+    <tr><td>D1 Next 16.4.x</td><td>Active line; <code>proxy.ts</code> and async APIs; React 19.2 already in place</td></tr>
+    <tr><td>D2 Client-only mount for (panel), (member), (standalone), admin</td><td>No hydration risk on localStorage-heavy code; SSR only for the public subtree</td></tr>
+    <tr><td>D3 Frontend-written readable cookie; backend reads it on GET/HEAD only</td><td>No CSRF surface; Bearer kept for mutations and plugins</td></tr>
+    <tr><td>D4 Custom <code>useNavigationGuard</code> with a <code>useBlocker</code> shape</td><td>Links, programmatic navigation, tab close, best-effort back/forward; minimal EditorSheet change</td></tr>
+    <tr><td>D5 OG formatters ported to TS</td><td>Expected strings lifted from <code>test_public_preview.py</code></td></tr>
+    <tr><td><span class="badge">override</span> D6 <code>/</code> → <code>/home</code> rewrite</td><td>Direct <code>/home</code> → 307 to <code>/</code>. <code>useAppPathname()</code> normalises <code>/home</code> → <code>/</code>. On a stale cookie the panel layout clears the session and renders the landing. <code>home</code> is reserved and covered by a parity test</td></tr>
+    <tr><td><span class="badge">override</span> D7 Full <code>features/</code> reorganisation as step A1</td><td>Moves + specifier rewrites only. No file is split or merged; sub-structure that needs a split is not created</td></tr>
+    <tr><td>D8 Proxy cookie-presence gate</td><td>The client AuthGuard stays authoritative</td></tr>
+    <tr><td>D9 In-repo mocks via Vitest <code>resolve.alias</code></td><td>Immune to <code>vi.resetAllMocks()</code></td></tr>
+    <tr><td>D10 nginx in front · D11 <code>/:slug/group/:g</code> → 404 · D12 Google Fonts link</td><td>Parity / user decisions</td></tr>
+    <tr><td>Panel layout renders AppPage; panel pages are <code>null</code> stubs</td><td>AppPage state persists exactly as with today's shared route element</td></tr>
+    <tr><td>Folder <code>[organizationSlug]</code>, not <code>[slug]</code></td><td>Param keys unchanged at call sites</td></tr>
+    <tr><td>Admin gate stays AuthGuard-only</td><td>EDIT-only users rely on <code>/admin/products</code>; a role gate would regress them</td></tr>
+    <tr><td>Facade in <code>src/routing/</code> + ESLint <code>no-restricted-imports</code></td><td>The user's folder; one seam for the swap</td></tr>
+  </table>
+  <h2>Open Questions / Risks</h2>
+  <ul>
+    <li><span class="sev warning">warning</span><code>usePathname()</code> under a rewrite may report <code>/</code> or <code>/home</code>. Normalisation makes both safe; the smoke confirms there is no hydration warning.</li>
+    <li><span class="sev info">info</span>Client Router Cache after login and logout. All routes are dynamic (root reads <code>cookies()</code>), and <code>refresh()</code> runs on every token change.</li>
+    <li><span class="sev info">info</span>Legacy localStorage-only sessions see a one-time landing flash before reconciliation.</li>
+    <li><span class="sev warning">warning</span>Possible Chakra/Emotion FOUC on SSR'd public pages. Fallback: an Emotion registry in phase C.</li>
+    <li><span class="sev warning">warning</span><code>POST /oauth2/authorize</code> through the proxy rewrite: forwarded headers are verified in the smoke round trip.</li>
+    <li><span class="sev info">info</span>Private circles may fall back to the default OG metadata (anonymous fetch).</li>
+    <li><span class="sev info">info</span>A dev organization with slug <code>home</code> would be shadowed. A5 runs a read-only check.</li>
+    <li><span class="sev info">info</span>New <code>eslint-config-next</code> errors stay ≤ the baseline. Pre-existing ~13 failures; the flaky OrganizerEditor gets one re-run.</li>
+  </ul>
+</section>
+
+<nav class="toc">Contents: <a href="#scope">Scope</a> · <a href="#phases">Phases</a> · <a href="#requirements">Requirements</a> · <a href="#stories">User Stories</a> · <a href="#mapping">D7 Mapping</a> · <a href="#routes">Route Tree</a> · <a href="#proxy">Proxy</a> · <a href="#components">Components</a> · <a href="#smoke">Smoke</a> · <a href="#tech">Technical depth</a> · <a href="#success">Success</a></nav>
+
+<main>
+<h2 id="scope">Scope</h2>
+<div class="grid2">
+  <div class="card"><b class="pass">In scope / preserved</b>
+    <ul>
+      <li>Next 16.4 App Router, Turbopack, standalone, <code>next dev -p 5173</code></li>
+      <li>Full <code>features/</code> reorganisation (D7), <code>routing/</code>, <code>auth/session.ts</code>, <code>theme/system.ts</code> + <code>palettes.ts</code></li>
+      <li>Server metadata + palette on public pages; backend OG and catch-all retired</li>
+      <li>Cookie on GET/HEAD in the backend, <code>Vary</code>, <code>home</code> reserved</li>
+      <li>Deploy: Dockerfile, nginx, compose; docs and standards</li>
+      <li>Preserved: all URLs, plugin contract on :5173, Polish copy, data-fetching standards</li>
+    </ul>
+  </div>
+  <div class="card"><b class="fail">Out of scope</b>
+    <ul>
+      <li>Server prefetch/hydration of view data; Server Components beyond metadata and palette</li>
+      <li><code>next/font</code>, <code>error.tsx</code>, an Emotion registry (unless FOUC)</li>
+      <li>HttpOnly/BFF auth, backend Set-Cookie, a CSRF token scheme</li>
+      <li>New features (<code>/:slug/group/:g</code> page, extra metadata)</li>
+      <li>File splits during D7; moving panel views out of AppPage</li>
+      <li>Dual-run; DB migrations</li>
+    </ul>
+    <b>Accepted deltas:</b> 404 page · <code>/:slug/group/:g</code> → 404 · <code>/</code> rewritten internally · <code>/home</code> → 307 <code>/</code> · scroll-to-top on push · <code>location.state</code> lost on reload · login redirect before JS · editor guard also covers tab close
+  </div>
+</div>
+
+<h2 id="phases">Phases &amp; checkpoints</h2>
+<div class="card">
+  <div class="phase">
+    <span>C0 WIP</span><i>→</i><span>C1 A0 baseline</span><i>→</i><span>C2 A1 reorg</span><i>→</i><span>C3 A2 SSR-safe</span><i>→</i><span>C4 A3 facade</span><i>→</i><span>C5 A4 cookie</span><i>→</i><span>C6 A5 backend</span><i>→</i><span>C7 B1 scaffold</span><i>→</i><span>C8 B2 routes</span><i>→</i><span class="next">C9 B3 swap (Next runs)</span><i>→</i><span class="next">C10 B4 proxy</span><i>→</i><span class="next">C11 C1 metadata</span><i>→</i><span class="next">C12 C2 backend OG removal</span><i>→</i><span class="next">C13 D deploy+docs+smoke</span>
+  </div>
+  <p style="color:var(--dim);font-size:12.5px">Vite runs through C8, Next from C9 on. C6 and C12 are backend-only commits. Rollback: <a href="../analysis/rollback-plan.md" target="_blank" rel="noopener">rollback-plan.md</a>.</p>
+</div>
+
+<h2 id="requirements">Requirements</h2>
+<table>
+  <tr><th>Id</th><th>Requirement</th><th>Phase</th><th>Priority</th></tr>
+  <tr><td>R1</td><td>User WIP committed alone as C0</td><td>C0</td><td>must</td></tr>
+  <tr><td>R2</td><td>Baselines: Vitest JSON, tsc, eslint, pytest, ruff, mypy (15)</td><td>A0</td><td>must</td></tr>
+  <tr><td>R3</td><td>Full <code>features/</code> reorganisation per the mapping (moves + specifiers only)</td><td>A1</td><td>must</td></tr>
+  <tr><td>R4</td><td>SSR-hazard fixes, <code>getQueryClient()</code>, thumbnails to <code>public/</code></td><td>A2</td><td>must</td></tr>
+  <tr><td>R5</td><td>Facade on React Router; 91 source + 55 test files migrated; <code>routing/paths.ts</code></td><td>A3</td><td>must</td></tr>
+  <tr><td>R6</td><td><code>auth/session.ts</code> lockstep cookie; SSR-safe <code>AuthProvider(initialToken)</code></td><td>A4</td><td>must</td></tr>
+  <tr><td>R7</td><td>Backend cookie on GET/HEAD, <code>Vary</code>, <code>home</code> reserved</td><td>A5</td><td>must</td></tr>
+  <tr><td>R8</td><td>Next scaffold, root layout and providers, env rename</td><td>B1</td><td>must</td></tr>
+  <tr><td>R9</td><td>61-page route tree, manifest test, reserved-slug parity</td><td>B2</td><td>must</td></tr>
+  <tr><td>R10</td><td>Facade/test swap; Vite entry and <code>react-router-dom</code> deleted</td><td>B3</td><td>must</td></tr>
+  <tr><td>R11</td><td><code>proxy.ts</code> (D6, OAuth2 POST, D8) + tests</td><td>B4</td><td>must</td></tr>
+  <tr><td>R12</td><td><code>api/server.ts</code>, metadata ×3 + default, palette, parity tests</td><td>C1</td><td>must</td></tr>
+  <tr><td>R13</td><td>Backend OG and catch-all removal; JSON 404; matrix re-check</td><td>C2</td><td>must</td></tr>
+  <tr><td>R14</td><td>Dockerfile, nginx, compose, <code>.env.example</code>, scripts</td><td>D</td><td>must</td></tr>
+  <tr><td>R15</td><td>Docs and standards; smoke checklist recorded</td><td>D</td><td>must</td></tr>
+  <tr><td>R16</td><td>SDK IIFE build via <code>predev</code>/<code>prebuild</code>; stale copy deleted</td><td>B3</td><td>must</td></tr>
+  <tr><td>R17</td><td><code>useNavigationGuard</code> replaces <code>useBlocker</code></td><td>A3</td><td>must</td></tr>
+  <tr><td>R18</td><td><code>location.state</code> (3 flows) and <code>location.key</code> (4 sites) through the facade</td><td>A3</td><td>must</td></tr>
+  <tr><td>R19</td><td><code>useOutletContext</code> → <code>OrganizerItemContext</code></td><td>A3/B2</td><td>must</td></tr>
+  <tr><td>R20</td><td>Search-param updates keep the scroll position</td><td>A3/B3</td><td>must</td></tr>
+  <tr><td>R21</td><td>ESLint keeps router imports inside <code>src/routing/</code></td><td>A3/B3</td><td>should</td></tr>
+</table>
+
+<h2 id="stories">User stories</h2>
+<div class="stories">
+  <div class="card"><b>Visitor</b><br>Every existing URL works unchanged, so links I received still open.</div>
+  <div class="card"><b>Logged-in user</b><br><code>/</code> shows my home panel immediately, with no landing flash.</div>
+  <div class="card"><b>Unfurl bot</b><br>OG/Twitter tags are in the first HTML of org, event and term pages.</div>
+  <div class="card"><b>Organizer</b><br>I am warned before leaving the editor with unsaved changes (link, back, tab close).</div>
+  <div class="card"><b>Plugin author</b><br>The SDK, CSS and postMessage protocol on :5173 are unchanged.</div>
+  <div class="card"><b>Developer</b><br>Features sit under <code>features/&lt;domain&gt;</code>; routing sits behind <code>src/routing/</code>.</div>
+</div>
+
+<h2 id="mapping">D7 mapping (A1, moves only)</h2>
+<details class="card"><summary>Old → new path table (see spec.md §4 for the full rule)</summary>
+<table>
+  <tr><th>Old (<code>src/…</code>)</th><th>New (<code>src/…</code>)</th></tr>
+  <tr><td>app/{AppDataContext, appDataStore, AppModals}; pages/home/{AppPage, AppSkeleton, HomeView}; pages/add/AddView; pages/search/SearchView</td><td>features/panel/</td></tr>
+  <tr><td>pages/home/LandingPage</td><td>features/landing/</td></tr>
+  <tr><td>pages/account/*; pages/profile/*</td><td>features/account/</td></tr>
+  <tr><td>pages/admin/* (12)</td><td>features/admin/</td></tr>
+  <tr><td>components/moderation/*</td><td>features/admin/moderation/</td></tr>
+  <tr><td>pages/auth/* (4); components/layout/{AuthLayout, authStyles, SocialAuthButtons}</td><td>features/auth/</td></tr>
+  <tr><td>components/onboarding/** </td><td>features/auth/onboarding/**</td></tr>
+  <tr><td>pages/events/** ; pages/add/{EventCreateView, EventForm, eventDraft}</td><td>features/events/**</td></tr>
+  <tr><td>pages/family/*</td><td>features/family/</td></tr>
+  <tr><td>pages/groups/*; components/panel/{GroupFormFields, JoinCodeCard}</td><td>features/groups/</td></tr>
+  <tr><td>pages/items/*; pages/add/{ItemCreateView, HuntingCreateView}; pages/search/WantedView</td><td>features/items/</td></tr>
+  <tr><td>pages/product/* (20)</td><td>features/items/product/</td></tr>
+  <tr><td>pages/meetings/*</td><td>features/meetings/</td></tr>
+  <tr><td>pages/messages/*</td><td>features/messages/</td></tr>
+  <tr><td>pages/places/*</td><td>features/places/</td></tr>
+  <tr><td>pages/term/** ; pages/add/AddTermView; components/panel/{TermEditForm, FirstTermStepperOrganizer}</td><td>features/terms/**</td></tr>
+  <tr><td>pages/organizer/{LayoutRenderer, OrganizationPage, organizerHelpers, OrganizerPageSkeleton, OrganizerTermsPage, PageFrame, PublicOrganizationPage}; pages/owner/*</td><td>features/owner-page/</td></tr>
+  <tr><td>pages/organizer/{blocks, editor, layouts}/*</td><td>features/owner-page/{blocks, editor, layouts}/</td></tr>
+  <tr><td>pages/person/ (empty); assets/{hero.png, react.svg, vite.svg}</td><td>deleted</td></tr>
+  <tr><td>components/pending/*</td><td>components/layout/pending/</td></tr>
+  <tr><td>plugins/PluginContext.tsx</td><td>plugins/host/PluginHost.tsx (exports unchanged)</td></tr>
+  <tr><td>plugins/{PluginMessageHandler, usePluginMessageHandler, iframeRegistry}</td><td>plugins/host/</td></tr>
+  <tr><td>plugins/{PluginFrame, PluginFilterBar}</td><td>plugins/slots/</td></tr>
+  <tr><td>theme/index.ts · theme/palettePresets.ts</td><td>theme/system.ts · theme/palettes.ts</td></tr>
+  <tr><td>utils/messagesPaths.ts</td><td>routing/messagesPaths.ts</td></tr>
+  <tr><td>assets/layouts/*.svg (in A2)</td><td>public/assets/layouts/*.svg</td></tr>
+</table>
+</details>
+
+<h2 id="routes">Route tree</h2>
+<details class="card" open><summary>61 pages · 7 layouts (spec.md §6)</summary>
+<pre>app/layout.tsx · providers.tsx · not-found.tsx · globals.css
+(site)/layout                PublicLayout chrome (SSR)
+(site)/page                  "/"  LandingPage (anonymous)
+(site)/login · product/[id] · product/[id]/edit → redirect ?edit=1
+(site)/(panel)/layout        ClientOnly + PanelGate + AppDataProvider + AppPage (children ignored)
+(site)/(panel)/home          stub — rewrite target of "/"
+(site)/(panel)/… 25 more panel stubs (meetings, groups, items, add/*, …/edit)
+(site)/(member)/layout       ClientOnly + AuthGuard
+(site)/(member)/terms/[termId] · groups/[groupId] · messages · messages/[conversationId]
+(site)/[organizationSlug]/(owner)/layout   ServerThemeProvider (best effort, never notFound)
+(site)/[organizationSlug]/(owner)/page (+metadata) · items · meetings · terms · product → redirect
+(site)/[organizationSlug]/(owner)/product/[id]/{layout, page, edit → redirect}
+(site)/[organizationSlug]/event/[eventId]                 (+metadata, own theme)
+(site)/[organizationSlug]/group/[groupId]/term/[termId]   (+metadata, own theme)
+(standalone)/layout          ClientOnly + AuthGuard · onboarding · organization · oauth2/authorize
+admin/layout                 ClientOnly + AuthGuard + PluginProvider + AppShell
+admin/page → /admin/products · products ×4 · categories ×3 · groups · terms · photos · plugins ×4 incl. [[...path]]</pre>
+</details>
+
+<h2 id="proxy">proxy.ts rules (in order)</h2>
+<table>
+  <tr><th>#</th><th>Condition</th><th>Action</th></tr>
+  <tr><td>1</td><td><code>/home</code></td><td>307 → <code>/</code> (search kept)</td></tr>
+  <tr><td>2</td><td><code>/</code> + <code>auth_token</code> cookie</td><td>rewrite → <code>/home</code></td></tr>
+  <tr><td>3</td><td><code>POST /oauth2/authorize</code></td><td>external rewrite → backend</td></tr>
+  <tr><td>4</td><td><code>PROTECTED_PREFIXES</code>, no cookie</td><td>redirect → <code>/login?returnTo=</code> (never <code>/</code>, <code>/add</code>, <code>/login</code>, <code>/product/*</code>, slugs)</td></tr>
+  <tr><td>5</td><td>otherwise</td><td><code>next()</code></td></tr>
+</table>
+<p style="color:var(--dim);font-size:12.5px">Matcher excludes <code>/api/</code> (10 MB body buffer vs 15 MB uploads), <code>/_next/</code>, <code>/assets/</code>, <code>/.well-known/</code> and files.</p>
+
+<h2 id="components">Reusable vs new components</h2>
+<div class="grid2">
+<div class="card"><b>Reuse</b>
+<table>
+  <tr><td>Path helpers <code>utils/appHelpers.ts</code> → <code>routing/paths.ts</code></td></tr>
+  <tr><td><code>auth/authPaths.ts</code>, <code>homePath.ts</code>, <code>AuthGuard.tsx</code></td></tr>
+  <tr><td>AppRoute logic (<code>router.tsx</code>) → panel layout</td></tr>
+  <tr><td><code>OrganizerItemLayout.tsx</code> → org product layout</td></tr>
+  <tr><td><code>theme/orgPalette.ts</code>, <code>palettePresets.ts</code>, <code>OrganizerThemeScope.tsx</code></td></tr>
+  <tr><td><code>api/queryClient.ts</code> options</td></tr>
+  <tr><td><code>test/organizerKeyParity.test.ts</code> parsing pattern</td></tr>
+  <tr><td><code>public_preview.py</code>, <code>clock.py</code>, <code>test_public_preview.py</code> (rules + fixtures)</td></tr>
+  <tr><td>Public endpoints in <code>api/organizations.ts</code>, <code>events.ts</code>, <code>groups.ts</code></td></tr>
+  <tr><td><code>cache_headers.py</code>, <code>token.py::_extract_token</code></td></tr>
+  <tr><td><code>vite.sdk.config.ts</code>, <code>build:sdk</code>; <code>index.css</code> → <code>globals.css</code></td></tr>
+</table></div>
+<div class="card"><b>New (why)</b>
+<table>
+  <tr><td><code>routing/navigation.tsx</code> + tracker, guard, state</td><td>No App Router equivalents for <code>useBlocker</code>, state or key</td></tr>
+  <tr><td><code>routing/ClientOnly.tsx</code></td><td>D2</td></tr>
+  <tr><td><code>routing/reservedSlugs.ts</code></td><td>Parity with the backend</td></tr>
+  <tr><td><code>auth/session.ts</code></td><td>Cookie lockstep across 5 write points</td></tr>
+  <tr><td><code>test/renderWithRoute.tsx</code>, mocks</td><td>One helper for both implementations</td></tr>
+  <tr><td><code>src/proxy.ts</code></td><td>Rewrite, redirect, gate before render</td></tr>
+  <tr><td><code>api/server.ts</code>, <code>lib/publicMetadata.ts</code>, <code>theme/ServerThemeProvider.tsx</code></td><td>Replace backend HTML injection</td></tr>
+  <tr><td><code>app/**</code> route files</td><td>Required by the App Router; thin</td></tr>
+</table></div>
+</div>
+
+<h2 id="smoke">Smoke checklist (Playwright MCP)</h2>
+<div class="card"><ol style="margin:0;padding-left:20px">
+  <li>Anonymous <code>/</code> landing; <code>/login</code> + register tab</li>
+  <li>Login → home on <code>/</code>; no hydration warning; BottomNav "Start" active</li>
+  <li><code>/home</code> → <code>/</code></li>
+  <li>Stale cookie → landing, cookie cleared</li>
+  <li>Panel sections without an AppData reload; <code>/add</code> anonymous and logged in; <code>/add/product</code> gated</li>
+  <li><code>/messages</code> + thread; <code>/terms/:id</code>; <code>/groups/:id</code></li>
+  <li>Product URLs and legacy redirects</li>
+  <li><code>/:slug</code>, UUID party, <code>/:slug/items|meetings|terms</code></li>
+  <li>Event, term and <code>krag</code> term pages</li>
+  <li>OG tags via <code>curl -A facebookexternalhit</code>; palette on first paint</li>
+  <li>EventCreate toast, PlaceCreate pick, ItemCreate state</li>
+  <li>Editor guard: link, back, tab close</li>
+  <li>Admin as ADMIN and as EDIT-only; plugin page; SDK from :5173</li>
+  <li>OAuth2 authorize round trip</li>
+  <li>404 page; <code>/:slug/group/:g</code> → 404</li>
+  <li>Compose: 15 MB upload, <code>/.well-known</code></li>
+</ol></div>
+
+<h2 id="tech">Technical depth</h2>
+<details class="card"><summary>Navigation facade API (A3)</summary>
+<ul>
+  <li><code>Link</code> (to, replace, state, scroll) · <code>Navigate</code> · <code>useAppNavigate()</code> (consults the guard; <code>-1</code> = back)</li>
+  <li><code>useAppParams()</code> (catch-all → <code>"*"</code>) · <code>useAppSearchParams()</code> (functional setter, <code>scroll:false</code>) · <code>useAppSearch()</code></li>
+  <li><code>useAppPathname()</code> = <code>normalizeAppPath</code> (<code>/home</code> → <code>/</code>)</li>
+  <li><code>useHasInAppHistory()</code> (NavigationTracker) · <code>useNavigationState()</code> (consumed once) · <code>useRouterRefresh()</code></li>
+  <li><code>useNavigationGuard(shouldBlock)</code> → <code>{state, proceed, reset}</code></li>
+  <li><code>renderWithRoute(ui, {url, pattern, routes})</code>, <code>getTestLocation()</code>, <code>getTestRouter()</code>: MemoryRouter in A3, the alias-mocked <code>next/navigation</code> in B3</li>
+</ul></details>
+<details class="card"><summary>Auth cookie (A4 frontend, A5 backend)</summary>
+<ul>
+  <li>Cookie: <code>auth_token</code>; Path=/; SameSite=Lax; Max-Age = exp − now; Secure on https; not HttpOnly</li>
+  <li>Write points: login, register, applyExternalToken, logout, 401 handler, AuthGuard stale path</li>
+  <li>Reconciliation: a valid localStorage token wins → else a valid cookie is copied → else both are cleared; <code>refresh()</code> on change</li>
+  <li>Backend: cookie only for GET/HEAD, after header, <code>_token</code> query and form; <code>Vary: Authorization, Cookie</code>; GET routes verified non-mutating</li>
+</ul></details>
+<details class="card"><summary>Server metadata and palette (C1) · backend cleanup (C2)</summary>
+<ul>
+  <li><code>api/server.ts</code>: server-only, anonymous, <code>no-store</code>, React <code>cache()</code>, <code>null</code> on error</li>
+  <li>Org: "Strona organizacji {name}." + cover · Event: "{weekday} DD.MM o HH:mm" [· place] [description] + banner · Term: "Najbliższy termin: DD.MM.YYYY." [description] or "Dołącz i zobacz najbliższe spotkania."</li>
+  <li>og:type website; twitter <code>summary_large_image</code> with an image, else <code>summary</code></li>
+  <li><code>ServerThemeProvider</code>: <code>display:contents</code> vars + context; <code>OrganizerThemeScope</code> uses <code>theme ?? initialTheme</code></li>
+  <li>C2: delete <code>public_preview.py</code>, preview routes, <code>spa_fallback</code>, <code>test_public_preview.py</code>; add a JSON 404 test; matrix re-check</li>
+</ul></details>
+<details class="card"><summary>Deploy (D)</summary>
+<ul>
+  <li>Dockerfile: deps → build (<code>NEXT_PUBLIC_GOOGLE_MAPS_API_KEY</code>) → runner (standalone, PORT 3000, TZ Europe/Warsaw)</li>
+  <li>nginx: <code>/api/</code> (16m) · <code>= /oauth2/authorize</code> → web · <code>/oauth2/</code> · <code>/.well-known/</code> → backend · <code>/</code> → web:3000</li>
+  <li>Compose: drop <code>frontend-build</code>, <code>frontend_index</code>, the backend static mount; add <code>web</code></li>
+  <li>Secrets: presence checks only; placeholders in <code>.env.example</code></li>
+</ul></details>
+<details class="card"><summary>Testing approach &amp; standards</summary>
+<ul>
+  <li>2–8 focused tests per step group. Full baseline comparison at every checkpoint gate.</li>
+  <li>New sets: SSR-safety (A2), facade (A3), session (A4), <code>test_auth_cookie.py</code> + slug (A5), manifest + parity (B2), mock self-tests (B3), proxy (B4), metadata parity + palette (C1), 404 (C2)</li>
+  <li>Standards: data-fetching, components, frontend-testing, minimal-implementation, conventions, security, plugin-auth, backend-testing, time; secrets rule</li>
+</ul></details>
+
+<h2 id="success">Success criteria</h2>
+<div class="card"><ul>
+  <li>Vitest passing set ⊇ the A0 set at C9 and C13; case count ≥ the baseline minus documented replacements</li>
+  <li>pytest: no new failures; ruff clean; mypy ≤ 15 (C6, C12, C13)</li>
+  <li><code>next build</code> + <code>tsc --noEmit</code> pass; ESLint errors ≤ the baseline</li>
+  <li>No <code>react-router-dom</code>, <code>src/pages</code> or <code>import.meta.env</code> after C9</li>
+  <li>Manifest = 61 patterns; reserved-slug parity incl. <code>home</code></li>
+  <li>All 16 smoke items pass and are recorded; checkpoints C0–C13 match the rollback plan</li>
+</ul></div>
+</main>
+</body>
+</html>

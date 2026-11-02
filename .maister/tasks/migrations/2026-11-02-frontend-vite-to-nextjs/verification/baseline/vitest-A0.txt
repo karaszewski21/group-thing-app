@@ -1,0 +1,1375 @@
+src/test/AccountMergeAuthHandoff.test.tsx › account-merge -> real AuthContext.applyExternalToken -> authenticated fetch handoff a successful merge stores the returned token under auth_token and triggers a getMyProfile() call using it → passed
+src/test/AccountMergeAuthHandoff.test.tsx › account-merge -> real AuthContext.applyExternalToken -> authenticated fetch handoff when the subsequent getMyProfile() call fails, the merge itself is unaffected — token stays stored and the visitor stays on the page → passed
+src/test/AddToCalendarButton.test.tsx › AddToCalendarButton Esc closes only the menu: focus returns to the trigger and the event does not propagate → passed
+src/test/AddToCalendarButton.test.tsx › AddToCalendarButton Tab and an outside click close the menu; Tab hands focus back to the trigger first → passed
+src/test/AddToCalendarButton.test.tsx › AddToCalendarButton keeps the trigger label on one line → passed
+src/test/AddToCalendarButton.test.tsx › AddToCalendarButton links to Google Calendar in a new tab and downloads the .ics file → passed
+src/test/AddToCalendarButton.test.tsx › AddToCalendarButton opens an ARIA menu, focuses the first item and moves focus with the arrow keys → passed
+src/test/AddToCalendarButton.test.tsx › AddToCalendarButton returns focus to the trigger after either menu item is activated → passed
+src/test/AdminGroupsPage.test.tsx › AdminGroupsPage Deleted empty state shows No deleted circles → passed
+src/test/AdminGroupsPage.test.tsx › AdminGroupsPage Restore calls restoreGroup and refetches → passed
+src/test/AdminGroupsPage.test.tsx › AdminGroupsPage pages through circles with Next → passed
+src/test/AdminGroupsPage.test.tsx › AdminGroupsPage renders EmptyState when there are no circles → passed
+src/test/AdminGroupsPage.test.tsx › AdminGroupsPage renders one row per circle with organizer, member count, and term count → passed
+src/test/AdminGroupsPage.test.tsx › AdminGroupsPage restore error shows role=alert in the row → passed
+src/test/AdminGroupsPage.test.tsx › AdminGroupsPage shows the backend error message when the request fails → passed
+src/test/AdminGroupsPage.test.tsx › AdminGroupsPage toggling to Deleted requests getGroupsForModeration(1, true) and shows Deleted at / Deleted by / Actions columns → passed
+src/test/AdminGroupsPage.test.tsx › AdminGroupsPage toggling while the next listing loads shows Loading... instead of the previous view's rows → passed
+src/test/AdminTermsPage.test.tsx › AdminTermsPage renders EmptyState when there are no terms → passed
+src/test/AdminTermsPage.test.tsx › AdminTermsPage renders each term with its circle, date, description and signup counts → passed
+src/test/AdminTermsPage.test.tsx › AdminTermsPage shows the backend error message when the request fails → passed
+src/test/AppDataContextNeededItems.test.tsx › AppDataContext — handleAddTerm needed items handleAddTerm_rejectedNeededItem_continuesWithTheRemainingNames → passed
+src/test/AppDataContextNeededItems.test.tsx › AppDataContext — handleAddTerm needed items handleAddTerm_rejectedNeededItem_leavesForSpotkaniaWithoutTermError → passed
+src/test/AppDataContextNeededItems.test.tsx › AppDataContext — handleAddTerm needed items handleAddTerm_rejectedNeededItems_showsOneToastWithNamesAndFirstMessage → passed
+src/test/AppPage.test.tsx › AppPage — Dodaj › Wydarzenie Dodaj links the Wydarzenie tile to /add/event → passed
+src/test/AppPage.test.tsx › AppPage — Dodaj › Wydarzenie a failed banner upload keeps the saved event and offers a retry → passed
+src/test/AppPage.test.tsx › AppPage — Dodaj › Wydarzenie an empty submit shows the field errors and sends nothing → passed
+src/test/AppPage.test.tsx › AppPage — Dodaj › Wydarzenie saves the event and lands on its page with the toast in router state → passed
+src/test/AppPage.test.tsx › AppPage — Dodaj › Wydarzenie shows the server's message when the save is refused → passed
+src/test/AppPage.test.tsx › AppPage — Moje miejsca section /places renders the saved-places view → passed
+src/test/AppPage.test.tsx › AppPage — MyItemsView post-term-end fallback buttons (Bug #4c, full flow) the tile's own 'Odebrał' fallback confirms the transaction and silently refreshes the panel → passed
+src/test/AppPage.test.tsx › AppPage — MyItemsView swap accept success sheet a 409 accept shows the server's message instead of the generic retry text → passed
+src/test/AppPage.test.tsx › AppPage — MyItemsView swap accept success sheet a failed accept keeps the inline error and opens no sheet → passed
+src/test/AppPage.test.tsx › AppPage — MyItemsView swap accept success sheet a personal swap (no term or event) opens no sheet and points to the chat instead → passed
+src/test/AppPage.test.tsx › AppPage — MyItemsView swap accept success sheet opens 'Zamiana zaakceptowana' with the pair, date, group and the other-offers line → passed
+src/test/AppPage.test.tsx › AppPage — Mój dom (family list and its pages) /family renders the family list with role labels (Ty / opiekun / dziecko, no avatars) → passed
+src/test/AppPage.test.tsx › AppPage — Mój dom (family list and its pages) an add-member server error is shown verbatim and the page stays → passed
+src/test/AppPage.test.tsx › AppPage — Mój dom (family list and its pages) an unsafe returnTo (//evil.com) renders no return link → passed
+src/test/AppPage.test.tsx › AppPage — Mój dom (family list and its pages) removes a family member and refreshes the list; a rejected removal shows the server message inline → passed
+src/test/AppPage.test.tsx › AppPage — Mój dom (family list and its pages) the add-member page shows the birth year only for Dziecko, validates it and sends it only for a CHILD → passed
+src/test/AppPage.test.tsx › AppPage — Mój dom (family list and its pages) the member page edits a child's birth year, toasts and goes back to the list → passed
+src/test/AppPage.test.tsx › AppPage — Mój dom (family list and its pages) the rename page saves the name and goes back; a rejected save stays with an inline alert → passed
+src/test/AppPage.test.tsx › AppPage — Mój dom (family list and its pages) without a family, 'Załóż rodzinę' leads to /family/new, which creates it and returns to the list with returnTo kept → passed
+src/test/AppPage.test.tsx › AppPage — Spotkania list links to the public circle page GUEST who only RSVP'd (never joined the Circle as a family member) still sees that session in Spotkania → passed
+src/test/AppPage.test.tsx › AppPage — Spotkania list links to the public circle page a leader's own RSVP to someone else's group shows under "Zapisane", not in the "Prowadzę"/"Terminy" lists → passed
+src/test/AppPage.test.tsx › AppPage — Spotkania list links to the public circle page a user without groups sees no "+ Dodaj termin" on Spotkania and "+ Załóż grupę" linking to /groups/new on Moje grupy → passed
+src/test/AppPage.test.tsx › AppPage — Spotkania list links to the public circle page each term row in the Spotkania list is a link (the whole tile) to the per-term public page, not the authenticated one → passed
+src/test/AppPage.test.tsx › AppPage — Spotkania list links to the public circle page the attended card shows the place and "8/10 miejsc" inside its link, with no nested anchor → passed
+src/test/AppPage.test.tsx › AppPage — Spotkania › Biorę udział (attendances) renders a dashed empty state and no error when there are no attendances → passed
+src/test/AppPage.test.tsx › AppPage — Spotkania › Biorę udział (attendances) renders one tile per attendance with a public-term link (GUEST) → passed
+src/test/AppPage.test.tsx › AppPage — Spotkania › Biorę udział (attendances) renders the empty state and no error when getMyAttendances rejects (load() guard) → passed
+src/test/AppPage.test.tsx › AppPage — Spotkania › Biorę udział (attendances) the section is present for an ORGANIZER too → passed
+src/test/AppPage.test.tsx › AppPage — Spotkania: pledges on term tiles, events next to group terms Organizujesz lists own events and group terms together by date, each tile badged with its kind → passed
+src/test/AppPage.test.tsx › AppPage — Spotkania: pledges on term tiles, events next to group terms a pledge for a term without an RSVP gets its own tile; 'Rezygnuję' calls withdrawPledge → passed
+src/test/AppPage.test.tsx › AppPage — Spotkania: pledges on term tiles, events next to group terms a pledge for an attended term shows on that term's tile, not on a second one → passed
+src/test/AppPage.test.tsx › AppPage — Spotkania: pledges on term tiles, events next to group terms still offers 'Rezygnuję' on a pledge left FULFILLED by the old registration flow → passed
+src/test/AppPage.test.tsx › AppPage — Term/Group ids stay UUID strings (R29) "Nowy termin" group select keeps the selected group's UUID → failed
+src/test/AppPage.test.tsx › AppPage — Term/Group ids stay UUID strings (R29) getTerms is called with the group's UUID string → passed
+src/test/AppPage.test.tsx › AppPage — Załóż grupę (first group) shows an inline error (not a silent failure) when creating the group rejects → passed
+src/test/AppPage.test.tsx › AppPage — Załóż grupę (first group) the home hint leads to /groups/new; saving a PRIVATE first group lands on Moje grupy with it → passed
+src/test/AppPage.test.tsx › AppPage — Załóż grupę (first group) the leader-with-zero-terms home hint opens the 1-step FirstTermStepperOrganizer → passed
+src/test/AppPage.test.tsx › AppPage — delete group (soft delete) 409 message is shown inline in the dialog → passed
+src/test/AppPage.test.tsx › AppPage — delete group (soft delete) cancel calls nothing → passed
+src/test/AppPage.test.tsx › AppPage — delete group (soft delete) confirm calls deleteGroup and shows Usunięto grupę → passed
+src/test/AppPage.test.tsx › AppPage — delete group (soft delete) confirm refreshes silently, keeping the busy dialog mounted until the reload settles → passed
+src/test/AppPage.test.tsx › AppPage — delete group (soft delete) load survives a 404 from getGroup (and from getTerms/getNeededItems) for one group → passed
+src/test/AppPage.test.tsx › AppPage — delete group (soft delete) trash opens the delete dialog → passed
+src/test/AppPage.test.tsx › AppPage — dismissible home hints "Załóż grupę" auto-disappears once a group exists (not a manual dismiss) → passed
+src/test/AppPage.test.tsx › AppPage — dismissible home hints "Załóż grupę" renders for a user without groups and its dismiss persists across a re-mount → passed
+src/test/AppPage.test.tsx › AppPage — dismissible home hints a hint dismissed by another account in the same browser is still shown to this account → passed
+src/test/AppPage.test.tsx › AppPage — dismissible home hints a leader without an Organization and without terms sees "Stwórz wizytówkę" then "Dodaj swój pierwszy termin", dismissed on their own keys → passed
+src/test/AppPage.test.tsx › AppPage — dismissible home hints the first-term hint auto-hides after a term is added via the real 1-step stepper (not just terms mocked directly) → passed
+src/test/AppPage.test.tsx › AppPage — dismissible home hints the first-term hint auto-hides once the leader has a term, with no manual dismiss needed → passed
+src/test/AppPage.test.tsx › AppPage — dismissible home hints with an Organization the leader sees "Dopracuj stronę organizacji" linking to its public page instead → passed
+src/test/AppPage.test.tsx › AppPage — edit group page (name/layout/visibility/default place and capacity) an id outside the led groups shows a not-found note instead of the form → passed
+src/test/AppPage.test.tsx › AppPage — edit group page (name/layout/visibility/default place and capacity) pre-fills the default place and capacity and sends null for both once cleared → passed
+src/test/AppPage.test.tsx › AppPage — edit group page (name/layout/visibility/default place and capacity) pre-fills the form from the group's current name and layout_mode → passed
+src/test/AppPage.test.tsx › AppPage — edit group page (name/layout/visibility/default place and capacity) saves every field in one updateGroup call and goes back to Moje grupy on success → passed
+src/test/AppPage.test.tsx › AppPage — edit group page (name/layout/visibility/default place and capacity) shows an inline error and stays on the page on a rejected save → passed
+src/test/AppPage.test.tsx › AppPage — edit group page (name/layout/visibility/default place and capacity) the tile's pencil and layout icon open /groups/:id/edit, whose back link returns to Moje grupy → passed
+src/test/AppPage.test.tsx › AppPage — event tile links and the event edit page Biorę udział lists attended events linking to their page, with no edit pencil → passed
+src/test/AppPage.test.tsx › AppPage — event tile links and the event edit page someone else's event shows a note instead of the form → passed
+src/test/AppPage.test.tsx › AppPage — event tile links and the event edit page the edit page is prefilled, sends the whole event and goes back to the event page → passed
+src/test/AppPage.test.tsx › AppPage — event tile links and the event edit page the event tile links its name to the event page and its pencil to the edit page → passed
+src/test/AppPage.test.tsx › AppPage — family member circles (both contexts) a leader whose family also belongs to a circle sees both "Prowadzę" and that circle's term under "Zapisane" → passed
+src/test/AppPage.test.tsx › AppPage — family member circles (both contexts) a membership-only term (no RSVP) shows under "Zapisane" with its "10 miejsc" pill → passed
+src/test/AppPage.test.tsx › AppPage — family member circles (both contexts) a term both RSVPed and membership-visible renders once, as the attended card → passed
+src/test/AppPage.test.tsx › AppPage — inventory item edit/delete optimistically deletes an item and restores it on a 409 → passed
+src/test/AppPage.test.tsx › AppPage — inventory item edit/delete seeds each item's mode toggle from its listing_mode in 'Moje rzeczy' → passed
+src/test/AppPage.test.tsx › AppPage — item add entry point "Moje rzeczy" has no floating "+ Dodaj rzecz" — adding goes through the bottom-nav "+" → passed
+src/test/AppPage.test.tsx › AppPage — mode toggle errors and photo-moderation poll 409 on setItemMode → toast shows server message verbatim and getMyInventoryItems re-fetched → passed
+src/test/AppPage.test.tsx › AppPage — mode toggle errors and photo-moderation poll network error → fallback toast text → passed
+src/test/AppPage.test.tsx › AppPage — mode toggle errors and photo-moderation poll poll: a stale poll response landing after a successful mode save does not flip the toggle back → passed
+src/test/AppPage.test.tsx › AppPage — mode toggle errors and photo-moderation poll poll: getMyInventoryItems called every 10 s while pending and stops once the flag clears → passed
+src/test/AppPage.test.tsx › AppPage — mode toggle errors and photo-moderation poll poll: not running while document is hidden → passed
+src/test/AppPage.test.tsx › AppPage — mode toggle errors and photo-moderation poll toast timeout scales with the message: the long 409 text outlives the 2.2 s default, then hides → passed
+src/test/AppPage.test.tsx › AppPage — moderation errors inline in the add-group page and add-term / edit-group forms add group: a saved group goes back to Moje grupy with a toast → passed
+src/test/AppPage.test.tsx › AppPage — moderation errors inline in the add-group page and add-term / edit-group forms add group: a server-rejected name shows an inline alert, no toast, and keeps the page with its input → passed
+src/test/AppPage.test.tsx › AppPage — moderation errors inline in the add-group page and add-term / edit-group forms add group: coming back to the page clears the previous inline error → passed
+src/test/AppPage.test.tsx › AppPage — moderation errors inline in the add-group page and add-term / edit-group forms add group: the place picker's + goes to /places/new and comes back with the new place selected and the name kept → passed
+src/test/AppPage.test.tsx › AppPage — moderation errors inline in the add-group page and add-term / edit-group forms add term: a rejected createTerm shows an inline alert, creates no needed items and stays on the page → failed
+src/test/AppPage.test.tsx › AppPage — moderation errors inline in the add-group page and add-term / edit-group forms add term: a rejected needed-item name does not block the term — one toast, the page goes to Spotkania → failed
+src/test/AppPage.test.tsx › AppPage — moderation errors inline in the add-group page and add-term / edit-group forms add term: creates the term first, then the needed items by name (no resolveProduct) → failed
+src/test/AppPage.test.tsx › AppPage — moderation errors inline in the add-group page and add-term / edit-group forms edit group: a server-rejected name shows the server message in an alert → passed
+src/test/AppPage.test.tsx › AppPage — needed item edit error path shows an inline error and keeps the row editor open with the typed values when the edit is rejected → passed
+src/test/AppPage.test.tsx › AppPage — needed item sub-CRUD (in the term dialog) adds a needed item via the dialog add row by name only (no resolveProduct) → passed
+src/test/AppPage.test.tsx › AppPage — needed item sub-CRUD (in the term dialog) deletes a needed item via the dialog (await-then-refresh) → passed
+src/test/AppPage.test.tsx › AppPage — needed item sub-CRUD (in the term dialog) edits a needed item's description only via the dialog (no resolveProduct) → passed
+src/test/AppPage.test.tsx › AppPage — needed item sub-CRUD (in the term dialog) keeps the row and shows an inline message when delete returns 409 → passed
+src/test/AppPage.test.tsx › AppPage — organizer term card signup chip no chip when counts are null → passed
+src/test/AppPage.test.tsx › AppPage — organizer term card signup chip organizer card chip uses Polish plural forms (2 zapisy · 1 dziecko) → passed
+src/test/AppPage.test.tsx › AppPage — organizer term card signup chip organizer card shows "Brak zapisów" for zero attendees → passed
+src/test/AppPage.test.tsx › AppPage — organizer term card signup chip organizer card shows signup chip linking to attendees page → passed
+src/test/AppPage.test.tsx › AppPage — per-term public links & copy-link button 'Dodaj termin' dialog keeps 'Potrzebne rzeczy' collapsed behind a small optional button → failed
+src/test/AppPage.test.tsx › AppPage — per-term public links & copy-link button copy-link button on an organizer 'Terminy' row writes the absolute per-term URL and toasts → passed
+src/test/AppPage.test.tsx › AppPage — per-term public links & copy-link button organizer first-term stepper done-screen CTA deep-links to the just-created term using the circle's slug → passed
+src/test/AppPage.test.tsx › AppPage — per-term public links & copy-link button organizer term tile marks a claimed needed item with a checkmark → passed
+src/test/AppPage.test.tsx › AppPage — per-term public links & copy-link button organizer with no Organization — 'Terminy' row still links to the per-term public page via the hash slug → passed
+src/test/AppPage.test.tsx › AppPage — profil /profile edits name and 'O mnie' (no location field) and saves them → passed
+src/test/AppPage.test.tsx › AppPage — profil shows the moderation message when the name is rejected → passed
+src/test/AppPage.test.tsx › AppPage — profil uploads an avatar, shows it with the pending note, and removes it → passed
+src/test/AppPage.test.tsx › AppPage — redesigned navigation and pages /add/product is a panel view with the item form and a way back to /add → passed
+src/test/AppPage.test.tsx › AppPage — redesigned navigation and pages /add/term opened by URL starts on the first group and saves into Spotkania → passed
+src/test/AppPage.test.tsx › AppPage — redesigned navigation and pages Dodaj links every tile to its /add page → passed
+src/test/AppPage.test.tsx › AppPage — redesigned navigation and pages Dodaj links to the item form and, without groups, sends a term to the new-group page → passed
+src/test/AppPage.test.tsx › AppPage — redesigned navigation and pages Konto with an organization links Moje grupy (with the count) and Terminy separately → passed
+src/test/AppPage.test.tsx › AppPage — redesigned navigation and pages Konto without an organization offers to create one and links the item sub-pages → passed
+src/test/AppPage.test.tsx › AppPage — redesigned navigation and pages Start shows the greeting and the five-slot tab bar → passed
+src/test/AppPage.test.tsx › AppPage — redesigned navigation and pages Szukaj filters the (mock) items by the query and switches to meetings → passed
+src/test/AppPage.test.tsx › AppPage — redesigned navigation and pages Szukam adds and removes a wanted item → passed
+src/test/AppPage.test.tsx › AppPage — redesigned navigation and pages a Konto sub-page has a back link to Konto and keeps the tab bar on Konto → passed
+src/test/AppPage.test.tsx › AppPage — redesigned navigation and pages the hunting form (mock) needs a name, then shows a confirmation → passed
+src/test/AppPage.test.tsx › AppPage — silent reloads silently reloads panel data on re-entry to a /panel/* route after navigating away and back → passed
+src/test/AppPage.test.tsx › AppPage — silent reloads silently reloads panel data when the app-wide host signals a resolved pending action → passed
+src/test/AppPage.test.tsx › AppPage — term edit page calls updateTerm with only the changed occurs_on field → passed
+src/test/AppPage.test.tsx › AppPage — term edit page goes back to Spotkania without calling updateTerm when nothing changed → passed
+src/test/AppPage.test.tsx › AppPage — term edit page shows an inline error and stays on the page when the save is rejected → passed
+src/test/AuthGuard.test.tsx › AuthGuard forwardReturnTo sends a logged-in visitor to onboarding with the returnTo carried along, not straight to it → passed
+src/test/AuthGuard.test.tsx › AuthGuard forwardReturnTo without returnTo goes to the plain authenticatedRedirect → passed
+src/test/AuthGuard.test.tsx › homePath permissions ["ADMIN"] land on /admin/products → passed
+src/test/AuthGuard.test.tsx › homePath permissions ["EDIT","PLUGIN_MANAGEMENT"] land on /admin/products → passed
+src/test/AuthGuard.test.tsx › homePath permissions ["EDIT"] land on / → passed
+src/test/AuthGuard.test.tsx › homePath permissions [] land on / → passed
+src/test/Avatar.test.tsx › Avatar does not render the shares marker when showsSharesIcon is false or omitted → passed
+src/test/Avatar.test.tsx › Avatar renders 2-letter initials from a family name, stripping the 'Rodzina' prefix → passed
+src/test/Avatar.test.tsx › Avatar renders a deterministic palette tone for the same name across renders → passed
+src/test/Avatar.test.tsx › Avatar renders both markers simultaneously when both props are true → passed
+src/test/Avatar.test.tsx › Avatar renders the brings marker only when showsBringsIcon=true → passed
+src/test/Avatar.test.tsx › Avatar renders the shares marker only when showsSharesIcon=true → passed
+src/test/CategoryFormPage.test.tsx › CategoryFormPage blocks submission via native required-field validation when the name is empty → passed
+src/test/CategoryFormPage.test.tsx › CategoryFormPage posts parent_id null when the root option is chosen, without submitting from the picker → passed
+src/test/CategoryFormPage.test.tsx › CategoryFormPage preselects ?parent= in the any-mode picker and posts parent_id → passed
+src/test/CategoryFormPage.test.tsx › CategoryFormPage shows the parent path read-only in edit mode and a 409 inline → passed
+src/test/CategoryFormPage.test.tsx › CategoryFormPage — picker inside the admin form never submits from Enter in the picker search or the ✕ close button → passed
+src/test/CategoryListPage.test.tsx › CategoryListPage disables + Podkategoria and Usuń with a title on a category with products → passed
+src/test/CategoryListPage.test.tsx › CategoryListPage expands the branches of matches that arrive after the filter was typed → passed
+src/test/CategoryListPage.test.tsx › CategoryListPage filters by name and expands the branches that contain matches → passed
+src/test/CategoryListPage.test.tsx › CategoryListPage hides the admin actions from a non-admin → passed
+src/test/CategoryListPage.test.tsx › CategoryListPage moves a category within its siblings with the arrow buttons → passed
+src/test/CategoryListPage.test.tsx › CategoryListPage renders nested rows with disclosure aria-expanded and Polish plural meta → passed
+src/test/CategoryListPage.test.tsx › CategoryListPage shows the backend's 409 delete message in the top alert → passed
+src/test/CategoryTreePicker.test.tsx › CategoryTreePicker clears the search on Escape without closing the sheet → passed
+src/test/CategoryTreePicker.test.tsx › CategoryTreePicker closes on a scrim click without reopening or submitting → passed
+src/test/CategoryTreePicker.test.tsx › CategoryTreePicker drills down, jumps through the breadcrumb and goes back → passed
+src/test/CategoryTreePicker.test.tsx › CategoryTreePicker drills into a non-leaf result in leaf mode and selects it in any mode → passed
+src/test/CategoryTreePicker.test.tsx › CategoryTreePicker never submits the host form from the trigger, the close button or Enter in the search → passed
+src/test/CategoryTreePicker.test.tsx › CategoryTreePicker returns focus to the trigger after a selection and reopens at the parent level → passed
+src/test/CategoryTreePicker.test.tsx › CategoryTreePicker searches without diacritics, shows paths and caps the list at 50 → passed
+src/test/CategoryTreePicker.test.tsx › CategoryTreePicker selects the active option with ArrowDown and Enter → passed
+src/test/ConfirmDeleteDialog.test.tsx › ConfirmDeleteDialog keeps the danger tone and Usuwanie… by default, and applies tone=primary with a custom busy label → passed
+src/test/ConfirmDialog.test.tsx › ConfirmDialog existing callers that don't pass `error` (e.g. ProductListPage's delete flow) are unaffected: no banner renders and Cancel still closes the dialog → passed
+src/test/ConfirmDialog.test.tsx › ConfirmDialog renders the error banner with aria-live="polite" when `error` is set, and does not call onClose itself → passed
+src/test/DeleteGroupDialog.test.tsx › DeleteGroupDialog Esc and Anuluj call onClose → passed
+src/test/DeleteGroupDialog.test.tsx › DeleteGroupDialog confirm shows Usuwanie… with both buttons disabled while pending → passed
+src/test/DeleteGroupDialog.test.tsx › DeleteGroupDialog focuses Anuluj initially and renders the title and body copy → passed
+src/test/DeleteGroupDialog.test.tsx › DeleteGroupDialog rejected onConfirm shows role=alert message and keeps dialog open → passed
+src/test/EventComponents.test.tsx › EventAttendeeList keeps the author row and shows the empty copy when nobody else signed up → passed
+src/test/EventComponents.test.tsx › EventAttendeeList links every item to its product page under the author slug, with its intent pill → passed
+src/test/EventComponents.test.tsx › EventAttendeeList puts the author first with Organizator and marks the viewer's row with To Ty → passed
+src/test/EventComponents.test.tsx › EventAttendeeList shows 3 items, then Pokaż więcej (N) › to the participant's items page, no event query → passed
+src/test/EventComponents.test.tsx › EventAttendeeList shows neutral empty copy without the sign-up nudge when the viewer cannot sign up → passed
+src/test/EventComponents.test.tsx › EventChatRow opens the chat, is disabled while busy and shows an error inline as an alert → passed
+src/test/EventComponents.test.tsx › EventFooter renders the signUp, withdraw and disabled ended variants with their copy → passed
+src/test/EventComponents.test.tsx › EventWhenCard shows the start–end range, and only the start time without an end → passed
+src/test/EventPage.test.tsx › EventPage Kopiuj link copies the slug URL of the event and confirms with a toast → passed
+src/test/EventPage.test.tsx › EventPage a guest signs up in the sheet, the key is stored and the merge card replaces the footer → passed
+src/test/EventPage.test.tsx › EventPage a logged-in visitor signs up with one click, without the guest sheet, and gets a toast → passed
+src/test/EventPage.test.tsx › EventPage after a logout the author's data stays read-only until the refetch, without chat or author card → passed
+src/test/EventPage.test.tsx › EventPage after the start, the author's delete is blocked while reservations are open → passed
+src/test/EventPage.test.tsx › EventPage an attendee sees the chat row and themself, and withdraws after confirming → passed
+src/test/EventPage.test.tsx › EventPage before the start, deleting an event with open reservations warns with the counts and cancels them → passed
+src/test/EventPage.test.tsx › EventPage is routed only at /:slug/event/:id; the old /events/:id page route is gone but edit stays → passed
+src/test/EventPage.test.tsx › EventPage links the header chip to the organization, else to the author's person profile → passed
+src/test/EventPage.test.tsx › EventPage navigating to another event drops the previous event's guest sign-up and sheet state → passed
+src/test/EventPage.test.tsx › EventPage once the event has ended, a visitor gets the disabled ended footer → passed
+src/test/EventPage.test.tsx › EventPage shows an anonymous visitor the page in order, the empty copy and the sign-up footer, without chat → passed
+src/test/EventPage.test.tsx › EventPage shows each participant's newest items with plain product links and Pokaż więcej to their items page → passed
+src/test/EventPage.test.tsx › EventPage shows the toast handed over in router state once and clears the state → passed
+src/test/EventPage.test.tsx › EventPage the author gets the chat row and the author card instead of a footer, and lands on Spotkania after deleting → passed
+src/test/EventPage.test.tsx › EventPage the author's delete is blocked with a count hint while people are signed up → passed
+src/test/EventPage.test.tsx › EventPage the blocked-delete hint for 1 attendee(s) agrees in number → passed
+src/test/EventPage.test.tsx › EventPage the blocked-delete hint for 12 attendee(s) agrees in number → passed
+src/test/EventPage.test.tsx › EventPage the blocked-delete hint for 2 attendee(s) agrees in number → passed
+src/test/EventPage.test.tsx › EventPage the blocked-delete hint for 22 attendee(s) agrees in number → passed
+src/test/EventPage.test.tsx › EventPage the blocked-delete hint for 5 attendee(s) agrees in number → passed
+src/test/EventPage.test.tsx › EventPage the delete warning for 1 reservation(s), 0 swap(s) agrees in number → passed
+src/test/EventPage.test.tsx › EventPage the delete warning for 2 reservation(s), 2 swap(s) agrees in number → passed
+src/test/EventPage.test.tsx › EventPage the delete warning for 22 reservation(s), 1 swap(s) agrees in number → passed
+src/test/EventPage.test.tsx › EventPage the delete warning for 5 reservation(s), 5 swap(s) agrees in number → passed
+src/test/FirstTermStepperOrganizer.test.tsx › FirstTermStepperOrganizer — place and capacity createTerm_clearedPrefilledCapacity_sendsExplicitNull → passed
+src/test/FirstTermStepperOrganizer.test.tsx › FirstTermStepperOrganizer — place and capacity createTerm_invalidCapacity_-1_showsInlineErrorAndBlocksSubmit → passed
+src/test/FirstTermStepperOrganizer.test.tsx › FirstTermStepperOrganizer — place and capacity createTerm_invalidCapacity_0_showsInlineErrorAndBlocksSubmit → passed
+src/test/FirstTermStepperOrganizer.test.tsx › FirstTermStepperOrganizer — place and capacity createTerm_invalidCapacity_10001_showsInlineErrorAndBlocksSubmit → passed
+src/test/FirstTermStepperOrganizer.test.tsx › FirstTermStepperOrganizer — place and capacity createTerm_invalidCapacity_2.5_showsInlineErrorAndBlocksSubmit → passed
+src/test/FirstTermStepperOrganizer.test.tsx › FirstTermStepperOrganizer — place and capacity createTerm_prefilledGroupDefaults_sendsLocationAndCapacity → passed
+src/test/FirstTermStepperOrganizer.test.tsx › FirstTermStepperOrganizer — server error message falls back to the generic Polish message for a non-domain error → passed
+src/test/FirstTermStepperOrganizer.test.tsx › FirstTermStepperOrganizer — server error message shows the server's 400 moderation message in role=alert and keeps the form → passed
+src/test/GroupDetailsPage.test.tsx › GroupDetailsPage generic error retry refetches → passed
+src/test/GroupDetailsPage.test.tsx › GroupDetailsPage group chat card is absent for a member (code 403) and for a PUBLIC group → passed
+src/test/GroupDetailsPage.test.tsx › GroupDetailsPage group chat card is shown above the code card to the organizer of a PRIVATE group and opens the group chat → passed
+src/test/GroupDetailsPage.test.tsx › GroupDetailsPage group chat card stays shown when the join-code fetch fails with something other than 403 → passed
+src/test/GroupDetailsPage.test.tsx › GroupDetailsPage join code card a PUBLIC group never asks for a code and shows no card → passed
+src/test/GroupDetailsPage.test.tsx › GroupDetailsPage join code card copies the raw code and a link to the nearest upcoming term; no link without one → passed
+src/test/GroupDetailsPage.test.tsx › GroupDetailsPage join code card keeps the confirm open with the server message when regenerating fails → passed
+src/test/GroupDetailsPage.test.tsx › GroupDetailsPage join code card regenerates the code after confirming → passed
+src/test/GroupDetailsPage.test.tsx › GroupDetailsPage join code card shows a skeleton while loading and an inline retry on a 500 → passed
+src/test/GroupDetailsPage.test.tsx › GroupDetailsPage join code card shows the code to a PRIVATE organizer and nothing on 403 → passed
+src/test/GroupDetailsPage.test.tsx › GroupDetailsPage members 403 shows denied → passed
+src/test/GroupDetailsPage.test.tsx › GroupDetailsPage renders group details and the member list → passed
+src/test/GroupDetailsPage.test.tsx › GroupDetailsPage shows the fallbacks for a bare group and an empty member list → passed
+src/test/GroupDetailsPage.test.tsx › GroupDetailsPage unknown group 404 shows notFound → passed
+src/test/GroupVisualization.test.tsx › GroupVisualization CIRCLE mode renders one avatar button per family → passed
+src/test/GroupVisualization.test.tsx › GroupVisualization CIRCLE with nobody signed up draws 8 dashed seats and says so → passed
+src/test/GroupVisualization.test.tsx › GroupVisualization PITCH mode renders one avatar button per family → passed
+src/test/GroupVisualization.test.tsx › GroupVisualization PITCH mode renders the organizer's name above the pitch, without a role label → passed
+src/test/GroupVisualization.test.tsx › GroupVisualization PITCH with nobody signed up draws 6 dashed seats and says so → passed
+src/test/GroupVisualization.test.tsx › GroupVisualization TABLE mode renders one avatar button per family → passed
+src/test/GroupVisualization.test.tsx › GroupVisualization TABLE mode renders the needed items as non-interactive chips that don't trigger onSelectFamily → passed
+src/test/GroupVisualization.test.tsx › GroupVisualization TABLE seats the organizer at the head of the table, in the same scene as the families → passed
+src/test/GroupVisualization.test.tsx › GroupVisualization TABLE with nobody signed up draws 8 dashed seats and says so → passed
+src/test/GroupVisualization.test.tsx › GroupVisualization activeFamilyId highlights the correct family in all 3 modes → passed
+src/test/GroupVisualization.test.tsx › GroupVisualization clicking a family avatar calls onSelectFamily with its familyId → passed
+src/test/GroupVisualization.test.tsx › GroupVisualization draws no dashed seats and no empty caption once someone signed up → passed
+src/test/GroupVisualization.test.tsx › GroupVisualization renders the exchange-legend once beneath the visualization regardless of layoutMode → passed
+src/test/InboxPage.test.tsx › InboxPage error: inline Polish message with a retry → passed
+src/test/InboxPage.test.tsx › InboxPage event row: the Wydarzenie chip and the party icon → passed
+src/test/InboxPage.test.tsx › InboxPage loading: a skeleton row → passed
+src/test/InboxPage.test.tsx › InboxPage no conversations: the dashed empty card → passed
+src/test/InboxPage.test.tsx › InboxPage rows: chip, title, sender prefix, unread bold with a count, link to the thread → passed
+src/test/ItemCreateView.test.tsx › ItemCreateView Oddam registers the item with listing_mode GIFT, then uploads the photos → passed
+src/test/ItemCreateView.test.tsx › ItemCreateView Wersja robocza registers the item with listing_mode null, then uploads the photos → passed
+src/test/ItemCreateView.test.tsx › ItemCreateView Zamienię registers the item with listing_mode SWAP, then uploads the photos → passed
+src/test/ItemCreateView.test.tsx › ItemCreateView an empty gallery is one big add tile; a photo shows a tile with Usuń and the main add button → passed
+src/test/ItemCreateView.test.tsx › ItemCreateView falls back to a Polish message for an unexpected error → passed
+src/test/ItemCreateView.test.tsx › ItemCreateView keeps Oddam, Zamienię and Wersja robocza aria-disabled until a name and a category are set → passed
+src/test/ItemCreateView.test.tsx › ItemCreateView orders the page Zdjęcia, Nazwa, Stan, Kategoria, Opis and saves the description to the product → passed
+src/test/ItemCreateView.test.tsx › ItemCreateView rejects an unsupported photo with a message and keeps the list empty → passed
+src/test/ItemCreateView.test.tsx › ItemCreateView sends no request when Enter submits the form from the name input → passed
+src/test/ItemCreateView.test.tsx › ItemCreateView shows the gift-limit 409 verbatim and keeps the form data → passed
+src/test/ItemCreateView.test.tsx › ItemCreateView skips an empty description → passed
+src/test/ItemCreateView.test.tsx › ItemCreateView still opens the new item when a photo is refused and tells how many failed → passed
+src/test/ItemCreateView.test.tsx › ItemCreateView still opens the new item when the description is refused, with a notice → passed
+src/test/ItemCreateView.test.tsx › ItemCreateView tells screen-reader users why the disabled actions are disabled → passed
+src/test/ItemDetailPage.test.tsx › Item edit mode status chip and photo hints edit mode shows no moderation notice when a photo is NEEDS_REVIEW → passed
+src/test/ItemDetailPage.test.tsx › Item edit mode status chip and photo hints edit mode shows no moderation notice when a photo is PENDING → passed
+src/test/ItemDetailPage.test.tsx › Item edit mode status chip and photo hints edit mode shows the ACTIVE status chip next to its heading → passed
+src/test/ItemDetailPage.test.tsx › Item edit mode status chip and photo hints edit mode shows the DRAFT status chip next to its heading → passed
+src/test/ItemDetailPage.test.tsx › Item edit mode status chip and photo hints gallery helper text no longer claims a new photo withdraws the item → passed
+src/test/ItemDetailPage.test.tsx › ItemDetailPage Anuluj leaves edit mode without saving → passed
+src/test/ItemDetailPage.test.tsx › ItemDetailPage Edytuj turns the fields into inputs on the same page; Zapisz saves condition and description together → passed
+src/test/ItemDetailPage.test.tsx › ItemDetailPage PRIVATE item with an open reservation own: the 🔒 Prywatny badge sits beside the giver's cancel action and hint → passed
+src/test/ItemDetailPage.test.tsx › ItemDetailPage PROPOSED_SWAP copy renders → passed
+src/test/ItemDetailPage.test.tsx › ItemDetailPage a 403 on a description save shows ACCESS_DENIED_MESSAGE inline and stays in edit mode → passed
+src/test/ItemDetailPage.test.tsx › ItemDetailPage a failed details refetch locks photos and the description with a retry → passed
+src/test/ItemDetailPage.test.tsx › ItemDetailPage a name and category change locks the description, then resolves the product and re-points the item → passed
+src/test/ItemDetailPage.test.tsx › ItemDetailPage a non-owner on the old /edit address sees the view with no edit controls → passed
+src/test/ItemDetailPage.test.tsx › ItemDetailPage context actions SWAP: Wybieram termin continues to the swap picker and proposes in the chosen context → passed
+src/test/ItemDetailPage.test.tsx › ItemDetailPage context actions Wybieram termin reserves a GIFT in a EVENT context → passed
+src/test/ItemDetailPage.test.tsx › ItemDetailPage context actions Wybieram termin reserves a GIFT in a TERM context → passed
+src/test/ItemDetailPage.test.tsx › ItemDetailPage context actions a pending proposal on an AVAILABLE balance suppresses Dostępna → passed
+src/test/ItemDetailPage.test.tsx › ItemDetailPage context actions an actions failure shows a retry in the card while the rest of the page renders → passed
+src/test/ItemDetailPage.test.tsx › ItemDetailPage context actions anonymous: the context list and the login gate, with no location, reserve or chat buttons → passed
+src/test/ItemDetailPage.test.tsx › ItemDetailPage context actions logged in: the intent badge, location block, context list and the three actions in order → passed
+src/test/ItemDetailPage.test.tsx › ItemDetailPage context actions non-party reserved: header badge, status note, aria-disabled actions with the hint, chat enabled → passed
+src/test/ItemDetailPage.test.tsx › ItemDetailPage context actions own PRIVATE item: the 🔒 Prywatny badge and the visibility line → passed
+src/test/ItemDetailPage.test.tsx › ItemDetailPage context actions own PUBLIC item: no private badge or line → passed
+src/test/ItemDetailPage.test.tsx › ItemDetailPage context actions own unlisted item: no Dostępna offer or reserve note, a hint linking to Moje rzeczy instead → passed
+src/test/ItemDetailPage.test.tsx › ItemDetailPage context actions own: address only for the owner, the Moje rzeczy link and note, no reserve or chat → passed
+src/test/ItemDetailPage.test.tsx › ItemDetailPage context actions party hint: a term reservation before its end → passed
+src/test/ItemDetailPage.test.tsx › ItemDetailPage context actions party hint: the GIFT giver waits for the receiver → passed
+src/test/ItemDetailPage.test.tsx › ItemDetailPage context actions party hint: the proposer waits for the owner → passed
+src/test/ItemDetailPage.test.tsx › ItemDetailPage context actions party of a personal reservation: the badge reads przez Ciebie and the status names both parties → passed
+src/test/ItemDetailPage.test.tsx › ItemDetailPage context actions party: a failed cancel keeps the dialog open with the error inline; closing it shows the error on the card → passed
+src/test/ItemDetailPage.test.tsx › ItemDetailPage context actions party: confirm and cancel call the transaction APIs; an already-resolved 409 shows its message and refetches → passed
+src/test/ItemDetailPage.test.tsx › ItemDetailPage context actions party: the owner accepts or rejects a pending swap proposal → passed
+src/test/ItemDetailPage.test.tsx › ItemDetailPage context actions personal GIFT: the sheet reserves with PERSONAL and opens the ITEM chat → passed
+src/test/ItemDetailPage.test.tsx › ItemDetailPage context actions personal SWAP: the sheet continues to the swap picker and proposes with PERSONAL → passed
+src/test/ItemDetailPage.test.tsx › ItemDetailPage context actions personal: a chat failure keeps the reservation shown with a separate error → passed
+src/test/ItemDetailPage.test.tsx › ItemDetailPage context actions with a location but no personal pickup, Odbiorę osobiście is aria-disabled and described by why → passed
+src/test/ItemDetailPage.test.tsx › ItemDetailPage context actions without a location or eligible context both reserve actions are aria-disabled with hints and do nothing → passed
+src/test/ItemDetailPage.test.tsx › ItemDetailPage deleted item shows the banner and no Edytuj, and ?edit=1 stays in view mode → passed
+src/test/ItemDetailPage.test.tsx › ItemDetailPage edit mode turns the top photo into the editable slider: files are validated and controls lock while a move is pending → passed
+src/test/ItemDetailPage.test.tsx › ItemDetailPage fallbacks Wróć on a directly opened page falls back to /items → passed
+src/test/ItemDetailPage.test.tsx › ItemDetailPage fallbacks a missing category renders a fallback instead of null → passed
+src/test/ItemDetailPage.test.tsx › ItemDetailPage fallbacks edit mode never adds a history entry: Moje rzeczy → edit → Anuluj → Wróć returns to Moje rzeczy → passed
+src/test/ItemDetailPage.test.tsx › ItemDetailPage fallbacks gallery shows the catalog product_photo_url when the product has no photos → passed
+src/test/ItemDetailPage.test.tsx › ItemDetailPage not found for 404 and 400 (malformed id), error state retries → passed
+src/test/ItemDetailPage.test.tsx › ItemDetailPage owner_noTextModerationBanner_descriptionVisible → passed
+src/test/ItemDetailPage.test.tsx › ItemDetailPage reservation party view non-owner party in transit gets an Odbiór title and the W drodze line → passed
+src/test/ItemDetailPage.test.tsx › ItemDetailPage reservation party view non-party viewer keeps the DD.MM text and gets no calendar trigger → passed
+src/test/ItemDetailPage.test.tsx › ItemDetailPage reservation party view owner gets a Przekazanie title with the Term link in the details → passed
+src/test/ItemDetailPage.test.tsx › ItemDetailPage reservation party view party RESERVED shows hour and group, with the calendar trigger outside the status line → passed
+src/test/ItemDetailPage.test.tsx › ItemDetailPage reservation party view party view hides the calendar trigger once the Term has passed but keeps the dated line → passed
+src/test/ItemDetailPage.test.tsx › ItemDetailPage view renders fields, gallery and status with an owner Edytuj button, and no history → passed
+src/test/ItemQuickAddForm.test.tsx › ItemQuickAddForm `Stan` select options match CONDITION_LABELS → passed
+src/test/ItemQuickAddForm.test.tsx › ItemQuickAddForm disables every field when `disabled` is true → passed
+src/test/ItemQuickAddForm.test.tsx › ItemQuickAddForm emits the chosen leaf as category_id → passed
+src/test/ItemQuickAddForm.test.tsx › ItemQuickAddForm renders Nazwa, Stan and the Kategoria picker in order, without a Typ select → passed
+src/test/ItemQuickAddFormCategory.test.tsx › ItemQuickAddForm — Kategoria picker has no default category: the trigger shows the placeholder and the value is empty → passed
+src/test/ItemQuickAddFormCategory.test.tsx › ItemQuickAddForm — Kategoria picker renders a required Kategoria picker labelled through aria-labelledby, outside any <label> → passed
+src/test/ItemStatusCard.test.tsx › ItemStatusCard event reservation calendar export points at the event page and uses the event id in the uid → passed
+src/test/ItemStatusCard.test.tsx › ItemStatusCard event reservation non-party viewer of an event reservation sees only the date → passed
+src/test/ItemStatusCard.test.tsx › ItemStatusCard event reservation party sees the event date and name and a link to the event page → passed
+src/test/ItemStatusCard.test.tsx › ItemStatusCard personal pickup IN_TRANSIT reads W drodze with the chat line and no date or calendar → passed
+src/test/ItemStatusCard.test.tsx › ItemStatusCard personal pickup RESERVED reads Zarezerwowana with the chat line and no date or calendar → passed
+src/test/ItemTileBadges.test.tsx › ItemTileBadges keeps the intent pill and adds the teal reserved pill for an anonymous viewer (no name) → passed
+src/test/ItemTileBadges.test.tsx › ItemTileBadges keeps the intent pill and adds the teal reserved pill for an available item → passed
+src/test/ItemTileBadges.test.tsx › ItemTileBadges keeps the intent pill and adds the teal reserved pill for another logged-in viewer → passed
+src/test/ItemTileBadges.test.tsx › ItemTileBadges keeps the intent pill and adds the teal reserved pill for the reserver themself → passed
+src/test/ItemTileBadges.test.tsx › ItemTileBadges renders nothing without a mode or a reservation → passed
+src/test/ItemTileBadges.test.tsx › ItemTileBadges renders the GIFT and SWAP intent as text pills in their exchange-mode tone → passed
+src/test/LandingPage.test.tsx › LandingPage offers sign-up and login and previews items and meetings → passed
+src/test/LayoutRenderer.test.tsx › LayoutRenderer copies origin/slug without the edit param when navigator.share is missing → passed
+src/test/LayoutRenderer.test.tsx › LayoutRenderer falls back to CLASSIC for unknown or missing keys → passed
+src/test/LayoutRenderer.test.tsx › LayoutRenderer gives an empty primary the layout's empty state for visitors and the CTA ghost for the owner → passed
+src/test/LayoutRenderer.test.tsx › LayoutRenderer hides directory slots from visitors and shows neutral ghosts to the owner when unavailable → passed
+src/test/LayoutRenderer.test.tsx › LayoutRenderer hides empty recent items from visitors and shows the owner a ghost → passed
+src/test/LayoutRenderer.test.tsx › LayoutRenderer keeps exactly one active primary slot for 0, 1 and 2 circles, with CIRCLES featured at 1 and cards at 2 → passed
+src/test/LayoutRenderer.test.tsx › LayoutRenderer loads the next agenda page for the organizer slug through the SCHEDULE layout → passed
+src/test/LayoutRenderer.test.tsx › LayoutRenderer never renders identity fields smuggled into the directory on a full CLASSIC page → passed
+src/test/LayoutRenderer.test.tsx › LayoutRenderer places recent items right after the exchange board in EXCHANGE only → passed
+src/test/LayoutRenderer.test.tsx › LayoutRenderer recommends layouts from the directory data → passed
+src/test/LayoutRenderer.test.tsx › LayoutRenderer recommends nothing while loading, even with a directory that would recommend SCHEDULE and CIRCLES → passed
+src/test/LayoutRenderer.test.tsx › LayoutRenderer registers five layouts with their labels, thumbnail alts and compositions → passed
+src/test/LayoutRenderer.test.tsx › LayoutRenderer renders CLASSIC for a visitor with hero, share and footer but no ghost → passed
+src/test/LayoutRenderer.test.tsx › LayoutRenderer renders LINKS with the full-width share button in the primary-colored centered frame → passed
+src/test/LayoutRenderer.test.tsx › LayoutRenderer renders one skeleton per directory block id while the directory loads → passed
+src/test/LayoutRenderer.test.tsx › LayoutRenderer renders the LINKS directory buttons per state and the SCHEDULE compact hero → passed
+src/test/LayoutRenderer.test.tsx › LayoutRenderer renders the about ghost for the owner, whose only focusable part opens the Opis tab → passed
+src/test/LayoutRenderer.test.tsx › LayoutRenderer shows recent item tiles with intent pills linking to the plain product page, even with a nearest date → passed
+src/test/LayoutRenderer.test.tsx › LayoutRenderer shows the description with its line breaks to visitors and the owner instead of the ghost → passed
+src/test/LocationPicker.test.tsx › LocationPicker '+' expands the inline add form; manual save selects the new place, collapses and refocuses the select → passed
+src/test/LocationPicker.test.tsx › LocationPicker Anuluj collapses the add form and returns focus to '+' → passed
+src/test/LocationPicker.test.tsx › LocationPicker Google mode: a rejected suggest request switches to manual entry with the unavailable alert → passed
+src/test/LocationPicker.test.tsx › LocationPicker Google mode: loadPlaces resolving null falls back to the manual form with an alert → passed
+src/test/LocationPicker.test.tsx › LocationPicker Google mode: picking prefills the name and saves a GOOGLE row; a duplicate place_id selects the existing row → passed
+src/test/LocationPicker.test.tsx › LocationPicker Google mode: suggestions in the own listbox; Esc closes only the listbox and is defaultPrevented → passed
+src/test/LocationPicker.test.tsx › LocationPicker is a native select: none option first, own places, change selects; no edit/delete controls → passed
+src/test/LocationPicker.test.tsx › LocationPicker lists a selected '(usunięte)' fallback place that is no longer among own places → passed
+src/test/LocationPicker.test.tsx › LocationPicker lists an active fallback place owned by someone else under its plain name → passed
+src/test/LocationPicker.test.tsx › LocationPicker page mode: '+' links to /places/new with this form as returnTo and the picker's name → passed
+src/test/LocationPicker.test.tsx › LocationPicker page mode: back from /places/new, the place handed to this picker gets selected; another picker's is ignored → passed
+src/test/MessageComposer.test.tsx › MessageComposer counter_showsLength_andSendDisabledWhenEmptyBlankOrTooLong → passed
+src/test/MessageComposer.test.tsx › MessageComposer mount_focusesTextarea → passed
+src/test/MessageComposer.test.tsx › MessageComposer send_failure_403_showsAlertAndKeepsText → passed
+src/test/MessageComposer.test.tsx › MessageComposer send_failure_429 keeps the server's Polish text_showsAlertAndKeepsText → passed
+src/test/MessageComposer.test.tsx › MessageComposer send_failure_error already mapped by useThread_showsAlertAndKeepsText → passed
+src/test/MessageComposer.test.tsx › MessageComposer send_failure_generic error_showsAlertAndKeepsText → passed
+src/test/MessageComposer.test.tsx › MessageComposer send_failure_keepsTextAndFocusInTextarea → passed
+src/test/MessageComposer.test.tsx › MessageComposer send_success_returnsFocusToTextarea → passed
+src/test/MessageComposer.test.tsx › MessageComposer send_success_sendsTrimmedTextAndClearsField → passed
+src/test/ModalSheet.test.tsx › ModalSheet Shift+Tab from the dialog itself (focus on open) wraps to the last control → passed
+src/test/ModalSheet.test.tsx › ModalSheet closes on Escape pressed inside the dialog → passed
+src/test/ModalSheet.test.tsx › ModalSheet falls back to main when the opener is gone after close → passed
+src/test/ModalSheet.test.tsx › ModalSheet has a close button of at least 36px (h-9 w-9) → passed
+src/test/ModalSheet.test.tsx › ModalSheet ignores an Escape a child already handled with preventDefault → passed
+src/test/ModalSheet.test.tsx › ModalSheet moves focus into the dialog on open and back to the opener on close → passed
+src/test/ModalSheet.test.tsx › ModalSheet wraps Tab from the last control to the first and Shift+Tab back to the last → passed
+src/test/ModalSheet.test.tsx › openSheets registry counts a registered sheet while mounted and notifies subscribers → passed
+src/test/ModalSheet.test.tsx › openSheets registry registers page dialogs while rendered, except an opted-out krag ModalSheet → passed
+src/test/MyItemsView.test.tsx › MyItemsView — accepting a personal swap an event swap (no term or group id, but the event start and name) opens the success sheet, not the personal copy → passed
+src/test/MyItemsView.test.tsx › MyItemsView — accepting a personal swap shows the personal-pickup copy when the accept has no term date or group → passed
+src/test/MyItemsView.test.tsx › MyItemsView — cancelling a personal reservation 'Anuluj wymianę' on a personal GIFT cancels its reservation and silently reloads → passed
+src/test/MyItemsView.test.tsx › MyItemsView — inventory location card picking a place saves it and clearing sends null → passed
+src/test/MyItemsView.test.tsx › MyItemsView — inventory location card renders the card label and the privacy hint → passed
+src/test/MyItemsView.test.tsx › MyItemsView — inventory location card shows a soft-deleted current place with '(usunięte)' → passed
+src/test/MyItemsView.test.tsx › MyItemsView — item visibility a private item shows its hint → passed
+src/test/MyItemsView.test.tsx › MyItemsView — item visibility the mode selector changes only the mode → passed
+src/test/MyItemsView.test.tsx › MyItemsView — item visibility the request body carries visibility only together with a mode → passed
+src/test/MyItemsView.test.tsx › MyItemsView — item visibility the toggle saves the visibility together with the item's current mode → passed
+src/test/MyItemsView.test.tsx › MyItemsView — item visibility without a mode the row shows the hint and no toggle → passed
+src/test/MyItemsView.test.tsx › MyItemsView — personal reservations confirm/cancel immediately offers both buttons on a paired personal SWAP right away → passed
+src/test/MyItemsView.test.tsx › MyItemsView — personal reservations confirm/cancel immediately offers neither button on an unpaired SWAP leg → passed
+src/test/MyItemsView.test.tsx › MyItemsView — personal reservations confirm/cancel immediately offers the giver of a personal GIFT only 'Anuluj wymianę' right away → passed
+src/test/MyItemsViewCategory.test.tsx › MyItemsView — gift limit at 10 gift items disables Oddam on the others with an explanation, keeping un-gifting and other modes → passed
+src/test/MyItemsViewCategory.test.tsx › MyItemsView — gift limit shows the count and allows Oddam while under the limit → passed
+src/test/MyItemsViewCategory.test.tsx › MyItemsView — item card links to the item page renders view and edit links to /product/:id and no inline name, category or condition editors → passed
+src/test/MyItemsViewCategory.test.tsx › MyItemsView — mode toggle buttons locked while a reservation is active (Bug #1) disables the two mode toggle buttons (native + aria-disabled) for a RESERVED item → passed
+src/test/MyItemsViewCategory.test.tsx › MyItemsView — mode toggle buttons locked while a reservation is active (Bug #1) disables the two mode toggle buttons (native + aria-disabled) for an IN_TRANSIT item → passed
+src/test/MyItemsViewCategory.test.tsx › MyItemsView — mode toggle buttons locked while a reservation is active (Bug #1) leaves the two mode toggle buttons enabled for an AVAILABLE item → passed
+src/test/MyItemsViewCategory.test.tsx › MyItemsView — mode toggle buttons locked while a reservation is active (Bug #1) leaves the two mode toggle buttons enabled when the item has no balance entry yet (undefined) → passed
+src/test/MyItemsViewCategory.test.tsx › MyItemsView — passive lock/pending balance badge does not render any new action button for a locked (IN_TRANSIT) item → passed
+src/test/MyItemsViewCategory.test.tsx › MyItemsView — passive lock/pending balance badge renders 'czeka na potwierdzenie' for an item with a RESERVED balance → passed
+src/test/MyItemsViewCategory.test.tsx › MyItemsView — passive lock/pending balance badge renders 'zablokowane' for an item with an IN_TRANSIT balance → passed
+src/test/MyItemsViewCategory.test.tsx › MyItemsView — passive lock/pending balance badge renders no badge for an AVAILABLE item → passed
+src/test/MyItemsViewCategory.test.tsx › MyItemsView — photos in moderation do not block the mode toggles locked + pending → both pills, lock pill first, toggles disabled by the lock only → passed
+src/test/MyItemsViewCategory.test.tsx › MyItemsView — photos in moderation do not block the mode toggles not pending → toggles enabled, no pill → passed
+src/test/MyItemsViewCategory.test.tsx › MyItemsView — photos in moderation do not block the mode toggles pending → toggles enabled with no hint, the pill and the edit link stay → passed
+src/test/MyItemsViewCategory.test.tsx › MyItemsView — post-term-end fallback buttons (Bug #4c) 'Anuluj wymianę' calls cancelTransaction with the tile's reservation id only, then refreshes panel data → passed
+src/test/MyItemsViewCategory.test.tsx › MyItemsView — post-term-end fallback buttons (Bug #4c) 'Odebrał' calls confirmTransaction with the tile's reservation id only, then refreshes panel data → passed
+src/test/MyItemsViewCategory.test.tsx › MyItemsView — post-term-end fallback buttons (Bug #4c) does not render the new buttons for an AVAILABLE item (no active reservation) → passed
+src/test/MyItemsViewCategory.test.tsx › MyItemsView — post-term-end fallback buttons (Bug #4c) does not render the new buttons when locked but the term has NOT yet ended (Mockup 3) → passed
+src/test/MyItemsViewCategory.test.tsx › MyItemsView — post-term-end fallback buttons (Bug #4c) keeps 'Odebrał'/'Anuluj wymianę' for a soft-deleted group's term and for the other locked items when one reservation fetch fails → passed
+src/test/MyItemsViewCategory.test.tsx › MyItemsView — post-term-end fallback buttons (Bug #4c) offers the giver of an ended GIFT only 'Anuluj wymianę' — the recipient confirms receipt → passed
+src/test/MyItemsViewCategory.test.tsx › MyItemsView — post-term-end fallback buttons (Bug #4c) renders 'Odebrał' and 'Anuluj wymianę', full-word-labeled, immediately after the badge, when locked AND the term has ended → passed
+src/test/MyItemsViewCategory.test.tsx › NotificationKind — frontend union matches backend enum includes all 11 backend NotificationKind members → passed
+src/test/NeededItemQuickAddForm.test.tsx › NeededItemQuickAddForm calls onChange with the plain {name, description} value → passed
+src/test/NeededItemQuickAddForm.test.tsx › NeededItemQuickAddForm disables every field when `disabled` is true → passed
+src/test/NeededItemQuickAddForm.test.tsx › NeededItemQuickAddForm renders a name and a description input, with no category field → passed
+src/test/NotificationBell.test.tsx › NotificationBell 'Oznacz jako przeczytane' calls markAllNotificationsRead and clears the badge → passed
+src/test/NotificationBell.test.tsx › NotificationBell clicking a notification marks it read and navigates to its link_path → passed
+src/test/NotificationBell.test.tsx › NotificationBell renders a RESERVATION_CANCELLED notification → passed
+src/test/NotificationBell.test.tsx › NotificationBell shows an unread badge and lists messages in the dropdown → passed
+src/test/NotificationBell.test.tsx › NotificationBell shows no badge and an empty state when there is nothing unread → passed
+src/test/OnboardingHandoff.test.tsx › register -> onboarding -> panel handoff (crosses Group 4 / Group 7 boundary) GUEST registering with ?returnTo= goes straight back to that page instead of /panel → passed
+src/test/OnboardingHandoff.test.tsx › register -> onboarding -> panel handoff (crosses Group 4 / Group 7 boundary) GUEST: registering skips onboarding and lands straight on /panel, with no family request → passed
+src/test/OnboardingHandoff.test.tsx › register -> onboarding -> panel handoff (crosses Group 4 / Group 7 boundary) ORGANIZER: registering lands on the 3-step wizard with a mandatory organization-name step, then 'X' reaches /panel → passed
+src/test/OnboardingHandoff.test.tsx › register -> onboarding -> panel handoff (crosses Group 4 / Group 7 boundary) duplicate-email registration stays on the Załóż konto tab → passed
+src/test/OnboardingWizard.test.tsx › OnboardingWizard — ORGANIZER multi-step chrome ORGANIZER config renders 3 steps (organization name, circle name, term/schedule) in order → passed
+src/test/OnboardingWizard.test.tsx › OnboardingWizard — ORGANIZER multi-step chrome ORGANIZER's organization-name step is mandatory: no 'Pomiń'/'X', blocks advancing when empty → passed
+src/test/OnboardingWizard.test.tsx › OnboardingWizard — ORGANIZER multi-step chrome renders step-dot progress and 'Krok 1 z 3' text with an aria-label → passed
+src/test/OnboardingWizard.test.tsx › OnboardingWizard — ORGANIZER multi-step chrome the term step has no needed-items section → passed
+src/test/OnboardingWizard.test.tsx › OnboardingWizard — single-step chrome clicking 'Pomiń' calls onSkip → passed
+src/test/OnboardingWizard.test.tsx › OnboardingWizard — single-step chrome clicking '✕' calls the same handler as 'Pomiń' → passed
+src/test/OnboardingWizard.test.tsx › OnboardingWizard — single-step chrome primary button reads 'Zakończ ✓' (single step ⇒ isLast) → passed
+src/test/OnboardingWizard.test.tsx › OnboardingWizard — single-step chrome renders neither the step-dot row nor the 'Krok 1 z 1' status counter → passed
+src/test/OnboardingWizard.test.tsx › OnboardingWizard — step error surfacing orgStep_apiError400_showsServerMessageAndStaysOnStep → passed
+src/test/OnboardingWizard.test.tsx › OnboardingWizard — step error surfacing orgStep_emptyName_showsLocalRequiredMessage → passed
+src/test/OrganizationPage.test.tsx › OrganizationPage does not render color-picker fields (form is name-only) → passed
+src/test/OrganizationPage.test.tsx › OrganizationPage loads and pre-fills the existing organization's name → passed
+src/test/OrganizationPage.test.tsx › OrganizationPage saving an existing organization calls updateOrganization with only the name (no color fields — form was simplified) → passed
+src/test/OrganizationPage.test.tsx › OrganizationPage shows a link to the public organization page using its slug → passed
+src/test/OrganizationPage.test.tsx › OrganizationPage submit_serverRejectsName_showsServerMessageInAlert → passed
+src/test/OrganizationPage.test.tsx › OrganizationPage when no organization exists yet (404), starts with an empty form and creates one on save → passed
+src/test/OrganizerEditor.test.tsx › Organizer editor colors tab checks no tile for a stored custom theme and keeps the first tile reachable by Tab → passed
+src/test/OrganizerEditor.test.tsx › Organizer editor colors tab previews a chosen preset and saves its key with its base colors → passed
+src/test/OrganizerEditor.test.tsx › Organizer editor colors tab renders 10 palette tiles with Mięta first, no custom tile, and static preview cards → passed
+src/test/OrganizerEditor.test.tsx › Organizer editor colors tab restores the default palette from a preset with three explicit nulls (link) → passed
+src/test/OrganizerEditor.test.tsx › Organizer editor colors tab restores the default palette from a preset with three explicit nulls (tile) → passed
+src/test/OrganizerEditor.test.tsx › Organizer editor description tab opens Zdjęcia i opis from the about ghost, previews the typed description live and saves it trimmed → passed
+src/test/OrganizerEditor.test.tsx › Organizer editor photos tab falls back to Zdjęcia i opis for an unknown tab value → passed
+src/test/OrganizerEditor.test.tsx › Organizer editor photos tab moves roving focus across both pills with the arrow keys → passed
+src/test/OrganizerEditor.test.tsx › Organizer editor photos tab opens on Zdjęcia i opis by default, with the photos and the description together → passed
+src/test/OrganizerEditor.test.tsx › Organizer editor photos tab switches an open sheet to Zdjęcia from the gallery ghost CTA, and closing drops edit and tab → passed
+src/test/OrganizerEditor.test.tsx › Organizer editor photos tab uploads a photo right away without making the draft dirty → passed
+src/test/OrganizerEditor.test.tsx › Organizer editor sheet asks before discarding a dirty draft on close, and Odrzuć closes the sheet → passed
+src/test/OrganizerEditor.test.tsx › Organizer editor sheet blocks navigation to another page while dirty, and Wróć do edycji keeps the draft → passed
+src/test/OrganizerEditor.test.tsx › Organizer editor sheet closes a clean sheet with Zamknij without asking → passed
+src/test/OrganizerEditor.test.tsx › Organizer editor sheet counts as an open sheet while shown, so app-wide prompts wait for it → passed
+src/test/OrganizerEditor.test.tsx › Organizer editor sheet drops the draft when the sheet closes without Zamknij, and reopens clean → passed
+src/test/OrganizerEditor.test.tsx › Organizer editor sheet locks the tab panel while saving and closes the sheet once saved → passed
+src/test/OrganizerEditor.test.tsx › Organizer editor sheet marks both Plan zajęć and Grupy as Polecany for two circles with four terms within 14 days → passed
+src/test/OrganizerEditor.test.tsx › Organizer editor sheet marks only the Wizytówka layout as Polecany for an organizer without circles → passed
+src/test/OrganizerEditor.test.tsx › Organizer editor sheet marks only the Wizytówka layout as Polecany when the directory is unavailable → passed
+src/test/OrganizerEditor.test.tsx › Organizer editor sheet opens for the owner with ?edit=1 inside the theme scope and focuses its title → passed
+src/test/OrganizerEditor.test.tsx › Organizer editor sheet previews a chosen layout before saving, and Anuluj restores it with the sheet still open → passed
+src/test/OrganizerEditor.test.tsx › Organizer editor sheet saves only the changed layout and closes the sheet → passed
+src/test/OrganizerEditor.test.tsx › Organizer editor sheet shows ACCESS_DENIED_MESSAGE when the save is forbidden → passed
+src/test/OrganizerEditor.test.tsx › Organizer editor sheet shows a failed save as an alert, keeps the draft and refetches the organization → passed
+src/test/OrganizerEditor.test.tsx › Organizer editor sheet shows no Polecany badge while the directory is loading → passed
+src/test/OrganizerEditor.test.tsx › editor draft helpers compares colors case-insensitively and sends nothing for a case-only change → passed
+src/test/OrganizerEditor.test.tsx › editor draft helpers derives the palette selection from the theme → passed
+src/test/OrganizerEditor.test.tsx › editor draft helpers sends only changed fields, with explicit nulls → passed
+src/test/OrganizerEditor.test.tsx › editor draft helpers sends the trimmed description, a blank one as null, and nothing for a whitespace-only change → passed
+src/test/OrganizerItemRoute.test.tsx › Organizer product route Wróć on a direct entry goes to the organizer page → passed
+src/test/OrganizerItemRoute.test.tsx › Organizer product route Wróć on a direct entry under a fallback k- slug goes to the panel items list → passed
+src/test/OrganizerItemRoute.test.tsx › Organizer product route a non-owner on the edit address sees the organizer view without edit controls → passed
+src/test/OrganizerItemRoute.test.tsx › Organizer product route anonymous: a listed item renders with the actions card, no login detour → passed
+src/test/OrganizerItemRoute.test.tsx › Organizer product route anonymous: a non-public item (404) sends the visitor to login with returnTo, query kept → passed
+src/test/OrganizerItemRoute.test.tsx › Organizer product route bare /:slug/product redirects to the organizer page without fetching an item → passed
+src/test/OrganizerItemRoute.test.tsx › Organizer product route falls back to the default palette when the organization is unknown → passed
+src/test/OrganizerItemRoute.test.tsx › Organizer product route renders the item in the organizer palette → passed
+src/test/OrganizerItemRoute.test.tsx › Organizer product route shows a neutral loader while the organization is pending, item fetch already started → passed
+src/test/OrganizerItemRoute.test.tsx › Organizer product route the old edit address opens edit mode in place, inside the organizer prefix → passed
+src/test/OrganizerPhotosTab.test.tsx › PhotosTab disables the gallery picker at 3/3 and keeps rejected photos out of the count and order → passed
+src/test/OrganizerPhotosTab.test.tsx › PhotosTab lists every rejected logo newest first, each removable, with one add picker → passed
+src/test/OrganizerPhotosTab.test.tsx › PhotosTab moves a photo down with the full non-rejected order and keeps focus on it → passed
+src/test/OrganizerPhotosTab.test.tsx › PhotosTab notes that the cover shows in every layout → passed
+src/test/OrganizerPhotosTab.test.tsx › PhotosTab shows a server conflict verbatim in the gallery's alert line → passed
+src/test/OrganizerPhotosTab.test.tsx › PhotosTab shows the approved logo above the pending replacement → passed
+src/test/OrganizerPhotosTab.test.tsx › PhotosTab shows the intro and a first pending logo with change and cancel → passed
+src/test/OrganizerPhotosTab.test.tsx › PhotosTab uploads a valid file with its kind and rejects an invalid one without a call → passed
+src/test/OrganizerPhotosTab.test.tsx › PhotosTab uses the cover copy for an approved cover and shows the uploading state while it is replaced → passed
+src/test/OrganizerTermsPage.test.tsx › OrganizerTermsPage honors a known group_id only after the directory resolves and drops an unknown one → passed
+src/test/OrganizerTermsPage.test.tsx › OrganizerTermsPage keeps group_id in the URL when the directory fails to load → passed
+src/test/OrganizerTermsPage.test.tsx › OrganizerTermsPage loads the next page on demand, announces the new terms and hides the button at the end → passed
+src/test/OrganizerTermsPage.test.tsx › OrganizerTermsPage refetches with group_id when a chip is selected and records it in the URL → passed
+src/test/OrganizerTermsPage.test.tsx › OrganizerTermsPage renders the back link, heading, count and day-grouped terms in the organizer theme → passed
+src/test/OrganizerTermsPage.test.tsx › OrganizerTermsPage renders the not-found frame for an organization 404 or a terms 404 → passed
+src/test/OrganizerTermsPage.test.tsx › OrganizerTermsPage shows a first-page error and refetches on 'Spróbuj ponownie' → passed
+src/test/OrganizerTermsPage.test.tsx › OrganizerTermsPage shows the empty state and resets an active chip with 'Pokaż wszystkie grupy' → passed
+src/test/OrganizerThemeScope.test.tsx › OrganizerThemeScope never creates a containing block or carries a className → passed
+src/test/OrganizerThemeScope.test.tsx › OrganizerThemeScope sets all 13 generated vars inline for an organizer theme → passed
+src/test/OrganizerThemeScope.test.tsx › OrganizerThemeScope sets the default vars inline when there is no theme → passed
+src/test/OwnerItemsPage.test.tsx › OwnerItemsPage ignores a ?term= on the page and links tiles to the plain product page → passed
+src/test/OwnerItemsPage.test.tsx › OwnerItemsPage keeps the nearest date card and shows intent pills on tiles linking to the plain product page → passed
+src/test/OwnerItemsPage.test.tsx › OwnerItemsPage loads the next page on 'Pokaż więcej' → passed
+src/test/OwnerItemsPage.test.tsx › OwnerItemsPage redirects an organization owner's party URL to the slug URL, keeping the query → passed
+src/test/OwnerItemsPage.test.tsx › OwnerItemsPage refetches the owner items under a new key after a login → passed
+src/test/OwnerItemsPage.test.tsx › OwnerItemsPage refetches with the mode when a filter tab is picked while the counts stay → passed
+src/test/OwnerItemsPage.test.tsx › OwnerItemsPage shows an anonymous viewer the reserved pill without a name, next to the intent pill → passed
+src/test/OwnerItemsPage.test.tsx › OwnerItemsPage shows the chat-only notice and intent pills without a nearest date → passed
+src/test/OwnerMeetingsPage.test.tsx › OwnerMeetingsPage lists the organization's terms and events, each linking to its page → passed
+src/test/OwnerMeetingsPage.test.tsx › OwnerMeetingsPage redirects a party URL of an Organization owner to the slug URL → passed
+src/test/OwnerMeetingsPage.test.tsx › OwnerMeetingsPage shows not found for a person with nothing public → passed
+src/test/OwnerMeetingsPage.test.tsx › OwnerMeetingsPage shows the empty notice when nothing is planned → passed
+src/test/Pagination.test.tsx › Pagination disables Next on the last page and moves back with Previous → passed
+src/test/Pagination.test.tsx › Pagination disables Previous on the first page and moves forward with Next → passed
+src/test/Pagination.test.tsx › Pagination renders nothing when everything fits on one page → passed
+src/test/Pagination.test.tsx › Pagination steps back to the last page when the current one no longer exists → passed
+src/test/ParticipantItemsPreview.test.tsx › ParticipantItemsPreview keeps a reserved row's link and intent pill and adds the reserved pill with the reserver's name → passed
+src/test/ParticipantItemsPreview.test.tsx › ParticipantItemsPreview makes each row one link to the plain product page, with no buttons, and Pokaż więcej without a query → passed
+src/test/ParticipantItemsPreview.test.tsx › ParticipantItemsPreview renders at most 3 rows, each with its intent pill and how long ago it was added (UTC) → passed
+src/test/ParticipantItemsPreview.test.tsx › ParticipantItemsPreview renders nothing for a participant without items → passed
+src/test/ParticipantItemsPreview.test.tsx › ParticipantItemsPreview uses /product/:id without an organizer slug and offers no Pokaż więcej for 3 items or fewer → passed
+src/test/PartyProfilePage.test.tsx › PartyProfilePage a person with nothing public is not found → passed
+src/test/PartyProfilePage.test.tsx › PartyProfilePage invites the person themself to set up an organizer page → passed
+src/test/PartyProfilePage.test.tsx › PartyProfilePage redirects an Organization owner to the Organization's page → passed
+src/test/PartyProfilePage.test.tsx › PartyProfilePage shows the name, bio, newest items and a link to all items → passed
+src/test/PartyProfilePage.test.tsx › PartyProfilePage with nothing listed, says so and links no item list → passed
+src/test/PendingActionsHost.test.tsx › PendingActionsHost — confirm flow confirm success awaits invalidateQueries, shows 'Potwierdzono' and emits the resolved signal → passed
+src/test/PendingActionsHost.test.tsx › PendingActionsHost — confirm flow confirms via reservation_id even when the notification's link carries no term id → passed
+src/test/PendingActionsHost.test.tsx › PendingActionsHost — confirm flow losing the confirm race (409 already_resolved) shows the distinct already-resolved state, without the snooze hint → passed
+src/test/PendingActionsHost.test.tsx › PendingActionsHost — confirm flow resolves a GIFT reservation id for the owner/lister side directly, post-term-end → failed
+src/test/PendingActionsHost.test.tsx › PendingActionsHost — confirm flow still resolves the SWAP paired-leg reservation id for the owner side → passed
+src/test/PendingActionsHost.test.tsx › PendingActionsHost — confirm flow treats a null resolved reservation id as already resolved; 'Rozumiem' marks the notification read → passed
+src/test/PendingActionsHost.test.tsx › PendingActionsHost — confirm flow without reservation_id, resolves the taker's reservation via getMyProfile and the term's listings (post-term-end, empty browse) → passed
+src/test/PendingActionsHost.test.tsx › PendingActionsHost — corrupt stored snoozes a stored value that is a number is ignored and the prompt still shows → passed
+src/test/PendingActionsHost.test.tsx › PendingActionsHost — corrupt stored snoozes a stored value that is an array is ignored and the prompt still shows → passed
+src/test/PendingActionsHost.test.tsx › PendingActionsHost — corrupt stored snoozes a stored value that is not JSON is ignored and the prompt still shows → passed
+src/test/PendingActionsHost.test.tsx › PendingActionsHost — corrupt stored snoozes a stored value that is null is ignored and the prompt still shows → passed
+src/test/PendingActionsHost.test.tsx › PendingActionsHost — corrupt stored snoozes keeps only finite-number expiries from a stored object → passed
+src/test/PendingActionsHost.test.tsx › PendingActionsHost — queue and stored snoozes a snooze stored by an earlier page load keeps its prompt hidden; an expired one is pruned and its prompt shows → passed
+src/test/PendingActionsHost.test.tsx › PendingActionsHost — queue and stored snoozes shows one prompt at a time; snoozing the first reveals the next queued prompt → passed
+src/test/PendingActionsHost.test.tsx › PendingActionsHost — snooze 'Później' on a TERM_CONFIRMATION_NEEDED prompt snoozes it without marking the notification read → passed
+src/test/PendingActionsHost.test.tsx › PendingActionsHost — snooze Esc snoozes the prompt the same way, without marking it read → passed
+src/test/PendingActionsHost.test.tsx › PendingActionsHost — snooze before 08:00 the hint says 'dziś' and the prompt returns at 08:00 the same day (07:59 → 08:00 boundary) → passed
+src/test/PendingActionsHost.test.tsx › PendingActionsHost — snooze nextLocal0800: 07:59 → today 08:00, 08:00 sharp → tomorrow 08:00 → passed
+src/test/PendingActionsHost.test.tsx › PendingActionsHost — snooze scrim snoozes the prompt the same way, without marking it read → passed
+src/test/PendingActionsHost.test.tsx › PendingActionsHost — snooze the hint says 'jutro' in the evening, is linked to 'Później', and the prompt returns at the next 08:00 → passed
+src/test/PendingActionsHost.test.tsx › PendingActionsHost — snooze when localStorage throws, the in-memory fallback still keeps the prompt snoozed across a remount → passed
+src/test/PendingActionsHost.test.tsx › PendingActionsHost — snooze ✕ snoozes the prompt the same way, without marking it read → passed
+src/test/PendingActionsHost.test.tsx › PendingActionsHost — swap proposal prompt 'Zobacz w Moje rzeczy' marks it read, navigates to /items and clears the prompt → passed
+src/test/PendingActionsHost.test.tsx › PendingActionsHost — swap proposal prompt a proposal_id on the notification changes nothing — still just info and the 'Moje rzeczy' link → passed
+src/test/PendingActionsHost.test.tsx › PendingActionsHost — swap proposal prompt read notifications never surface — only the unread TERM_CONFIRMATION_NEEDED one renders → passed
+src/test/PendingActionsHost.test.tsx › PendingActionsHost — titles a TERM_CONFIRMATION_NEEDED prompt with a proposal_id is titled 'Potwierdź zamianę' and shows the message verbatim → passed
+src/test/PendingActionsHost.test.tsx › PendingActionsHost — titles a legacy swap prompt (no ids, old 'potwierdź zamianę' message) is titled 'Potwierdź zamianę' → passed
+src/test/PendingActionsHost.test.tsx › PendingActionsHost — waits for page dialogs renders nothing while a krag ModalSheet is open and shows the prompt once it closes → passed
+src/test/PendingActionsHost.test.tsx › PendingActionsHost — waits for page dialogs renders nothing while a useRegisterOpenSheet(true) dialog is mounted and resumes after it unmounts → passed
+src/test/PendingActionsHost.test.tsx › derivePendingActions derives actions from unread notifications alone, keyed by notification id → passed
+src/test/PhotoGalleryField.test.tsx › PhotoGalleryField a single banner has an unnumbered Usuń and no add button or limit note while set → passed
+src/test/PhotoGalleryField.test.tsx › PhotoGalleryField hands picked files and removals back to the caller → passed
+src/test/PhotoGalleryField.test.tsx › PhotoGalleryField replaces the add button with the limit note once full → passed
+src/test/PhotoGalleryField.test.tsx › PhotoGalleryField while empty: the slider with its corner add button by default, one large + tile in the create variant → passed
+src/test/PhotoModerationPage.test.tsx › PhotoModerationPage photos_decideOrganizationMedia_sendsOrganizationMediaSubject → passed
+src/test/PhotoModerationPage.test.tsx › PhotoModerationPage photos_defaultFilter_listsEveryStatusWithStatusLabel → passed
+src/test/PhotoModerationPage.test.tsx › PhotoModerationPage photos_deleteCancelled_doesNotDelete → passed
+src/test/PhotoModerationPage.test.tsx › PhotoModerationPage photos_deleteConfirmed_deletesPhotoAndReloads → passed
+src/test/PhotoModerationPage.test.tsx › PhotoModerationPage photos_deleteFails_showsErrorInDialog → passed
+src/test/PhotoModerationPage.test.tsx › PhotoModerationPage photos_organizationMedia_titlesWithOrganizationAndKind → passed
+src/test/PhotoModerationPage.test.tsx › PhotoModerationPage photos_photoAndAvatar_keepExistingTitles → passed
+src/test/PhotoModerationPage.test.tsx › PhotoModerationPage photos_rejectApproved_sendsDecisionAndReloads → passed
+src/test/PhotoModerationPage.test.tsx › PhotoModerationPage photos_statusFilter_requestsThatStatusFromPageOne → passed
+src/test/PhotoViewer.test.tsx › ItemGallery viewer offers no viewer when there is no photo → passed
+src/test/PhotoViewer.test.tsx › ItemGallery viewer opens the viewer at the shown photo and returns focus to it on close → passed
+src/test/PhotoViewer.test.tsx › PhotoViewer closes on Esc, the close button and the backdrop, but not on the photo → passed
+src/test/PhotoViewer.test.tsx › PhotoViewer hides the step buttons for a single photo and counts as an open sheet while mounted → passed
+src/test/PhotoViewer.test.tsx › PhotoViewer moves between photos on a horizontal swipe → passed
+src/test/PhotoViewer.test.tsx › PhotoViewer starts at the given photo and steps with arrow keys and buttons without wrapping → passed
+src/test/PlacesView.test.tsx › Moje miejsca — list, add and edit pages Google mode: adds a picked suggestion as a GOOGLE place → passed
+src/test/PlacesView.test.tsx › Moje miejsca — list, add and edit pages adds a MANUAL place on /places/new, then lists it back on Moje miejsca with a toast → passed
+src/test/PlacesView.test.tsx › Moje miejsca — list, add and edit pages delete asks in an alertdialog, then DELETEs and moves focus to the next row → passed
+src/test/PlacesView.test.tsx › Moje miejsca — list, add and edit pages delete dialog: Esc cancels without deleting and returns focus to Usuń → passed
+src/test/PlacesView.test.tsx › Moje miejsca — list, add and edit pages edit page: Google address is read-only '(z Google)'; save PATCHes and goes back to the list → passed
+src/test/PlacesView.test.tsx › Moje miejsca — list, add and edit pages edit page: a MANUAL address is editable; an unknown id shows a not-found note → passed
+src/test/PlacesView.test.tsx › Moje miejsca — list, add and edit pages empty state shows the copy and a link to the add page, no inline form → passed
+src/test/PlacesView.test.tsx › Moje miejsca — list, add and edit pages lists own places with name, address and notes, plus per-row Edytuj/Usuń → passed
+src/test/PlacesView.test.tsx › Moje miejsca — list, add and edit pages shows the load error as an alert → passed
+src/test/PlacesView.test.tsx › Moje miejsca — list, add and edit pages the add page's Anuluj goes back without saving → passed
+src/test/ProductCategoryDisplayByCategoriesHook.test.tsx › Category display resolves via useCategories(), not CATEGORY_LABELS ProductDetailPage shows the full category path looked up by category_id → passed
+src/test/ProductFormPageCategory.test.tsx › ProductFormPage — category data source does not submit without a category and marks the picker invalid → passed
+src/test/ProductFormPageCategory.test.tsx › ProductFormPage — category data source invalidates the cached categories after a successful create, so product_count refreshes → passed
+src/test/ProductFormPageCategory.test.tsx › ProductFormPage — category data source picks a leaf with the leaf-mode picker without submitting and posts category_id → passed
+src/test/ProductFormPageCategory.test.tsx › ProductFormPage — picker inside the admin form never submits from Enter in the picker search or the ✕ close button → passed
+src/test/ProductFormPageCategory.test.tsx › ProductFormPage — server error message shows the server's 400 moderation message in role=alert and stays on the form → passed
+src/test/PublicLayout.test.tsx › PublicLayout /login sits inside the layout with both global bars → passed
+src/test/PublicLayout.test.tsx › PublicLayout a chat thread keeps the top bar but drops the search field and the bottom nav → passed
+src/test/PublicLayout.test.tsx › PublicLayout a page outside the panel sections highlights no tab → passed
+src/test/PublicLayout.test.tsx › PublicLayout anonymous on Start: the bell goes to plain /login → passed
+src/test/PublicLayout.test.tsx › PublicLayout anonymous: the bottom nav is shown and a logged-in-only tab goes to /login and back → passed
+src/test/PublicLayout.test.tsx › PublicLayout anonymous: the top bar's bell goes to /login and back to the page, no 'Zaloguj się' → passed
+src/test/PublicLayout.test.tsx › PublicLayout logged in at /: the bottom nav highlights Start → passed
+src/test/PublicLayout.test.tsx › PublicLayout logged in at /account: the bottom nav highlights Konto → passed
+src/test/PublicLayout.test.tsx › PublicLayout logged in at /profile: the bottom nav highlights Konto → passed
+src/test/PublicLayout.test.tsx › PublicLayout logged in: mounts the pending-actions host once, over the page → passed
+src/test/PublicLayout.test.tsx › PublicLayout logged in: the top bar holds only the brand, Spotkania and the notification bell → failed
+src/test/PublicLayout.test.tsx › PublicLayout the logo is a named link to Start → failed
+src/test/PublicLayout.test.tsx › PublicLayout the top bar's search field leads to /search on every page → passed
+src/test/PublicOrganizationPage.test.tsx › PublicOrganizationPage applies a stored palette preset to the theme scope → passed
+src/test/PublicOrganizationPage.test.tsx › PublicOrganizationPage falls back to the default palette for an accent-only organization → passed
+src/test/PublicOrganizationPage.test.tsx › PublicOrganizationPage ignores ?edit=1 for a logged-in non-owner → passed
+src/test/PublicOrganizationPage.test.tsx › PublicOrganizationPage keeps the hero, share and footer when the directory request fails → passed
+src/test/PublicOrganizationPage.test.tsx › PublicOrganizationPage paints the page from the organization alone while the directory is pending → passed
+src/test/PublicOrganizationPage.test.tsx › PublicOrganizationPage renders the organization in its generated palette through the layout renderer → passed
+src/test/PublicOrganizationPage.test.tsx › PublicOrganizationPage renders the organization's name for an existing slug → passed
+src/test/PublicOrganizationPage.test.tsx › PublicOrganizationPage shows a not-found message for an unknown slug → passed
+src/test/PublicOrganizationPage.test.tsx › PublicOrganizationPage shows a visitor the hero and share button without owner chrome → passed
+src/test/PublicOrganizationPage.test.tsx › PublicOrganizationPage shows the owner the ghost and the Ustawienia settings button, which opens edit mode → passed
+src/test/PublicOrganizationPage.test.tsx › PublicOrganizationPage shows the plain visitor page with ?edit=1 when the owner check fails → passed
+src/test/SettingsView.test.tsx › SettingsView has no notification settings card or e-mail/SMS toggles → passed
+src/test/SettingsView.test.tsx › SettingsView keeps the privacy toggle and account logout, and explains in-app notifications → passed
+src/test/Sidebar.test.tsx › Sidebar ADMIN gating hides Categories, Plugins, and PluginMenuItems sub-items for a principal with neither permission → passed
+src/test/Sidebar.test.tsx › Sidebar ADMIN gating shows Categories nav item only for ADMIN principals → passed
+src/test/Sidebar.test.tsx › Sidebar ADMIN gating shows Plugins NavItem and PluginMenuItems sub-items for ADMIN-only principal (known-gap fix) → passed
+src/test/Sidebar.test.tsx › Sidebar ADMIN gating shows Plugins NavItem and PluginMenuItems sub-items for PLUGIN_MANAGEMENT-only principal → passed
+src/test/SidebarAuthIntegration.test.tsx › Sidebar x AuthContext integration — real JWT-decoded permissions, not a mocked array hides Categories when the real JWT payload carries READ+EDIT only (no ADMIN) → passed
+src/test/SidebarAuthIntegration.test.tsx › Sidebar x AuthContext integration — real JWT-decoded permissions, not a mocked array shows Categories when the real JWT payload carries permissions:["ADMIN"] → passed
+src/test/SwapAcceptSuccessSheet.test.tsx › SwapAcceptSuccessSheet event branch exports the event to the calendar with the event id as the uid → passed
+src/test/SwapAcceptSuccessSheet.test.tsx › SwapAcceptSuccessSheet event branch shows the event name, date and a link to the event page → passed
+src/test/TermAttendeesPage.test.tsx › TermAttendeesPage 'Napisz do uczestników' opens the term conversation; a failure shows inline → passed
+src/test/TermAttendeesPage.test.tsx › TermAttendeesPage a family whose children all lack a birth year shows only 'wiek nieznany' → passed
+src/test/TermAttendeesPage.test.tsx › TermAttendeesPage attendees 403 shows denied → passed
+src/test/TermAttendeesPage.test.tsx › TermAttendeesPage generic attendees error retry refetches → passed
+src/test/TermAttendeesPage.test.tsx › TermAttendeesPage getGroup 500 shows error with retry and minimal header → passed
+src/test/TermAttendeesPage.test.tsx › TermAttendeesPage ids pass through uncoerced → passed
+src/test/TermAttendeesPage.test.tsx › TermAttendeesPage rows render name, family, pill wording and ages → passed
+src/test/TermAttendeesPage.test.tsx › TermAttendeesPage summary and empty state → passed
+src/test/TermAttendeesPage.test.tsx › TermAttendeesPage unknown term 404 shows notFound and never loads dependents → passed
+src/test/TermEditForm.test.tsx › TermEditForm — needed items as plain names addItem_sendsTermIdNameAndDescription → passed
+src/test/TermEditForm.test.tsx › TermEditForm — needed items as plain names render_listsNamesWithDangerRemove_andNoCategoryField → passed
+src/test/TermEditForm.test.tsx › TermEditForm — needed items as plain names saveEdit_unchangedName_sendsOnlyDescription → passed
+src/test/TermEditForm.test.tsx › TermEditForm — place and capacity deletedTermLocation_rendersUsunieteRow → passed
+src/test/TermEditForm.test.tsx › TermEditForm — place and capacity initialState_showsTermValuesNotGroupDefaults → passed
+src/test/TermEditForm.test.tsx › TermEditForm — place and capacity render_noStandingMembersSection → passed
+src/test/TermEditForm.test.tsx › TermEditForm — place and capacity saveTermFields_changedCapacity_sendsOnlyCapacity → passed
+src/test/TermEditForm.test.tsx › TermEditForm — place and capacity saveTermFields_clearedPlace_sendsOnlyLocationIdNull → passed
+src/test/TermEditForm.test.tsx › TermEditForm — place and capacity saveTermFields_invalidCapacity_-1_showsInlineErrorAndBlocksSave → passed
+src/test/TermEditForm.test.tsx › TermEditForm — place and capacity saveTermFields_invalidCapacity_0_showsInlineErrorAndBlocksSave → passed
+src/test/TermEditForm.test.tsx › TermEditForm — place and capacity saveTermFields_invalidCapacity_10001_showsInlineErrorAndBlocksSave → passed
+src/test/TermEditForm.test.tsx › TermEditForm — place and capacity saveTermFields_invalidCapacity_2.5_showsInlineErrorAndBlocksSave → passed
+src/test/TermEditForm.test.tsx › TermEditForm — server error surfacing saveEdit_rejectedName_showsItemsErrorAndKeepsRowEditorOpen → passed
+src/test/TermEditForm.test.tsx › TermEditForm — server error surfacing updateTerm_moderationUnavailable_showsServerMessage → passed
+src/test/TermEditForm.test.tsx › TermEditForm — server error surfacing updateTerm_rejectedDescription_showsFormErrorAlert → passed
+src/test/TermPage.test.tsx › TermPage — access an unknown group or term shows 'Nie znaleziono' → passed
+src/test/TermPage.test.tsx › TermPage — access anonymous on a PRIVATE group sees only the gate with login links, no term content → passed
+src/test/TermPage.test.tsx › TermPage — access navigating to another term whose fetch fails shows 'Nie znaleziono', not the previous term → passed
+src/test/TermPage.test.tsx › TermPage — chat entry points 'Czat grupy' shows the server's message inline when opening fails → passed
+src/test/TermPage.test.tsx › TermPage — chat entry points 'Czat terminu' opens the term conversation and navigates to the thread → passed
+src/test/TermPage.test.tsx › TermPage — chat entry points a PRIVATE member attendee sees both → passed
+src/test/TermPage.test.tsx › TermPage — chat entry points a PUBLIC attendee sees only the term chat → passed
+src/test/TermPage.test.tsx › TermPage — chat entry points a withdrawn non-member attendee sees neither → passed
+src/test/TermPage.test.tsx › TermPage — chat entry points an anonymous guest who RSVP'd sees none → passed
+src/test/TermPage.test.tsx › TermPage — chat entry points the organizer of a PRIVATE group sees both → passed
+src/test/TermPage.test.tsx › TermPage — direct sign-up and server error messages a 403 on 'Ja to przyniosę' explains the missing permission instead of a generic failure → passed
+src/test/TermPage.test.tsx › TermPage — direct sign-up and server error messages direct sign-up rejected with 409 shows the server's message → passed
+src/test/TermPage.test.tsx › TermPage — direct sign-up and server error messages logged in with children in the family: signs up straight away with that child count, no dialog → passed
+src/test/TermPage.test.tsx › TermPage — header and content clicking an avatar scrolls to and focuses that person's entry in the list → passed
+src/test/TermPage.test.tsx › TermPage — header and content draws signed-up people in the group's layout, with the shares/brings markers → passed
+src/test/TermPage.test.tsx › TermPage — header and content links each offered item's row to its plain item page, leaving needed items plain → passed
+src/test/TermPage.test.tsx › TermPage — header and content links items to the unprefixed item page when the group has no organizer slug → passed
+src/test/TermPage.test.tsx › TermPage — header and content lists every attendee with their own offered items and intent pills, no take buttons, plus non-attending listers → passed
+src/test/TermPage.test.tsx › TermPage — header and content previews each attendee's 3 newest items as plain links and Pokaż więcej to their items page → passed
+src/test/TermPage.test.tsx › TermPage — header and content renders no subtitle when the term has no description → passed
+src/test/TermPage.test.tsx › TermPage — header and content shows the group name with the term description as the header subtitle → passed
+src/test/TermPage.test.tsx › TermPage — item actions anonymous 'Ja to przyniosę' opens the account gate and never pledges → passed
+src/test/TermPage.test.tsx › TermPage — item actions logged in 'Ja to przyniosę' pledges and shows 'Przynosi: Ty' → passed
+src/test/TermPage.test.tsx › TermPage — join a private group by code #code= from a stale link strips the fragment at once and keeps the sheet open with the server's message → passed
+src/test/TermPage.test.tsx › TermPage — join a private group by code #code= is in sessionStorage while its redeem runs and stays there after a 401 → passed
+src/test/TermPage.test.tsx › TermPage — join a private group by code #code= opened by an existing member strips the fragment without redeeming → passed
+src/test/TermPage.test.tsx › TermPage — join a private group by code #code= redeems once and strips the fragment; a malformed one is stripped and opens the sheet empty → passed
+src/test/TermPage.test.tsx › TermPage — join a private group by code #code= survives the login round trip without entering any URL query, then redeems once → passed
+src/test/TermPage.test.tsx › TermPage — join a private group by code #code= under StrictMode redeems exactly once → passed
+src/test/TermPage.test.tsx › TermPage — join a private group by code #code= waits through a token change: no redeem while the new token's access is pending, then exactly one → passed
+src/test/TermPage.test.tsx › TermPage — join a private group by code #code= with blocked sessionStorage still redeems exactly once → passed
+src/test/TermPage.test.tsx › TermPage — join a private group by code Backspace on an empty box clears and focuses the previous one → passed
+src/test/TermPage.test.tsx › TermPage — join a private group by code a 409 shows the server's message inline and keeps the sheet open with the input → passed
+src/test/TermPage.test.tsx › TermPage — join a private group by code a failed fetch after a token change shows the retry line instead of a loader; a retry resolves it → passed
+src/test/TermPage.test.tsx › TermPage — join a private group by code a logged-in non-member is offered 'Mam kod dostępu', not a request → passed
+src/test/TermPage.test.tsx › TermPage — join a private group by code a new #code= while a 409 sheet is open shows the new code and redeems it once → passed
+src/test/TermPage.test.tsx › TermPage — join a private group by code a partial code disables 'Dołącz' without an alert until focus leaves the boxes; non-digits are ignored → passed
+src/test/TermPage.test.tsx › TermPage — join a private group by code a pasted spaced code submitted with Enter redeems the digits exactly once → passed
+src/test/TermPage.test.tsx › TermPage — join a private group by code a pending code older than an hour is ignored → passed
+src/test/TermPage.test.tsx › TermPage — join a private group by code a submit attempt with a partial code shows the alert → passed
+src/test/TermPage.test.tsx › TermPage — join a private group by code a successful join shows the term content and the 'Dołączono do grupy' toast → passed
+src/test/TermPage.test.tsx › TermPage — join a private group by code the sheet keeps Tab inside, closes on Esc and returns focus to 'Mam kod dostępu' → passed
+src/test/TermPage.test.tsx › TermPage — join a private group by code while a join is in flight Esc, the overlay and the close button do not close the sheet → passed
+src/test/TermPage.test.tsx › TermPage — organizer theme fallback an accent-only organizer renders the term view in the default palette → passed
+src/test/TermPage.test.tsx › TermPage — organizer theme keeps the not-found state outside any organizer scope → passed
+src/test/TermPage.test.tsx › TermPage — organizer theme renders the private group gate inside the same scope → passed
+src/test/TermPage.test.tsx › TermPage — organizer theme renders the term view inside the organizer's color scope → passed
+src/test/TermPage.test.tsx › TermPage — place and capacity a full term shows 'Brak wolnych miejsc' as a status and keeps the sign-up button enabled → passed
+src/test/TermPage.test.tsx › TermPage — place and capacity omits the place block and the capacity line when neither is set → passed
+src/test/TermPage.test.tsx › TermPage — place and capacity shows how many places are taken without a full notice while places remain → passed
+src/test/TermPage.test.tsx › TermPage — place and capacity shows the place with notes and a Google Maps link in the term card → passed
+src/test/TermPage.test.tsx › TermPage — sign-up footer a guest who already RSVP'd sees no sign-up button and gets the account form instead of the gate → passed
+src/test/TermPage.test.tsx › TermPage — sign-up footer anonymous: 'Zaloguj się, żeby się zapisać' opens the login / guest choice → failed
+src/test/TermPage.test.tsx › TermPage — sign-up footer logged in and attending: no sign-up button → passed
+src/test/TermPage.test.tsx › TermPage — sign-up footer logged in, not attending: 'Zapisz się na zajęcia' opens the logged-in RSVP dialog → passed
+src/test/TermPage.test.tsx › TermPage — sign-up footer logged-in RSVP banner links to family view with returnTo → passed
+src/test/TermPage.test.tsx › TermPage — view fixes a PRIVATE group member sees the full term view with no guest or gate actions → passed
+src/test/TermPage.test.tsx › TermPage — view fixes logged in with a display name: the RSVP dialog names the user → passed
+src/test/TermPage.test.tsx › TermPage — view fixes logged in with no display name yet: hides 'Zapisujesz się jako' and blocks submit until the name loads → passed
+src/test/TermPage.test.tsx › TermPage — view fixes logged in with no display name yet: sign-up opens the logged-in RSVP dialog, not the guest one → passed
+src/test/TermPage.test.tsx › TermPage — view fixes the needed-items and attendee sections are named regions → passed
+src/test/TermPlaceLine.test.tsx › TermPlaceLine links to Google Maps with the place id, and without it for a MANUAL place → passed
+src/test/TermPlaceLine.test.tsx › TermPlaceLine renders no anchor when withMapLink is false → passed
+src/test/TermPlaceLine.test.tsx › TermPlaceLine renders nothing when both location and capacity are null → passed
+src/test/TermPlaceLine.test.tsx › TermPlaceLine shows 'X/Y miejsc' with a count, 'Y miejsc' with capacity only, nothing without capacity → passed
+src/test/ThreadPage.test.tsx › ThreadPage denied_conversation_setsThreadPolling → passed
+src/test/ThreadPage.test.tsx › ThreadPage eventThread_header_showsEventNameAndCzatWydarzenia → passed
+src/test/ThreadPage.test.tsx › ThreadPage groupThread_showsParticipantsSenderNamesAndOrganizerChip → passed
+src/test/ThreadPage.test.tsx › ThreadPage itemThread_deletedItem_showsUsunieteWithoutLink → passed
+src/test/ThreadPage.test.tsx › ThreadPage itemThread_header_showsCounterpartAndItemLink → passed
+src/test/ThreadPage.test.tsx › ThreadPage itemThread_narrowHeader_truncatesCounterpartNotItemLink → passed
+src/test/ThreadPage.test.tsx › ThreadPage messageList_containsSrOnlyLabels_andOptsOutOfBrowserScrollAnchoring → passed
+src/test/ThreadPage.test.tsx › ThreadPage notFound_conversation_setsThreadPolling → passed
+src/test/ThreadPage.test.tsx › ThreadPage olderMessagesButton_callsLoadOlder_andShowsItsErrorInline → passed
+src/test/ThreadPage.test.tsx › ThreadPage readMarker_marksNewestHeldMessage_andAgainWhenItChanges → passed
+src/test/ThreadPage.test.tsx › ThreadPage readMarker_newestMessageIsMine_skipsMarkRead → passed
+src/test/ThreadPage.test.tsx › ThreadPage readOnlyThread_doesNotMoveFocus → passed
+src/test/ThreadPage.test.tsx › ThreadPage readOnly_GROUP_DELETED_showsBannerInsteadOfComposer → passed
+src/test/ThreadPage.test.tsx › ThreadPage readOnly_GROUP_PUBLIC_showsBannerInsteadOfComposer → passed
+src/test/ThreadPage.test.tsx › ThreadPage ready_conversation_setsThreadPolling → passed
+src/test/ThreadPage.test.tsx › ThreadPage sendRejectedAsReadOnly_refetchesConversation_andShowsAlertKeepingText → passed
+src/test/ThreadPage.test.tsx › ThreadPage unavailable_{ denied: true }_showsCopyAndInboxLink → passed
+src/test/ThreadPage.test.tsx › ThreadPage unavailable_{ notFound: true }_showsCopyAndInboxLink → passed
+src/test/ThreadPage.test.tsx › ThreadPage writableThread_focusesComposer → passed
+src/test/VisibilityToggle.test.tsx › VisibilityToggle clicking the current value does not call back → passed
+src/test/VisibilityToggle.test.tsx › VisibilityToggle marks the current value pressed and calls back with the other one → passed
+src/test/addRoute.test.tsx › /add route logged in: /add is the panel view → passed
+src/test/addRoute.test.tsx › /add route logged out: shows the four tiles, each leading to the login page and back to its form → passed
+src/test/addRoute.test.tsx › /add route logged out: the add forms themselves still require logging in → passed
+src/test/age.test.ts › age helpers approxAge subtracts the birth year from the current year → passed
+src/test/age.test.ts › age helpers formatApproxAge(1) is ok. 1 rok → passed
+src/test/age.test.ts › age helpers formatApproxAge(12) is ok. 12 lat → passed
+src/test/age.test.ts › age helpers formatApproxAge(22) is ok. 22 lata → passed
+src/test/age.test.ts › age helpers formatApproxAge(3) is ok. 3 lata → passed
+src/test/age.test.ts › age helpers formatApproxAge(8) is ok. 8 lat → passed
+src/test/age.test.ts › age helpers formatChildAges shows only 'wiek nieznany' when no year is known → passed
+src/test/age.test.ts › age helpers formatChildAges sorts ascending, pluralizes by the last number and puts unknown years last → passed
+src/test/apiClient.test.ts › api client 401 handling request_unauthorizedOnLoginPage_doesNotRedirect → passed
+src/test/apiClient.test.ts › api client 401 handling request_unauthorized_redirectsToLoginWithEncodedReturnTo → passed
+src/test/apiPathEncoding.test.ts › API path segment encoding getPublicOrganization_normalSlug_isUnchanged → passed
+src/test/apiPathEncoding.test.ts › API path segment encoding getPublicOrganization_traversalSlug_isEncodedAsSingleSegment → passed
+src/test/apiPathEncoding.test.ts › API path segment encoding itemHelpers_traversalId_isEncodedAsSingleSegment → passed
+src/test/auth.test.tsx › API Client Auth includes Authorization header from localStorage token → passed
+src/test/auth.test.tsx › API Client Auth redirects to /login on 401 response → passed
+src/test/auth.test.tsx › AuthContext provides token/permissions/login/logout via useAuth hook → failed
+src/test/auth.test.tsx › LoginPage is one page with 'Zaloguj się' / 'Załóż konto' tabs kept in ?mode= → passed
+src/test/auth.test.tsx › LoginPage renders email/password form and submits to /api/auth/login → passed
+src/test/auth.test.tsx › Permission-based UI visibility hides New Product button for users without EDIT permission → passed
+src/test/auth.test.tsx › RegisterForm navigates to /onboarding on successful registration → passed
+src/test/auth.test.tsx › RegisterForm posts register body as exactly {role, email, password} → passed
+src/test/auth.test.tsx › RegisterForm renders the duplicate-email error message with a /login link → passed
+src/test/calendar.test.ts › calendar export builds a CRLF VCALENDAR with the exact Warsaw VTIMEZONE, two alarms and a stable UID → passed
+src/test/calendar.test.ts › calendar export builds a Google Calendar template URL with Warsaw-local 1 h dates → passed
+src/test/calendar.test.ts › calendar export downloads a text/calendar Blob under an ASCII slug filename and revokes the URL only after a delay → passed
+src/test/calendar.test.ts › calendar export escapes backslash, semicolon, comma and newline per RFC 5545 → passed
+src/test/calendar.test.ts › calendar export folds at 75 UTF-8 bytes without splitting Polish multi-byte characters → passed
+src/test/calendar.test.ts › calendar export on DST change days keeps 2026-03-29T01:30:00 as a Warsaw wall-clock 1 h slot (fractional seconds ignored) → passed
+src/test/calendar.test.ts › calendar export on DST change days keeps 2026-10-25T02:30:00.123456 as a Warsaw wall-clock 1 h slot (fractional seconds ignored) → passed
+src/test/calendar.test.ts › calendar export rolls a 23:30 start over to 00:30 the next day, independent of the machine TZ → passed
+src/test/categoryTree.test.ts › categoryTree formatCategoryPath joins root-to-node names with ' › ' → passed
+src/test/categoryTree.test.ts › categoryTree isLeaf is true only for nodes without children → passed
+src/test/categoryTree.test.ts › categoryTree searchCategories folds case, diacritics and ł→l → passed
+src/test/categoryTree.test.ts › categoryTree searchCategories returns the ancestor path of each match and the total count → passed
+src/test/categoryTree.test.ts › categoryTree the index sorts roots and children by sort_order → passed
+src/test/chatErrorMessage.test.ts › chatErrorMessage accessErrors_mapToPolishChatCopy → passed
+src/test/chatErrorMessage.test.ts › chatErrorMessage genericEnvelopesAndNetworkErrors_useFallback → passed
+src/test/chatErrorMessage.test.ts › chatErrorMessage polishDomainMessages_passThrough → passed
+src/test/eventDraft.test.ts › draftFromEvent splits the naive start/end into the form's date and times → passed
+src/test/eventDraft.test.ts › toCreateEventRequest sends trimmed text and naive wall-clock times on the start date → passed
+src/test/eventDraft.test.ts › validateEventDraft a start earlier today → passed
+src/test/eventDraft.test.ts › validateEventDraft a start over 2 years ahead → passed
+src/test/eventDraft.test.ts › validateEventDraft a start this very minute → passed
+src/test/eventDraft.test.ts › validateEventDraft a too long description → passed
+src/test/eventDraft.test.ts › validateEventDraft a too short name → passed
+src/test/eventDraft.test.ts › validateEventDraft a valid draft → passed
+src/test/eventDraft.test.ts › validateEventDraft an empty draft → passed
+src/test/eventDraft.test.ts › validateEventDraft an end not after the start → passed
+src/test/eventDraft.test.ts › validateEventDraft on an edited event (savedStart) a new start ahead → passed
+src/test/eventDraft.test.ts › validateEventDraft on an edited event (savedStart) a new start in the past → passed
+src/test/eventDraft.test.ts › validateEventDraft on an edited event (savedStart) its kept start, already past → passed
+src/test/eventViewState.test.ts › resolveEventView a 404 wins, even over stale data → passed
+src/test/eventViewState.test.ts › resolveEventView a failed first load → passed
+src/test/eventViewState.test.ts › resolveEventView a failed refresh of current data keeps the content view → passed
+src/test/eventViewState.test.ts › resolveEventView a logged-in visitor ignores a leftover guest key → passed
+src/test/eventViewState.test.ts › resolveEventView a visitor after the event ended → passed
+src/test/eventViewState.test.ts › resolveEventView an anonymous guest with a valid key → passed
+src/test/eventViewState.test.ts › resolveEventView an anonymous visitor → passed
+src/test/eventViewState.test.ts › resolveEventView an attendee → passed
+src/test/eventViewState.test.ts › resolveEventView anonymous data, now logged in (in-page merge/login) → passed
+src/test/eventViewState.test.ts › resolveEventView author data, now logged out: no author controls → passed
+src/test/eventViewState.test.ts › resolveEventView loading → passed
+src/test/eventViewState.test.ts › resolveEventView stale data whose refresh failed → passed
+src/test/eventViewState.test.ts › resolveEventView the author → passed
+src/test/extension-points.test.tsx › Plugin page route renders full-page PluginFrame for /plugins/:pluginId/* → passed
+src/test/extension-points.test.tsx › PluginListPage renders table of plugins with name, version, URL, enabled columns → passed
+src/test/extension-points.test.tsx › ProductDetailPage renders product info in Details tab and plugin tabs → passed
+src/test/extension-points.test.tsx › ProductDetailPage with no plugins renders only Details tab when no plugins are loaded → passed
+src/test/extension-points.test.tsx › ProductListPage with plugin filters renders plugin filter iframes in filter bar → failed
+src/test/extension-points.test.tsx › Sidebar with plugin menu items renders hardcoded items then plugin menu items → failed
+src/test/foundation.test.tsx › Frontend Foundation renders AppShell with sidebar and content area → failed
+src/test/foundation.test.tsx › Frontend Foundation renders ChakraProvider with custom theme without errors → passed
+src/test/foundation.test.tsx › Frontend Foundation renders router with default redirect to /products → passed
+src/test/googleMaps.test.ts › googleMaps loader a retry after the load timeout reuses the still-loading script instead of adding a second one → passed
+src/test/googleMaps.test.ts › googleMaps loader imports the places library once across calls → passed
+src/test/googleMaps.test.ts › googleMaps loader replaces a script that loaded without defining importLibrary instead of reusing it → passed
+src/test/googleMaps.test.ts › googleMaps loader resolves null when the script fails to load and retries with a new script → passed
+src/test/googleMaps.test.ts › googleMaps loader resolves null without a key, injects nothing and reads the env at call time → passed
+src/test/googleMaps.test.ts › googleMaps places wrapper resolves a picked suggestion and a fresh token is used for the next search → passed
+src/test/googleMaps.test.ts › googleMaps places wrapper returns no suggestions for blank input without calling Google, and maps real ones → passed
+src/test/itemActionsViewState.test.ts › resolveItemActionsView anonymous: a finished refetch for another session is shown as it is → passed
+src/test/itemActionsViewState.test.ts › resolveItemActionsView anonymous: owner, mode and contexts → passed
+src/test/itemActionsViewState.test.ts › resolveItemActionsView choose: a location and an eligible context → passed
+src/test/itemActionsViewState.test.ts › resolveItemActionsView choose: a refresh error with cached data keeps the last view → passed
+src/test/itemActionsViewState.test.ts › resolveItemActionsView choose: without a location or eligible contexts → passed
+src/test/itemActionsViewState.test.ts › resolveItemActionsView error: actions failed with no cached data → passed
+src/test/itemActionsViewState.test.ts › resolveItemActionsView hidden: a deleted item, even when actions failed → passed
+src/test/itemActionsViewState.test.ts › resolveItemActionsView loading: actions pending with no cached data → passed
+src/test/itemActionsViewState.test.ts › resolveItemActionsView loading: details pending → passed
+src/test/itemActionsViewState.test.ts › resolveItemActionsView loading: stale data for another session while it refetches (after login) → passed
+src/test/itemActionsViewState.test.ts › resolveItemActionsView own: an unlisted item keeps its null mode → passed
+src/test/itemActionsViewState.test.ts › resolveItemActionsView own: by details → passed
+src/test/itemActionsViewState.test.ts › resolveItemActionsView own: by viewer, with its party reservation → passed
+src/test/itemActionsViewState.test.ts › resolveItemActionsView reserved: a non-party logged-in viewer of a reserved item → passed
+src/test/itemActionsViewState.test.ts › resolveItemActionsView reserved: a party of the reservation → passed
+src/test/itemActionsViewState.test.ts › resolveItemActionsView reserved: a pending swap proposal on an AVAILABLE balance, even if `available` were still true → passed
+src/test/itemActionsViewState.test.ts › resolveItemActionsView reserved: an anonymous viewer of a reserved item (no name) → passed
+src/test/itemActionsViewState.test.ts › resolveItemActionsView unavailable: a non-party of a taken item → passed
+src/test/itemActionsViewState.test.ts › resolveItemActionsView unavailable: no listing mode → passed
+src/test/joinCode.test.ts › joinCode formatJoinCode_sixDigits_splitsIntoTwoTriples → passed
+src/test/joinCode.test.ts › joinCode parseJoinCode("  ") → passed
+src/test/joinCode.test.ts › joinCode parseJoinCode(" 012345 ") → passed
+src/test/joinCode.test.ts › joinCode parseJoinCode("") → passed
+src/test/joinCode.test.ts › joinCode parseJoinCode("482 913") → passed
+src/test/joinCode.test.ts › joinCode parseJoinCode("482-913") → passed
+src/test/joinCode.test.ts › joinCode parseJoinCode("48291") → passed
+src/test/joinCode.test.ts › joinCode parseJoinCode("482913") → passed
+src/test/joinCode.test.ts › joinCode parseJoinCode("4829134") → passed
+src/test/joinCode.test.ts › joinCode parseJoinCode("48a913") → passed
+src/test/layoutPositions.test.ts › layoutPositions getCirclePosition matches the legacy pos() formula for known (index, total) pairs → passed
+src/test/layoutPositions.test.ts › layoutPositions getCirclePosition produces no overlapping positions for N=1 → passed
+src/test/layoutPositions.test.ts › layoutPositions getCirclePosition produces no overlapping positions for N=30 → passed
+src/test/layoutPositions.test.ts › layoutPositions getCirclePosition produces no overlapping positions for N=5 → passed
+src/test/layoutPositions.test.ts › layoutPositions getPitchPosition produces no overlapping positions for N=1 → passed
+src/test/layoutPositions.test.ts › layoutPositions getPitchPosition produces no overlapping positions for N=30 → passed
+src/test/layoutPositions.test.ts › layoutPositions getPitchPosition produces no overlapping positions for N=5 → passed
+src/test/layoutPositions.test.ts › layoutPositions getStableSlotOrder differs across different groupIds for the same familyIds → passed
+src/test/layoutPositions.test.ts › layoutPositions getStableSlotOrder is deterministic for the same groupId + familyIds pair → passed
+src/test/layoutPositions.test.ts › layoutPositions getTablePosition produces no overlapping positions for N=1 → passed
+src/test/layoutPositions.test.ts › layoutPositions getTablePosition produces no overlapping positions for N=30 → passed
+src/test/layoutPositions.test.ts › layoutPositions getTablePosition produces no overlapping positions for N=5 → passed
+src/test/listingThumb.test.tsx › Term page listing thumbnail renders a decorative image in a 48px tile at the start of the item link when thumb_url is set → passed
+src/test/listingThumb.test.tsx › Term page listing thumbnail renders the PhotoPlaceholder tile when thumb_url is null → passed
+src/test/messageTime.test.ts › messageTime formatBubbleTime_naiveUtc_rendersWarsawWallClock → passed
+src/test/messageTime.test.ts › messageTime formatDaySeparator_byAge_usesPinnedFormats → passed
+src/test/messageTime.test.ts › messageTime formatInboxTime_byAge_usesPinnedFormats → passed
+src/test/messageTime.test.ts › messageTime localDayKey_groupsByWarsawDay → passed
+src/test/messagesRoutes.test.tsx › messages routes /messages renders the inbox, not the panel → passed
+src/test/messagesRoutes.test.tsx › messages routes /messages/:conversationId renders the thread → passed
+src/test/messagesRoutes.test.tsx › messages routes logged out: the inbox redirects to the login page → passed
+src/test/orgPalette.test.ts › DEFAULT_THEME_VARS equals the 13 defaults declared in index.css → passed
+src/test/orgPalette.test.ts › buildOrgThemeVars #000000 (accent undefined) meets WCAG AA for every role pair → passed
+src/test/orgPalette.test.ts › buildOrgThemeVars #1b8168 (accent #a9c24f) meets WCAG AA for every role pair → passed
+src/test/orgPalette.test.ts › buildOrgThemeVars #3498db (accent undefined) meets WCAG AA for every role pair → passed
+src/test/orgPalette.test.ts › buildOrgThemeVars #3fb68f (accent undefined) meets WCAG AA for every role pair → passed
+src/test/orgPalette.test.ts › buildOrgThemeVars #7a2a4f (accent undefined) meets WCAG AA for every role pair → passed
+src/test/orgPalette.test.ts › buildOrgThemeVars #8e44ad (accent #f39c12) meets WCAG AA for every role pair → passed
+src/test/orgPalette.test.ts › buildOrgThemeVars #c0392b (accent undefined) meets WCAG AA for every role pair → passed
+src/test/orgPalette.test.ts › buildOrgThemeVars #f1c40f (accent #2c3e50) meets WCAG AA for every role pair → passed
+src/test/orgPalette.test.ts › buildOrgThemeVars #ff69b4 (accent undefined) meets WCAG AA for every role pair → passed
+src/test/orgPalette.test.ts › buildOrgThemeVars #ffffff (accent undefined) meets WCAG AA for every role pair → passed
+src/test/orgPalette.test.ts › buildOrgThemeVars clamps a white seed so primary is not white and labels it with ink → passed
+src/test/orgPalette.test.ts › buildOrgThemeVars gives identical output for uppercase and lowercase input → passed
+src/test/orgPalette.test.ts › buildOrgThemeVars meets every contrast target across a deterministic hue/saturation/lightness sweep → passed
+src/test/orgPalette.test.ts › buildOrgThemeVars returns exactly the 13 role keys as lowercase hex → passed
+src/test/orgPalette.test.ts › describeColorAdjustment describes #1b8168 → passed
+src/test/orgPalette.test.ts › describeColorAdjustment describes #3498db → passed
+src/test/orgPalette.test.ts › describeColorAdjustment describes #ffffff → passed
+src/test/orgPalette.test.ts › resolveOrgTheme falls back to the generator from the stored hex for an unknown preset key → passed
+src/test/orgPalette.test.ts › resolveOrgTheme returns the defaults for a malformed primary → passed
+src/test/orgPalette.test.ts › resolveOrgTheme returns the defaults for an accent-only theme → passed
+src/test/orgPalette.test.ts › resolveOrgTheme returns the defaults for null → passed
+src/test/orgPalette.test.ts › resolveOrgTheme returns the defaults for undefined → passed
+src/test/orgPalette.test.ts › resolveOrgTheme returns the defaults when preset and colors are all null → passed
+src/test/orgPalette.test.ts › resolveOrgTheme returns the preset's hand-tuned vars for a known preset key → passed
+src/test/orgPalette.test.ts › resolveOrgTheme uses the generator for a valid primary and ignores an invalid accent → passed
+src/test/organizerBlocks.test.tsx › AgendaBlock filters by circle through a radiogroup with arrow-key focus → passed
+src/test/organizerBlocks.test.tsx › AgendaBlock groups terms by day under uppercase headers and loads the next page on demand → passed
+src/test/organizerBlocks.test.tsx › AgendaBlock offers to show every circle when a filter finds no terms → passed
+src/test/organizerBlocks.test.tsx › AgendaBlock shows a first-page error with a retry that refetches → passed
+src/test/organizerBlocks.test.tsx › NextTermCtaBlock renders the nearest term's date, count and sign-up link → passed
+src/test/organizerBlocks.test.tsx › StatsBlock renders a tile per non-empty stat with Polish plurals and is empty below 2 tiles → passed
+src/test/organizerBlocks.test.tsx › UpcomingTermsBlock compact renders at most 3 date chips → passed
+src/test/organizerBlocks.test.tsx › UpcomingTermsBlock links rows to terms, counts the total link only when more exist, and falls back to the nearest term → passed
+src/test/organizerCirclesExchangeBlocks.test.tsx › CirclesGridBlock cards link to the next term, or to the filtered terms list without one → passed
+src/test/organizerCirclesExchangeBlocks.test.tsx › CirclesGridBlock featured renders an anonymous circle visual capped at 16 seats, and none at 0 attendees → passed
+src/test/organizerCirclesExchangeBlocks.test.tsx › CirclesGridBlock labels each card with its group layout: circle, pitch or table → passed
+src/test/organizerCirclesExchangeBlocks.test.tsx › ExchangeBoardBlock disables the tab of a mode with no items → passed
+src/test/organizerCirclesExchangeBlocks.test.tsx › ExchangeBoardBlock filters the board by the four tabs consistently with the counts → passed
+src/test/organizerCirclesExchangeBlocks.test.tsx › ExchangeBoardBlock shows the three count tiles above the tabs, as in the CLASSIC counts block → passed
+src/test/organizerCirclesExchangeBlocks.test.tsx › ExchangeBoardBlock wraps the tab strip instead of scrolling it sideways on narrow screens → passed
+src/test/organizerCirclesExchangeBlocks.test.tsx › ExchangeCountsBlock reads N Chcę oddać · N Chcę się zamienić · N Zarezerwowane, the reserved tile leading to a reserved item's term → passed
+src/test/organizerCirclesExchangeBlocks.test.tsx › ExchangeCountsBlock shows a tile per mode, linking only the tiles with items → passed
+src/test/organizerCirclesExchangeBlocks.test.tsx › ExchangeItemCard opens the product page from the whole tile, with an intent pill and no pickup chip or date → passed
+src/test/organizerCirclesExchangeBlocks.test.tsx › ExchangeItemCard renders the thumbnail or a placeholder and never a lister → passed
+src/test/organizerCirclesExchangeBlocks.test.tsx › NeededItemsBlock links open items and marks claimed ones without a name → passed
+src/test/organizerCirclesExchangeBlocks.test.tsx › circle and exchange isEmpty predicates hide each block exactly when its data is empty → passed
+src/test/organizerDirectorySupport.test.tsx › BlockSkeleton renders grid as aria-hidden pulse bars in an aria-busy container → passed
+src/test/organizerDirectorySupport.test.tsx › BlockSkeleton renders rows as aria-hidden pulse bars in an aria-busy container → passed
+src/test/organizerDirectorySupport.test.tsx › EmptyStateBlock shows per-layout copy, the EXCHANGE explainer, the unavailable copy and the share button → passed
+src/test/organizerDirectorySupport.test.tsx › GhostBlock renders a directory ghost with its panel CTA, and the unavailable variant without one → passed
+src/test/organizerDirectorySupport.test.tsx › LayoutRenderer directory rules shows one skeleton while loading, and hides or ghosts the directory when unavailable → passed
+src/test/organizerDirectorySupport.test.tsx › isRecommended shows no badge while loading and recommends LINKS when unavailable or without circles → passed
+src/test/organizerDirectorySupport.test.tsx › nearestTerm falls back to the earliest circle next_term, ties broken by circle id → passed
+src/test/organizerDirectorySupport.test.tsx › nearestTerm returns null when no circle has a next term → passed
+src/test/organizerDirectorySupport.test.tsx › nearestTerm returns the first upcoming term when the 60-day window is not empty → passed
+src/test/organizerKeyParity.test.ts › organizer FE/BE key parity layout registry and palette preset keys match the backend allowlists → passed
+src/test/organizerMediaBlocks.test.tsx › GalleryBlock lays out 1 photo(s) as grid-cols-1 → passed
+src/test/organizerMediaBlocks.test.tsx › GalleryBlock lays out 2 photo(s) as grid-cols-2 → passed
+src/test/organizerMediaBlocks.test.tsx › GalleryBlock lays out 3 photo(s) as grid-cols-3 → passed
+src/test/organizerMediaBlocks.test.tsx › GalleryBlock opens the full-size photo in the viewer from a tile → passed
+src/test/organizerMediaBlocks.test.tsx › HeroBlock media drops the compact cover strip when the cover fails, keeping the top bar → passed
+src/test/organizerMediaBlocks.test.tsx › HeroBlock media keeps the name, address and logo ring in the fixed light token over a cover, and on-primary after it fails → passed
+src/test/organizerMediaBlocks.test.tsx › HeroBlock media puts the centered hero over the cover in the fixed light token, and in on-primary after it fails → passed
+src/test/organizerMediaBlocks.test.tsx › HeroBlock media renders the cover image in every hero variant → passed
+src/test/organizerMediaBlocks.test.tsx › HeroBlock media shows the logo thumb in the centered variant and falls back to initials on error → passed
+src/test/organizerMediaBlocks.test.tsx › HeroBlock media shows the logo thumb in the compact variant and falls back to initials on error → passed
+src/test/organizerMediaBlocks.test.tsx › HeroBlock media shows the logo thumb in the cover variant and falls back to initials on error → passed
+src/test/organizerMediaBlocks.test.tsx › LayoutRenderer gallery slot hides an empty gallery from visitors and renders a non-empty one → passed
+src/test/organizerMediaBlocks.test.tsx › LayoutRenderer gallery slot places the gallery directly after about in all five layouts → passed
+src/test/organizerMediaBlocks.test.tsx › LayoutRenderer gallery slot shows the owner the gallery ghost while the directory still loads, with a replacing CTA to the photos tab → passed
+src/test/pages.test.tsx › ProductFormPage renders form fields for product creation → passed
+src/test/pages.test.tsx › ProductListPage filters products by the selected category → passed
+src/test/pages.test.tsx › ProductListPage lists only leaf categories in the filter, labelled and sorted by full path → passed
+src/test/pages.test.tsx › ProductListPage renders name, description, category and created date with filter controls → passed
+src/test/palettePresets.test.ts › PALETTE_PRESETS FOREST meets WCAG AA for every role pair, including the hand-tuned roles → passed
+src/test/palettePresets.test.ts › PALETTE_PRESETS GRAPHITE meets WCAG AA for every role pair, including the hand-tuned roles → passed
+src/test/palettePresets.test.ts › PALETTE_PRESETS LAVENDER meets WCAG AA for every role pair, including the hand-tuned roles → passed
+src/test/palettePresets.test.ts › PALETTE_PRESETS NORTH_SEA meets WCAG AA for every role pair, including the hand-tuned roles → passed
+src/test/palettePresets.test.ts › PALETTE_PRESETS OCEAN meets WCAG AA for every role pair, including the hand-tuned roles → passed
+src/test/palettePresets.test.ts › PALETTE_PRESETS PLUM meets WCAG AA for every role pair, including the hand-tuned roles → passed
+src/test/palettePresets.test.ts › PALETTE_PRESETS RASPBERRY meets WCAG AA for every role pair, including the hand-tuned roles → passed
+src/test/palettePresets.test.ts › PALETTE_PRESETS SUN meets WCAG AA for every role pair, including the hand-tuned roles → passed
+src/test/palettePresets.test.ts › PALETTE_PRESETS TERRACOTTA meets WCAG AA for every role pair, including the hand-tuned roles → passed
+src/test/palettePresets.test.ts › PALETTE_PRESETS has exactly 9 unique keys in tile order and no MINT → passed
+src/test/pendingActions.test.ts › derivePendingActions RESERVATION_CANCELLED yields no pending action → passed
+src/test/pendingActions.test.ts › derivePendingActions an event confirmation prompt has no term id and confirms via its reservation_id → passed
+src/test/plugin-sdk-auth.test.ts › Plugin SDK Auth handlePluginFetch JWT injection injects Authorization header from localStorage auth_token → passed
+src/test/plugin-sdk-auth.test.ts › Plugin SDK Auth server-sdk JWT propagation includes Authorization header when token is provided → passed
+src/test/plugin-sdk-auth.test.ts › Plugin SDK Auth server-sdk data endpoint URLs uses /products/{id}/data path for getData, setData, removeData → passed
+src/test/plugin-sdk.test.ts › Plugin SDK context parsing from window.name extracts extensionPoint prefix and JSON metadata → passed
+src/test/plugin-sdk.test.ts › Plugin SDK context parsing from window.name extracts productId from PRODUCT_DETAIL context → passed
+src/test/plugin-sdk.test.ts › Plugin SDK hostApp.fetch strips credentials and mode from options, sends pluginFetch message → passed
+src/test/plugin-sdk.test.ts › Plugin SDK hostApp.uploadImage posts uploadImage with url and the unencoded file, resolves the pluginFetch shape → passed
+src/test/plugin-sdk.test.ts › Plugin SDK hostApp.uploadImage waits 60 seconds before timing out, unlike the 10 s default → passed
+src/test/plugin-sdk.test.ts › Plugin SDK sendFireAndForget posts message without creating pending promise → passed
+src/test/plugin-sdk.test.ts › Plugin SDK sendMessageAndWait correlates response by requestId → passed
+src/test/plugin-sdk.test.ts › Plugin SDK sendMessageAndWait times out after 10 seconds → passed
+src/test/plugin-sdk.test.ts › Plugin SDK thisPlugin.done sends a fire-and-forget done message with the payload → passed
+src/test/plugin-sdk.test.ts › Plugin SDK thisPlugin.getContext returns parsed context with productId from window.name → passed
+src/test/plugins.test.tsx › PluginContext provides plugins after fetch → passed
+src/test/plugins.test.tsx › PluginContext resolves extension points: getMenuItems, getProductDetailTabs, getProductListFilters → passed
+src/test/plugins.test.tsx › PluginFrame add.event uses the RENDER prefix and the given title → passed
+src/test/plugins.test.tsx › PluginFrame sets iframe.name correctly for each context type → passed
+src/test/plugins.test.tsx › PluginMessageHandler done calls onDone with the plugin id and payload and sends no response → passed
+src/test/plugins.test.tsx › PluginMessageHandler done calls onDone with {} when the payload is a string, without throwing → passed
+src/test/plugins.test.tsx › PluginMessageHandler done calls onDone with {} when the payload is missing, without throwing → passed
+src/test/plugins.test.tsx › PluginMessageHandler done calls onDone with {} when the payload is null, without throwing → passed
+src/test/plugins.test.tsx › PluginMessageHandler done ignores done from an origin other than the plugin's → passed
+src/test/plugins.test.tsx › PluginMessageHandler done is ignored without onDone: no response and no throw → passed
+src/test/plugins.test.tsx › PluginMessageHandler handles filterChange as fire-and-forget (no response sent) → passed
+src/test/plugins.test.tsx › PluginMessageHandler rejects message with invalid origin → passed
+src/test/plugins.test.tsx › PluginMessageHandler routes pluginFetch to api client and returns response → passed
+src/test/plugins.test.tsx › PluginMessageHandler uploadImage failures answers with an error when the upload request itself fails → passed
+src/test/plugins.test.tsx › PluginMessageHandler uploadImage posts the file as FormData with the token and returns the pluginFetch shape → passed
+src/test/plugins.test.tsx › PluginMessageHandler uploadImage rejects a disallowed MIME type → passed
+src/test/plugins.test.tsx › PluginMessageHandler uploadImage rejects a file over 5 MB → passed
+src/test/plugins.test.tsx › PluginMessageHandler uploadImage rejects a non-Blob file → passed
+src/test/plugins.test.tsx › PluginMessageHandler uploadImage rejects a non-string url → passed
+src/test/plugins.test.tsx › PluginMessageHandler uploadImage rejects a non-uuid event id → passed
+src/test/plugins.test.tsx › PluginMessageHandler uploadImage rejects a path outside the allowlist → passed
+src/test/plugins.test.tsx › PluginMessageHandler uploadImage rejects a path with traversal → passed
+src/test/plugins.test.tsx › PluginMessageHandler validates 'aj.plugin.' prefix and rejects invalid requestId → passed
+src/test/plugins.test.tsx › usePluginMessageHandler installs one message listener on mount and removes it on unmount → passed
+src/test/plugins.test.tsx › usePlugins maps a failed fetch to a message with a stable empty list → passed
+src/test/pluginsApi.test.ts › plugins API getPlugins_backendSnakeCaseShape_mapsExtensionPointsForResolver → passed
+src/test/plural.test.ts › pluralPl picks the right form for 0 → passed
+src/test/plural.test.ts › pluralPl picks the right form for 1 → passed
+src/test/plural.test.ts › pluralPl picks the right form for 112 → passed
+src/test/plural.test.ts › pluralPl picks the right form for 12 → passed
+src/test/plural.test.ts › pluralPl picks the right form for 2 → passed
+src/test/plural.test.ts › pluralPl picks the right form for 22 → passed
+src/test/plural.test.ts › pluralPl picks the right form for 4 → passed
+src/test/plural.test.ts › pluralPl picks the right form for 5 → passed
+src/test/serverMessageOr.test.ts › serverMessageOr 400 domain message → passed
+src/test/serverMessageOr.test.ts › serverMessageOr 400 validation envelope → passed
+src/test/serverMessageOr.test.ts › serverMessageOr 403 access denied → passed
+src/test/serverMessageOr.test.ts › serverMessageOr 409 domain message → passed
+src/test/serverMessageOr.test.ts › serverMessageOr 500 with message envelope → passed
+src/test/serverMessageOr.test.ts › serverMessageOr 500 without body → passed
+src/test/serverMessageOr.test.ts › serverMessageOr accessDeniedMessage_pointsToAccessCode → passed
+src/test/serverMessageOr.test.ts › serverMessageOr network error → passed
+src/test/serverMessageOr.test.ts › serverMessageOr serverMessageOr_429WithMessage_returnsServerMessage → passed
+src/test/serverMessageOr.test.ts › serverMessageOr serverMessageOr_503WithMessage_returnsServerMessage → passed
+src/test/termViewModel.test.ts › termViewModel buildAttendees_listsGuardiansFirst_thenNonAttendingListers_withOwnListings → passed
+src/test/termViewModel.test.ts › termViewModel buildVisualizationFamilies_flagsSharersAndBringers_guardiansOnly → passed
+src/test/termViewModel.test.ts › termViewModel noTerm_givesNoListingsAndNoFlags → passed
+src/test/termViewState.test.ts › resolveTermView 404 → passed
+src/test/termViewState.test.ts › resolveTermView PRIVATE member → passed
+src/test/termViewState.test.ts › resolveTermView PRIVATE organizer → passed
+src/test/termViewState.test.ts › resolveTermView PUBLIC group, anonymous → passed
+src/test/termViewState.test.ts › resolveTermView anonymous → passed
+src/test/termViewState.test.ts › resolveTermView content stays shown while stale → passed
+src/test/termViewState.test.ts › resolveTermView first load → passed
+src/test/termViewState.test.ts › resolveTermView gate from another token, new answer pending → passed
+src/test/termViewState.test.ts › resolveTermView logged-in non-member → passed
+src/test/termViewState.test.ts › resolveTermView refresh failed after a token change → passed
+src/test/termViewState.test.ts › resolveTermView same token, refetch failed → passed
+src/test/termViewState.test.ts › resolveTermView withdrawn attendee: isAttending stays for the footer, the chat flag comes from is_active_attendee → passed
+src/test/themeDefects.test.tsx › default organizer palette contrast (WCAG AA) accent-fg on accent-soft reaches 4.5:1 → passed
+src/test/themeDefects.test.tsx › default organizer palette contrast (WCAG AA) focus-ring on cream reaches 3:1 → passed
+src/test/themeDefects.test.tsx › default organizer palette contrast (WCAG AA) ink-soft on cream reaches 4.5:1 → passed
+src/test/themeDefects.test.tsx › default organizer palette contrast (WCAG AA) ink-soft on primary-soft reaches 4.5:1 → passed
+src/test/themeDefects.test.tsx › default organizer palette contrast (WCAG AA) on-primary on primary reaches 4.5:1 → passed
+src/test/themeDefects.test.tsx › default organizer palette contrast (WCAG AA) primary-fg on cream reaches 4.5:1 → passed
+src/test/themeDefects.test.tsx › default organizer palette contrast (WCAG AA) primary-fg on paper reaches 4.5:1 → passed
+src/test/themeDefects.test.tsx › in-scope public pages use theme tokens, not literal colors components/shared/ModalSheet.tsx has no literal hex colors → passed
+src/test/themeDefects.test.tsx › in-scope public pages use theme tokens, not literal colors components/shared/ModalSheet.tsx reads no unprefixed theme variables → passed
+src/test/themeDefects.test.tsx › in-scope public pages use theme tokens, not literal colors components/shared/PhoneFrame.tsx has no literal hex colors → passed
+src/test/themeDefects.test.tsx › in-scope public pages use theme tokens, not literal colors components/shared/PhoneFrame.tsx reads no unprefixed theme variables → passed
+src/test/themeDefects.test.tsx › in-scope public pages use theme tokens, not literal colors pages/organizer/LayoutRenderer.tsx has no literal hex colors → passed
+src/test/themeDefects.test.tsx › in-scope public pages use theme tokens, not literal colors pages/organizer/LayoutRenderer.tsx reads no unprefixed theme variables → passed
+src/test/themeDefects.test.tsx › in-scope public pages use theme tokens, not literal colors pages/organizer/OrganizerTermsPage.tsx has no literal hex colors → passed
+src/test/themeDefects.test.tsx › in-scope public pages use theme tokens, not literal colors pages/organizer/OrganizerTermsPage.tsx reads no unprefixed theme variables → passed
+src/test/themeDefects.test.tsx › in-scope public pages use theme tokens, not literal colors pages/organizer/PageFrame.tsx has no literal hex colors → passed
+src/test/themeDefects.test.tsx › in-scope public pages use theme tokens, not literal colors pages/organizer/PageFrame.tsx reads no unprefixed theme variables → passed
+src/test/themeDefects.test.tsx › in-scope public pages use theme tokens, not literal colors pages/organizer/PublicOrganizationPage.tsx has no literal hex colors → passed
+src/test/themeDefects.test.tsx › in-scope public pages use theme tokens, not literal colors pages/organizer/PublicOrganizationPage.tsx reads no unprefixed theme variables → passed
+src/test/themeDefects.test.tsx › in-scope public pages use theme tokens, not literal colors pages/organizer/blocks/AgendaBlock.tsx has no literal hex colors → passed
+src/test/themeDefects.test.tsx › in-scope public pages use theme tokens, not literal colors pages/organizer/blocks/AgendaBlock.tsx reads no unprefixed theme variables → passed
+src/test/themeDefects.test.tsx › in-scope public pages use theme tokens, not literal colors pages/organizer/blocks/AgendaList.tsx has no literal hex colors → passed
+src/test/themeDefects.test.tsx › in-scope public pages use theme tokens, not literal colors pages/organizer/blocks/AgendaList.tsx reads no unprefixed theme variables → passed
+src/test/themeDefects.test.tsx › in-scope public pages use theme tokens, not literal colors pages/organizer/blocks/BlockSkeleton.tsx has no literal hex colors → passed
+src/test/themeDefects.test.tsx › in-scope public pages use theme tokens, not literal colors pages/organizer/blocks/BlockSkeleton.tsx reads no unprefixed theme variables → passed
+src/test/themeDefects.test.tsx › in-scope public pages use theme tokens, not literal colors pages/organizer/blocks/CircleFilterChips.tsx has no literal hex colors → passed
+src/test/themeDefects.test.tsx › in-scope public pages use theme tokens, not literal colors pages/organizer/blocks/CircleFilterChips.tsx reads no unprefixed theme variables → passed
+src/test/themeDefects.test.tsx › in-scope public pages use theme tokens, not literal colors pages/organizer/blocks/CircleVisualMini.tsx has no literal hex colors → passed
+src/test/themeDefects.test.tsx › in-scope public pages use theme tokens, not literal colors pages/organizer/blocks/CircleVisualMini.tsx reads no unprefixed theme variables → passed
+src/test/themeDefects.test.tsx › in-scope public pages use theme tokens, not literal colors pages/organizer/blocks/CirclesGridBlock.tsx has no literal hex colors → passed
+src/test/themeDefects.test.tsx › in-scope public pages use theme tokens, not literal colors pages/organizer/blocks/CirclesGridBlock.tsx reads no unprefixed theme variables → passed
+src/test/themeDefects.test.tsx › in-scope public pages use theme tokens, not literal colors pages/organizer/blocks/EmptyStateBlock.tsx has no literal hex colors → passed
+src/test/themeDefects.test.tsx › in-scope public pages use theme tokens, not literal colors pages/organizer/blocks/EmptyStateBlock.tsx reads no unprefixed theme variables → passed
+src/test/themeDefects.test.tsx › in-scope public pages use theme tokens, not literal colors pages/organizer/blocks/ExchangeBoardBlock.tsx has no literal hex colors → passed
+src/test/themeDefects.test.tsx › in-scope public pages use theme tokens, not literal colors pages/organizer/blocks/ExchangeBoardBlock.tsx reads no unprefixed theme variables → passed
+src/test/themeDefects.test.tsx › in-scope public pages use theme tokens, not literal colors pages/organizer/blocks/ExchangeCountsBlock.tsx has no literal hex colors → passed
+src/test/themeDefects.test.tsx › in-scope public pages use theme tokens, not literal colors pages/organizer/blocks/ExchangeCountsBlock.tsx reads no unprefixed theme variables → passed
+src/test/themeDefects.test.tsx › in-scope public pages use theme tokens, not literal colors pages/organizer/blocks/ExchangeItemCard.tsx has no literal hex colors → passed
+src/test/themeDefects.test.tsx › in-scope public pages use theme tokens, not literal colors pages/organizer/blocks/ExchangeItemCard.tsx reads no unprefixed theme variables → passed
+src/test/themeDefects.test.tsx › in-scope public pages use theme tokens, not literal colors pages/organizer/blocks/FooterBlock.tsx has no literal hex colors → passed
+src/test/themeDefects.test.tsx › in-scope public pages use theme tokens, not literal colors pages/organizer/blocks/FooterBlock.tsx reads no unprefixed theme variables → passed
+src/test/themeDefects.test.tsx › in-scope public pages use theme tokens, not literal colors pages/organizer/blocks/GhostBlock.tsx has no literal hex colors → passed
+src/test/themeDefects.test.tsx › in-scope public pages use theme tokens, not literal colors pages/organizer/blocks/GhostBlock.tsx reads no unprefixed theme variables → passed
+src/test/themeDefects.test.tsx › in-scope public pages use theme tokens, not literal colors pages/organizer/blocks/HeroBlock.tsx has no literal hex colors → passed
+src/test/themeDefects.test.tsx › in-scope public pages use theme tokens, not literal colors pages/organizer/blocks/HeroBlock.tsx reads no unprefixed theme variables → passed
+src/test/themeDefects.test.tsx › in-scope public pages use theme tokens, not literal colors pages/organizer/blocks/LinkStackBlock.tsx has no literal hex colors → passed
+src/test/themeDefects.test.tsx › in-scope public pages use theme tokens, not literal colors pages/organizer/blocks/LinkStackBlock.tsx reads no unprefixed theme variables → passed
+src/test/themeDefects.test.tsx › in-scope public pages use theme tokens, not literal colors pages/organizer/blocks/NeededItemsBlock.tsx has no literal hex colors → passed
+src/test/themeDefects.test.tsx › in-scope public pages use theme tokens, not literal colors pages/organizer/blocks/NeededItemsBlock.tsx reads no unprefixed theme variables → passed
+src/test/themeDefects.test.tsx › in-scope public pages use theme tokens, not literal colors pages/organizer/blocks/NextTermCtaBlock.tsx has no literal hex colors → passed
+src/test/themeDefects.test.tsx › in-scope public pages use theme tokens, not literal colors pages/organizer/blocks/NextTermCtaBlock.tsx reads no unprefixed theme variables → passed
+src/test/themeDefects.test.tsx › in-scope public pages use theme tokens, not literal colors pages/organizer/blocks/ShareBlock.tsx has no literal hex colors → passed
+src/test/themeDefects.test.tsx › in-scope public pages use theme tokens, not literal colors pages/organizer/blocks/ShareBlock.tsx reads no unprefixed theme variables → passed
+src/test/themeDefects.test.tsx › in-scope public pages use theme tokens, not literal colors pages/organizer/blocks/ShareButton.tsx has no literal hex colors → passed
+src/test/themeDefects.test.tsx › in-scope public pages use theme tokens, not literal colors pages/organizer/blocks/ShareButton.tsx reads no unprefixed theme variables → passed
+src/test/themeDefects.test.tsx › in-scope public pages use theme tokens, not literal colors pages/organizer/blocks/StatsBlock.tsx has no literal hex colors → passed
+src/test/themeDefects.test.tsx › in-scope public pages use theme tokens, not literal colors pages/organizer/blocks/StatsBlock.tsx reads no unprefixed theme variables → passed
+src/test/themeDefects.test.tsx › in-scope public pages use theme tokens, not literal colors pages/organizer/blocks/UpcomingTermsBlock.tsx has no literal hex colors → passed
+src/test/themeDefects.test.tsx › in-scope public pages use theme tokens, not literal colors pages/organizer/blocks/UpcomingTermsBlock.tsx reads no unprefixed theme variables → passed
+src/test/themeDefects.test.tsx › in-scope public pages use theme tokens, not literal colors pages/organizer/blocks/nearestTerm.ts has no literal hex colors → passed
+src/test/themeDefects.test.tsx › in-scope public pages use theme tokens, not literal colors pages/organizer/blocks/nearestTerm.ts reads no unprefixed theme variables → passed
+src/test/themeDefects.test.tsx › in-scope public pages use theme tokens, not literal colors pages/organizer/editor/ColorsTab.tsx has no literal hex colors → passed
+src/test/themeDefects.test.tsx › in-scope public pages use theme tokens, not literal colors pages/organizer/editor/ColorsTab.tsx reads no unprefixed theme variables → passed
+src/test/themeDefects.test.tsx › in-scope public pages use theme tokens, not literal colors pages/organizer/editor/EditorSheet.tsx has no literal hex colors → passed
+src/test/themeDefects.test.tsx › in-scope public pages use theme tokens, not literal colors pages/organizer/editor/EditorSheet.tsx reads no unprefixed theme variables → passed
+src/test/themeDefects.test.tsx › in-scope public pages use theme tokens, not literal colors pages/organizer/editor/LayoutTab.tsx has no literal hex colors → passed
+src/test/themeDefects.test.tsx › in-scope public pages use theme tokens, not literal colors pages/organizer/editor/LayoutTab.tsx reads no unprefixed theme variables → passed
+src/test/themeDefects.test.tsx › in-scope public pages use theme tokens, not literal colors pages/organizer/editor/PreviewCards.tsx has no literal hex colors → passed
+src/test/themeDefects.test.tsx › in-scope public pages use theme tokens, not literal colors pages/organizer/editor/PreviewCards.tsx reads no unprefixed theme variables → passed
+src/test/themeDefects.test.tsx › in-scope public pages use theme tokens, not literal colors pages/organizer/editor/UnsavedChangesDialog.tsx has no literal hex colors → passed
+src/test/themeDefects.test.tsx › in-scope public pages use theme tokens, not literal colors pages/organizer/editor/UnsavedChangesDialog.tsx reads no unprefixed theme variables → passed
+src/test/themeDefects.test.tsx › in-scope public pages use theme tokens, not literal colors pages/organizer/layouts/registry.ts has no literal hex colors → passed
+src/test/themeDefects.test.tsx › in-scope public pages use theme tokens, not literal colors pages/organizer/layouts/registry.ts reads no unprefixed theme variables → passed
+src/test/themeDefects.test.tsx › in-scope public pages use theme tokens, not literal colors pages/organizer/layouts/types.ts has no literal hex colors → passed
+src/test/themeDefects.test.tsx › in-scope public pages use theme tokens, not literal colors pages/organizer/layouts/types.ts reads no unprefixed theme variables → passed
+src/test/themeDefects.test.tsx › in-scope public pages use theme tokens, not literal colors pages/product/ItemStatusCard.tsx has no literal hex colors → passed
+src/test/themeDefects.test.tsx › in-scope public pages use theme tokens, not literal colors pages/product/ItemStatusCard.tsx reads no unprefixed theme variables → passed
+src/test/themeDefects.test.tsx › in-scope public pages use theme tokens, not literal colors pages/term/components/CodeDigitsInput.tsx has no literal hex colors → passed
+src/test/themeDefects.test.tsx › in-scope public pages use theme tokens, not literal colors pages/term/components/CodeDigitsInput.tsx reads no unprefixed theme variables → passed
+src/test/themeDefects.test.tsx › in-scope public pages use theme tokens, not literal colors pages/term/components/GroupVisualization.tsx has no literal hex colors → passed
+src/test/themeDefects.test.tsx › in-scope public pages use theme tokens, not literal colors pages/term/components/GroupVisualization.tsx reads no unprefixed theme variables → passed
+src/test/themeDefects.test.tsx › in-scope public pages use theme tokens, not literal colors pages/term/components/TermFooter.tsx has no literal hex colors → passed
+src/test/themeDefects.test.tsx › in-scope public pages use theme tokens, not literal colors pages/term/components/TermFooter.tsx reads no unprefixed theme variables → passed
+src/test/themeDefects.test.tsx › in-scope public pages use theme tokens, not literal colors pages/term/components/termLabels.ts has no literal hex colors → passed
+src/test/themeDefects.test.tsx › in-scope public pages use theme tokens, not literal colors pages/term/components/termLabels.ts reads no unprefixed theme variables → passed
+src/test/themeDefects.test.tsx › in-scope public pages use theme tokens, not literal colors pages/term/modals/AccountMergeForm.tsx has no literal hex colors → passed
+src/test/themeDefects.test.tsx › in-scope public pages use theme tokens, not literal colors pages/term/modals/AccountMergeForm.tsx reads no unprefixed theme variables → passed
+src/test/themeDefects.test.tsx › in-scope public pages use theme tokens, not literal colors pages/term/modals/JoinByCodeSheet.tsx has no literal hex colors → passed
+src/test/themeDefects.test.tsx › in-scope public pages use theme tokens, not literal colors pages/term/modals/JoinByCodeSheet.tsx reads no unprefixed theme variables → passed
+src/test/themeDefects.test.tsx › in-scope public pages use theme tokens, not literal colors pages/term/views/PrivateTermView.tsx has no literal hex colors → passed
+src/test/themeDefects.test.tsx › in-scope public pages use theme tokens, not literal colors pages/term/views/PrivateTermView.tsx reads no unprefixed theme variables → passed
+src/test/themeDefects.test.tsx › in-scope public pages use theme tokens, not literal colors pages/term/views/PublicTermView.tsx has no literal hex colors → passed
+src/test/themeDefects.test.tsx › in-scope public pages use theme tokens, not literal colors pages/term/views/PublicTermView.tsx reads no unprefixed theme variables → passed
+src/test/themeScopeNavigation.test.tsx › organizer theme after client-side navigation leaves no organizer vars or term-page rules behind once the user moves on to /panel → passed
+src/test/themeTokenUsage.test.tsx › GroupVisualization exchange colors legend 'udostępnia' chip is accent and 'przynosi' chip is teal with ink icon → passed
+src/test/themeTokenUsage.test.tsx › GroupVisualization exchange colors spokes use role stroke classes, not literal stroke attributes → passed
+src/test/themeTokenUsage.test.tsx › JoinByCodeSheet renders without the dead kg-modal-overlay class → passed
+src/test/themeTokenUsage.test.tsx › organizer-themed files use role tokens components/pending/PendingActionsHost.tsx has no literal hex colors → passed
+src/test/themeTokenUsage.test.tsx › organizer-themed files use role tokens components/pending/PendingActionsHost.tsx uses no mint/lime utilities → passed
+src/test/themeTokenUsage.test.tsx › organizer-themed files use role tokens components/shared/AddToCalendarButton.tsx has no literal hex colors → passed
+src/test/themeTokenUsage.test.tsx › organizer-themed files use role tokens components/shared/AddToCalendarButton.tsx uses no mint/lime utilities → passed
+src/test/themeTokenUsage.test.tsx › organizer-themed files use role tokens components/shared/ModalSheet.tsx uses no mint/lime utilities → passed
+src/test/themeTokenUsage.test.tsx › organizer-themed files use role tokens components/shared/PhoneFrame.tsx uses no mint/lime utilities → passed
+src/test/themeTokenUsage.test.tsx › organizer-themed files use role tokens components/shared/PhotoGalleryField.tsx has no literal hex colors → passed
+src/test/themeTokenUsage.test.tsx › organizer-themed files use role tokens components/shared/PhotoGalleryField.tsx uses no mint/lime utilities → passed
+src/test/themeTokenUsage.test.tsx › organizer-themed files use role tokens components/shared/PhotoViewer.tsx has no literal hex colors → passed
+src/test/themeTokenUsage.test.tsx › organizer-themed files use role tokens components/shared/PhotoViewer.tsx uses no mint/lime utilities → passed
+src/test/themeTokenUsage.test.tsx › organizer-themed files use role tokens pages/items/SwapAcceptSuccessSheet.tsx has no literal hex colors → passed
+src/test/themeTokenUsage.test.tsx › organizer-themed files use role tokens pages/items/SwapAcceptSuccessSheet.tsx uses no mint/lime utilities → passed
+src/test/themeTokenUsage.test.tsx › organizer-themed files use role tokens pages/messages/InboxPage.tsx has no literal hex colors → passed
+src/test/themeTokenUsage.test.tsx › organizer-themed files use role tokens pages/messages/MessageBubble.tsx has no literal hex colors → passed
+src/test/themeTokenUsage.test.tsx › organizer-themed files use role tokens pages/messages/MessageComposer.tsx has no literal hex colors → passed
+src/test/themeTokenUsage.test.tsx › organizer-themed files use role tokens pages/messages/ThreadPage.tsx has no literal hex colors → passed
+src/test/themeTokenUsage.test.tsx › organizer-themed files use role tokens pages/organizer/LayoutRenderer.tsx has no literal hex colors → passed
+src/test/themeTokenUsage.test.tsx › organizer-themed files use role tokens pages/organizer/LayoutRenderer.tsx uses no mint/lime utilities → passed
+src/test/themeTokenUsage.test.tsx › organizer-themed files use role tokens pages/organizer/OrganizerTermsPage.tsx has no literal hex colors → passed
+src/test/themeTokenUsage.test.tsx › organizer-themed files use role tokens pages/organizer/OrganizerTermsPage.tsx uses no mint/lime utilities → passed
+src/test/themeTokenUsage.test.tsx › organizer-themed files use role tokens pages/organizer/PageFrame.tsx has no literal hex colors → passed
+src/test/themeTokenUsage.test.tsx › organizer-themed files use role tokens pages/organizer/PageFrame.tsx uses no mint/lime utilities → passed
+src/test/themeTokenUsage.test.tsx › organizer-themed files use role tokens pages/organizer/PublicOrganizationPage.tsx has no literal hex colors → passed
+src/test/themeTokenUsage.test.tsx › organizer-themed files use role tokens pages/organizer/PublicOrganizationPage.tsx uses no mint/lime utilities → passed
+src/test/themeTokenUsage.test.tsx › organizer-themed files use role tokens pages/organizer/blocks/AgendaBlock.tsx has no literal hex colors → passed
+src/test/themeTokenUsage.test.tsx › organizer-themed files use role tokens pages/organizer/blocks/AgendaBlock.tsx uses no mint/lime utilities → passed
+src/test/themeTokenUsage.test.tsx › organizer-themed files use role tokens pages/organizer/blocks/AgendaList.tsx has no literal hex colors → passed
+src/test/themeTokenUsage.test.tsx › organizer-themed files use role tokens pages/organizer/blocks/AgendaList.tsx uses no mint/lime utilities → passed
+src/test/themeTokenUsage.test.tsx › organizer-themed files use role tokens pages/organizer/blocks/BlockSkeleton.tsx has no literal hex colors → passed
+src/test/themeTokenUsage.test.tsx › organizer-themed files use role tokens pages/organizer/blocks/BlockSkeleton.tsx uses no mint/lime utilities → passed
+src/test/themeTokenUsage.test.tsx › organizer-themed files use role tokens pages/organizer/blocks/CircleFilterChips.tsx has no literal hex colors → passed
+src/test/themeTokenUsage.test.tsx › organizer-themed files use role tokens pages/organizer/blocks/CircleFilterChips.tsx uses no mint/lime utilities → passed
+src/test/themeTokenUsage.test.tsx › organizer-themed files use role tokens pages/organizer/blocks/CircleVisualMini.tsx has no literal hex colors → passed
+src/test/themeTokenUsage.test.tsx › organizer-themed files use role tokens pages/organizer/blocks/CircleVisualMini.tsx uses no mint/lime utilities → passed
+src/test/themeTokenUsage.test.tsx › organizer-themed files use role tokens pages/organizer/blocks/CirclesGridBlock.tsx has no literal hex colors → passed
+src/test/themeTokenUsage.test.tsx › organizer-themed files use role tokens pages/organizer/blocks/CirclesGridBlock.tsx uses no mint/lime utilities → passed
+src/test/themeTokenUsage.test.tsx › organizer-themed files use role tokens pages/organizer/blocks/EmptyStateBlock.tsx has no literal hex colors → passed
+src/test/themeTokenUsage.test.tsx › organizer-themed files use role tokens pages/organizer/blocks/EmptyStateBlock.tsx uses no mint/lime utilities → passed
+src/test/themeTokenUsage.test.tsx › organizer-themed files use role tokens pages/organizer/blocks/ExchangeBoardBlock.tsx has no literal hex colors → passed
+src/test/themeTokenUsage.test.tsx › organizer-themed files use role tokens pages/organizer/blocks/ExchangeBoardBlock.tsx uses no mint/lime utilities → passed
+src/test/themeTokenUsage.test.tsx › organizer-themed files use role tokens pages/organizer/blocks/ExchangeCountsBlock.tsx has no literal hex colors → passed
+src/test/themeTokenUsage.test.tsx › organizer-themed files use role tokens pages/organizer/blocks/ExchangeCountsBlock.tsx uses no mint/lime utilities → passed
+src/test/themeTokenUsage.test.tsx › organizer-themed files use role tokens pages/organizer/blocks/ExchangeItemCard.tsx has no literal hex colors → passed
+src/test/themeTokenUsage.test.tsx › organizer-themed files use role tokens pages/organizer/blocks/ExchangeItemCard.tsx uses no mint/lime utilities → passed
+src/test/themeTokenUsage.test.tsx › organizer-themed files use role tokens pages/organizer/blocks/FooterBlock.tsx has no literal hex colors → passed
+src/test/themeTokenUsage.test.tsx › organizer-themed files use role tokens pages/organizer/blocks/FooterBlock.tsx uses no mint/lime utilities → passed
+src/test/themeTokenUsage.test.tsx › organizer-themed files use role tokens pages/organizer/blocks/GalleryBlock.tsx has no literal hex colors → passed
+src/test/themeTokenUsage.test.tsx › organizer-themed files use role tokens pages/organizer/blocks/GalleryBlock.tsx uses no mint/lime utilities → passed
+src/test/themeTokenUsage.test.tsx › organizer-themed files use role tokens pages/organizer/blocks/GhostBlock.tsx has no literal hex colors → passed
+src/test/themeTokenUsage.test.tsx › organizer-themed files use role tokens pages/organizer/blocks/GhostBlock.tsx uses no mint/lime utilities → passed
+src/test/themeTokenUsage.test.tsx › organizer-themed files use role tokens pages/organizer/blocks/HeroBlock.tsx has no literal hex colors → passed
+src/test/themeTokenUsage.test.tsx › organizer-themed files use role tokens pages/organizer/blocks/HeroBlock.tsx uses no mint/lime utilities → passed
+src/test/themeTokenUsage.test.tsx › organizer-themed files use role tokens pages/organizer/blocks/LinkStackBlock.tsx has no literal hex colors → passed
+src/test/themeTokenUsage.test.tsx › organizer-themed files use role tokens pages/organizer/blocks/LinkStackBlock.tsx uses no mint/lime utilities → passed
+src/test/themeTokenUsage.test.tsx › organizer-themed files use role tokens pages/organizer/blocks/NeededItemsBlock.tsx has no literal hex colors → passed
+src/test/themeTokenUsage.test.tsx › organizer-themed files use role tokens pages/organizer/blocks/NeededItemsBlock.tsx uses no mint/lime utilities → passed
+src/test/themeTokenUsage.test.tsx › organizer-themed files use role tokens pages/organizer/blocks/NextTermCtaBlock.tsx has no literal hex colors → passed
+src/test/themeTokenUsage.test.tsx › organizer-themed files use role tokens pages/organizer/blocks/NextTermCtaBlock.tsx uses no mint/lime utilities → passed
+src/test/themeTokenUsage.test.tsx › organizer-themed files use role tokens pages/organizer/blocks/RecentItemsBlock.tsx has no literal hex colors → passed
+src/test/themeTokenUsage.test.tsx › organizer-themed files use role tokens pages/organizer/blocks/RecentItemsBlock.tsx uses no mint/lime utilities → passed
+src/test/themeTokenUsage.test.tsx › organizer-themed files use role tokens pages/organizer/blocks/ShareBlock.tsx has no literal hex colors → passed
+src/test/themeTokenUsage.test.tsx › organizer-themed files use role tokens pages/organizer/blocks/ShareBlock.tsx uses no mint/lime utilities → passed
+src/test/themeTokenUsage.test.tsx › organizer-themed files use role tokens pages/organizer/blocks/ShareButton.tsx has no literal hex colors → passed
+src/test/themeTokenUsage.test.tsx › organizer-themed files use role tokens pages/organizer/blocks/ShareButton.tsx uses no mint/lime utilities → passed
+src/test/themeTokenUsage.test.tsx › organizer-themed files use role tokens pages/organizer/blocks/StatsBlock.tsx has no literal hex colors → passed
+src/test/themeTokenUsage.test.tsx › organizer-themed files use role tokens pages/organizer/blocks/StatsBlock.tsx uses no mint/lime utilities → passed
+src/test/themeTokenUsage.test.tsx › organizer-themed files use role tokens pages/organizer/blocks/UpcomingTermsBlock.tsx has no literal hex colors → passed
+src/test/themeTokenUsage.test.tsx › organizer-themed files use role tokens pages/organizer/blocks/UpcomingTermsBlock.tsx uses no mint/lime utilities → passed
+src/test/themeTokenUsage.test.tsx › organizer-themed files use role tokens pages/organizer/blocks/nearestTerm.ts has no literal hex colors → passed
+src/test/themeTokenUsage.test.tsx › organizer-themed files use role tokens pages/organizer/blocks/nearestTerm.ts uses no mint/lime utilities → passed
+src/test/themeTokenUsage.test.tsx › organizer-themed files use role tokens pages/organizer/editor/ColorsTab.tsx has no literal hex colors → passed
+src/test/themeTokenUsage.test.tsx › organizer-themed files use role tokens pages/organizer/editor/ColorsTab.tsx uses no mint/lime utilities → passed
+src/test/themeTokenUsage.test.tsx › organizer-themed files use role tokens pages/organizer/editor/EditorSheet.tsx has no literal hex colors → passed
+src/test/themeTokenUsage.test.tsx › organizer-themed files use role tokens pages/organizer/editor/EditorSheet.tsx uses no mint/lime utilities → passed
+src/test/themeTokenUsage.test.tsx › organizer-themed files use role tokens pages/organizer/editor/LayoutTab.tsx has no literal hex colors → passed
+src/test/themeTokenUsage.test.tsx › organizer-themed files use role tokens pages/organizer/editor/LayoutTab.tsx uses no mint/lime utilities → passed
+src/test/themeTokenUsage.test.tsx › organizer-themed files use role tokens pages/organizer/editor/PhotosTab.tsx has no literal hex colors → passed
+src/test/themeTokenUsage.test.tsx › organizer-themed files use role tokens pages/organizer/editor/PhotosTab.tsx uses no mint/lime utilities → passed
+src/test/themeTokenUsage.test.tsx › organizer-themed files use role tokens pages/organizer/editor/PreviewCards.tsx has no literal hex colors → passed
+src/test/themeTokenUsage.test.tsx › organizer-themed files use role tokens pages/organizer/editor/PreviewCards.tsx uses no mint/lime utilities → passed
+src/test/themeTokenUsage.test.tsx › organizer-themed files use role tokens pages/organizer/editor/UnsavedChangesDialog.tsx has no literal hex colors → passed
+src/test/themeTokenUsage.test.tsx › organizer-themed files use role tokens pages/organizer/editor/UnsavedChangesDialog.tsx uses no mint/lime utilities → passed
+src/test/themeTokenUsage.test.tsx › organizer-themed files use role tokens pages/organizer/editor/draft.ts has no literal hex colors → passed
+src/test/themeTokenUsage.test.tsx › organizer-themed files use role tokens pages/organizer/editor/draft.ts uses no mint/lime utilities → passed
+src/test/themeTokenUsage.test.tsx › organizer-themed files use role tokens pages/organizer/layouts/registry.ts has no literal hex colors → passed
+src/test/themeTokenUsage.test.tsx › organizer-themed files use role tokens pages/organizer/layouts/registry.ts uses no mint/lime utilities → passed
+src/test/themeTokenUsage.test.tsx › organizer-themed files use role tokens pages/organizer/layouts/types.ts has no literal hex colors → passed
+src/test/themeTokenUsage.test.tsx › organizer-themed files use role tokens pages/organizer/layouts/types.ts uses no mint/lime utilities → passed
+src/test/themeTokenUsage.test.tsx › organizer-themed files use role tokens pages/product/ItemDetailPage.tsx uses no mint/lime utilities → passed
+src/test/themeTokenUsage.test.tsx › organizer-themed files use role tokens pages/product/ItemEditForm.tsx has no literal hex colors → passed
+src/test/themeTokenUsage.test.tsx › organizer-themed files use role tokens pages/product/ItemEditForm.tsx uses no mint/lime utilities → passed
+src/test/themeTokenUsage.test.tsx › organizer-themed files use role tokens pages/product/ItemGallery.tsx has no literal hex colors → passed
+src/test/themeTokenUsage.test.tsx › organizer-themed files use role tokens pages/product/ItemGallery.tsx uses no mint/lime utilities → passed
+src/test/themeTokenUsage.test.tsx › organizer-themed files use role tokens pages/product/ItemGalleryEditor.tsx has no literal hex colors → passed
+src/test/themeTokenUsage.test.tsx › organizer-themed files use role tokens pages/product/ItemGalleryEditor.tsx uses no mint/lime utilities → passed
+src/test/themeTokenUsage.test.tsx › organizer-themed files use role tokens pages/product/ItemStatusCard.tsx uses no mint/lime utilities → passed
+src/test/themeTokenUsage.test.tsx › organizer-themed files use role tokens pages/product/TakeSuccessSheet.tsx has no literal hex colors → passed
+src/test/themeTokenUsage.test.tsx › organizer-themed files use role tokens pages/product/TakeSuccessSheet.tsx uses no mint/lime utilities → passed
+src/test/themeTokenUsage.test.tsx › organizer-themed files use role tokens pages/product/itemPageShared.ts has no literal hex colors → passed
+src/test/themeTokenUsage.test.tsx › organizer-themed files use role tokens pages/product/itemPageShared.ts uses no mint/lime utilities → passed
+src/test/themeTokenUsage.test.tsx › organizer-themed files use role tokens pages/term/components/CodeDigitsInput.tsx uses no mint/lime utilities → passed
+src/test/themeTokenUsage.test.tsx › organizer-themed files use role tokens pages/term/components/GroupVisualization.tsx uses no mint/lime utilities → passed
+src/test/themeTokenUsage.test.tsx › organizer-themed files use role tokens pages/term/components/TermFooter.tsx uses no mint/lime utilities → passed
+src/test/themeTokenUsage.test.tsx › organizer-themed files use role tokens pages/term/components/termLabels.ts uses no mint/lime utilities → passed
+src/test/themeTokenUsage.test.tsx › organizer-themed files use role tokens pages/term/modals/AccountMergeForm.tsx uses no mint/lime utilities → passed
+src/test/themeTokenUsage.test.tsx › organizer-themed files use role tokens pages/term/modals/AuthGateSheet.tsx uses no mint/lime utilities → passed
+src/test/themeTokenUsage.test.tsx › organizer-themed files use role tokens pages/term/modals/JoinByCodeSheet.tsx uses no mint/lime utilities → passed
+src/test/themeTokenUsage.test.tsx › organizer-themed files use role tokens pages/term/views/PrivateTermView.tsx uses no mint/lime utilities → passed
+src/test/themeTokenUsage.test.tsx › organizer-themed files use role tokens pages/term/views/PublicTermView.tsx uses no mint/lime utilities → passed
+src/test/threadViewState.test.ts › resolveThreadView 400 malformed id → passed
+src/test/threadViewState.test.ts › resolveThreadView 403 → passed
+src/test/threadViewState.test.ts › resolveThreadView 404 → passed
+src/test/threadViewState.test.ts › resolveThreadView conversation error → passed
+src/test/threadViewState.test.ts › resolveThreadView conversation loading → passed
+src/test/threadViewState.test.ts › resolveThreadView deleted group → passed
+src/test/threadViewState.test.ts › resolveThreadView empty writable thread → passed
+src/test/threadViewState.test.ts › resolveThreadView messages error with nothing held → passed
+src/test/threadViewState.test.ts › resolveThreadView messages loading → passed
+src/test/threadViewState.test.ts › resolveThreadView poll failure with messages held → passed
+src/test/threadViewState.test.ts › resolveThreadView public group → passed
+src/test/threadViewState.test.ts › resolveThreadView writable → passed
+src/test/uiStyles.test.tsx › term page theme roles colors the avatar markers and the primary button from theme roles → passed
+src/test/uiStyles.test.tsx › term page theme roles paints the page shell from theme tokens → passed
+src/test/url.test.ts › isSafeReturnPath accepts a same-origin absolute path → passed
+src/test/url.test.ts › isSafeReturnPath rejects absolute URL → passed
+src/test/url.test.ts › isSafeReturnPath rejects backslash after slash → passed
+src/test/url.test.ts › isSafeReturnPath rejects carriage-return-smuggled protocol-relative → passed
+src/test/url.test.ts › isSafeReturnPath rejects empty → passed
+src/test/url.test.ts › isSafeReturnPath rejects leading backslashes → passed
+src/test/url.test.ts › isSafeReturnPath rejects missing (null) → passed
+src/test/url.test.ts › isSafeReturnPath rejects missing (undefined) → passed
+src/test/url.test.ts › isSafeReturnPath rejects newline-smuggled protocol-relative → passed
+src/test/url.test.ts › isSafeReturnPath rejects protocol-relative → passed
+src/test/url.test.ts › isSafeReturnPath rejects relative path → passed
+src/test/url.test.ts › isSafeReturnPath rejects tab-smuggled protocol-relative → passed
+src/test/url.test.ts › isSafeReturnPath rejects whitespace → passed
+src/test/useCategories.test.ts › useCategories create() and update() refetch the cached list despite the 5-minute staleTime → passed
+src/test/useCategories.test.ts › useCategories create() rethrows the backend error without refetching → passed
+src/test/useCategories.test.ts › useCategories fetches and returns categories ordered by sort_order → passed
+src/test/useCategories.test.ts › useCategories keeps the list fresh for 5 minutes, so a remount does not refetch → passed
+src/test/useCategories.test.ts › useCategories remove(id) propagates the backend ApiError's detail message on 409, not a generic string → passed
+src/test/useConversations.test.tsx › useConversations loggedIn_pollsEvery20sOnlyInForeground → passed
+src/test/useConversations.test.tsx › useConversations loggedOut_doesNotFetch → passed
+src/test/useEvent.test.tsx › useEvent refetch_error_keepsDataAndExposesRefreshError → passed
+src/test/useEvent.test.tsx › useEvent remove_dropsTheEventAndInvalidatesMyEventsAndConversations → passed
+src/test/useEvent.test.tsx › useEvent signUp_postsGuestNameAndAwaitsEventListInvalidation → passed
+src/test/useEvent.test.tsx › useEvent tokenChange_keepsDataFlaggedStaleUntilTheRefetchResolves → passed
+src/test/useEvent.test.tsx › useEvent withdraw_invalidatesTheConversationsKeyToo → passed
+src/test/useGroupTerms.test.tsx › useGroupTerms wrapsGetTerms_andDoesNotFetchWhileDisabled → passed
+src/test/useItemActions.test.tsx › useItemActions fetches the item's actions without a context → passed
+src/test/useItemActions.test.tsx › useItemActions refetches when the viewer logs in, so anonymous data is not reused → passed
+src/test/useItemDetail.test.tsx › useItemDetail pending-photo polling nonOwnerOrNoPendingPhoto_doesNotPoll → passed
+src/test/useItemDetail.test.tsx › useItemDetail pending-photo polling ownerWithPendingPhoto_refetchesEvery10s, and stops once no photo is PENDING → passed
+src/test/useItemDetail.test.tsx › useItemDetail reports any other failure as the extractProblemMessage text with a null item → passed
+src/test/useItemDetail.test.tsx › useItemDetail returns the item, and reports notFound for 404 and for 400 (malformed id) → passed
+src/test/useItemDetail.test.tsx › useItemEditing a 403 from a product photo or description write rejects with ACCESS_DENIED_MESSAGE → passed
+src/test/useItemDetail.test.tsx › useItemEditing a re-point followed by a failed refetch blocks product writes instead of hitting the old product → passed
+src/test/useItemDetail.test.tsx › useItemEditing movePhoto swaps the ids, holds photoBusy until the details refetch settles, on success and on 409 → passed
+src/test/useItemDetail.test.tsx › useItemEditing saveNameCategory resolves the product then re-points the item; a 403 rejects with ACCESS_DENIED_MESSAGE → passed
+src/test/useItemTake.test.tsx › useItemTake SWAP opens the picker, then proposes with the chosen item and the context → passed
+src/test/useItemTake.test.tsx › useItemTake a TERM target sends the term's kind and id → passed
+src/test/useItemTake.test.tsx › useItemTake a failed take does not call onReserved → passed
+src/test/useItemTake.test.tsx › useItemTake a personal GIFT takes with the PERSONAL context, toasts and reports it via onReserved, without a success sheet → passed
+src/test/useItemTake.test.tsx › useItemTake an anonymous caller hits the account gate instead of taking → passed
+src/test/useItemTake.test.tsx › useItemTake awaits invalidation of every affected prefix before refetching → passed
+src/test/useJoinCode.test.tsx › useJoinCode regenerate_cachesReturnedCodeWithoutRefetch_andRethrowsServerMessageOnConflict → passed
+src/test/useJoinCode.test.tsx › useJoinCode status_mapsResolvedDeniedAndError_andIsIdleWhenDisabled → passed
+src/test/useModerationGroups.test.tsx › useModerationGroups does not carry rows across the deleted toggle while the other listing loads → passed
+src/test/useModerationGroups.test.tsx › useModerationGroups keeps the previous page while the next page of the same listing loads → passed
+src/test/useModerationGroups.test.tsx › useModerationGroups requests getGroupsForModeration(page, deleted) and keys by deleted → passed
+src/test/useModerationGroups.test.tsx › useModerationGroups restore calls restoreGroup and invalidates the moderationGroups prefix → passed
+src/test/useModerationGroups.test.tsx › useModerationGroups restore rethrows extractProblemMessage(err) → passed
+src/test/useMyInventoryLocation.test.tsx › useMyInventoryLocation a signed-out viewer is not loading and fetches nothing → passed
+src/test/useMyInventoryLocation.test.tsx › useMyInventoryLocation returns the inventory's place → passed
+src/test/useMyInventoryLocation.test.tsx › useMyInventoryLocation set saves the place and awaits invalidation of its prefix and item-actions → passed
+src/test/useMyLocations.test.tsx › useMyLocations create invalidates the locations prefix and reuses an active row with the same place id → passed
+src/test/useMyLocations.test.tsx › useMyLocations remove rethrows the backend's problem message and invalidates after success → passed
+src/test/useMyLocations.test.tsx › useMyLocations returns the app shape with a stable empty fallback and keys the list by token → passed
+src/test/useMyPledges.test.tsx › useMyPledges fetches nothing without a token and keeps a stable empty fallback → passed
+src/test/useMyPledges.test.tsx › useMyPledges withdraw re-reads the list once the pledge is withdrawn → passed
+src/test/useMyPledges.test.tsx › useMyPledges withdraw rethrows the server's message verbatim and keeps the list → passed
+src/test/useOpenConversation.test.tsx › useOpenAndNavigate open_failure_keepsThePageAndExposesTheError → passed
+src/test/useOpenConversation.test.tsx › useOpenAndNavigate open_success_navigatesToTheThread → passed
+src/test/useOpenConversation.test.tsx › useOpenConversation open_EVENT_callsItsGetOrCreateAndInvalidatesTheInbox → passed
+src/test/useOpenConversation.test.tsx › useOpenConversation open_GROUP_callsItsGetOrCreateAndInvalidatesTheInbox → passed
+src/test/useOpenConversation.test.tsx › useOpenConversation open_ITEM_callsItsGetOrCreateAndInvalidatesTheInbox → passed
+src/test/useOpenConversation.test.tsx › useOpenConversation open_TERM_callsItsGetOrCreateAndInvalidatesTheInbox → passed
+src/test/useOpenConversation.test.tsx › useOpenConversation open_failure_rejectsWithPolishCopy → passed
+src/test/useOrganizationHooks.test.tsx › useMyOrganization media polling invalidates the public organization when a poll changes a status or drops a row, not otherwise (M4) → passed
+src/test/useOrganizationHooks.test.tsx › useMyOrganization media polling never polls without the option, even with pending media (L7) → passed
+src/test/useOrganizationHooks.test.tsx › useMyOrganization media polling polls every 10 s while a row is PENDING or NEEDS_REVIEW and stops once all are approved → passed
+src/test/useOrganizationHooks.test.tsx › useMyOrganization returns the caller's organization, idles without a token and maps a 404 to no data → passed
+src/test/useOrganizationHooks.test.tsx › useOrganizationMedia falls back to Polish copy per action when the server gives no message → passed
+src/test/useOrganizationHooks.test.tsx › useOrganizationMedia rethrows the server message verbatim after invalidating both prefixes → passed
+src/test/useOrganizationHooks.test.tsx › useOrganizationMedia uploads, removes and reorders, invalidating both organization prefixes after each call → passed
+src/test/useOrganizationHooks.test.tsx › useUpdateOrganization maps a 400 with field errors to the appearance fallback copy → passed
+src/test/useOrganizationHooks.test.tsx › useUpdateOrganization rejects a 409 with the Polish conflict copy after invalidating both prefixes → passed
+src/test/useOrganizationHooks.test.tsx › useUpdateOrganization sends the request and invalidates both organization prefixes → passed
+src/test/useOrganizerPage.test.tsx › useOrganizerPage refetches the personalised directory under a new key after a login or account switch → passed
+src/test/useOrganizerPage.test.tsx › useOrganizerPage reports a 404 as notFound without an error message → passed
+src/test/useOrganizerPage.test.tsx › useOrganizerPage returns the directory once loaded → passed
+src/test/useOrganizerTerms.test.tsx › useOrganizerTerms appends the next page to the flattened terms until the last page → passed
+src/test/useOrganizerTerms.test.tsx › useOrganizerTerms issues no request while disabled → passed
+src/test/useOrganizerTerms.test.tsx › useOrganizerTerms refetches with group_id when groupId changes → passed
+src/test/useProducts.test.ts › useProducts passes category_id and the page through to getProductsPage(), not the retired category string → passed
+src/test/useProducts.test.ts › useProducts remove(id) invalidates the categories prefix too, since product_count changes → passed
+src/test/usePublicOrganization.test.tsx › usePublicOrganization fetches by the given slug → passed
+src/test/usePublicOrganization.test.tsx › usePublicOrganization reports a 404 as notFound without an error message → passed
+src/test/usePublicOrganization.test.tsx › usePublicOrganization reports other failures as an error message → passed
+src/test/usePublicOrganization.test.tsx › usePublicOrganization returns the organization once loaded → passed
+src/test/useReservationSettlement.test.tsx › isAlreadyResolved a 409 without the flag → ApiError: 409 Conflict → passed
+src/test/useReservationSettlement.test.tsx › isAlreadyResolved a plain error → Error: network → passed
+src/test/useReservationSettlement.test.tsx › isAlreadyResolved another status → ApiError: 500 Server Error → passed
+src/test/useReservationSettlement.test.tsx › isAlreadyResolved the already-resolved 409 → ApiError: 409 Conflict → passed
+src/test/useReservationSettlement.test.tsx › isPersonalSwapAccept a term swap → { id: 's1', proposer_party_id: 'p2', listing_item_id: 'i1', offered_item_id: 'm1', proposer_reservation_id: 'r2', status: 'ACCEPTED', created_at: '2026-10-01T10:00:00', updated_at: '2026-10-01T10:00:00', term_id: 't1', term_occurs_on: '2026-11-07T10:00:00', group_id: 'g1', group_name: 'Skrzaty', event_id: null, event_slug: null } → passed
+src/test/useReservationSettlement.test.tsx › isPersonalSwapAccept all four context fields null → { id: 's1', proposer_party_id: 'p2', listing_item_id: 'i1', offered_item_id: 'm1', proposer_reservation_id: 'r2', status: 'ACCEPTED', created_at: '2026-10-01T10:00:00', updated_at: '2026-10-01T10:00:00', term_id: null, term_occurs_on: null, group_id: null, group_name: null, event_id: null, event_slug: null } → passed
+src/test/useReservationSettlement.test.tsx › isPersonalSwapAccept an event swap: event start and name → { id: 's1', proposer_party_id: 'p2', listing_item_id: 'i1', offered_item_id: 'm1', proposer_reservation_id: 'r2', status: 'ACCEPTED', created_at: '2026-10-01T10:00:00', updated_at: '2026-10-01T10:00:00', term_id: null, term_occurs_on: '2026-11-07T10:00:00', group_id: null, group_name: 'Kiermasz', event_id: null, event_slug: null } → passed
+src/test/useReservationSettlement.test.tsx › useReservationSettlement accept of a personal swap shows where and when → passed
+src/test/useReservationSettlement.test.tsx › useReservationSettlement accept of an event swap shows where and when → passed
+src/test/useReservationSettlement.test.tsx › useReservationSettlement an already-resolved 409 shows its own message and still refetches → passed
+src/test/useReservationSettlement.test.tsx › useReservationSettlement another error passes the server's message through and does not refetch → passed
+src/test/useReservationSettlement.test.tsx › useReservationSettlement confirm awaits invalidation of every reservation-state prefix before refetching → passed
+src/test/useTermAccess.test.ts › useTermAccess firstLoad_error_givesErrorState → passed
+src/test/useTermAccess.test.ts › useTermAccess joinWithCode_redeemsAwaitsGroupAccessInvalidation_andRethrowsServerMessage → passed
+src/test/useTermAccess.test.ts › useTermAccess overlappingRefetches_latestRequestWins → passed
+src/test/useTermAccess.test.ts › useTermAccess paramsChange_fetchFails_givesErrorState_notPreviousTerm → passed
+src/test/useTermAccess.test.ts › useTermAccess paramsChange_showsLoadingNotPreviousTerm_untilNewResponse → passed
+src/test/useTermAccess.test.ts › useTermAccess refetch_error_keepsReadyWithRefreshError → passed
+src/test/useTermAccess.test.ts › useTermAccess tokenChangeFetch_fails_keepsStaleReadyWithRefreshError_untilRefetchSucceeds → passed
+src/test/useTermAccess.test.ts › useTermAccess tokenChange_isStaleUntilResponseArrives → passed
+src/test/useThread.test.tsx › useThread crossingMessage_sentBeforeMineButUnpolled_isFetchedByNextPoll → passed
+src/test/useThread.test.tsx › useThread firstLoadFails400_stopsPolling → passed
+src/test/useThread.test.tsx › useThread firstLoadFails403_stopsPolling → passed
+src/test/useThread.test.tsx › useThread firstLoadFails404_stopsPolling → passed
+src/test/useThread.test.tsx › useThread firstLoad_fetchesNewestPageWithoutCursor_andPollsEvery5s → passed
+src/test/useThread.test.tsx › useThread firstMessageSentDuringInFlightFirstPoll_isKept → passed
+src/test/useThread.test.tsx › useThread loadOlder_prependsPage_updatesHasOlder_andSurvivesNextPoll → passed
+src/test/useThread.test.tsx › useThread pollFalse_disablesInterval → passed
+src/test/useThread.test.tsx › useThread pollInFlightDuringLoadOlder_keepsOlderPageAndAppendsPolledMessage → passed
+src/test/useThread.test.tsx › useThread poll_fetchesAfterLastId_andAppendsWithoutDuplicates → passed
+src/test/useThread.test.tsx › useThread poll_withHasMore_keepsFetchingUntilCaughtUp → passed
+src/test/useThread.test.tsx › useThread remountAfterSend_resumesPollingFromLastServerFetchedId → passed
+src/test/useThread.test.tsx › useThread send_appendsReturnedMessage_andInvalidatesInbox → passed
+src/test/useThread.test.tsx › useThread serverError_keepsPolling → passed
+src/test/useUnreadMessages.test.tsx › useUnreadMessages loggedIn_pollsEvery20sOnlyInForeground → passed
+src/test/useUnreadMessages.test.tsx › useUnreadMessages loggedOut_doesNotFetch → passed
+
+TOTAL 1373 {"passed":1360,"failed":13}

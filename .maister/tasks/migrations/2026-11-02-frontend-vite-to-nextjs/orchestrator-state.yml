@@ -1,0 +1,264 @@
+orchestrator:
+  started_phase: phase-1
+  completed_phases:
+  - phase-1
+  - phase-2
+  - phase-3
+  - phase-4
+  failed_phases: []
+  auto_fix_attempts: {}
+  options:
+    sequential: null
+    html_output: true
+    mockup_format: html
+    docs_enabled: false
+  created: "2026-11-02T13:55:56Z"
+  updated: "2026-11-02T15:50:26Z"
+  task_path: .maister/tasks/migrations/2026-11-02-frontend-vite-to-nextjs
+  task_ids: {}
+task:
+  title: Migrate frontend from Vite SPA to Next.js
+  description: Migrate src/frontend from Vite + React Router SPA to Next.js App Router with the user-proposed structure (analysis/user-target-structure.md). No regressions; MVP with no production deployment.
+  status: in_progress
+  tags:
+  - frontend
+  - nextjs
+  - migration
+  priority: null
+project_context:
+  project_doc_paths:
+  - .maister/docs/project/tech-stack.md
+  - .maister/docs/project/architecture.md
+migration_context:
+  migration_type: architecture
+  current_system:
+    description: 'Client-only Vite 8 SPA: React 19, React Router 7 (createBrowserRouter, ~45 routes, 91 source + 55 test files import it), Chakra UI v3 (admin only) + Tailwind v4, TanStack Query v5, JWT
+      in localStorage sent as Bearer; nginx + backend catch-all serving index.html with OG injection.'
+    technologies:
+    - vite-8
+    - react-19
+    - react-router-7
+    - chakra-ui-3
+    - tailwind-4
+    - tanstack-query-5
+    - vitest-3
+    - nginx
+  target_system:
+    description: Next.js 16.4.x App Router in src/frontend/src/app; client views ('use client', TanStack Query); server generateMetadata + organizer palette on public pages; proxy.ts (OAuth2 POST split,
+      cookie gating, / -> /home rewrite); standalone build behind nginx; plugin SDK via separate Vite IIFE build; dev port 5173.
+    technologies:
+    - next-16.4
+    - react-19.2
+    - chakra-ui-3
+    - tailwind-4-postcss
+    - tanstack-query-5
+    - vitest-3
+    - eslint-config-next
+    - nginx
+    - node-22
+  migration_strategy:
+    approach: phased
+    phases:
+    - A0 baselines
+    - A1 renames (pages->features full reorg, app->app-data)
+    - A2 SSR hazard fixes + getQueryClient
+    - A3 navigation facade + renderWithRoute + routing/paths + reservedSlugs
+    - A4 auth_token cookie + backend GET/HEAD cookie read + Vary
+    - B1 Next scaffold
+    - B2 route tree + manifest test
+    - B3 swap facade to next/navigation, delete Vite entry
+    - B4 proxy.ts
+    - C server metadata + palette, retire backend OG/catch-all
+    - D deploy (standalone, nginx, compose) + docs + smoke
+  risk_level: high
+  breaking_changes:
+  - vite -> next dev -p 5173 / next build; preview and next lint removed
+  - VITE_GOOGLE_MAPS_API_KEY -> NEXT_PUBLIC_GOOGLE_MAPS_API_KEY
+  - src/pages -> src/features (full reorg), src/app -> src/app-data; router.tsx, main.tsx, index.html, vite.config.ts, react-router-dom removed
+  - 'Backend stops serving frontend HTML: spa_fallback, OG preview routes, public_preview.py, static index volume, test_public_preview.py removed'
+  - 'Backend accepts auth_token cookie on GET/HEAD; Vary: Authorization, Cookie'
+  - Frontend writes auth_token cookie; logout/401 clear it
+  - 'Deploy: new web service (Next standalone), frontend-build removed, nginx proxies pages to Next'
+  - POST /oauth2/authorize via proxy.ts; /.well-known/* and /oauth2/{token,register,introspect} routed to backend explicitly
+  - Real not-found page; /:slug/group/:groupId becomes 404
+  - Scroll-to-top on push (search-param updates use scroll:false)
+  - 'Test infra: renderWithRoute + navigation mock replace MemoryRouter; route-manifest test'
+  - location.state does not survive hard reload
+  - Admin layout role check (ADMIN or PLUGIN_MANAGEMENT)
+  - / -> /home rewrite when cookie present; home reserved in backend RESERVED_SLUGS
+  rollback_plan_created: true
+  dual_run_configured: false
+  clarifications_resolved: true
+  clarifications:
+    baseline: Migrate the working tree as is (uncommitted owner/meetings work included), same branch; do not resume 2026-11-02-vite-to-nextjs-frontend
+    auth: Backend reads the JWT from a cookie (extend _extract_token; CSRF needed)
+    ssr_scope: Server-side generateMetadata + organizer palette; views stay 'use client' with TanStack Query
+    extra_scope:
+    - deploy-docker-nginx-compose
+    - backend-og-and-catch-all-removal
+    - plugins-port-5173
+    - standards-docs
+  phase_summaries:
+    current_state_analysis:
+      summary: Large client-only SPA (~340 source files, 131 test files) with localStorage-only auth and a static-index.html deploy; migration feasible client-first, with hard spots useBlocker, useOutletContext,
+        location.state, OAuth2 GET/POST split and the src/app name collision.
+      decisions:
+      - decision: 'Phase 1 should be client-first App Router: thin page.tsx around ''use client'' views'
+        rationale: no-regression goal plus localStorage-only auth
+      - decision: Keep the panel's shared chrome (PublicLayout) in one persistent layout; AppShell + PluginProvider only under /admin
+        rationale: matches today's behavior; avoids remounting NotificationBell/PendingActionsHost
+      - decision: Keep AppDataProvider persistence via a layout covering all panel view paths
+        rationale: ~25 views rely on shared state and 10 s polling
+      - decision: Dev port stays 5173; plugin SDK keeps separate Vite IIFE build into public/assets/plugin-sdk.js
+        rationale: 4 plugins, backend CORS and launch.json hardcode it
+      - decision: Rename src/frontend/src/app/ before creating the Next src/app/
+        rationale: name collision
+      - decision: 'User: migrate the working tree as is'
+        rationale: Phase 1 clarification
+      - decision: 'User: backend reads the JWT from a cookie'
+        rationale: Phase 1 clarification (overrides the report's mirror-cookie recommendation)
+      - decision: 'User: SSR generateMetadata + palette, client views'
+        rationale: Phase 1 clarification
+      - decision: 'User: scope includes deploy, backend OG/catch-all removal, plugins/port, standards docs'
+        rationale: Phase 1 clarification
+      risks:
+      - 'OAuth2 /oauth2/authorize: GET must render the Next page, POST must reach the backend; security-sensitive split'
+      - useBlocker in EditorSheet.tsx:66 needs a custom replacement; OrganizerEditor tests (28) flaky
+      - ~13 pre-existing vitest failures; capture a fresh baseline so no-regression is measurable
+      - RESERVED_SLUGS lacks home, _next, favicon.svg, icons.svg
+      - dayjs timezone mismatch if dates are server-rendered
+      - Chakra/Tailwind @layer order vs Emotion SSR styles
+      - 'Next version: 16 renames middleware.ts to proxy.ts; repo plugin uses 15.5'
+      - Cookie auth on the backend requires a CSRF strategy and Vary adjustments
+      artifacts:
+      - path: analysis/current-state-analysis.md
+        label: Current state analysis
+        html: null
+      - path: analysis/clarifications.md
+        label: Clarifications
+        html: null
+      - path: analysis/user-target-structure.md
+        label: User target structure
+        html: null
+    gap_analysis:
+      summary: Target Next 16.4.x App Router; phased in-repo migration with a single switch-over (A on Vite, B swap, C server metadata + retire backend OG, D deploy/docs); risk high, mitigated to medium;
+        12 decisions resolved.
+      decisions:
+      - decision: D1 Next 16.4.x
+        rationale: Phase 2 decision gate (user)
+      - decision: D2 client-only mount for (panel),(member),(standalone),admin; SSR only public subtree
+        rationale: Phase 2 decision gate (user)
+      - decision: 'D3 JS-readable auth_token cookie written with localStorage; backend reads it on GET/HEAD only; Vary: Authorization, Cookie'
+        rationale: Phase 2 decision gate (user)
+      - decision: D4 custom useNavigationGuard incl. best-effort back/forward
+        rationale: Phase 2 decision gate (user)
+      - decision: D5 port OG formatters to TS in generateMetadata
+        rationale: Phase 2 decision gate (user)
+      - decision: D6 proxy rewrite / -> /home when cookie present; reserve home in backend (user overrode recommendation)
+        rationale: Phase 2 decision gate (user)
+      - decision: D7 full features/ reorganisation now per user tree (user overrode recommendation)
+        rationale: Phase 2 decision gate (user)
+      - decision: D8 proxy.ts gates private prefixes without cookie -> /login?returnTo=
+        rationale: Phase 2 decision gate (user)
+      - decision: D9 in-repo next/navigation + next/link mock behind renderWithRoute
+        rationale: Phase 2 decision gate (user)
+      - decision: D10 nginx stays in front of Next
+        rationale: Phase 2 decision gate (user)
+      - decision: D11 /:slug/group/:groupId -> 404 page
+        rationale: Phase 2 decision gate (user)
+      - decision: D12 keep Google Fonts <link>
+        rationale: Phase 2 decision gate (user)
+      risks:
+      - useBlocker has no App Router equivalent; back/forward best-effort
+      - 'OG parity: backend text rules must be re-implemented in TS'
+      - proxy.ts must not match /api/* (10 MB body buffer)
+      - 'Behaviour deltas: real 404 page, /:slug/group/:groupId becomes 404, scroll-to-top on push'
+      - '/ -> /home rewrite: stale cookie can show the wrong page; viewFromPath/viewPath and usePathname under rewrite need care'
+      - Full features/ reorg multiplies import churn and can hide regressions
+      artifacts:
+      - path: analysis/target-state-plan.md
+        label: Target state plan & gap analysis
+        html: null
+    specification:
+      summary: 'Spec: 21 requirements, 61 page routes, 14 checkpoint commits (C0 user WIP to C13), exact D7 old-to-new path table, D6 rewrite design; rollback per checkpoint, backend commits C6/C12 independently
+        revertible.'
+      decisions:
+      - decision: Admin layout gate stays AuthGuard-only
+        rationale: user confirmed at Phase 3 gate; ProductListPage checks EDIT, role gate would regress
+      - decision: D7 file splits (plugins/host/handlers, permissions.ts, per-layout files, palettes merge, plugins/server.ts) deferred to follow-up tasks
+        rationale: user decision at Phase 3 gate
+      - decision: features/search (SearchView, WantedView) and features/add (AddView, HuntingCreateView) as separate folders
+        rationale: user decision at Phase 3 gate (overrode spec placement)
+      - decision: Panel layout renders AppPage itself; 26 panel page.tsx return null
+        rationale: keeps AppPage state alive across sections
+      - decision: Dynamic folder named [organizationSlug]
+        rationale: existing code reads that param name
+      - decision: Navigation facade in src/routing/ with ESLint no-restricted-imports
+        rationale: user's folder
+      - decision: Test mocks wired via Vitest resolve.alias
+        rationale: vi.resetAllMocks cannot break them
+      - decision: Layout thumbnail SVGs to public/assets/layouts as string URLs (in A2)
+        rationale: static import returns object under Next
+      - decision: ServerThemeProvider for server palette
+        rationale: page data and live editor still win
+      risks:
+      - usePathname under the / -> /home rewrite (normalised; smoke checks hydration)
+      - Chakra/Emotion may flash unstyled on SSR public pages; fallback Emotion registry in phase C
+      - Forwarded headers on proxy rewrite of POST /oauth2/authorize only checked in smoke
+      - Private circles fall back to default OG (anonymous server fetch)
+      - A dev org with slug home would be shadowed; A5 counts it
+      - localStorage-only sessions see landing once before the cookie is written
+      - eslint-config-next errors must stay <= baseline
+      artifacts:
+      - path: implementation/spec.md
+        label: Migration specification
+        html: implementation/spec.html
+      - path: analysis/rollback-plan.md
+        label: Rollback plan
+        html: null
+      - path: analysis/requirements.md
+        label: Migration requirements
+        html: null
+    implementation:
+      summary: null
+      decisions: []
+      risks: []
+      artifacts: []
+    planning:
+      summary: 17 task groups, 124 steps, checkpoints C0-C13 on main; per-group gates; user-run rollback.
+      decisions:
+      - decision: One group per checkpoint C0-C12; Phase D four groups sharing C13
+        rationale: concurrency for D
+      - decision: A1 fully scripted with dry-run
+        rationale: mechanical move
+      - decision: User approved execution of the full plan
+        rationale: Phase 4 gate
+      risks:
+      - Backend gates need Docker (testcontainers)
+      - A3 test names must stay byte-identical
+      - Unrewritten A1 mock specifiers fail silently
+      artifacts:
+      - path: implementation/implementation-plan.md
+        label: Implementation plan
+        html: implementation/implementation-plan.html
+  requirements:
+    commits: checkpoint commit per phase directly on main; C0 = user WIP only
+    smoke: Playwright MCP + route checklist
+    preserve: URLs (except deltas), plugin contract on 5173, Polish copy, data-fetching standards
+external_research:
+  performed: true
+  category: frontend framework migration (Vite SPA -> Next 16 App Router)
+  breaking_changes:
+  - middleware.ts renamed to proxy.ts (Node runtime, 10 MB body buffer)
+  - async params/searchParams/cookies/headers only
+  - Turbopack default
+  - next lint removed
+  - React 19.2 and Node >= 20.9 required
+  - fetch not cached by default
+  migration_guide_url: https://nextjs.org/docs/app/guides/upgrading/version-16
+verification_context:
+  last_status: null
+  issues_found: null
+  fixes_applied: []
+  decisions_made: []
+  reverify_count: 0

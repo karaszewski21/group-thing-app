@@ -1,0 +1,5 @@
+# tsc baseline (A0, HEAD 2fcb7f5)
+Command: npx tsc -b   (cwd src/frontend)
+Exit code: 0
+Error count: 0
+Output: (none)
