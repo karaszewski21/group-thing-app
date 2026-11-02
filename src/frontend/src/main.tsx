@@ -6,12 +6,12 @@ import { RouterProvider } from "react-router-dom";
 import { router } from "./router";
 import { system } from "./theme/system";
 import { AuthProvider } from "./auth/AuthContext";
-import { queryClient } from "./api/queryClient";
+import { getQueryClient } from "./api/queryClient";
 import "./index.css";
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
-    <QueryClientProvider client={queryClient}>
+    <QueryClientProvider client={getQueryClient()}>
       <ChakraProvider value={system}>
         <AuthProvider>
           <RouterProvider router={router} />

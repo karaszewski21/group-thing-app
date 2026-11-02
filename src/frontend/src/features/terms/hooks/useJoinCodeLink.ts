@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { ApiError } from "../../../api/client";
+import { useClientValue } from "../../../lib/useClientValue";
 import { parseJoinCode } from "../../../utils/joinCode";
 import type { TermViewState } from "../termViewState";
 
@@ -60,7 +61,8 @@ export function useJoinCodeLink({
   // Once a redeem starts, the stored entry is `join`'s own (kept only
   // through a 401's login redirect), so it is no longer read here.
   const [redeemStarted, setRedeemStarted] = useState(false);
-  const pendingCode = hashCode ?? (redeemStarted ? null : readPendingCode(groupId));
+  const storedCode = useClientValue(() => (redeemStarted ? null : readPendingCode(groupId)), null);
+  const pendingCode = hashCode ?? storedCode;
   const [sheet, setSheet] = useState<CodeSheet | null>(null);
 
   const settled = view !== "loading" && view !== "notFound" && !isStale;

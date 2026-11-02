@@ -27,7 +27,8 @@ export function ModalSheet({
   children: ReactNode;
 }) {
   const dialogRef = useRef<HTMLDivElement>(null);
-  const [opener] = useState(() => document.activeElement);
+  // Captured on first render, before a child's autoFocus moves focus; no document on the server.
+  const [opener] = useState(() => (typeof document === "undefined" ? null : document.activeElement));
   useRegisterOpenSheet(registerAsPageSheet);
 
   useEffect(() => {

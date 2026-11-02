@@ -8,6 +8,7 @@ import { useToast } from "../../components/shared/useToast";
 import { PAGE_SHELL } from "../../components/shared/uiStyles";
 import { useEvent } from "../../hooks/useEvent";
 import { useOpenAndNavigate } from "../../hooks/useOpenAndNavigate";
+import { useOrigin } from "../../lib/useClientValue";
 import { OrganizerThemeScope } from "../../theme/OrganizerThemeScope";
 import { eventPath, viewPath } from "../../utils/appHelpers";
 import { GroupHeader } from "../terms/components/GroupHeader";
@@ -189,6 +190,7 @@ interface EventShellProps {
  * description, chat, the attendee list, the view's card and footer. */
 function EventShell({ event, onCopyLink, canSignUp = false, chat, card, footer, overlay }: EventShellProps) {
   const navigate = useNavigate();
+  const origin = useOrigin();
 
   return (
     <OrganizerThemeScope theme={event.organization}>
@@ -216,7 +218,7 @@ function EventShell({ event, onCopyLink, canSignUp = false, chat, card, footer, 
           )}
           <EventWhenCard
             event={event}
-            url={`${window.location.origin}${eventPath(event.author_slug, event.id)}`}
+            url={`${origin}${eventPath(event.author_slug, event.id)}`}
             onCopyLink={onCopyLink}
           />
           {event.description && (

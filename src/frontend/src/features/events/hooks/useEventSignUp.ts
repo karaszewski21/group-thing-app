@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { eventGuestProfileKey, type EventAttendanceResponse } from "../../../api/events";
 import { readValidGuestProfile, writeGuestProfile } from "../../../api/groups";
+import { useClientValue } from "../../../lib/useClientValue";
 
 const SIGNED_UP_TOAST = "Zapisano na wydarzenie";
 
@@ -17,9 +18,12 @@ interface UseEventSignUpDeps {
  * the guest sheet for an anonymous one (whose sign-up is remembered under the
  * event's guest key), and the withdraw confirmation. */
 export function useEventSignUp({ eventId, isLoggedIn, signUp, withdraw, showToast }: UseEventSignUpDeps) {
-  const [guestProfileId, setGuestProfileId] = useState(() =>
-    isLoggedIn ? null : readValidGuestProfile(eventGuestProfileKey(eventId)),
+  const storedGuestProfileId = useClientValue(
+    () => (isLoggedIn ? null : readValidGuestProfile(eventGuestProfileKey(eventId))),
+    null,
   );
+  const [signedUpGuestProfileId, setGuestProfileId] = useState<string | null>(null);
+  const guestProfileId = signedUpGuestProfileId ?? storedGuestProfileId;
   const [sheetOpen, setSheetOpen] = useState(false);
   const [signingUp, setSigningUp] = useState(false);
   const [confirmingWithdraw, setConfirmingWithdraw] = useState(false);

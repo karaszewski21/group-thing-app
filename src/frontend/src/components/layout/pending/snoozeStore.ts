@@ -46,18 +46,29 @@ function write(key: string, map: SnoozeMap) {
   }
 }
 
-/** The account's snoozes that are still active at `now`; expired entries are pruned. */
+function activeAt(map: SnoozeMap, now: Date): SnoozeMap {
+  return Object.fromEntries(Object.entries(map).filter(([, until]) => until > now.getTime()));
+}
+
+/** The account's snoozes that are still active at `now`. Read-only, so it is
+ * safe during render; without storage (server render) it is `{}`. */
 export function getSnoozed(username: string | null, now: Date = new Date()): SnoozeMap {
+  return activeAt(readStored(storageKey(username)), now);
+}
+
+/** Removes expired entries from storage and returns the active snoozes. Writes,
+ * so it runs in effects and timers only. */
+export function pruneSnoozed(username: string | null, now: Date = new Date()): SnoozeMap {
   const key = storageKey(username);
   const stored = readStored(key);
-  const active = Object.fromEntries(Object.entries(stored).filter(([, until]) => until > now.getTime()));
+  const active = activeAt(stored, now);
   if (Object.keys(active).length !== Object.keys(stored).length) write(key, active);
   return active;
 }
 
 /** Hides `actionKey` until the next local 08:00 and returns the updated active snoozes. */
 export function snooze(username: string | null, actionKey: string, now: Date = new Date()): SnoozeMap {
-  const next = { ...getSnoozed(username, now), [actionKey]: nextLocal0800(now).getTime() };
+  const next = { ...pruneSnoozed(username, now), [actionKey]: nextLocal0800(now).getTime() };
   write(storageKey(username), next);
   return next;
 }

@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { Box, Button, Flex, Heading, Spinner, Text } from "@chakra-ui/react";
+import { useClientValue } from "../../lib/useClientValue";
 
 const scopeDescriptions: Record<string, { title: string; description: string }> = {
   "mcp:read": {
@@ -24,6 +25,7 @@ export function OAuth2AuthorizePage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const fetched = useRef(false);
+  const storedToken = useClientValue(() => localStorage.getItem("auth_token") || "", "");
 
   const clientId = searchParams.get("client_id") || "";
   const redirectUri = searchParams.get("redirect_uri") || "";
@@ -96,7 +98,7 @@ export function OAuth2AuthorizePage() {
       <Box bg="white" border="1px solid" borderColor="#E2E8F0" borderRadius="12px" p="40px" w="100%" maxW="440px">
         <form method="POST" action="/oauth2/authorize">
           {/* Hidden fields to preserve OAuth parameters */}
-          <input type="hidden" name="_token" value={localStorage.getItem("auth_token") || ""} />
+          <input type="hidden" name="_token" value={storedToken} />
           <input type="hidden" name="client_id" value={clientId} />
           <input type="hidden" name="redirect_uri" value={redirectUri} />
           <input type="hidden" name="response_type" value={responseType} />

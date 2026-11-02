@@ -160,7 +160,8 @@ export function ModalSheet({
   children: ReactNode;
 }) {
   const dialogRef = useRef<HTMLDivElement>(null);
-  const [opener] = useState(() => document.activeElement);
+  // Captured on first render, before a child's autoFocus moves focus; no document on the server.
+  const [opener] = useState(() => (typeof document === "undefined" ? null : document.activeElement));
   useRegisterOpenSheet(true);
 
   // On open, focus the first form field unless a child (autoFocus, its own effect) already took focus.

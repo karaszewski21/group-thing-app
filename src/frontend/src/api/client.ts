@@ -35,10 +35,12 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
 
   if (!response.ok) {
     if (response.status === 401) {
-      localStorage.removeItem("auth_token");
-      if (window.location.pathname !== "/login") {
-        const returnTo = window.location.pathname + window.location.search;
-        window.location.href = `/login?returnTo=${encodeURIComponent(returnTo)}`;
+      if (typeof window !== "undefined") {
+        localStorage.removeItem("auth_token");
+        if (window.location.pathname !== "/login") {
+          const returnTo = window.location.pathname + window.location.search;
+          window.location.href = `/login?returnTo=${encodeURIComponent(returnTo)}`;
+        }
       }
     }
     let body: unknown;

@@ -7,6 +7,7 @@ import {
   type OrganizationResponse,
 } from "../../api/organizations";
 import { serverMessageOr } from "../../api/problem";
+import { useOrigin } from "../../lib/useClientValue";
 
 const inputClass =
   "w-full rounded-xl border-[1.5px] border-line bg-cream px-3.5 py-2.5 text-sm text-ink outline-none focus:border-mint focus:ring-[3px] focus:ring-mint-soft";
@@ -27,6 +28,7 @@ function BackIcon() {
  * the backend; this page simply never sends them.
  */
 export function OrganizationPage() {
+  const origin = useOrigin();
   const [organization, setOrganization] = useState<OrganizationResponse | null>(null);
   const [name, setName] = useState("");
   const [loading, setLoading] = useState(true);
@@ -123,7 +125,7 @@ export function OrganizationPage() {
                 rel="noreferrer"
                 className="text-sm font-bold text-mint hover:underline"
               >
-                {window.location.origin}/{organization.slug}
+                {origin}/{organization.slug}
               </Link>
             </div>
           )}

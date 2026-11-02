@@ -67,9 +67,11 @@ function loadStoredAuth(): { token: string | null; username: string | null; perm
   return { token: null, username: null, permissions: [] };
 }
 
-const initialAuth = loadStoredAuth();
+const NO_AUTH: ReturnType<typeof loadStoredAuth> = { token: null, username: null, permissions: [] };
 
 export function AuthProvider({ children }: { children: ReactNode }) {
+  // Read on first render, not at import: there is no localStorage while server rendering.
+  const [initialAuth] = useState(() => (typeof window === "undefined" ? NO_AUTH : loadStoredAuth()));
   const [token, setToken] = useState<string | null>(initialAuth.token);
   const [username, setUsername] = useState<string | null>(initialAuth.username);
   const [permissions, setPermissions] = useState<string[]>(initialAuth.permissions);

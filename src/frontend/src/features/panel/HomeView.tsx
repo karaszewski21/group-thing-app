@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { useAuth } from "../../auth/AuthContext";
+import { useClientValue } from "../../lib/useClientValue";
 import { BuildingIcon, CalendarPlusIcon } from "../../components/shared/appIcons";
 import { HintCard, ItemTile } from "../../components/shared/appComponents";
 import { capitalize, ITEM_MODE_TONE, ITEM_MODES, viewPath } from "../../utils/appHelpers";
@@ -16,14 +17,15 @@ function hintKey(flag: string, username: string | null): string {
   return `${flag}:${username ?? ""}`;
 }
 
-/** A dismissible banner's flag: read once on mount, written on dismiss. */
+/** A dismissible banner's flag: read from storage in the browser, written on dismiss. */
 function useDismissibleHint(storageKey: string): [boolean, () => void] {
-  const [dismissed, setDismissed] = useState(() => localStorage.getItem(storageKey) === "1");
+  const stored = useClientValue(() => localStorage.getItem(storageKey) === "1", false);
+  const [dismissedNow, setDismissedNow] = useState(false);
   function dismiss() {
     localStorage.setItem(storageKey, "1");
-    setDismissed(true);
+    setDismissedNow(true);
   }
-  return [dismissed, dismiss];
+  return [stored || dismissedNow, dismiss];
 }
 
 export function HomeView() {

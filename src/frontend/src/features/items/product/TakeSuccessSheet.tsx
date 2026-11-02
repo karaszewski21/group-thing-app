@@ -2,6 +2,7 @@ import { Link } from "react-router-dom";
 import { ModalSheet } from "../../../components/shared/ModalSheet";
 import { BTN_LG, BTN_PRIMARY } from "../../../components/shared/uiStyles";
 import { AddToCalendarButton } from "../../../components/shared/AddToCalendarButton";
+import { useOrigin } from "../../../lib/useClientValue";
 import { calendarUid } from "../../../utils/calendar";
 import dayjs from "../../../utils/dayjs";
 import type { TakeTarget } from "./useItemTake";
@@ -21,6 +22,7 @@ export function TakeSuccessSheet({
   target: TakeTarget;
   onClose: () => void;
 }) {
+  const origin = useOrigin();
   const context = target.kind === "PERSONAL" ? null : target;
   const sentence = context
     ? `Odbierz „${itemName}” w ${dayjs(context.starts_at).format("ddd DD.MM [o] HH:mm")} — ${context.name}`
@@ -56,7 +58,7 @@ export function TakeSuccessSheet({
                 title: `Odbiór: ${itemName}`,
                 occursOn: context.starts_at,
                 groupName: context.name,
-                url: window.location.origin + context.path,
+                url: origin + context.path,
               }}
             />
           </div>

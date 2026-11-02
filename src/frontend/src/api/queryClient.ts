@@ -10,8 +10,20 @@ function shouldRetry(failureCount: number, error: unknown): boolean {
   return failureCount < MAX_RETRIES;
 }
 
-export const queryClient = new QueryClient({
-  defaultOptions: {
-    queries: { retry: shouldRetry },
-  },
-});
+function createQueryClient(): QueryClient {
+  return new QueryClient({
+    defaultOptions: {
+      queries: { retry: shouldRetry },
+    },
+  });
+}
+
+let browserQueryClient: QueryClient | undefined;
+
+/** The app's query client: a new one per server render, so no cache is shared
+ * between requests, and one singleton in the browser. */
+export function getQueryClient(): QueryClient {
+  if (typeof window === "undefined") return createQueryClient();
+  browserQueryClient ??= createQueryClient();
+  return browserQueryClient;
+}

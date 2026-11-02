@@ -21,7 +21,7 @@ import {
   type PendingConfirmAction,
   type PendingSwapAction,
 } from "./pendingActions";
-import { earliestExpiry, getSnoozed, nextLocal0800, snooze } from "./snoozeStore";
+import { earliestExpiry, getSnoozed, nextLocal0800, pruneSnoozed, snooze } from "./snoozeStore";
 
 const CONFIRM_FAILED = "Nie udało się potwierdzić — spróbuj ponownie";
 const PRIMARY_BUTTON = `${BTN_PRIMARY} ${BTN_LG}`;
@@ -40,6 +40,9 @@ export function PendingActionsHost() {
   const { toast, showToast } = useToast();
 
   const [snoozed, setSnoozed] = useState(() => getSnoozed(username));
+  useEffect(() => {
+    pruneSnoozed(username);
+  }, [username]);
   // `notificationId`s currently mid-confirm, and ones whose confirm came back
   // "already resolved by the other party" (409 `already_resolved: true`).
   const [pendingActionBusyId, setPendingActionBusyId] = useState<string | null>(null);
@@ -49,7 +52,7 @@ export function PendingActionsHost() {
   const nextExpiry = earliestExpiry(snoozed);
   useEffect(() => {
     if (nextExpiry === null) return;
-    const t = setTimeout(() => setSnoozed(getSnoozed(username)), Math.max(0, nextExpiry - Date.now()));
+    const t = setTimeout(() => setSnoozed(pruneSnoozed(username)), Math.max(0, nextExpiry - Date.now()));
     return () => clearTimeout(t);
   }, [nextExpiry, username]);
 

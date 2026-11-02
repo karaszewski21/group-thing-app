@@ -1,11 +1,13 @@
-import circlesThumbnail from "../../../assets/layouts/circles.svg";
-import classicThumbnail from "../../../assets/layouts/classic.svg";
-import exchangeThumbnail from "../../../assets/layouts/exchange.svg";
-import linksThumbnail from "../../../assets/layouts/links.svg";
-import scheduleThumbnail from "../../../assets/layouts/schedule.svg";
 import dayjs from "../../../utils/dayjs";
 import { exchangeTotal } from "../organizerHelpers";
 import type { OrganizerPageData, PageLayoutDefinition } from "./types";
+
+// Served from `public/` at the site root.
+const classicThumbnail = "/assets/layouts/classic.svg";
+const linksThumbnail = "/assets/layouts/links.svg";
+const scheduleThumbnail = "/assets/layouts/schedule.svg";
+const circlesThumbnail = "/assets/layouts/circles.svg";
+const exchangeThumbnail = "/assets/layouts/exchange.svg";
 
 const SCHEDULE_MIN_TERMS = 4;
 const SCHEDULE_HORIZON_DAYS = 14;

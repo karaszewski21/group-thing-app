@@ -1,5 +1,6 @@
 import { Link } from "react-router-dom";
 import { AddToCalendarButton } from "../../components/shared/AddToCalendarButton";
+import { useOrigin } from "../../lib/useClientValue";
 import { calendarUid } from "../../utils/calendar";
 import { eventPath } from "../../utils/appHelpers";
 import dayjs from "../../utils/dayjs";
@@ -33,6 +34,7 @@ function swapContext(swap: AcceptedSwap): { id: string; path: string; isEvent: b
  * calendar. */
 export function SwapAcceptSuccessSheet({ swap, onClose }: { swap: AcceptedSwap; onClose: () => void }) {
   const { myItemName, offeredName, occursOn, groupName, itemId, hadOtherOffers } = swap;
+  const origin = useOrigin();
   const context = swapContext(swap);
   const hasTerm = occursOn !== null && groupName !== null && context !== null;
 
@@ -72,7 +74,7 @@ export function SwapAcceptSuccessSheet({ swap, onClose }: { swap: AcceptedSwap; 
                 title: `Zamiana: ${myItemName} ↔ ${offeredName}`,
                 occursOn,
                 groupName,
-                url: window.location.origin + context.path,
+                url: origin + context.path,
               }}
             />
           </div>

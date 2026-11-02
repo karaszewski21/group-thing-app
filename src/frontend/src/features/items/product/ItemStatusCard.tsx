@@ -1,6 +1,7 @@
 import { Link } from "react-router-dom";
 import type { ItemStatusResponse } from "../../../api/items";
 import { AddToCalendarButton } from "../../../components/shared/AddToCalendarButton";
+import { useOrigin } from "../../../lib/useClientValue";
 import { calendarUid, type CalendarEvent } from "../../../utils/calendar";
 import { eventPath } from "../../../utils/appHelpers";
 import dayjs from "../../../utils/dayjs";
@@ -116,13 +117,19 @@ function statusLines(
   }
 }
 
-function partyCalendarEvent(party: PartyTerm, itemId: string, itemName: string, isOwner: boolean): CalendarEvent {
+function partyCalendarEvent(
+  party: PartyTerm,
+  itemId: string,
+  itemName: string,
+  isOwner: boolean,
+  origin: string,
+): CalendarEvent {
   return {
     uid: calendarUid(party.contextId, itemId),
     title: isOwner ? `Przekazanie: ${itemName}` : `Odbiór: ${itemName}`,
     occursOn: party.occursOn,
     groupName: party.groupName,
-    url: window.location.origin + party.path,
+    url: origin + party.path,
   };
 }
 
@@ -148,6 +155,7 @@ export function ItemStatusCard({
   /** The owner's item has no listing mode: it is not offered to anyone. */
   unlisted?: boolean;
 }) {
+  const origin = useOrigin();
   const { title, detail, pill } = statusLines(status, reservation, unlisted);
   const party = partyTerm(status);
   const upcoming = party && dayjs(party.occursOn).isAfter(dayjs()) ? party : null;
@@ -180,7 +188,7 @@ export function ItemStatusCard({
         {upcoming && (
           <div className="mt-3 inline-block rounded-full bg-paper/70">
             <AddToCalendarButton
-              event={partyCalendarEvent(upcoming, itemId, itemName, isOwner)}
+              event={partyCalendarEvent(upcoming, itemId, itemName, isOwner, origin)}
               size="sm"
               direction="down"
             />

@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { guestProfileIdKey, readValidGuestProfile } from "../../../api/groups";
+import { useClientValue } from "../../../lib/useClientValue";
 import { AccountMergeForm } from "../modals/AccountMergeForm";
 
 interface UseGuestMergeParams {
@@ -16,8 +17,10 @@ interface UseGuestMergeParams {
  * through `orMerge(key, action)`: for such a guest, clicking one swaps that
  * row (`key`) to the merge form instead of running `action`. */
 export function useGuestMerge({ groupId, termId, isLoggedIn, isAttendingOnServer }: UseGuestMergeParams) {
-  const guestProfileId =
-    !isLoggedIn && termId !== null ? readValidGuestProfile(guestProfileIdKey(groupId, termId)) : null;
+  const guestProfileId = useClientValue(
+    () => (!isLoggedIn && termId !== null ? readValidGuestProfile(guestProfileIdKey(groupId, termId)) : null),
+    null,
+  );
   const [mergingKey, setMergingKey] = useState<string | null>(null);
 
   return {
