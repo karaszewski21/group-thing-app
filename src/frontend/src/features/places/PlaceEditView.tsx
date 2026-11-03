@@ -9,7 +9,6 @@ import {
   LOCATION_LABEL_CLASS,
   LOCATION_SAVE_BTN_CLASS,
 } from "../../components/shared/LocationAddForm";
-import { SubPageHeader } from "../../components/shared/appComponents";
 import { useMyLocations } from "../../hooks/useMyLocations";
 import { viewPath } from "../../routing/paths";
 
@@ -36,7 +35,6 @@ export function PlaceEditView() {
 
   return (
     <section aria-label={TITLE}>
-      <SubPageHeader title={TITLE} backTo={viewPath("places")} backLabel="Wróć do moich miejsc" />
       {loading ? (
         <p className="text-[13px] text-ink-soft">Ładowanie miejsc…</p>
       ) : error ? (

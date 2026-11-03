@@ -115,7 +115,6 @@ describe("Moje miejsca — list, add and edit pages", () => {
     vi.mocked(locationsApi.getMyLocations).mockResolvedValue([SWIETLICA, PARK]);
     renderView();
 
-    expect(screen.getByRole("heading", { name: "Moje miejsca", level: 1 })).toBeInTheDocument();
     const list = await screen.findByRole("list", { name: "Moje miejsca" });
     const rows = within(list).getAllByRole("listitem");
     expect(rows).toHaveLength(2);

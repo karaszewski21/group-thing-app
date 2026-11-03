@@ -8,7 +8,6 @@ import {
 } from "../../api/organizations";
 import { serverMessageOr } from "../../api/problem";
 import { useOrigin } from "../../lib/useClientValue";
-import { AccountSubPageHeader } from "../account/AccountSubPageHeader";
 import { usePanelReload } from "../panel/appDataStore";
 
 const inputClass =
@@ -80,7 +79,6 @@ export function OrganizationPage() {
 
   return (
     <>
-      <AccountSubPageHeader />
       <div className="rounded-[22px] border border-line bg-paper p-5">
         <h1 className="mb-2 font-serif text-2xl font-semibold text-ink">
           Moja <span className="text-mint">organizacja</span>

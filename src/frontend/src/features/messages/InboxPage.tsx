@@ -4,7 +4,6 @@ import type { ConversationKind, InboxRow } from "../../api/conversations";
 import { Avatar } from "../../components/shared/Avatar";
 import { useConversations } from "../../hooks/useConversations";
 import { threadPath } from "../../routing/messagesPaths";
-import { BackIcon } from "../../components/shared/appIcons";
 import { formatInboxTime } from "./messageTime";
 
 const FOCUS_RING = "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring";
@@ -38,10 +37,6 @@ export function InboxPage() {
 
   return (
     <>
-      <Link to="/" className={`inline-flex items-center gap-1.5 text-xs font-bold text-ink-soft ${FOCUS_RING}`}>
-        <BackIcon /> Wróć
-      </Link>
-      <h1 className="mt-2 text-[19px] font-semibold text-ink">Wiadomości</h1>
       {body}
     </>
   );

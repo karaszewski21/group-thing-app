@@ -1,13 +1,9 @@
 import type { ReactNode } from "react";
-import { SubPageHeader } from "../../components/shared/appComponents";
-import { useBackToFamily } from "./useBackToFamily";
 
-/** A family sub-page: the titled header back to "Mój dom" and its body. */
+/** A family sub-page: its title and body. */
 export function FamilySubPage({ title, children }: { title: string; children: ReactNode }) {
-  const { familyPath } = useBackToFamily();
   return (
     <section aria-label={title}>
-      <SubPageHeader title={title} backTo={familyPath} backLabel="Wróć do mojego domu" />
       {children}
     </section>
   );

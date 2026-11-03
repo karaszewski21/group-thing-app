@@ -2,9 +2,7 @@ import { useEffect } from "react";
 import { useAppParams } from "../../routing/navigation";
 import { useAppData } from "../panel/appDataStore";
 import { GroupFormFields } from "./GroupFormFields";
-import { SubPageHeader } from "../../components/shared/appComponents";
 import { parseCapacity } from "../../utils/appHelpers";
-import { viewPath } from "../../routing/paths";
 
 const TITLE = "Edytuj grupę";
 
@@ -32,11 +30,9 @@ export function GroupEditView() {
     if (group && editingGroupId !== group.id) startEditGroup(group);
   }, [group, editingGroupId, startEditGroup]);
 
-  const back = <SubPageHeader title={TITLE} backTo={viewPath("groups")} backLabel="Wróć do moich grup" />;
   if (!group) {
     return (
       <section aria-label={TITLE}>
-        {back}
         <p className="rounded-[22px] border border-line bg-paper p-5 text-sm text-ink-soft">
           Nie znaleziono tej grupy wśród grup, które prowadzisz.
         </p>
@@ -47,7 +43,6 @@ export function GroupEditView() {
   const invalid = !editGroupForm.name.trim() || parseCapacity(editGroupForm.defaultCapacity) === undefined;
   return (
     <section aria-label={TITLE}>
-      {back}
       {seeded && (
         <form
           onSubmit={(e) => {

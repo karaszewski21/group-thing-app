@@ -1,8 +1,6 @@
 import { useAppData } from "../panel/appDataStore";
 import { GroupFormFields } from "./GroupFormFields";
-import { SubPageHeader } from "../../components/shared/appComponents";
 import { parseCapacity } from "../../utils/appHelpers";
-import { viewPath } from "../../routing/paths";
 
 const TITLE = "Nowa grupa";
 
@@ -15,7 +13,6 @@ export function GroupCreateView() {
 
   return (
     <section aria-label={TITLE}>
-      <SubPageHeader title={TITLE} backTo={viewPath("groups")} backLabel="Wróć do moich grup" />
       <form
         onSubmit={(e) => {
           e.preventDefault();

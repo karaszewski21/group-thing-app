@@ -497,7 +497,7 @@ describe("AppPage — Załóż grupę (first group)", () => {
 
     await createFirstGroupFromHint();
 
-    expect(await screen.findByRole("heading", { name: "Moje grupy" }, { timeout: 3000 })).toBeInTheDocument();
+    expect(await screen.findByRole("link", { name: "+ Dodaj grupę" }, { timeout: 3000 })).toBeInTheDocument();
     expect(await screen.findByText("Nowa grupa", { selector: "h3" })).toBeInTheDocument();
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
   });
@@ -538,7 +538,7 @@ describe("AppPage — item add entry point", () => {
     renderPanel();
 
     fireEvent.click(await screen.findByRole("button", { name: "Moje rzeczy" }));
-    await screen.findByRole("heading", { name: "Moje rzeczy" });
+    await screen.findByRole("heading", { name: "Nie masz jeszcze żadnej rzeczy" });
 
     expect(screen.queryByRole("link", { name: "+ Dodaj rzecz" })).not.toBeInTheDocument();
     expect(screen.queryByRole("dialog", { name: "Dodaj rzecz" })).not.toBeInTheDocument();
@@ -643,8 +643,9 @@ describe("AppPage — dismissible home hints", () => {
     renderPanel();
 
     await createFirstGroupFromHint();
-    fireEvent.click(await screen.findByRole("link", { name: "Wróć do spotkań" }, { timeout: 3000 }));
-    fireEvent.click(await screen.findByRole("link", { name: "Wróć na Start" }));
+    await screen.findByRole("link", { name: "+ Dodaj grupę" }, { timeout: 3000 });
+    const nav = screen.getByRole("navigation", { name: "Nawigacja główna" });
+    fireEvent.click(within(nav).getByRole("button", { name: "Start" }));
 
     expect(await screen.findByText("Ustal pierwsze spotkanie w swojej grupie.")).toBeInTheDocument();
     expect(screen.queryByText("Zacznijmy →")).not.toBeInTheDocument();
@@ -689,7 +690,6 @@ describe("AppPage — Moje miejsca section", () => {
     vi.mocked(locationsApi.getMyLocations).mockResolvedValue([]);
     renderPanel("/places");
 
-    expect(await screen.findByRole("heading", { name: "Moje miejsca", level: 1 })).toBeInTheDocument();
     expect(await screen.findByText("Nie masz jeszcze zapisanych miejsc.")).toBeInTheDocument();
   });
 });
@@ -706,7 +706,7 @@ describe("AppPage — Mój dom (family list and its pages)", () => {
     vi.mocked(familiesApi.getMyFamilies).mockResolvedValue([mockFamily]);
     vi.mocked(familiesApi.getGuardians).mockResolvedValue(mockGuardians);
     renderPanel(initialEntry);
-    await screen.findByRole("heading", { name: "Mój dom", level: 2 });
+    await screen.findByRole("link", { name: "Zmień nazwę rodziny" });
   }
 
   it("/family renders the family list with role labels (Ty / opiekun / dziecko, no avatars)", async () => {
@@ -736,10 +736,6 @@ describe("AppPage — Mój dom (family list and its pages)", () => {
     fireEvent.click(screen.getByRole("link", { name: "Załóż rodzinę" }));
 
     const page = await screen.findByRole("region", { name: "Nowa rodzina" });
-    expect(within(page).getByRole("link", { name: "Wróć do mojego domu" })).toHaveAttribute(
-      "href",
-      `/family?returnTo=${encodeURIComponent(RETURN_PATH)}`,
-    );
     const submit = within(page).getByRole("button", { name: "Załóż rodzinę" });
     expect(submit).toBeDisabled();
     fireEvent.change(within(page).getByLabelText("Nazwa rodziny"), { target: { value: "Kowalscy" } });
@@ -810,7 +806,7 @@ describe("AppPage — Mój dom (family list and its pages)", () => {
         { name: "Ola Kowalska", role_type: "CHILD", birth_year: 2019 },
       ]),
     );
-    expect(await screen.findByRole("heading", { name: "Mój dom", level: 2 })).toBeInTheDocument();
+    expect(await screen.findByRole("link", { name: "Zmień nazwę rodziny" })).toBeInTheDocument();
     expect(screen.getByRole("status")).toHaveTextContent("Dodano członka rodziny");
   });
 
@@ -856,7 +852,7 @@ describe("AppPage — Mój dom (family list and its pages)", () => {
       .mockRejectedValueOnce(new ApiError(409, "Conflict", { message: "Nie można usunąć jedynego opiekuna rodziny" }))
       .mockResolvedValue(undefined);
     renderPanel("/family");
-    await screen.findByRole("heading", { name: "Mój dom", level: 2 });
+    await screen.findByRole("link", { name: "Zmień nazwę rodziny" });
 
     fireEvent.click(screen.getByRole("button", { name: "Usuń członka rodziny Marek Kowalski" }));
     expect(await screen.findByRole("alert")).toHaveTextContent("Nie można usunąć jedynego opiekuna rodziny");
@@ -1016,7 +1012,7 @@ describe("AppPage — edit group page (name/layout/visibility/default place and 
     await screen.findByRole("region", { name: "Edytuj grupę" });
   }
 
-  it("the tile's pencil and layout icon open /groups/:id/edit, whose back link returns to Moje grupy", async () => {
+  it("the tile's pencil and layout icon open /groups/:id/edit", async () => {
     mockOrganizerDefaults();
     renderPanel("/groups");
 
@@ -1027,9 +1023,7 @@ describe("AppPage — edit group page (name/layout/visibility/default place and 
       `/groups/${GROUP_ID}/edit`,
     );
     fireEvent.click(pencil);
-    await screen.findByRole("region", { name: "Edytuj grupę" });
-    fireEvent.click(screen.getByRole("link", { name: "Wróć do moich grup" }));
-    expect(await screen.findByRole("heading", { name: "Moje grupy" })).toBeInTheDocument();
+    expect(await screen.findByRole("region", { name: "Edytuj grupę" })).toBeInTheDocument();
   });
 
   it("an id outside the led groups shows a not-found note instead of the form", async () => {
@@ -1247,7 +1241,7 @@ describe("AppPage — Spotkania list links to the public circle page", () => {
     await screen.findByText("Nowa grupa", { selector: "h3" });
     const led = screen.getByRole("heading", { name: "Prowadzę" }).closest("section")!;
     expect(within(led).queryByText(/Nutki dla starszaków/)).not.toBeInTheDocument();
-    fireEvent.click(screen.getByRole("link", { name: "Wróć do spotkań" }));
+    fireEvent.click(screen.getByRole("link", { name: "Spotkania" }));
     fireEvent.click(await screen.findByRole("tab", { name: "Biorę udział" }));
     const saved = await screen.findByRole("tabpanel", { name: "Biorę udział" });
     expect(within(saved).getAllByRole("link")).toHaveLength(2);
@@ -1379,7 +1373,7 @@ describe("AppPage — family member circles (both contexts)", () => {
     renderPanel("/groups");
 
     expect(await screen.findByText("Nowa grupa", { selector: "h3" })).toBeInTheDocument();
-    fireEvent.click(screen.getByRole("link", { name: "Wróć do spotkań" }));
+    fireEvent.click(screen.getByRole("link", { name: "Spotkania" }));
     fireEvent.click(await screen.findByRole("tab", { name: "Biorę udział" }));
     const saved = await screen.findByRole("tabpanel", { name: "Biorę udział" });
     expect(await within(saved).findByRole("link", { name: /Rowerki/ })).toBeInTheDocument();
@@ -2129,7 +2123,6 @@ describe("AppPage — event tile links and the event edit page", () => {
 
     const page = await screen.findByRole("region", { name: "Edytuj wydarzenie" });
     const name = await within(page).findByLabelText("Nazwa");
-    expect(screen.getByRole("link", { name: "Wróć do wydarzenia" })).toHaveAttribute("href", "/zielony-krag/event/ev-1");
     expect(name).toHaveValue("Piknik w parku");
     expect(within(page).getByLabelText("Godzina początku")).toHaveValue("14:00");
     expect(within(page).queryByRole("heading", { name: /Baner/ })).not.toBeInTheDocument();
@@ -2434,7 +2427,7 @@ describe("AppPage — moderation errors inline in the add-group page and add-ter
 
     expect(await screen.findByRole("status")).toHaveTextContent("Dodano grupę");
     // The non-silent reload shows the skeleton for a moment before the page.
-    expect(await screen.findByRole("heading", { name: "Moje grupy" }, { timeout: 3000 })).toBeInTheDocument();
+    expect(await screen.findByRole("link", { name: "+ Dodaj grupę" }, { timeout: 3000 })).toBeInTheDocument();
     expect(groupsApi.createAdditionalMyCircle).toHaveBeenCalledWith(expect.objectContaining({ name: "Rytmika" }));
   });
 
@@ -2486,7 +2479,8 @@ describe("AppPage — moderation errors inline in the add-group page and add-ter
     fireEvent.click(within(dialog).getByRole("button", { name: "Dodaj grupę" }));
     await within(dialog).findByRole("alert");
 
-    fireEvent.click(screen.getByRole("link", { name: "Wróć do moich grup" }));
+    fireEvent.click(screen.getByRole("link", { name: "Spotkania" }));
+    fireEvent.click(await screen.findByRole("link", { name: /Moje grupy/ }));
     fireEvent.click(await screen.findByRole("link", { name: "+ Dodaj grupę" }));
     dialog = await screen.findByRole("region", { name: "Nowa grupa" });
 
@@ -2833,11 +2827,12 @@ describe("AppPage — redesigned navigation and pages", () => {
     expect(screen.queryByText("Grupy i terminy")).not.toBeInTheDocument();
   });
 
-  it("a Konto sub-page has a back link to Konto and keeps the tab bar on Konto", async () => {
+  it("a Konto sub-page has no back link and keeps the tab bar on Konto", async () => {
     mockGuestDefaults();
     renderPanel("/wanted");
 
-    expect(await screen.findByRole("link", { name: "Wróć do konta" })).toHaveAttribute("href", "/account");
+    expect(await screen.findByText(/Zapisz, czego potrzebujesz/)).toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: /Wróć/ })).not.toBeInTheDocument();
     const nav = screen.getByRole("navigation", { name: "Nawigacja główna" });
     expect(within(nav).getByRole("button", { name: "Konto" })).toHaveAttribute("aria-current", "true");
   });
@@ -2905,14 +2900,12 @@ describe("AppPage — redesigned navigation and pages", () => {
     expect(screen.getByText("Kask rowerowy")).toBeInTheDocument();
   });
 
-  it("/add/product is a panel view with the item form and a way back to /add", async () => {
+  it("/add/product is a panel view with the item form", async () => {
     mockGuestDefaults();
     renderPanel("/add/product");
 
     const page = await screen.findByRole("region", { name: "Dodaj rzecz" });
-    expect(within(page).getByRole("heading", { name: "Dodaj rzecz" })).toBeInTheDocument();
     expect(within(page).getByRole("button", { name: "Wersja robocza" })).toBeInTheDocument();
-    expect(within(page).getByRole("link", { name: "Wróć do dodawania" })).toHaveAttribute("href", "/add");
   });
 
   it("Dodaj links to the item form and, without groups, sends a term to the new-group page", async () => {
@@ -2970,7 +2963,6 @@ describe("AppPage — Dodaj › Wydarzenie", () => {
     renderPanel("/add/event");
 
     const page = await screen.findByRole("region", { name: "Nowe wydarzenie" });
-    expect(screen.getByRole("link", { name: "Wróć do dodawania" })).toHaveAttribute("href", "/add");
     const submit = within(page).getByRole("button", { name: "Zapisz wydarzenie" });
     expect(submit).toHaveAttribute("aria-disabled", "true");
     fireEvent.click(submit);

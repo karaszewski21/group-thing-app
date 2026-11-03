@@ -1,6 +1,5 @@
 import { useState, type FormEvent } from "react";
 import { Link } from "../../routing/navigation";
-import { SubPageHeader } from "../../components/shared/appComponents";
 import { viewPath } from "../../routing/paths";
 
 const LABEL = "mb-1.5 block text-sm font-bold text-ink";
@@ -33,7 +32,6 @@ export function HuntingCreateView() {
   if (saved) {
     return (
       <>
-        <SubPageHeader title="Szukam rzeczy" backTo={viewPath("add")} backLabel="Wróć do dodawania" />
         <div role="status" className="flex flex-col items-center gap-2.5 rounded-[28px] bg-teal-soft px-5 py-7 text-center">
           <p className="font-serif text-[22px] font-extrabold text-ink">Zapisane</p>
           <p className="text-base font-bold text-ink">{saved}</p>
@@ -60,7 +58,6 @@ export function HuntingCreateView() {
 
   return (
     <>
-      <SubPageHeader title="Szukam rzeczy" backTo={viewPath("add")} backLabel="Wróć do dodawania" />
       <p className="-mt-2 mb-4 text-[15px] leading-snug text-ink-soft">
         Napisz, czego szukasz — damy znać, gdy ktoś doda pasującą rzecz.
       </p>

@@ -86,8 +86,7 @@ describe("GroupDetailsPage", () => {
   it("renders group details and the member list", async () => {
     renderPage();
 
-    expect(await screen.findByRole("heading", { name: "Krąg Maluchy" })).toBeInTheDocument();
-    expect(screen.getByText("2 uczestników")).toBeInTheDocument();
+    expect(await screen.findByText("2 uczestników")).toBeInTheDocument();
     expect(screen.getByText("Prywatna (dostęp z kodem)")).toBeInTheDocument();
     expect(screen.getByText("Boisko")).toBeInTheDocument();
     expect(screen.getByText("Dom kultury · ul. Długa 1, Warszawa")).toBeInTheDocument();
@@ -142,7 +141,6 @@ describe("GroupDetailsPage", () => {
     renderPage();
 
     expect(await screen.findByText("Nie znaleziono tej grupy.")).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: /Wróć/ })).toHaveAttribute("href", "/groups");
   });
 
   it("generic error retry refetches", async () => {

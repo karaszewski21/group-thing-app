@@ -3,7 +3,7 @@ import { Link } from "../../routing/navigation";
 import { useRegisterOpenSheet } from "./openSheets";
 import dayjs from "../../utils/dayjs";
 import { CAPACITY_ERROR, capitalize, ITEM_MODE_TONE, parseCapacity, type ItemMode } from "../../utils/appHelpers";
-import { BackIcon, ChevronRightIcon, CloseIcon } from "./appIcons";
+import { ChevronRightIcon, CloseIcon } from "./appIcons";
 import type { MockMeeting } from "../../utils/mocks";
 
 /* ---------------- małe komponenty pomocnicze (wydzielone z AppPage.tsx) ---------------- */
@@ -270,36 +270,6 @@ export function ListCard({ rows }: { rows: ListRowItem[] }) {
         );
       })}
     </ul>
-  );
-}
-
-/** Back link + title for panel sub-pages without the tab bar; `action`
- * (e.g. a link to a related page) sits at the right end. */
-export function SubPageHeader({
-  title,
-  backTo,
-  backLabel,
-  action,
-}: {
-  title?: string;
-  backTo: string;
-  backLabel: string;
-  action?: ReactNode;
-}) {
-  return (
-    <div className="mb-4 flex items-center gap-2.5">
-      <Link
-        to={backTo}
-        aria-label={backLabel}
-        className="flex h-11 w-11 flex-none items-center justify-center rounded-full border-[1.5px] border-line bg-paper hover:border-line-strong focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring"
-      >
-        <BackIcon />
-      </Link>
-      {title && (
-        <h1 className="font-serif text-[26px] leading-tight font-extrabold tracking-tight text-ink">{title}</h1>
-      )}
-      {action && <div className="ml-auto flex-none">{action}</div>}
-    </div>
   );
 }
 

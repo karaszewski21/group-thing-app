@@ -1,7 +1,6 @@
 import { useEffect, useState } from "react";
 import { useAppNavigate, useAppParams } from "../../routing/navigation";
 import { useAppData } from "../panel/appDataStore";
-import { SubPageHeader } from "../../components/shared/appComponents";
 import { useEvent } from "../../hooks/useEvent";
 import { eventPath, viewPath } from "../../routing/paths";
 import { draftFromEvent, toCreateEventRequest } from "./eventDraft";
@@ -46,7 +45,6 @@ export function EventEditView() {
 
   return (
     <section aria-label={TITLE}>
-      <SubPageHeader title={TITLE} backTo={eventHref} backLabel="Wróć do wydarzenia" />
       {loading || isStale ? (
         <p className="text-[12.5px] text-ink-soft">Wczytywanie wydarzenia…</p>
       ) : !editable ? (

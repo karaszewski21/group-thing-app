@@ -2,10 +2,8 @@ import { useEffect, useMemo, useState } from "react";
 import { useAppNavigate } from "../../routing/navigation";
 import type { ListingMode } from "../../api/itemListingPreferences";
 import { ItemQuickAddForm } from "../../components/shared/ItemQuickAddForm";
-import { SubPageHeader } from "../../components/shared/appComponents";
 import { useCreateItem } from "../../hooks/useCreateItem";
 import { createEmptyItemQuickAddValue, type ItemQuickAddValue } from "../../utils/itemQuickAdd";
-import { viewPath } from "../../routing/paths";
 import { EXCHANGE_MODE_LABELS } from "../terms/components/termLabels";
 import { PhotoGalleryField } from "../../components/shared/PhotoGalleryField";
 import { FIELD_LABEL, MAX_PRODUCT_PHOTOS, photoFileError, type ItemCreatedState } from "./product/itemPageShared";
@@ -59,7 +57,6 @@ export function ItemCreateView() {
 
   return (
     <section aria-label={TITLE}>
-      <SubPageHeader title={TITLE} backTo={viewPath("add")} backLabel="Wróć do dodawania" />
       {/* No submit button: implicit Enter submission from the name input must do nothing. */}
       <form onSubmit={(e) => e.preventDefault()} className="rounded-[22px] border border-line bg-paper p-5">
         <NewPhotosField files={photos} onChange={setPhotos} disabled={busy} />

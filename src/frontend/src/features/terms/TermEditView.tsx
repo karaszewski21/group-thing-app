@@ -1,7 +1,6 @@
 import { useAppNavigate, useAppParams } from "../../routing/navigation";
 import { useAppData } from "../panel/appDataStore";
 import { TermEditForm } from "./TermEditForm";
-import { SubPageHeader } from "../../components/shared/appComponents";
 import { viewPath } from "../../routing/paths";
 
 const TITLE = "Edytuj termin";
@@ -19,7 +18,6 @@ export function TermEditView() {
 
   return (
     <section aria-label={TITLE}>
-      <SubPageHeader title={TITLE} backTo={viewPath("meetings")} backLabel="Wróć do spotkań" />
       {editable ? (
         <div className="rounded-[22px] border border-line bg-paper p-5">
           <TermEditForm

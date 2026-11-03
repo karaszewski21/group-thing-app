@@ -16,12 +16,7 @@ export function AccountView() {
 
   return (
     <>
-      <h1 className="mb-5 font-serif text-[30px] leading-tight font-extrabold tracking-tight text-ink">Konto</h1>
-
       <section aria-labelledby="konto-profil">
-        <h2 id="konto-profil" className={SECTION_LABEL}>
-          Profil
-        </h2>
         <ProfileView />
         <div className="mt-2.5">
           <ListCard

@@ -1,7 +1,6 @@
 import { useAppNavigate, useAppSearchParams } from "../../routing/navigation";
 import { useAppData } from "../panel/appDataStore";
 import { LocationAddForm } from "../../components/shared/LocationAddForm";
-import { SubPageHeader } from "../../components/shared/appComponents";
 import { useMyLocations } from "../../hooks/useMyLocations";
 import { type PickedLocationState } from "../../utils/appHelpers";
 import { viewPath } from "../../routing/paths";
@@ -25,11 +24,6 @@ export function PlaceCreateView() {
 
   return (
     <section aria-label={TITLE}>
-      <SubPageHeader
-        title={TITLE}
-        backTo={backTo}
-        backLabel={returnTo ? "Wróć do formularza" : "Wróć do moich miejsc"}
-      />
       <div className="rounded-[22px] border border-line bg-paper p-5">
         <LocationAddForm
           idPrefix="miejsca"

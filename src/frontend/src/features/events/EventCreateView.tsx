@@ -2,9 +2,8 @@ import { useEffect, useRef, useState } from "react";
 import { useAppNavigate } from "../../routing/navigation";
 import type { EventResponse } from "../../api/events";
 import { useAppData } from "../panel/appDataStore";
-import { SubPageHeader } from "../../components/shared/appComponents";
 import { useCreateEvent } from "../../hooks/useCreateEvent";
-import { eventPath, viewPath } from "../../routing/paths";
+import { eventPath } from "../../routing/paths";
 import { EMPTY_EVENT_DRAFT, toCreateEventRequest } from "./eventDraft";
 import { EventForm } from "./EventForm";
 
@@ -64,7 +63,6 @@ export function EventCreateView() {
 
   return (
     <section aria-label={TITLE}>
-      <SubPageHeader title={TITLE} backTo={viewPath("add")} backLabel="Wróć do dodawania" />
       {screen.kind === "bannerFailed" ? (
         <BannerFailed
           event={screen.event}

@@ -3,14 +3,11 @@ import { Link } from "../../routing/navigation";
 import { deleteGroup, type GroupResponse } from "../../api/groups";
 import { serverMessageOr } from "../../api/problem";
 import { useAppData } from "../panel/appDataStore";
-import { SubPageHeader } from "../../components/shared/appComponents";
 import { LayoutModeIcon, PencilIcon, TrashIcon } from "../../components/shared/appIcons";
 import { groupDetailsPath, groupEditPath, viewPath } from "../../routing/paths";
 import { pluralPl } from "../../utils/plural";
 import { DeleteGroupDialog } from "./DeleteGroupDialog";
 
-const SECTION_TITLE = "font-serif text-[21px] font-bold text-ink";
-const SECTION_COUNT = "font-sans text-base font-semibold text-ink-soft";
 const EMPTY = "rounded-[22px] border border-dashed border-line bg-paper p-5 text-center text-[13px] text-ink-soft";
 const ADD_BUTTON =
   "flex min-h-10 flex-none items-center rounded-full border-[1.5px] border-line bg-paper px-3.5 text-sm font-extrabold text-ink hover:border-line-strong";
@@ -53,13 +50,8 @@ export function GroupsView() {
   const hasGroups = myGroups.length > 0;
   return (
     <>
-      <SubPageHeader title="Moje grupy" backTo={viewPath("meetings")} backLabel="Wróć do spotkań" />
       <section>
         <div className="mb-2.5 flex items-center justify-between gap-2.5">
-          <div className="flex items-baseline gap-1.5">
-            <h2 className={SECTION_TITLE}>Prowadzę</h2>
-            <span className={SECTION_COUNT}>· {myGroups.length}</span>
-          </div>
           <Link to={viewPath("groups/new")} className={ADD_BUTTON}>
             {hasGroups ? "+ Dodaj grupę" : "+ Załóż grupę"}
           </Link>

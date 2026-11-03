@@ -5,7 +5,6 @@ import { familyMemberEditPath, viewPath } from "../../routing/paths";
 import { isSafeReturnPath } from "../../utils/url";
 import { BackIcon, PencilIcon, TrashIcon } from "../../components/shared/appIcons";
 import { useAppData } from "../panel/appDataStore";
-import { AccountSubPageHeader } from "../account/AccountSubPageHeader";
 
 const ADD_BUTTON =
   "flex min-h-10 flex-none items-center rounded-full border-[1.5px] border-line bg-paper px-3.5 text-sm font-extrabold text-ink hover:border-line-strong";
@@ -46,10 +45,6 @@ export function FamilyView() {
   if (family === null) {
     return (
       <div>
-        <AccountSubPageHeader />
-        <div className="mb-3.5">
-          <h2 className="text-[19px] font-semibold text-ink">Mój dom</h2>
-        </div>
         <div className="rounded-2xl border-[1.5px] border-dashed border-line p-6 text-center">
           <p className="text-[15px] font-semibold text-ink">Nie masz jeszcze rodziny</p>
           <p className="mt-1.5 text-[13.5px] text-ink-soft">
@@ -69,11 +64,9 @@ export function FamilyView() {
 
   return (
     <div>
-      <AccountSubPageHeader />
       <div className="mb-3.5 flex items-start justify-between gap-2.5">
         <div className="min-w-0">
-          <h2 className="text-[19px] font-semibold text-ink">Mój dom</h2>
-          <div className="mt-1.5 flex items-center gap-1">
+          <div className="flex items-center gap-1">
             <h3 className="text-[15.5px] font-semibold wrap-break-word text-ink">{family.name}</h3>
             <Link
               to={`${viewPath("family/edit")}${search}`}

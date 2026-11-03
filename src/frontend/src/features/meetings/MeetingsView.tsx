@@ -3,7 +3,6 @@ import { Link } from "../../routing/navigation";
 import type { EventResponse } from "../../api/events";
 import type { MyPledgeResponse } from "../../api/pledges";
 import dayjs from "../../utils/dayjs";
-import { SubPageHeader } from "../../components/shared/appComponents";
 import { FamilyIcon } from "../../components/shared/appIcons";
 import { type GuestTermCard, type TermWithNeeded } from "../../utils/appHelpers";
 import { viewPath } from "../../routing/paths";
@@ -144,19 +143,14 @@ export function MeetingsView() {
 
   return (
     <>
-      <SubPageHeader
-        title="Spotkania"
-        backTo="/"
-        backLabel="Wróć na Start"
-        action={
-          <Link
-            to={viewPath("groups")}
-            className="flex min-h-11 items-center gap-1.5 rounded-full border-[1.5px] border-line bg-paper px-3.5 text-sm font-extrabold text-ink hover:border-line-strong focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring"
-          >
-            <FamilyIcon c="currentColor" /> Moje grupy
-          </Link>
-        }
-      />
+      <div className="mb-4 flex justify-end">
+        <Link
+          to={viewPath("groups")}
+          className="flex min-h-11 items-center gap-1.5 rounded-full border-[1.5px] border-line bg-paper px-3.5 text-sm font-extrabold text-ink hover:border-line-strong focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring"
+        >
+          <FamilyIcon c="currentColor" /> Moje grupy
+        </Link>
+      </div>
       <div role="tablist" aria-label="Rodzaj spotkań" className="mb-5 grid grid-cols-2 gap-1 rounded-full bg-line p-1">
         {TABS.map((t) => {
           const on = tab === t.id;

@@ -3,7 +3,6 @@ import { pluralPl } from "../../utils/plural";
 import { BellIcon, SearchIcon, TrashIcon } from "../../components/shared/appIcons";
 import { capitalize, ITEM_MODE_TONE, ITEM_MODES } from "../../utils/appHelpers";
 import { MOCK_WANTS, type MockWant } from "../../utils/mocks";
-import { AccountSubPageHeader } from "../account/AccountSubPageHeader";
 
 /** "Szukam" — things the user is looking for. MOCK: kept in local state
  * only (lost on refresh) until the backend stores wanted items. */
@@ -21,9 +20,7 @@ export function WantedView() {
 
   return (
     <>
-      <AccountSubPageHeader />
-      <h1 className="font-serif text-[30px] leading-tight font-extrabold tracking-tight text-ink">Szukam</h1>
-      <p className="mt-1 mb-4 text-[15px] leading-snug text-ink-soft">
+      <p className="mb-4 text-[15px] leading-snug text-ink-soft">
         Zapisz, czego potrzebujesz. Damy znać, gdy ktoś doda pasującą rzecz.
       </p>
 

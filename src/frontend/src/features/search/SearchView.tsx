@@ -1,8 +1,7 @@
 import { useState } from "react";
-import { Link } from "../../routing/navigation";
 import { pluralPl } from "../../utils/plural";
 import { ItemTile, MeetingRow } from "../../components/shared/appComponents";
-import { BackIcon, CloseIcon, SearchIcon } from "../../components/shared/appIcons";
+import { CloseIcon, SearchIcon } from "../../components/shared/appIcons";
 import { matchesQuery, MOCK_SEARCH_ITEMS, MOCK_SEARCH_MEETINGS } from "../../utils/mocks";
 
 type Scope = "rzeczy" | "spotkania";
@@ -37,13 +36,6 @@ export function SearchView() {
   return (
     <>
       <div className="mb-3 flex items-center gap-2">
-        <Link
-          to="/"
-          aria-label="Wróć na Start"
-          className="flex h-11 w-11 flex-none items-center justify-center rounded-full hover:bg-paper focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring"
-        >
-          <BackIcon />
-        </Link>
         <div className="flex min-h-12.5 min-w-0 flex-1 items-center gap-2 rounded-full border-2 border-primary bg-paper pr-1.5 pl-4">
           <SearchIcon />
           <label htmlFor="panel-search" className="sr-only">

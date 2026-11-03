@@ -2,7 +2,6 @@ import { useRef } from "react";
 import { initials } from "../../utils/appHelpers";
 import { useAppData } from "../panel/appDataStore";
 import { useProfileForm } from "./useProfileForm";
-import { AccountSubPageHeader } from "./AccountSubPageHeader";
 
 const AVATAR_STATUS_NOTE: Record<string, string> = {
   PENDING: "Zdjęcie czeka na moderację — do tego czasu widzisz je tylko Ty.",
@@ -37,7 +36,6 @@ export function ProfileView() {
 
   return (
     <>
-      <AccountSubPageHeader />
       <div className="rounded-[22px] border border-line bg-paper p-5">
         <h3 className="mb-3.5 text-base font-semibold text-ink">Dane profilowe</h3>
         <div className="mb-5 flex items-center gap-4">

@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { Link } from "../../routing/navigation";
 import { NeededItemQuickAddForm } from "../../components/shared/NeededItemQuickAddForm";
 import { LocationPicker } from "../../components/shared/LocationPicker";
-import { CapacityField, Field, INPUT_CLASS, SubPageHeader } from "../../components/shared/appComponents";
+import { CapacityField, Field, INPUT_CLASS } from "../../components/shared/appComponents";
 import { useAppData } from "../panel/appDataStore";
 import { parseCapacity } from "../../utils/appHelpers";
 import { viewPath } from "../../routing/paths";
@@ -46,7 +46,6 @@ export function AddTermView() {
 
   return (
     <section aria-label={TITLE}>
-      <SubPageHeader title={TITLE} backTo={viewPath("add")} backLabel="Wróć do dodawania" />
       {myGroups.length === 0 ? (
         <div className="rounded-[22px] border border-line bg-paper p-5 text-sm text-ink-soft">
           <p>Termin dodasz w swojej grupie — najpierw ją załóż.</p>

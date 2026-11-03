@@ -118,7 +118,6 @@ describe("TermAttendeesPage", () => {
     expect(screen.getByText("brak dzieci w profilu rodziny")).toBeInTheDocument();
 
     expect(screen.getAllByRole("listitem")).toHaveLength(3);
-    expect(screen.getByRole("heading", { name: "Zapisani" })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /Zobacz stronę terminu/ })).toHaveAttribute(
       "href",
       `/maluchy/group/${GROUP_ID}/term/${TERM_ID}`,
@@ -175,8 +174,6 @@ describe("TermAttendeesPage", () => {
     renderPage();
 
     expect(await screen.findByRole("button", { name: "Spróbuj ponownie" })).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: /Wróć/ })).toHaveAttribute("href", "/meetings");
-    expect(screen.getByRole("heading", { name: "Zapisani" })).toBeInTheDocument();
     expect(screen.queryByText("Krąg Maluchy")).not.toBeInTheDocument();
     expect(screen.queryByText(/Zobacz stronę terminu/)).not.toBeInTheDocument();
     expect(screen.queryByText(/^\d+ zapis|^Brak zapisów$/)).not.toBeInTheDocument();

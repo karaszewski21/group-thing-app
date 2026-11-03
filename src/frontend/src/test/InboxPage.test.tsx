@@ -76,7 +76,6 @@ describe("InboxPage", () => {
     ]);
     renderInbox();
 
-    expect(screen.getByRole("heading", { name: "Wiadomości" })).toBeInTheDocument();
     const links = await screen.findAllByRole("link", { name: /Rzecz|Grupa|Termin/ });
     expect(links.map((l) => l.getAttribute("href"))).toEqual([
       "/messages/c1",

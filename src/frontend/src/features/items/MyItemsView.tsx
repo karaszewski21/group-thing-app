@@ -275,14 +275,6 @@ export function MyItemsView() {
 
   return (
     <div>
-      <div className="mb-4">
-        <div>
-          <h1 className="font-serif text-[32px] leading-tight font-extrabold tracking-tight text-ink">Moje rzeczy</h1>
-          <small className="text-sm text-ink-soft">
-            {items.length} {items.length === 1 ? "rzecz" : "rzeczy"}
-          </small>
-        </div>
-      </div>
 
       <InventoryLocationCard />
 

@@ -135,7 +135,7 @@ describe("ItemCreateView", () => {
   it("keeps Oddam, Zamienię and Wersja robocza aria-disabled until a name and a category are set", async () => {
     renderPage();
 
-    expect(screen.getByRole("heading", { name: "Dodaj rzecz" })).toBeInTheDocument();
+    expect(screen.getByRole("region", { name: "Dodaj rzecz" })).toBeInTheDocument();
     expect(screen.queryByLabelText("Typ")).not.toBeInTheDocument();
     expect(screen.queryByText(/Moje rzeczy/)).not.toBeInTheDocument();
     for (const button of actionButtons()) {

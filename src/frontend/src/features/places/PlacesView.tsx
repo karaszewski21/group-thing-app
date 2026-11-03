@@ -5,7 +5,6 @@ import { LOCATION_ERROR_CLASS } from "../../components/shared/LocationAddForm";
 import { ConfirmDeleteDialog } from "../../components/shared/ConfirmDeleteDialog";
 import { useMyLocations } from "../../hooks/useMyLocations";
 import { placeEditPath, viewPath } from "../../routing/paths";
-import { AccountSubPageHeader } from "../account/AccountSubPageHeader";
 import { usePanelReload } from "../panel/appDataStore";
 
 /* ------------------------------------------------------------------ */
@@ -56,10 +55,6 @@ export function PlacesView() {
 
   return (
     <>
-      <AccountSubPageHeader />
-      <h1 className="mb-5 font-serif text-[32px] leading-tight font-extrabold tracking-tight text-ink">
-        Moje miejsca
-      </h1>
       {error && (
         <p role="alert" className={`${LOCATION_ERROR_CLASS} mb-3`}>
           {error}

@@ -1,5 +1,4 @@
 import type { ItemDetailsResponse } from "../../api/items";
-import { SubPageHeader } from "../../components/shared/appComponents";
 import { useItemDetail, useItemEditing, type ProductDetailsState } from "../../hooks/useItemDetail";
 import { Link, useAppNavigate, useAppParams, useHasInAppHistory } from "../../routing/navigation";
 import { viewPath } from "../../routing/paths";
@@ -29,7 +28,6 @@ export function ItemEditView() {
 
   return (
     <section aria-label={TITLE}>
-      <SubPageHeader title={TITLE} backTo={viewPath("items")} backLabel="Wróć do moich rzeczy" />
       {!item ? (
         <ItemLoadStates notFound={notFound} error={error} loading={loading} onRetry={() => void refetch()} />
       ) : !item.is_owner || item.deleted_at !== null ? (

@@ -6,7 +6,6 @@ import { useTermAttendees } from "../../hooks/useTermAttendees";
 import { formatChildAges } from "../../utils/age";
 import { pluralPl } from "../../utils/plural";
 import { dayMonth, termPublicPath, termTime } from "../../utils/appHelpers";
-import { BackIcon } from "../../components/shared/appIcons";
 
 /** Organizer-only list of who signed up for one term (`/terms/:termId`), a
  * panel view that loads its own data: the hook resolves the group from the
@@ -18,13 +17,6 @@ export function TermAttendeesPage() {
 
   return (
     <>
-      <Link
-        to="/meetings"
-        className="mb-4 inline-flex items-center gap-1.5 text-xs font-bold text-ink-soft"
-      >
-        <BackIcon /> Wróć
-      </Link>
-      <h2 className="text-[19px] font-semibold text-ink">Zapisani</h2>
       <TermAttendeesBody
         term={term}
         group={group}

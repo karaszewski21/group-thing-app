@@ -8,7 +8,6 @@ import { useJoinCode } from "../../hooks/useJoinCode";
 import { useOpenAndNavigate } from "../../hooks/useOpenAndNavigate";
 import dayjs from "../../utils/dayjs";
 import { pluralPl } from "../../utils/plural";
-import { BackIcon } from "../../components/shared/appIcons";
 
 const LAYOUT_LABEL = { CIRCLE: "Krąg", PITCH: "Boisko", TABLE: "Stół" } as const;
 const VISIBILITY_LABEL = { PUBLIC: "Publiczna", PRIVATE: "Prywatna (dostęp z kodem)" } as const;
@@ -34,13 +33,6 @@ export function GroupDetailsPage() {
 
   return (
     <>
-      <Link
-        to="/groups"
-        className="mb-4 inline-flex items-center gap-1.5 text-xs font-bold text-ink-soft"
-      >
-        <BackIcon /> Wróć
-      </Link>
-      <h2 className="text-[19px] font-semibold text-ink">{group?.name ?? "Grupa"}</h2>
       <GroupDetailsBody
         group={group}
         members={members}
