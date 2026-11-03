@@ -1,4 +1,7 @@
-/** Rendered by the panel layout. */
+"use client";
+
+import { GroupDetailsPage } from "../../../../../features/groups/GroupDetailsPage";
+
 export default function Page() {
-  return null;
+  return <GroupDetailsPage />;
 }

@@ -1,4 +1,7 @@
-/** Rendered by the panel layout. */
+"use client";
+
+import { GroupsView } from "../../../../features/groups/GroupsView";
+
 export default function Page() {
-  return null;
+  return <GroupsView />;
 }

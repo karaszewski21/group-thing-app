@@ -1,4 +1,7 @@
-/** Rendered by the panel layout. */
+"use client";
+
+import { MeetingsView } from "../../../../features/meetings/MeetingsView";
+
 export default function Page() {
-  return null;
+  return <MeetingsView />;
 }

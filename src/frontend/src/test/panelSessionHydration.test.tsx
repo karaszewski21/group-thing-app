@@ -35,7 +35,9 @@ function panelTree(initialToken: string) {
       <ChakraProvider value={system}>
         <AuthProvider initialSession={sessionFromToken(initialToken)}>
           <ClientOnly>
-            <PanelGate />
+            <PanelGate>
+              <p>Sekcja panelu</p>
+            </PanelGate>
           </ClientOnly>
         </AuthProvider>
       </ChakraProvider>

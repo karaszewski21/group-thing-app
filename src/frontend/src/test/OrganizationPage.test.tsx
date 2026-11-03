@@ -5,6 +5,9 @@ import { ApiError } from "../api/client";
 import * as organizationsApi from "../api/organizations";
 import { OrganizationPage } from "../features/owner-page/OrganizationPage";
 
+const reloadPanel = vi.fn();
+vi.mock("../features/panel/appDataStore", () => ({ usePanelReload: () => reloadPanel }));
+
 vi.mock("../api/organizations", () => ({
   getMyOrganization: vi.fn(),
   createMyOrganization: vi.fn(),
@@ -65,6 +68,8 @@ describe("OrganizationPage", () => {
     await waitFor(() => {
       expect(organizationsApi.createMyOrganization).toHaveBeenCalledWith({ name: "Nowa Organizacja" });
     });
+    // The panel re-reads its data so Konto and Start show the new slug.
+    await waitFor(() => expect(reloadPanel).toHaveBeenCalledTimes(1));
   });
 
   it("shows a link to the public organization page using its slug", async () => {

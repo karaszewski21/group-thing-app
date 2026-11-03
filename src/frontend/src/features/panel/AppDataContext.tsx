@@ -55,7 +55,7 @@ import { setItemListingPreference, type ItemVisibility } from "../../api/itemLis
 import type { GroupFormValue } from "../groups/GroupFormFields";
 import { EMPTY_EVENT_DRAFT, type EventDraft } from "../events/eventDraft";
 import { defaultVisibility, termPublicPath, GIFT_LIMIT_MESSAGE, ITEM_MODE_TO_RESERVATION_TYPE, MAX_GIFT_ITEMS, RESERVATION_TYPE_TO_ITEM_MODE, type GuestTermCard, type ItemMode, type ModalKind, type NewFamilyMember, type TermWithNeeded, capacityText, parseCapacity } from "../../utils/appHelpers";
-import { type View, viewFromPath, viewPath } from "../../routing/paths";
+import { type View, viewPath } from "../../routing/paths";
 import { AppDataContext } from "./appDataStore";
 
 /* ------------------------------------------------------------------ */
@@ -86,9 +86,8 @@ const PENDING_PHOTO_POLL_MS = 10_000;
 function useAppDataValue() {
   const { logout } = useAuth();
   const navigate = useAppNavigate();
-  // The active section is the pathname (`/`, `/items`, `/account`, …), not
-  // local state — this way a refresh (or a shared/bookmarked link) lands
-  // back on the same section instead of always resetting to "home".
+  // Entering a form page (`/groups/new`, `/add/term`) clears its stale
+  // server error; the section itself is the App Router's page.
   const pathname = useAppPathname();
 
   const [loading, setLoading] = useState(true);
@@ -121,7 +120,6 @@ function useAppDataValue() {
   // Organization exists, both link straight to its public page instead.
   const [organizationSlug, setOrganizationSlug] = useState<string | null>(null);
 
-  const view: View = viewFromPath(pathname) ?? "home";
   const setView = useCallback(
     (next: View) => navigate(viewPath(next)),
     [navigate],
@@ -133,16 +131,16 @@ function useAppDataValue() {
   const [addGroupError, setAddGroupError] = useState<string | null>(null);
   const [addTermError, setAddTermError] = useState<string | null>(null);
   useEffect(() => {
-    if (view === "groups/new") setAddGroupError(null);
-  }, [view]);
+    if (pathname === viewPath("groups/new")) setAddGroupError(null);
+  }, [pathname]);
   // Not on entering /groups/new: coming back from /places/new (its place
   // picker's "+") must keep the visibility the user already chose.
   useEffect(() => {
     setGroupForm((form) => ({ ...form, visibility: defaultVisibility(organizationSlug) }));
   }, [organizationSlug]);
   useEffect(() => {
-    if (view === "add/term") setAddTermError(null);
-  }, [view]);
+    if (pathname === viewPath("add/term")) setAddTermError(null);
+  }, [pathname]);
   const [toast, setToast] = useState("");
   const [busy, setBusy] = useState(false);
 
@@ -299,31 +297,6 @@ function useAppDataValue() {
 
   // The app-wide pending-actions host resolved something this panel shows.
   useEffect(() => subscribePendingActionResolved(() => void load({ silent: true })), [load]);
-
-  // Bug #3 (cache refresh, structural fix): a term-page confirmation
-  // (TermPage) doesn't otherwise refresh this provider's data, so the
-  // panel can show stale pledges/items/notifications after the user
-  // navigates back here. Silently reload whenever the pathname *transitions*
-  // onto a panel section from somewhere else (re-entry after navigating
-  // away and back — e.g. from TermPage). The very first render at a
-  // panel route is deliberately excluded: that case is already covered by
-  // the plain mount effect above (non-silent, shows the loading screen),
-  // and firing this one too would double every ordinary panel-open network
-  // call. `prevPathnameRef` starts `null` (no observed pathname yet) so the
-  // first run only records the pathname instead of treating it as a
-  // transition; switching between panel sections (e.g. / -> /items) also
-  // doesn't re-fire this, since both are sections and `wasPanelRoute` stays
-  // true across that change.
-  const prevPathnameRef = useRef<string | null>(null);
-  useEffect(() => {
-    const isPanelRoute = viewFromPath(pathname) !== null;
-    const prevPathname = prevPathnameRef.current;
-    const wasPanelRoute = prevPathname !== null && viewFromPath(prevPathname) !== null;
-    prevPathnameRef.current = pathname;
-    if (isPanelRoute && !wasPanelRoute && prevPathname !== null) {
-      void load({ silent: true });
-    }
-  }, [pathname, load]);
 
   // Items-only re-read (not the full `load()`, which would also re-fetch
   // groups, terms and notifications). A failure keeps the current list; the
@@ -734,7 +707,6 @@ function useAppDataValue() {
     addTermError,
     itemError,
     organizationSlug,
-    view,
     modal,
     toast,
     busy,

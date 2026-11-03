@@ -1,42 +1,9 @@
+import type { ReactNode } from "react";
 import { PhoneFrame } from "../../components/shared/PhoneFrame";
 import { AppDataProvider } from "./AppDataContext";
 import { useAppData } from "./appDataStore";
 import { AppSkeleton } from "./AppSkeleton";
 import { AppModals } from "./AppModals";
-import { HomeView } from "./HomeView";
-import { MeetingsView } from "../meetings/MeetingsView";
-import { GroupsView } from "../groups/GroupsView";
-import { GroupCreateView } from "../groups/GroupCreateView";
-import { GroupEditView } from "../groups/GroupEditView";
-import { MyItemsView } from "../items/MyItemsView";
-import { ProfileView } from "../account/ProfileView";
-import { SettingsView } from "../account/SettingsView";
-import { FamilyView } from "../family/FamilyView";
-import { FamilyCreateView } from "../family/FamilyCreateView";
-import { FamilyEditView } from "../family/FamilyEditView";
-import { FamilyMemberCreateView } from "../family/FamilyMemberCreateView";
-import { FamilyMemberEditView } from "../family/FamilyMemberEditView";
-import { PlacesView } from "../places/PlacesView";
-import { PlaceCreateView } from "../places/PlaceCreateView";
-import { PlaceEditView } from "../places/PlaceEditView";
-import { AccountView } from "../account/AccountView";
-import { SearchView } from "../search/SearchView";
-import { WantedView } from "../search/WantedView";
-import { AddView } from "../add/AddView";
-import { AddTermView } from "../terms/AddTermView";
-import { ItemCreateView } from "../items/ItemCreateView";
-import { EventCreateView } from "../events/EventCreateView";
-import { EventEditView } from "../events/EventEditView";
-import { TermEditView } from "../terms/TermEditView";
-import { HuntingCreateView } from "../add/HuntingCreateView";
-import { GroupDetailsPage } from "../groups/GroupDetailsPage";
-import { TermAttendeesPage } from "../meetings/TermAttendeesPage";
-import { InboxPage } from "../messages/InboxPage";
-import { ThreadPage } from "../messages/ThreadPage";
-import { OrganizationPage } from "../owner-page/OrganizationPage";
-import { SubPageHeader } from "../../components/shared/appComponents";
-import { ACCOUNT_SUBVIEWS } from "../../utils/appHelpers";
-import { viewPath } from "../../routing/paths";
 
 /* ------------------------------------------------------------------ */
 /*  Panel — organizator/gość (port z pages/PanelOrganizatora.tsx +      */
@@ -49,22 +16,22 @@ import { viewPath } from "../../routing/paths";
 /*  (znikają po odświeżeniu, tak jak w prototypie).                      */
 /*                                                                       */
 /*  Struktura: stan/efekty/handlery → ./AppDataContext (useAppData);     */
-/*  ekran = przełącznik widoków (features/<sekcja>/*View) + <AppModals/> */
+/*  ramka = strona sekcji (children z app/(site)/(panel)) + <AppModals/> */
 /*  (dolne menu → globalny PublicLayout). Typy/helpery →                 */
 /*  utils/appHelpers, ikony → components/shared/appIcons,                */
 /*  ToggleRow/HintCard/Field/ModalSheet → components/shared/appComponents.*/
 /* ------------------------------------------------------------------ */
 
-export function AppPage() {
+export function AppPage({ children }: { children: ReactNode }) {
   return (
     <AppDataProvider>
-      <AppPageView />
+      <AppPageView>{children}</AppPageView>
     </AppDataProvider>
   );
 }
 
-function AppPageView() {
-  const { loading, error, profile, view, toast, load } = useAppData();
+function AppPageView({ children }: { children: ReactNode }) {
+  const { loading, error, profile, toast } = useAppData();
   if (loading) {
     return (
       <PhoneFrame>
@@ -87,45 +54,7 @@ function AppPageView() {
 
   return (
     <PhoneFrame>
-      {/* The thread scrolls its own message list between its header and the
-          composer, so it fills the frame without the padded scroller. */}
-      {view === "messages/thread" ? (
-        <ThreadPage />
-      ) : (
-        <div className="flex-1 overflow-y-auto px-[18px] pb-6 pt-[18px]">
-          {ACCOUNT_SUBVIEWS.includes(view) && <SubPageHeader backTo={viewPath("account")} backLabel="Wróć do konta" />}
-          {view === "home" && <HomeView />}
-          {view === "meetings" && <MeetingsView />}
-          {view === "groups" && <GroupsView />}
-          {view === "groups/new" && <GroupCreateView />}
-          {view === "groups/edit" && <GroupEditView />}
-          {view === "items" && <MyItemsView />}
-          {view === "profile" && <ProfileView />}
-          {view === "settings" && <SettingsView />}
-          {view === "places" && <PlacesView onPlacesChanged={() => void load({ silent: true })} />}
-          {view === "places/new" && <PlaceCreateView />}
-          {view === "places/edit" && <PlaceEditView onPlacesChanged={() => void load({ silent: true })} />}
-          {view === "family" && <FamilyView />}
-          {view === "family/new" && <FamilyCreateView />}
-          {view === "family/edit" && <FamilyEditView />}
-          {view === "family/members/new" && <FamilyMemberCreateView />}
-          {view === "family/members/edit" && <FamilyMemberEditView />}
-          {view === "account" && <AccountView />}
-          {view === "search" && <SearchView />}
-          {view === "wanted" && <WantedView />}
-          {view === "add" && <AddView />}
-          {view === "add/product" && <ItemCreateView />}
-          {view === "add/term" && <AddTermView />}
-          {view === "add/event" && <EventCreateView />}
-          {view === "add/hunting" && <HuntingCreateView />}
-          {view === "events/edit" && <EventEditView />}
-          {view === "terms/edit" && <TermEditView />}
-          {view === "groups/details" && <GroupDetailsPage />}
-          {view === "terms/attendees" && <TermAttendeesPage />}
-          {view === "messages" && <InboxPage />}
-          {view === "organization" && <OrganizationPage onSaved={() => void load({ silent: true })} />}
-        </div>
-      )}
+      {children}
 
       <AppModals />
 

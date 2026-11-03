@@ -8,6 +8,8 @@ import {
 } from "../../api/organizations";
 import { serverMessageOr } from "../../api/problem";
 import { useOrigin } from "../../lib/useClientValue";
+import { AccountSubPageHeader } from "../account/AccountSubPageHeader";
+import { usePanelReload } from "../panel/appDataStore";
 
 const inputClass =
   "w-full rounded-xl border-[1.5px] border-line bg-cream px-3.5 py-2.5 text-sm text-ink outline-none focus:border-mint focus:ring-[3px] focus:ring-mint-soft";
@@ -18,10 +20,11 @@ const labelClass = "mb-1.5 block text-xs font-extrabold tracking-wide text-ink-s
  * Konto) — simplified to just the name (per user feedback: the
  * color-customization step was removed from this form).
  * `createMyOrganization`/`updateOrganization` still accept color fields on
- * the backend; this page simply never sends them. `onSaved` lets the panel
- * re-read its data, which shows the organization's slug on Konto and Start.
+ * the backend; this page simply never sends them. A save re-reads the panel
+ * data, which shows the organization's slug on Konto and Start.
  */
-export function OrganizationPage({ onSaved }: { onSaved?: () => void }) {
+export function OrganizationPage() {
+  const onSaved = usePanelReload();
   const origin = useOrigin();
   const [organization, setOrganization] = useState<OrganizationResponse | null>(null);
   const [name, setName] = useState("");
@@ -63,7 +66,7 @@ export function OrganizationPage({ onSaved }: { onSaved?: () => void }) {
         setOrganization(created);
       }
       setSaved(true);
-      onSaved?.();
+      onSaved();
     } catch (err) {
       setError(serverMessageOr(err, "Nie udało się zapisać organizacji"));
     } finally {
@@ -76,63 +79,66 @@ export function OrganizationPage({ onSaved }: { onSaved?: () => void }) {
   }
 
   return (
-    <div className="rounded-[22px] border border-line bg-paper p-5">
-      <h1 className="mb-2 font-serif text-2xl font-semibold text-ink">
-        Moja <span className="text-mint">organizacja</span>
-      </h1>
-      <p className="mb-6 text-sm text-ink-soft">
-        Nazwa widoczna na Twojej publicznej stronie.
-      </p>
+    <>
+      <AccountSubPageHeader />
+      <div className="rounded-[22px] border border-line bg-paper p-5">
+        <h1 className="mb-2 font-serif text-2xl font-semibold text-ink">
+          Moja <span className="text-mint">organizacja</span>
+        </h1>
+        <p className="mb-6 text-sm text-ink-soft">
+          Nazwa widoczna na Twojej publicznej stronie.
+        </p>
 
-      <form onSubmit={handleSave}>
-        <div className="mb-4">
-          <label htmlFor="org-name" className={labelClass}>
-            Nazwa organizacji
-          </label>
-          <input
-            id="org-name"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            placeholder="np. Muzyczne Skrzaty"
-            className={inputClass}
-          />
-        </div>
-
-        {organization && (
-          <div className="mb-6 rounded-xl border border-line bg-cream p-4">
-            <p className="mb-1.5 text-xs font-extrabold uppercase tracking-wide text-ink-soft">
-              Twoja publiczna strona
-            </p>
-            <Link
-              to={`/${organization.slug}`}
-              target="_blank"
-              rel="noreferrer"
-              className="text-sm font-bold text-mint hover:underline"
-            >
-              {origin}/{organization.slug}
-            </Link>
+        <form onSubmit={handleSave}>
+          <div className="mb-4">
+            <label htmlFor="org-name" className={labelClass}>
+              Nazwa organizacji
+            </label>
+            <input
+              id="org-name"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="np. Muzyczne Skrzaty"
+              className={inputClass}
+            />
           </div>
-        )}
 
-        {error && (
-          <div role="alert" className="mb-4 rounded-xl bg-danger-soft px-3 py-2.5 text-[13px] text-danger">
-            {error}
-          </div>
-        )}
-        {saved && !error && (
-          <div className="mb-4 rounded-xl bg-mint-soft px-3 py-2.5 text-[13px] font-semibold text-mint">
-            Zapisano.
-          </div>
-        )}
+          {organization && (
+            <div className="mb-6 rounded-xl border border-line bg-cream p-4">
+              <p className="mb-1.5 text-xs font-extrabold uppercase tracking-wide text-ink-soft">
+                Twoja publiczna strona
+              </p>
+              <Link
+                to={`/${organization.slug}`}
+                target="_blank"
+                rel="noreferrer"
+                className="text-sm font-bold text-mint hover:underline"
+              >
+                {origin}/{organization.slug}
+              </Link>
+            </div>
+          )}
 
-        <button
-          type="submit"
-          disabled={!name.trim() || saving}
-          className="w-full rounded-[13px] bg-mint px-4 py-3 text-[13.5px] font-extrabold text-white shadow-[0_8px_18px_-10px_rgba(27,129,104,0.85)] transition-transform hover:-translate-y-0.5 disabled:opacity-60 disabled:hover:translate-y-0"
-        >
-          {saving ? "Zapisywanie…" : "Zapisz"}
-        </button>
-      </form>
-    </div>
+          {error && (
+            <div role="alert" className="mb-4 rounded-xl bg-danger-soft px-3 py-2.5 text-[13px] text-danger">
+              {error}
+            </div>
+          )}
+          {saved && !error && (
+            <div className="mb-4 rounded-xl bg-mint-soft px-3 py-2.5 text-[13px] font-semibold text-mint">
+              Zapisano.
+            </div>
+          )}
+
+          <button
+            type="submit"
+            disabled={!name.trim() || saving}
+            className="w-full rounded-[13px] bg-mint px-4 py-3 text-[13.5px] font-extrabold text-white shadow-[0_8px_18px_-10px_rgba(27,129,104,0.85)] transition-transform hover:-translate-y-0.5 disabled:opacity-60 disabled:hover:translate-y-0"
+          >
+            {saving ? "Zapisywanie…" : "Zapisz"}
+          </button>
+        </form>
+      </div>
+    </>
   );
 }

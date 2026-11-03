@@ -1,4 +1,7 @@
-/** Rendered by the panel layout. */
+"use client";
+
+import { ProfileView } from "../../../../features/account/ProfileView";
+
 export default function Page() {
-  return null;
+  return <ProfileView />;
 }

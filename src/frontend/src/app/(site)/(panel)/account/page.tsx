@@ -1,4 +1,7 @@
-/** Rendered by the panel layout. */
+"use client";
+
+import { AccountView } from "../../../../features/account/AccountView";
+
 export default function Page() {
-  return null;
+  return <AccountView />;
 }

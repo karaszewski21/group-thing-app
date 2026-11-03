@@ -3,7 +3,7 @@ import { useUnreadMessages } from "../../hooks/useUnreadMessages";
 import { INBOX_PATH } from "../../routing/messagesPaths";
 import { BoxIcon, ChatIcon, HomeIcon, PlusIcon, UserIcon } from "../shared/appIcons";
 import { ACCOUNT_SUBVIEWS } from "../../utils/appHelpers";
-import { viewFromPath, viewPath } from "../../routing/paths";
+import { viewPath } from "../../routing/paths";
 
 type TabKey = "home" | "chat" | "items" | "account";
 
@@ -25,9 +25,11 @@ const TAB_CLASS =
  * group details, …). */
 function activeTab(pathname: string): TabKey | undefined {
   if (pathname === INBOX_PATH || pathname.startsWith(`${INBOX_PATH}/`)) return "chat";
-  const view = viewFromPath(pathname);
-  if (view === "home" || view === "items" || view === "account") return view;
-  if (view !== null && ACCOUNT_SUBVIEWS.includes(view)) return "account";
+  if (pathname === viewPath("home")) return "home";
+  if (pathname === viewPath("items")) return "items";
+  if (pathname === viewPath("account") || ACCOUNT_SUBVIEWS.some((view) => pathname === viewPath(view))) {
+    return "account";
+  }
   return undefined;
 }
 

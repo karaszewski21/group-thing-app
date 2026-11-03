@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, type ReactNode } from "react";
 import { AuthGuard } from "../../auth/AuthGuard";
 import { useAuth } from "../../auth/AuthContext";
 import { clearSession } from "../../auth/session";
@@ -9,12 +9,12 @@ import { PublicAddView } from "../add/AddView";
 import { LandingPage } from "../landing/LandingPage";
 import { AppPage } from "./AppPage";
 
-/** Every panel section, "/" included, behind one element so switching
- * sections keeps AppPage (and its loaded data) mounted. An anonymous visitor
- * gets the LandingPage at "/" (a stale session cookie that led here is
- * cleared), the "Co dodajesz?" tiles at /add (each leading to the login page)
- * and the login page elsewhere. */
-export function PanelGate() {
+/** The panel layout's gate around the section page (`children`): logged in,
+ * AppPage's frame and panel data, kept mounted while switching sections. An
+ * anonymous visitor gets the LandingPage at "/" (a stale session cookie that
+ * led here is cleared), the "Co dodajesz?" tiles at /add (each leading to the
+ * login page) and the login page elsewhere. */
+export function PanelGate({ children }: { children: ReactNode }) {
   const { token } = useAuth();
   const pathname = useAppPathname();
   const anonymousHome = !token && pathname === viewPath("home");
@@ -35,7 +35,7 @@ export function PanelGate() {
   }
   return (
     <AuthGuard>
-      <AppPage />
+      <AppPage>{children}</AppPage>
     </AuthGuard>
   );
 }

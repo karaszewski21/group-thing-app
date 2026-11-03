@@ -5,6 +5,7 @@ import { familyMemberEditPath, viewPath } from "../../routing/paths";
 import { isSafeReturnPath } from "../../utils/url";
 import { BackIcon, PencilIcon, TrashIcon } from "../../components/shared/appIcons";
 import { useAppData } from "../panel/appDataStore";
+import { AccountSubPageHeader } from "../account/AccountSubPageHeader";
 
 const ADD_BUTTON =
   "flex min-h-10 flex-none items-center rounded-full border-[1.5px] border-line bg-paper px-3.5 text-sm font-extrabold text-ink hover:border-line-strong";
@@ -45,6 +46,7 @@ export function FamilyView() {
   if (family === null) {
     return (
       <div>
+        <AccountSubPageHeader />
         <div className="mb-3.5">
           <h2 className="text-[19px] font-semibold text-ink">Mój dom</h2>
         </div>
@@ -67,6 +69,7 @@ export function FamilyView() {
 
   return (
     <div>
+      <AccountSubPageHeader />
       <div className="mb-3.5 flex items-start justify-between gap-2.5">
         <div className="min-w-0">
           <h2 className="text-[19px] font-semibold text-ink">Mój dom</h2>

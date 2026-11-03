@@ -5,6 +5,8 @@ import { LOCATION_ERROR_CLASS } from "../../components/shared/LocationAddForm";
 import { ConfirmDeleteDialog } from "../../components/shared/ConfirmDeleteDialog";
 import { useMyLocations } from "../../hooks/useMyLocations";
 import { placeEditPath, viewPath } from "../../routing/paths";
+import { AccountSubPageHeader } from "../account/AccountSubPageHeader";
+import { usePanelReload } from "../panel/appDataStore";
 
 /* ------------------------------------------------------------------ */
 /*  "Moje miejsca" (/places): the caller's saved places, deleted here; */
@@ -15,9 +17,10 @@ import { placeEditPath, viewPath } from "../../routing/paths";
 const rowBtn =
   "flex-none rounded-[9px] px-2.5 py-1.5 text-[11.5px] font-extrabold text-ink-soft transition-colors";
 
-/** `onPlacesChanged` lets the panel refresh the group tiles and term cards
+/** `onPlacesChanged` (the panel reload) lets the panel refresh the group tiles and term cards
  * that show a place's name and address. */
-export function PlacesView({ onPlacesChanged }: { onPlacesChanged: () => void }) {
+export function PlacesView() {
+  const onPlacesChanged = usePanelReload();
   const { data: locations, loading, error, remove } = useMyLocations();
   const [deleting, setDeleting] = useState<LocationResponse | null>(null);
   const focusables = useRef(new Map<string, HTMLElement>());
@@ -53,6 +56,7 @@ export function PlacesView({ onPlacesChanged }: { onPlacesChanged: () => void })
 
   return (
     <>
+      <AccountSubPageHeader />
       <h1 className="mb-5 font-serif text-[32px] leading-tight font-extrabold tracking-tight text-ink">
         Moje miejsca
       </h1>

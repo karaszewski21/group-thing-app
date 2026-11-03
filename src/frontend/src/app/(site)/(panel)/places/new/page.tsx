@@ -1,4 +1,7 @@
-/** Rendered by the panel layout. */
+"use client";
+
+import { PlaceCreateView } from "../../../../../features/places/PlaceCreateView";
+
 export default function Page() {
-  return null;
+  return <PlaceCreateView />;
 }

@@ -1,4 +1,4 @@
-import { createContext, useContext } from "react";
+import { createContext, useCallback, useContext } from "react";
 import type { AppDataContextValue } from "./AppDataContext";
 
 /* Context object + hook for the Panel state layer. Kept in a hookless `.ts`
@@ -13,4 +13,11 @@ export function useAppData(): AppDataContextValue {
     throw new Error("useAppData must be used within AppDataProvider");
   }
   return ctx;
+}
+
+/** A silent re-read of the panel data, for a section that changed something
+ * other sections show (places, the organization). */
+export function usePanelReload(): () => void {
+  const { load } = useAppData();
+  return useCallback(() => void load({ silent: true }), [load]);
 }

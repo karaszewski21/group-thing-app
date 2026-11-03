@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useAppNavigate, useAppParams } from "../../routing/navigation";
 import type { LocationResponse, UpdateLocationRequest } from "../../api/locations";
-import { useAppData } from "../panel/appDataStore";
+import { useAppData, usePanelReload } from "../panel/appDataStore";
 import {
   LOCATION_CANCEL_BTN_CLASS,
   LOCATION_ERROR_CLASS,
@@ -17,9 +17,10 @@ const TITLE = "Edytuj miejsce";
 
 /** `/places/:locationId/edit`: name, notes and — for a manually entered
  * place — the address; a Google place keeps its address. Saves, then goes
- * back to "Moje miejsca". `onPlacesChanged` lets the panel refresh the group
- * tiles and term cards that show the place. */
-export function PlaceEditView({ onPlacesChanged }: { onPlacesChanged: () => void }) {
+ * back to "Moje miejsca". `onPlacesChanged` (the panel reload) refreshes the
+ * group tiles and term cards that show the place. */
+export function PlaceEditView() {
+  const onPlacesChanged = usePanelReload();
   const { locationId = "" } = useAppParams();
   const navigate = useAppNavigate();
   const { showToast } = useAppData();

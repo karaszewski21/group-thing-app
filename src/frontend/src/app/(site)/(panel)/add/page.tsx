@@ -1,4 +1,7 @@
-/** Rendered by the panel layout. */
+"use client";
+
+import { AddView } from "../../../../features/add/AddView";
+
 export default function Page() {
-  return null;
+  return <AddView />;
 }

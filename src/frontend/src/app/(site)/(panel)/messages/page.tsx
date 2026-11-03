@@ -1,4 +1,7 @@
-/** Rendered by the panel layout. */
+"use client";
+
+import { InboxPage } from "../../../../features/messages/InboxPage";
+
 export default function Page() {
-  return null;
+  return <InboxPage />;
 }

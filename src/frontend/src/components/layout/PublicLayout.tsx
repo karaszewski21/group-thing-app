@@ -4,7 +4,6 @@ import { useAuth } from "../../auth/AuthContext";
 import { HEADER_BUTTON } from "../shared/headerButton";
 import { NotificationBell } from "../shared/NotificationBell";
 import { PendingActionsHost } from "./pending/PendingActionsHost";
-import { INBOX_PATH } from "../../routing/messagesPaths";
 import { BellIcon, CalendarIcon, SearchIcon } from "../shared/appIcons";
 import { matchPath, viewPath } from "../../routing/paths";
 import { authPath } from "../../auth/authPaths";
@@ -24,14 +23,13 @@ const FOCUS_RING = "focus-visible:outline-2 focus-visible:outline-offset-2 focus
 export function PublicLayout({ children }: { children: ReactNode }) {
   const { token } = useAuth();
   const pathname = useAppPathname();
-  const inThread = matchPath(`${INBOX_PATH}/:conversationId`, pathname) !== null;
   const onSearch = matchPath(viewPath("search"), pathname) !== null;
 
   return (
-    <div className={`flex flex-col bg-cream ${inThread ? "h-dvh" : "min-h-dvh"}`}>
+    <div className={`flex flex-col bg-cream min-h-dvh`}>
       <header className="sticky top-0 z-20 flex flex-none flex-col gap-3 border-b border-line bg-cream px-4 py-3">
         <nav aria-label="Menu konta" className="flex items-center gap-2">
-          {!inThread && !onSearch && (
+          {!onSearch && (
           <Link
             to={viewPath("search")}
             className={`flex flex-1 min-h-12 items-center gap-2.5 rounded-full border-[1.5px] border-line bg-paper px-4.5 text-[15px] text-ink-soft transition-colors hover:border-line-strong ${FOCUS_RING}`}

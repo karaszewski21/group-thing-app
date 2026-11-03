@@ -53,7 +53,7 @@ function renderWithProviders(ui: React.ReactElement, initialRoute = "/") {
   });
 }
 
-renderWithRoute(<PanelGate />, { url: "/add/event", routes: { "/login": <p>Logowanie</p> } });
+renderWithRoute(<PanelGate>{null}</PanelGate>, { url: "/add/event", routes: { "/login": <p>Logowanie</p> } });
 await waitFor(() => expect(getTestLocation().pathname).toBe("/login"));
 ```
 

@@ -1,4 +1,7 @@
-/** Rendered by the panel layout. */
+"use client";
+
+import { FamilyMemberEditView } from "../../../../../../../features/family/FamilyMemberEditView";
+
 export default function Page() {
-  return null;
+  return <FamilyMemberEditView />;
 }

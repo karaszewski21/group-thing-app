@@ -1,12 +1,14 @@
 import { ToggleRow } from "../../components/shared/appComponents";
 import { LogoutIcon } from "../../components/shared/appIcons";
 import { useAppData } from "../panel/appDataStore";
+import { AccountSubPageHeader } from "./AccountSubPageHeader";
 
 export function SettingsView() {
   const { settings, setSettings, logout } = useAppData();
 
   return (
     <>
+      <AccountSubPageHeader />
       <div className="rounded-[22px] border border-line bg-paper p-5">
         <h3 className="mb-1 text-base font-semibold text-ink">Prywatność</h3>
         <ToggleRow

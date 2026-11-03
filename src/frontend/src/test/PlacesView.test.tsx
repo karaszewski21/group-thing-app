@@ -13,7 +13,10 @@ import { renderWithRoute } from "./renderWithRoute";
 vi.mock("../auth/AuthContext", () => ({ useAuth: () => ({ token: "token-a" }) }));
 
 const showToast = vi.fn();
-vi.mock("../features/panel/appDataStore", () => ({ useAppData: () => ({ showToast }) }));
+vi.mock("../features/panel/appDataStore", () => ({
+  useAppData: () => ({ showToast }),
+  usePanelReload: () => onPlacesChanged,
+}));
 
 vi.mock("../api/locations", () => ({
   getMyLocations: vi.fn(),
@@ -87,12 +90,12 @@ function mockCreatedOnSave(created: LocationResponse) {
 
 /** "Moje miejsca" with its add and edit pages, as the panel routes them. */
 function renderView(path = "/places") {
-  return renderWithRoute(<PlacesView onPlacesChanged={onPlacesChanged} />, {
+  return renderWithRoute(<PlacesView />, {
     url: path,
     pattern: "/places",
     routes: {
       "/places/new": <PlaceCreateView />,
-      "/places/:locationId/edit": <PlaceEditView onPlacesChanged={onPlacesChanged} />,
+      "/places/:locationId/edit": <PlaceEditView />,
     },
     wrapper: createQueryWrapper(),
   });

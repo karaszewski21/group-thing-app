@@ -1,4 +1,7 @@
-/** Rendered by the panel layout. */
+"use client";
+
+import { TermAttendeesPage } from "../../../../../features/meetings/TermAttendeesPage";
+
 export default function Page() {
-  return null;
+  return <TermAttendeesPage />;
 }

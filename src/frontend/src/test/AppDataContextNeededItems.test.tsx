@@ -11,7 +11,7 @@ import * as termsApi from "../api/terms";
 import { AppDataProvider } from "../features/panel/AppDataContext";
 import { useAppData } from "../features/panel/appDataStore";
 import { createQueryWrapper } from "./queryClient";
-import { routeWrapper } from "./renderWithRoute";
+import { getTestLocation, routeWrapper } from "./renderWithRoute";
 
 vi.mock("../auth/AuthContext", () => ({
   useAuth: () => ({ token: "tok", username: "anna", logout: vi.fn() }),
@@ -118,7 +118,7 @@ describe("AppDataContext — handleAddTerm needed items", () => {
 
     await act(() => result.current.handleAddTerm());
 
-    expect(result.current.view).toBe("meetings");
+    expect(getTestLocation().pathname).toBe("/meetings");
     expect(result.current.addTermError).toBeNull();
     expect(result.current.neededDraft).toEqual([]);
   });

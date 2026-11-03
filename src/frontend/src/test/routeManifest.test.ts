@@ -9,7 +9,6 @@ import {
   familyMemberEditPath,
   groupDetailsPath,
   groupEditPath,
-  ID_PATH_VIEWS,
   ownerPagePath,
   placeEditPath,
   termAttendeesPath,
@@ -133,7 +132,7 @@ describe("App Router route manifest", () => {
         "add/hunting",
         "messages",
         "organization",
-      ] satisfies Exclude<View, (typeof ID_PATH_VIEWS)[number]>[]
+      ] satisfies View[]
     ).map(viewPath);
     const urls = [
       ...views,

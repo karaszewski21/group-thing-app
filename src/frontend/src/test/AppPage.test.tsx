@@ -4,6 +4,8 @@ import { afterEach, describe, expect, it, vi, beforeEach } from "vitest";
 import type { ReactNode } from "react";
 import { Link, useAppNavigate, useAppPathname, useNavigationState } from "../routing/navigation";
 import { renderWithRoute } from "./renderWithRoute";
+import { PanelPageOutlet } from "./PanelPageOutlet";
+import { panelRoutes } from "./panelPages";
 
 import * as peopleApi from "../api/people";
 import * as familiesApi from "../api/families";
@@ -340,19 +342,18 @@ function EventRouteStub() {
 // panel the way BottomNav is.
 const HEADER_SPOTKANIA = <Link to="/meetings" aria-label="Spotkania" />;
 
-/** The panel's routes, each page rendered by `page`. */
-function panelRoutes(page: (element: ReactNode) => ReactNode): Record<string, ReactNode> {
+/** The panel frame with the section page the URL selects, as the panel
+ * layout renders it. */
+const PANEL = (
+  <AppPage>
+    <PanelPageOutlet />
+  </AppPage>
+);
+
+/** The panel's routes (one shared tree) plus the event page, each rendered by `page`. */
+function appRoutes(page: (element: ReactNode) => ReactNode): Record<string, ReactNode> {
   return {
-    "/:view": page(<AppPage />),
-    "/add/:page": page(<AppPage />),
-    "/groups/new": page(<AppPage />),
-    "/groups/:groupId/edit": page(<AppPage />),
-    "/places/new": page(<AppPage />),
-    "/family/:page": page(<AppPage />),
-    "/family/members/new": page(<AppPage />),
-    "/family/members/:familyMembershipId/edit": page(<AppPage />),
-    "/events/:eventId/edit": page(<AppPage />),
-    "/terms/:termId/edit": page(<AppPage />),
+    ...panelRoutes(page(PANEL)),
     "/:organizationSlug/event/:eventId": page(<EventRouteStub />),
   };
 }
@@ -365,18 +366,17 @@ function renderPanel(initialEntry = "/") {
       <BottomNav />
     </>
   );
-  return renderWithRoute(page(<AppPage />), {
+  return renderWithRoute(page(PANEL), {
     url: initialEntry,
     pattern: "/",
-    routes: panelRoutes(page),
+    routes: appRoutes(page),
     wrapper: createQueryWrapper(),
   });
 }
 
 // Bug #3 (cache refresh): a bare navigation harness rendered alongside the
-// /panel routes so a test can drive real router navigation (away from
-// and back to /panel) without unmounting the router itself — exercises
-// AppDataContext's route-watching silent-reload effect.
+// panel routes so a test can drive real router navigation (away from and
+// back to the panel) without unmounting the router itself.
 function NavigationHarness() {
   const navigate = useAppNavigate();
   return (
@@ -400,10 +400,10 @@ function renderPanelWithNavigation() {
       <BottomNav />
     </>
   );
-  return renderWithRoute(page(<AppPage />), {
+  return renderWithRoute(page(PANEL), {
     url: "/",
     pattern: "/",
-    routes: { ...panelRoutes(page), "/other": page(<div>Poza panelem</div>) },
+    routes: { ...appRoutes(page), "/other": page(<div>Poza panelem</div>) },
     wrapper: createQueryWrapper(),
   });
 }
@@ -2176,12 +2176,10 @@ describe("AppPage — silent reloads", () => {
     vi.resetAllMocks();
   });
 
-  // Bug #3 (cache refresh, structural fix): AppDataContext gains a
-  // route-watching effect (useLocation) that silently reloads panel data
-  // whenever the pathname transitions onto a /panel/* route — so a
-  // confirmation made from the term page (TermPage) is reflected once
-  // the user navigates back to the panel, without needing a manual refresh.
-  it("silently reloads panel data on re-entry to a /panel/* route after navigating away and back", async () => {
+  // Bug #3 (cache refresh): leaving the panel unmounts its layout, so a
+  // confirmation made from the term page (TermPage) is reflected once the
+  // user navigates back — the panel data is read again on re-entry.
+  it("reads the panel data again on re-entry after navigating away and back", async () => {
     mockGuestDefaults();
     renderPanelWithNavigation();
 

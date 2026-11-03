@@ -10,8 +10,8 @@ vi.mock("../features/panel/AppPage", () => ({ AppPage: () => <h1>Panel</h1> }));
 
 /** `url` as the App Router serves it: a panel page, so the panel layout's gate. */
 function renderAt(url: string) {
-  expect(pageFor(url)?.dir).toBe(`(site)/(panel)${url}`);
-  renderWithRoute(<PanelGate />, { url, routes: { "/login": <p>Logowanie</p> } });
+  expect(pageFor(url)?.dir).toBe(`(site)/(panel)/(scroll)${url}`);
+  renderWithRoute(<PanelGate>{null}</PanelGate>, { url, routes: { "/login": <p>Logowanie</p> } });
 }
 
 describe("/add route", () => {

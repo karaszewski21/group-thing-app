@@ -1,4 +1,7 @@
-/** Rendered by the panel layout. */
+"use client";
+
+import { PlacesView } from "../../../../features/places/PlacesView";
+
 export default function Page() {
-  return null;
+  return <PlacesView />;
 }

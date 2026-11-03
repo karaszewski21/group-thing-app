@@ -1,4 +1,7 @@
-/** Rendered by the panel layout. */
+"use client";
+
+import { EventCreateView } from "../../../../../features/events/EventCreateView";
+
 export default function Page() {
-  return null;
+  return <EventCreateView />;
 }

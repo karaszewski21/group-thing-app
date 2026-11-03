@@ -1,4 +1,7 @@
-/** Rendered by the panel layout. */
+"use client";
+
+import { ThreadPage } from "../../../../../features/messages/ThreadPage";
+
 export default function Page() {
-  return null;
+  return <ThreadPage />;
 }

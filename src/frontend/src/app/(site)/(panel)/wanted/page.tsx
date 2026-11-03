@@ -1,4 +1,7 @@
-/** Rendered by the panel layout. */
+"use client";
+
+import { WantedView } from "../../../../features/search/WantedView";
+
 export default function Page() {
-  return null;
+  return <WantedView />;
 }

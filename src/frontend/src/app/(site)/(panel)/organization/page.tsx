@@ -1,4 +1,7 @@
-/** Rendered by the panel layout. */
+"use client";
+
+import { OrganizationPage } from "../../../../features/owner-page/OrganizationPage";
+
 export default function Page() {
-  return null;
+  return <OrganizationPage />;
 }

@@ -1,4 +1,7 @@
-/** Rendered by the panel layout. */
+"use client";
+
+import { ItemCreateView } from "../../../../../features/items/ItemCreateView";
+
 export default function Page() {
-  return null;
+  return <ItemCreateView />;
 }

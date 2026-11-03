@@ -1,4 +1,7 @@
-/** Rendered by the panel layout. */
+"use client";
+
+import { MyItemsView } from "../../../../features/items/MyItemsView";
+
 export default function Page() {
-  return null;
+  return <MyItemsView />;
 }
