@@ -386,8 +386,7 @@ function useAppDataValue() {
     setAddGroupError(null);
     try {
       // Non-idempotent — an organizer who already leads a Circle still gets
-      // a genuinely NEW one here (unlike `createMyCircle`, which is reserved
-      // for the one-time "become an Organizer" flows).
+      // a genuinely NEW one here.
       await createAdditionalMyCircle({
         name: groupForm.name.trim(),
         visibility: groupForm.visibility,

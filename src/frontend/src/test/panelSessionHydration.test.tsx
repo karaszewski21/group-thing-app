@@ -4,6 +4,7 @@ import { act, screen } from "@testing-library/react";
 import { hydrateRoot, type Root } from "react-dom/client";
 import { renderToString } from "react-dom/server";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { sessionFromToken } from "../auth/session";
 import { AuthProvider } from "../auth/AuthContext";
 import { PanelGate } from "../features/panel/PanelGate";
 import { ClientOnly } from "../routing/ClientOnly";
@@ -32,7 +33,7 @@ function panelTree(initialToken: string) {
   return (
     <QueryClientProvider client={createTestQueryClient()}>
       <ChakraProvider value={system}>
-        <AuthProvider initialToken={initialToken}>
+        <AuthProvider initialSession={sessionFromToken(initialToken)}>
           <ClientOnly>
             <PanelGate />
           </ClientOnly>

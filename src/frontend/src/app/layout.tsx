@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { cookies } from "next/headers";
 import type { ReactNode } from "react";
+import { sessionFromToken } from "../auth/session";
 import { Providers } from "./providers";
 import "./globals.css";
 
@@ -10,7 +11,7 @@ export const metadata: Metadata = {
 };
 
 export default async function RootLayout({ children }: { children: ReactNode }) {
-  const initialToken = (await cookies()).get("auth_token")?.value ?? null;
+  const initialSession = sessionFromToken((await cookies()).get("auth_token")?.value);
   return (
     <html lang="pl" suppressHydrationWarning>
       <head>
@@ -23,7 +24,7 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
       </head>
       <body>
         <div id="root">
-          <Providers initialToken={initialToken}>{children}</Providers>
+          <Providers initialSession={initialSession}>{children}</Providers>
         </div>
       </body>
     </html>

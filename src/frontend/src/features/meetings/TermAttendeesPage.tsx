@@ -1,7 +1,6 @@
 import { Link, useAppParams } from "../../routing/navigation";
 import type { GroupResponse, TermAttendeeResponse } from "../../api/groups";
 import type { TermResponse } from "../../api/terms";
-import { PhoneFrame } from "../../components/shared/PhoneFrame";
 import { useOpenAndNavigate } from "../../hooks/useOpenAndNavigate";
 import { useTermAttendees } from "../../hooks/useTermAttendees";
 import { formatChildAges } from "../../utils/age";
@@ -9,36 +8,34 @@ import { pluralPl } from "../../utils/plural";
 import { dayMonth, termPublicPath, termTime } from "../../utils/appHelpers";
 import { BackIcon } from "../../components/shared/appIcons";
 
-/** Organizer-only list of who signed up for one term (`/terms/:termId`).
- * A standalone route outside AppDataProvider: the hook resolves the group
- * from the term itself. */
+/** Organizer-only list of who signed up for one term (`/terms/:termId`), a
+ * panel view that loads its own data: the hook resolves the group from the
+ * term itself. */
 export function TermAttendeesPage() {
   const { termId = "" } = useAppParams();
   const { term, group, attendees, denied, notFound, error, loading, refetch } =
     useTermAttendees(termId);
 
   return (
-    <PhoneFrame>
-      <div className="flex-1 overflow-y-auto px-[18px] pb-6 pt-[18px]">
-        <Link
-          to="/meetings"
-          className="mb-4 inline-flex items-center gap-1.5 text-xs font-bold text-ink-soft"
-        >
-          <BackIcon /> Wróć
-        </Link>
-        <h2 className="text-[19px] font-semibold text-ink">Zapisani</h2>
-        <TermAttendeesBody
-          term={term}
-          group={group}
-          attendees={attendees}
-          denied={denied}
-          notFound={notFound}
-          error={error}
-          loading={loading}
-          onRetry={() => void refetch()}
-        />
-      </div>
-    </PhoneFrame>
+    <>
+      <Link
+        to="/meetings"
+        className="mb-4 inline-flex items-center gap-1.5 text-xs font-bold text-ink-soft"
+      >
+        <BackIcon /> Wróć
+      </Link>
+      <h2 className="text-[19px] font-semibold text-ink">Zapisani</h2>
+      <TermAttendeesBody
+        term={term}
+        group={group}
+        attendees={attendees}
+        denied={denied}
+        notFound={notFound}
+        error={error}
+        loading={loading}
+        onRetry={() => void refetch()}
+      />
+    </>
   );
 }
 

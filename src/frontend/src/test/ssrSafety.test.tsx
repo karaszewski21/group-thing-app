@@ -4,6 +4,7 @@ import { QueryClientProvider, type QueryClient } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { renderToString } from "react-dom/server";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { sessionFromToken } from "../auth/session";
 import type { EventDetailResponse } from "../api/events";
 import type { GroupAccessResponse } from "../api/groups";
 import { AuthProvider } from "../auth/AuthContext";
@@ -88,7 +89,7 @@ function renderOnServer(
   return renderToString(
     <QueryClientProvider client={client}>
       <ChakraProvider value={system}>
-        <AuthProvider initialToken={token}>
+        <AuthProvider initialSession={sessionFromToken(token)}>
           {routeElement(page, { url, pattern })}
         </AuthProvider>
       </ChakraProvider>

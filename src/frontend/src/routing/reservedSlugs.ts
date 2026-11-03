@@ -19,7 +19,6 @@ export const RESERVED_SLUGS: readonly string[] = [
   "events",
   "terms",
   "messages",
-  "onboarding",
   "organization",
   "oauth2",
   "admin",

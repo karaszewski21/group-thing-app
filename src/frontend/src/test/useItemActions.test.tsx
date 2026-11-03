@@ -28,7 +28,6 @@ function mockViewer(username: string | null) {
     username,
     displayName: null,
     permissions: [],
-    registeredRole: null,
     login: vi.fn(),
     register: vi.fn(),
     applyExternalToken: vi.fn(),

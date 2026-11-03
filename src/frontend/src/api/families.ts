@@ -132,8 +132,7 @@ export function getMembershipsForFamily(familyId: string): Promise<MembershipRes
 }
 
 /** Bootstraps the calling guardian's own Family on first call, then adds
- * every batch member (no per-member API call) — backs the onboarding
- * wizard's "Członkowie rodziny" step, submitted once on step advance. */
+ * every batch member (no per-member API call). */
 export function createLightweightMembers(
   members: CreateLightweightMemberRequest[],
 ): Promise<FamilyResponse> {

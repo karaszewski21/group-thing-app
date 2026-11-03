@@ -4,7 +4,7 @@ import { authPath } from "../../../auth/authPaths";
 import { BTN_GHOST, BTN_PRIMARY } from "../../../components/shared/uiStyles";
 
 /** The current page as a `returnTo`, so both logging in and registering
- * (via onboarding) bring the visitor back here. The fragment is left out on
+ * bring the visitor back here. The fragment is left out on
  * purpose: inside the query it would reach the server, so a `#code=`
  * survives login through sessionStorage instead (`TermPage`). */
 function useReturnTo(): string {

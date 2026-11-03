@@ -103,13 +103,13 @@ describe("PublicLayout", () => {
     }
   });
 
-  it("a chat thread keeps the top bar but drops the search field and the bottom nav", () => {
+  it("a chat thread keeps the top bar and the bottom nav but drops the search field", () => {
     mockAuth = { token: "tok" };
     renderPublicPage("/messages/7");
 
     expect(screen.getByRole("navigation", { name: "Menu konta" })).toBeInTheDocument();
     expect(screen.queryByRole("link", { name: "Szukaj rzeczy i spotkań" })).not.toBeInTheDocument();
-    expect(screen.queryByRole("navigation", { name: "Nawigacja główna" })).not.toBeInTheDocument();
+    expect(screen.getByRole("navigation", { name: "Nawigacja główna" })).toBeInTheDocument();
   });
 
   it("/login sits inside the layout with both global bars", () => {

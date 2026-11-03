@@ -1,12 +1,12 @@
 window.MAISTER_DATA = {
-  "generated": "2026-11-02T21:02:02Z",
+  "generated": "2026-11-03T10:08:17Z",
   "task": {
     "title": "Migrate frontend from Vite SPA to Next.js",
     "type": "migration",
-    "status": "in_progress",
+    "status": "completed",
     "description": "Vite + React Router SPA to Next.js App Router, no regressions, MVP without production.",
     "path": ".maister/tasks/migrations/2026-11-02-frontend-vite-to-nextjs",
-    "current_activity": "Paused: Phase 6 gate pending (resume tomorrow)"
+    "current_activity": null
   },
   "characteristics": {},
   "phases": [
@@ -295,9 +295,9 @@ window.MAISTER_DATA = {
       "id": "phase-6",
       "name": "Verify and test compatibility",
       "icon_hint": "verify",
-      "status": "in_progress",
+      "status": "completed",
       "started": "2026-11-02T20:07:43Z",
-      "completed": null,
+      "completed": "2026-11-03T08:07:22Z",
       "skip_reason": null,
       "summary": "Failed (fixable): 1 critical (open redirect returnTo), 13 warnings, 11 info; vitest/pytest 0 regressions; dev smoke 58/63 with 2 regressions; compose deferred.",
       "decisions": [],
@@ -339,32 +339,49 @@ window.MAISTER_DATA = {
           "html": null
         }
       ],
-      "gate": null,
+      "gate": {
+        "question": "Continue to Phase 7 (fixes)? Which scope?",
+        "answer": "Must-fix + cheap: 1, 2+3, 4, 7, 5, 6, 9, 10, 12"
+      },
       "progress": null
     },
     {
       "id": "phase-7",
       "name": "Resolve verification issues",
       "icon_hint": "verify",
-      "status": "pending",
-      "started": null,
-      "completed": null,
+      "status": "completed",
+      "started": "2026-11-03T08:07:22Z",
+      "completed": "2026-11-03T10:08:17Z",
       "skip_reason": null,
-      "summary": null,
+      "summary": "Fixed 1, 2+3, 4, 5, 6, 7, 9, 10, 12. Gates: pytest 1138/0, ruff/mypy at baseline, tsc 0, eslint 13 errors, vitest only the 12 A0 fails; smoke S04a/S04b/W04/S13c pass.",
       "decisions": [],
       "risks": [],
-      "artifacts": [],
-      "gate": null,
+      "artifacts": [
+        {
+          "path": "implementation/work-log.md",
+          "label": "Work log (Phase 7)",
+          "html": null
+        },
+        {
+          "path": "analysis/rollback-plan.md",
+          "label": "Rollback plan (as built)",
+          "html": null
+        }
+      ],
+      "gate": {
+        "question": "Close the workflow?",
+        "answer": "Close the workflow; no full re-verification"
+      },
       "progress": null
     },
     {
       "id": "phase-8",
       "name": "Generate documentation",
       "icon_hint": "docs",
-      "status": "pending",
+      "status": "skipped",
       "started": null,
       "completed": null,
-      "skip_reason": null,
+      "skip_reason": "docs_enabled: false",
       "summary": null,
       "decisions": [],
       "risks": [],
@@ -374,45 +391,55 @@ window.MAISTER_DATA = {
     }
   ],
   "verification": {
-    "status": "failed",
+    "status": "passed_with_issues",
     "issues": [
       {
         "severity": "critical",
         "category": "security",
         "description": "Open redirect via ?returnTo= (AuthGuard, OnboardingPage)",
         "fixable": true,
-        "fixed": false
+        "fixed": true
       },
       {
         "severity": "warning",
         "category": "regression",
         "description": "Stale cookie lands on /login (layout initialToken)",
         "fixable": true,
-        "fixed": false
+        "fixed": true
       },
       {
         "severity": "warning",
         "category": "security",
         "description": "Raw JWT in every page HTML/RSC payload",
         "fixable": true,
-        "fixed": false
+        "fixed": true
       },
       {
         "severity": "warning",
         "category": "regression",
         "description": "Plugin SDK blocked by CORS on 5173",
         "fixable": true,
-        "fixed": false
+        "fixed": true
       },
       {
         "severity": "warning",
         "category": "process",
         "description": "rollback-plan.md stale; B1-D uncommitted",
         "fixable": true,
-        "fixed": false
+        "fixed": true
       }
     ],
-    "fixes": [],
+    "fixes": [
+      "1 open redirect: returnTo validated via isSafeReturnPath in AuthGuard and OnboardingPage (+ tests)",
+      "2+3 server passes session claims (sessionFromToken), never the raw JWT; api client ends the session on 401 only when a token was sent",
+      "4 Access-Control-Allow-Origin * on /assets/:path* (next.config headers)",
+      "5 serverGet AbortSignal.timeout(3000)",
+      "6 root .dockerignore excludes .env* and *.local; unused src/frontend/.dockerignore removed",
+      "7 rollback-plan.md rewritten for the real history (C0-C6, C12 fc71c2c, B1-D e0d5d2a, Phase 7 uncommitted)",
+      "9 app/error.tsx and app/global-error.tsx",
+      "10 dead helpers, stale docstring and unreferenced src/resources/static removed",
+      "12 react-hooks set-state-in-effect and refs set to warn"
+    ],
     "reverify_count": 0
   }
 };

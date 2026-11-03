@@ -38,4 +38,13 @@ describe("api client 401 handling", () => {
 
     expect(location.href).toBe("/login?returnTo=%2Fpanel");
   });
+
+  it("request_unauthorizedWithoutToken_doesNotRedirect", async () => {
+    localStorage.clear();
+    const location = stubLocation("/", "");
+
+    await expect(api.get("/notifications/mine")).rejects.toBeInstanceOf(ApiError);
+
+    expect(location.href).toBe("/");
+  });
 });

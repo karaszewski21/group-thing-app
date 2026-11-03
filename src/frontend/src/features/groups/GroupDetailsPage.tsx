@@ -2,7 +2,6 @@ import { useId, type ReactNode } from "react";
 import { Link, useAppParams } from "../../routing/navigation";
 import type { GroupMemberResponse, GroupResponse } from "../../api/groups";
 import { JoinCodeCard } from "./JoinCodeCard";
-import { PhoneFrame } from "../../components/shared/PhoneFrame";
 import { useGroupDetails } from "../../hooks/useGroupDetails";
 import { useGroupTerms } from "../../hooks/useGroupTerms";
 import { useJoinCode } from "../../hooks/useJoinCode";
@@ -14,9 +13,9 @@ import { BackIcon } from "../../components/shared/appIcons";
 const LAYOUT_LABEL = { CIRCLE: "Krąg", PITCH: "Boisko", TABLE: "Stół" } as const;
 const VISIBILITY_LABEL = { PUBLIC: "Publiczna", PRIVATE: "Prywatna (dostęp z kodem)" } as const;
 
-/** Group details plus everyone who signed up for its terms (`/groups/:groupId`).
- * A standalone route outside AppDataProvider, like TermAttendeesPage. The
- * backend lets the group's organizer and its members in. */
+/** Group details plus everyone who signed up for its terms (`/groups/:groupId`),
+ * a panel view. It loads its own data rather than AppDataProvider's, like
+ * TermAttendeesPage. The backend lets the group's organizer and its members in. */
 export function GroupDetailsPage() {
   const { groupId = "" } = useAppParams();
   const { group, members, denied, notFound, error, loading, refetch } = useGroupDetails(groupId);
@@ -34,40 +33,38 @@ export function GroupDetailsPage() {
     .sort((a, b) => a.occurs_on.localeCompare(b.occurs_on))[0];
 
   return (
-    <PhoneFrame>
-      <div className="flex-1 overflow-y-auto px-[18px] pb-6 pt-[18px]">
-        <Link
-          to="/groups"
-          className="mb-4 inline-flex items-center gap-1.5 text-xs font-bold text-ink-soft"
-        >
-          <BackIcon /> Wróć
-        </Link>
-        <h2 className="text-[19px] font-semibold text-ink">{group?.name ?? "Grupa"}</h2>
-        <GroupDetailsBody
-          group={group}
-          members={members}
-          denied={denied}
-          notFound={notFound}
-          error={error}
-          loading={loading}
-          onRetry={() => void refetch()}
-          messageGroupCard={group && isPrivate && mayBeOrganizer && <GroupChatCard groupId={groupId} />}
-          joinCodeCard={
-            group &&
-            isPrivate && (
-              <JoinCodeCard
-                group={group}
-                code={joinCode.code}
-                status={joinCode.status}
-                onRetry={joinCode.refetch}
-                regenerate={joinCode.regenerate}
-                termId={nearestTerm?.id ?? null}
-              />
-            )
-          }
-        />
-      </div>
-    </PhoneFrame>
+    <>
+      <Link
+        to="/groups"
+        className="mb-4 inline-flex items-center gap-1.5 text-xs font-bold text-ink-soft"
+      >
+        <BackIcon /> Wróć
+      </Link>
+      <h2 className="text-[19px] font-semibold text-ink">{group?.name ?? "Grupa"}</h2>
+      <GroupDetailsBody
+        group={group}
+        members={members}
+        denied={denied}
+        notFound={notFound}
+        error={error}
+        loading={loading}
+        onRetry={() => void refetch()}
+        messageGroupCard={group && isPrivate && mayBeOrganizer && <GroupChatCard groupId={groupId} />}
+        joinCodeCard={
+          group &&
+          isPrivate && (
+            <JoinCodeCard
+              group={group}
+              code={joinCode.code}
+              status={joinCode.status}
+              onRetry={joinCode.refetch}
+              regenerate={joinCode.regenerate}
+              termId={nearestTerm?.id ?? null}
+            />
+          )
+        }
+      />
+    </>
   );
 }
 

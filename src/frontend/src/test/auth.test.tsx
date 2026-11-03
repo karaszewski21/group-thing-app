@@ -1,5 +1,6 @@
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi, beforeEach } from "vitest";
+import { sessionFromToken } from "../auth/session";
 import { ChakraProvider } from "@chakra-ui/react";
 import { system } from "../theme/system";
 import { createQueryWrapper } from "./queryClient";
@@ -31,7 +32,7 @@ const mockUseAuth = vi.fn((): {
     role: "GUEST" | "ORGANIZER";
     email: string;
     password: string;
-  }) => Promise<{ partyId: string; role: string }>;
+  }) => Promise<void>;
   logout: () => void;
 } => ({
   token: "test-token",
@@ -113,6 +114,7 @@ describe("API Client Auth", () => {
   });
 
   it("redirects to /login on 401 response", async () => {
+    localStorage.setItem("auth_token", "rejected-jwt-token");
     mockFetch.mockResolvedValueOnce({
       ok: false,
       status: 401,
@@ -195,7 +197,7 @@ describe("LoginPage", () => {
 
 describe("RegisterForm", () => {
   it("posts register body as exactly {role, email, password}", async () => {
-    const mockRegister = vi.fn(async () => ({ partyId: "1", role: "GUEST" }));
+    const mockRegister = vi.fn(async () => {});
     mockUseAuth.mockReturnValue({
       token: null as string | null,
       username: null as string | null,
@@ -253,8 +255,8 @@ describe("RegisterForm", () => {
     expect(loginLinks.some((link) => link.getAttribute("href") === "/login")).toBe(true);
   });
 
-  it("navigates to /onboarding on successful registration", async () => {
-    const mockRegister = vi.fn(async () => ({ partyId: "1", role: "GUEST" }));
+  it("registers with the chosen role and leaves the redirect to the page's AuthGuard", async () => {
+    const mockRegister = vi.fn(async () => {});
     mockUseAuth.mockReturnValue({
       token: null as string | null,
       username: null as string | null,
@@ -273,8 +275,9 @@ describe("RegisterForm", () => {
     fireEvent.click(screen.getByRole("button", { name: /załóż konto/i }));
 
     await waitFor(() => {
-      expect(getTestRouter().calls).toContainEqual({ method: "replace", url: "/onboarding", scroll: true });
+      expect(mockRegister).toHaveBeenCalledWith({ role: "GUEST", email: "new@example.com", password: "pass123" });
     });
+    expect(getTestRouter().calls).toEqual([]);
   });
 });
 
@@ -302,7 +305,7 @@ describe("AuthContext", () => {
 
     render(
       <ChakraProvider value={system}>
-        <RealAuthProvider initialToken={mockToken}>
+        <RealAuthProvider initialSession={sessionFromToken(mockToken)}>
           <TestConsumer />
         </RealAuthProvider>
       </ChakraProvider>, { wrapper: createQueryWrapper() },

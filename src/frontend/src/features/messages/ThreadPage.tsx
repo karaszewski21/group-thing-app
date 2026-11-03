@@ -36,8 +36,9 @@ const FOCUS_RING = "focus-visible:outline-2 focus-visible:outline-offset-2 focus
 
 type Thread = ReturnType<typeof useThread>;
 
-/** One conversation, full height under the top bar: header, scrolling
- * messages and the sticky composer (or the read-only banner). */
+/** One conversation (`/messages/:conversationId`, a panel view), filling the
+ * frame between the top bar and the tab bar: header, scrolling messages and
+ * the composer (or the read-only banner). */
 export function ThreadPage() {
   const { conversationId = "" } = useAppParams();
   const conversation = useConversation(conversationId);

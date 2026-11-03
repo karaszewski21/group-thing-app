@@ -102,7 +102,7 @@ describe("page generateMetadata", () => {
     expect(fetchMock).toHaveBeenCalledTimes(1);
     const [url, init] = fetchMock.mock.calls[0];
     expect(new URL(url).pathname + new URL(url).search).toBe(path);
-    expect(init).toEqual({ cache: "no-store" });
+    expect(init).toEqual({ cache: "no-store", signal: expect.any(AbortSignal) });
   });
 
   it.each(PAGES.flatMap(({ kind, load }) => [

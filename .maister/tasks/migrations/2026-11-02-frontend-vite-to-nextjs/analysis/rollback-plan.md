@@ -1,80 +1,68 @@
-# Rollback Plan: Frontend Vite SPA → Next.js 16.4
+# Rollback Plan: Frontend Vite SPA → Next.js 16.4 (as built)
 
 ## TL;DR
-- The unit of rollback is a checkpoint commit on `main`, C0–C13 (spec §1). C0 contains only the user's pre-existing WIP, so "pre-migration" = C0.
-- Every checkpoint leaves the app runnable: Vite through C8, Next from C9 on. No DB migrations are involved, so rolling back never touches data.
-- Backend changes sit in their own commits: C6 (cookie read, `Vary`, `home` slug) and C12 (OG and catch-all removal). Each can be reverted on its own, with the caveats below.
-- Rollback commands (`git reset --hard`, `git revert`) are run by the user. Agents never run destructive git commands.
+- History on `main` has 9 migration commits: C0–C6 one per phase, C12 (`fc71c2c`) for the backend OG removal, and one combined commit `e0d5d2a` holding B1–D (planned C7–C11 + C13). The Phase 7 fixes sit uncommitted on top of `e0d5d2a`.
+- Pre-migration = C0 `2fcb7f5` (user WIP only). The last Vite state = C6 `7efeba8`. There is no "Next scaffold but still Vite" point: B1–B4, C1 and D are one commit.
+- No DB migrations anywhere, so rolling back never touches data.
+- Rollback commands (`git reset --hard`, `git revert`, `git stash`) are run by the user. Agents never run destructive git commands.
 
 ## Key Decisions
-- Checkpoints go directly on `main`, one commit per phase. This was the user's choice ("Checkpointy na main").
-- C0 is committed before any migration change, with only the user's WIP. Without it, the pre-migration state would mix unrelated work with migration work.
+- The planned C7–C11 and C13 checkpoints were squashed into `e0d5d2a` (user committed B1–D at once after "no more commits"). Partial rollback inside B1–D is no longer possible by commit; it would be a manual edit.
 - There is no dual-run plan. There is no production, so running Vite and Next side by side gains nothing.
 
 ## Open Questions / Risks
-- C0 also contains the WIP changes to `architecture.md` and `security.md`. Rolling back to C0 keeps them, because they belong to the user's work.
-- The second task folder `.maister/tasks/migrations/2026-11-02-vite-to-nextjs-frontend/` stays untracked and outside every checkpoint. The user decides what happens to it.
-- Browsers keep an `auth_token` cookie after a rollback to before C5. It does no harm: the pre-C6 backend ignores cookies. To remove it, use devtools or log out once on the new build.
-- Deploy files (Dockerfile, nginx, compose) only match the frontend runtime of their own checkpoint. A partial revert of C13 alone, on top of C9+, leaves compose pointing at the removed Vite `dist/index.html`.
+- Phase 7 fixes (returnTo validation, session claims instead of the raw JWT, anonymous-401 handling, `/assets` CORS, `serverGet` timeout, `error.tsx`/`global-error.tsx`, `.dockerignore`, dead code and `src/resources/static` removal, lint warnings) are uncommitted. `git stash` or `git checkout -- .` drops them; a reset to any commit discards them too.
+- Rolling back to before `e0d5d2a` brings back the open redirect via `?returnTo=` in its weaker (pre-Next) form; the Phase 7 fix does not exist there.
+- Browsers keep an `auth_token` cookie after a rollback to before C5. It does no harm: the pre-C6 backend ignores cookies.
+- Deploy files (Dockerfile, nginx, compose) in `e0d5d2a` only match the Next runtime. Reverting C12 alone is harmless; reverting `e0d5d2a` alone restores the Vite compose flow, which needs the backend's static `index.html` fallback from before C12.
 
-## Checkpoint List
+## Commit List
 
-| Ckpt | Commit subject (suggested) | Side | Runnable state after commit |
-|---|---|---|---|
-| C0 | `wip: owner/meetings pages` | both (user WIP) | Vite (as today) |
-| C1 | `chore(migration): A0 baselines` | task folder only | Vite |
-| C2 | `refactor(frontend): A1 features/ reorganisation` | frontend | Vite |
-| C3 | `refactor(frontend): A2 SSR-safety, getQueryClient` | frontend | Vite |
-| C4 | `refactor(frontend): A3 navigation facade + renderWithRoute` | frontend | Vite |
-| C5 | `feat(frontend): A4 auth_token session cookie` | frontend | Vite |
-| C6 | `feat(backend): A5 cookie on GET/HEAD, Vary Cookie, reserve home` | backend | Vite + backend |
-| C7 | `build(frontend): B1 Next scaffold` | frontend | Vite (Next builds) |
-| C8 | `feat(frontend): B2 App Router route tree` | frontend | Vite (Next builds) |
-| C9 | `refactor(frontend): B3 switch to Next, drop Vite entry` | frontend | **Next** (`next dev -p 5173`) |
-| C10 | `feat(frontend): B4 proxy.ts` | frontend | Next |
-| C11 | `feat(frontend): C1 server metadata + palette` | frontend | Next |
-| C12 | `refactor(backend): C2 remove OG injection + SPA fallback` | backend | Next + backend |
-| C13 | `build: D deploy (Next standalone) + docs + smoke` | infra + docs | Next (dev and compose) |
+| Ckpt | SHA | Subject | Side | Runtime after commit |
+|---|---|---|---|---|
+| C0 | `2fcb7f5` | wip: owner/meetings pages | both (user WIP) | Vite |
+| C1 | `3164a6c` | chore(migration): A0 baselines | task folder | Vite |
+| C2 | `f20cdf9` | refactor(frontend): A1 features/ reorganisation | frontend | Vite |
+| C3 | `aed1197` | refactor(frontend): A2 SSR-safety, getQueryClient | frontend | Vite |
+| C4 | `93c6b47` | refactor(frontend): A3 navigation facade + renderWithRoute | frontend | Vite |
+| C5 | `25c9aec` | feat(frontend): A4 auth_token session cookie | frontend | Vite |
+| C6 | `7efeba8` | feat(backend): A5 cookie on GET/HEAD, Vary Cookie, reserve home | backend | Vite + backend |
+| C12 | `fc71c2c` | refactor(backend): C2 remove OG injection + SPA fallback | backend | Vite dev only (compose has no index fallback) |
+| B1–D | `e0d5d2a` | feat(frontend): migrate to Next.js 16.4 App Router (B1–D) | frontend + infra + docs | **Next** (dev and compose) |
+| — | working tree | Phase 7 verification fixes | frontend + backend | Next |
 
-Record each checkpoint SHA in `implementation/work-log.md` when its commit is made.
+Note: C12 was committed before `e0d5d2a`, so in the one-commit window `fc71c2c` the compose stack has neither the backend fallback nor Next. Dev (`vite` on 5173) works there.
 
 ## Procedures
 
+### Drop only the Phase 7 fixes
+`git stash -u` (keeps them recoverable) or `git checkout -- . && git clean -fd -- src` (discards). Then `npm ci` is not needed; dependencies are unchanged.
+
 ### Full rollback to pre-migration
-`git reset --hard <C0>` (user-run). Then run `npm ci` in `src/frontend` to restore Vite and `react-router-dom`. The backend needs no step: it has no migrations. Optionally rebuild compose. The old `frontend-build` → `frontend_index` flow comes back with C0's compose file.
+`git reset --hard 2fcb7f5` (user-run). Then `npm ci` in `src/frontend` restores Vite and `react-router-dom`. The backend needs no step. Optionally rebuild compose; C0's compose file brings back the `frontend-build` → `frontend_index` flow.
 
 ### Roll back to the last Vite state
-`git reset --hard <C8>`, then `npm ci`. You get Vite plus all the prep work. Next files exist but nothing runs them. To discard the scaffold as well, go to `<C6>` instead.
+`git reset --hard 7efeba8`, then `npm ci`. You keep the A0–A5 prep (features/ layout, facade, cookie session, backend cookie read) on Vite, with the backend still serving `index.html` and OG tags.
 
-### Roll back one phase (keep history)
-`git revert <Ck>`, newest first, for each checkpoint after the target. Run the phase gate again after each revert (Vitest ⊇ baseline; for backend commits, pytest/ruff/mypy).
-
-### Frontend-only revert
-Revert the frontend checkpoints (C2–C5, C7–C11) in reverse order and leave C6 and C12 in place.
-- With C6 kept, the backend accepts a cookie on GET/HEAD and sends `Vary: Authorization, Cookie`. A Vite frontend does not depend on either, so this is harmless.
-- With C12 kept, the backend no longer serves `index.html` or OG tags. A reverted Vite frontend in **compose** then needs nginx to serve `index.html` itself. Either also revert C12 (restores the backend fallback), or revert C13 as well and accept "no OG in compose" during the rollback. Dev (`vite` on 5173) is unaffected.
+### Keep history: revert Next only
+`git revert e0d5d2a fc71c2c` (newest first), then `npm ci`. Equivalent to the C6 state with history kept. Run the gates afterwards (see below).
 
 ### Backend-only revert
-- **C12** (OG removal): `git revert <C12>`. This restores `public_preview.py`, the preview routes, `spa_fallback` and `test_public_preview.py`. The routes are unreachable while nginx routes pages to Next (after C13), so this is harmless. Next metadata stays the OG source.
-- **C6** (cookie, `Vary`, `home`): `git revert <C6>`.
-  - The frontend does not depend on the backend cookie read: client calls use Bearer and server metadata is anonymous, so the app keeps working.
-  - Caveat: dropping `home` from `RESERVED_SLUGS` breaks the C8 parity test (`reservedSlugs.test.ts`) and allows an org slug `home` to be shadowed by the `/home` route. Keep the `home` line: revert only the `token.py`/`cache_headers.py` hunks with `git revert -n <C6>`, restore `slugs.py`, then commit.
-  - Restore the old exact `Vary` assertions together with the `cache_headers.py` revert. Both are in C6.
-- Revert order when both are reverted: C12 first, then C6.
+- **C12** (`fc71c2c`): `git revert fc71c2c` restores `public_preview.py`, the preview routes, `spa_fallback` and `test_public_preview.py`. Harmless while nginx routes pages to Next; Next metadata stays the OG source. Note: Phase 7 deleted `get_event_preview` and `load_public_cover_url`, which C12's revert needs. Revert C12 before applying Phase 7, or restore those two helpers from `e0d5d2a` by hand.
+- **C6** (`7efeba8`): the frontend does not depend on the backend cookie read (client calls use Bearer; server metadata is anonymous). Keep `home` in `RESERVED_SLUGS`: run `git revert -n 7efeba8`, restore `slugs.py` and the `reservedSlugs` parity, then commit. Restore the old exact `Vary` assertions together with the `cache_headers.py` hunk.
+- Order when both: C12 first, then C6.
 
 ### Ordering dependencies
-- C9 depends on C4 (facade) and C8 (route tree). Reverting C4 or C8 without C9+ breaks the Next build.
-- C10 (proxy) and C11 (metadata) depend on C9.
-- C12 depends on C11 for OG parity. Revert C11 only together with C12, or accept missing OG tags.
-- C13 depends on C9 (standalone output) and C12 (no backend static mount).
+- `e0d5d2a` depends on C4 (facade) and C5 (cookie session). Reverting either without `e0d5d2a` breaks the Next build.
+- `e0d5d2a`'s compose and nginx depend on C12 (no backend static mount). Reverting `e0d5d2a` without C12 leaves compose without any HTML server.
 
 ## Verification After Any Rollback
 1. `npm ci && npm test` in `src/frontend`: the passing set ⊇ `verification/baseline/vitest-A0.txt` (for states ≥ C1).
-2. `uv run python -m pytest -q` (no new failures), `uv run python -m ruff check .`, `uv run python -m mypy app` (≤ 15) in `src/backend`.
-3. Start the runtime of that checkpoint (Vite before C9, Next from C9 on) on 5173, then check anonymous `/`, `/login`, a slug page, and `/assets/plugin-sdk.js`.
+2. In `src/backend`: `uv run python -m pytest -q` (no new failures), `uv run python -m ruff check .`, `uv run python -m mypy app` (≤ 15).
+3. Start the runtime of that state (Vite up to C6/`fc71c2c`, Next from `e0d5d2a`) on 5173, then check anonymous `/`, `/login`, a slug page, and `/assets/plugin-sdk.js`.
 4. Secrets: only presence checks of env values (`NEXT_PUBLIC_GOOGLE_MAPS_API_KEY` / `VITE_GOOGLE_MAPS_API_KEY`). Never print them.
 
 ## Data and Environment
-- **Database**: no schema or data changes in any checkpoint, so there is nothing to roll back. The A5 dev-DB check for a `home` slug is read-only.
-- **Env**: C13 renames `VITE_GOOGLE_MAPS_API_KEY` → `NEXT_PUBLIC_GOOGLE_MAPS_API_KEY` in `.env.example` and the compose build args. On a rollback before C9, rename the user's local `.env` entry back (manual step, values never printed).
+- **Database**: no schema or data changes in any commit, so there is nothing to roll back. Smoke test data in the dev DB (account of the throwaway EDIT user, see `verification/e2e-smoke-report.md`) is independent of rollbacks.
+- **Env**: `e0d5d2a` renames `VITE_GOOGLE_MAPS_API_KEY` → `NEXT_PUBLIC_GOOGLE_MAPS_API_KEY` in `.env.example` and the compose build args. On a rollback before it, rename the user's local `.env` entry back (manual step, values never printed).
 - **Browser state**: localStorage `auth_token` has the same format before and after. The cookie is additive.

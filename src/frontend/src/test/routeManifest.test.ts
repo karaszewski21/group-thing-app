@@ -7,10 +7,12 @@ import {
   eventEditPath,
   eventPath,
   familyMemberEditPath,
+  groupDetailsPath,
   groupEditPath,
   ID_PATH_VIEWS,
   ownerPagePath,
   placeEditPath,
+  termAttendeesPath,
   termEditPath,
   viewPath,
   type View,
@@ -44,6 +46,11 @@ const PANEL = [
   "/family/members/:familyMembershipId/edit",
   "/events/:eventId/edit",
   "/terms/:termId/edit",
+  "/groups/:groupId",
+  "/terms/:termId",
+  "/messages",
+  "/messages/:conversationId",
+  "/organization",
 ];
 
 const ADMIN = [
@@ -71,10 +78,6 @@ const INVENTORY = [
   "/product/:id",
   "/product/:id/edit",
   ...PANEL,
-  "/terms/:termId",
-  "/groups/:groupId",
-  "/messages",
-  "/messages/:conversationId",
   "/:organizationSlug",
   "/:organizationSlug/items",
   "/:organizationSlug/meetings",
@@ -84,8 +87,6 @@ const INVENTORY = [
   "/:organizationSlug/product/:id/edit",
   "/:organizationSlug/event/:eventId",
   "/:organizationSlug/group/:groupId/term/:termId",
-  "/onboarding",
-  "/organization",
   "/oauth2/authorize",
   ...ADMIN,
 ];
@@ -130,6 +131,8 @@ describe("App Router route manifest", () => {
         "add/term",
         "add/event",
         "add/hunting",
+        "messages",
+        "organization",
       ] satisfies Exclude<View, (typeof ID_PATH_VIEWS)[number]>[]
     ).map(viewPath);
     const urls = [
@@ -139,6 +142,8 @@ describe("App Router route manifest", () => {
       familyMemberEditPath("fm-1"),
       eventEditPath("ev-1"),
       termEditPath("t-1"),
+      groupDetailsPath("g-1"),
+      termAttendeesPath("t-1"),
       ownerPagePath({ slug: "zielony-krag", party_id: PARTY_ID }),
       ownerPagePath({ slug: null, party_id: PARTY_ID }),
       eventPath("zielony-krag", "ev-1"),

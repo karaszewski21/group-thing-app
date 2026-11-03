@@ -5,10 +5,12 @@ import type { ReactNode } from "react";
  * Tailwind port of pages/PanelGoscia.tsx's `.org-stage`/`.org-phone` pattern:
  * fills the space between PublicLayout's top and bottom bars below 520px,
  * a floating rounded "device" with a solid dark bezel ring above it.
+ * `min-h-0` lets a viewport-tall layout (a chat thread) bound it, so the
+ * content scrolls inside instead of pushing the bottom bar off screen.
  */
 export function PhoneFrame({ children }: { children: ReactNode }) {
   return (
-    <div className="flex flex-1 justify-center bg-stage font-sans text-ink min-[520px]:bg-stage-wide min-[520px]:p-6">
+    <div className="flex min-h-0 flex-1 justify-center bg-stage font-sans text-ink min-[520px]:bg-stage-wide min-[520px]:p-6">
       <div className="flex w-full flex-col bg-cream min-[520px]:my-2 min-[520px]:overflow-hidden">
         {children}
       </div>

@@ -204,3 +204,18 @@ User: "tylko nie commituj". Remaining checkpoint commit steps (8.8 commit C7, 9.
 ## 2026-11-02T21:02:02Z - PAUSED by the user (Phase 6 compiled, gate not yet fired)
 
 Verification report: verification/implementation-verification.md, verdict Failed (fixable): 1 critical, 13 warnings, 11 info. Resume = fire the Phase 6 gate (which issues to fix), then Phase 7. Backup of uncommitted work: session scratchpad wt-backup-20261102T202532Z (temporary location). No servers or containers left running.
+
+## Phase 7 — verification fixes (2026-11-03)
+Scope (user, Phase 6 gate): 1, 2+3, 4, 5, 6, 7, 9, 10, 12.
+- **1 open redirect**: `AuthGuard` and `OnboardingPage` accept `returnTo` only via `isSafeReturnPath`; tests for `https://evil`, `//evil`, `/\evil` (AuthGuard) and an off-site returnTo on register (OnboardingHandoff).
+- **2+3 stale cookie / raw JWT in HTML**: `app/layout.tsx` passes `sessionFromToken(cookie)` (claims of an unexpired token, else `null`) instead of the token; `AuthProvider` takes `initialSession` and reads the real token from storage/cookie on the client (placeholder on the server). `api/client.ts` ends the session on 401 only when a token was sent. Tests updated to `initialSession`; new `request_unauthorizedWithoutToken_doesNotRedirect`.
+- **4 CORS**: `next.config.ts` `headers()` sends `Access-Control-Allow-Origin: *` on `/assets/:path*`.
+- **5 timeout**: `serverGet` uses `AbortSignal.timeout(3000)`.
+- **6 env files**: root `.dockerignore` excludes `**/.env*`, `**/*.local`; unused `src/frontend/.dockerignore` deleted.
+- **7 rollback plan**: rewritten for the real history (C0–C6, C12 `fc71c2c`, B1–D `e0d5d2a`, Phase 7 uncommitted).
+- **9**: `app/error.tsx`, `app/global-error.tsx` (Polish copy).
+- **10 dead code**: removed `events/service.py:get_event_preview`, `organizations/media.py:load_public_cover_url`, stale `PublicOrganizationResponse` docstring sentence, and the whole unreferenced old Vite build `src/resources/static/` (incl. `plugin-sdk.js`).
+- **12**: `react-hooks/set-state-in-effect` and `react-hooks/refs` set to `warn`.
+
+Gates: pytest 1138 passed / 0 failed; ruff 76 and mypy 15 (= baseline); tsc 0; eslint 13 errors (baseline 15) + 33 warnings (newly surfaced by item 12); vitest 1474 cases, 1462 pass / 12 fail (same 12 as C13, all A0 failures); `next build` OK.
+Dev smoke re-run: S04a, S04b, W04 PASS (landing, cookie cleared, no 401, reload stays on landing; token absent from HTML); S13c/W07 dev: `/assets/plugin-sdk.js` now returns `Access-Control-Allow-Origin: *` with an Origin header; an unexpired cookie token no longer appears in the HTML of `/`, `/home`, `/login`.

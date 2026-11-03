@@ -199,18 +199,6 @@ def has_ended(event: Event) -> bool:
     return clock.local_now() >= (event.ends_at or event.starts_at)
 
 
-async def get_event_preview(
-    db: AsyncSession, event_id: uuid.UUID, storage: ObjectStorage | None
-) -> tuple[Event, str | None, str | None]:
-    """The event, its place name and its banner's public URL, for the link
-    preview of the event page."""
-    event = await get_event(db, event_id)
-    location = await locations_acl.get_location(db, event.location_id)
-    banner = await get_banner(db, event_id)
-    banner_url = storage.public_url(banner.large_key) if banner and storage else None
-    return event, location.name if location is not None else None, banner_url
-
-
 async def resolve_author_slugs(
     db: AsyncSession, author_party_ids: Collection[uuid.UUID]
 ) -> dict[uuid.UUID, str]:

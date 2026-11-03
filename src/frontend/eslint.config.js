@@ -29,10 +29,10 @@ export default defineConfig([
       globals: globals.browser,
     },
     rules: {
-      // React Compiler rules arriving via eslint-config-next; satisfying them
-      // means restructuring existing effects and refs (behaviour change).
-      'react-hooks/set-state-in-effect': 'off',
-      'react-hooks/refs': 'off',
+      // React Compiler rules arriving via eslint-config-next, kept as warnings:
+      // satisfying them means restructuring existing effects and refs.
+      'react-hooks/set-state-in-effect': 'warn',
+      'react-hooks/refs': 'warn',
       // Literal quotes in existing Polish copy; JSX renders them unchanged.
       'react/no-unescaped-entities': 'off',
     },

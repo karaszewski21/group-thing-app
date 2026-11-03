@@ -8,6 +8,7 @@ import { useServerInsertedHTML } from "next/navigation";
 import { useState, type ReactNode } from "react";
 import { getQueryClient } from "../api/queryClient";
 import { AuthProvider } from "../auth/AuthContext";
+import type { InitialSession } from "../auth/session";
 import { NavigationTracker } from "../routing/NavigationTracker";
 import { system } from "../theme/system";
 
@@ -62,12 +63,12 @@ function EmotionRegistry({ children }: { children: ReactNode }) {
   return <CacheProvider value={registry.cache}>{children}</CacheProvider>;
 }
 
-export function Providers({ children, initialToken }: { children: ReactNode; initialToken: string | null }) {
+export function Providers({ children, initialSession }: { children: ReactNode; initialSession: InitialSession | null }) {
   return (
     <QueryClientProvider client={getQueryClient()}>
       <EmotionRegistry>
         <ChakraProvider value={system}>
-          <AuthProvider initialToken={initialToken}>
+          <AuthProvider initialSession={initialSession}>
             <NavigationTracker />
             {children}
           </AuthProvider>

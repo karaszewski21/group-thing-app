@@ -24,7 +24,12 @@ export type View =
   | "add/event"
   | "add/hunting"
   | "events/edit"
-  | "terms/edit";
+  | "terms/edit"
+  | "groups/details"
+  | "terms/attendees"
+  | "messages"
+  | "messages/thread"
+  | "organization";
 
 const VIEW_VALUES: readonly View[] = [
   "home",
@@ -53,6 +58,11 @@ const VIEW_VALUES: readonly View[] = [
   "add/hunting",
   "events/edit",
   "terms/edit",
+  "groups/details",
+  "terms/attendees",
+  "messages",
+  "messages/thread",
+  "organization",
 ];
 
 function isView(value: string | undefined): value is View {
@@ -64,16 +74,28 @@ export function viewPath(view: View): string {
   return view === "home" ? "/" : `/${view}`;
 }
 
-/** Panel views with an id in their path (`/<section>/:id/edit`); they have
- * no `viewPath()`, their URLs come from `groupEditPath`/`placeEditPath`/
- * `familyMemberEditPath`/`eventEditPath`/`termEditPath`. */
+/** Panel views with an id in their path (`/<section>/:id` or
+ * `/<section>/:id/edit`); they have no `viewPath()`, their URLs come from
+ * `groupEditPath`/`placeEditPath`/`familyMemberEditPath`/`eventEditPath`/
+ * `termEditPath`/`groupDetailsPath`/`termAttendeesPath`/`threadPath`. */
 export const ID_PATH_VIEWS = [
   "groups/edit",
   "places/edit",
   "family/members/edit",
   "events/edit",
   "terms/edit",
+  "groups/details",
+  "terms/attendees",
+  "messages/thread",
 ] as const satisfies readonly View[];
+
+export function groupDetailsPath(groupId: string): string {
+  return `/groups/${groupId}`;
+}
+
+export function termAttendeesPath(termId: string): string {
+  return `/terms/${termId}`;
+}
 
 export function groupEditPath(groupId: string): string {
   return `/groups/${groupId}/edit`;
@@ -114,6 +136,8 @@ export function familyMemberEditPath(familyMembershipId: string): string {
 }
 
 const EDIT_PATH = /^\/(groups|places|family\/members|events|terms)\/[^/]+\/edit$/;
+const DETAIL_PATH = /^\/(groups|terms|messages)\/[^/]+$/;
+const DETAIL_VIEW = { groups: "groups/details", terms: "terms/attendees", messages: "messages/thread" } as const;
 
 /** The panel view a pathname shows, or `null` when it is not a panel view. */
 export function viewFromPath(pathname: string): View | null {
@@ -121,7 +145,11 @@ export function viewFromPath(pathname: string): View | null {
   const edit = EDIT_PATH.exec(pathname);
   if (edit) return `${edit[1] as "groups" | "places" | "family/members" | "events" | "terms"}/edit`;
   const segment = pathname.slice(1);
-  return segment !== "home" && isView(segment) ? segment : null;
+  if (segment !== "home" && isView(segment) && !(ID_PATH_VIEWS as readonly string[]).includes(segment)) {
+    return segment;
+  }
+  const detail = DETAIL_PATH.exec(pathname);
+  return detail ? DETAIL_VIEW[detail[1] as keyof typeof DETAIL_VIEW] : null;
 }
 
 /** The URL the app works with: the `/home` rewrite target of `/` (for
@@ -173,7 +201,6 @@ export const PROTECTED_PREFIXES: readonly string[] = [
   "/events/",
   "/terms/",
   "/messages",
-  "/onboarding",
   "/organization",
   "/oauth2/authorize",
   "/admin",

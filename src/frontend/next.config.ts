@@ -15,6 +15,10 @@ const nextConfig: NextConfig = {
   // take as the workspace root.
   outputFileTracingRoot: import.meta.dirname,
   turbopack: { root: import.meta.dirname },
+  // Plugins on other origins load the SDK with `crossorigin`.
+  async headers() {
+    return [{ source: "/assets/:path*", headers: [{ key: "Access-Control-Allow-Origin", value: "*" }] }];
+  },
   async rewrites() {
     return BACKEND_PATHS.map((source) => ({ source, destination: `${backendUrl}${source}` }));
   },

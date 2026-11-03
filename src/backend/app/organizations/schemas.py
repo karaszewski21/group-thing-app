@@ -62,10 +62,7 @@ class PublicOrganizationResponse(BaseModel):
     no `party_id`/timestamps, nothing beyond what the public page itself
     displays. `page_layout` is the effective layout (`resolve_page_layout`),
     unlike the owner's `OrganizationResponse`, which carries the stored key.
-
-    The media fields default to empty because `model_validate` also runs on
-    the bare ORM `Organization` (the `/{slug}` meta preview in
-    `app.system.router`); only the API router fills them."""
+    The media fields default to empty; the API router fills them."""
 
     model_config = ConfigDict(from_attributes=True)
 

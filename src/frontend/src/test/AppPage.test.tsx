@@ -65,7 +65,6 @@ vi.mock("../api/families", () => ({
 }));
 
 vi.mock("../api/groups", () => ({
-  createMyCircle: vi.fn(),
   createAdditionalMyCircle: vi.fn(),
   deleteGroup: vi.fn(),
   getGroup: vi.fn(),

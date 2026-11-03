@@ -7,7 +7,7 @@ import { useAppData } from "../panel/appDataStore";
 import { TermPlaceLine } from "../../components/shared/TermPlaceLine";
 import { CopyIcon, FamilyIcon, PencilIcon } from "../../components/shared/appIcons";
 import { dayMonth, termPublicPath, termTime, type GuestTermCard } from "../../utils/appHelpers";
-import { eventEditPath, eventPath, termEditPath } from "../../routing/paths";
+import { eventEditPath, eventPath, termAttendeesPath, termEditPath } from "../../routing/paths";
 import { pluralPl } from "../../utils/plural";
 
 const ICON_BUTTON =
@@ -66,7 +66,7 @@ function SignupSummaryChip({ term }: { term: TermResponse }) {
   return (
     <div className="mt-2">
       <Link
-        to={`/terms/${term.id}`}
+        to={termAttendeesPath(term.id)}
         aria-label={`Zapisani na termin: ${
           hasAttendees ? `${attendeesText}, ${childrenText}` : "brak zapisów"
         }${capacityLabel && `, ${capacityLabel}`}`}

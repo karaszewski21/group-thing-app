@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Link, useAppNavigate, useAppSearchParams } from "../../routing/navigation";
+import { Link, useAppSearchParams } from "../../routing/navigation";
 import { useAuth, type RegisterPayload } from "../../auth/AuthContext";
 import { authPath } from "../../auth/authPaths";
 import { AUTH_INPUT, AUTH_LABEL, AUTH_SUBMIT } from "./authStyles";
@@ -14,12 +14,10 @@ export function RegisterForm() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const { register } = useAuth();
-  const navigate = useAppNavigate();
   const [searchParams] = useAppSearchParams();
-  // Carried through onboarding (and onto the login tab link) so a visitor
-  // who came from a term page's account gate lands back on it.
+  // Carried onto the login tab link so a visitor who came from a term
+  // page's account gate lands back on it.
   const returnTo = searchParams.get("returnTo");
-  const returnToQuery = returnTo ? `?returnTo=${encodeURIComponent(returnTo)}` : "";
 
   const isOrganizer = role === "ORGANIZER";
   const canSubmit = Boolean(role && email && password && !loading);
@@ -29,8 +27,9 @@ export function RegisterForm() {
     setError(null);
     setLoading(true);
     try {
+      // The page's AuthGuard sees the new token and sends the user on: to
+      // `returnTo`, or to their role's home (`homePath`).
       await register({ role, email, password });
-      navigate(`/onboarding${returnToQuery}`, { replace: true });
     } catch (err) {
       setError(err instanceof Error ? err.message : "Nie udało się zarejestrować");
     } finally {

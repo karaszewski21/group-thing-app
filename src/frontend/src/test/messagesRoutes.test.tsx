@@ -1,60 +1,49 @@
 import { screen, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
-import MemberLayout from "../app/(site)/(member)/layout";
-import InboxRoute from "../app/(site)/(member)/messages/page";
-import ThreadRoute from "../app/(site)/(member)/messages/[conversationId]/page";
-import { useAppParams } from "../routing/navigation";
+import { PanelGate } from "../features/panel/PanelGate";
+import { viewFromPath } from "../routing/paths";
 import { pageFor } from "./appRoutes";
 import { getTestLocation, renderWithRoute } from "./renderWithRoute";
 
 let mockToken: string | null = "tok";
 vi.mock("../auth/AuthContext", () => ({ useAuth: () => ({ token: mockToken, username: "ania", permissions: [] }) }));
-vi.mock("../features/messages/InboxPage", () => ({ InboxPage: () => <h1>Skrzynka</h1> }));
-vi.mock("../features/messages/ThreadPage", () => ({
-  ThreadPage: function ThreadStub() {
-    return <h1>Rozmowa {useAppParams().conversationId}</h1>;
-  },
-}));
+vi.mock("../features/panel/AppPage", () => ({ AppPage: () => <h1>Panel</h1> }));
 
-/** The member pages under their layout, as the App Router serves `url`. */
+/** `url` as the App Router serves it: a panel page, so the panel layout's gate. */
 function renderAt(url: string) {
-  renderWithRoute(<></>, {
-    url,
-    routes: {
-      "/messages": (
-        <MemberLayout>
-          <InboxRoute />
-        </MemberLayout>
-      ),
-      "/messages/:conversationId": (
-        <MemberLayout>
-          <ThreadRoute />
-        </MemberLayout>
-      ),
-      "/login": <p>Logowanie</p>,
-    },
-  });
+  renderWithRoute(<PanelGate />, { url, routes: { "/login": <p>Logowanie</p> } });
 }
 
-describe("messages routes", () => {
-  it("/messages renders the inbox, not the panel", async () => {
-    mockToken = "tok";
-    expect(pageFor("/messages")?.dir).toBe("(site)/(member)/messages");
-    renderAt("/messages");
-    expect(await screen.findByRole("heading", { name: "Skrzynka" })).toBeInTheDocument();
+describe("panel routes moved out of (member)", () => {
+  it.each([
+    ["/messages", "(site)/(panel)/messages", "messages"],
+    ["/messages/c42", "(site)/(panel)/messages/[conversationId]", "messages/thread"],
+    ["/groups/g7", "(site)/(panel)/groups/[groupId]", "groups/details"],
+    ["/terms/t9", "(site)/(panel)/terms/[termId]", "terms/attendees"],
+    ["/organization", "(site)/(panel)/organization", "organization"],
+  ])("%s is served by %s as the %s panel view", (url, dir, view) => {
+    expect(pageFor(url)?.dir).toBe(dir);
+    expect(viewFromPath(url)).toBe(view);
   });
 
-  it("/messages/:conversationId renders the thread", async () => {
+  it.each([
+    ["/groups/new", "groups/new"],
+    ["/groups/g7/edit", "groups/edit"],
+    ["/terms/t9/edit", "terms/edit"],
+  ])("%s keeps its own view (%s), not the details view", (url, view) => {
+    expect(viewFromPath(url)).toBe(view);
+  });
+
+  it("logged in: the thread renders inside the panel", async () => {
     mockToken = "tok";
-    expect(pageFor("/messages/c42")?.dir).toBe("(site)/(member)/messages/[conversationId]");
     renderAt("/messages/c42");
-    expect(await screen.findByRole("heading", { name: "Rozmowa c42" })).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "Panel" })).toBeInTheDocument();
   });
 
   it("logged out: the inbox redirects to the login page", async () => {
     mockToken = null;
     renderAt("/messages");
     await waitFor(() => expect(getTestLocation().pathname).toBe("/login"));
-    expect(screen.queryByRole("heading", { name: "Skrzynka" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "Panel" })).not.toBeInTheDocument();
   });
 });

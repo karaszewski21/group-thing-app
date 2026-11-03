@@ -1,6 +1,7 @@
 import { screen } from "@testing-library/react";
 import { renderWithRoute } from "./renderWithRoute";
 import { describe, expect, it, vi, beforeEach } from "vitest";
+import { sessionFromToken } from "../auth/session";
 import { ChakraProvider } from "@chakra-ui/react";
 import { system } from "../theme/system";
 
@@ -56,7 +57,7 @@ async function renderSidebarWithRealAuth() {
   const { Sidebar } = await import("../components/layout/Sidebar");
   return renderWithRoute(
     <ChakraProvider value={system}>
-      <AuthProvider initialToken={localStorage.getItem("auth_token")}>
+      <AuthProvider initialSession={sessionFromToken(localStorage.getItem("auth_token"))}>
         <Sidebar />
       </AuthProvider>
     </ChakraProvider>,

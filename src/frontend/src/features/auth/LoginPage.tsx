@@ -24,7 +24,7 @@ const TAB_CLASS =
 /** `/login`: logging in and registering on one page, as two tabs. The tab
  * lives in `?mode=register` so links (and a refresh) can open "Załóż
  * konto" directly; `?returnTo=` survives switching tabs. A logged-in visitor
- * is sent on by AuthGuard — after registering to onboarding first. */
+ * is sent on by AuthGuard. */
 export function LoginPage() {
   const [searchParams, setSearchParams] = useAppSearchParams();
   const tab: AuthTab = searchParams.get(AUTH_TAB_PARAM) === REGISTER_TAB_VALUE ? "register" : "login";
@@ -51,10 +51,8 @@ export function LoginPage() {
     tabRefs.current[next]?.focus();
   }
 
-  const guardProps = tab === "register" ? { authenticatedRedirect: "/onboarding", forwardReturnTo: true } : {};
-
   return (
-    <AuthGuard requireAuth={false} {...guardProps}>
+    <AuthGuard requireAuth={false}>
       <AuthLayout title={current.title} subtitle={current.subtitle}>
         <div role="tablist" aria-label="Konto" className="relative mb-4 flex gap-1 rounded-full bg-line p-1">
           {TABS.map((t) => {

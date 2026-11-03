@@ -120,17 +120,8 @@ export function createCircle(request: CreateCircleRequest): Promise<GroupRespons
   return api.post("/groups", request);
 }
 
-/** Idempotent "become an Organizer" — a caller who already leads a Circle
- * gets that same Circle back. Only for the one-time first-circle flows
- * (onboarding) — NOT for "add another group"
- * (see `createAdditionalMyCircle`). */
-export function createMyCircle(request: CreateCircleRequest): Promise<GroupResponse> {
-  return api.post("/groups/mine", request);
-}
-
-/** Non-idempotent — always creates a brand new Circle led by the caller.
- * The Panel's "+ Dodaj grupę" button targets this, never `createMyCircle`,
- * whose idempotency would silently no-op a repeat organizer's click. */
+/** Non-idempotent — always creates a brand new Circle led by the caller
+ * (the Panel's "+ Dodaj grupę" button). */
 export function createAdditionalMyCircle(request: CreateAdditionalCircleRequest): Promise<GroupResponse> {
   return api.post("/groups/mine/new", request);
 }

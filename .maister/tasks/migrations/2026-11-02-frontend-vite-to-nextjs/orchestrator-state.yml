@@ -6,6 +6,9 @@ orchestrator:
   - phase-3
   - phase-4
   - phase-5
+  - phase-6
+  - phase-7
+  - phase-8
   failed_phases: []
   auto_fix_attempts: {}
   options:
@@ -21,13 +24,13 @@ orchestrator:
     reality_check_enabled: true
     e2e_smoke_enabled: true
   created: "2026-11-02T13:55:56Z"
-  updated: "2026-11-02T21:02:02Z"
+  updated: "2026-11-03T10:08:17Z"
   task_path: .maister/tasks/migrations/2026-11-02-frontend-vite-to-nextjs
   task_ids: {}
 task:
   title: Migrate frontend from Vite SPA to Next.js
   description: Migrate src/frontend from Vite + React Router SPA to Next.js App Router with the user-proposed structure (analysis/user-target-structure.md). No regressions; MVP with no production deployment.
-  status: in_progress
+  status: completed
   tags:
   - frontend
   - nextjs
@@ -289,7 +292,7 @@ external_research:
   - fetch not cached by default
   migration_guide_url: https://nextjs.org/docs/app/guides/upgrading/version-16
 verification_context:
-  last_status: failed
+  last_status: passed_with_issues
   issues_found:
     critical: 1
     warning: 13
@@ -300,8 +303,20 @@ verification_context:
     - 2+3 stale cookie lands on /login and raw JWT in HTML (app/layout.tsx:13)
     - 4 plugin SDK CORS (next.config.ts headers or plugins/events crossorigin)
     - 7 rollback-plan.md rewrite for C6 + working tree
-  fixes_applied: []
+  fixes_applied:
+  - '1 open redirect: returnTo validated via isSafeReturnPath in AuthGuard and OnboardingPage (+ tests)'
+  - '2+3 server passes session claims (sessionFromToken), never the raw JWT; api client ends the session on 401 only when a token was sent'
+  - '4 Access-Control-Allow-Origin * on /assets/:path* (next.config headers)'
+  - '5 serverGet AbortSignal.timeout(3000)'
+  - '6 root .dockerignore excludes .env* and *.local; unused src/frontend/.dockerignore removed'
+  - '7 rollback-plan.md rewritten for the real history (C0-C6, C12 fc71c2c, B1-D e0d5d2a, Phase 7 uncommitted)'
+  - '9 app/error.tsx and app/global-error.tsx'
+  - '10 dead helpers, stale docstring and unreferenced src/resources/static removed'
+  - '12 react-hooks set-state-in-effect and refs set to warn'
   decisions_made:
   - 'Phase 6 options: all reviews on; test suite not re-run (C13 results used); dev smoke only, compose deferred to the user'
+  - 'Phase 6 gate (user): fix must-fix 1, 2+3, 4, 7 (rollback plan) plus cheap 5, 6, 9, 10, 12; follow-ups 8, 11, 13, 14 deferred'
+  - 'Phase 7 (user): no full re-verification; targeted gates + smoke rows accepted'
+  - 'Phase 7 gate (user): close the workflow; Phase 8 skipped (docs disabled); fixes left uncommitted'
   reverify_count: 0
-  resume_point: 'Phase 6 compiled, its exit gate NOT yet asked. On resume: fire the Phase 6 gate (show verdict, ask which issues to fix), then Phase 7.'
+  resume_point: 'Workflow complete.'

@@ -117,25 +117,6 @@ async def load_public_media(
     }
 
 
-async def load_public_cover_url(
-    db: AsyncSession, storage: ObjectStorage, organization_id: uuid.UUID
-) -> str | None:
-    """The public `cover.url` alone, for the `/{slug}` link preview."""
-    cover = (
-        await db.execute(
-            select(OrganizationMedia)
-            .where(
-                OrganizationMedia.organization_id == organization_id,
-                OrganizationMedia.kind == MediaKind.COVER,
-                OrganizationMedia.status == ModerationStatus.APPROVED,
-            )
-            .order_by(OrganizationMedia.created_at.desc(), OrganizationMedia.id.desc())
-            .limit(1)
-        )
-    ).scalar_one_or_none()
-    return storage.public_url(cover.large_key) if cover else None
-
-
 def _is_superseded(media: OrganizationMedia, newest: dict[MediaKind, OrganizationMedia]) -> bool:
     current = newest.get(media.kind)
     return (

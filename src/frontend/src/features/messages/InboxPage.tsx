@@ -2,7 +2,6 @@ import type { ReactNode } from "react";
 import { Link } from "../../routing/navigation";
 import type { ConversationKind, InboxRow } from "../../api/conversations";
 import { Avatar } from "../../components/shared/Avatar";
-import { PhoneFrame } from "../../components/shared/PhoneFrame";
 import { useConversations } from "../../hooks/useConversations";
 import { threadPath } from "../../routing/messagesPaths";
 import { BackIcon } from "../../components/shared/appIcons";
@@ -17,8 +16,8 @@ const KIND_CHIP: Record<ConversationKind, { label: string; className: string }> 
   EVENT: { label: "Wydarzenie", className: "bg-accent-soft text-accent-fg" },
 };
 
-/** The messages inbox (`/messages`): every conversation with a
- * message, newest first, read-only chats included. */
+/** The messages inbox (`/messages`, a panel view): every conversation with
+ * a message, newest first, read-only chats included. */
 export function InboxPage() {
   const { data, loading, error, refetch } = useConversations();
 
@@ -38,15 +37,13 @@ export function InboxPage() {
     );
 
   return (
-    <PhoneFrame>
-      <div className="flex-1 overflow-y-auto px-[18px] pb-6 pt-[18px]">
-        <Link to="/" className={`inline-flex items-center gap-1.5 text-xs font-bold text-ink-soft ${FOCUS_RING}`}>
-          <BackIcon /> Wróć
-        </Link>
-        <h1 className="mt-2 text-[19px] font-semibold text-ink">Wiadomości</h1>
-        {body}
-      </div>
-    </PhoneFrame>
+    <>
+      <Link to="/" className={`inline-flex items-center gap-1.5 text-xs font-bold text-ink-soft ${FOCUS_RING}`}>
+        <BackIcon /> Wróć
+      </Link>
+      <h1 className="mt-2 text-[19px] font-semibold text-ink">Wiadomości</h1>
+      {body}
+    </>
   );
 }
 

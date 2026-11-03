@@ -12,14 +12,14 @@ import { BottomNav } from "./BottomNav";
 
 const FOCUS_RING = "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring";
 
-/** The app-wide layout route (everything but the standalone wizards and
+/** The app-wide layout route (everything but the OAuth2 consent page and
  * /admin): a sticky top bar and the bottom tab bar on
  * every page, for anonymous visitors too. The top bar carries the Krąg grupy
  * mark (home), Spotkania and the notification bell — for anonymous visitors
  * a bell that leads to /login — and the search field below them. Messages
  * and the account live in the bottom tab bar (Czat, Konto). A chat
- * thread gets a one-row bar, no tab bar and a viewport-tall body for its
- * scrolling messages and composer. Logged in, the app-wide pending-actions
+ * thread gets a one-row bar and a viewport-tall body, so its messages
+ * scroll between the thread header and the composer above the tab bar. Logged in, the app-wide pending-actions
  * prompt is mounted too. */
 export function PublicLayout({ children }: { children: ReactNode }) {
   const { token } = useAuth();
@@ -49,7 +49,7 @@ export function PublicLayout({ children }: { children: ReactNode }) {
       <main tabIndex={-1} className="flex min-h-0 flex-1 flex-col outline-none">
         {children}
       </main>
-      {!inThread && <BottomNav />}
+      <BottomNav />
       {token && <PendingActionsHost />}
     </div>
   );

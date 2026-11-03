@@ -2,7 +2,15 @@ import { createContext, useCallback, useContext, useEffect, useLayoutEffect, use
 import type { ReactNode } from "react";
 import { getMyProfile } from "../api/people";
 import { useRouterRefresh } from "../routing/navigation";
-import { clearSession, decodeJwtPayload, reconcileSession, setSession } from "./session";
+import {
+  clearSession,
+  decodeJwtPayload,
+  readCookieToken,
+  readStoredToken,
+  reconcileSession,
+  setSession,
+  type InitialSession,
+} from "./session";
 
 export interface RegisterPayload {
   role: "GUEST" | "ORGANIZER";
@@ -10,24 +18,13 @@ export interface RegisterPayload {
   password: string;
 }
 
-export interface RegisterResult {
-  partyId: string;
-  role: string;
-}
-
 interface AuthContextValue {
   token: string | null;
   username: string | null;
   displayName: string | null;
   permissions: string[];
-  /** Set by `register()` for the lifetime of the current session — lets
-   * `/onboarding` pick the right `Step[]` config right after a fresh
-   * registration without a follow-up `GET /api/people/me` call. `null`
-   * when the app was loaded from a stored token instead (returning user),
-   * in which case callers fall back to a profile/leaderships lookup. */
-  registeredRole: RegisterResult | null;
   login: (email: string, password: string) => Promise<void>;
-  register: (payload: RegisterPayload) => Promise<RegisterResult>;
+  register: (payload: RegisterPayload) => Promise<void>;
   /** Stores `jwt` as the session (`auth/session.ts`), decodes its claims, and updates
    * context state — identical body to the internal `applyToken`, just
    * exposed publicly for a non-login/register auth event (spec.md §4's
@@ -47,15 +44,24 @@ function claimsOf(token: string | null): { username: string | null; permissions:
   return { username: payload.sub ?? null, permissions: payload.permissions ?? [] };
 }
 
-/** `initialToken` seeds the first render (the server cookie under Next, the
- * localStorage token under Vite); a mount effect then reconciles it with the
- * browser's stored session. */
-export function AuthProvider({ children, initialToken }: { children: ReactNode; initialToken: string | null }) {
+/** Stands in for the token on the server render, which only gets the claims. */
+const SERVER_SESSION_TOKEN = "server-session";
+
+function initialTokenFor(session: InitialSession | null): string | null {
+  if (!session) return null;
+  if (typeof window === "undefined") return SERVER_SESSION_TOKEN;
+  return readStoredToken() ?? readCookieToken() ?? SERVER_SESSION_TOKEN;
+}
+
+/** `initialSession` (the claims of the server's unexpired cookie token) seeds
+ * the first render so logged-in chrome matches the server HTML; a layout
+ * effect then reconciles it with the browser's stored session. */
+export function AuthProvider({ children, initialSession }: { children: ReactNode; initialSession: InitialSession | null }) {
+  const [initialToken] = useState(() => initialTokenFor(initialSession));
   const [token, setToken] = useState<string | null>(initialToken);
-  const [username, setUsername] = useState<string | null>(() => claimsOf(initialToken).username);
-  const [permissions, setPermissions] = useState<string[]>(() => claimsOf(initialToken).permissions);
+  const [username, setUsername] = useState<string | null>(initialSession?.username ?? null);
+  const [permissions, setPermissions] = useState<string[]>(initialSession?.permissions ?? []);
   const [displayName, setDisplayName] = useState<string | null>(null);
-  const [registeredRole, setRegisteredRole] = useState<RegisterResult | null>(null);
 
   const refreshDisplayName = useCallback(async () => {
     try {
@@ -77,7 +83,6 @@ export function AuthProvider({ children, initialToken }: { children: ReactNode; 
     clearSession();
     showToken(null);
     setDisplayName(null);
-    setRegisteredRole(null);
   }, [showToken]);
 
   const applyToken = useCallback(
@@ -125,7 +130,7 @@ export function AuthProvider({ children, initialToken }: { children: ReactNode; 
   );
 
   const register = useCallback(
-    async (payload: RegisterPayload): Promise<RegisterResult> => {
+    async (payload: RegisterPayload): Promise<void> => {
       const response = await fetch("/api/auth/register", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -141,11 +146,8 @@ export function AuthProvider({ children, initialToken }: { children: ReactNode; 
         throw new Error(body.message ?? "Registration failed");
       }
 
-      const { token: jwt, party_id: partyId, role } = await response.json();
+      const { token: jwt } = await response.json();
       applyToken(jwt);
-      const result = { partyId, role };
-      setRegisteredRole(result);
-      return result;
     },
     [applyToken],
   );
@@ -161,14 +163,13 @@ export function AuthProvider({ children, initialToken }: { children: ReactNode; 
       username,
       displayName,
       permissions,
-      registeredRole,
       login,
       register,
       applyExternalToken: applyToken,
       logout,
       expireSession: resetAuth,
     }),
-    [token, username, displayName, permissions, registeredRole, login, register, applyToken, logout, resetAuth],
+    [token, username, displayName, permissions, login, register, applyToken, logout, resetAuth],
   );
 
   return <AuthContext value={value}>{children}</AuthContext>;

@@ -5,7 +5,7 @@ import { serverMessageOr } from "../../api/problem";
 import { useAppData } from "../panel/appDataStore";
 import { SubPageHeader } from "../../components/shared/appComponents";
 import { LayoutModeIcon, PencilIcon, TrashIcon } from "../../components/shared/appIcons";
-import { groupEditPath, viewPath } from "../../routing/paths";
+import { groupDetailsPath, groupEditPath, viewPath } from "../../routing/paths";
 import { pluralPl } from "../../utils/plural";
 import { DeleteGroupDialog } from "./DeleteGroupDialog";
 
@@ -113,7 +113,7 @@ export function GroupsView() {
                       <small className="block truncate text-xs text-ink-soft">{g.default_location.formatted_address}</small>
                     )}
                     <Link
-                      to={`/groups/${g.id}`}
+                      to={groupDetailsPath(g.id)}
                       className="mt-1.5 inline-block rounded text-[13px] font-bold text-ink hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring"
                     >
                       Szczegóły<span className="sr-only"> grupy {g.name}</span> ›

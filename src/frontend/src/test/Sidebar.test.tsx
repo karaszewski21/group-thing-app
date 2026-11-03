@@ -30,7 +30,6 @@ function mockAuth(permissions: string[]) {
     username: "admin",
     displayName: "Admin User",
     permissions,
-    registeredRole: null,
     login: vi.fn(),
     register: vi.fn(),
     applyExternalToken: vi.fn(),

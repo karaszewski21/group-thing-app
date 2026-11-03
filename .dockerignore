@@ -14,6 +14,8 @@
 **/.next
 **/.playwright-mcp
 **/*.tsbuildinfo
+**/.env*
+**/*.local
 
 src/backend
 src/resources

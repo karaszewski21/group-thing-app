@@ -36,7 +36,9 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
   });
 
   if (!response.ok) {
-    if (response.status === 401) {
+    // Only a rejected token ends the session; an anonymous 401 (a request
+    // that raced the boot reconciliation of a stale cookie) is just an error.
+    if (response.status === 401 && token) {
       if (typeof window !== "undefined") {
         clearSession();
         if (window.location.pathname !== "/login") {

@@ -40,7 +40,21 @@ export function readStoredToken(): string | null {
   return localStorage.getItem(TOKEN_KEY);
 }
 
-function readCookieToken(): string | null {
+/** What the server render may know about the session: the claims of an
+ * unexpired cookie token, never the token itself (it would be embedded in the
+ * page's HTML/RSC payload). Garbage or expired cookies give `null`. */
+export interface InitialSession {
+  username: string | null;
+  permissions: string[];
+}
+
+export function sessionFromToken(token: string | null | undefined): InitialSession | null {
+  if (!token || isTokenExpired(token)) return null;
+  const { sub, permissions } = decodeJwtPayload(token);
+  return { username: sub ?? null, permissions: permissions ?? [] };
+}
+
+export function readCookieToken(): string | null {
   const prefix = `${TOKEN_KEY}=`;
   const entry = document.cookie.split("; ").find((part) => part.startsWith(prefix));
   return entry ? decodeURIComponent(entry.slice(prefix.length)) : null;

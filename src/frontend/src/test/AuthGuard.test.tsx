@@ -5,7 +5,7 @@ import { homePath } from "../auth/homePath";
 import { getTestLocation, renderWithRoute } from "./renderWithRoute";
 
 vi.mock("../auth/AuthContext", () => ({
-  useAuth: () => ({ token: "valid.jwt.token" }),
+  useAuth: () => ({ token: "valid.jwt.token", permissions: [] }),
 }));
 
 function where() {
@@ -15,25 +15,33 @@ function where() {
 
 function renderAt(initialRoute: string) {
   return renderWithRoute(
-    <AuthGuard requireAuth={false} authenticatedRedirect="/onboarding" forwardReturnTo>
-      <div>REGISTER</div>
+    <AuthGuard requireAuth={false}>
+      <div>LOGIN</div>
     </AuthGuard>,
-    { url: initialRoute, pattern: "/register" },
+    { url: initialRoute, pattern: "/login" },
   );
 }
 
-describe("AuthGuard forwardReturnTo", () => {
-  it("sends a logged-in visitor to onboarding with the returnTo carried along, not straight to it", () => {
-    renderAt(`/register?returnTo=${encodeURIComponent("/zajecia/group/7/term/9")}`);
-    expect(where()).toBe(`/onboarding?returnTo=${encodeURIComponent("/zajecia/group/7/term/9")}`);
-    expect(screen.queryByText("REGISTER")).not.toBeInTheDocument();
+describe("AuthGuard requireAuth={false}", () => {
+  it("sends a logged-in visitor straight to a safe returnTo", () => {
+    renderAt(`/login?returnTo=${encodeURIComponent("/zajecia/group/7/term/9")}`);
+    expect(where()).toBe("/zajecia/group/7/term/9");
+    expect(screen.queryByText("LOGIN")).not.toBeInTheDocument();
   });
 
-  it("without returnTo goes to the plain authenticatedRedirect", () => {
-    renderAt("/register");
-    expect(where()).toBe("/onboarding");
-    expect(screen.queryByText("REGISTER")).not.toBeInTheDocument();
+  it("without returnTo goes to the role's home", () => {
+    renderAt("/login");
+    expect(where()).toBe("/");
+    expect(screen.queryByText("LOGIN")).not.toBeInTheDocument();
   });
+
+  it.each(["https://evil.example", "//evil.example", "/\\evil.example"])(
+    "ignores returnTo=%s and goes to the role's home",
+    (returnTo) => {
+      renderAt(`/login?returnTo=${encodeURIComponent(returnTo)}`);
+      expect(where()).toBe("/");
+    },
+  );
 });
 
 describe("homePath", () => {
