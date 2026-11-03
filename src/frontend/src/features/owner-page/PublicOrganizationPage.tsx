@@ -26,11 +26,11 @@ import { OrganizerPageSkeleton } from "./OrganizerPageSkeleton";
  * (the baseline, which refreshes on every refetch) when saved.
  */
 export function PublicOrganizationPage() {
-  const { organizationSlug = "" } = useAppParams<{ organizationSlug: string }>();
+  const { slug = "" } = useAppParams<{ slug: string }>();
   const [searchParams, setSearchParams] = useAppSearchParams();
-  const { data: organization, loading } = usePublicOrganization(organizationSlug);
+  const { data: organization, loading } = usePublicOrganization(slug);
   // Fetched in parallel; the directory never holds back the first paint.
-  const directory = useOrganizerPage(organizationSlug);
+  const directory = useOrganizerPage(slug);
   const directoryStatus: DirectoryStatus = directory.loading
     ? "loading"
     : directory.notFound || directory.error !== null
@@ -42,13 +42,13 @@ export function PublicOrganizationPage() {
   const [draft, setDraft] = useState<Draft | null>(null);
   const settingsRef = useRef<HTMLButtonElement>(null);
 
-  const owner = myOrganization.data?.slug === organizationSlug ? myOrganization.data : null;
+  const owner = myOrganization.data?.slug === slug ? myOrganization.data : null;
   const isOwner = owner !== null;
   const sheetOpen = isOwner && searchParams.get("edit") === "1";
 
   // A draft belongs to one opening of the sheet on one page: however the sheet
   // closes (X, browser Back, another slug in the same route), it is dropped.
-  const editSession = sheetOpen ? organizationSlug : null;
+  const editSession = sheetOpen ? slug : null;
   const [draftSession, setDraftSession] = useState(editSession);
   if (editSession !== draftSession) {
     setDraftSession(editSession);

@@ -21,6 +21,7 @@ from app.users.models import UserProfile
 from ..infrastructure import circulation_bridge, notifications_bridge
 from ..infrastructure.notifications_bridge import NotificationKind
 from ..models import SwapProposal, SwapProposalStatus
+from .item_links import item_path
 
 _LIVE_PROPOSAL_STATUSES = (SwapProposalStatus.PROPOSED, SwapProposalStatus.ACCEPTED)
 
@@ -119,6 +120,7 @@ async def cancel_open_event_reservations(
     suffix = f" — wydarzenie {event_name} ({clock.format_term_when(starts_at)}) zostało usunięte"
 
     async def notify(recipients: set[uuid.UUID | None], message: str, item_id: uuid.UUID) -> None:
+        link_path = await item_path(db, item_id)
         for party_id in recipients:
             if party_id is None:
                 continue
@@ -127,7 +129,7 @@ async def cancel_open_event_reservations(
                 party_id=party_id,
                 kind=NotificationKind.RESERVATION_CANCELLED,
                 message=clock.fit_notification_message(message + suffix),
-                link_path=f"/product/{item_id}",
+                link_path=link_path,
             )
 
     for reservation in exchanges.standalone:

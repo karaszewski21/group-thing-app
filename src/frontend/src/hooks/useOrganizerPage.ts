@@ -15,7 +15,7 @@ interface UseOrganizerPageResult {
 }
 
 /** The organizer's public directory (circles, terms, exchange, stats) behind
- * `/:organizationSlug`. A 404 is reported as `notFound`. The reserved badges
+ * `/:slug`. A 404 is reported as `notFound`. The reserved badges
  * are personalised, so the viewer's user id is part of the key. */
 export function useOrganizerPage(slug: string): UseOrganizerPageResult {
   const { username: viewerUserId } = useAuth();

@@ -10,7 +10,7 @@ import { getMyTakenTermItemListings, getMyTermItemListings } from "../../../api/
  * `/…/event/{id}` instead, so its `termId` stays null and it always carries
  * `reservation_id`. `RESERVATION_CANCELLED` is informational and yields no
  * action. Item-related kinds,
- * `SWAP_PROPOSED` included, link to `/product/<itemId>`, so
+ * `SWAP_PROPOSED` included, link to `/<owner slug>/product/<itemId>`, so
  * `PendingSwapAction.linkPath` is not a term link.
  *
  * `SWAP_PROPOSED` carries no `proposalId`/accept-reject affordance here —

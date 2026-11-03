@@ -27,7 +27,7 @@ from tests.test_event_item_reservations import (
     _notifications,
     _sign_up,
 )
-from tests.test_term_item_listings import _auth, _register
+from tests.test_term_item_listings import _auth, _item_link, _register
 
 PERSONAL = {"kind": "PERSONAL"}
 NO_LOCATION_MESSAGE = "Właściciel nie ustawił miejsca odbioru"
@@ -167,7 +167,7 @@ async def test_proposeItemSwap_personal_acceptPairsNoContextLegsWithNullTermFiel
     assert {r.paired_reservation_id for r in legs} == {r.id for r in legs}
     (accepted,) = await _notifications(client, proposer, "SWAP_ACCEPTED")
     assert str(accepted["message"]).endswith("— odbiór osobisty")
-    assert accepted["link_path"] == f"/product/{listed}"
+    assert accepted["link_path"] == await _item_link(client, owner, listed)
 
 
 async def test_confirmTransaction_personalGift_recipientConfirmsImmediately_giverRefused(
@@ -239,7 +239,9 @@ async def test_takeItem_personal_notificationCopyForOwnerAndTaker(
         f"Zarezerwowano „Hulajnoga pp6” — odbiór osobisty, ustal szczegóły z {owner_name}"
         " na czacie. Gdy odbierzesz rzecz, potwierdź to na stronie przedmiotu."
     )
-    assert taken["link_path"] == reserved["link_path"] == f"/product/{item_id}"
+    assert taken["link_path"] == reserved["link_path"] == await _item_link(
+        client, owner_token, item_id
+    )
 
 
 async def test_termEndScan_personalReservation_sendsNoPrompt(

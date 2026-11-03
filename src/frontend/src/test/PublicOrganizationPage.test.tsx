@@ -24,7 +24,7 @@ vi.mock("../api/groups", () => ({
 function renderAt(path: string) {
   return renderWithRoute(<PublicOrganizationPage />, {
     url: path,
-    pattern: "/:organizationSlug",
+    pattern: "/:slug",
     wrapper: createQueryWrapper(),
   });
 }

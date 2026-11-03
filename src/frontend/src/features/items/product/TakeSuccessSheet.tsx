@@ -1,4 +1,4 @@
-import { Link } from "../../../routing/navigation";
+import { Link, useAppParams } from "../../../routing/navigation";
 import { ModalSheet } from "../../../components/shared/ModalSheet";
 import { BTN_LG, BTN_PRIMARY } from "../../../components/shared/uiStyles";
 import { AddToCalendarButton } from "../../../components/shared/AddToCalendarButton";
@@ -6,6 +6,7 @@ import { useOrigin } from "../../../lib/useClientValue";
 import { calendarUid } from "../../../utils/calendar";
 import dayjs from "../../../utils/dayjs";
 import type { TakeTarget } from "./useItemTake";
+import { itemPagePath } from "./useItemRoutes";
 
 /** "Wzięte!" sheet after a successful take: for a term or event `target`
  * when and where to pick the item up and a calendar export linking to the
@@ -23,6 +24,7 @@ export function TakeSuccessSheet({
   onClose: () => void;
 }) {
   const origin = useOrigin();
+  const { slug = "" } = useAppParams();
   const context = target.kind === "PERSONAL" ? null : target;
   const sentence = context
     ? `Odbierz „${itemName}” w ${dayjs(context.starts_at).format("ddd DD.MM [o] HH:mm")} — ${context.name}`
@@ -64,7 +66,7 @@ export function TakeSuccessSheet({
           </div>
         )}
         <Link
-          to={`/product/${itemId}`}
+          to={itemPagePath(slug, itemId)}
           className={`${BTN_PRIMARY} ${BTN_LG} inline-flex items-center justify-center no-underline min-[520px]:flex-1`}
         >
           Zobacz rzecz

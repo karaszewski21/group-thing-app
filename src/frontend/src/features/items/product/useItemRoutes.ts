@@ -1,33 +1,20 @@
 import { useAppParams } from "../../../routing/navigation";
 
-interface ItemRoutes {
-  viewPath: (id: string) => string;
-  /** Where "Wróć" goes when the page was opened directly. */
-  backFallback: string;
+/** An item's page under its owner's prefix: their Organization slug, else
+ * their party id (`ownerSlug` of `ownerPagePath`). The page replaces a stale
+ * prefix with the owner's current one. */
+export function itemPagePath(ownerSlug: string, id: string): string {
+  return `/${ownerSlug}/product/${id}`;
 }
 
-/** The backend's stand-in slug (`k-` + 12 hex) for an organizer without an
- * Organization: it has no organizer page to go back to. */
-const FALLBACK_ORGANIZER_SLUG = /^k-[0-9a-f]{12}$/;
-
-/** An item's page under its organizer's prefix, or the panel-wide
- * `/product/:id` when there is no organizer slug. */
-export function organizerItemPath(organizerSlug: string | null | undefined, id: string): string {
-  return organizerSlug ? `/${organizerSlug}/product/${id}` : `/product/${id}`;
+/** The owner's edit page in the panel (`ItemEditView`). */
+export function itemEditPath(id: string): string {
+  return `/items/${id}/edit`;
 }
 
-/** An item page opened in edit mode (`?edit=1`, see `ItemDetailPage`). */
-export function itemEditPath(viewPath: string): string {
-  return `${viewPath}?edit=1`;
-}
-
-/** Item page paths: under `/:organizationSlug/product` on the organizer
- * route, under `/product` everywhere else. */
-export function useItemRoutes(): ItemRoutes {
-  const { organizationSlug } = useAppParams();
-  const hasOrganizerPage = !!organizationSlug && !FALLBACK_ORGANIZER_SLUG.test(organizationSlug);
-  return {
-    viewPath: (id) => organizerItemPath(organizationSlug, id),
-    backFallback: hasOrganizerPage ? `/${organizationSlug}` : "/items",
-  };
+/** On `/:slug/product/:id`: where "Wróć" goes when the page was opened
+ * directly — the owner's page under the same prefix. */
+export function useItemBackFallback(): string {
+  const { slug = "" } = useAppParams();
+  return `/${slug}`;
 }

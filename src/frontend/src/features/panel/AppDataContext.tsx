@@ -707,6 +707,8 @@ function useAppDataValue() {
     addTermError,
     itemError,
     organizationSlug,
+    /** The user's public-URL prefix: their Organization slug, else their party id. */
+    ownSlug: organizationSlug ?? profile?.party_id ?? "",
     modal,
     toast,
     busy,

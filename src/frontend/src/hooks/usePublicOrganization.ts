@@ -13,7 +13,7 @@ interface UsePublicOrganizationResult {
   refetch: () => Promise<void>;
 }
 
-/** The public organizer profile behind `/:organizationSlug`. A 404 is
+/** The public organizer profile behind `/:slug`. A 404 is
  * reported as `notFound` rather than as an error message. */
 export function usePublicOrganization(slug: string): UsePublicOrganizationResult {
   const query = useQuery({

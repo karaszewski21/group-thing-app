@@ -21,7 +21,14 @@ from app.core import clock
 from app.core.auth_deps import Principal
 from app.core.errors import BusinessConflictException, EntityNotFoundException
 
-from ..infrastructure import circulation_acl, events_acl, groups_acl, repository, users_acl
+from ..infrastructure import (
+    circulation_acl,
+    events_acl,
+    groups_acl,
+    organizations_acl,
+    repository,
+    users_acl,
+)
 from ..models import Conversation, ConversationKind
 from ..schemas import ConversationItemRef, ConversationResponse
 from .access import Access, event_access, group_access, resolve_access, term_access
@@ -203,8 +210,13 @@ async def _to_response(
         name, deleted_at = (await circulation_acl.list_item_refs(db, [conversation.item_id]))[
             conversation.item_id
         ]
+        assert conversation.owner_party_id is not None
+        owner_slugs = await organizations_acl.list_party_slugs(db, [conversation.owner_party_id])
         item = ConversationItemRef(
-            id=conversation.item_id, name=name, deleted=deleted_at is not None
+            id=conversation.item_id,
+            name=name,
+            deleted=deleted_at is not None,
+            owner_slug=owner_slugs[conversation.owner_party_id],
         )
         title = name
         counterpart = item_counterpart(conversation, me)

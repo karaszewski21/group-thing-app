@@ -13,7 +13,7 @@ const itemConversation: ConversationResponse = {
   id: "c1",
   kind: "ITEM",
   title: "Klocki Lego Duplo",
-  item: { id: "i9", name: "Klocki Lego Duplo", deleted: false },
+  item: { id: "i9", name: "Klocki Lego Duplo", deleted: false, owner_slug: "ania" },
   counterpart_name: "Anna K.",
   group_name: null,
   term_occurs_on: null,
@@ -121,13 +121,13 @@ describe("ThreadPage", () => {
     const header = screen.getByRole("banner");
     expect(within(header).getByRole("heading", { name: "Klocki Lego Duplo" })).toBeInTheDocument();
     expect(header).toHaveTextContent("Rozmowa z: Anna K. · zobacz rzecz");
-    expect(within(header).getByRole("link", { name: "zobacz rzecz" })).toHaveAttribute("href", "/product/i9");
+    expect(within(header).getByRole("link", { name: "zobacz rzecz" })).toHaveAttribute("href", "/ania/product/i9");
     expect(screen.getByLabelText("Wiadomość")).toBeInTheDocument();
   });
 
   it("itemThread_deletedItem_showsUsunieteWithoutLink", () => {
     mockConversation({
-      conversation: { ...itemConversation, item: { id: "i9", name: "Klocki Lego Duplo", deleted: true } },
+      conversation: { ...itemConversation, item: { id: "i9", name: "Klocki Lego Duplo", deleted: true, owner_slug: "ania" } },
     });
     renderPage();
 

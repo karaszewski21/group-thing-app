@@ -91,7 +91,7 @@ function page() {
 function renderPage(state?: { toast: string }) {
   return renderWithRoute(page(), {
     url: PAGE_PATH,
-    pattern: "/:organizationSlug/event/:eventId",
+    pattern: "/:slug/event/:eventId",
     routes: { "/meetings": <p>Strona spotkań</p> },
     state,
     wrapper: createQueryWrapper(),
@@ -157,12 +157,12 @@ describe("EventPage", () => {
     const [authorRow, bartekRow] = within(list).getAllByRole("listitem");
     expect(within(authorRow).getByRole("link", { name: /Pluszowy miś/ })).toHaveAttribute(
       "href",
-      "/zielony-krag/product/it-1",
+      "/p-author/product/it-1",
     );
     expect(within(authorRow).queryByRole("link", { name: /Pokaż więcej/ })).not.toBeInTheDocument();
     expect(within(bartekRow).getByRole("link", { name: /Kurtka/ })).toHaveAttribute(
       "href",
-      "/zielony-krag/product/it-7",
+      "/p-bartek/product/it-7",
     );
     expect(within(bartekRow).getByRole("link", { name: "Pokaż więcej (12)" })).toHaveAttribute(
       "href",
@@ -441,7 +441,7 @@ describe("EventPage", () => {
   });
 
   it("is routed only at /:slug/event/:id; the old /events/:id page route is gone but edit stays", () => {
-    expect(pageFor(PAGE_PATH)?.pattern).toBe("/:organizationSlug/event/:eventId");
+    expect(pageFor(PAGE_PATH)?.pattern).toBe("/:slug/event/:eventId");
     expect(pageFor(`/events/${EVENT_ID}`)).toBeNull();
     expect(pageFor(`/events/${EVENT_ID}/edit`)?.pattern).toBe("/events/:eventId/edit");
   });

@@ -1,15 +1,14 @@
 import { useAppNavigate, useHasInAppHistory } from "../../../routing/navigation";
 import { BackIcon } from "../../../components/shared/appIcons";
 import { BACK_LINK } from "./itemPageShared";
-import { useItemRoutes } from "./useItemRoutes";
+import { useItemBackFallback } from "./useItemRoutes";
 
-/** "Wróć": history back, or the route's fallback (`/items`, or the
- * organizer page on `/:organizationSlug/product/...`) when opened directly.
+/** "Wróć": history back, or the owner's page (`/:slug`) when opened directly.
  * `overlay` is the round white button laid over the item photo. */
 export function ItemBackButton({ overlay = false }: { overlay?: boolean }) {
   const navigate = useAppNavigate();
   const hasInAppHistory = useHasInAppHistory();
-  const { backFallback } = useItemRoutes();
+  const backFallback = useItemBackFallback();
 
   const goBack = () => {
     if (hasInAppHistory) navigate(-1);

@@ -1,6 +1,6 @@
 import { useId } from "react";
 import { Link } from "../../../routing/navigation";
-import { organizerItemPath } from "../../items/product/useItemRoutes";
+import { itemPagePath } from "../../items/product/useItemRoutes";
 import type { BlockProps, OrganizerPageData } from "../layouts/types";
 import { ItemCard } from "./ExchangeItemCard";
 
@@ -27,7 +27,7 @@ export function RecentItemsBlock({ data }: BlockProps) {
         {directory.recent_items.map((item) => (
           <li key={item.item_id}>
             <ItemCard
-              href={organizerItemPath(slug, item.item_id)}
+              href={itemPagePath(slug, item.item_id)}
               name={item.product_name}
               condition={item.condition}
               thumbUrl={item.thumb_url}

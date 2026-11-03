@@ -143,6 +143,7 @@ function makeContextValue(
     items: [item],
     itemModes: {},
     itemError: null,
+    ownSlug: "ania",
     busy: false,
     setItemMode: vi.fn(),
     handleDeleteItem: vi.fn(),
@@ -156,7 +157,22 @@ function renderView() {
 }
 
 describe("MyItemsView — item card links to the item page", () => {
-  it("renders view and edit links to /product/:id and no inline name, category or condition editors", async () => {
+  it("links the card under the user's own prefix, here a party id", async () => {
+    vi.mocked(api.get).mockResolvedValue(mockBalance(item.id, "AVAILABLE"));
+    vi.mocked(appDataStore.useAppData).mockReturnValue(
+      makeContextValue({ ownSlug: "p-ania" }),
+    );
+
+    renderView();
+
+    expect(screen.getByRole("link", { name: "Zobacz rzecz Rowerek" })).toHaveAttribute(
+      "href",
+      `/p-ania/product/${item.id}`,
+    );
+    await waitFor(() => expect(api.get).toHaveBeenCalled());
+  });
+
+  it("links the card to /:slug/product/:id, edit to the panel, and has no inline editors", async () => {
     // MyItemsView always fires its balance-fetch effect for every mounted
     // item (see the badge describe block below), so `api.get` needs a
     // valid response here too — otherwise the unconfigured mock resolves
@@ -169,11 +185,11 @@ describe("MyItemsView — item card links to the item page", () => {
 
     expect(screen.getByRole("link", { name: "Zobacz rzecz Rowerek" })).toHaveAttribute(
       "href",
-      `/product/${item.id}`,
+      `/ania/product/${item.id}`,
     );
     expect(screen.getByRole("link", { name: "Edytuj rzecz Rowerek" })).toHaveAttribute(
       "href",
-      `/product/${item.id}?edit=1`,
+      `/items/${item.id}/edit`,
     );
     expect(screen.queryByRole("button", { name: "Edytuj stan rzeczy" })).toBeNull();
     expect(screen.queryByRole("button", { name: "Edytuj rzecz Rowerek" })).toBeNull();
@@ -512,7 +528,7 @@ describe("MyItemsView — photos in moderation do not block the mode toggles", (
     expect(screen.getByRole("status")).toHaveTextContent("Zdjęcia w moderacji");
     expect(screen.getByRole("link", { name: "Zobacz zdjęcia →" })).toHaveAttribute(
       "href",
-      `/product/${item.id}?edit=1`,
+      `/items/${item.id}/edit`,
     );
     fireEvent.click(screen.getByRole("button", { name: "Oddam" }));
     expect(setItemMode).toHaveBeenCalledWith(item.id, "oddam");

@@ -12,7 +12,7 @@ import { resolveTermView } from "./termViewState";
 import { PrivateTermView } from "./views/PrivateTermView";
 import { PublicTermView } from "./views/PublicTermView";
 
-/** Route element for `/:organizationSlug/group/:groupId/term/:termId`.
+/** Route element for `/:slug/group/:groupId/term/:termId`.
  * Shows exactly one view per `resolveTermView` state; the access-code flow
  * (`#code=` link, code sheet, join) lives in `useJoinCodeLink`. */
 export function TermPage() {

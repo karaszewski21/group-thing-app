@@ -20,7 +20,7 @@ describe("organizer theme after client-side navigation", () => {
       </OrganizerThemeScope>,
       {
         url: "/ania/group/g/term/t",
-        pattern: "/:organizationSlug/group/:groupId/term/:termId",
+        pattern: "/:slug/group/:groupId/term/:termId",
         routes: { "/": <h1>Panel</h1> },
       },
     );

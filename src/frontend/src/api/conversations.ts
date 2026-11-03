@@ -9,6 +9,8 @@ export interface ConversationItemRef {
   id: string;
   name: string;
   deleted: boolean;
+  /** The owner's Organization slug, else their party id: the item page's prefix. */
+  owner_slug: string;
 }
 
 interface ConversationBase {

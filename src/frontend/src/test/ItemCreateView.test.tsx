@@ -15,6 +15,8 @@ import { useAppParams } from "../routing/navigation";
 import { createQueryWrapper } from "./queryClient";
 import { renderWithRoute } from "./renderWithRoute";
 
+vi.mock("../features/panel/appDataStore", () => ({ useAppData: () => ({ ownSlug: "ania" }) }));
+
 vi.mock("../api/inventories", () => ({
   getOrCreatePersonalInventory: vi.fn(),
   registerInventoryItem: vi.fn(),
@@ -73,7 +75,7 @@ function renderPage() {
   return renderWithRoute(<ItemCreateView />, {
     url: "/add/product",
     pattern: "/add/product",
-    routes: { "/product/:id": <NewItemProbe /> },
+    routes: { "/ania/product/:id": <NewItemProbe /> },
     wrapper: createQueryWrapper(),
   });
 }

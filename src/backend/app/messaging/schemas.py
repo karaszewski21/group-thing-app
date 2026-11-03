@@ -18,6 +18,9 @@ class ConversationItemRef(BaseModel):
     id: uuid.UUID
     name: str
     deleted: bool
+    # The owner's Organization slug, else their party id: the item page is
+    # `/<owner_slug>/product/<id>`.
+    owner_slug: str
 
 
 class ConversationSummary(BaseModel):

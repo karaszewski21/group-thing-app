@@ -16,7 +16,7 @@ from app.core import clock
 from app.events.models import Event
 from app.groups.infrastructure import events_acl
 from app.users.models import UserProfile
-from tests.test_term_item_listings import _auth, _register, _resolve_product
+from tests.test_term_item_listings import _auth, _item_link, _register, _resolve_product
 
 EVENT_NAME = "Piknik wymiany"
 CONTEXT_KEYS = {"kind", "id", "name", "starts_at", "path", "has_started"}
@@ -156,7 +156,7 @@ async def test_takeEventItem_eligibleAttendee_returnsContextAndNotifiesWithEvent
     assert reserved[0]["message"] == (
         f"Zarezerwowano „Rowerek eir1” — odbierz w {when} — {EVENT_NAME}"
     )
-    assert reserved[0]["link_path"] == f"/product/{item_id}"
+    assert reserved[0]["link_path"] == await _item_link(client, owner, item_id)
 
 
 async def test_takeEventItem_ineligibleTakerOwnerOrGuest_returns403(
@@ -319,7 +319,7 @@ async def test_eventSwap_ownerRejects_cancelsProposerLegAndNotifiesProposer(
     ).scalar_one()
     assert balance == BalanceStatus.AVAILABLE
     rejected = await _notifications(client, proposer, "SWAP_REJECTED")
-    assert [n["link_path"] for n in rejected] == [f"/product/{listed}"]
+    assert [n["link_path"] for n in rejected] == [await _item_link(client, owner, listed)]
 
 
 async def test_eventGift_confirmAndCancelTransaction_onlyFromStart(

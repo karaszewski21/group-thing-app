@@ -8,15 +8,15 @@ import { ItemBackButton } from "./ItemBackButton";
 import { ItemLoadStates } from "./ItemLoadStates";
 import { OrganizerItemContext } from "./OrganizerItemContext";
 
-/** `/:organizationSlug/product/:id`: the item pages in the organizer's
- * palette. Public like `/product/:id`: `ItemDetailBody` sends an anonymous
+/** `/:slug/product/:id`: the item page in the owner's Organization
+ * palette (none under a party id). Public: `ItemDetailBody` sends an anonymous
  * visitor to login only when the item is not public. The item reads start right away, in
  * parallel with the organization; until the organization settles a neutral
  * loader shows in the default palette, so content never paints in the wrong
  * colors. An unknown organization or a failed read gives the default palette. */
 export function OrganizerItemLayout({ children }: { children: ReactNode }) {
-  const { organizationSlug = "", id = "" } = useAppParams();
-  const organization = usePublicOrganization(organizationSlug);
+  const { slug = "", id = "" } = useAppParams();
+  const organization = usePublicOrganization(slug);
   useItemPagePrefetch(id);
 
   if (organization.loading) {

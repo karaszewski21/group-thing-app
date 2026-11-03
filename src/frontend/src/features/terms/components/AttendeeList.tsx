@@ -11,7 +11,6 @@ export interface AttendeeVM {
   listings: PublicItemListingResponse[];
   /** Every item this person offers on this Term. */
   listingsTotal: number;
-  organizerSlug: string | null;
 }
 
 function toPreviewItem(listing: PublicItemListingResponse): ParticipantPreviewItem {
@@ -60,7 +59,6 @@ export function AttendeeList({
                 items={attendee.listings.map(toPreviewItem)}
                 total={attendee.listingsTotal}
                 partyId={attendee.partyId}
-                organizerSlug={attendee.organizerSlug}
               />
             </li>
           );

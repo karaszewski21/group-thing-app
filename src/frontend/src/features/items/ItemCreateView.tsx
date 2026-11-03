@@ -9,6 +9,8 @@ import { viewPath } from "../../routing/paths";
 import { EXCHANGE_MODE_LABELS } from "../terms/components/termLabels";
 import { PhotoGalleryField } from "../../components/shared/PhotoGalleryField";
 import { FIELD_LABEL, MAX_PRODUCT_PHOTOS, photoFileError, type ItemCreatedState } from "./product/itemPageShared";
+import { itemPagePath } from "./product/useItemRoutes";
+import { useAppData } from "../panel/appDataStore";
 
 const ACTION_CLASS =
   "rounded-[13px] px-4 py-3 text-[13.5px] font-extrabold disabled:opacity-60 aria-disabled:cursor-not-allowed aria-disabled:opacity-60";
@@ -19,10 +21,12 @@ const TITLE = "Dodaj rzecz";
  * name, condition, category and an optional description — offered at once
  * (Oddam / Zamienię) or saved as a draft — then replaces itself with the
  * new item's page (handing it what could not be saved). A panel view like
- * the other `/add/*` pages; it reads nothing from AppDataContext. */
+ * the other `/add/*` pages; from AppDataContext it reads only the user's
+ * own URL prefix. */
 export function ItemCreateView() {
   const navigate = useAppNavigate();
   const createItem = useCreateItem();
+  const { ownSlug } = useAppData();
   const [value, setValue] = useState<ItemQuickAddValue>(createEmptyItemQuickAddValue());
   const [photos, setPhotos] = useState<File[]>([]);
   const [busy, setBusy] = useState(false);
@@ -46,7 +50,7 @@ export function ItemCreateView() {
       const { item, failedPhotos, failedDescription } = await createItem(value, photos, mode);
       const state: ItemCreatedState | undefined =
         failedPhotos > 0 || failedDescription ? { failedPhotos, failedDescription } : undefined;
-      navigate(`/product/${item.id}`, { replace: true, state });
+      navigate(itemPagePath(ownSlug, item.id), { replace: true, state });
     } catch (err) {
       setError(err instanceof Error ? err.message : "Nie udało się dodać rzeczy.");
       setBusy(false);

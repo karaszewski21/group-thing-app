@@ -5,6 +5,7 @@ import { Avatar } from "../../components/shared/Avatar";
 import { useConversation } from "../../hooks/useConversation";
 import { useThread } from "../../hooks/useThread";
 import { INBOX_PATH } from "../../routing/messagesPaths";
+import { itemPagePath } from "../items/product/useItemRoutes";
 import { pluralPl } from "../../utils/plural";
 import { BackIcon } from "../../components/shared/appIcons";
 import { MessageBubble } from "./MessageBubble";
@@ -84,24 +85,24 @@ export function ThreadPage() {
   }
 }
 
-function ThreadShell({ children }: { children: ReactNode }) {
-  return <div className="flex min-h-0 flex-1 flex-col bg-paper font-sans text-ink">{children}</div>;
-}
+// function ThreadShell({ children }: { children: ReactNode }) {
+//   return <div className="flex min-h-0 flex-1 flex-col bg-paper font-sans text-ink">{children}</div>;
+// }
 
-function BackButton() {
-  const navigate = useAppNavigate();
-  const hasInAppHistory = useHasInAppHistory();
-  return (
-    <button
-      type="button"
-      aria-label="Wróć"
-      onClick={() => (hasInAppHistory ? navigate(-1) : navigate(INBOX_PATH))}
-      className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-cream text-ink ${FOCUS_RING}`}
-    >
-      <BackIcon />
-    </button>
-  );
-}
+// function BackButton() {
+//   const navigate = useAppNavigate();
+//   const hasInAppHistory = useHasInAppHistory();
+//   return (
+//     <button
+//       type="button"
+//       aria-label="Wróć"
+//       onClick={() => (hasInAppHistory ? navigate(-1) : navigate(INBOX_PATH))}
+//       className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-cream text-ink ${FOCUS_RING}`}
+//     >
+//       <BackIcon />
+//     </button>
+//   );
+// }
 
 function ThreadContent({
   view,
@@ -115,7 +116,7 @@ function ThreadContent({
   const { conversation } = view;
   const showSender = conversation.kind !== "ITEM";
   return (
-    <ThreadShell>
+    <>
       <ThreadHeader conversation={conversation} />
       <MessageList thread={thread} showSender={showSender} />
       {view.kind === "readOnly" ? (
@@ -128,7 +129,7 @@ function ThreadContent({
       ) : (
         <MessageComposer send={send} />
       )}
-    </ThreadShell>
+    </>
   );
 }
 
@@ -154,7 +155,7 @@ function ThreadHeader({ conversation }: { conversation: ConversationResponse }) 
         {item && !item.deleted && (
           <>
             <span className="shrink-0 whitespace-pre">{" · "}</span>
-            <Link to={`/product/${item.id}`} className={`shrink-0 whitespace-nowrap underline ${FOCUS_RING}`}>
+            <Link to={itemPagePath(item.owner_slug, item.id)} className={`shrink-0 whitespace-nowrap underline ${FOCUS_RING}`}>
               zobacz rzecz
             </Link>
           </>
@@ -172,17 +173,7 @@ function ThreadHeader({ conversation }: { conversation: ConversationResponse }) 
 
   return (
     <header className="flex flex-none items-center gap-2.5 border-b border-line px-3 py-2.5">
-      <BackButton />
-      {isItem ? (
-        <span
-          aria-hidden="true"
-          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-linear-135 from-line-strong to-accent-soft text-lg"
-        >
-          📦
-        </span>
-      ) : (
-        <Avatar name={groupName} size="md" />
-      )}
+      <Avatar name={groupName} size="md" />
       <div className="min-w-0 flex-1">
         <h1 className="truncate text-[14.5px] leading-tight font-bold">{title}</h1>
         {subtitle && <p className="truncate text-[11.5px] text-ink-soft">{subtitle}</p>}
@@ -285,7 +276,7 @@ function DaySeparator({ message }: { message: MessageResponse }) {
 
 function ThreadLoading() {
   return (
-    <ThreadShell>
+    <>
       <div className="flex flex-none items-center gap-2.5 border-b border-line px-3 py-2.5">
         <span className="h-9 w-9 rounded-full bg-stage" />
         <span className="h-10 w-10 rounded-xl bg-stage" />
@@ -296,13 +287,13 @@ function ThreadLoading() {
         <span className="h-10 w-2/3 rounded-[18px] bg-stage" />
         <span className="h-10 w-1/2 self-end rounded-[18px] bg-stage" />
       </div>
-    </ThreadShell>
+    </>
   );
 }
 
 function ThreadUnavailable({ message }: { message: string }) {
   return (
-    <ThreadShell>
+    <>
       <div className="flex flex-1 flex-col items-center justify-center gap-3 bg-cream p-4 text-center">
         <p className="text-sm font-semibold">{message}</p>
         <Link
@@ -312,13 +303,13 @@ function ThreadUnavailable({ message }: { message: string }) {
           Wróć do wiadomości
         </Link>
       </div>
-    </ThreadShell>
+    </>
   );
 }
 
 function ThreadError({ message, onRetry }: { message: string; onRetry: () => void }) {
   return (
-    <ThreadShell>
+    <>
       <div className="flex flex-1 flex-col items-center justify-center gap-3 bg-cream p-4 text-center">
         <p role="alert" className="text-sm font-semibold text-danger">
           {message}
@@ -331,6 +322,6 @@ function ThreadError({ message, onRetry }: { message: string; onRetry: () => voi
           Spróbuj ponownie
         </button>
       </div>
-    </ThreadShell>
+    </>
   );
 }

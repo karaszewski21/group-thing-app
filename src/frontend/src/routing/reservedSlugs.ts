@@ -3,7 +3,6 @@
  * shadowed by a page; `test/reservedSlugs.test.ts` checks both. */
 export const RESERVED_SLUGS: readonly string[] = [
   "login",
-  "product",
   "home",
   "meetings",
   "groups",

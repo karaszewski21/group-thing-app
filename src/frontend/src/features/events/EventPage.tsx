@@ -35,7 +35,7 @@ function routerToast(state: unknown): string | null {
     : null;
 }
 
-/** Route element for `/:organizationSlug/event/:eventId`: the public page of
+/** Route element for `/:slug/event/:eventId`: the public page of
  * a one-off event. Keyed on the id, since React Router reuses the element
  * when only `:eventId` changes and the page state belongs to one event. */
 export function EventPage() {
@@ -230,7 +230,6 @@ function EventShell({ event, onCopyLink, canSignUp = false, chat, card, footer, 
           {chat}
           <EventAttendeeList
             participants={event.participants}
-            authorSlug={event.author_slug}
             canSignUp={canSignUp}
           />
           {card}

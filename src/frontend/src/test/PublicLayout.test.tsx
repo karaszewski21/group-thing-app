@@ -26,7 +26,7 @@ function inLayout(page: ReactNode) {
 function renderPublicPage(initialEntry = "/skrzaty") {
   return renderWithRoute(inLayout(<h1>Strona publiczna</h1>), {
     url: initialEntry,
-    pattern: "/:organizationSlug",
+    pattern: "/:slug",
     routes: {
       "/": inLayout(<h1>Start</h1>),
       "/account": inLayout(

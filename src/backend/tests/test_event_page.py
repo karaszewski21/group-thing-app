@@ -504,7 +504,7 @@ async def test_getEvent_anonymousOrInvalidToken_returns200NotAuthorView(
         assert (body["is_author"], body["is_attending"]) == (False, False)
         assert body["organization"] is None
         assert body["author_display_name"] == "Page Anon Author"
-        assert body["author_slug"].startswith("k-")
+        assert body["author_slug"] == author_party
         assert body["attendee_count"] == 1
         assert body["participants"][0]["party_id"] == author_party
         assert [p["is_me"] for p in body["participants"]] == [False, False]

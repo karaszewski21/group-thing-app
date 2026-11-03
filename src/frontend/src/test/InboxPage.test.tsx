@@ -19,7 +19,7 @@ function row(over: Partial<InboxRow> = {}): InboxRow {
     id: "c1",
     kind: "ITEM",
     title: "Klocki Lego Duplo",
-    item: { id: "i1", name: "Klocki Lego Duplo", deleted: false },
+    item: { id: "i1", name: "Klocki Lego Duplo", deleted: false, owner_slug: "ania" },
     counterpart_name: "Anna K.",
     group_name: null,
     term_occurs_on: null,

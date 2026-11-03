@@ -8,7 +8,7 @@ import { BlockSkeleton } from "./blocks/BlockSkeleton";
 import { ItemCard } from "./blocks/ExchangeItemCard";
 import { FooterBlock } from "./blocks/FooterBlock";
 import { NotFoundFrame, PageFrame } from "./PageFrame";
-import { organizerItemPath } from "../items/product/useItemRoutes";
+import { itemPagePath } from "../items/product/useItemRoutes";
 import { NearestSection } from "./OwnerItemsPage";
 
 const FOCUS_RING = "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring";
@@ -62,7 +62,7 @@ function ItemsSection({ profile }: { profile: PartyProfileResponse }) {
             {profile.recent_items.map((item) => (
               <li key={item.item_id}>
                 <ItemCard
-                  href={organizerItemPath(owner.slug, item.item_id)}
+                  href={itemPagePath(owner.slug ?? owner.party_id, item.item_id)}
                   name={item.product_name}
                   condition={item.condition}
                   thumbUrl={item.thumb_url}
@@ -130,7 +130,7 @@ function ProfileContent({ profile }: { profile: PartyProfileResponse }) {
  * for the person themself an invite to set up an organizer page. A person
  * who owns an Organization is redirected to its page. */
 export function PartyProfilePage() {
-  const { organizationSlug: partyId = "" } = useAppParams<{ organizationSlug: string }>();
+  const { slug: partyId = "" } = useAppParams<{ slug: string }>();
   const profile = usePartyProfile(partyId);
 
   if (profile.notFound) return <NotFoundFrame message="Ten profil nie istnieje albo nie jest publiczny." />;

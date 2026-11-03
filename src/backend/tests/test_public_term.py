@@ -322,7 +322,7 @@ async def test_getPublicCircle_neededItem_reflectsPledgeClaim(client: AsyncClien
     assert item_after["claimed_by_name"] is not None
 
 
-async def test_getPublicCircle_organizerSlug_isOrgSlugWhenOrgExists_elseStableHash(
+async def test_getPublicCircle_organizerSlug_isOrgSlugWhenOrgExists_elsePartyId(
     client: AsyncClient,
 ) -> None:
     # Organizer who owns an Organization -> `organizer_slug` is that org's slug.
@@ -341,8 +341,8 @@ async def test_getPublicCircle_organizerSlug_isOrgSlugWhenOrgExists_elseStableHa
     assert response_with.status_code == 200
     assert response_with.json()["organizer_slug"] == slug
 
-    # Organizer who owns no Organization -> a stable `k-<hash>` pseudo-slug,
-    # never null, so per-term links still work without an Organization.
+    # Organizer who owns no Organization -> their party id, never null, so
+    # per-term links still work without an Organization.
     token_without = await _register_organizer(client, "pt.owner6b@example.com")
     group_without = await _create_circle(client, token_without, "Krąg bez organizacji")
     await _create_term(client, token_without, group_without, clock.local_now().date())
@@ -350,7 +350,7 @@ async def test_getPublicCircle_organizerSlug_isOrgSlugWhenOrgExists_elseStableHa
     url = f"/api/groups/public/{group_without}"
     slug = (await client.get(url)).json()["organizer_slug"]
     assert slug is not None
-    assert re.fullmatch(r"k-[0-9a-f]{12}", slug)
+    assert uuid.UUID(slug)
     # Stable across calls.
     assert (await client.get(url)).json()["organizer_slug"] == slug
 
@@ -443,7 +443,7 @@ async def test_getPublicCircle_organization_isNull_whenOrganizerHasNoOrganizatio
     body = response.json()
     assert "organization" in body
     assert body["organization"] is None
-    assert re.fullmatch(r"k-[0-9a-f]{12}", body["organizer_slug"])
+    assert uuid.UUID(body["organizer_slug"])
 
 
 async def test_getPublicCircle_organization_isNull_whenCircleHasNoActiveLeadership(

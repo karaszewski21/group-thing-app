@@ -11,6 +11,7 @@ naming follows `action_condition_expectedResult`
 
 from __future__ import annotations
 
+import uuid
 from datetime import date, datetime, timedelta
 from typing import cast
 
@@ -242,4 +243,4 @@ async def test_getMyAttendances_organizerPartyWithoutProfile_returnsNullDisplayN
     assert len(rows) == 1
     assert rows[0]["term_id"] == str(term.id)
     assert rows[0]["organizer_display_name"] is None
-    assert rows[0]["organizer_slug"].startswith("k-")
+    assert uuid.UUID(rows[0]["organizer_slug"])

@@ -61,6 +61,13 @@ from tests.conftest import leaf_category_ids
 from tests.ledger_assertions import assert_ledger_matches_projection, movements_for_item
 
 
+async def _item_link(client: AsyncClient, owner_token: str, item_id: object) -> str:
+    """The item page of an owner without an Organization: `/<party id>/product/<id>`."""
+    me = await client.get("/api/people/me", headers=_auth(owner_token))
+    assert me.status_code == 200, me.text
+    return f"/{me.json()['party_id']}/product/{item_id}"
+
+
 def _auth(token: str) -> dict[str, str]:
     return {"Authorization": f"Bearer {token}"}
 
@@ -2245,10 +2252,10 @@ async def test_takeItemListing_taker_receivesItemReservedForPickupWithProductLin
         f"Zarezerwowano „Hulajnoga link1” — odbierz w {clock.format_term_when(term.occurs_on)}"
         " — Krąg tillink1"
     )
-    assert reserved["link_path"] == f"/product/{item_id}"
+    assert reserved["link_path"] == await _item_link(client, lister_token, item_id)
 
     [taken] = await _notifications(client, lister_token, "TERM_ITEM_LISTING_TAKEN")
-    assert taken["link_path"] == f"/product/{item_id}"
+    assert taken["link_path"] == await _item_link(client, lister_token, item_id)
 
 
 async def test_proposeSwap_owner_notificationLinksToListingItem(
@@ -2265,7 +2272,7 @@ async def test_proposeSwap_owner_notificationLinksToListingItem(
     )
 
     [proposed] = await _notifications(client, lister_token, "SWAP_PROPOSED")
-    assert proposed["link_path"] == f"/product/{listed_item_id}"
+    assert proposed["link_path"] == await _item_link(client, lister_token, listed_item_id)
 
 
 async def test_proposeSwap_competingProposal_raisesConflict_preDeployRivalAutoRejectedOnAccept(
@@ -2306,9 +2313,9 @@ async def test_proposeSwap_competingProposal_raisesConflict_preDeployRivalAutoRe
     await service.accept_swap_proposal(db_session, _principal(lister_token), proposal.id)
 
     [accepted] = await _notifications(client, taker_token, "SWAP_ACCEPTED")
-    assert accepted["link_path"] == f"/product/{listed_item_id}"
+    assert accepted["link_path"] == await _item_link(client, lister_token, listed_item_id)
     [auto_rejected] = await _notifications(client, rival_token, "SWAP_REJECTED")
-    assert auto_rejected["link_path"] == f"/product/{listed_item_id}"
+    assert auto_rejected["link_path"] == await _item_link(client, lister_token, listed_item_id)
 
 
 async def test_rejectSwapProposal_proposer_notificationLinksToListingItem(
@@ -2324,7 +2331,7 @@ async def test_rejectSwapProposal_proposer_notificationLinksToListingItem(
     await service.reject_swap_proposal(db_session, _principal(lister_token), proposal.id)
 
     [rejected] = await _notifications(client, taker_token, "SWAP_REJECTED")
-    assert rejected["link_path"] == f"/product/{listed_item_id}"
+    assert rejected["link_path"] == await _item_link(client, lister_token, listed_item_id)
 
 
 async def test_resolveTransactionReservations_alreadyResolved_notificationLinksToItem(
@@ -2357,7 +2364,8 @@ async def test_resolveTransactionReservations_alreadyResolved_notificationLinksT
         )
 
     [resolved] = await _notifications(client, lister_token, "TERM_ALREADY_RESOLVED")
-    assert resolved["link_path"] == f"/product/{item_id}"
+    # The confirmed gift now belongs to the taker, so the link is under their prefix.
+    assert resolved["link_path"] == await _item_link(client, taker_token, item_id)
 
 
 async def test_browseListing_pendingProposal_hiddenAndOwnViewExposesNoProposer(

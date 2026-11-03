@@ -16,7 +16,14 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.auth_deps import Principal
 
-from ..infrastructure import circulation_acl, events_acl, groups_acl, repository, users_acl
+from ..infrastructure import (
+    circulation_acl,
+    events_acl,
+    groups_acl,
+    organizations_acl,
+    repository,
+    users_acl,
+)
 from ..models import Conversation, ConversationKind, Message
 from ..schemas import (
     ConversationItemRef,
@@ -32,6 +39,7 @@ from .messages import UNKNOWN_SENDER_NAME
 
 class _Labels(NamedTuple):
     item_refs: dict[uuid.UUID, tuple[str, datetime | None]]
+    owner_slugs: dict[uuid.UUID, str]
     group_refs: dict[uuid.UUID, tuple[str, groups_acl.GroupVisibility, datetime | None]]
     term_refs: dict[uuid.UUID, tuple[uuid.UUID, datetime]]
     event_refs: dict[uuid.UUID, tuple[str, uuid.UUID]]
@@ -78,6 +86,9 @@ async def _load_labels(
         item_refs=await circulation_acl.list_item_refs(
             db, {c.item_id for c in conversations if c.item_id is not None}
         ),
+        owner_slugs=await organizations_acl.list_party_slugs(
+            db, {c.owner_party_id for c in conversations if c.owner_party_id is not None}
+        ),
         group_refs=await groups_acl.list_chat_group_refs(db, group_ids),
         term_refs=await groups_acl.list_chat_term_refs(
             db, {c.term_id for c in conversations if c.term_id is not None}
@@ -104,8 +115,12 @@ def _to_row(
     if conversation.kind == ConversationKind.ITEM:
         assert conversation.item_id is not None
         title, deleted_at = labels.item_refs[conversation.item_id]
+        assert conversation.owner_party_id is not None
         item = ConversationItemRef(
-            id=conversation.item_id, name=title, deleted=deleted_at is not None
+            id=conversation.item_id,
+            name=title,
+            deleted=deleted_at is not None,
+            owner_slug=labels.owner_slugs[conversation.owner_party_id],
         )
         counterpart_name = labels.names.get(item_counterpart(conversation, me))
     elif conversation.kind == ConversationKind.EVENT:

@@ -1,10 +1,10 @@
 import { render, screen, waitFor } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { describe, expect, it, vi } from "vitest";
-import GroupDetailsRoute from "../app/(site)/(panel)/(scroll)/groups/[groupId]/page";
-import InboxRoute from "../app/(site)/(panel)/(scroll)/messages/page";
-import OrganizationRoute from "../app/(site)/(panel)/(scroll)/organization/page";
-import TermAttendeesRoute from "../app/(site)/(panel)/(scroll)/terms/[termId]/page";
+import GroupDetailsRoute from "../app/(site)/(panel)/groups/[groupId]/page";
+import InboxRoute from "../app/(site)/(panel)/messages/page";
+import OrganizationRoute from "../app/(site)/(panel)/organization/page";
+import TermAttendeesRoute from "../app/(site)/(panel)/terms/[termId]/page";
 import ThreadRoute from "../app/(site)/(panel)/messages/[conversationId]/page";
 import { PanelGate } from "../features/panel/PanelGate";
 import { pageFor } from "./appRoutes";
@@ -23,17 +23,17 @@ vi.mock("../features/owner-page/OrganizationPage", () => ({ OrganizationPage: ()
 
 describe("panel section pages", () => {
   it.each([
-    ["/messages", "(site)/(panel)/(scroll)/messages", InboxRoute, "Skrzynka"],
-    ["/groups/g7", "(site)/(panel)/(scroll)/groups/[groupId]", GroupDetailsRoute, "Grupa"],
-    ["/terms/t9", "(site)/(panel)/(scroll)/terms/[termId]", TermAttendeesRoute, "Zapisani"],
-    ["/organization", "(site)/(panel)/(scroll)/organization", OrganizationRoute, "Organizacja"],
-  ])("%s is a page in the panel's padded scroller that renders its own view", (url, dir, Route, heading) => {
+    ["/messages", "(site)/(panel)/messages", InboxRoute, "Skrzynka"],
+    ["/groups/g7", "(site)/(panel)/groups/[groupId]", GroupDetailsRoute, "Grupa"],
+    ["/terms/t9", "(site)/(panel)/terms/[termId]", TermAttendeesRoute, "Zapisani"],
+    ["/organization", "(site)/(panel)/organization", OrganizationRoute, "Organizacja"],
+  ])("%s is a panel page that renders its own view", (url, dir, Route, heading) => {
     expect(pageFor(url)?.dir).toBe(dir);
     render(<Route />);
     expect(screen.getByRole("heading", { name: heading })).toBeInTheDocument();
   });
 
-  it("the chat thread sits in the panel but outside the padded scroller", () => {
+  it("the chat thread is a panel page too", () => {
     expect(pageFor("/messages/c42")?.dir).toBe("(site)/(panel)/messages/[conversationId]");
     render(<ThreadRoute />);
     expect(screen.getByRole("heading", { name: "Rozmowa" })).toBeInTheDocument();

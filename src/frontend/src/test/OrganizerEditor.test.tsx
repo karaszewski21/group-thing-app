@@ -36,7 +36,7 @@ function currentUrl() {
 function renderAt(path: string) {
   renderWithRoute(<PublicOrganizationPage />, {
     url: path,
-    pattern: "/:organizationSlug",
+    pattern: "/:slug",
     routes: { "/home": <p>Panel</p> },
     wrapper: createQueryWrapper(),
   });

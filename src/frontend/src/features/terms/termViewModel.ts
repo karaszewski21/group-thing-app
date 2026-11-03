@@ -26,7 +26,6 @@ export function buildAttendees(group: PublicCircleResponse): AttendeeVM[] {
       name,
       listings: [...own].sort(byNewest).slice(0, PREVIEW_ITEM_LIMIT),
       listingsTotal: own.length,
-      organizerSlug: group.organizer_slug,
     };
   });
 }

@@ -65,7 +65,7 @@ function meetings(overrides: Partial<OwnerMeetingsResponse> = {}): OwnerMeetings
 function renderAt(path: string) {
   renderWithRoute(<OwnerMeetingsPage />, {
     url: path,
-    pattern: "/:organizationSlug/meetings",
+    pattern: "/:slug/meetings",
     wrapper: createQueryWrapper(),
   });
 }

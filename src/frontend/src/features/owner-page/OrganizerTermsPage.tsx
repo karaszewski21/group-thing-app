@@ -24,10 +24,10 @@ function Heading() {
  * it is dropped from the URL only once the directory has loaded without it.
  */
 export function OrganizerTermsPage() {
-  const { organizationSlug = "" } = useAppParams<{ organizationSlug: string }>();
+  const { slug: organizerSlug = "" } = useAppParams<{ slug: string }>();
   const [searchParams, setSearchParams] = useAppSearchParams();
-  const organization = usePublicOrganization(organizationSlug);
-  const directory = useOrganizerPage(organizationSlug);
+  const organization = usePublicOrganization(organizerSlug);
+  const directory = useOrganizerPage(organizerSlug);
   const circles = directory.data?.circles ?? [];
 
   const requestedGroupId = searchParams.get(GROUP_PARAM);
@@ -36,7 +36,7 @@ export function OrganizerTermsPage() {
       ? requestedGroupId
       : undefined;
   const awaitingDirectory = requestedGroupId !== null && directory.loading;
-  const terms = useOrganizerTerms(organizationSlug, groupId, {
+  const terms = useOrganizerTerms(organizerSlug, groupId, {
     enabled: !awaitingDirectory,
   });
 

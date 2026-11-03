@@ -1,28 +1,23 @@
-import { useEffect, useRef, type RefObject } from "react";
 import {
   Link,
   Navigate,
   useAppParams,
   useAppPathname,
   useAppSearch,
-  useAppSearchParams,
   useNavigationState,
 } from "../../../routing/navigation";
 import type { ItemDetailsResponse } from "../../../api/items";
 import { useAuth } from "../../../auth/AuthContext";
 import { authPath } from "../../../auth/authPaths";
-import { PhoneFrame } from "../../../components/shared/PhoneFrame";
 import { useItemActions, type UseItemActionsResult } from "../../../hooks/useItemActions";
-import { useItemDetail, useItemEditing, type ProductDetailsState } from "../../../hooks/useItemDetail";
+import { useItemDetail } from "../../../hooks/useItemDetail";
 import dayjs from "../../../utils/dayjs";
 import { CONDITION_LABELS } from "../../../utils/productCategory";
 import { PencilIcon, TrashIcon } from "../../../components/shared/appIcons";
 import { ItemBackButton } from "./ItemBackButton";
 import { ItemContextActions } from "./ItemContextActions";
 import { resolveItemActionsView, type ItemActionsView } from "./itemActionsViewState";
-import { ItemEditForm } from "./ItemEditForm";
 import { ItemGallery } from "./ItemGallery";
-import { ItemGalleryEditor } from "./ItemGalleryEditor";
 import { ItemLoadStates } from "./ItemLoadStates";
 import { ItemPageSkeleton } from "./ItemPageSkeleton";
 import {
@@ -34,44 +29,34 @@ import {
 import { DescriptionText } from "./ItemReadOnlyParts";
 import { ItemStatusCard, type StatusReservation } from "./ItemStatusCard";
 import { useOrganizerItemOrganization } from "./OrganizerItemContext";
+import { itemEditPath, itemPagePath } from "./useItemRoutes";
 import { ItemTileBadges } from "../../../components/shared/ItemTileBadges";
 import type { ItemActionsResponse } from "../../../api/itemActions";
 import { familyInitials } from "../../../components/shared/Avatar";
 import type { PublicOrganizationResponse } from "../../../api/organizations";
 
-/** The search param that switches the item page into edit mode (owner only). */
-export const EDIT_PARAM = "edit";
-
-/** `/product/:id[?edit=1]`. Standalone, outside AppDataProvider. */
-export function ItemDetailPage() {
-  return (
-    <PhoneFrame>
-      <ItemDetailBody />
-    </PhoneFrame>
-  );
-}
-
-/** The item view inside a frame. Public for listed items; an anonymous
- * visitor whose item is not public (404) goes to login and comes back.
- * With `?edit=1` the owner edits the item in place. */
+/** `/:slug/product/:id` inside `OrganizerItemLayout`. Public for listed
+ * items; an anonymous visitor whose item is not public (404) goes to login
+ * and comes back. A prefix other than the owner's (their Organization slug,
+ * else their party id) is replaced by the owner's. The owner edits the item
+ * in the panel (`/items/:id/edit`). */
 export function ItemDetailBody() {
-  const { id = "" } = useAppParams();
+  const { id = "", slug } = useAppParams();
   const pathname = useAppPathname();
   const search = useAppSearch();
   const isLoggedIn = useAuth().token !== null;
-  const { item, notFound, error, loading, fetching, refetch } = useItemDetail(id);
+  const { item, notFound, error, loading, refetch } = useItemDetail(id);
   const actions = useItemActions(id);
+  const owner = actions.data?.owner;
+  const ownerSlug = owner ? (owner.slug ?? owner.party_id) : null;
 
+  if (slug !== undefined && ownerSlug !== null && slug !== ownerSlug) {
+    return <Navigate to={itemPagePath(ownerSlug, id) + search} replace />;
+  }
   if (item) {
     return (
       <div className="flex-1 overflow-y-auto pb-6">
-        <ItemViewContent
-          item={item}
-          details={{ productId: item.product_id, fetching, failed: error !== null }}
-          onRefetch={() => void refetch()}
-          actions={actions}
-          isLoggedIn={isLoggedIn}
-        />
+        <ItemViewContent item={item} actions={actions} isLoggedIn={isLoggedIn} />
       </div>
     );
   }
@@ -94,7 +79,7 @@ export function ItemDetailBody() {
   );
 }
 
-/** On `/:organizationSlug/product/...`: a chip back to the organizer's page,
+/** A chip back to the owner's Organization page,
  * laid over the item photo. The organization comes from `OrganizerItemLayout`
  * (route outlet context), so this never fetches it again. */
 function OrganizerChip({ organization }: { organization: PublicOrganizationResponse }) {
@@ -139,89 +124,35 @@ export function FailedPhotosNotice() {
 
 interface ItemViewContentProps {
   item: ItemDetailsResponse;
-  details: ProductDetailsState;
-  onRefetch: () => void;
   actions: UseItemActionsResult;
   isLoggedIn: boolean;
 }
 
 /** Full-bleed photo with the back button (and organizer chip) over it, then
- * the details on a rounded sheet that overlaps the photo's bottom edge. In
- * edit mode the photo becomes the editable slider and the sheet's fields
- * turn into inputs. Entering and leaving the
- * mode replaces the history entry, so "Wróć" never lands on the editor. */
-function ItemViewContent({ item, details, onRefetch, actions, isLoggedIn }: ItemViewContentProps) {
+ * the details on a rounded sheet that overlaps the photo's bottom edge. */
+function ItemViewContent({ item, actions, isLoggedIn }: ItemViewContentProps) {
   const deleted = item.deleted_at !== null;
   const canEdit = item.is_owner && !deleted;
-  const [searchParams, setSearchParams] = useAppSearchParams();
-  const editMode = canEdit && searchParams.has(EDIT_PARAM);
-  const editing = useItemEditing(item.id, details);
-  const editButtonRef = useRef<HTMLButtonElement>(null);
-  const wasEditing = useRef(editMode);
   const organization = useOrganizerItemOrganization();
-
-  useEffect(() => {
-    if (wasEditing.current && !editMode) editButtonRef.current?.focus();
-    wasEditing.current = editMode;
-  }, [editMode]);
-
-  function setEditMode(on: boolean) {
-    setSearchParams(
-      (params) => {
-        if (on) params.set(EDIT_PARAM, "1");
-        else params.delete(EDIT_PARAM);
-        return params;
-      },
-      { replace: true },
-    );
-  }
 
   return (
     <>
       <div className="relative">
-        {editMode ? (
-          <ItemGalleryEditor
-            photos={item.photos}
-            busy={editing.photoBusy || !editing.productEditable}
-            onAdd={editing.addPhoto}
-            onRemove={editing.removePhoto}
-            onMove={editing.movePhoto}
-          />
-        ) : (
-          <ItemGallery
-            name={item.name}
-            photos={item.photos}
-            productPhotoUrl={item.product_photo_url}
-            faded={deleted}
-            showOwnerHint={canEdit}
-          />
-        )}
-        {/* In edit mode the top-right corner holds the slider's "Dodaj" button. */}
+        <ItemGallery
+          name={item.name}
+          photos={item.photos}
+          productPhotoUrl={item.product_photo_url}
+          faded={deleted}
+          showOwnerHint={canEdit}
+        />
         <div className="pointer-events-none absolute inset-x-4 top-3.5 flex items-start justify-between gap-3 *:pointer-events-auto">
           <ItemBackButton overlay />
-          {organization && !editMode && <OrganizerChip organization={organization} />}
+          {organization && <OrganizerChip organization={organization} />}
         </div>
       </div>
       <div className="relative -mt-6 rounded-t-[28px] bg-cream px-5 pt-6">
         <FailedPhotosNotice />
-        {editMode ? (
-          <ItemEditForm
-            item={item}
-            editing={editing}
-            detailsFailed={details.failed && !details.fetching}
-            onRetryDetails={onRefetch}
-            onDone={() => setEditMode(false)}
-          />
-        ) : (
-          <ItemViewFields
-            item={item}
-            canEdit={canEdit}
-            editButtonRef={editButtonRef}
-            onEdit={() => setEditMode(true)}
-            actions={actions}
-            isLoggedIn={isLoggedIn}
-          />
-        )}
+        <ItemViewFields item={item} canEdit={canEdit} actions={actions} isLoggedIn={isLoggedIn} />
       </div>
     </>
   );
@@ -242,14 +173,12 @@ function statusReservation(view: ItemActionsView, actions: ItemActionsResponse |
 interface ItemViewFieldsProps {
   item: ItemDetailsResponse;
   canEdit: boolean;
-  editButtonRef: RefObject<HTMLButtonElement | null>;
-  onEdit: () => void;
   actions: UseItemActionsResult;
   isLoggedIn: boolean;
 }
 
 /** The sheet's read-only fields (view mode). */
-function ItemViewFields({ item, canEdit, editButtonRef, onEdit, actions, isLoggedIn }: ItemViewFieldsProps) {
+function ItemViewFields({ item, canEdit, actions, isLoggedIn }: ItemViewFieldsProps) {
   const view = resolveItemActionsView({
     item: { deleted: item.deleted_at !== null, isOwner: item.is_owner },
     detailsLoading: false,
@@ -293,14 +222,12 @@ function ItemViewFields({ item, canEdit, editButtonRef, onEdit, actions, isLogge
           {item.name}
         </h2>
         {canEdit && (
-          <button
-            ref={editButtonRef}
-            type="button"
-            onClick={onEdit}
+          <Link
+            to={itemEditPath(item.id)}
             className="mt-1 inline-flex min-h-10 flex-none items-center gap-1.5 rounded-full border-[1.5px] border-line bg-paper px-3.5 text-[13px] font-extrabold text-ink hover:border-line-strong focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring"
           >
             <PencilIcon /> Edytuj
-          </button>
+          </Link>
         )}
       </div>
       <ItemStatusCard

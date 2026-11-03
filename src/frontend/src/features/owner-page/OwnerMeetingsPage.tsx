@@ -174,10 +174,10 @@ function PartyOwnerMeetings({ partyId }: { partyId: string }) {
  * (any person with a public footprint): the owner's upcoming public terms
  * and events, earliest first. */
 export function OwnerMeetingsPage() {
-  const { organizationSlug = "" } = useAppParams<{ organizationSlug: string }>();
-  return isPartyId(organizationSlug) ? (
-    <PartyOwnerMeetings key={organizationSlug} partyId={organizationSlug} />
+  const { slug = "" } = useAppParams<{ slug: string }>();
+  return isPartyId(slug) ? (
+    <PartyOwnerMeetings key={slug} partyId={slug} />
   ) : (
-    <OrganizationOwnerMeetings key={organizationSlug} slug={organizationSlug} />
+    <OrganizationOwnerMeetings key={slug} slug={slug} />
   );
 }

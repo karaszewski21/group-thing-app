@@ -5,7 +5,7 @@ import { PhotoPlaceholder } from "../../../components/shared/Icons";
 import { ItemTileBadges } from "../../../components/shared/ItemTileBadges";
 import { CONDITION_LABELS } from "../../../utils/productCategory";
 import { SafeImage } from "../../items/product/ItemGallery";
-import { organizerItemPath } from "../../items/product/useItemRoutes";
+import { itemPagePath } from "../../items/product/useItemRoutes";
 
 interface ItemCardProps {
   /** The item page, opened by the whole tile (a stretched link on the name). */
@@ -57,7 +57,7 @@ interface ExchangeItemCardProps {
 export function ExchangeItemCard({ slug, item }: ExchangeItemCardProps) {
   return (
     <ItemCard
-      href={organizerItemPath(slug, item.item_id)}
+      href={itemPagePath(slug, item.item_id)}
       name={item.product_name}
       condition={item.condition}
       thumbUrl={item.thumb_url}

@@ -44,7 +44,7 @@ function profile(overrides: Partial<PartyProfileResponse> = {}): PartyProfileRes
 function renderAt(path: string) {
   renderWithRoute(<PartyProfilePage />, {
     url: path,
-    pattern: "/:organizationSlug",
+    pattern: "/:slug",
     wrapper: createQueryWrapper(),
   });
 }
@@ -62,7 +62,7 @@ describe("PartyProfilePage", () => {
     expect(await screen.findByRole("heading", { level: 1, name: "Ania Kowalska" })).toBeInTheDocument();
     expect(screen.getByText("Oddaję ubranka po córce.")).toBeInTheDocument();
     expect(screen.getByText("Ania Kowalska nie ma teraz zaplanowanych spotkań")).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Rzecz i1" })).toHaveAttribute("href", "/product/i1");
+    expect(screen.getByRole("link", { name: "Rzecz i1" })).toHaveAttribute("href", `/${PARTY_ID}/product/i1`);
     expect(screen.getByRole("link", { name: /Zobacz wszystkie \(7\)/ })).toHaveAttribute(
       "href",
       `/${PARTY_ID}/items`,

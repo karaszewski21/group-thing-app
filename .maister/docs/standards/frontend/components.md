@@ -29,7 +29,7 @@ Document usage, props, and examples to help team adoption.
 
 ### Feature Folders and Thin Route Files
 Feature code lives in `src/features/<domain>/` (pages, views, view states and feature hooks); shared UI lives in `src/components/{layout,shared}/`. `src/app/` holds route files only (`page.tsx`, `layout.tsx`, `not-found.tsx`): a page renders one feature entry and holds no feature logic.
-A page that needs server data for `generateMetadata` or the organizer palette is a server component that wraps a `"use client"` feature entry, and reads the backend only through `src/api/server.ts` (see `data-fetching.md`). Example: `src/frontend/src/app/(site)/[organizationSlug]/event/[eventId]/page.tsx` around `features/events/EventPage.tsx`.
+A page that needs server data for `generateMetadata` or the organizer palette is a server component that wraps a `"use client"` feature entry, and reads the backend only through `src/api/server.ts` (see `data-fetching.md`). Example: `src/frontend/src/app/(site)/[slug]/event/[eventId]/page.tsx` around `features/events/EventPage.tsx`.
 A page that only calls server `redirect()` (a legacy URL) never sits under a layout that withholds `children` during server rendering (`ClientOnly`, a loading gate): there the redirect becomes a client redirect with status 200. Put such pages in a route group outside that layout, as `admin/(shell)/` and `product/[id]/(item)/` do.
 
 ### Router Access Only Through the Facade

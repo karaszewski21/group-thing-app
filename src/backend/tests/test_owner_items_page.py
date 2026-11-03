@@ -240,7 +240,7 @@ async def test_getOwnerItems_nearest_earliestOfAttendedTermAndEvent(
     )
     assert earliest["starts_at"] == event_on.isoformat()
     assert earliest["path"].endswith(f"/event/{event_id}")
-    assert earliest["path"].startswith("/k-")
+    assert earliest["path"] == f"/{owner_party_id}/event/{event_id}"
 
 
 async def _owner_with_items(

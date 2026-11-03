@@ -82,7 +82,7 @@ const TWO_CIRCLES = [circle("g1", "Orliki 2017"), circle("g2", "Młodziki 2015")
 function renderAt(path: string) {
   return renderWithRoute(<OrganizerTermsPage />, {
     url: path,
-    pattern: "/:organizationSlug/terms",
+    pattern: "/:slug/terms",
     wrapper: createQueryWrapper(),
   });
 }

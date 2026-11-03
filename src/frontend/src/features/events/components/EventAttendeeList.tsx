@@ -17,15 +17,13 @@ function toPreviewItem(item: EventParticipantItem): ParticipantPreviewItem {
 
 /** "Zapisani na wydarzenie": the author (always first, "Organizator") and the
  * attendees with the items they share; the viewer's own row says "To Ty".
- * Item links use the author's slug, the event page's URL prefix. The empty
+ * Item links go under each participant's party id. The empty
  * copy nudges to sign up only a viewer who can. */
 export function EventAttendeeList({
   participants,
-  authorSlug,
   canSignUp,
 }: {
   participants: EventParticipant[];
-  authorSlug: string;
   canSignUp: boolean;
 }) {
   const nobodySignedUp = participants.every((p) => p.is_author);
@@ -49,7 +47,6 @@ export function EventAttendeeList({
               items={p.items.map(toPreviewItem)}
               total={p.items_total}
               partyId={p.party_id}
-              organizerSlug={authorSlug}
             />
           </li>
         ))}

@@ -2,7 +2,7 @@ import { Link } from "../../routing/navigation";
 import type { ReservedByResponse } from "../../api/groups";
 import type { ListingMode } from "../../api/itemListingPreferences";
 import { SafeImage } from "../../features/items/product/ItemGallery";
-import { organizerItemPath } from "../../features/items/product/useItemRoutes";
+import { itemPagePath } from "../../features/items/product/useItemRoutes";
 import dayjs from "../../utils/dayjs";
 import { PhotoPlaceholder } from "./Icons";
 import { ItemTileBadges } from "./ItemTileBadges";
@@ -34,12 +34,13 @@ function addedAgo(addedAt: string): string {
   return added.fromNow();
 }
 
-/** One row, a single link to the item's product page. */
-function ItemRow({ item, organizerSlug }: { item: ParticipantPreviewItem; organizerSlug: string | null }) {
+/** One row, a single link to the item's product page under the
+ * participant's party id (the page moves it to their Organization slug). */
+function ItemRow({ item, partyId }: { item: ParticipantPreviewItem; partyId: string }) {
   return (
     <div data-preview-item className="py-3">
       <Link
-        to={organizerItemPath(organizerSlug, item.itemId)}
+        to={itemPagePath(partyId, item.itemId)}
         className="flex items-center gap-3 rounded-xl text-ink no-underline hover:text-primary-fg focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring"
       >
         <span
@@ -71,19 +72,17 @@ export function ParticipantItemsPreview({
   items,
   total,
   partyId,
-  organizerSlug,
 }: {
   items: ParticipantPreviewItem[];
   total: number;
   partyId: string;
-  organizerSlug: string | null;
 }) {
   if (items.length === 0) return null;
   return (
     <div className="mt-1 ml-13">
       <div className="divide-y divide-line">
         {items.slice(0, PREVIEW_ITEM_LIMIT).map((item) => (
-          <ItemRow key={item.itemId} item={item} organizerSlug={organizerSlug} />
+          <ItemRow key={item.itemId} item={item} partyId={partyId} />
         ))}
       </div>
       {total > PREVIEW_ITEM_LIMIT && (

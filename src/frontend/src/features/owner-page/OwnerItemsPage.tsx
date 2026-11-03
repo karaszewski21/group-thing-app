@@ -12,7 +12,7 @@ import { ItemCard } from "./blocks/ExchangeItemCard";
 import { FooterBlock } from "./blocks/FooterBlock";
 import { NearestDateCard } from "./blocks/NearestDateCard";
 import { NotFoundFrame, PageFrame } from "./PageFrame";
-import { organizerItemPath } from "../items/product/useItemRoutes";
+import { itemPagePath } from "../items/product/useItemRoutes";
 
 const FOCUS_RING = "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring";
 const BACK_LINK = `inline-flex min-h-[44px] items-center gap-1.5 self-start text-[14px] font-bold text-primary-fg ${FOCUS_RING}`;
@@ -167,7 +167,7 @@ function OwnerItemsContent({ ownerRef, back }: { ownerRef: OwnerRef; back: React
             {result.items.map((item) => (
               <li key={item.item_id}>
                 <ItemCard
-                  href={organizerItemPath(owner.slug, item.item_id)}
+                  href={itemPagePath(owner.slug ?? owner.party_id, item.item_id)}
                   name={item.product_name}
                   condition={item.condition}
                   thumbUrl={item.thumb_url}
@@ -262,10 +262,10 @@ function PartyOwnerItems({ partyId }: { partyId: string }) {
 /** `/:slug/items` (an Organization, in its theme) or `/:partyId/items` (any
  * person): the owner's listed items, each tile linking to its product page. */
 export function OwnerItemsPage() {
-  const { organizationSlug = "" } = useAppParams<{ organizationSlug: string }>();
-  return isPartyId(organizationSlug) ? (
-    <PartyOwnerItems key={organizationSlug} partyId={organizationSlug} />
+  const { slug = "" } = useAppParams<{ slug: string }>();
+  return isPartyId(slug) ? (
+    <PartyOwnerItems key={slug} partyId={slug} />
   ) : (
-    <OrganizationOwnerItems key={organizationSlug} slug={organizationSlug} />
+    <OrganizationOwnerItems key={slug} slug={slug} />
   );
 }

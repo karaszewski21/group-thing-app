@@ -24,6 +24,7 @@ const PANEL = [
   "/groups",
   "/groups/new",
   "/items",
+  "/items/:id/edit",
   "/profile",
   "/settings",
   "/places",
@@ -74,18 +75,15 @@ const ADMIN = [
 const INVENTORY = [
   "/",
   "/login",
-  "/product/:id",
-  "/product/:id/edit",
   ...PANEL,
-  "/:organizationSlug",
-  "/:organizationSlug/items",
-  "/:organizationSlug/meetings",
-  "/:organizationSlug/terms",
-  "/:organizationSlug/product",
-  "/:organizationSlug/product/:id",
-  "/:organizationSlug/product/:id/edit",
-  "/:organizationSlug/event/:eventId",
-  "/:organizationSlug/group/:groupId/term/:termId",
+  "/:slug",
+  "/:slug/items",
+  "/:slug/meetings",
+  "/:slug/terms",
+  "/:slug/product",
+  "/:slug/product/:id",
+  "/:slug/event/:eventId",
+  "/:slug/group/:groupId/term/:termId",
   "/oauth2/authorize",
   ...ADMIN,
 ];
@@ -161,7 +159,7 @@ describe("App Router route manifest", () => {
       readFileSync(resolve(APP_DIR, page.dir, "page.tsx"), "utf8").includes("redirect("),
     );
     expect(redirectPages.map((page) => page.pattern).sort()).toEqual(
-      ["/:organizationSlug/product", "/:organizationSlug/product/:id/edit", "/admin", "/product/:id/edit"].sort(),
+      ["/:slug/product", "/admin"].sort(),
     );
     for (const page of redirectPages) {
       const source = readFileSync(resolve(APP_DIR, page.dir, "page.tsx"), "utf8");

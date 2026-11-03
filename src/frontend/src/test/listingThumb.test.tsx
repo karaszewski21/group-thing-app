@@ -28,7 +28,6 @@ function renderRow(thumbUrl: string | null) {
           name: "Ola Nowak",
           listings: [listing(thumbUrl)],
           listingsTotal: 1,
-          organizerSlug: "ania",
         },
       ]}
       activePartyId={null}
@@ -50,7 +49,7 @@ describe("Term page listing thumbnail", () => {
     expect(img).toHaveAttribute("src", "https://cdn.example.com/kask.jpg");
     expect(tile).toContainElement(img);
     expect(tile).toHaveClass("size-12", "shrink-0", "rounded-xl", "bg-cream");
-    expect(link).toHaveAttribute("href", "/ania/product/9");
+    expect(link).toHaveAttribute("href", "/21/product/9");
   });
 
   it("renders the PhotoPlaceholder tile when thumb_url is null", () => {

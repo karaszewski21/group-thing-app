@@ -34,8 +34,8 @@ describe("next/navigation mock", () => {
 
     expect(result.current).toEqual({ pluginId: "p-1", "*": ["a", "b"] });
 
-    act(() => resetMockNavigation("/ania/event/e-1", ["/:organizationSlug/event/:eventId", "*"]));
-    expect(renderHook(useParams).result.current).toEqual({ organizationSlug: "ania", eventId: "e-1" });
+    act(() => resetMockNavigation("/ania/event/e-1", ["/:slug/event/:eventId", "*"]));
+    expect(renderHook(useParams).result.current).toEqual({ slug: "ania", eventId: "e-1" });
   });
 
   it("throws sentinels from redirect and notFound", () => {

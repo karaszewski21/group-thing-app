@@ -11,7 +11,7 @@ import { AuthProvider } from "../auth/AuthContext";
 import { PublicLayout } from "../components/layout/PublicLayout";
 import { LoginPage } from "../features/auth/LoginPage";
 import { EventPage } from "../features/events/EventPage";
-import { ItemDetailBody, ItemDetailPage } from "../features/items/product/ItemDetailPage";
+import { ItemDetailBody } from "../features/items/product/ItemDetailPage";
 import { OrganizerItemLayout } from "../features/items/product/OrganizerItemLayout";
 import { LandingPage } from "../features/landing/LandingPage";
 import { OwnerPage } from "../features/owner-page/OwnerPage";
@@ -136,12 +136,11 @@ describe("SSR safety", () => {
   });
 
   it.each([
-    { page: "owner page", url: "/zielony-krag", pattern: "/:organizationSlug", element: <OwnerPage />, text: null },
-    { page: "item page", url: "/product/it-1", pattern: "/product/:id", element: <ItemDetailPage />, text: null },
+    { page: "owner page", url: "/zielony-krag", pattern: "/:slug", element: <OwnerPage />, text: null },
     {
       page: "organizer item page",
       url: "/zielony-krag/product/it-1",
-      pattern: "/:organizationSlug/product/:id",
+      pattern: "/:slug/product/:id",
       element: (
         <OrganizerItemLayout>
           <ItemDetailBody />
@@ -152,14 +151,14 @@ describe("SSR safety", () => {
     {
       page: "event page",
       url: `/zielony-krag/event/${EVENT_ID}`,
-      pattern: "/:organizationSlug/event/:eventId",
+      pattern: "/:slug/event/:eventId",
       element: <EventPage />,
       text: "Piknik w parku",
     },
     {
       page: "term page",
       url: `/ania/group/${GROUP_ID}/term/${TERM_ID}`,
-      pattern: "/:organizationSlug/group/:groupId/term/:termId",
+      pattern: "/:slug/group/:groupId/term/:termId",
       element: <TermPage />,
       text: "Muzyczne Skrzaty",
     },
@@ -175,7 +174,13 @@ describe("SSR safety", () => {
   });
 
   it("renders the item page shell while its data is loading", () => {
-    const html = renderOnServer("/product/it-1", "/product/:id", <ItemDetailPage />);
+    const html = renderOnServer(
+      "/ania/product/it-1",
+      "/:slug/product/:id",
+      <OrganizerItemLayout>
+        <ItemDetailBody />
+      </OrganizerItemLayout>,
+    );
     expect(html.length).toBeGreaterThan(0);
   });
 
@@ -184,7 +189,7 @@ describe("SSR safety", () => {
     client.setQueryData([EVENT_KEY, EVENT_ID], { data: EVENT, forToken: null });
     const html = renderOnServer(
       `/zielony-krag/event/${EVENT_ID}`,
-      "/:organizationSlug/event/:eventId",
+      "/:slug/event/:eventId",
       <EventPage />,
       client,
     );
@@ -196,7 +201,7 @@ describe("SSR safety", () => {
     client.setQueryData([GROUP_ACCESS_KEY, GROUP_ID, TERM_ID], { data: ACCESS, forToken: null });
     const html = renderOnServer(
       `/ania/group/${GROUP_ID}/term/${TERM_ID}`,
-      "/:organizationSlug/group/:groupId/term/:termId",
+      "/:slug/group/:groupId/term/:termId",
       <TermPage />,
       client,
     );

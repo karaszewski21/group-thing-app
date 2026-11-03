@@ -77,7 +77,7 @@ function ownerPage(overrides: Partial<OwnerItemsPageResponse> = {}): OwnerItemsP
 function renderAt(path: string) {
   renderWithRoute(<OwnerItemsPage />, {
     url: path,
-    pattern: "/:organizationSlug/items",
+    pattern: "/:slug/items",
     wrapper: createQueryWrapper(),
   });
 }
@@ -130,7 +130,7 @@ describe("OwnerItemsPage", () => {
     expect(await screen.findByText("Ania W. nie ma teraz zaplanowanych spotkań")).toBeInTheDocument();
     expect(screen.getByText("Napisz w sprawie konkretnej rzeczy — umówicie się na czacie.")).toBeInTheDocument();
     expect(screen.queryByText("Najbliższa okazja do odbioru")).not.toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Rzecz i1" })).toHaveAttribute("href", "/product/i1");
+    expect(screen.getByRole("link", { name: "Rzecz i1" })).toHaveAttribute("href", `/${PARTY_ID}/product/i1`);
     const [gift, swap] = screen.getAllByRole("article");
     expect(within(gift).getByText("Chcę oddać")).toBeInTheDocument();
     expect(within(swap).getByText("Chcę się zamienić")).toBeInTheDocument();

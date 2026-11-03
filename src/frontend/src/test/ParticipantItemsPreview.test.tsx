@@ -46,7 +46,6 @@ describe("ParticipantItemsPreview", () => {
         items={[...NEWEST, item("it-4", "Klocki", "2026-10-01T09:00:00")]}
         total={4}
         partyId="p-bartek"
-        organizerSlug="zielony-krag"
       />,
     );
 
@@ -63,20 +62,20 @@ describe("ParticipantItemsPreview", () => {
 
   it("makes each row one link to the plain product page, with no buttons, and Pokaż więcej without a query", () => {
     renderWithProviders(
-      <ParticipantItemsPreview items={NEWEST} total={12} partyId="p-bartek" organizerSlug="zielony-krag" />,
+      <ParticipantItemsPreview items={NEWEST} total={12} partyId="p-bartek" />,
     );
 
-    expect(screen.getByRole("link", { name: /Kurtka/ })).toHaveAttribute("href", "/zielony-krag/product/it-7");
+    expect(screen.getByRole("link", { name: /Kurtka/ })).toHaveAttribute("href", "/p-bartek/product/it-7");
     expect(screen.queryByRole("button")).not.toBeInTheDocument();
     const more = screen.getByRole("link", { name: "Pokaż więcej (12)" });
     expect(more).toHaveAttribute("href", "/p-bartek/items");
     expect(more).toHaveTextContent("Pokaż więcej (12) ›");
   });
 
-  it("uses /product/:id without an organizer slug and offers no Pokaż więcej for 3 items or fewer", () => {
-    renderWithProviders(<ParticipantItemsPreview items={NEWEST} total={3} partyId="21" organizerSlug={null} />);
+  it("links items under the participant's party id and offers no Pokaż więcej for 3 items or fewer", () => {
+    renderWithProviders(<ParticipantItemsPreview items={NEWEST} total={3} partyId="21" />);
 
-    expect(screen.getByRole("link", { name: /Gra Carcassonne/ })).toHaveAttribute("href", "/product/it-5");
+    expect(screen.getByRole("link", { name: /Gra Carcassonne/ })).toHaveAttribute("href", "/21/product/it-5");
     expect(screen.queryByRole("link", { name: /Pokaż więcej/ })).not.toBeInTheDocument();
   });
 
@@ -89,12 +88,11 @@ describe("ParticipantItemsPreview", () => {
         ]}
         total={2}
         partyId="p-bartek"
-        organizerSlug="zielony-krag"
       />,
     );
 
     const reserved = screen.getByRole("link", { name: /Kredki/ });
-    expect(reserved).toHaveAttribute("href", "/zielony-krag/product/it-7");
+    expect(reserved).toHaveAttribute("href", "/p-bartek/product/it-7");
     expect(within(reserved).getByText("Chcę oddać")).toBeInTheDocument();
     expect(within(reserved).getByText("Zarezerwowana · przez Anna")).toHaveClass("bg-teal-soft");
     expect(screen.getByRole("link", { name: /Rower/ })).not.toHaveTextContent("Zarezerwowana");
@@ -102,7 +100,7 @@ describe("ParticipantItemsPreview", () => {
 
   it("renders nothing for a participant without items", () => {
     const { container } = renderWithProviders(
-      <ParticipantItemsPreview items={[]} total={0} partyId="21" organizerSlug="ania" />,
+      <ParticipantItemsPreview items={[]} total={0} partyId="21" />,
     );
     expect(container).toBeEmptyDOMElement();
   });

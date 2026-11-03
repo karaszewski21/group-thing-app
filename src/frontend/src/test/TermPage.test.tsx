@@ -135,7 +135,7 @@ function SearchProbe() {
   );
 }
 
-const TERM_ROUTE = "/:organizationSlug/group/:groupId/term/:termId";
+const TERM_ROUTE = "/:slug/group/:groupId/term/:termId";
 
 function page() {
   return (
@@ -231,28 +231,18 @@ describe("TermPage — header and content", () => {
     expect(within(document.getElementById("attendee-99")!).getByText("Namiot")).toBeInTheDocument();
   });
 
-  it("links each offered item's row to its plain item page, leaving needed items plain", async () => {
+  it("links each offered item's row under its lister's party id, leaving needed items plain", async () => {
     renderPage();
 
     await screen.findByRole("region", { name: "Zapisani na zajęcia" });
     const ola = document.getElementById("attendee-21")!;
-    expect(within(ola).getByRole("link", { name: /Rowerek/ })).toHaveAttribute("href", "/ania/product/9");
+    expect(within(ola).getByRole("link", { name: /Rowerek/ })).toHaveAttribute("href", "/21/product/9");
     expect(within(document.getElementById("attendee-99")!).getByRole("link", { name: /Namiot/ })).toHaveAttribute(
       "href",
-      "/ania/product/10",
+      "/99/product/10",
     );
     expect(screen.getAllByText("Bębenek").length).toBeGreaterThan(0);
     expect(screen.queryByRole("link", { name: /Bębenek/ })).toBeNull();
-  });
-
-  it("links items to the unprefixed item page when the group has no organizer slug", async () => {
-    vi.mocked(groupsApi.getGroupAccess).mockResolvedValue(access({ group: { organizer_slug: null } }));
-    renderPage();
-
-    await screen.findByRole("region", { name: "Zapisani na zajęcia" });
-    expect(
-      within(document.getElementById("attendee-21")!).getByRole("link", { name: /Rowerek/ }),
-    ).toHaveAttribute("href", "/product/9");
   });
 
   it("previews each attendee's 3 newest items as plain links and Pokaż więcej to their items page", async () => {

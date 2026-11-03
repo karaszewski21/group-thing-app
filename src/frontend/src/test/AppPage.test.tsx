@@ -354,7 +354,7 @@ const PANEL = (
 function appRoutes(page: (element: ReactNode) => ReactNode): Record<string, ReactNode> {
   return {
     ...panelRoutes(page(PANEL)),
-    "/:organizationSlug/event/:eventId": page(<EventRouteStub />),
+    "/:slug/event/:eventId": page(<EventRouteStub />),
   };
 }
 

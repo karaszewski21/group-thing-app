@@ -1,35 +1,36 @@
 import type { ComponentType, ReactNode } from "react";
-import AccountPage from "../app/(site)/(panel)/(scroll)/account/page";
-import AddPage from "../app/(site)/(panel)/(scroll)/add/page";
-import AddEventPage from "../app/(site)/(panel)/(scroll)/add/event/page";
-import AddHuntingPage from "../app/(site)/(panel)/(scroll)/add/hunting/page";
-import AddProductPage from "../app/(site)/(panel)/(scroll)/add/product/page";
-import AddTermPage from "../app/(site)/(panel)/(scroll)/add/term/page";
-import EventsEventIdEditPage from "../app/(site)/(panel)/(scroll)/events/[eventId]/edit/page";
-import FamilyPage from "../app/(site)/(panel)/(scroll)/family/page";
-import FamilyEditPage from "../app/(site)/(panel)/(scroll)/family/edit/page";
-import FamilyMembersFamilyMembershipIdEditPage from "../app/(site)/(panel)/(scroll)/family/members/[familyMembershipId]/edit/page";
-import FamilyMembersNewPage from "../app/(site)/(panel)/(scroll)/family/members/new/page";
-import FamilyNewPage from "../app/(site)/(panel)/(scroll)/family/new/page";
-import GroupsPage from "../app/(site)/(panel)/(scroll)/groups/page";
-import GroupsGroupIdPage from "../app/(site)/(panel)/(scroll)/groups/[groupId]/page";
-import GroupsGroupIdEditPage from "../app/(site)/(panel)/(scroll)/groups/[groupId]/edit/page";
-import GroupsNewPage from "../app/(site)/(panel)/(scroll)/groups/new/page";
-import HomePage from "../app/(site)/(panel)/(scroll)/home/page";
-import ItemsPage from "../app/(site)/(panel)/(scroll)/items/page";
-import MeetingsPage from "../app/(site)/(panel)/(scroll)/meetings/page";
-import MessagesPage from "../app/(site)/(panel)/(scroll)/messages/page";
+import AccountPage from "../app/(site)/(panel)/account/page";
+import AddPage from "../app/(site)/(panel)/add/page";
+import AddEventPage from "../app/(site)/(panel)/add/event/page";
+import AddHuntingPage from "../app/(site)/(panel)/add/hunting/page";
+import AddProductPage from "../app/(site)/(panel)/add/product/page";
+import AddTermPage from "../app/(site)/(panel)/add/term/page";
+import EventsEventIdEditPage from "../app/(site)/(panel)/events/[eventId]/edit/page";
+import FamilyPage from "../app/(site)/(panel)/family/page";
+import FamilyEditPage from "../app/(site)/(panel)/family/edit/page";
+import FamilyMembersFamilyMembershipIdEditPage from "../app/(site)/(panel)/family/members/[familyMembershipId]/edit/page";
+import FamilyMembersNewPage from "../app/(site)/(panel)/family/members/new/page";
+import FamilyNewPage from "../app/(site)/(panel)/family/new/page";
+import GroupsPage from "../app/(site)/(panel)/groups/page";
+import GroupsGroupIdPage from "../app/(site)/(panel)/groups/[groupId]/page";
+import GroupsGroupIdEditPage from "../app/(site)/(panel)/groups/[groupId]/edit/page";
+import GroupsNewPage from "../app/(site)/(panel)/groups/new/page";
+import HomePage from "../app/(site)/(panel)/home/page";
+import ItemsPage from "../app/(site)/(panel)/items/page";
+import ItemsIdEditPage from "../app/(site)/(panel)/items/[id]/edit/page";
+import MeetingsPage from "../app/(site)/(panel)/meetings/page";
+import MessagesPage from "../app/(site)/(panel)/messages/page";
 import MessagesConversationIdPage from "../app/(site)/(panel)/messages/[conversationId]/page";
-import OrganizationPage from "../app/(site)/(panel)/(scroll)/organization/page";
-import PlacesPage from "../app/(site)/(panel)/(scroll)/places/page";
-import PlacesLocationIdEditPage from "../app/(site)/(panel)/(scroll)/places/[locationId]/edit/page";
-import PlacesNewPage from "../app/(site)/(panel)/(scroll)/places/new/page";
-import ProfilePage from "../app/(site)/(panel)/(scroll)/profile/page";
-import SearchPage from "../app/(site)/(panel)/(scroll)/search/page";
-import SettingsPage from "../app/(site)/(panel)/(scroll)/settings/page";
-import TermsTermIdPage from "../app/(site)/(panel)/(scroll)/terms/[termId]/page";
-import TermsTermIdEditPage from "../app/(site)/(panel)/(scroll)/terms/[termId]/edit/page";
-import WantedPage from "../app/(site)/(panel)/(scroll)/wanted/page";
+import OrganizationPage from "../app/(site)/(panel)/organization/page";
+import PlacesPage from "../app/(site)/(panel)/places/page";
+import PlacesLocationIdEditPage from "../app/(site)/(panel)/places/[locationId]/edit/page";
+import PlacesNewPage from "../app/(site)/(panel)/places/new/page";
+import ProfilePage from "../app/(site)/(panel)/profile/page";
+import SearchPage from "../app/(site)/(panel)/search/page";
+import SettingsPage from "../app/(site)/(panel)/settings/page";
+import TermsTermIdPage from "../app/(site)/(panel)/terms/[termId]/page";
+import TermsTermIdEditPage from "../app/(site)/(panel)/terms/[termId]/edit/page";
+import WantedPage from "../app/(site)/(panel)/wanted/page";
 
 /** Every page under `app/(site)/(panel)` by URL pattern (`panelPages.test.ts`
  * keeps the list in step with the route tree), `/home` also as `/` (the URL
@@ -54,6 +55,7 @@ export const PANEL_PAGES: Record<string, ComponentType> = {
   "/groups/new": GroupsNewPage,
   "/home": HomePage,
   "/items": ItemsPage,
+  "/items/:id/edit": ItemsIdEditPage,
   "/meetings": MeetingsPage,
   "/messages": MessagesPage,
   "/messages/:conversationId": MessagesConversationIdPage,

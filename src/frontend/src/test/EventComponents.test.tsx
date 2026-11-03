@@ -90,7 +90,6 @@ describe("EventAttendeeList", () => {
   it("puts the author first with Organizator and marks the viewer's row with To Ty", () => {
     renderWithProviders(
       <EventAttendeeList
-        authorSlug="zielony-krag"
         canSignUp
         participants={[
           participant(),
@@ -111,26 +110,24 @@ describe("EventAttendeeList", () => {
     expect(screen.queryByText(EMPTY_COPY)).not.toBeInTheDocument();
   });
 
-  it("links every item to its product page under the author slug, with its intent pill", () => {
+  it("links every item to its product page under the participant's party id, with its intent pill", () => {
     renderWithProviders(
       <EventAttendeeList
-        authorSlug="zielony-krag"
         canSignUp
         participants={[participant({ items: [item("it-1", "Pluszowy miś", "GIFT"), item("it-2", "Rowerek", "SWAP")] })]}
       />,
     );
     const gift = screen.getByRole("link", { name: /Pluszowy miś/ });
-    expect(gift).toHaveAttribute("href", "/zielony-krag/product/it-1");
+    expect(gift).toHaveAttribute("href", "/p-author/product/it-1");
     expect(gift).toHaveTextContent("Chcę oddać");
     const swap = screen.getByRole("link", { name: /Rowerek/ });
-    expect(swap).toHaveAttribute("href", "/zielony-krag/product/it-2");
+    expect(swap).toHaveAttribute("href", "/p-author/product/it-2");
     expect(swap).toHaveTextContent("Chcę się zamienić");
   });
 
   it("shows 3 items, then Pokaż więcej (N) › to the participant's items page, no event query", () => {
     renderWithRoute(
       <EventAttendeeList
-        authorSlug="zielony-krag"
         canSignUp
         participants={[
           participant({
@@ -139,10 +136,10 @@ describe("EventAttendeeList", () => {
           }),
         ]}
       />,
-      { url: "/zielony-krag/event/ev-1", pattern: "/:organizationSlug/event/:eventId" },
+      { url: "/zielony-krag/event/ev-1", pattern: "/:slug/event/:eventId" },
     );
     expect(screen.getAllByRole("link", { name: /Miś|Rowerek|Książeczki/ })).toHaveLength(3);
-    expect(screen.getByRole("link", { name: /Rowerek/ })).toHaveAttribute("href", "/zielony-krag/product/it-2");
+    expect(screen.getByRole("link", { name: /Rowerek/ })).toHaveAttribute("href", "/p-author/product/it-2");
     const more = screen.getByRole("link", { name: "Pokaż więcej (5)" });
     expect(more).toHaveTextContent("Pokaż więcej (5) ›");
     expect(more).toHaveAttribute("href", "/p-author/items");
@@ -150,7 +147,7 @@ describe("EventAttendeeList", () => {
   });
 
   it("keeps the author row and shows the empty copy when nobody else signed up", () => {
-    renderWithProviders(<EventAttendeeList authorSlug="zielony-krag" canSignUp participants={[participant()]} />);
+    renderWithProviders(<EventAttendeeList canSignUp participants={[participant()]} />);
     expect(screen.getAllByRole("listitem")).toHaveLength(1);
     expect(screen.getByText("Organizator")).toBeInTheDocument();
     expect(screen.getByText(EMPTY_COPY)).toBeInTheDocument();
@@ -158,7 +155,7 @@ describe("EventAttendeeList", () => {
 
   it("shows neutral empty copy without the sign-up nudge when the viewer cannot sign up", () => {
     renderWithProviders(
-      <EventAttendeeList authorSlug="zielony-krag" canSignUp={false} participants={[participant()]} />,
+      <EventAttendeeList canSignUp={false} participants={[participant()]} />,
     );
     expect(screen.getByText(NEUTRAL_EMPTY_COPY)).toBeInTheDocument();
     expect(screen.queryByText(EMPTY_COPY)).not.toBeInTheDocument();

@@ -430,7 +430,7 @@ async def test_createEvent_authorWithoutOrganization_authorSlugMatchesTermOrgani
 
     assert response.status_code == 201, response.text
     slug = response.json()["author_slug"]
-    assert slug.startswith("k-")
+    assert slug == str(party_id)
     assert slug == derive_organizer_slug(uuid.uuid4(), party_id, None)
     assert [e["author_slug"] for e in mine.json()] == [slug]
 

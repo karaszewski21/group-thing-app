@@ -3,9 +3,9 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import type { EventDetailResponse } from "../api/events";
 import type { PublicCircleResponse } from "../api/groups";
 import type { PublicOrganizationResponse } from "../api/organizations";
-import { generateMetadata as eventPageMetadata } from "../app/(site)/[organizationSlug]/event/[eventId]/page";
-import { generateMetadata as termPageMetadata } from "../app/(site)/[organizationSlug]/group/[groupId]/term/[termId]/page";
-import { generateMetadata as ownerPageMetadata } from "../app/(site)/[organizationSlug]/(owner)/page";
+import { generateMetadata as eventPageMetadata } from "../app/(site)/[slug]/event/[eventId]/page";
+import { generateMetadata as termPageMetadata } from "../app/(site)/[slug]/group/[groupId]/term/[termId]/page";
+import { generateMetadata as ownerPageMetadata } from "../app/(site)/[slug]/page";
 import { eventMetadata, organizationMetadata, termMetadata } from "../lib/publicMetadata";
 
 vi.mock("server-only", () => ({}));
@@ -66,7 +66,7 @@ function stubFetch(response: () => Promise<Response>) {
 const PAGES = [
   {
     kind: "organization",
-    load: () => ownerPageMetadata({ params: Promise.resolve({ organizationSlug: "muzyczne-skrzaty" }) }),
+    load: () => ownerPageMetadata({ params: Promise.resolve({ slug: "muzyczne-skrzaty" }) }),
     path: "/api/organizations/public/muzyczne-skrzaty",
     dto: ORGANIZATION,
     expected: organizationMetadata(ORGANIZATION),
@@ -118,7 +118,7 @@ describe("page generateMetadata", () => {
     const fetchMock = stubFetch(() => Promise.resolve(Response.json(ORGANIZATION)));
 
     const metadata = await ownerPageMetadata({
-      params: Promise.resolve({ organizationSlug: "3f2b8c1e-9a4d-4e6b-8f1a-2c3d4e5f6a7b" }),
+      params: Promise.resolve({ slug: "3f2b8c1e-9a4d-4e6b-8f1a-2c3d4e5f6a7b" }),
     });
 
     expect(metadata).toEqual({});

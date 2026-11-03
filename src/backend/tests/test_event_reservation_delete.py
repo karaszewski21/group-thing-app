@@ -31,7 +31,7 @@ from tests.test_event_item_reservations import (
     _sign_up,
     _take,
 )
-from tests.test_term_item_listings import _auth, _register
+from tests.test_term_item_listings import _auth, _item_link, _register
 
 OPEN_STATUSES = {"PENDING", "CONFIRMED"}
 STARTED_MESSAGE = (
@@ -169,12 +169,11 @@ async def test_deleteEvent_beforeStart_notifiesBothPartiesOfEachGiftAndSwap(
     taker = await _notifications(client, s.taker, "RESERVATION_CANCELLED")
     proposer = await _notifications(client, s.proposer, "RESERVATION_CANCELLED")
     author = await _notifications(client, s.author, "RESERVATION_CANCELLED")
-    assert sorted(str(n["link_path"]) for n in owner) == sorted(
-        f"/product/{item}" for item in (gift, listed_a, listed_c)
-    )
-    assert [n["link_path"] for n in taker] == [f"/product/{gift}"]
+    links = {item: await _item_link(client, s.owner, item) for item in (gift, listed_a, listed_c)}
+    assert sorted(str(n["link_path"]) for n in owner) == sorted(links.values())
+    assert [n["link_path"] for n in taker] == [links[gift]]
     assert sorted(str(n["link_path"]) for n in proposer) == sorted(
-        f"/product/{item}" for item in (listed_a, listed_c)
+        links[item] for item in (listed_a, listed_c)
     )
     assert author == []
     assert "Rezerwacja „Rower erd2” została anulowana" in str(taker[0]["message"])

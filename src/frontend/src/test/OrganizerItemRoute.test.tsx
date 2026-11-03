@@ -89,13 +89,8 @@ function currentUrl() {
 
 // The redirects `router.tsx` sets up around the organizer item route.
 function ToOrganizerPage() {
-  const { organizationSlug = "" } = useAppParams();
-  return <Navigate to={`/${organizationSlug}`} replace />;
-}
-
-function ToEditMode() {
-  const { organizationSlug = "", id = "" } = useAppParams();
-  return <Navigate to={`/${organizationSlug}/product/${id}?edit=1`} replace />;
+  const { slug = "" } = useAppParams();
+  return <Navigate to={`/${slug}`} replace />;
 }
 
 function renderAt(path: string) {
@@ -105,10 +100,9 @@ function renderAt(path: string) {
     </OrganizerItemLayout>,
     {
       url: path,
-      pattern: "/:organizationSlug/product/:id",
+      pattern: "/:slug/product/:id",
       routes: {
-        "/:organizationSlug/product": <ToOrganizerPage />,
-        "/:organizationSlug/product/:id/edit": <ToEditMode />,
+        "/:slug/product": <ToOrganizerPage />,
       },
       wrapper: createQueryWrapper(),
     },
@@ -167,7 +161,7 @@ describe("Organizer product route", () => {
     const scope = scopeOf(heading);
     expect(scope).toHaveAttribute("data-organizer-theme", "custom");
     expect(scope.style.getPropertyValue("--color-primary")).toBe("#7a2a4f");
-    expect(screen.getByRole("button", { name: /Edytuj/ })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /Edytuj/ })).toBeInTheDocument();
   });
 
   it("falls back to the default palette when the organization is unknown", async () => {
@@ -178,21 +172,10 @@ describe("Organizer product route", () => {
     expect(scopeOf(heading)).toHaveAttribute("data-organizer-theme", "default");
   });
 
-  it("the old edit address opens edit mode in place, inside the organizer prefix", async () => {
-    renderAt("/ania/product/9/edit");
+  it("Edytuj links the owner to the panel edit page", async () => {
+    renderAt("/ania/product/9");
 
-    expect(await screen.findByRole("form", { name: "Edycja rzeczy" })).toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: "Anuluj" }));
-    expect(await screen.findByRole("heading", { name: "Rowerek biegowy" })).toBeInTheDocument();
-  });
-
-  it("a non-owner on the edit address sees the organizer view without edit controls", async () => {
-    vi.mocked(itemsApi.getItemDetails).mockResolvedValue(details({ is_owner: false }));
-    renderAt("/ania/product/9/edit");
-
-    expect(await screen.findByRole("heading", { name: "Rowerek biegowy" })).toBeInTheDocument();
-    expect(screen.queryByRole("form", { name: "Edycja rzeczy" })).not.toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: /Edytuj/ })).not.toBeInTheDocument();
+    expect(await screen.findByRole("link", { name: /Edytuj/ })).toHaveAttribute("href", "/items/9/edit");
   });
 
   it("Wróć on a direct entry goes to the organizer page", async () => {
@@ -201,15 +184,6 @@ describe("Organizer product route", () => {
     await screen.findByRole("heading", { name: "Rowerek biegowy" });
     fireEvent.click(screen.getByRole("button", { name: /Wróć/ }));
     expect(currentUrl()).toBe("/ania");
-  });
-
-  it("Wróć on a direct entry under a fallback k- slug goes to the panel items list", async () => {
-    vi.mocked(organizationsApi.getPublicOrganization).mockRejectedValue(new ApiError(404, "Not Found", null));
-    renderAt("/k-0123456789ab/product/9");
-
-    await screen.findByRole("heading", { name: "Rowerek biegowy" });
-    fireEvent.click(screen.getByRole("button", { name: /Wróć/ }));
-    expect(currentUrl()).toBe("/items");
   });
 
   it("bare /:slug/product redirects to the organizer page without fetching an item", () => {

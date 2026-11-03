@@ -123,9 +123,14 @@ async def test_openItemConversation_newThenExisting_returns201Then200WithAccessR
     assert own_status == 409 and own["message"] == "Nie możesz zapytać o własną rzecz"
     assert unknown_status == 404
     assert set(created) == CONVERSATION_KEYS
-    assert set(created["item"]) == {"id", "name", "deleted"}
+    assert set(created["item"]) == {"id", "name", "deleted", "owner_slug"}
     assert created["kind"] == "ITEM" and created["title"] == "Ic gitara"
-    assert created["item"] == {"id": str(item_id), "name": "Ic gitara", "deleted": False}
+    assert created["item"] == {
+        "id": str(item_id),
+        "name": "Ic gitara",
+        "deleted": False,
+        "owner_slug": str(owner_party_id),
+    }
     assert created["counterpart_name"] == await _display_name(db_session, owner_party_id)
     assert created["group_name"] is None and created["term_occurs_on"] is None
     assert created["participant_count"] is None and created["read_only_reason"] is None

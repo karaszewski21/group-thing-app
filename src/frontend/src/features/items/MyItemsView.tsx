@@ -20,7 +20,7 @@ import { BoxIcon, PencilIcon, TrashIcon } from "../../components/shared/appIcons
 import { capitalize, GIFT_LIMIT_MESSAGE, ITEM_MODES, MAX_GIFT_ITEMS, type ItemMode } from "../../utils/appHelpers";
 import { useAppData } from "../panel/appDataStore";
 import { SafeImage } from "./product/ItemGallery";
-import { itemEditPath } from "./product/useItemRoutes";
+import { itemEditPath, itemPagePath } from "./product/useItemRoutes";
 import { InventoryLocationCard } from "./InventoryLocationCard";
 import { SwapAcceptSuccessSheet, type AcceptedSwap } from "./SwapAcceptSuccessSheet";
 import { VisibilityToggle } from "./VisibilityToggle";
@@ -79,6 +79,7 @@ export function MyItemsView() {
     items,
     itemModes,
     itemError,
+    ownSlug,
     setItemMode,
     setItemVisibility,
     handleDeleteItem,
@@ -369,7 +370,7 @@ export function MyItemsView() {
                 {/* Stretched link: the whole card opens the item; the controls
                     below sit on `relative z-10` above its overlay. */}
                 <Link
-                  to={`/product/${it.id}`}
+                  to={itemPagePath(ownSlug, it.id)}
                   aria-label={`Zobacz rzecz ${it.product_name}`}
                   className={`flex h-16 w-16 flex-none items-center justify-center overflow-hidden rounded-2xl after:absolute after:inset-0 after:rounded-[22px] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring ${mode ? MODE_TONE[mode] : "bg-cream text-ink-soft"}`}
                 >
@@ -384,7 +385,7 @@ export function MyItemsView() {
                   <small className="mt-0.5 block text-[13px] text-ink-soft">Stan: {CONDITION_LABELS[it.condition]}</small>
                 </div>
                 <div className="relative z-10 flex flex-none gap-1">
-                  <Link to={itemEditPath(`/product/${it.id}`)} aria-label={`Edytuj rzecz ${it.product_name}`} className={ICON_BUTTON}>
+                  <Link to={itemEditPath(it.id)} aria-label={`Edytuj rzecz ${it.product_name}`} className={ICON_BUTTON}>
                     <PencilIcon />
                   </Link>
                   <button
@@ -431,7 +432,7 @@ export function MyItemsView() {
                 <div className="relative z-10 mt-3 rounded-2xl bg-cream px-3.5 py-2.5 text-[13px] leading-snug text-ink">
                   <StatusPill label="Zdjęcia w moderacji" />
                   <p className="mt-1.5">
-                    <Link to={itemEditPath(`/product/${it.id}`)} className="font-extrabold text-primary-fg underline">
+                    <Link to={itemEditPath(it.id)} className="font-extrabold text-primary-fg underline">
                       Zobacz zdjęcia →
                     </Link>
                   </p>

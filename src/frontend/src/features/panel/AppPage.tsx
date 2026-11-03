@@ -1,5 +1,8 @@
 import type { ReactNode } from "react";
 import { PhoneFrame } from "../../components/shared/PhoneFrame";
+import { useAppPathname } from "../../routing/navigation";
+import { threadPath } from "../../routing/messagesPaths";
+import { matchPath } from "../../routing/paths";
 import { AppDataProvider } from "./AppDataContext";
 import { useAppData } from "./appDataStore";
 import { AppSkeleton } from "./AppSkeleton";
@@ -54,7 +57,7 @@ function AppPageView({ children }: { children: ReactNode }) {
 
   return (
     <PhoneFrame>
-      {children}
+      <PanelSection>{children}</PanelSection>
 
       <AppModals />
 
@@ -72,4 +75,12 @@ function AppPageView({ children }: { children: ReactNode }) {
       )}
     </PhoneFrame>
   );
+}
+
+/** Every section in one padded scroller, but the chat thread, which scrolls
+ * its own message list above the composer. */
+function PanelSection({ children }: { children: ReactNode }) {
+  const pathname = useAppPathname();
+  if (matchPath(threadPath(":conversationId"), pathname)) return children;
+  return <div className="flex-1 overflow-y-auto px-[18px] pb-6 pt-[18px]">{children}</div>;
 }
