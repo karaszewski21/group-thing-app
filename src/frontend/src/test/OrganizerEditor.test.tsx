@@ -3,10 +3,9 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { ApiError } from "../api/client";
 import * as groupsApi from "../api/groups";
 import { ACCESS_DENIED_MESSAGE } from "../api/problem";
-import { getOpenSheetCount } from "../components/shared/openSheets";
 import * as organizationsApi from "../api/organizations";
 import { diffDraft, paletteSelection, sameDraft, type Draft } from "../features/owner-page/editor/draft";
-import { PublicOrganizationPage } from "../features/owner-page/PublicOrganizationPage";
+import { OrganizationAppearancePage } from "../features/owner-page/OrganizationAppearancePage";
 import { findPreset } from "../theme/palettes";
 import dayjs from "../utils/dayjs";
 import { createQueryWrapper } from "./queryClient";
@@ -34,9 +33,9 @@ function currentUrl() {
 }
 
 function renderAt(path: string) {
-  renderWithRoute(<PublicOrganizationPage />, {
+  renderWithRoute(<OrganizationAppearancePage />, {
     url: path,
-    pattern: "/:slug",
+    pattern: "/organization/appearance",
     routes: { "/home": <p>Panel</p> },
     wrapper: createQueryWrapper(),
   });
@@ -118,15 +117,26 @@ function recommendedLayouts() {
     .map((card) => textOfIds(card.getAttribute("aria-labelledby")));
 }
 
-/** Opens the sheet on "Układ i kolor", where most of these tests work. */
+/** Opens the page on "Układ i kolor", where most of these tests work. */
 async function openEditor() {
-  const router = renderAt("/muzyczne-skrzaty?edit=1&tab=layout");
-  const sheet = await screen.findByRole("dialog", { name: "Ustawienia" });
-  return { router, sheet };
+  const router = renderAt("/organization/appearance?tab=layout");
+  await screen.findByRole("radio", { name: "Klasyczny" });
+  return { router };
+}
+
+/** The draft theme's scope around the editor. */
+function themeScope() {
+  return screen.getByRole("tablist", { name: "Ustawienia strony" }).closest("[data-organizer-theme]") as HTMLElement;
 }
 
 function chooseLinks() {
   fireEvent.click(screen.getByRole("radio", { name: "Wizytówka" }));
+}
+
+async function expectSaved() {
+  expect(await screen.findByRole("status")).toHaveTextContent("Zapisano");
+  expect(screen.getByRole("button", { name: "Zapisz" })).toBeDisabled();
+  expect(currentUrl()).toBe("/organization/appearance?tab=layout");
 }
 
 beforeEach(() => {
@@ -137,92 +147,84 @@ beforeEach(() => {
   vi.mocked(groupsApi.getOrganizerPage).mockResolvedValue(DIRECTORY);
 });
 
-async function expectSheetClosedAfterSave() {
-  await vi.waitFor(() => expect(screen.queryByRole("dialog", { name: "Ustawienia" })).not.toBeInTheDocument());
-  expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument();
-  expect(currentUrl()).toBe("/muzyczne-skrzaty");
-  expect(screen.getByRole("button", { name: "Ustawienia" })).toHaveFocus();
-}
+describe("Wygląd strony page", () => {
+  it("opens the requested tab inside the draft theme scope with the stored layout checked", async () => {
+    await openEditor();
 
-describe("Organizer editor sheet", () => {
-  it("opens for the owner with ?edit=1 inside the theme scope and focuses its title", async () => {
-    const { sheet } = await openEditor();
-
-    expect(sheet).toHaveAttribute("aria-modal", "false");
-    expect(sheet.closest("[data-organizer-theme]")).not.toBeNull();
-    expect(screen.getByRole("heading", { name: "Ustawienia" })).toHaveFocus();
+    expect(themeScope()).not.toBeNull();
     expect(screen.getByRole("tab", { name: "Układ i kolor" })).toHaveAttribute("aria-selected", "true");
     expect(screen.getByRole("radio", { name: "Klasyczny" })).toHaveAttribute("aria-checked", "true");
-    expect(screen.getByRole("button", { name: "Ustawienia" })).toHaveAttribute("aria-expanded", "true");
+    expect(screen.getByRole("link", { name: "Zobacz stronę →" })).toHaveAttribute("href", "/muzyczne-skrzaty");
   });
 
-  it("previews a chosen layout before saving, and Anuluj restores it with the sheet still open", async () => {
+  it("without an Organization points to Moja organizacja", async () => {
+    vi.mocked(organizationsApi.getMyOrganization).mockRejectedValue(new ApiError(404, "Not Found", null));
+    renderAt("/organization/appearance");
+
+    expect(await screen.findByRole("link", { name: "Moja organizacja →" })).toHaveAttribute("href", "/organization");
+    expect(screen.queryByRole("tablist")).not.toBeInTheDocument();
+  });
+
+  it("Anuluj drops a chosen layout and disables Zapisz again", async () => {
     await openEditor();
 
     chooseLinks();
-
-    expect(screen.getByRole("button", { name: "Udostępnij stronę" })).toBeInTheDocument();
     expect(screen.getByRole("radio", { name: "Wizytówka" })).toHaveAttribute("aria-checked", "true");
 
     fireEvent.click(screen.getByRole("button", { name: "Anuluj" }));
 
-    expect(screen.queryByRole("button", { name: "Udostępnij stronę" })).not.toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Udostępnij" })).toBeInTheDocument();
-    expect(screen.getByRole("dialog", { name: "Ustawienia" })).toBeInTheDocument();
+    expect(screen.getByRole("radio", { name: "Klasyczny" })).toHaveAttribute("aria-checked", "true");
     expect(screen.getByRole("button", { name: "Zapisz" })).toBeDisabled();
   });
 
-  it("saves only the changed layout and closes the sheet", async () => {
+  it("saves only the changed layout and stays on the page", async () => {
     vi.mocked(organizationsApi.updateOrganization).mockResolvedValue({ ...MY_ORGANIZATION, page_layout: "LINKS" });
     await openEditor();
     chooseLinks();
-    vi.mocked(organizationsApi.getPublicOrganization).mockResolvedValue({ ...ORGANIZATION, page_layout: "LINKS" });
     vi.mocked(organizationsApi.getMyOrganization).mockResolvedValue({ ...MY_ORGANIZATION, page_layout: "LINKS" });
 
     fireEvent.click(screen.getByRole("button", { name: "Zapisz" }));
 
-    await expectSheetClosedAfterSave();
+    await expectSaved();
     expect(organizationsApi.updateOrganization).toHaveBeenCalledTimes(1);
     expect(organizationsApi.updateOrganization).toHaveBeenCalledWith("org-1", { page_layout: "LINKS" });
-    expect(screen.getByRole("button", { name: "Udostępnij stronę" })).toBeInTheDocument();
+    expect(screen.getByRole("radio", { name: "Wizytówka" })).toHaveAttribute("aria-checked", "true");
   });
 
-  it("asks before discarding a dirty draft on close, and Odrzuć closes the sheet", async () => {
-    await openEditor();
-    chooseLinks();
-
-    fireEvent.click(screen.getByRole("button", { name: "Zamknij" }));
-
-    const confirm = screen.getByRole("alertdialog", { name: "Odrzucić zmiany?" });
-    expect(confirm.closest("[data-organizer-theme]")).not.toBeNull();
-    expect(screen.getByRole("button", { name: "Wróć do edycji" })).toHaveFocus();
-
-    fireEvent.click(screen.getByRole("button", { name: "Odrzuć" }));
-
-    expect(screen.queryByRole("dialog", { name: "Ustawienia" })).not.toBeInTheDocument();
-    expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument();
-    expect(currentUrl()).toBe("/muzyczne-skrzaty");
-    expect(screen.getByRole("button", { name: "Udostępnij" })).toBeInTheDocument();
-  });
-
-  it("blocks navigation to another page while dirty, and Wróć do edycji keeps the draft", async () => {
+  it("blocks leaving with a dirty draft: Wróć do edycji keeps it, Odrzuć leaves", async () => {
     const { router } = await openEditor();
     chooseLinks();
 
     await act(() => router.navigate("/home"));
 
-    expect(screen.getByRole("alertdialog", { name: "Odrzucić zmiany?" })).toBeInTheDocument();
+    const confirm = screen.getByRole("alertdialog", { name: "Odrzucić zmiany?" });
+    expect(confirm.closest("[data-organizer-theme]")).not.toBeNull();
+    expect(screen.getByRole("button", { name: "Wróć do edycji" })).toHaveFocus();
 
     fireEvent.click(screen.getByRole("button", { name: "Wróć do edycji" }));
 
     expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument();
     expect(screen.queryByText("Panel")).not.toBeInTheDocument();
-    expect(currentUrl()).toContain("/muzyczne-skrzaty?edit=1");
-    expect(screen.getByRole("button", { name: "Udostępnij stronę" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Zamknij" })).toHaveFocus();
+    expect(screen.getByRole("radio", { name: "Wizytówka" })).toHaveAttribute("aria-checked", "true");
+
+    await act(() => router.navigate("/home"));
+    fireEvent.click(screen.getByRole("button", { name: "Odrzuć" }));
+
+    expect(await screen.findByText("Panel")).toBeInTheDocument();
   });
 
-  it("locks the tab panel while saving and closes the sheet once saved", async () => {
+  it("switching tabs with a dirty draft is never blocked", async () => {
+    await openEditor();
+    chooseLinks();
+
+    fireEvent.click(screen.getByRole("tab", { name: "Zdjęcia i opis" }));
+
+    expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument();
+    expect(currentUrl()).toBe("/organization/appearance?tab=photos");
+    expect(screen.getByRole("button", { name: "Zapisz" })).toBeEnabled();
+  });
+
+  it("locks the tab panel while saving", async () => {
     let finishSave!: () => void;
     vi.mocked(organizationsApi.updateOrganization).mockImplementation(
       () =>
@@ -237,29 +239,11 @@ describe("Organizer editor sheet", () => {
 
     expect(screen.getByRole("radio", { name: "Klasyczny" })).toBeDisabled();
     expect(screen.getByRole("button", { name: "Zapisywanie…" })).toBeDisabled();
-    vi.mocked(organizationsApi.getPublicOrganization).mockResolvedValue({ ...ORGANIZATION, page_layout: "LINKS" });
     vi.mocked(organizationsApi.getMyOrganization).mockResolvedValue({ ...MY_ORGANIZATION, page_layout: "LINKS" });
     await act(async () => finishSave());
 
     expect(organizationsApi.updateOrganization).toHaveBeenCalledWith("org-1", { page_layout: "LINKS" });
-    await expectSheetClosedAfterSave();
-  });
-
-  it("drops the draft when the sheet closes without Zamknij, and reopens clean", async () => {
-    const { router } = await openEditor();
-    chooseLinks();
-
-    await act(() => router.navigate("/muzyczne-skrzaty"));
-
-    expect(screen.queryByRole("dialog", { name: "Ustawienia" })).not.toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Udostępnij" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Ustawienia" })).toHaveFocus();
-
-    await act(() => router.navigate("/muzyczne-skrzaty?edit=1&tab=layout"));
-
-    expect(screen.getByRole("radio", { name: "Klasyczny" })).toHaveAttribute("aria-checked", "true");
-    expect(screen.getByRole("button", { name: "Zapisz" })).toBeDisabled();
-    expect(screen.getByRole("button", { name: "Anuluj" })).toBeDisabled();
+    await expectSaved();
   });
 
   it("shows a failed save as an alert, keeps the draft and refetches the organization", async () => {
@@ -276,32 +260,12 @@ describe("Organizer editor sheet", () => {
       "Ktoś zmienił tę stronę w międzyczasie. Pobraliśmy aktualną wersję — sprawdź swoje zmiany i zapisz ponownie.",
     );
     expect(vi.mocked(organizationsApi.getMyOrganization).mock.calls.length).toBeGreaterThan(callsBeforeSave);
-    expect(screen.getByRole("button", { name: "Udostępnij stronę" })).toBeInTheDocument();
+    expect(screen.getByRole("radio", { name: "Wizytówka" })).toHaveAttribute("aria-checked", "true");
     expect(screen.getByRole("button", { name: "Zapisz" })).toBeEnabled();
 
     fireEvent.click(screen.getByRole("radio", { name: "Klasyczny" }));
 
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
-  });
-
-  it("counts as an open sheet while shown, so app-wide prompts wait for it", async () => {
-    await openEditor();
-    expect(getOpenSheetCount()).toBe(1);
-
-    fireEvent.click(screen.getByRole("button", { name: "Zamknij" }));
-
-    expect(screen.queryByRole("dialog", { name: "Ustawienia" })).not.toBeInTheDocument();
-    expect(getOpenSheetCount()).toBe(0);
-  });
-
-  it("closes a clean sheet with Zamknij without asking", async () => {
-    await openEditor();
-
-    fireEvent.click(screen.getByRole("button", { name: "Zamknij" }));
-
-    expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument();
-    expect(screen.queryByRole("dialog", { name: "Ustawienia" })).not.toBeInTheDocument();
-    expect(currentUrl()).toBe("/muzyczne-skrzaty");
   });
 
   it("marks both Plan zajęć and Grupy as Polecany for two circles with four terms within 14 days", async () => {
@@ -348,16 +312,12 @@ describe("Organizer editor sheet", () => {
   });
 });
 
-describe("Organizer editor colors tab", () => {
+describe("Wygląd strony colors", () => {
   const OCEAN = findPreset("OCEAN")!;
 
   async function openColors() {
     const opened = await openEditor();
     return { ...opened, palettes: screen.getByRole("radiogroup", { name: "Paleta kolorów" }) };
-  }
-
-  function themeScope() {
-    return screen.getByRole("dialog", { name: "Ustawienia" }).closest("[data-organizer-theme]") as HTMLElement;
   }
 
   it("renders 10 palette tiles with Mięta first, no custom tile, and static preview cards", async () => {
@@ -377,7 +337,7 @@ describe("Organizer editor colors tab", () => {
     expect(screen.getByRole("button", { name: "Przywróć domyślne" })).toBeDisabled();
   });
 
-  it("previews a chosen preset and saves its key with its base colors", async () => {
+  it("previews a chosen preset on the editor and saves its key with its base colors", async () => {
     vi.mocked(organizationsApi.updateOrganization).mockResolvedValue(MY_ORGANIZATION);
     const { palettes } = await openColors();
 
@@ -389,12 +349,13 @@ describe("Organizer editor colors tab", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Zapisz" }));
 
-    await expectSheetClosedAfterSave();
-    expect(organizationsApi.updateOrganization).toHaveBeenCalledWith("org-1", {
-      palette_preset: "OCEAN",
-      primary_color: OCEAN.vars["--color-primary"],
-      accent_color: OCEAN.vars["--color-accent"],
-    });
+    await vi.waitFor(() =>
+      expect(organizationsApi.updateOrganization).toHaveBeenCalledWith("org-1", {
+        palette_preset: "OCEAN",
+        primary_color: OCEAN.vars["--color-primary"],
+        accent_color: OCEAN.vars["--color-accent"],
+      }),
+    );
   });
 
   it.each(["tile", "link"])("restores the default palette from a preset with three explicit nulls (%s)", async (via) => {
@@ -413,12 +374,13 @@ describe("Organizer editor colors tab", () => {
     else fireEvent.click(screen.getByRole("button", { name: "Przywróć domyślne" }));
     fireEvent.click(screen.getByRole("button", { name: "Zapisz" }));
 
-    await expectSheetClosedAfterSave();
-    expect(organizationsApi.updateOrganization).toHaveBeenCalledWith("org-1", {
-      palette_preset: null,
-      primary_color: null,
-      accent_color: null,
-    });
+    await vi.waitFor(() =>
+      expect(organizationsApi.updateOrganization).toHaveBeenCalledWith("org-1", {
+        palette_preset: null,
+        primary_color: null,
+        accent_color: null,
+      }),
+    );
   });
 
   it("checks no tile for a stored custom theme and keeps the first tile reachable by Tab", async () => {
@@ -434,7 +396,7 @@ describe("Organizer editor colors tab", () => {
   });
 });
 
-describe("Organizer editor photos tab", () => {
+describe("Wygląd strony photos and description", () => {
   const JPEG = new File(["x"], "logo.jpg", { type: "image/jpeg" });
 
   function tab(name: string) {
@@ -442,47 +404,21 @@ describe("Organizer editor photos tab", () => {
   }
 
   it("opens on Zdjęcia i opis by default, with the photos and the description together", async () => {
-    renderAt("/muzyczne-skrzaty?edit=1");
-    await screen.findByRole("dialog", { name: "Ustawienia" });
+    renderAt("/organization/appearance");
+    await screen.findByRole("region", { name: "Logo" });
 
     expect(tab("Zdjęcia i opis")).toHaveAttribute("aria-selected", "true");
     expect(screen.getByRole("tabpanel")).toHaveAccessibleName("Zdjęcia i opis");
-    expect(screen.getByRole("region", { name: "Logo" })).toBeInTheDocument();
     expect(screen.getByRole("textbox", { name: "O nas" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Zapisz" })).toBeDisabled();
     expect(screen.getByRole("button", { name: "Anuluj" })).toBeDisabled();
   });
 
   it("falls back to Zdjęcia i opis for an unknown tab value", async () => {
-    renderAt("/muzyczne-skrzaty?edit=1&tab=nieznana");
-    await screen.findByRole("dialog", { name: "Ustawienia" });
+    renderAt("/organization/appearance?tab=nieznana");
+    await screen.findByRole("region", { name: "Logo" });
 
     expect(tab("Zdjęcia i opis")).toHaveAttribute("aria-selected", "true");
-  });
-
-  it("switches an open sheet to Zdjęcia from the gallery ghost CTA, and closing drops edit and tab", async () => {
-    await openEditor();
-    expect(tab("Układ i kolor")).toHaveAttribute("aria-selected", "true");
-
-    fireEvent.click(screen.getByRole("link", { name: "Dodaj zdjęcia →" }));
-
-    expect(await screen.findByRole("region", { name: "Logo" })).toBeInTheDocument();
-    expect(tab("Zdjęcia i opis")).toHaveAttribute("aria-selected", "true");
-    expect(currentUrl()).toContain("/muzyczne-skrzaty?edit=1&tab=photos");
-
-    fireEvent.click(tab("Układ i kolor"));
-
-    expect(currentUrl()).toContain("/muzyczne-skrzaty?edit=1&tab=layout");
-
-    fireEvent.click(screen.getByRole("link", { name: "Dodaj zdjęcia →" }));
-
-    expect(await screen.findByRole("region", { name: "Logo" })).toBeInTheDocument();
-    expect(tab("Zdjęcia i opis")).toHaveAttribute("aria-selected", "true");
-
-    fireEvent.click(screen.getByRole("button", { name: "Zamknij" }));
-
-    expect(screen.queryByRole("dialog", { name: "Ustawienia" })).not.toBeInTheDocument();
-    expect(currentUrl()).toBe("/muzyczne-skrzaty");
   });
 
   it("uploads a photo right away without making the draft dirty", async () => {
@@ -494,7 +430,7 @@ describe("Organizer editor photos tab", () => {
       thumb_url: "https://cdn/m-1-t",
       sort_order: 0,
     });
-    renderAt("/muzyczne-skrzaty?edit=1&tab=photos");
+    const router = renderAt("/organization/appearance?tab=photos");
     const logo = within(await screen.findByRole("region", { name: "Logo" }));
 
     fireEvent.change(logo.getByLabelText("Dodaj logo"), { target: { files: [JPEG] } });
@@ -504,10 +440,10 @@ describe("Organizer editor photos tab", () => {
     );
     expect(screen.getByRole("button", { name: "Zapisz" })).toBeDisabled();
 
-    fireEvent.click(screen.getByRole("button", { name: "Zamknij" }));
+    await act(() => router.navigate("/home"));
 
     expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument();
-    expect(screen.queryByRole("dialog", { name: "Ustawienia" })).not.toBeInTheDocument();
+    expect(await screen.findByText("Panel")).toBeInTheDocument();
   });
 
   it("moves roving focus across both pills with the arrow keys", async () => {
@@ -522,30 +458,20 @@ describe("Organizer editor photos tab", () => {
     fireEvent.keyDown(tab("Układ i kolor"), { key: "ArrowLeft" });
     expect(tab("Zdjęcia i opis")).toHaveFocus();
   });
-});
 
-describe("Organizer editor description tab", () => {
-  it("opens Zdjęcia i opis from the about ghost, previews the typed description live and saves it trimmed", async () => {
+  it("saves the typed description trimmed", async () => {
     vi.mocked(organizationsApi.updateOrganization).mockResolvedValue({ ...MY_ORGANIZATION, description: "Śpiewamy." });
-    await openEditor();
-
-    fireEvent.click(screen.getByRole("link", { name: "Dodaj opis →" }));
+    renderAt("/organization/appearance?tab=photos");
     const textarea = await screen.findByRole("textbox", { name: "O nas" });
-    expect(screen.getByRole("tab", { name: "Zdjęcia i opis" })).toHaveAttribute("aria-selected", "true");
 
     fireEvent.change(textarea, { target: { value: "  Śpiewamy.  " } });
-
-    expect(screen.getByRole("region", { name: "O nas" })).toHaveTextContent("Śpiewamy.");
-    expect(screen.queryByRole("link", { name: "Dodaj opis →" })).not.toBeInTheDocument();
     expect(screen.getByText("13/1000")).toBeInTheDocument();
 
-    vi.mocked(organizationsApi.getPublicOrganization).mockResolvedValue({ ...ORGANIZATION, description: "Śpiewamy." });
     vi.mocked(organizationsApi.getMyOrganization).mockResolvedValue({ ...MY_ORGANIZATION, description: "Śpiewamy." });
     fireEvent.click(screen.getByRole("button", { name: "Zapisz" }));
 
-    await expectSheetClosedAfterSave();
+    expect(await screen.findByRole("status")).toHaveTextContent("Zapisano");
     expect(organizationsApi.updateOrganization).toHaveBeenCalledWith("org-1", { description: "Śpiewamy." });
-    expect(screen.getByRole("region", { name: "O nas" })).toHaveTextContent("Śpiewamy.");
   });
 });
 

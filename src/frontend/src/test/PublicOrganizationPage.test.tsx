@@ -1,4 +1,4 @@
-import { act, fireEvent, screen } from "@testing-library/react";
+import { act, screen } from "@testing-library/react";
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import * as groupsApi from "../api/groups";
 import * as organizationsApi from "../api/organizations";
@@ -6,7 +6,7 @@ import { PublicOrganizationPage } from "../features/owner-page/PublicOrganizatio
 import { buildOrgThemeVars } from "../theme/orgPalette";
 import { findPreset } from "../theme/palettes";
 import { createQueryWrapper } from "./queryClient";
-import { getTestLocation, renderWithRoute } from "./renderWithRoute";
+import { renderWithRoute } from "./renderWithRoute";
 
 let mockAuth: { token: string | null };
 vi.mock("../auth/AuthContext", () => ({ useAuth: () => mockAuth }));
@@ -161,57 +161,49 @@ describe("PublicOrganizationPage", () => {
 
     expect(await screen.findByRole("heading", { level: 1, name: "Muzyczne Skrzaty" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Udostępnij" })).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Ustawienia" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "Ustawienia" })).not.toBeInTheDocument();
     expect(screen.queryByText("Napisz kilka zdań o sobie i swoich zajęciach — odwiedzający zobaczą je tutaj. Widzisz to tylko Ty.")).not.toBeInTheDocument();
     expect(organizationsApi.getMyOrganization).not.toHaveBeenCalled();
   });
 
-  it("ignores ?edit=1 for a logged-in non-owner", async () => {
+  it("shows no settings link to a logged-in non-owner", async () => {
     mockAuth = { token: "other-token" };
     vi.mocked(organizationsApi.getPublicOrganization).mockResolvedValue(ORGANIZATION);
     vi.mocked(organizationsApi.getMyOrganization).mockResolvedValue({ ...MY_ORGANIZATION, slug: "inna-org" });
 
-    renderAt("/muzyczne-skrzaty?edit=1");
+    renderAt("/muzyczne-skrzaty");
 
     expect(await screen.findByRole("heading", { level: 1, name: "Muzyczne Skrzaty" })).toBeInTheDocument();
     await vi.waitFor(() => expect(organizationsApi.getMyOrganization).toHaveBeenCalled());
-    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Ustawienia" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "Ustawienia" })).not.toBeInTheDocument();
     expect(screen.queryByText("Napisz kilka zdań o sobie i swoich zajęciach — odwiedzający zobaczą je tutaj. Widzisz to tylko Ty.")).not.toBeInTheDocument();
   });
 
-  it("shows the plain visitor page with ?edit=1 when the owner check fails", async () => {
+  it("shows the plain visitor page when the owner check fails", async () => {
     mockAuth = { token: "owner-token" };
     vi.mocked(organizationsApi.getPublicOrganization).mockResolvedValue(ORGANIZATION);
     vi.mocked(organizationsApi.getMyOrganization).mockRejectedValue(new Error("network"));
 
-    renderAt("/muzyczne-skrzaty?edit=1");
+    renderAt("/muzyczne-skrzaty");
 
     expect(await screen.findByRole("heading", { level: 1, name: "Muzyczne Skrzaty" })).toBeInTheDocument();
     await vi.waitFor(() => expect(organizationsApi.getMyOrganization).toHaveBeenCalled());
-    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Ustawienia" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "Ustawienia" })).not.toBeInTheDocument();
     expect(screen.queryByText("Napisz kilka zdań o sobie i swoich zajęciach — odwiedzający zobaczą je tutaj. Widzisz to tylko Ty.")).not.toBeInTheDocument();
   });
 
-  it("shows the owner the ghost and the Ustawienia settings button, which opens edit mode", async () => {
+  it("shows the owner the ghost and the Ustawienia link to Wygląd strony", async () => {
     mockAuth = { token: "owner-token" };
     vi.mocked(organizationsApi.getPublicOrganization).mockResolvedValue(ORGANIZATION);
     vi.mocked(organizationsApi.getMyOrganization).mockResolvedValue(MY_ORGANIZATION);
 
     renderAt("/muzyczne-skrzaty");
 
-    const settings = await screen.findByRole("button", { name: "Ustawienia" });
+    const settings = await screen.findByRole("link", { name: "Ustawienia" });
     expect(screen.getByText("Napisz kilka zdań o sobie i swoich zajęciach — odwiedzający zobaczą je tutaj. Widzisz to tylko Ty.")).toBeInTheDocument();
     const scope = themeScope(settings);
     expect(scope).toContainElement(screen.getByText("Napisz kilka zdań o sobie i swoich zajęciach — odwiedzający zobaczą je tutaj. Widzisz to tylko Ty."));
-    expect(settings).toHaveAttribute("aria-expanded", "false");
-
-    fireEvent.click(settings);
-
-    const { pathname, search } = getTestLocation();
-    expect(pathname + search).toBe("/muzyczne-skrzaty?edit=1");
-    expect(screen.getByRole("button", { name: "Ustawienia" })).toHaveAttribute("aria-expanded", "true");
+    expect(settings).toHaveAttribute("href", "/organization/appearance");
   });
 
   it("keeps the hero, share and footer when the directory request fails", async () => {

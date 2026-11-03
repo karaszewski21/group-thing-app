@@ -22,6 +22,7 @@ import MeetingsPage from "../app/(site)/(panel)/meetings/page";
 import MessagesPage from "../app/(site)/(panel)/messages/page";
 import MessagesConversationIdPage from "../app/(site)/(panel)/messages/[conversationId]/page";
 import OrganizationPage from "../app/(site)/(panel)/organization/page";
+import OrganizationAppearancePage from "../app/(site)/(panel)/organization/appearance/page";
 import PlacesPage from "../app/(site)/(panel)/places/page";
 import PlacesLocationIdEditPage from "../app/(site)/(panel)/places/[locationId]/edit/page";
 import PlacesNewPage from "../app/(site)/(panel)/places/new/page";
@@ -60,6 +61,7 @@ export const PANEL_PAGES: Record<string, ComponentType> = {
   "/messages": MessagesPage,
   "/messages/:conversationId": MessagesConversationIdPage,
   "/organization": OrganizationPage,
+  "/organization/appearance": OrganizationAppearancePage,
   "/places": PlacesPage,
   "/places/:locationId/edit": PlacesLocationIdEditPage,
   "/places/new": PlacesNewPage,

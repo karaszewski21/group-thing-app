@@ -51,6 +51,7 @@ const PANEL = [
   "/messages",
   "/messages/:conversationId",
   "/organization",
+  "/organization/appearance",
 ];
 
 const ADMIN = [

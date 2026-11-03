@@ -11,7 +11,7 @@ interface ShareButtonProps {
 }
 
 /** Shares the public page address. The URL is built from the origin and slug,
- * never from `location.href`, so the owner's `?edit=1` never leaks. */
+ * never from `location.href`, so no query string the page carries leaks. */
 export function ShareButton({ slug, name, label, className, iconOnly = false }: ShareButtonProps) {
   const { toast, showToast } = useToast();
 

@@ -227,10 +227,10 @@ describe("LayoutRenderer gallery slot", () => {
       within(ghost).getByText("Dodaj do 3 zdjęć — odwiedzający zobaczą je po sprawdzeniu. Widzisz to tylko Ty."),
     ).toBeInTheDocument();
     const cta = within(ghost).getByRole("link", { name: "Dodaj zdjęcia →" });
-    expect(cta).toHaveAttribute("href", `/${SLUG}?edit=1&tab=photos`);
+    expect(cta).toHaveAttribute("href", "/organization/appearance?tab=photos");
 
     fireEvent.click(cta);
-    expect(getTestLocation()).toEqual({ pathname: `/${SLUG}`, search: "?edit=1&tab=photos" });
-    expect(getTestRouter().calls.at(-1)).toMatchObject({ method: "replace", url: `/${SLUG}?edit=1&tab=photos` });
+    expect(getTestLocation()).toEqual({ pathname: "/organization/appearance", search: "?tab=photos" });
+    expect(getTestRouter().calls.at(-1)).toMatchObject({ method: "push", url: "/organization/appearance?tab=photos" });
   });
 });

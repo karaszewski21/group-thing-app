@@ -30,7 +30,7 @@ describe("organizer-themed files use role tokens", () => {
     "features/owner-page/editor/PhotosTab.tsx",
     "features/owner-page/PublicOrganizationPage.tsx",
     "features/owner-page/editor/draft.ts",
-    "features/owner-page/editor/EditorSheet.tsx",
+    "features/owner-page/OrganizationAppearancePage.tsx",
     "features/owner-page/editor/LayoutTab.tsx",
     "features/owner-page/editor/UnsavedChangesDialog.tsx",
     "features/owner-page/editor/ColorsTab.tsx",

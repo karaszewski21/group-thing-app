@@ -133,7 +133,7 @@ describe("LayoutRenderer", () => {
     expect(ghost).toHaveAttribute("data-ghost", "about");
     expect(ghost).not.toHaveAttribute("tabindex");
     expect(ghost).not.toHaveAttribute("role");
-    expect(within(ghost).getByRole("link", { name: "Dodaj opis →" })).toHaveAttribute("href", "/?edit=1&tab=photos");
+    expect(within(ghost).getByRole("link", { name: "Dodaj opis →" })).toHaveAttribute("href", "/organization/appearance?tab=photos");
     expect(ghost.querySelectorAll("button, a, [tabindex]")).toHaveLength(1);
   });
 
@@ -492,10 +492,10 @@ describe("LayoutRenderer", () => {
     expect(groupsApi.getOrganizerTerms).toHaveBeenLastCalledWith(SLUG, 2, undefined);
   });
 
-  it("copies origin/slug without the edit param when navigator.share is missing", async () => {
+  it("copies origin/slug without the query string when navigator.share is missing", async () => {
     const writeText = vi.fn().mockResolvedValue(undefined);
     vi.stubGlobal("navigator", { clipboard: { writeText } });
-    window.history.pushState({}, "", "/rodzinny-grajdolek?edit=1");
+    window.history.pushState({}, "", "/rodzinny-grajdolek?tab=1");
 
     renderLayout("CLASSIC", data, "owner-edit");
     await act(async () => {

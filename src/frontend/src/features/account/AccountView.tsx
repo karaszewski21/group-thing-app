@@ -70,7 +70,7 @@ export function AccountView() {
             </Link>
             <ListCard
               rows={[
-                { label: "Wygląd strony", to: `/${organizationSlug}?edit=1` },
+                { label: "Wygląd strony", to: viewPath("organization/appearance") },
                 { label: "Dane organizacji", to: "/organization" },
                 {
                   label: "Moje grupy",

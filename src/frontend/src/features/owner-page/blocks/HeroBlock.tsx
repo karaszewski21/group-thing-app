@@ -93,7 +93,6 @@ export function HeroBlock({ data, variant, heroAction }: BlockProps) {
           />
           <div className="min-w-0 flex-1">
             <h1 className="line-clamp-2 font-serif text-xl leading-tight font-bold wrap-break-word text-ink">{name}</h1>
-            <p className="truncate text-[12.5px] text-ink-soft">domena.pl/{slug}</p>
           </div>
           {!overCover && heroAction}
           <ShareButton

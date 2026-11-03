@@ -6,7 +6,7 @@ interface GhostCopy {
   title: string;
   body: string;
   /** Where in the panel the owner adds what this block shows. */
-  cta?: { label: string; to: string; replace?: true };
+  cta?: { label: string; to: string };
 }
 
 const ADD_TERM = { label: "Dodaj termin →", to: "/meetings" };
@@ -16,13 +16,12 @@ const GHOST_COPY: Partial<Record<BlockId, GhostCopy>> = {
   about: {
     title: "O nas",
     body: "Napisz kilka zdań o sobie i swoich zajęciach — odwiedzający zobaczą je tutaj. Widzisz to tylko Ty.",
-    // Opens the editor on this page, like the gear button: no history entry.
-    cta: { label: "Dodaj opis →", to: "?edit=1&tab=photos", replace: true },
+    cta: { label: "Dodaj opis →", to: "/organization/appearance?tab=photos" },
   },
   gallery: {
     title: "Galeria",
     body: "Dodaj do 3 zdjęć — odwiedzający zobaczą je po sprawdzeniu. Widzisz to tylko Ty.",
-    cta: { label: "Dodaj zdjęcia →", to: "?edit=1&tab=photos", replace: true },
+    cta: { label: "Dodaj zdjęcia →", to: "/organization/appearance?tab=photos" },
   },
   stats: {
     title: "Statystyki",
@@ -97,7 +96,6 @@ export function GhostBlock({ block, unavailable = false }: GhostBlockProps) {
         {cta && (
           <Link
             to={cta.to}
-            replace={cta.replace}
             className="mt-1 inline-flex min-h-[44px] items-center rounded text-[13px] font-bold text-primary-fg focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring"
           >
             {cta.label}

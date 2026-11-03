@@ -83,7 +83,7 @@ describe("in-scope public pages use theme tokens, not literal colors", () => {
     "features/owner-page/blocks/LinkStackBlock.tsx",
     "features/owner-page/blocks/FooterBlock.tsx",
     "features/owner-page/blocks/GhostBlock.tsx",
-    "features/owner-page/editor/EditorSheet.tsx",
+    "features/owner-page/OrganizationAppearancePage.tsx",
     "features/owner-page/editor/LayoutTab.tsx",
     "features/owner-page/editor/UnsavedChangesDialog.tsx",
     "features/owner-page/editor/ColorsTab.tsx",

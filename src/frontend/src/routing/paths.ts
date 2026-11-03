@@ -23,7 +23,8 @@ export type View =
   | "add/event"
   | "add/hunting"
   | "messages"
-  | "organization";
+  | "organization"
+  | "organization/appearance";
 
 /** The URL of a panel view: `/` for home, `/<view>` otherwise. */
 export function viewPath(view: View): string {

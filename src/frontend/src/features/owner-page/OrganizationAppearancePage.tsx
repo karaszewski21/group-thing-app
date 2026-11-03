@@ -214,7 +214,10 @@ function AppearanceEditor({ owner }: { owner: MyOrganizationResponse }) {
         <div className="flex gap-2.5">
           <button
             type="button"
-            onClick={() => change(baseline)}
+            onClick={() => {
+              setError(null);
+              setDraft(null);
+            }}
             disabled={!dirty || saving}
             className="min-h-[44px] rounded-full border-[1.5px] border-line bg-cream px-5 py-2.5 text-sm font-extrabold text-ink disabled:cursor-not-allowed disabled:opacity-50"
           >

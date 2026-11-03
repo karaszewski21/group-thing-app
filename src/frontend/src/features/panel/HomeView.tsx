@@ -148,7 +148,7 @@ export function HomeView() {
             title="Dopracuj stronę organizacji"
             description="Wybierz układ i kolory swojej strony — zobaczą je odwiedzający."
             ctaLabel="Przejdź →"
-            ctaTo={`/${organizationSlug}?edit=1`}
+            ctaTo={viewPath("organization/appearance")}
             onDismiss={dismissOrgPolishHint}
           />
         )}

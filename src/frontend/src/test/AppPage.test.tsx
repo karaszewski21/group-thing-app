@@ -611,7 +611,7 @@ describe("AppPage — dismissible home hints", () => {
     expect(screen.queryByText("Ustal pierwsze spotkanie w swojej grupie.")).not.toBeInTheDocument();
   });
 
-  it("with an Organization the leader sees \"Dopracuj stronę organizacji\" linking to its public page instead", async () => {
+  it("with an Organization the leader sees \"Dopracuj stronę organizacji\" linking to Wygląd strony instead", async () => {
     mockOrganizerDefaults();
     vi.mocked(organizationsApi.getMyOrganization).mockResolvedValue({
       id: "1",
@@ -630,7 +630,7 @@ describe("AppPage — dismissible home hints", () => {
     renderPanel();
 
     const link = await screen.findByRole("link", { name: "Przejdź →" });
-    expect(link).toHaveAttribute("href", "/muzyczne-skrzaty?edit=1");
+    expect(link).toHaveAttribute("href", "/organization/appearance");
     expect(
       screen.getByText("Wybierz układ i kolory swojej strony — zobaczą je odwiedzający."),
     ).toBeInTheDocument();
